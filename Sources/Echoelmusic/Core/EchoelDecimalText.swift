@@ -5,20 +5,28 @@
 //  Every adjustable number in this app is read and typed through ONE control
 //  (`EchoelValueField` + `EchoelNumberPad`, the app-wide law in CLAUDE.md).
 //
-//  `git grep -c "EchoelValueField(" -- Sources` → 64 matching LINES, but **TWO of them are
-//  comments** — this one and `EchoelValueField.swift`'s own `stacksLabel` doc (added by #353e).
-//  It was 64 / TWO before #431, 65 / THREE after it, and 64 / TWO again since #440 re-ran the
-//  command and found `EchoelNumberPad.swift`'s `NumberPadEntry` doc no longer spelling the
-//  token. That is exactly the drift this paragraph predicts, now with a third data point: the
-//  count moves whenever anyone WRITES about it — and it moves BACK when someone rewrites a
-//  comment for an unrelated reason, which is worse, because nothing looks like it changed.
+//  `git grep -c "EchoelValueField(" -- Sources` → **61** matching LINES, of which **FOUR are
+//  comments**: this one, `EchoelValueField.swift`'s `stacksLabel` doc and its own quoting of
+//  this command, and `EchoelFXView.swift`'s #443 note about the scan's blind spot.
+//  It was 64 / TWO before #431, 65 / THREE after it, 64 / TWO again after #440, and 61 / FOUR
+//  now. That is exactly the drift this paragraph predicts, and the FOUR is its sharpest data
+//  point yet: the comment count had ALREADY doubled from two to four before anyone re-ran the
+//  command, purely because two later slices wrote prose about this scan. The count moves
+//  whenever anyone WRITES about it — and it moves BACK when someone rewrites a comment for an
+//  unrelated reason, which is worse, because nothing looks like it changed.
 //  #431's own edition then quoted the stale 64 as its SITE count, conflating the two numbers.
 //  ⛔ THE PARENTHETICAL THAT STOOD HERE SAID "the only comment-line hit in the tree", and #353e
 //  falsified it the moment it landed: a doc that quotes the command has to say WHICH hits it
 //  subtracts, and "the only" is a claim about the whole tree that any future comment can break.
-//  Count the comment hits, do not assume there is one. So: **62** call sites, of which
-//  **57** are reachable — the 5 in `PianoRollView`, doorless per CLAUDE.md, are the only
-//  unreachable ones. ⛔ Two editions in a row quoted the raw grep output as the call-site
+//  Count the comment hits, do not assume there is one. So: **57** call sites (61 lines − 4
+//  comments), and since #475 **all 57 are reachable**.
+//  ⛔ THAT LAST CLAUSE IS NEW AND IT REPLACES A SUBTRACTION. Until #475 this read "**62** call
+//  sites, of which **57** are reachable — the 5 in `PianoRollView`, doorless per CLAUDE.md, are
+//  the only unreachable ones." Both numbers were right; what changed is that the five
+//  unreachable rows are GONE rather than excluded — #475 deleted the piano-roll view struct
+//  they lived in. The reachable figure is therefore unchanged at 57 while the total fell to
+//  match it, which is the one way a count can move without any row being added or removed.
+//  ⛔ Two editions in a row quoted the raw grep output as the call-site
 //  count and were off by exactly one, because the line that documents the number is itself
 //  matched by the command it documents. `git grep -c` counts lines, not call sites.
 //  ⛔ This line first said "58", which was neither number and had no command beside it — in

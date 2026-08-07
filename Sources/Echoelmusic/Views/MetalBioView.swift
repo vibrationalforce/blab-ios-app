@@ -868,8 +868,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    // breathPhase is a WRAPPING 0→1 phase; the shader uses breath as
                    // a MAGNITUDE (spread/restGlow), so feeding it raw made the whole
                    // figure saw-collapse ~30 % at every cycle wrap (audit #4). Shape
-                   // it into a smooth hump — same fix PianoRollView applied to MPE
-                   // press ("swell through the breath, not saw-reset at the wrap").
+                   // it into a smooth hump — the same fix the piano-roll view once
+                   // applied to MPE press ("swell through the breath, not saw-reset at
+                   // the wrap"). ⛔ That view was deleted by #475, so this is a NAMED
+                   // precedent with no code to open; the reasoning stands on its own.
                    // The idle fallback is already a wrap-free sine; keep it raw.
                    breath: bio.map { sin(Float.pi * min(max($0.breathPhase, 0), 1)) }
                        ?? (idle ? idleBreath : 0.5),

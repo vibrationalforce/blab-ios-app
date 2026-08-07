@@ -390,7 +390,9 @@ public final class PatternEngine {
     /// standing while the list underneath already said otherwise, which is the exact
     /// mis-mapping this block exists to prevent.
     ///   REACHABLE — `.transportButton`, `.generate`, `.loopExport`.
-    ///   UNREACHABLE — `.pianoRoll` (`PianoRollView` has zero instantiations since #178),
+    ///   UNREACHABLE — `.pianoRoll` (the `PianoRollView` struct had zero instantiations
+///   since #178 and was DELETED by #475; `PianoRollModel` is what survives, and it
+///   never sets this case),
     ///   `.arrangement` (`ArrangementPlayer.play(store:…)` has no caller since
     ///   `ArrangementView` went with #121 Slice 4), and `.timelineRegion`, whose only
     ///   writer is `TimelineRegionPlayer.play(document:)` — that method lost its last
@@ -413,7 +415,7 @@ public final class PatternEngine {
         /// and applyVariation — the `generate[<reason>]` breadcrumb on the next log line
         /// disambiguates which.
         case generate
-        case pianoRoll         // UNREACHABLE (#178) — PianoRollView is unmounted
+        case pianoRoll         // UNREACHABLE — the view was unmounted (#178), then deleted (#475)
         case arrangement       // UNREACHABLE — ArrangementPlayer.play has no caller
         case timelineRegion    // TimelineRegionPlayer (unreachable since ▶ stopped reading the document)
         case loopExport        // LoopExporter (offline render)

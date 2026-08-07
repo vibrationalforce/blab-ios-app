@@ -6347,7 +6347,7 @@ struct EchoelStudioView: View {
     /// and everything derived from it (the roll clip, `exportMIDI()`) kept whatever level
     /// was baked at compose time. A fader pulled to 0 exported silence, permanently.
     ///
-    /// The level stays baked into VELOCITY on purpose. `PianoRollView` reads velocity as
+    /// The level stays baked into VELOCITY on purpose. `PianoRollModel` reads velocity as
     /// "is this note audible" (the two `audibleVelocityFloor` comparisons — the felt-sub
     /// decision and the `MusicalFrame` publish) and as the note-on amplitude itself, so
     /// moving the user term to trigger time
@@ -6695,7 +6695,7 @@ struct EchoelStudioView: View {
             // Zero new state, zero new modifier: a button, nothing else.
             // ⛔ NO bar count in this label. `loopBars` drives the WAV capture length, but
             // the MIDI region length comes from `pianoRoll.arrangementForExport()`, and
-            // after `open(_:)` those disagree: `PianoRollView.load(_:)` clears
+            // after `open(_:)` those disagree: `PianoRollModel.load(_:)` clears
             // `arrangementBars`, so `arrangementForExport()` returns 1 bar while `loopBars`
             // still reads 8 — a label promising "8 bars" over a 1-bar file. Naming no number
             // is honest; naming the wrong one is the lying-control class again.
@@ -8122,7 +8122,7 @@ struct EchoelStudioView: View {
         //
         //  · "No beat" is true and irrelevant. A note's onset is decided by WHEN THE TICK
         //    FIRES, and the melody rides the same tick: `pattern.onTick` is installed in
-        //    `PianoRollView`, from the unconditional `pianoRoll.start(pattern:…)` at app
+        //    `PianoRollModel.start`, from the unconditional `pianoRoll.start(pattern:…)` at app
         //    start. Drums were never what carried the groove here — killing them (#166/#167)
         //    did not remove anything this line depended on.
         //  · "Pure Flächen run straight" is already what the DATA says: of the 16 genres in
@@ -8184,7 +8184,7 @@ struct EchoelStudioView: View {
         // SILENCE DIAG (founder "alles ist still", 2026-07-14): the melody only sounds
         // when the roll-slot lane is audible — pianoRoll.mixGain mirrors the first MIDI
         // lane's mute/solo/level (Timeline.rollSlotGain). mixGain≈0 ⇒ every noteOn is
-        // gated off (PianoRollView:529 `laneAudible`) → total silence even though notes
+        // gated off (`PianoRollModel`'s `laneAudible` gate) → total silence even though notes
         // generate + the transport plays. Logging it makes the cause pastable.
         // vMax + mix: the two numbers that decide the NEXT device log (#205 follow-up).
         // Device log 2472 showed `mfNotes=5 mfAmp=0.000 level=0.00` for a whole session

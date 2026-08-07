@@ -25,7 +25,17 @@ public enum RollHit: Equatable, Sendable {
 public enum RollHitTest {
 
     /// Classify a point in canvas coordinates (x = time L→R, y = pitch TOP high →
-    /// BOTTOM low, matching `PianoRollView.yForPitch`). Notes are tested topmost-
+    /// BOTTOM low).
+    ///
+    /// ⛔ THIS SENTENCE USED TO END "matching `PianoRollView.yForPitch`", AND #475 DELETED
+    /// THAT SYMBOL. The convention itself is unchanged and still correct — but it no longer
+    /// has an external referent, so it is stated outright here instead of delegated to a
+    /// function that does not exist. The rule: top of the canvas is the HIGHEST pitch, which
+    /// is the inversion every roll-shaped surface needs and the one a reimplementation gets
+    /// wrong first. A citation is only worth its target; when the target dies the citation
+    /// has to become the statement, not a dangling name (#456).
+    ///
+    /// Notes are tested topmost-
     /// first so an overlapping note nearest the front wins; within a hit note, the
     /// last `edgeSlop` points of its drawn width read as the resize edge (but never
     /// more than half the note, so a 1-step note stays draggable as a body). A miss

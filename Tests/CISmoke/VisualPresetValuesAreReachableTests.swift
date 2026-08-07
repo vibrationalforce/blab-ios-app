@@ -62,7 +62,13 @@
 //     `param`/`knob` helpers in `EchoelStudioView`, which render SEVENTEEN rows in the Sound
 //     panel between them (TEN of those are `0…1` — nine `knob` plus `param("Sustain", …, 0...1)`,
 //     which the first version of this line missed). So it is twenty-five rows, not ten —
-//     twenty-four reachable, since `PianoRollView`'s "Vel" is in a doorless file. Of the eight
+//     ⛔ "twenty-four reachable, since `PianoRollView`'s 'Vel' is in a doorless file" WAS TRUE
+//     UNTIL #475 (2026-08-07), which deleted the 988-line `PianoRollView` struct and with it
+//     that row. The gap between total and reachable is now ZERO — and the whole-tree figure
+//     moved to match rather than the reachable one moving (`EchoelValueField(` call sites:
+//     62 → **57**, all reachable). This paragraph is a #427-era snapshot of rows still on the
+//     4-place DEFAULT; #430 and #440 have since given every one of them an explicit grid, so
+//     read it as history, not as a count to act on. Of the eight
 //     direct sites, two want four decimals on purpose (A4 concert pitch and the locked tempo
 //     both say "editable to 0.0001" in their own comments), which is exactly why this is NOT
 //     written as an app-wide rule: a blanket `decimals: 2` would break those two. Scoped to one

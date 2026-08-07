@@ -14,10 +14,19 @@
 // decision seam could have caught it, which is why that seam is now a pure type in `Core/`
 // (repo convention: FlashGuard, AutomationCanvasMath).
 //
-// Still NOT covered: the two call sites themselves (PianoRollView's button, EchoelStudioView's
-// onChange) sit in `View` bodies, unreachable from XCTest — same limit as the panic fan-out,
-// task #168. Notably, `decide` cannot express the defect any more, but nothing here proves the
-// observer calls it before its guard; that is enforced by comment, not by test.
+// Still NOT covered: the call sites themselves sit in `View` bodies, unreachable from XCTest —
+// same limit as the panic fan-out, task #168. Notably, `decide` cannot express the defect any
+// more, but nothing here proves the observer calls it before its guard; that is enforced by
+// comment, not by test.
+//
+// ⛔ AND THE COUNT IN THAT SENTENCE WAS "the two call sites (PianoRollView's button,
+// EchoelStudioView's onChange)" UNTIL #475. The roll's own button went with the 988-line
+// `PianoRollView` struct on 2026-08-07; the producer that keeps the pause meaningful is now
+// `WorkspaceView`'s transport ■ (`pianoRoll.requestPlaybackOnlyStop()`), which is what
+// `OneStartControlTests.testThePlaybackOnlyStopHasAReachableProducer` in the BLOCKING bundle
+// actually pins. The layers pinned below are unchanged — the accessor and `decide` never lived
+// in the view. This note is here because a header naming a deleted button reads as "the feature
+// was removed", when what was removed is one of its two callers (#456).
 
 import XCTest
 @testable import Echoelmusic

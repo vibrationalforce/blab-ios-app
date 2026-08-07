@@ -29,9 +29,13 @@
 // old form would be green on a tree that had lost BOTH copies.
 //
 // ⚠️ WHAT THIS FILE CANNOT DO. It proves the law survived the move. It proves nothing about
-// whether anyone can reach it: `PianoRollView` is doorless, so this arithmetic is unreachable
-// from the app today. It is hoisted anyway because a doorless copy is exactly where a later
-// deletion loses a decision by accident — not because a user is waiting for it.
+// whether anyone can reach it. When #470 wrote this, the reason was "`PianoRollView` is
+// doorless"; since #475 the reason is stronger and simpler — that view is DELETED, so the
+// law has no production caller at all (see the retired third assertion at the bottom of
+// `testTheViewNoLongerDeclaresItsOwnCopy`). It is hoisted anyway because a copy inside a
+// doomed view is exactly where a later deletion loses a decision by accident — not because
+// a user is waiting for it. #475 is the deletion #470 was insuring against, and the law
+// came through it intact; that is the insurance paying out, not a reason to drop the file.
 
 import Foundation
 import XCTest
@@ -151,14 +155,29 @@ final class TheUnitToPeriodLawSurvivesTheViewTests: XCTestCase {
             try String(contentsOf: studio.appendingPathComponent("PianoRollView.swift"),
                        encoding: .utf8))
         XCTAssertFalse(view.contains("func occurrencePeriod(forUnit"), """
-            PianoRollView declares the unit→period law again. That view is doorless and \
-            unmounted (#178); a second copy there is unreachable AND authoritative-looking, \
+            PianoRollView.swift declares the unit→period law again. The view that used to \
+            own it was doorless (#178) and is now DELETED (#475) — this file holds only \
+            PianoRollModel. A second copy here is unreachable AND authoritative-looking, \
             which is how one decision quietly becomes two (#416). Call RollHitTest instead.
             """)
-        XCTAssertTrue(view.contains("RollHitTest.occurrencePeriod(forUnit:"), """
-            The paint-lane no longer calls the hoisted law. Removing a copy is only half the \
-            hoist — if the call site went away too, this assertion should be deleted together \
-            with the lane, deliberately, not left to rot.
-            """)
+        // ⛔ A THIRD ASSERTION STOOD HERE AND #475 RETIRED IT — following the instruction its
+        // own failure message gave, rather than loosening it. It read:
+        //
+        //     XCTAssertTrue(view.contains("RollHitTest.occurrencePeriod(forUnit:"), …
+        //     "The paint-lane no longer calls the hoisted law. Removing a copy is only half
+        //      the hoist — if the call site went away too, this assertion should be deleted
+        //      together with the lane, deliberately, not left to rot."
+        //
+        // The lane went away: #475 (2026-08-07) deleted the 988-line `PianoRollView` struct,
+        // and `git grep -n "occurrencePeriod(forUnit" -- Sources` now returns exactly ONE hit,
+        // the declaration in `RollHitTest.swift`. **The law has zero production callers.**
+        // That is stated here rather than asserted, and the distinction is the point: a
+        // "must have zero callers" check would go red the day someone re-doors a note editor,
+        // which is correct work — the #364 trap of a rule that fires on the future.
+        //
+        // Why the law is kept at all, unchanged from #470: a hoisted decision sitting in a
+        // deleted view's file is exactly where a later cleanup loses a decision by accident.
+        // It is exercised by `Tests/EchoelmusicTests/NoteOperatorsTests.swift`. Assertions 1
+        // and 2 above still carry the whole hoist: the core declares it, the old home does not.
     }
 }

@@ -181,9 +181,11 @@ acceptance line.
 > - **Drums / step sequencer / sampler: GONE** (#166 "keine Drums" 2026-07-26, full
 >   teardown #167). The `BeatPlayer` / `SamplerVoice` / sample-library / velocity /
 >   swing / humanization bullets below are HISTORY, not status.
-> - **Piano roll: GONE as a surface** (#178, 2026-07-26). `PianoRollModel` survives as
->   the note engine and `MusicalFrame` publisher; `PianoRollView` has no door and is
->   not mounted. There is no note editor in the app.
+> - **Piano roll: GONE as a surface** (#178, 2026-07-26) **and gone as code** (#475,
+>   2026-08-07). `PianoRollModel` survives as the note engine and `MusicalFrame`
+>   publisher; the `PianoRollView` struct was doorless and unmounted, and has now been
+>   deleted outright (988 lines). The FILE `Studio/PianoRollView.swift` remains — it is
+>   where the model lives. There is no note editor in the app.
 > - **Clips + Arrange timeline: GONE** (#121 Slice 4 — `ClipView` 807dc0d,
 >   `ArrangeTimelineView` eb58e7a). The model retires in Slice 5 (#132).
 > - **Genres: 16** — `MusicStyle.offered.count`. The enum holds 33 cases

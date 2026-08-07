@@ -24,7 +24,9 @@
 //
 //     git grep -n '\.font(\.system(size:' -- Sources
 //
-// 92 hits, 2 of them whole-line comments. Each remaining hit was classified by whether it, or
+// 92 hits AS MEASURED WHEN THIS BLOCK WAS WRITTEN — **77 since #475** (see the struck bullet
+// below). The classification that follows is the 92-era one and is kept intact so the
+// subtraction is checkable. 2 of them whole-line comments. Each remaining hit was classified by whether it, or
 // the nearest preceding non-blank non-comment line, owns an `Image(systemName:`. That leaves 17
 // non-icon hits, and one of those (`FloatingVisualWindow.swift:935`) is the multi-line-ternary
 // resize glyph this file's next paragraph already calls out — so 16 real ones:
@@ -33,9 +35,15 @@
 //     is a fixed-geometry asset; Dynamic Type has no meaning there.
 //   · `Studio/EchoelLogoMark.swift` (1) — a `Canvas` that resolves `Text("E")` into a drawn
 //     glyph at `52 * s`. Same reason: artwork, not reading matter.
-//   · `Studio/PianoRollView.swift` (8) — doorless and unmounted since the founder's
-//     "Pianoroll soll raus" (2026-07-26, CLAUDE.md). Fixing type in a view nobody can open is
-//     upkeep without a user; if it is ever re-doored, this paragraph is the checklist.
+//   · ⛔ `Studio/PianoRollView.swift` (8) — GONE. This bullet said "doorless and unmounted
+//     since the founder's 'Pianoroll soll raus' (2026-07-26)", and #475 (2026-08-07) finished
+//     that sentence: the 988-line `PianoRollView` struct is deleted, so the file's
+//     `.font(.system(size:` count is now **0** (re-measured, not assumed — the whole-tree
+//     figure fell 92 → 77, i.e. the roll held 15 hits, 8 of which were the non-icon ones
+//     counted here). The bullet is kept as an obituary rather than removed, because the
+//     paragraph's arithmetic below ("16 real ones") is only checkable if the reader can see
+//     which line left. **The live figure is EIGHT non-icon hits, not sixteen.** The rest of
+//     the classification is untouched; nothing else moved.
 //   · `Sources/EchoelmusicWatch/EchoelWatchApp.swift` (1) and
 //     `Sources/EchoelmusicWidgets/EchoelBioWidget.swift` (2) — the big `Text("\(bpm)")` numerals
 //     at 40/44/48 pt. Reading matter, genuinely, but in HOST-LAID-OUT surfaces: a widget family

@@ -2,7 +2,8 @@
 // CoreInfrastructureBehaviorTests.swift
 // Echoelmusic — Behavioral tests for core infrastructure: CrashSafeStatePersistence.
 // (The UndoRedoManager tests were removed 2026-07-21: that singleton no longer
-//  exists — undo/redo now lives in TimelineStore + PianoRollView.)
+//  exists — undo/redo now lives in TimelineStore + PianoRollModel. The second name read
+//  `PianoRollView` until #475 deleted that struct; the undo stack was always the MODEL's.)
 
 import XCTest
 @testable import Echoelmusic

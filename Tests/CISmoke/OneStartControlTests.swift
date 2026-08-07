@@ -137,10 +137,16 @@ final class OneStartControlTests: XCTestCase {
     /// 828.182, `stopEverything(transport-stopped)` 14 ms later. A second full Stop wearing
     /// a different glyph.
     ///
-    /// `PianoRollView.swift` is excluded deliberately: it holds both the declaration and the
-    /// roll's own pause button, and that view has had no door since 2026-07-26. Counting it
-    /// would let this test go green on a producer no user can reach — which is precisely the
-    /// state it is meant to detect.
+    /// `PianoRollView.swift` is excluded deliberately, and since #475 the reason is SIMPLER
+    /// than it was — which is exactly why the sentence is rewritten instead of left standing.
+    /// It used to say the file "holds both the declaration and the roll's own pause button".
+    /// The button went with the 988-line `PianoRollView` struct (#475, 2026-08-07); what is
+    /// left in that file is `PianoRollModel`, and its DECLARATION line
+    /// (`public func requestPlaybackOnlyStop() { … }`) still contains the searched substring.
+    /// So the exclusion is now purely "don't count the declaration as its own caller" — the
+    /// pre-#475 phrasing would have had the next reader looking for a button that is gone.
+    /// The mechanism is unchanged and still load-bearing: counting this file would let the
+    /// test go green on a producer no user can reach, which is the state it detects.
     func testThePlaybackOnlyStopHasAReachableProducer() throws {
         let producers = try sourceLines().filter {
             $0.text.contains("requestPlaybackOnlyStop()") && $0.file != "PianoRollView.swift"

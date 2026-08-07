@@ -542,8 +542,9 @@ struct PlaybackToggleButton: View {
         //     828.196  stopEverything(transport-stopped): transport + all voices released
         //
         // `TransportTransition.decide` returns `.endSession` unless a playback-only stop was
-        // REQUESTED, and the only producer of that request was `PianoRollView`, whose door was
-        // removed on 2026-07-26. So this ■ ended the whole session — a second full Stop
+        // REQUESTED, and the only producer of that request was the `PianoRollView` struct,
+        // whose door was removed on 2026-07-26 (and the struct itself deleted by #475, so do
+        // not go looking for it). So this ■ ended the whole session — a second full Stop
         // wearing a different glyph, i.e. exactly the duplicate the slice claimed to have
         // removed. The rationale above is now honoured instead of repaired away: `toggle()`
         // raises the pause intent, so the sentence describes what the button does. This is

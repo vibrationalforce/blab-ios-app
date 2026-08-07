@@ -203,8 +203,17 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
     // MARK: - The allowed set
 
     /// The ONLY call sites permitted to omit `decimals:` and inherit the default 4, each with
-    /// the reason it is allowed. Measured on this tree, not assumed: after #440 the sweep finds
-    /// exactly these two and nothing else.
+    /// the reason it is allowed. Measured on this tree, not assumed: after #475 the sweep finds
+    /// exactly ONE and nothing else.
+    ///
+    /// ⛔ THIS LIST HELD TWO UNTIL #475, AND LOSING THE SECOND ONE IS WHY THAT COMMIT HAD TO
+    /// TOUCH THIS FILE. The `PianoRollView` entry below covered the roll's "Vel" field, and the
+    /// reverse check at the bottom of `testNoNewRowQuietlyInheritsTheDefaultGrid` — "the
+    /// allow-list must not outlive its entries" — turns a deleted row into a RED test on
+    /// purpose. #475 deleted the 988-line view, so the row went with it and the entry became a
+    /// permission describing nothing. That is the guard working, not the guard breaking: a
+    /// commit that removes a surface must pull the guards over that surface in the same breath
+    /// (#456), and this is the second time in eight days that law has been paid.
     ///
     /// · `BodyTempoField` — locked tempo. DELIBERATE. Its own comment reads "Locked: exact,
     ///   editable to 0.0001 BPM (Echoel number pad)." Locking is the moment the number stops
@@ -217,19 +226,17 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
     ///   ever agreed by accident — BOTH were silently inheriting the default 4 while A4's own
     ///   comment promised 0.01 Hz. An intent anchored to a neighbour rots when the neighbour
     ///   is corrected for an unrelated reason.
-    /// · `PianoRollView` — the "Vel" field. UNREACHABLE, not deliberate. The founder removed
-    ///   the note editor on 2026-07-26 ("Pianoroll soll raus") and `git grep 'PianoRollView('`
-    ///   over `Sources/` outside its own file returns nothing. Nothing a user can reach renders
-    ///   this row, so its grid decides nothing — it is listed to keep the count honest, not
-    ///   because it is right.
-    ///   ⛔ This entry used to end "The struct survives only because a test calls its static
-    ///   `occurrencePeriod(forUnit:)`." That was true and is not any more: #470 hoisted that one
-    ///   pure function into `RollHitTest`, so the struct now has NO caller of any kind. It is
-    ///   kept here because the "Vel" row still exists inside it — deleting the ~995-line view
-    ///   half is a separate, founder-visible call, not a side effect of a hoist.
+    /// ⛔ THE SECOND ENTRY IS GONE, AND ITS OBITUARY BELONGS HERE RATHER THAN IN THE HISTORY.
+    /// `PianoRollView`'s "Vel" field sat on this list from #440 to #475, described as
+    /// "unreachable, not deliberate": the founder removed the note editor on 2026-07-26
+    /// ("Pianoroll soll raus"), #178 took its door, #470 hoisted away the last thing that
+    /// referenced the struct at all, and #475 deleted the struct. The row it named no longer
+    /// exists, so the entry had to go with it — an allow-list that outlives its entries hands
+    /// the next reader a permission that describes nothing. `PianoRollView.swift` itself still
+    /// exists and is still live: what it holds now is `PianoRollModel`, the `MusicalFrame`
+    /// publisher. Do not read this obituary as "that file went away."
     private static var allowedToOmitDecimals: [String: String] {
-        ["Studio/BodyTempoField.swift": "deliberate — locked tempo is exact to 0.0001 BPM",
-         "Studio/PianoRollView.swift": "unreachable — the note editor was removed (#178)"]
+        ["Studio/BodyTempoField.swift": "deliberate — locked tempo is exact to 0.0001 BPM"]
     }
 
     /// The whole family, in one assertion: a row that does not state its grid is either on the
@@ -239,8 +246,11 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
         let sites = try valueFieldCallSites()
         XCTAssertGreaterThan(sites.count, 40, """
             Only \(sites.count) `EchoelValueField(` call sites were found. The app had 62 at \
-            #440; a collapsed count means the paren matcher or the walk is broken, and every \
-            assertion below would then be vacuous.
+            #440, and 57 after #475 deleted the five rows that lived inside the unreachable \
+            piano-roll view. A collapsed count means the paren matcher or the walk is broken, \
+            and every assertion below would then be vacuous. The threshold is a FLOOR, not the \
+            current figure — it is deliberately loose so an ordinary row being added or removed \
+            does not turn this red; only a broken walk can.
             """)
 
         let silent = sites.filter { !$0.args.contains("decimals:") }

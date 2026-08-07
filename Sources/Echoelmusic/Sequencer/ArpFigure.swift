@@ -8,10 +8,17 @@
 //  ⛔ WHY THIS EXISTS AS A NEW CORE RATHER THAN A CONTROL ON THE EXISTING ARP, because that is
 //  the decision a reader will want to overturn first. `BreathArp` already walks a chord, and its
 //  PATTERN half is genuinely doorless: `BreathArp.pattern`'s one caller is
-//  `PianoRollModel.stampArp`, whose one call site sits inside `PianoRollView` — and
-//  `PianoRollView` is instantiated NOWHERE since the founder removed the note editor (#178). So
-//  the obvious move is to re-door `BreathArp`. It does not work, and the reason is structural
-//  rather than a matter of effort:
+//  `PianoRollModel.stampArp`, and since #475 `stampArp` has NO caller at all — its single call
+//  site sat inside the `PianoRollView` struct, which that commit deleted (the founder removed
+//  the note editor at #178; #475 removed the unreachable code behind it). So the obvious move
+//  is to re-door `BreathArp`. It does not work, and the reason is structural rather than a
+//  matter of effort:
+//
+//  ⚠️ THE CHAIN GOT ONE LINK SHORTER, NOT SHORTER-BY-ACCIDENT. Before #475 this read "whose one
+//  call site sits inside `PianoRollView`", which was a live fact with a dead endpoint. Now the
+//  chain terminates one step earlier and the conclusion is unchanged and slightly stronger:
+//  nothing reaches `BreathArp.pattern`, and re-dooring it means writing a caller, not finding
+//  one.
 //
 //  ⚠️ SAY "PATTERN HALF", NOT "BreathArp", and the distinction is not pedantry — an earlier draft
 //  of this paragraph said `BreathArp`'s ONE production caller was `stampArp`, which is FALSE:

@@ -8,8 +8,9 @@
 // labels, and `MusicalKey` (display + filenames). The other three are not, and the first
 // version of this header called all six "live", which is the kind of inflation that makes the
 // next reader distrust the rest: `TuningDetector.keyName` and `TuningReference.noteName` have
-// zero production callers (tests only), and `PianoRollModel.name(forPitch:)` is reachable only
-// from `PianoRollView`, which nothing instantiates. That is not a missing translation — it is
+// zero production callers (tests only), and `PianoRollModel.name(forPitch:)` had its only
+// caller inside the `PianoRollView` struct — which nothing instantiated, and which #475
+// deleted outright, so that member is now callerless rather than merely unreachable. That is not a missing translation — it is
 // the WRONG NOTE for a large part of Europe. In German, Austrian and Scandinavian notation the
 // natural above A♯ is called **H**, and the name **B** is taken: it means B♭. So a German
 // musician reading "B" in our Key picker reads a pitch one semitone below the one that sounds,

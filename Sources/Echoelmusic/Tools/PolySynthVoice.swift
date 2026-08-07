@@ -352,7 +352,9 @@ public final class PolySynthVoice {
     /// `cutoffScale:` — even with a default — renamed the only entry point to
     /// `noteOn(pitch:velocity:cutoffScale:)`, which stopped witnessing the protocol's
     /// `noteOn(pitch:velocity:)` and broke `extension PolySynthVoice: NoteVoice`
-    /// (`PianoRollView.swift:23`). The Xcode gate caught it on 4655323; this two-parameter
+    /// (declared in `PianoRollView.swift`, next to `protocol NoteVoice` — NAMED, not by
+    /// line, because #475 deleted 1013 lines of that file and every number in it moved).
+    /// The Xcode gate caught it on 4655323; this two-parameter
     /// entry point is the witness, not a redundant convenience. Do not merge the two back
     /// together by re-defaulting `cutoffScale` below.
     public func noteOn(pitch: Int, velocity: Float = 0.8) {

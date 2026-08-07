@@ -54,8 +54,9 @@ tune is not an instrument. Task #131 shipped the patch editor as a live door
 (`soundPanel`, behind the Sound chip) — that half stands.
 
 > ⛔ **CORRECTION 2026-07-26/27 — the piano-roll half of this section is REVERSED.**
-> The founder decided "Pianoroll soll raus" (#178). `PianoRollView` has no door and
-> is not mounted; there is **no note editor** in the app. A generated take can be
+> The founder decided "Pianoroll soll raus" (#178). The `PianoRollView` struct had no
+> door, was not mounted, and was DELETED by #475 (2026-08-07); there is **no note
+> editor** in the app. A generated take can be
 > heard, mixed and exported — not corrected note by note.
 >
 > The paragraph that stood here claimed a "hard technical reason the piano roll
