@@ -392,10 +392,14 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// panel's "Output" row (0.3…1.5 — REACHABLE
     /// since #286 put it under the "Level" header; it was `PatchEditorView`'s doorless row when
     /// this note was written, and that file is now deleted, so the Sound panel is the only
-    /// hand-editable door left — which holds ONLY because the third door below is itself
-    /// doorless: `TimelineAutomationRow` has zero instantiation sites and `AutomationPlayer`
-    /// has no production writer, so that lane can write this field but nothing lets a user aim
-    /// it. Re-door automation and this sentence needs re-checking), and the `ddsp.amp.level`
+    /// hand-editable door left — which holds ONLY because the third door below has no editor
+    /// at all: the automation row that once drew this lane was unmounted from #121 Slice 4/4d
+    /// and its view was DELETED in #473, and `AutomationPlayer` has no production
+    /// writer, so that lane can write this field but nothing lets a user aim it. That is now a
+    /// stronger premise than when this note was written, not a weaker one — the earlier version
+    /// said "`TimelineAutomationRow` has zero instantiation sites", which a re-mount would have
+    /// silently falsified; a deleted file cannot be re-mounted by accident. Build a new
+    /// automation editor and this sentence needs re-checking), and the `ddsp.amp.level`
     /// automation lane (0…1,
     /// registry-clamped). So: **1.4 is the largest product anything SHIPS**, 1.5 the largest a
     /// user can save. The ceiling sits well above both, so the `outputLevel` row cannot

@@ -1,7 +1,9 @@
 // TimelineAutomationRowMath.swift
 // Echoel — #472. The pure geometry + touch law of the timeline automation row,
-// hoisted out of `Studio/TimelineAutomationRow.swift` so the LIVE half stops living
-// inside a file whose other 344 lines are an unmounted SwiftUI view.
+// hoisted out of `Studio/TimelineAutomationRow.swift` so the LIVE half stopped living
+// inside a file whose other 344 lines WERE an unmounted SwiftUI view. Past tense on
+// purpose: #473 deleted that file (see the ⭐ block below). ⛔ The first version of this
+// line stayed present-tense fifty lines above the block announcing the deletion.
 //
 // ⭐ WHY THE HOIST, said narrowly. Nothing here computes a different number than it
 // did yesterday; this is a move. What it removes is a tripwire CLAUDE.md names by
@@ -31,16 +33,17 @@
 // that is false. Exactly ONE member has a production caller:
 //   · `sameParameter`  — LIVE (`Core/TimelineStore.swift`, alias-aware lane lookup).
 //   · `x(forTick:)` · `tick(forX:)` · `nearestPoint` · `hitPointID` ·
-//     `displayPoints` · `touchRadius` · `tapSlopPoints` — their only caller is
-//     `TimelineAutomationRow`, which nothing mounts. They are already unreachable from
-//     the app; the hoist neither helps nor harms that.
-//     ⛔ A RECIPE STOOD HERE AND IT FALSIFIED ITSELF: `git grep "TimelineAutomationRow("`
-//     over `Sources`/`Tests` "= 0" — but the sentence quoting it CONTAINS the searched
-//     string, so running it returns this line and reads as a contradiction. Exactly the
+//     `displayPoints` · `touchRadius` · `tapSlopPoints` — ZERO callers in `Sources/`.
+//     Their only one was the unmounted `TimelineAutomationRow` view, and #473 deleted
+//     it, so what was "unreachable" is now "absent". The hoist neither helped nor
+//     harmed that; it is what made the deletion possible without breaking the store.
+//     ⛔ A RECIPE STOOD HERE AND IT FALSIFIED ITSELF: it quoted a `git grep` for the
+//     view's name "= 0" — but the sentence quoting it CONTAINED the searched string, so
+//     running it returned this line and read as a contradiction. Exactly the
 //     `EchoelModalBank` trap CLAUDE.md records: a note that QUOTES a grep ages faster than
 //     one that states a fact, because every comment written about the thing corrupts its own
-//     evidence. Stated as a fact instead. To measure it, exclude prose:
-//     `git grep -n "TimelineAutomationRow(" -- Sources Tests | grep -v '://'`.
+//     evidence. Stated as a fact instead. To measure a caller count, ask about the CALL
+//     form and exclude prose — e.g. `git grep -n "displayPoints(" -- Sources | grep -v '://'`.
 // They are kept, not because they are used, but because deleting them is a SECOND
 // decision and #470 paid for the rule the hard way: changing the arithmetic inside a
 // move commit is how a "no behaviour change" claim stops being true. The tick↔px law
@@ -48,39 +51,37 @@
 // `WaveformReducer` after #132 Slice 5, and labelled here rather than discovered
 // later.
 //
-// ⛔ THE VIEW HALF IS **NOT** DELETED BY THIS SLICE, AND THE REASON IS NEW.
-// `Studio/TimelineAutomationRow.swift`'s own header says it "retires in the Slice 6
-// cleanup", and CLAUDE.md's register says the core hoist is what unblocks that. Both
-// were written before the thing that actually blocks it: FIVE source files cite that
-// view in prose, and two of the citations are load-bearing for code that ships.
-// `Studio/EchoelValueField.swift` — the ONE parameter control app-wide — cites the row
-// TWICE, and ⛔ the first version of this sentence got the SHAPE of that wrong in four
-// artifacts at once (here, the view's header, CLAUDE.md, and task #473): it said the two
-// citations both point at `handleEnded`. They do not. They are TWO citations with TWO
-// DISTINCT premises, and only ONE of them names `handleEnded`:
-//   · in the `REVERT — one main-actor turn later` block: SwiftUI may deliver `onEnded`
-//     AFTER a `@GestureState` reset. This one names `TimelineAutomationRow.handleEnded`
-//     as the canonical evidence, and it is the premise the #377/#378 revert-on-cancel
-//     design rests on.
-//   · in the `⚠️ HONEST LIMIT (unchanged):` block: SwiftUI RE-EVALUATES the view when it
-//     resets a `@GestureState` — "this repo already depends on it in
-//     `TimelineAutomationRow`", no member named. That is the stated limit of the same
-//     design, not its premise.
-// Two premises is a STRONGER blocker than one repeated citation, so the correction does
-// not soften anything — but "TWICE" attached to a single member would send the next
-// reader looking for a second `handleEnded` reference that does not exist.
-// ⚠️ Both sites are cited by PHRASE and not by line number, deliberately: the same
-// commit that wrote this removed a `TimelineAutomationRow:11-16` range from
-// `Core/PerTrackParameterKeyPath.swift` for going stale. Writing new line numbers while
-// retiring old ones is the defect, not the fix.
-// `DSP/EchoelDDSP.swift` uses the row's
-// doorlessness as a premise in its `outputLevel` reachability argument.
-// `Core/AutomationPlayer.swift` carries a ⛔ retraction that names the row — a
-// retraction whose whole value is naming what it corrects. Deleting the host without
-// relocating those first is the #456 defect at three times the size: two live
-// references pointing at an explanation that no longer exists reads as "the rule was
-// withdrawn". The deletion is registered as its own slice with that prose work
-// costed in, not smuggled in here.
+// ⭐ THE VIEW HALF IS DELETED (#473) — and the sequencing is the lesson, not the deletion.
+// This header used to say the opposite, at length, because #472 discovered mid-flight that
+// the registered unblock ("hoist the pure core, THEN delete") was not the real blocker:
+// FIVE source files cited that view in prose, two of them load-bearing for shipping code.
+// #473 relocated all five FIRST and deleted the file second — 415 lines removed
+// (`git show --stat`), of which the `struct TimelineAutomationRow: View` itself was 198 and
+// the whole `#if canImport(SwiftUI)` half 344. ⛔ Four other artifacts attached the 415 to the
+// VIEW; that is the #475 defect one cycle later, and the tree already carried 344 for the same
+// object. A file size is not a view size. What moved where:
+//   · `Core/PerTrackParameterKeyPath.swift` had a POINTER at the view's `DATA MODEL
+//     (honest):` block. The block is now INLINED there — a pointer is only as durable as
+//     the thing it points at, and that same line had already lost a `:11-16` line range
+//     to #472. Two citation failures, two mechanisms, one file.
+//   · `Studio/EchoelValueField.swift` — the ONE parameter control app-wide — cited the row
+//     TWICE with TWO DISTINCT premises, and only ONE named `handleEnded` (the `REVERT —
+//     one main-actor turn later` block, the premise the #377/#378 revert-on-cancel design
+//     rests on; the other, `⚠️ HONEST LIMIT (unchanged):`, named the view without a member
+//     for a different property). ⛔ The first version of that sentence attached "TWICE" to
+//     one member, in four artifacts at once. Both are now stated as HISTORICAL evidence:
+//     the SwiftUI claims are unchanged, the in-repo witness is gone, and the second block
+//     gained the sharper reading — this file is now the only dependant left.
+//   · `DSP/EchoelDDSP.swift` used the row's doorlessness as an `outputLevel` reachability
+//     premise. "Zero instantiation sites" would have been silently falsified by a re-mount;
+//     "deleted" cannot be, so that argument got STRONGER.
+//   · `Core/AutomationPlayer.swift` carries a ⛔ retraction that named the row. It stays,
+//     precisely because the code it corrects no longer exists to be re-read.
+//   · `Sequencer/ClipAutomationEdit.swift` cited "TimelineAutomationRow's static helpers" —
+//     already wrong since #472 moved them HERE, and pointing at nothing after #473.
+// ⚠️ Cited by PHRASE throughout, never by line number: #472 retired a
+// `TimelineAutomationRow:11-16` range for going stale, and minting fresh numbers while
+// retiring old ones is the defect rather than the fix.
 
 import Foundation
 

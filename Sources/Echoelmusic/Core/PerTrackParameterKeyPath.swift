@@ -1,11 +1,30 @@
 // PerTrackParameterKeyPath.swift
 // Automation-in-Spur L2/L4 spine (per-track targeting). Today automation
 // keyPaths are engine-GLOBAL ("ddsp.filter.cutoff"), so two tracks that pick
-// the same parameter edit the SAME curve — the honesty debt documented in
-// `Studio/TimelineAutomationRow.swift`, in the block beginning `DATA MODEL (honest):`.
-// ⛔ That used to read "TimelineAutomationRow:11-16". A line range is the most brittle
-// fact this repo writes down — #472 moved that file's contents and the range was wrong
-// the same day. A quoted PHRASE survives an insertion; a number does not.
+// the same parameter edit the SAME curve. That honesty debt used to be documented in
+// another file and is written out HERE now, because the file it lived in is gone:
+//
+//     DATA MODEL (honest): timeline automation lives in `TimelineDocument.automation`
+//     — parameter-keyed, DOCUMENT-wide, song-absolute. GLOBAL targets (master level,
+//     tempo, router-bound registry params) are one curve shared across tracks BY
+//     DESIGN. L2/L4: a SECONDARY lane may additionally carry a PER-TRACK target — the
+//     rack-voice params namespaced as `track.<laneID>.<base>` — so a curve drawn for
+//     that track moves only that track's voice (the shared-curve debt is resolved
+//     where it matters). Per-track targets exist only for lanes that own a rack slot;
+//     never the roll lane, never a global-only param.
+//
+// ⛔ TWO CITATIONS DIED HERE, IN THE TWO DIFFERENT WAYS THIS REPO KEEPS PAYING FOR.
+// First it read "TimelineAutomationRow:11-16" — a LINE RANGE, the most brittle fact
+// this repo writes down; #472 moved that file's contents and the range was wrong the
+// same day. It was replaced by a quoted PHRASE (`DATA MODEL (honest):`), which does
+// survive an insertion — and then #473 deleted the whole file, which no phrasing
+// survives. So the block is INLINED rather than cited a third time. The rule the two
+// failures share: a pointer is only as durable as the thing it points at, and prose
+// about THIS file's contract belongs in THIS file.
+// ⚠️ One sentence was rewritten rather than copied. The original ended "The picker
+// offers per-track targets only for lanes that own a rack slot" — that picker was in
+// the deleted view. There is no picker today; the NAMESPACE is what exists, and the
+// restriction is a property of the namespace, not of a UI that no longer ships.
 //
 // This pure namespace makes a parameter
 // addressable PER TRACK by folding the lane's UUID into the keyPath:

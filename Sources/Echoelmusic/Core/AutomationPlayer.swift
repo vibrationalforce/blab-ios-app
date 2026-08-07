@@ -127,10 +127,16 @@ public enum AutomationTarget: String, Codable, Sendable, CaseIterable, Identifia
 /// persists) has no setter either. `enabled`'s `didSet` also does not fire during `init`,
 /// so launch writes nothing. `automation.json` is genuinely never rewritten today, and a
 /// failed decode could not destroy the file the way the #163 library-wipe did.
-/// ⛔ Do NOT restate this as "because `TimelineAutomationRow` is unmounted" — an earlier
-/// version of this comment did, and it is wrong twice over: that row commits into
-/// `TimelineStore`, not into this player (its only `AutomationPlayer` touch is a READ of
-/// `extraAutomatableDescriptors`), so re-mounting it would not restore a writer at all.
+/// ⛔ Do NOT restate this as "because the automation row is gone" — an earlier version of this
+/// comment named `TimelineAutomationRow` and said exactly that, and it is wrong twice over:
+/// that row committed into `TimelineStore`, not into this player (its only `AutomationPlayer`
+/// touch was a READ of `extraAutomatableDescriptors`), so re-mounting it would not have
+/// restored a writer at all. The row's view was DELETED in #473 (415 lines of FILE removed —
+/// do not attach that number to the view itself; the `struct` was 198 lines), which does not
+/// change the argument in either direction — and that is precisely why the retraction stays:
+/// a future session building a new automation editor cannot re-derive this from code that no
+/// longer exists, so it would land the same wrong sentence again. The load-bearing fact is
+/// the grep above, not the state of any view.
 ///
 /// What a bad decode CAN still do is silently stop curves a user drew in an earlier build
 /// from playing: `applyStep` runs on every transport step (`PianoRollModel.start`'s
@@ -535,6 +541,16 @@ public final class AutomationPlayer {
     /// The registry parameters a UI may offer for NEW automation lanes: bound to a
     /// live setter in the router (placebo law — a lane must move audio) and not
     /// already addressed by a legacy enum target (those stay on their own slots).
+    ///
+    /// ⚠️ ZERO CALLERS IN `Sources/` SINCE #473, and that is written here rather than
+    /// acted on. Its only reader was `TimelineAutomationTargetOption`, inside the
+    /// unmounted automation row that #473 deleted; it was FOUND by re-grepping AFTER
+    /// the cut, which is the #472 lesson (a deletion orphans neighbours no register
+    /// line predicted). Kept, not deleted: this is the placebo law in executable form —
+    /// "only offer a parameter that actually moves audio" — and it is exactly what a
+    /// future automation surface needs first. Deleting it is a SECOND decision, and
+    /// making one inside a removal commit is how a "nothing else changed" claim stops
+    /// being true (#470).
     public var extraAutomatableDescriptors: [ParameterDescriptor] {
         guard let router else { return [] }
         let enumKeyPaths = Set(AutomationTarget.allCases.map(\.keyPath))

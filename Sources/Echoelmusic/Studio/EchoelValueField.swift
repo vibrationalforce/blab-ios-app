@@ -724,9 +724,17 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 //
                 //   REVERT — one main-actor turn later, because "was this a cancel or a normal
                 //   end" genuinely cannot be answered synchronously. `onEnded` may be delivered
-                //   after this closure (`TimelineAutomationRow.handleEnded` documents the same
-                //   wrapper resetting before its callback), so a synchronous revert would undo an
-                //   edit the user finished.
+                //   after this closure, so a synchronous revert would undo an edit the user
+                //   finished.
+                //   ⛔ THE IN-REPO WITNESS FOR THAT ORDERING IS GONE (#473). This used to cite
+                //   `TimelineAutomationRow.handleEnded` as documenting the same wrapper resetting
+                //   before its callback; that view was an unmounted 415-line file and was deleted.
+                //   The CLAIM is unchanged — it is SwiftUI behaviour, not our view's — but the
+                //   citation is now historical, and it is stated as historical rather than left
+                //   pointing at a file that does not exist. That matters more than it looks: a
+                //   live premise whose named evidence has vanished reads to the next session as
+                //   "the rule was withdrawn" (#456), and this premise is what the whole
+                //   #377/#378 revert-on-cancel design rests on.
                 //
                 // ⭐ THE HOP IS NOT THE ANSWER, AND NEITHER IS `endedSeq` ALONE. The two guards
                 // here ask a recorded fact — did a new drag take over (`gestureSeq`), did THIS
@@ -755,10 +763,14 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
                 // falling edge per gesture, so this is one task per drag.
                 //
                 // ⚠️ HONEST LIMIT (unchanged): if SwiftUI ever stops re-evaluating this view
-                // when it resets a `@GestureState` — documented behaviour, and this repo already
-                // depends on it in `TimelineAutomationRow`, but not something a test here can
-                // execute — this closure never runs. That leaves the value moved and the latch
-                // standing, i.e. exactly the pre-#377 state, not a new failure.
+                // when it resets a `@GestureState` — documented behaviour, but not something a
+                // test here can execute — this closure never runs. That leaves the value moved
+                // and the latch standing, i.e. exactly the pre-#377 state, not a new failure.
+                // ⛔ This used to add "and this repo already depends on it in
+                // `TimelineAutomationRow`" as corroboration. That view is deleted (#473), so the
+                // second dependant is gone and THIS FILE IS NOW THE ONLY ONE — which SHARPENS
+                // the limit rather than softening it: nothing else in the repo would notice the
+                // behaviour changing, and there is still no test that can drive it.
                 //
                 // The parameter is `inFlight`, NOT `active`: `valueBox` binds `let active =
                 // scrubbing || showPad` in this same file. Shadowing it compiles, and if anyone

@@ -5,7 +5,12 @@
 // a whole new `[AutomationLane]` and hands it to `ClipStore.setClipAutomation`
 // (S1). This file is that transform — pure, Foundation-only, Linux-CI-testable —
 // so the View stays a thin gesture→math→store shell (same doctrine as
-// AutomationCanvasMath / RollNoteOps / TimelineAutomationRow's static helpers).
+// AutomationCanvasMath / RollNoteOps / TimelineAutomationRowMath).
+// ⛔ That last name read "TimelineAutomationRow's static helpers" and had been wrong
+// since #472 hoisted them into `Sequencer/TimelineAutomationRowMath.swift`; #473 then
+// deleted the view entirely, so it was pointing at nothing at all. A doctrine sentence
+// that cites a vanished file teaches the doctrine and then discredits it in the same
+// breath.
 //
 // Contract: one lane per parameter. Geometry (tick↔x, value↔y, snapping) is
 // AutomationCanvasMath's, span-relative to the CLIP's length (`spanTicks`), so a

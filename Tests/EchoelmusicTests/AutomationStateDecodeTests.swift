@@ -10,7 +10,10 @@
 // curve gone AND `enabled` silently off.
 //
 // Why this still matters with the editor gone: no shipping surface WRITES automation any
-// more (`TimelineAutomationRow` is unmounted), but `applyStep` runs on every transport
+// more (the automation row was unmounted from #121 Slice 4/4d and its view was DELETED
+// in #473 — so this is now "no editor exists", not "an editor exists but is unmounted",
+// which makes the read below the ONLY thing keeping those curves alive at all), but
+// `applyStep` runs on every transport
 // step, so lanes drawn in an earlier build are still played back today. These tests
 // defend that read.
 //
