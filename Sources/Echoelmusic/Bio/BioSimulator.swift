@@ -8,11 +8,24 @@
 //  for evaluating the bio-reactive synth, modulation matrix, and OSC out
 //  on a device that has no sensor connected.
 //
-//  Honesty: the frame's source is `.fallback`, so the bio strip always
-//  labels it "Demo" — it is never presented as real biometric data, and
-//  it only runs when the user explicitly enables it (or, in DEBUG, auto-on
-//  for development). It defers to any real bio publisher already on the bus.
-//  Master prompt §1: science-first display — the demo is clearly flagged.
+//  Honesty: the frame's source is `.fallback`, and it only runs when the user
+//  explicitly enables it (or, in DEBUG, auto-on for development). It defers to
+//  any real bio publisher already on the bus.
+//
+//  ⛔ THIS BLOCK USED TO CLAIM "the bio strip always labels it 'Demo'". THAT IS
+//  FALSE, and it was false seventy lines above a comment block asserting honesty.
+//  There is no user-facing "Demo" string anywhere in `Sources/` — the two hits are
+//  both doc comments (this file and `EchoelmusicApp`). What the strip actually does:
+//  `BioStripView.sourceLabel(.fallback)` returns "—" and `sourceText` returns
+//  "No signal" for `.fallback`, while `hrString`/`hrvString` render `bus.latestBio`
+//  with NO source filter. So a demo session shows a confident heart rate and
+//  "HRV 50 ms" beside a source cell reading "No signal" — which reads as ABSENCE,
+//  not as SYNTHETIC. #215's principle ("a constant 0 is indistinguishable from a
+//  still performer") applies on the screen too, not only on the wire. Whether to
+//  add a Demo label on the strip and a synthetic marker on the OSC egress is a
+//  founder question (#462), not something to decide inside an arithmetic fix — but
+//  the claim that it is ALREADY flagged had to go, because it is the sentence that
+//  stops the next session from looking.
 //
 
 import Foundation
@@ -88,22 +101,36 @@ public final class BioSimulator {
             // the precise readouts have believable values to show.
             //
             // ⛔ RMSSD USED TO BE `hrvNormalized * 120`, AND THAT IS THE COPY-DRIFT DEFECT
-            // #97 ALREADY FIXED — surviving here because #97 audited the three LIVE sources
-            // and nobody looked at the demo. `HRVNormalization` exists to be the ONE ceiling
+            // #97 ALREADY FIXED — surviving here because #97 audited the LIVE sources and
+            // nobody looked at the demo. `HRVNormalization` exists to be the ONE ceiling
             // ("was ÷200 on the camera, ÷100 on the strap, ÷100 on HealthKit"), and this file
             // quietly carried a fourth divisor.
             //
-            // Why it is a real inconsistency and not just an arbitrary constant: on EVERY real
-            // source the published pair satisfies `hrvNormalized == HRVNormalization.normalize(
-            // <that source's ms metric>)` EXACTLY — camera (`hrvNormalized = normalize(
-            // analyzer.rmssd)`, `hrvRMSSDms = analyzer.rmssd`), Polar (same two lines), and
-            // HealthKit (against SDNN, since it has no beat-to-beat RR). The demo published a
-            // pair no converter in this app can reconcile: at `hrvNormalized` 0.5 it shipped
-            // 60 ms, while the house rule says 60 ms IS 0.60. Measured across the whole walk
-            // band (0.2…0.9): a flat **+20 % relative**, worst **+0.167 absolute on a 0…1
-            // knob** — and it saturated to +11 % at the top only because `normalize` clamps.
-            // A receiver that recomputes the knob from the ms value (several consumers do)
-            // got a different number than the one on the wire beside it.
+            // Why it is a real inconsistency and not just an arbitrary constant: every producer
+            // of a `BioSampleFrame` satisfies `hrvNormalized == HRVNormalization.normalize(
+            // <that source's ms metric>)` to representation — camera (`hrvNormalized =
+            // normalize(analyzer.rmssd)`, `hrvRMSSDms = analyzer.rmssd`), Polar (same two
+            // lines), HealthKit (against SDNN, since it has no beat-to-beat RR), and
+            // `FaceExpressionBioPublisher`, which satisfies it VACUOUSLY (it publishes
+            // `hrvNormalized: 0` and no ms metric at all — `normalize(0) == 0`). ⛔ The first
+            // version of this block said "the three LIVE sources" and "EVERY real source":
+            // there are FOUR producers, and one of them only passes trivially. The conclusion
+            // survived the miscount; the enumeration did not, and an enumeration is exactly
+            // what a later session greps.
+            //
+            // The demo published a pair no converter in this app can reconcile: at
+            // `hrvNormalized` 0.5 it shipped 60 ms, while the house rule says 60 ms IS 0.60.
+            // Measured, each number carrying its setup (#448): a flat **+20 % relative** over
+            // 0.2…5/6, worst absolute **1/6 ≈ 0.16667 (analytic supremum, at h = 5/6)** — the
+            // 701-point sweep in the guard never lands on 5/6 and reaches **0.16660**. Above
+            // 5/6 the relative error falls to +11 %, which looks like improvement and is really
+            // `normalize` clamping. ⛔ "several consumers do" stood here and is CUT: there are
+            // exactly three `HRVNormalization.normalize` call sites in `Sources/` and all three
+            // are PUBLISHERS. No in-app consumer recomputes the knob — the two readers of
+            // `hrvRMSSDms` (`BioStripView`, `OSCSender`) read it directly. The defensible claim
+            // is about an EXTERNAL OSC receiver, which is hypothetical; inventing a supporting
+            // fact inside the sentence that carries the severity argument is the class this
+            // repo retracts everywhere else.
             //
             // The anchor is RMSSD, not SDNN, because that is the RR-source convention and the
             // demo imitates an RR source (it publishes RMSSD and pNN50, which only an RR
@@ -119,10 +146,26 @@ public final class BioSimulator {
             //
             // ⚠️ WHAT IS STILL WRONG HERE AND IS **NOT** FIXED, named rather than left for the
             // next reader: 90 < 100, so the demo publishes SDNN BELOW RMSSD at every point,
-            // and at rest the standard short-term relationship runs the other way (Task Force
-            // 1996 reports resting SDNN above RMSSD over 5-minute records). Changing it means
-            // choosing a ratio, i.e. inventing physiology to make a demo prettier — that is a
-            // separate decision with its own evidence, not a rider on an arithmetic fix.
+            // while at rest the relationship runs the other way. Attribution, corrected —
+            // the first version cited the wrong table: Task Force 1996's headline normative
+            // pair (SDNN 141±39 ms, RMSSD 27±12 ms) is from **24-hour** recordings; the
+            // short-term figure in that same document is the **SDNN index** (mean of the
+            // 5-minute SDNNs), 54±15 ms, against RMSSD 27±12 ms. Short-term resting studies
+            // put the two closer (order 50 vs 40 ms). The DIRECTION is robust across all of
+            // them; the ratio is not, and only the direction is needed here.
+            //
+            // ⛔ AND THE REASON THIS SLICE LEAVES IT ALONE WAS SELF-UNDERMINING AS FIRST
+            // WRITTEN. It said changing `* 90` "means choosing a ratio, i.e. inventing
+            // physiology to make a demo prettier". But `* 90` IS a chosen ratio — invented by
+            // nobody-knows-who, never derived anywhere, and inverted against every reference
+            // above. Refusing to move a fabricated constant on the grounds that moving it
+            // would fabricate treats the incumbent as evidence-free-neutral when it is exactly
+            // as invented as any replacement, and the evidence the decision supposedly lacks
+            // is cited two lines up. The honest statement is narrower: **the incumbent is also
+            // invented and it is inverted; replacing it is cheap and the evidence is above,
+            // but it changes shipped output and belongs in its own slice.** Keeping this fix
+            // to arithmetic is scope discipline, not an evidentiary verdict — do not read it
+            // as "there is no evidence" and leave the inverted pair standing forever.
             hrvSDNNms: hrvNormalized * 90,
             hrvPNN50: hrvNormalized * 40
         )

@@ -251,19 +251,35 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           HealthKit ÷100); es faltete sie auf EINE 100-ms-Decke. **Die Demo-Quelle war in
                           dieser Prüfung nicht dabei und behielt einen VIERTEN Teiler** — 120 für RMSSD.
                           ⭐ **Und es ist keine bloß willkürliche Konstante, sondern ein Bruch einer
-                          Invariante, die jede echte Quelle exakt einhält:** `hrvNormalized ==
+                          Invariante, die jeder Erzeuger einhält:** `hrvNormalized ==
                           HRVNormalization.normalize(<die ms-Metrik DIESER Quelle>)` — Kamera
                           (`normalize(analyzer.rmssd)` neben `hrvRMSSDms: analyzer.rmssd`), Polar (dieselben
-                          zwei Zeilen), HealthKit (gegen SDNN, weil es kein Schlag-zu-Schlag-RR hat). Die
+                          zwei Zeilen), HealthKit (gegen SDNN, weil es kein Schlag-zu-Schlag-RR hat) und
+                          `FaceExpressionBioPublisher`, das sie LEER erfüllt (es veröffentlicht
+                          `hrvNormalized: 0` und gar keine ms-Metrik). ⛔ Die erste Fassung schrieb „die drei
+                          LIVE-Quellen" und „jede echte Quelle EXAKT": es sind **VIER** Erzeuger, einer davon
+                          besteht nur trivial, und „exakt" ist auf keiner Quelle wörtlich wahr — Kamera und
+                          Gurt runden zweimal unabhängig (`Float(normalize(Double))` neben `Float(Double)`),
+                          sind also ebenfalls nur bis auf Darstellung gleich, dieselbe Klasse wie die neuen
+                          5,96e-8 der Demo. Die Schlussfolgerung überlebt beide Korrekturen; die AUFZÄHLUNG
+                          nicht — und eine Aufzählung ist genau das, was eine spätere Sitzung grept. Die
                           Demo veröffentlichte ein Paar, das KEIN Konverter dieser App versöhnen kann: bei
                           `hrvNormalized` 0,50 schickte sie 60 ms, während die Hausregel sagt, 60 ms IST
                           0,60.
-                          ⚠️ GEMESSEN über das ganze Wanderband (0,2…0,9): **flach +20 % relativ**,
-                          schlimmstenfalls **+0,167 absolut auf einem 0…1-Regler** — und die +11 % an der
-                          Oberkante entstehen nur, weil `normalize` klemmt. Nach der Reparatur ist der
-                          größte Rest **5,96e-8** (reine `Float`-Darstellung). Ein Empfänger, der den
-                          Regler aus dem ms-Wert NEU rechnet — mehrere Verbraucher tun das —, bekam eine
-                          andere Zahl als die daneben auf der Leitung.
+                          ⚠️ GEMESSEN, jede Zahl mit ihrem Raster (#448): **flach +20 % relativ** über
+                          0,2…5/6, schlimmster absoluter Fehler **1/6 ≈ 0,16667 — das analytische Supremum
+                          bei h = 5/6**, das der 701-Punkte-Sweep des Wächters gar nicht trifft; abgetastet
+                          erreicht er **0,16660**. ⛔ Die erste Fassung schrieb „+0,167" ohne zu sagen,
+                          welche der beiden Zahlen das ist — genau die Auslassung, die #448 in diesem Absatz
+                          schon einmal gekostet hat. Die +11 % an der Oberkante sind kein kleinerer Fehler,
+                          sondern `normalize`, das klemmt. Nach der Reparatur ist der größte Rest **5,96e-8**
+                          (reine `Float`-Darstellung). ⛔ Und „mehrere Verbraucher tun das" ist GESTRICHEN:
+                          `HRVNormalization.normalize` hat in `Sources/` genau DREI Aufrufstellen und alle
+                          drei sind ERZEUGER. Kein App-interner Verbraucher rechnet den Regler neu — die zwei
+                          Leser von `hrvRMSSDms` lesen ihn direkt. Belastbar ist nur die Aussage über einen
+                          EXTERNEN OSC-Empfänger, und die ist hypothetisch. Eine erfundene Stützbehauptung
+                          ausgerechnet in dem Satz, der die Schwere begründet, ist die Klasse, die diese
+                          Datei überall sonst zurücknimmt.
                           ⭐ Der Anker ist RMSSD und nicht SDNN, weil das die RR-Quellen-Konvention ist und
                           die Demo eine RR-Quelle imitiert: sie veröffentlicht RMSSD und pNN50, Größen, die
                           nur eine RR-Quelle hat. Auf SDNN zu ankern wäre eine DRITTE Regel gewesen.
@@ -275,20 +291,55 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           unbrauchbar macht, der beide gegeneinander plottet. Genau dafür steht die dritte
                           Behauptung da, und sie ist ein GEGENGEWICHT — auf beiden Seiten grün.
                           ⛔ **Was hier NICHT repariert ist und deshalb am Ort steht: 90 < 100**, die Demo
-                          veröffentlicht SDNN also an jedem Punkt UNTER RMSSD, während die kurzfristige
-                          Ruhe-Beziehung andersherum läuft (Task Force 1996: Ruhe-SDNN über RMSSD auf
-                          5-Minuten-Aufzeichnungen). Das zu ändern hieße ein VERHÄLTNIS zu wählen, also
-                          Physiologie zu erfinden, damit eine Demo hübscher aussieht — eine eigene
-                          Entscheidung mit eigener Evidenz, kein Anhängsel an eine Arithmetik-Reparatur.
+                          veröffentlicht SDNN also an jedem Punkt UNTER RMSSD, während die Ruhe-Beziehung
+                          andersherum läuft. ⛔ Die ZUORDNUNG war falsch — hier stand „Task Force 1996:
+                          Ruhe-SDNN über RMSSD auf 5-Minuten-Aufzeichnungen", und das ist die falsche
+                          Tabelle: das Normwert-Paar SDNN 141±39 ms / RMSSD 27±12 ms stammt aus
+                          **24-Stunden**-Aufzeichnungen; die Kurzzeit-Größe desselben Dokuments ist der
+                          **SDNN-Index** (Mittel der 5-Minuten-SDNNs), 54±15 ms. Kurzzeit-Ruhestudien legen
+                          die beiden näher zusammen (Größenordnung 50 gegen 40 ms). Die RICHTUNG ist über
+                          alle robust, das VERHÄLTNIS nicht — und gebraucht wird nur die Richtung.
+                          ⛔ **Und die BEGRÜNDUNG des Nichtreparierens war selbst-untergrabend.** Sie
+                          lautete: das zu ändern hieße ein Verhältnis zu wählen, also Physiologie zu
+                          erfinden. Aber `* 90` IST ein gewähltes Verhältnis — nirgends hergeleitet und
+                          gegen jede Referenz oben invertiert. Eine erfundene Konstante mit dem Argument
+                          stehen zu lassen, ihr Ersatz wäre erfunden, behandelt den Amtsinhaber als
+                          evidenzfrei-neutral, obwohl er genauso erfunden ist wie jeder Ersatz — und die
+                          Evidenz, die angeblich fehlt, steht zwei Zeilen darüber. Die ehrliche Fassung ist
+                          enger: **der Amtsinhaber ist ebenfalls erfunden und invertiert; ihn zu ersetzen
+                          ist billig und die Evidenz steht oben, aber es ändert ausgelieferten Output und
+                          gehört in eine eigene Scheibe.** Diese Scheibe auf Arithmetik zu begrenzen ist
+                          Umfangsdisziplin, kein Beweisurteil — nicht als „es gibt keine Evidenz" lesen und
+                          das invertierte Paar für immer stehen lassen (#464).
                           ⚠️ Was der Wächter NICHT kann, und das steht als ERSTES in seinem Kopf:
                           `BioSimulator.nextFrame()` ist `private` und die Klasse `@MainActor` — es gibt
                           KEINEN Weg, den ausgelieferten Generator hier zu treiben. Jede Behauptung ist
                           entweder Arithmetik auf `HRVNormalization` oder ein QUELLTEXT-SCAN darauf, dass
                           `BioSimulator.swift` diese Arithmetik wirklich schreibt; tragend sind sie nur
-                          GEMEINSAM (die #431/#440-Form). Gemessen: die zwei Regressionen sind auf dem
-                          alten Baum rot (0,167 bzw. das Literal `* 120`), die drei anderen sind
-                          Prämissen/Gegengewichte und beidseitig grün — so gesagt, statt sie als
-                          Regressionstests zu verkleiden.
+                          GEMEINSAM (die #431/#440-Form).
+                          ⛔ **UND DIE ERSTE FASSUNG HAT IHRE EIGENEN TESTS FALSCH EINGEORDNET — der
+                          wörtliche #433-Defekt, begangen in der Scheibe, die #433 zitiert.** Hier stand
+                          „die zwei Regressionen sind auf dem alten Baum rot (0,167 bzw. das Literal
+                          `* 120`)", und dasselbe stand im Testkopf und im Commit-Text. Der Rundreise-Test
+                          ist auf dem alten Baum GRÜN und konnte gar nichts anderes sein: er wertet seinen
+                          eigenen privaten Helfer aus, und der trägt die NEUE Formel, im Testfile
+                          ausgeschrieben. Nichts in dieser Datei liest den Multiplikator der Quelle je ALS
+                          ZAHL — es kann nicht, der Generator ist unerreichbar. **Es gibt genau EINE
+                          Regression: den Quelltext-Scan.** Die 0,167 ist eine MESSUNG des alten Verhaltens,
+                          keine Behauptung, die diese Datei aufstellen kann. Die Lehre, die #433 schon
+                          bezahlt hat und die nicht gehalten hat: **die eigenen Tests falsch einzuordnen ist
+                          schwerer zu sehen als ein Wächter, der nicht scheitern kann — weil so oder so
+                          alles grün ist.** Neu dazu: ein MUSEUMS-Test, der die entfernte Formel selbst
+                          rechnet und die 0,1 in der Bandmitte festhält, ausdrücklich als Dokumentation und
+                          beidseitig grün — damit die GRÖSSE eines behobenen Defekts nicht nur in einer
+                          Commit-Nachricht überlebt.
+                          ⛔ **Und die eine echte Regression war zu locker verankert (#408).** Sie suchte
+                          das nackte Token `HRVNormalization.ceilingMs` im GANZEN File — also war ein Baum
+                          grün, in dem RMSSD ein Literal `100` trägt und `ceilingMs` auf der SDNN-Zeile
+                          steht: exakt der #97-Defekt zurück, plus die SDNN-Vereinheitlichung, gegen die
+                          das Gegengewicht daneben steht. Jetzt ist der ganze Ausdruck festgenagelt. Der
+                          Wächter war in seiner strengen Hälfte (SDNN, zeilengenau) rigoros und in seiner
+                          TRAGENDEN locker.
                           ⚠️ Und die härteste Grenze: nichts davon ist am Gerät gesehen. Die zwei
                           Verbraucher von `hrvRMSSDms` sind der OSC-Ausgang
                           (`/echoelmusic/bio/heart/rmssd`) und die Zahl in `BioStripView`; ob je jemand auf
