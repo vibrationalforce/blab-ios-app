@@ -177,16 +177,13 @@ final class TheManifestArgumentOrderIsTheCompilersTests: XCTestCase {
 
     // MARK: - Reading the manifest
 
-    /// Everything before a `//` on each line. Crude on purpose: this manifest has no string
-    /// literal containing `//`, and a real tokenizer here would be more machinery than the one
-    /// fact it protects. If a URL ever lands in a string in `Package.swift`, revisit this.
+    /// Comments blanked by `SourceText.codeOnly` (#453). It replaces a private copy that
+    /// truncated at the first `//` even inside a string literal, with a note saying "if a URL
+    /// ever lands in a string in `Package.swift`, revisit this" — that revisit is no longer
+    /// owed, because the shared scanner tracks string state. Measured before the swap: the
+    /// manifest strips byte-identically.
     private func codeOnly(_ text: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: false)
-            .map { line -> Substring in
-                guard let slashes = line.range(of: "//") else { return line }
-                return line[line.startIndex..<slashes.lowerBound]
-            }
-            .joined(separator: "\n")
+        SourceText.codeOnly(text)
     }
 
     /// Major version from the `// swift-tools-version:` line. Deliberately tolerant of the two

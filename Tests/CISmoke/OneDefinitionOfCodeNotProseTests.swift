@@ -7,14 +7,6 @@
 // times, in FIVE materially different shapes. `SourceText.swift` carries the count and the shapes;
 // this file is the half that notices when they drift.
 //
-// ⚠️ THE HONEST SCOPE, because a guard that oversells itself is the defect it is guarding against:
-// on today's tree the eleven AGREE for every `contains`-style assertion, so THREE were migrated —
-// exactly the ones that scan `RespirationEstimator.swift` and `BreathPattern.swift`, i.e. the
-// demonstrated same-target divergence. The other EIGHT are on an explicit permission list below,
-// and that list is checked in BOTH directions: an entry whose file no longer holds a private copy
-// is a stale licence and goes red, so migrating one forces this list to shrink in the same commit
-// (#440's form).
-//
 // ⭐ THE ONE PART THAT IS NOT PROPHYLACTIC, and the reason the shared scanner is ORDERED rather
 // than merely thorough: two of the eleven strip `/* … */` BEFORE line comments. A `/*` that is not
 // a block opener at all — inside a `///` line, inside a string — therefore opens a phantom block
@@ -22,33 +14,51 @@
 // files, one of them in `BreathPattern.swift`, which `ThePacedRateMustBeReadableTests` scans.
 // `testADocCommentSlashStarDoesNotEatTheNextLine` is that case, and it is RED on shape 5.
 //
-// ⚠️ WHAT THIS CANNOT SHOW: that any of the eight remaining copies is wrong today. It is not — it
-// is measured equivalent. What it shows is that there is now one place to fix, and a list that
-// cannot rot quietly.
+// ⛔ THE FIRST VERSION SHIPPED THREE OF THE ELEVEN AND PUT THE OTHER EIGHT ON A PERMISSION LIST,
+// on the measured claim that "no scanned line holds a `//` inside a string literal". That claim is
+// FALSE, and the counter-example is scanned by this bundle every run: `EchoelStudioView.swift`
+// holds the WeatherKit attribution URL in `URL(string: "https://developer.apple.com/…")`. It was
+// the ONE line on which the truncating shapes and the ordered scanner disagreed. The eight are
+// migrated here, so the permission list is gone rather than corrected — a licence granted on a
+// premise that did not hold is not worth keeping in either direction.
+//
+// ⚠️ WHAT THIS CANNOT SHOW: that any of the eight was wrong TODAY. Measured before migrating,
+// every one is verdict-neutral. The grid guard is the sharpest case, because it is the one whose
+// needle also appears in prose: `decimals:` sits in trailing comments 9× in EchoelValueField.swift,
+// 8× in EchoelStudioView.swift, 2× in EchoelFXView.swift and 1× each in BodyTempoField.swift and
+// WorkspaceView.swift — under a shape that keeps trailing comments, any of those inside a call
+// site's line span would have satisfied the guard as PROSE. Measured both ways, the site counts
+// (1/1, 4/4, 46/46, 1/1 for `EchoelValueField(`; 44/44 for `field(`) and the missing-`decimals:`
+// sets ([131] on BodyTempoField, empty elsewhere) are IDENTICAL. This slice removes a mechanism,
+// not a defect.
+//
+// ⚠️ AND THE LIST BELOW IS A FLOOR, NOT A CENSUS. It names the eleven known scanning guards and
+// checks that each still delegates. It deliberately does NOT demand that every future delegating
+// guard be listed: a new guard reaching for the shared scanner is the behaviour this slice wants,
+// and a rule that turns it red would be obeying its own letter against its purpose (#364). What
+// catches drift in the other direction is `testNoUnlistedFileDeclaresItsOwnStripper`, which is
+// about a TWELFTH private copy and needs no list at all.
 
 import Foundation
 import XCTest
 
 final class OneDefinitionOfCodeNotProseTests: XCTestCase {
 
-    /// Files that still carry their own private stripper. Shrink this list when you migrate one —
-    /// the test below goes red if an entry is stale, so it cannot silently outlive its reason.
-    private let notYetMigrated: [String] = [
+    /// The eleven guards that assert on source text and therefore have to strip comments first.
+    /// Each must route that stripping through `SourceText` — some through a one-line private
+    /// wrapper kept so no call site changed, one (`ARejectedCrossing…`) directly at its call sites.
+    private let scanningGuards: [String] = [
+        "ARejectedCrossingIsNotFreshnessTests.swift",
         "BioSmoothingSharesOnePoleTests.swift",
         "ControllerEventDrainIsPushedTests.swift",
         "DisabledReverbIsNotClaimedLiveTests.swift",
         "EveryReachableRowStatesItsGridTests.swift",
         "ResonanceBreathingNeedsMoreThanOneWindowTests.swift",
+        "TheBandEdgeIsMeasurableTests.swift",
         "TheDynamicsAreThePersonsTests.swift",
         "TheManifestArgumentOrderIsTheCompilersTests.swift",
-        "TheShownNumberIsTheKeptNumberTests.swift",
-    ]
-
-    /// The three that scan the same sources and therefore had to agree first.
-    private let migrated: [String] = [
-        "ARejectedCrossingIsNotFreshnessTests.swift",
-        "TheBandEdgeIsMeasurableTests.swift",
         "ThePacedRateMustBeReadableTests.swift",
+        "TheShownNumberIsTheKeptNumberTests.swift",
     ]
 
     // MARK: - The scanner itself
@@ -118,31 +128,19 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
             """)
     }
 
-    // MARK: - The wiring, and the permission list
+    // MARK: - The wiring
 
-    func testTheThreeSameTargetGuardsDelegate() throws {
-        for name in migrated {
+    /// The forward direction: every known scanning guard still routes its stripping through the
+    /// one definition. `read` fails loudly for a name that is gone, so a deleted guard cannot
+    /// leave a silently-passing entry behind.
+    func testEveryScanningGuardDelegates() throws {
+        for name in scanningGuards {
             let code = try read(name)
             XCTAssertTrue(code.contains("SourceText.codeOnly"), """
-                \(name) scans a source file that another guard in this bundle also scans, but it \
-                no longer routes its stripping through SourceText. Two shapes over one file is \
-                the #416 defect this slice removed.
-                """)
-        }
-    }
-
-    /// Both directions. A stale licence — a file that migrated, or one that no longer exists —
-    /// is exactly how a permission list turns into a lie (#440).
-    func testThePermissionListIsNotStale() throws {
-        for name in notYetMigrated {
-            let code = try read(name)
-            XCTAssertTrue(code.contains("func codeOnly"), """
-                \(name) is listed as still carrying its own stripper, but declares none. Remove \
-                the entry — a permission list that outlives its reason reads as coverage.
-                """)
-            XCTAssertFalse(code.contains("SourceText.codeOnly"), """
-                \(name) already delegates to SourceText but is still on the not-yet-migrated \
-                list. Take it off in the same commit that migrated it.
+                \(name) strips comments before asserting on source text, but no longer routes \
+                that through SourceText. A second shape over the same sources is the #416 defect \
+                this slice removed — and the shapes are NOT interchangeable: they disagree on the \
+                WeatherKit attribution URL in EchoelStudioView.swift.
                 """)
         }
     }
@@ -167,13 +165,12 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
             let code = try read(name)
             guard code.contains("func codeOnly") else { continue }
             if code.contains("SourceText.codeOnly") { continue }
-            if notYetMigrated.contains(name) { continue }
             offenders.append(name)
         }
         XCTAssertEqual(offenders, [], """
             \(offenders.joined(separator: ", ")) declare their own comment stripper without \
-            delegating to SourceText and without being on the permission list. That is a new \
-            copy of a decision this bundle already made eleven times (#453).
+            delegating to SourceText. That is a TWELFTH copy of a decision this bundle already \
+            made eleven times, and the eleven were not interchangeable (#453).
             """)
     }
 

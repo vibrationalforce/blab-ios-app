@@ -93,14 +93,16 @@ final class EveryReachableRowStatesItsGridTests: XCTestCase {
     /// whose comments outweigh its code that is off by hundreds of lines, in exactly the string
     /// a future session pastes into an editor. Blanking keeps one line per line.
     ///
-    /// ⚠️ It only removes WHOLE-LINE `//`. A trailing comment or a `/* */` block quoting
-    /// `EchoelValueField(` would still be counted as a call site. True on today's tree (the
-    /// scan reproduces 62/2 exactly); stated because "comments stripped" reads broader than it
-    /// is.
+    /// ⭐ Since #453 this is `SourceText.codeOnly`, which ALSO removes trailing comments and
+    /// real `/* … */` blocks while still keeping one line per line. That closes a live hole:
+    /// `decimals:` appears in trailing comments 9× in `EchoelValueField.swift`, 8× in
+    /// `EchoelStudioView.swift`, 2× in `EchoelFXView.swift` and once each in `BodyTempoField`
+    /// and `WorkspaceView` — under the old shape any of those inside a call site's line span
+    /// would have satisfied this guard as PROSE. Measured before the swap: site counts and the
+    /// set of sites missing `decimals:` are identical on all four files, so nothing flipped
+    /// today; the mechanism is what is gone.
     private func codeOnly(_ text: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: false)
-            .map { $0.trimmingCharacters(in: .whitespaces).hasPrefix("//") ? "" : String($0) }
-            .joined(separator: "\n")
+        SourceText.codeOnly(text)
     }
 
     /// Every `EchoelValueField(` call in `Sources/`, paren-matched, comments blanked, as

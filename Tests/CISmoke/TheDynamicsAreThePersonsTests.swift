@@ -292,14 +292,15 @@ final class TheDynamicsAreThePersonsTests: XCTestCase {
         PerformerSignature.minimumObservationInterval * TimeInterval(n + 1)
     }
 
-    /// Everything before the first `//` on each line. Crude on purpose — a string literal
-    /// containing `//` would be truncated — and adequate here, because the scan looks for a
-    /// Swift argument label that never appears inside a literal in that file.
+    /// Comments blanked by `SourceText.codeOnly` (#453), which is string-aware.
+    /// ⛔ The line this replaces called truncating at the first `//` "adequate here, because the
+    /// scan looks for a Swift argument label that never appears inside a literal in that file".
+    /// The second half was right and the premise was wrong: `EchoelStudioView.swift` DOES hold
+    /// such a literal — the WeatherKit attribution URL — and it was the ONE line where the two
+    /// shapes disagreed. Nothing this file asserts touches it, so the verdict is unchanged; the
+    /// claim "no literal contains `//`" was simply never true.
     private static func codeOnly(_ source: String) -> String {
-        source.split(separator: "\n", omittingEmptySubsequences: false).map { line -> String in
-            guard let slashes = line.range(of: "//") else { return String(line) }
-            return String(line[line.startIndex..<slashes.lowerBound])
-        }.joined(separator: "\n")
+        SourceText.codeOnly(source)
     }
 
     private static func read(_ relativePath: String) throws -> String {

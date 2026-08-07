@@ -239,27 +239,14 @@ final class BioSmoothingSharesOnePoleTests: XCTestCase {
     /// false-RED on the blocking gate; matching a quoted old assignment would be a
     /// false-RED blaming a line that no longer runs.
     ///
-    /// Not a Swift parser: `//` inside a string literal is stripped too. In this file that
-    /// direction can only DROP candidate lines, which the count assertion above turns into
-    /// a red — it cannot manufacture a green.
+    /// ⭐ Comment stripping is `SourceText.codeOnly` since #453 — ordered, string-aware and
+    /// line-count preserving. The private copy this used to hold stripped `/* … */` BEFORE
+    /// line comments, so a `/*` that is not a block opener (a `///` line, a string) would have
+    /// opened a phantom block and swallowed the file down to the next `*/`. Measured on
+    /// `EchoelDDSP.swift` before the swap: byte-identical output, so nothing this file asserts
+    /// moved. The mechanism is gone, not a defect.
     private static func codeOnly(_ text: String) -> String {
-        var out = ""
-        var rest = Substring(text)
-        while let open = rest.range(of: "/*") {
-            out += rest[..<open.lowerBound]
-            if let close = rest.range(of: "*/", range: open.upperBound..<rest.endIndex) {
-                rest = rest[close.upperBound...]
-            } else {
-                rest = rest[rest.endIndex...]      // unterminated: drop the tail
-            }
-        }
-        out += rest
-        return out.split(separator: "\n", omittingEmptySubsequences: false)
-            .map { line -> String in
-                guard let slashes = line.range(of: "//") else { return String(line) }
-                return String(line[..<slashes.lowerBound])
-            }
-            .joined(separator: "\n")
+        SourceText.codeOnly(text)
     }
 
     private func source(_ path: String) throws -> String {

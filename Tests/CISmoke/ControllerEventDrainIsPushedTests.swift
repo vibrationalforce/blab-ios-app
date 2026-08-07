@@ -109,15 +109,15 @@ final class ControllerEventDrainIsPushedTests: XCTestCase {
 
     // MARK: - helpers
 
-    /// Drop whole-line `//` comments. Deliberately NOT a Swift parser: it does not handle
-    /// trailing comments, `/* */`, or `//` inside a string literal — and it does not need to,
-    /// because the one thing it must never do is let PROSE about an assignment count as an
-    /// assignment. Whole-line comments are where prose lives in this repo.
+    /// Comments blanked by `SourceText.codeOnly` (#453): ordered, string-aware, line-count
+    /// preserving. It replaces a private copy that DROPPED whole-line comments and KEPT
+    /// trailing ones — so prose after code could still be read as code, which is the one thing
+    /// this guard must never allow. Measured before the swap on both scanned files: all four
+    /// needles land identically, so the verdict did not move; what moved is that a trailing
+    /// `// … onControllerEventEnqueued …` can no longer stand in for the real hook (there is
+    /// exactly one such mention in `BioReactiveSynthVoice.swift`).
     private static func codeOnly(_ text: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-            .joined(separator: "\n")
+        SourceText.codeOnly(text)
     }
 
     private func repoRoot() throws -> URL {

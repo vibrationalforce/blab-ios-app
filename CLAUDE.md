@@ -253,13 +253,34 @@ Tests/EchoelmusicTests/ ← 313 test files (`git ls-files 'Tests/EchoelmusicTest
                           Faktor 5,5 daneben, und das ist die #416-Form in ihrer breitesten Auspraegung:
                           eine Entscheidung, elf Orte, nichts das merkt, wenn sie auseinanderlaufen.
                           ⚠️ EHRLICHER UMFANG: auf dem heutigen Baum stimmen die elf fuer JEDE
-                          `contains`-Behauptung ueberein — keine gescannte Datei hat einen echten
-                          `/* … */`-Block, keine gescannte Zeile ein `//` in einem String-Literal.
-                          Migriert sind deshalb DREI: genau die, die `RespirationEstimator.swift` und
-                          `BreathPattern.swift` scannen, also die belegte Gleiche-Ziel-Divergenz. Die
-                          anderen acht stehen auf einer Erlaubnisliste, die in BEIDE Richtungen geprueft
-                          wird (#440-Form): ein Eintrag, dessen Datei keine eigene Kopie mehr hat, ist
-                          ein veralteter Freibrief und wird rot.
+                          `contains`-Behauptung ueberein. ⛔ **Die Begruendung dafuer war zur Haelfte
+                          falsch, und sie stand in dieser Zeile, im Dateikopf des Waechters und im
+                          Commit-Text: „keine gescannte Zeile ein `//` in einem String-Literal".**
+                          `EchoelStudioView.swift` — von `EveryReachableRowStatesItsGridTests` bei
+                          JEDEM Lauf gescannt — traegt die WeatherKit-Attributions-URL in
+                          `URL(string: "https://developer.apple.com/…")`, und genau diese EINE Zeile
+                          ist die, auf der die abschneidenden Formen und der geordnete Scanner
+                          auseinandergehen. Der erste Anlauf migrierte deshalb nur DREI und stellte
+                          die anderen acht auf eine beidseitig gepruefte Erlaubnisliste; die
+                          NACHLESE hat alle acht eingefaltet und die Liste ersatzlos entfernt — ein
+                          Freibrief, dessen Praemisse nicht galt, wird nicht korrigiert, sondern
+                          zurueckgezogen. Verdikt-neutral ist die Migration trotzdem, und der
+                          schaerfste Fall ist der Gitter-Waechter, weil sein Suchwort auch in Prosa
+                          steht: `decimals:` sitzt 9× in `EchoelValueField.swift`, 8× in
+                          `EchoelStudioView.swift`, 2× in `EchoelFXView.swift` und je 1× in
+                          `BodyTempoField.swift`/`WorkspaceView.swift` in Zeilenkommentaren — unter
+                          einer Form, die nachlaufende Kommentare BEHAELT, haette jeder davon
+                          innerhalb der Zeilenspanne einer Aufrufstelle den Waechter als PROSA
+                          befriedigt. Beidseitig gemessen sind die Aufrufstellen-Zahlen (1/1 · 4/4 ·
+                          46/46 · 1/1 fuer `EchoelValueField(`, 44/44 fuer `field(`) und die
+                          Ohne-`decimals:`-Mengen ([131] auf `BodyTempoField`, sonst leer) IDENTISCH.
+                          Die Liste im Waechter ist seither ein BODEN, keine Volkszaehlung: sie nennt
+                          die elf und prueft, dass jede noch delegiert, verlangt aber NICHT, dass
+                          jeder kuenftige delegierende Waechter eingetragen wird — ein neuer
+                          Waechter, der zum geteilten Scanner greift, ist genau das gewollte
+                          Verhalten, und eine Regel, die ihn dafuer rot macht, waere die
+                          #364-Falle. Die Gegenrichtung haelt `testNoUnlistedFileDeclaresItsOwnStripper`,
+                          das von einer ZWOELFTEN privaten Kopie handelt und gar keine Liste braucht.
                           ⭐ **Was NICHT prophylaktisch ist, und es steht andersherum als man erwartet:
                           die GRUENDLICHSTE Form ist die gefaehrlichste.** Zwei der elf strippen
                           `/* … */` VOR den Zeilenkommentaren. Ein `/*`, das gar kein Blockanfang ist —

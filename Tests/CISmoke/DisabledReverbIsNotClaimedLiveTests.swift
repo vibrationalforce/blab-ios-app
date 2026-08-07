@@ -100,26 +100,12 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
     /// keeps selling a stage that does not sound. A silent guard is indistinguishable from a
     /// passing one — which is the exact defect the `doctor` skill exists for.
     ///
-    /// Still not a Swift parser: `//` inside a string literal is stripped too. That direction
-    /// only ever ARMS the guard (a claimed writer disappears), so it fails safe.
+    /// ⭐ Since #453 the stripping is `SourceText.codeOnly` — ordered and string-aware, so a
+    /// `//` inside a string literal is NO LONGER removed. That is the safer direction here as
+    /// well: the flag name cannot appear inside a literal in `EchoelDDSP.swift`, and measured
+    /// before the swap the file's stripped text was byte-identical.
     private static func codeOnly(_ text: String) -> String {
-        var out = ""
-        var rest = Substring(text)
-        while let open = rest.range(of: "/*") {
-            out += rest[..<open.lowerBound]
-            if let close = rest.range(of: "*/", range: open.upperBound..<rest.endIndex) {
-                rest = rest[close.upperBound...]
-            } else {
-                rest = rest[rest.endIndex...]      // unterminated: drop the tail
-            }
-        }
-        out += rest
-        return out.split(separator: "\n", omittingEmptySubsequences: false)
-            .map { line -> String in
-                guard let slashes = line.range(of: "//") else { return String(line) }
-                return String(line[..<slashes.lowerBound])
-            }
-            .joined(separator: "\n")
+        SourceText.codeOnly(text)
     }
 
     /// HTML space entities → a plain space. Same helper, same reason, as the sibling guard

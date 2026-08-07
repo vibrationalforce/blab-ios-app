@@ -327,13 +327,14 @@ final class TheShownNumberIsTheKeptNumberTests: XCTestCase {
 
     // MARK: - Helpers
 
-    /// Source with whole-line `//` comments removed, so every needle below anchors on CODE.
-    /// Deliberately line-based and not a real lexer: a trailing comment after code stays, which is
-    /// the safe direction (it can only make a positive anchor easier and a negative one stricter).
+    /// Comments blanked by `SourceText.codeOnly` (#453), so every needle below anchors on CODE.
+    /// ⭐ The private copy it replaces removed only WHOLE-LINE comments and kept trailing ones —
+    /// the direction its own doc called "safe", and it is not: a positive anchor made EASIER is
+    /// a guard that can pass on prose, and `EchoelNumberPad.swift` carries `acceptsDigit` (3×),
+    /// `ScrubPrecision.gridded` and `decimals:` in trailing comments. Measured before the swap:
+    /// every needle in this file lands identically, so the verdict did not move.
     private static func codeOnly(_ source: String) -> String {
-        source.split(separator: "\n", omittingEmptySubsequences: false)
-            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
-            .joined(separator: "\n")
+        SourceText.codeOnly(source)
     }
 
     private func repoRoot() throws -> URL {

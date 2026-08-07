@@ -668,17 +668,14 @@ final class ResonanceBreathingNeedsMoreThanOneWindowTests: XCTestCase {
         return out
     }
 
-    /// Everything before a `//` on each line. This file's scans look for shapes that the
-    /// SOURCE also describes in prose (the fixed code documents the broken form by name), and
-    /// a raw-text scan cannot tell code from a comment — a trap this repo has now paid for
-    /// from both directions (#404, #420).
+    /// Comments blanked by `SourceText.codeOnly` (#453). This file's scans look for shapes that
+    /// the SOURCE also describes in prose (the fixed code documents the broken form by name),
+    /// and a raw-text scan cannot tell code from a comment — a trap this repo has paid for from
+    /// both directions (#404, #420). The private copy it replaces truncated at the first `//`
+    /// even inside a string literal; measured before the swap, both scanned files strip
+    /// byte-identically, so no assertion here moved.
     private static func codeOnly(_ text: String) -> String {
-        text.split(separator: "\n", omittingEmptySubsequences: false)
-            .map { line -> Substring in
-                guard let slashes = line.range(of: "//") else { return line }
-                return line[line.startIndex..<slashes.lowerBound]
-            }
-            .joined(separator: "\n")
+        SourceText.codeOnly(text)
     }
 
     private static func source(_ relativePath: String) throws -> String {
