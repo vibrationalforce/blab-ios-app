@@ -79,6 +79,31 @@ final class CameraAnalyzer {
     /// on nobody reading it.
     @ObservationIgnored var beatTimes: [Double] = []
 
+    /// `rrIntervals` split into runs of genuinely consecutive beats — the ONE answer to
+    /// "which of these intervals are adjacent" for this window (#459).
+    ///
+    /// It exists because that question had TWO answers. `calculateRMSSD()` derived the runs
+    /// here and the camera publisher derived them AGAIN, from the same two arrays, for
+    /// `hrvPNN50`. Both call sites wrote the argument pair out by hand, so a later edit to
+    /// either one — a hygiene pass, `rawIntervalsMs` instead of `rrIntervals` — would have
+    /// left RMSSD and pNN50 disagreeing about which beats are adjacent, silently, in the
+    /// same frame. Making those two agree is the whole point of #425; two hand-copied
+    /// definitions of it is the #416 shape. The recompute cost was never the argument: this
+    /// is O(30) about once a second.
+    ///
+    /// ⚠️ THE INVARIANT THIS BUYS AND THE ONE IT OWES. It is assigned in exactly one place,
+    /// `calculateRMSSD()`, which BOTH sites that write `rrIntervals`/`beatTimes` call
+    /// unconditionally (see the ⛔ block there — the unconditional call is itself a #425
+    /// repair). In exchange it is now state that can outlive its inputs, so it is cleared at
+    /// both places the arrays are cleared, exactly like `beatTimes`. A run list left standing
+    /// beside empty arrays would publish a pNN50 for beats that no longer exist — a failure
+    /// mode the previous recompute-at-publish shape could not have.
+    ///
+    /// `@ObservationIgnored` for the same reason as `beatTimes` above: rewritten ~1 Hz, read
+    /// by one non-view consumer. Observing it would put a ~1 Hz invalidation source in reach
+    /// of any body that touched it — the menu-freeze law in CLAUDE.md.
+    @ObservationIgnored private(set) var rrSegments: [[Double]] = []
+
     /// Every peak-to-peak difference of the newest window, in ms, with NOTHING removed —
     /// including the impossible ones a dropped or doubled peak produces.
     ///
@@ -336,6 +361,7 @@ final class CameraAnalyzer {
                 rmssd = 0
                 rrIntervals.removeAll()
                 beatTimes.removeAll()    // stays 1:1 with rrIntervals, including when both are empty
+                rrSegments.removeAll()   // derived from the two above — a run list must not outlive them
                 recentBPMs.removeAll()   // don't seed the next lock from a stale median
             }
         }
@@ -399,6 +425,7 @@ final class CameraAnalyzer {
         peakIndices.removeAll()
         rrIntervals.removeAll()
         beatTimes.removeAll()   // stays 1:1 with rrIntervals, including when both are empty
+        rrSegments.removeAll()  // derived from the two above — a run list must not outlive them
         bpState = BandpassState()
         dcEstimate = 0
         dcWarmupCount = 0
@@ -1127,10 +1154,16 @@ final class CameraAnalyzer {
     /// honest failure is a noisy one, not a confident one. `PolarH10BioPublisher` has had no
     /// such minimum since it grew `acceptedSegments`, so this also stops the two sources
     /// disagreeing about when RMSSD exists.
+    /// ⚠️ IT ALSO PUBLISHES THE RUNS (#459), and the name does not say so, so it is said here.
+    /// This is the ONE place `rrSegments` is assigned, and it is the right place for a reason
+    /// the name obscures: both sites that write `rrIntervals`/`beatTimes` call this
+    /// unconditionally, so "the runs are current" and "RMSSD is current" hold or fail
+    /// together. Splitting the assignment into its own method would put the adjacency decision
+    /// back at two call sites, which is the defect #459 removed.
     private func calculateRMSSD() {
-        let runs = RRAdjacency.segments(intervalsMs: rrIntervals,
-                                        endTimesSeconds: beatTimes)
-        rmssd = HRVMetrics.rmssd(segments: runs)
+        rrSegments = RRAdjacency.segments(intervalsMs: rrIntervals,
+                                          endTimesSeconds: beatTimes)
+        rmssd = HRVMetrics.rmssd(segments: rrSegments)
     }
 
     // MARK: - Signal Quality

@@ -1132,13 +1132,20 @@ public final class CameraRPPGBioPublisher {
                     hrvSDNNms: Float(HRVMetrics.sdnn(rrMs: rrMs)),
                     // pNN50 DOES read consecutive pairs, so it gets the same treatment as
                     // RMSSD one layer up: pooled only within runs of genuinely adjacent
-                    // beats. `rrMs` is twice-compacted (see `RRAdjacency`), so a flat walk
-                    // counts a difference across a dropped beat — and a cross-gap difference
-                    // is exactly the kind that clears the 50 ms threshold, which is why the
-                    // relative error here is larger than on RMSSD.
-                    hrvPNN50: Float(HRVMetrics.pnn50(
-                        segments: RRAdjacency.segments(intervalsMs: rrMs,
-                                                       endTimesSeconds: beatTimes)))
+                    // beats. `rrIntervals` is twice-compacted (see `RRAdjacency`), so a flat
+                    // walk counts a difference across a dropped beat — and a cross-gap
+                    // difference is exactly the kind that clears the 50 ms threshold, which is
+                    // why the relative error here is larger than on RMSSD.
+                    //
+                    // ⭐ READ, NOT RE-DERIVED (#459). This used to call
+                    // `RRAdjacency.segments(intervalsMs: rrMs, endTimesSeconds: beatTimes)`
+                    // itself, next to the analyzer doing the identical call for RMSSD — the
+                    // same decision written out twice, from the same two arrays, with the
+                    // argument pair copied by hand. The cost was never the arithmetic (O(30),
+                    // ~1 Hz); it was that an edit to either copy would have left RMSSD and
+                    // pNN50 disagreeing about which beats are adjacent, in the same frame,
+                    // and making those two agree is the whole point of #425.
+                    hrvPNN50: Float(HRVMetrics.pnn50(segments: self.analyzer.rrSegments))
                 )
                 bus.publish(bio: frame)
                 // Anchor the hold to this good frame (see lastGoodBioFrame docs).

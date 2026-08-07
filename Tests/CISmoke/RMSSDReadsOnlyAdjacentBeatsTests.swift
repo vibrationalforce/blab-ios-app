@@ -112,6 +112,16 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
             extra step. Body scanned:
             \(body)
             """)
+        // #459: the runs are PUBLISHED here, not kept local, because the publisher's pNN50
+        // reads them. A `let runs = …` again would put the adjacency decision back at two
+        // call sites — which is the state this whole file exists to prevent between the two
+        // metrics, one level up.
+        XCTAssertTrue(body.contains("rrSegments = RRAdjacency.segments"), """
+            `calculateRMSSD()` no longer assigns `rrSegments`. The publisher reads that \
+            property for `hrvPNN50`; if this stops writing it, pNN50 pools over whatever the \
+            last window left behind — or over nothing at all. Body scanned:
+            \(body)
+            """)
     }
 
     // MARK: - 2. the publisher pools pNN50 within runs
@@ -121,18 +131,68 @@ final class RMSSDReadsOnlyAdjacentBeatsTests: XCTestCase {
     /// pNN50 is the one that moves MOST in relative terms, because a cross-gap difference is
     /// exactly the kind that clears the 50 ms threshold — on the fixture in claim 5 it is the
     /// difference between 11.1 % and 0 %.
+    ///
+    /// ⚠️ REWRITTEN BY #459, AND THE PROPERTY IT GUARDS IS UNCHANGED. Until then this scanned
+    /// for the publisher making its OWN `RRAdjacency.segments(intervalsMs:endTimesSeconds:)`
+    /// call — correct behaviour, guarded at the wrong level: the analyzer made the identical
+    /// call for RMSSD, so the adjacency decision existed twice, from the same two arrays, with
+    /// the argument pair hand-copied at both sites (#416). It now reads `analyzer.rrSegments`.
+    /// The assertions moved with the code rather than being deleted (#456): the first pins that
+    /// it reads the shared runs, the second that it does NOT re-derive them, and claim 1 above
+    /// pins that the analyzer still derives them from `beatTimes`. The three together are what
+    /// used to be two.
     func testThePublisherPoolsPNN50WithinRuns() throws {
         let window = try liveFrameWindow(from: "hrvPNN50:", to: nil)
-        XCTAssertTrue(window.contains("RRAdjacency.segments"), """
-            The camera publisher computes `hrvPNN50` from the compacted array flat.
-            Window scanned (comments blanked):
+        XCTAssertTrue(window.contains("HRVMetrics.pnn50(segments: self.analyzer.rrSegments)"), """
+            The camera publisher no longer takes `hrvPNN50` from the analyzer's shared runs. \
+            Either it is pooling the compacted array flat again (the #425 defect) or it has \
+            gone back to deriving the runs itself (the #459 defect). Window scanned \
+            (comments blanked):
             \(window)
             """)
-        XCTAssertTrue(window.contains("endTimesSeconds: beatTimes"), """
-            `hrvPNN50` segments on something other than `beatTimes` — see the note on \
-            claim 1 about pinning the argument, not just the call. Window scanned:
+        XCTAssertFalse(window.contains("RRAdjacency"), """
+            The publisher derives the adjacency runs a second time. That is the #459 shape: \
+            two copies of one decision, either of which a later edit can change alone, leaving \
+            RMSSD and pNN50 disagreeing about which beats are adjacent in the SAME frame. \
+            If this is deliberate, say what made one call site insufficient. Window scanned:
             \(window)
             """)
+    }
+
+    // MARK: - 2c. COUNTERWEIGHT — the shared runs cannot outlive their inputs
+
+    /// GREEN before and after; present because #459 CREATES the failure mode it guards.
+    ///
+    /// Deriving the runs at publish time had one property worth naming: they could not be
+    /// stale, because they did not exist between publishes. Caching them on the analyzer trades
+    /// that for a single definition — and buys an obligation. `rrIntervals`/`beatTimes` are
+    /// emptied at two places (the lock-loss branch and `resetPulseState`); a run list left
+    /// standing beside empty arrays would publish a pNN50 for beats that no longer exist, with
+    /// a fresh `CFAbsoluteTimeGetCurrent()` stamp on the frame — the shape no downstream
+    /// freshness policy can detect, and the exact class the ⛔ block on `calculateRMSSD`
+    /// already documents for `rmssd`.
+    ///
+    /// The scan is textual because the property is `private(set)` on a type behind
+    /// `#if canImport(AVFoundation)` and both clear sites are `private`. It asserts the pairing
+    /// rather than a count: every line that empties `rrIntervals` must be within a few lines of
+    /// one that empties `rrSegments`.
+    func testTheSharedRunsAreClearedWithTheArraysTheyCameFrom() throws {
+        let lines = try analyzerSource().split(separator: "\n", omittingEmptySubsequences: false)
+        let clearIndices = lines.indices.filter { lines[$0].contains("rrIntervals.removeAll()") }
+        XCTAssertGreaterThanOrEqual(clearIndices.count, 2, """
+            expected both places that empty `rrIntervals` (lock loss + `resetPulseState`), \
+            found \(clearIndices.count). If a clear site was removed, the arrays now survive a \
+            state this file assumed they did not.
+            """)
+        for i in clearIndices {
+            let near = lines[max(0, i - 3)...min(lines.count - 1, i + 3)]
+            XCTAssertTrue(near.contains { $0.contains("rrSegments.removeAll()") }, """
+                `rrIntervals` is emptied at line \(i + 1) without emptying `rrSegments`. The \
+                cached runs would then outlive the beats they describe and the next publish \
+                would carry a pNN50 for a window that no longer exists. Neighbourhood:
+                \(near.joined(separator: "\n"))
+                """)
+        }
     }
 
     // MARK: - 2b. the two layers share ONE unavailability policy
