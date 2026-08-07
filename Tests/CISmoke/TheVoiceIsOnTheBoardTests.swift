@@ -9,33 +9,57 @@
 // layers instead of beside them. So the one layer a performer makes with their own body was
 // the only audible layer absent from the board #330 built to hold every audible layer.
 //
-// ⚠️ HONEST GRADING, because the flattering version — "three regressions, three
-// counterweights" — is available and would be false. Counted rather than remembered: FIVE
-// of the six methods are red against the pre-#485 tree, and all five for the SAME cheap
-// reason, which is that `micMixStrip` does not exist there so the extractor returns "" and
-// the non-empty assertion fires first. That is not five findings; it is one absence,
-// reported five times. The sixth (`testTheEngineStillReportsWhetherMonitoringEngaged`) is
-// green on both sides.
+// ⚠️ HONEST GRADING. Six of the SEVEN methods are red against the pre-#485 tree and the
+// seventh (`testTheEngineStillReportsWhetherMonitoringEngaged`) is green on both sides — but
+// they are NOT six of a kind, and the first draft of this paragraph said they were.
 //
-// So the backward-facing value of this file is close to nil, and its worth is entirely
-// FORWARD: each method names one specific, plausible, well-intentioned next edit and stands
-// against it. Grading them by which ones happen to redden a tree that predates the code they
-// describe would be the #433 self-misgrading defect in the file that cites it.
+// ⛔ The first draft (six methods then) read: "all five for the SAME cheap reason … the
+// extractor returns "" and the non-empty assertion fires first … one absence reported five
+// times", and concluded "the backward-facing value of this file is close to nil". Both #485
+// reviewers measured it independently and it was FOUR of that kind, not five:
+// `testTheMicStripIsMountedInsideTheMixBoard` extracts `mixerPanel`, which exists on the
+// parent and is 4427 characters — its non-empty assertion PASSES, and it goes red on
+// `.contains("micMixStrip")`, i.e. for exactly the reason its name states. It is a genuine
+// mount regression. The error was in the SAFE direction — it undersold the file — and that
+// is the only reason it is a footnote rather than a retraction, but understating your own
+// evidence is still the #433 self-misgrading defect, and it happened in the paragraph headed
+// "counted rather than remembered".
 //
-// ⭐ THE COUNTERWEIGHT THAT MATTERS IS THE FEEDBACK-GUARD ONE, and it is the exact shape of
-// this repo's most expensive UI bug. `AudioInputPickerView` shows a live "guard is ducking"
-// dot, and copying it here reads as an obvious improvement. It is the 10.76.41/50 freeze
-// verbatim: `feedbackGuardActive` is written from the ~15 Hz meter poll, and `mixStripCard`
-// takes a NON-escaping `@ViewBuilder`, so this content is evaluated inside `mixerPanel` —
-// the body that hosts every `.menu` Picker of the instrument. The picker sheet is a leaf
-// with no Picker in it; the Mix board is not. Same value, two hosts, only one of them safe.
+// Current state, counted: FIVE absence artefacts (this file's anchors do not exist on the
+// parent), ONE real mount finding, ONE green-on-both-sides premise. The two methods added by
+// the #485 review — the `@ViewBuilder` pin and the engine-gated refusal message — are red
+// against `e95ac86` too, but for their own stated reasons rather than for a missing anchor.
+//
+// The rest of the file's worth really is FORWARD: each method names one specific, plausible,
+// well-intentioned next edit and stands against it.
+//
+// ⭐ THE COUNTERWEIGHT THAT MATTERS IS THE FEEDBACK-GUARD ONE. `AudioInputPickerView` shows
+// a live "guard is ducking" dot, and copying it here reads as an obvious improvement.
+// `feedbackGuardActive` is written from the ~15 Hz meter poll, so a read would enrol a body
+// as a 15 Hz observer for as long as monitoring runs — and this board's five strips carry
+// eight draggable `EchoelValueField`s, which is a live scrub-anchoring hazard (#375/#376).
+//
+// ⛔ AND THE FIRST DRAFT NAMED THE WRONG BODY: "evaluated inside `mixerPanel` — the body that
+// hosts every `.menu` Picker of the instrument … the 10.76.41/50 freeze verbatim." The
+// premise (`mixStripCard`'s builder is non-escaping) is true; the conclusion does not follow.
+// TWO escaping boundaries sit above this content — `mixerPanel` goes through `panel("Mix",…)`
+// into `EchoelPanel`, which invokes its builder in its OWN body, and the strips sit inside
+// `AdaptiveCardGrid`, which does the same. The read lands on `AdaptiveCardGrid`, never on
+// `EchoelStudioView.body`. This panel also hosts no `Picker` and no `.menu` at all. The
+// honest size was already in the tree, written by #298's Nachlese at
+// `AudioEngine.updateFeedbackGuard`: "No `.menu` Picker lives in that sheet, so this was
+// never the 10.76.50 freeze — but it is the same mechanism." #485 escalated that into "the
+// freeze verbatim", re-acquiring a misconception `EchoelStudioView` already carries a ⛔ note
+// to kill. Same mechanism, one panel away, one refactor from being the freeze — and the
+// DECISION to omit the flag is unchanged by the correction.
 //
 // ⛔ `SourceText.codeOnly` IS PROPHYLACTIC HERE, AND THE FIRST DRAFT OF THIS PARAGRAPH SAID
 // "LOAD-BEARING" — the exact overclaim #484 had to retract one commit ago, made again in the
 // file that cites it. Measured instead of asserted: stripped and raw text give IDENTICAL
-// verdicts on all 15 assertions, 0 differences. The reason is worth writing down because it
+// verdicts on all 17 assertions (15 before the #485 review added two), 0 differences. The reason is worth writing down because it
 // is not obvious and it will stop being true: the extractor anchors on the DECLARATION line,
-// and `micMixStrip`'s doc block — which does name `feedbackGuardActive`, twice — sits ABOVE
+// and `micMixStrip`'s doc block — which does name `feedbackGuardActive`; ONCE, not "twice"
+// as the first draft of this very sentence said, measured with `grep -c` — sits ABOVE
 // it, i.e. outside every extracted block. The strip's body carries no comments today. Add
 // one that mentions the flag and the stripper becomes the only thing between this guard and
 // a green earned by prose. It stays for that, and because #453 made one definition of
@@ -77,6 +101,28 @@ final class TheVoiceIsOnTheBoardTests: XCTestCase {
         """)
     }
 
+    /// ⭐ ADDED BY THE #485 REVIEW, and it is the kind of gap only a compiler-less lane
+    /// produces: `@ViewBuilder` on `micMixStrip` is load-bearing for the NON-iOS build ONLY.
+    /// The declaration opens with `#if os(iOS)` and has no `#else`, so off iOS the block is
+    /// empty and only the builder transform gives it a type (`buildBlock()` → `EmptyView`).
+    /// On iOS the body is a single expression, which makes the attribute look removable —
+    /// and removing it breaks the other platform with "no return statements … from which to
+    /// infer an underlying type", a failure no reviewer of the iOS diff would see.
+    func testTheMicStripKeepsTheViewBuilderItsNonIOSBuildNeeds() throws {
+        let src = try code(of: Self.studio)
+        guard let anchor = src.range(of: Self.stripAnchor) else {
+            return XCTFail("no `micMixStrip` declaration found in \(Self.studio)")
+        }
+        let head = String(src[..<anchor.lowerBound]).suffix(200)
+        XCTAssertTrue(head.contains("@ViewBuilder"), """
+        `micMixStrip` no longer carries `@ViewBuilder`. On iOS its body is one expression, so \
+        the attribute reads as removable — but the declaration is `#if os(iOS)` with no \
+        `#else`, and off iOS the builder transform is the only thing that gives the empty \
+        block a type. Either keep the attribute or give the `#if` an `#else { EmptyView() }`, \
+        in the same commit.
+        """)
+    }
+
     // MARK: - The toggle may not lie (regression)
 
     /// `isInputMonitoring` is `private(set)` and stays false when `setInputMonitoring`
@@ -99,6 +145,16 @@ final class TheVoiceIsOnTheBoardTests: XCTestCase {
         is not being read. That is a lying control (#135/#164/#227) on the one row where \
         "it says it is listening" is the worst thing in this app to be wrong about. If the \
         revert is made to happen some other way, move this assertion to it — do not delete it.
+        """)
+        XCTAssertTrue(strip.contains("micMonitorRefused && !audioEngine.isInputMonitoring"), """
+        the refusal message is no longer gated on the ENGINE as well as the flag. Dropping \
+        the `!audioEngine.isInputMonitoring` half looks like a simplification and re-opens a \
+        VISIBLE contradiction the #485 review found: refuse here, open "Choose input…", grant \
+        and switch monitoring on inside `AudioInputPickerView` (which knows nothing about \
+        this `@State`), dismiss — and the card renders the Toggle ON together with "could not \
+        start". Two doors onto one engine; the engine is the single source of truth for "is \
+        it listening", and this also clears the milder staleness after granting permission in \
+        Settings and coming back.
         """)
     }
 
@@ -129,12 +185,14 @@ final class TheVoiceIsOnTheBoardTests: XCTestCase {
         XCTAssertFalse(strip.isEmpty, "no `micMixStrip` declaration found in \(Self.studio)")
         XCTAssertFalse(strip.contains("feedbackGuardActive"), """
         the mic strip reads `audioEngine.feedbackGuardActive`. That flag is written from the \
-        ~15 Hz meter poll while monitoring runs, and `mixStripCard` takes a NON-escaping \
-        `@ViewBuilder` — so this content is evaluated inside `mixerPanel`, which is inside \
-        the body that hosts every `.menu` Picker of the instrument. Every rebuild tears down \
-        an open Picker popover: that is the shipped "kann plötzlich nicht mehr auswählen" \
-        freeze, arriving the moment the performer switches their mic on. The live indicator \
-        belongs in `AudioInputPickerView`, a leaf sheet with no Picker in it. If a live \
+        ~15 Hz meter poll while monitoring runs, so this enrols `AdaptiveCardGrid`'s body — \
+        the five mix strips, carrying eight draggable `EchoelValueField`s — as a 15 Hz \
+        observer for as long as the performer's mic is on. It is NOT the 10.76.41/50 freeze: \
+        `mixerPanel` reaches this content through TWO escaping builders (`EchoelPanel` and \
+        `AdaptiveCardGrid`, each invoking it in its own body), and this panel hosts no \
+        `.menu` Picker at all. It is the same mechanism one panel away, with a live \
+        scrub-anchoring hazard (#375/#376) in the churning subtree — the cost \
+        `AudioEngine.updateFeedbackGuard` already names for `AudioInputPickerView`. If a live \
         readout is genuinely wanted here, it goes in its OWN leaf `View` struct that reads \
         the engine in its own body — not inline in this builder.
         """)
@@ -178,8 +236,10 @@ final class TheVoiceIsOnTheBoardTests: XCTestCase {
         """)
         XCTAssertTrue(strip.contains("range: 0...1"), """
         the mic level row no longer spans 0…1. `AudioEngine.inputMonitorGain`'s `didSet` \
-        clamps to that range, so a wider field would show and persist numbers the engine \
-        silently discards — "adjustable but inert", the class this repo keeps removing.
+        clamps the value it writes to the mixer into that range (the stored property itself \
+        is left alone, and nothing persists it), so a wider field would SHOW numbers the \
+        engine silently discards — "adjustable but inert", the class this repo keeps \
+        removing.
         """)
     }
 

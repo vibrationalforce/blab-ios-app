@@ -318,14 +318,30 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Ebene zu halten. Die Scheibe fügt eine TÜR hinzu, keine zweite Kopie: beide Zeilen
                           lesen und schreiben die EINE `AudioEngine`, genau wie der Click-Streifen die EINE
                           `MetronomeVoice`.
-                          ⚠️ **`feedbackGuardActive` wird ABSICHTLICH nicht gelesen, und das ist die teuerste
-                          Zeile der Scheibe.** `AudioInputPickerView` zeigt einen lebenden „duckt gerade"-Punkt,
-                          und ihn hierher zu kopieren liest sich als offensichtliche Verbesserung. Es ist der
-                          10.76.41/50-Freeze wörtlich: die Flagge wird aus dem ~15-Hz-Meter-Poll geschrieben,
-                          und `mixStripCard` nimmt einen NICHT-escaping `@ViewBuilder` — der Inhalt wird also
-                          INNERHALB `mixerPanel` ausgewertet, also innerhalb des Rumpfes, der jeden
-                          `.menu`-Picker des Instruments beherbergt. Dieselbe Zahl, zwei Wirte, nur einer davon
-                          sicher; das Picker-Sheet ist ein Blatt ohne Picker, das Mischpult nicht.
+                          ⚠️ **`feedbackGuardActive` wird ABSICHTLICH nicht gelesen.** Die Flagge wird aus
+                          dem ~15-Hz-Meter-Poll geschrieben, ein Lesezugriff meldete also einen Rumpf für die
+                          Dauer des Monitorings als 15-Hz-Beobachter an — und die fünf Streifen dieses Bretts
+                          tragen acht ziehbare `EchoelValueField`s, also eine lebende Scrub-Anker-Gefahr
+                          (#375/#376), nicht bloß verschwendete Arbeit.
+                          ⛔ **UND DIE ERSTE FASSUNG NANNTE DEN FALSCHEN RUMPF — den EINEN Fehler, den
+                          `EchoelStudioView` an anderer Stelle schon ausdrücklich zurücknimmt, hier einen
+                          Commit später wieder eingesammelt.** Sie schrieb: `mixStripCard` nimmt einen
+                          NICHT-escaping `@ViewBuilder`, der Inhalt werde also „INNERHALB `mixerPanel`
+                          ausgewertet, also innerhalb des Rumpfes, der jeden `.menu`-Picker des Instruments
+                          beherbergt … der 10.76.41/50-Freeze wörtlich". Die Prämisse stimmt, die
+                          Schlussfolgerung folgt nicht: ZWEI escaping-Grenzen liegen darüber — `mixerPanel`
+                          geht durch `panel("Mix", …)` in `EchoelPanel`, das seinen Builder in seinem EIGENEN
+                          Rumpf auswertet, und die Streifen sitzen in `AdaptiveCardGrid`, das dasselbe tut.
+                          Der Lesezugriff landet auf `AdaptiveCardGrid`, NIE auf `EchoelStudioView.body`. Und
+                          dieses Panel beherbergt **null** `Picker` und **null** `.menu` (gemessen), es gibt
+                          dort also gar nichts abzureißen. Die ehrliche Größe stand längst im Baum, von der
+                          #298-Nachlese an `AudioEngine.updateFeedbackGuard` geschrieben: *„No `.menu` Picker
+                          lives in that sheet, so this was never the 10.76.50 freeze — but it is the same
+                          mechanism."* #485 hat daraus „der Freeze wörtlich" gemacht. **Lehre, und sie ist
+                          nicht die übliche Stale-Zahl-Lehre: eine Begründung, die im selben File bereits als
+                          ⛔-Rücknahme steht, wird trotzdem neu erfunden, wenn sie sich dramatisch liest.**
+                          Die ENTSCHEIDUNG (Flagge nicht lesen) ist von der Korrektur unberührt; beide
+                          Reviewer fanden es unabhängig, jede Behauptung ist von mir nachgemessen.
                           ⭐ Und der Toggle darf nicht lügen: `setInputMonitoring` gibt `Bool` zurück und
                           `isInputMonitoring` ist `private(set)`, bleibt bei verweigerter Mikrofon-Berechtigung
                           also false — ohne einen Schreibvorgang auf beobachtbaren Zustand zeigte der Schalter
@@ -340,21 +356,50 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Zahl IST also der Pegel, den man bekommt. NICHT persistiert, und das ist eine
                           Entscheidung: ein Monitor-Gain ist ein Rückkopplungsrisiko, jeder Start beginnt beim
                           konservativen 0,6 statt bei dem, was ein anderer Raum gebraucht hat.
-                          ⛔ **EHRLICHE BENOTUNG, und die schmeichelhafte Fassung wäre „drei Regressionen, drei
-                          Gegengewichte" gewesen.** Gezählt statt erinnert: **FÜNF der sechs Methoden sind gegen
-                          den Vor-#485-Baum rot, und alle fünf aus DEMSELBEN billigen Grund** — `micMixStrip`
-                          existiert dort nicht, der Extraktor liefert "", und die Nichtleer-Behauptung feuert
-                          zuerst. Das sind keine fünf Befunde, das ist EINE Abwesenheit, fünfmal gemeldet. Der
-                          Wert der Datei liegt vollständig VORWÄRTS.
+                          ⛔ **EHRLICHE BENOTUNG — und die erste Fassung war zu HART gegen sich selbst, was
+                          derselbe Defekt ist wie zu weich.** Sie schrieb „FÜNF der sechs Methoden … alle fünf
+                          aus DEMSELBEN billigen Grund … EINE Abwesenheit, fünfmal gemeldet. Der Wert der
+                          Datei liegt vollständig VORWÄRTS." Es sind VIER dieser Art, nicht fünf, und beide
+                          Reviewer haben es unabhängig gemessen: `testTheMicStripIsMountedInsideTheMixBoard`
+                          extrahiert `mixerPanel`, das auf dem Elternteil existiert und 4427 Zeichen lang ist
+                          — seine Nichtleer-Behauptung BESTEHT, rot wird es an `.contains("micMixStrip")`,
+                          also aus genau dem Grund, den sein Name nennt. Ein echter Mount-Befund. Der Fehler
+                          ging in die SICHERE Richtung, aber die eigenen Belege zu UNTERschätzen ist derselbe
+                          #433-Defekt wie sie zu überschätzen — und er stand im Absatz mit der Überschrift
+                          „gezählt statt erinnert". **Stand jetzt: SIEBEN Methoden** (die Nachlese fügt den
+                          `@ViewBuilder`-Pin und die Engine-Torung der Fehlermeldung hinzu), sechs rot gegen
+                          den Vor-#485-Baum, davon fünf Abwesenheits-Artefakte und einer ein echter Befund.
                           ⛔ **UND `SourceText.codeOnly` STAND IM ERSTEN ENTWURF ALS „LOAD-BEARING" — der exakte
                           Überclaim, den #484 EINEN Commit zuvor zurücknehmen musste, wiederholt in der Datei,
                           die ihn zitiert.** Gemessen statt behauptet: gestreift gegen roh unterscheiden sich
-                          die Verdikte von **0 der 15** Behauptungen. Der Grund gehört aufgeschrieben, weil er
-                          nicht offensichtlich ist und aufhören wird zu gelten: der Extraktor ankert auf der
-                          DEKLARATIONS-Zeile, und der Doc-Block — der die Flagge sehr wohl nennt, zweimal —
-                          steht DARÜBER, also außerhalb jedes extrahierten Blocks. Der Rumpf trägt heute keine
+                          die Verdikte von **0 der 17** Behauptungen (15 vor der Nachlese). Der Grund gehört
+                          aufgeschrieben, weil er nicht offensichtlich ist und aufhören wird zu gelten: der
+                          Extraktor ankert auf der DEKLARATIONS-Zeile, und der Doc-Block — der die Flagge sehr
+                          wohl nennt, **EINMAL**; die erste Fassung dieses Satzes schrieb „zweimal", und
+                          `grep -c feedbackGuardActive` über die ganze Datei liefert 1 — steht DARÜBER, also
+                          außerhalb jedes extrahierten Blocks. Der Rumpf trägt heute keine
                           Kommentare. Wer einen hinzufügt, der die Flagge nennt, macht den Stripper zum
                           Einzigen zwischen diesem Wächter und einem durch Prosa erkauften Grün.
+                          ⛔ **ZWEI ECHTE DEFEKTE FAND DIE NACHLESE ZUSÄTZLICH, beide in der Fläche selbst.**
+                          (1) Die Fehlermeldung hing allein an `micMonitorRefused`, und das erzeugte einen
+                          SICHTBAREN Widerspruch: hier verweigern → „Choose input…" öffnen → dort erlauben und
+                          einschalten (`AudioInputPickerView` kennt dieses `@State` nicht) → schließen — und
+                          die Karte zeigte den Toggle AN zusammen mit „could not start". Zwei Türen auf EINE
+                          Engine mit einem ungeteilten Stück View-Zustand, also genau das, was die
+                          „Tür-statt-Kopie"-Formulierung verhindern soll. Jetzt zusätzlich auf
+                          `!audioEngine.isInputMonitoring` getort — die Engine ist die eine Quelle der
+                          Wahrheit dafür, ob gerade gehört wird. (2) Der „Choose input…"-Knopf war ein nacktes
+                          `Text` unter `.buttonStyle(.plain)`, also ~15–17 pt Trefferfläche, unter HIG 44 und
+                          unter WCAG 2.5.8 24 — während die ANDERE Tür zu demselben Sheet (`masterDoorButton`)
+                          seit jeher 34 pt plus volle Breite hat. `TapTargetFloorTests` ist eine gepinnte
+                          Liste und kein Sweep, es wurde also nichts rot.
+                          ⚠️ **Und eine Behauptung ist ENGER gefasst statt gestrichen:** „der Toggle darf nicht
+                          lügen" gilt für die zwei genannten Fälle (Berechtigung verweigert, kein gültiges
+                          Eingabeformat) — nachgemessen: kein Pfad gibt `false` zurück, nachdem er
+                          `isInputMonitoring = true` gesetzt hat. Es gibt aber einen Pfad, der `true`
+                          zurückgibt, ohne dass etwas zu hören ist: `wasRunning` wird gefangen, und der
+                          Neustart-Zweig entfällt komplett, wenn die Engine gestoppt war. Vorbestehend in
+                          `AudioEngine`, von `micMonitorRefused` NICHT abgedeckt, jetzt am Ort benannt.
                           ⚠️ Und die Grenze zuerst: alle Behauptungen sind QUELLTEXT-SCANS. Dass der Streifen
                           rendert, dass der Schalter ein echtes Mikrofon fasst, dass der Duck hörbar ist und
                           dass Selbstmonitoring über diese Route latenz-erträglich ist, sind Geräteproben —

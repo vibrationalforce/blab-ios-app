@@ -2869,18 +2869,46 @@ struct EchoelStudioView: View {
     /// DOOR, not a second copy: both rows read and write the one `AudioEngine`, exactly as
     /// the Click strip does with the one `MetronomeVoice`.
     ///
-    /// ⚠️ `feedbackGuardActive` IS DELIBERATELY NOT READ HERE, and the reason is structural,
-    /// not taste. It is assigned from the ~15 Hz meter poll (gated on change since #298's
-    /// Nachlese, but a howl toggles it repeatedly), and `mixStripCard` takes a NON-escaping
-    /// `@ViewBuilder` — this content is evaluated inside `mixerPanel`, i.e. inside the body
-    /// that hosts every `.menu` Picker of the instrument. That is the 10.76.41/50 freeze
-    /// verbatim. The live guard indicator stays in `AudioInputPickerView`, which is a leaf
-    /// sheet with no Picker in it. Static text here says what the guard does; it claims no
-    /// live state.
+    /// ⚠️ `feedbackGuardActive` IS DELIBERATELY NOT READ HERE. It is assigned from the ~15 Hz
+    /// meter poll (gated on change since #298's Nachlese, but a howl toggles it repeatedly),
+    /// so a read would enrol a body as a ~15 Hz observer for as long as monitoring runs — and
+    /// the five strips of this board carry eight draggable `EchoelValueField`s, which is a
+    /// live scrub-anchoring hazard (#375/#376), not just wasted work.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS PARAGRAPH NAMED THE WRONG BODY — the one mistake this
+    /// file already corrects elsewhere, re-acquired here one commit later. It said
+    /// `mixStripCard`'s NON-escaping `@ViewBuilder` puts the read "inside the body that hosts
+    /// every `.menu` Picker of the instrument … the 10.76.41/50 freeze verbatim". The premise
+    /// is true and the conclusion does not follow: TWO escaping boundaries sit above this
+    /// content. `mixerPanel` goes through `panel("Mix", …)`, whose builder is
+    /// `@escaping` and is invoked in `EchoelPanel`'s OWN body, and the strips sit inside
+    /// `AdaptiveCardGrid`, which does the same. The read would land on `AdaptiveCardGrid`,
+    /// never on `EchoelStudioView.body`. This panel also hosts NO `Picker` and no `.menu` at
+    /// all, and only one panel renders at a time — so there is nothing here for a rebuild to
+    /// tear down. The honest size was already written by #298's Nachlese, at
+    /// `AudioEngine.updateFeedbackGuard`: *"No `.menu` Picker lives in that sheet, so this was
+    /// never the 10.76.50 freeze — but it is the same mechanism."* #485 escalated that into
+    /// "the freeze verbatim". Same mechanism, one panel away, one refactor from being the
+    /// freeze — that is the true claim, and the DECISION to omit the flag is unchanged.
+    /// The live guard indicator stays in `AudioInputPickerView`. Static text here says what
+    /// the guard does; it claims no live state.
+    ///
+    /// ⚠️ WHAT "the toggle cannot lie" DOES AND DOES NOT COVER — narrowed after review,
+    /// because the headline was stronger than the code. Verified: no path in
+    /// `setInputMonitoring` returns `false` after setting `isInputMonitoring = true`, so the
+    /// two cases named below (mic permission denied, no valid input format) really do revert
+    /// the switch. But there IS a path that returns `true` without anything being heard:
+    /// `wasRunning = masterEngine.isRunning` is captured, and the restart branch is skipped
+    /// entirely when the engine was stopped — the graph is connected, `isInputMonitoring`
+    /// goes `true`, and nothing is running. Reachable after a failed launch `start()` or a
+    /// scene interruption that declined to resume. That is pre-existing in `AudioEngine`, not
+    /// introduced here, and it is NOT covered by `micMonitorRefused`.
     ///
     /// ⚠️ THE LEVEL FIELD IS SHOWN WITH MONITORING OFF ON PURPOSE — it is a pre-set, not a
-    /// dead control. `inputMonitorGain`'s `didSet` only writes the mixer while monitoring
-    /// runs, and `setInputMonitoring(true)` applies the stored value on the way in, so a
+    /// dead control. `inputMonitorGain`'s `didSet` writes the mixer only while
+    /// `isInputMonitoring && !feedbackGuardActive` (both conditions — while the guard ducks,
+    /// the write is deferred to the next poll, which recomputes from this same stored value),
+    /// and `setInputMonitoring(true)` applies the stored value on the way in, so a
     /// number dialled while off IS the level you get when you switch on. It is NOT
     /// persisted, and that is a decision rather than an oversight: a monitor gain is a
     /// feedback risk, so every launch starts at the conservative 0.6 rather than at whatever
@@ -2907,7 +2935,16 @@ struct EchoelStudioView: View {
                              value: Binding(get: { audioEngine.inputMonitorGain },
                                             set: { audioEngine.inputMonitorGain = $0 }),
                              range: 0...1, unit: "", decimals: 2)
-            if micMonitorRefused {
+            // ⛔ THE FLAG ALONE WAS NOT ENOUGH, and the failure was VISIBLE: refuse here →
+            // open "Choose input…" → grant and switch monitoring on INSIDE
+            // `AudioInputPickerView` (which does not know about this `@State`) → dismiss, and
+            // this card rendered the Toggle ON together with "could not start". Two doors onto
+            // one engine with one un-shared piece of view state — the exact thing the
+            // door-not-a-copy framing above is meant to prevent. Gating on the ENGINE as well
+            // is cheaper than sharing the state and keeps the engine the single source of
+            // truth for "is it listening"; it also clears the milder staleness where the user
+            // grants permission in Settings and comes back.
+            if micMonitorRefused && !audioEngine.isInputMonitoring {
                 Text("Monitoring could not start — check microphone access in Settings, or pick another input.")
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.danger)
@@ -2918,10 +2955,20 @@ struct EchoelStudioView: View {
                     .foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            // ⛔ THE FIRST VERSION WAS A BARE `Text` UNDER `.buttonStyle(.plain)`, which gives a
+            // hit area of about the text height (~15–17 pt) — under HIG's 44 and under WCAG
+            // 2.5.8's 24. The OTHER door to this identical sheet, `masterDoorButton`, has
+            // carried `.frame(height: 34)` plus full width all along, so the two doors to one
+            // sheet disagreed about whether a finger can hit them. `TapTargetFloorTests` is a
+            // pinned list rather than a sweep, so nothing went red — its header asks for a case
+            // to be added when an audit finds one, and a review found this one.
             Button { showInput = true } label: {
                 Text("Choose input…")
                     .font(EchoelTheme.font(12))
                     .foregroundStyle(EchoelTheme.accent)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(minHeight: 34)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityHint("Pick the microphone or audio interface, with its monitoring latency")

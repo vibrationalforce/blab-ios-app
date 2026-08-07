@@ -375,7 +375,8 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// the box takes the whole row and more, the label is squeezed to its
     /// `minimumScaleFactor(0.7)` floor and then truncates to nothing, and the box itself runs
     /// past the screen edge. This is the ONE parameter control in the app —
-    /// **57 CALL SITES.** That is the only figure worth writing down here, and the raw
+    /// **58 CALL SITES** (57 until #485 added the Voice strip's Level row; found by that
+    /// commit's review, one cycle late). That is the only figure worth writing down here, and the raw
     /// `git grep -c "EchoelValueField(" -- Sources` total is deliberately NOT quoted any more.
     /// ⛔ Four editions of this paragraph quoted it — "65 / THREE", then "64 / TWO", then
     /// "61 / FOUR" — and the #475 review's own correction of the FOUR pushed it to SEVEN in the
