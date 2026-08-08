@@ -1,4 +1,4 @@
-build: v10.79.375 — drei von vier Wünschen aus Deinem Screenshot; die Kopfzeile, die doppelte BPM, die drei Punkte
+build: v10.79.376 — was Du gespeichert hast, kommt jetzt vollständig zurück (Stimmung, Modus) — und die Speichern-Tür sagt endlich, was sie tut
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,90 +6,97 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.374 (2491).
+  Der Vorgänger auf Deinem Gerät ist 10.79.375 (2492).
 
-  ── ZUERST DAS WICHTIGSTE: DEIN SCREENSHOT ZEIGT DEN BUILD DAVOR ───────────
+  ── ZUERST: DIE VIER SCREENSHOT-WÜNSCHE SIND WEITER OFFEN, ABER NICHT VON MIR ──
 
-  Du hast Deinen Wunsch zweimal geschickt, beide Male mit demselben Bild. Das Bild zeigt in
-  der Kopfzeile 10.79.374 (2491). Das ist genau der Stand, der KEINE der drei Änderungen
-  enthält — sie sind seither gebaut und lagen bis jetzt nur auf dem Zweig. Es ist also
-  nichts an Dir vorbeigegangen und nichts ignoriert worden; es fehlte der Deploy. Der hier
-  ist er. Nach der Installation ist das, was Du eingekreist hast, anders.
+  Alles aus dem letzten Deploy (E-Logo rechts, Loop-Anzeige statt Farbbalken, eine
+  Transport-Ebene ohne doppelte BPM, die drei Punkte als einzelne Knöpfe) ist auch in diesem
+  Build. Es wartet nur auf Deine Sichtprobe — die vier Fragen von letztem Mal gelten
+  unverändert. Was hier dazukommt, ist eine andere Baustelle: das gespeicherte Stück.
 
-  ── 1. „E LOGO WIEDER NACH RECHTS, DIE BUNTEN BALKEN WEG" ───────────────────
+  ── DER BEFUND: EIN GESPEICHERTES STÜCK KAM UNVOLLSTÄNDIG ZURÜCK ───────────
 
-  Die Farbbalken unter dem Schriftzug sind GELÖSCHT, nicht versteckt. Sie waren eine
-  Zweitkopie: dieselbe Messung sitzt als Analyse-Fläche im Instrument. An ihrer Stelle steht
-  jetzt die Loop-Länge samt Balken, wie Du es geschrieben hast. Das E sitzt rechts von den
-  Monitor-Kacheln.
+  Drei Zyklen in Folge an derselben Sache, und sie hängen zusammen. Eine Datei speichert
+  Deinen Take. Was sie NICHT enthielt, hat niemand gemerkt, weil eine Datei nicht schreit.
 
-  Das gibt der Platte rund 40 pt zurück — und genau die kostet Punkt 3 wieder. Das steht so
-  da, weil eine Änderung, die etwas gewinnt, und eine, die es ausgibt, im selben Build sind.
+  1. DAS TONSYSTEM reiste nicht mit. `A=442` war seit jeher in der Datei — die CENT-TABELLE,
+     die aus einem Take Maqām Rāst statt 12-TET macht, aber nicht. Sie lebte nur im
+     Instrument. Also: Rāst-Loop speichern, Instrument auf 12-TET stellen, Loop öffnen →
+     12-TET. Und das Öffnen schiebt die globale Tabelle danach gewissenhaft an jede Stimme,
+     macht die falsche Stimmung also gründlich. Zwei Regler für eine Entscheidung, und nur
+     einer klebte am Take.
 
-  ── 2. „TRANSPORT, BPM, SCHLOSS UND BIOFEEDBACK ZUSAMMENFASSEN, OHNE DOPPELT BPM" ──
+  2. DER FLOW/LOOP-MODUS reiste zwar mit — er wurde nur nie zurückgelesen. Das Feld ist
+     seit jeher in jeder gespeicherten Datei, vollständig geschrieben und gelesen, und
+     NICHTS im Programm hat es je ausgewertet. Ein Loop-Take speichern, auf Flow stellen,
+     Take öffnen → er kommt in Flow zurück, während die Datei „Loop" sagt. Das gesperrte
+     TEMPO wurde dabei sehr wohl restauriert; nur die Sperre, die entscheidet, ob die Zahl
+     überhaupt gelesen wird, nicht. Halbe Entscheidung.
 
-  Zwei Kästen in EINER Zeile zeigten dieselbe Zahl. Beim Nachsehen war es schlimmer als eine
-  Dublette: das Tempo-Feld zeigte im entsperrten Zustand Deinen PULS — aber die Uhr läuft gar
-  nicht auf dem Puls, sie wird über die generative Abbildung getrieben. Ein 144er Puls konnte
-  also über einer 72er Uhr stehen. Und Sperren übernahm die GEZEIGTE Zahl: ein Tipp verschob
-  die Musik um eine Tempo-Oktave, während es sich als „friere ein, was Du hast" ausgab.
+  3. DIE SPEICHERN-TÜR beschrieb ein Speichern, das die App längst nicht mehr macht. Sie
+     sagte „sound, key, tempo and generated loop" — ein Satz, der wahr war, als er
+     geschrieben wurde, und den seither drei Erweiterungen überholt haben. Die App
+     speicherte MEHR, als sie zugab.
 
-  Repariert wurde nicht durch Löschen eines Kastens — Du hast am 04.07. ausdrücklich „beide
-  behalten" gesagt. Stattdessen zeigt jeder Kasten jetzt die Sache, nach der er benannt ist:
-  die Pille ist die Herzfrequenz, das Tempo-Feld ist die Uhr. Die Zahlen sind seither
-  verschieden, und das ist der Punkt.
+  ── WARUM PUNKT 3 EINE EIGENE SCHEIBE WERT WAR ────────────────────────────
 
-  ── 3. „DAS MIT DEN DREI PUNKTEN ALS EINZELNE BUTTONS ANZEIGEN" ─────────────
+  Untertreiben ist die freundliche Richtung, und es ist trotzdem eine falsche Beschreibung.
+  Kaputt war nichts. Falsch war, dass man mit dem Satz nichts entscheiden konnte — und wer
+  entscheidet „kann ich das Instrument auf 12-TET stellen und meinen Rāst-Loop
+  zurückbekommen", ist genau der, der ihn liest. Der Satz nennt jetzt Genre, Key, Stimmung,
+  Tempo, Flow/Loop-Modus, Klang und FX-Charakter — und in einem zweiten Satz die zwei
+  Auslassungen: Deine Mixer-Pegel und handgedrehte FX bleiben beim Instrument. Das ist die
+  Hälfte, die den viel schlimmeren Fund verhindert, dass ein Take anders klingt als beim
+  Speichern.
 
-  Das „•••"-Menü ist weg. Seine zwei Einträge — Live Colabo und Learn — sind Kacheln im
-  gleichen Format wie die oben rechts, plus „anderes Projekt öffnen".
+  ── EINE FALLE, DIE ZWEIMAL FAST ZUGESCHNAPPT WÄRE ────────────────────────
 
-  ⚠ Und es sind ZWEI Zeilen geworden, nicht eine. Das ist Rechnen, kein Geschmack: sieben
-  Kacheln brauchen mit der 44-pt-Mindestbreite 356 pt. Ein 393er Telefon bietet 361, ein
-  360er (iPhone 13 mini) nur 328 — auf dem schmalsten Gerät, an das diese App ausgeliefert
-  wird, liefe eine Zeile um 28 pt über. Getrennt ist nach BEDEUTUNG: Zeile 2 handelt am Take
-  (Aufnahme · Keep last · MIDI · Speichern), Zeile 3 verlässt ihn (öffnen · gemeinsam
-  spielen · Lernen). Preis ~40 pt, also genau das, was Punkt 1 zurückgegeben hat.
+  Die naheliegende Ein-Zeilen-Reparatur für Punkt 2 hätte JEDEN alten Take beim Öffnen
+  GESPERRT. Grund: die bequeme Abfrage erfindet für eine Datei, die keinen Modus nennt,
+  „Loop" — und alle Deine bisherigen Takes nennen keinen. Sie wären gegen Deine eigene
+  Einstellung gesperrt zurückgekommen. Dasselbe bei Punkt 1: ein Rückfall auf „12-TET" hätte
+  jeden vor diesem Build gespeicherten Take zur Behauptung gemacht, er sei 12-TET — und der
+  Öffnen-Pfad hätte danach gehandelt und einen Gamelan-Take zurückgezogen. Beide Male ist
+  stattdessen „diese Datei sagt dazu nichts" darstellbar, und dann tut die Zeile absichtlich
+  gar nichts. Alte Takes bleiben unberührt.
 
-  ── 4. „ALLES SCHÖN ANORDNEN" ──────────────────────────────────────────────
+  ── WAS ICH SELBST FALSCH GEMACHT HABE, WEIL ES DAZUGEHÖRT ────────────────
 
-  Das ist die Summe der drei — mehr habe ich bewusst nicht getan, bevor Du es einmal in der
-  Hand hattest. Wenn danach noch etwas verrutscht wirkt, zeig es mit demselben roten Stift;
-  die Pfeile funktionieren gut.
-
-  ── ZWEI SACHEN, DIE NIEMAND SIEHT, WEIL SIE IN VOICEOVER LEBEN ────────────
-
-  Die − und + Tasten des Zahlenblocks — geöffnet von JEDER der 118 Parameter-Zeilen — hatten
-  gar kein gesprochenes Etikett. VoiceOver las „minus" und „plus", also die Wörter für genau
-  die Rechnung, die sie NICHT machen: sie setzen das Vorzeichen. Beim Messen kam der größere
-  Fund: das „+" war immer aktiv, obwohl auf 115 der 118 Zeilen gar kein Minus existieren kann
-  — ein Knopf, der live aussah und beweisbar nichts tat. Beide hängen jetzt am selben Tor.
-
-  Der zweite Punkt war GAR KEIN Defekt: gemeldet war „das •••-Menü ist die eine Kachel ohne
-  gesprochenes Etikett". Es hatte eines, 37 Zeilen darunter. Zwei eigene Prüfprogramme haben
-  vorher falschen Alarm geschlagen (8 bzw. 4 Fehltreffer) — Ursache ist eine Eigenschaft
-  dieses Repos: die langen Kommentarblöcke werden beim Prüfen zu Leerzeilen, ein Etikett kann
-  also beliebig weit vom Knopf entfernt stehen. Fast wäre korrekter Code „repariert" worden.
-  Statt einer Reparatur steht dort jetzt ein Rundum-Test: 25 Icon-Knöpfe, alle sprechen.
+  Zyklus 1 ist mit einem NICHT kompilierenden Testverzeichnis ausgeliefert worden, und
+  nichts wurde rot: ein Zähler in meinem eigenen Kommentar sagte „vier Aufrufstellen", es
+  waren sieben, und die zwei übersehenen liegen ausgerechnet in der Hälfte des Projekts, die
+  kein Prüflauf kompiliert. In Zyklus 2 behoben. In Zyklus 3 habe ich in zwei Kommentaren
+  gleichzeitig behauptet, die Mixer-Pegel lägen in einem bestimmten Speichermechanismus —
+  falsch, aus der Form der Nachbarn geraten statt nachgeschlagen. Ausgerechnet in der
+  Scheibe, deren ganzes Thema eine Beschreibung ist, die aufgehört hat zu beschreiben.
+  Beides steht jetzt im Code, samt Begründung.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  „Build for Testing" = success auf dem letzten Commit — das blockierende Testbündel
-  kompiliert also nachweislich mit allen fünf neuen Wächtern. „Run Tests" stirbt weiterhin am
-  bekannten Simulator-Start; das ist der founder-gated CI-Punkt, nicht der Code.
+  „Build for Testing" = success auf dem letzten Commit; das blockierende Testbündel
+  kompiliert also nachweislich mit allen drei neuen Wächtern (jetzt 208 Dateien). Von den
+  19 Testgruppen, die der Lauf noch ausgeben konnte, ist keine einzige rot — „Run Tests"
+  stirbt weiterhin am bekannten Simulator-Start, das ist der founder-gated CI-Punkt, nicht
+  der Code.
 
-  ⚠ Und die ehrlichste Zeile: FAST ALLES hier sind Quelltext-Prüfungen. Dass die zwei Zeilen
-  wirklich rendern, dass ein Finger die Kacheln trifft, dass die Kopfzeile sich gut liest und
-  dass die zwei Zahlen am Gerät jetzt sichtbar verschieden sind — das sind vier Sichtproben,
-  und alle vier sind offen. Deshalb der Deploy.
+  ⚠ Ehrlich zur Beweislage: die PERSISTENZ ist echtes Verhalten, Ende zu Ende durch den
+  ausgelieferten Encoder getrieben. Die VERDRAHTUNG (liest das Öffnen den Wert wirklich,
+  füllt das Speichern ihn wirklich) ist ein Quelltext-Nachweis, weil beide Stellen in einer
+  Ansicht liegen, die kein Test hier bauen kann. Und dass ein Take am Gerät wirklich nach
+  Rāst KLINGT, ist eine HÖRPROBE — die einzige Instanz dafür bist Du.
 
-  ── WAS VON DIR GEBRAUCHT WIRD (2 Minuten, rein visuell) ──────────────────
+  ── WAS VON DIR GEBRAUCHT WIRD (5 Minuten, davon 3 mit den Ohren) ─────────
 
-  1. Kopfzeile: E rechts? Balken weg, Loop-Länge da?
-  2. Transport-Zeile: stehen dort zwei VERSCHIEDENE Zahlen (Uhr und Puls)? Wenn beide
-     gleich sind, ist das ein Befund.
-  3. Die zwei Kachel-Zeilen: erreichst Du Live Colabo und Learn mit einem Tipp? Sind alle
-     Kacheln gleich groß — auch die untere Zeile?
-  4. Fühlt sich die Platte durch die zusätzliche Zeile enger an, als sie durch die
-     gelöschten Balken breiter geworden ist? Das ist die einzige Stelle, an der ich mich
-     verrechnet haben kann, ohne dass es hier auffällt.
+  1. Stimmung: Maqām Rāst (oder Gamelan) wählen, A auf 442, einen Loop erzeugen und
+     SPEICHERN. Dann Instrument zurück auf 12-TET und A auf 440. Take wieder öffnen —
+     klingt er wieder wie vorher? Das ist die eigentliche Frage dieses Builds.
+  2. Modus: einen Take im LOOP-Modus speichern, auf Flow stellen, Take öffnen — steht der
+     Schalter wieder auf Loop?
+  3. Alte Takes: eines Deiner ÄLTEREN gespeicherten Stücke öffnen. Springt irgendetwas auf
+     eine Einstellung, die Du nicht gewählt hast? Wenn ja, ist das ein Befund — genau da
+     wäre die Falle oben zugeschnappt.
+  4. Speichern-Dialog einmal aufmachen und den Satz lesen: passt er in den Kasten, oder wird
+     er abgeschnitten? Und stimmt er mit dem überein, was Du danach zurückbekommst?
+  5. Und weiterhin offen aus 2492: die vier Fragen zur Kopfzeile, zur Transport-Zeile und zu
+     den zwei Kachel-Zeilen.
