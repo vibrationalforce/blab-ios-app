@@ -310,9 +310,15 @@ struct WorkspaceView: View {
         #endif
     }
 
-    /// Persistent brand header — always on screen. LEFT: the loop length + playhead. RIGHT: the
-    /// output monitors, then the brand block (mark + wordmark + running version/build) as ONE
-    /// control. Uncodixfy-compliant.
+    /// Persistent brand header — always on screen. LEADING: the brand block (mark + wordmark +
+    /// running version/build) as ONE control, in the website's lockup order. MIDDLE: the loop
+    /// length + playhead. TRAILING: the output monitors. Uncodixfy-compliant.
+    ///
+    /// ⭐ FOUNDER, 2026-08-08, screenshot of v10.79.377 (2494): the brand circled at the trailing
+    /// edge and a long arc sweeping LEFT — *"Die obere Reihe so anordnen wie gezeigt mit Pfeilen
+    /// natürlich optimal ausgerichtet das Logo und Echoelmusic ist wie auf der Website."* The
+    /// reasoning, the reversal it performs and the one thing NOT copied from the site all sit on
+    /// the brand block itself, where a reader meets them before the code.
     ///
     /// ⭐ FOUNDER, 2026-08-07, screenshot of v10.79.374 (2491) with a scribble over the colour
     /// bars, a circle around the mark and a long arrow down to the position readout: *"E Logo
@@ -336,9 +342,11 @@ struct WorkspaceView: View {
     ///
     /// ⚠️ THE BRAND BLOCK IS NO LONGER CENTRED, AND THE CENTRING MACHINERY WENT WITH IT. The
     /// three-column form (two greedy flanks splitting the slack) existed to put the wordmark in
-    /// the geometric middle. There is exactly ONE greedy flank now — the readout — so the
-    /// monitors and the brand pack against the trailing edge, which is what "nach rechts" asks
-    /// for. Two things from that machinery MUST survive, and both are pinned:
+    /// the geometric middle. There is exactly ONE greedy flank — the readout — and since
+    /// 2026-08-08 it is the MIDDLE child, so the brand packs against the leading edge and the
+    /// monitors against the trailing one. A second flank would split the slack and pull the brand
+    /// back off the edge it was just asked to take. Two things from that machinery MUST survive,
+    /// and both are pinned:
     ///   · **NO `ZStack`.** It gives its layers no collision avoidance, so a title on its own
     ///     layer grows straight THROUGH the mark and the tiles as Dynamic Type raises it, with
     ///     `minimumScaleFactor(0.7)` only bounding how far. The chrome is capped at
@@ -366,88 +374,37 @@ struct WorkspaceView: View {
     /// with. That is the outcome that note wanted; it is still a device look, not a proof.
     private var topBar: some View {
         HStack(spacing: 8) {
-            // LEFT: the loop length + the playhead inside it — the founder's "die Anzeige für
-            // die Loop Länge und der Balken", moved here from the instrument's third line
-            // (which is why that line is gone: one readout, one address).
+            // LEADING: the brand block — mark then wordmark, at the left edge, the way the
+            // website's `.nav-logo` is built (`docs/index.html`: `display: flex`, the 28 px
+            // mark, a gap, then the name; it is the FIRST column of the nav grid).
             //
-            // ⚠️ NO `#if canImport(AVFoundation)` HERE and none is needed — this leaf reads
-            // `Transport` and `@AppStorage` only. (The strip it replaces carried a note about
-            // NOT guarding it, because its `#else` branch would have been a `Spacer` fighting
-            // the trailing flank for the same slack. That hazard is unchanged and is why the
-            // `Spacer` ban above is pinned rather than remembered.)
-            TransportPositionView()
-                .frame(maxWidth: .infinity, alignment: .leading)
-            // ⬆ THE LIVE PULSE MONITOR MOVED OUT (#289, founder 2026-07-31, red circle
-            // around this pill and the transport ■: "könnte ja alles in dem Create From
-            // within Button drin sein … Führe intelligent zusammen"). It now sits
-            // immediately left of "Create from Within" in `EchoelStudioView`, so the
-            // feedback appears ON the control that produces it instead of at the other
-            // end of the window.
+            // ⭐ THE ASK, founder 2026-08-08, screenshot of v10.79.377 (2494): the E mark and
+            // "Echoelmusic" circled at the trailing edge, a long arc sweeping LEFT with two
+            // arrowheads landing where the loop readout sits — *"Die obere Reihe so anordnen wie
+            // gezeigt mit Pfeilen natürlich optimal ausgerichtet das Logo und Echoelmusic ist wie
+            // auf der Website."* So the brand takes the LEADING edge and the row reads
+            // brand · position · monitors, which is the website's own order.
             //
-            // ⛔ This supersedes the founder's 2026-07-12 placement ("Der Pulsmonitor
-            // kommt nach oben zwischen Logo und Echoelmusic"), whose note in
-            // `HeaderMonitors` says not to unmount it again without a fresh founder ask.
-            // This IS that ask, from the same person, with a drawing. The pill itself is
-            // unchanged — same leaf, same tap (Bio panel), same long-press (source
-            // picker) — only its address changed. The space it left was circled again on
-            // 2026-08-02 and now holds the output spectrum; see this property's own doc.
+            // ⛔ THIS REVERSES #490 (2026-08-07, *"E Logo wieder nach rechts"*) ONE DAY LATER, and
+            // that is the founder's call to make — but the reversal is recorded rather than
+            // quietly applied, because #490's own note priced what it cost: *"the PRICE is that a
+            // website link — not a 44 pt control — now sits in the thumb corner."* Moving the
+            // brand back to the leading edge REPAYS that price: the monitor tiles hold the
+            // trailing edge again, and they are the 44 pt controls (#113). A reversal that also
+            // closes a cost its predecessor wrote down is worth saying out loud.
             //
-            // RIGHT: the output monitors — recorded Clips · Lux · BioSynth visual.
-            // (The former video-lane monitor tile was retired with the DAW video
-            // editing — pure-instrument cut; the tile now surfaces the recorded
-            // performance clips + REC state.) Each is a LEAF that reads its own
-            // live state (freeze rule); taps go through the chrome-door
-            // notification, never into studio state directly.
-            //
-            // ⚠️ GROUPED IN ITS OWN `HStack`, and that is not cosmetic: it makes the three tiles
-            // ONE child of the bar, so the bar's `spacing: 8` puts a single gap between them and
-            // the brand block. Applied per tile, a width modifier would give each one its own
-            // share of the leftover width and spread them across the bar. ⛔ THE `.frame(maxWidth:
-            // .infinity, alignment: .trailing)` THAT SAT HERE IS GONE, and it is the deliberate
-            // half of this slice: it was the RIGHT flank of the three-column centring, and with
-            // the brand block no longer in the middle there is nothing left to balance. Leaving it
-            // would have made the cluster and the readout split the slack evenly and pushed the
-            // brand — the thing the founder asked to move RIGHT — back towards the centre. One
-            // greedy flank, and it is the readout. Still no `Spacer` (see the property's doc).
-            HStack(spacing: 8) {
-                #if canImport(AVFoundation) && canImport(Metal)
-                EchoelClipsMonitorMini()
-                #endif
-                EchoelLuxMonitorMini()
-                // The immersive-visual monitor. (No purchase chip in v1.0 —
-                // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
-                // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
-                // live waveform stays in its own leaf.
-                #if canImport(AVFoundation)
-                Button {
-                    withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
-                } label: {
-                    ImmersiveMonitorMini(active: cameraRPPG.isRunning)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
-                #endif
-            }
-            // TRAILING-MOST: the brand block — *"E Logo wieder nach rechts"*. It sits AFTER the
-            // monitors rather than before them, which is the only reading of that sentence that
-            // changes anything: before this slice it already stood between the greedy flank and
-            // the monitor cluster, so "right of where it is" and "right of the tiles" are the
-            // same instruction.
-            //
-            // ⛔ THE SENTENCE THAT STOOD HERE SAID THE OPPOSITE OF THE CODE IT ANNOTATES, in four
-            // artefacts at once (this comment, `TheHeaderShowsTheLoopTests`, the #490 commit body,
-            // `decisions.csv`): *"The tiles keep the trailing EDGE because they are controls with a
-            // 44 pt tap floor (#113) and the brand is a link; putting a link where the thumb
-            // expects the visual toggle would be the worse trade."* This `Button` is the LAST child
-            // of the `HStack` — the brand holds the trailing edge and the tiles do not. Worse than
-            // a stale note: it invoked #113 to claim an ergonomic property the layout does not
-            // have, so the next reader would believe the corner belongs to a 44 pt control.
-            // ⚠️ THE HONEST VERSION, cost included: the brand takes the trailing edge because that
-            // is the only reading of *"E Logo wieder nach rechts"* that changes anything, and the
-            // PRICE is that a website link — not a 44 pt control — now sits in the thumb corner.
-            // That is a real trade and it was made by the founder's sentence, not chosen here. If
-            // it reads wrong on device, the fix is to move the tiles back out, not to re-describe
-            // what shipped.
+            // ⚠️ WHAT IS **NOT** COPIED FROM THE WEBSITE, measured rather than waved away: the
+            // site sets the wordmark `text-transform: uppercase; letter-spacing: 3px`. At the
+            // shipped 14 pt that turns "Echoelmusic" (~85 pt wide) into "ECHOELMUSIC" (~112 pt
+            // without tracking, ~145 pt with 3 pt of it). The bar's budget on the narrowest
+            // shipped phone (360 pt, iPhone 12/13 mini — both on iOS 18) is 360 − 24 padding
+            // = 336, of which the tile cluster takes 54 + 38 + 38 + 2×8 = 146 and the two
+            // top-level gaps take 16, leaving 174 pt for brand AND readout together. The
+            // readout is a 44 pt capsule plus ~46 pt of digits ≈ 98. So the brand has ~76 pt,
+            // and even the mixed-case wordmark only fits by way of `minimumScaleFactor(0.7)`.
+            // Uppercase + tracking is a legibility LOSS at this width, not a gain. Arithmetic
+            // over constants, not a measurement of a rendered layout — the device look is the
+            // founder's call.
             Button { openWebsite() } label: {
                 HStack(spacing: 8) {
                     EchoelLogoMark().frame(width: 22, height: 22)
@@ -472,6 +429,82 @@ struct WorkspaceView: View {
             // redundant and at worst rebuilds the element without its activation.
             .accessibilityLabel("Echoelmusic \(Self.versionString)")
             .accessibilityHint("Opens echoelmusic.com — release notes and support")
+            // MIDDLE: the loop length + the playhead inside it — the founder's "die Anzeige für
+            // die Loop Länge und der Balken", moved here from the instrument's third line
+            // (which is why that line is gone: one readout, one address).
+            //
+            // ⚠️ NO `#if canImport(AVFoundation)` HERE and none is needed — this leaf reads
+            // `Transport` and `@AppStorage` only. (The strip it replaces carried a note about
+            // NOT guarding it, because its `#else` branch would have been a `Spacer` fighting
+            // the trailing flank for the same slack. That hazard is unchanged and is why the
+            // `Spacer` ban above is pinned rather than remembered.)
+            // STILL THE ONE GREEDY FLANK — the count is unchanged (pinned in
+            // `TheHeaderShowsTheLoopTests`), only its ALIGNMENT moved: as the leading child it
+            // hugged `.leading`, as the middle child it centres in whatever slack is left. Two
+            // flanks would split the slack and pull the brand back off the leading edge, which
+            // is the one thing this slice is for.
+            TransportPositionView()
+                .frame(maxWidth: .infinity, alignment: .center)
+            // ⬆ THE LIVE PULSE MONITOR MOVED OUT (#289, founder 2026-07-31, red circle
+            // around this pill and the transport ■: "könnte ja alles in dem Create From
+            // within Button drin sein … Führe intelligent zusammen"). It now sits
+            // immediately left of "Create from Within" in `EchoelStudioView`, so the
+            // feedback appears ON the control that produces it instead of at the other
+            // end of the window.
+            //
+            // ⛔ This supersedes the founder's 2026-07-12 placement ("Der Pulsmonitor
+            // kommt nach oben zwischen Logo und Echoelmusic"), whose note in
+            // `HeaderMonitors` says not to unmount it again without a fresh founder ask.
+            // This IS that ask, from the same person, with a drawing. The pill itself is
+            // unchanged — same leaf, same tap (Bio panel), same long-press (source
+            // picker) — only its address changed. ⛔ THIS SENTENCE ENDED ON "the space it left
+            // was circled again on 2026-08-02 and now holds the output spectrum" — written by
+            // #384 and left standing by #490, which DELETED that spectrum. The space holds the
+            // loop readout above. Same class as everything else in this file: a note whose
+            // subject was removed by a later slice reads as if the removal never happened.
+            //
+            // TRAILING: the output monitors — recorded Clips · Lux · BioSynth visual.
+            // (The former video-lane monitor tile was retired with the DAW video
+            // editing — pure-instrument cut; the tile now surfaces the recorded
+            // performance clips + REC state.) Each is a LEAF that reads its own
+            // live state (freeze rule); taps go through the chrome-door
+            // notification, never into studio state directly.
+            //
+            // ⚠️ GROUPED IN ITS OWN `HStack`, and that is not cosmetic: it makes the three tiles
+            // ONE child of the bar, so the bar's `spacing: 8` puts a single gap between them and
+            // the readout to its left. Applied per tile, a width modifier would give each one its
+            // own share of the leftover width and spread them across the bar. ⛔ THE
+            // `.frame(maxWidth: .infinity, alignment: .trailing)` THAT SAT HERE IS GONE and MUST
+            // STAY GONE — it was the right flank of the three-column centring, and there is
+            // nothing left to balance. The reason it must stay gone SURVIVED the 2026-08-08
+            // reorder with its sign flipped, which is worth saying because the sentence reads the
+            // same either way: under #490 a second flank would have pulled the brand off the
+            // TRAILING edge, today it would pull it off the LEADING one. Either way the brand
+            // stops sitting where the founder put it. One greedy flank, and it is the readout.
+            // Still no `Spacer` (see the property's doc).
+            HStack(spacing: 8) {
+                #if canImport(AVFoundation) && canImport(Metal)
+                EchoelClipsMonitorMini()
+                #endif
+                EchoelLuxMonitorMini()
+                // The immersive-visual monitor. (No purchase chip in v1.0 —
+                // everything is free; "Echoel Live" arrives as the v1.1 subscription.)
+                // `isRunning` is a LOW-frequency read (start/stop), safe in this body; the
+                // live waveform stays in its own leaf.
+                #if canImport(AVFoundation)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { floatingVisualVisible.toggle() }
+                } label: {
+                    ImmersiveMonitorMini(active: cameraRPPG.isRunning)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
+                #endif
+            }
+            // ⬆ THE MONITOR CLUSTER IS NOW TRAILING-MOST, and the brand moved to the leading
+            // edge (founder 2026-08-08 — the reasoning sits on the brand block at the top of
+            // this bar, where a reader meets it first). The tiles regain the thumb corner they
+            // held before #490, so the 44 pt tap floor (#113) is back where a thumb reaches.
         }
         .padding(.horizontal, 12)
         // ⚠️ `fixedSize` + `minHeight` ARE A PAIR, and `fixedSize` comes FIRST. This is the

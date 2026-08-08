@@ -1,5 +1,5 @@
 // TheHeaderShowsTheLoopTests.swift
-// Echoel — the loop length lives in the brand header, and the read stays in its leaf. #490.
+// Echoel — the loop length lives in the brand header, and the read stays in its leaf. #490/#501.
 //
 // ⭐ THE ASK. Founder, 2026-08-07, screenshot of v10.79.374 (2491): a scribble over the colour
 // bars top-left, a circle around the E mark, and a long arrow running from the scribble down to
@@ -9,6 +9,21 @@
 //   · `TransportPositionView` MOVED into that slot — it is not copied there; `EchoelStudioView`
 //     lost its third line in the same commit (one readout, one address, #416).
 //   · the brand block moved to the TRAILING end, after the monitor tiles.
+//
+// ⭐ AND THEN THE THIRD CLAUSE WAS REVERSED ONE DAY LATER. Founder, 2026-08-08, screenshot of
+// v10.79.377 (2494): the mark and "Echoelmusic v10.79.377 (2494)" circled at the trailing edge,
+// a long arc sweeping LEFT with two arrowheads landing at the loop readout — *"Die obere Reihe
+// so anordnen wie gezeigt mit Pfeilen natürlich optimal ausgerichtet das Logo und Echoelmusic
+// ist wie auf der Website."* So the row is now **brand · position · monitors**, which is the
+// order `docs/index.html` builds its `.nav-logo` in (mark, gap, name — the first column of the
+// nav grid). The other two clauses of #490 are untouched and still pinned here.
+//
+// ⭐ WHY THIS FILE INVERTS ONE ASSERTION RATHER THAN LOSING IT. The founder is free to reverse
+// himself; a guard that simply disappears when its subject moves leaves nothing watching. And
+// the reversal repays a cost #490 wrote down in this very file: *"the PRICE is that a website
+// link — not a 44 pt control — sits in the thumb corner."* With the brand leading, the monitor
+// tiles hold the trailing edge again and they ARE the 44 pt controls (#113). The ordering is
+// still pinned, only its direction changed — and the price note is now a paid one.
 //
 // ⛔ WHY DELETING THE STRIP WAS HONEST AND NOT DESTRUCTIVE, because it was itself a founder ask
 // five days old (#384) and reversing one deserves a reason on the record. The spectrum was a
@@ -29,31 +44,41 @@
 // scoped to `EchoelStudioView` while the read was one level up. `AnyView` is not an observation
 // boundary; only a separate `View` struct is.
 //
-// ⚠️ HONEST GRADING, measured against the parent tree rather than asserted:
-//   · FOUR assertions are genuine regressions — the mount, the deleted file, the flank count,
-//     and the brand's position. Each is red before this commit and green after.
-//   · ONE is a COUNTERWEIGHT, green on both sides: the header must contain no live read. It
-//     cannot catch today's code; it exists because the obvious next tidy-up ("it's just two
-//     labels, fold them in") is exactly the ship-blocker above.
+// ⚠️ HONEST GRADING FOR #501, measured against ITS parent (the #490 tree) rather than asserted,
+// by transcribing `SourceText.codeOnly` and driving every assertion against both trees:
+//   · **ONE** assertion is a regression — the brand's position. Parent: brand at index 83, tiles
+//     at [46, 48, 57]; child: brand at 32, tiles at [111, 113, 122].
+//   · **FOUR** are COUNTERWEIGHTS, green on both sides: the mount, the deleted file, the flank
+//     count + its owner, and the no-live-read rule. Saying so is the point (#433) — they cannot
+//     catch this commit; they exist so the NEXT tidy-up cannot quietly undo #490's half while
+//     everyone is looking at #501's half.
+//   · Note the flank assertion changed CATEGORY without changing a character: it was a
+//     regression for #490 (two flanks → one) and is a counterweight now (one flank, moved from
+//     leading to centre alignment). A guard's grade is a property of the tree it is measured
+//     against, not of the guard.
 //
 // ⚠️ HONEST LIMITS, first rather than last. Every assertion here is a SOURCE-TEXT SCAN. There is
 // no simulator in the blocking bundle, so this proves where text stands — never that the header
-// reads well, never that the loop readout is legible at chrome size beside three 44 pt tiles,
-// and never that a Picker stays open on a device. NEEDS-FOUNDER-VERIFY: does the header read as
-// "position · monitors · brand" rather than as three unrelated things? And: start biofeedback,
-// play, open the Genre or Key menu below and leave it open for several seconds — does it stay?
+// reads well, never that the loop readout is legible at chrome size between a wordmark and three
+// 44 pt tiles, and never that a Picker stays open on a device. NEEDS-FOUNDER-VERIFY: does the
+// row read as "brand · position · monitors" — one lockup, one measurement, one control cluster —
+// and does "Echoelmusic" still read at 14 pt once `minimumScaleFactor(0.7)` has had its way on a
+// 360 pt phone? And: start biofeedback, play, open the Genre or Key menu below and leave it open
+// for several seconds — does it stay?
 //
-// ⚠️ `SourceText.codeOnly` IS LOAD-BEARING HERE — measured, and the first version of this
-// paragraph named the WRONG collision, which is the #443 defect committed in the act of claiming
-// a method. It said a raw scan would count the retracted trailing flank as a second
-// `maxWidth: .infinity`. It would not: that quotation is wrapped across two comment lines, so
-// the substring never forms. Running both forms over the same file: raw and stripped agree on
-// the flank count (1), on the mount, on the ordering and on the deleted strip — they differ on
-// exactly ONE assertion, `testTheHeaderItselfReadsNothingLive`, because the comment introducing
-// the readout says the leaf "reads `Transport` and `@AppStorage` only". Raw: leaked. Stripped:
-// clean. So the stripper is genuinely load-bearing, on the counterweight rather than on the
-// count — the same collision #486 hit, and the reason this repo cannot run negative scans on raw
-// text: it writes down what it removed, so the scan meets its own obituary.
+// ⚠️ `SourceText.codeOnly` IS LOAD-BEARING HERE, ON **TWO** ASSERTIONS SINCE #501 — measured
+// each time rather than assumed, and the history is the lesson. #490's first version named the
+// WRONG collision (the #443 defect, committed in the act of claiming a method): it said a raw
+// scan would count the retracted trailing flank as a second `maxWidth: .infinity`, and it would
+// not, because that quotation was wrapped across two comment lines so the substring never
+// formed. That correction was right on the day it was written. **#501 rewrote that retraction
+// onto one physical line, and the substring now forms.** Measured on this tree: raw sees TWO
+// greedy flanks and stripped sees one; raw also sees `@AppStorage` leak into the header (the
+// comment introducing the readout says the leaf "reads `Transport` and `@AppStorage` only") and
+// stripped does not. So the stripper is load-bearing on the flank COUNT *and* on the
+// counterweight — a raw scan would be red on CORRECT code, twice. The general form is the #486
+// collision: this repo writes down what it removed, so a negative scan meets its own obituary —
+// and a "this collision does not form" note has a shelf life of exactly one reflow.
 //
 // `Tests/CISmoke` is the blocking bundle. SKIPS rather than passes if the tree is absent.
 
@@ -109,42 +134,45 @@ final class TheHeaderShowsTheLoopTests: XCTestCase {
             """)
     }
 
-    // MARK: - 2. "E Logo wieder nach rechts"
+    // MARK: - 2. "das Logo und Echoelmusic ist wie auf der Website"
 
-    /// The brand block is the LAST child of the bar.
+    /// The brand block is the FIRST child of the bar — the website's lockup order.
     ///
-    /// This is the assertion that carries the founder's first clause, and it needs saying
-    /// because the instruction only means something in this exact form: BEFORE this commit the
-    /// brand already sat between the greedy flank and the monitor cluster, so "right of where it
-    /// is" and "right of the tiles" are the same sentence. Anything less is a no-op that would
-    /// have looked like compliance.
+    /// ⛔ THIS ASSERTION WAS `brand > lastTile` UNTIL #501 AND IS NOW ITS MIRROR. It is the same
+    /// property under a reversed founder decision one day later, kept rather than deleted: a
+    /// guard that vanishes when its subject moves leaves the ordering unwatched in both
+    /// directions, and this ordering has now been asked for explicitly twice.
     ///
-    /// ⛔ THIS DOC USED TO SAY THE OPPOSITE OF THE ASSERTION BELOW IT: *"The tiles keep the
-    /// trailing EDGE deliberately — they are controls with a 44 pt tap floor (#113) and the brand
-    /// is a link to a website."* The assertion requires `brand > lastTile`, i.e. the brand IS the
-    /// last child and holds the trailing edge. A doc that contradicts the test it introduces is
-    /// worse than a stale one — it invoked #113 to claim an ergonomic property the layout does not
-    /// have, three lines above the code proving it does not.
+    /// ⛔ THE DOC THIS REPLACES ALSO HAD A HISTORY WORTH KEEPING, because it is the reason the
+    /// #113 argument is stated carefully here rather than waved. Under #490 it first claimed
+    /// *"the tiles keep the trailing EDGE deliberately — they are controls with a 44 pt tap
+    /// floor (#113)"* while the assertion below it required the opposite; that was corrected to
+    /// name the PRICE instead (*"a website link — not a 44 pt control — sits in the thumb
+    /// corner"*). #501 does not re-argue #113 — it simply makes that price zero again, because
+    /// the tiles are trailing-most once more. An ergonomic claim is only worth making when the
+    /// code underneath it is actually in that shape.
     ///
-    /// ⚠️ WHAT SHIPPED, cost included: the brand takes the trailing edge because that is the only
-    /// reading of the founder's sentence that changes anything, and the PRICE is that a website
-    /// link — not a 44 pt control — sits in the thumb corner. Pinned so that trade stays a
-    /// decision. If it reads wrong on device, move the tiles back out; do not re-describe it.
-    func testTheBrandBlockSitsAfterTheMonitorTiles() throws {
+    /// ⚠️ WHAT IS **NOT** CLAIMED: that the wordmark matches the website's typography. It does
+    /// not, deliberately — the site sets `uppercase` + 3 px tracking, which does not fit the
+    /// chrome's width budget. The arithmetic is on the brand block in `WorkspaceView`. This
+    /// asserts the ORDER, which is what the founder's arc drew; the type is a device look.
+    func testTheBrandBlockLeadsTheHeader() throws {
         let bar = try topBar()
         guard let brand = bar.firstIndex(where: { $0.contains("openWebsite()") }) else {
             return XCTFail("`topBar` no longer calls `openWebsite()` — the brand block is gone")
         }
-        guard let lastTile = bar.lastIndex(where: { $0.contains("MonitorMini") }) else {
+        guard let firstTile = bar.firstIndex(where: { $0.contains("MonitorMini") }) else {
             return XCTFail("`topBar` mounts no `…MonitorMini` tile — the output monitors are gone")
         }
-        XCTAssertGreaterThan(brand, lastTile, """
-            The brand block is built BEFORE the last monitor tile in `topBar`.
+        XCTAssertLessThan(brand, firstTile, """
+            The brand block is built AFTER a monitor tile in `topBar`.
 
-            Founder 2026-08-07: *"E Logo wieder nach rechts"*. It has to come after the tiles — \
-            before them is where it already was, so that ordering is the instruction unfulfilled.
+            Founder 2026-08-08, arc sweeping left from the circled brand: *"das Logo und \
+            Echoelmusic ist wie auf der Website"*. The website's `.nav-logo` is the FIRST column \
+            of its nav grid, so the brand leads and the monitors take the trailing edge — which \
+            also returns the 44 pt controls (#113) to the thumb corner.
 
-            brand at index \(brand), last monitor tile at index \(lastTile).
+            brand at index \(brand), first monitor tile at index \(firstTile).
             \(bar.joined(separator: "\n"))
             """)
     }
@@ -153,10 +181,16 @@ final class TheHeaderShowsTheLoopTests: XCTestCase {
     ///
     /// ⛔ THIS NUMBER WAS **TWO** UNTIL #490 and it is not a cosmetic edit. Two greedy flanks are
     /// what CENTRED the brand block: they split the leftover width evenly, so the block sat in
-    /// the geometric middle and both sides compressed before anything could overlap. With the
-    /// brand at the trailing edge there is nothing left to centre, so the trailing flank was
-    /// removed — leaving it would make the readout and the tile cluster split the slack and push
-    /// the brand back towards the middle, undoing the one thing the founder asked for.
+    /// the geometric middle and both sides compressed before anything could overlap. Once the
+    /// brand took an EDGE there was nothing left to centre, so the second flank was removed.
+    ///
+    /// ⚠️ AND THE REASON SURVIVED #501 WITH ITS SIGN FLIPPED, which is worth naming because the
+    /// sentence reads identically either way and could therefore be mistaken for stale prose:
+    /// under #490 a second flank would have pulled the brand off the TRAILING edge; today it
+    /// would pull it off the LEADING one. Either way the brand stops sitting where the founder
+    /// put it. What DID change is the flank's alignment — `.leading` as the first child,
+    /// `.center` as the middle one — and this test deliberately does not pin that: alignment is
+    /// a look, the count and the owner are the invariant.
     ///
     /// The count is pinned HERE and nowhere else (`ChromeDynamicTypeTests` points at this file
     /// rather than repeating the number), so a future layout change has one place to update.
@@ -167,10 +201,11 @@ final class TheHeaderShowsTheLoopTests: XCTestCase {
             Expected exactly one `.frame(maxWidth: .infinity)` in `topBar`, found \
             \(greedy.count): \(greedy.map { $0.element.trimmingCharacters(in: .whitespaces) }).
 
-            One flank is what pushes the monitors and the brand against the trailing edge. TWO \
-            would split the slack and re-centre the brand — the layout the founder just moved \
-            away from. ZERO would let the leading readout shrink to its content and leave the \
-            whole bar hugging the leading side.
+            One flank is what pins the brand to the leading edge and the monitors to the \
+            trailing one. TWO would split the slack and pull the brand back off its edge — the \
+            layout the founder moved away from, twice, in opposite directions. ZERO would let \
+            the readout shrink to its content and leave the whole bar hugging the leading side \
+            with the monitors adrift in the middle.
             """)
 
         guard let flank = greedy.first?.offset,
