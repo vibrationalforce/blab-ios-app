@@ -1,4 +1,4 @@
-build: v10.79.377 — ohne Puls lief das Vibrato dauerhaft 25 % zu flach, ohne Atem das ganze Instrument ein Dezibel zu leise
+build: v10.79.378 — Deine zwei roten Rahmen vom Screenshot 2494: die Kopfzeile in der Reihenfolge der Website, und die Identitäts-Leiste im selben Knopf-Format wie alles andere
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,99 +6,117 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.376.
+  Der Vorgänger auf Deinem Gerät ist 10.79.377 — genau der Build, den Du fotografiert hast.
 
-  ── ZUERST: DIE OFFENEN SICHTPROBEN LAUFEN WEITER ─────────────────────────
+  ── DIESER BUILD IST FÜR DIE AUGEN, NICHT FÜR DIE OHREN ───────────────────
 
-  Alles aus 376 (Tonsystem und Flow/Loop-Modus reisen mit dem gespeicherten Take, ehrlicher
-  Speichern-Satz) und alles aus 375 (E-Logo rechts, Loop-Anzeige statt Farbbalken, eine
-  Transport-Ebene ohne doppelte BPM, die drei Punkte als einzelne Knöpfe) ist auch in diesem
-  Build. Die Fragen dazu gelten unverändert. Was hier dazukommt, ist etwas anderes — und
-  zum ersten Mal seit Wochen wieder etwas, das man HÖREN kann.
+  Sag das gleich am Anfang, damit Du nicht auf einen Klang-Unterschied wartest, den es
+  nicht gibt: **an der Musik ändert sich in diesem Build NICHTS.** Er beantwortet die zwei
+  roten Rahmen auf Deinem Screenshot von 2494. Alles Hörbare aus 377 (Vibrato nicht mehr
+  25 % zu flach ohne Puls, das fehlende Dezibel ohne Atmung) ist unverändert dabei — die
+  Hörprobe dazu bleibt offen und ist weiterhin die wichtigste.
 
-  ── DER BEFUND: DAS INSTRUMENT HAT EINE FEHLENDE MESSUNG ALS MESSUNG GELESEN ──
+  ── RAHMEN 1: DIE KOPFZEILE ───────────────────────────────────────────────
 
-  Die Klang-Engine sagt in ihrer eigenen Signatur, was ein NEUTRALER Wert ist: Herzfrequenz
-  0,5, Atemphase 0,5 — das heißt „darüber weiß ich nichts". Zwei von vier Bio-Kanälen haben
-  ihr stattdessen den ROHEN Feldwert gegeben. Und ein Feld, in dem nichts steht, ist keine
-  fehlende Anweisung, sondern eine sehr konkrete, EXTREME Anweisung, die die Engine von
-  einem echten Körper nicht unterscheiden kann.
+  > *„Die obere Reihe so anordnen wie gezeigt mit Pfeilen, natürlich optimal ausgerichtet,
+  > das Logo und Echoelmusic ist wie auf der Website."*
 
-  Gerechnet, nicht geschätzt — beide Zahlen kommen aus der Arithmetik der Engine selbst:
+  Die Marke führt jetzt: E-Logo und „Echoelmusic" links, in derselben Anordnung wie auf
+  echoelmusic.com — danach die Loop-Anzeige, danach die drei Monitor-Kacheln rechts. Vorher
+  standen die Kacheln zwischen Marke und Anzeige. Das ist eine reine Anordnung; es
+  verschwindet nichts und es kommt nichts dazu.
 
-  1. KEIN PULS-LOCK → die Engine las eine 0,0, also den untersten Punkt der Skala, also
-     exakt „40 BPM". Sie hat daraufhin Vibrato-TIEFE und Vibrato-RATE des Patches auf 75 %
-     gestellt: dauerhaft 25 % zu flach, ununterscheidbar von einem Herzen, das wirklich mit
-     40 schlägt. Auf der Akquise-Bilanz dieser App — die Kamera braucht ~19 bis ~32 Sekunden
-     bis zum Lock und verliert ihn wieder — ist das der NORMALFALL eines Takes, kein
-     Randfall.
+  ── RAHMEN 2: DIE LEISTE MIT GENRE · KEY · SCALE · TONSYSTEM · A4 ─────────
 
-  2. KEINE ATMUNG → die Engine las eine rohe 0, also volles Ausatmen. Der Atem-Schwell
-     dämpft dann die GESAMTE Stimme auf ×0,90, das sind −0,92 dB, und auf dem Obertonreihen-
-     Klang sogar ×0,82. Der Neutralwert hätte exakt ×1,0 gegeben. Und eine rohe 0 ist genau
-     das, was DREI der vier Bio-Quellen schreiben: der Brustgurt und die Gesichts-Quelle
-     IMMER (keine von beiden leitet Atmung ab), die Kamera unterhalb ihrer Konfidenzschwelle.
+  > *„Den anderen rot umrandeten Bereich noch einmal auf Usability und kompactheit im
+  > einheitlichen Design intelligent anordnen und aufräumen."*
 
-     Das heißt in einem Satz: **der ausgelieferte BLE-Gurt hat das ganze Instrument dauerhaft
-     ein Dezibel unter seinem eigenen Patch laufen lassen** — ununterscheidbar von einem
-     Performer, der auf vollem Ausatmen einfriert und nicht mehr atmet.
+  Gemessen, bevor irgendetwas angefasst wurde: in dem Rahmen liegen vier verschiedene
+  Bedien-Grammatiken übereinander — und **genau EINE Fläche hatte gar keine Behandlung**:
+  keine Füllung, keinen Rand, keinen Radius, keinen 44-pt-Tap-Boden. Das ist die
+  Identitäts-Leiste. Jedes andere Bedienelement des Bereichs (die Kachel-Reihen, die
+  Chip-Leiste, die Transport-Steuerung, und sogar das A4-Feld DREI Zeilen weiter in
+  derselben Leiste) liest seit Deinem *„die sollen immer gleichgroß sein"* dieselben vier
+  Design-Werte. Diese Leiste ist am 14. Juli gebaut worden und hat daran nie teilgenommen.
 
-  ── EINE LINIE, DIE ABSICHTLICH NICHT ÜBERSCHRITTEN WIRD ──────────────────
+  Jetzt trägt sie dasselbe Format: jeder der fünf Regler sitzt in einem eigenen Kästchen
+  mit Rand und demselben Radius, und jeder hat den 44-pt-Tap-Boden, den die
+  Apple-Richtlinie verlangt — vorher waren das ~22 pt hohe nackte Textmenüs, also
+  deutlich unter der Grenze, auf Reglern, die Tonart und Stimmung des ganzen Instruments
+  entscheiden.
 
-  Ein GEMESSENES 40 BPM liest weiterhin 0,0, und eine gemessene Atemphase 0 bleibt 0. Der
-  Neutralwert deckt die ABWESENHEIT einer Messung ab, nie eine niedrige. Alles andere wäre
-  eine erfundene Zahl, und davon hat dieses Projekt in den letzten Wochen genug entfernt.
-  Nebenbei wissenswert, bevor jemand eine 0,5 für einen Beleg hält: 120 BPM normalisiert per
-  Konstruktion auf exakt 0,5 — „neutral" und „120 BPM" sind hier dieselbe Zahl.
+  ── DIE EHRLICHE HÄLFTE: „Kompaktheit" IST 4 pt IN DIE FALSCHE RICHTUNG ───
 
-  ── EIN ZWEITER FUND, DER ERST BEIM RECHNEN AUFTAUCHTE ────────────────────
+  Der Tap-Boden macht die Leiste von 40 auf 44 pt HÖHER. Das ist die Wahrheit und keine
+  Nebenbemerkung, weil Kompaktheit Dein zweites Wort war. Ich habe es trotzdem so gebaut,
+  weil ein zu kleines Ziel auf dem Kammerton-Regler teurer ist als 4 pt — ein Fehlgriff
+  dort verstimmt jede Stimme und wird gespeichert.
 
-  Ein NaN (kaputte Zahl) war schon vorher harmlos. Ein +unendlich nicht: es rutschte durch
-  die Prüfung und wurde auf 1,0 geklemmt — also das OBERE Ende der Skala, aus einem Frame,
-  der nichts gemessen hat. Dieselbe Klasse Fehler wie die 0,0, nur am anderen Ende. Jetzt
-  gilt: nicht-endlich heißt ABWESEND, nicht „Maximum".
+  **Und die einzige Scheibe, die Kompaktheit WIRKLICH bewegt, habe ich nicht gebaut,
+  sondern lege sie Dir vor** (das ist die Frage unten): der ganze Vorspann über dem Inhalt
+  ist heute rund 273 pt, also etwa **36 % des Bildschirms, bevor irgendetwas beginnt**. Der
+  größte einzelne Posten darin, den man ohne Verlust räumen könnte, ist genau diese
+  Identitäts-Leiste — 41 pt, 15 % des Vorspanns. Genre, Key, Scale, Tonsystem und A4 sind
+  EINSTELL-Werte: einmal gewählt, dann bleiben sie, und trotzdem konkurrieren sie dauerhaft
+  mit dem Transport um Platz.
 
-  ── UND EINE FLÄCHE, DIE DAS GEGENTEIL VON DEM SAGTE, WAS DIE APP TUT ─────
+  Ich setze das NICHT eigenmächtig um, weil Du am 14. Juli ausdrücklich das Gegenteil
+  entschieden hast: die musikalische Identität soll *„HIER in der Chrome, immer sichtbar,
+  eine dünne Zeile"* leben. Diese Entscheidung steht im Quelltext und wird nicht von einer
+  Aufräum-Ask überschrieben.
 
-  Das Bio-Panel hatte im Leer-Zustand stehen: „Füge oben eine Bio-Route hinzu, um zu sehen,
-  wie der Körper einen Parameter bewegt." Also: ohne Route bewegt der Körper nichts. Falsch,
-  und ausgerechnet auf der EINEN Fläche, die gebaut wurde, um „Dein Körper spielt es"
-  sichtbar zu machen. Vier Stimmen hängen dauerhaft am Bus und formen das Timbre, solange
-  eine Sitzung läuft; die Routen dieses Panels legen EFFEKT-Parameter obendrauf. Der Satz
-  stand da, seit es das Panel gibt, und keine Prüfung konnte ihn sehen, weil er über eine
-  FÄHIGKEIT sprach und nicht über einen Wert.
+  ── WAS ICH NICHT GEBAUT HABE, UND WARUM ──────────────────────────────────
 
-  Beim Nachzählen fiel dabei auf, dass meine eigene Bio-Tabelle sieben Kanäle als
-  gleichrangig führte. Es sind VIER, die wirklich aus dem Körper abgeleitet werden
-  (Kohärenz, HRV, Herzfrequenz, Atemphase); drei sind auf feste Werte genagelt und haben
-  gar keinen Erzeuger. Steht jetzt getrennt da — LIVE und STUMM.
+  Zwei geplante Scheiben sind ZURÜCKGEZOGEN, mit Beleg statt mit Bauchgefühl:
+
+  · Eine Statuszeile unter den Aufnahme-Knöpfen („Record 8 bars → send"), weil die Knöpfe
+    seit dem Verdichten nur noch Symbole sind. Beim Nachprüfen stellte sich heraus, dass
+    die Taktzahl schon auf dem Schirm steht — in der neuen Loop-Anzeige der Kopfzeile, aus
+    derselben gespeicherten Einstellung. Und eine Zeile, die nur WÄHREND einer Aufnahme
+    erscheint, schiebt beim Auftauchen alles darunter nach unten und verschwindet bei einem
+    Ende, das Du nicht ausgelöst hast. Für einen Bereich, dessen Ask „Kompaktheit" heißt,
+    ist das die falsche Antwort.
+
+  · Ein Umbau der Knopf-Reihen auf ein echtes Raster. Nutzen für Dich: null Pixel
+    Unterschied. Preis: ein Wechsel der Layout-Mechanik auf genau dem Band, das Du gerade
+    markiert hast, in einer Umgebung, in der ich kein Bild rendern kann. Das ist kein
+    Aufräumen, das ist ein Risiko ohne Gegenwert.
+
+  ── EIN ECHTER DEFEKT, DER DABEI AUFFIEL (kein Symptom, ein Mechanismus) ──
+
+  Die Loop-Länge stand an ZWEI Stellen unabhängig geschrieben — einmal im Instrument,
+  einmal in der Kopfzeile —, unter einem Kommentar, der einen Menschen anwies, sie gleich
+  zu halten. Genau diese Konstruktion hat schon einmal ausgeliefert, dass die Leiste
+  „loop N/4" anzeigte, während das Instrument 8 Takte komponierte. Heute waren beide zufällig
+  gleich, es war also nichts kaputt — jetzt gibt es nur noch EINE Stelle, an der sie stehen
+  kann. Das entfernt einen Mechanismus, keinen Fehler.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  „Build for Testing" = success auf beiden neuen Commits; das blockierende Testbündel
-  kompiliert also nachweislich mit den zwei neuen Wächtern (jetzt 210 Dateien). „Run Tests"
-  stirbt weiterhin am bekannten Simulator-Start — das ist der founder-gated CI-Punkt, nicht
-  der Code.
+  „Build for Testing" = success auf allen neuen Commits; das blockierende Testbündel
+  kompiliert also nachweislich mit dem neuen Wächter über der Kopfzeilen-Leiste und dem über
+  der Loop-Anzeige (jetzt 213 Dateien). „Run Tests" stirbt weiterhin am bekannten
+  Simulator-Start — das ist der founder-gated CI-Punkt, nicht der Code.
 
-  ⚠ Ehrlich zur Beweislage, und sie ist hier zweigeteilt: die RECHNUNG ist echtes Verhalten,
-  Ende zu Ende durch den ausgelieferten Werttyp getrieben — die Zahlen oben sind gemessen,
-  nicht behauptet. Die VERDRAHTUNG (nehmen die zwei Klang-Erzeuger den neuen Weg wirklich)
-  ist ein Quelltext-Nachweis, weil beide Stellen in privaten Methoden liegen, die kein Test
-  hier instanziieren kann. **Und ob ein Take am Gerät hörbar aufhört, flach und leise zu
-  laufen, ist eine HÖRPROBE — die einzige Instanz dafür bist Du.**
+  ⚠ Und die Grenze zuerst: **alles in diesem Build ist LAYOUT, und Layout kann ich hier
+  nicht sehen.** Die Wächter beweisen, dass die richtigen Design-Werte an den richtigen
+  Stellen stehen; sie beweisen NICHT, dass die Leiste am Gerät gut aussieht. Dafür bist Du
+  die einzige Instanz.
 
-  ── WAS VON DIR GEBRAUCHT WIRD (der wichtigste Teil ist Punkt 1) ──────────
+  ── WAS VON DIR GEBRAUCHT WIRD ────────────────────────────────────────────
 
-  1. OHNE Puls spielen: Sitzung starten, Finger NICHT auf die Linse, einen Loop erzeugen und
-     zuhören. Dann Finger drauf, warten bis der Puls sitzt, und wieder zuhören. Vorher waren
-     diese zwei Zustände im Vibrato 25 % auseinander, ohne dass es einen Grund dafür gab —
-     jetzt sollte der Unterschied nur noch das sein, was Dein Herz wirklich macht.
-  2. Mit dem Brustgurt: klingt das Instrument insgesamt einen Hauch offener/lauter als
-     vorher? Das wäre das fehlende Dezibel. (Kein Grund zur Sorge, wenn Du es nicht hörst —
-     0,92 dB sind wenig. Es war trotzdem falsch.)
-  3. Bio-Panel aufmachen, ohne eine Route anzulegen: der Satz unter der Liste sagt jetzt,
-     dass der Körper den Klang ohnehin schon formt, und lädt zum Zuschauen ein statt zu
-     behaupten, es passiere nichts.
-  4. Und weiterhin offen aus 2492/2493: die vier Fragen zur Kopfzeile und Transport-Zeile,
-     und die Stimmungs-/Modus-Probe des letzten Builds (Rāst speichern, auf 12-TET stellen,
+  1. Kopfzeile: stimmt die Reihenfolge jetzt mit Deinen Pfeilen überein (Marke links, dann
+     Loop-Anzeige, dann die drei Kacheln)?
+  2. Identitäts-Leiste: sechs Kästchen mit Rand nebeneinander — liest sich das ruhig, oder
+     ist es unruhiger als die nackten Menüs vorher? Das ist die eine Stelle, an der ich
+     zwischen zwei Fehlern wählen musste (eine Fläche ohne jede Behandlung neben drei mit,
+     gegen sechs Ränder in einer Zeile), und ich kann das Ergebnis nicht ansehen.
+  3. Die Leiste scrollt jetzt weiter nach rechts als vorher (die Kästchen brauchen Platz).
+     Kommst Du beim Wischen bequem an A4 heran?
+  4. **DIE FRAGE, DIE ICH NICHT SELBST ENTSCHEIDEN WOLLTE:** darf Genre · Key · Scale ·
+     Tonsystem · A4 hinter den Tempo-Chip wandern (der ohnehin „Tempo and variations"
+     heißt)? Das gäbe dem Instrument 41 pt zurück — und es kehrt Deine Entscheidung vom
+     14. Juli um. Ja oder nein genügt.
+  5. Weiterhin offen und wichtiger als alles hier: die Hörprobe aus 377 (ohne Puls spielen,
+     dann mit) und die Stimmungs-/Modus-Probe aus 376 (Rāst speichern, auf 12-TET stellen,
      wieder öffnen).
