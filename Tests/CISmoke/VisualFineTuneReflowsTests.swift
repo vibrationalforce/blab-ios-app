@@ -22,6 +22,21 @@
 // sharpest claim in this file is claim 4: an argument no call site writes appears in no diff
 // (#440/#443), so a default would reintroduce exactly that risk invisibly.
 //
+// ⛔ AND THE SECOND HOST HAS NO DOOR — measured, and the whole ⭐ block above read as if it did.
+// `visualVJOverlay` is mounted in exactly one place, inside `.fullScreenCover(isPresented:
+// $showVisual)`, and `showVisual` has NO writer of `true` anywhere in `Sources/`: word-bounded, the
+// flag has two writers in code, its own `@State` initialiser and the close button, and both assign
+// `false`. So the overlay cannot be reached today (that is open task #270; `NoDoorlessStudioViewsTests`
+// cites it as the live proof of what reference-counting cannot catch).
+//
+// ⭐ THAT MAKES THE NO-DEFAULT RULE ASYMMETRIC RATHER THAN WEAKER, and naming the asymmetry is the
+// point: hardcoding **8** re-spaces the REACHABLE panel — a live cost, today, on the primary
+// surface — while hardcoding **14** re-spaces only a surface nobody can open. The ⭐ block above
+// silently assumed the first direction when it said "the primary surface … would pay the whole
+// cost". So the parameter protects something live in exactly ONE direction, and is bookkeeping for
+// the day the door returns in the other. Both halves are worth keeping; only one is worth calling
+// a defence.
+//
 // ⚠️ WHAT THIS FILE GUARDS, and what it deliberately does NOT.
 //   1. Two grids exist in `visualAdjustFields` and both pass the PARAMETER, not a number.
 //   2. All six fine-tune rows are INSIDE a grid. A surface where some rows reflow and others do
@@ -33,6 +48,12 @@
 //      half-width cell beside a parameter row.
 //   4. `spacing` is an argument with no default.
 //   5. Both call sites pass a spacing, and the overlay's argument matches the overlay's OWN stack.
+//   6. The overlay is still doorless — the PREMISE claims 5 and the honest-limit block rest on.
+//      A COUNTERWEIGHT, not a regression: green before this commit and after it. It exists so
+//      that re-dooring `showVisual` goes red and pulls the doorlessness prose into the same
+//      commit instead of leaving it quietly false (#456). Its failure message names the NINE
+//      files that carry that prose today rather than a count, because a count of scattered
+//      sentences is a number this repo has learned not to write down.
 //
 // It does NOT re-assert that `EchoelPanel`'s content spacing is 14 — `SoundPanelReflowsTests`
 // owns that fact (`testThePanelStillUsesThatSpacingForItsContent`), and a second copy of a
@@ -50,9 +71,16 @@
 // red for their own reasons (no such declaration, no such call sites).
 //
 // ⛔ HONEST LIMIT — read before trusting a green. Every claim here is a SOURCE SCAN. SwiftUI
-// layout is not reachable from this bundle, so "two columns are legible on a device", "the column
-// break lands between sensible parameters" and "the overlay still fits its cap in landscape" are
-// all device checks. Device-verify is open, landscape and the VJ overlay specifically.
+// layout is not reachable from this bundle, so "two columns are legible on a device" and "the
+// column break lands between sensible parameters" are device checks, open on the inline panel.
+//
+// ⛔ AND THE THIRD ITEM IN THAT LIST WAS AN IMPOSSIBLE FOUNDER ASK, which is worse than a vague
+// one. It read: "the overlay still fits its cap in landscape … Device-verify is open, landscape
+// and the VJ overlay specifically." Nobody can open the VJ overlay (claim 6), so that request
+// could never be satisfied — it would have cost a device session to discover that, and it sat in
+// the register a session reads when triaging the NEEDS-FOUNDER-VERIFY backlog. Withdrawn rather
+// than reworded: the overlay's device check becomes real on the day it gets a door, and the day it
+// gets a door claim 6 goes red and says so.
 //
 // ⚠️ AND THE OVERLAY'S BINDING CAP IS ITS WIDTH, NOT ITS HEIGHT — the first draft of the line
 // above named only `.frame(maxHeight: 360)`, which is the cap you notice, not the one that
@@ -65,9 +93,10 @@
 // to 1 at `typeSize.isAccessibilitySize`, so a LARGE-but-not-accessibility size (`.xxxLarge`)
 // still draws two columns into 261 pt with a `@ScaledMetric` box that has grown ~35 %. The inline
 // panel is uncapped and has no such band (~425 pt columns in landscape on a Pro Max); this
-// exposure is new and specific to the overlay. Numbers are ARITHMETIC FROM CONSTANTS, not a
-// measurement — the point is that the band is nameable and belongs in front of a device, not that
-// it is proven to break.
+// exposure is specific to the overlay and therefore LATENT, not live — the first draft called it
+// "new", which reads as shipped. Numbers are ARITHMETIC FROM CONSTANTS, not a measurement — the
+// point is that the band is nameable and belongs in front of a device on the day the overlay has
+// one, not that it is proven to break.
 
 import Foundation
 import XCTest
@@ -243,6 +272,81 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         different rhythm from every other child of the overlay; in two columns the seam between \
         the two grids would become visible. Move both, or neither.
         """)
+    }
+
+    // MARK: - The premise the rest of this file rests on
+
+    /// ⭐ Claim 6 — the COUNTERWEIGHT, and the premise everything above quietly assumed. Green
+    /// before this commit and after it: `showVisual` has had no writer of `true` since the tools
+    /// grid that set it was deleted, so the whole VJ control panel is unreachable (open task
+    /// #270). That fact is load-bearing in two directions and was written down in neither.
+    ///
+    /// It decides what claims 1–5 MEAN: passing 8 to a surface nobody can open is bookkeeping,
+    /// while passing 14 to the inline panel is a live guarantee. And it decides what this file may
+    /// ASK OF A HUMAN — the honest-limit block used to request a landscape device check of the
+    /// overlay, which nobody could perform.
+    ///
+    /// So the assertion runs the other way round from the rest of the file: it is here to go RED
+    /// when the overlay is RE-DOORED, which is a good change and exactly the moment the prose
+    /// calling it "latent" or "doorless (#270)" becomes false in nine files at once (#456).
+    ///
+    /// The scan is word-bounded on purpose: `showVisualSettings`, `showVisualFineTune` and
+    /// `showVisualControls` all share the prefix and are live, settable flags. A `contains` would
+    /// collect them and this claim would fail on correct code.
+    ///
+    /// ⚠️ `SourceText.codeOnly` IS PROPHYLACTIC FOR THIS CLAIM, measured rather than assumed
+    /// (the over-claim #484/#485 each retracted once and #486 twice): raw vs stripped differ in
+    /// **0 of 4** verdicts across both trees, because nothing in this repo writes the assignment
+    /// form in prose today. It stops being prophylactic the moment somebody does — a retraction
+    /// quoting `showVisual` followed by `= true` would be collected as a writer and turn this
+    /// claim RED on correct code. That is why the notes this commit adds describe the writers
+    /// instead of quoting one.
+    func testTheVJOverlayIsStillDoorless() throws {
+        let writers = try studioLines().filter { line in
+            flagAssignments(in: line)
+        }
+        // #367: anchor first. A rename would empty the list and let the loop below pass on
+        // nothing, which is how a guard stops being able to fail for its stated reason.
+        XCTAssertFalse(writers.isEmpty, """
+        no assignment to `showVisual` in \(Self.studio) — the flag was renamed or removed.
+
+        Re-anchor this claim on the new name; do NOT delete it. If the fullscreen visual cover \
+        went away entirely, delete claim 5's overlay half and this one together, and sweep the \
+        "doorless (#270)" prose in the same commit.
+        """)
+        for line in writers {
+            XCTAssertTrue(line.contains("= false"), """
+            `showVisual` now has a writer that is not `= false`: \
+            \(line.trimmingCharacters(in: .whitespaces))
+
+            That re-doors `visualVJOverlay` — a real capability, and a welcome one. It also makes \
+            a pile of prose false in one step, so update it in THIS commit: the "doorless"/"latent"\
+             notes on `visualPresetRow` and `visualAdjustFields(spacing:)`, the ⛔ blocks in this \
+            file's header, `NoDoorlessStudioViewsTests` (which cites this overlay as its live \
+            proof), `SectionHeadingIsOneTreatmentTests`, `WeatherIsAMoodRubricTests`, \
+            `TapTargetFloorTests`, `VisualLookTruthTests`, the un-settable-slot note in \
+            `ResetSoundClearsWhatTheLaunchLineReportsTests` (the modal budget gains a live slot), \
+            CLAUDE.md's #292-Slice-4 paragraph, and open task #270. The overlay's landscape \
+            device check becomes real at the same moment — see the honest-limit block above.
+            """)
+        }
+    }
+
+    /// True when `line` assigns to the `showVisual` flag itself — `=` or `.toggle()`, and never a
+    /// longer identifier that merely starts with the same characters.
+    private func flagAssignments(in line: String) -> Bool {
+        let flag = "showVisual"
+        var searchStart = line.startIndex
+        while let range = line.range(of: flag, range: searchStart..<line.endIndex) {
+            searchStart = range.upperBound
+            let tail = line[range.upperBound...]
+            // A longer identifier (`showVisualControls`) — not this flag.
+            if let next = tail.first, next.isLetter || next.isNumber || next == "_" { continue }
+            let rest = tail.drop(while: { $0 == " " })
+            if rest.hasPrefix(".toggle()") { return true }
+            if rest.hasPrefix("="), !rest.hasPrefix("==") { return true }
+        }
+        return false
     }
 
     // MARK: - Helpers

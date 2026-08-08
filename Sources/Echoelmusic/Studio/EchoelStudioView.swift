@@ -5530,6 +5530,18 @@ struct EchoelStudioView: View {
     /// A DEFAULT would reintroduce exactly that risk invisibly: an argument no call site
     /// writes appears in no diff (#440/#443).
     ///
+    /// ⛔ AND THE SECOND HOST HAS NO DOOR, which the paragraph above reads as if it did.
+    /// `visualVJOverlay` is mounted only inside `.fullScreenCover(isPresented: $showVisual)`, and
+    /// `showVisual` has no writer of `true` anywhere in `Sources/` — word-bounded, its two writers
+    /// in code are its own `@State` initialiser and the close button, both `false` (open task
+    /// #270; `visualPresetRow` already says "the overlay is doorless, so that half is latent").
+    /// So the rule above is ASYMMETRIC rather than weaker: hardcoding **8** re-spaces the
+    /// REACHABLE panel — a live cost, today — while hardcoding **14** re-spaces only a surface
+    /// nobody can open. The parameter defends something live in exactly ONE direction and is
+    /// bookkeeping for the day the door returns in the other. Both halves stay; only one is a
+    /// defence, and saying which is the difference between a rule and a ritual.
+    /// Pinned by `VisualFineTuneReflowsTests` claim 6, which goes red when the door comes back.
+    ///
     /// ⚠️ ENERGY IS DELIBERATELY OUTSIDE THE GRID, and this is the half a grep-for-
     /// `AdaptiveCardGrid` guard cannot see. It is separated from the six by a caption and the
     /// disclosure Button — both full-width prose/controls — so a grid around it would order a
