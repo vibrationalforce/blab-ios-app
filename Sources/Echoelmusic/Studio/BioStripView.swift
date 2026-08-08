@@ -177,12 +177,20 @@ struct BioStripView: View {
     @ViewBuilder private var statusBanner: some View {
         if cameraRPPG.isRunning, let hint = cameraRPPG.recoveryState.userHint {
             banner(hint, color: EchoelTheme.warning, systemImage: "camera.metering.center.weighted")
-        } else if cameraRPPG.permissionDenied, bus.freshBio() == nil {
+        } else if cameraRPPG.permissionDenied, reading == nil {
             // UX-1: denied camera access was a SILENT dead end — the strip kept
             // coaching "Cover camera" which can never work. Name the real fix.
-            // Gate on RAW fresh frames (not hasLiveSignal, which excludes the
+            // Gate on ANY usable frame (not hasLiveSignal, which excludes the
             // .fallback demo): a user who deliberately picked Simulation must not
             // be nagged about the camera — matches the header pill's suppression.
+            //
+            // ⛔ THIS SAID `bus.freshBio() == nil` AND THAT WAS THE WRONG CLOCK for the one
+            // user it hurt most (#507). The demo is unaffected either way (`.fallback`'s
+            // window IS 5 s, the same number `freshBio()` defaults to), but a Watch/HealthKit
+            // source publishes minutes apart and stays usable for 90 s — so between writes,
+            // `freshBio()` was nil and this banner nagged someone to enable a camera they had
+            // deliberately declined, while their wrist reading was driving the music. The
+            // suppression intent is unchanged; only the window it is measured on.
             banner(PulseCue.cameraDenied.fullHint,
                    color: EchoelTheme.warning, systemImage: "video.slash")
         } else if cameraRPPG.isRunning {
@@ -516,11 +524,12 @@ struct BioStripView: View {
     @ViewBuilder private var sourceControl: some View {
         if hasLiveSignal {
             liveTag
-        } else if cameraRPPG.permissionDenied, bus.freshBio() == nil {
+        } else if cameraRPPG.permissionDenied, reading == nil {
             // UX-1: with access denied the camera can never start, so neither
             // "Reading…" nor "Read pulse" is honest — offer the one real door.
-            // Raw fresh-frame gate (not hasLiveSignal): the .fallback demo is a
+            // Usable-frame gate (not hasLiveSignal): the .fallback demo is a
             // deliberate source choice, don't override it with a camera nag.
+            // Same clock as the banner above, for the reason written there (#507).
             openSettingsButton
         } else if measuring {
             measuringTag
@@ -633,22 +642,52 @@ struct BioStripView: View {
         .accessibilityHint("Starts the camera to read your heartbeat so your body drives the sound")
     }
 
+    /// ⭐ ONE FRESHNESS QUESTION FOR THE WHOLE STRIP (#507). Every cell, the tag and the
+    /// activity light now ask the SAME thing: is there still a body arriving, judged by the
+    /// window THIS source is entitled to (`BioSource.freshnessWindow` — camera/BLE 6 s,
+    /// Watch/HealthKit 90 s, demo 5 s)?
+    ///
+    /// ⛔ IT USED TO BE THREE QUESTIONS IN ONE ROW, and this file was the only one in
+    /// `Studio/` that asked all three. The tag and the light asked `usableBio()`; the "Coh"
+    /// cell asked `freshBio()` (a FIXED 5 s, regardless of source); and "HR", "HRV" and "Br"
+    /// read the raw `latestBio` snapshot — which `EngineBus` NEVER clears. Its only writer is
+    /// the publish sink: neither `stop()` nor a lost pulse empties it (the fact #503 is built
+    /// on). So stopping the camera made the tag fall to "No signal" after 6 s and the
+    /// coherence cell fall to "—" after 5 s, while the heart rate, HRV and breath numbers kept
+    /// standing — for the rest of the process — right beside the label saying nothing was
+    /// arriving. That is #503's defect on the surface that actually HAS a door (the Bio chip),
+    /// where #503 fixed the always-on list inside the FX sheet.
+    ///
+    /// ⭐ AND IT IS NOT A NEW POLICY — it is this file's OWN, finally applied to the three
+    /// cells that never followed it. `hasLiveSignal`'s doc has said since it was written:
+    /// *a frozen reading expires after the freshness window, so the strip stops claiming a
+    /// live body*. The tag obeyed that sentence; the numbers beside it did not.
+    ///
+    /// ⚠️ EXPIRY BLANKS HERE, it does not mark — the opposite of #503, deliberately, because
+    /// the two surfaces answer different questions. `AlwaysOnBioView` reports WHAT THE ENGINE
+    /// IS GETTING, and the sound producers park on the last body rather than dropping it, so
+    /// clearing the number there would claim an abort that did not happen. This strip reports
+    /// WHAT YOUR BODY IS DOING, and its own tag already says "No signal"; a held number here
+    /// would be the contradiction, not the honesty. "—" is also exactly what the fourth cell
+    /// in the same row has always done on an unavailable reading.
+    private var reading: BioSampleFrame? { bus.usableBio() }
+
     /// A real sensor (camera PPG / HealthKit / BLE / Watch / Oura) is publishing
     /// FRESH frames. A frozen reading (dropped strap, lifted finger, stalled Watch)
     /// expires after the freshness window, so the strip stops claiming a live body.
     private var hasLiveSignal: Bool {
-        // Gate on `usableBio()` — the SAME per-source window the sound engine uses
+        // Gate on `reading` — the SAME per-source window the sound engine uses
         // (ModulationEngine.tick). The fixed-5 s `freshBio()` here made the strip
         // flicker to "No signal" for a Watch/HealthKit source that publishes only
         // every few minutes (its reading stays usable for 90 s and keeps driving
         // the music), so the live indicator now matches whether the body is
         // actually shaping the sound. A truly frozen source still expires.
-        if let bio = bus.usableBio(), bio.source != .fallback { return true }
+        if let bio = reading, bio.source != .fallback { return true }
         return false
     }
 
     private var sourceText: String {
-        if let bio = bus.usableBio(), bio.source != .fallback {
+        if let bio = reading, bio.source != .fallback {
             return sourceLabel(bio.source)
         }
         return "No signal"
@@ -661,10 +700,19 @@ struct BioStripView: View {
         // confident reading through noisy patches) so this number matches the header monitor
         // and doesn't bounce. Music still uses the honest bus HR internally; other sources
         // (BLE/HealthKit) and the pre-lock phase fall back to the bus value.
+        //
+        // ⚠️ THIS BRANCH DELIBERATELY SURVIVES #507 and is NOT routed through `reading`.
+        // `displayBPM` is the calm value the HEADER shows, and `stop()` sets it back to 0 —
+        // so it cannot outlive a stopped camera. Making it expire on the bus window instead
+        // would put this cell and `HeaderMonitors` on two different clocks for the same
+        // number, which is the disagreement #507 exists to remove, not a smaller version of
+        // it. What it does NOT cover is a camera that is still RUNNING while frames have
+        // stopped arriving: there `displayBPM` holds by design and the honest signal is the
+        // stall cue (#484), not a blanked cell.
         if cameraRPPG.isRunning, cameraRPPG.displayBPM > 0 {
             return EchoelDecimalText.string(cameraRPPG.displayBPM, decimals: 0)
         }
-        guard let v = bus.latestBio?.heartRateBPM else { return "—" }
+        guard let v = reading?.heartRateBPM else { return "—" }
         return EchoelDecimalText.string(v, decimals: 1)
     }
 
@@ -678,7 +726,7 @@ struct BioStripView: View {
     /// normalized [0..1] value for sources that only publish that (HealthKit);
     /// "—" when the ms reading is physiologically impossible (noisy rPPG).
     private var hrvString: String {
-        guard let bio = bus.latestBio else { return "—" }
+        guard let bio = reading else { return "—" }
         if Self.plausibleHRVms.contains(bio.hrvRMSSDms) {
             // Whole ms from 10 up ("HRV 15 ms", not "15.2"): the strip cell is the
             // narrowest surface in the app and the decimal was what pushed it into
@@ -696,7 +744,7 @@ struct BioStripView: View {
     }
 
     private var hrvUnit: String? {
-        guard let bio = bus.latestBio, Self.plausibleHRVms.contains(bio.hrvRMSSDms) else { return nil }
+        guard let bio = reading, Self.plausibleHRVms.contains(bio.hrvRMSSDms) else { return nil }
         return "ms"
     }
 
@@ -714,7 +762,7 @@ struct BioStripView: View {
     /// measurement. The agreement is now a property of the accept band, not of a clamp, and it
     /// is narrower than it was: see `RespirationEstimator.reportableRange`.)
     private var breathString: String {
-        guard let bio = bus.latestBio, bio.hasMeasuredBreath else { return "—" }
+        guard let bio = reading, bio.hasMeasuredBreath else { return "—" }
         return EchoelDecimalText.string(bio.breathRate, decimals: 1)
     }
 
@@ -722,8 +770,18 @@ struct BioStripView: View {
     /// HealthKit publishes 0 ("not available"). Show a measured value only for a
     /// FRESH frame whose coherence is > 0 — otherwise "—" (never "0.000", which
     /// would read as "incoherent" rather than "not yet / not available").
+    ///
+    /// ⛔ THIS CELL WAS THE ONE THAT ALREADY EXPIRED, and it expired on the WRONG clock: a
+    /// fixed 5 s (`freshBio()`'s default) rather than the source's own window. Measured, the
+    /// change is small and one-directional: the only publishers that ever emit a non-zero
+    /// coherence are the camera (`.cameraPPG`), the strap (`.ble`) and the demo
+    /// (`.fallback`) — `HealthKitBioPublisher` and `FaceExpressionBioPublisher` both write
+    /// the literal `coherence: 0`, so their 90 s / 6 s windows can never show anything here.
+    /// Camera and strap therefore gain exactly 1 s (5 → 6) and the demo is unchanged
+    /// (5 → 5). What it buys is that the cell now vanishes at the same instant as the tag
+    /// beside it instead of a second earlier.
     private var coherenceString: String {
-        guard let bio = bus.freshBio(), bio.coherence > 0 else { return "—" }
+        guard let bio = reading, bio.coherence > 0 else { return "—" }
         return EchoelDecimalText.string(bio.coherence, decimals: 2)
     }
 
