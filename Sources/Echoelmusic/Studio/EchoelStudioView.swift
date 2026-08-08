@@ -680,6 +680,17 @@ struct EchoelStudioView: View {
     @State private var midiImportPresented = false
     /// Drives the project-import file picker in the Open-project sheet.
     @State private var projectImportPresented = false
+    /// What the last import could not do, shown as a row in the Open-project sheet.
+    ///
+    /// ⛔ A ROW, NOT AN `.alert` — and that is the black-screen law (10.76.34), not taste.
+    /// The body chain is at 14 presentation modifiers and the FILE is at 16; `#479`
+    /// (`ResetSoundClearsWhatTheLaunchLineReportsTests`) pins BOTH numbers, the file-wide one
+    /// as an equality. A new `.alert` anywhere in this file — including inside `openSheet`,
+    /// where the importer this reports on already sits as one of the two nested modifiers —
+    /// makes that guard red AND grows the aggregate generic type this app has already
+    /// SIGSEGV'd on once. An inline row costs zero modifiers and is the house pattern for a
+    /// status the user is already looking at (Live Colabo's status line, #518).
+    @State private var importNote: String?
     @State private var showVisual = false
     /// Remembers whether the floating visual was showing before the fullscreen cover took over,
     /// so dismissing the cover restores it (single-MetalBioView / GPU rule — see onChange).
@@ -7650,6 +7661,31 @@ struct EchoelStudioView: View {
         let autosaved = projects.projects.filter { $0.id == Project.autosaveSlotID }
         return NavigationStack {
             List {
+                if let importNote {
+                    // WHY A PLAIN LINE AND NOT AN ALERT — the same reason as `exportFailure`
+                    // one screen up (#216), and it binds harder here: the importer this
+                    // reports on is itself one of the two NESTED presentation modifiers that
+                    // put this file at 16 (#479 pins that as an equality). Same treatment as
+                    // that precedent on purpose; a second look for one status is how a house
+                    // idiom stops being one.
+                    //
+                    // ⚠️ IT CARRIES `@State` WHERE THE PRECEDENT COMPUTES FROM A MODEL, and
+                    // that difference is forced, not sloppy: `exportFailure` reads
+                    // `LoopExporter`, which lives for the app's lifetime. Nothing outlives a
+                    // failed import — the URL is gone and `ProjectStore` holds only what it
+                    // successfully saved — so there is no model to ask.
+                    //
+                    // FIRST IN THE LIST because the library can be long and the sheet does not
+                    // scroll back on its own; a note under twenty rows is a note nobody reads.
+                    // It clears when the picker is opened again, so the Import button is both
+                    // the retry and the dismissal, and a stale sentence cannot outlive the
+                    // attempt that produced it.
+                    Text(importNote)
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .accessibilityLabel("Import failed. \(importNote)")
+                }
                 if projects.projects.isEmpty {
                     Text("No saved projects yet.").foregroundStyle(EchoelTheme.dim)
                 }
@@ -7698,7 +7734,13 @@ struct EchoelStudioView: View {
             #endif
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button { projectImportPresented = true } label: {
+                    Button {
+                        // Clearing HERE makes this button both the retry and the dismissal —
+                        // no second control, no timer, no lifecycle modifier. The note can
+                        // therefore never outlive the attempt that produced it.
+                        importNote = nil
+                        projectImportPresented = true
+                    } label: {
                         Label("Import", systemImage: "square.and.arrow.down")
                     }
                 }
@@ -7707,8 +7749,27 @@ struct EchoelStudioView: View {
             .fileImporter(isPresented: $projectImportPresented,
                           allowedContentTypes: [.json],
                           allowsMultipleSelection: false) { result in
-                if case .success(let urls) = result, let url = urls.first {
-                    projects.importProject(from: url)
+                switch result {
+                case .success(let urls):
+                    guard let url = urls.first else { return }
+                    do {
+                        _ = try projects.importProject(fromDocument: url)
+                        importNote = nil
+                    } catch {
+                        importNote = ProjectStore.importFailureNote(error)
+                    }
+                case .failure(let error):
+                    // ⚠️ CANCELLING IS NOT A FAILURE TO REPORT, and this branch is written to
+                    // be right under BOTH readings of SwiftUI's contract. Whether tapping
+                    // Cancel arrives here as `CocoaError.userCancelled` or never calls the
+                    // completion at all has varied across iOS versions, and no device is
+                    // available here to settle it — so the check is a SUPERSET: if
+                    // cancellation is delivered we swallow it, and if it is not, the guard is
+                    // a no-op. Getting this wrong in the other direction would put "Couldn't
+                    // read that file." on screen for a user who deliberately backed out, which
+                    // is the lying-control class this whole family of slices removes.
+                    if (error as? CocoaError)?.code == .userCancelled { return }
+                    importNote = ProjectStore.importFailureNote(error)
                 }
             }
             #endif

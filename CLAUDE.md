@@ -304,8 +304,82 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**228** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheShareDoorDoesNotFabricateAnEmptyDocumentTests.swift` (#519 —
+                          `Tests/CISmoke` (**229** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheImportDoorReportsWhatItCannotReadTests.swift` (#520 — der
+                          EMPFANGENDE Zwilling von #519, und der erste Wächter dieser Kette, der aus der
+                          PROSA einer vorigen Scheibe entstanden ist statt aus einem Screenshot oder einem
+                          Log. #519s eigener Doc-Block sagte, eine leere Freigabe tauche „auf dem Gerät
+                          EINER ANDEREN PERSON auf, Tage später, als `ProjectStore.importProject` mit `nil`
+                          — ‚keine gültige Echoel-Session'".
+                          ⭐ **DIESEN SATZ HAT DIE APP NIE GEDRUCKT — gemessen, nicht vermutet.** Er steht
+                          in ZWEI Doc-Kommentaren und sonst nirgends; `git grep
+                          "importFailure\|importError\|showImport"` über `Sources/` lieferte NICHTS, und die
+                          eine Produktions-Aufrufstelle verwarf den Rückgabewert UND ignorierte
+                          `case .failure` vollständig. Das empfangende Gerät sagte GAR NICHTS: Datei wählen,
+                          das Blatt schließt, die Bibliothek ist unverändert, und die einzige verfügbare
+                          Lesart ist „ich muss danebengetippt haben". **Die Lehre ist die Richtung: eine
+                          Scheibe, die einen Defekt behebt, beschreibt dabei den Zustand am ANDEREN Ende der
+                          Strecke — und diese Beschreibung ist ungeprüft, weil sie nicht das Subjekt jener
+                          Scheibe war.**
+                          ⭐ **ES WIRFT AUS DEM #514/#518/#519-GRUND: `DecodingError` trägt das FELD** in
+                          `codingPath`. „Das ist gar keine Echoel-Session", „es ist eine, aber aus einem
+                          Build, der ein Feld schreibt, das dieser nicht lesen kann" und „die Datei war
+                          nicht lesbar" sind drei verschiedene Probleme mit drei verschiedenen Antworten,
+                          und `try?` faltet alle drei auf `nil`. Der `Data(contentsOf:)`-Wurf bleibt aus
+                          demselben Grund getrennt — ein Rechte- oder IO-Fehlschlag darf nicht als
+                          korruptes Dokument lesen.
+                          ⚠️ **UND ES ERFINDET KEIN FELD, WO ES KEINES GIBT.** `.dataCorrupted` auf einer
+                          Nicht-JSON-Datei hat einen LEEREN `codingPath` — die Bytes waren nie ein Dokument
+                          —, und „Feld: " mit nichts dahinter zu drucken wäre die erfundene Detailangabe,
+                          die dieses Repo mehrfach bezahlt hat (#424/#426/#433/#461). Zwei Sätze,
+                          entschieden am `isEmpty` des Pfades.
+                          ⚠️ **DIE MELDUNG IST EINE ZEILE IM BLATT, KEIN ALERT — und das ist das
+                          Black-Screen-Gesetz, nicht Geschmack.** Ein neues `.alert` irgendwo in
+                          `EchoelStudioView.swift` bricht die GLEICHHEIT, die #479 festnagelt (dateiweit
+                          16), und der Importer, über den hier berichtet wird, IST einer der zwei
+                          verschachtelten Modifier, die diese Zahl auf 16 setzen. Präzedenzfall ist
+                          `exportFailure` einen Bildschirm höher (#216). ⚠️ Sie trägt `@State`, wo der
+                          Präzedenzfall aus einem Modell rechnet: nach einem GESCHEITERTEN Import überlebt
+                          nichts, es gibt also kein Modell zu fragen.
+                          ⚠️ **ABBRECHEN IST KEIN ZU MELDENDER FEHLSCHLAG**, und die Prüfung ist ein
+                          SUPERSET: `userCancelled` wird verworfen, alles andere gemeldet — ein
+                          `.failure`-Zweig, der pauschal meldet, beschimpft einen Nutzer, der bloß „Abbrechen"
+                          gedrückt hat.
+                          ⭐ **DIE `Project?`-FORMEN BLEIBEN, und NICHT aus Schönheit:** sie haben vier
+                          Aufrufer in `Tests/EchoelmusicTests/ProjectStoreTests.swift` — der Suite, die
+                          **kein Gate kompiliert** (#208) —, ihre Signatur zu ändern ist also ein Bruch, den
+                          kein CI-Lauf zeigen kann (#494 hat genau das unbemerkt ausgeliefert). Dieselbe
+                          Teilung, die `exportData` seit #519 trägt.
+                          ⚠️ EHRLICHE BENOTUNG (#433), und es ist die #464-Lage klar gesagt: die Datei
+                          lässt sich gegen den Elternbaum **ÜBERHAUPT NICHT** benoten — jeder
+                          Verhaltensfall nennt `ProjectStore.importFailureNote`, das es dort nicht gibt.
+                          Von Hand transkribiert (Python-Nachbau von `SourceText.codeOnly` plus des
+                          Klammer-Matchers, gegen `git show HEAD:` und den Arbeitsbaum): **SIEBEN** Nadeln
+                          sind auf dem Elternteil rot, und sie sind **ZWEI** Befunde — der Handler (fünf
+                          Nadeln: `switch result`, der werfende Aufruf, die Zuweisung der Notiz, die
+                          Abwesenheit der `Project?`-Form, das `userCancelled`-Tor) und die Zeile im Blatt
+                          (zwei Nadeln). Sie als sieben zu zählen wäre der #433-Defekt in der
+                          schmeichelhaften Richtung (#486). **ZWEI** sind echte GEGENGEWICHTE, beidseitig
+                          grün: die zwei `Project?`-Signaturen, deren Verschwinden die #494-Falle
+                          zurückholte. Die Verhaltensfälle treiben ein Symbol, das derselbe Commit anlegt.
+                          ⚠️ `SourceText.codeOnly` ist hier PROPHYLAKTISCH und das ist GEMESSEN statt
+                          angenommen — **0 von 10** Nadel-Verdikten kippen, auf BEIDEN Bäumen. Und die
+                          erste Fassung dieses Kopfes behauptete „2 von 12, TRAGEND", also der exakte
+                          Überclaim, den #484 und #485 je einmal und #486 zweimal zurücknehmen mussten,
+                          **zum dritten Mal in Folge**. Beide erwarteten Kollisionen waren falsch:
+                          `projects.importProject(from: url)` kommt im ROHTEXT der Ansicht NULL mal vor
+                          (die Rücknahme, die es zitiert, steht im Kopf der TEST-Datei, den nichts scannt),
+                          und `Couldn't read that file.` ist eine `return`-Anweisung in `ProjectStore`, also
+                          Code und keine Prosa.
+                          ⚠️ Und die Grenze zuerst: die SATZ-Hälfte und die STORE-Hälfte treiben
+                          ausgelieferten Code Ende zu Ende (`importFailureNote` ist `nonisolated public
+                          static`, `Project` ist reines `Codable`, und der Ende-zu-Ende-Fall importiert ein
+                          echtes Dokument und weist nach, dass ein GESCHEITERTER Import die Bibliothek
+                          unangetastet lässt — der Decode geht dem `save` voraus). Die
+                          VERDRAHTUNGS-Hälfte ist ein QUELLTEXT-SCAN, weil beide Stellen in `private`
+                          Mitgliedern einer Ansicht liegen. **Dass ein fehlgeschlagener Import am Gerät
+                          wirklich MELDET statt still nichts zu tun, ist eine Geräteprobe und OFFEN.**),
+                          davor **228** nach `TheShareDoorDoesNotFabricateAnEmptyDocumentTests.swift` (#519 —
                           der erste Wächter dieser Kette über einem AUSGANG, der ERFOLG VORTÄUSCHT, und
                           damit die schärfere Hälfte der #518-Familie. `SharedEchoelProject` — der
                           `ShareLink`-Wrapper, den JEDE Bibliotheks-Zeile erreicht — endete auf
@@ -5457,7 +5531,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSIEBENUNDACHTZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 228 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 227·226·225·224·223·222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTACHTUNDACHTZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 229 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 228·227·226·225·224·223·222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
