@@ -51,10 +51,22 @@ public final class ProjectStore {
     /// Encode a project to portable, human-diffable JSON for sharing (AirDrop,
     /// Files, Messages) or cross-device transfer. Self-contained: style, key, tempo,
     /// the synth patch, the notes and the drum grid all travel in one document.
+    ///
+    /// ⛔ THE FORMAT IS NO LONGER DECIDED HERE (#519). It moved to
+    /// `Project.sharedDocumentData()`, because this method had ZERO production callers —
+    /// measured, not assumed — while the path a user actually reaches (`SharedEchoelProject`,
+    /// the `ShareLink` in every library row) printed its own bare `JSONEncoder()`. The
+    /// "human-diffable" promise in the line above was made here and broken there. Read that
+    /// method for what the decision is and, just as importantly, what it is NOT the decision
+    /// for (the on-disk library and the colab wire payload are separate and must stay so).
+    ///
+    /// ⚠️ THE `Data?` CONTRACT IS UNCHANGED ON PURPOSE. This method's only callers are two
+    /// round-trip tests in the non-blocking suite; widening its signature in the same slice
+    /// would touch a second surface for no behavioural gain. What a caller LOSES by using
+    /// this form rather than the throwing one is the field name inside `EncodingError` —
+    /// which is exactly why the reachable share path uses the throwing one.
     public func exportData(_ project: Project) -> Data? {
-        let enc = JSONEncoder()
-        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
-        return try? enc.encode(project)
+        try? project.sharedDocumentData()
     }
 
     /// Import a shared project document. The decoded project gets a FRESH id (so

@@ -13,12 +13,26 @@ import CoreTransferable
 /// Lazy `Transferable` wrapper so `ShareLink` exports a saved session as a
 /// portable `.json` document ONLY when the user actually shares it (the JSON is
 /// encoded on demand, not on every list render). Shared as `<name>.echoel.json`.
+///
+/// ⛔ THIS CLOSURE USED TO END IN `?? Data()` (#519), and that is worse than any silent
+/// failure in this repo so far. An empty `Data` is not an error — the closure RETURNS, the
+/// share sheet completes, and a 0-byte file goes out carrying the take's real name. The
+/// sender is told nothing; the failure surfaces on the RECIPIENT's device, days later, as
+/// `ProjectStore.importProject` returning `nil` on empty bytes. A fabricated artefact that
+/// looks like success is the one outcome worse than a button that visibly does nothing
+/// (#518, the same encode failure one door over).
+///
+/// ⭐ `DataRepresentation`'s exporting closure is `async throws`, so the honest form was
+/// always available: let it throw and the system reports a failed export instead of
+/// delivering a corrupt document. The encoder itself is NOT spelled here any more — see
+/// `Project.sharedDocumentData()`, which owns the format and the failure policy for exactly
+/// one thing: a Project as a shared DOCUMENT.
 @available(iOS 16.0, *)
 struct SharedEchoelProject: Transferable {
     let project: Project
     static var transferRepresentation: some TransferRepresentation {
         DataRepresentation(exportedContentType: .json) { shared in
-            (try? JSONEncoder().encode(shared.project)) ?? Data()
+            try shared.project.sharedDocumentData()
         }
         .suggestedFileName { shared in
             let safe = shared.project.name

@@ -422,6 +422,59 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         try c.encode(drumAccents, forKey: .drumAccents)
     }
 
+    // MARK: - Sharing (the ONE shared-document format)
+
+    /// Encode this take as the portable `.echoel.json` document a user shares — AirDrop,
+    /// Files, Messages, iCloud Drive, a collaborator's phone.
+    ///
+    /// ⛔ WHY THIS EXISTS AS ONE DEFINITION (#519, and it is the #416 shape at its quietest).
+    /// "Encode a Project for sharing" was decided TWICE, in two places, with two different
+    /// answers, and the two disagreed on BOTH halves of the decision:
+    ///   · **Format.** `ProjectStore.exportData` set `.prettyPrinted` + `.sortedKeys` and its
+    ///     doc called the result "human-diffable". `SharedEchoelProject` — the `ShareLink`
+    ///     wrapper, which is the path a user actually reaches — used a bare `JSONEncoder()`,
+    ///     so the shipped export was minified with unstable key order. The promise was made in
+    ///     the method nobody calls and broken in the one everybody does.
+    ///   · **Failure.** `exportData` returned `nil`. The `ShareLink` wrapper returned
+    ///     `?? Data()`.
+    ///
+    /// ⭐ AND THAT `?? Data()` IS WORSE THAN SILENCE — it is the whole reason this is a slice
+    /// and not a tidy-up. A `DataRepresentation` closure that RETURNS empty bytes has not
+    /// failed; the share sheet completes, the file carries the take's real name
+    /// (`<name>.echoel.json`), and the user believes the session is on its way. The failure
+    /// surfaces on SOMEONE ELSE'S device, days later, as `importProject` returning `nil` —
+    /// "not a valid Echoel session". A fabricated artefact that looks like success is the one
+    /// outcome worse than a button that visibly does nothing (#518).
+    ///
+    /// ⭐ AND IT IS REACHABLE, not theoretical. `ProjectStore.save` does not validate
+    /// encodability: it inserts into `projects` and calls `persist()`. A take carrying a
+    /// non-finite value therefore stays in the in-memory library (its disk write fails and is
+    /// logged since #514), its row renders like any other, and its share button is the thing
+    /// that then produces the empty file. `JSONEncoder`'s default
+    /// `nonConformingFloatEncodingStrategy` is `.throw`, and this type carries `bpm`, `a4Hz`,
+    /// a whole `SynthPatch`, every `Note` and (since #217) a whole `RawTake`.
+    ///
+    /// ⚠️ IT THROWS RATHER THAN RETURNING `Data?`, for the #514/#518 reason: `EncodingError`
+    /// names the FIELD through `codingPath`. "The disk is full" and "a NaN got into your
+    /// piece" are different problems with different fixes, and `try?` folds both onto `nil`.
+    ///
+    /// ⛔ WHAT THIS IS DELIBERATELY **NOT** THE DEFINITION OF — do not fold these in later:
+    ///   · **The on-disk library.** `AppGroupStore.save` encodes the whole `[Project]` array
+    ///     for the App Group container. Pretty-printing that would inflate a file nobody
+    ///     diffs, on every autosave.
+    ///   · **The colab wire payload.** `ColabPayload` carries a `Project` over Multipeer.
+    ///     #512 pinned its `nonConformingFloatEncodingStrategy`, and pretty-printing bytes on
+    ///     an `.unreliable` transport spends bandwidth on whitespace nobody reads.
+    /// The decision this owns is narrow on purpose: **a Project as a shared DOCUMENT.**
+    ///
+    /// `.sortedKeys` is what makes the output deterministic — two exports of the same take are
+    /// byte-identical, which is what "diffable" actually requires.
+    public func sharedDocumentData() throws -> Data {
+        let enc = JSONEncoder()
+        enc.outputFormatting = [.prettyPrinted, .sortedKeys]
+        return try enc.encode(self)
+    }
+
     // MARK: - Decoded accessors (raw → enum, with safe fallbacks)
 
     public var style: MusicStyle { MusicStyle(rawValue: styleRaw) ?? .dubTechno }
