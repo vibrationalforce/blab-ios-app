@@ -304,8 +304,73 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**219** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `AQuietPeerStopsLookingAliveTests.swift` (#508 — der erste Wächter
+                          `Tests/CISmoke` (**220** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheDecisionLogIsMachineReadableTests.swift` (#509 — der erste
+                          Wächter dieser Kette über einer Datei, die GAR KEIN Swift ist, und der erste, dessen
+                          Defekt in der WERKZEUG-Hälfte des Repos saß statt im Produkt. `decisions.csv` ist die
+                          maschinenlesbare Hälfte des Gedächtnis-Systems; CLAUDE.md verspricht „Run `./review.sh`
+                          to surface decisions due for review" und „Daily cron job auto-flags overdue decisions".
+                          Beide Hälften waren kaputt, auf zwei verschiedene Weisen, und keine konnte rot werden.
+                          ⭐ **DIE DATEI:** 5 von 361 Entscheidungen hatten nicht 6 Spalten, und die Reparatur
+                          bringt den Log auf **363** — die Arithmetik IST der Befund: **zwei Entscheidungen waren
+                          keine Zeilen mehr.** Drei verschiedene Schreibgewohnheiten haben die fünf erzeugt:
+                          `review_date` und `status` zusammen in EIN Feld gequotet (zweimal — beim zweiten Mal
+                          fehlte das schließende Anführungszeichen, und das Feld verschluckte die nächsten ZWEI
+                          Entscheidungszeilen ganz), eine Zeile mit einem Ausgangs-Feld zu viel, und zwei Zeilen
+                          mit einem unescapten Komma in `decision` bzw. `expected_outcome`. Eine 8-Spalten-Zeile
+                          heißt: ein Begründungstext steht dort, wo das Review-Datum hingehört — die Entscheidung
+                          kann im Fälligkeits-Report NIE auftauchen.
+                          ⭐ **DER LESER, und das ist die größere Hälfte:** `review.sh` las mit
+                          `while IFS=, read -r date decision reasoning outcome review_date status` — ein Split auf
+                          JEDEM Komma, blind für Quoting (`tr -d '"'` lief NACH dem Split, Quoten half also nie).
+                          Gemessen auf dem Log vom 2026-08-08: **241 von 363 Zeilen** bekamen ein Nicht-Datum als
+                          `review_date` (` checkout --`, ` App Store differentiation`) — der Fünfte-Komma-Token fiel
+                          in eine gequotete Begründung. **Zwei Drittel des Entscheidungs-Logs waren unsichtbar für
+                          den Report, dessen einzige Aufgabe es ist, ihn sichtbar zu machen.**
+                          ⚠️ **DER `--flag`-PFAD WAR DIE GEFÄHRLICHE HÄLFTE** und ist der Grund, warum der Wächter
+                          den SCHREIB-Weg genauso pinnt wie den Lese-Weg: er gab dieselbe zerlegte Aufteilung per
+                          `echo` wieder aus. `is_due` vergleicht Zeichenketten, und ein Müll-Token, das mit einem
+                          Leerzeichen beginnt, sortiert VOR jedem Datum — es las sich also als fällig; der
+                          Status-Token war ebenfalls Müll, also griff die „schon geflaggt"-Ausnahme nie. EIN Lauf
+                          hätte jedes Feld jeder Komma-tragenden Zeile dauerhaft verschoben. Er ist nie gelaufen
+                          (`grep -c REVIEW_DUE` = 0) — **Glück, kein Entwurf**, denn `check-decisions.sh`, der in
+                          CLAUDE.md dokumentierte tägliche Cron, ruft genau `review.sh --flag`.
+                          ⭐ **DIE REPARATUR IST EINE #416-FALTUNG:** der Parser lebt an genau EINER Stelle, einem
+                          `python3`-Heredoc mit dem `csv`-Modul (Lesen UND Schreiben, `csv.writer` statt
+                          Hand-Reassemblierung). Gemessen auf einer isolierten Kopie: `--flag` ändert **nur die
+                          Status-Spalte** von 132 Zeilen, ist idempotent, und der Log bleibt gültig. Die
+                          Fälligkeits-Prädikat bleibt WÖRTLICH wie es war (`review_date <= heute` und Status nicht
+                          in {REVIEW_DUE, REVIEWED}) — es auf `superseded`/`shipped` zu weiten ist eine
+                          Urteilsfrage über den Review-Ablauf, keine Parse-Reparatur, und gehört nicht in dieselbe
+                          Änderung.
+                          ⚠️ **`SourceText.codeOnly` IST HIER DAS FALSCHE WERKZEUG und wird bewusst NICHT benutzt** —
+                          es streift `//` und `/* */`, ein Shell-Skript kommentiert mit `#`. Und das ist GEMESSEN,
+                          nicht angenommen: `IFS=,` und `read -r date decision` stehen je **1× roh / 0× gestreift**,
+                          weil der ⛔-Rücknahme-Block in `review.sh` die entfernte Form wörtlich zitiert — beide
+                          negativen Behauptungen wären ohne einen shell-bewussten Stripper **auf KORREKTEM Code
+                          rot**. Die #486/#491-Kollision noch einmal, in einer Sprache, die `codeOnly` nicht deckt.
+                          Der Strip schneidet zeilenweise am ersten `#`, was NUR deshalb reicht, weil in dieser
+                          Datei kein `#` in einem String-Literal steht (gemessen: null solche Zeilen) — steht im
+                          Wächter-Kopf, damit die nächste Sitzung den Strip WEITET statt die Behauptung zu lockern.
+                          ⚠️ EHRLICHE BENOTUNG (#433), gegen den Elternbaum TRANSKRIBIERT und GEFAHREN statt
+                          behauptet — und die Datei kompiliert dort (sie nennt kein Symbol, das dieser Commit
+                          anlegt), jede Behauptung hat also wirklich ein Verdikt, anders als die #464-Lage:
+                          **VIER Behauptungen sind auf dem Elternteil rot, und sie sind ZWEI Befunde.** Befund eins
+                          ist die Datei; Befund zwei ist der Leser, dessen drei Behauptungen EINE Ursache an drei
+                          Stellen sind (Lese-Pfad · Delegation · `csv.writer`, letztere die schärfste, weil sie die
+                          Hälfte pinnt, die Daten ZERSTÖREN konnte). Sie als vier Befunde zu zählen wäre der
+                          #433-Defekt in der schmeichelhaften Richtung.
+                          ⛔ **Und mein erster Entwurf dieses Absatzes hatte genau das falsch:** er nannte die
+                          Datums-Prüfung ein zweites Symptom von Befund eins. Gemessen ist sie **auf dem Elternteil
+                          GRÜN** — sie überspringt Zeilen, deren Spaltenzahl schon falsch ist, damit sie nicht
+                          wiederholt, was Behauptung 1 meldet (#486). Sie ist ein reiner VORWÄRTS-Wächter. Zwei
+                          Behauptungen sind beidseitig grün, und sie sind die, die den Rest überhaupt etwas
+                          bedeuten lassen (#343).
+                          ⚠️ Und die Grenze zuerst: dieser Wächter beweist, dass der Log PARST und dass der Leser
+                          an einen echten Parser delegiert. Er FÜHRT `review.sh` nicht aus, beweist nicht, dass
+                          python3 auf dem CI-Host existiert, und sagt nichts darüber, ob die 132 heute fälligen
+                          Entscheidungen es wert sind, überprüft zu werden. Das Letzte ist eine Founder-Frage,
+                          kein Test.), davor **219** nach `AQuietPeerStopsLookingAliveTests.swift` (#508 — der erste Wächter
                           dieser Kette über einer Behauptung, die das GERÄT VERLÄSST, und damit #503/#507
                           über die Gerätegrenze. `LiveColaboView`s Sende-Schleife las `bus.latestBio` — den
                           ROHEN Schnappschuss, den `EngineBus` nie leert — und hatte, anders als jeder
@@ -4893,7 +4958,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTACHTUNDSIEBZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 219 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTNEUNUNDSIEBZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 220 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
