@@ -234,11 +234,14 @@ final class ChromeDynamicTypeTests: XCTestCase {
         let spacers = bar.filter { $0.contains("Spacer(") || $0.contains("Spacer()") }
         XCTAssertTrue(spacers.isEmpty, """
             A `Spacer` is back in `topBar`: \
-            \(spacers.map { $0.trimmingCharacters(in: .whitespaces) }). Since #384 the bar is \
-            three columns and both flanks carry `.frame(maxWidth: .infinity)`; a `Spacer` \
-            competes with them for the same leftover width, so the brand block stops sitting in \
-            the geometric middle — silently, and by an amount that depends on how much slack \
-            there happens to be. Use the flanks' alignment to place things, not a Spacer.
+            \(spacers.map { $0.trimmingCharacters(in: .whitespaces) }). Since #490 the bar is \
+            ONE greedy flank (the leading loop readout) followed by the tiles and the brand; a \
+            `Spacer` competes with that flank for the same leftover width, so the readout stops \
+            absorbing it — silently, and by an amount that depends on how much slack there \
+            happens to be. Use the flank's alignment to place things, not a Spacer. (⛔ This \
+            message said "three columns and BOTH flanks" until #491; the ⛔ block above it \
+            already recorded the single flank, and only the live text was left stale — a failure \
+            message IS live text, which is the whole point of writing it out.)
             """)
         XCTAssertEqual(bar.filter { $0.contains("HStack(spacing: 8) {") }.count, 3, """
             `topBar` no longer has exactly three `HStack(spacing: 8)` (the bar itself, the brand \

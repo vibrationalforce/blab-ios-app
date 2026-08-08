@@ -189,7 +189,10 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
             `EchoelStudioView` now reads `transport.position` directly.
 
             That is a ~10 Hz read in the Picker-hosting body — the freeze law. The playhead \
-            belongs in `TransportPositionView`, which is why that struct is not `private`.
+            belongs in `TransportPositionView`, its own leaf. (⛔ This sentence used to end \
+            "which is why that struct is not `private`" — self-negating since #490 moved the \
+            mount back into `WorkspaceView.swift`, where `private` would compile again. The \
+            access level is vestigial from #456, not a law.)
             """)
     }
 

@@ -1708,7 +1708,13 @@ struct EchoelStudioView: View {
             // The founder's arrow moved it into the brand header instead: *"die bunten Balken
             // weg stattdessen die Anzeige für die Loop Länge und der Balken."* It is one
             // readout with one address — a copy here as well would be #416 — so the line is
-            // deleted rather than emptied, and the instrument gets ~32 pt of its plate back.
+            // deleted rather than emptied, and the instrument gets ~40 pt of its plate back —
+            // the ~32 pt line PLUS this `VStack`'s own 8 pt gap, the same arithmetic the #456
+            // note above states in the other direction. (⛔ This read "~32 pt" until #491, which
+            // is the LINE and not what the plate recovers; two numbers for one fact, 36 lines
+            // apart, both defensible in isolation — exactly the drift this file family keeps
+            // retracting. The gap is not optional accounting: removing a child of a spaced
+            // `VStack` always removes one gap with it.)
         }
     }
 

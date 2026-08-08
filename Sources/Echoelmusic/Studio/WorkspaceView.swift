@@ -427,9 +427,22 @@ struct WorkspaceView: View {
             // monitors rather than before them, which is the only reading of that sentence that
             // changes anything: before this slice it already stood between the greedy flank and
             // the monitor cluster, so "right of where it is" and "right of the tiles" are the
-            // same instruction. The tiles keep the trailing EDGE because they are controls with a
+            // same instruction.
+            //
+            // ⛔ THE SENTENCE THAT STOOD HERE SAID THE OPPOSITE OF THE CODE IT ANNOTATES, in four
+            // artefacts at once (this comment, `TheHeaderShowsTheLoopTests`, the #490 commit body,
+            // `decisions.csv`): *"The tiles keep the trailing EDGE because they are controls with a
             // 44 pt tap floor (#113) and the brand is a link; putting a link where the thumb
-            // expects the visual toggle would be the worse trade.
+            // expects the visual toggle would be the worse trade."* This `Button` is the LAST child
+            // of the `HStack` — the brand holds the trailing edge and the tiles do not. Worse than
+            // a stale note: it invoked #113 to claim an ergonomic property the layout does not
+            // have, so the next reader would believe the corner belongs to a 44 pt control.
+            // ⚠️ THE HONEST VERSION, cost included: the brand takes the trailing edge because that
+            // is the only reading of *"E Logo wieder nach rechts"* that changes anything, and the
+            // PRICE is that a website link — not a 44 pt control — now sits in the thumb corner.
+            // That is a real trade and it was made by the founder's sentence, not chosen here. If
+            // it reads wrong on device, the fix is to move the tiles back out, not to re-describe
+            // what shipped.
             Button { openWebsite() } label: {
                 HStack(spacing: 8) {
                     EchoelLogoMark().frame(width: 22, height: 22)
@@ -715,8 +728,12 @@ struct PlaybackToggleButton: View {
 // ⛔ `TransportBar` IS DISSOLVED (#456, founder 2026-08-07, screenshot of v10.79.371 with
 // the "•••" and the `1.1.1 / loop 1/32` readout each circled and an arrow drawn INTO the
 // transport row below them). It was the last chrome bar, and since #411 took the tempo
-// field out it held exactly two children — this menu and `TransportPositionView`. Both now
-// live in `EchoelStudioView.startControlRow`; the struct is deleted rather than left as an
+// field out it held exactly two children — this menu and `TransportPositionView`. The menu
+// lives in `EchoelStudioView.quickActionRow`; the readout went there too and came BACK to
+// `WorkspaceView.topBar` with #490 (⛔ this clause said "Both now live in
+// `EchoelStudioView.startControlRow`" and was half false the moment #490 landed — the same
+// commit that lectured about re-pointing `ChromeDynamicTypeTests` in the same breath missed
+// the pointer in the file it was editing). The struct is deleted rather than left as an
 // empty container, so there is no bar to "put something back into".
 //
 // ⭐ WHY TWO LINES AND NOT ONE, which is what the arrows most literally ask for. The note
@@ -842,9 +859,15 @@ struct TransportOverflowMenu: View {
 /// keeping the read here means only this tiny label rebuilds, never its siblings or
 /// (crucially) the instrument below. Monospaced so width is steady.
 ///
-/// ⚠️ THE LEAF IS LOAD-BEARING IN THE HARDEST PLACE THERE IS, and that is why it stopped being
-/// `private` (#456) and stays that way. Its home since #490 is `WorkspaceView.topBar` — the ROOT
-/// chrome, an ancestor of every surface in the app. Mounting a leaf there registers NOTHING;
+/// ⚠️ THE LEAF IS LOAD-BEARING IN THE HARDEST PLACE THERE IS. Its home since #490 is
+/// `WorkspaceView.topBar` — the ROOT chrome, an ancestor of every surface in the app.
+/// (⛔ This paragraph used to add "and that is why it stopped being `private` (#456) and stays
+/// that way", and by #490 that reason DISPROVES itself: it lost `private` because #456 moved the
+/// mount into `EchoelStudioView.swift`, and a `topBar` home is precisely the condition under which
+/// `private` — which on a top-level type means `fileprivate` — compiles again. Nothing outside
+/// this file constructs it. The access level is vestigial and harmless; it is not a law, and
+/// leaving a justification whose premise negates it is the #167 mistake.)
+/// Mounting a leaf there registers NOTHING;
 /// only its own body reads `transport.position`, so the ~10 Hz churn stays here. Inlining these
 /// two labels into the header instead is the 10.76.50 freeze exactly: the root body would rebuild
 /// ten times a second and tear down any open `.menu` Picker in the instrument below. That took
@@ -889,13 +912,23 @@ struct TransportPositionView: View {
                 Capsule().fill(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
                     .frame(width: 44 * max(0.02, loopFraction), height: 4)
             }
+            // ⚠️ BOTH LABELS SHRINK RATHER THAN WRAP, and that is not cosmetic tidying — it is
+            // what the thing this replaced did for free. `HeaderSpectrumStrip` carried only a
+            // height and its Canvas opened with `guard size.width >= 36`: under-width it drew
+            // nothing and cost no layout. This view has a hard `44×4` capsule beside it, and
+            // `topBar` is `.fixedSize(horizontal: false, vertical: true)` over a `minHeight`, so a
+            // WRAP here does not truncate — it GROWS the chrome, on the one bar whose whole job is
+            // to stay a fixed slab above the instrument. The brand block two children over already
+            // carries exactly this pair for exactly this reason; the asymmetry was the defect.
             VStack(alignment: .trailing, spacing: 1) {
                 Text(String(format: "%d.%d.%d", barInLoop + 1, pos.beat + 1, sixteenth + 1))
                     .font(EchoelTheme.font(14).monospacedDigit())
                     .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
+                    .lineLimit(1).minimumScaleFactor(0.7)
                 Text("loop \(barInLoop + 1)/\(bars)")
                     .font(EchoelTheme.font(10).monospacedDigit())
                     .foregroundStyle(EchoelTheme.dim)
+                    .lineLimit(1).minimumScaleFactor(0.7)
             }
         }
         .accessibilityElement(children: .ignore)

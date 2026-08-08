@@ -119,10 +119,17 @@ final class TheHeaderShowsTheLoopTests: XCTestCase {
     /// is" and "right of the tiles" are the same sentence. Anything less is a no-op that would
     /// have looked like compliance.
     ///
-    /// The tiles keep the trailing EDGE deliberately — they are controls with a 44 pt tap floor
-    /// (#113) and the brand is a link to a website. Putting a link where the thumb expects the
-    /// visual toggle would be the worse trade, and it is the "tidier" arrangement, so it is
-    /// pinned rather than remembered.
+    /// ⛔ THIS DOC USED TO SAY THE OPPOSITE OF THE ASSERTION BELOW IT: *"The tiles keep the
+    /// trailing EDGE deliberately — they are controls with a 44 pt tap floor (#113) and the brand
+    /// is a link to a website."* The assertion requires `brand > lastTile`, i.e. the brand IS the
+    /// last child and holds the trailing edge. A doc that contradicts the test it introduces is
+    /// worse than a stale one — it invoked #113 to claim an ergonomic property the layout does not
+    /// have, three lines above the code proving it does not.
+    ///
+    /// ⚠️ WHAT SHIPPED, cost included: the brand takes the trailing edge because that is the only
+    /// reading of the founder's sentence that changes anything, and the PRICE is that a website
+    /// link — not a 44 pt control — sits in the thumb corner. Pinned so that trade stays a
+    /// decision. If it reads wrong on device, move the tiles back out; do not re-describe it.
     func testTheBrandBlockSitsAfterTheMonitorTiles() throws {
         let bar = try topBar()
         guard let brand = bar.firstIndex(where: { $0.contains("openWebsite()") }) else {
@@ -170,7 +177,11 @@ final class TheHeaderShowsTheLoopTests: XCTestCase {
               let readout = bar.firstIndex(where: { $0.contains("TransportPositionView()") }) else {
             return  // the mount test above already reported the real failure
         }
-        XCTAssertEqual(flank, readout + 1, """
+        // ⚠️ `readout` OR `readout + 1`, not `+ 1` alone: the modifier may be chained on the same
+        // physical line. The strict form was correct on the day it was written and would have
+        // turned a correct tree red on a plausible reformat — a guard must fail for its stated
+        // reason (#367), and "someone joined two lines" is not the reason.
+        XCTAssertTrue(flank == readout || flank == readout + 1, """
             The greedy flank is not applied to `TransportPositionView`.
 
             It sits at index \(flank); the readout is built at index \(readout). The modifier has \
@@ -190,7 +201,17 @@ final class TheHeaderShowsTheLoopTests: XCTestCase {
     /// instrument below (10.76.50, four attempts to diagnose). `AnyView` is not a boundary.
     func testTheHeaderItselfReadsNothingLive() throws {
         let bar = try topBar()
-        for construct in ["transport.position", "loopBars", "@AppStorage", "TimelineView"] {
+        // ⛔ THE FIRST VERSION OF THIS LIST WAS BLIND TO THE FREEZE THAT ACTUALLY SHIPPED IN THIS
+        // PROPERTY. It named only the playhead constructs — and per CLAUDE.md, 10.76.50 was
+        // `WorkspaceView.topBar` reading `cameraRPPG.waveform` / `detectedBPM` / `isLocked` to
+        // feed `PulseMonitorMini`. So the file whose whole job is "the header must stay still" did
+        // not cover the one construct that made it move. Measured before adding: all five camera
+        // tokens below are absent from `topBar` today, so this stays green and gains the case it
+        // was written for. `cameraRPPG.isRunning` is deliberately NOT here — it is start/stop, it
+        // is the tile's `active:` argument, and `LockCueDoesNotShoveTheControls` REQUIRES it.
+        for construct in ["transport.position", "loopBars", "@AppStorage", "TimelineView",
+                          "cameraRPPG.waveform", "cameraRPPG.detectedBPM",
+                          "cameraRPPG.confidence", "cameraRPPG.displayBPM", "latestBio"] {
             let leaked = bar.filter { $0.contains(construct) }
             XCTAssertTrue(leaked.isEmpty, """
                 `\(construct)` appeared inside `WorkspaceView.topBar`: \
