@@ -2209,7 +2209,11 @@ public final class EchoelDDSP: @unchecked Sendable {
         //    lfoToFilterDepth" — that is false today and the audio-thread reviewer caught it in
         //    the same hour it was written. `BioSampleFrame` carries `breathRate` and
         //    `breathPhase` and NO depth field; both call sites pass the literal `0.5`
-        //    (`PolySynthVoice.swift:680`, `BioReactiveSynthVoice.swift:399`), so `breathFactor`
+        //    (the `bioCommands.tryEnqueue(PolyBioParams(` block in `PolySynthVoice` and the
+        //    `bioCommands.tryEnqueue(BioParams(` block in `BioReactiveSynthVoice` — cited by
+        //    PHRASE, because this comment carried `:680` and `:399` for weeks while the real
+        //    lines drifted to 732 and 524; a quoted phrase survives an insertion, a line number
+        //    does not), so `breathFactor`
         //    is exactly 1.0 on every frame the shipped app can produce and this line reduces to
         //    a constant restore of the patch value. That restore is STILL the fix worth having —
         //    without it the legacy branch pinned every patch to `0.05 + 0.5*0.3 = 0.20`,
@@ -2244,6 +2248,19 @@ public final class EchoelDDSP: @unchecked Sendable {
         //    rising-coherence sound "purer/calmer/better/healthier". Assign morphTarget DIRECTLY
         //    (never startMorph — it re-zeros morphPosition every call). CHANGE-GATED so the
         //    shared spectral-buffer rebuild fires only on a real change, not every 10 Hz frame.
+        //
+        //    ⛔ AND `coherenceTrend` HAS NO PRODUCER EITHER — the third pinned channel, and the
+        //    only one that was never written down (#496). Both `…BioParams(` construction sites
+        //    in `Sources/` pass the literal `coherenceTrend: 0`, so `trendMag` is exactly 0 on
+        //    every frame the shipped app can produce, the deadband below always wins, and the
+        //    else-branch — the whole rising/falling spectral morph — is unreachable. Same class
+        //    as the `breathDepth` note above and the `lfHfRatio` note at the sanitizer, except
+        //    that those two say so and this one did not, which is why CLAUDE.md's DDSP
+        //    Bio-Mappings table still listed "Coherence trend → Shape morphing" as live.
+        //    KEEP the code: `BioSampleFrame` has no trend field yet, and deriving one from the
+        //    coherence history is a real slice — this branch is what it will drive. But it must
+        //    NOT be claimed as live in any user-facing copy, and the FX panel's always-on note
+        //    deliberately names four channels, not seven.
         let trendMag = abs(coherenceTrend)
         if trendMag < 0.10 {                                   // deadband → release to the patch shape
             if morphTarget != nil {

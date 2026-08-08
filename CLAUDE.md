@@ -304,8 +304,65 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**208** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheSavePromiseMatchesTheSaveTests.swift` (#495 — der DRITTE
+                          `Tests/CISmoke` (**209** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheAlwaysOnBioPathIsNamedTests.swift` (#496 — der erste Wächter
+                          dieser Kette über einer Aussage, die ein Bildschirm über die KERNTHESE des
+                          Produkts macht, und der erste, dessen Defekt eine VERNEINUNG war. Der
+                          Leer-Zustand des Panels „Live — body → sound" sagte *„Add a bio route above to
+                          watch the body move a parameter."* — also: ohne Route bewegt der Körper nichts.
+                          Falsch, und zwar auf der einen Fläche, die eigens gebaut wurde, um „Dein Körper
+                          spielt es" SICHTBAR zu machen.
+                          ⭐ **Gemessen statt behauptet:** vier Stimmen (`polyVoice`, `leadVoice`,
+                          `touchVoice`, `bioVoice`) werden in `EchoelmusicApp` auf den Bus abonniert,
+                          pollen `bus.latestBio` mit 10 Hz, deduplizieren auf `frame.timestamp` und
+                          reichen die Parameter über eine SPSC-Queue an den Render-Thread, der
+                          `applyBioReactive` ruft. Der Körper formt das Timbre des Instruments also
+                          IMMER, sobald eine Sitzung läuft und `bioModulationEnabled` gesetzt ist — die
+                          Routen dieses Panels legen EFFEKT-Parameter OBENDRAUF. Der Satz stand da,
+                          seit es das Panel gibt, und keine Prüfung konnte ihn sehen, weil er über eine
+                          FÄHIGKEIT sprach und nicht über einen Wert.
+                          ⭐ **VIER, NICHT SIEBEN — und das ist der teurere Befund.** Die
+                          DDSP-Bio-Mappings-Tabelle in DIESER Datei listete SIEBEN Kanäle als
+                          gleichrangig. Beide `…BioParams(`-Konstruktionsstellen in `Sources/` (es sind
+                          genau zwei, paren-gematcht gezählt) leiten VIER aus dem Frame ab (Kohärenz,
+                          HRV, Herzfrequenz, Atemphase) und nageln DREI auf neutrale Literale
+                          (`breathDepth: 0.5`, `lfHf: 0.5`, `coherenceTrend: 0`). Zwei der drei waren am
+                          VERBRAUCHER schon als produzentenlos vermerkt; `coherenceTrend` war es nicht —
+                          und weil `trendMag` damit auf jedem erzeugbaren Frame exakt 0 ist, gewinnt die
+                          Totzone immer und der GANZE steigend/fallend-Spektral-Morph ist unerreichbar.
+                          **Die Lehre ist die Richtung: ein ⛔-Vermerk am Verbraucher erreicht die Zeile
+                          nicht, die eine Sitzung ZUERST liest.** Der Code bleibt (`BioSampleFrame` hat
+                          kein Trend-Feld; ihn zu löschen wäre teurer als ihn zu benennen), die Tabelle
+                          sagt jetzt LIVE und STUMM getrennt.
+                          ⚠️ EHRLICHE BENOTUNG, gegen beide Bäume transkribiert statt behauptet — und
+                          die erste Fassung dieses Absatzes war in der schmeichelhaften Richtung falsch
+                          (#433), gefangen beim Messen VOR dem Commit: sie sagte „DREI Regressionen,
+                          VIER Gegengewichte". Gemessen sind **FÜNF** Behauptungen auf dem Elternbaum
+                          rot, aber sie zerfallen: **DREI** aus ihrem GENANNTEN Grund (die Konstante
+                          fehlt, der alte Satz steht noch, der Footer ist nicht montiert) und **ZWEI**
+                          durch ANKER-Abwesenheit — beide lesen `alwaysOnNote`, das es dort nicht gibt,
+                          also EINE Abwesenheit zweimal gemeldet (#486); sie als zwei Befunde zu
+                          verbuchen wäre derselbe Selbstbetrug eine Zeile höher. **DREI** sind
+                          beidseitig grün und sind der eigentliche Inhalt: der #343-Gegenzug (ein
+                          nackter „der alte Satz ist weg"-Scan bliebe auch auf einem Baum grün, der die
+                          ganze Fähigkeit verloren hat, also nageln zwei Behauptungen die BEIDEN
+                          Erzeuger und die vier Abo-Stellen fest) plus der Vermerk am toten
+                          Trend-Mapping.
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und GEMESSEN (#484/#485 mussten die
+                          stärkere Behauptung je einmal zurücknehmen): der alte Satz steht nach der
+                          Reparatur noch im ROHTEXT des Rumpfes — im ⛔-Block, der erklärt, warum er weg
+                          ist —, im CODE nicht. Ein Rohtext-Scan wäre auf KORREKTEM Code rot. Wieder die
+                          #486/#491-Kollision: dieses Repo schreibt auf, was es entfernt hat.
+                          ⚠️ Und die Grenze zuerst: JEDE Behauptung ist ein QUELLTEXT-SCAN. Dass der
+                          Footer am Gerät rendert, dass der Satz sich unter der Liste gut liest und dass
+                          ein Nutzer den Unterschied zwischen „immer an" und „Route" wirklich versteht,
+                          sind drei Geräteproben und alle drei offen.
+                          ⚠️ Nebenbefund derselben Runde, am Ort behoben: der `breathDepth`-Kommentar in
+                          `EchoelDDSP.swift` zitierte `PolySynthVoice.swift:680` und
+                          `BioReactiveSynthVoice.swift:399` — die echten Zeilen sind 732 und 524.
+                          Ersetzt durch Phrasen-Anker, mit der Lehre am Ort: eine zitierte Phrase
+                          überlebt eine Einfügung, eine Zeilennummer nicht.),
+                          davor **208** nach `TheSavePromiseMatchesTheSaveTests.swift` (#495 — der DRITTE
                           Wächter dieser Kette über dem gespeicherten Take und der erste, dessen Subjekt
                           nicht die DATEI ist, sondern der SATZ, der sie beschreibt. Die Meldung der
                           Speichern-Tür lautete „Saves the current sound, key, tempo and generated loop."
@@ -4234,7 +4291,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSIEBENUNDSECHZIG FRÜHERE Stände in zwölf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 208 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTACHTUNDSECHZIG FRÜHERE Stände in elf Tagen (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 209 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
@@ -4265,7 +4322,11 @@ Existing top-level directories under `Sources/Echoelmusic/`: `Audio/ Bio/ Core/ 
 
 ### DDSP Bio-Mappings
 
-Coherence → Harmonicity | HRV → Brightness | Heart rate → Vibrato | Breath phase → Envelope | Breath depth → Noise | LF/HF → Spectral tilt | Coherence trend → Shape morphing
+**LIVE (4 — a producer derives each from the frame):** Coherence → Harmonicity | HRV → Brightness | Heart rate → Vibrato | Breath phase → Envelope
+
+⛔ **DREI WEITERE STANDEN HIER ALS GLEICHRANGIG UND HABEN KEINEN PRODUZENTEN** (gemessen 2026-08-08, #496): **Breath depth → Noise · LF/HF → Spectral tilt · Coherence trend → Shape morphing.** `git grep -n "PolyBioParams(\|BioParams(" -- Sources` findet GENAU ZWEI Konstruktionsstellen — `PolySynthVoice` und `BioReactiveSynthVoice` —, und **beide** schreiben die Literale `breathDepth: 0.5`, `lfHf: 0.5`, `coherenceTrend: 0`. `BioSampleFrame` hat weder ein Tiefen- noch ein LF/HF- noch ein Trend-Feld. Konsequenz je Zeile, an ihrem Verbraucher nachgelesen: `breathFactor` ist auf jedem Frame exakt 1,0 (die Zeile reduziert sich auf ein Zurückschreiben des Patch-Werts, was der eigentliche #279-Fix ist); `lfHfRatio` wird im Rumpf gar nicht gelesen (der Sanitizer sagt das selbst); und `trendMag = abs(0)` heißt, das Deadband gewinnt IMMER — der ganze steigend/fallend-Spektralmorph ist unerreichbar.
+
+⭐ **Zwei der drei waren am VERBRAUCHER längst aufgeschrieben, `coherenceTrend` als einziges nicht** — und genau deshalb hat diese Tabelle es überlebt. **Die Lehre ist nicht „Tabelle nachführen", sondern: ein ⛔-Vermerk am Verbraucher erreicht die Zeile nicht, die eine Sitzung ZUERST liest.** Diese Tabelle ist die Stelle, aus der Store-Text, Website und Panel-Kopie ihre Bio-Behauptungen holen; die #496-Scheibe musste die Fläche reparieren, die genau daraus „sieben" hätte machen können. Wächter: `Tests/CISmoke/TheAlwaysOnBioPathIsNamedTests.swift` nagelt die Pins an BEIDEN Konstruktionsstellen fest und verbietet der Panel-Kopie, die drei zu nennen. **Nicht als „live" zitieren, in keiner nutzersichtbaren Kopie** — der Code für alle drei bleibt bewusst stehen, weil ein echter Produzent (z. B. ein Trend aus der Kohärenz-Historie) eine eigene Scheibe ist und genau diese Zweige antreiben wird.
 
 ---
 

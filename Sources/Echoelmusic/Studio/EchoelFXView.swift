@@ -1003,6 +1003,34 @@ private struct FXBioModSection: View {
 private struct BioModLiveView: View {
     let modulator: FXBioModulator
 
+    /// The ALWAYS-ON half of "body → sound", stated because this panel is the one surface built
+    /// to make that thesis visible and it used to deny it.
+    ///
+    /// ⛔ THE EMPTY STATE SAID "Add a bio route above to watch the body move a parameter." — a
+    /// false statement about the product's core claim, on the screen whose whole job is that
+    /// claim. With a session running and zero routes, the body IS moving the sound: four voices
+    /// (`polyVoice`, `leadVoice`, `touchVoice`, `bioVoice`) poll `bus.latestBio` at 10 Hz and
+    /// hand the frame to the render thread, which calls `applyBioReactive`. Nothing about that
+    /// needs an FX route. Same class as #435's caption promising silence, #480's VoiceOver hint
+    /// promising sliders and #491's box promising a pulse: copy that stopped describing.
+    ///
+    /// ⚠️ FOUR, NOT SEVEN, AND THAT IS MEASURED. `applyBioReactive` takes seven body inputs, and
+    /// CLAUDE.md's "DDSP Bio-Mappings" table lists all seven as if live. BOTH producers — the
+    /// only two `…BioParams(` construction sites in `Sources/` — pin three of them to neutral
+    /// literals: `breathDepth: 0.5`, `lfHf: 0.5`, `coherenceTrend: 0`. So breath DEPTH, LF/HF and
+    /// coherence TREND move nothing today, and naming them here would be the over-claim that
+    /// #439 had to retract in the other direction. Only `coherence`, `hrv`, `heartRate` and
+    /// `breathPhase` are derived from the frame.
+    ///
+    /// This is ONE string, not one per branch, so the two cannot drift (#416); the guard
+    /// `TheAlwaysOnBioPathIsNamedTests` binds it to those construction sites, so wiring a real
+    /// producer for any pinned channel goes red here instead of quietly making the sentence
+    /// short by one.
+    static let alwaysOnNote =
+        "Separately from these routes, four body channels shape the instrument's own timbre "
+        + "while a session runs: coherence, HRV, heart rate and breath phase. Routes here add "
+        + "effect parameters on top."
+
     var body: some View {
         Section {
             if modulator.isRunning, !modulator.liveContributions.isEmpty {
@@ -1011,13 +1039,15 @@ private struct BioModLiveView: View {
                 }
             } else {
                 Text(modulator.isRunning
-                     ? "Add a bio route above to watch the body move a parameter."
+                     ? "No routes yet, so no effect parameter is moving. Add one above."
                      : "Start a session to watch the body move these parameters.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
         } header: {
             Text("Live — body → sound").font(EchoelTheme.font(13, .bold)).textCase(nil)
+        } footer: {
+            Text(Self.alwaysOnNote)
         }
         .listRowBackground(EchoelTheme.fill)
     }
