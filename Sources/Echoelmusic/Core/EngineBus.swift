@@ -142,6 +142,46 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// in-app modulation (`ModSource.isMeasured`), where a malformed frame costs nothing.
     public var hasMeasuredHeartRate: Bool { heartRateBPM > 0 }
 
+    /// Heart rate NORMALISED for MODULATION targets: unmeasured becomes a neutral `0.5`.
+    ///
+    /// The third member of the `hrvForSound` / `coherenceForSound` family, and it was
+    /// missing for the same reason those two were: the rule was written INLINE at the
+    /// consumers instead of here. Both sound producers spelled
+    /// `clampUnit((frame.heartRateBPM - 40) / 160)` — which is `0.0` when the publisher
+    /// has not locked a pulse, i.e. the BOTTOM of the scale, not the middle.
+    /// `EchoelDDSP.applyBioReactive` DECLARES its own neutral for this argument
+    /// (`heartRate: Float = 0.5`) and maps it as
+    /// `(1.0 + (heartRate - 0.5) * 0.5).clamped(to: 0.75...1.25)` — so a take without a
+    /// lock ran the patch's vibrato depth AND rate 25 % low, permanently, and was
+    /// indistinguishable from a real 40 BPM heart. On this app's acquisition record
+    /// (#304/#410/#415: fragile, ~19–32 s to lock, drops out) that is the COMMON state,
+    /// not an edge case.
+    ///
+    /// The scale endpoints are 40 BPM → 0 and **200 BPM → 1**. (`applyBioReactive`'s own
+    /// parameter doc says "0=40bpm, 1=180bpm" and is wrong; the sentinel-branch comment
+    /// forty lines below it says 200, which matches this arithmetic.)
+    ///
+    /// ⛔ A MEASURED 40 BPM still reads `0.0`, deliberately — this neutral covers the
+    /// ABSENCE of a reading, never a low one. And note 120 BPM normalises to exactly
+    /// `0.5`, so "neutral" and "120 BPM" are the same number here by construction.
+    ///
+    /// ⛔ NOT for the light/space egress. `ArtNetSender` keeps its own RAW copy of this
+    /// arithmetic (twice) on purpose: those are output renders for a console the
+    /// operator also drives, and `coherenceForSound` records that they need a deliberate
+    /// EchoelLux decision, not this mechanical swap. Hoisting the FORMULA for them is a
+    /// separate slice; do not "finish" it by pointing them at this property, which would
+    /// silently give a dark console a mid-scale dimmer.
+    /// ⚠️ Non-finite is treated as ABSENT, symmetrically with `breathPhaseForSound`, and
+    /// the two halves fail differently without it: NaN already returned the neutral for
+    /// free (`hasMeasuredHeartRate` is `heartRateBPM > 0`, false for NaN), but `+inf`
+    /// passes that gate and `clamped(to:)` lands it on `1.0` — the TOP of the scale, from
+    /// a frame that measured nothing. Same class as the `0.0` this property removes, just
+    /// at the other end, so the guard is explicit rather than inherited from a comparison.
+    public var heartRateForSound: Float {
+        guard hasMeasuredHeartRate, heartRateBPM.isFinite else { return 0.5 }
+        return ((heartRateBPM - 40) / 160).clamped(to: 0...1)
+    }
+
     /// Raw HRV as RMSSD in **milliseconds** — the un-normalized, instrument-grade
     /// value for display, logging, and OSC. `0` means the source does not provide
     /// a real RMSSD (e.g. HealthKit, which exposes SDNN only); UI should then fall
@@ -188,6 +228,43 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// separately — recorded here because #245's decision NOT to gate the phase on its own
     /// value rests on "0 is a real position", and that reasoning must stay checkable.
     public let breathPhase: Float
+
+    /// `breathPhase` for MODULATION targets: unmeasured becomes a neutral `0.5`.
+    ///
+    /// The fourth member of the family, and the one with the widest blast radius,
+    /// because `breathPhase` has NO unknown sentinel of its own (see `hasMeasuredBreath`
+    /// above — `0` is a meaningful position, exhale start). So the gate must be
+    /// `breathRate`, exactly as it is for every DISPLAY consumer.
+    ///
+    /// What the raw read cost: `EchoelDDSP.applyBioReactive` declares
+    /// `breathPhase: Float = 0.5` as its neutral and maps it as
+    /// `breathSwell = 0.5 - 0.5 * cos(phase * 2π)`, then
+    /// `amplitude *= (1 - swellDepth + swellDepth * breathSwell)`. At the declared
+    /// neutral 0.5 that multiplier is exactly 1.0 — the patch's own amplitude. At the
+    /// raw `0` it is `1 - swellDepth`, i.e. **0.90 (−0.92 dB)** on the `.natural`
+    /// profile and 0.82 on `.harmonicSeries`. And `0` is what THREE of the four
+    /// publishers write when they have no respiration: `PolarH10BioPublisher` and
+    /// `FaceExpressionBioPublisher` write the literal `breathPhase: 0` always (neither
+    /// derives breathing at all), and `CameraRPPGBioPublisher` writes
+    /// `measuredBreath ? Float(resp.amplitude) : 0`. So the shipped BLE strap — a fully
+    /// wired, real source — ran the whole instrument permanently a decibel under its
+    /// patch, indistinguishable from a performer frozen at full exhale.
+    /// (`HealthKitBioPublisher` passes the engine's 0.5 placeholder through and was
+    /// already neutral by accident.)
+    ///
+    /// ⚠️ Gating on `breathRate` also means the camera's pulse-hold republish — which
+    /// carries `breathRate: 0` while forwarding a held `breathPhase` — now reads neutral
+    /// instead of continuing the swell. That is deliberate and CONSISTENT with the
+    /// boundary the FX side already draws (`FXBioModulator` eases the breath channel out
+    /// on exactly this condition); a swell driven by a frozen phase is not a breath.
+    ///
+    /// ⚠️ Non-finite is treated as absent, not clamped to the lower bound: `clamped(to:)`
+    /// maps NaN to `0`, which is the −0.92 dB extreme, i.e. the very value this property
+    /// exists to stop being the fallback.
+    public var breathPhaseForSound: Float {
+        guard hasMeasuredBreath, breathPhase.isFinite else { return 0.5 }
+        return breathPhase.clamped(to: 0...1)
+    }
 
     /// Coherence score, [0..1]. Real frequency-domain HRV coherence
     /// (`HRVCoherence`, Lomb–Scargle / Welch over the RR series) on sources that

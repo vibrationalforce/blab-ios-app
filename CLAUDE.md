@@ -304,8 +304,90 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**209** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheAlwaysOnBioPathIsNamedTests.swift` (#496 — der erste Wächter
+                          `Tests/CISmoke` (**210** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `AnUnmeasuredChannelReadsNeutralTests.swift` (#497 — der dritte
+                          und vierte Wächter der `hrvForSound`/`coherenceForSound`-Familie, und der erste
+                          dieser Kette, dessen Auftrag in einem BESTEHENDEN Doc-Kommentar als
+                          ausdrücklich UNVOLLENDET stand: `coherenceForSound` schreibt selbst, dass der
+                          Durchgang nicht zu Ende geführt wurde. Zwei Kanäle lasen weiter ROH.
+                          ⭐ **Das Gesetz kommt von der ENGINE, nicht von dieser Scheibe.** Jedes Argument
+                          von `EchoelDDSP.applyBioReactive` deklariert seinen eigenen Neutralwert in der
+                          Signatur (`heartRate: Float = 0.5`, `breathPhase: Float = 0.5`). Wer bei
+                          fehlender Messung das ROHE Feld übergibt, übergibt nicht „keine Information",
+                          sondern eine konkrete, EXTREME Anweisung, die die Engine von einem echten
+                          Körper nicht unterscheiden kann.
+                          ⭐ **GEMESSEN aus der Arithmetik der Engine, nicht geschätzt.** (1) Kein
+                          Puls-Lock → `clampUnit((frame.heartRateBPM - 40) / 160)` = **0,0**, gemappt als
+                          `(1.0 + (heartRate - 0.5) * 0.5).clamped(to: 0.75...1.25)` = **0,75**: die
+                          Vibrato-TIEFE **und** -RATE des Patches liefen dauerhaft **25 % zu tief**, nicht
+                          unterscheidbar von einem echten 40-BPM-Herzen. Auf der Akquise-Bilanz dieser App
+                          (#304/#410/#415 — fragil, ~19–32 s bis zum Lock, Aussetzer) ist das der
+                          NORMALFALL eines Takes, kein Randfall. (2) Keine Atmung → rohe `0`, gemappt als
+                          `breathSwell = 0.5 - 0.5*cos(phase*2π)` und
+                          `amplitude *= (1 - swellDepth + swellDepth*breathSwell)`: der Neutralwert 0,5
+                          gibt exakt ×1,0, die rohe 0 gibt **×0,90 (−0,92 dB)** auf `.natural` und ×0,82
+                          auf `.harmonicSeries`. Und `0` ist, was **DREI der vier Publisher** ohne
+                          Respiration schreiben — `PolarH10BioPublisher` und `FaceExpressionBioPublisher`
+                          das Literal IMMER (keiner leitet Atmung ab), `CameraRPPGBioPublisher` unterhalb
+                          seiner Konfidenzschwelle. **Der ausgelieferte BLE-Gurt hat also das GANZE
+                          Instrument dauerhaft ein Dezibel unter seinem eigenen Patch laufen lassen**,
+                          ununterscheidbar von einem Performer, der auf vollem Ausatmen einfriert.
+                          ⭐ **Und die zweite Nicht-Endlich-Richtung ist ERST BEIM MESSEN aufgefallen:**
+                          NaN war schon gratis sicher (`hasMeasuredHeartRate` ist `heartRateBPM > 0`,
+                          falsch für NaN), aber **`+inf` passiert dieses Tor** und `clamped(to:)` legt es
+                          auf **1,0** — das OBERE Ende der Skala, aus einem Frame, der nichts gemessen
+                          hat. Dieselbe Klasse wie die 0,0, nur am anderen Ende; deshalb steht der
+                          `isFinite`-Wächter jetzt ausdrücklich da, statt aus einem Vergleich geerbt zu
+                          werden. `breathPhaseForSound` behandelt nicht-endlich ebenfalls als ABWESEND
+                          statt zu klemmen — `clamped(to:)` bildet NaN auf die UNTERE Grenze ab, also
+                          genau auf den −0,92-dB-Extremwert, den die Eigenschaft entfernen soll.
+                          ⛔ **Die Linie, die diese Eigenschaften NICHT überschreiten:** ein GEMESSENES
+                          40 BPM liest weiterhin 0,0, und eine gemessene Atemphase 0 bleibt 0. Der
+                          Neutralwert deckt die ABWESENHEIT einer Messung, nie eine niedrige — alles
+                          andere wäre eine erfundene Zahl (#424/#426/#433/#461). Nebenbei wissenswert,
+                          bevor jemand eine 0,5 als Beleg für eine Messung liest: **120 BPM normalisiert
+                          per Konstruktion auf exakt 0,5**, „neutral" und „120 BPM" sind hier dieselbe
+                          Zahl.
+                          ⛔ **Und die Skalen-Endpunkte sind 40 → 0 und 200 → 1, während der eigene
+                          Parameter-Doc der Engine „0=40bpm, 1=180bpm" behauptet** — der
+                          Sentinel-Kommentar vierzig Zeilen tiefer sagt 200, und 200 ist, was
+                          `(bpm - 40) / 160` wirklich liefert. Ein Wächter pinnt die Endpunkte, damit ein
+                          späteres „Doc-Aufräumen" Richtung 180 eine ENTSCHEIDUNG wird statt einer
+                          Nebenwirkung.
+                          ⛔ **NICHT für die Licht/Raum-Ausgabe.** `ArtNetSender` hält seine eigene ROHE
+                          Kopie dieser Arithmetik (zweimal) mit Absicht; `coherenceForSound` hält fest,
+                          dass die eine EchoelLux-Entscheidung brauchen, keinen mechanischen Tausch. Sie
+                          hierher zu zeigen gäbe einer dunklen Konsole still einen halb offenen Dimmer.
+                          ⭐ `private func clampUnit(_:)` in `BioReactiveSynthVoice` ist mitgelöscht: es
+                          hatte genau diese zwei Aufrufer, und sein Doc versprach „fail quiet (0)" — für
+                          diese zwei Kanäle ist 0 nicht leise, sondern der BODEN, also exakt der Defekt.
+                          Der Zwilling in `PolySynthVoice` BLEIBT (zwei lebende Aufrufer, Zeilen 766/768).
+                          ⚠️ EHRLICHE BENOTUNG: die Wächter-Datei lässt sich gegen den Vor-#497-Baum
+                          **ÜBERHAUPT NICHT** benoten — jeder Verhaltensfall nennt `heartRateForSound` /
+                          `breathPhaseForSound`, die dort nicht existieren, das Bündel kompiliert also
+                          nicht und KEINE Behauptung hat ein Verdikt (#464-Lage, klar gesagt statt
+                          verkleidet). Von Hand transkribiert: die ZWEI Quelltext-Scans wären aus ihrem
+                          GENANNTEN Grund rot (beide Dateien schreiben die rohe Formel), die SECHS
+                          Verhaltensfälle konnten nie rot sein, weil derselbe Commit das Symbol anlegt,
+                          das sie treiben, und die DREI Gegengewichte sind beidseitig grün. Die
+                          Verhaltensfälle als Regressionen zu verbuchen wäre der #433-Defekt in der
+                          schmeichelhaften Richtung.
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und das ist GEMESSEN, nicht
+                          angenommen (#484/#485 mussten genau diese Behauptung je einmal zurücknehmen,
+                          #486 zweimal): die Rücknahme-Kommentare dieser Scheibe zitieren
+                          `clampUnit((frame.heartRateBPM - 40) / 160)` und `clampUnit(frame.breathPhase)`
+                          WÖRTLICH in beiden Dateien — roh vorhanden, gestreift abwesend, **2 von 4
+                          Nadeln kippen, in beiden Dateien**. Ein Rohtext-Scan wäre also auf KORREKTEM
+                          Code rot. Dieselbe #486/#491-Kollision: dieses Repo schreibt auf, was es
+                          entfernt hat.
+                          ⚠️ Und die Grenze zuerst: die VERHALTENS-Hälfte ist echt Ende zu Ende
+                          (`BioSampleFrame` ist ein `public` Foundation-only Werttyp), die
+                          VERDRAHTUNGS-Hälfte ist ein QUELLTEXT-SCAN — beide Enqueue-Stellen liegen in
+                          `private` Mitgliedern von `@MainActor`-Typen, die dieses Bündel nicht
+                          instanziieren kann. **Dass ein Take am Gerät hörbar aufhört, 25 % flach im
+                          Vibrato und 0,92 dB zu leise zu laufen, ist eine Hörprobe und offen** — dieselbe,
+                          die #312 seit dem 31.07. offen hat.),
+                          davor **209** nach `TheAlwaysOnBioPathIsNamedTests.swift` (#496 — der erste Wächter
                           dieser Kette über einer Aussage, die ein Bildschirm über die KERNTHESE des
                           Produkts macht, und der erste, dessen Defekt eine VERNEINUNG war. Der
                           Leer-Zustand des Panels „Live — body → sound" sagte *„Add a bio route above to
@@ -4291,7 +4373,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTACHTUNDSECHZIG FRÜHERE Stände in elf Tagen (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 209 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTNEUNUNDSECHZIG FRÜHERE Stände in elf Tagen (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 210 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

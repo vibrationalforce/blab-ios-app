@@ -451,8 +451,9 @@ public final class BioReactiveSynthVoice {
             let bent = base * powf(2, semis / 12)
             // A NaN/inf controller value would set synth.frequency to NaN, which the
             // audio thread reads in render() → a permanently stuck/silent oscillator
-            // (same failure class as the bio-param NaN guarded by clampUnit). Ignore a
-            // bend that isn't a finite pitch rather than poison the voice.
+            // (same failure class the bio-param accessors on `BioSampleFrame` guard —
+            // `heartRateForSound` / `breathPhaseForSound`). Ignore a bend that isn't a
+            // finite pitch rather than poison the voice.
             if bent.isFinite { synth.frequency = bent }
         case .slide, .airCC, .channelPressure:
             break
@@ -514,7 +515,6 @@ public final class BioReactiveSynthVoice {
         lastApplied = frame
         framesApplied &+= 1
 
-        let hrNormalized = clampUnit((frame.heartRateBPM - 40) / 160)
         // Hand the parameters to the AUDIO thread instead of mutating the synth
         // here. Previously this ran `synth.applyBioReactive(...)` on the MainActor
         // poll, which rewrote the synth's spectral-envelope Swift arrays while the
@@ -524,22 +524,31 @@ public final class BioReactiveSynthVoice {
         _ = bioCommands.tryEnqueue(BioParams(
             coherence: frame.coherenceForSound,   // 0 = unmeasured → neutral
             hrv: frame.hrvForSound,               // ditto; both on BioSampleFrame
-            heartRate: hrNormalized,
-            breathPhase: clampUnit(frame.breathPhase),
+            // ⛔ These two used to be `clampUnit((frame.heartRateBPM - 40) / 160)` and
+            // `clampUnit(frame.breathPhase)` — RAW reads, so an UNMEASURED channel handed
+            // the engine an EXTREME instead of the neutral the engine declares (#497).
+            // No lock → vibrato 25 % under the patch; no respiration → the whole voice
+            // 0.92 dB under it. The neutral now lives on the frame, next to its twins
+            // `hrvForSound` / `coherenceForSound`, which is where it always belonged.
+            // NaN-safety is unchanged, it just moved: `hasMeasuredHeartRate` is
+            // `heartRateBPM > 0` (false for NaN) and `breathPhaseForSound` guards
+            // `isFinite`, so a bad frame still fails to a neutral instead of poisoning
+            // the render state — the reason `clampUnit` existed at all.
+            heartRate: frame.heartRateForSound,
+            breathPhase: frame.breathPhaseForSound,
             breathDepth: 0.5,
             lfHf: 0.5,
             coherenceTrend: 0
         ))
     }
 
-    /// Clamp a bio value into 0…1, sanitizing NaN/inf to 0. A NaN here (e.g. a bad
-    /// heart-rate frame) would otherwise pass the plain `min(max())` clamp unchanged
-    /// and poison the audio thread's filter/envelope state → a permanently silent
-    /// voice. Fail quiet (0) instead. Runs on the MainActor poll, never in render.
-    private func clampUnit(_ x: Float) -> Float {
-        guard x.isFinite else { return 0 }
-        return min(max(x, 0), 1)
-    }
+    // ⛔ `private func clampUnit(_:)` lived here and is DELETED with #497. It had exactly
+    // two callers — the heart-rate and breath-phase arguments above — and both now read
+    // `BioSampleFrame.heartRateForSound` / `.breathPhaseForSound`, which carry the same
+    // NaN-safety plus the neutral-when-unmeasured rule it never had. Its doc claimed
+    // "fail quiet (0)"; for these two channels 0 is not quiet, it is the BOTTOM of the
+    // scale — which is precisely the defect #497 removes. Do not reintroduce a local
+    // unit clamp for a bio channel: the frame owns that decision (#416).
 
     // MARK: - Source node (audio thread)
 

@@ -721,7 +721,6 @@ public final class PolySynthVoice {
         lastTimestamp = frame.timestamp
         framesApplied &+= 1
 
-        let hrNormalized = clampUnit((frame.heartRateBPM - 40) / 160)
         // Hand the parameters to the AUDIO thread instead of mutating the poly engine
         // here. Applying `poly.applyBioReactive(...)` on this MainActor poll rewrote
         // each voice's spectral-envelope array while the audio thread read it in
@@ -732,8 +731,14 @@ public final class PolySynthVoice {
         _ = bioCommands.tryEnqueue(PolyBioParams(
             coherence: frame.coherenceForSound,
             hrv: frame.hrvForSound,   // 0 = unmeasured → neutral; see BioSampleFrame
-            heartRate: hrNormalized,
-            breathPhase: clampUnit(frame.breathPhase),
+            // ⛔ These two used to be `clampUnit((frame.heartRateBPM - 40) / 160)` and
+            // `clampUnit(frame.breathPhase)` — RAW reads, so an UNMEASURED channel handed
+            // the engine an EXTREME instead of the neutral the engine declares (#497).
+            // No lock → vibrato 25 % under the patch; no respiration → the whole voice
+            // 0.92 dB under it. The neutral now lives on the frame, next to its twins
+            // `hrvForSound` / `coherenceForSound`, which is where it always belonged.
+            heartRate: frame.heartRateForSound,
+            breathPhase: frame.breathPhaseForSound,
             breathDepth: 0.5,
             lfHf: 0.5,
             coherenceTrend: 0,
