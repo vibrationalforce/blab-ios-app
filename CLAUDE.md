@@ -304,8 +304,71 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**225** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `AFailedSaveLeavesATraceTests.swift` (#514 — ein fehlgeschlagenes
+                          `Tests/CISmoke` (**226** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheSenderIsTheTransportNotTheClaimTests.swift` (#517 — der erste
+                          Wächter dieser Kette über der Frage, WER ein Paket geschickt hat, und der erste,
+                          dessen Defekt eine ZWEITE Antwort auf eine Frage war, die der Transport schon
+                          beantwortet hatte. `MCSessionDelegate.session(_:didReceive:fromPeer:)` reicht eine
+                          AUTHENTIFIZIERTE `MCPeerID` neben den Bytes; `handleData` nahm nur die Bytes und
+                          hat danach `peerReadings` verschlüsselt, `incoming` gefüllt und `status` formuliert —
+                          alles aus `payload.senderName`, einem Feld, das der SENDER in die JSON schreibt.
+                          `handleStateChange` räumte derweil nach `peerID.displayName` auf. **Zwei Namen für
+                          einen Peer, und die Empfangsseite glaubte dem falschen.**
+                          ⭐ **DIE FOLGE, DIE DIE SCHEIBE RECHTFERTIGT, IST NICHT „jemand kann über seinen
+                          Namen lügen".** Eine Messung, die unter einem Schlüssel abgelegt ist, den der
+                          Trennungspfad nie räumt, ist eine Zeile, die JEDE Trennung überlebt — für den Rest
+                          der Prozesslebensdauer. Ein Peer, der GEGANGEN ist, behält eine Zeile auf dem
+                          Schirm. Das ist exakt die Eigenschaft, die #508 herstellen sollte („ein stiller
+                          Peer sieht nicht mehr lebendig aus"), ausgehebelt über den SCHLÜSSEL statt über den
+                          Zeitstempel — und genau deshalb kann #508s Frische-Wächter es nicht sehen: die
+                          Messung in jener Zeile ist echt frisch, es ist die ZEILE, die es nicht geben darf.
+                          ⭐ **EIN SCHREIBVORGANG, NICHT VIER (#416).** Die Behauptung wird EINMAL durch die
+                          Tatsache ersetzt, an der Grenze, über `ColabPayload.attributed(to:)`. Die
+                          Alternative wäre gewesen, jeden Leser zu reparieren — Lese-Schlüssel, Statuszeile,
+                          Import-Karte —, also drei Stellen, die sich alle dauerhaft merken müssen, einem
+                          Feld nicht zu trauen, das direkt vor ihnen liegt. **Die nachgelagerten Lesezugriffe
+                          bleiben deshalb ABSICHTLICH unverändert**, und es gibt keine negative Nadel gegen
+                          `payload.senderName`: nach der Zuschreibung IST dieses Feld der Transport-Name, und
+                          korrektes Lesen zu verbieten ist die #364-Falle.
+                          ⚠️ **UMFANG ZUERST: das repariert AUTORITÄT, nicht IDENTITÄT.**
+                          `MCPeerID.displayName` kommt aus `UIDevice.current.name`, das ab iOS 16 den MODELL-
+                          Namen („iPhone") liefert, solange die App das
+                          user-assigned-device-name-Entitlement nicht führt — und Echoel führt es nicht. Drei
+                          Telefone in einem Raum kollidieren weiter in EINE Zeile (#513). Behauptung 4 nagelt
+                          diese Grenze fest, damit die Scheibe nicht als gelöste Identität gelesen wird.
+                          ⚠️ **DIE LEITUNG IST UNVERÄNDERT:** wir SENDEN weiterhin `senderName`, und ein
+                          älterer Peer sendet seinen eigenen. Geändert wird nur, was WIR beim Empfang
+                          glauben; das Feld zu löschen wäre eine Protokolländerung.
+                          ⚠️ EHRLICHE BENOTUNG (#433), und es ist die #464-Lage klar gesagt: die Datei lässt
+                          sich gegen den Elternbaum **ÜBERHAUPT NICHT** benoten — vier Verhaltensfälle nennen
+                          `ColabPayload.attributed(to:)`, das es dort nicht gibt. Von Hand transkribiert
+                          (Python-Nachbau von `SourceText.codeOnly` plus des Klammer-Matchers, jede Nadel
+                          einzeln gefahren): **Behauptung 5 ist ZWEIMAL rot, für zwei VERSCHIEDENE
+                          Tatsachen** (die Signatur nimmt keinen Peer, UND der Decode trägt kein
+                          `.attributed(to:` — beide bleiben, weil eine Fassung, die den Peer nimmt und
+                          trotzdem nach dem dekodierten Feld verschlüsselt, eine reine Signaturprüfung
+                          bestünde); **Behauptung 6 ist EINE Abwesenheit, zweimal gemeldet** (der
+                          Eltern-Rumpf ist die einzelne Zeile `self?.handleData(data)`), so gesagt statt als
+                          zwei Befunde gezählt (#486); **die Behauptungen 1–4 und die zweite Hälfte von 8**
+                          konnten nie rot sein, sie treiben eine Methode, die derselbe Commit anlegt; **4,
+                          7a–7c und 8a** sind beidseitig grün und sind der Inhalt — die naheliegenden
+                          späteren Aufräumarbeiten lauten „Zuschreibung macht Namen eindeutig, weg mit #513"
+                          (falsch) und „die Trennungs-Räumung ist jetzt überflüssig" (öffnet die
+                          Phantom-Zeile vom anderen Ende).
+                          ⚠️ `SourceText.codeOnly` ist hier PROPHYLAKTISCH und das ist GEMESSEN statt
+                          angenommen (#484/#485 mussten die stärkere Behauptung je einmal zurücknehmen, #486
+                          zweimal): roh gegen gestreift unterscheiden sich **0 von 11** Nadel-Verdikten, auf
+                          BEIDEN Bäumen — jede Nadel ist ein positives `contains`, und diese Scheibe schreibt
+                          keine Rücknahme, die eine davon ausbuchstabiert.
+                          ⚠️ Und die Grenze zuerst: die Behauptungen 5–7 sind QUELLTEXT-SCANS,
+                          `MultipeerSession` liegt hinter `#if canImport(MultipeerConnectivity)`. **Dass zwei
+                          Telefone einander wirklich nicht mehr in die Zeilen schreiben können, ist eine
+                          ZWEI-GERÄTE-Probe und OFFEN.**
+                          ⭐ Und die `Sources/`-Zahl bewegt sich NICHT: `attributed(to:)` ist eine neue
+                          Methode in der VORHANDENEN Datei `Sync/ColabPayload.swift` — zum dritten Mal in
+                          Folge der dritte Fall der Taxonomie im Absatz darüber, nach #508s `PeerReading` und
+                          #511s `egressible(from:)`.), davor **225** nach
+                          `AFailedSaveLeavesATraceTests.swift` (#514 — ein fehlgeschlagenes
                           SCHREIBEN war vollkommen still, während ein fehlgeschlagenes LESEN seit jeher
                           protokolliert wird, und der Dateikopf behauptete ausdrücklich das Gegenteil
                           („Schreibfehler kommen als `false` zurück, damit der Aufrufer entscheidet, wie
@@ -5255,7 +5318,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTVIERUNDACHTZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 225 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 224·223·222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTFÜNFUNDACHTZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 226 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 225·224·223·222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
