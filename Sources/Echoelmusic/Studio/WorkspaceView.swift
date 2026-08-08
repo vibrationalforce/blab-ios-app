@@ -175,9 +175,20 @@ struct WorkspaceView: View {
                 // floor) — a new defect introduced by the fix, not an old one left alone.
                 //
                 // ⚠️ THE CEILING IS RAISED, NOT REMOVED, AND THE REASON IS HONEST: the
-                // chrome is 90 pt today (50 + 40). ⛔ IT READ "134 pt (50 + 44 + 40)" UNTIL
-                // #456 dissolved the transport bar — and the commit that removed the 44
-                // edited the sentence four lines above this one without touching it. Every
+                // chrome is 94 pt today (50 + 44).
+                //
+                // ⛔ THIS NUMBER HAS NOW GONE STALE TWICE, THE SECOND TIME AT MY OWN HAND,
+                // ONE CYCLE AFTER I QUOTED THE FIRST ONE AS A LESSON. It read "134 pt
+                // (50 + 44 + 40)" until #456 dissolved the transport bar — and the commit
+                // that removed the 44 edited the sentence four lines above this one without
+                // touching it. It then read "90 pt (50 + 40)" until #502 slice 1, which gave
+                // `CompositionHeaderStrip`'s children the 44 pt tap floor and therefore made
+                // the bar render 44 — priced in that slice's own `labeled` doc as "+4 pt",
+                // and left uncorrected HERE, in the same file, by the same commit. The 40
+                // survives one line above `labeled` as a COLLAPSE floor and is no longer the
+                // binding constraint, so quoting it as the bar's height is exactly the drift
+                // the ⛔ below describes. **A band height belongs to the band, not to the
+                // `minHeight` literal that used to set it** — read the tallest child. Every
                 // number that used to hang off the 134 (a naive `.accessibility5` 3.12×
                 // "418 pt", a bottom-up "nearer 270 pt") is therefore WITHDRAWN rather than
                 // rescaled: they were an estimate of a three-bar chrome, and re-deriving

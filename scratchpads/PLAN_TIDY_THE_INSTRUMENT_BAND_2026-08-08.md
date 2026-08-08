@@ -164,3 +164,58 @@ Genre/Key/Scale sichtbar bleiben, oder darf es hinter den Tempo-Chip, der ohnehi
 · 44 pt Tap-Boden (#113), `EchoelTheme.radius`-Token (#483), ein Rand pro Objekt.
 · Vor JEDER Flächenänderung: `git grep` in `Tests/CISmoke`, nicht nur `Sources/` (#456).
 · Ehrliche Benotung jedes Wächters gegen BEIDE Bäume (#433), Grenzen zuerst.
+
+---
+
+## 7. NACHTRAG 2026-08-08 — WIE ES AUSGEGANGEN IST
+
+**Slice 1 — GEBAUT** (`92e0021`). `CompositionHeaderStrip` trägt das eine Format.
+Band 40 → 44 (+4 pt Höhe, ≈ +124 pt Scroll-Breite), beides im `labeled`-Doc beziffert.
+Wächter: `Tests/CISmoke/TheHeaderStripWearsTheOneFormatTests.swift`.
+
+**Slice 2 — ZURÜCKGEZOGEN MIT BELEG, und stattdessen ein echter Defekt behoben**
+(`09a6f6b`). Die Prämisse war ein Quellkommentar aus #482: *„the bar count is gone from
+the screen entirely"*. Der war schon rund eine Stunde nach dem Schreiben falsch — #456 hat
+`TransportPositionView` aus der Chrome-Leiste geholt, #490 hat es in die Mitte des
+Marken-Headers gesetzt, wo es `loop N/8` UNBEDINGT rendert, aus demselben persistierten
+Schlüssel. Die Taktzahl war also längst bezahlt.
+Die verbliebene, echte Hälfte (mitten im Take gibt es keine WORTE) ist **ENTSCHIEDEN, nicht
+vertagt**: eine dauerhafte vierte Zeile gibt genau die Höhe aus, um die die Ask geht, und
+eine BEDINGTE ist die #382-Klasse in genau dem Stapel, für den #382 geschrieben wurde — sie
+fügt sich beim Start eines Takes ein und entfernt sich bei einem ENDE, das der Nutzer nicht
+ausgelöst hat.
+Was die Prüfung der Prämisse zutage förderte: `WorkspaceView` war die letzte handgeschriebene
+Kopie von `"studio.loopBars"` + `.eight` (#416) — unter einem Kommentar, der einen Menschen
+anwies, sie gleich zu halten. Genau der Mechanismus, den H15-LOOPBARS einmal ausgeliefert hat.
+Jetzt `StudioDefaultKeys`. Wächter: `Tests/CISmoke/TheBarCountHasACarrierTests.swift`.
+
+**Slice 3 (`Grid`/`GridRow` statt `Spacer`) — ZURÜCKGEZOGEN. Gate: HOLD.**
+· Der Nutzen ist NULL für den Nutzer: der Plan nennt sie selbst „render-neutral, reine
+  Code-Ehrlichkeit".
+· Der Preis ist ein Wechsel der LAYOUT-ENGINE auf genau dem Band, das der Founder gerade
+  markiert hat, in einer Umgebung ohne Compiler und ohne Renderer. Damit vier Spalten über
+  BEIDE Zeilen wirklich gleich breit sind, müssten `quickActionRow` und `quickDoorRow` in
+  EIN `Grid` fallen — also zwei benannte Eigenschaften zu einer verschmelzen, deren Trennung
+  („handelt am Take" / „verlässt den Take") in beiden Docs tragend ist. Und die leere vierte
+  Zelle braucht ein Füll-View, das breiten- aber nicht höhen-gierig ist — genau die Sorte
+  SwiftUI-Detail, die hier niemand prüfen kann.
+· Der Ist-Zustand ist NICHT unbelegt: `expands` teilt die Breite unter den flexiblen Kindern
+  EINES `HStack` gleich auf, der `Spacer(minLength: 0)` ist damit bereits die vierte Spalte,
+  er ist im Doc als LAYOUT-KONSTANTE begründet und von `TheDoorsAreIndividualButtonsTests`
+  (#492) festgenagelt.
+**Eine verifizierte, dokumentierte, bewachte Konstruktion gegen eine unverifizierbare zu
+tauschen, um denselben Pixel zu erzeugen, ist keine Aufräumarbeit.**
+
+**Slice 4 (Höhen-Feinschliff) — ZURÜCKGESTELLT, mit einem Grund, der beim Nachmessen
+auftauchte.** Die 14 pt aus `.padding(.top, 4)` + `.padding(.bottom, 10)` sind NICHT frei:
+beide Konstanten liegen in `FloatingVisualLayout` und ihre Summe ist `startButtonBlockHeight`,
+also der Bodenabstand der angedockten Visual-Karte. #481 hat genau deshalb die Finger davon
+gelassen. Wer hier 10 auf 6 setzt, verschiebt das BILD um 4 pt in einem Höhen-Commit.
+Die zwei 8-pt-`VStack`-Lücken sind eine Geräte-Sichtprobe, keine Arithmetik.
+
+**Abschnitt 5 (das ganze Band entfernen) bleibt HOLD-FOR-FOUNDER** — unverändert.
+
+**Bilanz der Ask 2:** die „einheitliches Design"-Hälfte ist gebaut und bewacht. Die
+„Kompaktheit"-Hälfte ist um 4 pt in die falsche Richtung gegangen, und die einzige Scheibe,
+die sie wirklich bewegt (41 pt), kehrt eine aufgeschriebene Founder-Entscheidung um. Das ist
+die Frage aus Abschnitt 5, und sie wartet auf ihn.
