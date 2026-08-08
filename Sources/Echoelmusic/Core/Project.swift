@@ -146,10 +146,21 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         // opposite decision for the opposite reason. `= nil` would have kept both call sites
         // compiling untouched — and that is exactly the failure mode #440/#443 paid for
         // twice: an argument no call site writes appears in no diff, so the field would read
-        // as "wired" while every save wrote nothing. There are FOUR `Project.init` call sites
-        // in the whole repo — `EchoelStudioView.currentProject()`, `AutosaveSlotTests`,
-        // `ColabPayloadTests`, `TheToneSystemTravelsWithTheTakeTests` — so making each state it
-        // costs four lines and buys a compiler error the day a fifth appears.
+        // as "wired" while every save wrote nothing. Counted with `git grep -n "Project("` over
+        // the WHOLE repo (#494) there are SEVEN call sites: `EchoelStudioView.currentProject()`,
+        // `AutosaveSlotTests`, `TheToneSystemTravelsWithTheTakeTests`,
+        // `TheModeTravelsWithTheTakeTests`, `ColabPayloadTests`, and TWO in `ProjectStoreTests`.
+        //
+        // ⛔ THE COUNT HAS NOW BEEN WRONG TWICE, AND THE SECOND MISS BROKE A BUILD. The first
+        // version said TWO — it named the two I had edited and omitted `ColabPayloadTests`. The
+        // correction said FOUR, and it was written in the same breath as the rule "a count of
+        // call sites is a `git grep` over the WHOLE repo" — while still missing the two in
+        // `ProjectStoreTests`, so #493 shipped with `Tests/EchoelmusicTests` NOT COMPILING and
+        // nothing went red. **That is the real lesson, and it is not about counting.** Both
+        // misses sit in `Tests/EchoelmusicTests`, the directory neither real gate compiles
+        // (#208) and whose own workflow reports `success` regardless: the compiler error a
+        // missing default is supposed to buy is only collectable where a gate compiles the
+        // caller. In the other half of the tree a required argument buys silence.
         //
         // ⛔ THE FIRST VERSION OF THIS COMMENT SAID "TWO", and the miss is worth keeping: it
         // named the two I had edited and omitted `ColabPayloadTests`, which lives in

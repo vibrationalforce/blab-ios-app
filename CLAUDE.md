@@ -304,8 +304,65 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**206** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheToneSystemTravelsWithTheTakeTests.swift` (#493 — der erste
+                          `Tests/CISmoke` (**207** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheModeTravelsWithTheTakeTests.swift` (#494 — der Zwilling von
+                          #493, EIN Feld weiter, und die zwei unterscheiden sich in genau der Weise, die
+                          zählt. Dort musste das Feld erst ANGELEGT werden; hier lag es die ganze Zeit auf
+                          der Leitung — `currentProject()` stampt `ComposerMode(locked: lockBPM).rawValue`
+                          seit es dieses Format gibt, `Project.modeRaw` wird encodiert UND decodiert, und
+                          `Project.mode` hat **NULL Leser in `Sources/`**. Nur der Restore fehlte. Also:
+                          Loop-Take speichern, auf Flow stellen, Take öffnen → er kommt in Flow zurück,
+                          während die Datei `studioLocked` sagt.
+                          ⭐ **Und `open(_:)` hat die HÄLFTE der Entscheidung längst restauriert**, was den
+                          Defekt schwerer sichtbar macht als eine schlichte Auslassung: `lockedBPM =
+                          loadedTempo` steht dort seit jeher. Die ZAHL reiste, die Sperre nicht — und ohne
+                          die Sperre wird die Zahl nicht einmal gelesen (`makeComposerInput` reicht
+                          `lockedTempo: lockBPM ? lockedBPM : 90`, und `BioComposer.tempo(for:)` folgt auf
+                          `.flowFree` dem Herzen). **Ein Feld, das perfekt rundreist und nie
+                          zurückgelesen wird, ist für jeden Persistenz-Test unsichtbar** — deshalb liegt
+                          der Schwerpunkt dieses Wächters auf der VERDRAHTUNG, nicht auf der Leitung.
+                          ⛔ **DIE EINZEILIGE FASSUNG IST DER BUG, und vier der acht Fälle stehen nur
+                          dafür da, sie draußen zu halten.** `Project.mode` ist
+                          `ComposerMode(rawValue: modeRaw) ?? .studioLocked`, und der Decoder-Rückfall für
+                          einen fehlenden Schlüssel ist `""`. Ein Take von vor diesem Feld liest über den
+                          Accessor also `.studioLocked`, und `lockBPM = (p.mode == .studioLocked)` würde
+                          bei JEDEM Alt-Take das Instrument SPERREN — gegen einen persistierten Default
+                          `false`. Eine Tatsache über eine Datei erfinden, dieselbe Falle wie in #493.
+                          Über `ComposerMode(rawValue:)` ist „dieser Take nennt keinen Modus"
+                          darstellbar, und dann tut die Zeile absichtlich nichts.
+                          ⚠️ EHRLICHE BENOTUNG, transkribiert statt behauptet: die Datei kompiliert gegen
+                          den Vor-#494-Baum SEHR WOHL (anders als #493s, die ein Feld nannte, das dort
+                          nicht existierte), jeder Fall hat also ein Verdikt. Genau **ZWEI** sind
+                          Regressionen — die beiden `open(_:)`-Scans, rot weil jener Rumpf weder
+                          `ComposerMode` noch `lockBPM` erwähnt. Die anderen SECHS sind beidseitig grün und
+                          heißen deshalb GEGENGEWICHTE (#433): sie fangen das naheliegende spätere
+                          Aufräumen — den Restore auf `p.mode` umstellen, die Partnerzeile `lockedBPM =
+                          loadedTempo` als „jetzt redundant" streichen, die Save-Seite den Modus nicht mehr
+                          stempeln lassen, oder `flowFree` einen Rohwert geben, der mit dem
+                          Leerstring-Sentinel kollidiert.
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und GEMESSEN (#484/#485 mussten die
+                          stärkere Behauptung je einmal zurücknehmen): roh gegen gestreift unterscheiden
+                          sich **1 von 5** Scan-Verdikten. Die Rücknahme, die diese Scheibe in `open(_:)`
+                          schreibt, zitiert `lockBPM = (p.mode == .studioLocked)` wörtlich, um zu erklären,
+                          warum diese Form falsch ist — der negative Scan wäre ohne den Stripper auf
+                          KORREKTEM Code rot. Wieder die #486/#491-Kollision: dieses Repo schreibt auf, was
+                          es entfernt hat.
+                          ⛔ **UND DIE NACHLESE FAND, DASS #493 EINEN BUILD GEBROCHEN HAT — den
+                          teuersten Befund dieser zwei Scheiben.** `Project.init` bekam mit #493 ein
+                          Argument OHNE Default (#440/#443, absichtlich); der zugehörige Kommentar zählte
+                          „VIER Aufrufstellen" und nahm für sich in Anspruch, aus einem repo-weiten `grep`
+                          zu stammen. Es sind **SIEBEN**, und die zwei übersehenen liegen in
+                          `Tests/EchoelmusicTests/ProjectStoreTests.swift` — **#493 ist also mit einem
+                          NICHT KOMPILIERENDEN `Tests/EchoelmusicTests` ausgeliefert worden, und nichts
+                          wurde rot.** ⭐ Die Lehre ist NICHT „genauer zählen", und das ist der Punkt:
+                          BEIDE Fehlzählungen (#493s erste sagte ZWEI, ihre Korrektur VIER) haben genau
+                          die Dateien übersehen, die in der Hälfte des Baums liegen, **die kein echtes
+                          Gate kompiliert** (#208) und deren eigener Workflow ohnehin `success` meldet.
+                          **Der Compiler-Fehler, den ein fehlender Default kaufen soll, ist nur dort
+                          einlösbar, wo ein Gate den Aufrufer baut; in der anderen Hälfte kauft ein
+                          Pflicht-Argument Stille.** Behoben in #494; der Zählstand steht jetzt an genau
+                          EINER Stelle (`Project.init`) statt in drei Artefakten.),
+                          davor **206** nach `TheToneSystemTravelsWithTheTakeTests.swift` (#493 — der erste
                           Wächter in dieser Kette über einer PERSISTIERTEN Lücke statt über einer Zahl,
                           einer Größe oder einer Zeichenkette, und der erste, dessen Defekt eine
                           ASYMMETRIE zwischen zwei Achsen DERSELBEN Entscheidung war. `Project`
@@ -4112,7 +4169,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTFÜNFUNDSECHZIG FRÜHERE Stände in zwölf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 206 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSECHSUNDSECHZIG FRÜHERE Stände in zwölf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 207 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

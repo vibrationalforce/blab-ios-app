@@ -12,7 +12,13 @@ final class ProjectCodableTests: XCTestCase {
             styleRaw: MusicStyle.dubTechno.rawValue, keyRoot: 0, scaleRaw: Scale.minor.rawValue,
             bpm: 124, modeRaw: ComposerMode.studioLocked.rawValue,
             fxCharacterRaw: FXCharacter.underwater.rawValue, loopBars: 4,
-            a4Hz: 440, artist: "Echoel",
+            // #493 added `toneSystemID` with NO initialiser default on purpose (#440/#443).
+            // ⛔ AND THIS FILE IS WHY THAT DECISION NEEDS A SECOND HALF: #493 shipped without
+            // updating either of this file's two call sites, so `Tests/EchoelmusicTests` stopped
+            // compiling and NOTHING went red — neither real gate builds this directory (#208),
+            // and the non-blocking suite reports success regardless. The compiler error the
+            // no-default buys is only worth something in a directory a gate actually compiles.
+            a4Hz: 440, toneSystemID: "edo12", artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: 0.8)],
             drumSteps: [[true, false], [false, true]],
@@ -204,7 +210,8 @@ final class ProjectStoreTests: XCTestCase {
     private func project(_ name: String) -> Project {
         Project(
             name: name, styleRaw: "trap", keyRoot: 2, scaleRaw: "dorian", bpm: 140,
-            modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 8, a4Hz: 440, artist: "E",
+            modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 8, a4Hz: 440,
+            toneSystemID: "edo12", artist: "E",
             patch: SynthPatch(name: "Default"), notes: [], drumSteps: [], drumAccents: []
         )
     }

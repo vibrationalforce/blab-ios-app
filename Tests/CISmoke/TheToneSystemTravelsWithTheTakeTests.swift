@@ -190,8 +190,13 @@ final class TheToneSystemTravelsWithTheTakeTests: XCTestCase {
 
     /// COUNTERWEIGHT: no default on the initialiser. `= nil` would keep every call site
     /// compiling untouched — which is exactly how a field ends up looking wired while every save
-    /// writes nothing (#440/#443, paid for twice). With FOUR call sites repo-wide, making each
-    /// state it costs four lines and buys a compiler error the day a fifth appears.
+    /// writes nothing (#440/#443, paid for twice).
+    ///
+    /// ⛔ THIS SENTENCE SAID "FOUR call sites repo-wide" AND WAS WRONG WHEN WRITTEN — there are
+    /// SEVEN, and the two missed ones are in `Tests/EchoelmusicTests/ProjectStoreTests.swift`,
+    /// which #493 therefore shipped NOT COMPILING. Neither real gate builds that directory
+    /// (#208), so nothing went red. Fixed in #494; the standing count lives on `Project.init`,
+    /// which is the one place worth re-`grep`ping, not here.
     ///
     /// ⛔ I first counted TWO, having grepped the files I already had open. The missing one is
     /// `ColabPayloadTests`, in the NON-blocking suite (#208) that neither real gate compiles —

@@ -9388,6 +9388,35 @@ struct EchoelStudioView: View {
         let loadedTempo = beatPlayer.pattern.tempo
         pianoRoll.musicalTempoBPM = loadedTempo
         lockedBPM = loadedTempo
+        // #494 — AND THE LOCK ITSELF, which is the half that did not travel. `Project.modeRaw`
+        // has been WRITTEN since this format existed (`currentProject()` stamps
+        // `ComposerMode(locked: lockBPM).rawValue`) and `Project.mode` has ZERO readers in
+        // `Sources/`: nothing ever restored it. So the line above put a Loop take's tempo back
+        // into `lockedBPM` while the instrument stayed in Flow — and in Flow that number is not
+        // even consulted (`makeComposerInput` passes `lockedTempo: lockBPM ? lockedBPM : 90`,
+        // and `BioComposer.tempo(for:)` follows the heart on `.flowFree`). Half a decision
+        // travelled; the half that decides whether it matters did not. Ship gate 3 is "Modi
+        // (Flow + Loop)", so this is that gate's save/open leg.
+        //
+        // ⛔ READ FROM `p.modeRaw`, NEVER FROM `p.mode` — the tempting one-liner is the bug.
+        // `Project.mode` is `ComposerMode(rawValue: modeRaw) ?? .studioLocked`, and the decoder's
+        // own fallback for an absent key is `""`. A take saved before this field meant anything
+        // therefore reads as `.studioLocked` through the accessor, so `lockBPM = (p.mode ==
+        // .studioLocked)` would LOCK the instrument on every legacy take — against a persisted
+        // default of `false`, i.e. inventing a fact about a file, the same trap #493 avoided one
+        // field over. Going through `ComposerMode(rawValue:)` makes "this take states no mode"
+        // representable, and then this line deliberately does nothing.
+        //
+        // ⚠️ Side-effect free, and that is measured, not assumed: `git grep` finds no
+        // `onChange(of: lockBPM)` anywhere under `Sources/`, and the binding in
+        // `WorkspaceView.modeBinding` reacts only when the Flow|Loop Picker is DRIVEN — writing
+        // the shared `@AppStorage` key from here goes through its `get`. Nothing posts
+        // `.echoelCompositionEdited`, which is exactly right: `open(_:)` loads the take's SAVED
+        // notes and must not recompose them away (the same reason the root/tuning writes below
+        // stay silent).
+        if let savedMode = ComposerMode(rawValue: p.modeRaw) {
+            lockBPM = (savedMode == .studioLocked)
+        }
         // The FX room is one more thing that mirrors tempo, so it belongs on the SAME side of
         // that line — and it did not use to be. Both the character stamp and the delay division
         // ran earlier in this function on the RAW `p.bpm`, while `PatternEngine.setTempo` clamps
