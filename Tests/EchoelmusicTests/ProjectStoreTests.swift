@@ -18,7 +18,7 @@ final class ProjectCodableTests: XCTestCase {
             // compiling and NOTHING went red — neither real gate builds this directory (#208),
             // and the non-blocking suite reports success regardless. The compiler error the
             // no-default buys is only worth something in a directory a gate actually compiles.
-            a4Hz: 440, toneSystemID: "edo12", artist: "Echoel",
+            a4Hz: 440, toneSystemID: "edo12", moodFields: nil, artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: 0.8)],
             rawTake: nil,
@@ -212,7 +212,7 @@ final class ProjectStoreTests: XCTestCase {
         Project(
             name: name, styleRaw: "trap", keyRoot: 2, scaleRaw: "dorian", bpm: 140,
             modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 8, a4Hz: 440,
-            toneSystemID: "edo12", artist: "E",
+            toneSystemID: "edo12", moodFields: nil, artist: "E",
             patch: SynthPatch(name: "Default"), notes: [], rawTake: nil,
             drumSteps: [], drumAccents: []
         )

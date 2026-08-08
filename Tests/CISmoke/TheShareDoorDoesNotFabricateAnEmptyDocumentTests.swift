@@ -81,7 +81,7 @@ final class TheShareDoorDoesNotFabricateAnEmptyDocumentTests: XCTestCase {
         Project(
             name: "Take", styleRaw: "dubTechno", keyRoot: 0, scaleRaw: "minor", bpm: bpm,
             modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 2, a4Hz: 440,
-            toneSystemID: "edo12", artist: "Echoel",
+            toneSystemID: "edo12", moodFields: nil, artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 60, startStep: 0, lengthSteps: 2, velocity: 0.7)],
             rawTake: nil,

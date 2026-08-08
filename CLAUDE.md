@@ -304,8 +304,67 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**233** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheMoodKnobsSurviveARelaunchTests.swift` (#275 Slice 1 — der erste
+                          `Tests/CISmoke` (**234** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheMoodTravelsWithTheTakeTests.swift` (#275 Slice 2 — der Zwilling
+                          des Eintrags direkt darunter, EINE Tür weiter: Slice 1 gab den acht Stimmungs-Reglern
+                          überhaupt Persistenz, und die war GLOBAL. Ein gespeicherter Take stellte also Genre,
+                          Tonart, Skala, Tempo, Stimmung des Instruments, Flow/Loop-Modus, Klang und Rohtakte
+                          wieder her — und ließ die acht Dials auf dem stehen, was zuletzt eingestellt war.
+                          ⭐ **UND DER DEFEKT WAR FÜR JEDEN VORHANDENEN WÄCHTER UNSICHTBAR, weshalb er #493
+                          (Tonsystem), #494 (Modus) und #217 (Rohtakte) überlebt hat — drei Scheiben in Folge,
+                          deren ganzes Thema „was reist mit dem Take" war.** Ein Persistenz-Wächter fragt, ob
+                          ein FELD rundreist; die Stimmung hatte kein Feld. **Was nicht auf der Leitung ist,
+                          fehlt in jeder Leitungs-Behauptung** — die exakte Umkehrung von #494s `modeRaw`, das
+                          perfekt rundreiste und nie zurückgelesen wurde. Zwei Formen desselben blinden Flecks,
+                          und dieses Repo hat beide in derselben Woche bezahlt.
+                          ⚠️ **DIE LEITUNGSFORM IST EIN WÖRTERBUCH, NICHT EIN `MoodProfile`, und das ist eine
+                          DATENVERLUST-Entscheidung statt einer Stilfrage.** `MoodProfile`s Codable ist
+                          SYNTHETISIERT und alle acht Felder sind nicht-optional: EIN fehlender Schlüssel wirft
+                          `keyNotFound`, der Wurf verlässt `Project.init(from:)`, und `ProjectStore`s `try?`
+                          macht daraus den GANZEN verschwundenen Take des Nutzers. Über `[String: Float]?` plus
+                          `MoodStorage.profile(from:)` teilen sich BEIDE Türen — `UserDefaults` und der
+                          gespeicherte Take — EINE Feldnamen-Karte und EINE Toleranzregel (#416).
+                          ⚠️ **DIE WIEDERHERSTELLUNG IST BEDINGT, also das GEGENTEIL von #217s TOTALER
+                          Zuweisung, und die Asymmetrie ist der Entwurf.** Stehengebliebene ROHTAKTE sind ein
+                          aktiver Bug (der nächste Fader-Zug backt sie über den gerade geöffneten Take und
+                          schreibt sie ihm zu); aus der Stimmung backt NICHTS — sie ist Eingabe für die NÄCHSTE
+                          Komposition. `?? MoodProfile()` würde auf JEDEM Alt-Take acht Regler flachlegen, die
+                          der Spieler gesetzt hat, also eine Tatsache über eine Datei erfinden
+                          (#424/#426/#433/#461). Deshalb hat `moodFields` als ZWEITES Feld nach `toneSystemID`
+                          KEIN `??` im Decoder.
+                          ⚠️ **KEIN DEFAULT AUF `Project.init`** (#440/#443): ein vergessenes Argument taucht in
+                          keinem Diff auf, ein Compiler-Fehler an der Aufrufstelle schon — einlösbar allerdings
+                          nur in der Hälfte des Baums, die ein Gate kompiliert (#208).
+                          ⭐ **UND DIE SPEICHERN-MELDUNG NENNT DIE STIMMUNG, weil #495 sonst im selben Commit
+                          falsch würde** — die Kopie darf nicht hinter dem herhinken, was sie beschreibt. ⛔ Der
+                          erste Zeilenumbruch dieser Ergänzung spaltete `"stay with / the instrument"` über ein
+                          `+`, und der #495-Wächter liest zusammenhängende Phrasen: er wäre auf KORREKTEM Code
+                          rot gewesen. Gefangen beim Messen, nicht im Review. **Wo ein `+` in einem
+                          aufgeteilten Literal landet, ist keine Formatierung, wenn ein Wächter Phrasen nadelt.**
+                          ⚠️ EHRLICHE BENOTUNG (#433), und es ist die #464-Lage klar gesagt: die Datei lässt
+                          sich gegen den Elternbaum **ÜBERHAUPT NICHT** benoten — jeder Verhaltensfall nennt
+                          `Project.moodFields` / `Project.mood` / `MoodStorage.fields(from:)`, die es dort nicht
+                          gibt. Von Hand transkribiert (Python-Nachbau von `SourceText.codeOnly` plus des
+                          Klammer-Matchers, gegen `git show HEAD:` und den Arbeitsbaum): **DREI** Quelltext-Nadeln
+                          sind aus ihrem GENANNTEN Grund rot, **ZWEI** sind beidseitig grün — und eine davon nur
+                          TRIVIAL, weil eine Methode ohne jeden Stimmungs-Code auch keinen Stimmungs-Default
+                          enthalten kann. Das gehört gesagt statt gezählt.
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und das ist GEMESSEN statt angenommen
+                          (#484/#485 mussten die stärkere Behauptung je einmal zurücknehmen, #486 zweimal — und
+                          der erste Entwurf dieses Wächter-Kopfs machte denselben Überclaim, gefangen beim
+                          Messen VOR dem Commit): **1 von 10** Nadel-Verdikten über beide Bäume kippt, nämlich
+                          `?? MoodProfile()` — diese Scheibe schreibt genau diese Zeichenkette WÖRTLICH in eine
+                          Rücknahme in `open(_:)`, ein Rohtext-Scan wäre also auf KORREKTEM Code rot. Die
+                          #486/#491-Kollision noch einmal.
+                          ⚠️ Und die Grenze zuerst: die LEITUNGS- und die ENTSCHEIDUNGS-Hälfte sind echt Ende zu
+                          Ende (`Project` ist `public` und reines `Codable`, `MoodStorage`/`MoodProfile` sind
+                          Foundation-only), die VERDRAHTUNGS-Hälfte ist ein QUELLTEXT-SCAN — beide Stellen liegen
+                          in `private` Mitgliedern einer Ansicht. **Dass ein gespeicherter Take am Gerät wirklich
+                          mit seiner Stimmung zurückkommt, ist eine Geräteprobe und OFFEN.**
+                          ⭐ Und die `Sources/`-Zahl bewegt sich NICHT: es kommen eine Eigenschaft, ein Accessor
+                          und eine `static` Methode in VORHANDENE Dateien. Der ±0-Fall der Taxonomie im Absatz
+                          darüber, zum fünften Mal in Folge.), davor **233** nach
+                          `TheMoodKnobsSurviveARelaunchTests.swift` (#275 Slice 1 — der erste
                           Wächter dieser Kette über einem Kompositions-Eingang, der GAR KEINE Persistenz hatte.
                           Die acht Stimmungs-Regler waren der EINZIGE Eingang in `BioComposer.Input` ohne
                           `@AppStorage`-Rückhalt — Genre, Skala, Grundton, Tempo-Sperre, Rhythmen, Artikulation,
@@ -5833,7 +5892,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTZWEIUNDNEUNZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 233 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 232·231·230·229·228·227·226·225·224·223·222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTDREIUNDNEUNZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 234 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 233·232·231·230·229·228·227·226·225·224·223·222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

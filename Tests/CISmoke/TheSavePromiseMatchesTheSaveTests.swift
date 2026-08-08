@@ -61,6 +61,14 @@ final class TheSavePromiseMatchesTheSaveTests: XCTestCase {
         XCTAssertTrue(message.contains("genre, key, tuning, tempo, Flow/Loop mode"),
                       "the Save door is the one place that says what a save is; it must name the "
                       + "tuning and the Flow/Loop mode, both of which travel since #493/#494")
+        // #275 slice 2. Asserted SEPARATELY rather than lengthened into the phrase above, and
+        // that is deliberate: the contiguous run is pinned so a later edit cannot quietly drop
+        // one of its axes, but wording is allowed to place `mood` wherever it reads best. A
+        // guard that forbids correct rewrites is how a guard gets deleted (#364).
+        XCTAssertTrue(message.contains("mood"),
+                      "the eight mood dials travel with the take since #275 slice 2 — a sentence "
+                      + "that lists what a save carries and omits them under-claims again, which "
+                      + "is the exact defect #495 exists to stop")
     }
 
     /// THE SECOND REGRESSION. Naming what does NOT travel is the half that prevents the far worse
@@ -97,6 +105,7 @@ final class TheSavePromiseMatchesTheSaveTests: XCTestCase {
             ("tuning (tone system)", "toneSystemID: tuningID"),
             ("tuning (concert pitch)", "a4Hz: session.a4Hz"),
             ("Flow/Loop mode", "modeRaw: ComposerMode(locked: lockBPM).rawValue"),
+            ("mood", "moodFields: MoodStorage.fields(from: mood)"),
             ("sound", "patch: currentPatch"),
             ("FX character", "fxCharacterRaw: fxCharacter.rawValue"),
             ("the loop", "notes: pianoRoll.notes")
@@ -112,7 +121,14 @@ final class TheSavePromiseMatchesTheSaveTests: XCTestCase {
         Project(
             name: "Rāst loop", styleRaw: "dubTechno", keyRoot: 2, scaleRaw: "minor", bpm: 96,
             modeRaw: ComposerMode.studioLocked.rawValue, fxCharacterRaw: "auto", loopBars: 8,
-            a4Hz: 442, toneSystemID: "maqam-rast", artist: "Echoel",
+            // ⚠️ `moodFields` is NON-NIL here on purpose. `Project`'s encoder uses
+            // `encodeIfPresent`, so a `nil` writes NO key — the wire case below would then be
+            // asserting the absence of a field it is meant to prove present, and would pass on a
+            // tree that dropped mood entirely. The absent-key case belongs to
+            // `TheMoodTravelsWithTheTakeTests`, whose subject it is; here the fixture must be a
+            // take that STATES a mood, because that is what the Save sentence describes.
+            a4Hz: 442, toneSystemID: "maqam-rast",
+            moodFields: MoodStorage.fields(from: MoodProfile()), artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 62, startStep: 0, lengthSteps: 4, velocity: 0.6)],
             rawTake: nil,

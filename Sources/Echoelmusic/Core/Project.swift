@@ -128,6 +128,41 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     /// travel; neither implies the other.
     public var toneSystemID: String?
 
+    /// #275 slice 2 — THE EIGHT MOOD DIALS, as the raw field map `MoodStorage` writes.
+    ///
+    /// Slice 1 gave them persistence at all (they were the only composer input with none).
+    /// They persisted GLOBALLY, in the instrument — so opening a take restored its genre,
+    /// key, scale, tempo, tuning, A4, mode and patch while leaving whatever mood happened to
+    /// be dialled in. Density, register, dissonance, chord colour, leaps, ornaments,
+    /// placement and velocity feel are eight of the strongest levers on what a take sounds
+    /// like, and they were the ones that did not come back with it.
+    ///
+    /// ⭐ A DICTIONARY ON THE WIRE, NOT A `MoodProfile`, and that is a data-loss decision
+    /// rather than a style one. `MoodProfile`'s Codable is SYNTHESIZED with eight
+    /// non-optional `Float`s: one missing key throws `keyNotFound`, the throw leaves
+    /// `Project.init(from:)`, and `ProjectStore`'s `try?` turns the user's ENTIRE take into
+    /// nothing — the exact failure this decoder's header was written about, and the same
+    /// shape `LossyDecoded` exists for one field down. A `[String: Float]` absorbs a missing
+    /// key (that field keeps its factory value), an extra key (a ninth dimension from a
+    /// future build, carried and ignored) and a reordering, and it costs a take nothing.
+    /// Read it through `mood`, where `MoodStorage.profile(from:)` applies the ONE tolerance
+    /// rule both doors share (#416).
+    ///
+    /// ⭐ OPTIONAL, for the `toneSystemID`/`rawTake` reason two fields up: a take written
+    /// before this build genuinely states no mood, and `nil` is the only honest reading.
+    /// `?? [:]` would decode as "the player asked for factory mood", so opening a legacy take
+    /// would silently reset eight dials they had set — inventing a fact about a file, which
+    /// is the class #424/#426/#433/#461 keep paying for.
+    ///
+    /// ⚠️ AND THE RESTORE IS CONDITIONAL, WHICH IS THE OPPOSITE OF `rawTake`'s TOTAL
+    /// ASSIGNMENT — the asymmetry is deliberate and worth stating, because #217's comment
+    /// argues the other way one field down. There, leaving the session's value in place is an
+    /// active bug: the next fader move RE-BAKES those stale bars over the take just opened,
+    /// attributing them to it. Nothing re-bakes from mood. It is an input to the NEXT
+    /// compose, so leaving the instrument's current mood alone is not a false attribution —
+    /// it is the same thing the instrument does for a tone system a take does not state.
+    public var moodFields: [String: Float]?
+
     // Generated content
     public var patch: SynthPatch
     public var notes: [Note]
@@ -213,7 +248,7 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         id: UUID = UUID(), name: String, savedAt: Date = Date(),
         styleRaw: String, keyRoot: Int, scaleRaw: String, bpm: Double,
         modeRaw: String, fxCharacterRaw: String, loopBars: Int,
-        a4Hz: Double, toneSystemID: String?, artist: String,
+        a4Hz: Double, toneSystemID: String?, moodFields: [String: Float]?, artist: String,
         patch: SynthPatch, notes: [Note], rawTake: RawTake?,
         drumSteps: [[Bool]], drumAccents: [[Bool]]
     ) {
@@ -228,13 +263,22 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         // as "wired" while every save wrote nothing. Counted over the WHOLE repo (#495) with
         // `git grep -n "[^A-Za-z]Project(" -- Sources Tests`, minus the `func`/`importProject`/
         // `currentProject`/`SharedEchoelProject` false friends and minus this file's own prose:
-        // THIRTEEN construction sites as of #521 — `EchoelStudioView.currentProject()`, ten in
-        // `Tests/CISmoke` (`AutosaveSlotTests`, `AFailedSaveLeavesATraceTests`,
+        // **FOURTEEN** construction sites as of #275 slice 2 — `EchoelStudioView.currentProject()`,
+        // ELEVEN in `Tests/CISmoke` (`AutosaveSlotTests`, `AFailedSaveLeavesATraceTests`,
         // `TheToneSystemTravelsWithTheTakeTests`, `TheModeTravelsWithTheTakeTests`,
         // `TheRawTakeTravelsWithTheTakeTests`, `TheSavePromiseMatchesTheSaveTests`,
         // `TheShareDoorDoesNotFabricateAnEmptyDocumentTests`,
-        // `TheImportDoorReportsWhatItCannotReadTests`, `TheTakeSaysWhoMadeItTests`), and
-        // `ColabPayloadTests` plus TWO in `ProjectStoreTests`.
+        // `TheImportDoorReportsWhatItCannotReadTests`, `TheTakeSaysWhoMadeItTests`,
+        // `YouCanNameYourselfTests`, `TheMoodTravelsWithTheTakeTests`), and `ColabPayloadTests`
+        // plus TWO in `ProjectStoreTests`.
+        //
+        // ⛔ AND IT WAS WRONG A FOURTH TIME, in the cheap direction again: it said THIRTEEN
+        // while naming nine CISmoke files and claiming ten, i.e. it disagreed with ITSELF as
+        // well as with the tree — `YouCanNameYourselfTests` (#522) landed after the count was
+        // last touched at #521. Two consecutive slices read this list; neither re-ran the
+        // command written out above it. **A count that is printed next to its own command and
+        // still not re-run is not a count, it is a memory** — which is the whole reason the
+        // command is here and the reason this note keeps growing instead of being tidied away.
         //
         // ⛔ AND THE COUNT WAS WRONG A THIRD TIME — it stood at EIGHT while the tree held
         // TWELVE, because #217/#514/#519/#520 each added one without carrying it. Nothing broke
@@ -274,6 +318,7 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         self.styleRaw = styleRaw; self.keyRoot = keyRoot; self.scaleRaw = scaleRaw
         self.bpm = bpm; self.modeRaw = modeRaw; self.fxCharacterRaw = fxCharacterRaw
         self.loopBars = loopBars; self.a4Hz = a4Hz; self.toneSystemID = toneSystemID
+        self.moodFields = moodFields
         self.artist = artist
         self.patch = patch; self.notes = notes; self.rawTake = rawTake
         self.drumSteps = drumSteps; self.drumAccents = drumAccents
@@ -284,7 +329,7 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case id, name, savedAt, styleRaw, keyRoot, scaleRaw, bpm, modeRaw
-        case fxCharacterRaw, loopBars, a4Hz, toneSystemID, artist, patch, notes
+        case fxCharacterRaw, loopBars, a4Hz, toneSystemID, moodFields, artist, patch, notes
         case rawTake
         case drumSteps, drumAccents
     }
@@ -324,6 +369,17 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         // take never carried. (`decodeIfPresent` on an `Optional` property is exactly right:
         // key missing → nil, key present → the stored id.)
         toneSystemID   = try c.decodeIfPresent(String.self,   forKey: .toneSystemID)
+        // ⭐ THE SECOND FIELD WITHOUT A `??`, and for the same reason as the one above it: a
+        // take written before #275 slice 2 states no mood, and `[:]` would claim it states
+        // the FACTORY one — silently resetting eight dials on every legacy take. Absent
+        // stays absent; `open(_:)` then leaves the instrument's mood alone.
+        //
+        // ⚠️ A `[String: Float]` decode is tolerant BY SHAPE, which is why the mood is stored
+        // this way rather than as a `MoodProfile` (see the field's doc): a missing entry, an
+        // extra entry from a future build and a reordering all decode fine. The only way this
+        // key can throw is a value that is not a number at all, and that is `dataCorrupted`
+        // on a hand-edited file — the same exposure every other typed field here already has.
+        moodFields     = try c.decodeIfPresent([String: Float].self, forKey: .moodFields)
         artist         = try c.decodeIfPresent(String.self,   forKey: .artist)         ?? ""
         patch          = try c.decodeIfPresent(SynthPatch.self, forKey: .patch)        ?? SynthPatch(name: "Default")
         // ELEMENT-TOLERANT, and this is the half of the defence `decodeIfPresent` cannot
@@ -429,6 +485,10 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         // stricter future decoder would have to special-case. Round-trip-stable in both
         // directions, which `TheToneSystemTravelsWithTheTakeTests` asserts.
         try c.encodeIfPresent(toneSystemID, forKey: .toneSystemID)
+        // `encodeIfPresent` for the same reason one line up: a take that states no mood
+        // writes NO key, so re-reading it yields `nil` again and `open(_:)` leaves the
+        // instrument's dials alone rather than resetting eight of them to factory.
+        try c.encodeIfPresent(moodFields, forKey: .moodFields)
         try c.encode(artist, forKey: .artist)
         try c.encode(patch, forKey: .patch)
         try c.encode(notes, forKey: .notes)
@@ -498,6 +558,20 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     public var scale: Scale { Scale(rawValue: scaleRaw) ?? .minor }
     public var key: MusicalKey { MusicalKey(root: keyRoot, scale: scale) }
     public var mode: ComposerMode { ComposerMode(rawValue: modeRaw) ?? .studioLocked }
+
+    /// The eight mood dials this take was composed with, or `nil` when it states none.
+    ///
+    /// ⭐ NO `?? MoodProfile()` — and unlike `style`/`scale`/`mode` two lines up, that is not an
+    /// oversight but the same call `toneSystemID` makes. Those three MUST show something in a
+    /// picker, so a default is the least-wrong answer. Here a default would be an ASSERTION:
+    /// "this take was made at factory mood", acted on by `open(_:)`, silently flattening eight
+    /// dials the player had set. `nil` says the true thing and the open path then does nothing.
+    ///
+    /// ⚠️ THE TOLERANCE IS `MoodStorage`'s, NOT THIS FILE'S (#416). A stored map missing a
+    /// field, carrying a ninth from a future build, or holding a non-finite number is handled
+    /// there, once, for both doors — `UserDefaults` and a saved take. Re-deriving any of that
+    /// here would be a second rule that can drift from the first.
+    public var mood: MoodProfile? { moodFields.map(MoodStorage.profile(from:)) }
 
     /// The artist stamp to SHOW for this take beside a reader whose own name is `readerName`,
     /// or `nil` when there is nothing worth showing.

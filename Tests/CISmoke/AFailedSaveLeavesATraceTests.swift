@@ -151,7 +151,7 @@ final class AFailedSaveLeavesATraceTests: XCTestCase {
             keyRoot: 0, scaleRaw: Scale.major.rawValue, bpm: .nan,
             modeRaw: ComposerMode.flowFree.rawValue,
             fxCharacterRaw: FXCharacter.clean.rawValue,
-            loopBars: 8, a4Hz: 440, toneSystemID: "edo12", artist: "",
+            loopBars: 8, a4Hz: 440, toneSystemID: "edo12", moodFields: nil, artist: "",
             patch: SynthPatch(name: "Test"), notes: [], rawTake: nil,
             drumSteps: [], drumAccents: []
         )

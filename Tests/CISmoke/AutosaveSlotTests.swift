@@ -77,7 +77,7 @@ final class AutosaveSlotTests: XCTestCase {
                 // argument no call site writes shows up in no diff (#440/#443). This fixture
                 // states 12-TET explicitly because these tests are about the autosave SLOT,
                 // not about tuning; `TheToneSystemTravelsWithTheTakeTests` owns the nil case.
-                loopBars: 4, a4Hz: 440, toneSystemID: "edo12", artist: "",
+                loopBars: 4, a4Hz: 440, toneSystemID: "edo12", moodFields: nil, artist: "",
                 patch: SynthPatch(name: "Test"), notes: [], rawTake: nil,
                 drumSteps: [], drumAccents: [])
     }

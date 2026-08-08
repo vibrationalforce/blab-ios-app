@@ -58,7 +58,7 @@ final class TheRawTakeTravelsWithTheTakeTests: XCTestCase {
         Project(
             name: "Take", styleRaw: "dubTechno", keyRoot: 0, scaleRaw: "minor", bpm: 124,
             modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 2, a4Hz: 440,
-            toneSystemID: "edo12", artist: "Echoel",
+            toneSystemID: "edo12", moodFields: nil, artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [note(60, 0)],
             rawTake: rawTake,

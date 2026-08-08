@@ -231,7 +231,7 @@ final class YouCanNameYourselfTests: XCTestCase {
     private func take(artist: String) -> Project {
         Project(name: "Take", styleRaw: "dubTechno", keyRoot: 0, scaleRaw: "minor",
                 bpm: 120, modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 8,
-                a4Hz: 440, toneSystemID: nil, artist: artist,
+                a4Hz: 440, toneSystemID: nil, moodFields: nil, artist: artist,
                 patch: SynthPatch(name: "Default"), notes: [], rawTake: nil,
                 drumSteps: [], drumAccents: [])
     }

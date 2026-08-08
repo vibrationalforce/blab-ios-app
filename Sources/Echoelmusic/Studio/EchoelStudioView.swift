@@ -1516,8 +1516,23 @@ struct EchoelStudioView: View {
             // but the mechanism was named from the shape of its neighbours instead of looked up
             // — the #489 class, in the slice whose whole subject is a description that stopped
             // matching what it describes.
-            Text("Saves the loop with its genre, key, tuning, tempo, Flow/Loop mode, sound and "
-                 + "FX character. Your mixer levels and hand-dialled FX stay with the instrument.")
+            //
+            // ⭐ `mood` JOINED IN #275 SLICE 2, and it is named here for the reason the whole
+            // #495 law exists: the eight dials had NO persistence at all until slice 1, so a
+            // sentence written before that could not have named them — and the moment they
+            // started travelling with the take, a sentence that omits them under-claims again.
+            // One word, because the user has one mental object ("the mood knobs"), exactly like
+            // `tuning` standing for `a4Hz` + `toneSystemID`; the wire case below is what keeps
+            // that shorthand honest.
+            //
+            // ⚠️ WHERE THE `+` BREAKS IS NOT COSMETIC. The #495 guard reads this closure as a
+            // literal and asserts two CONTIGUOUS phrases in it; a wrap that lands mid-phrase
+            // turns that guard red on correct code. The first draft of this edit split
+            // "stay with / the instrument" and did exactly that — caught by measuring, not by
+            // the reviewer. Both pinned runs must stay inside one literal each.
+            Text("Saves the loop with its genre, key, tuning, tempo, Flow/Loop mode, mood, "
+                 + "sound and FX character. Your mixer levels and hand-dialled FX "
+                 + "stay with the instrument.")
         }
         .alert("Save mood", isPresented: $showSaveMoodAs) {
             TextField("Name", text: $moodAsName)
@@ -9497,7 +9512,15 @@ struct EchoelStudioView: View {
             // so a Maqām take reopened under a 12-TET instrument came back as 12-TET. Never
             // `nil` from HERE: a take this build writes always states what it was played in.
             // `nil` is reserved for files written before the field existed.
-            a4Hz: session.a4Hz, toneSystemID: tuningID, artist: session.artistName,
+            a4Hz: session.a4Hz, toneSystemID: tuningID,
+            // #275 slice 2 — the eight mood dials travel too. Slice 1 gave them persistence
+            // at all; it was GLOBAL, so opening a take restored its genre, key, scale, tempo,
+            // tuning, mode and patch and left whatever mood happened to be dialled in.
+            // Never `nil` from HERE, for the `toneSystemID` reason one line up: a take this
+            // build writes always states the mood it was composed with. `nil` is reserved for
+            // files written before the field existed.
+            moodFields: MoodStorage.fields(from: mood),
+            artist: session.artistName,
             patch: currentPatch, notes: pianoRoll.notes,
             // #217 — the composer's OWN bars travel with the take, so a Mix fader can
             // re-bake it after an open instead of composing a different piece. `nil` when
@@ -9656,6 +9679,20 @@ struct EchoelStudioView: View {
         currentPatch = p.patch          // every control reads this, so the UI matches
         patchBeforeSoundChange = nil    // wholesale replace — see the property's doc
         presetIndex = -1                // a saved patch is "custom", not a factory preset
+        // #275 slice 2 — RESTORE THE MOOD, and CONDITIONALLY, which is the opposite of the
+        // `lastRawTake` line below. The asymmetry is deliberate and both halves are argued at
+        // `Project.moodFields`: leaving stale RAW BARS in place is an active bug (the next
+        // fader move re-bakes them over the take just opened, attributing them to it), while
+        // nothing re-bakes from mood — it is an input to the NEXT compose, so leaving the
+        // instrument's current dials alone on a take that states none is honest rather than
+        // stale. `?? MoodProfile()` here would flatten eight dials the player had set on
+        // every legacy take, which is inventing a fact about a file (#424/#426/#433/#461).
+        //
+        // ⚠️ THIS ALSO PERSISTS, via the `.onChange(of: mood)` installed in slice 1 — exactly
+        // like `style`, `rootIndex` and `scale` above, which are all `@AppStorage`-backed and
+        // adopt the opened take's value as the instrument's. That is the intended reading of
+        // "open a take": you continue from it.
+        if let m = p.mood { mood = m }
         session.adopt(key: p.key)
         session.a4Hz = p.a4Hz
         applyConcertPitch(p.a4Hz)

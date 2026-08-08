@@ -63,7 +63,7 @@ final class TheToneSystemTravelsWithTheTakeTests: XCTestCase {
             keyRoot: 0, scaleRaw: Scale.major.rawValue, bpm: 72,
             modeRaw: ComposerMode.flowFree.rawValue,
             fxCharacterRaw: FXCharacter.clean.rawValue,
-            loopBars: 4, a4Hz: 432, toneSystemID: toneSystemID, artist: "",
+            loopBars: 4, a4Hz: 432, toneSystemID: toneSystemID, moodFields: nil, artist: "",
             patch: SynthPatch(name: "Test"), notes: [], rawTake: nil,
             drumSteps: [], drumAccents: [])
     }

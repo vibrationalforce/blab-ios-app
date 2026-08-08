@@ -15,7 +15,7 @@ final class ColabPayloadTests: XCTestCase {
             // initialiser deliberately gives it NO default (#440/#443). A shared session states
             // what it was played in; `nil` means "this take predates the field".
             modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 4, a4Hz: 440,
-            toneSystemID: "edo12", artist: "Echoel",
+            toneSystemID: "edo12", moodFields: nil, artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 62, startStep: 0, lengthSteps: 2, velocity: 0.7)],
             rawTake: nil,

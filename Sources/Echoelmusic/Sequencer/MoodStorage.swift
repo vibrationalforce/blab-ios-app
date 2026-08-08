@@ -69,11 +69,20 @@ public enum MoodStorage {
     /// The unit range every mood field lives in.
     private static let range: ClosedRange<Float> = 0...1
 
-    /// Encode for `UserDefaults`. Sorted keys so a stored value is stable and diffable —
-    /// two identical moods must produce identical strings, or a launch restore would look
-    /// like a change to anything comparing the raw text.
-    public static func encode(_ mood: MoodProfile) -> String {
-        let fields: [String: Float] = [
+    /// The field map, as a plain dictionary — the WRITE half of the one transform, split out
+    /// from `encode` so a caller that is not writing JSON can reach it.
+    ///
+    /// ⭐ #275 SLICE 2 IS THAT CALLER, and it is why this is public rather than an inline
+    /// literal. `Project` carries the mood as `[String: Float]?` on the wire rather than a
+    /// `MoodProfile`, because `MoodProfile`'s Codable conformance is SYNTHESIZED and all eight
+    /// fields are non-optional: one missing key throws `keyNotFound`, that throw leaves
+    /// `Project.init(from:)`, and `ProjectStore`'s `try?` turns the user's ENTIRE take into
+    /// nothing. That is precisely the class `Project`'s decoder header exists to describe.
+    /// Going through this pair means BOTH doors — `UserDefaults` and a saved take — share one
+    /// field-name map and one tolerance rule (#416), instead of the take path re-deriving
+    /// either.
+    public static func fields(from mood: MoodProfile) -> [String: Float] {
+        [
             Field.liveliness: mood.liveliness,
             Field.darkness: mood.darkness,
             Field.tension: mood.tension,
@@ -83,6 +92,13 @@ public enum MoodStorage {
             Field.syncopation: mood.syncopation,
             Field.humanize: mood.humanize
         ]
+    }
+
+    /// Encode for `UserDefaults`. Sorted keys so a stored value is stable and diffable —
+    /// two identical moods must produce identical strings, or a launch restore would look
+    /// like a change to anything comparing the raw text.
+    public static func encode(_ mood: MoodProfile) -> String {
+        let fields = fields(from: mood)
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         guard let data = try? encoder.encode(fields),
