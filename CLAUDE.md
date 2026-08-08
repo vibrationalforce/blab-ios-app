@@ -3259,11 +3259,31 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           in **genau 1** — der WeatherKit-URL-Zeile aus dem Absatz oben, die keinen der
                           vier Anker traegt.
                           ⚠️ Und die WAHRE Kopienzahl liegt weit ueber zwoelf, weil der Waechter nach
-                          NAMEN erkennt (gemessen 2026-08-07): 8 Dateien deklarieren `stripComment`,
-                          3 `stripComments`, 2 `sourceLines` und **60** `codeLines` — davon streifen
-                          **58** selbst und **keine** faltet ein. Das ist #460 und bleibt bewusst
-                          offen: die Nadel zu weiten faerbt ~70 Dateien in EINEM Commit rot, und das
-                          ist eine Migration, keine Waechter-Aenderung.
+                          NAMEN erkennt. **#460 hat sie am 2026-08-08 GEMESSEN statt geschaetzt**, und
+                          das Ergebnis entscheidet, was diese Zeile noch behaupten darf: **61 Dateien**
+                          halten einen privaten Stripper (8 `stripComment`, 2 `sourceLines`, 58 von
+                          63 `codeLines`), `stripComments` steht seit #460 auf **null**. Sie
+                          unterscheiden sich vom geteilten Scanner in GENAU ZWEI Richtungen: 47 lassen
+                          ganze `//`-Zeilen fallen und BEHALTEN damit nachlaufende Kommentare (Text,
+                          den der Scanner schneidet — in 185 von 349 Quellen); der Rest schneidet ab
+                          und kann ein `//` INNERHALB eines String-Literals fressen. Ihre nichtleeren
+                          ZEILEN-Arrays stimmen in der ANZAHL auf jeder gescannten Quelle mit dem
+                          Scanner ueberein (110 Paare) — Index-Arithmetik, `firstIndex` und
+                          Reihenfolge-Behauptungen sind also unberuehrt. **Verdikt-Kippungen heute:
+                          NULL**, ueber 650 Nadel-Paare und 3374 Literal×Quelle-Tripel.
+                          ⭐ **Also latent, nicht live — und trotzdem hat #460 DREI davon gefaltet, weil
+                          bei ihnen die Exposition LOKALISIERBAR war**: `PoincareViewDoorTests`,
+                          `ScopeTriggerStandsStillTests` und `WeatherToneIsAudibleTests` benutzten die
+                          NAIVE Form und scannen zusammen die einzigen zwei Quellen mit einem `//` im
+                          String-Literal (`EchoelStudioView.swift` WeatherKit-Attribution,
+                          `WorkspaceView.swift:134` Website-URL). Der Rest bleibt bewusst offen: die
+                          Nadel zu weiten faerbt 61 Dateien in EINEM Commit rot, und das ist eine
+                          Migration, keine Waechter-Aenderung.
+                          ⚠️ **Und die gefaehrliche Richtung ist die der 47, nicht die der drei**: ein
+                          NEGATIVER Scan, dessen Nadel in einem der ⛔-Ruecknahme-Kommentare dieses
+                          Repos landet, wird auf KORREKTEM Code rot — die #486/#491-Kollision, die
+                          diese Datei mehrfach bezahlt hat. Es ist ein Tastendruck entfernt, nicht eine
+                          Umstellung.
                           ⭐ **Was NICHT prophylaktisch ist, und es steht andersherum als man erwartet:
                           die GRUENDLICHSTE Form ist die gefaehrlichste.** Zwei der elf strippen
                           `/* … */` VOR den Zeilenkommentaren. Ein `/*`, das gar kein Blockanfang ist —

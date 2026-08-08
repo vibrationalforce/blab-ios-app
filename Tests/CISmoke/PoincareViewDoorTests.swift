@@ -177,15 +177,19 @@ final class PoincareViewDoorTests: XCTestCase {
     // MARK: - helpers
 
     /// Drops `//` line comments so a guard counts call sites and not the prose about them.
-    /// Line comments only, deliberately: this repo writes its explanations as `//` blocks,
-    /// and a half-working `/* */` stripper would be a new way to be wrong.
+    ///
+    /// ⛔ #460: this was a private naive truncate at the first `//`, which is NOT the same
+    /// operation — it also cuts a `//` that sits INSIDE a string literal. TWO of the four sources
+    /// this file scans carry one: `EchoelStudioView.swift` (the WeatherKit attribution URL) and
+    /// `WorkspaceView.swift:134` (`websiteURL = URL(string: "https://echoelmusic.com")`, which
+    /// the old strip left as `URL(string: "https:`). Exactly one line each; the other two
+    /// sources are identical under both.
+    /// Verdict-neutral on today's anchors (measured: 0 flips over every literal in this file) —
+    /// but a future needle anywhere on such a line would have gone red on CORRECT code.
+    /// `SourceText.codeOnly` (#453) is the ONE definition: string-aware, ordered,
+    /// line-count-preserving. Do not re-inline a local copy.
     private static func stripComments(_ code: String) -> String {
-        code.components(separatedBy: .newlines)
-            .map { line -> String in
-                guard let r = line.range(of: "//") else { return line }
-                return String(line[line.startIndex..<r.lowerBound])
-            }
-            .joined(separator: "\n")
+        SourceText.codeOnly(code)
     }
 
     private func source(_ path: String) throws -> String {

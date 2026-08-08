@@ -44,7 +44,7 @@ import XCTest
 
 final class OneDefinitionOfCodeNotProseTests: XCTestCase {
 
-    /// The eleven guards that assert on source text and therefore have to strip comments first.
+    /// The fifteen guards that assert on source text and therefore have to strip comments first.
     /// Each must route that stripping through `SourceText` — some through a one-line private
     /// wrapper kept so no call site changed, one (`ARejectedCrossing…`) directly at its call sites.
     private let scanningGuards: [String] = [
@@ -70,6 +70,18 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
         // flushes a non-deterministic subset. A verdict nobody can observe is the shape this
         // bundle exists to avoid, and it stood from #453 until #477.
         "TimingVerdictReachesTheScreenTests.swift",
+        // ⭐ THE THIRTEENTH, FOURTEENTH AND FIFTEENTH (#460). All three declared
+        // `stripComments` — a name this file's other guard cannot see — and all three used the
+        // NAIVE truncate at the first `//`, which also cuts a `//` inside a string literal.
+        // Measured before folding them in: verdict-neutral on every literal each file holds
+        // (0 flips), but two sources they scan carry such a line — `EchoelStudioView.swift`
+        // (WeatherKit attribution) and `WorkspaceView.swift` (the website URL) — so a future
+        // needle there would have gone red on CORRECT code. `stripComments` now has ZERO
+        // non-delegating declarers; `stripComment`, `sourceLines` and `codeLines` still do,
+        // which is the rest of #460 and is measured in the doc comment below.
+        "PoincareViewDoorTests.swift",
+        "ScopeTriggerStandsStillTests.swift",
+        "WeatherToneIsAudibleTests.swift",
     ]
 
     // MARK: - The scanner itself
@@ -159,11 +171,23 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
     /// A further private copy must not be able to appear unnoticed.
     ///
     /// ⚠️ IT DETECTS BY NAME, AND THAT IS A MEASURED BLIND SPOT, NOT A THEORETICAL ONE. The
-    /// anchor is `func codeOnly`, so a copy under any other name is invisible to it. Counted
-    /// across `Tests/CISmoke` on 2026-08-07: **8** files declare `stripComment`, **3** declare
-    /// `stripComments`, **2** declare `sourceLines`, and **60** declare `codeLines` — of which
-    /// **58** strip comments themselves or via a private sibling and **none** delegate. So the
-    /// true copy count is far above twelve; this guard covers the `codeOnly` family only.
+    /// anchor is `func codeOnly`, so a copy under any other name is invisible to it. Re-counted
+    /// across `Tests/CISmoke` on 2026-08-08, AFTER #460 folded the three `stripComments` files
+    /// in — `git grep` the five names and cross them with `SourceText.codeOnly`:
+    /// **8** files declare `stripComment` and none delegate, **2** declare `sourceLines` and
+    /// none delegate, **63** declare `codeLines` of which **58** do not — **61 files in total**
+    /// still hold a private stripper. `stripComments` is now at **zero**. So the true copy count
+    /// is far above fifteen; this guard covers the `codeOnly` family only.
+    ///
+    /// ⚠️ AND #460 MEASURED WHAT THAT COSTS TODAY, so the deferral below is a number and not a
+    /// hope. The 61 differ from `SourceText.codeOnly` in exactly two ways: 47 of them drop whole
+    /// `//` lines and therefore RETAIN trailing comments (they keep text the scanner cuts, in
+    /// 185 of 349 sources); the rest truncate and can eat a `//` inside a string literal. Their
+    /// non-empty LINE ARRAYS agree with the scanner in count on every source they scan (110
+    /// pairs), so index arithmetic, `firstIndex` and ordering claims are untouched. Verdict
+    /// flips today: **zero**, over 650 literal-needle pairs and 3374 literal×source triples.
+    /// Latent, therefore — and one keystroke from live, because a negative scan whose needle
+    /// lands in one of this repo's ⛔ retraction comments goes red on CORRECT code.
     ///
     /// Widening the anchor is #460 and is deliberately NOT done here: it would turn ~70 files
     /// red in one commit, and each needs its own read (some `codeLines` also filter blanks or
@@ -214,6 +238,58 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
             """)
     }
 
+    /// COUNTERWEIGHT (#343/#460): the reason the shapes are not interchangeable must keep
+    /// existing, or every claim above quietly becomes vacuous.
+    ///
+    /// `testEveryScanningGuardDelegates` says the shapes "disagree on the WeatherKit
+    /// attribution URL in EchoelStudioView.swift". That sentence is only true while such a
+    /// line exists. Measured 2026-08-08, the two sources the fifteen guards scan that carry a
+    /// `//` INSIDE a string literal are `EchoelStudioView.swift` (the WeatherKit attribution)
+    /// and `WorkspaceView.swift` (the website URL) — exactly one line each. Delete or reword
+    /// them and the disagreement is gone; the private shapes would then be genuinely equivalent
+    /// on today's tree, and the next session would read the sentence above as still-binding
+    /// evidence for a difference nobody can reproduce.
+    ///
+    /// So this pins the WITNESS, not the URL: the scanner must keep the whole literal, and a
+    /// naive truncate at the first `//` must NOT. Both halves are computed here rather than
+    /// asserted, so the day the witness goes the test says which half broke.
+    func testTheWitnessForTheDisagreementStillExists() throws {
+        let sources = [
+            "Sources/Echoelmusic/Studio/EchoelStudioView.swift",
+            "Sources/Echoelmusic/Studio/WorkspaceView.swift",
+        ]
+        var witnesses: [String] = []
+        for path in sources {
+            let text = try readSource(path)
+            // `codeOnly` preserves the line count, so the two arrays line up index for index.
+            let raw = text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            let kept = SourceText.codeOnly(text)
+                .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            XCTAssertEqual(raw.count, kept.count, """
+                SourceText.codeOnly no longer preserves the line count on \(path). Several \
+                guards in this bundle assert on the ORDER of two matches; a scanner that drops \
+                lines breaks them silently.
+                """)
+            guard raw.count == kept.count else { return }
+            for i in 0..<raw.count {
+                // A line the scanner left untouched, that nevertheless holds a `//`, is one
+                // where the `//` sits inside a string literal. A naive truncate cuts it there.
+                guard raw[i].range(of: "//") != nil else { continue }
+                guard kept[i] == raw[i] else { continue }
+                witnesses.append("\(path):\(i + 1)")
+            }
+        }
+        XCTAssertFalse(witnesses.isEmpty, """
+            No line under the scanned sources holds a `//` inside a string literal any more. \
+            That is not a failure of the scanner — it means the EVIDENCE for "the shapes are \
+            not interchangeable" is gone, and the failure message in \
+            testEveryScanningGuardDelegates cites something that no longer exists. Either name \
+            the new witness there, or say plainly that on today's tree the shapes agree and the \
+            migration was prophylactic (#460 measured zero verdict flips either way — the point \
+            is that the SENTENCE must not outlive its example).
+            """)
+    }
+
     // MARK: - Helper
 
     private func read(_ name: String) throws -> String {
@@ -222,6 +298,29 @@ final class OneDefinitionOfCodeNotProseTests: XCTestCase {
         guard FileManager.default.fileExists(atPath: url.path) else {
             XCTFail("\(name) is not in Tests/CISmoke — this guard names a file that is gone.")
             throw XCTSkip("\(name) missing")
+        }
+        return try String(contentsOf: url, encoding: .utf8)
+    }
+
+    /// Reads a repo-relative source file.
+    ///
+    /// ⚠️ The skip gates on the DIRECTORY, never on the individual file (#475). A `fileExists`
+    /// bracket around each read would turn the very catastrophe this guard stands against —
+    /// a source that vanished — into a green skip. If `Sources/Echoelmusic` is reachable, a
+    /// named file that is missing is a hard failure.
+    private func readSource(_ path: String) throws -> String {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sources = root.appendingPathComponent("Sources/Echoelmusic")
+        guard FileManager.default.fileExists(atPath: sources.path) else {
+            throw XCTSkip("Source tree not reachable from the test bundle.")
+        }
+        let url = root.appendingPathComponent(path)
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            XCTFail("\(path) is gone — this guard names a source file that no longer exists.")
+            return ""
         }
         return try String(contentsOf: url, encoding: .utf8)
     }

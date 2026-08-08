@@ -268,15 +268,18 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
     }
 
     /// Drops `//` line comments so a guard counts call sites and not the prose about them.
-    /// Deliberately line-comments only: this repo writes its explanations as `//` blocks,
-    /// and a half-working `/* */` stripper would be a new way to be wrong.
+    ///
+    /// ⛔ #460: this was a private naive truncate at the first `//`, which is NOT the same
+    /// operation — it also cuts a `//` that sits INSIDE a string literal. The one source this file
+    /// strips, `EchoelStudioView.swift`, carries one — the WeatherKit attribution
+    /// `URL(string: "https://developer.apple.com/…")`, which the old strip left as
+    /// `URL(string: "https:`. Exactly one line.
+    /// Verdict-neutral on today's anchors (measured: 0 flips over every literal in this file) —
+    /// but a future needle anywhere on such a line would have gone red on CORRECT code.
+    /// `SourceText.codeOnly` (#453) is the ONE definition: string-aware, ordered,
+    /// line-count-preserving. Do not re-inline a local copy.
     private static func stripComments(_ code: String) -> String {
-        code.components(separatedBy: .newlines)
-            .map { line -> String in
-                guard let r = line.range(of: "//") else { return line }
-                return String(line[line.startIndex..<r.lowerBound])
-            }
-            .joined(separator: "\n")
+        SourceText.codeOnly(code)
     }
 
     // MARK: - helpers
