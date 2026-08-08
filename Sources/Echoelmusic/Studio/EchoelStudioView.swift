@@ -1787,11 +1787,33 @@ struct EchoelStudioView: View {
     /// WRONG IN BOTH DIRECTIONS. The place-row caption is a STATIC string, not state. And
     /// `exportLabel` — which really does carry four states ("Record 8 bars → send" / "Stop and
     /// discard this take" / "Recording loop…" / "Writing .wav…") — is rendered as text
-    /// NOWHERE any more. So a sighted user mid-take sees only a glyph swap to `stop.circle`,
-    /// and the bar count is gone from the screen entirely. That cost is real, it is NOT paid,
-    /// and it is written here rather than in a sentence claiming it was. Whether the row
-    /// deserves a state line under it is a founder-visible layout call, not a tidy-up: a
-    /// fourth line in this stack is exactly the height #456 just reclaimed.
+    /// NOWHERE any more. So a sighted user mid-take sees only a glyph swap to `stop.circle`.
+    ///
+    /// ⛔ AND THAT PARAGRAPH ENDED ON "and the bar count is gone from the screen entirely",
+    /// WHICH WAS TRUE FOR ABOUT AN HOUR. #456 moved `TransportPositionView` out of the chrome
+    /// transport bar and #490 gave it the middle of the brand header, where it renders
+    /// `loop \(barInLoop + 1)/\(bars)` UNCONDITIONALLY — same `@AppStorage("studio.loopBars")`
+    /// key, same `.eight` default, so its `bars` IS the number `loopBars.label` was saying.
+    /// The count a user needs before tapping Record is therefore permanently on screen, one
+    /// band up, and it was already there when this comment claimed it was gone. Same class as
+    /// the retraction in `WorkspaceView` five lines under that readout's own mount: a note
+    /// whose subject was fixed by a later slice on the SAME DAY reads as if nothing happened.
+    /// `TheBarCountHasACarrierTests` now pins the carrier, so this cannot go stale silently
+    /// in the other direction either — deleting the header readout has to notice it is
+    /// load-bearing for two things now, not one.
+    ///
+    /// ⭐ WHAT SURVIVES IS THE SMALLER, REAL HALF: mid-take there are no WORDS. The glyph
+    /// carries three states (`square.and.arrow.up` → `stop.circle` → `hourglass`) and VoiceOver
+    /// carries all four, but a sighted user cannot read "Writing .wav…". #482 left that as a
+    /// founder-visible layout call because a fourth line in this stack is exactly the height
+    /// #456 reclaimed. **That call has now been made and the answer is no.** The founder's
+    /// second red outline on 2494 (2026-08-08) covers precisely this stack and asks for
+    /// *"Usability und kompactheit … aufräumen"* — a permanent fourth line spends the height
+    /// the ask is about, and a CONDITIONAL one is the #382 class in the one stack #382 was
+    /// written for (it would insert on take start and remove itself on a take END that the
+    /// user did not trigger, six seconds after they stopped expecting it). Not deferred,
+    /// DECIDED — reopen it only with a founder ask that names the line, not by reading this
+    /// paragraph as a to-do.
     ///
     /// ⚠️ FREEZE LAW. Nothing here reads a high-frequency `@Observable` in this body:
     /// `exporter.status` changes at the start and end of a take, `hasComposed` is `@State`,

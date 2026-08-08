@@ -859,11 +859,16 @@ struct TransportPositionView: View {
     /// The loop size (shared @AppStorage with the Compose panel). Read here so the chrome
     /// always SHOWS how big the loop is + where we are inside it (founder: "optische Anzeige,
     /// je nachdem wie groß der Loop umgestellt ist"). Low-frequency — safe in this leaf.
-    // Default MUST match the semantic owner EchoelStudioView.loopBars (= .eight,
-    // founder: 8-bar produce-able phrase). @AppStorage defaults are PER-DECLARATION:
-    // on a fresh install (key unwritten) a diverging copy here showed "loop N/4"
-    // while the instrument composed 8 bars (H15-LOOPBARS).
-    @AppStorage("studio.loopBars") private var loopBars: LoopBarLength = .eight
+    // ⭐ READS `StudioDefaultKeys` SINCE #502 — it used to spell out `"studio.loopBars"` and
+    // `.eight` by hand, under a comment saying "Default MUST match the semantic owner
+    // EchoelStudioView.loopBars". That instruction was correct and unenforceable: `@AppStorage`
+    // defaults are PER DECLARATION, so on a fresh install (key unwritten) a diverging copy here
+    // showed "loop N/4" while the instrument composed 8 bars — H15-LOOPBARS, which SHIPPED.
+    // `EchoelStudioView` has read the named constant all along; this was the last hand-written
+    // copy of a decision that already had one home (#416). Now the two cannot drift, because
+    // there is only one place to change.
+    @AppStorage(StudioDefaultKeys.loopBars.key)
+    private var loopBars: LoopBarLength = StudioDefaultKeys.loopBars.value
 
     var body: some View {
         let pos = transport.position
@@ -894,6 +899,15 @@ struct TransportPositionView: View {
                     .font(EchoelTheme.font(14).monospacedDigit())
                     .foregroundStyle(transport.isPlaying ? EchoelTheme.accent : EchoelTheme.dim)
                     .lineLimit(1).minimumScaleFactor(0.7)
+                // ⭐ THIS LABEL IS LOAD-BEARING FOR A SECOND THING SINCE #502, and nothing
+                // said so until then. It is the ONLY place `loopBars` reaches the screen as a
+                // number: the Record tile used to say "Record 8 bars → send" and became
+                // icon-only with #482, whose own comment then claimed "the bar count is gone
+                // from the screen entirely" — false, because #490 had already put it here.
+                // So this is not just "where are we in the loop", it is also "how long is the
+                // loop I am about to record". Deleting or conditioning it takes BOTH.
+                // `TheBarCountHasACarrierTests` pins it together with the Record tile's
+                // spoken label, so the pair cannot drift apart unnoticed.
                 Text("loop \(barInLoop + 1)/\(bars)")
                     .font(EchoelTheme.font(10).monospacedDigit())
                     .foregroundStyle(EchoelTheme.dim)
