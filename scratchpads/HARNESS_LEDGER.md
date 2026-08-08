@@ -1322,3 +1322,26 @@ schlimmer als keiner — die nächste Session kann ihn nicht widerlegen" (CLAUDE
 sind um 0.5 herum neutral, **also um 120 BPM**. Ein ruhender Puls von 60 BPM ergibt 0.125 und
 damit rund 0.81× — nicht 1.0. Wer „bei Ruhe passiert nichts" in einen Kommentar oder eine
 Test-Erwartung schreibt, liegt um ~19 % daneben.
+
+## PLAYBOOK (2026-08-08 #478 discriminator without reading a log)
+- **PLAYBOOK: der #478-Diskriminator steht in den STEP-CONCLUSIONS, nicht im Job-Log.**
+  Solange #396 lebt, meldet `Echoelmusic CI/CD Pipeline` auf JEDEM Push `failure`, und die
+  bisher aufgeschriebene Unterscheidung — `** TEST BUILD FAILED **` gegen
+  `** TEST EXECUTE FAILED **` — verlangte, den Job-Log zu holen und zu durchsuchen. Der
+  Log ist regelmäßig 100 KB+ und sprengt das Kontextfenster; `get_job_logs` mit kleinem
+  `tail_lines` liefert nur den Post-Job-Cleanup und damit gar keinen Diskriminator.
+  **Billiger und exakt gleichwertig:** `mcp__github__actions_list` mit
+  `method: list_workflow_jobs` auf die run_id. Der Job „Build & Test (iOS)" listet seine
+  Schritte einzeln; **Schritt 9 „Build for Testing"** und **Schritt 11 „Run Tests"** tragen
+  je eine eigene `conclusion`. `Build for Testing: success` + `Run Tests: failure` IST
+  `TEST EXECUTE FAILED` (also #396, harmlos, das Bundle kompiliert nachweislich).
+  `Build for Testing: failure` IST `TEST BUILD FAILED` — und ERST DANN lohnt der Log, um
+  die zweite #478-Frage zu beantworten (nennt eine `error:`-Zeile eine Repo-Datei = mein
+  Commit, oder nur SDK/ModuleCache = Infrastruktur-Flake).
+  ⚠️ GRENZE, damit daraus keine Überdehnung wird: das ersetzt NUR die Build-gegen-Execute-
+  Frage. Ob ein EINZELNER neuer Wächter gelaufen ist (#445), steht weiterhin nur als
+  `passed`-Zeile im Log — und sein FEHLEN beweist nichts, weil die Clone-Zuteilung nicht
+  deterministisch ist. Belegt am 2026-08-08 an `3368976` (Lauf 31248024707, Job
+  93079793669): Build for Testing `success` 08:17:28→08:19:55, Run Tests `failure`
+  08:19:55→08:32:50, `list_workflow_jobs` passt vollständig in eine Antwort, der Job-Log
+  nicht.
