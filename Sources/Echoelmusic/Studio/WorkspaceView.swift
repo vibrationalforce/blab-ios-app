@@ -968,7 +968,11 @@ struct CompositionHeaderStrip: View {
     var body: some View {
         @Bindable var session = session
         return ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 12) {
+            // 8, not 12 (#502 slice 1). Every control now carries its own border, so the gap
+            // no longer has to do the separating — and 8 is what the chrome rows one band
+            // down already space at (`quickActionRow`, `quickDoorRow`). Five gaps × 4 pt back
+            // is the only width this slice GIVES; the chip padding takes more (see `labeled`).
+            HStack(spacing: 8) {
                 labeled("Genre") {
                     Picker("Genre", selection: edited($style, posts: "genre")) {
                         // Curated palette (founder 2026-07-24 "Genre is better you
@@ -1055,7 +1059,7 @@ struct CompositionHeaderStrip: View {
                                        + "international A B C, German A H C, solfège Do Re Mi, "
                                        + "or Indian sargam Sa Re Ga")
                 }
-                labeled("A4") {
+                labeled("A4", chromed: false) {
                     // Concert pitch — number-pad entry, exact to 0.01 Hz (380–500),
                     // standard 440.00. Commit posts "a4"; the studio pushes the new
                     // tuning to every voice + the roll and recomposes (the exact
@@ -1095,13 +1099,19 @@ struct CompositionHeaderStrip: View {
                     // 442.3456 Hz, which is 0.0172 cents. The number was right and the sentence
                     // attached it to the wrong event; an example is not a bound, and the bound
                     // is what the claim needs.
+                    // ⭐ `boxHeight` READS THE TOKEN since #502 slice 1 (was a literal 30).
+                    // `EchoelValueField` already paints `radius` corners, `fill` behind and
+                    // `borderStrong` around — it was always in the one format, it was just
+                    // 2 pt shorter than the format says. That 2 pt is why this row is the
+                    // ONLY `chromed: false` call site: adding the chip here would draw a
+                    // second border around a box that has one.
                     EchoelValueField(label: "", value: $session.a4Hz, range: 380...500,
                                      unit: "Hz", decimals: 2,
                                      onCommit: {
                                          NotificationCenter.default.post(
                                              name: .echoelCompositionEdited, object: "a4")
                                      },
-                                     boxWidth: 104, boxHeight: 30,
+                                     boxWidth: 104, boxHeight: EchoelTheme.controlHeight,
                                      horizontalScrub: false)
                         .accessibilityLabel("Concert pitch A4")
                 }
@@ -1127,7 +1137,12 @@ struct CompositionHeaderStrip: View {
                 SessionNamePreviewLeaf()
             }
             .padding(.horizontal, 12)
-            .padding(.vertical, 4)
+            // ⛔ `.padding(.vertical, 4)` WAS HERE AND IS DELETED (#502 slice 1), not lost.
+            // Every child now carries `.frame(minHeight: EchoelTheme.controlTapHeight)`
+            // around a `controlHeight` chip, so each one already brings 6 pt of transparent
+            // margin above and below its own paint. Keeping the padding would have stacked
+            // that on top and made the band 52 pt — a compaction slice that grew the bar by
+            // 12. Restoring it is how this slice's +4 becomes +12.
         }
         // Same `fixedSize` + `minHeight` pair as `topBar` — read that note first.
         //
@@ -1138,6 +1153,14 @@ struct CompositionHeaderStrip: View {
         // and the strip would have grown to FILL, not "grown rather than cropped". The
         // `fixedSize` is what actually bounds it; the ScrollView semantics were never the
         // thing keeping this honest.
+        //
+        // ⚠️ THE 40 STOPPED BEING THE BINDING CONSTRAINT IN #502 SLICE 1 and is kept anyway.
+        // Its children are now 44 pt tall (`labeled`'s tap floor), so the bar renders 44 and
+        // this line only guarantees it cannot COLLAPSE below 40 if every control were ever
+        // removed. `ChromeDynamicTypeTests` pins this exact spelling — the number is not
+        // raised to 44 because that would claim the floor moved when what moved is the
+        // content, and a floor that equals the content is a fixed height wearing a minimum's
+        // name (the defect #262 closed).
         .fixedSize(horizontal: false, vertical: true)
         .frame(minHeight: 40)
         .background(EchoelTheme.bg)
@@ -1145,13 +1168,85 @@ struct CompositionHeaderStrip: View {
 
     /// Caption + control, inline (chrome row — the panel's label-above form layout
     /// would double the strip's height).
+    ///
+    /// ⭐ THIS IS WHERE THE ONE CONTROL FORMAT LIVES FOR THIS BAR (#502 slice 1).
+    ///
+    /// Founder, 2026-08-08, second red outline on v10.79.377 (2494): *"Den anderen rot
+    /// umrandeten Bereich noch einmal auf Usability und kompactheit im einheitlichen Design
+    /// intelligent anordnen und aufräumen."* Measured before anything changed, this strip was
+    /// the ONE surface inside that outline with no fill, no border, no radius and no tap
+    /// floor — every other control in the band (the `EchoelIconTile` rows, the chip strip, the
+    /// transport controls, and the A4 field three lines up in this very strip) had read
+    /// `EchoelTheme.controlHeight` / `controlTapHeight` / `radius` / `borderStrong` since
+    /// #481/#483. This bar was built 2026-07-14 and simply did not take part.
+    ///
+    /// The treatment sits HERE and not at the six call sites on purpose: a format spelled once
+    /// per control is how the transport row ended up with three heights (#416/#481). A control
+    /// added later inherits it by construction; one that hand-rolls its own border is what
+    /// `TheHeaderStripWearsTheOneFormatTests` goes red on.
+    ///
+    /// ⚠️ `chromed: false` HAS EXACTLY ONE CALLER AND MUST KEEP HAVING ONE. `EchoelValueField`
+    /// already paints the identical box (same `radius`, same `fill`, same `borderStrong` —
+    /// read its `valueBox`), so the A4 row would get a second border drawn around its first.
+    /// It is not an opt-out from the format; it is the row that already had it.
+    ///
+    /// ⚠️ THE TAP FLOOR IS DELIBERATELY OUTSIDE THAT CONDITION. A4 is a control too, and its
+    /// 32 pt box is as far under the 44 pt HIG floor (#113) as the pickers were. Folding it
+    /// into the `chromed` branch would look tidier and would silently exempt the one row in
+    /// this bar that a mis-tap actually costs something on (it retunes every voice and is
+    /// persisted — see the `horizontalScrub: false` block above).
+    ///
+    /// ⚠️ NO `.contentShape` HERE, AND THAT IS MEASURED RATHER THAN FORGOTTEN.
+    /// `EchoelIconTile` needs one because a `.plain` `Button`'s hit area is its label's
+    /// CONTENT shape, so a transparent frame around it is not tappable. Every control this
+    /// helper wraps is a `Picker(.menu)` or an `EchoelValueField`; a Menu's bounds ARE its
+    /// label's LAYOUT size, which the frame below sets. `EchoelIconTile`'s own note says the
+    /// modifier is "genuinely redundant for the `Menu`". Adding one anyway would be a
+    /// modifier nobody could later prove was load-bearing.
+    ///
+    /// ⚠️ HEIGHT COST, stated because compactness was half the ask: the tallest child goes
+    /// from ~22 pt to 44, and the strip's own `.padding(.vertical, 4)` is dropped in the same
+    /// slice because the 44 pt frame already leaves 6 pt of margin around the 32 pt chip. Net
+    /// band height 40 → 44, i.e. **+4 pt**, which is what `PLAN_TIDY_THE_INSTRUMENT_BAND`
+    /// priced. `minHeight: 40` stays on the bar as a FLOOR (it is no longer the binding
+    /// constraint) — `ChromeDynamicTypeTests` pins that spelling and it is still true.
+    ///
+    /// ⚠️ WIDTH COST, the honest other half: 12 pt of horizontal padding on each of six chips
+    /// is +144 pt, against −20 pt from the row gap dropping 12 → 8. Net ≈ +124 pt of scroll in
+    /// a bar that already scrolls horizontally, so nothing clips — it is further to scroll,
+    /// not less to see. 12 is not a free choice either: it is what `EchoelValueField` pads,
+    /// and the A4 box sits in this same row.
+    ///
+    /// ⚠️ AND `minHeight`, NEVER `height` — `EchoelTheme`'s own doc draws that line: these
+    /// controls carry TEXT, and a hard height re-opens the accessibility-size overflow #262
+    /// closed. The chip grows with the type; only its floor is the token.
     private func labeled<Content: View>(_ caption: String,
+                                        chromed: Bool = true,
                                         @ViewBuilder content: () -> Content) -> some View {
         HStack(spacing: 4) {
             Text(caption)
                 .font(EchoelTheme.font(11))
                 .foregroundStyle(EchoelTheme.dim)
             content()
+                .padding(.horizontal, chromed ? 12 : 0)
+                .padding(.vertical, chromed ? 3 : 0)
+                .frame(minHeight: chromed ? EchoelTheme.controlHeight : nil)
+                .background {
+                    if chromed {
+                        RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .fill(EchoelTheme.fill)
+                    }
+                }
+                .overlay {
+                    if chromed {
+                        RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1)
+                    }
+                }
+                // AFTER the paint, the order `EchoelIconTile` and the header tiles both use.
+                // Before it, the rounded rect would be PAINTED 44 tall — the picture grows and
+                // the hit area does not, which is the opposite of the #113 idiom.
+                .frame(minHeight: EchoelTheme.controlTapHeight)
         }
     }
 

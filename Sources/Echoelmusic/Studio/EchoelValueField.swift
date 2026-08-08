@@ -805,7 +805,9 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         // opaque `.background(EchoelTheme.bg)` painting over the overspill, plus collision
         // inside the bar. The wording matters — "clipped" sends the next reader looking for
         // a `.clipped()` that does not exist.) The chrome strip is the case that made it
-        // visible (its A4 field is 104×30 inside a bar that now grows with Dynamic Type), but
+        // visible (its A4 field is 104 × `EchoelTheme.controlHeight` inside a bar that now
+        // grows with Dynamic Type — it was a literal 30 until #502 pointed it at the token
+        // every other control in that band already reads), but
         // every dense caller carried the same latent overflow. Nothing shrinks: at normal
         // sizes the content is smaller than `boxHeight`, so the frame still decides.
         .frame(minHeight: boxHeight)
