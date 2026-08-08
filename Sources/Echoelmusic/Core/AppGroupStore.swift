@@ -5,10 +5,18 @@
 // app's Application Support directory when the App Group is unavailable (e.g.
 // SwiftPM unit tests, Linux CI), so callers never have to special-case it.
 //
-// Pure Foundation, cross-platform. Absence/write failures surface as nil/false so
-// callers decide how loud to be; the ONE exception is a present-but-undecodable read,
-// which is logged as a data-loss signal via the `#if canImport(os)`-guarded EchoelLogger
-// (cross-platform-safe — Linux degrades to a no-op).
+// Pure Foundation, cross-platform. An ABSENT file stays silent — that is the ordinary
+// "nothing saved yet" case. Everything that is actually a DATA-LOSS signal is logged via
+// the `#if canImport(os)`-guarded EchoelLogger (cross-platform-safe — Linux degrades to a
+// no-op): a present-but-undecodable read, and — since #514 — every failed write.
+//
+// ⛔ This paragraph used to read "write failures surface as false so callers decide how
+// loud to be". That described an intention, not the code: measured across `Sources/`,
+// 12 call sites take that `Bool` and ZERO look at it. The sentence made a silence that
+// nobody had chosen look like a decision somebody had made — the most expensive kind of
+// wrong comment in this repo, because it cannot be falsified by re-measuring a number.
+// The `Bool` is unchanged and a caller may still escalate; the store no longer depends
+// on one doing so.
 
 import Foundation
 
@@ -126,12 +134,56 @@ public struct AppGroupStore: Sendable {
     }
 
     /// Encode and atomically write `value` under `name`. Returns success.
+    ///
+    /// ⛔ #514 — A FAILED WRITE USED TO BE COMPLETELY SILENT, while a failed READ has been
+    /// logged since the store existed. The header above states the intended design —
+    /// *"write failures surface as false so callers decide how loud to be"* — and the other
+    /// half of that contract was never built: MEASURED across `Sources/`, there are **12**
+    /// `store.save(…)` call sites and **ZERO** inspect the `Bool`. Ten rely on
+    /// `@discardableResult`, two write `_ =` explicitly. So the delegation was to nobody.
+    ///
+    /// ⭐ WHY THAT IS WORSE THAN THE READ CASE, not merely symmetrical. A failed read falls
+    /// back to an empty document, which the user SEES. A failed write leaves the previous
+    /// file intact and the in-memory list already updated — the library looks correct for
+    /// the rest of the session and the loss only appears on the next launch, by which time
+    /// nothing connects it to the save. The read path's own reason applies with more force:
+    /// "without telemetry a user losing their whole song produces zero signal".
+    ///
+    /// ⚠️ LOGGING DOES NOT REPLACE THE CONTRACT — the `Bool` is unchanged and a caller may
+    /// still escalate. This adds a telemetry FLOOR under a promise nobody kept; it does not
+    /// decide how loud the UI should be, which is a founder-surface question (#515).
+    ///
+    /// ⭐ THE ENCODE BRANCH IS THE ONE THAT CHANGED SHAPE, and that is the substantive half.
+    /// It was `try? encoder.encode(value)`, which THROWS THE ERROR AWAY — so even a caller
+    /// who did check the `Bool` could not have told "the disk is full" from "a NaN got into
+    /// your song". `JSONEncoder`'s default `nonConformingFloatEncodingStrategy` is `.throw`
+    /// (#512), and `Project` carries `bpm`, `a4Hz`, a whole `SynthPatch` and every `Note`
+    /// through exactly this encoder. #512 closed that hole for the ONE payload that crosses
+    /// the network; here the same class costs a saved song instead of a stream, and the
+    /// error's `codingPath` names the field — which is the whole reason to keep it.
+    ///
+    /// ⚠️ THE URL BRANCH CANNOT FIRE TODAY, said plainly rather than implied by a log line
+    /// that will never print: `directory()` is declared `-> URL?` but every path assigns a
+    /// non-optional `base` (App Group → Application Support → `temporaryDirectory`) and
+    /// returns it, so `fileURL` is never `nil`. The branch is kept because the signature is
+    /// Optional and a later change could make it real; it is logged for the same reason.
     @discardableResult
     public func save<T: Encodable>(_ value: T, name: String) -> Bool {
-        guard let url = fileURL(name) else { return false }
+        guard let url = fileURL(name) else {
+            log.log(.error, category: .system,
+                    "AppGroupStore: cannot resolve a container URL for \(name).json — not saved")
+            return false
+        }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
-        guard let data = try? encoder.encode(value) else { return false }
+        let data: Data
+        do {
+            data = try encoder.encode(value)
+        } catch {
+            log.log(.error, category: .system,
+                    "AppGroupStore: \(name).json failed to ENCODE as \(T.self) — \(error)")
+            return false
+        }
         do {
             // .completeFileProtection — the App Group container is shared with the
             // AUv3/widget/watch processes; encrypt at rest so session/bio/state
@@ -139,6 +191,8 @@ public struct AppGroupStore: Sendable {
             try data.write(to: url, options: [.atomic, .completeFileProtection])
             return true
         } catch {
+            log.log(.error, category: .system,
+                    "AppGroupStore: \(name).json failed to WRITE — \(error)")
             return false
         }
     }
