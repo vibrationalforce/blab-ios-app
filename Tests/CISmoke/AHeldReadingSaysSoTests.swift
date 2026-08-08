@@ -119,8 +119,8 @@ final class AHeldReadingSaysSoTests: XCTestCase {
             XCTAssertTrue(r.isMeasured,
                           "\(channel.name) still carries a measurement — age does not unmeasure it")
             XCTAssertTrue(r.isHeld,
-                          "\(channel.name) is 10 s past a 6 s window; `usableBio()`已 rejects this "
-                          + "frame, so the readout must stop asserting it is arriving")
+                          "\(channel.name) is 10 s past a 6 s window; `usableBio()` already rejects "
+                          + "this frame, so the readout must stop asserting it is arriving")
         }
     }
 
