@@ -41,9 +41,15 @@
 // and is continuous by construction. The "lock captures the number you see" invariant is
 // unchanged — it got STRONGER, because the number you see is now the one the clock runs at.
 // HOME (founder 2026-07-15 "Das soll da oben hin"): the `compact` variant lives in the
-// transport bar next to Play (word labels dropped to fit); the full variant is available
-// for panels. This is THE one musical-tempo control — the pulse monitor (live rate) stays
-// separately in the brand header ("beide behalten").
+// instrument's transport row next to Play (word labels dropped to fit). This is THE one
+// musical-tempo control — the pulse monitor (live rate) stays separately in the brand
+// header ("beide behalten").
+//
+// ⛔ THIS SENTENCE ENDED "the full variant is available for panels", and no panel has ever
+// built one: the repo has exactly ONE construction site and it passes `compact: true`.
+// "Available" was true of the TYPE and false of the APP, which is the reading that matters
+// to a session deciding whether the wide arm is load-bearing. Since #504 neither parameter
+// carries a default, so the next call site has to say which variant it wants out loud.
 //
 // RENDER SAFETY (freeze rule): this view observes TWO high-frequency sources, not one.
 // `cameraRPPG.displayBPM` updates ~10 Hz (the accent-tint flag), and since #491
@@ -72,13 +78,38 @@ struct BodyTempoField: View {
     @AppStorage("studio.lockedBPM") private var lockedBPM: Double = 70
 
     /// Parent hook (recompose after a lock change) — called on lock/unlock/edit.
-    var onLockChanged: () -> Void = {}
+    ///
+    /// ⛔ NO DEFAULT, DELIBERATELY (#440/#443). This read `= {}`, and
+    /// `TempoLockAlwaysAsksForARecomposeTests` already wrote the hole down as one a text scan
+    /// cannot close: "a second `BodyTempoField(compact:)` built without the argument would
+    /// pass this guard and post nothing — the same defect, one level of indirection out."
+    /// A no-op default cannot be caught by a scan because it appears in no diff; a REQUIRED
+    /// argument is caught by the compiler at the call site that forgets it. The one call site
+    /// already passes it, so removing the default changes nothing that ships.
+    var onLockChanged: () -> Void
 
     /// COMPACT mode for the top chrome (founder 2026-07-15 "Das soll da oben hin",
     /// beide behalten): drops the "Tempo"/"BPM" word labels so the field fits the
     /// transport bar next to Play. Same 4-decimal value + lock, just narrower —
     /// still the one musical-tempo control (no second widget).
-    var compact: Bool = false
+    ///
+    /// ⛔ NO DEFAULT EITHER, AND HERE IT HID SOMETHING BIGGER. This read `var compact: Bool =
+    /// false`, and the ONE construction site in the whole repo passes `compact: true`
+    /// (`EchoelStudioView.startControlRow`, since #411). So `false` had no writer — and every
+    /// non-compact arm of the three ternaries below (`spacing: compact ? 6 : 10`, the "Tempo"
+    /// word label, `width: compact ? 30 : 34`) is unreachable while looking alive. Measured,
+    /// not assumed: `git grep -n "BodyTempoField(" -- .` finds exactly one construction, no
+    /// preview, no test constructs it.
+    ///
+    /// ⚠️ THE WIDE ARM IS NOT DELETED, AND THAT IS A DECISION. Three guards in the blocking
+    /// bundle needle those ternaries verbatim (`OneChromeControlHeightTests`,
+    /// `TapTargetFloorTests`, `TheTempoBoxShowsTheClockTests` — the last expects TWO
+    /// accent-tint reads, one per arm). Removing the arm is a multi-file change to a control
+    /// the founder marked twice in one week (#455, #491), not a cleanup. What this line does
+    /// is smaller and sound: it stops the dead arm from being reachable-looking BY DEFAULT.
+    /// The header prose above once said the full variant "is available for panels" — no panel
+    /// uses it, and that sentence is corrected there.
+    var compact: Bool
 
     /// Is a trustworthy pulse currently driving the clock?
     ///
