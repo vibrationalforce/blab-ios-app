@@ -1426,7 +1426,30 @@ struct EchoelStudioView: View {
             Button("Save") { saveProject() }
             Button("Cancel", role: .cancel) {}
         } message: {
-            Text("Saves the current sound, key, tempo and generated loop.")
+            // #495 — THE PROMISE HAD TO CATCH UP WITH THE SAVE. "the current sound, key, tempo
+            // and generated loop" was written before `Project` carried either tuning axis or the
+            // transport mode, and it stayed put through #493 (tone system) and #494 (Flow/Loop) —
+            // so the app was quietly saving MORE than it admitted, on the one door that tells the
+            // user what a save is. Under-claiming is the friendlier failure, and it is still a
+            // false description: a player in Maqām Rāst at A=442 had no way to know that came
+            // back. Everything named here is read straight off `currentProject()`.
+            //
+            // The second sentence is the part that earns its length: the mixer levels live in
+            // `MixerStore`, which persists each role straight into `UserDefaults` — a console
+            // setting, not a take property — and only the FX CHARACTER travels (`open(_:)`
+            // re-stamps every chain from `fxCharacter`), so hand-dialled FX does not. Naming the
+            // two omissions costs one line and prevents the far worse discovery that a saved
+            // take came back sounding different.
+            //
+            // ⛔ THE FIRST DRAFT OF THIS COMMENT SAID THE MIXER LEVELS ARE `@AppStorage`, in
+            // both places it explains them. They are not — `MixerStore.bass/pad/lead/drums` are
+            // plain `Float`s whose `didSet` calls `persist(_:_:)`. The SUBSTANCE survives (same
+            // defaults database, same global scope, still absent from `Project`'s CodingKeys),
+            // but the mechanism was named from the shape of its neighbours instead of looked up
+            // — the #489 class, in the slice whose whole subject is a description that stopped
+            // matching what it describes.
+            Text("Saves the loop with its genre, key, tuning, tempo, Flow/Loop mode, sound and "
+                 + "FX character. Your mixer levels and hand-dialled FX stay with the instrument.")
         }
         .alert("Save mood", isPresented: $showSaveMoodAs) {
             TextField("Name", text: $moodAsName)
@@ -9339,8 +9362,21 @@ struct EchoelStudioView: View {
     /// So the recovery returns one bar in eight — whichever was staged at the moment of the tap
     /// — and `pianoRoll.load(_:)` clears `arrangementBars`, so the cycling does not come back
     /// either. Hand-dialled FX is not in it at all (`Project` carries only `fxCharacterRaw`,
-    /// and the loop below re-stamps every chain from the character), nor are `presetIndex` and
-    /// `lockedBPM`. Persisting the raw bars is the real answer and is its own task, already
+    /// and the loop below re-stamps every chain from the character), and neither are the mixer
+    /// levels — `MixerStore` persists each role straight into `UserDefaults`, so they are a
+    /// console setting rather than a take property and appear in no `Project` CodingKey.
+    ///
+    /// ⛔ THIS CLAUSE NAMED `presetIndex` AND `lockedBPM` AS THINGS THAT DO NOT COME BACK, and
+    /// both were wrong — checked while writing #495, against lines this same function contains.
+    /// `lockedBPM = loadedTempo` runs a few statements down, so the locked tempo IS restored
+    /// (derived from the take's `bpm`, which is what the lock wrote into the clock in the first
+    /// place); and `presetIndex = -1` is an explicit, deliberate write ("a saved patch is
+    /// custom"), not an omission. The distinction matters more since #494: now that the LOCK
+    /// itself travels, a reader who believed this clause would conclude the lock's TEMPO does
+    /// not — and might "restore" a number that is already there, from a field `Project` has
+    /// never had. A named omission that is not one is worse than no list.
+    ///
+    /// Persisting the raw bars is the real answer and is its own task, already
     /// named at the re-seed site. None of this is new — manual Save has the same hole — but
     /// this is the slice that markets the slot as a way back, so it is the slice that owes the
     /// limit.

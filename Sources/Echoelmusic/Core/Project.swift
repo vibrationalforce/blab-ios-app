@@ -147,9 +147,10 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         // compiling untouched — and that is exactly the failure mode #440/#443 paid for
         // twice: an argument no call site writes appears in no diff, so the field would read
         // as "wired" while every save wrote nothing. Counted with `git grep -n "Project("` over
-        // the WHOLE repo (#494) there are SEVEN call sites: `EchoelStudioView.currentProject()`,
+        // the WHOLE repo (#495) there are EIGHT call sites: `EchoelStudioView.currentProject()`,
         // `AutosaveSlotTests`, `TheToneSystemTravelsWithTheTakeTests`,
-        // `TheModeTravelsWithTheTakeTests`, `ColabPayloadTests`, and TWO in `ProjectStoreTests`.
+        // `TheModeTravelsWithTheTakeTests`, `TheSavePromiseMatchesTheSaveTests`,
+        // `ColabPayloadTests`, and TWO in `ProjectStoreTests`.
         //
         // ⛔ THE COUNT HAS NOW BEEN WRONG TWICE, AND THE SECOND MISS BROKE A BUILD. The first
         // version said TWO — it named the two I had edited and omitted `ColabPayloadTests`. The

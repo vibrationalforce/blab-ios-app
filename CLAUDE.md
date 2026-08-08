@@ -304,8 +304,73 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**207** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheModeTravelsWithTheTakeTests.swift` (#494 — der Zwilling von
+                          `Tests/CISmoke` (**208** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheSavePromiseMatchesTheSaveTests.swift` (#495 — der DRITTE
+                          Wächter dieser Kette über dem gespeicherten Take und der erste, dessen Subjekt
+                          nicht die DATEI ist, sondern der SATZ, der sie beschreibt. Die Meldung der
+                          Speichern-Tür lautete „Saves the current sound, key, tempo and generated loop."
+                          — wahr, als sie geschrieben wurde, und seither still überholt: `Project` bekam
+                          `a4Hz`, dann `toneSystemID` (#493), dann einen Restore für `modeRaw` (#494), und
+                          die Kopie bewegte sich nie mit. Die App speicherte also MEHR, als sie zugab, auf
+                          der einen Fläche, deren ganzer Auftrag es ist, dem Nutzer zu sagen, WAS ein
+                          Speichern ist.
+                          ⭐ **UNTERTREIBEN IST DIE FREUNDLICHE RICHTUNG UND TROTZDEM EINE FALSCHE
+                          BESCHREIBUNG — das ist der ganze Grund, warum es eine Scheibe gibt.** Nichts war
+                          kaputt, nichts klang falsch. Falsch war, dass man mit dem Satz nichts entscheiden
+                          konnte — und wer entscheidet „kann ich das Instrument auf 12-TET stellen und
+                          meinen Rāst-Loop zurückbekommen", ist genau der, der ihn liest. Dieses Repo hat
+                          die GEGENrichtung mehrfach bezahlt (#435s Bildunterschrift versprach Stille,
+                          #480s VoiceOver-Hinweis versprach Slider, #491s Kasten versprach einen Puls); das
+                          Gesetz schneidet in beide Richtungen.
+                          ⭐ **DIE GEGENGEWICHTE SIND DER INHALT, und sie sind die #343-Form:** ein
+                          Wächter, der nur die neue Formulierung behauptet, bleibt grün auf einem Baum, der
+                          den SATZ behalten und die FÄHIGKEIT verloren hat — Kopie, die das Beschriebene
+                          überlebt, ist schlimmer als Kopie, die ihm hinterherhinkt, weil die Worte
+                          weiterhin maßgeblich klingen. Deshalb sind die Draht-Behauptungen (encodieren)
+                          und der `currentProject()`-Scan absichtlich komplementär: das Encodieren zeigt,
+                          dass `Project` das Feld TRAGEN kann, der Scan, dass die Speichern-Tür es
+                          wirklich FÜLLT. Jede Hälfte allein ist von einem Take erfüllbar, der nichts sagt.
+                          ⚠️ **Und die Grenze zuerst: die KOPIE-Hälfte ist ein QUELLTEXT-SCAN.** Der Alert
+                          liegt in einem `private` Mitglied einer Ansicht, die kein Test dieses Bündels
+                          instanziieren kann — dass der Satz RENDERT, dass er auf einem 360-pt-Telefon in
+                          den Alert passt und dass VoiceOver ihn gut liest, sind drei Geräteproben und alle
+                          drei offen. Real getrieben ist der DRAHT: `Project` ist `public` und reines
+                          `Codable`, also laufen „alles Genannte ist wirklich auf dem Take" und „die zwei
+                          genannten Auslassungen fehlen wirklich" Ende zu Ende durch den ausgelieferten
+                          Encoder.
+                          ⚠️ EHRLICHE BENOTUNG gegen den Vor-#495-Baum, transkribiert statt behauptet
+                          (Python-Nachbau der Extraktion, gegen `git show f92cb10:` und den Arbeitsbaum
+                          gefahren): **DREI** Behauptungen sind Regressionen und alle drei sind die Kopie —
+                          und zwei davon sind die positive und die negative Hälfte EINER Ersetzung, so
+                          gesagt statt als zwei Befunde gezählt (#433). Die übrigen VIER sind beidseitig
+                          grün und sind Gegengewichte gegen die naheliegenden späteren Aufräumarbeiten: den
+                          Satz wieder kürzen, die Auslassungs-Klausel als „Rauschen" streichen, oder ein
+                          Mixer-Feld zu `Project` hinzufügen, ohne die Kopie anzufassen.
+                          ⚠️ `SourceText.codeOnly` ist hier PROPHYLAKTISCH und das ist GEMESSEN statt
+                          angenommen (#484 und #485 mussten die stärkere Behauptung je einmal zurücknehmen,
+                          #486 zweimal): roh gegen gestreift unterscheiden sich **0 von 5** Nadel-Verdikten
+                          auf dieser Datei. Es bleibt, weil #453 EINE Definition für das ganze blockierende
+                          Bündel geschaffen hat — und es hört in dem Augenblick auf, prophylaktisch zu
+                          sein, in dem jemand hier eine Rücknahme schreibt, die den alten Satz wörtlich
+                          zitiert; genau so sind #486 und #491 tragend geworden.
+                          ⛔ **UND DIE SCHEIBE HAT IHRE EIGENE BEGRÜNDUNG EINMAL FALSCH GESCHRIEBEN, an
+                          zwei Stellen gleichzeitig:** beide neuen Kommentare nannten die Mixer-Pegel
+                          `@AppStorage`. Sind sie nicht — `MixerStore.bass/pad/lead/drums` sind schlichte
+                          `Float`s, deren `didSet` `persist(_:_:)` ruft. Die SUBSTANZ überlebt (dieselbe
+                          Defaults-Datenbank, derselbe globale Geltungsbereich, weiterhin in keinem
+                          `Project`-CodingKey), der MECHANISMUS war aus der Form der Nachbarn geraten statt
+                          nachgeschlagen — die #489-Klasse, in der Scheibe, deren ganzes Thema eine
+                          Beschreibung ist, die aufgehört hat zu beschreiben.
+                          ⚠️ Nebenbefund, im selben Commit erledigt: die Datei fügt eine ACHTE
+                          `Project.init`-Aufrufstelle hinzu, und der Zählstand-Kommentar an der
+                          Deklaration — den #494 gerade erst von VIER auf SIEBEN korrigiert hat — ist
+                          mitgezogen. Genau die Disziplin, die #493s Build-Bruch gekostet hat.
+                          ⛔ Ebenfalls korrigiert, weil sie seit #494 aktiv irreführt: die
+                          „ehrliche Grenze"-Klausel in `open(_:)` nannte `presetIndex` und `lockedBPM` als
+                          Dinge, die NICHT zurückkommen. Beide falsch — `lockedBPM = loadedTempo` steht ein
+                          paar Anweisungen tiefer, und `presetIndex = -1` ist ein absichtlicher Schreibakt.
+                          Eine benannte Auslassung, die keine ist, ist schlimmer als gar keine Liste),
+                          davor **207** nach `TheModeTravelsWithTheTakeTests.swift` (#494 — der Zwilling von
                           #493, EIN Feld weiter, und die zwei unterscheiden sich in genau der Weise, die
                           zählt. Dort musste das Feld erst ANGELEGT werden; hier lag es die ganze Zeit auf
                           der Leitung — `currentProject()` stampt `ComposerMode(locked: lockBPM).rawValue`
@@ -4169,7 +4234,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSECHSUNDSECHZIG FRÜHERE Stände in zwölf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 207 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTSIEBENUNDSECHZIG FRÜHERE Stände in zwölf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 208 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
