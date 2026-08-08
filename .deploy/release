@@ -1,4 +1,4 @@
-build: v10.79.381 — Drei Türen, die schwiegen: ein Mitspieler, der gegangen ist und stehenblieb; ein Teilen-Knopf, der nichts sagte; und eine Datei, die leer ankam und nach Erfolg aussah
+build: v10.79.382 — Ein Take, der von jemand anderem kommt: die Import-Tür sagt endlich, was sie nicht lesen konnte, und ein Take trägt den Namen, unter dem er gemacht wurde
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,109 +6,114 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.380 (Build 2497).
+  Der Vorgänger auf Deinem Gerät ist 10.79.381 (Build 2498).
 
-  Dieser Build hat EIN Thema, und es ist nicht geplant worden — es hat sich beim Aufräumen
-  gezeigt: **drei Stellen, an denen die App etwas nicht sagt.** Einmal, weil sie einem
-  Mitspieler glaubt statt der Verbindung; einmal, weil ein Knopf einfach zurückkehrt; und
-  einmal — die schlimmste Form — weil sie eine Datei erfindet, die wie Erfolg aussieht.
+  Dieser Build hat ZWEI Punkte und EIN Thema: **ein Take, der nicht von Dir kommt.** 381
+  hat die Sende-Seite repariert (der Teilen-Knopf erfindet keine leere Datei mehr). Das
+  hier ist die Empfangs-Seite — und die zweite Hälfte ist ehrlicher aufgeschrieben als sie
+  sich anhört, deshalb steht die Reichweite dort ganz oben statt am Ende.
 
-  ── 1. EIN MITSPIELER, DER GEGANGEN IST, BLIEB AUF DEM SCHIRM ─────────────
+  ── 1. DIE IMPORT-TÜR SAGT ENDLICH, WAS SIE NICHT LESEN KONNTE ────────────
 
-  Wenn ein Telefon Bio-Daten schickt, liefert das System den ABSENDER gleich mit —
-  authentifiziert, von der Verbindung selbst. Echoel hat stattdessen den Namen benutzt,
-  den der Absender IN die Nachricht hineinschreibt.
+  Eine Datei auswählen, die keine Echoel-Session ist (oder eine aus einem neueren Build,
+  die ein Feld trägt, das dieser nicht kennt) — und das Blatt schloss sich einfach. Die
+  Bibliothek unverändert, keine Meldung, nichts. Die einzige verfügbare Lesart ist „ich
+  muss falsch getippt haben".
 
-  ⭐ Der Grund, warum das eine eigene Scheibe wert war, ist NICHT „jemand könnte über
-  seinen Namen lügen". Es ist die Aufräum-Seite: das Trennen räumt nach dem Namen der
-  VERBINDUNG auf. Standen die zwei Namen nicht auf demselben Wert, wurde die Zeile beim
-  Trennen nie geräumt — **ein Mitspieler, der den Raum verlassen hat, behielt seine Zeile
-  für den Rest der Sitzung.** Genau die Eigenschaft, die 379 eingebaut hat („ein still
-  gewordener Mitspieler sieht nicht mehr lebendig aus"), ausgehebelt über den SCHLÜSSEL
-  statt über den Zeitstempel — deshalb konnte die Frische-Prüfung von 379 es nicht sehen.
-  Die Messung in dieser Zeile war echt frisch; es war die ZEILE, die es nicht geben durfte.
+  ⭐ Der Aufhänger ist der unangenehme Teil: **381s eigener Quelltext behauptete, diese
+  Meldung existiere.** Dort steht wörtlich, eine leere Freigabe tauche „auf dem Gerät einer
+  ANDEREN PERSON auf, Tage später, als ‚das ist keine gültige Echoel-Session'". Diesen Satz
+  hat die App nie gedruckt. Er stand in zwei Kommentaren und nirgends sonst; die eine
+  Aufrufstelle verwarf den Rückgabewert und ignorierte den Fehlschlag-Zweig vollständig.
+  Eine Reparatur, die sich auf eine Meldung beruft, die es nicht gibt, ist eine halbe.
 
-  ⛔ Und die Reichweite zuerst, damit das nicht mehr verspricht als es tut: **das
-  repariert die AUTORITÄT, nicht die IDENTITÄT.** Der Verbindungsname kommt von iOS und
-  ist seit iOS 16 ohne eine besondere Berechtigung nur noch das MODELL („iPhone") —
-  Echoel fordert diese Berechtigung nicht an. **Drei iPhones in einem Raum fallen
-  weiterhin in EINE Zeile zusammen.** Das ist eine offene Frage an Dich (unten), keine
-  behobene Sache.
+  ⚠ Und die Meldung NENNT das Feld, wo es eines gibt, und erfindet keins, wo es keins gibt.
+  „Das ist gar keine Echoel-Session" (die Bytes waren nie ein Dokument, es gibt kein Feld),
+  „das ist eine, aber aus einem Build, der ein Feld schreibt, das dieser nicht lesen kann"
+  (Feldname wird genannt) und „die Datei ließ sich nicht von der Platte lesen" (Rechte,
+  gelöschter iCloud-Platzhalter) sind drei verschiedene Probleme mit drei verschiedenen
+  Antworten. Sie alle auf ein stummes Nichts zu falten war der Defekt.
 
-  ── 2. „SESSION TEILEN" KONNTE SICHTBAR NICHTS TUN ────────────────────────
+  ── 2. EIN TAKE TRÄGT DEN NAMEN, UNTER DEM ER GEMACHT WURDE ───────────────
 
-  Der Teilen-Knopf in Live Colabo hatte drei Ausgänge und nur zwei davon sagten etwas
-  („Keine Mitspieler verbunden", „Teilen fehlgeschlagen"). Der dritte kehrte einfach
-  zurück. Auf der einen Fläche, deren Statuszeile der ganze Rückkanal ist.
+  ⛔ **DIE REICHWEITE ZUERST, weil sie entscheidet, wie der Rest zu lesen ist: Du wirst
+  davon heute NICHTS sehen.** Der Grund steht in Punkt 3.
 
-  ⭐ Und ausgerechnet der stumme Ausgang ist der EINZIGE, den ein gewöhnlicher Tipp
-  erreichen kann: der Knopf ist ohne Mitspieler ohnehin deaktiviert, und der
-  Transport-Ausgang braucht einen echten Netzfehler. Der stumme braucht nur eine einzige
-  unschreibbare Zahl — und ein Projekt trägt Tempo, Kammerton, einen ganzen Klang, jede
-  Note und (seit 371) einen ganzen Roh-Take durch genau diesen Kodierer.
+  Jeder Take trägt seit es dieses Speicherformat gibt einen Künstler-Stempel — kodiert,
+  dekodiert, sauber durch jede Datei gereist. **Und nichts hat ihn je zurückgelesen.** Kein
+  einziger Ort in der App. Ein Feld, das perfekt rundreist und nie gelesen wird, ist für
+  jede Persistenz-Prüfung unsichtbar; genau deshalb hat es niemand bemerkt.
 
-  Das ist DIESELBE Ursache wie Punkt 2 des letzten Builds, nur an der dritten Tür. 379
-  hat sie am Speichern behoben, 378 am Bio-Stream. Hier ist die letzte.
+  Die Bibliotheks-Zeile trägt jetzt eine dritte Zeile „by <Name>" — und nur dann, wenn der
+  Stempel NICHT Dein eigener ist. Deine eigenen Takes bleiben still. Ein leerer Stempel
+  (jede Datei, die vor diesem Feld geschrieben wurde) erfindet KEINEN Namen: abwesend ist
+  nicht Standard, und den Marken-Namen dort einzusetzen hieße, den Take eines Fremden
+  diesem Gerät zuzuschreiben.
 
-  ── 3. UND EINE DATEI, DIE LEER ANKAM UND WIE ERFOLG AUSSAH ───────────────
+  ⚠ Die Formulierung ist absichtlich neutral („by Mira"), nicht „importiert von". Wie ein
+  Take angekommen ist, geht die Zeile nichts an — sie sagt, wer ihn gemacht hat.
 
-  Das ist der Befund dieses Builds, der mir am wenigsten gefällt. Der Teilen-Pfeil in
-  JEDER Zeile Deiner Bibliothek endete auf „versuch zu kodieren, und wenn es scheitert,
-  nimm eben NULL BYTES".
+  ── 3. WARUM PUNKT 2 HEUTE AUF NICHTS RENDERT ─────────────────────────────
 
-  ⭐ Null Bytes zurückzugeben ist für das System kein Fehlschlag. **Das Teilen-Blatt geht
-  auf, die Datei trägt den echten Namen Deines Takes, und sie wandert los.** Du erfährst
-  nichts. Der Fehler taucht Tage später auf dem Gerät von jemand ANDEREM auf, als „das ist
-  keine gültige Echoel-Session". Ein erfundenes Artefakt, das nach Erfolg aussieht, ist
-  schlimmer als ein Knopf, der sichtbar nichts tut — Punkt 2 war der harmlosere Fall.
+  **Es gibt in der ganzen App keine Stelle, an der Du Dir einen Namen geben kannst.** Der
+  Künstlername existiert als gespeicherter Wert, er wird beim Speichern eines Takes
+  gestempelt, er reist mit — aber die eine Codezeile, die ihn nach einer Änderung sichern
+  würde, kann gar nicht feuern, weil es keine Änderung gibt. Jedes Gerät meldet damit
+  denselben Voreinstellungs-Namen `E~`, jeder Take ist mit `E~` gestempelt, und die neue
+  Zeile bleibt korrekterweise stumm — auch bei einem Take, den Du von jemand anderem
+  bekommst.
 
-  Erreichbar, nicht theoretisch: ein Take mit einer unschreibbaren Zahl bleibt nach einem
-  fehlgeschlagenen Speichern in der Bibliothek stehen, sieht aus wie jede andere Zeile,
-  und sein Teilen-Pfeil erzeugt die leere Datei.
+  ⭐ Trotzdem gebaut, und der Grund gehört hierher: die ENTSCHEIDUNG ist dieselbe, ob die
+  Tür existiert oder nicht, und eine später eingebaute Tür darf nicht auf einer Fläche
+  landen, die diese Frage nie beantwortet hat. Ein Wächter im blockierenden Testbündel hält
+  die Abwesenheit fest und wird an dem Tag ROT, an dem die Tür kommt — mit einer
+  Fehlermeldung, die jede Stelle namentlich nennt, die dann mitgezogen werden muss.
 
-  ⭐ Die zweite Hälfte war eine doppelte Entscheidung, die in BEIDE Richtungen
-  auseinanderlief. „Ein Projekt zum Teilen kodieren" stand zweimal im Code: einmal
-  ordentlich formatiert und ausdrücklich als „für Menschen lesbar" beschrieben — **mit
-  null Aufrufern** —, und einmal roh, in dem Pfad, den Du wirklich erreichst. Die
-  ausgelieferte Datei war also weder lesbar formatiert noch in stabiler Reihenfolge, und
-  das Versprechen stand an der Stelle, die niemand ruft. Jetzt gibt es EINE Definition,
-  und sie meldet den Fehlschlag samt betroffenem FELD, statt ihn zu verschlucken.
+  ⭐ Und die Tür ist klein, weil ihre HÄLFTE schon dasteht: in „Save & Export" gibt es
+  bereits ein Feld für den Ort. Der Künstlername ist die andere Hälfte desselben
+  Datei-Namens-Bausteins und fehlt aus demselben Grund. Wenn er kommt, repariert er ZWEI
+  Dinge gleichzeitig — die Gutschrift wird erreichbar UND Deine Export-Dateinamen tragen
+  endlich Deinen Namen statt `E~`.
 
-  ⛔ Absichtlich NICHT dieselbe Definition für die Bibliothek auf der Platte und für den
-  Colabo-Draht: die eine formatiert jedes Autosave lesbar, der andere schickt über eine
-  unzuverlässige Funkstrecke, wo Leerzeichen Bandbreite sind. Zwei bewusste Ausnahmen,
-  im Quelltext benannt.
+  ⚠ **Und er beantwortet die dritte offene Frage aus 381 mit.** Dort steht: „Sollen
+  Mitspieler in Live Colabo unterscheidbar sein? Entweder eine Apple-Berechtigung
+  beantragen, oder Du gibst Deinem Gerät in Echoel selbst einen Namen." Genau dieses Feld
+  ist die zweite Variante. Ein Wort von Dir („ja, Namensfeld") löst drei Dinge auf einmal.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  „Build for Testing" = success auf allen drei Commits (zuletzt `a381327`) — das
-  blockierende Testbündel kompiliert also nachweislich, jetzt **228 Dateien**. „Run Tests"
-  stirbt weiterhin am bekannten Simulator-Start; das ist der founder-gated CI-Punkt, nicht
-  der Code.
+  „Build for Testing" = success — das blockierende Testbündel kompiliert also nachweislich,
+  jetzt **230 Dateien**. „Run Tests" stirbt weiterhin am bekannten Simulator-Start; das ist
+  der founder-gated CI-Punkt, nicht der Code.
 
-  ⚠ Und die Grenze zuerst, für alle drei Punkte gleichermaßen: die KODIER-Hälften laufen
-  wirklich Ende zu Ende durch den ausgelieferten Code. Die VERDRAHTUNGS-Hälften sind
-  Quelltext-Prüfungen — Live Colabo braucht einen echten Funk-Stack, und das Teilen-Blatt
-  braucht ein Gerät. **Dass zwei Telefone die Statuszeile wirklich sehen, und dass ein
-  fehlgeschlagenes Teilen jetzt MELDET statt eine leere Datei zu liefern, sind Proben am
-  Gerät und beide offen.**
+  ⚠ Und die Grenze für beide Punkte: die ENTSCHEIDUNGS-Hälften laufen wirklich Ende zu Ende
+  durch den ausgelieferten Code (die Meldung wird aus einem echten Dekodier-Fehler gebaut;
+  die Gutschrift-Regel wird mit echten Takes durch den echten Freigabe-Kodierer getrieben).
+  Die VERDRAHTUNGS-Hälften sind Quelltext-Prüfungen — beide Flächen sind private Teile einer
+  Ansicht, die kein Testbündel bauen kann. **Dass die Import-Meldung am Gerät wirklich
+  erscheint, ist eine Probe und offen; dass die Gutschrift-Zeile gut aussieht, ist heute
+  nicht prüfbar, weil sie auf nichts rendert.**
+
+  ⛔ Zwei eigene Falschbehauptungen dieser Runde, beide gemessen und zurückgenommen: der
+  motivierende Satz von Punkt 2 behauptete, 381 habe dafür gesorgt, dass Takes jetzt
+  wirklich von anderen Leuten eintreffen — sie treffen seit langem ein, geändert hat 381 nur
+  den FEHLSCHLAG-Pfad. Und ein Doc-Block enthielt eine Behauptung und ihre Widerlegung
+  sieben Zeilen auseinander („JEDER Take trägt einen Stempel" gegen „leer heißt abwesend").
 
   ── WAS VON DIR GEBRAUCHT WIRD (nach Wichtigkeit) ─────────────────────────
 
-  1. **Weiterhin offen und seit drei Builds der wichtigste Test:** ein Projekt speichern,
+  1. **EIN WORT, und es löst drei Dinge auf einmal:** soll „Save & Export" ein Feld für
+     Deinen Künstler-/Gerätenamen bekommen (neben dem Ort-Feld, das schon da ist)? Damit
+     wird Punkt 2 überhaupt sichtbar, Deine Export-Dateinamen tragen Deinen Namen, und
+     Mitspieler in Live Colabo werden unterscheidbar.
+  2. **Weiterhin offen und seit vier Builds der wichtigste Test:** ein Projekt speichern,
      App verlassen, wieder öffnen, Projekt öffnen — dann den Bass- oder Pad-Fader ziehen.
      Bleibt es dasselbe Stück, nur anders balanciert?
-  2. **Die Kopfzeile aus 380 ansehen** (falls noch nicht geschehen): liest sie sich als
-     Takt-Anzeige · Echoelmusic · Kacheln? Stören Dich die ~24 pt Versatz nach links?
-  3. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
-  4. Falls Du zu zweit testen kannst: Live Colabo verbinden, ein Telefon die App verlassen
-     lassen — verschwindet seine Zeile jetzt beim Trennen?
+  3. Eine beliebige Nicht-Echoel-Datei über Import auswählen: kommt jetzt eine Meldung?
+  4. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
   5. Die Hörprobe aus 377 (ohne Puls spielen, dann mit) und die Stimmungs-Probe aus 376
      (Rāst speichern, auf 12-TET stellen, wieder öffnen).
-  6. Drei Fragen ohne Antwort — je ein Wort genügt:
+  6. Zwei Fragen ohne Antwort — je ein Wort genügt:
      · Darf Genre · Key · Scale · Tonsystem · A4 hinter den Tempo-Chip wandern? Das gäbe
        dem Instrument 41 pt zurück und kehrt Deine Entscheidung vom 14. Juli um.
      · Soll ein fehlgeschlagenes Speichern auf den SCHIRM, oder reicht die Protokoll-Zeile?
-     · Sollen Mitspieler in Live Colabo unterscheidbar sein? Heute fallen drei iPhones in
-       eine Zeile (siehe Punkt 1 oben). Das zu lösen heißt: entweder eine Apple-Berechtigung
-       beantragen, oder Du gibst Deinem Gerät in Echoel selbst einen Namen.
