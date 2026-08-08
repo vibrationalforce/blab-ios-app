@@ -1,4 +1,4 @@
-build: v10.79.379 — Der Mix-Fader auf einem GEÖFFNETEN Projekt balanciert wieder, statt ein anderes Stück zu komponieren; und drei Anzeigen hören auf, einen Körper zu behaupten, der nicht mehr ankommt
+build: v10.79.380 — Deine Kopfzeilen-Anordnung aus dem Screenshot; ein Speichern, das nicht mehr still scheitert; und ein Mitspieler-Stream, den eine einzige unschreibbare Zahl nicht mehr anhält
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,120 +6,97 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.378.
+  Der Vorgänger auf Deinem Gerät ist 10.79.379 (Build 2496).
 
-  ── DIESER BUILD HAT EINE HÖRBARE HÄLFTE, und sie ist die wichtigste ──────
+  ── 1. DEINE ANORDNUNG AUS DEM SCREENSHOT VON 2496 ────────────────────────
 
-  Anders als 378 ist das hier kein Augen-Build. Der größte Posten ist ein Defekt, der
-  eine Bedienung, nach der man selbstverständlich greift, zu einer Falle gemacht hat.
+  „Den Schriftzug Echoelmusic wieder in die Mitte und dementsprechend mit der Takt
+  Anzeige tauschen." Zwei Pfeilspitzen an einem Bogen — Tausch, nicht Umzug; und der
+  Satz sagt es zweimal, es ist also nichts geraten worden.
 
-  ── 1. DER MIX-FADER AUF EINEM GESPEICHERTEN PROJEKT ──────────────────────
+  Die obere Reihe liest sich jetzt: **Takt-Anzeige · Echoelmusic · Monitor-Kacheln.**
 
-  Seit dem 27. Juli tut der Mix-Fader das Richtige: er nimmt den Take, den Du GERADE
-  hörst, und mischt ihn auf dem neuen Pegel neu ab — er komponiert nicht neu. Diese
-  Eigenschaft hing an den Rohtakten des Komponisten, und die lagen nur im Arbeitsspeicher
-  der laufenden App.
+  ⚠ Und der Preis steht im Quelltext, statt verschwiegen zu werden — Du wirst ihn
+  vermutlich sehen: **der Schriftzug sitzt rund 24 pt LINKS der echten Bildschirmmitte.**
+  Grund: die Leiste hat genau EINEN dehnbaren Flügel, und ein einzelner Flügel zentriert
+  sein Kind im SCHLUPF zwischen zwei ungleich breiten Nachbarn — die Kachel-Gruppe rechts
+  ist 146 pt, die Takt-Anzeige links rund 98. Der Versatz ist exakt die halbe Differenz.
+  Echt zu zentrieren bräuchte einen ZWEITEN dehnbaren Flügel, und genau den verbietet das
+  Dynamic-Type-Gesetz der Kopfzeile seit Juli (zwei gierige Flügel streiten sich, und bei
+  großer Schrift überlappt die Leiste). **Wenn Dich die 24 pt stören, ist das eine
+  Entscheidung, keine Reparatur** — sag Bescheid, dann wird die Regel bewusst gelockert
+  statt versehentlich.
 
-  Ein GEÖFFNETES Projekt hatte sie deshalb nie. Der Zustand war dort immer „keine
-  Rohtakte", und der dokumentierte Rückfall dafür lautet: neu komponieren. Also:
-  Projekt öffnen → Bass-Fader ziehen → **Du bekommst ein anderes Stück.** Genau an der
-  Stelle, an der ein Pegelregler am offensichtlichsten ein Pegelregler zu sein scheint,
-  hat er die Musik ersetzt.
+  ⚠ Zweite Nebenwirkung, ebenfalls sichtbar auf schmalen Geräten (iPhone 12/13 mini,
+  360 pt): **wenn es eng wird, weicht jetzt der SCHRIFTZUG zuerst** statt der Takt-Anzeige.
+  Das ist die bessere Richtung — die Anzeige ist eine Messung, deren Ziffern lesbar bleiben
+  müssen, während der Schriftzug ohnehin sauber herunterskaliert.
 
-  Jetzt reisen die Rohtakte MIT dem gespeicherten Projekt — und zwar zusammen mit ihrem
-  Genre, in einem Wert. Das ist kein Detail: ein Take muss in dem Genre neu verklebt
-  werden, in dem er komponiert wurde, auch wenn Du längst ein anderes gewählt hast.
-  Zwei getrennte Felder hätten „Takte ohne ihr Genre" möglich gemacht, und das Einzige,
-  was man mit diesem Zustand tun kann, ist genau der Bug.
+  ── 2. EIN FEHLGESCHLAGENES SPEICHERN HINTERLÄSST JETZT EINE SPUR ─────────
 
-  ⚠ Der Preis steht dabei, statt verschwiegen zu werden: die gespeicherte Datei wird
-  größer — vorher stand EIN Takt darin, jetzt so viele, wie Deine Loop-Länge lang ist
-  (Vorgabe acht). Angenommen, weil die Alternative ein Bedienelement ist, das lügt.
+  Ein fehlgeschlagenes LESEN wird protokolliert, seit es diesen Speicher gibt. Ein
+  fehlgeschlagenes SCHREIBEN war vollkommen still. Der Kopf der Datei behauptete dabei
+  ausdrücklich das Gegenteil — „Schreibfehler kommen als `false` zurück, damit der Aufrufer
+  entscheidet, wie laut er wird". Nachgezählt: **12 Aufrufstellen, NULL sehen sich diesen
+  Rückgabewert an.** Die Delegation ging an niemanden.
 
-  ── 2. DREI ANZEIGEN HÖREN AUF, EINEN KÖRPER ZU BEHAUPTEN ─────────────────
+  ⭐ Und das ist schlimmer als der Lese-Fall, nicht bloß symmetrisch. Ein fehlgeschlagenes
+  Lesen fällt auf ein leeres Dokument zurück — **das siehst Du.** Ein fehlgeschlagenes
+  Schreiben lässt die alte Datei stehen, während die Liste im Speicher schon aktualisiert
+  ist: die Bibliothek sieht den Rest der Sitzung korrekt aus, und der Verlust erscheint erst
+  beim nächsten Start, wenn nichts mehr auf das Speichern zurückzeigt.
 
-  Der Bus, auf dem die Bio-Werte liegen, wird NIE geleert. Kein Stopp räumt ihn, kein
-  verlorener Puls. Wer den Frame roh liest, liest ihn deshalb für den Rest der
-  App-Laufzeit weiter — auch eine Stunde später.
+  ⭐ Die substantielle Hälfte ist der Kodier-Zweig. Er warf den Fehler WEG. Selbst wer den
+  Rückgabewert geprüft hätte, hätte „die Platte ist voll" nicht von „ein NaN ist in Dein
+  Stück geraten" unterscheiden können — und JSON weigert sich per Vorgabe, ein NaN zu
+  schreiben, während ein Projekt Tempo, Kammerton, einen ganzen Klang und jede Note durch
+  genau diesen Kodierer trägt. Der Fehler nennt das FELD; genau deshalb wird er behalten.
 
-  · **Der Messstreifen hinter dem Bio-Chip** stellte damit drei verschiedene Antworten
-    auf EINE Frage nebeneinander: das Etikett fiel nach 6 s auf „No signal", die
-    Kohärenz-Zelle nach 5 s auf „—", und Herzfrequenz, HRV und Atemzahl standen
-    unverändert daneben. Ein Etikett, das sagt „es kommt nichts mehr an", direkt über
-    drei Zahlen, die das Gegenteil behaupten. Jetzt fragt der ganze Streifen dieselbe
-    Frage, mit dem Fenster der jeweiligen Quelle.
+  ⚠ Das ersetzt den Vertrag nicht: der Rückgabewert ist unverändert, das hier ist ein
+  Telemetrie-BODEN unter einem Versprechen, das nie eingelöst wurde. Ob ein
+  fehlgeschlagenes Speichern auf den SCHIRM gehört, ist Deine Entscheidung und steht unten.
 
-  · **Die Liste „Always on — body → timbre"** unterscheidet jetzt einen lebenden Körper
-    von einem Frame, der einmal ankam und dann aufhörte. Sie LEERT die Zahl dabei
-    absichtlich NICHT — sie schreibt „held" daneben und dimmt den Balken. Grund: die
-    Klang-Erzeuger lassen den letzten Körper nicht fallen, sie PARKEN darauf. Eine
-    geleerte Zahl behauptete einen Abbruch, den es nicht gibt.
+  ── 3. EINE UNSCHREIBBARE ZAHL HÄLT NICHT MEHR DEN GANZEN STREAM AN ───────
 
-  · **Live Colabo** — die Zeile eines Mitspielers wird jetzt leer, wenn von ihm nichts
-    mehr ankommt. Vorher hat das eigene Telefon, weggelegt, denselben eingefrorenen Wert
-    alle 400 ms weitergesendet: auf dem Schirm des anderen ein vollkommen ruhiger,
-    vollkommen lebendiger Puls. Und in der Gegenrichtung räumte nichts die Zahlen eines
-    Peers, solange er verbunden blieb. Beide Enden sind geschlossen. **Das braucht zwei
-    Geräte zum Prüfen** — steht unten in der Liste.
+  Live Colabo verschickt vier Bio-Zahlen in EINER Kapsel. Ist eine davon nicht schreibbar
+  (ein einzelnes schlechtes Kamera-Sample genügt), scheiterte die GANZE Kapsel — und der
+  Sende-Aufruf kehrte zurück, ohne etwas getan zu haben, so lange die Quelle das weiter
+  produzierte. Seit 379 wird die Zeile eines Mitspielers nach acht ausgefallenen Sendungen
+  leer: auf seinem Schirm war das von „das Netz ist still geworden" nicht zu unterscheiden.
+  **Ein einziges schlechtes Sample nahm ihm vier gute Zahlen weg und behielt sie weg.**
 
-  ── 3. EINE COMPLIANCE-KANTE, DIE DU NICHT SEHEN WIRST ────────────────────
+  Jetzt wird der EINZELNE Kanal auf 0 gesetzt — das ist, was dieser Typ ohnehin als „nicht
+  verfügbar" dokumentiert und was die Zeile als „— bpm" rendert. Die Kapsel fallen zu
+  lassen hätte die ganze Zeile geleert, also behauptet, das Netz sei weg. Drei gute Zahlen
+  und ein Gedankenstrich sind der ehrliche Bericht.
 
-  Apples Regel 5.1.3 verbietet, Daten aus dem Health-Speicher an Dritte weiterzugeben.
-  Echoel hält das, und die Regel stand für den Colabo-Pfad an genau EINER Stelle: als
-  Zusatzbedingung in einer Ansicht. Das reichte, solange nur diese Ansicht sendet — und
-  im selben Zug hatte ich in genau diese Zeile den naheliegenden späteren Aufräum-Satz
-  geschrieben („der Frame ist doch jetzt frisch, weg mit der Prüfung"). Frische und
-  HERKUNFT sind zwei verschiedene Fragen.
-
-  Die Regel sitzt jetzt IM Senden. Der Sende-Aufruf nimmt keine fertige Zahlen-Kapsel
-  mehr entgegen (die trägt keine Herkunft), sondern die Messung selbst, und fragt die
-  Regel, bevor irgendetwas das Gerät verlässt. Ein 5.1.3-Verstoß ist nichts, was man in
-  einer Hörprobe findet — es ist eine Ablehnung.
-
-  Nachgemessen dabei: alle sechs Stellen, an denen im ganzen Projekt eine Bio-Messung
-  entsteht, stempeln ihre Quelle als festen Wert im jeweils zuständigen Sensor-Modul.
-  Eine Health-Zahl kann sich also nicht als Kamera-Zahl ausgeben und am Tor vorbei.
-
-  ── AUSSERDEM DRIN, OHNE SICHTBARE WIRKUNG ────────────────────────────────
-
-  · Die Live-Erzählung („Dein Puls treibt…") konnte keinen Take mehr beschreiben, bei
-    dem kein Puls gemessen wurde — sie ließ stattdessen den Satz des VORIGEN Takes
-    stehen und berichtete weiter von einer Herzfrequenz, die nicht mehr ankam. Der
-    Baustein dafür war mit großer Sorgfalt für genau diesen Fall gebaut; nur der
-    Aufrufer hat ihn abgeschaltet. **Die Fläche hat heute keine Tür**, Du wirst es also
-    nicht sehen — der Satz war trotzdem falsch, und eine später eintreffende Tür darf
-    nicht auf einem stillen Widerspruch aufsetzen.
-
-  · Zwei Werkzeug-Reparaturen, die die App nicht anfassen: das Entscheidungs-Protokoll
-    war für sein eigenes Auswertungs-Skript zu zwei Dritteln unlesbar (und ein einziger
-    Lauf des Flag-Befehls hätte es dauerhaft zerschossen), und der Standing-Prompt, der
-    jedem Automatik-Durchgang vorangestellt wird, beschrieb noch das Produkt von vor
-    Juli — samt eines Marken-Worts, das die eigenen Regeln ausdrücklich verbieten.
+  ⛔ Absichtlich KEINE Klemmung auf einen plausiblen Bereich: eine ENDLICHE Messung hier
+  zu verengen erfände eine Zahl, die der Körper nie produziert hat.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  „Build for Testing" = success auf allen neuen Commits, zuletzt auf dem 5.1.3-Commit,
-  der eine öffentliche Signatur ändert — das blockierende Testbündel kompiliert also
-  nachweislich (jetzt 223 Dateien). „Run Tests" stirbt weiterhin am bekannten
-  Simulator-Start; das ist der founder-gated CI-Punkt, nicht der Code.
+  „Build for Testing" = success auf allen drei neuen Commits, zuletzt auf dem
+  Kopfzeilen-Commit, der drei Dateien gleichzeitig anfasst — das blockierende Testbündel
+  kompiliert also nachweislich (jetzt 225 Dateien). „Run Tests" stirbt weiterhin am
+  bekannten Simulator-Start; das ist der founder-gated CI-Punkt, nicht der Code.
 
-  ⚠ Und die Grenze zuerst: das Meiste hier ist mit Quelltext-Wächtern belegt, nicht mit
-  einem Lauf am Gerät. **Der Mix-Fader-Punkt und die drei Anzeigen sind genau die Sorte,
-  die nur Du entscheiden kannst.**
+  ⚠ Und die Grenze zuerst: die Kopfzeile ist mit QUELLTEXT-Wächtern belegt — dass sie am
+  Gerät gut aussieht, kann kein Test sagen. Die 146 pt und die ~98 pt sind Arithmetik über
+  Konstanten, keine Messung eines gerenderten Layouts.
 
   ── WAS VON DIR GEBRAUCHT WIRD (nach Wichtigkeit) ─────────────────────────
 
-  1. **Der wichtigste Test dieses Builds:** ein Projekt SPEICHERN, die App verlassen,
-     wieder öffnen, das Projekt öffnen — und dann den Bass- oder Pad-Fader ziehen.
-     Bleibt es dasselbe Stück, nur anders balanciert? (Vorher wurde daraus ein anderes.)
-  2. Bio starten, den Finger wegnehmen und ein paar Sekunden warten: fallen im
-     Bio-Streifen jetzt ALLE vier Zellen zusammen auf „—", statt dass drei stehenbleiben?
-  3. Wenn Du mit jemandem Live Colabo probierst: legt einer das Telefon weg, wird seine
-     Zeile beim anderen nach ein paar Sekunden leer — und bleibt der Name stehen?
-  4. **Weiterhin offen und hörbar wichtiger als alles hier:** die Hörprobe aus 377
-     (ohne Puls spielen, dann mit — das Vibrato war ohne Puls 25 % zu flach und ein
-     ganzes Dezibel zu leise) und die Stimmungs-Probe aus 376 (Rāst speichern, auf
-     12-TET stellen, wieder öffnen).
-  5. Und die eine Frage aus 378, die noch keine Antwort hat: darf Genre · Key · Scale ·
-     Tonsystem · A4 hinter den Tempo-Chip wandern? Das gäbe dem Instrument 41 pt zurück
-     und kehrt Deine Entscheidung vom 14. Juli um. Ja oder nein genügt.
+  1. **Die Kopfzeile ansehen.** Liest sie sich als Takt-Anzeige · Echoelmusic · Kacheln?
+     Und: stören Dich die ~24 pt Versatz nach links, oder ist das so in Ordnung?
+  2. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
+     (Die Kopfzeile ist der Vorfahr, über den dieser Einfrier-Fehler zweimal kam.)
+  3. **Weiterhin offen und der wichtigste Test seit zwei Builds:** ein Projekt speichern,
+     App verlassen, wieder öffnen, Projekt öffnen — dann den Bass- oder Pad-Fader ziehen.
+     Bleibt es dasselbe Stück, nur anders balanciert?
+  4. Die Hörprobe aus 377 (ohne Puls spielen, dann mit) und die Stimmungs-Probe aus 376
+     (Rāst speichern, auf 12-TET stellen, wieder öffnen).
+  5. Zwei Fragen, die noch keine Antwort haben — je ein Wort genügt:
+     · Darf Genre · Key · Scale · Tonsystem · A4 hinter den Tempo-Chip wandern? Das gäbe
+       dem Instrument 41 pt zurück und kehrt Deine Entscheidung vom 14. Juli um.
+     · Soll ein fehlgeschlagenes Speichern auf den SCHIRM (Punkt 2 oben), oder reicht die
+       Protokoll-Zeile?
