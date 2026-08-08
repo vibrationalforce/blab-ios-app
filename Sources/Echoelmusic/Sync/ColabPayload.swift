@@ -17,12 +17,54 @@ public struct BioPeek: Codable, Sendable, Equatable {
     public var hrvNormalized: Float   // 0…1
     public var breathRate: Float      // breaths/min; 0 = not available
 
+    /// ⚠️ NON-FINITE INPUT BECOMES `0` HERE, which is this type's own documented "not
+    /// available" — a widening of the existing convention, not a silent rounding.
+    ///
+    /// #512. `ColabPayload.encoded()` is `try? JSONEncoder().encode(self)`, and
+    /// `JSONEncoder`'s default `nonConformingFloatEncodingStrategy` is `.throw`. So ONE
+    /// non-finite channel made the whole payload fail to encode, `try?` turned the throw
+    /// into `nil`, and `send` returned having done nothing — for as long as the source kept
+    /// producing it. On the peer's screen that is indistinguishable from the network going
+    /// quiet, which since #508 blanks the row after eight missed sends: **a single bad rPPG
+    /// sample took FOUR good numbers off someone else's display and kept them off.** The
+    /// direction was safe; the cause was misreported, and nothing anywhere said so.
+    ///
+    /// ⭐ WHY COERCE PER CHANNEL RATHER THAN DROP THE PEEK. `bioLine` renders `0` as
+    /// "— bpm" / "coherence not available", so a coerced channel reads as exactly what it
+    /// is. Dropping the peek would blank the whole row, i.e. assert that the network
+    /// stopped — false, and the worse of the two lies. Three good numbers and one dash is
+    /// the honest report.
+    ///
+    /// ⚠️ IT SITS ON THE MEMBERWISE INIT, not inside `egressible(from:)`, because `BioPeek`
+    /// is `public` with this init and a hand-built one reaches `encoded()` with nothing on
+    /// the wire path to notice — the same hole #511 closed for PROVENANCE, closed here for
+    /// FINITENESS. The two questions stay in two places on purpose (#416): one asks which
+    /// source may leave the phone, the other whether a number can be written down at all.
+    ///
+    /// ⚠️ WHAT IT DOES NOT COVER, stated rather than implied. (a) The fields are `var`, so
+    /// an assignment after init can put NaN back; no caller does today, and the receive
+    /// side is non-finite-safe anyway (`bpm > 0` and `coherence > 0` are both false for
+    /// NaN, and `PeerReading.live(at:)` reads a non-finite age as GONE). (b) The
+    /// synthesized `init(from:)` bypasses this, which is tolerable only because
+    /// `JSONDecoder`'s default non-conforming strategy is `.throw` as well — a decoded
+    /// value that reached `inf` by MAGNITUDE alone would still slip past, and lands in the
+    /// same already-safe display path. (c) The OTHER payload kind carries `Project`, i.e.
+    /// `bpm`, `a4Hz`, a whole `SynthPatch` and every `Note`, through this exact encoder
+    /// with this exact hazard. That is a wider slice and is registered, not smuggled in
+    /// here — #512 fixes the channel that carries LIVE SENSOR data, which is the one this
+    /// repo has already had to guard for non-finite input three times (#433/#434/#497).
     public init(bpm: Float, coherence: Float, hrvNormalized: Float, breathRate: Float) {
-        self.bpm = bpm
-        self.coherence = coherence
-        self.hrvNormalized = hrvNormalized
-        self.breathRate = breathRate
+        self.bpm = Self.writable(bpm)
+        self.coherence = Self.writable(coherence)
+        self.hrvNormalized = Self.writable(hrvNormalized)
+        self.breathRate = Self.writable(breathRate)
     }
+
+    /// `0` — this type's "not available" — for anything JSON cannot carry. Deliberately NOT
+    /// a clamp to a plausible range: narrowing a FINITE reading here would invent a number
+    /// the body never produced, the mistake #424/#426/#433 each had to undo. It answers one
+    /// question only: can this be written down.
+    private static func writable(_ v: Float) -> Float { v.isFinite ? v : 0 }
 
     /// The ONE projection from a measured frame to the four numbers a peer sees —
     /// and the ONE place App Store 5.1.3 is decided for the peer path. Returns `nil`
