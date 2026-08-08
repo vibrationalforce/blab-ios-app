@@ -194,4 +194,50 @@ public struct ColabPayload: Codable, Sendable, Equatable {
     public static func decode(_ data: Data) -> ColabPayload? {
         try? JSONDecoder().decode(ColabPayload.self, from: data)
     }
+
+    /// Replace the sender's CLAIM about who it is with the transport's FACT.
+    ///
+    /// ⛔ WHY THIS EXISTS (#517). `senderName` is a field the sender writes into the JSON.
+    /// `MCSessionDelegate.session(_:didReceive:fromPeer:)` hands over the AUTHENTICATED
+    /// `MCPeerID` alongside the bytes — and `handleData` dropped it on the floor, then
+    /// keyed and displayed everything by the field. Three consequences, all reachable
+    /// today with two connected phones:
+    ///
+    ///  · **The row a bio reading lands in was chosen by the sender.** `peerReadings` is
+    ///    keyed by name and `PeerReadingsSection` renders `peerReadings.keys` DIRECTLY,
+    ///    so a peer could write into somebody else's row, or conjure a row for a name
+    ///    that is not in the session at all.
+    ///  · **Such a row can never be removed.** The disconnect path clears
+    ///    `peerReadings[peerID.displayName]` — the TRANSPORT name. A reading filed under
+    ///    a different key survives every disconnect for the rest of the process. That is
+    ///    exactly the property #508 was built to give ("a quiet peer stops looking
+    ///    alive"), defeated through the key rather than through the timestamp.
+    ///  · **The import card names the claim.** `incomingCard(inc.senderName, project)`
+    ///    asks "do you want to load this project from X" — and X was whatever the sender
+    ///    typed. A peer could present as somebody you trust.
+    ///
+    /// ⭐ ONE WRITE, NOT FIVE (#416). The alternative was to fix each reader — the reading
+    /// key, the status line, the import card — which is four places that must all keep
+    /// remembering not to trust a field that is sitting right there. Replacing the claim
+    /// with the fact AT THE BOUNDARY means no downstream reader can get it wrong, because
+    /// after this call the field IS the transport name.
+    ///
+    /// ⚠️ THE WIRE IS UNCHANGED, said plainly: we still SEND `senderName` (from our own
+    /// `myPeerID.displayName`), and an older peer still sends its own. This changes only
+    /// what WE believe on receipt. Removing the field would be a protocol change and
+    /// would break a peer running an older build.
+    ///
+    /// ⚠️ AND IT DOES NOT MAKE NAMES UNIQUE. `MCPeerID.displayName` comes from
+    /// `UIDevice.current.name`, which on iOS 16+ returns the MODEL ("iPhone") unless the
+    /// app holds the user-assigned-device-name entitlement — which Echoel does not declare
+    /// (measured: zero hits for `user-assigned-device-name` across the entitlements). So
+    /// three phones in a room are three peers all called "iPhone", and they still collide
+    /// into one row. That is a SEPARATE defect about identity (#513); this one is about
+    /// AUTHORITY, and fixing authority first is what makes a later unique name safe rather
+    /// than merely different.
+    public func attributed(to peerName: String) -> ColabPayload {
+        var copy = self
+        copy.senderName = peerName
+        return copy
+    }
 }

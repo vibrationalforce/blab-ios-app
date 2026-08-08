@@ -242,8 +242,25 @@ public final class MultipeerSession: NSObject {
         }
     }
 
-    private func handleData(_ data: Data) {
-        guard let payload = ColabPayload.decode(data) else { return }
+    /// - Parameter peerName: the AUTHENTICATED `MCPeerID.displayName` the transport
+    ///   handed us alongside the bytes — NOT the `senderName` field inside them.
+    ///
+    /// ⛔ WHY THE PARAMETER EXISTS (#517). This method used to take only `data`, and
+    /// then keyed `peerReadings` and worded the status by `payload.senderName` — a
+    /// field the SENDER writes. `handleStateChange` cleans up by `peerID.displayName`.
+    /// Two different names for one peer, so a payload claiming any other string filed
+    /// a reading under a key the disconnect path never clears: a phantom row that
+    /// outlives the session for the process lifetime. That defeats exactly the
+    /// property #508 was built to give ("a quiet peer stops looking alive") — through
+    /// the KEY rather than through the timestamp, which is why #508's freshness guard
+    /// could not catch it.
+    ///
+    /// ⭐ The rewrite happens ONCE, here at the boundary (#416), via
+    /// `ColabPayload.attributed(to:)` — not as four defensive reads downstream. Every
+    /// later reader (`peerReadings`, `incoming`, `onReceiveSession`, `status`) then
+    /// sees a payload whose `senderName` is a transport fact by construction.
+    private func handleData(_ data: Data, from peerName: String) {
+        guard let payload = ColabPayload.decode(data)?.attributed(to: peerName) else { return }
         // Bio pings update the per-peer reading quietly — no incoming prompt,
         // no status churn (they arrive continuously while a peer shares).
         if payload.kind == "bio", let peek = payload.bio {
@@ -271,7 +288,10 @@ extension MultipeerSession: MCSessionDelegate {
     }
 
     public nonisolated func session(_ session: MCSession, didReceive data: Data, fromPeer peerID: MCPeerID) {
-        Task { @MainActor [weak self] in self?.handleData(data) }
+        // The peer here is AUTHENTICATED by the transport — carry it through instead
+        // of trusting the name inside the bytes (#517).
+        let name = peerID.displayName
+        Task { @MainActor [weak self] in self?.handleData(data, from: name) }
     }
 
     public nonisolated func session(_ session: MCSession, didReceive stream: InputStream, withName streamName: String, fromPeer peerID: MCPeerID) {}
