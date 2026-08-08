@@ -196,11 +196,19 @@ public final class MultipeerSession: NSObject {
     /// `PeerReading.sendInterval`, and the receiver's staleness window is derived
     /// from it (#508), so a drop is expected and a silence is meaningful.
     ///
-    /// ⚠️ The 5.1.3 egress gate still lives at the CALL SITE (`LiveColaboView`) and
-    /// NOT here — deliberately untouched by #508, because moving it would need this
-    /// signature to take the frame rather than the peek. Registered as its own
-    /// decision (`scratchpads/ULTRAARCHITECTURE_2026-07.md`), not folded in.
-    public func sendBio(_ peek: BioPeek) {
+    /// ⛔ THIS TOOK A `BioPeek` UNTIL #511, and that is why the App Store 5.1.3 egress
+    /// gate could only live at the CALL SITE: a peek carries no source, so this method
+    /// had nothing to check. The note that stood here registered the fix and named its
+    /// price ("moving it would need this signature to take the frame rather than the
+    /// peek"); it is paid. Taking the FRAME means the rule is applied by the thing that
+    /// sends, not by whoever remembers — and `BioPeek.egressible(from:)` is the one
+    /// place that decides it, calling `BioEgressPolicy` rather than restating it (#186).
+    ///
+    /// ⚠️ Do NOT add a `sendBio(_ peek: BioPeek)` overload back "for convenience". The
+    /// whole point is that a peek can no longer reach the wire without a source having
+    /// been asked about first.
+    public func sendBio(_ frame: BioSampleFrame) {
+        guard let peek = BioPeek.egressible(from: frame) else { return }
         let peers = mcSession.connectedPeers
         guard !peers.isEmpty else { return }
         let payload = ColabPayload(kind: "bio", senderName: myPeerID.displayName, bio: peek)

@@ -304,8 +304,93 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**222** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheRawTakeTravelsWithTheTakeTests.swift` (#217 — der erste Wächter
+                          `Tests/CISmoke` (**223** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheEgressRuleTravelsWithTheSendTests.swift` (#511 — der erste
+                          Wächter dieser Kette über einer COMPLIANCE-Regel, die an der falschen Stelle stand,
+                          und der Abschluss der #508-Familie. App Store 5.1.3: Daten aus dem HealthKit-Store
+                          dürfen nicht an Dritte weitergegeben werden, und ein Peer im Raum IST ein Dritter.
+                          Echoels Netzwerk-Sender halten das seit langem ein (`OSCSender`, `ADMOSCSender`,
+                          `ArtNetSender` fragen alle `BioEgressPolicy`) — der PEER-Pfad ebenfalls, aber die
+                          Regel lebte als `&&` in der Sende-Schleife von `LiveColaboView`, weil `sendBio`
+                          einen fertigen `BioPeek` nahm und ein Peek KEINE Quelle trägt.
+                          ⭐ **DIE STELLE WAR RICHTIG UND TROTZDEM FALSCH — das ist der ganze Eintrag.** Die
+                          Zeile war korrekt; sie war nur das EINZIGE, was zwischen einer HealthKit-Herzfrequenz
+                          und dem Telefon einer anderen Person stand, in der `.task`-Schleife einer Ansicht,
+                          eine Bearbeitung von ihrer Vereinfachung entfernt. **Und #508 hat diese Bearbeitung
+                          selbst aufgeschrieben** — sein Kommentar an genau dieser Zeile nennt „der Frame ist
+                          jetzt frisch, weg mit dem Tor" als die naheliegende spätere Aufräumarbeit. Frische
+                          ist nicht HERKUNFT, und eine 5.1.3-Verletzung taucht in keiner Hörprobe auf; sie
+                          taucht als Ablehnung auf. `sendBio` nimmt jetzt den FRAME und fragt
+                          `BioPeek.egressible(from:)`.
+                          ⭐ **DER PREIS STAND SEIT #508 AN DER METHODE UND IST BEZAHLT.** Ihr Doc-Kommentar
+                          registrierte die Verschiebung und nannte die Bedingung wörtlich („moving it would
+                          need this signature to take the frame rather than the peek"). Genau das ist passiert
+                          — kein neuer Mechanismus, eine eingelöste Registrierung. Die Fabrik liegt auf
+                          `BioPeek` in `Sync/ColabPayload.swift`, also im Foundation-only, NICHT
+                          MC-gegateten Teil: das blockierende Bündel kann die 5.1.3-Entscheidung damit
+                          wirklich Ende zu Ende treiben, statt sie nur zu scannen.
+                          ⚠️ **SIE FRAGT `BioEgressPolicy`, statt die Quellenliste zu wiederholen** — die
+                          #186-Lehre, die im Kopf von `BioEgressPolicy` selbst steht: der erste Anlauf des
+                          Ereignis-Tors hat die Regel eingebettet und sein Test sie NACHGEBAUT, also bestand
+                          der Test mit gelöschtem Produktions-Guard („a tautology wearing a regression test's
+                          clothes"). Deshalb ist die HÄLFTE der Behauptungen aus der Policy ABGELEITET und die
+                          andere Hälfte nagelt die drei Health-Quellen ausdrücklich fest: eine Policy, die
+                          still auf `return true` weitet, ließe die abgeleitete Hälfte grün.
+                          ⚠️ **FRISCHE WIRD HIER ABSICHTLICH NICHT ENTSCHIEDEN, und die Aufteilung ist der
+                          eigentliche Entwurf.** `usableBio()` bleibt die Frage der ANSICHT (ist die Messung
+                          noch aktuell — eine Tatsache über den Bus und sein Quellen-Fenster), `egressible`
+                          ist die Frage des SENDERS (darf diese Quelle das Telefon verlassen). Beide in EIN
+                          `if` zu falten hieße, dass eine Eingefroren-Frame-Reparatur und eine
+                          Compliance-Regel sich einen Ausdruck teilen — und so wird eine von beiden beim
+                          Bearbeiten der anderen fallengelassen.
+                          ⛔ **UND #511 HAT ZWEI BEHAUPTUNGEN DES #508-WÄCHTERS ROT GEMACHT — im SELBEN
+                          Commit mitgezogen, weil der #456-Fund genau dafür da ist: eine Quelländerung wird in
+                          `Tests/CISmoke` gegrept, nicht nur in `Sources/`.** `AQuietPeerStopsLookingAliveTests`
+                          ankerte auf `colab.sendBio(BioPeek(` — eine Form, die diese Scheibe löscht — und
+                          seine Frische-Nadel trug die Egress-Konjunktion mit sich. Der Anker zeigt jetzt auf
+                          die Stream-`task` selbst (das Subjekt jener Datei überlebt jede künftige Änderung
+                          daran, WIE eine Messung an den Transport gereicht wird); die Egress-Behauptung ist
+                          AN ORT UND STELLE zurückgezogen, mit Begründung. **Keine der beiden ist eine
+                          Abschwächung** — die zurückgezogene war EIN Zeichenketten-Scan, ersetzt durch
+                          Policy-Parität über JEDE Quelle (echtes Verhalten), die drei Health-Quellen
+                          ausdrücklich verweigert, und einen klammer-gematchten Scan auf den Sende-Rumpf.
+                          ⚠️ **NICHT als NEGATIV zurückgeschrieben** („die Aufrufstelle darf nie wieder
+                          fragen"): ein zweites Mal zu fragen wäre harmlose Doppelung, kein Defekt, und ein
+                          Wächter, der Korrektes verbietet, ist die #364-Falle — so werden Wächter gelöscht.
+                          ⚠️ EHRLICHE BENOTUNG (#433), und es ist die #464-Lage klar gesagt: die neue Datei
+                          lässt sich gegen den Elternbaum ÜBERHAUPT NICHT benoten — jeder Verhaltensfall nennt
+                          `BioPeek.egressible(from:)`, das es dort nicht gibt. Von Hand transkribiert
+                          (Python-Nachbau von `SourceText.codeOnly` plus des Klammer-Matchers, gegen
+                          `git show b098d97:` und den Arbeitsbaum): **VIER der fünf Scan-Nadeln sind auf dem
+                          Elternteil rot — und sie sind ZWEI Befunde, nicht vier.** (1) Die Signatur nahm einen
+                          `BioPeek`: das färbt die Signatur-Nadel aus ihrem GENANNTEN Grund rot UND die
+                          Rumpf-Nadel durch ANKER-Abwesenheit, also eine Abwesenheit zweimal gemeldet (#486).
+                          (2) Die Aufrufstelle baute einen Peek von Hand: `colab.sendBio(f)` fehlt UND
+                          `sendBio(BioPeek` ist vorhanden — zwei Seiten einer Tatsache. **EINE** Nadel ist
+                          beidseitig grün, ein echtes Gegengewicht. Die vier Verhaltensfälle treiben ein
+                          Symbol, das derselbe Commit anlegt.
+                          ⚠️ **`SourceText.codeOnly` ist hier PROPHYLAKTISCH und das ist GEMESSEN: 0 von 5
+                          Nadel-Verdikten kippen, auf BEIDEN Bäumen.** Dieser Satz ist inzwischen dreimal
+                          geschrieben worden und die Historie IST der Punkt (#484/#485 je einmal, #486
+                          zweimal): der erste Entwurf behauptete prophylaktisch ohne zu messen, der zweite maß
+                          **1 von 6** und nannte den Stripper tragend — und diese eine kippende Nadel war das
+                          Frische-Gegengewicht, das absichtlich NICHT mehr in dieser Datei steht (es gehört
+                          dem #508-Wächter, wo der Stripper aus genau diesem Grund weiterhin TRAGEND ist).
+                          Es bleibt trotzdem: die negative Nadel ist EIN WORT von der Kollision entfernt —
+                          `MultipeerSession`s Doc sagt „do NOT add a `sendBio(_ peek: BioPeek)` overload", was
+                          `sendBio(BioPeek` nicht enthält; wer diese Rücknahme ohne das Argument-Label
+                          schreibt, färbt den Wächter auf KORREKTEM Code rot.
+                          ⚠️ Und die Grenze zuerst: die REGEL-Hälfte ist echt Ende zu Ende (`BioPeek`,
+                          `BioSampleFrame`, `BioSource` und `BioEgressPolicy` sind alle `public` und
+                          Foundation-only), die VERDRAHTUNGS-Hälfte ist ein QUELLTEXT-SCAN — `MultipeerSession`
+                          liegt hinter `#if canImport(MultipeerConnectivity)` und braucht einen echten
+                          MC-Stack. **Dass zwei Telefone wirklich aufhören, einen HealthKit-Puls
+                          auszutauschen, ist eine ZWEI-GERÄTE-Probe und OFFEN.**
+                          ⭐ Und die `Sources/`-Zahl bewegt sich NICHT: `egressible(from:)` ist eine neue
+                          `static` Methode in der VORHANDENEN Datei `Sync/ColabPayload.swift`. Das ist zum
+                          zweiten Mal in Folge der dritte Fall der Taxonomie im Absatz darüber — „neuer Typ
+                          bzw. neue Methode, gar keine neue Datei" (±0), nach #508s `PeerReading`.), davor
+                          **222** nach `TheRawTakeTravelsWithTheTakeTests.swift` (#217 — der erste Wächter
                           dieser Kette über einem Feld, das ein Take TRAGEN muss, damit ein REGLER die
                           Wahrheit sagt. Der Mix-Fader re-bakt seit #174 den vorhandenen Take auf dem neuen
                           Pegel, statt einen neuen zu komponieren — aber die Rohtakte des Komponisten lagen
@@ -5128,7 +5213,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTEINUNDACHTZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 222 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTZWEIUNDACHTZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 223 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

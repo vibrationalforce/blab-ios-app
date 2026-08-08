@@ -93,19 +93,22 @@ struct LiveColaboView: View {
                     // dedupe at all, by design (unreliable transport, a receiver that
                     // missed the last packet still needs the next one).
                     //
-                    // App Store 5.1.3 egress gate (same rule the OSC/ADM-OSC senders
-                    // apply): only Echoel's OWN measurements (rPPG / BLE strap / face
-                    // expression / demo) may leave the device to a peer — HealthKit /
-                    // Watch / ring frames stay on-device. ⚠️ `usableBio()` does NOT
-                    // subsume it: freshness and provenance are different questions, and
-                    // dropping this guard because the frame is now fresh would ship the
-                    // exact 5.1.3 violation the network senders forbid.
-                    if let f = bus.usableBio(), BioEgressPolicy.allowsEgress(f.source),
-                       !colab.connectedPeerNames.isEmpty {
-                        colab.sendBio(BioPeek(bpm: f.heartRateBPM,
-                                              coherence: f.coherence,
-                                              hrvNormalized: f.hrvNormalized,
-                                              breathRate: f.breathRate))
+                    // ⛔ THE 5.1.3 EGRESS GATE USED TO STAND HERE, as a conjunct in this
+                    // very `if`, together with a hand-built `BioPeek`. #511 moved it into
+                    // `sendBio` (via `BioPeek.egressible(from:)`), and NOT because this
+                    // line was wrong — it was correct — but because it was the only thing
+                    // standing between a HealthKit-sourced heart rate and another person's
+                    // phone, in a view's stream loop, one edit away from being simplified.
+                    // #508 even wrote that edit down: *the frame is fresh now, so drop the
+                    // guard*. Freshness is not provenance, and a 5.1.3 violation does not
+                    // show up in a hearing test — it shows up as a rejection. Do not
+                    // re-add the check here; asking twice is how one of the two rots.
+                    //
+                    // What DOES stay this view's question is `usableBio()`: whether the
+                    // measurement is still current is a fact about the bus and its
+                    // per-source window, not about who may see it.
+                    if let f = bus.usableBio(), !colab.connectedPeerNames.isEmpty {
+                        colab.sendBio(f)
                     }
                     try? await Task.sleep(
                         nanoseconds: UInt64(PeerReading.sendInterval * 1_000_000_000))

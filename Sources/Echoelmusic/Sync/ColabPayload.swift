@@ -23,6 +23,41 @@ public struct BioPeek: Codable, Sendable, Equatable {
         self.hrvNormalized = hrvNormalized
         self.breathRate = breathRate
     }
+
+    /// The ONE projection from a measured frame to the four numbers a peer sees —
+    /// and the ONE place App Store 5.1.3 is decided for the peer path. Returns `nil`
+    /// when this frame's source may not leave the device.
+    ///
+    /// ⭐ WHY IT IS A FACTORY AND NOT A GUARD AT THE CALL SITE. Until #511 the rule
+    /// lived as a `&&` inside `LiveColaboView`'s stream loop, and `sendBio` took an
+    /// already-built `BioPeek` — a value that carries NO source, so the send could not
+    /// have re-checked even if it wanted to. `MultipeerSession.sendBio`'s own doc
+    /// registered that as a follow-up ("moving it would need this signature to take the
+    /// frame rather than the peek"). Two things made it worth doing rather than leaving
+    /// registered: (a) `BioPeek` is `public` with a memberwise `init`, so ANY future
+    /// caller could hand-build one and send it, with nothing on the wire path to notice;
+    /// (b) #508 wrote the obvious later cleanup into that very call site — *the frame is
+    /// fresh now, drop the guard* — and freshness is not provenance. A 5.1.3 violation
+    /// is not a bug you find in a hearing test; it is a rejection.
+    ///
+    /// ⚠️ It CALLS `BioEgressPolicy` rather than re-stating the source list. That is the
+    /// #186 lesson, written in `BioEgressPolicy`'s own header: the first cut of the event
+    /// gate inlined the rule and its test re-implemented it, so the test passed with the
+    /// production guard deleted — "a tautology wearing a regression test's clothes".
+    ///
+    /// ⚠️ Freshness is deliberately NOT decided here. `LiveColaboView` asks
+    /// `bus.usableBio()` before calling, because "is this measurement still current" is a
+    /// question about the BUS and its per-source window, while this asks only "may this
+    /// source's numbers leave the phone". Folding both into one function would make a
+    /// frozen-frame fix and a compliance rule share a single `if`, which is how one of
+    /// them gets dropped while the other is being edited.
+    public static func egressible(from frame: BioSampleFrame) -> BioPeek? {
+        guard BioEgressPolicy.allowsEgress(frame.source) else { return nil }
+        return BioPeek(bpm: frame.heartRateBPM,
+                       coherence: frame.coherence,
+                       hrvNormalized: frame.hrvNormalized,
+                       breathRate: frame.breathRate)
+    }
 }
 
 /// One peer's last reading, and WHEN it arrived HERE.

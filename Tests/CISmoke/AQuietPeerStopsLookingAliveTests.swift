@@ -60,6 +60,17 @@
 //   · claim 8 — red on the parent only because of the RENAME, not because the parent failed to
 //     clear on disconnect. Said here rather than counted as a fifth regression (#427's lesson:
 //     a signature-induced red is not a catch).
+//
+// ⛔ #511 EDITED THIS FILE, and the grading above is a statement about #508's own commit — read
+// it as history, not as a description of today's methods. Two things changed. Claim 1 was
+// RE-ANCHORED: its anchor named `colab.sendBio(BioPeek(`, a form #511 deleted when `sendBio`
+// started taking the FRAME, and its freshness needle carried the egress conjunct along with it.
+// Claim 3 was WITHDRAWN, in place, with its reasoning — see the block where it stood. Neither is
+// a weakening: the anchor now names the stream task itself (this file's actual subject outlives
+// any call form), and claim 3's property moved to a strictly stronger guard named there. The
+// reason both happened in #511's commit rather than later is #456: a source edit is grepped in
+// `Tests/CISmoke`, not only in `Sources/` — otherwise a slice writes one guard while walking
+// another into a red it never reads.
 
 import Foundation
 import XCTest
@@ -77,14 +88,23 @@ final class AQuietPeerStopsLookingAliveTests: XCTestCase {
 
         // #367: anchor FIRST. A bare "the token is absent" scan is green on a tree that lost
         // the whole loop — it would pass on an empty file.
-        guard src.contains("colab.sendBio(BioPeek(") else {
+        //
+        // ⛔ THE ANCHOR WAS `colab.sendBio(BioPeek(` UNTIL #511, and that slice deleted the
+        // form it named: `sendBio` now takes the FRAME, so the call site no longer hand-builds
+        // a peek. The throw above was doing its job — it said "re-anchor it; do not let the
+        // absence read as a pass", and this is that re-anchoring, in the same commit as the
+        // change that broke it (#456: a source edit is grepped in `Tests/CISmoke`, not only in
+        // `Sources/`). Anchored on the LOOP itself rather than on any call form: this file's
+        // subject is that the stream asks a FRESHNESS question, and that subject outlives every
+        // future change to how a reading is handed to the transport.
+        guard src.contains(".task(id: shareBio) {") else {
             throw AnchorMissing(reason: """
-                LiveColaboView no longer builds a BioPeek for the wire — the anchor for this \
+                LiveColaboView no longer declares the own-bio stream task — the anchor for this \
                 scan is gone. Re-anchor it; do not let the absence read as a pass.
                 """)
         }
         XCTAssertTrue(
-            src.contains("if let f = bus.usableBio(), BioEgressPolicy.allowsEgress(f.source),"),
+            src.contains("if let f = bus.usableBio(),"),
             """
             The Colabo stream must gate on `bus.usableBio()` — the SOURCE's own freshness \
             window (#508) — before putting a body on the wire.
@@ -116,20 +136,27 @@ final class AQuietPeerStopsLookingAliveTests: XCTestCase {
             "The cadence literal is back at the call site; it belongs to `PeerReading` alone.")
     }
 
-    // MARK: - 3. Counterweight: freshness did NOT absorb the 5.1.3 gate
+    // MARK: - 3. Counterweight: freshness did NOT absorb the 5.1.3 gate — WITHDRAWN by #511
 
-    func testTheEgressGateSurvivesTheFreshnessGate() throws {
-        let src = try code(at: Self.view)
-        XCTAssertTrue(
-            src.contains("BioEgressPolicy.allowsEgress(f.source)"),
-            """
-            The App Store 5.1.3 egress gate is gone from the Colabo stream. `usableBio()` does \
-            NOT subsume it: freshness asks whether a reading is recent, provenance asks whether \
-            it may leave the device at all. A HealthKit / Watch / ring frame is often perfectly \
-            fresh — and streaming it to a nearby peer is exactly the violation the OSC and \
-            ADM-OSC senders forbid.
-            """)
-    }
+    // ⛔ `testTheEgressGateSurvivesTheFreshnessGate` STOOD HERE and is withdrawn, because its
+    // subject MOVED rather than disappeared. It scanned the call site for
+    // `BioEgressPolicy.allowsEgress(f.source)`; #511 took the rule out of this view's `if` and
+    // put it inside the send (`sendBio` now takes the FRAME and asks
+    // `BioPeek.egressible(from:)`), so the needle names a line that is correctly gone.
+    //
+    // ⭐ THE PROPERTY DID NOT WEAKEN — it got stronger, and that is the only reason a withdrawal
+    // is honest here. `TheEgressRuleTravelsWithTheSendTests` replaces one string scan with:
+    // parity against `BioEgressPolicy` for EVERY source (real behaviour, end to end), the three
+    // Health-derived sources refused outright so a policy widened to `return true` cannot keep
+    // the derived half green, and a brace-matched scan that the send body really asks. Deleting
+    // an assertion because a slice made it red is how a guard dies; deleting it because a
+    // stricter one took its place, named in the same commit, is bookkeeping.
+    //
+    // ⚠️ NOT re-added here as a NEGATIVE ("the call site must never ask again"). Re-adding the
+    // check at the call site would be harmless belt-and-braces, not a defect, and a guard that
+    // forbids something correct is the #364 trap — that is how guards get deleted wholesale.
+    // What this file still owns is claim 1: the loop asks for a FRESH reading. That is #508's
+    // subject, and #511 left it untouched.
 
     // MARK: - 4. Behaviour: an arrived reading expires
 
