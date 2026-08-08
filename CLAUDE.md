@@ -304,8 +304,88 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**220** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheDecisionLogIsMachineReadableTests.swift` (#509 — der erste
+                          `Tests/CISmoke` (**221** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheStandingPromptDescribesThisRepoTests.swift` (#510 — der erste
+                          Wächter dieser Kette über dem PROMPT-Layer (`.claude/routines/`), und nach #371 erst
+                          der zweite, der `Sources/` gar nicht anfasst. `_golden-goal.md` wird jedem
+                          Routine-Prompt **verbatim** vorangestellt und sagt über sich selbst „Never shorten
+                          it" — es steht damit in der Lesereihenfolge jener Agenten VOR CLAUDE.md. Es
+                          beschrieb das Produkt von vor 2026-07, mit VIER falschen Behauptungen: Echoel als
+                          „bio-reactive ambient soundscape generator" (⛔ **ein VERBOTENES Markenwort** —
+                          CLAUDE.md BRAND sagt wörtlich „It is NOT a wellness, soundscape, or therapy
+                          product" UND „NEVER use … legacy bio-wellness/soundscape branding"); „AUv3
+                          Plugin — usable in Logic Pro, GarageBand, AUM" als **Priorität 2 von 3** (Target
+                          entfernt 2026-07-24, #121); „for iOS 26" (der Boden ist 18.0 — `Package.swift`
+                          `.iOS("18.0")` plus 4× `IPHONEOS_DEPLOYMENT_TARGET: "18.0"`; die 26 ist die
+                          BUILD-SDK, nicht das Ziel); und „circadian phase" als Treiber (`CircadianClock`
+                          ist mit dem 2026-06-19-Cleanup gelöscht, **0 Dateien**).
+                          ⭐ **DIE WEBSITE IST GEMESSEN SAUBER — und das ist der eigentliche Befund.** Alle
+                          drei AUv3-Treffer in `docs/` sind ausdrückliche DEMENTIS. #158 und #192 haben je
+                          einen ganzen Zyklus damit verbracht, genau diese Behauptung von der Website zu
+                          entfernen, #184 zwölf ähnliche aus dem App-Store-Text — **die letzte überlebende
+                          Kopie stand im eigenen Prompt.** Lehre, und sie ist allgemeiner als dieser Text:
+                          ein Claim-Sweep, der `docs/` und `fastlane/metadata` durchkämmt, durchkämmt NICHT
+                          die Prompts, aus denen jene Texte entstehen — die Fläche, die eine Behauptung
+                          NACHPRODUZIERT, ist eine andere als die, die sie zeigt.
+                          ⛔ **ZWEI TOTE ZITATE, gemessen:** `01:102` zeigte auf
+                          `Sources/Echoelmusic/Core/SoundscapeEngine.swift` (gelöscht 2026-06-19, 0 Dateien),
+                          `05:3` auf `.github/workflows/decision-review.yml` — das unter den 14 Workflows
+                          **nie existiert hat**. Und `scratchpads/archive/BACKLOG_OPTIMIZATION_2026-06-01.md:28`
+                          hat genau das am **2026-06-01** notiert; es wurde ARCHIVIERT statt behoben. **Ein
+                          deklarierter Trigger, der nicht feuert, ist schlimmer als keiner: der Rückstand
+                          sieht bewacht aus.**
+                          ⛔ **UND DER FILTER, MIT DEM ROUTINE 05 FÄLLIGE ENTSCHEIDUNGEN SUCHTE, FILTERTE
+                          NICHTS.** Er lautete „`review_date` ≤ heute UND `status` ≠ `CLOSED`". Gemessen über
+                          alle 364 Zeilen: **`CLOSED` kommt NULL mal vor** — der Log benutzt 22 verschiedene
+                          Status-Token (`active` 141, `ACTIVE` 130, `shipped` 42, `superseded…`, `RESOLVED`,
+                          `parked`, …) und keines davon ist `CLOSED`. Die Klausel war also wirkungslos, und
+                          **18 von heute 132 fälligen Zeilen tragen einen terminalen Status** — jede davon
+                          wäre als offene Frage aufgemacht worden. Die EINE Definition gehört `review.sh`;
+                          sein Prädikat ist jetzt wörtlich zitiert (#416), statt in einer zweiten,
+                          abweichenden Fassung neben ihm zu stehen. Die Ausweitung auf terminale Status ist
+                          eine Urteilsfrage über den Review-Workflow und ausdrücklich NICHT mitgemacht.
+                          ⚠️ **EHRLICHE GRÖSSE, zuerst: der GANZE Routine-Layer ist TÜRLOS.** Nichts im Repo
+                          feuert diese Prompts — dieselbe Archiv-Notiz sagt es in Zeile 34 selbst. Diese
+                          Scheibe repariert einen MECHANISMUS, keinen sichtbaren Bildschirm; geschrieben wird
+                          sie aus demselben Grund wie #429/#433/#444/#470/#506: der Satz ist falsch, ob eine
+                          Tür existiert oder nicht, und ein später eintreffender Runner darf nicht auf einem
+                          stillen Widerspruch aufsetzen.
+                          ⚠️ EHRLICHE BENOTUNG (#433), gegen den Elternbaum TRANSKRIBIERT statt behauptet
+                          (Python-Nachbau des Strippers, gegen `git show HEAD:` und den Arbeitsbaum
+                          gefahren): **FÜNF von sechs** Behauptungen sind auf dem Elternteil rot, und sie
+                          zerfallen NICHT in eine Abwesenheit — es sind **fünf VERSCHIEDENE Fundstellen**
+                          (Markenwort · AUv3-plus-Host · toter Quellpfad · Phantom-Workflow · das
+                          `CLOSED`-Prädikat), also fünf Befunde und nicht einer fünffach gemeldet (#486).
+                          Die sechste ist ein GEGENGEWICHT, beidseitig grün und die wichtigste: ein nackter
+                          „das Markenwort ist weg"-Scan bleibt auch auf einer Datei grün, die man GELEERT
+                          hat — die #343-Falle —, also nagelt sie zusätzlich fest, dass der Prompt seine
+                          Länge, seinen Titel und die `❌ NO`-Leitplanke „**Merge PRs into main**" behält.
+                          ⚠️ **DER STRIPPER IST ABSICHTLICH NICHT `SourceText.codeOnly`, und das ist keine
+                          Drift.** Jener streift `//` — und `//` steht in JEDER URL; auf Markdown ist er das
+                          falsche Werkzeug. Hier wird stattdessen jede `>`-Blockzitat-Zeile geleert, weil in
+                          diesem Repo die Rücknahmen als Blockzitate geschrieben werden.
+                          `OneDefinitionOfCodeNotProseTests.testNoUnlistedFileDeclaresItsOwnStripper` ankert
+                          auf dem Literal `func codeOnly`, ein anders benannter Helfer ist also keine zweite
+                          Kopie derselben Entscheidung. **Und er ist TRAGEND, gemessen statt angenommen**
+                          (#484/#485 mussten die stärkere Behauptung je einmal zurücknehmen, #486 zweimal):
+                          roh gegen gestreift unterscheiden sich **3 von 12** Nadel-Verdikten, und alle drei
+                          wären auf KORREKTEM Code rot — meine eigenen ⛔-Rücknahmen zitieren „ambient
+                          soundscape generator", `.github/workflows/decision-review.yml` und `` `CLOSED` ``
+                          wörtlich. Die #486/#491-Kollision noch einmal: dieses Repo schreibt auf, was es
+                          entfernt hat.
+                          ⛔ **UND ZWEI NADELN WÄREN IN DER ERSTEN FASSUNG AUF KORREKTEM CODE ROT GEWESEN —
+                          gefangen beim Schreiben, nicht im Review.** Ein nacktes `contains("soundscape")`
+                          trifft die REGEL-Zeile der korrigierten Datei („never wellness/soundscape/therapy
+                          framing"), ein nacktes `contains("AUv3")` die Zeile „Not this product, on purpose:
+                          AUv3 …". Das ist die #364-Falle in Reinform: **einer Datei zu verbieten, das zu
+                          benennen, was sie verbietet.** Verengt auf das Produkt-SUBSTANTIV
+                          („soundscape generator" / „ambient soundscape") und auf AUv3 GEMEINSAM mit einem
+                          Host-Namen.
+                          ⚠️ Und die Grenze zuerst: JEDE Behauptung ist ein QUELLTEXT-SCAN. Dass diese
+                          Prompts je gefeuert werden, dass ein Routine-Agent sie gut liest und dass die
+                          korrigierte Fassung bessere Reviews erzeugt, sind drei Proben, die dieses Bundle
+                          nicht fahren kann — und die erste ist heute gegenstandslos.), davor **220** nach
+                          `TheDecisionLogIsMachineReadableTests.swift` (#509 — der erste
                           Wächter dieser Kette über einer Datei, die GAR KEIN Swift ist, und der erste, dessen
                           Defekt in der WERKZEUG-Hälfte des Repos saß statt im Produkt. `decisions.csv` ist die
                           maschinenlesbare Hälfte des Gedächtnis-Systems; CLAUDE.md verspricht „Run `./review.sh`
@@ -4958,7 +5038,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTNEUNUNDSIEBZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 220 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTACHTZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 221 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

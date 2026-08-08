@@ -99,7 +99,7 @@ Thanks @<author> for <specific thing that works>. <One sentence, specific.>
 
 ### P0: <title>
 
-`Sources/Echoelmusic/Core/SoundscapeEngine.swift:163`
+`Sources/Echoelmusic/Audio/AudioEngine.swift:163`
 
 <concrete description + suggested fix with code>
 

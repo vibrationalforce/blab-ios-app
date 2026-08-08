@@ -42,22 +42,25 @@ You cannot run the code or hear the audio. Static analysis only.
    **Bug: Sound doesn't react to biometrics**
    → Check `applyBioReactive()` parameter ranges (too narrow = inaudible)
    → Check `update()` is being called (timer running, `isPlaying == true`)
-   → Check `bioSourceManager.primarySource` is not `.fallback`
+   → Check `bus.usableBio()` is non-nil — a frame past its source's freshness
+     window is dropped, so "no bio" and "stale bio" look the same downstream
 
    **Bug: Camera pulse detection not working**
-   → `BioSourceManager.startCamera()` — `isCameraActive` set before frames flow?
+   → `CameraRPPGBioPublisher` — did acquisition ever lock, or is it stuck in
+     `.finding`? (a stall past 45 s is reported on screen since #484)
    → `CameraCapture.onFrame` closure — pixel buffer locked/unlocked correctly?
-   → `CameraAnalyzer.isFingerDetected` — threshold calibrated for different skin tones?
+   → `CameraAnalyzer` exposure/brightness gates — the permissive threshold can
+     freeze on a value that yields no pulse (#304, open)
 
    **Bug: Audio doesn't start**
-   → `audioEngine.start()` called before `soundscapeEngine.connect()`?
+   → `AudioEngine.start()` — did the AVAudioEngine graph actually start?
    → AVAudioSession category set to `.playback` or `.playAndRecord`?
    → Background audio entitlement in Echoelmusic.entitlements?
 
    **Build error: ITMS-90725**
    → `xcodebuild -showsdks | grep iphoneos` must show iOS 26
    → Xcode version must be 26.2+
-   → `IPHONEOS_DEPLOYMENT_TARGET` stays at 17.0 (min), build SDK is 26
+   → `IPHONEOS_DEPLOYMENT_TARGET` stays at 18.0 (the floor), build SDK is 26
 
 4. **Draft the fix:**
    - Minimal change. Max 3 files. One commit.
