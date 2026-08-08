@@ -1,4 +1,4 @@
-build: v10.79.378 — Deine zwei roten Rahmen vom Screenshot 2494: die Kopfzeile in der Reihenfolge der Website, und die Identitäts-Leiste im selben Knopf-Format wie alles andere
+build: v10.79.379 — Der Mix-Fader auf einem GEÖFFNETEN Projekt balanciert wieder, statt ein anderes Stück zu komponieren; und drei Anzeigen hören auf, einen Körper zu behaupten, der nicht mehr ankommt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,117 +6,120 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.377 — genau der Build, den Du fotografiert hast.
+  Der Vorgänger auf Deinem Gerät ist 10.79.378.
 
-  ── DIESER BUILD IST FÜR DIE AUGEN, NICHT FÜR DIE OHREN ───────────────────
+  ── DIESER BUILD HAT EINE HÖRBARE HÄLFTE, und sie ist die wichtigste ──────
 
-  Sag das gleich am Anfang, damit Du nicht auf einen Klang-Unterschied wartest, den es
-  nicht gibt: **an der Musik ändert sich in diesem Build NICHTS.** Er beantwortet die zwei
-  roten Rahmen auf Deinem Screenshot von 2494. Alles Hörbare aus 377 (Vibrato nicht mehr
-  25 % zu flach ohne Puls, das fehlende Dezibel ohne Atmung) ist unverändert dabei — die
-  Hörprobe dazu bleibt offen und ist weiterhin die wichtigste.
+  Anders als 378 ist das hier kein Augen-Build. Der größte Posten ist ein Defekt, der
+  eine Bedienung, nach der man selbstverständlich greift, zu einer Falle gemacht hat.
 
-  ── RAHMEN 1: DIE KOPFZEILE ───────────────────────────────────────────────
+  ── 1. DER MIX-FADER AUF EINEM GESPEICHERTEN PROJEKT ──────────────────────
 
-  > *„Die obere Reihe so anordnen wie gezeigt mit Pfeilen, natürlich optimal ausgerichtet,
-  > das Logo und Echoelmusic ist wie auf der Website."*
+  Seit dem 27. Juli tut der Mix-Fader das Richtige: er nimmt den Take, den Du GERADE
+  hörst, und mischt ihn auf dem neuen Pegel neu ab — er komponiert nicht neu. Diese
+  Eigenschaft hing an den Rohtakten des Komponisten, und die lagen nur im Arbeitsspeicher
+  der laufenden App.
 
-  Die Marke führt jetzt: E-Logo und „Echoelmusic" links, in derselben Anordnung wie auf
-  echoelmusic.com — danach die Loop-Anzeige, danach die drei Monitor-Kacheln rechts. Vorher
-  standen die Kacheln zwischen Marke und Anzeige. Das ist eine reine Anordnung; es
-  verschwindet nichts und es kommt nichts dazu.
+  Ein GEÖFFNETES Projekt hatte sie deshalb nie. Der Zustand war dort immer „keine
+  Rohtakte", und der dokumentierte Rückfall dafür lautet: neu komponieren. Also:
+  Projekt öffnen → Bass-Fader ziehen → **Du bekommst ein anderes Stück.** Genau an der
+  Stelle, an der ein Pegelregler am offensichtlichsten ein Pegelregler zu sein scheint,
+  hat er die Musik ersetzt.
 
-  ── RAHMEN 2: DIE LEISTE MIT GENRE · KEY · SCALE · TONSYSTEM · A4 ─────────
+  Jetzt reisen die Rohtakte MIT dem gespeicherten Projekt — und zwar zusammen mit ihrem
+  Genre, in einem Wert. Das ist kein Detail: ein Take muss in dem Genre neu verklebt
+  werden, in dem er komponiert wurde, auch wenn Du längst ein anderes gewählt hast.
+  Zwei getrennte Felder hätten „Takte ohne ihr Genre" möglich gemacht, und das Einzige,
+  was man mit diesem Zustand tun kann, ist genau der Bug.
 
-  > *„Den anderen rot umrandeten Bereich noch einmal auf Usability und kompactheit im
-  > einheitlichen Design intelligent anordnen und aufräumen."*
+  ⚠ Der Preis steht dabei, statt verschwiegen zu werden: die gespeicherte Datei wird
+  größer — vorher stand EIN Takt darin, jetzt so viele, wie Deine Loop-Länge lang ist
+  (Vorgabe acht). Angenommen, weil die Alternative ein Bedienelement ist, das lügt.
 
-  Gemessen, bevor irgendetwas angefasst wurde: in dem Rahmen liegen vier verschiedene
-  Bedien-Grammatiken übereinander — und **genau EINE Fläche hatte gar keine Behandlung**:
-  keine Füllung, keinen Rand, keinen Radius, keinen 44-pt-Tap-Boden. Das ist die
-  Identitäts-Leiste. Jedes andere Bedienelement des Bereichs (die Kachel-Reihen, die
-  Chip-Leiste, die Transport-Steuerung, und sogar das A4-Feld DREI Zeilen weiter in
-  derselben Leiste) liest seit Deinem *„die sollen immer gleichgroß sein"* dieselben vier
-  Design-Werte. Diese Leiste ist am 14. Juli gebaut worden und hat daran nie teilgenommen.
+  ── 2. DREI ANZEIGEN HÖREN AUF, EINEN KÖRPER ZU BEHAUPTEN ─────────────────
 
-  Jetzt trägt sie dasselbe Format: jeder der fünf Regler sitzt in einem eigenen Kästchen
-  mit Rand und demselben Radius, und jeder hat den 44-pt-Tap-Boden, den die
-  Apple-Richtlinie verlangt — vorher waren das ~22 pt hohe nackte Textmenüs, also
-  deutlich unter der Grenze, auf Reglern, die Tonart und Stimmung des ganzen Instruments
-  entscheiden.
+  Der Bus, auf dem die Bio-Werte liegen, wird NIE geleert. Kein Stopp räumt ihn, kein
+  verlorener Puls. Wer den Frame roh liest, liest ihn deshalb für den Rest der
+  App-Laufzeit weiter — auch eine Stunde später.
 
-  ── DIE EHRLICHE HÄLFTE: „Kompaktheit" IST 4 pt IN DIE FALSCHE RICHTUNG ───
+  · **Der Messstreifen hinter dem Bio-Chip** stellte damit drei verschiedene Antworten
+    auf EINE Frage nebeneinander: das Etikett fiel nach 6 s auf „No signal", die
+    Kohärenz-Zelle nach 5 s auf „—", und Herzfrequenz, HRV und Atemzahl standen
+    unverändert daneben. Ein Etikett, das sagt „es kommt nichts mehr an", direkt über
+    drei Zahlen, die das Gegenteil behaupten. Jetzt fragt der ganze Streifen dieselbe
+    Frage, mit dem Fenster der jeweiligen Quelle.
 
-  Der Tap-Boden macht die Leiste von 40 auf 44 pt HÖHER. Das ist die Wahrheit und keine
-  Nebenbemerkung, weil Kompaktheit Dein zweites Wort war. Ich habe es trotzdem so gebaut,
-  weil ein zu kleines Ziel auf dem Kammerton-Regler teurer ist als 4 pt — ein Fehlgriff
-  dort verstimmt jede Stimme und wird gespeichert.
+  · **Die Liste „Always on — body → timbre"** unterscheidet jetzt einen lebenden Körper
+    von einem Frame, der einmal ankam und dann aufhörte. Sie LEERT die Zahl dabei
+    absichtlich NICHT — sie schreibt „held" daneben und dimmt den Balken. Grund: die
+    Klang-Erzeuger lassen den letzten Körper nicht fallen, sie PARKEN darauf. Eine
+    geleerte Zahl behauptete einen Abbruch, den es nicht gibt.
 
-  **Und die einzige Scheibe, die Kompaktheit WIRKLICH bewegt, habe ich nicht gebaut,
-  sondern lege sie Dir vor** (das ist die Frage unten): der ganze Vorspann über dem Inhalt
-  ist heute rund 273 pt, also etwa **36 % des Bildschirms, bevor irgendetwas beginnt**. Der
-  größte einzelne Posten darin, den man ohne Verlust räumen könnte, ist genau diese
-  Identitäts-Leiste — 41 pt, 15 % des Vorspanns. Genre, Key, Scale, Tonsystem und A4 sind
-  EINSTELL-Werte: einmal gewählt, dann bleiben sie, und trotzdem konkurrieren sie dauerhaft
-  mit dem Transport um Platz.
+  · **Live Colabo** — die Zeile eines Mitspielers wird jetzt leer, wenn von ihm nichts
+    mehr ankommt. Vorher hat das eigene Telefon, weggelegt, denselben eingefrorenen Wert
+    alle 400 ms weitergesendet: auf dem Schirm des anderen ein vollkommen ruhiger,
+    vollkommen lebendiger Puls. Und in der Gegenrichtung räumte nichts die Zahlen eines
+    Peers, solange er verbunden blieb. Beide Enden sind geschlossen. **Das braucht zwei
+    Geräte zum Prüfen** — steht unten in der Liste.
 
-  Ich setze das NICHT eigenmächtig um, weil Du am 14. Juli ausdrücklich das Gegenteil
-  entschieden hast: die musikalische Identität soll *„HIER in der Chrome, immer sichtbar,
-  eine dünne Zeile"* leben. Diese Entscheidung steht im Quelltext und wird nicht von einer
-  Aufräum-Ask überschrieben.
+  ── 3. EINE COMPLIANCE-KANTE, DIE DU NICHT SEHEN WIRST ────────────────────
 
-  ── WAS ICH NICHT GEBAUT HABE, UND WARUM ──────────────────────────────────
+  Apples Regel 5.1.3 verbietet, Daten aus dem Health-Speicher an Dritte weiterzugeben.
+  Echoel hält das, und die Regel stand für den Colabo-Pfad an genau EINER Stelle: als
+  Zusatzbedingung in einer Ansicht. Das reichte, solange nur diese Ansicht sendet — und
+  im selben Zug hatte ich in genau diese Zeile den naheliegenden späteren Aufräum-Satz
+  geschrieben („der Frame ist doch jetzt frisch, weg mit der Prüfung"). Frische und
+  HERKUNFT sind zwei verschiedene Fragen.
 
-  Zwei geplante Scheiben sind ZURÜCKGEZOGEN, mit Beleg statt mit Bauchgefühl:
+  Die Regel sitzt jetzt IM Senden. Der Sende-Aufruf nimmt keine fertige Zahlen-Kapsel
+  mehr entgegen (die trägt keine Herkunft), sondern die Messung selbst, und fragt die
+  Regel, bevor irgendetwas das Gerät verlässt. Ein 5.1.3-Verstoß ist nichts, was man in
+  einer Hörprobe findet — es ist eine Ablehnung.
 
-  · Eine Statuszeile unter den Aufnahme-Knöpfen („Record 8 bars → send"), weil die Knöpfe
-    seit dem Verdichten nur noch Symbole sind. Beim Nachprüfen stellte sich heraus, dass
-    die Taktzahl schon auf dem Schirm steht — in der neuen Loop-Anzeige der Kopfzeile, aus
-    derselben gespeicherten Einstellung. Und eine Zeile, die nur WÄHREND einer Aufnahme
-    erscheint, schiebt beim Auftauchen alles darunter nach unten und verschwindet bei einem
-    Ende, das Du nicht ausgelöst hast. Für einen Bereich, dessen Ask „Kompaktheit" heißt,
-    ist das die falsche Antwort.
+  Nachgemessen dabei: alle sechs Stellen, an denen im ganzen Projekt eine Bio-Messung
+  entsteht, stempeln ihre Quelle als festen Wert im jeweils zuständigen Sensor-Modul.
+  Eine Health-Zahl kann sich also nicht als Kamera-Zahl ausgeben und am Tor vorbei.
 
-  · Ein Umbau der Knopf-Reihen auf ein echtes Raster. Nutzen für Dich: null Pixel
-    Unterschied. Preis: ein Wechsel der Layout-Mechanik auf genau dem Band, das Du gerade
-    markiert hast, in einer Umgebung, in der ich kein Bild rendern kann. Das ist kein
-    Aufräumen, das ist ein Risiko ohne Gegenwert.
+  ── AUSSERDEM DRIN, OHNE SICHTBARE WIRKUNG ────────────────────────────────
 
-  ── EIN ECHTER DEFEKT, DER DABEI AUFFIEL (kein Symptom, ein Mechanismus) ──
+  · Die Live-Erzählung („Dein Puls treibt…") konnte keinen Take mehr beschreiben, bei
+    dem kein Puls gemessen wurde — sie ließ stattdessen den Satz des VORIGEN Takes
+    stehen und berichtete weiter von einer Herzfrequenz, die nicht mehr ankam. Der
+    Baustein dafür war mit großer Sorgfalt für genau diesen Fall gebaut; nur der
+    Aufrufer hat ihn abgeschaltet. **Die Fläche hat heute keine Tür**, Du wirst es also
+    nicht sehen — der Satz war trotzdem falsch, und eine später eintreffende Tür darf
+    nicht auf einem stillen Widerspruch aufsetzen.
 
-  Die Loop-Länge stand an ZWEI Stellen unabhängig geschrieben — einmal im Instrument,
-  einmal in der Kopfzeile —, unter einem Kommentar, der einen Menschen anwies, sie gleich
-  zu halten. Genau diese Konstruktion hat schon einmal ausgeliefert, dass die Leiste
-  „loop N/4" anzeigte, während das Instrument 8 Takte komponierte. Heute waren beide zufällig
-  gleich, es war also nichts kaputt — jetzt gibt es nur noch EINE Stelle, an der sie stehen
-  kann. Das entfernt einen Mechanismus, keinen Fehler.
+  · Zwei Werkzeug-Reparaturen, die die App nicht anfassen: das Entscheidungs-Protokoll
+    war für sein eigenes Auswertungs-Skript zu zwei Dritteln unlesbar (und ein einziger
+    Lauf des Flag-Befehls hätte es dauerhaft zerschossen), und der Standing-Prompt, der
+    jedem Automatik-Durchgang vorangestellt wird, beschrieb noch das Produkt von vor
+    Juli — samt eines Marken-Worts, das die eigenen Regeln ausdrücklich verbieten.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  „Build for Testing" = success auf allen neuen Commits; das blockierende Testbündel
-  kompiliert also nachweislich mit dem neuen Wächter über der Kopfzeilen-Leiste und dem über
-  der Loop-Anzeige (jetzt 213 Dateien). „Run Tests" stirbt weiterhin am bekannten
-  Simulator-Start — das ist der founder-gated CI-Punkt, nicht der Code.
+  „Build for Testing" = success auf allen neuen Commits, zuletzt auf dem 5.1.3-Commit,
+  der eine öffentliche Signatur ändert — das blockierende Testbündel kompiliert also
+  nachweislich (jetzt 223 Dateien). „Run Tests" stirbt weiterhin am bekannten
+  Simulator-Start; das ist der founder-gated CI-Punkt, nicht der Code.
 
-  ⚠ Und die Grenze zuerst: **alles in diesem Build ist LAYOUT, und Layout kann ich hier
-  nicht sehen.** Die Wächter beweisen, dass die richtigen Design-Werte an den richtigen
-  Stellen stehen; sie beweisen NICHT, dass die Leiste am Gerät gut aussieht. Dafür bist Du
-  die einzige Instanz.
+  ⚠ Und die Grenze zuerst: das Meiste hier ist mit Quelltext-Wächtern belegt, nicht mit
+  einem Lauf am Gerät. **Der Mix-Fader-Punkt und die drei Anzeigen sind genau die Sorte,
+  die nur Du entscheiden kannst.**
 
-  ── WAS VON DIR GEBRAUCHT WIRD ────────────────────────────────────────────
+  ── WAS VON DIR GEBRAUCHT WIRD (nach Wichtigkeit) ─────────────────────────
 
-  1. Kopfzeile: stimmt die Reihenfolge jetzt mit Deinen Pfeilen überein (Marke links, dann
-     Loop-Anzeige, dann die drei Kacheln)?
-  2. Identitäts-Leiste: sechs Kästchen mit Rand nebeneinander — liest sich das ruhig, oder
-     ist es unruhiger als die nackten Menüs vorher? Das ist die eine Stelle, an der ich
-     zwischen zwei Fehlern wählen musste (eine Fläche ohne jede Behandlung neben drei mit,
-     gegen sechs Ränder in einer Zeile), und ich kann das Ergebnis nicht ansehen.
-  3. Die Leiste scrollt jetzt weiter nach rechts als vorher (die Kästchen brauchen Platz).
-     Kommst Du beim Wischen bequem an A4 heran?
-  4. **DIE FRAGE, DIE ICH NICHT SELBST ENTSCHEIDEN WOLLTE:** darf Genre · Key · Scale ·
-     Tonsystem · A4 hinter den Tempo-Chip wandern (der ohnehin „Tempo and variations"
-     heißt)? Das gäbe dem Instrument 41 pt zurück — und es kehrt Deine Entscheidung vom
-     14. Juli um. Ja oder nein genügt.
-  5. Weiterhin offen und wichtiger als alles hier: die Hörprobe aus 377 (ohne Puls spielen,
-     dann mit) und die Stimmungs-/Modus-Probe aus 376 (Rāst speichern, auf 12-TET stellen,
-     wieder öffnen).
+  1. **Der wichtigste Test dieses Builds:** ein Projekt SPEICHERN, die App verlassen,
+     wieder öffnen, das Projekt öffnen — und dann den Bass- oder Pad-Fader ziehen.
+     Bleibt es dasselbe Stück, nur anders balanciert? (Vorher wurde daraus ein anderes.)
+  2. Bio starten, den Finger wegnehmen und ein paar Sekunden warten: fallen im
+     Bio-Streifen jetzt ALLE vier Zellen zusammen auf „—", statt dass drei stehenbleiben?
+  3. Wenn Du mit jemandem Live Colabo probierst: legt einer das Telefon weg, wird seine
+     Zeile beim anderen nach ein paar Sekunden leer — und bleibt der Name stehen?
+  4. **Weiterhin offen und hörbar wichtiger als alles hier:** die Hörprobe aus 377
+     (ohne Puls spielen, dann mit — das Vibrato war ohne Puls 25 % zu flach und ein
+     ganzes Dezibel zu leise) und die Stimmungs-Probe aus 376 (Rāst speichern, auf
+     12-TET stellen, wieder öffnen).
+  5. Und die eine Frage aus 378, die noch keine Antwort hat: darf Genre · Key · Scale ·
+     Tonsystem · A4 hinter den Tempo-Chip wandern? Das gäbe dem Instrument 41 pt zurück
+     und kehrt Deine Entscheidung vom 14. Juli um. Ja oder nein genügt.
