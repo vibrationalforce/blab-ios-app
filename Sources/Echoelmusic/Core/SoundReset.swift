@@ -93,6 +93,17 @@ public enum SoundReset {
         Entry(label: "articulation", keys: ["studio.articulation"]),
         Entry(label: "bassRhythm", keys: [StudioDefaultKeys.bassRhythm.key]),
         Entry(label: "padRhythm", keys: [StudioDefaultKeys.padRhythm.key]),
+        // ⭐ THE EIGHT MOOD DIALS (#275), and they qualify for this list on the same test as
+        // everything above: they are persisted settings that decide what a take SOUNDS like,
+        // not work the player made. One key, eight values — see `MoodStorage`.
+        //
+        // ⚠️ AND THEY ARE THE ENTRY MOST LIKELY TO BE THE ANSWER, because until #275 they could
+        // not be one. Nothing stored them, so nothing could report or reset them; the "schief"
+        // class of complaint had eight candidate causes that no log line named and no button
+        // could clear. Adding the storage without adding this line would have made that worse,
+        // not better — a value that persists and cannot be reset is precisely the state this
+        // whole file exists to stop needing a reinstall for.
+        Entry(label: "mood", keys: [StudioDefaultKeys.mood.key]),
         Entry(label: "touchPatch", keys: [StudioDefaultKeys.touchPatchID.key]),
         Entry(label: "glide", keys: [StudioDefaultKeys.touchGlide.key]),
         // ⚠️ THE LABEL IS `userMix`, NOT `mix`, AND THAT IS #306's RENAME. It distinguishes the

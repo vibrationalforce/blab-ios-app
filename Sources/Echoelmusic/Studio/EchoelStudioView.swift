@@ -130,6 +130,13 @@ struct EchoelStudioView: View {
     private var bassRhythmRaw = StudioDefaultKeys.bassRhythm.value
     @AppStorage(StudioDefaultKeys.padRhythm.key)
     private var padRhythmRaw = StudioDefaultKeys.padRhythm.value
+    // #275 slice 1 — the STORAGE half of `mood` below. The eight dials live in `@State` because
+    // eight `EchoelValueField`s bind into them individually; this key is the one place their
+    // value is written down, restored in `onAppear` and re-encoded from the single
+    // `.onChange(of: mood)` on the body. See `MoodStorage` for why one JSON string and not
+    // eight scalar keys.
+    @AppStorage(StudioDefaultKeys.mood.key)
+    private var moodRaw = StudioDefaultKeys.mood.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmCharacter.key)
     private var fieldArpCharacter: RoleRhythm.Character = StudioDefaultKeys.fieldArpRhythmCharacter.value
     @AppStorage(StudioDefaultKeys.fieldArpRhythmGate.key)
@@ -306,6 +313,13 @@ struct EchoelStudioView: View {
     @State private var delaySync = TempoSyncOption(.eighth, .dotted)
 
     /// Continuous mood/character controls that shape the composition (blend with bio).
+    ///
+    /// ⚠️ `@State`, but PERSISTED SINCE #275 — through `moodRaw`/`MoodStorage`, not through
+    /// `@AppStorage` on this property. It stays `@State` because eight knobs, the mood pad and
+    /// `MoodPreset` all bind into individual FIELDS of it (`$mood.liveliness`, …), which a
+    /// `@AppStorage`-backed value of a non-scalar type cannot offer. Restored once in
+    /// `onAppear`, written back from the single `.onChange(of: mood)` on the body — one
+    /// storage decision, one write site (#416).
     @State private var mood = MoodProfile()
     // The SOUND mood pad's persisted position ("mood.sound.x"/"y") moved into
     // `SoundMoodPadLeaf` with #322 — same keys, same defaults, so an existing device
@@ -1110,6 +1124,22 @@ struct EchoelStudioView: View {
             // heard 440 (`EchoelPolyDDSP.a4Hz` defaults to 440). Silent, and exactly the
             // kind of thing only a tuning-sensitive player notices.
             applyConcertPitch(session.a4Hz)
+            // …and the eight MOOD dials, which until #275 were the only composer input with no
+            // persistence at all: `mood` is `@State`, so every cold start silently reset
+            // density, register, dissonance, chord colour, leaps, ornaments, placement and
+            // velocity feel to factory while every one of their siblings above (genre, scale,
+            // root, tuning, A4, articulation, both rhythm characters) came back.
+            //
+            // ⚠️ MUST PRECEDE `logLaunchMusicalIdentity()` at the end of this closure — that
+            // line reports `mood=` now, and reporting the value the view was CONSTRUCTED with
+            // instead of the one it woke up with would make the launch breadcrumb lie about
+            // exactly the class of state it exists to expose.
+            //
+            // The `.onChange(of: mood)` on the body sees this assignment and re-encodes. That
+            // is deliberate and idempotent: on a fresh install `decode("")` equals the current
+            // value, so the comparison never fires and no key is written; on a restore it
+            // writes back the same (normalised) string.
+            mood = MoodStorage.decode(moodRaw)
             // Restore the last-picked immersive visual look so an installation /
             // performance setup survives relaunch (the live params aren't persisted
             // individually, but the chosen scene is).
@@ -1246,6 +1276,19 @@ struct EchoelStudioView: View {
         // mid-show. Recomputed from the combined state so any one toggle is correct;
         // re-enabled (battery) the moment nothing needs it.
         .onChange(of: running) { _, _ in updateKeepAwake() }
+        // #275 — the ONE place a mood edit is written down, whichever control made it: the eight
+        // knobs, the mood pad's drag, or applying a `MoodPreset`. Persisting at each of those
+        // three sites instead would be three copies of one storage decision (#416), and the pad
+        // is the one that would be forgotten — it writes two fields from inside a drag gesture.
+        //
+        // ⚠️ THIS IS NOT A PRESENTATION MODIFIER, and that distinction is the whole reason it is
+        // allowed here. The black-screen law (10.76.34) is about the `.sheet`/`.fullScreenCover`/
+        // `.alert`/`.fileImporter` chain, pinned at 14 on this body and 16 file-wide by
+        // `ResetSoundClearsWhatTheLaunchLineReportsTests`; this adds none of those and leaves both
+        // numbers untouched. Nor is it the freeze law (10.76.41/50): that one is about READING a
+        // ~10 Hz `@Observable` in an ancestor body. `mood` changes at finger speed and is already
+        // read here — this observes the value the body already depends on.
+        .onChange(of: mood) { _, m in moodRaw = MoodStorage.encode(m) }
         // ONE Stop for the whole app: when the transport stops from ANYWHERE (the global
         // transport bar, an arrangement finishing), end the bio session too — don't leave
         // the camera/evolve armed behind a stopped clock (founder: one accessible solution,
@@ -3960,7 +4003,21 @@ struct EchoelStudioView: View {
         // that list is keyed by the labels THIS line emits, deliberately, so a value that
         // cannot be reported honestly cannot be quietly half-reset either.
         let signatureText = performerSignature.hasBody ? "learned" : "none"
-        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), touchPatch=\(touchText), glide=\(glideText), userMix=\(mixText), signature=\(signatureText)")
+        // ⭐ THE EIGHT DIALS, IN THE ORDER THE MOOD PANEL SHOWS THEM: liveliness / darkness /
+        // tension / romance / weird / virtuosity / syncopation / humanize. They belong on this
+        // line for the reason every other entry does — until #275 they had no persistence at
+        // all, so a session that "sounded different" had eight invisible reasons and the one
+        // line built to answer that question could not name any of them.
+        //
+        // ⚠️ NUMBERS, NOT PRESENCE — deliberately the opposite call from `signature` above, and
+        // the difference is what the value IS. A fingerprint is something the app inferred ABOUT
+        // a person and must never be printed; these are eight settings the person chose, and the
+        // whole diagnostic value is WHICH ONE is off. One `String(format:)` call, hoisted, for
+        // the type-checker reason in this method's doc.
+        let moodText = String(format: "%.2f/%.2f/%.2f/%.2f/%.2f/%.2f/%.2f/%.2f",
+                              mood.liveliness, mood.darkness, mood.tension, mood.romance,
+                              mood.weird, mood.virtuosity, mood.syncopation, mood.humanize)
+        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), mood=\(moodText), touchPatch=\(touchText), glide=\(glideText), userMix=\(mixText), signature=\(signatureText)")
     }
 
     /// Step 2b: applies the audible side effects of a USER edit in the chrome's
@@ -7487,6 +7544,15 @@ struct EchoelStudioView: View {
         // nothing, which is the "it needed a reinstall" experience returning through the
         // button built to end it. Assigning `.unknown` is idempotent and takes the salt to 0.
         performerSignature = .unknown
+
+        // ⚠️ THE SAME HALF-FIX A FOURTH TIME (#275). `SoundReset.clear` above removes
+        // `studio.mood`, but `mood` is `@State` — the eight dials in memory keep shaping every
+        // take until the next launch, so a factory reset would leave the instrument composing
+        // at the settings it was supposed to clear. Assigning the factory profile is idempotent,
+        // and the body's `.onChange(of: mood)` re-encodes it (writing the default string back
+        // over a key that was just removed is harmless: `decode` of either resolves to the same
+        // profile).
+        mood = MoodProfile()
 
         // ⚠️ READ THE DEFAULT DIRECTLY, not through `style`. This is the identical expression
         // `@AppStorage` declares as `style`'s fresh-install default, so it is the SAME single

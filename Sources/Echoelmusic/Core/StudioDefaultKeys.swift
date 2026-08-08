@@ -77,6 +77,22 @@ public enum StudioDefaultKeys {
     /// such gate exists — every non-arpeggiated pad path routes through the override.
     public static let padRhythm = StudioDefault(key: "studio.padRhythm", value: "")
 
+    /// #275 slice 1 — the eight mood dials as `MoodStorage`'s JSON, or `""` meaning "nothing
+    /// stored, use the factory profile".
+    ///
+    /// ⚠️ `""` IS THE DEFAULT AND IT MUST STAY THE DEFAULT, for a reason unlike its two
+    /// neighbours above: there is no "the genre's own mood" to fall back to, so any literal
+    /// written here would be a SECOND declaration of `MoodProfile()`'s defaults — and the two
+    /// would drift the first time a dial's factory value is retuned. The empty string means
+    /// "ask the type", which is why `MoodStorage.decode("")` returns `MoodProfile()` rather
+    /// than anything spelled out here.
+    ///
+    /// ⚠️ ONE KEY, EIGHT VALUES — see `MoodStorage`'s header for why this is a JSON string
+    /// rather than eight scalar keys, and specifically why making `MoodProfile`
+    /// `RawRepresentable` (the shape `@AppStorage` would prefer) would silently change how
+    /// `TimelineLane.mood` already encodes on disk.
+    public static let mood = StudioDefault(key: "studio.mood", value: "")
+
     // MARK: visual.* — immersive visual look + window
 
     /// Whether the immersive visual is the spectrum→visible DONUT renderer instead of the Metal
