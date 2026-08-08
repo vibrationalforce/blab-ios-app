@@ -524,18 +524,26 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     /// the weaker one, and it is enough: however a take arrives, it renders exactly like one you
     /// made.
     ///
-    /// ⚠️⚠️ THE HONEST REACH, AND IT IS THE FIRST THING TO READ: **no take any Echoel build can
-    /// produce today shows a credit.** `SessionContext.artistName` has NO production writer —
-    /// its only assignments are the two in `init`, and Swift does not run `didSet` from an
-    /// initialiser, so the one line that would persist it never fires. Every device therefore
-    /// reports `E~`, every take is stamped `E~`, and a take received from another person's
-    /// Echoel carries `E~` too (`importProject` replaces only the `id`). The difference-gate
-    /// below then correctly returns `nil`. Only a hand-edited document can make the row appear.
-    /// **This is a mechanism with no producer, in the #506 shape** — written now because the
-    /// decision is the same whether or not the door exists, and a door arriving later must not
-    /// land on a silent contradiction. The door is registered as #522: a name field beside the
-    /// existing manual place field in "Save & Export", which is the other half of the very same
-    /// `SessionNaming.stem(artist:date:key:bpm:a4Hz:place:)` and is missing for the same reason.
+    /// ⚠️⚠️ THE HONEST REACH, AND IT IS THE FIRST THING TO READ — it CHANGED with #522, so this
+    /// paragraph was rewritten rather than left standing. Until that slice **no take any Echoel
+    /// build could produce showed a credit**: `SessionContext.artistName` had no production
+    /// writer at all (its only assignments were the two in `init`, and Swift does not run
+    /// `didSet` from an initialiser, so the one line that would persist it never fired) — a
+    /// mechanism with no producer, in the #506 shape. #522 shipped the door: a name field in
+    /// "Save & Export" beside the manual place field, the other half of the very same
+    /// `SessionNaming.stem(artist:date:key:bpm:a4Hz:place:)`.
+    ///
+    /// ⚠️ WHAT REMAINS TRUE, and it is the part a reader will get wrong: **an untouched install
+    /// still shows no credit anywhere, and that is correct.** Until someone types a name, every
+    /// device reports `E~`, every take is stamped `E~`, and a take received from another person's
+    /// Echoel carries `E~` too (`importProject` replaces only the `id`), so the difference-gate
+    /// below returns `nil`. The row appears exactly when two people have named themselves
+    /// differently — which is a property of two devices, not one.
+    ///
+    /// ⛔ AND IT DOES NOT MAKE LIVE-COLABO PEERS DISTINGUISHABLE, although the v10.79.382 deploy
+    /// note claimed it would. `MCPeerID` is built once in `MultipeerSession.init()` from
+    /// `UIDevice.current.name`, which iOS 16+ returns as the MODEL name without an entitlement
+    /// Echoel does not hold. #513 is untouched by the door and stays open.
     ///
     /// ⚠️ SHOWING IT ONLY WHEN IT DIFFERS IS A NOISE DECISION, NOT A TRUTH DECISION, and the two
     /// must not be confused. Every take THIS BUILD WRITES carries a stamp, and on an untouched
@@ -556,13 +564,15 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     /// `E~` there would attribute a stranger's take to THIS device's brand mark, which is the
     /// fabricated-detail defect (#424/#426/#433/#461) pointed at a person.
     ///
-    /// ⚠️ AND THE CONSEQUENCE THE DOOR WILL BRING, stated now so it is not discovered as a bug:
-    /// once #522 lets you rename yourself, your own older takes begin showing your OLD name.
-    /// That is what the stamp records — provenance, not identity — and it is precisely why the
-    /// row must read as a neutral fact ("by <name>") and never as a claim of foreignness
-    /// ("imported from …"): the same line has to stay true when the other artist is a former
-    /// self. (Written in the future tense on purpose: today nothing can rename you, so this is
-    /// a property of the design and not yet of the app.)
+    /// ⚠️ AND THE CONSEQUENCE THE DOOR BROUGHT, which #522 turned from a prediction into a live
+    /// property: renaming yourself makes your own older takes begin showing your OLD name. That
+    /// is what the stamp records — provenance, not identity — and it is precisely why the row
+    /// must read as a neutral fact ("by <name>") and never as a claim of foreignness ("imported
+    /// from …"): the same line has to stay true when the other artist is a former self. It is
+    /// NOT a defect and must not be "fixed" by re-stamping old takes on rename: that would
+    /// rewrite what a file says about itself, which is the fabrication the paragraph above
+    /// forbids. (This was written in the future tense until #522 shipped; the tense is part of
+    /// the correction, because a prediction left standing after it comes true reads as a plan.)
     public func attribution(besideOwnName readerName: String) -> String? {
         let stamped = artist.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !stamped.isEmpty else { return nil }

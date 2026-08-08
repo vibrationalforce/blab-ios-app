@@ -2,27 +2,35 @@
 // Echoel — #521. A take carries the artist it was saved under, and until this slice NOTHING
 // read it back.
 //
-// ⚠️⚠️ THE REACH FIRST, BECAUSE IT DECIDES HOW TO READ EVERYTHING BELOW: **no take any Echoel
-// build can produce today shows a credit.** `SessionContext.artistName` has NO production
-// writer — its only assignments are the two inside `init`, and Swift does not run `didSet` from
-// an initialiser, so the single line that would persist it never fires. Measured:
-// `git grep -n "artistName" -- Sources` returns the key, the property, that `didSet`, the two
-// `init` assignments, two naming reads, the `WorkspaceView` preview read, `currentProject()`'s
-// stamp, and the new read in `projectRow`. Nothing writes it. So every device reports `E~`,
-// every take is stamped `E~`, a take received from someone else's Echoel carries `E~` as well
-// (`importProject` replaces only the `id`), and the difference-gate correctly returns `nil`.
-// This is a MECHANISM WITH NO PRODUCER in the #506 shape, written now because the decision is
-// the same whether or not the door exists, and a door arriving later must not land on a silent
-// contradiction. `testNothingLetsYouNameYourselfYet` pins that absence so the door (#522 — a
-// name field beside the manual place field in "Save & Export") turns it into a decision.
+// ⚠️⚠️ THE REACH FIRST, BECAUSE IT DECIDES HOW TO READ EVERYTHING BELOW — and it CHANGED with
+// #522, which is why this paragraph was rewritten rather than left standing. Until that slice
+// **no take any Echoel build could produce showed a credit**: `SessionContext.artistName` had no
+// production writer at all (its only assignments were the two inside `init`, and Swift does not
+// run `didSet` from an initialiser, so the one line that would persist it never fired). #522
+// added the door — a name field in "Save & Export", beside the manual place field — so the
+// credit line is reachable for the first time. `YouCanNameYourselfTests` now owns that half.
 //
-// ⚠️ THE OTHER LIMIT. Four of the ten test METHODS are SOURCE SCANS, and for exactly one reason:
+// ⚠️ WHAT IS STILL TRUE, and it is the part a reader will get wrong: **an untouched install
+// still shows no credit anywhere, and that is correct.** Until someone types a name, every
+// device reports `E~`, every take is stamped `E~`, a take received from someone else's Echoel
+// carries `E~` as well (`importProject` replaces only the `id`), and the difference-gate
+// correctly returns `nil`. The credit appears exactly when two people have named themselves
+// differently — which is the property this file tests and cannot itself create.
+//
+// ⚠️ AND ONE PROPERTY WENT LIVE WITH THE DOOR, named here because `Project.attribution`'s last
+// paragraph predicted it: renaming yourself makes your OWN older takes show your OLD name. The
+// stamp is what the take was saved under; it is not re-written retroactively, and re-writing it
+// would be the fabrication this file's counterweights forbid.
+//
+// ⚠️ THE OTHER LIMIT. Three of the nine test METHODS are SOURCE SCANS, and for exactly one reason:
 // `projectRow` and `currentProject()` are `private` members of a view no test bundle can
 // instantiate. (An earlier draft named a third reason — "`SessionContext` is `@MainActor
 // @Observable` over `UserDefaults`" — and it was not a constraint at all: its init takes an
 // injectable `defaults:`, and this very bundle already builds one in
-// `ResetSoundClearsWhatTheLaunchLineReportsTests`. That scan is now a behaviour test, which is
-// why the count is four and not five.) **That the third line RENDERS, that it reads as a
+// `ResetSoundClearsWhatTheLaunchLineReportsTests`. That scan was turned into a behaviour test,
+// which took the count from five to four; #522 then deleted the `Sources/`-wide sweep, taking it
+// to three of nine — see the ⛔ receipt where that method stood.) **That the third line RENDERS,
+// that it reads as a
 // neutral fact rather than an accusation, and that it survives accessibility text sizes are
 // three device trials, and all three are open.**
 //
@@ -56,10 +64,14 @@
 //
 // ⚠️ `SourceText.codeOnly` is PROPHYLACTIC here, and that is MEASURED rather than assumed
 // (#484/#485 each had to retract the stronger claim once, #486 twice): raw versus stripped
-// differ on **0 of 7 needle verdicts, on both trees — 0 of 14 cells.** (An earlier draft wrote
-// "0 of 4", which was the count of source-scan METHODS rather than of needles, and then "0 of 6",
-// which was measured before `p.key.shortName` was added; this repo counts needles, and often
-// × 2 trees.) It stays because #453 created ONE definition for the whole
+// differ on **0 of 6 needle verdicts, on both trees — 0 of 12 cells.** (The history is the
+// point. An earlier draft wrote "0 of 4", which was the count of source-scan METHODS rather than
+// of needles; then "0 of 6", measured before `p.key.shortName` was added; then "0 of 7" once it
+// was. #522 deleted the sweep and with it two needles, so the honest figure is six — RE-MEASURED
+// on this tree, not decremented from the last one. One is worth naming: `BPM` occurs 75× raw and
+// 31× stripped, and the verdict is unchanged only because the needle is POSITIVE; a negative
+// scan on that token would flip. This repo counts needles, and often × 2 trees.) It stays
+// because #453 created ONE definition for the whole
 // blocking bundle — and every needle here is POSITIVE, so the stripper is the only thing
 // standing between "the app does this" and "a comment says so" the day one of these tokens is
 // quoted in prose.
@@ -182,56 +194,18 @@ final class TheTakeSaysWhoMadeItTests: XCTestCase {
                        "A stored artist name is no longer honoured — the migration swallowed it.")
     }
 
-    /// ⚠️⚠️ THE COUNTERWEIGHT THAT STATES THE REACH. Nothing in `Sources/` writes
-    /// `SessionContext.artistName`, so the credit line renders on NO take this build can make.
-    /// Read the file header before treating that as a defect: it is the #506 shape, deliberate,
-    /// and this claim exists so the door cannot arrive silently.
-    ///
-    /// ⚠️ IT GOES RED ON THE COMMIT THAT ADDS THE DOOR — that is the design, not a trap (#456,
-    /// #505). Its message names every place that must move in the SAME commit, because three
-    /// prose sites currently describe the feature as unreachable and would otherwise be left
-    /// claiming the opposite of the shipped app.
-    func testNothingLetsYouNameYourselfYet() throws {
-        let here = URL(fileURLWithPath: #filePath)
-        let root = here.deletingLastPathComponent().deletingLastPathComponent()
-            .deletingLastPathComponent()
-        let sources = root.appendingPathComponent("Sources")
-        guard FileManager.default.fileExists(atPath: sources.path) else {
-            throw XCTSkip("source tree not present under \(root.path)")
-        }
-        guard let walk = FileManager.default.enumerator(atPath: sources.path) else {
-            throw AnchorMissing(reason: "Sources/ is present but could not be enumerated.")
-        }
-        var writers: [String] = []
-        var scanned = 0
-        for case let relative as String in walk where relative.hasSuffix(".swift") {
-            // `SessionContext` itself owns the property, its `didSet` and the two `init`
-            // assignments — it is the DECLARATION, never a door.
-            if relative.hasSuffix("Core/SessionContext.swift") { continue }
-            let text = SourceText.codeOnly(
-                try String(contentsOf: sources.appendingPathComponent(relative), encoding: .utf8))
-            scanned += 1
-            // `"artistName = "` with the trailing space, so `artistName ==` is not a match.
-            if text.contains("$session.artistName") || text.contains("artistName = ") {
-                writers.append(relative)
-            }
-        }
-        XCTAssertGreaterThan(scanned, 100, """
-            Only \(scanned) Swift files were walked under Sources/ — the sweep is looking at the \
-            wrong place, so a green result below proves nothing (#343).
-            """)
-        XCTAssertEqual(writers, [], """
-            \(writers.joined(separator: ", ")) can now write `SessionContext.artistName`, so a \
-            person can finally name themselves — which is #522, and it makes #521's credit line \
-            reachable for the first time. This assertion has done its job; DELETE it and update \
-            these in the SAME commit, because each currently says the feature is unreachable:
-              · `Project.attribution`'s "HONEST REACH" paragraph (Core/Project.swift)
-              · the ⚠️⚠️ block above the credit line in `projectRow` (Studio/EchoelStudioView.swift)
-              · the reach paragraph at the top of this file
-            Also re-read `Project.attribution`'s last paragraph: renaming yourself makes your own
-            older takes show your OLD name, and that becomes a live property on that day.
-            """)
-    }
+    // ⛔ `testNothingLetsYouNameYourselfYet` STOOD HERE AND IS DELETED BY #522 — deliberately,
+    // and this note is its receipt. It swept `Sources/` for any writer of
+    // `SessionContext.artistName` and asserted there were none, pinning the #506 "mechanism with
+    // no producer" state so the door could not arrive silently. The door arrived; the assertion
+    // did its job and went red exactly as designed (#456/#505), and its own failure message
+    // instructed the deletion together with the three prose sites that described the feature as
+    // unreachable — all three moved in this same commit. Keeping a weakened version ("at most
+    // one writer") would be a guard that no longer states any decision.
+    //
+    // Its successor is `Tests/CISmoke/YouCanNameYourselfTests.swift`, which asserts the opposite
+    // fact: the door EXISTS, is mounted, and stores through the one transform that keeps
+    // `artistName` from ever becoming `""`.
 
     /// ⚠️ COUNTERWEIGHT: the credit is a THIRD line, not a replacement. The two lines that were
     /// there before must stay — a "simplification" that folded the name or the

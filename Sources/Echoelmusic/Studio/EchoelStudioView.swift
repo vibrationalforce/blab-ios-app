@@ -7293,6 +7293,15 @@ struct EchoelStudioView: View {
                                      isExporting: isExporting, hasComposed: hasComposed,
                                      busyLabel: busyStatusLabel)
 
+            // #522 — THE NAME COMES BEFORE THE PLACE, and that is not a taste call:
+            // `SessionNaming.stem(artist:date:key:bpm:a4Hz:place:)` writes the artist first and
+            // the place after the date, so the two rows read in the order the file name does.
+            // It sits OUTSIDE the `#if canImport(CoreLocation)` guard below on purpose — the
+            // place row is optional because a platform may have no location services; a name
+            // is not, and folding it inside would make the one door to your own identity
+            // depend on a framework that has nothing to do with it.
+            ArtistNameRow()
+
             // #359 step 3 — THE PLACE TOGGLE BELONGS BESIDE THE THING IT NAMES, and that is
             // the whole argument for it living in this panel rather than some other one.
             // `locationNamer` is what puts the city INTO `session.sessionName(bpm:)`, which is
@@ -7811,21 +7820,23 @@ struct EchoelStudioView: View {
                     // `.caption`/`dim` deliberately repeats line 2's treatment rather than
                     // introducing a third type size into one row (#362/#363).
                     //
-                    // ⚠️⚠️ AND IT RENDERS ON NOTHING TODAY — read `Project.attribution`'s
-                    // "HONEST REACH" paragraph before concluding this line is live or dead.
-                    // `SessionContext.artistName` has no production writer, so every device
-                    // and every take says `E~` and the difference-gate below is always `nil`.
-                    // This is the receiving half; the door is #522 (a name field beside the
-                    // manual place field in "Save & Export"). Deliberately NOT deleted: the
-                    // decision is correct, and re-adding it later is churn on a slice that
-                    // would then have to re-derive every reason.
+                    // ⚠️⚠️ IT IS REACHABLE SINCE #522, and until then it rendered on nothing —
+                    // read `Project.attribution`'s "HONEST REACH" paragraph before concluding
+                    // this line is live or dead. `SessionContext.artistName` had no production
+                    // writer at all; `ArtistNameRow` in "Save & Export" is now that writer.
+                    // What has NOT changed: on an untouched install every device and every take
+                    // still says `E~`, so the gate below is still `nil` — the line appears only
+                    // once two people have named themselves differently, which is a property of
+                    // two devices and not of this one.
                     //
-                    // ⚠️ NOT a freeze hazard, and the reason is stronger than "it is a text
-                    // field": `@Observable` invalidation needs a MUTATION, and this keypath
-                    // has no writer at all — so the read cannot invalidate anything, whatever
-                    // body ends up evaluating this closure. When #522 lands, the writes become
-                    // per-keystroke, which is user-paced and nowhere near the ~10–30 Hz
-                    // producer class of the 10.76.41/50 freeze.
+                    // ⚠️ NOT a freeze hazard, and the reason had to be RESTATED when #522
+                    // landed rather than left standing: the old argument was "this keypath has
+                    // no writer at all, so the read cannot invalidate anything", and that
+                    // premise is now false. The surviving reason is the rate — writes are one
+                    // per keystroke, user-paced, nowhere near the ~10–30 Hz producer class of
+                    // the 10.76.41/50 freeze, and the keyboard is up while they happen, so no
+                    // `.menu` popover can be torn down. A reason that outlives its premise is
+                    // worse than none: the next session would read it as still measured.
                     if let credit = p.attribution(besideOwnName: session.artistName) {
                         Text("by \(credit)").font(.caption).foregroundStyle(EchoelTheme.dim)
                     }
@@ -10162,6 +10173,94 @@ private struct BreathVoiceRow: View {
                  : "A held tone whose colour follows your heart and coherence. No breathing measured yet — once it is, your inhale and exhale take over the note.")
                 .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// #522 — the door that had never existed: a place to say who you are.
+///
+/// ⭐ WHAT WAS WRONG, and it is the exact shape #521 measured and then had to write down as a
+/// limitation. `SessionContext.artistName` is persisted, is stamped onto every saved take, and
+/// travels with the file — but its `didSet` is the ONLY writer of the stored value and **Swift
+/// does not run `didSet` from an initialiser**, so the one line that would persist a name could
+/// never fire. `git grep artistName -- Sources` returned the key, the property, that `didSet`,
+/// two `init` assignments and a handful of readers, and NOTHING that assigned it. Every device
+/// reported the same `E~`, every take was stamped `E~`, and #521's credit line was therefore
+/// correctly silent on every take in existence — a mechanism without a producer (#506).
+///
+/// ⚠️ IT DOES NOT MAKE LIVE-COLABO PEERS DISTINGUISHABLE, and the v10.79.382 deploy note said
+/// it would. Measured: `MCPeerID` is built exactly once, in `MultipeerSession.init()`, from
+/// `UIDevice.current.name` — which iOS 16+ returns as the MODEL name ("iPhone") without the
+/// user-assigned-device-name entitlement Echoel does not hold. #513 is untouched by this slice
+/// and stays open. Two things land here, not three.
+///
+/// ⭐ WHY A `Binding` OVER A TRANSFORM rather than `$session.artistName` straight through.
+/// `unnamedArtist` IS the "no name" state, so a field bound to the raw property would show `E~`
+/// as literal text and make every new user select-all-delete a mark they never typed. The
+/// transform pair lives on `SessionContext` (pure, `nonisolated`) so the blocking bundle can
+/// DRIVE the decision instead of scanning this `private` row — and so `E~` stays one literal
+/// rather than three (#416). The invariant it protects is not cosmetic: a live `""` against
+/// takes stamped `E~` would make `Project.attribution` fire `by E~` on the user's OWN takes.
+///
+/// ⚠️ A LEAF `View`, and here that is bookkeeping rather than a fix. `utilityRow` reaches the
+/// screen through `dropdownContent`'s `case .export`, which is evaluated in the ROOT body
+/// PERMANENTLY — `AnyView(...)` is not an observation boundary (10.76.41/50, corrected by
+/// #486). `session.artistName` is ALREADY read in the root body (`projectRow`, since #521), so
+/// the root already rebuilds when it changes; what a leaf prevents is the `@State`-style whole-
+/// body churn `SoundPromptRow` documents, and it keeps the read where the next audit expects
+/// it. The documented harm — a `.menu` popover torn down mid-selection — is unreachable while
+/// a keyboard is up, same honest scope as `SoundPromptRow`.
+@MainActor
+private struct ArtistNameRow: View {
+    @Environment(SessionContext.self) private var session
+
+    var body: some View {
+        // One read, two uses: the field's text and whether the clear button exists. Reading it
+        // twice would be two observation registrations for one fact.
+        let typed = SessionContext.typedArtistName(fromStored: session.artistName)
+        return VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Image(systemName: "person.crop.circle")
+                    .font(.system(size: 12)).foregroundStyle(EchoelTheme.dim)
+                // Text, not a number → a plain `TextField` is correct; `EchoelValueField` is the
+                // law for NUMERIC parameters only. `placeRow` two screens up is the precedent,
+                // and this row deliberately wears its chrome: they are the two halves of the
+                // same `SessionNaming.stem` and belong in the same panel looking alike.
+                TextField("Your name (optional)", text: Binding(
+                    get: { SessionContext.typedArtistName(fromStored: session.artistName) },
+                    set: { session.artistName = SessionContext.storedArtistName(fromTyped: $0) }))
+                    .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                    .textInputAutocapitalization(.words)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .accessibilityLabel("Your artist name")
+                if !typed.isEmpty {
+                    // 36×36, the `placeRow` measurement verbatim: the glyph stays 14 pt and only
+                    // the target grows, and an outset would eat the taps that place the caret at
+                    // the end of the name. Honest limit is the same one — 36 < the 44 pt HIG
+                    // floor, above WCAG 2.5.8's 24, and 44 would be taller than the row.
+                    Button { session.artistName = SessionContext.storedArtistName(fromTyped: "") } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 14)).foregroundStyle(EchoelTheme.dim)
+                            .frame(width: 36, height: 36)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Clear your artist name")
+                }
+            }
+            .padding(.horizontal, 10).frame(height: 36)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            // ⚠️ THE CAPTION NAMES WHAT IS TRUE TODAY AND NOTHING MORE. It does NOT promise that
+            // other players will see the name — that is #513 and it is not fixed here. It does
+            // not promise the credit line appears on your own takes; `Project.attribution`
+            // stays quiet there by design.
+            Text("Stamped on takes you save, and used in session and export file names. Without a name they are stamped \(SessionContext.unnamedArtist).")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
         }
     }

@@ -47,6 +47,53 @@ public final class SessionContext {
     public nonisolated static let defaultKeyScale = Scale.minor
     public nonisolated static let defaultA4Hz = 440.0
 
+    /// What `artistName` holds when the user has NOT named themselves — the brand mark
+    /// (founder 2026-07-12: *"Es soll am Anfang ein E~"*).
+    ///
+    /// ⭐ #522 — HOISTED BECAUSE THE DOOR WOULD HAVE BEEN A THIRD LITERAL. It already lived
+    /// twice: once in `init`'s migration below, once as `SessionNaming.stem`'s `fallback:`.
+    /// A name field that wrote `"E~"` back when cleared would have made three, and three
+    /// copies of one decision is the #416 defect this repo keeps retracting.
+    ///
+    /// ⚠️ `SessionNaming`'s copy is deliberately NOT folded into this one, and the distinction
+    /// is real rather than cosmetic: this constant answers *"what does the app store when you
+    /// have not named yourself"*, that one answers *"what does a FILENAME use when the artist
+    /// token sanitises to nothing"* — reachable with a name of only emoji, which never touches
+    /// this value. They coincide today, and `YouCanNameYourselfTests` pins the equality so the
+    /// day they stop coinciding is a red test rather than a silent divergence. Folding them
+    /// would drag `@MainActor`/`@Observable` isolation into `SessionNaming`, which is
+    /// deliberately Foundation-only pure logic.
+    public nonisolated static let unnamedArtist = "E~"
+
+    /// The two halves of the name field's contract, pure and `nonisolated` so the blocking
+    /// bundle can DRIVE them rather than scan a `private` SwiftUI row (#470/#472).
+    ///
+    /// ⭐ WHY A TRANSFORM AT ALL, rather than binding the field straight at the property.
+    /// `unnamedArtist` IS the "no name" state — `init` migrates `.none`, `""` and the old
+    /// `"Echoel"` onto it — so a field that showed `E~` as literal text would make every new
+    /// user select-all-delete a mark they did not type before writing their own. Empty field +
+    /// placeholder says the same thing and is the state the user recognises.
+    ///
+    /// ⛔ AND THE INVARIANT IT PROTECTS IS NOT COSMETIC: `artistName` must never become `""`.
+    /// `Project.attribution(besideOwnName:)` compares the take's stamp against the live name
+    /// after trimming and returns `nil` when they match. With a live `""` against takes stamped
+    /// `E~`, every one of your OWN takes would sprout `by E~` — the credit line firing on
+    /// exactly the takes it exists to stay quiet about.
+    ///
+    /// ⚠️ TRIMMING DECIDES ONLY *WHETHER* IT IS EMPTY — it never trims the stored value, and
+    /// that is a usability property, not fussiness. Trimming on the way in would eat the space
+    /// in "Mira " the instant it is typed, so a two-word name could not be entered at all.
+    /// `attribution` trims both sides before comparing and `SessionNaming.sanitize` drops
+    /// whitespace from filenames, so a trailing space costs nothing downstream.
+    public nonisolated static func storedArtistName(fromTyped typed: String) -> String {
+        typed.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? unnamedArtist : typed
+    }
+
+    /// The inverse for display: the mark reads as "nothing typed yet", anything else as itself.
+    public nonisolated static func typedArtistName(fromStored stored: String) -> String {
+        stored == unnamedArtist ? "" : stored
+    }
+
     /// The two keys holding the working KEY. Exposed for `SoundReset`, which has to clear them:
     /// the alternative was a fifth site repeating `"echoel.keyRoot"` as a literal, and the
     /// storage names of this type are its own business.

@@ -304,8 +304,84 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**231** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheBreathVoiceHasADoorTests.swift` (#277 — der erste Wächter dieser
+                          `Tests/CISmoke` (**232** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `YouCanNameYourselfTests.swift` (#522 — die TÜR zu #521, und der erste
+                          Wächter dieser Kette über einem Feld, dessen Abwesenheit ein Wächter des VORTAGS
+                          ausdrücklich festgenagelt hatte. `SessionContext.artistName` hatte KEINEN
+                          Produktions-Schreiber: seine einzigen Zuweisungen waren die zwei im `init`, und
+                          **Swift führt `didSet` aus einem Initialisierer nicht aus** — die eine Zeile, die den
+                          Namen persistiert hätte, feuerte nie. Jedes Gerät meldete `E~`, jeder Take war mit `E~`
+                          gestempelt, und #521s Unterschieds-Tor lieferte korrekt `nil`. Ein Textfeld in
+                          „Save & Export" schreibt jetzt.
+                          ⭐ **ES LIEFERT ZWEI DINGE, NICHT DREI — und die dritte Behauptung stammt aus MEINER
+                          EIGENEN Deploy-Notiz v10.79.382.** Sie sagte wörtlich: *„Ein Wort von Dir (,ja,
+                          Namensfeld') löst drei Dinge auf einmal"*, und der dritte Posten war *„Mitspieler in
+                          Live Colabo werden unterscheidbar"*. Gemessen statt geglaubt: `MCPeerID` wird EINMAL in
+                          `MultipeerSession.init()` aus `UIDevice.current.name` gebaut, und das liefert ab iOS 16
+                          den MODELL-Namen („iPhone"), solange die App das user-assigned-device-name-Entitlement
+                          nicht führt — Echoel führt es nicht (#513). Der Künstlername berührt diesen Pfad
+                          nirgends. **Eine Deploy-Notiz ist eine Behauptung an den Founder und altert genau wie
+                          eine Zahl in diesem Absatz**; `testTheArtistNameStillDoesNotReachThePeerIdentity` nagelt
+                          die Nicht-Wirkung fest, damit die Rücknahme nicht bloß Prosa ist. Was #522 WIRKLICH
+                          liefert: die Gutschrift-Zeile aus #521 wird erreichbar, und Sitzungs- und
+                          Export-Dateinamen tragen den Namen.
+                          ⚠️ **NIE `""` — das ist die Invariante, nicht Kosmetik.**
+                          `Project.attribution(besideOwnName:)` vergleicht den Stempel des Takes getrimmt gegen
+                          den lebenden Namen und liefert `nil` bei Gleichheit. Mit einem lebenden `""` gegen
+                          `E~`-gestempelte Takes bekäme JEDER EIGENE Take ein `by E~` — die Gutschrift feuert
+                          genau auf den Takes, für die sie schweigen soll. Ein leeres Feld faltet deshalb auf
+                          `unnamedArtist`, und zwei Behauptungen halten das fest.
+                          ⚠️ **GETRIMMT WIRD NUR DIE ENTSCHEIDUNG, NIE DER WERT** — und das ist eine
+                          Bedienbarkeits-Eigenschaft, keine Pedanterie: beim Tippen zu trimmen frisst das
+                          Leerzeichen in „Mira " in dem Augenblick, in dem es getippt wird, ein zweiteiliger Name
+                          ist dann gar nicht eingebbar. `attribution` trimmt beide Seiten vor dem Vergleich und
+                          `SessionNaming.sanitize` wirft Leerraum aus Dateinamen — stromabwärts kostet es nichts.
+                          ⭐ **DIE KONSTANTE IST GEHOBEN, WEIL DIE TÜR SONST DAS DRITTE LITERAL GEWESEN WÄRE**
+                          (#416): `E~` stand in `init`s Migration und als `SessionNaming.stem`s `fallback:`.
+                          `SessionNaming`s Kopie bleibt ABSICHTLICH getrennt — sie beantwortet eine andere Frage
+                          (*„was benutzt ein DATEINAME, wenn das Künstler-Token zu nichts sanitisiert"*,
+                          erreichbar mit einem reinen Emoji-Namen, der diesen Wert nie berührt) und würde
+                          `@MainActor`/`@Observable`-Isolation in einen Foundation-only-Typ ziehen. Die
+                          GLEICHHEIT ist stattdessen festgenagelt, damit ihr Auseinanderlaufen rot wird.
+                          ⚠️ **EIN EIGENES `View`-`struct`, und der GRUND MUSSTE NEU GESCHRIEBEN WERDEN.** Der
+                          alte Vermerk über der Gutschrift-Zeile sagte, der Lesezugriff könne nichts
+                          invalidieren, weil dieser Keypath GAR KEINEN Schreiber habe — #522 macht diese Prämisse
+                          falsch. Der überlebende Grund ist die RATE: ein Schreibvorgang pro Tastendruck,
+                          nutzer-getaktet, und während die Tastatur oben ist kann kein `.menu`-Popover
+                          abgerissen werden. **Ein Grund, der seine Prämisse überlebt, ist schlimmer als keiner.**
+                          `utilityRow` erreicht den Schirm über `dropdownContent`, also den WURZEL-Rumpf
+                          DAUERHAFT (10.76.41/50, #486) — das Blatt ist Buchführung für den Tag, an dem jemand
+                          eine schnellere Quelle danebenstellt.
+                          ⚠️ EHRLICHE BENOTUNG (#433), und es ist die #464-Lage klar gesagt: die Datei lässt sich
+                          gegen den Elternbaum **ÜBERHAUPT NICHT** benoten — jeder Verhaltensfall nennt
+                          `SessionContext.storedArtistName(fromTyped:)`, das es dort nicht gibt. Von Hand
+                          transkribiert: **DREI** Quelltext-Scans sind rot, und sie sind **EIN** Befund, dreimal
+                          gemeldet (#486) — `ArtistNameRow` existiert auf dem Elternteil nicht, also fehlen
+                          Deklaration, Rumpf und Montage gemeinsam. Die Verhaltensfälle treiben Symbole, die
+                          derselbe Commit anlegt. **ZWEI** sind GEGENGEWICHTE, beidseitig grün und der Inhalt:
+                          der Dateinamen-Rückfall muss weiterhin GLEICH der gehobenen Konstante sein, und der
+                          Künstlername darf die Peer-Identität weiterhin NICHT erreichen.
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und das ist GEMESSEN statt angenommen
+                          (#484/#485 mussten die stärkere Behauptung je einmal zurücknehmen, #486 zweimal): der
+                          Montage-Kommentar dieser Scheibe zitiert `` `#if canImport(CoreLocation)` `` wörtlich,
+                          im ROHTEXT von `utilityRow` steht das Token also ZWEIMAL und der KOMMENTAR ZUERST — die
+                          Reihenfolge-Behauptung („der Namens-Zeile geht die Orts-Zeile nach") wäre ohne den
+                          Stripper auf KORREKTEM Code rot. Wieder die #486/#491-Kollision, gefangen beim Messen
+                          und nicht im Review.
+                          ⚠️ Und die Grenze zuerst: die ENTSCHEIDUNGS-Hälfte ist echt Ende zu Ende (beide
+                          Transformationen sind `nonisolated` und rein, `Project` und `SessionNaming` sind
+                          Foundation-only), die VERDRAHTUNGS-Hälfte ist ein QUELLTEXT-SCAN — `ArtistNameRow` ist
+                          `private` und `@MainActor`. **Dass das Feld rendert, dass die Tastatur sich anständig
+                          verhält und dass ein getippter Name wirklich auf einem gespeicherten Take landet, sind
+                          drei Geräteproben und alle drei OFFEN.**
+                          ⭐ Und die `Sources/`-Zahl bewegt sich NICHT: `ArtistNameRow` ist ein neuer `private`
+                          Typ in der VORHANDENEN Datei `Studio/EchoelStudioView.swift`, und es kommt kein
+                          Präsentations-Modifier hinzu (14 auf der Kette, 16 dateiweit, unverändert). Das ist der
+                          dritte Fall der Taxonomie im Absatz darüber, zum vierten Mal in Folge — nach #508s
+                          `PeerReading`, #511s `egressible(from:)` und #277s `BreathVoiceRow`.), davor **231**
+                          nach `TheBreathVoiceHasADoorTests.swift` (#277 — der erste Wächter dieser
+                          Kette über einer STIMME, die gebaut, getestet und getunt war und die keine Fläche
+                          einschalten konnte. `BioReactiveSynthVoice.arm()` hatte **null Produktions-Aufrufer**;
                           Kette über einer STIMME, die gebaut, getestet und getunt war und die keine Fläche
                           einschalten konnte. `BioReactiveSynthVoice.arm()` hatte **null Produktions-Aufrufer**;
                           `isArmed` ist `public private(set)` und wird NUR von `arm()`/`disarm()` geschrieben,
@@ -5709,7 +5785,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTNEUNZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 231 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 230·229·228·227·226·225·224·223·222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTEINUNDNEUNZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 232 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 231·230·229·228·227·226·225·224·223·222·221·220·219·218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
