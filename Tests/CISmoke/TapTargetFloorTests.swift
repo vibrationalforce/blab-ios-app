@@ -83,9 +83,14 @@ final class TapTargetFloorTests: XCTestCase {
 
     // MARK: - The transport bar
 
-    /// The tempo lock and the "•••" overflow both reach the 44 pt floor, by two DIFFERENT
+    /// The tempo lock and the two global-door tiles reach the 44 pt floor by two DIFFERENT
     /// means since #482. Checking them together is still the point: the original defect was
     /// one of them lacking a floor while looking identical to the other.
+    ///
+    /// ⛔ THE PAIR'S SECOND HALF USED TO BE THE "•••" OVERFLOW, ONE CONTROL IN
+    /// `WorkspaceView`. #492 dissolved that menu on a founder ask; its two entries are
+    /// separate tiles in `EchoelStudioView.quickDoorRow` now, so the half is two needles in a
+    /// different file. Same property, same reason, more call sites to lose it from.
     ///
     /// This asserts the enlargement is spelled in each file. It cannot assert the resulting
     /// rectangle — see the header — so read a failure as "someone removed the floor", which
@@ -110,18 +115,29 @@ final class TapTargetFloorTests: XCTestCase {
     ///
     /// The tempo lock keeps the outset, and its arithmetic is unchanged: 32 + 6 + 6 = 44,
     /// pinned from the other side by `OneChromeControlHeightTests`.
-    func testTheTempoLockKeepsTheOutsetAndTheOverflowGotAFrame() throws {
-        let bar = try codeLines(Self.workspace)
-        // Anchored on the glyph argument only, NOT the full call: #482's Nachlese added
-        // `expands: true` so all six chips are one width, and a whole-call needle would have
-        // gone red on that. The claim is "the '•••' is built from the shared tile".
-        XCTAssertTrue(bar.contains { $0.contains("EchoelIconTile(systemImage: \"ellipsis\"") }, """
-            The transport "•••" overflow no longer builds `EchoelIconTile`. It carried a \
-            `contentShape(Rectangle().inset(by: -6))` until #482, and that modifier is GONE — \
-            so if the tile went too, the only door to Live Colabo and Learn is a 30×32 chip \
-            with nothing holding it to the 44 pt floor. Restore the tile, or restore the \
-            outset in the same commit; do not leave neither.
-            """)
+    func testTheTempoLockKeepsTheOutsetAndTheDoorsGotAFrame() throws {
+        // ⛔ THIS READ `Self.workspace` FOR ONE `EchoelIconTile(systemImage: "ellipsis"` UNTIL
+        // #492, AND THAT NEEDLE IS GONE WITH ITS CONTROL, not weakened. The founder asked for
+        // the "•••" entries as individual buttons; the menu is deleted and its two doors are
+        // tiles in `EchoelStudioView.quickDoorRow`. The PROPERTY being defended is unchanged
+        // and is now checked where it lives: the only doors to Live Colabo and Learn must be
+        // built from the shared tile, which is what holds them to the 44 pt floor (#113).
+        // Retargeting rather than deleting is the #456 rule — a commit that removes a surface
+        // moves the guards over that surface in the same breath.
+        let studio = try codeLines(Self.studio)
+        // Anchored on the glyph argument only, NOT the full call: the call sites also pass
+        // `expands: true` so every tile in the row is one width, and a whole-call needle would
+        // go red on an unrelated width change.
+        for door in ["dot.radiowaves.left.and.right", "book"] {
+            XCTAssertTrue(studio.contains { $0.contains("EchoelIconTile(systemImage: \"\(door)\"") }, """
+                The `\(door)` door tile no longer builds `EchoelIconTile`. That type's layout \
+                frame is the ONLY thing holding these two controls to the 44 pt floor — the \
+                `contentShape(Rectangle().inset(by: -6))` the old "•••" carried went with #482 \
+                and was never re-added. A bare `Image` under `.buttonStyle(.plain)` hit-tests \
+                its glyph run (~15–17 pt), which is under WCAG 2.5.8's 24 pt, let alone HIG's \
+                44. Restore the tile, or add an outset in the same commit; do not leave neither.
+                """)
+        }
 
         let lock = try codeLines(Self.tempoField)
         XCTAssertTrue(lock.contains { $0.contains(Self.outset6) }, """

@@ -110,14 +110,14 @@ final class OneChromeControlHeightTests: XCTestCase {
              "the start ▶/■ button (was FloatingVisualLayout.startButtonHeight = 56)"),
             (Self.workspace, ".frame(width: 44, height: EchoelTheme.controlHeight)",
              "the playback ⏸ button (was 44×48)"),
-            // ⛔ THE `"•••"` CASE MOVED FILES WITH #482, not away. It used to be
-            // `.frame(width: 30, height: EchoelTheme.controlHeight)` spelled inside
-            // `TransportOverflowMenu`; the chip is now `EchoelIconTile`, so the height is read
-            // once in the tile and the menu reads the tile. That is the same decision in a
-            // smaller number of places, which is what #481 was for — but it means the anchor
-            // has to follow the geometry rather than the control.
+            // ⛔ THE `"•••"` CASE MOVED FILES WITH #482 AND THEN CEASED TO EXIST WITH #492.
+            // It used to be `.frame(width: 30, height: EchoelTheme.controlHeight)` spelled
+            // inside `TransportOverflowMenu`; #482 made it read `EchoelIconTile`, and #492
+            // dissolved the menu into two door tiles that read the same type. The anchor was
+            // already following the GEOMETRY rather than the control, which is why deleting
+            // the control did not move it — that is what #481 was for.
             (Self.tile,      ".frame(height: EchoelTheme.controlHeight)",
-             "the shared chrome tile (the \"•••\" and the five action chips read it)"),
+             "the shared chrome tile (every action and door chip reads it)"),
             (Self.tempo,     ".frame(width: 76, height: EchoelTheme.controlHeight)",
              "the compact tempo readout"),
             (Self.tempo,     ".frame(width: compact ? 30 : 34, height: EchoelTheme.controlHeight)",
@@ -286,12 +286,16 @@ final class OneChromeControlHeightTests: XCTestCase {
         let end = studio[(open + 1)...].firstIndex { $0.contains("    private var ") || $0.contains("    private func ") }
             ?? studio.endIndex
         let row = studio[(open + 1)..<end]
-        XCTAssertEqual(row.filter { $0.contains("EchoelIconTile(") }.count, 4, """
-            `quickActionRow` should construct `EchoelIconTile` exactly four times (Record, \
-            Export MIDI, Save, Open). Keep last builds its own inside `KeepLastLoopButton` \
-            because it reads `pattern.tempo` in its own body (freeze law), and the "•••" \
-            builds one inside `TransportOverflowMenu`. A different count means an action was \
-            added or removed without this expectation moving with it.
+        // ⛔ THIS WAS `4` UNTIL #492 AND THE MOVE IS THE POINT, not a loosening. Dissolving
+        // the "•••" into two door tiles made seven tiles, which do not fit one line on a
+        // 360/375 pt phone (see `quickDoorRow`'s doc for the arithmetic) — so Open moved down
+        // with them. This row is Record · Keep last · Export MIDI · Save, and only three of
+        // those four build the tile here: Keep last builds its own inside `KeepLastLoopButton`
+        // because it reads `pattern.tempo` in its own body (freeze law).
+        XCTAssertEqual(row.filter { $0.contains("EchoelIconTile(") }.count, 3, """
+            `quickActionRow` should construct `EchoelIconTile` exactly three times (Record, \
+            Export MIDI, Save). A different count means an action was added or removed \
+            without this expectation moving with it.
             """)
         // ⛔ THE FIRST VERSION BANNED FOUR MODIFIERS AND ITS OWN DOC NAMED THREE EDITS —
         // "wider / rounder / brighter". Only "rounder" was covered. `.frame(width:` (wider)

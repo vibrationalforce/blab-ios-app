@@ -2,11 +2,21 @@
 // Echoel — #489. A control whose whole label is a glyph must carry a spoken name.
 //
 // ⛔ THIS FILE EXISTS BECAUSE THE DEFECT IT WAS WRITTEN FOR DOES NOT EXIST. #489 was filed as
-// "the ••• menu is the one header tile without a spoken label". It is not: `TransportOverflowMenu`
-// carries `.accessibilityLabel("More — Live Colabo; Learn and news")` at `WorkspaceView.swift:803`,
-// 37 lines below the `EchoelIconTile` it labels. All six `EchoelIconTile` call sites are labelled.
+// "the ••• menu is the one header tile without a spoken label". It was not: `TransportOverflowMenu`
+// carried `.accessibilityLabel("More — Live Colabo; Learn and news")`, 37 lines below the
+// `EchoelIconTile` it labelled, and every call site of that tile was labelled.
 // The finding was an artefact of MY OWN measurement, twice over, and the two failures are the
 // durable part — the shipped assertion below is only their receipt.
+//
+// ⚠️ THE WITNESS IS GONE (#492, 2026-08-07) AND THE FINDING IS NOT. The founder asked for the
+// "•••" entries as individual buttons, so `TransportOverflowMenu` was deleted and its two doors
+// became `EchoelIconTile`s in `EchoelStudioView.quickDoorRow` — each with its own spoken label.
+// The sentences above are therefore written in the past tense on purpose: the retraction they
+// carry is about a MEASUREMENT and survives the disappearance of the control it measured. Do not
+// "fix" the line numbers back in; there is nothing at them any more. Counted after the move:
+// SEVEN `EchoelIconTile` call sites in `Sources/`, all seven labelled. (The "347 files" and the
+// 47/22/25 block census below are the #489-time measurement and are quoted as history — the
+// assertions use `>=` bounds precisely so an ordinary file add or removal does not go red.)
 //
 // ⭐ THE MEASUREMENT FAILURE, because it will recur in any future scan of this codebase.
 //   Scanner 1 — fixed ±14-line window around the tile: 8 false positives.

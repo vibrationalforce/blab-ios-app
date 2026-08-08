@@ -304,8 +304,79 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**204** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheTempoBoxShowsTheClockTests.swift` (#491 — der erste Wächter in
+                          `Tests/CISmoke` (**205** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheDoorsAreIndividualButtonsTests.swift` (#492 — der dritte der
+                          vier Founder-Wünsche auf dem 2491-Screenshot: *„Das mit den drei Punkten als
+                          einzelnde Buttons anzeigen."* `TransportOverflowMenu` ist gelöscht, seine zwei
+                          Einträge sind Kacheln in `EchoelStudioView.quickDoorRow`.
+                          ⭐ **Der Wächter existiert nicht wegen der Löschung, sondern wegen dessen, was
+                          dahinter hängt:** Live Colabo und Learn sind die EINZIGEN globalen Türen der App,
+                          die SHEETS sind statt Panels — #290 hat aufgeschrieben, warum sie keine Chips sein
+                          dürfen (die Grammatik der Chip-Leiste ist „dieser Chip wählt, was die Platte
+                          zeigt", ein Chip, der ein Modal öffnet, wäre ein lügender Reiter), und diese
+                          Begründung hat das Menü überlebt. Mit dem Menü weg ist `quickDoorRow` der EINZIGE
+                          Weg hinein. Ein späteres Aufräumen, das die Zeile einfaltet, macht die App nicht
+                          kleiner — es macht zwei Fähigkeiten unerreichbar, also genau der Zustand, für den
+                          das Türlos-Register weiter oben existiert.
+                          ⚠️ **ZWEI Zeilen statt einer, und das ist Arithmetik, keine Geschmacksfrage.**
+                          Jede Kachel trägt die 44-pt-Mindestbreite aus #113, die Zeile setzt 8 dazwischen,
+                          `startControlRow` ist 16 je Seite gepolstert: sieben Kacheln brauchen
+                          `7×44 + 6×8 = 356` pt. Ein 393-pt-Telefon bietet 361 (fünf übrig), ein 375er 343,
+                          ein 360er (iPhone 12/13 mini, beide auf iOS 18) 328 — auf dem schmalsten Gerät,
+                          an das diese App ausgeliefert wird, laufen sieben Ziele in einer Zeile um 28 pt
+                          über, und selbst bei 4-pt-Lücken bräuchte es 332. **Der Preis steht im Quelltext
+                          statt verschwiegen: ~40 pt (die ~32-pt-Zeile plus die 8 pt des `VStack`), also
+                          exakt das, was #490 der Platte zurückgegeben hat.** Die Trennlinie ist BEDEUTUNG,
+                          nicht Passung: Zeile 2 handelt AM Take (Aufnahme · Keep last · MIDI · Speichern),
+                          Zeile 3 VERLÄSST ihn (anderes Projekt öffnen · gemeinsam spielen · Lernen).
+                          ⭐ **Das `Spacer(minLength: 0)` am Ende ist eine LAYOUT-KONSTANTE und sieht wie
+                          Aufräumrest aus** — genau deshalb hat es eine eigene Behauptung. `expands` teilt
+                          die Breite unter den flexiblen Kindern EINES `HStack` gleich auf; drei Kacheln
+                          allein wären ein Drittel breiter als die vier darüber, in der Zeile, deren ganzer
+                          Auftrag *„die sollen immer gleichgroß sein"* lautet (#481/#482). Ein vierter
+                          flexibler Platz, der nichts zeichnet, macht beide Zeilen vierspaltig, und die
+                          Lücke landet am ENDE der LETZTEN Zeile, wo sie als Raster liest und nicht als Loch.
+                          ⚠️ Eine Grenze, benannt statt verzweigt: ohne MultipeerConnectivity ist Zeile 3
+                          zweispaltig und die Breiten laufen auseinander. Jedes ausgelieferte Target hat das
+                          Framework, und ein untestbarer `#else` ist schlimmer als eine benannte Grenze.
+                          ⭐ **#456 ist im selben Atemzug angewandt, und eine der drei Nachführungen ist die
+                          lehrreiche.** Drei Wächter lagen über der gelöschten Fläche.
+                          `OneChromeControlHeightTests` und `TapTargetFloorTests` wären ROT geworden — das
+                          ist der gute Fall. `TheTransportBarIsDissolvedTests` wäre GRÜN geblieben: seine
+                          Migranten-Schleife suchte `"TransportOverflowMenu()"` in einer Zeile, in der es
+                          per Konstruktion nie wieder auftaucht, also für immer wahr aus dem falschen Grund
+                          (#367). Ersetzt durch `"EchoelIconTile("`, was STRENGER ist — Zeile 1 baut heute
+                          keine, die Nadel deckt also alle sieben Kacheln statt einer.
+                          ⚠️ **KEIN neues `.sheet`.** Beide Türen hängen längst am Rumpf; diese Scheibe
+                          ändert, WER sie antippt, nicht wie viele es sind. Die Präsentations-Zahlen (14 auf
+                          der Kette, 16 dateiweit) sind unverändert, und das Gegengewicht
+                          `testBothSheetsStillExist` hält beide Identitäten fest, während #479 die ANZAHL hält.
+                          ⚠️ **EHRLICHE BENOTUNG, gegen den Elternbaum GEMESSEN statt behauptet — und die
+                          MECHANIK zählt mehr als die Zahl.** SECHS der sieben Behauptungen sind
+                          Regressionen, aber sie zerfallen: **ZWEI** scheitern an etwas, das der Elternteil
+                          aktiv ENTHÄLT (`TransportOverflowMenu` und die zwei toten Notification-Cases),
+                          **DREI** an einem fehlenden ANKER — `quickDoorRow` gibt es dort nicht, sie werfen
+                          also `DoorAnchorMissing`; das ist EINE Abwesenheit, dreimal gemeldet, und sie als
+                          drei Befunde zu verbuchen wäre der #433-Defekt in der schmeichelhaften Richtung.
+                          **EINE** (der Mount) liegt dazwischen: `startControlRow` existiert und nennt die
+                          Zeile bloß nicht. Die siebte ist ein GEGENGEWICHT, beidseitig grün.
+                          ⛔ **Und `SourceText.codeOnly` stand im ersten Entwurf als „TRAGEND" — der exakte
+                          Überclaim, den #484 einen Zyklus zuvor zurücknehmen musste, wiederholt in der
+                          Datei, die ihn zitiert.** Gemessen: roh gegen gestreift unterscheiden sich
+                          **0 von 14** Verdikten (7 Behauptungen × 2 Bäume). Der Grund ist die SKOPIERUNG,
+                          nicht Glück: die ⛔-Rücknahme im Receiver nennt die gelöschten Cases sehr wohl,
+                          sitzt aber außerhalb des klammer-gematchten `switch`, und das eine dateiweite
+                          `case "learn":` in Prosa steht 2.300 Zeilen entfernt. Es bleibt, weil #453 EINE
+                          Definition von „Code, nicht Prosa" für das ganze blockierende Bündel geschaffen
+                          hat — und weil die Form, die es TRAGEND machen würde, einen Kommentar entfernt
+                          ist: eine künftige Rücknahme in dieser Datei, die `TransportOverflowMenu()`
+                          wörtlich schreibt, färbt den negativen Scan auf KORREKTEM Code rot.
+                          ⚠️ Und die Grenze zuerst: JEDE Behauptung ist ein QUELLTEXT-SCAN. Dass die zwei
+                          Zeilen rendern, dass ein Finger die 44 pt trifft, dass VoiceOver die Etiketten
+                          spricht und dass sich die zweizeilige Platte auf einem 360-pt-Telefon gut liest,
+                          sind vier Geräteproben und alle vier offen. Auch die Breiten-Arithmetik oben ist
+                          Rechnen über Konstanten, keine Messung eines gerenderten Layouts.),
+                          davor **204** nach `TheTempoBoxShowsTheClockTests.swift` (#491 — der erste Wächter in
                           dieser Kette über einer DUBLETTE: zwei Kästen in EINER Zeile rendern dieselbe
                           Eigenschaft. `BodyTempoField` zeigte unlocked `cameraRPPG.displayBPM`, und
                           `PulseMonitorMiniLive` — die Pille daneben — rendert `cameraRPPG.displayBPM`. Der
@@ -3977,7 +4048,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTDREIUNDSECHZIG FRÜHERE Stände in elf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 204 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTVIERUNDSECHZIG FRÜHERE Stände in elf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 205 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

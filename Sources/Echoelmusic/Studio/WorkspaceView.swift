@@ -26,9 +26,14 @@ extension Notification.Name {
     static let echoelBioSourceStarted = Notification.Name("echoel.bioSourceStarted")
     /// Chrome → studio global doors (founder 2026-07-12 shell v3: "Master,
     /// Export, Live und Learn kommt oben in die Leiste neben das Schloss").
-    /// `object` = the door name ("master" · "export" · "live" · "learn"); the
-    /// studio listens and opens its dropdown/sheet — same decoupling as the
-    /// pulse button, the chrome never reaches into studio state.
+    /// `object` = the door name. (⛔ This listed "master" · "export" · "live" ·
+    /// "learn" — the four the "•••" overflow posted, and NONE of them is a case
+    /// any more: the first two became chips with #290, the last two became tiles
+    /// with #492. The live names are "video" · "routing" · "bio", all posted from
+    /// `HeaderMonitors`. An example list of dead strings is worse than none — it
+    /// invites a new poster for a case that no longer exists.) The studio listens
+    /// and opens its dropdown/sheet — same decoupling as the pulse button, the
+    /// chrome never reaches into studio state.
     static let echoelChromeDoor = Notification.Name("echoel.chromeDoor")
     /// Header composition strip / transport tempo → studio (bottom-bar dissolve
     /// step 2b, 2026-07-17): a musical setting was edited BY THE USER in the
@@ -762,97 +767,25 @@ struct PlaybackToggleButton: View {
 // playback-stop path waiting for someone to "restore" a button onto it. The four
 // `@Environment` values it needed went with it for the same reason.
 
-/// The global-doors overflow — the "•••" chip. A LEAF that reads NOTHING at all, which is why
-/// it can be mounted inside `EchoelStudioView` (the body hosting every `.menu` Picker in the
-/// instrument) without contributing an observer.
-///
-/// ⚠️ IT STILL POSTS `.echoelChromeDoor` RATHER THAN TAKING A BINDING, and since #456 that is
-/// a same-view round trip — the studio both posts and receives. Say it plainly rather than
-/// leave the old "the chrome never reaches into studio state" line standing, because that
-/// reason expired when the bar dissolved. The path is kept because it costs nothing at this
-/// rate (a menu tap), and because `.echoelChromeDoor` still has OTHER producers — the header
-/// monitor tiles in `topBar`. Converting only this one to a binding would leave two ways into
-/// the same doors, which is the shape this repo keeps paying for.
-///
-/// Founder 2026-07-12 put Master · Export · Live · Learn "oben in die Leiste"; collapsing
-/// them into one "•••" freed the width for the tempo without touching the brand header.
-///
-/// ⛔ FOUR OF THE SIX ENTRIES LEFT THIS MENU (#290, founder 2026-07-31, red circle around the
-/// open overflow: "Lässt sich das alles intelligent unterbringen in der Reihe mit den ganzen
-/// Funktionen?"). Master, Save/Export, Tempo and Weather & place became CHIPS — they always
-/// were full `StudioMenu` cases with working panels, merely filtered out of the strip, so
-/// moving them cost no new surface and no new modal. (The "Weather & place" chip is gone
-/// again since #359: the weather half moved into Mood and Field, the place half into
-/// "Save & Export", one line above the Save button whose file name it shapes.)
-///
-/// ⛔ WHY THESE TWO STAYED, because the honest answer is not "they did not fit": Live Colabo
-/// and Learn are the only two that are NOT panels. They present full sheets (`showLiveColabo`,
-/// `showLearn`). The chip strip's grammar is "this chip selects what the plate shows" — a
-/// chip that opens a modal instead would be a lying tab, and it would add two entries to the
-/// presentation chain the black-screen law tells us not to grow.
-@MainActor
-struct TransportOverflowMenu: View {
-    var body: some View {
-        Menu {
-            #if canImport(MultipeerConnectivity)
-            doorMenuButton("Live Colabo — play together nearby",
-                           icon: "dot.radiowaves.left.and.right", door: "live")
-            #endif
-            doorMenuButton("Learn and news", icon: "book", door: "learn")
-        } label: {
-            // #482 — the chip is `EchoelIconTile` now, so the "•••" wears the SAME format as
-            // the five action tiles beside it in `startControlRow`. Nothing about the menu
-            // changed; only who owns fill/border/radius/glyph/tap floor (one declaration
-            // instead of a hand-spelled copy per call site).
-            EchoelIconTile(systemImage: "ellipsis", expands: true)
-        }
-        // ⛔ THE `-6` OUTSET IS GONE, AND THE FIRST VERSION OF THIS NOTE GOT ITS REASON WRONG
-        // IN THE DANGEROUS DIRECTION. It claimed the removed modifier "was inside the `Menu`'s
-        // `label:` closure and therefore almost certainly a no-op". It was NOT: `git show
-        // 39f112b` puts it AFTER the closing brace of `label:`, applied to the `Menu` itself —
-        // which is exactly the level `TapTargetFloorTests.testBothPresetOverflowMenusCarryThe`
-        // `HitAreaOutset` certifies as CORRECT for the two preset overflows. The outset worked;
-        // it gave this chip 42 × 44. **Left standing, that sentence was a ready-made argument
-        // for deleting the two preset outsets** — which are at the same correct level, are
-        // pinned, and each guard the only door to save/favourite/delete/submit. (Found by the
-        // #482 reviewer.)
-        //
-        // The real reason it is gone: `EchoelIconTile`'s 44 × 44 layout FRAME is strictly
-        // bigger (42 → 44 wide) and, unlike an outset, survives being repeated six times in a
-        // row — two adjacent −6 outsets at 8 pt spacing would overlap by 4 pt. A frame works
-        // for a `Menu` for the same reason the outset did: both sit on the label's own layout,
-        // and a Menu presents from its label's layout size. What genuinely IS a no-op is a
-        // `contentShape` placed INSIDE the `label:` closure — that is the claim
-        // `TapTargetFloorTests` records, about a placement this code never used.
-        //
-        // The retracted note that stood here follows, because its measurement is still the
-        // reason the outset was SAFE in this one spot and would not have been in the new row:
-        //
-        // ⛔ THE FIRST VERSION OF THIS NOTE INVENTED A COST AND THEN JUSTIFIED PAYING IT. It
-        // said the outset "now overlaps its neighbour by 2 pt on each side" because
-        // `startControlRow` spaces at 8 pt where the transport bar spaced at 12. Measured
-        // instead of assumed: line 2 of that row is `TransportOverflowMenu()`, `Spacer(minLength:
-        // 0)`, `TransportPositionView()` — a SPACER stands between them, so the trailing
-        // clearance is the row's whole slack (~300 pt on a 393 pt phone), and the leading side
-        // has the row's own `.padding(.horizontal, 16)`. Nothing is overlapped horizontally.
-        // Vertically the −6 reaches 6 pt into the VStack's 8 pt gap, and the child directly
-        // above is `startButton`, which carries no `contentShape` outset of its own. The outset
-        // is SAFER than the retracted note claimed — which is the danger: a future session would
-        // have "fixed" a 2 pt overlap that does not exist, and shrinking it puts this chip back
-        // under the 44 pt floor #113 exists to hold. Written down because a plausible geometry
-        // sentence is exactly the kind this repo copies forward without checking.
-        .accessibilityLabel("More — Live Colabo; Learn and news")
-    }
-
-    /// One chrome-door entry: posts the studio's door notification.
-    private func doorMenuButton(_ title: String, icon: String, door: String) -> some View {
-        Button {
-            NotificationCenter.default.post(name: .echoelChromeDoor, object: door)
-        } label: {
-            Label(title, systemImage: icon)
-        }
-    }
-}
+// ⛔ `TransportOverflowMenu` WAS DELETED HERE (#492, founder 2026-08-07, third of four asks on
+// the v10.79.374 screenshot: *"Das mit den drei Punkten als einzelnde Buttons anzeigen."*). It
+// was the "•••" chip that held the last two global doors; both are individual `EchoelIconTile`
+// buttons in `EchoelStudioView.quickDoorRow` now, and they set `showLiveColabo` / `showLearn`
+// directly instead of posting `.echoelChromeDoor` to the view they already live in.
+//
+// TWO THINGS THIS TYPE CARRIED THAT MUST NOT GO WITH IT, moved to `quickDoorRow`'s doc rather
+// than left here where nothing renders them (#456: a deletion that strands its own reasoning
+// reads as "the rule was withdrawn"):
+//   · WHY Live Colabo and Learn were never chips (#290) — they are the only global doors that
+//     are NOT panels, they present full sheets, and a chip that opens a modal is a lying tab.
+//   · THE 44 pt FLOOR (#113) — this chip reached it through `EchoelIconTile`'s layout frame,
+//     not through the `contentShape(...inset(by: -6))` outset it carried until #482. The two
+//     preset overflows still use that outset at the correct level (on the `Menu`, outside the
+//     `label:` closure) and `TapTargetFloorTests` pins both; nothing here is an argument
+//     against them.
+//
+// `doorMenuButton` went with it — its only caller. A private helper with no caller compiles
+// silently in Swift, which is the same trap the `toggle()` note above records.
 
 /// The moving playhead — bars.beats.sixteenths (1-based, DAW convention). Isolated in
 /// its OWN leaf because `transport.position` updates on every step (~10 Hz at 120 BPM);
@@ -882,8 +815,11 @@ struct TransportOverflowMenu: View {
 /// the loop capsule beside them is a hard `44×4`; text that grows next to a bar that does not is
 /// the shape that overflows at AX4/AX5. Back in the header it is clamped again. That is the
 /// outcome the old note wanted — and it is still an unmeasured device look, not a proof.
-/// (`TransportOverflowMenu` made the trip down with no effect and stayed: its `.system(size: 13)`
-/// does not respond to Dynamic Type at all inside its tile.)
+/// (The "•••" overflow made the same trip down with no effect and then ceased to exist with
+/// #492 — its glyph was `.system(size: 13)`, which does not respond to Dynamic Type at all
+/// inside `EchoelIconTile`. The two door tiles that replaced it inherit exactly that property,
+/// so the asymmetry described above is still ONE-sided: this readout's labels scale, the tiles
+/// beside it do not.)
 @MainActor
 struct TransportPositionView: View {
     @Environment(Transport.self) private var transport

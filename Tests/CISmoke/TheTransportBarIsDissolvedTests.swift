@@ -82,10 +82,11 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
         // (a MEMBER REFERENCE, not an inner `HStack`). One inner stack is now the correct shape.
         //
         // The merge this test exists to catch is still caught, and by a stronger assertion than
-        // a count: `quickActionRow`'s six tiles reach line 1 only by being spelled there, and
-        // the per-line membership loop below rejects `TransportOverflowMenu()` on line 1 by
-        // name. A count of stacks never could distinguish "merged" from "restructured"; the
-        // membership checks always did the real work.
+        // a count: the tiles of lines 2 and 3 reach line 1 only by being spelled there, and the
+        // per-line membership loop below rejects `EchoelIconTile(` on line 1 by name (#492 —
+        // it named the deleted `TransportOverflowMenu()` until then, which would have made it
+        // vacuous). A count of stacks never could distinguish "merged" from "restructured";
+        // the membership checks always did the real work.
         let hstacks = row.components(separatedBy: "HStack(spacing: 8) {").count - 1
         XCTAssertGreaterThanOrEqual(hstacks, 1, """
             `startControlRow` has \(hstacks) inner `HStack(spacing: 8)`, expected at least 1.
@@ -113,7 +114,16 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
         }
         // The other direction, which is what the first version was missing: the two migrants
         // must NOT be on line 1. Without this, moving one up passes every check above.
-        for migrant in ["TransportOverflowMenu()", "TransportPositionView()"] {
+        //
+        // ⛔ `"TransportOverflowMenu()"` WAS THE FIRST ENTRY UNTIL #492 AND IT IS REPLACED,
+        // NOT DROPPED. That type no longer exists — the founder asked for its two entries as
+        // individual buttons — so the needle would have been vacuously true forever, which is
+        // the #367 shape: a check that cannot fail for its stated reason. `EchoelIconTile(` is
+        // the STRONGER replacement: line 1 builds none today (▶ draws its own `Image`, and
+        // ⏸ / tempo / pill are all their own structs), so any action or door tile appearing
+        // there is exactly the "merge it all onto one line after all" change this test exists
+        // to catch — and now it catches all seven of them instead of one.
+        for migrant in ["EchoelIconTile(", "TransportPositionView()"] {
             XCTAssertFalse(lineOne.contains(migrant), """
                 `\(migrant)` moved up into line 1 of `startControlRow`.
 
@@ -127,16 +137,16 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
 
     // MARK: - 3. both migrants have exactly one home
 
-    /// ⛔ THE "•••" MOVED ONE DECLARATION DEEPER WITH #482 and this test moved with it, in the
-    /// same commit. `startControlRow` is now three lines, and line 2 is `quickActionRow` — the
-    /// six-tile action row the founder asked for on 2026-08-07. The overflow is the last tile
-    /// in it. That is still "inside the instrument, under the transport", which is what the
-    /// founder's arrow meant; what changed is that the row it lives in got a name.
+    /// ⛔ THE "•••" MOVED ONE DECLARATION DEEPER WITH #482, then CEASED TO EXIST WITH #492,
+    /// and this test moved with it both times, in the same commit each time. `startControlRow`
+    /// is three lines again: line 2 is `quickActionRow` (the take), line 3 is `quickDoorRow`
+    /// (the two sheets the overflow used to hold, now individual buttons on the founder's
+    /// third ask). That is still "inside the instrument, under the transport", which is what
+    /// the founder's arrow meant; what changed is that the tiles have their own names.
     ///
-    /// Asserting the two SEPARATELY is deliberate: a single scan over `startControlRow` would
-    /// no longer see the overflow at all (it is behind a member reference), and widening the
-    /// scan to the whole file would let either migrant drift back into the chrome header while
-    /// staying green.
+    /// Asserting the rows SEPARATELY is deliberate: a single scan over `startControlRow` would
+    /// see neither row's contents (both are member references), and widening the scan to the
+    /// whole file would let a migrant drift back into the chrome header while staying green.
     func testBothMigrantsAreMountedInTheStudioRow() throws {
         let path = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
         let row = try declarationBody(of: "private var startControlRow: some View {", in: path)
@@ -146,9 +156,23 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
             2026-08-07 ask — "alles … in eine Reihe unter dem Play etc zusammengefasst" — and \
             it carries the "•••" the first of his two arrows pointed at.
             """)
-        XCTAssertTrue(actions.contains("TransportOverflowMenu()"), """
-            The "•••" overflow is not in `quickActionRow`. One of the founder's two arrows \
-            pointed into this row; if it went back to the chrome header, that is #456 undone.
+        // ⛔ THIS ASSERTED `actions.contains("TransportOverflowMenu()")` UNTIL #492. The
+        // overflow the founder's first arrow pointed into this row is dissolved — its two
+        // entries are individual tiles in `quickDoorRow`, a THIRD line of the same stack. So
+        // the property to defend is unchanged ("those doors stay inside the instrument, under
+        // the transport, not back up in the chrome header") and the anchor moved one
+        // declaration over. `TheDoorsAreIndividualButtonsTests` owns the contents of that row;
+        // what belongs HERE is only that `startControlRow` still builds it.
+        let doors = try declarationBody(of: "private var quickDoorRow: some View {", in: path)
+        XCTAssertTrue(row.contains("quickDoorRow"), """
+            `startControlRow` no longer builds `quickDoorRow`. That row holds the two global \
+            doors the founder asked to see as individual buttons (#492); if they went back to \
+            the chrome header, or back into a menu, that is both #456 and #492 undone.
+            """)
+        XCTAssertTrue(doors.contains("showLearn = true"), """
+            `quickDoorRow` no longer opens Learn. It is one of only two doors that are sheets \
+            rather than panels — there is no chip that can reach it, so this row is the only \
+            way in.
             """)
         // ⛔ THE SECOND MIGRANT MIGRATED AGAIN (#490) and this assertion is INVERTED rather
         // than deleted. The founder's 2026-08-07 screenshot ran an arrow from the scribbled-out

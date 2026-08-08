@@ -960,12 +960,12 @@ struct EchoelStudioView: View {
                     selectBioSource(note.object as? String)
                 }
                 // Chrome doors: the header monitors reach the plate without touching studio
-                // state directly. (⛔ This line named the "•••" overflow as a chrome producer
-                // and that half expired with #456 — the overflow now lives in THIS view and
-                // posts to itself, a same-view round trip. It is kept on the notification
-                // because the header monitors are still real chrome producers of the same
-                // name; converting only the overflow to a binding would leave two ways into
-                // one door. The rationale is stated at the producer too.)
+                // state directly. (⛔ This line named the "•••" overflow as a second producer
+                // for two cycles — first as chrome, then as a same-view round trip after #456.
+                // Both readings are dead with #492: the overflow is gone and its two doors are
+                // tiles in `quickDoorRow` that set their own `@State`. The sentence is true
+                // again as written, with the header monitors as the ONLY producers, which is
+                // the whole reason this notification still exists.)
                 //
                 // ⛔ FOUR CASES WERE DELETED HERE, NOT LEFT "just in case" (#290): "master",
                 // "export", "tempo" and "session". Those four panels are chips now, and a chip
@@ -987,10 +987,15 @@ struct EchoelStudioView: View {
                 // it looks like (`showVideoLibrary` is `@State`, not `@AppStorage`).
                 .onReceive(NotificationCenter.default.publisher(for: .echoelChromeDoor)) { note in
                     switch note.object as? String {
-                    case "learn":  showLearn = true
-                    #if canImport(MultipeerConnectivity)
-                    case "live":   showLiveColabo = true
-                    #endif
+                    // ⛔ `"learn"` AND `"live"` WERE DELETED HERE (#492), for the same reason
+                    // the four before them were: their only producer went away in the same
+                    // commit. The "•••" overflow is dissolved into two tiles in
+                    // `quickDoorRow`, and those tiles own the `@State` they set — they are in
+                    // this view, so a notification would have been a message from the studio
+                    // to itself. A `case` with no poster compiles silently and reads like a
+                    // live hook; that is the shape this file has been burned by more than
+                    // once. The notification keeps its REAL producers below (the header
+                    // monitor tiles), which is why it is not deleted outright.
                     // Header output monitors (founder 2026-07-12): the
                     // EchoelVideo tile opens the clips library panel, the
                     // EchoelLux tile the routing sheet (existing slot —
@@ -1701,6 +1706,13 @@ struct EchoelStudioView: View {
             }
             // LINE 2 — the actions (#482). See `quickActionRow`.
             quickActionRow
+            // LINE 3 — the doors (#492). See `quickDoorRow`. A THIRD line is back, four
+            // slices after #456 deleted one, and the honest accounting is that it costs the
+            // ~40 pt #490 handed the plate back (the ~32 pt line plus this `VStack`'s 8 pt
+            // gap). It is not a free re-add: it is the price of the founder's *"Das mit den
+            // drei Punkten als einzelnde Buttons anzeigen"*, and the arithmetic below says
+            // there is no one-line version of that ask to buy instead.
+            quickDoorRow
             // ⛔ LINE 3 IS GONE (#490, founder 2026-08-07). It held `TransportPositionView`
             // alone — the loop capsule plus `1.1.1 / loop 1/8` — because a ~100 pt monospaced
             // label plus six 44 pt targets does not fit a 375 pt phone (6×44 + 5×8 = 304 of 343
@@ -1722,10 +1734,17 @@ struct EchoelStudioView: View {
     /// zweiten Bild was rot markiert ist, intelligent und übersichtlich im selben Button Format
     /// in eine Reihe unter dem Play etc zusammengefasst"*. Red-marked there: the "•••" entries,
     /// the position readout, the "Save & Export" chip and that panel's whole body. What was
-    /// scattered over a menu, a chip and a dropdown is now six equal chips one line under the
-    /// transport, all `EchoelIconTile` — the "selbe Button Format", literally one declaration.
+    /// scattered over a menu, a chip and a dropdown is now equal chips under the transport,
+    /// all `EchoelIconTile` — the "selbe Button Format", literally one declaration.
     ///
-    /// Left to right: Record/abort · Keep last · Export MIDI · Save · Open · More.
+    /// Left to right: Record/abort · Keep last · Export MIDI · Save.
+    ///
+    /// ⛔ IT WAS SIX ON ONE LINE UNTIL #492, and the split is the founder's third ask on the
+    /// same screenshot: *"Das mit den drei Punkten als einzelnde Buttons anzeigen."* Dissolving
+    /// the "•••" turns six tiles into seven, and seven do not fit one line on the narrowest
+    /// phone this app ships to — the arithmetic is in `quickDoorRow`'s doc. Open moved down
+    /// with the two new door tiles because the honest boundary is "acts on this take" (here)
+    /// versus "leaves this take" (there), not "wherever there happened to be room".
     ///
     /// ⚠️ THEY MOVED, THEY WERE NOT COPIED. The panel does not keep a second Save button; two
     /// doors to one action is the shape this repo keeps paying for (#416), and a row that only
@@ -1805,6 +1824,58 @@ struct EchoelStudioView: View {
             .accessibilityLabel("Save this session")
             .accessibilityHint("Names the session and saves it. The place row in Save & Export decides whether your city is in that name")
 
+        }
+    }
+
+    /// ⭐ THE DOORS — founder 2026-08-07, third of four asks on the v10.79.374 screenshot:
+    /// *"Das mit den drei Punkten als einzelnde Buttons anzeigen."* The "•••" overflow is
+    /// dissolved; its two entries are tiles now, in the same `EchoelIconTile` format as
+    /// everything else on this plate.
+    ///
+    /// Left to right: Open a saved session · Live Colabo · Learn and news.
+    ///
+    /// ⚠️ WHY A SECOND LINE RATHER THAN ONE ROW OF SEVEN, and this is arithmetic, not taste.
+    /// Every tile carries a hard 44 pt minimum width (`EchoelTheme.controlTapHeight`, the
+    /// #113 floor), the row spaces at 8, and `startControlRow` is padded 16 on each side. So
+    /// seven tiles need `7×44 + 6×8 = 356` pt of usable width. A 393 pt phone offers 361 —
+    /// five to spare — but a 375 pt phone offers 343 and a 360 pt one (iPhone 12/13 mini, both
+    /// on iOS 18) offers 328. On the narrowest phone this app ships to, seven 44 pt targets in
+    /// one line overflow by 28 pt. There is no spacing that fixes it honestly: even at 4 pt
+    /// gaps the row still needs 332. The ask is answerable in two lines or not at all.
+    ///
+    /// ⚠️ THE TRAILING `Spacer(minLength: 0)` IS LOAD-BEARING, not tidying. `expands` gives
+    /// each flexible child of an `HStack` an equal share, so three tiles alone would be a
+    /// third wider than the four above them — in the row whose entire brief is *"die sollen
+    /// immer gleichgroß sein"* (#481/#482). A fourth flexible slot that draws nothing makes
+    /// both lines four-up, so all seven tiles are one width on every device, and the blank
+    /// lands at the END of the LAST line where it reads as a grid rather than as a hole.
+    ///
+    /// ⚠️ THE SPLIT IS "acts on this take" ABOVE, "leaves this take" HERE. Record · Keep last ·
+    /// Export MIDI · Save all stay in the take you are playing; Open loads a DIFFERENT one,
+    /// Live Colabo joins other people, Learn is news and docs. Save is above rather than below
+    /// on purpose — naming a take does not leave it.
+    ///
+    /// ⛔ THESE TWO ARE NOT CHIPS, AND THAT REASON SURVIVED THE MENU (#290). Live Colabo and
+    /// Learn are the only global doors that are NOT panels — they present full sheets
+    /// (`showLiveColabo`, `showLearn`). The chip strip's grammar is "this chip selects what the
+    /// plate shows", so a chip that opened a modal would be a lying tab. Buttons in the action
+    /// block have no such grammar to break. **No new `.sheet` is added by this slice**: both
+    /// sheets already hang on the body, so the presentation chain the black-screen law
+    /// (10.76.34) guards is untouched — this changes who taps them, not how many there are.
+    ///
+    /// ⚠️ AND THEY SET `@State` DIRECTLY INSTEAD OF POSTING `.echoelChromeDoor`, which the
+    /// menu did. That round trip was already same-view since #456 (the studio posted and
+    /// received), and with the menu gone the notification's `"live"`/`"learn"` cases would
+    /// have had NO producer at all — a `case` that compiles silently and reads like a live
+    /// hook, which is the exact shape the receiver's own ⛔ block deleted four of in #290. The
+    /// notification keeps its real producers (the header monitor tiles post `"video"`,
+    /// `"routing"`, `"bio"`); it just stops carrying a message from this view to itself.
+    ///
+    /// ⚠️ FREEZE LAW. Nothing here reads a high-frequency `@Observable`: `projects.projects`
+    /// is a store, and the two door flags are `@State` written from a closure, which registers
+    /// no observation at all.
+    private var quickDoorRow: some View {
+        HStack(spacing: 8) {
             Button { showOpen = true } label: {
                 EchoelIconTile(systemImage: "tray.and.arrow.up", expands: true,
                                enabled: !projects.projects.isEmpty)
@@ -1813,13 +1884,33 @@ struct EchoelStudioView: View {
             .disabled(projects.projects.isEmpty)
             .accessibilityLabel("Open a saved session")
 
-            // The two entries that are not panels and therefore cannot be chips (#290): Live
-            // Colabo and Learn present full sheets. It keeps its `Menu`, and since #482 it
-            // wears the same tile as the five buttons beside it — INCLUDING `expands`, so all
-            // six are one width. ⛔ The first version left it fixed-width "so the five actions
-            // share the remaining width evenly", which produced 5 × 51.8 pt next to one 44 pt
-            // chip in the row whose whole brief was *"die sollen immer gleichgroß sein"*.
-            TransportOverflowMenu()
+            #if canImport(MultipeerConnectivity)
+            Button { showLiveColabo = true } label: {
+                EchoelIconTile(systemImage: "dot.radiowaves.left.and.right", expands: true)
+            }
+            .buttonStyle(.plain)
+            // The label the menu entry carried, verbatim — an icon-only control must say what
+            // it is (#489), and "Live Colabo" alone would not tell a first-time listener that
+            // it is about playing WITH someone in the room.
+            .accessibilityLabel("Live Colabo — play together nearby")
+            .accessibilityHint("Opens the nearby-session sheet to play together on one tempo")
+            #endif
+
+            Button { showLearn = true } label: {
+                EchoelIconTile(systemImage: "book", expands: true)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Learn and news")
+            .accessibilityHint("Opens the body-science library and release notes")
+
+            // See the property's doc: this draws nothing and exists so all seven tiles are one
+            // width. Removing it widens this line's three by a third and breaks the founder's
+            // "immer gleichgroß" on the row it was asked for. (⚠️ ONE flexible blank, sized for
+            // the three tiles above it. On a platform without MultipeerConnectivity this line
+            // is two tiles and the widths diverge — stated rather than branched on, because
+            // every target this app ships to has the framework and an untestable `#else` is
+            // worse than a named limit.)
+            Spacer(minLength: 0)
         }
     }
 
@@ -3241,9 +3332,13 @@ struct EchoelStudioView: View {
     //
     // `liveColaboRow` and `learnRow` (R2/R3, 2026-07-10) were full-width door cards, and
     // `entryRow` was their shared chrome. All three sat here unmounted: the doors they
-    // opened MOVED to the chrome-door notification (`case "learn":` / `case "live":` in the
-    // `.echoelChromeDoor` receiver above), and nobody removed what they replaced. Both
-    // sheets are reachable today — the deletion costs the user nothing.
+    // opened MOVED to the chrome-door notification, and nobody removed what they replaced.
+    // Both sheets are reachable today — the deletion costs the user nothing.
+    // (⛔ This named `case "learn":` / `case "live":` in the `.echoelChromeDoor` receiver as
+    // where those doors went. Since #492 they are neither rows NOR notification cases: they
+    // are the two tiles in `quickDoorRow`, which set `showLearn` / `showLiveColabo` directly.
+    // The tombstone's POINT is unchanged — full-width door cards became something smaller —
+    // and pointing at a `case` that no longer exists would read as "the doors are gone".)
     //
     // WHY IT IS WRITTEN DOWN RATHER THAN JUST DELETED: they were found together with
     // `moodPadsSection`, which from a grep of NAMES looked identical — an unmounted `some
