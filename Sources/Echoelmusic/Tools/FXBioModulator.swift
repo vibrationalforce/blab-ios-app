@@ -227,10 +227,34 @@ public final class FXBioModulator {
         // (ModulationEngine.tick). The fixed-5 s `freshBio()` here meant FX
         // bio-modulation stopped after 5 s for a latent Watch/HealthKit source
         // (90 s window) while the main modulation kept steering — inconsistent
-        // sound shaping off the same body. Now every sound-shaping bio gate is
-        // the one authority: a frame usable to the engine is usable to the FX,
-        // and a frame the engine drops (`nil`) disengages the FX bio routes too, fading
-        // them back to the base value rather than cutting them.
+        // sound shaping off the same body. That half is unchanged and correct: this
+        // driver, `ModulationEngine.tick` and the composer all ask the same window.
+        //
+        // ⛔ WHAT FOLLOWED WAS FALSE, AND IT WAS THE LOAD-BEARING SENTENCE (#499). It read:
+        // "Now every sound-shaping bio gate is the one authority: a frame usable to the
+        // engine is usable to the FX, and a frame the engine drops (`nil`) disengages the FX
+        // bio routes too." THE ENGINE DROPS NOTHING. Measured: the two producers that shape
+        // the instrument's own TIMBRE — `BioReactiveSynthVoice.applyLatestIfFresh` and
+        // `PolySynthVoice.applyLatestIfFresh` — read `bus.latestBio` RAW and dedupe on
+        // `frame.timestamp`; neither file contains the string `usableBio` at all. So there
+        // are TWO freshness regimes on ONE bus: three GATED readers (this driver, the
+        // mod-brain, the composer) and two UNGATED ones (the timbre). The sentence claimed
+        // the opposite of what the code does, in the comment that justifies this line.
+        //
+        // ⭐ BOTH REGIMES ARE RIGHT, AND THAT IS WHY #499 CORRECTS THE PROSE RATHER THAN THE
+        // CODE. An FX route is an ADDITIVE offset the user explicitly asked for; holding one
+        // off a body that stopped arriving is a stale claim, so it fades to base. Timbre has
+        // no release path at all — the producers dedupe, so a frozen source is a no-op that
+        // PARKS the timbre at the last body instead of zeroing it, and zeroing it would claim
+        // the engine dropped the channel when it did not. That argument is written out at
+        // `AlwaysOnBioChannel.reading(in:now:)`, and #503 put the parking on screen ("held").
+        //
+        // ⚠️ SO THE VISIBLE RESIDUE IS REAL AND IS NOT FIXED HERE: on a frozen camera source
+        // (6 s window) the FX offsets release while the timbre stays parked, and only the
+        // timbre half says so on screen. Unifying either direction is an audible change and
+        // needs a hearing test, not a consistency edit — which is exactly what the false
+        // sentence above invited. `TwoFreshnessRegimesAreDeliberateTests` pins both halves so
+        // a later "make them consistent" cleanup goes red instead of silently picking one.
         let frame = bus?.usableBio()
         let now = Float(CFAbsoluteTimeGetCurrent() - startTime)
         let active = activeTargets

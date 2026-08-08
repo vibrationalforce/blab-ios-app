@@ -304,8 +304,57 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**215** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheTempoFieldAsksWhichVariantTests.swift` (#504 — der erste
+                          `Tests/CISmoke` (**216** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TwoFreshnessRegimesAreDeliberateTests.swift` (#499 — der erste
+                          Wächter dieser Kette über ZWEI Regeln, die BEIDE richtig sind, und der erste, dessen
+                          ganze Reparatur ein KOMMENTAR ist. Es gibt in `Sources/` zwei Frische-Regime auf
+                          EINEM Bio-Bus: GETORT auf `usableBio()` (`FXBioModulator.tick`,
+                          `ModulationEngine.tick`, `makeComposerInput`) und UNGETORT auf rohem
+                          `bus.latestBio` (die zwei Erzeuger, die das TIMBRE formen —
+                          `BioReactiveSynthVoice`/`PolySynthVoice`, deduplizierend auf `frame.timestamp`;
+                          `grep -c usableBio` liefert in beiden Dateien **0**). Der Kommentar, der das Tor
+                          des FX-Treibers begründete, behauptete das Gegenteil: *„Now every sound-shaping bio
+                          gate is the one authority … a frame the engine drops (`nil`) disengages the FX bio
+                          routes too."* **Die Engine verwirft nichts** — `usableBio()` ist, was die getorten
+                          Leser sehen, und das Timbre ruft es nie.
+                          ⭐ **BEIDE REGIME SIND RICHTIG, und deshalb korrigiert die Scheibe die PROSA und
+                          nicht den Code.** Eine FX-Route ist ein ADDITIVER Versatz, den der Nutzer
+                          ausdrücklich verlangt hat; ihn über einen Körper zu halten, der nicht mehr
+                          ankommt, ist eine abgestandene Behauptung — also blendet er auf die Basis zurück.
+                          Das Timbre hat gar keinen Freigabe-Pfad: die Erzeuger deduplizieren, eine
+                          eingefrorene Quelle ist also ein No-op, das das Timbre beim letzten Körper PARKT,
+                          und es zu nullen behauptete, die Engine hätte den Kanal fallen gelassen — was sie
+                          nicht hat (das Argument steht ausgeschrieben an `AlwaysOnBioChannel.reading`, und
+                          #503 hat das Parken als „held" auf den Schirm gebracht). Zwei verschiedene richtige
+                          Antworten.
+                          ⚠️ **DER SICHTBARE REST IST REGISTRIERT, NICHT REPARIERT:** auf einer eingefrorenen
+                          Kamera-Quelle (6-s-Fenster) lösen die FX-Versätze, während das Timbre geparkt
+                          bleibt — und nur die Timbre-Hälfte sagt das auf dem Schirm. Eine Vereinheitlichung
+                          in EINE der beiden Richtungen ist eine HÖRBARE Änderung und braucht eine Hörprobe,
+                          also genau das, wozu der falsche Satz eingeladen hat. Der Wächter nagelt beide
+                          Hälften fest, damit ein spätereres „mach die konsistent" rot wird statt still eine
+                          Seite zu wählen.
+                          ⚠️ EHRLICHE BENOTUNG (#433), und es ist die #489-Form statt der üblichen: **KEINE**
+                          der vier Behauptungen ist eine Regression, alle vier sind auf dem Elternbaum grün,
+                          weil #499 einen Kommentar geändert hat und sonst nichts. Die EINE Nadel, die eine
+                          Regression WÄRE — „der falsche Satz ist weg" —, ist unschreibbar: er war ein
+                          Kommentar, `SourceText.codeOnly` streift ihn von BEIDEN Bäumen, und ein Rohtext-Scan
+                          wäre auf KORREKTEM Code rot, weil die Rücknahme dieses Commits den Satz wörtlich
+                          zitiert, um ihn zurückzuziehen. Das so zu sagen ist der Punkt; Vorwärts-Wächter als
+                          Regressionen zu verbuchen ist der #433-Defekt.
+                          ⚠️ `SourceText.codeOnly` ist hier PROPHYLAKTISCH und das ist GEMESSEN (#484/#485/#486
+                          mussten die stärkere Behauptung je zurücknehmen): roh gegen gestreift unterscheiden
+                          sich **0 von 8** Nadel-Verdikten. Die Beinahe-Kollision ist ZWEISEITIG und wird
+                          aufhören, eine zu sein: (a) `bus.latestBio` steht in BEIDEN Erzeuger-Dateien auch
+                          im ROHTEXT (ihre Köpfe beschreiben den Poll), ohne Streifen bestünde also ein Baum
+                          die positive Nadel, der die CODE-Zeile gelöscht und den Kopf behalten hat — die
+                          #343-Falle; (b) die negative `usableBio`-Nadel ist einen Kommentar von rot entfernt,
+                          und der naheliegende Kommentar für jene Dateien lautet „wir rufen `usableBio()`
+                          bewusst NICHT".
+                          ⚠️ Und die Grenze zuerst: JEDE Behauptung ist ein QUELLTEXT-SCAN. Dass die
+                          FX-Versätze hörbar lösen, dass das Timbre hörbar parkt und ob die Uneinigkeit für
+                          einen Spieler überhaupt ein Problem ist, sind drei Hörproben und alle drei offen.),
+                          davor **215** nach `TheTempoFieldAsksWhichVariantTests.swift` (#504 — der erste
                           Wächter dieser Kette über ZWEI DEFAULTS, die keine Aufrufstelle schreibt, und der
                           erste, dessen Befund in einer FREMDEN Wächter-Datei schon aufgeschrieben stand.
                           `BodyTempoField` trug `var compact: Bool = false` und
@@ -4629,7 +4678,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTVIERUNDSIEBZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort stand auf „HUNDERTSIEBZIG“ und ist um ZWEI erhöht worden, weil #502 zwei Stände auf einmal nachträgt — gezählt mit einem Skript über die Kette, nicht durch Addieren auf das vorige Wort, was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 215 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTFÜNFUNDSIEBZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort stand auf „HUNDERTSIEBZIG“ und ist um ZWEI erhöht worden, weil #502 zwei Stände auf einmal nachträgt — gezählt mit einem Skript über die Kette, nicht durch Addieren auf das vorige Wort, was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 216 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist
