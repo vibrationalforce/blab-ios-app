@@ -97,6 +97,33 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     public var a4Hz: Double            // Kammerton
     public var artist: String
 
+    /// #493 — THE SECOND TUNING AXIS, and it was the only one that did not travel with the
+    /// take. `a4Hz` (the Kammerton) has been saved and restored since this format existed;
+    /// the TONE SYSTEM — the twelve cent offsets that make a take Maqām Rāst rather than
+    /// 12-TET — lived only in `@AppStorage("toneSystemID")`, i.e. in the instrument, never
+    /// in the take. Saving a Rāst loop, switching to 12-TET and reopening the loop gave you
+    /// 12-TET: the same "two tunings at once" defect #312/#338 fixed inside one session,
+    /// arriving instead through the save path.
+    ///
+    /// ⭐ OPTIONAL, AND THE OPTIONALITY IS THE DESIGN, not laziness about defaults. A
+    /// non-optional `String` with `?? "edo12"` would mean every take written before this
+    /// build claims 12-TET — so opening a legacy take would silently drag a player who has
+    /// chosen Gamelan back to 12-TET, on a value they never set in that take. `nil` says the
+    /// only true thing about such a file: **this take does not state a tone system**, and
+    /// the open path then leaves the instrument's current one alone. That asymmetry is
+    /// deliberate and is pinned by `TheToneSystemTravelsWithTheTakeTests`.
+    ///
+    /// It carries the RAW id (`TuningSystem.named(_:)`'s key), not a resolved table, for the
+    /// same forward-compatibility reason every other enum here is stored as a raw string: a
+    /// take written by a build that knows a system this one does not must still load, and
+    /// `TuningSystem.named` already falls back for an unknown id.
+    ///
+    /// ⚠️ NOT the same question as `a4Hz`, even though they are set in the same header strip
+    /// and `LaneVoiceRack` latches them together (#338). A4 is a single scalar the whole
+    /// world agrees on; the tone system chooses which twelve pitch classes exist. Both now
+    /// travel; neither implies the other.
+    public var toneSystemID: String?
+
     // Generated content
     public var patch: SynthPatch
     public var notes: [Note]
@@ -107,18 +134,37 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         id: UUID = UUID(), name: String, savedAt: Date = Date(),
         styleRaw: String, keyRoot: Int, scaleRaw: String, bpm: Double,
         modeRaw: String, fxCharacterRaw: String, loopBars: Int,
-        a4Hz: Double, artist: String,
+        a4Hz: Double, toneSystemID: String?, artist: String,
         patch: SynthPatch, notes: [Note],
         drumSteps: [[Bool]], drumAccents: [[Bool]]
     ) {
         // Deliberately NOT an init parameter: a freshly-built Project is by definition in
         // the format this build writes, and there is no caller that could honestly supply
         // anything else. Keeping it out also leaves all ~10 existing call sites untouched.
+        //
+        // ⚠️ `toneSystemID` IS a parameter and deliberately has NO DEFAULT, which is the
+        // opposite decision for the opposite reason. `= nil` would have kept both call sites
+        // compiling untouched — and that is exactly the failure mode #440/#443 paid for
+        // twice: an argument no call site writes appears in no diff, so the field would read
+        // as "wired" while every save wrote nothing. There are FOUR `Project.init` call sites
+        // in the whole repo — `EchoelStudioView.currentProject()`, `AutosaveSlotTests`,
+        // `ColabPayloadTests`, `TheToneSystemTravelsWithTheTakeTests` — so making each state it
+        // costs four lines and buys a compiler error the day a fifth appears.
+        //
+        // ⛔ THE FIRST VERSION OF THIS COMMENT SAID "TWO", and the miss is worth keeping: it
+        // named the two I had edited and omitted `ColabPayloadTests`, which lives in
+        // `Tests/EchoelmusicTests` — the NON-blocking suite (#208). Neither real gate compiles
+        // that directory, so a call site missed there does not go red at either one; it would
+        // have surfaced only in `swift build`, and this container has no toolchain. **A count of
+        // call sites is a `git grep` over the WHOLE repo, not over the files one happens to have
+        // open** — and the half of the tree that no gate compiles is exactly the half where an
+        // uncounted caller can sit unnoticed.
         self.schemaVersion = Self.currentSchemaVersion
         self.id = id; self.name = name; self.savedAt = savedAt
         self.styleRaw = styleRaw; self.keyRoot = keyRoot; self.scaleRaw = scaleRaw
         self.bpm = bpm; self.modeRaw = modeRaw; self.fxCharacterRaw = fxCharacterRaw
-        self.loopBars = loopBars; self.a4Hz = a4Hz; self.artist = artist
+        self.loopBars = loopBars; self.a4Hz = a4Hz; self.toneSystemID = toneSystemID
+        self.artist = artist
         self.patch = patch; self.notes = notes
         self.drumSteps = drumSteps; self.drumAccents = drumAccents
     }
@@ -128,7 +174,8 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case id, name, savedAt, styleRaw, keyRoot, scaleRaw, bpm, modeRaw
-        case fxCharacterRaw, loopBars, a4Hz, artist, patch, notes, drumSteps, drumAccents
+        case fxCharacterRaw, loopBars, a4Hz, toneSystemID, artist, patch, notes
+        case drumSteps, drumAccents
     }
 
     /// Custom decoder so a take saved by an OLDER (or FUTURE) build — one that predates
@@ -158,6 +205,14 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         fxCharacterRaw = try c.decodeIfPresent(String.self,   forKey: .fxCharacterRaw) ?? ""
         loopBars       = try c.decodeIfPresent(Int.self,      forKey: .loopBars)       ?? 1
         a4Hz           = try c.decodeIfPresent(Double.self,   forKey: .a4Hz)           ?? 440
+        // ⭐ NO `??` HERE, and it is the only field in this decoder without one. The absence
+        // of a fallback IS the fallback: a take written before #493 genuinely does not state
+        // a tone system, and `nil` is the only honest reading of that. Giving it `?? "edo12"`
+        // would turn "unknown" into an assertion, and the open path would then act on it —
+        // silently pulling a player who has chosen Gamelan back to 12-TET on a value that
+        // take never carried. (`decodeIfPresent` on an `Optional` property is exactly right:
+        // key missing → nil, key present → the stored id.)
+        toneSystemID   = try c.decodeIfPresent(String.self,   forKey: .toneSystemID)
         artist         = try c.decodeIfPresent(String.self,   forKey: .artist)         ?? ""
         patch          = try c.decodeIfPresent(SynthPatch.self, forKey: .patch)        ?? SynthPatch(name: "Default")
         // ELEMENT-TOLERANT, and this is the half of the defence `decodeIfPresent` cannot
@@ -229,6 +284,11 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         try c.encode(fxCharacterRaw, forKey: .fxCharacterRaw)
         try c.encode(loopBars, forKey: .loopBars)
         try c.encode(a4Hz, forKey: .a4Hz)
+        // `encodeIfPresent`, so a take that states no tone system writes NO key rather than
+        // `null` — and re-reading it yields `nil` again instead of a JSON null that a
+        // stricter future decoder would have to special-case. Round-trip-stable in both
+        // directions, which `TheToneSystemTravelsWithTheTakeTests` asserts.
+        try c.encodeIfPresent(toneSystemID, forKey: .toneSystemID)
         try c.encode(artist, forKey: .artist)
         try c.encode(patch, forKey: .patch)
         try c.encode(notes, forKey: .notes)

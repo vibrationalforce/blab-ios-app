@@ -73,7 +73,11 @@ final class AutosaveSlotTests: XCTestCase {
                 keyRoot: 0, scaleRaw: Scale.major.rawValue, bpm: bpm,
                 modeRaw: ComposerMode.flowFree.rawValue,
                 fxCharacterRaw: FXCharacter.clean.rawValue,
-                loopBars: 4, a4Hz: 440, artist: "",
+                // #493 — `toneSystemID` has NO default on the initialiser, on purpose: an
+                // argument no call site writes shows up in no diff (#440/#443). This fixture
+                // states 12-TET explicitly because these tests are about the autosave SLOT,
+                // not about tuning; `TheToneSystemTravelsWithTheTakeTests` owns the nil case.
+                loopBars: 4, a4Hz: 440, toneSystemID: "edo12", artist: "",
                 patch: SynthPatch(name: "Test"), notes: [], drumSteps: [], drumAccents: [])
     }
 

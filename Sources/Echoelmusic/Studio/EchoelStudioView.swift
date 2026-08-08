@@ -9232,7 +9232,11 @@ struct EchoelStudioView: View {
             styleRaw: style.rawValue, keyRoot: rootIndex, scaleRaw: scale.rawValue,
             bpm: beatPlayer.pattern.tempo, modeRaw: ComposerMode(locked: lockBPM).rawValue,
             fxCharacterRaw: fxCharacter.rawValue, loopBars: loopBars.rawValue,
-            a4Hz: session.a4Hz, artist: session.artistName,
+            // #493 — BOTH tuning axes travel now. `a4Hz` always did; the tone system did not,
+            // so a Maqām take reopened under a 12-TET instrument came back as 12-TET. Never
+            // `nil` from HERE: a take this build writes always states what it was played in.
+            // `nil` is reserved for files written before the field existed.
+            a4Hz: session.a4Hz, toneSystemID: tuningID, artist: session.artistName,
             patch: currentPatch, notes: pianoRoll.notes,
             drumSteps: beatPlayer.pattern.steps, drumAccents: beatPlayer.pattern.accents
         )
@@ -9403,6 +9407,16 @@ struct EchoelStudioView: View {
         // stops it lying.
         applyDelaySync(bpm: loadedTempo)
         hasComposed = true
+        // #493 — RESTORE THE TAKE'S TONE SYSTEM, and note the `if let`: it is the whole
+        // decision, not a nil-safety formality. A take saved by this build always states one,
+        // so opening a Maqām loop puts the instrument back into Maqām — the second tuning
+        // axis finally behaving like `a4Hz` three statements up, which has travelled since
+        // this format existed. A take saved BEFORE #493 states nothing, and then this line
+        // does nothing on purpose: the player's current choice is the only real information
+        // in the room, and overwriting it with a default would be inventing a fact about a
+        // file. `applyTuning()` below is the single place that pushes the table to every
+        // voice, so this only has to move the id.
+        if let savedToneSystem = p.toneSystemID { tuningID = savedToneSystem }
         // Re-push the microtonal retune for the restored root. Programmatic writes
         // of rootIndex never post .echoelCompositionEdited (step 2b — by design, so
         // this very function can't be clobbered by strip side effects), so do it

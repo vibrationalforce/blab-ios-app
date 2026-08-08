@@ -11,7 +11,11 @@ final class ColabPayloadTests: XCTestCase {
     private func sampleProject() -> Project {
         Project(
             name: "Jam", styleRaw: "dubTechno", keyRoot: 5, scaleRaw: "minor", bpm: 122,
-            modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 4, a4Hz: 440, artist: "Echoel",
+            // #493 — the tone system now travels with a take alongside `a4Hz`, and the
+            // initialiser deliberately gives it NO default (#440/#443). A shared session states
+            // what it was played in; `nil` means "this take predates the field".
+            modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 4, a4Hz: 440,
+            toneSystemID: "edo12", artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 62, startStep: 0, lengthSteps: 2, velocity: 0.7)],
             drumSteps: [[true, false]], drumAccents: [[false, false]]
