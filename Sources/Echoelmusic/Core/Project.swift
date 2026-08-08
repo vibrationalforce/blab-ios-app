@@ -95,6 +95,10 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     public var fxCharacterRaw: String  // FXCharacter.rawValue
     public var loopBars: Int
     public var a4Hz: Double            // Kammerton
+
+    /// Who the instrument was set to at save time (`SessionContext.artistName`, raw — NOT the
+    /// filename-safe token `SessionNaming.sanitize` makes). Read it through
+    /// `attribution(besideOwnName:)`, which is where the decision about SHOWING it lives.
     public var artist: String
 
     /// #493 — THE SECOND TUNING AXIS, and it was the only one that did not travel with the
@@ -221,11 +225,24 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         // opposite decision for the opposite reason. `= nil` would have kept both call sites
         // compiling untouched — and that is exactly the failure mode #440/#443 paid for
         // twice: an argument no call site writes appears in no diff, so the field would read
-        // as "wired" while every save wrote nothing. Counted with `git grep -n "Project("` over
-        // the WHOLE repo (#495) there are EIGHT call sites: `EchoelStudioView.currentProject()`,
-        // `AutosaveSlotTests`, `TheToneSystemTravelsWithTheTakeTests`,
-        // `TheModeTravelsWithTheTakeTests`, `TheSavePromiseMatchesTheSaveTests`,
-        // `ColabPayloadTests`, and TWO in `ProjectStoreTests`.
+        // as "wired" while every save wrote nothing. Counted over the WHOLE repo (#495) with
+        // `git grep -n "[^A-Za-z]Project(" -- Sources Tests`, minus the `func`/`importProject`/
+        // `currentProject`/`SharedEchoelProject` false friends and minus this file's own prose:
+        // THIRTEEN construction sites as of #521 — `EchoelStudioView.currentProject()`, ten in
+        // `Tests/CISmoke` (`AutosaveSlotTests`, `AFailedSaveLeavesATraceTests`,
+        // `TheToneSystemTravelsWithTheTakeTests`, `TheModeTravelsWithTheTakeTests`,
+        // `TheRawTakeTravelsWithTheTakeTests`, `TheSavePromiseMatchesTheSaveTests`,
+        // `TheShareDoorDoesNotFabricateAnEmptyDocumentTests`,
+        // `TheImportDoorReportsWhatItCannotReadTests`, `TheTakeSaysWhoMadeItTests`), and
+        // `ColabPayloadTests` plus TWO in `ProjectStoreTests`.
+        //
+        // ⛔ AND THE COUNT WAS WRONG A THIRD TIME — it stood at EIGHT while the tree held
+        // TWELVE, because #217/#514/#519/#520 each added one without carrying it. Nothing broke
+        // this time (no required parameter was added since), so this is the CHEAP miss, and it
+        // is worth more than the expensive one below precisely because it drifted silently:
+        // four separate slices read this list, none re-ran the grep, and the list is the thing
+        // the next slice consults before adding a parameter without a default. The command is
+        // written out above so the next reader RUNS it instead of trusting the names.
         //
         // ⛔ THE COUNT HAS NOW BEEN WRONG TWICE, AND THE SECOND MISS BROKE A BUILD. The first
         // version said TWO — it named the two I had edited and omitted `ColabPayloadTests`. The
@@ -481,6 +498,79 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     public var scale: Scale { Scale(rawValue: scaleRaw) ?? .minor }
     public var key: MusicalKey { MusicalKey(root: keyRoot, scale: scale) }
     public var mode: ComposerMode { ComposerMode(rawValue: modeRaw) ?? .studioLocked }
+
+    /// The artist stamp to SHOW for this take beside a reader whose own name is `readerName`,
+    /// or `nil` when there is nothing worth showing.
+    ///
+    /// ⭐ #521 — `artist` has been stamped, encoded and decoded since this format existed and has
+    /// ZERO readers. Measured, not assumed: nothing anywhere reads `p.artist` back — the field
+    /// reaches the coder pair, `currentProject()` writes it, and there the trail ends. That is
+    /// exactly #494's `modeRaw` shape, and it is the shape no persistence test can see: a field
+    /// that round-trips perfectly and is never read is invisible to every round-trip assertion.
+    ///
+    /// ⛔ THE RECIPE THAT STOOD HERE WAS AN ENUMERATION, AND ENUMERATIONS ARE WHAT A LATER
+    /// SESSION GREPS (#461). It claimed `git grep -n "\.artist" -- Sources` "finds the init, the
+    /// coder pair, `SessionContext`'s own storage and the ONE write site". Run today it returns
+    /// TEN hits, and the tenth — `WorkspaceView.swift`'s `session.artistName` read, which the
+    /// pattern matches through `.artistName` — is in none of those four categories. The
+    /// CONCLUSION survives (nothing reads `p.artist`); the list did not, and a reader who
+    /// re-runs the recipe and counts ten reads the mismatch as a contradiction.
+    ///
+    /// ⛔ AND THE MOTIVATING SENTENCE WAS FALSE — it said "#520 made Import a door that REPORTS,
+    /// **so** takes really do arrive from other people now". Measured against the parent tree:
+    /// the pre-#520 call site was already `projects.importProject(from: url)`, and that path
+    /// ends in `save(p)`. **A successful import landed in the library long before #520**; what
+    /// #520 changed is the FAILURE path. Arrival is not new, reporting is. The honest form is
+    /// the weaker one, and it is enough: however a take arrives, it renders exactly like one you
+    /// made.
+    ///
+    /// ⚠️⚠️ THE HONEST REACH, AND IT IS THE FIRST THING TO READ: **no take any Echoel build can
+    /// produce today shows a credit.** `SessionContext.artistName` has NO production writer —
+    /// its only assignments are the two in `init`, and Swift does not run `didSet` from an
+    /// initialiser, so the one line that would persist it never fires. Every device therefore
+    /// reports `E~`, every take is stamped `E~`, and a take received from another person's
+    /// Echoel carries `E~` too (`importProject` replaces only the `id`). The difference-gate
+    /// below then correctly returns `nil`. Only a hand-edited document can make the row appear.
+    /// **This is a mechanism with no producer, in the #506 shape** — written now because the
+    /// decision is the same whether or not the door exists, and a door arriving later must not
+    /// land on a silent contradiction. The door is registered as #522: a name field beside the
+    /// existing manual place field in "Save & Export", which is the other half of the very same
+    /// `SessionNaming.stem(artist:date:key:bpm:a4Hz:place:)` and is missing for the same reason.
+    ///
+    /// ⚠️ SHOWING IT ONLY WHEN IT DIFFERS IS A NOISE DECISION, NOT A TRUTH DECISION, and the two
+    /// must not be confused. Every take THIS BUILD WRITES carries a stamp, and on an untouched
+    /// install every one of them says `E~`, because `SessionContext.init` migrates `.none`, `""`
+    /// and `"Echoel"` to that brand mark. (Not "every take" flat — a file written before the
+    /// field existed carries none at all, which is the paragraph four below, and a slice must
+    /// not contain both a claim and its refutation (#425).) An unconditional line would add one
+    /// identical row of chrome to every library entry, teach the reader to skip it, and then say
+    /// nothing on the day it carries information.
+    ///
+    /// ⚠️ EXACT COMPARE AFTER TRIMMING, WHICH ERRS TOWARD SHOWING — the direction is chosen, not
+    /// inherited. Showing a credit that happens to be yours is noise; hiding one that is not is a
+    /// silent claim of authorship. So `"E~"` and `"e~"` are two artists here, deliberately, and a
+    /// later "tidy-up" to `caseInsensitiveCompare` trades a truth property for a cosmetic one.
+    ///
+    /// ⚠️ EMPTY MEANS ABSENT, NOT DEFAULT (#493/#494). A file written before this field existed
+    /// decodes to `""` — the decoder's `?? ""` — and `""` states no artist at all. Substituting
+    /// `E~` there would attribute a stranger's take to THIS device's brand mark, which is the
+    /// fabricated-detail defect (#424/#426/#433/#461) pointed at a person.
+    ///
+    /// ⚠️ AND THE CONSEQUENCE THE DOOR WILL BRING, stated now so it is not discovered as a bug:
+    /// once #522 lets you rename yourself, your own older takes begin showing your OLD name.
+    /// That is what the stamp records — provenance, not identity — and it is precisely why the
+    /// row must read as a neutral fact ("by <name>") and never as a claim of foreignness
+    /// ("imported from …"): the same line has to stay true when the other artist is a former
+    /// self. (Written in the future tense on purpose: today nothing can rename you, so this is
+    /// a property of the design and not yet of the app.)
+    public func attribution(besideOwnName readerName: String) -> String? {
+        let stamped = artist.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !stamped.isEmpty else { return nil }
+        guard stamped != readerName.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return nil
+        }
+        return stamped
+    }
 
     /// #217 — the bars a Mix fader can RE-BAKE this take from, paired with the genre to
     /// re-glue them in, or `nil` when this take cannot be re-baked at all.

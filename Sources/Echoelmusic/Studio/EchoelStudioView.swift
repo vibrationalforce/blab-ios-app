@@ -7787,6 +7787,32 @@ struct EchoelStudioView: View {
                     Text(p.name).font(.callout.weight(.medium)).foregroundStyle(EchoelTheme.text)
                     Text("\(p.style.displayName) · \(p.key.shortName) · \(EchoelDecimalText.string(p.bpm, decimals: 0)) BPM")
                         .font(.caption).foregroundStyle(EchoelTheme.dim)
+                    // #521 — the take says who made it, and ONLY when that is not you. The
+                    // decision (and every reason for it) lives in `Project.attribution`; this
+                    // site owns two things and no more: the reader's own name comes from the
+                    // live `SessionContext`, never from a copy, and the label is the neutral
+                    // "by <name>" — see that doc for why it must not say "imported".
+                    // `.caption`/`dim` deliberately repeats line 2's treatment rather than
+                    // introducing a third type size into one row (#362/#363).
+                    //
+                    // ⚠️⚠️ AND IT RENDERS ON NOTHING TODAY — read `Project.attribution`'s
+                    // "HONEST REACH" paragraph before concluding this line is live or dead.
+                    // `SessionContext.artistName` has no production writer, so every device
+                    // and every take says `E~` and the difference-gate below is always `nil`.
+                    // This is the receiving half; the door is #522 (a name field beside the
+                    // manual place field in "Save & Export"). Deliberately NOT deleted: the
+                    // decision is correct, and re-adding it later is churn on a slice that
+                    // would then have to re-derive every reason.
+                    //
+                    // ⚠️ NOT a freeze hazard, and the reason is stronger than "it is a text
+                    // field": `@Observable` invalidation needs a MUTATION, and this keypath
+                    // has no writer at all — so the read cannot invalidate anything, whatever
+                    // body ends up evaluating this closure. When #522 lands, the writes become
+                    // per-keystroke, which is user-paced and nowhere near the ~10–30 Hz
+                    // producer class of the 10.76.41/50 freeze.
+                    if let credit = p.attribution(besideOwnName: session.artistName) {
+                        Text("by \(credit)").font(.caption).foregroundStyle(EchoelTheme.dim)
+                    }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .contentShape(Rectangle())
