@@ -1009,11 +1009,27 @@ private struct BioModLiveView: View {
     ///
     /// ⛔ THE EMPTY STATE SAID "Add a bio route above to watch the body move a parameter." — a
     /// false statement about the product's core claim, on the screen whose whole job is that
-    /// claim. With a session running and zero routes, the body IS moving the sound: four voices
-    /// (`polyVoice`, `leadVoice`, `touchVoice`, `bioVoice`) poll `bus.latestBio` at 10 Hz and
-    /// hand the frame to the render thread, which calls `applyBioReactive`. Nothing about that
-    /// needs an FX route. Same class as #435's caption promising silence, #480's VoiceOver hint
-    /// promising sliders and #491's box promising a pulse: copy that stopped describing.
+    /// claim. With a session running and zero routes, the body IS moving the sound: a voice polls
+    /// `bus.latestBio` at 10 Hz and hands the frame to the render thread, which calls
+    /// `applyBioReactive`. Nothing about that needs an FX route. Same class as #435's caption
+    /// promising silence, #480's VoiceOver hint promising sliders and #491's box promising a
+    /// pulse: copy that stopped describing.
+    ///
+    /// ⛔ AND THE COUNT HERE SAID "four voices (`polyVoice`, `leadVoice`, `touchVoice`,
+    /// `bioVoice`) poll `bus.latestBio`" — measured wrong, and it contradicted a correct line
+    /// sixty lines below in THIS SAME FILE ("both sound producers poll `bus.latestBio` raw").
+    /// Four voices SUBSCRIBE in `EchoelmusicApp`, but `PolySynthVoice.applyLatestIfFresh` opens
+    /// with `guard bioModulationEnabled else { return }` BEFORE it ever touches the bus; that
+    /// flag defaults false, and its only reachable writer is `synth.bioModulationEnabled` in
+    /// `EchoelStudioView`, where `synth` is the `@Environment(PolySynthVoice.self)` — i.e.
+    /// `polyVoice`. `leadVoice`/`touchVoice` arrive through their OWN environment keys
+    /// (`\.leadSynth`, `\.touchSynth`) precisely so they are separate instances, and nothing
+    /// sets their flag: their 10 Hz task ticks and returns one line early. TWO producers reach
+    /// the frame — `bioVoice` (ungated) and `polyVoice`.
+    ///
+    /// ⚠️ A SUBSCRIPTION IS NOT A READ. Counting `start(subscribing:)` call sites answers a
+    /// different question than "who reads the frame", and that substitution is how one file came
+    /// to carry two numbers for one fact, sixty lines apart, for a whole cycle.
     ///
     /// ⚠️ FOUR, NOT SEVEN, AND THAT IS MEASURED. `applyBioReactive` takes seven body inputs, and
     /// CLAUDE.md's "DDSP Bio-Mappings" table lists all seven as if live. BOTH producers — the
@@ -1130,10 +1146,30 @@ private struct AlwaysOnBioRow: View {
     let frame: BioSampleFrame?
 
     var body: some View {
-        // The wall clock, read inside the tick — the same clock `EngineBus.usableBio()` and
-        // every other staleness consumer measures age on (`CFAbsoluteTimeGetCurrent()`), never
-        // the `TimelineView` context date, so this row and the composer cannot disagree about
-        // what "6 s old" means (#434 paid for exactly that mismatch one file over).
+        // ⛔ THE FIRST VERSION JUSTIFIED THIS CHOICE WITH A CLOCK MISMATCH THAT DOES NOT EXIST,
+        // and it said so in three artifacts at once (here, the guard's doc, the guard's failure
+        // message). It read: "the same clock `usableBio()` measures age on, never the
+        // `TimelineView` context date … the exact two-clock mismatch #434 paid for one file
+        // over." BOTH halves are refuted inside this repo. `EngineBus` states verbatim that its
+        // stamps are "`CFAbsoluteTime` (seconds since the 2001 reference date, i.e.
+        // `CFAbsoluteTimeGetCurrent()` / `Date.timeIntervalSinceReferenceDate`)" — a `Date` from
+        // the schedule context is therefore the SAME clock and the SAME epoch, with nothing to
+        // convert. And #434's mismatch was `frame.timestamp` (a stamp that stands still exactly
+        // when a duration is needed) against the wall clock: a different SOURCE of time. Both
+        // candidates here are wall clocks, so #434 does not apply. Left as a retraction rather
+        // than deleted, because a "do not do X" note whose stated reason is checkable and false
+        // is worse than none — the next session refutes it in one grep and does X.
+        //
+        // ⭐ THE REAL REASON, and it survives the retraction: a `TimelineSchedule` context date
+        // is the SCHEDULED instant, not the redraw instant. This body is rebuilt on every
+        // `latestBio` publish, and each rebuild mints a fresh `.periodic(from: .now, by: 1)`
+        // with a new phase, so the context date can lag the draw. `CFAbsoluteTimeGetCurrent()`
+        // is read when the row actually renders.
+        //
+        // ⚠️ AND THE HONEST RESIDUE: the CLOCK agrees with `usableBio()`, the INSTANT need not.
+        // The row re-evaluates at 1 Hz, so for up to ~1 s after expiry it still renders un-held
+        // while `usableBio()` already returns nil. Bounded and harmless — but it is a lag, not
+        // an identity, and the earlier "cannot disagree about what 6 s old means" overstated it.
         TimelineView(.periodic(from: .now, by: 1)) { _ in
             content(channel.reading(in: frame, now: CFAbsoluteTimeGetCurrent()))
         }

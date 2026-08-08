@@ -117,16 +117,30 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// level up, introduced by the surface that removed it.
     ///
     /// ⚠️ AND THE VALUE IS STILL RIGHT, WHICH IS WHY `isHeld` MARKS RATHER THAN BLANKS. The
-    /// four sound producers poll `latestBio` and dedupe on `timestamp`, so a frozen source
-    /// does not zero the timbre — it PARKS it at the last body and leaves it there. Blanking
-    /// the number would claim the engine dropped the channel; it did not. The honest reading
-    /// is "this is what the engine has, and it is no longer arriving".
+    /// sound producers poll `latestBio` and dedupe on `timestamp`, so a frozen source does not
+    /// zero the timbre — it PARKS it at the last body and leaves it there. Blanking the number
+    /// would claim the engine dropped the channel; it did not. The honest reading is "this is
+    /// what the engine has, and it is no longer arriving".
+    ///
+    /// ⛔ AND THIS SAID "the FOUR sound producers", which is measured wrong and contradicted a
+    /// correct line in `EchoelFXView` ("both sound producers poll `bus.latestBio` raw"). Four
+    /// voices SUBSCRIBE; `PolySynthVoice.applyLatestIfFresh` returns at
+    /// `guard bioModulationEnabled` before it ever reads the bus, and only `polyVoice` has a
+    /// reachable writer for that flag — so TWO reach the frame (`bioVoice`, `polyVoice`). The
+    /// PARKING argument does not depend on the count, which is exactly why the wrong number
+    /// survived: it was decoration on a sound sentence. Full measurement at the ⛔ on
+    /// `EchoelFXView.alwaysOnNote`.
     ///
     /// ⭐ THE THRESHOLD IS ASKED, NOT RESTATED (#416/#426). `isHeld` is the exact negation of
     /// `EngineBus.usableBio()`'s two comparisons against `frame.source.freshnessWindow` — the
-    /// same line the COMPOSER uses to decide whether a take has a body at all. So a held row
-    /// is precisely the state that prints `body=0` in the generate breadcrumb, and retuning a
-    /// source's window moves both together instead of leaving a screen behind.
+    /// same line the COMPOSER uses to decide whether a take has a body at all. So a held row is
+    /// a state that prints `body=0` in the generate breadcrumb, and retuning a source's window
+    /// moves both together instead of leaving a screen behind.
+    ///
+    /// ⚠️ ONE-DIRECTIONAL, NOT AN EQUIVALENCE — the first version wrote "precisely the state".
+    /// `body=0` is `usableBio() == nil`, which is also true with NO frame at all and with a
+    /// stale frame whose channels were never measured; neither of those shows "held". So
+    /// held ⇒ `body=0`, and the converse is false.
     ///
     /// ⚠️ NON-FINITE AGE READS AS HELD, deliberately. A NaN age fails both comparisons, so the
     /// negation is `true` — the direction that claims LESS liveness. A frame stamped in the

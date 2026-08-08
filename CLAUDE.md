@@ -317,7 +317,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           „Always on — body → timbre" sagt. **Dieselbe Mehrdeutigkeit, die #497/#498 eine
                           Ebene tiefer entfernt haben, wieder eingeführt von der Fläche, die sie entfernt hat.**
                           ⭐ **ES MARKIERT STATT ZU LEEREN, und das ist die tragende Entwurfsentscheidung.**
-                          Die vier Klang-Erzeuger pollen `latestBio` und deduplizieren auf `timestamp` — eine
+                          Die Klang-Erzeuger pollen `latestBio` und deduplizieren auf `timestamp` — eine
                           eingefrorene Quelle NULLT das Timbre also nicht, sie PARKT es beim letzten Körper und
                           lässt es dort. Die Zahl zu leeren behauptete einen Abbruch, den es nicht gab; ehrlich
                           ist „das hat die Engine, und es kommt nicht mehr an". Wert bleibt, Balken bleibt
@@ -325,9 +325,12 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           ⭐ **DIE SCHWELLE IST GEFRAGT, NICHT GEPRÄGT (#416/#426):** `isHeld` ist die exakte
                           Negation der zwei `usableBio()`-Vergleiche gegen `frame.source.freshnessWindow` —
                           dieselbe Zeile, mit der der KOMPONIST entscheidet, ob ein Take überhaupt einen Körper
-                          hat. Eine gehaltene Zeile ist damit **genau der Zustand, der `body=0` in die
+                          hat. Eine gehaltene Zeile ist damit **ein Zustand, der `body=0` in die
                           generate-Breadcrumb schreibt** (#500), und wer das Fenster einer Quelle nachjustiert,
-                          bewegt beide zusammen statt einen Bildschirm zurückzulassen.
+                          bewegt beide zusammen statt einen Bildschirm zurückzulassen. ⛔ Hier stand „GENAU
+                          der Zustand" — eine Äquivalenz, und in einer Richtung falsch: `body=0` ist auch
+                          ohne jeden Frame wahr und bei einem veralteten Frame, dessen Kanäle nie gemessen
+                          wurden; keiner der beiden zeigt „held". Gehalten ⇒ `body=0`, die Umkehrung nicht.
                           ⚠️ **DER TICK IST TRAGEND, keine Dekoration, und ihn zu entfernen ist die
                           naheliegende spätere „es sind doch nur vier statische Zeilen"-Vereinfachung:**
                           `isHeld` kippt auf dem VERSTREICHEN VON ZEIT, und das Ereignis, das es wahr macht —
@@ -356,9 +359,10 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           angenommen (#484/#485 mussten die stärkere Behauptung je einmal zurücknehmen, #486
                           zweimal): roh gegen gestreift unterscheiden sich **0 von 5** Nadel-Verdikten, weil
                           alle fünf positive `contains` sind — `no longer arriving` steht zwar ZWEIMAL roh
-                          (einmal Code, einmal in der Begründung der Fußzeile), aber ein positiver Scan besteht
-                          so oder so. Es bleibt, weil #453 EINE Definition für das ganze blockierende Bündel
-                          geschaffen hat.
+                          (einmal in der VoiceOver-Zeichenkette, einmal im Doc-Kommentar über
+                          `accessibilityText(_:)` — ⛔ NICHT „in der Begründung der Fußzeile", die die Phrase
+                          gar nicht trägt), aber ein positiver Scan besteht so oder so. Es bleibt, weil #453
+                          EINE Definition für das ganze blockierende Bündel geschaffen hat.
                           ⚠️ Und die Grenze zuerst: die VERHALTENS-Hälfte ist echt Ende zu Ende
                           (`AlwaysOnBioChannel`, `AlwaysOnBioReading` und `BioSampleFrame` sind `public`
                           Foundation-only Werttypen), die MOUNT/KOPIE-Hälfte ist ein QUELLTEXT-SCAN. Dass die
@@ -369,8 +373,40 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Fehlermeldung dieser Datei gerutscht — legal in einem String-Literal, also hätte es
                           keinen Build gebrochen, es hätte ein CJK-Zeichen in einen Fehlerbericht gedruckt, auf
                           den ein englischsprachiger Leser handeln muss. Sichtbar NUR über einen
-                          `grep -P '[^\x00-\x7F]'`-Sweep, weil jeder andere Nicht-ASCII-Treffer der Datei ein
-                          absichtlicher Gedankenstrich, ⭐ oder ⚠️ ist.), davor **213** nach
+                          `grep -P '[^\x00-\x7F]'`-Sweep. ⛔ Der Zusatz „weil jeder andere Nicht-ASCII-Treffer
+                          der Datei ein absichtlicher Gedankenstrich, ⭐ oder ⚠️ ist" war eine AUFZÄHLUNG und
+                          als solche falsch: die Datei trägt auch ein U+2212 MINUS in „−1 s skew", ebenfalls
+                          absichtlich und keines der drei genannten Zeichen. Die SCHLUSSFOLGERUNG (ein
+                          Sweep findet es) überlebt, die Aufzählung nicht — dieselbe Klasse wie jede andere
+                          ungezählte Liste in diesem Absatz.
+                          ⛔ **REVIEWER-NACHLESE (`d307c66`+1): DREI weitere Falschbehauptungen dieser
+                          Scheibe, plus ein Wächter, der für sein eigenes Gesetz nicht scheitern konnte.**
+                          (1) **Die Uhr-Begründung war falsch, in DREI Artefakten** (Quellkommentar,
+                          Wächter-Doc, Assertion-Meldung): sie sagte, der `TimelineView`-Kontext-Datum messe
+                          das Alter auf einer ANDEREN Uhr als `usableBio()`, „genau die Zwei-Uhren-Verwechslung,
+                          die #434 eine Datei weiter bezahlt hat". Beide Hälften sind im Repo widerlegt —
+                          `EngineBus` schreibt wörtlich „`CFAbsoluteTime` … i.e. `CFAbsoluteTimeGetCurrent()` /
+                          `Date.timeIntervalSinceReferenceDate`", also DIESELBE Uhr und Epoche; und #434s
+                          Verwechslung war `frame.timestamp` GEGEN die Wanduhr, eine andere QUELLE von Zeit.
+                          Die ENTSCHEIDUNG überlebt auf einem Grund, den die erste Fassung nicht nannte: ein
+                          `TimelineSchedule`-Kontextdatum ist der GEPLANTE Augenblick, nicht der Zeichen-
+                          Augenblick, und der Rumpf wird bei jedem `latestBio`-Publish neu gebaut, prägt also
+                          einen frischen `.periodic`-Fahrplan mit neuer Phase. Nicht gelöscht, sondern als
+                          ⛔-Rücknahme stehengelassen: ein „NICHT tun"-Vermerk mit prüfbar falscher Begründung
+                          wird in einem `grep` widerlegt und dann getan.
+                          (2) **Der Wächter konnte für sein GENANNTES Gesetz nicht scheitern (#367).** Beide
+                          Zeilen-Scans suchten dateiweit; genau die Vereinfachung, vor der der Quellkommentar
+                          warnt — den `TimelineView` um das `ForEach` in `AlwaysOnBioView` legen, wo `frame`
+                          schon eine lokale Variable ist —, hätte BEIDE Nadeln wörtlich erfüllt, alle
+                          Behauptungen grün gelassen und die vier `Section`-Zeilen zu einem Container gefaltet.
+                          Jetzt klammer-gematcht auf den Rumpf der Zeile (`block(startingAt:in:)`, die
+                          `TheVoiceIsOnTheBoardTests`-Form), und das Fehlen des Ankers WIRFT statt „" zu
+                          liefern.
+                          (3) **„die VIER Klang-Erzeuger" war falsch und stammt aus DIESER Datei** — siehe die
+                          ⛔-Rücknahme im #496-Eintrag weiter unten; es sind ZWEI, und der Fehler ist eine
+                          Verwechslung von ABONNEMENT und LESEZUGRIFF.
+                          (4) **„genau der Zustand, der `body=0` schreibt"** war eine Äquivalenz und ist in
+                          einer Richtung falsch (oben korrigiert).), davor **213** nach
                           `TheBarCountHasACarrierTests.swift` (#502 Slice 2 — der Wächter über
                           einer KOPPLUNG statt über einer Tatsache: die Loop-Anzeige der Kopfzeile MUSS die
                           Taktzahl nennen, die Aufnahme-Kachel MUSS symbol-only bleiben, und sie MUSS
@@ -546,15 +582,36 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           watch the body move a parameter."* — also: ohne Route bewegt der Körper nichts.
                           Falsch, und zwar auf der einen Fläche, die eigens gebaut wurde, um „Dein Körper
                           spielt es" SICHTBAR zu machen.
-                          ⭐ **Gemessen statt behauptet:** vier Stimmen (`polyVoice`, `leadVoice`,
-                          `touchVoice`, `bioVoice`) werden in `EchoelmusicApp` auf den Bus abonniert,
-                          pollen `bus.latestBio` mit 10 Hz, deduplizieren auf `frame.timestamp` und
-                          reichen die Parameter über eine SPSC-Queue an den Render-Thread, der
-                          `applyBioReactive` ruft. Der Körper formt das Timbre des Instruments also
-                          IMMER, sobald eine Sitzung läuft und `bioModulationEnabled` gesetzt ist — die
-                          Routen dieses Panels legen EFFEKT-Parameter OBENDRAUF. Der Satz stand da,
-                          seit es das Panel gibt, und keine Prüfung konnte ihn sehen, weil er über eine
-                          FÄHIGKEIT sprach und nicht über einen Wert.
+                          ⭐ **Gemessen statt behauptet:** Stimmen werden in `EchoelmusicApp` auf den
+                          Bus abonniert, pollen `bus.latestBio` mit 10 Hz, deduplizieren auf
+                          `frame.timestamp` und reichen die Parameter über eine SPSC-Queue an den
+                          Render-Thread, der `applyBioReactive` ruft. Der Körper formt das Timbre des
+                          Instruments also IMMER, sobald eine Sitzung läuft und
+                          `bioModulationEnabled` gesetzt ist — die Routen dieses Panels legen
+                          EFFEKT-Parameter OBENDRAUF. Der Satz stand da, seit es das Panel gibt, und
+                          keine Prüfung konnte ihn sehen, weil er über eine FÄHIGKEIT sprach und
+                          nicht über einen Wert.
+                          ⛔ **UND DIESE ZEILE SAGTE „VIER STIMMEN (`polyVoice`, `leadVoice`,
+                          `touchVoice`, `bioVoice`)" — falsch gemessen, und die Zahl ist von hier aus
+                          in DREI weitere Artefakte gewandert** (#503s Quelle, sein Wächter-Kopf, sein
+                          Commit-Text), wo sie in derselben Datei neben einem KORREKTEN Satz stand
+                          („both sound producers poll `bus.latestBio` raw", `EchoelFXView`), sechzig
+                          Zeilen entfernt. Vier Stimmen ABONNIEREN; `PolySynthVoice.applyLatestIfFresh`
+                          kehrt an `guard bioModulationEnabled else { return }` um, BEVOR es den Bus
+                          liest, die Flagge steht per Default auf `false`, und ihr einziger
+                          erreichbarer Schreiber ist `synth.bioModulationEnabled` in
+                          `EchoelStudioView` — wo `synth` das `@Environment(PolySynthVoice.self)` ist,
+                          also `polyVoice`. `leadVoice`/`touchVoice` kommen über EIGENE
+                          Environment-Schlüssel (`\.leadSynth`, `\.touchSynth`) und niemand setzt ihre
+                          Flagge: ihr 10-Hz-Task tickt und kehrt eine Zeile zu früh um. **ZWEI
+                          Erzeuger erreichen den Frame — `bioVoice` (ungetort) und `polyVoice`.**
+                          ⭐ **Die Lehre ist die Verwechslung selbst: ein ABONNEMENT ist kein
+                          LESEZUGRIFF.** `start(subscribing:)`-Aufrufstellen zu zählen beantwortet
+                          eine andere Frage als „wer liest den Frame", und weil diese Zeile die
+                          Zählung „gemessen statt behauptet" nannte, hat die nächste Sitzung sie
+                          kopiert, statt sie nachzuzählen — die #443-Klasse (die METHODE in einem Satz
+                          ist auch eine Behauptung), diesmal über eine Zahl, die zwölf Tage
+                          unbeanstandet dastand.
                           ⭐ **VIER, NICHT SIEBEN — und das ist der teurere Befund.** Die
                           DDSP-Bio-Mappings-Tabelle in DIESER Datei listete SIEBEN Kanäle als
                           gleichrangig. Beide `…BioParams(`-Konstruktionsstellen in `Sources/` (es sind
