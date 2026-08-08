@@ -152,9 +152,51 @@ public final class MultipeerSession: NSObject {
     }
 
     /// Send a whole session to every connected peer.
+    ///
+    /// ⛔ WHY THE ENCODE BRANCH REPORTS (#518). This method had THREE exits and only
+    /// TWO of them said anything: "No peers connected", "Share failed" — and a bare
+    /// `return` when the payload would not encode. The user taps "Share current
+    /// session" and the button visibly does nothing.
+    ///
+    /// ⭐ THE SILENT ONE IS THE ONLY ONE AN ORDINARY TAP CAN REACH, which is why this
+    /// is not merely an asymmetry. `LiveColaboView.shareButton` is
+    /// `.disabled(colab.connectedPeerNames.isEmpty)`, so the peers branch is
+    /// pre-empted by the UI in every case except a race (our mirrored name list vs
+    /// `mcSession.connectedPeers`, which are two different sources and can diverge for
+    /// an instant). The transport branch needs the send itself to throw. **The encode
+    /// branch needs only a NaN**, and `JSONEncoder`'s default
+    /// `nonConformingFloatEncodingStrategy` is `.throw` — while `Project` carries
+    /// `bpm`, `a4Hz`, a whole `SynthPatch`, every `Note`, and since #217 a whole
+    /// `RawTake` through exactly this encoder.
+    ///
+    /// ⭐ ONE DEFECT, TWO DOORS, ONE FIXED UNTIL NOW. #514 gave the SAVE path a voice
+    /// for this exact failure on this exact type (`AppGroupStore.save`, whose own note
+    /// says the error's `codingPath` names the field). The SHARE path put the same
+    /// `Project` through the same class of encoder and stayed mute. #512 closed the
+    /// third door, for `BioPeek` on the bio stream.
+    ///
+    /// ⚠️ THE STATUS LINE IS THE SCREEN HERE, and that is the difference from #514/#515.
+    /// A failed save has no surface of its own — whether it should get one is a founder
+    /// question. This method already writes `status` on its two other exits and
+    /// `LiveColaboView` already renders it, so the honest thing is simply to use the
+    /// surface that exists. The wording must not read as "try again": a re-tap re-encodes
+    /// the same project and fails identically, so it names the SESSION, not the network.
+    ///
+    /// ⚠️ AND THE LOG LINE IS NOT THE SCREEN. `log.log` goes to `os_log`, NOT to
+    /// `EchoelCrashLog.currentLog()` — which is what the reachable "Diagnostics" row
+    /// renders. So the status text deliberately does not send anyone to Diagnostics;
+    /// the log is a telemetry floor for a sysdiagnose, exactly as in #514.
     public func share(project: Project) {
         let payload = ColabPayload(kind: "session", senderName: myPeerID.displayName, project: project)
-        guard let data = payload.encoded() else { return }
+        let data: Data
+        do {
+            data = try payload.encodedThrowing()
+        } catch {
+            log.log(.error, category: .system,
+                    "Colab: session payload failed to ENCODE — not shared — \(error)")
+            status = "This session can't be encoded — not shared"
+            return
+        }
         let peers = mcSession.connectedPeers
         guard !peers.isEmpty else { status = "No peers connected"; return }
         do {

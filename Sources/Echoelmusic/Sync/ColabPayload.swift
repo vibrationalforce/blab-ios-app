@@ -190,7 +190,30 @@ public struct ColabPayload: Codable, Sendable, Equatable {
         self.kind = kind; self.senderName = senderName; self.project = project; self.bio = bio
     }
 
-    public func encoded() -> Data? { try? JSONEncoder().encode(self) }
+    /// Encode, letting the encoder's error out.
+    ///
+    /// ⛔ WHY THE THROWING FORM EXISTS (#518). `encoded()` is a `try?`, so it answers
+    /// "did it work" and destroys "why not". For the bio stream that is the right
+    /// trade — a lost telemetry frame is worthless a moment later, and logging one
+    /// per drop at `PeerReading.sendInterval` would flood. For the SESSION share it
+    /// is not: that failure is terminal for the user's tap, and the encoder's
+    /// `codingPath` names the FIELD that could not be written — which is the whole
+    /// value of keeping it (#514's substantive half, on the same `Project`).
+    ///
+    /// ⭐ ONE DEFINITION (#416). `encoded()` is now this method behind a `try?`, so
+    /// there is a single answer to "how does a `ColabPayload` become bytes". Do NOT
+    /// give the share path its own `JSONEncoder()` — a second construction is a
+    /// second place for a future `outputFormatting`/`dateEncodingStrategy` to be set
+    /// on one wire path and not the other.
+    ///
+    /// ⚠️ THE WIRE FORMAT IS UNCHANGED. Default `JSONEncoder`, as before; in
+    /// particular `nonConformingFloatEncodingStrategy` stays `.throw`, which is what
+    /// makes a NaN a reportable failure rather than a silently-substituted number
+    /// (#512 pinned that, and it must keep failing here for #518 to have anything
+    /// to report).
+    public func encodedThrowing() throws -> Data { try JSONEncoder().encode(self) }
+
+    public func encoded() -> Data? { try? encodedThrowing() }
     public static func decode(_ data: Data) -> ColabPayload? {
         try? JSONDecoder().decode(ColabPayload.self, from: data)
     }
