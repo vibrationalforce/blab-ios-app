@@ -321,15 +321,32 @@ struct WorkspaceView: View {
         #endif
     }
 
-    /// Persistent brand header — always on screen. LEADING: the brand block (mark + wordmark +
-    /// running version/build) as ONE control, in the website's lockup order. MIDDLE: the loop
-    /// length + playhead. TRAILING: the output monitors. Uncodixfy-compliant.
+    /// Persistent brand header — always on screen. LEADING: the loop length + playhead. MIDDLE:
+    /// the brand block (mark + wordmark + running version/build) as ONE control. TRAILING: the
+    /// output monitors. Uncodixfy-compliant.
     ///
-    /// ⭐ FOUNDER, 2026-08-08, screenshot of v10.79.377 (2494): the brand circled at the trailing
-    /// edge and a long arc sweeping LEFT — *"Die obere Reihe so anordnen wie gezeigt mit Pfeilen
-    /// natürlich optimal ausgerichtet das Logo und Echoelmusic ist wie auf der Website."* The
-    /// reasoning, the reversal it performs and the one thing NOT copied from the site all sit on
-    /// the brand block itself, where a reader meets them before the code.
+    /// ⭐ FOUNDER, 2026-08-08 (second ask of the same day), screenshot of v10.79.379 (2496): a
+    /// circle round the brand block at the leading edge, a circle round the `1.1.1 / loop 1/8`
+    /// readout, and an arc with an arrowhead at EACH end between them — *"Den Schriftzug
+    /// Echoelmusic wieder in die Mitte und dementsprechend mit der Takt Anzeige tauschen."* Two
+    /// arrowheads is this founder's SWAP grammar (one arrowhead = migrate, #411/#490/#501), and
+    /// the sentence says the same thing twice, so there is no ambiguity to resolve: the two
+    /// children exchange places. Row is now **position · brand · monitors**.
+    ///
+    /// ⛔ THIS IS THE SECOND REVERSAL OF THE SAME ORDERING IN TWO DAYS and both are recorded
+    /// rather than smoothed over: #490 (2026-08-07) put the brand TRAILING, #501 (2026-08-08,
+    /// earlier) put it LEADING, this puts it in the MIDDLE — which is where #384 had it on
+    /// 2026-08-02, before the colour bars were removed from underneath it. The founder is free to
+    /// converge by trying; what a session must not do is read one of these notes as the settled
+    /// design. **The invariant across all four is the LAW, not the layout:** one greedy flank, no
+    /// `Spacer`, no `ZStack`, and the readout stays a leaf.
+    ///
+    /// ⚠️ AND THE PRICE #501 PAID OFF IS BORROWED AGAIN, said plainly because #501 made a point of
+    /// paying it: #490's note priced the brand at the trailing edge as *"a website link — not a
+    /// 44 pt control — sits in the thumb corner"*, and #501 repaid that by giving the corner back
+    /// to the monitor tiles. This slice does NOT undo that — the tiles are still trailing-most, so
+    /// the thumb corner is still a 44 pt control (#113). What moves is only the pair to their
+    /// left. That is the whole reason this is a two-child swap and not another full reorder.
     ///
     /// ⭐ FOUNDER, 2026-08-07, screenshot of v10.79.374 (2491) with a scribble over the colour
     /// bars, a circle around the mark and a long arrow down to the position readout: *"E Logo
@@ -351,13 +368,37 @@ struct WorkspaceView: View {
     /// deleting `HeaderSpectrumStrip.swift` outright the honest move rather than unmounting it
     /// and leaving a doorless leaf behind.
     ///
-    /// ⚠️ THE BRAND BLOCK IS NO LONGER CENTRED, AND THE CENTRING MACHINERY WENT WITH IT. The
-    /// three-column form (two greedy flanks splitting the slack) existed to put the wordmark in
-    /// the geometric middle. There is exactly ONE greedy flank — the readout — and since
-    /// 2026-08-08 it is the MIDDLE child, so the brand packs against the leading edge and the
-    /// monitors against the trailing one. A second flank would split the slack and pull the brand
-    /// back off the edge it was just asked to take. Two things from that machinery MUST survive,
-    /// and both are pinned:
+    /// ⚠️ THE BRAND IS CENTRED IN THE SLACK, NOT IN THE BAR — and the difference is measurable, so
+    /// it is stated rather than implied by the word "Mitte". The centring machinery #384 used was
+    /// TWO greedy flanks splitting the leftover width evenly, which does put a child in the
+    /// geometric middle; it is still banned (the "one greedy flank" law below — named rather than
+    /// pointed at, because a positional reference in this file has never survived an insertion),
+    /// so the greedy modifier simply MOVED from the readout onto the brand. One flank
+    /// centres the brand between its two
+    /// neighbours, and those neighbours are not the same width: the offset from true centre is
+    /// exactly half their difference. The tile cluster is 54 + 38 + 38 + 2×8 = **146** by
+    /// construction; the readout is a 44 pt capsule plus ~46 pt of digits ≈ **98**. So the
+    /// wordmark sits about **24 pt LEFT** of the bar's true middle — the FORM of that number is
+    /// exact, its size inherits the readout estimate, and neither is a measurement of a rendered
+    /// layout. At ~24 pt (roughly two characters) that is the cheapest honest reading of "in die
+    /// Mitte" available under the law below; true centring costs a second flank.
+    ///
+    /// ⚠️ THE GREEDY MODIFIER SITS OUTSIDE THE `Button`, AND THAT IS LOAD-BEARING. Under
+    /// `.buttonStyle(.plain)` the hit test follows the label's own content, not an enclosing
+    /// frame — the measured fact behind #482 and #485, where five `.plain` buttons fell back to
+    /// ~38×32 until `.contentShape(Rectangle())` was added on purpose. Here that works FOR us:
+    /// the brand keeps exactly the tap area it had, and the slack it now spans stays dead. **Do
+    /// not "fix" this by adding `.contentShape`** — it would turn the middle third of the header
+    /// into a link that opens a website, which is the opposite of a 44 pt control in a place a
+    /// thumb rests.
+    ///
+    /// ⚠️ UNDER COMPRESSION THE WORDMARK NOW YIELDS FIRST, where the readout used to. The greedy
+    /// child is the flexible one, so on the narrowest shipped phone (360 pt, iPhone 12/13 mini,
+    /// both on iOS 18) the brand absorbs the shortfall and `minimumScaleFactor(0.7)` takes it.
+    /// That is the better direction and is why the swap is safe as well as asked-for: the readout
+    /// is a MEASUREMENT whose digits must stay legible, the wordmark is a link that already ships
+    /// a scale floor for exactly this. Two things from the old machinery MUST survive, and both
+    /// are pinned:
     ///   · **NO `ZStack`.** It gives its layers no collision avoidance, so a title on its own
     ///     layer grows straight THROUGH the mark and the tiles as Dynamic Type raises it, with
     ///     `minimumScaleFactor(0.7)` only bounding how far. The chrome is capped at
@@ -385,24 +426,50 @@ struct WorkspaceView: View {
     /// with. That is the outcome that note wanted; it is still a device look, not a proof.
     private var topBar: some View {
         HStack(spacing: 8) {
-            // LEADING: the brand block — mark then wordmark, at the left edge, the way the
-            // website's `.nav-logo` is built (`docs/index.html`: `display: flex`, the 28 px
-            // mark, a gap, then the name; it is the FIRST column of the nav grid).
+            // LEADING: the loop length + the playhead inside it — the founder's "die Anzeige für
+            // die Loop Länge und der Balken" (#490), which lived in the MIDDLE until the swap
+            // below moved it here. It is still the only copy: `EchoelStudioView` gave up its
+            // third line for it, so there is one readout at one address (#416).
             //
-            // ⭐ THE ASK, founder 2026-08-08, screenshot of v10.79.377 (2494): the E mark and
-            // "Echoelmusic" circled at the trailing edge, a long arc sweeping LEFT with two
-            // arrowheads landing where the loop readout sits — *"Die obere Reihe so anordnen wie
-            // gezeigt mit Pfeilen natürlich optimal ausgerichtet das Logo und Echoelmusic ist wie
-            // auf der Website."* So the brand takes the LEADING edge and the row reads
-            // brand · position · monitors, which is the website's own order.
+            // ⚠️ NO `#if canImport(AVFoundation)` HERE and none is needed — this leaf reads
+            // `Transport` and `@AppStorage` only. (The colour-bar strip it originally replaced
+            // carried a note about NOT guarding it, because its `#else` branch would have been a
+            // `Spacer` fighting a flank for the same slack. That hazard is unchanged and is why
+            // the `Spacer` ban in the property's doc is pinned rather than remembered.)
             //
-            // ⛔ THIS REVERSES #490 (2026-08-07, *"E Logo wieder nach rechts"*) ONE DAY LATER, and
-            // that is the founder's call to make — but the reversal is recorded rather than
-            // quietly applied, because #490's own note priced what it cost: *"the PRICE is that a
-            // website link — not a 44 pt control — now sits in the thumb corner."* Moving the
-            // brand back to the leading edge REPAYS that price: the monitor tiles hold the
-            // trailing edge again, and they are the 44 pt controls (#113). A reversal that also
-            // closes a cost its predecessor wrote down is worth saying out loud.
+            // ⚠️ IT NO LONGER CARRIES THE GREEDY FLANK — the modifier moved onto the brand block
+            // below, so this child now takes its natural width. The COUNT is unchanged (still
+            // exactly one, pinned in `TheHeaderShowsTheLoopTests`); only the owner moved. The
+            // consequence worth knowing before "tidying" this back: as the inflexible child, the
+            // readout keeps its digits at full size when the bar runs out of room, and the
+            // wordmark absorbs the shortfall through its own `minimumScaleFactor(0.7)`. A
+            // measurement should not be the thing that shrinks.
+            TransportPositionView()
+            // MIDDLE: the brand block — mark then wordmark, in the website's lockup order
+            // (`docs/index.html` `.nav-logo`: `display: flex`, the 28 px mark, a gap, then the
+            // name), centred in the slack between the readout and the monitor tiles.
+            //
+            // ⭐ THE ASK, founder 2026-08-08 (second of the day), screenshot of v10.79.379 (2496):
+            // the brand circled at the leading edge, the `1.1.1 / loop 1/8` readout circled, and
+            // an arc between them with an arrowhead at EACH end — *"Den Schriftzug Echoelmusic
+            // wieder in die Mitte und dementsprechend mit der Takt Anzeige tauschen."* Two
+            // arrowheads is the SWAP grammar (one arrowhead has meant migrate since #411), and
+            // the sentence states it twice ("in die Mitte" + "tauschen"), so nothing here is
+            // inferred: these two children exchange places, everything else stands.
+            //
+            // ⛔ THIS IS THE THIRD PLACEMENT OF THE BRAND IN TWO DAYS — trailing (#490), leading
+            // (#501), middle (now, which is where #384 had it on 2026-08-02). All three are
+            // recorded rather than overwritten, because the tempting shortcut for a future
+            // session is to treat whichever note it finds as the settled design and "restore" it.
+            // None of them is. What IS invariant across all three is the law in the property's
+            // doc: one greedy flank, no `Spacer`, no `ZStack`, readout stays a leaf.
+            //
+            // ⚠️ #501's REPAYMENT SURVIVES AND IS NOT RE-BORROWED. #490 priced the brand at the
+            // trailing edge as *"a website link — not a 44 pt control — sits in the thumb
+            // corner"*; #501 paid that back by giving the corner to the monitor tiles. This slice
+            // touches only the pair to their LEFT, so the tiles are still trailing-most and the
+            // thumb corner is still a 44 pt control (#113). That is exactly why the founder's
+            // two-child swap is implemented as a two-child swap and not as another full reorder.
             //
             // ⚠️ WHAT IS **NOT** COPIED FROM THE WEBSITE, measured rather than waved away: the
             // site sets the wordmark `text-transform: uppercase; letter-spacing: 3px`. At the
@@ -440,22 +507,20 @@ struct WorkspaceView: View {
             // redundant and at worst rebuilds the element without its activation.
             .accessibilityLabel("Echoelmusic \(Self.versionString)")
             .accessibilityHint("Opens echoelmusic.com — release notes and support")
-            // MIDDLE: the loop length + the playhead inside it — the founder's "die Anzeige für
-            // die Loop Länge und der Balken", moved here from the instrument's third line
-            // (which is why that line is gone: one readout, one address).
+            // THE ONE GREEDY FLANK, and it is now the brand's. The count is unchanged and pinned
+            // in `TheHeaderShowsTheLoopTests`; only the owner moved (readout → brand), which is
+            // what makes "Mitte" happen at all: the flexible child absorbs the leftover width and
+            // `.center` puts its content in the middle of what it absorbed.
             //
-            // ⚠️ NO `#if canImport(AVFoundation)` HERE and none is needed — this leaf reads
-            // `Transport` and `@AppStorage` only. (The strip it replaces carried a note about
-            // NOT guarding it, because its `#else` branch would have been a `Spacer` fighting
-            // the trailing flank for the same slack. That hazard is unchanged and is why the
-            // `Spacer` ban above is pinned rather than remembered.)
-            // STILL THE ONE GREEDY FLANK — the count is unchanged (pinned in
-            // `TheHeaderShowsTheLoopTests`), only its ALIGNMENT moved: as the leading child it
-            // hugged `.leading`, as the middle child it centres in whatever slack is left. Two
-            // flanks would split the slack and pull the brand back off the leading edge, which
-            // is the one thing this slice is for.
-            TransportPositionView()
-                .frame(maxWidth: .infinity, alignment: .center)
+            // ⚠️ IT SITS OUTSIDE THE `Button`, AND THAT IS LOAD-BEARING. Under
+            // `.buttonStyle(.plain)` the hit test follows the label's own content, not an
+            // enclosing frame — measured in #482/#485, where five `.plain` buttons fell back to
+            // ~38×32 until `.contentShape(Rectangle())` was added deliberately. Here that works
+            // FOR us: the brand keeps exactly the tap area it had and the slack it spans stays
+            // dead. **Do not "fix" this with `.contentShape`** — it would turn the middle of the
+            // header into a link that opens a website, under a thumb that is reaching for the
+            // tiles.
+            .frame(maxWidth: .infinity, alignment: .center)
             // ⬆ THE LIVE PULSE MONITOR MOVED OUT (#289, founder 2026-07-31, red circle
             // around this pill and the transport ■: "könnte ja alles in dem Create From
             // within Button drin sein … Führe intelligent zusammen"). It now sits
@@ -471,8 +536,10 @@ struct WorkspaceView: View {
             // picker) — only its address changed. ⛔ THIS SENTENCE ENDED ON "the space it left
             // was circled again on 2026-08-02 and now holds the output spectrum" — written by
             // #384 and left standing by #490, which DELETED that spectrum. The space holds the
-            // loop readout above. Same class as everything else in this file: a note whose
-            // subject was removed by a later slice reads as if the removal never happened.
+            // loop readout, which since the 2026-08-08 swap is the LEADING child rather than the
+            // middle one — so this note no longer sits next to what it describes, and says so
+            // instead of pointing "above". Same class as everything else in this file: a note
+            // whose subject was moved or removed by a later slice reads as if it never happened.
             //
             // TRAILING: the output monitors — recorded Clips · Lux · BioSynth visual.
             // (The former video-lane monitor tile was retired with the DAW video
@@ -483,16 +550,17 @@ struct WorkspaceView: View {
             //
             // ⚠️ GROUPED IN ITS OWN `HStack`, and that is not cosmetic: it makes the three tiles
             // ONE child of the bar, so the bar's `spacing: 8` puts a single gap between them and
-            // the readout to its left. Applied per tile, a width modifier would give each one its
-            // own share of the leftover width and spread them across the bar. ⛔ THE
+            // the brand block to their left. Applied per tile, a width modifier would give each
+            // one its own share of the leftover width and spread them across the bar. ⛔ THE
             // `.frame(maxWidth: .infinity, alignment: .trailing)` THAT SAT HERE IS GONE and MUST
-            // STAY GONE — it was the right flank of the three-column centring, and there is
-            // nothing left to balance. The reason it must stay gone SURVIVED the 2026-08-08
-            // reorder with its sign flipped, which is worth saying because the sentence reads the
-            // same either way: under #490 a second flank would have pulled the brand off the
-            // TRAILING edge, today it would pull it off the LEADING one. Either way the brand
-            // stops sitting where the founder put it. One greedy flank, and it is the readout.
-            // Still no `Spacer` (see the property's doc).
+            // STAY GONE. Its REASON has now been re-stated three times under three different
+            // layouts, and that is exactly why it is kept as a ⛔ rather than trimmed: under #490
+            // a second flank would have pulled the brand off the TRAILING edge; under #501 off
+            // the LEADING one; today it would split the slack the brand centres in, so the
+            // wordmark would drift with whatever width is left over instead of sitting in the
+            // middle. Three layouts, three failure descriptions, one rule. One greedy flank —
+            // and since 2026-08-08 it belongs to the BRAND, not the readout. Still no `Spacer`
+            // (see the property's doc).
             HStack(spacing: 8) {
                 #if canImport(AVFoundation) && canImport(Metal)
                 EchoelClipsMonitorMini()
@@ -512,10 +580,12 @@ struct WorkspaceView: View {
                 .accessibilityLabel(floatingVisualVisible ? "Hide floating visual" : "Show floating visual")
                 #endif
             }
-            // ⬆ THE MONITOR CLUSTER IS NOW TRAILING-MOST, and the brand moved to the leading
-            // edge (founder 2026-08-08 — the reasoning sits on the brand block at the top of
-            // this bar, where a reader meets it first). The tiles regain the thumb corner they
-            // held before #490, so the 44 pt tap floor (#113) is back where a thumb reaches.
+            // ⬆ THE MONITOR CLUSTER STAYS TRAILING-MOST — it was NOT part of the 2026-08-08 swap
+            // and that is deliberate, not an omission: the founder's arc had an arrowhead at each
+            // end and both ends were the brand and the readout. The tiles held the thumb corner
+            // from #501 onward and keep it, so the 44 pt tap floor (#113) stays where a thumb
+            // reaches. Reordering them "for symmetry" with the pair to their left would silently
+            // re-borrow the cost #490 wrote down and #501 repaid.
         }
         .padding(.horizontal, 12)
         // ⚠️ `fixedSize` + `minHeight` ARE A PAIR, and `fixedSize` comes FIRST. This is the

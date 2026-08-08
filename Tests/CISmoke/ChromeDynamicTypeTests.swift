@@ -212,19 +212,30 @@ final class ChromeDynamicTypeTests: XCTestCase {
     /// ⛔ THAT POINTER NAMED `HeaderSpectrumIsALeafTests.testTheTitleIsCentredWithoutAZStack`
     /// UNTIL #490, and the file it named no longer exists — the founder asked for the colour
     /// bars to go and the guard went with its subject. The count lives in
-    /// `TheHeaderShowsTheLoopTests` now, and it is **ONE** flank, not two: with the brand block
-    /// moved to the trailing edge there is nothing left to centre, so only the loop readout is
-    /// greedy. The `Spacer` ban below is UNCHANGED and is now the load-bearing half — a single
-    /// greedy flank owns all the slack, and a `Spacer` would take half of it back.
+    /// `TheHeaderShowsTheLoopTests` now, and it is **ONE** flank, not two. The `Spacer` ban below
+    /// is UNCHANGED and is now the load-bearing half — a single greedy flank owns all the slack,
+    /// and a `Spacer` would take half of it back.
     /// (A live file pointing at a deleted explanation reads as "the rule was withdrawn"; that
     /// is the #456 lesson, and re-pointing it in the same commit is the whole discipline.)
+    ///
+    /// ⛔ AND THE SENTENCE THAT USED TO FINISH THAT PARAGRAPH WAS STALE FOR TWO LAYOUTS BEFORE
+    /// ANYONE READ IT AGAIN. It explained the single flank as "with the brand block moved to the
+    /// trailing edge there is nothing left to centre, so only the loop readout is greedy". #501
+    /// moved the brand to the LEADING edge and #516 moved it to the MIDDLE and gave it the flank —
+    /// so the clause was wrong about the brand's position AND about the flank's owner, twice over,
+    /// while every assertion in this method stayed green. It is deleted rather than re-written: the
+    /// COUNT is this method's business, the OWNER is not, and re-stating a neighbour's fact here is
+    /// how it went stale in the first place (#416 — one definition, one place).
     func testTheHeaderLaysOutInARowSoTheTitleCannotOverlapTheMonitors() throws {
         let bar = try topBarSource()
         XCTAssertFalse(bar.contains { $0.contains("ZStack") }, """
             `topBar` is a `ZStack` again. Its layers do not avoid each other, so the wordmark \
             and the output monitors share the same space and simply overlap once the text \
             grows — silently, and only at accessibility sizes nobody screenshots. Lay the bar \
-            out as an `HStack` with a `Spacer` between brand and monitors.
+            out as an `HStack` and place things with the one greedy flank's alignment. (⛔ This \
+            remedy used to say "with a `Spacer` between brand and monitors" — the exact thing the \
+            third assertion in this same method forbids. A failure message that prescribes a \
+            banned fix is worse than none: it is read by whoever is already confused.)
             """)
         XCTAssertTrue(bar.contains { $0.contains("HStack(spacing: 8) {") }, """
             `topBar` no longer opens with an `HStack`. If the layout was deliberately changed, \
@@ -234,14 +245,15 @@ final class ChromeDynamicTypeTests: XCTestCase {
         let spacers = bar.filter { $0.contains("Spacer(") || $0.contains("Spacer()") }
         XCTAssertTrue(spacers.isEmpty, """
             A `Spacer` is back in `topBar`: \
-            \(spacers.map { $0.trimmingCharacters(in: .whitespaces) }). Since #490 the bar is \
-            ONE greedy flank (the leading loop readout) followed by the tiles and the brand; a \
-            `Spacer` competes with that flank for the same leftover width, so the readout stops \
-            absorbing it — silently, and by an amount that depends on how much slack there \
-            happens to be. Use the flank's alignment to place things, not a Spacer. (⛔ This \
-            message said "three columns and BOTH flanks" until #491; the ⛔ block above it \
-            already recorded the single flank, and only the live text was left stale — a failure \
-            message IS live text, which is the whole point of writing it out.)
+            \(spacers.map { $0.trimmingCharacters(in: .whitespaces) }). Since #490 the bar has \
+            exactly ONE greedy flank; a `Spacer` competes with it for the same leftover width, so \
+            whichever child owns the flank stops absorbing it — silently, and by an amount that \
+            depends on how much slack there happens to be. Use the flank's alignment to place \
+            things, not a Spacer. (⛔ This message said "three columns and BOTH flanks" until \
+            #491, then named the loop readout as the flank's owner until #516 moved the flank to \
+            the brand. Twice stale, twice only in the live text — which is the whole point of \
+            writing it out. It no longer names an owner at all: that fact belongs to \
+            `TheHeaderShowsTheLoopTests`, and repeating it here is what kept breaking it.)
             """)
         XCTAssertEqual(bar.filter { $0.contains("HStack(spacing: 8) {") }.count, 3, """
             `topBar` no longer has exactly three `HStack(spacing: 8)` (the bar itself, the brand \
