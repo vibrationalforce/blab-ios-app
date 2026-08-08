@@ -1,4 +1,4 @@
-build: v10.79.376 — was Du gespeichert hast, kommt jetzt vollständig zurück (Stimmung, Modus) — und die Speichern-Tür sagt endlich, was sie tut
+build: v10.79.377 — ohne Puls lief das Vibrato dauerhaft 25 % zu flach, ohne Atem das ganze Instrument ein Dezibel zu leise
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,97 +6,99 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.375 (2492).
+  Der Vorgänger auf Deinem Gerät ist 10.79.376.
 
-  ── ZUERST: DIE VIER SCREENSHOT-WÜNSCHE SIND WEITER OFFEN, ABER NICHT VON MIR ──
+  ── ZUERST: DIE OFFENEN SICHTPROBEN LAUFEN WEITER ─────────────────────────
 
-  Alles aus dem letzten Deploy (E-Logo rechts, Loop-Anzeige statt Farbbalken, eine
+  Alles aus 376 (Tonsystem und Flow/Loop-Modus reisen mit dem gespeicherten Take, ehrlicher
+  Speichern-Satz) und alles aus 375 (E-Logo rechts, Loop-Anzeige statt Farbbalken, eine
   Transport-Ebene ohne doppelte BPM, die drei Punkte als einzelne Knöpfe) ist auch in diesem
-  Build. Es wartet nur auf Deine Sichtprobe — die vier Fragen von letztem Mal gelten
-  unverändert. Was hier dazukommt, ist eine andere Baustelle: das gespeicherte Stück.
+  Build. Die Fragen dazu gelten unverändert. Was hier dazukommt, ist etwas anderes — und
+  zum ersten Mal seit Wochen wieder etwas, das man HÖREN kann.
 
-  ── DER BEFUND: EIN GESPEICHERTES STÜCK KAM UNVOLLSTÄNDIG ZURÜCK ───────────
+  ── DER BEFUND: DAS INSTRUMENT HAT EINE FEHLENDE MESSUNG ALS MESSUNG GELESEN ──
 
-  Drei Zyklen in Folge an derselben Sache, und sie hängen zusammen. Eine Datei speichert
-  Deinen Take. Was sie NICHT enthielt, hat niemand gemerkt, weil eine Datei nicht schreit.
+  Die Klang-Engine sagt in ihrer eigenen Signatur, was ein NEUTRALER Wert ist: Herzfrequenz
+  0,5, Atemphase 0,5 — das heißt „darüber weiß ich nichts". Zwei von vier Bio-Kanälen haben
+  ihr stattdessen den ROHEN Feldwert gegeben. Und ein Feld, in dem nichts steht, ist keine
+  fehlende Anweisung, sondern eine sehr konkrete, EXTREME Anweisung, die die Engine von
+  einem echten Körper nicht unterscheiden kann.
 
-  1. DAS TONSYSTEM reiste nicht mit. `A=442` war seit jeher in der Datei — die CENT-TABELLE,
-     die aus einem Take Maqām Rāst statt 12-TET macht, aber nicht. Sie lebte nur im
-     Instrument. Also: Rāst-Loop speichern, Instrument auf 12-TET stellen, Loop öffnen →
-     12-TET. Und das Öffnen schiebt die globale Tabelle danach gewissenhaft an jede Stimme,
-     macht die falsche Stimmung also gründlich. Zwei Regler für eine Entscheidung, und nur
-     einer klebte am Take.
+  Gerechnet, nicht geschätzt — beide Zahlen kommen aus der Arithmetik der Engine selbst:
 
-  2. DER FLOW/LOOP-MODUS reiste zwar mit — er wurde nur nie zurückgelesen. Das Feld ist
-     seit jeher in jeder gespeicherten Datei, vollständig geschrieben und gelesen, und
-     NICHTS im Programm hat es je ausgewertet. Ein Loop-Take speichern, auf Flow stellen,
-     Take öffnen → er kommt in Flow zurück, während die Datei „Loop" sagt. Das gesperrte
-     TEMPO wurde dabei sehr wohl restauriert; nur die Sperre, die entscheidet, ob die Zahl
-     überhaupt gelesen wird, nicht. Halbe Entscheidung.
+  1. KEIN PULS-LOCK → die Engine las eine 0,0, also den untersten Punkt der Skala, also
+     exakt „40 BPM". Sie hat daraufhin Vibrato-TIEFE und Vibrato-RATE des Patches auf 75 %
+     gestellt: dauerhaft 25 % zu flach, ununterscheidbar von einem Herzen, das wirklich mit
+     40 schlägt. Auf der Akquise-Bilanz dieser App — die Kamera braucht ~19 bis ~32 Sekunden
+     bis zum Lock und verliert ihn wieder — ist das der NORMALFALL eines Takes, kein
+     Randfall.
 
-  3. DIE SPEICHERN-TÜR beschrieb ein Speichern, das die App längst nicht mehr macht. Sie
-     sagte „sound, key, tempo and generated loop" — ein Satz, der wahr war, als er
-     geschrieben wurde, und den seither drei Erweiterungen überholt haben. Die App
-     speicherte MEHR, als sie zugab.
+  2. KEINE ATMUNG → die Engine las eine rohe 0, also volles Ausatmen. Der Atem-Schwell
+     dämpft dann die GESAMTE Stimme auf ×0,90, das sind −0,92 dB, und auf dem Obertonreihen-
+     Klang sogar ×0,82. Der Neutralwert hätte exakt ×1,0 gegeben. Und eine rohe 0 ist genau
+     das, was DREI der vier Bio-Quellen schreiben: der Brustgurt und die Gesichts-Quelle
+     IMMER (keine von beiden leitet Atmung ab), die Kamera unterhalb ihrer Konfidenzschwelle.
 
-  ── WARUM PUNKT 3 EINE EIGENE SCHEIBE WERT WAR ────────────────────────────
+     Das heißt in einem Satz: **der ausgelieferte BLE-Gurt hat das ganze Instrument dauerhaft
+     ein Dezibel unter seinem eigenen Patch laufen lassen** — ununterscheidbar von einem
+     Performer, der auf vollem Ausatmen einfriert und nicht mehr atmet.
 
-  Untertreiben ist die freundliche Richtung, und es ist trotzdem eine falsche Beschreibung.
-  Kaputt war nichts. Falsch war, dass man mit dem Satz nichts entscheiden konnte — und wer
-  entscheidet „kann ich das Instrument auf 12-TET stellen und meinen Rāst-Loop
-  zurückbekommen", ist genau der, der ihn liest. Der Satz nennt jetzt Genre, Key, Stimmung,
-  Tempo, Flow/Loop-Modus, Klang und FX-Charakter — und in einem zweiten Satz die zwei
-  Auslassungen: Deine Mixer-Pegel und handgedrehte FX bleiben beim Instrument. Das ist die
-  Hälfte, die den viel schlimmeren Fund verhindert, dass ein Take anders klingt als beim
-  Speichern.
+  ── EINE LINIE, DIE ABSICHTLICH NICHT ÜBERSCHRITTEN WIRD ──────────────────
 
-  ── EINE FALLE, DIE ZWEIMAL FAST ZUGESCHNAPPT WÄRE ────────────────────────
+  Ein GEMESSENES 40 BPM liest weiterhin 0,0, und eine gemessene Atemphase 0 bleibt 0. Der
+  Neutralwert deckt die ABWESENHEIT einer Messung ab, nie eine niedrige. Alles andere wäre
+  eine erfundene Zahl, und davon hat dieses Projekt in den letzten Wochen genug entfernt.
+  Nebenbei wissenswert, bevor jemand eine 0,5 für einen Beleg hält: 120 BPM normalisiert per
+  Konstruktion auf exakt 0,5 — „neutral" und „120 BPM" sind hier dieselbe Zahl.
 
-  Die naheliegende Ein-Zeilen-Reparatur für Punkt 2 hätte JEDEN alten Take beim Öffnen
-  GESPERRT. Grund: die bequeme Abfrage erfindet für eine Datei, die keinen Modus nennt,
-  „Loop" — und alle Deine bisherigen Takes nennen keinen. Sie wären gegen Deine eigene
-  Einstellung gesperrt zurückgekommen. Dasselbe bei Punkt 1: ein Rückfall auf „12-TET" hätte
-  jeden vor diesem Build gespeicherten Take zur Behauptung gemacht, er sei 12-TET — und der
-  Öffnen-Pfad hätte danach gehandelt und einen Gamelan-Take zurückgezogen. Beide Male ist
-  stattdessen „diese Datei sagt dazu nichts" darstellbar, und dann tut die Zeile absichtlich
-  gar nichts. Alte Takes bleiben unberührt.
+  ── EIN ZWEITER FUND, DER ERST BEIM RECHNEN AUFTAUCHTE ────────────────────
 
-  ── WAS ICH SELBST FALSCH GEMACHT HABE, WEIL ES DAZUGEHÖRT ────────────────
+  Ein NaN (kaputte Zahl) war schon vorher harmlos. Ein +unendlich nicht: es rutschte durch
+  die Prüfung und wurde auf 1,0 geklemmt — also das OBERE Ende der Skala, aus einem Frame,
+  der nichts gemessen hat. Dieselbe Klasse Fehler wie die 0,0, nur am anderen Ende. Jetzt
+  gilt: nicht-endlich heißt ABWESEND, nicht „Maximum".
 
-  Zyklus 1 ist mit einem NICHT kompilierenden Testverzeichnis ausgeliefert worden, und
-  nichts wurde rot: ein Zähler in meinem eigenen Kommentar sagte „vier Aufrufstellen", es
-  waren sieben, und die zwei übersehenen liegen ausgerechnet in der Hälfte des Projekts, die
-  kein Prüflauf kompiliert. In Zyklus 2 behoben. In Zyklus 3 habe ich in zwei Kommentaren
-  gleichzeitig behauptet, die Mixer-Pegel lägen in einem bestimmten Speichermechanismus —
-  falsch, aus der Form der Nachbarn geraten statt nachgeschlagen. Ausgerechnet in der
-  Scheibe, deren ganzes Thema eine Beschreibung ist, die aufgehört hat zu beschreiben.
-  Beides steht jetzt im Code, samt Begründung.
+  ── UND EINE FLÄCHE, DIE DAS GEGENTEIL VON DEM SAGTE, WAS DIE APP TUT ─────
+
+  Das Bio-Panel hatte im Leer-Zustand stehen: „Füge oben eine Bio-Route hinzu, um zu sehen,
+  wie der Körper einen Parameter bewegt." Also: ohne Route bewegt der Körper nichts. Falsch,
+  und ausgerechnet auf der EINEN Fläche, die gebaut wurde, um „Dein Körper spielt es"
+  sichtbar zu machen. Vier Stimmen hängen dauerhaft am Bus und formen das Timbre, solange
+  eine Sitzung läuft; die Routen dieses Panels legen EFFEKT-Parameter obendrauf. Der Satz
+  stand da, seit es das Panel gibt, und keine Prüfung konnte ihn sehen, weil er über eine
+  FÄHIGKEIT sprach und nicht über einen Wert.
+
+  Beim Nachzählen fiel dabei auf, dass meine eigene Bio-Tabelle sieben Kanäle als
+  gleichrangig führte. Es sind VIER, die wirklich aus dem Körper abgeleitet werden
+  (Kohärenz, HRV, Herzfrequenz, Atemphase); drei sind auf feste Werte genagelt und haben
+  gar keinen Erzeuger. Steht jetzt getrennt da — LIVE und STUMM.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  „Build for Testing" = success auf dem letzten Commit; das blockierende Testbündel
-  kompiliert also nachweislich mit allen drei neuen Wächtern (jetzt 208 Dateien). Von den
-  19 Testgruppen, die der Lauf noch ausgeben konnte, ist keine einzige rot — „Run Tests"
-  stirbt weiterhin am bekannten Simulator-Start, das ist der founder-gated CI-Punkt, nicht
+  „Build for Testing" = success auf beiden neuen Commits; das blockierende Testbündel
+  kompiliert also nachweislich mit den zwei neuen Wächtern (jetzt 210 Dateien). „Run Tests"
+  stirbt weiterhin am bekannten Simulator-Start — das ist der founder-gated CI-Punkt, nicht
   der Code.
 
-  ⚠ Ehrlich zur Beweislage: die PERSISTENZ ist echtes Verhalten, Ende zu Ende durch den
-  ausgelieferten Encoder getrieben. Die VERDRAHTUNG (liest das Öffnen den Wert wirklich,
-  füllt das Speichern ihn wirklich) ist ein Quelltext-Nachweis, weil beide Stellen in einer
-  Ansicht liegen, die kein Test hier bauen kann. Und dass ein Take am Gerät wirklich nach
-  Rāst KLINGT, ist eine HÖRPROBE — die einzige Instanz dafür bist Du.
+  ⚠ Ehrlich zur Beweislage, und sie ist hier zweigeteilt: die RECHNUNG ist echtes Verhalten,
+  Ende zu Ende durch den ausgelieferten Werttyp getrieben — die Zahlen oben sind gemessen,
+  nicht behauptet. Die VERDRAHTUNG (nehmen die zwei Klang-Erzeuger den neuen Weg wirklich)
+  ist ein Quelltext-Nachweis, weil beide Stellen in privaten Methoden liegen, die kein Test
+  hier instanziieren kann. **Und ob ein Take am Gerät hörbar aufhört, flach und leise zu
+  laufen, ist eine HÖRPROBE — die einzige Instanz dafür bist Du.**
 
-  ── WAS VON DIR GEBRAUCHT WIRD (5 Minuten, davon 3 mit den Ohren) ─────────
+  ── WAS VON DIR GEBRAUCHT WIRD (der wichtigste Teil ist Punkt 1) ──────────
 
-  1. Stimmung: Maqām Rāst (oder Gamelan) wählen, A auf 442, einen Loop erzeugen und
-     SPEICHERN. Dann Instrument zurück auf 12-TET und A auf 440. Take wieder öffnen —
-     klingt er wieder wie vorher? Das ist die eigentliche Frage dieses Builds.
-  2. Modus: einen Take im LOOP-Modus speichern, auf Flow stellen, Take öffnen — steht der
-     Schalter wieder auf Loop?
-  3. Alte Takes: eines Deiner ÄLTEREN gespeicherten Stücke öffnen. Springt irgendetwas auf
-     eine Einstellung, die Du nicht gewählt hast? Wenn ja, ist das ein Befund — genau da
-     wäre die Falle oben zugeschnappt.
-  4. Speichern-Dialog einmal aufmachen und den Satz lesen: passt er in den Kasten, oder wird
-     er abgeschnitten? Und stimmt er mit dem überein, was Du danach zurückbekommst?
-  5. Und weiterhin offen aus 2492: die vier Fragen zur Kopfzeile, zur Transport-Zeile und zu
-     den zwei Kachel-Zeilen.
+  1. OHNE Puls spielen: Sitzung starten, Finger NICHT auf die Linse, einen Loop erzeugen und
+     zuhören. Dann Finger drauf, warten bis der Puls sitzt, und wieder zuhören. Vorher waren
+     diese zwei Zustände im Vibrato 25 % auseinander, ohne dass es einen Grund dafür gab —
+     jetzt sollte der Unterschied nur noch das sein, was Dein Herz wirklich macht.
+  2. Mit dem Brustgurt: klingt das Instrument insgesamt einen Hauch offener/lauter als
+     vorher? Das wäre das fehlende Dezibel. (Kein Grund zur Sorge, wenn Du es nicht hörst —
+     0,92 dB sind wenig. Es war trotzdem falsch.)
+  3. Bio-Panel aufmachen, ohne eine Route anzulegen: der Satz unter der Liste sagt jetzt,
+     dass der Körper den Klang ohnehin schon formt, und lädt zum Zuschauen ein statt zu
+     behaupten, es passiere nichts.
+  4. Und weiterhin offen aus 2492/2493: die vier Fragen zur Kopfzeile und Transport-Zeile,
+     und die Stimmungs-/Modus-Probe des letzten Builds (Rāst speichern, auf 12-TET stellen,
+     wieder öffnen).
