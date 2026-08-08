@@ -1091,27 +1091,56 @@ private struct AlwaysOnBioView: View {
             // Without this line a player reading 0.50 cannot tell a resting instrument from an
             // unmeasured one — and the row's own "not measured" is the answer, so the footer
             // only has to say that the neutral is deliberate rather than a failure.
+            // Two sentences, two different states, and they are NOT the same one said twice:
+            // "no reading" is a frame that never carried the channel, "held" is one that did
+            // and stopped arriving. #500 is the second — a take composed while every channel
+            // was held prints `body=0` and sounds like the patch, which is the question this
+            // line has to be able to answer.
             Text("A channel with no reading hands the engine a neutral 0.50 on purpose, so the "
-                 + "instrument keeps playing its patch instead of jumping to the bottom of the scale.")
+                 + "instrument keeps playing its patch instead of jumping to the bottom of the "
+                 + "scale. A channel marked held is the last measurement: the engine still has "
+                 + "it, your body has stopped sending it.")
         }
         .listRowBackground(EchoelTheme.fill)
     }
 }
 
-/// One always-on channel: name, what it shapes, the value the engine receives, and a bar.
+/// One always-on channel: name, what it shapes, the value the engine receives, a bar, and —
+/// since #500 — whether that value is still ARRIVING.
 ///
 /// Same honesty rule as `BioModContributionRow` and for the same reason: an unmeasured channel
 /// shows "—" and draws NO bar. Printing "0.50" with a half-full bar would read as a
 /// measurement sitting mid-scale, which is precisely the confusion the neutral creates.
+///
+/// ⚠️ THE `TimelineView` IS LOAD-BEARING, NOT DECORATION, and removing it is the obvious later
+/// "it's only four static rows" simplification. `isHeld` flips on the passage of TIME, and the
+/// event that makes it true — a source that STOPPED publishing — is by definition the event
+/// that stops invalidating this body. Without a tick the row would freeze at its last
+/// evaluation, which is the instant the frame arrived, and therefore assert liveness forever:
+/// worse than the state #500 is about. 1 Hz is chosen against the shortest window it has to
+/// resolve (`BioSource.freshnessWindow` = 5 s for `.fallback`); it costs one small redraw per
+/// second while the FX sheet is open, and it stays INSIDE the row so nothing above it churns.
+///
+/// ⚠️ AND IT MUST STAY IN THE ROW rather than wrap the `ForEach` in `AlwaysOnBioView`: the rows
+/// are `Section` children in a `List`, and a `TimelineView` around all four would put one
+/// container where four list rows belong. Four 1 Hz tickers are the cheap half of that trade.
 @MainActor
 private struct AlwaysOnBioRow: View {
     let channel: AlwaysOnBioChannel
     let frame: BioSampleFrame?
 
-    private var measured: Bool { frame.map { channel.isMeasured(in: $0) } ?? false }
-    private var value: Float { frame.map { channel.value(in: $0) } ?? 0.5 }
-
     var body: some View {
+        // The wall clock, read inside the tick — the same clock `EngineBus.usableBio()` and
+        // every other staleness consumer measures age on (`CFAbsoluteTimeGetCurrent()`), never
+        // the `TimelineView` context date, so this row and the composer cannot disagree about
+        // what "6 s old" means (#434 paid for exactly that mismatch one file over).
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            content(channel.reading(in: frame, now: CFAbsoluteTimeGetCurrent()))
+        }
+    }
+
+    @ViewBuilder
+    private func content(_ reading: AlwaysOnBioReading) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             HStack(spacing: 6) {
                 Text(channel.name)
@@ -1119,33 +1148,51 @@ private struct AlwaysOnBioRow: View {
                 Text(channel.shapes)
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim).lineLimit(1)
                 Spacer(minLength: 0)
-                Text(measured ? EchoelDecimalText.string(Double(value), decimals: 2) : "—")
+                if reading.isHeld {
+                    // The word, not a countdown: a ticking age would be a second live-looking
+                    // number on a row whose whole point is that nothing here is live.
+                    Text("held")
+                        .font(EchoelTheme.font(10, .semibold)).foregroundStyle(EchoelTheme.dim)
+                }
+                Text(reading.isMeasured
+                     ? EchoelDecimalText.string(Double(reading.value), decimals: 2)
+                     : "—")
                     .font(EchoelTheme.font(11).monospacedDigit()).foregroundStyle(EchoelTheme.dim)
             }
-            signalBar
+            signalBar(reading)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityText)
+        .accessibilityLabel(accessibilityText(reading))
     }
 
-    /// VoiceOver gets the same two facts in the same order, and never a percentage for a
-    /// channel the body did not report (#484's compliance edge: the SIGNAL is the subject
-    /// here, never the body — "not measured" describes the reading, not the person).
-    private var accessibilityText: String {
-        guard measured else {
+    /// VoiceOver gets the same facts in the same order, and never a percentage for a channel
+    /// the body did not report (#484's compliance edge: the SIGNAL is the subject here, never
+    /// the body — "not measured" and "no longer arriving" describe the reading, not the
+    /// person, and neither sentence may be readable as an observation about a heart).
+    private func accessibilityText(_ reading: AlwaysOnBioReading) -> String {
+        guard reading.isMeasured else {
             return "\(channel.name), not measured, shaping \(channel.shapes) at the neutral value"
         }
-        return "\(channel.name) at \(Int((value * 100).rounded())) percent, shaping \(channel.shapes)"
+        let percent = Int((reading.value * 100).rounded())
+        guard reading.isHeld else {
+            return "\(channel.name) at \(percent) percent, shaping \(channel.shapes)"
+        }
+        return "\(channel.name) held at \(percent) percent, no longer arriving, "
+            + "still shaping \(channel.shapes)"
     }
 
-    private var signalBar: some View {
+    private func signalBar(_ reading: AlwaysOnBioReading) -> some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(EchoelTheme.border.opacity(0.4))
-                if measured {
-                    Capsule().fill(EchoelTheme.accent)
-                        .frame(width: Swift.max(2, geo.size.width * CGFloat(Swift.min(1, Swift.max(0, value)))))
+                if reading.isMeasured {
+                    // Drawn, because the engine really is still being handed this — but dimmed
+                    // when held, so a glance separates a moving body from a parked one without
+                    // reading the word.
+                    Capsule().fill(EchoelTheme.accent.opacity(reading.isHeld ? 0.35 : 1))
+                        .frame(width: Swift.max(2, geo.size.width
+                                                * CGFloat(Swift.min(1, Swift.max(0, reading.value)))))
                 }
             }
         }

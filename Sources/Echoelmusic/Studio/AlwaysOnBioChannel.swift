@@ -102,4 +102,67 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
         case .breathPhase: return frame.hasMeasuredBreath
         }
     }
+
+    /// What a surface should show for this channel right now: the number, whether it is a
+    /// measurement, and whether that measurement has stopped arriving (#500).
+    ///
+    /// ⭐ WHY A THIRD FACT. #497 made an unmeasured channel hand the engine its declared
+    /// neutral, and #498 put the pair (value, measured) on screen so a neutral could not be
+    /// read as a body sitting mid-scale. The pair still cannot separate a LIVE body from a
+    /// frame that stopped arriving, and that gap is not hypothetical: `EngineBus.latestBio`
+    /// is only ever ASSIGNED — nothing clears it, not `stop()`, not a lost pulse (its one
+    /// writer is the `publish(bio:)` sink). `isMeasured` is a property of the FRAME, never of
+    /// its age, so a frame from forty minutes ago reports `true` forever, under a header that
+    /// says "Always on — body → timbre". That is the same ambiguity #497/#498 removed, one
+    /// level up, introduced by the surface that removed it.
+    ///
+    /// ⚠️ AND THE VALUE IS STILL RIGHT, WHICH IS WHY `isHeld` MARKS RATHER THAN BLANKS. The
+    /// four sound producers poll `latestBio` and dedupe on `timestamp`, so a frozen source
+    /// does not zero the timbre — it PARKS it at the last body and leaves it there. Blanking
+    /// the number would claim the engine dropped the channel; it did not. The honest reading
+    /// is "this is what the engine has, and it is no longer arriving".
+    ///
+    /// ⭐ THE THRESHOLD IS ASKED, NOT RESTATED (#416/#426). `isHeld` is the exact negation of
+    /// `EngineBus.usableBio()`'s two comparisons against `frame.source.freshnessWindow` — the
+    /// same line the COMPOSER uses to decide whether a take has a body at all. So a held row
+    /// is precisely the state that prints `body=0` in the generate breadcrumb, and retuning a
+    /// source's window moves both together instead of leaving a screen behind.
+    ///
+    /// ⚠️ NON-FINITE AGE READS AS HELD, deliberately. A NaN age fails both comparisons, so the
+    /// negation is `true` — the direction that claims LESS liveness. A frame stamped in the
+    /// future beyond the 1 s skew tolerance is likewise held, because `usableBio()` rejects it
+    /// and the composer is already treating it as no body.
+    public func reading(in frame: BioSampleFrame?, now: TimeInterval) -> AlwaysOnBioReading {
+        guard let frame else {
+            return AlwaysOnBioReading(value: 0.5, isMeasured: false, isHeld: false)
+        }
+        let measured = isMeasured(in: frame)
+        let age = now - frame.timestamp
+        let usable = age <= frame.source.freshnessWindow && age >= -1
+        return AlwaysOnBioReading(value: value(in: frame),
+                                  isMeasured: measured,
+                                  isHeld: measured && !usable)
+    }
+}
+
+/// What one always-on channel shows at a moment in time — the three facts that must travel
+/// together, because any two of them read as something the third contradicts (#498, #500).
+///
+/// `isHeld` is only ever true together with `isMeasured`: an unmeasured channel already shows
+/// "—", and calling that "held" would add a word without adding a fact.
+public struct AlwaysOnBioReading: Equatable, Sendable {
+    /// The number the engine is receiving — the `…ForSound` accessor, or the declared neutral
+    /// 0.5 when there is no frame at all.
+    public let value: Float
+    /// Whether `value` is a measurement rather than the engine's declared neutral.
+    public let isMeasured: Bool
+    /// Whether that measurement has aged out of its own source's freshness window — the
+    /// engine still has it, the body is no longer sending it.
+    public let isHeld: Bool
+
+    public init(value: Float, isMeasured: Bool, isHeld: Bool) {
+        self.value = value
+        self.isMeasured = isMeasured
+        self.isHeld = isHeld
+    }
 }
