@@ -8701,7 +8701,17 @@ struct EchoelStudioView: View {
         // fallback above needs it. Stop() still clears it, so sessions re-baseline.
         lastGenBody = frame.map { (bpm: Double($0.heartRateBPM), coherence: Double($0.coherence)) } ?? lastGenBody
         // EchoelAI narrates the live bio→sound mapping in plain technical English.
-        if let frame { caption.text = BioExplanation.text(for: frame, tempo: tempo) }
+        // ⛔ THIS WAS `if let frame { … }`, AND THE GATE DEFEATED THE HONESTY OF THE THING
+        // IT CALLS (#506). `BioExplanation.text` was built with great care for exactly the
+        // no-body case: it drops every clause it cannot measure, opens with "tempo holds at
+        // N BPM; no pulse measured yet", and deliberately REMOVES the phrase " from your
+        // live signal," when nothing was read — five tests pin those branches. Gating the
+        // call on a frame made all of that unreachable from the app, and left something
+        // worse behind: nothing else writes or clears `caption.text`, so a take composed
+        // with no body kept narrating the PREVIOUS take's heart rate. That is #503's defect
+        // one surface up — a reading that stopped arriving, still presented as live.
+        // Unconditional now; nil is the all-unmeasured case the callee already renders.
+        caption.text = BioExplanation.text(for: frame, tempo: tempo)
         let wasPlaying = beatPlayer.pattern.isPlaying
         // Start playback only for the user-initiated first generate; a background/onChange
         // re-seed must not restart a transport the user stopped from the transport bar.

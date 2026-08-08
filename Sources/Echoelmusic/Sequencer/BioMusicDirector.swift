@@ -28,7 +28,27 @@ public struct BioStateSummary: Sendable, Equatable {
     public let steadiness: String?   // "steady and coherent" | "moderately steady" | "restless"
     public let breath: String?       // "slow" | "relaxed" | "fast"
 
-    public init(from f: BioSampleFrame) {
+    /// ⭐ THE FRAME IS OPTIONAL, and nil is not a new case — it is the DEGENERATE form of
+    /// the case this type already exists for. `EngineBus.usableBio()` returns nil when no
+    /// source has published inside its freshness window, and "nothing was measured" is
+    /// exactly what all-three-fields-nil already means. Spelling that as a separate
+    /// `unmeasured` constant would have been a SECOND definition of the same fact (#416),
+    /// and fabricating a zeroed `BioSampleFrame` to stand in for "no frame" would have
+    /// been worse: this file's own doc explains at length why an unavailable signal
+    /// encoded as 0 must never be read as a low value.
+    ///
+    /// Source-compatible: every existing call site passes a non-optional frame and is
+    /// promoted, so `BioDirectionFallback.direction` and `BioMusicDirector.suggest` are
+    /// bit-identical for every frame they could already receive.
+    public init(from f: BioSampleFrame?) {
+        guard let f else {
+            // No frame at all ⇒ nothing measured, on every axis. Not "low", not
+            // "restless", not "slow" — the whole point of the optionals above.
+            arousal = nil
+            steadiness = nil
+            breath = nil
+            return
+        }
         // Heart rate and coherence gate on `> 0` — heart rate is non-zero only on a
         // confident lock (see PolySynthVoice's entrainment quality gate), and coherence
         // is 0 on any source that computes no beat-to-beat RR. Breath does NOT: it uses
@@ -60,9 +80,28 @@ public struct BioStateSummary: Sendable, Equatable {
 /// works on iOS 18+ (not gated to the on-device model). Surfaced to the user as
 /// "EchoelAI" narration of the bio→sound process.
 public enum BioExplanation {
-    public static func text(for f: BioSampleFrame, tempo: Double) -> String {
+    /// ⭐ THE FRAME IS OPTIONAL, and this is the whole point of #506. Everything below —
+    /// the "no pulse measured yet" branch, the `measuredAnything` suppression of the
+    /// phrase " from your live signal," — was written for the case where the body was
+    /// not read. `EngineBus.usableBio()` returning nil IS that case, and it is the
+    /// COMMON one: device log 2494 (v10.79.377) recorded `body=0` in every single
+    /// generate breadcrumb for ~475 s. Yet the one production caller was
+    /// `if let frame { caption.text = … }`, so the no-body branch of a public, tested
+    /// function could never be reached from the app — and, worse, a no-body take left
+    /// the PREVIOUS take's narration standing, telling the user about a heart rate that
+    /// had stopped arriving (the #503 defect one surface up).
+    ///
+    /// Nil is NOT a new sentence: `BioStateSummary(from: nil)` is all-fields-unmeasured,
+    /// which every clause below already handles. Source-compatible — existing callers
+    /// pass non-optional frames and are promoted.
+    public static func text(for f: BioSampleFrame?, tempo: Double) -> String {
         let s = BioStateSummary(from: f)
         let bpm = Int(tempo.rounded())
+        // Bound here rather than inside the arousal branch so that branch does not have
+        // to unwrap `f` a second time. `s.arousal != nil` implies `f != nil` (the summary
+        // sets all three to nil for a nil frame), so pairing them in one `if let` below
+        // cannot change the outcome for any frame that could already arrive.
+        let measuredHR = f.map { Int($0.heartRateBPM.rounded()) }
 
         // Each clause is built ONLY from a measured field. An unmeasured one drops the
         // clause entirely rather than narrating a default — this text is presented as
@@ -70,8 +109,7 @@ public enum BioExplanation {
         // reads as an observation.
         var clauses: [String] = []
 
-        if let arousal = s.arousal {
-            let hr = Int(f.heartRateBPM.rounded())
+        if let arousal = s.arousal, let hr = measuredHR {
             let pace = arousal == "low" ? "calm" : (arousal == "high" ? "driving" : "flowing")
             clauses.append("heart rate \(hr) BPM sets a \(pace) \(bpm) BPM tempo")
         } else {
