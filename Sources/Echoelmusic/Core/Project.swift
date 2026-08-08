@@ -130,12 +130,87 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     public var drumSteps: [[Bool]]
     public var drumAccents: [[Bool]]
 
+    /// #217 — THE COMPOSER'S OWN BARS, before the mixer was baked into their velocities.
+    ///
+    /// WHAT IT FIXES, and it is a lying control, not a missing nicety. `EchoelStudioView`
+    /// keeps the raw bars in `@State lastRawTake` so a Mix fader can RE-BAKE the take that
+    /// already exists at the new level (#174) instead of composing a different one. `@State`
+    /// is per app session and `open(_:)` restored an already-glued take via
+    /// `pianoRoll.load(p.notes)`, so on every OPENED project that state was `nil` — and
+    /// `rebalanceTake()`'s documented fallback is `recomposeIfRunning()`. Moving the bass
+    /// fader on a saved take therefore handed the listener a NEW piece. Its own comment says
+    /// so, and names persisting these bars as the answer.
+    ///
+    /// ⭐ THE GENRE TRAVELS WITH THE BARS, IN ONE VALUE, and that pairing is the whole reason
+    /// this is a nested struct rather than two optional fields next to each other.
+    /// `rebalanceTake()` re-glues with `take.genre`, **not** the picker's current `style` —
+    /// the take must be re-glued in the genre it was COMPOSED in, even if the user has since
+    /// picked another one. Two independent optionals make "bars without their genre"
+    /// representable, and the only thing a reader could do with that state is the exact bug
+    /// the pairing exists to prevent.
+    ///
+    /// ⭐ OPTIONAL, for the `toneSystemID` reason one field up: a take written before this
+    /// build genuinely states no raw bars, and `nil` is the only honest reading. There is no
+    /// `??` that could stand in — deriving them from `notes` is impossible (those velocities
+    /// already carry a mixer level, and `notes` is the ONE sounding bar, not the arrangement).
+    ///
+    /// ⚠️ IT IS NOT FREE. `notes` holds one bar; this holds `loopBars` of them (default
+    /// eight), so a saved take's JSON grows by roughly the note payload times the loop length.
+    /// Accepted because the alternative is a control that lies, and because nothing reads
+    /// these bars on the hot path — only a fader move and `open(_:)`.
+    public var rawTake: RawTake?
+
+    /// The composer's bars plus the genre they were composed in — see `rawTake`.
+    public struct RawTake: Codable, Sendable, Equatable {
+
+        /// `MusicStyle.rawValue` at COMPOSE time.
+        public var styleRaw: String
+
+        /// One entry per loop bar, in order, exactly as `BioComposer` produced them —
+        /// BEFORE `mixGlued` folded the mixer into the velocities.
+        public var bars: [[Note]]
+
+        public init(styleRaw: String, bars: [[Note]]) {
+            self.styleRaw = styleRaw
+            self.bars = bars
+        }
+
+        /// ⚠️ DELIBERATELY OPTIONAL AND WITHOUT THE `?? .dubTechno` FALLBACK that
+        /// `Project.style` carries, and the asymmetry is the point. There, an unknown genre
+        /// still has to show SOMETHING in a picker. Here, an unknown genre would mean
+        /// re-gluing a take in the wrong genre — the precise defect `rebalanceTake()`'s
+        /// "`take.genre`, NOT `style`" comment exists to prevent. `nil` says "this build
+        /// cannot re-bake these bars", and the caller then leaves the take alone.
+        public var style: MusicStyle? { MusicStyle(rawValue: styleRaw) }
+
+        private enum CodingKeys: String, CodingKey { case styleRaw, bars }
+
+        /// ELEMENT-TOLERANT per note, for the reason spelled out at `Project.notes`: an
+        /// unknown `NoteRole` raw value throws `dataCorrupted`, which `decodeIfPresent`
+        /// cannot absorb. Without this, one note written by a future build would take the
+        /// whole arrangement with it. Bars keep their POSITIONS (the outer array is the
+        /// loop order); holes inside a bar are dropped, because a note's `startTick` carries
+        /// its own position.
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            styleRaw = try c.decodeIfPresent(String.self, forKey: .styleRaw) ?? ""
+            let wrapped = try c.decodeIfPresent([[LossyDecoded<Note>]].self, forKey: .bars) ?? []
+            bars = wrapped.map { $0.compactMap(\.value) }
+            let dropped = wrapped.reduce(0) { $0 + $1.count } - bars.reduce(0) { $0 + $1.count }
+            if dropped > 0 {
+                log.log(.error, category: .system,
+                        "Project raw take — dropped \(dropped) undecodable note(s) from the "
+                        + "composer bars; the fader will re-bake without them")
+            }
+        }
+    }
+
     public init(
         id: UUID = UUID(), name: String, savedAt: Date = Date(),
         styleRaw: String, keyRoot: Int, scaleRaw: String, bpm: Double,
         modeRaw: String, fxCharacterRaw: String, loopBars: Int,
         a4Hz: Double, toneSystemID: String?, artist: String,
-        patch: SynthPatch, notes: [Note],
+        patch: SynthPatch, notes: [Note], rawTake: RawTake?,
         drumSteps: [[Bool]], drumAccents: [[Bool]]
     ) {
         // Deliberately NOT an init parameter: a freshly-built Project is by definition in
@@ -163,6 +238,12 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         // missing default is supposed to buy is only collectable where a gate compiles the
         // caller. In the other half of the tree a required argument buys silence.
         //
+        // ⚠️ `rawTake` (#217) FOLLOWS THE SAME RULE for the same reason and was added with the
+        // count re-run over the whole repo first — it is still EIGHT, listed above. Every call
+        // site that does not model a composed session passes `rawTake: nil`, written out, so
+        // "this fixture states no raw bars" is a visible decision rather than a default nobody
+        // read.
+        //
         // ⛔ THE FIRST VERSION OF THIS COMMENT SAID "TWO", and the miss is worth keeping: it
         // named the two I had edited and omitted `ColabPayloadTests`, which lives in
         // `Tests/EchoelmusicTests` — the NON-blocking suite (#208). Neither real gate compiles
@@ -177,7 +258,7 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         self.bpm = bpm; self.modeRaw = modeRaw; self.fxCharacterRaw = fxCharacterRaw
         self.loopBars = loopBars; self.a4Hz = a4Hz; self.toneSystemID = toneSystemID
         self.artist = artist
-        self.patch = patch; self.notes = notes
+        self.patch = patch; self.notes = notes; self.rawTake = rawTake
         self.drumSteps = drumSteps; self.drumAccents = drumAccents
     }
 
@@ -187,6 +268,7 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         case schemaVersion
         case id, name, savedAt, styleRaw, keyRoot, scaleRaw, bpm, modeRaw
         case fxCharacterRaw, loopBars, a4Hz, toneSystemID, artist, patch, notes
+        case rawTake
         case drumSteps, drumAccents
     }
 
@@ -261,6 +343,35 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
                     "Project '\(name)' — dropped \(droppedNotes)/\(wrappedNotes.count) "
                     + "undecodable note(s); they are gone at the next save")
         }
+        // #217 — TWO LAYERS OF DEFENCE, each doing a DIFFERENT job, and the outer one is the
+        // reason this field cannot re-open the hole the rest of this decoder closes.
+        //
+        // INNER (`RawTake.init(from:)`, per note): one note a future build wrote with an
+        // unknown `NoteRole` becomes one missing note, not a lost arrangement.
+        //
+        // OUTER (`try?` here): a STRUCTURALLY broken raw take — `bars` not an array of
+        // arrays, a truncated write — would otherwise throw out of `Project.init(from:)`,
+        // and `ProjectStore`'s `try?` turns that into the user's ENTIRE take vanishing. That
+        // is the exact bug `LossyDecoded` exists for, and adding an un-hardened field to a
+        // hardened struct is how it comes back. `nil` here costs nothing that was reachable:
+        // an unreadable raw take cannot be re-baked from anyway, and every other field —
+        // including `notes`, the take you actually hear — survives.
+        //
+        // `contains` separates the two cases so the log line means something: ABSENT is the
+        // ordinary legacy read (every take written before #217) and must stay silent, while
+        // PRESENT-BUT-UNREADABLE is real bounded loss and gets the same telemetry the notes
+        // array above gets, for the same reason — silence would make it the one invisible
+        // failure.
+        if c.contains(.rawTake) {
+            rawTake = (try? c.decodeIfPresent(RawTake.self, forKey: .rawTake)) ?? nil
+            if rawTake == nil {
+                log.log(.error, category: .system,
+                        "Project '\(name)' — raw composer bars present but undecodable; a mix "
+                        + "fader will fall back to composing instead of re-baking")
+            }
+        } else {
+            rawTake = nil
+        }
         // NOT hardened the same way, deliberately: these two are the drum apparatus the
         // founder removed (#166), scheduled for deletion by #167. Left exactly as they are
         // so the removal is a clean subtraction rather than a revert of new work — and
@@ -304,6 +415,9 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
         try c.encode(artist, forKey: .artist)
         try c.encode(patch, forKey: .patch)
         try c.encode(notes, forKey: .notes)
+        // `encodeIfPresent` for the `toneSystemID` reason: a take that states no raw bars
+        // writes NO key, so re-reading it yields `nil` again rather than a JSON null.
+        try c.encodeIfPresent(rawTake, forKey: .rawTake)
         try c.encode(drumSteps, forKey: .drumSteps)
         try c.encode(drumAccents, forKey: .drumAccents)
     }
@@ -314,5 +428,34 @@ public struct Project: Codable, Sendable, Identifiable, Equatable {
     public var scale: Scale { Scale(rawValue: scaleRaw) ?? .minor }
     public var key: MusicalKey { MusicalKey(root: keyRoot, scale: scale) }
     public var mode: ComposerMode { ComposerMode(rawValue: modeRaw) ?? .studioLocked }
+
+    /// #217 — the bars a Mix fader can RE-BAKE this take from, paired with the genre to
+    /// re-glue them in, or `nil` when this take cannot be re-baked at all.
+    ///
+    /// ⭐ IT LIVES HERE, AND NOT AS THREE `guard`s AT THE OPEN SITE, for two reasons that are
+    /// worth more than the tidiness. (1) The restore then becomes ONE TOTAL ASSIGNMENT —
+    /// `lastRawTake = p.rebakeSource` — so "opening a take must not leave the PREVIOUS
+    /// session's bars in place" holds by construction instead of resting on an `else` branch
+    /// somebody later reads as noise. That branch is the defect this slice would otherwise
+    /// have introduced: the first fader move would re-bake the wrong piece over the take just
+    /// opened. (2) The three-way decision is then real, drivable behaviour on a `public`
+    /// Foundation-only value type, rather than a source scan over a `private` member of a view
+    /// no test bundle can instantiate.
+    ///
+    /// The three exclusions, each for its own reason and none of them interchangeable:
+    /// · **no raw take** — every file written before #217, and every session that saved before
+    ///   its first `generate()`. Honest `nil`, and the caller keeps its old fallback.
+    /// · **unknown genre** — a take from a build that knows a `MusicStyle` this one does not.
+    ///   Re-gluing it in some *other* genre is precisely the defect `rebalanceTake()`'s
+    ///   "`take.genre`, NOT `style`" comment exists to prevent, so "cannot re-bake" is the
+    ///   only honest answer. Note NO clamp to `MusicStyle.offered`: that clamp exists so the
+    ///   picker shows something, while these bars must be re-glued in the genre they were
+    ///   COMPOSED in, offered or not.
+    /// · **empty bars** — nothing to re-bake; `rebalanceTake()` checks this anyway, and having
+    ///   both ends agree costs one condition.
+    public var rebakeSource: (genre: MusicStyle, bars: [[Note]])? {
+        guard let raw = rawTake, let genre = raw.style, !raw.bars.isEmpty else { return nil }
+        return (genre: genre, bars: raw.bars)
+    }
     public var fxCharacter: FXCharacter { FXCharacter(rawValue: fxCharacterRaw) ?? .auto }
 }

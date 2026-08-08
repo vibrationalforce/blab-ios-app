@@ -21,6 +21,7 @@ final class ProjectCodableTests: XCTestCase {
             a4Hz: 440, toneSystemID: "edo12", artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: 0.8)],
+            rawTake: nil,
             drumSteps: [[true, false], [false, true]],
             drumAccents: [[false, false], [true, false]]
         )
@@ -212,7 +213,8 @@ final class ProjectStoreTests: XCTestCase {
             name: name, styleRaw: "trap", keyRoot: 2, scaleRaw: "dorian", bpm: 140,
             modeRaw: "studioLocked", fxCharacterRaw: "auto", loopBars: 8, a4Hz: 440,
             toneSystemID: "edo12", artist: "E",
-            patch: SynthPatch(name: "Default"), notes: [], drumSteps: [], drumAccents: []
+            patch: SynthPatch(name: "Default"), notes: [], rawTake: nil,
+            drumSteps: [], drumAccents: []
         )
     }
 

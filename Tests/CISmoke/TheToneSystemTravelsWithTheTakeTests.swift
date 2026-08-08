@@ -64,7 +64,8 @@ final class TheToneSystemTravelsWithTheTakeTests: XCTestCase {
             modeRaw: ComposerMode.flowFree.rawValue,
             fxCharacterRaw: FXCharacter.clean.rawValue,
             loopBars: 4, a4Hz: 432, toneSystemID: toneSystemID, artist: "",
-            patch: SynthPatch(name: "Test"), notes: [], drumSteps: [], drumAccents: [])
+            patch: SynthPatch(name: "Test"), notes: [], rawTake: nil,
+            drumSteps: [], drumAccents: [])
     }
 
     /// `maqam-rast` and not an invented id: the stored value is `TuningSystem.named(_:)`'s key,

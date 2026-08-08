@@ -115,6 +115,7 @@ final class TheSavePromiseMatchesTheSaveTests: XCTestCase {
             a4Hz: 442, toneSystemID: "maqam-rast", artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 62, startStep: 0, lengthSteps: 4, velocity: 0.6)],
+            rawTake: nil,
             drumSteps: [], drumAccents: []
         )
     }

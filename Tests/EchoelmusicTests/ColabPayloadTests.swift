@@ -18,6 +18,7 @@ final class ColabPayloadTests: XCTestCase {
             toneSystemID: "edo12", artist: "Echoel",
             patch: SynthPatch(name: "Default"),
             notes: [Note(pitch: 62, startStep: 0, lengthSteps: 2, velocity: 0.7)],
+            rawTake: nil,
             drumSteps: [[true, false]], drumAccents: [[false, false]]
         )
     }

@@ -78,7 +78,8 @@ final class AutosaveSlotTests: XCTestCase {
                 // states 12-TET explicitly because these tests are about the autosave SLOT,
                 // not about tuning; `TheToneSystemTravelsWithTheTakeTests` owns the nil case.
                 loopBars: 4, a4Hz: 440, toneSystemID: "edo12", artist: "",
-                patch: SynthPatch(name: "Test"), notes: [], drumSteps: [], drumAccents: [])
+                patch: SynthPatch(name: "Test"), notes: [], rawTake: nil,
+                drumSteps: [], drumAccents: [])
     }
 
     /// ⭐ THE INVARIANT THE SLOT RESTS ON. Two autosaves must leave ONE row, or the library

@@ -9305,6 +9305,14 @@ struct EchoelStudioView: View {
             // `nil` is reserved for files written before the field existed.
             a4Hz: session.a4Hz, toneSystemID: tuningID, artist: session.artistName,
             patch: currentPatch, notes: pianoRoll.notes,
+            // #217 — the composer's OWN bars travel with the take, so a Mix fader can
+            // re-bake it after an open instead of composing a different piece. `nil` when
+            // this session has not composed (`lastRawTake` is `@State`, nil until the first
+            // `generate()`), which is the honest reading and exactly what a legacy file says.
+            // Built through `Project.RawTake` so the bars can never be saved without the
+            // genre they were composed in — see `rebalanceTake()`'s "`take.genre`, NOT
+            // `style`".
+            rawTake: lastRawTake.map { Project.RawTake(styleRaw: $0.genre.rawValue, bars: $0.bars) },
             drumSteps: beatPlayer.pattern.steps, drumAccents: beatPlayer.pattern.accents
         )
     }
@@ -9459,6 +9467,30 @@ struct EchoelStudioView: View {
         applyConcertPitch(p.a4Hz)
         applyTakeSound(p.patch)
         pianoRoll.load(p.notes)
+        // #217 — RESTORE THE RE-BAKE SOURCE. One TOTAL assignment, deliberately.
+        //
+        // Until this line `lastRawTake` was `@State`, i.e. nil on every opened project, so
+        // `rebalanceTake()` took its documented fallback and `recomposeIfRunning()` handed
+        // the listener a NEW piece when they moved a Mix fader. The fader was a level
+        // control everywhere except on a saved take, which is the one place a level control
+        // is most obviously what you reach for.
+        //
+        // ⚠️ ASSIGNING UNCONDITIONALLY IS THE LOAD-BEARING PART, and it is why the
+        // three-way decision lives on `Project.rebakeSource` rather than in an `if let`
+        // here. Anything that leaves this state untouched on a take with no usable raw
+        // bars would keep the SESSION's bars in place, and the first fader move would
+        // re-bake THAT piece over the take just opened — a defect this slice would have
+        // created, worse than the one it fixes. `rebakeSource` returning `nil` (legacy
+        // take, unknown genre, empty bars) therefore CLEARS, by construction.
+        //
+        // ⭐ THE OPEN PATH ITSELF IS UNCHANGED: `pianoRoll.load(p.notes)` above still loads
+        // exactly the notes that were saved, so opening a take sounds bit-identical to
+        // before. What changes is the FIRST FADER MOVE — it now re-bakes the saved
+        // arrangement instead of composing a new one. That the arrangement (all `loopBars`
+        // of it, not the single sounding bar `Project.notes` holds) comes back at that
+        // moment is a side effect, and a strictly closer one to the saved take than either
+        // of the two behaviours it replaces.
+        lastRawTake = p.rebakeSource
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm)
         // Everything that mirrors tempo must follow a loaded take, or the visual/OSC
