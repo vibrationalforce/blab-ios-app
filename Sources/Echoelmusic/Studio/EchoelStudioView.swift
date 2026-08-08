@@ -2750,6 +2750,22 @@ struct EchoelStudioView: View {
             // `View` struct is, which is why the strip is one.
             BreathCoachStrip()
 
+            // #277 — the PLAY half, under the measured half (`BioStripView`) and the
+            // practised half (`BreathCoachStrip`). CLAUDE.md's own pipeline line describes
+            // `BioReactiveSynthVoice` as "silent until user-armed" — and until this row there
+            // was no way to arm it: `arm()` had ZERO callers in `Sources/`, so `isArmed`
+            // (default `false`, written only by `arm()`/`disarm()`) could never become true.
+            // A built, tested, tuned voice that no surface can switch on.
+            //
+            // ⚠️ IT IS A `View` STRUCT FOR THE SAME REASON `BreathCoachStrip` IS, and the
+            // mechanism is the one #486 had to correct: `bioPanel` has no `panel(...)` host at
+            // its top level, it is reached through `dropdownContent`, which is evaluated in the
+            // ROOT body PERMANENTLY. This row reads `bus.usableBio()` — a ~1 Hz value — so
+            // inlining it would put a 1 Hz read on `EchoelStudioView.body`, the body that hosts
+            // every `.menu` Picker of the instrument (10.76.41/50). `AnyView(bioPanel)` is not
+            // a boundary either.
+            BreathVoiceRow()
+
             Button {
                 showRouting = true
             } label: {
@@ -10083,6 +10099,73 @@ private struct HealthWriteOptInRow: View {
     }
 }
 #endif
+
+/// #277 — the door that arms `BioReactiveSynthVoice`, the one voice this app describes as
+/// "silent until user-armed" and which nothing could arm.
+///
+/// ⭐ WHAT ARMING ACTUALLY DOES, said the way the row says it rather than the way the task
+/// title said it. The task was filed as *"breath plays the synth is not switchable on"*, and
+/// that is only the SECOND half. `arm()` is two statements: `isArmed = true` and `playNote()`.
+/// So the voice sounds a HELD tone immediately, and its timbre keeps following the body
+/// through `applyLatestIfFresh` (coherence → cutoff · brightness · harmonicity · noise;
+/// HRV → brightness · reverb; heart rate → vibrato; breath phase → the amplitude swell) —
+/// that path runs whether or not any breath ONSET ever arrives. Only when
+/// `BioEventGraph` emits `.breathInhaleOnset` / `.breathExhaleOnset` does breath take over the
+/// envelope (`consumeBioEventsIfFresh`).
+///
+/// ⛔ SO THE OBVIOUS LABEL WOULD HAVE BEEN A LYING CONTROL, and this is the whole reason the
+/// row has two sentences instead of one. Naming it "Breath plays the synth" promises that the
+/// breath opens and closes it — and on this app's measured reality that is usually false:
+/// `PolarH10BioPublisher` and `FaceExpressionBioPublisher` write the literal `breathRate: 0`
+/// ALWAYS (neither derives respiration), and `CameraRPPGBioPublisher` withholds breath below
+/// its confidence floor (#497 measured all three). With no onsets, nothing ever closes the
+/// envelope: the "breath" control would be a permanent drone. That is the class this repo
+/// keeps paying for — #435's caption promised silence, #480's hint promised sliders, #491's
+/// box promised a pulse. The row therefore states the HELD tone first and the breath gating
+/// second, conditional on breath actually being measured.
+///
+/// ⚠️ AND THE DRONE IS STOPPABLE, which is what makes shipping it honest rather than reckless:
+/// the toggle itself, and `panicAllNotesOff()`, which has listed `bioVoice` since #160/#168.
+/// ⭐ That entry becomes LOAD-BEARING for the first time here. Until this row, the only way to
+/// open this voice's envelope was an external MIDI note-on, so the panic's inclusion of
+/// `bioVoice` guarded a path most users could not reach. It now guards the one control in the
+/// app that can hold a tone indefinitely. `TheBreathVoiceHasADoorTests` pins it for that
+/// reason, not for tidiness.
+///
+/// ⚠️ NOT PERSISTED, deliberately. `isArmed` has no `UserDefaults`/`@AppStorage` writer and
+/// must not get one: a persisted arm would mean the app sounds a held tone on the next launch,
+/// before the user has touched anything — a worse first-run than the silence #159 fixed.
+/// Arming is a performance act, not a setting.
+@MainActor
+private struct BreathVoiceRow: View {
+    @Environment(BioReactiveSynthVoice.self) private var voice
+    @Environment(EngineBus.self) private var bus
+
+    var body: some View {
+        // `usableBio()` and not raw `bus.latestBio`: the question this row asks is "is breath
+        // ARRIVING", which is exactly the per-source freshness question (#499/#507). A frozen
+        // frame would otherwise keep claiming breath long after the finger left the lens.
+        let breathIsMeasured = bus.usableBio()?.hasMeasuredBreath ?? false
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: Binding(get: { voice.isArmed },
+                                 set: { $0 ? voice.arm() : voice.disarm() })) {
+                Text("Body voice")
+                    .font(EchoelTheme.font(12, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+            }
+            .toggleStyle(.switch)
+            .tint(EchoelTheme.accent)
+            .frame(minHeight: 44)
+            .accessibilityHint("Sounds a held tone whose colour follows your body")
+            Text(breathIsMeasured
+                 ? "A held tone whose colour follows your heart and coherence. Your inhale opens it, your exhale closes it."
+                 : "A held tone whose colour follows your heart and coherence. No breathing measured yet — once it is, your inhale and exhale take over the note.")
+                .font(EchoelTheme.font(10))
+                .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
 
 /// #320 — the door to `SoundPrompt`: describe the sound in words and the timbre moves.
 ///
