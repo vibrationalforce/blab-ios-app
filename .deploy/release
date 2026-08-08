@@ -1,4 +1,4 @@
-build: v10.79.380 — Deine Kopfzeilen-Anordnung aus dem Screenshot; ein Speichern, das nicht mehr still scheitert; und ein Mitspieler-Stream, den eine einzige unschreibbare Zahl nicht mehr anhält
+build: v10.79.381 — Drei Türen, die schwiegen: ein Mitspieler, der gegangen ist und stehenblieb; ein Teilen-Knopf, der nichts sagte; und eine Datei, die leer ankam und nach Erfolg aussah
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,97 +6,109 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.379 (Build 2496).
+  Der Vorgänger auf Deinem Gerät ist 10.79.380 (Build 2497).
 
-  ── 1. DEINE ANORDNUNG AUS DEM SCREENSHOT VON 2496 ────────────────────────
+  Dieser Build hat EIN Thema, und es ist nicht geplant worden — es hat sich beim Aufräumen
+  gezeigt: **drei Stellen, an denen die App etwas nicht sagt.** Einmal, weil sie einem
+  Mitspieler glaubt statt der Verbindung; einmal, weil ein Knopf einfach zurückkehrt; und
+  einmal — die schlimmste Form — weil sie eine Datei erfindet, die wie Erfolg aussieht.
 
-  „Den Schriftzug Echoelmusic wieder in die Mitte und dementsprechend mit der Takt
-  Anzeige tauschen." Zwei Pfeilspitzen an einem Bogen — Tausch, nicht Umzug; und der
-  Satz sagt es zweimal, es ist also nichts geraten worden.
+  ── 1. EIN MITSPIELER, DER GEGANGEN IST, BLIEB AUF DEM SCHIRM ─────────────
 
-  Die obere Reihe liest sich jetzt: **Takt-Anzeige · Echoelmusic · Monitor-Kacheln.**
+  Wenn ein Telefon Bio-Daten schickt, liefert das System den ABSENDER gleich mit —
+  authentifiziert, von der Verbindung selbst. Echoel hat stattdessen den Namen benutzt,
+  den der Absender IN die Nachricht hineinschreibt.
 
-  ⚠ Und der Preis steht im Quelltext, statt verschwiegen zu werden — Du wirst ihn
-  vermutlich sehen: **der Schriftzug sitzt rund 24 pt LINKS der echten Bildschirmmitte.**
-  Grund: die Leiste hat genau EINEN dehnbaren Flügel, und ein einzelner Flügel zentriert
-  sein Kind im SCHLUPF zwischen zwei ungleich breiten Nachbarn — die Kachel-Gruppe rechts
-  ist 146 pt, die Takt-Anzeige links rund 98. Der Versatz ist exakt die halbe Differenz.
-  Echt zu zentrieren bräuchte einen ZWEITEN dehnbaren Flügel, und genau den verbietet das
-  Dynamic-Type-Gesetz der Kopfzeile seit Juli (zwei gierige Flügel streiten sich, und bei
-  großer Schrift überlappt die Leiste). **Wenn Dich die 24 pt stören, ist das eine
-  Entscheidung, keine Reparatur** — sag Bescheid, dann wird die Regel bewusst gelockert
-  statt versehentlich.
+  ⭐ Der Grund, warum das eine eigene Scheibe wert war, ist NICHT „jemand könnte über
+  seinen Namen lügen". Es ist die Aufräum-Seite: das Trennen räumt nach dem Namen der
+  VERBINDUNG auf. Standen die zwei Namen nicht auf demselben Wert, wurde die Zeile beim
+  Trennen nie geräumt — **ein Mitspieler, der den Raum verlassen hat, behielt seine Zeile
+  für den Rest der Sitzung.** Genau die Eigenschaft, die 379 eingebaut hat („ein still
+  gewordener Mitspieler sieht nicht mehr lebendig aus"), ausgehebelt über den SCHLÜSSEL
+  statt über den Zeitstempel — deshalb konnte die Frische-Prüfung von 379 es nicht sehen.
+  Die Messung in dieser Zeile war echt frisch; es war die ZEILE, die es nicht geben durfte.
 
-  ⚠ Zweite Nebenwirkung, ebenfalls sichtbar auf schmalen Geräten (iPhone 12/13 mini,
-  360 pt): **wenn es eng wird, weicht jetzt der SCHRIFTZUG zuerst** statt der Takt-Anzeige.
-  Das ist die bessere Richtung — die Anzeige ist eine Messung, deren Ziffern lesbar bleiben
-  müssen, während der Schriftzug ohnehin sauber herunterskaliert.
+  ⛔ Und die Reichweite zuerst, damit das nicht mehr verspricht als es tut: **das
+  repariert die AUTORITÄT, nicht die IDENTITÄT.** Der Verbindungsname kommt von iOS und
+  ist seit iOS 16 ohne eine besondere Berechtigung nur noch das MODELL („iPhone") —
+  Echoel fordert diese Berechtigung nicht an. **Drei iPhones in einem Raum fallen
+  weiterhin in EINE Zeile zusammen.** Das ist eine offene Frage an Dich (unten), keine
+  behobene Sache.
 
-  ── 2. EIN FEHLGESCHLAGENES SPEICHERN HINTERLÄSST JETZT EINE SPUR ─────────
+  ── 2. „SESSION TEILEN" KONNTE SICHTBAR NICHTS TUN ────────────────────────
 
-  Ein fehlgeschlagenes LESEN wird protokolliert, seit es diesen Speicher gibt. Ein
-  fehlgeschlagenes SCHREIBEN war vollkommen still. Der Kopf der Datei behauptete dabei
-  ausdrücklich das Gegenteil — „Schreibfehler kommen als `false` zurück, damit der Aufrufer
-  entscheidet, wie laut er wird". Nachgezählt: **12 Aufrufstellen, NULL sehen sich diesen
-  Rückgabewert an.** Die Delegation ging an niemanden.
+  Der Teilen-Knopf in Live Colabo hatte drei Ausgänge und nur zwei davon sagten etwas
+  („Keine Mitspieler verbunden", „Teilen fehlgeschlagen"). Der dritte kehrte einfach
+  zurück. Auf der einen Fläche, deren Statuszeile der ganze Rückkanal ist.
 
-  ⭐ Und das ist schlimmer als der Lese-Fall, nicht bloß symmetrisch. Ein fehlgeschlagenes
-  Lesen fällt auf ein leeres Dokument zurück — **das siehst Du.** Ein fehlgeschlagenes
-  Schreiben lässt die alte Datei stehen, während die Liste im Speicher schon aktualisiert
-  ist: die Bibliothek sieht den Rest der Sitzung korrekt aus, und der Verlust erscheint erst
-  beim nächsten Start, wenn nichts mehr auf das Speichern zurückzeigt.
+  ⭐ Und ausgerechnet der stumme Ausgang ist der EINZIGE, den ein gewöhnlicher Tipp
+  erreichen kann: der Knopf ist ohne Mitspieler ohnehin deaktiviert, und der
+  Transport-Ausgang braucht einen echten Netzfehler. Der stumme braucht nur eine einzige
+  unschreibbare Zahl — und ein Projekt trägt Tempo, Kammerton, einen ganzen Klang, jede
+  Note und (seit 371) einen ganzen Roh-Take durch genau diesen Kodierer.
 
-  ⭐ Die substantielle Hälfte ist der Kodier-Zweig. Er warf den Fehler WEG. Selbst wer den
-  Rückgabewert geprüft hätte, hätte „die Platte ist voll" nicht von „ein NaN ist in Dein
-  Stück geraten" unterscheiden können — und JSON weigert sich per Vorgabe, ein NaN zu
-  schreiben, während ein Projekt Tempo, Kammerton, einen ganzen Klang und jede Note durch
-  genau diesen Kodierer trägt. Der Fehler nennt das FELD; genau deshalb wird er behalten.
+  Das ist DIESELBE Ursache wie Punkt 2 des letzten Builds, nur an der dritten Tür. 379
+  hat sie am Speichern behoben, 378 am Bio-Stream. Hier ist die letzte.
 
-  ⚠ Das ersetzt den Vertrag nicht: der Rückgabewert ist unverändert, das hier ist ein
-  Telemetrie-BODEN unter einem Versprechen, das nie eingelöst wurde. Ob ein
-  fehlgeschlagenes Speichern auf den SCHIRM gehört, ist Deine Entscheidung und steht unten.
+  ── 3. UND EINE DATEI, DIE LEER ANKAM UND WIE ERFOLG AUSSAH ───────────────
 
-  ── 3. EINE UNSCHREIBBARE ZAHL HÄLT NICHT MEHR DEN GANZEN STREAM AN ───────
+  Das ist der Befund dieses Builds, der mir am wenigsten gefällt. Der Teilen-Pfeil in
+  JEDER Zeile Deiner Bibliothek endete auf „versuch zu kodieren, und wenn es scheitert,
+  nimm eben NULL BYTES".
 
-  Live Colabo verschickt vier Bio-Zahlen in EINER Kapsel. Ist eine davon nicht schreibbar
-  (ein einzelnes schlechtes Kamera-Sample genügt), scheiterte die GANZE Kapsel — und der
-  Sende-Aufruf kehrte zurück, ohne etwas getan zu haben, so lange die Quelle das weiter
-  produzierte. Seit 379 wird die Zeile eines Mitspielers nach acht ausgefallenen Sendungen
-  leer: auf seinem Schirm war das von „das Netz ist still geworden" nicht zu unterscheiden.
-  **Ein einziges schlechtes Sample nahm ihm vier gute Zahlen weg und behielt sie weg.**
+  ⭐ Null Bytes zurückzugeben ist für das System kein Fehlschlag. **Das Teilen-Blatt geht
+  auf, die Datei trägt den echten Namen Deines Takes, und sie wandert los.** Du erfährst
+  nichts. Der Fehler taucht Tage später auf dem Gerät von jemand ANDEREM auf, als „das ist
+  keine gültige Echoel-Session". Ein erfundenes Artefakt, das nach Erfolg aussieht, ist
+  schlimmer als ein Knopf, der sichtbar nichts tut — Punkt 2 war der harmlosere Fall.
 
-  Jetzt wird der EINZELNE Kanal auf 0 gesetzt — das ist, was dieser Typ ohnehin als „nicht
-  verfügbar" dokumentiert und was die Zeile als „— bpm" rendert. Die Kapsel fallen zu
-  lassen hätte die ganze Zeile geleert, also behauptet, das Netz sei weg. Drei gute Zahlen
-  und ein Gedankenstrich sind der ehrliche Bericht.
+  Erreichbar, nicht theoretisch: ein Take mit einer unschreibbaren Zahl bleibt nach einem
+  fehlgeschlagenen Speichern in der Bibliothek stehen, sieht aus wie jede andere Zeile,
+  und sein Teilen-Pfeil erzeugt die leere Datei.
 
-  ⛔ Absichtlich KEINE Klemmung auf einen plausiblen Bereich: eine ENDLICHE Messung hier
-  zu verengen erfände eine Zahl, die der Körper nie produziert hat.
+  ⭐ Die zweite Hälfte war eine doppelte Entscheidung, die in BEIDE Richtungen
+  auseinanderlief. „Ein Projekt zum Teilen kodieren" stand zweimal im Code: einmal
+  ordentlich formatiert und ausdrücklich als „für Menschen lesbar" beschrieben — **mit
+  null Aufrufern** —, und einmal roh, in dem Pfad, den Du wirklich erreichst. Die
+  ausgelieferte Datei war also weder lesbar formatiert noch in stabiler Reihenfolge, und
+  das Versprechen stand an der Stelle, die niemand ruft. Jetzt gibt es EINE Definition,
+  und sie meldet den Fehlschlag samt betroffenem FELD, statt ihn zu verschlucken.
+
+  ⛔ Absichtlich NICHT dieselbe Definition für die Bibliothek auf der Platte und für den
+  Colabo-Draht: die eine formatiert jedes Autosave lesbar, der andere schickt über eine
+  unzuverlässige Funkstrecke, wo Leerzeichen Bandbreite sind. Zwei bewusste Ausnahmen,
+  im Quelltext benannt.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  „Build for Testing" = success auf allen drei neuen Commits, zuletzt auf dem
-  Kopfzeilen-Commit, der drei Dateien gleichzeitig anfasst — das blockierende Testbündel
-  kompiliert also nachweislich (jetzt 225 Dateien). „Run Tests" stirbt weiterhin am
-  bekannten Simulator-Start; das ist der founder-gated CI-Punkt, nicht der Code.
+  „Build for Testing" = success auf allen drei Commits (zuletzt `a381327`) — das
+  blockierende Testbündel kompiliert also nachweislich, jetzt **228 Dateien**. „Run Tests"
+  stirbt weiterhin am bekannten Simulator-Start; das ist der founder-gated CI-Punkt, nicht
+  der Code.
 
-  ⚠ Und die Grenze zuerst: die Kopfzeile ist mit QUELLTEXT-Wächtern belegt — dass sie am
-  Gerät gut aussieht, kann kein Test sagen. Die 146 pt und die ~98 pt sind Arithmetik über
-  Konstanten, keine Messung eines gerenderten Layouts.
+  ⚠ Und die Grenze zuerst, für alle drei Punkte gleichermaßen: die KODIER-Hälften laufen
+  wirklich Ende zu Ende durch den ausgelieferten Code. Die VERDRAHTUNGS-Hälften sind
+  Quelltext-Prüfungen — Live Colabo braucht einen echten Funk-Stack, und das Teilen-Blatt
+  braucht ein Gerät. **Dass zwei Telefone die Statuszeile wirklich sehen, und dass ein
+  fehlgeschlagenes Teilen jetzt MELDET statt eine leere Datei zu liefern, sind Proben am
+  Gerät und beide offen.**
 
   ── WAS VON DIR GEBRAUCHT WIRD (nach Wichtigkeit) ─────────────────────────
 
-  1. **Die Kopfzeile ansehen.** Liest sie sich als Takt-Anzeige · Echoelmusic · Kacheln?
-     Und: stören Dich die ~24 pt Versatz nach links, oder ist das so in Ordnung?
-  2. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
-     (Die Kopfzeile ist der Vorfahr, über den dieser Einfrier-Fehler zweimal kam.)
-  3. **Weiterhin offen und der wichtigste Test seit zwei Builds:** ein Projekt speichern,
+  1. **Weiterhin offen und seit drei Builds der wichtigste Test:** ein Projekt speichern,
      App verlassen, wieder öffnen, Projekt öffnen — dann den Bass- oder Pad-Fader ziehen.
      Bleibt es dasselbe Stück, nur anders balanciert?
-  4. Die Hörprobe aus 377 (ohne Puls spielen, dann mit) und die Stimmungs-Probe aus 376
+  2. **Die Kopfzeile aus 380 ansehen** (falls noch nicht geschehen): liest sie sich als
+     Takt-Anzeige · Echoelmusic · Kacheln? Stören Dich die ~24 pt Versatz nach links?
+  3. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
+  4. Falls Du zu zweit testen kannst: Live Colabo verbinden, ein Telefon die App verlassen
+     lassen — verschwindet seine Zeile jetzt beim Trennen?
+  5. Die Hörprobe aus 377 (ohne Puls spielen, dann mit) und die Stimmungs-Probe aus 376
      (Rāst speichern, auf 12-TET stellen, wieder öffnen).
-  5. Zwei Fragen, die noch keine Antwort haben — je ein Wort genügt:
+  6. Drei Fragen ohne Antwort — je ein Wort genügt:
      · Darf Genre · Key · Scale · Tonsystem · A4 hinter den Tempo-Chip wandern? Das gäbe
        dem Instrument 41 pt zurück und kehrt Deine Entscheidung vom 14. Juli um.
-     · Soll ein fehlgeschlagenes Speichern auf den SCHIRM (Punkt 2 oben), oder reicht die
-       Protokoll-Zeile?
+     · Soll ein fehlgeschlagenes Speichern auf den SCHIRM, oder reicht die Protokoll-Zeile?
+     · Sollen Mitspieler in Live Colabo unterscheidbar sein? Heute fallen drei iPhones in
+       eine Zeile (siehe Punkt 1 oben). Das zu lösen heißt: entweder eine Apple-Berechtigung
+       beantragen, oder Du gibst Deinem Gerät in Echoel selbst einen Namen.
