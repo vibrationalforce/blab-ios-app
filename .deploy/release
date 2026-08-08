@@ -1,4 +1,4 @@
-build: v10.79.374 — jede Stimme folgt jetzt der Tonart, die Du gewählt hast (nicht nur zwei davon)
+build: v10.79.375 — drei von vier Wünschen aus Deinem Screenshot; die Kopfzeile, die doppelte BPM, die drei Punkte
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,75 +6,90 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.373 (2490).
+  Der Vorgänger auf Deinem Gerät ist 10.79.374 (2491).
 
-  ZWEI Commits. Eine Sache, und sie ist eine, die Du HÖREN kannst.
+  ── ZUERST DAS WICHTIGSTE: DEIN SCREENSHOT ZEIGT DEN BUILD DAVOR ───────────
 
-  ── DAS TONSYSTEM ERREICHTE NUR ZWEI VON VIER STIMM-FAMILIEN ───────────────
+  Du hast Deinen Wunsch zweimal geschickt, beide Male mit demselben Bild. Das Bild zeigt in
+  der Kopfzeile 10.79.374 (2491). Das ist genau der Stand, der KEINE der drei Änderungen
+  enthält — sie sind seither gebaut und lagen bis jetzt nur auf dem Zweig. Es ist also
+  nichts an Dir vorbeigegangen und nichts ignoriert worden; es fehlte der Deploy. Der hier
+  ist er. Nach der Installation ist das, was Du eingekreist hast, anders.
 
-  Wenn Du eine Stimmung wählst, die nicht 12-TET ist — Maqām, Gamelan, eine der indischen
-  Skalen —, dann ist das eine Tabelle mit zwölf Cent-Abweichungen, eine pro Tonklasse. Diese
-  Tabelle ging an den globalen Poly-Synth und an den Sub. Sie ging NICHT an die Bio-Stimme
-  und NICHT an das Lane-Rack — also an keine Stimme, die eine Spur spielt.
+  ── 1. „E LOGO WIEDER NACH RECHTS, DIE BUNTEN BALKEN WEG" ───────────────────
 
-  Das ist wörtlich dieselbe Lücke, die am 31.07. beim Sub repariert wurde, nur eine Ebene
-  tiefer. Der Sub war damals „die einzige Stimme, die dem Tonsystem nicht folgt" — er war es
-  nicht, es war nur die einzige, die jemand gezählt hatte.
+  Die Farbbalken unter dem Schriftzug sind GELÖSCHT, nicht versteckt. Sie waren eine
+  Zweitkopie: dieselbe Messung sitzt als Analyse-Fläche im Instrument. An ihrer Stelle steht
+  jetzt die Loop-Länge samt Balken, wie Du es geschrieben hast. Das E sitzt rechts von den
+  Monitor-Kacheln.
 
-  Konkret: Du stellst Maqām Rāst ein, die globale Stimme spielt Rāst, eine Lane spielt
-  weiter 12-TET. Zwei Stimmungen gleichzeitig. Das ist kein subtiler Effekt.
+  Das gibt der Platte rund 40 pt zurück — und genau die kostet Punkt 3 wieder. Das steht so
+  da, weil eine Änderung, die etwas gewinnt, und eine, die es ausgibt, im selben Build sind.
 
-  ⚠ Wichtig für Deine Hörprobe: in 12-TET ändert sich GAR NICHTS, und zwar exakt nichts.
-  Die Tabelle ist dort eine Null-Tabelle, der Faktor ist 1.0, das Ergebnis bitgleich. Genau
-  das macht die Reparatur sicher — sie kann nur dort etwas tun, wo sie etwas tun soll.
+  ── 2. „TRANSPORT, BPM, SCHLOSS UND BIOFEEDBACK ZUSAMMENFASSEN, OHNE DOPPELT BPM" ──
 
-  ── DER TEURE BEFUND KAM VON BEIDEN PFLICHT-REVIEWERN, UNABHÄNGIG ──────────
+  Zwei Kästen in EINER Zeile zeigten dieselbe Zahl. Beim Nachsehen war es schlimmer als eine
+  Dublette: das Tempo-Feld zeigte im entsperrten Zustand Deinen PULS — aber die Uhr läuft gar
+  nicht auf dem Puls, sie wird über die generative Abbildung getrieben. Ein 144er Puls konnte
+  also über einer 72er Uhr stehen. Und Sperren übernahm die GEZEIGTE Zahl: ein Tipp verschob
+  die Musik um eine Tempo-Oktave, während es sich als „friere ein, was Du hast" ausgab.
 
-  Meine erste Fassung wäre beim Start ein garantierter Leerlauf gewesen. Die Stelle, die die
-  Stimmung an das Rack weiterreicht, läuft im ersten Zeichendurchlauf der Ansicht; die
-  Stimmen des Racks werden erst später aus dem asynchronen Start aufgebaut. Zum Zeitpunkt
-  der Weitergabe existierten sie also gar nicht — die Zeile hätte gut ausgesehen und nichts
-  bewirkt.
+  Repariert wurde nicht durch Löschen eines Kastens — Du hast am 04.07. ausdrücklich „beide
+  behalten" gesagt. Stattdessen zeigt jeder Kasten jetzt die Sache, nach der er benannt ist:
+  die Pille ist die Herzfrequenz, das Tempo-Feld ist die Uhr. Die Zahlen sind seither
+  verschieden, und das ist der Punkt.
 
-  Das Rack MERKT sich die Stimmung jetzt und wendet sie an, sobald seine Stimmen da sind.
-  Und zwar BEIDE Achsen — auch den Kammerton (A4), der seit jeher an derselben Stelle
-  weitergereicht wurde und dieselbe Aussetzung geerbt hatte, nur hatte sie nie jemand
-  gemessen. Das heißt: wenn Du 432 Hz eingestellt hast, folgten die Lanes dem beim Start
-  vermutlich ebenfalls nicht. Auch das ist mit repariert.
+  ── 3. „DAS MIT DEN DREI PUNKTEN ALS EINZELNE BUTTONS ANZEIGEN" ─────────────
 
-  ── EINE BEGRÜNDUNG, DIE SEIT MONATEN FALSCH IM CODE STAND ─────────────────
+  Das „•••"-Menü ist weg. Seine zwei Einträge — Live Colabo und Learn — sind Kacheln im
+  gleichen Format wie die oben rechts, plus „anderes Projekt öffnen".
 
-  Warum die Bio-Stimme bisher übersprungen wurde, stand in drei Dateien: „die Stimme klingt
-  ohnehin nie, es gibt keinen Aufrufer für ihr Einschalten." Das ist falsch, und zwar
-  prüfbar: das Einschalten tort nur den ATEM-Trigger. Der MIDI-Pfad ist ungetort, und sein
-  Empfänger wird beim App-Start installiert. Ein angeschlossenes Keyboard spielt diese
-  Stimme also heute schon.
+  ⚠ Und es sind ZWEI Zeilen geworden, nicht eine. Das ist Rechnen, kein Geschmack: sieben
+  Kacheln brauchen mit der 44-pt-Mindestbreite 356 pt. Ein 393er Telefon bietet 361, ein
+  360er (iPhone 13 mini) nur 328 — auf dem schmalsten Gerät, an das diese App ausgeliefert
+  wird, liefe eine Zeile um 28 pt über. Getrennt ist nach BEDEUTUNG: Zeile 2 handelt am Take
+  (Aufnahme · Keep last · MIDI · Speichern), Zeile 3 verlässt ihn (öffnen · gemeinsam
+  spielen · Lernen). Preis ~40 pt, also genau das, was Punkt 1 zurückgegeben hat.
 
-  Eine „nicht anfassen"-Notiz mit falscher Begründung ist schlimmer als gar keine — die
-  nächste Runde widerlegt die Begründung und tut es dann. Zurückgenommen, wo sie stand.
+  ── 4. „ALLES SCHÖN ANORDNEN" ──────────────────────────────────────────────
 
-  ── PRÜFSTAND ──────────────────────────────────────────────────────────────
+  Das ist die Summe der drei — mehr habe ich bewusst nicht getan, bevor Du es einmal in der
+  Hand hattest. Wenn danach noch etwas verrutscht wirkt, zeig es mit demselben roten Stift;
+  die Pfeile funktionieren gut.
 
-  „Xcode Compile Check" = success. Im CI/CD-Lauf ist „Build for Testing" = success, das
-  blockierende Testbündel kompiliert also nachweislich inklusive des neuen Wächters (zwölf
-  Behauptungen). „Run Tests" stirbt weiterhin am bekannten Simulator-Start — der
-  founder-gated CI-Punkt, nicht der Code.
+  ── ZWEI SACHEN, DIE NIEMAND SIEHT, WEIL SIE IN VOICEOVER LEBEN ────────────
 
-  ⚠ Und die ehrlichste Zeile dieses Deploys: der Wächter lässt sich gegen den vorherigen
-  Stand ÜBERHAUPT NICHT benoten, weil die Methode, die er treibt, dort noch nicht existiert
-  — die Datei hätte gar nicht kompiliert. Von Hand nachgerechnet wären neun der zwölf
-  Nadeln rot gewesen, drei sind Anker auf Voraussetzungen. Das ist eine Herleitung, kein
-  Lauf, und es steht so im Kopf der Datei.
+  Die − und + Tasten des Zahlenblocks — geöffnet von JEDER der 118 Parameter-Zeilen — hatten
+  gar kein gesprochenes Etikett. VoiceOver las „minus" und „plus", also die Wörter für genau
+  die Rechnung, die sie NICHT machen: sie setzen das Vorzeichen. Beim Messen kam der größere
+  Fund: das „+" war immer aktiv, obwohl auf 115 der 118 Zeilen gar kein Minus existieren kann
+  — ein Knopf, der live aussah und beweisbar nichts tat. Beide hängen jetzt am selben Tor.
 
-  ── WAS VON DIR GEBRAUCHT WIRD (Hörprobe, 3 Minuten) ───────────────────────
+  Der zweite Punkt war GAR KEIN Defekt: gemeldet war „das •••-Menü ist die eine Kachel ohne
+  gesprochenes Etikett". Es hatte eines, 37 Zeilen darunter. Zwei eigene Prüfprogramme haben
+  vorher falschen Alarm geschlagen (8 bzw. 4 Fehltreffer) — Ursache ist eine Eigenschaft
+  dieses Repos: die langen Kommentarblöcke werden beim Prüfen zu Leerzeilen, ein Etikett kann
+  also beliebig weit vom Knopf entfernt stehen. Fast wäre korrekter Code „repariert" worden.
+  Statt einer Reparatur steht dort jetzt ein Rundum-Test: 25 Icon-Knöpfe, alle sprechen.
 
-  1. Eine nicht-westliche Stimmung wählen (Maqām oder Gamelan sind am deutlichsten).
-     Generieren, spielen. Klingt der ganze Take in dieser Stimmung — oder hörst Du zwei
-     Systeme gegeneinander?
-  2. Kammerton auf etwas anderes als 440 stellen, App komplett beenden, neu starten,
-     generieren. Ist der neue Kammerton sofort da, oder erst nachdem Du ihn nochmal anfasst?
-  3. Zurück auf die westliche Standardstimmung: klingt alles genau so wie zuletzt? Es MUSS
-     bitgleich sein — wenn nicht, ist das ein Befund.
+  ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
-  NICHT geräteverifiziert. Dass eine Lane-Note wirklich in Maqām klingt, entscheidet Dein
-  Ohr; von hier aus ist nur belegt, dass die Zahl ankommt.
+  „Build for Testing" = success auf dem letzten Commit — das blockierende Testbündel
+  kompiliert also nachweislich mit allen fünf neuen Wächtern. „Run Tests" stirbt weiterhin am
+  bekannten Simulator-Start; das ist der founder-gated CI-Punkt, nicht der Code.
+
+  ⚠ Und die ehrlichste Zeile: FAST ALLES hier sind Quelltext-Prüfungen. Dass die zwei Zeilen
+  wirklich rendern, dass ein Finger die Kacheln trifft, dass die Kopfzeile sich gut liest und
+  dass die zwei Zahlen am Gerät jetzt sichtbar verschieden sind — das sind vier Sichtproben,
+  und alle vier sind offen. Deshalb der Deploy.
+
+  ── WAS VON DIR GEBRAUCHT WIRD (2 Minuten, rein visuell) ──────────────────
+
+  1. Kopfzeile: E rechts? Balken weg, Loop-Länge da?
+  2. Transport-Zeile: stehen dort zwei VERSCHIEDENE Zahlen (Uhr und Puls)? Wenn beide
+     gleich sind, ist das ein Befund.
+  3. Die zwei Kachel-Zeilen: erreichst Du Live Colabo und Learn mit einem Tipp? Sind alle
+     Kacheln gleich groß — auch die untere Zeile?
+  4. Fühlt sich die Platte durch die zusätzliche Zeile enger an, als sie durch die
+     gelöschten Balken breiter geworden ist? Das ist die einzige Stelle, an der ich mich
+     verrechnet haben kann, ohne dass es hier auffällt.
