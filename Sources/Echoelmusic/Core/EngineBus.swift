@@ -106,7 +106,23 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// the middle — which needs an optional or a `hasHRV` flag threaded through every
     /// mapping. Until then: the DISPLAY must never state an unmeasured value, and the
     /// instrument must still play.
-    public var hrvForSound: Float { hrvNormalized > 0 ? Swift.min(hrvNormalized, 1) : 0.5 }
+    public var hrvForSound: Float { hasMeasuredHRV ? Swift.min(hrvNormalized, 1) : 0.5 }
+
+    /// Whether this frame carries a REAL beat-to-beat variability reading.
+    ///
+    /// ⭐ NAMED because a SECOND reader appeared and would otherwise have written the
+    /// comparison a third time (#416). `hrvForSound` collapses "unmeasured" and "measured"
+    /// into one number by design — that is its whole job — so any surface that wants to
+    /// SAY which of the two it is has to ask separately. Two of these four channels
+    /// (`hasMeasuredHeartRate`, `hasMeasuredBreath`) already had a name; two carried a
+    /// bare `> 0` inline, and the asymmetry was invisible while the accessors had no
+    /// second consumer.
+    ///
+    /// ⚠️ `> 0` and not `!= 0`: `hrvNormalized` is documented as a 0…1 control value and
+    /// every producer derives it through `HRVNormalization.normalize`, which cannot emit
+    /// a negative. A negative here would be a corrupt frame, and calling that "measured"
+    /// is the failure direction this family exists to avoid.
+    public var hasMeasuredHRV: Bool { hrvNormalized > 0 }
 
     /// Whether this frame carries a REAL pulse, as opposed to the structural zero a
     /// publisher emits before it locks (#245, and the hoist #244 asked for).
@@ -291,7 +307,15 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// fall back to a held body's real coherence, which is better than this 0.5).
     ///
     /// The VALUE-mappings-only caveat on `hrvForSound` applies here unchanged.
-    public var coherenceForSound: Float { coherence > 0 ? Swift.min(coherence, 1) : 0.5 }
+    public var coherenceForSound: Float { hasMeasuredCoherence ? Swift.min(coherence, 1) : 0.5 }
+
+    /// Whether this frame carries a REAL coherence reading. The twin of `hasMeasuredHRV`,
+    /// named in the same slice and for the same reason (#416): the four always-on sound
+    /// channels now have FOUR named gates instead of two names and two inline `> 0`s, so a
+    /// surface that has to say "measured" or "neutral" asks the frame instead of restating
+    /// the comparison. `HealthKitBioPublisher` is the live case that makes this a real
+    /// distinction rather than a formality — it publishes no coherence at all.
+    public var hasMeasuredCoherence: Bool { coherence > 0 }
 
     /// Motion energy, [0..1]. Aggregate from CoreMotion.
     public let motionEnergy: Float

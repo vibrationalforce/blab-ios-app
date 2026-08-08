@@ -449,6 +449,7 @@ struct EchoelFXView: View {
                 macroMorphSection
                 FXBioModSection(modulator: modulator)
                 BioModLiveView(modulator: modulator)   // live: which body channel moves which FX param
+                AlwaysOnBioView()                      // live: the four channels that shape the timbre itself
                 Section {
                     Toggle("Insert FX", isOn: $vm.fxEnabled)
                         .tint(EchoelTheme.accent)
@@ -1050,6 +1051,105 @@ private struct BioModLiveView: View {
             Text(Self.alwaysOnNote)
         }
         .listRowBackground(EchoelTheme.fill)
+    }
+}
+
+/// The always-on half, SHOWN rather than only claimed (#498): the four body channels that
+/// shape the instrument's own timbre, each with the number the engine is receiving right now
+/// and whether that number is a measurement or the engine's declared neutral.
+///
+/// ⚠️ A DEDICATED LEAF, and the reason is the freeze law, not tidiness. This reads
+/// `bus.latestBio` in its OWN body; the sections above host `.menu` Pickers (bio-mod carrier,
+/// target and curve), and a bio read anywhere in an ANCESTOR body tears their popover down on
+/// every frame (10.76.41/50). `AnyView` is not an observation boundary; a `View` struct is.
+/// Folding these rows into `EchoelFXView.body` — the obvious later "it's only four rows"
+/// simplification — is exactly that regression.
+///
+/// ⭐ IT READS `latestBio`, NOT `usableBio()`, AND THAT IS THE POINT: those are the two
+/// different gates this file already spans. `FXBioModulator` deliberately gates its ROUTES on
+/// `usableBio()` (per-source freshness window). The four always-on channels have no such gate
+/// — both sound producers poll `bus.latestBio` raw. A readout of the always-on path must show
+/// what the SOUND path sees, or it would report a channel as gone while the engine is still
+/// being handed it. (That the two paths disagree at all is a real finding and is registered,
+/// not fixed here: `FXBioModulator`'s own comment claims "a frame the engine drops disengages
+/// the FX routes too", and the engine drops nothing.)
+@MainActor
+private struct AlwaysOnBioView: View {
+    @Environment(EngineBus.self) private var bus
+
+    var body: some View {
+        let frame = bus.latestBio
+        Section {
+            ForEach(AlwaysOnBioChannel.allCases) { channel in
+                AlwaysOnBioRow(channel: channel, frame: frame)
+            }
+        } header: {
+            Text("Always on — body → timbre").font(EchoelTheme.font(13, .bold)).textCase(nil)
+        } footer: {
+            // Says what a NEUTRAL reading is, because #497 made "0.50" ambiguous on purpose:
+            // it is both the engine's declared neutral AND, for heart rate, exactly 120 bpm.
+            // Without this line a player reading 0.50 cannot tell a resting instrument from an
+            // unmeasured one — and the row's own "not measured" is the answer, so the footer
+            // only has to say that the neutral is deliberate rather than a failure.
+            Text("A channel with no reading hands the engine a neutral 0.50 on purpose, so the "
+                 + "instrument keeps playing its patch instead of jumping to the bottom of the scale.")
+        }
+        .listRowBackground(EchoelTheme.fill)
+    }
+}
+
+/// One always-on channel: name, what it shapes, the value the engine receives, and a bar.
+///
+/// Same honesty rule as `BioModContributionRow` and for the same reason: an unmeasured channel
+/// shows "—" and draws NO bar. Printing "0.50" with a half-full bar would read as a
+/// measurement sitting mid-scale, which is precisely the confusion the neutral creates.
+@MainActor
+private struct AlwaysOnBioRow: View {
+    let channel: AlwaysOnBioChannel
+    let frame: BioSampleFrame?
+
+    private var measured: Bool { frame.map { channel.isMeasured(in: $0) } ?? false }
+    private var value: Float { frame.map { channel.value(in: $0) } ?? 0.5 }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 6) {
+                Text(channel.name)
+                    .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
+                Text(channel.shapes)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim).lineLimit(1)
+                Spacer(minLength: 0)
+                Text(measured ? EchoelDecimalText.string(Double(value), decimals: 2) : "—")
+                    .font(EchoelTheme.font(11).monospacedDigit()).foregroundStyle(EchoelTheme.dim)
+            }
+            signalBar
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityText)
+    }
+
+    /// VoiceOver gets the same two facts in the same order, and never a percentage for a
+    /// channel the body did not report (#484's compliance edge: the SIGNAL is the subject
+    /// here, never the body — "not measured" describes the reading, not the person).
+    private var accessibilityText: String {
+        guard measured else {
+            return "\(channel.name), not measured, shaping \(channel.shapes) at the neutral value"
+        }
+        return "\(channel.name) at \(Int((value * 100).rounded())) percent, shaping \(channel.shapes)"
+    }
+
+    private var signalBar: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Capsule().fill(EchoelTheme.border.opacity(0.4))
+                if measured {
+                    Capsule().fill(EchoelTheme.accent)
+                        .frame(width: Swift.max(2, geo.size.width * CGFloat(Swift.min(1, Swift.max(0, value)))))
+                }
+            }
+        }
+        .frame(height: 4)
     }
 }
 
