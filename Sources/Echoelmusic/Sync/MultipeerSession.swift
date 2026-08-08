@@ -65,11 +65,19 @@ public final class MultipeerSession: NSObject {
     public private(set) var pendingInvitation: PendingInvitation?
     /// Last status line for the UI (e.g. "Shared with 2 peers").
     public private(set) var status: String = "Off"
-    /// Live bio numbers per connected peer (E5): display name → last reading.
-    /// Shown SIDE BY SIDE with our own — never combined into a cross-person
-    /// score (decision 2026-06-20). Cleared on disconnect/stop. Updates arrive
-    /// at the sender's ~2–3 Hz — read this only in leaf views (render safety).
-    public private(set) var peerBio: [String: BioPeek] = [:]
+    /// Live bio per connected peer (E5): display name → last reading AND when it
+    /// arrived here. Shown SIDE BY SIDE with our own — never combined into a
+    /// cross-person score (decision 2026-06-20). Cleared on disconnect/stop.
+    /// Updates arrive at the sender's ~2.5 Hz — read this only in leaf views
+    /// (render safety).
+    ///
+    /// ⚠️ IT IS `PeerReading` AND NOT `BioPeek` ON PURPOSE (#508). A bare peek has no
+    /// time on it, so every reader would have to invent its own answer to "is this peer
+    /// still sending?" — and the honest answer is not derivable from the numbers. Ask
+    /// `PeerReading.live(at:)`; never render `.peek` directly. That one substitution is
+    /// what keeps a pocketed phone from showing a perfectly steady pulse on someone
+    /// else's screen for the rest of the session.
+    public private(set) var peerReadings: [String: PeerReading] = [:]
 
     /// Called when a session payload arrives (e.g. import into the library / load live).
     public var onReceiveSession: ((ColabPayload) -> Void)?
@@ -132,7 +140,7 @@ public final class MultipeerSession: NSObject {
         discovered.removeAll()
         peerIDs.removeAll()
         connectedPeerNames.removeAll()
-        peerBio.removeAll()
+        peerReadings.removeAll()
         status = "Off"
     }
 
@@ -183,8 +191,15 @@ public final class MultipeerSession: NSObject {
     }
 
     /// Stream one live bio reading to every connected peer (E5). Unreliable
-    /// transport by design — a lost 2–3 Hz telemetry frame is worthless a
-    /// moment later; never let it queue behind a session transfer.
+    /// transport by design — a lost telemetry frame is worthless a moment later;
+    /// never let it queue behind a session transfer. The cadence is
+    /// `PeerReading.sendInterval`, and the receiver's staleness window is derived
+    /// from it (#508), so a drop is expected and a silence is meaningful.
+    ///
+    /// ⚠️ The 5.1.3 egress gate still lives at the CALL SITE (`LiveColaboView`) and
+    /// NOT here — deliberately untouched by #508, because moving it would need this
+    /// signature to take the frame rather than the peek. Registered as its own
+    /// decision (`scratchpads/ULTRAARCHITECTURE_2026-07.md`), not folded in.
     public func sendBio(_ peek: BioPeek) {
         let peers = mcSession.connectedPeers
         guard !peers.isEmpty else { return }
@@ -214,7 +229,7 @@ public final class MultipeerSession: NSObject {
             status = "Connected to \(name)"
         } else {
             connectedPeerNames.removeAll { $0 == name }
-            peerBio[name] = nil
+            peerReadings[name] = nil
             if connectedPeerNames.isEmpty && isLive { status = "Looking for nearby Echoelmusic…" }
         }
     }
@@ -224,7 +239,12 @@ public final class MultipeerSession: NSObject {
         // Bio pings update the per-peer reading quietly — no incoming prompt,
         // no status churn (they arrive continuously while a peer shares).
         if payload.kind == "bio", let peek = payload.bio {
-            peerBio[payload.senderName] = peek
+            // Stamped with OUR clock at the moment it arrived (#508). The peek carries
+            // no time, and a sender field could not report the failures that matter —
+            // a dropped link, a backgrounded app, a peer that crashed. Only arrival
+            // here can distinguish a peer still breathing from one that went quiet.
+            peerReadings[payload.senderName] = PeerReading(peek: peek,
+                                                           arrivedAt: CFAbsoluteTimeGetCurrent())
             return
         }
         incoming = payload

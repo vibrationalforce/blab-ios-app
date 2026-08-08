@@ -304,8 +304,95 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**218** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-08 nach `TheStripAsksOneFreshnessQuestionTests.swift` (#507 — der erste
+                          `Tests/CISmoke` (**219** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `AQuietPeerStopsLookingAliveTests.swift` (#508 — der erste Wächter
+                          dieser Kette über einer Behauptung, die das GERÄT VERLÄSST, und damit #503/#507
+                          über die Gerätegrenze. `LiveColaboView`s Sende-Schleife las `bus.latestBio` — den
+                          ROHEN Schnappschuss, den `EngineBus` nie leert — und hatte, anders als jeder
+                          andere Bio-Ausgang, KEINE Deduplizierung. Das Telefon wegzulegen stoppte sie
+                          also nicht: sie kodierte denselben eingefrorenen Frame alle 400 ms neu, für den
+                          Rest der Sitzung, auf die Bildschirme ANDERER LEUTE, wo er sich als vollkommen
+                          ruhiger lebender Puls liest.
+                          ⭐ **DAS IST DIE EINZIGE EGRESS-STRECKE MIT DIESER FORM — gemessen, nicht
+                          angenommen.** `ArtNetSender`, `SACNSender` und `ADMOSCSender` lesen denselben
+                          rohen Schnappschuss, enden aber alle drei auf
+                          `guard sourceTimestamp != lastFrameTimestamp`; ein eingefrorener Frame ist dort
+                          ein No-op. Die Colabo-Schleife dedupliziert bewusst nicht (unzuverlässiger
+                          Transport: wer das letzte Paket verpasst hat, braucht das nächste trotzdem) — und
+                          genau das macht aus einem eingefrorenen Frame eine Dauersendung.
+                          ⭐ **UND EINE REPARATUR NUR AUF DER SENDESEITE HÄTTE DEN DEFEKT VERSCHOBEN, nicht
+                          geschlossen** — gemessen NACH dem Anlegen der Aufgabe, die #472-Lehre: `peerBio`
+                          wurde ausschließlich bei Trennung oder `stop()` geräumt. Schlimmer, der Schalter
+                          „Share my pulse" auszuschalten bricht den `.task` ab, WÄHREND der Peer verbunden
+                          bleibt: seine Zahlen standen dann für immer auf meinem Schirm, **ein Defekt ohne
+                          jede Kamera-Beteiligung**. Deshalb ist die tragende Hälfte die EMPFANGSSEITE.
+                          ⭐ **DER STEMPEL IST DIE ANKUNFT, NIE EIN SENDER-FELD, und das ist die
+                          Entwurfsentscheidung.** Ein `sentAt` in `BioPeek` bräuchte eine Protokolländerung,
+                          wäre von jedem älteren Sender leer, und — der Teil, der es entscheidet — könnte
+                          die Fehlschläge, die wirklich passieren, gar nicht melden: abgerissenes WLAN,
+                          App im Hintergrund, abgestürzter Peer. **Ein Sender kann nicht mitteilen, dass er
+                          aufgehört hat zu senden.** Der Stempel liegt BEIM Wert (`PeerReading`) statt in
+                          einem parallelen Wörterbuch (#416): zwei Wörterbücher wären zwei Dinge, die auf
+                          jedem Trenn- und Stopp-Pfad zu räumen sind.
+                          ⚠️ **DAS FENSTER IST KEINE KOPIE VON `BioSource.freshnessWindow`, absichtlich** —
+                          es beantwortet eine ANDERE Frage. Der Sender hat sein Frische-Fenster schon auf
+                          den eigenen Körper angewandt, bevor er etwas schickte; dieses hier fragt, ob das
+                          NETZ noch liefert. Die 6 s hier zu wiederholen zählte eine Frage doppelt und die
+                          andere nie. **Die ehrliche Gesamtlatenz ist folglich die SUMME beider Fenster,
+                          nicht die größere von beiden.** Der Wert ist ABGELEITET (`sendInterval * 8`, acht
+                          verpasste Sendungen), weil der Transport `.unreliable` ist und ein
+                          Zwei-Frame-Fenster jede Zeile bei gewöhnlichem WLAN-Jitter flackern ließe.
+                          ⚠️ **DIE ZEILE BLEIBT, IHRE ZAHLEN GEHEN — nicht umgekehrt.** Der Peer ist weiter
+                          VERBUNDEN, das ist Information, und `bioLine` sagt sie längst („— bpm / coh —").
+                          Die Zeile stattdessen fallen zu lassen schöbe bei jedem Telefon-in-der-Tasche das
+                          Layout (#382) und ließe „still geworden" identisch aussehen wie „hat die Sitzung
+                          verlassen" — zwei verschiedene Tatsachen mit verschiedenen Abhilfen. Entfernt
+                          wird ein Name weiter nur durch Trennung oder `stop()`.
+                          ⚠️ **DER TICK IST TRAGEND, in BEIDEN Zeilen** (#503 wörtlich): `usableBio()` und
+                          `live(at:)` kippen auf dem VERSTREICHEN VON ZEIT, und das Ereignis, das sie kippen
+                          lässt — eine Quelle bzw. ein Peer, der aufgehört hat zu senden — ist per
+                          Definition das Ereignis, das den Rumpf nicht mehr invalidiert. Und er sitzt IN der
+                          Peer-Zeile, nicht um das `ForEach`: ein Container dort, wo Geschwister-Zeilen
+                          hingehören, und die Zeilen fielen aus dem umgebenden `VStack`.
+                          ⛔ **EINE BEHAUPTUNG WÄRE AUF KORREKTEM CODE ROT GEWESEN, und sie ist beim
+                          Transkribieren VOR dem Commit gefallen, nicht im Review.** Der erste Entwurf
+                          prüfte die exakte Fenstergrenze als `live(at: 1000 + staleAfter)`. `1000 + 3,2`
+                          ist in `Double` nicht exakt, die Rücksubtraktion liefert 3,2000000000000455 —
+                          also ein Alter knapp JENSEITS des Fensters. Die Grenze IST geschlossen, aber
+                          dieser Versatz kann es nicht zeigen. Jetzt bei null verankert, wo die Subtraktion
+                          exakt ist. Dieselbe Familie wie #442s `slack` und #470s `+∞`: **eine Behauptung
+                          aus der Algebra statt aus der Darstellung geschrieben.**
+                          ⚠️ EHRLICHE BENOTUNG (#433), und es ist die #464-Lage klar gesagt: die Datei
+                          lässt sich gegen den Elternbaum **ÜBERHAUPT NICHT** benoten — zwei
+                          Verhaltensfälle nennen `PeerReading`, das es dort nicht gibt. Von Hand
+                          transkribiert (Python-Nachbau von `SourceText.codeOnly` gegen `git show HEAD:`
+                          und den Arbeitsbaum, jede Nadel einzeln gefahren): **VIER** Behauptungen sind aus
+                          ihrem GENANNTEN Grund rot (roher Schnappschuss · Kadenz-Literal · ungestempelter
+                          Schreibvorgang · ungetickte Zeilen), **ZWEI** konnten nie rot sein, weil sie einen
+                          Typ treiben, den derselbe Commit anlegt, **EINE** ist ein echtes GEGENGEWICHT
+                          (beidseitig grün) und die wichtigste: das naheliegende spätere Aufräumen lautet
+                          „der Frame ist jetzt frisch, weg mit der Egress-Prüfung" — und das lieferte eine
+                          5.1.3-Verletzung aus, denn Frische und HERKUNFT sind verschiedene Fragen. Die
+                          achte ist auf dem Elternteil nur wegen der UMBENENNUNG rot und wird hier so
+                          benannt statt als fünfte Regression gezählt (#427).
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und das ist GEMESSEN (#484/#485 mussten
+                          die stärkere Behauptung je einmal zurücknehmen, #486 zweimal): die ⛔-Rücknahme,
+                          die diese Scheibe in die Sende-Schleife schreibt, zitiert `bus.latestBio`
+                          wörtlich — roh **1×**, gestreift **0×**. Die negative Nadel wäre ohne den Stripper
+                          auf KORREKTEM Code rot. Wieder die #486/#491-Kollision.
+                          ⚠️ Und die Grenze zuerst: **ZWEI** Behauptungen treiben ausgelieferten Code Ende
+                          zu Ende (`PeerReading` ist `public` und Foundation-only), alle anderen sind
+                          QUELLTEXT-SCANS — die Zeilen sind `private` structs hinter
+                          `#if canImport(MultipeerConnectivity)`, und `MultipeerSession` braucht einen
+                          echten MC-Stack. **Dass die Zeile eines Peers auf einem ZWEITEN Gerät sichtbar
+                          leer wird, ist eine Zwei-Geräte-Probe und OFFEN.**
+                          ⭐ Und die `Sources/`-Zahl bewegt sich NICHT: `PeerReading` ist ein neuer
+                          `public` Typ in der VORHANDENEN Datei `Sync/ColabPayload.swift`. Das ist der
+                          dritte Fall in der Taxonomie des Absatzes darüber — nach „neuer Kern + neue
+                          Ansicht" (+2) und „neuer Kern, Fläche im Bestand" (+1) jetzt „neuer Typ, gar
+                          keine neue Datei" (±0). Der Absatz sagt, aus der Zahl allein sei der Vorgang
+                          nicht zu erkennen; hier ist die Zahl gar keine Spur.), davor **218** nach
+                          `TheStripAsksOneFreshnessQuestionTests.swift` (#507 — der erste
                           Wächter dieser Kette über einer Fläche, die DREI verschiedene Antworten auf
                           EINE Frage in EINE Zeile schrieb. `BioStripView` — der über den Bio-Chip
                           erreichbare Messstreifen — war die einzige Datei in `Studio/`, die alle drei
@@ -4806,7 +4893,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTSIEBENUNDSIEBZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort stand auf „HUNDERTSIEBZIG“ und ist um ZWEI erhöht worden, weil #502 zwei Stände auf einmal nachträgt — gezählt mit einem Skript über die Kette, nicht durch Addieren auf das vorige Wort, was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 218 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTACHTUNDSIEBZIG FRÜHERE Stände in elf Tagen (⛔ das Zahlwort wird bei JEDEM Stand mit einem Skript über die Kette nachgezählt, nie durch Addieren auf das vorige Wort — was dieser Klammersatz an anderer Stelle schon zweimal als Fehlerquelle protokolliert. Der Anlass war #502: dort stand es auf „HUNDERTSIEBZIG“ und musste um ZWEI steigen, weil jene Scheibe zwei Stände auf einmal nachtrug. ⛔ Und dieser Satz beschrieb danach VIER Stände lang eine Erhöhung um zwei, während das Wort viermal um eins gewachsen war — er las sich wie eine Aussage über das AKTUELLE Wort und war eine über ein altes. Eine Rücknahme, die einen VORGANG festhält, muss sagen, WELCHEN) (⛔ die Spanne stand auf „zwölf“ und war um eins zu groß — der Sources-Absatz oben zählt EINSCHLIESSLICH (07-28…08-07 = elf), und einschließlich sind 07-29…08-08 ebenfalls elf, nicht zwölf. Zwei Absätze, EINE Konvention, und nur einer hat sie befolgt; die Zahl war beim letzten Erhöhen mitgeschoben statt gerechnet — genau der Fehler, den derselbe Klammersatz eine Zeile weiter für „sechs“ protokolliert. ⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 219 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 218·217·216·215·214·213·212·211·210·209·208·207·206·205·204·203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

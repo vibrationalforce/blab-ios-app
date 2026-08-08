@@ -7,6 +7,7 @@
 // Uncodixfy: solid fills, ≤8px radius, 1px borders, colour/opacity feedback only.
 
 #if canImport(SwiftUI) && canImport(MultipeerConnectivity)
+import Foundation
 import SwiftUI
 
 @MainActor
@@ -68,27 +69,46 @@ struct LiveColaboView: View {
                 ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
             .onDisappear { colab.stop() }
-            // Own-bio stream: ~2.5 Hz while the toggle is on AND this view is
-            // open (task dies with the view — bio never streams in the
-            // background). Reads the bus snapshot inside the task, so no
+            // Own-bio stream: one reading every `PeerReading.sendInterval` while the
+            // toggle is on AND this view is open (task dies with the view — bio never
+            // streams in the background). Reads the bus inside the task, so no
             // high-frequency observation registers on this body (render safety).
             .task(id: shareBio) {
                 guard shareBio else { return }
                 while !Task.isCancelled {
+                    // ⛔ THIS ASKED `bus.latestBio` UNTIL #508, and that snapshot is
+                    // NEVER cleared — its only writer is the publish sink, and neither
+                    // `stop()` nor a lost pulse empties it. So putting the phone down
+                    // did not stop this loop: it kept re-encoding the SAME frozen frame
+                    // 2.5× a second, for the rest of the session, onto other people's
+                    // screens, where it reads as a perfectly steady live pulse. That is
+                    // #503/#507 across the device boundary, and worse there, because the
+                    // held number is a claim about a body the viewer cannot see.
+                    //
+                    // ⭐ AND IT IS THE ONLY BIO EGRESS PATH WITH THIS SHAPE — measured,
+                    // not assumed: `ArtNetSender`, `SACNSender` and `ADMOSCSender` all
+                    // read the raw snapshot too, but each ends in
+                    // `guard sourceTimestamp != lastFrameTimestamp`, so a frozen frame
+                    // is a no-op for a light or a spatial object. This loop had no
+                    // dedupe at all, by design (unreliable transport, a receiver that
+                    // missed the last packet still needs the next one).
+                    //
                     // App Store 5.1.3 egress gate (same rule the OSC/ADM-OSC senders
-                    // apply, ADMOSCSender): only Echoel's OWN measurements (rPPG /
-                    // BLE strap / face expression / demo) may leave the device to a
-                    // peer — HealthKit / Watch / ring frames stay on-device. Without
-                    // this guard a HealthKit-sourced pulse would stream to nearby
-                    // peers, the exact 5.1.3 violation the network senders forbid.
-                    if let f = bus.latestBio, BioEgressPolicy.allowsEgress(f.source),
+                    // apply): only Echoel's OWN measurements (rPPG / BLE strap / face
+                    // expression / demo) may leave the device to a peer — HealthKit /
+                    // Watch / ring frames stay on-device. ⚠️ `usableBio()` does NOT
+                    // subsume it: freshness and provenance are different questions, and
+                    // dropping this guard because the frame is now fresh would ship the
+                    // exact 5.1.3 violation the network senders forbid.
+                    if let f = bus.usableBio(), BioEgressPolicy.allowsEgress(f.source),
                        !colab.connectedPeerNames.isEmpty {
                         colab.sendBio(BioPeek(bpm: f.heartRateBPM,
                                               coherence: f.coherence,
                                               hrvNormalized: f.hrvNormalized,
                                               breathRate: f.breathRate))
                     }
-                    try? await Task.sleep(nanoseconds: 400_000_000)
+                    try? await Task.sleep(
+                        nanoseconds: UInt64(PeerReading.sendInterval * 1_000_000_000))
                 }
             }
         }
@@ -177,8 +197,8 @@ struct LiveColaboView: View {
             if shareBio {
                 OwnBioRow()
             }
-            // Peer rows read colab.peerBio in their OWN leaf (render safety) —
-            // this body must not touch that 2–3 Hz dictionary.
+            // Peer rows read colab.peerReadings in their OWN leaf (render safety) —
+            // this body must not touch that ~2.5 Hz dictionary.
             PeerBioRows()
 
             Text("Each person's own numbers, side by side — nothing is combined into a shared score.")
@@ -257,21 +277,45 @@ struct LiveColaboView: View {
 // reads live in their OWN leaf bodies so only these rows churn, never the
 // sheet's buttons/toggles above.)
 
-/// My own live numbers — reads `bus.latestBio` in ITS body only.
+/// My own live numbers — reads the bus in ITS body only.
+///
+/// It asks `usableBio()`, the SAME question the stream loop above asks before sending
+/// (#508). That is the point, not a coincidence: this row is the only place a person can
+/// see what their peers are being told, so a row that outlives the wire would be a
+/// readout of a stream that has stopped.
+///
+/// ⚠️ THE `TimelineView` IS LOAD-BEARING (the #503 lesson, verbatim). `usableBio()` flips
+/// to nil on the passage of TIME, and the event that makes it nil — a source that stopped
+/// publishing — is by definition the event that stops invalidating this body. Without a
+/// tick the row would freeze at its last evaluation, which is the instant the last frame
+/// arrived, and assert liveness forever: the exact defect this slice removes. 1 Hz is
+/// chosen against the shortest window it must resolve (`BioSource.freshnessWindow` = 5 s
+/// for `.fallback`), and `CFAbsoluteTimeGetCurrent()` is read when the row actually
+/// renders — a `TimelineSchedule` context date is the SCHEDULED instant, not the redraw
+/// instant, and this body is rebuilt on every publish, which re-phases the schedule.
 @MainActor
 private struct OwnBioRow: View {
     @Environment(EngineBus.self) private var bus
 
     var body: some View {
-        let f = bus.latestBio
-        bioLine(name: "You",
-                bpm: f?.heartRateBPM ?? 0,
-                coherence: f?.coherence ?? 0,
-                highlight: true)
+        TimelineView(.periodic(from: .now, by: 1)) { _ in
+            let f = bus.usableBio()
+            bioLine(name: "You",
+                    bpm: f?.heartRateBPM ?? 0,
+                    coherence: f?.coherence ?? 0,
+                    highlight: true)
+        }
     }
 }
 
-/// Connected peers' latest readings — reads `colab.peerBio` in ITS body only.
+/// Connected peers' latest readings — reads `colab.peerReadings` in ITS body only.
+///
+/// ⚠️ A ROW STAYS WHEN ITS NUMBERS EXPIRE; it does not disappear (#508). The peer is
+/// still CONNECTED — that is information, and it is exactly what `bioLine` already says
+/// with "— bpm / coh —" for a zero. Dropping the row instead would shove the layout every
+/// time a phone went into a pocket (the #382 class) and would make "gone quiet" look
+/// identical to "left the session", which are different facts with different remedies.
+/// The name is removed only by disconnect or `stop()`, both of which already clear it.
 @MainActor
 private struct PeerBioRows: View {
     @Environment(MultipeerSession.self) private var colab
@@ -287,11 +331,23 @@ private struct PeerBioRows: View {
         // view. The other `.sorted()` call sites on strings are `ModulationEngine`'s ASCII
         // destination keys (no production consumer) and integer/slot sorts; the three preset
         // stores rank by favourite and recency, never by name.
-        ForEach(colab.peerBio.keys.sorted {
+        ForEach(colab.peerReadings.keys.sorted {
             $0.localizedStandardCompare($1) == .orderedAscending
         }, id: \.self) { name in
-            if let peek = colab.peerBio[name] {
-                bioLine(name: name, bpm: peek.bpm, coherence: peek.coherence, highlight: false)
+            // ⚠️ THE TICK IS INSIDE THE ROW, NOT AROUND THE `ForEach` — the #503 trade,
+            // for the same two reasons. (1) Wrapping the loop would put ONE container
+            // where a list of sibling rows belongs, and the rows would stop flattening
+            // into the enclosing `VStack`. (2) A handful of 1 Hz tickers is the cheap
+            // half of that. Without any tick the row freezes at the instant the last
+            // packet arrived and therefore asserts a live peer forever — which is the
+            // whole defect, since a peer who stopped sending also stopped invalidating
+            // this body.
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                let live = colab.peerReadings[name]?.live(at: CFAbsoluteTimeGetCurrent())
+                bioLine(name: name,
+                        bpm: live?.bpm ?? 0,
+                        coherence: live?.coherence ?? 0,
+                        highlight: false)
             }
         }
     }
