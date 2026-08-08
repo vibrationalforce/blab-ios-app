@@ -1,4 +1,4 @@
-build: v10.79.382 — Ein Take, der von jemand anderem kommt: die Import-Tür sagt endlich, was sie nicht lesen konnte, und ein Take trägt den Namen, unter dem er gemacht wurde
+build: v10.79.383 — Zwei Schalter, die es nie gab: Dein Atem spielt den Synth, und Du hast einen Namen
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,114 +6,119 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.381 (Build 2498).
+  Der Vorgänger auf Deinem Gerät ist 10.79.382 (Build 2499).
 
-  Dieser Build hat ZWEI Punkte und EIN Thema: **ein Take, der nicht von Dir kommt.** 381
-  hat die Sende-Seite repariert (der Teilen-Knopf erfindet keine leere Datei mehr). Das
-  hier ist die Empfangs-Seite — und die zweite Hälfte ist ehrlicher aufgeschrieben als sie
-  sich anhört, deshalb steht die Reichweite dort ganz oben statt am Ende.
+  Dieser Build hat ZWEI Punkte und EIN Thema: **eine Fähigkeit, die fertig gebaut war und
+  keinen Schalter hatte.** Beide Male existierte alles — Motor, Tests, Persistenz — und die
+  eine Handlung, die es einschaltet, war in der App nicht ausführbar.
 
-  ── 1. DIE IMPORT-TÜR SAGT ENDLICH, WAS SIE NICHT LESEN KONNTE ────────────
+  ── 1. DEIN ATEM SPIELT DEN SYNTH — jetzt einschaltbar ────────────────────
 
-  Eine Datei auswählen, die keine Echoel-Session ist (oder eine aus einem neueren Build,
-  die ein Feld trägt, das dieser nicht kennt) — und das Blatt schloss sich einfach. Die
-  Bibliothek unverändert, keine Meldung, nichts. Die einzige verfügbare Lesart ist „ich
-  muss falsch getippt haben".
+  ⭐ **Der Satz stand seit Monaten in unserer eigenen Architektur-Beschreibung:** die
+  bio-reaktive Stimme sei „silent until user-armed". Zutreffend. Und niemandem ist
+  aufgefallen, dass „user-armed" eine Handlung benennt, für die es kein Bedienelement gab.
 
-  ⭐ Der Aufhänger ist der unangenehme Teil: **381s eigener Quelltext behauptete, diese
-  Meldung existiere.** Dort steht wörtlich, eine leere Freigabe tauche „auf dem Gerät einer
-  ANDEREN PERSON auf, Tage später, als ‚das ist keine gültige Echoel-Session'". Diesen Satz
-  hat die App nie gedruckt. Er stand in zwei Kommentaren und nirgends sonst; die eine
-  Aufrufstelle verwarf den Rückgabewert und ignorierte den Fehlschlag-Zweig vollständig.
-  Eine Reparatur, die sich auf eine Meldung beruft, die es nicht gibt, ist eine halbe.
+  Die Methode, die diese Stimme scharfschaltet, hatte **null Aufrufer**. Ihr Zustand kann
+  nur von ihr gesetzt werden, also stand er dauerhaft auf „aus" — und die Stelle, die
+  Atem-Ereignisse verarbeitet, beginnt mit einer Prüfung genau darauf. **Jeder Atem-Onset,
+  den der Bio-Graph erzeugt hat, wurde verworfen.** Die Erzeuger-Hälfte war nie die Lücke:
+  Einatmen und Ausatmen werden erkannt, veröffentlicht und über den Bus getragen. Sie kamen
+  an einem geschlossenen Tor an.
 
-  ⚠ Und die Meldung NENNT das Feld, wo es eines gibt, und erfindet keins, wo es keins gibt.
-  „Das ist gar keine Echoel-Session" (die Bytes waren nie ein Dokument, es gibt kein Feld),
-  „das ist eine, aber aus einem Build, der ein Feld schreibt, das dieser nicht lesen kann"
-  (Feldname wird genannt) und „die Datei ließ sich nicht von der Platte lesen" (Rechte,
-  gelöschter iCloud-Platzhalter) sind drei verschiedene Probleme mit drei verschiedenen
-  Antworten. Sie alle auf ein stummes Nichts zu falten war der Defekt.
+  Im Bio-Panel (Chip „Bio") steht jetzt ein Schalter **„Body voice"**.
 
-  ── 2. EIN TAKE TRÄGT DEN NAMEN, UNTER DEM ER GEMACHT WURDE ───────────────
+  ⚠ **Und die Beschriftung nennt zuerst den gehaltenen Ton, nicht den Atem** — das ist eine
+  Entscheidung und keine Wortwahl. Scharfschalten heißt: es klingt SOFORT ein gehaltener
+  Ton, und nur ein Ausatem-Ereignis schließt ihn. Gemessen: der Brustgurt liefert überhaupt
+  keine Atemrate (er schreibt dort hart eine Null), und die Kamera hält Atmung unterhalb
+  ihrer Konfidenzschwelle zurück. Auf dem ausgelieferten Gurt gäbe es also gar keine Onsets,
+  und ein Etikett „Atem spielt den Synth" wäre eine Dauer-Drone mit einem falschen Namen.
+  Der Text beschreibt deshalb den gehaltenen Ton (immer wahr) und ergänzt die Atem-Torung
+  nur dann, wenn wirklich eine Atmung gemessen wird.
 
-  ⛔ **DIE REICHWEITE ZUERST, weil sie entscheidet, wie der Rest zu lesen ist: Du wirst
-  davon heute NICHTS sehen.** Der Grund steht in Punkt 3.
+  ⚠ **Nicht gespeichert, absichtlich.** Ein gespeichertes Scharfschalten hieße: die App
+  klingt beim nächsten Start mit einem gehaltenen Ton, bevor Du irgendetwas berührt hast —
+  ein schlechterer erster Lauf als die Stille, die wir eigens repariert haben.
+  Scharfschalten ist eine Performance-Handlung, keine Einstellung.
 
-  Jeder Take trägt seit es dieses Speicherformat gibt einen Künstler-Stempel — kodiert,
-  dekodiert, sauber durch jede Datei gereist. **Und nichts hat ihn je zurückgelesen.** Kein
-  einziger Ort in der App. Ein Feld, das perfekt rundreist und nie gelesen wird, ist für
-  jede Persistenz-Prüfung unsichtbar; genau deshalb hat es niemand bemerkt.
+  ⭐ Nebeneffekt, der zum ersten Mal tragend wird: der Panik-Knopf schaltet diese Stimme
+  längst mit stumm. Bisher war der einzige Weg, ihre Hüllkurve zu öffnen, eine externe
+  MIDI-Note — er schützte einen Pfad, den fast niemand erreichen konnte. Jetzt schützt er
+  das eine Bedienelement der App, das einen Ton unbegrenzt halten kann.
 
-  Die Bibliotheks-Zeile trägt jetzt eine dritte Zeile „by <Name>" — und nur dann, wenn der
-  Stempel NICHT Dein eigener ist. Deine eigenen Takes bleiben still. Ein leerer Stempel
-  (jede Datei, die vor diesem Feld geschrieben wurde) erfindet KEINEN Namen: abwesend ist
-  nicht Standard, und den Marken-Namen dort einzusetzen hieße, den Take eines Fremden
-  diesem Gerät zuzuschreiben.
+  ── 2. DU HAST EINEN NAMEN — und 382s dritte Frage ist damit beantwortet ──
 
-  ⚠ Die Formulierung ist absichtlich neutral („by Mira"), nicht „importiert von". Wie ein
-  Take angekommen ist, geht die Zeile nichts an — sie sagt, wer ihn gemacht hat.
+  381 hat die Sende-Seite repariert, 382 die Empfangs-Seite und die Gutschrift-Zeile („by
+  <Name>" unter einem Take, der nicht von Dir ist). 382 hat dabei ehrlich dazugesagt, dass
+  Du davon NICHTS sehen wirst, und den Grund genannt: es gab keine Stelle, an der Du Dir
+  einen Namen geben kannst.
 
-  ── 3. WARUM PUNKT 2 HEUTE AUF NICHTS RENDERT ─────────────────────────────
+  ⭐ **Der Grund war schärfer als 382 wusste, und er ist eine Sprach-Eigenschaft:** das Feld
+  hatte eine Zeile, die den Namen nach jeder Änderung sichert — und die einzigen
+  Zuweisungen standen im Konstruktor. **Swift führt genau diese Sicherungs-Zeile aus einem
+  Konstruktor heraus nicht aus.** Sie konnte also nicht bloß mangels Tür nicht feuern, sie
+  konnte grundsätzlich nie feuern.
 
-  **Es gibt in der ganzen App keine Stelle, an der Du Dir einen Namen geben kannst.** Der
-  Künstlername existiert als gespeicherter Wert, er wird beim Speichern eines Takes
-  gestempelt, er reist mit — aber die eine Codezeile, die ihn nach einer Änderung sichern
-  würde, kann gar nicht feuern, weil es keine Änderung gibt. Jedes Gerät meldet damit
-  denselben Voreinstellungs-Namen `E~`, jeder Take ist mit `E~` gestempelt, und die neue
-  Zeile bleibt korrekterweise stumm — auch bei einem Take, den Du von jemand anderem
-  bekommst.
+  In „Save & Export" steht jetzt ein Textfeld für Deinen Künstlernamen — neben dem
+  Ort-Feld, das dort schon war, weil beide dieselbe Hälfte desselben Datei-Namens sind.
 
-  ⭐ Trotzdem gebaut, und der Grund gehört hierher: die ENTSCHEIDUNG ist dieselbe, ob die
-  Tür existiert oder nicht, und eine später eingebaute Tür darf nicht auf einer Fläche
-  landen, die diese Frage nie beantwortet hat. Ein Wächter im blockierenden Testbündel hält
-  die Abwesenheit fest und wird an dem Tag ROT, an dem die Tür kommt — mit einer
-  Fehlermeldung, die jede Stelle namentlich nennt, die dann mitgezogen werden muss.
+  Was das freischaltet: die Gutschrift-Zeile aus 382 wird überhaupt erst erreichbar, und
+  Deine Sitzungs- und Export-Dateinamen tragen Deinen Namen statt `E~`.
 
-  ⭐ Und die Tür ist klein, weil ihre HÄLFTE schon dasteht: in „Save & Export" gibt es
-  bereits ein Feld für den Ort. Der Künstlername ist die andere Hälfte desselben
-  Datei-Namens-Bausteins und fehlt aus demselben Grund. Wenn er kommt, repariert er ZWEI
-  Dinge gleichzeitig — die Gutschrift wird erreichbar UND Deine Export-Dateinamen tragen
-  endlich Deinen Namen statt `E~`.
+  ⛔ **UND ICH NEHME EINE BEHAUPTUNG AUS 382 ZURÜCK — meine eigene, wörtlich dort
+  aufgeschrieben.** Sie lautete: „Ein Wort von Dir (‚ja, Namensfeld') löst DREI Dinge auf
+  einmal", und der dritte Posten war „Mitspieler in Live Colabo werden unterscheidbar".
+  **Das ist falsch, und ich habe es gemessen statt geglaubt.** Die Peer-Identität wird
+  EINMAL beim Start aus dem Gerätenamen gebaut, und den liefert iOS seit Version 16 als
+  Modell-Namen („iPhone"), solange die App eine bestimmte Apple-Berechtigung nicht führt —
+  Echoel führt sie nicht. Der Künstlername berührt diesen Pfad nirgends. **Es sind ZWEI
+  Dinge, nicht drei.** Die Live-Colabo-Frage aus 381 bleibt offen und braucht entweder jene
+  Berechtigung oder eine eigene Scheibe; ein Wächter im blockierenden Testbündel hält die
+  Nicht-Wirkung fest, damit die Rücknahme nicht bloß ein Satz ist.
 
-  ⚠ **Und er beantwortet die dritte offene Frage aus 381 mit.** Dort steht: „Sollen
-  Mitspieler in Live Colabo unterscheidbar sein? Entweder eine Apple-Berechtigung
-  beantragen, oder Du gibst Deinem Gerät in Echoel selbst einen Namen." Genau dieses Feld
-  ist die zweite Variante. Ein Wort von Dir („ja, Namensfeld") löst drei Dinge auf einmal.
+  ⚠ **Leerlassen heißt zurück zur Marke, nie ein leerer Name** — und das ist kein
+  Schönheitsdetail. Die Gutschrift-Regel vergleicht den Stempel eines Takes mit Deinem
+  lebenden Namen und schweigt bei Gleichheit. Mit einem leeren lebenden Namen gegen Takes,
+  die mit `E~` gestempelt sind, bekäme JEDER EIGENE Take ein „by E~" — die Zeile würde genau
+  auf den Takes feuern, für die sie schweigen soll.
+
+  ⚠ Und Leerzeichen werden beim Tippen NICHT abgeschnitten, nur bei der Entscheidung
+  „ist das leer" ignoriert. Sonst frisst die App das Leerzeichen in „Mira " in dem
+  Augenblick, in dem Du es tippst, und ein zweiteiliger Name ist gar nicht eingebbar.
 
   ── PRÜFSTAND ─────────────────────────────────────────────────────────────
 
+  Beide echten Gates grün auf beiden Commits: „Xcode Compile Check" = success, und
   „Build for Testing" = success — das blockierende Testbündel kompiliert also nachweislich,
-  jetzt **230 Dateien**. „Run Tests" stirbt weiterhin am bekannten Simulator-Start; das ist
+  jetzt **232 Dateien**. „Run Tests" stirbt weiterhin am bekannten Simulator-Start; das ist
   der founder-gated CI-Punkt, nicht der Code.
 
-  ⚠ Und die Grenze für beide Punkte: die ENTSCHEIDUNGS-Hälften laufen wirklich Ende zu Ende
-  durch den ausgelieferten Code (die Meldung wird aus einem echten Dekodier-Fehler gebaut;
-  die Gutschrift-Regel wird mit echten Takes durch den echten Freigabe-Kodierer getrieben).
-  Die VERDRAHTUNGS-Hälften sind Quelltext-Prüfungen — beide Flächen sind private Teile einer
-  Ansicht, die kein Testbündel bauen kann. **Dass die Import-Meldung am Gerät wirklich
-  erscheint, ist eine Probe und offen; dass die Gutschrift-Zeile gut aussieht, ist heute
-  nicht prüfbar, weil sie auf nichts rendert.**
-
-  ⛔ Zwei eigene Falschbehauptungen dieser Runde, beide gemessen und zurückgenommen: der
-  motivierende Satz von Punkt 2 behauptete, 381 habe dafür gesorgt, dass Takes jetzt
-  wirklich von anderen Leuten eintreffen — sie treffen seit langem ein, geändert hat 381 nur
-  den FEHLSCHLAG-Pfad. Und ein Doc-Block enthielt eine Behauptung und ihre Widerlegung
-  sieben Zeilen auseinander („JEDER Take trägt einen Stempel" gegen „leer heißt abwesend").
+  ⚠ Und die Grenze für beide Punkte, so scharf wie sie ist: die ENTSCHEIDUNGS-Hälften
+  laufen wirklich Ende zu Ende durch den ausgelieferten Code (was gespeichert wird, wenn Du
+  das Feld leerst; wann eine Gutschrift schweigt; welcher Dateiname entsteht). Die
+  VERDRAHTUNGS-Hälften sind Quelltext-Prüfungen — beide Schalter sind private Teile einer
+  Ansicht, die kein Testbündel bauen kann. **Dass der Atem-Schalter am Gerät wirklich einen
+  Ton erzeugt, dass dieser Ton musikalisch liest statt wie eine steckengebliebene Note, und
+  dass ein getippter Name wirklich auf einem gespeicherten Take landet — das sind vier
+  Proben, und alle vier sind offen.**
 
   ── WAS VON DIR GEBRAUCHT WIRD (nach Wichtigkeit) ─────────────────────────
 
-  1. **EIN WORT, und es löst drei Dinge auf einmal:** soll „Save & Export" ein Feld für
-     Deinen Künstler-/Gerätenamen bekommen (neben dem Ort-Feld, das schon da ist)? Damit
-     wird Punkt 2 überhaupt sichtbar, Deine Export-Dateinamen tragen Deinen Namen, und
-     Mitspieler in Live Colabo werden unterscheidbar.
-  2. **Weiterhin offen und seit vier Builds der wichtigste Test:** ein Projekt speichern,
+  1. **Der Atem-Schalter, zwei Fragen:** Bio-Panel öffnen, „Body voice" einschalten —
+     kommt ein Ton? Und liest er sich musikalisch, oder wie eine hängengebliebene Note?
+     Wenn Zweiteres: er soll wieder abschaltbar sein, sag mir wie er sich anfühlen soll.
+  2. **Der Namensweg, drei Schritte:** „Save & Export" öffnen, Namen eintippen, einen Take
+     speichern — steht der Name danach im Dateinamen? Und: Feld leeren → bleibt es bei
+     `E~` und bekommen Deine eigenen Takes KEINE „by"-Zeile?
+  3. **Weiterhin offen und seit fünf Builds der wichtigste Test:** ein Projekt speichern,
      App verlassen, wieder öffnen, Projekt öffnen — dann den Bass- oder Pad-Fader ziehen.
      Bleibt es dasselbe Stück, nur anders balanciert?
-  3. Eine beliebige Nicht-Echoel-Datei über Import auswählen: kommt jetzt eine Meldung?
   4. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
   5. Die Hörprobe aus 377 (ohne Puls spielen, dann mit) und die Stimmungs-Probe aus 376
      (Rāst speichern, auf 12-TET stellen, wieder öffnen).
-  6. Zwei Fragen ohne Antwort — je ein Wort genügt:
+  6. Drei Fragen ohne Antwort — je ein Wort genügt:
      · Darf Genre · Key · Scale · Tonsystem · A4 hinter den Tempo-Chip wandern? Das gäbe
        dem Instrument 41 pt zurück und kehrt Deine Entscheidung vom 14. Juli um.
      · Soll ein fehlgeschlagenes Speichern auf den SCHIRM, oder reicht die Protokoll-Zeile?
+     · Live Colabo: sollen Mitspieler unterscheidbar werden? Das braucht jetzt wirklich
+       eine Apple-Berechtigung — das Namensfeld löst es NICHT (siehe die Rücknahme oben).
