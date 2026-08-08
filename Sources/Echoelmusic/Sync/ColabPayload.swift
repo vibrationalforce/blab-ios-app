@@ -36,9 +36,23 @@ public struct BioPeek: Codable, Sendable, Equatable {
     /// frame rather than the peek"). Two things made it worth doing rather than leaving
     /// registered: (a) `BioPeek` is `public` with a memberwise `init`, so ANY future
     /// caller could hand-build one and send it, with nothing on the wire path to notice;
-    /// (b) #508 wrote the obvious later cleanup into that very call site — *the frame is
-    /// fresh now, drop the guard* — and freshness is not provenance. A 5.1.3 violation
-    /// is not a bug you find in a hearing test; it is a rejection.
+    /// (b) #508 had already IDENTIFIED the obvious later cleanup — *the frame is fresh
+    /// now, drop the guard* — and named it as a hazard, in two places: an ⚠️ prohibition
+    /// on the call site itself ("dropping this guard because the frame is now fresh would
+    /// ship the exact 5.1.3 violation the network senders forbid") and a counterweight
+    /// test written to block it. #511 does not disagree with that warning; it removes the
+    /// POSSIBILITY instead of relying on a reader heeding it. Freshness is not provenance,
+    /// and a 5.1.3 violation is not a bug you find in a hearing test; it is a rejection.
+    ///
+    /// ⛔ AND THE FIRST DRAFT OF THIS PARAGRAPH SAID THE OPPOSITE — in three artefacts at
+    /// once (here, the call site, the commit message). It read "#508 wrote the obvious
+    /// later cleanup into that very call site", which frames the author of the
+    /// prohibition as its proposer. A future session reading it would learn that #508
+    /// endorsed dropping the guard — precisely the belief the original comment existed to
+    /// prevent. Found by a reviewer, verified against `git show b098d97:` before
+    /// correcting. **A comment that misattributes a decision is worse than one that is
+    /// merely stale: it cannot be caught by re-measuring, only by re-reading the source
+    /// it cites.**
     ///
     /// ⚠️ It CALLS `BioEgressPolicy` rather than re-stating the source list. That is the
     /// #186 lesson, written in `BioEgressPolicy`'s own header: the first cut of the event

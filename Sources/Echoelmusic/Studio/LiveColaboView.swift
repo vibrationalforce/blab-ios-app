@@ -99,10 +99,21 @@ struct LiveColaboView: View {
                     // line was wrong — it was correct — but because it was the only thing
                     // standing between a HealthKit-sourced heart rate and another person's
                     // phone, in a view's stream loop, one edit away from being simplified.
-                    // #508 even wrote that edit down: *the frame is fresh now, so drop the
-                    // guard*. Freshness is not provenance, and a 5.1.3 violation does not
-                    // show up in a hearing test — it shows up as a rejection. Do not
-                    // re-add the check here; asking twice is how one of the two rots.
+                    // #508 had already named that edit as the HAZARD — an ⚠️ prohibition
+                    // stood on this line ("dropping this guard because the frame is now
+                    // fresh would ship the exact 5.1.3 violation the network senders
+                    // forbid") plus a counterweight test written to block it. #511 does
+                    // not disagree with that warning; it removes the possibility instead
+                    // of relying on a reader heeding it. Freshness is not provenance, and
+                    // a 5.1.3 violation does not show up in a hearing test — it shows up
+                    // as a rejection. Do not re-add the check here; asking twice is how
+                    // one of the two rots.
+                    //
+                    // ⛔ THE FIRST DRAFT OF THIS BLOCK SAID "#508 even wrote that edit
+                    // down", which reads as if the author of the prohibition had PROPOSED
+                    // the deletion. It is the inverse of what the parent tree says. The
+                    // full retraction, and why this class of error is worse than a stale
+                    // number, is on `BioPeek.egressible(from:)`.
                     //
                     // What DOES stay this view's question is `usableBio()`: whether the
                     // measurement is still current is a fact about the bus and its

@@ -105,15 +105,27 @@ final class TheEgressRuleTravelsWithTheSendTests: XCTestCase {
     /// written by hand. Adding a case without extending that list would leave the new
     /// source unswept — and a new sensor is exactly when someone must decide, on purpose,
     /// whether its numbers may leave the phone.
+    ///
+    /// ⛔ THE FIRST VERSION ONLY CHECKED THAT `rawValue: allBioSources.count` IS `nil`,
+    /// i.e. it assumed the next case would be appended CONTIGUOUSLY. `BioSource`'s own
+    /// doc makes append-at-the-end a CONVENTION, not an invariant, so `case eeg = 10`
+    /// would have left this green and the new source unswept by the policy sweep above —
+    /// the one thing this method exists to prevent. Found by a reviewer. It now walks the
+    /// WHOLE `UInt8` domain, which is 256 cheap initialisations and cannot be outflanked
+    /// by a raw value chosen out of order. **Lesson, and it is not "count more carefully":
+    /// a guard over "did anyone add a case" must enumerate the DOMAIN, not the next
+    /// index — an index assumes the very tidiness whose absence is the failure mode.**
     func testANewBioSourceForcesAnEgressDecision() {
-        for raw in UInt8(0)...UInt8(allBioSources.count - 1) {
-            XCTAssertNotNil(BioSource(rawValue: raw),
-                            "raw value \(raw) has no case — the hand-written list is stale.")
+        var resolvable: [UInt8] = []
+        for raw in UInt8.min...UInt8.max where BioSource(rawValue: raw) != nil {
+            resolvable.append(raw)
         }
-        XCTAssertNil(BioSource(rawValue: UInt8(allBioSources.count)), """
-            `BioSource` gained a case. Add it to `allBioSources` here AND decide in \
-            `BioEgressPolicy.allowsEgress` whether it may leave the device (5.1.3) — the \
-            default of "it compiled" is not a decision.
+        XCTAssertEqual(resolvable, Array(UInt8(0)...UInt8(allBioSources.count - 1)), """
+            `BioSource`'s resolvable raw values are \(resolvable), but `allBioSources` \
+            here lists \(allBioSources.count). A case was added, removed or renumbered. \
+            Extend the list AND decide in `BioEgressPolicy.allowsEgress` whether the new \
+            source may leave the device (5.1.3) — the default of "it compiled" is not a \
+            decision.
             """)
     }
 
