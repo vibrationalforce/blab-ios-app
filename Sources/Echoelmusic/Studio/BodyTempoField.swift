@@ -11,19 +11,49 @@
 // full reasoning, including why this is not the format-divergence the ⛔ below forbids, sits
 // on `followingText`.
 //
-//   • UNLOCKED — the number RUNS ALONG with the live biofeedback BPM (trust-gated calm
-//     display value; falls back to the clock tempo when no pulse is live).
-//   • Tap the lock — the number FREEZES: the shown body value becomes the musical tempo
-//     (the clock GLIDES to it, never jumps) and is then editable to 0.0001 BPM via the
-//     Echoel number pad. Unlock → it follows the body again.
+//   • UNLOCKED — the number is THE CLOCK (`transport.tempo`), which the body drives
+//     through the generative mapping. It tints accent while a live pulse is driving it.
+//   • Tap the lock — the number FREEZES where the clock already is, and is then editable
+//     to 0.0001 BPM via the Echoel number pad. Unlock → the body drives it again.
+//
+// ⛔ UNLOCKED USED TO SHOW `cameraRPPG.displayBPM` — THE RAW PULSE — IN A BOX LABELLED
+// "Tempo", and #491 (founder 2026-08-07, screenshot of v10.79.374 (2491): *"Transport,
+// bpm, Schloss und Biofeedback bar zu einer schöneren Ebene ohne doppelt bpm zusammen
+// fassen"*) is what finally made that visible. Two things were wrong with it, and the
+// founder saw the SECOND one:
+//   1. IT WAS NOT THE TEMPO. `EchoelStudioView`'s unlocked branch resolves the take's
+//      tempo as `StudioCalculator.tilted(genreTempo(suggestedTempo, into: style.tempoRange),
+//      …).rounded()` — octave-folded into the genre's window, tilted by the performer
+//      signature, then converged in capped steps. On a genre whose window does not contain
+//      the pulse that is a DIFFERENT NUMBER, and the field claimed it was the tempo.
+//   2. IT WAS THE PULSE MONITOR'S NUMBER. `PulseMonitorMiniLive` sits in the same row
+//      since #289 and shows `cameraRPPG.displayBPM` too — and `displayBPM` and `isLocked`
+//      are byte-wise the same fact (both are `pulseTrustworthy`, #484), so whenever the
+//      pill showed a number this box showed the SAME one, one decimal apart. That is the
+//      "doppelt bpm".
+// The founder's own 2026-07-04 line quoted at the top says *"beide behalten"* — keep BOTH
+// controls. So the fix is not to delete one of them: it is to make them show the two
+// DIFFERENT facts they are named for. The pill is the heart rate. This is the clock.
+//
+// ⛔ AND LOCKING JUMPED THE CLOCK. `toggleLock` adopted the SHOWN value, i.e. the pulse —
+// so locking at a moment when the genre had folded 72 bpm up to 144 pulled the beat down
+// to 72 in one gesture. It now freezes the clock WHERE IT IS, which is what a lock means
+// and is continuous by construction. The "lock captures the number you see" invariant is
+// unchanged — it got STRONGER, because the number you see is now the one the clock runs at.
 // HOME (founder 2026-07-15 "Das soll da oben hin"): the `compact` variant lives in the
 // transport bar next to Play (word labels dropped to fit); the full variant is available
 // for panels. This is THE one musical-tempo control — the pulse monitor (live rate) stays
 // separately in the brand header ("beide behalten").
 //
-// RENDER SAFETY (freeze rule): `cameraRPPG.displayBPM` updates ~10 Hz. This is a LEAF
-// view — the read lives HERE, so only this row rebuilds; the Picker-hosting Composition
-// panel / root body never subscribe to the 10 Hz churn.
+// RENDER SAFETY (freeze rule): this view observes TWO high-frequency sources, not one.
+// `cameraRPPG.displayBPM` updates ~10 Hz (the accent-tint flag), and since #491
+// `transport.tempo` is read UNCONDITIONALLY — 8 Hz at 120 BPM, up to ~20 Hz during a
+// glide. ⛔ This paragraph named only the camera until #491, and it was written when the
+// tempo read sat behind a `?:` that a live pulse short-circuited away; the second source
+// is not new here, it just became unavoidable. This is a LEAF `View` struct — both reads
+// live HERE, so only this row rebuilds and the Picker-hosting Composition panel / root
+// body never subscribe. Folding this row inline into `startControlRow` would be the
+// 10.76.41/50 freeze, and it would now be TWO churn sources instead of one.
 
 #if canImport(SwiftUI)
 import SwiftUI
@@ -50,7 +80,14 @@ struct BodyTempoField: View {
     /// still the one musical-tempo control (no second widget).
     var compact: Bool = false
 
-    /// The live body rate when a trustworthy pulse is on screen, else 0.
+    /// Is a trustworthy pulse currently driving the clock?
+    ///
+    /// ⚠️ SINCE #491 THIS IS NOT A VALUE, IT IS A FLAG — it has exactly ONE consumer, the
+    /// accent tint on the unlocked readout ("the body is driving this number"). It must not
+    /// become a displayed number again: that is what made this box duplicate the pulse pill
+    /// beside it (see the ⛔ block at the top of the file). Kept as a `Double` rather than a
+    /// `Bool` only because the `> 0` test is the same trust gate `PulseMonitorMiniLive` uses,
+    /// and reading it the same way is what keeps the two in step.
     private var liveBodyBPM: Double {
         #if canImport(AVFoundation)
         if cameraRPPG.isRunning, cameraRPPG.displayBPM > 0 { return cameraRPPG.displayBPM }
@@ -58,8 +95,16 @@ struct BodyTempoField: View {
         return 0
     }
 
-    /// What the unlocked display shows: the body rate, or the clock as honest fallback.
-    private var followingValue: Double { liveBodyBPM > 0 ? liveBodyBPM : transport.tempo }
+    /// What the unlocked display shows: THE CLOCK.
+    ///
+    /// ⚠️ This read is unconditional since #491 (it used to sit behind a `?:` that
+    /// short-circuited it away whenever a pulse was live), so this view now observes
+    /// `transport.tempo` on every take. `Transport.setTempo` assigns unconditionally and
+    /// `PatternEngine.advance()` relays it once per tick — 8 Hz at 120 BPM, up to ~20 Hz
+    /// during a glide. That is legal ONLY because this is a leaf `View` struct: the read
+    /// lives here, so the Picker-hosting bodies above never subscribe (10.76.41/50). Folding
+    /// this row inline into `startControlRow` would be the freeze.
+    private var followingValue: Double { transport.tempo }
 
     /// The FOLLOWING readout, formatted exactly the way the LOCKED one is.
     ///
@@ -77,11 +122,20 @@ struct BodyTempoField: View {
     /// The founder circled `71,0000` in the transport bar three times across three device
     /// screenshots. The four decimals here were his own 2026-07-04 ask, quoted at the top of
     /// this file — but they were asked for the LOCKABLE field, and this state is not that.
-    /// Unlocked, the number is a MEASUREMENT: `cameraRPPG.displayBPM`, derived from an
-    /// autocorrelation over a ~10 s window of camera frames. Nothing in that chain resolves
-    /// to 0.0001 BPM. Three of the four decimals were never information, and in the shipped
-    /// build they read `,0000` because the value arrives already rounded — a precision claim
-    /// the number cannot fill, in the narrowest row the app has.
+    /// Unlocked, the number is a READING and not a setting. Nothing that produces it resolves
+    /// to 0.0001 BPM: the take's tempo is `…genreTempo(…).rounded()`, i.e. a whole BPM, and
+    /// `glideTempo` eases between two whole BPMs. Three of the four decimals were never
+    /// information, and in the shipped build they read `,0000` because the value arrives
+    /// already rounded — a precision claim the number cannot fill, in the narrowest row the
+    /// app has.
+    ///
+    /// ⛔ THE PARAGRAPH ABOVE USED TO SAY "the number is a MEASUREMENT: `cameraRPPG.displayBPM`,
+    /// derived from an autocorrelation over a ~10 s window of camera frames". #491 made that
+    /// premise false — this state shows the clock now, not the pulse. The CONCLUSION (one
+    /// decimal) survives untouched and is if anything better founded: the old premise had a
+    /// 10 s autocorrelation behind it, the new one has an integer. Corrected rather than
+    /// deleted, because a stale premise under a live conclusion is exactly what invites the
+    /// next session to "restore" four decimals here.
     ///
     /// ⛔ THE APP ALREADY CONTRADICTED ITSELF ABOUT THIS NUMBER, which is what settles it:
     /// `followingSpoken` right below has ALWAYS used one decimal. So a sighted user read
@@ -145,7 +199,7 @@ struct BodyTempoField: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Tempo, following your pulse")
+                    .accessibilityLabel("Tempo, driven by your body")
                     .accessibilityValue(followingSpoken)
             } else {
                 // Following: the number runs along with the live biofeedback rate.
@@ -166,7 +220,7 @@ struct BodyTempoField: View {
                         .foregroundStyle(EchoelTheme.dim)
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Tempo, following your pulse")
+                .accessibilityLabel("Tempo, driven by your body")
                 .accessibilityValue(followingSpoken)
             }
 
@@ -213,7 +267,14 @@ struct BodyTempoField: View {
             // "•••", which outsets 6 pt back, so the two meet at the midpoint. Neither
             // overlaps. Shrinking either gap, or raising this inset past 6, breaks that.
             .contentShape(Rectangle().inset(by: -6))
-            .accessibilityLabel(lockBPM ? "Tempo locked — tap to follow your pulse again"
+            // ⛔ THE UNLOCKED LABEL USED TO SAY "tap to follow your pulse again" (#491,
+            // founder 2026-08-07 "ohne doppelt bpm"). Unlocking does NOT return the box to
+            // your pulse — it returns it to the CLOCK, which the body drives through the
+            // generative mapping. Saying "your pulse" named the pulse pill's number, i.e.
+            // exactly the duplication this slice removed, and it said it in the layer that
+            // no screenshot can show (#480: an accessibility string is invisible while
+            // VoiceOver is off, which is how the wrong word survives).
+            .accessibilityLabel(lockBPM ? "Tempo locked — tap to let your body drive it again"
                                         : "Lock tempo at this value")
         }
         // ⛔ THIS CONTROL CARRIES ITS OWN NON-GREEDINESS NOW, and #455 is why (founder
@@ -254,9 +315,17 @@ struct BodyTempoField: View {
         .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// Locking adopts the SHOWN value (the body rate, 4-decimal exact) as the musical
-    /// tempo — the clock GLIDES to it (never jumps; the glide engine eases stopped or
-    /// playing). Unlocking lets the clock resume its gentle body-follow.
+    /// Locking adopts the SHOWN value as the musical tempo — the clock GLIDES to it
+    /// (never jumps; the glide engine eases stopped or playing). Unlocking lets the clock
+    /// resume its gentle body-follow.
+    ///
+    /// ⛔ "THE SHOWN VALUE" USED TO MEAN THE BODY RATE, and that made this a jump dressed
+    /// as a lock (#491): the box showed `cameraRPPG.displayBPM` while the clock ran at the
+    /// genre-tilted mapping of it, so locking a 144 bpm pulse over a 72 bpm clock moved the
+    /// music by an octave of tempo in one tap. The line below is unchanged — it still reads
+    /// `followingValue` — and it became correct because `followingValue` is now the clock.
+    /// That is the whole shape of this slice: the invariant "lock captures the number you
+    /// see" was never broken, the NUMBER was wrong.
     private func toggleLock() {
         if lockBPM {
             lockBPM = false

@@ -304,8 +304,50 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           `full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
                           Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
                           Und die Suite ist NICHT das blockierende Bundle — das baut aus
-                          `Tests/CISmoke` (**203** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
-                          2026-08-07 nach `TheHeaderShowsTheLoopTests.swift` (#490 — **die Zahl bewegt sich
+                          `Tests/CISmoke` (**204** Dateien, `git ls-files 'Tests/CISmoke/*.swift' | wc -l`,
+                          2026-08-08 nach `TheTempoBoxShowsTheClockTests.swift` (#491 — der erste Wächter in
+                          dieser Kette über einer DUBLETTE: zwei Kästen in EINER Zeile rendern dieselbe
+                          Eigenschaft. `BodyTempoField` zeigte unlocked `cameraRPPG.displayBPM`, und
+                          `PulseMonitorMiniLive` — die Pille daneben — rendert `cameraRPPG.displayBPM`. Der
+                          Founder hat es am 2026-08-07 im Screenshot von 2491 eingekreist: *„Transport, bpm ,
+                          Schloss und Biofeedback bar zu einer schöneren Ebene ohne doppelt bpm zusammen
+                          fassen."*
+                          ⭐ **UND ES WAR ZUGLEICH EIN LÜGENDES CONTROL, was die Reparatur ENTSCHIEDEN hat.**
+                          Die Uhr läuft NICHT auf dem Puls — `EchoelStudioView` treibt sie durch die
+                          generative Abbildung (`StudioCalculator.tilted(genreTempo(...))`), ein 144-bpm-Puls
+                          kann also über einer 72-bpm-Uhr stehen. Und `toggleLock` übernahm den GEZEIGTEN
+                          Wert: Sperren verschob die Musik um eine Tempo-Oktave in einem Tipp, während es
+                          sich als „friere ein, was du hast" ausgab. **Die Invariante „die Sperre fängt die
+                          Zahl, die du siehst" war nie gebrochen — die ZAHL war falsch**, und deshalb ist die
+                          `toggleLock`-Zeile unverändert und trotzdem korrekt geworden.
+                          ⛔ **DIE NAHELIEGENDE REPARATUR IST DIE VERBOTENE.** Einen der beiden Kästen zu
+                          löschen entfernt die Dublette in einer Zeile — und der Founder-Satz vom 2026-07-04,
+                          im Kopf von `BodyTempoField.swift` zitiert, endet auf *„beide behalten"*. Also nicht
+                          einen Kasten entfernen, sondern jeden Kasten die Tatsache zeigen lassen, für die er
+                          BENANNT ist: die Pille ist die Herzfrequenz, das Tempo-Feld ist die Uhr. VIER der
+                          sechs Behauptungen stehen nur dafür da, den billigen Weg rot zu machen.
+                          ⚠️ EHRLICHE BENOTUNG, gegen den Elternbaum GEMESSEN statt behauptet: **ZWEI**
+                          Regressionen (`testTheUnlockedReadoutIsTheClock` — der Elternteil deklariert
+                          `followingValue { liveBodyBPM > 0 ? liveBodyBPM : transport.tempo }`, die
+                          kein-`liveBodyBPM`-Hälfte ist dort FALSCH; und
+                          `testNoLabelClaimsTheBoxFollowsYourPulse` — der Elternteil trägt DREI solche
+                          Etiketten im CODE, dieser Baum keins). Die anderen VIER sind beidseitig grün und
+                          heißen deshalb Gegengewichte (#433).
+                          ⚠️ `SourceText.codeOnly` ist hier TRAGEND und das ist GEMESSEN, nicht angenommen
+                          (#484 musste genau diese Behauptung zurücknehmen): die Rücknahme-Kommentare dieser
+                          Scheibe zitieren die entfernten Zeichenketten wörtlich — `"your pulse"` steht im
+                          ROHTEXT von `BodyTempoField.swift` auf BEIDEN Bäumen **3×**, im CODE **3× auf dem
+                          Elternteil / 0× hier**. Ein Rohtext-Scan wäre also auf KORREKTEM Code rot. Dieselbe
+                          Kollision wie #486: dieses Repo schreibt auf, was es entfernt hat.
+                          ⚠️ Und die Grenze zuerst: ALLE sechs sind QUELLTEXT-SCANS. Dass die Zeile RENDERT,
+                          dass die zwei Zahlen am Gerät jetzt verschieden aussehen und dass die Anordnung
+                          „schöner" ist, sind Geräteproben und alle drei offen. Ebenfalls offen und hier
+                          benannt statt verschwiegen: nach dem Entsperren trägt `transport.tempo` noch den
+                          4-stelligen Wert, auf den die Sperre geglitten ist, die Anzeige lässt also Stellen
+                          fallen (71,2345 → 71,2). Das ist eine Formatierungs-Änderung und keine
+                          Uhr-Änderung — und sie ersetzt das weit schlimmere Verhalten davor, bei dem
+                          Entsperren den Kasten auf den ROHEN Puls springen ließ.),
+                          davor **203** nach `TheHeaderShowsTheLoopTests.swift` (#490 — **die Zahl bewegt sich
                           NICHT, und das ist der ganze Eintrag: derselbe Commit LÖSCHT
                           `HeaderSpectrumIsALeafTests.swift` und LEGT diesen an.** Der Wächter über den
                           Farbbalken verlor sein ganzes Subjekt (die Balken sind gelöscht), der neue nagelt
@@ -3935,7 +3977,7 @@ Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/Echoelmusic
                           Bundle WÄCHST gerade schnell, weil jeder Ralph-Slice seinen Wächter hierher
                           legt statt in die non-blocking Suite: **diese Zahl ist die am schnellsten
                           veraltende in dieser Datei — führ sie mit dem Befehl nach, zitier sie nie
-                          ungeprüft**. HUNDERTZWEIUNDSECHZIG FRÜHERE Stände in zehn Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 203 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
+                          ungeprüft**. HUNDERTDREIUNDSECHZIG FRÜHERE Stände in elf Tagen (⛔ hier stand „sechs“, und die Zahl war nur mitgeschoben: der frühere Text sagte „fünf Tagen“ für 07-29…08-01, also VIER — der Off-by-one wurde beim Erhöhen geerbt statt geprüft. 07-29 bis 08-02 sind fünf; mit dem 08-07-Stand sind es zehn, und dieser Absatz hat die Spanne diesmal MIT der Zahl nachgeführt statt sie stehen zu lassen) — der aktuelle Wert 204 ist hier NICHT mitgezählt (⛔ und hier stand „192“, während der Kopf des Absatzes schon 193 sagte UND die 192 in der Liste FEHLTE: der #475-Commit hat den Kopf erhöht und BEIDE Buchhaltungs-Stellen liegen lassen. #474 trägt 193 und 192 nach. **Eine Zahl erhöhen ist drei Änderungen** — Kopf, Liste, dieser Satz —, und wer nur die erste macht, hinterlässt einen Absatz, der sich selbst widerspricht) (⛔ und der Sprung ist 177→179, nicht 177→178: dieser Commit legt ZWEI Dateien an, eine Definition und ihren Wächter. Die 178 war nie ein Stand und steht deshalb NICHT in der Liste — wer die Kette auf Lückenlosigkeit prüft, prüft das Falsche) (⛔ hier stand „176“, während der Kopf dieses Absatzes schon 177 sagte UND 176 zur ersten Zahl der Liste geworden war — der Satz widersprach sich also selbst, in dem Absatz, dessen einziger Zweck das Mitzählen ist. Beim Voranstellen einer Zahl gehört DIESER Satz mit nachgeführt), anders als im Sources-Absatz oben (⛔ **und diese Liste trägt seit #490 ZWEI GLEICHE Zahlen hintereinander — 203·203 — und das ist KEIN Tippfehler, sondern der Tausch:** derselbe Commit löscht `HeaderSpectrumIsALeafTests.swift` und legt `TheHeaderShowsTheLoopTests.swift` an. Wer die Kette auf Lückenlosigkeit prüft, darf eine Dublette hier also nicht wegkürzen — sie ist die einzige Spur eines Vorgangs, den die Zahl selbst nicht zeigen kann. Dieselbe Form wie #373→#374, wo eine Löschung plus eine Anlage die 108 stehen ließ, nur dass die Kette DORT keine Dublette trägt, weil der Stand damals nicht mitgezählt wurde: **die Historie kannte den Fall schon einmal und hat ihn unsichtbar verbucht**) 203·203·202·201·200·199·198·197·196·195·194·193·192·191·190·189·188·187·186·185·184·183·182·181·180·179·177·176·175·174·173·172·171·170·169·168·167·166·165·164·163·162·161·160·159·158·157·156·155·154·153·152·151·150·149·148·147·146·145·144·143·142·141·140·139·138·137·136·135·134·133·132·131·130·129·128·127·126·125·124·123·122·121·120·119·118·117·116·115·114·113·112·111·110·109·108·107·106·105·104·103·102·101·100·99·98·97·96·95·94·93·92·91·90·89·88·87·86·85·84·83·82·81·80·79·78·77·76·75·74·73·72·71·70·69·68·67·66·65·64·63·62·61·60·59·58·57·56·55·54·53·52·51·50·49·48·47·46·45·41·39·30·21 — bei der
                           Korrektur auf „47" schob „46" in die Liste und das Zahlwort blieb auf
                           SECHS stehen, in genau dem Absatz, dessen einziger Zweck es ist, dass
                           eine Zahl neben ihrem Befehl wahr bleibt; das Zahlwort MITZÄHLEN ist

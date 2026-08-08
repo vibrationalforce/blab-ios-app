@@ -2,9 +2,25 @@
 // Echoel — a number may not claim more precision than the thing it measures has.
 //
 // WHAT THIS GUARDS (#368). `BodyTempoField` has two states behind one lock. UNLOCKED it
-// shows `cameraRPPG.displayBPM` — an autocorrelation estimate over a ~10 s window of camera
-// frames. LOCKED it shows a value the player set, rounded and persisted to 1e-4 and edited
-// through the number pad at that resolution.
+// shows the CLOCK the body is driving (`transport.tempo`). LOCKED it shows a value the
+// player set, rounded and persisted to 1e-4 and edited through the number pad at that
+// resolution.
+//
+// ⛔ THE UNLOCKED HALF USED TO READ `cameraRPPG.displayBPM` — the raw pulse — and this
+// header said so until #491 (founder 2026-08-07, "ohne doppelt bpm"). That was the same
+// number the pulse pill beside it renders, in a box labelled "Tempo", while the clock ran
+// somewhere else entirely (the genre-tilted mapping of it). EVERY ASSERTION BELOW SURVIVES
+// UNCHANGED, and that is the point worth writing down rather than the edit: the precision
+// argument was never about the camera specifically. `transport.tempo` in the unlocked state
+// is that same estimate carried through a genre map — the map adds no resolution — so one
+// decimal is still all the digits the number has. If anything the case got stronger: the
+// unlocked readout is now a DERIVED value, one step further from a measurement, not closer.
+//
+// ⚠️ ONE VISIBLE CONSEQUENCE, stated because a reader will meet it before this file: after
+// unlocking, `transport.tempo` still carries the 4-decimal value the lock glided it to, so
+// the number visually drops digits (71,2345 → 71,2) on unlock. That is a formatting change,
+// not a clock change, and it replaces the far worse #491 behaviour where unlocking made the
+// box JUMP to the raw pulse.
 //
 // Both printed four decimals. The founder circled the result — `71,0000` in the transport
 // bar — in THREE separate device screenshots before it was read. Three of those digits were
@@ -71,11 +87,12 @@ final class TempoReadsAsAMeasurementTests: XCTestCase {
             moment. Change both or neither.
             """)
         XCTAssertEqual(decimals.first, "1", """
-            The following tempo is formatted to \(decimals.first ?? "?") decimals. It is a \
-            camera-derived estimate over a ~10 s window — it does not resolve to a \
-            ten-thousandth of a BPM, and the founder circled the four-decimal version in \
-            three separate screenshots. If the pulse estimator ever gains real resolution, \
-            raise this WITH the estimator, not ahead of it.
+            The following tempo is formatted to \(decimals.first ?? "?") decimals. It is the \
+            clock as the body is driving it — a camera-derived estimate over a ~10 s window \
+            carried through the genre map, which adds no resolution — so it does not resolve \
+            to a ten-thousandth of a BPM, and the founder circled the four-decimal version \
+            in three separate screenshots. If the pulse estimator ever gains real \
+            resolution, raise this WITH the estimator, not ahead of it.
             """)
     }
 
