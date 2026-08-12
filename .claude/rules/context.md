@@ -6,13 +6,22 @@ working in one directory belongs in that directory's `CLAUDE.md`, not here.
 
 ## 1. What a session already pays
 
-Measured 2026-08-12: **815,952 bytes / 800,899 chars** arrive before the first line of work.
+Measured 2026-08-12, **after #538**: **227,099 bytes** arrive before the first line of work.
 
 | source | bytes | note |
 |---|---|---|
-| `CLAUDE.md` | 715,488 | of which **562,848 chars (80.2 %)** is one ledger, lines 310–5911 |
+| `CLAUDE.md` | 126,635 | was **715,488** — #538 moved the two count chains out (see below) |
 | SessionStart hook stdout | 89,515 | was 199,983 until the two big memory files were capped |
 | `.claude/rules/*.md` | 10,949 | **this file is 5,166 of them** — it was 5,783 before it existed |
+
+⛔ **This table read `715,488 / 562,848 chars (80.2 %) / lines 310–5911` and every number in it
+is now history.** #538 moved that chain — the `Tests/CISmoke` provenance (5,599 lines) and the
+`Sources/**` provenance (17,511 chars inside one bullet) — **verbatim** to
+`memory/LEDGER_COUNTS.md`, leaving a routing line at each site. Nothing was deleted; the file is
+NOT in the SessionStart hook's `cat` list and must never be added to it. The always-loaded
+surface fell **−588,853 B (−72.2 % of the total, −82.3 % of `CLAUDE.md`)**, so the ~25 KB of
+executable law is now **~11 %** of the surface instead of 2.7 %. `scripts/doctor.py --section D`
+prints this table live and WARNs above 150,000 B; **read it there, do not quote this row.**
 
 `.claude/settings.json` sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "50"`, so compaction fires at
 half budget. The ~25 KB of executable law (audio-thread bans, force-unwrap ban,
@@ -37,8 +46,9 @@ ones. The real repair is ordering the file, not widening the slice.
 - **`wc -c` and `awk length()` count BYTES**, not characters — this repo's prose carries 726
   multi-byte marker glyphs (`⛔ ⚠️ ⭐`) plus German. A character claim needs Python
   (`len(open(p, encoding='utf-8').read())`). I published "573,478 chars / 79.1 %" for the
-  ledger on 2026-08-12; both halves were wrong — it is 562,848 chars / 80.2 %, and the ratio
-  had also been mis-divided. **Retracted here so the wrong pair is not re-quoted.**
+  ledger on 2026-08-12; both halves were wrong — it was 562,848 chars / 80.2 %, and the ratio
+  had also been mis-divided. **Retracted here so the wrong pair is not re-quoted.** (Both
+  numbers describe the file BEFORE #538 moved the chain out; neither says anything about today.)
 - **A token count is not a char count / 3.5.** If no tokenizer ran, say UNMEASURED.
 - **When a hand survey and an executable check disagree, the check is the measurement** and the
   survey is a memory of one (#453 → #477: a survey said eleven, a guard in the same commit

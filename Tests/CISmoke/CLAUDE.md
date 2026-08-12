@@ -154,8 +154,12 @@ Responses overflow the token cap; they are saved to a file. Parse runs with
 
 ## 6. What does NOT belong in this directory
 
-- **The count chain.** The history of how many files live here is a root-`CLAUDE.md` ledger.
-  Do not start a second one in this file; keep the commands in §0 and derive the number.
+- **The count chain.** The history of how many files live here lives in
+  `memory/LEDGER_COUNTS.md` §A. Do not start a second one in this file; keep the commands in §0
+  and derive the number. ⛔ This line said "a root-`CLAUDE.md` ledger" and #538 moved it — the
+  chain was 5,599 lines and 80.2 % of a file that is loaded before every session, while the
+  executable law it crowded out was 2.7 %. Nothing was deleted. A stale pointer here would be
+  the #472 defect on the very rule that forbids a second chain.
 - **A private comment stripper** (§2, #453).
 - **A second copy of a threshold** that a shipped type already owns (§2, #416).
 - **A guard over a fact nobody can observe.** If neither behaviour nor source text can carry

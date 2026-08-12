@@ -518,6 +518,71 @@ def section_d() -> Section:
         "The modifier count is FILE-WIDE, not body-chain-only — a modifier nested inside another "
         "modifier's content closure is counted here but does not sit on the body's generic type. "
         "Read the quoted CLAUDE.md lines against these numbers before trusting either."))
+
+    # --- what a session PAYS before its first line of work -------------------------------------
+    #
+    # #538 moved 589 616 B of count-chain provenance out of CLAUDE.md into memory/LEDGER_COUNTS.md.
+    # The defect it repaired is not "the file was long" — it is that the executable law (audio-thread
+    # bans, force-unwrap ban, EchoelValueField, the 3 Hz ceiling, the OSC address set) was ~2.7 % of
+    # an always-loaded surface and is therefore the first thing a compaction summarises away.
+    #
+    # ⚠️ The ceiling is a WARN at 150 000 B and NOT the 45 000 B that the plan aspired to. Pinning
+    # the aspiration would make this section red on a correct tree today, and a check that reds
+    # correct work gets muted or deleted — with the law it carries (#364). Raise the ceiling only
+    # together with a reason; lowering it is free.
+    always = [ROOT / "CLAUDE.md"] + sorted((ROOT / ".claude/rules").glob("*.md"))
+    sizes = [(rel(f), f.stat().st_size) for f in always if f.exists()]
+    root_bytes = next((b for n, b in sizes if n == "CLAUDE.md"), 0)
+    total = sum(b for _, b in sizes)
+    ceiling = 150_000
+    sec.findings.append(Finding(
+        WARN if root_bytes > ceiling else INFO,
+        f"Always-loaded surface = {total:,} B ({len(sizes)} files); CLAUDE.md = {root_bytes:,} B",
+        [f"{b:>9,} B  {n}" for n, b in sorted(sizes, key=lambda x: -x[1])],
+        f"CLAUDE.md is over the {ceiling:,} B ceiling — an accreting ledger has grown back into it. "
+        "Move the PROVENANCE (count chains, superseded stands, retraction blocks that no longer "
+        "guide a decision) to memory/LEDGER_COUNTS.md and leave a routing line. Delete nothing."
+        if root_bytes > ceiling else
+        "Under the ceiling. This number only moves in the wrong direction by accretion, so it is "
+        "worth re-reading whenever a cycle adds a paragraph to CLAUDE.md rather than to a ledger."))
+
+    # --- a routing line that does not resolve is worse than no routing line ---------------------
+    #
+    # CLAUDE.md deliberately narrates DELETED source files ("`PianoRollView.swift` IST GELÖSCHT"),
+    # so a naive "every backticked path must exist" sweep would be a permanent flood — the failure
+    # mode this whole skill warns about. Restricted to the four trees where a mention is always a
+    # live pointer and never an obituary.
+    routable = re.compile(r"`((?:memory|scripts|\.claude|docs)/[^`\s]+|[A-Za-z][\w/]*/CLAUDE\.md)`")
+    missing: dict[str, list[int]] = {}
+    for i, line in enumerate(claude.splitlines()):
+        for hit in routable.findall(line):
+            target = hit.rstrip(".,;:)")
+            if "*" in target or "…" in target:
+                continue
+            if not (ROOT / target).exists():
+                missing.setdefault(target, []).append(i + 1)
+    # ⛔ THE FIRST VERSION REPORTED `.claude/settings.local.json` THREE TIMES, and that file is
+    # SUPPOSED to be absent here: it is gitignored (it holds the GitHub token) and CLAUDE.md's own
+    # text says "If token missing: ask the user to create it". Flagging a deliberately-absent file
+    # is the cry-wolf failure this script's other comments already warn about, so an ignored path
+    # is not a broken pointer. `git check-ignore` answers it for every case, not just that one.
+    if missing:
+        try:
+            out = subprocess.run(["git", "-C", str(ROOT), "check-ignore", "--", *missing],
+                                 capture_output=True, text=True, timeout=30)
+            for ignored in out.stdout.splitlines():
+                missing.pop(ignored.strip(), None)
+        except (OSError, subprocess.SubprocessError) as exc:
+            raise InstrumentUnavailable(f"git check-ignore could not run: {exc}") from exc
+    broken = [f"CLAUDE.md:{n}  {t}" for t, ns in sorted(missing.items()) for n in ns]
+    if broken:
+        sec.findings.append(Finding(
+            WARN, f"{len(broken)} routing target(s) in CLAUDE.md do not exist",
+            broken[:20],
+            "A pointer into memory/ scripts/ .claude/ docs/ or a directory CLAUDE.md is always a "
+            "live instruction, never an obituary — a session follows it and finds nothing, then "
+            "concludes the rule behind it was withdrawn (#472). Fix the path or move the prose."))
+
     return sec
 
 
