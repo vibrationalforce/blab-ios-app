@@ -10,10 +10,32 @@
 // It composes the two already-tested pieces: TimelineScheduling decides WHICH
 // region a lane plays and WHEN it changes (onset/clear); AudioRegionPlayback maps
 // the song tick to the media-file position + remaining length. WIRED since v191
-// (EchoelmusicApp: `timelinePlayer.audioLanes = AudioLanePlayer(...)`) — audio
-// lanes now sound in time with the arrangement; it stays allocation-free on the
-// render path (the `.unchanged`/onset/clear windows do all reconciliation).
+// (EchoelmusicApp: `timelinePlayer.audioLanes = AudioLanePlayer(...)`) and driven by
+// the transport on every prime/apply/stop; it stays allocation-free on the render
+// path (the `.unchanged`/onset/clear windows do all reconciliation).
 //
+// ⛔ THIS SENTENCE SAID "audio lanes now sound in time with the arrangement" AND THAT IS
+// A CAPABILITY CLAIM WITH NO PRODUCER. Wired is true; sounding is not, because nothing a
+// user can reach ever puts an audio region on an audio lane. Measured 2026-08-12 over
+// `Sources/` with comments stripped — FIVE `TimelineRegion(` construction sites, and every
+// one of them is accounted for:
+//   · `TimelineStore.migrate(sections:)` seeds an empty `Audio 1` lane and puts EVERY
+//     region it creates on the MIDI lane.
+//   · `TimelineStore.ensureComposerRegion` and `ensureUserMidiRegion` both build their clip
+//     with `kind: .midi`, by construction.
+//   · `RecordController` and `AudioClipFactory` are the only two that can produce an
+//     audio-bearing region — and that chain is doorless: `AudioClipFactory` is called only
+//     by `TakeRecorder`, `TakeRecorder` is constructed only by `RecordController`, and
+//     `RecordController.arm()` has ZERO callers in `Sources/` (#204).
+// So `apply`/`prime` walk `doc.audioLaneIDs` on every transport step and find nothing to
+// play. The arrangement UI that would have created one went with #121 Slice 4.
+//
+// ⚠️ AND THAT IS NOT AN ARGUMENT FOR DELETING THIS LAYER — the reverse. `TimelineDocument`
+// is PERSISTED and decoded on launch, so a document written by any build whose recorder
+// path was reachable can still carry an audio region, and this coordinator is the only
+// thing that would play it. Unwiring it would make such a project silently silent rather
+// than obviously absent. Re-dooring audio import is welcome work; see the guard for what
+// must move in the same commit.
 // LIVE MIXER (H4, closed the original known gap): `.unchanged` windows reconcile
 // the lane's gain/pan against what the sink last received — a mid-region level
 // move re-gains live, mute stops now, unmute RE-STARTS the region at the honest
