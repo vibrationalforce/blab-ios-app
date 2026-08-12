@@ -1,4 +1,4 @@
-build: v10.79.384 — Acht Regler, die jeden Neustart vergessen haben — und jetzt mit dem Take reisen
+build: v10.79.385 — Der festhängende Puls sagt jetzt, was zu tun ist. Und das Zeichen führt die Kopfzeile.
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,91 +6,95 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.383 (Build 2500).
+  Der Vorgänger auf Deinem Gerät ist 10.79.384 (Build 2501).
 
-  Dieser Build hat EIN Thema, in zwei Hälften: **die acht Stimmungs-Regler waren der
-  einzige Kompositions-Eingang dieser App, der gar nichts speichert.**
+  Dieser Build hat ZWEI sichtbare Hälften. Der Rest der neun Zyklen seit 384 hat
+  gemessen, korrigiert und Wächter gesetzt, aber am Gerät nichts bewegt — das steht
+  weiter unten ehrlich als „was Du NICHT sehen wirst".
 
-  ── 1. SIE ÜBERLEBEN JETZT EINEN NEUSTART ─────────────────────────────────
+  ── 1. DER FESTHÄNGENDE PULS SAGT JETZT, WAS ZU TUN IST ───────────────────
 
-  Lebendigkeit · Dunkelheit · Spannung · Romantik · Seltsam · Virtuosität · Synkopierung ·
-  Humanisierung. Acht Regler, die entscheiden, wie dicht ein Take gefüllt wird, in welcher
-  Lage er sitzt, wie viel Dissonanz er verträgt, wie die Akkorde gefärbt sind, wie weit
-  gesprungen wird, wie verziert, wie verschoben, wie ungenau gespielt.
+  Seit 377 erkennt die App, wenn die rPPG-Akquise 45 Sekunden lang nicht weiterkommt, und
+  unterscheidet dabei zwei Fälle: „Signal, aber kein verwertbarer Verlauf" und „gar nichts
+  zu lesen". Zu beiden gehört ein Satz, der sagt, was man TUN soll — „nimm den Finger
+  kurz weg und leg ihn neu auf" bzw. „probier einen anderen Finger, oder wärm die Hand".
 
-  **Jeder von ihnen stand nach einem Kaltstart wieder auf Werk.** Ohne Hinweis. Alle ihre
-  Nachbarn auf dem Weg in den Komponisten überleben einen Neustart seit langem — Genre,
-  Skala, Grundton, Tempo-Sperre, Bass- und Pad-Rhythmus, Artikulation, Preset, Stimmung,
-  Kammerton. Diese acht nicht.
+  **Diese Sätze haben einen sehenden Nutzer bis heute an KEINER Stelle erreicht.**
+  Gemessen: der einzige Leser saß in einer Ansicht, zu der es keine Tür gibt; die
+  Kopfzeilen-Kachel gab den Satz nur an VoiceOver weiter, während auf dem Schirm das
+  Zwei-Wort-Kürzel stand. Die Hälfte der Diagnose, die sagt, was hilft, war hörbar und
+  unsichtbar — auf genau dem Engpass, an dem diese App seit Wochen hängt.
 
-  ⭐ **Und die Folge war größer als der Verlust selbst: sie waren für JEDES Diagnose-
-  Werkzeug dieser App unsichtbar.** Die Start-Zeile im Protokoll, die genau eine Frage
-  beantworten soll — *„womit bin ich heute aufgewacht"* —, meldete zwölf Werte und konnte
-  diese acht nicht melden. Der „Reset sound"-Knopf konnte sie nicht räumen. Beide arbeiten
-  über das, was gespeichert ist. **Was nicht gespeichert wird, fällt lautlos aus jedem
-  Bericht heraus — nicht als sichtbare Lücke, sondern als scheinbare Vollständigkeit.**
-  Beide melden bzw. räumen die Stimmung ab diesem Build mit.
+  Der Satz steht jetzt im Bio-Panel, im schon reservierten Platz unter dem Messstreifen.
+  Kein neues Fenster, keine neue Ebene: derselbe Slot, den die Tempo-Sperre benutzt; die
+  Sperre hat weiterhin Vorrang, damit sich unter Deinen Fingern nichts verschiebt.
 
-  ── 2. SIE REISEN MIT DEM GESPEICHERTEN TAKE ──────────────────────────────
+  ⚠ EHRLICHE GRENZE, und sie ist wichtiger als die Reparatur: **das behebt die Akquise
+  nicht.** Die App hört nur auf, so zu tun, als sei nichts, und sagt Dir, was Du
+  probieren kannst. Ob es dann WIRKLICH lockt, ist die offene Frage seit 377.
 
-  Ein Take speichern, die Regler verstellen, den Take wieder öffnen: **die Stimmung kommt
-  zurück.** Genau wie Genre, Tonart, Tempo, Tonsystem und Flow/Loop, die in den letzten
-  Builds nacheinander dieselbe Strecke bekommen haben.
+  ⚠ Und eine benannte Lücke, die absichtlich bleibt: bei „zu hell" bekommst Du weiterhin
+  nur „Too bright" ohne den Zusatz „drück ein bisschen leichter". Grund: dieser Zustand
+  wird bei JEDEM Kamerabild neu berechnet, der Satz würde also mehrmals pro Sekunde
+  auftauchen und verschwinden und die Zeile darunter mitschieben. Der festhängende Fall
+  wird einmal entschieden und steht still — deshalb darf nur er den Platz belegen.
 
-  ⚠ **Und sie kommt NUR zurück, wenn der Take wirklich eine nennt.** Ein Take aus einem
-  älteren Build sagt nichts über Stimmung — dann bleiben Deine aktuellen acht Regler
-  stehen, statt auf Werk gesetzt zu werden. Das ist die Regel, die dieses Repo inzwischen
-  an fünf Stellen befolgt: **über eine alte Datei nichts erfinden.** Eine Voreinstellung
-  hineinzuschreiben wäre die Behauptung, der Spieler habe damals nichts davon gewollt.
+  ── 2. DAS ZEICHEN FÜHRT, DER SCHRIFTZUG BLEIBT IN DER MITTE ──────────────
 
-  ⚠ **Der Unterschied zu den Rohtakten ist Absicht und keine Inkonsistenz.** Die Roh-Takte
-  eines Projekts werden beim Öffnen IMMER überschrieben (auch mit „nichts"), weil ein
-  stehengebliebener Rest beim nächsten Fader-Zug über den gerade geöffneten Take gebacken
-  würde. Aus der Stimmung backt nichts nach — sie ist eine Eingabe für die NÄCHSTE
-  Komposition. Deshalb bedingt hier und unbedingt dort.
+  Dein Screenshot von 384: ein Kreis eng um die **E-Kachel** — der Schriftzug sichtbar
+  AUSSERHALB — und ein Pfeil nach links auf die Loop-Leiste.
 
-  ⚠ **Die Speichern-Meldung nennt jetzt auch die Stimmung.** Sie war der Text, an dem sich
-  ablesen lässt, was ein Speichern überhaupt ist, und sie hinkte bereits drei Feldern
-  hinterher. Sie nennt weiterhin ausdrücklich die zwei Dinge, die NICHT mitreisen:
-  Mischpult-Pegel und handgedrehte FX bleiben beim Instrument.
+  Ein Pfeilkopf heißt umziehen, zwei hätten tauschen geheißen. Und Du hast diesmal
+  ausdrücklich NUR das Zeichen eingekreist, nicht den Block: den Block mit Schriftzug
+  hattest Du schon einmal markiert, und vier Tage zuvor stand „Den Schriftzug
+  Echoelmusic wieder in die Mitte". Beides zugleich wahr zu lassen geht nur, indem man
+  die zwei trennt. Die Reihenfolge ist jetzt: **Zeichen · Position · Schriftzug ·
+  Monitore.**
 
-  ── WIE ES GESPEICHERT WIRD, und warum das eine Entscheidung war ──────────
+  ⚠ Ein Verlust, benannt statt verschwiegen: das Logo antippen öffnet nicht mehr die
+  Website — die Tür sitzt jetzt am Schriftzug, zwei Elemente weiter. Das Zeichen ist
+  dekorativ und für VoiceOver ausgeblendet, damit die Kopfzeile nicht zweimal
+  „Echoelmusic" ansagt. Wenn Du das Antippen zurück willst, ist das eine Zeile — sag
+  Bescheid.
 
-  Nicht als acht Einzelwerte und nicht, indem der Stimmungs-Typ selbst speicherbar gemacht
-  wird — Letzteres hätte still verändert, wie ein anderer, schon bestehender Datensatz auf
-  der Platte kodiert ist. Stattdessen ein Feld mit den acht Zahlen darin, **Feld für Feld
-  tolerant gelesen**: ein fehlender, kaputter oder unlesbarer Eintrag kostet genau diesen
-  einen Regler seinen Wert und lässt die anderen sieben stehen. Ein unlesbarer Wert fällt
-  dabei auf den WERKSWERT dieses Reglers zurück, nicht auf null — null ist bei diesen
-  Reglern eine echte Einstellung („keine Spannung", „maschinengenau"), und daraus ein
-  „der Spieler wollte nichts davon" zu machen wäre wieder eine erfundene Tatsache.
+  ── WAS DU NICHT SEHEN WIRST (und warum es trotzdem drin ist) ─────────────
 
-  ── EHRLICHE GRENZE ───────────────────────────────────────────────────────
+  Sieben der neun Zyklen seit 384 haben nichts am Gerät bewegt. Sie haben MESSGERÄTE
+  repariert, und zwar solche, die grün meldeten für Arbeit, die sie nie angesehen haben:
 
-  Die SPEICHER-Hälfte ist Ende zu Ende getrieben — Kodieren, Dekodieren, Rundreise, alte
-  Datei, kaputte Datei, jeder Zweig echt gefahren. Die VERDRAHTUNGS-Hälfte (dass die
-  Speichern-Tür das Feld wirklich füllt und die Öffnen-Tür es wirklich zurückschreibt) ist
-  ein Quelltext-Scan: beide Stellen liegen in einer Ansicht, die kein Testbündel bauen
-  kann. **Dass die Regler am Gerät wirklich einen Neustart überleben und dass ein
-  gespeicherter Take mit seiner Stimmung zurückkommt, sind zwei Geräteproben — und beide
-  sind offen.**
+  · Der Puls-Messwert behauptete in seinem eigenen Kopf, er sei auf dem Schirm — seit
+    dem 2. Juli falsch. Genau diese Fehlangabe hat verdeckt, dass die Abhilfe-Sätze
+    nirgends ankamen (Hälfte 1 oben ist die Folge davon).
+  · Elf von sechzehn Funktions-Schaltern in dieser App entscheiden gar nichts — sie
+    haben keinen einzigen Leser. Was dahinter liegt, liegt still, weil es niemand ruft,
+    nicht weil ein Schalter es zurückhält. Und kein ausgeliefertes Bedienelement kann
+    irgendeinen dieser Schalter umlegen.
+  · Die Audio-Spuren sind verdrahtet und es gibt keinen Weg, sie zu FÜLLEN.
+  · Zwei Reviewer-Agenten beschrieben eine Codebasis, die es nicht mehr gibt — einer
+    komplett über ein Plugin-Target, das im Juli entfernt wurde. Ein „Review" mit ihnen
+    hätte sauber gemeldet und nichts geprüft.
+  · Das Diagnose-Skript las zwei Verzeichnisse und meldete sauber für vier.
+
+  Das sind keine Features. Es sind die Instrumente, mit denen ich Dir sage, ob etwas
+  funktioniert — und drei davon haben zuletzt gelogen.
 
   ── WAS VON DIR GEBRAUCHT WIRD (nach Wichtigkeit) ─────────────────────────
 
-  1. **Stimmung, zwei Proben.** (a) Mood-Panel öffnen, mehrere Regler deutlich verstellen,
-     App komplett schließen und neu starten — stehen sie noch da? (b) Take speichern,
-     Regler verstellen, Take wieder öffnen — kommt die Stimmung zurück?
-  2. **Der Atem-Schalter aus 383, falls noch nicht geprüft:** Bio-Panel, „Body voice"
-     einschalten — kommt ein Ton, und liest er sich musikalisch oder wie eine
-     hängengebliebene Note?
-  3. **Der Namensweg aus 383:** „Save & Export", Namen eintippen, Take speichern — steht
-     der Name im Dateinamen?
-  4. **Seit sechs Builds der wichtigste Test:** Projekt speichern, App verlassen, wieder
+  1. **Der festhängende Puls.** Bio-Panel öffnen, Finger auflegen, und wenn es nach ~45 s
+     nicht lockt: steht der Abhilfe-Satz da? Ist er verständlich? Und — die eigentliche
+     Frage — HILFT er? Wenn Du dem Satz folgst und es dann lockt, ist der Engpass zum
+     ersten Mal von der App aus lösbar.
+  2. **Die Kopfzeile.** Sitzt das Zeichen links, wo Dein Pfeil hinzeigte? Liest sich die
+     Zeile ruhig, oder drängt sich jetzt etwas? Fehlt Dir das Antippen des Logos?
+  3. **Stimmung, zwei Proben aus 384** (falls noch nicht geprüft): (a) Mood-Regler
+     verstellen, App komplett schließen und neu starten — stehen sie noch da? (b) Take
+     speichern, Regler verstellen, Take wieder öffnen — kommt die Stimmung zurück?
+  4. **Der Atem-Schalter aus 383:** Bio-Panel, „Body voice" einschalten — kommt ein Ton,
+     und liest er sich musikalisch oder wie eine hängengebliebene Note?
+  5. **Seit sieben Builds der wichtigste Test:** Projekt speichern, App verlassen, wieder
      öffnen, Projekt öffnen — dann den Bass- oder Pad-Fader ziehen. Bleibt es dasselbe
      Stück, nur anders balanciert?
-  5. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
-  6. Die Hörprobe aus 377 (ohne Puls spielen, dann mit) und die Stimmungs-Probe aus 376
-     (Rāst speichern, auf 12-TET stellen, wieder öffnen).
+  6. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
   7. Drei Fragen ohne Antwort — je ein Wort genügt:
      · Darf Genre · Key · Scale · Tonsystem · A4 hinter den Tempo-Chip wandern? Das gäbe
        dem Instrument 41 pt zurück und kehrt Deine Entscheidung vom 14. Juli um.
