@@ -9106,7 +9106,7 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
 **Report-only, founder-gated (unverändert):** #396, `|| true` auf `ci.yml:165`, #208, #210,
 #478 (DerivedData-Cache-Schlüssel ohne SDK-Version, `ci.yml:127`/`:349`).
 
-## 2026-08-12 (cron, ULTRACODE 24h) — CLAUDE.md wird Router (#538) + Dropout auf dem Schirm (#504)
+## 2026-08-12 (cron, ULTRACODE 24h) — CLAUDE.md wird Router (#538) + Dropout auf dem Schirm (#540)
 
 - **Zweig:** `claude/echoelmusic-neustart-auv3-6ri2ek`. Der Stunden-Takt nennt weiterhin den
   VERALTETEN `claude/piano-roll-clip-view-wozlie-5kxnrl` — Korrektur steht in jedem Delta.
@@ -9130,7 +9130,7 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
   liegt unter `Tests/**`, und der `paths:`-Filter matcht einen PFAD, keine Endung. Ich hatte
   „Dokumentation" aus `docs/CLAUDE.md` zu „Markdown" verallgemeinert. Regel jetzt in
   `Tests/CISmoke/CLAUDE.md` §5.
-- **#504 (`3714da2`) — REIHENFOLGE-Punkt 2.** Der Bio-Panel zeigte längst, WELCHE Parameter der
+- **#540 (`3714da2`, als #504 committet — siehe die Nummern-Rücknahme unten) — REIHENFOLGE-Punkt 2.** Der Bio-Panel zeigte längst, WELCHE Parameter der
   Körper bewegt (#496/#498/#500/#503) — aber nicht, was ein AUSFALL tut, und die zwei Hälften
   verhalten sich absichtlich verschieden: FX-Routen sind auf `usableBio()` gegattert und LASSEN
   LOS (Zeile fällt auf einen Strich), die Timbre-Erzeuger lesen `latestBio` roh und PARKEN
@@ -9157,3 +9157,11 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
   `PRODUCT_DEFINITION.md` ausdrücklich CUTtet. Das ist ein echter Konflikt zweier Founder-
   Anweisungen verschiedener Daten (REIHENFOLGE v10.79.183 gegen 2026-07-25/26) — im Delta
   vorgelegt statt still entschieden.
+- ⛔ **Und die Dropout-Scheibe ist unter der FALSCHEN NUMMER gelandet.** Der Commit heißt „#504",
+  und #504 gehörte längst der `BodyTempoField`-Default-Arbeit (einmal in der Quelle, viermal in
+  `TheTempoFieldAsksWhichVariantTests`). Eine Scheibennummer ist ein Querverweis-Griff und sonst
+  nichts; zwei Scheiben auf einer Nummer machen jedes spätere „#504" in beide Richtungen
+  mehrdeutig. Quelle und Wächter sind auf **#540** umgezogen, die Commit-Nachricht bleibt falsch
+  (gepusht, kein Force-Push über einen laufenden Lauf). Gefunden mit
+  `git grep -c "#504" -- Sources Tests` — ein Befehl, den ich vor dem Commit hätte laufen lassen
+  sollen und nicht habe.

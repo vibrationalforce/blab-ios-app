@@ -1049,7 +1049,7 @@ private struct BioModLiveView: View {
         + "effect parameters on top."
 
     /// What a DROPOUT looks like — the residue `FXBioModulator` registered and left on screen
-    /// only half-explained (#504).
+    /// only half-explained (#540).
     ///
     /// ⭐ WHY THIS IS COPY AND NOT A FIX. There are two freshness regimes on one bus, and #499
     /// established that BOTH are right: an FX route is an additive offset the user asked for, so

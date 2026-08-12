@@ -1,5 +1,5 @@
 // ADropoutSaysWhichHalfLetGoTests.swift
-// Echoel — #504. Two freshness regimes, one screen, and only one of them said so.
+// Echoel — #540. Two freshness regimes, one screen, and only one of them said so.
 //
 // WHAT THIS IS ABOUT. `EchoelFXView` shows the body moving the sound in two stacked sections:
 // the FX routes the player configured, then the four always-on channels that shape the
@@ -12,7 +12,7 @@
 // they were one. `TwoFreshnessRegimesAreDeliberateTests` pins the CODE halves. What it left —
 // in its own words, "the visible residue is real and is not fixed here … only the timbre half
 // says so on screen" — is the PLAYER's half: two different words appear during one dropout and
-// nothing tells them that is deliberate rather than a fault. #504 adds the sentence pair; this
+// nothing tells them that is deliberate rather than a fault. #540 adds the sentence pair; this
 // guard keeps it true.
 //
 // ⚠️ THE LIMIT FIRST. Every assertion here is a SOURCE-TEXT SCAN. `BioModLiveView`,
@@ -47,6 +47,16 @@
 // precisely because three slices in a row asserted this without measuring; writing the sentence
 // and then measuring it is how this one nearly became the fourth.
 //
+// ⛔ THIS SLICE SHIPPED UNDER THE WRONG NUMBER. The commit that created this file is titled
+// "#504", and #504 already belonged to the `BodyTempoField` defaulted-argument work — it is
+// spelled in `Sources/Echoelmusic/Studio/BodyTempoField.swift` and four times in
+// `TheTempoFieldAsksWhichVariantTests`. A slice number is a cross-reference handle and nothing
+// else; two slices sharing one makes every later "#504" ambiguous in both directions, and the
+// commit message cannot be amended because it is pushed. The source and this guard are
+// renumbered to #540 in the follow-up; the note stays so a reader who arrives from the git log
+// is not left believing the tempo-field slice wrote a bio footer. Found by
+// `git grep -c "#504" -- Sources Tests` — the check costs one command and was skipped.
+//
 // ⚠️ WHAT THIS DELIBERATELY DOES NOT RESTATE (#416). That the FX driver still calls
 // `usableBio()` and the two timbre producers still read `bus.latestBio` raw is owned by
 // `TwoFreshnessRegimesAreDeliberateTests`. Copying those needles here would be two spellings of
@@ -64,7 +74,7 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
     /// on the same surface must not smuggle them back in through the side door.
     private static let forbiddenChannels = ["breath depth", "LF/HF", "LF-HF", "coherence trend"]
 
-    // MARK: - the copy (ONE absence on the parent, reported three times)
+    // MARK: - the copy (ONE absence on the parent, reported four times — see the header)
 
     func testTheDropoutNoteExists() throws {
         let note = try literalValue(of: "static let stopsArrivingNote =", in: Self.fxView)
