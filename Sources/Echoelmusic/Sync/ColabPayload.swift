@@ -167,14 +167,27 @@ public struct PeerReading: Sendable, Equatable {
 
     /// The reading while it is still arriving; `nil` once the peer has gone quiet.
     ///
-    /// The −1 s skew tolerance is not invented here — it is the same allowance
+    /// The skew tolerance is not invented here — it is the same allowance
     /// `EngineBus.usableBio()` applies to its own frames, asked the same way rather
     /// than minted a second time (#416/#426). Non-finite inputs make every comparison
     /// false and therefore read as GONE: the safe direction, because blanking a row is
     /// cheaper than asserting a live person from a number nothing can date.
+    ///
+    /// ⛔ AND UNTIL #545 THAT PARAGRAPH WAS FALSE SEVEN LINES ABOVE ITS OWN REFUTATION:
+    /// it said "asked the same way rather than minted a second time" while the guard
+    /// below wrote `-1` as a literal — there was no constant to ask. A claim and its own
+    /// refutation inside one declaration (#425), and the more dangerous shape of it,
+    /// because the claim is the one a reviewer would have checked FOR. It now asks
+    /// `BioSource.futureSkewTolerance`, and the sentence is true.
+    ///
+    /// ⚠️ BOTH OPERANDS ARE LOCAL, so this is skew and not network delay:
+    /// `MultipeerSession` stamps `arrivedAt` with the RECEIVER's clock on delivery. Do
+    /// not "keep a second literal because two phones are not clock-synchronised" — that
+    /// rationale sounds right, is wrong here, and would read as a do-not-delete note.
     public func live(at now: TimeInterval) -> BioPeek? {
         let age = now - arrivedAt
-        guard age <= Self.staleAfter, age >= -1 else { return nil }
+        guard age <= Self.staleAfter,
+              age >= -BioSource.futureSkewTolerance else { return nil }
         return peek
     }
 }

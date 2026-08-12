@@ -108,14 +108,21 @@ public struct BioVitals: Codable, Sendable, Equatable {
 
     /// Whether this snapshot is recent enough to treat as LIVE. Age is measured
     /// on the shared `timeIntervalSinceReferenceDate` clock; a small negative
-    /// age (≥ −1 s) is tolerated for cross-process clock jitter, anything more
+    /// age is tolerated for cross-process clock jitter, anything more
     /// "from the future" is rejected — mirrors `EngineBus.freshBio`.
+    ///
+    /// ⛔ "mirrors" was the whole problem until #545: the sentence pointed at
+    /// `EngineBus.freshBio` while the code below restated its `-1` as a literal, so the
+    /// two could drift apart and the doc would still read correctly. It now ASKS
+    /// `BioSource.futureSkewTolerance`, which is what "mirrors" was always claiming.
+    /// The parenthetical "(≥ −1 s)" is gone with it — a doc that spells the number is a
+    /// seventh copy of the decision, the same way `ColabPayload`'s was.
     public func isFresh(
         within maxAge: TimeInterval = 2,
         now: TimeInterval = Date().timeIntervalSinceReferenceDate
     ) -> Bool {
         let age = now - timestamp
-        return age <= maxAge && age >= -1
+        return age <= maxAge && age >= -BioSource.futureSkewTolerance
     }
 }
 
