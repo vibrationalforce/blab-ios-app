@@ -9447,3 +9447,69 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
 - Benotung: **1 Regression** (Claim 4), **3 Gegengewichte**; `codeOnly` **TRAGEND, 2 von 8** —
   Claim 2 kippt auf BEIDEN Bäumen. Eine Kipp-Zahl gilt je (Claim, BAUM); in dieser Sitzung
   dreimal korrigiert, deshalb im Kopf ausgeschrieben statt ein viertes Mal gezählt.
+
+## 2026-08-12 (cron, ULTRACODE 24h) — #551 · #552: die zwei letzten Register-Hygiene-Posten
+
+**Branch: `claude/echoelmusic-neustart-auv3-6ri2ek`** (der Heartbeat nennt weiterhin den
+STALEN `claude/piano-roll-clip-view-wozlie-5kxnrl`).
+
+- **#551 (`dd87f0d`) — eine Zahl gehört an EINEN Ort, und ein Doc-Kommentar ist keiner.**
+  Zwei Doc-Blöcke auf dem STARTPFAD zitierten `TARGETED_DEVICE_FAMILY` als Telefon+Tablet-Paar
+  und ARGUMENTIERTEN daraus: `EchoelmusicApp` begründete den `startupDone`-Einmal-Riegel mit
+  „iPadOS kann ein ZWEITES App-Fenster öffnen", `ExternalDisplayScene` erklärte damit eine
+  bewusste Nebenwirkung. #292 hat die Einstellung an allen vier iOS-Targets auf Telefon-only
+  gesetzt und keinen der beiden Kommentare mitgezogen.
+  ⭐ **Warum das schlimmer als eine veraltete Zahl ist:** beide ERWÄHNTEN den Wert nicht bloß,
+  beide benutzten ihn als PRÄMISSE. Eine falsche Prämisse unter einer richtigen Schlussfolgerung
+  kann der nächste Leser nicht widerlegen — die Schlussfolgerung sieht ja weiter richtig aus.
+  **Der MECHANISMUS bleibt, nur seine Prämisse ist korrigiert.** Das benannte Szenario ist heute
+  doppelt unerreichbar: iPhone hat kein zweites App-Fenster, und die EINE zusätzlich erlaubte
+  Szene montiert `ExternalStageView` über ihren eigenen `UIHostingController`, nie `WorkspaceView`
+  — der Startup-`.task` kann also nicht zweimal laufen. Damit ist der Riegel Gürtel-UND-Hosenträger,
+  KEIN toter Code: er läuft, kostet ein Bool, `ExternalStageBridge` argumentiert aus ihm, und
+  „kein nie" ist die stehende Position zu iPad.
+  Wächter `TheDeviceFamilyValueLivesInOnePlaceTests` — **die eine Datei im blockierenden Bundle,
+  die `SourceText.codeOnly` bewusst NICHT benutzt**, weil ihr Gegenstand DIE KOMMENTARE sind;
+  der Hausstripper hätte ein dauerhaft grünes Ergebnis über einer leeren Zeichenkette geliefert.
+  Er verbietet eine WERT-Behauptung, nicht das Wort (#364). Benotung transkribiert gegen
+  `887ec12`, beide Läufe erreichten 350 Dateien: **1 Regression** (Claim 1, zwei Fundstellen =
+  EIN Befund, #486), **2 Gegengewichte** grün auf beiden Bäumen (der Riegel steht UND wird
+  gelesen; die Szene montiert weiter ihre eigene Wurzel).
+
+- **#552 (`3fefe05`) — ein halb erledigter Plan liest sich für jeden richtig, der die
+  unerledigte Hälfte prüft.** Drei Haptik-Kopfzeilen verschoben die Verdrahtung BEIDER Treiber
+  auf einen kommenden Zyklus. Gemessen: der **BEAT-Pfad ist seit Monaten komplett und
+  erreichbar** — `transport.addStepSubscriber("haptics", …)` → `tapBeat(step:)` →
+  `HapticEngine.play(_:)`, Schalter `hapticsRow` („Haptic beat (feel)") im `tempoToolsPanel`
+  hinter dem Tempo-Chip. Nur der **BREATH-Pfad** hat null Produktionsaufrufer. Deshalb bleibt
+  die Zeile `Body | HapticController | CoreHaptics` in `docs/dev/PRODUCT_DEFINITION.md`
+  unangetastet — sie ist WAHR; diese Scheibe korrigiert drei Kopfzeilen, sie nimmt kein
+  Ausgabemedium zurück.
+  ⭐ **Die übertragbare Hälfte:** eine veraltete TATSACHE wird widerlegt, sobald jemand sie
+  prüft. Ein veralteter PLAN überlebt jede Prüfung, die auf der noch offenen Hälfte landet —
+  wer „der Bio-Treiber fehlt" bestätigt, trägt den ganzen Satz weiter und baut entweder den
+  schon vorhandenen Beat-Pfad neu oder meldet dessen Tür als fehlend. Dieselbe Familie wie
+  #550, nur mit einer funktionierenden Hälfte dran, und genau die hat ihn unsichtbar gehalten.
+  ⚠️ **Die naheliegende Vervollständigung ist eine Falle** und steht deshalb an der Deklaration
+  statt auf einem Gerät entdeckt zu werden: der Tick, nach dem man greift, ist der ~10-Hz-
+  `bioVoice.onPollTick`, während `BioHaptics.breathPulse` auf `duration: 0.1` steht — zehn
+  aneinanderstoßende 0,1-s-DAUER-Cues pro Sekunde sind ein durchgehendes Brummen, und die
+  Bio-ANWENDUNGSRATE ist ohnehin ~1 Hz (alle Verbraucher deduplizieren auf `frame.timestamp`),
+  neun der zehn trügen also identische Werte. Eigene Scheibe, Geräteprobe.
+  Wächter `TheHapticBeatIsWiredAndTheBreathIsNotTests`: **1 Regression** (Claim 1, fünf
+  Fundstellen in drei Dateien = EIN Befund), **3 Gegengewichte** — Erzeuger, Tür, und der
+  weiterhin fehlende Breath-Aufrufer. Ohne alle drei wären die korrigierten Kopfzeilen
+  unwiderlegbare Prosa. `codeOnly` **TRAGEND, 1 von 4** (Claim 4: roh=2/gestrippt=0 auf DIESEM
+  Baum — die zwei rohen Treffer sind die korrigierten Kommentare selbst).
+- ⛔ **FÜNFTE #486/#491-Kollision dieser Sitzung, und die vierte war einen Commit vorher.**
+  #551: die eigenen ⛔-Rücknahmen zitierten die veraltete Einstellung wörtlich und hätten Claim 1
+  auf dem reparierenden Commit rot gemacht. #552: derselbe Fehler mit einer Verschiebungs-Phrase.
+  **Beide von der Transkription gefangen, nicht vom Review.** Ohne ```-Fence (wie #550 sie hatte)
+  bleibt nur eine Lösung: **die Rücknahme gibt das wörtliche Zitat auf, nicht der Scan** — der
+  Scan ist die Hälfte, die versagen kann, Prosa nicht.
+- ⛔ **Und in #552 kam die `EchoelModalBank`-Rezeptfalle durch eine andere Tür:** der Entwurf
+  schrieb ein `git grep` für die Aufrufform von `breath(` hin und behauptete, es finde nichts —
+  was der Block im selben Moment falsifizierte, weil die Aufrufform in einen Kommentar zu
+  schreiben SELBST ein Treffer ist. **Ein Kommentar über ein Symbol verfälscht jede rohe Suche
+  nach diesem Symbol.** Die Messung, die das Aufschreiben überlebt, ist eine kommentar-gestrippte
+  — sie steht jetzt im Wächter, nicht in der Prosa.
