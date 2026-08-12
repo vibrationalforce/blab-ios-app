@@ -15,9 +15,16 @@
 //   • Capability-gated: a no-op on hardware without a haptic engine, so callers
 //     can fire cues unconditionally.
 //
-//  Not yet wired into the app — that is the next cycle (drive `beat()` from the
-//  sequencer step callback and `breathPulse()` from the bio tick). Adding this
-//  file changes no existing behavior.
+//  ⛔ THE LINE THAT STOOD HERE FILED THIS FILE AS INERT AND ITS WIRING AS FUTURE
+//  WORK, naming both drivers. Measured 2026-08-12 (#552): the sequencer half is
+//  DONE — `EchoelmusicApp` registers `transport.addStepSubscriber("haptics", …)`,
+//  which calls `HapticController.tapBeat(step:)`, which reaches `play(_:)` below;
+//  the arming switch is `hapticsRow` in `tempoToolsPanel`, behind the Tempo chip.
+//  This file changes behaviour on every quarter-note once the user arms haptics.
+//  Only the bio half is still absent, and the warning at
+//  `HapticController.breath(phase:coherence:)` says why its obvious wiring site
+//  (the ~10 Hz poll tick, against a 0,1-s continuous cue) would produce a
+//  continuous buzz rather than a breath.
 //
 
 #if canImport(CoreHaptics)

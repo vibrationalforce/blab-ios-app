@@ -3,9 +3,17 @@
 //  Echoelmusic — Studio (eyes-free performance feedback)
 //
 //  Pure mapping from transport + bio state to haptic-cue parameters. This is
-//  the testable kernel; the side-effecting CoreHaptics engine (a later cycle)
-//  consumes `HapticCue` values and plays them — the same split the codebase
-//  uses elsewhere (e.g. ADMOSCSender's pure `admMessages` vs the UDP sender).
+//  the testable kernel; the side-effecting CoreHaptics engine consumes
+//  `HapticCue` values and plays them — the same split the codebase uses
+//  elsewhere (e.g. ADMOSCSender's pure `admMessages` vs the UDP sender).
+//  That engine is `HapticEngine.swift`, in this directory, and it ships.
+//
+//  ⛔ THIS SENTENCE FILED THE ENGINE AS FUTURE WORK (#552). The file it was
+//  waiting for was written in the same batch; `HapticController` plays `beat()`
+//  cues through it on every quarter-note once the user arms haptics. `beat()`
+//  is therefore LIVE; `breathPulse()` below is the half with no production
+//  caller — see the warning at `HapticController.breath(phase:coherence:)`
+//  for why its 0,1-s default makes the obvious wiring site the wrong one.
 //
 //  Why eyes-free haptics (research §A5): on stage the performer barely looks at
 //  the screen, so transport and bio state need a non-visual channel. CoreHaptics
