@@ -19,7 +19,7 @@ The main loop (the PM) then synthesizes 6–8 vetted lead-reports, not 20 raw on
 | **UI/STUDIO** | `ui-state-reviewer` | `Studio/`, `Views/`, freeze-law, sheet-chain, EchoelValueField | 3 |
 | **VIDEO/VISUAL** | `general-purpose` (visual lead) | `Video/`, Metal, shaders, FloatingVisual | 2 |
 | **SYNC/LIGHT/CAST** | `general-purpose` (sync lead) | `Sync/` (OSC/ADM/Art-Net/sACN), `Stream/` | 2 |
-| **AUv3/PLATFORM** | `e2e-test-agent` | AUv3 target, entitlements, CI/deploy | 2 |
+| **PLATFORM/SHIP-PATH** | `e2e-test-agent` | the five real targets, entitlements/App Group, Info.plist floor, CI/deploy | 2 |
 | **MARKETING** (pipeline-only) | `echoel-marketing` | `docs/`, ASO, website — **never** `Sources/` | 2 |
 
 **Cross-cutting teams** (activate per the work, not the domain):
@@ -27,7 +27,7 @@ The main loop (the PM) then synthesizes 6–8 vetted lead-reports, not 20 raw on
 | Team | Lead agentType | Owns | Activate when |
 |------|----------------|------|---------------|
 | **PLAN/ARCHITECTURE** | `planning-agent` | plan-first for big/ambiguous items — the "ERST PLAN + Council" front door; breaks work into atomic slices before any build cycle | before a large, multi-file, or ambiguous item |
-| **RELEASE / CI / DEPLOY** | `build-error-resolver` | the whole ship pipeline as ONE charter — (a) both gates green (Xcode Compile Check + CI/CD Pipeline); (b) the tokenless deploy: bump `.deploy/release` + push → watch `testflight.yml` to a real TestFlight build, not just "CI green" (they differ — v304 needed a separate re-trigger after a green compile); (c) entitlements/provisioning hygiene (the AUv3 appex App-Group / inter-app-audio class of failures); (d) App Store Connect secrets + the 60-min pipeline health; (e) the deploy-note discipline on every real ship. Hands OFF to DEVICE-VERIFY post-deploy and convenes the App Store Release-Compliance Owner at submission. | every push / red gate / any `.deploy/release` bump / TestFlight build / entitlement or provisioning change |
+| **RELEASE / CI / DEPLOY** | `build-error-resolver` | the whole ship pipeline as ONE charter — (a) both gates green (Xcode Compile Check + CI/CD Pipeline); (b) the tokenless deploy: bump `.deploy/release` + push → watch `testflight.yml` to a real TestFlight build, not just "CI green" (they differ — v304 needed a separate re-trigger after a green compile); (c) entitlements/provisioning hygiene — the appex App-Group class of failures, today across the widget and watch targets (the AUv3 appex that first taught us this was removed 2026-07-24); (d) App Store Connect secrets + the 60-min pipeline health; (e) the deploy-note discipline on every real ship. Hands OFF to DEVICE-VERIFY post-deploy and convenes the App Store Release-Compliance Owner at submission. | every push / red gate / any `.deploy/release` bump / TestFlight build / entitlement or provisioning change |
 | **RED-TEAM / SKEPTIC** | `general-purpose` (N refuters) | adversarially trying to BREAK a risky slice (N refuters, majority-kill), not just review it | only irreversible / high-risk changes (deletes, audio-thread, protected triad, deploys) |
 | **DEVICE-VERIFY / RELIABILITY-QA** | `general-purpose` (+ `device-log-triage`/`watch-clip`/`video-watch` skills; pairs `tdd-agent`) | the post-deploy FEEDBACK stage: intake any founder device signal (`echoel_diag.log`, `.ips`, MetricKit, screen clip) → root-cause → ROUTE to the right domain team; owns the NEEDS-FOUNDER-VERIFY backlog + the flip-vs-rollback call per blind sensory flag at freeze-lift; adds a recurrence guard (test/lint on the known failure-class file) before the fix ships | a founder pastes a crash/diag log or clip; any on-device crash/freeze/anomaly; freeze-lift backlog burndown; a fix lands in a recurring failure-class file (sheet-chain, audio-route, LaunchGuard/SafeMode) |
 | **DSP-CORRECTNESS** | `dsp-reviewer` | algorithm correctness (biquads, FFT/vDSP, Rausch triad READ-ONLY) — distinct from audio-thread safety | only DSP/ or Bio/ math changes |
@@ -58,7 +58,7 @@ FEEDBACK halves the coverage audit found orphaned.
 - **Runtime performance budget** (CPU<30%, mem<200MB, 120fps, audio<10ms, bio 120Hz; `benchmark.yml`) → RELEASE/CI, composing AUDIO/DSP (latency) + VIDEO/VISUAL (fps) on the relevant slice.
 - **Governance/knowledge** (CLAUDE.md drift, `HARNESS_LEDGER`, `review.sh` backlog, active scratchpad PLANs, decisions.csv taxonomy) → widen MEMORY/RECONCILE's charter.
 - **All user-facing brand-red-line copy** (not just bio copy) → widen BIO's copy scope + UI/STUDIO.
-- **Commerce/StoreKit** (`EchoelStore`/`ProGate`, dormant) → AUv3/PLATFORM, convened only on activation.
+- **Commerce/StoreKit** (`EchoelStore`/`ProGate`, dormant) → PLATFORM/SHIP-PATH, convened only on activation.
 
 ### Continuous processing — ONE PM loop, teams plug in per-task
 
