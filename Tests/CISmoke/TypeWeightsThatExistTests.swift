@@ -110,7 +110,14 @@ final class TypeWeightsThatExistTests: XCTestCase {
         let theme = try String(
             contentsOf: repoRoot().appendingPathComponent(
                 "Sources/Echoelmusic/Studio/EchoelTheme.swift"), encoding: .utf8)
-        XCTAssertTrue(theme.contains("case .semibold, .bold, .heavy, .black: face = \"AtkinsonHyperlegible-Bold\""), """
+        // ⛔ THE NEEDLE WAS `: face = "AtkinsonHyperlegible-Bold"` AND #536 MOVED IT. The switch
+        // was hoisted out of `font(_:_:)` into `EchoelTheme.faceName(_:)` — same arms, same two
+        // faces, but a `return` instead of an assignment to a local — because the brand mark
+        // needs the FACE without `font(_:_:)`'s `relativeTo: .body`. This guard's own message
+        // said "change the mapping and this guard in the same commit", and that is what
+        // happened; it is recorded rather than silently re-spelled, because a needle that moves
+        // without a note reads later like the mapping itself was rewritten.
+        XCTAssertTrue(theme.contains("case .semibold, .bold, .heavy, .black: return \"AtkinsonHyperlegible-Bold\""), """
             The weight→face mapping changed. Everything in this file reasons from it: which \
             weights are real, which are silently regular, and why `.medium` had to go. Change \
             the mapping and this guard in the same commit.

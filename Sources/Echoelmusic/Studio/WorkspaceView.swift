@@ -469,13 +469,31 @@ struct WorkspaceView: View {
             // Making it a second `Button` instead would restore the tap and buy back both
             // problems, plus a 22×22 hit target under the 44 pt floor (#113).
             //
-            // ⚠️ THE WIDTH BUDGET IS UNCHANGED, and that is arithmetic rather than hope: the bar
-            // gains a 22 pt child and a fourth top-level gap (+30), the brand block loses the
-            // same mark and its inner 8 pt gap (−30). Net zero, so the wordmark's share on the
-            // narrowest shipped phone (360 pt) is the same ~46 pt it had before — it simply no
-            // longer shares its greedy region with the mark. Constants, not a rendered layout.
+            // ⚠️ THE WIDTH BUDGET, and it is arithmetic rather than hope. #528 made it net zero:
+            // the bar gained a 22 pt child and a fourth top-level gap (+30) while the brand block
+            // lost the same mark and its inner 8 pt gap (−30). The 26 below spends **+4 pt** of
+            // that, and it comes out of the ONE greedy flank, which is the brand block. On the
+            // narrowest shipped phone (360 pt, iPhone 12/13 mini — both on iOS 18) the brand's
+            // share goes ~76 → ~72 pt against a mixed-case "Echoelmusic" of ~85 pt at 14 pt, so
+            // `minimumScaleFactor(0.7)` absorbs it at ~0.85 and never reaches its floor. The
+            // readout is the inflexible child and does not move. Constants, not a rendered layout.
+            //
+            // ⭐ 22 → 26 IS THE FOUNDER'S 2026-08-12 ASK (*"E links oben könnte gefühlt größer
+            // aber schau selbst"*), and it is deliberately NOT a proportion fix — measured, the
+            // proportion was already right: the website nav sets the mark to 28 px in a 64 px bar
+            // (43.8 %), this bar is ~50 pt and 22 pt is 44 %. What differed was the LETTERFORM
+            // (SF Pro vs Atkinson — corrected in `EchoelLogoMark` in the same commit). 26 pt is
+            // 52 % of this bar, i.e. deliberately more prominent than the site's ratio rather
+            // than equal to it, because he asked for more presence and this bar is denser than a
+            // 1120 pt nav. The number itself is NOT pinned by a guard: a design size that a test
+            // freezes is a test that reddens ordinary design work (#364).
+            //
+            // ⚠️ NO TAP-TARGET FLOOR APPLIES and that is why growing it is cheap: the mark is
+            // decorative and `.accessibilityHidden(true)` (see above) — it is not a control, so
+            // #113's 44 pt does not bind. It also stays well under the tile cluster's 44 pt tap
+            // height, so the bar's own height is unchanged.
             EchoelLogoMark()
-                .frame(width: 22, height: 22)
+                .frame(width: 26, height: 26)
                 .accessibilityHidden(true)
             // SECOND: the loop length + the playhead inside it — the founder's "die Anzeige für
             // die Loop Länge und der Balken" (#490), which lived in the MIDDLE until the #516

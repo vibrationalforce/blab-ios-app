@@ -250,16 +250,31 @@ enum EchoelTheme {
     /// guard (`Tests/CISmoke/TypeWeightsThatExistTests.swift`) buys the same protection for
     /// the price of a source scan. If a future pass has a reason to open all of these files
     /// anyway, take the type then.
-    static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        let face: String
+    ///
+    /// WHICH BUNDLED FACE a weight resolves to — ONE definition (#416), because there are now
+    /// two callers with opposite Dynamic-Type needs and only the face name is common to both.
+    ///
+    /// ⚠️ THE SECOND CALLER IS THE REASON THIS IS NOT INLINE ANY MORE. `EchoelLogoMark` draws
+    /// the brand `E` inside a `Canvas` whose coordinate system it scales itself from a fixed
+    /// 100-unit box. It must NOT use `font(_:_:)`: that returns `relativeTo: .body`, so the
+    /// glyph would grow with Dynamic Type while the canvas — sized by a hard
+    /// `.frame(width:height:)` — would not, and the `E` would overrun the three waves at large
+    /// text sizes. It takes `.custom(_:fixedSize:)` with this face instead. Do not "unify"
+    /// the two call sites by pointing the mark at `font(_:_:)`; that is the bug, not the tidy.
+    static func faceName(_ weight: Font.Weight) -> String {
         switch weight {
-        case .semibold, .bold, .heavy, .black: face = "AtkinsonHyperlegible-Bold"
-        default:                                face = "AtkinsonHyperlegible-Regular"
+        case .semibold, .bold, .heavy, .black: return "AtkinsonHyperlegible-Bold"
+        default:                                return "AtkinsonHyperlegible-Regular"
         }
+    }
+
+    /// The brand face at `size`, SCALING with Dynamic Type. This is the right default for every
+    /// laid-out label; it is the wrong thing inside a fixed-ratio `Canvas` — see `faceName`.
+    static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         // `relativeTo: .body` makes the bundled custom font scale with Dynamic Type
         // AND with the app's pinch-to-zoom (`.dynamicTypeSize(...)`), so the whole
         // interface grows for users who need larger text — accessibility-first.
-        return .custom(face, size: size, relativeTo: .body)
+        return .custom(faceName(weight), size: size, relativeTo: .body)
     }
 
     // MARK: Size-class-adaptive metrics — so everything is visible on all devices

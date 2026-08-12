@@ -37,7 +37,28 @@ struct EchoelLogoMark: View {
 
             // The "E" (bold), centred to sit above the waves. Resolve + set shading
             // so the colour is explicit (no deprecated Text.foregroundColor).
-            var e = ctx.resolve(Text("E").font(.system(size: 52 * s, weight: .bold)))
+            //
+            // ⛔ THIS DREW THE `E` IN `.system(size: 52 * s, weight: .bold)` — SF Pro — while
+            // every other copy of this mark sets Atkinson Hyperlegible explicitly
+            // (`docs/app-icon.svg`, `docs/favicon.svg`, `docs/logo-horizontal.svg`,
+            // `docs/logo-stacked.svg` and the inline nav `<svg>` in `docs/index.html` all carry
+            // `font-family="'Atkinson Hyperlegible',…"`). The three waves below were mirrored
+            // from that SVG coordinate for coordinate, so the ONE part of the mark that was not
+            // a reproduction was the letter it is built around — and this file's own header
+            // claims it "reproduces the app icon / website logo". The app bundles the face
+            // (`Resources/Fonts/AtkinsonHyperlegible-Bold.ttf` + `UIAppFonts`), so this costs
+            // nothing but the name. Founder ask, 2026-08-12: *"Website Design CI und APP
+            // übereinstimmend?"*
+            //
+            // ⚠️ `fixedSize:` AND NOT `EchoelTheme.font(_:_:)`, which is the tempting one-liner.
+            // That helper returns `relativeTo: .body`, i.e. it scales with Dynamic Type and with
+            // the app's pinch-to-zoom. This `Canvas` derives every coordinate from `s`, a hard
+            // ratio against the `.frame(width:height:)` the call site pins — so a
+            // Dynamic-Type-relative glyph would grow while the box holding it stayed put, and
+            // the `E` would overrun the waves at accessibility text sizes. The face lookup is
+            // shared (`EchoelTheme.faceName`); the SCALING behaviour deliberately is not.
+            var e = ctx.resolve(
+                Text("E").font(.custom(EchoelTheme.faceName(.bold), fixedSize: 52 * s)))
             e.shading = .color(color)
             ctx.draw(e, at: CGPoint(x: 50 * s, y: 30 * s), anchor: .center)
         }
