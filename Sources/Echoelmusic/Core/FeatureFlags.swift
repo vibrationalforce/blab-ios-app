@@ -7,6 +7,32 @@
 //  absent key reads false, so a Release build is bit-identical until a flag is
 //  deliberately turned on (developer settings / TestFlight staging later).
 //
+//  ⛔ THAT PARAGRAPH IS THE INTENT, NOT THE MEASUREMENT, AND READ AS A STATEMENT ABOUT THIS
+//  BUILD IT IS WRONG. Counted 2026-08-12 over `Sources/` with comments stripped, so a flag
+//  merely NAMED in prose does not count as consulted:
+//
+//  · ELEVEN of the sixteen have ZERO deciding readers — `spatialEngine`, `bioSpace`,
+//    `echoelRender`, `motionEngine`, `showControl`, `avObjects`, `performerTracking`,
+//    `liveCollab`, `headTracking`, `echoelAI`, `cameraExpression`. Nothing branches on any
+//    of them. **A flag with no reader gates nothing**, so for these eleven the sentence
+//    above describes an intention: whatever sits behind them is inert because nothing
+//    CALLS it, never because a flag holds it back. CLAUDE.md already carries exactly this
+//    correction — for `echoelAI` alone, as if it were the singular case. It is one of eleven.
+//  · FIVE are really consulted: `storeKit` (EchoelStore + EchoelmusicApp), `multiRoll`
+//    (EchoelmusicApp, 3 sites), `voiceKindRouting` (LaneVoiceRack), `audioLaneRecording`
+//    (EchoelmusicApp), `instrumentHome` (WorkspaceView). Only for these five is "ships
+//    behind a flag" a property of the build rather than a plan.
+//
+//  ⭐ AND THE OFF-BY-DEFAULT HALF HAS A SECOND LIMIT THIS FILE NEVER STATED: `FeatureFlags.set`
+//  has **zero** production call sites. No shipped surface can flip any flag. The thirteen
+//  default-OFF flags are therefore not "off until deliberately turned on" — they are off with
+//  no door, and for the two of them that a branch really consults (`storeKit`,
+//  `audioLaneRecording`) that means built, compiling code no user or tester can reach. This is
+//  the same deadlock the founder named when multiRoll/voiceKindRouting/instrumentHome were
+//  registered ON instead: a default-OFF flag with no UI can never be device-verified, so its
+//  gate can never be lifted. Adding a reader — or a door — is welcome work; see the guard for
+//  what to move in the same commit.
+//
 //  Pure value logic, Foundation-only (P4 portable core): no singleton state,
 //  no Observation — call sites read at decision points, they do not observe.
 //  UserDefaults is injectable so tests never touch the real store.
@@ -14,8 +40,17 @@
 
 import Foundation
 
-/// The staged-rollout switchboard for the spatial expansion. All OFF until
-/// their layer's gate is device-verified (never flip a default before then).
+/// The staged-rollout switchboard for the spatial expansion.
+///
+/// ⛔ THIS SUMMARY SAID "All OFF until their layer's gate is device-verified (never flip a
+/// default before then)" — and THREE cases in this same enum say "DEFAULT-ON" in their own
+/// doc, twenty lines below it. Measured: `UserDefaults.register(defaults:)` runs at startup
+/// for exactly three keys — `multiRoll`, `voiceKindRouting`, `instrumentHome`
+/// (`EchoelmusicApp`) — and those three are the ones that decide what the app IS: per-lane
+/// voices, heterogeneous rack voices, and the front door it opens into. A session reading
+/// this summary to answer "is it safe to assume this flag is off" got the wrong answer for
+/// exactly the three that matter, from the line written to answer it. The other THIRTEEN are
+/// genuinely off and stay off — see the header for why nothing can flip them.
 public enum FeatureFlags {
 
     // MARK: - Keys (stable — they become the staged-rollout contract)
