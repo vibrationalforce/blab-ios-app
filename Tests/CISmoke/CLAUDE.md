@@ -147,6 +147,14 @@ rarely the only one, and prose in other source files may cite what you removed.
   surviving clone flushes a non-deterministic subset. Honest wording for an unobserved guard:
   *"kompiliert nachweislich, Ausführung unbelegt."* Never "green", never "red".
 
+⛔ **A `.md` file in THIS directory triggers both gates.** Their `paths:` filters list
+`Tests/**` — the filter matches a PATH, not a source extension — so editing this very file
+starts a full `build-for-testing` on a macOS runner. #538's commit message claimed "neither
+gate triggers" because the change was documentation; it touched `Tests/CISmoke/CLAUDE.md` and
+both gates ran. The rule that IS true, and the one `docs/CLAUDE.md` states for its own tree:
+a commit touching only `.claude/**`, `docs/**`, `scripts/**` or `memory/**` produces **no
+run at all** — a fourth state that is neither green nor red. Read the filter, not the suffix.
+
 Responses overflow the token cap; they are saved to a file. Parse runs with
 `python3 scripts/gh-run-status.py <file>`.
 
