@@ -9165,3 +9165,36 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
   (gepusht, kein Force-Push über einen laufenden Lauf). Gefunden mit
   `git grep -c "#504" -- Sources Tests` — ein Befehl, den ich vor dem Commit hätte laufen lassen
   sollen und nicht habe.
+- **#541 (`8bba791`) — „ModulationEngine wired (bio→tempo)" zurückgenommen.** Die Maschine läuft
+  bis auf einen Schritt: Engine wird konstruiert, `start(subscribing:)` läuft, 100-ms-Loop tickt,
+  `ModDestinationKey.tempo` ist registriert und gleitet hinter dem globalen BPM-Lock
+  (Founder-Fix v79.45). Es fehlt die ROUTE: Default-Matrix leer (die Datei sagt es zweimal),
+  `git grep -n "\bModRoute(" -- Sources` = **genau eine** Stelle, der `LossyDecoded`-Decoder der
+  Matrix selbst. Ehrlich: **verdrahtet, türlos, ohne Route wirkungslos.** Sechster Eintrag im
+  Türlos-Register. NICHT abklemmen — die Matrix wird persistiert (#527-Lage).
+  ⚠️ Die Wortgrenze im `grep` steht in beiden Prosa-Stellen: ohne sie trifft er `FXModRoute(` und
+  druckt zwei Zeilen neben einer Prosa, die „eine" sagt (der `EchoelModalBank`-Fehler).
+  Wächter `TheTempoDestinationHasNoRouteTests` (7 Methoden): **null Regressionen** (#541 ändert
+  Prosa, kein Code — bauartbedingt beidseitig grün), verbietet das Verdrahten NICHT (#364),
+  Gegengewichte verhindern die Erfüllung durch LÖSCHEN der Fähigkeit. `codeOnly` gemessen
+  prophylaktisch: 0 von 14.
+- **PUNKTE 3 UND 4 EBENFALLS GEMESSEN BLOCKIERT.** Punkt 3 („externe AUv3"): `project.yml:225`
+  sagt wörtlich *„AUv3 REMOVED 2026-07-24 (founder verdict: Echoelmusic = pure instrument, no
+  AUv3)"*; kein Host (null `AVAudioUnitComponentManager`, null `AUAudioUnit.instantiate`, der
+  einzige `AudioComponentDescription` ist ein Apple-Bordeffekt in `AutoMixChain`); der zitierte
+  Commit `07810ba` existiert in diesem Klon nicht. Punkt 4 („Leisten-Verteilung in Timeline/
+  Spuren"): null Treffer für Spurkopf-/Leisten-Typen, dieselbe fehlende Fläche wie Punkt 1.
+  **Drei von fünf Reihenfolge-Punkten zielen auf Flächen, die der Founder selbst zwischen dem
+  24. und 26. Juli entfernt hat.** Die Reihenfolge stammt von v10.79.183 und wurde nie
+  nachgezogen. Im Delta und in der Deploy-Note vorgelegt, nicht still umgebaut.
+- **#445 hat jetzt eine ZAHL statt eines Prinzips.** Vollständiger Job-Log von `e1ddbc3`
+  (2 464 Zeilen, ab `Current runner version`, also nicht nur der Schwanz): **136** bestandene
+  Fälle aus **19** Klassen, alle auf `Clone 1`, bei **239** Dateien im blockierenden Bundle —
+  der Log zeigt rund **8 %**. Keiner der drei neuen Wächter steht darin, und genau deshalb bleibt
+  es bei „kompiliert nachweislich, Ausführung unbelegt". Ein erneuter Lauf ist eine Lotterie.
+- **DEPLOY v10.79.386 (`7509cc5`) abgesetzt.** Von elf Commits seit 385 ändern **zwei** etwas
+  Sichtbares (#536 Zeichen in Atkinson + 26 pt, #540 Aussetzer-Satz); die Note sagt das im ersten
+  Absatz statt neun Mess-Zyklen als Features zu verkaufen. Der wichtigste Punkt der Note ist
+  UNSICHTBAR: bio→tempo läuft nicht. Versions-Invariante so geprüft, wie CI liest
+  (`grep -m1 -oE` über die ganze Datei → 10.79.386, genau EIN `vX.Y.Z`, Vorgänger ohne `v`).
+  `.deploy/release` liegt in KEINEM der zwei Code-Gate-Filter → nur TestFlight läuft.
