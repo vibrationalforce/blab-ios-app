@@ -219,9 +219,32 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
                           "\(path): coherence must come from the frame")
             XCTAssertTrue(block.contains("hrv: frame."),
                           "\(path): HRV must come from the frame")
-            XCTAssertTrue(block.contains("heartRate: hrNormalized"),
-                          "\(path): heart rate must come from the frame's BPM")
-            XCTAssertTrue(block.contains("breathPhase: clampUnit(frame."),
+            // ⛔ THESE TWO NEEDLES WERE `"heartRate: hrNormalized"` AND
+            // `"breathPhase: clampUnit(frame."` UNTIL #544, AND BOTH HAD BEEN PERMANENTLY RED
+            // SINCE #497 — four assertions (two needles × two sites) that no tree could
+            // satisfy. #497 moved the neutral onto the frame, so both producers now write
+            // `heartRate: frame.heartRateForSound` / `breathPhase: frame.breathPhaseForSound`
+            // and `git grep -c hrNormalized -- Sources` returns nothing at all: the local that
+            // needle names has not existed for weeks.
+            //
+            // ⭐ WHY IT SURVIVED, because that is the transferable part: #542 rewrote 168 lines
+            // of THIS file and graded "ZERO REGRESSIONS" honestly — delta grading compares the
+            // parent tree with this one, and both are red here. A permanently-red assertion in
+            // a method the slice did not touch is invisible to every grading procedure this
+            // bundle prescribes; only a full transcription of the file, or a run whose log
+            // happens to flush this class (#445), finds it. That is now written down in
+            // `Tests/CISmoke/CLAUDE.md` §3.
+            //
+            // ⚠️ LOOSENED TO `: frame.`, DELIBERATELY NOT RE-PINNED TO THE ACCESSOR NAME.
+            // `AnUnmeasuredChannelReadsNeutralTests` already owns that spelling — it asserts
+            // `frame.heartRateForSound` / `frame.breathPhaseForSound` by name AND drives the
+            // real values end-to-end (0 BPM → 0.5, 40 → 0, 200 → 1, NaN → 0.5). Restating it
+            // here would be two definitions of one decision (#416), and the weaker of the two
+            // would be the source-text one. What THIS file owns is the shape its siblings two
+            // lines up own: the value comes from the frame, not from a literal.
+            XCTAssertTrue(block.contains("heartRate: frame."),
+                          "\(path): heart rate must come from the frame")
+            XCTAssertTrue(block.contains("breathPhase: frame."),
                           "\(path): breath phase must come from the frame")
         }
     }

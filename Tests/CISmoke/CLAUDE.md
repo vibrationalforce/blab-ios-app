@@ -117,6 +117,19 @@ State, for the parent tree:
 
 Getting your own tests wrong in the *generous* direction is the same defect as in the harsh one.
 
+⛔ **And delta grading is BLIND to a permanently-red assertion in a method the slice did not
+touch.** It compares parent with worktree; an assertion red on both produces no delta and is
+reported by nothing. #497 moved a value onto the frame and left two needles in
+`TheAlwaysOnBioPathIsNamedTests` naming a local (`hrNormalized`) that stopped existing —
+4 red assertions, 2 needles × 2 sites. #542 then rewrote 168 lines of that same file, graded
+"ZERO REGRESSIONS" *honestly by this section's procedure*, and the red survived because it
+predates the delta. #445 is why a run does not catch it either: the surviving clone flushes a
+non-deterministic subset, so absence from the log means nothing. **The only thing that finds it
+is transcribing the WHOLE file, not the diff — so when a slice rewrites a guard substantially,
+drive every assertion in it, not only the ones it changed.** Cheap tell: a needle naming a
+LOCAL VARIABLE rather than a member or a literal is the fragile kind — `git grep -c` it in
+`Sources` before trusting it.
+
 ---
 
 ## 4. Before you change a surface

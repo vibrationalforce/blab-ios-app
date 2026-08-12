@@ -49,8 +49,12 @@
 //
 // ⚠️ `SourceText.codeOnly` is LOAD-BEARING here — MEASURED (#453 asks for the count; three
 // slices in a row asserted it without measuring and had to retract, and the first draft of THIS
-// line said "4 of 12" before anything was driven). Transcribed run over {6 scans × 2 trees},
-// each evaluated raw and stripped: **1 of 12** verdicts flips, and it is the one that matters —
+// line said "4 of 12" before anything was driven). Transcribed run over {6 scans × 2 trees —
+// the PARENT `33adbdc` and this one}, each evaluated raw and stripped: **1 of 12** verdicts
+// flips. ⚠️ Re-derived against a LATER parent the same run reads 2 of 12, and that is not a
+// contradiction: from #543 onward the parent carries the ⛔ blocks too, so the raw scan is red
+// on BOTH trees. A flip count is a statement about a specific pair of trees — name them, the
+// way #448 requires a measured number to carry its sampling grid. The flip that matters is —
 // `testEveryNonPrimitiveFieldIsDefended` on the WORKTREE, PASS stripped and FAIL raw. The ⛔
 // blocks this slice writes into `Timeline.swift` quote the removed
 // `try c.decodeIfPresent(ClipKind.self` form verbatim to explain why it was wrong, so without
