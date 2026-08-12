@@ -9513,3 +9513,48 @@ STALEN `claude/piano-roll-clip-view-wozlie-5kxnrl`).
   schreiben SELBST ein Treffer ist. **Ein Kommentar über ein Symbol verfälscht jede rohe Suche
   nach diesem Symbol.** Die Messung, die das Aufschreiben überlebt, ist eine kommentar-gestrippte
   — sie steht jetzt im Wächter, nicht in der Prosa.
+
+## 2026-08-12 (cron, Folge-Zyklus) — #553: REIHENFOLGE Punkt 2, die vier Kanäle am Ort des Versprechens
+
+- **Gates gelesen, bevor gebaut wurde.** `dd87f0d` und `3fefe05`: **„Build for Testing" = success**
+  auf beiden ⇒ das blockierende Bundle kompiliert mit den zwei neuen Wächtern. „Run Tests" =
+  `failure`, und der Diskriminator sagt **#396**: `** TEST EXECUTE FAILED **` = 1,
+  `** TEST BUILD FAILED **` = 0, `Test build Succeeded` = 1, **null** fehlgeschlagene Testfälle.
+  ⚠️ **Neue #396-Spielart, aufgeschrieben weil sie anders aussieht als die bekannten:** kein
+  `Code=-308`, kein `server died` — stattdessen ein abgelehnter App-Start auf dem Simulator
+  (`SBMainWorkspace … RequestDenied`, `launch-failed`). Die EINZIGE `error:`-Zeile des Logs nennt
+  **keine Repo-Datei**, also Infrastruktur. Bestätigt die Regel von #445: der Marker ist
+  `TEST EXECUTE FAILED` gegen `TEST BUILD FAILED`, die Mach-Zeile ist Zugabe, kein Kriterium.
+- ⛔ **Ein reiner `scratchpads/`-Commit (`d8858ea`) hat GAR KEINEN Lauf ausgelöst** — das
+  Verzeichnis steht in keinem `paths:`-Filter. Der vierte Zustand aus `Tests/CISmoke/CLAUDE.md` §5,
+  dort bisher nur für `.claude/ docs/ scripts/ memory/` notiert.
+- **#553 (`a41f922`) — Punkt 2 der Founder-Reihenfolge, an der Stelle, wo die Frage gestellt wird.**
+  #542 hatte die vier Kanal-NAMEN als Satz ins Bio-Panel gesetzt und die Zahlen drei Ebenen weit weg
+  gelassen (Effects › All parameters › ganz nach unten). `AlwaysOnBioRow` war ein `private struct`
+  in `EchoelFXView` und ist jetzt eine eigene Datei; `AlwaysOnBioPanelStrip` setzt DIESELBEN Zeilen
+  in eine `VStack` unter den Satz. Die FX-Fläche behält ihre — **Reichweite erweitert, nicht
+  verlegt** (Claim 5 hält das fest).
+  ⭐ **EINE ZEILE, ZWEI CONTAINER, und das ist der ganze Entwurf.** Die naheliegende Alternative war
+  ein zweiter, handgebauter Readout im Panel — eine halbe Stunde, keine Datei verschoben. Das ist
+  #416 mit einer schärferen Kante als sonst: eine Readout-Kopie driftet in dem, was sie ÜBER DEN
+  KÖRPER BEHAUPTET, nicht bloß im Aussehen. Eine Fläche sagt weiter „measured", nachdem die andere
+  „held" gelernt hat. Das MODELL war längst geteilt (`AlwaysOnBioChannel`), die ZEILE nicht — und
+  genau das war die Lücke.
+  ⚠️ **Das Risiko ist das Freeze-Gesetz, deshalb ist Claim 4 die wichtigste Behauptung:** `bioPanel`
+  hängt an `dropdownContent`, das `EchoelStudioView.body` DAUERHAFT auswertet, und dieser Rumpf
+  beherbergt jeden `.menu`-Picker des Instruments. Ein dort eingezogener `bus.latestBio`-Read macht
+  die WURZEL zum Beobachter des Bio-Publishers (10.76.41/50). Der Strip ist deshalb ein eigener
+  `View`-`struct`, wie `BioStripView` und `BreathCoachStrip` zwei Zeilen weiter.
+  ⛔ Der alte Panel-Kommentar sagte, die Live-Zeilen „bleiben in ihrem Leaf INNERHALB der FX-Sheet" —
+  das las das Gesetz als eine Aussage über die SHEET statt über die Beobachtungsgrenze. Zurückgenommen.
+- ⚠️ **#456 im selben Commit, und es waren mehr Anker als erwartet:** DREI Wächter-Anker nannten
+  `private struct AlwaysOnBioRow` **in `EchoelFXView`** (`ADropoutSaysWhichHalfLetGoTests` ×1,
+  `AHeldReadingSaysSoTests` ×2) plus zwei Kopfzeilen-Sätze, die die Zeile „private" nennen. Dass
+  `declarationBody(of:in:)` bei Abwesenheit WIRFT, ist der einzige Grund, warum diese drei nicht
+  still grün auf einer Datei hätten weitersuchen können, die ihr Gegenstand verlassen hat.
+- Benotung: **2 Regressionen** (Claim 1 falsche Datei, Claim 2 kein Mount — zwei Tatsachen, zwei
+  Reparaturen, also zwei Befunde und nicht EINE Abwesenheit), **1 Forward** (Claim 3 nennt einen Typ,
+  den derselbe Commit anlegt), **2 Gegengewichte**. `codeOnly` **TRAGEND, 2 von 10** — Claim 4 kippt
+  auf BEIDEN Bäumen, weil die Panel-Prosa `bus.latestBio` nennen MUSS, um zu erklären, warum der
+  Read dort nicht steht; roh würde der Scan das Freeze-Gesetz auf dem Commit für gebrochen erklären,
+  der es befolgt.
