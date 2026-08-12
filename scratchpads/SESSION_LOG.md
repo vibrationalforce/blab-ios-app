@@ -9406,3 +9406,44 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
   `codeOnly` **TRAGEND, 1 von 6**.
 - **Berichtet, nicht editiert (founder-gated):** `project.yml:296` trägt dieselbe falsche
   C7-Route; `:224` hält die Watch-Einbettung auskommentiert (korrekt so, C5-Signier-Muster).
+
+### Zyklus 2026-08-12I — #550: totes Gesetz aus dem IMMER GELADENEN Satz
+
+- **Gates auf `18bcdb2` gelesen:** `Build for Testing` = **success** ⇒ #549s Wächter kompiliert.
+  `Run Tests` rot = #396 (1× `TEST EXECUTE FAILED`, 0× `TEST BUILD FAILED`, **135 Fälle aus 16
+  Suiten, null Fehlschläge**). ⭐ **#445 zum zweiten Mal an derselben Zweig-Familie gemessen:
+  169 Fälle / 21 Suiten auf `0f50047`, 135 / 16 auf `18bcdb2`.** Verschiedene Teilmengen, gleiche
+  Codebasis-Familie — das ist der harte Beleg dafür, dass Neu-Laufen eine Lotterie und kein
+  Beweisverfahren ist. Keiner der sechs neuen Wächter in einem der beiden Logs.
+- **#550 (`9bccd9d`).** `.claude/rules/swift-audio.md` trug einen Block „AUv3 Plugin Patterns"
+  (`ParameterAddress`, `internalRenderBlock`, `fullState`) für ein Target, das am 2026-07-24
+  entfernt wurde; **drei der vier Symbole kommen unter `Sources/` NULL Mal vor.**
+  ⭐ **Warum das schlimmer als nichts ist — die übertragbare Hälfte:** die Datei liegt im
+  **IMMER GELADENEN** Satz und der Block war **PRÄSKRIPTIV**. Veraltete beschreibende Prosa
+  lässt eine Sitzung etwas Falsches GLAUBEN; veraltete präskriptive Prosa lässt sie etwas
+  Falsches SCHREIBEN — gegen eine API, die es nicht gibt.
+  Ersetzt durch das Gesetz, das dort wirklich gilt, **gemessen statt behauptet**: 38 Dateien,
+  Import-Menge exakt `{Foundation, Accelerate}` (7× Accelerate), und **kein** Control-Plane-Typ
+  im CODE — die vier Namen, die auftauchen (`EngineBus`, `BioSampleFrame`, `MusicalFrame`,
+  `PatternEngine`), stehen in KOMMENTAREN. Der Befehl, der das neu ableitet, steht daneben.
+  **Bewusst NICHT wiederholt: der GRUND** — `FieldSoundSurvivesRelaunchTests` besitzt ihn schon
+  und nimmt die AUv3-Begründung dort an Ort und Stelle zurück (#416).
+  **Bewusst NICHT geschrieben: „Linux-testbar"** — `EchoelWSOLA.swift:16-17` importiert
+  Accelerate UNGESCHÜTZT, die anderen 6 mit `#if canImport`. Die ehrliche Eigenschaft ist
+  ENTKOPPLUNG, nicht Portabilität. Claim 3 pinnt diese Asymmetrie als gemessene TATSACHE und
+  repariert sie nicht — ein Guard an WSOLA ist eine eigene Entscheidung.
+- ⛔ **Der erste Entwurf von Claim 4 wäre auf KORREKTEM Code rot gewesen (#364), und zwar in der
+  Datei, deren Lehre genau davon handelt.** Er scannte die GANZE Regeldatei — und die
+  ⛔-Rücknahme, die dieselbe Scheibe dorthin schreibt, nennt `internalRenderBlock` wörtlich, um
+  zu sagen, dass es weg ist. Die #486/#491-Kollision, kopfüber. **Von der Transkription gefangen,
+  nicht vom Review.** Die Reparatur ist zugleich der RICHTIGERE Scan: der Defekt war nie „das
+  Wort kommt vor", sondern „diese Datei SCHREIBT eine tote API VOR" — und eine Regeldatei
+  schreibt in ihren ```-Blöcken vor. Claim 4 parst jetzt die Fences und scannt nur die.
+- ⚠️ **EHRLICH ZUR GRÖSSE, weil die Regel „den immer geladenen Satz nicht wachsen lassen"
+  lautet: er ist GEWACHSEN, 3 178 → 3 741 B (+563).** Der tote Block war 521 B; lebendes Gesetz
+  + Befehl + Rücknahme sind 1 084. Ein Entwurf wurde von 4 039 auf 3 741 verdichtet, dann Stopp —
+  weiter kürzen kostete entweder den Befehl (den §2 verlangt) oder die ⛔-Notiz (die #472
+  verlangt). **Als Zahl genannt statt als „Aufräumen" beschrieben.**
+- Benotung: **1 Regression** (Claim 4), **3 Gegengewichte**; `codeOnly` **TRAGEND, 2 von 8** —
+  Claim 2 kippt auf BEIDEN Bäumen. Eine Kipp-Zahl gilt je (Claim, BAUM); in dieser Sitzung
+  dreimal korrigiert, deshalb im Kopf ausgeschrieben statt ein viertes Mal gezählt.
