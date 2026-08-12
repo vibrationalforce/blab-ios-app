@@ -45,8 +45,41 @@ auch der Aufnahme-Pfad keine Lane. `AutomationPlayer.enabled` steht per Default 
 `AutomationLane`-Schicht auf Document/Spur/Clip ist davon getrennt und wird in den Player
 hineingeschoben. Der Registry-keyPath-Alias existiert bereits auf dem Enum
 (`AutomationPlayer.swift:28–40`) und `TimelineAutomationRowMath.sameParameter` führt beide
-Identitäten zusammen — die Brücke zum Founder-Wunsch „alle Parameter via
-`EchoelParameterRegistry`" ist also angelegt, aber der Ziel-VORRAT ist bis heute drei.
+Identitäten zusammen.
+
+⛔ **UND HIER STAND „ABER DER ZIEL-VORRAT IST BIS HEUTE DREI" — DAS IST FALSCH, und der Beleg
+liegt zwölf Zeilen unter dem Enum, das ich gelesen habe (#555).** `applyStep` hat nach der
+Enum-Schleife eine ZWEITE:
+
+```swift
+for lane in lanes where AutomationTarget.forParameter(lane.parameter) == nil {
+    if let n = lane.value(atTick: step * Note.ticksPerStep) {
+        router?.applyNormalized(lane.parameter, Float(n))
+    }
+}
+```
+
+**Beliebige Registry-keyPaths werden bereits über `ParameterApplyRouter` verteilt**, dazu je eine
+eigene Schleife für die Clip- und die Timeline-Schicht (`dispatchLane`). Das Enum ist der
+LEGACY-Schnellpfad für drei persistierte Alt-Identitäten, nicht die Obergrenze.
+
+⭐ **Der echte Engpass ist eine Ebene tiefer und hat eine andere Zahl: die SETTER-BINDUNG.**
+Gemessen: die Registry deklariert **15** keyPaths (`grep -o 'keyPath: "[^"]*"'
+Sources/Echoelmusic/Core/EchoelParameterRegistry.swift | wc -l`), gebunden sind **6** —
+`PolySynthVoice.automatableBases` (`warmth.drive` · die vier Hüllkurven-Zeiten · `amp.level`).
+Ungebunden bleiben neun, darunter `osc.brightness`, `osc.harmonicity`, `osc.noiseLevel`,
+`mod.vibratoDepth/Rate` und `filter.cutoff`. `router.applyNormalized` auf einen ungebundenen
+keyPath ist ein stiller No-op — **also ist eine Lane auf einem dieser neun heute eine Lane, die
+nichts bewegt.** `ParameterApplyRouter.automatableDescriptors()` bildet genau die ehrliche
+Schnittmenge (Registry ∩ gebunden) und existiert bereits.
+
+**Lehre, und sie ist die dieser Sitzung — ich bin ihr in meinem eigenen Plan aufgesessen:** ich
+habe den Ziel-Vorrat am ENUM abgelesen und aufgehört, bevor die nächste Schleife kam. Genau die
+#546-Klasse („eine Abbildung ist live, wenn der Schreibvorgang einen UNGATED Lesevorgang
+erreicht") und die #552-Klasse (eine halb wahre Behauptung liest sich für jeden richtig, der die
+zutreffende Hälfte prüft) — hier gegen mich selbst, in dem Artefakt, das der Founder in der Hand
+hat. Ein Enum sieht aus wie eine vollständige Aufzählung; das ist seine ganze Form, und deshalb
+hört man dort auf zu lesen.
 
 ---
 
@@ -86,8 +119,10 @@ Council — Automation: instrumenten-förmig (A) oder Spur-Zeile zurück (B)?
   entscheidet, und er wurde für genau diesen Fall geschrieben. Sorge: der Founder hat „Spur"
   gesagt; A erfüllt den Buchstaben nicht und muss das offen sagen, nicht umdeuten.
 · Architect: A — der Speicher ist song-absolut UND pro Clip, also trägt er beide Routen. Sorge:
-  die DREI Ziele in `AutomationTarget` sind der eigentliche Engpass, nicht die Ansicht; wer mit
-  der Ansicht anfängt, baut eine Tür zu drei Parametern.
+  der Engpass ist die SETTER-BINDUNG, nicht die Ansicht — 15 Registry-keyPaths, 6 gebunden; wer
+  mit der Ansicht anfängt, baut eine Tür, hinter der neun Regler nichts bewegen.
+  (⛔ Diese Zeile sagte „die DREI Ziele in `AutomationTarget` sind der Engpass" und war am
+  Enum abgelesen; die Rücknahme mit dem Beleg steht in Abschnitt 1.)
 · Skeptic: keine der beiden, bevor EIN Parameter nachweislich end-to-end läuft. `enabled`
   steht auf `false`, `RecordController.arm()` hat null Aufrufer, und die Mutations-API ist seit
   #473 unbenutzt — nichts davon ist auf einem Gerät je gelaufen. Ein Zeichen-Canvas auf einer
@@ -103,7 +138,7 @@ Council — Automation: instrumenten-förmig (A) oder Spur-Zeile zurück (B)?
 ```
 
 ⭐ **Der Grund, warum das kein `AskUserQuestion` ist:** die Scheiben 1 und 2 sind unter A und B
-Wort für Wort dieselben (Ziel-Vorrat, dann Sichtbarkeit). Die Routen trennen sich erst bei
+Wort für Wort dieselben (erst die automatisierbare Menge, dann Sichtbarkeit). Die Routen trennen sich erst bei
 Scheibe 3. Eine Frage jetzt würde eine Entscheidung erzwingen, die zwei Zyklen lang nichts
 ändert — und `.claude/rules/context.md` §6 sagt, dass eine Founder-Frage teurer ist als jede
 Messung. Die Frage wird bei Scheibe 3 gestellt, mit zwei laufenden Zyklen als Beleg.
@@ -114,14 +149,20 @@ Messung. Die Frage wird bei Scheibe 3 gestellt, mit zwei laufenden Zyklen als Be
 
 Jede ist ein Ralph-Zyklus: ein Punkt, Wächter, Gates, Status-Delta.
 
-**Scheibe 1 — der Ziel-Vorrat wird die Registry (route-neutral).**
-`AutomationTarget` ist ein Drei-Fälle-Enum; der Ask sagt „alle Parameter". Der Alias-keyPath und
-`TimelineAutomationRowMath.sameParameter` sind bereits da, also ist der Schritt: eine Auflösung
-Registry-Deskriptor → `AutomationTarget`-äquivalentes Ziel, mit dem Enum als PERSISTIERTER
-Legacy-Identität (gespeicherte Lanes werden nie umgeschrieben — das steht schon so im Quelltext
-und ist einzuhalten). Reiner Kern, `Core/`, voll testbar ohne Gerät.
-*Wächter:* eine alte Lane mit `"masterLevel"` und eine neue mit `"master.amp.level"` lösen auf
-dasselbe Ziel auf und können nie zu zwei Lanes zerfallen.
+**Scheibe 1 — die automatisierbare Menge wird zur geprüften Tatsache (route-neutral).**
+⛔ Diese Scheibe hieß „der Ziel-Vorrat wird die Registry" und beschrieb Arbeit, die schon getan
+ist (Abschnitt 1). Was wirklich fehlt: die Menge „Registry ∩ gebundener Setter" ist heute **6 von
+15** und wird von NICHTS festgehalten. Eine Lane auf einem der neun ungebundenen keyPaths ist ein
+stiller No-op — der Spieler zeichnet eine Kurve und hört nichts, und nichts im Repo würde rot.
+`ParameterApplyRouter.automatableDescriptors()` bildet die ehrliche Schnittmenge bereits; sie
+braucht einen Wächter, bevor eine Fläche aus ihr eine Parameter-Liste baut.
+*Wächter (in diesem Zyklus gebaut, #555):* jeder gebundene keyPath ist ein ECHTER
+Registry-keyPath (ein Tippfehler im `bind` bindet für immer ins Leere) · `automatableBases` und
+die `switch`-Fälle des Setters können nicht auseinanderlaufen (`default: return nil` macht ein
+fehlendes `case` zu einem stillen Nicht-Binden) · `ddsp.fx.reverbMix` bleibt UNGEBUNDEN, solange
+`EchoelDDSP.useConvolutionReverb` `false` ohne Schreiber ist (#546) — sonst wäre der erste neue
+Automations-Regler ein Placebo.
+*Danach, als eigene Scheibe:* die neun einzeln prüfen und binden, was wirklich Audio bewegt.
 
 **Scheibe 2 — Sichtbarkeit vor Editierbarkeit (route-neutral).**
 Ein Leaf-`View`, das ZEIGT, welche Parameter gerade automatisiert sind und mit welchem Wert —
