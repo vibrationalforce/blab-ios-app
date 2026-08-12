@@ -9105,3 +9105,55 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
 
 **Report-only, founder-gated (unverändert):** #396, `|| true` auf `ci.yml:165`, #208, #210,
 #478 (DerivedData-Cache-Schlüssel ohne SDK-Version, `ci.yml:127`/`:349`).
+
+## 2026-08-12 (cron, ULTRACODE 24h) — CLAUDE.md wird Router (#538) + Dropout auf dem Schirm (#504)
+
+- **Zweig:** `claude/echoelmusic-neustart-auv3-6ri2ek`. Der Stunden-Takt nennt weiterhin den
+  VERALTETEN `claude/piano-roll-clip-view-wozlie-5kxnrl` — Korrektur steht in jedem Delta.
+- **#536 nachgeklärt (#445):** Job-Log geparst (201 599 Zeichen). `Test build Succeeded` 1×,
+  `TEST EXECUTE FAILED` + `server died` je 1× (= #396), `TEST BUILD FAILED` 0×, `error:` 0×.
+  `TheMarkIsTheSameMarkTests` steht NICHT namentlich im Log → nach #445 beweist das nichts.
+  Ehrliche Formulierung bleibt: **kompiliert nachweislich, Ausführung unbelegt.**
+- **#538 — ULTRACODE-Schritt 7 ausgeliefert (`7afdaeb`).** Die zwei Zähl-Ketten sind
+  BYTE-IDENTISCH nach `memory/LEDGER_COUNTS.md` verschoben (§A `Tests/CISmoke`, 5 599 Zeilen;
+  §B `Sources/**`, 17 511 Zeichen in EINEM Aufzählungspunkt), mit Routing-Zeile an beiden
+  Fundstellen. `CLAUDE.md` 715 488 → **126 635 B**; immer-geladene Fläche 815 952 → **227 099 B**
+  (−588 853 B, −72,2 %); Gesetz-Anteil 2,7 % → ~11 %. Ein Skript belegt die Verlustfreiheit: von
+  allen entfernten Zeilen fehlen genau drei im Ledger, alle drei sind die umgeschriebenen Nahtstellen.
+  Das Ledger ist NICHT in der `cat`-Liste des SessionStart-Hooks und darf nie hinein.
+  `doctor.py` Sektion D: Flächen-Größe live pro Datei mit WARN > 150 000 B (bewusst nicht die
+  angepeilten 45 000 — #364), plus „jede Routing-Zeile muss auflösen" (gitignorierte Pfade via
+  `git check-ignore` ausgenommen, sonst hätte `.claude/settings.local.json` dreimal falsch gemeldet).
+  **Die 45 KB sind NICHT erreicht und nicht behauptet** — dorthin käme man nur durch Umschreiben.
+- **#539 (`5d03900`) — eigene Falschbehauptung zurückgenommen.** Die #538-Commit-Nachricht sagte
+  „neither gate triggers, docs only". Beide Gates sind angesprungen: `Tests/CISmoke/CLAUDE.md`
+  liegt unter `Tests/**`, und der `paths:`-Filter matcht einen PFAD, keine Endung. Ich hatte
+  „Dokumentation" aus `docs/CLAUDE.md` zu „Markdown" verallgemeinert. Regel jetzt in
+  `Tests/CISmoke/CLAUDE.md` §5.
+- **#504 (`3714da2`) — REIHENFOLGE-Punkt 2.** Der Bio-Panel zeigte längst, WELCHE Parameter der
+  Körper bewegt (#496/#498/#500/#503) — aber nicht, was ein AUSFALL tut, und die zwei Hälften
+  verhalten sich absichtlich verschieden: FX-Routen sind auf `usableBio()` gegattert und LASSEN
+  LOS (Zeile fällt auf einen Strich), die Timbre-Erzeuger lesen `latestBio` roh und PARKEN
+  („held"). #499 hatte beides als richtig belegt und den Rest ausdrücklich offen gelassen
+  („only the timbre half says so on screen"). Ein Satz-Paar, EIN String (#416), als zweiter
+  Fußzeilen-Absatz. `Text(Self.alwaysOnNote)` wörtlich erhalten (#456).
+  Wächter `ADropoutSaysWhichHalfLetGoTests` (8 Methoden), per Python-Transkription gegen beide
+  Bäume benotet: **null Regressionen**, EINE Abwesenheit viermal gemeldet (#486), VIER
+  Gegengewichte — darunter das eine, das den stillen Bruch fängt: der Satz sagt „below", und das
+  ist eine LAYOUT-Behauptung.
+- ⛔ **`SourceText.codeOnly` war im ersten Entwurf des Wächter-Kopfes als TRAGEND behauptet.
+  Gemessen: 0 von 16 Verdikten kippen — PROPHYLAKTISCH.** `literalValue` läuft vom Anker
+  VORWÄRTS, der Doc-Kommentar darüber ist nie in Reichweite. In der Datei als Rücknahme stehen
+  gelassen, nicht still korrigiert (#453 existiert, weil drei Scheiben das ungemessen behauptet haben).
+- **Punkt 5 (Visuals grau/B9) ist seit `545b19e` = v10.79.383 (2026-08-08) AUSGELIEFERT** —
+  `cloudGlow * 2.4` und der Warm-Mix auf 0.92 stehen in `MetalBioView`. Zwei Deploys (v384/v385)
+  sind seither draufgegangen. Offen ist nur noch der Founder-Geräte-Blick, seit vier Tagen.
+- ⚠️ **Punkt 1 (Automation in der Spur) ist GEMESSEN blockiert, nicht übersprungen.** Es gibt
+  heute KEINE Spur-Fläche: `git grep -ln "TimelineLane\b" -- Sources/Echoelmusic/Studio` liefert
+  nur das türlose `ImmersiveStageView`; `TimelineAutomationRow` ist mit #473 gelöscht,
+  `AutomationView.swift` existiert nicht, `AutomationPlayer` hat null Produktions-Schreiber
+  (eine alte persistierte Kurve SPIELT, keine Fläche kann eine zeichnen). Der Punkt verlangt
+  damit den Wiederaufbau genau der Timeline/Clip-Fläche, die #121 Slice 4 entfernt hat und die
+  `PRODUCT_DEFINITION.md` ausdrücklich CUTtet. Das ist ein echter Konflikt zweier Founder-
+  Anweisungen verschiedener Daten (REIHENFOLGE v10.79.183 gegen 2026-07-25/26) — im Delta
+  vorgelegt statt still entschieden.
