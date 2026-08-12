@@ -9317,3 +9317,40 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
 - **Gates:** #543 (`90c07fe`) und #544 (`b8b3ef7`) je `Build for Testing` = **success** ⇒ das
   blockierende Bundle kompiliert mit beiden neuen Wächtern. #545 `Xcode Compile Check` **rot** →
   #547. Ausführung der neuen Wächter weiterhin **unbelegt** (#445).
+
+### Zyklus 2026-08-12G — #548: Zeile 39 verspricht kein MPE mehr
+
+- **#548 (`0f50047`).** Die immer geladene Pipeline-Zeile las „CoreMIDI **MPE** → controllerEvents
+  → synth **notes** (performer priority)". Gemessen trägt dieser Pfeil drei Behauptungen und hält
+  EINE: **(1)** `MIDIBusPublisher` PARST MPE-Verkehr, unterscheidet aber keine Zonen — sein
+  eigener Kopf sagt „MPE master vs. member channel disambiguation, RPN 6,6 zone detection, and
+  channelPressure are intentionally NOT wired in this first cycle". **(2)** Der Verbraucher
+  `BioReactiveSynthVoice.apply(controller:)` behandelt `.noteOn`/`.noteOff`/`.pitchBend` und
+  läuft für `.slide` (CC 74), `.airCC` und `.channelPressure` in **ein einziges nacktes `break`**
+  — genau die drei Dimensionen, die MPE von MIDI 1.0 unterscheiden — und liest `event.channel`
+  **nirgends**. **(3)** „notes" im Plural: `heldByController` ist ein einzelner `Bool`,
+  `playNote` setzt eine `synth.frequency`. Monophon **von Bauart**, nicht bloß unverdrahtet.
+  Wahr bleibt und steht weiter da: Noten, Pitch-Bend und der Vorrang vor der Atem-Hüllkurve
+  erreichen die Stimme wirklich.
+- **Formulierung ÜBERNOMMEN, nicht erfunden** (#416): `docs/faq.html`, `architecture.html`, der
+  App-Store-Text und `ContentPipeline/CLAIMS.md` waren längst ehrlich — **CLAUDE.md war der
+  einzige Ausreißer**, und zwar in Zeile 39 der Datei, die jede Session zuerst liest.
+- ⭐ **Die eine Entwurfsentscheidung: der Wächter pinnt den VERBRAUCHER, niemals diese Prosa.**
+  Ein Negativ-Scan auf CLAUDE.md träfe die ⛔-Blöcke, in denen die Datei absichtlich
+  zurückgenommene Behauptungen zitiert, und würde ausgerechnet auf dem Commit rot, der den Text
+  repariert (#486/#491, in diesem Repo zweimal bezahlt). Am Verbraucher gepinnt wird er rot an
+  dem Tag, an dem jemand einen echten MPE-Empfänger baut — also genau dann, wenn die Zeile
+  zurückgeändert werden MUSS (#364: er feuert beim richtigen Ereignis, statt korrekte Arbeit zu
+  verbieten).
+- Claim 1 prüft zusätzlich, dass die Verwerfung ein **NACKTES** `break` bleibt: eine Nadel nur
+  auf das `case`-Label bliebe grün, während darunter Anweisungen wachsen — grün aus einem Grund,
+  den es nicht mehr gibt (#456). Claim 4 ist das #343-Gegengewicht: eine Datei, die nur „MPE
+  kommt nicht an" behauptet, bleibt grün auf einem Baum, der externes MIDI GANZ gelöscht hat —
+  also gepinnt, dass die drei Dimensionen weiterhin auf `ControllerEvent.Kind` EXISTIEREN
+  (ignoriert, nicht abwesend), `channel` weiterhin da ist, um nicht gelesen zu werden, und Noten
+  + Bend weiterhin ankommen.
+- **Benotung: NULL Regressionen — und das ist das RICHTIGE Ergebnis, keine Lücke.** Die Scheibe
+  ändert Prosa; alle vier Claims beschreiben Code, den keiner der beiden Bäume anfasst, also sind
+  alle acht Verdikte bauartbedingt grün. Sie als gefangene Regressionen zu verbuchen wäre die
+  schmeichelnde Richtung (#433). Was der Wächter kauft, ist das ZUKÜNFTIGE Rot. `codeOnly`
+  **prophylaktisch, 0 von 8** — gemessen, nicht behauptet.
