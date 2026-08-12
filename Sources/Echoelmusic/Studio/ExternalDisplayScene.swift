@@ -36,10 +36,22 @@
 //  Xcode lanes set no `SWIFT_TREAT_WARNINGS_AS_ERRORS` at all. The deprecation would have
 //  reddened nothing. The real reason is the API, not the gate.
 //
-//  ⚠️ SIDE EFFECT ON iPad, stated because it was NOT asked for. There is no
-//  "external-display only" variant of the switch: `UIApplicationSupportsMultipleScenes`
-//  is app-wide, and `project.yml` ships `TARGETED_DEVICE_FAMILY: "1,2"`. On iPad this now
-//  also permits a SECOND app window (Split View / Stage Manager). I first wrote that this
+//  ⚠️ SIDE EFFECT, stated because it was NOT asked for. There is no "external-display only"
+//  variant of the switch: `UIApplicationSupportsMultipleScenes` is app-wide, so wherever the
+//  OS offers a second app window (Split View / Stage Manager) this permits one.
+//
+//  ⛔ THIS USED TO ASSERT THAT `project.yml` SHIPS BOTH THE PHONE AND THE TABLET FAMILY, and it
+//  drew the iPad half of the side effect above from that — falsified by #292 and left standing
+//  until #551. Phone-only ships today, so the iPad half is not reachable; and this scene mounts
+//  `ExternalStageView` through its own `UIHostingController` (see below), never `WorkspaceView`,
+//  so the extra scene it DOES create cannot re-run the startup task either. The value belongs to
+//  `project.yml` alone — pinned by `DeviceFamilyIsPhoneOnlyTests` — and restating it here was the
+//  second copy that went stale (#416). Described rather than quoted, because the guard that keeps
+//  this corrected is a negative scan of `Sources/` prose and a verbatim quote would red it on the
+//  very commit that repairs it; the longer version of that reasoning is in `EchoelmusicApp`.
+//
+//  ⭐ The reasoning below is UNCHANGED and still correct; only its trigger moved from "today
+//  on iPad" to "the day a second window is possible again". I first wrote that this
 //  was "survivable" because both windows share ONE engine — that was WRONG and it is why
 //  `EchoelmusicApp` now carries a `startupDone` latch: sharing the engine is exactly the
 //  problem, because the second window's `.task` would run the WHOLE startup again against

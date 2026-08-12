@@ -203,13 +203,35 @@ struct EchoelmusicApp: App {
     /// The startup `.task` hangs on `WorkspaceView()` INSIDE the `WindowGroup`, so it runs
     /// once per WINDOW — which was harmless only while the app could have exactly one.
     /// Enabling `UIApplicationSupportsMultipleScenes` for the external-display scene also
-    /// lets iPadOS open a SECOND app window (we ship `TARGETED_DEVICE_FAMILY: "1,2"`), and
-    /// that second window would re-run the whole sequence against the SHARED, already
-    /// running engine: every `attach(to:)` funnels into `AudioEngine.attachSourceNode`,
-    /// which has no already-attached guard and pauses/attaches/reconnects/restarts. That is
-    /// the hot-attach-to-a-running-engine shape this file already blames for the build-1363
-    /// launch crash. `@State` on an `App` is shared across its scenes, which is exactly
-    /// what makes a latch here work.
+    /// lets iPadOS open a SECOND app window, and that second window would re-run the whole
+    /// sequence against the SHARED, already running engine: every `attach(to:)` funnels into
+    /// `AudioEngine.attachSourceNode`, which has no already-attached guard and
+    /// pauses/attaches/reconnects/restarts. That is the hot-attach-to-a-running-engine shape
+    /// this file already blames for the build-1363 launch crash. `@State` on an `App` is
+    /// shared across its scenes, which is exactly what makes a latch here work.
+    ///
+    /// ⛔ A PARENTHETICAL STOOD HERE ASSERTING THAT THE APP SHIPS TO BOTH THE PHONE AND THE
+    /// TABLET FAMILY. #292 made it phone-only and nobody moved the comment (#551). The value is
+    /// decided in exactly one place, `project.yml`, and pinned by `DeviceFamilyIsPhoneOnlyTests`;
+    /// restating it here was a second copy of one decision (#416), and second copies are what go
+    /// stale — this one did, in a doc block on the launch path.
+    ///
+    /// ⚠️ THE OLD TEXT IS DESCRIBED, NOT QUOTED, AND THAT IS DELIBERATE. This repo normally
+    /// quotes what it removed, which is better documentation — but the guard that keeps this
+    /// corrected is a NEGATIVE scan of `Sources/` prose, and a verbatim quote would trip it on
+    /// the very commit that fixes the text (#486/#491, four collisions in one session).
+    /// `swift-audio.md` could scope its scan to fenced examples; a doc comment has no fence, so
+    /// the retraction gives up the verbatim form and the scan keeps its teeth. The SCAN is the
+    /// half that can fail; prose cannot.
+    ///
+    /// ⭐ THE LATCH STAYS, and the reason is worth more than the correction. Its NAMED scenario
+    /// is unreachable today twice over: iPhone has no Split View / Stage Manager second app
+    /// window, and the one extra scene that IS enabled hosts `ExternalStageView` through its
+    /// own `UIHostingController` (`ExternalDisplayScene`), never `WorkspaceView` — so this
+    /// `.task` cannot run twice. That makes it belt-and-braces, NOT dead code: it still
+    /// executes, it costs the launch path one boolean, `ExternalStageBridge` reasons from it,
+    /// and "kein nie" is the standing position on iPad. Deleting a cheap guard because its
+    /// scenario is currently unreachable is how the scenario comes back unguarded.
     @State private var startupDone = false
     @Environment(\.scenePhase) private var scenePhase
     /// Order-proof backgrounding marker: iOS may deliver .background → .inactive →
