@@ -409,6 +409,32 @@ public enum BioSource: UInt8, Sendable, Equatable {
         case .fallback: return 5
         }
     }
+
+    /// How far in the FUTURE a timestamp may sit and still be believed.
+    ///
+    /// Every freshness check in this repo is two-sided: `age <= window` rejects a frozen
+    /// reading, and `age >= -futureSkewTolerance` rejects a timestamp from ahead of now.
+    /// The second half is not paranoia — `CFAbsoluteTimeGetCurrent()` is a WALL clock, so a
+    /// system time correction (NTP step, manual change, a device waking with a drifted RTC)
+    /// can move `now` backwards under a frame that was stamped correctly. One second absorbs
+    /// that without letting a genuinely bogus far-future stamp drive sound.
+    ///
+    /// ⭐ IT IS A CONSTANT BECAUSE IT WAS SIX LITERALS (#545). The same `-1` was written at
+    /// `EngineBus.freshBio` / `.usableBio` / `.freshMusical`, `AlwaysOnBioChannel`,
+    /// `ColabPayload.live(at:)` and `BioFeedbackManager` — one decision, six places to edit,
+    /// and nothing that notices when a retune leaves five behind (#416).
+    ///
+    /// ⛔ AND `ColabPayload` ALREADY CLAIMED TO ASK IT: its doc block said the tolerance is
+    /// "asked the same way rather than minted a second time (#416/#426)" — seven lines above
+    /// the line that minted it. A claim and its own refutation inside one declaration (#425).
+    /// That is the reason this constant lives on `BioSource` and not somewhere neutral: the
+    /// comment that pointed readers at `EngineBus.usableBio()` was right about WHERE the
+    /// decision belongs and wrong only about whether it had been made there yet.
+    ///
+    /// ⚠️ NOT the same quantity as `freshnessWindow`, which is per-source and ranges 5…600 s.
+    /// This one is a property of the CLOCK, identical for every source, and applies to peer
+    /// payloads (`ColabPayload`) that carry no `BioSource` at all.
+    public static let futureSkewTolerance: TimeInterval = 1
 }
 
 // MARK: - External controller event (MPE + air dimensions)
@@ -546,7 +572,8 @@ public final class EngineBus {
     public func freshBio(maxAge: TimeInterval = 5) -> BioSampleFrame? {
         guard let f = latestBio,
               CFAbsoluteTimeGetCurrent() - f.timestamp <= maxAge,
-              CFAbsoluteTimeGetCurrent() - f.timestamp >= -1 else { return nil }
+              CFAbsoluteTimeGetCurrent() - f.timestamp
+                >= -BioSource.futureSkewTolerance else { return nil }
         return f
     }
 
@@ -559,7 +586,8 @@ public final class EngineBus {
     public func usableBio() -> BioSampleFrame? {
         guard let f = latestBio else { return nil }
         let age = CFAbsoluteTimeGetCurrent() - f.timestamp
-        guard age <= f.source.freshnessWindow, age >= -1 else { return nil }
+        guard age <= f.source.freshnessWindow,
+              age >= -BioSource.futureSkewTolerance else { return nil }
         return f
     }
 
@@ -587,10 +615,15 @@ public final class EngineBus {
     /// The freshest musical frame within `maxAge` seconds — the music-side mirror of
     /// `freshBio`, so renderers (visual/light/spatial) only react to LIVE musical
     /// state and never to a frozen frame after playback stops. Same shared clock.
+    /// ⚠️ Asks `BioSource.futureSkewTolerance` although a `MusicalFrame` has no `BioSource`:
+    /// the quantity is a property of the shared wall clock, not of a bio source (#545). The
+    /// alternative — a second constant with the same value on the musical side — is the
+    /// defect being removed here, not a tidier version of it.
     public func freshMusical(maxAge: TimeInterval = 2) -> MusicalFrame? {
         guard let f = latestMusical,
               CFAbsoluteTimeGetCurrent() - f.timestamp <= maxAge,
-              CFAbsoluteTimeGetCurrent() - f.timestamp >= -1 else { return nil }
+              CFAbsoluteTimeGetCurrent() - f.timestamp
+                >= -BioSource.futureSkewTolerance else { return nil }
         return f
     }
 

@@ -188,7 +188,13 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
         }
         let measured = isMeasured(in: frame)
         let age = now - frame.timestamp
-        let usable = age <= frame.source.freshnessWindow && age >= -1
+        // Both halves ASKED, neither restated: this row must agree with `usableBio()` exactly,
+        // or the strip says "held" while the composer still plays the frame (or the reverse).
+        // The skew half was a literal `-1` here until #545 while the doc block eight lines up
+        // already called it "the 1 s skew tolerance" — the prose named a constant that did not
+        // exist yet.
+        let usable = age <= frame.source.freshnessWindow
+            && age >= -BioSource.futureSkewTolerance
         return AlwaysOnBioReading(value: value(in: frame),
                                   isMeasured: measured,
                                   isHeld: measured && !usable)
