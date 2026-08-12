@@ -9558,3 +9558,44 @@ STALEN `claude/piano-roll-clip-view-wozlie-5kxnrl`).
   auf BEIDEN Bäumen, weil die Panel-Prosa `bus.latestBio` nennen MUSS, um zu erklären, warum der
   Read dort nicht steht; roh würde der Scan das Freeze-Gesetz auf dem Commit für gebrochen erklären,
   der es befolgt.
+
+## 2026-08-12 (cron, Folge-Zyklus) — Punkt 1: PLAN + Council statt einer sechsten Frage
+
+- **Gates auf `a41f922` (#553) — BEIDE grün.** `Xcode Compile Check` = **success** (erste echte
+  Quelltext-Änderung seit sechs Scheiben: verschobener Typ + neue Datei + neuer Mount).
+  `Build for Testing` = **`Test build Succeeded`** ⇒ das blockierende Bundle kompiliert samt
+  `TheAlwaysOnRowsReachTheBioPanelTests` und den zwei umgehängten Ankern. „Run Tests" = #396 im
+  Lehrbuch-Muster (`TEST EXECUTE FAILED` 1 · `TEST BUILD FAILED` 0 · `Code=-308` 1 · `server died` 1),
+  **null fehlgeschlagene Fälle**, 136 `passed` über 15 Suiten. Meine drei neuen Wächter sind NICHT
+  in der geleerten Teilmenge — nach #445 beweist das nichts, ehrliche Formulierung bleibt
+  „kompiliert nachweislich, Ausführung unbelegt".
+- **REIHENFOLGE Punkt 1 — `scratchpads/PLAN_AUTOMATION_IN_DER_SPUR.md`.** Der Founder verlangt
+  „ERST PLAN + Council"; das ist der Auftrag, nicht die Vorstufe davon.
+  ⭐ **Die Messung dreht die Größe des Asks um eine Größenordnung um: es ist zu ~90 % gebaut.**
+  Speicher auf DREI Ebenen (`TimelineDocument.automation` song-absolut · `TimelineLane.automation`
+  pro Spur · `Clip.automation` im Clip, alle persistiert), Mutation komplett (`addPoint`/`movePoint`/
+  `removePoint`/`setValue`/`setCurve`), Wiedergabe verdrahtet (`TimelineRegionPlayer` schiebt die
+  Lanes bei `play()` und bei jedem strukturellen Refresh in `AutomationPlayer`), Anwendung auf
+  jedem Transport-Schritt über `ParameterApplyRouter`, dazu Zeichen-Mathematik (A3) und zwei
+  Aufnahme-Kerne. **Was fehlt, ist die TÜR:** `git grep` auf die vier Mutations-Methoden liefert
+  **null Aufrufer** außerhalb von `TimelineStore.swift` — verwaist, seit #473 die Zeile löschte.
+  ⚠️ **ZWEI Automations-Systeme, nicht eines**, und wer sie verwechselt plant am falschen vorbei:
+  `AutomationPlayer` hat ein eigenes `automation.json` mit einem **Drei-Fälle-Enum**
+  (`masterLevel`/`tempo`/`filterCutoff`); die `AutomationLane`-Schicht ist davon getrennt und wird
+  hineingeschoben. Der Registry-Alias und `sameParameter` sind schon da — die Brücke zu „alle
+  Parameter" ist angelegt, der ZIEL-VORRAT ist bis heute drei. Das ist der eigentliche Engpass,
+  nicht die Ansicht.
+- **Council: Route A (instrumenten-förmig), Gate proceed.** Die Spur-OBERFLÄCHE hat der Founder
+  selbst entfernt (#121 Slice 4, #473), und „Editor ≠ Workstation" wurde für genau diesen Fall
+  geschrieben. Scheiben: **1** Ziel-Vorrat = Registry (reiner Kern) · **2** Sichtbarkeit vor
+  Editierbarkeit (Leaf-View wie #553) · **3** EIN Schreiber — **hier trennen sich A und B, hier
+  wird gefragt** · **4** der Schalter zuletzt.
+  ⭐ **Warum das JETZT kein `AskUserQuestion` ist:** Scheiben 1 und 2 sind unter beiden Routen
+  Wort für Wort identisch. Eine Frage jetzt erzwänge eine Entscheidung, die zwei Zyklen lang
+  nichts ändert — und die Frage bei Scheibe 3 kommt mit zwei laufenden Zyklen als Beleg statt
+  mit einer Vermutung (`context.md` §6: eine Founder-Frage ist teurer als jede Messung).
+- ⚠️ **Der Plan sagt selbst, was er NICHT beweist:** keine der acht Schichten ist je auf einem
+  Gerät beobachtet worden. „Zu ~90 % gebaut" ist eine Aussage über CODE, nicht über Verhalten —
+  `enabled` ist `false`, die Mutations-API aufruferlos, `RecordController.arm()` ebenso (#204).
+  Scheibe 2 steht genau deshalb an zweiter Stelle: sie ist der erste Punkt, an dem der Founder
+  etwas SEHEN kann.
