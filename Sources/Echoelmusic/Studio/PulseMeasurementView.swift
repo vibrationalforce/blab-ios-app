@@ -2,8 +2,29 @@
 //  PulseMeasurementView.swift
 //  Echoelmusic — Studio
 //
-//  The live camera-pulse acquisition readout (status light · coaching hint · BPM ·
-//  waveform · confidence bar) shown above the controls while a take is playing.
+//  The live camera-pulse acquisition readout: status light · coaching hint · BPM ·
+//  waveform · confidence bar.
+//
+//  ⛔ THIS LINE SAID "shown above the controls while a take is playing" AND THAT HAS NOT BEEN
+//  TRUE SINCE THE TOOLS-GRID REMOVAL (2026-07-02). Measured, not assumed:
+//  `git grep -n 'PulseMeasurementView(' -- Sources` returns exactly ONE construction site,
+//  `BioSourceView.swift`; `git grep -n 'BioSourceView(' -- Sources` returns ZERO. The chain
+//  terminates one hop up. Nothing in the app mounts this view, during a take or otherwise.
+//
+//  ⭐ WHY THAT SENTENCE WAS THE EXPENSIVE KIND OF STALE, rather than a tidy-up: it is a claim
+//  about WHERE a reader will find this on screen, written in the file's first paragraph — the
+//  place a session reads before deciding whether a fix here can be device-verified. It cannot.
+//  And it is the second half of the same defect #523 hit from the other end: `coachingHint`
+//  (= `acquisitionCue.fullHint`) has exactly ONE reader, and that reader is this view, so the
+//  rPPG remedy reached a sighted user nowhere. A file that says it is on screen is precisely
+//  what stops someone noticing that.
+//
+//  ⚠️ DOORLESS IS NOT A DEFECT HERE AND THIS FILE MUST NOT BE "CLEANED UP" INTO ONE. The block
+//  below is the canonical statement of the 10.76.41/50 freeze law for this shape, and three
+//  other files plus CLAUDE.md cite this view BY NAME as the worked example. Deleting the file
+//  takes the law's home with it — the #472 trap, where a doorless VIEW and a load-bearing
+//  neighbour share one file. Re-dooring it is welcome work; see the guard for what to update
+//  in the same commit.
 //
 //  WHY ITS OWN VIEW (not a computed `var` on EchoelStudioView): every property it reads
 //  on `CameraRPPGBioPublisher` — `fingerDetected`, `confidence`, `waveform`, `detectedBPM`,
