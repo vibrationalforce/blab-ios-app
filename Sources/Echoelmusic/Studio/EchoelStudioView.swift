@@ -2819,16 +2819,26 @@ struct EchoelStudioView: View {
             // pinned channels (`breathDepth`, `lfHf`, `coherenceTrend`) a real producer reddens
             // THERE instead of quietly leaving this sentence one channel short.
             //
-            // ⚠️ A SENTENCE, NOT A SECOND LIVE READOUT, and that is the freeze law rather than
-            // laziness — the same rule the comment directly above states for `BreathCoachStrip`.
-            // A per-channel readout reads `bus.latestBio`; this panel is evaluated by
-            // `EchoelStudioView.body`, which hosts the `.menu` Pickers, and `AnyView(bioPanel)`
-            // is not an observation boundary (10.76.50). The live rows stay in their own leaf
-            // inside the FX sheet, where `AlwaysOnBioView` already confines them. This line is
-            // static text and observes nothing.
+            // ⚠️ THIS LINE IS STATIC TEXT AND OBSERVES NOTHING — that part is unchanged and is
+            // the freeze law, not laziness: `bioPanel` is reached through `dropdownContent`,
+            // which `EchoelStudioView.body` evaluates PERMANENTLY, and that body hosts the
+            // `.menu` Pickers. `AnyView(bioPanel)` is not an observation boundary (10.76.50).
+            //
+            // ⛔ WHAT THIS COMMENT ADDED TO THAT RULE WAS A SCOPE CLAIM, AND #553 RETIRED IT.
+            // It said the live rows "stay in their own leaf inside the FX sheet" — reading as
+            // if the FX sheet were the only lawful address for them. The law is about the
+            // OBSERVATION BOUNDARY, not the sheet: a `View` struct is one wherever it is
+            // mounted, which is exactly why `BioStripView` and `BreathCoachStrip` already read
+            // live values two lines from here. `AlwaysOnBioPanelStrip` below is the same
+            // construction — its `bus.latestBio` read is in ITS body, never in this one.
+            // The sentence stays because it is the one thing a player can read at a glance;
+            // the numbers now stand under it instead of three levels away (Effects › All
+            // parameters › scroll to the bottom), which is where #542 had to leave them.
             Text(AlwaysOnBioChannel.bioPanelSentence)
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+
+            AlwaysOnBioPanelStrip()
 
             BreathCoachStrip()
 

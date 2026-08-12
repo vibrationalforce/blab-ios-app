@@ -16,7 +16,8 @@
 // guard keeps it true.
 //
 // ⚠️ THE LIMIT FIRST. Every assertion here is a SOURCE-TEXT SCAN. `BioModLiveView`,
-// `AlwaysOnBioRow` and `BioModContributionRow` are `private` structs inside a SwiftUI view this
+// `AlwaysOnBioRow` (its own file since #553) and `BioModContributionRow` (still `private` in
+// `EchoelFXView`) are SwiftUI `View` structs this
 // bundle cannot instantiate. So this proves the words exist, say both halves, and are mounted
 // under the right section — never that they RENDER, that they fit the sheet at accessibility
 // text sizes, that VoiceOver reads the two paragraphs in order, or that the dropout itself
@@ -68,6 +69,12 @@ import XCTest
 final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
 
     private static let fxView = "Sources/Echoelmusic/Studio/EchoelFXView.swift"
+    /// ⛔ THE ROW MOVED (#553). `AlwaysOnBioRow` was a `private` struct in `fxView`; it is now an
+    /// internal type in its own file so the Bio panel can mount the same row the FX sheet does.
+    /// This anchor is updated in the SAME commit as the move — the failure mode #456 warns about
+    /// is not a red gate but a scan that stays GREEN while searching a file the subject left, and
+    /// `declarationBody(of:in:)` throwing on absence is the only reason this one could not do that.
+    private static let rowFile = "Sources/Echoelmusic/Studio/AlwaysOnBioRow.swift"
 
     /// The three channels no producer drives — both `…BioParams(` sites pin them to neutral
     /// literals. The always-on note is already forbidden from naming them (#496); a NEW sentence
@@ -139,7 +146,7 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
 
     /// The word the sentence promises must still be the word the row draws.
     func testTheHeldWordIsStillRendered() throws {
-        let body = try declarationBody(of: "private struct AlwaysOnBioRow: View", in: Self.fxView)
+        let body = try declarationBody(of: "struct AlwaysOnBioRow: View", in: Self.rowFile)
         XCTAssertTrue(body.contains("Text(\"held\")"), """
             `AlwaysOnBioRow` no longer renders the literal "held", but the dropout note still \
             tells the player to look for it. Change the word and the sentence together.

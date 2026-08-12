@@ -38,7 +38,9 @@
 // ⚠️ THE LIMIT FIRST. The BEHAVIOUR half is real end to end — `AlwaysOnBioChannel`,
 // `AlwaysOnBioReading` and `BioSampleFrame` are `public` Foundation-only value types, so every
 // case below drives the shipped decision. The MOUNT/COPY half is a SOURCE SCAN: `AlwaysOnBioRow`
-// is `private` inside a SwiftUI view this bundle cannot instantiate. That the row renders, that
+// is a SwiftUI `View` this bundle cannot instantiate. (It was `private` inside `EchoelFXView`
+// until #553 moved it to its own file as an internal type; the access level was never what made
+// it unreachable from here — being a `View` is.) That the row renders, that
 // the tick actually fires once a second on device, that a dimmed bar reads as "parked" at a
 // glance, and that VoiceOver's held sentence is useful spoken aloud are FOUR device checks and
 // all four are open.
@@ -80,6 +82,11 @@ import XCTest
 final class AHeldReadingSaysSoTests: XCTestCase {
 
     private static let fxView = "Sources/Echoelmusic/Studio/EchoelFXView.swift"
+    /// ⛔ THE ROW MOVED (#553), out of `fxView` and into its own file as an internal type, so the
+    /// Bio panel mounts the SAME row the FX sheet does instead of a second hand-built copy. Both
+    /// anchors below move with it, in that commit. The header's "MOUNT/COPY half is a SOURCE SCAN"
+    /// note still holds — only the file it scans changed.
+    private static let rowFile = "Sources/Echoelmusic/Studio/AlwaysOnBioRow.swift"
 
     /// Reads a repo source file as CODE, never prose (#453). Skips on the DIRECTORY, never on the
     /// individual file: a `fileExists` bracket around each read turns a deletion — the exact
@@ -286,7 +293,7 @@ final class AHeldReadingSaysSoTests: XCTestCase {
     /// and this body is rebuilt on every `latestBio` publish — each rebuild mints a fresh
     /// `.periodic` with a new phase, so the context date can lag the draw.
     func testTheRowTicksAndReadsTheWallClock() throws {
-        let src = try block(startingAt: "private struct AlwaysOnBioRow", in: code(Self.fxView))
+        let src = try block(startingAt: "struct AlwaysOnBioRow", in: code(Self.rowFile))
         XCTAssertTrue(src.contains("TimelineView(.periodic(from: .now, by: 1))"),
                       "the row must tick. `isHeld` flips on the passage of TIME, and the event that "
                       + "makes it true — a source that stopped publishing — is by definition the "
@@ -304,7 +311,7 @@ final class AHeldReadingSaysSoTests: XCTestCase {
     /// green on a tree that kept the ticker and dropped every trace of the held state. Scoped to
     /// the row's braces for the same reason as the test above.
     func testTheRowRendersTheHeldState() throws {
-        let src = try block(startingAt: "private struct AlwaysOnBioRow", in: code(Self.fxView))
+        let src = try block(startingAt: "struct AlwaysOnBioRow", in: code(Self.rowFile))
         XCTAssertTrue(src.contains("reading.isHeld ? 0.35 : 1"),
                       "the bar must stay DRAWN and be dimmed when held — the engine really is still "
                       + "being handed this value, so removing the bar would claim a drop that did "
