@@ -1,4 +1,4 @@
-build: v10.79.385 — Der festhängende Puls sagt jetzt, was zu tun ist. Und das Zeichen führt die Kopfzeile.
+build: v10.79.386 — Das Zeichen trägt jetzt unsere Schrift. Und ein Aussetzer sagt, welche Hälfte losgelassen hat.
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,98 +6,119 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.384 (Build 2501).
+  Der Vorgänger auf Deinem Gerät ist 10.79.385.
 
-  Dieser Build hat ZWEI sichtbare Hälften. Der Rest der neun Zyklen seit 384 hat
-  gemessen, korrigiert und Wächter gesetzt, aber am Gerät nichts bewegt — das steht
-  weiter unten ehrlich als „was Du NICHT sehen wirst".
+  Ehrlich vorweg: seit 385 liegen elf Commits, und **genau zwei davon ändern etwas, das
+  Du sehen kannst.** Die anderen neun haben gemessen, korrigiert und Wächter gesetzt.
+  Das steht unten unter „was Du NICHT sehen wirst", und eine Sache dort ist wichtiger
+  als beide sichtbaren Hälften zusammen.
 
-  ── 1. DER FESTHÄNGENDE PULS SAGT JETZT, WAS ZU TUN IST ───────────────────
+  ── 1. DAS ZEICHEN TRÄGT JETZT UNSERE SCHRIFT ─────────────────────────────
 
-  Seit 377 erkennt die App, wenn die rPPG-Akquise 45 Sekunden lang nicht weiterkommt, und
-  unterscheidet dabei zwei Fälle: „Signal, aber kein verwertbarer Verlauf" und „gar nichts
-  zu lesen". Zu beiden gehört ein Satz, der sagt, was man TUN soll — „nimm den Finger
-  kurz weg und leg ihn neu auf" bzw. „probier einen anderen Finger, oder wärm die Hand".
+  Deine Frage war: „Website Design CI und APP übereinstimmend? E links oben könnte
+  gefühlt größer aber schau selbst."
 
-  **Diese Sätze haben einen sehenden Nutzer bis heute an KEINER Stelle erreicht.**
-  Gemessen: der einzige Leser saß in einer Ansicht, zu der es keine Tür gibt; die
-  Kopfzeilen-Kachel gab den Satz nur an VoiceOver weiter, während auf dem Schirm das
-  Zwei-Wort-Kürzel stand. Die Hälfte der Diagnose, die sagt, was hilft, war hörbar und
-  unsichtbar — auf genau dem Engpass, an dem diese App seit Wochen hängt.
+  Ich habe verglichen statt geschätzt. Übereingestimmt hat fast alles: Hintergrund
+  (`#000` gegen `Color.black`), Textfarbe (`#e0e0e0` gegen 0,878 × 255 = 224 = 0xE0),
+  Schriftfamilie, Eckradius 8, die drei Wellen Koordinate für Koordinate gegen
+  `docs/favicon.svg`, Strichstärke 3, die Deckkraft-Staffel 0,8 / 0,4 / 0,2 — und sogar
+  die Proportion: auf der Website sitzt das Zeichen mit 28 px in einer 64-px-Leiste
+  (43,8 %), in der App mit 22 pt in einer ~50-pt-Leiste (44 %).
 
-  Der Satz steht jetzt im Bio-Panel, im schon reservierten Platz unter dem Messstreifen.
-  Kein neues Fenster, keine neue Ebene: derselbe Slot, den die Tempo-Sperre benutzt; die
-  Sperre hat weiterhin Vorrang, damit sich unter Deinen Fingern nichts verschiebt.
+  **Abgewichen ist genau eine Sache: die Buchstabenform.** Das `E` im Zeichen wurde in
+  SF Pro gezeichnet — Apples Systemschrift —, während alle fünf veröffentlichten Fassungen
+  des Logos (App-Icon, Favicon, horizontal, gestapelt und das eingebettete SVG in der
+  Navigation) Atkinson Hyperlegible setzen. Der Dateikopf behauptete dabei, er reproduziere
+  das veröffentlichte Logo. Das ist jetzt korrigiert.
 
-  ⚠ EHRLICHE GRENZE, und sie ist wichtiger als die Reparatur: **das behebt die Akquise
-  nicht.** Die App hört nur auf, so zu tun, als sei nichts, und sagt Dir, was Du
-  probieren kannst. Ob es dann WIRKLICH lockt, ist die offene Frage seit 377.
+  Und weil Du „gefühlt größer" gesagt hast: 22 → **26 pt**. Das ist eine Gefühlssache,
+  keine Proportionsreparatur — die Proportion war, siehe oben, schon richtig. Die
+  Kopfzeile hat dafür Platz: auf dem schmalsten Telefon (360 pt) fällt der Anteil der
+  Marke von ~76 auf ~72 pt, und der Schriftzug skaliert dabei auf ~0,85, also nicht bis
+  an seine Untergrenze.
 
-  ⚠ Und eine benannte Lücke, die absichtlich bleibt: bei „zu hell" bekommst Du weiterhin
-  nur „Too bright" ohne den Zusatz „drück ein bisschen leichter". Grund: dieser Zustand
-  wird bei JEDEM Kamerabild neu berechnet, der Satz würde also mehrmals pro Sekunde
-  auftauchen und verschwinden und die Zeile darunter mitschieben. Der festhängende Fall
-  wird einmal entschieden und steht still — deshalb darf nur er den Platz belegen.
+  ⚠ **Wenn 26 pt zu groß wirkt, ist das eine Zahl** — sag eine andere und sie steht im
+  nächsten Build. Es ist bewusst kein Wert, den ein Test festnagelt.
 
-  ── 2. DAS ZEICHEN FÜHRT, DER SCHRIFTZUG BLEIBT IN DER MITTE ──────────────
+  ── 2. EIN AUSSETZER SAGT JETZT, WELCHE HÄLFTE LOSGELASSEN HAT ────────────
 
-  Dein Screenshot von 384: ein Kreis eng um die **E-Kachel** — der Schriftzug sichtbar
-  AUSSERHALB — und ein Pfeil nach links auf die Loop-Leiste.
+  Wo: **Effekte-Chip → „All parameters" → ganz nach unten.** Dort stehen zwei Blöcke
+  untereinander — oben die Routen, die Du selbst angelegt hast, unten die vier
+  Körperkanäle, die den Klang des Instruments von sich aus formen.
 
-  Ein Pfeilkopf heißt umziehen, zwei hätten tauschen geheißen. Und Du hast diesmal
-  ausdrücklich NUR das Zeichen eingekreist, nicht den Block: den Block mit Schriftzug
-  hattest Du schon einmal markiert, und vier Tage zuvor stand „Den Schriftzug
-  Echoelmusic wieder in die Mitte". Beides zugleich wahr zu lassen geht nur, indem man
-  die zwei trennt. Die Reihenfolge ist jetzt: **Zeichen · Position · Schriftzug ·
-  Monitore.**
+  Wenn der Finger von der Linse rutscht oder ein Gurt abreißt, verhalten die zwei sich
+  **absichtlich verschieden**: die Routen oben LASSEN LOS (die Zeile fällt auf einen
+  Strich, der Parameter geht auf Deinen eingestellten Wert zurück), die Kanäle unten
+  PARKEN auf der letzten Messung (die Zeile sagt „held").
 
-  ⚠ Ein Verlust, benannt statt verschwiegen: das Logo antippen öffnet nicht mehr die
-  Website — die Tür sitzt jetzt am Schriftzug, zwei Elemente weiter. Das Zeichen ist
-  dekorativ und für VoiceOver ausgeblendet, damit die Kopfzeile nicht zweimal
-  „Echoelmusic" ansagt. Wenn Du das Antippen zurück willst, ist das eine Zeile — sag
-  Bescheid.
+  Beides ist richtig — eine Route ist ein Zuschlag, den Du verlangt hast, und den auf
+  einem Körper stehenzulassen, der nichts mehr sendet, wäre eine falsche Behauptung;
+  die Klangfarbe hat gar keinen Rückweg, dort wäre Nullsetzen die falsche Behauptung.
+  Nur stand auf dem Schirm bisher **zweimal etwas anderes für ein Ereignis, ohne dass
+  irgendwo stand, dass das Absicht ist.** Die naheliegende Lesart war „ich habe was
+  kaputtgemacht". Jetzt steht ein Satz darunter, der beide Hälften zusammen erklärt.
 
-  ── WAS DU NICHT SEHEN WIRST (und warum es trotzdem drin ist) ─────────────
+  ⚠ Ehrliche Grenze: Du siehst das nur, wenn ein Aussetzer passiert. Kein neues Fenster,
+  keine neue Ebene — zwei Absätze in einer Fußzeile, die es schon gab.
 
-  Sieben der neun Zyklen seit 384 haben nichts am Gerät bewegt. Sie haben MESSGERÄTE
-  repariert, und zwar solche, die grün meldeten für Arbeit, die sie nie angesehen haben:
+  ── WAS DU NICHT SEHEN WIRST — und der erste Punkt ist der wichtige ───────
 
-  · Der Puls-Messwert behauptete in seinem eigenen Kopf, er sei auf dem Schirm — seit
-    dem 2. Juli falsch. Genau diese Fehlangabe hat verdeckt, dass die Abhilfe-Sätze
-    nirgends ankamen (Hälfte 1 oben ist die Folge davon).
-  · Elf von sechzehn Funktions-Schaltern in dieser App entscheiden gar nichts — sie
-    haben keinen einzigen Leser. Was dahinter liegt, liegt still, weil es niemand ruft,
-    nicht weil ein Schalter es zurückhält. Und kein ausgeliefertes Bedienelement kann
-    irgendeinen dieser Schalter umlegen.
-  · Die Audio-Spuren sind verdrahtet und es gibt keinen Weg, sie zu FÜLLEN.
-  · Zwei Reviewer-Agenten beschrieben eine Codebasis, die es nicht mehr gibt — einer
-    komplett über ein Plugin-Target, das im Juli entfernt wurde. Ein „Review" mit ihnen
-    hätte sauber gemeldet und nichts geprüft.
-  · Das Diagnose-Skript las zwei Verzeichnisse und meldete sauber für vier.
+  · **Der Körper steuert das Tempo NICHT.** In der Zustandsdatei stand seit Monaten
+    „ModulationEngine wired (bio→tempo)", und das liest sich wie eine Fähigkeit.
+    Gemessen läuft die Maschine bis auf einen Schritt vollständig: die Engine startet,
+    tickt zehnmal pro Sekunde, das Tempo-ZIEL ist registriert und gleitet sauber hinter
+    Deiner BPM-Sperre. Was fehlt, ist die ROUTE — die Standard-Matrix ist leer, und im
+    ganzen Quellbaum gibt es **genau eine** Stelle, die eine Route baut: den Decoder der
+    Matrix selbst. Keine Fläche kann eine anlegen. Ehrlich ist: **verdrahtet, türlos,
+    ohne Route wirkungslos.** Wenn Du geglaubt hast, das läuft, hat die Zeile Dich
+    getäuscht — das ist jetzt korrigiert und mit einem Wächter versehen, der rot wird,
+    sobald jemand die Route wirklich baut.
+    ⚠ NICHT abgeklemmt: die Matrix wird gespeichert. Ein Projekt aus einem älteren Build
+    kann das Tempo weiterhin ziehen. Abklemmen machte aus „offensichtlich abwesend" ein
+    „still stumm".
 
-  Das sind keine Features. Es sind die Instrumente, mit denen ich Dir sage, ob etwas
-  funktioniert — und drei davon haben zuletzt gelogen.
+  · Die Zustandsdatei, die jede Sitzung vor der ersten Arbeitszeile liest, ist von
+    715 KB auf 127 KB geschrumpft (−82 %). Nichts gelöscht — zwei Zähl-Historien sind
+    in eine eigene Datei umgezogen, byte-identisch, mit Verweis an beiden Fundstellen.
+    Der Anteil der ausführbaren REGELN an dem, was eine Sitzung zahlt, steigt damit von
+    2,7 % auf ~11 %. Das ist der Grund, warum eine Sitzung überhaupt noch merkt, dass
+    der Audio-Thread nicht allozieren darf.
+
+  · Drei Korrekturen an mir selbst: eine Fähigkeitsbehauptung in einer Commit-Nachricht
+    („kein Gate springt an" — beide sprangen an), eine Scheibennummer, die schon vergeben
+    war, und eine Werkzeug-Anleitung, die ein Programm nannte, das es in dieser Umgebung
+    nicht gibt.
 
   ── WAS VON DIR GEBRAUCHT WIRD (nach Wichtigkeit) ─────────────────────────
 
-  1. **Der festhängende Puls.** Bio-Panel öffnen, Finger auflegen, und wenn es nach ~45 s
-     nicht lockt: steht der Abhilfe-Satz da? Ist er verständlich? Und — die eigentliche
-     Frage — HILFT er? Wenn Du dem Satz folgst und es dann lockt, ist der Engpass zum
-     ersten Mal von der App aus lösbar.
-  2. **Die Kopfzeile.** Sitzt das Zeichen links, wo Dein Pfeil hinzeigte? Liest sich die
-     Zeile ruhig, oder drängt sich jetzt etwas? Fehlt Dir das Antippen des Logos?
-  3. **Stimmung, zwei Proben aus 384** (falls noch nicht geprüft): (a) Mood-Regler
-     verstellen, App komplett schließen und neu starten — stehen sie noch da? (b) Take
-     speichern, Regler verstellen, Take wieder öffnen — kommt die Stimmung zurück?
-  4. **Der Atem-Schalter aus 383:** Bio-Panel, „Body voice" einschalten — kommt ein Ton,
-     und liest er sich musikalisch oder wie eine hängengebliebene Note?
-  5. **Seit sieben Builds der wichtigste Test:** Projekt speichern, App verlassen, wieder
-     öffnen, Projekt öffnen — dann den Bass- oder Pad-Fader ziehen. Bleibt es dasselbe
-     Stück, nur anders balanciert?
-  6. Ein Genre- oder Tonart-Menü öffnen, während Biofeedback läuft — bleibt es offen?
-  7. Drei Fragen ohne Antwort — je ein Wort genügt:
+  1. **Die Kopfzeile.** Sieht das `E` jetzt richtig aus — dieselbe Schrift wie auf der
+     Website? Und ist 26 pt das „gefühlt größer", das Du meintest, oder zu viel?
+
+  2. **Der festhängende Puls — seit 385 offen und weiterhin der Engpass.** Bio-Panel,
+     Finger auflegen, und wenn es nach ~45 s nicht lockt: steht der Abhilfe-Satz da,
+     ist er verständlich, und HILFT er?
+
+  3. **Die grauen Visuals — seit 383 auf Deinem Gerät, seit vier Tagen unbestätigt.**
+     Die Farb-/Sättigungskette ist entstapelt (warm-mix 0,80 → 0,92, Farb-Gate
+     1,6 → 2,4). Sind die Visuals jetzt bunt genug, oder immer noch grau?
+
+  4. **Die Reihenfolge selbst braucht eine Entscheidung.** Von den fünf Punkten Deines
+     Verdikts zielen **drei auf Flächen, die Du selbst zwischen dem 24. und 26. Juli
+     entfernt hast**: Automation in der Spur und die Leisten-Verteilung brauchen eine
+     Timeline/Spur-Fläche (mit #121 gelöscht), und „externe AUv3 sichtbar" braucht ein
+     AUv3-Target (am 24. Juli entfernt, mit der Begründung „Echoelmusic = pure
+     instrument, no AUv3" — steht wörtlich in der Projektdatei). Die Reihenfolge stammt
+     von 10.79.183 und ist seither nie nachgezogen worden. **Neu formulieren als
+     Instrumenten-Arbeit, oder Werkstatt-Flächen zurückholen?** Ein Wort genügt; bis
+     dahin arbeite ich Punkt 2 weiter, der als einziger frei ist.
+
+  5. Die drei Fragen aus 385, weiterhin ohne Antwort — je ein Wort:
      · Darf Genre · Key · Scale · Tonsystem · A4 hinter den Tempo-Chip wandern? Das gäbe
        dem Instrument 41 pt zurück und kehrt Deine Entscheidung vom 14. Juli um.
      · Soll ein fehlgeschlagenes Speichern auf den SCHIRM, oder reicht die Protokoll-Zeile?
      · Live Colabo: sollen Mitspieler unterscheidbar werden? Das braucht eine
        Apple-Berechtigung — das Namensfeld löst es NICHT.
+
+  6. Und die Probe, die seit acht Builds die wichtigste ist: Projekt speichern, App
+     verlassen, wieder öffnen, Projekt öffnen — dann den Bass- oder Pad-Fader ziehen.
+     Bleibt es dasselbe Stück, nur anders balanciert?
