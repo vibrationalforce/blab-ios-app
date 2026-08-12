@@ -9599,3 +9599,43 @@ STALEN `claude/piano-roll-clip-view-wozlie-5kxnrl`).
   `enabled` ist `false`, die Mutations-API aufruferlos, `RecordController.arm()` ebenso (#204).
   Scheibe 2 steht genau deshalb an zweiter Stelle: sie ist der erste Punkt, an dem der Founder
   etwas SEHEN kann.
+
+## 2026-08-12 (cron, Folge-Zyklus) — #555: Scheibe 1, und die Rücknahme meines eigenen Plans
+
+- **Gates:** `2436f0a` war reines `scratchpads/` ⇒ **kein Lauf** (vierter Zustand). Die letzte
+  echte Lesung steht: `a41f922` (#553) beide Gates grün.
+- ⛔ **DIE WICHTIGSTE ZEILE DIESES ZYKLUS IST EINE RÜCKNAHME MEINER SELBST, EINEN ZYKLUS ALT.**
+  Der #554-Plan schrieb „der Ziel-Vorrat ist bis heute drei" — abgelesen am Drei-Fälle-Enum
+  `AutomationTarget`. **Zwölf Zeilen unter diesem Enum** hat `applyStep` eine ZWEITE Schleife, die
+  **beliebige Registry-keyPaths** über `ParameterApplyRouter` verteilt, dazu je eine für die Clip-
+  und die Timeline-Schicht. Beliebige Parameter waren längst erreichbar; das Enum ist der
+  Legacy-Schnellpfad für drei persistierte Alt-Identitäten, keine Obergrenze.
+  ⭐ **Die übertragbare Hälfte: ein Enum SIEHT AUS wie eine vollständige Aufzählung — das ist
+  seine ganze Form — und genau deshalb hört man dort auf zu lesen.** Familie #546 (eine Abbildung
+  ist live, wenn der Schreibvorgang einen UNGATED Lesevorgang erreicht) und #552 (eine halb wahre
+  Behauptung liest sich für jeden richtig, der die zutreffende Hälfte prüft), diesmal gegen das
+  Artefakt, das der Founder in der Hand hält. Rücknahme steht im Plan an DREI Stellen (Abschnitt 1,
+  die Architect-Zeile des Councils, Scheibe 1), nicht nur an einer.
+- ⭐ **Der echte Engpass liegt eine Ebene tiefer und hat eine andere Zahl: die SETTER-BINDUNG.**
+  Registry deklariert **15** keyPaths, `PolySynthVoice.automatableBases` bindet **6**.
+  `applyNormalized` auf einen ungebundenen keyPath gibt `nil` zurück — ein bewusst absturzfreier
+  No-op —, **also ist eine Lane auf einem der anderen neun eine Kurve, die der Spieler zeichnet
+  und nie hört, und nichts im Repo würde rot.** `automatableDescriptors()` bildet die ehrliche
+  Schnittmenge längst und hatte keinen Wächter.
+- **#555 (`4947433`) — Wächter `TheAutomatableSetIsWhatMovesAudioTests`.** **Nicht gepinnt (#364):
+  die ZAHLEN.** „15 und 6" ist der Befund, und die anderen neun zu binden ist das ZIEL der nächsten
+  Scheibe — ein Wächter, der auf seine eigene Reparatur rot wird, wird gelöscht, und das Gesetz
+  geht mit. Gepinnt ist stattdessen: jeder gebundene keyPath ist ein ECHTER Registry-keyPath (ein
+  Tippfehler bindet ins Leere und scheitert **exakt wie** ein ehrlich ungebundener Parameter — kein
+  Log, kein Absturz, kein rotes Testergebnis) · `automatableBases` und der Setter-`switch` können
+  nicht auseinanderlaufen (`default: return nil` macht ein fehlendes `case` zum stillen
+  Nicht-Binden) · **`ddsp.fx.reverbMix` bleibt UNGEBUNDEN**, solange `useConvolutionReverb` `false`
+  ohne Schreiber ist (#546) — sonst wäre der erste neue Automations-Regler ein Placebo · ein
+  ungebundener keyPath ist wirklich ein No-op, ein gebundener feuert wirklich.
+- **Drei der fünf Behauptungen sind END-ZU-ENDE**, nicht Quelltext-Scan: Registry, Router und
+  `automatableBases` sind `public` und konstruierbar. Zwei sind Scans (der Setter-`switch` ist
+  `private`, die DSP-Flagge gehört nicht in dieses Bundle hineingegriffen). Geräteprobe — ob ein
+  automatisierter Parameter KLINGT, als bewege er sich — unberührt und offen.
+- Benotung: **NULL Regressionen, fünf Gegengewichte**, grün auf beiden Bäumen, weil die Scheibe
+  **gar keinen Quelltext ändert** — sie verwandelt eine gemessene, ungeschützte Tatsache in eine
+  geprüfte. `codeOnly` **PROPHYLAKTISCH, 0 von 10**.
