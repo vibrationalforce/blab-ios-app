@@ -61,10 +61,23 @@ These are research-grade — verify mathematical correctness only:
 ## Files to Review
 
 - `Sources/Echoelmusic/DSP/` — all files
-- `Sources/Echoelmusic/Sound/EchoelSynth.swift` — synth engines
-- `Sources/Echoelmusic/Sound/EchoelBass.swift` — bass engines
-- `Sources/Echoelmusic/Sound/SynthPresetLibrary.swift` — preset rendering
-- `Sources/Echoelmusic/Sound/EchoelBeat.swift` — drum synthesis
+- `Sources/Echoelmusic/Bio/` — all files (the protected triad lives here)
+- `Sources/Echoelmusic/Tools/PolySynthVoice.swift` — the polyphonic voice
+- `Sources/Echoelmusic/Tools/SubBassVoice.swift` — the sub/feel voice
+- `Sources/Echoelmusic/Tools/BioReactiveSynthVoice.swift` — the breath-armed voice
+- `Sources/Echoelmusic/Tools/FXBioModulator.swift` — body → FX-parameter routing
+
+⛔ FOUR PHANTOM TARGETS STOOD HERE UNTIL 2026-08-12, AND NOTHING NOTICED.
+This list named `Sources/Echoelmusic/Sound/{EchoelSynth,EchoelBass,SynthPresetLibrary,
+EchoelBeat}.swift`. There is no `Sound/` directory (`ls -d Sources/Echoelmusic/Sound` →
+No such file or directory) and `git ls-files "*EchoelSynth*"` and its three siblings each
+return 0. Four of the five targets were unreachable, so a "DSP review" run against this
+file examined one directory and reported clean for the rest. The drum half is not a
+rename: `EchoelBeat` and drum synthesis were deleted outright by #166/#167 — do not go
+looking for where they moved. `scripts/doctor.py` section B could have caught all four —
+its `path_like` regex matches exactly this backticked form — but its glob read only
+`.claude/commands` and `.claude/skills`, so it reported clean for a surface it never
+opened. Both were fixed in the same commit.
 
 ## Report Format
 

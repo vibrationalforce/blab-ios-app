@@ -54,11 +54,28 @@ Ensure bio-reactive features are safe, compliant, and make NO unauthorized healt
 ## Files to Review
 
 - All UI files showing health/bio data
-- `Sources/Echoelmusic/Core/EchoelCreativeWorkspace.swift` — bio parameter flow
+- `Sources/Echoelmusic/Bio/EchoelBioEngine.swift` — bio parameter flow
+- `Sources/Echoelmusic/Core/EngineBus.swift` — the one typed bus every consumer reads
+- `Sources/Echoelmusic/Bio/HealthWritePolicy.swift` — what may enter Apple Health
+- `Sources/Echoelmusic/Sync/BioEgressPolicy.swift` — App Store 5.1.3: what may leave the phone
+- `Sources/Echoelmusic/Studio/FlashGuard.swift` — the canonical 3 Hz ceiling
+- `Sources/Echoelmusic/Studio/BioScienceInfo.swift` — the cited-research copy
 - Any HealthKit integration files
 - Onboarding/permission request screens
 - Settings screens with health toggles
 - Marketing copy / App Store description
+
+⛔ THE ONE NAMED PATH HERE WAS A PHANTOM UNTIL 2026-08-12: it read
+`Sources/Echoelmusic/Core/EchoelCreativeWorkspace.swift`, which does not exist and never
+did on this tree (`git ls-files "*EchoelCreativeWorkspace*"` → 0). ⚠️ That sentence has to
+keep its "does not exist" clause **on the same line as the path**, or `scripts/doctor.py`
+section B reports this retraction as the very drift it retracts — the obituary exemption is
+deliberately per-LINE, and the script says why a ±2-line window was measurably worse.
+Everything else on the old list was a category
+("all UI files", "any HealthKit integration files"), so the agent that gates medical-claim
+and epilepsy-flash compliance had **zero** resolvable file targets. The replacements above
+are measured, not guessed — note that `BioScienceInfo` and `FlashGuard` live under
+`Studio/`, not `Bio/`, which is why a plausible-looking path is worth an `ls`.
 
 ## Report Format
 

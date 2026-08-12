@@ -298,7 +298,25 @@ def section_a() -> Section:
 def section_b() -> Section:
     sec = Section("B", "TOOLING — do the commands and skills still describe THIS repo?")
 
-    docs = sorted(tracked(".claude/commands/*.md") + tracked(".claude/skills/*/SKILL.md"))
+    # ⛔ THIS GLOB READ TWO SURFACES AND REPORTED CLEAN FOR FOUR, UNTIL 2026-08-12. It was
+    # `.claude/commands/*.md` + `.claude/skills/*/SKILL.md` only. The 11 files under
+    # `.claude/agents/` and the 6 under `.claude/routines/` were never opened — and five
+    # backticked paths in two agents had been dead for weeks, including the ONLY named path in
+    # `bio-safety-reviewer.md`, the agent that gates medical-claim and 3 Hz-flash compliance.
+    # `path_like` below already matched them verbatim; nothing was wrong with the check, only
+    # with what it was pointed at. This is the exact "clean for work nobody looked at" failure
+    # section B exists to prevent, committed by section B.
+    # ⚠️ AND WIDENING IT DOES NOT CLOSE THE CLASS. A path scan catches path drift. It cannot
+    # see `e2e-test-agent.md`, which is entirely about an AUv3 target removed 2026-07-24, or
+    # `ui-state-reviewer.md`, whose subject `StudioRoot` has 0 hits in `Sources/` — neither
+    # names a path. Concept drift in an agent's PROSE has no automated check here; say so
+    # rather than let a green section B imply otherwise.
+    docs = sorted(
+        tracked(".claude/commands/*.md")
+        + tracked(".claude/skills/*/SKILL.md")
+        + tracked(".claude/agents/*.md")
+        + tracked(".claude/routines/*.md")
+    )
     path_like = re.compile(r"`(Sources/[\w/.*-]+|Tests/[\w/.*-]+|scripts/[\w/.-]+)`")
     # A document that EXPLAINS a deletion has to name the deleted path. Flagging that is the
     # cry-wolf failure in its most circular form: the doctor accusing the correction it asked
