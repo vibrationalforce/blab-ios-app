@@ -84,23 +84,22 @@ guard divisor != 0 else { return defaultValue }
 #if canImport(Metal)
 ```
 
-## AUv3 Plugin Patterns
-```swift
-// Parameter addresses: always use enum
-enum ParameterAddress: UInt64 {
-    case wetDry = 0
-    // ...
-}
+## `DSP/` imports Foundation and Accelerate, nothing else
 
-// Render block: capture kernel, not self
-public override var internalRenderBlock: AUInternalRenderBlock {
-    let kernel = self.kernel  // Capture value, not self
-    return { ... kernel.process(...) ... }
-}
-
-// State: round-trip via fullState dictionary
-public override var fullState: [String: Any]? {
-    get { /* serialize params */ }
-    set { /* deserialize params */ }
-}
 ```
+for f in Sources/Echoelmusic/DSP/*.swift; do grep -o '^import [A-Za-z]*' "$f"; done | sort -u
+```
+
+Measure, do not quote: today 38 files, set exactly `{Foundation, Accelerate}` (7 take
+Accelerate). No control-plane type — `EngineBus`, `BioSampleFrame`, `MusicalFrame`,
+`PatternEngine` — in **code** there; the four that appear are in comments. A DSP file that
+reaches for a Core or Sequencer type has stopped being a pure processor.
+
+⛔ A block of AUv3 patterns stood here for a target removed 2026-07-24; 3 of its 4 symbols now
+occur zero times under `Sources/`. Dead law in the always-loaded set is worse than none —
+it is prescriptive, so a session follows it.
+
+⚠️ Reason = hygiene + one-way dependency, **not** portability and **not** AUv3; stated once, in
+`FieldSoundSurvivesRelaunchTests` (#416). Do **not** write "Linux-testable": `EchoelWSOLA.swift`
+imports Accelerate unguarded where the other 6 use `#if canImport`. Guard, with the long
+version of all of this: `TheDSPLayerStaysFoundationOnlyTests`.
