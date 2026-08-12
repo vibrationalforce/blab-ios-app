@@ -1048,6 +1048,33 @@ private struct BioModLiveView: View {
         + "while a session runs: coherence, HRV, heart rate and breath phase. Routes here add "
         + "effect parameters on top."
 
+    /// What a DROPOUT looks like — the residue `FXBioModulator` registered and left on screen
+    /// only half-explained (#504).
+    ///
+    /// ⭐ WHY THIS IS COPY AND NOT A FIX. There are two freshness regimes on one bus, and #499
+    /// established that BOTH are right: an FX route is an additive offset the user asked for, so
+    /// holding it off a body that stopped arriving would be a stale claim and it fades to base;
+    /// timbre has no release path at all, so its producers dedupe and PARK at the last body
+    /// rather than zeroing a channel the engine never dropped. Unifying them is an audible
+    /// change that needs a hearing test. `TwoFreshnessRegimesAreDeliberateTests` pins the code
+    /// halves so a "make them consistent" cleanup goes red; this string is the half a PLAYER can
+    /// see, and until now the screen showed the difference without ever naming it.
+    ///
+    /// ⚠️ THE PLAYER'S ACTUAL QUESTION during a camera dropout is "did I break it?", and the two
+    /// sections answer it in two different words — the routes above go to a dash, the timbre
+    /// below says "held" — with nothing saying that is deliberate. One sentence pair, ONE string
+    /// (#416), so the two cannot drift into describing the split differently.
+    ///
+    /// ⚠️ "below" IS A CLAIM ABOUT LAYOUT, not a figure of speech: `AlwaysOnBioView()` is mounted
+    /// directly after `BioModLiveView(modulator:)` in `EchoelFXView.body`. Swapping those two
+    /// lines makes this sentence false with no other symptom, which is why the guard asserts the
+    /// order rather than only the words.
+    static let stopsArrivingNote =
+        "When a channel stops arriving, its routes here release: the row shows a dash and the "
+        + "parameter returns to the value you set. The timbre channels below do the opposite — "
+        + "they stay on the last reading and say held. Both are deliberate, so a dropout changes "
+        + "the effects and not the instrument's own voice."
+
     var body: some View {
         Section {
             if modulator.isRunning, !modulator.liveContributions.isEmpty {
@@ -1064,7 +1091,15 @@ private struct BioModLiveView: View {
         } header: {
             Text("Live — body → sound").font(EchoelTheme.font(13, .bold)).textCase(nil)
         } footer: {
-            Text(Self.alwaysOnNote)
+            // Two paragraphs, not one joined string: the always-on note is bound by
+            // `TheAlwaysOnBioPathIsNamedTests` to the two `…BioParams(` construction sites, so
+            // it has to stay exactly the sentence that guard measures. `Text(Self.alwaysOnNote)`
+            // is its needle and is kept verbatim (#456).
+            VStack(alignment: .leading, spacing: 6) {
+                Text(Self.alwaysOnNote)
+                Text(Self.stopsArrivingNote)
+            }
+            .fixedSize(horizontal: false, vertical: true)
         }
         .listRowBackground(EchoelTheme.fill)
     }
