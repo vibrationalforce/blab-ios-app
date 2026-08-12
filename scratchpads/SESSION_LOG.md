@@ -9198,3 +9198,71 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
   UNSICHTBAR: bio→tempo läuft nicht. Versions-Invariante so geprüft, wie CI liest
   (`grep -m1 -oE` über die ganze Datei → 10.79.386, genau EIN `vX.Y.Z`, Vorgänger ohne `v`).
   `.deploy/release` liegt in KEINEM der zwei Code-Gate-Filter → nur TestFlight läuft.
+
+### Zyklus 2026-08-12E — drei Scheiben aus der Ultra-Audit-Rangliste (#543 · #544 · #545)
+
+- **#543 (`90c07fe`) — eine Spur überlebt ein Feld, das sie nicht kennt.** `TimelineLane
+  .init(from:)` trug einen Absatz mit dem Gesetz WÖRTLICH („`decodeIfPresent` schluckt einen
+  FEHLENDEN Schlüssel, nie einen unbekannten Case … die Spur fällt ganz weg, Regionen bleiben
+  als Waisen") — und dekodierte drei Zeilen darüber vier Felder in genau der Form, die der
+  Absatz ausschließt. Behauptung und eigene Widerlegung in EINER Funktion (#425). Umgestellt
+  auf das Hausmuster einer Datei weiter (`Clip.init(from:)`, gleicher Typ):
+  `(try? c.decode(X.self, forKey: .k)) ?? default`. **Ehrliche Schwere: NICHT ship-blocking,
+  kein lebender Defekt** — kein Edit im heutigen Baum kann den Wurf auslösen. `kind` ist das
+  einzige Feld, dessen Schlüssel überhaupt auf jeder Platte liegt (`TimelineStore.migrate` sät
+  `.midi` und `.audio`), und `.video`/`.visual` sind genau die toten Cases, die eine künftige
+  Aufräumarbeit löscht. `genreOverride`/`mood` können heute gar nicht auf Platte sein: beide
+  Setzer haben null Produktions-Aufrufer. Wächter `ALaneSurvivesAFieldItDoesNotKnowTests`
+  (6 Scans) formuliert eine **REGEL statt einer Ausnahmeliste**: er liest JEDES `decode…(X.self`
+  im klammer-extrahierten Rumpf und verlangt `try?` bei jedem `X` außerhalb einer
+  Primitiv-Allowlist. Ein neues `Int`-Feld bleibt ohne Edit legal; ein neues Enum ist rot, bis
+  es verteidigt ist. **Benotung transkribiert:** 1 Regression, 5 Gegengewichte.
+  **`Build for Testing` = `success`** ⇒ das blockierende Bundle kompiliert mit dem neuen Wächter.
+- **#544 (`b8b3ef7`) — vier Behauptungen, die KEIN Baum erfüllen konnte, rot seit #497.**
+  `TheAlwaysOnBioPathIsNamedTests` suchte `"heartRate: hrNormalized"` und
+  `"breathPhase: clampUnit(frame."`; #497 hat den Neutralwert auf den Frame gezogen, beide
+  Erzeuger schreiben seither `frame.heartRateForSound` / `frame.breathPhaseForSound`, und
+  `git grep -c hrNormalized -- Sources` liefert **nichts** — die lokale Variable, die die Nadel
+  benennt, existiert seit Wochen nicht. 2 Nadeln × 2 Fundstellen = 4 dauerhaft rote
+  Behauptungen im BLOCKIERENDEN Bundle. Gelockert auf `": frame."`, die Form der zwei
+  Geschwister-Behauptungen direkt darüber. **Bewusst NICHT auf den Accessor-Namen gepinnt** —
+  `AnUnmeasuredChannelReadsNeutralTests:185-188` besitzt diese Schreibweise schon und fährt die
+  echten Werte end-to-end (#416).
+  ⭐ **Die übertragbare Hälfte, jetzt in `Tests/CISmoke/CLAUDE.md` §3:** Delta-Benotung ist
+  BLIND für eine dauerhaft rote Behauptung in einer Methode, die die Scheibe nicht anfasst. Sie
+  vergleicht Eltern mit Arbeitsbaum; beidseitig rot ergibt kein Delta. **#542 hat 168 Zeilen
+  genau dieser Datei umgeschrieben und „NULL REGRESSIONEN" nach eben diesem Verfahren korrekt
+  benotet** — das Rot war älter als das Delta. #445 fängt es auch nicht: der überlebende Clone
+  spült eine nichtdeterministische Teilmenge. Es findet nur, wer die GANZE Datei transkribiert,
+  nicht den Diff. Billiges Erkennungszeichen mitgeschrieben: **eine Nadel, die eine LOKALE
+  VARIABLE benennt statt ein Member oder ein Literal, ist die zerbrechliche Sorte.**
+- **#545 (`6bab91e` + `9c4f344`) — die ±1 s Uhren-Abweichung bekommt EINEN Besitzer.** Dieselbe
+  `-1` stand an **sechs** Vergleichsstellen in **vier** Dateien. Die Fenster-Hälfte hatte längst
+  einen Besitzer (`BioSource.freshnessWindow`), die Abweichungs-Hälfte keinen.
+  `BioSource.futureSkewTolerance` deklariert sie jetzt, mit dem Grund EINMAL geschrieben
+  (`CFAbsoluteTimeGetCurrent()` ist eine WANDUHR; ein NTP-Sprung schiebt `now` unter einen
+  korrekt gestempelten Frame zurück). **Zwei der sechs trugen Prosa, die das Gegenteil
+  behauptete:** `ColabPayload.live(at:)` schrieb „asked the same way rather than minted a second
+  time (#416/#426)" **sieben Zeilen über** der Zeile, die sie prägte — #425 in seiner teuersten
+  Form, weil die falsche Hälfte genau die ist, auf die ein Reviewer schaut.
+  In ZWEI Commits geteilt, damit kein Commit ein rotes Gate ausliefert: der Wächter verlangt
+  genau EIN Skew-Literal und wäre auf dem Zwischenbaum rot. Wächter
+  `OneOwnerForTheClockSkewTests` (5 Claims): Claim 1 ist **END-TO-END** (die Konstante ist
+  `public static`, das Bundle liest den ausgelieferten Wert). Der Negativ-Scan ist **eng mit
+  Absicht** (#364) — er färbt nur, wenn eine Codezeile `>= -1` UND `age`/`timestamp`/`arrivedAt`
+  trägt; eine repo-weite Literal-Jagd fiele über jede gewöhnliche Klemmung her. Der Preis steht
+  dabei: eine siebte Stelle unter anderem Variablennamen entkommt — deshalb zählt Claim 3 die
+  FRAGENDEN Stellen positiv (6 in 4 Dateien). Ein Baum, der die Skew-Prüfung LÖSCHT statt sie
+  umzustellen, besteht den Negativ-Scan und fällt bei Claim 3 durch (#343).
+  **Benotung transkribiert:** 2 Regressionen, 3 Gegengewichte. Verhalten byte-identisch.
+  Eine Prosa-Kopie bleibt bewusst stehen (`BreathHold.swift:344`, in einem ⛔-Rücknahme-Block);
+  sie ist ein Kommentar, für `SourceText.codeOnly` unsichtbar, und in Claim 2s Fehlermeldung
+  namentlich als die eine Stelle genannt, die bei einer Neujustierung mitzuziehen ist.
+- **ZWEI EIGENE FALSCHZAHLEN VOR DEM COMMIT GEMESSEN UND KORRIGIERT** — beide beim
+  `codeOnly`-Nachweis, beide in der schmeichelnden Richtung (#433). #543s Kopf schrieb „4 von 12"
+  ungemessen (real: **1 von 12**); #545s Kopf schrieb „2 von 10, beide bei Claim 2", und **sein
+  eigener nächster Satz widerlegte das** (roh ist Claim 2 auf BEIDEN Bäumen rot, der Elternbaum
+  kann also gar nicht kippen — real: **1 von 10**). Lehre, in beiden Dateien festgehalten: eine
+  Kipp-Zahl behauptet einen VERDIKT-UNTERSCHIED, und „rot aus einem zusätzlichen Grund" ist kein
+  anderes Verdikt. Zusätzlich präzisiert: eine Kipp-Zahl gilt für ein bestimmtes BAUM-PAAR und
+  nennt es jetzt (#448-Regel auf eine gestern gemessene Zahl angewandt).
