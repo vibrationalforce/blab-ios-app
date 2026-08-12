@@ -9266,3 +9266,54 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
   Kipp-Zahl behauptet einen VERDIKT-UNTERSCHIED, und „rot aus einem zusätzlichen Grund" ist kein
   anderes Verdikt. Zusätzlich präzisiert: eine Kipp-Zahl gilt für ein bestimmtes BAUM-PAAR und
   nennt es jetzt (#448-Regel auf eine gestern gemessene Zahl angewandt).
+
+### Zyklus 2026-08-12F — #546 (toter Reverb) und #547 (der Compiler korrigiert #545)
+
+- **#546 (`240f7aa`) — die Always-on-Zeile nennt keinen Reverb mehr, der nicht klingen kann.**
+  `AlwaysOnBioChannel.hrv.shapes` gab „brightness · reverb" zurück, und dieser String wird einem
+  NUTZER gezeigt (`EchoelFXView.AlwaysOnBioView` → `Text(channel.shapes)`, über den
+  `showAllFX`-Sheet erreichbar). ⭐ **Warum eine sorgfältige Messung das übersehen hat, ist der
+  übertragbare Teil:** der Dateikopf sagt, die `shapes`-Strings seien an `applyBioReactive`
+  abgelesen — und genau das wurde getan. `applyBioReactive` SETZT `reverbMix` wirklich aus
+  `hrvVariability` (`EchoelDDSP.swift:2195`). Aber `reverbMix` wird an **genau einer** Stelle
+  GELESEN, innerhalb `if Self.useConvolutionReverb, …` (`:1503`), und dieses Flag steht auf
+  `false` **ohne jede Zuweisung** in `Sources/`. **Das ist die SPIEGELUNG von #496, nicht seine
+  Wiederholung:** dort drei Kanäle ohne ERZEUGER, hier ein Erzeuger, der sauber in einen zur
+  Laufzeit abgeschalteten VERBRAUCHER schreibt. Dem Wert einen Sprung weit zu folgen sieht nach
+  Sorgfalt aus und hört einen Sprung zu früh auf. **Eine Abbildung ist live, wenn der Schreibvorgang
+  einen UNGATED Lesevorgang erreicht** — der billige Test ist ein `grep` auf die LESER des Ziels.
+  Dieselbe Falschstelle stand in CLAUDE.mds „DDSP Bio-Mappings"-Tabelle („HRV → brightness ·
+  reverb mix") und ist mitgestrichen. ⚠️ **Nicht der Reverb der FX-Fläche:** `EchoelReverb` in
+  `EchoelFXChain` ist algorithmisch und über die Modulationsmatrix bio-routbar — der Hinweis
+  „coherence → reverb" dort ist WAHR und darf aus diesem Befund heraus nicht „korrigiert" werden;
+  beide Prosa-Stellen und die Fehlermeldung des Wächters sagen das ausdrücklich.
+  Wächter: **`DisabledReverbIsNotClaimedLiveTests` (#335) ERWEITERT statt neu geschrieben** — er
+  besitzt die Entscheidung „solange das Flag aus ist, darf nichts diesen Reverb behaupten"
+  bereits, samt Falsch-Grün-Schutz (erscheint je ein Schreiber, verstummen ALLE Behauptungen
+  gemeinsam). Eine zweite Datei mit `useConvolutionReverb == false` wäre zwei Schreibweisen einer
+  Entscheidung (#416). Klammer-extrahiert auf den `shapes`-Rumpf, kein Zeilenfenster (#408).
+  **Bewusst KEIN Scan von CLAUDE.md** (#491). Benotung: 1 Regression, 1 Gegengewicht;
+  `codeOnly` **1 von 4** — TRAGEND.
+- **#547 (`ed544b7`) — der Compiler hat #545 widerlegt, und zwar an genau der Stelle, an der ich
+  eine Ausnahme ausgeschlossen hatte.** `Xcode Compile Check` auf `9c4f344`: **zwei**
+  `error:`-Zeilen, beide `BioFeedbackManager.swift:125:41: cannot find 'BioSource' in scope`.
+  Nach §5 des Bundle-Regelwerks nennt eine `error:`-Zeile eine Repo-Datei ⇒ **mein Commit**, kein
+  Infrastruktur-Flake. Ursache: `project.yml` listet diese Datei **STANDALONE** unter
+  `EchoelmusicWidgets` UND `EchoelmusicWatch`; beide Targets nehmen diese EINE Datei und **nicht**
+  `Core/EngineBus.swift`. `BioSource` existiert dort nicht. Literal wiederhergestellt, Begründung
+  an der Zeile.
+  ⭐ **Lehre, spezifisch für ein Repo ohne lokale Toolchain: „ein Besitzer je Entscheidung"
+  (#416) ist ebenso eine Aussage über den MODULGRAPHEN wie über den Stil, und die
+  Target-Zugehörigkeit einer Datei ist von innen unsichtbar.** `git grep` findet jede Stelle; nur
+  `project.yml` sagt, welche davon den Besitzer sehen kann. **Vor einer Entdopplung quer durch
+  `Core/` gehört `project.yml` gelesen.**
+  ⚠️ **Und die Ausnahme ist SELBST-VERFALLEND, nicht ein Listeneintrag** — genau der Unterschied,
+  den #545 bei `ColabPayload` eingefordert hatte: dort wurde eine Begründung verworfen, die gut
+  klingt und falsch ist; hier entscheidet ein Compiler. Neuer Claim 5 behauptet BEIDE Hälften der
+  Prämisse (Pfad weiterhin standalone in `project.yml` UND Literal weiterhin vorhanden). Zieht
+  die Datei je ins App-Modul, wird Claim 5 rot und nennt die zu konvertierende Zeile plus den zu
+  löschenden Skip. Neu benotet: 2 Regressionen, 4 Gegengewichte, `codeOnly` 1 von 12.
+  `project.yml` nur GELESEN (founder-gated).
+- **Gates:** #543 (`90c07fe`) und #544 (`b8b3ef7`) je `Build for Testing` = **success** ⇒ das
+  blockierende Bundle kompiliert mit beiden neuen Wächtern. #545 `Xcode Compile Check` **rot** →
+  #547. Ausführung der neuen Wächter weiterhin **unbelegt** (#445).
