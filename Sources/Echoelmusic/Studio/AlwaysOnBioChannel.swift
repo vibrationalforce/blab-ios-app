@@ -20,11 +20,34 @@
 //  one-to-one — coherence alone moves FOUR things. Measured on the anchored (patch) path,
 //  which is the shipping one:
 //    · coherence     → filter cutoff · brightness · harmonicity · noise level
-//    · hrvVariability→ brightness · reverb mix
+//    · hrvVariability→ brightness   (⛔ "· reverb mix" struck, see below)
 //    · heartRate     → vibrato depth AND rate · brightness
 //    · breathPhase   → amplitude (the breath swell)
 //  The table is not wrong so much as PARTIAL, and a UI built from it would have shipped a
 //  fresh under-statement onto the one surface #496 just corrected for over-statement.
+//
+//  ⛔ AND READING IT OFF `applyBioReactive` WAS NOT ENOUGH — the write is there and the READ
+//  is switched off (#546). `applyBioReactive` really does set `reverbMix` from
+//  `hrvVariability` (`EchoelDDSP.swift:2195`), so the measurement above was honest about what
+//  it looked at. But `reverbMix` is read at exactly one place — inside
+//  `if Self.useConvolutionReverb, reverbMix > 0, …` (`EchoelDDSP.swift:1503`) — and
+//  `useConvolutionReverb` is declared `false` with NO assignment anywhere in `Sources/`
+//  (`git grep -n "useConvolutionReverb *=" -- Sources` returns the declaration and nothing
+//  else). The stage cannot produce sound, so HRV moves no reverb, and the user-facing
+//  `.hrv` row said "brightness · reverb" until this slice.
+//
+//  ⭐ THE LESSON IS ABOUT WHERE A MAPPING ENDS, and it is a different one from #496's. That
+//  slice removed three channels with NO PRODUCER — nothing wrote them. This one is the
+//  mirror: a producer that writes faithfully into a CONSUMER THAT IS COMPILED OUT AT RUNTIME.
+//  Following the value one hop from the assignment looks like the careful thing to do and
+//  stops one hop short. **A mapping is live when the write reaches an ungated read**, and the
+//  cheap check is to grep the destination's readers, not only its writers.
+//
+//  ⚠️ NOT the same reverb the FX panel sells. `EchoelReverb` in `EchoelFXChain` is
+//  algorithmic, switched on by the genre presets, and a bio ROUTE onto its parameters is
+//  reachable through the modulation matrix — so `EchoelFXView`'s "coherence → reverb" hint
+//  is true and must NOT be "corrected" by anyone acting on this paragraph. The dead one is
+//  the convolution stage inside `EchoelDDSP`, which only the always-on path touches.
 //
 //  ⚠️ ONE CONDITIONAL IS DELIBERATELY LEFT OUT OF THE COPY, and it is left out because
 //  stating it would be MORE misleading, not less: on the `.harmonicSeries` map profile HRV
@@ -107,7 +130,11 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     public var shapes: String {
         switch self {
         case .coherence:   return "filter · brightness · harmonicity · noise"
-        case .hrv:         return "brightness · reverb"
+        // #546: "· reverb" struck — the write lands in a stage whose only read is gated on
+        // `EchoelDDSP.useConvolutionReverb`, which is `false` with no writer. See the file
+        // header. This row is rendered to a user (`EchoelFXView.AlwaysOnBioView`), so it is
+        // the claim, not a note about the claim.
+        case .hrv:         return "brightness"
         case .heartRate:   return "vibrato · brightness"
         case .breathPhase: return "level"
         }

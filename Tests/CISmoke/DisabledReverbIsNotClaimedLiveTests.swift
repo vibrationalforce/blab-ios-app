@@ -76,6 +76,66 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
         }
     }
 
+    /// #546 — THE SAME INVARIANT, ON THE IN-APP ROW. `AlwaysOnBioChannel.hrv.shapes` returned
+    /// `"brightness · reverb"` and is rendered to a user (`EchoelFXView.AlwaysOnBioView` →
+    /// `Text(channel.shapes)`), reached from `EchoelStudioView`'s `showAllFX` sheet. The
+    /// mapping is real at the WRITE — `applyBioReactive` sets `reverbMix` from
+    /// `hrvVariability` — and dead at the READ: `reverbMix` is consumed only inside
+    /// `if Self.useConvolutionReverb, …`.
+    ///
+    /// ⭐ THIS FILE RATHER THAN A NEW ONE, on purpose (#416). It already owns the decision
+    /// "while this flag is off, nothing may claim this reverb sounds", including the guard
+    /// against a false green (`convolutionReverbIsDisabled` goes false the moment a writer
+    /// appears, and every assertion here falls silent together). A second file pinning
+    /// `useConvolutionReverb == false` would be two spellings of one decision, and they would
+    /// drift on the day the stage is finally repaired.
+    ///
+    /// ⚠️ SCOPED TO `shapes`, NOT TO THE FILE. The header of `AlwaysOnBioChannel.swift` now
+    /// explains at length why "reverb" was struck, and `SourceText.codeOnly` blanks that — but
+    /// scoping to the member as well means the assertion survives a future doc rewrite that
+    /// happens to put the word in a string literal in some other member. Brace-matched, not a
+    /// line window (#408/#489).
+    ///
+    /// ⚠️ AND NOT A SCAN OF `CLAUDE.md`, which carries the same struck mapping. That file
+    /// deliberately quotes retracted claims inside ⛔ blocks, so a negative prose scan meets its
+    /// own retraction (#491). The failure message names it as prose to move by hand.
+    ///
+    /// ⚠️ GRADING, transcribed against the parent `9c4f344` and this tree: this method is ONE
+    /// REGRESSION (red there, naming "reverb" in the row) and the file's existing page scan is
+    /// a COUNTERWEIGHT green on both — it is what makes the two claims one decision rather than
+    /// two opinions. `SourceText.codeOnly` is LOAD-BEARING, measured over {2 claims × 2 trees}:
+    /// **1 of 4** verdicts flips — this method on THIS tree, PASS stripped and FAIL raw,
+    /// because the `case .hrv` line now carries a comment saying which word was struck. Without
+    /// the stripper the guard is red on correct code, the #486/#491 collision again.
+    func testTheInAppRowDoesNotClaimAReverbThatCannotSound() throws {
+        guard try convolutionReverbIsDisabled() else { return }   // silent once it is enabled
+
+        let path = "Sources/Echoelmusic/Studio/AlwaysOnBioChannel.swift"
+        let code = Self.codeOnly(try source(path))
+        guard let start = code.range(of: "public var shapes: String") else {
+            XCTFail("""
+                `AlwaysOnBioChannel.shapes` is gone from \(path). If the always-on rows stopped \
+                naming what each channel moves, this assertion has no subject — remove it in \
+                the SAME commit rather than leaving it to pass over nothing.
+                """)
+            return
+        }
+        let body = Self.bracedBody(of: code, from: start.upperBound)
+        XCTAssertFalse(body.lowercased().contains("reverb"), """
+            `AlwaysOnBioChannel.shapes` names a reverb while `EchoelDDSP.\(Self.flag)` is \
+            `false` with no writer in `Sources/`. The always-on path writes `reverbMix` from \
+            HRV, but the only read of `reverbMix` is gated on that flag, so no user can hear \
+            it — and this string is rendered to a user by `EchoelFXView.AlwaysOnBioView`.
+            If you ENABLED the stage, this test falls silent by itself and the row may name it \
+            again. If you re-added the word without enabling it, remove it.
+            ⚠️ Do NOT "fix" `EchoelFXView`'s "coherence → reverb" hint on the strength of this \
+            message: that one is the ALGORITHMIC `EchoelReverb` in `EchoelFXChain`, reachable \
+            through the modulation matrix, and it is true.
+            Prose to move by hand in the same commit (no scan covers it, #491): the mapping \
+            list in `CLAUDE.md`'s "DDSP Bio-Mappings" section and the header of \(path).
+            """)
+    }
+
     /// TRUE while the flag is declared `false` and no file turns it on. Both halves matter: a
     /// `false` default with a writer somewhere would make the page's LIVE claim legitimate,
     /// and this guard must not fire on a correct page.
@@ -106,6 +166,29 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
     /// before the swap the file's stripped text was byte-identical.
     private static func codeOnly(_ text: String) -> String {
         SourceText.codeOnly(text)
+    }
+
+    /// The brace-matched block starting at the first `{` at or after `from`. Brace-matched and
+    /// not a line window, because this repo writes 30-line comment blocks between statements
+    /// and `codeOnly` preserves line count, so any fixed window is unsound by construction
+    /// (#408/#489). Returns "" when the braces do not balance — a caller asserting an ABSENCE
+    /// would then pass over nothing, which is why the caller checks the anchor first.
+    private static func bracedBody(of text: String, from: String.Index) -> String {
+        guard let open = text[from...].firstIndex(of: "{") else { return "" }
+        var depth = 0
+        var out = ""
+        var i = open
+        while i < text.endIndex {
+            let c = text[i]
+            if c == "{" { depth += 1 }
+            if c == "}" {
+                depth -= 1
+                if depth == 0 { return out }
+            }
+            out.append(c)
+            i = text.index(after: i)
+        }
+        return ""
     }
 
     /// HTML space entities → a plain space. Same helper, same reason, as the sibling guard
