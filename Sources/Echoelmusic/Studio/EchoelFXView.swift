@@ -1043,10 +1043,15 @@ private struct BioModLiveView: View {
     /// `TheAlwaysOnBioPathIsNamedTests` binds it to those construction sites, so wiring a real
     /// producer for any pinned channel goes red here instead of quietly making the sentence
     /// short by one.
-    static let alwaysOnNote =
-        "Separately from these routes, four body channels shape the instrument's own timbre "
-        + "while a session runs: coherence, HRV, heart rate and breath phase. Routes here add "
-        + "effect parameters on top."
+    /// ⛔ THE LITERAL MOVED IN #542 — it now lives at `AlwaysOnBioChannel.alwaysOnSentence`,
+    /// next to the four cases it names. It got a SECOND reader: the Bio panel promised "your
+    /// body then drives the sound" and named nothing, while the answer sat here, two chips away
+    /// behind Effects → All parameters → scroll. Writing the Bio panel its own wording would
+    /// have been two spellings of a claim that has already been corrected twice (#496
+    /// over-claim, #498 channel list). This forwarder stays so the mount below reads the same
+    /// as it did — `Text(Self.alwaysOnNote)` is what `TheAlwaysOnBioPathIsNamedTests` anchors
+    /// on, and that guard is re-anchored to the new home in the same commit (#456).
+    static let alwaysOnNote = AlwaysOnBioChannel.alwaysOnSentence
 
     /// What a DROPOUT looks like — the residue `FXBioModulator` registered and left on screen
     /// only half-explained (#540).

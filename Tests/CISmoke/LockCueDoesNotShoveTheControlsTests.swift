@@ -9,11 +9,18 @@
 // view from the layout, so everything below moved twice.
 //
 // "Everything below" is not the strip alone. In `EchoelStudioView.bioPanel` this view is the
-// FIRST child of a `VStack`, followed by the explanatory sentence, the "Open Routing" button
-// and — inside `#if canImport(HealthKit)`, so two controls always and three on the shipping
-// iPhone target — `HealthWriteOptInRow()`. The shove lands on them six seconds apart, long
-// enough that the user has stopped expecting it and is plausibly reaching for the button when
-// the second one fires.
+// FIRST child of a `VStack`, followed by the explanatory sentence, the always-on sentence
+// (#542), the breath-coach strip, the breath-voice row, the "Open Routing" button and — inside
+// `#if canImport(HealthKit)` — `HealthWriteOptInRow()`. The shove lands on them six seconds
+// apart, long enough that the user has stopped expecting it and is plausibly reaching for the
+// button when the second one fires.
+//
+// ⛔ THAT LIST READ "the explanatory sentence, the 'Open Routing' button and … so two controls
+// always and three on the shipping iPhone target" — an enumeration that stopped matching as the
+// panel grew, and #542 added the sixth child. No assertion in this file counts or orders
+// `bioPanel`'s children, so nothing went red; it is corrected because the argument for this
+// guard is exactly HOW MUCH the shove displaces, and an undercount makes the case look smaller
+// than it is. Deliberately no number now — the count is the thing that keeps going stale.
 //
 // ⭐ WHY THIS BECAME WORTH A SLICE NOW, stated plainly because the honest version is less
 // flattering than "we found a bug": the behaviour is OLD, and #353d made it BIGGER. Before

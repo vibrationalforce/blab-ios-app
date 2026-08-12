@@ -2806,6 +2806,30 @@ struct EchoelStudioView: View {
             // of today's tree, useless as a rule — the read would be on the root body, not on
             // this panel. `AnyView(bioPanel)` is not a boundary either (10.76.50). A separate
             // `View` struct is, which is why the strip is one.
+
+            // ⭐ #542. The line above promises "your body then drives the sound" and then names
+            // nothing. WHICH parameters it drives was measured in #496/#498 and put on screen —
+            // but in the FX sheet, reachable only via Effects › All parameters › scroll to the
+            // bottom. A player who asks the question HERE, where the promise is made, got no
+            // answer.
+            //
+            // ⚠️ ONE DEFINITION, TWO SURFACES (#416): the four channel names come from
+            // `AlwaysOnBioChannel`'s own cases, and `TheAlwaysOnBioPathIsNamedTests` binds that
+            // sentence to the two `…BioParams(` construction sites — so giving one of the three
+            // pinned channels (`breathDepth`, `lfHf`, `coherenceTrend`) a real producer reddens
+            // THERE instead of quietly leaving this sentence one channel short.
+            //
+            // ⚠️ A SENTENCE, NOT A SECOND LIVE READOUT, and that is the freeze law rather than
+            // laziness — the same rule the comment directly above states for `BreathCoachStrip`.
+            // A per-channel readout reads `bus.latestBio`; this panel is evaluated by
+            // `EchoelStudioView.body`, which hosts the `.menu` Pickers, and `AnyView(bioPanel)`
+            // is not an observation boundary (10.76.50). The live rows stay in their own leaf
+            // inside the FX sheet, where `AlwaysOnBioView` already confines them. This line is
+            // static text and observes nothing.
+            Text(AlwaysOnBioChannel.bioPanelSentence)
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+
             BreathCoachStrip()
 
             // #277 — the PLAY half, under the measured half (`BioStripView`) and the

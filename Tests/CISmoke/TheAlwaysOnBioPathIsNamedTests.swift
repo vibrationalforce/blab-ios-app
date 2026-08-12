@@ -52,6 +52,33 @@
 // stripper. The #486/#491 collision again: this repo writes down what it removed, so a negative
 // scan necessarily meets its own obituary.
 
+// ─────────────────────────────────────────────────────────────────────────────────────────
+// #542 — A SECOND SURFACE, AND WHAT THAT DID TO THIS FILE.
+//
+// The sentence moved from `BioModLiveView` to `AlwaysOnBioChannel`, beside the four cases it
+// names, because the Bio panel needed it too: that panel promised "your body then drives the
+// sound" and named nothing, while the answer sat two chips away behind Effects › All
+// parameters › scroll. Every channel assertion now runs over BOTH sentences — asserting only
+// the FX one would leave the newer surface free to drift into a different channel list, which
+// is the exact defect #496 had to repair on the older one.
+//
+// ⚠️ HONEST GRADING of the #542 delta against its parent — TRANSCRIBED, not assumed. Of the ten
+// scans this file now performs:
+//   · ZERO REGRESSIONS. Nothing was red on the parent for the reason its name gives.
+//   · ONE FINDING, reported SEVEN times (#486): neither `alwaysOnSentence` nor
+//     `bioPanelSentence` exists there, so the two existence checks, the four-channel check, the
+//     pinned-channel check, the mount check and both pointer checks fail together off a single
+//     absence. Booking those as seven regressions would be the flattering direction of #433.
+//   · THREE are COUNTERWEIGHTS, green on both trees: the FX footer is still mounted, the
+//     "All parameters" door still exists, and the empty state still does not deny the always-on
+//     path.
+//
+// ⚠️ `SourceText.codeOnly` REMAINS LOAD-BEARING, re-measured for the new shape: **2 of 20**
+// raw-vs-stripped verdicts flip, both on `testTheEmptyStateNoLongerDeniesTheAlwaysOnPath` and on
+// BOTH trees — the retraction block quotes the removed sentence verbatim, so without the
+// stripper that assertion is red on correct code. Same #486/#491 collision as before.
+// ─────────────────────────────────────────────────────────────────────────────────────────
+
 import XCTest
 @testable import Echoelmusic
 
@@ -62,6 +89,8 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
     private static let bioVoice = "Sources/Echoelmusic/Tools/BioReactiveSynthVoice.swift"
     private static let app = "Sources/Echoelmusic/EchoelmusicApp.swift"
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+    /// Where the sentence lives since #542 — beside the four cases it names.
+    private static let channels = "Sources/Echoelmusic/Studio/AlwaysOnBioChannel.swift"
 
     /// The four channels the note is allowed to name, in the words it uses.
     private static let namedChannels = ["coherence", "HRV", "heart rate", "breath phase"]
@@ -74,18 +103,27 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
     // MARK: - the copy (the regressions)
 
     func testTheAlwaysOnNoteExists() throws {
-        let note = try alwaysOnNote()
-        XCTAssertFalse(note.isEmpty, "the always-on note must not be empty")
+        XCTAssertFalse(try alwaysOnNote().isEmpty, "the always-on note must not be empty")
+        XCTAssertFalse(try bioPanelNote().isEmpty, """
+            the Bio-panel sentence is missing or empty. Without it that panel promises "your \
+            body then drives the sound" and names nothing — the state #542 ended.
+            """)
     }
 
-    /// The note names exactly the four channels a producer actually drives.
+    /// Both sentences name exactly the four channels a producer actually drives.
+    ///
+    /// ⭐ BOTH, since #542. Two surfaces say this now — the FX footer and the Bio panel — and
+    /// the whole reason they share a home is that a channel list can drift. Asserting only the
+    /// FX one would leave the second free to go stale in exactly the way #496 had to fix.
     func testTheNoteNamesTheFourDrivenChannels() throws {
-        let note = try alwaysOnNote()
-        for channel in Self.namedChannels {
-            XCTAssertTrue(note.contains(channel),
-                          "the always-on note must name \(channel) — it is derived from the "
-                          + "frame at both producers and is one of the four things the body "
-                          + "really moves without any FX route")
+        for (label, note) in [("FX footer", try alwaysOnNote()),
+                              ("Bio panel", try bioPanelNote())] {
+            for channel in Self.namedChannels {
+                XCTAssertTrue(note.contains(channel),
+                              "the \(label) sentence must name \(channel) — it is derived from "
+                              + "the frame at both producers and is one of the four things the "
+                              + "body really moves without any FX route")
+            }
         }
     }
 
@@ -93,12 +131,15 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
     /// "completeness" edit that copies all seven into this sentence would claim three channels
     /// nothing measures. That is the #439 over-claim, on the product's central surface.
     func testTheNoteDoesNotClaimThePinnedChannels() throws {
-        let note = try alwaysOnNote()
-        for channel in Self.forbiddenChannels {
-            XCTAssertFalse(note.contains(channel),
-                           "the always-on note names \(channel), which NO producer drives — "
-                           + "both `…BioParams(` sites pin it to a neutral literal. If you gave "
-                           + "it a real producer, update this list and the note together.")
+        for (label, note) in [("FX footer", try alwaysOnNote()),
+                              ("Bio panel", try bioPanelNote())] {
+            for channel in Self.forbiddenChannels {
+                XCTAssertFalse(note.contains(channel),
+                               "the \(label) sentence names \(channel), which NO producer drives "
+                               + "— both `…BioParams(` sites pin it to a neutral literal. If you "
+                               + "gave it a real producer, update this list and BOTH sentences "
+                               + "together.")
+            }
         }
     }
 
@@ -119,6 +160,40 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
         XCTAssertTrue(body.contains("Text(Self.alwaysOnNote)"),
                       "the always-on note must be rendered as the section footer — otherwise it "
                       + "is a string constant that states a truth nobody can read")
+    }
+
+    /// The #542 half: the same rule applied to the surface where a player actually asks the
+    /// question. A constant nobody renders is prose, and this one exists BECAUSE the Bio panel
+    /// made a promise it did not keep.
+    func testTheBioPanelRendersItsSentence() throws {
+        let body = try declarationBody(of: "private var bioPanel: some View", in: Self.studio)
+        XCTAssertTrue(body.contains("Text(AlwaysOnBioChannel.bioPanelSentence)"), """
+            `bioPanel` no longer renders the always-on sentence. It still tells the player \
+            "your body then drives the sound" one line above; without this it names nothing, \
+            and the only place that does is two chips away behind Effects › All parameters.
+            """)
+    }
+
+    /// ⚠️ THE COUNTERWEIGHT FOR THE *SECOND* SURFACE, and it is the one that makes the split
+    /// honest rather than convenient. The Bio panel has no list of routes above it, so its
+    /// sentence must not say "these routes" — and it must point somewhere real. Both halves are
+    /// pinned, because "open Effects › All parameters" is a claim about a door that exists.
+    func testTheBioPanelSentencePointsSomewhereReal() throws {
+        let note = try bioPanelNote()
+        XCTAssertFalse(note.contains("these routes"), """
+            the Bio-panel sentence says "these routes", but nothing above it lists any — that \
+            deixis belongs to the FX footer. This is why the two are separate strings.
+            """)
+        XCTAssertTrue(note.contains("All parameters"), """
+            the Bio-panel sentence no longer names where the live readout is. The whole point of \
+            #542 is that the answer existed and was unreachable from the question.
+            """)
+        let studioSource = try source(Self.studio)
+        XCTAssertTrue(studioSource.contains("Text(\"All parameters\")"), """
+            the sentence sends the player to "All parameters" and no control by that name is \
+            rendered any more. Either restore the label or rewrite the sentence in the same \
+            commit — a pointer to a door that is gone is worse than no pointer (#472).
+            """)
     }
 
     // MARK: - the wiring the copy depends on (counterweights)
@@ -268,20 +343,63 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
 
     /// The always-on note as the shipped view spells it, read from the ONE constant so a future
     /// per-branch copy cannot drift past this guard (#416).
+    /// ⛔ THIS READ `BioModLiveView`'s OWN LITERAL UNTIL #542, and its failure message asked the
+    /// next session to "re-anchor this scan and say why one definition became two". What
+    /// happened is the opposite and better: the sentence got a SECOND surface (the Bio panel,
+    /// which promised "your body then drives the sound" and named nothing), so it moved to
+    /// `AlwaysOnBioChannel` — beside the four cases it names — and `BioModLiveView.alwaysOnNote`
+    /// became a forwarder. Left as a retraction rather than silently re-pointed: a guard whose
+    /// anchor moves without a note reads later as if the CLAIM had been rewritten.
+    ///
+    /// ⚠️ AND THE OLD FORM WOULD HAVE GONE RED ON CORRECT CODE — it extracted everything between
+    /// `static let alwaysOnNote` and `var body`, which is now `= AlwaysOnBioChannel
+    /// .alwaysOnSentence` and contains none of the four channel names. That is the #364 failure
+    /// mode (a guard forbidding legitimate work), caught by grepping `Tests/CISmoke` for the
+    /// surface before touching it (#456), not by CI.
     private func alwaysOnNote() throws -> String {
-        let body = try declarationBody(of: "private struct BioModLiveView: View", in: Self.fxView)
-        guard let start = body.range(of: "static let alwaysOnNote") else {
+        try literal(named: "alwaysOnSentence", in: Self.channels)
+    }
+
+    /// The Bio panel's half of the same claim. Two strings, ONE decision: both name the four
+    /// cases of `AlwaysOnBioChannel`, and every channel assertion in this file runs over both,
+    /// so neither surface can drift into a different channel list.
+    private func bioPanelNote() throws -> String {
+        try literal(named: "bioPanelSentence", in: Self.channels)
+    }
+
+    /// The concatenated `"…"` pieces of a multi-line `public static let`, from its declaration
+    /// to the first line that is neither the declaration nor a continuation.
+    ///
+    /// ⚠️ HONEST LIMIT: `SourceText.codeOnly` blanks comments while preserving line count, so a
+    /// doc block cannot be swept in — but a blank line inserted mid-constant would truncate the
+    /// value. That direction is safe by construction: a short read makes the positive channel
+    /// assertions fail, never makes the negative ones pass.
+    private func literal(named: String, in relativePath: String) throws -> String {
+        let text = try source(relativePath)
+        let anchor = "static let \(named)"
+        guard text.components(separatedBy: anchor).count - 1 == 1 else {
             throw BioNoteAnchorMissing(reason: """
-                `BioModLiveView` no longer declares `alwaysOnNote`. It is the single definition \
-                of the always-on claim; if it was inlined into the view, re-anchor this scan and \
-                say why one definition became two.
+                `\(anchor)` does not occur exactly once in \(relativePath). It is the single \
+                definition of the always-on claim; re-anchor this scan and say why.
                 """)
         }
-        // Everything up to the `var body`, which is what follows the constant.
-        let tail = body[start.upperBound...]
-        guard let end = tail.range(of: "var body") else {
-            throw BioNoteAnchorMissing(reason: "`var body` no longer follows `alwaysOnNote`")
+        var out = ""
+        var started = false
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if !started {
+                if line.contains(anchor) { started = true } else { continue }
+            } else if !(trimmed.hasPrefix("\"") || trimmed.hasPrefix("+")) {
+                break
+            }
+            var inside = false
+            var piece = ""
+            for c in line {
+                if c == "\"" { inside.toggle(); continue }
+                if inside { piece.append(c) }
+            }
+            out += piece
         }
-        return String(tail[..<end.lowerBound])
+        return out
     }
 }

@@ -66,6 +66,42 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    /// The one-sentence version of this whole enum, for a surface that has room for a line but
+    /// not for four rows.
+    ///
+    /// ⭐ IT MOVED HERE IN #542, AND THE MOVE IS THE POINT. It was `BioModLiveView.alwaysOnNote`
+    /// — one reader, in the FX sheet. The Bio panel promises "your body then drives the sound"
+    /// and then names nothing, so a player who asks the question where it naturally occurs to
+    /// them gets no answer; the answer sat two chips away behind Effects → All parameters →
+    /// scroll. Giving the Bio panel its own wording would have been the #416 defect (two
+    /// spellings of one claim, and this one has already had to be corrected twice — #496 for
+    /// over-claiming, #498 for the channel list). So the sentence has ONE home and two callers.
+    ///
+    /// ⚠️ IT NAMES EXACTLY THE FOUR CASES OF THIS ENUM, and that is enforced, not hoped:
+    /// `TheAlwaysOnBioPathIsNamedTests` binds it to the two `…BioParams(` construction sites, so
+    /// wiring a real producer for one of the three pinned channels (`breathDepth`, `lfHf`,
+    /// `coherenceTrend` — all handed neutral literals today) goes red HERE instead of quietly
+    /// leaving the sentence one channel short.
+    public static let alwaysOnSentence =
+        "Separately from these routes, four body channels shape the instrument's own timbre "
+        + "while a session runs: coherence, HRV, heart rate and breath phase. Routes here add "
+        + "effect parameters on top."
+
+    /// The same claim for a surface that is NOT the FX sheet — same four channels, no "these
+    /// routes" to point at.
+    ///
+    /// ⚠️ TWO STRINGS AND NOT ONE, deliberately, and this is the line where #416 could be
+    /// misread into a worse outcome. The rule is one definition per DECISION; the decision here
+    /// is WHICH FOUR CHANNELS, and both sentences take that from the same four enum cases,
+    /// which the guard pins. What differs is the deictic half — the FX footer sits under a list
+    /// of routes and says "these", the Bio panel has no such list and must say where to look.
+    /// Folding them into one string would force one of the two surfaces to point at something
+    /// that is not there, which is exactly the class of copy #491 and #480 had to retract.
+    public static let bioPanelSentence =
+        "Four body channels shape the instrument's own timbre while a session runs: coherence, "
+        + "HRV, heart rate and breath phase. To watch them move — and to add your own routes "
+        + "onto effect parameters — open Effects › All parameters."
+
     /// What this channel moves in the engine, read off `applyBioReactive` (see the file
     /// header for the measurement and for the one profile-dependent exception).
     public var shapes: String {
