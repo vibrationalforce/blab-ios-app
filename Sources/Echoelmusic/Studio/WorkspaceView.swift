@@ -321,9 +321,19 @@ struct WorkspaceView: View {
         #endif
     }
 
-    /// Persistent brand header — always on screen. LEADING: the loop length + playhead. MIDDLE:
-    /// the brand block (mark + wordmark + running version/build) as ONE control. TRAILING: the
-    /// output monitors. Uncodixfy-compliant.
+    /// Persistent brand header — always on screen. LEADING: the mark (decorative). SECOND: the
+    /// loop length + playhead. MIDDLE: the wordmark + running version/build, the ONE control.
+    /// TRAILING: the output monitors. Uncodixfy-compliant.
+    ///
+    /// ⭐ FOUNDER, 2026-08-12, screenshot of v10.79.384 (2501) (#528): a circle drawn tightly
+    /// around the `E` TILE with the wordmark visibly outside it, and a red arc with a SINGLE
+    /// arrowhead sweeping left onto the loop bar at the far edge. One arrowhead is MIGRATE
+    /// (#411), so the circled thing moves to where the arrow lands — and the circled thing is the
+    /// MARK, not the block. Row is now **mark · position · wordmark · monitors**. The reading
+    /// that moves the whole block is the one to resist: it reproduces #501 exactly and undoes
+    /// *"wieder in die Mitte"* (#516, four days old, said twice in one sentence). Splitting is
+    /// what leaves both asks true. The full argument, the accessibility cost and the width
+    /// arithmetic are on the children themselves rather than repeated here.
     ///
     /// ⭐ FOUNDER, 2026-08-08 (second ask of the same day), screenshot of v10.79.379 (2496): a
     /// circle round the brand block at the leading edge, a circle round the `1.1.1 / loop 1/8`
@@ -331,15 +341,19 @@ struct WorkspaceView: View {
     /// Echoelmusic wieder in die Mitte und dementsprechend mit der Takt Anzeige tauschen."* Two
     /// arrowheads is this founder's SWAP grammar (one arrowhead = migrate, #411/#490/#501), and
     /// the sentence says the same thing twice, so there is no ambiguity to resolve: the two
-    /// children exchange places. Row is now **position · brand · monitors**.
+    /// children exchange places. Row was then **position · brand · monitors** (⛔ this sentence
+    /// read "is now" until #528 split the block; a "now" in a historical record goes stale the
+    /// next time the founder draws an arrow, and this header has had five).
     ///
     /// ⛔ THIS IS THE SECOND REVERSAL OF THE SAME ORDERING IN TWO DAYS and both are recorded
     /// rather than smoothed over: #490 (2026-08-07) put the brand TRAILING, #501 (2026-08-08,
     /// earlier) put it LEADING, this puts it in the MIDDLE — which is where #384 had it on
     /// 2026-08-02, before the colour bars were removed from underneath it. The founder is free to
     /// converge by trying; what a session must not do is read one of these notes as the settled
-    /// design. **The invariant across all four is the LAW, not the layout:** one greedy flank, no
-    /// `Spacer`, no `ZStack`, and the readout stays a leaf.
+    /// design. **The invariant across all FIVE is the LAW, not the layout:** one greedy flank, no
+    /// `Spacer`, no `ZStack`, and the readout stays a leaf. (⛔ "all four" until #528 added a
+    /// fifth — #384 middle, #490 trailing, #501 leading, #516 middle, #528 block split. An
+    /// ordinal in a running tally is a number and ages exactly like one.)
     ///
     /// ⚠️ AND THE PRICE #501 PAID OFF IS BORROWED AGAIN, said plainly because #501 made a point of
     /// paying it: #490's note priced the brand at the trailing edge as *"a website link — not a
@@ -426,10 +440,48 @@ struct WorkspaceView: View {
     /// with. That is the outcome that note wanted; it is still a device look, not a proof.
     private var topBar: some View {
         HStack(spacing: 8) {
-            // LEADING: the loop length + the playhead inside it — the founder's "die Anzeige für
-            // die Loop Länge und der Balken" (#490), which lived in the MIDDLE until the swap
-            // below moved it here. It is still the only copy: `EchoelStudioView` gave up its
-            // third line for it, so there is one readout at one address (#416).
+            // LEADING: the mark alone — the founder's 2026-08-12 arrow (#528).
+            //
+            // ⭐ THE ASK, screenshot of v10.79.384 (2501): a circle drawn tightly around the `E`
+            // TILE — the wordmark "Echoelmusic" is visibly OUTSIDE it — and a red arc with a
+            // SINGLE arrowhead sweeping left onto the loop bar at the far edge. One arrowhead is
+            // this founder's MIGRATE grammar (#411); two would have been a swap (#516). So the
+            // circled thing moves to where the arrow lands, and the circled thing is the mark.
+            //
+            // ⛔ THE TEMPTING READING IS "MOVE THE BRAND BLOCK", AND IT CONTRADICTS HIS OWN LAST
+            // SENTENCE. Moving mark AND wordmark to the leading edge reproduces the #501 layout
+            // exactly — undoing *"Den Schriftzug Echoelmusic wieder in die Mitte"* (#516), which
+            // is four days old and was stated twice in one sentence. He has circled the brand
+            // WITH the wordmark before (#501) and did not this time. Splitting is the reading
+            // that leaves both asks true: the mark takes the leading edge, the wordmark keeps
+            // the middle. Nothing here is inferred from taste — it is the smaller circle.
+            //
+            // ⚠️ IT IS DECORATIVE NOW, AND THAT IS A NAMED COST, not an oversight. Inside the
+            // `Button`'s label the mark was part of one control and one VoiceOver stop; standing
+            // alone it would be a SECOND stop announcing "Echoelmusic" beside a button announcing
+            // "Echoelmusic <version>" (`EchoelLogoMark` carries its own `.accessibilityLabel`, so
+            // it is an element on its own — being a `Canvas` does not exempt it). Hence
+            // `.accessibilityHidden(true)`, the same workaround the pre-#384 split mark used and
+            // the reason `ChromeDynamicTypeTests` banned that modifier; that ban is now an
+            // exactly-one allowance, updated in this commit rather than deleted (#456).
+            // What is LOST: tapping the logo no longer opens the website. The door is unchanged
+            // and two children away on the wordmark — one action, one announcement, one control.
+            // Making it a second `Button` instead would restore the tap and buy back both
+            // problems, plus a 22×22 hit target under the 44 pt floor (#113).
+            //
+            // ⚠️ THE WIDTH BUDGET IS UNCHANGED, and that is arithmetic rather than hope: the bar
+            // gains a 22 pt child and a fourth top-level gap (+30), the brand block loses the
+            // same mark and its inner 8 pt gap (−30). Net zero, so the wordmark's share on the
+            // narrowest shipped phone (360 pt) is the same ~46 pt it had before — it simply no
+            // longer shares its greedy region with the mark. Constants, not a rendered layout.
+            EchoelLogoMark()
+                .frame(width: 22, height: 22)
+                .accessibilityHidden(true)
+            // SECOND: the loop length + the playhead inside it — the founder's "die Anzeige für
+            // die Loop Länge und der Balken" (#490), which lived in the MIDDLE until the #516
+            // swap moved it to the leading edge and #528 put the mark to its left. It is still
+            // the only copy: `EchoelStudioView` gave up its third line for it, so there is one
+            // readout at one address (#416).
             //
             // ⚠️ NO `#if canImport(AVFoundation)` HERE and none is needed — this leaf reads
             // `Transport` and `@AppStorage` only. (The colour-bar strip it originally replaced
@@ -445,9 +497,12 @@ struct WorkspaceView: View {
             // wordmark absorbs the shortfall through its own `minimumScaleFactor(0.7)`. A
             // measurement should not be the thing that shrinks.
             TransportPositionView()
-            // MIDDLE: the brand block — mark then wordmark, in the website's lockup order
-            // (`docs/index.html` `.nav-logo`: `display: flex`, the 28 px mark, a gap, then the
-            // name), centred in the slack between the readout and the monitor tiles.
+            // MIDDLE: the wordmark + version, centred in the slack between the readout and the
+            // monitor tiles. ⛔ THIS SAID "the brand block — mark then wordmark, in the website's
+            // lockup order (`docs/index.html` `.nav-logo`: `display: flex`, the 28 px mark, a
+            // gap, then the name)" until #528 sent the mark to the leading edge on the founder's
+            // arrow. The lockup no longer matches the website's, deliberately and by ask — do not
+            // "restore" it from this note or from `docs/index.html`.
             //
             // ⭐ THE ASK, founder 2026-08-08 (second of the day), screenshot of v10.79.379 (2496):
             // the brand circled at the leading edge, the `1.1.1 / loop 1/8` readout circled, and
@@ -484,27 +539,30 @@ struct WorkspaceView: View {
             // over constants, not a measurement of a rendered layout — the device look is the
             // founder's call.
             Button { openWebsite() } label: {
-                HStack(spacing: 8) {
-                    EchoelLogoMark().frame(width: 22, height: 22)
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text("Echoelmusic")
-                            .font(EchoelTheme.font(14, .semibold))
-                            .foregroundStyle(EchoelTheme.text)
-                            .lineLimit(1).minimumScaleFactor(0.7)
-                        Text(Self.versionString)
-                            .font(EchoelTheme.font(9))
-                            .foregroundStyle(EchoelTheme.dim)
-                            .lineLimit(1).minimumScaleFactor(0.7)
-                    }
+                // ⛔ THE `HStack(spacing: 8)` THAT WRAPPED THIS HELD THE MARK AND IS GONE (#528).
+                // It had exactly one job — the gap between mark and wordmark — and the mark left
+                // for the leading edge, so a container around a single child would have been
+                // structure kept to satisfy a test. `ChromeDynamicTypeTests` counted three
+                // `HStack(spacing: 8)` in this bar and now counts two, updated in the same commit.
+                VStack(alignment: .leading, spacing: 1) {
+                    Text("Echoelmusic")
+                        .font(EchoelTheme.font(14, .semibold))
+                        .foregroundStyle(EchoelTheme.text)
+                        .lineLimit(1).minimumScaleFactor(0.7)
+                    Text(Self.versionString)
+                        .font(EchoelTheme.font(9))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .lineLimit(1).minimumScaleFactor(0.7)
                 }
             }
             .buttonStyle(.plain)
-            // ONE element, one announcement, one action. A `Button` is already a single
-            // accessibility element, so putting the mark INSIDE its label is what removes the
-            // second VoiceOver stop — the old `.accessibilityHidden(true)` on the separate mark
-            // button was buying the same thing by hand. Deliberately no
-            // `.accessibilityElement(children: .ignore)` here: on a Button that is at best
-            // redundant and at worst rebuilds the element without its activation.
+            // ONE element, one announcement, one action — still true after #528, by a different
+            // mechanism. ⛔ THIS SAID "putting the mark INSIDE its label is what removes the
+            // second VoiceOver stop"; the mark is no longer inside it. What keeps the count at
+            // one is now the `.accessibilityHidden(true)` on the leading mark — the same
+            // workaround the pre-#384 split used, restored because the split is back by ask.
+            // Deliberately no `.accessibilityElement(children: .ignore)` here: on a Button that
+            // is at best redundant and at worst rebuilds the element without its activation.
             .accessibilityLabel("Echoelmusic \(Self.versionString)")
             .accessibilityHint("Opens echoelmusic.com — release notes and support")
             // THE ONE GREEDY FLANK, and it is now the brand's. The count is unchanged and pinned

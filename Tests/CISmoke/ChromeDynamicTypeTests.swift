@@ -255,30 +255,84 @@ final class ChromeDynamicTypeTests: XCTestCase {
             writing it out. It no longer names an owner at all: that fact belongs to \
             `TheHeaderShowsTheLoopTests`, and repeating it here is what kept breaking it.)
             """)
-        XCTAssertEqual(bar.filter { $0.contains("HStack(spacing: 8) {") }.count, 3, """
-            `topBar` no longer has exactly three `HStack(spacing: 8)` (the bar itself, the brand \
-            block, the monitor cluster). The bar's own spacing is what guarantees a gap between \
-            the wordmark and the first tile now that the `Spacer` is gone — an HStack spacing \
-            cannot be consumed by a greedy child, which is precisely why it replaced one.
+        XCTAssertEqual(bar.filter { $0.contains("HStack(spacing: 8) {") }.count, 2, """
+            `topBar` no longer has exactly two `HStack(spacing: 8)` (the bar itself and the \
+            monitor cluster). The bar's own spacing is what guarantees a gap between the wordmark \
+            and the first tile now that the `Spacer` is gone — an HStack spacing cannot be \
+            consumed by a greedy child, which is precisely why it replaced one.
+
+            ⛔ THIS NUMBER WAS **3** UNTIL #528 and the third was the brand block's own inner \
+            `HStack`, whose only job was the gap between mark and wordmark. The founder's \
+            2026-08-12 arrow sent the mark to the leading edge, so that container would have been \
+            structure kept alive to satisfy this count — which is the one thing a guard must \
+            never buy. Updated with the change rather than deleted, as this method's siblings \
+            were at #384/#490/#516. A raw count is fragile by construction; it is kept in this \
+            form because its SUBJECT (nothing may re-introduce a `Spacer`-shaped gap by nesting) \
+            is what the two assertions above cannot see.
             """)
     }
 
-    /// The brand mark and the wordmark are ONE door, so they must be ONE control. As two buttons
-    /// they were two VoiceOver stops for the same action, which the old code papered over with
-    /// `.accessibilityHidden(true)` on the mark. Counting the calls is the durable form of that:
-    /// a second `openWebsite()` in this bar means the split is back.
+    /// The brand is ONE door, so it must be ONE control and ONE announcement.
+    ///
+    /// ⛔ THE SUBJECT SURVIVED #528 BUT ITS MECHANISM DID NOT, and the difference is the whole
+    /// reason this method is rewritten rather than left to fail. Until #528 the mark sat INSIDE
+    /// the button's label, so a `Button` being a single accessibility element was what collapsed
+    /// the two into one stop, and this method could simply ban `.accessibilityHidden(true)` as a
+    /// relic. The founder's 2026-08-12 arrow moved the mark to the leading edge, and
+    /// `EchoelLogoMark` carries its own `.accessibilityLabel("Echoelmusic")` — standing alone it
+    /// IS an element, announcing the brand a second time next to a button that announces it with
+    /// a version. So the hiding is back, deliberately, and the old ban would now be a guard
+    /// forbidding correct work (#364). Its own failure message said what to do in that case:
+    /// *"if a NEW element genuinely needs hiding, say why here and update this guard in the same
+    /// commit."* This is that update.
+    ///
+    /// ⭐ THE REPLACEMENT IS STRICTLY STRONGER THAN THE BAN IT REPLACES. "Nothing is hidden"
+    /// admitted any number of hidden elements once the first one was legitimate; this pins the
+    /// count at exactly one AND requires it to be the mark's, so hiding a monitor tile or the
+    /// readout still fails. Counting `openWebsite()` is unchanged and is the other half: a second
+    /// call means the mark became a button again, which buys back both the duplicate stop and a
+    /// 22×22 tap target under the 44 pt floor (#113).
+    ///
+    /// ⚠️ THE HIDDEN-COUNT ASSERTION RIDES ON THIS FILE'S PRIVATE STRIPPER, which drops whole
+    /// `//` lines and KEEPS trailing ones — one of the ~60 copies #460 measured, not
+    /// `SourceText.codeOnly`. It is verdict-identical today only because every quotation of
+    /// `.accessibilityHidden(true)` inside `topBar` (there are three, all explaining why the
+    /// modifier is back) sits on a whole comment LINE. Written as a TRAILING comment, one of them
+    /// would make this guard red on correct code — the #486 collision, one stripper shape down.
+    /// Not migrated here: this file also asserts on `lines[i - 1]` relations, and `codeOnly`
+    /// preserves line count while this stripper deletes lines, so the swap moves indices. That is
+    /// the #460 migration, registered rather than smuggled into a layout slice.
     func testTheBrandIsOneControlAndNotTwo() throws {
         let bar = try topBarSource()
         let opens = bar.filter { $0.contains("openWebsite()") }.count
         XCTAssertEqual(opens, 1, """
             `topBar` calls `openWebsite()` \(opens) time(s); exactly one is expected. Two means \
-            the mark and the wordmark are separate buttons again — the same door announced \
-            twice, which is why the previous version had to hide one of them from VoiceOver.
+            the mark is a button again — the same door announced twice, and a 22×22 hit target \
+            below the 44 pt floor. The mark is decorative since #528; the door is the wordmark.
             """)
-        XCTAssertFalse(bar.contains { $0.contains("accessibilityHidden(true)") }, """
-            Something in `topBar` is hidden from VoiceOver. In this bar that has only ever been \
-            the workaround for the duplicate brand button; if a NEW element genuinely needs \
-            hiding, say why here and update this guard in the same commit.
+        let hidden = bar.enumerated().filter { $0.element.contains("accessibilityHidden(true)") }
+        XCTAssertEqual(hidden.count, 1, """
+            `topBar` hides \(hidden.count) element(s) from VoiceOver; exactly one is expected \
+            since #528 — the leading `EchoelLogoMark`, which would otherwise announce \
+            "Echoelmusic" a second time beside the wordmark button. \
+            Found: \(hidden.map { $0.element.trimmingCharacters(in: .whitespaces) }).
+
+            ZERO means the duplicate announcement is back (or the mark left the bar). More than \
+            one means something else is being hidden — say why here and update this guard in the \
+            same commit.
+            """)
+        guard let hiddenAt = hidden.first?.offset,
+              let mark = bar.firstIndex(where: { $0.contains("EchoelLogoMark()") }),
+              let readout = bar.firstIndex(where: { $0.contains("TransportPositionView()") }) else {
+            return  // the count assertion above already reported the real failure
+        }
+        XCTAssertTrue(hiddenAt > mark && hiddenAt < readout, """
+            The one hidden element in `topBar` is not the leading mark's: it sits at index \
+            \(hiddenAt), the mark is built at \(mark) and the next sibling child at \(readout), \
+            so the mark's own modifier chain is the open range between them.
+
+            Hiding anything else here is a real accessibility loss — the readout is a \
+            measurement and the tiles are controls.
             """)
     }
 

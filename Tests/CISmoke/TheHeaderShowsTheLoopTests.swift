@@ -23,13 +23,27 @@
 // arrowhead has meant MIGRATE since #411), and the sentence states it twice ("in die Mitte" +
 // "tauschen"), so nothing is inferred. The row is now **position · brand · monitors**.
 //
+// ⭐ AND THEN A FIFTH TIME, AND THIS ONE IS NOT A REORDER (#528). Founder, 2026-08-12, screenshot
+// of v10.79.384 (2501): a circle drawn tightly around the `E` TILE — the wordmark visibly OUTSIDE
+// it — and a red arc with a SINGLE arrowhead sweeping left onto the loop bar at the far edge. One
+// arrowhead is MIGRATE (#411), so the mark alone moves to the leading edge and the wordmark keeps
+// the middle it was given at #516. Row is **mark · position · wordmark · monitors**. Reading it
+// as "move the block" would reproduce #501 and undo a four-day-old sentence; the smaller circle
+// is the whole disambiguation, and he has circled the block WITH the wordmark before.
+//
+// ⛔ EVERY EARLIER PLACEMENT MOVED WHOLE CHILDREN; THIS ONE CHANGED WHAT A CHILD IS. That is why
+// #528 ADDS `testTheMarkLeadsTheHeaderAndIsNotAControl` instead of adjusting the ordering methods
+// again — measured against this tree, all three pre-existing methods stay GREEN, because the DOOR
+// (`openWebsite()`) never moved. The mark's position was therefore unwatched, and folding it back
+// into the button would have passed the entire bundle.
+//
 // ⛔ THAT IS THE THIRD PLACEMENT OF THE BRAND IN TWO DAYS — trailing (#490), leading (#501),
 // middle (#516, which is where #384 had it on 2026-08-02). This file keeps ADJUSTING the two
 // ordering assertions rather than deleting them, for the same reason each time: a guard that
 // vanishes when its subject moves leaves the ordering unwatched in every direction, and this
-// header has now been re-arranged by explicit founder ask four times. **What no session may do
+// header has now been re-arranged by explicit founder ask FIVE times. **What no session may do
 // is read one of those notes as the settled design and "restore" it.** The invariant across all
-// four is the LAW, not the layout: one greedy flank, no `Spacer`, no `ZStack`, readout is a leaf.
+// five is the LAW, not the layout: one greedy flank, no `Spacer`, no `ZStack`, readout is a leaf.
 //
 // ⭐ THE PRICE #501 PAID OFF IS NOT RE-BORROWED, and the monitor assertion is what proves it.
 // #490 priced the brand at the trailing edge as *"a website link — not a 44 pt control — sits in
@@ -79,6 +93,23 @@
 //     ordering assertion has now been a regression three times running, each time in a different
 //     direction, without its subject ever changing.
 //
+// ⚠️ HONEST GRADING FOR #528, measured against its parent (`b2d9ea2`) rather than asserted, by
+// transcribing `SourceText.codeOnly` and driving every assertion in BOTH this file and
+// `ChromeDynamicTypeTests` against both trees. Unusually, it is worth stating what the numbers do
+// NOT mean before what they do:
+//   · **ONE** assertion here flips — the new `testTheMarkLeadsTheHeaderAndIsNotAControl` (parent:
+//     mark at index 60, readout at 19). **FOUR** are counterweights, green on both sides.
+//   · ⚠️ AND "RED ON THE PARENT" DOES NOT MEAN THE PARENT WAS DEFECTIVE HERE, which is the
+//     difference between this slice and most of the chain. The parent is the layout the founder
+//     asked for on 2026-08-08; it is red only because the ask changed on 2026-08-12. Calling that
+//     a regression caught would be the #433 defect in the flattering direction — the guard pins a
+//     NEW fact, it did not find an old fault.
+//   · In `ChromeDynamicTypeTests` the same is true of the two assertions #528 rewrites (the
+//     `HStack(spacing: 8)` count 3 → 2, and the VoiceOver-hiding rule). What IS a real catch is
+//     the *old* form of the second one: `XCTAssertFalse(… accessibilityHidden(true))` was GREEN on
+//     the parent and would have gone RED on this correct tree — found by grepping `Tests/CISmoke`
+//     before editing the surface, which is the #456 step and the only reason it was not a red gate.
+//
 // ⚠️ HONEST LIMITS, first rather than last. Every assertion here is a SOURCE-TEXT SCAN. There is
 // no simulator in the blocking bundle, so this proves where text stands — never that the header
 // reads well, never that the loop readout is legible at chrome size, and never that a Picker
@@ -108,6 +139,19 @@
 // counterweight — a raw scan would be red on CORRECT code, twice. The general form is the #486
 // collision: this repo writes down what it removed, so a negative scan meets its own obituary —
 // and a "this collision does not form" note has a shelf life of exactly one reflow.
+// ⭐ RE-MEASURED ON THE #528 TREE AND IT IS NOW **THREE** COLLISIONS, not two: raw sees 2 greedy
+// flanks and stripped 1; raw sees a `ZStack` in the bar and stripped none; raw sees THREE
+// `accessibilityHidden(true)` and stripped one, because this slice's retraction notes quote the
+// modifier while explaining why it is back. The shelf-life sentence above earned itself again in
+// one commit.
+// ⚠️ AND THE NEIGHBOUR THAT ASSERTS ON THAT THIRD ONE DOES **NOT** USE THIS STRIPPER.
+// `ChromeDynamicTypeTests` has its own private `codeLines` (drop whole `//` lines — one of the
+// ~60 copies #460 measured), which KEEPS trailing comments. Its new "exactly one hidden element"
+// count is verdict-identical today only because every quotation of the modifier in `topBar` is on
+// a whole comment LINE. A retraction written as a trailing comment would turn that guard red on
+// correct code. The fix is the #460 migration; it is not folded in here because that file also
+// asserts on `lines[i - 1]` relations, and `codeOnly` preserves line count while its own stripper
+// deletes lines — so the swap moves indices and is a migration, not a one-line tidy-up.
 //
 // `Tests/CISmoke` is the blocking bundle. SKIPS rather than passes if the tree is absent.
 
@@ -219,6 +263,74 @@ final class TheHeaderShowsTheLoopTests: XCTestCase {
 
             brand at index \(brand), first monitor tile at index \(firstTile).
             \(bar.joined(separator: "\n"))
+            """)
+    }
+
+    // MARK: - 2b. "das E ganz nach links" — the 2026-08-12 arrow (#528)
+
+    /// The mark is the LEADING child, ahead of the loop readout, and it is decorative.
+    ///
+    /// ⭐ THE ASK. Founder, 2026-08-12, screenshot of v10.79.384 (2501): a circle drawn tightly
+    /// around the `E` TILE — the wordmark "Echoelmusic" is visibly OUTSIDE it — and a red arc
+    /// with a SINGLE arrowhead sweeping left onto the loop bar at the far edge. One arrowhead is
+    /// MIGRATE (#411); two would have been the SWAP grammar of #516. So the circled thing moves
+    /// to where the arrow lands, and what he circled is the mark alone.
+    ///
+    /// ⛔ THE READING THAT MOVES THE WHOLE BLOCK IS THE ONE TO RESIST, and it is the likelier
+    /// mistake because it is the simpler edit. Mark AND wordmark at the leading edge reproduces
+    /// the #501 layout exactly, undoing *"Den Schriftzug Echoelmusic wieder in die Mitte"* —
+    /// four days old, stated twice in one sentence. He has circled the brand WITH the wordmark
+    /// before (#501) and did not this time. Splitting is the reading that leaves both asks true.
+    ///
+    /// ⚠️ THIS IS THE FIFTH PLACEMENT AND THE FIRST THAT IS NOT A REORDER OF THE SAME CHILDREN —
+    /// #384 middle, #490 trailing, #501 leading, #516 middle, #528 split. Every earlier one moved
+    /// whole children, so the three ordering assertions in this file kept working by adjustment.
+    /// This one changed what a "child" IS, which is why it needs an assertion of its own rather
+    /// than an edit to `testTheBrandSitsBetweenTheReadoutAndTheTiles`: that method's subject is
+    /// where the DOOR sits, and the door did not move.
+    ///
+    /// ⭐ AND THAT IS EXACTLY WHY IT IS NEEDED — measured, not assumed. Driving the three
+    /// pre-existing methods against this tree, ALL THREE stay green: the door anchor
+    /// (`openWebsite()`) is still between readout and tiles, the flank is still on its chain, and
+    /// nothing live leaked in. So the mark's position was UNWATCHED, and folding it back into the
+    /// button would have passed every guard in this bundle.
+    func testTheMarkLeadsTheHeaderAndIsNotAControl() throws {
+        let bar = try topBar()
+        guard let mark = bar.firstIndex(where: { $0.contains("EchoelLogoMark()") }) else {
+            return XCTFail("""
+                `topBar` no longer builds `EchoelLogoMark()`. The founder's 2026-08-12 arrow put \
+                the mark at the leading edge; if it was folded back into the brand button or \
+                removed, that is a fresh ask and this method should be rewritten with it.
+                """)
+        }
+        guard let readout = bar.firstIndex(where: { $0.contains("TransportPositionView()") }) else {
+            return  // the mount test above already reported the real failure
+        }
+        XCTAssertLessThan(mark, readout, """
+            The mark is built AFTER the loop readout in `topBar` (mark \(mark), readout \
+            \(readout)). The arrow landed on the loop bar at the FAR edge, so the mark leads.
+            \(bar.joined(separator: "\n"))
+            """)
+        guard let brand = bar.firstIndex(where: { $0.contains("openWebsite()") }) else {
+            return  // the ordering test above already reported the real failure
+        }
+        XCTAssertLessThan(mark, brand, """
+            The mark is built after the wordmark's button (mark \(mark), brand \(brand)) — the \
+            two are on the wrong sides of the readout.
+            """)
+        // ⚠️ THE COUNTERWEIGHT, and it is the half that makes the two assertions above mean
+        // something (#343). "The mark leads" is satisfied by a tree that ALSO deleted the
+        // website link, or the wordmark, or the version — leaving a bare glyph at the leading
+        // edge and no brand at all. The door and its announcement are pinned here so that
+        // cannot pass quietly.
+        XCTAssertTrue(bar.contains { $0.contains("Text(\"Echoelmusic\")") }, """
+            The wordmark is gone from `topBar`. The mark moving to the leading edge was a \
+            re-arrangement, not a removal — "Echoelmusic" stays in the middle (#516).
+            """)
+        XCTAssertTrue(bar.contains { $0.contains("accessibilityLabel(\"Echoelmusic \\(Self.versionString)\")") }, """
+            The brand button's accessibility label changed or is gone. It is the ONE spoken \
+            announcement of the brand in this bar: the leading mark is `.accessibilityHidden`, \
+            so if this label goes, VoiceOver loses the brand and the website door entirely.
             """)
     }
 
