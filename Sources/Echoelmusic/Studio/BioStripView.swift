@@ -194,11 +194,45 @@ struct BioStripView: View {
             banner(PulseCue.cameraDenied.fullHint,
                    color: EchoelTheme.warning, systemImage: "video.slash")
         } else if cameraRPPG.isRunning {
-            banner("Pulse detected — you can let go & play",
-                   color: EchoelTheme.success, systemImage: "checkmark.circle.fill")
-                .opacity(lockedCueVisible ? 1 : 0)
-                .allowsHitTesting(lockedCueVisible)
-                .accessibilityHidden(!lockedCueVisible)
+            // ⭐ TWO OCCUPANTS OF ONE RESERVED SLOT, and the ORDER inside this `ZStack` is not
+            // cosmetic: the lock cue is FIRST so that everything `LockCueDoesNotShoveTheControls`
+            // pins — the `.opacity(lockedCueVisible …)` expression, the two inertness modifiers,
+            // and the fact that the nearest enclosing condition above the cue text is still
+            // `cameraRPPG.isRunning` — is unchanged by construction. Nothing here weakens that
+            // slice; this only fills the blank its own header calls "the deliberate trade".
+            ZStack {
+                banner("Pulse detected — you can let go & play",
+                       color: EchoelTheme.success, systemImage: "checkmark.circle.fill")
+                    .opacity(lockedCueVisible ? 1 : 0)
+                    .allowsHitTesting(lockedCueVisible)
+                    .accessibilityHidden(!lockedCueVisible)
+                // ⭐ THE HALF OF #484 THAT NEVER REACHED A SIGHTED USER. `acquisitionCue.fullHint`
+                // carries the remedy ("lift your finger and place it again" / "try another
+                // finger, or warm your hand first"); before this line its only paths to a screen
+                // were `PulseMeasurementView` (doorless — its sole mount is `BioSourceView`, which
+                // has zero construction sites) and `HeaderMonitors`' `.accessibilityValue`, i.e.
+                // VoiceOver only. The pixels got `shortLabel` — "Unsteady" / "Nothing yet", two
+                // short forms with no verb in them. That gate is `warrantsFullHintOnScreen`, and
+                // it lives on the enum with the strings it is a fact about, not here (#416).
+                //
+                // ⚠️ `!lockedCueVisible` FIRST so the two can never both be visible: a lock and a
+                // stall are mutually exclusive states, but the cue lingers six seconds after the
+                // lock, and during those seconds the honest message is the congratulation.
+                //
+                // ⛔ AND IT IS NOT THE ONLY CUE THAT HIDES ITS REMEDY — the first version of this
+                // comment said it was, and that premise is measurably false. "Too bright" is pure
+                // diagnosis too; its action is "Press a little lighter", and the intuitive move on
+                // a washed-out reading is the opposite one. `.tooBright` is excluded because
+                // `placementCue` is recomputed per FRAME, so wrapping it here would resize this
+                // slot at the publisher's rate — the #382 shove with a faster clock. `.stalled` is
+                // latched once in the publish tick and cannot churn. The `.tooBright` gap is real,
+                // named, and left for a slice that gives this slot a fixed height or a latch.
+                if !lockedCueVisible, cameraRPPG.acquisitionCue.warrantsFullHintOnScreen {
+                    banner(cameraRPPG.acquisitionCue.fullHint,
+                           color: EchoelTheme.warning,
+                           systemImage: "arrow.triangle.2.circlepath")
+                }
+            }
         }
     }
 
@@ -207,13 +241,28 @@ struct BioStripView: View {
     /// `.system(size: 11, weight: .medium)`, an ABSOLUTE size: a user at AX5 read it at 11 pt,
     /// the same 11 pt everyone else gets. Not "grows less than asked" — does not grow.
     ///
-    /// There are exactly THREE things this helper ever renders, and they are worth naming
+    /// There are exactly FOUR things this helper ever renders, and they are worth naming
     /// because the list is what tells a reader how much text has to fit:
     ///   · `recoveryState.userHint` — "Camera recovering…", "Device cooling down — pulse holds
     ///     for a moment", "Camera paused by iOS — waiting to resume";
     ///   · `PulseCue.cameraDenied.fullHint` — "Camera access is off — enable it in Settings to
     ///     read your pulse";
-    ///   · the lock cue — "Pulse detected — you can let go & play".
+    ///   · the lock cue — "Pulse detected — you can let go & play";
+    ///   · the stall remedy — `PulseCue.stalled(…).fullHint`, i.e. "The signal isn't steady
+    ///     enough to read — lift your finger and place it again" or "Still nothing to read —
+    ///     try another finger, or warm your hand first".
+    ///
+    /// ⚠️ THE FOURTH ENTRY MOVED THE CEILING and that is the whole reason this list is kept:
+    /// at 76 characters the rhythmless stall hint is now the LONGEST string this helper can be
+    /// asked to wrap — 13 past the camera-denied line (63) that used to hold the record, and
+    /// EXACTLY TWICE the lock cue (38), which is the reserved slot's nominal occupant. A reader
+    /// sizing the slot must measure against 76, not against the cue the slot is reserved for.
+    /// (Counted, not estimated: `stalled(rhythmless:)` 76 · `stalled(false)` 67 · cameraDenied
+    /// 63 · `.cooling` 46 · `.interrupted` 40 · lock cue 38 · `.recovering` 18. ⛔ The first
+    /// draft of this very paragraph wrote "two characters past the camera-denied line (74)" —
+    /// both halves invented, in the paragraph whose entire subject is that a wrong length claim
+    /// misleads a reader deciding whether wrapping is safe. Caught by counting before the
+    /// commit, not in review.)
     ///
     /// ⛔ THE FIRST VERSION OF THIS PARAGRAPH LISTED A STRING THIS BANNER NEVER SHOWS, and one
     /// that does not exist in `Sources/` at all: it claimed the AX5 user read *"Cover the
@@ -221,8 +270,11 @@ struct BioStripView: View {
     /// rear camera + flash", and its only consumer is `HeaderMonitors` via `acquisitionCue` —
     /// a different surface entirely. "Enable camera access" was a paraphrase of the line above.
     /// The wrong list mattered because it is a claim about how LONG the longest sentence is,
-    /// which is exactly what a reader checks before deciding whether wrapping is safe. Verified
-    /// by grep: `banner(` has three call sites in this file and no fourth.
+    /// which is exactly what a reader checks before deciding whether wrapping is safe. (That
+    /// retraction ended "verified by grep: `banner(` has three call sites and no fourth" —
+    /// true when written, false since #523 added the stall remedy. A CENSUS in a comment is a
+    /// number like any other in this repo and ages the same way; the list above is the current
+    /// one, at FOUR.)
     ///
     /// ⛔ It also said "`.system(size:)` without `relativeTo:`", which sends a reader hunting
     /// for an argument that does not exist — `Font.system(size:weight:design:)` has none.

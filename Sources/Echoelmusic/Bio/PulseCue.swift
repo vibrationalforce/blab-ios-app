@@ -162,6 +162,60 @@ public enum PulseCue: Equatable, Sendable {
         }
     }
 
+    /// True when a surface with a reserved single-line slot should spend it on the WRAPPING
+    /// `fullHint` rather than the 1–2 word `shortLabel`.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS PROPERTY WAS CALLED `remedyIsOnlyInFullHint` AND ITS
+    /// PREMISE WAS FALSE — caught by driving all eight cases before the commit, not in review.
+    /// It claimed `.stalled` is "the ONLY actionable case whose short form contains no
+    /// instruction", and that "Cover lens", "Too bright", "Hold still", "Press gently" and
+    /// "Camera off" each ARE the instruction in miniature. Measured: **`.tooBright` and
+    /// `.cameraDenied` withhold their remedy too.** "Too bright" is pure diagnosis — the action
+    /// is *"Press a little lighter"*, and a user reading two words has no way to guess that
+    /// LESS pressure is the fix (the intuitive move on a washed-out reading is to press
+    /// harder). "Camera off" likewise: the action is *"enable it in Settings"*. Only
+    /// `.coverLens` / `.holdStill` / `.pressGently` really are their own instruction. **A name
+    /// that asserts something false about a case it excludes is worse than no name** — the next
+    /// session greps the property, believes the label, and never re-measures.
+    ///
+    /// ⭐ SO THE DECISION SURVIVED THE FALSIFIED PREMISE, ON A DIFFERENT AND TWO-PART REASON.
+    /// `.stalled` is the only cue that is (a) silent about its remedy AND (b) safe to put in a
+    /// wrapping slot AND (c) not already covered elsewhere:
+    ///   · **`.tooBright` fails (b).** `placementCue` is a pure computed property over live
+    ///     analyzer state, so it can flip as fast as frames arrive; a wrapping sentence in a
+    ///     reserved slot RESIZES that slot, and `bioPanel` stacks the explanatory line, "Open
+    ///     Routing" and the Health opt-in row underneath it. Wrapping at the publisher's own
+    ///     rate is worse than the bug #382 fixed. Registered as a real, NAMED, unrepaired gap
+    ///     rather than pretended away: a sighted user staring at "Too bright" is not told to
+    ///     press lighter. Fixing it needs a fixed-height slot or a latch, i.e. its own slice.
+    ///   · **`.cameraDenied` fails (c).** `statusBanner` branch 2 already renders
+    ///     `PulseCue.cameraDenied.fullHint` directly for the permission dead end — the sentence
+    ///     is on screen, and a second copy here would be #416's defect, not helpfulness.
+    ///   · **`.stalled` passes all three.** It is LATCHED once in the publish tick
+    ///     (`stallWasRhythmless`), ~45 s in, and clears only when `placementCue` stops being
+    ///     `.finding` — i.e. when the user moves their finger. It cannot churn.
+    ///
+    /// ⛔ AND UNTIL THIS PROPERTY HAD A CONSUMER, `.stalled`'s `fullHint` REACHED A SIGHTED
+    /// USER NOWHERE. Measured, not assumed (`git grep -n 'fullHint' -- Sources`, three hits
+    /// outside this file): `CameraRPPGBioPublisher.coachingHint` is `acquisitionCue.fullHint`,
+    /// and its only reader is `PulseMeasurementView`, whose only mount is `BioSourceView` —
+    /// which has ZERO construction sites anywhere in `Sources/`; `HeaderMonitors` renders
+    /// `fullHint` as an `.accessibilityValue`, i.e. VoiceOver only, while the pixels get
+    /// `shortLabel`; and `BioStripView`'s banner spelled out only the `.cameraDenied` literal.
+    /// So the half of #484 that tells a stuck user what to DO was audible and invisible — on
+    /// the app's binding constraint (#304/#410/#415), where the failure users actually hit is
+    /// exactly this one.
+    ///
+    /// ⚠️ THE PRICE, STATED RATHER THAN HIDDEN: the slot still grows ONCE when the stall
+    /// latches, by a wrapped line or two at AX3+. `LockCueDoesNotShoveTheControlsTests`' own
+    /// header already accepts this class for branch 1 ("informative and low-frequency") and it
+    /// is the same trade here — except this one arrives after 45 s of a screen saying nothing
+    /// useful, which is the moment the movement is least surprising and most earned.
+    public var warrantsFullHintOnScreen: Bool {
+        if case .stalled = self { return true }
+        return false
+    }
+
     /// How long a placed, steady, well-lit finger may fail to produce a trustworthy reading
     /// before `.finding` becomes `.stalled`. SECONDS, wall clock.
     ///
