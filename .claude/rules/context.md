@@ -6,13 +6,13 @@ working in one directory belongs in that directory's `CLAUDE.md`, not here.
 
 ## 1. What a session already pays
 
-Measured 2026-08-12: **925,658 bytes / 909,101 chars** arrive before the first line of work.
+Measured 2026-08-12: **815,952 bytes / 800,899 chars** arrive before the first line of work.
 
 | source | bytes | note |
 |---|---|---|
 | `CLAUDE.md` | 715,488 | of which **562,848 chars (80.2 %)** is one ledger, lines 310–5911 |
-| SessionStart hook stdout | 199,983 | `cat memory/*.md` **uncapped** (191,875 B; `decisions.md` alone 112,829 B) |
-| `.claude/rules/*.md` | 10,187 | **this file is 4,404 of them** — it was 5,783 before it existed |
+| SessionStart hook stdout | 89,515 | was 199,983 until the two big memory files were capped |
+| `.claude/rules/*.md` | 10,949 | **this file is 5,166 of them** — it was 5,783 before it existed |
 
 `.claude/settings.json` sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "50"`, so compaction fires at
 half budget. The ~25 KB of executable law (audio-thread bans, force-unwrap ban,
@@ -20,8 +20,17 @@ half budget. The ~25 KB of executable law (audio-thread bans, force-unwrap ban,
 and is what gets summarised away first. **Do not grow the always-loaded set.** Adding a line to
 an accreting ledger is cheap for you and charged to every future session.
 
-The one working mitigation in the tree is the `sed -n '1,80p'` cap on `SESSION_LOG.md`, which
-keeps 778,917 B off the bill. **Do not remove it.**
+**Two caps hold this line. Do not remove either.** `sed -n '1,80p'` on `SESSION_LOG.md` keeps
+778,917 B off the bill. `cat memory/*.md` was uncapped at 191,875 B (`decisions.md` alone
+112,829, `inspiration_intake.md` 44,665) and is now sliced: five small files whole,
+`decisions.md` tail-400, `inspiration_intake.md` head-60 (the funnel + the gate) plus
+tail-120. Each slice prints what it withheld and the command to read the whole file.
+
+⚠️ The `decisions.md` slice is a **heuristic, not a guarantee**, and the banner says so:
+that file is **not** in date order — its first 200 lines carry 07-21…07-23 and its last 200
+carry 07-20…07-31. The tail wins only because the newest entry (07-31) sits at line 1242 of
+1272. If entries ever get appended in a different place, the cap silently shows the wrong
+ones. The real repair is ordering the file, not widening the slice.
 
 ## 2. Measure; do not recite, estimate, or remember
 
