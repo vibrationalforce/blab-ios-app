@@ -9354,3 +9354,55 @@ weil es eine Sicherheits-Aussage an den Nutzer ist. Verwandt: #450, #449.
   alle acht Verdikte bauartbedingt grün. Sie als gefangene Regressionen zu verbuchen wäre die
   schmeichelnde Richtung (#433). Was der Wächter kauft, ist das ZUKÜNFTIGE Rot. `codeOnly`
   **prophylaktisch, 0 von 8** — gemessen, nicht behauptet.
+
+### Zyklus 2026-08-12H — Gates verifiziert · Punkt 2 nachgemessen · #549 Watch-Transport
+
+- **GATES auf `0f50047` GELESEN, nicht vermutet.** `Xcode Compile Check` = **success** ⇒ #546
+  und #547 sind compile-verifiziert (der #547-Lauf selbst wurde vom Folge-Push abgebrochen —
+  `concurrency: cancel-in-progress` je Ref; der HEAD-Lauf deckt beide ab). `CI/CD Pipeline`:
+  Schritt **`Build for Testing` = success** ⇒ das blockierende Bundle kompiliert mit ALLEN
+  neuen/geänderten Wächtern (#543 · #545/#547 · #548 · #544 · #546). `Run Tests` rot =
+  **#396**: im Job-Log genau **1×** `TEST EXECUTE FAILED`, **0×** `TEST BUILD FAILED`,
+  **169 Fälle aus 21 Suiten, NULL Fehlschläge**, alle auf `Clone 1`. ⚠️ **0× `server died`,
+  0× `Code=-308`** — die Mach-Zeile ist wie in CLAUDE.md notiert ein Bonus, kein Kriterium.
+  Keiner der fünf neuen Wächter steht im Log ⇒ **„kompiliert nachweislich, Ausführung
+  unbelegt"** (#445), kein „grün", kein „rot".
+- **PUNKT 2 NACHGEMESSEN, BEVOR WEITERGEBAUT WURDE — er ist an der FX-Fläche weitgehend
+  GEBAUT, und das gehört aufgeschrieben, damit die nächste Sitzung nicht doppelt baut.** Beide
+  Hälften existieren: **(a)** die vier Always-on-Kanäle als Zeilen mit Wert + „nicht gemessen" /
+  „gehalten" (`AlwaysOnBioView` → `AlwaysOnBioRow`), **(b)** die NUTZER-Routen mit LIVE-Beitrag
+  je Route — Träger → Ziel, vorzeichenbehafteter Offset, Signalbalken, VoiceOver, und `—` statt
+  `+0.00` wenn der Körper den Träger nicht gemeldet hat. **Das Freeze-Gesetz ist dort bereits
+  korrekt gelöst und im Quelltext begründet:** `AlwaysOnBioView` liest `bus.latestBio` in
+  seinem EIGENEN Rumpf, ausdrücklich weil die Abschnitte darüber `.menu`-Picker hosten. Es gibt
+  hier keine offene 30-Hz-Wurzel-Lesung. Was Punkt 2 noch fehlt, ist eine Produkt-, keine
+  Technikfrage (die Fläche liegt hinter „Effects › All parameters"; das Bio-Panel zeigt seit
+  #542 darauf) — **Founder-Entscheidung, nicht still umgebaut.**
+- **#549 (`18bcdb2`) — die Wearable-Route benannte einen Kanal, der kein Byte tragen kann.**
+  Drei Prosa-Stellen beschrieben die Produzenten-Hälfte als „Handgelenk-HealthKit-HR → **App
+  Group** → Telefon": der Dateikopf von `EchoelWatchApp.swift`, die Plattform-Leiter in
+  CLAUDE.md und der Watch-Block in `project.yml`. **Ein App-Group-Container ist PRO GERÄT.**
+  Uhr und Telefon teilen kein `UserDefaults(suiteName:)` — genau deshalb ist derselbe
+  `BioFeedbackManager`-Pfad für das Widget (dasselbe Telefon) RICHTIG und trägt zwischen
+  Handgelenk und Telefon in keine Richtung etwas. Gemessen: `git grep -n
+  "WatchConnectivity\|WCSession" -- Sources` → **nichts**.
+  ⭐ **Folge fürs Planen, und das ist der ganze Grund für den Zyklus: C7 ist keine
+  HealthKit-Aufgabe, sondern eine TRANSPORT-Entscheidung.** `WCSession` ist ein NEUES
+  Framework ⇒ Council/Founder VOR der ersten Zeile. Wer C7 wie geschrieben umsetzt, schreibt
+  korrekten HealthKit-Code gegen einen Kanal, den es nicht gibt.
+  ⚠️ **Und merkt es nicht — der Fehlschlag ist bauartbedingt STILL:**
+  `refreshFromSharedStore()` liefert bei leerem Container nil, die Uhr rendert den plausiblen
+  Leerzustand („Start a session on iPhone."). **Eine verdrahtete Route, die nichts überträgt,
+  sieht byte-identisch aus wie eine unverdrahtete.** Genau dafür braucht es einen ausführbaren
+  Zeugen statt einer Notiz.
+  **Ehrliche Schwere: Planungskosten, kein Nutzer-Schaden** — das Target ist NICHT eingebettet
+  (`- target: EchoelmusicWatch` steht auskommentiert), also hat niemand den irreführenden
+  Leerzustand je gesehen. Wächter `TheWatchHasNoTransportTests` (3 Claims): Claim 1 wird rot am
+  Tag des Transports — also genau im Commit, der alle drei Prosa-Stellen umschreiben muss, und
+  er NENNT sie (samt Hinweis, dass die `project.yml`-Stelle founder-gated ist: berichten, nicht
+  editieren). Claim 3 ist die Schwere-Prämisse und prüft zusätzlich, dass der AUSKOMMENTIERTE
+  Eintrag noch da ist — ein ganz verschwundener Eintrag würde die Behauptung aus dem falschen
+  Grund bestehen lassen (#456). **Benotung: NULL Regressionen, bauartbedingt** (Prosa-Scheibe),
+  `codeOnly` **TRAGEND, 1 von 6**.
+- **Berichtet, nicht editiert (founder-gated):** `project.yml:296` trägt dieselbe falsche
+  C7-Route; `:224` hält die Watch-Einbettung auskommentiert (korrekt so, C5-Signier-Muster).
