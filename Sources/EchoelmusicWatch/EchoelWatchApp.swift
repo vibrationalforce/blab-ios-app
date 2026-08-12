@@ -2,16 +2,44 @@
 //  EchoelWatchApp.swift
 //  Echoelmusic — watchOS companion
 //
-//  Cycle C5 (scaffold). A single SwiftUI watchOS app that mirrors the live
-//  vitals the phone publishes into the shared App Group (group.com.echoelmusic)
-//  via BioFeedbackManager — the same Foundation-only consumer path the Widget
-//  and AUv3 use, so this target compiles without importing the app module.
+//  Cycle C5 (scaffold). A single SwiftUI watchOS app built on the same
+//  Foundation-only BioFeedbackManager path the Widget uses, so this target
+//  compiles without importing the app module.
+//
+//  ⛔ THE ROUTE THIS FILE DESCRIBED IS NOT A ROUTE (#549). The header said it
+//  "mirrors the live vitals the phone publishes into the shared App Group", and
+//  the scope note said the producer half is "on-wrist HealthKit HR → App Group,
+//  so the phone consumes wrist HR". **An App Group container is PER DEVICE.**
+//  The watch and the iPhone do not share a `UserDefaults(suiteName:)` — an
+//  App Group is shared between processes on ONE device, which is exactly why
+//  this same code IS correct for the Widget (same phone) and cannot carry a
+//  byte between wrist and phone in either direction. Measured 2026-08-12:
+//  `git grep -n "WatchConnectivity\|WCSession" -- Sources` returns NOTHING, so
+//  there is no transport in this repo at all.
+//
+//  ⭐ SO C7 IS NOT A HEALTHKIT TASK, IT IS A TRANSPORT DECISION, and that is the
+//  whole point of writing this down: `WCSession` is a new framework, which under
+//  CLAUDE.md needs the Council/founder step BEFORE any wrist-HealthKit code is
+//  written. Someone picking up "C7: add HealthKit on-wrist HR → App Group" as
+//  specified would write correct HealthKit code against a channel that does not
+//  exist and could not tell, because…
+//
+//  ⚠️ …THE FAILURE IS SILENT BY CONSTRUCTION. `refreshFromSharedStore()` returns
+//  nil when the container holds nothing, and `hasData == false` renders the
+//  perfectly reasonable idle state ("Start a session on iPhone."). A wired
+//  route that transports nothing and an unwired one look IDENTICAL on the
+//  wrist. That is why this note is here rather than in a backlog file.
 //
 //  ── SCOPE (deliberately small this cycle) ─────────────────────────────────
-//    This is the *consumer/glance* half: wrist shows HR / HRV / coherence.
-//    The *producer* half (on-wrist HealthKit HR → App Group, so the phone
-//    consumes wrist HR) lands CI-verified in C7 — HealthKit workout-session
-//    code is too error-prone to add blind.
+//    This is the *consumer/glance* half: wrist shows HR / HRV / coherence —
+//    from THIS device's App Group container, which nothing on the watch writes
+//    today. The *producer* half is C7 and needs the transport decision above
+//    before any HealthKit workout-session code.
+//
+//  ⚠️ NOBODY HAS SEEN THIS. The target is NOT embedded — `project.yml` keeps
+//  `- target: EchoelmusicWatch` commented out under the app's dependencies
+//  (signing-safe C5 pattern), so no build ships it. The severity is planning
+//  cost, not user impact — and it rises the day the embed is turned on.
 //
 //  ── HARD CONSTRAINT (CLAUDE.md) ───────────────────────────────────────────
 //    Apple Watch HR has ~4–5 s latency → display / trend ONLY, never beat-sync.
