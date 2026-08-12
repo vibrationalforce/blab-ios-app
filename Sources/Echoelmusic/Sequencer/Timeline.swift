@@ -139,10 +139,41 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
         // id/name/kind meant a renamed/removed identity field threw → the [TimelineLane]
         // array decode threw → TimelineDocument.init rethrew → AppGroupStore.load nil →
         // the user's WHOLE song was lost. Degrade one field instead: id→fresh UUID,
-        // name→"", kind→.midi (neutral). A well-formed doc is byte-unaffected (all present).
+        // name→"", kind→.midi (neutral, and since #543 that covers an UNKNOWN case too,
+        // not only a missing key). A well-formed doc is byte-unaffected (all present).
         id = try c.decodeIfPresent(UUID.self, forKey: .id) ?? UUID()
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
-        kind = try c.decodeIfPresent(ClipKind.self, forKey: .kind) ?? .midi
+        // ⛔ THIS WAS `try c.decodeIfPresent(ClipKind.self, …)` UNTIL #543, i.e. the exact
+        // form the comment 20 lines below spends a paragraph explaining is NOT enough —
+        // "`decodeIfPresent` absorbs a MISSING key, never an unknown case". A claim and its
+        // own refutation in one function (#425). `ClipKind` is a String-raw enum, so an
+        // unknown case throws `dataCorrupted` INSIDE this decoder, `Lossy<TimelineLane>`
+        // yields nil, `lossyArray` drops the WHOLE LANE, and its regions survive as orphans
+        // pointing at a laneID that no longer exists.
+        //
+        // ⚠️ AND `kind` IS THE LIVE ONE OF THE THREE. `TimelineStore.migrate(sections:)`
+        // seeds `TimelineLane(name: "MIDI 1", kind: .midi)` and `… "Audio 1", kind: .audio)`
+        // into every default document, so this key is on disk for every user — while
+        // `git grep -n "kind: \.\(video\|visual\)" -- Sources` produces nothing, making
+        // those two cases exactly the dead ones a future cleanup deletes (the
+        // `LaneVoiceKind.drums` situation, one type over).
+        //
+        // ⚠️ NOT a live defect today: no edit in the current tree can trigger the throw, so
+        // this is a latent hazard plus a self-contradicting comment, not a bug a user can
+        // hit now. Recorded at that strength deliberately — overstating it is how the next
+        // session mis-ranks the real ones.
+        //
+        // The `try?` form is the house pattern for these types one file away:
+        // `Clip.init(from:)` decodes the SAME `ClipKind` as
+        // `(try? c.decode(ClipKind.self, forKey: .kind)) ?? .midi`, and every field in that
+        // initializer is written that way.
+        // ⚠️ `try? c.decode`, NOT `(try? c.decodeIfPresent(…)) ?? nil` as `builtinInstrument`
+        // uses two lines down. That form yields a DOUBLE optional and only reads cleanly for
+        // a field that is itself Optional; `kind` is not. `try? c.decode` gives a single
+        // `ClipKind?` — nil for a missing key, a null, AND an unknown case — which `?? .midi`
+        // flattens. Identical outcome, and it is character-for-character what `Clip.swift`
+        // does for this same type.
+        kind = (try? c.decode(ClipKind.self, forKey: .kind)) ?? .midi
         isBio = try c.decodeIfPresent(Bool.self, forKey: .isBio) ?? false
         level = try c.decodeIfPresent(Float.self, forKey: .level) ?? 1
         isMuted = try c.decodeIfPresent(Bool.self, forKey: .isMuted) ?? false
@@ -169,11 +200,33 @@ public struct TimelineLane: Codable, Sendable, Equatable, Identifiable {
                                                     forKey: .builtinInstrument)) ?? nil
         isArmed = try c.decodeIfPresent(Bool.self, forKey: .isArmed) ?? false
         // Pre-2026-07-14 docs carry no per-track patch — decode to nil (global sound).
-        patch = try c.decodeIfPresent(SynthPatch.self, forKey: .patch)
+        //
+        // ⚠️ `SynthPatch` ALREADY defends itself (its own `init(from:)` is 29 lines of
+        // `decodeIfPresent`), so this one was never the hazard `kind`/`mood` are. It is
+        // wrapped anyway so the rule in this initializer is uniform — "every non-primitive
+        // field is `try?`-wrapped" is a rule a guard can state and a reader can apply;
+        // "every non-primitive field except the ones whose decoder we happen to trust" is
+        // an exemption list, and exemption lists are what go stale.
+        patch = try? c.decode(SynthPatch.self, forKey: .patch)
         // Per-track composition group (genre/mood/variation) — absent in older docs ⇒
         // nil = follow the global composition choice.
-        genreOverride = try c.decodeIfPresent(MusicStyle.self, forKey: .genreOverride)
-        mood = try c.decodeIfPresent(MoodProfile.self, forKey: .mood)
+        //
+        // ⛔ BOTH OF THESE WERE BARE `try c.decodeIfPresent(…)` UNTIL #543, and each throws
+        // for a different reason. `MusicStyle` is a String-raw enum → `dataCorrupted` on a
+        // retired case. `MoodProfile` is a synthesized `Codable` over EIGHT non-optional
+        // `Float`s → `keyNotFound` the day a ninth dimension is added, because
+        // `decodeIfPresent` absorbs an absent OUTER key and never an inner throw.
+        // `MoodStorage.swift` states that second mechanism itself; this decoder did not act
+        // on it.
+        //
+        // ⚠️ HONEST SEVERITY, and it is LOWER than `kind`'s: `setLaneGenreOverride` and
+        // `setLaneMood` (`TimelineStore`) have ZERO production callers, and the synthesized
+        // encoder omits a nil Optional — so NO document on disk today can carry either key.
+        // Reaching the throw needs two future steps (re-door the surface, then change the
+        // type), not one. Wrapped now because the cost is a keyword and the alternative is
+        // remembering.
+        genreOverride = try? c.decode(MusicStyle.self, forKey: .genreOverride)
+        mood = try? c.decode(MoodProfile.self, forKey: .mood)
         variationSeed = try c.decodeIfPresent(UInt64.self, forKey: .variationSeed)
         // Pre-2026-07-14 docs carry no per-track transpose ⇒ 0 (no shift, bit-identical).
         transposeSemitones = try c.decodeIfPresent(Int.self, forKey: .transposeSemitones) ?? 0
