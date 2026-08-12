@@ -111,18 +111,30 @@ public struct BioVitals: Codable, Sendable, Equatable {
     /// age is tolerated for cross-process clock jitter, anything more
     /// "from the future" is rejected — mirrors `EngineBus.freshBio`.
     ///
-    /// ⛔ "mirrors" was the whole problem until #545: the sentence pointed at
-    /// `EngineBus.freshBio` while the code below restated its `-1` as a literal, so the
-    /// two could drift apart and the doc would still read correctly. It now ASKS
-    /// `BioSource.futureSkewTolerance`, which is what "mirrors" was always claiming.
-    /// The parenthetical "(≥ −1 s)" is gone with it — a doc that spells the number is a
-    /// seventh copy of the decision, the same way `ColabPayload`'s was.
+    /// ⛔ THIS FILE IS THE ONE SITE THAT CANNOT ASK `BioSource.futureSkewTolerance`, and the
+    /// reason is structural rather than stylistic (#545, learned from a red compile, not from
+    /// a rule): this file is compiled STANDALONE into two other targets —
+    /// `project.yml` lists `Sources/Echoelmusic/Core/BioFeedbackManager.swift` under
+    /// `EchoelmusicWidgets` and under `EchoelmusicWatch`, both of which pull in this ONE file
+    /// and none of `Core/EngineBus.swift`. `BioSource` does not exist there. Converting this
+    /// line produced exactly that: `error: cannot find 'BioSource' in scope`, twice.
+    ///
+    /// ⭐ SO THE LITERAL STAYS, and #545's own argument against a second copy is what makes
+    /// this an exception rather than a hole. That argument was: "keep a second literal because
+    /// two phones are not clock-synchronised" is a rationale that SOUNDS right and is false, so
+    /// it must not be installed. This one is testable — the compiler settles it — and the guard
+    /// `OneOwnerForTheClockSkewTests` exempts this file only WHILE the premise holds: it asserts
+    /// `project.yml` still lists this path standalone under a non-app target. The day this file
+    /// joins the app module, the exemption expires by itself and the guard names this line.
+    ///
+    /// The doc's old "(≥ −1 s)" parenthetical is still gone: that one really was a spare copy,
+    /// and it cost nothing to remove because prose has no target membership.
     public func isFresh(
         within maxAge: TimeInterval = 2,
         now: TimeInterval = Date().timeIntervalSinceReferenceDate
     ) -> Bool {
         let age = now - timestamp
-        return age <= maxAge && age >= -BioSource.futureSkewTolerance
+        return age <= maxAge && age >= -1   // see the ⛔ note: no `BioSource` in the appex/watch
     }
 }
 

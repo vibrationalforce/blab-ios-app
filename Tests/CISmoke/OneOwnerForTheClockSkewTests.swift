@@ -29,7 +29,8 @@
 //     bundle could in principle drive, but driving them proves the VALUE, which claim 1 already
 //     owns; what these need to see is that the sites ASK rather than restate, and that is a
 //     property of the text.
-//   · Claim 5 is a source-text scan of a different file's premise.
+//   · Claim 5 reads `project.yml` — the module graph, which no Swift symbol exposes.
+//   · Claim 6 is a source-text scan of a different file's premise.
 //
 // ⚠️ WHY THE NEGATIVE SCAN IS NARROW, and it is narrow on purpose (#364). It reds a code line
 // only when it holds `>= -1` AND names one of `age`/`timestamp`/`arrivedAt` — i.e. a freshness
@@ -47,23 +48,40 @@
 // is ever retuned — named here and in claim 2's failure message so the next reader finds it
 // without grepping.
 //
-// ⚠️ HONEST GRADING against the parent `6bab91e` (part 1 of the same slice) — TRANSCRIBED, a
-// Python rebuild of all five claims driven against `git show 6bab91e:` and this tree:
-//   · TWO REGRESSIONS, red there for the reason their names give: claim 2 (two offenders,
-//     `ColabPayload.swift` and `BioFeedbackManager.swift`, still holding the literal) and
-//     claim 3 (4 asking sites of the required 6). They are the two halves of the same
-//     conversion and are reported as two because they fail on different evidence — one on a
-//     literal that is present, one on an ask that is missing. A tree that DELETED both checks
-//     rather than converting them passes claim 2 and fails claim 3; that asymmetry is the
-//     point of carrying both (#343).
-//   · THREE COUNTERWEIGHTS green on both trees: the constant exists and is 1 (claim 1 — part 1
-//     declared it), it is declared exactly once (claim 4), and `MultipeerSession` still stamps
-//     `arrivedAt` with the RECEIVER's clock (claim 5 — the premise that makes "both operands
-//     are local, so this is skew and not network delay" true, and therefore the premise that
-//     forbids re-minting a second literal for `ColabPayload` on cross-device grounds).
+// ⛔ AND IT IS FIVE SITES CONVERTED, NOT SIX — the sixth cannot be, and the COMPILER said so,
+// not a rule (#547). `Core/BioFeedbackManager.swift` is compiled STANDALONE into two other
+// targets: `project.yml` lists that path under `EchoelmusicWidgets` and under
+// `EchoelmusicWatch`, each of which takes this one file and none of `Core/EngineBus.swift`.
+// `BioSource` does not exist there, and converting the line produced exactly that —
+// `error: cannot find 'BioSource' in scope`, twice, on `Xcode Compile Check` for `9c4f344`.
+// ⭐ THE LESSON IS SPECIFIC TO A REPO WITH NO LOCAL TOOLCHAIN: "one owner for one decision"
+// (#416) is a rule about the MODULE GRAPH as much as about style, and a file's target
+// membership is invisible from the file. `git grep` finds every site; only `project.yml` says
+// which of them can see the owner. Read it before a de-duplication that spans `Core/`.
+// ⚠️ The exemption is therefore SELF-EXPIRING rather than a list entry: claim 5 asserts the
+// premise — the path is still listed standalone AND the literal is still there — so the day
+// this file joins the app module, claim 5 reds and names the line to convert. #545's own
+// argument against a second copy is what makes this legitimate: it rejected a rationale that
+// SOUNDED right and was false ("two phones are not clock-synchronised"). This one is decided
+// by a compiler, and it is written down where the next reader will hit it.
 //
-// ⚠️ `SourceText.codeOnly` is LOAD-BEARING, MEASURED (#453) over {5 claims × 2 trees}, each
-// evaluated raw and stripped against the parent `6bab91e` and this tree: **1 of 10** verdicts
+// ⚠️ HONEST GRADING against the parent `6bab91e` (part 1 of the same slice) — TRANSCRIBED, a
+// Python rebuild of every claim driven against `git show 6bab91e:` and this tree:
+//   · TWO REGRESSIONS, red there for the reason their names give: claim 2 (one offender,
+//     `ColabPayload.swift`, still holding the literal) and claim 3 (2 asking sites of the
+//     required 3). They are two halves of the same conversion and are reported as two because
+//     they fail on different evidence — one on a literal that is present, one on an ask that
+//     is missing. A tree that DELETED the checks rather than converting them passes claim 2
+//     and fails claim 3; that asymmetry is the point of carrying both (#343).
+//   · FOUR COUNTERWEIGHTS green on both trees: the constant exists and is 1 (claim 1 — part 1
+//     declared it), it is declared exactly once (claim 4), the cross-target premise holds
+//     (claim 5 — `project.yml` unchanged, the literal still in place), and `MultipeerSession`
+//     still stamps `arrivedAt` with the RECEIVER's clock (claim 6 — the premise that makes
+//     "both operands are local, so this is skew and not network delay" true, and therefore the
+//     premise that forbids re-minting a second literal for `ColabPayload`).
+//
+// ⚠️ `SourceText.codeOnly` is LOAD-BEARING, MEASURED (#453) over {6 claims × 2 trees}, each
+// evaluated raw and stripped against the parent `6bab91e` and this tree: **1 of 12** verdicts
 // flips — claim 2 on THIS tree, PASS stripped and FAIL raw, because `BreathHold.swift:344`
 // quotes `age >= -1` inside a comment. Without the stripper this guard is red on correct code
 // (#486/#491: a repo that writes down what it removed makes every negative scan meet its own
@@ -80,16 +98,24 @@ import XCTest
 
 final class OneOwnerForTheClockSkewTests: XCTestCase {
 
-    /// The six comparison sites, by file and by how many asks each must carry.
+    /// The comparison sites that CAN ask, by file and by how many asks each must carry.
+    /// Five of the original six; the sixth is `crossTarget` below, and claim 5 keeps its
+    /// exemption honest.
     private static let askingSites: [(path: String, count: Int)] = [
         ("Sources/Echoelmusic/Core/EngineBus.swift", 3),
         ("Sources/Echoelmusic/Studio/AlwaysOnBioChannel.swift", 1),
         ("Sources/Echoelmusic/Sync/ColabPayload.swift", 1),
-        ("Sources/Echoelmusic/Core/BioFeedbackManager.swift", 1),
     ]
 
     private static let owner = "Sources/Echoelmusic/Core/EngineBus.swift"
     private static let multipeer = "Sources/Echoelmusic/Sync/MultipeerSession.swift"
+
+    /// The ONE site that keeps the literal, and it is not a style exemption — it is a
+    /// compile-time fact. `project.yml` lists this path STANDALONE under `EchoelmusicWidgets`
+    /// and `EchoelmusicWatch`; both targets take this single file and none of
+    /// `Core/EngineBus.swift`, so `BioSource` does not exist in them. Converting the line
+    /// produced `error: cannot find 'BioSource' in scope` on the compile gate.
+    private static let crossTarget = "Sources/Echoelmusic/Core/BioFeedbackManager.swift"
 
     // MARK: - claim 1 (END-TO-END — the shipped value, no text involved)
 
@@ -116,6 +142,13 @@ final class OneOwnerForTheClockSkewTests: XCTestCase {
                 guard !text.contains("futureSkewTolerance") else { continue }
                 let names = ["age", "timestamp", "arrivedAt"]
                 guard names.contains(where: { text.contains($0) }) else { continue }
+                // The cross-target exemption, and it EXPIRES ON ITS OWN: skipped here only
+                // because `testTheExemptionsPremiseStillHolds` proves the file is still
+                // compiled standalone into a target that has no `BioSource`. If that stops
+                // being true, that assertion reds and this skip has to go with it. An
+                // exemption whose premise nothing checks is the exemption list this file's
+                // header argues against.
+                guard rel != Self.crossTarget else { continue }
                 offenders.append("\(rel):\(i + 1): \(text.trimmingCharacters(in: .whitespaces))")
             }
         }
@@ -164,7 +197,29 @@ final class OneOwnerForTheClockSkewTests: XCTestCase {
             """)
     }
 
-    // MARK: - claim 5 (the premise that forbids re-minting a peer-side copy)
+    // MARK: - claim 5 (the exemption's premise — it must expire by itself)
+
+    func testTheExemptionsPremiseStillHolds() throws {
+        let yml = try text("project.yml")
+        XCTAssertTrue(yml.contains("- path: \(Self.crossTarget)"), """
+            `project.yml` no longer lists \(Self.crossTarget) as a standalone source. That path \
+            was the ONLY reason claim 2 skips that file: the widget and watch targets take this \
+            single file WITHOUT `Core/EngineBus.swift`, so `BioSource` does not exist there and \
+            `age >= -1` cannot be converted (proved by `error: cannot find 'BioSource' in \
+            scope` on the compile gate). If the file joined the app module, the exemption is \
+            over — convert the literal and delete the skip in claim 2, in the same commit. \
+            `project.yml` is founder-gated: report the change, do not edit it here.
+            """)
+        let code = try source(Self.crossTarget)
+        XCTAssertTrue(code.contains("age >= -1"), """
+            \(Self.crossTarget) no longer holds the exempted literal. If it was converted \
+            because the target layout changed, remove the skip in claim 2 and this whole \
+            assertion; if it was converted anyway, the compile gate will say so. Either way the \
+            exemption must not outlive the thing it excuses.
+            """)
+    }
+
+    // MARK: - claim 6 (the premise that forbids re-minting a peer-side copy)
 
     func testThePeerStampIsTheReceiversClock() throws {
         let code = try source(Self.multipeer)
@@ -191,6 +246,16 @@ final class OneOwnerForTheClockSkewTests: XCTestCase {
             throw XCTSkip("source tree not present under \(root.path)")
         }
         return root
+    }
+
+    /// Raw file text — `project.yml` is YAML, and `SourceText.codeOnly` would blank the `#`
+    /// comments it is full of while leaving `//` alone. Wrong tool; read it as it is.
+    private func text(_ relativePath: String) throws -> String {
+        let path = try repoRoot().appendingPathComponent(relativePath)
+        guard FileManager.default.fileExists(atPath: path.path) else {
+            throw SkewAnchorMissing(reason: "\(relativePath) is missing while the tree is present")
+        }
+        return try String(contentsOf: path, encoding: .utf8)
     }
 
     /// Comment-stripped source (#453 — one stripper for the whole bundle). A SKIP without a
