@@ -9682,3 +9682,44 @@ STALEN `claude/piano-roll-clip-view-wozlie-5kxnrl`).
 - ⚠️ **Nebenbefund zur Methode:** mein erster Blick war ein Zeilenfenster (2150–2300) und fand
   `brightness =` NICHT — der Rumpf ist 532 Zeilen lang. Die Klammer-Extraktion fand es. Genau der
   #408-Grund, hier einmal am eigenen Leib statt aus der Regel zitiert.
+
+## 2026-08-13 (cron) — #557: die ersten zwei Anker sind automatisierbar, und die Regel fand ihre Ausnahme
+
+- **Gates auf `4d93c72` (#556) — beide grün.** Compile Check success · „Build for Testing" =
+  `Test build Succeeded` · Run Tests = #396, **null fehlgeschlagene Fälle**, 136 `passed` / 15 Suiten.
+- **#557 (`15990f2`): `ddsp.osc.harmonicity` + `ddsp.osc.noiseLevel` sind automatisierbar** — gebunden
+  an `bioBaseHarmonicity` / `bioBaseNoiseLevel`, also an die ZENTREN, um die der Bio-Pfad moduliert,
+  nie an die Live-Eigenschaften, die er auf dem Render-Thread neu rechnet. Es sind die zwei
+  umkämpften Parameter, deren Anker **kein Sentinel** trägt. Menge 6 → 8; Router und Per-Track-
+  Dispatch ziehen beide aus derselben Liste.
+- ⛔ **DIE REGEL AUS #556 HAT EINE AUSNAHME, DIE SIE NICHT ABDECKTE — deshalb zwei und nicht sechs.**
+  „Bind den Anker" ist nicht gleichmäßig sicher: drei Anker werden hinter einem Sentinel-Vergleich
+  gelesen, und bei `bioBaseBrightness` liegt das Sentinel (`> 0`) **INNERHALB** des Deskriptor-
+  Bereichs (min 0). Eine Lane, die durch null geht, macht den Klang nicht bloß dunkler — sie kippt
+  `applyBioReactive` für den Rest der Aufnahme aus dem verankerten in den Legacy-Zweig. **Ein
+  Moduswechsel, verkleidet als Parameterwert**, und der einzige Fehler dieser Familie, den ein
+  Hörer dem Patch statt der Automation anlasten würde. Die anderen zwei Sentinels sind arithmetisch
+  unerreichbar (Cutoff ab 20 Hz; Vibrato-Paar bei −1). Claim 5 hält Brightness draußen und behandelt
+  die REPARATUR als Freigabe: Sentinel weg oder Bereich über null ⇒ er wird rot und sagt es.
+- ⭐ **DER WÄCHTER WURDE AUF DER RICHTIGEN ÄNDERUNG ROT — und das ist das Beste, was ihm passieren
+  konnte.** #556 Claims 1+2 erklärten diese Bindung für einen Verstoß, weil eine **handgeschriebene
+  Tabelle** den keyPath nach seiner FORM auf die Live-Eigenschaft abbildete. Die naheliegende
+  Reparatur wäre gewesen, die Tabelle zu ändern — womit eine Sitzung die LIVE-Eigenschaft hätte
+  binden und hier still umetikettieren können. Die Abbildung wird jetzt **aus dem Quelltext des
+  Setters gelesen**, also hat „was schreibt dieser Setter" eine Antwort statt zwei (#416). Das
+  Schlupfloch schließt sich, statt sich zu verschieben.
+- ⚠️ Nach §3 wurde **jede** Behauptung neu gefahren, nicht nur die geänderten — und der
+  Nachbar-Wächter #555 ebenfalls (weiter grün: beide neuen Basen sind echte Registry-keyPaths, beide
+  haben einen Setter-Fall, Reverb bleibt ungebunden, sieben ungebundene keyPaths bleiben sein Subjekt).
+- ⚠️ **Cross-Thread-Write, dort aufgeschrieben, wo der nächste Setter entsteht:** `applyBioReactive`
+  LIEST die Anker auf dem Render-Thread. Es ist bewusst derselbe Write, den `SynthPatch.apply(to:)`
+  längst macht — schlichter `Float`, atomare Breite, off-render, kein Lock. Nicht mit Queue oder Lock
+  „absichern"; das setzte ein blockierendes Primitiv einen Sprung neben den Audio-Pfad.
+- Benotung: drei Gegengewichte grün auf beiden Bäumen. Claims 1+2 waren auf dem Elternbaum **nur
+  unter der alten Handtabelle** rot; unter der quelltext-abgeleiteten ist auch er grün, weil er
+  keinen Anker bindet — **die Umschreibung hat also zwei Falsch-Positive ENTFERNT statt zwei Befunde
+  hinzuzufügen**, und sie als Regressionen zu buchen wäre die schmeichelnde Richtung (#433).
+  `codeOnly` **PROPHYLAKTISCH, 0 von 10**.
+- **Geräteprobe, neu und als erste zu hören:** klingt eine automatisierte Harmonizitäts- oder
+  Rausch-Lane STABIL oder kämpft sie mit dem Körper — jetzt, wo ein Parameter zugleich automatisiert
+  und bio-moduliert sein kann.
