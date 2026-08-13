@@ -15,7 +15,10 @@ private func scenePhaseName(_ phase: ScenePhase) -> String {
     switch phase {
     case .active:     return "active"
     case .inactive:   return "inactive"
-    case .background: return "background"
+    // #582 — the ONE spelling the auto-surface heuristic compares against. A literal here
+    // and a literal in `EchoelCrashLog.looksLikeUnseenCrash` would be two spellings of one
+    // token, and a drift between them turns the feature off without reddening anything.
+    case .background: return EchoelCrashLog.backgroundPhase
     @unknown default: return "unknown"
     }
 }
@@ -1243,7 +1246,12 @@ struct EchoelmusicApp: App {
                 //
                 // Frequency is a handful of transitions per session, so this cannot
                 // approach the "no I/O on a hot path" rule.
-                EchoelCrashLog.breadcrumb("scene: \(scenePhaseName(oldPhase)) → \(scenePhaseName(newPhase))")
+                // #582 — same emitted text as always (`scene: inactive → background`); it is
+                // now built by the function `EchoelCrashLog.lastScenePhase(in:)` is the inverse
+                // of, so the reader can never drift from the writer.
+                EchoelCrashLog.breadcrumb(
+                    EchoelCrashLog.sceneTransition(from: scenePhaseName(oldPhase),
+                                                   to: scenePhaseName(newPhase)))
                 switch newPhase {
                 case .active:
                     // Resume must survive BOTH transition orders — iOS can deliver

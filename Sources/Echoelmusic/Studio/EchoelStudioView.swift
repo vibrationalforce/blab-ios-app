@@ -7748,13 +7748,23 @@ struct EchoelStudioView: View {
 
     // MARK: - Diagnostics
 
-    /// On launch, if the previous run reached biofeedback start (or recorded a
-    /// crash) but the app is back at square one, it almost certainly crashed —
-    /// surface the log so it can be shared in one tap.
+    /// On launch, if the previous run died where the user could see it die, surface the
+    /// log so it can be shared in one tap.
+    ///
+    /// ⛔ #582 — the condition used to be written out here as
+    /// `prev.contains("Start tapped") || prev.contains("CRASH")`, and the first arm made this
+    /// fire after every ordinary session in which biofeedback was used. It now asks
+    /// `EchoelCrashLog.looksLikeUnseenCrash`, which subtracts the sessions that ended in
+    /// `background` — i.e. the clean exits. The long rationale, and the one case it
+    /// deliberately stops reporting, are at that function.
+    ///
+    /// It lives THERE and not here for a second reason: as a pure `String → Bool` on a
+    /// Foundation-only type it is drivable end-to-end by the blocking bundle, which a
+    /// `private func` on a `View` no test can instantiate never was.
     private func surfacePriorCrashIfAny() {
         guard diagnostics == nil else { return }
         let prev = EchoelCrashLog.previousSession
-        guard prev.contains("Start tapped") || prev.contains("CRASH") else { return }
+        guard EchoelCrashLog.looksLikeUnseenCrash(prev) else { return }
         diagnostics = DiagReport(text: prev)
     }
 
@@ -8081,7 +8091,9 @@ struct EchoelStudioView: View {
     }
 
     private func startBiofeedback() {
-        EchoelCrashLog.breadcrumb("Start tapped")
+        // #582 — the constant, not the literal: `looksLikeUnseenCrash` matches on this exact
+        // string, and a rename here with a literal there would silently disable the report.
+        EchoelCrashLog.breadcrumb(EchoelCrashLog.startTappedMarker)
         // #22 follow-up (founder log v255: rollMixGain=0.00 → 15 s silence →
         // exit): an explicit Start expresses "I want to HEAR it" — heal a
         // persisted-silent roll slot (mute / zero level / stale solo) before

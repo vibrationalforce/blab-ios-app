@@ -101,6 +101,77 @@ enum EchoelCrashLog {
         (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
     }
 
+    // MARK: - Reading the previous session (#582)
+
+    /// The breadcrumb vocabulary the auto-surface heuristic below reads back.
+    ///
+    /// ⭐ These are constants and not literals at each site because the WRITER and the
+    /// READER are two files apart, and a marker that only one of them spells right fails
+    /// SILENTLY — the reader simply never matches, and the feature turns off without a
+    /// single red test. One definition per decision (#416).
+    static let startTappedMarker = "Start tapped"
+    static let crashMarker = "CRASH"
+    static let backgroundPhase = "background"
+
+    /// The one spelling of a scene-phase transition line. `EchoelmusicApp`'s
+    /// `.onChange(of: scenePhase)` emits it; `lastScenePhase(in:)` is its exact inverse.
+    /// The emitted text is byte-identical to what founder logs have always carried
+    /// (`scene: inactive → background`) — this only stops the shape from being spelled twice.
+    static func sceneTransition(from old: String, to new: String) -> String {
+        "scene: \(old) \(sceneArrow) \(new)"
+    }
+
+    /// ⚠️ Deliberately a bare arrow, NOT `" → "` with its spaces baked in. The spaces live
+    /// in `sceneTransition` above; the parser splits on this token and trims. Folding the
+    /// padding into the constant would make a log line with a double space silently unparsable.
+    static let sceneArrow = "→"
+
+    /// The phase named by the LAST scene transition in a log, or nil if it has none.
+    ///
+    /// ⚠️ "Last", not "contains". A long session backgrounds and returns many times; a log
+    /// that mentions `background` anywhere says nothing about how the session ENDED. The
+    /// difference is the whole point of the heuristic below — `contains` would suppress the
+    /// crash report for every user who ever switched apps mid-session.
+    ///
+    /// Only transition lines count. `EchoelmusicApp` also writes `scene: audio resumed`,
+    /// `scene: audio continues` and `scene: idle audio engine stopped (2.5.4)` — same prefix,
+    /// no arrow, not a phase — so the arrow is what selects, never the prefix.
+    static func lastScenePhase(in log: String) -> String? {
+        var last: String?
+        for line in log.split(separator: "\n", omittingEmptySubsequences: true) {
+            guard line.contains("scene: "), let arrow = line.range(of: sceneArrow) else { continue }
+            let phase = line[arrow.upperBound...].trimmingCharacters(in: .whitespaces)
+            if !phase.isEmpty { last = phase }
+        }
+        return last
+    }
+
+    /// Did the previous session end somewhere the user could NOT see it end?
+    ///
+    /// ⛔ THE BUG THIS REPLACES (#582): the gate was `contains("Start tapped") || contains("CRASH")`,
+    /// and `Start tapped` is written by the ordinary biofeedback Start button. So EVERY launch
+    /// that followed a normal session in which the user pressed Start opened with a raw log
+    /// dump on top of the app. Not on a crash — on the app's core interaction having been used.
+    /// #580 made it worse by putting that sheet over a full-bleed visual with no chrome behind it.
+    ///
+    /// What the original heuristic actually wanted is still here and still worth having: a
+    /// foreground death — jetsam, watchdog, a kill that beats the signal handler — writes NO
+    /// crash marker, so "reached Start and never left the foreground" is the only evidence
+    /// there is. The repair is not to drop that arm; it is to subtract the clean exits from it.
+    ///
+    /// - A real crash marker always surfaces, backgrounded or not.
+    /// - Otherwise the session must have reached Start AND not have ended in `background`.
+    ///
+    /// ⚠️ HONEST LIMIT: an app that is backgrounded and then killed while in the background is
+    /// reported as clean. That is deliberate — it is what iOS does to every backgrounded app,
+    /// every day, and it is indistinguishable from a normal exit from the outside. The log is
+    /// still there under Save & Export → Diagnostics; it just no longer opens itself.
+    static func looksLikeUnseenCrash(_ log: String) -> Bool {
+        if log.contains(crashMarker) { return true }
+        guard log.contains(startTappedMarker) else { return false }
+        return lastScenePhase(in: log) != backgroundPhase
+    }
+
     private static func installHandlers() {
         // ObjC / NSException path (no allocation constraints here).
         NSSetUncaughtExceptionHandler { exception in
