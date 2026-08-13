@@ -811,13 +811,14 @@ struct EchoelmusicApp: App {
                 // intentionallyStopped flag, which also stands down the route-loss
                 // recovery task, so this closes both reported paths.
                 transport.addStopSubscriber("background-idle") {
-                    [weak audioEngine, weak microphoneManager, weak polyVoice] in
+                    [weak audioEngine, weak microphoneManager, weak polyVoice, weak bioVoice] in
                     guard UIApplication.shared.applicationState == .background,
                           let audioEngine else { return }
                     let audioNeeded = audioEngine.multiTrackRecorder.isRecording
                         || microphoneManager?.isRecording == true
                         || audioEngine.isInputMonitoring
                         || (polyVoice?.activeVoiceCount ?? 0) > 0
+                        || bioVoice?.isArmed == true   // #586 — see the twin chain below
                     guard !audioNeeded else { return }
                     // `.idleBackground`, and the label is load-bearing: this is the SYSTEM's
                     // 2.5.4 rule, never the user's wish. Passing the user reason here is what
@@ -1320,6 +1321,25 @@ struct EchoelmusicApp: App {
                         || microphoneManager.isRecording
                         || audioEngine.isInputMonitoring
                         || polyVoice.activeVoiceCount > 0   // held MPE/performer notes
+                        // #586 — THE ARMED BODY VOICE, and its absence here was a live defect,
+                        // not a theoretical one. `BioReactiveSynthVoice` sounds a held tone that
+                        // breath opens and closes; it needs NO transport, NO pattern and NO poly
+                        // note, so every disjunct above is false while it is droning. A glance at
+                        // a message backgrounds the app, this gate reads "idle" and stops the
+                        // engine mid-performance. It recovers on return — so the symptom is a
+                        // take that ends where the user looked away, which reads as a bug in the
+                        // instrument rather than in a lifecycle rule.
+                        //
+                        // ⚠️ `isArmed`, NOT `isPlayingNote`, and the choice is the 2.5.4 question
+                        // itself. `isPlayingNote` is the strictly honest "envelope open right
+                        // now" — but a breath-driven envelope CLOSES between breaths, so
+                        // backgrounding during an exhale would stop the engine and the next
+                        // inhale would find nothing to sound. Gaps between breaths are part of
+                        // this instrument, not idleness. `isArmed` is the same shape as the held
+                        // note above it: audible work the user switched on with a labelled
+                        // toggle ("Body voice") and can switch off. It is deliberately NOT a
+                        // wider loosening — nothing else was added to this chain.
+                        || bioVoice.isArmed
                     // The OUTCOME belongs in the diag file too, not only in os_log:
                     // during a long gap the founder's next question after "was it
                     // backgrounded?" is "did the engine go down, and did it come
