@@ -367,11 +367,18 @@ private final class RenderState: @unchecked Sendable {
     /// `startFrac`/`endFrac` are 0…1 of the loaded sample; `rate` is the playback
     /// speed (and thus pitch), clamped to a musical 0.25…4 range.
     func configurePlayback(startFrac: Float, endFrac: Float, reverse: Bool, rate: Float) {
-        let s = Swift.min(Swift.max(startFrac, 0), 0.999)
+        // #588 — `clamped(to:)`, NOT `min(max(…))`. `Swift.max(NaN, 0)` is NaN (argument order
+        // decides), so the old clamps let a non-finite fraction into `self.startFrac` — and the
+        // render block computes `Int(startFrac * Float(count))`, where `Int(Float.nan)` is a
+        // Swift TRAP. Not silence: a crash, on the audio thread. This setter is the ONLY writer
+        // of all three fields, so sanitizing here makes the render's arithmetic total. For every
+        // finite input the results are bit-identical. Latent today (no caller passes NaN);
+        // engineering.md's boundary rule is why it is closed anyway.
+        let s = startFrac.clamped(to: 0...0.999)
         self.startFrac = s
-        self.endFrac = Swift.min(Swift.max(endFrac, s + 0.001), 1)
+        self.endFrac = endFrac.clamped(to: (s + 0.001)...1)
         self.reverse = reverse
-        self.rate = Swift.min(Swift.max(rate, 0.25), 4)
+        self.rate = rate.clamped(to: 0.25...4)
     }
 
     /// Main thread. Set the per-channel insert-FX params (atomic-width scalars; the

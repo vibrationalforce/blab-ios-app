@@ -97,8 +97,18 @@ public final class EchoelDelay: @unchecked Sendable {
     /// Process one stereo frame. Audio-thread safe.
     @inline(__always)
     public func processStereo(_ inL: Float, _ inR: Float) -> (Float, Float) {
-        let fb = Swift.min(Swift.max(feedback, 0.0), 0.95)
-        let m  = Swift.min(Swift.max(mix, 0.0), 1.0)
+        // #588 — `clamped(to:)`, NOT `min(max(…))`, for the same reason the `spread` line below
+        // already switched: `Swift.max(feedback, 0)` is `max(NaN, 0)` = NaN (argument order
+        // decides — the CLAUDE.md law), so a non-finite control value sailed through both old
+        // clamps. `fb` is the one that multiplies the delay-line WRITE-BACK: one NaN frame
+        // poisons the whole line, and nothing short of `reset()` heals it — the shipped
+        // permanent-silence class. For every finite input the result is bit-identical, so the
+        // "separate change with its own audible surface" this file's own comment used to fear
+        // does not exist; that comment is corrected below in the same commit. Latent today (no
+        // producer emits NaN), sanitized anyway: engineering.md calls non-finite at a DSP
+        // boundary an edge case, not an impossibility.
+        let fb = feedback.clamped(to: 0...0.95)
+        let m  = mix.clamped(to: 0...1)
 
         // Glide the audible time toward the control-plane target (declick).
         timeSmoothed += timeGlide * (timeSeconds - timeSmoothed)
@@ -118,8 +128,13 @@ public final class EchoelDelay: @unchecked Sendable {
         //
         // `clamped(to:)` and NOT `min(max(v, 0), 1)`: that idiom passes NaN straight through
         // (`max(NaN, 0)` is NaN — argument order decides), and a NaN here would reach the
-        // multiply. The two lines above still carry the unsafe form; fixing those is a separate
-        // change with its own audible surface, not something to smuggle in here.
+        // multiply. ⛔ This paragraph used to end "the two lines above still carry the unsafe
+        // form; fixing those is a separate change with its own audible surface" — the second
+        // half was WRONG, and it kept the more dangerous half of the defect alive for a month:
+        // for finite inputs `clamped(to:)` and `min(max(…))` are bit-identical, so there was no
+        // audible surface to fear, and `fb` (unlike `sp`) feeds the delay-line write-back where
+        // one NaN is permanent. #588 fixed both lines; a stale caution that overstates the cost
+        // of a repair is how a known hole outlives its own diagnosis.
         let sp = spread.clamped(to: 0...1)
         let baseL = Swift.max(1.0, timeSmoothed * sr)
         let spreadSamples = sp * 0.025 * sr
