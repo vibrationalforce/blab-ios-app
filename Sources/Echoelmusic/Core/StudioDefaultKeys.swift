@@ -77,6 +77,35 @@ public enum StudioDefaultKeys {
     /// such gate exists — every non-arpeggiated pad path routes through the override.
     public static let padRhythm = StudioDefault(key: "studio.padRhythm", value: "")
 
+    // MARK: - Pad chord shape (#581 / the "A7" rows RoleRhythm's docs have been specifying)
+
+    /// ⭐ FOUNDER, 2026-08-13: *"Ich find es fehlt eine Sektion mit slidern der aus den Pad
+    /// Sounds rhythmische chords macht … Fehlt noch."* These three are that section, and none of
+    /// them is new machinery: `RoleRhythm.Params` has carried `gate`/`accent`/`evolve` with
+    /// measured semantics all along, and `BioComposer.roleRhythmOnsets` hard-coded exactly these
+    /// three literals under a comment reading *"The three dials no role UI exposes"*. The engine
+    /// named the gap; this is the surface.
+    ///
+    /// ⚠️ THE DEFAULTS ARE THE OLD LITERALS, EXACTLY. 0.8 / 0.4 / 0.2 are what
+    /// `roleRhythmOnsets` wrote before the rows existed, so a player who never opens the section
+    /// — and every stored project — sounds bit-identical. Changing one of these numbers re-voices
+    /// the chord of every user who has not touched that row, which is the `RoleRhythm` header's
+    /// own standing warning about `Params` defaults, one level out.
+    ///
+    /// ⚠️ AND THEY ONLY DO ANYTHING WHILE A PAD CHARACTER IS CHOSEN. With `padRhythm == ""` the
+    /// composer never calls `roleRhythmOnsets` at all (`if let character = padRhythm`), so the
+    /// rows are disabled rather than merely inert — a dial that sweeps its range in silence is
+    /// the lying-control defect this repo has paid for three times (#135/#164/#227).
+    public static let padGate = StudioDefault(key: "studio.padGate", value: 0.8)
+    /// See `RoleRhythm.Params.accent`. How deep the accents cut, 0…1 — but HOW MUCH that can be
+    /// is the character's choice (measured spread at 1.0: `dynamic` ≈ 5.8 dB … `flowing` ≈ 0.5 dB),
+    /// which is why the row reads `Character.accentIsSubtle` instead of hard-coding a list.
+    public static let padAccent = StudioDefault(key: "studio.padAccent", value: 0.4)
+    /// See `RoleRhythm.Params.evolve`. Bar-to-bar change, 0…1 — and it applies to only TWO of the
+    /// six characters (`Character.usesEvolve`). On the other four the row is disabled, because a
+    /// value that is stored, persisted and inaudible is worse than one that is absent.
+    public static let padEvolve = StudioDefault(key: "studio.padEvolve", value: 0.2)
+
     /// #275 slice 1 — the eight mood dials as `MoodStorage`'s JSON, or `""` meaning "nothing
     /// stored, use the factory profile".
     ///

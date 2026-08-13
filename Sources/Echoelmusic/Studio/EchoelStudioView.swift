@@ -130,6 +130,14 @@ struct EchoelStudioView: View {
     private var bassRhythmRaw = StudioDefaultKeys.bassRhythm.value
     @AppStorage(StudioDefaultKeys.padRhythm.key)
     private var padRhythmRaw = StudioDefaultKeys.padRhythm.value
+    /// #581 — the pad's chord SHAPE. See `StudioDefaultKeys.padGate` for why the defaults are
+    /// the composer's old literals and why the rows disable themselves on "Genre".
+    @AppStorage(StudioDefaultKeys.padGate.key)
+    private var padGate = StudioDefaultKeys.padGate.value
+    @AppStorage(StudioDefaultKeys.padAccent.key)
+    private var padAccent = StudioDefaultKeys.padAccent.value
+    @AppStorage(StudioDefaultKeys.padEvolve.key)
+    private var padEvolve = StudioDefaultKeys.padEvolve.value
     // #275 slice 1 — the STORAGE half of `mood` below. The eight dials live in `@State` because
     // eight `EchoelValueField`s bind into them individually; this key is the one place their
     // value is written down, restored in `onAppear` and re-encoded from the single
@@ -5808,6 +5816,7 @@ struct EchoelStudioView: View {
             AdaptiveCardGrid(spacing: 14) {
                 bassRhythmRow
                 padRhythmRow
+                padShapeSection
             }
             // #359 (Founder 2026-08-01, "Weather könnte auch eine Rubrik in mood … sein oder?").
             // Weather is not a naming gimmick and never was: it blends darkness/liveliness/
@@ -5894,6 +5903,85 @@ struct EchoelStudioView: View {
     /// grid. Choose `sparse` on a busy chop genre and the CHORD thins while the pulse carries on —
     /// audible, correct, and not a bug. Whether the pulse should follow the same character is its own
     /// decision (it is the layer that keeps a take moving) and is deliberately not made here.
+    /// ⭐ #581 — THE SECTION THE FOUNDER NAMED, and the one `RoleRhythm`'s own docs have been
+    /// specifying under the label "A7" for weeks: *"Ich find es fehlt eine Sektion mit slidern
+    /// der aus den Pad Sounds rhythmische chords macht … Fehlt noch."* (2026-08-13)
+    ///
+    /// Nothing here is new machinery. `RoleRhythm.Params` has carried `gate`/`accent`/`evolve`
+    /// with measured semantics all along, and `BioComposer.roleRhythmOnsets` hard-coded exactly
+    /// these three numbers under a comment reading *"The three dials no role UI exposes"*.
+    ///
+    /// ⚠️ THREE HONESTY GATES, AND EACH ONE IS WRITTEN DOWN IN `RoleRhythm` RATHER THAN INVENTED
+    /// HERE — that file already paid for the version of this UI that guessed:
+    ///
+    ///  1. **Everything disables on "Genre".** With `padRhythm == ""` the composer never calls
+    ///     `roleRhythmOnsets` at all, so all three would sweep their range in silence — the
+    ///     lying-control defect (#135/#164/#227).
+    ///  2. **Variation reads `Character.usesEvolve`, not a hard-coded list.** `evolve` moves only
+    ///     `dynamic` and `flowing`; on the other four it does nothing, `hypnotic` included (its
+    ///     bar-to-bar rotation is a pure function of the bar index and consults neither the dial
+    ///     nor the seed). ⛔ The FIRST version of this UI hard-coded that list in the view and got
+    ///     it wrong — `RoleRhythm`'s doc says so at the flag itself.
+    ///  3. **Accent reads `Character.accentIsSubtle`.** The spread at accent 1.0 runs from ≈5.8 dB
+    ///     (`dynamic`) to ≈0.5 dB (`flowing`), a 2.6× gap that splits the six cleanly. The same
+    ///     earlier attempt hard-coded `hypnotic || flowing` and left out `sparse`, which spreads
+    ///     MORE than `hypnotic` — so on Sparse the row swept its whole range with nothing audible
+    ///     and nothing on screen explaining why.
+    ///
+    /// ⚠️ AND ONE CROSS-DIAL INTERACTION THAT ONLY A UI OFFERING BOTH CAN MISLEAD ABOUT: on
+    /// `dynamic`, `evolve` is a jitter ADDED TO the accent contour, so `accent == 0` annihilates
+    /// it — the bar is bit-identical at Variation 0 and 1. `flowing` is unaffected (its evolve
+    /// flips which cells sound, upstream of that multiply). `RoleRhythm.Params.accent`'s doc ends
+    /// with "A UI offering both dials must say so", so the caption says so.
+    ///
+    /// `EchoelValueField`, not `Slider` — these are NUMERIC parameters, which is exactly the half
+    /// of the one-control law that applies (the character above stays a `Picker` because its
+    /// values have NAMES).
+    private var padShapeSection: some View {
+        let character = RoleRhythm.Character(rawValue: padRhythmRaw)
+        let off = character == nil
+        return VStack(alignment: .leading, spacing: 8) {
+            EchoelValueField(label: "Chord length", value: $padGate,
+                             range: 0.05...1, decimals: 2)
+                .disabled(off)
+            EchoelValueField(label: "Accent", value: $padAccent, range: 0...1, decimals: 2)
+                .disabled(off)
+            EchoelValueField(label: "Variation", value: $padEvolve, range: 0...1, decimals: 2)
+                .disabled(off || !(character?.usesEvolve ?? false))
+            Text(padShapeCaption(character))
+                .font(.caption2)
+                .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .onChange(of: padGate) { _, _ in recomposeIfRunning() }
+        .onChange(of: padAccent) { _, _ in recomposeIfRunning() }
+        .onChange(of: padEvolve) { _, _ in recomposeIfRunning() }
+    }
+
+    /// The caption is the honesty half of `padShapeSection`: a disabled row that does not say WHY
+    /// is only marginally better than an enabled one that does nothing.
+    private func padShapeCaption(_ character: RoleRhythm.Character?) -> String {
+        guard let character else {
+            return "Pick a pad rhythm above to shape the chord. On Genre the style writes its own "
+                + "articulation and these three do not run."
+        }
+        var parts = ["Chord length is scaled by the rhythm — short shapes stay short at 1.00."]
+        if character.accentIsSubtle {
+            parts.append("This rhythm accents gently by design, so Accent moves less than on "
+                         + "Driving or Dynamic.")
+        }
+        if character.usesEvolve {
+            if !character.accentIsSubtle {
+                // Only `dynamic` reaches both branches, and it is the one with the interaction.
+                parts.append("Variation rides the accent here, so at Accent 0.00 it does nothing.")
+            }
+        } else {
+            parts.append("Variation is off for this rhythm — its bar-to-bar change is part of its "
+                         + "character, not a dial.")
+        }
+        return parts.joined(separator: " ")
+    }
+
     private var padRhythmRow: some View {
         labeledRow("Pad rhythm") {
             Picker("Pad rhythm", selection: $padRhythmRaw) {
@@ -8632,7 +8720,12 @@ struct EchoelStudioView: View {
             // builder that already exists, not a new surface: `performerSignature` is the same
             // `@State` the seed salt and the pace tilt read, and `dynamicTilt` is exactly 0
             // until an HRV has been learned, so this argument is a no-op on a fresh install.
-            signatureDynamicTilt: performerSignature.dynamicTilt
+            signatureDynamicTilt: performerSignature.dynamicTilt,
+            // #581 — the pad chord shape rows. These are the ONLY reason `padShapeSection`
+            // is not decoration: `roleRhythmOnsets` takes them as required arguments, but
+            // `Input` defaults them, so forgetting this line would compile, look complete on
+            // screen, and change nothing. That is what the guard's first claim pins.
+            padGate: Float(padGate), padAccent: Float(padAccent), padEvolve: Float(padEvolve)
         )
         return (input, frame, evolvingSeed, structureSeed, basePhase)
     }

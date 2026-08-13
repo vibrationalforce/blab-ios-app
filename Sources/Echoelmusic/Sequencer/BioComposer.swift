@@ -251,6 +251,25 @@ public enum BioComposer {
         /// is what made it rot; the guarantee is stated above and the mechanism is one hop away.
         public var signatureDynamicTilt: Double = 0
 
+        /// The pad's chord SHAPE (#581), the three dials `roleRhythmOnsets` used to hard-code.
+        /// See `RoleRhythm.Params` for the measured semantics of each, and
+        /// `StudioDefaultKeys.padGate/padAccent/padEvolve` for the persisted rows above them.
+        ///
+        /// ⚠️ THE DEFAULTS HERE ARE THE OLD LITERALS (0.8 / 0.4 / 0.2) AND THAT IS LOAD-BEARING
+        /// IN A WAY THE CALL SITE'S IS NOT. `roleRhythmOnsets` takes these as REQUIRED arguments
+        /// on purpose (#431) — but `Input` is constructed in dozens of tests, and defaulting
+        /// there is what keeps every one of those takes byte-identical to before this field
+        /// existed. The difference is deliberate: the engine boundary should force the caller to
+        /// choose, the value object should not force a hundred test fixtures to.
+        ///
+        /// ⚠️ THEY REACH NOTHING WHILE `padRhythm == nil`. `composeHarmonic` only calls
+        /// `roleRhythmOnsets` inside `if let character = padRhythm`, so with the Picker on
+        /// "Genre" these three are carried and never read — which is why the rows that write
+        /// them are DISABLED in that state rather than merely ineffective.
+        public var padGate: Float = 0.8
+        public var padAccent: Float = 0.4
+        public var padEvolve: Float = 0.2
+
         public init(
             heartRateBPM: Float = 70,
             hrvNormalized: Float = 0.5,
@@ -270,7 +289,10 @@ public enum BioComposer {
             suggestJourney: Bool = false,
             bassRhythm: RoleRhythm.Character? = nil,
             padRhythm: RoleRhythm.Character? = nil,
-            signatureDynamicTilt: Double = 0
+            signatureDynamicTilt: Double = 0,
+            padGate: Float = 0.8,
+            padAccent: Float = 0.4,
+            padEvolve: Float = 0.2
         ) {
             self.heartRateBPM = heartRateBPM
             self.hrvNormalized = hrvNormalized
@@ -291,6 +313,9 @@ public enum BioComposer {
             self.bassRhythm = bassRhythm
             self.padRhythm = padRhythm
             self.signatureDynamicTilt = signatureDynamicTilt
+            self.padGate = padGate
+            self.padAccent = padAccent
+            self.padEvolve = padEvolve
         }
     }
 
@@ -1946,15 +1971,29 @@ public enum BioComposer {
     /// reader who believed it would read that caller-side gate as dead code.
     static func roleRhythmOnsets(secStart: Int, secLen: Int, sectionIndex: Int,
                                  character: RoleRhythm.Character, density: Float,
+                                 gate: Float, accent: Float, evolve: Float,
                                  seed: UInt64) -> [(start: Int, len: Int, level: Float)] {
         guard secLen > 0 else { return [] }
         let cells = 16
         let secEnd = secStart + secLen
-        // The three dials no role UI exposes are written out rather than inherited from
-        // `RoleRhythm.Params()` — same reason as `appendBass`: those defaults belong to the ARP's
-        // feel, and a re-tune there must not silently re-voice every pad.
+        // ⭐ #581 — THE THREE DIALS NOW HAVE A UI, so they arrive as arguments instead of as
+        // literals. The old comment here read *"The three dials no role UI exposes are written
+        // out rather than inherited from `RoleRhythm.Params()`"*, and that sentence is what the
+        // founder was reading the absence of: *"eine Sektion mit slidern der aus den Pad Sounds
+        // rhythmische chords macht … Fehlt noch"* (2026-08-13).
+        //
+        // ⚠️ NO DEFAULT VALUES ON THESE THREE PARAMETERS, DELIBERATELY (#431/#440/#443). A
+        // defaulted argument that no call site writes appears in no diff — the forgetful caller
+        // compiles, the section silently does nothing, and the guard over the view stays green
+        // because the view is fine. Required arguments make the compiler the reviewer.
+        //
+        // The reason the OLD comment gave still holds for the half it was about: these values
+        // must not be inherited from `RoleRhythm.Params()`, because those defaults belong to the
+        // ARP's feel and a re-tune there must not silently re-voice every pad. The pad's own
+        // defaults now live in `StudioDefaultKeys.padGate/padAccent/padEvolve`, set to exactly
+        // the literals this line used to carry, so nothing that existed before sounds different.
         let params = RoleRhythm.Params(character: character, density: clamp01(density),
-                                       gate: 0.8, accent: 0.4, evolve: 0.2)
+                                       gate: gate, accent: accent, evolve: evolve)
         let cellOfStart = ((secStart % cells) + cells) % cells
         let rotation = cellOfStart + sectionIndex
         var byStart: [Int: RoleRhythm.Hit] = [:]
@@ -2375,7 +2414,9 @@ public enum BioComposer {
                                        liveliness: mood.liveliness).count
                 padBeats = Self.roleRhythmOnsets(
                     secStart: secStart, secLen: len, sectionIndex: idx, character: character,
-                    density: Float(max(1, genreRate)) / Float(max(1, len)), seed: padSeed)
+                    density: Float(max(1, genreRate)) / Float(max(1, len)),
+                    gate: input.padGate, accent: input.padAccent, evolve: input.padEvolve,
+                    seed: padSeed)
             }
             if !padBeats.isEmpty {
                 if profile.arpeggiated {

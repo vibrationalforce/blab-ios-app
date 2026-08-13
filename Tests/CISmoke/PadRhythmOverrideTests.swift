@@ -1,6 +1,14 @@
 // PadRhythmOverrideTests.swift
 // Echoel — the PAD rhythm override is an OVERRIDE, in the BLOCKING bundle (#253 A4).
 //
+// ⚠️ WHY ALL FOUR CALLS HERE SPELL `gate: 0.8, accent: 0.4, evolve: 0.2` (#581). Those three
+// were literals INSIDE `roleRhythmOnsets` until the founder asked for the section that exposes
+// them; they are now required arguments, deliberately without defaults, so that a forgetful call
+// site fails to compile instead of silently doing nothing (#431/#440/#443). The numbers written
+// here are the exact literals the function used to carry, so every assertion below tests what it
+// tested before — this file's subject is the CHARACTER override, not the shape dials, and #581
+// must not quietly change what it measures. A shape-dial test belongs in the #581 guard.
+//
 // ⭐ THE FIRST TEST IS THE ONE THAT MATTERS, and it matters more here than it did for the bass. The
 // pad is the biggest audible surface in a take (the drums are gone since #166/#167), and the founder
 // curated these genres by ear TWICE (#81, #125: "erst eine individuelle Variation und dann klingt
@@ -121,7 +129,9 @@ final class PadRhythmOverrideTests: XCTestCase {
         for (rate, len) in [(1, 4), (2, 5), (3, 5), (3, 6), (2, 8), (4, 8)] {
             let onsets = BioComposer.roleRhythmOnsets(secStart: 0, secLen: len, sectionIndex: 0,
                                                       character: .driving,
-                                                      density: Float(rate) / Float(len), seed: 9)
+                                                      density: Float(rate) / Float(len),
+                                                      gate: 0.8, accent: 0.4, evolve: 0.2,
+                                                      seed: 9)
             XCTAssertLessThanOrEqual(abs(onsets.count - rate), 1,
                                      "rate \(rate)/\(len) produced \(onsets.count) onsets — the density derivation drifted")
         }
@@ -220,6 +230,7 @@ final class PadRhythmOverrideTests: XCTestCase {
                 let onsets = BioComposer.roleRhythmOnsets(secStart: secStart, secLen: 5,
                                                           sectionIndex: secStart / 5,
                                                           character: character, density: 0.25,
+                                                          gate: 0.8, accent: 0.4, evolve: 0.2,
                                                           seed: 0xA4)
                 XCTAssertFalse(onsets.isEmpty, "\(character)@\(secStart) produced no onset")
                 XCTAssertEqual(onsets.first?.start, secStart,
@@ -242,9 +253,11 @@ final class PadRhythmOverrideTests: XCTestCase {
     func testAnEmptySectionProducesNoOnsets() {
         XCTAssertTrue(BioComposer.roleRhythmOnsets(secStart: 4, secLen: 0, sectionIndex: 0,
                                                    character: .driving, density: 0.5,
+                                                   gate: 0.8, accent: 0.4, evolve: 0.2,
                                                    seed: 1).isEmpty)
         XCTAssertTrue(BioComposer.roleRhythmOnsets(secStart: 4, secLen: -3, sectionIndex: 0,
                                                    character: .driving, density: 0.5,
+                                                   gate: 0.8, accent: 0.4, evolve: 0.2,
                                                    seed: 1).isEmpty)
     }
 
