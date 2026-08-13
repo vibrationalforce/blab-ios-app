@@ -458,6 +458,36 @@ struct FloatingVisualWindow: View {
         .sheet(item: heldWhileHidden($recordedClip)) { clip in ShareSheet(url: clip.url) }
         .sheet(item: heldWhileHidden($wavClip)) { clip in ShareSheet(url: clip.url) }
         #endif
+        // ⭐ #579 — THE WINDOW SAYS WHETHER IT IS THERE, BECAUSE THE LOG COULD ONLY SAY IT BY
+        // SILENCE. Device log 10.79.389/2506: seventeen minutes, a healthy launch, `body=1` on
+        // every generate line — and not ONE `visual:` line. That breadcrumb fires every ~5 s
+        // from `MetalBioView`'s draw loop, so its absence meant the renderer never ran, which
+        // meant `isPresented` was false for the whole session. That conclusion is correct and
+        // it was reached the wrong way: by reading meaning into a line that was not printed.
+        // This repo has a rule about exactly that (#445 — an absent name proves nothing), and
+        // it cost a whole verification round here: the founder was asked to judge #578's
+        // colour work while the picture was closed, and nothing in the log said so.
+        //
+        // ⚠️ IT REPORTS THE RENDERER, NOT ONLY THE VISIBILITY, and the two are not the same
+        // question — that is the whole reason a naive `isPresented` line would have been the
+        // weaker fix. `visualLayer` drops `MetalBioView` on `!isPresented &&
+        // !mustKeepRenderingForRecording`, so a HIDDEN window that is recording keeps drawing
+        // (#319). A reader chasing "why no `visual:` lines" needs the term that actually
+        // gates them.
+        //
+        // Cost: two breadcrumbs per session-ish. `isPresented` changes only on a user gesture
+        // (header monitor button, this window's close button, the Visual panel row), so this
+        // is not a freeze-law read and cannot become one — an `@AppStorage` Bool has no rate.
+        .onAppear {
+            EchoelCrashLog.breadcrumb(
+                "visual window: \(isPresented ? "visible" : "hidden") at launch (persisted) · "
+                + "renderer=\(isPresented || mustKeepRenderingForRecording ? "on" : "off")")
+        }
+        .onChange(of: isPresented) { _, now in
+            EchoelCrashLog.breadcrumb(
+                "visual window: \(now ? "shown" : "hidden") · "
+                + "renderer=\(now || mustKeepRenderingForRecording ? "on" : "off")")
+        }
     }
 
     // MARK: - Toolbar controls (position readout + WAV record)
