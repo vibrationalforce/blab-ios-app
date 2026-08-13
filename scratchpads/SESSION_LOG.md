@@ -10078,3 +10078,52 @@ daraus gebaut: eine Prüfung, die 31 Fehlalarme druckt, ist genau der Mechanismu
 **Offen und unverändert:** Scheibe 3 (EIN Schreiber) wartet auf die Founder-Entscheidung Route A
 (Körper schreibt) gegen Route B (Finger schreibt). Punkt 5 (B9 graue Visuals) wartet auf das
 Gerät. Punkte 3/4 der REIHENFOLGE haben kein Fundament mehr.
+
+## 2026-08-13/14 — Ultrastabil-Span #579–#590: elf Commits, ein Deploy (v10.79.390), eine Entscheidung
+
+**Ausgeliefert (a14c68d → 303a778, alle Compile-Check-grün, CI/CD `Build for Testing` grün):**
+- **#582** Diagnose-Blatt nur noch bei echtem Vordergrund-Tod: `EchoelCrashLog.looksLikeUnseenCrash`
+  liest die LETZTE Scene-Transition; ein sauberer Hintergrund-Exit ist kein Crash mehr.
+  Wächter `ACleanExitIsNotACrashTests` (transkribiert: TRAGEND 1/6).
+- **#583** Querformat-Ausgang: Vollbild-Visual bleed nur unten im Landscape
+  (`FloatingVisualLayout.fullscreenBleedsHorizontally`), die Chrome bleibt antippbar.
+  Wächter `TheWayOutSurvivesRotationTests` (Mirror-Feldliste statt Selbstvergleich, #367-Lehre).
+- **#584** padShape-Reset + Launch-Zeile (`SoundReset`-Entry, `padShape=` in der Diagnose).
+- **#585** Audio-Retry-Banner `AudioDegradedRow` (Leaf, liest exakt `degraded`+`lastAudioError`)
+  + Media-Services-Reset-Hook auch auf dem `.ended`-Interruption-Pfad.
+- **#586** Körperstimme überlebt den Hintergrund: `|| bioVoice.isArmed` in BEIDEN
+  `audioNeeded`-Ketten. Wächter `TheBodyVoiceCountsAsAudibleTests`.
+- **#587** Die Identitätszeile am Einstieg sagt die Wahrheit: DMMW/„Make Beats. Record Video.
+  Stream Live."-Tagline am `@main` ersetzt durch den Ein-Satz aus PRODUCT_DEFINITION. Einziger
+  Produktions-Befund des Ultra-Grep-Sweeps (144 DMMW-Treffer, Rest war schon ehrlich/⛔-zitiert).
+- **#588** NaN-feste Render-Grenzen: `EchoelDelay` feedback/mix + `SamplerVoice.configurePlayback`
+  auf `clamped(to:)`. Wächter `ANonFiniteControlCannotReachTheRenderTests` — die Delay-Tests
+  mussten auf 5-ms-Zeitziel + 20k/30k Frames, damit sie auf dem Elternbaum überhaupt rot sein
+  KÖNNEN (#367; Transkription hat den ersten Entwurf grün-auf-beiden-Bäumen ertappt).
+- **#589** „Start Here"-Guide: `LearnSection.guide` ZUERST, 6 Einträge (firstSession/hear/see/
+  feel/pulse/access), jeder benannte Regler wörtlich aus der UI zitiert. Founder-Ask „hörbar,
+  sichtbar und spürbar" — bewusst redundant über die Sinne. Wächter
+  `TheGuideNamesOnlyRealControlsTests` (bare `"heal"` matchte „Apple **Heal**th" — #364-Falle,
+  auf flektierte Formen umgestellt).
+- **#590-prep** `scratchpads/PLAN_ECHOEL_VOICE.md`: Voice-as-Patch (VoiceAnalyzer + EchoelRealFFT
+  → NEUER `VoiceTimbreProfiler` → `loadTimbreProfile`, heute null Aufrufer). Drei verifizierte
+  Fallen: ResolvedPatch-Drain ruft `applyTimbre` BEDINGUNGSLOS (Persistenz NACH dem Drain
+  sequenzieren) · Mic-Tap hoppt pro Buffer auf Main · 1024er-Fenster zu kurz für 70-Hz-F0.
+  v1 analysis-only (Info.plist verspricht „Audio is not recorded" — founder-gated).
+  Heilungs-Framing des Founder-Asks explizit NICHT übernommen (rote Linie; als Praxis/
+  Selbstbeobachtung formuliert, Body-Science-Präzedenz).
+
+**Entscheidung (delegiert, protokolliert in decisions.csv + memory/decisions.md):** KEIN
+Plugin-System — weder AUv3-Hosting-Revival noch eigenes Format. Der Patch IST die
+Erweiterungsfläche, OSC/MIDI/ADM-OSC die Integrationsfläche.
+
+**Deploy:** `.deploy/release` → **v10.79.390**, TestFlight-Lauf 31755355844 (303a778) gestartet
+2026-08-13T23:51Z; Ergebnis beim Schreiben dieses Eintrags noch offen (Watcher bewaffnet).
+
+**Geräteproben offen (NEEDS-FOUNDER-VERIFY, Reihenfolge der Checkliste in `.deploy/release`):**
+Kaltstart ohne Log-Blatt → „Start Here"-Guide → Querformat-Ausgang → Body-voice im
+Hintergrund → Farbreichtum (#578/#579). Dazu weiterhin: graue Visuals (Punkt 5), Banner-Lesbarkeit.
+
+**Bewusst NICHT getan:** ST-1 (RetroCapture-Tap-Race) — beide Reparaturen kosten real
+(removeTap killt 30-s-Pre-Roll; Unmanaged verschiebt genau den Release, der der Flush IST);
+braucht Council + Gerät, keine Ralph-Scheibe.

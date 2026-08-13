@@ -1270,3 +1270,22 @@ beschränken (#292, `afcf3aa`).
 - Reifeleiter (was jede Plattform braucht, bevor sie angeht) steht als Tabelle in `CLAUDE.md`
   unter TECH STACK; `decisions.csv`-Zeile zu #292 ist auf `amended` gesetzt, die neue Zeile
   trägt die Richtung.
+
+### 2026-08-14 Kein Plugin-System — der Patch IST die Erweiterungsfläche (#590)
+
+- **Delegiert:** Founder wörtlich: „Eigenes Plugin System entwickeln oder vorhandene
+  integrieren du bist Entscheidungsträger." Entschieden gegen BEIDE Hälften.
+- **Begründung an den drei ratifizierten Gesetzen:**
+  1. **Editor ≠ Workstation** — AUv3-Hosting wurde mit #121 Slice 2 als Workstation-Hälfte
+     GESCHNITTEN; ein Revival kehrte eine Founder-Entscheidung um.
+  2. **ZERO external deps** — jedes Plugin-SDK/Host-Framework bricht `Package.swift`
+     `dependencies: []`.
+  3. **Offene Standards statt SDK-Lock-in** — OSC/MIDI/ADM-OSC sind bereits die
+     Integrationsfläche nach außen.
+  Ein EIGENES Format wäre ein zweites Produkt (Spec, Sandbox, Review-Prozess) für einen
+  Solo-Dev — exakt die DMMW-Falle, die PRODUCT_DEFINITION.md beendet hat.
+- **Konsequenz:** Erweiterbarkeit läuft über `SynthPatch`/`PatchStore` (speichern,
+  favorisieren, einreichen) — die Trägerfläche auch für Voice-abgeleitete Patches
+  (EchoelVoice, `PLAN_ECHOEL_VOICE.md`). Kein neues Target, keine Dependency.
+- **Revisit:** nur wenn der Founder AUv3-Hosting explizit zurückverlangt — dann als eigene
+  Epic mit Council, nicht als Beifang. (csv-Zeile 2026-08-14, review 2026-09-14.)
