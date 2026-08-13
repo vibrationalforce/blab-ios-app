@@ -666,9 +666,31 @@ public final class PolySynthVoice {
     /// write `SynthPatch.apply(to:)` already performs off the render thread (`Float`,
     /// atomic width) — follow that precedent, do not invent a second mechanism, and do not
     /// take a lock.
+    /// ⭐ THE FIRST TWO ANCHORS ARE BOUND (#557) — `ddsp.osc.harmonicity` and
+    /// `ddsp.osc.noiseLevel` write `bioBaseHarmonicity` / `bioBaseNoiseLevel`, the centres
+    /// the bio path modulates AROUND, never the live properties it recomputes. They are the
+    /// two contested parameters whose anchor carries NO sentinel: `applyBioReactive` reads
+    /// both unconditionally, so every value in their 0…1 descriptor range means exactly what
+    /// it says.
+    ///
+    /// ⛔ AND THAT IS NOT TRUE OF ALL SIX — the anchors are not uniformly bindable, which is
+    /// the fact #556's rule did not yet cover. THREE of them are read behind a sentinel
+    /// comparison, and for ONE the sentinel sits INSIDE the descriptor's range:
+    ///   · `bioBaseBrightness` is read behind `> 0` while `ddsp.osc.brightness` has **min 0**.
+    ///     An automation lane touching exactly 0 would not just make the sound dark — it would
+    ///     flip `applyBioReactive` out of its anchored branch into the legacy one, mid-take,
+    ///     silently. NOT bound; `TheAnchorSentinelsAreOutOfReachTests` keeps it out until the
+    ///     sentinel is gone or the range starts above zero.
+    ///   · `bioBaseFilterCutoff` is read behind `> 0` and `ddsp.filter.cutoff` starts at 20 Hz
+    ///     — the sentinel is unreachable, so this one is bindable on its own merits.
+    ///   · `bioBaseVibratoDepth` / `bioBaseVibratoRate` are read behind `>= 0` with a −1
+    ///     sentinel, unreachable from a 0…1 / 0…12 range. Bindable.
+    /// Still excluded for their own reasons: the two reverb parameters (stage gated off, #546)
+    /// and `ddsp.osc.frequency` (owned per note by the note engine).
     public nonisolated static let automatableBases: [String] = [
         "ddsp.warmth.drive", "ddsp.env.attack", "ddsp.env.decay",
-        "ddsp.env.sustain", "ddsp.env.release", "ddsp.amp.level"
+        "ddsp.env.sustain", "ddsp.env.release", "ddsp.amp.level",
+        "ddsp.osc.harmonicity", "ddsp.osc.noiseLevel"
     ]
 
     /// The live setter for an automatable base keyPath, or nil if the base is not
@@ -682,6 +704,22 @@ public final class PolySynthVoice {
         case "ddsp.env.sustain":  return { [weak self] v in self?.poly.forEachVoice { $0.sustain = v } }
         case "ddsp.env.release":  return { [weak self] v in self?.poly.forEachVoice { $0.release = v } }
         case "ddsp.amp.level":    return { [weak self] v in self?.poly.forEachVoice { $0.patchOutputLevel = v } }
+        // ANCHORS, not live properties (#556/#557). `applyBioReactive` recomputes
+        // `harmonicity` and `noiseLevel` from these two centres on the render thread every
+        // block, so writing the live property here would be overwritten within one block —
+        // a control that moves in a debugger and cannot be heard. Writing the centre lets
+        // automation and the body compose: automation says where the parameter sits, the
+        // body swings around it, exactly as a patch already does.
+        //
+        // ⚠️ CROSS-THREAD, and deliberately the SAME write `SynthPatch.apply(to:)` already
+        // performs: a plain `Float` store of atomic width, off the render thread, no lock.
+        // Do not "make this safe" with a queue or a lock — the render side reads these as
+        // plain values by design, and adding synchronisation here would put a blocking
+        // primitive one hop from the audio path.
+        case "ddsp.osc.harmonicity": return { [weak self] v in
+            self?.poly.forEachVoice { $0.bioBaseHarmonicity = v } }
+        case "ddsp.osc.noiseLevel":  return { [weak self] v in
+            self?.poly.forEachVoice { $0.bioBaseNoiseLevel = v } }
         default: return nil
         }
     }
