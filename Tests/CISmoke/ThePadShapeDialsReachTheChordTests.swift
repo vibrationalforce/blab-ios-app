@@ -99,6 +99,17 @@ final class ThePadShapeDialsReachTheChordTests: XCTestCase {
     /// think unnecessary. `BioComposer.Input` DEFAULTS these three (it has to — dozens of
     /// fixtures construct it), so forgetting this one line compiles cleanly, renders three
     /// working-looking rows, and composes exactly as before.
+    ///
+    /// ⭐ IT IS THE ONLY LINK IN THE CHAIN A GUARD HAS TO WATCH, and that is by design rather
+    /// than by luck. Downstream of `Input` the path is `composeHarmonic` → `roleRhythmOnsets`,
+    /// and BOTH take the three as REQUIRED parameters, so the compiler refuses a build that
+    /// drops them. Only the view→`Input` hop is defaulted, so only that hop can rot silently.
+    ///
+    /// ⛔ And the compiler proved its half immediately: the first version of #581 wrote
+    /// `input.padGate` INSIDE `composeHarmonic`, a static function that has no `input` — three
+    /// "cannot find 'input' in scope" errors, caught by the Xcode gate before any device saw it.
+    /// That is the required-parameter design working exactly as intended: the middle of the
+    /// chain cannot be forgotten, only mis-typed, and mis-typed does not ship.
     func testTheRowsReachTheComposerInput() throws {
         let src = try source(Self.view)
         XCTAssertTrue(src.contains("padGate: Float(padGate)"), """

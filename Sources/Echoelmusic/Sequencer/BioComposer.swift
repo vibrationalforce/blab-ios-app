@@ -895,6 +895,8 @@ public enum BioComposer {
                                     suggest: suggest,
                                     bassRhythm: input.bassRhythm,
                                     padRhythm: input.padRhythm,
+                                    padGate: input.padGate, padAccent: input.padAccent,
+                                    padEvolve: input.padEvolve,
                                     rng: &rng, structureRNG: &structureRNG)
             if input.style == .dubTechno {
                 (drumSteps, drumAccents) = dubBeat(energy: energy, calm: calm, rng: &rng)
@@ -927,6 +929,8 @@ public enum BioComposer {
                                     suggest: suggest,
                                     bassRhythm: input.bassRhythm,
                                     padRhythm: input.padRhythm,
+                                    padGate: input.padGate, padAccent: input.padAccent,
+                                    padEvolve: input.padEvolve,
                                     rng: &rng, structureRNG: &structureRNG)
             switch input.style.beatArchetype {
             case .fourOnFloor:
@@ -2070,6 +2074,13 @@ public enum BioComposer {
                                         suggest: ChordSuggestControl? = nil,
                                         bassRhythm: RoleRhythm.Character? = nil,
                                         padRhythm: RoleRhythm.Character? = nil,
+                                        // #581 — the pad's chord shape, threaded through to
+                                        // `roleRhythmOnsets`. NO DEFAULTS, same reason as there
+                                        // (#431/#440/#443): both call sites below must be forced
+                                        // to pass the player's values, because a defaulted
+                                        // argument nobody writes is invisible in a diff and the
+                                        // section on screen would silently do nothing.
+                                        padGate: Float, padAccent: Float, padEvolve: Float,
                                         rng: inout SeededRNG,
                                         structureRNG: inout SeededRNG) -> [Note] {
         var notes: [Note] = []
@@ -2415,7 +2426,7 @@ public enum BioComposer {
                 padBeats = Self.roleRhythmOnsets(
                     secStart: secStart, secLen: len, sectionIndex: idx, character: character,
                     density: Float(max(1, genreRate)) / Float(max(1, len)),
-                    gate: input.padGate, accent: input.padAccent, evolve: input.padEvolve,
+                    gate: padGate, accent: padAccent, evolve: padEvolve,
                     seed: padSeed)
             }
             if !padBeats.isEmpty {
