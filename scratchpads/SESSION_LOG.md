@@ -9879,3 +9879,64 @@ steht nicht im geleerten Teil-Log: **kompiliert nachweislich, Ausführung unbele
   Regression (Mount) und Gegengewicht (Freeze).
 - **Geräteprobe, offen:** liest sich die Zeile als Erklärung oder als Rauschen am Kopf eines ohnehin
   langen Panels?
+
+## #561 — der Automations-Hauptschalter bekommt eine Tür, und die Falltür schließt
+
+Commit `e833f19`. **Gates zu `10ecde0` (#560) beide grün:** `Xcode Compile Check` = success ·
+`Build for Testing` = `Test build Succeeded` · `TEST BUILD FAILED` = 0, `error:` = **0**,
+**136 `passed`, null fehlgeschlagen**, 16 Suiten geleert → das stehende #396. Weder
+`TheBodyShapedRows…` noch `TheAutomationReadout…` stehen im geleerten Teil-Log: **kompiliert
+nachweislich, Ausführung unbelegt** (#445).
+
+- ⛔ **ZUERST DIE MESSUNG, DIE DEN ZYKLUS UMGELENKT HAT: REIHENFOLGE Punkt 3 („EXTERNE AUv3
+  SICHTBAR/ERLEBBAR, Türen seit 07810ba") hat kein Fundament, und das ist im Repo bereits
+  vierfach dokumentiert.** Gemessen: `AVAudioUnitComponentManager` = **0** Dateien ·
+  `AVAudioUnit.instantiate` = 0 · `requestViewController` = 0 · `kAudioUnitType_MusicDevice` = 0.
+  Der einzige `AudioComponentDescription` in `Sources/` ist ein EINGEBAUTER Effekt in
+  `AutoMixChain`, kein Host. `07810ba` existiert in diesem Shallow-Klon nicht, ist also hier
+  nicht einmal nachlesbar. Und die Streichung ist Founder-Verdikt vom 2026-07-24 (#121 Slice 1+2),
+  festgehalten in `ContentPipeline/CLAIMS.md` §1 („Ein AUv3-Claim ist doppelt falsch — Ziel UND
+  Host"), in `docs/faq.html:178` („it does not host third-party AUv3 plugins … deliberately
+  removed"), in `project.yml` und in CLAUDE.md. **Punkt 3 zu bauen hieße, ein explizites,
+  dreifach dokumentiertes Founder-Verdikt zu widerrufen** — das ist keine Ambiguität, die ich
+  durch Messen auflösen kann. Dasselbe gilt für Punkt 4 (Timeline/Spurköpfe: `ArrangeTimelineView`
+  und `ClipView` sind mit #121 Slice 4 gelöscht). **Nach Punkt 2 ist damit jeder verbleibende
+  REIHENFOLGE-Pfad auf eine Founder-Entscheidung angewiesen.** Kein Zyklus darf je damit vergehen,
+  eine Tür für einen Host zu bauen, den es nicht gibt — #158/#192 haben schon zwei Zyklen damit
+  verbracht, GENAU diesen AUv3-Claim von der Website zu entfernen.
+- **Gebaut wurde deshalb die einzige route-neutrale Scheibe, die noch offen war: der Schalter
+  (Plan-Scheibe 4) — VOR Scheibe 3, und der Plan ist im selben Commit korrigiert statt still
+  überholt.**
+- ⭐ **Warum die Umstellung begründet ist:** der Plan sagte „zuletzt, weil ein Schalter, der etwas
+  Unsichtbares einschaltet, kein Feature ist". **Dieser Grund ist mit #559 abgelaufen** — der
+  Zustand steht jetzt auf dem Schirm, der Streifen kann `off` neben eine Kurve schreiben, und wer
+  das liest, hat kein Mittel. Eine Fläche, die einen Zustand benennt und sein Mittel zurückhält,
+  ist schlechter als eine, die schweigt.
+- ⛔ **Der zweite Grund ist ein DEFEKT, kein Feature-Wunsch, und er hängt an keiner Route:** der
+  Decoder setzt `enabled` bei jedem unlesbaren Dokument auf `false` — absichtlich, weil Automation
+  überschreibt, was der Spieler live gesetzt hat — und bis heute konnte NICHTS in `Sources/` ihn
+  zurücksetzen. Der Doc-Block von `AutomationState` nannte das selbst eine **Einbahn-Tür**. Ein
+  konservativer Default ohne Handschalter ist kein Konservatismus, sondern eine Falltür. Die
+  Default-Richtung bleibt unverändert.
+- ⚠️ **Warum der Schalter VOR dem Schreiber sicher ist — das ist der ganze Wächter:** mit nichts
+  Aufgezeichnetem sind An und Aus **derselbe Klang**. Master und Tempo wenden nur `if let r = real`
+  an (leere Lane → nil); der Filter-Multiplikator fällt auf sein Neutral **×1** zurück, und genau
+  ×1 schreibt der Aus-Zweig via `setCutoffScale(1)`. Bricht eine der drei Hälften, ändert das
+  Umlegen auf einer frischen Installation den Klang — auf einem Bedienelement, dessen eigene
+  Bildunterschrift sagt, es ändere noch nichts.
+- **Benotung** (Datei kompiliert gegen BEIDE Bäume, alles Genannte existierte schon): Claim 2 =
+  die Regression (auf `59d4500` schreibt keine Produktionsdatei `player.enabled`). Claims 1, 3, 4 =
+  Gegengewichte auf beiden Bäumen und der Sinn der Datei (#343) — Claims 1–3 blieben grün auf einem
+  Baum, der den Aus-Zweig „vereinfacht", weshalb Claim 4 ihn separat festnagelt.
+- ⭐ **Und die Stripper-Zeile wurde diesmal VOR dem Schreiben gemessen** — nach zwei Zyklen, in
+  denen sie geraten war. Ergebnis: **PROPHYLAKTISCH, 0 von 12** (6 Nadeln × 2 Bäume). Der Entwurf
+  des Satzes sagte „0 von 8", aus dem Kopf gezählt; der Lauf sagte 12. **Auch in der harmlosen
+  Richtung ist eine vor dem Befehl geschriebene Zahl eine Vermutung im Messgewand.**
+- **Mitgezogene Prosa (#456/#472):** `AutomationState`s „`enabled` … has no setter" und
+  „`automation.json` is genuinely never rewritten today" waren beide durch diesen Commit falsch;
+  der Einbahn-Tür-Absatz bleibt als das Argument, das sie geschlossen hat. Zusätzlich in
+  `EchoelStudioView` ein veraltetes „HRV → brightness · **reverb**" gestrichen — #546 hat das Wort
+  aus der nutzersichtbaren Zeile entfernt und diesen Doc-Block damit stehen lassen; genau so kommt
+  eine zurückgenommene Behauptung zurück (der nächste Leser nimmt sie aus dem nächsten Kommentar).
+- **Geräteprobe, offen:** liest sich der Schalter als „spiel ab, was ich aufgenommen habe" — oder
+  als globaler Bio-Schalter?
