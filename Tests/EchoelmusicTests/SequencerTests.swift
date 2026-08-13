@@ -104,7 +104,7 @@ final class SequencerTests: XCTestCase {
     }
 
     func testClear_doesNotChangeTempo() {
-        engine.setTempo(140)
+        engine.setTempo(140, source: .user)
         engine.clear()
         XCTAssertEqual(engine.tempo, 140, accuracy: 0.001)
     }
@@ -112,17 +112,17 @@ final class SequencerTests: XCTestCase {
     // MARK: - setTempo
 
     func testSetTempo_inRange_setsExactly() {
-        engine.setTempo(140.0)
+        engine.setTempo(140.0, source: .user)
         XCTAssertEqual(engine.tempo, 140.0, accuracy: 0.001)
     }
 
     func testSetTempo_belowMin_clampsToMin() {
-        engine.setTempo(20.0)
+        engine.setTempo(20.0, source: .user)
         XCTAssertEqual(engine.tempo, PatternEngine.minTempo, accuracy: 0.001)
     }
 
     func testSetTempo_aboveMax_clampsToMax() {
-        engine.setTempo(500.0)
+        engine.setTempo(500.0, source: .user)
         XCTAssertEqual(engine.tempo, PatternEngine.maxTempo, accuracy: 0.001)
     }
 

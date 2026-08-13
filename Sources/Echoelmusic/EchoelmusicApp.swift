@@ -1046,7 +1046,8 @@ struct EchoelmusicApp: App {
                 modulationEngine.register(ModDestinationKey.tempo) { [weak beatPlayer] value in
                     guard !UserDefaults.standard.bool(forKey: "studio.lockBPM") else { return }
                     let raw = 30 + Double(value) * 270
-                    beatPlayer?.pattern.glideTempo(to: StudioCalculator.seedTempo(raw))
+                    beatPlayer?.pattern.glideTempo(to: StudioCalculator.seedTempo(raw),
+                                                   source: .modulationRoute)
                 }
                 // B26: every applied modulation ALSO streams over OSC as
                 // /echoelmusic/mod/<key> (the documented mod-out address) for external

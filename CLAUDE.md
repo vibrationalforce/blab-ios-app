@@ -367,6 +367,50 @@ Existing top-level directories under `Sources/Echoelmusic/`: `Audio/ Bio/ Core/ 
 
 ---
 
+## TEMPO INVARIANT — T1·T2·T3 (ratified 2026-08-13, founder handover)
+
+⭐ **Der Flow-Servo BLEIBT.** `BioComposer.tempo(for:)` rechnet unter `.flowFree`
+`hr·(1−Kohärenz) + 72·Kohärenz`: die Uhr folgt dem Puls und konvergiert von ihm WEG, je
+ruhiger der Körper wird. Das ist ausgeliefert und am Gerät abgenommen (2026-06-22, verfeinert
+07-03/07-04) — und es widersprach einer Doktrin-Zeile, die HR→Tempo pauschal verbot. **Ein
+Invariant, das das ausgelieferte Produkt verletzt, ist kein Invariant, sondern eine Falle für
+jede spätere Sitzung:** sie repariert entweder funktionierendes Audio oder lernt, die Doktrin
+zu ignorieren. Das Verbot war gegen „dein Herzschlag IST der Beat" gemeint — rohes Signal, 1:1,
+mit jedem Artefakt zitternd. Der gebaute Servo ist kohärenz-gegated, geglidet und geklammert.
+Deshalb wird die Regel PRÄZISIERT, nicht gelöscht.
+
+- **T1 — Tempo-Quellen sind aufzählbar und werden geloggt.** Das Tempo darf nur von (a) einer
+  Nutzer-Geste (Lock, Feld-Edit, Tap, geladenes Projekt), (b) dem Flow-Servo, (c) einer
+  Automations-Lane gesetzt werden. Die Transport-Play-Zeile trägt `tempoSource=`.
+  ⚠️ **Die Aufzählung ist VIER, nicht drei** — der Beschluss sah einen Pfad nicht: die
+  Modulations-Matrix-Destination `ModDestinationKey.tempo` in `EchoelmusicApp` ist eine
+  vom Nutzer konfigurierte ROUTE, die einen Bio-Wert trägt; weder Servo (anderer Mechanismus,
+  andere Klammer) noch gespeicherte Kurve. Sie heißt `.modulationRoute` und ist heute schlafend
+  (leere Default-Matrix, null `ModRoute(`-Konstruktionsstellen, #541). Sie in eine der drei zu
+  falten hieße, ein falsches Wort in genau die Log-Zeile zu schreiben, für die T1 existiert.
+- **T2 — Rohe Herzfrequenz erreicht die Uhr nie direkt.** Kein Pfad darf eine BPM-Schätzung
+  (rPPG, BLE, HealthKit) ohne Servo (Kohärenz-Blend + Klammer + Glide) oder ohne ausdrückliche
+  Nutzer-Geste an den Takt geben. `.studioLocked` ist beweisbar unabhängig von `heartRateBPM`.
+  ⚠️ **Die Zahlen stehen im CODE, nicht hier.** Der Beschluss nennt „Klammer 40–160" und das
+  ist zum Zeitpunkt der Ratifizierung exakt richtig (`min(max(pulled, 40), 160)`) — sie hier
+  ein drittes Mal auszuschreiben wäre die #416-Falle in dem Dokument, das Tempo-Mehrdeutigkeit
+  gerade beendet. Wer die Klammer prüft, liest `BioComposer.tempo(for:)`.
+- **T3 — CI-erzwungen, nicht dokument-erzwungen.** `Tests/CISmoke/TempoInvariantTests.swift`
+  IST das Invariant. Prosa, die einem grünen Test widerspricht, ist veraltete Prosa.
+
+⭐ **Der Engpass ist `PatternEngine`, und das ist der Grund, warum `Transport.setTempo` KEIN
+`source:` bekommen hat.** Gemessen 2026-08-13: jedes `transport?.setTempo(…)` in `Sources/`
+steht in `PatternEngine.swift` (sechs Stellen, davon drei auf dem TICK-Pfad eines laufenden
+Glides). `Transport.setTempo` hat keinen eigenen Produktions-Aufrufer. Die Quelle an den zwei
+`PatternEngine`-Methoden zu benennen benennt sie also für die ganze App, während das Relais ein
+Relais bleibt — ein `source:` dort müsste auf dem Audio-Rate-Pfad etwas wiederholen, das er
+nicht wissen kann, und ein Breadcrumb dort loggte mit 20 Hz. `source:` hat an beiden Methoden
+**keinen Default** (#431/#440/#443: ein defaultetes Argument, das keine Aufrufstelle schreibt,
+taucht in keinem Diff auf). Claim 4 des Wächters nagelt den Engpass fest, Claim 5 den fehlenden
+Default.
+
+---
+
 ## PLATFORM CONSTRAINTS
 
 - Apple Watch HR: ~4-5 sec latency — NO beat-sync!

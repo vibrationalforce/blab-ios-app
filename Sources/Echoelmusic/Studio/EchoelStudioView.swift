@@ -4188,7 +4188,7 @@ struct EchoelStudioView: View {
                     // trailing note on the next line said "onChange adopts clock", and
                     // `git grep` finds NO `onChange(of: lockBPM)` or `onChange(of: lockedBPM)`
                     // anywhere under `Sources/`. Both claims were checkable and both were wrong.
-                    beatPlayer.pattern.setTempo(lockedBPM)
+                    beatPlayer.pattern.setTempo(lockedBPM, source: .user)
                     lockBPM = true
                     // ⛔ #356: THIS POST WAS MISSING, AND IT IS THE ONLY THING THAT MAKES A TAP
                     // AUDIBLE IN THE TAKE. `lockBPM` has three doors — the Flow|Loop picker
@@ -8916,7 +8916,7 @@ struct EchoelStudioView: View {
         // longer snaps the transport number. The initial generate holds the current tempo
         // (unchanged value → arrives at once), so it never lags. lockBPM already resolved
         // `tempo` to the locked value above, so a locked take just glides to/holds it.
-        beatPlayer.pattern.glideTempo(to: tempo)
+        beatPlayer.pattern.glideTempo(to: tempo, source: .flowServo)
         // GROOVE CYCLE 2: apply the genre's swing so odd 16ths land late for a
         // rolling, human feel (dance push, dragged vaporwave, straight genres stay 0).
         // The melody rides this clock, so the whole take swings instead of sitting
@@ -9792,7 +9792,7 @@ struct EchoelStudioView: View {
         // of the two behaviours it replaces.
         lastRawTake = p.rebakeSource
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
-        beatPlayer.pattern.setTempo(p.bpm)
+        beatPlayer.pattern.setTempo(p.bpm, source: .user)
         // Everything that mirrors tempo must follow a loaded take, or the visual/OSC
         // frame keeps the OLD project's BPM (Finding F). Route through the authoritative
         // clock value (clamped) so all readers show one number. The click is NOT pushed

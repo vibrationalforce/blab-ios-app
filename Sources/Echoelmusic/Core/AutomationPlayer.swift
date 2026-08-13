@@ -371,7 +371,7 @@ public final class AutomationPlayer {
     private func applyEnum(_ target: AutomationTarget, real: Double) {
         switch target {
         case .masterLevel:  audioEngine?.masterVolume = Float(real)
-        case .tempo:        pattern?.setTempo(real)
+        case .tempo:        pattern?.setTempo(real, source: .automation)
         case .filterCutoff: voice?.setCutoffScale(Float(real))
         }
     }

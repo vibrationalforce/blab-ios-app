@@ -22,10 +22,10 @@ final class PatternEngineTransportRelayTests: XCTestCase {
         let pattern = PatternEngine()
         let transport = Transport()
         pattern.transport = transport
-        pattern.setTempo(140)
+        pattern.setTempo(140, source: .user)
         XCTAssertEqual(transport.tempo, 140, accuracy: 1e-9)
         // Clamped values relay clamped, not raw.
-        pattern.setTempo(9_999)
+        pattern.setTempo(9_999, source: .user)
         XCTAssertEqual(transport.tempo, Transport.maxTempo, accuracy: 1e-9)
     }
 
@@ -65,7 +65,7 @@ final class PatternEngineTransportRelayTests: XCTestCase {
         var seen: [Double] = []
         transport.onTempoChange(id: "click") { seen.append($0) }
         seen.removeAll()                       // drop the immediate seed
-        pattern.setTempo(140)
+        pattern.setTempo(140, source: .user)
         XCTAssertEqual(seen, [140])
     }
 
@@ -76,10 +76,10 @@ final class PatternEngineTransportRelayTests: XCTestCase {
         // line-move away from being lost.
         let pattern = PatternEngine()
         let transport = Transport()
-        pattern.setTempo(140)                  // pattern moves while NOT attached
+        pattern.setTempo(140, source: .user)                  // pattern moves while NOT attached
         pattern.transport = transport          // transport still at its default
         XCTAssertNotEqual(transport.tempo, 140, accuracy: 1e-9)
-        pattern.setTempo(140)                  // same value for the pattern — a no-op edit
+        pattern.setTempo(140, source: .user)                  // same value for the pattern — a no-op edit
         XCTAssertEqual(transport.tempo, 140, accuracy: 1e-9)
     }
 
@@ -87,7 +87,7 @@ final class PatternEngineTransportRelayTests: XCTestCase {
         // The relay is optional: a PatternEngine with no Transport attached must
         // behave exactly as before (no crash, normal tempo/swing state).
         let pattern = PatternEngine()
-        pattern.setTempo(150)
+        pattern.setTempo(150, source: .user)
         pattern.setSwing(0.25)
         XCTAssertEqual(pattern.tempo, 150, accuracy: 1e-9)
         XCTAssertEqual(pattern.swing, 0.25, accuracy: 1e-9)

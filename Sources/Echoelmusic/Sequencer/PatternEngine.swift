@@ -272,7 +272,13 @@ public final class PatternEngine {
 
     /// Set tempo in BPM. Values outside [minTempo, maxTempo] are clamped.
     /// If the engine is playing, the timer restarts at the new interval.
-    public func setTempo(_ bpm: Double) {
+    ///
+    /// `source` has NO DEFAULT, deliberately (T1, 2026-08-13): a defaulted argument that no
+    /// call site writes appears in no diff, so a new clock-reaching path would name itself
+    /// `.unspecified` in silence — this repo's #431/#440/#443 lesson. The compiler is the
+    /// enforcement; `TempoInvariantTests` covers the part the compiler cannot see.
+    public func setTempo(_ bpm: Double, source: TempoSource) {
+        lastTempoSource = source
         // NaN-safe, and this clamp is the FIRST of two guards, not the only one.
         // ⛔ What stood here said "a NaN landing here silences the sequencer, because
         // `DispatchTime + NaN` saturates to `Int64.max`". That was true of the INLINE
@@ -319,7 +325,12 @@ public final class PatternEngine {
     /// snap — the founder still saw the transport tempo jump when a re-seed landed on a paused
     /// take). Either way the number always slides, never jumps. User/transport edits keep using
     /// `setTempo` (instant + precise). Values are clamped to [minTempo, maxTempo].
-    public func glideTempo(to bpm: Double) {
+    ///
+    /// `source` has no default for the same reason as `setTempo` — and this is the method the
+    /// ruling's C1 note singles out, because `BodyTempoField.toggleLock` reaches the clock
+    /// through HERE and would otherwise never appear in a source log at all.
+    public func glideTempo(to bpm: Double, source: TempoSource) {
+        lastTempoSource = source
         // NaN-safe for the same reason as `setTempo`. The body-derived callers are
         // already NaN-proof by argument order (`StudioCalculator.seedTempo`'s
         // `Swift.min(160, x)` inside a `Swift.max(50, …)`, and the `displayBPM > 0`
@@ -422,6 +433,50 @@ public final class PatternEngine {
         case unspecified       // a caller that has not been given a cause yet
     }
 
+    /// WHO moved the clock — the T1 half of the 2026-08-13 tempo ruling, built on the
+    /// `PlayCause` precedent above rather than as a second mechanism (#416).
+    ///
+    /// ⭐ THIS ENGINE IS THE CHOKEPOINT, WHICH IS WHY THE ENUM LIVES HERE AND NOT ON
+    /// `Transport`. Measured 2026-08-13: `git grep -n "\.setTempo(" -- Sources` finds
+    /// `transport?.setTempo` at SIX sites and every one of them is inside this file. There is
+    /// no production path that reaches `Transport.setTempo` without passing a method below, so
+    /// naming the source here names it for the whole app — and `Transport.setTempo` stays a
+    /// pure relay, which matters because three of those six sites fire per TICK while a glide
+    /// eases. A `source:` parameter on the relay would have to be re-stated on the audio-rate
+    /// path to say nothing new, and a breadcrumb there would log at 20 Hz.
+    /// `TempoInvariantTests` pins the chokepoint so this reasoning cannot rot silently.
+    ///
+    /// ⚠️ THE RULING ENUMERATED THREE AND THE CODE HAS FOUR. T1 names user | flowServo |
+    /// automation; the path the ruling did not see is `EchoelmusicApp`'s
+    /// `ModDestinationKey.tempo` registration — a user-configured MODULATION ROUTE carrying a
+    /// bio value, which is neither the composer's servo (different mechanism, different
+    /// clamp) nor a stored curve. Folding it into either would put a wrong word in the one
+    /// log line the ruling exists to make trustworthy, so it gets its own case and this note.
+    /// It is dormant today: the default matrix is empty and `git grep -n "\bModRoute(" --
+    /// Sources` finds no production construction site (#541), so a persisted document from an
+    /// older build is the only thing that can currently drive it.
+    public enum TempoSource: String, Sendable, CaseIterable {
+        /// A lock toggle, a locked-field edit, a tap, or a loaded project's stored BPM —
+        /// every path where a human named the number.
+        case user
+        /// `BioComposer.tempo(for:)` under `.flowFree`: the coherence-blended, clamped,
+        /// glided entrainment servo. The ONLY sanctioned bio→tempo path (T2).
+        case flowServo
+        /// An automation lane (`AutomationTarget.tempo`).
+        case automation
+        /// The modulation matrix's tempo destination — see the ⚠️ note above.
+        case modulationRoute
+        /// A caller that has not been given a source yet. Both methods below take `source:`
+        /// WITHOUT a default, so this cannot appear from a forgetful call site — it is the
+        /// value the engine carries before anything has moved the clock at all.
+        case unspecified
+    }
+
+    /// The source of the most recent tempo decision. Diagnostic only — nothing branches on
+    /// it. Read by the transport-play breadcrumb so a device log answers "did the body touch
+    /// the clock?" without a second log line per tick.
+    public private(set) var lastTempoSource: TempoSource = .unspecified
+
     /// Start the timer from step 0. Idempotent: calling while playing is a no-op.
     ///
     /// `cause` is diagnostic ONLY — it never changes behavior. It is logged once per
@@ -434,7 +489,9 @@ public final class PatternEngine {
         // source-less 'transport-stopped' burned a triage cycle proving it was a tap").
         // `transport?.play()` fans out to every tempo/step subscriber; if that hangs or
         // traps, a breadcrumb written after it would be the one line we needed and lost.
-        EchoelCrashLog.breadcrumb("transport play (\(cause.rawValue)) tempo=\(Int(tempo))")
+        EchoelCrashLog.breadcrumb(
+            "transport play (\(cause.rawValue)) tempo=\(Int(tempo)) "
+            + "tempoSource=\(lastTempoSource.rawValue)")
         isPlaying = true
         currentStep = 0
         // Hand any in-flight stopped-glide over to advance() (which eases toward the same

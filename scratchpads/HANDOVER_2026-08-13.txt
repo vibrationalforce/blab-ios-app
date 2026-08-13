@@ -1,0 +1,415 @@
+================================================================================
+ECHOELMUSIC — CONSOLIDATED HANDOVER, 2026-08-13
+Single-file context for Claude Code. Supersedes nothing in the repo; ADDS the
+tempo ruling, the DMMW gate charter, and a corrected cycle list to TestFlight.
+Produced from a read-only clone of main @ 2026-08-13 (public GitHub HTTPS).
+All file paths and line numbers below were verified against that clone.
+================================================================================
+
+FIRST INSTRUCTION TO THE AGENT
+------------------------------
+1. Save this file to scratchpads/HANDOVER_2026-08-13.txt
+2. Append the decisions.csv line in SECTION 2 verbatim.
+3. Apply SECTION 2's T1-T3 wording to BIOSIGNAL_DOCTRINE + CLAUDE.md.
+4. Then execute C1 from SECTION 4. ONE cycle per session. Ralph Wiggum Lambda
+   Protocol unchanged: one fix, green build, atomic commit.
+5. Gate for every cycle: xcode-compile-check green (NOT ci.yml — Linux excludes
+   Accelerate paths, see TODO.md gate trap), then bump .deploy/release and push
+   (testflight.yml deploys on push; no dispatch, no token).
+
+
+================================================================================
+SECTION 1 — AUDIT CORRECTIONS (READ BEFORE PLANNING ANYTHING)
+================================================================================
+A first-pass audit AND the current README both got this wrong. Verified facts:
+
+FINDING 1 — "No subscriber to EngineBus" is FALSE. README understates the
+product by four shipped subsystems:
+  Sync/OSCSender.swift:160          reads bus.latestBio + latestBioEvent
+  Sync/ADMOSCSender.swift:189       reads bus.latestBio + BioEgressPolicy
+  Sync/ArtNetSender.swift:175       reads bus.latestBio + BioEgressPolicy
+  Sync/SACNSender.swift:169         reads bus.latestBio + BioEgressPolicy
+  Tools/BioReactiveSynthVoice.swift:372  polls bus.latestBio @10 Hz
+  Sync/BioEgressPolicy.swift        gates WHICH bio sources may leave the device
+                                    (GDPR-relevant; README never mentions it)
+OSC address space is documented in-file: /echoelmusic/bio/heart/bpm, .../hrv,
+.../rmssd, .../pnn50, .../sdnn, .../breath/rate, .../breath/phase,
+.../coherence, .../event/heartbeat, .../event/breath/inhale, with plausibility
+bands and sentinel rules.
+CONSEQUENCE: "external tool driven by BioSampleFrame" is a VERIFICATION task
+(open Resolume/TouchDesigner, point Routing at it, confirm arrival), not a
+build task. Do not rebuild OSC.
+
+FINDING 2 — Respiration already exists. CameraRPPGBioPublisher.swift:1249-1255
+computes respiration and publishes breathRate/breathPhase behind the gate
+  measuredBreath = resp.confidence >= 0.4 && resp.ratePerMinute > 0
+In the 2026-08-12 device log the gate never opened: q was high while acf/conf
+thrashed, and large amp (motion artifact) correlated with collapsing acf.
+The estimator is not missing; it is STARVED BY SIGNAL QUALITY.
+Prime suspect: exposure locks 1.3 s after start at bright=0.24 and drifts to
+0.10 within seconds — envelope collapse.
+CONSEQUENCE: do NOT build a respiration publisher. Instrument it first (C3).
+
+FINDING 3 — /echoelmusic/bio/motion is defined but NOT SENT (#215): no
+CoreMotion producer. Honest gap, real later candidate — motion energy is cheap
+and survives when rPPG does not.
+
+FINDING 4 — The visual/routing system is larger than it looks:
+Views/MetalBioView.swift (reads breath), Studio/FlashGuard.swift (the flicker
+clamp has an owner), Studio/PatchbayView.swift, Core/SignalRouter.swift +
+Core/SignalRouting.swift (typed ports, e.g. SignalPort(id:"bus.bio",...)).
+Any visuals work EXTENDS this; it must not create parallel machinery.
+
+FINDING 5 — Sequencer/MusicStyle.swift contains enum case `esotericMeditation`.
+The anti-esoterik lint evidently does not check Swift identifiers. See C5.
+
+FINDING 6 (founder decision, not agent-actionable) — the repo is public MIT
+INCLUDING the three "protected" DSP components (BioEventGraph,
+HilbertSensorMapper, BioSignalDeconvolver). Read-only SKILL contracts bind
+agents, not the world. Until the founder decides, no new "protected" code
+lands in public main.
+
+
+================================================================================
+SECTION 2 — TEMPO INVARIANT: FINAL RULING (RATIFIED)
+================================================================================
+CONFLICT: BioComposer.tempo(for:) case .flowFree implements
+  pulled = hr * (1 - calm) + resonancePulseBPM * calm      (~L417)
+i.e. tempo follows the pulse, converging to 72 BPM as coherence rises. This is
+shipped and device-approved (decisions.csv 2026-06-22 "Klang ist erstmal gut",
+refined 2026-07-03/2026-07-04 for glide). BIOSIGNAL_DOCTRINE meanwhile forbids
+HR->tempo outright. Both cannot be invariants. An invariant the shipped product
+violates is not an invariant — it is a trap for every future agent session.
+
+RULING: KEEP THE FLOW SERVO. Make the invariant precise instead of absolute.
+The doctrine's intent was to forbid the naive "your heartbeat IS the beat"
+mapping (raw pulse driving the clock 1:1, jittering with every artifact). The
+shipped design is a coherence-gated, glide-smoothed, clamped entrainment servo
+that converges AWAY from the pulse as self-regulation improves. That is
+defensible under the science-only doctrine and it is what the founder approved
+with his ears.
+
+NEW WORDING (into BIOSIGNAL_DOCTRINE + CLAUDE.md):
+T1 — Tempo sources are enumerable and logged. Transport tempo may be set only
+by (a) user lock/edit/tap, (b) the Flow entrainment servo, (c) automation
+lanes. Every transport-play and every clock-reaching path logs tempoSource=
+(user | flowServo | automation).
+T2 — Raw heart rate never sets tempo directly. No path may assign any BPM
+estimate (rPPG, BLE, HealthKit) to the clock without passing through the servo
+(coherence blend + clamp 40-160 + glide) or an explicit user gesture.
+studioLocked must be provably independent of heartRateBPM.
+T3 — CI-enforced, not document-enforced. The tests are the invariant. Prose
+that contradicts a green test is stale prose.
+
+CI TEST CONTRACT (lands with C1) — Tests/EchoelmusicTests/TempoInvariantTests.swift
+  import Testing
+  @testable import Echoelmusic
+
+  @Suite struct TempoInvariantTests {
+      private func input(mode: ComposerMode, hr: Float, coherence: Float,
+                         locked: Double) -> BioComposer.Input {
+          // Adapt to the REAL designated init; do not add a new production init.
+          var i = BioComposer.Input.test()   // add a test-target-only factory
+          i.mode = mode; i.heartRateBPM = hr
+          i.coherence = coherence; i.lockedTempo = locked
+          return i
+      }
+      @Test func studioLockedIgnoresHeartRate() {
+          for hr: Float in [40, 71, 121, 190] {
+              let t = BioComposer.tempo(for: input(mode: .studioLocked, hr: hr,
+                                                   coherence: 0, locked: 124))
+              #expect(t == 124)
+          }
+      }
+      @Test func flowIsClampedAndConverges() {
+          #expect(BioComposer.tempo(for: input(mode: .flowFree, hr: 20,
+                                    coherence: 0, locked: 0)) == 40)
+          #expect(BioComposer.tempo(for: input(mode: .flowFree, hr: 200,
+                                    coherence: 0, locked: 0)) == 160)
+          let a = BioComposer.tempo(for: input(mode: .flowFree, hr: 55,
+                                    coherence: 1, locked: 0))
+          let b = BioComposer.tempo(for: input(mode: .flowFree, hr: 130,
+                                    coherence: 1, locked: 0))
+          #expect(a == b)
+      }
+  }
+
+DECISIONS.CSV LINE (append verbatim; adjust only the date if needed):
+2026-08-13,Tempo invariant finalized: Flow servo RATIFIED; raw-HR→tempo forbidden; sources enumerated+logged+CI-tested,"Repo audit exposed a contradiction between the shipped, device-approved Flow entrainment servo (tempo=hr·(1−coh)+72·coh, decisions 2026-06-22/07-03/07-04) and the doctrine's absolute HR→tempo ban. Council ruling under delegated authority: the doctrine's intent (no raw-pulse-as-clock) is preserved by precision, not deletion. New invariant T1–T3: tempo sources enumerable (user|flowServo|automation), every setTempo path logs tempoSource=, studioLocked provably independent of heartRateBPM, servo clamp 40–160 + glide mandatory. TempoInvariantTests.swift is the enforcement; doctrine prose updated to match.","tempoSource= in all transport logs; TempoInvariantTests green in CI; BIOSIGNAL_DOCTRINE + CLAUDE.md rewritten to T1–T3; future agent sessions have ONE truth.",2026-11-13,ACTIVE
+
+
+================================================================================
+SECTION 3 — DMMW GATE CHARTER (DOCTRINE)
+================================================================================
+DMMW is EARNED in stages, never declared. No cycle, session, or README edit may
+expand scope past the current stage. Scope oscillation is documented in this
+repo's own history (#68 cut video/RTMP/multitrack 2026-06-12; #153 re-expanded
+2026-07-02; the README re-absorbed Cinema/Theater/Broadcast). This charter ends
+the oscillation by making expansion mechanical, not motivational.
+
+THE DREAM, RESTATED BUILDABLY: Echoelmusic never becomes Resolume, AUM or
+DaVinci. Echoelmusic is the BIO SOURCE those tools subscribe to. Platform =
+small perfect core + open interfaces (AUv3 out, OSC/ADM-OSC/Art-Net/sACN,
+Ableton Link, documented BioSampleFrame schema). Open standards outlive
+products — that is longevity. On-device AI + on-device bio = privacy by
+architecture, not by promise.
+
+STAGE 1 — INSTRUMENT TRUTH (now -> next TestFlight builds). Scope: C1-C5 only.
+Exit criteria (ALL):
+ [ ] TempoInvariantTests green; tempoSource= in every transport log
+ [ ] body flag: no 0<->1 flap faster than 5 s in a 3-min finger-held device log
+     (2026-08-12 log shows 7 flips in 3 min — that is the bar)
+ [ ] breath breadcrumb shipped; gate behaviour understood from real data
+ [ ] first run reaches sound in <= 3 user actions
+ [ ] esotericMeditation renamed; lint extended to Swift identifiers
+ [ ] README corrected against SECTION 1 FINDING 1
+
+STAGE 2 — OPEN OUTPUT (earned by Stage 1). Mostly VERIFICATION, see FINDING 1.
+ [ ] one external tool (Resolume/TouchDesigner/MadMapper/DAW) demonstrably
+     driven by a published BioSampleFrame, founder-verified on device+receiver
+ [ ] BioSampleFrame schema documented in docs/ as a versioned contract
+ [ ] AUv3 GENERATOR target revived (exists, deferred); loads in >=2 hosts
+ AUv3 HOST is permanently OUT (= rebuilding AUM; decision #68 territory).
+
+STAGE 3 — REACH (earned by Stage 2). EchoelAI Stage 2 (Studio Manager on Apple
+Foundation Models, on-device, reading the SAME engine state the guide renders —
+the guide IS EchoelAI Stage 1), Ableton Link, second Apple platform.
+ [ ] >= N active TestFlight testers, >=2 sessions/week, 4 consecutive weeks
+     (founder sets N; suggested 25)
+ [ ] crash-free sessions >= 99.5 % over the same window
+
+STAGE 4 — ECOSYSTEM. Not a build target. Core + interfaces + AI + community IS
+the workstation, assembled by subscribers rather than by one person. Any
+proposal to in-source a subscriber's job (video editing, plugin hosting, RTMP)
+must cite which Stage 1-3 criterion it serves, or it is rejected by default.
+
+STANDING RULES (all stages):
+1. The founder is the gate, and the founder sleeps. NEEDS-FOUNDER-VERIFY items
+   are the pipeline's real throughput limit. Never stack unverified
+   device-behaviour changes. "Nosleep" applies to CI, not to verification debt.
+2. One fix per cycle, green build required.
+3. Language doctrine extends to AI language. "Assistant that guides people into
+   their creative potential" — yes. "Superintelligence" — no. Same lint class
+   as healing-frequency vocabulary.
+4. License decision pending, founder-only (FINDING 6).
+5. Accessibility & longevity floor: VoiceOver-complete surfaces, open export
+   formats, no server dependency for core function, on-device bio only.
+6. Two-truths ban: one shipping branch of record. Foundation-rebuild work
+   merges through it or is archived; the README describes the build that ships.
+
+
+================================================================================
+SECTION 4 — CYCLES TO TESTFLIGHT (execute in order)
+================================================================================
+C1 — TEMPO INVARIANT: LOG THE SOURCE, PIN IT IN CI
+Files: Sequencer/BioComposer.swift (tempo(for:) ~L417), Core/Transport.swift
+(setTempo ~L157), Sequencer/PatternEngine.swift (setTempo ~L275 + its six
+production callers, cf. EchoelmusicApp.swift:682),
+new Tests/EchoelmusicTests/TempoInvariantTests.swift.
+Do:
+ 1. enum TempoSource: String { case user, flowServo, automation }, threaded
+    through Transport.setTempo(_:source:) with NO DEFAULT PARAMETER — every
+    call site must state the source explicitly.
+ 2. ALSO thread it through PatternEngine.glideTempo(to:) — BodyTempoField
+    .toggleLock reaches the clock through glideTempo, bypassing setTempo.
+ 3. ALSO cover the loopExport transport path: the 2026-08-12 log shows
+    "transport play (loopExport) tempo=71" and it must log tempoSource= too.
+ 4. Extend the generate breadcrumb (EchoelStudioView ~L9133) with tempoSource=.
+ 5. Land TempoInvariantTests per SECTION 2 (adapt the Input factory to the real
+    designated init; test-target-only factory).
+ 6. Update BIOSIGNAL_DOCTRINE + CLAUDE.md to T1-T3; append the decisions line.
+Done when: tests green on xcode-compile-check; a device log shows tempoSource=
+on Flow, Loop, tap-tempo, glide-lock AND loopExport.
+
+C2 — BIO TRUST HYSTERESIS (kill the 0<->1 body flap)
+Files: Studio/EchoelStudioView.swift — bodyFlag: Int = frame == nil ? 0 : 1
+(~L9128) and, upstream, wherever frame is nil-ed on low confidence (trace from
+makeComposerInput); the rPPG trust gate sits around pulseTrustworthy (#484).
+Do: replace the binary nil-check with a pure hysteresis latch (BioTrustLatch):
+engage after conf >= 0.6 sustained 3 s, release after conf < 0.3 sustained 5 s.
+Unit-test by replaying the 2026-08-12 conf sequence: the trace that produced 7
+transitions must produce <= 1. Do NOT touch the DSP or the rPPG estimator.
+Done when: latch tests green; NEEDS-FOUNDER-VERIFY note for a 3-min device log.
+
+C3 — RESPIRATION DIAGNOSTICS (NOT construction — see FINDING 2)
+Files: Bio/CameraRPPGBioPublisher.swift (~L1240-1256).
+Do: add a breadcrumb at rPPG cadence:
+  breath: rate=... phase=... amp=... envConf=... conf=... gate=open|closed
+NO behaviour change, NO threshold change in this cycle. Ship it, then capture
+one founder session breathing deliberately slowly (~6/min) and one normally.
+Rationale: changing a threshold blind is how the 2026-08-12 confusion happened.
+
+C3b — RESPIRATION TUNING (unlocked by C3's data). Pick exactly ONE candidate:
+ (a) motion rejection on amp spikes — large amp correlating with collapsing acf
+     is the clearest signature in the log;
+ (b) exposure re-lock after warm-up — lock happens 1.3 s in at bright=0.24 and
+     drifts to 0.10;
+ (c) the 0.4 confidence gate itself.
+Gate musical use of breath behind the SAME BioTrustLatch pattern as C2 (own
+instance, own thresholds).
+
+C4 — FIRST RUN = f(engineState)
+Files: Studio/EchoelStudioView.swift (root) — respect the FREEZE LAW comments
+(no high-frequency @Observable reads in the root body; leaf views only).
+Do: SessionMaturity (@AppStorage session counter) + a state-derived visibility
+policy. Sessions < 3: transport + BodyTempoField + waveform + ONE panel (Sound).
+Camera/permission/no-signal states render the EXISTING rPPG cues
+("Press gently" / "Hold still" / "Locked") as the primary surface instead of
+log-only. Hidden panels stay in code (reversible; calm-shell precedent #157).
+Transitions honour FlashGuard (<= 3 flashes/s); 300-500 ms fades.
+Done when: fresh install (or DEBUG maturity reset) reaches audible, bio-driven
+sound in <= 3 user actions; screenshot set for founder review.
+
+C5 — LANGUAGE + SCOPE HYGIENE (pre-upload)
+ 1. Rename esotericMeditation -> stillMeditation with a rawValue migration shim
+    so saved projects still decode (map the old string; keep one release).
+ 2. Extend the anti-esoterik lint to identifiers/enum cases in Sources/,
+    CI-enforced.
+ 3. README: correct "What does not exist yet" against FINDING 1 — it currently
+    hides four shipped subsystems, which is worse than overselling. Cut the
+    Cinema/Theater/Broadcast positioning and the "what Loopy/Bitwig/
+    TouchDesigner cannot do" framing back to decision #68 scope. Remove
+    "Wellbeing"/"Plattform" from the repo description. Link this charter.
+ 4. Live Colabo behind an explicit Settings opt-in (UI only; code stays).
+
+C6 — DEPLOY
+Bump .deploy/release, push, watch testflight.yml.
+FOUNDER DEVICE VERIFICATION LIST (the real gate):
+ - 3-min finger hold: body= stable, <= 1 transition
+ - breath breadcrumb present and plausible (4-20/min) during slow breathing
+ - tempoSource= correct on Flow, Loop, tap, glide-lock, loopExport;
+   the lock is always reachable (2026-07-04)
+ - fresh-install path: sound in <= 3 actions
+ - no esoteric tokens anywhere in the UI
+
+--- post-deploy, still Stage 1.5 ---
+C7 — ROUTING SHEET ADAPTIVITY (bug, screenshot 2026-08-13)
+Sheet exceeds screen width: labels clipped left ("...nections", "...M-OSC"),
+value fields clipped right ("80...", "90..."). Cause: fixed-width
+EchoelValueField (default boxWidth 150 pt, decisions 2026-07-01) with IP + port
++ toggle on one HStack row, four outputs. Fix: per-output VERTICAL layout
+(name -> IP full width -> port in a narrow field); compact boxWidth override in
+this sheet only; .layoutPriority on the fields, not the labels; verify at
+Dynamic Type XXL and on the narrowest supported device. No functional change.
+
+C8 — FIELD BECOMES A FIRST-CLASS LOOK (founder request)
+Fold the Field panel's Signal/ring view into the existing look chain
+(Rings / Water / Aurora / Depth / Signal), which already supports add, remove
+and ordering. The Field panel keeps only Fine-tune. This is REDUCTION: two
+visual systems become one. Must respect FlashGuard and Reduce Motion.
+
+C9 — VISUALS BRIEF (design doc first, no code)
+Approved in principle:
+ - Kaleidoscope: a symmetry operator over the existing field output, not a new
+   renderer. n-fold mirroring multiplies apparent flicker — apply FlashGuard
+   AFTER the operator, never before.
+ - Julia set (NOT Mandelbrot): c parameter driven by coherence and breath phase.
+   A Mandelbrot zoom has no bio coupling and would be decoration; a Julia set
+   the body reshapes is an instrument. Same aesthetic, honest mechanism.
+ - "Mirror" look: camera silhouette/motion reflected into the field. This is the
+   buildable, claim-free version of the "mirror neuron" idea. THE TERM "MIRROR
+   NEURON" MUST NOT APPEAR in code, UI or docs — human mirror-neuron evidence is
+   thin and popularly overstated; naming a visual after it is exactly the claim
+   class the anti-esoterik doctrine forbids.
+ - Water: a Look already exists. True fluid simulation is possible but must ship
+   with a MEASURED thermal/GPU budget: rPPG runs camera AND torch, and thermal
+   throttling degrades bio sampling before it degrades the visual.
+Cross-cutting invariants for ALL looks (this is what "health, no claim" means):
+ 1. FlashGuard clamp applied to the FINAL composited frame.
+ 2. Luminance ramps, no hard cuts; honour Reduce Motion and Reduce Transparency.
+ 3. Deterministic seed per look so an exported loop reproduces its visual.
+ 4. Per-look performance budget: frame time + sustained thermal state with the
+    camera active. A look that starves the bio pipeline is rejected regardless
+    of beauty.
+ 5. Colour language stays the shipped CIE-1931 tone->light mapping. No
+    wavelength-to-emotion and no wavelength-to-health claims anywhere.
+ 6. Every look reads the SAME BioSampleFrame the OSC senders publish, so an
+    external Resolume patch and the in-app look respond identically.
+NOT RECOMMENDED: a separate "health visuals" mode. Safety and evidence
+discipline are properties of EVERY look; a labelled compartment implies the
+others are unsafe and implies a health claim by contrast.
+
+OPEN, NOT YET SPECIFIED (founder flagged, needs its own doctrine section BEFORE
+any build): HRV / coherence TRAINING. This is the highest-risk area of the
+product — the line between self-observation and intervention is thin, and
+coherence training language drifts toward health claims easily. Required first:
+which formulations are allowed, which metrics are shown, what is explicitly NOT
+claimed, and what happens when a user asks the app a medical question.
+
+================================================================================
+END OF HANDOVER
+================================================================================
+
+
+================================================================================
+APPENDIX — AGENT VERIFICATION NOTES (added on receipt, 2026-08-13, #565)
+Not part of the founder's text. Everything above is verbatim.
+================================================================================
+
+WHAT WAS RE-MEASURED ON RECEIPT (the handover asks to plan from it, so its
+checkable claims were checked first — the repo's own rule):
+
+CONFIRMED, exactly as cited:
+  Sequencer/BioComposer.swift:417   `public static func tempo(for input: Input)`
+  Sequencer/BioComposer.swift:22-24 `ComposerMode` with `.studioLocked`/`.flowFree`
+  Core/Transport.swift:157          `public func setTempo(_ bpm: Double)`
+  Sequencer/PatternEngine.swift:275 `public func setTempo(_ bpm: Double)`
+  Sequencer/PatternEngine.swift:322 `public func glideTempo(to bpm: Double)`
+The line numbers are correct to the line. This handover was produced against
+the real tree; its FILE claims can be trusted, and the corrections below are
+about the CI mechanics of this repo, not about its reading of the code.
+
+CORRECTED — THE TEST CONTRACT AS WRITTEN WOULD NEVER RUN. Three defects, each
+of which alone would make "TempoInvariantTests green in CI" false:
+ 1. `import Testing` — swift-testing is NOT used anywhere in this repo
+    (`git grep -ln "^import Testing" -- Tests` → 0 files). `@Suite` / `@Test` /
+    `#expect` do not compile here. The guard is written in XCTest.
+ 2. `Tests/EchoelmusicTests/` is compiled by NO gate (#208). A guard placed
+    there is never built and never run — the exact failure the doctor skill was
+    written for (2026-07-28: 14 hours of "success" over a suite that did not
+    build). The blocking bundle is `Tests/CISmoke/`, and that is where the
+    invariant lands. A mirror in `Tests/EchoelmusicTests/` would be prose.
+ 3. "Done when: tests green on xcode-compile-check" — `Xcode Compile Check`
+    runs `xcodebuild build` on scheme `Echoelmusic`, whose `build.targets` list
+    contains ONLY `Echoelmusic` (project.yml:379-382). It compiles `Sources/`
+    and cannot compile, let alone run, any test. The gate that builds AND runs
+    `Tests/CISmoke` is `Echoelmusic CI/CD Pipeline` — which reports `failure`
+    on EVERY push because of #396, so its conclusion says nothing and the JOB
+    STEPS are read instead ("Build for Testing" = success ⇒ the bundle
+    compiles; `TEST BUILD FAILED` with no `error:` line naming a repo file =
+    infrastructure flake).
+ The handover's own reason for preferring compile-check ("Linux excludes
+ Accelerate paths") is about `swift build` on Linux; both gates named here run
+ on macOS runners, so the reason does not transfer to the choice it justifies.
+
+⛔ A "CORRECTION" I WROTE HERE WAS ITSELF WRONG, AND IT STAYS VISIBLE BECAUSE
+THE MISTAKE IS THE POINT. I first wrote that T2's "clamp 40-160" was false —
+that the flow branch clamps to `50...110` and the function returns clamped to
+`40...180` — and I wrote it BEFORE opening the function. Measured
+(`BioComposer.swift:417-428`), the flow branch is literally
+`return min(max(pulled, 40), 160)`. **T2 is correct to the number.** I
+retracted it inside the same cycle only because the rule that a claim is
+measured before it is written was applied one step late. A handover's numbers
+were right and the agent's audit of them was invented — that is the more
+dangerous direction, since it would have "fixed" a correct doctrine.
+
+REAL FINDING IN THE SAME FUNCTION — `.studioLocked` DOES NOT RETURN THE LOCKED
+TEMPO UNCONDITIONALLY. It returns `min(max(input.lockedTempo,
+r.lowerBound), r.upperBound)` where `r = input.style.tempoRange`. So the
+handover's `studioLockedIgnoresHeartRate` case, which expects `t == 124`,
+passes only if the style under test has a tempo range containing 124 — it is
+asserting the STYLE's window, not the invariant its own name states. The guard
+therefore asserts what T2 actually says: for every heart rate the result is
+IDENTICAL (and equals the style-clamped locked tempo). That version is true
+under any style and goes red for exactly the reason it names.
+
+NOTED, NOT ACTIONED THIS CYCLE:
+ · FINDING 5 (`esotericMeditation`) confirmed present; it is C5's job, not
+   C1's, and batching it would break the one-fix rule.
+ · FINDING 3 (`/echoelmusic/bio/motion` defined, never sent) matches CLAUDE.md
+   and `ModSource.motion.hasProducer == false`. No action needed; it is already
+   honest in code and prose.
+ · The handover's C1 says PatternEngine.setTempo has "six production callers".
+   Measured this tree: that number is re-derived in the cycle rather than
+   quoted, because a count in prose ages silently (this repo's most repeated
+   lesson).

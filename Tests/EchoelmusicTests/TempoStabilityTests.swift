@@ -52,7 +52,7 @@ final class TempoGlideTests: XCTestCase {
         let transport = Transport()
         pattern.transport = transport
         let before = pattern.tempo
-        pattern.glideTempo(to: before + 40)
+        pattern.glideTempo(to: before + 40, source: .flowServo)
         XCTAssertEqual(pattern.tempo, before, accuracy: 1e-9,
                        "a stopped glide must ease, not snap")
         pattern.stop()   // cancel the stopped-glide timer before teardown
@@ -62,8 +62,8 @@ final class TempoGlideTests: XCTestCase {
         // Whatever an in-flight stopped glide is doing, an explicit user edit wins
         // instantly and clamps — the transport-bar Tempo field stays precise.
         let pattern = PatternEngine()
-        pattern.glideTempo(to: 9_999)   // clamped target, easing while stopped
-        pattern.setTempo(9_999)         // user edit cancels the glide + clamps
+        pattern.glideTempo(to: 9_999, source: .flowServo)   // clamped target, easing while stopped
+        pattern.setTempo(9_999, source: .user)         // user edit cancels the glide + clamps
         XCTAssertEqual(pattern.tempo, PatternEngine.maxTempo, accuracy: 1e-9)
         pattern.stop()
     }
@@ -74,7 +74,7 @@ final class TempoGlideTests: XCTestCase {
         let pattern = PatternEngine()
         pattern.play()
         let before = pattern.tempo
-        pattern.glideTempo(to: before + 40)
+        pattern.glideTempo(to: before + 40, source: .flowServo)
         XCTAssertEqual(pattern.tempo, before, accuracy: 1e-9,
                        "glide must not snap the running beat")
         pattern.stop()   // cancel the real timer source before teardown
@@ -84,8 +84,8 @@ final class TempoGlideTests: XCTestCase {
         // A user edit is precise + instant — it overrides any in-flight body glide.
         let pattern = PatternEngine()
         pattern.play()
-        pattern.glideTempo(to: 200)
-        pattern.setTempo(100)
+        pattern.glideTempo(to: 200, source: .flowServo)
+        pattern.setTempo(100, source: .user)
         XCTAssertEqual(pattern.tempo, 100, accuracy: 1e-9)
         pattern.stop()
     }
@@ -102,7 +102,7 @@ final class TempoGlideTests: XCTestCase {
         pattern.transport = transport
         pattern.play()
         let target = pattern.tempo + 40
-        pattern.glideTempo(to: target)
+        pattern.glideTempo(to: target, source: .flowServo)
         pattern.stop()
         XCTAssertEqual(pattern.tempo, target, accuracy: 1e-9,
                        "stop must land the glide, not strand the clock partway")

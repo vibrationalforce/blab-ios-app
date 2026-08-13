@@ -109,10 +109,24 @@ final class TheTempoDestinationHasNoRouteTests: XCTestCase {
             regression the founder filmed at 79.45: the route fired the instant the pulse \
             locked and overrode a tempo the user had deliberately fixed.
             """)
-        XCTAssertTrue(src.contains("glideTempo(to: StudioCalculator.seedTempo(raw))"), """
+        // ⚠️ THE NEEDLE LOST ITS CLOSING PAREN IN #565 AND THAT IS DELIBERATE, not sloppiness.
+        // The call now reads `glideTempo(to: StudioCalculator.seedTempo(raw),\n source:
+        // .modulationRoute)`, so the old needle — which included the `)` — could never match
+        // again and this assertion would have gone red on a correct tree (#456: move the guard
+        // in the commit that moves the surface). Matching up to the argument keeps both halves
+        // the case names: the FOLD (`seedTempo`) and the GLIDE (`glideTempo`).
+        XCTAssertTrue(src.contains("glideTempo(to: StudioCalculator.seedTempo(raw)"), """
             The destination no longer octave-folds and glides. Without the fold a normalized \
             signal can demand 196–300 bpm; without the glide the clock snaps mid-take. Both \
             were added together and neither is decoration.
+            """)
+        XCTAssertTrue(src.contains("source: .modulationRoute"), """
+            The tempo destination no longer names itself as a tempo source. T1 (2026-08-13) \
+            makes every clock-reaching path state WHO moved the clock, and this route is the \
+            one the ruling's own triad did not cover — a user-configured modulation route \
+            carrying a bio value, which is neither the composer's Flow servo nor a stored \
+            curve. If it were relabelled `.flowServo` a device log would report the body's \
+            entrainment servo on a path that is not it.
             """)
     }
 

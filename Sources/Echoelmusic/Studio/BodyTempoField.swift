@@ -375,7 +375,7 @@ struct BodyTempoField: View {
             // throughout the ease) but it IS a change to what the stopped click does, and
             // the stopped click is the only thing audible on that path.
             // NEEDS-FOUNDER-VERIFY on device: lock while stopped, listen to the ease.
-            player.pattern.glideTempo(to: lockedBPM)
+            player.pattern.glideTempo(to: lockedBPM, source: .user)
             lockBPM = true
         }
         onLockChanged()
@@ -386,7 +386,7 @@ struct BodyTempoField: View {
         Binding(get: { lockedBPM },
                 set: { v in
                     lockedBPM = v.clamped(to: Transport.minTempo...Transport.maxTempo)
-                    player.pattern.setTempo(lockedBPM)
+                    player.pattern.setTempo(lockedBPM, source: .user)
                 })
     }
 }
