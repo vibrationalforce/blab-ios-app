@@ -1,117 +1,69 @@
-build: v10.79.389 — Bunter. Und der Export sagt endlich, was er ist.
+build: v10.79.390 — Elf Reparaturen, ein Guide, eine ehrliche Identität
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
-  nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
-  still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
+  nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.388 (2505).
+  Der Vorgänger auf Deinem Gerät ist 10.79.389 (2506). Dieser Build trägt #579–#589 —
+  überwiegend Stabilität aus dem Ultrastabil-Audit, jede Reparatur vor dem Bau am
+  Quelltext nachgeprüft, plus der Guide.
 
-  Dieser Build beantwortet vier Deiner Punkte und baut ein Messgerät ein.
+  ── WAS DU BEIM ERSTEN START SIEHST ───────────────────────────────────────
 
-  ── 1. „BUNTER, MEHR TEXTUR, GLITZER" ─────────────────────────────────────
+  · **Die App öffnet als Vollbild-Visual** (#580): die Flag-Defaults registrieren jetzt
+    VOR dem ersten View-Read, also greift die Instrument-Startseite wirklich — vorher
+    entschied ein unregistrierter Schalter still auf „aus".
+  · **Kein Log-Blatt mehr über dem Bild** (#582): das Diagnose-Blatt öffnete sich nach
+    JEDER normalen Sitzung, in der Start gedrückt wurde — jetzt nur noch, wenn die
+    vorige Sitzung im Vordergrund gestorben ist oder ein CRASH-Marker steht. Ein
+    sauberer Ausstieg ist kein Absturz.
+  · **„Start Here" in Learn** (#589): der Guide — ein Eintrag pro Sinn (hörbar ·
+    sichtbar · spürbar), die Erste-Drei-Minuten-Führung, die Puls-Reihenfolge
+    (erst Play, dann Finger), und „For every body". Jedes genannte Bedienelement
+    wörtlich aus der UI zitiert, per Wächter verklammert.
 
-  Die Farbe ist an DREI Stellen gleichzeitig zurückgeholt worden, und das war nötig,
-  weil sie an drei Stellen gleichzeitig weggenommen wurde:
+  ── STABILITÄT (Ultrastabil-Audit, verifizierte Befunde) ──────────────────
 
-  · **Sättigung 0,82 → 1,05.** Nicht mehr grau-ziehend, sondern leicht anhebend.
-  · **Warm-Tint 0,92 → 0,97, Warm-Lift 0,10 → 0,05.** Netto-Chroma geht von **~0,68 auf
-    ~0,97** — das ist der eigentliche Sprung. Der WARME PUNKT bleibt unangetastet: Du
-    wolltest mehr Farbe, nicht kältere.
-  · **Glitzer + Textur.** Dünn gestreute Funken plus zwei Oktaven feines Korn, beide an
-    die Helligkeit des Feldes gekoppelt — Glitzer sitzt auf dem LICHT, nie auf Schwarz.
-    Funkeln auf Schwarz sieht aus wie Dreck auf der Linse; Funkeln auf einem hellen Feld
-    sieht aus wie Wasser und Mineral.
+  · **Querformat-Ausgang** (#583): das Vollbild blutete unter das Sensorgehäuse —
+    im Querformat lagen X und Verkleinern unter dem Ausschnitt. Quer stoppt das Bild
+    jetzt an der Kante; Hochformat ist byte-identisch geblieben.
+  · **Audio-Ausfall hat einen Weg zurück** (#585): gibt die Selbstheilung auf
+    (z. B. wackelnder Klinkenstecker), erscheint unter dem Start-Knopf ein Banner mit
+    dem Grund und einem Retry — vorher lief alles weiter, nur ohne Ton, und niemand
+    sagte es. Der gescheiterte Interruption-Resume mündet jetzt ebenfalls in die
+    Heilung statt in einen Log-Eintrag.
+  · **Die Körperstimme zählt als hörbar** (#586): „Body voice" an + kurz zu WhatsApp
+    schneidet die Drohne nicht mehr ab — das Hintergrund-Tor kannte sie nicht.
+  · **NaN erreicht den Render nicht mehr** (#588): Delay-Feedback (Dauerstille-Klasse)
+    und Sampler-Startpunkt (Trap-Klasse) sind an der Grenze NaN-fest; für endliche
+    Werte bit-identisch, am Klang ändert sich nichts.
+  · **Pad-Regler vollständig** (#581+#584): die drei Akkord-Regler (Chord length /
+    Accent / Variation) unter dem Pad-Charakter im Mood-Panel; „Reset sound" löscht
+    sie mit, die Start-Diagnosezeile meldet sie (padShape=…), die Caption ist in der
+    App-Schrift.
+  · **Fenster-Zustand im Log** (#579), **Identitätszeile ehrlich** (#587: der
+    App-Einstieg behauptet keine gestrichenen Features mehr).
 
-  ⚠ **Warum B9 allein nicht gereicht hat, und warum ich es erst jetzt weiß:** es waren
-  DREI gestapelte Entsättiger, nicht einer. B9 hat den ersten entstapelt (0,80 → 0,92) —
-  richtig, aber zwei blieben stehen, und 0,92 × 0,90 × 0,82 ist eben immer noch 0,68.
-  Keine einzelne Zeile im Quelltext sagte das; jede sah für sich vernünftig aus.
+  ── BITTE AM GERÄT PRÜFEN (in dieser Reihenfolge) ─────────────────────────
 
-  ⚠ **EHRLICHE GRENZE, bitte nicht überlesen:** Die neue Sättigung erreicht Dein Gerät
-  nur, wenn Du das Saturation-Feld **noch nie gezogen** hast — ein gespeicherter Wert
-  gewinnt immer gegen einen Default, und das ist richtig so. Die Shader-Änderung
-  (Warm-Tint + Glitzer + Textur) ist **unbedingt** und erreicht jede Installation. Falls
-  es Dir also immer noch zu grau ist: einmal Saturation im Visual-Panel auf ~1,05 ziehen,
-  dann sagt uns Dein Urteil etwas über die Farbe statt über einen alten Speicherwert.
+  1. Kaltstart: kommt das Vollbild-Visual, OHNE Log-Blatt darüber?
+  2. Learn → steht „Start Here" oben, führt es in <1 min durch hören/sehen/spüren?
+  3. Vollbild + Gerät drehen (beide Richtungen): sind X und Verkleinern voll tippbar?
+  4. „Body voice" an → App in den Hintergrund: klingt die Drohne weiter?
+  5. Farbe aus 389: liest sich das Feld jetzt bunt (Sättigung 1,05)?
 
-  **Blitzsicherheit** ist nicht nachträglich gedeckelt, sondern in der Konstruktion: jeder
-  Funke zieht seine eigene Phase UND seine eigene Frequenz aus seiner Bildposition, also
-  sind die Funken untereinander unkorreliert und die mittlere Bildhelligkeit moduliert
-  gar nicht. Bei „Bewegung reduzieren" friert der Glitzer zu einem stillen Glanzfeld ein.
+  ⚠ Ehrliche Grenzen: #583 letterboxt das Quer-Vollbild um den Gehäuse-Einschub —
+  ob das beabsichtigt aussieht, entscheidet nur Dein Auge. Das Audio-Banner (#585)
+  ist schwer zu provozieren (Kopfhörer mehrfach mitten im Take ziehen); wenn Du es
+  nie siehst, ist das der Normalfall, kein Fehlen.
 
-  **Räumlichkeit fehlt noch — bewusst.** Die braucht die Feldfunktion selbst, nicht den
-  Farb-Schwanz, und ist ein eigener Zyklus. Ich wollte sie nicht mit heißer Nadel an
-  einen Farbdurchgang hängen.
+  ── ENTSCHIEDEN (delegiert: „du bist Entscheidungsträger") ────────────────
 
-  ── 2. „MIDI EXPORT BEIM KLAVIER BUTTON STIMMT NICHT" ─────────────────────
-
-  Der Export war **nicht kaputt** — er war **namenlos**. Beide Exporte, Audio und MIDI,
-  haben denselben Dateinamen aus Session, Genre und Tempo gebaut; nur die Endung war
-  verschieden, und iOS schneidet die im Teilen-Blatt ab und beschriftet eine `.mid`
-  fröhlich als „Audioaufnahme". Es SAH also aus wie „der will noch WAV rausrendern",
-  während 435 Bytes MIDI im Blatt lagen.
-
-  Jetzt steht das Format **im Dateinamen selbst** (`…_MIDI.mid` statt `….mid`), und der
-  MIDI-Export schreibt eine Zeile ins Log mit Bytes, Notenzahl und Taktanzahl. Wenn beim
-  nächsten Mal etwas fehlt, sagt das Log, ob die Datei leer war oder nur falsch benannt.
-
-  ── 3. „DAS BRAUCH DA NICHT SEIN" (der rot umkringelte Signal-Block) ──────
-
-  Ist raus aus dem Feld-Panel.
-
-  ⚠ **Die zweite Hälfte Deines Satzes — „wenn dann ins Visual Window übertragen" — habe
-  ich NICHT gemacht, und ich sage lieber warum, als es stillschweigend zu tun:** dieses
-  Layout hast Du nie gesehen. Am 2026-08-02 habe ich schon einmal zwei Analyse-Flächen
-  montiert, die Du dann per Screenshot mit rotem X wieder gestrichen hast. Sag ein Wort,
-  wo genau im Visual-Fenster er sitzen soll, dann kommt er dorthin.
-
-  ── 4. AKKU UND EIN LESBARES LOG ──────────────────────────────────────────
-
-  Dein zweites Log hatte eine 220-Sekunden-Strecke im Hintergrund. In dieser einen
-  Strecke standen **~140 identische Zeilen**, und die Kamera-Schleife hat in derselben
-  Zeit **2 200-mal** den Haupt-Thread geweckt, um eine leere Warteschlange zu leeren.
-
-  · Die Hintergrund-Meldung wird jetzt **einmal pro Episode** gesagt, nicht alle sechs
-    Sekunden — und die Rückkehr der Bilder wird ebenfalls einmal gemeldet, damit Stille
-    nie mit „abgestürzt" verwechselt werden kann.
-  · Die 2-Sekunden-Diagnosezeile schweigt, solange iOS die Kamera hält. Sie hat dort
-    ohnehin nur den letzten Wert von VOR der Unterbrechung wiederholt — `finger=yes
-    R=0.39` neben `in=0.0`. Das ist nicht bloß Lärm: wer die linke Hälfte glaubt,
-    diagnostiziert „Finger liegt an, Signal tot". 105-mal angeboten.
-  · Dieselbe Strecke kostet jetzt **440 statt 2 200** Weckvorgänge.
-
-  ⚠ Was ich BEWUSST nicht getan habe: die Kamera beim Hintergrundwechsel stoppen. Das
-  wäre korrekter (die Sitzung bleibt reserviert), aber ein Stopp-Neustart-Paar, das den
-  Neustart verfehlt, ist genau die Klasse Fehler, die 386 zwei Builds gekostet hat. Eine
-  Schleife langsamer zu drehen kann kein Bild verlieren, das gar nicht geliefert wird.
-
-  ── 5. DAS MESSGERÄT FÜR DIE OFFENE FRAGE AUS 388 ─────────────────────────
-
-  388 hat den 3-Sekunden-Riegel zurückgenommen und ehrlich gesagt, dass erst Dein
-  nächstes Log entscheidet, ob der Riegel oder das Signal schuld war.
-
-  **Dein Log 10.79.388/2505 hat es entschieden: `body=1` und `bio=1` kommen darin
-  viermal vor. Der Riegel WAR die Ursache, und die Rücknahme war richtig.**
-
-  Damit ist die nächste Frage dran — welche der beiden Belegklauseln zumacht — und
-  dafür rät dieser Build nicht mehr, sondern zählt. Der Veröffentlichungs-Tick meldet
-  etwa alle 30 Sekunden eine Zeile:
-
-      trust: 4/30 ok · nobpm=2 conf=5 acf=17 both=2 · maxConf=0.91 maxAcf=0.52 bpmSpread=6.0
-
-  Also: wie oft das Tor aufging, und **welche Klausel es sonst zuhielt**. Meine
-  Handzählung sagt: die Periodizität (`acf`) ist der Engpass, nicht die Konfidenz. Wenn
-  diese Zeile das bestätigt, ist der nächste Punkt die Signalqualität — Belichtung,
-  Fingerdruck, Kontakt — und nicht wieder eine Schwelle.
-
-  Null Verhaltensänderung: das Tor ist unverändert, es wird nur gezählt.
-
-  ── WAS ICH VON DIR BRAUCHE ───────────────────────────────────────────────
-
-  1. **Ein Blick auf das Visual.** Bunt genug? Glitzer als Funkeln oder als Rauschen?
-     Falls immer noch grau: einmal Saturation ziehen (siehe die Grenze oben).
-  2. **Ein Log nach ~2 Minuten Puls**, wegen der `trust:`-Zeile.
-  3. **Der Klavier-Export**, ob das Teilen-Blatt jetzt „MIDI" sagt.
-  4. **Wo der Signal-Block im Visual-Fenster hin soll**, falls er dorthin soll.
+  **Kein Plugin-System** — weder AUv3-Hosting-Revival (mit #121 als Workstation-Hälfte
+  geschnitten) noch ein eigenes Format (zweites Produkt, DMMW-Falle). Die
+  Erweiterungsfläche IST der Patch: EchoelVoice-Stimm-Patches laufen über den
+  vorhandenen PatchStore (speichern/teilen/einreichen), Integration nach außen über
+  die offenen Standards OSC · MIDI · ADM-OSC. Protokolliert in decisions.csv.
+  **EchoelVoice** (Stimme → Struktur-Patch, Voice→Color ins Visual) ist gescoutet;
+  Plan + erste Scheibe folgen im nächsten Takt.
