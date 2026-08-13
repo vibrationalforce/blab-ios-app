@@ -9821,3 +9821,61 @@ Zyklen als Beleg statt einer Vermutung.
 - **Geräteproben, offen:** rendern die Zeilen · passt der Streifen am Ende eines ohnehin langen
   Panels bei Accessibility-Textgrößen · **überlebt ein offener Picker in diesem Panel eine laufende
   Kamera mit montiertem Streifen** (die einzige, die das Freeze-Gesetz wirklich prüft).
+
+## #560 — das Sound-Panel sagt, welche seiner Zeilen der Körper bewegt (REIHENFOLGE Punkt 2)
+
+Commit `10ecde0`. **Gates zu `26aa4d0` (#559) beide grün:** `Xcode Compile Check` = success ·
+`Build for Testing` = `Test build Succeeded` (der neue Wächter kompiliert nachweislich) ·
+`TEST EXECUTE FAILED` = 1, `TEST BUILD FAILED` = 0, `error:` = **0**, `server died` = 1, **136
+`passed`, null fehlgeschlagene Testfälle** → das stehende #396. `TheAutomationReadoutIsWhatPlays`
+steht nicht im geleerten Teil-Log: **kompiliert nachweislich, Ausführung unbelegt** (#445).
+
+- **Die Richtung ist der Punkt.** #553 beantwortet „was macht mein Körper?" im Bio-Panel, dort wo
+  das Versprechen steht. Die Frage kommt aber woanders auf: der Spieler steht in *Sound & texture*,
+  eine Zahl, die er gesetzt hat, wandert, und er will wissen, welche **dieser** Regler der Körper
+  bewegt. Bis heute konnte die App nur vorwärts antworten — die Abbildung existierte ausschließlich
+  als `· `-verbundener Anzeige-String, und ein String ist nur in eine Richtung lesbar.
+- **Was sich geändert hat:** `AlwaysOnBioChannel.shapes` ist jetzt eine Ableitung über eine neue
+  Menge `BioShapedParameter`; das Sound-Panel bekommt EINE daraus gebaute Zeile. Die gerenderten
+  Kanal-Zeilen sind **byte-identisch**, und Claim 1 nagelt alle vier Strings zeichenweise fest —
+  dieser String wird an zwei Stellen einem Nutzer gezeigt und musste schon zweimal korrigiert
+  werden (#496 Über-Behauptung, #546 tote Reverb-Stufe).
+- ⭐ **Die Messung, die die Scheibe überhaupt lohnend gemacht hat.** Die Zeile aus den KANAL-Wörtern
+  abzuleiten hätte „level" gedruckt — und einen Spieler zur „Output"-Zeile der Level-Gruppe
+  geschickt, die `SynthPatch.outputLevel` ist, ein Patch-Lautstärke-Trim, den `applyBioReactive`
+  **nie** anfasst. Die Atem-Schwelle reitet auf `EchoelDDSP.amplitude` **in der Stimme** und hat auf
+  diesem Panel gar keine Zeile. Also ist `amplitude.soundPanelRows` absichtlich leer, und der
+  Wächter nagelt das fest. Genannt werden genau die fünf Zeilen, die der Körper wirklich bewegt:
+  Brightness · Harmonics · Noise · Cutoff · Vibrato depth + rate. **Claim 4 schlägt jedes dieser
+  Labels im Quelltext von `soundPanel` nach** — eine umbenannte Zeile kann die Kopie nicht auf ein
+  Bedienelement zeigen lassen, das es nicht gibt.
+- **Formulierung:** „move around the values you set" — das #556-Anker-Gesetz in der Sprache des
+  Spielers, und die Antwort auf dieselbe Frage nach der sich selbst ändernden Zahl, die der
+  Automations-Streifen aus #559 einen Bildschirm tiefer beantwortet. Ein einfaches `Text`, KEIN
+  Leaf-View: die Abbildung ist eine Eigenschaft der ENGINE, nicht eines Frames, also beobachtet der
+  permanent ausgewertete Rumpf nichts Neues. Die live-Hälfte bleibt `AlwaysOnBioPanelStrip`, auf die
+  die Zeile zeigt statt sie zu verdoppeln.
+- ⚠️ **Die eigentliche Arbeit steckte im mitgezogenen Wächter (#456).** `DisabledReverbIsNotClaimedLive`
+  scannte den Rumpf von `shapes` nach „reverb". Mit der Ableitung sind die Parameter-WÖRTER aus
+  diesem Member herausgewandert — der Scan hätte **für immer grün** gestanden, auch auf einem Baum,
+  der einen Reverb-Fall hinzufügt. Genau der Fehlermodus, den `Tests/CISmoke/CLAUDE.md` §4 nennt:
+  kein rotes Gate, sondern ein Wächter, der aus einem Grund grün bleibt, den es nicht mehr gibt. Er
+  scannt jetzt alle drei Abbildungs-Member.
+- ⛔ **UND ICH HABE DIE STRIPPER-ZEILE ZUM ZWEITEN MAL IN FOLGE GERATEN.** Ich schrieb „TRAGEND,
+  2 von 8" — einen Zyklus, nachdem der #559-Kopf denselben Fehler protokolliert und benannt hat.
+  Die Begründung war wieder plausibel und wieder ungeprüft: der Mount-Kommentar erklärt, dass hier
+  nichts Bio liest, also enthält er sicher `latestBio` roh. Tut er nicht — er sagt „reads bio", nicht
+  das Symbol. Gemessen: **0 von 16 Verdikten kippen**, PROPHYLAKTISCH.
+  ⭐ **Zweimal ist kein Ausrutscher, sondern die Form des Fehlers:** der Benotungs-Block wird ZULETZT
+  geschrieben, wenn die Scheibe sich fertig anfühlt, und bis dahin habe ich eine starke Erwartung an
+  die eigenen Kommentare — sechs #486/#491-Kollisionen in dieser Sitzung ließen „die Prosa enthält
+  die Nadel" wie eine Eigenschaft des Repos wirken statt wie eine Behauptung über EINE Datei.
+  **Regel ab jetzt: die Stripper-Zeile wird nicht geschrieben, bevor die Transkription, die sie
+  erzeugt, gelaufen ist** — genau wie eine Zahl erst nach `git ls-files` geschrieben wird.
+- **Benotung:** die Wächter-Datei kompiliert gegen den Eltern-Baum (`cc41e8b`) nicht (sie nennt
+  `BioShapedParameter`), also hat dort keine Behauptung ein Verdikt; transkribiert statt delta-benotet.
+  Claim 1 Gegengewicht auf beiden Bäumen (die vier Strings), Claims 2–4 FORWARD über einen Typ, den es
+  nicht gibt (**eine Abwesenheit, drei Behauptungen, EIN Befund**, #486), Claim 5 spaltet sich in
+  Regression (Mount) und Gegengewicht (Freeze).
+- **Geräteprobe, offen:** liest sich die Zeile als Erklärung oder als Rauschen am Kopf eines ohnehin
+  langen Panels?
