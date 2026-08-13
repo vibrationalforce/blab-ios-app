@@ -98,6 +98,22 @@ struct FloatingVisualWindow: View {
     /// Accessibility + consistency parity fix (visuals audit 2026-07-03).
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
+    /// #583 — orientation, in the spelling this codebase already uses for it: on iPhone
+    /// `verticalSizeClass == .compact` IS landscape (`AdaptiveCardGrid` picks its column count
+    /// from the same value). Read as an environment value rather than from the `GeometryReader`
+    /// because the edge set is needed on the modifier OUTSIDE that reader, and because it changes
+    /// only on rotation — this is not a live-value read and cannot churn the body (freeze law).
+    @Environment(\.verticalSizeClass) private var vSize
+
+    /// Which safe-area edges the picture may bleed into. The horizontal half is a decision, not a
+    /// constant; it lives in `FloatingVisualLayout` where it is drivable by the blocking bundle.
+    private var fullscreenBleedEdges: Edge.Set {
+        guard windowSize.isFullscreen else { return [] }
+        return FloatingVisualLayout.fullscreenBleedsHorizontally(isLandscape: vSize == .compact)
+            ? [.bottom, .horizontal]
+            : [.bottom]
+    }
+
     // MP4 capture (founder 2026-07-02: "WAV und MP4 sind die Formate der Wahl"). The
     // window's MetalBioView is the single Metal path, so it is the one capture instance;
     // tapping record writes the bio-reactive visual (+ the live audio) to an .mp4 to share.
@@ -440,10 +456,17 @@ struct FloatingVisualWindow: View {
                 // happens while dimmed, so no raw glitch frame is ever visible.
                 .opacity(resizeDip ? 0.2 : 1)
         }
-        // Fullscreen bleeds to the sides + under the home indicator, but KEEPS the top safe
-        // area so the toolbar (change-look / record / exit) never hides under the notch —
-        // you must still be able to manipulate the visual (founder). Floating sizes: no bleed.
-        .ignoresSafeArea(edges: windowSize.isFullscreen ? [.bottom, .horizontal] : [])
+        // Fullscreen bleeds under the home indicator, and to the SIDES only in portrait, so the
+        // toolbar (change-look / record / exit) never hides under the sensor housing — you must
+        // still be able to manipulate the visual (founder). Floating sizes: no bleed.
+        //
+        // ⛔ #583 — the sides used to bleed in EVERY orientation, and the sentence above was
+        // written as if `.top` were the only edge a notch can occupy. It is, in portrait. In
+        // landscape the housing is a HORIZONTAL inset, so the one edge this modifier kept was the
+        // one that was never at risk, and the edge it opened was the one carrying the two ways
+        // out. `FloatingVisualLayout.fullscreenBleedsHorizontally` holds the reasoning and the
+        // reason it is an edge set rather than a padding.
+        .ignoresSafeArea(edges: fullscreenBleedEdges)
         // ⚠️ NO LONGER THE THING THAT FADES, and left in place deliberately rather than
         // deleted. Since #311 this window is never inserted or removed — `WorkspaceView`
         // mounts it unconditionally and animates its `.opacity(...)` instead — so a

@@ -187,6 +187,36 @@ public enum FloatingVisualLayout {
         public init() {}
     }
 
+    /// May a FULLSCREEN picture bleed into the left and right safe areas? #583.
+    ///
+    /// ⛔ THE DEFECT THIS ANSWERS. The window bled `[.bottom, .horizontal]` at fullscreen in every
+    /// orientation, and the comment above that modifier justified it with: keep the TOP safe area
+    /// so the toolbar never hides under the notch — you must still be able to manipulate the
+    /// visual (founder). That reasoning is PORTRAIT-ONLY. In portrait the sensor housing is a
+    /// `.top` inset, which is the one edge the modifier keeps. Rotate the phone and the housing
+    /// becomes a HORIZONTAL inset — the exact edge the modifier deliberately bleeds into. And the
+    /// two controls it lands on are not decorative: `ChromeFit` above calls resize and close
+    /// "the two ways out", and they are the LAST two items of the bar, i.e. the ones nearest the
+    /// trailing edge, ~10–38 pt and ~46–74 pt in against a landscape housing inset of ~59 pt.
+    ///
+    /// So in one of the two landscape orientations the app opened edge-to-edge into the picture
+    /// with the exit under the cutout. #580 made that reachable by default, because since that
+    /// slice fullscreen IS the launch state rather than something the user chose.
+    ///
+    /// ⭐ WHY THE ANSWER IS "PORTRAIT ONLY" AND NOT A PADDING. Padding the bar back out of the
+    /// safe area is the prettier fix and it is the one I could not verify: `.ignoresSafeArea` is
+    /// applied to the `GeometryReader`, so what a child's `safeAreaPadding` or a proxy's
+    /// `safeAreaInsets` reports INSIDE that reader is exactly the semantics no test in this repo
+    /// can settle — there is no simulator here. A static edge set has no such ambiguity. Portrait,
+    /// the orientation the founder has actually used and approved, is left byte-identical; only
+    /// landscape trades an edge-to-edge picture for a reachable way out. That is the right trade
+    /// even if it were close, and it is not close.
+    ///
+    /// - Parameter isLandscape: on iPhone this is `verticalSizeClass == .compact`, which is the
+    ///   established spelling in this codebase (`AdaptiveCardGrid` decides its column count the
+    ///   same way). Passed in rather than derived so this stays Foundation-only and drivable.
+    public static func fullscreenBleedsHorizontally(isLandscape: Bool) -> Bool { !isLandscape }
+
     /// The shed ORDER, first to go. It is a product ranking, not an arbitrary list, and it
     /// is stated here so a future change argues with it instead of quietly reordering:
     /// a look slider and a "Studio" door are convenience; the transport readout is
