@@ -421,6 +421,21 @@ public struct RespirationEstimator {
     /// measured ball above a threshold and otherwise fall back to the paced guide.
     public private(set) var confidence = 0.0
 
+    /// DIAGNOSTIC MIRROR of the envelope term inside `refreshConfidence` (#567, cycle C3).
+    /// Write-only from this type's point of view: nothing here or anywhere else reads it to
+    /// decide anything, so it cannot change behaviour — it exists so a device log can tell
+    /// the two failure modes apart, which `confidence` alone cannot.
+    ///
+    /// ⚠️ WHY IT IS WORTH A STORED PROPERTY. `confidence` is the PRODUCT of an envelope term
+    /// and a cycle-count term (vetoed by the envelope), so a low confidence has two completely
+    /// different causes with completely different fixes: a dead envelope means the finger's
+    /// respiratory swing never reached the sensor at all (exposure drift, contact) — an rPPG
+    /// front-end problem; a healthy envelope with a low count means the swing is there but no
+    /// period has been measured yet — a timing problem. The 2026-08-12 log could not
+    /// distinguish them, and C3b has to pick exactly one of three candidates on that evidence.
+    /// A ratio published without its numerator makes that choice a guess.
+    public private(set) var lastEnvConf = 0.0
+
     public init() {}
 
     /// Feed one instantaneous heart-rate sample (bpm) at time `t` (seconds).
@@ -549,6 +564,7 @@ public struct RespirationEstimator {
         // below before trusting that sentence: past four crossings the count term is dead and
         // the expression is `envConf * freshness` exactly.
         let envConf = Swift.min(1.0, e / 1.5)                 // ~1.5 bpm RSA = decent
+        lastEnvConf = envConf                                 // diagnostic mirror only (#567)
         // ⭐ THE ENVELOPE VETOES THE COUNT, so the whole expression obeys one stated
         // invariant: `confidence <= envConf * freshness`. We may never claim more certainty
         // than the size of the swing supports, however many cycles we have counted.

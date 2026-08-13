@@ -296,6 +296,16 @@ public final class CameraRPPGBioPublisher {
     /// The engage side is the half that is missing outright: without it a SINGLE trustworthy
     /// tick inside a bad stretch opens the bus and produces a 0→1→0 blip.
     private var bioTrust = BioTrustLatch()
+
+    /// #567 (C3) breadcrumb bookkeeping — diagnostics only, nothing reads them to decide.
+    /// `lastBreathGateOpen` starts `false` so the FIRST time the gate opens is a transition and
+    /// gets logged to the second; `lastBreathLogTick` starts at `Int.min` so the first closed
+    /// tick also logs rather than waiting 5 s for a periodic slot. (`tick - Int.min` would
+    /// overflow — the comparison below is `>= 50` on a `Int.min` subtraction, so the sentinel is
+    /// deliberately the *value* `Int.min / 2`: far enough in the past to fire immediately,
+    /// close enough that the subtraction cannot trap.)
+    private var lastBreathGateOpen = false
+    private var lastBreathLogTick = Int.min / 2
     private var lastValidCoherence: Float = 0
 
     /// WALL-CLOCK start of the current uninterrupted `.finding` stretch — set when a take
@@ -1272,6 +1282,47 @@ public final class CameraRPPGBioPublisher {
                 // measured period, straight into `BreathArp.direction` and `BioComposer`'s
                 // inhale bias. A rate of zero is not a measurement, so it is not published.
                 let measuredBreath = resp.confidence >= 0.4 && resp.ratePerMinute > 0
+                // #567 (C3): INSTRUMENT, DO NOT TUNE. The 2026-08-12 device log shows this gate
+                // never opening while signal quality was nominally high, and the founder's C3
+                // note says plainly why nothing is being changed here yet: "changing a threshold
+                // blind is how the 2026-08-12 confusion happened". This line is the evidence
+                // that lets C3b pick ONE of its three candidates instead of guessing.
+                //
+                // `envConf` is the discriminator and the reason `RespirationEstimator` grew a
+                // diagnostic mirror: `confidence` is envelope × count-with-envelope-veto, so a
+                // low value means either "no respiratory swing reached the sensor" (exposure
+                // drift / contact — candidates a and b) or "the swing is there, no period
+                // measured yet" (candidate c, the 0.4 gate itself). One number cannot say which.
+                //
+                // ⚠️ AND THE BLIND SPOT IS PART OF THE INSTRUMENT, so it is written down rather
+                // than discovered later: this line sits INSIDE the publish path, past
+                // `guard trustNow, trusted`. During a pulse dropout there is no breath line at
+                // all — the ABSENCE of a line means the pulse gate was closed, not that breath
+                // was fine. It is not hoisted above the gate because the values it prints are
+                // only final after `respiration.age(to:)` two dozen lines up, and calling that
+                // earlier would age the estimator more often: a behaviour change, which this
+                // cycle is explicitly not allowed to make.
+                //
+                // RATE: one line per 5 s, plus one immediately on every gate transition. At the
+                // 1 Hz publish tick a per-tick line would be ~180 entries per 3-minute session
+                // in a file the founder also reads for launch and crash triage; a transition is
+                // the event worth catching to the second, and between transitions 0,2 Hz still
+                // gives ~10 samples per breath cycle at the 6/min the founder will be breathing.
+                if measuredBreath != self.lastBreathGateOpen || tick - self.lastBreathLogTick >= 50 {
+                    self.lastBreathGateOpen = measuredBreath
+                    self.lastBreathLogTick = tick
+                    // Hoisted and pre-typed, not a multi-term expression inside the literal:
+                    // #287 turned the blocking gate red with exactly that shape, and this file
+                    // is on the 100 ms loop where a slow type-check is worst.
+                    let rateText = String(format: "%.1f", resp.ratePerMinute)
+                    let ampText = String(format: "%.3f", resp.amplitude)
+                    let envText = String(format: "%.3f", resp.lastEnvConf)
+                    let confText = String(format: "%.3f", resp.confidence)
+                    let gateText = measuredBreath ? "open" : "closed"
+                    EchoelCrashLog.breadcrumb(
+                        "breath: rate=\(rateText) amp=\(ampText) envConf=\(envText) "
+                        + "conf=\(confText) gate=\(gateText)")
+                }
                 let frame = BioSampleFrame(
                     timestamp: CFAbsoluteTimeGetCurrent(),
                     heartRateBPM: Float(bpm),
