@@ -32,20 +32,42 @@
 //     `trustAutoFloor` ever exceeded `strongAutoFloor`, a frame that PASSES via the strong-only
 //     clause could be classified `.periodicityLow` — the instrument would report a refusal that
 //     did not happen, and nothing else in this file would notice.
-//   · STRIPPER: measured, not assumed. Each of the four source needles was counted raw and
-//     through `SourceText.codeOnly` on this tree. Verdict: **PROPHYLAKTISCH (0 of 4 flip)** —
-//     every needle is a code form that the surrounding prose does not spell. It stays because
-//     the prose around this call site is dense and grows (the paragraph above the gate is 20
-//     lines of ⛔ history), so the raw count is one comment away from being wrong; but claiming
-//     it is load-bearing today would be the unmeasured boast §2 forbids.
+//   · STRIPPER: measured, not assumed. Each of the SIX source needles was counted raw and
+//     through `SourceText.codeOnly` on both trees. Verdict: **PROPHYLAKTISCH (0 of 6 flip)** —
+//     every needle is a code form the surrounding prose does not spell. It stays because the
+//     prose around this call site is dense and grows (the paragraph above the gate is 20 lines
+//     of ⛔ history), so the raw count is one comment away from being wrong; but claiming it is
+//     load-bearing today would be the unmeasured boast §2 forbids.
+//
+// ⛔ THE FIRST VERSION SAID "four needles" AND HAD FOUR. A reviewer found that the instrument
+// went SILENT in exactly the case it exists to describe — a stalled or short take never fills a
+// window, and nothing flushed a partial one — so the emission moved behind `flushTrustWindow`
+// and `stop()` became its second caller. Two needles followed. The count is corrected here
+// rather than left to age, because a header that says "four" over a list of six is how the next
+// reader stops trusting the grading block at all.
 
 import Foundation
 import XCTest
+#if canImport(AVFoundation) && canImport(Observation)
 @testable import Echoelmusic
+#endif
 
 final class TheTrustGateSaysWhichClauseRefusedTests: XCTestCase {
 
     private static let publisherPath = "Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift"
+
+    // ⚠️ THE PUBLISHER'S WHOLE FILE is `#if canImport(AVFoundation) && canImport(Observation)`,
+    // so every claim that NAMES it carries the SAME pair — not just AVFoundation, which is the
+    // guard most siblings reach for when a type needs only that one (`OneDefinitionOfTooBright
+    // Tests` states this convention and is the precedent). Claim 3 stays OUTSIDE: it drives
+    // `TrustWindowTally`, which is pure Foundation and must run wherever the bundle builds, and
+    // so do the source scans, which read text.
+    //
+    // ⛔ THE FIRST VERSION OF THIS FILE HAD NO GUARD AT ALL. It would not have failed either
+    // gate today — `Tests/CISmoke` is the source path of an iOS-only target, and SwiftPM never
+    // compiles this directory — so it was latent, not live. Written down rather than silently
+    // added, because "it happens to build" is the reason a convention erodes.
+    #if canImport(AVFoundation) && canImport(Observation)
 
     // MARK: - claim 1 (END-TO-END) — the verdict can never disagree with the shipped gate
 
@@ -132,6 +154,8 @@ final class TheTrustGateSaysWhichClauseRefusedTests: XCTestCase {
                 """)
         }
     }
+
+    #endif
 
     // MARK: - claim 3 (END-TO-END) — the tally counts what it was told, and survives a NaN
 
@@ -226,6 +250,8 @@ final class TheTrustGateSaysWhichClauseRefusedTests: XCTestCase {
 
     // MARK: - claim 4 (COUNTERWEIGHT, END-TO-END) — the floors still stand in the assumed order
 
+    #if canImport(AVFoundation) && canImport(Observation)
+
     /// Green on both trees, and the point of the file. The failure taxonomy assumes the
     /// strong-only clause is the HARDER one: `.periodicityLow` is reported when confidence
     /// cleared its floor and periodicity did not, which is only a refusal while
@@ -248,6 +274,8 @@ final class TheTrustGateSaysWhichClauseRefusedTests: XCTestCase {
             """)
     }
 
+    #endif
+
     // MARK: - claim 5 (SOURCE SCAN) — the loop actually feeds the instrument
 
     /// `shouldPublish`'s doc block records the gap this closes in its own words: *"no test
@@ -263,7 +291,11 @@ final class TheTrustGateSaysWhichClauseRefusedTests: XCTestCase {
                 "the gate is no longer derived from the verdict — the two can now disagree",
             "self.trustWindow.note(verdict: verdict,":
                 "the decision is no longer recorded, so the window counts nothing",
-            "EchoelCrashLog.breadcrumb(\"trust: \" + self.trustWindow.summary)":
+            "self.flushTrustWindow(force: false)":
+                "the publish loop no longer speaks when a window fills",
+            "flushTrustWindow(force: true)":
+                "stop() no longer flushes a partial window — a short or stalled take goes silent",
+            "EchoelCrashLog.breadcrumb(\"trust: \" + trustWindow.summary)":
                 "the window never reaches the log — the instrument is mute"
         ]
         for (needle, why) in needles {

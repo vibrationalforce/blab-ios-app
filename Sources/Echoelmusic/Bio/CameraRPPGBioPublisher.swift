@@ -276,6 +276,24 @@ public final class CameraRPPGBioPublisher {
     /// publisher, the smaller sibling of the 10.76.41/50 menu-freeze.
     @ObservationIgnored private var trustWindow = TrustWindowTally()
 
+    /// Speak the window, then start a fresh one.
+    ///
+    /// ⚠️ `force` HAS NO DEFAULT ON PURPOSE (#431/#440/#443): a defaulted argument that no call
+    /// site writes appears in no diff, and the two callers here mean opposite things.
+    ///
+    /// ⭐ THE `force` PATH IS NOT A CONVENIENCE — it closes a blind spot a reviewer found in the
+    /// first version of #573, and it is the one case the instrument exists to describe. Attempts
+    /// only accrue PAST the truth gate and the `tick % 10` gate, so a take that stalls, or one
+    /// shorter than a full window, printed **nothing at all** — and a reader could not tell
+    /// "the gate never opened" from "this build has no instrument". Silence is the one answer a
+    /// diagnostic may never give. The summary already prints its own denominator, so a partial
+    /// window describes itself honestly (`4/7 ok · …`) rather than pretending to be a full one.
+    private func flushTrustWindow(force: Bool) {
+        guard force ? trustWindow.attempts > 0 : trustWindow.isComplete else { return }
+        EchoelCrashLog.breadcrumb("trust: " + trustWindow.summary)
+        trustWindow = TrustWindowTally()
+    }
+
     /// True once a confident pulse is locked — the SAME bar as the display and the bus.
     ///
     /// This used to be `detectedBPM > 0 && confidence >= lockThreshold`, i.e. byte-for-byte
@@ -1292,10 +1310,7 @@ public final class CameraRPPGBioPublisher {
                                       bpm: bpm,
                                       confidence: confNow,
                                       autoStrength: acfNow)
-                if self.trustWindow.isComplete {
-                    EchoelCrashLog.breadcrumb("trust: " + self.trustWindow.summary)
-                    self.trustWindow = TrustWindowTally()
-                }
+                self.flushTrustWindow(force: false)
                 guard trustNow else {
                     // Brief dropout: keep the visual + pulse warm by re-emitting the
                     // last good frame (coherence gently decaying — never a snap to 0)
@@ -1705,6 +1720,11 @@ public final class CameraRPPGBioPublisher {
     }
 
     public func stop() {
+        // Say what this take measured BEFORE tearing anything down — a short or stalled take
+        // would otherwise leave no `trust:` line at all, which reads exactly like a build
+        // without the instrument. First, because the teardown below cancels the loop that
+        // would otherwise be the only speaker.
+        flushTrustWindow(force: true)
         // Bump the generation so any start() still suspended in its camera-config `await`
         // bails on resume instead of resurrecting the camera we're tearing down here.
         startGeneration += 1
