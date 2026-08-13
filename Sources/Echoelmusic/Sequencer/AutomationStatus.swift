@@ -162,8 +162,26 @@ public enum AutomationStatus {
     /// ABSENCE of a writer rather than promising a feature: the mutation API has had no
     /// caller since #473 and `RecordController.arm()` none since #204, so "nothing yet" is
     /// not a state the player can leave by looking harder.
+    ///
+    /// ⛔ IT READ "Nothing is automated yet — no parameter is moving on its own." UNTIL #562,
+    /// AND THAT SECOND CLAUSE WAS FALSE ON THE SCREEN IT SHIPPED ON. #559 mounted this strip at
+    /// the bottom of `soundPanel`; #560 put a line at the top of the SAME panel saying the body
+    /// moves Brightness, Harmonics, Noise, Cutoff and the two vibrato rows around the values
+    /// the player sets. So one panel said parameters move on their own and, a screen further
+    /// down, that none do. That is #425 — a claim and its own refutation in one place — arriving
+    /// on a USER-FACING surface rather than in a doc block, and it took two slices one cycle
+    /// apart to build, which is exactly why neither review caught it: each sentence was true
+    /// about its own subject and wrong about the screen.
+    ///
+    /// ⭐ THE REPAIR IS NOT "SAY LESS". The player's real question is "why is this moving?", and
+    /// an empty automation list that only denies itself leaves the question standing. The second
+    /// clause now ANSWERS it, and it is true because the always-on bio path is the only other
+    /// writer of these parameters today — `applyBioReactive` recomputes them per render block
+    /// from their `bioBase*` anchors (#556). The day a third source appears, this sentence is
+    /// wrong again and `TheTwoSelfMovingSourcesAgreeTests` is where that shows up.
     public static let emptySentence =
-        "Nothing is automated yet — no parameter is moving on its own."
+        "No automation recorded — nothing is replaying a curve. Anything moving on its own "
+        + "right now is your body, not automation."
 
     /// Describe every lane that has keyframes, in the order the player writes them.
     ///
