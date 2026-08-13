@@ -9510,14 +9510,34 @@ struct EchoelStudioView: View {
     /// haben"). `sessionName` already yields `Echoel_<date>_<Key>_<bpm>_A440` (key + tempo
     /// + tuning); we append the genre. E.g. `Echoel_2026-07-02_Dm_120bpm_A440_Dub-Techno.wav`.
     /// Falls back to the original URL if the copy fails, so an export can never be lost.
-    private func renamedForShare(_ url: URL) -> URL {
-        let base = session.sessionName(bpm: beatPlayer.pattern.tempo)
-        let genre = style.displayName
-        let raw = "\(base)_\(genre)"
-        let safe = raw.components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>| "))
+    ///
+    /// ⭐ THE FORMAT TOKEN IS THE FIX, NOT DECORATION (founder 2026-08-13 on a v10.79.388 clip:
+    /// *"Midi Export beim Klavier Button stimmt nicht, der will noch wav rausrendern"*). The
+    /// MIDI export was CORRECT — the shared file in that clip is **435 bytes**, which is a
+    /// Standard MIDI File and could not be a WAV by two orders of magnitude. What was wrong is
+    /// that nothing on screen said so: BOTH exports built a byte-identical stem and differed
+    /// only in the extension, which the iOS share sheet truncates away, and iOS's own subtitle
+    /// for a `.mid` file is "Audioaufnahme" because the MIDI type conforms to `public.audio`.
+    /// So the piano button rendered a correct MIDI file and presented it as an audio recording.
+    /// That is the lying-control class this file names elsewhere, and the cheapest honest
+    /// repair is in the NAME — the exporter never needed touching.
+    ///
+    /// ⚠️ BOTH sides get the token, not only MIDI. Tagging only the odd one out would leave the
+    /// WAV reading "Audioaufnahme" with no format anywhere either (iOS truncates its extension
+    /// too), so the pair would still be indistinguishable in the direction the founder was
+    /// looking. Symmetric is also the only version a later reader cannot mistake for an
+    /// oversight.
+    private func shareStem(format: String) -> String {
+        let raw = "\(session.sessionName(bpm: beatPlayer.pattern.tempo))"
+            + "_\(style.displayName)_\(format.uppercased())"
+        return raw.components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>| "))
             .filter { !$0.isEmpty }.joined(separator: "-")
+    }
+
+    private func renamedForShare(_ url: URL) -> URL {
         let ext = url.pathExtension.isEmpty ? "wav" : url.pathExtension
-        let dest = FileManager.default.temporaryDirectory.appendingPathComponent("\(safe).\(ext)")
+        let dest = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(shareStem(format: ext)).\(ext)")
         do {
             try? FileManager.default.removeItem(at: dest)
             try FileManager.default.copyItem(at: url, to: dest)
@@ -9570,14 +9590,20 @@ struct EchoelStudioView: View {
             notes: arrangedNotes, steps: [], accents: [],
             tempo: beatPlayer.pattern.tempo, bars: bars,
             keyRootPitchClass: rootIndex, keyIsMinor: scale.isMinorTonality)
-        // Name carries key + tempo + tuning + genre, like the WAV export.
-        let stem = "\(session.sessionName(bpm: beatPlayer.pattern.tempo))_\(style.displayName)"
-            .components(separatedBy: CharacterSet(charactersIn: "/\\:*?\"<>| "))
-            .filter { !$0.isEmpty }.joined(separator: "-")
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("\(stem).mid")
+        // Name carries key + tempo + tuning + genre AND the format, through the one builder the
+        // WAV path uses (#416 — these two were byte-identical duplicates, which is exactly how
+        // they came to be indistinguishable on screen). See `shareStem` for the device evidence.
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("\(shareStem(format: "midi")).mid")
         do {
             try data.write(to: url, options: .atomic)
             share = ExportedFile(url: url)
+            // A success breadcrumb, because the failure path already had one and the diag log
+            // could therefore only ever report this control going WRONG. The founder's clip
+            // showed a correct export being misread; the log has to be able to say "it wrote
+            // N bytes of MIDI" rather than leaving the question to a share-sheet subtitle.
+            EchoelCrashLog.breadcrumb(
+                "MIDI export: \(data.count) bytes, \(arrangedNotes.count) notes, \(bars) bars")
         } catch {
             EchoelCrashLog.breadcrumb("MIDI export failed: \(error.localizedDescription)")
         }
