@@ -112,9 +112,46 @@ final class TheBreathTermFadesInsteadOfSteppingTests: XCTestCase {
         }
     }
 
+    /// Largest single-frame move in a lane.
+    ///
+    /// ⚠️ WRITTEN AS A LOOP ON PURPOSE, AND THE REASON IS MEASURED (#563). The previous form was
+    /// one line — `(1..<values.count).map { abs(values[$0] - values[$0 - 1]) }.max() ?? 0` — and
+    /// it was **the single most expensive expression to type-check in this entire repository**:
+    /// 750–1778 ms against the compiler's 200 ms warning limit, present in EVERY blocking-gate
+    /// log sampled (16 runs, 2026-08-12/13), and 1.5–3× the next-worst site anywhere
+    /// (`MetalBioView.draw(in:)`, 500–1100 ms, which is an actual render entry point rather than
+    /// a three-line helper). Three unannotated generic hops in one expression — `Range<Int>`
+    /// mapped to `[Double]`, `abs` overload resolution, `Sequence.max()` against a literal
+    /// through `??` — is all it takes.
+    ///
+    /// ⭐ WHY THIS IS WORTH A SLICE AND NOT A SHRUG. It is compile-time only; nothing about the
+    /// shipped app is faster. What it costs is the BLOCKING GATE — and #287 is the precedent in
+    /// this repo: a closure inside a `\(...)` inside a multi-line literal cost more to
+    /// type-check than the assertion was worth and turned the gate RED. A warning that sits at
+    /// 7× the limit is that failure with the volume down; the compiler's budget is per
+    /// expression, so the margin is whatever the next edit to this line happens to add.
+    ///
+    /// Re-derive rather than trusting the numbers above — they are a sample, not a constant:
+    ///   grep -oE '[^ ]+\.swift:[0-9]+:[0-9]+: .* took [0-9]+ms to type-check' <job-log>
+    ///
+    /// ⚠️ NaN IS PROPAGATED DELIBERATELY, and this is the one behavioural difference from the
+    /// line it replaces. `Sequence.max()` compares with `<`, which is false in both directions
+    /// against NaN, so the old form's answer for a lane containing a non-number depended on
+    /// element ORDER — it could return NaN or silently return the largest finite step. A plain
+    /// `size > worst` loop would have turned that non-determinism into a reliable ZERO, which is
+    /// the flattering direction (#433): every assertion here reads a small `maxStep` as "the
+    /// lane held steady", so a NaN lane would have started passing as calm. Returning the NaN
+    /// makes the comparisons fail instead, which is what a broken lane deserves. For every
+    /// finite input — which is every input these tests construct — the two forms agree exactly.
     private func maxStep(_ values: [Double]) -> Double {
         guard values.count > 1 else { return 0 }
-        return (1..<values.count).map { abs(values[$0] - values[$0 - 1]) }.max() ?? 0
+        var worst = 0.0
+        for i in 1..<values.count {
+            let size = abs(values[i] - values[i - 1])
+            if size.isNaN { return size }
+            if size > worst { worst = size }
+        }
+        return worst
     }
 
     /// Frames at the shipped cadence. `nil` where `missing` says so.
