@@ -10024,3 +10024,57 @@ Commit `b72b098`. **Gates zu `2bbc9fd` (#562) beide grün:** `Xcode Compile Chec
   `CameraRPPGBioPublisher:726`, `CameraAnalyzer:564`, `FloatingVisualWindow:804`,
   `EchoelStudioView`s `variationRow`) sind in der Notiz benannt, aber in einer Test-Hygiene-Scheibe
   nicht angefasst.
+
+## 2026-08-13 — #564 · Der dunkelste Klang war ein Sentinel
+
+**Zyklus 7 des 24h-Mandats.** Gates auf `b72b098` (#563) geprüft: `Test build Succeeded` = 1,
+`TEST BUILD FAILED` = 0, null `error:`-Zeilen, 170 `passed` — der stehende #396, beide echten
+Gates grün.
+
+**Was gefunden wurde.** `EchoelDDSP.bioBaseBrightness` — der Patch-Anker, um den der Always-on-
+Bio-Pfad moduliert — benutzte `0` als „kein Patch gesetzt" und wurde hinter `> 0` gelesen.
+`SynthPatch.Bounds.brightness` ist aber `0...1`, und `apply(to:)` schreibt den Patch-Wert direkt
+in den Anker. **Wer das Brightness-Feld im `soundPanel` ganz nach unten zog, schrieb das
+Sentinel** — `applyBioReactive` las „kein Patch" und wechselte in den LEGACY-Zweig. Gemessen
+(Python-Transkription beider Bäume, 800 Aufrufe, ruhender Körper): **0,4300 statt 0,0500.** Der
+dunkelste Wert des Instruments klang mittelhell, **und zwar nur bei laufendem Biofeedback** —
+weshalb es sich anfühlt wie „der Patch ändert sich, wenn Bio an ist".
+
+**Warum es drei Scheiben überlebt hat.** #557 hat genau diese Vergleichszeile gefunden und den
+richtigen Schluss im falschen Rahmen gezogen: `ddsp.osc.brightness` blieb aus
+`automatableBases` draußen, damit keine Automations-Lane durch die Null läuft. Richtig und
+unzureichend — **die Gefahr gehörte nie der Automation.** Der Ausschluss hat die Automation vor
+einem Fehler geschützt, den das Instrument längst auslieferte. Ein Wächter, der auf ein
+Teilsystem begrenzt ist, sieht die Gefahr nur dort, wo er hingeschaut hat.
+
+**Was geändert wurde.** Sentinel → −1, Gate → `>= 0` (die Disziplin des Vibrato-Trios, #279/#558:
+0 darf nicht „ungesetzt" heißen, wenn 0 im Wertebereich liegt). `bioBaseFilterCutoff` behält
+seine 0 zu Recht — 0 Hz ist kein musikalischer Wert, der Bereich beginnt bei 20. Jeder
+ausgelieferte Patch ist byte-identisch (Werksboden 0,1). Und weil der #557-Wächter in seiner
+eigenen Fehlermeldung sagte „This failure is the GO-AHEAD, not a defect", ist die Bindung im
+selben Commit nachgezogen: **11 von 15 Registry-Parametern sind jetzt automatisierbar.**
+
+**Nebenbefund.** Die Notiz über `automatableBases` zitierte `TheAnchorSentinelsAreOutOfReachTests`
+als das, was Brightness draußen hält. **Diese Datei hat es nie gegeben** — der arbeitende Wächter
+war `TheAutomatableSetHasOneWriterTests` Claim 5. Ein Zitat auf einen nicht existierenden Wächter
+ist schlimmer als keines: es liest sich wie ein Sicherheitsnetz, also sucht der nächste Leser
+keins mehr.
+
+**Wächter.** `Tests/CISmoke/ABrightnessOfZeroIsAValueNotAModeTests` — fünf Ansprüche, alle
+END-TO-END auf öffentlichen Foundation-Typen. Transkribiert: **drei rote Behauptungen auf dem
+Elternbaum, EIN Befund** (#486). Claims 3–5 sind Gegengewichte auf beiden Bäumen grün (die
+patchlose Stimme muss den Legacy-Sweep behalten, ein normaler Patch unangetastet bleiben, das
+Vibrato-Sentinel bei −1). Claim 5 des älteren Wächters bewacht jetzt die Reparatur statt der
+Umgehung; die ganze Datei neu durchgefahren (38 Verdikte, 0 rot).
+
+**Ebenfalls gemessen und ohne Befund:** ein Durchlauf über ALLE 1 066 `.contains("…")`-Nadeln des
+blockierenden Bundles gegen den Baum — Suche nach der #497-Klasse (eine Behauptung, die dauerhaft
+rot ist, weil sie eine Zeichenkette nennt, die es nicht mehr gibt; Delta-Benotung ist dafür
+blind). **Null echte Treffer**, 31 Kandidaten, alle erklärbar (interpolierte Nadeln,
+whitespace-kollabierte Vergleiche, Nicht-Sources-Ziele, generierte Ausgaben). Kein Doctor-Abschnitt
+daraus gebaut: eine Prüfung, die 31 Fehlalarme druckt, ist genau der Mechanismus, der
+`continue-on-error` unsichtbar gemacht hat.
+
+**Offen und unverändert:** Scheibe 3 (EIN Schreiber) wartet auf die Founder-Entscheidung Route A
+(Körper schreibt) gegen Route B (Finger schreibt). Punkt 5 (B9 graue Visuals) wartet auf das
+Gerät. Punkte 3/4 der REIHENFOLGE haben kein Fundament mehr.
