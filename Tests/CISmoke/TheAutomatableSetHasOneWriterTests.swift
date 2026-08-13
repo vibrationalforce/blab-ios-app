@@ -47,17 +47,24 @@
 // sentinels are unreachable by arithmetic (cutoff starts at 20 Hz; the vibrato pair's sentinel is
 // −1). One rule, one exception, both executable.
 //
-// ⚠️ HONEST GRADING — transcribed in Python against the parent (`4d93c72`) and this tree, ALL FIVE
-// assertions driven on both:
-//   · TWO REGRESSIONS, and they are the point of the slice: claims 1 and 2 are red on the parent
-//     ONLY under the old hand-written mapping — under the source-derived mapping the parent is
-//     green too, because the parent binds no anchor. Reported as what they are: the rewrite
-//     REMOVED two false-positive verdicts rather than adding two findings. Booking them as
-//     regressions caught by this file would be the flattering direction (#433).
-//   · THREE COUNTERWEIGHTS green on both: claim 3 (the bio path still owns all six), claim 4 (the
-//     patch still writes the anchors off the render thread — the precedent an anchor setter
-//     follows) and claim 5 (brightness is out of the list on both trees).
-//   · STRIPPER: PROPHYLAKTISCH, 0 of 10 verdicts flip. The brace extraction and the setter-source
+// ⛔ AND THE EXCEPTION HAD A SECOND HALF THAT #557 MISSED — claim 6, added by #558. A safe
+// sentinel is not sufficient: `ddsp.filter.cutoff` was called "bindable on its own merits"
+// because the only hazard checked was the sentinel (unreachable, min 20 Hz). But
+// `AutomationTarget.filterCutoff` already resolves to `ddsp.filter.cutoffScale`, a ×-multiplier
+// with its own reset-to-neutral lifecycle — so the filter HAS an address, and binding the Hz
+// keyPath too would put one audible parameter behind two picker entries in different units, only
+// one of which is neutralised when automation is switched off (#416). The rule is now: an anchor
+// is bindable when its sentinel is out of range AND nothing else already addresses the parameter.
+//
+// ⚠️ HONEST GRADING — transcribed in Python against the parent (`15990f2`) and this tree, ALL SIX
+// assertions driven on both (§3: a slice that extends a guard drives the whole file, not the diff):
+//   · ZERO REGRESSIONS. Every assertion is green on both trees. #558 binds two anchors the rule
+//     already permits and adds one claim whose subject was already true — the filter has had
+//     exactly one address the whole time; nothing was checking it.
+//   · SIX COUNTERWEIGHTS. Claim 6 is the newest and the one worth naming: it is green today and
+//     goes red the moment someone binds the Hz keyPath "because the sentinel is safe", which is
+//     precisely the reasoning #557 wrote down and shipped.
+//   · STRIPPER: PROPHYLAKTISCH, 0 of 12 verdicts flip. The brace extraction and the setter-source
 //     read both run on stripped text, so a `bioBase*` mention inside a comment cannot be read as
 //     a write and a `case "…"` quoted in prose cannot be read as a binding.
 
@@ -69,6 +76,7 @@ final class TheAutomatableSetHasOneWriterTests: XCTestCase {
     private static let ddsp = "Sources/Echoelmusic/DSP/EchoelDDSP.swift"
     private static let voice = "Sources/Echoelmusic/Tools/PolySynthVoice.swift"
     private static let patch = "Sources/Echoelmusic/DSP/SynthPatch.swift"
+    private static let player = "Sources/Echoelmusic/Core/AutomationPlayer.swift"
 
     /// The six live parameters the always-on bio path recomputes each render block. Named here
     /// as the SUBJECT of claim 1 rather than as an allowlist: claim 3 re-derives the same set
@@ -173,6 +181,35 @@ final class TheAutomatableSetHasOneWriterTests: XCTestCase {
             switches `applyBioReactive` from its anchored branch to the legacy one for the rest \
             of the take — a mode change disguised as a parameter value, and the one failure in \
             this family that a listener would blame on the patch rather than the automation.
+            """)
+    }
+
+    // MARK: - claim 6 — one audible parameter, one automation address
+
+    /// #558. The second reason a safe anchor can still be unbindable, and the one #557 missed:
+    /// the filter already HAS an automation address. `AutomationTarget.filterCutoff` resolves to
+    /// `ddsp.filter.cutoffScale`, a ×-multiplier with its own reset-to-neutral lifecycle in
+    /// `AutomationPlayer.applyStep`. Binding the raw-Hz `ddsp.filter.cutoff` as well would put
+    /// one audible parameter behind two entries in the same picker — "Filter Cutoff" in Hz and
+    /// "Filter Cutoff" in ×, with nothing telling a player which one is the filter (#416).
+    ///
+    /// It does not forbid CHANGING which address wins (#364): retiring the scale lane and binding
+    /// the Hz keyPath is a legitimate design move. What it forbids is having both at once, and
+    /// the premise assertion says which one exists today.
+    func testTheFilterHasExactlyOneAutomationAddress() throws {
+        let player = try codeText(Self.player)
+        XCTAssertTrue(player.contains("\"ddsp.filter.cutoffScale\""), """
+            `AutomationTarget.filterCutoff` no longer resolves to `ddsp.filter.cutoffScale`. That \
+            alias IS the filter's automation address; if it moved, the exclusion of the raw-Hz \
+            keyPath below has lost its reason and this whole case needs re-deciding rather than \
+            re-anchoring.
+            """)
+        XCTAssertFalse(PolySynthVoice.automatableBases.contains("ddsp.filter.cutoff"), """
+            Both `ddsp.filter.cutoff` (Hz) and the enum's `ddsp.filter.cutoffScale` (×) are \
+            automation addresses for the filter. A picker built from the honest set would show \
+            "Filter Cutoff" twice in different units, and a take could carry two lanes fighting \
+            over one audible parameter — with only one of them (the scale) reset to neutral when \
+            automation is switched off. Retire one address before adding the other.
             """)
     }
 

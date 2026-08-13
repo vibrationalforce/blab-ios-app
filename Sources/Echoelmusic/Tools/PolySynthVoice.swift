@@ -627,9 +627,9 @@ public final class PolySynthVoice {
     /// lock-free). Ranges match `DDSPParameterCatalog`. Called once at app wiring
     /// time, exactly like the AUv3 host binds a loaded plugin's knobs.
     ///
-    /// DELIBERATELY EXCLUDED (bio-contested / unsafe — see scratchpads/PLAN_DAW_EPIC):
-    /// harmonicity · noiseLevel · reverbMix/decay · raw filter base · vibrato ·
-    /// brightness · raw amplitude — the bio loop overwrites them on every new bio frame
+    /// DELIBERATELY EXCLUDED **AS DIRECT WRITES** (bio-contested / unsafe — see
+    /// scratchpads/PLAN_DAW_EPIC): harmonicity · noiseLevel · reverbMix/decay · raw filter
+    /// base · vibrato · brightness · raw amplitude — the bio loop overwrites them on every new bio frame
     /// (~1 Hz today, at most the 10 Hz poll rate; it was written "~10 Hz" here and that is
     /// the poll, not the apply) or the write races a shared spectral table / is gated off.
     /// The rate is not what disqualifies them — the OVERWRITE is — so automating them needs a
@@ -638,6 +638,23 @@ public final class PolySynthVoice {
     /// `patchOutputLevel` (which the render reads and neither bio nor noteOn touch),
     /// NOT `amplitude`. Filter automation stays on the existing scale-based lane
     /// (`setCutoffScale`), so the raw Hz `ddsp.filter.cutoff` is not bound here.
+    ///
+    /// ⚠️ READ "AS DIRECT WRITES" LITERALLY — four names on that list are now bound, through
+    /// the very mechanism the paragraph prescribes. `harmonicity` and `noiseLevel` (#557) and
+    /// the `vibrato` pair (#558) are automatable via their `bioBase*` centre, which is
+    /// composition, not an overwrite. The list stayed as written because it is still exactly
+    /// right about the DIRECT write; #557 bound two of its names without qualifying it, and a
+    /// doc block that forbids on one line what the list below it does is the shape #425 names.
+    ///
+    /// ⛔ AND THE FILTER SENTENCE IS THE REASON `ddsp.filter.cutoff` IS STILL OUT — a reason
+    /// #557 missed. Its ⛔ note called that keyPath "bindable on its own merits" because the
+    /// only hazard it checked was the sentinel (unreachable, min 20 Hz). But this file already
+    /// said, fifteen lines up, that filter automation HAS an address: the enum target
+    /// `ddsp.filter.cutoffScale`, a ×-multiplier with its own reset-to-neutral lifecycle in
+    /// `AutomationPlayer.applyStep`. Binding the Hz keyPath too would put one audible parameter
+    /// behind two automation addresses in one picker — "Filter Cutoff" in Hz and "Filter Cutoff"
+    /// in ×, with no way for a player to tell which is the filter (#416). Correcting my own
+    /// claim rather than the older sentence, because the older sentence was right.
     /// The base engine keyPaths this voice can automate. SINGLE SOURCE OF TRUTH for
     /// both the global router binding (`bindAutomatable`) and the per-track dispatch
     /// (`applyAutomatable`). Bio-contested params are intentionally excluded — they need
@@ -681,16 +698,20 @@ public final class PolySynthVoice {
     ///     flip `applyBioReactive` out of its anchored branch into the legacy one, mid-take,
     ///     silently. NOT bound; `TheAnchorSentinelsAreOutOfReachTests` keeps it out until the
     ///     sentinel is gone or the range starts above zero.
-    ///   · `bioBaseFilterCutoff` is read behind `> 0` and `ddsp.filter.cutoff` starts at 20 Hz
-    ///     — the sentinel is unreachable, so this one is bindable on its own merits.
+    ///   · `bioBaseFilterCutoff` is read behind `> 0` and `ddsp.filter.cutoff` starts at 20 Hz,
+    ///     so the SENTINEL is unreachable — but the parameter stays out for a different reason
+    ///     this note originally missed: filter automation already has an address
+    ///     (`ddsp.filter.cutoffScale`). See the ⛔ correction above the list.
     ///   · `bioBaseVibratoDepth` / `bioBaseVibratoRate` are read behind `>= 0` with a −1
-    ///     sentinel, unreachable from a 0…1 / 0…12 range. Bindable.
+    ///     sentinel, unreachable from a 0…1 / 0…12 range, and neither has a competing
+    ///     address — **bound since #558.**
     /// Still excluded for their own reasons: the two reverb parameters (stage gated off, #546)
     /// and `ddsp.osc.frequency` (owned per note by the note engine).
     public nonisolated static let automatableBases: [String] = [
         "ddsp.warmth.drive", "ddsp.env.attack", "ddsp.env.decay",
         "ddsp.env.sustain", "ddsp.env.release", "ddsp.amp.level",
-        "ddsp.osc.harmonicity", "ddsp.osc.noiseLevel"
+        "ddsp.osc.harmonicity", "ddsp.osc.noiseLevel",
+        "ddsp.mod.vibratoDepth", "ddsp.mod.vibratoRate"
     ]
 
     /// The live setter for an automatable base keyPath, or nil if the base is not
@@ -720,6 +741,14 @@ public final class PolySynthVoice {
             self?.poly.forEachVoice { $0.bioBaseHarmonicity = v } }
         case "ddsp.osc.noiseLevel":  return { [weak self] v in
             self?.poly.forEachVoice { $0.bioBaseNoiseLevel = v } }
+        // The vibrato pair (#558), same anchor discipline. Their sentinel is −1 and the
+        // descriptor ranges start at 0, so automation can never write it — the anchored
+        // branch stays chosen for every value a lane can produce, and depth 0 means "no
+        // vibrato" rather than "fall back to the legacy curve".
+        case "ddsp.mod.vibratoDepth": return { [weak self] v in
+            self?.poly.forEachVoice { $0.bioBaseVibratoDepth = v } }
+        case "ddsp.mod.vibratoRate":  return { [weak self] v in
+            self?.poly.forEachVoice { $0.bioBaseVibratoRate = v } }
         default: return nil
         }
     }
