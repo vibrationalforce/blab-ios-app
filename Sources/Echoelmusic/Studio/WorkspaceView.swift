@@ -302,9 +302,24 @@ struct WorkspaceView: View {
             #if canImport(MetalKit) && canImport(UIKit)
             guard !didSeedInstrumentHome else { return }
             didSeedInstrumentHome = true
+            // ⭐ #580 — THE FRONT DOOR NAMES ITSELF IN THE LOG. This branch decided which
+            // app a user opens, and until now a pasted device log could not tell which side
+            // it took: the flag read false for three weeks (registered after the first view
+            // appeared — see `EchoelmusicApp.init()`), and NOTHING said so. The same lesson
+            // as #579 one layer up: a state that steers the whole session must be printable,
+            // or the next founder log answers a question nobody can ask.
+            //
+            // Cheap and safe: fires exactly once per launch behind `didSeedInstrumentHome`,
+            // reads only a flag and two `@AppStorage` values — no bio, no playhead, so the
+            // freeze rule is untouched (the comment above already says so for the seed).
             if FeatureFlags.instrumentHome {
                 floatingVisualVisible = true
                 floatingSizeRaw = FloatingVisualWindow.WindowSize.fullscreen.rawValue
+                EchoelCrashLog.breadcrumb("front door: instrument (fullscreen visual, chrome mounted beneath)")
+            } else {
+                EchoelCrashLog.breadcrumb(
+                    "front door: chrome first (instrumentHome OFF — an explicit dev override, "
+                    + "since its default registers in init())")
             }
             #endif
         }

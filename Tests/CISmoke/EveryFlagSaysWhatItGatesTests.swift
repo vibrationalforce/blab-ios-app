@@ -167,6 +167,16 @@ final class EveryFlagSaysWhatItGatesTests: XCTestCase {
     ///
     /// A fourth `register(defaults:)` silently makes a flag default-ON while every doc in the
     /// file still calls it off. That is the defect this slice corrected, re-committed.
+    ///
+    /// ⚠️ THIS SCAN IS PER LINE AND THEREFORE FORBIDS CORRECT SWIFT — say it here rather than
+    /// let the next session discover it as a red gate. It requires `register(defaults:` and
+    /// `Key.<flag>.rawValue` on the SAME line, so folding the three calls into one multi-line
+    /// dictionary literal empties `registered` and reds this assertion on a correct tree. #580
+    /// nearly shipped exactly that and caught it by grepping this directory first (§4). The
+    /// real repair, the day someone wants the tidier literal, is a brace-matched extraction of
+    /// the `register(defaults:` argument (#408) — not deleting the assertion, and not leaving
+    /// the source in a shape chosen only to please a scanner. Until then `EchoelmusicApp.init()`
+    /// carries the matching note so the constraint is visible from both ends.
     func testExactlyThreeFlagsAreRegisteredDefaultOn() throws {
         let app = SourceText.codeOnly(try rawText("\(Self.sourcesRoot)/EchoelmusicApp.swift"))
         let keys = try flagKeys()

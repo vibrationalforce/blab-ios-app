@@ -250,6 +250,48 @@ struct EchoelmusicApp: App {
             EchoelCrashLog.breadcrumb("LaunchGuard: SAFE MODE (prior launch did not confirm healthy)")
         }
         log.log(.info, category: .system, "APP INIT [start] — constructing engines (no audio I/O here)")
+        // ⭐ #580 — REGISTERED FLAG DEFAULTS MUST EXIST BEFORE ANY VIEW CAN READ THEM, AND
+        // UNTIL NOW THEY DID NOT. These three lived in the startup `.task` below. That is
+        // after the first view appears, and `register(defaults:)` writes a PROCESS-VOLATILE
+        // domain — never persisted, re-run every launch — so `FeatureFlags.isOn` (which is
+        // plain `defaults.bool(forKey:)`, false for an unregistered key) answered **false**
+        // to every read that happened first.
+        //
+        // ⛔ EXACTLY ONE READ HAPPENS FIRST, AND IT IS A FOUNDER DECISION: `WorkspaceView`'s
+        // `.onAppear` seed (`WorkspaceView.swift`) is the ONLY reader of `instrumentHome` in
+        // `Sources/`. So the 2026-07-22 vision Step 1 — *"app open → it lives"*, the app
+        // opening directly into the living instrument — has been dead since the day it was
+        // written, silently, on every build. Nothing ever set the flag false; it was simply
+        // never true yet at the moment it was asked.
+        //
+        // ⭐ THE COST WAS NOT ONLY THE FRONT DOOR. `InstrumentHintOverlay` — the app's only
+        // first-run teaching text, whose own doc calls it "the FIRST thing a new user reads"
+        // — is gated on `windowSize.isFullscreen`, and this seed is what makes the window
+        // fullscreen at launch. A new user has therefore never been taught the two core
+        // gestures unless they found fullscreen by hand. The founder's "Guide fehlt noch"
+        // was measuring something real.
+        //
+        // ⚠️ THE OTHER TWO MOVE FOR CONSISTENCY AND CHANGE NOTHING — measured, not assumed.
+        // Every production reader of `multiRoll` (`EchoelmusicApp` rack attach + bio feed)
+        // and of `voiceKindRouting` (`LaneVoiceRack`, reachable only through that attach)
+        // already sits AFTER the old registration point in the same task. Registering
+        // earlier can only make them true earlier than a read that does not exist. Leaving
+        // them behind would have been the worse choice: three lines with one law and two
+        // homes is how the next session learns the wrong rule.
+        //
+        // Registration, not `set` — an explicit dev override stays intact, and the
+        // documented one-line rollback `FeatureFlags.set(.instrumentHome, false)` still wins.
+        //
+        // ⚠️ THREE ONE-LINE CALLS, NOT ONE MULTI-LINE DICTIONARY, AND THAT IS LOAD-BEARING.
+        // `EveryFlagSaysWhatItGatesTests.testExactlyThreeFlagsAreRegisteredDefaultOn` scans
+        // PER LINE for `register(defaults:` and `Key.<flag>.rawValue` **on the same line**, so
+        // the tidier literal — which is perfectly correct Swift — would have made that guard
+        // red on a correct tree. Found by grepping `Tests/CISmoke` before committing, which
+        // is the step that exists precisely for this. Keep them one per line, or make the
+        // scan brace-aware first (#408); the note is repeated at the guard.
+        UserDefaults.standard.register(defaults: [FeatureFlags.Key.multiRoll.rawValue: true])
+        UserDefaults.standard.register(defaults: [FeatureFlags.Key.voiceKindRouting.rawValue: true])
+        UserDefaults.standard.register(defaults: [FeatureFlags.Key.instrumentHome.rawValue: true])
         // Stage breadcrumbs (device log 1783269182: the diag ended at "launch" with
         // NO crash-handler line — an uncatchable kill (watchdog/jetsam) somewhere in
         // this ~20-constructor chain. These pins name the dying constructor in the
@@ -550,31 +592,34 @@ struct EchoelmusicApp: App {
                 // source nodes to a running AVAudioEngine has crashed at launch
                 // (build 1363). Attach all voices first, then a single .start().
                 log.log(.info, category: .system, "STARTUP [1/4] Audio session + master graph...")
-                // Multi-Roll DEFAULT-ON (founder 2026-07-14: "das Spuren System … jede
-                // Spur ein Instrument"): register the flag's fallback as true so multiple
-                // MIDI lanes each play their own voice out of the box. Registering (not
-                // setting) leaves an explicit dev-OFF override intact and does not disturb
-                // the OFF-by-default contract of every OTHER feature flag. Must precede the
-                // first `FeatureFlags.multiRoll` read below (rack attach).
-                UserDefaults.standard.register(defaults: [FeatureFlags.Key.multiRoll.rawValue: true])
-                // S2-W2 kind routing DEFAULT-ON (founder verdict 2026-07-17: "Es
-                // funktioniert noch nichts … lockere zu dogmatische Grenzen"): a
-                // drums/sub-bass track now actually SOUNDS like its instrument. The
-                // old "OFF until device verify" gate was a deadlock — the founder
-                // cannot verify a path he has no way to switch on (same rationale
-                // that made multiRoll registration-ON). Risk
-                // activates only through the explicit act of assigning a drums/sub
-                // instrument to a track; `FeatureFlags.set(.voiceKindRouting, false)`
-                // stays the one-line rollback lever. NEVER delete the OFF branches.
-                UserDefaults.standard.register(defaults: [FeatureFlags.Key.voiceKindRouting.rawValue: true])
-                // Instrument-Home DEFAULT-ON (founder 2026-07-22 vision Step 1): the
-                // app opens directly into the living instrument (the existing
-                // FloatingVisualWindow fullscreen), the DAW chrome stays mounted
-                // beneath. Registration-ON for the SAME reason as multiRoll/
-                // voiceKindRouting — a default-OFF flag with no UI to flip it is an
-                // un-verifiable deadlock, and the founder must device-verify the new
-                // front door. `FeatureFlags.set(.instrumentHome, false)` restores the
-                // bit-identical chrome-first home (one-line rollback lever).
+                // ⛔ THE THREE `register(defaults:)` CALLS THAT STOOD HERE MOVED TO `init()`
+                // (#580). They ran AFTER the first view appeared, so the one flag whose
+                // reader is a view — `instrumentHome` — was always read as false and the
+                // founder's front door never opened. The full account is at the new site;
+                // this is a pointer, not a second copy (#416).
+                //
+                // ⭐ THE PER-FLAG FOUNDER RATIONALE STAYS HERE, because it is about WHY each
+                // default is ON, which is a different question from WHERE it is registered,
+                // and it is the more expensive half to lose:
+                //
+                // · **multiRoll** — founder 2026-07-14: *"das Spuren System … jede Spur ein
+                //   Instrument"*. Multiple MIDI lanes each play their own voice out of the
+                //   box. Registering (not setting) leaves an explicit dev-OFF override intact
+                //   and does not disturb the OFF-by-default contract of every OTHER flag.
+                // · **voiceKindRouting** — founder verdict 2026-07-17: *"Es funktioniert noch
+                //   nichts … lockere zu dogmatische Grenzen"*. A drums/sub-bass track
+                //   actually SOUNDS like its instrument. The old "OFF until device verify"
+                //   gate was a deadlock: the founder cannot verify a path he has no way to
+                //   switch on. Risk activates only through the explicit act of assigning a
+                //   drums/sub instrument to a track. NEVER delete the OFF branches.
+                // · **instrumentHome** — founder 2026-07-22 vision Step 1: the app opens
+                //   directly into the living instrument (the `FloatingVisualWindow`
+                //   fullscreen), the DAW chrome stays mounted beneath.
+                //
+                // Each keeps its one-line rollback lever: `FeatureFlags.set(<key>, false)`.
+                // ⚠️ And that deadlock argument is now proven twice over: a flag that is
+                // registered too LATE is the same deadlock as one that is never registered,
+                // and it is worse, because it reads as working.
                 UserDefaults.standard.register(defaults: [FeatureFlags.Key.instrumentHome.rawValue: true])
                 // Breadcrumbs at every STARTUP milestone: this is the most crash-prone
                 // window (the build-1363 hot-attach + audio-engine start). They land in
