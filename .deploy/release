@@ -1,4 +1,4 @@
-build: v10.79.387 — Der erste Start zeigt eine Tür. Und „Zu hell" sagt endlich, was zu tun ist.
+build: v10.79.388 — Zurück. Die Leiste ist wieder ganz, und der Körper darf den Bus wieder erreichen.
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,117 +6,87 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.386.
+  Der Vorgänger auf Deinem Gerät ist 10.79.387.
 
-  Seit 386 liegen sechs Scheiben, und **vier davon kannst Du sehen.** Eine fünfte ist
-  eine Reparatur an einer der vier, die ich VOR dem Hochladen gefunden habe — sie steht
-  unten, weil sie erklärt, was Du NICHT erleben wirst.
+  Dieser Build nimmt zwei Dinge zurück und fügt nichts hinzu.
 
-  ── 1. DER ERSTE START ZEIGT EINE TÜR STATT ACHT ──────────────────────────
+  ── 1. DIE CHIP-LEISTE IST WIEDER GANZ ────────────────────────────────────
 
-  Auf einem frischen Install trägt die Chip-Leiste in den ersten DREI Starts nur noch
-  „Sound". Transport, Tempo-Feld, Wellenform und die Aktions-Kacheln (Aufnahme,
-  Keep-last, MIDI, Speichern) bleiben unverändert an ihrem Platz — es verschwinden
-  **Einstellungs-Flächen, keine Fähigkeiten**. Nach dem dritten Start ist die App
-  Byte für Byte die von vorher; es gibt keinen „Onboarding beenden"-Knopf, hinter dem
-  man hängenbleiben könnte.
+  387 zeigte auf einem frischen Install in den ersten drei Starts nur „Sound". Dein Urteil
+  war eindeutig, und es ist umgesetzt: **alle acht Chips sind bei jedem Start wieder da.**
+  Der Zähler, die Reifelogik und ihr Wächter sind gelöscht — nicht abgeschaltet, gelöscht.
 
-  ⚠ **AUF DEINEM GERÄT WIRST DU DAS NICHT SEHEN — und das ist Absicht.** Der Zähler ist
-  neu, also steht er auf jedem Gerät, das die App schon hat, auf null. Ohne Gegenmaßnahme
-  hätte genau dieses Update **Dir** sieben Chips weggenommen, drei Starts lang. Das liest
-  sich nicht wie Onboarding, sondern wie ein kaputtes Update. Der Bau erkennt jetzt an
-  vorhandenen `studio.`-Einstellungen, dass hier schon gespielt wurde, und stuft den
-  Install als erfahren ein. **Wenn Du die neue Fläche trotzdem sehen willst: App löschen
-  und neu installieren.** Ohne das ist die Antwort auf „sieht ein Chip ruhig oder kaputt
-  aus?" nicht zu bekommen — und diese Frage ist der ganze Zweck der Scheibe.
+  Was ich daraus mitnehme und im Quelltext an der Stelle hinterlassen habe, an der der
+  Filter stand: an der Umsetzung war nichts falsch — sie war umkehrbar, lief von allein
+  aus, und bestehende Installs hätten nichts verloren. Das hat alles nichts genützt, weil
+  das Gemessene ein **erster Eindruck** war, und den kann genau eine Person messen.
+  **Falls eine ruhigere Anfangsfläche je wieder gewollt ist, ist der Hebel REIHENFOLGE
+  oder BETONUNG — nie Abwesenheit.**
 
-  ── 2. „ZU HELL" SAGT JETZT, WAS ZU TUN IST ───────────────────────────────
+  ── 2. DER KÖRPER DARF DEN BUS WIEDER ERREICHEN ───────────────────────────
 
-  Der Kamerapuls hatte acht Hinweise und einer davon war stumm: „Zu hell" ist eine reine
-  Diagnose, und die Abhilfe — **leichter drücken** — stand nur für VoiceOver und in einer
-  Ansicht ohne Tür. Ausgerechnet der eine Fall, dessen Reflex falsch ist: bei
-  verwaschenem Bild drückt man instinktiv FESTER.
+  Deine zwei Logs haben etwas gezeigt, was ich ohne sie nicht gefunden hätte — und es ist
+  **mein** Fehler aus 386:
 
-  Er blieb offen, weil der Wert pro Bild springt und ein umbrechender Satz die Zeile
-  darunter mit Kamerarate verschoben hätte. Jetzt hält ein Zeit-Riegel dagegen:
-  **4 Sekunden anhaltende Überbelichtung** lassen den Satz erscheinen, **3 Sekunden
-  sauber** nehmen ihn wieder weg. Die Zeile kann sich also höchstens alle ~3 s ändern,
-  und der Satz steht lange genug, um gelesen zu werden.
+  In beiden Sitzungen meldet **jede** `generate`-Zeile `body=0` und **jede** `visual`-Zeile
+  `bio=0`. Über zusammen ~11 Minuten hat der Körper die Musik **kein einziges Mal**
+  erreicht — während der Cue mehrfach „Locked" sagte und `conf` bis 0,98 ging.
 
-  ── 3. DIE TAKT-QUELLE STEHT IM PROTOKOLL ─────────────────────────────────
+  Ursache: ich hatte in 386 verlangt, dass die Vertrauenswürdigkeit **drei Sekunden am
+  Stück** hält, bevor ein Messwert auf den Bus darf. Die Regel dahinter ist
+  `(conf ≥ 0,6 UND acf ≥ 0,4) ODER acf ≥ 0,6`, und schon Deine 2-Sekunden-Stichproben
+  springen darüber hin und her — 0,73/0,44 wahr · 0,64/0,38 falsch · 0,62/0,53 wahr ·
+  0,71/0,33 falsch. Bei 10 Hz wird so ein Lauf praktisch nie voll. Ich wollte ein
+  0→1→0-Blinken entfernen und habe stattdessen **die 1 entfernt**.
 
-  Jede Transport-Zeile trägt jetzt `tempoSource=` — `user`, `flowServo`, `automation`,
-  `modulationRoute` oder `unspecified`. Damit ist zum ersten Mal nachlesbar, WER das
-  Tempo bewegt hat, statt es aus dem Verlauf zu erraten. Sichtbar in Diagnostics.
+  Die Hysterese ist raus. Ein vertrauenswürdiger Messwert reicht wieder.
 
-  Der Flow-Servo selbst ist damit ausdrücklich ratifiziert: die Uhr folgt dem Puls und
-  konvergiert von ihm WEG, je ruhiger der Körper wird. Rohe Herzfrequenz erreicht den
-  Takt nie direkt.
+  ⚠ **Was dieser Build damit BEANTWORTET, und was nicht.** Beide Logs stammen vom
+  GLEICHEN Build (2504), können also nicht zwischen „der Riegel war schuld" und „die
+  Ursache liegt davor" unterscheiden. **Das entscheidet erst Dein nächstes Log.** Wenn
+  `body=` weiterhin nie 1 wird, liegt es nicht am Riegel und die Rücknahme hat nichts
+  gekostet — dann ist die nächste Spur die Signalqualität selbst (siehe unten).
 
-  ── 4. DER PULS FLACKERT WENIGER, UND DER ATEM SAGT WARUM ─────────────────
+  ── WAS ICH IM LOG GESEHEN HABE, OHNE ES ANZUFASSEN ───────────────────────
 
-  Bisher genügte **ein** vertrauenswürdiger Messwert, um den Körper als „da" zu melden —
-  ein guter Abtastwert mitten in einer schlechten Strecke erzeugte also ein 0→1→0-Blinken.
-  Jetzt braucht das Einrasten anhaltende Evidenz.
+  · **`acf` klärt die 0,4 fast nie.** Über beide Sitzungen liegt die Autokorrelation
+    meistens bei 0,0–0,3, gelegentlich 0,4–0,5, praktisch nie ≥ 0,6 — während `conf`
+    regelmäßig 0,6–0,9 erreicht. Die Zwei-Belege-Regel verlangt aber genau diese zweite
+    Hälfte. Selbst ohne jeden Riegel wären Veröffentlichungen also **selten**, nicht
+    häufig. Das ist ein SIGNAL-Thema (Belichtung, Kontakt, Fingerdruck), keine
+    Gating-Frage — und es ist der nächste Punkt, sobald Dein Log den Riegel ausgeschlossen
+    oder bestätigt hat.
 
-  ⚠ Ehrlich zur Erwartung: die Frische-Grenze für einen Bio-Frame ist **6 Sekunden**, und
-  ein gehaltener Frame trägt seinen ORIGINAL-Zeitstempel. Länger als sechs Sekunden kann
-  keine Glättung eine Anzeige tragen. Wenn Du im Drei-Minuten-Log immer noch mehrere
-  Wechsel siehst, ist das ein SIGNAL-Problem (Belichtung, Bewegung) und kein Gating-Problem
-  — genau die Unterscheidung, die die nächste Scheibe braucht.
+  · **Die Kamera-Widerstandsfähigkeit arbeitet sauber.** Hintergrund-Unterbrechung erkannt
+    („waiting for the OS, not thrashing restarts"), danach „session recovered after stall
+    — re-locking exposure". Ebenso das Neu-Einstellen bei schwacher Periodizität auf
+    hellem Lock.
 
-  Dafür schreibt der Atem jetzt jede fünfte Sekunde und bei jedem Torwechsel eine Zeile:
-  `breath: rate=… amp=… envConf=… conf=… gate=open|closed`. `envConf` ist der
-  entscheidende neue Wert: **niedrig** heißt „gar kein Atemhub kam am Sensor an"
-  (Belichtung/Kontakt), **hoch bei niedrigem `conf`** heißt „der Hub ist da, es wurde nur
-  keine Periode gemessen" (dann ist die 0,4-Schwelle selbst dran). Ohne diese Zahl wäre
-  jede Korrektur an der Atem-Erkennung geraten.
+  · **`tempoSource=flowServo` steht in jeder Transport-Zeile.** Die Takt-Herkunft aus 387
+    ist am Gerät bestätigt.
 
-  ── WAS DU NICHT SEHEN WIRST ──────────────────────────────────────────────
+  · **Keine `breath:`-Zeile in beiden Logs** — erwartungsgemäß, denn sie sitzt hinter
+    genau dem Puls-Tor, das nie offen war. Nach dieser Rücknahme sollten die Zeilen
+    erscheinen.
 
-  · **Ein Genre heißt intern anders.** `esotericMeditation` → `stillMeditation`. Im Picker
-    stand und steht „Deep Ambient" — nutzer-sichtbar ändert sich **nichts**. Der
-    gespeicherte Token bleibt bewusst der alte, damit **niemand seine Genre-Wahl
-    verliert**: `@AppStorage` beantwortet einen unbekannten Token still mit dem Default,
-    und gespeicherte Projekte wären auf Dub Techno gefallen.
+  ── WAS ICH VON DIR BRAUCHE ───────────────────────────────────────────────
 
-  · **Der dunkelste Klang war ein Sentinel.** Ein Anker-Wert benutzte 0 als „nicht
-    gesetzt", während 0 gleichzeitig ein einstellbarer Helligkeitswert ist. Kein
-    ausgeliefertes Preset erreicht ihn (Werks-Untergrenze 0,1), der Bau ist für alle
-    Presets bit-gleich — aber die Falle ist weg.
+  1. **Ein Log wie die zwei letzten, mit Finger auf der Linse.** Die einzige Frage:
+     **wird `body=` jemals 1 und `bio=` jemals 1?** Das entscheidet, ob die Ursache der
+     Riegel war oder davor liegt — und damit, woran ich als nächstes arbeite.
 
-  · **Sechs neue Wächter im blockierenden Bündel.** Drei Entwurfsfehler in einer einzigen
-    Scheibe wurden dabei VOR dem Commit gefunden, weil die Prüfungen vorher gegen den
-    alten UND den neuen Stand nachgerechnet wurden — darunter eine Behauptung, die auf
-    korrektem Code rot gewesen wäre.
+  2. **Wenn ja: zwei Atem-Sitzungen** — eine bewusst langsam (~6/min), eine normal —,
+     dann Diagnostics öffnen und mir die `breath:`-Zeilen schicken. `envConf` niedrig
+     heißt Belichtung/Kontakt, `envConf` hoch bei niedrigem `conf` heißt, die Schwelle
+     selbst ist dran.
 
-  ── WAS ICH VON DIR BRAUCHE, in dieser Reihenfolge ────────────────────────
+  3. **„Zu hell" am Gerät** (aus 387, noch unbeantwortet): Finger absichtlich zu fest
+     auflegen. Kommt nach ~4 s der Satz „Press a little lighter", ist er verständlich,
+     und schiebt sein Erscheinen die Zeilen darunter?
 
-  1. **Der Atem — der Engpass, und die einzige Frage, die die nächste Scheibe entscheidet.**
-     Zwei Sitzungen mit Finger auf der Linse: eine bewusst langsam geatmet (~6/min), eine
-     normal. Danach Diagnostics öffnen und mir die `breath:`-Zeilen schicken. Ist `envConf`
-     niedrig oder hoch? Daran hängt, ob als nächstes die Belichtung, die Bewegungs-Abweisung
-     oder die Schwelle repariert wird. **Ohne diese Zeilen rate ich.**
+  4. **Die grauen Visuals** — seit 383 unbestätigt. Farb-/Sättigungskette entstapelt
+     (warm-mix 0,80 → 0,92, Farb-Gate 1,6 → 2,4). Bunt genug oder immer noch grau?
 
-  2. **„Zu hell" am Gerät.** Kamera an, Finger absichtlich zu fest auflegen. Kommt der
-     Satz nach ~4 s, ist er verständlich, und **schiebt** sein Erscheinen die Zeilen
-     darunter unangenehm?
-
-  3. **Die grauen Visuals — seit 383 auf Deinem Gerät, jetzt seit fünf Tagen unbestätigt.**
-     Farb-/Sättigungskette entstapelt (warm-mix 0,80 → 0,92, Farb-Gate 1,6 → 2,4). Bunt
-     genug oder immer noch grau? Ein Wort.
-
-  4. **Die Reihenfolge selbst — dritte Bitte, unverändert.** Von den fünf Punkten Deines
-     Verdikts von 10.79.183 zielen drei auf Flächen, die Du selbst zwischen dem 24. und
-     26. Juli entfernt hast (Timeline/Spur mit #121, AUv3-Target am 24. Juli). Seit dem
-     13.08. gibt es zusätzlich die Zyklus-Liste C1–C6 aus Deiner Übergabe, die etwas
-     anderes sagt — ich folge ihr, weil sie neuer ist und sich ausdrücklich als Ablösung
-     bezeichnet. **Ein Wort genügt: Übergabe-Liste weiter, oder zurück auf 5→1→2→3→4?**
-
-  5. **Der erste Start**, falls Du bereit bist, die App einmal zu löschen und neu zu
-     installieren: liest EIN Chip ruhig — oder kaputt?
-
-  6. Die drei Fragen aus 385/386, weiterhin ohne Antwort — je ein Wort:
-     · Darf Genre · Key · Scale · Tonsystem · A4 hinter den Tempo-Chip wandern?
-     · Soll ein fehlgeschlagenes Speichern auf den SCHIRM, oder reicht die Protokoll-Zeile?
-     · Live Colabo: sollen Mitspieler unterscheidbar werden? (braucht eine Apple-Berechtigung)
+  5. **Die Reihenfolge**, vierte Bitte: Deine Übergabe vom 13.08. (Zyklen C1–C6) und das
+     Verdikt von 10.79.183 (5→1→2→3→4) sagen Verschiedenes. Ich folge der Übergabe, weil
+     sie neuer ist. **Ein Wort genügt.**
