@@ -9723,3 +9723,37 @@ STALEN `claude/piano-roll-clip-view-wozlie-5kxnrl`).
 - **Geräteprobe, neu und als erste zu hören:** klingt eine automatisierte Harmonizitäts- oder
   Rausch-Lane STABIL oder kämpft sie mit dem Körper — jetzt, wo ein Parameter zugleich automatisiert
   und bio-moduliert sein kann.
+
+## 2026-08-13 (cron) — #558: das Vibrato-Paar bindet, und ein sicheres Sentinel ist nicht die ganze Prüfung
+
+- **Gates auf `15990f2` (#557) — beide grün.** Compile Check success · „Build for Testing" =
+  `Test build Succeeded` · Run Tests = #396, **null fehlgeschlagene Fälle**, **170 `passed` / 21
+  Suiten** (größere Teilmenge als sonst; nach #445 bleibt Abwesenheit trotzdem kein Beweis).
+- **#558 (`b2c947c`): `ddsp.mod.vibratoDepth` + `ddsp.mod.vibratoRate` gebunden**, über ihre
+  `bioBase*`-Anker. Sentinel −1, Bereiche ab 0 ⇒ unerreichbar; Tiefe 0 heißt „kein Vibrato", nicht
+  „zurück in den Legacy-Zweig". Menge 8 → 10, fünf Registry-keyPaths bleiben ungebunden, jeder mit
+  genanntem Grund.
+- ⛔ **EIN SICHERES SENTINEL IST NICHT DIE GANZE PRÜFUNG — Korrektur meiner eigenen Notiz von
+  gestern.** #557 nannte `ddsp.filter.cutoff` „bindbar aus eigenem Recht", weil die einzige
+  geprüfte Gefahr das Sentinel war. **Fünfzehn Zeilen weiter oben stand in derselben Datei**, dass
+  Filter-Automation längst eine ADRESSE hat: das Enum-Ziel `ddsp.filter.cutoffScale`, ein
+  ×-Multiplikator mit eigenem Reset-auf-neutral in `applyStep`. Den Hz-keyPath zusätzlich zu binden
+  hieße: **ein hörbarer Parameter, zwei Picker-Einträge in verschiedenen Einheiten**, von denen nur
+  einer neutralisiert wird, wenn Automation ausgeht. Die Regel ist jetzt ganz formuliert: **ein
+  Anker ist bindbar, wenn sein Sentinel außer Reichweite ist UND nichts anderes den Parameter
+  bereits adressiert.** Claim 6 macht die zweite Hälfte ausführbar — und wird rot auf genau der
+  Begründung, die #557 aufgeschrieben und ausgeliefert hat.
+- ⛔ **UND #557 HAT EINEN WIDERSPRUCH IN EINEM DOC-BLOCK HINTERLASSEN.** Die Liste „DELIBERATELY
+  EXCLUDED" nennt harmonicity, noiseLevel und vibrato — alle vier inzwischen gebunden. Die Liste ist
+  weiterhin exakt richtig, weil sie von DIREKTEN Writes handelt und die Anker-Bindung genau die
+  Komposition ist, die der nächste Satz vorschreibt. Aber ein Leser traf auf einen Absatz, der eine
+  Zeile über der Liste verbietet, was die Liste tut — die #425-Form. Repariert durch „as direct
+  writes" in der Überschrift plus Verweis auf die vier, **nicht** durch Löschen eines Satzes, der
+  nie falsch war.
+- Benotung: **NULL Regressionen, sechs Gegengewichte**, alle sechs auf BEIDEN Bäumen gefahren
+  (§3: eine Scheibe, die einen Wächter erweitert, fährt die ganze Datei, nicht den Diff). Der
+  Nachbar-Wächter #555 ebenfalls neu gefahren, weiter grün (fünf ungebundene keyPaths bleiben sein
+  Subjekt). `codeOnly` **PROPHYLAKTISCH, 0 von 12**.
+- **Geräteprobe, neu:** liest sich eine automatisierte Vibrato-Lane als ABSICHT oder als Wackeln des
+  Körpers — Vibrato ist der exponierteste der vier gebundenen Anker, weil ein Hörer die Rate direkt
+  hört.
