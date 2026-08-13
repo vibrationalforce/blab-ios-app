@@ -878,7 +878,12 @@ struct EchoelStudioView: View {
     @AppStorage(StudioDefaultKeys.visualMotion.key) private var visualMotion = StudioDefaultKeys.visualMotion.value    // animation speed (flash-clamped)
     @AppStorage(StudioDefaultKeys.visualSpread.key) private var visualSpread = StudioDefaultKeys.visualSpread.value
     /// VJ palette: hue rotation [0…1] (0 = physical tone colour) + saturation [0…2].
-    /// Default saturation 0.82 (professional, not neon); MUST match FloatingVisualWindow.
+    /// Default saturation lives in `StudioDefaultKeys.visualSaturation` (1.05 since #578 —
+    /// the founder asked for "Bunter"; the old 0.82 and its "professional, not neon"
+    /// reasoning are retracted at that declaration). ⚠️ The old wording here RESTATED the
+    /// number, which is #416: three surfaces already share the key, and a fourth spelling of
+    /// the value is how they drift. Ask the constant. "MUST match FloatingVisualWindow" is
+    /// satisfied by construction — both read the same `StudioDefault`.
     @AppStorage(StudioDefaultKeys.visualHue.key) private var visualHue = StudioDefaultKeys.visualHue.value
     @AppStorage(StudioDefaultKeys.visualSaturation.key) private var visualSaturation = StudioDefaultKeys.visualSaturation.value
     /// The floating visual window's show/hide state — SHARED with WorkspaceView's header

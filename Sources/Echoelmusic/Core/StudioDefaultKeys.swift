@@ -134,7 +134,26 @@ public enum StudioDefaultKeys {
     public static let visualMotion = StudioDefault(key: "visual.motion", value: 1.0)
     public static let visualSpread = StudioDefault(key: "visual.spread", value: 1.0)
     public static let visualHue = StudioDefault(key: "visual.hue", value: 0.0)
-    public static let visualSaturation = StudioDefault(key: "visual.saturation", value: 0.82)
+    /// ⭐ **THIS IS THE SATURATION THAT REACHES THE GPU — the `MetalBioView`/`BioUniforms`
+    /// struct defaults are NOT.** All three mounted surfaces (`EchoelStudioView`,
+    /// `FloatingVisualWindow`, `ExternalDisplayScene`) pass `saturation:` explicitly from
+    /// this `@AppStorage` value, so the struct default is overwritten at every call site and
+    /// is only a fallback for a caller that does not exist.
+    ///
+    /// ⛔ #578 CHANGED THE STRUCT DEFAULTS FIRST AND WOULD HAVE SHIPPED NOTHING. The founder
+    /// asked for *"Bunter"* (2026-08-13); the edit moved two `var saturation: Float = 0.82`
+    /// to 1.05, transcribed a guard over them, and only a wider `git grep` for the literal —
+    /// the §4 step that is supposed to come FIRST — found the fourth copy that actually
+    /// renders. A guard over the struct defaults alone would have been green while the
+    /// picture stayed exactly as grey as before: pinning a value the GPU never sees.
+    ///
+    /// ⚠️ AND EVEN HERE IT ONLY REACHES AN UNWRITTEN KEY. `@AppStorage` prefers a stored
+    /// value, so anyone who has ever dragged the Saturation field keeps what they dragged.
+    /// That is correct — a user's own setting outranks a default — but it means this change
+    /// is NOT a guarantee that the founder's next build looks different. Say so; do not
+    /// report it as "the grey is fixed". The shader-side warm-tint change in the same slice
+    /// is unconditional and does reach every install.
+    public static let visualSaturation = StudioDefault(key: "visual.saturation", value: 1.05)
     /// TRUE — the living visual greets a fresh install ("wow von Sekunde 1",
     /// WorkspaceView header monitor). The studio panel's old `false` copy made
     /// its toggle button lie until the key was first written.

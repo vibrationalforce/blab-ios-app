@@ -147,9 +147,13 @@ struct FloatingVisualWindow: View {
     // (@AppStorage), so each live tweak shows in this window immediately — Look/blend and
     // the six energy/palette params. Single source of truth; no drift between panel + window.
     // Defaults: a rich look (Aurora, index 5) out of the box — "interessanter" than flat
-    // Rings — and saturation 0.82 (professional, not neon; keeps the physical tone→colour
-    // readable). Kept IDENTICAL to EchoelStudioView's declarations so an absent key resolves
-    // to the same value in both views (no drift before the user touches a control).
+    // Rings. ⛔ This line also RESTATED "saturation 0.82 (professional, not neon)" and #578
+    // retracted both halves at the declaration (founder: "Bunter"). Restating a shared
+    // default's VALUE in prose is #416 — it was the fifth spelling of this one number, and
+    // the paragraph's own next sentence explains why that is self-defeating: the whole point
+    // of binding `StudioDefaultKeys` is that there is nothing left to keep in sync by hand.
+    // Kept IDENTICAL to EchoelStudioView's declarations so an absent key resolves to the
+    // same value in both views (no drift before the user touches a control).
     @AppStorage(StudioDefaultKeys.visualStyle.key) private var visualStyle = StudioDefaultKeys.visualStyle.value
     @AppStorage(StudioDefaultKeys.visualStyleB.key) private var visualStyleB = StudioDefaultKeys.visualStyleB.value
     @AppStorage(StudioDefaultKeys.visualBlend.key) private var visualBlend = StudioDefaultKeys.visualBlend.value

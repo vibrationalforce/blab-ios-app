@@ -47,10 +47,31 @@ private struct BioUniforms {
     /// (the science-first default); >0 rotates the palette for performance.
     var hueShift: Float = 0
     /// VJ saturation [0…2]. 1 = neutral (unchanged), 0 = greyscale, >1 = punchier.
-    /// DEFAULT 0.82 (not 1): full spectral saturation reads "neon rainbow / amateur"; a
-    /// gentle pull toward a graded palette looks professional while staying scientific
-    /// (the tone→light hue order is untouched). The VJ control can push it back to vivid.
-    var saturation: Float = 0.82
+    ///
+    /// ⭐ DEFAULT 1.05 SINCE #578 — FOUNDER, 2026-08-13, asked plainly for the opposite of
+    /// what this default was tuned for: *"je intensiver das Erlebnis desto besser. Bunter,
+    /// mehr Textur, Glitzer etc., Räumlichkeit."*
+    ///
+    /// ⛔ THE OLD DEFAULT WAS 0.82 AND ITS REASONING IS RETRACTED, not merely overridden. It
+    /// read: *"full spectral saturation reads 'neon rainbow / amateur'; a gentle pull toward a
+    /// graded palette looks professional."* That was a taste judgement I do not get to hold
+    /// against an explicit founder instruction — and it was ALSO arithmetically worse than it
+    /// looked, which is the part worth recording: it was the third of THREE stacked
+    /// desaturators. Net chroma was 0.92 (warm tint) × ~0.90 (warm lift) × 0.82 = **~0.68**,
+    /// and no single line said so. B9 already un-stacked one of the three (0.80 → 0.92) and
+    /// the field still read grey on device, because two were left.
+    ///
+    /// ⚠️ **THIS DEFAULT IS A FALLBACK, NOT THE ONE THAT RENDERS.** Every mounted surface
+    /// passes `saturation:` explicitly from `@AppStorage(StudioDefaultKeys.visualSaturation)`,
+    /// so this literal is overwritten at every call site and is reachable only by a caller
+    /// that omits the argument — which today does not exist. It is kept equal to the shared
+    /// default so the two can never disagree, and #578 moved it only for that reason: moving
+    /// it ALONE (which is what this slice tried first) changes nothing a user can see.
+    ///
+    /// The value is a JUDGEMENT and stays free to retune — its guard pins relations and a
+    /// floor, never 1.05 (#364). It lands on a two-decimal step so the user control can
+    /// return to it exactly.
+    var saturation: Float = 1.05
     /// ACCUMULATED pulse phase (turns). The ring animation reads this, NOT
     /// `time × pulseHz`: with the old form, any change in the HR-derived frequency
     /// multiplied the (large, ever-growing) time → the whole pattern snapped by many
@@ -328,10 +349,15 @@ struct MetalBioView: UIViewRepresentable {
     var motion: Float = 1.0
     var spread: Float = 1.0
     /// VJ palette controls (see BioUniforms). hueShift 0 keeps the physical hue order;
-    /// saturation defaults to a graded 0.82 (see BioUniforms) so the palette reads
-    /// professional, not neon — pushable back to vivid by the VJ control.
+    /// saturation defaults to 1.05 (see BioUniforms for the retraction of the old 0.82 and
+    /// the three-stacked-desaturator arithmetic behind it) — dialable either way by the VJ
+    /// control. ⚠️ THIS IS THE SECOND OF TWO FALLBACK DEFAULTS and they must move together;
+    /// a mismatch would make the look depend on which path constructed the uniforms. Neither
+    /// is what renders: every mounted surface passes `saturation:` from
+    /// `StudioDefaultKeys.visualSaturation`, and THAT is the number to change to change the
+    /// picture (the mistake #578 made first, recorded at that declaration).
     var hueShift: Float = 0
-    var saturation: Float = 0.82
+    var saturation: Float = 1.05
     /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (see `BioUniforms.style`).
     var style: Int = 0
     /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism.
@@ -1732,9 +1758,18 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // B9 un-stack: this block was a SECOND desaturator (0.80) stacked on top of
             // the user `saturation` grade (0.82) → net ~0.66 chroma = the "grau". Raise
             // to 0.92 so it mainly warm-TINTS (via the +0.10 lift below), leaving the
-            // user Saturation as the single intentional grade. Still graded, not neon.
-            col = mix(float3(l) * warm, col, 0.92);         // warm TINT (was .80 — stop double-desat, B9)
-            col = mix(col, warm, 0.10);                     // slight overall warm lift
+            // user Saturation as the single intentional grade. ⛔ B9's closing words were
+            // "Still graded, not neon" and #578 retracts the GRADE half: the user default is
+            // 1.05, a lift, so this block is no longer grading anything down. The "not neon"
+            // half stands and is carried by the warm POINT, not by any of these strengths.
+            // #578: B9 un-stacked the FIRST of three desaturators and the field still read
+            // grey, because two remained. 0.92 → 0.97 and the warm lift 0.10 → 0.05 remove
+            // most of what was left; with the user grade at 1.05 the net chroma goes
+            // ~0.68 → ~0.97. The warm POINT is untouched — the founder asked for more colour,
+            // not for cold colour, and the "warm daylight, not neon" hue character is what
+            // the tint direction carries, not its strength.
+            col = mix(float3(l) * warm, col, 0.97);         // warm TINT (0.80 → .92 B9 → .97 #578)
+            col = mix(col, warm, 0.05);                     // slight overall warm lift
         }
         col = mix(col, col * 1.15 + 0.05, coh);
         // Never near-black: deep-red/violet tones are dim via the CMF (eye sensitivity).
@@ -1757,6 +1792,47 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Premium finish: a gentle filmic S-contrast so the frame reads rich/graded, not flat
         // (deepens shadows, lifts highlights a touch). Cheap, no new uniforms; degrade-safe.
         outCol = clamp((outCol - 0.5) * 1.06 + 0.5, 0.0, 1.0);
+        // ── GLITTER + TEXTURE (#578, founder "Bunter, mehr Textur, Glitzer etc.") ────────
+        //
+        // ⚠️ FLASH-SAFE BY CONSTRUCTION, and the construction IS the safety argument — not a
+        // rate clamp bolted on afterwards. Every speck carries its OWN phase and its OWN
+        // frequency, both drawn from its own position hash, so the specks are mutually
+        // uncorrelated and the FRAME's mean luminance does not modulate at all. WCAG's 3 Hz
+        // limit is about coherent area flashing; uncorrelated point twinkle at ~0.5–0.9 Hz
+        // per speck has no frame-level frequency to measure. A single global on/off — the
+        // obvious way to write this — would be the unsafe design at ANY rate, and is exactly
+        // what the per-speck phase avoids.
+        //
+        // ⚠️ AND IT DEGRADES CORRECTLY FOR FREE: `uniforms.time` is set to 0 under reduce
+        // motion (see the draw loop), so `tw` collapses to each speck's static phase and the
+        // glitter becomes a still, sparse specular field. Nothing extra to remember.
+        //
+        // Gated on `energy`: glitter sits ON the light, never on the dark. Sparkle on black
+        // is dirt on the lens; sparkle on a lit field is water and mineral.
+        float2 gcell = floor(in.uv * 420.0);
+        float gAlive = step(0.985, echoelHash(gcell));          // ~1.5 % of cells ever spark
+        float gSeed  = echoelHash(gcell + 17.0);
+        float tw = 0.5 + 0.5 * sin(u.time * (3.4 + gSeed * 2.2) + gSeed * 6.2831853);
+        float spark = gAlive * pow(tw, 6.0) * energy;           // pow → a sharp twinkle
+        outCol += spark * mix(float3(1.0), col + 0.30, 0.6) * 0.55;
+        // TEXTURE: two octaves of STATIC grain, modulated by the moving `energy`. Static on
+        // purpose — a hash re-seeded by time is full-frame noise resampled every frame, and
+        // while zero-mean noise is not a "flash", the honest version of the argument above is
+        // easier to keep true if nothing here has temporal content at all. The texture reads
+        // as alive anyway, because what modulates it is the field.
+        float grain = (echoelHash(in.uv * 900.0) - 0.5) * 0.7
+                    + (echoelHash(in.uv * 233.0) - 0.5) * 0.3;
+        outCol += grain * 0.045 * energy;
+        // ⛔ THIS CLAMP IS NOT TIDINESS — WITHOUT IT #578 WOULD HAVE REVIVED THE 2026-07-09
+        // ARTIFACT the comment four lines below records. The ripple is a SCREEN blend,
+        // `outCol += ripple * (1 - outCol)`, and that identity only holds while `outCol ≤ 1`.
+        // Above 1 the factor goes NEGATIVE and the ripple starts SUBTRACTING — a touch would
+        // punch dark holes in exactly the brightest, most glittered places. The filmic
+        // S-curve above used to leave `outCol` clamped, so the screen blend inherited the
+        // guarantee for free; the two additive lines this slice inserted between them broke
+        // it silently. An additive term inserted before a screen blend must restore the
+        // bound it consumed.
+        outCol = clamp(outCol, 0.0, 1.0);
         // Touch-ripple light over the graded field (played water = light ON the
         // water, frame-locked to it — no second compositor). SCREEN blend, not raw
         // add: over an already-bright field a raw add clipped to pure white patches
