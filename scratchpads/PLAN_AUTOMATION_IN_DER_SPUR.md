@@ -163,6 +163,14 @@ fehlendes `case` zu einem stillen Nicht-Binden) · `ddsp.fx.reverbMix` bleibt UN
 `EchoelDDSP.useConvolutionReverb` `false` ohne Schreiber ist (#546) — sonst wäre der erste neue
 Automations-Regler ein Placebo.
 *Danach, als eigene Scheibe:* die neun einzeln prüfen und binden, was wirklich Audio bewegt.
+**#556 hat sie klassifiziert und die Regel ausführbar gemacht** — und dabei gezeigt, dass die
+Regel schon ÜBER der Liste stand, nur zwei von sechs Namen nannte: `applyBioReactive` rechnet
+`brightness` · `filterCutoff` · `harmonicity` · `noiseLevel` · `vibratoDepth` · `vibratoRate` auf
+dem RENDER-Thread aus ihrem `bioBase*`-Anker neu. **Automation darf einen Parameter nur besitzen,
+wo sie der EINZIGE Schreiber ist; sonst besitzt sie den ANKER.** Direkt gebunden wäre der Regler
+für ein paar Millisekunden wirksam und danach vom Körper überschrieben — schlimmer als das
+tote-Stufe-Placebo, weil er im Debugger funktioniert. Bleibt danach ungebunden: die zwei
+Reverb-Parameter (Stufe aus, #546) und `osc.frequency` (gehört der Noten-Engine pro Note).
 
 **Scheibe 2 — Sichtbarkeit vor Editierbarkeit (route-neutral).**
 Ein Leaf-`View`, das ZEIGT, welche Parameter gerade automatisiert sind und mit welchem Wert —

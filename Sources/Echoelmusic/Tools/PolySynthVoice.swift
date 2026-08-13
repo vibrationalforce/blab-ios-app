@@ -640,9 +640,32 @@ public final class PolySynthVoice {
     /// (`setCutoffScale`), so the raw Hz `ddsp.filter.cutoff` is not bound here.
     /// The base engine keyPaths this voice can automate. SINGLE SOURCE OF TRUTH for
     /// both the global router binding (`bindAutomatable`) and the per-track dispatch
-    /// (`applyAutomatable`). Bio-contested params (filter/brightness) are intentionally
-    /// excluded — they need automation×bio composition, handled elsewhere.
+    /// (`applyAutomatable`). Bio-contested params are intentionally excluded — they need
+    /// automation×bio composition (write the `bioBase*` centre), not a direct write.
     /// `nonisolated` so a picker / contract test may read it off the main actor.
+    ///
+    /// ⛔ THE EXCLUSION SAID "(filter/brightness)" AND THE CONTESTED SET IS SIX (#556).
+    /// Measured by brace-extracting `EchoelDDSP.applyBioReactive` and looking for
+    /// assignments: `brightness` · `filterCutoff` · `harmonicity` · `noiseLevel` ·
+    /// `vibratoDepth` · `vibratoRate` are all recomputed from their `bioBase*` anchor on
+    /// the RENDER thread. Naming two of six is the shape this repo keeps paying for —
+    /// a parenthetical reads as the full list, so the next session adds
+    /// `ddsp.osc.harmonicity`, sees the value move in the debugger, and ships a control
+    /// the body overwrites within one render block. Worse than the dead-stage placebo
+    /// (#546), because it works for a few milliseconds.
+    ///
+    /// ⭐ AND THE POSITIVE HALF WAS NEVER WRITTEN DOWN, which is why the list reads
+    /// arbitrary: the six entries below are EXACTLY the parameters `applyBioReactive`
+    /// does not assign — zero hits each. The rule is not "these six felt safe", it is
+    /// **automation may own a parameter only where it is the ONLY writer; everywhere else
+    /// it owns the ANCHOR.** `TheAutomatableSetHasOneWriterTests` makes that executable,
+    /// so adding a contested base goes red with the anchor named instead of shipping.
+    ///
+    /// ⚠️ FOR WHOEVER BINDS THE ANCHORS LATER: `applyBioReactive` runs on the audio RENDER
+    /// thread and READS them, so an anchor setter is a cross-thread write. It is the same
+    /// write `SynthPatch.apply(to:)` already performs off the render thread (`Float`,
+    /// atomic width) — follow that precedent, do not invent a second mechanism, and do not
+    /// take a lock.
     public nonisolated static let automatableBases: [String] = [
         "ddsp.warmth.drive", "ddsp.env.attack", "ddsp.env.decay",
         "ddsp.env.sustain", "ddsp.env.release", "ddsp.amp.level"
