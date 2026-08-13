@@ -281,21 +281,6 @@ public final class CameraRPPGBioPublisher {
     private var lastGoodBioFrame: BioSampleFrame?
     private var lastGoodPublishTick = Int.min
 
-    /// ENGAGE-side hysteresis on the bus-publish decision (#566, C2). Stepped once per publish
-    /// tick — i.e. at 1 Hz, since the publish block sits behind `tick % 10 == 0` — with the
-    /// instantaneous `shouldPublish` verdict. The latch is TIME-based, not tick-based, so the
-    /// rate it is stepped at does not change the seconds it waits.
-    ///
-    /// ⚠️ ENGAGE ONLY, DELIBERATELY. The release side stays with `bioHoldTicks` (4 s), and the
-    /// reason is a measurement rather than caution: `usableBio()` expires a camera frame at
-    /// `freshnessWindow` = 6 s against the frame's OWN timestamp, and the hold below re-emits
-    /// the last good frame WITHOUT re-stamping it (the law written at that call site). So the
-    /// longest a body reading can survive a dropout is six seconds no matter what any latch
-    /// decides, and moving the hold from 4 s to 5 s would buy one second of an already-bounded
-    /// window while changing the visual's bio↔idle behaviour, which no test here can verify.
-    /// The engage side is the half that is missing outright: without it a SINGLE trustworthy
-    /// tick inside a bad stretch opens the bus and produces a 0→1→0 blip.
-    private var bioTrust = BioTrustLatch()
 
     /// #567 (C3) breadcrumb bookkeeping — diagnostics only, nothing reads them to decide.
     /// `lastBreathGateOpen` starts `false` so the FIRST time the gate opens is a transition and
@@ -1229,18 +1214,26 @@ public final class CameraRPPGBioPublisher {
                 // conjunct short-circuits — a stale `acf >= strongAutoFloor` satisfies
                 // `pulseTrustworthy` on its own, so anyone who later relaxes `bpm > 0` or
                 // makes the flush preserve the last estimate would silently reopen it.
-                // #566 (C2): the instantaneous verdict, then the ENGAGE-side latch. Both must
-                // hold to publish a LIVE frame — `trustNow` because a dip must still fall
-                // through to the hold branch, and `trusted` because a single good tick inside
-                // a bad stretch is exactly the 0→1→0 blip this cycle removes. The latch can
-                // only ever make this gate MORE conservative: it never publishes something
-                // `shouldPublish` rejected.
+                // ⛔ THE #566 ENGAGE LATCH IS REMOVED (#572), on device evidence rather than
+                // taste. It required three SUSTAINED seconds of `shouldPublish` — thirty
+                // consecutive ticks at 10 Hz — before a live frame reached the bus. Device log
+                // v10.79.387/2504 shows what that costs: `conf` reaches 0.98 and the cue reads
+                // "Locked", while EVERY `generate[...]` line in the same session reports
+                // `body=0` and every `visual:` line `bio=0`. Real rPPG trust flickers
+                // sub-second around the threshold, so a run-based three-second window is
+                // essentially never satisfied — and the price of the flap the latch was meant
+                // to remove is that the body never reaches the music at all. A blip is worse
+                // than nothing only if there is a something; here the latch turned an
+                // occasionally-wrong reading into a permanently absent one.
+                //
+                // ⚠️ `BioTrustLatch` itself is NOT deleted: it is correct, tested, and #569
+                // uses it for the washout hint, where the input is a slow layout state rather
+                // than a threshold-straddling confidence. The lesson is about WHERE hysteresis
+                // belongs, not about hysteresis.
                 let trustNow = Self.shouldPublish(bpm: bpm,
                                                   confidence: self.analyzer.bpmConfidence,
                                                   autoStrength: self.analyzer.lastAutoStrength)
-                let trusted = self.bioTrust.step(trustworthy: trustNow,
-                                                 now: CFAbsoluteTimeGetCurrent())
-                guard trustNow, trusted else {
+                guard trustNow else {
                     // Brief dropout: keep the visual + pulse warm by re-emitting the
                     // last good frame (coherence gently decaying — never a snap to 0)
                     // until the grace window expires, so a marginal signal can't
@@ -1765,12 +1758,6 @@ public final class CameraRPPGBioPublisher {
         // Restoring exactly that pair is why this is two lines and not one.
         lastGoodBioFrame = nil
         lastGoodPublishTick = Int.min
-        // #566: the trust latch is a per-take anchor too, and carrying it across a session
-        // boundary is the same defect as carrying the held frame — an engaged latch would
-        // assert trust in a body the instrument has stopped looking at, and the next take's
-        // first trustworthy tick would publish immediately instead of earning its three
-        // seconds. Cleared with its two neighbours, for their reason.
-        bioTrust.reset()
         lastValidCoherence = 0
         // #454's law, applied to the field #484 adds: a per-take anchor that stop() forgets
         // is a previous take's number read as this one's. Zero — not "now" — because zero is

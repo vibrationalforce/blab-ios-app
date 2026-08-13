@@ -114,16 +114,13 @@ final class SaveDoorNamingTests: XCTestCase {
     /// "•••" entry went away — `visibleChips` appends `displayedMenu` only once something has
     /// already selected it.
     ///
-    /// ⚠️ ONE PREMISE OF THIS TEST NARROWED WITH #568 (C4), and it is written here rather than
-    /// left to be re-derived: "the standing strip" is now the strip AT MATURITY. Below
-    /// `SessionMaturity.simplifiedBelow` appearances `maturityChips` filters `.export` out, so
-    /// on a fresh install this panel has no chip for the first runs. The assertion below is
-    /// unchanged and still correct — it scans the `studioChips` ARRAY, which #568 deliberately
-    /// does not touch — but it no longer proves the door is on screen for every user. What
-    /// keeps that acceptable is that Record, keep-last, MIDI export and Save are tiles in
-    /// `quickActionRow`, outside the plate at every maturity (`TheFirstRunsShowOneDoorTests`
-    /// pins exactly that). Withheld for the first runs are the panel's SETTINGS — loop length,
-    /// the place toggle, Reset sound, Diagnostics — not the ability to save a take.
+    /// ⭐ THE PREMISE NARROWED WITH #568 AND IS WHOLE AGAIN SINCE #572. For one build a
+    /// maturity filter hid every chip but Sound on the first three launches, so "the standing
+    /// strip" meant "the strip at maturity". The founder rejected that on device — *"Du hast
+    /// mega viel gelöscht"* — and the filter is gone, so this assertion once again proves the
+    /// door is on screen for every user on every launch. The episode is worth the four lines:
+    /// a guard whose premise quietly narrows is the failure mode §4 names, and this one
+    /// narrowed and widened again inside two days.
     func testTheSaveExportChipIsInTheStandingStrip() throws {
         let lines = try codeLines(Self.studio)
         guard let strip = lines.first(where: { $0.contains(".sound, .effects") }) else {

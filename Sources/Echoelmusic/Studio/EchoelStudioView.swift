@@ -743,41 +743,7 @@ struct EchoelStudioView: View {
     /// Low-frequency @State (user taps only), so the root body never churns.
     @State private var activeMenu: StudioMenu?
 
-    /// How many launches have reached this instrument (#568, C4). Persisted, so the reduced
-    /// first-run surface survives a relaunch and expires on its own after
-    /// `SessionMaturity.simplifiedBelow` appearances — there is no "finish onboarding" button to
-    /// get stuck behind.
-    ///
-    /// ⚠️ WRITTEN HERE, READ NOWHERE (#571). What the strip renders from is `launchMaturity`
-    /// below, which is frozen for the process. Reading the live counter would make the eight
-    /// chips POP into place mid-launch on the run that crosses the threshold, because the
-    /// increment happens in `onAppear` — after the first body evaluation.
-    @AppStorage(SessionMaturity.defaultsKey) private var studioAppearances = 0
 
-    /// This install's maturity AS OF THIS LAUNCH — resolved once per process, before anything
-    /// renders, and never moved afterwards.
-    ///
-    /// ⭐ THE SEED IS THE POINT (#571). `UserDefaults.integer(forKey:)` answers 0 both for a
-    /// fresh install and for one that predates the counter, and #568 shipped reading it that
-    /// way: the update would have taken seven chips away from every EXISTING user for three
-    /// launches, which reads as a broken update rather than as onboarding.
-    /// `SessionMaturity.seed` distinguishes them from `object(forKey:)` being nil plus evidence
-    /// of earlier use.
-    ///
-    /// `static let`, so the `UserDefaults` sweep runs ONCE per process rather than on every
-    /// re-initialisation of this `struct` — a `@State` default expression is evaluated every
-    /// time the view value is rebuilt, and `dictionaryRepresentation()` is not free.
-    private static let launchMaturity: Int = {
-        let defaults = UserDefaults.standard
-        let stored = defaults.object(forKey: SessionMaturity.defaultsKey) as? Int
-        let prior = defaults.dictionaryRepresentation().keys
-            .contains { $0.hasPrefix(SessionMaturity.priorStatePrefix) }
-        return SessionMaturity.seed(stored: stored, hasPriorState: prior)
-    }()
-
-    /// Guards the counter against a second `onAppear` in one process (a re-inserted root view
-    /// would otherwise age the install by two). `@State`, so it is per-process by construction.
-    @State private var appearanceCounted = false
 
     /// The menu-bar entries. Each case reuses an EXISTING panel builder as its
     /// dropdown content — no new surfaces, the card pile just moved into menus.
@@ -1261,17 +1227,6 @@ struct EchoelStudioView: View {
             // is written down where it lives (`SynthPatch.launchTouchPatch`).
             if !touchPatchID.isEmpty { syncTouchSound() }
             logLaunchMusicalIdentity()
-            // LAST, and after the identity line on purpose: this is the only statement in the
-            // closure that WRITES a persisted counter, and putting it at the end means every
-            // launch that crashes during startup restore is not counted as an appearance —
-            // the same asymmetry `LaunchGuard.armForRiskyStartup` exists for. A crashed launch
-            // taught the user nothing, so it must not age the install.
-            if !appearanceCounted {
-                appearanceCounted = true
-                // Counted FROM the frozen launch value, not from the live property: the two are
-                // equal here, and writing it this way says which one is authoritative.
-                studioAppearances = SessionMaturity.next(after: Self.launchMaturity)
-            }
         }
         .onChange(of: scenePhase) { old, phase in
             if phase == .active { handlePendingIntent(); updateKeepAwake() }
@@ -2469,29 +2424,23 @@ struct EchoelStudioView: View {
     /// scrim; a lying control now that the strip is permanent. Appended rather than always
     /// present, so the strip stays short.
     private var visibleChips: [StudioMenu] {
-        let base = maturityChips
-        return base.contains(displayedMenu) ? base : base + [displayedMenu]
+        Self.studioChips.contains(displayedMenu)
+            ? Self.studioChips
+            : Self.studioChips + [displayedMenu]
     }
 
-    /// The standing strip AFTER the first-run policy (#568, C4). At maturity this is exactly
-    /// `studioChips`; below `SessionMaturity.simplifiedBelow` appearances it is the Sound chip
-    /// alone, so a brand-new install shows one panel instead of eight.
-    ///
-    /// ⚠️ THE APPEND IN `visibleChips` OPERATES ON THIS, NOT ON `studioChips` — that ordering is
-    /// the whole reason the two are separate members. A chrome door (the pulse pill → `.bio`,
-    /// the header clips tile → `.video`) still selects a menu the strip does not carry, and
-    /// during the first runs it selects one the strip carries *even less*. Appending to the
-    /// unfiltered array would have put eight chips back on screen the moment the pulse pill was
-    /// tapped, i.e. undone the policy through the one door most likely to be pressed first.
-    ///
-    /// FREEZE LAW: `launchMaturity` is a `static let` resolved once per process, before the
-    /// first body evaluation. It is not merely low-frequency — it is CONSTANT for the run, so it
-    /// cannot churn while a `.menu` Picker is open and cannot pop the strip mid-launch.
-    private var maturityChips: [StudioMenu] {
-        let all = Self.studioChips.map { $0.rawValue }
-        let keep = SessionMaturity(appearances: Self.launchMaturity).visibleChipIDs(from: all)
-        return Self.studioChips.filter { keep.contains($0.rawValue) }
-    }
+    // ⛔ A FIRST-RUN FILTER STOOD HERE FOR ONE BUILD AND THE FOUNDER REJECTED IT ON DEVICE
+    // (#568/#571 in, #572 out). It showed the Sound chip alone for the first three launches —
+    // the 2026-08-13 handover's C4, built as specified. On a fresh install of v10.79.387 the
+    // founder's verdict was one line: *"Du hast mega viel gelöscht. Geh lieber nochmal
+    // zurück."* Seven missing chips do not read as a calm beginning; they read as an app that
+    // lost its features. Nothing about the implementation was wrong — it was reversible,
+    // guarded, and it expired by itself — and none of that mattered, because the thing being
+    // measured was a first impression and only one person can measure it.
+    //
+    // Do NOT re-introduce a maturity-gated strip without a founder ask. If a calmer first run
+    // is wanted again, the lever to try first is ORDER or EMPHASIS, not absence.
+
 
     /// ⭐ WHY THIS SCROLLS ITSELF (#291). #290 took the strip from five chips to nine, and
     /// `visibleChips` can append one more. #359 step 3 then dissolved "Place" into
