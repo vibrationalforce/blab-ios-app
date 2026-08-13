@@ -9639,3 +9639,46 @@ STALEN `claude/piano-roll-clip-view-wozlie-5kxnrl`).
 - Benotung: **NULL Regressionen, fünf Gegengewichte**, grün auf beiden Bäumen, weil die Scheibe
   **gar keinen Quelltext ändert** — sie verwandelt eine gemessene, ungeschützte Tatsache in eine
   geprüfte. `codeOnly` **PROPHYLAKTISCH, 0 von 10**.
+
+## 2026-08-13 (cron) — #556: die Regel stand schon da, sie war nur zwei von sechs groß
+
+- **Gates auf `4947433` (#555) — beide grün.** `Xcode Compile Check` = success ·
+  „Build for Testing" = `Test build Succeeded` ⇒ der Wächter kompiliert. „Run Tests" = #396
+  (`TEST EXECUTE FAILED` · `Code=-308` · `server died`), **null fehlgeschlagene Fälle**,
+  136 `passed` / 15 Suiten. Neue Wächter nicht in der Teilmenge — nach #445 beweist das nichts.
+- ⛔ **ERSTER BEFUND, UND ER IST EIN BEINAHE-FEHLER MEINERSEITS: die Regel stand bereits über
+  `automatableBases`.** Sie sagt, bio-umkämpfte Parameter seien ausgeschlossen, weil sie
+  Automation×Bio-Komposition brauchen — den `bioBase*`-Anker schreiben, nicht den Live-Wert. Ich
+  war eine Bearbeitung davon entfernt, das als ENTDECKUNG zu verkaufen. **Der Beinahe-Fehler ist
+  der Befund: eine Regel kann vorhanden, richtig und trotzdem wirkungslos sein.**
+- ⛔ **ZWEITER BEFUND, der echte Defekt: der Ausschluss nannte „(filter/brightness)" und die
+  umkämpfte Menge ist SECHS.** Klammer-extrahiert aus `applyBioReactive` und auf Zuweisungen
+  geprüft: `brightness` · `filterCutoff` · `harmonicity` · `noiseLevel` · `vibratoDepth` ·
+  `vibratoRate` werden alle auf dem **RENDER-Thread** aus ihrem Anker neu gerechnet, jeden Block.
+  ⭐ **Eine Klammer mit zwei von sechs Namen liest sich als vollständige Liste** — die nächste
+  Sitzung bindet `ddsp.osc.harmonicity`, sieht den Wert im Debugger wandern und liefert einen
+  Regler aus, den der Körper innerhalb eines Render-Blocks überschreibt. **Schlimmer als das
+  tote-Stufe-Placebo (#546), weil er ein paar Millisekunden lang funktioniert.**
+  **Dritter Zyklus in Folge, dritte Aufzählung, die fertig aussah:** der Plan las am Enum ab
+  (#554), das Enum las sich als Inventar (#555), diese Klammer las sich als Menge.
+- ⭐ **Und die POSITIVE Hälfte war nie aufgeschrieben** — deshalb wirkte die Liste handverlesen:
+  die sechs gebundenen Einträge sind EXAKT die Parameter, die `applyBioReactive` NICHT zuweist,
+  null Treffer je. Die Regel lautet nicht „diese sechs fühlten sich sicher an", sondern:
+  **Automation darf einen Parameter nur besitzen, wo sie der EINZIGE Schreiber ist; sonst besitzt
+  sie den ANKER.**
+- ⚠️ **Für die nächste Scheibe mit aufgeschrieben:** `applyBioReactive` LIEST die Anker auf dem
+  Render-Thread, ein Anker-Setter ist also ein Cross-Thread-Write — und `SynthPatch.apply(to:)`
+  macht genau diesen Write längst off-render als schlichten `Float`. Diesem Präzedenzfall folgen,
+  kein zweiter Mechanismus, kein Lock.
+- **#556 (`4d93c72`) — `TheAutomatableSetHasOneWriterTests`** macht die Regel ausführbar statt
+  beratend. **Verbietet das Binden der ANKER NICHT (#364)** — das ist die nächste Scheibe, und die
+  Fehlermeldung sagt es. Claim 3 leitet die umkämpfte Menge aus dem Quelltext neu ab statt der
+  Liste in der Testdatei zu glauben (ein siebter Parameter kann nicht durchrutschen, indem er
+  nicht gelistet ist) und wird zuerst rot, falls der Bio-Pfad einen davon aufgibt.
+- Benotung: **NULL Regressionen, vier Gegengewichte**, grün auf beiden Bäumen — die Scheibe bindet
+  nichts und ändert keinen Engine-Code; ihre Quelltext-Änderung ist die GRÖSSE des Ausschlusses.
+  `codeOnly` **PROPHYLAKTISCH, 0 von 8**; die Zuweisungs-Erkennung verlangt `<name> =` am
+  Zeilenanfang, damit ein Anker auf der rechten Seite nicht als eigener Schreiber zählt.
+- ⚠️ **Nebenbefund zur Methode:** mein erster Blick war ein Zeilenfenster (2150–2300) und fand
+  `brightness =` NICHT — der Rumpf ist 532 Zeilen lang. Die Klammer-Extraktion fand es. Genau der
+  #408-Grund, hier einmal am eigenen Leib statt aus der Regel zitiert.
