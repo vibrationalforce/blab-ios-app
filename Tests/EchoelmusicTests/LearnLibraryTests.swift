@@ -8,6 +8,7 @@ import XCTest
 final class LearnLibraryTests: XCTestCase {
 
     func testSectionsCoverEverySource() {
+        XCTAssertEqual(LearnLibrary.guideEntries.count, 6)   // #589 — hand-written, like safety
         XCTAssertEqual(LearnLibrary.bodyEntries.count, BioMetric.allCases.count)
         XCTAssertEqual(LearnLibrary.bodyScienceEntries.count, BioScienceTopic.allCases.count)
         XCTAssertEqual(LearnLibrary.musicEntries.count, MusicTheoryTopic.allCases.count)
@@ -18,12 +19,13 @@ final class LearnLibraryTests: XCTestCase {
     func testAllIsSectionOrderedAndComplete() {
         let all = LearnLibrary.all
         XCTAssertEqual(all.count,
-                       BioMetric.allCases.count + BioScienceTopic.allCases.count
+                       6 + BioMetric.allCases.count + BioScienceTopic.allCases.count
                        + MusicTheoryTopic.allCases.count
                        + LightScienceTopic.allCases.count + 2)
-        // Body entries come first; safety stays last.
+        // #589: the Guide opens the library — the way IN before the reference material
+        // (founder: "leichtes Eintauchen … hörbar, sichtbar und spürbar"). Safety stays last.
         let sections = all.map { $0.section }
-        XCTAssertEqual(sections.first, .body)
+        XCTAssertEqual(sections.first, .guide)
         XCTAssertEqual(sections.last, .safety)
     }
 
