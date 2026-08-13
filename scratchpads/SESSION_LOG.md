@@ -9940,3 +9940,48 @@ nachweislich, Ausführung unbelegt** (#445).
   eine zurückgenommene Behauptung zurück (der nächste Leser nimmt sie aus dem nächsten Kommentar).
 - **Geräteprobe, offen:** liest sich der Schalter als „spiel ab, was ich aufgenommen habe" — oder
   als globaler Bio-Schalter?
+
+## #562 — ein Panel sagte, Parameter bewegen sich von selbst, und dass keiner es tut
+
+Commit `2bbc9fd`. **Gates zu `e833f19` (#561) beide grün:** `Xcode Compile Check` = success ·
+`Build for Testing` = `Test build Succeeded` · `TEST BUILD FAILED` = 0, keine `error:`-Zeile mit
+Repo-Datei, null fehlgeschlagene Testfälle → das stehende #396 (`TEST EXECUTE FAILED`).
+
+- **REIHENFOLGE Punkt 5 (VISUALS GRAU / B9) gemessen: IST im Baum und IST ausgeliefert.**
+  `MetalBioView` trägt `clamp(cloudGlow * 2.4, …)` (das Gate 1.6→2.4) und
+  `col = mix(float3(l) * warm, col, 0.92)` mit dem Kommentar „(was .80 — stop double-desat, B9)".
+  `.deploy/release` steht auf v10.79.386, also ist B9 in einem Build ≤ v386 mitgegangen. Status
+  laut Mandat: **Founder-Geräte-Verify abwarten** — für mich nichts zu bauen.
+  **Ship-Gate-Punkt 3 (Flow + Loop) ebenfalls gemessen: vorhanden und erreichbar** (der
+  „Mode"-Picker in `CompositionHeaderStrip`, `WorkspaceView`).
+- ⛔ **Der eigentliche Befund dieses Zyklus ist ein Defekt, den ICH in zwei Zyklen gebaut habe.**
+  #559 hängte den Automations-Streifen unten ins `soundPanel` — er druckte ohne Aufnahmen
+  „Nothing is automated yet — no parameter is moving on its own." #560 setzte oben ins SELBE Panel
+  „Your body also shapes this sound … Brightness, Harmonics, Noise, Cutoff, Vibrato depth und
+  Vibrato rate move around the values you set here." **Ein Panel, einen Scroll auseinander,
+  behauptet und bestreitet dasselbe.**
+- ⭐ **Warum keine der beiden Reviews das gesehen hat, und das ist die Lehre:** jeder Satz ist
+  WAHR über sein eigenes Subjekt — der eine über Automations-Lanes, der andere über den
+  Always-on-Bio-Pfad — und jeder entstand in einer Scheibe, die nur ihr eigenes Subjekt im Blick
+  hatte. **#425 ist normalerweise ein Gesetz INNERHALB einer Scheibe; das hier ist die
+  ÜBER-Scheiben-Form**, bei der der Widerspruch von einem zweiten Commit zusammengesetzt wird,
+  der die Datei des ersten nie anfasst. Er existiert nur auf der komponierenden FLÄCHE — also
+  kann ihn nur ein Wächter sehen, der den BILDSCHIRM fragt statt eine der beiden Quellen.
+- ⭐ **Die Reparatur ist nicht „sag weniger".** Den störenden Halbsatz zu löschen beseitigt den
+  Widerspruch und lässt die echte Frage des Spielers stehen: der Klang ÄNDERT sich, und der
+  Streifen, der gerade „nichts ist automatisiert" gesagt hat, ist der letzte Ort, an dem er nach
+  dem Warum sucht. Die Zeile begrenzt ihre Verneinung jetzt auf Automation UND benennt die andere
+  Quelle — heute wahr, weil der Always-on-Bio-Pfad der einzige weitere Schreiber dieser Parameter
+  ist. Claim 3 nagelt fest, dass beide Zeilen wirklich EIN Panel teilen, damit der Wächter nicht
+  eines Tages eine Kollision bewacht, die auseinandergezogen wurde.
+- ⛔ **Und mein Entwurf des Benotungs-Blocks war wieder falsch — diesmal in der SCHMEICHELNDEN
+  Richtung (#433).** Ich hatte Claim 2 als „Gegengewicht, auf beiden Bäumen grün" notiert.
+  Gemessen ist er auf dem Elternteil ROT: der alte Satz benennt keine andere Quelle. Der
+  Unterschied ist nicht kosmetisch — ein Gegengewicht und eine Regression machen
+  entgegengesetzte Versprechen darüber, wie der Eltern-Baum aussah. **Diesmal lief die
+  Transkription VOR dem Schreiben des Blocks und hat ihn korrigiert** — genau die Regel aus #561.
+- **Benotung final:** EIN defekter String, DREI rote Behauptungen, **EIN Befund** (#486) — es sind
+  drei nötige Reparaturen eines Satzes, keine drei Defekte. Vier Gegengewichte grün auf beiden
+  Bäumen. `codeOnly` **PROPHYLAKTISCH, 0 von 4** (gemessen).
+- **Geräteprobe, offen:** lesen sich die zwei Zeilen an den entgegengesetzten Enden eines langen
+  Panels als EINE Antwort — oder gehört die Automations-Leerzeile neben die Körper-Zeile?
