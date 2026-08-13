@@ -274,6 +274,19 @@ public final class CameraRPPGBioPublisher {
     /// and the `@Observable` macro calls `withMutation` on every set regardless of equality —
     /// a tracked property written at 1 Hz is a 1 Hz invalidation of every observer of this
     /// publisher, the smaller sibling of the 10.76.41/50 menu-freeze.
+    /// True while the camera is HELD interrupted with zero inbound frames — the state in
+    /// which every diagnostic this loop can print is stale by construction (#576).
+    ///
+    /// ⭐ MEASURED, not guessed. Device log v10.79.388/2505, one backgrounded stretch of
+    /// **220 s**: ~105 identical `rPPG: finger=yes … in=0.0 …` lines and ~35 identical
+    /// "no frames ~6 s" lines — **~140 lines of noise from one stretch**, in the file the
+    /// founder also reads for launch and crash triage. Worse than the volume is the CONTENT:
+    /// `finger=yes R=0.39 bright=0.38` was the analyzer's LAST value from before the
+    /// interruption, reprinted as if current, while `in=0.0` in the same line said nothing
+    /// had arrived. A diagnostic that repeats a stale reading is not merely wasteful — it
+    /// invites exactly the wrong diagnosis.
+    @ObservationIgnored private var heldQuiet = false
+
     @ObservationIgnored private var trustWindow = TrustWindowTally()
 
     /// Speak the window, then start a fresh one.
@@ -975,6 +988,10 @@ public final class CameraRPPGBioPublisher {
         // stop/start would blend two takes into one line and make the first line of a session
         // arrive early and describe the previous one.
         trustWindow = TrustWindowTally()
+        // A new session never inherits silence (#576). If it did, a start that lands straight
+        // into an interruption would say nothing at all — and "quiet" would stop meaning
+        // "already reported" and start meaning "never reported".
+        heldQuiet = false
         EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
 
         // Exposure is now locked from the publish loop ONLY once the finger is
@@ -1020,7 +1037,17 @@ public final class CameraRPPGBioPublisher {
                         if self.capture.isInterrupted {
                             // No `continue`: fall through to the banner logic below so
                             // the strip honestly shows the interrupted state each tick.
-                            EchoelCrashLog.breadcrumb("rPPG: no frames ~6 s but iOS holds the camera (interrupted) — waiting, not restarting")
+                            //
+                            // ONCE PER EPISODE, not every 6 s (#576). The message is a STATE,
+                            // and a state that has not changed carries no information the
+                            // thirty-fifth time. The banner, the recovery ladder and the
+                            // waiting behaviour are all unchanged — this is the log speaking
+                            // less, not the publisher doing less.
+                            if !self.heldQuiet {
+                                self.heldQuiet = true
+                                EchoelCrashLog.breadcrumb(
+                                    "rPPG: no frames but iOS holds the camera (interrupted) — waiting, not restarting; quiet until frames return")
+                            }
                         } else if self.forcedRecoveries < Self.maxForcedRecoveries {
                             self.recoveringTicks = 40   // ~4 s banner: "Kamera erholt sich…"
                             self.forcedRecoveries += 1
@@ -1056,6 +1083,13 @@ public final class CameraRPPGBioPublisher {
                 } else {
                     self.stallTicks = 0
                     self.healthyTicks += 1
+                    // The episode ended — say so ONCE, then diagnostics resume normally. This
+                    // is the half that makes the silence readable: without it, a quiet stretch
+                    // could not be told apart from a crashed loop (#576).
+                    if self.heldQuiet {
+                        self.heldQuiet = false
+                        EchoelCrashLog.breadcrumb("rPPG: frames are back after a held interruption")
+                    }
                     // Refill the recovery budget only after ~3 s of SUSTAINED flow — not on
                     // the first post-recovery trickle (that reset was the "stuck at 1/3" bug).
                     if self.healthyTicks >= 30 {
@@ -1222,7 +1256,11 @@ public final class CameraRPPGBioPublisher {
                 // Diagnostics into the breadcrumb stream (~every 2 s) so a device
                 // log reveals WHY there is no signal: finger off → torch/position;
                 // finger on but bpm 0 → exposure/signal; conf < 0.35 → still locking.
-                if tick % 20 == 0 {
+                // `!heldQuiet`: while the OS holds the camera and nothing arrives, every value
+                // in this line is the analyzer's last pre-interruption reading (#576). Printing
+                // it 105 times with `in=0.0` beside it is how a device log ends up naming a
+                // finger that is not being measured.
+                if tick % 20 == 0, !self.heldQuiet {
                     // R/bright disambiguate finger placement; amp/pk/acf disambiguate
                     // WHY a placed finger won't lock: amp≈0 → no pulsatile AC (press
                     // lighter / torch); pk<3 with acf high → rounded waveform (the
