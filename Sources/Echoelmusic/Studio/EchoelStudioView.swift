@@ -4094,7 +4094,19 @@ struct EchoelStudioView: View {
         let moodText = String(format: "%.2f/%.2f/%.2f/%.2f/%.2f/%.2f/%.2f/%.2f",
                               mood.liveliness, mood.darkness, mood.tension, mood.romance,
                               mood.weird, mood.virtuosity, mood.syncopation, mood.humanize)
-        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), mood=\(moodText), touchPatch=\(touchText), glide=\(glideText), userMix=\(mixText), signature=\(signatureText)")
+        // ⭐ THE PAD SHAPE (#584), in the panel's own order: chord length / accent / variation.
+        // It is here because the reset now clears it, and the note above is the rule: this list
+        // is keyed by the labels THIS line emits, so a value that cannot be reported honestly
+        // cannot be quietly half-reset either. Numbers rather than presence, for the mood
+        // reason — the diagnostic value is WHICH dial is off, and "the chords are all stabs"
+        // is exactly a report that arrives with no other evidence.
+        //
+        // ⚠️ It is reported even when no pad character is selected, i.e. when the three dials are
+        // disabled and inert. That is on purpose and it is the failure this slice is about: a
+        // stale shape is invisible precisely while it does nothing, and comes back the moment a
+        // character is picked again.
+        let padShapeText = String(format: "%.2f/%.2f/%.2f", padGate, padAccent, padEvolve)
+        EchoelCrashLog.breadcrumb("launch/musical: key=\(keyText), tuning=\(tuningID), a4=\(a4Text), genre=\(style.rawValue), preset=\(presetIndex), articulation=\(articulationText), bassRhythm=\(bassRhythmText), padRhythm=\(padRhythmText), padShape=\(padShapeText), mood=\(moodText), touchPatch=\(touchText), glide=\(glideText), userMix=\(mixText), signature=\(signatureText)")
     }
 
     /// Step 2b: applies the audible side effects of a USER edit in the chrome's
@@ -5949,7 +5961,13 @@ struct EchoelStudioView: View {
             EchoelValueField(label: "Variation", value: $padEvolve, range: 0...1, decimals: 2)
                 .disabled(off || !(character?.usesEvolve ?? false))
             Text(padShapeCaption(character))
-                .font(.caption2)
+                // ⛔ #584 — WAS `.font(.caption2)`, and that made this the ONE line of the phone
+                // app rendered in the system face instead of Atkinson Hyperlegible. Not a rule
+                // violation anyone would have caught: `.caption2` scales with Dynamic Type, which
+                // is the property the accessibility guards check, and it looks fine in isolation.
+                // It is only wrong NEXT TO the three rows above it. `EchoelTheme.font` is
+                // `.custom(…, relativeTo: .body)`, so this keeps the scaling and takes the face.
+                .font(EchoelTheme.font(11))
                 .foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }

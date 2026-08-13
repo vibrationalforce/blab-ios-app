@@ -93,6 +93,23 @@ public enum SoundReset {
         Entry(label: "articulation", keys: ["studio.articulation"]),
         Entry(label: "bassRhythm", keys: [StudioDefaultKeys.bassRhythm.key]),
         Entry(label: "padRhythm", keys: [StudioDefaultKeys.padRhythm.key]),
+        // ⛔ #584 — THE FIFTH TIME A PERSISTED SOUND SETTING SHIPPED WITHOUT ITS LINE HERE, and
+        // this one was mine, one cycle old. #581 added three dials that shape the pad's chords
+        // (`padGate`/`padAccent`/`padEvolve`) and did not add them to the reset.
+        //
+        // ⚠️ WHY THE MISS IS HARD TO SEE FROM THE OUTSIDE, which is the part worth recording: the
+        // reset LOOKED complete. It cleared `padRhythm`, so the pad character went back to none,
+        // and with no character the three dials are disabled and inert — the panel reads reset.
+        // The old shape only returns later, when the player picks a character again and the
+        // stale gate/accent/evolve come back with it, long after anyone would connect the two.
+        // A reset that is wrong ONLY in a state the user reaches minutes later is worse than one
+        // that is visibly wrong, because nothing points back at it.
+        //
+        // They belong here on this file's own test: persisted settings that decide what a take
+        // SOUNDS like, not work the player made. Same test the eight mood dials passed below.
+        Entry(label: "padShape", keys: [StudioDefaultKeys.padGate.key,
+                                        StudioDefaultKeys.padAccent.key,
+                                        StudioDefaultKeys.padEvolve.key]),
         // ⭐ THE EIGHT MOOD DIALS (#275), and they qualify for this list on the same test as
         // everything above: they are persisted settings that decide what a take SOUNDS like,
         // not work the player made. One key, eight values — see `MoodStorage`.

@@ -4,6 +4,18 @@
 // THE ASK, verbatim (2026-08-13): *"Ich find es fehlt eine Sektion mit slidern der aus den Pad
 // Sounds rhythmische chords macht … Fehlt noch."*
 //
+// ⛔ #584 EXTENDED THIS FILE WITH THE THREE ASSERTIONS #581 OWED, and the grading line below is
+// therefore about the ORIGINAL slice only. What #581 got wrong, both found by an audit and both
+// re-verified at source before being acted on: (a) the three keys were missing from
+// `SoundReset.entries`, the FIFTH repetition of an omission that function already carries four
+// ⚠️ blocks about — and the one that hides best, because with no pad character selected the
+// dials are inert and the reset looks like it worked; (b) the caption shipped as `.font(.caption2)`,
+// which made it the only system-face text in the phone app. Neither is a rule violation any guard
+// could have caught: the key list is a judgement, and `.caption2` scales with Dynamic Type, which
+// is the property the accessibility guards check. Three new tests, 6 new assertions; 4 of the 5
+// needles they use are red on the parent, and the stripper is TRAGEND there (1 of 5 flips — the
+// ⛔ block above the caption quotes the token its own negative needle forbids).
+//
 // ⭐ IT WAS NEVER MISSING MACHINERY — ONLY A SURFACE, and the engine said so in its own words.
 // `BioComposer.roleRhythmOnsets` built its `RoleRhythm.Params` from three hard-coded literals
 // under the comment *"The three dials **no role UI exposes** are written out…"*, and
@@ -208,6 +220,73 @@ final class ThePadShapeDialsReachTheChordTests: XCTestCase {
                        "The Accent default moved — see the Chord length message.")
         XCTAssertEqual(StudioDefaultKeys.padEvolve.value, 0.2, accuracy: 1e-9,
                        "The Variation default moved — see the Chord length message.")
+    }
+
+    // MARK: - #584 — the follow-through #581 owed and did not pay
+
+    /// END-TO-END on the shipped pure type. The three dials are persisted settings that decide
+    /// what a take SOUNDS like, so "Reset sound" has to clear them — the same test every other
+    /// entry in that list passes.
+    ///
+    /// ⛔ #581 SHIPPED WITHOUT THIS, and it is the FIFTH time a persisted sound setting arrived
+    /// without its line in `SoundReset` (that function carries four ⚠️ blocks about the previous
+    /// four). What made this one hard to see from outside is worth stating, because it is not
+    /// carelessness that hides it: the reset LOOKED complete. It cleared `padRhythm`, so the pad
+    /// character went back to none, and with no character the three dials disable themselves and
+    /// do nothing — the panel reads reset. The stale shape only returns later, when the player
+    /// picks a character again, far past the point anyone would connect the two.
+    func testTheResetClearsTheThreePadShapeKeys() {
+        let cleared = Set(SoundReset.entries.flatMap(\.keys))
+        for key in [StudioDefaultKeys.padGate.key,
+                    StudioDefaultKeys.padAccent.key,
+                    StudioDefaultKeys.padEvolve.key] {
+            XCTAssertTrue(cleared.contains(key), """
+            "Reset sound" does not clear \(key).
+
+            A persisted value that shapes the sound and cannot be reset is the state that whole \
+            feature exists to stop needing a reinstall for — and this one hides, because with no \
+            pad character selected the dials are inert and the reset looks like it worked.
+            """)
+        }
+    }
+
+    /// COUNTERWEIGHT to the test above, and the reason it is not free. `SoundReset`'s list is
+    /// deliberately keyed to the labels the launch breadcrumb emits, so that a value which cannot
+    /// be reported honestly cannot be quietly half-reset either
+    /// (`ResetSoundClearsWhatTheLaunchLineReportsTests` enforces the join). Adding the entry
+    /// therefore obliges the diagnostic line too — and that is a gain, not a tax: "die Akkorde
+    /// sind alle abgehackt" is exactly a report that arrives with no other evidence.
+    func testTheLaunchLineReportsThePadShape() throws {
+        let src = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        XCTAssertTrue(src.contains("padShape=\\(padShapeText)"),
+                      "The reset clears the pad shape, so the launch breadcrumb must name it.")
+        XCTAssertTrue(src.contains("let padShapeText = String(format: \"%.2f/%.2f/%.2f\""),
+                      "Numbers, not presence — the diagnostic value is WHICH dial is off.")
+    }
+
+    /// The caption must be in the app's own face. `EchoelTheme.font` is `.custom(…, relativeTo:
+    /// .body)`, so this keeps Dynamic Type scaling and takes the typeface.
+    ///
+    /// ⛔ #581 SHIPPED IT AS `.font(.caption2)`, which made this one line the only system-face
+    /// text in the phone app. No rule caught it and none would have: `.caption2` scales, which is
+    /// the property the accessibility guards check, and it looks fine on its own. It is wrong
+    /// only NEXT TO the three rows above it.
+    ///
+    /// ⚠️ ASSERTED AT THIS SITE, NOT AS A BAN ON `.caption2` IN `Studio/`. The obvious wider
+    /// guard would forbid a token that `DiagnosticsTextScalesTests` REQUIRES two files over —
+    /// the diagnostics log is deliberately `.system(.caption2, design: .monospaced)`, because a
+    /// log needs its columns and the brand face is proportional. A guard that reds a sibling
+    /// guard's mandated code is the #364 shape.
+    func testTheCaptionUsesTheAppsOwnFace() throws {
+        let src = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        guard let caption = src.range(of: "Text(padShapeCaption(character))") else {
+            return XCTFail("The pad-shape caption was renamed — re-anchor this scan (#454).")
+        }
+        let after = src[caption.upperBound...].prefix(220)
+        XCTAssertTrue(after.contains("EchoelTheme.font(11)"),
+                      "The caption must use the brand face, like every other line of this panel.")
+        XCTAssertFalse(after.contains(".font(.caption2)"),
+                       "The system face here is the one thing that made this row look foreign.")
     }
 
     // MARK: - source access (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)
