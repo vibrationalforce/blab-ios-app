@@ -31,7 +31,16 @@
 //
 // ⚠️ HONEST INVENTORY, because "pure core, kept" reads as "all of it is used" and
 // that is false. Exactly ONE member has a production caller:
-//   · `sameParameter`  — LIVE (`Core/TimelineStore.swift`, alias-aware lane lookup).
+//   · `sameParameter`  — LIVE, and since #559 in TWO places: `Core/TimelineStore.swift`
+//     (alias-aware lane lookup) and `Sequencer/AutomationStatus.swift` (the readout's
+//     layer-precedence rule — a global lane named by its legacy rawValue is the same lane
+//     as a clip lane named by the keyPath alias, so a textual compare would report the
+//     losing curve as if it were still winning). ⛔ This line named ONE caller until then,
+//     and the sentence above it still says "exactly ONE MEMBER has a production caller" —
+//     which stays true and is a different count. One member, two callers; the header three
+//     paragraphs up ("`sameParameter` is read by `Core/TimelineStore.swift`") is now the
+//     narrower half of the truth and is left standing on purpose, because the tripwire it
+//     describes — deleting this file breaks the store — is what that paragraph is about.
 //   · `x(forTick:)` · `tick(forX:)` · `nearestPoint` · `hitPointID` ·
 //     `displayPoints` · `touchRadius` · `tapSlopPoints` — ZERO callers in `Sources/`.
 //     Their only one was the unmounted `TimelineAutomationRow` view, and #473 deleted

@@ -6336,6 +6336,25 @@ struct EchoelStudioView: View {
             Text("Reinforces the bass an octave below — feel it on a sub, in headphones, or as haptics. Presence makes it read on small speakers (octaves only, always in key); heat saturates without getting louder.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+
+            // #559 — the automation readout, hosted HERE because this is the panel whose
+            // numbers it explains: of the parameters an automation lane can reach today, ten
+            // of thirteen are the synth values on the rows above. A player who sees one of
+            // them move without touching it asks the question in this panel, so the answer
+            // belongs in it.
+            //
+            // METADATA: a child of an existing panel builder, NOT a presentation modifier and
+            // NOT a fifth child of the root `VStack` — the black-screen law counts the root
+            // body's aggregate generic type and the `.sheet` chain, and both are untouched
+            // (10.76.34). It reads `AutomationPlayer` in its OWN body, never here: this
+            // builder is evaluated by the menu-hosting root body (10.76.41/50).
+            //
+            // The heading is spelled HERE and not in the strip: `groupHeader` is the one
+            // section-heading builder (#362) and it is `private` to this view, so a strip in
+            // its own file could only re-spell it — a fourth treatment in a file no per-panel
+            // review would compare against the other three.
+            groupHeader("Automation")
+            AutomationStatusStrip()
         }
     }
 

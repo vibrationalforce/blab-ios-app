@@ -542,15 +542,26 @@ public final class AutomationPlayer {
     /// live setter in the router (placebo law — a lane must move audio) and not
     /// already addressed by a legacy enum target (those stay on their own slots).
     ///
-    /// ⚠️ ZERO CALLERS IN `Sources/` SINCE #473, and that is written here rather than
-    /// acted on. Its only reader was `TimelineAutomationTargetOption`, inside the
-    /// unmounted automation row that #473 deleted; it was FOUND by re-grepping AFTER
-    /// the cut, which is the #472 lesson (a deletion orphans neighbours no register
-    /// line predicted). Kept, not deleted: this is the placebo law in executable form —
-    /// "only offer a parameter that actually moves audio" — and it is exactly what a
-    /// future automation surface needs first. Deleting it is a SECOND decision, and
-    /// making one inside a removal commit is how a "nothing else changed" claim stops
-    /// being true (#470).
+    /// ⭐ IT HAS A CALLER AGAIN SINCE #559 — `Studio/AutomationStatusStrip.swift`, the
+    /// automation readout — and the note that stood here is kept below rather than
+    /// deleted, because the ARGUMENT it made is the reason the property survived to be
+    /// used. Not deleting it was the whole point; this is the receipt.
+    ///
+    /// ⛔ WHAT IT SAID, and it was true from #473 to #559: ZERO CALLERS IN `Sources/`,
+    /// written down rather than acted on. Its only reader had been
+    /// `TimelineAutomationTargetOption`, inside the unmounted automation row that #473
+    /// deleted; it was FOUND by re-grepping AFTER the cut, which is the #472 lesson (a
+    /// deletion orphans neighbours no register line predicted). Kept, not deleted: this
+    /// is the placebo law in executable form — "only offer a parameter that actually
+    /// moves audio" — and it is exactly what a future automation surface needs first.
+    /// Deleting it is a SECOND decision, and making one inside a removal commit is how a
+    /// "nothing else changed" claim stops being true (#470).
+    ///
+    /// ⚠️ THE STRIP USES IT IN BOTH DIRECTIONS, which is worth stating because only one
+    /// of them is what the name suggests: a lane whose keyPath IS here gets a real name
+    /// and a real range, and a lane whose keyPath is NOT here is still listed — marked
+    /// as reaching nothing. Filtering the second kind out would hide slice 1's silent
+    /// no-op behind a surface that agrees with it.
     public var extraAutomatableDescriptors: [ParameterDescriptor] {
         guard let router else { return [] }
         let enumKeyPaths = Set(AutomationTarget.allCases.map(\.keyPath))

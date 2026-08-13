@@ -191,9 +191,13 @@ final class TheAutomationRowLawHasItsOwnFileTests: XCTestCase {
         let store = try source("Sources/Echoelmusic/Core/TimelineStore.swift")
         XCTAssertTrue(store.contains("TimelineAutomationRowMath.sameParameter("), """
             TimelineStore no longer resolves an automation lane through the alias-aware \
-            law. If that call was deliberately replaced, this whole type loses its last \
-            production caller — say so at the declaration and retire it on purpose, \
-            rather than leaving a core nobody calls and a guard nobody can fail.
+            law. ⛔ This message said "loses its LAST production caller" until #559, which \
+            added a second one (`Sequencer/AutomationStatus.swift`, the readout's \
+            layer-precedence rule) — so losing THIS one no longer orphans the type, and a \
+            message that says it does would send the next reader to retire a live core. \
+            What is still at stake is the one written above: the store is what makes \
+            deleting this FILE break something, so if the call was deliberately replaced, \
+            say so at the declaration instead of leaving the tripwire described and gone.
             """)
     }
 
