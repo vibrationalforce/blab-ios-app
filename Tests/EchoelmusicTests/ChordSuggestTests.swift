@@ -262,7 +262,7 @@ final class ChordSuggestTests: XCTestCase {
         // naming it equals one with an explicit `suggestJourney: false`, note
         // for note, across genre archetypes (chords+lead, signature Fläche,
         // sustained many-chord Fläche).
-        for style in [MusicStyle.jazz, .dubTechno, .esotericMeditation] {
+        for style in [MusicStyle.jazz, .dubTechno, .stillMeditation] {
             let defaulted = BioComposer.Input(heartRateBPM: 70, hrvNormalized: 0.5,
                                               coherence: 0.5, breathPhase: 0, breathDepth: 0.5,
                                               key: MusicalKey(root: 0, scale: .major),
@@ -283,7 +283,7 @@ final class ChordSuggestTests: XCTestCase {
     // MARK: - BioComposer wiring: ON laws
 
     func testSuggestJourneyOn_isDeterministic() {
-        for style in [MusicStyle.jazz, .dubTechno, .esotericMeditation] {
+        for style in [MusicStyle.jazz, .dubTechno, .stillMeditation] {
             let a = BioComposer.compose(composerInput(style: style, suggestJourney: true))
             let b = BioComposer.compose(composerInput(style: style, suggestJourney: true))
             XCTAssertEqual(a, b, "\(style): the journey path must be seed-deterministic too")
@@ -391,20 +391,20 @@ final class ChordSuggestTests: XCTestCase {
         // The sustained many-chord Fläche holds ONE chord per bar and the phase cursor picks
         // WHICH chord. CORRECTED 2026-07-26 (a review found the stated mechanism wrong while
         // the conclusion held): at full coherence this is NOT the journey cursor picking a
-        // tonic then a dominant. esotericMeditation's progression is [0,1,4] and it IS
+        // tonic then a dominant. stillMeditation's progression is [0,1,4] and it IS
         // sustained, so `n = 1` and the anchor at coherence 1 gives `k = 1` — the single root
         // is taken from the GENRE's own progression, indexed by phase. Phase 0 reads degree 0
         // and phase 2 degree 4. Different chords either way, but by the genre anchor, not by
         // the journey. The journey cursor's own travel is covered by the aroused sweep above.
-        let a = BioComposer.compose(composerInput(style: .esotericMeditation, coherence: 1,
+        let a = BioComposer.compose(composerInput(style: .stillMeditation, coherence: 1,
                                                   progressionPhase: 0, suggestJourney: true))
-        let b = BioComposer.compose(composerInput(style: .esotericMeditation, coherence: 1,
+        let b = BioComposer.compose(composerInput(style: .stillMeditation, coherence: 1,
                                                   progressionPhase: 2, suggestJourney: true))
         XCTAssertNotEqual(a, b, "the journey cursor must travel with the phase")
     }
 
     func testSuggestJourneyOn_keepsContractInvariants() {
-        for style in [MusicStyle.jazz, .dubTechno, .esotericMeditation] {
+        for style in [MusicStyle.jazz, .dubTechno, .stillMeditation] {
             let off = BioComposer.compose(composerInput(style: style, suggestJourney: false))
             let on = BioComposer.compose(composerInput(style: style, suggestJourney: true))
             XCTAssertFalse(on.notes.isEmpty, "\(style): the journey path must still compose")

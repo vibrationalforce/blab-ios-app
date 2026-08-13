@@ -260,7 +260,7 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// that governs a GENERATED take — `MusicStyle.synthPatch`, not `SynthPatch.factory` — is
     /// mostly percussive: of its 26 genre patches, 19 have an attack under 0.15 s, so the exponent
     /// runs ~1.17–1.47. The other 7 sit at exactly 1.0, and they are precisely the ambient family
-    /// (vaporwave · sciFi · esotericMeditation · classical · selfObservation · drift ·
+    /// (vaporwave · sciFi · stillMeditation · classical · selfObservation · drift ·
     /// contemplation) — so any retune of this constant must be checked against BOTH groups, not
     /// against "mostly percussive" alone. (The first version of this comment cited the wrong
     /// roster and the wrong counts. The conclusion held; the evidence did not.) At the full

@@ -167,7 +167,7 @@ final class GenreDelaySyncResolvabilityTests: XCTestCase {
     /// spread.
     ///
     /// ⚠️ 5 clusters, not 7 (there are 7 such genres), and the two ties are MEASURED and
-    /// deliberate: `selfObservation` 2.000 s (clamped) ≈ `esotericMeditation` 2.000 s (a half
+    /// deliberate: `selfObservation` 2.000 s (clamped) ≈ `stillMeditation` 2.000 s (a half
     /// note at 60 BPM, exactly on the ceiling, so no clamp fires) coincide by AUTHORSHIP — same
     /// division, near-identical default tempo; and `ambientPulse` 0.706 s ≈ `classical` 0.714 s
     /// are both straight quarters whose windows happen to meet. Neither is a clamp artefact, so

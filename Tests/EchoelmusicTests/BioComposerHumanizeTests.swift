@@ -36,7 +36,7 @@ final class BioComposerHumanizeTests: XCTestCase {
         // The new field default-false changes NOTHING: an Input built without
         // naming it equals one with an explicit `humanize: false`, note for
         // note, across genre archetypes (block chords, signature beat, Fläche).
-        for style in [MusicStyle.jazz, .dubTechno, .esotericMeditation] {
+        for style in [MusicStyle.jazz, .dubTechno, .stillMeditation] {
             let defaulted = BioComposer.Input(heartRateBPM: 70, hrvNormalized: 0.5,
                                               coherence: 0.5, breathPhase: 0, breathDepth: 0.5,
                                               key: MusicalKey(root: 0, scale: .minor),
@@ -59,7 +59,7 @@ final class BioComposerHumanizeTests: XCTestCase {
     // MARK: - The zero-jitter law: hrv 0 ⇒ ON is identical to OFF
 
     func testHumanizeOn_zeroHRV_isIdenticalToOff() {
-        for style in [MusicStyle.jazz, .dubTechno, .esotericMeditation] {
+        for style in [MusicStyle.jazz, .dubTechno, .stillMeditation] {
             let off = BioComposer.compose(input(style: style, hrvNormalized: 0, humanize: false))
             let on = BioComposer.compose(input(style: style, hrvNormalized: 0, humanize: true))
             XCTAssertEqual(off, on,
@@ -103,7 +103,7 @@ final class BioComposerHumanizeTests: XCTestCase {
     // MARK: - Slice 1 is velocity-only: pitch / timing / role / drums untouched
 
     func testHumanizeOn_touchesOnlyVelocity() {
-        for style in [MusicStyle.jazz, .dubTechno, .esotericMeditation] {
+        for style in [MusicStyle.jazz, .dubTechno, .stillMeditation] {
             let off = BioComposer.compose(input(style: style, hrvNormalized: 0.9, humanize: false))
             let on = BioComposer.compose(input(style: style, hrvNormalized: 0.9, humanize: true))
             XCTAssertEqual(off.notes.count, on.notes.count)

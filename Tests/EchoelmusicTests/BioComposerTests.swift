@@ -103,7 +103,7 @@ final class BioComposerTests: XCTestCase {
         // founder liked; an AROUSED body re-articulates the SAME pad on a dotted/
         // syncopated pulse — pad timbre only (never the rejected exposed wave-lead),
         // in-key, bar-tight, one grounding bass root.
-        for style in [MusicStyle.selfObservation, .esotericMeditation] {
+        for style in [MusicStyle.selfObservation, .stillMeditation] {
             // CALM: high coherence + low heart rate → the still drone (unchanged).
             let calm = BioComposer.compose(
                 input(coherence: 0.95, hr: 52, style: style, mode: .flowFree))
@@ -193,7 +193,7 @@ final class BioComposerTests: XCTestCase {
         // bar (one held chord + one held bass), but WHICH chord advances with
         // progressionPhase — so across bars/evolves the pad travels through its
         // progression instead of freezing. Verify both halves of that contract.
-        for style in [MusicStyle.selfObservation, .esotericMeditation] {
+        for style in [MusicStyle.selfObservation, .stillMeditation] {
             let chordCount = style.harmonicProfile.progression.count
             XCTAssertGreaterThan(chordCount, 1, "\(style) needs a journey to travel")
 
@@ -741,7 +741,7 @@ final class BioComposerTests: XCTestCase {
         // never densifies" doctrine — see `heartbeatOnsets`'s own doc-comment: an
         // aroused body re-articulates the PAD onsets (never the rejected exposed
         // wave-lead), same resolution already accepted for selfObservation/
-        // esotericMeditation in `testSustainedFlächeIsStillWhenCalm_AliveWhenAroused`.
+        // stillMeditation in `testSustainedFlächeIsStillWhenCalm_AliveWhenAroused`.
         // What IS still pinned for dub specifically (`quarterAnchorBass` is "SCOPED
         // TO TRAP ONLY") is the BASS: it stays the held root regardless of arousal.
         let calm = BioComposer.compose(input(coherence: 0.95, hr: 70, style: .dubTechno))
@@ -1203,7 +1203,7 @@ final class BioComposerTests: XCTestCase {
         XCTAssertEqual(MusicStyle.ska.chordArticulation, .skank)
         XCTAssertEqual(MusicStyle.disco.chordArticulation, .stab)
         XCTAssertEqual(MusicStyle.jazz.chordArticulation, .comp)
-        XCTAssertEqual(MusicStyle.esotericMeditation.chordArticulation, .sustained)
+        XCTAssertEqual(MusicStyle.stillMeditation.chordArticulation, .sustained)
         // Three genres → three measurably different chord grids at the SAME bio state.
         let bio: Float = 0.3
         let skank = starts(BioComposer.chordOnsets(secStart: 0, secLen: 16, energy: bio, syncopation: 0, articulation: MusicStyle.ska.chordArticulation))

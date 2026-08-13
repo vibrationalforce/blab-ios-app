@@ -150,7 +150,7 @@ final class MusicStyleTests: XCTestCase {
         // beat-driven genre sneaking into `.none` visible.
         let drumFree = MusicStyle.allCases.filter { !$0.isBeatDriven }
         XCTAssertEqual(Set(drumFree),
-                       [.classical, .esotericMeditation, .selfObservation, .drift, .contemplation,
+                       [.classical, .stillMeditation, .selfObservation, .drift, .contemplation,
                         .deepDrone, .ambientPulse],
                        "drum-free = classical + the contemplative family (meditation, "
                        + "self-observation, drift, contemplation, deep drone, ambient pulse), "
@@ -178,11 +178,11 @@ final class MusicStyleTests: XCTestCase {
         // Airier than the darker siblings: it floats a register above them.
         XCTAssertGreaterThan(p.padOctave, MusicStyle.selfObservation.harmonicProfile.padOctave,
                              "drift floats above self-observation")
-        XCTAssertGreaterThan(p.padOctave, MusicStyle.esotericMeditation.harmonicProfile.padOctave,
+        XCTAssertGreaterThan(p.padOctave, MusicStyle.stillMeditation.harmonicProfile.padOctave,
                              "drift floats above deep-ambient")
         // Distinct modal colour from both siblings (no shared scale collision).
         XCTAssertNotEqual(drift.scale, MusicStyle.selfObservation.scale)
-        XCTAssertNotEqual(drift.scale, MusicStyle.esotericMeditation.scale)
+        XCTAssertNotEqual(drift.scale, MusicStyle.stillMeditation.scale)
         // Calm at the source: the tempo window tops out slow, like the other Flächen.
         XCTAssertLessThanOrEqual(drift.tempoRange.upperBound, 78)
     }
@@ -204,7 +204,7 @@ final class MusicStyleTests: XCTestCase {
         XCTAssertLessThan(p.padOctave, MusicStyle.drift.harmonicProfile.padOctave,
                           "contemplation sits below drift (grounded vs airy)")
         // Distinct modal colour from drift and both darker siblings.
-        for other in [MusicStyle.drift, .selfObservation, .esotericMeditation] {
+        for other in [MusicStyle.drift, .selfObservation, .stillMeditation] {
             XCTAssertNotEqual(c.scale, other.scale, "contemplation must not share \(other)'s scale")
         }
         // Slowest, calmest window of the family.
@@ -266,7 +266,7 @@ final class MusicStyleTests: XCTestCase {
         XCTAssertTrue(p.chordTones.contains(6), "lush open 7th voicing for a wide, warm pad")
         // Still distinct from the other curated Flächen's journeys.
         XCTAssertNotEqual(p.progression, MusicStyle.dubTechno.harmonicProfile.progression)
-        XCTAssertNotEqual(p.progression, MusicStyle.esotericMeditation.harmonicProfile.progression)
+        XCTAssertNotEqual(p.progression, MusicStyle.stillMeditation.harmonicProfile.progression)
         // Still calm at the source: the tempo window tops out slow.
         XCTAssertLessThanOrEqual(MusicStyle.selfObservation.tempoRange.upperBound, 78)
     }

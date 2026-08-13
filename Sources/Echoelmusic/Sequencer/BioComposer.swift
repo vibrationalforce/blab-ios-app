@@ -366,7 +366,7 @@ public enum BioComposer {
     /// **n == 1** that rounds `1 × 0.34` to **0** — nothing anchored, the single root
     /// taken wholesale from the shared journey — for every body below coherence 0.35.
     /// FOUR profiles have n == 1: `.selfObservation` (the SHIPPED DEFAULT) and
-    /// `.esotericMeditation` (both sustained with a >2-chord progression → one section
+    /// `.stillMeditation` (both sustained with a >2-chord progression → one section
     /// per take), plus `.psytrance` and `.doom` (one-chord progressions). Camera rPPG reports
     /// coherence 0 until beats accrue and HealthKit never measures it at all, so this is
     /// not an edge case — it is the FIRST MINUTES OF EVERY SESSION on the default genre,
@@ -881,7 +881,7 @@ public enum BioComposer {
         // Trance-Pad-Ambient einfügen"). It used to route to `ambientMelody`, a BARE
         // monophonic .lead line with NO pad under it — a thin, exposed, formant-y tune,
         // exactly the loud "quakig" melody. Its harmonicProfile has ALWAYS been a lush
-        // sustained drone (leadDensity 0), IDENTICAL to esotericMeditation (the pad the
+        // sustained drone (leadDensity 0), IDENTICAL to stillMeditation (the pad the
         // founder likes) — but that profile was never reached. Falling through to the
         // `default:` composeHarmonic path finally plays that drone Fläche. `ambientMelody`
         // stays defined below (unused, reversible) in case a gentle melodic mode returns.

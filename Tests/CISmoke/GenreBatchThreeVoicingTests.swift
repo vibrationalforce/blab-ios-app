@@ -114,7 +114,7 @@ final class GenreBatchThreeVoicingTests: XCTestCase {
     /// is also four entries long, so a strict `>` on `.count` failed. But those four entries are
     /// only THREE roots (it returns to the tonic), and "travels" is a claim about how many places
     /// the harmony goes, not how many slots the array has. On distinct roots trance is a genuine
-    /// strict maximum at 4 — classical, selfObservation, esotericMeditation and deepHouse all sit
+    /// strict maximum at 4 — classical, selfObservation, stillMeditation and deepHouse all sit
     /// at 3. Derived (a max over `offered`), not a literal 4.
     func testTranceTravelsThroughMoreDistinctRootsThanAnyOfferedGenre() {
         func distinctRoots(_ style: MusicStyle) -> Int {

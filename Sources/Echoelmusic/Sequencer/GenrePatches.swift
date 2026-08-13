@@ -222,7 +222,7 @@ public extension MusicStyle {
                 cutoff: 3200, res: 0.16, lfoAmt: 0.26, lfoRate: 0.55, lfoDepth: 0.45,
                 revMix: 0.40, revDecay: 2.6, vibRate: 0, vibDepth: 0,
                 uni: 2, det: 8)
-        case .esotericMeditation:
+        case .stillMeditation:
             return patch("DC", "Deep Drone",
                 a: 1.4, d: 1.8, s: 0.92, r: 6.0,
                 harm: 0.90, hl: 0.84, bright: 0.18, noise: 0.008, color: "Pink", shape: "Dark",

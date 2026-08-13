@@ -82,7 +82,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// `sustained` profile flag; this list must equal `allCases.filter { sustained }`
     /// (guarded in MusicStyleTests).
     public static let sustainedFlächen: [MusicStyle] = [
-        .selfObservation, .esotericMeditation, .vaporwave, .dubTechno, .trap, .sciFi, .drift,
+        .selfObservation, .stillMeditation, .vaporwave, .dubTechno, .trap, .sciFi, .drift,
         .contemplation,
         // #254 batch 2: `deepDrone` is the stillest of them all. `ambientPulse` is deliberately
         // NOT here — it is the ambient genre that MOVES, and `sustained: true` would suppress
@@ -132,7 +132,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// that write is destructive. Widening this list again restores the choice for everyone
     /// going forward, but cannot give an already-migrated user their old genre back.
     public static let offered: [MusicStyle] = [
-        .selfObservation, .esotericMeditation, .drift, .contemplation,
+        .selfObservation, .stillMeditation, .drift, .contemplation,
         .vaporwave, .sciFi, .classical, .dubTechno,
         // #254 batch 1 (founder 2026-07-30: "mehr Genres der elektronischen Musik benötigt,
         // verschiedenste Techno und House Stile … Trance, acid"). Added HERE and not only to the
@@ -195,7 +195,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         /// (every genre categorised) — the picker shows `offeredGenres`, not this.
         public var genres: [MusicStyle] {
             switch self {
-            case .meditative: return [.selfObservation, .esotericMeditation, .drift, .contemplation,
+            case .meditative: return [.selfObservation, .stillMeditation, .drift, .contemplation,
                                       .deepDrone, .ambientPulse, .vaporwave, .sciFi]
             case .electronic: return [.dubTechno, .acidTechno, .deepHouse, .upliftingTrance,
                                       .techHouse, .minimalTechno, .detroitTechno,
@@ -218,7 +218,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// once; guarded in MusicStyleTests).
     public var category: Category {
         switch self {
-        case .selfObservation, .esotericMeditation, .drift, .contemplation, .vaporwave, .sciFi,
+        case .selfObservation, .stillMeditation, .drift, .contemplation, .vaporwave, .sciFi,
              .deepDrone, .ambientPulse:
             return .meditative
         case .dubTechno, .acidTechno, .deepHouse, .upliftingTrance, .techHouse,
@@ -431,7 +431,30 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     case futuristic
     case sciFi
     case psytrance
-    case esotericMeditation
+    /// ⭐ RENAMED FROM `esotericMeditation` (#570, C5 language hygiene). Nothing user-facing
+    /// ever carried the old word — the label is "Deep Ambient" and the description is
+    /// "Drone · ethereal pads · deep ambient" — but the IDENTIFIER did, in a repo whose brand
+    /// rules put esoteric vocabulary on a hard reject list. An identifier is read by every
+    /// session that plans from this file, and it leaked into one surface a user can reach: the
+    /// launch breadcrumb writes `genre=\(style.rawValue)` and the Diagnostics row renders
+    /// `EchoelCrashLog.currentLog()`.
+    ///
+    /// ⛔ THE RAW VALUE DELIBERATELY DOES **NOT** MOVE, and that is the whole decision. This
+    /// enum's rawValue is PERSISTED in three places — `@AppStorage(StudioDefaultKeys.genre.key)`,
+    /// `Project.styleRaw`, and `TimelineLane.genreOverride` via synthesized `Codable`. Changing
+    /// the token would need a migration on all three: `@AppStorage` silently returns its DEFAULT
+    /// when `init?(rawValue:)` fails, so a user who had chosen this genre would find it reset
+    /// with no error anywhere, and a saved project would fall back to `.dubTechno`
+    /// (`Project.swift`). Pinning the legacy token costs one string and removes the entire
+    /// migration surface — strictly safer than any shim, because there is nothing left to get
+    /// wrong.
+    ///
+    /// ⚠️ THE RESIDUE, NAMED RATHER THAN GLOSSED: the Diagnostics dump still prints
+    /// `genre=esotericMeditation` for users who selected this genre. That is a storage token in
+    /// a log, not copy — the brand rule is about what the product SAYS — and buying the last
+    /// 5 % would cost the migration this comment just refused. Recorded so the next session
+    /// does not "finish the job" without pricing it.
+    case stillMeditation = "esotericMeditation"
     case classical
     case jazz
     case klezmer
@@ -468,7 +491,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .techHouse:          return "Tech House"
         case .minimalTechno:      return "Minimal Techno"
         case .detroitTechno:      return "Detroit Techno"
-        // ⚠️ "Still Drone", not "Deep Drone": `esotericMeditation`'s PATCH is already named
+        // ⚠️ "Still Drone", not "Deep Drone": `stillMeditation`'s PATCH is already named
         // "Deep Drone" (GenrePatches "DC"), and picking a genre writes its patch into the
         // visible patch field — so a picker entry "Deep Drone" next to a patch field reading
         // "Deep Drone" for a DIFFERENT genre is a real confusion. The genre is renamed rather
@@ -484,7 +507,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic:         return "Futuristic"
         case .sciFi:              return "Sci-Fi"
         case .psytrance:          return "Psytrance"
-        case .esotericMeditation: return "Deep Ambient"
+        case .stillMeditation: return "Deep Ambient"
         case .classical:          return "Classical"
         case .jazz:               return "Jazz"
         case .klezmer:            return "Klezmer"
@@ -522,9 +545,15 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .detroitTechno:      return "Syncopated ninth-chord comp · bittersweet mode"
         case .deepDrone:          return "One low quartal drone · unmoving · very wide"
         // "hypnotic" removed: it is the closest thing in the roster to altered-state language,
-        // and this repo already keeps such words out of shipped strings (esotericMeditation is
-        // surfaced as the neutral "Deep Ambient"). The word stays in the internal docs, where
-        // it describes the sound accurately without making a claim to a user.
+        // and this repo keeps such words out of shipped strings. The word stays in the internal
+        // docs, where it describes the sound accurately without making a claim to a user.
+        //
+        // ⭐ THE EXAMPLE THIS LINE USED TO GIVE IS GONE, AND SAYING SO IS THE POINT (#570). It
+        // read "(esotericMeditation is surfaced as the neutral 'Deep Ambient')" — the contrast
+        // between an esoteric IDENTIFIER and a neutral SHIPPED string. C5 renamed the case to
+        // `stillMeditation`, so there is no longer a contrast to point at; what remains is the
+        // rule itself, now also asserted rather than described
+        // (`TheGenreVocabularyStaysNeutralTests`).
         case .ambientPulse:       return "Slow pentatonic sequence · calm motion"
         case .trap:               return "Booming 808 sub-bass · crisp hats · dark pads"
         case .vaporwave:          return "Slowed · dreamy · nostalgic maj7 pads"
@@ -535,7 +564,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic:         return "Clean, shimmering, wide suspended chords"
         case .sciFi:              return "Eerie atmospheres · deep-space mood"
         case .psytrance:          return "Rolling minor arpeggio · Goa lineage"
-        case .esotericMeditation: return "Drone · ethereal pads · deep ambient"
+        case .stillMeditation: return "Drone · ethereal pads · deep ambient"
         case .classical:          return "Chamber strings · clean counterpoint"
         case .jazz:               return "Warm Rhodes · seventh chords"
         case .klezmer:            return "Reedy clarinet · ornamented minor"
@@ -602,7 +631,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              .jazz, .oriental, .detroitTechno:                  return .backbeat
         case .ska, .rocksteady, .klezmer:                       return .offbeat
         case .doom, .vaporwave, .sciFi:                         return .halfTime
-        case .classical, .esotericMeditation, .selfObservation, .drift, .contemplation,
+        case .classical, .stillMeditation, .selfObservation, .drift, .contemplation,
              .deepDrone, .ambientPulse:                         return .none
         }
     }
@@ -825,7 +854,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // version of THIS parenthetical then added "so at this floor the echo really is the
         // longest in the product" — a fresh unsupported superlative, appended to a note whose
         // whole subject is that superlatives about this echo keep being wrong. 2.0 s is the
-        // CEILING; selfObservation, esotericMeditation and doom all clamp onto it at their own
+        // CEILING; selfObservation, stillMeditation and doom all clamp onto it at their own
         // slow ends. And nothing about a listener follows from any of it: `applyDelaySync`
         // overwrites the genre's delay time downstream — see `GenreFXPreset.apply(to:bpm:)`.
         // What stays wrong either way is deriving a tempo window from an echo length; the
@@ -856,7 +885,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic:         return 90...110
         case .sciFi:              return 70...90
         case .psytrance:          return 140...150
-        case .esotericMeditation: return 50...70
+        case .stillMeditation: return 50...70
         case .classical:          return 60...110
         case .jazz:               return 80...150
         case .klezmer:            return 90...170
@@ -914,7 +943,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic:         return 100
         case .sciFi:              return 80
         case .psytrance:          return 145
-        case .esotericMeditation: return 60
+        case .stillMeditation: return 60
         case .classical:          return 84
         case .jazz:               return 112
         case .klezmer:            return 128
@@ -978,7 +1007,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .upliftingTrance:    return 0.0
         case .eighties:           return 0.06
         case .synthwave, .earlySynth, .futuristic, .sciFi, .psytrance,
-             .esotericMeditation, .classical, .punk, .rock, .heavyMetal,
+             .stillMeditation, .classical, .punk, .rock, .heavyMetal,
              .doom, .selfObservation, .drift, .contemplation,
              .deepDrone, .ambientPulse:
             return 0.0                          // straight / free — grid swing would hurt these
@@ -1073,7 +1102,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic:         return "Hollow Reed"
         case .sciFi:              return "Choir Vox"      // sustained — unused
         case .psytrance:          return "Pluck"
-        case .esotericMeditation: return "Choir Vox"     // sustained — unused
+        case .stillMeditation: return "Choir Vox"     // sustained — unused
         case .classical:          return "Soft Keys"
         case .jazz:               return "Soft Keys"     // warm Rhodes-style keys
         case .klezmer:            return "Hollow Reed"   // reedy + warm
@@ -1125,7 +1154,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .classical, .jazz, .klezmer, .oriental:  return (1.00, 1.00, 0.90)
         case .punk, .rock, .rocknroll, .heavyMetal, .doom:
                                                       return (1.10, 0.92, 0.90)
-        case .esotericMeditation, .selfObservation, .drift, .contemplation,
+        case .stillMeditation, .selfObservation, .drift, .contemplation,
              .deepDrone, .ambientPulse:
                                                       return (0.95, 1.05, 0.85)
         }
@@ -1162,7 +1191,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .futuristic:         return .lydian
         case .sciFi:              return .phrygian
         case .psytrance:          return .phrygian
-        case .esotericMeditation: return .lydian
+        case .stillMeditation: return .lydian
         case .classical:          return .major
         case .jazz:               return .dorian
         case .klezmer:            return .harmonicMinor
@@ -1231,7 +1260,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // NO auto-lead (founder 2026-07-21, see .eighties above).
             return HarmonicProfile(progression: [0], chordTones: [0, 2, 4],
                                    padOctave: 2, leadOctave: 4, arpeggiated: true, leadDensity: 0.0)
-        case .esotericMeditation:
+        case .stillMeditation:
             // WEITERGEHEN (founder 2026-07-11: "bleibt auf Flächen liegen … soll
             // weitergehen und sich mit dem Herzschlag weiterentwickeln"). A frozen
             // single-chord drone [0] can never move; a gentle lydian journey (I → II
@@ -1316,7 +1345,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // none of those, and it arrived in the same batch.
             //
             // FOUR DISTINCT roots (`[0, 5, 2, 6]` = i → VI → III → VII) is the most of any
-            // offered genre — classical, selfObservation, esotericMeditation and deepHouse all
+            // offered genre — classical, selfObservation, stillMeditation and deepHouse all
             // visit three. That is the second axis: this harmony TRAVELS while its siblings vamp.
             // ⚠️ DISTINCT, not LENGTH: classical's `[0, 3, 4, 0]` is also four entries but returns
             // to the tonic. The first version of this comment said "longest progression" and the
@@ -1483,7 +1512,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #254 batch 2: both ambient additions MUST be listed here. This switch ends in
         // `default: .studioLocked`, so omitting them would have silently given two breath-paced
         // genres a locked grid tempo — the kind of wrong default a compiler cannot catch.
-        case .selfObservation, .esotericMeditation, .drift, .contemplation,
+        case .selfObservation, .stillMeditation, .drift, .contemplation,
              .deepDrone, .ambientPulse:              return .flowFree
         default:                                     return .studioLocked
         }

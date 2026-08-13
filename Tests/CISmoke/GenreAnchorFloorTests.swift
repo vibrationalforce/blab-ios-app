@@ -16,7 +16,7 @@
 // It applies to exactly the genres where it hurts most:
 //   • `.selfObservation`   — THE SHIPPED DEFAULT (`StudioDefaultKeys`), sustained, progression
 //                            [0,5,3] → one section per take
-//   • `.esotericMeditation`— sustained, progression [0,1,4] → one section per take
+//   • `.stillMeditation`— sustained, progression [0,1,4] → one section per take
 //   • `.psytrance`         — a one-chord progression [0]
 //   • `.doom`              — a one-chord progression [0]
 //   • `.deepDrone`         — a one-chord progression [0], sustained (#254 batch 2). It joined the
@@ -41,7 +41,7 @@
 //
 // ⚠️ That list said THREE, then FOUR, then FIVE, and is now SIX — and every correction came from
 // the premise test at the bottom of this file, never from a person reading the header. The sweep
-// that found the original defect named `.selfObservation`, `.esotericMeditation` and `.psytrance`
+// that found the original defect named `.selfObservation`, `.stillMeditation` and `.psytrance`
 // and missed `.doom`; `.deepDrone` was added by #254 batch 2 and the test failed the same hour;
 // `.minimalTechno` was added by batch 4 and it failed again. That is the whole argument for keeping
 // a hand-written list guarded: a header that names genres is a claim about the source, and a claim
@@ -73,7 +73,7 @@ final class GenreAnchorFloorTests: XCTestCase {
             XCTAssertEqual(BioComposer.genreAnchorCount(sections: 1, coherence: coherence), 1,
                            "coherence \(coherence): a single-section take anchored 0 roots, so "
                            + "every one-section genre — .selfObservation (the default), "
-                           + ".esotericMeditation, .psytrance, .doom, .deepDrone and "
+                           + ".stillMeditation, .psytrance, .doom, .deepDrone and "
                            + ".minimalTechno; the premise test at the bottom of this file owns "
                            + "that list — takes its harmony wholesale from the shared journey and "
                            + "stops sounding like itself. Camera rPPG reports coherence 0 until "
@@ -179,7 +179,7 @@ final class GenreAnchorFloorTests: XCTestCase {
     // MARK: - The six profiles this actually changes
 
     /// Guards the PREMISE of the whole file: that exactly `.selfObservation`,
-    /// `.esotericMeditation`, `.psytrance`, `.doom`, `.deepDrone` and `.minimalTechno` compose as
+    /// `.stillMeditation`, `.psytrance`, `.doom`, `.deepDrone` and `.minimalTechno` compose as
     /// one section.
     /// `composeHarmonic` derives the count as
     /// `(profile.sustained && progression.count > 2) ? 1 : max(1, progression.count)`.
@@ -206,7 +206,7 @@ final class GenreAnchorFloorTests: XCTestCase {
             return n == 1
         }
         XCTAssertEqual(Set(oneSection), Set<MusicStyle>([.selfObservation,
-                                                         .esotericMeditation,
+                                                         .stillMeditation,
                                                          .psytrance,
                                                          .doom,
                                                          .deepDrone,

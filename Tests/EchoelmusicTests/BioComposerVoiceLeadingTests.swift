@@ -65,7 +65,7 @@ final class BioComposerVoiceLeadingTests: XCTestCase {
         // The new field default-false changes NOTHING: an Input built without
         // naming it equals one with an explicit `voiceLeading: false`, note for
         // note, across genre archetypes (sustained Fläche, arp, block chords).
-        for style in [MusicStyle.jazz, .dubTechno, .esotericMeditation, .rock, .eighties] {
+        for style in [MusicStyle.jazz, .dubTechno, .stillMeditation, .rock, .eighties] {
             let defaulted = BioComposer.Input(heartRateBPM: 70, hrvNormalized: 0.5,
                                               coherence: 0.9, breathPhase: 0, breathDepth: 0.5,
                                               key: MusicalKey(root: 0, scale: .minor),

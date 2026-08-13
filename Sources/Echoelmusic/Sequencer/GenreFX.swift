@@ -374,7 +374,7 @@ public extension MusicStyle {
             // The ROOM is the second smallest of the offered roster (0.42 — only `acidTechno`'s
             // 0.34 is tighter; every other offered genre sits at 0.78 and up). Its DAMPING is
             // merely high, not extreme: 0.58 is fifth, behind deepDrone 0.68, acidTechno 0.64 and
-            // esotericMeditation/dubTechno 0.60. ⚠️ The first version of this line called it
+            // stillMeditation/dubTechno 0.60. ⚠️ The first version of this line called it
             // "second-most damped … only acidTechno is deader" — wrong on both halves, and room
             // size and damping are separate axes that must be claimed separately.
             // No chorus at all, because width would blur the groove. Saturation 0.42 is where the
@@ -439,11 +439,11 @@ public extension MusicStyle {
             // reads before differentiating a calm preset on delay time:
             //  · NOT the longest. Its floor value IS 2.0 s (`.half, .triplet` at 40 BPM) — but
             //    2.0 s is the CEILING, and three other genres reach it at their own slow ends:
-            //    selfObservation (half @46 = 2.61), esotericMeditation (half @50 = 2.40) and doom
+            //    selfObservation (half @46 = 2.61), stillMeditation (half @50 = 2.40) and doom
             //    (half @50 = 2.40) — partial slow-end truncation, which this slice deliberately
             //    does NOT condemn (see the banner further down). Plus
             //    `FXCharacter.dream` (dotted quarter) at 40 BPM. At DEFAULT tempos this genre is
-            //    not even in front: selfObservation 2.000, esotericMeditation 2.000, doom 1.935,
+            //    not even in front: selfObservation 2.000, stillMeditation 2.000, doom 1.935,
             //    deepDrone 1.667. "Equal to the ceiling, shared with three genres" is the truth,
             //    and it is not a differentiation axis to build on.
             //  · NOT what anyone heard. See `apply(to:bpm:)`: `applyDelaySync` overwrites the
@@ -477,7 +477,7 @@ public extension MusicStyle {
             // banner dropped it and said "`selfObservation` is now the ONLY offered genre whose
             // delay is clamped". That is true only AT THE DEFAULT TEMPO, which is the bar test 3
             // sets. Per WINDOW it is false, and the same comment block says so 30 lines up:
-            // `esotericMeditation`'s window is 50…70 and a half note exceeds 2.0 for every bpm
+            // `stillMeditation`'s window is 50…70 and a half note exceeds 2.0 for every bpm
             // below 60, so HALF its window clamps too; `doom` (50…80) likewise. What is special
             // about selfObservation is only that its DEFAULT (58) is inside the clamped part.
             // At exactly 60 BPM a half note is 2.000 s and no clamp fires, so the two coincide
@@ -594,7 +594,7 @@ public extension MusicStyle {
                 delayEnabled: true, delayMode: .pingPong,
                 delaySync: TempoSyncOption(.sixteenth),
                 delayMix: 0.30, delayFeedback: 0.46, delayTone: 0.6, delaySpread: 0.5)
-        case .esotericMeditation:
+        case .stillMeditation:
             // Long, dark, spacious half-note delay + very slow chorus.
             return GenreFXPreset(
                 delayEnabled: true, delayMode: .digital,
@@ -691,7 +691,7 @@ public extension MusicStyle {
             // 2.0 for bpm < 60, i.e. 41% of the 46…78 window (⚠️ the first version wrote
             // "bpm ≤ 60 / 44%": at exactly 60 a half note is 2.000 s and the clamp does NOT fire,
             // the same arithmetic deepDrone's floor relies on). It coincides there with
-            // `esotericMeditation` (half @60 = exactly 2.0, no clamp). Unlike the two genres
+            // `stillMeditation` (half @60 = exactly 2.0, no clamp). Unlike the two genres
             // fixed in this slice the division DOES resolve over most of this window (56% of it),
             // so re-authoring it would change a preset that already resolves as authored — a
             // founder listening call, not a derivable one. `GenreDelaySyncResolvabilityTests`
