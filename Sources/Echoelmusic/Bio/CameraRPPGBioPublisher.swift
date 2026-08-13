@@ -238,6 +238,44 @@ public final class CameraRPPGBioPublisher {
         bpm > 0 && pulseTrustworthy(confidence: confidence, autoStrength: autoStrength)
     }
 
+    /// The same decision as `shouldPublish`, plus WHICH clause refused when it refused (#573).
+    ///
+    /// ⛔ IT ASKS `shouldPublish` FIRST AND THAT ORDER IS THE POINT. Classifying the failure
+    /// from the thresholds is only safe while the classification cannot become a second
+    /// spelling of the rule (#416) — asking the shipped predicate makes agreement structural
+    /// rather than something a guard has to police. Everything below the first line therefore
+    /// runs only on a REFUSAL, where `pulseTrustworthy` is already known to be false.
+    ///
+    /// The taxonomy is what a device log cannot otherwise recover. `bpm=0` is not the same
+    /// event as "an estimate exists but neither witness backs it", and — the case the two
+    /// v10.79.387 logs point at — "confidence is high, periodicity is not" is not the same
+    /// event as "nothing is working". They print as one `conf=…/acf=…` pair per 2 s today,
+    /// which samples half the decisions and reports none of the ones in between.
+    ///
+    /// Note what this does NOT decide: it never widens the gate, and there is deliberately no
+    /// verdict for "would have passed under a relaxed rule". A counter for a rule nobody has
+    /// agreed to is how a relaxation gets argued for by its own instrument.
+    nonisolated static func trustVerdict(bpm: Double,
+                                         confidence: Double,
+                                         autoStrength: Double) -> PulseTrustVerdict {
+        if shouldPublish(bpm: bpm, confidence: confidence, autoStrength: autoStrength) {
+            return .published
+        }
+        guard bpm > 0 else { return .noEstimate }
+        let confidenceOK = confidence >= displayThreshold
+        let periodicityOK = autoStrength >= trustAutoFloor
+        if !confidenceOK && !periodicityOK { return .bothLow }
+        return confidenceOK ? .periodicityLow : .confidenceLow
+    }
+
+    /// Publish-gate accounting for the breadcrumb stream (#573).
+    ///
+    /// ⚠️ `@ObservationIgnored` is not optional here: this is written on EVERY publish tick,
+    /// and the `@Observable` macro calls `withMutation` on every set regardless of equality —
+    /// a tracked property written at 1 Hz is a 1 Hz invalidation of every observer of this
+    /// publisher, the smaller sibling of the 10.76.41/50 menu-freeze.
+    @ObservationIgnored private var trustWindow = TrustWindowTally()
+
     /// True once a confident pulse is locked — the SAME bar as the display and the bus.
     ///
     /// This used to be `detectedBPM > 0 && confidence >= lockThreshold`, i.e. byte-for-byte
@@ -915,6 +953,10 @@ public final class CameraRPPGBioPublisher {
         coldCooldownTicks = 0
         recoveringTicks = 0
         recoveryState = .healthy
+        // A new placement earns a fresh window (#573) — carrying a half-filled tally across a
+        // stop/start would blend two takes into one line and make the first line of a session
+        // arrive early and describe the previous one.
+        trustWindow = TrustWindowTally()
         EchoelCrashLog.breadcrumb("rPPG: started, torch requested")
 
         // Exposure is now locked from the publish loop ONLY once the finger is
@@ -1230,9 +1272,30 @@ public final class CameraRPPGBioPublisher {
                 // uses it for the washout hint, where the input is a slow layout state rather
                 // than a threshold-straddling confidence. The lesson is about WHERE hysteresis
                 // belongs, not about hysteresis.
-                let trustNow = Self.shouldPublish(bpm: bpm,
-                                                  confidence: self.analyzer.bpmConfidence,
-                                                  autoStrength: self.analyzer.lastAutoStrength)
+                //
+                // #573 hoists the two evidence reads into locals. That is not tidying: the
+                // paragraph above requires all three values to come from ONE snapshot, and
+                // the tally below has to be fed the SAME numbers the verdict was computed
+                // from or it would describe a decision nobody made. Reading each field once
+                // makes that structural instead of a convention.
+                let confNow = self.analyzer.bpmConfidence
+                let acfNow = self.analyzer.lastAutoStrength
+                let verdict = Self.trustVerdict(bpm: bpm,
+                                                confidence: confNow,
+                                                autoStrength: acfNow)
+                let trustNow = verdict == .published
+                // ZERO BEHAVIOUR. The gate is unchanged — `trustVerdict` asks `shouldPublish`
+                // for its first answer — and this only counts what was already decided, then
+                // speaks once per full window. See `TrustWindowTally` for why an instrument
+                // comes before any tuning of the trust rule this cycle.
+                self.trustWindow.note(verdict: verdict,
+                                      bpm: bpm,
+                                      confidence: confNow,
+                                      autoStrength: acfNow)
+                if self.trustWindow.isComplete {
+                    EchoelCrashLog.breadcrumb("trust: " + self.trustWindow.summary)
+                    self.trustWindow = TrustWindowTally()
+                }
                 guard trustNow else {
                     // Brief dropout: keep the visual + pulse warm by re-emitting the
                     // last good frame (coherence gently decaying — never a snap to 0)
