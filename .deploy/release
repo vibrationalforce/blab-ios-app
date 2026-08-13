@@ -1,4 +1,4 @@
-build: v10.79.388 — Zurück. Die Leiste ist wieder ganz, und der Körper darf den Bus wieder erreichen.
+build: v10.79.389 — Bunter. Und der Export sagt endlich, was er ist.
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,87 +6,112 @@ notes: |
   nimmt den ersten Treffer. Steht irgendwo darüber eine ältere Nummer, shippt der Build
   still unter der alten Version. Deshalb wird der Vorgänger unten ohne `v` geschrieben.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.387.
+  Der Vorgänger auf Deinem Gerät ist 10.79.388 (2505).
 
-  Dieser Build nimmt zwei Dinge zurück und fügt nichts hinzu.
+  Dieser Build beantwortet vier Deiner Punkte und baut ein Messgerät ein.
 
-  ── 1. DIE CHIP-LEISTE IST WIEDER GANZ ────────────────────────────────────
+  ── 1. „BUNTER, MEHR TEXTUR, GLITZER" ─────────────────────────────────────
 
-  387 zeigte auf einem frischen Install in den ersten drei Starts nur „Sound". Dein Urteil
-  war eindeutig, und es ist umgesetzt: **alle acht Chips sind bei jedem Start wieder da.**
-  Der Zähler, die Reifelogik und ihr Wächter sind gelöscht — nicht abgeschaltet, gelöscht.
+  Die Farbe ist an DREI Stellen gleichzeitig zurückgeholt worden, und das war nötig,
+  weil sie an drei Stellen gleichzeitig weggenommen wurde:
 
-  Was ich daraus mitnehme und im Quelltext an der Stelle hinterlassen habe, an der der
-  Filter stand: an der Umsetzung war nichts falsch — sie war umkehrbar, lief von allein
-  aus, und bestehende Installs hätten nichts verloren. Das hat alles nichts genützt, weil
-  das Gemessene ein **erster Eindruck** war, und den kann genau eine Person messen.
-  **Falls eine ruhigere Anfangsfläche je wieder gewollt ist, ist der Hebel REIHENFOLGE
-  oder BETONUNG — nie Abwesenheit.**
+  · **Sättigung 0,82 → 1,05.** Nicht mehr grau-ziehend, sondern leicht anhebend.
+  · **Warm-Tint 0,92 → 0,97, Warm-Lift 0,10 → 0,05.** Netto-Chroma geht von **~0,68 auf
+    ~0,97** — das ist der eigentliche Sprung. Der WARME PUNKT bleibt unangetastet: Du
+    wolltest mehr Farbe, nicht kältere.
+  · **Glitzer + Textur.** Dünn gestreute Funken plus zwei Oktaven feines Korn, beide an
+    die Helligkeit des Feldes gekoppelt — Glitzer sitzt auf dem LICHT, nie auf Schwarz.
+    Funkeln auf Schwarz sieht aus wie Dreck auf der Linse; Funkeln auf einem hellen Feld
+    sieht aus wie Wasser und Mineral.
 
-  ── 2. DER KÖRPER DARF DEN BUS WIEDER ERREICHEN ───────────────────────────
+  ⚠ **Warum B9 allein nicht gereicht hat, und warum ich es erst jetzt weiß:** es waren
+  DREI gestapelte Entsättiger, nicht einer. B9 hat den ersten entstapelt (0,80 → 0,92) —
+  richtig, aber zwei blieben stehen, und 0,92 × 0,90 × 0,82 ist eben immer noch 0,68.
+  Keine einzelne Zeile im Quelltext sagte das; jede sah für sich vernünftig aus.
 
-  Deine zwei Logs haben etwas gezeigt, was ich ohne sie nicht gefunden hätte — und es ist
-  **mein** Fehler aus 386:
+  ⚠ **EHRLICHE GRENZE, bitte nicht überlesen:** Die neue Sättigung erreicht Dein Gerät
+  nur, wenn Du das Saturation-Feld **noch nie gezogen** hast — ein gespeicherter Wert
+  gewinnt immer gegen einen Default, und das ist richtig so. Die Shader-Änderung
+  (Warm-Tint + Glitzer + Textur) ist **unbedingt** und erreicht jede Installation. Falls
+  es Dir also immer noch zu grau ist: einmal Saturation im Visual-Panel auf ~1,05 ziehen,
+  dann sagt uns Dein Urteil etwas über die Farbe statt über einen alten Speicherwert.
 
-  In beiden Sitzungen meldet **jede** `generate`-Zeile `body=0` und **jede** `visual`-Zeile
-  `bio=0`. Über zusammen ~11 Minuten hat der Körper die Musik **kein einziges Mal**
-  erreicht — während der Cue mehrfach „Locked" sagte und `conf` bis 0,98 ging.
+  **Blitzsicherheit** ist nicht nachträglich gedeckelt, sondern in der Konstruktion: jeder
+  Funke zieht seine eigene Phase UND seine eigene Frequenz aus seiner Bildposition, also
+  sind die Funken untereinander unkorreliert und die mittlere Bildhelligkeit moduliert
+  gar nicht. Bei „Bewegung reduzieren" friert der Glitzer zu einem stillen Glanzfeld ein.
 
-  Ursache: ich hatte in 386 verlangt, dass die Vertrauenswürdigkeit **drei Sekunden am
-  Stück** hält, bevor ein Messwert auf den Bus darf. Die Regel dahinter ist
-  `(conf ≥ 0,6 UND acf ≥ 0,4) ODER acf ≥ 0,6`, und schon Deine 2-Sekunden-Stichproben
-  springen darüber hin und her — 0,73/0,44 wahr · 0,64/0,38 falsch · 0,62/0,53 wahr ·
-  0,71/0,33 falsch. Bei 10 Hz wird so ein Lauf praktisch nie voll. Ich wollte ein
-  0→1→0-Blinken entfernen und habe stattdessen **die 1 entfernt**.
+  **Räumlichkeit fehlt noch — bewusst.** Die braucht die Feldfunktion selbst, nicht den
+  Farb-Schwanz, und ist ein eigener Zyklus. Ich wollte sie nicht mit heißer Nadel an
+  einen Farbdurchgang hängen.
 
-  Die Hysterese ist raus. Ein vertrauenswürdiger Messwert reicht wieder.
+  ── 2. „MIDI EXPORT BEIM KLAVIER BUTTON STIMMT NICHT" ─────────────────────
 
-  ⚠ **Was dieser Build damit BEANTWORTET, und was nicht.** Beide Logs stammen vom
-  GLEICHEN Build (2504), können also nicht zwischen „der Riegel war schuld" und „die
-  Ursache liegt davor" unterscheiden. **Das entscheidet erst Dein nächstes Log.** Wenn
-  `body=` weiterhin nie 1 wird, liegt es nicht am Riegel und die Rücknahme hat nichts
-  gekostet — dann ist die nächste Spur die Signalqualität selbst (siehe unten).
+  Der Export war **nicht kaputt** — er war **namenlos**. Beide Exporte, Audio und MIDI,
+  haben denselben Dateinamen aus Session, Genre und Tempo gebaut; nur die Endung war
+  verschieden, und iOS schneidet die im Teilen-Blatt ab und beschriftet eine `.mid`
+  fröhlich als „Audioaufnahme". Es SAH also aus wie „der will noch WAV rausrendern",
+  während 435 Bytes MIDI im Blatt lagen.
 
-  ── WAS ICH IM LOG GESEHEN HABE, OHNE ES ANZUFASSEN ───────────────────────
+  Jetzt steht das Format **im Dateinamen selbst** (`…_MIDI.mid` statt `….mid`), und der
+  MIDI-Export schreibt eine Zeile ins Log mit Bytes, Notenzahl und Taktanzahl. Wenn beim
+  nächsten Mal etwas fehlt, sagt das Log, ob die Datei leer war oder nur falsch benannt.
 
-  · **`acf` klärt die 0,4 fast nie.** Über beide Sitzungen liegt die Autokorrelation
-    meistens bei 0,0–0,3, gelegentlich 0,4–0,5, praktisch nie ≥ 0,6 — während `conf`
-    regelmäßig 0,6–0,9 erreicht. Die Zwei-Belege-Regel verlangt aber genau diese zweite
-    Hälfte. Selbst ohne jeden Riegel wären Veröffentlichungen also **selten**, nicht
-    häufig. Das ist ein SIGNAL-Thema (Belichtung, Kontakt, Fingerdruck), keine
-    Gating-Frage — und es ist der nächste Punkt, sobald Dein Log den Riegel ausgeschlossen
-    oder bestätigt hat.
+  ── 3. „DAS BRAUCH DA NICHT SEIN" (der rot umkringelte Signal-Block) ──────
 
-  · **Die Kamera-Widerstandsfähigkeit arbeitet sauber.** Hintergrund-Unterbrechung erkannt
-    („waiting for the OS, not thrashing restarts"), danach „session recovered after stall
-    — re-locking exposure". Ebenso das Neu-Einstellen bei schwacher Periodizität auf
-    hellem Lock.
+  Ist raus aus dem Feld-Panel.
 
-  · **`tempoSource=flowServo` steht in jeder Transport-Zeile.** Die Takt-Herkunft aus 387
-    ist am Gerät bestätigt.
+  ⚠ **Die zweite Hälfte Deines Satzes — „wenn dann ins Visual Window übertragen" — habe
+  ich NICHT gemacht, und ich sage lieber warum, als es stillschweigend zu tun:** dieses
+  Layout hast Du nie gesehen. Am 2026-08-02 habe ich schon einmal zwei Analyse-Flächen
+  montiert, die Du dann per Screenshot mit rotem X wieder gestrichen hast. Sag ein Wort,
+  wo genau im Visual-Fenster er sitzen soll, dann kommt er dorthin.
 
-  · **Keine `breath:`-Zeile in beiden Logs** — erwartungsgemäß, denn sie sitzt hinter
-    genau dem Puls-Tor, das nie offen war. Nach dieser Rücknahme sollten die Zeilen
-    erscheinen.
+  ── 4. AKKU UND EIN LESBARES LOG ──────────────────────────────────────────
+
+  Dein zweites Log hatte eine 220-Sekunden-Strecke im Hintergrund. In dieser einen
+  Strecke standen **~140 identische Zeilen**, und die Kamera-Schleife hat in derselben
+  Zeit **2 200-mal** den Haupt-Thread geweckt, um eine leere Warteschlange zu leeren.
+
+  · Die Hintergrund-Meldung wird jetzt **einmal pro Episode** gesagt, nicht alle sechs
+    Sekunden — und die Rückkehr der Bilder wird ebenfalls einmal gemeldet, damit Stille
+    nie mit „abgestürzt" verwechselt werden kann.
+  · Die 2-Sekunden-Diagnosezeile schweigt, solange iOS die Kamera hält. Sie hat dort
+    ohnehin nur den letzten Wert von VOR der Unterbrechung wiederholt — `finger=yes
+    R=0.39` neben `in=0.0`. Das ist nicht bloß Lärm: wer die linke Hälfte glaubt,
+    diagnostiziert „Finger liegt an, Signal tot". 105-mal angeboten.
+  · Dieselbe Strecke kostet jetzt **440 statt 2 200** Weckvorgänge.
+
+  ⚠ Was ich BEWUSST nicht getan habe: die Kamera beim Hintergrundwechsel stoppen. Das
+  wäre korrekter (die Sitzung bleibt reserviert), aber ein Stopp-Neustart-Paar, das den
+  Neustart verfehlt, ist genau die Klasse Fehler, die 386 zwei Builds gekostet hat. Eine
+  Schleife langsamer zu drehen kann kein Bild verlieren, das gar nicht geliefert wird.
+
+  ── 5. DAS MESSGERÄT FÜR DIE OFFENE FRAGE AUS 388 ─────────────────────────
+
+  388 hat den 3-Sekunden-Riegel zurückgenommen und ehrlich gesagt, dass erst Dein
+  nächstes Log entscheidet, ob der Riegel oder das Signal schuld war.
+
+  **Dein Log 10.79.388/2505 hat es entschieden: `body=1` und `bio=1` kommen darin
+  viermal vor. Der Riegel WAR die Ursache, und die Rücknahme war richtig.**
+
+  Damit ist die nächste Frage dran — welche der beiden Belegklauseln zumacht — und
+  dafür rät dieser Build nicht mehr, sondern zählt. Der Veröffentlichungs-Tick meldet
+  etwa alle 30 Sekunden eine Zeile:
+
+      trust: 4/30 ok · nobpm=2 conf=5 acf=17 both=2 · maxConf=0.91 maxAcf=0.52 bpmSpread=6.0
+
+  Also: wie oft das Tor aufging, und **welche Klausel es sonst zuhielt**. Meine
+  Handzählung sagt: die Periodizität (`acf`) ist der Engpass, nicht die Konfidenz. Wenn
+  diese Zeile das bestätigt, ist der nächste Punkt die Signalqualität — Belichtung,
+  Fingerdruck, Kontakt — und nicht wieder eine Schwelle.
+
+  Null Verhaltensänderung: das Tor ist unverändert, es wird nur gezählt.
 
   ── WAS ICH VON DIR BRAUCHE ───────────────────────────────────────────────
 
-  1. **Ein Log wie die zwei letzten, mit Finger auf der Linse.** Die einzige Frage:
-     **wird `body=` jemals 1 und `bio=` jemals 1?** Das entscheidet, ob die Ursache der
-     Riegel war oder davor liegt — und damit, woran ich als nächstes arbeite.
-
-  2. **Wenn ja: zwei Atem-Sitzungen** — eine bewusst langsam (~6/min), eine normal —,
-     dann Diagnostics öffnen und mir die `breath:`-Zeilen schicken. `envConf` niedrig
-     heißt Belichtung/Kontakt, `envConf` hoch bei niedrigem `conf` heißt, die Schwelle
-     selbst ist dran.
-
-  3. **„Zu hell" am Gerät** (aus 387, noch unbeantwortet): Finger absichtlich zu fest
-     auflegen. Kommt nach ~4 s der Satz „Press a little lighter", ist er verständlich,
-     und schiebt sein Erscheinen die Zeilen darunter?
-
-  4. **Die grauen Visuals** — seit 383 unbestätigt. Farb-/Sättigungskette entstapelt
-     (warm-mix 0,80 → 0,92, Farb-Gate 1,6 → 2,4). Bunt genug oder immer noch grau?
-
-  5. **Die Reihenfolge**, vierte Bitte: Deine Übergabe vom 13.08. (Zyklen C1–C6) und das
-     Verdikt von 10.79.183 (5→1→2→3→4) sagen Verschiedenes. Ich folge der Übergabe, weil
-     sie neuer ist. **Ein Wort genügt.**
+  1. **Ein Blick auf das Visual.** Bunt genug? Glitzer als Funkeln oder als Rauschen?
+     Falls immer noch grau: einmal Saturation ziehen (siehe die Grenze oben).
+  2. **Ein Log nach ~2 Minuten Puls**, wegen der `trust:`-Zeile.
+  3. **Der Klavier-Export**, ob das Teilen-Blatt jetzt „MIDI" sagt.
+  4. **Wo der Signal-Block im Visual-Fenster hin soll**, falls er dorthin soll.
