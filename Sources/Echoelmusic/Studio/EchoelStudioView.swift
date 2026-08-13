@@ -743,6 +743,16 @@ struct EchoelStudioView: View {
     /// Low-frequency @State (user taps only), so the root body never churns.
     @State private var activeMenu: StudioMenu?
 
+    /// How many launches have reached this instrument (#568, C4). Drives `maturityChips`.
+    /// Persisted, so the reduced first-run surface survives a relaunch and expires on its own
+    /// after `SessionMaturity.simplifiedBelow` appearances — there is no "finish onboarding"
+    /// button to get stuck behind.
+    @AppStorage(SessionMaturity.defaultsKey) private var studioAppearances = 0
+
+    /// Guards the counter against a second `onAppear` in one process (a re-inserted root view
+    /// would otherwise age the install by two). `@State`, so it is per-process by construction.
+    @State private var appearanceCounted = false
+
     /// The menu-bar entries. Each case reuses an EXISTING panel builder as its
     /// dropdown content — no new surfaces, the card pile just moved into menus.
     private enum StudioMenu: String, CaseIterable, Identifiable {
@@ -1225,6 +1235,15 @@ struct EchoelStudioView: View {
             // is written down where it lives (`SynthPatch.launchTouchPatch`).
             if !touchPatchID.isEmpty { syncTouchSound() }
             logLaunchMusicalIdentity()
+            // LAST, and after the identity line on purpose: this is the only statement in the
+            // closure that WRITES a persisted counter, and putting it at the end means every
+            // launch that crashes during startup restore is not counted as an appearance —
+            // the same asymmetry `LaunchGuard.armForRiskyStartup` exists for. A crashed launch
+            // taught the user nothing, so it must not age the install.
+            if !appearanceCounted {
+                appearanceCounted = true
+                studioAppearances = SessionMaturity.next(after: studioAppearances)
+            }
         }
         .onChange(of: scenePhase) { old, phase in
             if phase == .active { handlePendingIntent(); updateKeepAwake() }
@@ -2422,9 +2441,29 @@ struct EchoelStudioView: View {
     /// scrim; a lying control now that the strip is permanent. Appended rather than always
     /// present, so the strip stays short.
     private var visibleChips: [StudioMenu] {
-        Self.studioChips.contains(displayedMenu)
-            ? Self.studioChips
-            : Self.studioChips + [displayedMenu]
+        let base = maturityChips
+        return base.contains(displayedMenu) ? base : base + [displayedMenu]
+    }
+
+    /// The standing strip AFTER the first-run policy (#568, C4). At maturity this is exactly
+    /// `studioChips`; below `SessionMaturity.simplifiedBelow` appearances it is the Sound chip
+    /// alone, so a brand-new install shows one panel instead of eight.
+    ///
+    /// ⚠️ THE APPEND IN `visibleChips` OPERATES ON THIS, NOT ON `studioChips` — that ordering is
+    /// the whole reason the two are separate members. A chrome door (the pulse pill → `.bio`,
+    /// the header clips tile → `.video`) still selects a menu the strip does not carry, and
+    /// during the first runs it selects one the strip carries *even less*. Appending to the
+    /// unfiltered array would have put eight chips back on screen the moment the pulse pill was
+    /// tapped, i.e. undone the policy through the one door most likely to be pressed first.
+    ///
+    /// FREEZE LAW: `studioAppearances` is `@AppStorage(Int)` written ONCE per process from
+    /// `onAppear`. It is nowhere near the ~10 Hz reads the law is about, and unlike a bio
+    /// snapshot it cannot churn while a `.menu` Picker is open — the value is already final
+    /// before the first chip is drawn.
+    private var maturityChips: [StudioMenu] {
+        let all = Self.studioChips.map { $0.rawValue }
+        let keep = SessionMaturity(appearances: studioAppearances).visibleChipIDs(from: all)
+        return Self.studioChips.filter { keep.contains($0.rawValue) }
     }
 
     /// ⭐ WHY THIS SCROLLS ITSELF (#291). #290 took the strip from five chips to nine, and
