@@ -9757,3 +9757,67 @@ STALEN `claude/piano-roll-clip-view-wozlie-5kxnrl`).
 - **Geräteprobe, neu:** liest sich eine automatisierte Vibrato-Lane als ABSICHT oder als Wackeln des
   Körpers — Vibrato ist der exponierteste der vier gebundenen Anker, weil ein Hörer die Rate direkt
   hört.
+
+## #559 — die Automations-Kette wird sichtbar, bevor sie editierbar wird (Scheibe 2)
+
+Commit `26aa4d0`, Branch `claude/echoelmusic-neustart-auv3-6ri2ek`. Scheibe 2 von
+`scratchpads/PLAN_AUTOMATION_IN_DER_SPUR.md` — **route-neutral**, unter Route A und Route B Wort
+für Wort dieselbe Arbeit; die Founder-Frage bleibt bei Scheibe 3, jetzt mit zwei ausgelieferten
+Zyklen als Beleg statt einer Vermutung.
+
+- **Warum Sichtbarkeit zuerst:** Abschnitt 5 des Plans hält fest, dass KEINE der acht gemessenen
+  Automations-Schichten je auf einem Gerät beobachtet wurde. `enabled` ist `false`, die Mutations-API
+  hat seit #473 keinen Aufrufer, `RecordController.arm()` seit #204 keinen. „~90 % gebaut" ist eine
+  Aussage über CODE. Das hier ist das Billigste, was irgendetwas davon in etwas verwandelt, das ein
+  Mensch ansehen kann — ohne Schreiber, ohne Geste, ohne Routen-Entscheidung.
+- **Was der Streifen sagt,** pro Lane mit echten Keyframes: Name · Schicht · Anzahl Keyframes · die
+  reale Spanne, die die Kurve abdeckt. **Leere Lanes werden übersprungen**, und das ist kein
+  Aufräumen: `AutomationPlayer.completed()` legt auf JEDEM frischen Gerät eine leere Lane pro
+  Legacy-Enum-Ziel an, und `applyStep` schreibt für sie nichts — sie zu listen hieße, auf einem
+  Gerät ohne jede Automation drei automatisierte Parameter zu melden.
+- ⭐ **Und eine Lane, deren keyPath keinen Setter erreicht, wird GELISTET und als „no effect"
+  markiert.** Scheibe 1 hat gemessen, dass `ParameterApplyRouter.applyNormalized` für einen
+  ungebundenen keyPath nil liefert; so eine Kurve zeichnet, speichert, spielt ab und bewegt nichts.
+  Diese Zeilen wegzufiltern hieße, die Oberfläche mit dem Defekt übereinstimmen zu lassen: nichts
+  gesehen, nichts gehört, keine Möglichkeit, das eine mit dem anderen zu verbinden.
+- **Zwei Zustände, die man leicht verkehrt herum aufschreibt** — und die der Streifen aus dem Code
+  nimmt statt aus der Erinnerung: die GLOBALE Schicht hängt an `enabled`, die Clip- und die
+  Arrangement-Schicht liegen AUSSERHALB dieses Gates (Clip-Automation ist Clip-INHALT und spielt wie
+  die Noten des Clips). Und eine spätere Schicht überschreibt eine frühere auf demselben Parameter —
+  **unter BEIDEN Identitäten**, weshalb die Regel `TimelineAutomationRowMath.sameParameter` fragt und
+  nicht Zeichenketten vergleicht (#416).
+- **Bauform:** der reine Teil liegt in `Sequencer/AutomationStatus.swift`, in einer EIGENEN Datei —
+  die #472/#473-Lehre vorwärts angewandt statt noch einmal gelernt (türlos ist eine Eigenschaft der
+  ANSICHT, löschbar eine der DATEI). Der SwiftUI-Teil ist ein eigener `View`-`struct`, der den Player
+  im eigenen Rumpf liest (10.76.41/50: `soundPanel` wird vom menü-hostenden Root ausgewertet). Er
+  liest **bewusst keinen Playhead** — `timelineTick` ist genau deshalb `@ObservationIgnored` — also
+  ist die ehrliche Anzeige die SPANNE einer Kurve, eine Tatsache, die sich nur beim Editieren ändert.
+- ⭐ **`AutomationPlayer.extraAutomatableDescriptors` hat wieder einen Aufrufer**, den ersten seit
+  #473. Der ⚠️-Vermerk an seiner Deklaration, der CLAUDE.md-Registereintrag und die
+  Ein-Aufrufer-Inventur in `TimelineAutomationRowMath` sind im SELBEN Commit mitgezogen (#456) — der
+  Vermerk stand an der Deklaration, und genau deshalb war er auffindbar, als er falsch wurde.
+- **Überschrift bewusst NICHT im Streifen:** „Automation" ist eine Section-Heading, #362 hat alle auf
+  `groupHeader` vereinheitlicht, und dieser Builder ist `private`. Sie 11 pt semibold im neuen File
+  nachzubuchstabieren wäre eine vierte Schreibweise in einer Datei, die keine Panel-Review je gegen
+  die anderen drei hält. Der Wirt ruft `groupHeader("Automation")` über dem Mount.
+- **Benotung, und sie ist unbequem:** die Wächter-Datei **kompiliert gegen den Eltern-Baum
+  (`78af9c2`) nicht** — sie nennt Typen, die dieser Commit erst anlegt. Also hat dort KEINE
+  Behauptung ein Verdikt, und „null Regressionen" zu schreiben wäre die #488-Zweideutigkeit. Statt
+  Delta-Benotung: in Python transkribiert (§0). Claims 1–6 rein, alle sechs grün auf diesem Baum, auf
+  dem Elternteil FORWARD über einen Typ, den es nicht gibt — **eine Abwesenheit, sechs Behauptungen,
+  EIN Befund** (#486). Claim 7 spaltet sich: der MOUNT ist eine echte Regression, die Freeze-Hälfte
+  (`EchoelStudioView` deklariert kein `@Environment(AutomationPlayer.self)`) ein Gegengewicht auf
+  beiden Bäumen — und die wichtigste Behauptung der Datei, weil Claims 1–6 alle grün bleiben auf
+  einem Baum, der den Streifen „vereinfacht" hat, indem er den Player im Panel liest.
+- ⛔ **UND DIE STRIPPER-ZEILE WAR EIN MUSTERABGLEICH, KEINE MESSUNG.** Ich hatte „TRAGEND, 1 von 4"
+  geschrieben, BEVOR ich gemessen habe — mit der Begründung, der Mount-Kommentar werde
+  `@Environment(AutomationPlayer.self)` in Prosa nennen und die negative Nadel roh treffen. Die
+  #486/#491-Kollision ist dieser Sitzung sechsmal passiert, also habe ich die siebte vorweggenommen.
+  Gemessen: der Kommentar, den ich wirklich geschrieben habe, enthält die Zeichenkette nicht; roh und
+  gestrippt sind auf allen sechs Verdikten einig → **PROPHYLAKTISCH, 0 von 6**. Genau der Fehler, den
+  `Tests/CISmoke/CLAUDE.md` §2 protokolliert (drei Scheiben in Folge behaupteten „tragend" ohne zu
+  messen). Die Korrektur steht im Wächter-Kopf statt still ersetzt zu werden, **weil der Fehler nicht
+  die Zahl war, sondern eine Benotungszeile aus einem MUSTER zu schreiben statt aus dem Baum.**
+- **Geräteproben, offen:** rendern die Zeilen · passt der Streifen am Ende eines ohnehin langen
+  Panels bei Accessibility-Textgrößen · **überlebt ein offener Picker in diesem Panel eine laufende
+  Kamera mit montiertem Streifen** (die einzige, die das Freeze-Gesetz wirklich prüft).
