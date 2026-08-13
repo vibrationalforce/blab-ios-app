@@ -424,6 +424,14 @@ enum AudioConfiguration {
     /// start path (tap reinstall, recorder prepare, meter timer), not just start the
     /// engine. This hook used to be `onInterruptionResume`, and that difference is
     /// exactly what got lost.
+    ///
+    /// ⚠️ IT HAS TWO CALLERS SINCE #585, and the name only describes the first. What the owner
+    /// installs here is "the graph needs a full, de-bounced restart" — the 300 ms settle, the
+    /// capped retry, the `degraded` surface, the tap reinstall. The second caller is the
+    /// `.ended` branch of `handleInterruption` below, whose `setActive(true)` can throw: that
+    /// path used to log the failure and return, leaving a paused graph with nothing scheduled
+    /// to rescue it. Redoing the taps there is harmless; giving up there was not. Renaming the
+    /// hook to match is a separate, purely cosmetic slice.
     nonisolated(unsafe) static var onMediaServicesReset: (() -> Void)?
 
     /// Whether interruption handlers have already been registered (prevents duplicate observers)
@@ -540,6 +548,21 @@ enum AudioConfiguration {
                 onInterruptionResume?()
             } catch {
                 log.audio("Failed to reactivate audio session: \(error)", level: .error)
+                // ⛔ #585 — THIS BRANCH USED TO END HERE, and ending here is a dead end. The
+                // session did not come back, `wasInterrupted` is still set, the graph is still
+                // paused, and nothing was scheduled to try again: the app sits silent until the
+                // user relaunches it. One log line for a state the user experiences as a broken
+                // instrument.
+                //
+                // The recovery hook already does everything this needs and nothing it does not —
+                // a 300 ms settle (the session is often refusing because the route is mid-change),
+                // a capped retry, and, when the cap is reached, the `degraded` surface that
+                // `AudioDegradedRow` now renders. Redoing the taps on the way is harmless.
+                //
+                // ⚠️ THE ORDER OF THESE TWO SLICES IS NOT COSMETIC: without a reader for
+                // `degraded`, this line would only move the silence from "no retry at all" to
+                // "three retries, then the same silence". The affordance has to exist first.
+                onMediaServicesReset?()
             }
 
         @unknown default:

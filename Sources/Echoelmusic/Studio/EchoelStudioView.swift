@@ -1825,6 +1825,14 @@ struct EchoelStudioView: View {
                 PulseMonitorMiniLive()
                 #endif
             }
+            // #585 — the one visible consequence of `AudioEngine.degraded`, which had no reader
+            // at all until now. Renders nothing while audio is healthy, so this row keeps its
+            // exact layout in the normal case; it is a `View` of its own so that a live audio
+            // object never gets read from this body (freeze law). It sits directly under the
+            // Start button because that is where a player looks when pressing Start produced
+            // no sound, and it is a banner rather than an alert because the body's presentation
+            // chain is at 14 and a 15th is the black-screen SIGSEGV.
+            AudioDegradedRow()
             // LINE 2 — the actions (#482). See `quickActionRow`.
             quickActionRow
             // LINE 3 — the doors (#492). See `quickDoorRow`. A THIRD line is back, four
