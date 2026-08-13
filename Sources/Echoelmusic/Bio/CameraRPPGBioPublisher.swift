@@ -274,6 +274,22 @@ public final class CameraRPPGBioPublisher {
     /// and the `@Observable` macro calls `withMutation` on every set regardless of equality —
     /// a tracked property written at 1 Hz is a 1 Hz invalidation of every observer of this
     /// publisher, the smaller sibling of the 10.76.41/50 menu-freeze.
+    /// The publish loop's normal period. 100 ms — the "live feel" rate every `tick % N`
+    /// constant in this file is expressed against (`% 10` = ~1 Hz publish, `% 20` = ~2 s
+    /// diagnostic, `stallTicks >= 60` = ~6 s).
+    nonisolated static let activeTickSeconds = 0.1
+
+    /// The period the loop falls back to while iOS HOLDS the camera and nothing arrives
+    /// (#577). Five times slower, because in that state every iteration is provably futile:
+    /// the queue is empty, the analyzer gets nothing, and the publish path bails one line in
+    /// on `inboundRateEMA >= minMeasurableInboundHz`.
+    ///
+    /// ⭐ MEASURED. Device log v10.79.388/2505, one backgrounded stretch of 220 s: **2 200
+    /// main-actor wake-ups** to drain an empty queue. At this period the same stretch costs
+    /// 440. Resume latency is bounded by the same 0.5 s, which is nothing against the ~10 s
+    /// the analyzer needs to re-acquire a pulse after an interruption anyway.
+    nonisolated static let heldTickSeconds = 0.5
+
     /// True while the camera is HELD interrupted with zero inbound frames — the state in
     /// which every diagnostic this loop can print is stale by construction (#576).
     ///
@@ -1002,8 +1018,14 @@ public final class CameraRPPGBioPublisher {
 
         publishTask = Task { @MainActor [weak self] in
             var tick = 0
+            // The period is a VARIABLE, not a literal (#577) — see `heldTickSeconds`. It is
+            // read back below by the inbound-rate maths, which is the whole reason it lives
+            // here instead of being branched at the `sleep`: a rate computed with the wrong
+            // divisor would overstate the inbound flow fivefold on the first tick after
+            // frames return, and `inboundRateEMA` is what the publish gate trusts.
+            var tickSeconds = CameraRPPGBioPublisher.activeTickSeconds
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(100))   // ~10 Hz: live feel
+                try? await Task.sleep(for: .milliseconds(Int(tickSeconds * 1000)))
                 guard let self, self.isRunning else { break }
                 // Drain the frames the capture queue buffered since the last tick and
                 // feed them to the analyzer IN ORDER, on the main actor, with their
@@ -1015,7 +1037,11 @@ public final class CameraRPPGBioPublisher {
                 }
                 // Measured inbound rate (drained-per-100ms-tick × 10 = Hz), EMA-smoothed.
                 self.loopTicks += 1
-                self.inboundRateEMA = self.inboundRateEMA * 0.9 + Double(drained.count) * 10.0 * 0.1
+                // `/ tickSeconds`, not `* 10.0` (#577). The literal was the reciprocal of a
+                // period that is now variable; leaving it would make a backed-off tick report
+                // five times the frames it actually carried.
+                self.inboundRateEMA = self.inboundRateEMA * 0.9
+                    + Double(drained.count) / tickSeconds * 0.1
                 // Sample-pipe stall guard (device log 2026-07-02: analyzer output frozen
                 // byte-identical for ~13 s — no NEW RGB reached it — while the capture-layer
                 // watchdog saw frames and stayed happy). If NO samples arrive for ~6 s while
@@ -1122,6 +1148,23 @@ public final class CameraRPPGBioPublisher {
                     }
                 }
                 if newRecovery != self.recoveryState { self.recoveryState = newRecovery }
+
+                // ── THE PERIOD FOR THE *NEXT* SLEEP (#577) ────────────────────────────────
+                // Placed HERE, and the position is the whole correctness argument: it is
+                // after the stall ladder (which owns `heldQuiet`) and after the banner, but
+                // BEFORE the first `continue` in this body. Setting it at the bottom of the
+                // loop would be skipped on every early exit — and the early exits are the
+                // common path, so the backoff would engage only in the rare case where the
+                // tick runs to completion.
+                //
+                // Gated on `isInterrupted` AS WELL as `heldQuiet`, which is not redundant: if
+                // the interruption ENDS while frames still do not arrive, that is a REAL
+                // stall and the recovery ladder must fire on its own ~6 s budget, not on a
+                // stretched one. `heldQuiet` alone clears only when frames return, so it
+                // would hold the loop slow through exactly the case that needs it fast.
+                tickSeconds = (self.heldQuiet && self.capture.isInterrupted)
+                    ? CameraRPPGBioPublisher.heldTickSeconds
+                    : CameraRPPGBioPublisher.activeTickSeconds
 
                 // Live status + waveform every tick so positioning is immediate.
                 self.fingerDetected = self.analyzer.isFingerDetected
