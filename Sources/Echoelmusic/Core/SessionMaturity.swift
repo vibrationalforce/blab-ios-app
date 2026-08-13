@@ -88,4 +88,32 @@ public struct SessionMaturity: Sendable, Equatable {
     public static func next(after appearances: Int) -> Int {
         appearances >= Int.max - 1 ? Int.max : Swift.max(0, appearances) + 1
     }
+
+    /// ⭐ THE UPGRADE CASE, and it is the one #568 shipped without and #571 had to add before a
+    /// deploy could be honest. The counter is NEW, so on every device that already has this app
+    /// it reads zero — and a zero means "never opened the instrument". Without this, the update
+    /// that introduced the first-run surface would have taken SEVEN CHIPS AWAY from every
+    /// existing user for three launches. To a person who has been using the app for months that
+    /// does not read as onboarding; it reads as a broken update, and it would have burned the
+    /// one thing this loop cannot buy back — a founder device round-trip.
+    ///
+    /// - Parameters:
+    ///   - stored: the value already in `UserDefaults`, or nil when the key has NEVER been
+    ///     written. Nil is the whole signal — `UserDefaults.integer(forKey:)` answers 0 for both
+    ///     "fresh install" and "opened twice", so the caller must ask `object(forKey:)`.
+    ///   - hasPriorState: whether this install shows any evidence of earlier use.
+    /// - Returns: the counter to start from.
+    public static func seed(stored: Int?, hasPriorState: Bool) -> Int {
+        if let stored { return Swift.max(0, stored) }   // already counting — never re-seed
+        return hasPriorState ? simplifiedBelow : 0
+    }
+
+    /// Keys whose PRESENCE proves the instrument was used before the counter existed.
+    ///
+    /// A prefix rather than a list, and that is safe here for a measured reason: nothing calls
+    /// `UserDefaults.register(defaults:)` for any `studio.*` key — the only three registrations
+    /// in the app are feature flags — so a `studio.` key exists if and only if something WROTE
+    /// it, which only ordinary use does. A hand-written list of individual keys would have to be
+    /// maintained forever and would silently under-report the day a key was renamed.
+    public static let priorStatePrefix = "studio."
 }

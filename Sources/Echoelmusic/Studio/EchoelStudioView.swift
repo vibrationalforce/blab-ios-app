@@ -743,11 +743,37 @@ struct EchoelStudioView: View {
     /// Low-frequency @State (user taps only), so the root body never churns.
     @State private var activeMenu: StudioMenu?
 
-    /// How many launches have reached this instrument (#568, C4). Drives `maturityChips`.
-    /// Persisted, so the reduced first-run surface survives a relaunch and expires on its own
-    /// after `SessionMaturity.simplifiedBelow` appearances — there is no "finish onboarding"
-    /// button to get stuck behind.
+    /// How many launches have reached this instrument (#568, C4). Persisted, so the reduced
+    /// first-run surface survives a relaunch and expires on its own after
+    /// `SessionMaturity.simplifiedBelow` appearances — there is no "finish onboarding" button to
+    /// get stuck behind.
+    ///
+    /// ⚠️ WRITTEN HERE, READ NOWHERE (#571). What the strip renders from is `launchMaturity`
+    /// below, which is frozen for the process. Reading the live counter would make the eight
+    /// chips POP into place mid-launch on the run that crosses the threshold, because the
+    /// increment happens in `onAppear` — after the first body evaluation.
     @AppStorage(SessionMaturity.defaultsKey) private var studioAppearances = 0
+
+    /// This install's maturity AS OF THIS LAUNCH — resolved once per process, before anything
+    /// renders, and never moved afterwards.
+    ///
+    /// ⭐ THE SEED IS THE POINT (#571). `UserDefaults.integer(forKey:)` answers 0 both for a
+    /// fresh install and for one that predates the counter, and #568 shipped reading it that
+    /// way: the update would have taken seven chips away from every EXISTING user for three
+    /// launches, which reads as a broken update rather than as onboarding.
+    /// `SessionMaturity.seed` distinguishes them from `object(forKey:)` being nil plus evidence
+    /// of earlier use.
+    ///
+    /// `static let`, so the `UserDefaults` sweep runs ONCE per process rather than on every
+    /// re-initialisation of this `struct` — a `@State` default expression is evaluated every
+    /// time the view value is rebuilt, and `dictionaryRepresentation()` is not free.
+    private static let launchMaturity: Int = {
+        let defaults = UserDefaults.standard
+        let stored = defaults.object(forKey: SessionMaturity.defaultsKey) as? Int
+        let prior = defaults.dictionaryRepresentation().keys
+            .contains { $0.hasPrefix(SessionMaturity.priorStatePrefix) }
+        return SessionMaturity.seed(stored: stored, hasPriorState: prior)
+    }()
 
     /// Guards the counter against a second `onAppear` in one process (a re-inserted root view
     /// would otherwise age the install by two). `@State`, so it is per-process by construction.
@@ -1242,7 +1268,9 @@ struct EchoelStudioView: View {
             // taught the user nothing, so it must not age the install.
             if !appearanceCounted {
                 appearanceCounted = true
-                studioAppearances = SessionMaturity.next(after: studioAppearances)
+                // Counted FROM the frozen launch value, not from the live property: the two are
+                // equal here, and writing it this way says which one is authoritative.
+                studioAppearances = SessionMaturity.next(after: Self.launchMaturity)
             }
         }
         .onChange(of: scenePhase) { old, phase in
@@ -2456,13 +2484,12 @@ struct EchoelStudioView: View {
     /// unfiltered array would have put eight chips back on screen the moment the pulse pill was
     /// tapped, i.e. undone the policy through the one door most likely to be pressed first.
     ///
-    /// FREEZE LAW: `studioAppearances` is `@AppStorage(Int)` written ONCE per process from
-    /// `onAppear`. It is nowhere near the ~10 Hz reads the law is about, and unlike a bio
-    /// snapshot it cannot churn while a `.menu` Picker is open — the value is already final
-    /// before the first chip is drawn.
+    /// FREEZE LAW: `launchMaturity` is a `static let` resolved once per process, before the
+    /// first body evaluation. It is not merely low-frequency — it is CONSTANT for the run, so it
+    /// cannot churn while a `.menu` Picker is open and cannot pop the strip mid-launch.
     private var maturityChips: [StudioMenu] {
         let all = Self.studioChips.map { $0.rawValue }
-        let keep = SessionMaturity(appearances: studioAppearances).visibleChipIDs(from: all)
+        let keep = SessionMaturity(appearances: Self.launchMaturity).visibleChipIDs(from: all)
         return Self.studioChips.filter { keep.contains($0.rawValue) }
     }
 

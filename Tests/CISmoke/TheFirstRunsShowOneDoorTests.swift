@@ -38,6 +38,14 @@
 //     `testTheStandingStripStillDeclaresAllEight` are COUNTERWEIGHTS — transcribed green on
 //     BOTH trees, and that is the point: they pin the premises that make the policy safe
 //     (nothing was stranded, the strip was not re-sorted).
+//   · ⭐ #571 ADDED TWO METHODS AND MOVED TWO NEEDLES; graded against ITS parent (`254bf7a`,
+//     i.e. this file as #568 shipped it): `testAnInstallThatPredatesTheCounterIsTreatedAs
+//     Experienced` and `testThePriorStateEvidenceIsAPrefixNothingRegisters` are REGRESSIONS —
+//     `SessionMaturity.seed` and `priorStatePrefix` do not exist there, so the file does not
+//     compile against that parent either. Claim 4's `studioAppearances` needle became
+//     `Self.launchMaturity` (the render source moved), and claim 5's needle was widened to
+//     `SessionMaturity.next(after:` because the ARGUMENT legitimately changed — that widened
+//     needle is green on both trees and is now a counterweight rather than a forward guard.
 //   · STRIPPER: PROPHYLAKTISCH — 0 of 17 needle verdicts flip, measured raw vs. stripped on
 //     both trees. ⛔ The first draft of this header claimed TRAGEND ("`studioChips` also occurs
 //     in `visibleChips`' doc comment"). Wrong, and wrong in the flattering direction (#433):
@@ -161,9 +169,65 @@ final class TheFirstRunsShowOneDoorTests: XCTestCase {
             keep-list live in that type on purpose (#416); a second copy inline here is the \
             defect whether or not the two agree today.
             """)
-        XCTAssertTrue(policy.contains("studioAppearances"), """
-            `maturityChips` no longer reads the persisted appearance counter, so the policy \
-            cannot depend on how far along the install is — it would be a constant.
+        // ⚠️ THE NEEDLE MOVED WITH THE CODE (#571, same commit — #456). It was
+        // `studioAppearances`, the live `@AppStorage` property. The strip now renders from
+        // `launchMaturity`, a `static let` frozen for the process, because reading the live
+        // counter made the eight chips POP into place mid-launch on the run that crosses the
+        // threshold — the increment happens in `onAppear`, after the first body evaluation.
+        XCTAssertTrue(policy.contains("Self.launchMaturity"), """
+            `maturityChips` no longer reads `launchMaturity`. If it went back to the live \
+            `@AppStorage` counter, the strip changes width DURING the third launch. If the \
+            frozen value was renamed, move this needle with it in the same commit.
+            """)
+    }
+
+    // MARK: - claim 4b (END-TO-END) — an update must not un-teach an experienced user
+
+    /// ⛔ THE CASE #568 SHIPPED WITHOUT. The counter is newer than the app, so on every device
+    /// that already has Echoel the key is ABSENT — and `UserDefaults.integer(forKey:)` answers
+    /// 0 for "absent" exactly as it does for "opened zero times". Read that way, the update
+    /// would have taken seven chips away from every existing user for three launches. To
+    /// somebody who has been playing for months that is not onboarding, it is a broken update.
+    func testAnInstallThatPredatesTheCounterIsTreatedAsExperienced() {
+        XCTAssertEqual(SessionMaturity.seed(stored: nil, hasPriorState: true),
+                       SessionMaturity.simplifiedBelow, """
+            An install with prior state but no counter was not seeded past the threshold. That \
+            is the upgrade path: absent must mean "we only started counting now", never "this \
+            person has never opened the app".
+            """)
+        XCTAssertFalse(SessionMaturity(appearances: SessionMaturity.seed(stored: nil,
+                                                                        hasPriorState: true)).isLearning)
+        XCTAssertEqual(SessionMaturity.seed(stored: nil, hasPriorState: false), 0, """
+            A genuinely fresh install was seeded past zero, so nobody would ever see the \
+            first-run surface the whole cycle exists to build.
+            """)
+        XCTAssertTrue(SessionMaturity(appearances: SessionMaturity.seed(stored: nil,
+                                                                       hasPriorState: false)).isLearning)
+        for stored in [0, 1, 2, 7] {
+            XCTAssertEqual(SessionMaturity.seed(stored: stored, hasPriorState: true), stored, """
+                A counter that already exists (\(stored)) was overwritten by the seed. Re-seeding \
+                a counting install would restart, or skip, the first runs on every launch — the \
+                prior-state evidence is only ever a tie-breaker for "no value at all".
+                """)
+        }
+        XCTAssertEqual(SessionMaturity.seed(stored: -4, hasPriorState: false), 0,
+                       "a corrupt stored value must clamp, not persist as negative")
+    }
+
+    /// The seed's evidence must be read from a key nothing pre-registers, or it answers "prior
+    /// state" on a fresh install and the first-run surface never appears for anyone.
+    func testThePriorStateEvidenceIsAPrefixNothingRegisters() throws {
+        XCTAssertEqual(SessionMaturity.priorStatePrefix, "studio.", """
+            The prior-state evidence prefix moved. It works because NOTHING calls \
+            `UserDefaults.register(defaults:)` for a `studio.` key — the app's only three \
+            registrations are feature flags — so such a key exists if and only if ordinary use \
+            wrote it. A prefix that something registers would make every fresh install look \
+            experienced, silently.
+            """)
+        let code = try studioCode()
+        XCTAssertTrue(code.contains("object(forKey: SessionMaturity.defaultsKey)"), """
+            The launch seed no longer asks `object(forKey:)`. `integer(forKey:)` cannot tell an \
+            absent key from a stored zero, and that distinction IS the upgrade path.
             """)
     }
 
@@ -192,7 +256,10 @@ final class TheFirstRunsShowOneDoorTests: XCTestCase {
             age the install by two per launch — the reduced surface would then expire after \
             roughly one and a half real first runs.
             """)
-        XCTAssertTrue(code.contains("SessionMaturity.next(after: studioAppearances)"), """
+        // The ARGUMENT is deliberately not part of this needle (#571 changed it from the live
+        // `@AppStorage` property to the frozen `launchMaturity`, and both are correct inputs).
+        // What must not change is that the increment goes through the saturating helper.
+        XCTAssertTrue(code.contains("SessionMaturity.next(after:"), """
             The counter no longer increments through `SessionMaturity.next(after:)`. A bare \
             `+= 1` traps on an `Int.max` stored value; this is a crash-on-launch shape, not a \
             style preference.
