@@ -23,7 +23,20 @@ private func scenePhaseName(_ phase: ScenePhase) -> String {
     }
 }
 
-/// Echoelmusic — Make Beats. Record Video. Stream Live.
+/// Echoel is a bio-reactive instrument. Your body plays it, and its output is
+/// multidimensional — sound, image, light, space.
+///
+/// (The canonical one-sentence from `docs/dev/PRODUCT_DEFINITION.md`, 2026-07-25.)
+///
+/// ⛔ #587 — WHAT STOOD HERE, AND WHY IT COULD NOT STAY: `"Make Beats. Record Video.
+/// Stream Live."` — the v10 DAW-era tagline, on the `@main` struct, the first doc line of
+/// the app's entry point. All three claims are struck: beats deleted (#166/#167), video
+/// EDIT cut (#121 Slice 3; capture stayed), streaming never linked (`Package.swift` has no
+/// HaishinKit — `BroadcastPublisher` is a compile guard). `decisions.csv` row 29 declared
+/// this exact sentence superseded on 2026-05-30, and it sat here for 2.5 months more —
+/// an identity line on the entry point outranks any doc page, because it is what a session
+/// (or a new contributor) reads FIRST and plans FROM. Same law as CLAUDE.md's H1 lesson:
+/// the headline is part of the claim.
 @main
 struct EchoelmusicApp: App {
 
