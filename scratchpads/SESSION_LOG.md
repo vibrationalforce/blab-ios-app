@@ -9985,3 +9985,42 @@ Repo-Datei, null fehlgeschlagene Testfälle → das stehende #396 (`TEST EXECUTE
   Bäumen. `codeOnly` **PROPHYLAKTISCH, 0 von 4** (gemessen).
 - **Geräteprobe, offen:** lesen sich die zwei Zeilen an den entgegengesetzten Enden eines langen
   Panels als EINE Antwort — oder gehört die Automations-Leerzeile neben die Körper-Zeile?
+
+## #563 — der teuerste Ausdruck des ganzen Repos war ein dreizeiliger Test-Helfer
+
+Commit `b72b098`. **Gates zu `2bbc9fd` (#562) beide grün:** `Xcode Compile Check` = success ·
+`Build for Testing` = `Test build Succeeded` · `TEST BUILD FAILED` = 0, `error:` = **0**,
+**170 `passed`, null fehlgeschlagen** → das stehende #396.
+
+- **Gemessen, nicht bemerkt.** Über **16** Job-Logs des blockierenden Gates (12./13.08.) ist
+  `TheBreathTermFadesInsteadOfSteppingTests.maxStep` der **teuerste Typprüf-Ausdruck im ganzen
+  Baum**: **750–1778 ms** gegen das 200-ms-Warnlimit des Compilers, in JEDEM erfassten Lauf
+  vorhanden, und das 1,5–3-Fache der zweitschlimmsten Stelle überhaupt
+  (`MetalBioView.draw(in:)`, 500–1100 ms — und das ist ein echter Render-Einstiegspunkt, kein
+  Helfer). Drei ungetypte generische Sprünge in einer Zeile — `Range<Int>` nach `[Double]`
+  gemappt, `abs`-Überladungsauflösung, `Sequence.max()` gegen ein Literal durch `??` — reichen.
+- ⭐ **Warum das eine Scheibe wert ist:** es ist reine Compile-Zeit, die App wird nirgends
+  schneller. Was es kostet, ist das BLOCKIERENDE GATE — und #287 ist der eigene Präzedenzfall
+  dieses Repos: ein zu teurer Ausdruck in einer Assertion-Nachricht hat dieses Gate ROT gemacht.
+  Eine Warnung beim 7-Fachen des Limits ist derselbe Fehler mit heruntergedrehter Lautstärke;
+  das Budget des Compilers gilt PRO AUSDRUCK, also ist die verbleibende Reserve genau das, was
+  die nächste Bearbeitung dieser Zeile zufällig hinzufügt.
+- **Verhalten:** für JEDE endliche Eingabe identisch — gegen die alte Form über 20 000 zufällige
+  Arrays plus Leer- und Ein-Element-Fall transkribiert, **null Abweichungen**.
+- ⛔ **Der EINE bewusste Unterschied ist NaN, und die naheliegende Schleife wäre hier die
+  schmeichelnde Richtung gewesen (#433).** `Sequence.max()` vergleicht mit `<`, was gegen NaN in
+  BEIDE Richtungen falsch ist — die alte Antwort für eine Lane mit einer Nicht-Zahl hing also von
+  der ELEMENT-REIHENFOLGE ab. Ein schlichtes `size > worst` hätte aus dieser Nicht-Determiniertheit
+  eine verlässliche **Null** gemacht; und weil jede Behauptung in dieser Datei ein kleines
+  `maxStep` als „die Lane hielt still" liest, wäre eine NaN-Lane fortan als ruhig durchgegangen.
+  Die neue Form gibt die NaN zurück und lässt die Vergleiche scheitern.
+- ⚠️ **Kein Wächter, absichtlich** (`Tests/CISmoke/CLAUDE.md` §6): Typprüf-Kosten sind nur für den
+  Compiler beobachtbar, und ein Scan, der `.map { }.max()` verbietet, würde legitime Arbeit
+  untersagen (#364). Stattdessen stehen die Messung UND der Befehl zum Neu-Ableiten an der Stelle
+  selbst — die Zahlen sind eine Stichprobe, keine Konstante.
+- **Gemessen und bewusst NICHT angefasst,** beide knapp über der Schwelle (~205 ms):
+  `ScopeTriggerStandsStillTests:41/:43` und `SpectrumReadoutTests:30`. Produktionsstellen über dem
+  Limit (`PatternEngine:219`, `TouchInstrumentView:103`, `LaneVoiceRack:138`,
+  `CameraRPPGBioPublisher:726`, `CameraAnalyzer:564`, `FloatingVisualWindow:804`,
+  `EchoelStudioView`s `variationRow`) sind in der Notiz benannt, aber in einer Test-Hygiene-Scheibe
+  nicht angefasst.
