@@ -10291,7 +10291,11 @@ private struct HealthWriteOptInRow: View {
 /// that is only the SECOND half. `arm()` is two statements: `isArmed = true` and `playNote()`.
 /// So the voice sounds a HELD tone immediately, and its timbre keeps following the body
 /// through `applyLatestIfFresh` (coherence → cutoff · brightness · harmonicity · noise;
-/// HRV → brightness · reverb; heart rate → vibrato; breath phase → the amplitude swell) —
+/// HRV → brightness; heart rate → vibrato; breath phase → the amplitude swell) —
+/// (⛔ "· reverb" struck here too, #546/#561: the write lands in a convolution stage whose only
+/// read is gated on `EchoelDDSP.useConvolutionReverb`, `false` with no writer in `Sources/`.
+/// The user-facing row lost the word in #546; this doc block kept it, which is how a retracted
+/// claim comes back — the next reader takes it from the nearest comment.)
 /// that path runs whether or not any breath ONSET ever arrives. Only when
 /// `BioEventGraph` emits `.breathInhaleOnset` / `.breathExhaleOnset` does breath take over the
 /// envelope (`consumeBioEventsIfFresh`).

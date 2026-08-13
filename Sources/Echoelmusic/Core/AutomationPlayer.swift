@@ -120,13 +120,20 @@ public enum AutomationTarget: String, Codable, Sendable, CaseIterable, Identifia
 /// Both halves are needed and both are here — element-tolerant `lanes` (a bad lane
 /// becomes a hole, the rest survive) and field-tolerant `enabled`.
 ///
-/// HONEST SCOPE — this protects a READ, not a save loop. THE LOAD-BEARING FACT IS THE
-/// GREP, so state it as the grep: not one production call site in `Sources/` reaches
-/// `persist()` — none of `addPoint`/`removePoint`/`movePoint`/`setValue`/`setCurve`/
-/// `setCurvature`/`adoptLane`/`removeLane`/`clear`, and `enabled` (whose `didSet`
-/// persists) has no setter either. `enabled`'s `didSet` also does not fire during `init`,
-/// so launch writes nothing. `automation.json` is genuinely never rewritten today, and a
-/// failed decode could not destroy the file the way the #163 library-wipe did.
+/// HONEST SCOPE — this protects a READ, and since #561 also ONE write. State it as the grep:
+/// not one production call site in `Sources/` reaches `persist()` through the LANE editors —
+/// none of `addPoint`/`removePoint`/`movePoint`/`setValue`/`setCurve`/`setCurvature`/
+/// `adoptLane`/`removeLane`/`clear`. `enabled` is the exception as of #561: the "Play
+/// automation" switch in `Studio/AutomationStatusStrip.swift` writes it, and its `didSet`
+/// persists the document. `enabled`'s `didSet` still does not fire during `init`, so launch
+/// writes nothing. So `automation.json` is rewritten exactly when a user flips that switch —
+/// a deliberate gesture, never a background loop — and a failed decode still cannot destroy
+/// the file the way the #163 library-wipe did.
+/// ⛔ THIS PARAGRAPH SAID "`enabled` … has no setter either" AND "`automation.json` is
+/// genuinely never rewritten today", and BOTH became false in the commit that added the
+/// switch. They are corrected rather than deleted because the grep-shaped form is what made
+/// the change detectable: a sentence that states a fact as its command ages loudly, while
+/// "there is no writer" as bare prose would have sat here being wrong.
 /// ⛔ Do NOT restate this as "because the automation row is gone" — an earlier version of this
 /// comment named `TimelineAutomationRow` and said exactly that, and it is wrong twice over:
 /// that row committed into `TimelineStore`, not into this player (its only `AutomationPlayer`
@@ -142,12 +149,15 @@ public enum AutomationTarget: String, Codable, Sendable, CaseIterable, Identifia
 /// from playing: `applyStep` runs on every transport step (`PianoRollModel.start`'s
 /// `pattern.onTick`, installed once at launch), so those lanes are live even with their
 /// editor gone. That read is what this defends — with one narrowing that matters: the
-/// persisted lanes only APPLY inside `if enabled`, and `enabled` has no in-app setter.
-/// So this reaches exactly the user whose earlier build persisted `enabled: true`, and
-/// the `?? false` default below is a ONE-WAY DOOR for them: once that flag degrades there
-/// is no way back on from inside the app. That is the deliberate direction (automation
-/// overwrites live performer values, so an unreadable flag must never turn it ON), but it
-/// has to be written down, because "those lanes are live" reads as reversible and is not.
+/// persisted lanes only APPLY inside `if enabled`.
+/// ⭐ THE ONE-WAY DOOR IS CLOSED SINCE #561, and what stood here is kept because it is the
+/// argument that closed it: the `?? false` default below meant that once the flag degraded
+/// there was NO WAY BACK ON from inside the app — the direction is deliberate (automation
+/// overwrites live performer values, so an unreadable flag must never turn it ON), but a
+/// conservative default without a manual switch is not conservatism, it is a trapdoor. The
+/// "Play automation" switch in `Studio/AutomationStatusStrip.swift` is that way back. The
+/// default direction is unchanged and `TheAutomationSwitchIsSafeToFlipTests` keeps it, along
+/// with the reason flipping it by hand is safe with nothing recorded.
 ///
 /// Internal, not `private`, ONLY so the regression test can decode it directly:
 /// `AutomationPlayer` takes no injectable store, so testing through it would mean

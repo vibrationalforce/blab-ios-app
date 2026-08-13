@@ -188,9 +188,27 @@ fehlt ein erreichbarer Auslöser am Instrument. Route B: der Finger schreibt, ü
 **Vor dieser Scheibe wird der Founder gefragt** — mit den Scheiben 1 und 2 auf dem Gerät als
 Beleg, statt mit einer Vermutung.
 
-**Scheibe 4 — der Schalter.** `AutomationPlayer.enabled` steht auf `false` und hat keine Tür.
-Er kommt ZULETZT, weil ein Schalter, der etwas Unsichtbares einschaltet, kein Feature ist. Die
-Richtung ist bewusst konservativ (`AutomationPlayer.swift:171`) und bleibt es.
+**Scheibe 4 — der Schalter. ✅ AUSGELIEFERT mit #561, VOR Scheibe 3, und die Umstellung ist
+begründet, nicht vergessen.** `AutomationPlayer.enabled` stand auf `false` und hatte keine Tür.
+
+⛔ **Hier stand: „Er kommt ZULETZT, weil ein Schalter, der etwas Unsichtbares einschaltet, kein
+Feature ist." Dieser Grund ist mit Scheibe 2 ABGELAUFEN** — #559 hat den Zustand auf den Schirm
+gebracht, also kann der Streifen jetzt `off` neben eine Kurve schreiben, und wer das liest, hat
+keine Möglichkeit zu handeln. Eine Fläche, die einen Zustand BENENNT und sein Mittel
+zurückhält, ist schlechter als eine, die schweigt.
+
+⭐ **Der zweite Grund ist ein Defekt, kein Feature-Wunsch, und er hängt an keiner Route:** der
+Decoder setzt `enabled` bei JEDEM unlesbaren Dokument auf `false` — absichtlich, weil Automation
+überschreibt, was der Spieler live eingestellt hat —, und bis #561 konnte nichts in `Sources/`
+ihn zurücksetzen. Der eigene Doc-Block von `AutomationState` nannte das eine EINBAHN-TÜR. Ein
+konservativer Default ohne Handschalter ist kein Konservatismus, sondern eine Falltür.
+
+**Warum das VOR dem Schreiber sicher ist:** mit nichts Aufgezeichnetem sind An und Aus derselbe
+Klang — Master und Tempo wenden nur `if let r = real` an (bei leerer Lane nil), der
+Filter-Multiplikator fällt auf sein Neutral ×1 zurück, und genau ×1 schreibt auch der
+Aus-Zweig via `setCutoffScale(1)`. Alle drei Hälften sind in
+`Tests/CISmoke/TheAutomationSwitchIsSafeToFlipTests.swift` festgenagelt; die konservative
+Default-Richtung ist UNVERÄNDERT und wird dort ebenfalls gehalten.
 
 ⛔ **Ausdrücklich NICHT in diesem Plan: Undo für Automation.** Der Undo-Stack schnappschusst
 ausschließlich `document.regions`, und die Grenze ist im Quelltext begründet (eine zweite Feld-

@@ -58,6 +58,7 @@ struct AutomationStatusStrip: View {
         // `groupHeader("Automation")` immediately above the mount instead. Hoisting the
         // builder somewhere shared is a real slice; quietly re-spelling it is not.
         VStack(alignment: .leading, spacing: 8) {
+            enableRow
             if rows.isEmpty {
                 Text(AutomationStatus.emptySentence)
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -65,6 +66,50 @@ struct AutomationStatusStrip: View {
             } else {
                 ForEach(rows) { AutomationStatusRowView(row: $0) }
             }
+        }
+    }
+
+    /// #561 — the master switch, and the reason it arrives here rather than in the slice the
+    /// plan scheduled it for.
+    ///
+    /// ⭐ THE PLAN PUT IT LAST AND SAID WHY: *"ein Schalter, der etwas Unsichtbares
+    /// einschaltet, ist kein Feature"*. That reason expired one slice ago — #559 put the state
+    /// on screen, so the strip above can now say `off` next to a curve, and a player who reads
+    /// that has no way to act on it. A surface that names a state and withholds its remedy is
+    /// worse than one that says nothing.
+    ///
+    /// ⛔ AND THE SECOND REASON IS A DEFECT, NOT A FEATURE REQUEST: the flag's decode defaults
+    /// to `false` on any unreadable document, deliberately (automation overwrites what the
+    /// performer set live, so a damaged flag must never turn it ON) — and `AutomationState`'s
+    /// own doc block calls that a ONE-WAY DOOR, because until this row there was no setter
+    /// anywhere in `Sources/`. A user whose earlier build persisted `enabled: true` could lose
+    /// it to one truncated write and never get it back from inside the app. That is a
+    /// user-facing hole independent of which route slice 3 takes.
+    ///
+    /// ⚠️ TURNING IT ON WITH NO CURVES IS INAUDIBLE, and that is what makes shipping the switch
+    /// before the writer safe rather than reckless. In `applyStep` the master and tempo targets
+    /// apply only `if let r = real`, which is nil for an empty lane; the filter multiplier
+    /// applies `real ?? target.neutralValue`, and that neutral is ×1 — exactly what the
+    /// DISABLED branch writes via `setCutoffScale(1)`. So with nothing recorded the two states
+    /// are the same sound, and `TheAutomationSwitchIsSafeToFlipTests` pins each half.
+    private var enableRow: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: Binding(get: { player.enabled },
+                                 set: { player.enabled = $0 })) {
+                Text("Play automation")
+                    .font(EchoelTheme.font(12, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+            }
+            .toggleStyle(.switch)
+            .tint(EchoelTheme.accent)
+            .frame(minHeight: 44)
+            .accessibilityHint("Lets recorded parameter curves move the sound while the transport runs")
+            Text(player.enabled
+                 ? "Recorded curves move these parameters while the transport runs."
+                 : "Off by default. Clip automation still plays; this switch is for the song-wide curves.")
+                .font(EchoelTheme.font(10))
+                .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
