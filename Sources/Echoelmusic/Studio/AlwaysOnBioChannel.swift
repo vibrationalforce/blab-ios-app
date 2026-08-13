@@ -125,19 +125,39 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
         + "HRV, heart rate and breath phase. To watch them move — and to add your own routes "
         + "onto effect parameters — open Effects › All parameters."
 
+    /// What this channel moves in the engine, in the channel row's own reading order.
+    ///
+    /// ⭐ #560 TURNED THIS FROM A STRING INTO A SET, and the reason is the direction nobody
+    /// could ask before: the channel rows answer "what does coherence move?", while a player
+    /// standing in the Sound panel is asking the INVERSE — "which of these numbers does my
+    /// body move?". A `· `-joined string can be read forwards only. `shapes` below is now
+    /// derived from this, so the two directions cannot disagree (#416); the rendered words are
+    /// unchanged, and `TheBodyShapedRowsAreNamedOnceTests` pins them character for character.
+    ///
+    /// ⚠️ THE ORDER HERE IS THE CHANNEL ROW'S, NOT the enum's declaration order — the latter is
+    /// the Sound panel's top-to-bottom order and is used by `soundPanelSentence`. Two orders
+    /// for two readings, and confusing them silently rewrites a user-facing string.
+    ///
+    /// ⛔ NO REVERB CASE EXISTS, deliberately (#546). `applyBioReactive` really does write
+    /// `reverbMix` from `hrvVariability`, but the only read of it is gated on
+    /// `EchoelDDSP.useConvolutionReverb`, which is `false` with no writer in `Sources/` — the
+    /// stage cannot sound. `DisabledReverbIsNotClaimedLiveTests` scans THIS member (and
+    /// `shapes`) for the word and falls silent by itself the day the stage is enabled.
+    public var shapedParameters: [BioShapedParameter] {
+        switch self {
+        case .coherence:   return [.filterCutoff, .brightness, .harmonicity, .noiseLevel]
+        case .hrv:         return [.brightness]
+        case .heartRate:   return [.vibrato, .brightness]
+        case .breathPhase: return [.amplitude]
+        }
+    }
+
     /// What this channel moves in the engine, read off `applyBioReactive` (see the file
     /// header for the measurement and for the one profile-dependent exception).
+    ///
+    /// Derived rather than written out since #560 — the words and the separator are unchanged.
     public var shapes: String {
-        switch self {
-        case .coherence:   return "filter · brightness · harmonicity · noise"
-        // #546: "· reverb" struck — the write lands in a stage whose only read is gated on
-        // `EchoelDDSP.useConvolutionReverb`, which is `false` with no writer. See the file
-        // header. This row is rendered to a user (`EchoelFXView.AlwaysOnBioView`), so it is
-        // the claim, not a note about the claim.
-        case .hrv:         return "brightness"
-        case .heartRate:   return "vibrato · brightness"
-        case .breathPhase: return "level"
-        }
+        shapedParameters.map(\.channelWord).joined(separator: " · ")
     }
 
     /// The number the engine receives for this channel — the `…ForSound` accessor, never the
@@ -247,5 +267,103 @@ public struct AlwaysOnBioReading: Equatable, Sendable {
         self.value = value
         self.isMeasured = isMeasured
         self.isHeld = isHeld
+    }
+}
+
+/// One engine parameter the always-on bio path writes, named once so the CHANNEL rows and the
+/// SOUND PANEL can describe the same fact from opposite directions (#560).
+///
+/// ⭐ WHY THE INVERSE DIRECTION IS WORTH A TYPE. The channel rows say "coherence moves filter ·
+/// brightness · harmonicity · noise". A player is not standing in the Bio panel when the
+/// question arrives — they are in Sound & texture, watching a number they set drift, and the
+/// question is "which of THESE does my body move?". Both readings come from this one set, so
+/// they cannot drift into naming different parameters; a hand-written second sentence is
+/// exactly the #416 defect, and on this subject the repo has already had to retract copy twice
+/// (#496 for over-claiming, #546 for a stage that cannot sound).
+///
+/// ⚠️ THE CASE ORDER IS THE SOUND PANEL'S TOP-TO-BOTTOM ORDER (Tone → Filter → Space &
+/// vibrato), because `soundPanelSentence` reads them in `allCases` order and a player scans the
+/// sentence against the panel. The per-channel order is separate and lives on
+/// `AlwaysOnBioChannel.shapedParameters`.
+public enum BioShapedParameter: String, CaseIterable, Identifiable, Sendable {
+    case brightness
+    case harmonicity
+    case noiseLevel
+    case filterCutoff
+    case vibrato
+    case amplitude
+
+    public var id: String { rawValue }
+
+    /// The compact word the channel rows use. These four spellings are the ones that shipped
+    /// before #560 and they are preserved character for character — the strings are rendered
+    /// to a user by `EchoelFXView.AlwaysOnBioView` and by the Bio panel strip.
+    public var channelWord: String {
+        switch self {
+        case .brightness:   return "brightness"
+        case .harmonicity:  return "harmonicity"
+        case .noiseLevel:   return "noise"
+        case .filterCutoff: return "filter"
+        case .vibrato:      return "vibrato"
+        case .amplitude:    return "level"
+        }
+    }
+
+    /// The Sound panel's OWN row labels for this parameter — the words a player can actually
+    /// find on that screen. Empty when the panel has no row for it.
+    ///
+    /// ⛔ `amplitude` IS EMPTY AND THAT IS A MEASUREMENT, NOT AN OVERSIGHT. The breath swell
+    /// rides `EchoelDDSP.amplitude` — the envelope's output inside the voice — and the Level
+    /// group's "Output" row is `SynthPatch.outputLevel`, a per-patch loudness trim that
+    /// `applyBioReactive` never touches. Listing "Output" here would point a player at a
+    /// control the body does not move, which is the same class of error as claiming a channel
+    /// the engine does not receive (#496). Breath is still named in the Bio panel, where the
+    /// claim is about the CHANNEL rather than about a row on this screen.
+    ///
+    /// ⚠️ `vibrato` IS ONE PARAMETER WITH TWO ROWS. `applyBioReactive` scales `vibratoDepth`
+    /// AND `vibratoRate` from the same heart-rate factor, so splitting it into two cases would
+    /// suggest a player could see them move independently — they cannot.
+    public var soundPanelRows: [String] {
+        switch self {
+        case .brightness:   return ["Brightness"]
+        case .harmonicity:  return ["Harmonics"]
+        case .noiseLevel:   return ["Noise"]
+        case .filterCutoff: return ["Cutoff"]
+        case .vibrato:      return ["Vibrato depth", "Vibrato rate"]
+        case .amplitude:    return []
+        }
+    }
+
+    /// Every parameter at least one live body channel writes, in Sound-panel order.
+    ///
+    /// Derived from the channels rather than listed again: a channel that stops shaping a
+    /// parameter drops it from here in the same edit, and a parameter no channel writes can
+    /// never appear.
+    public static var shapedByTheBody: [BioShapedParameter] {
+        let live = Set(AlwaysOnBioChannel.allCases.flatMap(\.shapedParameters))
+        return allCases.filter { live.contains($0) }
+    }
+
+    /// The Sound panel's line: which rows ON THAT PANEL the body moves while a session runs.
+    ///
+    /// ⭐ IT SAYS "around the values you set" ON PURPOSE, and that is the #556 law in the
+    /// player's language: these rows are ANCHORS. `applyBioReactive` recomputes each of them
+    /// per render block from its `bioBase*` anchor, so a number that drifts is not a bug and
+    /// not the automation the panel's other strip describes — it is the body. Answering that
+    /// once, where the numbers are, is the whole point of the line.
+    ///
+    /// ⚠️ IT CLAIMS NO EFFECT SIZE. #497 measured two of these deviations at 25 % and 0.92 dB —
+    /// loud enough to matter, small enough that a sentence is not a hearing test. "Move around"
+    /// is the strongest verb the measurement supports.
+    public static var soundPanelSentence: String {
+        let rows = shapedByTheBody.flatMap(\.soundPanelRows)
+        let list: String
+        switch rows.count {
+        case 0:  return "Your body is not shaping any control on this panel right now."
+        case 1:  list = rows[0]
+        default: list = rows.dropLast().joined(separator: ", ") + " and " + (rows.last ?? "")
+        }
+        return "Your body also shapes this sound while a session runs: \(list) move around the "
+            + "values you set here. Open Bio to watch the four channels doing it."
     }
 }

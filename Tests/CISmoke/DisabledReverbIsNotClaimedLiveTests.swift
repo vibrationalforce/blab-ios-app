@@ -90,7 +90,7 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
     /// `useConvolutionReverb == false` would be two spellings of one decision, and they would
     /// drift on the day the stage is finally repaired.
     ///
-    /// ⚠️ SCOPED TO `shapes`, NOT TO THE FILE. The header of `AlwaysOnBioChannel.swift` now
+    /// ⚠️ SCOPED TO THE MAPPING MEMBERS, NOT TO THE FILE. The header of `AlwaysOnBioChannel.swift` now
     /// explains at length why "reverb" was struck, and `SourceText.codeOnly` blanks that — but
     /// scoping to the member as well means the assertion survives a future doc rewrite that
     /// happens to put the word in a string literal in some other member. Brace-matched, not a
@@ -112,17 +112,32 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
 
         let path = "Sources/Echoelmusic/Studio/AlwaysOnBioChannel.swift"
         let code = Self.codeOnly(try source(path))
-        guard let start = code.range(of: "public var shapes: String") else {
-            XCTFail("""
-                `AlwaysOnBioChannel.shapes` is gone from \(path). If the always-on rows stopped \
-                naming what each channel moves, this assertion has no subject — remove it in \
-                the SAME commit rather than leaving it to pass over nothing.
-                """)
-            return
+        // ⛔ TWO MEMBERS SINCE #560, AND SCANNING ONLY THE OLD ONE WOULD HAVE GONE VACUOUS —
+        // the exact failure §4 of `Tests/CISmoke/CLAUDE.md` names: not a red gate, a guard that
+        // stays GREEN for a reason that no longer exists. #560 turned `shapes` into a
+        // derivation (`shapedParameters.map(\.channelWord).joined(...)`), so the parameter
+        // WORDS moved out of it into `shapedParameters` and `BioShapedParameter.channelWord`.
+        // A scan of `shapes` alone could never contain "reverb" again — it would pass forever,
+        // including on a tree that added a reverb case. Both members are scanned; `shapes`
+        // stays in because it is what the user sees, and it costs one line.
+        let members = ["public var shapedParameters: [BioShapedParameter]",
+                       "public var shapes: String",
+                       "public var channelWord: String"]
+        var body = ""
+        for member in members {
+            guard let start = code.range(of: member) else {
+                XCTFail("""
+                    `\(member)` is gone from \(path). The always-on rows name what each channel \
+                    moves, and this assertion is what stops one of those names being a stage \
+                    that cannot sound — if the member was renamed, re-anchor it in the SAME \
+                    commit rather than leaving the scan to pass over nothing (#454).
+                    """)
+                return
+            }
+            body += Self.bracedBody(of: code, from: start.upperBound)
         }
-        let body = Self.bracedBody(of: code, from: start.upperBound)
         XCTAssertFalse(body.lowercased().contains("reverb"), """
-            `AlwaysOnBioChannel.shapes` names a reverb while `EchoelDDSP.\(Self.flag)` is \
+            `AlwaysOnBioChannel`'s always-on mapping names a reverb while `EchoelDDSP.\(Self.flag)` is \
             `false` with no writer in `Sources/`. The always-on path writes `reverbMix` from \
             HRV, but the only read of `reverbMix` is gated on that flag, so no user can hear \
             it — and this string is rendered to a user by `EchoelFXView.AlwaysOnBioView`.
