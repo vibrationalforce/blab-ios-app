@@ -43,9 +43,14 @@ final class AFutileTickCostsLessTests: XCTestCase {
 
     // MARK: - claim 1 (END-TO-END) — the backoff is real, bounded, and the right way round
 
-    /// Pinned as RELATIONS and CEILINGS, never as 0.1 and 0.5 (#364): both numbers are a
-    /// judgement a later cycle may legitimately retune, and a guard that freezes them would be
-    /// deleted along with the law it carries.
+    /// Pinned as RELATIONS and a CEILING (#364): both numbers are a judgement a later cycle
+    /// may legitimately retune, and a guard that freezes them would be deleted along with the
+    /// law it carries.
+    ///
+    /// ⛔ NOT "never as 0.1 and 0.5", which is what the header claimed — claim 4 below pins
+    /// `activeTickSeconds` to exactly 0.1, and deliberately. The distinction is WHY: it pins
+    /// the COUPLING to `% 10` / `% 20` / `>= 60`, all of which are expressed against that
+    /// period, not the number for its own sake. `heldTickSeconds` genuinely is free.
     func testTheHeldPeriodIsSlowerButStillResponsive() {
         XCTAssertGreaterThan(CameraRPPGBioPublisher.heldTickSeconds,
                              CameraRPPGBioPublisher.activeTickSeconds, """
@@ -88,7 +93,7 @@ final class AFutileTickCostsLessTests: XCTestCase {
 
     func testTheSleepFollowsTheVariablePeriod() throws {
         let src = try source(Self.publisherPath)
-        XCTAssertTrue(src.contains("try? await Task.sleep(for: .milliseconds(Int(tickSeconds * 1000)))"), """
+        XCTAssertTrue(src.contains("Task.sleep(for: .milliseconds(Int((tickSeconds * 1000).rounded())))"), """
             The publish loop no longer sleeps for `tickSeconds`. With a literal back in place \
             the backoff is dead code: `tickSeconds` would still be assigned, still be read by \
             the rate maths, and change nothing — green on every other assertion here.

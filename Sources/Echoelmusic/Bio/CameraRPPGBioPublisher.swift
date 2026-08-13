@@ -268,12 +268,6 @@ public final class CameraRPPGBioPublisher {
         return confidenceOK ? .periodicityLow : .confidenceLow
     }
 
-    /// Publish-gate accounting for the breadcrumb stream (#573).
-    ///
-    /// ⚠️ `@ObservationIgnored` is not optional here: this is written on EVERY publish tick,
-    /// and the `@Observable` macro calls `withMutation` on every set regardless of equality —
-    /// a tracked property written at 1 Hz is a 1 Hz invalidation of every observer of this
-    /// publisher, the smaller sibling of the 10.76.41/50 menu-freeze.
     /// The publish loop's normal period. 100 ms — the "live feel" rate every `tick % N`
     /// constant in this file is expressed against (`% 10` = ~1 Hz publish, `% 20` = ~2 s
     /// diagnostic, `stallTicks >= 60` = ~6 s).
@@ -303,6 +297,19 @@ public final class CameraRPPGBioPublisher {
     /// invites exactly the wrong diagnosis.
     @ObservationIgnored private var heldQuiet = false
 
+    /// Publish-gate accounting for the breadcrumb stream (#573).
+    ///
+    /// ⚠️ `@ObservationIgnored` is not optional here: this is written on EVERY publish tick,
+    /// and the `@Observable` macro calls `withMutation` on every set regardless of equality —
+    /// a tracked property written at 1 Hz is a 1 Hz invalidation of every observer of this
+    /// publisher, the smaller sibling of the 10.76.41/50 menu-freeze.
+    ///
+    /// ⛔ THIS BLOCK WAS ORPHANED TWICE AND IS BACK WHERE IT BELONGS. #576 inserted `heldQuiet`
+    /// between it and `trustWindow`, #577 then inserted the two period constants — so it ended
+    /// up documenting a `nonisolated static let Double`, where `@ObservationIgnored` is
+    /// meaningless, while `trustWindow` had no doc at all. Neither commit's diff showed it:
+    /// inserting ABOVE a declaration reads as a clean addition. **Insert below the property you
+    /// are joining, or re-read the seam.**
     @ObservationIgnored private var trustWindow = TrustWindowTally()
 
     /// Speak the window, then start a fresh one.
@@ -1025,7 +1032,12 @@ public final class CameraRPPGBioPublisher {
             // frames return, and `inboundRateEMA` is what the publish gate trusts.
             var tickSeconds = CameraRPPGBioPublisher.activeTickSeconds
             while !Task.isCancelled {
-                try? await Task.sleep(for: .milliseconds(Int(tickSeconds * 1000)))
+                // `.rounded()` before `Int`, which TRUNCATES: `0.29 * 1000` is
+                // 289.99999999999994 in binary64, so a future retune to such a value would
+                // silently lose a millisecond. 0.1 and 0.5 are exact today — the guard
+                // deliberately leaves both free to change (#364), which is exactly why the
+                // conversion must not depend on them being exact.
+                try? await Task.sleep(for: .milliseconds(Int((tickSeconds * 1000).rounded())))
                 guard let self, self.isRunning else { break }
                 // Drain the frames the capture queue buffered since the last tick and
                 // feed them to the analyzer IN ORDER, on the main actor, with their
@@ -1035,7 +1047,10 @@ public final class CameraRPPGBioPublisher {
                 for s in drained {
                     self.analyzer.processExtractedRGB(avgR: s.r, avgG: s.g, avgB: s.b, timestamp: s.t)
                 }
-                // Measured inbound rate (drained-per-100ms-tick × 10 = Hz), EMA-smoothed.
+                // Measured inbound rate (drained-per-tick ÷ the tick's own period = Hz),
+                // EMA-smoothed. ⛔ This line said "drained-per-100ms-tick × 10" and survived
+                // #577 as diff CONTEXT — two lines above the change that removed both the
+                // period and the multiplier it named.
                 self.loopTicks += 1
                 // `/ tickSeconds`, not `* 10.0` (#577). The literal was the reciprocal of a
                 // period that is now variable; leaving it would make a backed-off tick report
@@ -1051,7 +1066,12 @@ public final class CameraRPPGBioPublisher {
                     self.healthyTicks = 0
                     self.stallTicks += 1
                     if self.coldCooldownTicks > 0 { self.coldCooldownTicks -= 1 }
-                    if self.stallTicks >= 60 {          // ~6 s at 10 Hz
+                    // ⚠️ "~6 s" holds AT THE ACTIVE PERIOD. `stallTicks` counts ITERATIONS,
+                    // so during a held stretch (0.5 s ticks, #577) the threshold is ~30 s —
+                    // harmless, because the branch it reaches is a no-op while interrupted,
+                    // but the number is conditional now. Same for `coldCooldownTicks` below,
+                    // which stretches to ~90 s if a hold intervenes.
+                    if self.stallTicks >= 60 {          // ~6 s at the active period
                         self.stallTicks = 0
                         // While iOS HOLDS the session interrupted, both ladders are
                         // futile no-ops that only burn the recovery budget, battery and

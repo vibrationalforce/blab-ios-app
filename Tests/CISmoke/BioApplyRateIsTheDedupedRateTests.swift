@@ -35,9 +35,14 @@ import XCTest
 final class BioApplyRateIsTheDedupedRateTests: XCTestCase {
 
     /// The camera publisher is the fastest wired source, so it sets the ceiling everything
-    /// else sits under. Its publish is gated to every TENTH tick of a 100 ms loop = ~1 Hz.
+    /// else sits under. Its publish is gated to every TENTH tick of a 0.1 s loop = ~1 Hz.
     /// Both halves are asserted: the gate alone would still be 10 Hz if the loop sped up,
     /// and the loop alone says nothing about the gate.
+    ///
+    /// Since #577 the period can back off to 0.5 s — but ONLY while iOS holds the camera and
+    /// nothing has arrived for six seconds, a state in which the publish path is already
+    /// closed one line earlier on `inboundRateEMA`. So the ~1 Hz ceiling is unchanged for
+    /// every tick that can publish, and the third assertion below pins that condition.
     func testTheCameraPublishesAtAboutOneHertzNotTen() throws {
         let code = try source("Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift")
 
@@ -48,10 +53,36 @@ final class BioApplyRateIsTheDedupedRateTests: XCTestCase {
             `ModulationEngine`'s dt) is suddenly ten times too SLOW rather than too fast. \
             That is #315/#332/#336 in reverse; re-derive them before removing this gate.
             """)
-        XCTAssertTrue(code.contains("milliseconds(100)"), """
-            The camera publisher's loop is no longer 100 ms. The `tick % 10` gate above is \
-            meaningless without it — together they are what makes the publish ~1 Hz. Change \
-            them as a pair, and update CLAUDE.md's architecture line in the same commit.
+        // ⛔ THIS ASSERTION READ `code.contains("milliseconds(100)")` AND WENT RED ON CORRECT
+        // WORK. #577 made the loop's period a variable so it can back off to 0.5 s while iOS
+        // holds the camera, and the literal disappeared. The guard did its job — its own
+        // message demanded "change them as a pair, and update CLAUDE.md in the same commit",
+        // which is what this commit does — but the ANCHOR was a spelling, not the law. A
+        // literal in a `sleep` call is the most brittle possible way to pin a rate.
+        //
+        // Repointed at the NAMED constant, which is also what `AFutileTickCostsLessTests`
+        // pins end-to-end (`1 / activeTickSeconds == 10`). The two files now protect one law
+        // from two directions and that is deliberate, not duplication: this one owns "the
+        // publish is ~1 Hz", that one owns "the rate maths still divides by the real period".
+        XCTAssertTrue(code.contains("nonisolated static let activeTickSeconds = 0.1"), """
+            The camera publisher's active loop period is no longer 0.1 s. The `tick % 10` gate \
+            above is meaningless without it — together they are what makes the publish ~1 Hz. \
+            Change them as a pair, and update CLAUDE.md's architecture line in the same commit.
+            """)
+        XCTAssertTrue(code.contains("var tickSeconds = CameraRPPGBioPublisher.activeTickSeconds"), """
+            The loop no longer starts from `activeTickSeconds`. Pinning the constant proves \
+            nothing if the `sleep` reads something else — that is precisely how the previous \
+            spelling-based anchor would have failed silently in the other direction.
+            """)
+        // The backoff is allowed and must stay CONDITIONAL. If it ever engaged without the
+        // interruption term, the publish would slow to ~0.2 Hz while frames were arriving, and
+        // every time constant derived from ~1 Hz would be five times too slow — #315/#332/#336
+        // once more, from a new direction.
+        XCTAssertTrue(code.contains("tickSeconds = (self.heldQuiet && self.capture.isInterrupted)"), """
+            The slow period is no longer gated on BOTH a held interruption and six seconds of \
+            silence. Unconditional, it would relax the ~1 Hz publish cadence this whole file \
+            exists to pin — while nothing else here would notice, because `tick % 10` and the \
+            constant would both still be intact.
             """)
     }
 
