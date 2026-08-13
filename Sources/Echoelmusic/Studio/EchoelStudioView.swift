@@ -4547,9 +4547,30 @@ struct EchoelStudioView: View {
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .accessibilityLabel(floatingVisualVisible ? "Hide the floating visual window" : "Show the floating visual window")
-            signalSection
-            // `Group`, and it is NOT decorative: `panel(_:isExpanded:)` takes a `@ViewBuilder`,
-            // capped at TEN children, and `signalSection` (#347) took the last free slot. A
+            // ⛔ `signalSection` STOOD HERE AND IS REMOVED (#575, founder 2026-08-13). He
+            // circled the whole block on a v10.79.388 screenshot — the wavefront, its
+            // paragraph, the spectrum, its paragraph, the `63,0 Hz · B1 +36 ct` readout —
+            // and wrote: *"Das Brauch da nicht sein. Wenn dann ins Visual Window
+            // übertragen."* The unconditional half is done here. The conditional half
+            // ("wenn dann") is NOT done, deliberately: putting a measurement readout over
+            // the immersive field is a layout he has not seen, and inventing one would be
+            // the same overreach as the 2026-08-02 note that kept two struck views mounted
+            // "pending a device look". It is registered as a slice in
+            // `scratchpads/PLAN_ONE_VISUALISER.md` instead.
+            //
+            // `AnalysisWavefrontView` and `AnalysisSpectrumView` are now PARKED — files
+            // intact, cores and content guards still running, doorless ON PURPOSE, exactly
+            // like `AnalysisScopeView` and `AnalysisPoincareView` since 2026-08-02. All four
+            // analysis views are now in that state; the Field panel shows no meters at all.
+            // Restoring any of them is one line here plus its caption. Do NOT "fix" the
+            // doorlessness by re-mounting, and do NOT delete the files.
+            //
+            // ⚠️ AND THE VIEWBUILDER NOTE BELOW IS NOW ONE CHILD LOOSER, not obsolete: the
+            // ten-child claim it argues against was already struck as false in #359's
+            // step-2 nachlese (there is no arity cap since `buildPartialBlock`; the real
+            // cost is type-checker time). The `Group` stays because that cost is real.
+            // `Group`, and it is NOT decorative: `panel(_:isExpanded:)` takes a `@ViewBuilder`
+            // whose type-check cost grows with the child count. A
             // `Group` collapses these three into one child while staying LAYOUT-TRANSPARENT —
             // the enclosing stack still spaces them itself, so nothing moves on screen. That
             // is why it is a `Group` and not a `VStack`: a stack would impose its own spacing
@@ -4583,16 +4604,20 @@ struct EchoelStudioView: View {
             // in this ViewBuilder, read in the order they are used. (It said "the same EIGHT"
             // and stayed at eight after #359 step 2 made it nine — a present-tense count in a
             // comment about a DIFFERENT change, which is how these go stale. The panel's
-            // children are enumerated once, in `signalSection`'s doc block; do not re-count
-            // them here.) (The
+            // children are no longer enumerated anywhere: the doc block that held the list
+            // went with `signalSection` (#575), and a list in prose is what went stale here
+            // twice already. COUNT them if you need the number.) (The
             // presentation-modifier ceiling is a different budget entirely — it counts the
             // `.sheet`/`.fullScreenCover` chain on `EchoelStudioView.body`, which panel
             // children never touched. An earlier draft of this note ran the two together.)
             //
             // NOT done here and worth naming: the colour pair still has no heading of its
             // own, so "Look" and "Preset" head two of three sections. Adding a third would be
-            // another top-level child — see `signalSection`'s doc block for what that costs
-            // and what it does NOT cost.
+            // another top-level child. What that costs is type-check TIME, not an arity
+            // error — the false "ten-child cap" is struck at length further down this file,
+            // on the `panel(_:isExpanded:)` note. (⛔ This sentence used to point at
+            // `signalSection`'s doc block, which #575 removed with the section. A pointer is
+            // only as durable as what it points at — #472, the same defect, again.)
             visualPresetRow
             // 14 = `EchoelPanel`'s own content spacing. Passed rather than defaulted so the
             // one-column (portrait) rendering of the grids inside is bit-identical to the
@@ -4611,86 +4636,6 @@ struct EchoelStudioView: View {
             #endif
             touchSoundSection
         }
-    }
-
-    /// SIGNAL (#347 Slice 1, founder 2026-08-01: "Diesen Bereich nochmal erweitern durch
-    /// osciloscope, fft, spectrum, stereobild bzw spatial Analyse").
-    ///
-    /// TWO PICTURES OF THE MASTER OUTPUT since 2026-08-02: the wavefront field (how the sound
-    /// SPREADS) and the spectrum (what is IN it). The oscilloscope that opened this section and
-    /// the Poincaré plot that closed it were both struck out by the founder in red and are now
-    /// parked — see the ⛔ note inside the body for what that means and how to undo it.
-    ///
-    /// It sits ABOVE "Look" deliberately: this is what the sound IS, the looks below are what
-    /// it is rendered AS, and the reading order should follow that.
-    ///
-    /// ⚠️ ONE PROPERTY, THREE ROWS (was five). Slice 2's spectrum went in HERE rather than at the top
-    /// level, and #359 step 2's `weatherImageRow` did not — those are the two decisions this
-    /// paragraph records. `visualPanel`'s top-level children today: the show/hide Button,
-    /// `signalSection`, the `Group`, `visualPresetRow`, `visualAdjustFields`,
-    /// `MusicColourRowView`, the colour caption, `weatherImageRow` (behind its `#if`), and
-    /// `touchSoundSection` — NINE, eight where WeatherKit is absent.
-    ///
-    /// ⛔ THE REASON GIVEN HERE UNTIL #359's STEP-2 NACHLESE WAS FALSE, and it is the sentence
-    /// a session reads before deciding whether it MAY append a child. It said `@ViewBuilder`
-    /// "caps a closure at TEN children" and that twelve "would have failed to compile". There
-    /// is no such cap on this toolchain: since SwiftUI's variadic-generics `buildPartialBlock`
-    /// the arity limit is gone, the deployment floor is iOS 18, and `moodPanel` passes
-    /// THIRTEEN children through this very same `panel(_:isExpanded:)` helper and ships. What
-    /// is real is type-checker COST, which grows with the count and is a budget, not a wall.
-    /// So the guidance survives — prefer a section over a tenth top-level row — but a session
-    /// that genuinely needs one is not blocked, and must not be told it is.
-    ///
-    /// ⛔ THE PARAGRAPH THAT STOOD HERE DESCRIBED A VIEW THAT IS NO LONGER MOUNTED. It said
-    /// "the two views answer different questions … the scope shows the WAVE … the spectrum
-    /// shows what is IN it", written when the section held scope + spectrum. Left as it was, a
-    /// session would plan from a picture the founder removed. The pairing survives with a
-    /// different first member: the WAVEFRONT shows how the sound spreads and how loud a moment
-    /// was, the SPECTRUM shows which partials are in it and how far the loudest sits from the
-    /// nearest note of your tuning. A performer checking whether the take is too bright reads
-    /// the second; one watching the shape of a phrase reads the first.
-    private var signalSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            groupHeader("Signal")
-            // ⭐ FIRST IN THE SECTION — founder 2026-08-02, who struck out the
-            // oscilloscope and the Poincaré plot in red and asked: "Gibt es noch eine Möglichkeit
-            // das es mehr physikalisch korrekt wie die Schwingung aussieht? Schallwellen breiten
-            // sich ja in alle Richtungen gleichmäßig aus." He is right that neither struck view
-            // looks like sound: one is a voltage against time, the other a statistic over
-            // heartbeat intervals. This one shows propagation itself.
-            //
-            // ⛔ THE TWO STRUCK VIEWS ARE GONE FROM THIS SECTION (2026-08-02, one cycle after the
-            // replacement landed). The previous version of this note kept them mounted and called
-            // that "a deliberate sequencing call" — waiting for a device look before removing
-            // something the founder had already crossed out. That reasoning was mine, not his:
-            // the red X is an instruction, and delivering only the addition is half of it. What
-            // stays true from that note is the mitigation, so it is now the actual plan rather
-            // than a promise: `AnalysisScopeView.swift` and `AnalysisPoincareView.swift` are NOT
-            // deleted, their cores and content guards still run, and bringing either back is one
-            // line here plus its caption. The spectrum was never struck and stays, so this
-            // section can never end up empty.
-            //
-            // ⚠️ FOR THE NEXT SESSION: both files are now DOORLESS ON PURPOSE, which is the shape
-            // this repo otherwise treats as a defect (#322). Do not "fix" that by re-mounting
-            // them, and do not delete them either — the founder's look at the wavefront decides
-            // which way it goes.
-            AnalysisWavefrontView(reduceMotion: reduceMotion)
-            Text("The same output as a wave leaving its source: every ring is one moment of the sound, expanding at a constant speed and fading as the same energy spreads over a growing circumference. Its colour is that moment's centre of gravity in frequency, in the same visible-light mapping the field uses. The clock is slowed so the eye can follow it — real fronts cross a room in milliseconds.")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-            AnalysisSpectrumView(reduceMotion: reduceMotion)
-            Text("The same output by frequency, low on the left. Each band is tinted by the colour that frequency becomes in visible light — the same mapping the field uses — so the meter and the picture agree. The reading above names the loudest partial and how far it sits from the nearest note of your tuning.")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-            // ⛔ THE "Body" HEADING WENT WITH THE POINCARÉ PLOT. It existed only to stop a
-            // heart-rate picture reading as another audio meter; with nothing under it, a lone
-            // heading is a promise of content that is not there. Two founder asks are in tension
-            // here and the LATER one wins: the plot was built for "achte auch auf den
-            // evidenzbasierten gesundheitlichen benefit" and was then crossed out on 2026-08-02.
-            // Restoring it means restoring this heading with it — one without the other is the
-            // half-state that made this note necessary.
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// PLAY-SURFACE SOUND (founder 2026-07-08: "man soll auch Presets bzw. Sound-
@@ -7336,8 +7281,9 @@ struct EchoelStudioView: View {
         // The 10 is right; the limit is not. `buildPartialBlock` (iOS 16 SDK, and this app's
         // floor is iOS 18) removed the arity cap — `moodPanel` ships THIRTEEN children
         // through the very same `panel(_:_:isExpanded:)` helper and has compiled for weeks.
-        // The same false constraint was struck from `signalSection`'s doc in #359 step 2;
-        // it has now been asserted twice by two different readers, so: what is real is
+        // The same false constraint was struck from `signalSection`'s doc in #359 step 2
+        // (that section is gone since #575, so this is now the surviving statement of it);
+        // it has been asserted twice by two different readers, so: what is real is
         // type-check COST, not an arity error, and 10 is nowhere near where that bites.
         // The ceiling this file DOES have is the presentation-modifier chain (14) — that one
         // is measured, has crashed a shipped build, and is a different thing entirely.

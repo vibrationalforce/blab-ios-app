@@ -186,47 +186,48 @@ final class ScopeTriggerStandsStillTests: XCTestCase {
             """)
     }
 
-    /// ⛔ THE SCOPE'S OWN DOOR ASSERTION IS RETIRED (2026-08-02). The founder struck the
-    /// oscilloscope out in red on the screenshot that asked for a physically honest picture of
-    /// the sound (#385); the mount left `signalSection` one cycle later and the view is now
-    /// PARKED — doorless on purpose, file intact, one line to restore. The reasoning for
-    /// retiring rather than inverting the assertion is written out once, on
-    /// `PoincareViewDoorTests.testTheParkedPlotStillExistsAsAFile`, because both views were
-    /// struck by the same mark on the same day.
+    /// ⛔ THE SECTION ITSELF IS GONE NOW (#575, founder 2026-08-13), and this test's SECOND
+    /// half went with it. He circled the whole Signal block on a v10.79.388 screenshot —
+    /// wavefront, spectrum, both captions, the readout — and wrote *"Das Brauch da nicht
+    /// sein. Wenn dann ins Visual Window übertragen."* So `signalSection` no longer exists,
+    /// and the two assertions that demanded it be DECLARED and MOUNTED would have gone red on
+    /// a correct tree — the #364 shape exactly: a guard forbidding legitimate work.
     ///
-    /// WHAT THIS TEST STILL OWNS, and why it is not deleted: the SECTION. `signalSection` did
-    /// not go anywhere — it now holds the wavefront view and the spectrum — and a section that
-    /// exists but is never mounted is the #322 defect regardless of which pictures are in it.
-    /// So the chain check below is unchanged, and the scope's own existence is asserted as a
-    /// file rather than as a mount.
+    /// The scope's own door assertion was already retired on 2026-08-02, when the founder
+    /// struck the oscilloscope in red. All four analysis views are now in the same state, and
+    /// the reasoning for asserting a PARK rather than inverting a door test is written out
+    /// once, on `PoincareViewDoorTests.testTheParkedPlotStillExistsAsAFile`.
+    ///
+    /// ⭐ WHAT THIS TEST STILL OWNS, and why it is not deleted: the FILE. "Parked, one line to
+    /// restore" is a promise, and a promise needs the file to still be there. The removal note
+    /// in `EchoelStudioView` makes that promise for all four views; this is what keeps it true
+    /// for the scope.
     ///
     /// Source text, because `EchoelStudioView` is a SwiftUI view this bundle cannot build —
     /// the house pattern (`SoundPanelPresetBarTests`, `NoDoorlessStudioViewsTests`).
-    func testTheSignalSectionHasADoorAndTheParkedScopeStillExists() throws {
+    func testTheParkedScopeStillExistsAsAFile() throws {
         let code = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
         let view = try source("Sources/Echoelmusic/Studio/AnalysisScopeView.swift")
         XCTAssertTrue(view.contains("struct AnalysisScopeView"), """
             `AnalysisScopeView.swift` no longer declares `AnalysisScopeView`. The view is \
-            PARKED, not retired — `signalSection` records the promise that restoring it costs \
-            one line, and that promise needs the file to still be there. If it was genuinely \
-            deleted, delete this test file with it and say so in the commit.
+            PARKED, not retired — the removal note in `EchoelStudioView` records the promise \
+            that restoring it costs one line, and that promise needs the file to still be \
+            there. If it was genuinely deleted, delete this test file with it and say so in \
+            the commit.
             """)
-        XCTAssertTrue(code.contains("private var signalSection"), """
-            `signalSection` is gone. It exists to keep `visualPanel` under the ViewBuilder \
-            ten-child cap — inlining its rows back into the panel is what makes that closure \
-            fail to compile with "extra argument in call".
-            """)
-        // COMMENTS STRIPPED FIRST, the way `NoDoorlessStudioViewsTests` does it. The naive
-        // count found THREE occurrences — declaration, mount, and the prose above the
-        // declaration explaining why the section exists — so deleting the actual mount still
-        // left two and the guard still passed. A door test that survives the door being
-        // removed is worse than no door test: it reports a green nobody earned.
+        // COMMENTS STRIPPED FIRST, the way `NoDoorlessStudioViewsTests` does it — and here it
+        // is LOAD-BEARING in the opposite direction from before. The removal note names
+        // `signalSection` three times in prose while explaining that it is gone, so a raw scan
+        // would report the section as still present and this assertion would be green on a
+        // tree that had never removed it.
         let mounts = Self.stripComments(code)
             .components(separatedBy: "signalSection").count - 1
-        XCTAssertGreaterThanOrEqual(mounts, 2, """
-            `signalSection` appears \(mounts) time(s) in the CODE (comments excluded) — it \
-            is declared but never mounted, which is the #322 orphan shape exactly. The \
-            Field panel must render it.
+        XCTAssertEqual(mounts, 0, """
+            `signalSection` is back in the CODE (comments excluded), \(mounts) occurrence(s). \
+            #575 removed it on an explicit founder instruction — he circled the block and \
+            wrote "Das Brauch da nicht sein". If it is being restored on a NEW founder ask, \
+            this assertion moves with it in the same commit; do not let it come back as a \
+            side effect of tidying.
             """)
     }
 

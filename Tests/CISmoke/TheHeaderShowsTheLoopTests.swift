@@ -54,12 +54,25 @@
 //
 // ⛔ WHY DELETING THE STRIP WAS HONEST AND NOT DESTRUCTIVE, because it was itself a founder ask
 // five days old (#384) and reversing one deserves a reason on the record. The spectrum was a
-// SECOND COPY: `AnalysisSpectrumView` in the Field panel is the same ring, the same bands and
-// the same frequency→visible-light colours, at a size where the number beside it is readable.
-// Every collaborator it used (`EchoelRealFFT`, `SpectrumAnalysis`, `SpectralColor`,
+// SECOND COPY: `AnalysisSpectrumView` carried the same ring, the same bands and the same
+// frequency→visible-light colours, at a size where the number beside it is readable. Every
+// collaborator it used (`EchoelRealFFT`, `SpectrumAnalysis`, `SpectralColor`,
 // `AudioEngine.copyLatestOutputSamples`) keeps other callers, so nothing was orphaned. What the
 // header lost is a duplicate; what it gained is the one fact a performer needs at a glance with
 // both hands busy, which existed nowhere else on screen.
+//
+// ⚠️ AND THE OTHER COPY IS GONE TOO SINCE #575 — this paragraph said "in the Field panel", in
+// the PRESENT tense, as the load-bearing half of a deletion argument. On 2026-08-13 the founder
+// circled the whole Signal block and wrote *"Das Brauch da nicht sein"*; `AnalysisSpectrumView`
+// is now PARKED (file intact, doorless on purpose, one line to restore). So the app currently
+// shows NO spectrum anywhere.
+//
+// ⭐ THAT DOES NOT WEAKEN THE DELETION, and saying why is the point of this note. The header
+// strip went because the founder asked for it, twice — first for it, then against it — not
+// because a duplicate existed; the duplicate merely made it cheap. What HAS changed is that
+// "cheap" no longer applies: restoring a spectrum is now a real decision about where it lives,
+// not a choice between two copies. A session reading the old sentence would have gone looking
+// for a Field-panel spectrum, found none, and concluded the deletion had been wrong.
 //
 // ⚠️ THE HIGHEST-STAKES HALF IS THE FREEZE LAW, and it is why this guard exists at all rather
 // than being left to the diff. `TransportPositionView` reads `transport.position` — ~10 Hz at
@@ -195,9 +208,12 @@ final class TheHeaderShowsTheLoopTests: XCTestCase {
             If they are wanted again, that is a fresh founder ask and this guard should be \
             deleted in the same commit as the restoration — not left to fail.
 
-            Note the reason the removal was cheap: the SAME measurement still ships in \
-            `AnalysisSpectrumView` (Field panel), at a size where its number is readable. The \
-            header copy was a duplicate, not a capability.
+            Note what made the removal cheap AT THE TIME: the same measurement also shipped \
+            in `AnalysisSpectrumView`, so the header copy was a duplicate and not a \
+            capability. That is no longer true — #575 parked the Field-panel spectrum on a \
+            second founder instruction, so today the app shows no spectrum at all. The \
+            deletion still stands (he asked for it), but restoring a spectrum is now a \
+            decision about WHERE it lives, not a choice between two copies.
             """)
 
         let bar = try topBar()

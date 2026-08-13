@@ -153,24 +153,39 @@ final class SpectrumReadoutTests: XCTestCase {
 
     // MARK: - the door
 
-    /// A meter nobody can open is worth nothing, and this repo keeps a shelf of exactly that
-    /// (`SpectralDonutView`'s whole FFT sits behind a flag with no setter). The spectrum
-    /// mounts from `signalSection`, which `visualPanel` renders behind the Field chip.
+    /// ⛔ THIS WAS A DOOR TEST AND IS NOW A PARK TEST (#575, founder 2026-08-13). He circled
+    /// the whole Signal block on a v10.79.388 screenshot — wavefront, spectrum, both captions,
+    /// the `63,0 Hz · B1 +36 ct` readout — and wrote *"Das Brauch da nicht sein. Wenn dann ins
+    /// Visual Window übertragen."* `signalSection` is gone, so both assertions that demanded a
+    /// mount would have gone red on a correct tree (#364: a guard must not forbid legitimate
+    /// work, and an explicit founder instruction is the most legitimate work there is).
     ///
-    /// Source text, because `EchoelStudioView` is a SwiftUI view this bundle cannot build —
-    /// the house pattern (`SoundPanelPresetBarTests`, `NoDoorlessStudioViewsTests`).
-    func testTheSpectrumHasADoor() throws {
+    /// ⚠️ THE SENTENCE THAT STOOD HERE IS STILL TRUE AND NOW CUTS THE OTHER WAY: *"a meter
+    /// nobody can open is worth nothing, and this repo keeps a shelf of exactly that."* The
+    /// spectrum has joined that shelf. The difference from `SpectralDonutView` — the example
+    /// that sentence named — is that this one is parked BY DECISION and the decision is
+    /// written at the removal site, which is precisely what turns an orphan into a park
+    /// (`doctor` section C: the defect is "unreachable AND written down nowhere").
+    ///
+    /// So what is asserted is the promise: the file is intact and one line restores it. The
+    /// numeric guarantees below (`SpectrumReadout`, the decimal separator, the peak
+    /// definition) are UNTOUCHED and still end-to-end — parking a view does not make its
+    /// arithmetic wrong, and they are what a re-mount will need to still hold.
+    func testTheParkedSpectrumStillExistsAsAFile() throws {
         let code = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        XCTAssertTrue(code.contains("AnalysisSpectrumView(reduceMotion:"), """
-            Nothing constructs `AnalysisSpectrumView` any more, so the spectrum is a file \
-            with no surface. If it was removed on purpose, remove this test and the view in \
-            the same commit; if it moved, re-point this guard at the new call site.
+        let view = try source("Sources/Echoelmusic/Studio/AnalysisSpectrumView.swift")
+        XCTAssertTrue(view.contains("struct AnalysisSpectrumView"), """
+            `AnalysisSpectrumView.swift` no longer declares `AnalysisSpectrumView`. It is \
+            PARKED, not deleted — the removal note in `EchoelStudioView` promises that \
+            restoring it costs one line, and that promise needs the file. If it was genuinely \
+            deleted, delete this test with it and say so in the commit.
             """)
-        // Mounted, not merely declared — `signalSection` must still be rendered by the panel.
-        let mounts = code.components(separatedBy: "signalSection").count - 1
-        XCTAssertGreaterThanOrEqual(mounts, 2, """
-            `signalSection` appears \(mounts) time(s) — declared but never mounted, which is \
-            the #322 orphan shape. Both analysis views hang off it.
+        XCTAssertFalse(code.contains("AnalysisSpectrumView(reduceMotion:"), """
+            `EchoelStudioView` constructs `AnalysisSpectrumView` again. #575 removed the mount \
+            on an explicit founder instruction. If it is being re-mounted on a NEW ask — most \
+            likely the "wenn dann ins Visual Window" half he left open — this assertion moves \
+            in the same commit and points at the new host; it must not come back silently, and \
+            it must not come back into the Field panel.
             """)
     }
 
