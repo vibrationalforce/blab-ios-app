@@ -172,6 +172,24 @@ für ein paar Millisekunden wirksam und danach vom Körper überschrieben — sc
 tote-Stufe-Placebo, weil er im Debugger funktioniert. Bleibt danach ungebunden: die zwei
 Reverb-Parameter (Stufe aus, #546) und `osc.frequency` (gehört der Noten-Engine pro Note).
 
+✅ **DIESE FOLGE-SCHEIBE IST FERTIG — 11 von 15 (#557 zwei Anker, #558 das Vibrato-Paar, #564
+`osc.brightness`).** Ungebunden bleiben genau die vier mit eigener Begründung: `osc.frequency`
+(Noten-Engine) · `filter.cutoff` (hat als `cutoffScale` schon eine Adresse, #558) · die zwei
+Reverb-Parameter (#546).
+
+⛔ **UND DER LETZTE VON IHNEN WAR KEINE BINDUNGS-FRAGE, SONDERN EIN LEBENDER DEFEKT — das ist der
+Teil, den dieser Plan nicht vorhergesehen hat.** #557 hat `osc.brightness` draußen gelassen, weil
+sein Anker hinter `bioBaseBrightness > 0` gelesen wurde, während der Descriptor bei 0 anfängt: eine
+Lane durch die Null hätte `applyBioReactive` in den Legacy-Zweig gekippt. Richtig gesehen, zu eng
+gefasst — **die Gefahr gehörte nie der Automation.** `SynthPatch.Bounds.brightness` ist `0...1` und
+`apply(to:)` schreibt den Patch-Wert direkt in den Anker, also erreichte das Brightness-Feld im
+`soundPanel` das Sentinel von Hand: wer den dunkelsten Wert einstellte, bekam bei laufendem
+Biofeedback ~0,43 statt 0,05. Der Ausschluss hat die Automation vor einem Fehler geschützt, den
+das Instrument längst auslieferte. #564 hat das Sentinel auf −1 gezogen (`>= 0`, die Disziplin des
+Vibrato-Trios) und die Bindung im selben Commit nachgezogen. **Lehre für die restlichen drei: ein
+Parameter, der aus Automations-Gründen ausgeschlossen wird, ist zuerst daraufhin zu prüfen, ob der
+Grund auch ohne Automation gilt.**
+
 **Scheibe 2 — Sichtbarkeit vor Editierbarkeit (route-neutral).**
 Ein Leaf-`View`, das ZEIGT, welche Parameter gerade automatisiert sind und mit welchem Wert —
 dieselbe Bauform wie `AlwaysOnBioPanelStrip` aus #553, aus demselben Grund (Freeze-Gesetz:

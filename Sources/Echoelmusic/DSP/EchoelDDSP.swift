@@ -1683,13 +1683,34 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// collapsing toward one shared timbre when the body calms (task #81, the A8 law).
     public var bioBaseFilterCutoff: Float = 0
     /// Patch-baseline BRIGHTNESS (spectral-shape exponent, read by computeShapeAmplitudes) for
-    /// bio modulation. 0 = "no patch anchor set" → the raw bio voice keeps the legacy absolute
-    /// brightness path (byte-identical). When > 0 (set by `SynthPatch.apply(to:)` alongside
-    /// `brightness`), the body modulates as a CLAMPED DEVIATION AROUND this value — neutral
-    /// readings (coherence/HR/HRV 0.5) settle at ~the patch brightness — so genres keep their
-    /// distinct spectral character instead of all collapsing to one brightness when the body
-    /// calms. This is the second dynamic convergence vector after the cutoff (task #81).
-    public var bioBaseBrightness: Float = 0
+    /// bio modulation. **−1 = "no patch anchor set"** → the raw bio voice keeps the legacy
+    /// absolute brightness path (byte-identical). When >= 0 (set by `SynthPatch.apply(to:)`
+    /// alongside `brightness`), the body modulates as a CLAMPED DEVIATION AROUND this value —
+    /// neutral readings (coherence/HR/HRV 0.5) settle at ~the patch brightness — so genres keep
+    /// their distinct spectral character instead of all collapsing to one brightness when the
+    /// body calms. This is the second dynamic convergence vector after the cutoff (task #81).
+    ///
+    /// ⛔ THE SENTINEL WAS 0 AND `> 0` UNTIL #564, AND IT SAT INSIDE ITS OWN PARAMETER'S RANGE.
+    /// `SynthPatch.Bounds.brightness` is `0...1` and the registry descriptor `ddsp.osc.brightness`
+    /// has min 0, so **zero is a value a player can set** — the Brightness field in `soundPanel`
+    /// reaches it by dragging to the bottom. `apply(to:)` then wrote 0 into this anchor and
+    /// `applyBioReactive` read it as "no patch", switching to the LEGACY absolute path, which
+    /// computes ~0.2…0.7 brightness from coherence/HR alone. The darkest setting in the app
+    /// produced a mid-bright sound, but ONLY while a bio source was running — a mode change
+    /// disguised as a parameter value, and one a listener would blame on the patch.
+    ///
+    /// ⭐ SO IT NOW MATCHES THE VIBRATO TRIO BELOW, and the paragraph under them states the rule
+    /// this is an instance of: 0 may not mean "unset" for a parameter whose range contains 0.
+    /// A filter cutoff of 0 Hz is not a musical value (`bioBaseFilterCutoff` keeps its 0-sentinel,
+    /// unreachable from a range starting at 20 Hz); a brightness of 0 is. Every patch that ships
+    /// or was ever saved is byte-identical under this change — the factory floor is 0.1 — and the
+    /// only behaviour that moves is the one case that was wrong.
+    ///
+    /// ⚠️ AND THIS IS WHAT UNBLOCKED AUTOMATING BRIGHTNESS. `TheAutomatableSetHasOneWriterTests`
+    /// claim 5 held `ddsp.osc.brightness` out of `PolySynthVoice.automatableBases` for exactly
+    /// this reason and said in its own failure message that removing the sentinel is the
+    /// GO-AHEAD, not a defect. The bind landed in the same commit; that case is retired.
+    public var bioBaseBrightness: Float = -1
     /// Patch-baseline VIBRATO RATE (Hz) / VIBRATO DEPTH (semitones) / FILTER-LFO DEPTH for bio
     /// modulation. **−1 = "no patch anchor set"** → the legacy absolute path below, byte-identical.
     ///
@@ -1858,7 +1879,9 @@ public final class EchoelDDSP: @unchecked Sendable {
         // "Coherence/HR/HRV/LFO" until #331; the LFO term was `(lfoValue - 0.5) * 0.15`, already
         // centered on 0 — dropping it leaves the anchor exactly where it was.)
         let targetBrightness: Float
-        if bioBaseBrightness > 0 {
+        // `>= 0`, not `> 0`, since #564: the sentinel is −1 and zero is a brightness a player
+        // can set. See the anchor's declaration for the mode-change bug that comparison caused.
+        if bioBaseBrightness >= 0 {
             let cohDev: Float = (coherence - 0.5) * 0.30       // calm opens, aroused darkens
             let hrDev: Float  = (heartRate - 0.5) * 0.20       // faster HR = a touch brighter
             let hrvDev: Float = (hrvVariability - 0.5) * 0.20  // more beat-to-beat variation = more open

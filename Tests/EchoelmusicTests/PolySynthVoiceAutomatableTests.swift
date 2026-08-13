@@ -9,10 +9,21 @@ import XCTest
 @MainActor
 final class PolySynthVoiceAutomatableTests: XCTestCase {
 
-    func testAutomatableBases_areTheExpectedSix() {
+    /// ⛔ THIS CASE WAS STALE BY FOUR BEFORE #564 TOUCHED IT, and the staleness is a fact about
+    /// the SUITE, not about this list: `Tests/EchoelmusicTests` is compiled by no gate (#208), so
+    /// #557 (two anchors), #558 (the vibrato pair) and #564 (brightness) each grew
+    /// `automatableBases` without the compiler or a run ever contradicting the "expected six"
+    /// written here. It is corrected rather than deleted because the exact-set shape is the point
+    /// — `bindAutomatable` and `applyAutomatable` both read this table, so a silent addition
+    /// reaches both paths. The BLOCKING guards are `TheAutomatableSetHasOneWriterTests` and
+    /// `TheAutomatableSetIsWhatMovesAudioTests`; those decide whether a base may be here at all.
+    func testAutomatableBases_areTheExpectedEleven() {
         XCTAssertEqual(Set(PolySynthVoice.automatableBases), Set([
             "ddsp.warmth.drive", "ddsp.env.attack", "ddsp.env.decay",
-            "ddsp.env.sustain", "ddsp.env.release", "ddsp.amp.level"
+            "ddsp.env.sustain", "ddsp.env.release", "ddsp.amp.level",
+            "ddsp.osc.harmonicity", "ddsp.osc.noiseLevel",
+            "ddsp.mod.vibratoDepth", "ddsp.mod.vibratoRate",
+            "ddsp.osc.brightness"
         ]))
     }
 

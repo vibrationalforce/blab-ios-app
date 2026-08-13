@@ -5,7 +5,13 @@
 // `ParameterApplyRouter.applyNormalized` returns nil — a deliberate, crash-free NO-OP — when no
 // setter is bound for it. That safety has a cost nobody was measuring: a lane on an unbound
 // keyPath is a curve the player draws and never hears, and nothing in the repo would go red.
-// Measured today: the registry declares 15 keyPaths, `PolySynthVoice.automatableBases` binds 6.
+// Measured at #555: the registry declares 15 keyPaths, `PolySynthVoice.automatableBases` binds 6.
+// **Measured at #564: still 15, now 11** — #557 bound two anchors, #558 the vibrato pair, #564
+// brightness. The four still out are named at their exclusion, each with its own reason
+// (`ddsp.osc.frequency` belongs to the note engine · `ddsp.filter.cutoff` already has an address
+// as the enum's `cutoffScale` · the two reverb parameters sit behind a stage that is switched off,
+// #546). The number is dated on purpose: this line is prose and cannot go red, so a reader
+// re-derives it with `PolySynthVoice.automatableBases.count` rather than quoting either figure.
 //
 // ⛔ AND THIS SLICE EXISTS BECAUSE I GOT THE SAME FACT WRONG ONE CYCLE AGO, in the plan I handed
 // the founder. #554 wrote "der Ziel-Vorrat ist bis heute drei", read off the three-case

@@ -41,11 +41,20 @@
 //
 // ⛔ AND THE RULE HAD AN EXCEPTION IT DID NOT COVER — claim 5, added by the same slice. "Bind the
 // anchor" is not uniformly safe: three anchors are read behind a sentinel comparison, and for
-// `bioBaseBrightness` the sentinel (`> 0`) sits INSIDE its descriptor's range (min 0). A lane
+// `bioBaseBrightness` the sentinel (`> 0`) sat INSIDE its descriptor's range (min 0). A lane
 // passing through zero would flip `applyBioReactive` out of its anchored branch into the legacy
 // one for the rest of the take — a mode change disguised as a parameter value. The other two
 // sentinels are unreachable by arithmetic (cutoff starts at 20 Hz; the vibrato pair's sentinel is
 // −1). One rule, one exception, both executable.
+//
+// ⭐ #564 RETIRED THAT EXCEPTION BY FIXING WHAT IT DESCRIBED, and claim 5 now guards the fix
+// instead of the workaround. Its `guard` said "This failure is the GO-AHEAD, not a defect", so
+// moving the sentinel to −1 (`>= 0`) and binding `ddsp.osc.brightness` in one commit is the
+// instruction being followed, not overridden. THE PART NEITHER #557 NOR THIS HEADER SAW: the
+// hazard was never automation-only. `SynthPatch.apply(to:)` writes the patch's `brightness`
+// straight into the anchor and `Bounds.brightness` is `0...1`, so the `soundPanel` field reached
+// the sentinel by hand — the exclusion was protecting automation from a bug the instrument
+// already shipped. A guard scoped to one subsystem sees the hazard only where it looked.
 //
 // ⛔ AND THE EXCEPTION HAD A SECOND HALF THAT #557 MISSED — claim 6, added by #558. A safe
 // sentinel is not sufficient: `ddsp.filter.cutoff` was called "bindable on its own merits"
@@ -142,45 +151,65 @@ final class TheAutomatableSetHasOneWriterTests: XCTestCase {
         }
     }
 
-    // MARK: - claim 5 — the one anchor whose sentinel is inside its own range stays out
+    // MARK: - claim 5 — brightness may be automatable ONLY while its sentinel is out of range
 
-    /// #557. "Bind the anchor" is not uniformly safe, and this is the exception the rule did not
-    /// cover. `applyBioReactive` reads three anchors behind a sentinel comparison, and for
-    /// `bioBaseBrightness` the sentinel is `> 0` while `ddsp.osc.brightness` has **min 0** — so a
-    /// lane touching exactly zero would not merely darken the sound, it would flip the bio path
-    /// out of its anchored branch into the legacy one, mid-take, with no signal. The other two
-    /// are safe by arithmetic: `bioBaseFilterCutoff`'s `> 0` is unreachable from a range starting
-    /// at 20 Hz, and the vibrato pair's `>= 0` is unreachable from a −1 sentinel.
+    /// ⭐ #564 RETIRED THIS CASE'S PREDECESSOR BY FOLLOWING THE INSTRUCTION IT GAVE ITSELF, and
+    /// the shape of that is worth more than the parameter. The #557 version held
+    /// `ddsp.osc.brightness` OUT of `automatableBases` because `applyBioReactive` gated on
+    /// `bioBaseBrightness > 0` while the descriptor's min is 0 — a lane passing through zero
+    /// would flip the bio path from its anchored branch to the legacy one, mid-take. Its premise
+    /// `guard` said, verbatim: *"This failure is the GO-AHEAD, not a defect."* #564 moved the
+    /// sentinel to −1 (`>= 0`, the vibrato trio's discipline) and bound the parameter in the same
+    /// commit, so the premise is gone and the exclusion with it.
     ///
-    /// It does NOT forbid fixing this (#364). Removing the sentinel, or starting the descriptor
-    /// above zero, makes the premise assertion below go red FIRST and say so — at which point
-    /// binding brightness is correct and this case retires with it.
+    /// ⛔ AND THE HAZARD WAS NEVER AUTOMATION-ONLY, which is what #557 could not see from inside
+    /// the automation question. `SynthPatch.Bounds.brightness` is `0...1` and `apply(to:)` writes
+    /// `brightness` straight into the anchor, so the Brightness field in `soundPanel` reached the
+    /// sentinel by hand: a player dragging it to the bottom got the LEGACY absolute path
+    /// (~0.2…0.7 from coherence and HR) instead of the darkest sound in the app — but only while
+    /// a bio source ran. The exclusion protected automation from a bug the instrument already had.
+    ///
+    /// WHAT THIS CASE ASSERTS NOW is the inverse, and it is the thing that makes the bind safe
+    /// rather than the bind itself: while brightness is automatable, the anchor's default must be
+    /// the out-of-range sentinel and the gate must not be the `> 0` comparison. Reverting either
+    /// one while leaving the bind in place is the regression, and it goes red here naming both.
+    /// It does NOT forbid removing the bind (#364) — the `guard` below skips out when the
+    /// parameter is not automatable, which is a legitimate future state.
     /// `@MainActor` on the method rather than the class: only this case touches the registry,
     /// which is main-actor isolated. Claims 1–4 are file reads and stay unisolated.
     @MainActor
-    func testBrightnessStaysOutWhileItsSentinelIsReachable() throws {
+    func testBrightnessIsAutomatableOnlyWhileItsSentinelIsOutOfRange() throws {
         let dsp = try codeText(Self.ddsp)
         let registry = EchoelParameterRegistry()
         guard let brightness = registry.descriptor(for: "ddsp.osc.brightness") else {
             return XCTFail("`ddsp.osc.brightness` left the registry — re-anchor this case (#454).")
         }
-        // The premise, in two halves. Either one changing means the hazard is gone.
-        let sentinelReachable = dsp.contains("bioBaseBrightness > 0") && brightness.min <= 0
-        guard sentinelReachable else {
-            return XCTFail("""
-                The brightness hazard is gone — either `applyBioReactive` no longer gates on \
-                `bioBaseBrightness > 0`, or the descriptor's minimum (\(brightness.min)) no longer \
-                reaches it. Binding `ddsp.osc.brightness` to `bioBaseBrightness` is now correct: \
-                add it, delete this case, and drop the brightness bullet from the ⛔ note above \
-                `automatableBases`. This failure is the GO-AHEAD, not a defect.
-                """)
+        guard PolySynthVoice.automatableBases.contains("ddsp.osc.brightness") else {
+            // Not a failure: unbinding it again is legitimate work. Say what the state is
+            // instead of asserting an invariant about a parameter nothing automates.
+            return
         }
-        XCTAssertFalse(PolySynthVoice.automatableBases.contains("ddsp.osc.brightness"), """
-            `ddsp.osc.brightness` is automatable while its anchor is read behind `> 0` and its \
-            descriptor still starts at \(brightness.min). A lane passing through zero silently \
-            switches `applyBioReactive` from its anchored branch to the legacy one for the rest \
-            of the take — a mode change disguised as a parameter value, and the one failure in \
-            this family that a listener would blame on the patch rather than the automation.
+        XCTAssertFalse(dsp.contains("bioBaseBrightness > 0"), """
+            `applyBioReactive` gates the brightness anchor on `> 0` again while \
+            `ddsp.osc.brightness` is automatable and its descriptor still starts at \
+            \(brightness.min). The bottom of that lane is then not a dark sound but a MODE \
+            CHANGE — the bio path drops to its legacy absolute branch for the rest of the take, \
+            and a listener blames the patch. Either restore the −1 sentinel (#564) or take the \
+            parameter back out of `automatableBases`.
+            """)
+        XCTAssertTrue(dsp.contains("public var bioBaseBrightness: Float = -1"), """
+            `bioBaseBrightness` no longer defaults to the out-of-range −1 sentinel. The default \
+            is what a voice that never received a patch carries, so a default INSIDE the \
+            descriptor range means the patch-less bio voice is indistinguishable from a patch \
+            asking for that exact brightness — the legacy path becomes unreachable and the raw \
+            voice quietly changes character. The vibrato trio next to it carries the same −1 for \
+            the same reason.
+            """)
+        XCTAssertLessThanOrEqual(brightness.min, 0, """
+            `ddsp.osc.brightness` no longer reaches 0, so the sentinel discipline this case \
+            guards is no longer load-bearing for THIS parameter. That is a real change, not a \
+            reason to weaken the assertion — re-read #564's note on the anchor before relaxing \
+            anything, because the raw-voice default argument above survives the range change.
             """)
     }
 

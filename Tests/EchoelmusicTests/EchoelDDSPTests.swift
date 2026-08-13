@@ -1824,9 +1824,15 @@ final class EchoelDDSPBioCutoffAnchorTests: XCTestCase {
 /// set distinct brightness via SynthPatch.apply). These lock the deviation-around-patch fix.
 final class EchoelDDSPBioBrightnessAnchorTests: XCTestCase {
 
+    /// #564 moved the sentinel from 0 to −1. It had to move: `SynthPatch.Bounds.brightness` is
+    /// `0...1`, so 0 was a value a player could set — and setting it flipped `applyBioReactive`
+    /// into its legacy absolute branch instead of darkening the sound. The out-of-range −1 is the
+    /// same discipline the vibrato anchors carry. `ABrightnessOfZeroIsAValueNotAModeTests` in the
+    /// BLOCKING bundle is the guard; this one stays because it is the cheapest statement of the
+    /// invariant, next to the three cases below that read it.
     func testBioBrightness_defaultAnchorIsUnsetSentinel() {
-        XCTAssertEqual(EchoelDDSP().bioBaseBrightness, 0,
-                       "bioBaseBrightness must default to the unset (0) sentinel")
+        XCTAssertEqual(EchoelDDSP().bioBaseBrightness, -1,
+                       "bioBaseBrightness must default to the out-of-range (−1) unset sentinel")
     }
 
     func testBioBrightness_patchAnchoredGenresDoNotConverge() {
@@ -1852,7 +1858,7 @@ final class EchoelDDSPBioBrightnessAnchorTests: XCTestCase {
 
     func testBioBrightness_legacyPathUnchangedWithoutAnchor() {
         // Raw bio voice (no anchor) keeps the legacy absolute brightness path (≥ baseFilter).
-        let s = EchoelDDSP()  // bioBaseBrightness == 0
+        let s = EchoelDDSP()  // bioBaseBrightness == −1, the unset sentinel (#564)
         for _ in 0..<800 { s.applyBioReactive(coherence: 1.0, heartRate: 0.5) }
         XCTAssertGreaterThan(s.brightness, 0.4,
                              "Patch-less bio voice must keep the legacy absolute brightness sweep")

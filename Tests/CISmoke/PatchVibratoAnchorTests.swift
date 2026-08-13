@@ -32,11 +32,19 @@
 // instead of replacing it.
 //
 // ⛔ THE SENTINEL IS −1, NOT 0, AND THAT WAS THE ONE REAL TRAP IN THIS FIX. The two older
-// anchors (`bioBaseFilterCutoff`, `bioBaseBrightness`) use 0 for "no patch applied", and
+// anchors (`bioBaseFilterCutoff`, `bioBaseBrightness`) used 0 for "no patch applied", and
 // copying that here would have been the obvious move and a silent regression: three shipped
 // presets legitimately store `vibratoDepth: 0`, so 0-as-unset would have routed exactly the
 // patches that ask for NO vibrato back into the absolute path that hands them one.
 // `testPatchWithoutVibratoNeverGainsVibrato` is that trap, pinned.
+//
+// ⭐ AND THE TRAP WAS ALREADY SPRUNG IN ONE OF THOSE TWO — #564 found it (past tense above).
+// `bioBaseBrightness` carried the 0-sentinel while `SynthPatch.Bounds.brightness` is `0...1`, so
+// the darkest setting a player could dial WAS the unset value and took the legacy absolute path.
+// It now carries −1 like the vibrato trio. `bioBaseFilterCutoff` keeps its 0 legitimately — 0 Hz
+// is not a musical cutoff and the range starts at 20 — which is the distinction this block drew
+// in the first place: the question is never "which sentinel is tidier", it is whether the
+// sentinel is INSIDE the parameter's own range. See `ABrightnessOfZeroIsAValueNotAModeTests`.
 
 import Foundation
 import XCTest

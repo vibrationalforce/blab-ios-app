@@ -693,11 +693,18 @@ public final class PolySynthVoice {
     /// ⛔ AND THAT IS NOT TRUE OF ALL SIX — the anchors are not uniformly bindable, which is
     /// the fact #556's rule did not yet cover. THREE of them are read behind a sentinel
     /// comparison, and for ONE the sentinel sits INSIDE the descriptor's range:
-    ///   · `bioBaseBrightness` is read behind `> 0` while `ddsp.osc.brightness` has **min 0**.
+    ///   · `bioBaseBrightness` WAS read behind `> 0` while `ddsp.osc.brightness` has **min 0**.
     ///     An automation lane touching exactly 0 would not just make the sound dark — it would
     ///     flip `applyBioReactive` out of its anchored branch into the legacy one, mid-take,
-    ///     silently. NOT bound; `TheAnchorSentinelsAreOutOfReachTests` keeps it out until the
-    ///     sentinel is gone or the range starts above zero.
+    ///     silently. **#564 fixed the SENTINEL rather than working around it** (−1, read `>= 0`,
+    ///     the vibrato trio's discipline) and bound the parameter in the same commit. The hazard
+    ///     was never automation-only: the Brightness field in `soundPanel` reaches 0 by hand, so
+    ///     the mode change shipped to players who never drew a lane.
+    ///     ⛔ AND THE NOTE HERE CITED `TheAnchorSentinelsAreOutOfReachTests` AS WHAT "KEEPS IT
+    ///     OUT". No such file has ever existed in this repo (`git grep` finds this line and
+    ///     nothing else) — the guard doing the work was `TheAutomatableSetHasOneWriterTests`
+    ///     claim 5 all along. A prose citation of a guard that does not exist is worse than no
+    ///     citation: it reads as a safety net, so the next reader stops looking for one.
     ///   · `bioBaseFilterCutoff` is read behind `> 0` and `ddsp.filter.cutoff` starts at 20 Hz,
     ///     so the SENTINEL is unreachable — but the parameter stays out for a different reason
     ///     this note originally missed: filter automation already has an address
@@ -711,7 +718,8 @@ public final class PolySynthVoice {
         "ddsp.warmth.drive", "ddsp.env.attack", "ddsp.env.decay",
         "ddsp.env.sustain", "ddsp.env.release", "ddsp.amp.level",
         "ddsp.osc.harmonicity", "ddsp.osc.noiseLevel",
-        "ddsp.mod.vibratoDepth", "ddsp.mod.vibratoRate"
+        "ddsp.mod.vibratoDepth", "ddsp.mod.vibratoRate",
+        "ddsp.osc.brightness"
     ]
 
     /// The live setter for an automatable base keyPath, or nil if the base is not
@@ -749,6 +757,12 @@ public final class PolySynthVoice {
             self?.poly.forEachVoice { $0.bioBaseVibratoDepth = v } }
         case "ddsp.mod.vibratoRate":  return { [weak self] v in
             self?.poly.forEachVoice { $0.bioBaseVibratoRate = v } }
+        // Brightness (#564), the anchor whose sentinel used to sit inside its own range. It is
+        // bound only because the sentinel MOVED to −1 — binding it against `> 0` would have made
+        // the bottom of the lane a mode change rather than a dark sound. Nothing here is special:
+        // it is the same plain `Float` store the four anchors above perform.
+        case "ddsp.osc.brightness":   return { [weak self] v in
+            self?.poly.forEachVoice { $0.bioBaseBrightness = v } }
         default: return nil
         }
     }
