@@ -39,6 +39,11 @@
 //     user staring at "Too bright" is still not told to press lighter. Closing it needs a fixed
 //     slot height or a latch, i.e. its own slice, and `testTooBrightAlsoWithholdsItsRemedy` keeps
 //     the fact on the record instead of letting the exclusion read as "nothing to see".
+//     ⭐ THAT SLICE IS #569 AND IT TOOK THE LATCH OPTION. The exclusion above still holds AT
+//     THIS LAYER — the enum must not claim the slot unconditionally — but the sentence now
+//     reaches a sighted user through `CameraRPPGBioPublisher.cueWarrantsFullHintOnScreen`,
+//     which ORs a `BioTrustLatch` (4 s engage / 3 s release) over `.tooBright`. The two
+//     wiring needles below moved with it; the case assertions did not, and that is the point.
 //   · **`.cameraDenied` fails (c).** `statusBanner` branch 2 already renders
 //     `PulseCue.cameraDenied.fullHint` directly; a second copy here is #416's defect.
 //   · **`.stalled` passes all three** — LATCHED once in the publish tick (`stallWasRhythmless`),
@@ -157,10 +162,13 @@ final class TheStallRemedyReachesTheScreenTests: XCTestCase {
             delete this assertion.
             """)
         XCTAssertFalse(PulseCue.tooBright.warrantsFullHintOnScreen, """
-            `.tooBright` started claiming the wrapping slot. It is excluded on a LAYOUT ground, \
-            not a copy one: `placementCue` recomputes per frame, so this cue would resize the \
-            reserved slot at the publisher's rate. Closing the gap needs a fixed slot height or \
-            a latch — a separate slice, deliberately taken.
+            `.tooBright` started claiming the wrapping slot AT THE ENUM. That is the wrong \
+            layer and it is why this assertion survives #569: the exclusion here is a LAYOUT \
+            ground, not a copy one — `placementCue` recomputes per frame, so a cue that says \
+            "always spend the slot on me" resizes it at the publisher's rate. The gap is closed \
+            one layer up, by `CameraRPPGBioPublisher.cueWarrantsFullHintOnScreen`, which adds \
+            the thing an enum cannot know: a `BioTrustLatch` requiring 4 s sustained washout. \
+            Move the answer back down here and the latch is bypassed.
             """)
     }
 
@@ -203,8 +211,13 @@ final class TheStallRemedyReachesTheScreenTests: XCTestCase {
     func testTheStripRendersTheStallRemedy() throws {
         let slot = try window(try codeLines(Self.strip), from: Self.statusBannerDeclaration)
 
-        XCTAssertTrue(slot.contains { $0.contains("warrantsFullHintOnScreen") }, """
-            `statusBanner` no longer asks `warrantsFullHintOnScreen`, so the stall remedy is \
+        // ⚠️ THE NEEDLE MOVED WITH THE GATE (#569, same commit — #456). The strip now asks the
+        // PUBLISHER's `cueWarrantsFullHintOnScreen`, which is the enum's answer OR a latched
+        // `.tooBright`. Note the capital `W`: `contains("warrantsFullHintOnScreen")` does NOT
+        // match `cueWarrantsFullHintOnScreen`, so leaving the old needle would have gone red on
+        // correct code — the #367 failure, arriving through a rename rather than a deletion.
+        XCTAssertTrue(slot.contains { $0.contains("cueWarrantsFullHintOnScreen") }, """
+            `statusBanner` no longer asks `cueWarrantsFullHintOnScreen`, so the stall remedy is \
             back to reaching a sighted user nowhere: `coachingHint`'s only consumer is the \
             doorless `PulseMeasurementView`, and `HeaderMonitors` gives `fullHint` to \
             VoiceOver only. This member is the one surface that puts it in pixels.
@@ -224,7 +237,7 @@ final class TheStallRemedyReachesTheScreenTests: XCTestCase {
     /// seconds after the lock; during those seconds the honest message is the congratulation.
     func testTheRemedyYieldsToTheLockCue() throws {
         let slot = try window(try codeLines(Self.strip), from: Self.statusBannerDeclaration)
-        XCTAssertTrue(slot.contains { $0.contains("!lockedCueVisible") && $0.contains("warrantsFullHintOnScreen") }, """
+        XCTAssertTrue(slot.contains { $0.contains("!lockedCueVisible") && $0.contains("cueWarrantsFullHintOnScreen") }, """
             The stall remedy is no longer gated on `!lockedCueVisible`. Both banners live in \
             one `ZStack` occupying the slot `LockCueDoesNotShoveTheControlsTests` reserves, so \
             without that gate they can be visible together for the six seconds the lock cue \

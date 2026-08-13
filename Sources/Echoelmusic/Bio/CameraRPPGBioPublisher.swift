@@ -368,6 +368,31 @@ public final class CameraRPPGBioPublisher {
     /// already owns (#416).
     @ObservationIgnored private var stallWasRhythmless: Bool?
 
+    /// Time hysteresis over "the contact is washed out" (#569). Reuses `BioTrustLatch` (#566)
+    /// rather than a private counter — this file already carries four ad-hoc ones
+    /// (`saturatedTicks`, `weakAcfTicks`, `fingerLostTicks`, `settleSince`) and a fifth spelling
+    /// of the same idea is how thresholds drift apart.
+    ///
+    /// ASYMMETRIC ON PURPOSE. 4 s to engage: `placementCue` derives `.tooBright` from
+    /// `analyzer.brightness`/`redChannel`, which move per FRAME, so anything shorter puts a
+    /// WRAPPING sentence into a reserved slot at the publisher's own rate — the #382 shove with
+    /// a faster clock, and the exact reason `warrantsFullHintOnScreen` excluded `.tooBright`.
+    /// 3 s to release: the sentence must not blink out the instant a fingertip shifts, and a
+    /// user who has just been told to press lighter needs the line to survive long enough to
+    /// be read. Together they bound the slot to at most one resize per ~3 s.
+    @ObservationIgnored private var brightHintLatch = BioTrustLatch(engageSeconds: 4, releaseSeconds: 3)
+
+    /// Whether the washed-out coaching has been true long enough to spend a wrapping line on.
+    ///
+    /// ⚠️ TRACKED (no `@ObservationIgnored`) AND WRITTEN ONLY ON A TRANSITION — both halves are
+    /// load-bearing. Tracked, because the banner has to appear when this flips and nothing else
+    /// in that view is guaranteed to invalidate at that moment. Written only on a change,
+    /// because the `@Observable` macro calls `withMutation` on EVERY set regardless of
+    /// equality: an unconditional assignment in the 10 Hz tick would add a 10 Hz invalidation
+    /// source to a publisher the freeze law (10.76.41/50) already handles carefully — i.e. it
+    /// would re-create the menu-freeze this file has been fixed for twice.
+    public private(set) var brightHintLatched = false
+
     /// ⭐ ONE respiration estimator for the whole take (#343). It used to be rebuilt from
     /// scratch on EVERY publish and fed only the newest 10 s analysis window — and that is
     /// not a settling-time nuisance, it is a structural blind spot exactly where this app
@@ -433,6 +458,33 @@ public final class CameraRPPGBioPublisher {
         // never claim a stall that no clock was measuring.
         guard base == .finding, let rhythmless = stallWasRhythmless else { return base }
         return .stalled(hasRhythmlessSignal: rhythmless)
+    }
+
+    /// Whether a surface with a reserved single-line slot should spend it on `fullHint` rather
+    /// than `shortLabel` — the publisher's answer, which is the enum's answer PLUS the one
+    /// thing an enum cannot know: how long the case has held (#569).
+    ///
+    /// `PulseCue.warrantsFullHintOnScreen` stays exactly as it is and keeps owning `.stalled`;
+    /// it is a fact about the STRINGS and belongs beside them (#416). What is added here is a
+    /// fact about TIME, which is this object's business — the same split `acquisitionCue`
+    /// already makes over `placementCue`.
+    ///
+    /// ⚠️ THE `== .tooBright` TEST IS NOT REDUNDANT. The consumer renders
+    /// `acquisitionCue.fullHint`, so the latch and the cue must agree about WHICH sentence is
+    /// being spent on a wrapping line. Without it, a latch left standing during the 3 s release
+    /// window would authorise a full-height banner for whatever the cue had become — including
+    /// `.locked`, whose "Locked" needs no line at all.
+    public var cueWarrantsFullHintOnScreen: Bool {
+        let cue = acquisitionCue
+        if cue.warrantsFullHintOnScreen { return true }
+        return brightHintLatched && cue == .tooBright
+    }
+
+    /// Clear the washout latch and its published flag together — the pair is only ever reset
+    /// as a pair, which is why this is a method and not two lines copied to each site.
+    private func resetBrightHint() {
+        brightHintLatch.reset()
+        if brightHintLatched { brightHintLatched = false }
     }
 
     /// The instantaneous placement classification — everything `acquisitionCue` knew before
@@ -826,6 +878,7 @@ public final class CameraRPPGBioPublisher {
                 // number, and here it would be a take that never began).
                 acquisitionSince = 0
                 stallWasRhythmless = nil
+                resetBrightHint()
                 capture.setOnFrame(nil)
                 capture.setOnSessionReset(nil)
                 // Denied/restricted access is a SYSTEM fact, read fresh (not inferred
@@ -1104,6 +1157,16 @@ public final class CameraRPPGBioPublisher {
                     self.stallWasRhythmless = self.confidence >= Self.displayThreshold
                         || self.analyzer.lastAutoStrength >= Self.trustAutoFloor
                 }
+
+                // THE WASHOUT LATCH (#569), driven from the SAME `placementCue` the stall
+                // clock above asks and the screen shows — one classification, three readers,
+                // so a retune of `isWashedOut` cannot leave this behind (#416). `nowT` rather
+                // than a fresh clock read for the same reason.
+                let brightNow = self.brightHintLatch.step(trustworthy: self.placementCue == .tooBright,
+                                                          now: nowT)
+                // Only on a CHANGE — see `brightHintLatched`. An unconditional set here is a
+                // 10 Hz invalidation of every observer of this publisher.
+                if brightNow != self.brightHintLatched { self.brightHintLatched = brightNow }
 
                 // EXPOSURE: lock once the finger has covered the lens for ~1.2 s (so
                 // the AGC settled on the bright fingertip), and RE-SETTLE if the lock
@@ -1716,6 +1779,10 @@ public final class CameraRPPGBioPublisher {
         // report one the moment the next take places a finger.
         acquisitionSince = 0
         stallWasRhythmless = nil
+        // Same law, one field further (#454): a latch that `stop()` forgets is a PREVIOUS
+        // take's washout, and it would authorise a wrapping banner the moment the next take's
+        // cue happened to be `.tooBright` — before this take had measured anything.
+        resetBrightHint()
         isRunning = false
         fingerDetected = false
         signalQuality = 0

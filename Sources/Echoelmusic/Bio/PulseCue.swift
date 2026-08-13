@@ -188,6 +188,12 @@ public enum PulseCue: Equatable, Sendable {
     ///     rate is worse than the bug #382 fixed. Registered as a real, NAMED, unrepaired gap
     ///     rather than pretended away: a sighted user staring at "Too bright" is not told to
     ///     press lighter. Fixing it needs a fixed-height slot or a latch, i.e. its own slice.
+    ///     ⭐ THAT SLICE IS #569, AND IT DELIBERATELY DID NOT CHANGE THIS PROPERTY. The latch
+    ///     lives in `CameraRPPGBioPublisher.cueWarrantsFullHintOnScreen` (a `BioTrustLatch`,
+    ///     4 s engage / 3 s release), because "how long has this cue held" is a fact about a
+    ///     RUNNING TAKE and this enum is a fact about STRINGS. Returning `true` for `.tooBright`
+    ///     here would bypass the latch and reinstate the per-frame resize objection above. The
+    ///     gap is closed one layer up; the exclusion at THIS layer stays correct.
     ///   · **`.cameraDenied` fails (c).** `statusBanner` branch 2 already renders
     ///     `PulseCue.cameraDenied.fullHint` directly for the permission dead end — the sentence
     ///     is on screen, and a second copy here would be #416's defect, not helpfulness.

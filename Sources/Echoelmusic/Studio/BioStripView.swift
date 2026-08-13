@@ -219,15 +219,19 @@ struct BioStripView: View {
                 // stall are mutually exclusive states, but the cue lingers six seconds after the
                 // lock, and during those seconds the honest message is the congratulation.
                 //
-                // ⛔ AND IT IS NOT THE ONLY CUE THAT HIDES ITS REMEDY — the first version of this
-                // comment said it was, and that premise is measurably false. "Too bright" is pure
-                // diagnosis too; its action is "Press a little lighter", and the intuitive move on
-                // a washed-out reading is the opposite one. `.tooBright` is excluded because
-                // `placementCue` is recomputed per FRAME, so wrapping it here would resize this
-                // slot at the publisher's rate — the #382 shove with a faster clock. `.stalled` is
-                // latched once in the publish tick and cannot churn. The `.tooBright` gap is real,
-                // named, and left for a slice that gives this slot a fixed height or a latch.
-                if !lockedCueVisible, cameraRPPG.acquisitionCue.warrantsFullHintOnScreen {
+                // ⭐ AND THE SECOND CUE THAT HID ITS REMEDY IS COVERED SINCE #569 — the block
+                // that stood here named the `.tooBright` gap and left it, which is why the gate
+                // is now the PUBLISHER's `cueWarrantsFullHintOnScreen` and not the enum's.
+                // "Too bright" is pure diagnosis; its action is "Press a little lighter", and the
+                // intuitive move on a washed-out reading is the opposite one. It was excluded
+                // because `placementCue` is recomputed per FRAME, so wrapping it here would
+                // resize this slot at the publisher's rate — the #382 shove with a faster clock.
+                // The fix is the latch that objection asked for, not a weaker gate: a
+                // `BioTrustLatch` in the publish tick requires 4 s sustained washout to engage
+                // and 3 s clear to release, so this slot resizes at most once per ~3 s. The enum
+                // still owns `.stalled` (a fact about its strings, #416); the publisher adds the
+                // one thing an enum cannot know, which is how long the case has held.
+                if !lockedCueVisible, cameraRPPG.cueWarrantsFullHintOnScreen {
                     banner(cameraRPPG.acquisitionCue.fullHint,
                            color: EchoelTheme.warning,
                            systemImage: "arrow.triangle.2.circlepath")
