@@ -1,41 +1,42 @@
-build: v10.79.393 — Deine Stimme reist mit dem Take
+build: v10.79.394 — Voice→Color: Deine Stimme tönt das Bild
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.392 (2509). Dieser Build trägt #600 —
-  die dritte Save-Tür.
+  Der Vorgänger auf Deinem Gerät ist 10.79.393 (2510). Dieser Build trägt #594
+  (beide Scheiben) — die Stimm-Bühne erreicht die Ausgabestufe: nach Klang
+  (Capture), Speicher (Patch/Take) jetzt das BILD.
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Ein Take trägt Deine Stimme.** Bisher reiste eine gemessene Stimm-Farbe
-    nur mit einem Patch-Save („Save as…" / „Save changes") — die Projekt-Tür
-    (Save-Knopf, Autosave beim App-Wechsel, Live Colabo) speicherte den Klang
-    OHNE die Stimme. Jetzt geben alle drei Türen dieselbe Antwort: ein Take,
-    der mid-capture gespeichert wird, klingt beim Wiederöffnen nach Dir.
-  · **Live Colabo teilt die Stimme MIT Namens-Label** — nie anonym, keine
-    Misattribution (dieselbe Provenance-Logik wie beim Patch-Save: ein
-    recallter Fremd-Patch behält sein Original-Label).
-  · Dazu docs-only: Release-Notes (acht Charakter-Regler, Stimme-Sektion)
-    und die Content-Claims kennen die Stimm-Bühne.
+  · **Deine gemessene Stimme tönt die Visual-Palette.** Aus dem 64-Zahlen-
+    Profil (Messung, nie Aufnahme) werden zwei ehrliche Skalare: der spektrale
+    SCHWERPUNKT (dunkle/warme Stimme vs. helle) verschiebt den Farbton leicht
+    warm/kühl, die RAUHEIT die Sättigung. Bewusst subtil (±5 %): die Stimme
+    ist eine Tönung, nie eine Übernahme — ohne Capture ist das Bild
+    byte-identisch zum bisherigen physikalischen Farb-Default.
+  · **Beamer-Parity:** die externe Anzeige (Projektor) zeigt dieselbe Tönung
+    wie das Telefon. Ein fehlender Synth-Link dimmt nur die Tönung — er kann
+    die Bühne nie schwärzen (crash-fest per Konstruktion, Review-bestätigt).
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Voice timbre → Capture → Ton halten → **Projekt speichern** (Save-Knopf,
-     nicht Patch-Save) → anderes Projekt öffnen → das gespeicherte wieder
-     öffnen: klingt das Instrument nach Dir?
-  2. Capture → App in den Hintergrund (Autosave) → App neu öffnen → den
-     Autosave-Slot öffnen: Farbe da?
-  3. Clear → Projekt speichern → wieder öffnen: die Farbe darf NICHT zurück.
-  4. Die 391/392-Listen bleiben offen, falls noch nicht durchgespielt
-     (Voice-Kette · Tune to key · Follow the key · Notch · USB-Einladung).
+  1. Dunkles Summen capturen (Voice timbre → Capture) → Visual öffnen:
+     lehnt die Palette WARM?
+  2. Clear → helles „iii" capturen → Visual: lehnt sie KÜHL(er)?
+  3. Clear → das Bild muss EXAKT zum Default zurück.
+  4. Mit Beamer/Projektor verbunden: Telefon und Beamer zeigen dieselbe Lehne.
+  5. Die 2510er-Probe bleibt offen, falls noch nicht durchgespielt (Capture →
+     Projekt-Save → reopen = Farbe da; Clear → Save → reopen = Farbe weg).
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert und wächter-gepinnt (drei Türen,
-  eine Definition; Round-Trip am Code belegt), am Gerät UNVERIFIZIERT.
-  Bekannter Rest unverändert: Routen-Wechsel (44,1↔48 kHz) mitten im
-  Monitoring kann „Tune to key" verstimmen, bis Monitoring aus/an war.
+  ⚠ Ehrliche Grenzen: compile-verifiziert, wächter-gepinnt (reine Mathematik
+  end-to-end getestet, Renderer-Joins transkribiert), am Gerät UNVERIFIZIERT —
+  ob die Tönung richtig AUSSIEHT und die ±-Stärken stimmen, entscheidet Dein
+  Auge; beides ist bewusst founder-tunbar ausgelegt. Flash-Safety unberührt
+  (Tönung ändert sich nur bei Capture/Recall/Clear und wird geglättet).
 
-  Vorgänger-Noten: 10.79.392 = „Follow the key" (diatonischer Harmonizer),
-  10.79.391 = die EchoelVoice-Bühne #591–#599. KEIN AUDIO wird je gespeichert.
+  Vorgänger-Noten: 10.79.393 = Stimme reist mit dem Take (#600) · 10.79.392 =
+  Follow the key · 10.79.391 = die EchoelVoice-Bühne #591–#599.
+  KEIN AUDIO wird je gespeichert.
