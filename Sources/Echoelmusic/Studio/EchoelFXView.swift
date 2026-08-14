@@ -297,6 +297,20 @@ final class FXViewModel {
     var harmVoice2: Bool { didSet { for c in allChains { c.harmonizer.voice2Enabled = harmVoice2 } } }
     var harmMix: Float { didSet { for c in allChains { c.harmonizer.mix = harmMix } } }
 
+    /// #599b — the RESTORE half of "Follow the key". While following, the
+    /// DiatonicHarmonyFollower rewrites the chains' intervals every tick and this
+    /// view-model's stored values stay the user's source of truth, untouched. The
+    /// toggle's OFF action calls this to re-fan them onto every chain — a
+    /// re-assignment through a local, because Swift fires `didSet` on it (a direct
+    /// self-assignment would warn, and warnings are load here), and the didSets
+    /// above are the ONE fan-out path (#416; a second `for c in allChains` loop
+    /// here would be a second spelling of it).
+    func refanHarmonizerIntervals() {
+        let i1 = harmInterval1, i2 = harmInterval2
+        harmInterval1 = i1
+        harmInterval2 = i2
+    }
+
     // Reverb (room / hall space)
     var reverbEnabled: Bool { didSet { for c in allChains { c.reverbEnabled = reverbEnabled } } }
     var reverbRoomSize: Float { didSet { for c in allChains { c.reverb.roomSize = reverbRoomSize } } }
@@ -406,6 +420,10 @@ struct EchoelFXView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
     @Environment(FXBioModulator.self) private var modulator
+    // #599b — read in body only as `enabled` (flips on user action; the follower's
+    // ~10 Hz tick writes exclusively @ObservationIgnored members and chain params,
+    // so no per-tick observation churn reaches this body — freeze law).
+    @Environment(DiatonicHarmonyFollower.self) private var harmonyFollower
     @State private var vm: FXViewModel
     /// The user's own saved presets (local). The curated community set is bundled.
     @State private var presetStore = FXPresetStore()
@@ -509,9 +527,31 @@ struct EchoelFXView: View {
                 }
 
                 effectSection("Harmonizer", isOn: $vm.harmonizerEnabled) {
-                    intervalRow("Voice 1", $vm.harmInterval1)
+                    // #599b — "Follow the key": the two voices become the diatonic
+                    // third + fifth over the sounding lead (VoiceHarmony maths; the
+                    // app-owned DiatonicHarmonyFollower ticks ~10 Hz). While ON the
+                    // interval rows are HIDDEN, not disabled — the follower rewrites
+                    // them every tick, and a control that lies is worse than none.
+                    // The OFF action owns the restore (re-fan of the VM's stored
+                    // values), so a preset recalled mid-follow restores to ITS
+                    // intervals, not a stale baseline — the follower holds no state.
+                    Toggle("Follow the key", isOn: Binding(
+                        get: { harmonyFollower.enabled },
+                        set: { on in
+                            harmonyFollower.enabled = on
+                            if !on { vm.refanHarmonizerIntervals() }
+                        }
+                    )).tint(EchoelTheme.accent)
+                    if harmonyFollower.enabled {
+                        Text("Voices sing a third and a fifth above the lead — IN the session key. A third above E in C major is G, not G sharp.")
+                            .font(EchoelTheme.font(10))
+                            .foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    } else {
+                        intervalRow("Voice 1", $vm.harmInterval1)
+                        intervalRow("Voice 2 interval", $vm.harmInterval2)
+                    }
                     Toggle("Voice 2", isOn: $vm.harmVoice2).tint(EchoelTheme.accent)
-                    intervalRow("Voice 2 interval", $vm.harmInterval2)
                     field("Mix", $vm.harmMix, 0...1, decimals: 2)
                 }
 

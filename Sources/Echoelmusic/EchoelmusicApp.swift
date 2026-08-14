@@ -209,6 +209,10 @@ struct EchoelmusicApp: App {
     // (Said "the melody voice's" — singular — until #386, which is what it actually did.
     // The inventory is handed over at the `attach` call below, not here.)
     @State private var fxModulator = FXBioModulator()
+    // #599b — the key-aware harmonizer bridge (diatonic third+fifth over the
+    // sounding lead). App-owned like `fxModulator` so following survives the FX
+    // sheet closing; its tick runs only while its toggle is on.
+    @State private var harmonyFollower = DiatonicHarmonyFollower()
     @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
     @State private var shouldAutoPlay = false
     /// Set when the user taps "Continue to Echoelmusic" in Safe Mode — renders the full
@@ -561,6 +565,7 @@ struct EchoelmusicApp: App {
             .environment(sessionRecorder)
             .environment(resourceGovernor)
             .environment(fxModulator)
+            .environment(harmonyFollower)
             .task {
                 // First line: proves the studio surface rendered AND its startup task
                 // ran. If a shared diag log shows "init done" then this, the UI is the
@@ -1043,6 +1048,12 @@ struct EchoelmusicApp: App {
                                    mirrors: [touchVoice.fxChain],
                                    bus: bus)
                 fxModulator.start()
+                // #599b — SAME two-chain inventory as the line above (#386: one body,
+                // every listening chain), same bus; a4 read live so a Kammerton change
+                // retunes the follow without a re-attach.
+                harmonyFollower.attach(chains: [polyVoice.fxChain, touchVoice.fxChain],
+                                       bus: bus,
+                                       a4Hz: { [weak sessionContext] in sessionContext?.a4Hz ?? SessionContext.defaultA4Hz })
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
                 pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, automation: automationPlayer, timeline: timelinePlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }

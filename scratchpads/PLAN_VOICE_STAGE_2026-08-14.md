@@ -108,8 +108,20 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
    Wächter: `TheVoiceTuneSnapsToTheSessionKeyTests` (E2E auf den Kernen + Joins).
    Geräteprobe offen (NEEDS-FOUNDER-VERIFY): Monitoring an, Tune to key an, schief
    singen — der Monitor zieht in die Tonart; Latenz/CPU der TimePitch-Stufe anhören.
-   **VL2→Harmonizer (diatonische Intervalle folgen der gesungenen Note) = #599b,
-   nächste Scheibe** — Test 4 des Wächters pinnt die Mathe bis dahin.
+   ~~**VL2→Harmonizer = #599b, nächste Scheibe**~~ — **#599b GEBAUT 2026-08-14**
+   (Founder delegierte: „Du entscheidest, optimierst brand-conform" — Council: kein
+   Scaler-EQ-Klon [das Instrument komponiert per Konstruktion in der Tonart; ein
+   Tonart-EQ wäre Kosmetik], stattdessen die registrierte Tonart-Fähigkeit):
+   `DiatonicHarmonyFollower` (Tools/, App-owned, ~10-Hz-Task NUR bei aktivem Toggle)
+   liest `EngineBus.latestMusical` (lauteste Note + publizierte Tonart) und schreibt
+   diatonische Terz+Quinte über der Lead-Note in `harmonizer.interval1/2` beider
+   Chains (#386-Inventar). Tür: FX → Harmonizer → „Follow the key"; die Interval-Rows
+   verstecken sich währenddessen (ein Regler, der lügt, ist schlimmer als keiner);
+   der AUS-Pfad re-fant die VM-Werte (Follower hält KEINE Baseline — ein mitten im
+   Follow recallter Preset restauriert auf SEINE Werte). Kammerton-treu; unbrauchbarer
+   Frame → halten statt raten. Wächter: `TheHarmonizerFollowsTheKeyTests` (E2E auf
+   der puren Entscheidung + Joins). Geräteprobe: Melodie spielen — die Harmonie bleibt
+   auf JEDER Note in der Tonart; ~10-Hz-Intervallwechsel auf gehaltenem Akkord anhören.
 
 ## Pre-Release-Sweep 2026-08-14 (3 Leads, vor dem v10.79.391-Bump) — Befunde & Stand
 
