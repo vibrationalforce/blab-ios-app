@@ -41,7 +41,12 @@ final class RoutePlugInWatcher {
     /// device that is no longer the story. Deliberate, not incidental.
     private(set) var invitePortName: String?
 
-    @ObservationIgnored private var token: (any NSObjectProtocol)?
+    /// `nonisolated(unsafe)` for exactly one reason: Swift 6 refuses a non-Sendable
+    /// stored property in a nonisolated `deinit` ("cannot access property 'token'…",
+    /// the b7ea585 gate red). Safety holds by discipline, stated here: every WRITE is
+    /// `@MainActor` (`start`/`stop`), and `deinit` runs when the object is uniquely
+    /// referenced, so no concurrent access exists. The CLAUDE.md error-table shape.
+    @ObservationIgnored private nonisolated(unsafe) var token: (any NSObjectProtocol)?
 
     /// Idempotent. Observes route changes for the life of the studio.
     func start() {
