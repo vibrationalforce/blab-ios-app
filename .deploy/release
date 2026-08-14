@@ -1,59 +1,51 @@
-build: v10.79.391 — Deine Stimme wird Instrument: Capture · Patch · Tonart
+build: v10.79.392 — Follow the key: der Harmonizer singt diatonisch
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.390 (2507). Dieser Build trägt die
-  EchoelVoice-Bühne #591–#599: die komplette Stimm-Kette, jede Scheibe test-first,
-  Pflicht-Review, Gates grün. KEIN AUDIO wird je gespeichert — gemessen wird eine
-  Spektral-Hüllkurve (64 Zahlen), das Mikrofon-Versprechen der App bleibt wörtlich wahr.
+  Der Vorgänger auf Deinem Gerät ist 10.79.391 (2508). Dieser Build trägt #599b —
+  die letzte offene Zeile aus der 391er-Note („dass er diatonisch der gesungenen
+  Note folgt, ist #599b und kommt als nächste Scheibe") ist hiermit eingelöst,
+  plus die Review-Runde dazu.
 
-  ── DIE STIMM-KETTE (Sound-Panel → „Voice timbre") ────────────────────────
+  ── FOLLOW THE KEY (FX → Harmonizer) ──────────────────────────────────────
 
-  · **Capture** (#591/#592): „Capture" drücken, ein paar Sekunden einen Ton halten
-    (Vokal oder Summen) — die Klangfarbe Deiner Stimme wird die des Instruments.
-    Live analysiert, nie aufgenommen. Überlebt Patch-Wechsel, bis Du „Clear" drückst.
-  · **Harmonizer auf Deinem Ton** (#597a): FX → Harmonizer stapelt den Stimm-Klang
-    in Harmonien — war schon verdrahtet, jetzt sagt es Dir die Caption.
-  · **Speichern & Teilen** (#593a–c): „Save as…" bettet die gemessene Stimme in den
-    Patch ein — ETIKETTIERT (Dein Künstlername oder „My voice"). Recall bringt die
-    Farbe zurück. Beide Speicher-Türen (Save as / Save changes) sagen dieselbe
-    Wahrheit; ein recallter Fremd-Patch behält beim Umbenennen sein Original-Label
-    (keine Misattribution); Clear hält — auch nach Regler-Tweak und Undo-Pfeil.
-  · **Fiepen-Unterdrückung GANZ** (#595): zum Pegel-Duck kommt der Notch — die
-    Pfeif-Frequenz wird erkannt, herausgezogen (geslewt, ~2 s Hold) und nur im
-    Mic-Monitor, nie in der Musik.
-  · **Interface-Einladung** (#596): USB-Mikro/Interface/Headset einstecken → eine
-    unaufdringliche Zeile im Studio bietet das Input-Sheet an. Nie Auto-Arm.
-  · **Tune to key** (#599, NEU — Deine Frage von heute): Master-Panel → „Audio
-    input" → „Tune to key": Dein Monitor-Signal wird optional in die Session-Tonart
-    gezogen. Amount = Stärke, Tune = Charakter (1.00 = klassischer Hard-Snap,
-    niedrig = natürlicher Drift). Kammerton-treu (432/440), die Tonart kommt vom
-    Instrument — nichts wird geraten. Default AUS; nur der Monitor, nie die Musik.
+  · **Der Schalter**: FX-Panel → Harmonizer → „Follow the key". AN: die zwei
+    Harmonie-Stimmen sind nicht mehr feste Halbton-Abstände, sondern die
+    DIATONISCHE Terz und Quinte ÜBER DER GERADE KLINGENDEN NOTE — eine Terz
+    über E in C-Dur ist G (+3), nicht G# (+4). Die Tonart kommt vom Instrument
+    (Root/Scale der Session), Kammerton-treu (432/440).
+  · **Die Intervall-Reihen verstecken sich**, solange der Folger schreibt — ein
+    Regler, der lügt, ist schlimmer als keiner. AUS: Deine gespeicherten
+    Intervalle kommen exakt zurück (auch ein mid-follow recallter Preset
+    restauriert auf SEINE Werte).
+  · **Review-Fixes eingebaut**: Sheet mid-follow schließen/öffnen zeigt Deine
+    Werte, nicht den Zwischenstand des Folgers; ein mid-follow gespeicherter
+    Preset friert Deine Wahl ein, nie eine zufällige Note. Nicht persistiert —
+    Folgen ist ein Performance-Akt, frischer Start = feste Intervalle.
 
-  ── BITTE AM GERÄT PRÜFEN (in dieser Reihenfolge) ─────────────────────────
+  ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Sound-Panel → Voice timbre → Capture → Ton halten → spielen: klingt das
-     Instrument nach Dir? FX → Harmonizer dazu: Dein Ton, gestapelt?
-  2. Save as… → Patch wechseln → den gespeicherten recallen: kommt die Farbe zurück?
-  3. Clear → einen Klang-Regler bewegen → speichern: die Farbe darf NICHT zurück.
-  4. Kopfhörer ab, Lautsprecher-Monitoring an, Fiepen provozieren: stirbt es als
-     Rampe statt als Knall?
-  5. „Tune to key" an, absichtlich schief singen: zieht der Monitor Dich in die
-     Tonart? Tune 1.00: der klassische Snap? Die kleine Monitor-Latenz okay?
-  6. USB-C-Interface einstecken (App offen): erscheint die Einladungszeile?
+  1. FX → Harmonizer an, „Follow the key" an, eine Melodie spielen: bleibt die
+     Harmonie auf JEDER Note in der Tonart (keine Quer-Terz)?
+  2. Einen Akkord/Ton HALTEN: hörst Du ~10-Hz-Zipper beim Intervallwechsel,
+     oder steht es sauber? (Gleiche Note = kein Neuschreiben, sollte still sein.)
+  3. Mid-follow das FX-Sheet schließen und wieder öffnen, dann „Follow the key"
+     aus: zeigen die Intervall-Reihen Deine ursprünglichen Werte?
+  4. Mid-follow ein Preset speichern, später recallen: trägt es DEINE
+     Intervalle, nicht die einer zufällig geklungenen Note?
+  5. Tonart im Instrument wechseln (z. B. C-Dur → a-Moll) und weiterspielen:
+     folgt die Harmonie der neuen Tonart mit der nächsten Note?
 
-  ⚠ Ehrliche Grenzen: alles oben ist compile-verifiziert und wächter-gepinnt, aber
-  am Gerät UNVERIFIZIERT — Klang, Latenz der Tune-Stufe und der Rewire-Moment beim
-  Umschalten brauchen Dein Ohr. Ein Routen-Wechsel (44,1↔48 kHz) mitten im Monitoring
-  kann „Tune to key" verstimmen, bis Monitoring aus/an war — bekannter Rest, Re-Arm
-  ist der registrierte Fix. Der Harmonizer folgt noch festen Intervallen; dass er
-  diatonisch der gesungenen Note folgt, ist #599b und kommt als nächste Scheibe.
+  ⚠ Ehrliche Grenzen: compile-verifiziert und wächter-gepinnt (Terz-Mathematik
+  end-to-end getestet), am Gerät UNVERIFIZIERT — ob das Folgen bei Tempo musikalisch
+  KLINGT und ob der Intervallwechsel hörbar zippert, entscheidet Dein Ohr. Die
+  391er-Probenliste (Voice-Kette, Tune to key, Notch, USB-Einladung) bleibt offen,
+  falls noch nicht durchgespielt. Bekannter Rest unverändert: Routen-Wechsel
+  (44,1↔48 kHz) mitten im Monitoring kann „Tune to key" verstimmen, bis Monitoring
+  aus/an war.
 
-  ── ENTSCHIEDEN (delegiert) ───────────────────────────────────────────────
-
-  **In-Key-Correction als Graph-Node im Monitor-Pfad** (kein Render-Code, Musik
-  unberührt, Default aus) und **Voice-Provenance statt Proxy** (wessen Stimme live
-  ist, wird erinnert, nicht geraten — Share-Label-Gesetz). Beides in decisions.csv.
+  Vorgänger-Note (10.79.391): die komplette EchoelVoice-Bühne #591–#599 —
+  Capture · Patch · Tonart. KEIN AUDIO wird je gespeichert.
