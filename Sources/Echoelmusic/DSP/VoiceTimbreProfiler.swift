@@ -135,4 +135,35 @@ public struct VoiceTimbreProfiler: Sendable {
         frames.removeAll(keepingCapacity: true)
         voicedFrameCount = 0
     }
+
+    // MARK: - Voice → Color (#594)
+
+    /// The two honest colour scalars a measured profile carries, both in [0, 1]:
+    /// `centroid` — where the harmonic energy sits (0 = all at the fundamental,
+    /// warm/dark; 1 = all in the top harmonic, bright), log-scaled because harmonic
+    /// position is perceived logarithmically; `roughness` — spectral irregularity as
+    /// normalized first-difference energy (0 = flat envelope, →1 = alternating comb).
+    ///
+    /// nil for a profile that cannot colour anything (fewer than two taps, or no
+    /// positive finite energy) — the caller then keeps its untinted default rather
+    /// than painting from garbage. Non-finite or negative taps are read as 0 (the
+    /// engineering.md boundary rule, same as `harmonicAmplitudes`' bin handling):
+    /// one bad tap must not poison the tint. Pure, deterministic, control-plane
+    /// only — this is arithmetic over ≤64 floats, never called per rendered frame
+    /// (the consumer caches behind a taps-equality gate).
+    public static func colorDescriptors(taps: [Float]) -> (centroid: Double, roughness: Double)? {
+        guard taps.count >= 2 else { return nil }
+        let clean = taps.map { $0.isFinite && $0 > 0 ? Double($0) : 0 }
+        let total = clean.reduce(0, +)
+        guard total > 0 else { return nil }
+        var weighted = 0.0
+        for (i, w) in clean.enumerated() { weighted += Double(i + 1) * w }
+        let harmonicPosition = weighted / total   // 1…n by construction
+        let centroid = Swift.min(Swift.max(
+            log2(harmonicPosition) / log2(Double(clean.count)), 0), 1)
+        var diff = 0.0
+        for i in 1..<clean.count { diff += abs(clean[i] - clean[i - 1]) }
+        let roughness = Swift.min(Swift.max(diff / (2 * total), 0), 1)
+        return (centroid, roughness)
+    }
 }

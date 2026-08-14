@@ -336,6 +336,15 @@ struct MetalBioView: UIViewRepresentable {
     @Environment(EngineBus.self) private var bus
     @Environment(ResourceGovernor.self) private var governor
     @Environment(VisualRecorder.self) private var visualRecorder
+    /// #594 Voice→Color: reference forwarded like bus/governor; the profile itself
+    /// is read in draw's MainActor block, never here (`appliedVoiceProfile` is
+    /// @ObservationIgnored, so no SwiftUI subscription either way). OPTIONAL on
+    /// purpose, unlike bus/governor: `ExternalDisplayScene` mounts this view with
+    /// only bus/governor/recorder injected — a non-optional read would crash the
+    /// beamer scene at view creation. nil there = the beamer draws untinted (a
+    /// registered gap, not a defect; wiring the synth through the bridge is its
+    /// own slice).
+    @Environment(PolySynthVoice.self) private var synth: PolySynthVoice?
     /// Only the instance that owns the record affordance (the fullscreen VJ cover)
     /// feeds the recorder — keeps a second mounted MetalBioView from double-capturing.
     var capturesVideo: Bool = false
@@ -439,6 +448,7 @@ struct MetalBioView: UIViewRepresentable {
         let c = context.coordinator
         c.bus = bus
         c.governor = governor
+        c.synth = synth
         c.visualRecorder = capturesVideo ? visualRecorder : nil
         c.capturesVideo = capturesVideo
         c.setLook(toneFallbackHz: toneHz, intensity: intensity, ringDensity: ringDensity,
@@ -493,6 +503,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// Optional video-capture sink (set only for the fullscreen VJ instance). When it is
     /// recording, each rendered frame is blitted into it (see the tap in `draw(in:)`).
     weak var visualRecorder: VisualRecorder?
+    /// #594 Voice→Color — forwarded like bus/governor; read only in draw's
+    /// MainActor block.
+    weak var synth: PolySynthVoice?
+    /// Cache gate for the tint: descriptors are recomputed only when the profile
+    /// CHANGES (capture / recall / clear) — never per rendered frame.
+    private var lastVoiceTaps: [Float]?
+    private var voiceHueBias: Float = 0
+    private var voiceSatFactor: Float = 1
     var capturesVideo = false
 
     // Static, user-set look params forwarded from `updateUIView` (change on user action,
@@ -770,6 +788,23 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let effectiveReduceMotion = lookReduceMotionAccessibility || (q?.reduceMotion ?? false)
             let bio = bus?.freshBio()
             let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion)
+            // #594 Voice→Color: the measured voice's two honest scalars tint the
+            // palette — centroid → hue (±0.05 max), roughness → saturation
+            // (×0.95…1.05). Applied at the update() call below on the REAL palette
+            // inputs (`lookHue`/`lookSaturation` — `vp.hue` has no consumer in this
+            // renderer, only `vp.pulseHz` does). Exactly neutral with no captured
+            // voice, so the physical-colour default stays byte-identical.
+            let taps = synth?.appliedVoiceProfile
+            if taps != lastVoiceTaps {
+                lastVoiceTaps = taps
+                if let taps, let d = VoiceTimbreProfiler.colorDescriptors(taps: taps) {
+                    voiceHueBias = Float(d.centroid - 0.5) * 0.10
+                    voiceSatFactor = 1 + Float(d.roughness - 0.5) * 0.10
+                } else {
+                    voiceHueBias = 0
+                    voiceSatFactor = 1
+                }
+            }
             // Colour follows the MUSIC when sounding, else the tonic. HYSTERESIS: keep the
             // current colour note and only hand off to the loudest one when it's clearly louder
             // (≥30 %) than the note currently driving the colour — so chords/arpeggios with
@@ -913,7 +948,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    // breathes at the brainwave band's flash-safe sub-harmonic (still
                    // re-capped ≤3 Hz inside update()).
                    pulseHz: Float(lookEntrainmentPulseHz > 0 ? lookEntrainmentPulseHz : vp.pulseHz),
-                   hueShift: lookHue, saturation: lookSaturation,
+                   hueShift: lookHue + voiceHueBias, saturation: lookSaturation * voiceSatFactor,
                    style: lookStyle, styleB: lookStyleB, blend: lookBlend,
                    reduceMotion: effectiveReduceMotion)
             // Feed the render cadence back to the governor so a sustained FPS drop can
