@@ -10,20 +10,21 @@
 // never clear an embedded-profile patch (the Council's sharpest concern, #593).
 // NO AUDIO persists — the taps are a max-normalized spectral envelope.
 //
-// ⚠️ HONEST LIMITS. 8 tests, 25 `XCTAssert*` statements (hand-counted per test,
-// 4+3+4+2+2+3+2+5; the one `XCTUnwrap` in test 5 and the TWO in test 7 also fail
-// their tests and sit outside this count — assertions, not failure points).
-// Test 8 (#593b, added one commit after the rest) covers the SAVE flow's joins; the
-// FLOW itself — tap Save as…, type a name, recall — is a device probe folded into
-// the existing voice-capture probe (capture → save-as → switch → recall). Tests 1–5 are END-TO-END BEHAVIOUR on the shipped pure Codable type
+// ⚠️ HONEST LIMITS. 8 tests, 28 `XCTAssert*` statements (hand-counted per test,
+// 4+3+4+2+2+3+2+8; `XCTUnwrap` census: one in test 5, two in test 7, two in test 8
+// — all fail their tests and sit outside this count, assertions not failure points).
+// Test 8 (#593b, added one commit after the rest, then hardened by the review's F1
+// and F3) covers the SAVE flow's joins; the FLOW itself — tap Save as…, type a
+// name, recall — is a device probe folded into the existing voice-capture probe. Tests 1–5 are END-TO-END BEHAVIOUR on the shipped pure Codable type
 // (real JSONEncoder/JSONDecoder, no mocks); tests 6–7 are SOURCE-TEXT JOINS (the
 // apply/clear flow sits on a `@MainActor` voice whose poly engine a test host can
 // construct but whose recall drain needs the render loop). What no test here can
 // prove: that an embedded profile SOUNDS like the captured voice after a recall —
 // device probe (NEEDS-FOUNDER-VERIFY, folds into the existing voice-capture probe:
 // capture, save-as, switch patch, recall the saved one — your colour must return).
-// The SAVE flow that writes the profile into a patch is #593b — no door sets these
-// fields yet, and this file deliberately does not pretend one exists.
+// ⛔ The sentence that stood here — "no door sets these fields yet" — was true for
+// exactly one commit and became this file's own refutation when test 8 arrived
+// (#425, review F4): the #593b save-as door DOES set them now, and test 8 pins it.
 //
 // ⭐ GRADING (§3). This file drives fields this same commit adds — against the parent
 // tree it DOES NOT COMPILE (unknown members), so no assertion has a verdict there;
@@ -31,8 +32,14 @@
 // against the worktree and all driven assertions reproduce. Tests 6–7's needles are
 // FORWARD guards except the `tryEnqueue(patch.resolved())` counterweight (green on
 // both trees — the point is that #593 did not add a second enqueue path). Stripper:
-// all 5 source needles measured raw vs stripped on the worktree — 0 of 5 verdicts
-// flip → PROPHYLAKTISCH (the #593 comments name members, never call syntax).
+// all 12 source needles (tests 6–8) measured raw vs stripped on the worktree —
+// 0 of 12 verdicts flip → PROPHYLAKTISCH today. ⚠️ Fragile by one comment: the
+// zero-count needle (`saveAs(currentPatch, name: name)`) flips to TRAGEND the day
+// a ⛔-retraction comment quotes the old call verbatim — paraphrase, never quote,
+// when retracting near it (the #491 lesson, pre-registered here). Test 8 graded
+// against ITS parent (the #593b commit): the F1/F3 needles are FORWARD (that
+// commit's review created them); the rest were red there by anchor absence — one
+// absence, reported once (#486).
 
 import Foundation
 import XCTest
@@ -158,6 +165,21 @@ final class TheVoiceTravelsWithThePatchTests: XCTestCase {
             + "count 3 = the artist row's display read + its binding getter + the "
             + "save-as read (the first draft wrote 2 from memory; the transcription "
             + "found the binding getter — measured, not remembered)")
+        XCTAssertEqual(codeOccurrences(of: "toSave.voiceProfileTaps = taps", in: studio), 1,
+                       "the taps ASSIGNMENT is the save — unpinned, a deletion would "
+                       + "leave label+blend written and no taps, which the decoder's "
+                       + "taps-keyed unit then nils wholesale on recall: exactly the "
+                       + "silent drop this test's name claims to guard (review F3)")
+        XCTAssertEqual(codeOccurrences(
+            of: "let isRecalledOwnProfile = (toSave.voiceProfileTaps == taps)", in: studio), 1,
+            "the F1 misattribution guard: a recalled patch's OWN profile keeps its "
+            + "label — renaming a shared sound must not claim its voice as yours")
+        let compareAt = try XCTUnwrap(studio.range(
+            of: "let isRecalledOwnProfile = (toSave.voiceProfileTaps == taps)"))
+        let assignAt = try XCTUnwrap(studio.range(of: "toSave.voiceProfileTaps = taps"))
+        XCTAssertTrue(compareAt.lowerBound < assignAt.lowerBound,
+                      "the comparison must run BEFORE the assignment — after it, the "
+                      + "taps always compare equal and every save relabels again")
         XCTAssertEqual(codeOccurrences(of: "toSave.voiceProfileBlend = 1", in: studio), 1,
                        "blend 1 — applyVoiceProfile's own default; a second number "
                        + "here would be a decision that does not exist yet")

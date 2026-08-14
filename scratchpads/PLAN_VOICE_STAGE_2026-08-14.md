@@ -52,6 +52,19 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
    (4) Ehrlichkeits-Kanten für eine „Voice aktiv"-Anzeige: Embed- und Capture-Herkunft sind
    nach Apply ununterscheidbar, und Blend 0 (aus negativ geklemmt) armiert die Memory bei
    deaktivierter Engine-Stufe.
+   **#593b GEBAUT 2026-08-14** (`2475f28` + F1-Fix): Save-as bettet die live Stimme ein,
+   Label über `typedArtistName`, Blend 1; **F1 (HIGH, im Review gefunden und gefixt):**
+   ein recallter Embed-Patch behält beim Umbenennen sein ORIGINAL-Label (Taps-Vergleich
+   VOR der Zuweisung) — sonst Misattribution fremder Stimmen. **#593c ERBT VIER BEFUNDE:**
+   (1) F2: Stale-Half — Clear strippt `currentPatch` nicht; Save-as direkt nach Clear
+   speichert die eben geklärte Stimme unter Original-Label (Fix: toSave-Strip wenn
+   `appliedVoiceProfile == nil` — der Reviewer hat verifiziert, dass der Gegen-Fall den
+   else-Zweig nicht erreichen kann); (2) F5a: Clear hält nicht — jeder Regler-Tweak
+   re-applied `currentPatch` MIT Taps und reinstalliert das geklärte Profil (Council-Sorge
+   eine Ebene höher, im View-State); (3) F5b: der Clear-Knopf ist ein No-op, wenn das
+   Profil per Recall kam und nie eine Capture armiert war (`VoiceCaptureController.synth`
+   ist weak, nur in `begin()` gesetzt); (4) Check-4: „Save changes" (in-place) bettet die
+   live Capture NICHT ein — Asymmetrie zu Save-as, die ein Spieler nicht sehen kann.
 5. **#598 TÖNEN-WISSEN (Learn)** — s. Rote-Linie-Absatz unten.
 
 ## ⚠️ Tönen & „Hormone" — die Form, in der es shipppt (Body-Science-Präzedenz)

@@ -1604,11 +1604,24 @@ struct EchoelStudioView: View {
                 // sitting in `currentPatch` survives an unrelated save-as untouched.
                 var toSave = currentPatch
                 if let taps = synth.appliedVoiceProfile {
+                    // ⛔ F1 (#593b review, HIGH — fixed in the follow-up commit): the
+                    // first version relabeled UNCONDITIONALLY, so renaming a recalled
+                    // patch that carried artist X's embedded voice stamped the current
+                    // player's name over X's label — misattribution, the exact thing
+                    // the share-label law exists to prevent. The live profile IS the
+                    // patch's own whenever the taps compare equal (decode and
+                    // applyVoiceProfile run the SAME sanitize, so a recalled half
+                    // survives byte-identical) — then label AND blend travel
+                    // unchanged. Only a profile that DIFFERS — a fresh capture — is
+                    // labeled by this player, at this save. Compare BEFORE assigning.
+                    let isRecalledOwnProfile = (toSave.voiceProfileTaps == taps)
                     toSave.voiceProfileTaps = taps
-                    let artist = SessionContext.typedArtistName(fromStored: session.artistName)
-                        .trimmingCharacters(in: .whitespacesAndNewlines)
-                    toSave.voiceProfileLabel = artist.isEmpty ? "My voice" : artist
-                    toSave.voiceProfileBlend = 1
+                    if !isRecalledOwnProfile {
+                        let artist = SessionContext.typedArtistName(fromStored: session.artistName)
+                            .trimmingCharacters(in: .whitespacesAndNewlines)
+                        toSave.voiceProfileLabel = artist.isEmpty ? "My voice" : artist
+                        toSave.voiceProfileBlend = 1
+                    }
                 }
                 let saved = patchStore.saveAs(toSave, name: name)
                 currentPatch = saved
