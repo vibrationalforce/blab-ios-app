@@ -7,9 +7,12 @@
 //  once — inclusive by design, because the same utterance is heard, seen and felt.
 //
 //  This file is data + deterministic mapping only — NO audio DSP, NO Metal, NO
-//  SwiftUI. A future voice analyser produces `VoiceFrame`s; a future synth /
-//  renderer / Art-Net sender consume one `VocoderMapping`. Flash safety is baked
-//  in (pulse routed through FlashGuard), so no consumer can strobe by construction.
+//  SwiftUI. `VoiceFrame`s are produced IN PRODUCTION since #592a (`VoiceAnalyzer`,
+//  fed by the voice-capture chain — ⛔ "a future voice analyser" stood here after it
+//  shipped); a future synth / renderer / Art-Net sender consumes one
+//  `VocoderMapping` — THAT half is still unconsumed (0 callers, measured
+//  2026-08-14). Flash safety is baked in (pulse routed through FlashGuard), so no
+//  consumer can strobe by construction.
 //
 //  Pitch → colour uses the chromatic circle = colour circle (octave↔hue, real
 //  physics — Newton/Scriabin lineage), NOT esoteric "frequency healing".
@@ -17,8 +20,8 @@
 
 import Foundation
 
-/// One analysed frame of the incoming voice. Produced by the (future) audio
-/// analyser on the audio side; pure value type so the mapping is unit-tested.
+/// One analysed frame of the incoming voice. Produced by `VoiceAnalyzer` (live
+/// since #592a); pure value type so the mapping is unit-tested.
 public struct VoiceFrame: Sendable, Equatable {
     /// Fundamental frequency in Hz; 0 when unvoiced/silent.
     public var pitchHz: Double

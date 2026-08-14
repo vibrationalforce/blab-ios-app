@@ -4,13 +4,14 @@ Scope: this directory only. The root `CLAUDE.md` owns product, brand and state; 
 owns **how a guard is written, graded and reported**. Every law below is one this repo has
 already paid for; none is invented.
 
-Measured 2026-08-12 (run the command, never quote the number):
+Measured 2026-08-14 (run the command, never quote the number — the 08-12 row set had
+aged by 46 files in two days, which is exactly why the commands are the fact):
 
 | Fact | Command |
 |---|---|
-| **238** files | `git ls-files 'Tests/CISmoke/*.swift' \| wc -l` |
-| **1 649** `func test…` | `git grep -ho 'func test[A-Za-z0-9_]*' -- 'Tests/CISmoke/*.swift' \| wc -l` |
-| **75** delegate to `SourceText.codeOnly` | `git grep -l 'SourceText.codeOnly' -- 'Tests/CISmoke/*.swift' \| wc -l` |
+| **284** files | `git ls-files 'Tests/CISmoke/*.swift' \| wc -l` |
+| **1 927** `func test…` | `git grep -ho 'func test[A-Za-z0-9_]*' -- 'Tests/CISmoke/*.swift' \| wc -l` |
+| **119** delegate to `SourceText.codeOnly` | `git grep -l 'SourceText.codeOnly' -- 'Tests/CISmoke/*.swift' \| wc -l` |
 | **69** still declare a private stripper | `git grep -lE 'func (codeLines\|stripComment\|sourceLines)' -- 'Tests/CISmoke/*.swift' \| wc -l` |
 
 ---

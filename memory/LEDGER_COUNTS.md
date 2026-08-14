@@ -47,6 +47,17 @@ Eintrag geschrieben wurde — sie ist ein DATUM, keine Tatsache über heute.
 wenn die beiden auseinandergehen, ist das kein Widerspruch, sondern zwei Messungen zu zwei
 Zeitpunkten. Ein Wächter über dieser Zahl existiert bewusst nicht (#364).
 
+⛔ **LÜCKE, protokolliert 2026-08-14 (Pre-Release-Sweep):** gemessen heute **284**
+(`git ls-files 'Tests/CISmoke/*.swift' | wc -l`) — zwischen dem 08-08-Stand (234) und heute
+liegen **+50 Dateien in sechs Tagen, von denen diese Kette KEINEN einzelnen Stand trägt**.
+Die Scheiben #501–#599 haben ihre Wächter angelegt, ohne hier nachzuführen — das exakte
+Versäumnis, das diese Kette verhindern soll, sechs Tage lang. Die Zwischenstände sind NICHT
+rekonstruiert (erfundene Glieder wären schlimmer als eine benannte Lücke); wer sie braucht,
+geht `git log --diff-filter=A --since=2026-08-08 -- 'Tests/CISmoke/*.swift'` durch. Dieser
+Eintrag protokolliert den Messwert und die Lücke. Drei früher kursierende Zahlen für diese
+eine Suite (Ledger 234 · dir-CLAUDE.md 238 · Platte 284) sind damit auf EINE Messung mit
+Befehl zurückgeführt; `Tests/CISmoke/CLAUDE.md` §0 ist am selben Tag nachgezogen.
+
                           2026-08-08 nach `TheMoodTravelsWithTheTakeTests.swift` (#275 Slice 2 — der Zwilling
                           des Eintrags direkt darunter, EINE Tür weiter: Slice 1 gab den acht Stimmungs-Reglern
                           überhaupt Persistenz, und die war GLOBAL. Ein gespeicherter Take stellte also Genre,
@@ -5656,6 +5667,17 @@ Aktueller Stand: **messen, nie zitieren.**
 ```
 git ls-files 'Sources/**/*.swift' | wc -l
 ```
+
+⛔ **LÜCKE, protokolliert 2026-08-14 (Pre-Release-Sweep):** gemessen heute **362** — zwischen
+dem 08-08-Stand (350) und heute liegen **+12, von denen diese Kette keinen einzelnen Stand
+trägt** (#501–#599 haben nicht nachgeführt; dieselbe Lücke wie in §A am selben Tag). SECHS
+der zwölf sind die EchoelVoice-Woche und benennbar: `Audio/MonitorTapWindow.swift` (#595) ·
+`Studio/PlugInInvitation.swift` + `Studio/RoutePlugInWatcher.swift` (#596) ·
+`DSP/VoiceTimbreProfiler.swift` · `Studio/VoiceCaptureController.swift` ·
+`Studio/VoiceCaptureEngine.swift` (#591/#592). Die übrigen sechs sind unprotokolliert und
+nur per `git log --diff-filter=A --since=2026-08-08 -- 'Sources/**/*.swift'` rekonstruierbar.
+Messwert und Lücke, keine erfundenen Zwischenstände; CLAUDE.md „Files:" ist am selben Tag
+auf 362 nachgezogen.
 
 Diese Kette trägt zusätzlich eine TAXONOMIE, die aus der Zahl allein nicht zu lesen ist: ±0
 (neuer Typ in einer vorhandenen Datei) · +1 (neuer Kern ohne eigene Ansicht, oder neue Ansicht

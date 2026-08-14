@@ -18,9 +18,15 @@
 //  one-pole low-pass on the correction in CENTS, stepped with an explicit
 //  `dt` so behaviour is deterministic and testable (no wall clock).
 //
-//  Consumers (VL3, device-gated): mic tap → PitchTracker window →
-//  process(detectedHz:dt:) → ratio into a delay-line shifter;
-//  harmonyIntervals(...) → EchoelHarmonizer.interval1/2 (control-plane).
+//  Consumers: VL3 is WIRED since #599 — AudioEngine's guard tick runs
+//  mic tap → MonitorTapWindow → PitchTracker → process(detectedHz:dt:) and writes
+//  `appliedCents` onto an `AVAudioUnitTimePitch` in the MONITOR path ("Tune to
+//  key", default off). ⛔ This header described that consumer as a plan ("ratio
+//  into a delay-line shifter") for the whole first day it was shipped — wrong
+//  quantity (cents, not ratio) and wrong mechanism (first-party graph node).
+//  VL2 (`VoiceHarmony` → EchoelHarmonizer intervals) is genuinely still OPEN —
+//  #599b, next slice; until then its maths is pinned by Test 4 of
+//  TheVoiceTuneSnapsToTheSessionKeyTests.
 //
 
 import Foundation

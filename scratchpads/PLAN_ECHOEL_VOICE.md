@@ -1,5 +1,14 @@
 # PLAN — EchoelVoice: die Stimme als Struktur-Patch (Voice→Timbre→Color)
 
+> ⚠️ **ÜBERHOLT (2026-08-14, Pre-Release-Sweep): Scheiben #590–#593 sind GEBAUT — der
+> lebende Plan ist `PLAN_VOICE_STAGE_2026-08-14.md`** (führt jede Scheibe mit
+> GEBAUT-Marker und den Review-Befunden). Zwei Behauptungen unten sind zusätzlich
+> falsifiziert: `VoiceAnalyzer` ist NICHT mehr türlos (Tür = Sound-Panel → „Voice
+> timbre", #592b), und `loadTimbreProfile` wurde NICHT der Auslieferungs-Pfad — die
+> gebaute Kette läuft über `applyVoiceProfile → setCustomTimbre` (#591a-Staging);
+> `loadTimbreProfile` hat weiterhin null Produktions-Aufrufer. Historie lesbar lassen,
+> aus diesem Dokument nicht mehr planen. Offen aus dieser Vision: #594 Voice→Color.
+
 **Stand:** 2026-08-14, aus dem 8-Agenten-Scout (`wf_828098b0-3e1`), beide Leads adversarial
 verifiziert, jede tragende Behauptung mit `file:line` nachgeprüft. Founder-Ask: Stimm-Clone
 (Nia9ara), teilbar; „Knüpfele Voice to color"; Fokus Tönen & Stimmlaute — **als Praxis/

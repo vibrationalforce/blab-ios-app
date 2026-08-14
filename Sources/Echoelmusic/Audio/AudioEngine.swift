@@ -1683,8 +1683,13 @@ public final class AudioEngine {
             notchGainDB = 0
             notchHoldTicks = 0
             notchEQ.bands.first?.gain = 0
-            voiceTuneCorrector.reset()
-            voiceTunePitch.pitch = 0
+            // #599 sweep M1: monitoring OFF also DISARMS the tune. The flag was a
+            // pure latch, but the ONLY surface that can show or clear it renders
+            // while monitoring is on (the input sheet) — so the mixer strip's
+            // Monitor door could silently re-arm a tune nobody can see. Routed
+            // through setVoiceTune (the one writer); monitoring is already false
+            // here, so its guard makes this a pure state+corrector reset.
+            setVoiceTune(false)
             // #299: the missing half. Monitoring off returns the route — but only if no
             // recorder still holds it, which is why this goes through the owner set instead of
             // calling `downgradeToPlaybackAfterRecording` directly.
@@ -1701,7 +1706,9 @@ public final class AudioEngine {
     /// VL3 (#599): toggle the in-key correction stage. Rewires the LIVE monitor chain
     /// when monitoring is on; otherwise it only stores the choice — the next
     /// `setInputMonitoring(true)` builds the chain accordingly. NOT persisted, same
-    /// law as the monitoring toggle itself: tuning the monitor is a performance act.
+    /// law as the monitoring toggle itself: tuning the monitor is a performance act —
+    /// and the monitoring-OFF path DISARMS it (sweep M1), so a later re-arm of
+    /// monitoring from any door never carries a tune no visible control admits to.
     ///
     /// ⛔ The first version cited "graph edits while running are the #595/#299
     /// pattern" — WRONG PRECEDENT (#599 review): #595's `setInputMonitoring` PAUSES

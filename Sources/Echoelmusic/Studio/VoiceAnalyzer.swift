@@ -6,7 +6,9 @@
 //  missing INPUT half of the audiovisual vocoder (VocoderCore holds the mapping,
 //  this finds pitch / loudness / timbre). Kept pure (Foundation only, no AVFoundation,
 //  no Accelerate) so it is fully unit-tested on every platform and stays trustworthy;
-//  the live mic tap that feeds it windows is a thin device-verified wiring step on top.
+//  the mic wiring EXISTS since #592a: `VoiceCaptureEngine` constructs this analyser
+//  and feeds it real 4096-sample windows behind the Voice-timbre door. (⛔ This line
+//  called that wiring a future "thin step on top" for months after it shipped.)
 //
 //  Method (robust + cheap enough for a ~30–60 Hz control-rate call OFF the audio
 //  thread — never call this from a render block):

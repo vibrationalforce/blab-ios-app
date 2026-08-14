@@ -5,7 +5,10 @@
 // a voice is MEASURED and distilled, never recorded. Per analysis frame it samples the
 // magnitude spectrum at k·F0 (k = 1…harmonicCount, linear bin interpolation, 0 above
 // Nyquist); over a take it keeps the MEDIAN per harmonic across voiced frames only, and
-// max-normalizes into the tap vector `EchoelDDSP.loadTimbreProfile(_:blend:)` accepts.
+// max-normalizes into the tap vector the engine's custom-timbre socket accepts — the
+// SHIPPED path is `PolySynthVoice.applyVoiceProfile` → `EchoelPolyDDSP.setCustomTimbre`
+// (#591a staging); `EchoelDDSP.loadTimbreProfile` shares the same contract but has
+// zero production callers (kept deliberately, its own doc says for whom).
 // What leaves this type is a spectral envelope — parameters, not audio — which is what
 // lets the capture flow ship under the mic-permission promise "Audio is not recorded".
 // It cannot store or replay speech: no phases, no time structure, one envelope.
@@ -33,8 +36,12 @@ import Foundation
 public struct VoiceTimbreProfiler: Sendable {
 
     /// Number of harmonic taps measured — must be ≥ the consuming engine's
-    /// `harmonicCount` (`loadTimbreProfile` refuses a shorter vector, accepts a longer
-    /// one and reads the first `harmonicCount` taps); the defaults are kept equal.
+    /// `harmonicCount` (the socket refuses a shorter vector, accepts a longer one and
+    /// reads its first `harmonicCount` taps). An INEQUALITY, not equality — the header
+    /// ⛔ has the full retraction: profiler default 64 ≥ the poly socket's 32. (⛔ This
+    /// line said "the defaults are kept equal" for two commits AFTER that header
+    /// retraction landed — the second spelling at the declaration, the exact class
+    /// the retraction itself names. Found by the pre-release sweep.)
     public let harmonicCount: Int
 
     /// Frames accepted so far (voiced AND measurable). Drives a capture progress UI.

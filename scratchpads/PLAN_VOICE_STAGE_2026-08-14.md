@@ -111,6 +111,36 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
    **VL2→Harmonizer (diatonische Intervalle folgen der gesungenen Note) = #599b,
    nächste Scheibe** — Test 4 des Wächters pinnt die Mathe bis dahin.
 
+## Pre-Release-Sweep 2026-08-14 (3 Leads, vor dem v10.79.391-Bump) — Befunde & Stand
+
+- **C1 BEHOBEN (im Sweep-Commit):** #599 machte den NACHBAR-Wächter rot —
+  `TheNotchIsSlewedAndMonitorOnlyTests` pinnte `connect(notchEQ, to: monitorMixer…)`
+  auf ==1, der setVoiceTune-Off-Zweig machte 2 daraus. Beide Wächter pinnen dieselbe
+  Tatsache jetzt konsistent auf 2; das Rot versteckte sich unter #396 (#445: Abwesenheit
+  im Log beweist nichts). **Lehre: §4 gilt für GESCHWISTER-Wächter — nach jedem Edit die
+  kürzeste Substring-Needle über ALLE CISmoke-Dateien grepen, nicht nur die eigene.**
+- **M1 BEHOBEN:** `voiceTuneEnabled` war ein Latch über Monitoring-Aus hinweg, aber die
+  einzige Fläche, die ihn zeigen/klären kann, rendert nur bei laufendem Monitoring —
+  die Monitor-Tür im Mixer-Strip hätte einen unsichtbaren Tune re-armiert. Monitoring-OFF
+  entwaffnet jetzt (via `setVoiceTune(false)`, der eine Schreiber).
+- **M2 OFFEN (= #600-Kandidat, Founder-/PM-Entscheidung):** die PROJEKT-Save-Tür
+  (`currentProject()` → Save/Autosave/Live-Colabo) speichert den Patch OHNE
+  `patchCarryingLiveVoice` — eine frische Capture reist NICHT mit einem Take, nur mit
+  einem Patch-Save. Kein Bug (dokumentiertes Gesetz), aber für den Spieler unsichtbar.
+  Entweder dokumentieren (Caption) oder die Projekt-Tür durch den Helper routen —
+  eigene Scheibe mit Review, NICHT im Release-Druck entscheiden.
+- **M3 registriert (Geräteprobe):** Ein Routen-Wechsel 44,1↔48 kHz mitten im Monitoring
+  verstimmt „Tune to key" um ~147 Cent bis Monitoring recycelt (stale Tap-Rate, #595-F2).
+  Route-Change-Re-Arm ist der registrierte Fix, wenn die Probe es zeigt.
+- **L3 registriert:** `VoiceCaptureEngine.lastPitchHz` hat null Produktions-Leser
+  (nur der Wächter liest es) — schlafend, unschädlich, hier vermerkt, damit der
+  nächste Sweep es nicht neu entdeckt.
+- **Komplett verifiziert (Lead-Bericht):** Capture-Kette Ende-zu-Ende · Persistenz mit
+  allen drei Clear-Kopien · Harmonizer-Join · #599-Verdrahtung · Notch monitor-only ·
+  Plug-in-Einladung erreichbar und arm-frei. Geräteprobe-Restposten: Capture WÄHREND
+  Monitoring = zwei live Input-Engines gleichzeitig (Tap-Kollisions-Analyse deckt den
+  Recorder ab, nicht diesen Fall).
+
 ## ⚠️ Tönen & „Hormone" — die Form, in der es shipppt (Body-Science-Präzedenz)
 
 Die SUBSTANZ ist willkommen und hat echte Literatur (Humming↔nasales Stickstoffmonoxid,

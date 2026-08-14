@@ -4,7 +4,8 @@
 // WHAT THIS GUARDS. The notch half of FeedbackGuard: `slewedNotchGainDB` (the pure
 // slew brain), `MonitorTapWindow` (the 10.76.48 lock queue between the tap thread and
 // the ~15 Hz guard tick), and the AudioEngine wiring joins — chain order
-// input → notchEQ → monitorMixer (the music never passes through the notch), the tap
+// input → notchEQ → [voiceTunePitch #599] → monitorMixer (the music never passes
+// through the notch; the optional tune stage sits BEHIND it, never before), the tap
 // installed only after every failure path, removed on the OFF path, and the band gain
 // written ONLY through the slew. The engage condition is a JOIN of two independent
 // signatures (`ducking && ringingBin`) so a loud clean note is never notched.
@@ -116,15 +117,25 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
 
     /// Chain order: the mic goes THROUGH the notch into the monitor mixer, and the old
     /// direct input→monitorMixer connect is gone — present, it would bypass the notch.
+    /// ⛔ The notchEQ→monitorMixer count stood at 1 and went RED with #599, which added
+    /// the voice-tune off-branch's restore of the same connect (setVoiceTune) — #599
+    /// applied the §4 move-the-guard discipline to its OWN file and never grepped THIS
+    /// sibling for the shorter substring needle. Found by the pre-release sweep, one
+    /// commit later; the red hid under #396 the whole time (#445 — absence from the
+    /// run log proves nothing). Both sites keep the notch FIRST in the chain.
     func testTheNotchSitsInsideTheMonitorChain() throws {
         let engine = try source("Sources/Echoelmusic/Audio/AudioEngine.swift")
         XCTAssertEqual(codeOccurrences(of: "connect(input, to: notchEQ, format: inFmt)",
                                        in: engine), 1)
         XCTAssertEqual(codeOccurrences(of: "connect(notchEQ, to: monitorMixer, format: inFmt)",
-                                       in: engine), 1)
+                                       in: engine), 2,
+                       "the #595 build path AND the #599 setVoiceTune off-branch — "
+                       + "sibling guard TheVoiceTuneSnapsToTheSessionKeyTests pins the "
+                       + "same fact; the two counts must move together")
         XCTAssertEqual(codeOccurrences(of: "connect(input, to: monitorMixer", in: engine), 0,
                        "a surviving direct input→monitorMixer connect would bypass the notch "
-                       + "— the monitor path is input → notchEQ → monitorMixer, nothing else")
+                       + "— the mic reaches monitorMixer only through notchEQ (since #599 "
+                       + "optionally via the voice-tune stage BEHIND the notch)")
         XCTAssertEqual(codeOccurrences(of: "connect(notchEQ, to: masterMixer", in: engine), 0,
                        "the notch must NEVER touch the master path — monitor only, "
                        + "like the duck (the music does not pass through it)")
