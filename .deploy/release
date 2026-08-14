@@ -1,51 +1,41 @@
-build: v10.79.392 — Follow the key: der Harmonizer singt diatonisch
+build: v10.79.393 — Deine Stimme reist mit dem Take
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.391 (2508). Dieser Build trägt #599b —
-  die letzte offene Zeile aus der 391er-Note („dass er diatonisch der gesungenen
-  Note folgt, ist #599b und kommt als nächste Scheibe") ist hiermit eingelöst,
-  plus die Review-Runde dazu.
+  Der Vorgänger auf Deinem Gerät ist 10.79.392 (2509). Dieser Build trägt #600 —
+  die dritte Save-Tür.
 
-  ── FOLLOW THE KEY (FX → Harmonizer) ──────────────────────────────────────
+  ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Der Schalter**: FX-Panel → Harmonizer → „Follow the key". AN: die zwei
-    Harmonie-Stimmen sind nicht mehr feste Halbton-Abstände, sondern die
-    DIATONISCHE Terz und Quinte ÜBER DER GERADE KLINGENDEN NOTE — eine Terz
-    über E in C-Dur ist G (+3), nicht G# (+4). Die Tonart kommt vom Instrument
-    (Root/Scale der Session), Kammerton-treu (432/440).
-  · **Die Intervall-Reihen verstecken sich**, solange der Folger schreibt — ein
-    Regler, der lügt, ist schlimmer als keiner. AUS: Deine gespeicherten
-    Intervalle kommen exakt zurück (auch ein mid-follow recallter Preset
-    restauriert auf SEINE Werte).
-  · **Review-Fixes eingebaut**: Sheet mid-follow schließen/öffnen zeigt Deine
-    Werte, nicht den Zwischenstand des Folgers; ein mid-follow gespeicherter
-    Preset friert Deine Wahl ein, nie eine zufällige Note. Nicht persistiert —
-    Folgen ist ein Performance-Akt, frischer Start = feste Intervalle.
+  · **Ein Take trägt Deine Stimme.** Bisher reiste eine gemessene Stimm-Farbe
+    nur mit einem Patch-Save („Save as…" / „Save changes") — die Projekt-Tür
+    (Save-Knopf, Autosave beim App-Wechsel, Live Colabo) speicherte den Klang
+    OHNE die Stimme. Jetzt geben alle drei Türen dieselbe Antwort: ein Take,
+    der mid-capture gespeichert wird, klingt beim Wiederöffnen nach Dir.
+  · **Live Colabo teilt die Stimme MIT Namens-Label** — nie anonym, keine
+    Misattribution (dieselbe Provenance-Logik wie beim Patch-Save: ein
+    recallter Fremd-Patch behält sein Original-Label).
+  · Dazu docs-only: Release-Notes (acht Charakter-Regler, Stimme-Sektion)
+    und die Content-Claims kennen die Stimm-Bühne.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. FX → Harmonizer an, „Follow the key" an, eine Melodie spielen: bleibt die
-     Harmonie auf JEDER Note in der Tonart (keine Quer-Terz)?
-  2. Einen Akkord/Ton HALTEN: hörst Du ~10-Hz-Zipper beim Intervallwechsel,
-     oder steht es sauber? (Gleiche Note = kein Neuschreiben, sollte still sein.)
-  3. Mid-follow das FX-Sheet schließen und wieder öffnen, dann „Follow the key"
-     aus: zeigen die Intervall-Reihen Deine ursprünglichen Werte?
-  4. Mid-follow ein Preset speichern, später recallen: trägt es DEINE
-     Intervalle, nicht die einer zufällig geklungenen Note?
-  5. Tonart im Instrument wechseln (z. B. C-Dur → a-Moll) und weiterspielen:
-     folgt die Harmonie der neuen Tonart mit der nächsten Note?
+  1. Voice timbre → Capture → Ton halten → **Projekt speichern** (Save-Knopf,
+     nicht Patch-Save) → anderes Projekt öffnen → das gespeicherte wieder
+     öffnen: klingt das Instrument nach Dir?
+  2. Capture → App in den Hintergrund (Autosave) → App neu öffnen → den
+     Autosave-Slot öffnen: Farbe da?
+  3. Clear → Projekt speichern → wieder öffnen: die Farbe darf NICHT zurück.
+  4. Die 391/392-Listen bleiben offen, falls noch nicht durchgespielt
+     (Voice-Kette · Tune to key · Follow the key · Notch · USB-Einladung).
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert und wächter-gepinnt (Terz-Mathematik
-  end-to-end getestet), am Gerät UNVERIFIZIERT — ob das Folgen bei Tempo musikalisch
-  KLINGT und ob der Intervallwechsel hörbar zippert, entscheidet Dein Ohr. Die
-  391er-Probenliste (Voice-Kette, Tune to key, Notch, USB-Einladung) bleibt offen,
-  falls noch nicht durchgespielt. Bekannter Rest unverändert: Routen-Wechsel
-  (44,1↔48 kHz) mitten im Monitoring kann „Tune to key" verstimmen, bis Monitoring
-  aus/an war.
+  ⚠ Ehrliche Grenzen: compile-verifiziert und wächter-gepinnt (drei Türen,
+  eine Definition; Round-Trip am Code belegt), am Gerät UNVERIFIZIERT.
+  Bekannter Rest unverändert: Routen-Wechsel (44,1↔48 kHz) mitten im
+  Monitoring kann „Tune to key" verstimmen, bis Monitoring aus/an war.
 
-  Vorgänger-Note (10.79.391): die komplette EchoelVoice-Bühne #591–#599 —
-  Capture · Patch · Tonart. KEIN AUDIO wird je gespeichert.
+  Vorgänger-Noten: 10.79.392 = „Follow the key" (diatonischer Harmonizer),
+  10.79.391 = die EchoelVoice-Bühne #591–#599. KEIN AUDIO wird je gespeichert.
