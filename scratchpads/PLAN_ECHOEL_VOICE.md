@@ -7,7 +7,9 @@
 > timbre", #592b), und `loadTimbreProfile` wurde NICHT der Auslieferungs-Pfad — die
 > gebaute Kette läuft über `applyVoiceProfile → setCustomTimbre` (#591a-Staging);
 > `loadTimbreProfile` hat weiterhin null Produktions-Aufrufer. Historie lesbar lassen,
-> aus diesem Dokument nicht mehr planen. Offen aus dieser Vision: #594 Voice→Color.
+> aus diesem Dokument nicht mehr planen. #594 Voice→Color ist am 2026-08-14 GEBAUT
+> (beide Scheiben, ausgeliefert v10.79.394/2511) — damit ist diese Vision vollständig
+> abgearbeitet; offen bleibt nur #598 (wartet auf Founder-Research).
 
 **Stand:** 2026-08-14, aus dem 8-Agenten-Scout (`wf_828098b0-3e1`), beide Leads adversarial
 verifiziert, jede tragende Behauptung mit `file:line` nachgeprüft. Founder-Ask: Stimm-Clone

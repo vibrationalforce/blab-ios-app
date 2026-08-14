@@ -10254,3 +10254,7 @@ braucht Council + Gerät, keine Ralph-Scheibe.
 ## 2026-08-14 (Takt 15): #594 Scheibe 2 — Beamer-Tint-Parity
 - Bridge trägt den Synth als vierte Referenz (observed, wire() mit Pflicht-Argument #431), Szene reicht `bridge.synth` über den OPTIONALEN .environment-Overload durch — bewusst AUSSERHALB des if-let-Gates: ein fehlender Synth dimmt die Tönung, er darf nie die Bühne schwärzen. Die Form ist exakt die, die der ui-state-Reviewer in Takt 14 als eigene Scheibe vorgezeichnet hat.
 - Prosa mitgezogen (MetalBioView-Doc, Wächter-Header: Lücke geschlossen, einziges ungetöntes Fenster = pre-wire nil), Wächter +4 Joins (27 Asserts). Geräteprobe ergänzt: Beamer und Telefon müssen dieselbe Lehne zeigen.
+
+## 2026-08-14 (Takt 15, Abschluss): v10.79.394 AUSGELIEFERT — #594 komplett
+- TestFlight-Lauf 31834738267 auf `4fbdf2e` = success, ECHTER Upload (Archive → Export & Upload → ASC-Verify), Build ≈2511. Vierter saubere Ship des Tages (2508→2511); die EchoelVoice-Vision (#590–#600 + #594) ist damit vollständig abgearbeitet — offen nur #598 (Founder-Research) und der Geräteproben-Backlog.
+- Geräteproben 2511: dunkles Summen → Palette warm · helles „iii" → kühl · Clear → Default exakt · Beamer = dieselbe Lehne wie das Telefon.
