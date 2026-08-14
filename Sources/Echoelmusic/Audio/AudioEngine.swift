@@ -1588,11 +1588,28 @@ public final class AudioEngine {
                 }
             }
             // The spectrum tap is installed LAST, after every failure path above, so no
-            // exit below `return false` can leave a live tap behind. One tap per bus:
-            // this is the ONLY tap on `masterEngine.inputNode` (MicrophoneManager taps
-            // its OWN engine's input) — a second `installTap` on a tapped bus traps.
+            // exit below `return false` can leave a live tap behind. One tap per bus —
+            // and there IS a second claimant on this exact node/bus: `MultiTrackRecorder
+            // .prepareForRecording(engine:)` is handed THIS engine and does
+            // `removeTap` + `installTap` on `inputNode` bus 0. Today that path cannot
+            // fire (doorless + flag-gated off, #204 — `RecordController.arm()` has zero
+            // callers), so no live collision exists; MicrophoneManager taps its OWN
+            // engine and is not a claimant. ⚠️ The #204 door-opening slice MUST make
+            // monitoring and multitrack recording mutually exclusive on this bus (or
+            // share one tap): started together, the recorder's `removeTap` silently
+            // kills this tap while `monitorTapInstalled` stays true — the notch then
+            // reads a frozen window — and the monitoring-OFF path below would remove
+            // the RECORDER's tap mid-take. The mirror note sits at the recorder's
+            // `installTap` site. ⛔ The first version of this comment said "this is the
+            // ONLY tap on masterEngine.inputNode" — false in `Sources/`, reviewer #595.
             if !monitorTapInstalled {
                 monitorTapWindow.clear()
+                // ⚠️ Captured ONCE at install (#595 reviewer F2): after a mid-session
+                // route change (48 k ↔ 44.1 k) `binToHz` runs on the stale rate — up to
+                // ~9 % off, the order of the 0.15-octave bandwidth, so the notch can sit
+                // beside the howl. Same staleness class as every tap format in this file
+                // (avaudio-route-resilience); the duck still defends. A route-change
+                // re-arm of monitoring is the honest fix if this shows up on device.
                 monitorTapSampleRate = inFmt.sampleRate
                 let window = monitorTapWindow
                 input.installTap(onBus: 0,

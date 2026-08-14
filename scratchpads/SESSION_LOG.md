@@ -10127,3 +10127,34 @@ Hintergrund → Farbreichtum (#578/#579). Dazu weiterhin: graue Visuals (Punkt 5
 **Bewusst NICHT getan:** ST-1 (RetroCapture-Tap-Race) — beide Reparaturen kosten real
 (removeTap killt 30-s-Pre-Roll; Unmanaged verschiebt genau den Release, der der Flush IST);
 braucht Council + Gerät, keine Ralph-Scheibe.
+
+## 2026-08-14 (cron, ULTRACODE) — #595: der Feedback-Notch ist verdrahtet (Duck+Notch = „Fiepen unterdrückt" GANZ)
+
+- **Gebaut (`0700387` + Review-Nachzug):** `AVAudioUnitEQ`-Parametric-Band NUR im Monitor-Pfad
+  (`input → notchEQ → monitorMixer`; die Musik läuft nie hindurch). Spektrum: Input-Tap →
+  `MonitorTapWindow` (NSLock-Ring, null Actor-Hops im Tap, 10.76.48-Form) → FFT + `ringingBin`
+  im vorhandenen ~15-Hz-Guard-Tick auf dem MainActor. Engage NUR bei `ducking && ringingBin`
+  (zwei unabhängige Signaturen — ein lauter sauberer Ton wird nie genotcht); Gain ausschließlich
+  über `FeedbackGuard.slewedNotchGainDB` (±4 dB/Tick) mit ~2 s Hold gegen Pumpen. Tap-Install
+  als LETZTER Schritt nach allen Fehlerpfaden, Remove auf OFF; #299-Claim/Release unangetastet.
+- **Header-Gesetz:** `FeedbackGuard.swift`-Header im selben Commit von „NOT wired" auf verdrahtet
+  gezogen — der bestehende Zwei-Wege-Wächter (`AudioInputDoorTests`) erzwingt genau das; die
+  zurückgenommene Formulierung ist paraphrasiert, nicht zitiert (#491-Falle umgangen und im
+  Header benannt).
+- **Wächter:** `TheNotchIsSlewedAndMonitorOnlyTests` — 8 Tests / 28 Assertions; Slew+Window
+  END-TO-END, Verdrahtung als Source-Joins. Python-Transkription: 15/15 getriebene Behauptungen
+  grün, Ordering grün, Stripper PROPHYLAKTISCH (0/11 Flips).
+- **audio-thread-reviewer: PASS auf allen 6 Dimensionen.** F1 (MEDIUM): mein „ONLY tap on
+  inputNode"-Kommentar war FALSCH — `MultiTrackRecorder.prepareForRecording(engine:)` tappt
+  denselben Node/Bus, heute unerreichbar (#204, türlos+flag-gated). Nachgezogen: Warnung an
+  BEIDEN `installTap`-Stellen (Mutual-Exclusion gehört der #204-Tür-Scheibe), Blind-Spot ehrlich
+  im Wächter-Header. F2 (LOW): `monitorTapSampleRate` einmalig erfasst — nach Route-Wechsel bis
+  ~9 % Frequenz-Versatz (Größenordnung der 0,15-Okt-Bandbreite); als Kommentar an der Stelle
+  registriert (avaudio-route-resilience-Klasse; der Duck verteidigt weiter). F3–F5 info/prä-existent.
+- **Council geloggt** (`decisions.csv` Zeile 389); Plan `PLAN_VOICE_STAGE_2026-08-14.md` nachgeführt
+  (#595 GEBAUT, Tabelle „Fiepen" auf GANZ).
+- **NEEDS-FOUNDER-VERIFY neu:** Lautsprecher-Monitoring (Master → „Audio input"), Fiepen
+  provozieren — es muss als RAMPE sterben, nicht als Stufe; Stimme darf nicht dünner werden.
+- **Nächste Scheiben:** #596 Plug-in-Einladung (app-weiter Route-Observer, KEIN Auto-Arm) →
+  #597a Harmonizer×eigener Ton → #593 Persistenz (Council) → #598 Tönen-Wissen (wartet auf
+  Founder-Research via inspiration_intake).

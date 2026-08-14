@@ -18,6 +18,12 @@
 // host can run honestly. What no test here can prove: that the notch SOUNDS right,
 // that it takes the whistle and not the voice on a real speaker — the device probe
 // (NEEDS-FOUNDER-VERIFY: speaker monitoring, provoke a howl, hear it die as a ramp).
+// ⚠️ KNOWN BLIND SPOT (#595 reviewer F1): the tap-count scan covers AudioEngine.swift
+// only. `MultiTrackRecorder.prepareForRecording(engine:)` taps the SAME node/bus and
+// is invisible here — today unreachable (doorless + flag-gated off, #204); the
+// mutual-exclusion requirement is written at BOTH `installTap` sites, and the #204
+// door slice owns turning it into an enforced law (a scan here could not observe
+// reachability, only text — it would be green through the exact collision it names).
 //
 // ⭐ GRADING (§3). This file names `MonitorTapWindow` and `slewedNotchGainDB`, both
 // created by this same commit — against the parent tree the file DOES NOT COMPILE, so

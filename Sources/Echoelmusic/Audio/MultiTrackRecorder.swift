@@ -155,6 +155,15 @@ public final class MultiTrackRecorder {
             let filePtr = activeFile
             let activePtr = isActive
 
+            // ⚠️ SECOND CLAIMANT ON THIS BUS (#595 reviewer, for the #204 door slice):
+            // `AudioEngine.setInputMonitoring(true)` also taps `inputNode` bus 0 (the
+            // feedback-notch spectrum tap). Today the two cannot collide — this path is
+            // doorless and flag-gated off (#204). Whoever opens the door MUST make
+            // recording and input monitoring mutually exclusive on this bus (or share
+            // one tap): this `removeTap` silently kills the monitor's tap (its
+            // `monitorTapInstalled` flag stays true, the notch then reads a frozen
+            // window), and monitoring-OFF removes THIS tap mid-take. Mirror note at
+            // the monitor's `installTap` site in AudioEngine.
             input.removeTap(onBus: 0) // idempotent
             input.installTap(onBus: 0, bufferSize: 4096, format: format) { @Sendable buffer, _ in
                 guard activePtr.pointee, let f = filePtr.pointee else { return }
