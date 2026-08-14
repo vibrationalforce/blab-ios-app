@@ -76,8 +76,15 @@ final class VoiceCaptureController {
 
     /// Remove the applied voice timbre — hands the sound back to the patch pathway
     /// (`clearVoiceProfile` re-applies the remembered patch) and returns to idle.
-    func clearApplied() {
-        synth?.clearVoiceProfile()
+    ///
+    /// ⛔ F5b (#593c): the synth is a required PARAMETER, not the weak `self.synth` —
+    /// that reference is set only by `begin()`, so when the profile arrived embedded
+    /// in a recalled patch (no capture this launch) the weak var was nil and the old
+    /// `synth?.clearVoiceProfile()` was a silent no-op: a Clear button that did
+    /// nothing, on exactly the path a SHARED patch takes. The row passes its own
+    /// `@Environment` synth; no default, so no call site can forget (#431).
+    func clearApplied(synth: PolySynthVoice) {
+        synth.clearVoiceProfile()
         phase = .idle
         progress = 0
     }

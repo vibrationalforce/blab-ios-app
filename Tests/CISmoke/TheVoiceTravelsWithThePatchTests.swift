@@ -1,5 +1,5 @@
 // TheVoiceTravelsWithThePatchTests.swift
-// Echoel — a captured voice can ride a saved patch, and old patches stay readable. #593a.
+// Echoel — a captured voice can ride a saved patch, and old patches stay readable. #593a–c.
 //
 // WHAT THIS GUARDS. The persistence half of EchoelVoice: `SynthPatch` gains a voice
 // half (`voiceProfileTaps` + mandatory-at-save `voiceProfileLabel` + clamped
@@ -10,36 +10,39 @@
 // never clear an embedded-profile patch (the Council's sharpest concern, #593).
 // NO AUDIO persists — the taps are a max-normalized spectral envelope.
 //
-// ⚠️ HONEST LIMITS. 8 tests, 28 `XCTAssert*` statements (hand-counted per test,
-// 4+3+4+2+2+3+2+8; `XCTUnwrap` census: one in test 5, two in test 7, two in test 8
-// — all fail their tests and sit outside this count, assertions not failure points).
-// Test 8 (#593b, added one commit after the rest, then hardened by the review's F1
-// and F3) covers the SAVE flow's joins; the FLOW itself — tap Save as…, type a
-// name, recall — is a device probe folded into the existing voice-capture probe. Tests 1–5 are END-TO-END BEHAVIOUR on the shipped pure Codable type
-// (real JSONEncoder/JSONDecoder, no mocks); tests 6–7 are SOURCE-TEXT JOINS (the
-// apply/clear flow sits on a `@MainActor` voice whose poly engine a test host can
-// construct but whose recall drain needs the render loop). What no test here can
-// prove: that an embedded profile SOUNDS like the captured voice after a recall —
-// device probe (NEEDS-FOUNDER-VERIFY, folds into the existing voice-capture probe:
-// capture, save-as, switch patch, recall the saved one — your colour must return).
+// ⚠️ HONEST LIMITS. 10 tests, 38 `XCTAssert*` statements (hand-counted per test,
+// 4+3+4+2+2+3+2+8+5+5; `XCTUnwrap` census: one in test 5, two in test 7, two in
+// test 8 — all fail their tests and sit outside this count, assertions not failure
+// points). Tests 1–5 are END-TO-END BEHAVIOUR on the shipped pure Codable type
+// (real JSONEncoder/JSONDecoder, no mocks); tests 6–10 are SOURCE-TEXT JOINS (the
+// apply/clear/save flow sits on a `@MainActor` voice and a `private` View no test
+// host can drive). Test 8 (#593b, hardened by review F1/F3, re-anchored by #593c
+// when the enrich logic moved into `patchCarryingLiveVoice`) covers the save
+// flow's joins; tests 9–10 (#593c) pin the one-definition law, the F2/F5a strips
+// and the F5b required-parameter clear. What no test here can prove: that an
+// embedded profile SOUNDS like the captured voice after a recall, and that Clear
+// STAYS cleared through a real knob tweak on device — device probe
+// (NEEDS-FOUNDER-VERIFY, folds into the existing voice-capture probe: capture,
+// save-as, switch patch, recall — your colour must return; then Clear, tweak a
+// knob, save — the colour must NOT return).
 // ⛔ The sentence that stood here — "no door sets these fields yet" — was true for
 // exactly one commit and became this file's own refutation when test 8 arrived
 // (#425, review F4): the #593b save-as door DOES set them now, and test 8 pins it.
 //
-// ⭐ GRADING (§3). This file drives fields this same commit adds — against the parent
-// tree it DOES NOT COMPILE (unknown members), so no assertion has a verdict there;
-// the decode logic was hand-transcribed in Python (JSON semantics re-implemented)
-// against the worktree and all driven assertions reproduce. Tests 6–7's needles are
-// FORWARD guards except the `tryEnqueue(patch.resolved())` counterweight (green on
-// both trees — the point is that #593 did not add a second enqueue path). Stripper:
-// all 12 source needles (tests 6–8) measured raw vs stripped on the worktree —
-// 0 of 12 verdicts flip → PROPHYLAKTISCH today. ⚠️ Fragile by one comment: the
-// zero-count needle (`saveAs(currentPatch, name: name)`) flips to TRAGEND the day
-// a ⛔-retraction comment quotes the old call verbatim — paraphrase, never quote,
-// when retracting near it (the #491 lesson, pre-registered here). Test 8 graded
-// against ITS parent (the #593b commit): the F1/F3 needles are FORWARD (that
-// commit's review created them); the rest were red there by anchor absence — one
-// absence, reported once (#486).
+// ⭐ GRADING (§3). Transcribed in Python (stripper re-implemented, needles counted
+// raw vs stripped) against BOTH trees. Worktree: all 21 source needles + 2
+// orderings reproduce. Against the parent (#593b's tree): the file COMPILES there
+// (source-text scans name no new Swift symbol), and exactly ONE assertion is a
+// true REGRESSION red for its NAMED reason (#367): the `synth?.clearVoiceProfile()`
+// zero-count — the F5b no-op exists on the parent. Test 8's four re-anchored
+// needles and tests 9–10's remainder are red there by ANCHOR ABSENCE — the helper
+// does not exist yet; one absence, reported once (#486). Counterweights green on
+// both trees: tests 6–7 wholesale, the artist-name count, the undo-delete
+// snapshot save, the memory-read. Stripper: TRAGEND (1 of 21 verdicts flip) — the
+// zero-count above finds the old form quoted in the F5b retraction comment when
+// run raw; `codeOnly` blanking that quote is precisely the stripper's job (the
+// #491 fragility pre-registered here in the #593b header has now ARRIVED, in a
+// sibling file, and the stripper carries it as designed).
 
 import Foundation
 import XCTest
@@ -147,13 +150,14 @@ final class TheVoiceTravelsWithThePatchTests: XCTestCase {
                       "the strip lives inside clearVoiceProfile, after its declaration")
     }
 
-    /// The #593b save join: "Save as…" embeds the LIVE profile, labeled through the
-    /// ONE artist-name definition, blend 1 — and the un-enriched wholesale call is
-    /// gone, or save-as would silently drop a captured voice.
+    /// The #593b save join, re-anchored by #593c: the enrich logic lives in the ONE
+    /// helper (`patchCarryingLiveVoice`), labeled through the ONE artist-name
+    /// definition, blend 1 — and the un-enriched wholesale call is gone, or save-as
+    /// would silently drop a captured voice.
     func testSaveAsEmbedsTheLiveProfileLabeled() throws {
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
         XCTAssertEqual(codeOccurrences(of: "if let taps = synth.appliedVoiceProfile", in: studio), 1,
-                       "save-as must read the voice's own memory — the only source "
+                       "the save must read the voice's own memory — the only source "
                        + "that satisfies the #593a length guarantee by construction "
                        + "(appliedVoiceProfile is written solely through "
                        + "applyVoiceProfile's harmonicCount guard)")
@@ -163,31 +167,89 @@ final class TheVoiceTravelsWithThePatchTests: XCTestCase {
             + "themselves' (#416) — the stored value is never empty (it holds the E~ "
             + "mark), so a raw isEmpty gate would mislabel every unnamed player; "
             + "count 3 = the artist row's display read + its binding getter + the "
-            + "save-as read (the first draft wrote 2 from memory; the transcription "
+            + "helper's read (the first draft wrote 2 from memory; the transcription "
             + "found the binding getter — measured, not remembered)")
-        XCTAssertEqual(codeOccurrences(of: "toSave.voiceProfileTaps = taps", in: studio), 1,
+        XCTAssertEqual(codeOccurrences(of: "patch.voiceProfileTaps = taps", in: studio), 1,
                        "the taps ASSIGNMENT is the save — unpinned, a deletion would "
                        + "leave label+blend written and no taps, which the decoder's "
                        + "taps-keyed unit then nils wholesale on recall: exactly the "
                        + "silent drop this test's name claims to guard (review F3)")
         XCTAssertEqual(codeOccurrences(
-            of: "let isRecalledOwnProfile = (toSave.voiceProfileTaps == taps)", in: studio), 1,
+            of: "let isRecalledOwnProfile = (patch.voiceProfileTaps == taps)", in: studio), 1,
             "the F1 misattribution guard: a recalled patch's OWN profile keeps its "
             + "label — renaming a shared sound must not claim its voice as yours")
         let compareAt = try XCTUnwrap(studio.range(
-            of: "let isRecalledOwnProfile = (toSave.voiceProfileTaps == taps)"))
-        let assignAt = try XCTUnwrap(studio.range(of: "toSave.voiceProfileTaps = taps"))
+            of: "let isRecalledOwnProfile = (patch.voiceProfileTaps == taps)"))
+        let assignAt = try XCTUnwrap(studio.range(of: "patch.voiceProfileTaps = taps"))
         XCTAssertTrue(compareAt.lowerBound < assignAt.lowerBound,
                       "the comparison must run BEFORE the assignment — after it, the "
                       + "taps always compare equal and every save relabels again")
-        XCTAssertEqual(codeOccurrences(of: "toSave.voiceProfileBlend = 1", in: studio), 1,
+        XCTAssertEqual(codeOccurrences(of: "patch.voiceProfileBlend = 1", in: studio), 1,
                        "blend 1 — applyVoiceProfile's own default; a second number "
                        + "here would be a decision that does not exist yet")
-        XCTAssertEqual(codeOccurrences(of: "patchStore.saveAs(toSave, name: name)", in: studio), 1,
-                       "the ENRICHED copy is what gets saved")
+        XCTAssertEqual(codeOccurrences(
+            of: "patchStore.saveAs(patchCarryingLiveVoice(currentPatch), name: name)", in: studio), 1,
+            "save-as saves what the ONE definition returns — nothing else")
         XCTAssertEqual(codeOccurrences(of: "patchStore.saveAs(currentPatch, name: name)", in: studio), 0,
                        "the un-enriched wholesale call must be gone — present, "
                        + "save-as would silently drop a captured voice")
+    }
+
+    // MARK: - 9–10. The #593c joins (SOURCE-TEXT)
+
+    /// ONE definition of the voice half of a save (#416), called by BOTH doors —
+    /// #593b's check 4 found "Save as…" embedding the live capture while "Save
+    /// changes" silently did not, an asymmetry no player could see. And the F2/F5a
+    /// strips: a cleared voice must stay cleared through a save AND a knob tweak.
+    func testBothSaveDoorsShareTheOneVoiceDefinition() throws {
+        let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        XCTAssertEqual(codeOccurrences(
+            of: "private func patchCarryingLiveVoice(_ base: SynthPatch) -> SynthPatch", in: studio), 1,
+            "the one definition exists exactly once")
+        XCTAssertEqual(codeOccurrences(of: "patchCarryingLiveVoice(currentPatch)", in: studio), 2,
+                       "BOTH save doors call it — save-as AND the in-place 'Save "
+                       + "changes'; one call means the check-4 asymmetry is back")
+        XCTAssertEqual(codeOccurrences(
+            of: "currentPatch = patchCarryingLiveVoice(currentPatch)", in: studio), 1,
+            "the in-place door updates the VIEW copy first, so the store and the "
+            + "open editor never disagree about the half")
+        XCTAssertEqual(codeOccurrences(of: "patch.voiceProfileTaps = nil", in: studio), 2,
+                       "TWO strips, both load-bearing: the helper's else-branch (F2 — "
+                       + "no live profile means the saved copy carries none, or a save "
+                       + "right after Clear re-saves the just-cleared voice) and the "
+                       + "Clear button's view-copy strip (F5a — with taps still in "
+                       + "currentPatch, the next knob tweak re-applies the patch and "
+                       + "reinstalls the cleared profile). Count 1 = one of them is "
+                       + "gone; this scan cannot say which — read the two sites")
+        XCTAssertEqual(codeOccurrences(of: "patchStore.save(d.patch)", in: studio), 1,
+                       "COUNTERWEIGHT: undo-delete restores a SNAPSHOT verbatim — "
+                       + "routing it through the helper would rewrite history with "
+                       + "whatever profile happens to be live at undo time")
+    }
+
+    /// The F5b join: Clear reaches the synth through a required parameter, not the
+    /// controller's weak reference (set only by `begin()` — nil on the recall-only
+    /// path, where the old optional-chained call was a silent no-op).
+    func testClearWorksOnTheRecallOnlyPath() throws {
+        let controller = try source("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
+        XCTAssertEqual(codeOccurrences(of: "func clearApplied(synth: PolySynthVoice)", in: controller), 1,
+                       "the synth is a required parameter — no default, so no call "
+                       + "site can forget it (#431)")
+        XCTAssertEqual(codeOccurrences(of: "synth?.clearVoiceProfile()", in: controller), 0,
+                       "the optional-chained form is the F5b no-op — a Clear button "
+                       + "that does nothing exactly when the profile came embedded in "
+                       + "a shared patch")
+        XCTAssertEqual(codeOccurrences(of: "synth.clearVoiceProfile()", in: controller), 1,
+                       "the non-optional call on the parameter — the clear cannot "
+                       + "silently skip")
+        let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        XCTAssertEqual(codeOccurrences(of: "controller.clearApplied(synth: synth)", in: studio), 1,
+                       "the row passes its own @Environment synth — the reference "
+                       + "that exists whether or not a capture ever ran this launch")
+        XCTAssertEqual(codeOccurrences(
+            of: "VoiceCaptureRow(controller: voiceCapture, patch: $currentPatch)", in: studio), 1,
+            "the row holds the currentPatch binding — without it the F5a strip has "
+            + "nothing to write and Clear cannot stick")
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)

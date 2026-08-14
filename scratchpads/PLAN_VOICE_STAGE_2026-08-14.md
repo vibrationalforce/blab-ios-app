@@ -55,16 +55,22 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
    **#593b GEBAUT 2026-08-14** (`2475f28` + F1-Fix): Save-as bettet die live Stimme ein,
    Label über `typedArtistName`, Blend 1; **F1 (HIGH, im Review gefunden und gefixt):**
    ein recallter Embed-Patch behält beim Umbenennen sein ORIGINAL-Label (Taps-Vergleich
-   VOR der Zuweisung) — sonst Misattribution fremder Stimmen. **#593c ERBT VIER BEFUNDE:**
-   (1) F2: Stale-Half — Clear strippt `currentPatch` nicht; Save-as direkt nach Clear
-   speichert die eben geklärte Stimme unter Original-Label (Fix: toSave-Strip wenn
-   `appliedVoiceProfile == nil` — der Reviewer hat verifiziert, dass der Gegen-Fall den
-   else-Zweig nicht erreichen kann); (2) F5a: Clear hält nicht — jeder Regler-Tweak
-   re-applied `currentPatch` MIT Taps und reinstalliert das geklärte Profil (Council-Sorge
-   eine Ebene höher, im View-State); (3) F5b: der Clear-Knopf ist ein No-op, wenn das
-   Profil per Recall kam und nie eine Capture armiert war (`VoiceCaptureController.synth`
-   ist weak, nur in `begin()` gesetzt); (4) Check-4: „Save changes" (in-place) bettet die
-   live Capture NICHT ein — Asymmetrie zu Save-as, die ein Spieler nicht sehen kann.
+   VOR der Zuweisung) — sonst Misattribution fremder Stimmen. **#593c GEBAUT 2026-08-14 —
+   alle VIER geerbten Befunde in EINER Definition aufgelöst** (`patchCarryingLiveVoice`
+   in `EchoelStudioView`, #416: beide Save-Türen rufen sie): (1) F2 Stale-Half → der
+   else-Zweig strippt, wenn `appliedVoiceProfile == nil` (Reviewer-verifiziert: der
+   Gegen-Fall erreicht den Zweig nicht — `apply(_:)` installiert ein eingebettetes
+   Profil immer als das live); (2) F5a Clear-hält-nicht → der Clear-Knopf strippt
+   zusätzlich die `currentPatch`-Kopie über ein `@Binding` der Row; (3) F5b
+   Recall-No-op → `clearApplied(synth:)` nimmt den Synth als PFLICHT-Parameter (die
+   weak-Referenz war nur nach `begin()` gesetzt), die Row reicht ihren
+   `@Environment`-Synth; (4) Check-4-Asymmetrie → „Save changes" ruft dieselbe
+   Definition und aktualisiert erst die View-Kopie (`currentPatch =`), dann den Store.
+   Der Undo-Delete-Save bleibt absichtlich UNANGEREICHERT (stellt einen Snapshot wieder
+   her). Wächter: `TheVoiceTravelsWithThePatchTests` Tests 8–10 (Test 8 re-verankert,
+   9–10 neu; die `synth?.`-Null-Zählung ist die eine ECHTE Regression gegen den
+   Parent, #367). Geräteprobe erweitert: Clear → Regler-Tweak → Save — die Farbe darf
+   NICHT zurückkehren.
 5. **#598 TÖNEN-WISSEN (Learn)** — s. Rote-Linie-Absatz unten.
 
 ## ⚠️ Tönen & „Hormone" — die Form, in der es shipppt (Body-Science-Präzedenz)
