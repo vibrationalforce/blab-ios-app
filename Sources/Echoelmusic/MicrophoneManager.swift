@@ -315,9 +315,17 @@ final class MicrophoneManager: NSObject {
 
     // MARK: - Audio Processing with FFT
 
+    /// EchoelVoice #592b: while a voice capture runs, every extracted sample block is
+    /// ALSO handed here (main thread — this rides the existing per-buffer hop, adding
+    /// zero new thread crossings; the per-buffer hop itself is trap 2 of
+    /// `scratchpads/PLAN_ECHOEL_VOICE.md`, pre-existing and unchanged by this slice).
+    /// Set by `VoiceCaptureController` for the duration of a capture, nil otherwise.
+    var captureSampleSink: (([Float], Double) -> Void)?
+
     /// Process pre-extracted audio samples with FFT for frequency detection
     /// Called with data copied synchronously from AVAudioPCMBuffer while memory was valid
     private func processExtractedAudio(_ samples: [Float], frameLength: Int, sampleRate: Double) {
+        captureSampleSink?(samples, sampleRate)
         // Calculate RMS (amplitude/volume) from copied samples
         var sumSquares: Float = 0.0
         samples.withUnsafeBufferPointer { ptr in

@@ -247,6 +247,10 @@ struct EchoelStudioView: View {
     /// Tap-tempo estimator (performance staple) + the last value it produced for display.
     @State private var tapTempo = TapTempo()
     @State private var lastTappedBPM: Double? = nil
+    /// EchoelVoice #592b — owned HERE (not in the row) so a capture survives the
+    /// sound panel closing and reopening mid-take; the leaf row reads it, this body
+    /// only passes the reference (no observable property is read at panel level).
+    @State private var voiceCapture = VoiceCaptureController()
 
     // Collapsible control-panel state ("aufklappen"). Feinschliff 3/4 (founder: "eine
     // adaptive Ansicht ohne weitere Untermenüs … nur das Wesentliche sichtbar"): the view
@@ -6247,6 +6251,10 @@ struct EchoelStudioView: View {
             presetRow
             promptRow
             randomizeButton
+            // EchoelVoice #592b — the capture door. A child of the existing panel
+            // builder: no presentation modifier, no metadata cost (black-screen law
+            // untouched). The row is a LEAF because its progress moves ~12 Hz mid-take.
+            VoiceCaptureRow(controller: voiceCapture)
 
             // #560 — the OTHER reason a number on this panel moves by itself, and the one that
             // is live on every install: the body. `applyBioReactive` recomputes brightness,
@@ -10473,6 +10481,80 @@ private struct BreathVoiceRow: View {
                 .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// EchoelVoice #592b — the capture door ("Voice timbre"). A LEAF on purpose:
+/// `controller.progress`/`hearingYou` move at up to ~12 Hz during a take, so only this
+/// row may observe them (10.76.41/50 — the panel passes the reference and reads no
+/// observable property). Buttons, not a numeric field — the `EchoelValueField` law
+/// governs NUMERIC parameters; a capture has none.
+///
+/// ⚠️ NOT PERSISTED, same law as `BreathVoiceRow` above: arming a capture is a
+/// performance act. The applied profile itself also does not persist yet — that is
+/// #593, Council-gated (a persisted body-derivative).
+@MainActor
+private struct VoiceCaptureRow: View {
+    @Environment(AudioEngine.self) private var audioEngine
+    @Environment(PolySynthVoice.self) private var synth
+    let controller: VoiceCaptureController
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(spacing: 8) {
+                Text("Voice timbre")
+                    .font(EchoelTheme.font(12, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+                Spacer(minLength: 8)
+                switch controller.phase {
+                case .capturing:
+                    Circle()
+                        .fill(controller.hearingYou ? EchoelTheme.accent : EchoelTheme.dim)
+                        .frame(width: 8, height: 8)
+                        .accessibilityHidden(true)
+                    Text("\(Int(controller.progress * 100)) %")
+                        .font(EchoelTheme.font(11).monospacedDigit())
+                        .foregroundStyle(EchoelTheme.dim)
+                        .accessibilityLabel("Capture progress \(Int(controller.progress * 100)) percent")
+                    Button("Cancel") { controller.cancel() }
+                        .font(EchoelTheme.font(11))
+                        .frame(minHeight: 44)
+                default:
+                    if synth.appliedVoiceProfile != nil {
+                        Button("Clear") { controller.clearApplied() }
+                            .font(EchoelTheme.font(11))
+                            .frame(minHeight: 44)
+                            .accessibilityHint("Returns the patch's own sound")
+                    } else {
+                        Button("Capture") {
+                            controller.begin(mic: audioEngine.microphoneManager,
+                                             synth: synth)
+                        }
+                        .font(EchoelTheme.font(11, .semibold))
+                        .frame(minHeight: 44)
+                        .accessibilityHint("Hold a tone; its colour becomes the instrument's timbre")
+                    }
+                }
+            }
+            Text(caption)
+                .font(EchoelTheme.font(10))
+                .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var caption: String {
+        switch controller.phase {
+        case .capturing:
+            return controller.hearingYou
+                ? "Keep the tone going — vowels and hums both work."
+                : "Hold a steady tone near the microphone. Analyzed live — no audio is recorded."
+        default:
+            if synth.appliedVoiceProfile != nil {
+                return "The instrument plays with your voice's colour. Clear returns the patch's own sound."
+            }
+            return "Hold a tone for a few seconds; its colour becomes the instrument's. Analyzed live — no audio is recorded."
         }
     }
 }
