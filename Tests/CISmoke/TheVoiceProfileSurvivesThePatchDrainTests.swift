@@ -63,7 +63,7 @@ final class TheVoiceProfileSurvivesThePatchDrainTests: XCTestCase {
         let poly = EchoelPolyDDSP(maxVoices: 2)
         poly.setCustomTimbre(ramp64(), blend: 1)
         poly.drainCustomTimbre(reassert: false)
-        let plainPatch = SynthPatch().resolved()
+        let plainPatch = SynthPatch(name: "Plain").resolved()
         poly.forEachVoice { plainPatch.apply(to: $0) }
         poly.forEachVoice {
             XCTAssertFalse($0.hasTimbreProfile,
@@ -94,7 +94,8 @@ final class TheVoiceProfileSurvivesThePatchDrainTests: XCTestCase {
         poly.setCustomTimbre(ramp64(), blend: 1)
         poly.drainCustomTimbre(reassert: false)
         poly.clearCustomTimbre()
-        let violin = SynthPatch(timbreProfile: "Violin", timbreBlend: 0.9).resolved()
+        let violin = SynthPatch(name: "Violin", timbreProfile: "Violin", timbreBlend: 0.9)
+            .resolved()
         poly.forEachVoice { violin.apply(to: $0) }
         poly.drainCustomTimbre(reassert: true)
         let expected = EchoelDDSP.instrumentProfile(.violin)
