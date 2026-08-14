@@ -2343,6 +2343,22 @@ public final class EchoelDDSP: @unchecked Sendable {
         updateSpectralEnvelope()
     }
 
+    /// RENDER-SAFE custom timbre (EchoelVoice #591): copies caller-owned taps into the
+    /// preallocated buffer — the `applyTimbre` discipline with a MEASURED source instead
+    /// of a built-in instrument. Scalar stores + `updateSpectralEnvelope()` only; no
+    /// allocation, no ARC, no ObjC. Short input or a non-positive blend clears, matching
+    /// `applyTimbre`'s contract.
+    public func applyCustomTimbre(_ taps: UnsafeBufferPointer<Float>, blend: Float) {
+        guard taps.count >= harmonicCount, blend > 0 else {
+            clearTimbreProfile()
+            return
+        }
+        for i in 0..<harmonicCount { timbreBuffer[i] = taps[i] }
+        hasTimbreProfile = true
+        timbreBlend = blend
+        updateSpectralEnvelope()
+    }
+
     /// Generate a simple timbre profile from a known instrument type
     /// These are pre-computed spectral envelopes based on acoustic analysis
     public static func instrumentProfile(_ instrument: InstrumentTimbre, harmonics: Int = 64) -> [Float] {
@@ -2507,6 +2523,9 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     public let maxVoices: Int
     public let sampleRate: Float
+    /// Harmonic tap count every pooled voice was built with — the size contract for
+    /// `setCustomTimbre` (mirrors each voice's own `harmonicCount`).
+    public let harmonicCount: Int
 
     /// Concert pitch (Kammerton) reference for MIDI→Hz, A4 in Hz. Default 440.
     /// Written from the main actor when the user changes tuning and read on the
@@ -2529,6 +2548,89 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     public func setTuningCents(_ cents: [Float]) {
         guard cents.count == 12 else { return }
         for i in 0..<12 { tuningCents[i] = cents[i] }
+    }
+
+    // MARK: - Custom voice timbre (EchoelVoice #591)
+
+    /// Staged MEASURED timbre profile (the voice-as-patch plan): `harmonicCount` fixed
+    /// slots behind a RAW pointer allocated once in init and freed in deinit — no CoW,
+    /// no ARC, so the audio-thread fan below can read it across the whole voice loop
+    /// without a retain (a plain `[Float]` here would keep a formal access open long
+    /// enough that a concurrent control-thread write could trigger a CoW reseat and put
+    /// the last release — a `free()` — on the audio thread; review #591a). Control
+    /// thread writes the taps, THEN bumps `customTimbreVersion` (aligned Int word
+    /// write); the render drain compares versions. HONEST TORN-READ BOUND: the stores
+    /// are plain (no release/acquire pairing), so a drain that observes the version
+    /// before every tap store is visible fans a mixed envelope AND marks the version
+    /// applied — that state STAYS until the next version bump or patch reassert, not
+    /// "one block". Bounded staleness, healed by any recall; never heap corruption.
+    ///
+    /// WHY THIS EXISTS (trap 1 of `scratchpads/PLAN_ECHOEL_VOICE.md`): every patch recall
+    /// ends in `ResolvedPatch.apply(to:)` on the audio thread, which calls `applyTimbre`
+    /// UNCONDITIONALLY — for a patch without a built-in instrument that means
+    /// `clearTimbreProfile()`, wiping a custom profile. `ResolvedPatch` is deliberately
+    /// POD (no Array), so the profile cannot ride inside it. It is staged HERE instead,
+    /// and re-fanned AFTER each patch drain (`drainCustomTimbre(reassert: true)`), so the
+    /// measured voice survives patch recalls until explicitly cleared.
+    private let customTimbre: UnsafeMutablePointer<Float>
+    private var customTimbreBlend: Float = 0
+    /// Control-written, audio-read. `false` means the PATCH pathway owns timbre state
+    /// and the drain must not touch it.
+    private var customTimbreActive: Bool = false
+    private var customTimbreVersion: Int = 0
+    /// Audio-thread only.
+    private var appliedCustomTimbreVersion: Int = 0
+
+    /// CONTROL THREAD. Stage a measured profile (≥ `harmonicCount` taps; shorter input is
+    /// refused, matching `loadTimbreProfile`). Non-finite taps are read as 0 and negatives
+    /// clamped (the engineering.md boundary rule); a non-positive or non-finite blend
+    /// deactivates instead of arming a silent profile.
+    public func setCustomTimbre(_ taps: [Float], blend: Float) {
+        guard taps.count >= harmonicCount else { return }
+        for i in 0..<harmonicCount {
+            let t = taps[i]
+            customTimbre[i] = t.isFinite ? Swift.max(0, t) : 0
+        }
+        let b = blend.clamped(to: 0...1)
+        customTimbreBlend = b
+        customTimbreActive = b > 0
+        customTimbreVersion &+= 1
+    }
+
+    /// CONTROL THREAD. Hand timbre ownership back to the patch pathway. The caller that
+    /// wants the last patch's own instrument spectrum back re-applies that patch (the
+    /// normal recall path); with no re-apply, the next drain clears to the pure shape.
+    public func clearCustomTimbre() {
+        customTimbreActive = false
+        customTimbreVersion &+= 1
+    }
+
+    /// AUDIO THREAD, called from the render drain AFTER the patch drain. `reassert` is
+    /// true when a patch was applied this block — the patch's unconditional
+    /// `applyTimbre` just ran, so an active custom profile must be re-fanned on top.
+    /// While inactive the drain leaves timbre state to the patch pathway, EXCEPT on the
+    /// deactivation edge itself (version changed, nothing reasserting): then it clears —
+    /// gated on `!reassert` so a same-block "clear custom + re-apply patch" cannot wipe
+    /// the patch's own just-restored instrument timbre.
+    public func drainCustomTimbre(reassert: Bool) {
+        let v = customTimbreVersion
+        let versionChanged = v != appliedCustomTimbreVersion
+        appliedCustomTimbreVersion = v
+        guard customTimbreActive else {
+            if versionChanged && !reassert {
+                for voice in voices { voice.clearTimbreProfile() }
+            }
+            return
+        }
+        guard versionChanged || reassert else { return }
+        let blend = customTimbreBlend
+        let taps = UnsafeBufferPointer(start: customTimbre, count: harmonicCount)
+        for voice in voices { voice.applyCustomTimbre(taps, blend: blend) }
+    }
+
+    deinit {
+        customTimbre.deinitialize(count: harmonicCount)
+        customTimbre.deallocate()
     }
 
     // MARK: - Voices
@@ -2641,6 +2743,11 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     ) {
         self.maxVoices = maxVoices
         self.sampleRate = sampleRate
+        let hc = max(1, harmonicCount)   // ONE spelling of the clamp for both members
+        self.harmonicCount = hc
+        let ct = UnsafeMutablePointer<Float>.allocate(capacity: hc)
+        ct.initialize(repeating: 0, count: hc)
+        self.customTimbre = ct
 
         self.voices = (0..<maxVoices).map { index in
             // Distinct noise seed per voice (golden-ratio step) so summed voices

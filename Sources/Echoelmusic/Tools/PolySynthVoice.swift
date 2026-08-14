@@ -593,6 +593,41 @@ public final class PolySynthVoice {
     /// that is actually playing instead of a blank Init. Control-plane only.
     public private(set) var appliedPatch: SynthPatch?
 
+    // MARK: - Measured voice timbre (EchoelVoice #591)
+
+    /// The last measured profile handed to `applyVoiceProfile(_:blend:)` — control-plane
+    /// MEMORY (the `appliedPatch`/`appliedInsert` idea), so a door or test can read what
+    /// the instrument was given. Observation-ignored: read once on open, never reactively.
+    @ObservationIgnored public private(set) var appliedVoiceProfile: [Float]?
+
+    /// CONTROL THREAD. Install a measured voice-timbre profile (from
+    /// `VoiceTimbreProfiler.profile()`) across the poly pool. It is staged in the engine
+    /// and fanned on the audio thread — AND re-fanned after every patch recall, because
+    /// the recall drain's unconditional `applyTimbre` would otherwise wipe it (trap 1 of
+    /// `scratchpads/PLAN_ECHOEL_VOICE.md`). The measured voice survives patch changes
+    /// until `clearVoiceProfile()`.
+    public func applyVoiceProfile(_ taps: [Float], blend: Float = 1) {
+        guard taps.count >= poly.harmonicCount else { return }
+        // Remember the ENGINE-SHAPED values (NaN→0, negatives clamped — the same
+        // sanitize `setCustomTimbre` applies), so a door reading this memory can never
+        // display a tap the engine does not carry (review #591a).
+        appliedVoiceProfile = taps.prefix(poly.harmonicCount)
+            .map { $0.isFinite ? Swift.max(0, $0) : 0 }
+        poly.setCustomTimbre(taps, blend: blend)
+    }
+
+    /// CONTROL THREAD. Hand timbre back to the patch pathway: re-applies the remembered
+    /// patch so its own instrument spectrum (or pure shape) is restored by the normal
+    /// recall drain — the engine's deactivation edge is gated so this same-block pair
+    /// cannot wipe what the patch just restored. (Pathological edge, accepted: if the
+    /// 8-deep patch queue is FULL this block, the re-apply is dropped and the voices
+    /// fall to the pure shape until the next recall — self-healing, not worth code.)
+    public func clearVoiceProfile() {
+        appliedVoiceProfile = nil
+        poly.clearCustomTimbre()
+        if let p = appliedPatch { apply(p) }
+    }
+
     /// Set unison directly (live, outside a patch) — count 1 = off.
     public func setUnison(count: Int, detuneCents: Float) {
         poly.setUnison(count: count, detuneCents: detuneCents)
@@ -914,9 +949,17 @@ public final class PolySynthVoice {
         // Apply any pending patch recall FIRST (audio thread) so the timbre is set
         // before the notes that follow render — and so the spectral-envelope array
         // write happens on this thread, not racing the render.
+        var patchApplied = false
         while let patch = patchCommands.dequeue() {
             poly.forEachVoice { patch.apply(to: $0) }
+            patchApplied = true
         }
+        // Re-fan a measured voice profile AFTER the patch drain (whose `applyTimbre` is
+        // unconditional and just overwrote it) and BEFORE the bio drain below, so the
+        // order stays patch → voice timbre → bio, and the body modulates around the
+        // measured envelope exactly as it does around a patch's. No-op unless a profile
+        // is active or its version moved (EchoelVoice #591).
+        poly.drainCustomTimbre(reassert: patchApplied)
         // Apply pending bio modulation HERE (audio thread), AFTER the patch drain so the
         // patch's `bioBase*` anchors are set before the body modulates around them, and
         // so each voice's spectral-envelope array rewrite happens on this one thread and
