@@ -592,7 +592,14 @@ public final class PolySynthVoice {
         // live captured profile alone: the capture survives patch recalls by design
         // (#591a), and `clearVoiceProfile()` stays the one remover.
         if let taps = patch.voiceProfileTaps {
-            applyVoiceProfile(taps, blend: patch.voiceProfileBlend ?? 1)
+            if applyVoiceProfile(taps, blend: patch.voiceProfileBlend ?? 1) {
+                // Provenance (#593c review F1): an embedded profile carries its own
+                // label+blend into the memory — set AFTER the accepted apply, because
+                // a REFUSED short half must not stamp its label onto whatever profile
+                // is actually live (F2: the guard above keeps the OLD taps then).
+                appliedVoiceProfileLabel = patch.voiceProfileLabel
+                appliedVoiceProfileBlend = patch.voiceProfileBlend
+            }
         }
     }
 
@@ -608,20 +615,44 @@ public final class PolySynthVoice {
     /// the instrument was given. Observation-ignored: read once on open, never reactively.
     @ObservationIgnored public private(set) var appliedVoiceProfile: [Float]?
 
+    /// PROVENANCE of the live profile (#593c review F1): the label + blend it ARRIVED
+    /// with when it came embedded in a patch; nil = a fresh capture this launch.
+    /// Without this memory, "whose voice is live?" was answered by comparing taps
+    /// against the CURRENT base patch — a proxy that broke the moment the player
+    /// switched patches under a surviving profile: the next save relabeled artist X's
+    /// embedded voice as the current player (the misattribution the share-label law
+    /// exists to prevent). Written beside `appliedVoiceProfile`, nil'd with it.
+    @ObservationIgnored public private(set) var appliedVoiceProfileLabel: String?
+    @ObservationIgnored public private(set) var appliedVoiceProfileBlend: Float?
+
+    /// The engine's harmonic socket — the minimum tap count `applyVoiceProfile`
+    /// accepts, from the ONE definition (#416: the poly engine itself). Public so the
+    /// save flow can tell "player cleared the profile" from "the engine refused a
+    /// short third-party half" (#593c review F2) — stripping the latter would destroy
+    /// a shared voice the player never even heard.
+    public var voiceProfileTapFloor: Int { poly.harmonicCount }
+
     /// CONTROL THREAD. Install a measured voice-timbre profile (from
     /// `VoiceTimbreProfiler.profile()`) across the poly pool. It is staged in the engine
     /// and fanned on the audio thread — AND re-fanned after every patch recall, because
     /// the recall drain's unconditional `applyTimbre` would otherwise wipe it (trap 1 of
     /// `scratchpads/PLAN_ECHOEL_VOICE.md`). The measured voice survives patch changes
-    /// until `clearVoiceProfile()`.
-    public func applyVoiceProfile(_ taps: [Float], blend: Float = 1) {
-        guard taps.count >= poly.harmonicCount else { return }
+    /// until `clearVoiceProfile()`. Returns whether the profile was ACCEPTED — false =
+    /// too short for the socket, nothing changed (`apply(_:)` keys provenance on this).
+    @discardableResult
+    public func applyVoiceProfile(_ taps: [Float], blend: Float = 1) -> Bool {
+        guard taps.count >= poly.harmonicCount else { return false }
         // Remember the ENGINE-SHAPED values (NaN→0, negatives clamped — the same
         // sanitize `setCustomTimbre` applies), so a door reading this memory can never
         // display a tap the engine does not carry (review #591a).
         appliedVoiceProfile = taps.prefix(poly.harmonicCount)
             .map { $0.isFinite ? Swift.max(0, $0) : 0 }
+        // A DIRECT call is the capture path: provenance is "this player, unlabeled
+        // until saved". `apply(_:)` overwrites both right after an accepted embed.
+        appliedVoiceProfileLabel = nil
+        appliedVoiceProfileBlend = nil
         poly.setCustomTimbre(taps, blend: blend)
+        return true
     }
 
     /// CONTROL THREAD. Hand timbre back to the patch pathway: re-applies the remembered
@@ -632,6 +663,8 @@ public final class PolySynthVoice {
     /// fall to the pure shape until the next recall — self-healing, not worth code.)
     public func clearVoiceProfile() {
         appliedVoiceProfile = nil
+        appliedVoiceProfileLabel = nil
+        appliedVoiceProfileBlend = nil
         poly.clearCustomTimbre()
         // #593: strip the voice half from the patch MEMORY before re-applying — an
         // embedded-profile patch would otherwise re-apply its own profile on the next

@@ -379,7 +379,12 @@ struct EchoelStudioView: View {
     /// and `open(_:)`. NOT cleared, deliberately, at two places: the "Save as new sound…" alert,
     /// because saving a copy does not change the SOUND (the values are identical, only id and
     /// name differ), and `.onAppear`, where a fresh `@State` is already nil and a clear would be
-    /// a line that cannot do anything.
+    /// a line that cannot do anything. #593c added two more `currentPatch` writers that likewise
+    /// do NOT clear this, deliberately: the "Save changes" enrichment (voice half only — the
+    /// audible sound is unchanged, same reasoning as save-as) and the Voice-timbre Clear strip
+    /// (which instead strips THIS slot's voice half through the row's onClear — the snapshot
+    /// stays armed for its SOUND, but the Undo arrow can no longer resurrect a cleared voice,
+    /// the #593c review's F3).
     ///
     /// ⚠️ THE TYPED TEXT IS DELIBERATELY *NOT* HERE. It lives in `SoundPromptRow`'s own
     /// `@State`, because state on THIS view re-evaluates a ~500-line body on every keystroke.
@@ -1610,44 +1615,50 @@ struct EchoelStudioView: View {
     /// exactly the #593b check-4 asymmetry, where save-as embedded the live capture
     /// and the in-place save silently did not.
     ///
-    /// LIVE PROFILE PRESENT → the saved copy carries it, labeled. ⛔ F1 (#593b review,
-    /// HIGH): the first version relabeled UNCONDITIONALLY, so renaming a recalled
-    /// patch that carried artist X's embedded voice stamped the current player's name
-    /// over X's label — misattribution, the exact thing the share-label law exists to
-    /// prevent. The live profile IS the patch's own whenever the taps compare equal
-    /// (decode and `applyVoiceProfile` run the SAME sanitize, so a recalled half
-    /// survives byte-identical) — then label AND blend travel unchanged. Only a
-    /// profile that DIFFERS — a fresh capture — is labeled by this player, at this
-    /// save. Compare BEFORE assigning. The label is the typed artist name when one
-    /// exists, else "My voice" — `typedArtistName` is the one definition of "did the
-    /// user name themselves" (the stored value is never "": it holds the E~ mark, so
-    /// a raw isEmpty gate would mislabel every unnamed player). Blend is 1,
-    /// `applyVoiceProfile`'s own default — a different number here would be a second
-    /// spelling of a control that does not exist. The LENGTH guarantee holds by
-    /// construction: `appliedVoiceProfile` is only ever written through
-    /// `applyVoiceProfile`, whose guard refuses anything under the engine's
-    /// harmonicCount.
+    /// LIVE PROFILE PRESENT → provenance decides, never a proxy. ⛔ TWICE WRONG BEFORE
+    /// (#593b F1, then the #593c review's F1): the first version relabeled
+    /// UNCONDITIONALLY; the second compared the live taps against the CURRENT base
+    /// patch — which broke the moment the player switched patches under a surviving
+    /// profile (recall artist X's voice patch, pick a genre default, save: X's taps
+    /// no longer compare equal to the tapless base, so X's voice was embedded
+    /// relabeled as the current player). The fix is memory, not comparison:
+    /// `PolySynthVoice.appliedVoiceProfileLabel` remembers what the live profile
+    /// ARRIVED as. Label present = embedded provenance — it travels verbatim, and
+    /// when the base ALREADY carries its own half it stays byte-identical (a 64-tap
+    /// third-party half is not truncated to the engine's 32). Label nil = a fresh
+    /// capture this launch — this player's voice, labeled at this save through
+    /// `typedArtistName`, the one definition of "did the user name themselves" (the
+    /// stored value is never "": it holds the E~ mark, so a raw isEmpty gate would
+    /// mislabel every unnamed player); blend 1, `applyVoiceProfile`'s own default.
     ///
-    /// NO LIVE PROFILE → the saved copy carries NONE. ⛔ F2 (#593b review): the first
-    /// version saved wholesale on this branch, so Clear followed by "Save as…"
-    /// re-saved the just-cleared voice under its original label — the store undoing a
-    /// strip the player had explicitly performed. The strip cannot lose anyone else's
-    /// half: `apply(_:)` installs an embedded profile as the live one, so the only
-    /// reachable state with taps in `base` and none live is a profile the player
-    /// cleared — and for that state, stripped IS the correct save (reviewer-verified
-    /// on #593b: the counter-case cannot reach this branch).
+    /// NO LIVE PROFILE → strip, but ONLY a half the engine would have accepted
+    /// (`voiceProfileTapFloor`, the socket's own definition). ⛔ F2 (#593b review,
+    /// sharpened by the #593c review): "live nil = player cleared" is true only for
+    /// an ACCEPTED half — a short third-party half is refused by `applyVoiceProfile`
+    /// and was never live, so Clear cannot have cleared it; stripping it would
+    /// destroy a shared voice (and its attribution) the player never even heard.
+    /// An acceptable half + live nil has exactly one reachable cause — every recall
+    /// path applies the patch in the same breath, so only `clearVoiceProfile()` can
+    /// nil the memory — and for that state, stripped IS the correct save.
     private func patchCarryingLiveVoice(_ base: SynthPatch) -> SynthPatch {
         var patch = base
         if let taps = synth.appliedVoiceProfile {
-            let isRecalledOwnProfile = (patch.voiceProfileTaps == taps)
-            patch.voiceProfileTaps = taps
-            if !isRecalledOwnProfile {
+            if let label = synth.appliedVoiceProfileLabel {
+                if patch.voiceProfileTaps == nil {
+                    patch.voiceProfileTaps = taps
+                    patch.voiceProfileLabel = label
+                    patch.voiceProfileBlend = synth.appliedVoiceProfileBlend ?? 1
+                }
+                // base already carries its own half: keep it byte-identical.
+            } else {
+                patch.voiceProfileTaps = taps
                 let artist = SessionContext.typedArtistName(fromStored: session.artistName)
                     .trimmingCharacters(in: .whitespacesAndNewlines)
                 patch.voiceProfileLabel = artist.isEmpty ? "My voice" : artist
                 patch.voiceProfileBlend = 1
             }
-        } else {
+        } else if let existing = patch.voiceProfileTaps,
+                  existing.count >= synth.voiceProfileTapFloor {
             patch.voiceProfileTaps = nil
             patch.voiceProfileLabel = nil
             patch.voiceProfileBlend = nil
@@ -6339,7 +6350,15 @@ struct EchoelStudioView: View {
             // EchoelVoice #592b — the capture door. A child of the existing panel
             // builder: no presentation modifier, no metadata cost (black-screen law
             // untouched). The row is a LEAF because its progress moves ~12 Hz mid-take.
-            VoiceCaptureRow(controller: voiceCapture, patch: $currentPatch)
+            VoiceCaptureRow(controller: voiceCapture, patch: $currentPatch) {
+                // #593c review F3 — the THIRD copy: the prompt/randomize undo snapshot
+                // is taken WITH the voice half, so Clear → Undo-arrow would restore
+                // the profile Clear just removed. Strip the snapshot's voice half;
+                // its SOUND stays undoable.
+                patchBeforeSoundChange?.voiceProfileTaps = nil
+                patchBeforeSoundChange?.voiceProfileLabel = nil
+                patchBeforeSoundChange?.voiceProfileBlend = nil
+            }
 
             // #560 — the OTHER reason a number on this panel moves by itself, and the one that
             // is live on every install: the body. `applyBioReactive` recomputes brightness,
@@ -10597,6 +10616,10 @@ private struct VoiceCaptureRow: View {
     @Environment(PolySynthVoice.self) private var synth
     let controller: VoiceCaptureController
     @Binding var patch: SynthPatch
+    /// #593c review F3: the panel strips its OTHER patch copies (the undo snapshot)
+    /// here — the row cannot see them, and Clear must clear EVERY copy or it does
+    /// not stick. Called once, inside the Clear action.
+    let onClear: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
@@ -10631,6 +10654,7 @@ private struct VoiceCaptureRow: View {
                             patch.voiceProfileTaps = nil
                             patch.voiceProfileLabel = nil
                             patch.voiceProfileBlend = nil
+                            onClear()
                         }
                             .font(EchoelTheme.font(11))
                             .frame(minHeight: 44)

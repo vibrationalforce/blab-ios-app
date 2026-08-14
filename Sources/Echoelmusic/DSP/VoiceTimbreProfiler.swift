@@ -16,10 +16,17 @@
 // `VoiceAnalyzer` (F0 + voicing). CONTROL THREAD ONLY: `add` appends to an array; this
 // type must never be called from a render block.
 //
-// The default tap count mirrors `EchoelDDSP.init`'s default (64). That is deliberately a
-// second spelling of one decision, and the drift guard is behavioral:
-// `TheVoiceProfileIsMeasuredNotRecordedTests.testTheProfileFitsTheEngineSocket` compares
-// the two defaults on real instances, so they cannot separate silently (#416).
+// ⛔ The sentence that stood here — "the default tap count mirrors `EchoelDDSP.init`'s
+// default (64) … the defaults are kept equal" — was the false-rationale comment class
+// (#593c review F6): the CONSUMING engine is the poly pool at `harmonicCount: 32`
+// (the 10.76.49 cap), not the DDSP default. The true relationship is an INEQUALITY,
+// not equality: the profiler must measure AT LEAST the socket's count (64 ≥ 32 —
+// `applyVoiceProfile` refuses shorter, accepts longer and reads the first 32), and
+// the drift guard is behavioral on real instances
+// (`TheVoiceProfileIsMeasuredNotRecordedTests.testTheProfileFitsTheEngineSocket`).
+// Raising the ENGINE's count is the dangerous direction — it silently shortens every
+// already-saved 32-tap voice patch under the socket; the save flow's floor check
+// (`voiceProfileTapFloor`, #593c) keeps such halves inert-but-preserved.
 
 import Foundation
 

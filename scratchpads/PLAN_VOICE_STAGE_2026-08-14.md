@@ -71,6 +71,26 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
    9–10 neu; die `synth?.`-Null-Zählung ist die eine ECHTE Regression gegen den
    Parent, #367). Geräteprobe erweitert: Clear → Regler-Tweak → Save — die Farbe darf
    NICHT zurückkehren.
+   **REVIEW-RUNDE 2 (ui-state, 2026-08-14): 4 Fixes bestätigt, 2 tiefere Löcher
+   gefunden und im Follow-up-Commit geschlossen — die Wurzelursache war PROXY STATT
+   GEDÄCHTNIS.** (F1 HIGH) Der Taps-Gleichheits-Guard brach bei jedem Patch-Wechsel
+   unter überlebendem Profil (X recallen → Genre-Default wählen → speichern = X' Stimme
+   unter eigenem Namen). Fix: `PolySynthVoice.appliedVoiceProfileLabel/Blend` —
+   PROVENANCE-Gedächtnis, gesetzt nur bei AKZEPTIERTEM Embed (`applyVoiceProfile` gibt
+   jetzt Bool zurück), genil't bei Capture und Clear; der Helper trägt eingebettete
+   Herkunft wörtlich weiter (und lässt eine Basis MIT eigener Hälfte byte-identisch —
+   keine 64→32-Trunkierung mehr), nur eine frische Capture wird beim Speichern vom
+   Spieler etikettiert. Der Gleichheits-Proxy ist GELÖSCHT und per Null-Zählung
+   verboten. (F2) „live-nil = Clear" gilt nur für eine AKZEPTIERTE Hälfte — der
+   else-Strip ist jetzt auf `voiceProfileTapFloor` (public, die eine Socket-Definition)
+   gegated; eine kurze Fremd-Hälfte bleibt inert-aber-erhalten. (F3) DRITTE Kopie:
+   `patchBeforeSoundChange` — Clear strippt den Prompt-Undo-Snapshot über `onClear`.
+   (F4) In-place-Ordnung (Anreicherung VOR Store-Call) jetzt gepinnt. (F5) Writer-
+   Registry nachgetragen. (F6) `VoiceTimbreProfiler`-Kommentar korrigiert (Engine-Socket
+   ist 32, nicht 64; Gleichheits-Behauptung war die falsche-Begründung-Klasse).
+   Wächter: Test 8 auf Provenance umgeschrieben, Test 11 neu (30 Needles gesamt,
+   Ganz-Datei-Transkription). Geräteprobe NOCH einmal erweitert: Clear → Undo-Pfeil —
+   auch DER darf die Farbe nicht zurückbringen.
 5. **#598 TÖNEN-WISSEN (Learn)** — s. Rote-Linie-Absatz unten.
 6. **#599 IN-KEY-PITCH-CORRECTION (VL3) — GEBAUT 2026-08-14** (Founder-Ask: „optional
    per pitch correction mit Charakter an die Tonart"). Gemessen zuerst:
