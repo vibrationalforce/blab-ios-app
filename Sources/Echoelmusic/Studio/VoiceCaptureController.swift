@@ -29,29 +29,29 @@ import Foundation
 
 @MainActor
 @Observable
-public final class VoiceCaptureController {
+final class VoiceCaptureController {
 
-    public enum Phase: Equatable {
+    enum Phase: Equatable {
         case idle
         case capturing
         case done
     }
 
-    public private(set) var phase: Phase = .idle
+    private(set) var phase: Phase = .idle
     /// 0…1, moves only when a voiced window lands (~12 Hz worst case).
-    public private(set) var progress: Double = 0
+    private(set) var progress: Double = 0
     /// The live "we hear you" dot — true while the last window read as voiced.
-    public private(set) var hearingYou = false
+    private(set) var hearingYou = false
 
     @ObservationIgnored private var engine = VoiceCaptureEngine()
     @ObservationIgnored private weak var mic: MicrophoneManager?
     @ObservationIgnored private weak var synth: PolySynthVoice?
     @ObservationIgnored private var micStartedByUs = false
 
-    public init() {}
+    init() {}
 
     /// Arm a capture. `mic`/`synth` are borrowed for this one take.
-    public func begin(mic: MicrophoneManager, synth: PolySynthVoice) {
+    func begin(mic: MicrophoneManager, synth: PolySynthVoice) {
         guard phase != .capturing else { return }
         self.mic = mic
         self.synth = synth
@@ -67,7 +67,7 @@ public final class VoiceCaptureController {
     }
 
     /// Abort the take: nothing is applied, the mic is released if it was ours.
-    public func cancel() {
+    func cancel() {
         engine.cancel()
         phase = .idle
         progress = 0
@@ -76,7 +76,7 @@ public final class VoiceCaptureController {
 
     /// Remove the applied voice timbre — hands the sound back to the patch pathway
     /// (`clearVoiceProfile` re-applies the remembered patch) and returns to idle.
-    public func clearApplied() {
+    func clearApplied() {
         synth?.clearVoiceProfile()
         phase = .idle
         progress = 0
