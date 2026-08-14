@@ -10188,3 +10188,32 @@ braucht Council + Gerät, keine Ralph-Scheibe.
 - **Nächste Scheiben:** #597a Harmonizer×eigener Ton → #593 Persistenz (Council) → #598
   Tönen-Wissen (wartet auf Founder-Research). TestFlight-Bump (v10.79.391) sobald die
   Voice-Kette gates-bestätigt beisammen ist.
+
+## 2026-08-14 (cron, Takte 3–5) — Voice-Kette komplett: Harmonizer-Join (#597a) · Patch-Persistenz (#593a) · Save-Flow (#593b + F1-HIGH-Fix)
+
+- **Gate-Rot `b7ea585` → Fix `72b116f`:** Swift 6 verbietet non-Sendable-Property in
+  nonisolated deinit; `nonisolated(unsafe)`-Token (Error-Table-Form). Compile Check grün.
+- **#597a (`f5feea8`+`95d8a4f`):** GEMESSEN statt gebaut — „mein Ton, harmonisiert" existierte
+  Ende-zu-Ende (Voice-Profil-Synth rendert durch die eigene FX-Kette, Harmonizer = Stufe 6,
+  FX-Tür fährt genau diese Kette). Scheibe = ein Caption-Satz Auffindbarkeit + Vier-Link-Wächter
+  `TheVoiceTimbreReachesTheHarmonizerTests`. Review-Korrektur: Stripper-Label TRAGEND (1/8),
+  nicht PROPHYLAKTISCH — die schmeichelhafte Richtung, §2-Klasse.
+- **#593a (`970f0bb`+`6b7cf15`, Council proceed, Steward PASS ohne CRITICAL/HIGH):**
+  `SynthPatch.voiceProfileTaps/Label/Blend` als Einheit, decodeIfPresent (#95-Gesetz), kein
+  Schema-Bump, Apply durch #591a-Staging, Clear strippt die Patch-Erinnerung (Council-Einwand).
+  Wächter `TheVoiceTravelsWithThePatchTests` (Roundtrip/Sanitize/Alt-JSON END-TO-END).
+- **#593b (`2475f28`+`a8971a1`):** Save-as bettet die live Stimme ein (Label via
+  `typedArtistName`, E~-Sentinel; Blend 1; Länge per Konstruktion). **F1 (HIGH, Review):**
+  die erste Fassung hätte beim Umbenennen eines recallten Embed-Patches FREMDE Stimmen mit
+  dem eigenen Namen umetikettiert — gefixt (Taps-Vergleich VOR Zuweisung, Original-Label
+  reist mit). F3: Taps-Zuweisung war ungepinnt (Deletion wäre grün geblieben) — gepinnt +
+  Ordering. F4: #425-Widerspruch im Header zurückgezogen. **#593c-Checkliste geerbt:**
+  Stale-Half nach Clear · Clear hält nicht über Regler-Tweaks · No-op-Clear-Knopf bei
+  Recall-only · „Save changes"-Asymmetrie (Plan nachgeführt).
+- **Gates:** alle Pushes bis `6b7cf15` belastbar grün (Build for Testing success, #396-Muster);
+  `2475f28`/`a8971a1` laufen.
+- **NEEDS-FOUNDER-VERIFY (Voice-Kette, EIN Durchlauf):** Sound-Panel → Voice timbre →
+  Ton halten → spielen (dein Klang) → FX → Harmonizer an (gestapelte Harmonien in deiner
+  Farbe) → Save as… → anderen Patch wählen → gespeicherten recallen (Farbe kehrt zurück).
+- **Nächster Takt:** Gates prüfen → #593c (geerbte Checkliste) ODER TestFlight-Bump
+  v10.79.391, je nach Gate-Stand — die Voice-Kette ist funktional beisammen.
