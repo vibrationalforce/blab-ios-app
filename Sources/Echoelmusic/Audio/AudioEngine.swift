@@ -380,6 +380,34 @@ public final class AudioEngine {
     /// Output-RMS window (MainActor) that feeds FeedbackGuard while monitoring.
     @ObservationIgnored private var monitorLevelHistory: [Float] = []
     @ObservationIgnored private var monitorPollTick = 0
+    // #595: the NOTCH half of FeedbackGuard (the duck above is the LEVEL half; the
+    // FeedbackGuard.swift header records which halves are wired). One parametric EQ
+    // band sits in the MONITOR path only (input → notchEQ → monitorMixer) — the music
+    // never passes through it, exactly the duck's scoping. The spectrum comes from a
+    // tap on the input node pushing into `MonitorTapWindow` (the 10.76.48 lock-queue
+    // shape, zero actor hops in the tap); the EXISTING ~15 Hz guard tick copies the
+    // window out and runs the FFT on the MainActor — no DSP in the tap, none in render.
+    @ObservationIgnored private let notchEQ = AVAudioUnitEQ(numberOfBands: 1)
+    @ObservationIgnored private var notchAttached = false
+    @ObservationIgnored private let monitorTapWindow = MonitorTapWindow(size: 2048)
+    @ObservationIgnored private var monitorTapInstalled = false
+    @ObservationIgnored private var monitorTapSampleRate: Double = 0
+    /// Lazy so the FFT setup is only paid once monitoring is actually used. Under
+    /// extreme memory pressure `EchoelRealFFT` can fall back to a smaller size — the
+    /// guard tick checks `size` against the window and simply skips the notch then
+    /// (the duck still defends; a wrong-size FFT would misread every bin).
+    @ObservationIgnored private lazy var monitorSpectrumFFT = EchoelRealFFT(size: 2048)
+    @ObservationIgnored private var monitorSpectrumBuffer = [Float](repeating: 0, count: 2048)
+    /// Current slewed notch gain in dB (≤ 0; 0 = released). Written only by the guard
+    /// tick via `FeedbackGuard.slewedNotchGainDB` — never stepped.
+    @ObservationIgnored private var notchGainDB: Float = 0
+    /// Ticks the notch stays engaged after the LAST ringing detection (~2 s at ~15 Hz).
+    /// Once the notch bites, the ring decays and the DETECTOR loses it — without a
+    /// hold the notch would release, the howl would return, and the loop would audibly
+    /// oscillate. The hold keeps the notch parked on the same frequency through that gap.
+    @ObservationIgnored private var notchHoldTicks = 0
+    /// ~2 s at the ~15 Hz guard cadence (60 Hz poll gated %4 — see `monitorPollTick`).
+    private static let notchHoldTickCount = 30
 
     let microphoneManager: MicrophoneManager
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
@@ -1525,21 +1553,57 @@ public final class AudioEngine {
             let wasRunning = masterEngine.isRunning
             if wasRunning { masterEngine.pause() }
             if !monitorAttached { masterEngine.attach(monitorMixer); monitorAttached = true }
+            // #595: the notch band is configured ONCE at attach; only frequency and
+            // gain move at runtime (gain slewed by the guard tick, never stepped).
+            if !notchAttached {
+                masterEngine.attach(notchEQ)
+                notchAttached = true
+                if let band = notchEQ.bands.first {
+                    band.filterType = .parametric
+                    band.bandwidth = 0.15   // octaves — narrow, takes the whistle not the voice
+                    band.gain = 0
+                    band.bypass = false
+                }
+                notchEQ.globalGain = 0
+            }
             monitorMixer.outputVolume = 0          // silent until connected, avoids a pop
             let outFmt = masterMixer.outputFormat(forBus: 0)
-            masterEngine.connect(input, to: monitorMixer, format: inFmt)
+            masterEngine.connect(input, to: notchEQ, format: inFmt)
+            masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
             masterEngine.connect(monitorMixer, to: masterMixer, format: outFmt)
             monitorLevelHistory.removeAll(keepingCapacity: true)
             feedbackGuardActive = false
+            notchGainDB = 0
+            notchHoldTicks = 0
+            notchEQ.bands.first?.gain = 0
             if wasRunning {
                 armTimingInstrument()
                 do { try masterEngine.start() }
                 catch {
                     log.audio("Input monitoring: engine restart failed (\(error))", level: .error)
+                    masterEngine.disconnectNodeOutput(notchEQ)
                     masterEngine.disconnectNodeOutput(monitorMixer)
                     try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)   // #299
                     return false
                 }
+            }
+            // The spectrum tap is installed LAST, after every failure path above, so no
+            // exit below `return false` can leave a live tap behind. One tap per bus:
+            // this is the ONLY tap on `masterEngine.inputNode` (MicrophoneManager taps
+            // its OWN engine's input) — a second `installTap` on a tapped bus traps.
+            if !monitorTapInstalled {
+                monitorTapWindow.clear()
+                monitorTapSampleRate = inFmt.sampleRate
+                let window = monitorTapWindow
+                input.installTap(onBus: 0,
+                                 bufferSize: AVAudioFrameCount(monitorTapWindow.size),
+                                 format: inFmt) { @Sendable buffer, _ in
+                    // TAP THREAD (not the render thread — MicrophoneManager's tap states
+                    // the same law). Push into the lock window and return; no FFT here.
+                    guard let ch = buffer.floatChannelData else { return }
+                    window.push(ch[0], count: Int(buffer.frameLength))
+                }
+                monitorTapInstalled = true
             }
             isInputMonitoring = true
             monitorMixer.outputVolume = min(max(inputMonitorGain, 0), 1)
@@ -1548,9 +1612,18 @@ public final class AudioEngine {
         } else {
             guard isInputMonitoring else { return true }
             monitorMixer.outputVolume = 0
+            if monitorTapInstalled {
+                masterEngine.inputNode.removeTap(onBus: 0)
+                monitorTapInstalled = false
+            }
+            monitorTapWindow.clear()
+            masterEngine.disconnectNodeOutput(notchEQ)
             masterEngine.disconnectNodeOutput(monitorMixer)
             isInputMonitoring = false
             feedbackGuardActive = false
+            notchGainDB = 0
+            notchHoldTicks = 0
+            notchEQ.bands.first?.gain = 0
             // #299: the missing half. Monitoring off returns the route — but only if no
             // recorder still holds it, which is why this goes through the owner set instead of
             // calling `downgradeToPlaybackAfterRecording` directly.
@@ -1586,6 +1659,34 @@ public final class AudioEngine {
         // 10.76.50 freeze — but it is the same mechanism, and the fix is one compare.
         let ducking = duckDB > 0
         if ducking != feedbackGuardActive { feedbackGuardActive = ducking }
+
+        // #595: the NOTCH half. Engage ONLY while the duck already fires AND one bin
+        // clearly dominates the input spectrum (`ringingBin`, dominance ×8) — two
+        // independent signatures, so a loud clean note never gets notched. The gain is
+        // slewed (±4 dB/tick) and held ~2 s past the last detection so the notch does
+        // not audibly pump as the ring decays under it. All of this runs HERE, on the
+        // MainActor at ~15 Hz — the tap only filled the window.
+        var target: Float = 0
+        if ducking,
+           monitorSpectrumFFT.size == monitorTapWindow.size,
+           monitorTapSampleRate > 0,
+           monitorTapWindow.copyLatest(into: &monitorSpectrumBuffer),
+           let bin = FeedbackGuard.ringingBin(
+               magnitudes: monitorSpectrumFFT.forward(monitorSpectrumBuffer).magnitudes) {
+            let hz = FeedbackGuard.binToHz(bin, fftSize: monitorSpectrumFFT.size,
+                                           sampleRate: monitorTapSampleRate)
+            // Clamp to the EQ's sane range: below ~40 Hz is rumble not howl, and the
+            // band frequency must stay under Nyquist for the current input rate.
+            let clamped = Swift.min(Swift.max(hz, 40), monitorTapSampleRate * 0.45)
+            notchEQ.bands.first?.frequency = Float(clamped)
+            target = -24
+            notchHoldTicks = Self.notchHoldTickCount
+        } else if notchHoldTicks > 0 {
+            notchHoldTicks -= 1
+            target = -24   // hold on the parked frequency while the ring decays
+        }
+        notchGainDB = FeedbackGuard.slewedNotchGainDB(current: notchGainDB, target: target)
+        notchEQ.bands.first?.gain = notchGainDB
     }
     #endif
 

@@ -7,28 +7,37 @@
 //    • detect runaway level build-up  → recommend a gain duck (dB)
 //    • find the ringing frequency bin  → recommend a notch
 //
-//  ⛔ WHAT THIS HEADER CLAIMED UNTIL 2026-07-31, AND WHAT IS ACTUALLY WIRED (#298).
+//  ⛔ WHAT THIS HEADER CLAIMED UNTIL 2026-07-31, AND WHAT IS ACTUALLY WIRED.
 //  It said: "The audio cycle applies them: Apple's Voice-Processing I/O for system AEC (the
 //  FaceTime echo canceller) + a notch biquad + the recommended duck in the FX chain."
-//  ONE of those three is real. Checked by grep over `Sources/`:
+//  At the #298 measurement ONE of those three was real; since #595 (2026-08-14) it is TWO.
+//  Checked by grep over `Sources/`:
 //    • the DUCK is live — `AudioEngine.updateFeedbackGuard()` calls `gainReductionDB` and
 //      scales `monitorMixer.outputVolume`. It ducks the MIC MONITOR only, never the music, and
 //      touches no audio thread and no tap. It runs on the MainActor from the **60 Hz** meter
 //      poll, gated to every 4th tick (`monitorPollTick % 4 == 0`), i.e. ~15 Hz. ⛔ The first
 //      version of this line called it "the ~15 Hz meter poll" — the poll is 60 Hz and the GATE
 //      makes it 15. Anyone budgeting work onto that poll from this sentence would be off by 4×.
-//    • the NOTCH is NOT wired — `ringingBin` has ZERO callers **in `Sources/`**. No biquad
-//      anywhere consumes it. ⛔ The first version said "outside this file", which is simply
-//      false: `Tests/EchoelmusicTests/FeedbackGuardTests.swift` calls it three times. In a
-//      header whose whole subject is claim precision, and which opens by convicting its
-//      predecessor of over-claiming, that one has to be exact. (The paired guard,
-//      `AudioInputDoorTests.symbolAppearsOutsideItsOwnFile`, scans `Sources/` only — so the
-//      corrected wording is also the one the test actually checks.)
+//    • the NOTCH is WIRED since #595 — `AudioEngine` taps the monitor input into
+//      `MonitorTapWindow` (lock queue, zero actor hops in the tap), the same ~15 Hz guard
+//      tick runs the FFT + `ringingBin` on the MainActor, and an `AVAudioUnitEQ` parametric
+//      band sits in the MONITOR path only (input → notchEQ → monitorMixer — the music never
+//      passes through it, the duck's exact scoping). It engages ONLY while the duck already
+//      fires AND one bin dominates (×8), its gain is slewed via `slewedNotchGainDB` (never
+//      stepped), and it holds ~2 s past the last detection so it cannot audibly pump.
+//      ⛔ Until #595 this bullet stated the opposite (unwired, `ringingBin` with ZERO callers
+//      in `Sources/` — NOT quoted verbatim here: the two-way guard scans this RAW header for
+//      the old sentence, and a verbatim quote would re-trigger it, the #491 collision);
+//      that was true for a year. The paired two-way guard
+//      (`AudioInputDoorTests.testFeedbackGuardHeaderMatchesWhatIsActuallyWired`) forces this
+//      sentence and the wiring to move together, in BOTH directions.
 //    • the AEC is NOT wired — `setVoiceProcessingEnabled` appears NOWHERE in `Sources/`.
+//      Deliberate: it changes the whole I/O character and is Council-gated (see
+//      `scratchpads/PLAN_VOICE_STAGE_2026-08-14.md`, "NICHT bauen").
 //  This mattered more than a stale comment usually does: it is the file a session reads to
 //  decide whether feedback suppression still needs work, and as written it answered "already
-//  done, three layers deep". Headphone/IEM monitoring remains the zero-feedback path — today
-//  it is the ONLY complete one; on a speaker the duck is the whole defence.
+//  done, three layers deep". Headphone/IEM monitoring remains the zero-feedback path; on a
+//  speaker the defence is now duck (level) + notch (frequency), still no AEC.
 //
 //  All functions are allocation-free over caller-provided buffers, so the audio
 //  thread can call them directly (Accelerate does the FFT upstream).
@@ -87,5 +96,21 @@ public enum FeedbackGuard {
     public static func binToHz(_ bin: Int, fftSize: Int, sampleRate: Double) -> Double {
         guard fftSize > 0 else { return 0 }
         return Double(bin) * sampleRate / Double(fftSize)
+    }
+
+    /// Rate-based slew for the monitor notch's gain in dB (#595): moves `current`
+    /// toward `target` by at most `stepDB` per guard tick (~15 Hz), so engaging and
+    /// releasing the notch are RAMPS, never steps — the slew law that governs every
+    /// audible parameter jump in this repo. A non-finite `current` (a poisoned state
+    /// variable) restarts from 0 rather than propagating; a non-finite `target` is
+    /// treated as release (0). Pure, allocation-free.
+    public static func slewedNotchGainDB(current: Float, target: Float,
+                                         stepDB: Float = 4) -> Float {
+        let cur = current.isFinite ? current : 0
+        let tgt = target.isFinite ? target : 0
+        let step = Swift.max(0.1, stepDB.isFinite ? stepDB : 4)
+        if cur < tgt { return Swift.min(tgt, cur + step) }
+        if cur > tgt { return Swift.max(tgt, cur - step) }
+        return cur
     }
 }

@@ -11,7 +11,7 @@ nur die Geräteprobe, nicht den Neubau.
 | Founder-Ask | Stand | Beleg |
 |---|---|---|
 | Direktmonitoring am Handy | ✅ GEBAUT: „Live monitoring"-Toggle + Monitor-Level (`EchoelValueField`) | `AudioInputPickerView.monitoringSection` → `AudioEngine.setInputMonitoring` |
-| Fiepen erkannt + unterdrückt | **HALB**: der DUCK ist live (~15 Hz, duckt NUR den Mic-Monitor, nie die Musik; Status-Punkt „Feedback guard — ducking runaway" in der UI). Die NOTCH ist NICHT verdrahtet (`ringingBin` = null Aufrufer in `Sources/`), AEC (`setVoiceProcessingEnabled`) NIRGENDS | `FeedbackGuard.swift`-Header (selbst korrigiert #298/‑07‑31), `AudioEngine.updateFeedbackGuard()` |
+| Fiepen erkannt + unterdrückt | **GANZ seit #595** (2026-08-14): DUCK live (~15 Hz, NUR Mic-Monitor) **+ NOTCH verdrahtet** — `AVAudioUnitEQ`-Band im Monitor-Pfad, Tap→`MonitorTapWindow`→FFT→`ringingBin` im Guard-Tick, Gain über `slewedNotchGainDB` geslewt, ~2 s Hold. Nur AEC (`setVoiceProcessingEnabled`) bleibt NIRGENDS (absichtlich, Council-gated) | `FeedbackGuard.swift`-Header, `AudioEngine.updateFeedbackGuard()` + `setInputMonitoring` |
 | Bluetooth optimieren | ✅ Latenz-EHRLICHKEIT gebaut: Hinweis „~150–250 ms … wired/USB für delay-freies Self-Monitoring" wenn Output-Route high-latency | `AudioInputPickerView` `outputIsHighLatency`-Zweig |
 | USB-C-Kopfhörer | ✅ Route-Liste mit Latenz-Note pro Route; Refresh bei Route-Wechsel (Kabel rein/raus), solange das Sheet offen ist | `AudioInputManager.available` + `routeChangeNotification`-Subscriber im Sheet |
 | USB-Mikro/Interface-Erkennung | **HALB**: erkannt ja (Liste), aber nur SICHTBAR, solange das Sheet offen ist — keine App-weite Reaktion aufs Einstecken | Route-Observer lebt im Sheet-Leaf, nicht app-weit |
@@ -24,10 +24,11 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
 
 ## Die Scheiben (Ralph, je 1 Zyklus, Reihenfolge nach Risiko/Nutzen)
 
-1. **#595 NOTCH-Verdrahtung** — `FeedbackGuard.ringingBin` (reiner Kern, getestet, türlos)
-   → ein Notch-Biquad im Monitor-Pfad (NUR Monitor, wie der Duck; `EchoelBiquadCascade`
-   existiert). Council vorher: berührt den Audio-Graph. Das macht „Fiepen unterdrückt"
-   von halb auf ganz — Duck drückt den Pegel, Notch nimmt die Pfeif-Frequenz raus.
+1. ~~**#595 NOTCH-Verdrahtung**~~ — **GEBAUT 2026-08-14** (Council: proceed). Umsetzung wich
+   im Detail ab: `AVAudioUnitEQ`-Parametric-Band statt `EchoelBiquadCascade` (Graph-Node,
+   kein Render-Code), Engage nur bei `ducking && ringingBin`, Slew ±4 dB/Tick, ~2 s Hold.
+   Duck drückt den Pegel, Notch nimmt die Pfeif-Frequenz raus. Geräteprobe offen
+   (NEEDS-FOUNDER-VERIFY: Lautsprecher-Monitoring, Fiepen provozieren).
 2. **#596 PLUG-IN-EINLADUNG (Auto-Erkennung app-weit)** — app-weiter
    `routeChangeNotification`-Beobachter (Leaf/Controller, kein Root-Read): neues
    EXTERNES Input erscheint → unaufdringliche Zeile im Studio („USB-Interface erkannt —
