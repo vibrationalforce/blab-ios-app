@@ -40,9 +40,18 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
    harmonisiert" — vermutlich NUR Verdrahtungs-/Preset-Arbeit; (b) „anderer Voice-Clone"
    = zweites Profil auf einer zweiten Stimme — braucht #593 (Persistenz/Teilen) zuerst.
    Scheibe = (a); (b) nach #593.
-4. **#593 PERSISTENZ + TEILEN** (aus PLAN_ECHOEL_VOICE, Council-Gate) — Voraussetzung für
-   „mit anderem Voice-Clone" und fürs Teilen. `SynthPatch.voiceProfile` via
-   `decodeIfPresent` + Pflicht-Label.
+4. **#593 PERSISTENZ + TEILEN** — **#593a GEBAUT 2026-08-14** (`970f0bb`, Council: proceed;
+   Steward-Review PASS, kein CRITICAL/HIGH): `SynthPatch.voiceProfileTaps/Label/Blend` als
+   Einheit, decodeIfPresent, kein Schema-Bump, Apply durch #591a-Staging, Clear strippt die
+   Patch-Erinnerung. **#593b (Save-Flow) ERBT VIER STEWARD-BEFUNDE als Checkliste:**
+   (1) MEDIUM: die LÄNGEN-Garantie gehört dem Save-Flow — der Decoder akzeptiert 1…63 Taps,
+   die die Engine still verweigert (Residual am Decoder-Branch dokumentiert);
+   (2) das schlafende `SynthPatch(name:from:)` (:672, null Aufrufer) baut OHNE Voice-Felder —
+   naiv als Save-Baustein benutzt verliert es die eingebettete Stimme;
+   (3) Label-PFLICHT am Speichern (der Decoder defaultet nur defensiv);
+   (4) Ehrlichkeits-Kanten für eine „Voice aktiv"-Anzeige: Embed- und Capture-Herkunft sind
+   nach Apply ununterscheidbar, und Blend 0 (aus negativ geklemmt) armiert die Memory bei
+   deaktivierter Engine-Stufe.
 5. **#598 TÖNEN-WISSEN (Learn)** — s. Rote-Linie-Absatz unten.
 
 ## ⚠️ Tönen & „Hormone" — die Form, in der es shipppt (Body-Science-Präzedenz)

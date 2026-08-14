@@ -120,6 +120,11 @@ final class TheVoiceTravelsWithThePatchTests: XCTestCase {
 
     /// The clear loop-break: Clear strips the voice half from the patch MEMORY
     /// before re-applying, or an embedded-profile patch could never be cleared.
+    /// ⚠️ HONEST LIMIT (steward #593a): count-1 + ordering proves the strip EXISTS
+    /// after the declaration, not brace-matched CONTAINMENT — relocating the strip
+    /// into a later member would stay green while Clear breaks again. Deleting it
+    /// goes red (the primary mutation is covered). Tighten to brace-matched
+    /// extraction (#408) on the next touch.
     func testClearStripsTheMemoryBeforeReapplying() throws {
         let poly = try source("Sources/Echoelmusic/Tools/PolySynthVoice.swift")
         XCTAssertEqual(codeOccurrences(of: "p.voiceProfileTaps = nil", in: poly), 1,

@@ -288,6 +288,14 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         // value the engine would refuse to carry), default a missing label, clamp
         // the blend; taps absent or empty → the whole half is nil, so a label
         // without a profile cannot claim a voice that is not there.
+        // ⚠️ RESIDUAL (steward #593a, on record rather than papered over): a half
+        // with 1…63 taps decodes as present but the engine refuses anything under
+        // its `harmonicCount` (64 default) — the same claim-without-a-voice, at
+        // short lengths instead of zero. This layer cannot know the engine's count
+        // without a second spelling of it (#416), and the in-app producer
+        // (`VoiceTimbreProfiler`) always emits a full set — so the LENGTH guarantee
+        // belongs to the #593b save flow, and only third-party/truncated JSON can
+        // hit the silent no-op until then.
         if let rawTaps = try c.decodeIfPresent([Float].self, forKey: .voiceProfileTaps),
            !rawTaps.isEmpty {
             voiceProfileTaps = rawTaps.map { $0.isFinite ? Swift.max(0, $0) : 0 }
