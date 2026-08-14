@@ -80,6 +80,21 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
     public var timbreProfile: String   // EchoelDDSP.InstrumentTimbre rawValue, or "" = none
     public var timbreBlend: Float      // 0 = pure synth shape · 1 = full instrument spectrum
 
+    // MEASURED voice timbre (EchoelVoice #593) — the harmonic envelope a player
+    // captured with the Sound panel's "Voice timbre" row, embedded so a saved patch
+    // carries "their tone" and (later) travels when shared. All three nil = the patch
+    // has no voice half — every patch ever saved before #593 decodes unchanged.
+    // NO AUDIO is persisted here: the taps are ~64 floats of max-normalized spectral
+    // envelope (`VoiceTimbreProfiler.profile()`), engine-shaped on decode (finite, ≥0).
+    // `voiceProfileLabel` is the SHARE-LABEL law from the EchoelVoice boundaries: a
+    // patch that carries a measured voice must be able to SAY so wherever it is
+    // listed. It is mandatory at SAVE time (the save flow refuses an empty label);
+    // the decoder only DEFAULTS a missing one ("Voice") so third-party or truncated
+    // JSON degrades to a labeled profile rather than to silent data loss.
+    public var voiceProfileTaps: [Float]?
+    public var voiceProfileLabel: String?
+    public var voiceProfileBlend: Float?   // nil = full (1); clamped 0…1 on decode
+
     // Per-instrument output level (loudness trim), 1.0 = unity. Optional so patches
     // saved before it existed decode (nil = unity). Normalises one sound's overall
     // loudness against the others (founder 2026-07-11: "Play surface sounds … teils zu
@@ -198,7 +213,9 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         timbreProfile: String = "", timbreBlend: Float = 0,
         unisonVoices: Int? = nil, unisonDetuneCents: Float? = nil,
         outputLevel: Float? = nil,
-        warmthDrive: Float? = 0.22
+        warmthDrive: Float? = 0.22,
+        voiceProfileTaps: [Float]? = nil, voiceProfileLabel: String? = nil,
+        voiceProfileBlend: Float? = nil
     ) {
         self.id = id
         self.name = name
@@ -216,6 +233,9 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         self.unisonVoices = unisonVoices; self.unisonDetuneCents = unisonDetuneCents
         self.outputLevel = outputLevel
         self.warmthDrive = warmthDrive
+        self.voiceProfileTaps = voiceProfileTaps
+        self.voiceProfileLabel = voiceProfileLabel
+        self.voiceProfileBlend = voiceProfileBlend
     }
 
     // MARK: - Defensive decoding (forward/backward-compatible)
@@ -262,6 +282,24 @@ public struct SynthPatch: Codable, Sendable, Equatable, Identifiable {
         unisonDetuneCents = try c.decodeIfPresent(Float.self, forKey: .unisonDetuneCents)
         outputLevel = try c.decodeIfPresent(Float.self, forKey: .outputLevel)
         warmthDrive = try c.decodeIfPresent(Float.self, forKey: .warmthDrive)
+        // EchoelVoice #593 — the voice half decodes as a UNIT keyed on the taps:
+        // taps present → engine-shape the values (finite, ≥0 — the same sanitize
+        // `setCustomTimbre` applies, done here too so a patch FILE can never hold a
+        // value the engine would refuse to carry), default a missing label, clamp
+        // the blend; taps absent or empty → the whole half is nil, so a label
+        // without a profile cannot claim a voice that is not there.
+        if let rawTaps = try c.decodeIfPresent([Float].self, forKey: .voiceProfileTaps),
+           !rawTaps.isEmpty {
+            voiceProfileTaps = rawTaps.map { $0.isFinite ? Swift.max(0, $0) : 0 }
+            let label = try c.decodeIfPresent(String.self, forKey: .voiceProfileLabel)
+            voiceProfileLabel = (label?.isEmpty == false) ? label : "Voice"
+            let blend = try c.decodeIfPresent(Float.self, forKey: .voiceProfileBlend) ?? 1
+            voiceProfileBlend = blend.isFinite ? Swift.min(Swift.max(blend, 0), 1) : 1
+        } else {
+            voiceProfileTaps = nil
+            voiceProfileLabel = nil
+            voiceProfileBlend = nil
+        }
     }
 
     // MARK: - Loudness normalisation (founder 2026-07-11 "angleichen")

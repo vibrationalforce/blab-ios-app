@@ -586,6 +586,14 @@ public final class PolySynthVoice {
         // only place the String→enum lookups run.
         _ = patchCommands.tryEnqueue(patch.resolved())
         appliedPatch = patch
+        // EchoelVoice #593 — a patch that CARRIES a measured voice applies it through
+        // the #591a staging, which re-fans AFTER this very recall's drain (trap 1), so
+        // the order here cannot lose it. A patch WITHOUT one deliberately leaves any
+        // live captured profile alone: the capture survives patch recalls by design
+        // (#591a), and `clearVoiceProfile()` stays the one remover.
+        if let taps = patch.voiceProfileTaps {
+            applyVoiceProfile(taps, blend: patch.voiceProfileBlend ?? 1)
+        }
     }
 
     /// The last patch handed to `apply(_:)` — the voice's patch MEMORY, so any
@@ -625,7 +633,17 @@ public final class PolySynthVoice {
     public func clearVoiceProfile() {
         appliedVoiceProfile = nil
         poly.clearCustomTimbre()
-        if let p = appliedPatch { apply(p) }
+        // #593: strip the voice half from the patch MEMORY before re-applying — an
+        // embedded-profile patch would otherwise re-apply its own profile on the next
+        // line and Clear could never clear (the Council's sharpest concern on this
+        // slice). For such a patch "Clear" MEANS "this patch, without its voice";
+        // the stripped copy lives only in memory — nothing here writes the store.
+        if var p = appliedPatch {
+            p.voiceProfileTaps = nil
+            p.voiceProfileLabel = nil
+            p.voiceProfileBlend = nil
+            apply(p)
+        }
     }
 
     /// Set unison directly (live, outside a patch) — count 1 = off.
