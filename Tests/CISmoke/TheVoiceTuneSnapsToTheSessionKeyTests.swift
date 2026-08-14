@@ -110,8 +110,11 @@ final class TheVoiceTuneSnapsToTheSessionKeyTests: XCTestCase {
         XCTAssertEqual(codeOccurrences(
             of: "masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)", in: engine), 2)
         XCTAssertEqual(codeOccurrences(
-            of: "if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }", in: engine), 2,
-            "both teardowns (restart-failure and monitoring-off) release the stage")
+            of: "if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }", in: engine), 3,
+            "all THREE release sites use the guarded form — both teardowns "
+            + "(restart-failure, monitoring-off) and the live-rewire off branch "
+            + "(was unguarded-but-unreachable; made symmetric per the #599 review, "
+            + "and this count moved in the same commit — the §4 discipline)")
         XCTAssertEqual(codeOccurrences(
             of: "masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)", in: engine), 2,
             "COUNTERWEIGHT: the plain #595 chain survives — the else of the "

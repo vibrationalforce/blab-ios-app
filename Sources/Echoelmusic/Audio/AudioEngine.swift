@@ -1646,6 +1646,11 @@ public final class AudioEngine {
                 // beside the howl. Same staleness class as every tap format in this file
                 // (avaudio-route-resilience); the duck still defends. A route-change
                 // re-arm of monitoring is the honest fix if this shows up on device.
+                // ⚠️ #599 added a SECOND, LOUDER consumer of this rate (review M2):
+                // YIN divides by it, so a 44.1↔48 route change shifts every detected
+                // pitch by a constant ~147 cents — "Tune to key" then confidently
+                // snaps the voice to WRONG notes until monitoring is recycled. The
+                // re-arm above is now correspondingly more valuable.
                 monitorTapSampleRate = inFmt.sampleRate
                 let window = monitorTapWindow
                 input.installTap(onBus: 0,
@@ -1694,10 +1699,19 @@ public final class AudioEngine {
     }
 
     /// VL3 (#599): toggle the in-key correction stage. Rewires the LIVE monitor chain
-    /// when monitoring is on (graph edits while running are the #595/#299 pattern);
-    /// otherwise it only stores the choice — the next `setInputMonitoring(true)`
-    /// builds the chain accordingly. NOT persisted, same law as the monitoring toggle
-    /// itself: tuning the monitor is a performance act, not a setting.
+    /// when monitoring is on; otherwise it only stores the choice — the next
+    /// `setInputMonitoring(true)` builds the chain accordingly. NOT persisted, same
+    /// law as the monitoring toggle itself: tuning the monitor is a performance act.
+    ///
+    /// ⛔ The first version cited "graph edits while running are the #595/#299
+    /// pattern" — WRONG PRECEDENT (#599 review): #595's `setInputMonitoring` PAUSES
+    /// the engine before connecting and restarts after; #299 is session-category
+    /// claiming, not graph work. This method is deliberately the OTHER documented
+    /// pattern — dynamic reconfiguration on a RUNNING engine — because there is no
+    /// `start()` to fail here, and pausing the master engine would hiccup the MUSIC
+    /// for a monitor-only toggle. Both branches are straight-line between disconnect
+    /// and connect, so no exit can leave `notchEQ` outputless. Whether the live
+    /// rewire clicks audibly is part of the device probe.
     func setVoiceTune(_ on: Bool) {
         guard on != voiceTuneEnabled else { return }
         voiceTuneEnabled = on
@@ -1705,7 +1719,10 @@ public final class AudioEngine {
         voiceTunePitch.pitch = 0
         #if os(iOS)
         guard isInputMonitoring else { return }
-        let inFmt = masterEngine.inputNode.outputFormat(forBus: 0)
+        // Same format SOURCE as the build path (`inputFormat(forBus: 0)`, #599 review
+        // LOW): mixing input- and output-format reads across the two wiring sites is
+        // the connect-time-exception seed after a mid-session hardware-rate change.
+        let inFmt = masterEngine.inputNode.inputFormat(forBus: 0)
         if on {
             if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
             masterEngine.disconnectNodeOutput(notchEQ)
@@ -1713,7 +1730,7 @@ public final class AudioEngine {
             masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)
         } else {
             masterEngine.disconnectNodeOutput(notchEQ)
-            masterEngine.disconnectNodeOutput(voiceTunePitch)
+            if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
             masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
         }
         #endif
@@ -1740,8 +1757,11 @@ public final class AudioEngine {
             voiceTuneCorrector.a4Hz = a4 > 0 ? a4 : SessionContext.defaultA4Hz
         }
         voiceTuneKeyRefreshTick &+= 1
-        voiceTuneCorrector.strength = Double(voiceTuneStrength)
-        voiceTuneCorrector.retuneSpeed = Double(voiceTuneRetune)
+        // Sanitize at the boundary (#599 review LOW): the corrector clamps only in
+        // init, and "EchoelValueField is the sole writer" is true today, not by
+        // construction.
+        voiceTuneCorrector.strength = Double(Swift.min(Swift.max(voiceTuneStrength, 0), 1))
+        voiceTuneCorrector.retuneSpeed = Double(Swift.min(Swift.max(voiceTuneRetune, 0), 1))
         var detected: Double?
         if monitorTapSampleRate > 0, monitorTapWindow.copyLatest(into: &voiceTuneBuffer) {
             detected = PitchTracker.detect(voiceTuneBuffer, sampleRate: monitorTapSampleRate)

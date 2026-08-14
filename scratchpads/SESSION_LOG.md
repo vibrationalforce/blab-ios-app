@@ -10217,3 +10217,9 @@ braucht Council + Gerät, keine Ralph-Scheibe.
   Farbe) → Save as… → anderen Patch wählen → gespeicherten recallen (Farbe kehrt zurück).
 - **Nächster Takt:** Gates prüfen → #593c (geerbte Checkliste) ODER TestFlight-Bump
   v10.79.391, je nach Gate-Stand — die Voice-Kette ist funktional beisammen.
+
+## 2026-08-14 (Takte 6–8): #593c ×2 + #599 — die Voice-Kette ist tonart-fähig
+- **#593c** (`c2e1a53`): eine Definition `patchCarryingLiveVoice` für beide Save-Türen; Clear strippt View-Kopie (F5a) und nimmt den Synth als Pflicht-Parameter (F5b).
+- **#593c Review-Runde** (`7559c42`): ui-state fand die tieferen Löcher — PROVENANCE statt Proxy (appliedVoiceProfileLabel/Blend im Synth, Floor-Gate am Strip, dritte Kopie patchBeforeSoundChange, In-place-Ordnung gepinnt, Profiler-Kommentar korrigiert). Test 8 umgeschrieben, Test 11 neu; 30 Needles Ganz-Datei-Transkription.
+- **#599** (`835e7b4` + Review-Follow-up): Founder-Frage „wird die Stimme per Pitch-Correction an die Tonart angepasst?" — Antwort war NEIN (VL1/VL2 pure Kerne, null Aufrufer); jetzt end-to-end: Tap→YIN→VoicePitchCorrector→AVAudioUnitTimePitch im Monitor-Pfad, Tonart/Kammerton aus den Studio-Defaults (#416), „Tune to key"-Toggle (Default AUS) + Amount/Tune im Input-Sheet. audio-thread-Review: kein CRITICAL; Präzedenz-Zitat korrigiert, Format-Quelle vereinheitlicht, Boundary-Clamp, guarded Disconnect symmetrisch (Wächter im selben Commit 2→3). Wächter: TheVoiceTuneSnapsToTheSessionKeyTests.
+- **Offen:** #599b (VoiceHarmony→Harmonizer diatonisch), Gates-Check der drei Pushes, TestFlight-Bump v10.79.391, Geräteprobe der ganzen Voice-Kette (inkl. Clear→Undo-Pfeil und Tune-to-key-Probe).
