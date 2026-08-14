@@ -25,11 +25,16 @@
 // commit writes that sentence); tests 1–3 are COUNTERWEIGHTS — green on the parent
 // tree too, because the wiring predates this slice. That distribution is the point:
 // this file mostly pins premises that already hold (#343). Stripper: all 8 needles
-// measured raw vs stripped on BOTH trees → PROPHYLAKTISCH (0 of 8 verdicts flip;
-// `fxChain.noteRenderSkipped()` is raw=5/stripped=3 — two comment mentions — but
-// both sides of the flip test agree at want=3). The transcription also corrected
-// TWO counts the first draft wrote from memory (reset 2→3, skips 2→3) — the §3
-// class, caught before CI this time. Measured, not assumed.
+// measured raw vs stripped on BOTH trees → **TRAGEND (1 of 8 verdicts flips)**:
+// `fxChain.noteRenderSkipped()` is stripped=3 (PASS at want=3) but raw=5 (FAIL) —
+// two comment mentions — so the stripper is load-bearing for that assertion. ⛔ The
+// first version of this line said PROPHYLAKTISCH with a self-contradictory
+// parenthetical ("both sides agree at want=3" — the raw side is 5); the reviewer
+// caught it, the flattering-direction mislabel §2 records three prior retractions
+// for. Separately: test 4's RAW read is forced by the `// #597a` COMMENT anchor
+// (codeOnly blanks comments but PRESERVES string literals — the caption needle
+// would survive stripping fine). The transcription also corrected TWO counts the
+// first draft wrote from memory (reset 2→3, skips 2→3) — §3, caught before CI.
 
 import Foundation
 import XCTest
@@ -86,9 +91,19 @@ final class TheVoiceTimbreReachesTheHarmonizerTests: XCTestCase {
     }
 
     /// The caption: promised only while a profile is APPLIED, and it names the door.
+    /// ⚠️ HONEST LIMIT (review #597a): the ordering assertion proves textual
+    /// PRECEDENCE, not brace-matched CONTAINMENT — an edit moving the return below
+    /// the branch's closing brace would stay green because the comment anchor
+    /// travels with the statement. Tighten to brace-matched extraction (#408) the
+    /// next time this file is touched for another reason.
     func testTheCaptionNamesTheDoorOnlyWhenAProfileIsApplied() throws {
+        // RAW read on purpose — the `// #597a` gate anchor is a COMMENT, which
+        // `codeOnly` blanks; the skip-on-no-tree convention still applies.
+        let root = repoRoot()
+        guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
+        else { throw XCTSkip("source tree not present under \(root.path)") }
         let studio = try String(
-            contentsOf: repoRoot().appendingPathComponent(
+            contentsOf: root.appendingPathComponent(
                 "Sources/Echoelmusic/Studio/EchoelStudioView.swift"),
             encoding: .utf8)
         XCTAssertEqual(occurrences(
