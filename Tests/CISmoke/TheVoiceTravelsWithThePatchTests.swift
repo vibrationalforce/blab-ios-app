@@ -10,16 +10,18 @@
 // never clear an embedded-profile patch (the Council's sharpest concern, #593).
 // NO AUDIO persists — the taps are a max-normalized spectral envelope.
 //
-// ⚠️ HONEST LIMITS. 11 tests, 47 `XCTAssert*` statements (hand-counted per test,
-// 4+3+4+2+2+3+2+8+6+5+8; `XCTUnwrap` census: one in test 5, two in test 7, two in
-// test 9 — all fail their tests and sit outside this count, assertions not failure
-// points). Tests 1–5 are END-TO-END BEHAVIOUR on the shipped pure Codable type
+// ⚠️ HONEST LIMITS. 11 tests, 48 `XCTAssert*` statements (hand-counted per test,
+// 4+3+4+2+2+3+2+8+7+5+8 — test 9 grew by one with #600; `XCTUnwrap` census: one in
+// test 5, two in test 7, two in test 9 — all fail their tests and sit outside this
+// count, assertions not failure points). Tests 1–5 are END-TO-END BEHAVIOUR on the shipped pure Codable type
 // (real JSONEncoder/JSONDecoder, no mocks); tests 6–11 are SOURCE-TEXT JOINS (the
 // apply/clear/save flow sits on a `@MainActor` voice and a `private` View no test
 // host can drive). Test 8 (#593b, re-anchored twice: by the #593c helper, then by
 // the #593c REVIEW that replaced the tap-equality proxy with PROVENANCE — the
 // synth remembers what the live profile arrived as) covers the save flow; test 9
-// the one-definition law + both strips + the in-place ordering (review F4); test
+// the one-definition law + both strips + the in-place ordering (review F4) + since
+// #600 the PROJECT door (`currentProject()` routes Save/autosave/Live Colabo
+// through the same definition, so a take saved mid-capture carries the voice); test
 // 10 the required-parameter clear (F5b); test 11 the provenance memory, the
 // socket-floor gate (F2) and the third-copy strip (F3). What no test here can
 // prove: that an embedded profile SOUNDS like the captured voice after a recall,
@@ -46,6 +48,15 @@
 // retraction comment when run raw; `codeOnly` blanking that quote is precisely
 // the stripper's job (the #491 fragility pre-registered in the #593b header,
 // arrived and carried as designed).
+//
+// ⭐ #600 RE-MEASURE (delta grading, the changed set only — the file was driven
+// whole at #593c and test 9 alone changed here): the ==3 count, the new
+// `patch: patchCarryingLiveVoice(currentPatch)` needle, the save-promise sibling's
+// moved needle and the F4 ordering all reproduce on the worktree (12 needles
+// driven, 0 stripper flips — PROPHYLAKTISCH for this delta). Against the parent
+// both #600 needles are ONE absence reported once (#486): the project door does
+// not route through the helper there — which is the defect, and FORWARD (#433),
+// since this commit creates the call it drives.
 
 import Foundation
 import XCTest
@@ -199,18 +210,28 @@ final class TheVoiceTravelsWithThePatchTests: XCTestCase {
 
     // MARK: - 9–10. The #593c joins (SOURCE-TEXT)
 
-    /// ONE definition of the voice half of a save (#416), called by BOTH doors —
+    /// ONE definition of the voice half of a save (#416), called by all THREE doors —
     /// #593b's check 4 found "Save as…" embedding the live capture while "Save
-    /// changes" silently did not, an asymmetry no player could see. And the F2/F5a
+    /// changes" silently did not, an asymmetry no player could see; #600 found the
+    /// project door (`currentProject()`) repeating it one level up. And the F2/F5a
     /// strips: a cleared voice must stay cleared through a save AND a knob tweak.
-    func testBothSaveDoorsShareTheOneVoiceDefinition() throws {
+    /// (Renamed from `testBothSaveDoors…` — the old name counted two doors, #374.)
+    func testTheThreeSaveDoorsShareTheOneVoiceDefinition() throws {
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
         XCTAssertEqual(codeOccurrences(
             of: "private func patchCarryingLiveVoice(_ base: SynthPatch) -> SynthPatch", in: studio), 1,
             "the one definition exists exactly once")
-        XCTAssertEqual(codeOccurrences(of: "patchCarryingLiveVoice(currentPatch)", in: studio), 2,
-                       "BOTH save doors call it — save-as AND the in-place 'Save "
-                       + "changes'; one call means the check-4 asymmetry is back")
+        XCTAssertEqual(codeOccurrences(of: "patchCarryingLiveVoice(currentPatch)", in: studio), 3,
+                       "ALL THREE save doors call it — save-as, the in-place 'Save "
+                       + "changes', and (#600) the project door `currentProject()` "
+                       + "behind Save/autosave/Live Colabo; fewer calls means a "
+                       + "check-4 asymmetry is back at whichever door dropped it")
+        XCTAssertEqual(codeOccurrences(
+            of: "patch: patchCarryingLiveVoice(currentPatch)", in: studio), 1,
+            "#600 — the project builder fills its `patch:` argument through the ONE "
+            + "definition, so a take saved mid-capture carries the voice half (with "
+            + "provenance) exactly like a patch save; `patch: currentPatch` raw would "
+            + "silently drop a captured voice from Save, autosave AND Live Colabo")
         XCTAssertEqual(codeOccurrences(
             of: "currentPatch = patchCarryingLiveVoice(currentPatch)", in: studio), 1,
             "the in-place door updates the VIEW copy first, so the store and the "

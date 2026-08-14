@@ -106,7 +106,11 @@ final class TheSavePromiseMatchesTheSaveTests: XCTestCase {
             ("tuning (concert pitch)", "a4Hz: session.a4Hz"),
             ("Flow/Loop mode", "modeRaw: ComposerMode(locked: lockBPM).rawValue"),
             ("mood", "moodFields: MoodStorage.fields(from: mood)"),
-            ("sound", "patch: currentPatch"),
+            // #600: the sound travels THROUGH the one voice-half definition — the raw
+            // `patch: currentPatch` spelling is the door that silently dropped a
+            // captured voice from every take (TheVoiceTravelsWithThePatchTests pins
+            // the same fact from the voice side).
+            ("sound", "patch: patchCarryingLiveVoice(currentPatch)"),
             ("FX character", "fxCharacterRaw: fxCharacter.rawValue"),
             ("the loop", "notes: pianoRoll.notes")
         ] {

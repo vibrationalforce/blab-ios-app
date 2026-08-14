@@ -1610,10 +1610,12 @@ struct EchoelStudioView: View {
 
     // MARK: - The voice half of a save (#593c)
 
-    /// The ONE answer to "what voice half does a saved patch carry?" — both save doors
-    /// ("Save as…" and "Save changes") call this, per #416: a second spelling was
-    /// exactly the #593b check-4 asymmetry, where save-as embedded the live capture
-    /// and the in-place save silently did not.
+    /// The ONE answer to "what voice half does a saved patch carry?" — all THREE save
+    /// doors ("Save as…", "Save changes", and since #600 the project door
+    /// `currentProject()` behind Save/autosave/Live Colabo) call this, per #416: a
+    /// second spelling was exactly the #593b check-4 asymmetry, where save-as embedded
+    /// the live capture and the in-place save silently did not — and the project door
+    /// repeated that asymmetry one level up until #600.
     ///
     /// LIVE PROFILE PRESENT → provenance decides, never a proxy. ⛔ TWICE WRONG BEFORE
     /// (#593b F1, then the #593c review's F1): the first version relabeled
@@ -9832,7 +9834,15 @@ struct EchoelStudioView: View {
             // files written before the field existed.
             moodFields: MoodStorage.fields(from: mood),
             artist: session.artistName,
-            patch: currentPatch, notes: pianoRoll.notes,
+            // #600 — the THIRD save door goes through the ONE voice-half definition.
+            // Before this, a fresh capture travelled with a patch save but NOT with a
+            // take (Save / autosave / Live Colabo) — the #593b check-4 asymmetry one
+            // door over: whether "my saved take sounds like me" depended on which door
+            // was used, and no player can see the difference. Same provenance and
+            // strip semantics as the two patch doors (documented at the helper);
+            // Live Colabo therefore shares the voice WITH its label, which is the
+            // share-label law, never anonymously.
+            patch: patchCarryingLiveVoice(currentPatch), notes: pianoRoll.notes,
             // #217 — the composer's OWN bars travel with the take, so a Mix fader can
             // re-bake it after an open instead of composing a different piece. `nil` when
             // this session has not composed (`lastRawTake` is `@State`, nil until the first
@@ -10603,10 +10613,13 @@ private struct BreathVoiceRow: View {
 /// governs NUMERIC parameters; a capture has none.
 ///
 /// ⚠️ THE CAPTURE STATE IS NOT PERSISTED, same law as `BreathVoiceRow` above: arming a
-/// capture is a performance act. The applied PROFILE persists exactly one way — the
-/// player saves it into a patch (#593a/b, `patchCarryingLiveVoice`). ⛔ The sentence
-/// that stood here ("does not persist yet — that is #593, Council-gated") became false
-/// the day #593a shipped and was this file's own refutation for two commits (#425).
+/// capture is a performance act. The applied PROFILE persists exactly two ways — the
+/// player saves it into a patch (#593a/b) or into a take (#600, the project door),
+/// both through the ONE definition `patchCarryingLiveVoice`. ⛔ The sentence that
+/// stood here ("does not persist yet — that is #593, Council-gated") became false the
+/// day #593a shipped and was this file's own refutation for two commits (#425); its
+/// successor ("persists exactly one way") aged the same way the day #600 routed the
+/// project door — this line changes WITH the door inventory, or it lies.
 ///
 /// `patch` is the panel's `currentPatch` binding, written on ONE event only (Clear —
 /// F5a below); the body never reads it, so no parent-state read leaks into this leaf.

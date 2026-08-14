@@ -135,12 +135,18 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
   einzige Fläche, die ihn zeigen/klären kann, rendert nur bei laufendem Monitoring —
   die Monitor-Tür im Mixer-Strip hätte einen unsichtbaren Tune re-armiert. Monitoring-OFF
   entwaffnet jetzt (via `setVoiceTune(false)`, der eine Schreiber).
-- **M2 OFFEN (= #600-Kandidat, Founder-/PM-Entscheidung):** die PROJEKT-Save-Tür
-  (`currentProject()` → Save/Autosave/Live-Colabo) speichert den Patch OHNE
-  `patchCarryingLiveVoice` — eine frische Capture reist NICHT mit einem Take, nur mit
-  einem Patch-Save. Kein Bug (dokumentiertes Gesetz), aber für den Spieler unsichtbar.
-  Entweder dokumentieren (Caption) oder die Projekt-Tür durch den Helper routen —
-  eigene Scheibe mit Review, NICHT im Release-Druck entscheiden.
+- **M2 ENTSCHIEDEN + GEBAUT (#600, 2026-08-14, PM-Entscheid nach Delegation):**
+  Route, nicht Caption — `currentProject()` füllt `patch:` jetzt durch
+  `patchCarryingLiveVoice(currentPatch)`, damit Save/Autosave/Live-Colabo dieselbe
+  Antwort geben wie beide Patch-Türen (#416; die Caption hätte die #593b-Check-4-
+  Asymmetrie beschrieben statt sie zu schließen). Round-Trip verifiziert am Code:
+  `open(_:)` → `applyTakeSound(p.patch)` → `synth.apply` wendet die Voice-Hälfte
+  MIT Provenance an (PolySynthVoice.swift:594). Live-Colabo teilt die Stimme damit
+  MIT Label — das Share-Label-Gesetz, nie anonym. Wächter: `TheVoiceTravelsWith
+  ThePatchTests` Test 9 (==2→==3 + neue `patch:`-Nadel, Test umbenannt #374) und
+  `TheSavePromiseMatchesTheSaveTests` (Sound-Nadel folgt der neuen Schreibweise).
+  Drei Prosa-Stellen im selben Commit mitgezogen (Helper-Doc „drei Türen",
+  VoiceCaptureRow „persists exactly two ways", dieser Eintrag).
 - **M3 registriert (Geräteprobe):** Ein Routen-Wechsel 44,1↔48 kHz mitten im Monitoring
   verstimmt „Tune to key" um ~147 Cent bis Monitoring recycelt (stale Tap-Rate, #595-F2).
   Route-Change-Re-Arm ist der registrierte Fix, wenn die Probe es zeigt.
