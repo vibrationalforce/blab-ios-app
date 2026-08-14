@@ -10239,3 +10239,8 @@ braucht Council + Gerät, keine Ralph-Scheibe.
 - **Takt 11** (`ee9758e`, PIPELINE-only, kein CI-Lauf per #252): `ContentPipeline/CLAIMS.md` — zwei ✅-Zeilen (Capture/Patch-Embed · Tonart-Werkzeuge, beide „Geräte-Verify offen"; #600-Take-Hälfte explizit als noch-nicht-im-Build markiert) + neuer ⛔-§11: „Messung, nie Aufnahme" (64-Zahlen-Hüllkurve), kein TTS/Klon/Fremd-Import, Tune-to-key monitor-only.
 - **Takt 12** (`1c664b9`): `fastlane/metadata/{de-DE,en-US}/release_notes.txt` — Genre-Block nachgemessen und korrekt gelassen (16 offered = 16 genannt, Display-Namen identisch); ergänzt: acht statt fünf Charakter-Regler, neue „Stimme"-Sektion (CLAIMS-§11-Wortlaut), Follow-the-key am Harmonizer. Council-lite: user-facing Copy, Formulierung strikt aus CLAIMS.
 - **Gates:** dd34b0c grün per Gesetz (Build for Testing success, EXECUTE FAILED = #396, 0 error:); ee9758e/1c664b9 sind docs-only.
+
+## 2026-08-14 (Takt 13, Abschluss): v10.79.393 AUSGELIEFERT (Build 2510)
+- TestFlight-Lauf 31822323904 auf `134c76d` = success, ECHTER Upload (Archive → Export & Upload → „Verify build landed in App Store Connect" alle grün). #600 ist damit auf dem Gerät; CLAIMS.md-Take-Vermerk auf 2510 umgestellt.
+- Geräteproben 2510: Capture → PROJEKT-Save → reopen (Farbe da) · Autosave-Slot · Clear → Save → reopen (Farbe weg); 391/392-Listen bleiben offen.
+- Nächster Feature-Kandidat: #594 Voice→Color; #598 wartet auf Founder-Research.
