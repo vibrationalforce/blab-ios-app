@@ -1586,7 +1586,31 @@ struct EchoelStudioView: View {
             Button("Save") {
                 let name = patchSaveName.trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !name.isEmpty else { return }
-                let saved = patchStore.saveAs(currentPatch, name: name)
+                // #593b — the save carries the LIVE voice. If a measured profile is
+                // applied (captured via the Voice-timbre row, or arrived embedded in a
+                // recalled patch — the two are indistinguishable by design, steward
+                // #593a), the saved sound embeds it, LABELED: the share-label law. The
+                // label is the typed artist name when one exists, else "My voice" —
+                // `typedArtistName` is the one definition of "did the user name
+                // themselves" (#416; the stored value is never "" — it holds the E~
+                // mark instead, so a raw isEmpty check here would never fire).
+                // Blend is 1, `applyVoiceProfile`'s own default — there is no blend
+                // control yet, and any other number would be a second spelling of a
+                // decision that does not exist. The LENGTH guarantee the #593a steward
+                // assigned this flow holds by construction: `appliedVoiceProfile` is
+                // only ever written through `applyVoiceProfile`, whose guard refuses
+                // anything under the engine's harmonicCount.
+                // With NO live profile the copy saves wholesale — a half already
+                // sitting in `currentPatch` survives an unrelated save-as untouched.
+                var toSave = currentPatch
+                if let taps = synth.appliedVoiceProfile {
+                    toSave.voiceProfileTaps = taps
+                    let artist = SessionContext.typedArtistName(fromStored: session.artistName)
+                        .trimmingCharacters(in: .whitespacesAndNewlines)
+                    toSave.voiceProfileLabel = artist.isEmpty ? "My voice" : artist
+                    toSave.voiceProfileBlend = 1
+                }
+                let saved = patchStore.saveAs(toSave, name: name)
                 currentPatch = saved
                 presetIndex = -1
             }

@@ -10,9 +10,12 @@
 // never clear an embedded-profile patch (the Council's sharpest concern, #593).
 // NO AUDIO persists — the taps are a max-normalized spectral envelope.
 //
-// ⚠️ HONEST LIMITS. 7 tests, 20 `XCTAssert*` statements (hand-counted per test,
-// 4+3+4+2+2+3+2; the one `XCTUnwrap` in test 5 and the TWO in test 7 also fail
-// their tests and sit outside this count — assertions, not failure points). Tests 1–5 are END-TO-END BEHAVIOUR on the shipped pure Codable type
+// ⚠️ HONEST LIMITS. 8 tests, 25 `XCTAssert*` statements (hand-counted per test,
+// 4+3+4+2+2+3+2+5; the one `XCTUnwrap` in test 5 and the TWO in test 7 also fail
+// their tests and sit outside this count — assertions, not failure points).
+// Test 8 (#593b, added one commit after the rest) covers the SAVE flow's joins; the
+// FLOW itself — tap Save as…, type a name, recall — is a device probe folded into
+// the existing voice-capture probe (capture → save-as → switch → recall). Tests 1–5 are END-TO-END BEHAVIOUR on the shipped pure Codable type
 // (real JSONEncoder/JSONDecoder, no mocks); tests 6–7 are SOURCE-TEXT JOINS (the
 // apply/clear flow sits on a `@MainActor` voice whose poly engine a test host can
 // construct but whose recall drain needs the render loop). What no test here can
@@ -135,6 +138,34 @@ final class TheVoiceTravelsWithThePatchTests: XCTestCase {
         let stripAt = try XCTUnwrap(poly.range(of: "p.voiceProfileTaps = nil"))
         XCTAssertTrue(clearAt.lowerBound < stripAt.lowerBound,
                       "the strip lives inside clearVoiceProfile, after its declaration")
+    }
+
+    /// The #593b save join: "Save as…" embeds the LIVE profile, labeled through the
+    /// ONE artist-name definition, blend 1 — and the un-enriched wholesale call is
+    /// gone, or save-as would silently drop a captured voice.
+    func testSaveAsEmbedsTheLiveProfileLabeled() throws {
+        let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        XCTAssertEqual(codeOccurrences(of: "if let taps = synth.appliedVoiceProfile", in: studio), 1,
+                       "save-as must read the voice's own memory — the only source "
+                       + "that satisfies the #593a length guarantee by construction "
+                       + "(appliedVoiceProfile is written solely through "
+                       + "applyVoiceProfile's harmonicCount guard)")
+        XCTAssertEqual(codeOccurrences(
+            of: "SessionContext.typedArtistName(fromStored: session.artistName)", in: studio), 3,
+            "the label goes through the ONE definition of 'did the user name "
+            + "themselves' (#416) — the stored value is never empty (it holds the E~ "
+            + "mark), so a raw isEmpty gate would mislabel every unnamed player; "
+            + "count 3 = the artist row's display read + its binding getter + the "
+            + "save-as read (the first draft wrote 2 from memory; the transcription "
+            + "found the binding getter — measured, not remembered)")
+        XCTAssertEqual(codeOccurrences(of: "toSave.voiceProfileBlend = 1", in: studio), 1,
+                       "blend 1 — applyVoiceProfile's own default; a second number "
+                       + "here would be a decision that does not exist yet")
+        XCTAssertEqual(codeOccurrences(of: "patchStore.saveAs(toSave, name: name)", in: studio), 1,
+                       "the ENRICHED copy is what gets saved")
+        XCTAssertEqual(codeOccurrences(of: "patchStore.saveAs(currentPatch, name: name)", in: studio), 0,
+                       "the un-enriched wholesale call must be gone — present, "
+                       + "save-as would silently drop a captured voice")
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)
