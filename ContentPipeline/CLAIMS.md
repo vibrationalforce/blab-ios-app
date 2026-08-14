@@ -10,8 +10,8 @@ entfernte zwölf falsche Behauptungen aus dem App-Store-Text — dort ist eine f
 Behauptung ein 2.3-Ablehnungsgrund („Accurate Metadata"). Ein Skript, das eine
 gestrichene Behauptung wieder einführt, macht diese Arbeit rückgängig.
 
-Stand: 2026-07-31. **Vor jeder neuen Kampagne gegen `CLAUDE.md` „CURRENT STATE" und
-`docs/dev/FEATURE_MATRIX.md` gegenprüfen.** (Die Versionsnummer stand hier früher
+Stand: 2026-08-14 (EchoelVoice-Zeilen ergänzt, §11 neu). **Vor jeder neuen Kampagne
+gegen `CLAUDE.md` „CURRENT STATE" und `docs/dev/FEATURE_MATRIX.md` gegenprüfen.** (Die Versionsnummer stand hier früher
 daneben und veraltete schneller als der Inhalt — sie belegte nichts, was das Datum
 nicht besser belegt.)
 
@@ -59,6 +59,8 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 | **Offene Standards, kein SDK-Lock-in** | OSC · ADM-OSC · MIDI · Art-Net/sACN · BLE HRS |
 | **Null externe Abhängigkeiten**, alles on-device | `Package.swift: dependencies: []` UND `project.yml` ohne `packages:`-Block — beide, siehe Zaun-Absatz oben |
 | **Barrierefrei spielbar**: Notennamen International/Deutsch/Solfège, VoiceOver auf der Spielfläche, Atkinson Hyperlegible | #232 C/E, `EchoelValueField` |
+| **Deine Stimme wird die Klangfarbe des Instruments**: Ton halten („Voice timbre" → Capture), die gemessene Farbe spielt in den Synth-Stimmen; speicherbar im Patch, immer MIT Namens-Label | EchoelVoice #591–#593 (ausgeliefert 10.79.391), gebaut + verdrahtet + wächter-gepinnt, **Geräte-Verify offen — so kennzeichnen**. Die TAKE-Hälfte (Projekt-Save trägt die Stimme, #600) ist gemerged, aber **noch in KEINEM TestFlight-Build** (Stand: Build 2509 = v10.79.392) — bis zum nächsten Bump nicht behaupten. Formulierung siehe §11: MESSUNG, nie „Aufnahme" |
+| **Tonart-Werkzeuge für die Stimme**: „Tune to key" zieht das Mic-Monitor-Signal optional in die Session-Tonart (nur der Monitor, nie die Musik); „Follow the key" macht die Harmonizer-Stimmen diatonisch (Terz atmet mit der Tonart) | #599/#599b (ausgeliefert 10.79.391/392), Default AUS, Kammerton-treu; **Geräte-Verify offen — so kennzeichnen** |
 
 ---
 
@@ -182,6 +184,22 @@ sind gated** (eigener Review je Plattform, OAuth, Business-/Creator-Konten, bei 
 ein bestandenes Audit — Privatkonten weitgehend gar nicht); und ein Multi-Plattform-
 Publisher wäre ein **zweites Produkt** neben dem Instrument.
 *Erlaubt: „das fertige Video teilen". Nicht erlaubt: „postet für Dich".*
+
+### 11. Stimme: „nimmt Deine Stimme auf", „Voice Cloning", „AI-Voice", „Text-to-Speech", „Autotune auf der Musik"
+Die Stimm-Fähigkeit ist eine **MESSUNG, keine Aufnahme** — das ist die eine
+Formulierung, an der hier alles hängt. `VoiceTimbreProfiler` misst eine
+Spektral-Hüllkurve (**64 Zahlen**), das Audio selbst wird **nie gespeichert**;
+das Mikrofon-Versprechen der App bleibt wörtlich wahr, und ein Reel, das „records
+your voice" sagt, macht aus einem Privacy-Vorteil einen Privacy-Verdacht.
+Ebenfalls nicht behaupten, weil per Entwurfs-Grenze ausgeschlossen (EchoelVoice
+v1, protokolliert): **kein TTS**, **kein Stimm-Klon / keine Synthese Deiner
+Sprechstimme**, **kein Import fremder Stimmen** — die Farbe kommt vom lebenden
+Spieler am Gerät, und ein gespeicherter Patch trägt immer ein Namens-Label
+(Share-Label-Gesetz: nie anonym, keine Misattribution). Und „Tune to key" ist
+**Monitor-only**: es stimmt, was Du im Kopfhörer von DIR hörst — die komponierte
+Musik läuft nicht durch einen Autotune. *Erlaubt: „das Instrument klingt nach
+Dir", „gemessen, nie aufgenommen". Nicht erlaubt: „AI voice", „clones your
+voice", „records you", „Autotune auf dem Track".*
 
 ---
 
