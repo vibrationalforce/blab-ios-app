@@ -408,6 +408,32 @@ public final class AudioEngine {
     @ObservationIgnored private var notchHoldTicks = 0
     /// ~2 s at the ~15 Hz guard cadence (60 Hz poll gated %4 — see `monitorPollTick`).
     private static let notchHoldTickCount = 30
+    // VL3 (#599): in-key pitch correction ("tune to key") on the MONITOR path only —
+    // the optional autotune-with-character the founder asked for. Chain when enabled:
+    // input → notchEQ → voiceTunePitch → monitorMixer (disabled: the unchanged #595
+    // shape). `AVAudioUnitTimePitch` is a GRAPH node — no render code here. The
+    // EXISTING ~15 Hz guard tick reads the EXISTING `MonitorTapWindow` (`copyLatest`
+    // COPIES — the notch FFT and YIN share one window without stealing from each
+    // other), runs `PitchTracker` (YIN) + `VoicePitchCorrector` (pure, tested), and
+    // writes the smoothed correction in CENTS onto the node. Key + Kammerton are
+    // re-read ~1 Hz from the SAME stored values the studio writes
+    // (`StudioDefaultKeys.rootIndex`/`scale` + `SessionContext.a4StorageKey` — #416,
+    // one definition; a key change in the studio reaches the voice within a second).
+    @ObservationIgnored private let voiceTunePitch = AVAudioUnitTimePitch()
+    @ObservationIgnored private var voiceTuneAttached = false
+    @ObservationIgnored private var voiceTuneCorrector = VoicePitchCorrector()
+    @ObservationIgnored private var voiceTuneBuffer = [Float](repeating: 0, count: 2048)
+    @ObservationIgnored private var voiceTuneKeyRefreshTick = 0
+    /// Whether the in-key correction stage sits in the monitor chain. Observable so
+    /// the input sheet's toggle reflects it; written ONLY via `setVoiceTune(_:)`
+    /// (the setter owns the graph rewire). Default OFF — the founder's "optional".
+    private(set) var voiceTuneEnabled = false
+    /// 0…1 correction amount (`VoicePitchCorrector.strength`). Control-plane; the
+    /// tick hands it to the corrector, so a mid-note edit takes effect immediately.
+    var voiceTuneStrength: Float = 1
+    /// 0…1 retune character — 1 = the classic hard snap, 0 = gentle natural drift
+    /// (`VoicePitchCorrector.retuneSpeed`; the time constant lives THERE, #416).
+    var voiceTuneRetune: Float = 0.8
 
     let microphoneManager: MicrophoneManager
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
@@ -1355,6 +1381,7 @@ public final class AudioEngine {
                 self.monitorPollTick &+= 1
                 if self.isInputMonitoring && self.monitorPollTick % 4 == 0 {
                     self.updateFeedbackGuard()
+                    self.updateVoiceTune()
                 }
                 #endif
                 // #193. `systemUptime` and not `Date`/`CFAbsoluteTimeGetCurrent`: the
@@ -1569,7 +1596,15 @@ public final class AudioEngine {
             monitorMixer.outputVolume = 0          // silent until connected, avoids a pop
             let outFmt = masterMixer.outputFormat(forBus: 0)
             masterEngine.connect(input, to: notchEQ, format: inFmt)
-            masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
+            if voiceTuneEnabled {
+                if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
+                voiceTuneCorrector.reset()
+                voiceTunePitch.pitch = 0
+                masterEngine.connect(notchEQ, to: voiceTunePitch, format: inFmt)
+                masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)
+            } else {
+                masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
+            }
             masterEngine.connect(monitorMixer, to: masterMixer, format: outFmt)
             monitorLevelHistory.removeAll(keepingCapacity: true)
             feedbackGuardActive = false
@@ -1582,6 +1617,7 @@ public final class AudioEngine {
                 catch {
                     log.audio("Input monitoring: engine restart failed (\(error))", level: .error)
                     masterEngine.disconnectNodeOutput(notchEQ)
+                    if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
                     masterEngine.disconnectNodeOutput(monitorMixer)
                     try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)   // #299
                     return false
@@ -1635,12 +1671,15 @@ public final class AudioEngine {
             }
             monitorTapWindow.clear()
             masterEngine.disconnectNodeOutput(notchEQ)
+            if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
             masterEngine.disconnectNodeOutput(monitorMixer)
             isInputMonitoring = false
             feedbackGuardActive = false
             notchGainDB = 0
             notchHoldTicks = 0
             notchEQ.bands.first?.gain = 0
+            voiceTuneCorrector.reset()
+            voiceTunePitch.pitch = 0
             // #299: the missing half. Monitoring off returns the route — but only if no
             // recorder still holds it, which is why this goes through the owner set instead of
             // calling `downgradeToPlaybackAfterRecording` directly.
@@ -1654,7 +1693,65 @@ public final class AudioEngine {
         #endif
     }
 
+    /// VL3 (#599): toggle the in-key correction stage. Rewires the LIVE monitor chain
+    /// when monitoring is on (graph edits while running are the #595/#299 pattern);
+    /// otherwise it only stores the choice — the next `setInputMonitoring(true)`
+    /// builds the chain accordingly. NOT persisted, same law as the monitoring toggle
+    /// itself: tuning the monitor is a performance act, not a setting.
+    func setVoiceTune(_ on: Bool) {
+        guard on != voiceTuneEnabled else { return }
+        voiceTuneEnabled = on
+        voiceTuneCorrector.reset()
+        voiceTunePitch.pitch = 0
+        #if os(iOS)
+        guard isInputMonitoring else { return }
+        let inFmt = masterEngine.inputNode.outputFormat(forBus: 0)
+        if on {
+            if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
+            masterEngine.disconnectNodeOutput(notchEQ)
+            masterEngine.connect(notchEQ, to: voiceTunePitch, format: inFmt)
+            masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)
+        } else {
+            masterEngine.disconnectNodeOutput(notchEQ)
+            masterEngine.disconnectNodeOutput(voiceTunePitch)
+            masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
+        }
+        #endif
+    }
+
     #if os(iOS)
+    /// VL3 (#599): the ~15 Hz correction step, on the guard tick — YIN over the shared
+    /// monitor window → pure `VoicePitchCorrector` → smoothed cents onto the graph
+    /// node. MainActor throughout; the audio thread never sees any of this. YIN over
+    /// 2048 samples is ~1–2 ms — the same budget class as the notch FFT beside it.
+    private func updateVoiceTune() {
+        guard voiceTuneEnabled else { return }
+        // ~1 Hz: re-read key + Kammerton from the ONE stored definition the studio
+        // writes (#416) — never a second copy of the key that can drift.
+        if voiceTuneKeyRefreshTick % 15 == 0 {
+            let d = UserDefaults.standard
+            let root = d.object(forKey: StudioDefaultKeys.rootIndex.key) as? Int
+                ?? StudioDefaultKeys.rootIndex.value
+            let scale = d.string(forKey: StudioDefaultKeys.scale.key)
+                .flatMap(Scale.init(rawValue:)) ?? StudioDefaultKeys.scale.value
+            voiceTuneCorrector.key = MusicalKey(root: root, scale: scale)
+            let a4 = d.object(forKey: SessionContext.a4StorageKey) as? Double
+                ?? SessionContext.defaultA4Hz
+            voiceTuneCorrector.a4Hz = a4 > 0 ? a4 : SessionContext.defaultA4Hz
+        }
+        voiceTuneKeyRefreshTick &+= 1
+        voiceTuneCorrector.strength = Double(voiceTuneStrength)
+        voiceTuneCorrector.retuneSpeed = Double(voiceTuneRetune)
+        var detected: Double?
+        if monitorTapSampleRate > 0, monitorTapWindow.copyLatest(into: &voiceTuneBuffer) {
+            detected = PitchTracker.detect(voiceTuneBuffer, sampleRate: monitorTapSampleRate)
+        }
+        // dt = the guard cadence (60 Hz poll gated %4); unvoiced frames relax the
+        // correction toward zero inside the corrector — no stale bend on the next onset.
+        let correction = voiceTuneCorrector.process(detectedHz: detected, dt: 4.0 / 60.0)
+        voiceTunePitch.pitch = Float(correction.appliedCents)
+    }
+
     /// MainActor FeedbackGuard step (called from the meter poll while monitoring):
     /// duck the MIC monitor — not the music — when the output shows the rising-over-
     /// ceiling runaway that signals acoustic feedback. No audio-thread work, no tap.

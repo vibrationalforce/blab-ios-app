@@ -72,6 +72,24 @@ unter `.playback`) und eine Einladung zeigen, oder (b) beim Einstecken selbst up
    Parent, #367). Geräteprobe erweitert: Clear → Regler-Tweak → Save — die Farbe darf
    NICHT zurückkehren.
 5. **#598 TÖNEN-WISSEN (Learn)** — s. Rote-Linie-Absatz unten.
+6. **#599 IN-KEY-PITCH-CORRECTION (VL3) — GEBAUT 2026-08-14** (Founder-Ask: „optional
+   per pitch correction mit Charakter an die Tonart"). Gemessen zuerst:
+   `VoicePitchCorrector` (VL1) + `VoiceHarmony` (VL2) lagen als pure, getestete Kerne
+   in `Sequencer/` mit NULL Produktions-Aufrufern — der eigene Dateikopf nannte VL3 als
+   Plan. Jetzt verdrahtet, alles wiederverwendet: Mic-Tap → `MonitorTapWindow` (mit dem
+   #595-Notch GETEILT — `copyLatest` kopiert, zwei Leser legal) → `PitchTracker` (YIN,
+   ~15-Hz-Guard-Tick, MainActor) → `VoicePitchCorrector` → `AVAudioUnitTimePitch`
+   zwischen `notchEQ` und `monitorMixer` (Graph-Node, kein Render-Code — das
+   #595-Muster). OPTIONAL: Default-AUS-Toggle „Tune to key" im Input-Sheet; CHARAKTER:
+   „Tune"-Feld (1 = klassischer Hard-Snap, 0 = sanfter Drift) + „Amount". Tonart +
+   Kammerton kommen ~1 Hz aus DENSELBEN Defaults, die das Studio schreibt
+   (`StudioDefaultKeys.rootIndex/scale` + `SessionContext.a4StorageKey` — #416; ein
+   Tonart-Wechsel erreicht die Stimme binnen einer Sekunde, Kammerton-treu 432/440).
+   Wächter: `TheVoiceTuneSnapsToTheSessionKeyTests` (E2E auf den Kernen + Joins).
+   Geräteprobe offen (NEEDS-FOUNDER-VERIFY): Monitoring an, Tune to key an, schief
+   singen — der Monitor zieht in die Tonart; Latenz/CPU der TimePitch-Stufe anhören.
+   **VL2→Harmonizer (diatonische Intervalle folgen der gesungenen Note) = #599b,
+   nächste Scheibe** — Test 4 des Wächters pinnt die Mathe bis dahin.
 
 ## ⚠️ Tönen & „Hormone" — die Form, in der es shipppt (Body-Science-Präzedenz)
 

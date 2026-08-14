@@ -133,6 +133,41 @@ struct AudioInputPickerView: View {
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 }
                 .accessibilityElement(children: .combine)
+                // VL3 (#599) — the OPTIONAL in-key correction. The toggle is the
+                // optionality (default OFF); "Tune" is the character: 1 = the classic
+                // hard snap, 0 = gentle drift. Both numeric → EchoelValueField (law);
+                // the on/off is a named binary → Toggle, like monitoring above.
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Tune to key").font(EchoelTheme.font(13, .semibold))
+                            .foregroundStyle(EchoelTheme.text)
+                        Text("Snaps your monitored voice into the session's key — the instrument knows the Tonart, nothing is guessed from the signal.")
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: Binding(
+                        get: { audioEngine.voiceTuneEnabled },
+                        set: { audioEngine.setVoiceTune($0) }
+                    ))
+                    .labelsHidden()
+                    .accessibilityLabel("Tune to key")
+                }
+                if audioEngine.voiceTuneEnabled {
+                    EchoelValueField(
+                        label: "Amount",
+                        value: Binding(get: { audioEngine.voiceTuneStrength },
+                                       set: { audioEngine.voiceTuneStrength = $0 }),
+                        range: 0...1, decimals: 2)
+                    EchoelValueField(
+                        label: "Tune",
+                        value: Binding(get: { audioEngine.voiceTuneRetune },
+                                       set: { audioEngine.voiceTuneRetune = $0 }),
+                        range: 0...1, decimals: 2)
+                    Text("Tune 1.00 is the classic hard-snap vocal effect; low values drift gently. The pitch stage adds a little latency to the monitor only — the music is untouched.")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 if inputs.outputIsHighLatency {
                     Text("Output is on \(inputs.outputRouteName.isEmpty ? "Bluetooth" : inputs.outputRouteName) (~150–250 ms). The iPhone mic stays low-latency, but you'll hear your own voice slightly delayed through Bluetooth — fine for the beat, less tight for vocals. Plug in wired/USB headphones for delay-free self-monitoring.")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
