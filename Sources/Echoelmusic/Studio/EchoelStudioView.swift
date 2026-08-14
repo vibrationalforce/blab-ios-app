@@ -252,6 +252,13 @@ struct EchoelStudioView: View {
     /// only passes the reference (no observable property is read at panel level).
     @State private var voiceCapture = VoiceCaptureController()
 
+    // #596 — the app-wide plug-in watcher (USB mic / interface / wired headset →
+    // invitation, never auto-arm). View-owned like `voiceCapture`; only the
+    // `PlugInInviteRow` leaf reads it (freeze law), this body passes the reference.
+    #if os(iOS) && canImport(AVFoundation)
+    @State private var plugInWatcher = RoutePlugInWatcher()
+    #endif
+
     // Collapsible control-panel state ("aufklappen"). Feinschliff 3/4 (founder: "eine
     // adaptive Ansicht ohne weitere Untermenüs … nur das Wesentliche sichtbar"): the view
     // now opens CALM — only Composition (genre/key/tempo) expanded; every other panel is
@@ -1114,6 +1121,14 @@ struct EchoelStudioView: View {
         .modifier(StudioZoom(step: $zoomStep))
         .background(EchoelTheme.bg)
         .onAppear {
+            // #596 — arm the app-wide plug-in watcher from the ROOT, which always
+            // renders (the invite row itself is conditionally empty, and `.onAppear`
+            // on empty content does not reliably fire). `start()` is idempotent, and
+            // it reads NO musical state — the genre clamp below is still "FIRST,
+            // before anything reads `style`", exactly as its comment claims.
+            #if os(iOS) && canImport(AVFoundation)
+            plugInWatcher.start()
+            #endif
             // FIRST, before anything reads `style`. The genre roster was re-curated
             // (#125): `MusicStyle.offered` is a hand-picked subset, not every case. A
             // style persisted before that is still a valid enum case — nothing crashes —
@@ -1837,6 +1852,17 @@ struct EchoelStudioView: View {
             // no sound, and it is a banner rather than an alert because the body's presentation
             // chain is at 14 and a 15th is the black-screen SIGSEGV.
             AudioDegradedRow()
+            // #596 — the plug-in invitation, same shape as the degraded banner above:
+            // renders nothing until a wired/USB device is freshly plugged in, its own
+            // leaf `View` (freeze law), no presentation modifier (the tap reuses the
+            // existing `showInput` sheet slot — the 10.76.34 black-screen law untouched).
+            // ⚠️ The watcher is started from the ROOT `.onAppear`, NOT from a modifier
+            // here: this row renders NOTHING while there is no invitation, and
+            // `.onAppear` on conditionally-empty content does not reliably fire — a
+            // watcher started there would never observe the first plug.
+            #if os(iOS) && canImport(AVFoundation)
+            PlugInInviteRow(watcher: plugInWatcher) { showInput = true }
+            #endif
             // LINE 2 — the actions (#482). See `quickActionRow`.
             quickActionRow
             // LINE 3 — the doors (#492). See `quickDoorRow`. A THIRD line is back, four

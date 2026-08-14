@@ -81,12 +81,12 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
     func testTheWindowFillsOnceThenKeepsTheLatest() {
         let w = MonitorTapWindow(size: 64)
         var out = [Float](repeating: 0, count: 64)
-        var chunk = (0..<48).map { Float($0) }
+        let chunk = (0..<48).map { Float($0) }
         chunk.withUnsafeBufferPointer { w.push($0.baseAddress!, count: 48) }
         XCTAssertFalse(w.copyLatest(into: &out),
                        "a part-filled window must refuse — a half window of zeros would "
                        + "hand the FFT a fabricated spectrum")
-        var rest = (48..<70).map { Float($0) }
+        let rest = (48..<70).map { Float($0) }
         rest.withUnsafeBufferPointer { w.push($0.baseAddress!, count: 22) }
         XCTAssertTrue(w.copyLatest(into: &out), "70 pushed samples must fill a 64 window")
         XCTAssertEqual(out.first, 6, "the oldest 6 samples must have been overwritten")
@@ -99,7 +99,7 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
         let w = MonitorTapWindow(size: 64)
         var wrong = [Float](repeating: 0, count: 32)
         var right = [Float](repeating: 0, count: 64)
-        var fill = [Float](repeating: 1, count: 64)
+        let fill = [Float](repeating: 1, count: 64)
         fill.withUnsafeBufferPointer { w.push($0.baseAddress!, count: 64) }
         XCTAssertFalse(w.copyLatest(into: &wrong),
                        "a wrong-size buffer must refuse, not truncate")
