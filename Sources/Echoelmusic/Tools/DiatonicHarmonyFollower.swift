@@ -37,8 +37,33 @@ public final class DiatonicHarmonyFollower {
     public var enabled = false {
         didSet {
             guard enabled != oldValue else { return }
-            if enabled { startTicking() } else { stopTicking() }
+            if enabled {
+                // #599b review M1: capture the user's interval truth at the moment
+                // following begins — at this instant chain == view-model == user.
+                baseline = chains.first.map { ($0.harmonizer.interval1, $0.harmonizer.interval2) }
+                startTicking()
+            } else {
+                stopTicking()
+                baseline = nil
+            }
         }
+    }
+
+    /// The user's interval truth while following (#599b review M1). It exists because
+    /// the chains are this type's SCRATCHPAD while ON, yet a REOPENED FX sheet seeds a
+    /// fresh view-model from the chains — without this, toggling off after a reopen
+    /// re-fanned diatonic scratch values as if the user had chosen them. The view's
+    /// `.onAppear` repairs its seed from here; `rebaseline` refreshes it when a
+    /// preset/character apply changes the truth mid-follow. The RESTORE path stays the
+    /// view's re-fan of its view-model — this baseline only repairs the SEED.
+    public private(set) var baseline: (interval1: Float, interval2: Float)?
+
+    /// Refresh the baseline after a preset/character apply while following — the
+    /// view-model just took the preset's values (one synchronous MainActor stretch,
+    /// no tick can interleave), so THEY are the truth a later seed-repair must show.
+    public func rebaseline(interval1: Float, interval2: Float) {
+        guard enabled else { return }
+        baseline = (interval1, interval2)
     }
 
     @ObservationIgnored private var chains: [EchoelFXChain] = []
@@ -79,9 +104,14 @@ public final class DiatonicHarmonyFollower {
 
     private func startTicking() {
         tickTask?.cancel()
-        tickTask = Task { [weak self] in
+        // Explicit @MainActor + self-terminating loop (#599b review 3/4, the
+        // FXBioModulator shape): `self?.tick()` alone would leave a deallocated
+        // follower's loop spinning as a 10 Hz no-op forever — the weak self ends
+        // the WORK, not the LOOP; the guard ends both.
+        tickTask = Task { @MainActor [weak self] in
             while !Task.isCancelled {
-                self?.tick()
+                guard let self else { break }
+                self.tick()
                 try? await Task.sleep(nanoseconds: 100_000_000)   // ~10 Hz
             }
         }
@@ -93,6 +123,10 @@ public final class DiatonicHarmonyFollower {
     }
 
     private func tick() {
+        // `latestMusical`, not a freshness-gated read — DELIBERATE hold semantics
+        // (review 6): after Stop the follower keeps the last note's intervals
+        // rather than snapping anywhere; the next publish retunes it. A key change
+        // while stopped lands with the first new frame.
         guard enabled, let frame = bus?.latestMusical,
               let a4 = a4Provider?(),
               let lead = frame.notes.max(by: { $0.amplitude < $1.amplitude }),
@@ -100,9 +134,13 @@ public final class DiatonicHarmonyFollower {
                                               rootPitchClass: frame.rootPitchClass,
                                               scaleName: frame.scaleName)
         else { return }
+        // Equality-gated (#599b review 5): the didSet recomputes the ratio and
+        // stores across to the render thread — on a held note that is a redundant
+        // powf + cross-thread store every 100 ms for nothing.
+        let t1 = Float(iv.third), t2 = Float(iv.fifth)
         for c in chains {
-            c.harmonizer.interval1 = Float(iv.third)
-            c.harmonizer.interval2 = Float(iv.fifth)
+            if c.harmonizer.interval1 != t1 { c.harmonizer.interval1 = t1 }
+            if c.harmonizer.interval2 != t2 { c.harmonizer.interval2 = t2 }
         }
     }
 }

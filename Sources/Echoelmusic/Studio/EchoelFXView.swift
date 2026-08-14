@@ -389,7 +389,16 @@ final class FXViewModel {
     /// `apply(_:)` would still stamp it onto every chain as a new base. Fanning the modulator
     /// out did not close that; it is a property of modulating a live parameter at all.
     func snapshot(name: String, tags: [String] = []) -> FXPreset {
-        FXPreset.capture(from: chain, fxEnabled: fxEnabled, name: name, tags: tags)
+        var p = FXPreset.capture(from: chain, fxEnabled: fxEnabled, name: name, tags: tags)
+        // #599b review M2: the harmonizer intervals are captured from THIS view-model,
+        // not the chain — while "Follow the key" runs, the chain's intervals are the
+        // follower's transient scratchpad (the diatonic values of whatever note happened
+        // to sound at save time), and baking those into a preset would freeze one
+        // accidental moment as the user's choice. Unconditional: when not following,
+        // the VM and the chain are equal, so this changes nothing.
+        p.harmonizerInterval1 = harmInterval1
+        p.harmonizerInterval2 = harmInterval2
+        return p
     }
 
     /// Apply a saved/community preset to every live chain, flip the master gate to
@@ -460,6 +469,17 @@ struct EchoelFXView: View {
                                               setMasterEnabled: setFXEnabled))
     }
 
+    // #599b review M1 — the two repair halves of "the chain is the follower's
+    // scratchpad": while following, a preset/character apply makes the VM the new
+    // truth, so the follower's baseline must move with it; and a REOPENED sheet
+    // seeds its fresh VM from the chain (diatonic scratch values), so `.onAppear`
+    // repairs the two interval mirrors from the baseline. Without the repair,
+    // toggling off after a reopen re-fanned scratch values as the user's choice.
+    private func rebaselineFollowerFromVM() {
+        guard harmonyFollower.enabled else { return }
+        harmonyFollower.rebaseline(interval1: vm.harmInterval1, interval2: vm.harmInterval2)
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -473,7 +493,10 @@ struct EchoelFXView: View {
                         .tint(EchoelTheme.accent)
                     Menu {
                         ForEach(FXCharacter.allCases.filter { $0 != .auto }) { ch in
-                            Button { vm.applyCharacter(ch) } label: {
+                            Button {
+                                vm.applyCharacter(ch)
+                                rebaselineFollowerFromVM()
+                            } label: {
                                 Text(ch.displayName)
                             }
                         }
@@ -652,6 +675,18 @@ struct EchoelFXView: View {
             .searchable(text: $presetQuery, prompt: "Search presets & tags")
             .scrollContentBackground(.hidden)              // drop the stock grey grouped background…
             .background(EchoelTheme.bg.ignoresSafeArea())  // …and show the Echoel black, like the rest of the app
+            .onAppear {
+                // #599b review M1, the seed repair: this sheet's fresh VM was seeded
+                // from the CHAIN, which while following holds the follower's diatonic
+                // scratch values — repair the two interval mirrors from the baseline
+                // (the user's truth) so the rows and the OFF-restore never show or
+                // re-fan a value nobody chose. The assignments fan through the
+                // didSets; the follower overwrites the chains again on its next tick.
+                if harmonyFollower.enabled, let b = harmonyFollower.baseline {
+                    vm.harmInterval1 = b.interval1
+                    vm.harmInterval2 = b.interval2
+                }
+            }
             // The one place the live tempo is read. It renders nothing; it exists so the read
             // sits in a LEAF and this body — which hosts the Sync menus — stays still.
             .background(FXTempoFollower(pattern: pattern,
@@ -759,6 +794,7 @@ struct EchoelFXView: View {
                 ForEach(presetStore.sortedPresets.filter { $0.matches(presetQuery) }) { preset in
                     Button {
                         vm.apply(preset)
+                        rebaselineFollowerFromVM()
                         presetStore.markUsed(id: preset.id)
                     } label: {
                         HStack {
@@ -813,7 +849,10 @@ struct EchoelFXView: View {
 
         Section {
             ForEach(FXPreset.curatedCommunity.filter { $0.matches(presetQuery) }) { preset in
-                Button { vm.apply(preset) } label: {
+                Button {
+                    vm.apply(preset)
+                    rebaselineFollowerFromVM()
+                } label: {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(preset.name).foregroundStyle(EchoelTheme.text)
                         if !preset.tags.isEmpty {
