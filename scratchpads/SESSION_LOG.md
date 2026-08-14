@@ -10158,3 +10158,33 @@ braucht Council + Gerät, keine Ralph-Scheibe.
 - **Nächste Scheiben:** #596 Plug-in-Einladung (app-weiter Route-Observer, KEIN Auto-Arm) →
   #597a Harmonizer×eigener Ton → #593 Persistenz (Council) → #598 Tönen-Wissen (wartet auf
   Founder-Research via inspiration_intake).
+
+## 2026-08-14 (cron, Takt 2) — #596: die Plug-in-Einladung (erkannt, eingeladen, nie auto-scharf)
+
+- **Gates #595 bestätigt:** `Build for Testing = success` auf `7520c03` (der Notch-Wächter
+  kompiliert), `TEST EXECUTE FAILED` = #396, null `error:`-Zeilen. Kein Rot.
+- **Gebaut (`910c1b3` + Review-Nachzug):** `PlugInInvitation` (reiner Kern, NUTZT
+  `AudioInputClassifier` — #416, keine zweite Port-Liste; wired/USB laden ein, Bluetooth/
+  built-in nie) · `RoutePlugInWatcher` (app-weiter `routeChangeNotification`-Beobachter,
+  ein Actor-Hop pro Plug-EVENT, liest weder `availableInputs` noch Kategorie — #299) ·
+  `PlugInInviteRow` (Leaf in der Transport-Spalte, #585-Form, rendert nichts ohne Einladung;
+  Tap = vorhandener `showInput`-Slot, KEIN neues Modal). Watcher-Start im Root-`.onAppear`
+  (EmptyView-onAppear-Gotcha dokumentiert umgangen).
+- **ui-state-reviewer: PASS auf allen 7 Dimensionen**, 6 Befunde, alle nachgezogen:
+  **F1 (MEDIUM, prä-existent): `"MicrophoneWired"` — der ECHTE rawValue von
+  `AVAudioSession.Port.headsetMic` — fehlte im Classifier**; die gematchten Namen
+  ("HeadsetMicrophone" etc.) waren geratene Phantome, ein echtes Headset-Mikro fiel auf
+  `.other`. Ergänzt (Phantome bleiben als Abwehr), Test treibt jetzt den echten String,
+  Honest-Limit-Absatz um die Headset-Lücke unter `.playback` erweitert (Ausgang
+  "Headphones", Mic-Hälfte nicht in `currentRoute`). F2: „14"→13 (§3, im selben Absatz wie
+  die 24→23-Korrektur). F3: vierter Clearing-Pfad dokumentiert. F4: Einladungs-Tap auf
+  44 pt (inset −5). F5: `deinit`-Token-Cleanup (nonisolated). F6 (accent-Semantik): bewusst
+  belassen.
+- **Wächter:** `ThePlugInInvitesButNeverArmsTests` — 7 Tests/23 Assertions, Kern 13/13 per
+  Python, Stripper **TRAGEND (1/10)**: der `availableInputs == 0`-Scan ist nur gestrippt
+  behauptbar (das Wort steht absichtlich in der Watcher-Prosa).
+- **NEEDS-FOUNDER-VERIFY neu:** USB-C-Interface bei offener App einstecken — Zeile erscheint
+  unter dem Transport, Tap öffnet den Input-Chooser, NICHTS beginnt von selbst zu hören.
+- **Nächste Scheiben:** #597a Harmonizer×eigener Ton → #593 Persistenz (Council) → #598
+  Tönen-Wissen (wartet auf Founder-Research). TestFlight-Bump (v10.79.391) sobald die
+  Voice-Kette gates-bestätigt beisammen ist.

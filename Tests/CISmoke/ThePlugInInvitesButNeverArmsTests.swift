@@ -24,7 +24,8 @@
 // ⭐ GRADING (§3). This file names `PlugInInvitation` and `RoutePlugInWatcher`, both
 // created by this same commit — against the parent tree it DOES NOT COMPILE, so no
 // assertion has a verdict there; the brain was hand-transcribed in Python against
-// the worktree instead (all 14 driven assertions reproduce). Join assertions are
+// the worktree instead (all 13 driven assertions reproduce — the review caught this
+// number as "14", one paragraph after the count correction above; §3 again). Join assertions are
 // FORWARD guards; test 4 and the classifier joins in test 1 are COUNTERWEIGHTS in
 // spirit (they pin the REUSE of `AudioInputClassifier`, #416 — the one pre-existing
 // symbol here, unchanged by this commit). Stripper: all 10 source needles measured
@@ -56,9 +57,12 @@ final class ThePlugInInvitesButNeverArmsTests: XCTestCase {
                                       ports: [Port(type: "USBAudio", name: "Scarlett 2i2",
                                                    isInput: true)]),
             "Scarlett 2i2")
+        // "MicrophoneWired" is the ACTUAL `AVAudioSession.Port.headsetMic` rawValue —
+        // the review found the classifier matching only guessed names ("HeadsetMicrophone"),
+        // so this assertion drives the REAL string iOS sends, not the phantom.
         XCTAssertEqual(
             PlugInInvitation.portName(reasonIsNewDevice: true,
-                                      ports: [Port(type: "HeadsetMicrophone",
+                                      ports: [Port(type: "MicrophoneWired",
                                                    name: "EarPods", isInput: true)]),
             "EarPods", "a wired headset mic is a deliberate plug")
         XCTAssertNil(

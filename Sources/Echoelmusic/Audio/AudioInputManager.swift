@@ -57,8 +57,14 @@ public enum AudioInputClassifier {
         switch raw {
         // Built-in
         case "MicrophoneBuiltIn":                       return (.builtIn, .low)
-        // Wired
-        case "HeadsetMicrophone", "LineIn", "HeadphonesMicrophone":
+        // Wired. ⛔ "MicrophoneWired" was MISSING until #596's review: it is the
+        // ACTUAL rawValue of `AVAudioSession.Port.headsetMic` — "HeadsetMicrophone"
+        // and "HeadphonesMicrophone" are guessed names that iOS never sends
+        // (`git grep MicrophoneWired` found zero uses before this line). A real
+        // wired headset mic therefore fell through to the substring fallback and
+        // classified `.other` — wrong kind, wrong latency note, and (since #596)
+        // no plug-in invitation. The guessed names stay as harmless defense.
+        case "MicrophoneWired", "HeadsetMicrophone", "LineIn", "HeadphonesMicrophone":
                                                         return (.wired, .low)
         // USB / Lightning / external interface
         case "USBAudio", "Thunderbolt", "PCI", "FireWire", "DisplayPort", "HDMI":

@@ -34,7 +34,11 @@ import Observation
 final class RoutePlugInWatcher {
 
     /// The display name of a freshly plugged wired/USB port, or nil (nothing to
-    /// invite). Written change-gated; cleared on unplug, dismiss, and door-open.
+    /// invite). Written change-gated; cleared on unplug, dismiss, door-open — AND
+    /// (review #596) by a later `.newDeviceAvailable` that carries nothing
+    /// qualifying: if AirPods pair while a USB invitation shows, the route no
+    /// longer carries the invited port and the line clears rather than naming a
+    /// device that is no longer the story. Deliberate, not incidental.
     private(set) var invitePortName: String?
 
     @ObservationIgnored private var token: (any NSObjectProtocol)?
@@ -58,6 +62,14 @@ final class RoutePlugInWatcher {
     func stop() {
         if let token { NotificationCenter.default.removeObserver(token) }
         token = nil
+    }
+
+    deinit {
+        // Nonisolated cleanup (the CLAUDE.md build-error-table shape): today the
+        // studio's `@State` keeps this instance alive for the app's life, but if
+        // `EchoelStudioView` ever gains a new identity the block would outlive the
+        // watcher and fire into `weak nil` forever. `removeObserver` is thread-safe.
+        if let token { NotificationCenter.default.removeObserver(token) }
     }
 
     /// The user waved the line away, or walked through the door — either way the
@@ -126,7 +138,10 @@ struct PlugInInviteRow: View {
                         .fixedSize(horizontal: false, vertical: true)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .frame(minHeight: 34)
-                        .contentShape(Rectangle())
+                        // 34 pt visual, 44 pt target (review #596 — the ✕ beside it
+                        // and #585's Retry both do this; the primary affordance must
+                        // not be the one under the HIG floor).
+                        .contentShape(Rectangle().inset(by: -5))
                 }
                 .buttonStyle(.plain)
                 .accessibilityHint("Opens the audio input chooser — nothing is recording yet")

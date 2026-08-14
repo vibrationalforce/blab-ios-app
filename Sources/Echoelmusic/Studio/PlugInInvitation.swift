@@ -22,8 +22,16 @@
 // ⚠️ HONEST LIMIT, stated where the next session will look: under `.playback` a pure
 // USB *microphone* (input-only, no output half) may produce NO route change at all —
 // iOS surfaces some input-only devices only once the category is `.playAndRecord`.
-// An audio INTERFACE (in+out) always surfaces via its output half. That gap is an
-// iOS property, not a bug here; closing it would need the category upgrade this
+// A USB audio INTERFACE (in+out) surfaces via its output half, which carries the
+// SAME "USBAudio" port type — that path, the founder's actual ask, stands. ⛔ The
+// WIRED-HEADSET class is weaker than the first version of this paragraph implied
+// (review #596): under `.playback` a plugged headset surfaces as OUTPUT "Headphones"
+// (not wired-classified — deliberately, plain headphones are not an instrument) and
+// its MIC half is not in `currentRoute` at all, so the headset invitation may only
+// fire once a mic feature has raised the category. The "MicrophoneWired" handling
+// is still correct and still required — it is what classifies the port right in the
+// input LIST and in any route change that does carry the mic half. Both gaps are
+// iOS properties, not bugs here; closing them would need the category upgrade this
 // design explicitly refuses.
 
 import Foundation
@@ -32,7 +40,7 @@ public enum PlugInInvitation {
 
     /// One port of the changed route, reduced to what the decision needs.
     public struct PortDescription: Equatable, Sendable {
-        /// `AVAudioSession.Port.rawValue` (e.g. "USBAudio", "HeadsetMicrophone").
+        /// `AVAudioSession.Port.rawValue` (e.g. "USBAudio", "MicrophoneWired").
         public let type: String
         /// The user-visible port name iOS reports (e.g. "Scarlett 2i2"). May be empty.
         public let name: String
