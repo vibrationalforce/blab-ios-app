@@ -10578,7 +10578,12 @@ private struct VoiceCaptureRow: View {
                 : "Hold a steady tone near the microphone. Analyzed live — no audio is recorded."
         default:
             if synth.appliedVoiceProfile != nil {
-                return "The instrument plays with your voice's colour. Clear returns the patch's own sound."
+                // #597a — measured before written: the FX door drives `synth.fxChain`,
+                // the SAME voice this profile shapes, and the harmonizer is a stage of
+                // that chain (in → … → harmonizer → …). "Your tone, harmonized" needs
+                // no wiring — only this sentence, so a player can FIND it. The join is
+                // pinned by TheVoiceTimbreReachesTheHarmonizerTests.
+                return "The instrument plays with your voice's colour — FX → Harmonizer stacks it into harmonies. Clear returns the patch's own sound."
             }
             return "Hold a tone for a few seconds; its colour becomes the instrument's. Analyzed live — no audio is recorded."
         }
