@@ -64,7 +64,7 @@ final class ExternalStageBridge {
     /// These are deliberately OBSERVED, not `@ObservationIgnored`. A projector plugged
     /// in BEFORE the app is launched is the normal stage order, and in that order the
     /// scene connects while the startup task is still running — so the external view
-    /// evaluates its body with all three still nil. If they were ignored, that view
+    /// evaluates its body with all of them still nil. If they were ignored, that view
     /// would sit on the ECHOEL wordmark for the whole show with no way back. Observed,
     /// `wire(...)` re-renders it into the live visual. Nothing on the PHONE path reads
     /// these, so the observation costs no rebuild anywhere else, and they are written
@@ -72,16 +72,23 @@ final class ExternalStageBridge {
     private(set) var bus: EngineBus?
     private(set) var governor: ResourceGovernor?
     private(set) var recorder: VisualRecorder?
+    /// #594 slice 2 (beamer tint parity): the voice the phone tints its palette
+    /// from. Same observed-not-ignored rationale as its three siblings; unlike
+    /// them it is handed to the scene OUTSIDE the `if let` render gate (via the
+    /// optional `.environment` overload) — a missing synth dims the tint, it must
+    /// never black out the stage.
+    private(set) var synth: PolySynthVoice?
 
     private init() {}
 
     /// Called once from the app's startup task, before any screen can connect.
     /// Idempotent — a second call (a second scene re-running startup would be a bug the
     /// `startupDone` latch already prevents) simply rewrites the same references.
-    func wire(bus: EngineBus, governor: ResourceGovernor, recorder: VisualRecorder) {
+    func wire(bus: EngineBus, governor: ResourceGovernor, recorder: VisualRecorder, synth: PolySynthVoice) {
         self.bus = bus
         self.governor = governor
         self.recorder = recorder
+        self.synth = synth
     }
 
     // NO `canRenderVisual` convenience here, deliberately. It existed, had zero callers,

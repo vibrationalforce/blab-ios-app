@@ -339,11 +339,11 @@ struct MetalBioView: UIViewRepresentable {
     /// #594 Voice→Color: reference forwarded like bus/governor; the profile itself
     /// is read in draw's MainActor block, never here (`appliedVoiceProfile` is
     /// @ObservationIgnored, so no SwiftUI subscription either way). OPTIONAL on
-    /// purpose, unlike bus/governor: `ExternalDisplayScene` mounts this view with
-    /// only bus/governor/recorder injected — a non-optional read would crash the
-    /// beamer scene at view creation. nil there = the beamer draws untinted (a
-    /// registered gap, not a defect; wiring the synth through the bridge is its
-    /// own slice).
+    /// purpose, unlike bus/governor — and it STAYS optional after slice 2 wired the
+    /// beamer: `ExternalDisplayScene` hands `bridge.synth` through the optional
+    /// `.environment` overload, and that is nil until `wire()` runs (projector
+    /// plugged in before launch is the normal stage order). A non-optional read
+    /// traps the beamer scene in exactly that window; nil renders untinted.
     @Environment(PolySynthVoice.self) private var synth: PolySynthVoice?
     /// Only the instance that owns the record affordance (the fullscreen VJ cover)
     /// feeds the recorder — keeps a second mounted MetalBioView from double-capturing.

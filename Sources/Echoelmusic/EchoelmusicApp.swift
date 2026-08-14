@@ -593,11 +593,12 @@ struct EchoelmusicApp: App {
                 // launched, so the external scene can connect while this task is still
                 // running. Publishing the three engine objects here is the whole reason
                 // `ExternalStageBridge` exists — the scene is built by UIKit and inherits
-                // none of this view's `@Environment`. Three reference assignments; it
+                // none of this view's `@Environment`. Four reference assignments; it
                 // cannot fail, block, or touch audio.
                 ExternalStageBridge.shared.wire(bus: bus,
                                                 governor: resourceGovernor,
-                                                recorder: visualRecorder)
+                                                recorder: visualRecorder,
+                                                synth: polyVoice)
                 #endif
                 // ── ESSENTIALS FIRST ─────────────────────────────────────────
                 // The core instrument (audio + melodic synth + demo bio) must

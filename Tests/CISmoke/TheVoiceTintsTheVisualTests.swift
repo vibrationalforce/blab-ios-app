@@ -13,18 +13,21 @@
 // byte-identical until a voice is live (brand law: the tone's physical colour stays
 // the picture's identity; the voice is a tint, never a takeover).
 //
-// ⚠️ HONEST LIMITS. 5 tests, 23 `XCTAssert*` statements (hand-counted per test,
-// 5+4+4+3+7; `XCTUnwrap` census: two in test 1, one in test 2, one in test 4, and
-// one `XCTFail` guard-else in test 2 — all outside the count). Tests 1–4 are END-TO-END BEHAVIOUR on the shipped pure
+// ⚠️ HONEST LIMITS. 5 tests, 27 `XCTAssert*` statements (hand-counted per test,
+// 5+4+4+3+11 — test 5 grew by four with slice 2; `XCTUnwrap` census: two in
+// test 1, one in test 2, one in test 4, and one `XCTFail` guard-else in test 2 —
+// all outside the count). Tests 1–4 are END-TO-END BEHAVIOUR on the shipped pure
 // static; test 5 is SOURCE-TEXT JOINS (the renderer is a Metal delegate no test
 // host can drive). What no test here can prove: that the tint LOOKS right — the
 // ±magnitudes are taste, founder-tunable — and that the draw-path read costs
-// nothing at 60 fps. Registered gap, deliberate: the EXTERNAL DISPLAY draws
-// untinted (`ExternalDisplayScene` injects no synth; the optional environment
-// read is what keeps that scene from crashing — wiring the synth through the
-// bridge is its own slice). Device probe (NEEDS-FOUNDER-VERIFY: capture a dark
-// hum vs a bright "eee", open the visual — the palette should lean warm vs cool;
-// Clear → the default look returns exactly).
+// nothing at 60 fps. Slice 2 closed the slice-1 gap: the beamer now receives the
+// synth through the bridge (`.environment(bridge.synth)`, optional overload,
+// OUTSIDE the if-let render gate) and tints like the phone; the only untinted
+// window left is pre-`wire()` nil, which is exactly what the optional
+// environment read exists to survive. Device probe (NEEDS-FOUNDER-VERIFY:
+// capture a dark hum vs a bright "eee", open the visual — the palette should
+// lean warm vs cool; Clear → the default look returns exactly; with a projector
+// connected, phone and beamer must show the SAME lean).
 //
 // ⭐ GRADING (§3). Transcribed in Python (SourceText.codeOnly re-implemented;
 // every needle raw vs stripped; all four E2E tests hand-driven numerically —
@@ -109,10 +112,11 @@ final class TheVoiceTintsTheVisualTests: XCTestCase {
         XCTAssertEqual(codeOccurrences(
             of: "@Environment(PolySynthVoice.self) private var synth: PolySynthVoice?", in: view), 1,
             "the view forwards the synth REFERENCE like bus/governor — the profile "
-            + "itself is read in draw, off the SwiftUI graph. The OPTIONAL form is "
-            + "load-bearing: ExternalDisplayScene mounts this view WITHOUT the synth "
-            + "in its environment (only bus/governor/recorder), so the non-optional "
-            + "spelling crashes the beamer scene at view creation")
+            + "itself is read in draw, off the SwiftUI graph. The OPTIONAL form stays "
+            + "load-bearing after slice 2 wired the beamer: the bridge's synth is nil "
+            + "until wire() runs (projector-first is the normal stage order), and the "
+            + "optional .environment overload hands that nil straight through — the "
+            + "non-optional spelling traps the beamer scene in exactly that window")
         XCTAssertEqual(codeOccurrences(of: "c.synth = synth", in: view), 1)
         XCTAssertEqual(codeOccurrences(of: "if taps != lastVoiceTaps", in: view), 1,
                        "the descriptors are recomputed ONLY when the profile changes "
@@ -139,6 +143,29 @@ final class TheVoiceTintsTheVisualTests: XCTestCase {
             in: profiler), 1,
             "the ONE pure definition, in DSP/ (Foundation-only law holds — no "
             + "Core/Sequencer type enters this file with it)")
+        // Slice 2 (#594): beamer tint PARITY — the bridge carries the synth and the
+        // scene injects it, so the projector shows the same tinted palette as the
+        // phone. The injection sits deliberately OUTSIDE the scene's `if let` gate:
+        // a missing synth must dim the tint, never black out the stage.
+        let bridge = try source("Sources/Echoelmusic/Studio/ExternalStageBridge.swift")
+        XCTAssertEqual(codeOccurrences(
+            of: "private(set) var synth: PolySynthVoice?", in: bridge), 1,
+            "the bridge carries the synth like its three siblings — OBSERVED, not "
+            + "ignored, for the projector-plugged-in-before-launch order")
+        XCTAssertEqual(codeOccurrences(
+            of: "func wire(bus: EngineBus, governor: ResourceGovernor, recorder: VisualRecorder, synth: PolySynthVoice)",
+            in: bridge), 1,
+            "wire() takes the synth as a REQUIRED argument (#431 — a defaulted "
+            + "argument no call site writes appears in no diff)")
+        let scene = try source("Sources/Echoelmusic/Studio/ExternalDisplayScene.swift")
+        XCTAssertEqual(codeOccurrences(of: ".environment(bridge.synth)", in: scene), 1,
+                       "the scene hands the OPTIONAL through (the optional "
+                       + ".environment overload) — outside the if-let gate, so a "
+                       + "pre-wire nil renders untinted instead of dark")
+        let app = try source("Sources/Echoelmusic/EchoelmusicApp.swift")
+        XCTAssertEqual(codeOccurrences(of: "synth: polyVoice)", in: app), 1,
+                       "the startup task wires the same voice the phone tints from — "
+                       + "two surfaces, one profile source")
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)

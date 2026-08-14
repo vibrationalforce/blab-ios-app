@@ -171,6 +171,11 @@ private struct ExternalStageView: View {
                     .environment(bus)
                     .environment(governor)
                     .environment(recorder)
+                    // #594 slice 2: OPTIONAL on purpose, outside the if-let gate —
+                    // the optional .environment overload hands a pre-wire nil
+                    // through, and MetalBioView's optional read renders untinted
+                    // rather than trapping. The tint follows once wire() has run.
+                    .environment(bridge.synth)
                     .ignoresSafeArea()
             } else {
                 // Not wired yet (a screen attached before the startup task finished, or a
