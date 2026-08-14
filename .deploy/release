@@ -1,69 +1,59 @@
-build: v10.79.390 — Elf Reparaturen, ein Guide, eine ehrliche Identität
+build: v10.79.391 — Deine Stimme wird Instrument: Capture · Patch · Tonart
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.389 (2506). Dieser Build trägt #579–#589 —
-  überwiegend Stabilität aus dem Ultrastabil-Audit, jede Reparatur vor dem Bau am
-  Quelltext nachgeprüft, plus der Guide.
+  Der Vorgänger auf Deinem Gerät ist 10.79.390 (2507). Dieser Build trägt die
+  EchoelVoice-Bühne #591–#599: die komplette Stimm-Kette, jede Scheibe test-first,
+  Pflicht-Review, Gates grün. KEIN AUDIO wird je gespeichert — gemessen wird eine
+  Spektral-Hüllkurve (64 Zahlen), das Mikrofon-Versprechen der App bleibt wörtlich wahr.
 
-  ── WAS DU BEIM ERSTEN START SIEHST ───────────────────────────────────────
+  ── DIE STIMM-KETTE (Sound-Panel → „Voice timbre") ────────────────────────
 
-  · **Die App öffnet als Vollbild-Visual** (#580): die Flag-Defaults registrieren jetzt
-    VOR dem ersten View-Read, also greift die Instrument-Startseite wirklich — vorher
-    entschied ein unregistrierter Schalter still auf „aus".
-  · **Kein Log-Blatt mehr über dem Bild** (#582): das Diagnose-Blatt öffnete sich nach
-    JEDER normalen Sitzung, in der Start gedrückt wurde — jetzt nur noch, wenn die
-    vorige Sitzung im Vordergrund gestorben ist oder ein CRASH-Marker steht. Ein
-    sauberer Ausstieg ist kein Absturz.
-  · **„Start Here" in Learn** (#589): der Guide — ein Eintrag pro Sinn (hörbar ·
-    sichtbar · spürbar), die Erste-Drei-Minuten-Führung, die Puls-Reihenfolge
-    (erst Play, dann Finger), und „For every body". Jedes genannte Bedienelement
-    wörtlich aus der UI zitiert, per Wächter verklammert.
-
-  ── STABILITÄT (Ultrastabil-Audit, verifizierte Befunde) ──────────────────
-
-  · **Querformat-Ausgang** (#583): das Vollbild blutete unter das Sensorgehäuse —
-    im Querformat lagen X und Verkleinern unter dem Ausschnitt. Quer stoppt das Bild
-    jetzt an der Kante; Hochformat ist byte-identisch geblieben.
-  · **Audio-Ausfall hat einen Weg zurück** (#585): gibt die Selbstheilung auf
-    (z. B. wackelnder Klinkenstecker), erscheint unter dem Start-Knopf ein Banner mit
-    dem Grund und einem Retry — vorher lief alles weiter, nur ohne Ton, und niemand
-    sagte es. Der gescheiterte Interruption-Resume mündet jetzt ebenfalls in die
-    Heilung statt in einen Log-Eintrag.
-  · **Die Körperstimme zählt als hörbar** (#586): „Body voice" an + kurz zu WhatsApp
-    schneidet die Drohne nicht mehr ab — das Hintergrund-Tor kannte sie nicht.
-  · **NaN erreicht den Render nicht mehr** (#588): Delay-Feedback (Dauerstille-Klasse)
-    und Sampler-Startpunkt (Trap-Klasse) sind an der Grenze NaN-fest; für endliche
-    Werte bit-identisch, am Klang ändert sich nichts.
-  · **Pad-Regler vollständig** (#581+#584): die drei Akkord-Regler (Chord length /
-    Accent / Variation) unter dem Pad-Charakter im Mood-Panel; „Reset sound" löscht
-    sie mit, die Start-Diagnosezeile meldet sie (padShape=…), die Caption ist in der
-    App-Schrift.
-  · **Fenster-Zustand im Log** (#579), **Identitätszeile ehrlich** (#587: der
-    App-Einstieg behauptet keine gestrichenen Features mehr).
+  · **Capture** (#591/#592): „Capture" drücken, ein paar Sekunden einen Ton halten
+    (Vokal oder Summen) — die Klangfarbe Deiner Stimme wird die des Instruments.
+    Live analysiert, nie aufgenommen. Überlebt Patch-Wechsel, bis Du „Clear" drückst.
+  · **Harmonizer auf Deinem Ton** (#597a): FX → Harmonizer stapelt den Stimm-Klang
+    in Harmonien — war schon verdrahtet, jetzt sagt es Dir die Caption.
+  · **Speichern & Teilen** (#593a–c): „Save as…" bettet die gemessene Stimme in den
+    Patch ein — ETIKETTIERT (Dein Künstlername oder „My voice"). Recall bringt die
+    Farbe zurück. Beide Speicher-Türen (Save as / Save changes) sagen dieselbe
+    Wahrheit; ein recallter Fremd-Patch behält beim Umbenennen sein Original-Label
+    (keine Misattribution); Clear hält — auch nach Regler-Tweak und Undo-Pfeil.
+  · **Fiepen-Unterdrückung GANZ** (#595): zum Pegel-Duck kommt der Notch — die
+    Pfeif-Frequenz wird erkannt, herausgezogen (geslewt, ~2 s Hold) und nur im
+    Mic-Monitor, nie in der Musik.
+  · **Interface-Einladung** (#596): USB-Mikro/Interface/Headset einstecken → eine
+    unaufdringliche Zeile im Studio bietet das Input-Sheet an. Nie Auto-Arm.
+  · **Tune to key** (#599, NEU — Deine Frage von heute): Master-Panel → „Audio
+    input" → „Tune to key": Dein Monitor-Signal wird optional in die Session-Tonart
+    gezogen. Amount = Stärke, Tune = Charakter (1.00 = klassischer Hard-Snap,
+    niedrig = natürlicher Drift). Kammerton-treu (432/440), die Tonart kommt vom
+    Instrument — nichts wird geraten. Default AUS; nur der Monitor, nie die Musik.
 
   ── BITTE AM GERÄT PRÜFEN (in dieser Reihenfolge) ─────────────────────────
 
-  1. Kaltstart: kommt das Vollbild-Visual, OHNE Log-Blatt darüber?
-  2. Learn → steht „Start Here" oben, führt es in <1 min durch hören/sehen/spüren?
-  3. Vollbild + Gerät drehen (beide Richtungen): sind X und Verkleinern voll tippbar?
-  4. „Body voice" an → App in den Hintergrund: klingt die Drohne weiter?
-  5. Farbe aus 389: liest sich das Feld jetzt bunt (Sättigung 1,05)?
+  1. Sound-Panel → Voice timbre → Capture → Ton halten → spielen: klingt das
+     Instrument nach Dir? FX → Harmonizer dazu: Dein Ton, gestapelt?
+  2. Save as… → Patch wechseln → den gespeicherten recallen: kommt die Farbe zurück?
+  3. Clear → einen Klang-Regler bewegen → speichern: die Farbe darf NICHT zurück.
+  4. Kopfhörer ab, Lautsprecher-Monitoring an, Fiepen provozieren: stirbt es als
+     Rampe statt als Knall?
+  5. „Tune to key" an, absichtlich schief singen: zieht der Monitor Dich in die
+     Tonart? Tune 1.00: der klassische Snap? Die kleine Monitor-Latenz okay?
+  6. USB-C-Interface einstecken (App offen): erscheint die Einladungszeile?
 
-  ⚠ Ehrliche Grenzen: #583 letterboxt das Quer-Vollbild um den Gehäuse-Einschub —
-  ob das beabsichtigt aussieht, entscheidet nur Dein Auge. Das Audio-Banner (#585)
-  ist schwer zu provozieren (Kopfhörer mehrfach mitten im Take ziehen); wenn Du es
-  nie siehst, ist das der Normalfall, kein Fehlen.
+  ⚠ Ehrliche Grenzen: alles oben ist compile-verifiziert und wächter-gepinnt, aber
+  am Gerät UNVERIFIZIERT — Klang, Latenz der Tune-Stufe und der Rewire-Moment beim
+  Umschalten brauchen Dein Ohr. Ein Routen-Wechsel (44,1↔48 kHz) mitten im Monitoring
+  kann „Tune to key" verstimmen, bis Monitoring aus/an war — bekannter Rest, Re-Arm
+  ist der registrierte Fix. Der Harmonizer folgt noch festen Intervallen; dass er
+  diatonisch der gesungenen Note folgt, ist #599b und kommt als nächste Scheibe.
 
-  ── ENTSCHIEDEN (delegiert: „du bist Entscheidungsträger") ────────────────
+  ── ENTSCHIEDEN (delegiert) ───────────────────────────────────────────────
 
-  **Kein Plugin-System** — weder AUv3-Hosting-Revival (mit #121 als Workstation-Hälfte
-  geschnitten) noch ein eigenes Format (zweites Produkt, DMMW-Falle). Die
-  Erweiterungsfläche IST der Patch: EchoelVoice-Stimm-Patches laufen über den
-  vorhandenen PatchStore (speichern/teilen/einreichen), Integration nach außen über
-  die offenen Standards OSC · MIDI · ADM-OSC. Protokolliert in decisions.csv.
-  **EchoelVoice** (Stimme → Struktur-Patch, Voice→Color ins Visual) ist gescoutet;
-  Plan + erste Scheibe folgen im nächsten Takt.
+  **In-Key-Correction als Graph-Node im Monitor-Pfad** (kein Render-Code, Musik
+  unberührt, Default aus) und **Voice-Provenance statt Proxy** (wessen Stimme live
+  ist, wird erinnert, nicht geraten — Share-Label-Gesetz). Beides in decisions.csv.
