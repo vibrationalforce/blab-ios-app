@@ -1,48 +1,58 @@
-build: v10.79.402 — Der Auto-Modus ist komplett: Klang UND Bild folgen dem Vibe
+build: v10.79.403 — Mikrofon-Monitoring: die Settings-Tür + zwei stille Fallen behoben
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.401 (2518, Auto-Modus Klang-Hälfte).
-  Dieser Build trägt #609/#609b — die BILD-Hälfte Deines Auto-Modus-Auftrags.
+  Der Vorgänger auf Deinem Gerät ist 10.79.402 (2519, Auto-Modus komplett).
+  Dieser Build ist die Antwort auf Deine Direktive „Wir wollen schon Device
+  microphon Audio Input Live Monitoring haben" (#610–#612 + Ultraechoel-Sweep).
+
+  ── WARUM ES BEI DIR NICHT GING ──────────────────────────────────────────
+
+  Dein Screenshot zeigt die ehrliche Verweigerungszeile: der Mikrofon-Zugriff
+  ist auf OS-Ebene VERWEIGERT. iOS fragt genau einmal — danach kann nur die
+  Settings-App es erlauben. **Sofort-Fix, ohne diesen Build:** Einstellungen
+  → Echoelmusic → Mikrofon einschalten (iOS startet die App dabei neu),
+  dann Live monitoring AN. Kopfhörer empfohlen.
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Mit „Auto mode" AN folgt jetzt auch das Bild dem Körper.** Ein klar
-    geselteltes Herz (hohe Kohärenz) macht die Figur ruhiger (weniger
-    Ringe) und minimal voller; ein unruhiger Körper macht sie belebter.
-    Die Bewegung hat dieselbe Sanftheits-Kappe wie die Klang-Hälfte.
-    Drei Dinge fasst der Auto-Modus im Bild NIE an: die Puls-Frequenz
-    (Epilepsie-Decke, ≤3 Hz bleibt byte-identisch), die physikalische
-    Tonfarbe und die Atem-Ausdehnung. Ohne gemessene Kohärenz ändert
-    sich exakt nichts; Auto AUS = der Look von vorher, Pixel für Pixel.
-    Auch der Beamer (externes Display) zeichnet denselben Auto-Look.
+  · **„Allow microphone"-Knopf direkt unter der roten Zeile** — in beiden
+    Türen (Mix-Board-Streifen + Input-Sheet). Ein Tipp öffnet Echoels
+    Settings-Seite; dieselbe Tür wie beim Kamera-Zugriff im Bio-Streifen.
+  · **Ein gescheiterter Engine-Neustart macht die App nie mehr stumm-ohne-
+    Erklärung** (Sweep-Fund an vier Stellen): schlägt der Neustart nach einem
+    Graph-Umbau fehl, versucht die Engine es erneut und meldet sonst ehrlich
+    „Audio gestoppt" mit Retry-Knopf — statt pausiert dazustehen, während die
+    einzige sichtbare Zeile fälschlich die Berechtigung beschuldigt.
+  · **Monitoring überlebt jetzt System-Resets und Kopfhörer-/Routen-Wechsel**
+    (zweiter Sweep-Fund): vorher blieb der Schalter AN über einem toten Mikro
+    (nur manuelles AUS→AN heilte), und nach einem Raten-Wechsel rechneten
+    Feedback-Notch und Tune-to-key auf der falschen Abtastrate.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. **Hörbarkeits-Frage aus 2518 (bleibt offen, entscheidet Scheibe 3):**
-     Auto AN, Finger auf der Linse, Kohärenz klar hoch → hörst Du über
-     1–2 Evolutions-Takte die sanfte Verschiebung (weicher/ruhiger)?
-  2. **NEU — die Sichtbarkeits-Frage:** gleiche Situation, Blick aufs
-     Visual → wird die Figur erkennbar ruhiger (weniger Ringe) und einen
-     Hauch voller? Und pulsiert sie unverändert im Herzschlag-Takt?
-  3. Auto AUS → ist der Look exakt der gewohnte?
-  4. Falls Beamer/externes Display da: gleicher Auto-Look wie auf dem
-     Telefon?
-  5. Ältere Proben offen: 2518 (Auto-Schalter ausgegraut ohne Quelle) ·
-     2517 (Chip-Strip-Fade: SOFORT sichtbar ohne Scrollen?) · 2516
-     (AX-Bio-Stapel) · 2515 (Monitor-Warnzeile) · 2514 (Hint-Trio).
+  1. Einstellungen → Echoelmusic → Mikrofon AN → App öffnet neu → Live
+     monitoring AN → hörst Du Dich (Kopfhörer)? Latenz okay für Performance?
+  2. Falls Mikro noch AUS: steht der „Allow microphone"-Knopf unter der
+     roten Zeile, und landet er in den richtigen Einstellungen?
+  3. Mit laufendem Monitoring: Kopfhörer ein-/ausstecken oder Kamera-Puls
+     starten → läuft das Monitoring weiter, ohne dass Du es neu anschalten
+     musst? (Der Reset-/Raten-Pfad ist nur compile-verifiziert — genau
+     dafür ist diese Probe.)
+  4. Ältere Proben offen: 2519 (Auto komplett: Hörbarkeit + Sichtbarkeit +
+     Auto-AUS-Identität + Beamer) · 2518 (Auto-Schalter) · 2517 (Chip-Fade
+     Seeding) · 2516 (AX-Bio-Stapel) · 2515 (Monitor-Warnzeile).
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün, Testlauf-
-  Rot ist das bekannte harmlose #396). Der adversariale Review fing in
-  dieser Scheibe einen ernsten Fehler VOR dem Gerät: die erste Fassung
-  änderte kein einziges Pixel (sie schrieb Felder, die der Renderer gar
-  nicht liest) — der Fix ist drin und mit drei Test-Nadeln festgenagelt.
-  Ob die Bild-Änderung WAHRNEHMBAR und angenehm ist, entscheidet Dein
-  Blick — genau dafür ist Frage 2 da.
+  ⚠ Ehrliche Grenzen: compile-verifiziert (Build-for-Testing grün, Test-Rot
+  ist das bekannte harmlose #396). Der Ultraechoel-Sweep (5 Agenten) fand die
+  zwei stillen Fallen VOR dem Gerät; ein dritter Fund (Verweigerungs-Text
+  erscheint auch bei Nicht-Berechtigungs-Fehlern) ist registriert und kommt
+  als nächste Scheibe. Ob Monitoring KLINGT (Latenz, Feedback-Guard auf
+  Deinen Monitoren), entscheidet Dein Ohr — dafür ist Frage 1 da.
 
-  Vorgänger-Noten: 10.79.401 = Auto-Modus Klang-Hälfte · 10.79.400 =
-  Chip-Strip-Overflow-Fade · 10.79.399 = Bio-Zahlen wachsen mit Schrift.
+  Vorgänger-Noten: 10.79.402 = Auto-Modus komplett · 10.79.401 = Auto-Klang-
+  Hälfte · 10.79.400 = Chip-Strip-Overflow-Fade.
   KEIN AUDIO wird je gespeichert.
