@@ -8973,7 +8973,13 @@ struct EchoelStudioView: View {
                 baseLiveliness: moodForInput.liveliness,
                 baseTension: moodForInput.tension,
                 previous: autoAttuneState)
-            autoAttuneState = nextState
+            // #608b: the hold/hysteresis state advances ONLY on evolve-cursor calls.
+            // `makeComposerInput` is also reached by the read-only variation audition
+            // (documented "doesn't perturb the evolve cursor") and by every debounced
+            // dial edit via `generate()` — without this gate, twiddling a dial for a
+            // second satisfies a "hold" that is specified as a full evolve tick. The
+            // audition still STEERS with the current policy; it just does not age it.
+            if advanceEvolution { autoAttuneState = nextState }
             moodForInput.darkness = WeatherMood.blend(
                 base: moodForInput.darkness, target: steer.darknessTarget,
                 intensity: steer.intensity)
@@ -10794,8 +10800,11 @@ private struct AutoModeRow: View {
             .frame(minHeight: 44)
             .disabled(!bioRunning)
             .accessibilityHint("Slowly steers the mood dials toward your measured body state")
+            // #608b: the sentence names the CONDITION — between the hysteresis bands
+            // Auto mode deliberately steers nothing, and a caption promising
+            // unconditional steering would be the Weather-"nicht bemerkbar" class.
             Text(bioRunning
-                 ? "Slowly steers mood toward your measured coherence, HRV and heart rate — over bars, not beats. Your own edits keep priority."
+                 ? "Gently steers mood toward your measured coherence, HRV and heart rate when your body is clearly settled or clearly driving — over bars, not beats. Your own edits keep priority."
                  : "Needs a running bio source — touch and hold the pulse display to start one.")
                 .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.dim)

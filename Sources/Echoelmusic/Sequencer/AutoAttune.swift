@@ -12,9 +12,14 @@
 //  ⚠️ INVARIANTS, load-bearing — a refactor that breaks any of these converts a
 //  structural guarantee into convention (#398 double-writer class):
 //  · NO timer, NO bus subscription, NO SwiftUI, NO @Observable, NO @MainActor. This
-//    type is a pure value; it can only run where `makeComposerInput` runs, so its
-//    cadence is STRUCTURALLY the evolve tick (~25–45 s ≈ 8 bars) and a re-seed flood
-//    is impossible by construction — there is no loop to mis-rate.
+//    type is a pure value; it can only run where `makeComposerInput` runs, so a
+//    re-seed flood is impossible by construction — there is no loop to mis-rate.
+//    ⚠️ #608b PRECISION (the first version said "cadence is STRUCTURALLY the evolve
+//    tick", which was a half-truth): `makeComposerInput` is also reached by the
+//    read-only variation audition and by every debounced dial edit. The fold
+//    therefore ages this type's hold state ONLY on `advanceEvolution` calls — a
+//    real take (the evolve tick, or a user-triggered regenerate). Auditions steer
+//    with the current policy but never advance it.
 //  · NO tempo. Auto mode owns zero tempo code in any state; the only sanctioned
 //    bio→clock path is the Flow-Servo (T1/T2). `AutoModeStartsOffAndOwnsNoTempoTests`
 //    scans this file for tempo calls and must stay at zero hits.
@@ -29,10 +34,18 @@
 //
 //  GENTLENESS, as numbers (argue with them here, not at call sites): a target may sit
 //  at most `maxTargetDelta` (0.15) from its base, the blend intensity is fixed at
-//  `steerIntensity` (0.3), so ONE evolve tick moves a dial by at most 0.045 — bars,
-//  not beats. Policy changes carry hysteresis (enter/exit bands ≥ 0.15 apart) and a
-//  minimum hold of one full tick, so a single-window threshold crossing can never
-//  flip the steering back and forth.
+//  `steerIntensity` (0.3) — a CONSTANT capped offset of at most 0.045, recomputed
+//  each take from the user's pristine dials. ⚠️ #608b: it does NOT accumulate across
+//  ticks (nothing writes back to the stored mood; the first version's "ONE evolve
+//  tick moves a dial by at most 0.045" implied later ticks move further — they never
+//  do). Whether 0.045 is AUDIBLE is a founder device probe, registered open; if it
+//  is not, slice 2's candidate is a slew carried in `State`, not a bigger constant.
+//  Policy changes carry hysteresis (enter/exit bands ≥ 0.15 apart) and a minimum
+//  hold of one full advanceEvolution call, so a single-window threshold crossing
+//  can never whipsaw the steering between OPPOSING policies. Entering a policy FROM
+//  `neutral` is exempt from the hold (#608b): leaving rest is an entry, not a
+//  reversal — a body that is already clearly settled when the toggle turns on
+//  steers on the FIRST consult, not the second.
 //
 //  The composer switches character at `darkness > 0.6` (and reads `romance > 0.5`,
 //  which this type deliberately never steers). Targets are clamped to the SAME SIDE
@@ -151,8 +164,12 @@ public enum AutoAttune {
 
         // Minimum hold: a policy entered on the previous tick (ticksInPolicy 0) may
         // not reverse yet — the steering moves in bars, not in single readings.
+        // Leaving `neutral` is exempt (#608b): that is an ENTRY, not a reversal —
+        // without the exemption a body that is already settled when Auto turns on
+        // waits a full extra consult for no stated reason (review finding 4).
         var next = previous
-        if desired != previous.policy && previous.ticksInPolicy < 1 {
+        if desired != previous.policy && previous.ticksInPolicy < 1
+            && previous.policy != .neutral {
             next.ticksInPolicy += 1
             return (steer(for: previous.policy, state: previous,
                           baseDarkness: baseDarkness, baseLiveliness: baseLiveliness,

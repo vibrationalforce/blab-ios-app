@@ -30,13 +30,14 @@
 // `TheBreathVoiceHasADoorTests`' premise and is not re-proven here.
 //
 // ⚠️ HONEST GRADING (#433/#464) — transcribed in Python against the parent
-// (99e371e) and this tree. 37 verdicts in 7 tests, hand-counted per named needle
+// (99e371e) and this tree. 38 verdicts in 7 tests, hand-counted per named needle
 // (a numeric sweep counts as ONE): ships-off (2) + identity/Golden (3) +
-// hysteresis (4) + non-finite (2) + darkness-switch (2) + door/caption (10,
-// source: decl + mount count + window order + slice non-empty + caption positive
-// + 5 named dead words) + fold/core (14, source: non-empty + 3 tempo needles +
-// hoist order + no-let + 8 named core needles). On THIS tree all 24 source
-// verdicts pass in transcription; the 13 behavioral ones drive the pure types.
+// hysteresis (5 — the fifth is #608b's neutral-entry exemption, review finding 4)
+// + non-finite (2) + darkness-switch (2) + door/caption (10, source: decl +
+// mount count + window order + slice non-empty + caption positive + 5 named dead
+// words) + fold/core (14, source: non-empty + 3 tempo needles + hoist order +
+// no-let + 8 named core needles). On THIS tree all 24 source verdicts pass in
+// transcription; the 14 behavioral ones drive the pure types.
 // Against the PARENT this file does NOT COMPILE: `AutoAttune` and
 // `StudioDefaultKeys.autoMode` do not exist there, so per §3 NO assertion has a
 // verdict on the parent — the behavioral claims are FORWARD by construction (one
@@ -154,6 +155,20 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
             hold (one full evolve tick) is what makes the founder's "sanft" a \
             structural property instead of a hope — without it one noisy window \
             whipsaws the whole character.
+            """)
+        // #608b (review finding 4): the hold governs REVERSALS between opposing
+        // policies only. Leaving `neutral` is an entry — a body that is already
+        // clearly settled when Auto turns on must steer on the FIRST consult, not
+        // wait an unexplained extra tick.
+        let (_, fromRest) = AutoAttune.decide(calm: 0.7, arousal: 0.2,
+                                              baseDarkness: 0.5, baseLiveliness: 0.5,
+                                              baseTension: 0.3,
+                                              previous: AutoAttune.State())
+        XCTAssertEqual(fromRest.policy, .settled, """
+            A fresh `State()` (neutral, ticks 0) with a clearly settled body did not \
+            enter `settled` on the first consult. The neutral-entry exemption from \
+            the minimum hold is gone — the first audible steering now needs two \
+            consults for no stated reason.
             """)
     }
 

@@ -142,14 +142,27 @@ final class UnmeasuredPulseIsNotZeroTests: XCTestCase {
         // …and the heart-rate field actually USES it. A guard nobody calls is the shape this
         // defect already had: `fin` existed, `heldCoh` existed, and the one field that mattered
         // went through neither.
+        // ⛔ #608b re-anchor: the chain moved OUT of the `Input` construction into the hoisted
+        // local `hrForInput` (one definition for the auto fold AND the Input, #416) — the old
+        // needle `heartRateBPM: fin(` matched nothing on the new tree and this guard was the
+        // one live red of the #608 slice (found by the review, not by me). The law is
+        // unchanged: the ONE spelling of the heart-rate chain must pass through `measured(`.
         let lines = text.components(separatedBy: .newlines)
-        guard let hrLine = lines.first(where: { $0.contains("heartRateBPM: fin(") }) else {
-            return XCTFail("the composer's `heartRateBPM:` argument was renamed or restructured — "
-                           + "re-point this guard rather than deleting it")
+        guard let hrLine = lines.first(where: { $0.contains("hrForInput = fin(") }) else {
+            return XCTFail("the composer's heart-rate chain (`hrForInput = fin(`) was renamed or "
+                           + "restructured — re-point this guard rather than deleting it")
         }
         XCTAssertTrue(hrLine.contains("measured("),
                       "the composer's heart rate is built without the zero guard: "
                       + hrLine.trimmingCharacters(in: .whitespaces))
+        // The second half the old single-line needle proved implicitly: the Input actually
+        // CONSUMES the guarded local. Without this, `hrForInput` could pass through `measured`
+        // while the Input quietly rebuilds its own unguarded chain — the #416 split this
+        // hoist exists to prevent.
+        XCTAssertTrue(lines.contains { $0.contains("heartRateBPM: hrForInput") },
+                      "the composer's `heartRateBPM:` no longer consumes the guarded "
+                      + "`hrForInput` local — the zero guard is bypassed or the chain was "
+                      + "re-inlined; re-point this guard with the code in the same commit")
     }
 
     /// Guards the PREMISE: `fin` must still be the non-finite guard ONLY. If it ever starts

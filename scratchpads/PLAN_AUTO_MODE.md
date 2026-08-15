@@ -77,6 +77,13 @@ Emotions-/Stimmungsaussage über den Menschen (EngineBus-EU-AI-Act-Rahmung).
    nur hinter zweitem Sub-Toggle, beschränkt auf `MusicStyle.offered` — kollidiert
    sonst mit dem Kurations-Gesetz (#81/#125).
 
+**Geräteprobe (offen, registriert mit #608b):** Ist der konstante Steuer-Offset
+(≤0.045 auf einem Mood-Regler) HÖRBAR, wenn der Körper klar settled/driving ist?
+Der Steer kumuliert bewusst NICHT (nichts schreibt in die gespeicherte Mood zurück);
+falls unhörbar, ist Scheibe-2-Kandidat ein in `State` getragener Slew — nicht eine
+größere Konstante. Und: liest die Caption-Bedingung („when your body is clearly
+settled or clearly driving") verständlich?
+
 **Rote Flaggen aus dem Urteil (bindend):** kein Auto-Resume zurückschmuggeln ·
 Status-Leaf liest den ~1-Hz-Zustand NUR im eigenen Leaf-Body (Freeze-Gesetz) ·
 PerformerSignature-relative Arousal bleibt count-gated (sonst liest die erste
