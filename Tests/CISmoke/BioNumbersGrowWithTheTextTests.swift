@@ -39,13 +39,18 @@
 //
 // ⚠️ HONEST GRADING (#433/#464) — the #606 rewrite, whole file transcribed in Python against
 // the parent (7ca351e) and this tree (§3: a substantially rewritten guard is driven whole,
-// not by diff). 11 verdicts hand-counted: test 1 (2) + test 2 (1 decl + 1 mounts + 4 cell
-// counts + 1 call-site count) + test 3 (1 slot count + 1 window scan). On THIS tree all 11
-// pass. Against the PARENT: mounts==1 is red (it was 2 — the deliberate #606 widening),
-// the four cell-name counts are red as ONE finding (#486 — the builders are born with
-// #606), and the scale ternary is red (FORWARD, same commit). The rest — env read, AX
-// branch, row decl, 4 call sites, one 88 pt slot, no fixed width in the AX window — are
-// COUNTERWEIGHTS, green on both trees. ZERO regressions claimed, because zero exist.
+// not by diff). 12 verdicts hand-counted: cell-sharing test (1 decl + 1 mounts + 4 cell
+// counts + 1 call-site count = 7) + layout test (2) + scale-floor test (1) + tag-slot test
+// (1 slot count + 1 window scan = 2). ⛔ The first version of this paragraph said "11" and
+// enumerated three tests while grading the scale-floor test's ternary two sentences later
+// — the #606 review caught the arithmetic in exactly the discipline this header exists to
+// satisfy (#433's flattering-direction warning cuts both ways: a miscount that still says
+// "all green" is a miscount). On THIS tree all 12 pass. Against the PARENT: mounts==1 is
+// red (it was 2 — the deliberate #606 widening), the four cell-name counts are red as ONE
+// finding (#486 — the builders are born with #606), and the scale ternary is red (FORWARD,
+// same commit). The rest — env read, AX branch, row decl, 4 call sites, one 88 pt slot, no
+// fixed width in the AX window — are COUNTERWEIGHTS, green on both trees. ZERO regressions
+// claimed, because zero exist.
 // This file keeps its line-based private stripper (one of the 69 §2 legacy copies —
 // migrating it is a bundle-wide move, not this slice); all needles live on code lines,
 // and every #606 comment naming them is whole-line, so the filter drops it.
