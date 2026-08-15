@@ -1,46 +1,47 @@
-build: v10.79.397 — Der erste Hinweis gibt dir mehr als eine Chance
+build: v10.79.398 — Der Monitor sagt, warum er stumm ist
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.396 (≈2513, E-Parität + Guide).
-  Dieser Build trägt #604/#604b — GUI-Board-Scheibe 1 aus Deinem Auftrag.
+  Der Vorgänger auf Deinem Gerät ist 10.79.397 (≈2514, Hint-Re-Arm).
+  Dieser Build trägt #605/#605b — GUI-Board-Scheibe 2 aus Deinem Auftrag.
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Der Instrument-Hinweis kommt wieder, bis er gelernt ist.** Die
-    Einblendung „Start the music, then a finger on the back camera /
-    Touch the image to play notes" war bisher einmal-für-immer: 4,5
-    Sekunden, und wer in dem Moment weggeschaut hat, bekam die zwei
-    Kern-Gesten nie wieder erklärt (das GUI-Audit hatte das als
-    zweitgrößte UX-Schuld gerankt). Jetzt erscheint sie bei jedem
-    sichtbaren Vollbild-Einstieg wieder — bis du tatsächlich Start
-    drückst (dann hat sie ihren Zweck erfüllt und geht für immer) oder
-    maximal 5-mal (damit sie nie zum Nerv wird).
-  · Feinschliff aus dem Review: die letzte Zeigung blendet sauber aus
-    statt hart zu schneiden, und ein per Monitor-Knopf verstecktes
-    Visual-Fenster zählt keine unsichtbaren Zeigungen mehr mit.
+  · **Der Monitor erklärt seine Stille.** Bisher konnte der Monitor-
+    Schalter AN zeigen, während ein Anruf, Siri oder ein Wecker die
+    Audio-Engine pausiert hielt — verdrahtet, aber lautlos, ohne ein
+    Wort Erklärung. Jetzt steht in beiden Türen (Mix-Board-Karte
+    „Voice · your microphone" und Input-Sheet) eine Warnzeile:
+    „Monitoring is on, but audio is paused — it comes back by itself
+    when the call, alarm or Siri ends." Sie verschwindet von selbst,
+    sobald Audio wieder läuft.
+  · Feinschliff aus dem Review: hat die Selbstheilung wirklich
+    aufgegeben (der seltene Doppelfehler-Fall), schweigt die neue Zeile
+    absichtlich — dort erklärt weiterhin NUR die bestehende Audio-
+    Fehlerzeile mit ihrem Retry-Knopf, damit nie zwei Sätze
+    Gegensätzliches über dieselbe Stille behaupten.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Frische Sicht (oder App neu installieren): Vollbild-Visual → der
-     Hinweis erscheint unten, hält ~4,5 s, blendet aus.
-  2. Vollbild verlassen und wieder betreten (Monitor-Knopf im Header):
-     der Hinweis kommt WIEDER (solange du Start noch nicht gedrückt hast).
-  3. Start drücken (Puls-Pille) → danach Vollbild erneut betreten: der
-     Hinweis bleibt weg — dauerhaft.
-  4. Offen aus 2513: E-Wechsel filmen (Vollbild ⇄ Studio, das E darf
-     sich nicht bewegen) · Guide AN/Tour/AUS · 2512er-Mikrofon-Probe
-     (frisch installieren → Monitor AN → Dialog).
+  1. Monitoring AN (Kopfhörer), dann einen Anruf/Timer-Wecker auslösen
+     oder Siri aufrufen: die Warnzeile erscheint in der Mix-Board-Karte
+     (und im Input-Sheet, falls offen).
+  2. Anruf/Siri beenden → Audio läuft weiter, die Zeile verschwindet
+     von selbst.
+  3. Offen aus 2514: Hint-Proben (erscheint im Vollbild · kehrt beim
+     Wiedereintritt · Start retiret dauerhaft) · aus 2513: E-Wechsel
+     filmen + Guide AN/Tour/AUS · aus 2512: Mikrofon-Probe (App frisch
+     installieren → Monitor AN → Dialog).
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün auf 3f518e6,
-  Build for Testing success), wächter-gepinnt (11 Behauptungen + neu
-  verankertes Vollbild-Gate), ui-state-Review adversarial (a–g) ohne
-  CRITICAL — ob Timing, Fade und Wieder-Erscheinen sich RICHTIG anfühlen,
-  entscheidet das Gerät.
+  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün auf 0797142,
+  Build for Testing success), wächter-gepinnt (7 Behauptungen), ui-state-
+  Review adversarial ohne CRITICAL (beide WARNs behoben) — ob die Zeile
+  im echten Interruption-Moment ERSCHEINT und wieder geht, entscheidet
+  das Gerät.
 
-  Vorgänger-Noten: 10.79.396 = E-Parität + Guide (an/aus) · 10.79.395 =
-  Audio in fragt nach dem Mikrofon (#601) · 10.79.394 = Voice→Color.
-  KEIN AUDIO wird je gespeichert.
+  Vorgänger-Noten: 10.79.397 = Hint-Re-Arm (bis gelernt oder 5×) ·
+  10.79.396 = E-Parität + Guide (an/aus) · 10.79.395 = Audio in fragt
+  nach dem Mikrofon. KEIN AUDIO wird je gespeichert.
