@@ -1,55 +1,48 @@
-build: v10.79.401 — Der Auto-Modus, Scheibe 1: Dein Körper darf sanft mitmischen
+build: v10.79.402 — Der Auto-Modus ist komplett: Klang UND Bild folgen dem Vibe
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.400 (2517, Chip-Strip-Overflow-Fade).
-  Dieser Build trägt #608/#608b — Scheibe 1 Deines Auto-Modus-Auftrags
-  („vibe catchen, sanft intervenieren, Kohärenz herstellen").
+  Der Vorgänger auf Deinem Gerät ist 10.79.401 (2518, Auto-Modus Klang-Hälfte).
+  Dieser Build trägt #609/#609b — die BILD-Hälfte Deines Auto-Modus-Auftrags.
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **„Auto mode" im Bio-Panel, Default AUS.** Ein Schalter neben „Body
-    voice": eingeschaltet führt er die Mood-Regler (dunkel/lebhaft/
-    spannend) SANFT in Richtung Deines gemessenen Zustands — Kohärenz,
-    HRV, Herzfrequenz — und zwar nur, wenn Dein Körper KLAR ruhig oder
-    klar angetrieben ist. Dazwischen hört er zu und rührt nichts an.
-    Die Bewegung ist bewusst klein (max. ~0.045 auf einem Regler pro
-    Take), passiert im Takt der Musik-Evolution (~25–45 s), und Deine
-    eigenen Regler-Werte bleiben immer die Basis — nichts wird
-    überschrieben oder gespeichert. Ohne laufende Bio-Quelle ist der
-    Schalter ausgegraut und sagt warum.
-  · **Tempo bleibt unangetastet.** Das Tempo folgt weiter ausschließlich
-    dem vorhandenen Flow-Servo — der Auto-Modus hat keinerlei eigenen
-    Tempo-Pfad (per Test festgenagelt).
+  · **Mit „Auto mode" AN folgt jetzt auch das Bild dem Körper.** Ein klar
+    geselteltes Herz (hohe Kohärenz) macht die Figur ruhiger (weniger
+    Ringe) und minimal voller; ein unruhiger Körper macht sie belebter.
+    Die Bewegung hat dieselbe Sanftheits-Kappe wie die Klang-Hälfte.
+    Drei Dinge fasst der Auto-Modus im Bild NIE an: die Puls-Frequenz
+    (Epilepsie-Decke, ≤3 Hz bleibt byte-identisch), die physikalische
+    Tonfarbe und die Atem-Ausdehnung. Ohne gemessene Kohärenz ändert
+    sich exakt nichts; Auto AUS = der Look von vorher, Pixel für Pixel.
+    Auch der Beamer (externes Display) zeichnet denselben Auto-Look.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Bio-Chip → „Auto mode": ohne laufende Quelle ausgegraut mit
-     Erklärung? Kamera-Puls starten → Schalter wird aktiv?
-  2. **Die Hörbarkeits-Frage (entscheidet über Scheibe 2):** Auto AN,
-     Finger auf der Linse, ruhig atmen bis die Kohärenz klar hoch ist →
-     hörst Du über die nächsten 1–2 Evolutions-Takte eine SANFTE
-     Verschiebung (weicher, ruhiger, weniger Spannung)? Oder ist der
-     Effekt zu klein, um ihn wahrzunehmen? Beides ist eine wertvolle
-     Antwort — falls unhörbar, baue ich einen langsamen Anschleich-Pfad
-     (Slew) statt einer größeren Konstante.
-  3. Liest die Erklärzeile unterm Schalter verständlich („when your body
-     is clearly settled or clearly driving")?
-  4. Ältere Proben offen: 2517 (Chip-Strip-Fade, inkl. der Frage: Fade
-     SOFORT beim Öffnen ohne zu scrollen?) · 2516 (AX-Bio-Stapel) ·
-     2515 (Monitor-Warnzeile) · 2514 (Hint-Trio) · 2513 (E + Guide).
+  1. **Hörbarkeits-Frage aus 2518 (bleibt offen, entscheidet Scheibe 3):**
+     Auto AN, Finger auf der Linse, Kohärenz klar hoch → hörst Du über
+     1–2 Evolutions-Takte die sanfte Verschiebung (weicher/ruhiger)?
+  2. **NEU — die Sichtbarkeits-Frage:** gleiche Situation, Blick aufs
+     Visual → wird die Figur erkennbar ruhiger (weniger Ringe) und einen
+     Hauch voller? Und pulsiert sie unverändert im Herzschlag-Takt?
+  3. Auto AUS → ist der Look exakt der gewohnte?
+  4. Falls Beamer/externes Display da: gleicher Auto-Look wie auf dem
+     Telefon?
+  5. Ältere Proben offen: 2518 (Auto-Schalter ausgegraut ohne Quelle) ·
+     2517 (Chip-Strip-Fade: SOFORT sichtbar ohne Scrollen?) · 2516
+     (AX-Bio-Stapel) · 2515 (Monitor-Warnzeile) · 2514 (Hint-Trio).
 
   ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün, Testlauf-
-  Rot ist das bekannte harmlose #396); die Entscheidungslogik ist rein
-  und transkribiert getestet (38 Wächter-Verdikte), aber ob die sanfte
-  Verschiebung HÖRBAR ist und die Formulierung WIRKT, entscheidet Dein
-  Ohr — genau dafür ist Frage 2 da. Der adversariale Review fand einen
-  Wächter-Anker-Fehler und drei Ehrlichkeits-Lücken; alle vier sind vor
-  diesem Build behoben.
+  Rot ist das bekannte harmlose #396). Der adversariale Review fing in
+  dieser Scheibe einen ernsten Fehler VOR dem Gerät: die erste Fassung
+  änderte kein einziges Pixel (sie schrieb Felder, die der Renderer gar
+  nicht liest) — der Fix ist drin und mit drei Test-Nadeln festgenagelt.
+  Ob die Bild-Änderung WAHRNEHMBAR und angenehm ist, entscheidet Dein
+  Blick — genau dafür ist Frage 2 da.
 
-  Vorgänger-Noten: 10.79.400 = Chip-Strip-Overflow-Fade · 10.79.399 =
-  Bio-Zahlen wachsen mit der Schrift · 10.79.398 = Monitor-Stumm-Zeile.
+  Vorgänger-Noten: 10.79.401 = Auto-Modus Klang-Hälfte · 10.79.400 =
+  Chip-Strip-Overflow-Fade · 10.79.399 = Bio-Zahlen wachsen mit Schrift.
   KEIN AUDIO wird je gespeichert.
