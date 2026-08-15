@@ -1,51 +1,46 @@
-build: v10.79.396 — Das E bleibt stehen + der Guide ist da
+build: v10.79.397 — Der erste Hinweis gibt dir mehr als eine Chance
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.395 (2512, der Audio-in-Fix). Dieser
-  Build trägt #602 (Dein E-Clip) und #603 B1+B2 (Dein GUI-Auftrag, erste Scheibe).
+  Der Vorgänger auf Deinem Gerät ist 10.79.396 (≈2513, E-Parität + Guide).
+  Dieser Build trägt #604/#604b — GUI-Board-Scheibe 1 aus Deinem Auftrag.
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Das E springt nicht mehr.** Dein Clip zeigte es: beim Wechsel
-    Vollbild-Visual ⇄ Studio wanderte und schrumpfte die Brand-Marke.
-    Jetzt liegt sie in beiden Ansichten exakt an derselben Stelle in
-    derselben Größe (aus den Layout-Zahlen abgeleitet und vorab an Deinem
-    Clip auf ±1 pt gegengerechnet) — der Wechsel liest sich als Chrome,
-    das um ein festes Zeichen herum wechselt. Die kleinen schwebenden
-    Fenster behalten bewusst ihren kompakten Griff.
-  · **Der Guide (an/aus).** Save & Export → „Guide": eine Karten-Tour
-    unten über dem Instrument — Deine ersten drei Minuten, Hören, Sehen,
-    Fühlen, der Puls-Walkthrough, Accessibility. Blättern mit ‹ ›, X
-    schließt, die letzte Karte verabschiedet sich selbst. Die Texte sind
-    die geprüften „Start Here"-Einträge der Learn-Bibliothek — jeder
-    genannte Controlname existiert wirklich (wächter-gepinnt), damit der
-    Guide nie etwas verspricht, das die App nicht hat. Standard: AUS —
-    sag, wenn er für Erstnutzer AN sein soll (eine Zeile).
-
-  Dahinter: Dein GUI-Auftrag ist geplant und vermessen — drei Audits, 17
-  gerankte Folge-Scheiben (A11y + UX) im Plan-Dokument; die nächsten
-  Scheiben kommen einzeln, kein Big-Bang.
+  · **Der Instrument-Hinweis kommt wieder, bis er gelernt ist.** Die
+    Einblendung „Start the music, then a finger on the back camera /
+    Touch the image to play notes" war bisher einmal-für-immer: 4,5
+    Sekunden, und wer in dem Moment weggeschaut hat, bekam die zwei
+    Kern-Gesten nie wieder erklärt (das GUI-Audit hatte das als
+    zweitgrößte UX-Schuld gerankt). Jetzt erscheint sie bei jedem
+    sichtbaren Vollbild-Einstieg wieder — bis du tatsächlich Start
+    drückst (dann hat sie ihren Zweck erfüllt und geht für immer) oder
+    maximal 5-mal (damit sie nie zum Nerv wird).
+  · Feinschliff aus dem Review: die letzte Zeigung blendet sauber aus
+    statt hart zu schneiden, und ein per Monitor-Knopf verstecktes
+    Visual-Fenster zählt keine unsichtbaren Zeigungen mehr mit.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Denselben Wechsel wie in Deinem Clip filmen/machen (Vollbild ⇄
-     „Studio"): bleibt das E jetzt exakt an Ort und Größe?
-  2. Save & Export → „Guide" AN: Karten unten lesbar? Ton richtig?
-     Hilft die Tour wirklich beim Verstehen? Blättern, X, letzte Karte.
-  3. Guide AUS → Overlay sofort weg; Schalter bleibt wo er ist.
-  4. Die 2512er-Probe bleibt offen, falls noch nicht durchgespielt
-     (App frisch installieren → Monitor AN → Mikrofon-Dialog).
+  1. Frische Sicht (oder App neu installieren): Vollbild-Visual → der
+     Hinweis erscheint unten, hält ~4,5 s, blendet aus.
+  2. Vollbild verlassen und wieder betreten (Monitor-Knopf im Header):
+     der Hinweis kommt WIEDER (solange du Start noch nicht gedrückt hast).
+  3. Start drücken (Puls-Pille) → danach Vollbild erneut betreten: der
+     Hinweis bleibt weg — dauerhaft.
+  4. Offen aus 2513: E-Wechsel filmen (Vollbild ⇄ Studio, das E darf
+     sich nicht bewegen) · Guide AN/Tour/AUS · 2512er-Mikrofon-Probe
+     (frisch installieren → Monitor AN → Dialog).
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün auf der
-  Spitze), wächter-gepinnt (E-Parität als abgeleitete Relation, Guide mit
-  10 Behauptungen), Reviews ohne blockierende Befunde — ob das E-Ergebnis
-  Deinem Auge standhält und ob die Guide-Karten LESBAR und HILFREICH sind,
+  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün auf 3f518e6,
+  Build for Testing success), wächter-gepinnt (11 Behauptungen + neu
+  verankertes Vollbild-Gate), ui-state-Review adversarial (a–g) ohne
+  CRITICAL — ob Timing, Fade und Wieder-Erscheinen sich RICHTIG anfühlen,
   entscheidet das Gerät.
 
-  Vorgänger-Noten: 10.79.395 = Audio in fragt nach dem Mikrofon (#601) ·
-  10.79.394 = Voice→Color · 10.79.393 = Stimme reist mit dem Take.
+  Vorgänger-Noten: 10.79.396 = E-Parität + Guide (an/aus) · 10.79.395 =
+  Audio in fragt nach dem Mikrofon (#601) · 10.79.394 = Voice→Color.
   KEIN AUDIO wird je gespeichert.
