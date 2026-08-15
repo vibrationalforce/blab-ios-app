@@ -663,6 +663,18 @@ public final class AudioEngine {
                     // switch. Re-read the one, forget the baseline for the other (#193).
                     self.refreshRenderQuantum(fallbackSampleRate: self.sampleRate)
                     self.armTimingInstrument()
+                    // #612 (mic-sweep CRITICAL, the rate half): `monitorTapSampleRate` is
+                    // captured ONCE at tap install; after a 44.1↔48 route switch the
+                    // notch maths sat up to ~9 % off and (since #599) YIN divided by the
+                    // stale rate — Tune-to-key then snaps to WRONG notes until monitoring
+                    // is recycled. This is the "route-change re-arm" the tap-install
+                    // comment names as the honest fix. `newRate > 0` keeps a transient
+                    // input-less moment mid-switch from tearing monitoring down.
+                    let newRate = self.masterEngine.inputNode.inputFormat(forBus: 0).sampleRate
+                    if self.isInputMonitoring, newRate > 0,
+                       newRate != self.monitorTapSampleRate {
+                        self.rearmInputMonitoring(reason: "route sample-rate change")
+                    }
                     return
                 }
                 // Engine actually stopped: recover only if we were meant to be running.
@@ -1125,6 +1137,16 @@ public final class AudioEngine {
         lastAudioError = nil
         wasInterrupted = false
         recoveryAttempts = 0
+        // #612 (mic-sweep CRITICAL): a media-services reset orphans the monitor tap and
+        // chain exactly like the two taps above — but nothing re-armed it: monitoring
+        // was the missing third re-install. `isInputMonitoring` survives the reset as
+        // true, so both door toggles rendered ON over a dead mic and the feedback guard
+        // read a frozen window; a naive re-engage was a no-op behind the
+        // already-monitoring guard. DELIBERATELY the last act of start(), AFTER the
+        // clean-state block above: if the recycle's own restart fails, it declares
+        // `degraded` via restartOrDegrade (#611), and an earlier position would let
+        // `degraded = false` two lines up mask that verdict with a healthy claim.
+        rearmInputMonitoring(reason: "engine start")
         log.audio("AudioEngine started (production mode) — output: \(currentOutputDescription)")
     }
 
@@ -1909,6 +1931,27 @@ public final class AudioEngine {
             degraded = true
             lastAudioError = "Audio stopped (\(context)) and could not restart: \(error.localizedDescription)"
         }
+    }
+
+    /// #612 (mic-sweep CRITICAL): re-arm live monitoring by a full OFF→ON recycle.
+    /// Needed because `setInputMonitoring(true)` is deliberately a no-op while
+    /// `isInputMonitoring` is already true — so after a media-services reset (which
+    /// orphans the monitor tap and connections but leaves the flag true) or a hardware
+    /// sample-rate switch (which leaves `monitorTapSampleRate` stale for the notch and
+    /// YIN maths), NOTHING could heal monitoring short of the user toggling it off and
+    /// on. Two callers: `start()` (covers reset → recoverEngine → start and every manual
+    /// retry) and the configuration-change running branch (rate switch under a running
+    /// engine). The tune choice is saved and restored across the recycle because the
+    /// OFF path deliberately disarms it (#599 M1) — restore happens BETWEEN off and on,
+    /// while monitoring is off, so `setVoiceTune` only stores the choice and the ON
+    /// builds the chain with the tune stage in place.
+    private func rearmInputMonitoring(reason: String) {
+        guard isInputMonitoring else { return }
+        log.audio("Input monitoring re-arm (\(reason))")
+        let tuneWasOn = voiceTuneEnabled
+        _ = setInputMonitoring(false)
+        if tuneWasOn { setVoiceTune(true) }
+        _ = setInputMonitoring(true)
     }
 
     func attachSourceNode(_ sourceNode: AVAudioSourceNode) {
