@@ -171,11 +171,21 @@ final class TheFrontDoorIsDecidedBeforeItIsAskedTests: XCTestCase {
     /// in a 180-pt floating card — unreadable, and every other assertion here still green.
     func testTheFirstRunHintStillDependsOnFullscreen() throws {
         let src = try source(Self.window)
-        XCTAssertTrue(src.contains("if windowSize.isFullscreen {"), """
-            `InstrumentHintOverlay`'s fullscreen gate is gone. That gate is why the front-door \
-            fix also delivers the first-run teaching text: it is written for the immersive \
-            surface, and showing it inside a small floating card would be a different, worse \
-            answer to "Guide fehlt noch" that this slice must not be read as having shipped.
+        // ⛔ #604b re-anchored this needle, and the OLD one was latently two-site (#408):
+        // `if windowSize.isFullscreen {` also matched the layout helper's
+        // `if windowSize.isFullscreen { return bounds }` — so when #604b widened the
+        // overlay's gate, the old needle would have stayed green by matching a line that
+        // has nothing to do with the hint. The `isPresented &&` half is load-bearing:
+        // the window is hidden by `.opacity(0)`, never unmounted, so without it a hidden
+        // fullscreen window banks invisible showings toward the cap (and a monitor
+        // re-show is an opacity flip that never re-runs the `.task`).
+        XCTAssertTrue(src.contains("if isPresented && windowSize.isFullscreen {"), """
+            `InstrumentHintOverlay`'s visible-fullscreen gate is gone. The fullscreen half \
+            is why the front-door fix also delivers the first-run teaching text (written \
+            for the immersive surface, unreadable in a 180-pt floating card); the \
+            `isPresented` half is why a HIDDEN window can neither show the hint nor COUNT \
+            a showing toward the retire cap (#604b — the window is opacity-hidden, never \
+            unmounted).
             """)
     }
 

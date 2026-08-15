@@ -18,19 +18,24 @@
 // `TheFrontDoorIsDecidedBeforeItIsAskedTests`.
 //
 // ⚠️ HONEST GRADING — transcribed in Python against the parent (e4f9953) and this tree
-// (#433/#464). 9 assertions in 4 tests, hand-counted: claims 1 (3) + 2 (3) + 3 (1) +
-// 4 (2). On THIS tree all 9 pass. Against the PARENT: SIX are red as ONE finding
-// (#486) — keystore entries (3), counter + cap-retire (2), start-path write (1), all
-// born with this commit, FORWARD. Claim 2's exactly-one count is GREEN on the parent
-// TOO, but for the WRONG reason (#367, named rather than hidden): the parent's one
-// `seen = true` is the retired display-contract write this law replaces. The count
-// only means what its message says TOGETHER with the two needles above it — alone it
-// cannot tell the old law from the new. Claim 4's two are COUNTERWEIGHTS, green on
-// both trees. ZERO regressions claimed, because zero exist. `SourceText.codeOnly` is LOAD-BEARING, MEASURED (#453): 1 of the claim-2
-// verdicts flips raw-vs-stripped on this tree — the retired contract's phrase
-// `seen = true` survives in the overlay's #604 comment ("collapses this very `if !seen`
-// branch — written up front it would…"); claim 2's exactly-one count is true only of
-// CODE. The #491 collision in its standard form.
+// (#433/#464). 11 assertions in 4 tests, hand-counted: claims 1 (3) + 2 (5) + 3 (1) +
+// 4 (2). On THIS tree all 11 pass. Against the #604 PARENT (e4f9953): SIX were red as
+// ONE finding (#486) — keystore entries (3), counter + cap-retire (2), start-path
+// write (1), all born with #604, FORWARD. The TWO #604b additions (fade-sleep needle +
+// its ordering) are FORWARD against 4ae39e4 — the 700 ms sleep was born with #604b
+// (the original #604 shipped one sleep and its cap-retire hard-cut the cap-th showing;
+// found in review). Claim 2's exactly-one count is GREEN on the parent TOO, but for
+// the WRONG reason (#367, named rather than hidden): the parent's one `seen = true` is
+// the retired display-contract write this law replaces. The count only means what its
+// message says TOGETHER with the needles above it — alone it cannot tell the old law
+// from the new. Claim 4's two are COUNTERWEIGHTS, green on both trees. ZERO
+// regressions claimed, because zero exist. `SourceText.codeOnly` is LOAD-BEARING,
+// MEASURED (#453): 1 of the claim-2 verdicts flips raw-vs-stripped on this tree — the
+// retired contract's phrase `seen = true` survives in the overlay's #604 comment
+// ("collapses this very `if !seen` branch — written up front it would…"); claim 2's
+// exactly-one count is true only of CODE. The #491 collision in its standard form.
+// The two #604b needles do not flip: the 700 ms literal appears only in code (the
+// neighbouring comments spell it "700 ms").
 
 import Foundation
 import XCTest
@@ -78,6 +83,28 @@ final class TheHintRetiresOnLessonLearnedTests: XCTestCase {
             it vanishes the cap-th showing the instant it appears (caught in review of \
             this very slice).
             """)
+        // #604b — the ORIGINAL #604 shipped with ONE sleep: the cap-retire ran in the
+        // same MainActor turn the ease-out STARTED, so the cap-th showing ended in a
+        // hard cut (the small sibling of the very defect the placement comment names).
+        let fadeSleep = "try? await Task.sleep(nanoseconds: 700_000_000)"
+        XCTAssertTrue(code.contains(fadeSleep), """
+            The fade sleep is gone from the overlay. Without it the cap-retire write \
+            collapses `if !seen` before the 0.6 s ease-out renders a frame — the cap-th \
+            showing becomes a hard cut (#604b). If the ease-out duration ever grows past \
+            0.7 s, grow this sleep with it.
+            """)
+        // Ordering via first-range comparison — sound because BOTH needles are unique in
+        // this file (the 700 ms literal exists nowhere else in Sources/; `seen = true`
+        // is counted ==1 below). The `if let` fail-open is covered by the two contains
+        // assertions above going red first (#367, named).
+        if let fade = code.range(of: fadeSleep),
+           let cap = code.range(of: "if shows >= StudioDefaultKeys.instrumentHintShowCap { seen = true }") {
+            XCTAssertTrue(fade.lowerBound < cap.lowerBound, """
+                The fade sleep moved BELOW the cap-retire — in that order it delays \
+                nothing: `seen = true` has already collapsed the branch before the sleep \
+                runs, and the cap-th showing hard-cuts again (#604b).
+                """)
+        }
         XCTAssertEqual(occurrences(of: "seen = true", in: code), 1, """
             `seen = true` appears more than once in FloatingVisualWindow — a second \
             writer is either the old once-ever display contract returning (the #604 \

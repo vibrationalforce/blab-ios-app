@@ -1,8 +1,9 @@
 // FirstInstructionIsTrueTests.swift
 // Echoel — the first thing the instrument tells a new user has to work when they do it.
 //
-// WHAT THIS GUARDS (#351). `InstrumentHintOverlay` is the once-ever whisper on the
-// fullscreen visual, and its first line read:
+// WHAT THIS GUARDS (#351). `InstrumentHintOverlay` is the whisper on the fullscreen
+// visual (once-ever when #351 landed; since #604 it re-arms until learned/capped —
+// the copy law here is unchanged by that), and its first line read:
 //
 //     "A finger on the camera brings it to life"
 //

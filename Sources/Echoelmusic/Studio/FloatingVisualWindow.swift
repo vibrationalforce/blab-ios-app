@@ -814,13 +814,26 @@ struct FloatingVisualWindow: View {
                 // FIRST-RUN INVITATION (vision Step 2b, founder law #1: "app open, finger
                 // on camera, in 3 seconds it lives"). The one gesture a new user can't
                 // discover by feel — the camera is on the BACK, nothing on screen implies
-                // it. A single, once-ever, self-fading whisper on the HOME (fullscreen) that
-                // teaches the two core gestures, then never returns. Non-blocking
-                // (allowsHitTesting false — never steals the first play-touch), flash-safe
-                // (one opacity ramp, far under 3 Hz), reduce-motion aware. Own leaf → reads
-                // only @AppStorage (freeze rule), no bio; no sheet added.
+                // it. A self-fading whisper on the HOME (fullscreen) that teaches the two
+                // core gestures; since #604 it returns on each VISIBLE fullscreen entry
+                // until the lesson is learned (`startBioSource()` retires it) or the show
+                // cap is reached — the old "once-ever, then never returns" contract stood
+                // here for a week after #604 replaced it. Non-blocking (allowsHitTesting
+                // false — never steals the first play-touch), flash-safe (one opacity ramp,
+                // far under 3 Hz), reduce-motion aware. Own leaf → reads only @AppStorage
+                // (freeze rule), no bio; no sheet added.
                 .overlay(alignment: .bottom) {
-                    if windowSize.isFullscreen {
+                    // ⛔ #604b: `isPresented &&` is load-bearing twice over. This window is
+                    // never structurally unmounted — WorkspaceView hides it via `.opacity(0)`
+                    // — so a gate on size alone (the #604 first cut) mounted the overlay
+                    // UNDER a hidden window: with the instrument-home seed forcing
+                    // fullscreen+visible on every cold launch, a dev override that hides the
+                    // window would bank INVISIBLE showings until the cap retired a hint
+                    // nobody ever saw. The same condition fixes the inverse gap: re-showing
+                    // via the header monitor is an opacity flip, not a remount — `isPresented`
+                    // here makes this branch structural in visibility, so the `.task` re-runs
+                    // and the hint genuinely returns on a visible fullscreen entry.
+                    if isPresented && windowSize.isFullscreen {
                         InstrumentHintOverlay(reduceMotion: reduceMotion)
                             .padding(.bottom, 44)
                     }
@@ -1333,7 +1346,9 @@ struct FloatingVisualWindow: View {
 /// ranked it the second-worst debt in the app — the ONLY statement of the core
 /// mechanic was a once-ever 4.5 s whisper; miss it once (look away, notification,
 /// anything) and no surface ever taught the gestures again. NEW RETIRE LAW: the hint
-/// returns on each fullscreen entry until the lesson is LEARNED — `startBioSource()`
+/// returns on each VISIBLE fullscreen entry (the mount gate reads `isPresented` too,
+/// #604b — a hidden window must neither show nor COUNT) until the lesson is LEARNED —
+/// `startBioSource()`
 /// writes `instrumentHintSeen` the moment the user starts a bio source (step 1 of
 /// this hint's own first sentence) — or until `instrumentHintShowCap` showings, which
 /// keeps the old contract's real point (no endless nagging) without its cost.
@@ -1414,6 +1429,12 @@ private struct InstrumentHintOverlay: View {
                     try? await Task.sleep(nanoseconds: 4_500_000_000)
                     if reduceMotion { visible = false }
                     else { withAnimation(.easeOut(duration: 0.6)) { visible = false } }
+                    // #604b: the fade-out must RENDER before the cap can collapse the
+                    // branch — without this second sleep the cap-th showing ended in a
+                    // hard cut (review of #604): the retire write ran in the same
+                    // MainActor turn the ease-out started. 700 ms > the 0.6 s ease-out;
+                    // `try?` for the same cancellation reason as the hold sleep above.
+                    try? await Task.sleep(nanoseconds: 700_000_000)
                     if shows >= StudioDefaultKeys.instrumentHintShowCap { seen = true }
                 }
             }
