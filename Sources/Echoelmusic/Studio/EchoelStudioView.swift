@@ -2600,9 +2600,26 @@ struct EchoelStudioView: View {
     /// FREEZE LAW: `displayedMenu` changes on a TAP, not on a clock — this is nowhere near
     /// the ~10 Hz reads the law is about. No `@Observable` is read here.
     ///
+    /// #607 (GUI-Board Scheibe 4, UX audit #5): "content continues past the strip's
+    /// trailing edge". Written ONLY by `menuBar`'s edge-triggered geometry reduction,
+    /// read ONLY by its fade overlay — see the ⭐ #607 paragraph in `menuBar`'s doc.
+    @State private var chipStripHasMoreTrailing = false
+
     /// ⛔ HONEST LIMIT: the ~590 pt is computed from the constants, not measured on a device.
     /// What is certain is the direction (eight wide chips in one row on a 393 pt phone) and
     /// that scrolling the selection into view is correct whether or not it overflows today.
+    ///
+    /// ⭐ #607 (GUI-Board Scheibe 4, UX audit #5): the strip now ADMITS it overflows. With
+    /// `showsIndicators: false`, the trailing chips (Field · Save & Export) were simply
+    /// invisible on a portrait phone — #272's buried-"•••" complaint reborn one layer over.
+    /// An `onScrollGeometryChange` (iOS 18 floor) reduces the geometry to ONE Bool —
+    /// "content continues past the trailing edge" — and a 24 pt fade to the strip's own
+    /// background shows only while that is true, so the fully-scrolled position shows the
+    /// last chip UNfaded. Edge-triggered (`action:` fires on CHANGE of the reduced value),
+    /// so this is interaction-rate state, not a per-frame publisher — the freeze law is
+    /// untouched. The fade is a functional affordance (Uncodixfy's "serve a control
+    /// function"), non-interactive, and VoiceOver never needs it (chips are buttons,
+    /// swipe navigation reaches them regardless of visual clipping).
     private var menuBar: some View {
         ScrollViewReader { proxy in
         ScrollView(.horizontal, showsIndicators: false) {
@@ -2676,6 +2693,30 @@ struct EchoelStudioView: View {
         .onChange(of: displayedMenu) { _, menu in
             Task { @MainActor in
                 withAnimation(.easeOut(duration: 0.18)) { proxy.scrollTo(menu.id, anchor: .center) }
+            }
+        }
+        // #607 — the overflow measurement. The transform runs during scrolls, but the
+        // `action:` fires only when the REDUCED Bool changes (the documented contract),
+        // so the state write is edge-triggered: at the overflow boundary, on a chip
+        // append (`visibleChips`), or on a width change — never per frame. The −1 pt
+        // tolerance keeps a sub-pixel rest at the end position from flickering the fade.
+        .onScrollGeometryChange(for: Bool.self) { geo in
+            geo.contentOffset.x + geo.containerSize.width < geo.contentSize.width - 1
+        } action: { _, hasMore in
+            chipStripHasMoreTrailing = hasMore
+        }
+        // #607 — the hint itself: 24 pt fading to the strip's own background, trailing
+        // edge only, rendered ONLY while content actually continues past it. Non-
+        // interactive so the last chip stays tappable straight through it (its 44 pt
+        // target sits exactly under this overlay). Not a decorative gradient: it signals
+        // clipped content, the one job Uncodixfy's "serve a control function" names.
+        .overlay(alignment: .trailing) {
+            if chipStripHasMoreTrailing {
+                LinearGradient(colors: [EchoelTheme.bg.opacity(0), EchoelTheme.bg],
+                               startPoint: .leading, endPoint: .trailing)
+                    .frame(width: 24)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
             }
         }
         // ⛔ NO `.onAppear` COMPANION, and the reason is worth writing down because the first
