@@ -25,7 +25,9 @@
 // · Stripper measurement (§2): every needle counted raw vs. `SourceText.codeOnly`-stripped
 //   on both trees — 0 of 12 verdicts flip, PROPHYLAKTISCH. (The studio comment block above
 //   the button deliberately avoids quoting the `openAppSettings()` token, so no needle is
-//   shadowed by prose.)
+//   shadowed by prose.) Claim 7's needles (#613/#613b) were measured separately on their
+//   own trees: the source comments quote neither the denial-gate token nor the copy
+//   strings, so raw == stripped there too — still 0 flips.
 //
 // ORDERING SOUNDNESS (#408): the two "inside the refusal block" claims use ordering between
 // anchors that each occur EXACTLY ONCE in their file — asserted here, not assumed (⛔ the
@@ -164,9 +166,19 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
     /// Settings line + this file's door showed for ALL of them — asserting "Microphone
     /// access is off" over a granted mic and sending the user to a toggle that is
     /// already on. Both doors now branch on the engine's ONE denial definition (#416).
-    /// FORWARD against the #613 parent (0360c90): the gate needles are born with that
-    /// commit — one absence, several assertions (#486). The ordering claims 1–2 above
-    /// are unchanged by the branch: the door stays inside the refusal block.
+    /// FORWARD grading: the gate needles are born with #613, whose TRUE parent is
+    /// eb69265 (⛔ the first wording said "parent (0360c90)" — that is the last
+    /// SOURCE-touching ancestor, three commits back; the two between are deploy/docs
+    /// only, so the grading was materially right and the word "parent" wrong — the
+    /// review caught the mislabel). One absence, several assertions (#486). Ordering:
+    /// gate < door < NEUTRAL COPY (#613b — the first cut asserted only gate < door,
+    /// which stays green if the door slides past the `else` into the non-denied
+    /// branch; the neutral copy is the first token after that branch opens, so it
+    /// closes exactly that gap). Claims 1–2 above are unchanged by the branch.
+    /// The studio's neutral branch carries `!audioEngine.degraded` (#605b law:
+    /// AudioDegradedRow renders beside it and owns cause + Retry); the picker's
+    /// DELIBERATELY does not — the row is invisible under the sheet, and an empty
+    /// refusal block is the defect class this chain fights. Asserted asymmetrically.
     func testTheSettingsCostumeIsGatedOnRealDenial() throws {
         let studio = try source(Self.studio)
         let picker = try source(Self.picker)
@@ -183,17 +195,29 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
                 """)
             let g = try XCTUnwrap(code.range(of: deniedGate))
             let d = try XCTUnwrap(code.range(of: Self.doorNeedle))
-            XCTAssertTrue(g.lowerBound < d.lowerBound, """
-                The \(name)'s Settings door moved OUTSIDE the denial branch — it must \
-                only render when Settings is actually the fix.
-                """)
-            XCTAssertTrue(code.contains(neutral), """
+            let nt = try XCTUnwrap(code.range(of: neutral), """
                 The \(name)'s non-denial refusal line changed or vanished. It is the \
                 honest half of #613: a granted mic whose engage failed transiently gets \
                 "try again", not a Settings hunt. If this is a rewording, update this \
                 guard in the same commit.
                 """)
+            XCTAssertTrue(g.lowerBound < d.lowerBound && d.lowerBound < nt.lowerBound, """
+                The \(name)'s Settings door moved OUTSIDE the denial branch — it must \
+                only render when Settings is actually the fix. `gate < door < neutral` \
+                pins it INSIDE: the neutral copy opens the non-denied branch, so a door \
+                that slid past the `else` would sort after it (#613b closed exactly \
+                this gap in the first cut's `gate < door` check).
+                """)
         }
+        XCTAssertEqual(occurrences(of: "} else if !audioEngine.degraded {", in: studio), 1, """
+            The studio's neutral refusal branch lost its `!degraded` gate (#613b/#605b): \
+            on the restart-throw path the engage failure and restartOrDegrade's verdict \
+            land together, and without the gate this line and AudioDegradedRow say the \
+            same thing twice, side by side. The PICKER's neutral branch deliberately has \
+            no such gate (the row is invisible under the sheet — an empty refusal block \
+            would be worse); if you are unifying them, re-judge that asymmetry, do not \
+            just copy the gate over.
+            """)
         XCTAssertTrue(picker.contains("if monitorRefused && audioEngine.micPermissionDenied {"), """
             The input sheet's empty-state lost its #613 gate — with a granted mic it \
             would again claim "The microphone is not available to Echoel" and point at \

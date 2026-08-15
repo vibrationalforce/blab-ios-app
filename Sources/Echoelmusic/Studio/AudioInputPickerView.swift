@@ -174,6 +174,13 @@ struct AudioInputPickerView: View {
                 .accessibilityHint("Opens Settings so you can allow microphone access and hear yourself live")
                 } else {
                     // #613: granted mic, non-permission failure — no Settings costume.
+                    // #613b: deliberately NO `!degraded` gate here, ASYMMETRIC to the
+                    // studio twin. AudioDegradedRow lives in the studio column and is
+                    // INVISIBLE under this sheet — gating would leave the refusal block
+                    // empty: a snapped-back toggle with no explanation, the exact defect
+                    // class this chain fights. And unlike the #605b silence line (whose
+                    // "comes back by itself" promise is FALSE when degraded), "try
+                    // again" stays honest there — retry is what the row itself offers.
                     Text("Monitoring could not start — try again.")
                         .font(EchoelTheme.font(11))
                         .foregroundStyle(EchoelTheme.danger)

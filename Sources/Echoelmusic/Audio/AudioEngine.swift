@@ -1598,9 +1598,15 @@ public final class AudioEngine {
     /// for non-permission failures (session claim, 0 Hz format, restart throw) — the
     /// refusal copy used to blame Settings for all of them, sending a GRANTED user to
     /// a toggle that is already on. Both doors branch their copy on this instead of
-    /// re-deriving it (#416). Not `@Observable`-published: permission only changes via
-    /// the Settings app, which relaunches the app — constant per launch, so a plain
-    /// computed read in a body is stable and registers no churn.
+    /// re-deriving it (#416). Not `@Observable`-published, and that is safe for a
+    /// PRECISE reason (#613b — the first wording said "constant per launch", which is
+    /// overbroad): `.undetermined → .granted/.denied` DOES change in-app, at the
+    /// permission dialog — but that transition happens exclusively inside
+    /// `engageInputMonitoring`, whose result is written to the doors' `@State`
+    /// (`micMonitorRefused`/`monitorRefused`), and THAT write forces the re-render
+    /// which then reads this property fresh. An unobserved computed read is safe only
+    /// while every change path passes through a `@State` write — add a new change path
+    /// and this must become observable or be re-read on an event.
     var micPermissionDenied: Bool {
         #if os(iOS)
         return AVAudioApplication.shared.recordPermission == .denied

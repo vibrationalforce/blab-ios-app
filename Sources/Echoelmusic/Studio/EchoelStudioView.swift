@@ -3529,9 +3529,14 @@ struct EchoelStudioView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Microphone access is off")
                 .accessibilityHint("Opens Settings so you can allow microphone access and hear yourself live")
-                } else {
+                } else if !audioEngine.degraded {
                     // #613: access is granted, so Settings is the WRONG advice and the
                     // door would assert "Microphone access is off" over a granted mic.
+                    // #613b: `!degraded` is the #605b law applied here — on the
+                    // restart-throw path the engage failure and restartOrDegrade's
+                    // verdict can land together, and AudioDegradedRow (mounted on
+                    // `degraded`) then owns cause + Retry; without the gate this line
+                    // and that row sat on screen saying the same thing twice.
                     Text("Monitoring could not start — try again, or pick another input.")
                         .font(EchoelTheme.font(11))
                         .foregroundStyle(EchoelTheme.danger)
