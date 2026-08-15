@@ -20,19 +20,31 @@
 // a Bool that flips at the overflow boundary, i.e. edge-triggered state writes at
 // interaction rate, not a per-frame publisher. No `@Observable` is read.
 //
-// ⚠️ LIMIT — SOURCE-TEXT SCAN (§1). Nothing here scrolls a view; whether the fade reads
-// as "more to the right" and never occludes a resting chip is a DEVICE probe (named in
-// the release notes). VoiceOver is unaffected either way: chips are buttons, swipe
-// navigation reaches them regardless of visual clipping.
+// ⚠️ LIMIT — SOURCE-TEXT SCAN (§1). Nothing here scrolls a view. TWO device questions,
+// named separately because only one of them can defeat the slice: (1) the SEEDING
+// question — does `onScrollGeometryChange`'s `action:` fire once at appearance, so an
+// overflowing strip shows the fade BEFORE the first scroll? Two independent API
+// mechanisms say yes (the documented initial invocation of the on*GeometryChange family,
+// and the initial-layout geometry change itself flipping false→true), but neither is
+// provable without a device — if it does NOT fire, the hint is invisible to exactly the
+// user it targets. (2) the READING question — does the fade read as "more to the right"
+// rather than occluding a resting chip. VoiceOver is unaffected either way: chips are
+// buttons, swipe navigation reaches them regardless of visual clipping.
 //
 // ⚠️ HONEST GRADING (#433/#464) — transcribed in Python against the parent (e9a83a7) and
-// this tree. 7 assertions in 3 tests, hand-counted: claims 1 (3) + 2 (2) + 3 (2).
+// this tree. 8 assertions in 3 tests, hand-counted: claims 1 (3) + 2 (2) + 3 (1 slice
+// non-empty + 2 scoped needles = 3; the slice-scoping and its non-empty check are #607b,
+// after the review found the indicator needle five-fold file-wide).
 // Against the PARENT: FIVE are red as ONE finding (#486) — the geometry transform, the
-// state declaration, the overlay gate, the fade's hit-test empty and its width all name
-// lines born with this commit, FORWARD. Claim 3's two are COUNTERWEIGHTS, green on both
-// trees (`showsIndicators: false` and the #291 scroll-into-view are the premises that
-// make the hint necessary and sufficient). ZERO regressions claimed, because zero exist.
-// `SourceText.codeOnly` is PROPHYLAKTISCH here, MEASURED (#453): 0 of 7 verdicts flip
+// state declaration, the action WRITE (`chipStripHasMoreTrailing = hasMore`), the
+// overlay gate and the fade's hit-test empty all name lines born with this commit,
+// FORWARD. ⛔ The first version of this sentence listed "and its width" — there is no
+// width assertion in this file — and omitted the action write: the #475 class (right
+// number, wrong object), caught by the #607 review in the very header whose job is the
+// count. Claim 3's three are COUNTERWEIGHTS, green on both trees (`menuBar` exists,
+// and its `showsIndicators: false` + #291 scroll-into-view are the premises that make
+// the hint necessary and sufficient). ZERO regressions claimed, because zero exist.
+// `SourceText.codeOnly` is PROPHYLAKTISCH here, MEASURED (#453): 0 of 8 verdicts flip
 // raw-vs-stripped on either tree — no needle below is quoted whole in a comment.
 
 import Foundation
@@ -87,16 +99,38 @@ final class TheChipStripAdmitsItOverflowsTests: XCTestCase {
 
     func testTheStripsScrollPremisesSurvive() throws {
         let code = try source(Self.studio)
-        XCTAssertTrue(code.contains("ScrollView(.horizontal, showsIndicators: false)"), """
-            The strip's hidden-indicator scroll is gone. If indicators came back, the \
-            fade is a second overflow affordance and the two should be re-judged \
-            together rather than shipped stacked.
+        // ⛔ #607b: this needle occurs FIVE times file-wide (measured — the #607 review
+        // caught the first version asserting it file-wide while the log called every
+        // needle unique). Scoped to `menuBar`'s own body, the #408 way: the slice runs
+        // from the declaration to the first indent-4 closing brace, which is the
+        // member's own end (every line inside the body sits at indent ≥ 8).
+        let bar = slice(code, from: "private var menuBar: some View {", to: "\n    }")
+        XCTAssertFalse(bar.isEmpty, """
+            `menuBar` is gone or renamed — the chip strip this whole guard is about. \
+            Re-anchor the slice; do not let the two scoped needles below go green on \
+            an empty string.
             """)
-        XCTAssertTrue(code.contains("proxy.scrollTo(menu.id, anchor: .center)"), """
-            The #291 scroll-into-view is gone. The fade says "more exists"; the scrollTo \
-            is what guarantees the SELECTED chip is never the hidden one. Losing it \
-            re-opens the pulse-pill bug (#291 rationale 1) that predates this slice.
+        XCTAssertTrue(bar.contains("ScrollView(.horizontal, showsIndicators: false)"), """
+            The CHIP STRIP's hidden-indicator scroll is gone (four other ScrollViews in \
+            this file legitimately share the pattern — this assertion is scoped to \
+            `menuBar`). If indicators came back HERE, the fade is a second overflow \
+            affordance and the two should be re-judged together rather than shipped \
+            stacked.
             """)
+        XCTAssertTrue(bar.contains("proxy.scrollTo(menu.id, anchor: .center)"), """
+            The #291 scroll-into-view is gone from `menuBar`. The fade says "more \
+            exists"; the scrollTo is what guarantees the SELECTED chip is never the \
+            hidden one. Losing it re-opens the pulse-pill bug (#291 rationale 1) that \
+            predates this slice.
+            """)
+    }
+
+    private func slice(_ code: String, from: String, to: String) -> String {
+        guard let start = code.range(of: from),
+              let end = code.range(of: to, range: start.upperBound..<code.endIndex) else {
+            return ""
+        }
+        return String(code[start.lowerBound..<end.lowerBound])
     }
 
     // MARK: - source access (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)
