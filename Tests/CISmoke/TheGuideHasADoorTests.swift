@@ -78,7 +78,11 @@ final class TheGuideHasADoorTests: XCTestCase {
             the 10.76.34 black screen was that chain growing. Whatever needs presenting \
             here, present it as in-card content instead.
             """)
-        for needle in ["cameraRPPG", "transport."] {
+        // Needle set widened on review (#603 note 2): the first version scanned only
+        // cameraRPPG/transport. — pianoRoll (the ~10 Hz tick owner), the bus snapshots
+        // and any @Environment injection are the other rate sources an overlay could
+        // accidentally adopt. Still a finite list, and the header names that limit.
+        for needle in ["cameraRPPG", "transport.", "pianoRoll.", "latestBio", "@Environment("] {
             XCTAssertFalse(code.contains(needle), """
                 GuideOverlay now references `\(needle)` — a high-frequency source. Its \
                 whole mount-safety argument (10.76.50) is that it reads ONE low-frequency \
