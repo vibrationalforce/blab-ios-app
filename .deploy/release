@@ -1,48 +1,55 @@
-build: v10.79.400 — Der Chip-Strip gibt seinen Overflow zu
+build: v10.79.401 — Der Auto-Modus, Scheibe 1: Dein Körper darf sanft mitmischen
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.399 (≈2516, Bio-Zahlen wachsen mit der Schrift).
-  Dieser Build trägt #607/#607b — GUI-Board-Scheibe 4 aus Deinem Auftrag.
+  Der Vorgänger auf Deinem Gerät ist 10.79.400 (2517, Chip-Strip-Overflow-Fade).
+  Dieser Build trägt #608/#608b — Scheibe 1 Deines Auto-Modus-Auftrags
+  („vibe catchen, sanft intervenieren, Kohärenz herstellen").
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Der Chip-Strip zeigt an, dass rechts mehr kommt.** Die Chip-Leiste
-    (die Haupt-Navigation) ist auf einem Hochformat-iPhone breiter als der
-    Bildschirm und scrollt OHNE Scroll-Indikator — die hinteren Chips
-    (Field · Save & Export) waren bisher einfach unsichtbar, nichts sagte
-    „da ist mehr". Jetzt liegt am rechten Rand ein schmaler Verlauf zum
-    Hintergrund, solange Inhalt hinter der Kante weitergeht. Ganz nach
-    rechts gescrollt verschwindet er — der letzte Chip steht dann klar und
-    unverdeckt da. Der Verlauf schluckt keine Taps (der Chip darunter
-    bleibt tappbar) und ist für VoiceOver unsichtbar (Chips sind Buttons,
-    die Wisch-Navigation erreicht sie unabhängig vom Sichtbaren).
+  · **„Auto mode" im Bio-Panel, Default AUS.** Ein Schalter neben „Body
+    voice": eingeschaltet führt er die Mood-Regler (dunkel/lebhaft/
+    spannend) SANFT in Richtung Deines gemessenen Zustands — Kohärenz,
+    HRV, Herzfrequenz — und zwar nur, wenn Dein Körper KLAR ruhig oder
+    klar angetrieben ist. Dazwischen hört er zu und rührt nichts an.
+    Die Bewegung ist bewusst klein (max. ~0.045 auf einem Regler pro
+    Take), passiert im Takt der Musik-Evolution (~25–45 s), und Deine
+    eigenen Regler-Werte bleiben immer die Basis — nichts wird
+    überschrieben oder gespeichert. Ohne laufende Bio-Quelle ist der
+    Schalter ausgegraut und sagt warum.
+  · **Tempo bleibt unangetastet.** Das Tempo folgt weiter ausschließlich
+    dem vorhandenen Flow-Servo — der Auto-Modus hat keinerlei eigenen
+    Tempo-Pfad (per Test festgenagelt).
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. **Die wichtigste Frage zuerst:** App öffnen, NICHT scrollen — ist der
-     Verlauf am rechten Rand der Chip-Leiste SOFORT sichtbar? (Falls er
-     erst nach dem ersten Scrollen erscheint, verfehlt die Scheibe genau
-     die Nutzer, für die sie gebaut ist — bitte melden.)
-  2. Chip-Leiste ganz nach rechts scrollen → Verlauf weg, „Save & Export"
-     klar lesbar und unverdeckt?
-  3. Zurück nach links scrollen → Verlauf kehrt zurück?
-  4. Den letzten sichtbaren Chip UNTER dem Verlauf antippen → öffnet er
-     normal (der Verlauf darf den Tap nicht schlucken)?
-  5. Ältere Proben offen: 2516 (AX-Bio-Stapel) · 2515 (Monitor-Warnzeile
-     bei Anruf/Siri/Wecker) · 2514 (Hint-Trio) · 2513 (E-Wechsel +
-     Guide-Tour) · 2512 (Mikrofon frisch installiert).
+  1. Bio-Chip → „Auto mode": ohne laufende Quelle ausgegraut mit
+     Erklärung? Kamera-Puls starten → Schalter wird aktiv?
+  2. **Die Hörbarkeits-Frage (entscheidet über Scheibe 2):** Auto AN,
+     Finger auf der Linse, ruhig atmen bis die Kohärenz klar hoch ist →
+     hörst Du über die nächsten 1–2 Evolutions-Takte eine SANFTE
+     Verschiebung (weicher, ruhiger, weniger Spannung)? Oder ist der
+     Effekt zu klein, um ihn wahrzunehmen? Beides ist eine wertvolle
+     Antwort — falls unhörbar, baue ich einen langsamen Anschleich-Pfad
+     (Slew) statt einer größeren Konstante.
+  3. Liest die Erklärzeile unterm Schalter verständlich („when your body
+     is clearly settled or clearly driving")?
+  4. Ältere Proben offen: 2517 (Chip-Strip-Fade, inkl. der Frage: Fade
+     SOFORT beim Öffnen ohne zu scrollen?) · 2516 (AX-Bio-Stapel) ·
+     2515 (Monitor-Warnzeile) · 2514 (Hint-Trio) · 2513 (E + Guide).
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün, Testlauf-Rot
-  ist das bekannte harmlose #396), Review adversarial ohne CRITICAL. Ob
-  der Verlauf beim ersten Öffnen OHNE Scrollen erscheint (Frage 1), kann
-  kein Test hier beweisen — zwei API-Mechanismen sprechen dafür, aber es
-  entscheidet Dein Gerät. Ebenso, ob der Verlauf als „rechts ist mehr"
-  LIEST statt als Schatten.
+  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün, Testlauf-
+  Rot ist das bekannte harmlose #396); die Entscheidungslogik ist rein
+  und transkribiert getestet (38 Wächter-Verdikte), aber ob die sanfte
+  Verschiebung HÖRBAR ist und die Formulierung WIRKT, entscheidet Dein
+  Ohr — genau dafür ist Frage 2 da. Der adversariale Review fand einen
+  Wächter-Anker-Fehler und drei Ehrlichkeits-Lücken; alle vier sind vor
+  diesem Build behoben.
 
-  Vorgänger-Noten: 10.79.399 = Bio-Zahlen wachsen mit der Schrift ·
-  10.79.398 = Monitor erklärt seine Stille · 10.79.397 = Hint-Re-Arm.
+  Vorgänger-Noten: 10.79.400 = Chip-Strip-Overflow-Fade · 10.79.399 =
+  Bio-Zahlen wachsen mit der Schrift · 10.79.398 = Monitor-Stumm-Zeile.
   KEIN AUDIO wird je gespeichert.
