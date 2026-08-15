@@ -245,6 +245,9 @@ struct EchoelStudioView: View {
     @AppStorage(StudioDefaultKeys.lockBPM.key) private var lockBPM = StudioDefaultKeys.lockBPM.value
     /// #603 B1 — the guide switch state (overlay mounts in WorkspaceView; H15-KEYSTORE).
     @AppStorage(StudioDefaultKeys.guideVisible.key) private var guideVisible = StudioDefaultKeys.guideVisible.value
+    /// #604 — the instrument hint's retire flag; `startBioSource()` writes it (lesson
+    /// learned). The overlay in FloatingVisualWindow is the reader (H15-KEYSTORE).
+    @AppStorage(StudioDefaultKeys.instrumentHintSeen.key) private var instrumentHintSeen = StudioDefaultKeys.instrumentHintSeen.value
     @AppStorage(StudioDefaultKeys.lockedBPM.key) private var lockedBPM: Double = StudioDefaultKeys.lockedBPM.value
     /// Tap-tempo estimator (performance staple) + the last value it produced for display.
     @State private var tapTempo = TapTempo()
@@ -8520,6 +8523,12 @@ struct EchoelStudioView: View {
     /// so the instrument always plays. Failures are swallowed — generation falls back to
     /// neutral defaults.
     private func startBioSource() async {
+        // #604: starting ANY bio source is the instrument hint's lesson, learned — the
+        // user found Start, which is step 1 of the hint's own first sentence ("Start the
+        // music, then a finger on the back camera"). Retiring it here, at the action,
+        // replaced the once-ever display contract that let a missed 4.5 s whisper be the
+        // app's only teaching moment (GUI-Board Scheibe 1; keys in StudioDefaultKeys).
+        instrumentHintSeen = true
         switch BioSourceKind(rawValue: bioSourceRaw) ?? .camera {
         case .camera:
             #if canImport(AVFoundation)

@@ -50,6 +50,26 @@ public enum StudioDefaultKeys {
     /// invited, never imposed. Founder may flip this default — it is one value, here.
     public static let guideVisible = StudioDefault(key: "studio.guideVisible", value: false)
 
+    /// #604 (GUI-Board Scheibe 1, UX-Audit #2): the instrument hint's retire flag. The
+    /// OLD contract wrote this after ONE ~4.5 s showing — miss it once and the app's only
+    /// statement of the core mechanic never returned. NEW law: the hint retires when the
+    /// lesson is LEARNED — `startBioSource()` writes it (the user found Start, step 1 of
+    /// the hint's own sentence) — or after the showing cap below. Two writers in two
+    /// views, hence H15-KEYSTORE. The key STRING is unchanged on purpose: users who
+    /// already saw it once stay retired; only fresh installs get the patient behaviour.
+    public static let instrumentHintSeen = StudioDefault(key: "onboard.instrumentHintSeen", value: false)
+
+    /// #604 — how many times the hint has been shown. At `instrumentHintShowCap` the
+    /// overlay retires itself even unlearned: the old once-ever contract existed to stop
+    /// the hint nagging on every fullscreen toggle, and that concern survives as this cap
+    /// instead of dying with the contract.
+    public static let instrumentHintShows = StudioDefault(key: "onboard.instrumentHintShows", value: 0)
+
+    /// #604 — the cap, ONE definition (#416): read by the overlay's retire check and by
+    /// the guard test. 5 showings ≈ five fullscreen entries — enough chances to read two
+    /// lines, bounded enough never to feel like a nag.
+    public static let instrumentHintShowCap = 5
+
     /// Founder 8-bar produce-able phrase (see EchoelStudioView loop picker).
     public static let loopBars = StudioDefault(key: "studio.loopBars", value: LoopBarLength.eight)
     public static let genre = StudioDefault(key: "studio.genre", value: MusicStyle.selfObservation)

@@ -15,6 +15,13 @@ final class StudioDefaultKeysTests: XCTestCase {
         // Save & Export toggle, hence keystore.
         XCTAssertEqual(StudioDefaultKeys.guideVisible.value, false)
         XCTAssertEqual(StudioDefaultKeys.guideVisible.key, "studio.guideVisible")
+        // #604: hint retires on lesson-learned or the cap — key string deliberately kept
+        // from the pre-keystore literal so already-taught users stay retired.
+        XCTAssertEqual(StudioDefaultKeys.instrumentHintSeen.value, false)
+        XCTAssertEqual(StudioDefaultKeys.instrumentHintSeen.key, "onboard.instrumentHintSeen")
+        XCTAssertEqual(StudioDefaultKeys.instrumentHintShows.value, 0)
+        XCTAssertEqual(StudioDefaultKeys.instrumentHintShows.key, "onboard.instrumentHintShows")
+        XCTAssertEqual(StudioDefaultKeys.instrumentHintShowCap, 5)
         // Composition: the 8-bar produce-able phrase (H15-LOOPBARS shipped v271).
         XCTAssertEqual(StudioDefaultKeys.loopBars.value, .eight)
         // Genre home is self-observation — the visual's old .vaporwave copy put a

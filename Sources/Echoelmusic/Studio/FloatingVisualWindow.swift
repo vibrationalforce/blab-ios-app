@@ -1327,7 +1327,16 @@ struct FloatingVisualWindow: View {
 
 /// First-run invitation on the instrument home (vision Step 2b). Teaches the two
 /// core gestures — finger on the (back) camera to bring it to life, touch the image
-/// to play — then fades and NEVER returns (persisted `onboard.instrumentHintSeen`).
+/// to play — then fades.
+///
+/// ⛔ #604 (GUI-Board Scheibe 1): "then NEVER returns" stood here, and the UX audit
+/// ranked it the second-worst debt in the app — the ONLY statement of the core
+/// mechanic was a once-ever 4.5 s whisper; miss it once (look away, notification,
+/// anything) and no surface ever taught the gestures again. NEW RETIRE LAW: the hint
+/// returns on each fullscreen entry until the lesson is LEARNED — `startBioSource()`
+/// writes `instrumentHintSeen` the moment the user starts a bio source (step 1 of
+/// this hint's own first sentence) — or until `instrumentHintShowCap` showings, which
+/// keeps the old contract's real point (no endless nagging) without its cost.
 /// A self-contained leaf: reads only @AppStorage (freeze rule), never a bio value;
 /// `allowsHitTesting(false)` so it can never swallow the first play-touch; one opacity
 /// ramp (far under the 3 Hz flash rule), reduce-motion aware. Whisper styling per
@@ -1335,7 +1344,10 @@ struct FloatingVisualWindow: View {
 @MainActor
 private struct InstrumentHintOverlay: View {
     let reduceMotion: Bool
-    @AppStorage("onboard.instrumentHintSeen") private var seen = false
+    @AppStorage(StudioDefaultKeys.instrumentHintSeen.key)
+    private var seen = StudioDefaultKeys.instrumentHintSeen.value
+    @AppStorage(StudioDefaultKeys.instrumentHintShows.key)
+    private var shows = StudioDefaultKeys.instrumentHintShows.value
     @State private var visible = false
 
     var body: some View {
@@ -1383,23 +1395,26 @@ private struct InstrumentHintOverlay: View {
                 // against the catalog — and this string has now been wrong once (#351).
                 .accessibilityLabel("Start the music, then put a finger on the back camera. Touch the image to play notes.")
                 .task {
-                    // Show once, hold ~4.5 s, fade out, then mark seen so it never returns.
-                    // No animation under Reduce Motion (a hard cut, still flash-safe).
-                    // ONCE-EVER CONTRACT (do not weaken): `seen = true` MUST run even when the
-                    // task is cancelled early (user flicks out of fullscreen mid-hold). The
-                    // `try?` (not `try`) swallows the sleep's CancellationError and falls
-                    // through to the write, so the hint never re-shows on return to fullscreen.
-                    // Do NOT add `guard !Task.isCancelled` or move `seen = true` before the
-                    // sleeps — that would re-arm the hint on a fullscreen toggle. The only
-                    // path leaving seen=false is app termination before the write (correct:
-                    // an unseen hint re-shows next launch).
+                    // Show, hold ~4.5 s, fade out. No animation under Reduce Motion (a
+                    // hard cut, still flash-safe).
+                    //
+                    // #604 RETIRE LAW (replaces the once-ever contract): each showing
+                    // COUNTS but does not retire — retirement comes from the lesson being
+                    // learned (`startBioSource()` writes `seen`) or from the cap. The
+                    // COUNT is written first (a mid-hold fullscreen exit still counts as
+                    // the showing it was); the cap-RETIRE is written LAST, because
+                    // `seen = true` collapses this very `if !seen` branch — written up
+                    // front it would vanish the cap-th showing the instant it appeared.
+                    // The `try?` (not `try`) on the sleeps is load-bearing exactly as in
+                    // the old contract: it swallows CancellationError, so the final
+                    // write runs even when the user flicks out of fullscreen mid-hold.
+                    shows += 1
                     if reduceMotion { visible = true }
                     else { withAnimation(.easeIn(duration: 0.45)) { visible = true } }
                     try? await Task.sleep(nanoseconds: 4_500_000_000)
                     if reduceMotion { visible = false }
                     else { withAnimation(.easeOut(duration: 0.6)) { visible = false } }
-                    try? await Task.sleep(nanoseconds: 700_000_000)
-                    seen = true
+                    if shows >= StudioDefaultKeys.instrumentHintShowCap { seen = true }
                 }
             }
         }
