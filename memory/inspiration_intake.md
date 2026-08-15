@@ -606,3 +606,20 @@ EINZELN, also bekommt es eine eigene Zeile statt eines Verweises auf eine Sammel
   Werte tragen den −1-dB-Trim zurück. Die Reihenfolge hat gehalten; die Sperre ist weg.
   Kein neuer Task, keine neue Abhängigkeit.
 **Kein App-Code-Impact. Kein neuer Task. Höchster Wert war: #316 vor #313 — erledigt.**
+
+## 2026-08-15 — herdr (github.com/herdrdev/herdr) — Founder: „Installieren?"
+**Tier: WATCH (Founder-Workstation-Tooling, kein Echoel-Task).** Rust-Terminal-Runtime für
+Coding-Agents (tmux-artig: Background-Server, Sessions überleben Deckel-zu/Neustart, Panes
+mit working/blocked/idle-Status, Socket-API, Claude Code/Codex/Cursor als Gäste; Apache-2.0,
+ein Binary, kein Electron). Nachgelesen im Shallow-Clone, nicht nur im README-Marketing.
+- **Für DIESE Session-Infrastruktur: nutzlos.** Die 24h-Mandat-Sessions laufen remote
+  (claude.ai/code, Container ephemer, Cron weckt) — Persistenz liefert die Plattform, ein
+  lokaler Terminal-Server im Container stürbe mit ihm.
+- **Für den Founder-Mac: sein Call, kein Repo-Belang.** Sinnvoll ERST, wenn mehrere LOKALE
+  Agents in Terminals laufen sollen (der interessante Fall wäre ein lokaler Mac mit Xcode
+  für Device-Builds — das wäre aber eine Infrastruktur-Entscheidung, nicht diese Zeile).
+  Installation dann via `brew install herdr` (Homebrew-Formel existiert; dem
+  `curl | sh`-Installer vorziehen).
+- **App/Pipeline-Impact: null.** Keine Code-Abhängigkeit (Zero-Dep-Gesetz unberührt),
+  berührt nie `Sources/`, auch nicht ContentPipeline.
+**Kein App-Code-Impact. Kein neuer Task.**
