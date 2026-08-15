@@ -1,47 +1,42 @@
-build: v10.79.398 — Der Monitor sagt, warum er stumm ist
+build: v10.79.399 — Die Bio-Zahlen wachsen mit der Schrift
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.397 (≈2514, Hint-Re-Arm).
-  Dieser Build trägt #605/#605b — GUI-Board-Scheibe 2 aus Deinem Auftrag.
+  Der Vorgänger auf Deinem Gerät ist 10.79.398 (≈2515, Monitor-Stumm-Zeile).
+  Dieser Build trägt #606/#606b — GUI-Board-Scheibe 3 aus Deinem Auftrag.
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Der Monitor erklärt seine Stille.** Bisher konnte der Monitor-
-    Schalter AN zeigen, während ein Anruf, Siri oder ein Wecker die
-    Audio-Engine pausiert hielt — verdrahtet, aber lautlos, ohne ein
-    Wort Erklärung. Jetzt steht in beiden Türen (Mix-Board-Karte
-    „Voice · your microphone" und Input-Sheet) eine Warnzeile:
-    „Monitoring is on, but audio is paused — it comes back by itself
-    when the call, alarm or Siri ends." Sie verschwindet von selbst,
-    sobald Audio wieder läuft.
-  · Feinschliff aus dem Review: hat die Selbstheilung wirklich
-    aufgegeben (der seltene Doppelfehler-Fall), schweigt die neue Zeile
-    absichtlich — dort erklärt weiterhin NUR die bestehende Audio-
-    Fehlerzeile mit ihrem Retry-Knopf, damit nie zwei Sätze
-    Gegensätzliches über dieselbe Stille behaupten.
+  · **Die Bio-Zahlen wachsen mit der Schrift.** Bisher tat die Bio-Zeile
+    (HR · HRV · Br · Coh) das Gegenteil: wer in den iOS-Einstellungen die
+    Schrift VERGRÖSSERTE, bekam die Zahlen auf 60 % geschrumpft — vier
+    Zellen mussten sich eine Zeile teilen. Jetzt stapeln die vier Werte
+    bei Accessibility-Schriftgrößen untereinander, jede Zeile mit der
+    vollen Breite und in voller Größe; der Quellen-Tag bekommt seine
+    eigene Zeile. Bei normalen Schriftgrößen ist das Layout exakt das
+    bisherige — kein Pixel anders.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Monitoring AN (Kopfhörer), dann einen Anruf/Timer-Wecker auslösen
-     oder Siri aufrufen: die Warnzeile erscheint in der Mix-Board-Karte
-     (und im Input-Sheet, falls offen).
-  2. Anruf/Siri beenden → Audio läuft weiter, die Zeile verschwindet
-     von selbst.
-  3. Offen aus 2514: Hint-Proben (erscheint im Vollbild · kehrt beim
-     Wiedereintritt · Start retiret dauerhaft) · aus 2513: E-Wechsel
-     filmen + Guide AN/Tour/AUS · aus 2512: Mikrofon-Probe (App frisch
-     installieren → Monitor AN → Dialog).
+  1. Einstellungen → Anzeige & Helligkeit → Textgröße (oder
+     Bedienungshilfen → Anzeige) auf eine GROSSE Stufe stellen →
+     Echoelmusic → Bio-Chip: stehen HR/HRV/Br/Coh untereinander, in
+     voller Größe, ohne Schrumpfen und ohne „…"? Tag eigene Zeile?
+  2. Textgröße zurück auf normal → die gewohnte einzeilige Bio-Zeile,
+     unverändert.
+  3. Ältere Proben offen: 2515 (Monitor-Warnzeile bei Anruf/Siri/Wecker)
+     · 2514 (Hint erscheint/kehrt wieder/Start retiret dauerhaft) ·
+     2513 (E-Wechsel + Guide-Tour) · 2512 (Mikrofon frisch installiert).
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün auf 0797142,
-  Build for Testing success), wächter-gepinnt (7 Behauptungen), ui-state-
-  Review adversarial ohne CRITICAL (beide WARNs behoben) — ob die Zeile
-  im echten Interruption-Moment ERSCHEINT und wieder geht, entscheidet
-  das Gerät.
+  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün; der
+  umgebaute Wächter lief nachweislich — alle 4 Methoden „passed" im
+  CI-Log), Review adversarial ohne CRITICAL, Compact-Layout im Diff
+  render-identisch — ob die gestapelten Zahlen am Gerät WIRKEN und
+  nirgends „…" auftaucht, entscheidet Dein Blick auf einer AX-Stufe.
 
-  Vorgänger-Noten: 10.79.397 = Hint-Re-Arm (bis gelernt oder 5×) ·
-  10.79.396 = E-Parität + Guide (an/aus) · 10.79.395 = Audio in fragt
-  nach dem Mikrofon. KEIN AUDIO wird je gespeichert.
+  Vorgänger-Noten: 10.79.398 = Monitor erklärt seine Stille · 10.79.397 =
+  Hint-Re-Arm (bis gelernt oder 5×) · 10.79.396 = E-Parität + Guide.
+  KEIN AUDIO wird je gespeichert.
