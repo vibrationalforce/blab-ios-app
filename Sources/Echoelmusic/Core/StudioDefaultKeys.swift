@@ -42,6 +42,14 @@ public enum StudioDefaultKeys {
 
     // MARK: studio.* — composition panel (semantic owner: EchoelStudioView)
 
+    /// #603 B1 — the founder's on/off guide ("an- und ausschaltbarer Guide der hilft die
+    /// App zu bedienen und zu verstehen"). Read by TWO views — `WorkspaceView` mounts the
+    /// `GuideOverlay`, `EchoelStudioView`'s Save & Export panel hosts the toggle — hence
+    /// H15-KEYSTORE. OFF on fresh installs, deliberately: first contact belongs to
+    /// `OnboardingView` + the instrument home ("app open → it lives"); the guide is
+    /// invited, never imposed. Founder may flip this default — it is one value, here.
+    public static let guideVisible = StudioDefault(key: "studio.guideVisible", value: false)
+
     /// Founder 8-bar produce-able phrase (see EchoelStudioView loop picker).
     public static let loopBars = StudioDefault(key: "studio.loopBars", value: LoopBarLength.eight)
     public static let genre = StudioDefault(key: "studio.genre", value: MusicStyle.selfObservation)

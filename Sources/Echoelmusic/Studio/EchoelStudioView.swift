@@ -243,6 +243,8 @@ struct EchoelStudioView: View {
     // Optional locked tempo for tight, DAW-ready loops. When off, the tempo follows
     // the body (flowFree); when on, the loop runs at exactly `lockedBPM`.
     @AppStorage(StudioDefaultKeys.lockBPM.key) private var lockBPM = StudioDefaultKeys.lockBPM.value
+    /// #603 B1 — the guide switch state (overlay mounts in WorkspaceView; H15-KEYSTORE).
+    @AppStorage(StudioDefaultKeys.guideVisible.key) private var guideVisible = StudioDefaultKeys.guideVisible.value
     @AppStorage(StudioDefaultKeys.lockedBPM.key) private var lockedBPM: Double = StudioDefaultKeys.lockedBPM.value
     /// Tap-tempo estimator (performance staple) + the last value it produced for display.
     @State private var tapTempo = TapTempo()
@@ -7679,6 +7681,22 @@ struct EchoelStudioView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .fixedSize(horizontal: false, vertical: true)
             #endif
+
+            // #603 B1 — the guide switch ("an- und ausschaltbarer Guide"). It sits ABOVE
+            // the recovery corner (reset/diagnostics): learning aid, not recovery. The
+            // overlay itself mounts in `WorkspaceView`'s ZStack — this row only flips the
+            // shared `StudioDefaultKeys.guideVisible` key (H15-KEYSTORE: two views read
+            // it, so the key + default live in Core, never re-typed here).
+            Toggle(isOn: $guideVisible) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Guide").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                    Text("Cards that walk you through playing and understanding the app.")
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .tint(EchoelTheme.accent)
+            .accessibilityHint("Shows a card overlay explaining the instrument, one surface at a time")
 
             soundResetRow
 

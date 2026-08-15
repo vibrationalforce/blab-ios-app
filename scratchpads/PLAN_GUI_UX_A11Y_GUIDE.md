@@ -102,6 +102,36 @@ Große in D erst nach Founder-Geräteprobe des Guides.
 - AX-Clamp-Abbau (C1) kann sich als L erweisen (Layout-Umbau) — dann eigene Planung.
 - Geräteprobe entscheidet Guide-Tonalität; Texte sind bewusst founder-tunbar gehalten.
 
-## BOARD (Synthese aus Phase A — wird nach Audit-Rückkehr gefüllt)
+## BOARD (Synthese aus Phase A — 3 Audits zurück 2026-08-15, je Top-N, dedupliziert)
 
-_(leer bis Audit-Synthese)_
+**Phase B — Guide: B1+B2 GEBAUT in dieser Session** (GuideOverlay + Keystore-Key +
+utilityRow-Toggle + Wächter `TheGuideHasADoorTests`; Inhalte = LearnLibrary „Start Here",
+6 wächter-gepinnte Karten, null neue Copy). B3 („Verstehen"-Karten aus BioScienceInfo)
++ B4 (Kontext-Modus) warten auf Founder-Probe von B1/B2.
+
+**Reihenfolge C/D (PM-Rang: Nutzer-Impact × S zuerst; Quellen: A11y-/UX-Audit-Reports
+in den Task-Transkripten dieser Session, jede Zeile mit file:line dort):**
+
+| # | Scheibe | Quelle | Aufwand |
+|---|---------|--------|---------|
+| 1 | Instrument-Hint-Overlay re-armen (einmal-für-immer → bis zur ersten erfolgreichen Bio-Session) | UX#2 | S |
+| 2 | Monitor-Banner deckt „Engine gestoppt"-Fall (Toggle an, nichts läuft) | UX#9/A11y-Wissen #485 | S |
+| 3 | BioStrip `minimumScaleFactor` 0.6 → 1.0 bei AX-Größen (Anti-Fix raus) | A11y#5 | S |
+| 4 | Chip-Strip Overflow-Hinweis (Trailing-Fade; Field/Save unsichtbar auf 393 pt) | UX#5 | S |
+| 5 | First-Run-Erklärzeile unter quickActionRow („warum sind die Kacheln grau") | UX#7 | S |
+| 6 | Bio-Quellen-Tür sichtbar („Source…"-Button im bioPanel statt nur Long-Press) | UX#4 | S |
+| 7 | Tap-Target-Batch: VideoLibrary 32er-Trio · Narration-Disclosure · Studio-Chip 30 pt · Fenster-Titelknöpfe 38 pt (+ TapTargetFloorTests-Fälle) | A11y#3/6/7/8 | S |
+| 8 | Onboarding-readyPage: EIN Satz nennt Play/Kamera/Gurt | UX#3 | S |
+| 9 | VoiceOver-Move-Actions fürs Floating-Fenster (Drag-only heute) | A11y#4 | S |
+| 10 | Follow-the-key + Voice im Untertitel auffindbar machen | UX#12/13 | S |
+| 11 | Puls-Pille liest sich als Taste (borderStrong-Grammatik) | UX#15 | S |
+| 12 | StudioZoom „Follow system text size"-Reset (Pinch koppelt sonst für immer ab) | A11y#9 | S/M |
+| 13 | border→borderStrong-Rollout, beurteilte Batches (≈60 Controls, WCAG 1.4.11) | A11y#2/#10 | M |
+| 14 | „Was treibt den Klang"-Status-Leaf (tempoSource · Bio-Kanäle · Body-Voice · Monitoring · Guard) | UX#8/14 | M |
+| 15 | #292-Fortsetzung: die 6 starren Panels (bioPanel · videoPanel · tempoTools · master · effects · utilityRow) | UX#11/A11y | M (S je Panel) |
+| 16 | AX-Clamp-Abbau Chrome (A4-Feld stapeln → Decke schrittweise heben) — NEEDS-FOUNDER-VERIFY | A11y#1 | M |
+| 17 | Founder-Look-Runde (EIN Screenshot-Paket): Start-Chip im Vollbild · Record-Glyph · „Field"-Benennung | UX#1/6/10 | Founder |
+
+Explizit GEKLÄRT von den Audits (nicht erneut auditieren): EchoelValueField ist
+VoiceOver-vollständig (adjustable) · Reduce-Motion-Abdeckung breit · Text-Kontrast via
+dim=0.65 + ThemeContrastTests erledigt · türlose Flächen aus dem Ranking ausgeschlossen.

@@ -284,6 +284,14 @@ struct WorkspaceView: View {
                 .allowsHitTesting(floatingVisualVisible)
                 .accessibilityHidden(!floatingVisualVisible)
             #endif
+            // #603 B1 — the founder's on/off guide, as the ZStack's TOP layer (above the
+            // fullscreen visual, so the tour's first card — "the app opens as a picture" —
+            // is readable on the very screen it describes). Costs ZERO presentation
+            // modifiers (the whole point; the chain below is at its pinned 14). The view
+            // reads one low-frequency `@AppStorage` bool in ITS OWN body — constructing
+            // it here registers nothing (freeze rule 10.76.50). Toggle: Save & Export
+            // panel; content: `LearnLibrary.guideEntries`, the guard-pinned one source.
+            GuideOverlay()
         }
         .background(EchoelTheme.bg.ignoresSafeArea())
         // INSTRUMENT-HOME seed (founder 2026-07-22 vision Step 1: "app open → it

@@ -10,6 +10,11 @@ import XCTest
 final class StudioDefaultKeysTests: XCTestCase {
 
     func testCanonicalDefaults_matchFounderDecisions() {
+        // #603 B1: guide OFF on fresh installs — invited, never imposed (first contact
+        // belongs to Onboarding + instrument home). Key read by WorkspaceView + the
+        // Save & Export toggle, hence keystore.
+        XCTAssertEqual(StudioDefaultKeys.guideVisible.value, false)
+        XCTAssertEqual(StudioDefaultKeys.guideVisible.key, "studio.guideVisible")
         // Composition: the 8-bar produce-able phrase (H15-LOOPBARS shipped v271).
         XCTAssertEqual(StudioDefaultKeys.loopBars.value, .eight)
         // Genre home is self-observation — the visual's old .vaporwave copy put a
