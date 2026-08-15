@@ -1,42 +1,50 @@
-build: v10.79.394 — Voice→Color: Deine Stimme tönt das Bild
+build: v10.79.395 — Audio in: die Monitor-Schalter fragen jetzt nach dem Mikrofon
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.393 (2510). Dieser Build trägt #594
-  (beide Scheiben) — die Stimm-Bühne erreicht die Ausgabestufe: nach Klang
-  (Capture), Speicher (Patch/Take) jetzt das BILD.
+  Der Vorgänger auf Deinem Gerät ist 10.79.394 (2511). Dieser Build ist die
+  direkte Antwort auf Deine Meldung „Audio in funktioniert bisher nicht" (#601).
 
-  ── WAS NEU IST ──────────────────────────────────────────────────────────
+  ── WAS KAPUTT WAR ───────────────────────────────────────────────────────
 
-  · **Deine gemessene Stimme tönt die Visual-Palette.** Aus dem 64-Zahlen-
-    Profil (Messung, nie Aufnahme) werden zwei ehrliche Skalare: der spektrale
-    SCHWERPUNKT (dunkle/warme Stimme vs. helle) verschiebt den Farbton leicht
-    warm/kühl, die RAUHEIT die Sättigung. Bewusst subtil (±5 %): die Stimme
-    ist eine Tönung, nie eine Übernahme — ohne Capture ist das Bild
-    byte-identisch zum bisherigen physikalischen Farb-Default.
-  · **Beamer-Parity:** die externe Anzeige (Projektor) zeigt dieselbe Tönung
-    wie das Telefon. Ein fehlender Synth-Link dimmt nur die Tönung — er kann
-    die Bühne nie schwärzen (crash-fest per Konstruktion, Review-bestätigt).
+  Keine der beiden Monitoring-Türen (Mix-Board „Monitor" und Audio-Input-
+  Sheet „Live monitoring") hat je die Mikrofon-ERLAUBNIS angefragt. Auf
+  einer frischen Installation erschien der System-Dialog darum NIE: iOS
+  meldet ohne Erlaubnis ein 0-Hz-Eingangsformat, der Schalter schnappte
+  wortlos zurück — für immer. (Die Stimm-Messung fragte korrekt; nur die
+  Monitoring-Türen waren stumm.)
+
+  ── WAS JETZT PASSIERT ───────────────────────────────────────────────────
+
+  · Einschalten fragt ZUERST nach dem Mikrofon (ein Dialog, nur beim ersten
+    Mal), schaltet bei Erteilung ein, und lehnt bei Verweigerung EHRLICH ab.
+  · Beide Türen zeigen bei Ablehnung eine Erklärung mit dem echten Ausweg
+    (Mikrofon-Zugriff in den Einstellungen) statt wortlosem Zurückschnappen —
+    auch der Leer-Zustand der Eingabeliste schickt Dich nicht mehr im Kreis.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Dunkles Summen capturen (Voice timbre → Capture) → Visual öffnen:
-     lehnt die Palette WARM?
-  2. Clear → helles „iii" capturen → Visual: lehnt sie KÜHL(er)?
-  3. Clear → das Bild muss EXAKT zum Default zurück.
-  4. Mit Beamer/Projektor verbunden: Telefon und Beamer zeigen dieselbe Lehne.
-  5. Die 2510er-Probe bleibt offen, falls noch nicht durchgespielt (Capture →
-     Projekt-Save → reopen = Farbe da; Clear → Save → reopen = Farbe weg).
+  1. Falls Echoel schon Mikrofon-Zugriff hat: in den iOS-Einstellungen
+     einmal AUS- und wieder einschalten ist KEIN Test — für den Dialog-Test
+     die App löschen und diesen Build frisch installieren.
+  2. Mix-Board → „Voice · your microphone" → Monitor AN: erscheint der
+     Mikrofon-Dialog? Nach „Erlauben": ist die eigene Stimme (Kopfhörer!)
+     hörbar?
+  3. Gegenprobe Verweigerung: App löschen, frisch installieren, im Dialog
+     „Nicht erlauben" → beide Türen müssen die rote Erklärungszeile zeigen
+     („check microphone access in Settings"), nichts darf hängen.
+  4. Audio-Input-Sheet (Master-Panel → Audio input): gleicher Test über
+     diese Tür; nach Erteilung muss die Eingabeliste erscheinen.
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert, wächter-gepinnt (reine Mathematik
-  end-to-end getestet, Renderer-Joins transkribiert), am Gerät UNVERIFIZIERT —
-  ob die Tönung richtig AUSSIEHT und die ±-Stärken stimmen, entscheidet Dein
-  Auge; beides ist bewusst founder-tunbar ausgelegt. Flash-Safety unberührt
-  (Tönung ändert sich nur bei Capture/Recall/Clear und wird geglättet).
+  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün, Build for
+  Testing success), wächter-gepinnt (19 Behauptungen, transkribiert),
+  Pflicht-Reviews audio-thread + ui-state ohne CRITICAL — aber ob iOS den
+  Dialog wirklich zeigt und Monitoring hörbar wird, ist eine Geräteprobe;
+  genau die, die diese Meldung ausgelöst hat.
 
-  Vorgänger-Noten: 10.79.393 = Stimme reist mit dem Take (#600) · 10.79.392 =
-  Follow the key · 10.79.391 = die EchoelVoice-Bühne #591–#599.
-  KEIN AUDIO wird je gespeichert.
+  Vorgänger-Noten: 10.79.394 = Voice→Color · 10.79.393 = Stimme reist mit
+  dem Take (#600) · 10.79.392 = Follow the key. KEIN AUDIO wird je
+  gespeichert.
