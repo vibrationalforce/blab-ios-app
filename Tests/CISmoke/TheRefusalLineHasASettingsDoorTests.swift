@@ -28,7 +28,9 @@
 //   shadowed by prose.)
 //
 // ORDERING SOUNDNESS (#408): the two "inside the refusal block" claims use ordering between
-// anchors that each occur EXACTLY ONCE in their file — asserted here, not assumed. Studio:
+// anchors that each occur EXACTLY ONCE in their file — asserted here, not assumed (⛔ the
+// first version SAID this while asserting only the door's uniqueness; the review caught the
+// gap and claims 1–2 now carry `occurrences == 1` for the gates and next-branches). Studio:
 // refusal gate < button < the `else if …degraded` silence branch. Picker: refusal gate <
 // button < the silence gate `if !audioEngine.isRunning && !audioEngine.degraded {`. The
 // gates themselves are pinned with full messages by TheMonitorSaysWhyItIsSilentTests; this
@@ -61,9 +63,18 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
             If the door moved into a shared component, re-anchor this scan on the new call \
             site in the same commit.
             """)
-        let gate = code.range(of: "if micMonitorRefused && !audioEngine.isInputMonitoring {")
+        let gateNeedle = "if micMonitorRefused && !audioEngine.isInputMonitoring {"
+        let nextNeedle = "else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {"
+        // #610b (review WARN): the ordering below is sound only while ALL THREE anchors are
+        // unique — `range(of:)` keys on the FIRST occurrence, so a later second copy of a
+        // gate string could keep this green over a relocated door. Asserted, not assumed.
+        XCTAssertEqual(occurrences(of: gateNeedle, in: code), 1,
+                       "the mix-board refusal gate is no longer unique — the ordering below keys on the first copy; re-anchor")
+        XCTAssertEqual(occurrences(of: nextNeedle, in: code), 1,
+                       "the mix-board silence branch is no longer unique — the ordering below keys on the first copy; re-anchor")
+        let gate = code.range(of: gateNeedle)
         let door = code.range(of: Self.doorNeedle)
-        let next = code.range(of: "else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {")
+        let next = code.range(of: nextNeedle)
         let g = try XCTUnwrap(gate); let d = try XCTUnwrap(door); let n = try XCTUnwrap(next)
         XCTAssertTrue(g.lowerBound < d.lowerBound && d.lowerBound < n.lowerBound, """
             The mix board's Settings door is no longer INSIDE the refusal block (between \
@@ -83,9 +94,16 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
             consequence as the mix board's (claim 1): a refusal line that names Settings \
             with no way to get there.
             """)
-        let gate = code.range(of: "if monitorRefused && !audioEngine.isInputMonitoring {")
+        let gateNeedle = "if monitorRefused && !audioEngine.isInputMonitoring {"
+        let nextNeedle = "if !audioEngine.isRunning && !audioEngine.degraded {"
+        // #610b: same anchor-uniqueness law as claim 1 — asserted, not assumed.
+        XCTAssertEqual(occurrences(of: gateNeedle, in: code), 1,
+                       "the input sheet's refusal gate is no longer unique — the ordering below keys on the first copy; re-anchor")
+        XCTAssertEqual(occurrences(of: nextNeedle, in: code), 1,
+                       "the input sheet's silence gate is no longer unique — the ordering below keys on the first copy; re-anchor")
+        let gate = code.range(of: gateNeedle)
         let door = code.range(of: Self.doorNeedle)
-        let next = code.range(of: "if !audioEngine.isRunning && !audioEngine.degraded {")
+        let next = code.range(of: nextNeedle)
         let g = try XCTUnwrap(gate); let d = try XCTUnwrap(door); let n = try XCTUnwrap(next)
         XCTAssertTrue(g.lowerBound < d.lowerBound && d.lowerBound < n.lowerBound, """
             The input sheet's Settings door is no longer INSIDE its refusal block — see \

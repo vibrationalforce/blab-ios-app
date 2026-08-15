@@ -435,4 +435,53 @@ final class TapTargetFloorTests: XCTestCase {
             player raises the text size (the #353 class); the floor has to be a minimum.
             """)
     }
+
+    // MARK: - the two mic-Settings doors (#610b — the audit case this file's header asks for)
+
+    /// The #610 "Allow microphone" chips shipped as byte-for-byte copies of BioStrip's
+    /// camera door — visible chip ~18 pt, under WCAG 2.5.8's 24 — in the same card whose
+    /// "Choose input…" door already carries the 34-pt fix for exactly this defect. The
+    /// review found it; per this file's own discipline the finding becomes a case. Both
+    /// doors grow the HIT area only (`minHeight`, never `height` — the #353 clipping class)
+    /// and need `contentShape(Rectangle())`, or the frame grows layout without growing what
+    /// is hit-tested (the loudness-Reset lesson above).
+    func testTheMicSettingsDoorsClearTheFloor() throws {
+        let sites = [(Self.studio, "mix-board strip"),
+                     ("Sources/Echoelmusic/Studio/AudioInputPickerView.swift", "input sheet")]
+        for (path, name) in sites {
+            let lines = try codeLines(path)
+            let anchor = "Button { openAppSettings() } label: {"
+            let hits = lines.indices.filter { lines[$0].contains(anchor) }
+            XCTAssertEqual(hits.count, 1, """
+                `\(anchor)` is no longer unique in \(name)'s file, so the window below may \
+                describe a different control. Re-anchor before reading what follows.
+                """)
+            guard let start = hits.first else { continue }
+            guard let end = lines[start...].firstIndex(where: {
+                $0.contains("hear yourself live")
+            }) else {
+                XCTFail("""
+                    the \(name) mic-Settings door lost its accessibility hint, so this test \
+                    cannot say where the control ends. Re-point the window at whatever closes \
+                    it — do not widen it to the file.
+                    """)
+                continue
+            }
+            let control = lines[start...end]
+            XCTAssertTrue(control.contains(where: { $0.contains("frame(minHeight: 34)") }), """
+                the \(name) "Allow microphone" door lost its `frame(minHeight: 34)` (#610b). \
+                The bare chip is ~18 pt tall — under WCAG 2.5.8's 24 — and it is the only \
+                on-screen path to the fix for a denied microphone.
+                """)
+            XCTAssertTrue(control.contains(where: { $0.contains("contentShape(Rectangle())") }), """
+                the \(name) "Allow microphone" door's `contentShape(Rectangle())` is gone — \
+                the frame then grows layout without growing the hit target (the loudness-\
+                Reset lesson in this file).
+                """)
+            XCTAssertFalse(control.contains(where: { $0.contains("frame(height: 34)") }), """
+                the \(name) door's frame is FIXED. A fixed height clips the label at large \
+                Dynamic Type (the #353 class); the floor has to be a minimum.
+                """)
+        }
+    }
 }

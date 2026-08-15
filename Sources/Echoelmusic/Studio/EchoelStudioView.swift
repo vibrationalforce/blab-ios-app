@@ -3510,6 +3510,13 @@ struct EchoelStudioView: View {
                     .background(EchoelTheme.warning.opacity(0.20))
                     .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
                     .foregroundStyle(EchoelTheme.warning)
+                    // #610b (review): the visible chip stays small, the HIT area does not —
+                    // the bare chip was ~18 pt tall, under WCAG 2.5.8's 24, in the same card
+                    // whose "Choose input…" door already carries the 34-pt fix for exactly
+                    // this defect. Frame AFTER the chip styling so only the tappable area
+                    // grows; pinned in TapTargetFloorTests (the list, not a sweep).
+                    .frame(minHeight: 34)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Microphone access is off")

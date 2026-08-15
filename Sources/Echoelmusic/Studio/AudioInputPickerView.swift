@@ -161,6 +161,10 @@ struct AudioInputPickerView: View {
                     .background(EchoelTheme.warning.opacity(0.20))
                     .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
                     .foregroundStyle(EchoelTheme.warning)
+                    // #610b (review): hit area to the 34-pt floor, chip unchanged — see the
+                    // studio twin's comment; pinned in TapTargetFloorTests.
+                    .frame(minHeight: 34)
+                    .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Microphone access is off")
