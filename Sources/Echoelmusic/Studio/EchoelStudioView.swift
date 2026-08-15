@@ -1463,7 +1463,8 @@ struct EchoelStudioView: View {
                     SpectralDonutView(reduceMotion: reduceMotion,
                                       bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
                 } else {
-                    MetalBioView(capturesVideo: true, reduceMotion: reduceMotion, toneHz: currentToneHz,
+                    MetalBioView(capturesVideo: true, reduceMotion: reduceMotion,
+                                 autoAttuned: autoMode, toneHz: currentToneHz,
                                  intensity: Float(visualIntensity), ringDensity: Float(visualDetail),
                                  motion: Float(visualMotion), spread: Float(visualSpread),
                                  hueShift: Float(visualHue), saturation: Float(visualSaturation),

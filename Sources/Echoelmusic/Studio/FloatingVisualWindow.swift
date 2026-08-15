@@ -188,6 +188,12 @@ struct FloatingVisualWindow: View {
     #if canImport(WeatherKit) && canImport(CoreLocation)
     @Environment(WeatherProvider.self) private var weatherProvider
     @AppStorage(StudioDefaultKeys.weatherEnabled.key) private var weatherEnabled = StudioDefaultKeys.weatherEnabled.value
+    /// #609 — Auto mode's visual half (H15: `AutoModeRow` owns the toggle, the fold in
+    /// `makeComposerInput` steers the sound, THIS reader hands the flag to the renderer).
+    /// Event-rate: invalidates only when the toggle flips. The body state itself is read
+    /// per-frame inside the renderer, never here (freeze law — this window's own
+    /// `TouchInstrumentView` comment states the no-observer rule this respects).
+    @AppStorage(StudioDefaultKeys.autoMode.key) private var autoMode = StudioDefaultKeys.autoMode.value
     // Observe the IMAGE mixers so dragging one in the panel updates this visual
     // LIVE (they change only on a user drag → render-safe). Keys + defaults match
     // WeatherMood.Param, so the wiring and these reads agree on "unset = default".
@@ -743,7 +749,8 @@ struct FloatingVisualWindow: View {
     /// double-capture). The look params are the SHARED design keys (style/blend + the six
     /// energy/palette params), so every tweak in the Visual panel shows here live.
     private func liveVisual(_ wv: (hue: Double, saturation: Double, intensity: Double, motion: Double)) -> some View {
-        MetalBioView(capturesVideo: true, reduceMotion: reduceMotion, toneHz: idleToneHz,
+        MetalBioView(capturesVideo: true, reduceMotion: reduceMotion,
+                     autoAttuned: autoMode, toneHz: idleToneHz,
                      intensity: Float(wv.intensity), ringDensity: Float(visualDetail),
                      motion: Float(wv.motion), spread: Float(visualSpread),
                      hueShift: Float(wv.hue), saturation: Float(wv.saturation),

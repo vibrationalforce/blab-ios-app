@@ -30,14 +30,18 @@
 // `TheBreathVoiceHasADoorTests`' premise and is not re-proven here.
 //
 // ⚠️ HONEST GRADING (#433/#464) — transcribed in Python against the parent
-// (99e371e) and this tree. 38 verdicts in 7 tests, hand-counted per named needle
+// (99e371e) and this tree. 49 verdicts in 9 tests, hand-counted per named needle
 // (a numeric sweep counts as ONE): ships-off (2) + identity/Golden (3) +
 // hysteresis (5 — the fifth is #608b's neutral-entry exemption, review finding 4)
 // + non-finite (2) + darkness-switch (2) + door/caption (10, source: decl +
 // mount count + window order + slice non-empty + caption positive + 5 named dead
 // words) + fold/core (14, source: non-empty + 3 tempo needles + hoist order +
-// no-let + 8 named core needles). On THIS tree all 24 source verdicts pass in
-// transcription; the 14 behavioral ones drive the pure types.
+// no-let + 8 named core needles) + #609 visual half (8 behavioral: pulse/hue/
+// spread identity + 2 gentleness bounds + nil-identity + 2 direction; 3 source:
+// renderer hand-off + 2 host threads). On THIS tree all 27 source verdicts pass
+// in transcription; the 22 behavioral ones drive the pure types. The #609 rows
+// are FORWARD against d9f707f (one finding, #486 — `autoAttuned:` is born with
+// that commit); everything earlier grades as before.
 // Against the PARENT this file does NOT COMPILE: `AutoAttune` and
 // `StudioDefaultKeys.autoMode` do not exist there, so per §3 NO assertion has a
 // verdict on the parent — the behavioral claims are FORWARD by construction (one
@@ -314,6 +318,90 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
                 here converts the guarantee into convention (#398 double-writer \
                 class) — build the engine as its own doored type instead, and move \
                 this scan deliberately.
+                """)
+        }
+    }
+
+    // MARK: - claim 8 (BEHAVIOUR) — #609: the visual half is bounded, off-identical,
+    // and never touches the flash path
+
+    private func bioFrame(coherence: Float) -> BioSampleFrame {
+        BioSampleFrame(timestamp: 1, heartRateBPM: 70, hrvNormalized: 0.5,
+                       breathRate: 0, breathPhase: 0.5, coherence: coherence,
+                       motionEnergy: 0, source: .cameraPPG)
+    }
+
+    func testTheVisualHalfIsBoundedAndFlashNeutral() {
+        let frames: [BioSampleFrame?] = [nil, bioFrame(coherence: 0.9),
+                                         bioFrame(coherence: 0.1), bioFrame(coherence: 0.5)]
+        for f in frames {
+            let off = BioVisualParams.from(f)
+            let on = BioVisualParams.from(f, autoAttuned: true)
+            XCTAssertEqual(on.pulseHz, off.pulseHz, """
+                Auto mode changed `pulseHz`. The flash-safety path (FlashGuard ≤3 Hz, \
+                0 under Reduce Motion) must be byte-identical under auto — a mood \
+                feature may never renegotiate the epilepsy ceiling.
+                """)
+            XCTAssertEqual(on.hue, off.hue, """
+                Auto mode moved the hue. Tone→light physical colour is the \
+                science-first promise; the auto term owns complexity/intensity ONLY.
+                """)
+            XCTAssertEqual(on.spread, off.spread, """
+                Auto mode moved the breath spread. The inhale owns that axis; auto \
+                riding it would double-drive one visual dimension from two signals.
+                """)
+            XCTAssertLessThanOrEqual(abs(on.complexity - off.complexity),
+                                     Double(AutoAttune.maxTargetDelta) + 1e-9, """
+                The visual auto term exceeds the sound half's gentleness cap on \
+                complexity — `AutoAttune.maxTargetDelta` is the ONE definition (#416) \
+                both halves share; a bigger visual push needs that constant moved, \
+                deliberately, for both.
+                """)
+            XCTAssertLessThanOrEqual(abs(on.intensity - off.intensity),
+                                     Double(AutoAttune.maxTargetDelta) + 1e-9, """
+                The visual auto term exceeds the gentleness cap on intensity — same \
+                one-definition law as the complexity bound above.
+                """)
+        }
+        XCTAssertEqual(BioVisualParams.from(nil, autoAttuned: true),
+                       BioVisualParams.from(nil), """
+            An UNMEASURED body steered the visual. `coherenceForSound`'s 0.5 fallback \
+            centres the auto term at exactly zero — if these differ, auto is inventing \
+            a body state where none was measured (#496 class, visual edition).
+            """)
+        // Direction: a clearly settled body calms the figure and fills it slightly.
+        let calmOn = BioVisualParams.from(bioFrame(coherence: 0.9), autoAttuned: true)
+        let calmOff = BioVisualParams.from(bioFrame(coherence: 0.9))
+        XCTAssertLessThan(calmOn.complexity, calmOff.complexity, """
+            A settled body no longer CALMS the figure (complexity did not drop). The \
+            visual half's whole claim is "the environment matches the vibe" — settled \
+            must read calmer, not busier.
+            """)
+        XCTAssertGreaterThanOrEqual(calmOn.intensity, calmOff.intensity, """
+            A settled body dimmed the picture. The settled pole fills slightly \
+            (+0.5·auto); dimming would read as the app disapproving of calm.
+            """)
+    }
+
+    // MARK: - claim 9 (SOURCE-TEXT) — the flag reaches the renderer from all three hosts
+
+    func testTheVisualFlagIsThreadedNotObserved() throws {
+        let metal = try source("Sources/Echoelmusic/Views/MetalBioView.swift")
+        XCTAssertTrue(metal.contains("autoAttuned: lookAutoAttuned"), """
+            The renderer no longer hands the auto flag to `BioVisualParams.from`. The \
+            whole visual half then compiles and does nothing — the silent-no-op \
+            failure mode, one layer down.
+            """)
+        for (host, needle) in [
+            ("Sources/Echoelmusic/Studio/FloatingVisualWindow.swift", "autoAttuned: autoMode"),
+            ("Sources/Echoelmusic/Studio/ExternalDisplayScene.swift", "autoAttuned: autoMode"),
+        ] {
+            let code = try source(host)
+            XCTAssertTrue(code.contains(needle), """
+                \(host) no longer passes `autoAttuned: autoMode` into `MetalBioView`. \
+                For the floating window that kills the feature; for the beamer scene it \
+                means plugging in a projector silently strips the Auto look mid-show — \
+                the two instances must draw the same picture.
                 """)
         }
     }

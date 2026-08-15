@@ -64,9 +64,18 @@ Emotions-/Stimmungsaussage über den Menschen (EngineBus-EU-AI-Act-Rahmung).
    `var moodForInput` über das `#if` — die vom Richter verifizierte
    Nicht-WeatherKit-Falle — und EINER Definition der HR/HRV-Fallback-Ketten) +
    Wächter `AutoModeStartsOffAndOwnsNoTempoTests` (37 Verdikte).
-2. **Visual-Beitrag:** Auto-Term in `weatheredVisuals` NUR intensity/motion(/spread —
-   Achtung Richter-Befund: spread umgeht weatheredVisuals heute, eigener Pfad nötig);
-   hue bleibt 0-owned (physikalische Tonfarbe = science-first-Versprechen).
+2. ✅ **#609 Visual-Beitrag (2026-08-15) — mit begründeter ABWEICHUNG vom Richter-
+   Entwurf:** nicht in `weatheredVisuals` (das Fenster hat KEINEN EngineBus-Zugriff,
+   und ein ~1-Hz-Read in seinem Body verstieße gegen genau die Freeze-Regel, die
+   sein eigener TouchInstrumentView-Kommentar feiert), sondern im PUREN
+   `BioVisualParams.from` — der schon verdrahteten Bio→Visual-Ader, flash-safe by
+   construction. `autoAttuned:`-Flag als init-Parameter durchgefädelt (Fenster/
+   Vollbild/Beamer lesen `studio.autoMode` per @AppStorage, event-rate). Auto-Term
+   = kontinuierlich auf der Kohärenz-Achse, Kappe = `AutoAttune.maxTargetDelta`
+   (EINE Definition): settled → ruhigere Figur (complexity−) + minimal voller
+   (intensity+); unmeasured (coherenceForSound-Fallback 0.5) → exakt 0. pulseHz/
+   hue/spread unangetastet (Epilepsie-Decke, physikalische Farbe, Atem-Achse).
+   Wächter-Erweiterung: 11 neue Verdikte (Kappen, Identitäten, Richtung, Threading).
 3. **Settling-Achse:** echter Kohärenz-Trend-Produzent (`CoherenceTrendEstimator`,
    Ring aus (timestamp, coherence), Slope 30–60 s, dt aus Timestamps, lücken-tolerant).
    `BioParams.coherenceTrend` bleibt dabei tot, außer die eigene Scheibe zieht

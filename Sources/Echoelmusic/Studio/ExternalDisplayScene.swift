@@ -130,6 +130,10 @@ private struct ExternalStageView: View {
     // shows on the beamer too. NOTE the deliberate name mismatch: the key is
     // `visualDetail`, the `MetalBioView` parameter is `ringDensity:` — there is no
     // `visualRingDensity` key, and only the call site records that.
+    /// #609 — the beamer draws the SAME auto-attuned picture the phone would (H15):
+    /// without this reader, plugging in a projector would silently strip the Auto
+    /// mode's visual half mid-show and the swap would read as a broken look.
+    @AppStorage(StudioDefaultKeys.autoMode.key) private var autoMode = StudioDefaultKeys.autoMode.value
     @AppStorage(StudioDefaultKeys.visualStyle.key) private var style = StudioDefaultKeys.visualStyle.value
     @AppStorage(StudioDefaultKeys.visualStyleB.key) private var styleB = StudioDefaultKeys.visualStyleB.value
     @AppStorage(StudioDefaultKeys.visualBlend.key) private var blend = StudioDefaultKeys.visualBlend.value
@@ -161,6 +165,7 @@ private struct ExternalStageView: View {
                 // dimensions from the first frame, so a projector plugged in mid-recording
                 // would push landscape frames into a portrait file. Own slice.
                 MetalBioView(capturesVideo: false,
+                             autoAttuned: autoMode,
                              intensity: Float(intensity),
                              ringDensity: Float(detail),
                              motion: Float(motion),

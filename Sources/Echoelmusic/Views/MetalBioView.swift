@@ -349,6 +349,12 @@ struct MetalBioView: UIViewRepresentable {
     /// feeds the recorder — keeps a second mounted MetalBioView from double-capturing.
     var capturesVideo: Bool = false
     var reduceMotion: Bool = false
+    /// #609 — Auto mode's visual half. Threaded like `reduceMotion` (an init flag,
+    /// never an observation): the hosting window reads the H15 `studio.autoMode`
+    /// key at event rate and passes it down; the renderer hands it to the PURE
+    /// `BioVisualParams.from` per frame. Default `false` keeps any un-updated
+    /// construction site on the identity — off is the safe direction.
+    var autoAttuned: Bool = false
     /// The instrument's current fundamental (Hz) — its colour is the physical
     /// octave-transposition of this pitch into visible light.
     var toneHz: Double = 261.63
@@ -454,7 +460,7 @@ struct MetalBioView: UIViewRepresentable {
         c.setLook(toneFallbackHz: toneHz, intensity: intensity, ringDensity: ringDensity,
                   motion: motion, spread: spread, hueShift: hueShift, saturation: saturation,
                   style: style, styleB: styleB, blend: blend, reduceMotionAccessibility: reduceMotion,
-                  entrainmentPulseHz: entrainmentPulseHz)
+                  autoAttuned: autoAttuned, entrainmentPulseHz: entrainmentPulseHz)
     }
 }
 
@@ -527,6 +533,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var lookStyleB: Int = 0
     private var lookBlend: Float = 0
     private var lookReduceMotionAccessibility = false
+    private var lookAutoAttuned = false
     /// Entrainment visual pulse (Hz). When > 0 it OVERRIDES the HR-derived pulse so the
     /// on-screen pulse follows the armed brainwave band's flash-safe sub-harmonic. Always
     /// already ≤3 Hz from `BioEntrainmentDirector.visualHz`; the draw loop re-caps anyway.
@@ -592,7 +599,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// reads here — those are pulled per-frame in `draw(in:)`.
     func setLook(toneFallbackHz: Double, intensity: Float, ringDensity: Float, motion: Float,
                  spread: Float, hueShift: Float, saturation: Float, style: Int, styleB: Int,
-                 blend: Float, reduceMotionAccessibility: Bool, entrainmentPulseHz: Double = 0) {
+                 blend: Float, reduceMotionAccessibility: Bool, autoAttuned: Bool,
+                 entrainmentPulseHz: Double = 0) {
         lookToneFallbackHz = toneFallbackHz
         lookIntensity = intensity
         lookRingDensity = ringDensity
@@ -604,6 +612,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         lookStyleB = styleB
         lookBlend = blend
         lookReduceMotionAccessibility = reduceMotionAccessibility
+        lookAutoAttuned = autoAttuned
         lookEntrainmentPulseHz = entrainmentPulseHz
     }
 
@@ -787,7 +796,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let detailScale = q?.visualDetailScale ?? 1
             let effectiveReduceMotion = lookReduceMotionAccessibility || (q?.reduceMotion ?? false)
             let bio = bus?.freshBio()
-            let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion)
+            let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion,
+                                          autoAttuned: lookAutoAttuned)
             // #594 Voice→Color: the measured voice's two honest scalars tint the
             // palette — centroid → hue (±0.05 max), roughness → saturation
             // (×0.95…1.05). Applied at the update() call below on the REAL palette

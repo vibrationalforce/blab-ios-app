@@ -68,9 +68,15 @@ public struct BioVisualParams: Sendable, Equatable {
     )
 
     /// Pure bio→visual mapping. `reduceMotion` forces a still frame (pulseHz 0).
+    /// `autoAttuned` is #609 (Auto mode's visual half): a continuous, capped deepening
+    /// of the coherence coupling — settled calms the figure and fills it slightly,
+    /// an unsettled body busies it. The cap is the SAME gentleness number as the
+    /// sound half (`AutoAttune.maxTargetDelta`, one definition, #416). The default
+    /// `false` keeps every existing caller byte-identical (the Golden law).
     public static func from(_ frame: BioSampleFrame?,
                             pattern: BioVisualPattern = .rings,
-                            reduceMotion: Bool = false) -> BioVisualParams {
+                            reduceMotion: Bool = false,
+                            autoAttuned: Bool = false) -> BioVisualParams {
         let hr = Double(frame?.heartRateBPM ?? 60)
         // Heartbeat → pulse, bounded to a calm [0.5, 2.0] Hz then flash-clamped.
         let bounded = Swift.min(Swift.max(hr / 60.0, 0.5), 2.0)
@@ -89,13 +95,21 @@ public struct BioVisualParams: Sendable, Equatable {
         let hrv = clamp01(Double(frame?.hrvForSound ?? 0.5))
         let breath = clamp01(Double(frame?.breathPhase ?? 0.5))
 
+        // #609 — the auto term rides the coherence axis, centred at 0.5, which is
+        // exactly `coherenceForSound`'s "not measured" fallback: an unmeasured body
+        // steers NOTHING, by the same mechanism that keeps the base mapping neutral.
+        // Range ±`AutoAttune.maxTargetDelta` (0.15). Deliberately NOT touching
+        // `pulseHz` (the flash-safety path stays byte-identical under auto), `hue`
+        // (physical colour is the science-first promise) or `spread` (breath owns it).
+        let auto = autoAttuned ? Double(AutoAttune.maxTargetDelta) * 2 * (coherence - 0.5) : 0
+
         return BioVisualParams(
             pattern: pattern,
             pulseHz: pulse,
             hue: coherence * 0.45,                 // red → cyan with coherence
-            complexity: 0.2 + hrv * 0.8,           // more HRV → richer figure
+            complexity: clamp01(0.2 + hrv * 0.8 - auto),   // settled → calmer figure
             spread: 0.85 + breath * 0.30,          // inhale expands the figure
-            intensity: 0.4 + coherence * 0.6       // coherent → fuller
+            intensity: clamp01(0.4 + coherence * 0.6 + auto * 0.5)  // settled → a touch fuller
         )
     }
 
