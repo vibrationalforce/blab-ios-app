@@ -1671,6 +1671,13 @@ public final class AudioEngine {
                     if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
                     masterEngine.disconnectNodeOutput(monitorMixer)
                     try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)   // #299
+                    // #611: the pause above was OURS. Returning false with the engine
+                    // still paused stranded the WHOLE app silent (music included) behind
+                    // a stale `isRunning`, while the only visible line blamed microphone
+                    // permission. The monitor chain is disconnected again, so this start
+                    // restores the exact pre-toggle graph; if even that fails, the
+                    // helper declares `degraded` and AudioDegradedRow owns the silence.
+                    restartOrDegrade(after: "input monitoring rollback")
                     return false
                 }
             }
@@ -1884,6 +1891,26 @@ public final class AudioEngine {
 
     // MARK: - Source Node Registration
 
+    /// #611 (mic-sweep CRITICAL, found at all four pause/mutate/restart sites): a graph
+    /// mutation pauses a running engine; if the restart then THROWS, the app is left
+    /// silent while `isRunning` stays stale-true — a pause posts no configuration-change
+    /// notification, so the watchdog never fires, the #605 silence line (which needs
+    /// `!isRunning`) stays hidden, and AudioDegradedRow (which needs `degraded`) stays
+    /// hidden. On the monitor path the only visible text then BLAMED MIC PERMISSION.
+    /// Every restart-after-mutation funnels through this ONE helper: one more start
+    /// attempt, and if that also throws, an honest handover to the degraded machinery
+    /// that already owns cause + retry (AudioDegradedRow's button calls `start()`,
+    /// which also re-runs the session config). Never a log-only catch again.
+    private func restartOrDegrade(after context: String) {
+        do { try masterEngine.start() }
+        catch {
+            log.audio("Engine restart after \(context) failed (\(error)) — handing over to AudioDegradedRow", level: .error)
+            isRunning = false
+            degraded = true
+            lastAudioError = "Audio stopped (\(context)) and could not restart: \(error.localizedDescription)"
+        }
+    }
+
     func attachSourceNode(_ sourceNode: AVAudioSourceNode) {
         // The master graph (masterMixer attached + connected) must exist before
         // we connect a source node into it. Idempotent — no-op once prepared.
@@ -1907,8 +1934,7 @@ public final class AudioEngine {
         }
         if wasRunning {
             armTimingInstrument()
-            do { try masterEngine.start() }
-            catch { log.audio("Failed to restart engine after source node attachment: \(error)", level: .error) }
+            restartOrDegrade(after: "source node attachment")   // #611: never a log-only catch
         }
     }
 
@@ -1940,8 +1966,7 @@ public final class AudioEngine {
         }
         if wasRunning {
             armTimingInstrument()
-            do { try masterEngine.start() }
-            catch { log.audio("Failed to restart engine after player-node attach: \(error)", level: .error) }
+            restartOrDegrade(after: "clip player attach")   // #611: never a log-only catch
         }
         log.audio("Clip player node attached to master engine")
     }
@@ -1982,8 +2007,7 @@ public final class AudioEngine {
         }
         if wasRunning {
             armTimingInstrument()
-            do { try masterEngine.start() }
-            catch { log.audio("Failed to restart engine after warpable player attach: \(error)", level: .error) }
+            restartOrDegrade(after: "warpable player attach")   // #611: never a log-only catch
         }
         log.audio("Warpable clip player attached (player → timePitch → masterMixer)")
     }
