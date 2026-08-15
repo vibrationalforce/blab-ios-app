@@ -1,42 +1,48 @@
-build: v10.79.399 — Die Bio-Zahlen wachsen mit der Schrift
+build: v10.79.400 — Der Chip-Strip gibt seinen Overflow zu
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.398 (≈2515, Monitor-Stumm-Zeile).
-  Dieser Build trägt #606/#606b — GUI-Board-Scheibe 3 aus Deinem Auftrag.
+  Der Vorgänger auf Deinem Gerät ist 10.79.399 (≈2516, Bio-Zahlen wachsen mit der Schrift).
+  Dieser Build trägt #607/#607b — GUI-Board-Scheibe 4 aus Deinem Auftrag.
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Die Bio-Zahlen wachsen mit der Schrift.** Bisher tat die Bio-Zeile
-    (HR · HRV · Br · Coh) das Gegenteil: wer in den iOS-Einstellungen die
-    Schrift VERGRÖSSERTE, bekam die Zahlen auf 60 % geschrumpft — vier
-    Zellen mussten sich eine Zeile teilen. Jetzt stapeln die vier Werte
-    bei Accessibility-Schriftgrößen untereinander, jede Zeile mit der
-    vollen Breite und in voller Größe; der Quellen-Tag bekommt seine
-    eigene Zeile. Bei normalen Schriftgrößen ist das Layout exakt das
-    bisherige — kein Pixel anders.
+  · **Der Chip-Strip zeigt an, dass rechts mehr kommt.** Die Chip-Leiste
+    (die Haupt-Navigation) ist auf einem Hochformat-iPhone breiter als der
+    Bildschirm und scrollt OHNE Scroll-Indikator — die hinteren Chips
+    (Field · Save & Export) waren bisher einfach unsichtbar, nichts sagte
+    „da ist mehr". Jetzt liegt am rechten Rand ein schmaler Verlauf zum
+    Hintergrund, solange Inhalt hinter der Kante weitergeht. Ganz nach
+    rechts gescrollt verschwindet er — der letzte Chip steht dann klar und
+    unverdeckt da. Der Verlauf schluckt keine Taps (der Chip darunter
+    bleibt tappbar) und ist für VoiceOver unsichtbar (Chips sind Buttons,
+    die Wisch-Navigation erreicht sie unabhängig vom Sichtbaren).
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Einstellungen → Anzeige & Helligkeit → Textgröße (oder
-     Bedienungshilfen → Anzeige) auf eine GROSSE Stufe stellen →
-     Echoelmusic → Bio-Chip: stehen HR/HRV/Br/Coh untereinander, in
-     voller Größe, ohne Schrumpfen und ohne „…"? Tag eigene Zeile?
-  2. Textgröße zurück auf normal → die gewohnte einzeilige Bio-Zeile,
-     unverändert.
-  3. Ältere Proben offen: 2515 (Monitor-Warnzeile bei Anruf/Siri/Wecker)
-     · 2514 (Hint erscheint/kehrt wieder/Start retiret dauerhaft) ·
-     2513 (E-Wechsel + Guide-Tour) · 2512 (Mikrofon frisch installiert).
+  1. **Die wichtigste Frage zuerst:** App öffnen, NICHT scrollen — ist der
+     Verlauf am rechten Rand der Chip-Leiste SOFORT sichtbar? (Falls er
+     erst nach dem ersten Scrollen erscheint, verfehlt die Scheibe genau
+     die Nutzer, für die sie gebaut ist — bitte melden.)
+  2. Chip-Leiste ganz nach rechts scrollen → Verlauf weg, „Save & Export"
+     klar lesbar und unverdeckt?
+  3. Zurück nach links scrollen → Verlauf kehrt zurück?
+  4. Den letzten sichtbaren Chip UNTER dem Verlauf antippen → öffnet er
+     normal (der Verlauf darf den Tap nicht schlucken)?
+  5. Ältere Proben offen: 2516 (AX-Bio-Stapel) · 2515 (Monitor-Warnzeile
+     bei Anruf/Siri/Wecker) · 2514 (Hint-Trio) · 2513 (E-Wechsel +
+     Guide-Tour) · 2512 (Mikrofon frisch installiert).
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün; der
-  umgebaute Wächter lief nachweislich — alle 4 Methoden „passed" im
-  CI-Log), Review adversarial ohne CRITICAL, Compact-Layout im Diff
-  render-identisch — ob die gestapelten Zahlen am Gerät WIRKEN und
-  nirgends „…" auftaucht, entscheidet Dein Blick auf einer AX-Stufe.
+  ⚠ Ehrliche Grenzen: compile-verifiziert (beide Gates grün, Testlauf-Rot
+  ist das bekannte harmlose #396), Review adversarial ohne CRITICAL. Ob
+  der Verlauf beim ersten Öffnen OHNE Scrollen erscheint (Frage 1), kann
+  kein Test hier beweisen — zwei API-Mechanismen sprechen dafür, aber es
+  entscheidet Dein Gerät. Ebenso, ob der Verlauf als „rechts ist mehr"
+  LIEST statt als Schatten.
 
-  Vorgänger-Noten: 10.79.398 = Monitor erklärt seine Stille · 10.79.397 =
-  Hint-Re-Arm (bis gelernt oder 5×) · 10.79.396 = E-Parität + Guide.
+  Vorgänger-Noten: 10.79.399 = Bio-Zahlen wachsen mit der Schrift ·
+  10.79.398 = Monitor erklärt seine Stille · 10.79.397 = Hint-Re-Arm.
   KEIN AUDIO wird je gespeichert.
