@@ -188,12 +188,6 @@ struct FloatingVisualWindow: View {
     #if canImport(WeatherKit) && canImport(CoreLocation)
     @Environment(WeatherProvider.self) private var weatherProvider
     @AppStorage(StudioDefaultKeys.weatherEnabled.key) private var weatherEnabled = StudioDefaultKeys.weatherEnabled.value
-    /// #609 — Auto mode's visual half (H15: `AutoModeRow` owns the toggle, the fold in
-    /// `makeComposerInput` steers the sound, THIS reader hands the flag to the renderer).
-    /// Event-rate: invalidates only when the toggle flips. The body state itself is read
-    /// per-frame inside the renderer, never here (freeze law — this window's own
-    /// `TouchInstrumentView` comment states the no-observer rule this respects).
-    @AppStorage(StudioDefaultKeys.autoMode.key) private var autoMode = StudioDefaultKeys.autoMode.value
     // Observe the IMAGE mixers so dragging one in the panel updates this visual
     // LIVE (they change only on a user drag → render-safe). Keys + defaults match
     // WeatherMood.Param, so the wiring and these reads agree on "unset = default".
@@ -202,6 +196,17 @@ struct FloatingVisualWindow: View {
     @AppStorage(WeatherMood.Param.glow.mixKey)       private var wxMixGlow = WeatherMood.Param.glow.defaultIntensity
     @AppStorage(WeatherMood.Param.movement.mixKey)   private var wxMixMove = WeatherMood.Param.movement.defaultIntensity
     #endif
+
+    /// #609 — Auto mode's visual half (H15: `AutoModeRow` owns the toggle, the fold in
+    /// `makeComposerInput` steers the sound, THIS reader hands the flag to the renderer).
+    /// Event-rate: invalidates only when the toggle flips. The body state itself is read
+    /// per-frame inside the renderer, never here (freeze law — this window's own
+    /// `TouchInstrumentView` comment states the no-observer rule this respects).
+    /// ⛔ #609b: the first version declared this INSIDE the WeatherKit `#if` above while
+    /// its consumer (`liveVisual`) sits outside any guard — a latent hard compile error
+    /// on every non-WeatherKit config, the exact class the `makeComposerInput` hoist
+    /// law defends against, one file over. It lives BELOW the `#endif` on purpose.
+    @AppStorage(StudioDefaultKeys.autoMode.key) private var autoMode = StudioDefaultKeys.autoMode.value
 
     /// The user-customizable SEQUENCE the look slider fades through (founder 2026-07-08:
     /// "man soll das was im slider passiert selbst customizen … mehr Optionen"). Persisted

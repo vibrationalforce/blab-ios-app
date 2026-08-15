@@ -36,12 +36,18 @@
 // + non-finite (2) + darkness-switch (2) + door/caption (10, source: decl +
 // mount count + window order + slice non-empty + caption positive + 5 named dead
 // words) + fold/core (14, source: non-empty + 3 tempo needles + hoist order +
-// no-let + 8 named core needles) + #609 visual half (8 behavioral: pulse/hue/
-// spread identity + 2 gentleness bounds + nil-identity + 2 direction; 3 source:
-// renderer hand-off + 2 host threads). On THIS tree all 27 source verdicts pass
-// in transcription; the 22 behavioral ones drive the pure types. The #609 rows
-// are FORWARD against d9f707f (one finding, #486 — `autoAttuned:` is born with
-// that commit); everything earlier grades as before.
+// no-let + 8 named core needles) + #609/#609b visual half (10 behavioral:
+// pulse/hue/spread identity + 2 gentleness bounds + nil-identity + 2 autoTerm +
+// 2 direction; 7 source: from-flag hand-off + autoTerm call + 2 look-product
+// folds + 3 host threads). Total 55 verdicts in 9 tests: 24 behavioral + 31
+// source, all transcribed green on this tree. The #609 rows are FORWARD against
+// d9f707f (one finding, #486); everything earlier grades as before.
+// ⛔ #609b RETRACTION, the expensive kind: the first #609 modified vp.intensity/
+// vp.complexity — the two fields with ZERO renderer consumers (the shipped shader
+// reads vp.pulseHz only) — and its claims 8/9 were GREEN while the feature changed
+// no pixel: green for a reason that never existed (§2's #367 mirror), despite the
+// wired-but-dead warning standing verbatim at the call site. The consumer now
+// exists (the look-product folds) and is pinned by three needles above.
 // Against the PARENT this file does NOT COMPILE: `AutoAttune` and
 // `StudioDefaultKeys.autoMode` do not exist there, so per §3 NO assertion has a
 // verdict on the parent — the behavioral claims are FORWARD by construction (one
@@ -50,11 +56,13 @@
 // `#else let` shape the no-let scan forbids WAS the parent's). The fold's three
 // tempo-needle scans and the caption dead-word scans are the COUNTERWEIGHT kind:
 // green on both trees, and the point of the file. ZERO regressions claimed,
-// because zero exist. `SourceText.codeOnly` is TRAGEND here, MEASURED (#453): 3
-// of 24 source verdicts flip raw-vs-stripped on this tree — fold `transport` (an
-// OLD comment in `makeComposerInput` says "the downstream transport tempo"), core
-// `@Observable` and core `EngineBus` (the AutoAttune header quotes its own
-// forbidden words: "NO @Observable", "EngineBus EU-AI-Act framing").
+// because zero exist. `SourceText.codeOnly` is TRAGEND here, MEASURED (#453,
+// re-measured at #609b with the new denominator — #448): 3 of 31 source verdicts
+// flip raw-vs-stripped on this tree — fold `transport` (an OLD comment in
+// `makeComposerInput` says "the downstream transport tempo"), core `@Observable`
+// and core `EngineBus` (the AutoAttune header quotes its own forbidden words:
+// "NO @Observable", "EngineBus EU-AI-Act framing"). The 7 #609b needles are
+// PROPHYLAKTISCH (0 flips — each lives in code, none is quoted whole in prose).
 // ⛔ And the transcription caught a live #408 before first run: the hoist-order
 // claim first anchored on `#if canImport(WeatherKit)`, which occurs TWICE in
 // `makeComposerInput` (structure-seed salt above the blend) — it matched the
@@ -369,6 +377,18 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
             centres the auto term at exactly zero — if these differ, auto is inventing \
             a body state where none was measured (#496 class, visual edition).
             """)
+        // #609b — the shared signed term itself: zero when unmeasured, capped always.
+        XCTAssertEqual(BioVisualParams.autoTerm(nil, enabled: true), 0, """
+            `autoTerm` steers on an unmeasured body. Its zero-at-0.5 centring is the \
+            mechanism every other identity claim in this test rests on.
+            """)
+        XCTAssertLessThanOrEqual(abs(BioVisualParams.autoTerm(bioFrame(coherence: 0.9),
+                                                              enabled: true)),
+                                 Double(AutoAttune.maxTargetDelta) + 1e-9, """
+            `autoTerm` exceeds the gentleness cap. It is the ONE definition both the \
+            field mapping and the renderer's look products consume — a bigger term \
+            moves BOTH halves at once, which is exactly why it must stay capped here.
+            """)
         // Direction: a clearly settled body calms the figure and fills it slightly.
         let calmOn = BioVisualParams.from(bioFrame(coherence: 0.9), autoAttuned: true)
         let calmOff = BioVisualParams.from(bioFrame(coherence: 0.9))
@@ -389,19 +409,44 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
         let metal = try source("Sources/Echoelmusic/Views/MetalBioView.swift")
         XCTAssertTrue(metal.contains("autoAttuned: lookAutoAttuned"), """
             The renderer no longer hands the auto flag to `BioVisualParams.from`. The \
-            whole visual half then compiles and does nothing — the silent-no-op \
-            failure mode, one layer down.
+            field mapping then loses its flag while the look products below may still \
+            carry theirs — the two halves of one definition drifting apart.
+            """)
+        // ⛔ #609b — THE CONSUMER, the assertion the first #609 version lacked. The
+        // shipped shader reads `vp.pulseHz` ONLY (TheVoiceTintsTheVisualTests
+        // documents it at this very call site), so writing vp fields alone is
+        // wired-but-dead: the review found the whole visual half changed no pixel.
+        // These three needles pin the LIVE path — the term entering the look
+        // products the shader actually consumes.
+        XCTAssertTrue(metal.contains("BioVisualParams.autoTerm(bio, enabled: lookAutoAttuned)"), """
+            The renderer no longer computes the shared auto term. Without it the \
+            look-product folds below have no input and the visual half is dead again \
+            — the exact wired-but-dead trap the #609 review caught.
+            """)
+        XCTAssertTrue(metal.contains("* (1 + 0.5 * autoTerm)"), """
+            The intensity look-product no longer folds the auto term. The settled \
+            body's "fills slightly" half of the visual claim is then a no-op — the \
+            shader reads THIS product, not `vp.intensity`.
+            """)
+        XCTAssertTrue(metal.contains("* (1 - 0.5 * autoTerm)"), """
+            The ring-density look-product no longer folds the auto term. The settled \
+            body's "calms the figure" half of the visual claim is then a no-op — the \
+            shader reads THIS product, not `vp.complexity`.
             """)
         for (host, needle) in [
             ("Sources/Echoelmusic/Studio/FloatingVisualWindow.swift", "autoAttuned: autoMode"),
             ("Sources/Echoelmusic/Studio/ExternalDisplayScene.swift", "autoAttuned: autoMode"),
+            // #609b (review finding 3): the third host — unreachable today (#270,
+            // `showVisual` has no true-writer), pinned anyway so the flag cannot
+            // silently rot out of the copy that would wake up with that door.
+            ("Sources/Echoelmusic/Studio/EchoelStudioView.swift", "autoAttuned: autoMode"),
         ] {
             let code = try source(host)
             XCTAssertTrue(code.contains(needle), """
                 \(host) no longer passes `autoAttuned: autoMode` into `MetalBioView`. \
                 For the floating window that kills the feature; for the beamer scene it \
                 means plugging in a projector silently strips the Auto look mid-show — \
-                the two instances must draw the same picture.
+                every instance must draw the same picture.
                 """)
         }
     }

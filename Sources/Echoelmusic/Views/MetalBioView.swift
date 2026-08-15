@@ -798,6 +798,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             let bio = bus?.freshBio()
             let vp = BioVisualParams.from(bio, reduceMotion: effectiveReduceMotion,
                                           autoAttuned: lookAutoAttuned)
+            // #609b: Float once, at the boundary — the look products below are Float.
+            let autoTerm = Float(BioVisualParams.autoTerm(bio, enabled: lookAutoAttuned))
             // #594 Voice→Color: the measured voice's two honest scalars tint the
             // palette — centroid → hue (±0.05 max), roughness → saturation
             // (×0.95…1.05). Applied at the update() call below on the REAL palette
@@ -950,8 +952,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    // Energy interlocks with what actually SOUNDS: fingers pump touchE,
                    // the generative music adds its live master level — the picture
                    // swells with the arrangement and rests in the quiet bars.
-                   intensity: lookIntensity * (1 + 0.45 * touchE + 0.30 * musicLevel),
-                   ringDensity: lookRingDensity * detailScale,
+                   // #609b — the AUTO consumer, and it must live HERE: the shader
+                   // reads these look PRODUCTS, not vp.intensity/vp.complexity (only
+                   // vp.pulseHz is consumed — the wired-but-dead trap the voice-tint
+                   // comment below documents, which the first #609 hit). A settled
+                   // body (autoTerm +0.15) fills the picture ×1.075 and calms the
+                   // figure ×0.925; an unmeasured body multiplies by exactly 1.
+                   intensity: lookIntensity * (1 + 0.45 * touchE + 0.30 * musicLevel)
+                              * (1 + 0.5 * autoTerm),
+                   ringDensity: lookRingDensity * detailScale * (1 - 0.5 * autoTerm),
                    motion: lookMotion * (1 + 0.30 * touchE),
                    spread: lookSpread * (1 + 0.20 * touchE),
                    // Armed entrainment overrides the HR-derived pulse so the visual

@@ -95,13 +95,11 @@ public struct BioVisualParams: Sendable, Equatable {
         let hrv = clamp01(Double(frame?.hrvForSound ?? 0.5))
         let breath = clamp01(Double(frame?.breathPhase ?? 0.5))
 
-        // #609 — the auto term rides the coherence axis, centred at 0.5, which is
-        // exactly `coherenceForSound`'s "not measured" fallback: an unmeasured body
-        // steers NOTHING, by the same mechanism that keeps the base mapping neutral.
-        // Range ±`AutoAttune.maxTargetDelta` (0.15). Deliberately NOT touching
-        // `pulseHz` (the flash-safety path stays byte-identical under auto), `hue`
-        // (physical colour is the science-first promise) or `spread` (breath owns it).
-        let auto = autoAttuned ? Double(AutoAttune.maxTargetDelta) * 2 * (coherence - 0.5) : 0
+        // #609 — see `autoTerm(_:enabled:)`, the ONE definition. Deliberately NOT
+        // touching `pulseHz` (the flash-safety path stays byte-identical under
+        // auto), `hue` (physical colour is the science-first promise) or `spread`
+        // (breath owns it).
+        let auto = autoTerm(frame, enabled: autoAttuned)
 
         return BioVisualParams(
             pattern: pattern,
@@ -111,6 +109,22 @@ public struct BioVisualParams: Sendable, Equatable {
             spread: 0.85 + breath * 0.30,          // inhale expands the figure
             intensity: clamp01(0.4 + coherence * 0.6 + auto * 0.5)  // settled → a touch fuller
         )
+    }
+
+    /// #609/#609b — Auto mode's visual term, the ONE definition (#416): signed,
+    /// continuous on the coherence axis, range ±`AutoAttune.maxTargetDelta` (the
+    /// same gentleness cap as the sound half). Centred at 0.5, which is exactly
+    /// `coherenceForSound`'s "not measured" fallback — an unmeasured body returns
+    /// EXACTLY 0 and steers nothing. Two consumers, deliberately: `from(_:)` above
+    /// (the field mapping, for any future renderer that reads those fields) and the
+    /// LIVE ring renderer's look products (`MetalBioView.draw`), because the shipped
+    /// shader reads `vp.pulseHz` ONLY — `TheVoiceTintsTheVisualTests` documents that
+    /// writing other `vp` fields alone is the wired-but-dead trap, and the first
+    /// #609 version fell exactly into it (caught by review, not by me).
+    public static func autoTerm(_ frame: BioSampleFrame?, enabled: Bool) -> Double {
+        guard enabled else { return 0 }
+        let coherence = clamp01(Double(frame?.coherenceForSound ?? 0.5))
+        return Double(AutoAttune.maxTargetDelta) * 2 * (coherence - 0.5)
     }
 
     private static func clamp01(_ x: Double) -> Double { Swift.min(Swift.max(x, 0), 1) }
