@@ -148,6 +148,19 @@ struct AudioInputPickerView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             if audioEngine.isInputMonitoring {
+                // #605 (UX audit #9): the engine-stopped case the refusal line above cannot
+                // see — permission was granted, the graph is wired, but the engine is paused
+                // (call/Siri/alarm), so the toggle shows ON and nothing sounds. Inside this
+                // `isInputMonitoring` block the bare `!isRunning` IS the compound gate the
+                // mix-board door spells out. Same sentence as there, on purpose (one state,
+                // one wording — pinned by TheMonitorSaysWhyItIsSilentTests). No retry button:
+                // see the mix-board comment (AudioDegradedRow owns recovery for `degraded`).
+                if !audioEngine.isRunning {
+                    Text("Monitoring is on, but audio is paused — it comes back by itself when the call, alarm or Siri ends.")
+                        .font(EchoelTheme.font(11))
+                        .foregroundStyle(EchoelTheme.warning)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 EchoelValueField(
                     label: "Monitor level",
                     value: Binding(get: { audioEngine.inputMonitorGain },

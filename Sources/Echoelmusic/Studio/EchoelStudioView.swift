@@ -3436,6 +3436,20 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.danger)
                     .fixedSize(horizontal: false, vertical: true)
+            } else if audioEngine.isInputMonitoring && !audioEngine.isRunning {
+                // #605 (UX audit #9): `setInputMonitoring(true)` wires the graph but starts
+                // the engine only if it was already running — so this toggle can honestly
+                // show ON while a call/Siri/alarm interruption holds the engine paused and
+                // nothing sounds. Same #485 shape as the refusal line above: gated on live
+                // engine state, so it clears itself the moment audio resumes (the `.active`
+                // return). No retry button on purpose — the interruption case heals itself,
+                // and the gave-up case sets `degraded`, which `AudioDegradedRow` explains
+                // WITH the retry. Freeze law: both reads are event-rate (a handful of
+                // changes per session), the same class as `isInputMonitoring` beside them.
+                Text("Monitoring is on, but audio is paused — it comes back by itself when the call, alarm or Siri ends.")
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.warning)
+                    .fixedSize(horizontal: false, vertical: true)
             } else {
                 Text("Use headphones. On the speaker the feedback guard ducks a howl automatically.")
                     .font(EchoelTheme.font(11))
