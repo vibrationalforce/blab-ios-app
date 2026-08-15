@@ -3490,6 +3490,30 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.danger)
                     .fixedSize(horizontal: false, vertical: true)
+                // #610 (founder screenshot of 2518, "Wir wollen schon Device microphon Audio
+                // Input Live Monitoring haben"): the line above names Settings and opened no
+                // door. iOS asks for the mic ONCE — after an OS-level denial the Settings app
+                // is the only fix (`engageInputMonitoring`'s `.denied` branch logs exactly
+                // that). One tap now takes the user there, through the ONE existing settings
+                // door (#416) — the same global function BioStripView's camera door calls.
+                // Deliberately NO scenePhase re-check on return: changing a privacy
+                // permission in Settings makes iOS relaunch the app, so a stale refusal flag
+                // cannot survive the grant — the state heals by relaunch, not by polling.
+                Button { openAppSettings() } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mic.slash").font(.system(size: 9))
+                        Text("Allow microphone")
+                    }
+                    .font(EchoelTheme.font(11))
+                    .lineLimit(1)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(EchoelTheme.warning.opacity(0.20))
+                    .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
+                    .foregroundStyle(EchoelTheme.warning)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Microphone access is off")
+                .accessibilityHint("Opens Settings so you can allow microphone access and hear yourself live")
             } else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {
                 // ⛔ #605b: `!degraded` is load-bearing — the sentence below promises audio
                 // "comes back by itself", and `degraded` is exactly the state where that is

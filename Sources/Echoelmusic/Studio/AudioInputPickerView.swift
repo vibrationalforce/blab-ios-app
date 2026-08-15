@@ -146,6 +146,25 @@ struct AudioInputPickerView: View {
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.danger)
                     .fixedSize(horizontal: false, vertical: true)
+                // #610: the same Settings door as the mix-board strip — one state, one
+                // wording, two doors (the TheMonitorSaysWhyItIsSilentTests discipline).
+                // See the studio twin for the full reasoning (iOS asks once; a Settings
+                // grant relaunches the app, so no re-check is needed).
+                Button { openAppSettings() } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "mic.slash").font(.system(size: 9))
+                        Text("Allow microphone")
+                    }
+                    .font(EchoelTheme.font(11))
+                    .lineLimit(1)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(EchoelTheme.warning.opacity(0.20))
+                    .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
+                    .foregroundStyle(EchoelTheme.warning)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Microphone access is off")
+                .accessibilityHint("Opens Settings so you can allow microphone access and hear yourself live")
             }
             if audioEngine.isInputMonitoring {
                 // #605 (UX audit #9): the engine-stopped case the refusal line above cannot
