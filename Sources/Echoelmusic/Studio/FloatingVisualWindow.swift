@@ -877,9 +877,35 @@ struct FloatingVisualWindow: View {
             // Fenster soll man das Logo sehen, oben links — anstatt das Burgermenü,
             // das keinen Nutzen hat"). Same 40-wide hit target + drag gesture as the
             // old ≡, so move-by-handle still works; the window is just branded now.
+            // #602 (founder clip 2026-08-15: "Das E soll an der selben Stelle und
+            // gleichgroß sein, wenn man hinundher wechselt vom Visual window zur
+            // Studio View"): in FULLSCREEN this mark lands exactly where
+            // `WorkspaceView.topBar` draws its own — same glyph size, same centre —
+            // so the toggle reads as chrome changing around a fixed brand mark
+            // instead of the mark jumping. Derivation against topBar's literals
+            // (verified against the founder's clip at ±1 pt before coding):
+            //   x: topBar pad 12 + 26/2 = 25  ⇒  here bar pad 10 + 26/2 + offset 2 = 25
+            //   y: topBar minHeight 50 ⇒ centre 25; this bar is 44 ⇒ 22 + offset 3 = 25
+            // `.offset`, NOT `.padding(.leading, 2)`: an offset draws (and hit-tests)
+            // 2 pt right without consuming layout width, so `ChromeCost.logo = 40`
+            // and its independently re-derived twin in `ChromeBudgetFitsTests` stay
+            // exactly true — a padding would have made the budget 2 pt optimistic in
+            // fullscreen (#365's whole point is that the budget never flatters).
+            // Exact at default type sizes; topBar's minHeight can GROW at accessibility
+            // sizes, where parity is approximate — named limit, not an oversight.
+            // The FLOATING sizes keep the compact 20 pt handle deliberately: there the
+            // studio bar with its own `E` is on screen at the same time, and a second
+            // full-size mark in a small card bar would crowd it.
+            // Guard: `TheLogoHoldsItsPlaceTests` DERIVES both centres from the two
+            // source files and reds only when they diverge — change topBar's numbers
+            // WITH this block, in the same commit.
             EchoelLogoMark()
-                .frame(width: 20, height: 20)
-                .frame(width: 40, height: handleHeight)
+                .frame(width: windowSize.isFullscreen ? 26 : 20,
+                       height: windowSize.isFullscreen ? 26 : 20)
+                .frame(width: 40, height: handleHeight,
+                       alignment: windowSize.isFullscreen ? .leading : .center)
+                .offset(x: windowSize.isFullscreen ? 2 : 0,
+                        y: windowSize.isFullscreen ? 3 : 0)
                 .contentShape(Rectangle())
                 .gesture(
                     // MUST be `.global`: the default `.local` space measures the drag inside
