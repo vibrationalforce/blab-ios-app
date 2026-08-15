@@ -3486,6 +3486,14 @@ struct EchoelStudioView: View {
             // truth for "is it listening"; it also clears the milder staleness where the user
             // grants permission in Settings and comes back.
             if micMonitorRefused && !audioEngine.isInputMonitoring {
+                // #613 (sweep WARN 3): every engage failure used to wear the permission
+                // costume — the Settings line + door showed even when access IS granted
+                // and the failure was a busy session or a format/restart miss, sending
+                // the user to a toggle that is already on. The copy now branches on the
+                // engine's ONE definition of denial; the non-denial line is honest about
+                // what the user can actually do (try again — those failures are the
+                // transient kind, and the degraded machinery owns the persistent kind).
+                if audioEngine.micPermissionDenied {
                 Text("Monitoring could not start — check microphone access in Settings, or pick another input.")
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.danger)
@@ -3521,6 +3529,14 @@ struct EchoelStudioView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Microphone access is off")
                 .accessibilityHint("Opens Settings so you can allow microphone access and hear yourself live")
+                } else {
+                    // #613: access is granted, so Settings is the WRONG advice and the
+                    // door would assert "Microphone access is off" over a granted mic.
+                    Text("Monitoring could not start — try again, or pick another input.")
+                        .font(EchoelTheme.font(11))
+                        .foregroundStyle(EchoelTheme.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             } else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {
                 // ⛔ #605b: `!degraded` is load-bearing — the sentence below promises audio
                 // "comes back by itself", and `degraded` is exactly the state where that is

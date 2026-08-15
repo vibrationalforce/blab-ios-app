@@ -1593,6 +1593,22 @@ public final class AudioEngine {
     /// permission alert is up (it is app-modal). The day an interruption / scene-phase /
     /// route-change slice adds a programmatic disable, this method needs an intent re-check
     /// after the `await` — add it in the SAME commit as that caller.
+    /// #613 (mic-sweep WARN 3): the ONE definition of "the Settings door is the right
+    /// advice". `engageInputMonitoring` below returns false for permission-denial AND
+    /// for non-permission failures (session claim, 0 Hz format, restart throw) — the
+    /// refusal copy used to blame Settings for all of them, sending a GRANTED user to
+    /// a toggle that is already on. Both doors branch their copy on this instead of
+    /// re-deriving it (#416). Not `@Observable`-published: permission only changes via
+    /// the Settings app, which relaunches the app — constant per launch, so a plain
+    /// computed read in a body is stable and registers no churn.
+    var micPermissionDenied: Bool {
+        #if os(iOS)
+        return AVAudioApplication.shared.recordPermission == .denied
+        #else
+        return false
+        #endif
+    }
+
     func engageInputMonitoring() async -> Bool {
         #if os(iOS)
         switch AVAudioApplication.shared.recordPermission {

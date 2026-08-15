@@ -142,6 +142,9 @@ struct AudioInputPickerView: View {
                 .accessibilityLabel("Live monitoring")
             }
             if monitorRefused && !audioEngine.isInputMonitoring {
+                // #613: copy branches on the engine's ONE denial definition — see the
+                // studio twin's comment. Settings advice only when Settings is the fix.
+                if audioEngine.micPermissionDenied {
                 Text("Monitoring could not start — check microphone access in Settings.")
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.danger)
@@ -169,6 +172,13 @@ struct AudioInputPickerView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel("Microphone access is off")
                 .accessibilityHint("Opens Settings so you can allow microphone access and hear yourself live")
+                } else {
+                    // #613: granted mic, non-permission failure — no Settings costume.
+                    Text("Monitoring could not start — try again.")
+                        .font(EchoelTheme.font(11))
+                        .foregroundStyle(EchoelTheme.danger)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
             if audioEngine.isInputMonitoring {
                 // #605 (UX audit #9): the engine-stopped case the refusal line above cannot
@@ -314,7 +324,10 @@ struct AudioInputPickerView: View {
         }
         // #601b: with the mic refused, "turn on monitoring above" is an unfulfillable loop —
         // the switch just snapped back. Send the user to the actual fix instead.
-        if monitorRefused {
+        // #613: but ONLY when Settings really is the fix — for a granted mic whose engage
+        // failed transiently, "turn on monitoring above" is again the right instruction,
+        // so the non-denied case deliberately falls through to the default line below.
+        if monitorRefused && audioEngine.micPermissionDenied {
             return "The microphone is not available to Echoel. Allow microphone access in Settings, then switch monitoring on."
         }
         return "Turn on live monitoring above to list the available inputs. iOS only publishes them while the mic is in use."

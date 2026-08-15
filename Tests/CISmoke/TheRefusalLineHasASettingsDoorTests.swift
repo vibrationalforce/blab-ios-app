@@ -157,6 +157,56 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
             """)
     }
 
+    // MARK: - claim 7 (#613) — the Settings costume is gated on real denial
+
+    /// Sweep WARN 3: `engageInputMonitoring` returns false for permission denial AND for
+    /// non-permission failures (busy session, 0 Hz format, restart throw). Ungated, the
+    /// Settings line + this file's door showed for ALL of them — asserting "Microphone
+    /// access is off" over a granted mic and sending the user to a toggle that is
+    /// already on. Both doors now branch on the engine's ONE denial definition (#416).
+    /// FORWARD against the #613 parent (0360c90): the gate needles are born with that
+    /// commit — one absence, several assertions (#486). The ordering claims 1–2 above
+    /// are unchanged by the branch: the door stays inside the refusal block.
+    func testTheSettingsCostumeIsGatedOnRealDenial() throws {
+        let studio = try source(Self.studio)
+        let picker = try source(Self.picker)
+        let engine = try source(Self.engine)
+        let deniedGate = "if audioEngine.micPermissionDenied {"
+        for (code, name, neutral) in [
+            (studio, "mix-board strip", "Monitoring could not start — try again, or pick another input."),
+            (picker, "input sheet", "Monitoring could not start — try again."),
+        ] {
+            XCTAssertEqual(occurrences(of: deniedGate, in: code), 1, """
+                The \(name)'s denial gate (#613) vanished or was duplicated. Without it \
+                every engage failure wears the permission costume again — Settings advice \
+                and an "access is off" door shown to a user whose access is granted.
+                """)
+            let g = try XCTUnwrap(code.range(of: deniedGate))
+            let d = try XCTUnwrap(code.range(of: Self.doorNeedle))
+            XCTAssertTrue(g.lowerBound < d.lowerBound, """
+                The \(name)'s Settings door moved OUTSIDE the denial branch — it must \
+                only render when Settings is actually the fix.
+                """)
+            XCTAssertTrue(code.contains(neutral), """
+                The \(name)'s non-denial refusal line changed or vanished. It is the \
+                honest half of #613: a granted mic whose engage failed transiently gets \
+                "try again", not a Settings hunt. If this is a rewording, update this \
+                guard in the same commit.
+                """)
+        }
+        XCTAssertTrue(picker.contains("if monitorRefused && audioEngine.micPermissionDenied {"), """
+            The input sheet's empty-state lost its #613 gate — with a granted mic it \
+            would again claim "The microphone is not available to Echoel" and point at \
+            Settings, instead of falling through to the correct "turn on monitoring \
+            above" instruction.
+            """)
+        XCTAssertTrue(engine.contains("var micPermissionDenied: Bool"), """
+            The engine's one denial definition is gone. Both doors and the empty state \
+            branch on it — if it was renamed or moved, re-point the three consumers and \
+            this guard in the same commit (#416: never re-derive it per door).
+            """)
+    }
+
     // MARK: - claim 6 (COUNTERWEIGHT) — the sibling consumer survives
 
     func testTheCameraDoorStillUsesTheSameFunction() throws {
