@@ -631,8 +631,9 @@ struct EchoelStudioView: View {
     // or cleared: a stale bool costs nothing, a delete-on-launch is a destructive write
     // for no gain.
     @State private var showInput = false
-    /// #485. Set when `setInputMonitoring(true)` REFUSED (mic permission denied, or the
-    /// route publishes no valid input format). It is not decoration and it is not only a
+    /// #485, since #601 written from `engageInputMonitoring()`'s answer. Set when the
+    /// monitor enable REFUSED (mic permission denied — at the dialog or previously in
+    /// Settings — or the route publishes no valid input format). Not decoration, not only a
     /// message: `isInputMonitoring` is `private(set)` and stays false on refusal, so with
     /// nothing else mutating observable state the Mix board's `Toggle` would keep SHOWING
     /// "on" — a lying control (#135/#164/#227) on the one row where "it says it is
@@ -3393,8 +3394,21 @@ struct EchoelStudioView: View {
             Toggle("Monitor", isOn: Binding(
                 get: { audioEngine.isInputMonitoring },
                 set: { on in
-                    let engaged = audioEngine.setInputMonitoring(on)
-                    micMonitorRefused = on && !engaged
+                    if on {
+                        // #601: ask for the mic FIRST. The old direct call could never
+                        // show the permission dialog (undetermined permission → 0 Hz
+                        // input format → silent bail), so on a fresh install this
+                        // toggle just flipped back — the founder's "Audio in
+                        // funktioniert bisher nicht". Async, so the refusal flag is
+                        // written when the answer is real, not before the dialog.
+                        Task { @MainActor in
+                            let engaged = await audioEngine.engageInputMonitoring()
+                            micMonitorRefused = !engaged
+                        }
+                    } else {
+                        _ = audioEngine.setInputMonitoring(false)
+                        micMonitorRefused = false
+                    }
                 }))
                 .font(EchoelTheme.font(12))
                 .tint(EchoelTheme.accent)

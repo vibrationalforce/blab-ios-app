@@ -1548,9 +1548,52 @@ public final class AudioEngine {
 
     // MARK: - Live Input Monitoring (opt-in)
 
+    /// #601 (founder: "Audio in funktioniert bisher nicht"): the permission-aware front
+    /// door for the two monitor toggles (mic strip + Audio-input sheet). A direct
+    /// `setInputMonitoring(true)` reads the input node's format, and with mic permission
+    /// UNDETERMINED that format is 0 Hz — the call bailed with only a log and the system
+    /// permission dialog NEVER appeared: on a fresh install the toggle flipped back
+    /// silently and audio-in was unreachable from both doors. This asks FIRST (the system
+    /// shows no dialog when already granted or denied — those states answer immediately),
+    /// engages only on grant, and returns false on denial WITHOUT claiming the record
+    /// route, so the callers' refusal copy ("check microphone access in Settings") is
+    /// literally the right advice.
+    ///
+    /// `MicrophoneManager.requestPermission()` is deliberately NOT reused here: it is
+    /// fire-and-forget (a Task it cannot be awaited on), so it can never answer the
+    /// caller whose Toggle needs the verdict. The capture path keeps it — one asker per
+    /// pathway, one definition of "ask" per need.
+    func engageInputMonitoring() async -> Bool {
+        #if os(iOS)
+        switch AVAudioApplication.shared.recordPermission {
+        case .granted:
+            break
+        case .undetermined:
+            guard await AVAudioApplication.requestRecordPermission() else {
+                log.audio("Input monitoring: mic permission denied at the dialog", level: .warning)
+                return false
+            }
+        case .denied:
+            log.audio("Input monitoring: mic permission previously denied — Settings is the only door", level: .warning)
+            return false
+        @unknown default:
+            return false
+        }
+        return setInputMonitoring(true)
+        #else
+        return false
+        #endif
+    }
+
     /// Start/stop monitoring the mic through the main output with FeedbackGuard.
     /// Returns false if monitoring couldn't start (e.g. no mic permission / format).
     /// Defensive throughout — never crashes; worst case it simply doesn't engage.
+    /// ⚠️ Turning ON from a user toggle goes through `engageInputMonitoring()` above —
+    /// THIS method never shows the permission dialog. After #601 its only production
+    /// caller with `true` is that front door; the toggles call it directly only with
+    /// `false` (measured 2026-08-15: the two Toggle sites are the only callers outside
+    /// this file). Keep it synchronous — the OFF path and tests need no dialog and no
+    /// suspension point.
     @discardableResult
     func setInputMonitoring(_ on: Bool) -> Bool {
         #if os(iOS)

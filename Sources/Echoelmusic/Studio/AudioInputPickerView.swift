@@ -108,12 +108,23 @@ struct AudioInputPickerView: View {
                 Spacer(minLength: 8)
                 Toggle("", isOn: Binding(
                     get: { audioEngine.isInputMonitoring },
-                    set: {
-                        _ = audioEngine.setInputMonitoring($0)
-                        // Turning monitoring ON upgrades the session to `.playAndRecord`, which
-                        // is the moment `availableInputs` starts returning anything at all.
-                        // Without this the list stays empty until the sheet is reopened.
-                        inputs.refresh()
+                    set: { on in
+                        if on {
+                            // #601: ask for the mic FIRST — the direct call could never
+                            // show the permission dialog (undetermined → 0 Hz input
+                            // format → silent bail), so this toggle flipped back with
+                            // no explanation on a fresh install. The refresh runs AFTER
+                            // the engage: turning monitoring on upgrades the session to
+                            // `.playAndRecord`, which is the moment `availableInputs`
+                            // starts returning anything at all.
+                            Task { @MainActor in
+                                _ = await audioEngine.engageInputMonitoring()
+                                inputs.refresh()
+                            }
+                        } else {
+                            _ = audioEngine.setInputMonitoring(false)
+                            inputs.refresh()
+                        }
                     }
                 ))
                 .labelsHidden()
