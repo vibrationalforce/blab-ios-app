@@ -13,9 +13,16 @@
 // THE GUARD'S SHAPE, and why it is a RELATION and not pinned values (#364): a designer may
 // move or resize the studio mark — that is ordinary design work and must not go red. What
 // must go red is the two marks DIVERGING, because parity is the founder's explicit ask.
-// So every assertion below DERIVES both centres from the two source files' literals and
-// compares the derivations; change either side together with the other and this file stays
-// green without being touched.
+// Claim 1 DERIVES both centres from the two source files' literals and compares the
+// derivations. ⚠️ Claim 2 additionally pins the CURRENT fullscreen literals (26/2/3) as
+// existence needles, so a coordinated redesign DOES touch this file — it re-reddens claim 2
+// with messages that say exactly that (#602b review: the first header claimed "stays green
+// without being touched", which was true of claim 1 alone and false of the file).
+// ⚠️ NOT OBSERVED (named limit, #602b): child ORDER in topBar. A new child inserted
+// BEFORE the mark shifts the real centre while every literal here is unchanged — partial
+// cover is `TheHeaderShowsTheLoopTests.testTheMarkLeadsTheHeaderAndIsNotAControl` (mark
+// before readout before brand), which does not forbid a new leading child. That residue
+// is the device probe's half.
 //
 // ⚠️ LIMIT — SOURCE-TEXT SCAN with arithmetic on extracted literals. It proves the
 // LITERALS compose to equal centres under the documented layout model (HStack padding +
@@ -28,9 +35,11 @@
 // the derivation), which is what makes arithmetic on literals worth anything here.
 //
 // ⚠️ HONEST GRADING — transcribed in Python against the parent (30564bd) and this tree
-// (#433/#464). 12 assertions in 4 tests, hand-counted: claims 1 (4) + 2 (4) + 3 (2) +
-// 4 (2). On THIS tree all 12 pass (derivation: studio (25,25)/26 == fullscreen
-// (25,25)/26). Against the PARENT: ONE finding (#486), reported across three tests —
+// (#433/#464). 13 named assertions in 4 tests, hand-counted: claims 1 (5, incl. the
+// #602b square-box check) + 2 (4) + 3 (2) + 4 (2); plus 2 `XCTAssertFalse(bar.isEmpty)`
+// anchor sentinels inside the extraction helpers = 15 XCTAssert sites total (#602b
+// review counted the sites; the first header said 12 and meant only the named claims).
+// On THIS tree all pass (derivation: studio (25,25)/26 == fullscreen (25,25)/26). Against the PARENT: ONE finding (#486), reported across three tests —
 // the fullscreen branch does not exist there, so `fullscreenGeometry()` THROWS at its
 // first extraction (claim 1 errors with no verdicts on its four assertions — including
 // its studio-side internal-consistency check, which would be green but is unreached),
@@ -81,10 +90,18 @@ final class TheLogoHoldsItsPlaceTests: XCTestCase {
             either bar's design height changes.
             """)
         XCTAssertEqual(studio.size, 2 * (studio.centerX - studio.pad), """
-            Internal consistency of the derivation itself broke — the studio mark is no \
-            longer the first child at the bar's leading edge, so "pad + size/2" stopped \
-            being its centre and every equality above is comparing the wrong model. \
-            Re-derive the studio geometry before trusting this file again.
+            The derivation's Int arithmetic broke: the studio mark size is ODD, so \
+            `size/2` truncates and every centre above is off by half a point. Use an \
+            even design size or switch this file's arithmetic to Double.
+            """)
+        // ⚠️ #602b: this assertion is ARITHMETIC-ONLY (an odd-size tripwire). Its first
+        // version claimed to detect "the mark is no longer the first child" — nothing in
+        // this file observes child order; see the header's NOT-OBSERVED note.
+        XCTAssertEqual(try fullscreenHeight(), vis.size, """
+            The fullscreen mark's HEIGHT branch diverged from its width — the frame is \
+            no longer square, so the drawn glyph is distorted relative to the studio's \
+            \(studio.size)×\(studio.size) box. Keep the two `windowSize.isFullscreen ? N \
+            : 20` literals identical.
             """)
     }
 
@@ -181,6 +198,14 @@ final class TheLogoHoldsItsPlaceTests: XCTestCase {
         let pad = try number(#"\.padding\(\.horizontal, (\d+)\)"#, in: bar, context: "topBar horizontal padding")
         let barHeight = try number(#"minHeight: (\d+)"#, in: bar, context: "topBar minHeight")
         return StudioGeometry(pad: pad, size: size, barHeight: barHeight)
+    }
+
+    /// The fullscreen mark's HEIGHT literal — asserted equal to the width so the box
+    /// stays square (#602b review: the width needle alone let a height-only edit pass).
+    private func fullscreenHeight() throws -> Int {
+        let bar = slice(try source(Self.visual), from: "private func handleBar", to: "\n    private func")
+        return try number(#"height: windowSize\.isFullscreen \? (\d+) : 20"#, in: bar,
+                          context: "fullscreen mark height")
     }
 
     /// `handleBar`'s mark in the fullscreen branch. The bar's own padding is the one

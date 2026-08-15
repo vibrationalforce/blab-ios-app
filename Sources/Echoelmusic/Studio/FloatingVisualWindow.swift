@@ -886,11 +886,15 @@ struct FloatingVisualWindow: View {
             // (verified against the founder's clip at ±1 pt before coding):
             //   x: topBar pad 12 + 26/2 = 25  ⇒  here bar pad 10 + 26/2 + offset 2 = 25
             //   y: topBar minHeight 50 ⇒ centre 25; this bar is 44 ⇒ 22 + offset 3 = 25
-            // `.offset`, NOT `.padding(.leading, 2)`: an offset draws (and hit-tests)
-            // 2 pt right without consuming layout width, so `ChromeCost.logo = 40`
-            // and its independently re-derived twin in `ChromeBudgetFitsTests` stay
-            // exactly true — a padding would have made the budget 2 pt optimistic in
+            // `.offset`, NOT `.padding(.leading, 2)`: an offset draws 2 pt right
+            // without consuming layout width, so `ChromeCost.logo = 40` and its
+            // independently re-derived twin in `ChromeBudgetFitsTests` stay exactly
+            // true — a padding would have made the budget 2 pt optimistic in
             // fullscreen (#365's whole point is that the budget never flatters).
+            // The HIT AREA does NOT move: `.contentShape(Rectangle())` sits outside
+            // the offset, so it resolves against the un-offset 40×44 frame — the
+            // "Same 40-wide hit target" sentence above stays the true one (review
+            // #602b; the first version of this comment claimed the hit-test moved).
             // Exact at default type sizes; topBar's minHeight can GROW at accessibility
             // sizes, where parity is approximate — named limit, not an oversight.
             // The FLOATING sizes keep the compact 20 pt handle deliberately: there the
