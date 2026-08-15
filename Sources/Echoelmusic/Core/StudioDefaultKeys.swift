@@ -70,6 +70,16 @@ public enum StudioDefaultKeys {
     /// lines, bounded enough never to feel like a nag.
     public static let instrumentHintShowCap = 5
 
+    /// #608 (Founder 2026-08-15, „optionaler Automodus … vibe catcht und harmonisiert") —
+    /// the Auto-mode master switch. OFF on fresh installs, deliberately: steering the
+    /// user's mood dials without being asked is the one thing this feature must never
+    /// do first. Read by TWO sites in EchoelStudioView — the `AutoModeRow` toggle in
+    /// `bioPanel` (the door) and `makeComposerInput` (the fold that consults
+    /// `AutoAttune`) — hence H15-KEYSTORE. Tempo is NOT steered by this switch in any
+    /// state: the only bio→clock path stays the Flow-Servo (T1/T2,
+    /// `AutoModeStartsOffAndOwnsNoTempoTests`).
+    public static let autoMode = StudioDefault(key: "studio.autoMode", value: false)
+
     /// Founder 8-bar produce-able phrase (see EchoelStudioView loop picker).
     public static let loopBars = StudioDefault(key: "studio.loopBars", value: LoopBarLength.eight)
     public static let genre = StudioDefault(key: "studio.genre", value: MusicStyle.selfObservation)

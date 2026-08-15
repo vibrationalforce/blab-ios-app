@@ -34,12 +34,53 @@ steht — Kohärenz im doppelten Sinn (HRV-Kohärenz des Körpers, Stimmigkeit d
 7. **Ralph-Scheiben, kein lokaler Compiler:** jede Scheibe mit CISmoke-Wächter,
    transkribiert gegen Eltern + Worktree; CI ist der einzige Compiler.
 
-## Offen bis zum Urteil der Aufklärung (wf_ce747087-6ca)
+## ENTSCHIEDEN (Ultracode-Urteil wf_ce747087-6ca, 2026-08-15; Council: proceed)
 
-- Wo die Mood-Schätzung lebt (pur + testbar) und aus welchen Eingängen.
-- Ob Kern = BioComposer-Erweiterung, eigener AutoConductor am EngineBus, oder UX-first.
-- Wo die Tür sitzt (moodPanel? bioPanel? Save-&-Export?) — ohne Sheet-Ketten-Wachstum.
-- Slice-Folge; Scheibe 1 exakt (Dateien, Wächter-Name).
+**Gewinner: „AutoAttune" (Reuse-maximal), mit Grafts aus den zwei anderen Entwürfen.**
+Kein neuer Motor: ein purer Werttyp (`Sequencer/AutoAttune.swift`), konsultiert an dem
+EINEN Engpass, den jeder Take passiert (`makeComposerInput`) — die Kadenz ist damit
+STRUKTURELL der Evolve-Tick (~25–45 s ≈ 8 Takte), es existiert kein Timer, der falsch
+raten könnte (der AutoConductor-Entwurf hätte die #541-Immer-an-Maschinen-Form
+wiederholt). Körperschätzung = `BioComposer.musicalState` WÖRTLICH wiederverwendet
+(#416, keine zweite Formel). Eingriff = `WeatherMood.blend` auf die lokalen
+Mood-Werte (darkness · liveliness · tension), Intensität fix 0.3, Ziel-Delta ≤ 0.15
+→ max. 0.045 Bewegung pro Tick. Hysterese: Enter/Exit-Bänder ≥ 0.15 auseinander +
+Mindesthalt 1 Tick. Darkness kreuzt nie den Composer-Schalter (>0.6). Tempo: NULL
+eigener Pfad (T1/T2 — Flow-Servo bleibt allein; Abstinenz per Scan beweisbar, weil
+es keine Engine-Datei gibt, in der ein setTempo sich verstecken könnte).
+
+**Grafts:** Nutzer-Geste pausiert den Parameter für die RESTLICHE SESSION (kein
+Auto-Resume nach ~2 min — „sanft" heißt: nichts kommt ungebeten zurück) · Tür ist
+bei fehlender Bio-Quelle DISABLED mit Caption („kein lügendes Bedienelement",
+#135/#164/#227) · Caption nennt NUR lebende Kanäle (#496; „trend" verboten, bis ein
+echter Produzent shipped) · Status-Leaf („Listening/Steering/Paused …") als eigene
+spätere Scheibe · Valence-Rote-Linie: calm/arousal sind STEUERSIGNALE, nie eine
+Emotions-/Stimmungsaussage über den Menschen (EngineBus-EU-AI-Act-Rahmung).
+
+**Scheiben-Folge:**
+1. ✅ **#608 Scheibe 1 (dieser Commit):** Tür (AutoModeRow in bioPanel, #603-Form,
+   0 Präsentations-Modifier) + `StudioDefaultKeys.autoMode` (Default AUS) + purer
+   Kern `AutoAttune` + Fold in `makeComposerInput` (mit dem Hoist der
+   `var moodForInput` über das `#if` — die vom Richter verifizierte
+   Nicht-WeatherKit-Falle — und EINER Definition der HR/HRV-Fallback-Ketten) +
+   Wächter `AutoModeStartsOffAndOwnsNoTempoTests` (37 Verdikte).
+2. **Visual-Beitrag:** Auto-Term in `weatheredVisuals` NUR intensity/motion(/spread —
+   Achtung Richter-Befund: spread umgeht weatheredVisuals heute, eigener Pfad nötig);
+   hue bleibt 0-owned (physikalische Tonfarbe = science-first-Versprechen).
+3. **Settling-Achse:** echter Kohärenz-Trend-Produzent (`CoherenceTrendEstimator`,
+   Ring aus (timestamp, coherence), Slope 30–60 s, dt aus Timestamps, lücken-tolerant).
+   `BioParams.coherenceTrend` bleibt dabei tot, außer die eigene Scheibe zieht
+   `TheAlwaysOnBioPathIsNamedTests` + beide AlwaysOnBioChannel-Sätze + CLAUDE.md mit.
+4. **Geste-gewinnt-Verdrahtung:** Mood-Knob-Commits + Visual-Fine-Tune setzen die
+   Session-Pause des Parameters; ein os_log-Breadcrumb pro Evolve-Entscheidung.
+5. **Genre/Tonart-Vorschlag (FOUNDER-GATED):** erst Suggest-only-Chip; Auto-Apply
+   nur hinter zweitem Sub-Toggle, beschränkt auf `MusicStyle.offered` — kollidiert
+   sonst mit dem Kurations-Gesetz (#81/#125).
+
+**Rote Flaggen aus dem Urteil (bindend):** kein Auto-Resume zurückschmuggeln ·
+Status-Leaf liest den ~1-Hz-Zustand NUR im eigenen Leaf-Body (Freeze-Gesetz) ·
+PerformerSignature-relative Arousal bleibt count-gated (sonst liest die erste
+Minute jeder Session als Abweichung von einer bedeutungslosen Baseline).
 
 ## Verhältnis zum GUI-Board
 

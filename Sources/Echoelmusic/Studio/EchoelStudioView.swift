@@ -190,6 +190,13 @@ struct EchoelStudioView: View {
     @State private var weatherContribution: WeatherMood.Contribution?
     private var weatherDescriptor: String { weatherContribution?.descriptor ?? "" }
     #endif
+    /// #608 Scheibe 1 — the Auto-mode switch (H15: second reader is `AutoModeRow`,
+    /// the door in `bioPanel`). Event-rate: written only by the toggle. The fold in
+    /// `makeComposerInput` reads it per evolve tick, never per frame.
+    @AppStorage(StudioDefaultKeys.autoMode.key) private var autoMode = StudioDefaultKeys.autoMode.value
+    /// AutoAttune's hysteresis/hold/pause state, carried across evolve ticks. Written
+    /// only inside `makeComposerInput` (an event path, ~25–45 s), never in `body`.
+    @State private var autoAttuneState = AutoAttune.State()
     @Environment(LoopExporter.self) private var exporter
     @Environment(ProjectStore.self) private var projects
     @Environment(PatchStore.self) private var patchStore
@@ -3042,6 +3049,11 @@ struct EchoelStudioView: View {
             // every `.menu` Picker of the instrument (10.76.41/50). `AnyView(bioPanel)` is not
             // a boundary either.
             BreathVoiceRow()
+
+            // #608 Scheibe 1 — the Auto-mode door, beside the other body-driven
+            // switch. A LEAF struct for the same 10.76.41/50 reason as the two rows
+            // above it: it reads `bus.usableBio()` (~1 Hz) for its disabled state.
+            AutoModeRow()
 
             Button {
                 showRouting = true
@@ -8909,8 +8921,13 @@ struct EchoelStudioView: View {
         // mixer (0 = the user's value unchanged). The body still dominates: this
         // only nudges darkness/liveliness/tension, which then blend with the live
         // signal inside the composer as before.
-        #if canImport(WeatherKit) && canImport(CoreLocation)
+        // ⚠️ #608: `var moodForInput` is HOISTED ABOVE the `#if` on purpose. The old
+        // shape declared it `var` inside the WeatherKit branch and `let` in the
+        // `#else` — a "sibling block" added below would then silently not exist (or
+        // not compile) on non-WeatherKit configs. The auto fold must exist on every
+        // config, so the ONE declaration lives here.
         var moodForInput = mood
+        #if canImport(WeatherKit) && canImport(CoreLocation)
         if weatherEnabled, let wx = weatherContribution {
             moodForInput.darkness = WeatherMood.blend(
                 base: moodForInput.darkness, target: wx.darknessTarget,
@@ -8922,22 +8939,56 @@ struct EchoelStudioView: View {
                 base: moodForInput.tension, target: wx.tensionTarget,
                 intensity: WeatherMood.Param.drama.currentIntensity())
         }
-        #else
-        let moodForInput = mood
         #endif
+        // ONE spelling of the composer's HR/HRV fallback chains (#416) — the auto
+        // fold below and the `Input` construction must read the SAME body, so the
+        // values are hoisted here instead of spelled twice.
+        // `measured`, not the raw value — an unlocked rPPG's finite 0 is not a heart
+        // rate. The chain is deliberate: the last take's body first (a momentary loss
+        // of lock keeps the register the performer's own pulse set), then 70 as the
+        // resting neutral for a body that has never been read.
+        let hrForInput = fin(measured(frame?.heartRateBPM)
+                                ?? measured(heldBody.map { Float($0.bpm) }), 70)
+        // `hrvForSound`, not the raw value: `fin`'s fallback only fires for nil or
+        // non-finite, so a REAL 0 (= not measured yet) went straight through — and in
+        // BioComposer low HRV means high sympathetic load, so the composer answered
+        // "I know nothing about this body" with maximum arousal and a busier take.
+        let hrvForInput = fin(frame?.hrvForSound, 0.5)
+        // #608 Scheibe 1 — AUTO MODE fold: consult the pure decision core at the ONE
+        // choke point every take passes (generate and the variation audition share
+        // it), so the cadence is STRUCTURALLY the evolve tick — no timer exists to
+        // mis-rate. OFF (default) skips even the state write; a `Steer` at intensity
+        // 0 is byte-identical through `WeatherMood.blend` (the Golden law). The body
+        // state is `BioComposer.musicalState` reused verbatim (#416 — no second
+        // formula), fed the SAME values the `Input` below receives. Tempo is
+        // deliberately absent here (T1/T2 — the Flow-Servo stays the only bio→clock
+        // path; `AutoModeStartsOffAndOwnsNoTempoTests` scans this fold for it).
+        if autoMode {
+            let bodyState = BioComposer.musicalState(coherence: liveCoh,
+                                                     hrvNormalized: hrvForInput,
+                                                     heartRateBPM: Double(hrForInput))
+            let (steer, nextState) = AutoAttune.decide(
+                calm: bodyState.calm, arousal: bodyState.arousal,
+                baseDarkness: moodForInput.darkness,
+                baseLiveliness: moodForInput.liveliness,
+                baseTension: moodForInput.tension,
+                previous: autoAttuneState)
+            autoAttuneState = nextState
+            moodForInput.darkness = WeatherMood.blend(
+                base: moodForInput.darkness, target: steer.darknessTarget,
+                intensity: steer.intensity)
+            moodForInput.liveliness = WeatherMood.blend(
+                base: moodForInput.liveliness, target: steer.livelinessTarget,
+                intensity: steer.intensity)
+            moodForInput.tension = WeatherMood.blend(
+                base: moodForInput.tension, target: steer.tensionTarget,
+                intensity: steer.intensity)
+        }
         let input = BioComposer.Input(
-            // `measured`, not the raw value — an unlocked rPPG's finite 0 is not a heart rate.
-            // The fallback chain is deliberate: the last take's body first (so a momentary loss of
-            // lock mid-session keeps the tempo the performer's own pulse set), then 70 as the
-            // resting neutral for a body that has never been read. Both go through `measured` for
-            // the same reason.
-            heartRateBPM: fin(measured(frame?.heartRateBPM)
-                                ?? measured(heldBody.map { Float($0.bpm) }), 70),
-            // `hrvForSound`, not the raw value: `fin`'s fallback only fires for nil or
-            // non-finite, so a REAL 0 (= not measured yet) went straight through — and in
-            // BioComposer low HRV means high sympathetic load, so the composer answered
-            // "I know nothing about this body" with maximum arousal and a busier take.
-            hrvNormalized: fin(frame?.hrvForSound, 0.5),
+            // Both hoisted above the auto fold (#608/#416) — the rationale for the
+            // fallback chains lives at the ONE definition site up there.
+            heartRateBPM: hrForInput,
+            hrvNormalized: hrvForInput,
             coherence: liveCoh,
             breathPhase: fin(frame?.breathPhase, 0),
             breathDepth: dynamicDepth,
@@ -10703,6 +10754,49 @@ private struct BreathVoiceRow: View {
             Text(breathIsMeasured
                  ? "A held tone whose colour follows your heart and coherence. Your inhale opens it, your exhale closes it."
                  : "A held tone whose colour follows your heart and coherence. No breathing measured yet — once it is, your inhale and exhale take over the note.")
+                .font(EchoelTheme.font(10))
+                .foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+}
+
+/// #608 Scheibe 1 — the Auto-mode door („optionaler Automodus … sanft intervenieren").
+/// A plain Toggle in `bioPanel`, the #603 `guideVisible` shape: ZERO presentation
+/// modifiers, reached through `dropdownContent`, chain census untouched (14/16).
+///
+/// ⚠️ A LEAF struct for the 10.76.41/50 reason `BreathVoiceRow` states above: it reads
+/// `bus.usableBio()` (~1 Hz) so only this row churns, never the Picker-hosting root.
+///
+/// ⚠️ NOT A LYING CONTROL (#135/#164/#227 class): with no running bio source the
+/// toggle is DISABLED and the caption says why — an enabled switch that audibly does
+/// nothing would be the exact defect this register documents. The caption names ONLY
+/// channels a producer actually feeds today (coherence · HRV · heart rate — #496:
+/// breath depth, LF/HF and any "trend" have no producer and may not be promised).
+/// What it steers: the mood dials (darkness · liveliness · tension) through the same
+/// crossfade the weather influence uses, over bars. Tempo is NEVER steered (T1/T2 —
+/// the Flow-Servo remains the only bio→clock path).
+@MainActor
+private struct AutoModeRow: View {
+    @Environment(EngineBus.self) private var bus
+    @AppStorage(StudioDefaultKeys.autoMode.key) private var autoMode = StudioDefaultKeys.autoMode.value
+
+    var body: some View {
+        let bioRunning = bus.usableBio() != nil
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle(isOn: $autoMode) {
+                Text("Auto mode")
+                    .font(EchoelTheme.font(12, .semibold))
+                    .foregroundStyle(EchoelTheme.text)
+            }
+            .toggleStyle(.switch)
+            .tint(EchoelTheme.accent)
+            .frame(minHeight: 44)
+            .disabled(!bioRunning)
+            .accessibilityHint("Slowly steers the mood dials toward your measured body state")
+            Text(bioRunning
+                 ? "Slowly steers mood toward your measured coherence, HRV and heart rate — over bars, not beats. Your own edits keep priority."
+                 : "Needs a running bio source — touch and hold the pulse display to start one.")
                 .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)

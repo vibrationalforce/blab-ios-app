@@ -22,6 +22,13 @@ final class StudioDefaultKeysTests: XCTestCase {
         XCTAssertEqual(StudioDefaultKeys.instrumentHintShows.value, 0)
         XCTAssertEqual(StudioDefaultKeys.instrumentHintShows.key, "onboard.instrumentHintShows")
         XCTAssertEqual(StudioDefaultKeys.instrumentHintShowCap, 5)
+        // #608: Auto mode ships OFF — steering the mood dials unasked is the one
+        // thing the feature must never do first. Key read by AutoModeRow (door) +
+        // makeComposerInput (fold), hence keystore. The BLOCKING pin lives in
+        // Tests/CISmoke/AutoModeStartsOffAndOwnsNoTempoTests (this suite is
+        // compiled by no gate, #208).
+        XCTAssertEqual(StudioDefaultKeys.autoMode.value, false)
+        XCTAssertEqual(StudioDefaultKeys.autoMode.key, "studio.autoMode")
         // Composition: the 8-bar produce-able phrase (H15-LOOPBARS shipped v271).
         XCTAssertEqual(StudioDefaultKeys.loopBars.value, .eight)
         // Genre home is self-observation — the visual's old .vaporwave copy put a
@@ -64,6 +71,7 @@ final class StudioDefaultKeysTests: XCTestCase {
         // The key STRINGS are the on-disk contract with every already-shipped
         // install — a typo here silently resets that preference for everyone.
         let keys = [
+            StudioDefaultKeys.autoMode.key,
             StudioDefaultKeys.loopBars.key, StudioDefaultKeys.genre.key,
             StudioDefaultKeys.scale.key, StudioDefaultKeys.rootIndex.key,
             StudioDefaultKeys.lockBPM.key, StudioDefaultKeys.lockedBPM.key,
