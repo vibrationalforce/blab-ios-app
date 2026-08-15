@@ -155,7 +155,13 @@ struct AudioInputPickerView: View {
                 // mix-board door spells out. Same sentence as there, on purpose (one state,
                 // one wording — pinned by TheMonitorSaysWhyItIsSilentTests). No retry button:
                 // see the mix-board comment (AudioDegradedRow owns recovery for `degraded`).
-                if !audioEngine.isRunning {
+                // ⛔ #605b: `!degraded` — in THIS sheet the false promise would stand ALONE:
+                // AudioDegradedRow lives in the studio column underneath, invisible while the
+                // sheet is up, so during `degraded` the only visible sentence would promise a
+                // recovery that will not come. Gated off, the degraded case shows nothing here
+                // and the user meets the row (cause + Retry) on dismiss — recovery one gesture
+                // away beats a wrong promise on screen (review of #605).
+                if !audioEngine.isRunning && !audioEngine.degraded {
                     Text("Monitoring is on, but audio is paused — it comes back by itself when the call, alarm or Siri ends.")
                         .font(EchoelTheme.font(11))
                         .foregroundStyle(EchoelTheme.warning)

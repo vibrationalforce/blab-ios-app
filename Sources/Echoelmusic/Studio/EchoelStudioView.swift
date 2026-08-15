@@ -3436,7 +3436,15 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(11))
                     .foregroundStyle(EchoelTheme.danger)
                     .fixedSize(horizontal: false, vertical: true)
-            } else if audioEngine.isInputMonitoring && !audioEngine.isRunning {
+            } else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {
+                // ⛔ #605b: `!degraded` is load-bearing — the sentence below promises audio
+                // "comes back by itself", and `degraded` is exactly the state where that is
+                // FALSE (self-heal gave up). Without the gate, this line and AudioDegradedRow
+                // ("auto-recovery gave up" + Retry) could sit on screen simultaneously,
+                // saying opposite things about the same silence (review of #605). In the
+                // degraded state that row owns the message AND the recovery; this line
+                // covers only the self-healing interruption window. `degraded` writes are
+                // event-rate (give-up + start), same class as the two reads beside it.
                 // #605 (UX audit #9): `setInputMonitoring(true)` wires the graph but starts
                 // the engine only if it was already running — so this toggle can honestly
                 // show ON while a call/Siri/alarm interruption holds the engine paused and

@@ -28,7 +28,15 @@
 // COUNTERWEIGHTS, green on both trees (the #601b refusal lines and the degraded row's
 // retry predate this slice). ZERO regressions claimed, because zero exist.
 // `SourceText.codeOnly` is PROPHYLAKTISCH here, MEASURED (#453): 0 of 7 verdicts flip
-// raw-vs-stripped on either tree — no needle below is quoted in a comment.
+// raw-vs-stripped on either tree — no needle below is quoted whole in a comment (the
+// #605b comments quote "comes back by itself", a SUBSTRING of the copy needle; a
+// substring cannot green a `contains` of the full sentence).
+//
+// ⛔ #605b (same review cycle): both gate needles gained `&& !audioEngine.degraded`.
+// The review found the sentence's promise FALSE exactly in the degraded state — and in
+// the sheet the false promise would have stood ALONE (AudioDegradedRow is invisible
+// under it). Against fe1390c (the #605 first cut) the two gate needles are red by that
+// widening — deliberate, one finding; the copy needles and counterweights are unchanged.
 
 import Foundation
 import XCTest
@@ -48,12 +56,15 @@ final class TheMonitorSaysWhyItIsSilentTests: XCTestCase {
 
     func testTheMixBoardDoorCarriesTheSilenceLine() throws {
         let code = try source(Self.studio)
-        XCTAssertTrue(code.contains("else if audioEngine.isInputMonitoring && !audioEngine.isRunning {"), """
-            The mix board's monitor strip lost its engine-stopped branch. Without it the \
-            Monitor toggle can show ON while the engine is paused (a call, Siri, an alarm) \
-            and the card explains nothing — UX audit #9, the state #601b's refusal line \
-            cannot see because permission was granted. The branch must stay BETWEEN the \
-            refusal line (a real error, danger) and the headphone hint (the healthy default).
+        XCTAssertTrue(code.contains("else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {"), """
+            The mix board's monitor strip lost its engine-stopped branch (or its gate \
+            changed). Without it the Monitor toggle can show ON while the engine is paused \
+            (a call, Siri, an alarm) and the card explains nothing — UX audit #9, the state \
+            #601b's refusal line cannot see because permission was granted. The `!degraded` \
+            half is #605b: the sentence promises audio "comes back by itself", which is \
+            FALSE exactly when self-heal gave up — that state belongs to AudioDegradedRow \
+            (cause + Retry), and without the gate the two sat on screen contradicting each \
+            other. The branch must stay BETWEEN the refusal line and the headphone hint.
             """)
         XCTAssertTrue(code.contains(Self.silenceLine), """
             The mix-board silence sentence changed or vanished. It is deliberately \
@@ -66,11 +77,14 @@ final class TheMonitorSaysWhyItIsSilentTests: XCTestCase {
 
     func testTheInputSheetCarriesTheSilenceLine() throws {
         let code = try source(Self.picker)
-        XCTAssertTrue(code.contains("if !audioEngine.isRunning {"), """
-            The input sheet's monitoring section lost its engine-stopped branch. It sits \
-            INSIDE `if audioEngine.isInputMonitoring` (that block only renders while the \
-            toggle is on), so the bare `!isRunning` check there IS the same compound gate \
-            the mix board spells out explicitly.
+        XCTAssertTrue(code.contains("if !audioEngine.isRunning && !audioEngine.degraded {"), """
+            The input sheet's monitoring section lost its engine-stopped branch (or its \
+            gate changed). It sits INSIDE `if audioEngine.isInputMonitoring` (that block \
+            only renders while the toggle is on), so the check there IS the same compound \
+            gate the mix board spells out. `!degraded` matters MORE here than in the strip \
+            (#605b): AudioDegradedRow is invisible under this sheet, so without the gate \
+            the degraded case would show the false "comes back by itself" promise as the \
+            ONLY sentence on screen, with the real recovery a dismiss away and unnamed.
             """)
         XCTAssertTrue(code.contains(Self.silenceLine), """
             The input-sheet silence sentence changed or vanished — see claim 1's message: \
