@@ -1563,6 +1563,14 @@ public final class AudioEngine {
     /// fire-and-forget (a Task it cannot be awaited on), so it can never answer the
     /// caller whose Toggle needs the verdict. The capture path keeps it — one asker per
     /// pathway, one definition of "ask" per need.
+    ///
+    /// ⚠️ RACE PREMISE (review 2026-08-15, named so it cannot be broken silently): resuming
+    /// after the `await` with a plain `setInputMonitoring(true)` is safe ONLY because no
+    /// programmatic caller of `setInputMonitoring(false)` exists — today the only writers of
+    /// `false` are the two toggles' OFF paths, and neither can be tapped while the system
+    /// permission alert is up (it is app-modal). The day an interruption / scene-phase /
+    /// route-change slice adds a programmatic disable, this method needs an intent re-check
+    /// after the `await` — add it in the SAME commit as that caller.
     func engageInputMonitoring() async -> Bool {
         #if os(iOS)
         switch AVAudioApplication.shared.recordPermission {

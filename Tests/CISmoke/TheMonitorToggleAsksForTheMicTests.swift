@@ -25,9 +25,12 @@
 // and the dialog-free paths this repo already guards did not silently change meaning.
 //
 // ⚠️ HONEST GRADING — transcribed in Python against the parent (a9c0cb5) and this tree
-// (#433/#464; there is no local compiler, transcription is the grade). 17 assertions in 5
-// tests, hand-counted: claims 1 (5) + 2 (3) + 3 (2) + 4 (5) + 5 (2). On THIS tree all 17
-// pass in transcription. Against the PARENT, TWO findings (#486), both FORWARD:
+// (#433/#464; there is no local compiler, transcription is the grade). 19 assertions in 5
+// tests, hand-counted: claims 1 (5) + 2 (3) + 3 (4) + 4 (5) + 5 (2). On THIS tree all 19
+// pass in transcription. Claim 3's last two are the #601b review addendum (the picker's
+// own refusal surface — `monitorRefused` verdict write + engine-gated copy) and are
+// forward against BOTH a9c0cb5 and the first #601 commit (c4c15ee): the symbol is born
+// with the addendum. Against the PARENT, TWO findings (#486), both FORWARD:
 // (a) `engageInputMonitoring` does not exist there, so all 10 assertions naming it are
 // absent together — one absence, reported 10 times (claim 1's 5, claim 2's first two,
 // claim 3's first, claim 5's two);
@@ -122,6 +125,17 @@ final class TheMonitorToggleAsksForTheMicTests: XCTestCase {
             The picker no longer refreshes its input list around the monitoring switch. The \
             refresh is not decoration: turning monitoring on upgrades the session to \
             `.playAndRecord`, which is the moment `availableInputs` returns anything at all.
+            """)
+        XCTAssertTrue(code.contains("monitorRefused = !engaged"), """
+            The picker no longer records the front door's verdict (#601b). Without it a \
+            denied mic snaps the toggle back with ZERO explanation on this surface — the \
+            founder's "Audio in" silence, surviving on one of the two doors.
+            """)
+        XCTAssertTrue(code.contains("monitorRefused && !audioEngine.isInputMonitoring"), """
+            The picker's refusal line lost its engine gate (#601b). The gate is the #485 \
+            pattern: the engine stays the single source of truth for "is it listening", so a \
+            grant through the OTHER door self-corrects a stale refusal here instead of \
+            rendering "could not start" next to a running monitor.
             """)
     }
 

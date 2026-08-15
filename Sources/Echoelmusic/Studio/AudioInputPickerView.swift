@@ -55,6 +55,15 @@ struct AudioInputPickerView: View {
     @Environment(AudioEngine.self) private var audioEngine
     @Environment(\.dismiss) private var dismiss
 
+    /// #601b (review): this door's own copy of the strip's `micMonitorRefused`. Before it,
+    /// a denied mic snapped the toggle back with ZERO explanation here, and the empty state
+    /// below told the user to switch on the very thing that just refused — an unfulfillable
+    /// loop on exactly the founder's "Audio in" path. Rendered gated on the ENGINE as well
+    /// (`monitorRefused && !audioEngine.isInputMonitoring`), the #485 pattern: the engine
+    /// stays the single source of truth for "is it listening", so a grant through the OTHER
+    /// door self-corrects a stale refusal here.
+    @State private var monitorRefused = false
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -118,17 +127,25 @@ struct AudioInputPickerView: View {
                             // `.playAndRecord`, which is the moment `availableInputs`
                             // starts returning anything at all.
                             Task { @MainActor in
-                                _ = await audioEngine.engageInputMonitoring()
+                                let engaged = await audioEngine.engageInputMonitoring()
+                                monitorRefused = !engaged
                                 inputs.refresh()
                             }
                         } else {
                             _ = audioEngine.setInputMonitoring(false)
+                            monitorRefused = false
                             inputs.refresh()
                         }
                     }
                 ))
                 .labelsHidden()
                 .accessibilityLabel("Live monitoring")
+            }
+            if monitorRefused && !audioEngine.isInputMonitoring {
+                Text("Monitoring could not start — check microphone access in Settings.")
+                    .font(EchoelTheme.font(11))
+                    .foregroundStyle(EchoelTheme.danger)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             if audioEngine.isInputMonitoring {
                 EchoelValueField(
@@ -252,6 +269,11 @@ struct AudioInputPickerView: View {
         #if os(iOS)
         if audioEngine.isInputMonitoring {
             return "No input is available on the current route."
+        }
+        // #601b: with the mic refused, "turn on monitoring above" is an unfulfillable loop —
+        // the switch just snapped back. Send the user to the actual fix instead.
+        if monitorRefused {
+            return "The microphone is not available to Echoel. Allow microphone access in Settings, then switch monitoring on."
         }
         return "Turn on live monitoring above to list the available inputs. iOS only publishes them while the mic is in use."
         #else
