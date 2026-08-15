@@ -2759,9 +2759,9 @@ struct EchoelStudioView: View {
                     // `minHeight`, so the pill grows THROUGH it rather than out of it, and
                     // the strip is a horizontal `ScrollView` with no height of its own.
                     // No `lineLimit`/`minimumScaleFactor` is added on purpose — shrinking
-                    // text that the user asked to be larger is the anti-fix (the same
-                    // `minimumScaleFactor(0.6)` sitting on the bio numbers is filed as part
-                    // of #353c), and the labels cannot wrap here anyway: an unconstrained
+                    // text that the user asked to be larger is the anti-fix (the bio
+                    // numbers' 0.6 floor was that debt; #606 paid it — at AX sizes the
+                    // strip stacks and floors at 1.0), and the labels cannot wrap here anyway: an unconstrained
                     // width in a horizontal scroll gives every chip its ideal width.
                     .frame(minHeight: 26)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)

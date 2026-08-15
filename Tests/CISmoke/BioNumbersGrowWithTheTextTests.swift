@@ -5,16 +5,22 @@
 // THE DEFECT THIS PINS, measured rather than assumed. `BioStripView.strip` puts the ⓘ, the
 // driving dot, four dividers, FOUR metric cells and an 88 pt source-tag slot on ONE line. On a
 // 375 pt phone, after 24 pt of horizontal padding, each metric cell gets roughly 50 pt for a
-// label, a value and a unit. The row is `lineLimit(1)` with `minimumScaleFactor(0.6)`, so
-// growing Dynamic Type does not grow these numbers — it SHRINKS them, to 60 % of a 12 pt face.
+// label, a value and a unit. The row is `lineLimit(1)` with a 0.6 scale floor, so
+// growing Dynamic Type does not grow these numbers — it SHRINKS them, to 60 % of the face.
 // The user who raised the text size ends up with the smallest numbers in the app, and nothing
 // about that is visible at the default size, which is the only size anyone screenshots.
+// ⭐ #606 (GUI-Board Scheibe 3) finished what #353c started: the tag-removal alone still
+// forced the shrink past ~AX2 with four cells on one line, so at accessibility sizes the
+// four cells now stack VERTICALLY (full strip width each) and the scale floor there is 1.0
+// — the anti-fix is out exactly where the user asked for larger text. The compact branch
+// keeps the one-line row AND its 0.6 floor: that trade (shrink beats "…" on 375 pt) stands.
 //
 // ⭐ WHAT IS ASSERTED IS THE STRUCTURE, NOT THE PIXELS. This bundle cannot build a SwiftUI view
 // and there is no simulator, so "the numbers are legible at accessibility5" is not a claim any
 // test here can earn. What IS checkable, and what actually decides the outcome: the leaf reads
 // `dynamicTypeSize` itself, it branches on `isAccessibilitySize`, the two layouts share ONE
-// definition of the metrics row, and the fixed 88 pt slot exists only in the compact branch.
+// spelling of each metric cell (#606: the shared unit is the CELL, no longer the whole row),
+// the scale floor is conditional, and the fixed 88 pt slot exists only in the compact branch.
 //
 // ⚠️ THE SAFETY PROPERTY, and it is why this slice was shaped this way: at every
 // NON-accessibility size the layout is the old one, untouched. A layout change nobody can run
@@ -28,7 +34,21 @@
 // would forbid a future, correctly-built measurement layout for no reason.
 //
 // NEEDS-FOUNDER-VERIFY: iOS Settings → Display → Text Size at an accessibility step, Bio panel
-// open — are HR, HRV, Br and Coh readable, and does the source tag sit on its own line?
+// open — do HR, HRV, Br and Coh sit one per line at FULL size (no shrink, no "…"), and does
+// the source tag sit on its own line? At the default size: byte-for-byte the old strip.
+//
+// ⚠️ HONEST GRADING (#433/#464) — the #606 rewrite, whole file transcribed in Python against
+// the parent (7ca351e) and this tree (§3: a substantially rewritten guard is driven whole,
+// not by diff). 11 verdicts hand-counted: test 1 (2) + test 2 (1 decl + 1 mounts + 4 cell
+// counts + 1 call-site count) + test 3 (1 slot count + 1 window scan). On THIS tree all 11
+// pass. Against the PARENT: mounts==1 is red (it was 2 — the deliberate #606 widening),
+// the four cell-name counts are red as ONE finding (#486 — the builders are born with
+// #606), and the scale ternary is red (FORWARD, same commit). The rest — env read, AX
+// branch, row decl, 4 call sites, one 88 pt slot, no fixed width in the AX window — are
+// COUNTERWEIGHTS, green on both trees. ZERO regressions claimed, because zero exist.
+// This file keeps its line-based private stripper (one of the 69 §2 legacy copies —
+// migrating it is a bundle-wide move, not this slice); all needles live on code lines,
+// and every #606 comment naming them is whole-line, so the filter drops it.
 
 import Foundation
 import XCTest
@@ -75,21 +95,42 @@ final class BioNumbersGrowWithTheTextTests: XCTestCase {
             """)
     }
 
-    /// ONE definition of the metrics row, shared by both layouts.
-    func testBothLayoutsShareOneMetricsRow() throws {
+    /// ONE spelling of each metric cell, shared by both layouts.
+    ///
+    /// ⛔ #606 CHANGED WHAT "SHARED" MEANS HERE, and this test moved with it (§4). #353c
+    /// shared the whole ROW (`metricsRow` mounted once per branch). #606 stacks the four
+    /// cells VERTICALLY at accessibility sizes — the one-line row was still forcing the
+    /// 0.6 shrink past ~AX2 even after the tag left — so the shared unit is now the CELL:
+    /// four `hrCell`/`hrvCell`/`breathCell`/`coherenceCell` builders, spelled once,
+    /// composed horizontally by `metricsRow` (compact) and vertically by the AX branch.
+    /// The old `mounts == 2` assertion would be red on this correct tree; its law
+    /// ("no third arrangement, no copied cells") survives in the counts below.
+    func testBothLayoutsShareTheFourCells() throws {
         let lines = try codeLines(Self.strip)
         XCTAssertTrue(lines.contains { $0.contains("private var metricsRow: some View") }, """
-            `metricsRow` is gone. If the two layouts each spell the four metric cells out, they \
-            drift — and only the compact one is ever screenshotted, so the accessibility copy \
-            would rot unseen. One definition, two arrangements.
+            `metricsRow` is gone. The compact layout's equal-width horizontal arrangement \
+            lives there; without it the default-size strip has no definition.
             """)
         let mounts = lines.filter { $0.trimmingCharacters(in: .whitespaces) == "metricsRow" }.count
-        XCTAssertEqual(mounts, 2, """
-            `metricsRow` is mounted \(mounts) time(s); both layouts must use it exactly once. \
-            Zero means a layout renders no numbers at all; more than two means a third \
-            arrangement appeared without this guard being updated.
+        XCTAssertEqual(mounts, 1, """
+            `metricsRow` is mounted \(mounts) time(s); exactly one (the compact branch) is \
+            expected since #606. Zero means the default layout renders no numbers; two or \
+            more means an arrangement went back to mounting the one-line row — if that is \
+            the AX branch, the 0.6-shrink defect this file exists for is back.
             """)
-        // The cells themselves stay in the shared row — spelled once, not per branch.
+        // Each cell: ONE declaration + ONE use per layout = exactly three lines naming it.
+        // Fewer means a layout dropped a metric; more means a cell was copied instead of
+        // shared — the drift the cell builders exist to prevent.
+        for cell in ["hrCell", "hrvCell", "breathCell", "coherenceCell"] {
+            let count = lines.filter { $0.contains(cell) }.count
+            XCTAssertEqual(count, 3, """
+                `\(cell)` appears on \(count) code line(s); exactly three are expected \
+                (declaration + compact use + accessibility use). The four cells are the \
+                ONE spelling of the metrics — a missing use means a layout lost a number, \
+                an extra one means a copy appeared without this guard being updated.
+                """)
+        }
+        // The cell builders themselves still delegate to `metricButton` exactly four times.
         //
         // ⛔ THE DECLARATION IS EXCLUDED, and the first version of this assertion did not do
         // that: `private func metricButton(label:...)` also contains the token, so the naive
@@ -101,8 +142,26 @@ final class BioNumbersGrowWithTheTextTests: XCTestCase {
         }.count
         XCTAssertEqual(cells, 4, """
             \(cells) `metricButton` CALL sites (the declaration excluded); four are expected — \
-            HR, HRV, Br, Coh. Eight would mean the row was copied into the second layout \
-            instead of shared, which is the drift `metricsRow` exists to prevent.
+            HR, HRV, Br, Coh, one per cell builder. Eight would mean the cells were copied \
+            into a layout instead of shared.
+            """)
+    }
+
+    /// #606 — the anti-fix is OUT at accessibility sizes: the scale floor is 1.0 exactly
+    /// where the user asked for larger text, and the compact branch keeps its measured 0.6
+    /// trade (shrink beats "…" on a 375 pt phone — founder-complained-about twice).
+    /// Pinning the ternary pins BOTH halves of that decision on purpose; a retune must
+    /// update this needle, the in-code rationale beside it, and the #353c/#606 prose in
+    /// the same commit.
+    func testTheScaleFloorIsFullSizeAtAccessibilitySizes() throws {
+        let lines = try codeLines(Self.strip)
+        XCTAssertTrue(lines.contains {
+            $0.contains(".minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 1 : 0.6)")
+        }, """
+            The conditional scale floor is gone. Either the strip went back to a flat 0.6 \
+            (the anti-fix: growing Dynamic Type SHRINKS the bio numbers — at AX sizes the \
+            vertical stack gives every cell the full width precisely so nothing needs to \
+            shrink), or the floor moved/retuned without this guard moving with it.
             """)
     }
 

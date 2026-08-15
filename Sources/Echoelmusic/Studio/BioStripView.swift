@@ -358,10 +358,14 @@ struct BioStripView: View {
     /// THE MEASUREMENT, not a hunch: on a 375 pt phone this row carries the ⓘ, the driving dot,
     /// four dividers, FOUR metric cells and an 88 pt tag slot inside 375 − 24 pt of padding. The
     /// four cells share roughly 50 pt each. Every one of them holds a label, a value and a unit,
-    /// and the whole row is `lineLimit(1)` with `minimumScaleFactor(0.6)` — so as Dynamic Type
-    /// grows, the numbers do not grow with it. They shrink, down to 60 % of a 12 pt face, which
-    /// is ~7 pt. The user who RAISED the text size is the one who ends up with the smallest
-    /// numbers in the app. That is the defect, and it is invisible at the default size.
+    /// and the whole row is `lineLimit(1)` with a 0.6 scale floor — so as Dynamic Type
+    /// grows, the numbers do not grow with it. They shrink, down to 60 % of the face. The user
+    /// who RAISED the text size is the one who ends up with the smallest numbers in the app.
+    /// That WAS the defect, and it was invisible at the default size. (⭐ #606 finished the
+    /// job this paragraph started: at accessibility sizes the four cells now stack vertically
+    /// — full strip width each — and the scale floor there is 1.0, so the numbers genuinely
+    /// grow with the setting. The measurement above still governs the COMPACT branch, where
+    /// the 0.6 floor deliberately survives.)
     ///
     /// The fix is the cheapest one that actually returns width: at an accessibility size the tag
     /// leaves the row and takes its fixed 88 pt slot with it, which is about 22 pt back per cell
@@ -381,8 +385,25 @@ struct BioStripView: View {
     private var strip: some View {
         Group {
             if dynamicTypeSize.isAccessibilitySize {
+                // ⭐ #606 (GUI-Board Scheibe 3) — at accessibility sizes the four metrics go
+                // VERTICAL, one full-width row each (the HIG pattern for AX layouts). #353c
+                // returned the tag's 88 pt and was right that it helped, but four cells in
+                // one line still forced the 0.6 shrink the moment the face crossed ~AX2 —
+                // the user who raised the text size still got the smallest numbers in the
+                // app. Stacked, each cell has the whole strip width, nothing can force a
+                // shrink, and the scale floor below honestly becomes 1.0 here. The CELLS
+                // are the same four builders the compact row uses (#353c's one-definition
+                // law: the composition differs, the content cannot drift).
                 VStack(alignment: .leading, spacing: 6) {
-                    metricsRow
+                    HStack(spacing: 6) {
+                        infoButton
+                        drivingIndicator
+                        Spacer(minLength: 0)
+                    }
+                    hrCell.frame(maxWidth: .infinity, alignment: .leading)
+                    hrvCell.frame(maxWidth: .infinity, alignment: .leading)
+                    breathCell.frame(maxWidth: .infinity, alignment: .leading)
+                    coherenceCell.frame(maxWidth: .infinity, alignment: .leading)
                     // Trailing, so the tag stays where the eye already looks for it — same
                     // corner as before, one line down. No fixed width here: this row has the
                     // whole strip to itself, and pinning it would re-create the squeeze that
@@ -407,7 +428,13 @@ struct BioStripView: View {
         // kann man immer noch nicht lesen. Wegen den …"). The width fix in the sheet could
         // never cure that. Strip-only modifiers must sit INSIDE the sheet attachments.
         .lineLimit(1)
-        .minimumScaleFactor(0.6)
+        // ⭐ #606: the anti-fix is OUT at accessibility sizes. 0.6 was the compact row's
+        // trade (shrink beats "…" on a 375 pt phone, founder-complained-about twice); with
+        // the AX branch above giving every cell the full strip width, nothing there needs
+        // to shrink — so the floor is 1.0 exactly where the user asked for LARGER text.
+        // The compact branch keeps its 0.6: its four-cells-plus-tag line is width-bound,
+        // and that trade-off analysis (#353c) is unchanged there.
+        .minimumScaleFactor(dynamicTypeSize.isAccessibilitySize ? 1 : 0.6)
         // ⛔ WAS `.system(size: 12, weight: .medium, design: .monospaced)` — SF Mono, the one
         // place in the app that showed a bio number in a face other than Atkinson (#363).
         // The SAME heart rate appears in `HeaderMonitors` and `BodyTempoField` as
@@ -422,9 +449,11 @@ struct BioStripView: View {
         // that; it also monospaced the labels and units, which nothing asked for.
         //
         // ⚠️ DEVICE-VISIBLE, and honestly so: Atkinson's advances are wider than SF Mono's at
-        // the same size, so this strip gets tighter. `.minimumScaleFactor(0.6)` already
-        // absorbs that, but "already absorbs it" is a claim about a layout engine, not a
-        // sighting — check the strip on a 375 pt phone with the four metrics filled.
+        // the same size, so this strip gets tighter. The COMPACT branch's 0.6 scale floor
+        // already absorbs that (at AX sizes the floor is 1.0 since #606, and the vertical
+        // stack means nothing needs absorbing) — but "already absorbs it" is a claim about
+        // a layout engine, not a sighting — check the strip on a 375 pt phone with the four
+        // metrics filled.
         .font(EchoelTheme.font(12))
         .sheet(item: $explain) { BioMetricInfoView(metric: $0) }
         .sheet(isPresented: $showGuide) { BioMetricsGuideView() }
@@ -454,18 +483,35 @@ struct BioStripView: View {
             infoButton
             drivingIndicator
             divider
-            metricButton(label: "HR",  value: hrString,        unit: "bpm",   metric: .heartRate)
+            hrCell
                 .frame(maxWidth: .infinity)
             divider
-            metricButton(label: "HRV", value: hrvString,       unit: hrvUnit, metric: .hrv)
+            hrvCell
                 .frame(maxWidth: .infinity)
             divider
-            metricButton(label: "Br",  value: breathString,    unit: "/min",  metric: .breath)
+            breathCell
                 .frame(maxWidth: .infinity)
             divider
-            metricButton(label: "Coh", value: coherenceString, unit: nil,     metric: .coherence)
+            coherenceCell
                 .frame(maxWidth: .infinity)
         }
+    }
+
+    // The four cells, ONCE (#353c's law, tightened by #606): the compact row and the AX
+    // stack compose these same builders — the equal-width `.frame` belongs to the
+    // COMPOSITION (the compact row's equal-split), not to the cell, which is why it is
+    // applied at the call sites and not here.
+    private var hrCell: some View {
+        metricButton(label: "HR",  value: hrString,        unit: "bpm",   metric: .heartRate)
+    }
+    private var hrvCell: some View {
+        metricButton(label: "HRV", value: hrvString,       unit: hrvUnit, metric: .hrv)
+    }
+    private var breathCell: some View {
+        metricButton(label: "Br",  value: breathString,    unit: "/min",  metric: .breath)
+    }
+    private var coherenceCell: some View {
+        metricButton(label: "Coh", value: coherenceString, unit: nil,     metric: .coherence)
     }
 
     // MARK: - Info affordance

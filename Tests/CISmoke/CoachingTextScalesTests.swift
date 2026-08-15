@@ -18,12 +18,13 @@
 // the fix is to change FAMILY, not to add an argument.)
 //
 // ⭐ THE DISTINCTION THAT DECIDED THE SLICE, and it corrects a claim I had already filed.
-// The strip below this banner carries `.minimumScaleFactor(0.6)`, which looks like the same
-// defect and is NOT one: a scale factor is a fraction of the CURRENT size, so at AX3 those
-// numbers still render larger than the default-size ones — the requested increase is capped,
-// not cancelled. #353c had it written down as "shrinks the numbers when the user asks for
-// bigger text", which is false, and it is corrected there. This banner is the genuinely
-// binary case: absolute means absolute.
+// The strip below this banner carries a 0.6 scale floor (since #606 only in its COMPACT
+// branch — at accessibility sizes the strip stacks its cells and floors at 1.0), which
+// looks like the same defect and is NOT one: a scale factor is a fraction of the CURRENT
+// size, so at AX3 those numbers still render larger than the default-size ones — the
+// requested increase is capped, not cancelled. #353c had it written down as "shrinks the
+// numbers when the user asks for bigger text", which is false, and it is corrected there.
+// This banner is the genuinely binary case: absolute means absolute.
 //
 // ⚠️ THE WEIGHT WAS DROPPED ON PURPOSE, and it IS a visible de-emphasis: SF-Medium-11 →
 // Atkinson-Regular-11, real strokes lost. The brand family ships Regular, Bold and Italic

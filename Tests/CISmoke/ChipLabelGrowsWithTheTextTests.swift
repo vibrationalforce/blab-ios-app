@@ -35,8 +35,9 @@
 //
 // ⚠️ WHY NO `lineLimit` / `minimumScaleFactor` IS ASSERTED, and why one must not be added as a
 // "completion" of this fix: shrinking text the user explicitly asked to be larger is the
-// anti-fix. (The `minimumScaleFactor(0.6)` on the bio numbers is filed as the #353c half for
-// exactly that reason.) The labels cannot wrap here anyway — an unconstrained width inside a
+// anti-fix. (The bio numbers' 0.6 floor was that debt, and #606 paid it — at accessibility
+// sizes the strip stacks its cells and floors at 1.0; the compact 0.6 stays as a measured
+// width trade.) The labels cannot wrap here anyway — an unconstrained width inside a
 // horizontal `ScrollView` gives every chip its ideal width.
 //
 // ⚠️ HONEST LIMITS. Source-text scan, no simulator: it proves the minimum is still SPELLED,
