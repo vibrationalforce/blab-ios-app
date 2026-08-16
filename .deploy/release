@@ -1,47 +1,53 @@
-build: v10.79.404 — Ehrliche Fehlertexte: Settings-Rat nur, wenn Settings wirklich die Lösung ist
+build: v10.79.405 — Deine Hand gewinnt gegen den Auto-Modus, und die Platte erklärt sich beim ersten Start
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.403 (2520, Mikrofon-Monitoring:
-  Settings-Tür + zwei stille Fallen). Dieser Build trägt #613/#613b — die
-  letzte Scheibe des Ultraechoel-Sweeps zu Deiner Monitoring-Direktive.
+  Der Vorgänger auf Deinem Gerät ist 10.79.404 (2521, ehrliche Fehlertexte).
+  Dieser Build bündelt zwei Scheiben: GUI-Board 5 (First-Run-Erklärzeile) und
+  Auto-Scheibe 4a „Die Geste gewinnt" (#614/#614b).
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Die rote Zeile lügt nicht mehr über den Grund.** Bisher zeigte JEDER
-    Monitoring-Fehlstart die Settings-Beschuldigung samt „Allow microphone"-
-    Knopf — auch wenn Dein Mikro längst erlaubt war und nur die Audio-Session
-    kurz beschäftigt (Anruf, Siri). Jetzt: Settings-Zeile + Knopf NUR bei
-    echter OS-Verweigerung; sonst ehrlich „Monitoring could not start — try
-    again". Gilt in beiden Türen und im Eingabe-Sheet.
-  · Feinschliff aus dem Review: im Mix-Board weicht die „try again"-Zeile,
-    wenn direkt daneben schon die „Audio stopped"-Karte mit Retry steht
-    (keine doppelte Botschaft); im Sheet bleibt sie bewusst immer da, weil
-    die Karte dort nicht sichtbar ist.
+  · **Beim allerersten Start erklärt die Platte die grauen Kacheln:** unter
+    den vier Schnell-Kacheln steht jetzt „Press Play first — then you can
+    record the loop, save the session, or export a WAV or MIDI file." Die
+    Zeile verschwindet mit Deinem ersten Play und kommt in der Session nie
+    wieder (vorher stand der Satz versteckt hinter einem Panel-Chip).
+  · **Dein Dial-Edit pausiert das Auto-Steering GENAU dieses Reglers:** wenn
+    Auto-Modus läuft und Du Liveliness, Darkness oder Tension selbst
+    anfasst, hört Auto für den Rest der Session auf, DIESEN Regler zu
+    steuern — die anderen steuert es weiter. „Your own edits keep priority"
+    ist damit für die Mood-Regler wörtlich wahr. Zurückholen: Auto aus- und
+    wieder anschalten (bewusste Geste; nichts kommt ungebeten zurück).
+  · **Auto schreibt jetzt Breadcrumbs ins Diagnose-Log:** eine Zeile pro
+    Evolve-Entscheidung (Policy, calm/arousal, Steer-Ziele, pausierte
+    Regler) — damit beantwortet das Log endlich „was hat Auto gerade getan?".
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. **Die 2520-Proben gelten unverändert und sind die wichtigsten:**
-     Einstellungen → Echoelmusic → Mikrofon AN → App startet neu → Live
-     monitoring AN → hörst Du Dich? Latenz okay für Performance (Kopfhörer)?
-  2. Mit ERLAUBTEM Mikro einen Fehlstart provozieren (z. B. Monitoring
-     während eines Telefonats anschalten): erscheint die neutrale „try
-     again"-Zeile OHNE Settings-Knopf?
-  3. Kopfhörer ein-/ausstecken oder Kamera-Puls starten unter laufendem
-     Monitoring → läuft es weiter? (Reset-/Raten-Pfad compile-verifiziert.)
-  4. Ältere Proben offen: 2519 (Auto komplett: Hörbarkeit + Sichtbarkeit +
-     Auto-AUS-Identität + Beamer) · 2518 · 2517 (Chip-Fade Seeding) · 2516.
+  1. Frischer Start (oder App beenden + neu öffnen): steht die Erklärzeile
+     unter den grauen Kacheln? Verschwindet sie mit dem ersten Play und
+     bleibt sie weg?
+  2. Auto an, Körper klar settled (oder driving): einen gesteuerten Regler
+     (z. B. Tension) selbst committen — bleibt er danach hörbar/sichtbar
+     unangetastet, während die anderen weiter wandern?
+  3. Auto aus und wieder an: steuert der eben pausierte Regler wieder mit?
+  4. **2519-Hörbarkeitsprobe jetzt mit Werkzeug:** ist der Auto-Steer
+     überhaupt hörbar? Das Diagnose-Log zeigt pro Take die „Auto attune:"-
+     Zeile — Take anhören, Zeile daneben lesen.
+  5. Ältere Proben offen: 2521 (Mikrofon-Monitoring: hörst Du Dich? Latenz?
+     neutrale Zeile ohne Settings-Knopf bei erlaubtem Mikro?) · 2519 · 2518.
 
   ⚠ Ehrliche Grenzen: compile-verifiziert (Build-for-Testing grün auf beiden
-  Commits, Test-Rot ist das bekannte harmlose #396). Der adversariale Review
-  dieser Scheibe fand 0 CRITICAL; seine zwei WARNs (präzisere Begründung,
-  dichtere Wächter-Ordnung) sind eingearbeitet. Ob die Fehlertexte im echten
-  Fehlstart-Moment richtig wirken, zeigt nur Frage 2.
+  Commits; Test-Rot ist das bekannte harmlose #396). Der adversariale Review
+  beider Scheiben fand 0 CRITICAL. Ob der Auto-Toggle aus dem Bio-Panel den
+  Reset im Studio-Root zuverlässig feuert (Cross-View-@AppStorage), ist
+  Geräteprobe — Probe 3 beantwortet genau das. Die Visual-Feinregler
+  pausieren Auto noch NICHT (eigene Scheibe 4b, registriert).
 
-  Vorgänger-Noten: 10.79.403 = Mikrofon-Monitoring (Settings-Tür, Engine-
-  Restart-Ehrlichkeit, Reset-/Raten-Überleben) · 10.79.402 = Auto-Modus
-  komplett · 10.79.401 = Auto-Klang-Hälfte.
+  Vorgänger-Noten: 10.79.404 = ehrliche Fehlertexte · 10.79.403 = Mikrofon-
+  Monitoring · 10.79.402 = Auto-Modus komplett.
   KEIN AUDIO wird je gespeichert.
