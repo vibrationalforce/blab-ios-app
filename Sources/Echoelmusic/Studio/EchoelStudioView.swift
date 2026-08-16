@@ -1341,6 +1341,22 @@ struct EchoelStudioView: View {
         // ~10 Hz `@Observable` in an ancestor body. `mood` changes at finger speed and is already
         // read here — this observes the value the body already depends on.
         .onChange(of: mood) { _, m in moodRaw = MoodStorage.encode(m) }
+        // #614 Auto-Scheibe 4a — turning Auto OFF clears the steering policy, the hold
+        // counters AND the per-parameter session pauses. This is NOT the forbidden
+        // auto-resume (the graft law: nothing comes back unbidden): nothing un-pauses
+        // by itself, but the Auto toggle is an explicit user gesture, and flipping it
+        // off and on again is the ONE sanctioned way to hand a paused dial back to the
+        // steering — without it the only reset would be an app relaunch, which no user
+        // can discover. (Same #275 justification as the `mood` line above: not a
+        // presentation modifier, and `autoMode` changes at toggle speed — an event
+        // rate, and a value this body already depends on via @AppStorage.)
+        .onChange(of: autoMode) { _, on in
+            if !on {
+                autoAttuneState = AutoAttune.State()
+                log.log(.info, category: .automation,
+                        "Auto attune: off — steering state and session pauses cleared")
+            }
+        }
         // ONE Stop for the whole app: when the transport stops from ANYWHERE (the global
         // transport bar, an arrangement finishing), end the bio session too — don't leave
         // the camera/evolve armed behind a stopped clock (founder: one accessible solution,
@@ -1782,7 +1798,10 @@ struct EchoelStudioView: View {
     /// `surface`, ≈1.1:1 — the same WCAG 1.4.11 failure `EchoelValueField` already fixed
     /// with `borderStrong`; and the sound→visual link writes `visual.*` without clearing
     /// `visualPresetID`, so the Visual panel would keep naming a preset that no longer
-    /// describes the output.
+    /// describes the output. A third rides along since #614: the pad writes the two
+    /// steered dials (darkness · liveliness) — its restore must set the same session
+    /// pauses the mood knobs' `pausing:` parameter sets, or the pad becomes the one
+    /// mood gesture whose edit Auto mode does NOT yield to.
     ///
     /// What #322 DID leave behind on purpose: the Sound half is now `SoundMoodPadLeaf`
     /// rather than inline state on this view. Same keys, same defaults, same behaviour —
@@ -6070,9 +6089,12 @@ struct EchoelStudioView: View {
             // and caption below stay OUTSIDE — the house rule that headers, sub-sections and
             // wrapping explanations want the full measure.
             AdaptiveCardGrid(spacing: 14) {
-                moodKnob("Liveliness", $mood.liveliness)
-                moodKnob("Darkness", $mood.darkness)
-                moodKnob("Tension", $mood.tension)
+                // #614 — exactly the three dials `AutoAttune` steers carry `pausing:`;
+                // the five below have no auto term, so a pause there would be a
+                // registered flag nothing reads (see the `moodKnob` doc).
+                moodKnob("Liveliness", $mood.liveliness, pausing: \.pausedLiveliness)
+                moodKnob("Darkness", $mood.darkness, pausing: \.pausedDarkness)
+                moodKnob("Tension", $mood.tension, pausing: \.pausedTension)
                 moodKnob("Romance", $mood.romance)
                 moodKnob("Weird", $mood.weird)
                 moodKnob("Virtuosity", $mood.virtuosity)
@@ -6353,9 +6375,38 @@ struct EchoelStudioView: View {
     /// fails for a DERIVED one, whose getter recomputes. `visualEnergy` is derived, so
     /// coarsening its grid to 2 put it straight back in the pre-#376 dead zone. Fixed in
     /// `ScrubPrecision.carriesTarget`; read that before quoting this paragraph at another row.
-    private func moodKnob(_ label: String, _ value: Binding<Float>) -> some View {
+    /// #614 Auto-Scheibe 4a — the "user gesture wins" wiring. `pausing` names the
+    /// `AutoAttune.State` flag a committed edit on this dial sets: while Auto mode is
+    /// ON, dialling a steered parameter yourself pauses ITS steering for the rest of
+    /// the session (the door's literal promise, "Your own edits keep priority").
+    /// Only the three steered dials pass it — a `pausing:` on an unsteered dial would
+    /// register a pause nothing reads, the #135-class lying wiring.
+    ///
+    /// Three deliberate boundaries, decided here rather than left to drift:
+    ///  · The write is gated on `autoMode`: an edit while Auto is OFF must not leave a
+    ///    stale pause behind that silently exempts the dial when Auto is later invited.
+    ///  · `onCommit` (not `onChange`) is the signal, and `EchoelValueField` fires it
+    ///    only when the value actually MOVED — a no-op drag or confirming the same
+    ///    number pauses nothing (#375's "confirming what is there is not an edit").
+    ///  · The pause is written BEFORE `recomposeIfRunning()`, so the debounced
+    ///    regenerate this very gesture schedules already reads the paused registry —
+    ///    the first take after the edit is the un-steered one.
+    /// A preset load (`applyMood`) deliberately does NOT pause: it rebases all eight
+    /// dials, the steer is a capped offset on TOP of the new base and never overwrites
+    /// it — ending Auto for the session on a routine library action would be the
+    /// surprise, not the priority. Un-pausing has exactly one sanctioned gesture: the
+    /// Auto toggle itself (see `.onChange(of: autoMode)` on the body).
+    private func moodKnob(_ label: String, _ value: Binding<Float>,
+                          pausing pause: WritableKeyPath<AutoAttune.State, Bool>? = nil) -> some View {
         EchoelValueField(label: label, value: value, range: 0...1, decimals: 2,
-                         onCommit: { recomposeIfRunning() })
+                         onCommit: {
+                             if let pause, autoMode, !autoAttuneState[keyPath: pause] {
+                                 autoAttuneState[keyPath: pause] = true
+                                 log.log(.info, category: .automation,
+                                         "Auto attune: \(label) paused for this session (user edit)")
+                             }
+                             recomposeIfRunning()
+                         })
     }
 
     // MARK: Mood presets (same library pattern as FX / sound)
@@ -9022,7 +9073,24 @@ struct EchoelStudioView: View {
             // dial edit via `generate()` — without this gate, twiddling a dial for a
             // second satisfies a "hold" that is specified as a full evolve tick. The
             // audition still STEERS with the current policy; it just does not age it.
-            if advanceEvolution { autoAttuneState = nextState }
+            if advanceEvolution {
+                // #614 — ONE breadcrumb per evolve DECISION (event-rate: at most one
+                // per debounce-floored generate, never per frame, never in body). It
+                // is the device-log answer to "what did Auto just do to this take?" —
+                // the open 2519 audibility probe reads this line next to the take it
+                // describes. Auditions steer but neither age the state nor log: a
+                // maze preview writing breadcrumbs would narrate takes nobody kept.
+                let paused = [nextState.pausedDarkness ? "D" : nil,
+                              nextState.pausedLiveliness ? "L" : nil,
+                              nextState.pausedTension ? "T" : nil].compactMap { $0 }
+                log.log(.info, category: .automation, String(format:
+                    "Auto attune: %@ (calm %.2f, arousal %.2f) steer D %.2f L %.2f T %.2f ×%.2f%@",
+                    nextState.policy.rawValue, bodyState.calm, bodyState.arousal,
+                    steer.darknessTarget, steer.livelinessTarget, steer.tensionTarget,
+                    steer.intensity,
+                    paused.isEmpty ? "" : " paused: " + paused.joined(separator: ",")))
+                autoAttuneState = nextState
+            }
             moodForInput.darkness = WeatherMood.blend(
                 base: moodForInput.darkness, target: steer.darknessTarget,
                 intensity: steer.intensity)

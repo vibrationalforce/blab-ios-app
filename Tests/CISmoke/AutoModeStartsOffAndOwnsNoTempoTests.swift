@@ -67,6 +67,21 @@
 // claim first anchored on `#if canImport(WeatherKit)`, which occurs TWICE in
 // `makeComposerInput` (structure-seed salt above the blend) — it matched the
 // wrong site and was red on correct code. Re-anchored to the unique blend gate.
+//
+// ⚠️ #614 (slice 4a) GRADING, appended — transcribed against the parent 6ef8767
+// and this tree (94 checks total, claims 6/7/9 re-driven on the edited files):
+// claim 10 adds 17 source verdicts, claim 11 adds 4 behavioral. On the parent all
+// 17 claim-10 verdicts are red as ONE anchor absence (#486): the wiring is born
+// with this commit — FORWARD, no regression claimed. Claim 11 is the COUNTERWEIGHT
+// kind: GREEN on BOTH trees (the pause registry and the steer-side pins shipped
+// with slice 1) — it is what makes claim 10's wiring mean something. Claims 6/7/9
+// stay green on both trees. Stripper measurement (#453/#448): TRAGEND, 1 of 17
+// claim-10 verdicts flips raw-vs-stripped — `.onChange(of: autoMode)` counts 2 raw
+// (the `moodKnob` doc block cites it) vs 1 stripped; the other 16 needles are
+// PROPHYLAKTISCH (0 flips). ⛔ And the transcription caught a second live #408
+// before first run: `autoAttuneState = AutoAttune.State()` is CONTAINED in the
+// @State declaration's initializer, so a first draft asserting ==1 file-wide was
+// red on its own tree; the shipped assertion counts 2 and names both sites.
 
 import Foundation
 import XCTest
@@ -449,6 +464,166 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
                 every instance must draw the same picture.
                 """)
         }
+    }
+
+    // MARK: - claim 10 (SOURCE-TEXT) — #614: the user gesture wins, and only the
+    // Auto toggle un-pauses
+
+    func testTheUserGestureWinsWiring() throws {
+        let studio = try source(Self.studio)
+        // (a) EXACTLY the three steered dials carry `pausing:`. Each needle once —
+        // and three total, so a fourth dial adopting the parameter (which nothing
+        // in the decision core would read) turns this red before it ships as a
+        // silently dead pause.
+        for needle in ["pausing: \\.pausedLiveliness",
+                       "pausing: \\.pausedDarkness",
+                       "pausing: \\.pausedTension"] {
+            XCTAssertEqual(studio.components(separatedBy: needle).count - 1, 1, """
+                `\(needle)` no longer appears exactly once in EchoelStudioView. The \
+                three STEERED mood dials each wire their own session pause — if a \
+                dial was renamed or the wiring moved, move this needle in the same \
+                commit; if a dial stopped being steered, its `pausing:` goes WITH \
+                the steering (a pause nothing reads is the #135-class lying wire).
+                """)
+        }
+        XCTAssertEqual(studio.components(separatedBy: "pausing: \\.").count - 1, 3, """
+            The `pausing:` parameter is passed at a different number of call sites \
+            than the three dials `AutoAttune` steers. A new steered parameter adds \
+            its flag to `AutoAttune.State`, its steer-side pin, its `pausing:` call \
+            site AND this count together — any subset is a half-wired gesture law.
+            """)
+        // (b) the write is gated: Auto ON, not already paused — an edit while Auto
+        // is OFF must not leave a stale exemption behind.
+        let knob = slice(studio, from: "private func moodKnob", to: "\n    }")
+        XCTAssertFalse(knob.isEmpty, "moodKnob slice empty — re-anchor (#454).")
+        XCTAssertEqual(knob.components(separatedBy:
+            "if let pause, autoMode, !autoAttuneState[keyPath: pause] {").count - 1, 1, """
+            The pause write in `moodKnob` lost its gate (Auto ON + not already \
+            paused). Ungated, a mood edit while Auto is OFF writes a pause that \
+            silently exempts the dial when Auto is later invited — the stale-consent \
+            shape. If the gate was legitimately reshaped, move this needle with it.
+            """)
+        // (c) ordering INSIDE the knob body: pause first, recompose second — the
+        // debounced regenerate this gesture schedules must already read the paused
+        // registry. Both anchors asserted unique in the slice (#408).
+        let write = "autoAttuneState[keyPath: pause] = true"
+        XCTAssertEqual(knob.components(separatedBy: write).count - 1, 1,
+                       "pause-write anchor not unique in moodKnob — re-anchor (#408).")
+        XCTAssertEqual(knob.components(separatedBy: "recomposeIfRunning()").count - 1, 1,
+                       "recompose anchor not unique in moodKnob — re-anchor (#408).")
+        if let w = knob.range(of: write), let r = knob.range(of: "recomposeIfRunning()") {
+            XCTAssertTrue(w.upperBound <= r.lowerBound, """
+                `moodKnob` recomposes BEFORE registering the pause. The regenerate \
+                scheduled by this very gesture then steers the take the user just \
+                claimed — the first un-steered take arrives one edit late.
+                """)
+        }
+        // (d) the ONE un-pause gesture: the Auto toggle going OFF resets the whole
+        // state — and it is the ONLY writer of a fresh State() outside the
+        // declaration (a second reset site would be a second lifecycle owner, the
+        // BLE-3 class).
+        XCTAssertEqual(studio.components(separatedBy: ".onChange(of: autoMode)").count - 1, 1, """
+            `.onChange(of: autoMode)` no longer appears exactly once. Zero means \
+            turning Auto off leaks the steering state and the session pauses into \
+            the next opt-in (the only reset left is an app relaunch, which no user \
+            can discover); two means two lifecycle owners for one @State.
+            """)
+        let reset = slice(studio, from: ".onChange(of: autoMode)", to: "\n        }")
+        XCTAssertTrue(reset.contains("autoAttuneState = AutoAttune.State()"), """
+            The Auto-toggle handler no longer resets `autoAttuneState`. The toggle \
+            is the ONE sanctioned un-pause gesture ("nothing comes back unbidden, \
+            but an explicit toggle is fresh consent") — without the reset, a paused \
+            dial stays exempt for the whole app run with no visible reason.
+            """)
+        // ⛔ #408, caught by this slice's own transcription before first run: the
+        // @State DECLARATION (`@State private var autoAttuneState = AutoAttune.State()`)
+        // CONTAINS this needle, so the honest count is TWO — declaration initializer
+        // + toggle reset. A first draft asserted 1 and was red on its own tree.
+        XCTAssertEqual(studio.components(separatedBy:
+            "autoAttuneState = AutoAttune.State()").count - 1, 2, """
+            `autoAttuneState = AutoAttune.State()` no longer appears exactly twice \
+            (the @State declaration's initializer + the toggle-off reset). A THIRD \
+            site is a competing lifecycle owner (the BLE-3 class); one means the \
+            reset or the declaration changed shape — re-anchor deliberately.
+            """)
+        // (e) three breadcrumbs, all on the automation category: pause / evolve
+        // decision / toggle-off. The count is the honest inventory — a fourth log
+        // site (or a lost one) changes what a device log can prove about Auto.
+        XCTAssertEqual(studio.components(separatedBy: "Auto attune:").count - 1, 3, """
+            The "Auto attune:" breadcrumb count changed. Three are the contract — \
+            dial paused / evolve decision / toggle-off reset — and the device-log \
+            triage of the open 2519 audibility probe reads exactly these lines. \
+            Add or remove one deliberately, with this count and the SESSION_LOG \
+            probe note in the same commit.
+            """)
+        XCTAssertEqual(studio.components(separatedBy: "category: .automation").count - 1, 3, """
+            The Auto breadcrumbs left the `.automation` log category (or a stranger \
+            joined it). One category is what makes the triage grep-able — \
+            `log show --predicate` on one subsystem/category, not a scavenger hunt.
+            """)
+        // (f) the evolve breadcrumb sits INSIDE the advanceEvolution gate, BEFORE
+        // the state write — the audition path stays silent, and the line describes
+        // the state that is about to be committed. The multi-line gate spelling is
+        // unique (#408: the one-line `if advanceEvolution { evolution &+= 1 }` and
+        // the `, let f = frame` variant do not match it).
+        let fold = slice(studio, from: "private func makeComposerInput", to: "\n    }")
+        XCTAssertFalse(fold.isEmpty, "makeComposerInput slice empty — re-anchor (#454).")
+        XCTAssertEqual(fold.components(separatedBy: "if advanceEvolution {\n").count - 1, 1,
+                       "multi-line advanceEvolution gate not unique in the fold — re-anchor (#408).")
+        let gated = slice(fold, from: "if advanceEvolution {\n", to: "\n            }")
+        XCTAssertFalse(gated.isEmpty, "gated evolve block empty — re-anchor (#454).")
+        XCTAssertEqual(gated.components(separatedBy: "Auto attune: %@").count - 1, 1, """
+            The evolve-decision breadcrumb left the `advanceEvolution` gate (or \
+            duplicated). Outside the gate it would narrate maze AUDITIONS — takes \
+            nobody kept — and the device log would show phantom Auto decisions.
+            """)
+        XCTAssertEqual(gated.components(separatedBy: "autoAttuneState = nextState").count - 1, 1, """
+            The state commit left the gated evolve block. #608b's whole point is \
+            that ONLY a real take ages the hold counters — an ungated write lets a \
+            dial twiddle satisfy a hold specified as a full evolve tick.
+            """)
+        if let l = gated.range(of: "Auto attune: %@"),
+           let s = gated.range(of: "autoAttuneState = nextState") {
+            XCTAssertTrue(l.upperBound <= s.lowerBound, """
+                The evolve breadcrumb logs AFTER the state write. It must describe \
+                the state being committed, and reordering usually means the log \
+                moved out of the decision path — re-judge, then move this scan.
+                """)
+        }
+    }
+
+    // MARK: - claim 11 (BEHAVIOUR) — a fully paused state is the exact identity
+    // even inside an active policy (green on both trees: the registry and the
+    // steer-side pins shipped with slice 1 — this is the counterweight that makes
+    // claim 10's wiring mean something)
+
+    func testAFullyPausedStateIsTheIdentityInAnActivePolicy() {
+        var s = AutoAttune.State(policy: .settled, ticksInPolicy: 3)
+        s.pausedDarkness = true
+        s.pausedLiveliness = true
+        s.pausedTension = true
+        let (steer, _) = AutoAttune.decide(calm: 0.95, arousal: 0.05,
+                                           baseDarkness: 0.3, baseLiveliness: 0.7,
+                                           baseTension: 0.4, previous: s)
+        XCTAssertEqual(steer.darknessTarget, 0.3, """
+            A session-paused darkness got a moved target inside an active settled \
+            policy. The pause is the user's edit outranking the machine — its \
+            target must equal its base whatever the policy wants.
+            """)
+        XCTAssertEqual(steer.livelinessTarget, 0.7, """
+            A session-paused liveliness got a moved target — same law as darkness: \
+            paused means base, means identity through the blend.
+            """)
+        XCTAssertEqual(steer.tensionTarget, 0.4, """
+            A session-paused tension got a moved target — same law as darkness.
+            """)
+        // And through the shared mixer: byte-identity, not merely "close".
+        XCTAssertEqual(WeatherMood.blend(base: 0.3, target: steer.darknessTarget,
+                                         intensity: steer.intensity), 0.3, """
+            The blend moved a fully paused dial. base == target must be the exact \
+            identity at ANY intensity — if this drifts, "paused" quietly becomes \
+            "steered a little", which is the one thing the promise forbids.
+            """)
     }
 
     // MARK: - helpers (§0/§2 — the ONE stripper, skip on no tree, FAIL on moved anchors)

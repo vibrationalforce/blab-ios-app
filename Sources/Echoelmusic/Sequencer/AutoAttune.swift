@@ -79,9 +79,15 @@ public enum AutoAttune {
         /// least one full tick before it may reverse (the minimum-hold law).
         public var ticksInPolicy: Int
         /// Per-parameter session pause (the "user gesture wins" registry). Slice 1
-        /// carries the registry; slice 4 wires the gesture signals that set it.
-        /// A paused parameter's target is pinned to its base — identity through
-        /// the blend — for the rest of the session.
+        /// carried the registry; #614 (slice 4a) wired the MOOD gesture signals:
+        /// a committed edit on a steered mood dial while Auto is ON sets its flag
+        /// (`moodKnob(_:_:pausing:)` in EchoelStudioView). A paused parameter's
+        /// target is pinned to its base — identity through the blend — for the
+        /// rest of the session. Cleared ONLY by the Auto toggle going OFF (an
+        /// explicit user gesture; nothing un-pauses by itself). Still open, its
+        /// own slice (4b): the VISUAL fine-tune gesture — its pause must reach
+        /// three `@AppStorage`-reading surfaces, a span this caller-held @State
+        /// cannot cover, so it is a design decision, not a forgotten wire.
         public var pausedDarkness: Bool
         public var pausedLiveliness: Bool
         public var pausedTension: Bool
