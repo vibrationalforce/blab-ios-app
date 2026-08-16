@@ -77,15 +77,20 @@ final class CopyNamesTheLiveControlTests: XCTestCase {
     /// The positive half. Without it the ban above is satisfied by DELETING the first-run
     /// sentence, which would take the one piece of guidance in that panel with it — the very
     /// thing #272 was filed to add.
-    func testTheSaveExportFirstRunLineNamesTheOneStart() throws {
+    /// ⛔ Named `testTheSaveExportFirstRunLineNamesTheOneStart` until GUI-Board Scheibe 5
+    /// (UX#7, 2026-08-16) moved the sentence OUT of that panel onto the plate under
+    /// `quickActionRow` — a test named for a location the code no longer uses is the #374
+    /// class. Same guard, same needles, plus the placement half the move creates.
+    func testTheFirstRunLineNamesTheOneStartAndSitsOnThePlate() throws {
         let hint = try sourceLines().filter { $0.text.contains("then you can record the loop") }
         XCTAssertEqual(hint.count, 1, """
-        expected exactly one first-run hint in the Save & Export panel (anchored on \
-        "then you can record the loop"), found \(hint.count).
+        expected exactly one first-run hint (anchored on "then you can record the loop"), \
+        found \(hint.count).
 
         If it was reworded, re-anchor this guard in the same commit. If it was deleted, read \
         #272 first: the founder could not find saving or recording, and this sentence is the \
-        answer that was added.
+        answer that was added — and since Scheibe 5 it is the only sentence on the PLATE \
+        that explains the grey first-run tiles.
         """)
         for line in hint {
             XCTAssertTrue(line.text.contains("Press Play"), """
@@ -94,11 +99,49 @@ final class CopyNamesTheLiveControlTests: XCTestCase {
 
             The greyed Save/Record/Export tiles in the row under the transport are the first \
             thing a new user meets, and this is the only sentence that says why. It has to \
-            name the control that actually starts a session. (⛔ Said "in that panel" until \
-            #482 moved those five controls out of Save & Export into `quickActionRow`; the \
-            sentence itself deliberately stayed behind, because the row has no space for it.)
+            name the control that actually starts a session. (⛔ Said the sentence \
+            "deliberately stayed behind" in Save & Export until Scheibe 5 — the UX audit \
+            found first-run users never open that panel, so the sentence now follows the \
+            tiles it explains.)
             """)
         }
+        // Placement (Scheibe 5): the sentence renders BETWEEN the action row and the door
+        // row — on the plate, not in a panel. All three anchors occur exactly once in the
+        // stripped studio source (the bare mount lines are unique; measured at write time
+        // and asserted here so the ordering cannot key on a second copy, #408/#610b).
+        let studio = try studioCode()
+        let mount = "\n            quickActionRow\n"
+        let door = "\n            quickDoorRow\n"
+        let needle = "then you can record the loop"
+        for (token, name) in [(mount, "quickActionRow mount"), (door, "quickDoorRow mount"), (needle, "first-run sentence")] {
+            XCTAssertEqual(occurrences(of: token, in: studio), 1, """
+            \(name) is no longer unique in EchoelStudioView's stripped source — the \
+            placement ordering below keys on the first copy; re-anchor before trusting it.
+            """)
+        }
+        let m = try XCTUnwrap(studio.range(of: mount))
+        let s = try XCTUnwrap(studio.range(of: needle))
+        let d = try XCTUnwrap(studio.range(of: door))
+        XCTAssertTrue(m.lowerBound < s.lowerBound && s.lowerBound < d.lowerBound, """
+        The first-run sentence left the plate (it must sit between `quickActionRow` and \
+        `quickDoorRow`, next to the grey tiles it explains — Scheibe 5/UX#7). If a redesign \
+        moves it deliberately, move this ordering and the panel tombstone in the same commit.
+        """)
+    }
+
+    private func studioCode() throws -> String {
+        let url = try repoRoot().appendingPathComponent("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        return SourceText.codeOnly(try String(contentsOf: url, encoding: .utf8))
+    }
+
+    private func occurrences(of needle: String, in haystack: String) -> Int {
+        var count = 0
+        var search = haystack.startIndex..<haystack.endIndex
+        while let r = haystack.range(of: needle, range: search) {
+            count += 1
+            search = r.upperBound..<haystack.endIndex
+        }
+        return count
     }
 
     /// ⛔ #355(c) — AN `accessibilityLabel` REPLACES THE VISIBLE LABEL, so a false one is only

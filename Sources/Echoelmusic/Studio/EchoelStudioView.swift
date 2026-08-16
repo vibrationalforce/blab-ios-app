@@ -1951,6 +1951,23 @@ struct EchoelStudioView: View {
             #endif
             // LINE 2 — the actions (#482). See `quickActionRow`.
             quickActionRow
+            // FIRST-RUN LINE (GUI-Board Scheibe 5, UX#7): the tiles above are grey until
+            // something has composed, and the audit found first-run users reading them as
+            // BROKEN — the explaining sentence sat inside the Save & Export panel, behind
+            // a chip nobody opens first (#482's "the row has no space for it" judged a
+            // PERMANENT sentence; this one renders only while nothing has composed and
+            // leaves at the first take, so it spends the plate's height exactly while the
+            // plate is idle). NOT the #382 class the quickActionRow doc decides against:
+            // that verdict covers a mid-take status line inserting/removing on events the
+            // user did not trigger — this is a one-way exit on the user's OWN first Play.
+            // `hasComposed` is `@State`, event-rate (freeze law). Wording history (#272,
+            // #355b — name the control that actually starts) lives at the panel tombstone.
+            if !hasComposed {
+                Text("Press Play first — then you can record the loop, save the session, or export a WAV or MIDI file.")
+                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
             // LINE 3 — the doors (#492). See `quickDoorRow`. A THIRD line is back, four
             // slices after #456 deleted one, and the honest accounting is that it costs the
             // ~40 pt #490 handed the plate back (the ~32 pt line plus this `VStack`'s 8 pt
@@ -7686,47 +7703,20 @@ struct EchoelStudioView: View {
               "Set the loop length the Record tile uses · see what can be kept · put your city in the name · reset the sound",
               isExpanded: $showExport) {
         VStack(spacing: 10) {
-            if !hasComposed {
-                // The export/keep/save tiles in the row under the transport are disabled until
-                // there's a take — say WHY, so a first-run user doesn't read them as broken.
-                // ⛔ This said "the buttons BELOW" until #482 moved them out of this panel; a
-                // hint that locates a control by its old POSITION is the class this file keeps
-                // retracting. It stays HERE rather than following them, because the row has no
-                // room for a sentence and this panel is where the loop settings live.
-                // Name the REAL button (audit 2026-07-09: no "Generate" exists — first-run
-                // users hunted for it and read the greyed buttons as broken). Video
-                // recording lives in the floating visual window, not here.
-                // #272: named only exporting, inside a panel that now promises saving and
-                // recording as well — the one first-run string here, and it left out both
-                // words the founder searched for.
-                // ⛔ #355(b) — IT NAMED THE WRONG CONTROL AS THE START. It said "Start with the
-                // pulse button (next to Play) first". The pill's TAP opens the Bio panel
-                // (`HeaderMonitors`' own hint: "Opens the bio panel … Touch and hold to choose a
-                // bio source"), so it is not what begins a session by the gesture anyone tries
-                // first. The start is `startButton`, whose VoiceOver label is literally "Play".
-                //
-                // ⛔ AND THE FIRST VERSION OF THIS NOTE WAS ITSELF A #355 — the defect it was
-                // written to remove, inside the fix for it. It claimed "the HEADER pulse pill"
-                // and "there is no separate Play beside it". Both are false: `PulseMonitorMiniLive()`
-                // is instantiated in exactly one place, `startControlRow`, which is
-                // `HStack { startButton; PlaybackToggleButton(); PulseMonitorMiniLive() }` — the
-                // pill is the LAST item in the same row that BEGINS with Play, and it left the
-                // header with #307. The old copy's "(next to Play)" was therefore imprecise, not
-                // wrong; only "start with the pulse button" was wrong. Nor does the pill start
-                // "nothing": its LONG-PRESS menu is three "Play with …" entries that call
-                // `selectBioSource`, which begins a session when idle — `OneStartControlTests`
-                // enumerates that as one of the three start paths by name. Keeping the true,
-                // narrower reason: the sentence pointed at the tap, and the tap opens a panel.
-                //
-                // Why it survived the #307 pass that repaired its sister sentence in `bioPanel`:
-                // `OneStartControlTests` fires only on "Press" AND "Create from Within" TOGETHER,
-                // and this line contained neither. A guard scoped to one dead label does not
-                // cover the CLASS. `CopyNamesTheLiveControlTests` now does.
-                Text("Press Play first — then you can record the loop, save the session, or export a WAV or MIDI file.")
-                    .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
+            // ⛔ THE FIRST-RUN SENTENCE THAT STOOD HERE MOVED TO THE PLATE (GUI-Board
+            // Scheibe 5, UX#7, 2026-08-16) — it now renders under `quickActionRow`, next
+            // to the grey tiles it explains. #482 had left it in this panel with the
+            // reasoning "the row has no room for a sentence"; the UX audit found exactly
+            // the predicted cost: first-run users never open this panel, stared at the
+            // grey tiles and read them as broken. A first-run-only line under the row
+            // spends height only while the plate is idle, which re-decides that trade.
+            // Its WORDING history stays load-bearing and travels by reference: #272 (the
+            // founder searched for "save" and "record" and the line must contain both),
+            // #355(b) (name the control that ACTUALLY starts — "Press Play", never the
+            // pulse pill, whose tap opens a panel), and the #307/#355 retraction chain
+            // behind those calls sits in this file's git history at this site.
+            // `CopyNamesTheLiveControlTests` pins wording, uniqueness AND the new
+            // placement — reword or move it only with that guard in the same commit.
             if composerClipGridFull {
                 // Founder v287/v288: the generated take could not get its own MIDI clip
                 // because the 8-slot clip grid is full. Honest + visible (the sound still
