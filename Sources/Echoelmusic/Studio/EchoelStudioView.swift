@@ -9067,12 +9067,18 @@ struct EchoelStudioView: View {
                 baseLiveliness: moodForInput.liveliness,
                 baseTension: moodForInput.tension,
                 previous: autoAttuneState)
-            // #608b: the hold/hysteresis state advances ONLY on evolve-cursor calls.
-            // `makeComposerInput` is also reached by the read-only variation audition
-            // (documented "doesn't perturb the evolve cursor") and by every debounced
-            // dial edit via `generate()` — without this gate, twiddling a dial for a
-            // second satisfies a "hold" that is specified as a full evolve tick. The
-            // audition still STEERS with the current policy; it just does not age it.
+            // #608b, PRECISED by the #614 review — the sentence that stood here
+            // ("without this gate, twiddling a dial for a second satisfies a hold")
+            // implied dial edits were excluded. They are NOT, and never were: a
+            // debounced dial edit reaches this fold via generate(advanceEvolution:
+            // true), i.e. as a REAL take — it ages the hold, and since #614 it emits
+            // the evolve breadcrumb at edit cadence. That is the AutoAttune header's
+            // own law ("a real take — the evolve tick, or a user-triggered
+            // regenerate"); do not "fix" the aging away from this comment. What the
+            // gate excludes is ONLY the read-only variation audition
+            // (advanceEvolution: false): it STEERS with the current policy but
+            // neither ages it nor logs — a maze preview narrating takes nobody kept
+            // would be the phantom the breadcrumb guard forbids.
             if advanceEvolution {
                 // #614 — ONE breadcrumb per evolve DECISION (event-rate: at most one
                 // per debounce-floored generate, never per frame, never in body). It
