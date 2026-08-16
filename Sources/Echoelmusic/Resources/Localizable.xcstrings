@@ -55,20 +55,20 @@
         }
       }
     },
-    "Breathe, lock a key and BPM, and let your body compose. Export to your DAW." : {
-      "comment" : "Onboarding, page 3 body.",
+    "Press Play to start — a fingertip on the camera light, or a Bluetooth strap, lets your body drive the sound. Export to your DAW." : {
+      "comment" : "Onboarding, page 3 body (#618: names Play, camera light, strap — the first act). Replaced the 'Breathe, lock a key…' key; its orphaned entry left with it (#618b).",
       "extractionState" : "manual",
       "localizations" : {
         "de" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Atme, leg Tonart und Tempo fest und lass deinen Körper komponieren. Export in deine DAW."
+            "value" : "Drück Play zum Start — eine Fingerspitze auf dem Kameralicht oder ein Bluetooth-Gurt lässt deinen Körper den Klang steuern. Export in deine DAW."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Breathe, lock a key and BPM, and let your body compose. Export to your DAW."
+            "value" : "Press Play to start — a fingertip on the camera light, or a Bluetooth strap, lets your body drive the sound. Export to your DAW."
           }
         }
       }

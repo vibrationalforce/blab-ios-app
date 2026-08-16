@@ -52,6 +52,15 @@ final class TheReadyPageNamesTheFirstActTests: XCTestCase {
             `readyPage`'s declaration is no longer unique in OnboardingView — re-anchor \
             this slice before trusting anything below.
             """)
+        // #618b (review L2): the END anchor gets the same uniqueness check as the decl —
+        // a duplicate heading inserted between the decl and the sentence would otherwise
+        // silently shrink the window and red the token checks with a misleading message.
+        let endHits = lines.indices.filter { lines[$0].contains("Text(\"Safety & privacy\")") }
+        XCTAssertEqual(endHits.count, 1, """
+            the safety heading `Text("Safety & privacy")` is no longer unique in \
+            OnboardingView, so the window below may end early. Re-anchor before trusting \
+            the assertions that follow.
+            """)
         guard let start = declHits.first,
               let end = lines[start...].firstIndex(where: { $0.contains("Text(\"Safety & privacy\")") })
         else {
@@ -81,18 +90,20 @@ final class TheReadyPageNamesTheFirstActTests: XCTestCase {
     /// The pre-#618 sentence named none of the three — it must not come back in place of them.
     func testTheOldSentenceIsGone() throws {
         let page = try readyPageSlice()
+        // ⛔ #618b (review L1): this message used to reason about the case where BOTH
+        // sentences are present as if the reader might see it while green — but a failure
+        // message prints only when the assertion is red, which IS the both-present case.
         XCTAssertFalse(page.contains { $0.contains("Breathe, lock a key and BPM") }, """
-            the old Ready-page sentence is back. It reads well and names NOTHING a new \
-            player can find: no Play, no camera, no strap — the exact UX#3 defect #618 \
-            replaced it for. If both sentences are present this file stays green only \
-            through the token assertions above; if it REPLACED the new one, they are red \
-            with it.
+            the old Ready-page sentence is back in the readyPage slice. It reads well and \
+            names NOTHING a new player can find: no Play, no camera, no strap — the exact \
+            UX#3 defect #618 replaced it for. Remove it again; if it replaced the new \
+            sentence outright, the token assertions above are red alongside this one.
             """)
     }
 
     /// COUNTERWEIGHT — green on both trees: the DAW-export promise survives the rewrite
     /// (the App Store text claims MIDI export; this page is where a producer first reads
-    /// it), and the safety heading that bounds this window is still exactly one line.
+    /// it).
     func testTheExportPromiseSurvives() throws {
         let page = try readyPageSlice()
         XCTAssertTrue(page.contains { $0.contains("Export to your DAW.") }, """
@@ -100,6 +111,52 @@ final class TheReadyPageNamesTheFirstActTests: XCTestCase {
             claims the MIDI export — remove this sentence only together with that text, \
             not in a copy rewrite (#188's lesson: the export door and its words move \
             together).
+            """)
+    }
+
+    /// The sentence is a `LocalizedStringKey`, so replacing it REPLACES ITS CATALOG KEY —
+    /// #618 shipped without the new entry and the German Ready page silently fell back to
+    /// English while every sibling string around it stayed German (review W1, the one
+    /// real regression of that slice; #618b paid it). This pins the coupling: the exact
+    /// sentence must exist as a key in `Localizable.xcstrings` WITH a German value, so
+    /// the next copy rewrite moves both in the same commit or goes red here.
+    ///
+    /// GRADING: FORWARD at #618b (the catalog entry is created by the same commit). The
+    /// German-value needle is the de `stringUnit` text, pinned as presence-in-entry, not
+    /// as the whole entry shape — retranslating stays legal (#364); only dropping the de
+    /// localization or drifting key and `Text(...)` apart reds this.
+    func testTheSentenceIsInTheCatalogWithGerman() throws {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let path = root.appendingPathComponent(
+            "Sources/Echoelmusic/Resources/Localizable.xcstrings")
+        guard FileManager.default.fileExists(atPath: path.path) else {
+            throw XCTSkip("string catalog not present at \(path.path)")
+        }
+        let catalog = try String(contentsOf: path, encoding: .utf8)
+        let sentence = "Press Play to start — a fingertip on the camera light, or a "
+            + "Bluetooth strap, lets your body drive the sound. Export to your DAW."
+
+        // The SAME string must be the view's literal — a reworded `Text` with a stale
+        // catalog key is exactly the silent-English regression this case exists for.
+        let page = try readyPageSlice()
+        XCTAssertTrue(page.contains { $0.contains("Text(\"\(sentence)\")") }, """
+            the Ready page's sentence no longer matches this test's copy of it. If the \
+            copy was reworded: update the catalog key, the German value, and this literal \
+            in the same commit — a `LocalizedStringKey` matches byte-exactly, so any \
+            drift ships English to every non-English device.
+            """)
+        XCTAssertTrue(catalog.contains("\"\(sentence)\""), """
+            Localizable.xcstrings has no entry for the Ready-page sentence — the German \
+            onboarding page falls back to English for its ONE instruction line while \
+            everything around it is translated (the #618 regression, review W1).
+            """)
+        XCTAssertTrue(catalog.contains("Drück Play zum Start"), """
+            the German value for the Ready-page sentence is gone from the catalog. \
+            Retranslate freely, but a de `stringUnit` must exist — an entry with only \
+            `en` is the same silent fallback the key-swap caused.
             """)
     }
 }

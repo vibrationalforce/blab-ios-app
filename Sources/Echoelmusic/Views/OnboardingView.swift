@@ -157,7 +157,16 @@ struct OnboardingView: View {
             // so the sentence now names all three, in the app's own chooser vocabulary
             // (#616: "camera light" / "Bluetooth strap"). Guarded by
             // `TheReadyPageNamesTheFirstActTests` — tokens, not the sentence, so
-            // rewording stays legal.
+            // rewording stays legal — which ALSO pins the Localizable.xcstrings coupling:
+            // this literal is a LocalizedStringKey, and #618 first shipped the new key
+            // WITHOUT its catalog entry, silently turning the German page's one
+            // instruction line English (#618b).
+            //
+            // ⚠️ Deliberate brevity, not a capability claim (review W2): the STRAP half
+            // elides one step — the default source is the camera, so a strap plays only
+            // after choosing it (pulse-pill long-press or the bioPanel "Bio source" row).
+            // The capability is real and reachable; do not cite this sentence as evidence
+            // the strap self-connects on Play.
             Text("Press Play to start — a fingertip on the camera light, or a Bluetooth strap, lets your body drive the sound. Export to your DAW.")
                 .font(EchoelTheme.font(15))
                 .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.4)
