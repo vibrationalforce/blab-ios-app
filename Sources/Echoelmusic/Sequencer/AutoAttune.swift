@@ -84,10 +84,14 @@ public enum AutoAttune {
         /// (`moodKnob(_:_:pausing:)` in EchoelStudioView). A paused parameter's
         /// target is pinned to its base — identity through the blend — for the
         /// rest of the session. Cleared ONLY by the Auto toggle going OFF (an
-        /// explicit user gesture; nothing un-pauses by itself). Still open, its
-        /// own slice (4b): the VISUAL fine-tune gesture — its pause must reach
-        /// three `@AppStorage`-reading surfaces, a span this caller-held @State
-        /// cannot cover, so it is a design decision, not a forgotten wire.
+        /// explicit user gesture; nothing un-pauses by itself). The VISUAL
+        /// fine-tune gesture deliberately has NO pause — resolved by Council,
+        /// #615 2026-08-16 (decisions.csv): the visual auto term modulates the
+        /// bio-derived base and never contests a user-owned dial (the look
+        /// controls compose on top, unsteered) — unlike mood, where the steer
+        /// offsets the very value the user just set. Reopen ONLY on the
+        /// registered device probe: a settled body audibly/visibly fighting a
+        /// deliberately low visual-Intensity setting.
         public var pausedDarkness: Bool
         public var pausedLiveliness: Bool
         public var pausedTension: Bool

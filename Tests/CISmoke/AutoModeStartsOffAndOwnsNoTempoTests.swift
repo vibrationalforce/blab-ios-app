@@ -82,6 +82,11 @@
 // before first run: `autoAttuneState = AutoAttune.State()` is CONTAINED in the
 // @State declaration's initializer, so a first draft asserting ==1 file-wide was
 // red on its own tree; the shipped assertion counts 2 and names both sites.
+// ⚠️ #615, appended: ONE caption needle added to claim 6 ("Auto lets that dial
+// go" — the pause becomes discoverable at the door). FORWARD against 54818a1
+// (the sentence is born with #615); the dead-word scans stay the counterweight.
+// Raw==stripped for this needle (it lives in a string literal; the nearby test
+// comment paraphrases, never quotes it whole) — PROPHYLAKTISCH, measured.
 
 import Foundation
 import XCTest
@@ -278,6 +283,18 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
             The door's caption no longer names the three channels the decision core \
             actually reads. The caption is the user's only statement of WHAT steers \
             — if the inputs changed, change the sentence and this needle together.
+            """)
+        // #615 — the pause is DISCOVERABLE at the door: the caption states what a
+        // dial edit does and how to hand the dial back. Without this sentence the
+        // #614 pause is invisible mechanics (the review's UX gap). The VISUAL
+        // fine-tune deliberately has NO pause (Council 2026-08-16, decisions.csv;
+        // the term contests no user-owned dial) — do not read this needle as the
+        // half-built version of that.
+        XCTAssertTrue(row.contains("Auto lets that dial go"), """
+            The door's caption no longer explains the gesture-pause (#614): a \
+            player must be able to DISCOVER that editing a steered dial frees it \
+            and that the Auto toggle hands it back. Reword freely, but keep a \
+            sentence that says both, and move this needle with it.
             """)
         for dead in ["trend", "valence", "emotion", "breath depth", "LF/HF"] {
             XCTAssertFalse(row.contains(dead), """

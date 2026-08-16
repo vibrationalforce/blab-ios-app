@@ -80,8 +80,19 @@ Emotions-/Stimmungsaussage über den Menschen (EngineBus-EU-AI-Act-Rahmung).
    Ring aus (timestamp, coherence), Slope 30–60 s, dt aus Timestamps, lücken-tolerant).
    `BioParams.coherenceTrend` bleibt dabei tot, außer die eigene Scheibe zieht
    `TheAlwaysOnBioPathIsNamedTests` + beide AlwaysOnBioChannel-Sätze + CLAUDE.md mit.
-4. **Geste-gewinnt-Verdrahtung:** Mood-Knob-Commits + Visual-Fine-Tune setzen die
-   Session-Pause des Parameters; ein os_log-Breadcrumb pro Evolve-Entscheidung.
+4. ✅ **Geste-gewinnt (#614/#614b + #615, 2026-08-16) — in ZWEI Hälften entschieden,
+   nicht eine gebaut:** (4a, GEBAUT) die drei gesteuerten Mood-Dials tragen
+   `pausing:` — committeter Edit bei Auto AN pausiert GENAU diesen Regler für die
+   Rest-Session; ent-pausieren NUR über Auto-Toggle-AUS; drei `.automation`-
+   Breadcrumbs, der Evolve-Breadcrumb im advanceEvolution-Gate (Werkzeug für die
+   2519-Hörbarkeitsprobe); Caption macht die Pause auffindbar (#615). (4b, PER
+   COUNCIL AUFGELÖST STATT GEBAUT — decisions.csv 2026-08-16): der Visual-Term
+   bestreitet keinen nutzer-eigenen Regler (er moduliert die Bio-Basis, die
+   Look-Regler komponieren unangetastet obendrauf — anders als Mood, wo der Steer
+   den eben gesetzten Dial-Wert versetzt); ein Session-Flag hätte drei
+   @AppStorage-lesende Flächen gebraucht (persistenz-falsche Semantik oder neuer
+   Singleton für ein Bool). WIEDERERÖFFNEN nur auf die registrierte Geräteprobe:
+   settled Body kämpft hörbar/sichtbar gegen bewusst tiefe Visual-Intensity.
 5. **Genre/Tonart-Vorschlag (FOUNDER-GATED):** erst Suggest-only-Chip; Auto-Apply
    nur hinter zweitem Sub-Toggle, beschränkt auf `MusicStyle.offered` — kollidiert
    sonst mit dem Kurations-Gesetz (#81/#125).

@@ -10921,7 +10921,7 @@ private struct AutoModeRow: View {
             // Auto mode deliberately steers nothing, and a caption promising
             // unconditional steering would be the Weather-"nicht bemerkbar" class.
             Text(bioRunning
-                 ? "Gently steers mood toward your measured coherence, HRV and heart rate when your body is clearly settled or clearly driving — over bars, not beats. Your own edits keep priority."
+                 ? "Gently steers mood toward your measured coherence, HRV and heart rate when your body is clearly settled or clearly driving — over bars, not beats. Your own edits keep priority — edit a steered dial and Auto lets that dial go for the rest of this session (switch Auto off and on to hand it back)."
                  : "Needs a running bio source — touch and hold the pulse display to start one.")
                 .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.dim)
