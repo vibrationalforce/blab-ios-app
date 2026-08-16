@@ -121,7 +121,7 @@ in den Task-Transkripten dieser Session, jede Zeile mit file:line dort):**
 | 5 | First-Run-Erklärzeile unter quickActionRow („warum sind die Kacheln grau") | UX#7 | S |
 | 6 | Bio-Quellen-Tür sichtbar („Source…"-Button im bioPanel statt nur Long-Press) | UX#4 | S |
 | 7 | ✅ #617/#617b: Tap-Target-Batch — Video-Trio (Play-Outset; Share/Delete 44-Frame+contentShape) · Narration-Disclosure (min34+Outset; ⚠ Fläche türlos, #326 — Fix vererbt sich) · drei 30-pt-Chips → min34 (Explore in den Label verlegt, #485-Gesetz) · **A11y#8 NICHT gebaut: gemessene Decke** (Never-shed-Floor 152 > ≈147-Kleinstkarte; Arithmetik am `ChromeCost.iconButton`-Doc, Wiedereröffnung nur mit Kleinkarten-Redesign). Drei Wächter-Fälle. **Review-Nachträge fürs nächste Audit:** `LiveColaboView` Invite (fixed height 30, #353-Klasse) · FVW-Vollbild-„Studio"-Chip (fixed height 30) | A11y#3/6/7/8 | ✅ |
-| 8 | Onboarding-readyPage: EIN Satz nennt Play/Kamera/Gurt | UX#3 | S |
+| 8 | ✅ #618: Ready-Satz nennt Play · camera light · Bluetooth strap (Chooser-Vokabular #616); Wächter `TheReadyPageNamesTheFirstActTests` (Tokens, nicht Satz) | UX#3 | ✅ |
 | 9 | VoiceOver-Move-Actions fürs Floating-Fenster (Drag-only heute) | A11y#4 | S |
 | 10 | Follow-the-key + Voice im Untertitel auffindbar machen | UX#12/13 | S |
 | 11 | Puls-Pille liest sich als Taste (borderStrong-Grammatik) | UX#15 | S |
