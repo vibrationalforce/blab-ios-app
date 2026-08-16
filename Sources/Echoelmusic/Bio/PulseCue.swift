@@ -96,13 +96,15 @@ public enum PulseCue: Equatable, Sendable {
     /// AND be accidentally correct as one. That is the worst combination available to a
     /// non-medical instrument. Nothing in the design needed the word "rhythm".
     ///
-    /// ⚠️ WHAT THIS DELIBERATELY DOES NOT SAY: "switch to a chest strap". `bioPanel` already
-    /// carries that route verbatim and correctly ("touch and hold the pulse display and
-    /// pick …"), and #416's law plus that panel's own comment — "Saying it three times is
-    /// not thoroughness" — make a second copy here a defect, not helpfulness. ⛔ The first
+    /// ⚠️ WHAT THIS DELIBERATELY DOES NOT SAY: "switch to a chest strap". `bioPanel` carries
+    /// that route — since #616 as the visible "Bio source" ROW (`bioSourceRow`), no longer
+    /// as a caption naming the pill's long-press (that sentence is DELETED; an earlier
+    /// revision of this comment quoted it as still standing, the §4 stale-premise class).
+    /// #416's law plus that panel's own comment — "Saying it three times is not
+    /// thoroughness" — make a second copy here a defect, not helpfulness. ⛔ The first
     /// version called `bioPanel` "the panel that hosts the measurement card" and said a
     /// VoiceOver user reaches the route "immediately BEFORE the card": both wrong. The panel
-    /// hosts `BioStripView`; the strap sentence comes AFTER it, and "immediately before" was
+    /// hosts `BioStripView`; the source row comes AFTER it, and "immediately before" was
     /// borrowed from a comment about the Open Routing button. The chain that gets a stuck
     /// user there is `isActionable` → the header tile goes amber and shows a label at all;
     /// TAPPING the tile opens the panel (the colour only draws the eye to it).

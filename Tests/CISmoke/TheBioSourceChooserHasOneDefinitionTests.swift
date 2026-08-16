@@ -17,7 +17,11 @@
 //
 // ⚠️ LIMITS (§1): claims 1–2 are END-TO-END BEHAVIOUR on the shipped enum — the
 // strong kind. Claims 3–5 are SOURCE-TEXT SCANS: they prove where text sits, not
-// that the row renders or the menu opens. Whether the row reads well at AX sizes,
+// that the row renders or the menu opens. Claim 3's label scan covers the
+// DEFINITION AND ITS TWO CONSUMERS only — an inline copy in a FOURTH file (an
+// onboarding view, WorkspaceView) passes silently; that scope is deliberate
+// (#364: scanning all of Sources/ would red every future comment that quotes a
+// label), so a new chooser surface must be added to the file list here. Whether the row reads well at AX sizes,
 // and whether the Menu opens above the keyboard-free panel, are DEVICE PROBES —
 // registered open, not implied covered. `bioPanel` reachability is the Bio chip's
 // premise (sibling guards), not re-proven here.
@@ -172,10 +176,11 @@ final class TheBioSourceChooserHasOneDefinitionTests: XCTestCase {
             VoiceOver user exploring the menu learns the bio panel exists — the \
             three entries above it are all commitments to start playing.
             """)
-        XCTAssertTrue(header.contains("Touch and hold to choose a bio source."), """
-            The pill's accessibilityHint no longer teaches the long-press. With the \
-            bioPanel caption's old instruction retired (#616), this hint is the \
-            last teacher of the shortcut — keep one, or the gesture is invisible.
+        XCTAssertEqual(header.components(separatedBy: "Touch and hold to choose a bio source.").count - 1, 1, """
+            The pill's accessibilityHint no longer teaches the long-press exactly \
+            once. With the bioPanel caption's old instruction retired (#616), this \
+            hint is the last teacher of the shortcut — keep exactly one (zero makes \
+            the gesture invisible; a second copy is the drift this file forbids).
             """)
         // The chrome stays notification-decoupled: the pill posts, never calls.
         XCTAssertEqual(header.components(separatedBy:

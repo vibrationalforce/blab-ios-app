@@ -103,9 +103,11 @@ final class OneStartControlTests: XCTestCase {
     /// The inventory, all three deliberate:
     ///   1. `toggleBiofeedback()`'s own body — the front plate's Start/Stop, i.e. THE button.
     ///   2. `handlePendingIntent()` — Siri/Shortcuts, no on-screen control at all.
-    ///   3. `selectBioSource()` — the header pill's long-press, idle branch. It is labelled
-    ///      "Play with camera light / a Bluetooth strap / the simulation" precisely because it
-    ///      starts the music; under its old labels ("Camera light", "Simulation") it was a
+    ///   3. `selectBioSource()` — the idle branch, reached through TWO doors since #616:
+    ///      the header pill's long-press and `bioPanel`'s visible "Bio source" row (one
+    ///      definition, `BioSourceOption`). Still ONE call site — the row is a door, not a
+    ///      new caller. The entries are labelled "Play with …" precisely because they
+    ///      start the music; under bare labels ("Camera light", "Simulation") this was a
     ///      hidden Start, which is what the founder was counting.
     ///
     /// A FOURTH one was removed to get here: the Bio panel's "Read pulse" button ran

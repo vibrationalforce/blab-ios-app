@@ -205,10 +205,11 @@ struct EchoelStudioView: View {
     #if canImport(AVFoundation)
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
-    // The two alternative bio sources the header pill's long-press dropdown can select
-    // (founder 2026-07-15): a Bluetooth heart-rate strap (universal 0x180D) and the
-    // Simulation demo. Camera (above) is the default. All three are injected by the app;
-    // `selectBioSource` switches the live one, `startBioSource` honours the selection.
+    // The two alternative bio sources the chooser can select (founder 2026-07-15) — the
+    // pill's long-press menu and, since #616, the visible "Bio source" row in `bioPanel`:
+    // a Bluetooth heart-rate strap (universal 0x180D) and the Simulation demo. Camera
+    // (above) is the default. All three are injected by the app; `selectBioSource`
+    // switches the live one, `startBioSource` honours the selection.
     #if canImport(CoreBluetooth)
     @Environment(PolarH10BioPublisher.self) private var polarH10
     #endif
@@ -220,14 +221,17 @@ struct EchoelStudioView: View {
     // The single live-state flag: biofeedback running or not.
     @State private var running = false
 
-    /// Which bio input the header pill's long-press dropdown selected (founder
-    /// 2026-07-15). Camera by default; `startBioSource` brings up whichever is set,
-    /// `selectBioSource` switches it live. Persisted so the choice survives relaunch.
+    /// Which bio input the chooser selected (founder 2026-07-15; pill long-press or,
+    /// since #616, the bioPanel "Bio source" row). Camera by default; `startBioSource`
+    /// brings up whichever is set, `selectBioSource` switches it live. Persisted so the
+    /// choice survives relaunch.
     @AppStorage("bio.sourceKind") private var bioSourceRaw = BioSourceKind.camera.rawValue
     /// Guards the async live source-switch so a rapid re-pick can't overlap.
     @State private var sourceSwitchTask: Task<Void, Never>?
 
-    /// The three bio inputs the header pill's long-press dropdown offers.
+    /// The three bio inputs the chooser offers. The implicit raw values are the
+    /// on-the-wire ids `BioSourceOption` mirrors (#616) — a case added here needs its
+    /// twin there, or the new source has no menu entry.
     private enum BioSourceKind: String { case camera, ble, sim }
 
     /// Drives Siri/Shortcuts intent consumption (start/stop/keep loop) when the
@@ -3001,6 +3005,9 @@ struct EchoelStudioView: View {
             Text("Bio source")
                 .font(EchoelTheme.font(12, .semibold))
                 .foregroundStyle(EchoelTheme.text)
+                // #616b: the Menu below carries the SAME accessibilityLabel — without
+                // this, VoiceOver stops twice on "Bio source" back to back.
+                .accessibilityHidden(true)
             Spacer(minLength: 8)
             Menu {
                 ForEach(BioSourceOption.allCases) { option in
@@ -3015,6 +3022,11 @@ struct EchoelStudioView: View {
                 }
                 .foregroundStyle(EchoelTheme.text)
                 .padding(.horizontal, 12).frame(height: 34)
+                // `borderStrong`, DIVERGING from the moodPresetBar Menu and the
+                // in-panel "Open Routing" button on purpose (#616b annotates what the
+                // review called accident-shaped): this control DECIDES what feeds the
+                // instrument, and WCAG 1.4.11 wants 3:1 on non-text controls — the
+                // A11y#2 rollout direction is TOWARD borderStrong, not away from it.
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
             }
@@ -8629,7 +8641,8 @@ struct EchoelStudioView: View {
     ///
     /// BE HONEST ABOUT WHAT THIS IS: "camera live, no music" is a NEW state, introduced here.
     /// An earlier version of this comment called it "the state the Bio panel's own arm already
-    /// puts the app in" — false. The ONE reachable arm, the pill's long-press source picker,
+    /// puts the app in" — false. Every reachable arm — the pill's long-press picker and, since
+    /// #616, the bioPanel "Bio source" row, both through `selectBioSource` —
     /// goes through `startBiofeedback()` when idle, i.e. a full take; the camera-only arms
     /// live in `BioSourceView`/`SessionView`, both doorless. (This sentence used to list
     /// `BioStripView`'s pulse start alongside the picker as a second reachable arm. #234
@@ -8781,8 +8794,10 @@ struct EchoelStudioView: View {
         demoSource.stop()
     }
 
-    /// Switch the live BIO INPUT source from the header pill's long-press dropdown
-    /// (founder 2026-07-15: "camera light · Search for Bluetooth Device · Simulation").
+    /// Switch the live BIO INPUT source from either chooser surface (founder 2026-07-15:
+    /// "camera light · Search for Bluetooth Device · Simulation"): the pill's long-press
+    /// menu posts `.echoelSelectBioSource` into the receiver on `menuBar`; `bioPanel`'s
+    /// "Bio source" row (#616) calls this directly.
     /// Only ONE source feeds the bus at a time. If the instrument is already running we
     /// hot-swap (drop the old publisher, bring up the new one, keeping the music going);
     /// if it's idle, picking a source activates the instrument with it — same as a tap.
@@ -10972,7 +10987,10 @@ private struct AutoModeRow: View {
             // unconditional steering would be the Weather-"nicht bemerkbar" class.
             Text(bioRunning
                  ? "Gently steers mood toward your measured coherence, HRV and heart rate when your body is clearly settled or clearly driving — over bars, not beats. Your own edits keep priority — edit a steered dial and Auto lets that dial go for the rest of this session (switch Auto off and on to hand it back)."
-                 : "Needs a running bio source — touch and hold the pulse display to start one.")
+                 // #616b: this branch said "touch and hold the pulse display" — teaching
+                 // the long-press three rows BELOW the visible "Bio source" row #616 put
+                 // in this same panel. Two captions in one panel disagreed on the route.
+                 : "Needs a running bio source — choose one with the Bio source control above.")
                 .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
