@@ -2982,6 +2982,48 @@ struct EchoelStudioView: View {
     /// state (freeze rule), so opening this panel never churns the root body.
     /// Sources: camera pulse starts right here; the BLE strap's ONE door is the
     /// pulse-pill dropdown (BLE-3 single owner); Watch via Health.
+    /// #616 (GUI-Board Zeile 6, UX#4) — the bio-source chooser made VISIBLE. Until
+    /// this row the ONLY chooser was the pulse pill's long-press context menu — the
+    /// least discoverable gesture we ship (the Routing button's ⛔ block below calls
+    /// it that), and hard to perform with a motor impairment (#234). Same entries,
+    /// same honesty, ONE definition: `BioSourceOption` feeds both this row and the
+    /// pill's menu; every entry routes to `selectBioSource` — idle it STARTS the
+    /// music, running it hot-swaps the source (which is why the labels say
+    /// "Play with", never a bare sensor name).
+    ///
+    /// FREEZE LAW: safe inline. A `Menu` builds its content only when opened, and
+    /// this row reads only `bioSourceRaw` (@AppStorage, selection-rate) — no live
+    /// bio value enters the permanently-evaluated panel body. The `?? .camera`
+    /// fallback mirrors `startBioSource`'s own default; display-only.
+    private var bioSourceRow: some View {
+        let current = BioSourceOption(rawValue: bioSourceRaw) ?? .camera
+        return HStack(spacing: 8) {
+            Text("Bio source")
+                .font(EchoelTheme.font(12, .semibold))
+                .foregroundStyle(EchoelTheme.text)
+            Spacer(minLength: 8)
+            Menu {
+                ForEach(BioSourceOption.allCases) { option in
+                    Button {
+                        selectBioSource(option.rawValue)
+                    } label: { Label(option.menuLabel, systemImage: option.systemImage) }
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Text(current.shortName).font(EchoelTheme.font(13, .semibold))
+                    Image(systemName: "chevron.down").font(.system(size: 10))
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 12).frame(height: 34)
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
+            }
+            .accessibilityLabel("Bio source")
+            .accessibilityValue(current.shortName)
+            .accessibilityHint("Choosing a source starts the music when idle, or switches it while playing")
+        }
+    }
+
     private var bioPanel: some View {
         VStack(alignment: .leading, spacing: 10) {
             // No `onStartPulse` (#234): this panel used to carry a "Read pulse" button that
@@ -2999,9 +3041,17 @@ struct EchoelStudioView: View {
             // announces that control as the WORD "Play". A blind reader got a shape they cannot
             // see for a control whose label says something else. `BioStripView`'s sibling hint
             // had it right from the start; this now matches it.
-            Text("Press Play to start — your body then drives the sound. For a BLE chest strap, touch and hold the pulse display and pick \u{201C}Play with a Bluetooth strap — scans for one\u{201D}; Apple Watch feeds in through Health.")
+            // ⛔ #616: this sentence used to END with a long-press instruction ("For a BLE
+            // chest strap, touch and hold the pulse display and pick …") because the
+            // pill's context menu was the ONLY chooser. The visible row below IS the
+            // chooser now, so the caption stops teaching the least discoverable gesture
+            // we ship and points at the row instead. The long-press keeps working as a
+            // shortcut (the pill's own accessibilityHint still teaches it).
+            Text("Press Play to start — your body then drives the sound. Choose your bio source below; Apple Watch feeds in through Health.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
+
+            bioSourceRow
 
             // #486 — the ACTIVE half of the loop, directly under the measured half.
             // `BioStripView` above says what the body is doing; this paces the breathing

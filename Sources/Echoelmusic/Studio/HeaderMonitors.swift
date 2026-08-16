@@ -300,29 +300,19 @@ struct PulseMonitorMiniLive: View {
             .onTapGesture {
                 NotificationCenter.default.post(name: .echoelChromeDoor, object: "bio")
             }
-            // ⚠️ "Play with …", not the bare source names these carried until #234. Every one
-            // of them routes to `selectBioSource`, which hot-swaps the source while a take is
-            // live and STARTS A FULL GENERATIVE SESSION when idle. Under the plain labels
-            // ("Camera light", "Simulation") that made this menu a hidden Start — the exact
-            // thing the founder counted — and one that promised only a sensor choice. The
-            // capability is deliberately kept (choosing how to begin is useful); what changed
-            // is that the label now says the music begins. "Play with" is honest in BOTH
-            // states: idle it starts, running it keeps playing on the new source.
+            // ⚠️ "Play with …", not the bare source names these carried until #234 — the
+            // rationale (and the "scans for one" half of the BLE label) lives with the
+            // labels themselves in `BioSourceOption` since #616, the ONE definition this
+            // menu shares with `bioPanel`'s visible "Bio source" row. This surface stays
+            // notification-decoupled (`.echoelSelectBioSource`): the studio owns the
+            // publishers; this chrome leaf only names the choice.
             .contextMenu {
-                Button {
-                    NotificationCenter.default.post(name: .echoelSelectBioSource, object: "camera")
-                } label: { Label("Play with camera light", systemImage: "camera.fill") }
-                Button {
-                    NotificationCenter.default.post(name: .echoelSelectBioSource, object: "ble")
-                  // "scans for one" carries the half the old "Search for Bluetooth device"
-                  // said and the bare rename dropped: the music starts from neutral defaults
-                  // immediately, whether or not a strap is ever found. Both halves are true
-                  // and the user needs both.
-                } label: { Label("Play with a Bluetooth strap — scans for one",
-                                 systemImage: "dot.radiowaves.left.and.right") }
-                Button {
-                    NotificationCenter.default.post(name: .echoelSelectBioSource, object: "sim")
-                } label: { Label("Play with the simulation", systemImage: "waveform.path") }
+                ForEach(BioSourceOption.allCases) { option in
+                    Button {
+                        NotificationCenter.default.post(name: .echoelSelectBioSource,
+                                                        object: option.rawValue)
+                    } label: { Label(option.menuLabel, systemImage: option.systemImage) }
+                }
                 Divider()
                 // The only entry here that does NOT start anything — and now a duplicate of
                 // the pill's own tap. Kept deliberately: it is the one place a VoiceOver user

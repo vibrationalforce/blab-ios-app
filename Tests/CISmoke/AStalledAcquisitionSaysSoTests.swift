@@ -197,14 +197,16 @@ final class AStalledAcquisitionSaysSoTests: XCTestCase {
     }
 
     /// COUNTERWEIGHT. The obvious "improvement" is to end both stall hints with "or try a chest
-    /// strap". `EchoelStudioView.bioPanel` already carries that route verbatim and correctly.
+    /// strap". `EchoelStudioView.bioPanel` already carries that route — since #616 as the
+    /// visible "Bio source" ROW (`bioSourceRow`, right under the panel's lead sentence), no
+    /// longer as a caption naming the long-press. Same #416 argument, stronger: the route is
+    /// now a CONTROL, and a control cannot go stale the way a describing sentence could.
     /// ⛔ The first version of this comment called `bioPanel` "the panel that hosts the
     /// measurement card" and said a VoiceOver user reaches the route "immediately before the
-    /// card": both wrong. The panel hosts `BioStripView`; the strap sentence comes AFTER it,
+    /// card": both wrong. The panel hosts `BioStripView`; the source row comes AFTER it,
     /// and "immediately before" was borrowed from a comment about the Open Routing button. The
     /// chain that gets a stuck user there is `isActionable` → the header tile goes amber and
     /// shows a label at all; TAPPING the tile opens the panel (the colour only draws the eye).
-    /// #416, and that panel's own comment about saying it three times.
     func testTheStallHintsDoNotRestateTheSourceRoute() {
         for cue in [PulseCue.stalled(hasRhythmlessSignal: true),
                     PulseCue.stalled(hasRhythmlessSignal: false)] {
@@ -212,10 +214,10 @@ final class AStalledAcquisitionSaysSoTests: XCTestCase {
             for word in ["strap", "bluetooth", "source", "simulation", "demo"] {
                 XCTAssertFalse(hint.contains(word), """
                     A stall hint now names the bio-source route ("\(word)"): \
-                    "\(cue.fullHint)". That route has ONE owner — the sentence in \
-                    `bioPanel`, which is on screen with this card. A second copy here is the \
-                    two-definitions defect, and it is the copy that will go stale, because \
-                    the menu entry it describes lives in `HeaderMonitors`.
+                    "\(cue.fullHint)". That route has ONE owner — the "Bio source" row in \
+                    `bioPanel` (#616), which is on screen with this card. A second copy here \
+                    is the two-definitions defect, and it is the copy that will go stale, \
+                    because the entries it would describe live in `BioSourceOption`.
                     """)
             }
         }
