@@ -3832,17 +3832,25 @@ struct EchoelStudioView: View {
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
-                Button(mazeBoard == nil ? "Explore" : "New") { exploreVariations() }
-                    .buttonStyle(.plain)
-                    .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
-                    // `minHeight`, not `height` (#353: a fixed pill can't grow with the
-                    // text), and 34 is the house in-panel floor (#610b) — WCAG-clear;
-                    // no outset because tappable rows sit directly below.
-                    .padding(.horizontal, 12).frame(minHeight: 34)
-                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.bg))
-                    .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                        .strokeBorder(EchoelTheme.border, lineWidth: 1))
-                    .accessibilityLabel(mazeBoard == nil ? "Explore variations" : "Explore new variations")
+                // ⛔ #617b: this WAS `Button("Explore") { … }` with the pill styling
+                // chained on the BUTTON — outside the label, so under `.plain` the hit
+                // test stayed the ~15 pt title glyph run (#485's measured law) and the
+                // grown pill was decoration. The pill now lives INSIDE the label with a
+                // `contentShape`, the construction its two sibling chips
+                // (`touchPatchChip`, the look chips) already had. `minHeight`, not
+                // `height` (#353), 34 = the house in-panel floor (#610b); no outset
+                // because tappable variation rows sit directly below.
+                Button { exploreVariations() } label: {
+                    Text(mazeBoard == nil ? "Explore" : "New")
+                        .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
+                        .padding(.horizontal, 12).frame(minHeight: 34)
+                        .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.bg))
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                            .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(mazeBoard == nil ? "Explore variations" : "Explore new variations")
             }
             if let board = mazeBoard {
                 ForEach(Array(board.candidates.enumerated()), id: \.offset) { idx, cand in

@@ -302,8 +302,11 @@ struct VideoLibraryPanelContent: View {
                             .strokeBorder(EchoelTheme.border, lineWidth: 1))
                         // Outset, not a bigger frame: the bordered 32-chip is this row's
                         // look, and the −6 lands in measured gaps only — the card's own
-                        // `.padding(10)` left/above/below, the non-interactive title stack
-                        // right, and (expanded) 6 into the 8 pt gap above the player.
+                        // `.padding(10)` left, the non-interactive title stack right, and
+                        // vertically it ends AT the row's edge (#617b corrected this
+                        // sentence: the same commit grew Share/Delete to 44, so the row is
+                        // 44 tall and the centred 32-chip's −6 never leaves it — the
+                        // player below is untouched in every state).
                         .contentShape(Rectangle().inset(by: -6))
                 }
                 .buttonStyle(.plain)
@@ -322,11 +325,16 @@ struct VideoLibraryPanelContent: View {
                 // 2 pt — with Delete in the overlapping strip (the Sound-row lesson in
                 // `TapTargetFloorTests`). Bare glyphs have no chip to preserve, so the
                 // frame grows only whitespace and the adjacency stays overlap-free.
+                // The `contentShape(Rectangle())` is NOT optional decoration (#617b —
+                // review caught its absence): under `.buttonStyle(.plain)` the hit test
+                // follows the label's GLYPH RUN (~13 pt, the #485-measured law), so a
+                // frame alone grows layout without growing what is hit-tested.
                 Button { onShare(clip.url) } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 13))
                         .foregroundStyle(EchoelTheme.text)
                         .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Share \(name)")
@@ -336,6 +344,7 @@ struct VideoLibraryPanelContent: View {
                         .font(.system(size: 13))
                         .foregroundStyle(EchoelTheme.danger)
                         .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete \(name)")

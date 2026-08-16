@@ -442,8 +442,11 @@ final class TapTargetFloorTests: XCTestCase {
     /// pin, so none could have been red before it. On the parent tree each is red for its
     /// named reason (the fix is absent at an anchor that exists there); the counterweights
     /// (spacing 10, the play chip's 32×32, the card padding) are green on both trees.
-    /// Stripper: MEASURED PROPHYLAKTISCH (0 of 6 needle verdicts flip raw vs stripped on
-    /// either tree) — the #617 source comments quote sizes in prose, never the literals.
+    /// Stripper: MEASURED PROPHYLAKTISCH (0 verdicts flip raw vs stripped on either tree).
+    /// One needle COUNT differs since #617b — the source comment above Share/Delete quotes
+    /// `contentShape(Rectangle())` verbatim (raw 3 vs stripped 2 in that file) — but the
+    /// quoting comment sits ABOVE the Share anchor, outside every window this case scans,
+    /// so no verdict depends on the stripping. Measured, not assumed (the §2 discipline).
     ///
     /// Two DIFFERENT fixes in one row, on purpose, and the reasons are the row's geometry:
     /// the play button keeps its bordered 32-chip look and gets the outset (its neighbours
@@ -488,19 +491,33 @@ final class TapTargetFloorTests: XCTestCase {
                 13 pt glyph again, roughly an eighth of the HIG floor by area, in a list \
                 where \(name == "Delete" ? "it destroys a recording" : "it is the only export door").
                 """)
+            // ⛔ #617b — THE FIRST VERSION OF THIS CASE DID NOT ASK FOR THIS LINE, and the
+            // fix it certified was decoration: under `.buttonStyle(.plain)` the hit test
+            // follows the label's glyph run (#485, measured on device), so the 44-frame
+            // alone grew layout and not the target. The review caught it; the exact
+            // omission #486 documents re-committing one commit after #485 fixed it.
+            XCTAssertTrue(control.contains { $0.contains("contentShape(Rectangle())") }, """
+                the \(name) button's `contentShape(Rectangle())` is gone (#617b). Without \
+                it the 44×44 frame grows layout while the hit target stays the ~13 pt \
+                glyph run — the loudness-Reset lesson in this file, third occurrence.
+                """)
             XCTAssertFalse(control.contains { $0.contains("inset(by:") }, """
                 the \(name) button acquired an outset. Share and Delete are adjacent at \
                 the row's 10 pt spacing: two −6 outsets overlap by 2 pt and the strip \
                 contains Delete — that is the exact defect the Sound-row case in this \
-                file documents. Grow the frame, never outset this pair.
+                file documents. Grow the frame (with `contentShape(Rectangle())`), never \
+                outset this pair.
                 """)
         }
 
-        // The geometry both fixes were measured against.
-        XCTAssertTrue(lines.contains { $0.contains("HStack(spacing: 10)") }, """
-            the video-library row's `HStack(spacing: 10)` is gone. The play outset and \
-            the 44-frame adjacency argument were both sized against a 10 pt gap — \
-            re-measure both in the same commit.
+        // The geometry both fixes were measured against — WINDOWED into `clipRow` (#617b:
+        // the first version scanned file-wide, which stays green if the row's spacing
+        // changes while another spacing-10 stack appears elsewhere in the file).
+        let row = try window("private func clipRow(", "accessibilityLabel(playingURL")
+        XCTAssertTrue(row.contains { $0.contains("HStack(spacing: 10)") }, """
+            the video-library row's `HStack(spacing: 10)` is gone from `clipRow`. The play \
+            outset and the 44-frame adjacency argument were both sized against a 10 pt \
+            gap — re-measure both in the same commit.
             """)
     }
 
@@ -509,9 +526,15 @@ final class TapTargetFloorTests: XCTestCase {
     /// FORWARD guard (#433, same as the trio above): #617 creates what it pins.
     ///
     /// The disclosure row is a `.plain` Button whose label was ~16 pt of intrinsic text
-    /// height — the ONLY chrome while a take plays, and under WCAG 2.5.8's 24. The fix is
-    /// the pair: `minHeight: 34` (never a fixed height — the #353 clipping class) plus a
-    /// −5 outset into the card's own 12 pt padding, ≥44 pt effective.
+    /// height — under WCAG 2.5.8's 24. The fix is the pair: `minHeight: 34` (never a
+    /// fixed height — the #353 clipping class) plus a −5 outset into the card's own
+    /// 12 pt padding, ≥44 pt effective.
+    ///
+    /// ⚠️ HONEST LIMIT (#617b, review): `liveNarrationBanner` is currently UNMOUNTED —
+    /// its only occurrence in `Sources/` is its declaration, pinned as a known orphan by
+    /// `NoDoorlessStudioViewsTests` and task #326. This case fixes the surface's geometry
+    /// so the doored version inherits it; it does NOT claim a user can reach it today,
+    /// and the audit case A11y#6 is closed only in that inherited sense.
     func testTheNarrationDisclosureClearsTheFloor() throws {
         let studio = try codeLines(Self.studio)
         let anchor = "showLiveNarration.toggle()"
@@ -565,18 +588,31 @@ final class TapTargetFloorTests: XCTestCase {
         // since long before this slice. A count is only an anchor when the token occurs
         // ONLY at the intended site; this one never did, so the Explore pill is windowed
         // from its unique Button line instead.
-        let exploreAnchor = #"Button(mazeBoard == nil ? "Explore" : "New") { exploreVariations() }"#
+        // ⛔ #617b RE-ANCHORED AND TIGHTENED THIS: the first fix styled the pill OUTSIDE
+        // the Button's label (`Button("Explore") { … }.padding…`), so under `.plain` the
+        // hit test stayed the title's glyph run and the grown pill was decoration — the
+        // review's second CRITICAL. The control is now label-closure-built like its two
+        // sibling chips, and the window requires the `contentShape` that makes the pill
+        // the target.
+        let exploreAnchor = "Button { exploreVariations() } label: {"
         let exploreHits = studio.indices.filter { studio[$0].contains(exploreAnchor) }
         XCTAssertEqual(exploreHits.count, 1, """
             the variations Explore/New button line is no longer unique in EchoelStudioView — \
             re-anchor this window before trusting the assertion below.
             """)
         if let start = exploreHits.first {
-            let windowEnd = min(start + 8, studio.count)
-            XCTAssertTrue(studio[start..<windowEnd].contains { $0.contains(".padding(.horizontal, 12).frame(minHeight: 34)") }, """
+            let windowEnd = min(start + 10, studio.count)
+            let window = studio[start..<windowEnd]
+            XCTAssertTrue(window.contains { $0.contains(".padding(.horizontal, 12).frame(minHeight: 34)") }, """
                 the variations Explore/New pill is no longer the 12-padded `minHeight: 34` \
                 chip (#617). It sits above tappable variation rows, which is why it has no \
                 outset and the minimum IS the whole fix.
+                """)
+            XCTAssertTrue(window.contains { $0.contains("contentShape(Rectangle())") }, """
+                the Explore/New pill lost its `contentShape(Rectangle())` (#617b) — or the \
+                pill styling moved back OUTSIDE the label closure, where the hit test \
+                reverts to the title's ~15 pt glyph run (#485's measured law) and the pill \
+                is decoration again.
                 """)
         }
         for stale in [".padding(.horizontal, 11).frame(height: 30)",
