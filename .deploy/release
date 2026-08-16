@@ -1,53 +1,50 @@
-build: v10.79.405 — Deine Hand gewinnt gegen den Auto-Modus, und die Platte erklärt sich beim ersten Start
+build: v10.79.406 — Die Bio-Quellen-Wahl wird sichtbar, und die Auto-Pause steht an der Tür
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.404 (2521, ehrliche Fehlertexte).
-  Dieser Build bündelt zwei Scheiben: GUI-Board 5 (First-Run-Erklärzeile) und
-  Auto-Scheibe 4a „Die Geste gewinnt" (#614/#614b).
+  Der Vorgänger auf Deinem Gerät ist 10.79.405 (2522, Geste-gewinnt + Erklärzeile).
+  Dieser Build bündelt zwei Scheiben: #615 (die Geste-Pause wird an der Auto-Tür
+  auffindbar) und #616/#616b (GUI-Board 6: sichtbare Bio-Quellen-Wahl).
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Beim allerersten Start erklärt die Platte die grauen Kacheln:** unter
-    den vier Schnell-Kacheln steht jetzt „Press Play first — then you can
-    record the loop, save the session, or export a WAV or MIDI file." Die
-    Zeile verschwindet mit Deinem ersten Play und kommt in der Session nie
-    wieder (vorher stand der Satz versteckt hinter einem Panel-Chip).
-  · **Dein Dial-Edit pausiert das Auto-Steering GENAU dieses Reglers:** wenn
-    Auto-Modus läuft und Du Liveliness, Darkness oder Tension selbst
-    anfasst, hört Auto für den Rest der Session auf, DIESEN Regler zu
-    steuern — die anderen steuert es weiter. „Your own edits keep priority"
-    ist damit für die Mood-Regler wörtlich wahr. Zurückholen: Auto aus- und
-    wieder anschalten (bewusste Geste; nichts kommt ungebeten zurück).
-  · **Auto schreibt jetzt Breadcrumbs ins Diagnose-Log:** eine Zeile pro
-    Evolve-Entscheidung (Policy, calm/arousal, Steer-Ziele, pausierte
-    Regler) — damit beantwortet das Log endlich „was hat Auto gerade getan?".
+  · **Die Bio-Quellen-Wahl hat endlich eine sichtbare Tür:** im Bio-Panel
+    steht jetzt eine „Bio source"-Zeile mit Menü — Camera light · Bluetooth
+    strap · Simulation. Vorher war der EINZIGE Weg der versteckte Long-Press
+    auf die Puls-Pille (den es weiter gibt; beide Wege tun exakt dasselbe:
+    im Stand starten sie die Musik, im Lauf wechseln sie die Quelle heiß).
+  · **Die Panel-Zeile erklärt es dazu:** „Choose your bio source below;
+    Apple Watch feeds in through Health."
+  · **Die Auto-Tür verrät die Geste-Pause:** die Caption sagt jetzt „…edit
+    a steered dial and Auto lets that dial go for the rest of this session
+    (switch Auto off and on to hand it back)." — das 2522-Verhalten steht
+    damit dort, wo man Auto anschaltet, nicht nur im Log.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Frischer Start (oder App beenden + neu öffnen): steht die Erklärzeile
-     unter den grauen Kacheln? Verschwindet sie mit dem ersten Play und
-     bleibt sie weg?
-  2. Auto an, Körper klar settled (oder driving): einen gesteuerten Regler
-     (z. B. Tension) selbst committen — bleibt er danach hörbar/sichtbar
-     unangetastet, während die anderen weiter wandern?
-  3. Auto aus und wieder an: steuert der eben pausierte Regler wieder mit?
-  4. **2519-Hörbarkeitsprobe jetzt mit Werkzeug:** ist der Auto-Steer
-     überhaupt hörbar? Das Diagnose-Log zeigt pro Take die „Auto attune:"-
-     Zeile — Take anhören, Zeile daneben lesen.
-  5. Ältere Proben offen: 2521 (Mikrofon-Monitoring: hörst Du Dich? Latenz?
-     neutrale Zeile ohne Settings-Knopf bei erlaubtem Mikro?) · 2519 · 2518.
+  1. Bio-Panel öffnen (Bio-Chip): steht die „Bio source"-Zeile da? Öffnet
+     das Menü? Wirkt ein Wechsel Camera → Simulation → Strap identisch zum
+     alten Long-Press (Start im Stand, heißer Wechsel im Lauf)?
+  2. Auto-Tür-Caption: ist der neue Satz über die Geste-Pause lesbar und
+     verständlich?
+  3. Größte AX-Textstufe: bricht die „Bio source"-Zeile sauber um (Label
+     links, Menü rechts, nichts abgeschnitten)?
+  4. Offene Proben von 2522: Erklärzeile beim ersten Start · Geste-gewinnt
+     (gesteuerten Regler committen → bleibt er stehen?) · Auto aus/an holt
+     ihn zurück · Hörbarkeit mit der „Auto attune:"-Log-Zeile.
+  5. Ältere Proben offen: 2521 (Mikrofon-Monitoring) · 2519 · 2518.
 
   ⚠ Ehrliche Grenzen: compile-verifiziert (Build-for-Testing grün auf beiden
   Commits; Test-Rot ist das bekannte harmlose #396). Der adversariale Review
-  beider Scheiben fand 0 CRITICAL. Ob der Auto-Toggle aus dem Bio-Panel den
-  Reset im Studio-Root zuverlässig feuert (Cross-View-@AppStorage), ist
-  Geräteprobe — Probe 3 beantwortet genau das. Die Visual-Feinregler
-  pausieren Auto noch NICHT (eigene Scheibe 4b, registriert).
+  fand 0 CRITICAL; beide WARNs und alle sechs Lows sind eingearbeitet.
+  VoiceOver-Reihenfolge der neuen Zeile und das Menü-Öffnen selbst sind
+  Geräteprobe — Probe 1 und 3 beantworten genau das. Die Visual-Feinregler
+  pausieren Auto bewusst NICHT (Council-Entscheid, dokumentiert; nur eine
+  registrierte Geräteprobe öffnet das wieder).
 
-  Vorgänger-Noten: 10.79.404 = ehrliche Fehlertexte · 10.79.403 = Mikrofon-
-  Monitoring · 10.79.402 = Auto-Modus komplett.
+  Vorgänger-Noten: 10.79.405 = Geste-gewinnt + Erklärzeile · 10.79.404 =
+  ehrliche Fehlertexte · 10.79.403 = Mikrofon-Monitoring.
   KEIN AUDIO wird je gespeichert.
