@@ -150,7 +150,15 @@ struct OnboardingView: View {
                 .foregroundStyle(EchoelTheme.text)
                 .accessibilityAddTraits(.isHeader)
 
-            Text("Breathe, lock a key and BPM, and let your body compose. Export to your DAW.")
+            // ⛔ #618 (UX#3): this read "Breathe, lock a key and BPM, and let your body
+            // compose." — poetic, and it named NONE of the three things a first-time
+            // player actually does: press Play, fingertip on the camera light, or wear a
+            // strap. The last onboarding page is the one place that instruction exists,
+            // so the sentence now names all three, in the app's own chooser vocabulary
+            // (#616: "camera light" / "Bluetooth strap"). Guarded by
+            // `TheReadyPageNamesTheFirstActTests` — tokens, not the sentence, so
+            // rewording stays legal.
+            Text("Press Play to start — a fingertip on the camera light, or a Bluetooth strap, lets your body drive the sound. Export to your DAW.")
                 .font(EchoelTheme.font(15))
                 .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.4)
                 .multilineTextAlignment(.center)
