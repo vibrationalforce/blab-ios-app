@@ -300,6 +300,11 @@ struct VideoLibraryPanelContent: View {
                         .frame(width: 32, height: 32)
                         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                             .strokeBorder(EchoelTheme.border, lineWidth: 1))
+                        // Outset, not a bigger frame: the bordered 32-chip is this row's
+                        // look, and the −6 lands in measured gaps only — the card's own
+                        // `.padding(10)` left/above/below, the non-interactive title stack
+                        // right, and (expanded) 6 into the 8 pt gap above the player.
+                        .contentShape(Rectangle().inset(by: -6))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel(playingURL == clip.url ? "Stop \(name)" : "Play \(name)")
@@ -312,11 +317,16 @@ struct VideoLibraryPanelContent: View {
                 }
                 Spacer(minLength: 8)
 
+                // A FRAME, not the play button's outset: these two are ADJACENT at the
+                // row's 10 pt spacing, and two −6 outsets across a 10 pt gap overlap by
+                // 2 pt — with Delete in the overlapping strip (the Sound-row lesson in
+                // `TapTargetFloorTests`). Bare glyphs have no chip to preserve, so the
+                // frame grows only whitespace and the adjacency stays overlap-free.
                 Button { onShare(clip.url) } label: {
                     Image(systemName: "square.and.arrow.up")
                         .font(.system(size: 13))
                         .foregroundStyle(EchoelTheme.text)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Share \(name)")
@@ -325,7 +335,7 @@ struct VideoLibraryPanelContent: View {
                     Image(systemName: "trash")
                         .font(.system(size: 13))
                         .foregroundStyle(EchoelTheme.danger)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 44, height: 44)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Delete \(name)")

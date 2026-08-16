@@ -158,6 +158,17 @@ public enum FloatingVisualLayout {
         /// `EchoelLogoMark`'s hit frame — also the drag handle. Never shed.
         public static let logo: CGFloat = 40
         /// Every icon-only toolbar button (`.frame(width: 28)`).
+        ///
+        /// ⚠️ 28 + the view's −5 outset = a 38 pt effective TARGET WIDTH (height is 44) —
+        /// clear of WCAG 2.5.8's 24, short of HIG's 44, and that shortfall is a MEASURED
+        /// geometric ceiling, not an oversight (#617, the A11y#8 audit case): the
+        /// never-shed floor is logo 40 + 2 × iconButton + 3 gaps (24) + padding (20) =
+        /// 140 pt against a ≈147 pt small card on a 375 pt phone. Widening to a
+        /// 44-effective button (34 wide + −5) makes that floor 152 and overflows the
+        /// smallest card; deepening the outset instead overlaps the neighbour across
+        /// the 8 pt gap (already −5 + −5 = 10 > 8, a 2 pt overlap between icon pairs).
+        /// Re-open only with a redesign of the small card's width — not by nudging
+        /// this constant, which `ChromeBudgetFitsTests` re-derives independently.
         public static let iconButton: CGFloat = 28
         /// `HStack(spacing: 8)`.
         public static let gap: CGFloat = 8

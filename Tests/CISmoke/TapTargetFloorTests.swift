@@ -436,6 +436,158 @@ final class TapTargetFloorTests: XCTestCase {
             """)
     }
 
+    // MARK: - the video-library row trio (#617, audit case A11y#3)
+
+    /// GRADING (#433): all three sub-checks are FORWARD guards — #617 creates the fixes they
+    /// pin, so none could have been red before it. On the parent tree each is red for its
+    /// named reason (the fix is absent at an anchor that exists there); the counterweights
+    /// (spacing 10, the play chip's 32×32, the card padding) are green on both trees.
+    /// Stripper: MEASURED PROPHYLAKTISCH (0 of 6 needle verdicts flip raw vs stripped on
+    /// either tree) — the #617 source comments quote sizes in prose, never the literals.
+    ///
+    /// Two DIFFERENT fixes in one row, on purpose, and the reasons are the row's geometry:
+    /// the play button keeps its bordered 32-chip look and gets the outset (its neighbours
+    /// are the card's own padding and non-interactive text), while Share and Delete are
+    /// ADJACENT at 10 pt — two −6 outsets across that gap overlap by 2 pt with Delete in
+    /// the overlapping strip (the Sound-row lesson above), so they get 44 pt frames instead:
+    /// bare glyphs, the frame grows only whitespace.
+    func testTheVideoLibraryRowButtonsClearTheFloor() throws {
+        let path = "Sources/Echoelmusic/Studio/VideoLibraryPanel.swift"
+        let lines = try codeLines(path)
+
+        /// Window from a unique action anchor to that control's accessibility label.
+        func window(_ anchor: String, _ end: String) throws -> ArraySlice<String> {
+            let hits = lines.indices.filter { lines[$0].contains(anchor) }
+            XCTAssertEqual(hits.count, 1, """
+                `\(anchor)` is no longer unique in VideoLibraryPanel, so the window below \
+                may describe a different control. Re-anchor before trusting what follows.
+                """)
+            guard let start = hits.first,
+                  let stop = lines[start...].firstIndex(where: { $0.contains(end) })
+            else { throw XCTSkip("the \(anchor) control is gone — remove this case with it") }
+            return lines[start...stop]
+        }
+
+        let play = try window("togglePlay(clip)", "accessibilityLabel(playingURL")
+        XCTAssertTrue(play.contains { $0.contains(Self.outset6) }, """
+            the video-library play/stop button lost its `\(Self.outset6)` (#617). Its \
+            bordered chip is 32×32 — 53 % of the HIG 44×44 floor by area — and without \
+            the outset a missed tap on "Stop" lands on nothing while a take is sounding.
+            """)
+        XCTAssertTrue(play.contains { $0.contains("frame(width: 32, height: 32)") }, """
+            the play button's 32×32 chip frame changed. The −6 outset was sized as \
+            32 + 6 + 6 = 44 — re-measure the outset in the same commit, or restore the chip.
+            """)
+
+        for (anchor, end, name) in
+            [("Button { onShare(clip.url) } label: {", "accessibilityLabel(\"Share", "Share"),
+             ("Button(role: .destructive) { delete(clip) } label: {", "accessibilityLabel(\"Delete", "Delete")] {
+            let control = try window(anchor, end)
+            XCTAssertTrue(control.contains { $0.contains("frame(width: 44, height: 44)") }, """
+                the video-library \(name) button lost its 44×44 frame (#617) — a bare \
+                13 pt glyph again, roughly an eighth of the HIG floor by area, in a list \
+                where \(name == "Delete" ? "it destroys a recording" : "it is the only export door").
+                """)
+            XCTAssertFalse(control.contains { $0.contains("inset(by:") }, """
+                the \(name) button acquired an outset. Share and Delete are adjacent at \
+                the row's 10 pt spacing: two −6 outsets overlap by 2 pt and the strip \
+                contains Delete — that is the exact defect the Sound-row case in this \
+                file documents. Grow the frame, never outset this pair.
+                """)
+        }
+
+        // The geometry both fixes were measured against.
+        XCTAssertTrue(lines.contains { $0.contains("HStack(spacing: 10)") }, """
+            the video-library row's `HStack(spacing: 10)` is gone. The play outset and \
+            the 44-frame adjacency argument were both sized against a 10 pt gap — \
+            re-measure both in the same commit.
+            """)
+    }
+
+    // MARK: - the live-narration disclosure (#617, audit case A11y#6)
+
+    /// FORWARD guard (#433, same as the trio above): #617 creates what it pins.
+    ///
+    /// The disclosure row is a `.plain` Button whose label was ~16 pt of intrinsic text
+    /// height — the ONLY chrome while a take plays, and under WCAG 2.5.8's 24. The fix is
+    /// the pair: `minHeight: 34` (never a fixed height — the #353 clipping class) plus a
+    /// −5 outset into the card's own 12 pt padding, ≥44 pt effective.
+    func testTheNarrationDisclosureClearsTheFloor() throws {
+        let studio = try codeLines(Self.studio)
+        let anchor = "showLiveNarration.toggle()"
+        let hits = studio.indices.filter { studio[$0].contains(anchor) }
+        XCTAssertEqual(hits.count, 1, """
+            `\(anchor)` is no longer unique in EchoelStudioView — re-anchor this window \
+            before trusting the assertions below.
+            """)
+        guard let start = hits.first,
+              let stop = studio[start...].firstIndex(where: {
+                  $0.contains("accessibilityLabel(\"Live narration\")")
+              })
+        else { throw XCTSkip("the narration disclosure is gone — remove this case with it") }
+        let control = studio[start...stop]
+        XCTAssertTrue(control.contains { $0.contains("frame(minHeight: 34)") }, """
+            the narration disclosure lost its `frame(minHeight: 34)` (#617) — back to a \
+            ~16 pt tap strip. `minHeight`, never `height`: the label wraps at large \
+            Dynamic Type (the #353 class).
+            """)
+        XCTAssertTrue(control.contains { $0.contains("contentShape(Rectangle().inset(by: -5))") }, """
+            the narration disclosure's −5 outset is gone (#617). 34 + 5 + 5 = 44 — the \
+            bleed lands in the card's own 12 pt padding above and the 10 pt gap to the \
+            NON-interactive caption below, which is why −5 is safe here and not between \
+            the selectable chips this same commit left outset-free.
+            """)
+    }
+
+    // MARK: - the three 30 pt studio chips became minimums (#617, audit case A11y#7)
+
+    /// FORWARD guard (#433). Three pill buttons carried `.frame(height: 30)` — under every
+    /// floor AND fixed, so the pill could not grow with its text (the #353 class, the same
+    /// defect `menuChip` documents at length). They are now `minHeight: 34` — the house
+    /// in-panel floor (#610b), NOT HIG's 44, stated as the honest limit: these chips sit in
+    /// 8 pt rows of selectable peers, where an outset to 44 would overlap the neighbour.
+    ///
+    /// ⚠️ Deliberately NOT a file-wide ban on `frame(height: 30)` (#364): a future
+    /// decorative 30 pt element is legitimate. The needles pin exactly the three chip
+    /// spellings this slice changed, padding included, so only a revert can trip them.
+    func testTheStudioChipsAreMinimumsNotFixedHeights() throws {
+        let studio = try codeLines(Self.studio)
+        let grown = studio.filter { $0.contains(".padding(.horizontal, 11).frame(minHeight: 34)") }
+        XCTAssertEqual(grown.count, 2, """
+            expected exactly the two 11-padded chip pills (`touchPatchChip` + the look \
+            chips) at `minHeight: 34` — found \(grown.count). If a chip was redesigned, \
+            re-anchor this count in the same commit; if one reverted to a fixed 30, that \
+            is the regression this case exists for.
+            """)
+        // ⛔ THE FIRST DRAFT COUNTED `.padding(.horizontal, 12).frame(minHeight: 34)` == 1
+        // FILE-WIDE AND WAS RED ON ITS OWN TREE — the #408 the transcription run caught
+        // before CI could: the shape TextField (#262) has carried that exact spelling
+        // since long before this slice. A count is only an anchor when the token occurs
+        // ONLY at the intended site; this one never did, so the Explore pill is windowed
+        // from its unique Button line instead.
+        let exploreAnchor = #"Button(mazeBoard == nil ? "Explore" : "New") { exploreVariations() }"#
+        let exploreHits = studio.indices.filter { studio[$0].contains(exploreAnchor) }
+        XCTAssertEqual(exploreHits.count, 1, """
+            the variations Explore/New button line is no longer unique in EchoelStudioView — \
+            re-anchor this window before trusting the assertion below.
+            """)
+        if let start = exploreHits.first {
+            let windowEnd = min(start + 8, studio.count)
+            XCTAssertTrue(studio[start..<windowEnd].contains { $0.contains(".padding(.horizontal, 12).frame(minHeight: 34)") }, """
+                the variations Explore/New pill is no longer the 12-padded `minHeight: 34` \
+                chip (#617). It sits above tappable variation rows, which is why it has no \
+                outset and the minimum IS the whole fix.
+                """)
+        }
+        for stale in [".padding(.horizontal, 11).frame(height: 30)",
+                      ".padding(.horizontal, 12).frame(height: 30)"] {
+            XCTAssertFalse(studio.contains { $0.contains(stale) }, """
+                a studio chip reverted to `\(stale)` — fixed below every tap floor and \
+                clipping at AX sizes (the #353 class). #617 grew these to `minHeight: 34`.
+                """)
+        }
+    }
+
     // MARK: - the two mic-Settings doors (#610b — the audit case this file's header asks for)
 
     /// The #610 "Allow microphone" chips shipped as byte-for-byte copies of BioStrip's

@@ -3259,7 +3259,14 @@ struct EchoelStudioView: View {
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundStyle(EchoelTheme.dim)
                     }
-                    .contentShape(Rectangle())
+                    // ~16 pt of intrinsic label height was the whole tap target (a
+                    // `.plain` Button hit-tests its label bounds) — under WCAG 2.5.8's
+                    // 24, let alone HIG's 44. `minHeight` (never `height` — the #353
+                    // clipping class) plus a −5 outset reaches ≥44: the bleed lands in
+                    // the card's own 12 pt padding above and, when open, in the 10 pt
+                    // gap to the non-interactive caption text below.
+                    .frame(minHeight: 34)
+                    .contentShape(Rectangle().inset(by: -5))
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("Live narration")
@@ -3828,7 +3835,10 @@ struct EchoelStudioView: View {
                 Button(mazeBoard == nil ? "Explore" : "New") { exploreVariations() }
                     .buttonStyle(.plain)
                     .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
-                    .padding(.horizontal, 12).frame(height: 30)
+                    // `minHeight`, not `height` (#353: a fixed pill can't grow with the
+                    // text), and 34 is the house in-panel floor (#610b) — WCAG-clear;
+                    // no outset because tappable rows sit directly below.
+                    .padding(.horizontal, 12).frame(minHeight: 34)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.bg))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
@@ -5445,7 +5455,11 @@ struct EchoelStudioView: View {
             Text(name)
                 .font(EchoelTheme.font(12))
                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
-                .padding(.horizontal, 11).frame(height: 30)
+                // `minHeight` 34, not `height` 30 (#617): the fixed pill clipped at AX
+                // sizes (#353 class) AND sat under every tap floor. 34 is the house
+                // in-panel floor; no outset — the neighbouring chips in the 8 pt row
+                // are themselves selectable, and two −5 outsets would overlap by 2 pt.
+                .padding(.horizontal, 11).frame(minHeight: 34)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .fill(selected ? EchoelTheme.text : EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
@@ -5634,7 +5648,9 @@ struct EchoelStudioView: View {
                                 Text(look.name).font(EchoelTheme.font(12))
                             }
                             .foregroundStyle(on ? EchoelTheme.onPrimary : EchoelTheme.text)
-                            .padding(.horizontal, 11).frame(height: 30)
+                            // Same law as `touchPatchChip` above (#617): min-34 pill,
+                            // no outset — adjacent look chips are selectable peers.
+                            .padding(.horizontal, 11).frame(minHeight: 34)
                             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                                 .fill(on ? EchoelTheme.text : EchoelTheme.fill))
                             .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
