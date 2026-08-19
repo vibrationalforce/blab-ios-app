@@ -10660,3 +10660,59 @@ Wächter `TheGlanceSaysWhetherItIsABodyTests`, 11 Ansprüche, 1–5 echtes Verha
 **OFFEN:** OSC/ADM/Art-Net/sACN ohne Herkunft (#462 zweite Hälfte) · host-sichtbare AUv3-Parameter kennen
 die Flagge jetzt und sagen sie nicht · CLAUDE.md-Drift zu den vier Analysis-Views · Founder-Geräteprobe:
 „Demo" auf dem Home-Screen sichtbar.
+
+## 2026-08-19 (cron, ULTRACODE 24h) — Takt 46: zwei Reviewer + 9-Agenten-Audit, drei Scheiben
+
+**#632b (`89e2dbc`) — MEIN EIGENER COMMIT HAT EINEN WÄCHTER IM BLOCKIERENDEN BUNDLE ROT GEMACHT.**
+`RadiusHasOneSpellingTests` läuft über `root/Sources` — das GANZE Verzeichnis — und verbietet jedes
+`cornerRadius:`-Literal, dessen Wert ein benannter `EchoelTheme`-Radius ist. `radiusSmall` ist 4, und
+#632 schrieb zwei `cornerRadius: 4` in die zwei Extension-Targets. Auf dem Parent: null `cornerRadius`
+in beiden Dateien. **0 → 2, per Python gegen beide Bäume transkribiert.**
+Die naheliegende Reparatur gibt es nicht: `project.yml` gibt Widget und Watch ihr Verzeichnis plus
+`Core/BioFeedbackManager.swift` — `EchoelTheme` ist dort kein Symbol. **Zwei der drei Auswege wären
+unehrlich gewesen:** `cornerRadius: 3` macht den Scan grün und lässt die Spaltung stehen (verschöbe
+jemand `radiusSmall`, zögen drei Tags mit und zwei nicht — der Defekt, gegen den die Regel existiert);
+eine lokale Konstante ist dasselbe mit besserem Namen. **Gewählt: die Regel gesteht ihre Reichweite
+ein.** Läufer auf `Sources/Echoelmusic`, neues Gegengewicht pinnt die zwei Extension-Literale BEI NAMEN
+und prüft, dass `project.yml` den Targets das Theme weiterhin nicht gibt — Ausnahme läuft von selbst ab
+(`isFresh`-Form, #545).
+⚠️ Der erste Entwurf der Liste pinnte `:96`/`:97`, und DERSELBE Commit schob zwei Modifier darüber.
+**Eine Zeilennummer in einem Wächter über einer lebenden Datei ist ein Datum (#408)** — jetzt Datei+Wert.
+Dazu: dieselbe veraltete Zahl an ZWEI Stellen („acht Literale (1,2,6)" im Wächter-Header UND in
+`HeaderMonitors.swift`; gemessen sieben, {2,6}); drei Prosa-Phantome (meine eigene STILL-OPEN-Liste und
+`BioFeedbackPublisher` buchten gegen die 2026-07-24 entfernte AUv3; `BioSimulator`s frisches Rezept
+fälschte den eigenen Beleg — Prosa sagt „FÜNF", Befehl druckt sieben, weil zwei Kommentare die Nadel
+zitieren, um sie zurückzunehmen: `EchoelModalBank`-Lehre, einen Zyklus später reproduziert); und zwei
+Anzeige-Defekte gegen ein Gesetz, das das Repo schon hatte (`lineLimit`/`minimumScaleFactor` fehlten
+(#629b), `.stroke` statt `.strokeBorder`, `accessibilityLabel` fehlte auf der Fläche mit dem WENIGSTEN
+Kontext).
+
+**#633 (`8f10b6d`) — die einzige unumkehrbare Handlung im Einreichungspfad, Default AUS.**
+`fastlane/Deliverfile` stand auf `skip_screenshots false` + `overwrite_screenshots true`. Das heißt
+nicht „ersetzen", sondern **jeden Live-App-Store-Screenshot löschen und nichts hochladen** —
+`fastlane/screenshots` hält genau `.gitkeep`. Und es wäre endgültig: alle drei Aufnahme-Lanes und
+`Snapfile` zielen auf ein Schema `EchoelmusicScreenshots`, das `project.yml` nicht deklariert; es gibt
+kein UI-Test-Target. **Die vorhandene Absicherung schützt den Weg, den niemand geht:** das
+`UI.user_error!` entwaffnet die LANE, aber ein blankes `fastlane deliver` betritt keine Lane. Asymmetrisch
+und absichtlich: `skip_metadata` bleibt `false` — Listing-Text ist umkehrbar, Screenshots nicht.
+Wächter mit BEDINGTEM Anspruch statt Pin (#364): die zerstörerische Einstellung ist zulässig, **solange
+es etwas hochzuladen gibt**. Rot auf dem Parent, nie an legitimer Arbeit.
+
+**9-AGENTEN-AUDIT (Sicherheit · App Store · Developer Account), 3 Teams, 0 Fehler.**
+OK: kein Credential getrackt · kein HTTP-Client (0 `URLSession`) · alle sechs Egress-Pfade durch EIN
+`BioEgressPolicy`-Symbol · keine KI-Inferenz (0 Aufrufer) · Privacy-Manifest korrekt UND in beiden
+Targets gebündelt · alle fünf Sicherheitswarnungen erreichbar · Verschlüsselungs-Deklaration wahr.
+**1 CRITICAL:** kein Screenshot-Satz + Erfassungspfad auf nicht existierendes Schema → harte
+Einreichungs-Voraussetzung, nur per Hand + ASC-Weboberfläche lösbar (Founder-Handlung).
+**WARN, offen:** Bio-Daten sind die EINZIGEN Daten ohne Verschlüsselungsklasse (drei `UserDefaults`-
+Stellen) während Synth-Patches `.completeFileProtection` tragen — und `Library/Preferences` liegt im
+iCloud-Backup, aus dem Apple den HealthKit-Store absichtlich ausschließt · der CI-Secret-Scanner DRUCKT
+den gefundenen Secret ins öffentliche Log (`grep -rnE` statt `-rlE`, founder-gated) · jeder
+TestFlight-Deploy widerruft ALLE Development-Zertifikate des Teams, auch die auf dem Mac des Founders ·
+Art-Net-Default ist 255.255.255.255, ein Modus hinter einem Entitlement, das die App nicht hat ·
+`aps-environment`+CloudKit deklariert, null Code ausführbar (Entitlements sind NICHT founder-gated).
+
+**OFFEN als nächste Scheiben:** #634 `AlwaysOnBioRow` druckt vier Demo-Kanäle als Messung, im `bioPanel`
+unter dem markierten `BioStripView` und direkt unter „Four body channels…" — beide Reviewer und ich am
+Code bestätigt · #635 `BioVitals.isFresh` hat NULL Produktions-Aufrufer, beide Glances rendern eine
+beliebig alte Nutzlast als „Live" (macht auch den Widget-Store-Text „Live heart rate…" unwahr).
