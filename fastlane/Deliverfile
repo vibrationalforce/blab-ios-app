@@ -10,6 +10,14 @@
 # Connect copy with whatever is checked in. Read those files first and confirm
 # they describe what actually ships (they claimed an AUv3 plugin for a month
 # after the target was deleted).
+#
+# ⛔ AND "DORMANT" WAS THE PREMISE THAT MADE THIS FILE DANGEROUS (#633). Dormancy is a
+# property of the LANE, not of this file: `deliver` invoked directly reads these settings
+# with no lane in between, and the founder is doing submission work — which is exactly when
+# someone types `fastlane deliver`. The screenshot pair below is now safe by default; the
+# metadata pair deliberately is NOT, because uploading the checked-in copy is the intended
+# use of this file and that copy is reviewed (#184). Losing the remote SCREENSHOTS is the
+# only irreversible action in the whole submission path, so only that one is defaulted shut.
 # =============================================================================
 
 # App Store Connect App Identifier
@@ -41,11 +49,28 @@ skip_metadata false
 # Skip binary upload (handled by TestFlight lanes)
 skip_binary_upload false
 
-# Skip automatic screenshot upload
-skip_screenshots false
+# ⛔ THESE TWO WERE `false` / `true` UNTIL #633, AND TOGETHER THEY MEANT
+# "DELETE EVERY LIVE APP STORE SCREENSHOT AND UPLOAD NOTHING IN THEIR PLACE".
+# `git ls-files fastlane/screenshots` returns exactly ONE path and it is `.gitkeep` —
+# the directory is empty. `overwrite_screenshots true` does not mean "replace"; it means
+# remove-then-upload, and with nothing to upload the remote set is simply gone.
+#
+# It cannot be regenerated from this repo: all three capture lanes
+# (fastlane/Fastfile:221, :236, :249) and fastlane/Snapfile:36 target a scheme named
+# `EchoelmusicScreenshots`, and `project.yml`'s `schemes:` block declares only
+# Echoelmusic, EchoelmusicFullTests, EchoelmusicWidgets and EchoelmusicWatch. There is no
+# UI-test target anywhere in the repo. So the loss would be permanent.
+#
+# ⚠️ THE `upload_screenshots` LANE'S GUARD IS NOT ENOUGH, which is why this moved here
+# rather than being left to it. `fastlane/Fastfile:265-267` disarms that ONE lane with an
+# unconditional `UI.user_error!` — but a bare `fastlane deliver` typed at a terminal never
+# enters a lane and reads these defaults directly. The safe state has to BE the default.
+#
+# Re-arm both in the SAME commit that adds real screenshot files, never before.
+skip_screenshots true
 
-# Force overwrite all remote screenshots
-overwrite_screenshots true
+# Force overwrite all remote screenshots (see the block above before touching this)
+overwrite_screenshots false
 
 # App Store submission information
 submit_for_review false
