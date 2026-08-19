@@ -7676,6 +7676,14 @@ struct EchoelStudioView: View {
         // branch.) Playing → staged at the bar boundary, no cut; stopped → the ordinary
         // load path.
         pianoRoll.rebakeArrangement(bars, playing: running && beatPlayer.pattern.isPlaying)
+        // #622b (review W1): the FOURTH `hasComposed` writer, conditional like open()'s.
+        // Without it the flag went stale-false on this path: a take whose `notes`
+        // decoded empty but whose `rawTake` survived opened grey (#622's honest flag),
+        // then a Mix-fader nudge restored the FULL arrangement right here — and the
+        // export tile, Save and the explainer all kept claiming nothing had composed,
+        // while Play would have destroyed the recovery. The flag is a snapshot; every
+        // path that LOADS notes must refresh it (the guard counts the writers).
+        hasComposed = !pianoRoll.notes.isEmpty
         // `createIfNeeded: false` — a level change must never invent a clip; it only
         // rewrites the composer-owned one if it is already there.
         syncPrimaryRollClip(bars: bars, createIfNeeded: false)
@@ -10190,8 +10198,10 @@ struct EchoelStudioView: View {
         // quarters, which is the whole point of "in der DAW weiterarbeiten". It emits an
         // empty, named Drums track — inert in any DAW, and honest, because it is empty.
         guard !arrangedNotes.isEmpty else {
-            // The button is enabled on `hasComposed`, which can be true with an empty roll
-            // (open a project whose notes did not survive, then tap). Silent return = a
+            // The button is enabled on `hasComposed`. #622 closed the classic route to
+            // "true with an empty roll" (open a lossy-decoded take), so this guard is
+            // now the LAST line of defence, not the first — kept because any future
+            // writer that arms the flag over an empty roll lands here. Silent return = a
             // control that looks like it worked. No alert — the sheet chain may not grow —
             // but the diag log must be able to say what happened.
             EchoelCrashLog.breadcrumb("MIDI export skipped: no notes in the roll")
@@ -10277,12 +10287,15 @@ struct EchoelStudioView: View {
     ///   replaces the previous autosave instead of adding a row per app switch, and it can
     ///   never land on a take the user named and saved (those carry random ids).
     /// · THE GUARD IS TWO CONDITIONS, and the second one was missing in the first cut.
-    ///   `hasComposed` alone is NOT enough: it is set `true` unconditionally by `open()` and
-    ///   is never set back to `false` anywhere, so opening a legacy take whose notes did not
-    ///   survive the lossy decoder leaves it true over an EMPTY roll. The next departure then
-    ///   wrote that empty take into the single slot and the good recovery point was gone —
-    ///   with no undo, because there is only one slot. `exportMIDI()` already says the same
-    ///   thing about `hasComposed` at its own empty-notes guard; I did not read it.
+    ///   ⛔ #622b: the justification that stood here — "`hasComposed` … is set `true`
+    ///   unconditionally by `open()` and is never set back to `false` anywhere" — became
+    ///   FALSE the day #622 made open()'s write conditional (`!pianoRoll.notes.isEmpty`,
+    ///   which can also set it back to false mid-session). The two-condition guard STAYS
+    ///   anyway, for the #343 reason: it is this function's own defence, not a mirror of
+    ///   open()'s — a future writer that arms the flag over an empty roll (the importMIDI
+    ///   near-miss the #622 review caught) must not overwrite the single autosave slot.
+    ///   `exportMIDI()` already says the same thing about `hasComposed` at its own
+    ///   empty-notes guard; I did not read it.
     ///   ⛔ That pointer first read "the Save button's own doc … sixty lines up". There is no
     ///   such doc — the Save button is a bare `Button` with `.disabled(!hasComposed)` and no
     ///   comment at all, so a reader following it would find nothing and conclude the
@@ -10555,7 +10568,13 @@ struct EchoelStudioView: View {
             return
         }
         let placed = pianoRoll.importNotes(imported)
-        hasComposed = true
+        // #622b (review W3): "= true" here rested on a false premise — a SUCCESSFUL
+        // import of a drums-only SMF yields zero melodic notes (ch10 is excluded, see
+        // below), which would have armed the chrome over an empty roll: Rank 1
+        // verbatim, through the sanctioned writer. Honest like the other loaders.
+        // (This door is currently setterless — the fix is for the day the slot is
+        // reused, which the repo documents as headroom.)
+        hasComposed = !placed.isEmpty
         // GM channel-10 hits still land on the 8×16 grid — but THERE IS NO KIT any more
         // (#167): the grid is a bar/step CLOCK, nothing turns a step into sound. This
         // block is inert, kept only because `PatternEngine` still carries the step data;

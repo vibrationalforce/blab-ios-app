@@ -197,10 +197,10 @@ final class OpeningAProjectRescuesTheLiveTakeTests: XCTestCase {
             `false`, and writing a recovery point for a session that does not exist would put \
             an empty row in the library the first time the user opens anything. \
             (⛔ An earlier version of this message argued from "`hasComposed` is set `true` \
-            unconditionally by `open(_:)` and never set back", which is true and is an \
-            argument AGAINST this guard's reach, not for it: after the first open the flag is \
-            permanently true and only the empty-roll half below still does any work. Right \
-            assertion, wrong "so".)
+            unconditionally by `open(_:)` and never set back" — a premise #622 RETIRED: \
+            open() now writes `!pianoRoll.notes.isEmpty`, which can also set the flag back \
+            to false. The guard's job is unchanged either way; the vouching sentence that \
+            stood here ("which is true") aged out and is corrected by #622b.)
             """)
 
         XCTAssertTrue(body.contains { $0.contains("pianoRoll.notes.isEmpty") }, """

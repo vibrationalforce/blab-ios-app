@@ -172,11 +172,12 @@ final class AutosaveSlotTests: XCTestCase {
                       + "round trip.")
 
         XCTAssertTrue(lines.contains { $0.contains("!pianoRoll.notes.isEmpty") },
-                      "the emptiness guard is gone. `hasComposed` alone is set true "
-                      + "unconditionally by `open()` and never set back, so an empty roll would "
-                      + "overwrite the single reserved slot — destroying the one recovery point "
-                      + "the user has, with no undo. This is the only line here whose loss "
-                      + "DESTROYS data rather than failing to save it.")
+                      "the emptiness guard is gone. It is this function's OWN defence "
+                      + "(#622b: open() now sets the flag conditionally, but a future writer "
+                      + "arming `hasComposed` over an empty roll — the importMIDI near-miss — "
+                      + "would overwrite the single reserved slot, destroying the one recovery "
+                      + "point the user has, with no undo). This is the only line here whose "
+                      + "loss DESTROYS data rather than failing to save it.")
 
         XCTAssertTrue(lines.contains { $0.contains("take.id = Project.autosaveSlotID") },
                       "the autosave no longer stamps the reserved id, so every departure adds a "

@@ -8,29 +8,32 @@
 // so an opened empty take produced a bright tile whose tap did literally nothing,
 // forever. The trap self-propagated: Save is `hasComposed`-gated too and writes
 // `pianoRoll.notes`, so the empty take could be saved under a real name and re-opened.
-// The fix makes open()'s flag honest: `hasComposed = !pianoRoll.notes.isEmpty` — the
-// same second condition the autosave guard has carried since #204, applied at the
-// third writer. The first-run explainer (rendered while `!hasComposed`) then returns
-// and TELLS the player what to do, instead of a control that eats the tap.
+// The fix makes the flag honest at every loader: open() and rebalanceTake() write
+// `hasComposed = !pianoRoll.notes.isEmpty` (the #204 autosave condition), importMIDI
+// writes `= !placed.isEmpty` (#622b), and only generate() stays unconditional. The
+// first-run explainer (rendered while `!hasComposed`) then returns and TELLS the
+// player what to do, instead of a control that eats the tap.
 //
 // KIND (§1): SOURCE-TEXT SCAN throughout — proves the writers' shape, never device
 // behaviour. That an opened empty take actually shows the explainer is a device probe.
 //
-// GRADING (#433, parent = the commit before #622): claim 1 is FORWARD (the honest
-// spelling is written by this commit; parent has 0). Claim 2 is red on the parent for
-// its named reason (three unconditional writers there, two here). Claims 3–5 are
-// COUNTERWEIGHTS, green on both trees — they pin the three premises that make the fix
-// mean anything (the export guard, its breadcrumb, the autosave law).
+// GRADING (#433, re-graded at #622b against the pre-#622 parent): claims 1 and the
+// importMIDI pin are FORWARD (#622/#622b write those spellings; parent has 0 of each).
+// The unconditional count is red on the parent for its named reason (three writers
+// there, one here). Claims 3-5 are COUNTERWEIGHTS, green on both trees — they pin the
+// premises that make the fix mean anything (the export guard, its breadcrumb, the
+// autosave law — whose justification now cites its OWN defence, not open()'s shape,
+// because #622 retired the old premise: see the ⛔ at autosaveTake's doc).
 //
-// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED TRAGEND (2 of 5
-// verdicts flip raw vs stripped on the worktree): the #622 comment quotes BOTH the old
-// spelling (`hasComposed = true`) and the autosave guard verbatim, so the ==2 count
-// and the ==1 autosave count are inflated raw — exactly the class codeOnly exists for.
+// Stripper: delegates to `SourceText.codeOnly` (#453). RE-MEASURED at #622b, still
+// TRAGEND (2 of 6 verdicts flip raw vs stripped on the worktree): the #622 comment
+// quotes the old spelling (`hasComposed = true`) and the autosave guard verbatim, so
+// those counts are inflated raw — exactly the class codeOnly exists for.
 //
-// ⚠️ #364: a FOURTH `hasComposed = true` writer is not forbidden forever — a new
+// ⚠️ #364: a SECOND unconditional writer is not forbidden forever — a new
 // composed-path that provably always loads notes may add one, updating the count here
 // in the same commit; the failure message says so. What is forbidden silently is
-// re-flattening open()'s honest spelling.
+// re-flattening any loader's honest spelling.
 
 import Foundation
 import XCTest
@@ -51,29 +54,41 @@ final class AnOpenedEmptyTakeCannotArmTheExportTests: XCTestCase {
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
     }
 
-    /// 1 — open()'s flag is the honest spelling.
-    func testOpenSetsTheFlagFromTheNotes() throws {
+    /// 1 — the honest spelling at BOTH note-loading paths: open() and (since #622b,
+    /// review W1) rebalanceTake() — the fader-rebake restores a full arrangement and
+    /// must refresh the snapshot flag, or a rawTake-recovered take stays grey while its
+    /// notes sit ready to export.
+    func testTheLoadersSetTheFlagFromTheNotes() throws {
         let lines = try studioLines()
         XCTAssertEqual(lines.filter { $0.contains("hasComposed = !pianoRoll.notes.isEmpty") }.count,
-                       1, """
-            open()'s honest `hasComposed = !pianoRoll.notes.isEmpty` is gone (or \
-            duplicated). Re-flattening it to `= true` re-arms the pianokeys export tile \
-            for a take with zero notes — the tap then does literally nothing (#622, \
-            Ultra-Audit MIDI Rank 1), and Save re-propagates the empty take.
+                       2, """
+            the honest `hasComposed = !pianoRoll.notes.isEmpty` writers changed — there \
+            are TWO: open() (#622, Ultra-Audit MIDI Rank 1: re-flattening it re-arms the \
+            export tile over zero notes) and rebalanceTake() (#622b: without it the \
+            fader-rebake leaves the flag stale-false over a restored arrangement, and \
+            Play would destroy the recovery). A third loader takes the same spelling \
+            and updates this count in the same commit.
             """)
     }
 
-    /// 2 — exactly TWO unconditional writers remain (generate + the unreachable
-    /// importMIDI, which always follows a successful import).
+    /// 2 — exactly ONE unconditional writer remains: generate(), which always loads
+    /// the bars it just composed. ⛔ #622b (review W3): importMIDI's sanction rested on
+    /// a false premise — a SUCCESSFUL import of a drums-only SMF yields zero melodic
+    /// notes (ch10 excluded), Rank 1 verbatim through the sanctioned writer. It is now
+    /// `hasComposed = !placed.isEmpty` (pinned below).
     func testTheUnconditionalWritersAreCounted() throws {
         let lines = try studioLines()
-        XCTAssertEqual(lines.filter { $0.contains("hasComposed = true") }.count, 2, """
-            the number of unconditional `hasComposed = true` writers changed. Two are \
-            sanctioned: generate() (always loads the bars it just composed) and \
-            importMIDI() (follows a successful import). A NEW writer must decide \
-            honesty consciously — if it can run with an empty roll, it needs the \
-            `!pianoRoll.notes.isEmpty` condition (the #204 autosave law); if it \
-            provably cannot, update this count in the same commit and say why there.
+        XCTAssertEqual(lines.filter { $0.contains("hasComposed = true") }.count, 1, """
+            the number of unconditional `hasComposed = true` writers changed. ONE is \
+            sanctioned: generate() (always loads the bars it just composed). A NEW \
+            writer must decide honesty consciously — if it can run with an empty roll, \
+            it needs an emptiness condition (the #204 autosave law); if it provably \
+            cannot, update this count in the same commit and say why there.
+            """)
+        XCTAssertEqual(lines.filter { $0.contains("hasComposed = !placed.isEmpty") }.count, 1, """
+            importMIDI's honest flag (`= !placed.isEmpty`, #622b) is gone — a drums-only \
+            SMF imports successfully with zero melodic notes, and `= true` there arms \
+            the chrome over an empty roll the day the import door is reopened.
             """)
     }
 
