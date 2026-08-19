@@ -661,8 +661,13 @@ public final class AudioEngine {
                 // history in the ring — which every pre-roll reader then wrote out under the
                 // NEW rate. So the very pitch-shift named here survived this fix, moved from
                 // the live tap into the pre-roll. `install(on:)` now records a rate boundary
-                // and the two file writers stop at it; the sentence above is true because
+                // and the pre-roll readers stop at it; the sentence above is true because
                 // #630 made it true, not because re-installing was ever enough.
+                //
+                // ⚠️ Closed for the PRE-ROLL only. A rate change during an ACTIVE take still
+                // leaves `RetroCapture.activeFile` open at the old rate — see the registered
+                // note on `rateBoundaryFrame` (#630b). Do not read this retraction as "the
+                // rate hazard is handled".
                 if self.masterEngine.isRunning {
                     self.recoveryAttempts = 0
                     self.retroCapture.install(on: self.masterEngine)

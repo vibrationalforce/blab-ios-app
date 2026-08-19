@@ -35,14 +35,28 @@
 //     exist, so each needle is 0 there and 1 (or 2) here. This file compiles against the
 //     parent — it names no new symbol, only greps for text — so unlike the #629 family these
 //     really would have RUN and failed.
-//   · claim 5 is a COUNTERWEIGHT on its first half (the waveform tick never used the helper,
-//     0 on both trees) and a REGRESSION on its second (the exception is only WRITTEN DOWN
-//     here).
+//   · claim 5 is a COUNTERWEIGHT, FULL STOP. ⛔ #630b: it was graded "counterweight on its
+//     first half, regression on its second (the exception is only WRITTEN DOWN here)" — and
+//     the second half has NO ASSERTION BEHIND IT, nor could it: `SourceText.codeOnly` blanks
+//     comments, so this bundle cannot see whether anything is written down. Both of claim 5's
+//     assertions are green on the parent. Calling half of it a regression was the flattering
+//     direction §3 names, in the same file that pins an ordering precisely because a silent
+//     no-op looks like a fix.
+//   · claim 6 arrived with #630b. Measured on all THREE trees rather than described: against
+//     `28b3805` (#630 itself) all three of its assertions are red — the helper was used, the
+//     request-sized `frames` was gone, the blank did not exist. Against `ebf5e69` only the
+//     BLANK assertion is red; the other two were already true there, because the method was
+//     length-stable before #630 broke it. Three parents, named per assertion rather than
+//     averaged into one comfortable word.
 //   · claim 3 is a COUNTERWEIGHT — the length contract is unchanged by #630 and must stay so.
 //
-// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH** — all
-// fourteen source-scan verdicts (seven needles × two trees) are identical raw and stripped;
-// no comment on either tree spells a needle in its code form.
+// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH** — every
+// source-scan verdict is identical raw and stripped; no comment on either tree spells a
+// needle in its code form. ⛔ #630b: the count here read "seven needles / fourteen verdicts"
+// and the needles were eight even then (claim 1 carries three, claim 2 two, claim 4 one,
+// claim 5 two). With claim 6 they are eleven. The number is dropped rather than corrected a
+// third time — this file's own §0 rule is that a hand count of its own assertions is exactly
+// the kind of number that goes stale, and nothing depends on it.
 //
 // ⚠️ #364: a different mechanism is not forbidden — zeroing the ring on a rate change would
 // also be correct, just wasteful (an ~11 MB memset at route-change time, and it discards
@@ -108,15 +122,19 @@ final class APreRollNeverCrossesARateSwitchTests: XCTestCase {
         }
     }
 
-    /// 2 — REGRESSION: the two FILE writers go through the one clamped window helper, and the
-    /// helper actually consults the boundary.
+    /// 2 — REGRESSION: the truncating window exists, is used, and actually consults the
+    /// boundary. ⛔ #630b: this claim was called "the two FILE writers" and the count `3` was
+    /// read as declaration-plus-two-writers. `captureRecent` must NOT be one of them (claim
+    /// 6), and the third occurrence today is the honest pre-roll figure in `startRecording`'s
+    /// log. The count is kept because it still forbids an un-clamped second writer, but what
+    /// it MEANS is pinned by claim 6, not by this arithmetic.
     func testBothFileWritersTakeTheClampedWindow() throws {
         let lines = try codeLines("Sources/Echoelmusic/Audio/RetroCapture.swift")
         XCTAssertEqual(lines.filter { $0.contains("preRollWindow(requestedFrames:") }.count, 3, """
-            the clamped-window helper no longer has exactly one declaration and two callers. \
-            The two callers are the FILE writers (`writePreRollToFile` and `captureRecent`); \
-            a writer that computes its own `max(0, end - frames)` again can reach back across \
-            a rate switch, which is #630 restored for that one path.
+            the clamped-window helper no longer has exactly one declaration and two call \
+            sites (`writePreRollToFile`, and `startRecording`'s log figure). A pre-roll writer \
+            that computes its own `max(0, end - frames)` again can reach back across a rate \
+            switch. WHICH readers may truncate is claim 6's subject, not this count's.
             """)
         XCTAssertEqual(lines.filter {
             $0.contains("max(max(0, end - wanted), Int(rateBoundaryFrame))")
@@ -177,7 +195,64 @@ final class APreRollNeverCrossesARateSwitchTests: XCTestCase {
                 bin means and makes the level meter jump at a route change — for no honesty \
                 gain, because nothing here is exported or played (#630).
                 """)
+            // #630b: forbid the CLAMP as well as the helper. Claim 5's first form banned one
+            // spelling — `preRollWindow(` — and an inline
+            // `max(max(0, endFrame - totalFrames), Int(rateBoundaryFrame))` right above the
+            // binning line is the natural way to "harmonise" the tick without the helper, and
+            // would have passed untouched.
+            XCTAssertFalse(window.contains { $0.contains("rateBoundaryFrame") }, """
+                the waveform tick now consults the rate boundary by hand. Same objection as \
+                the helper: it bins the WHOLE ring into a fixed number of display bins, so \
+                clamping changes what a bin means, and blanking would show a gap that reads \
+                as "the engine stopped" in a level meter (#630b).
+                """)
         }
+    }
+
+    /// 6 — REGRESSION (#630b): `captureRecent` keeps its LENGTH. This is the claim that would
+    /// have caught #630's own worst defect, and it did not exist then.
+    ///
+    /// Its two consumers both do duration arithmetic on the result: `VideoMuxer` end-aligns
+    /// to `CMTimeMinimum(video, audio)` — so a short audio file CUTS THE VIDEO, and
+    /// `VisualRecorder` then deletes the full-length original — and `SingleExport`'s trim
+    /// resolver treats a too-short file as "export it all", reported as success. Truncating
+    /// here traded a partly pitch-shifted clip for destroyed footage and a silently wrong loop.
+    func testTheRetroactiveCaptureKeepsItsRequestedLength() throws {
+        let lines = try codeLines("Sources/Echoelmusic/Audio/RetroCapture.swift")
+        let start = lines.firstIndex { $0.contains("func captureRecent(seconds: Double) -> URL?") }
+        // ⛔ #630b: the first version anchored the END on `// MARK: - Helpers` — a COMMENT,
+        // which `SourceText.codeOnly` blanks. The bracket therefore failed on EVERY tree and
+        // this claim was red on a correct one, the #626 failure exactly. Both anchors must be
+        // CODE. Caught by the §0 transcription before the commit, not after.
+        let end = lines.firstIndex { $0.contains("private func makeRecordingURL() throws -> URL") }
+        guard let s = start, let e = end, s < e else {
+            return XCTFail("could not bracket `captureRecent` — its declaration or the "
+                           + "following `makeRecordingURL` moved, so this claim measures nothing")
+        }
+        let body = Array(lines[s...e])
+
+        XCTAssertFalse(body.contains { $0.contains("preRollWindow(") }, """
+            `captureRecent` takes the TRUNCATING window again. Its callers mux and trim by \
+            duration: `VideoMuxer` cuts the video down to the audio's length and \
+            `VisualRecorder` then deletes the original, so a route switch shortly before Stop \
+            destroys the take. Truncation is only correct where the caller has no length \
+            expectation — here it has two (#630b).
+            """)
+        XCTAssertEqual(body.filter {
+            $0.contains("let frames = min(max(Int(seconds * captureSampleRate), 0), ringCapacity)")
+        }.count, 1, """
+            `captureRecent` no longer sizes its file from the REQUEST. A constant-duration \
+            file is the contract both consumers were written against — and note the defect \
+            fires without any rate switch at all: with the boundary at 0 a truncating window \
+            is still short for the first ~30 s after every engine start (#630b).
+            """)
+        XCTAssertEqual(body.filter {
+            $0.contains("guard startFrame + written + f >= boundary else {")
+        }.count, 1, """
+            `captureRecent` copies pre-boundary frames again. It keeps its length (above), so \
+            without this skip the old-rate frames go into the file under the new rate — #630's \
+            original defect, restored in the one reader that must not shorten (#630b).
+            """)
     }
 }
 #endif
