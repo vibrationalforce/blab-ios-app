@@ -32,9 +32,11 @@
 //     #627 fix; and under Simulation its `liveBio == nil` hint disappears, i.e. the sheet
 //     did not merely omit a marker, it asserted a measured body.
 //   · `OwnBioRow` in `LiveColaboView` ("You", bpm + coherence from `usableBio()`) —
-//     DEFERRED. Its own sheet, its own door (`showLiveColabo`), and it is the visible half
-//     of the Multipeer question below; marking the row while the payload still lies would
-//     split one decision across two cycles.
+//     **MARKED (#629)**, together with the peer rows and the wire payload, exactly as the
+//     deferral said it should be: one decision, not two cycles. ⛔ This entry read "DEFERRED"
+//     until #629b and was false the moment #629 landed — the same class as the CRITICAL that
+//     created this list. A per-entry list only beats a count if the entries get ticked off in
+//     the commit that closes them.
 //   · `AlwaysOnBioRow` — DEFERRED, and the recorded reason is now narrowed to the mount it
 //     actually covers. In the FX sheet its subject is genuinely the SOUND path (its own #484
 //     doc), so a synthetic 0.42 is a true statement about the engine's input. The Bio-panel
@@ -45,12 +47,19 @@
 //   · `BioModContributionRow` (FX sheet, "Live — body → sound") — needs a user-added route
 //     to render at all; unmeasured, listed so it is not mistaken for cleared.
 //
-// EGRESS is untouched and that is a protocol decision, not an oversight: `BioEgressPolicy`
-// admits `.fallback`, no OSC / ADM-OSC / Art-Net / sACN address carries a source, and
-// `ColabPayload.egressible` builds a `BioPeek` with NO source field — so in a Live Colabo
-// session another performer sees your demo BPM under your peer name. #627 named the four
-// network protocols and missed the peer payload; it is named here. Apple Health is clean and
-// needs nothing: `HealthWritePolicy.isWritableSource` admits only `.ble` and `.cameraPPG`.
+// EGRESS splits in two, and #629 closed one half:
+//   · **Peer payload — CLOSED (#629).** ⛔ This paragraph said `ColabPayload.egressible`
+//     builds a `BioPeek` with NO source field, "so another performer sees your demo BPM
+//     under your peer name". `BioPeek.synthetic` exists since #629 and the rows render it;
+//     the sentence is retracted rather than deleted, because it is the sentence #627b wrote
+//     to stop a session from concluding the peer path was fine. Guard:
+//     `Tests/CISmoke/ThePeerSeesWhetherItIsABodyTests.swift`.
+//   · **OSC / ADM-OSC / Art-Net / sACN — STILL OPEN, and a protocol decision rather than an
+//     oversight.** `BioEgressPolicy` admits `.fallback` and no address in the set carries a
+//     source, so an integrator cannot tell a demo walk from a measured pulse. #627 named
+//     these four and missed the peer payload; the peer payload is done, these four are not.
+// Apple Health is clean and needs nothing: `HealthWritePolicy.isWritableSource` admits only
+// `.ble` and `.cameraPPG`.
 //
 // KIND (§1): SOURCE-TEXT SCAN throughout. Both surfaces are SwiftUI leaves whose rendered
 // output this bundle cannot inspect; what is checkable is that the branch exists, that it

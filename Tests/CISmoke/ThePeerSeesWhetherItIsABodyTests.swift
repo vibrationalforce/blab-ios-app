@@ -22,8 +22,10 @@
 //
 // KIND (§1): claims 1-6 and 8 are BEHAVIOURAL against the real `BioPeek` — the projection,
 // the wire round-trip, forward compatibility and the size budget are all executable here,
-// so almost nothing in this file is a text scan. Claim 7 is a SOURCE SCAN of the two view
-// call sites, because a SwiftUI row cannot be driven in this bundle.
+// so almost nothing in this file is a text scan. Claim 7 is a SOURCE SCAN of five needles in
+// the view — two call sites, the VoiceOver ternary, the chip and the heart tint — because a
+// SwiftUI row cannot be driven in this bundle. (#629b: it said "the two view call sites"
+// while carrying three needles, and then grew to five.)
 //
 // GRADING (#433 / §3, against `509e864`) — and the parent's failure MODE is stated, because
 // "red on the parent" hides two different things here:
@@ -31,13 +33,20 @@
 //     bundle FAILS TO COMPILE there. They are regressions in the sense that matters (the
 //     capability is absent), but nobody would ever see them fail as assertions. Recorded
 //     this way rather than as a flat "red", which would suggest a running test.
-//   · claim 7 is a REGRESSION that WOULD have run and failed: measured on `509e864`, its
-//     three needles are 0 / 0 / 0 and on the worktree 1 / 1 / 1, raw and stripped alike.
+//   · claim 7 is a REGRESSION, HAND-TRANSCRIBED: on `509e864` its needles are 0 / 0 / 0 and
+//     on the worktree 1 / 1 / 1, raw and stripped alike. ⛔ #629b: this line said it "WOULD
+//     have run and failed" — it would not have RUN at all, because the bundle it lives in
+//     does not compile against that parent. The measurement was right and the verb was
+//     wrong.
 //   · claim 5 additionally records a CHOICE rather than a defect: `nil` over `false` as the
 //     memberwise default. There was no parameter to get wrong; there is now, and the wrong
 //     value would be the convenient one.
-//   · claims 6 and 8 are COUNTERWEIGHTS — they compile and pass on both trees. 6 is the
-//     important one: the cheap way to stop the lie is to add `.fallback` to the deny list,
+//   · claims 6 and 8 are COUNTERWEIGHTS. ⛔ #629b: "they compile and pass on both trees" was
+//     self-contradictory two bullets after stating that the bundle does not compile against
+//     the parent — NO assertion in this file has a verdict there, and §3 forbids letting
+//     "not gradable against the parent" read as "green against its own tree" (#488 shipped a
+//     red gate for a cycle behind that exact ambiguity). What is true: their SUBJECTS are
+//     unchanged by this commit, hand-transcribed. 6 is the important one: the cheap way to stop the lie is to add `.fallback` to the deny list,
 //     which trades a marked demo for a blanked row and confuses provenance with privacy. 8
 //     keeps the added field from quietly blowing the streaming size budget.
 //
@@ -82,7 +91,13 @@ final class ThePeerSeesWhetherItIsABodyTests: XCTestCase {
     /// statement and not merely a silence.
     func testAMeasuredFrameTravelsMarkedAsMeasured() {
         for source in [BioSource.cameraPPG, .ble, .faceCam] {
-            XCTAssertEqual(BioPeek.egressible(from: frame(source))?.synthetic, false, """
+            // #629b: unwrap FIRST. Without it, a source that stopped egressing at all fails
+            // here with a message about marking, i.e. names the wrong defect; claim 6 would
+            // catch the real cause but only after this one has misdirected the reader.
+            guard let peek = try? XCTUnwrap(BioPeek.egressible(from: frame(source)),
+                                            "\(source) no longer egresses at all — that is "
+                                            + "claim 6's subject, not this one") else { continue }
+            XCTAssertEqual(peek.synthetic, false, """
                 \(source) egresses with `synthetic` not equal to false. A build that KNOWS \
                 must say so; leaving it nil would make a real reading indistinguishable from \
                 an older sender that cannot answer (#629).
@@ -150,7 +165,8 @@ final class ThePeerSeesWhetherItIsABodyTests: XCTestCase {
         }
     }
 
-    /// 7 — REGRESSION (source scan): both rows actually pass it, and VoiceOver leads with it.
+    /// 7 — REGRESSION (source scan): both rows pass it, VoiceOver leads with it, and — since
+    /// #629b — the two things a viewer actually SEES are pinned as well.
     func testBothRowsPassTheMarkerAndVoiceOverLeadsWithIt() throws {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent()
@@ -176,6 +192,32 @@ final class ThePeerSeesWhetherItIsABodyTests: XCTestCase {
             VoiceOver no longer LEADS with the marker. A trailing "simulated" is heard as a \
             measurement with an addendum — the same ordering law the header pill's \
             `accessibilityText` follows (#627/#629).
+            """)
+        // ⛔ #629b: the two assertions below were MISSING, and they cover the slice's own
+        // headline. Deleting the whole `if synthetic == true { Text("Demo") … }` block, or
+        // reverting the heart tint to a bare `highlight ?`, left all eight claims green —
+        // the VISIBLE marker was unguarded while the VoiceOver string was pinned. #627 pins
+        // its equivalent accent as a literal and #627b had to add a colour claim for exactly
+        // this reason; #629 reproduced both holes one surface over.
+        //
+        // GRADED AND MEASURED against `963f9f6` (#629 itself), not averaged: the chip needle
+        // is a COUNTERWEIGHT (1 on both trees — the chip existed, only the guard did not),
+        // the tint needle is a REGRESSION (0 → 1, because #629's expression lacked the
+        // `bpm > 0` term that makes its own comment true). Both 0 on `509e864`. Raw ==
+        // stripped on all three trees, so the stripper stays PROPHYLAKTISCH.
+        XCTAssertEqual(lines.filter { $0.contains("if synthetic == true {") }.count, 1, """
+            the visible "Demo" chip is gone from `bioLine`. VoiceOver would still say it and \
+            every other claim in this file would still pass — a marker only a screen reader \
+            can perceive is not the marker this slice shipped (#629b).
+            """)
+        XCTAssertEqual(lines.filter {
+            $0.contains("(highlight && synthetic != true && bpm > 0)")
+        }.count, 1, """
+            the heart tint no longer gates on realness. The accent is the "a real pulse is \
+            here" colour — the same claim the header pill makes with `(locked && !synthetic)` \
+            — so a demo row painting it says with colour what the row denies in words. The \
+            `bpm > 0` term is what makes that claim TRUE here rather than merely asserted \
+            (#629b).
             """)
     }
 

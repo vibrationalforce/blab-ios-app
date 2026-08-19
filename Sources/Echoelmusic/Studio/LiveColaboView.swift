@@ -321,6 +321,19 @@ private struct OwnBioRow: View {
                     // #629: YOUR row reads the frame directly — no wire, no optionality.
                     // `f == nil` gives `false`, which is right: with nothing to show there
                     // is nothing to mark, and the numbers beside it are already "—".
+                    //
+                    // ⛔ #629b — DO NOT "HARMONISE" THIS WITH `BioStripView.isSynthetic`,
+                    // which #627b hardened to `… && !cameraRPPG.isRunning`. That term is
+                    // right THERE and would be the inverted bug HERE, and a session
+                    // grepping for `.fallback` comparisons after reading that guard's
+                    // failure message ("it must exclude a running camera") would make
+                    // exactly that edit. The strip mixes two origins — its numbers can come
+                    // from `cameraRPPG` while its tag reads a stale `.fallback` bus frame,
+                    // which is why it needs the term. This row has ONE origin: `bpm`,
+                    // `coherence` and `synthetic` all come from the same `f`. Adding the
+                    // camera term would print the simulator's numbers with the marker OFF —
+                    // the very defect #627b repaired, mirrored. The send path has the same
+                    // one-frame shape (`egressible(from:)`), deliberately.
                     synthetic: f?.source == .fallback)
         }
     }
@@ -376,27 +389,61 @@ private struct PeerBioRows: View {
 
 /// One person's row: name · BPM · coherence (their OWN values; `0` shows as "—",
 /// mirroring BioSampleFrame's "not available"). Legible numbers first.
-@MainActor
+///
 /// #629 — `synthetic`: `true` = the Demo source, `false` = a measured body, `nil` = the
 /// sender did not say (an older build, or a locally-built peek). **`nil` renders exactly
 /// like `false`** — unmarked — because a silent sender is not a claim, and turning silence
 /// into "real" would be the over-claim this parameter exists to end.
+///
+/// ⛔ #629b: the doc block above used to sit BELOW `@MainActor`, i.e. attribute first, then
+/// documentation, then the declaration. It parses (comments are trivia) but splits one
+/// declaration's documentation around an attribute and can drop the lower half from Quick
+/// Help — the readers who most need the `nil` rule are the ones reading the signature.
+@MainActor
 private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool,
                      synthetic: Bool? = nil) -> some View {
     HStack(spacing: 8) {
         Image(systemName: highlight ? "heart.fill" : "heart")
             .font(.system(size: 12))
-            // #629: the accent is the "a real pulse is here" colour, the same claim the
-            // header pill makes with it. A demo row keeps the dim heart even when it is
-            // YOUR row, so the marker is not only a word someone has to read.
-            .foregroundStyle((highlight && synthetic != true) ? EchoelTheme.accent : EchoelTheme.dim)
+            // #629: the accent is the "a real pulse is here" colour, so a demo row keeps
+            // the dim heart even when it is YOUR row — the marker is not only a word
+            // someone has to read.
+            //
+            // ⛔ #629b: this comment claimed "the same claim the header pill makes with it"
+            // and the expression did not implement it. The pill's accent is
+            // `(locked && !synthetic)` — it requires an actual PULSE; this one asked only
+            // `highlight`, which means "this is your row" and is hard-coded `true`. So with
+            // no reading at all the row painted a filled accent heart beside "— bpm". The
+            // claim is now TRUE rather than retracted, because making it true costs one
+            // term: `bpm > 0` is this function's own "a pulse is here" (both value cells
+            // already branch on it). The over-claim was pre-existing; asserting the pill's
+            // law over it was new, and this repo treats a comment whose expression does not
+            // mean what it says as the finding, not as decoration.
+            //
+            // ⚠️ HONEST LIMIT, stated because the colour reads like it carries more than it
+            // does: on a PEER row `highlight` is always `false`, so a demo peer and a
+            // measured peer both get the dim outline heart. There the word and the VoiceOver
+            // prefix carry the whole marker. Making peer rows colour-code realness would
+            // paint someone ELSE's body in your accent colour, which is a different design
+            // question than the one #629 answers.
+            .foregroundStyle((highlight && synthetic != true && bpm > 0)
+                             ? EchoelTheme.accent : EchoelTheme.dim)
         Text(name).font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
-            .lineLimit(1)
+            // #629b: the chip below takes ~35 pt out of this row, and at accessibility text
+            // sizes the two value cells grow too. Deliberate order of loss: the NAME shrinks
+            // and then truncates, the numbers do not — "legible numbers first" is this
+            // file's stated law, and a name is recoverable from context while a half-drawn
+            // BPM is not. Stated because it is a choice, not a side effect.
+            .lineLimit(1).minimumScaleFactor(0.7)
         if synthetic == true {
             Text("Demo")
                 .font(EchoelTheme.font(10, .semibold))
                 .foregroundStyle(EchoelTheme.dim)
-                .lineLimit(1)
+                // #629b: `minimumScaleFactor` matches the identical chip in
+                // `PulseMonitorMini` (#627). Without it this chip is the one element in the
+                // row that cannot shrink, so at AX sizes it takes its full width out of the
+                // name unconditionally.
+                .lineLimit(1).minimumScaleFactor(0.8)
         }
         Spacer(minLength: 8)
         Text(bpm > 0 ? "\(EchoelDecimalText.string(bpm, decimals: 0)) bpm" : "— bpm")

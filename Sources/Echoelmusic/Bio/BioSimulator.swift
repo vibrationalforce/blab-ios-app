@@ -42,8 +42,11 @@
 //  ⚠️ #626 WIDENED THIS, and it is registered as the next slice rather than folded in.
 //  Before, a real frame parked the simulator forever, so after camera use the strip simply
 //  blanked — honest by accident. Now the simulator resumes, so the ORDINARY path is a
-//  continuous stream of synthetic numbers on the header pill (`PulseMonitorMiniLive`, which
-//  shows BPM and reports `locked` with no source marker at all) and on the strip. Apple
+//  continuous stream of synthetic numbers. ⛔ #629b: this sentence went on "on the header
+//  pill (`PulseMonitorMiniLive`, which shows BPM and reports `locked` with no source marker
+//  at all) and on the strip" — FALSE since #627/#627b, which marked both surfaces (and
+//  #627b the metric sheet, #629 the peer rows and the wire). The registration was correct
+//  and it was ACTED ON; what stayed behind is the description of the gap. Apple
 //  Health is NOT affected: `HealthWritePolicy.isWritableSource` admits only `.ble` and
 //  `.cameraPPG`, so no synthetic value can ever be written. The OSC/ADM/Art-Net/sACN egress
 //  IS affected — `BioEgressPolicy` allows `.fallback` and no address carries a source — so
