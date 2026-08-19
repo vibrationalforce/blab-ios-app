@@ -102,6 +102,33 @@ Große in D erst nach Founder-Geräteprobe des Guides.
 - AX-Clamp-Abbau (C1) kann sich als L erweisen (Layout-Umbau) — dann eigene Planung.
 - Geräteprobe entscheidet Guide-Tonalität; Texte sind bewusst founder-tunbar gehalten.
 
+## ⭐ ULTRAACCESSIBLE DESIGN — die Messlatte (Founder 2026-08-19, wörtlich: „Ultraaccessible Design")
+
+Barrierefreiheit ist ab jetzt die OBERSTE Messlatte dieses Programms, nicht eine Rubrik.
+Jede GUI-Scheibe wird gegen diese acht Punkte geprüft (decisions.csv 2026-08-19):
+
+1. **Kein Gesten-only.** Jede Drag/Pinch/Long-Press-Funktion hat eine benannte
+   VoiceOver-Action (das #619-Muster: Move-Actions neben dem Drag). Gilt auch für
+   Switch Control / Voice Control: benannte Actions sind die eine Tür für alle drei.
+2. **Kein Farb-only.** Bedeutung nie allein durch Farbe (WCAG 1.4.1); Kontrast-Grenzen
+   1.4.3 (Text) und 1.4.11 (UI-Komponenten, borderStrong-Rollout Zeile 13).
+3. **Kein Sicht-only.** Der Kern-Loop — Start → Körper spielt → Hören → Export — ist
+   komplett mit VoiceOver bedienbar; Zustandswechsel (Bio lockt, Take fertig, Export
+   geschrieben) werden angesagt (Announcement) oder haptisch gespiegelt.
+4. **Kein Zeit-only.** Keine Interaktion verlangt schnelle Reaktion; nichts verschwindet,
+   bevor es gelesen wurde (das #604-Retire-Gesetz ist ein Spezialfall hiervon).
+5. **Dynamic Type ungeclampt** bis AX5, wo Text trägt — minHeight statt height (#353),
+   Reflow statt Clipping (#292-Fortsetzung, Zeile 15).
+6. **Tap-Ziele ≥ 44 pt effektiv** (TapTargetFloorTests-Programm; gemessene Decken wie
+   A11y#8 sind benannte, dokumentierte Ausnahmen).
+7. **Reduce Motion respektiert · Flash ≤ 3 Hz** (bestehendes hartes Gesetz).
+8. **Eine Vokabel pro Funktion** (#616): Zeiger, Control und VO-Label teilen die
+   Schreibweise — für kognitive Zugänglichkeit und funktionierende Suche.
+
+Konsequenz für die Reihenfolge: A11y-Zeilen (11–13, 15 + Audit-Nachträge) rücken vor
+reine UX-Komfort-Zeilen. Ein Tiefen-Audit (2026-08-19, Workflow) füllt das Board über
+die Top-15 hinaus; seine bestätigten Funde landen als neue Zeilen hier.
+
 ## BOARD (Synthese aus Phase A — 3 Audits zurück 2026-08-15, je Top-N, dedupliziert)
 
 **Phase B — Guide: B1+B2 GEBAUT in dieser Session** (GuideOverlay + Keystore-Key +
