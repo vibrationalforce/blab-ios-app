@@ -48,11 +48,16 @@
 // ⚠️ THE LARGEST LIMIT IS NOT IN THIS FILE'S REACH AT ALL, and the first version of this
 // header did not name it: what the slot stores is `pianoRoll.notes` — the SOUNDING bar, not
 // the arrangement. A take is `loopBars` distinct bars (default eight) which the roll cycles;
-// `Project` holds one flat `notes` array, and `pianoRoll.load(_:)` clears `arrangementBars` on
-// the way back in. So the recovery returns one bar in eight, and no cycling. Hand-dialled FX
+// `Project` holds one flat `notes` array. ⛔ THE NEXT SENTENCE IS HALF RETRACTED BY #623. It
+// read: "and `pianoRoll.load(_:)` clears `arrangementBars` on the way back in. So the recovery
+// returns one bar in eight, and no cycling." `load(_:)` still clears — but `open(_:)` now
+// re-installs the arrangement from `Project.rawTake` (written by `currentProject()` since
+// #217), so a slot saved after a generate comes back as all `loopBars` bars, cycling and
+// exporting in full. The one-bar limit survives only where `rawTake` is absent: a legacy row,
+// or a session that never composed. Hand-dialled FX
 // is not in it either (only `fxCharacterRaw` is saved, and `open(_:)` re-stamps every chain
-// from the character). None of that is new — manual Save has the identical hole, and
-// persisting the raw bars is its own task — but the slice this file guards is the one that
+// from the character). ⛔ And "persisting the raw bars is its own task" was true when written
+// and was DONE by #217; #623 is the half that carries them onto the roll. The slice this file guards is the one that
 // SELLS the slot as a way back, so the limit belongs beside the guard, not only in the source.
 // NEEDS-FOUNDER-VERIFY: compose something, open a different take from the library, then open
 // the Autosave row — is the first take back, and how much of it?

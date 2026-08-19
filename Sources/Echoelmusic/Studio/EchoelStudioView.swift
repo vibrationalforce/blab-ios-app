@@ -7656,8 +7656,11 @@ struct EchoelStudioView: View {
     private func rebalanceTake() {
         // NO RAW TAKE = NO RE-BAKE, so fall back to the OLD behaviour rather than doing
         // nothing. `lastRawTake` is `@State`: nil until this app session's first
-        // generate(), and `open(_:)` restores an already-baked take via
-        // `pianoRoll.load(p.notes)` without it. Returning here would have made the fader a
+        // generate(). ⛔ The clause that followed — "and `open(_:)` restores an
+        // already-baked take via `pianoRoll.load(p.notes)` without it" — has been false
+        // since #217 gave `open(_:)` its own `lastRawTake = p.rebakeSource`, and #623 also
+        // installs those bars there; a LEGACY take with no `rawTake` is what still lands
+        // here. The fallback stays exactly as argued. Returning here would have made the fader a
         // lying control on every opened project — the number moves, nothing else does
         // (#164's class) — and would have been a REGRESSION, since `recomposeIfRunning()`
         // at least applied the level, if at the price of a new take. Persisting the raw
@@ -10370,9 +10373,15 @@ struct EchoelStudioView: View {
     /// slot as an undo without saying so. `currentProject()` stores `pianoRoll.notes`, which is
     /// the SOUNDING bar and not the arrangement: `generate()` builds `loopBars` distinct bars
     /// (default eight) and the roll cycles them, while `Project` holds one flat `notes` array.
-    /// So the recovery returns one bar in eight — whichever was staged at the moment of the tap
-    /// — and `pianoRoll.load(_:)` clears `arrangementBars`, so the cycling does not come back
-    /// either. Hand-dialled FX is not in it at all (`Project` carries only `fxCharacterRaw`,
+    /// So the recovery returns one bar in eight — whichever was staged at the moment of the tap.
+    /// ⛔ THE CLAUSE THAT FOLLOWED IS HALF RETRACTED BY #623. It read: "and `pianoRoll.load(_:)`
+    /// clears `arrangementBars`, so the cycling does not come back either." `load(_:)` still
+    /// clears, but `open(_:)` now RE-INSTALLS the arrangement from `Project.rawTake` — which
+    /// `currentProject()` has written since #217 — so a slot saved after a generate DOES come
+    /// back as all `loopBars` bars, cycling and exporting in full. The one-bar limit now applies
+    /// only where `rawTake` is absent: a legacy row, or a session that never composed. Stating
+    /// it unconditionally would undersell the recovery, which is the mirror of the overselling
+    /// this very paragraph was written to stop. Hand-dialled FX is not in it at all (`Project` carries only `fxCharacterRaw`,
     /// and the loop below re-stamps every chain from the character), and neither are the mixer
     /// levels — `MixerStore` persists each role straight into `UserDefaults`, so they are a
     /// console setting rather than a take property and appear in no `Project` CodingKey.
@@ -10456,14 +10465,49 @@ struct EchoelStudioView: View {
         // created, worse than the one it fixes. `rebakeSource` returning `nil` (legacy
         // take, unknown genre, empty bars) therefore CLEARS, by construction.
         //
-        // ⭐ THE OPEN PATH ITSELF IS UNCHANGED: `pianoRoll.load(p.notes)` above still loads
+        // ⛔ THE ⭐ THAT STOOD HERE IS RETRACTED BY #623, and it is retracted rather than
+        // deleted because it named the exact trade this slice decided differently. It read:
+        // "THE OPEN PATH ITSELF IS UNCHANGED: `pianoRoll.load(p.notes)` above still loads
         // exactly the notes that were saved, so opening a take sounds bit-identical to
-        // before. What changes is the FIRST FADER MOVE — it now re-bakes the saved
-        // arrangement instead of composing a new one. That the arrangement (all `loopBars`
+        // before. What changes is the FIRST FADER MOVE… That the arrangement (all `loopBars`
         // of it, not the single sounding bar `Project.notes` holds) comes back at that
-        // moment is a side effect, and a strictly closer one to the saved take than either
-        // of the two behaviours it replaces.
+        // moment is a side effect." Every clause was true when written. But "comes back at
+        // that moment" is precisely the defect the Ultra-Audit ranked third: until a fader
+        // was nudged, `arrangementBars` stayed EMPTY, so `arrangementForExport()` took its
+        // `count > 1` fallback and the founder's eight-bar take exported as ONE bar — and
+        // that bar was `IntroAttenuation`'s softened opening, because that is what
+        // `Project.notes` holds. Short AND quiet, reported as success. The arrangement was
+        // never a side effect of the fader; the fader was just the only door to it.
         lastRawTake = p.rebakeSource
+        // #623 (Ultra-Audit MIDI Rank 3) — INSTALL THOSE BARS ON THE ROLL, so an opened
+        // take IS its arrangement and not merely the bar that happened to be sounding when
+        // it was saved. Same machinery as the fader path (`rebalanceTake()`): re-glue each
+        // raw bar at the CURRENT mixer, then hand the whole set to the roll.
+        //
+        // `loadArrangement`, NOT `rebakeArrangement`: the latter's contract is "the same
+        // notes at new LEVELS" and it is reached from a level control. This is an INSTALL,
+        // and the install verb is the one that zeroes `arrangementPhaseOffset` and — when
+        // stopped — restages bar 0. Stopped, the two are byte-identical anyway
+        // (`rebakeArrangement` delegates); using the honest verb costs nothing and keeps
+        // one word per operation (#616).
+        //
+        // ⚠️ `count > 1` IS THE WHOLE CONDITION, not a nil-safety formality. A one-bar
+        // rawTake gains nothing here — `arrangementForExport()` returns `(notes, 1)` either
+        // way — while `loadArrangement`'s own `guard bars.count > 1` would send it down
+        // `load(_:)` and REPLACE the saved sounding notes with bars re-glued at whatever
+        // the faders read now. For those takes the retracted ⭐ above still holds exactly:
+        // opening them is bit-identical. The change is confined to the takes that have an
+        // arrangement to lose.
+        //
+        // ⏱ ORDER MATTERS AND IS GUARDED: this sits ABOVE the `hasComposed` write below,
+        // which is a SNAPSHOT of `pianoRoll.notes` (#622/#622b). Installing after it would
+        // leave a take whose `notes` decoded empty but whose `rawTake` survived sitting
+        // grey with a full, exportable arrangement loaded — the state #622b had to rescue
+        // with a Mix-fader nudge. Here that case now opens armed and correct.
+        if let take = p.rebakeSource, take.bars.count > 1 {
+            pianoRoll.loadArrangement(take.bars.map { mixGlued($0, genre: take.genre) },
+                                      playing: running && beatPlayer.pattern.isPlaying)
+        }
         beatPlayer.pattern.load(steps: p.drumSteps, accents: p.drumAccents)
         beatPlayer.pattern.setTempo(p.bpm, source: .user)
         // Everything that mirrors tempo must follow a loaded take, or the visual/OSC
