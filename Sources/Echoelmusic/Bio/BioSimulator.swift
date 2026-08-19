@@ -30,7 +30,13 @@
 //  FALSE, and it was false seventy lines above a comment block asserting honesty.
 //  ⭐ AND THAT RETRACTION IS ITSELF SPENT — #627 BUILT THE LABEL, #632 FINISHED IT.
 //  It read "There is no user-facing "Demo" string anywhere in `Sources/` — every hit is
-//  a comment", and `git grep -n 'Text("Demo")' -- Sources` now returns FIVE renderers:
+//  a comment", and the renderers are now FIVE. ⚠️ Measure with
+//  `git grep -n 'Text("Demo")' -- Sources | grep -v '//'` — the UNFILTERED form prints
+//  seven, because THIS line and its twin in `EchoelmusicApp.swift` quote the needle in
+//  order to retract it. That is the `EchoelModalBank` failure this repo already logged
+//  ("jeder Kommentar, den man über die Sache schreibt, verfälscht den eigenen Beleg"),
+//  reproduced one cycle later and caught by review before it could confuse anyone. The
+//  five:
 //  `BioStripView` and `HeaderMonitors` (#627), `LiveColaboView` (#629), and the Widget
 //  and the Watch glance (#632). The retraction was correct when written and is now the
 //  thing that needs retracting — which is why the property, not the count, was the part

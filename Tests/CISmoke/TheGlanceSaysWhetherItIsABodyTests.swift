@@ -69,10 +69,13 @@
 //     is to "harmonise" the two flags into one shape; doing it in the direction that reads
 //     tidier turns the fail-closed neighbour into a fail-open one.
 //
-// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH**: all ten
-// source needles count identically raw and stripped on both trees, because no comment added
-// by this slice spells one in its code form. It stays because the next comment written near
-// these branches is the one that would flip it.
+// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH**: all
+// **eleven** source needles count identically raw and stripped on both trees, because no
+// comment added by this slice spells one in its code form. It stays because the next comment
+// written near these branches is the one that would flip it. (⛔ #632b: this said "ten" and
+// "claims 6–10" while claim 11 was already in the file — the grading paragraph WAS updated
+// for it and these two lines were not. A count and a range are two places, and a slice that
+// adds an assertion has to move both.)
 //
 // ⚠️ #364: a DIFFERENT marking is not forbidden — a widget that writes "Demo" into the "HR"
 // label itself, or a distinct numeral style, would satisfy the law and turn claims 6/7/9
@@ -82,9 +85,19 @@
 // ⚠️ STILL OPEN after this slice, named so no session concludes the family is closed:
 //   · **OSC / ADM-OSC / Art-Net / sACN** — `/echoelmusic/bio/*` carries no provenance, so an
 //     integrator cannot tell a demo walk from a measured pulse. Named by #627 and #629 too.
-//   · **The AUv3's host-visible AUParameters** (`pullSharedVitals`) now receive a payload
-//     that KNOWS, and still expose no parameter that says so. Deliberately out of scope:
-//     adding a host-visible parameter is a published-surface decision, not a display fix.
+//   · ⛔ **AN AUv3 ITEM STOOD HERE AND THE TARGET DOES NOT EXIST.** It read "the AUv3's
+//     host-visible AUParameters (`pullSharedVitals`) now receive a payload that KNOWS".
+//     `project.yml` declares five targets and records the removal at 2026-07-24;
+//     `git grep -n pullSharedVitals -- Sources` returns TWO COMMENTS AND NO CODE. Nothing
+//     "now receives" anything. Booking a phantom into the STILL-OPEN list of a brand-new
+//     guard is the expensive kind of stale — it is the line a future session triages from,
+//     so it costs a budgeted slice for a surface that cannot be built. Both reviewers found
+//     it independently, which is how a phantom this fresh gets caught at all.
+//   · **`AlwaysOnBioRow` (#633, the next slice)** — four bio channels rendered as decimals
+//     plus filled bars, in `bioPanel` a few dozen lines UNDER the marked `BioStripView` and
+//     directly beneath the sentence "Four body channels shape the instrument's own timbre".
+//     It reads `frame.source` only for the freshness window, never for provenance, and the
+//     simulator satisfies every `isMeasured` gate. Second host: the FX "All parameters" sheet.
 
 import Foundation
 import XCTest

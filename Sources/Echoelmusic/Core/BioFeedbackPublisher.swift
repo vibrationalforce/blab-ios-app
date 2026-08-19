@@ -73,12 +73,23 @@ public final class BioFeedbackPublisher {
         reloadWidgetsIfDue()
     }
 
-    /// Pure frame→payload mapping (unit-tested). 5.1.3: the AUv3 pushes these
-    /// values into HOST-VISIBLE AUParameters, so only Echoel's OWN measurements
+    /// Pure frame→payload mapping (unit-tested). 5.1.3: only Echoel's OWN measurements
     /// (camera rPPG / BLE strap / demo) are marked `egressAllowed` — the exact
-    /// `BioEgressPolicy` rule the OSC/ADM-OSC senders apply. HealthKit-store
-    /// frames still reach the App Group for the first-party Widget/Watch, but
-    /// the AUv3 refuses them (see EchoelmusicAudioUnit.pullSharedVitals).
+    /// `BioEgressPolicy` rule the OSC/ADM-OSC senders apply. HealthKit-store frames
+    /// still reach the App Group for the first-party Widget/Watch.
+    ///
+    /// ⛔ THIS PARAGRAPH JUSTIFIED THE GATE IN THE PRESENT TENSE WITH A TARGET THAT IS GONE
+    /// (#632b). It said "the AUv3 pushes these values into HOST-VISIBLE AUParameters … the
+    /// AUv3 refuses them (see EchoelmusicAudioUnit.pullSharedVitals)". `project.yml` records
+    /// the AUv3 removal at 2026-07-24 and declares five targets, none of them an audio unit;
+    /// `git grep -n "pullSharedVitals" -- Sources` returns TWO COMMENTS AND NO CODE — this
+    /// one and `Core/BioModulationMap.swift`.
+    ///
+    /// ⭐ THE GATE STAYS, and its reason is now the one that still exists: `BioEgressPolicy` is
+    /// ONE policy shared with the OSC/ADM-OSC senders (#416), and those senders ship. Keeping
+    /// the flag correct here is what lets a future host-visible surface — an AUv3 rebuilt, a
+    /// remote peer — inherit the rule instead of re-deriving it. A dead REASON does not make a
+    /// live RULE dead; it makes the rule look conditional on something a reader cannot find.
     public nonisolated static func vitals(from frame: BioSampleFrame) -> BioVitals {
         BioVitals(
             heartRateBPM: frame.heartRateBPM,

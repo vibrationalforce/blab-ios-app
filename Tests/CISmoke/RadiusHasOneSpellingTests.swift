@@ -30,9 +30,13 @@
 // folded by hand; the blind spots are written down here rather than quietly relied on, because a
 // claim that is true only under the checker's own parser is the kind this repo retracts.
 //
-// ⚠️ WHAT IS DELIBERATELY NOT SWEPT: eight `cornerRadius:` literals remain in `Sources/` —
-// 4 × `6`, 3 × `2`, 1 × `1` — and after the ternary above was folded, a PLAIN reading of the
-// source counts the same eight, so this number no longer depends on the parser's blind spot.
+// ⚠️ WHAT IS DELIBERATELY NOT SWEPT: **seven** `cornerRadius:` literals remain in the app
+// module — 4 × `6`, 3 × `2` — measured 2026-08-19 with
+// `git grep -hoE 'cornerRadius: *[0-9]+' -- Sources/Echoelmusic | grep -oE '[0-9]+' | sort -n | uniq -c`.
+// ⛔ This said "eight … 1 × `1`" and BOTH halves had aged: the `1` is gone, and the count with it.
+// (The `8` a plain grep also prints is at `Studio/HeaderMonitors.swift:186` and is inside a
+// COMMENT quoting this very rule — the stripper removes it, so it is not an offender. A count
+// taken by eye off `git grep` and not through `codeOnly` would have called this rule red.)
 // `EchoelTheme` names no radius with those values, so there is nothing to fold them INTO; giving
 // them a token is a design decision (which surfaces deserve a fourth radius?) and not a
 // mechanical fold. The rule below is therefore VALUE-BASED, not "no literals at all" — and
@@ -94,10 +98,23 @@ final class RadiusHasOneSpellingTests: XCTestCase {
         return root
     }
 
-    /// Every `.swift` file under `Sources/`, comments removed by the ONE shared stripper (#453).
+    /// Every `.swift` file under `Sources/Echoelmusic` — the APP MODULE, see the ⛔ below —
+    /// comments removed by the ONE shared stripper (#453).
     private func sourceFiles() throws -> [(path: String, code: String)] {
         let root = try repoRoot()
-        let sources = root.appendingPathComponent("Sources")
+        // ⛔ `Sources/Echoelmusic`, NOT `Sources` — narrowed by #632b, and the narrowing is a
+        // CONFESSION rather than a convenience. `EchoelTheme` lives in the app module;
+        // `project.yml` gives `EchoelmusicWidgets` and `EchoelmusicWatch` their own directory
+        // plus `Core/BioFeedbackManager.swift` and nothing else, so neither target can spell
+        // `EchoelTheme.radiusSmall` — the token this rule demands does not exist there. Scanning
+        // them meant demanding a symbol that cannot compile.
+        //
+        // ⚠️ The gap is not swept under the rug: `testTheExtensionTargetsAreListedNotForgotten`
+        // below scans exactly those two directories and pins every literal in them by NAME, so a
+        // split that this rule can no longer prevent is at least WRITTEN DOWN — and a third
+        // extension literal cannot appear unlisted. That is the `isFresh` shape (#545): an
+        // exemption that is testable and that expires by itself the day the premise changes.
+        let sources = root.appendingPathComponent("Sources/Echoelmusic")
         guard let walker = FileManager.default.enumerator(at: sources,
                                                           includingPropertiesForKeys: nil) else {
             return []
@@ -122,7 +139,7 @@ final class RadiusHasOneSpellingTests: XCTestCase {
         // to it: pinning the exact number would make every added file red (#364).
         guard out.count >= 300 else {
             throw ScanFloorViolated(description: """
-                only \(out.count) Swift files found under Sources/ — the scan is vacuous, so a \
+                only \(out.count) Swift files found under Sources/Echoelmusic — the scan is vacuous, so a \
                 green here would mean nothing. Expected 300+ (349 on 2026-08-07). If the tree \
                 genuinely shrank that far, lower this floor deliberately in the same commit.
                 """)
@@ -202,6 +219,71 @@ final class RadiusHasOneSpellingTests: XCTestCase {
             A corner radius is spelled as the number a token already holds, so moving the token \
             would move some surfaces and not others (#416, #483):
             \(offenders.joined(separator: "\n"))
+            """)
+    }
+
+    /// THE CONFESSION THAT REPLACES THE COVERAGE (#632b). The rule above can no longer reach
+    /// `Sources/EchoelmusicWidgets` and `Sources/EchoelmusicWatch`, so this pins what is in
+    /// them BY NAME. It is not a fold and cannot become one: those targets compile without the
+    /// app module, so `EchoelTheme.radiusSmall` is not a symbol they have.
+    ///
+    /// ⛔ WHY A LIST AND NOT A BAN. Banning literals there would leave the two demo tags with no
+    /// way to match the app's small radius at all, which is worse than a documented split. And a
+    /// LOCAL constant would be the dishonest fix: the scan above would go green while the split
+    /// it exists to expose stayed exactly where it was. This is the third option — keep the
+    /// literal, and make it impossible for a fourth one to appear unnoticed.
+    ///
+    /// ⚠️ THE EXEMPTION EXPIRES BY ITSELF. If `project.yml` ever gives either target
+    /// `EchoelTheme.swift`, the premise is void and the honest move is to fold these two and
+    /// widen the walker back — claim 3 below goes red on that day and says so.
+    func testTheExtensionTargetsAreListedNotForgotten() throws {
+        let root = try repoRoot()
+        var files: [(path: String, code: String)] = []
+        for dir in ["Sources/EchoelmusicWidgets", "Sources/EchoelmusicWatch"] {
+            let base = root.appendingPathComponent(dir)
+            guard let walker = FileManager.default.enumerator(at: base,
+                                                              includingPropertiesForKeys: nil) else {
+                return XCTFail("\(dir) could not be enumerated — this list would be vacuous")
+            }
+            var seen = 0
+            for case let url as URL in walker where url.pathExtension == "swift" {
+                let rel = url.path.replacingOccurrences(of: root.path + "/", with: "")
+                files.append((rel, SourceText.codeOnly(try String(contentsOf: url, encoding: .utf8))))
+                seen += 1
+            }
+            XCTAssertGreaterThan(seen, 0, "\(dir) yielded no Swift file — vacuous scan (#367)")
+        }
+
+        // 1. Exactly the two known sites, both 4 (the value `EchoelTheme.radiusSmall` holds).
+        //    ⚠️ FILE AND VALUE, NEVER THE LINE (#408): the first draft of this list pinned
+        //    `:96`/`:97`, and the SAME commit added two modifiers above them. A line number in a
+        //    guard over a living file is a date, not a fact.
+        let found = radiusLiterals(files)
+            .map { "\($0.0.split(separator: ":").first.map(String.init) ?? $0.0) = \(Int($0.1))" }
+            .sorted()
+        XCTAssertEqual(found, [
+            "Sources/EchoelmusicWatch/EchoelWatchApp.swift = 4",
+            "Sources/EchoelmusicWidgets/EchoelBioWidget.swift = 4"
+        ], """
+            The corner-radius literals in the two extension targets changed. This list is the \
+            ONLY record of a split the rule above cannot police — update it deliberately, and \
+            say in the commit why the new literal cannot be folded.
+            """)
+
+        // 2. …and they are the demo tag, not decoration that drifted in.
+        for (path, code) in files where code.contains("cornerRadius:") {
+            XCTAssertTrue(code.contains("demoTag"), """
+                \(path) carries a corner-radius literal that is not the #632 demo tag. \
+                A new rounded surface in an extension target needs its own line above.
+                """)
+        }
+
+        // 3. The premise: neither target is given the theme, so neither CAN fold.
+        let yml = try String(contentsOf: root.appendingPathComponent("project.yml"), encoding: .utf8)
+        XCTAssertFalse(yml.contains("Sources/Echoelmusic/Studio/EchoelTheme.swift"), """
+            `project.yml` now hands `EchoelTheme.swift` to a target by path. If that target is \
+            the widget or the watch, this whole exemption is void: fold both literals into \
+            `EchoelTheme.radiusSmall` and widen the walker in `sourceFiles()` back to `Sources`.
             """)
     }
 

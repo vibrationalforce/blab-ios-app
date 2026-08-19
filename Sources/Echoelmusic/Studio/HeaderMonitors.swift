@@ -193,7 +193,15 @@ struct PulseMonitorMini: View {
         // nineteen equalled a constant `EchoelTheme` already names, so nothing moved a pixel.
         // Guard: `Tests/CISmoke/RadiusHasOneSpellingTests.swift` — it forbids a `cornerRadius:`
         // literal EQUAL to a named radius WHERE IT CAN SEE ONE (immediately after the label, past
-        // spaces), and stays quiet about the eight (1, 2, 6) that have no constant to fold into.
+        // spaces), and stays quiet about the SEVEN (2, 6) that have no constant to fold into.
+        // ⛔ This said "the eight (1, 2, 6)" and so did the guard's own header — the same stale
+        // figure in two places, which is the "look for the SECOND place" law this repo keeps
+        // paying for. The `1` is gone; measure, do not quote:
+        // `git grep -hoE 'cornerRadius: *[0-9]+' -- Sources/Echoelmusic | grep -oE '[0-9]+' | sort -n | uniq -c`.
+        // ⚠️ AND ITS REACH IS THE APP MODULE ONLY since #632b: `Sources/EchoelmusicWidgets` and
+        // `Sources/EchoelmusicWatch` compile without `EchoelTheme`, so the token this rule
+        // demands does not exist there. Their literals are pinned BY NAME instead, in
+        // `testTheExtensionTargetsAreListedNotForgotten`.
         // Inventing a token for those is a design decision, not a fold. The "where it can see
         // one" is not hedging: the first draft said "any literal", and the nineteenth site — a
         // ternary in `FloatingVisualWindow` — was invisible to the scan and got left behind,

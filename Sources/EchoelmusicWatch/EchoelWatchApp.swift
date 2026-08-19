@@ -90,12 +90,23 @@ struct WatchBioView: View {
         Text("Demo")
             .font(.caption2.weight(.medium))
             .foregroundStyle(.secondary)
+            // ⚠️ #629b's law, and this is the surface it matters most on: without these two the
+            // tag is the one element in the row that cannot shrink, so at accessibility text
+            // sizes it takes its full width out of the label beside it — unconditionally, on a
+            // host-sized rectangle the app does not own and cannot scroll.
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
             .padding(.horizontal, 4)
             .padding(.vertical, 1)
+            // `.strokeBorder`, not `.stroke`: a centred 1 pt line puts half its width outside the
+            // padded frame. The app's reference form (`BioStripView.demoTag`) insets too.
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color.secondary.opacity(0.5), lineWidth: 1)
+                    .strokeBorder(Color.secondary.opacity(0.5), lineWidth: 1)
             )
+            // The three sibling tags say it in words; a glance with no surrounding context is
+            // the last place to leave VoiceOver reading the bare label.
+            .accessibilityLabel(Text("Bio source: simulated demo, not your body"))
     }
 
     var body: some View {
