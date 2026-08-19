@@ -6632,7 +6632,15 @@ struct EchoelStudioView: View {
     // MARK: Panel 2 — Sound & texture (preset · scrubbable values · randomize)
 
     private var soundPanel: some View {
-        panel("Sound & texture", "Shape the timbre — exact to 0.0001", isExpanded: $showSound) {
+        // #620 (GUI-Board Zeile 10 / UX#13): the subtitle NAMES "Voice timbre" — the capture
+        // row lives one level down and nothing above this line told a player scanning the
+        // collapsed chips that the instrument can learn their own voice's colour. The words
+        // are the ROW's words (`VoiceCaptureRow`'s `Text("Voice timbre")`, #616's vocabulary
+        // law: the pointer and the control share one spelling, or the pointer teaches a
+        // search that fails). Rename the row → rename this token in the same commit; the
+        // guard (`ThePanelSubtitlesNameTheirDeepFeaturesTests`) couples both sites.
+        panel("Sound & texture", "Shape the timbre — exact to 0.0001 · Voice timbre",
+              isExpanded: $showSound) {
             // #325 — THE TUNING BANNER'S DOOR, and Sound is chosen over the panel the tuning
             // controls live in on purpose. `displayedMenu` falls back to `.sound`, so this is
             // what an untouched launch shows: a player who opens a detuned instrument is told
@@ -7362,7 +7370,16 @@ struct EchoelStudioView: View {
     // MARK: Panel 3 — Effects (production character)
 
     private var effectsPanel: some View {
-        panel("Effects", "Production character", isExpanded: $showEffects) {
+        // #620 (GUI-Board Zeile 10 / UX#12): the subtitle NAMES "Follow the key" — the
+        // harmonizer's in-key toggle sits TWO levels deep (this panel → "All parameters"
+        // sheet → Harmonizer section), and no surface above it named it, so the feature was
+        // undiscoverable by scanning. The words are the TOGGLE's words (`EchoelFXView`'s
+        // `Toggle("Follow the key"`, #616's vocabulary law). Rename the toggle → rename
+        // this token in the same commit; the guard couples both sites. This is the panel
+        // SUBTITLE, not the door's `.accessibilityHint` — `TheFXDoorNamesAControlThat
+        // ExistsTests` scans only hint lines, and "Follow the key" is a toggle name, not
+        // one of the `effectSection("…")` stage titles that check forbids.
+        panel("Effects", "Production character · Follow the key", isExpanded: $showEffects) {
             labeledRow("Character") {
                 Picker("Effect", selection: $fxCharacter) {
                     ForEach(FXCharacter.allCases) { c in Text(c.displayName).tag(c) }
