@@ -29,15 +29,27 @@
 // playing when he arms the monitor is a DEVICE probe and nothing here can stand in for
 // it — this pins the one line whose position caused it.
 //
-// GRADING (#433, against the pre-#625 parent `1d4153b`): claim 1 (the order) is the
-// single FORWARD assertion and is RED on the parent for its named reason — the read sat
-// below the claim there. Claims 2-3 are COUNTERWEIGHTS, green on both trees: they pin
-// that there is still exactly ONE claim site and ONE running-state read inside this
-// method, because the order check is meaningless if either is duplicated (two reads and
-// the check would pass on whichever pair happened to be ordered correctly).
+// GRADING (#433 / §3, against the pre-#625 parent `1d4153b`): claim 1 (the order) and
+// claim 4 (the exit guarantee) are **REGRESSIONS** — red on the parent for the reason
+// their names give. Claims 2-3 are COUNTERWEIGHTS, green on both trees: they pin that
+// there is still exactly ONE claim site and ONE running-state read inside this method,
+// because the order check is meaningless if either is duplicated.
+//
+// ⛔ The first version called claim 1 "the single FORWARD assertion … RED on the parent
+// for its named reason" — a sentence that refutes itself, because §3 defines FORWARD as
+// an assertion that **could never have been red** (it drives a symbol the commit creates,
+// so the file does not even compile there). Red-for-its-named-reason is the definition of
+// REGRESSION. The error ran in the CONSERVATIVE direction — it understated the guard —
+// but §3 is the taxonomy this directory grades by, and the flattering direction is only
+// half the rule. ⚠️ The same mislabel is in the #622 and #623 headers; it is corrected
+// there as each is next touched rather than in a sweep that would edit files this slice
+// has no other business in.
 //
 // Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH**
-// (0 of 8 verdicts flip raw vs stripped, on EITHER tree).
+// (0 of 8 verdicts flip raw vs stripped, on EITHER tree — the denominator is every
+// `XCTAssert`/`XCTFail` from `engineLines()` to the end of the file, re-derivable in
+// one command. #623b paid for hand-counting this twice; the RULE is the durable part,
+// the digit is not.)
 //
 // ⛔ The first version of this header claimed "TRAGEND (2 of 4)" and reasoned it from
 // the fact that the #625 comment discusses both needles in prose. It does — but as
@@ -79,7 +91,7 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
     /// comments around it grow, and #625 added ~20 lines of them right here).
     private func monitorOnSpan(_ lines: [String]) throws -> ArraySlice<String> {
         let start = "func setInputMonitoring(_ on: Bool) -> Bool"
-        let end = "log.audio(\"Input monitoring ON (gain"
+        let end = "isInputMonitoring = true"   // #625b: structural, not a log string
         let s = lines.indices.filter { lines[$0].contains(start) }
         XCTAssertEqual(s.count, 1, """
             `\(start)` is no longer unique in AudioEngine — re-anchor before trusting \
@@ -136,6 +148,34 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
             not at all). Two reads make the order check vacuous — it would pass on \
             whichever pair happened to be ordered correctly while the read that actually \
             feeds the `if wasRunning` restart still sat below the claim.
+            """)
+    }
+
+    /// 4 — REGRESSION (#625b, review 2a+2b): the EXIT GUARANTEE. The order fix alone
+    /// covered the ON path's MAIN exit and left two doors open — the ON path's
+    /// format-guard exit, which does no graph work and simply returned, and the OFF path,
+    /// which mutates the same session category with no running-state handling at all.
+    /// Either could return with the whole app silent. File-wide on purpose: the OFF
+    /// branch sits outside the ON span the other claims use.
+    func testEveryCategoryChangingExitRestoresAStoppedEngine() throws {
+        let lines = try engineLines()
+        XCTAssertEqual(lines.filter { $0.contains("restoreEngineIfStranded(") }.count, 3, """
+            the exit-guarantee call sites changed. THREE occurrences are expected in \
+            STRIPPED source: the declaration plus TWO callers — the ON path's format-guard \
+            exit (review 2a: the claim may already have stopped the engine and that exit \
+            does no graph work, so it returned with the music dead while the only visible \
+            line blamed microphone permission) and the OFF path (review 2b: \
+            `releaseRecordRoute` lowers the category the same way, and it sits on the \
+            recovery hot path `start()` → `rearmInputMonitoring` → OFF). A new exit that \
+            mutates the session category needs its own call and this count updated in the \
+            same commit.
+            """)
+        XCTAssertTrue(lines.contains { $0.contains("restartOrDegrade(after: exit)") }, """
+            the exit guarantee no longer hands over to `restartOrDegrade` — that is the \
+            file's ONE honest handover: it restarts, and if even that fails it raises \
+            `degraded` so `AudioDegradedRow` owns the silence instead of nobody owning \
+            it. A bare `try? masterEngine.start()` here would trade a reported failure \
+            for an unreported one.
             """)
     }
 }

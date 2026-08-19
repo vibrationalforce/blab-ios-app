@@ -667,8 +667,11 @@ public final class AudioEngine {
                     // captured ONCE at tap install; after a 44.1↔48 route switch the
                     // notch maths sat up to ~9 % off and (since #599) YIN divided by the
                     // stale rate — Tune-to-key then snaps to WRONG notes until monitoring
-                    // is recycled. This is the "route-change re-arm" the tap-install
-                    // comment names as the honest fix. `newRate > 0` keeps a transient
+                    // is recycled. ⛔ #625b: this said "the 'route-change re-arm' the
+                    // tap-install comment names as the honest fix" — #624 removed that
+                    // naming from the tap-install comment (the phrase survives only inside
+                    // its own retraction there), so the pointer outlived what it pointed
+                    // at. THIS call is the re-arm; nothing else has to name it. `newRate > 0` keeps a transient
                     // input-less moment mid-switch from tearing monitoring down.
                     let newRate = self.masterEngine.inputNode.inputFormat(forBus: 0).sampleRate
                     if self.isInputMonitoring, newRate > 0,
@@ -1688,8 +1691,20 @@ public final class AudioEngine {
             // The one diag-log breadcrumb that names this mechanism on a device. It fires
             // only when the claim actually changed the engine's running state, so it is
             // silent on every healthy toggle and unmistakable on the broken one.
+            //
+            // ⛔ #625b (review 2a): this line said "restarting it below", and the very next
+            // guard returns WITHOUT restarting. Worse than imprecise — a log asserting the
+            // opposite of what happened is what sends the next reader past the real exit.
+            // The restart is now GUARANTEED at every exit (see `restoreEngineIfStranded`),
+            // so the text can promise it, but it promises the CONTRACT, not this line.
+            //
+            // ⚠️ AND IT ONLY CATCHES A SYNCHRONOUS STOP (review 1b). A configuration change
+            // is delivered asynchronously, so if iOS stops the engine AFTER this sample the
+            // breadcrumb stays silent — this tests one variant of the hypothesis, not the
+            // hypothesis. The exit guarantee below does not depend on the timing; it
+            // re-checks at each return.
             if wasRunning && !masterEngine.isRunning {
-                log.audio("Input monitoring: the session claim stopped the engine — restarting it below (#625)",
+                log.audio("Input monitoring: the session claim stopped the engine (#625)",
                           level: .warning)
             }
             let input = masterEngine.inputNode
@@ -1700,6 +1715,13 @@ public final class AudioEngine {
                 // mic permission leaves the route raised for the rest of the session. This is
                 // the failure path that made a refcount unsafe; with a set it is one line.
                 try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)
+                // #625b (review 2a, CRITICAL): #611's failure shape, on a different exit.
+                // The claim above may already have stopped the engine; this exit does no
+                // graph work, so it used to return with the WHOLE app silent — music
+                // included — while the only visible line blamed microphone permission. Two
+                // real ways in: a denied mic, and the transient input-less moment mid-route-
+                // switch that this file already anticipates one screen up (`newRate > 0`).
+                restoreEngineIfStranded(wasRunning, at: "input monitoring format guard")
                 return false
             }
             // `wasRunning` is captured ABOVE, before the session claim (#625) — do not
@@ -1789,6 +1811,10 @@ public final class AudioEngine {
                 // capture is still once-per-install — that has not changed and does not
                 // need to — but it is now RE-captured on every route switch, so neither
                 // consumer runs stale for longer than one configuration-change hop.
+                // ⚠️ #625b (review LOW): that sentence reads as total coverage and is not.
+                // The re-arm gate is `newRate != monitorTapSampleRate` — a RATE test only.
+                // A route change that alters the CHANNEL COUNT without altering the rate
+                // re-arms nothing and leaves the monitor chain connected at the old count.
                 //
                 // Why the retraction and not a deletion: a comment that files a fix as
                 // outstanding is an instruction to the next session to build it, and
@@ -1841,8 +1867,19 @@ public final class AudioEngine {
             // #299: the missing half. Monitoring off returns the route — but only if no
             // recorder still holds it, which is why this goes through the owner set instead of
             // calling `downgradeToPlaybackAfterRecording` directly.
+            // #625b (review 2b, CRITICAL): the OFF path changes the session category too
+            // (`releaseRecordRoute` → `downgradeToPlaybackAfterRecording` →
+            // `setCategory(.playback)`), and had NO running-state read and NO restart at
+            // all. #625 enforced its own law on one of the two category-changing branches.
+            //
+            // This is the RECOVERY HOT PATH, not a corner: `start()` → `rearmInputMonitoring`
+            // → OFF → category change → if THAT stops the engine, the immediately following
+            // ON reads `wasRunning == false` and strands the engine exactly as #625
+            // describes — through the door #625 left open.
+            let offWasRunning = masterEngine.isRunning
             do { try AudioConfiguration.releaseRecordRoute(.inputMonitoring) }
             catch { log.audio("Input monitoring: session downgrade failed (\(error))", level: .warning) }
+            restoreEngineIfStranded(offWasRunning, at: "input monitoring off")
             log.audio("Input monitoring OFF")
             return true
         }
@@ -2013,6 +2050,35 @@ public final class AudioEngine {
     /// OFF path deliberately disarms it (#599 M1) — restore happens BETWEEN off and on,
     /// while monitoring is off, so `setVoiceTune` only stores the choice and the ON
     /// builds the chain with the tune stage in place.
+    /// #625b — THE EXIT GUARANTEE the #625 breadcrumb was writing cheques against.
+    ///
+    /// Both branches of `setInputMonitoring` mutate the shared audio session's CATEGORY,
+    /// and iOS may stop a running `AVAudioEngine` underneath such a mutation. #625 moved
+    /// the running-state read above the claim, which fixed the ON path's main exit — and
+    /// left two doors open: the ON path's format-guard exit does no graph work and simply
+    /// returned, and the OFF path had no running-state handling whatsoever. Either could
+    /// return with the whole app silent, music included.
+    ///
+    /// Called at each such exit with the state captured BEFORE that exit's session
+    /// mutation. `restartOrDegrade` is the file's one honest handover: it restarts, and if
+    /// even that fails it raises `degraded` so `AudioDegradedRow` owns the silence instead
+    /// of nobody owning it. A no-op whenever the engine is still running, which is every
+    /// healthy toggle.
+    ///
+    /// ⚠️ WHAT THIS DOES NOT REPAIR (review 2c): if the session change altered the HARDWARE
+    /// FORMAT, a bare restart brings the engine back with the master chain still wired at
+    /// the old format — running and silent. Nothing in this app reconnects it, because
+    /// `attachSourceNode` stores no registry of what it attached and `prepareGraph()` is
+    /// one-shot. That is a separate, bigger slice with its own Council; do not read this
+    /// helper as covering it.
+    private func restoreEngineIfStranded(_ wasRunning: Bool, at exit: String) {
+        guard wasRunning, !masterEngine.isRunning else { return }
+        log.audio("Audio engine was stopped by a session change — restoring (\(exit))",
+                  level: .warning)
+        armTimingInstrument()
+        restartOrDegrade(after: exit)
+    }
+
     private func rearmInputMonitoring(reason: String) {
         guard isInputMonitoring else { return }
         log.audio("Input monitoring re-arm (\(reason))")

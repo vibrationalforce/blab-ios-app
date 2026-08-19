@@ -11,8 +11,12 @@
 // no-op behind `guard !isInputMonitoring else { return true }`; only a manual OFF→ON
 // healed it. (b) `monitorTapSampleRate` is captured ONCE at tap install; after a
 // 44.1↔48 kHz route switch the notch maths sat up to ~9 % off and YIN (#599) divided by
-// the stale rate — Tune-to-key then snapped to WRONG notes. The tap-install comment in
-// `setInputMonitoring` names "a route-change re-arm of monitoring" as the honest fix.
+// the stale rate — Tune-to-key then snapped to WRONG notes. ⛔ #625b: this cited the
+// tap-install comment in `setInputMonitoring` as NAMING "a route-change re-arm of
+// monitoring" as the honest fix. #624 removed that naming — the phrase survives there only
+// inside its own retraction, because the fix has since been BUILT. A pointer is only as
+// durable as what it points at; the durable reference is `rearmInputMonitoring` itself and
+// the two callers pinned below.
 //
 // THE FIX pinned here: ONE recycle helper `rearmInputMonitoring(reason:)` — full OFF→ON,
 // restoring the tune choice BETWEEN off and on (the OFF path deliberately disarms it,
