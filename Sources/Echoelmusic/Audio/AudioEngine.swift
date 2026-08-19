@@ -1686,8 +1686,44 @@ public final class AudioEngine {
             // The cost of being wrong about the mechanism is nothing; the cost of the
             // old order was total silence.
             let wasRunning = masterEngine.isRunning
+            // #628 (founder screenshot 2026-08-19: "Monitoring could not start — try
+            // again", the NON-permission copy) — PAUSE BEFORE THE CLAIM, and read the input
+            // format with the engine paused.
+            //
+            // The screenshot is more precise than it looks. `AudioInputPickerView` branches
+            // its refusal copy on `micPermissionDenied` (#613), and the founder got the
+            // "try again" variant, not "check microphone access in Settings" — so the mic
+            // is GRANTED and `engageInputMonitoring` reached `setInputMonitoring(true)`,
+            // which then returned false. Only three exits do that: a throwing claim, a 0 Hz
+            // input format, and a throwing restart.
+            //
+            // The format read is the suspect, and the ordering is why. `inputNode`'s format
+            // is only meaningful once the session is ACTIVE in a record-capable category —
+            // and this method changed the category while the engine was still RUNNING, then
+            // read the format, and only paused afterwards. A running engine straddling a
+            // category change is exactly the state in which `inputFormat(forBus: 0)` comes
+            // back 0 Hz, which lands in the guard below whose message then blames the
+            // microphone. Pausing first gives the claim a quiet graph to change under and
+            // the read a settled session — the order every sibling site in this file
+            // already uses (attach/detach all pause before they touch the graph).
+            //
+            // ⚠️ HYPOTHESIS, not measurement — and it is the second one this week on this
+            // method, after #625's. What makes it worth shipping anyway is that it costs
+            // nothing if wrong: pausing a moment earlier changes no state the rest of the
+            // branch reads, and the restart at the end is unconditional on `wasRunning`.
+            // The distinct log lines below are what will actually settle it on the device.
+            if wasRunning { masterEngine.pause() }
             do { try AudioConfiguration.claimRecordRoute(.inputMonitoring) }
-            catch { log.audio("Input monitoring: session upgrade failed (\(error))", level: .error) }
+            catch {
+                // #628: the claim used to only LOG and fall through — straight into a format
+                // read that cannot succeed, so the user saw "no valid input format (mic
+                // permission?)" for a failure that had nothing to do with the microphone.
+                // Naming it here is what lets a diag log tell the two apart.
+                log.audio("Input monitoring: session upgrade failed (\(error))", level: .error)
+                try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)
+                restoreEngineIfStranded(wasRunning, at: "input monitoring claim failed")
+                return false
+            }
             // The one diag-log breadcrumb that names this mechanism on a device. It fires
             // only when the claim actually changed the engine's running state, so it is
             // silent on every healthy toggle and unmistakable on the broken one.
@@ -1710,7 +1746,16 @@ public final class AudioEngine {
             let input = masterEngine.inputNode
             let inFmt = input.inputFormat(forBus: 0)
             guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else {
-                log.audio("Input monitoring: no valid input format (mic permission?)", level: .error)
+                // #628: the message no longer guesses "mic permission?". By the time this
+                // runs the permission is granted (`engageInputMonitoring` is the only
+                // production caller with `true` and it returns early on denial), so that
+                // parenthetical sent every reader — me included — down the wrong path. Say
+                // what was actually measured instead.
+                log.audio("""
+                    Input monitoring: input format unusable after the session claim \
+                    (sampleRate \(inFmt.sampleRate), channels \(inFmt.channelCount), \
+                    engine \(masterEngine.isRunning ? "running" : "stopped")) — #628
+                    """, level: .error)
                 // The claim is already registered — hand it back on the way out, or a denied
                 // mic permission leaves the route raised for the rest of the session. This is
                 // the failure path that made a refcount unsafe; with a set it is one line.
@@ -1724,9 +1769,9 @@ public final class AudioEngine {
                 restoreEngineIfStranded(wasRunning, at: "input monitoring format guard")
                 return false
             }
-            // `wasRunning` is captured ABOVE, before the session claim (#625) — do not
-            // move this read back down here, that IS the bug.
-            if wasRunning { masterEngine.pause() }
+            // `wasRunning` is captured ABOVE, before the session claim (#625), and the
+            // PAUSE now happens up there too (#628) — do not move either back down here;
+            // the read being late was #625's bug and the pause being late is #628's.
             if !monitorAttached { masterEngine.attach(monitorMixer); monitorAttached = true }
             // #595: the notch band is configured ONCE at attach; only frequency and
             // gain move at runtime (gain slewed by the guard tick, never stepped).

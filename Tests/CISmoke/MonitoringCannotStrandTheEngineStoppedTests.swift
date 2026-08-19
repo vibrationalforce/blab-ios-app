@@ -29,9 +29,11 @@
 // playing when he arms the monitor is a DEVICE probe and nothing here can stand in for
 // it — this pins the one line whose position caused it.
 //
-// GRADING (#433 / §3, against the pre-#625 parent `1d4153b`): claim 1 (the order) and
-// claim 4 (the exit guarantee) are **REGRESSIONS** — red on the parent for the reason
-// their names give. Claims 2-3 are COUNTERWEIGHTS, green on both trees: they pin that
+// GRADING (#433 / §3): claim 1 (the order, vs the pre-#625 parent `1d4153b`), claim 4
+// (the exit guarantee, vs `79fbbc6`) and claims 5-6 (#628's pause-before-claim and its
+// returning claim-failure, vs `8ded9cf`) are **REGRESSIONS** — each red on its own parent
+// for the reason its name gives. Claim 5's second assertion (format read AFTER the claim)
+// is a COUNTERWEIGHT, green on every tree. Claims 2-3 are COUNTERWEIGHTS, green on both trees: they pin that
 // there is still exactly ONE claim site and ONE running-state read inside this method,
 // because the order check is meaningless if either is duplicated.
 //
@@ -46,7 +48,7 @@
 // has no other business in.
 //
 // Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH**
-// (0 of 8 verdicts flip raw vs stripped, on EITHER tree — the denominator is every
+// (0 of 13 verdicts flip raw vs stripped, on EITHER tree — the denominator is every
 // `XCTAssert`/`XCTFail` from `engineLines()` to the end of the file, re-derivable in
 // one command. #623b paid for hand-counting this twice; the RULE is the durable part,
 // the digit is not.)
@@ -85,6 +87,58 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
         }
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+    }
+
+    /// 5 — REGRESSION (#628, founder screenshot "Monitoring could not start — try again"):
+    /// the PAUSE happens before the session claim, and the format read after it.
+    func testTheEngineIsPausedBeforeTheSessionClaim() throws {
+        let w = Array(try monitorOnSpan(try engineLines()))
+        guard let pause = w.firstIndex(where: { $0.contains("if wasRunning { masterEngine.pause() }") }),
+              let claim = w.firstIndex(where: { $0.contains("claimRecordRoute(.inputMonitoring)") }),
+              let fmt = w.firstIndex(where: { $0.contains("let inFmt = input.inputFormat(forBus: 0)") })
+        else {
+            return XCTFail("""
+                the monitoring ON path lost one of: the pause line, the \
+                `claimRecordRoute(.inputMonitoring)` call, or the \
+                `let inFmt = input.inputFormat(forBus: 0)` read. All three carry #628's \
+                ordering; if the method was restructured, re-anchor in the same commit.
+                """)
+        }
+        XCTAssertLessThan(pause, claim, """
+            the engine is no longer paused BEFORE the session claim (#628). `inputNode`'s \
+            format is only meaningful once the session is active in a record-capable \
+            category, and a RUNNING engine straddling a category change is exactly the \
+            state where `inputFormat(forBus: 0)` reads 0 Hz — which lands in the format \
+            guard whose message then blamed the microphone for a session problem. Every \
+            sibling graph-mutating site in this file pauses before it touches anything.
+            """)
+        // COUNTERWEIGHT — green on both trees: the format read stays AFTER the claim.
+        XCTAssertLessThan(claim, fmt, """
+            the input format is read BEFORE the session claim — it cannot be valid there, \
+            because the session is still `.playback` and the input node has no hardware.
+            """)
+    }
+
+    /// 6 — REGRESSION (#628): a throwing claim RETURNS instead of falling through into a
+    /// format read that cannot succeed, so a session failure is no longer reported to the
+    /// user as a microphone problem.
+    func testAFailedClaimDoesNotFallThroughIntoTheFormatRead() throws {
+        let w = Array(try monitorOnSpan(try engineLines()))
+        guard let claim = w.firstIndex(where: { $0.contains("claimRecordRoute(.inputMonitoring)") }),
+              let fmt = w.firstIndex(where: { $0.contains("let inFmt = input.inputFormat(forBus: 0)") }),
+              claim < fmt
+        else { throw XCTSkip("claim/format anchors gone — reported by claim 5") }
+        let between = w[claim ..< fmt]
+        XCTAssertTrue(between.contains { $0.contains("return false") }, """
+            the failing-claim branch no longer returns (#628). Falling through sends a \
+            session-upgrade failure into the format guard, whose message blamed the \
+            MICROPHONE — the wrong diagnosis on the founder's screen and in the diag log.
+            """)
+        XCTAssertTrue(between.contains { $0.contains("restoreEngineIfStranded(") }, """
+            the failing-claim exit does not restore a stopped engine. It is a \
+            category-changing exit like every other one in this method (#625b), and it \
+            now returns EARLY — so it needs the guarantee more, not less.
+            """)
     }
 
     /// TWO unique anchors → the span between them (#621b: a fixed window ages as the law
