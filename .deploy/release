@@ -1,58 +1,54 @@
-build: v10.79.408 — Der MIDI-Export ist ehrlich geworden, und das Instrument spricht mit VoiceOver
+build: v10.79.409 — Monitoring killt nicht mehr den Ton, und ein geöffneter Take exportiert alle Takte
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.407 (2524, Tap-Targets + Ready-Satz).
-  Dieser Build bündelt vier Scheiben: #619/#619b (VO-Move-Actions) · #620/#620b
-  (Untertitel-Auffindbarkeit) · #621/#621b (VO-Werte-Batch) · #622/#622b (MIDI-Fix,
-  Rang 1 Deines „Midi Export geht nicht"-Reports).
+  Der Vorgänger auf Deinem Gerät ist 10.79.408 (2525, MIDI-Fix + VoiceOver).
+  Dieser Build bündelt: #623/#623b (MIDI Rang 3 — alle Takte im Export) und
+  #625/#625b (Dein Report „Live monitoring geht nicht und killt den restlichen Sound").
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **MIDI-Export: die stumme Kachel ist repariert.** Das Ultra-Audit fand als
-    wahrscheinlichste Ursache Deines Reports: nach dem Öffnen eines Takes, dessen
-    Noten leer geladen wurden, blieb die Piano-Kachel hell und der Tap tat für
-    immer nichts (und der leere Take konnte sich über Save weitervererben). Jetzt
-    ist die Kachel ehrlich: ohne Noten kommt die Erklär-Zeile zurück, und die
-    Fader-Rettung (Roh-Material wiederherstellen) schaltet sie korrekt wieder
-    scharf. NOCH OFFEN als eigene Scheibe: nach dem Öffnen eines gespeicherten
-    Takes exportiert die App bisher nur 1 von z. B. 8 Takten — kommt als Nächstes.
-  · **Das schwebende Visual-Fenster ist ohne Drag bewegbar:** vier VoiceOver-
-    Actions („Move to top left" … „bottom right", letzterer = exakt der
-    Dock-Platz). Dein Drag bleibt unverändert; im Vollbild (gepinnt) gibt es die
-    Actions bewusst nicht.
-  · **Zwei vergrabene Features stehen jetzt im Panel-Untertitel:** „Production
-    character · Follow the key" und „Shape the timbre — exact to 0.0001 · Voice
-    timbre" — exakt der Wortlaut der Controls, damit die Suche funktioniert.
-  · **VoiceOver hört jetzt, was aktiv ist:** Sound- und Mood-Preset-Menüs sprechen
-    ihren aktiven Namen (+ „favorite"); der „Standard"-Rettungsknopf im
-    Tuning-Banner ist wieder ein eigenes, fokussierbares Element mit Hinweis;
-    das „Describe it"-Feld hat einen echten Namen statt des Beispiel-Platzhalters.
+  · **Monitoring sollte den Ton nicht mehr killen.** Gefunden: das Einschalten
+    hebt die Audio-Session an, und iOS darf darunter die laufende Engine
+    STOPPEN. Der Code las den Laufzustand aber erst danach — dachte also „lief
+    ja gar nicht" und startete nie wieder. Monitorkette auf tote Engine, Meldung
+    „Erfolg", Musik still, keine Logzeile. Der Neustart ist jetzt an JEDEM
+    Ausgang zugesichert, auch beim Ausschalten und beim Fehlerfall.
+  · **MIDI-Export: ein geöffneter Take exportiert jetzt alle Takte.** Vorher kam
+    nach „Open" genau 1 Takt statt z. B. 8 — und ausgerechnet der leise
+    Einstiegstakt. Beim Speichern lagen die vollen Takte längst im Projekt; sie
+    erreichten die Rolle nur, wenn man zufällig einen Mix-Fader anfasste.
+  · Nebenbei: der Autosave-Rettungspunkt gibt jetzt ebenfalls den ganzen Take
+    zurück statt einen von acht.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. MIDI-Export: frischen Take komponieren → Piano-Kachel → kommt das
-     Share-Sheet? Datei in der DAW öffnen. Danach: App neu starten, Take über
-     „Open" öffnen, nochmal exportieren. Falls wieder „geht nicht": bitte
-     echoel_diag.log nach „MIDI export" durchsuchen — die Zeile nennt den Fall.
-  2. VoiceOver an, Visual-Fenster: Rotor-Actions am Logo („Move to …") — landet
-     „bottom right" auf dem Dock-Platz?
-  3. VoiceOver an, Sound-Panel: sagt das Preset-Menü den aktiven Sound-Namen an?
-     Tuning verstellen → ist der „Standard"-Knopf einzeln fokussierbar?
-  4. Offene Proben von 2524: Video-Bibliothek-Treffbarkeit · Chips bei größter
-     Textstufe · Ready-Seite deutsch. Ältere: 2523 (Bio-source-Zeile) · 2522.
+  1. **Der wichtigste Test:** Musik starten, dann Monitoring einschalten
+     (Master-Panel → „Audio input"). Läuft die Musik weiter? Hörst Du Dich?
+     · Falls es WIEDER still wird: bitte echoel_diag.log schicken. Drei Zeilen
+       entscheiden, welche von zwei Ursachen es ist —
+       „session claim stopped the engine" (dann war meine Diagnose richtig),
+       oder „Audio route lost" / „stop source: route-lost" (dann ist es eine
+       ZWEITE, noch offene Ursache: der Route-Verlust stoppt den Transport).
+     · Bitte einmal MIT und einmal OHNE Bluetooth-Kopfhörer testen — die
+       Record-Route fordert HFP an, das ist ein eigener Verdachtsfall.
+  2. MIDI: Take komponieren, App neu starten, Take über „Open" laden,
+     exportieren → kommen jetzt alle Takte in der DAW an?
+  3. Offene Proben von 2525: MIDI frisch · VoiceOver-Rotor „Move to …" am
+     Visual-Fenster · VoiceOver-Preset-Ansagen + „Standard"-Knopf.
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert (Build-for-Testing grün auf der
-  Spitze; Gates der Zwischencommits sauber klassifiziert, nur der bekannte
-  Simulator-Clone-Tod). Gesprochene VoiceOver-Ansagen und Hit-Verhalten sind
-  Geräteprobe — genau die Proben 1–3. Alle vier Scheiben adversarial reviewt
-  (je 0 CRITICAL nach Nachlese); der MIDI-Fix beruht auf dem 24-Agenten-
-  Ultra-Audit, dessen voller Bericht im Repo liegt
-  (scratchpads/AUDIT_ULTRA_2026-08-19.md).
+  ⚠ Ehrliche Grenzen: compile-verifiziert, NICHT geräteverifiziert — genau
+  deshalb Probe 1. Der Monitoring-Fix ist eine von vier Erklärungen für Deinen
+  Report; das Review hat den Route-Verlust-Pfad sogar HÖHER gerankt als meine
+  Diagnose. Die Diag-Log-Zeilen oben unterscheiden sie. Beide Scheiben
+  adversarial reviewt (#623: 0 CRITICAL, #625: zwei CRITICAL im Fix selbst
+  gefunden und nachgezogen). Noch NICHT gebaut: die Vocal Chain fürs Mikrofon —
+  Plan und Council-Verdikt liegen im Repo
+  (scratchpads/PLAN_VOCAL_CHAIN_V1.md), gebaut wird nach dieser Probe.
 
-  Vorgänger-Noten: 10.79.407 = Tap-Targets + Ready-Satz · 10.79.406 =
-  Bio-Quellen-Zeile · 10.79.405 = Geste-gewinnt + Erklärzeile.
+  Vorgänger-Noten: 10.79.408 = MIDI-Kachel + VoiceOver · 10.79.407 = Tap-Targets
+  + Ready-Satz · 10.79.406 = Bio-Quellen-Zeile.
   KEIN AUDIO wird je gespeichert.
