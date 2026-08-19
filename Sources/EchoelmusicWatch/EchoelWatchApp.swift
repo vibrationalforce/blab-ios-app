@@ -79,10 +79,32 @@ struct WatchBioView: View {
         vitals.coherence > 0 ? "\(Int((vitals.coherence * 100).rounded()))%" : "—"
     }
 
+    /// Same three-state reading as the Widget (#632): only an explicit `true` marks.
+    /// `nil` (a payload written before the field existed) stays unmarked rather than
+    /// branding a real reading fake.
+    private var isDemo: Bool { vitals.synthetic == true }
+
+    /// `.secondary` with a hairline outline, never an accent or a warning colour —
+    /// green would assert the body this tag exists to deny.
+    private var demoTag: some View {
+        Text("Demo")
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.secondary.opacity(0.5), lineWidth: 1)
+            )
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             if hasData {
-                Text("Heart rate").font(.caption2).foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    Text("Heart rate").font(.caption2).foregroundStyle(.secondary)
+                    if isDemo { demoTag }
+                }
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("\(bpm)")
                         .font(.system(size: 44, weight: .semibold, design: .rounded))

@@ -87,7 +87,12 @@ public final class BioFeedbackPublisher {
             coherence: frame.coherence,
             timestamp: frame.timestamp,
             breathRate: frame.breathRate,
-            egressAllowed: BioEgressPolicy.allowsEgress(frame.source)
+            egressAllowed: BioEgressPolicy.allowsEgress(frame.source),
+            // The fourth chamber of the #627 law: the Widget and the Watch print these
+            // numbers as a body. `.fallback` IS egress-allowed (it is nobody's pulse, so
+            // it cannot leak one) — which is exactly why the provenance has to travel
+            // SEPARATELY: `egressAllowed == true` says "safe to show", never "measured".
+            synthetic: frame.source == .fallback
         )
     }
 

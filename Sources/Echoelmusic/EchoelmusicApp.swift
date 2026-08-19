@@ -174,13 +174,18 @@ struct EchoelmusicApp: App {
     @State private var projectStore = ProjectStore()
     /// Synthetic bio source so every user hears the instrument without paired
     /// hardware (owned here now the single window is the root).
-    /// ⛔ THIS USED TO SAY «Clearly-labeled "Demo"». It is NOT labeled: there is no
-    /// user-facing "Demo" string in `Sources/`, and `BioStripView` shows this source's
-    /// numbers beside a cell reading "No signal" — which reads as ABSENCE, not as
-    /// SYNTHETIC. The same false claim sat in `BioSimulator`'s header; retracting it
-    /// there and leaving it here is exactly the "look for the SECOND place" failure
-    /// CLAUDE.md records about its own H1. Whether to add the label (and an OSC
-    /// synthetic marker) is #462.
+    /// ⛔ THIS SAID «Clearly-labeled "Demo"», was retracted as false ("there is no
+    /// user-facing "Demo" string in `Sources/`"), and the RETRACTION is what is stale
+    /// now: #627/#629/#632 built the label on five surfaces — the bio strip, the header
+    /// pill, the Live-Colabo rows, the Home-Screen widget and the Watch glance. Both
+    /// spellings of this comment are kept because the pair is the lesson: the original
+    /// claim was aspirational, the retraction was measured, and the retraction still
+    /// aged out. Measure with `git grep -n 'Text("Demo")' -- Sources`.
+    ///
+    /// ⚠️ #462 IS NOT CLOSED BY THAT. It had two halves and only one shipped: the OSC /
+    /// ADM-OSC / Art-Net / sACN addresses still carry no provenance, so an integrator
+    /// cannot tell a demo walk from a measured pulse. Reading "the label is done" as
+    /// "#462 is done" is the exact half-close this comment now exists to prevent.
     @State private var demoSource = BioSimulator()
 
     // Resonance-breathing guide (the active half of the coherence loop).

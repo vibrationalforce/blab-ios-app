@@ -77,6 +77,28 @@ struct EchoelBioWidgetView: View {
         entry.vitals.coherence > 0 ? "\(Int((entry.vitals.coherence * 100).rounded()))%" : "—"
     }
 
+    /// `true` only when the writer SAID the numbers are the demo generator's.
+    /// A payload from a build older than #632 carries no `synthetic` key and decodes
+    /// to `nil`; that stays unmarked, because branding a real reading "Demo" is the
+    /// same kind of lie as printing a fake one as measured (see `BioVitals.synthetic`).
+    private var isDemo: Bool { entry.vitals.synthetic == true }
+
+    /// Deliberately `.secondary` with a hairline outline — NOT an accent or a warning
+    /// colour. Green would read as "a body is connected" (the exact claim being denied)
+    /// and red/orange would read as a fault, when running the demo is a normal choice.
+    /// It is plain `Text`, so VoiceOver speaks it without a separate label.
+    private var demoTag: some View {
+        Text("Demo")
+            .font(.caption2.weight(.medium))
+            .foregroundStyle(.secondary)
+            .padding(.horizontal, 4)
+            .padding(.vertical, 1)
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color.secondary.opacity(0.5), lineWidth: 1)
+            )
+    }
+
     var body: some View {
         Group {
             if entry.isPlaceholder {
@@ -104,7 +126,10 @@ struct EchoelBioWidgetView: View {
 
     private var small: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text("HR").font(.caption2).foregroundStyle(.secondary)
+            HStack(spacing: 4) {
+                Text("HR").font(.caption2).foregroundStyle(.secondary)
+                if isDemo { demoTag }
+            }
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text("\(bpm)")
                     .font(.system(size: 40, weight: .semibold, design: .rounded))
@@ -123,7 +148,10 @@ struct EchoelBioWidgetView: View {
     private var medium: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 2) {
-                Text("Heart rate").font(.caption2).foregroundStyle(.secondary)
+                HStack(spacing: 5) {
+                    Text("Heart rate").font(.caption2).foregroundStyle(.secondary)
+                    if isDemo { demoTag }
+                }
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("\(bpm)")
                         .font(.system(size: 48, weight: .semibold, design: .rounded))

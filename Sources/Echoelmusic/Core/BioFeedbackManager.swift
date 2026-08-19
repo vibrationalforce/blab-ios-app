@@ -54,6 +54,24 @@ public struct BioVitals: Codable, Sendable, Equatable {
     /// may have written HealthKit-sourced vitals unmarked).
     public var egressAllowed: Bool
 
+    /// Whether these numbers came from the DEMO generator rather than a body.
+    /// `nil` means the writer did not say — the same three-state encoding
+    /// `ColabPayload.BioPeek.synthetic` uses for a peer (#629), and for the same
+    /// reason: a glanceable surface must be able to distinguish "measured" from
+    /// "unknown" instead of folding both into `false`. `true` ⇒ the reader marks it.
+    ///
+    /// ⭐ WHY `Bool?` HERE WHEN `egressAllowed` NEXT DOOR IS A PLAIN `Bool`: that one
+    /// fails CLOSED — an absent value must mean "refuse egress", so `false` is the
+    /// safe reading of silence. This one has no safe `false`: reading silence as
+    /// "measured" prints a demo pulse as the user's, and reading it as "demo" brands
+    /// a real reading fake. Neither direction is safe, so silence stays silence.
+    ///
+    /// ⛔ IT CANNOT BE A `BioSource`. This file is compiled STANDALONE into
+    /// `EchoelmusicWidgets` and `EchoelmusicWatch` (see the `isFresh` note below);
+    /// `BioSource` does not exist in either target. The app-side mapping in
+    /// `BioFeedbackPublisher.vitals(from:)` is where the source is read.
+    public var synthetic: Bool?
+
     /// Defaults describe an UNMEASURED body, not an average one: `hrvNormalized`
     /// and `coherence` default to 0 ("not measured") rather than the old 0.5, which
     /// was a fabricated mid-scale reading that the Widget and the Watch printed as
@@ -67,7 +85,8 @@ public struct BioVitals: Codable, Sendable, Equatable {
         coherence: Float = 0,
         timestamp: TimeInterval = 0,
         breathRate: Float = 0,
-        egressAllowed: Bool = false
+        egressAllowed: Bool = false,
+        synthetic: Bool? = nil
     ) {
         self.heartRateBPM = heartRateBPM
         self.hrvNormalized = hrvNormalized
@@ -76,17 +95,19 @@ public struct BioVitals: Codable, Sendable, Equatable {
         self.timestamp = timestamp
         self.breathRate = breathRate
         self.egressAllowed = egressAllowed
+        self.synthetic = synthetic
     }
 
     private enum CodingKeys: String, CodingKey {
         case heartRateBPM, hrvNormalized, breathPhase, coherence, timestamp
-        case breathRate, egressAllowed
+        case breathRate, egressAllowed, synthetic
     }
 
     /// Backward-compatible decode: v1 payloads (shipped builds before
     /// 2026-07-17) lack `breathRate`/`egressAllowed`. Missing breathRate ⇒ 0
-    /// ("not available"); missing egressAllowed ⇒ false (never host-visible).
-    /// Encoding stays synthesized (always writes both fields).
+    /// ("not available"); missing egressAllowed ⇒ false (never host-visible);
+    /// missing `synthetic` ⇒ **nil**, which is "unknown", not "measured".
+    /// Encoding stays synthesized (a nil `synthetic` is simply omitted).
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         heartRateBPM = try c.decode(Float.self, forKey: .heartRateBPM)
@@ -96,6 +117,7 @@ public struct BioVitals: Codable, Sendable, Equatable {
         timestamp = try c.decode(TimeInterval.self, forKey: .timestamp)
         breathRate = try c.decodeIfPresent(Float.self, forKey: .breathRate) ?? 0
         egressAllowed = try c.decodeIfPresent(Bool.self, forKey: .egressAllowed) ?? false
+        synthetic = try c.decodeIfPresent(Bool.self, forKey: .synthetic)   // absent ⇒ nil, NOT false
     }
 
     /// All numeric fields are finite. A corrupted cross-process payload must

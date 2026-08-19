@@ -28,13 +28,21 @@
 //
 //  ⛔ THIS BLOCK USED TO CLAIM "the bio strip always labels it 'Demo'". THAT IS
 //  FALSE, and it was false seventy lines above a comment block asserting honesty.
-//  There is no user-facing "Demo" string anywhere in `Sources/` — every hit is a
-//  comment. (⛔ The first version of this retraction said "the two hits", counted from
-//  a grep run BEFORE it added three more of its own. `git grep -nw Demo -- Sources`
-//  is the check; the count is not worth restating, the property is.) The strip:
-//  `BioStripView.sourceLabel(.fallback)` returns "—" and `sourceText` returns
-//  "No signal" for `.fallback`, while `hrString`/`hrvString` render the reading with NO
-//  source filter. (⛔ #626b: this named `bus.latestBio` as the mechanism; since #507 both
+//  ⭐ AND THAT RETRACTION IS ITSELF SPENT — #627 BUILT THE LABEL, #632 FINISHED IT.
+//  It read "There is no user-facing "Demo" string anywhere in `Sources/` — every hit is
+//  a comment", and `git grep -n 'Text("Demo")' -- Sources` now returns FIVE renderers:
+//  `BioStripView` and `HeaderMonitors` (#627), `LiveColaboView` (#629), and the Widget
+//  and the Watch glance (#632). The retraction was correct when written and is now the
+//  thing that needs retracting — which is why the property, not the count, was the part
+//  worth keeping: the property FLIPPED.
+//
+//  ⛔ WHAT SURVIVES UNCHANGED, and it is the half a reader must not lose: the two helpers
+//  named below still say nothing about provenance. `BioStripView.sourceLabel(.fallback)`
+//  returns "—" and `sourceText` returns "No signal" for `.fallback`, while
+//  `hrString`/`hrvString` render the reading with NO source filter. The marking is a
+//  SEPARATE branch (`sourceControl` → `demoTag`) that sits AHEAD of them; nobody fixed
+//  these two, and a slice that reroutes the tag through `sourceText` would silently
+//  re-open the hole. (⛔ #626b: this named `bus.latestBio` as the mechanism; since #507 both
 //  render `reading`, i.e. `bus.usableBio()`. The CONCLUSION is unchanged and now matters
 //  more — there is still no source filter — but a reader who greps `BioStripView` for
 //  `latestBio` finds nothing and could mistake the retraction for obsolete.)
