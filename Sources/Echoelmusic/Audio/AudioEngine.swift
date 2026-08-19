@@ -1742,17 +1742,32 @@ public final class AudioEngine {
             // ONLY tap on masterEngine.inputNode" — false in `Sources/`, reviewer #595.
             if !monitorTapInstalled {
                 monitorTapWindow.clear()
-                // ⚠️ Captured ONCE at install (#595 reviewer F2): after a mid-session
-                // route change (48 k ↔ 44.1 k) `binToHz` runs on the stale rate — up to
-                // ~9 % off, the order of the 0.15-octave bandwidth, so the notch can sit
-                // beside the howl. Same staleness class as every tap format in this file
-                // (avaudio-route-resilience); the duck still defends. A route-change
-                // re-arm of monitoring is the honest fix if this shows up on device.
-                // ⚠️ #599 added a SECOND, LOUDER consumer of this rate (review M2):
-                // YIN divides by it, so a 44.1↔48 route change shifts every detected
-                // pitch by a constant ~147 cents — "Tune to key" then confidently
-                // snaps the voice to WRONG notes until monitoring is recycled. The
-                // re-arm above is now correspondingly more valuable.
+                // Captured ONCE at install (#595 reviewer F2). Two consumers divide by
+                // this rate: `binToHz` for the notch (a stale rate puts the 0.15-octave
+                // band up to ~9 % off, i.e. beside the howl) and — since #599 — YIN,
+                // where a 44.1↔48 switch shifts every detected pitch by a constant
+                // ~147 cents, so "Tune to key" snaps the voice to WRONG notes.
+                //
+                // ⛔ BOTH ⚠️ BLOCKS THAT STOOD HERE ARE RETRACTED: they described the
+                // repair as PENDING — "a route-change re-arm of monitoring is the honest
+                // fix if this shows up on device" and "the re-arm above is now
+                // correspondingly more valuable". **#612 BUILT IT.** The
+                // `.AVAudioEngineConfigurationChange` observer compares the live
+                // `inputNode` rate against this field and calls `rearmInputMonitoring`
+                // on a mismatch; `start()` covers the media-services-reset path. The
+                // capture is still once-per-install — that has not changed and does not
+                // need to — but it is now RE-captured on every route switch, so neither
+                // consumer runs stale for longer than one configuration-change hop.
+                //
+                // Why the retraction and not a deletion: a comment that files a fix as
+                // outstanding is an instruction to the next session to build it, and
+                // this one named a CRITICAL. Left as it was, the cheapest reading of
+                // "live monitoring is broken on a route change" was to write
+                // `rearmInputMonitoring` a second time. The residual risk is different
+                // and smaller: the re-arm rides on a configuration-change NOTIFICATION,
+                // so a route switch that never posts one leaves both consumers stale —
+                // that, and nothing above, is what a device report would have to
+                // distinguish.
                 monitorTapSampleRate = inFmt.sampleRate
                 let window = monitorTapWindow
                 input.installTap(onBus: 0,
