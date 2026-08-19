@@ -6,28 +6,27 @@ working in one directory belongs in that directory's `CLAUDE.md`, not here.
 
 ## 1. What a session already pays
 
-Measured 2026-08-12, **after #538**: **227,099 bytes** arrive before the first line of work.
+Three sources arrive before the first line of work: `CLAUDE.md`, the SessionStart hook's
+stdout, and `.claude/rules/*.md`.
 
-| source | bytes | note |
-|---|---|---|
-| `CLAUDE.md` | 126,635 | was **715,488** — #538 moved the two count chains out (see below) |
-| SessionStart hook stdout | 89,515 | was 199,983 until the two big memory files were capped |
-| `.claude/rules/*.md` | 10,949 | **this file is 5,166 of them** — it was 5,783 before it existed |
+⛔ **THE BYTE TABLE THAT STOOD HERE IS DELETED, NOT REFRESHED, and that is the whole lesson.**
+It asserted a total, a per-file breakdown and two law-share percentages, and a 2026-08-19
+re-measurement found **seven** of those figures wrong — `CLAUDE.md` alone had grown +13,734 B
+past the number printed two paragraphs above the rule "measure; do not recite". The same block
+also carried its own contradiction: it said the executable law is "~11 %" of the surface and
+then "2.7 %" of it, six lines apart. **Refreshing the numbers would have rebuilt the trap**;
+a table of bytes in an always-loaded file is a date, not a fact, and nothing re-derives it.
 
-⛔ **This table read `715,488 / 562,848 chars (80.2 %) / lines 310–5911` and every number in it
-is now history.** #538 moved that chain — the `Tests/CISmoke` provenance (5,599 lines) and the
-`Sources/**` provenance (17,511 chars inside one bullet) — **verbatim** to
-`memory/LEDGER_COUNTS.md`, leaving a routing line at each site. Nothing was deleted; the file is
-NOT in the SessionStart hook's `cat` list and must never be added to it. The always-loaded
-surface fell **−588,853 B (−72.2 % of the total, −82.3 % of `CLAUDE.md`)**, so the ~25 KB of
-executable law is now **~11 %** of the surface instead of 2.7 %. `scripts/doctor.py --section D`
-prints this table live and WARNs above 150,000 B; **read it there, do not quote this row.**
+**The live figure is `python3 scripts/doctor.py --section D`** — it prints the surface, the
+per-file split, and WARNs above 150,000 B. Read it there. `memory/LEDGER_COUNTS.md` is where
+#538 moved the two count-provenance chains verbatim; it is NOT in the hook's `cat` list and
+must never be added to it.
 
 `.claude/settings.json` sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "50"`, so compaction fires at
-half budget. The ~25 KB of executable law (audio-thread bans, force-unwrap ban,
-`EchoelValueField`, the 3 Hz flash ceiling, the OSC address set) is **2.7 %** of that surface
-and is what gets summarised away first. **Do not grow the always-loaded set.** Adding a line to
-an accreting ledger is cheap for you and charged to every future session.
+half budget, and the executable law (audio-thread bans, force-unwrap ban, `EchoelValueField`,
+the 3 Hz flash ceiling, the OSC address set) is the small share that gets summarised away
+first. **Do not grow the always-loaded set.** Adding a line to an accreting ledger is cheap
+for you and charged to every future session.
 
 **Two caps hold this line. Do not remove either.** `sed -n '1,80p'` on `SESSION_LOG.md` keeps
 778,917 B off the bill. `cat memory/*.md` was uncapped at 191,875 B (`decisions.md` alone
@@ -36,10 +35,11 @@ an accreting ledger is cheap for you and charged to every future session.
 tail-120. Each slice prints what it withheld and the command to read the whole file.
 
 ⚠️ The `decisions.md` slice is a **heuristic, not a guarantee**, and the banner says so:
-that file is **not** in date order — its first 200 lines carry 07-21…07-23 and its last 200
-carry 07-20…07-31. The tail wins only because the newest entry (07-31) sits at line 1242 of
-1272. If entries ever get appended in a different place, the cap silently shows the wrong
-ones. The real repair is ordering the file, not widening the slice.
+that file is **not** in date order. The tail wins only because the newest entry happens to sit
+near it — re-derive with `grep -nE '^### 20[0-9]{2}-' memory/decisions.md | tail -3` against
+`wc -l`, and note that a plain newest-date scan is WRONG here: it lands on a `review_date`
+inside an older entry, not on the newest entry. If entries ever get appended elsewhere, the cap
+silently shows the wrong ones. The real repair is ordering the file, not widening the slice.
 
 ## 2. Measure; do not recite, estimate, or remember
 
