@@ -607,14 +607,25 @@ struct BioStripView: View {
 
     // MARK: - Source control (live tag · measuring · one-tap pulse entry)
 
-    /// The right end of the strip. FOUR honest states, no synthetic data ever:
+    /// The right end of the strip. FIVE honest states:
     /// • a real signal is live → green source tag (HR / PPG / BLE…). Only a real,
     ///   fresh signal turns it green;
+    /// • the SIMULATION source is publishing → a dim "Demo" tag (#627);
     /// • camera access denied → the one real door, the system Settings;
     /// • a read is in progress → live "Reading… / Connecting…" feedback;
     /// • nothing yet → EITHER a one-tap button that brings the body in, when the
     ///   host passed `onStartPulse` (only `BioSourceView` does, and its handler arms
     ///   the sensor alone), OR a static "No signal" tag when it did not.
+    ///
+    /// ⛔ THIS SAID "FOUR honest states, NO SYNTHETIC DATA EVER" — and the second half was
+    /// the file's own summary of itself, three lines above the branch table that made it
+    /// false. The tag never rendered synthetic data, true; the CELLS beside it did, and
+    /// always had, because they read `usableBio()` while `hasLiveSignal` excludes
+    /// `.fallback`. So the sentence was accurate about the corner it described and wrong
+    /// about the row it introduced — the reading a session actually takes from it. #627
+    /// adds the fifth state and this retraction rather than quietly editing the count,
+    /// because "no synthetic data ever" is exactly the sentence that would stop someone
+    /// from looking.
     ///
     /// ⛔ THE THIRD BULLET USED TO SAY the no-signal state was "a one-tap button …
     /// so the most bio-looking element is the gateway to the instrument, not a dead
@@ -626,6 +637,17 @@ struct BioStripView: View {
     @ViewBuilder private var sourceControl: some View {
         if hasLiveSignal {
             liveTag
+        } else if isSynthetic {
+            // #627 — THE FIFTH STATE, and it is the one the four above LIED about.
+            // `hasLiveSignal` excludes `.fallback` on purpose (the demo is not a body), but
+            // the numbers beside this tag read `reading` = `usableBio()`, which INCLUDES it.
+            // So with Simulation selected and a session running, every cell printed a
+            // confident HR / HRV / breath / coherence while this corner said "Connecting…"
+            // for the rest of the session — `measuring` is `running`, and no branch above
+            // could ever catch a synthetic frame. #626 made that permanent: before it, one
+            // real frame parked the simulator forever and the row blanked, so the surface was
+            // honest by accident. Now the stream never stops, and the accident is gone.
+            demoTag
         } else if cameraRPPG.permissionDenied, reading == nil {
             // UX-1: with access denied the camera can never start, so neither
             // "Reading…" nor "Read pulse" is honest — offer the one real door.
@@ -677,6 +699,24 @@ struct BioStripView: View {
         .buttonStyle(.plain)
         .accessibilityLabel("Camera access is off")
         .accessibilityHint("Opens Settings so you can allow camera access and read your pulse")
+    }
+
+    /// #627 — the demo's own tag. Deliberately NOT `EchoelTheme.success` (green is reserved
+    /// for a real body on the wire, and this file's doc says so one screen up) and NOT
+    /// `EchoelTheme.warning` (nothing is wrong or pending — the user picked this). Dim, with
+    /// the same outline as `noSignalTag`, so it reads as "these numbers are not you" at a
+    /// glance and to VoiceOver in words.
+    private var demoTag: some View {
+        HStack(spacing: 4) {
+            Image(systemName: "waveform.path").font(.system(size: 9))
+            Text("Demo")
+        }
+        .lineLimit(1)
+        .padding(.horizontal, 6).padding(.vertical, 2)
+        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+            .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
+        .foregroundStyle(EchoelTheme.dim)
+        .accessibilityLabel(Text("Bio source: simulated demo, not your body"))
     }
 
     private var liveTag: some View {
@@ -787,6 +827,12 @@ struct BioStripView: View {
         if let bio = reading, bio.source != .fallback { return true }
         return false
     }
+
+    /// #627. A usable frame is on the bus and it is SYNTHETIC — the `BioSimulator`'s
+    /// `.fallback` stream. Gated on `reading` (the per-source freshness window), the same
+    /// clock every number in this strip already uses, so the tag and the cells appear and
+    /// expire together instead of one outliving the other (#503's defect, one surface over).
+    private var isSynthetic: Bool { reading?.source == .fallback }
 
     private var sourceText: String {
         if let bio = reading, bio.source != .fallback {

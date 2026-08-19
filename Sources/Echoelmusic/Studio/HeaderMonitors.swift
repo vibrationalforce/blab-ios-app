@@ -83,6 +83,15 @@ struct PulseMonitorMini: View {
     /// looked dead and were aborted <5 s). `short` fills the BPM slot while no
     /// pulse flows; `full` carries the VoiceOver/coaching text. nil ⇒ plain monitor.
     var status: (short: String, full: String)? = nil
+    /// #627: these numbers are SYNTHETIC (`BioSource.fallback`, the Simulation source).
+    /// The pill has always printed the bus BPM for whatever source is live and marked it
+    /// `locked` on any fresh frame — for a real strap that is exactly right, for the demo it
+    /// is the app telling you your heart is doing something it is not. #626 turned that from
+    /// an intermittent state into a continuous one (before it, a single real frame parked the
+    /// simulator for good and the pill fell silent), so the surface stopped being honest by
+    /// accident and had to be made honest on purpose. nil-equivalent default `false` keeps
+    /// every real-sensor call site unchanged.
+    var synthetic: Bool = false
 
     /// Show the amber coaching cue: a correctable placement issue while not locked.
     private var showCue: Bool { !locked && (cue?.isActionable ?? false) }
@@ -115,7 +124,11 @@ struct PulseMonitorMini: View {
     var body: some View {
         HStack(spacing: 6) {
             PulseTrace(samples: waveform,
-                       color: locked ? EchoelTheme.accent : (showCue ? EchoelTheme.warning : EchoelTheme.dim),
+                       // #627: the accent is the LOCK colour — the strongest non-verbal claim
+                       // this tile makes ("a real pulse is on the wire"). A synthetic frame
+                       // sets `locked`, so without this the demo lit the same green as a
+                       // strap. The word below says it in language; this says it in colour.
+                       color: (locked && !synthetic) ? EchoelTheme.accent : (showCue ? EchoelTheme.warning : EchoelTheme.dim),
                        lineWidth: 1.8)
                 .frame(minWidth: 60, maxWidth: .infinity)
                 .frame(height: 34)
@@ -151,6 +164,12 @@ struct PulseMonitorMini: View {
                 }
             }
             .frame(minWidth: 28, alignment: .leading)
+            if synthetic {
+                Text("Demo")
+                    .font(EchoelTheme.font(10, .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+                    .lineLimit(1).minimumScaleFactor(0.8)
+            }
             if let coh = coherence {
                 Text(EchoelDecimalText.string(coh, decimals: 2))
                     .font(EchoelTheme.font(12)).monospacedDigit()
@@ -193,10 +212,14 @@ struct PulseMonitorMini: View {
         if showCue, let cue { return cue.fullHint }
         if showStatus, let status { return status.full }
         guard locked && bpm > 0 else { return "No pulse lock" }
+        // #627: the marker goes FIRST. VoiceOver reads this value straight through, so
+        // "142 beats per minute, simulated" can be heard as a measurement with a footnote;
+        // "Simulated demo, 142 beats per minute" cannot be mistaken for one.
+        let prefix = synthetic ? "Simulated demo, " : ""
         if let coh = coherence {
-            return "\(Int(bpm)) beats per minute, coherence \(EchoelDecimalText.string(coh, decimals: 2))"
+            return "\(prefix)\(Int(bpm)) beats per minute, coherence \(EchoelDecimalText.string(coh, decimals: 2))"
         }
-        return "\(Int(bpm)) beats per minute"
+        return "\(prefix)\(Int(bpm)) beats per minute"
     }
 }
 
@@ -266,7 +289,13 @@ struct PulseMonitorMiniLive: View {
                          // BLE-1: while the strap is the source, the scan/connect
                          // lifecycle is VISIBLE here instead of a dead flat trace.
                          status: strapStatus(cameraLive: cameraLive,
-                                             hasLiveFrames: fresh != nil))
+                                             hasLiveFrames: fresh != nil),
+                         // #627. `cameraLive` first, deliberately: while the camera runs, the
+                         // BPM and the lock above come from `cameraRPPG`, NOT from the bus, so
+                         // a stale `.fallback` frame still sitting in the snapshot must not
+                         // brand a real reading as a demo. Off-camera the pill reads the bus,
+                         // and then the frame's own source is the only truth there is.
+                         synthetic: !cameraLive && fresh?.source == .fallback)
             // E-Bio-Header — bio's HOME is this header pill (founder 2026-07-14 +
             // 2026-07-15 video: "Lange drücken = drop down: camera light · Search for
             // Bluetooth Device · Simulation").
