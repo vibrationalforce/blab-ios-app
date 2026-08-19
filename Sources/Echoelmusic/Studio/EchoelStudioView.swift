@@ -7682,7 +7682,13 @@ struct EchoelStudioView: View {
         // #622b (review W1): the FOURTH `hasComposed` writer, conditional like open()'s.
         // Without it the flag went stale-false on this path: a take whose `notes`
         // decoded empty but whose `rawTake` survived opened grey (#622's honest flag),
-        // then a Mix-fader nudge restored the FULL arrangement right here — and the
+        // then a Mix-fader nudge restored the FULL arrangement right here —
+        // ⛔ #623b (review W3): that scenario is now HISTORICAL on the stopped path —
+        // #623 installs the arrangement at open, so such a take no longer opens grey
+        // there. This writer is still load-bearing, for three cases the install does not
+        // cover: a ONE-bar rawTake, a rawTake whose FIRST bar is empty (both skipped by
+        // the install's conditions), and the PLAYING branch, where `loadArrangement`
+        // leaves `notes` untouched by design. Kept as the record of why it exists — and the
         // export tile, Save and the explainer all kept claiming nothing had composed,
         // while Play would have destroyed the recovery. The flag is a snapshot; every
         // path that LOADS notes must refresh it (the guard counts the writers).
@@ -7706,8 +7712,13 @@ struct EchoelStudioView: View {
     /// run at gesture rate:
     /// · `syncPrimaryRollClip` / `writeLaneTakes` — the JSON encode + atomic file write.
     ///   That is the whole point of the split.
-    /// · the `lastRawTake == nil` fallback to `recomposeIfRunning()`. Reached on every
-    ///   opened project (`open(_:)` restores a baked take without raw bars), it would fire
+    /// · the `lastRawTake == nil` fallback to `recomposeIfRunning()`. ⛔ This line read
+    ///   "Reached on every opened project (`open(_:)` restores a baked take without raw
+    ///   bars)" — false since #217 gave `open(_:)` its own `lastRawTake = p.rebakeSource`,
+    ///   and doubly so since #623 installs those bars on the roll. A LEGACY take with no
+    ///   `rawTake` is what reaches it now. (#623b review W2: the identical clause was
+    ///   corrected one method above in #623 and this copy was missed — the same sentence,
+    ///   the same false premise, fifty lines apart.) Wherever it is reached, it would fire
     ///   a generate schedule per drag event. The debounced half keeps that fallback, so
     ///   the no-raw-take case behaves exactly as before this change.
     /// · the stopped branch — see the note on `scheduleRebalance` below.
@@ -10503,8 +10514,31 @@ struct EchoelStudioView: View {
         // which is a SNAPSHOT of `pianoRoll.notes` (#622/#622b). Installing after it would
         // leave a take whose `notes` decoded empty but whose `rawTake` survived sitting
         // grey with a full, exportable arrangement loaded — the state #622b had to rescue
-        // with a Mix-fader nudge. Here that case now opens armed and correct.
-        if let take = p.rebakeSource, take.bars.count > 1 {
+        // with a Mix-fader nudge.
+        //
+        // ⛔ #623b (review W1): the sentence that closed this paragraph — "Here that case
+        // now opens armed and correct" — was FALSE ON THE PLAYING BRANCH, without saying
+        // so. `loadArrangement(playing: true)` writes `arrangementBars` and `pendingNotes`
+        // and deliberately does NOT touch `notes` (the sounding bar is never cut), so the
+        // flag below still reads `!p.notes.isEmpty` exactly as it did before #623. The
+        // rescue is real when STOPPED — the ordinary case for opening a take — and the
+        // running case is unchanged, not fixed. An unqualified claim here is the kind
+        // that stops the next reader from noticing the branch at all.
+        //
+        // ⚠️ #623b (review W4) — `bars.count > 1` GUARDS THE OUTER ARRAY, AND THAT WAS NOT
+        // ENOUGH. `Project.rebakeSource` only requires `!rawTake.bars.isEmpty`, while
+        // `RawTake`'s decoder keeps bar POSITIONS and drops unreadable notes INSIDE a bar
+        // — the same lossy mechanism #622 exists for. So `[[], [x], [y]]` is representable,
+        // and the stopped branch would then stage `IntroAttenuation.apply(bars[0])` = `[]`
+        // into `notes`, making `hasComposed` FALSE for a take that opened ARMED before
+        // #623. The install could disarm a take it had just made exportable — a strict
+        // regression, in the one method this slice was meant to repair. Requiring a
+        // non-empty FIRST bar is the smallest condition that makes the stopped branch
+        // incapable of emptying the roll; a take whose bar 0 really is a rest keeps its
+        // pre-#623 behaviour, which is the conservative half of the trade and is stated
+        // here rather than silently chosen.
+        if let take = p.rebakeSource, take.bars.count > 1,
+           take.bars.first?.isEmpty == false {
             pianoRoll.loadArrangement(take.bars.map { mixGlued($0, genre: take.genre) },
                                       playing: running && beatPlayer.pattern.isPlaying)
         }

@@ -9,8 +9,12 @@
 // `guard arrangementBars.count > 1 else { return (notes, 1) }` branch, so an eight-bar
 // take exported as ONE bar — and that one bar is the worst possible choice, because
 // `Project.notes` is whatever `loadArrangement` last staged, i.e. bar 0 with
-// `IntroAttenuation` baked in. The export was short AND softened, while reporting
-// success: the diag line reads "… 1 bars" rather than naming a failure. #217 had
+// `IntroAttenuation` baked in. ⚠️ #623b (review L9): that is the COMMON case, not the
+// only one — once the transport has wrapped a bar, `trigger` writes the true unsoftened
+// `arrangementBars[k]` into `notes` and `pattern.onStop` re-primes from the unsoftened
+// bar 0, so a take saved mid-playback exports one UNsoftened bar. Short either way;
+// softened only when saved before the first wrap. The export was short, usually also
+// softened, while reporting success: the diag line reads "… 1 bars" rather than naming a failure. #217 had
 // already persisted the raw bars (`Project.rawTake` → `rebakeSource`) and restored them
 // into `lastRawTake`; they simply never reached the roll until a Mix fader was nudged
 // (`rebalanceTake()`). This slice installs them at open, through the same machinery.
@@ -49,7 +53,17 @@
 // route around: it is the argument that this is the install verb (#616).
 //
 // Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH**
-// (0 of 8 source verdicts flip raw vs stripped, on EITHER tree). ⛔ The first version of
+// (0 of 8 source verdicts flip raw vs stripped, on EITHER tree — the denominator
+// is every `XCTAssert` from `testOpenInstallsTheRestoredBarsBeforeItJudgesTheFlag`
+// to the end of the file, i.e. the scan test plus the two anchor checks in `span`).
+//
+// ⛔ THIS DENOMINATOR HAS BEEN WRONG TWICE AND THE SECOND TIME WAS THE CORRECTION.
+// It read 8 (eyeballed), was "corrected" to 7 on review, and #623b's own new
+// assertion put it back at 8 — so the review's 7 was right about the tree it read
+// and stale by the time the fix landed. The lesson is not the number: it is that a
+// hand-counted total in a header that RETRACTS an unmeasured count reproduces the
+// defect it is apologising for. The counting RULE is now written down above so the
+// next reader re-derives it in one command instead of trusting a digit. ⛔ The first version of
 // this header claimed "TRAGEND (2 of 3)" and reasoned it out instead of measuring it —
 // the #623 call-site comment does discuss both `loadArrangement` and `hasComposed`, but
 // it names them WITHOUT the receiver (`pianoRoll.`) and without the full assignment
@@ -60,6 +74,12 @@
 // silently is going back to a bare `load(p.notes)` with no arrangement install, or
 // letting the install drift below the flag write. The failure messages say so.
 
+// #623b (review L8): file-level `canImport(SwiftUI)`, the family convention
+// (`FXSpreadRowTests`) — `PianoRollModel` lives inside that guard in `PianoRollView.swift`,
+// so a bundle built without SwiftUI would not compile the behavioural half. Harmless in
+// today's CI (CISmoke builds only via the macOS Xcode target), which is exactly why it was
+// missed; the convention exists so the next platform does not have to discover it.
+#if canImport(SwiftUI)
 import Foundation
 import XCTest
 @testable import Echoelmusic
@@ -144,8 +164,15 @@ final class AnOpenedTakeExportsItsWholeArrangementTests: XCTestCase {
             """)
     }
 
-    /// 4-6 — the CALL SITE. Source-text, because `open(_:)` is private to a view this
+    /// 4-7 — the CALL SITE. Source-text, because `open(_:)` is private to a view this
     /// bundle cannot instantiate.
+    ///
+    /// ⚠️ #623b (review W1): the ORDER claim below buys the honest flag on the STOPPED
+    /// branch only. `loadArrangement(playing: true)` writes `arrangementBars` and
+    /// `pendingNotes` and leaves `notes` alone by design, so with the transport running
+    /// the flag reads `!p.notes.isEmpty` exactly as before #623. Nothing here can pin
+    /// that — it is a property of the model call, not of the call site's order — so it is
+    /// STATED rather than asserted, and the source comment carries the same retraction.
     func testOpenInstallsTheRestoredBarsBeforeItJudgesTheFlag() throws {
         let lines = try studioLines()
 
@@ -165,6 +192,20 @@ final class AnOpenedTakeExportsItsWholeArrangementTests: XCTestCase {
             the install lost its multi-bar condition. Without it a single-bar take gets \
             its sounding notes re-glued at the CURRENT faders on open — a change in what \
             the take sounds like, bought for no export benefit at all.
+            """)
+        // #623b (review W4): the SECOND condition, and the one that stops this slice
+        // from being a regression. `bars.count > 1` guards the OUTER array only, while
+        // `RawTake`'s decoder can drop every note inside a bar and keep its position —
+        // so `[[], [x], [y]]` reaches here, the stopped branch stages an EMPTY bar 0
+        // into `notes`, and `hasComposed` goes false for a take that opened ARMED before
+        // #623. The install would disarm a take it had just made exportable.
+        XCTAssertTrue(lines.contains { $0.contains("take.bars.first?.isEmpty == false") }, """
+            the install lost its non-empty-first-bar condition (#623b, review W4). \
+            Without it a rawTake whose bar 0 decoded empty — representable, because \
+            `RawTake` keeps bar positions and drops unreadable notes inside a bar — makes \
+            the stopped branch stage `IntroAttenuation.apply([])` into `notes`, so the \
+            `hasComposed` snapshot below reads FALSE and the take opens grey. That take \
+            opened ARMED before #623: the install must never be able to empty the roll.
             """)
 
         // ORDER, scoped to open(_:) by TWO unique anchors (#621b). File-wide indices are
@@ -216,3 +257,4 @@ final class AnOpenedTakeExportsItsWholeArrangementTests: XCTestCase {
         return lines[si ... ei]
     }
 }
+#endif
