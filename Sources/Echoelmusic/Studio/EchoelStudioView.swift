@@ -10507,7 +10507,21 @@ struct EchoelStudioView: View {
         // change and stays out of this fix — making the chain match what the picker SHOWS is what
         // stops it lying.
         applyDelaySync(bpm: loadedTempo)
-        hasComposed = true
+        // #622 (Ultra-Audit MIDI Rank 1, founder: "Midi Export geht nicht"): this line
+        // was an unconditional `hasComposed = true`, and `Project.notes` can decode
+        // EMPTY (lossy decode drops every unreadable note). That armed the whole
+        // composed-only chrome — the pianokeys export tile above all — for a take with
+        // nothing in the roll: `exportMIDI()` then hits its empty guard and returns
+        // with only a breadcrumb, the documented "control that looks like it worked".
+        // Worse, the trap self-propagated: Save is also `hasComposed`-gated and writes
+        // `pianoRoll.notes`, so an empty take could be saved under a real name and
+        // re-opened, forever. Honest flag = the first-run explainer comes back and
+        // says what to do (compose), instead of a bright tile that eats the tap.
+        // `generate()` keeps its unconditional set — it always loads the bars it just
+        // composed. The autosave path has carried this exact second condition since
+        // #204 (`guard hasComposed, !pianoRoll.notes.isEmpty`); this is the same law
+        // at the third writer.
+        hasComposed = !pianoRoll.notes.isEmpty
         // #493 — RESTORE THE TAKE'S TONE SYSTEM, and note the `if let`: it is the whole
         // decision, not a nil-safety formality. A take saved by this build always states one,
         // so opening a Maqām loop puts the instrument back into Maqām — the second tuning
