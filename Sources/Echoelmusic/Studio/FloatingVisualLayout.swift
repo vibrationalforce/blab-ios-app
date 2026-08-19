@@ -137,14 +137,20 @@ public enum FloatingVisualLayout {
     //   · left/right/top edges keep the card `margin` clear of the container edge — the
     //     same bound `FloatingVisualWindow.clamp` enforces on every drag;
     //   · the BOTTOM corners additionally lift by `studioControlBandHeight`, exactly like
-    //     `FloatingVisualWindow.defaultCenter` — so "Move to bottom right" lands on the
+    //     `FloatingVisualWindow.defaultCenter` — so the bottom-right action lands on the
     //     dock spot the card starts at, not a few points lower than any drag would rest.
+    //     (Named limit, #619b review: on a container short enough that this lift folds
+    //     into the top margin, the "bottom" actions park where the dock itself would —
+    //     verified byte-equal to `clamp(defaultCenter)` — so the spoken name over-promises
+    //     only in extreme landscape/large-card combinations the dock shares.)
     // The `max(min…, …)` folds guard a degenerate container (card wider than bounds):
     // the near edge wins, matching `clamp`'s ordering, and the result stays finite.
     //
     // Names live HERE as rawValues — one definition (#416): the view builds its action
-    // buttons from `allCases`, so a fifth corner or a rename is one edit, and the guard
-    // (`TheFloatingWindowMovesWithoutADragTests`) pins the set without a second spelling.
+    // buttons from `allCases`. A RENAME is one edit; a FIFTH corner is two, deliberately —
+    // the guard (`TheFloatingWindowMovesWithoutADragTests`) pins the set's count, so
+    // growing it means saying so where the set is proven. (#619b: the first version of
+    // this sentence claimed both were one edit, contradicting the guard seven files away.)
     public enum SnapCorner: String, CaseIterable, Sendable {
         case topLeft = "Move to top left"
         case topRight = "Move to top right"

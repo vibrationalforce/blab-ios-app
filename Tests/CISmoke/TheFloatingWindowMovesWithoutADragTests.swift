@@ -22,12 +22,22 @@
 // drag label) are green on both trees — they are the point: a commit that swapped the drag
 // FOR the actions would red them.
 //
-// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED PROPHYLAKTISCH (0 of 4
-// windowed verdicts flip raw vs stripped on either tree): the #619 comment block sits
-// ABOVE the `.accessibilityActions` anchor and quotes no needle; the "Move to " absence
-// check is 0 raw AND stripped because the view's comment deliberately avoids the phrase.
-// Kept through codeOnly anyway so a future comment quoting an action name cannot flip the
-// absence verdict — that is the exact class #618 measured TRAGEND next door.
+// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED PROPHYLAKTISCH (0 of 5
+// verdicts flip raw vs stripped on either tree, re-measured after #619b): the #619
+// comment block sits ABOVE the `.accessibilityActions` anchor and quotes no needle, and
+// the name-absence check (rawValues, dynamic) finds 0 raw AND stripped because the view's
+// comment deliberately avoids the names. Kept through codeOnly anyway so a future comment
+// quoting an action name cannot flip the absence verdict — the class #618 measured
+// TRAGEND next door. (The brace-match counts braces AFTER codeOnly blanks comments, so
+// prose braces cannot corrupt the depth; string literals inside the builder carry none.)
+//
+// #619b (review, 3 WARN / 4 LOW, all taken): W1 fixed 12-line window → brace-matched
+// slice; W2 the call's ARGUMENTS are now pinned, closing the gap between "the function is
+// proven" and "the shipped call uses it with the clamp's own bounds/card/margin"; W3 the
+// absence check bans the actual rawValues instead of the phrase "Move to " — an unrelated
+// future "Move to library" string stays legal (#364). Lows: count assertion carries its
+// message; the layout comment's "one edit" claim and its quoted name are corrected at the
+// source; the short-container fold is a NAMED limit at `snapCenter`'s doc.
 
 import Foundation
 import XCTest
@@ -92,7 +102,11 @@ final class TheFloatingWindowMovesWithoutADragTests: XCTestCase {
     /// out) are pinned.
     func testTheCornerSetIsFourDistinctMoveActions() {
         let names = FloatingVisualLayout.SnapCorner.allCases.map(\.rawValue)
-        XCTAssertEqual(names.count, 4)
+        XCTAssertEqual(names.count, 4, """
+            the snap-corner set grew or shrank. Growing it is legal — but it is a TWO-edit \
+            change on purpose (#619b): update this count where the set is proven, in the \
+            same commit, so the rotor never silently gains an unreviewed action.
+            """)
         XCTAssertEqual(Set(names).count, 4, "two corners announcing the same words")
         for name in names {
             XCTAssertTrue(name.hasPrefix("Move to "), """
@@ -122,6 +136,13 @@ final class TheFloatingWindowMovesWithoutADragTests: XCTestCase {
 
     /// The handle's action builder exists once, gates on fullscreen, and derives from the
     /// ONE definition (`SnapCorner.allCases` + `snapCenter`) instead of restating names.
+    ///
+    /// #619b (review W1): the first version took a FIXED 12-line window from the anchor —
+    /// the exact construction this bundle's §2/#408 calls unsound in a repo that writes
+    /// 30–40-line comment blocks. A comment grown inside the builder would have pushed
+    /// `snapCenter(` out of the window and redded "the action no longer calls the pure
+    /// snap maths" for a reason that is not the named one (#367). Now the slice is
+    /// BRACE-MATCHED from the anchor's `{` to its close, so it holds whatever prose grows.
     func testTheHandleOffersTheActionsFromTheOneDefinition() throws {
         let lines = try viewLines()
         let anchors = lines.indices.filter { lines[$0].contains(".accessibilityActions {") }
@@ -130,7 +151,16 @@ final class TheFloatingWindowMovesWithoutADragTests: XCTestCase {
             this window before trusting the assertions below (#408).
             """)
         guard let start = anchors.first else { return }
-        let window = lines[start ..< min(start + 12, lines.count)]
+        var depth = 0
+        var end = start
+        scan: for i in start ..< lines.count {
+            for ch in lines[i] where ch == "{" || ch == "}" {
+                depth += (ch == "{") ? 1 : -1
+                if depth == 0 { end = i; break scan }
+            }
+        }
+        XCTAssertGreaterThan(end, start, "the action builder's braces never close — file truncated?")
+        let window = lines[start ... end]
         XCTAssertTrue(window.contains { $0.contains("if !windowSize.isFullscreen") }, """
             the fullscreen gate is gone from the action builder. Fullscreen pins the card \
             to the exact centre and ignores `center`, so an action offered there silently \
@@ -145,12 +175,30 @@ final class TheFloatingWindowMovesWithoutADragTests: XCTestCase {
             the action no longer calls the pure snap maths — whatever replaced it is not \
             covered by the behavioural half of this file.
             """)
-        // The view restates NO action name: 0 hits file-wide (codeOnly), so a rename in
-        // `SnapCorner` can never leave a stale twin behind in the view.
-        XCTAssertFalse(lines.contains { $0.contains("Move to ") }, """
-            an action name is spelled out in FloatingVisualWindow — the names live ONLY \
-            as `SnapCorner` rawValues (#416). Delete the copy; build from `allCases`.
+        // #619b (review W2): pin the call's ARGUMENTS, not just its name. The behavioural
+        // half proves the FUNCTION; without this needle a call passing `margin: 0` or a
+        // wrong container keeps every assertion green while the dock-parity property no
+        // longer describes the shipped call. Renaming the parameters stays legal — edit
+        // this needle in the same commit (#364, the guard names the coupling).
+        let callJoined = window.joined(separator: " ")
+        XCTAssertTrue(callJoined.contains("in: bounds, card: card, margin: margin"), """
+            the snap call's arguments changed — it must feed the SAME bounds/card/margin \
+            the drag clamp uses, or the behavioural tests in this file prove a function \
+            the view no longer calls that way. If a parameter was renamed, update this \
+            needle in the same commit.
             """)
+        // #619b (review W3): the absence check now bans the ACTUAL rawValues (read from
+        // the one definition), not the phrase "Move to " — so an unrelated future action
+        // string like "Move to library" stays legal (#364), while a stale hand-copy of
+        // any CURRENT name still reds. Dynamic: a rename in `SnapCorner` re-aims the
+        // check automatically.
+        for name in FloatingVisualLayout.SnapCorner.allCases.map(\.rawValue) {
+            XCTAssertFalse(lines.contains { $0.contains(name) }, """
+                the action name "\(name)" is spelled out in FloatingVisualWindow — the \
+                names live ONLY as `SnapCorner` rawValues (#416). Delete the copy; build \
+                from `allCases`.
+                """)
+        }
     }
 
     /// COUNTERWEIGHTS — green on both trees: the founder's drag and its honest label
