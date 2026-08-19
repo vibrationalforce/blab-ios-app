@@ -144,9 +144,19 @@ struct BioMetricInfoView: View {
 struct BioMetricsGuideView: View {
     @Environment(\.dismiss) private var dismiss
     /// Live bio, read HERE (this modal sheet is its own leaf) to drive the "right
-    /// now" bars in the shaping section. Safe under the 10 Hz menu-freeze law: the
-    /// only view that reads `latestBio` in its body is this sheet, which has no
-    /// Picker to tear down, and the studio body underneath never observes it.
+    /// now" bars in the shaping section. Safe under the 10 Hz menu-freeze law: this
+    /// sheet has no Picker to tear down, and the studio body underneath never
+    /// observes it — `EchoelStudioView`'s own `usableBio()` calls sit in an action
+    /// path and in leaf row structs, never in its `body`.
+    ///
+    /// ⛔ THIS NOTE USED TO SAY "the only view that reads `latestBio` in its body is
+    /// this sheet", AND THE VIEW THAT OPENS THIS SHEET REFUTES IT: `BioStripView` has
+    /// `private var reading: BioSampleFrame? { bus.usableBio() }` and reads it in its
+    /// body; so do `LiveColaboView`, `AlwaysOnBioRow` and the header monitor's live
+    /// wrapper. All four are correct — the freeze law asks that such a read live in a
+    /// LEAF, not that there be only one of them — so the conclusion above survives and
+    /// only its reason was false. A "the only X" claim is the kind this repo keeps
+    /// retracting: it is falsified by any file except the one you are looking at.
     @Environment(EngineBus.self) private var bus
 
     /// The metrics actually shown in the strip, in display order (RMSSD/SDNN/pNN50 are
@@ -239,7 +249,45 @@ struct BioMetricsGuideView: View {
                         // was never measured is the one number it must not print. The "—"
                         // and dimmed-bar affordance below already existed for "no body";
                         // it now also covers "body present, this field not measured".
-                        let amount = liveBio.flatMap { BioModulationMap.measuredAmount(forMappingID: m.id, in: $0) }
+                        // ⚠️ ONE frame for the whole row, and the binding is the point. #637's
+                        // first version read `liveBio` twice — once for the amount, once for the
+                        // origin — and both reviewers found the same hole. `liveBio` is
+                        // `bus.usableBio()`, and that call re-reads the wall clock every time it
+                        // is evaluated: `latestBio` cannot change mid-body, but TIME can cross the
+                        // frame's freshness window between the two calls. The straddle lands in
+                        // the worst order (amount first), so the row could print a non-nil demo
+                        // value with `synthetic == false` — a demo number at full strength, spoken
+                        // as measured. Exactly the defect this slice exists to remove, put back by
+                        // the fix for it.
+                        let frame = liveBio
+                        let amount = frame.flatMap { BioModulationMap.measuredAmount(forMappingID: m.id, in: $0) }
+                        // #637 — the row's OWN provenance. The section header above already says
+                        // "demo values, not your body", and that was the whole marking: every row
+                        // below it still drew a full-strength accent number, a full-strength
+                        // accent bar, and spoke "Currently 62 percent" with no origin at all. A
+                        // VoiceOver user landing on a row never hears the header, and a sighted
+                        // user reads the loudest thing on the row, which was unmarked. #636's law
+                        // in one line: half-marked is worse than unmarked, because the reader
+                        // learns that an unmarked number is the real one.
+                        //
+                        // ⚠️ WHAT THIS BINDING DOES **NOT** FIX, stated plainly rather than left
+                        // to read as closed: the ROW is now internally consistent, the SECTION is
+                        // not. The header above still evaluates `liveBio` twice on its own and
+                        // each row evaluates it once more, so at the freshness boundary a marked
+                        // row can sit under an unmarked header. Closing that needs one binding
+                        // above the `ForEach` — a bare `let` directly inside a `VStack`
+                        // ViewBuilder, a shape this repo has NO precedent for and no local
+                        // compiler to settle. Registered, not guessed at.
+                        let synthetic = frame?.source == .fallback
+                        // ⚠️ HOISTED into two `let`s instead of one three-term `+` chain, and that
+                        // is the house idiom at three of the four sibling surfaces
+                        // (`HeaderMonitors`, `EchoelFXView`, `AlwaysOnBioRow`). Not taste: a single
+                        // expression mixing a ternary, two string interpolations and an
+                        // `Optional.map` closure is the shape that took this blocking bundle red on
+                        // "unable to type-check this expression in reasonable time" (#287), and
+                        // there is no local compiler here to find that out cheaply.
+                        let origin = synthetic ? "Simulated demo, " : ""
+                        let measured = amount.map { " Currently \(Int(($0 * 100).rounded())) percent." } ?? ""
                         VStack(alignment: .leading, spacing: 4) {
                             HStack(alignment: .firstTextBaseline, spacing: 6) {
                                 Text(m.source)
@@ -254,18 +302,32 @@ struct BioMetricsGuideView: View {
                                 Spacer(minLength: 4)
                                 Text(amount.map { EchoelDecimalText.string($0, decimals: 2) } ?? "—")
                                     .font(EchoelTheme.font(11, .semibold).monospacedDigit())
-                                    .foregroundStyle(amount == nil ? EchoelTheme.dim : EchoelTheme.accent)
+                                    .foregroundStyle(amount == nil || synthetic
+                                                     ? EchoelTheme.dim : EchoelTheme.accent)
                             }
-                            liveBar(amount ?? 0, live: amount != nil)
+                            liveBar(amount ?? 0, live: amount != nil, synthetic: synthetic)
                             Text(m.direction)
                                 .font(EchoelTheme.font(12))
                                 .foregroundStyle(EchoelTheme.text.opacity(0.8))
                                 .fixedSize(horizontal: false, vertical: true)
                         }
                         .accessibilityElement(children: .combine)
+                        // ⚠️ THE PREFIX SPELLING, chosen by POSITION and not by taste (#416/#634b).
+                        // Three forms are established and they differ by where they sit:
+                        // `"Bio source: simulated demo, not your body"` labels a whole element
+                        // (strip, widget, watch) · `"Simulated demo, "` PREFIXES a sentence that
+                        // continues (header pill, Live-Colabo, always-on rows, FX routes) ·
+                        // `"demo values, not your body"` HEADS a section — which is exactly the
+                        // form used in the section header of THIS section, and it stays there.
+                        // This label is a sentence that continues ("Heart rate shapes …"), so it
+                        // takes the prefix. Minting a fourth spelling of one decision is what
+                        // #634b had to retract. After this slice the file holds TWO of the three
+                        // forms, in one section, and that is correct rather than inconsistent:
+                        // they mark different THINGS — a section, and an element inside it. (No
+                        // line distance is quoted here on purpose; this repo has paid twice for
+                        // a comment whose line count the next edit invalidated.)
                         .accessibilityLabel(
-                            "\(m.source) shapes \(m.target). \(m.direction)."
-                            + (amount.map { " Currently \(Int(($0 * 100).rounded())) percent." } ?? ""))
+                            origin + "\(m.source) shapes \(m.target). \(m.direction)." + measured)
                     }
 
                     Divider().overlay(EchoelTheme.border)
@@ -300,13 +362,18 @@ struct BioMetricsGuideView: View {
     /// signal) draws only the muted track. Fill is clamped ≥ 2 pt so a tiny live
     /// value is still visible. No animation beyond SwiftUI's implicit value change
     /// (well under 3 Hz — the 10 Hz frame only nudges a width).
-    private func liveBar(_ amount: Float, live: Bool) -> some View {
+    ///
+    /// ⚠️ `synthetic` has NO DEFAULT, deliberately (#431/#440/#443): a defaulted argument that
+    /// no call site writes never shows up in a diff, and this bar is the LOUDEST element on the
+    /// row — a full-strength accent fill beside a dimmed number would be a headline
+    /// contradicting its own footnote. There is exactly one call site, so the cost is one edit.
+    private func liveBar(_ amount: Float, live: Bool, synthetic: Bool) -> some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
                 Capsule().fill(EchoelTheme.text.opacity(0.12))
                 if live {
                     Capsule()
-                        .fill(EchoelTheme.accent)
+                        .fill(synthetic ? EchoelTheme.dim : EchoelTheme.accent)
                         .frame(width: max(2, geo.size.width * CGFloat(min(1, max(0, amount)))))
                 }
             }

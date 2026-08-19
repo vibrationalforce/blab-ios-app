@@ -70,18 +70,26 @@
 // ⚠️ STILL OPEN after this slice. ⛔ THE FIRST VERSION OF THIS LIST NAMED THREE COPY SITES AND
 // WAS SHORT BY SIX ENTRIES, INCLUDING TWO WHOLE RENDERING SURFACES — the #632/#627b defect for
 // the third time in this family, and the reason a register gets MEASURED and not recalled:
-//   · **`BioModContributionRow` — RENDERING, and it is in the SAME SHEET, one `Section` ABOVE
-//     the rows this slice just marked** (`EchoelFXView`: `BioModLiveView` then
-//     `AlwaysOnBioView`). It draws a signed offset and speaks "…moving <target>, N percent",
-//     and `BioModContribution` carries `measured` and NO origin field at all. Its producer
-//     reads `usableBio()`, which admits `.fallback`. So one sheet, one frame, two provenance
-//     stories about forty points apart. Next slice.
-//   · **`BioMetricInfoView` is HALF marked and is on this family's "already marks" list** —
-//     #627b put "demo values, not your body" in the SECTION HEADER, but each mapping row is
-//     its own accessibility element whose label ends "Currently N percent." with no prefix,
-//     and its `liveBar` fills a demo value in full `EchoelTheme.accent` — the exact over-claim
-//     claim 5 above removes from this row. A VoiceOver user rotoring through rows never hears
-//     the header.
+//   · **`BioModContributionRow` — CLOSED (#635b), ticked off here in the commit that noticed
+//     it was still listed as open.** It was RENDERING in the SAME SHEET, one `Section` ABOVE
+//     the rows #634 marked (`EchoelFXView`: `BioModLiveView` then `AlwaysOnBioView`), drawing
+//     a signed offset and speaking "…moving <target>, N percent" while `BioModContribution`
+//     carried `measured` and NO origin field at all — one sheet, one frame, two provenance
+//     stories about forty points apart. #635b added `public var synthetic: Bool` with no
+//     default (`Core/FXModulation.swift`), a "Demo" chip and a dimmed bar in the row, and the
+//     prefix spelling in its label (`Studio/EchoelFXView.swift`); guard
+//     `Tests/CISmoke/TheFXRoutesSayWhoseBodyTests.swift`. ⛔ Two cycles passed with this bullet
+//     reading "Next slice" AFTER the slice had landed — which is the failure this list's own
+//     rule names: a per-entry register only beats a count if the entries get ticked off in the
+//     commit that closes them.
+//   · **CLOSED by #637 — and this entry named the WRONG TYPE, which is why it is corrected
+//     here rather than deleted.** The half-marked sheet is `BioMetricsGuideView` (the ⓘ,
+//     `.sheet(isPresented: $showGuide)`), NOT `BioMetricInfoView` (the per-cell tap, static
+//     text, no bio read at all). #627b had put "demo values, not your body" in the SECTION
+//     HEADER only, while each mapping row — its own accessibility element, so the header is
+//     unreachable by rotor — ended "Currently N percent." with no prefix and filled its
+//     `liveBar` in full `EchoelTheme.accent`. #637 dims the number and the bar and prefixes
+//     the label; guard `Tests/CISmoke/TheMetricSheetRowsSayWhoseBodyTests.swift`.
 //   · **`AlwaysOnBioChannel.soundPanelSentence`: "Your body also shapes this sound…"** —
 //     possessive, second person, rendered in the Sound panel. Stronger than the `bioPanelSentence`
 //     the first version of this list named, and it was missing.

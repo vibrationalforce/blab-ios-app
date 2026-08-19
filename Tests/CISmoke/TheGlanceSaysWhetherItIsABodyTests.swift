@@ -98,14 +98,16 @@
 //     `bioPanel` a few dozen lines UNDER the marked `BioStripView`. They now carry a fourth
 //     fact, `AlwaysOnBioReading.isSynthetic`; guard
 //     `Tests/CISmoke/TheAlwaysOnRowsSayWhoseBodyTests.swift`.
-//   · **`BioModContributionRow` — STILL OPEN, and it is in the SAME FX sheet, one `Section`
-//     ABOVE the rows #634 just marked.** `BioModContribution` carries `measured` and no
-//     origin field; its producer reads `usableBio()`, which admits `.fallback`. One sheet,
-//     one frame, two provenance stories.
-//   · **`BioMetricInfoView` is HALF marked** — #627b put the words in the SECTION header, but
-//     each mapping row is its own accessibility element with no prefix, and its `liveBar`
-//     fills a demo value in full `EchoelTheme.accent`. It is on this family's "already marks"
-//     list and should not be, unqualified.
+//   · **`BioModContributionRow` — CLOSED (#635b)**, ticked off here rather than left reading
+//     "STILL OPEN" a third cycle. `BioModContribution` now carries `synthetic` beside
+//     `measured` (no default, #431/#440/#443), and the row draws a "Demo" chip, a dimmed bar
+//     and the prefix spelling; guard `Tests/CISmoke/TheFXRoutesSayWhoseBodyTests.swift`.
+//   · **CLOSED by #637, and the type named here was wrong.** The half-marked sheet is
+//     `BioMetricsGuideView` (two doors on the strip: the ⓘ AND the activity light), not
+//     `BioMetricInfoView` (the per-cell tap, which reads
+//     no bio at all). #627b had marked only the SECTION header while each mapping row — its
+//     own accessibility element — spoke with no prefix and filled its `liveBar` in full
+//     `EchoelTheme.accent`. Guard `Tests/CISmoke/TheMetricSheetRowsSayWhoseBodyTests.swift`.
 
 import Foundation
 import XCTest

@@ -27,10 +27,19 @@
 // looking, so the count is replaced by a measured list with a verdict per entry:
 //   · header pill (`PulseMonitorMini`) — MARKED (#627, corrected #627b).
 //   · Bio strip (`BioStripView`) — MARKED (#627, corrected #627b).
-//   · `BioMetricInfoView` ("How your body shapes the sound") — MARKED in #627b. Its door is
-//     `BioStripView`'s own `.sheet(item: $explain)`, so the #627 hole was one tap from the
-//     #627 fix; and under Simulation its `liveBio == nil` hint disappears, i.e. the sheet
-//     did not merely omit a marker, it asserted a measured body.
+//   · `BioMetricsGuideView` ("How your body shapes the sound") — SECTION HEADER marked in
+//     #627b, ROWS marked in #637. Its door is `BioStripView`'s `.sheet(isPresented:
+//     $showGuide)` (the ⓘ), so the #627 hole was one affordance from the #627 fix; and under
+//     Simulation its `liveBio == nil` hint disappears, i.e. the sheet did not merely omit a
+//     marker, it asserted a measured body. ⛔ THIS ENTRY READ `BioMetricInfoView` AND NAMED
+//     `.sheet(item: $explain)` AS ITS DOOR — the wrong one of the file's two sheets, and the
+//     wrong one of the strip's two sheet modifiers. `BioMetricInfoView` is the per-cell tap
+//     and renders STATIC text with no bio read at all; it can neither mark nor over-claim.
+//     Two other guards inherited the same wrong name (`TheAlwaysOnRowsSayWhoseBodyTests`,
+//     `TheGlanceSaysWhetherItIsABodyTests`) and are corrected in the same commit as #637.
+//     ⚠️ "MARKED" here still means the header AND the rows, not the whole sheet: the HRV
+//     row's copy ("more variability opens the reverb") is the mapping CLAUDE.md struck at
+//     #546, and no guard scans `BioSoundMapping.swift` for it. Provenance closed, copy open.
 //   · `OwnBioRow` in `LiveColaboView` ("You", bpm + coherence from `usableBio()`) —
 //     **MARKED (#629)**, together with the peer rows and the wire payload, exactly as the
 //     deferral said it should be: one decision, not two cycles. ⛔ This entry read "DEFERRED"
@@ -49,8 +58,10 @@
 //     already carried the lesson two bullets up — *a per-entry list only beats a count if the
 //     entries get ticked off in the commit that closes them.* Third occurrence in this family
 //     (#629b, #632b, here), and the first where the correcting text was already in the file.
-//   · `BioModContributionRow` (FX sheet, "Live — body → sound") — needs a user-added route
-//     to render at all; unmeasured, listed so it is not mistaken for cleared.
+//   · `BioModContributionRow` (FX sheet, "Live — body → sound") — **CLOSED (#635b)**, ticked
+//     off here. It needs a user-added route to render at all, which is why it sat unmeasured
+//     in this list; it now carries `BioModContribution.synthetic` (no default), a "Demo" chip
+//     and the prefix spelling. Guard `Tests/CISmoke/TheFXRoutesSayWhoseBodyTests.swift`.
 //
 // EGRESS splits in two, and #629 closed one half:
 //   · **Peer payload — CLOSED (#629).** ⛔ This paragraph said `ColabPayload.egressible`
@@ -377,12 +388,30 @@ final class TheDemoSourceIsMarkedWhereItRendersTests: XCTestCase {
     /// hole in #627 — one tap from the "Demo" tag, live percentages with no marker, and the
     /// "read your pulse" hint GONE because `liveBio` is non-nil under Simulation, i.e. an
     /// assertion of a measured body rather than a missing footnote.
+    ///
+    /// ⛔ TWO REPAIRS FROM #637, both of which this assertion needed rather than deserved.
+    ///
+    /// (a) IT WAS A COUNT PIN AND CORRECT WORK BROKE IT (#364). It demanded EXACTLY ONE
+    /// `liveBio?.source == .fallback`. #637 marked the mapping rows themselves and added a
+    /// second — `private var isSyntheticBio` — so a commit that made the sheet MORE honest
+    /// turned this red. Zero is the hazard here, never "more than one": a second reader of
+    /// the same test is how a marking gets applied per row. The pin is now `>= 1` and the
+    /// per-row facts are pinned where they belong, in
+    /// `TheMetricSheetRowsSayWhoseBodyTests`.
+    ///
+    /// (b) IT NAMED THE WRONG TYPE AND THE WRONG DOOR. `BioMetricInfo.swift` holds two
+    /// sheets: `BioMetricInfoView` (`.sheet(item: $explain)`, the per-cell tap) renders
+    /// STATIC explanation text and reads no bio at all, so it can neither mark nor
+    /// over-claim; the marking lives in `BioMetricsGuideView` (`.sheet(isPresented:
+    /// $showGuide)`, the ⓘ). A message naming the wrong type sends the next session to a
+    /// file that is already correct.
     func testTheMetricSheetMarksTheDemoToo() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/BioMetricInfo.swift")
-        XCTAssertEqual(lines.filter { $0.contains("liveBio?.source == .fallback") }.count, 1, """
-            `BioMetricInfoView` no longer distinguishes a synthetic frame. Its door is \
-            `BioStripView`'s own `.sheet(item: $explain)`, so an unmarked sheet directly \
-            contradicts the tag one tap away.
+        let hits = lines.filter { $0.contains("liveBio?.source == .fallback") }.count
+        XCTAssertGreaterThanOrEqual(hits, 1, """
+            `BioMetricsGuideView` no longer distinguishes a synthetic frame anywhere. Its \
+            door is `BioStripView`'s `.sheet(isPresented: $showGuide)`, one affordance from \
+            the "Demo" tag, so an unmarked sheet directly contradicts the tag beside it.
             """)
     }
 }
