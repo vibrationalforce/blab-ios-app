@@ -18,11 +18,15 @@
 // that VoiceOver speaks them correctly. The spoken result is a device probe (registered
 // with the next build's probes).
 //
-// GRADING (#433, parent = the commit before #621): the four fix claims are FORWARD
-// (this commit writes them). Counterweights (the banner Button + its hint, the field's
-// honesty hint) are green on both trees. The banner's combine-count claim is red on the
-// parent for its named reason (the combine existed but on the wrong element — the
-// order check distinguishes the two states, not mere presence: #367).
+// GRADING (#433, corrected by the #621b review — the first version counted three
+// FORWARDs in the commit message and four here, and both were wrong): FIVE assertions
+// are red on the parent. FOUR are FORWARD fix claims written by #621 (the two preset
+// values, the field label, and the hidden GLYPH — the first grading forgot the glyph).
+// The FIFTH is the ORDER check, red on the parent for its named reason: exactly one
+// combine existed there too (the count claim is GREEN on the parent), but it sat
+// AFTER the button — the outer merge. The order check is the discriminator, not the
+// count (#367); the first header named the wrong assertion. Counterweights (the
+// banner Button + its hint, the field's honesty hint) are green on both trees.
 //
 // Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED PROPHYLAKTISCH
 // (0 of 6 verdicts flip raw vs stripped on either tree): the #621 comments name laws,
@@ -52,26 +56,39 @@ final class TheStatefulControlsSpeakTheirStateTests: XCTestCase {
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
     }
 
-    /// Anchor (unique) → the following window, brace-independent (the sites are modifier
-    /// chains, not blocks; 8 lines cover the modifier plus its comment-blanked gap).
-    private func window(_ lines: [String], after anchor: String, span: Int = 8) throws -> ArraySlice<String> {
-        let hits = lines.indices.filter { lines[$0].contains(anchor) }
-        XCTAssertEqual(hits.count, 1, """
-            `\(anchor)` is no longer unique in EchoelStudioView — re-anchor this check \
+    /// TWO unique anchors → the span between them. #621b (review W2): the first version
+    /// gave the preset checks a fixed 8-line span with ~2 lines of comment headroom —
+    /// the exact #619b class the SAME commit's field check had already been hardened
+    /// away from. Every window in this file is double-anchored now.
+    private func span(_ lines: [String], from start: String, to end: String) throws -> ArraySlice<String> {
+        let s = lines.indices.filter { lines[$0].contains(start) }
+        XCTAssertEqual(s.count, 1, """
+            `\(start)` is no longer unique in EchoelStudioView — re-anchor this check \
             before trusting it (#408).
             """)
-        guard let i = hits.first else {
-            throw XCTSkip("anchor `\(anchor)` absent — reported by the count assertion above")
+        let e = lines.indices.filter { lines[$0].contains(end) }
+        XCTAssertEqual(e.count, 1, """
+            end anchor `\(end)` is no longer unique in EchoelStudioView — re-anchor \
+            (#408).
+            """)
+        guard let si = s.first, let ei = e.first, si < ei else {
+            throw XCTSkip("the \(start) → \(end) span is gone — reported by the anchors above")
         }
-        return lines[i ..< min(i + span, lines.count)]
+        return lines[si ... ei]
     }
 
-    /// 1+2 — both preset Menus carry an `.accessibilityValue` right after their label.
+    /// 1+2 — both preset Menus carry an `.accessibilityValue` between their label and
+    /// their overflow menu's first action (the unique sibling that ends each span).
     func testThePresetMenusSpeakTheirValue() throws {
         let lines = try studioLines()
-        for anchor in ["accessibilityLabel(\"Timbre character / sound preset\")",
-                       "accessibilityLabel(\"Mood preset\")"] {
-            let w = try window(lines, after: anchor)
+        let sites = [
+            ("accessibilityLabel(\"Timbre character / sound preset\")",
+             "Button { patchSaveName = currentPatch.name + \" copy\""),
+            ("accessibilityLabel(\"Mood preset\")",
+             "Button { moodAsName = moodPresetName + \" copy\""),
+        ]
+        for (anchor, end) in sites {
+            let w = try span(lines, from: anchor, to: end)
             XCTAssertTrue(w.contains { $0.contains(".accessibilityValue(") }, """
                 the Menu anchored at `\(anchor)` lost its `.accessibilityValue` — its \
                 label REPLACES the visible name for VoiceOver, so without the value the \
@@ -85,14 +102,12 @@ final class TheStatefulControlsSpeakTheirStateTests: XCTestCase {
     /// glyph hidden, button + hint intact as their own element.
     func testTheTuningBannersRecoveryButtonIsItsOwnElement() throws {
         let lines = try studioLines()
-        let declHits = lines.indices.filter { $0 > 0 && lines[$0].contains("private var nonStandardTuningBanner") }
-        XCTAssertEqual(declHits.count, 1, "re-anchor: banner decl no longer unique (#408)")
-        guard let start = declHits.first else {
-            throw XCTSkip("banner decl absent — reported above")
-        }
-        // The banner is a short @ViewBuilder var; 50 lines cover it with headroom, and
-        // the next decl would re-red the uniqueness check above if the shape changed.
-        let w = Array(lines[start ..< min(start + 50, lines.count)])
+        // #621b (review W2): double-anchored — decl → the reset function that follows
+        // the banner — instead of the fixed 50-line window that had ~9 lines of
+        // comment headroom (the #619b class, again).
+        let w = Array(try span(lines,
+                               from: "private var nonStandardTuningBanner",
+                               to: "private func resetTuningToStandard"))
         let combines = w.indices.filter { w[$0].contains("accessibilityElement(children: .combine)") }
         XCTAssertEqual(combines.count, 1, """
             the tuning banner must carry exactly ONE `.combine` — on the two-Text stack. \
