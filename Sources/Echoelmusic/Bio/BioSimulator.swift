@@ -119,8 +119,32 @@ public final class BioSimulator {
         task = Task { @MainActor [weak self, weak bus] in
             while !Task.isCancelled {
                 guard let self, let bus else { break }
-                // Defer to any real bio publisher already on the bus.
-                if let latest = bus.latestBio, latest.source != .fallback {
+                // Defer to any real bio publisher CURRENTLY on the bus.
+                //
+                // ⛔ #626 (Ultra-Audit 2026-08-19, finding B3, CRITICAL): this read
+                // `bus.latestBio` — the raw SNAPSHOT, which is never cleared. One frame
+                // from any real source (camera, BLE, HealthKit) therefore parked this loop
+                // FOREVER: it slept two seconds, saw the same stale frame, slept again, and
+                // never published for the rest of the app session. The Demo source is a
+                // reachable choice in the Pulse source dropdown, so the observable defect
+                // was "use the camera once, then pick Demo — and nothing ever moves again",
+                // with no error and a source label that says Demo.
+                //
+                // `usableBio()` asks the question this deferral MEANT to ask: is a real
+                // signal arriving right now? It applies each source's own window
+                // (`BioSource.freshnessWindow`: 6 s for camera/BLE, 90 s for Watch, matched
+                // to how that source actually arrives), so a stopped camera expires and the
+                // simulator takes over instead of a snapshot outliving its sensor.
+                //
+                // ⚠️ THE HONEST COST: switching to Demo after a live source can take up to
+                // that source's window plus one 2 s poll before the first synthetic frame —
+                // ~8 s off the camera, and up to ~92 s off a Watch, which is the window
+                // Apple's latency forced on us. That is a wait, not a hang, and it is the
+                // price of not letting the simulator elbow a slow-but-live sensor aside.
+                // Clearing `latestBio` on an explicit source switch would be faster and is
+                // a different, larger change (the field is `private(set)` on the bus, and
+                // every other consumer reads it); it is deliberately not folded in here.
+                if let latest = bus.usableBio(), latest.source != .fallback {
                     try? await Task.sleep(for: .seconds(2))
                     continue
                 }
