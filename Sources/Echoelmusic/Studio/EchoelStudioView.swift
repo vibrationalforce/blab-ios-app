@@ -6632,13 +6632,17 @@ struct EchoelStudioView: View {
     // MARK: Panel 2 — Sound & texture (preset · scrubbable values · randomize)
 
     private var soundPanel: some View {
-        // #620 (GUI-Board Zeile 10 / UX#13): the subtitle NAMES "Voice timbre" — the capture
-        // row lives one level down and nothing above this line told a player scanning the
-        // collapsed chips that the instrument can learn their own voice's colour. The words
-        // are the ROW's words (`VoiceCaptureRow`'s `Text("Voice timbre")`, #616's vocabulary
-        // law: the pointer and the control share one spelling, or the pointer teaches a
-        // search that fails). Rename the row → rename this token in the same commit; the
-        // guard (`ThePanelSubtitlesNameTheirDeepFeaturesTests`) couples both sites.
+        // #620 (GUI-Board Zeile 10 / UX#13): the subtitle NAMES "Voice timbre". ⛔ #620b
+        // (review W2): the first version of this comment said the name reaches "a player
+        // scanning the collapsed chips" — WRONG MECHANISM: this panel mounts only through
+        // `dropdownContent` under `echoelPanelForceOpen`, so there IS no collapsed state.
+        // The honest gain is one level, not two: the subtitle is the FIRST line of the
+        // opened panel, so the feature is named at the top instead of being visible only
+        // at the row itself, further down. The words are the ROW's words
+        // (`VoiceCaptureRow`'s `Text("Voice timbre")`, #616's vocabulary law: the pointer
+        // and the control share one spelling, or the pointer teaches a search that
+        // fails). Rename the row → rename this token in the same commit; the guard
+        // (`ThePanelSubtitlesNameTheirDeepFeaturesTests`) couples both sites.
         panel("Sound & texture", "Shape the timbre — exact to 0.0001 · Voice timbre",
               isExpanded: $showSound) {
             // #325 — THE TUNING BANNER'S DOOR, and Sound is chosen over the panel the tuning
@@ -7372,13 +7376,15 @@ struct EchoelStudioView: View {
     private var effectsPanel: some View {
         // #620 (GUI-Board Zeile 10 / UX#12): the subtitle NAMES "Follow the key" — the
         // harmonizer's in-key toggle sits TWO levels deep (this panel → "All parameters"
-        // sheet → Harmonizer section), and no surface above it named it, so the feature was
-        // undiscoverable by scanning. The words are the TOGGLE's words (`EchoelFXView`'s
-        // `Toggle("Follow the key"`, #616's vocabulary law). Rename the toggle → rename
-        // this token in the same commit; the guard couples both sites. This is the panel
-        // SUBTITLE, not the door's `.accessibilityHint` — `TheFXDoorNamesAControlThat
-        // ExistsTests` scans only hint lines, and "Follow the key" is a toggle name, not
-        // one of the `effectSection("…")` stage titles that check forbids.
+        // sheet → Harmonizer section), and no surface above it named it. The words are
+        // the TOGGLE's words (`EchoelFXView`'s `Toggle("Follow the key"`, #616's
+        // vocabulary law). Rename the toggle → rename this token in the same commit; the
+        // guard couples both sites. ⛔ #620b (review W3): the first version claimed
+        // `TheFXDoorNamesAControlThatExistsTests` "scans only hint lines" — half wrong
+        // (its slider check scans EVERY line of its window). The two reasons this line is
+        // actually safe: that guard's `doorWindow` runs FORWARD from the `showAllFX`
+        // button, ~68 lines below here, so this line never enters it — and the subtitle
+        // contains neither "slider" nor an `effectSection("…")` stage title anyway.
         panel("Effects", "Production character · Follow the key", isExpanded: $showEffects) {
             labeledRow("Character") {
                 Picker("Effect", selection: $fxCharacter) {

@@ -31,6 +31,16 @@
 // ⚠️ #364: the tokens are pinned, not the sentences. Rewording either subtitle stays
 // legal while it keeps its feature's control-spelled name; renaming a CONTROL is legal
 // too — together with its subtitle token and this file's needles, in one commit.
+//
+// #620b (review, 0 CRITICAL / 3 WARN / 3 LOW — all taken): W1 the single-line anchor
+// would have redded a legal reformat — `declSlice` now joins the anchor with its next
+// two continuation lines (the `WeatherIsAMoodRubricTests` precedent); W2 the failure
+// message described a "collapsed panel line" that does not exist (these panels mount
+// force-open in the dropdown — the honest gain is the subtitle being the opened panel's
+// FIRST line); W3 the source comment's claim about the FX-door guard is corrected at
+// the site. L1: a vanished decl is one absence — the token check skips instead of
+// double-reporting (#486). Stripper re-measured after the reshape: still TRAGEND 1/4,
+// same needle (the source comment quoting the row literal).
 
 import Foundation
 import XCTest
@@ -50,20 +60,41 @@ final class ThePanelSubtitlesNameTheirDeepFeaturesTests: XCTestCase {
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
     }
 
+    /// #620b (review W1): the first version required title and subtitle on ONE physical
+    /// line — the exact shape #619b had just hardened another guard away from, and this
+    /// very slice wrapped the soundPanel call. Joining the anchor line with its next two
+    /// continuation lines follows the sturdier precedent
+    /// (`WeatherIsAMoodRubricTests.testTheSaveExportSubtitleNamesTheCity`), so a legal
+    /// reformat cannot red the token check (#364).
+    private func declSlice(_ lines: [String], anchor: String) throws -> String {
+        let hits = lines.indices.filter { lines[$0].contains(anchor) }
+        XCTAssertEqual(hits.count, 1, """
+            `\(anchor)` is no longer unique in its file — re-anchor before trusting the \
+            subtitle check (#408).
+            """)
+        // #620b (review L1): a vanished decl is ONE absence — skip instead of failing a
+        // second assertion over the same missing anchor (#486).
+        guard let start = hits.first else {
+            throw XCTSkip("anchor `\(anchor)` absent — reported by the count assertion above")
+        }
+        return lines[start ..< min(start + 3, lines.count)].joined(separator: " ")
+    }
+
     /// The Sound panel's subtitle names "Voice timbre" — with the row's own words.
     func testTheSoundSubtitleNamesTheVoiceTimbre() throws {
         let lines = try codeLines(of: "Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        let decl = lines.filter { $0.contains("panel(\"Sound & texture\",") }
-        XCTAssertEqual(decl.count, 1, """
-            the Sound panel's `panel("Sound & texture", …)` call is no longer unique — \
-            re-anchor before trusting the subtitle check (#408).
-            """)
-        XCTAssertTrue(decl.first?.contains("Voice timbre") == true, """
-            the Sound panel's subtitle no longer names "Voice timbre" (UX#13, #620): the \
-            capture row lives one level down, and without the name on the collapsed \
-            panel line a player scanning the chips never learns the instrument can take \
-            their voice's colour. If the ROW was renamed, rename the subtitle token and \
-            this needle in the same commit — the words must match the control (#616).
+        let decl = try declSlice(lines, anchor: "panel(\"Sound & texture\",")
+        // #620b (review W2): the first message said "the collapsed panel line" — these
+        // panels have NO collapsed state (they mount only through `dropdownContent`
+        // under `echoelPanelForceOpen`, always-open header). The honest gain: the
+        // subtitle is the FIRST line of the opened panel, so the feature is named one
+        // level up instead of being visible only at the row itself.
+        XCTAssertTrue(decl.contains("Voice timbre"), """
+            the Sound panel's subtitle no longer names "Voice timbre" (UX#13, #620): it \
+            is the first line a player reads when the Sound dropdown opens, and the one \
+            surface above the capture row that names the feature. If the ROW was \
+            renamed, rename the subtitle token and this needle in the same commit — the \
+            words must match the control (#616).
             """)
     }
 
@@ -83,12 +114,8 @@ final class ThePanelSubtitlesNameTheirDeepFeaturesTests: XCTestCase {
     /// The Effects panel's subtitle names "Follow the key" — with the toggle's own words.
     func testTheEffectsSubtitleNamesFollowTheKey() throws {
         let lines = try codeLines(of: "Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        let decl = lines.filter { $0.contains("panel(\"Effects\",") }
-        XCTAssertEqual(decl.count, 1, """
-            the Effects panel's `panel("Effects", …)` call is no longer unique — \
-            re-anchor before trusting the subtitle check (#408).
-            """)
-        XCTAssertTrue(decl.first?.contains("Follow the key") == true, """
+        let decl = try declSlice(lines, anchor: "panel(\"Effects\",")
+        XCTAssertTrue(decl.contains("Follow the key"), """
             the Effects panel's subtitle no longer names "Follow the key" (UX#12, #620): \
             the harmonizer's in-key toggle sits two levels deep (Effects → All \
             parameters → Harmonizer), and this subtitle is the only surface above it \
