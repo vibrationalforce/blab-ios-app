@@ -107,6 +107,48 @@ final class TheNarrationCannotClaimABodyItDidNotReadTests: XCTestCase {
         """)
     }
 
+    /// Claim 6 — #634b. The narration is the HARDEST surface of the #627 family to mark and
+    /// the one where being unmarked costs most: the other seven are cells, where a dim tag
+    /// beside a number qualifies it by adjacency. This is a running sentence spoken in the
+    /// voice of "EchoelAI", so an unmarked demo produced a paragraph of specific claims about
+    /// the reader's body — an integer BPM, a coherence verdict, a breathing description — and
+    /// closed with the literal possessive "from your live signal".
+    ///
+    /// ⛔ `measuredAnything` COULD NOT CATCH IT, and claims 1–3 above are exactly why: they
+    /// pin whether a channel was READ, never where the reading came from. `BioSimulator`
+    /// satisfies every `hasMeasured…` gate by construction, so the demo passes all three.
+    func testTheDemoSourceIsNamedRatherThanClaimedAsTheListenersBody() {
+        let demo = BioSampleFrame(timestamp: 1, heartRateBPM: 62, hrvNormalized: 0.5,
+                                  breathRate: 6, breathPhase: 0.25, coherence: 0.8,
+                                  motionEnergy: 0, source: .fallback)
+        let t = BioExplanation.text(for: demo, tempo: 90)
+        XCTAssertFalse(t.contains("from your live signal"), """
+        the narration used the possessive form for a frame the demo generator produced: \(t)
+        """)
+        XCTAssertTrue(t.contains("from the demo signal"), """
+        …and it must still credit SOMETHING — silently dropping the clause would satisfy the \
+        assertion above while telling a demo listener nothing about where the sound comes \
+        from. Naming the source is the fix; deleting the sentence is not: \(t)
+        """)
+        XCTAssertTrue(t.hasPrefix("EchoelAI (demo signal) — "), """
+        the marker must LEAD. Placed anywhere else it corrects a claim the reader has already \
+        accepted — the same ordering law the VoiceOver prefixes follow (#629b): \(t)
+        """)
+    }
+
+    /// Claim 7 — the COUNTERWEIGHT to claim 6, and it is the one that matters: the cheap way
+    /// to satisfy claim 6 is to strip the possessive everywhere, which would tell a REAL body
+    /// that it is not driving anything. Claim 3 already pins the phrase; this pins the PREFIX,
+    /// which claim 3 predates and does not see.
+    func testAMeasuredBodyIsNotLabelledAsADemo() {
+        let t = BioExplanation.text(for: Self.frame(hr: 62, coherence: 0.8, breath: 6), tempo: 90)
+        XCTAssertTrue(t.hasPrefix("EchoelAI — "), """
+        a real measured frame was prefixed as a demo — the mirror of the bug claim 6 fixes, \
+        and the more damaging direction: it tells a listener their own pulse is fake: \(t)
+        """)
+        XCTAssertFalse(t.contains("demo signal"), "…and the demo wording must not leak in: \(t)")
+    }
+
     // MARK: - Wiring: the caller must not gate the honesty off again
 
     /// Claim 4a — the write is a STATEMENT, not the body of an `if let`. This is the whole fix,

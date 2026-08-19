@@ -93,11 +93,19 @@
 //     guard is the expensive kind of stale — it is the line a future session triages from,
 //     so it costs a budgeted slice for a surface that cannot be built. Both reviewers found
 //     it independently, which is how a phantom this fresh gets caught at all.
-//   · **`AlwaysOnBioRow` (#633, the next slice)** — four bio channels rendered as decimals
-//     plus filled bars, in `bioPanel` a few dozen lines UNDER the marked `BioStripView` and
-//     directly beneath the sentence "Four body channels shape the instrument's own timbre".
-//     It reads `frame.source` only for the freshness window, never for provenance, and the
-//     simulator satisfies every `isMeasured` gate. Second host: the FX "All parameters" sheet.
+//   · ~~`AlwaysOnBioRow`~~ — **CLOSED by #634** (not #633, which this line mis-numbered: #633
+//     was the Deliverfile). Four bio channels rendered as decimals plus filled bars, in
+//     `bioPanel` a few dozen lines UNDER the marked `BioStripView`. They now carry a fourth
+//     fact, `AlwaysOnBioReading.isSynthetic`; guard
+//     `Tests/CISmoke/TheAlwaysOnRowsSayWhoseBodyTests.swift`.
+//   · **`BioModContributionRow` — STILL OPEN, and it is in the SAME FX sheet, one `Section`
+//     ABOVE the rows #634 just marked.** `BioModContribution` carries `measured` and no
+//     origin field; its producer reads `usableBio()`, which admits `.fallback`. One sheet,
+//     one frame, two provenance stories.
+//   · **`BioMetricInfoView` is HALF marked** — #627b put the words in the SECTION header, but
+//     each mapping row is its own accessibility element with no prefix, and its `liveBar`
+//     fills a demo value in full `EchoelTheme.accent`. It is on this family's "already marks"
+//     list and should not be, unqualified.
 
 import Foundation
 import XCTest

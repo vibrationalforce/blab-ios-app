@@ -147,10 +147,29 @@ public enum BioExplanation {
         // phrase "from your live signal", which is a claim about the body and directly
         // contradicts the "no pulse measured" opening when nothing was read.
         let measuredAnything = s.arousal != nil || s.steadiness != nil || s.breath != nil
+        // ⭐ #634b — WHOSE signal, not just whether there was one. Every clause above is a
+        // sentence about the listener's body ("heart rate 72 BPM sets a flowing tempo"),
+        // and `BioSimulator` satisfies every `hasMeasured…` gate by construction, so under
+        // the Simulation source this whole paragraph attributed a fabricated pulse to the
+        // person reading it — including the literal possessive "your live signal".
+        //
+        // ⛔ `measuredAnything` COULD NOT CATCH THIS and its own doc block says why without
+        // realising it: it asks whether a channel was READ, never where the reading came
+        // from. The demo is read on every one of them.
+        //
+        // ⚠️ THIS IS THE HARDEST SURFACE OF THE #627 FAMILY TO MARK, and that is why the
+        // marker is a PREFIX rather than a chip. The other seven surfaces are cells — a
+        // dim tag beside a number qualifies it by adjacency. This is a running sentence
+        // spoken by "EchoelAI", so a qualifier placed anywhere but the front corrects a
+        // claim the reader has already accepted. Same reason the VoiceOver prefixes on
+        // `AlwaysOnBioRow` and `HeaderMonitors` lead instead of trail.
+        let synthetic = f?.source == .fallback
+        let who = synthetic ? " from the demo signal," : " from your live signal,"
         // The connector rides INSIDE the conditional — leaving a bare " and" behind made
         // the no-body tail read "…opening pitch and dynamics and morphs in at the bar line".
-        let source = measuredAnything ? " from your live signal," : ""
-        return "EchoelAI — " + clauses.joined(separator: "; ")
+        let source = measuredAnything ? who : ""
+        return (synthetic ? "EchoelAI (demo signal) — " : "EchoelAI — ")
+            + clauses.joined(separator: "; ")
             + ". Each phrase re-seeds the chords, opening pitch and dynamics\(source)"
             + " then morphs in at the bar line, so it never repeats and never cuts."
     }

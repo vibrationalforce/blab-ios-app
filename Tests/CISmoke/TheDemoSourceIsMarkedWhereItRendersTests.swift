@@ -37,13 +37,18 @@
 //     until #629b and was false the moment #629 landed — the same class as the CRITICAL that
 //     created this list. A per-entry list only beats a count if the entries get ticked off in
 //     the commit that closes them.
-//   · `AlwaysOnBioRow` — DEFERRED, and the recorded reason is now narrowed to the mount it
-//     actually covers. In the FX sheet its subject is genuinely the SOUND path (its own #484
-//     doc), so a synthetic 0.42 is a true statement about the engine's input. The Bio-panel
-//     mount is NOT covered by that argument: `AlwaysOnBioPanelStrip` is mounted directly
-//     under `AlwaysOnBioChannel.bioPanelSentence`, which promises that the BODY drives the
-//     sound, and the rows are named "Heart rate" / "HRV". Open question for the founder,
-//     not a settled deferral.
+//   · `AlwaysOnBioRow` — **MARKED (#634)**, both mounts, and the open question this entry
+//     recorded is answered rather than left standing. The deferral's argument was that in the
+//     FX sheet the subject is the SOUND path, so a synthetic 0.42 is a true statement about
+//     the engine's input — and that is still true; it just does not decide the question,
+//     because the rows are named "Heart rate" and "HRV" and speak "at 62 percent" to
+//     VoiceOver. The Bio-panel mount was never covered by it at all. Marking costs the sound
+//     reading nothing (the number is unchanged) and removes the body claim, so the trade the
+//     deferral was weighing turned out to be one-sided.
+//     ⛔ This entry sat as "DEFERRED / open question for the founder" while its own list
+//     already carried the lesson two bullets up — *a per-entry list only beats a count if the
+//     entries get ticked off in the commit that closes them.* Third occurrence in this family
+//     (#629b, #632b, here), and the first where the correcting text was already in the file.
 //   · `BioModContributionRow` (FX sheet, "Live — body → sound") — needs a user-added route
 //     to render at all; unmeasured, listed so it is not mistaken for cleared.
 //

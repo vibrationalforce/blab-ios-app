@@ -33,8 +33,20 @@ struct StudioCaptionView: View {
     let caption: StudioCaption
 
     var body: some View {
+        // ⛔ THE PLACEHOLDER MADE A PROVENANCE CLAIM IT CANNOT CHECK (#634b). It read
+        // "The music is arising from your live signal — every control shapes it as it
+        // plays." This view holds a `StudioCaption`, which is a single `String`; it has no
+        // frame, no bus and no way to know whether a body is connected — so the sentence
+        // was true only by luck, and false outright while the Simulation source runs.
+        //
+        // ⭐ REWORDED RATHER THAN MADE CONDITIONAL, deliberately. Threading a bio read in
+        // here would put a live `@Observable` read into a view that `EchoelStudioView.body`
+        // evaluates (the 10.76.41/50 freeze law), to qualify a string shown only BEFORE any
+        // narration exists. The second half was always true on its own; dropping the first
+        // half costs nothing and removes the claim entirely. The real sentence, once there
+        // is one, names its own source — `BioExplanation.text(for:tempo:)`.
         Text(caption.text.isEmpty
-             ? "The music is arising from your live signal — every control shapes it as it plays."
+             ? "Every control shapes the music as it plays."
              : caption.text)
             .font(EchoelTheme.font(11))
             .foregroundStyle(EchoelTheme.dim)

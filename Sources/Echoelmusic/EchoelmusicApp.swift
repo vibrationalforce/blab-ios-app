@@ -176,8 +176,10 @@ struct EchoelmusicApp: App {
     /// hardware (owned here now the single window is the root).
     /// ⛔ THIS SAID «Clearly-labeled "Demo"», was retracted as false ("there is no
     /// user-facing "Demo" string in `Sources/`"), and the RETRACTION is what is stale
-    /// now: #627/#629/#632 built the label on five surfaces — the bio strip, the header
-    /// pill, the Live-Colabo rows, the Home-Screen widget and the Watch glance. Both
+    /// now: #627/#629/#632/#634 built the label on six surfaces — the bio strip, the header
+    /// pill, the Live-Colabo rows, the Home-Screen widget, the Watch glance and the
+    /// always-on channel rows. (⛔ "five" here and in `BioSimulator`'s header aged within a
+    /// day of being written; measure, do not carry the number forward.) Both
     /// spellings of this comment are kept because the pair is the lesson: the original
     /// claim was aspirational, the retraction was measured, and the retraction still
     /// aged out. Measure with `git grep -n 'Text("Demo")' -- Sources`.

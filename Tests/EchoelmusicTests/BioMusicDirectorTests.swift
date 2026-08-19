@@ -8,11 +8,38 @@ import XCTest
 
 final class BioMusicDirectorTests: XCTestCase {
 
-    private func frame(hr: Float, coherence: Float, breath: Float) -> BioSampleFrame {
+    /// ⛔ THE SOURCE WAS `.fallback` UNTIL #634b, AND THAT MADE TWO ASSERTIONS BELOW WRONG.
+    /// `BioExplanation` now names the origin: a `.fallback` frame narrates "from the demo
+    /// signal", not "from your live signal", so `testTailCreditsTheBodyWhenSomethingWasRead`
+    /// and its breath-only sibling asserted a phrase the function can no longer produce for
+    /// this frame. `.cameraPPG` is a real measured source and is what those two tests always
+    /// MEANT — the old value was an arbitrary pick from before provenance existed.
+    ///
+    /// ⚠️ This file is in `Tests/EchoelmusicTests`, which NO gate compiles (#208), so nothing
+    /// would have gone red; it would simply have been wrong the first day someone ran it.
+    /// The blocking bundle's twin (`Tests/CISmoke/TheNarrationCannotClaimABodyItDidNotReadTests`)
+    /// already used `.cameraPPG` and needed no change.
+    private func frame(hr: Float, coherence: Float, breath: Float,
+                       source: BioSource = .cameraPPG) -> BioSampleFrame {
         BioSampleFrame(
             timestamp: 0, heartRateBPM: hr, hrvNormalized: 0.5,
             breathRate: breath, breathPhase: 0, coherence: coherence,
-            motionEnergy: 0, source: .fallback)
+            motionEnergy: 0, source: source)
+    }
+
+    /// #634b — the demo source must not be narrated as the listener's body.
+    func testTheDemoSourceIsNamedInsteadOfClaimedAsYours() {
+        let t = BioExplanation.text(for: frame(hr: 62, coherence: 0.8, breath: 6,
+                                               source: .fallback), tempo: 120)
+        XCTAssertTrue(t.contains("from the demo signal"),
+                      "a .fallback frame must credit the demo, not the listener")
+        XCTAssertFalse(t.contains("from your live signal"),
+                       "…and must never use the possessive form for a fabricated pulse")
+        XCTAssertTrue(t.hasPrefix("EchoelAI (demo signal) — "), """
+            the marker must LEAD. This is a running sentence, not a cell — a qualifier placed \
+            after "heart rate 62 BPM sets a flowing tempo" corrects a claim the reader has \
+            already accepted.
+            """)
     }
 
     func testSummaryBucketsArousalSteadinessBreath() {

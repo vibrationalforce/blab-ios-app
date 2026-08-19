@@ -30,15 +30,20 @@
 //  FALSE, and it was false seventy lines above a comment block asserting honesty.
 //  ⭐ AND THAT RETRACTION IS ITSELF SPENT — #627 BUILT THE LABEL, #632 FINISHED IT.
 //  It read "There is no user-facing "Demo" string anywhere in `Sources/` — every hit is
-//  a comment", and the renderers are now FIVE. ⚠️ Measure with
+//  a comment", and the renderers are now SIX. ⚠️ Measure with
 //  `git grep -n 'Text("Demo")' -- Sources | grep -v '//'` — the UNFILTERED form prints
-//  seven, because THIS line and its twin in `EchoelmusicApp.swift` quote the needle in
+//  eight, because THIS line and its twin in `EchoelmusicApp.swift` quote the needle in
 //  order to retract it. That is the `EchoelModalBank` failure this repo already logged
 //  ("jeder Kommentar, den man über die Sache schreibt, verfälscht den eigenen Beleg"),
-//  reproduced one cycle later and caught by review before it could confuse anyone. The
-//  five:
-//  `BioStripView` and `HeaderMonitors` (#627), `LiveColaboView` (#629), and the Widget
-//  and the Watch glance (#632). The retraction was correct when written and is now the
+//  reproduced one cycle later and caught by review before it could confuse anyone.
+//  ⛔ AND THE COUNT AGED IN ONE DAY: it said FIVE / seven until #634 added the always-on
+//  rows. `TheGlanceSaysWhetherItIsABodyTests`' own failure message names THIS block and
+//  its twin as the two that must move in the same commit as a new renderer — and #634
+//  did not move them, because its guard scans a fixed five-file list with `>= 5` and
+//  stays green. A count in prose is only as good as the commit that adds the sixth.
+//  The six:
+//  `BioStripView` and `HeaderMonitors` (#627), `LiveColaboView` (#629), the Widget
+//  and the Watch glance (#632), and `AlwaysOnBioRow` (#634). The retraction was correct when written and is now the
 //  thing that needs retracting — which is why the property, not the count, was the part
 //  worth keeping: the property FLIPPED.
 //

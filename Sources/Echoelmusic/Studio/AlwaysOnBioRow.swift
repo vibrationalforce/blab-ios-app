@@ -135,15 +135,27 @@ struct AlwaysOnBioRow: View {
     private func accessibilityText(_ reading: AlwaysOnBioReading) -> String {
         // #634 — leads, for the same reason the chip sits before "held": a listener who hears
         // "Coherence at 62 percent" has already been told a fact about their body, and a
-        // qualifier arriving after it corrects a claim instead of preventing one. Same wording
-        // as the five sibling surfaces so the sentence is recognisable across the app.
+        // qualifier arriving after it corrects a claim instead of preventing one.
+        //
+        // ⛔ THIS SAID "same wording as the five sibling surfaces" AND MINTED A SIXTH (#634b).
+        // Measured, there are three established spellings, and they differ by POSITION, not by
+        // accident: `"Bio source: simulated demo, not your body"` labels a whole ELEMENT
+        // (`BioStripView`, the widget, the watch) · `"Simulated demo, "` is a PREFIX on a
+        // sentence that continues (`HeaderMonitors`, `LiveColaboView`) · `"demo values, not
+        // your body"` is a SECTION header (`BioMetricInfo`). The first draft here grafted the
+        // strip's tail onto the pill's prefix — a fourth spelling of one decision (#416),
+        // claiming in the same breath to be identical to five.
+        //
+        // ⭐ RESOLVED BY POSITION: this marker is a prefix on a sentence that continues, so it
+        // takes the prefix form. `HeaderMonitors` states the trade for that form — "Simulated
+        // demo, 142 beats per minute" cannot be mistaken for a reading — and it holds here.
         //
         // ⚠️ IT IS COMPUTED BEFORE THE `isMeasured` GUARD, not after, because the CHIP is gated
         // on `isSynthetic` alone. Leaving the unmeasured branch bare would put "Demo" on screen
         // and not in the ear — and this method's own doc says VoiceOver gets the same facts in
         // the same order. (`BioSimulator` measures all four channels, so that branch is not
         // reachable under Simulation today; it is written for the law, not for a live case.)
-        let origin = reading.isSynthetic ? "Simulated demo, not your body. " : ""
+        let origin = reading.isSynthetic ? "Simulated demo, " : ""
         guard reading.isMeasured else {
             return origin
                 + "\(channel.name), not measured, shaping \(channel.shapes) at the neutral value"

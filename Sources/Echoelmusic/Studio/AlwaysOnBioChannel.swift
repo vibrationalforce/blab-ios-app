@@ -250,15 +250,24 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
         return AlwaysOnBioReading(value: value(in: frame),
                                   isMeasured: measured,
                                   isHeld: measured && !usable,
-                                  // Asked of the FRAME, exactly like the other three — the row
-                                  // never reads the bus itself, so all four facts come from one
-                                  // snapshot and cannot describe two different instants.
+                                  // Asked of the FRAME, exactly like `value` and `isMeasured` —
+                                  // the row never reads the bus itself. ⛔ The first draft said
+                                  // "all FOUR facts come from one snapshot and cannot describe
+                                  // two different instants"; `isHeld` also depends on `now`,
+                                  // read at draw time, and this file's own row documents a
+                                  // bounded ~1 s lag against `usableBio()`. Three of four.
                                   isSynthetic: frame.source == .fallback)
     }
 }
 
-/// What one always-on channel shows at a moment in time — the three facts that must travel
-/// together, because any two of them read as something the third contradicts (#498, #500).
+/// What one always-on channel shows at a moment in time — the FOUR facts that must travel
+/// together, because any three of them read as something the fourth contradicts
+/// (#498, #500, #634).
+///
+/// ⛔ This headline said "three" for the length of one review cycle after `isSynthetic` landed,
+/// with the correction sitting thirty lines below inside the new field's own doc. That is the
+/// root CLAUDE.md lesson in miniature — *die Überschrift ist Teil der Behauptung* — and the
+/// summary line is the one a reader trusts without scrolling.
 ///
 /// `isHeld` is only ever true together with `isMeasured`: an unmeasured channel already shows
 /// "—", and calling that "held" would add a word without adding a fact.

@@ -53,21 +53,55 @@
 //     `BioSource.futureSkewTolerance` instead of restating them (#416) — adding a second
 //     `frame.source` read to that method is exactly when someone inlines the first.
 //
-// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH** —
-// 0 of 44 verdicts flip (11 needles × 2 files × 2 trees). It stays because the next
-// comment written near these branches is the one that would flip it, and because #623
-// and #625 each ASSERTED "TRAGEND" from the shape of a diff and measured otherwise.
+// Stripper: delegates to `SourceText.codeOnly` (#453). No assertion's VERDICT flips raw vs
+// stripped, so the file is green either way — but the headline "PROPHYLAKTISCH" was too
+// generous and is corrected here (#634b): the bare `"—"` needle really does change COUNT in
+// the row file (2 raw → 1 stripped; the second hit is a doc comment), so the stripper is
+// load-bearing for that one and the count I published (11 needles) was two short — there are
+// 13 on the row file plus 2 anchors on `EngineBus.swift`. Verdicts unchanged, arithmetic wrong,
+// and #623/#625 are in this file's ancestry precisely for asserting a stripper verdict from
+// the shape of a diff instead of measuring it.
 //
 // ⚠️ #364: a DIFFERENT marking is not forbidden — a fifth row reading "source: demo", or the
 // panel sentence itself turning conditional, would satisfy the law and turn claims 4–6 red.
 // That is the moment to rewrite this file. What is forbidden silently is a `.fallback` frame
 // reaching these rows with nothing that says so.
 //
-// ⚠️ STILL OPEN after this slice, named so nobody reads the family as closed:
-//   · `AlwaysOnBioChannel.bioPanelSentence` still says "Four body channels…" unconditionally,
-//     and two captions in `EchoelStudioView` claim measurement while the demo runs
-//     ("your measured coherence…", "your inhale opens it"). Copy, not rendering — one slice.
+// ⚠️ STILL OPEN after this slice. ⛔ THE FIRST VERSION OF THIS LIST NAMED THREE COPY SITES AND
+// WAS SHORT BY SIX ENTRIES, INCLUDING TWO WHOLE RENDERING SURFACES — the #632/#627b defect for
+// the third time in this family, and the reason a register gets MEASURED and not recalled:
+//   · **`BioModContributionRow` — RENDERING, and it is in the SAME SHEET, one `Section` ABOVE
+//     the rows this slice just marked** (`EchoelFXView`: `BioModLiveView` then
+//     `AlwaysOnBioView`). It draws a signed offset and speaks "…moving <target>, N percent",
+//     and `BioModContribution` carries `measured` and NO origin field at all. Its producer
+//     reads `usableBio()`, which admits `.fallback`. So one sheet, one frame, two provenance
+//     stories about forty points apart. Next slice.
+//   · **`BioMetricInfoView` is HALF marked and is on this family's "already marks" list** —
+//     #627b put "demo values, not your body" in the SECTION HEADER, but each mapping row is
+//     its own accessibility element whose label ends "Currently N percent." with no prefix,
+//     and its `liveBar` fills a demo value in full `EchoelTheme.accent` — the exact over-claim
+//     claim 5 above removes from this row. A VoiceOver user rotoring through rows never hears
+//     the header.
+//   · **`AlwaysOnBioChannel.soundPanelSentence`: "Your body also shapes this sound…"** —
+//     possessive, second person, rendered in the Sound panel. Stronger than the `bioPanelSentence`
+//     the first version of this list named, and it was missing.
+//   · `bioPanelSentence`, `alwaysOnSentence` and `EchoelFXView.stopsArrivingNote` — the same
+//     noun ("body") in three more places. All four collapse into ONE edit by changing the
+//     noun rather than adding a condition; a condition here would put a live bio read into a
+//     property `EchoelStudioView.body` evaluates (the 10.76.41/50 freeze law).
+//   · Two `EchoelStudioView` captions ("your measured coherence…", "your inhale opens it") and
+//     `BodyTempoField`'s unconditional `.accessibilityLabel("Tempo, driven by your body")`.
 //   · OSC / ADM-OSC / Art-Net / sACN still carry no provenance (#462, second half).
+//
+// ⚠️ AND ONE ASYMMETRY TO WRITE DOWN RATHER THAN "HARMONISE": `AlwaysOnBioChannel` tests bare
+// `frame.source == .fallback`, while `BioStripView` and `HeaderMonitors` add `&& !isRunning`
+// on the camera (#627b — switching Simulation → Camera stops the simulator but nothing clears
+// `latestBio`, and `.fallback`'s window is 5 s, so the last synthetic frame stays usable while
+// the camera is genuinely running). BOTH ARE RIGHT ABOUT THEIR OWN NUMBER: the strip prefers
+// `cameraRPPG.displayBPM` during that window, so marking it would lie; these rows draw the
+// fallback frame's own value, so marking it is accurate. Copying the camera term across would
+// make THIS row lie. The visible residue is that for ≤5 s an unmarked strip sits above marked
+// rows in one panel — registered, not a defect to paper over.
 
 import Foundation
 import XCTest
@@ -133,11 +167,20 @@ final class TheAlwaysOnRowsSayWhoseBodyTests: XCTestCase {
         guard let a = opens.first, let b = closes.first, b > a else {
             return XCTFail("could not bracket the BioSource case list")
         }
-        // Only DECLARATIONS: `case fallback = 0`. The `switch` arms further down in the same
-        // type are `case .ble, .cameraPPG: return 6` and never match this shape.
+        // Only DECLARATIONS. ⛔ THE FIRST DRAFT REQUIRED AN EXPLICIT `= N` AND FAILED OPEN ON
+        // THE ONE SHAPE IT IS NAMED FOR (#634b): `BioSource: UInt8` permits IMPLICIT raw
+        // values, so `case emg` with no `= 7` left the count at seven, this guard green, and
+        // claim 1's hand-written six-source list silently one short — exactly the miss it
+        // exists to prevent. A predicate that only sees the spelling the author happened to
+        // use is not a census.
+        //
+        // The `switch` arms further down in the same type (`case .ble, .cameraPPG: return 6`)
+        // are excluded twice over: they are outside the bracketed span, and they carry a `:`.
         let declared = lines[a..<b].filter {
             let s = $0.trimmingCharacters(in: .whitespaces)
-            guard s.hasPrefix("case "), let eq = s.firstIndex(of: "=") else { return false }
+            guard s.hasPrefix("case ") else { return false }
+            if s.contains(":") { return false }             // a switch arm, not a declaration
+            guard let eq = s.firstIndex(of: "=") else { return true }   // implicit raw value
             return Int(s[s.index(after: eq)...].trimmingCharacters(in: .whitespaces)) != nil
         }
         XCTAssertEqual(declared.count, 7, """
