@@ -2373,6 +2373,7 @@ struct EchoelStudioView: View {
             HStack(spacing: 10) {
                 Image(systemName: "tuningfork")
                     .foregroundStyle(EchoelTheme.dim)
+                    .accessibilityHidden(true)
                 VStack(alignment: .leading, spacing: 1) {
                     Text(nonStandardTuningTitle)
                         .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
@@ -2381,6 +2382,13 @@ struct EchoelStudioView: View {
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // #621 (Ultraaccessible-Audit): `.combine` sits HERE, on the two-Text
+                // stack — NOT on the outer HStack, where it stood until this slice and
+                // swallowed the "Standard" recovery button into one merged element,
+                // dropping its hint and its individual focus. The one control that
+                // rescues a wrong-sounding instrument must be its own element for the
+                // user who cannot see it. (The glyph above is hidden as decoration.)
+                .accessibilityElement(children: .combine)
                 Spacer(minLength: 8)
                 // "Standard", not "12-TET": the button now returns BOTH dimensions, and the
                 // old label named only one of them. It is also the word the sentence above
@@ -2406,7 +2414,6 @@ struct EchoelStudioView: View {
             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
             .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                 .stroke(EchoelTheme.border, lineWidth: 1))
-            .accessibilityElement(children: .combine)
         }
     }
 
@@ -6535,6 +6542,11 @@ struct EchoelStudioView: View {
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .accessibilityLabel("Mood preset")
+            // #621 (Ultraaccessible-Audit, bar point 3): mirror of the sound-preset value
+            // one panel over — the label replaces `Text(moodPresetName)`, so without this
+            // the active mood is visible but unhearable.
+            .accessibilityValue((moodPresetID.map { moodStore.isFavorite(id: $0) } ?? false)
+                ? "\(moodPresetName), favorite" : moodPresetName)
 
             Spacer(minLength: 0)
 
@@ -7131,6 +7143,12 @@ struct EchoelStudioView: View {
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
                 }
                 .accessibilityLabel("Timbre character / sound preset")
+                // #621 (Ultraaccessible-Audit, bar point 3): the label above REPLACES the
+                // visible `Text(currentPatch.name)` for VoiceOver, so the active sound's
+                // name was unhearable on the ship-gate-2 surface. Label + value is the
+                // house pattern (the bio-source Menu and the look row do exactly this).
+                .accessibilityValue(patchStore.isFavorite(id: currentPatch.id)
+                    ? "\(currentPatch.name), favorite" : currentPatch.name)
 
                 Menu {
                     Button { patchSaveName = currentPatch.name + " copy"; showSavePatchAs = true } label: {
@@ -11319,6 +11337,11 @@ private struct SoundPromptRow: View {
                         // chips: it is the row's honesty mechanism, and a VoiceOver user would
                         // otherwise reach it only by swiping past everything else.
                         .accessibilityHint(hint)
+                        // #621 (Ultraaccessible-Audit, bar point 8): without a label,
+                        // VoiceOver falls back to the placeholder and announces the
+                        // EXAMPLE phrase as the field's NAME — a value where a name
+                        // belongs. The label is the row's visible caption, one vocabulary.
+                        .accessibilityLabel("Describe it")
 
                     Button { onShape(text) } label: {
                         // The `fill` + `contentShape` pair is not decoration: with only a
