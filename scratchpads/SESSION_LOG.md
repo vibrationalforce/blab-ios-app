@@ -10599,3 +10599,64 @@ braucht Council + Gerät, keine Ralph-Scheibe.
 - ⛔ **Der vierte Befund ist kein Zählfehler, sondern ein DIAGNOSE-VERLUST:** die #625-Brotkrume ist durch #628 zur KONSTANTEN geworden — `pause()` vor der Übernahme löscht `isRunning`, also feuert `wasRunning && !isRunning` bei JEDEM gesunden Umschalten, während der Kommentar darüber wörtlich „silent on every healthy toggle" versprach. **Gelöscht statt repariert**: sobald wir selbst pausieren, unterscheidet `isRunning` unsere Pause nicht mehr von einem Stopp durch die Übernahme. **Und das hängt an der offenen Geräteprobe** — der Monitoring-Log hätte die Warnung bei jedem Umschalten getragen, und die nächste Sitzung hätte sie als Beleg FÜR den Mechanismus gezählt, den sie widerlegen sollte. `restoreEngineIfStranded`s Meldung ebenfalls korrigiert (sie nannte eine Ursache, die sie nach #628 nicht kennen kann), plus eine dritte Prosa-Stelle („restart is unconditional on `wasRunning`" — er ist genau daran gebunden; wahr ist die SYMMETRIE: wer pausiert, startet neu). `8f4c2ed`.
 - **Die sieben verbleibenden CRITICALs** (im Audit-Dokument, mit Beleg und Fix): zwei Prosa-Stellen behaupten weiter „es gibt keinen nutzersichtbaren Demo-String in `Sources/`" und zitieren den grep, der sie widerlegt (drei Render-Stellen aus #627/#627b/#629) · #462 ist in zwei Quelldateien als EINE offene Frage registriert, obwohl die Streifen-Hälfte mit #627 geschlossen ist · **50 Wächter machen aus einer fehlenden Datei einen grünen `XCTSkip`**, 19 aus einem fehlenden Anker · **das Widget druckt synthetische Vitalwerte als gemessene** (die App-Group-Nutzlast hat kein Quellenfeld — die vierte Kammer der #627-Familie) · der V1-Plan schreibt eine INTERNE API vor, deren eigener Doc das direkte Treiben als stillen Falschklang-Fehler benennt, und nennt `AudioOutputGuard` nicht, dessen Invariante ein neuer Render-Block erfüllen müsste.
 - Offen: Gates #630/#630b/#631 · sieben CRITICALs + 28 WARNs abarbeiten · Geräteproben 2527/2526 · V1a bleibt Council-gated.
+
+---
+
+## 2026-08-19 (cron, ULTRACODE 24h) — Takt 45: Sicherheits-Antwort an den Founder + #632 (vierte Kammer)
+
+**FOUNDER-EINGABE:** Screenshot eines Threads-Posts (codewithjacob) mit sieben Failure-Modes einer
+„100 % vibe coded app", dazu: *„Alle sicherheitsfragen etc. AppStore Voraussetzungen, Developer Account"*.
+
+**GEMESSEN (jeder Befund mit dem Befehl daneben, nicht aus dem Kopf):**
+1. **Tokens im Git — sauber.** `.claude/settings.local.json` nicht getrackt, von `.gitignore:132` gedeckt;
+   `.p8`/`.p12`/`.mobileprovision` in 162–164 gesperrt, keine getrackt; Volltreffer-Suche (Präfix +
+   ≥25 Zeichen) über den ganzen Baum = **0**; in 270 erreichbaren Commits kein Treffer. Die 7
+   Mustertreffer sind Prosa/Platzhalter. **Offen und KEIN Repo-Befund:** `SECURITY_AUDIT_2026-05-31.md`
+   C1 hält fest, dass ein echter PAT in den CHAT eingefügt wurde (nie committet) — Rotation ist eine
+   Founder-Handlung, kein Code.
+2. **13.000-Zeilen-Komponente — TRIFFT ZU.** `Studio/EchoelStudioView.swift` = **11 546** Zeilen von
+   119 777 in 366 Dateien. Der einzige der sieben Punkte, der Echoel trifft.
+3. **Toter Ballast — nein.** `doctor --section C`: 8 türlose Views, **alle acht dokumentiert geparkt**.
+   ⚠️ Doku-Drift gefunden: CLAUDE.md behauptet `AnalysisSpectrumView`/`AnalysisWavefrontView` seien
+   montiert; der Quelltext sagt seit dem „Das Brauch da nicht sein"-Verdikt das Gegenteil. Offene Scheibe.
+4. **Klartext an Endpunkte — der Endpunkt existiert nicht.** `git grep -l URLSession -- Sources` = **0**.
+   Kein HTTP-Client, kein Backend, kein Login. Netz = vier UDP-Sender (OSC/ADM/Art-Net/sACN) über
+   `Network`. Bio-Werte: App-Group-JSON + Datei mit `.completeFileProtection`. Ehrlich dazu: **OSC sendet
+   HR/HRV unverschlüsselt ins LAN** — protokollkonform, nutzer-konfiguriertes Ziel, gehört ins Review.
+5. **Fremde LLM-Inferenz — unmöglich.** 0 URLSession, 0 anthropic/openai/localhost-Literale. Einziger
+   KI-Pfad ist Apples on-device FoundationModels, und der hat außerhalb `EchoelAI/` null Aufrufer.
+6. **UI-Wahnsinn — nein.** 5 `ProgressView` in 3 Dateien, zwei davon in türlosen Flächen.
+7. **Keine DB / alles in Cookies — nein.** 12 `*Store`, Codable+JSON, **12 Dateien mit `schemaVersion`,
+   23 mit `decodeIfPresent`**.
+
+**APP STORE:** `PrivacyInfo.xcprivacy` vorhanden UND in beiden Targets deklariert (`project.yml:137`/`:257`)
+· `ITSAppUsesNonExemptEncryption=false` · alle 8 `NS*UsageDescription` · **alle fünf Pflicht-Warnungen
+erreichbar** in `OnboardingView:187-191` beim Erststart · Background-Modes `audio`+`bluetooth-central`,
+beide real genutzt · kein `echo` eines Secrets, kein `set -x` in den Workflows.
+**Drei Risiken (founder-gated, berichtet statt editiert):** (a) `aps-environment`+iCloud/CloudKit deklariert,
+Feature hart aus — Review fragt nach Push; (b) `NSBonjourServices` listet `_rtsp._tcp` und `_http._tcp`,
+für die es keinen Code gibt; (c) `NSPrivacyCollectedDataTypes` leer, während OSC Bio-Daten das Gerät
+verlässt — vertretbar, aber begründungspflichtig.
+
+**GATES** (§5, nicht die Conclusion): `28b3805`/`aafd389`/`8f4c2ed` je `Test build Succeeded`, CI/CD
+`failure` nur durch #396 (`Code=-308`, `server died`, Clone 2). Job-Log: **136 passed, 0 failed**,
+14 Suiten geflusht, darunter alle 12 Methoden von `TheDemoSourceIsMarkedWhereItRendersTests` namentlich.
+Die drei #631-Wächter fehlen in der Teilmenge — nach #445 beweist das nichts.
+
+**GEBAUT — #632 (`af67d14`), die vierte Kammer der Herkunfts-Familie.** Widget und Watch-Glance druckten
+`.fallback`-Werte als Messung; `usableBio()` schließt die Simulation ausdrücklich EIN.
+`BioVitals.synthetic: Bool?` (drei Zustände wie `BioPeek`, #629; `decodeIfPresent` ohne Default), gesetzt
+in `BioFeedbackPublisher.vitals(from:)`, gerendert in Widget (klein + mittel) und Uhr.
+**Die Falle:** `egressAllowed` war schon da und ist für `.fallback` **true** — korrekt, weil ein Demo-Lauf
+keinen Puls verraten kann, und genau deshalb liest es sich wie „gemessen". Herkunft muss getrennt reisen.
+**Kein `BioSource` möglich:** die Datei wird einzeln in Widget-/Watch-Target kompiliert, `EngineBus` ist in
+keinem. **Zwei Prosa-Stellen mitgezogen** (`BioSimulator.swift`, `EchoelmusicApp.swift`): beide behaupteten
+„there is no user-facing 'Demo' string in `Sources/`" — wahr beim Schreiben, falsch seit #627, seit #632 um
+zwei Renderer falscher. **Lehre: eine gemessene Rücknahme kann selbst veralten, und der eigene Commit ist
+der wahrscheinlichste Grund.**
+Wächter `TheGlanceSaysWhetherItIsABodyTests`, 11 Ansprüche, 1–5 echtes Verhalten. Er geht **rot statt
+`XCTSkip`**, wenn eine Renderer-Datei fehlt — der Blindfleck, den der Ultra-Audit in Dutzenden Wächtern fand.
+
+**OFFEN:** OSC/ADM/Art-Net/sACN ohne Herkunft (#462 zweite Hälfte) · host-sichtbare AUv3-Parameter kennen
+die Flagge jetzt und sagen sie nicht · CLAUDE.md-Drift zu den vier Analysis-Views · Founder-Geräteprobe:
+„Demo" auf dem Home-Screen sichtbar.
