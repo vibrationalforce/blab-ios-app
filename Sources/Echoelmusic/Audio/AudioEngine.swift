@@ -655,6 +655,14 @@ public final class AudioEngine {
                 // the RetroCapture tap so its capture sample rate tracks the NEW format;
                 // otherwise a retroactive capture/export would be pitch-shifted
                 // ("viel höher"). install() is idempotent (removes the old tap first).
+                //
+                // ⛔ #630: THIS COMMENT OVER-CLAIMED FOR AS LONG AS IT EXISTED. Re-installing
+                // updated the rate for FUTURE frames and left up to 30 s of ALREADY CAPTURED
+                // history in the ring — which every pre-roll reader then wrote out under the
+                // NEW rate. So the very pitch-shift named here survived this fix, moved from
+                // the live tap into the pre-roll. `install(on:)` now records a rate boundary
+                // and the two file writers stop at it; the sentence above is true because
+                // #630 made it true, not because re-installing was ever enough.
                 if self.masterEngine.isRunning {
                     self.recoveryAttempts = 0
                     self.retroCapture.install(on: self.masterEngine)

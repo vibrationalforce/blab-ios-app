@@ -49,6 +49,27 @@ final class RetroCapture {
     /// MainActor-only (the audio-thread tap callback indexes the ring by frame and never
     /// reads this). Ring is sized for the 48 kHz max so a lower rate just yields >30 s.
     private var captureSampleRate: Double = 48000
+    /// #630 — the oldest ring frame that was captured at the CURRENT `captureSampleRate`.
+    ///
+    /// THE DEFECT IT CLOSES. The configuration-change watchdog re-installs this tap exactly
+    /// BECAUSE the hardware rate moves (the rPPG camera activating mid-session drops the
+    /// route from 48 kHz to 44.1 kHz). `install(on:)` then re-read the new rate into
+    /// `captureSampleRate` — but the ring still held up to 30 s of frames sampled at the OLD
+    /// rate, and every reader below computes its window with `captureSampleRate` for the
+    /// WHOLE window and builds the output file's format from it. So a retroactive capture
+    /// spanning the switch was written with the wrong rate stamped on old frames: the exact
+    /// "viel höher" pitch-shift the watchdog comment says it prevents, moved from the live
+    /// tap into the pre-roll history.
+    ///
+    /// WHY A BOUNDARY AND NOT A RESET. Zeroing the ring on every route change is simpler and
+    /// throws away up to 30 s of PERFECTLY GOOD audio whenever the rate did not actually
+    /// change (a headphone unplug re-installs too). A boundary discards exactly the frames
+    /// that are wrong and keeps every frame that is right — and it costs one `Int64` and no
+    /// work at all on the audio thread, which a 11 MB `memset` at route-change time would not.
+    ///
+    /// Monotonic, like `ringWriteFrame`: once more than `ringCapacity` frames have been
+    /// captured at the new rate the clamp goes inert on its own, with nothing to reset.
+    private var rateBoundaryFrame: Int64 = 0
     nonisolated(unsafe) private let ring: UnsafeMutablePointer<Float>
     nonisolated(unsafe) private let ringWriteFrame: UnsafeMutablePointer<Int64>
 
@@ -129,6 +150,16 @@ final class RetroCapture {
 
         node.removeTap(onBus: 0)    // idempotent — removes previous tap if any
         tappedNode = node           // weak ref so deinit can remove the tap
+
+        // #630: a CHANGED rate invalidates the history, not the reinstall itself. Compare
+        // before assigning — most reinstalls (headphone unplug, engine restart) keep the
+        // same rate and must keep their pre-roll.
+        if format.sampleRate != captureSampleRate {
+            rateBoundaryFrame = ringWriteFrame.pointee
+            log.log(.info, category: .audio,
+                    "RetroCapture: capture rate \(captureSampleRate) → \(format.sampleRate) Hz; "
+                    + "pre-roll history before frame \(rateBoundaryFrame) is no longer usable")
+        }
         captureSampleRate = format.sampleRate   // real capture rate for all frame math + file format
 
         // Capture raw pointers only — never capture self on audio-thread callback
@@ -206,6 +237,13 @@ final class RetroCapture {
         if writeFailure.pointee, !writeFailed {
             writeFailed = true
         }
+        // #630 — DELIBERATELY NOT clamped to `rateBoundaryFrame`, unlike the three readers
+        // that produce AUDIO. This one bins the whole ring into a fixed number of display
+        // bins; clamping would shrink `totalFrames` and silently change what a bin means,
+        // so the meter would jump at a route change. Nothing here is written to a file or
+        // played, so an old-rate frame costs a slightly wrong time axis in a level display —
+        // not a pitch-shifted export. Stated rather than left as an inconsistency for the
+        // next reader to "fix".
         let totalFrames = ringCapacity
         let endFrame   = Int(ringWriteFrame.pointee)
         let startFrame = max(0, endFrame - totalFrames)
@@ -282,6 +320,27 @@ final class RetroCapture {
     }
 
     /// Deinterleave ring buffer data and write to file in 8192-frame chunks.
+    /// #630 — the ONE place that decides which ring frames a pre-roll may read.
+    ///
+    /// Returns the newest `requestedFrames` (capped at the ring), clamped so the window never
+    /// reaches back across a sample-rate switch. Right after a switch it legitimately returns
+    /// `count == 0`: there is no history at this rate yet, and every caller writes nothing
+    /// rather than writing old frames under a new rate stamp. That is this file's own rule —
+    /// a capture may be SHORT, it may not be WRONG.
+    ///
+    /// Used by the two FILE writers only. The other two ring readers deliberately do
+    /// something else and say so at their own site: `snapshotPreRoll` keeps its requested
+    /// length and BLANKS the pre-boundary part (its callers size a preview from the returned
+    /// array, and `RetroCaptureTests` pins the fresh-instance length), and the waveform tick
+    /// bins the whole ring for a level display that writes no file. Truncating is right where
+    /// the result becomes AUDIO; blanking is right where the result becomes a PICTURE.
+    private func preRollWindow(requestedFrames: Int) -> (start: Int, count: Int) {
+        let end = Int(ringWriteFrame.pointee)
+        let wanted = min(max(requestedFrames, 0), ringCapacity)
+        let start = max(max(0, end - wanted), Int(rateBoundaryFrame))
+        return (start, max(0, end - start))
+    }
+
     /// Must be called BEFORE activating the live tap to preserve correct chronological order.
     private func writePreRollToFile(_ file: AVAudioFile, format: AVAudioFormat, seconds: Int) throws {
         // This writer deinterleaves the STEREO ring buffer (L,R,L,R) into channels 0 AND 1.
@@ -292,9 +351,10 @@ final class RetroCapture {
             throw NSError(domain: "RetroCapture", code: -1,
                           userInfo: [NSLocalizedDescriptionKey: "pre-roll writer requires a stereo (2-channel) format"])
         }
-        let totalFrames = min(Int(Double(seconds) * captureSampleRate), ringCapacity)
-        let endFrame   = Int(ringWriteFrame.pointee)
-        let startFrame = max(0, endFrame - totalFrames)
+        // #630: the window is clamped to frames captured at the CURRENT rate.
+        let window = preRollWindow(requestedFrames: Int(Double(seconds) * captureSampleRate))
+        let totalFrames = window.count
+        let startFrame  = window.start
         let chunkSize  = 8192
         var written    = 0
 
@@ -356,12 +416,24 @@ final class RetroCapture {
     /// Returns the last `seconds` of ring buffer audio as interleaved stereo floats.
     /// Use for waveform preview. Recording already prepends pre-roll via writePreRollToFile().
     func snapshotPreRoll(seconds: Int = 30) -> [Float] {
+        // #630 — THIS ONE KEEPS ITS LENGTH and blanks instead of truncating, unlike the two
+        // FILE writers. Its contract is "give me `seconds` worth", zero-padded at the front
+        // before any audio has been captured (`RetroCaptureTests` pins exactly that: 30 s of
+        // silence from a fresh instance). Shortening it would break every caller that sizes a
+        // preview from the returned array — and would have turned a real, narrow rate fix
+        // into a wide behaviour change nobody asked for. So the requested window stands and
+        // the frames that predate a rate switch come back as SILENCE: a gap you can see,
+        // rather than old-rate audio replayed at the new rate.
         let frames  = min(Int(Double(seconds) * captureSampleRate), ringCapacity)
         let endFrame = Int(ringWriteFrame.pointee)
         let startFrame = max(0, endFrame - frames)
+        let boundary = Int(rateBoundaryFrame)
         var out = [Float](repeating: 0, count: frames * 2)
 
         for f in 0..<frames {
+            // #630: frames older than the boundary were sampled at a different rate; leave
+            // them as the zeros `out` was initialised with.
+            guard startFrame + f >= boundary else { continue }
             let src = ((startFrame + f) % ringCapacity) * 2
             let dst = f * 2
             out[dst]     = ring[src]
@@ -377,7 +449,12 @@ final class RetroCapture {
     /// retroactive "die Stelle war gut → behalten" path: grab exactly what was just
     /// heard (already including reverb/delay tails). Returns the file URL, or nil.
     func captureRecent(seconds: Double) -> URL? {
-        let frames = min(max(Int(seconds * captureSampleRate), 0), ringCapacity)
+        // #630: clamped to the current rate's history. `frames == 0` right after a route
+        // switch returns nil — no file at all, which is the honest outcome: there is nothing
+        // yet that this format describes. A file written from pre-switch frames would open,
+        // play, and be wrong, which is the failure mode this repo treats as the worse one.
+        let window = preRollWindow(requestedFrames: Int(seconds * captureSampleRate))
+        let frames = window.count
         guard frames > 0 else { return nil }
         guard let format = AVAudioFormat(standardFormatWithSampleRate: captureSampleRate, channels: 2) else {
             log.log(.error, category: .audio, "RetroCapture.captureRecent: cannot create format")
@@ -387,8 +464,7 @@ final class RetroCapture {
             let url = try makeRecordingURL()
             let file = try AVAudioFile(forWriting: url, settings: format.settings,
                                        commonFormat: .pcmFormatFloat32, interleaved: false)
-            let endFrame = Int(ringWriteFrame.pointee)
-            let startFrame = max(0, endFrame - frames)
+            let startFrame = window.start
             let chunkSize = 8192
             var written = 0
             while written < frames {
