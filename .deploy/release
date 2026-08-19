@@ -1,57 +1,58 @@
-build: v10.79.407 — Alles ist leichter zu treffen, und das Onboarding sagt endlich, was man zuerst tut
+build: v10.79.408 — Der MIDI-Export ist ehrlich geworden, und das Instrument spricht mit VoiceOver
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.406 (2523, Bio-Quellen-Zeile).
-  Dieser Build bündelt zwei Scheiben: #617/#617b (Tap-Target-Batch) und
-  #618/#618b (Ready-Satz im Onboarding, inkl. deutscher Übersetzung).
+  Der Vorgänger auf Deinem Gerät ist 10.79.407 (2524, Tap-Targets + Ready-Satz).
+  Dieser Build bündelt vier Scheiben: #619/#619b (VO-Move-Actions) · #620/#620b
+  (Untertitel-Auffindbarkeit) · #621/#621b (VO-Werte-Batch) · #622/#622b (MIDI-Fix,
+  Rang 1 Deines „Midi Export geht nicht"-Reports).
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Video-Bibliothek: Play, Share und Delete sind echte Ziele geworden.**
-    Play behält seinen kleinen Rahmen-Chip und trifft trotzdem auf voller
-    44er-Fläche; Share und Delete sind auf 44×44 gewachsen — und zwar so,
-    dass sich die Trefferflächen NICHT überlappen (ein Fehltipp neben Share
-    landet nie auf Delete).
-  · **Die „What your body is doing to the sound"-Zeile und drei Chip-Pillen**
-    (Explore/New · die Sound-Chips der Spielfläche · die Look-Chips) sind
-    vom ~16–30-pt-Streifen auf ordentliche Trefferhöhe gewachsen und
-    clippen bei großen Textgrößen nicht mehr.
-  · **Das Onboarding sagt jetzt, was man zuerst tut:** die letzte Seite
-    liest „Press Play to start — a fingertip on the camera light, or a
-    Bluetooth strap, lets your body drive the sound." — auf Deutsch:
-    „Drück Play zum Start — eine Fingerspitze auf dem Kameralicht oder ein
-    Bluetooth-Gurt lässt deinen Körper den Klang steuern." Gleiche Worte
-    wie die neue Bio-Quellen-Zeile aus 2523.
-  · Die Titelknöpfe des Visual-Fensters bleiben bewusst wie sie sind: eine
-    Verbreiterung auf 44 pt würde die kleinste Fenstergröße sprengen
-    (nachgerechnet und im Code dokumentiert).
+  · **MIDI-Export: die stumme Kachel ist repariert.** Das Ultra-Audit fand als
+    wahrscheinlichste Ursache Deines Reports: nach dem Öffnen eines Takes, dessen
+    Noten leer geladen wurden, blieb die Piano-Kachel hell und der Tap tat für
+    immer nichts (und der leere Take konnte sich über Save weitervererben). Jetzt
+    ist die Kachel ehrlich: ohne Noten kommt die Erklär-Zeile zurück, und die
+    Fader-Rettung (Roh-Material wiederherstellen) schaltet sie korrekt wieder
+    scharf. NOCH OFFEN als eigene Scheibe: nach dem Öffnen eines gespeicherten
+    Takes exportiert die App bisher nur 1 von z. B. 8 Takten — kommt als Nächstes.
+  · **Das schwebende Visual-Fenster ist ohne Drag bewegbar:** vier VoiceOver-
+    Actions („Move to top left" … „bottom right", letzterer = exakt der
+    Dock-Platz). Dein Drag bleibt unverändert; im Vollbild (gepinnt) gibt es die
+    Actions bewusst nicht.
+  · **Zwei vergrabene Features stehen jetzt im Panel-Untertitel:** „Production
+    character · Follow the key" und „Shape the timbre — exact to 0.0001 · Voice
+    timbre" — exakt der Wortlaut der Controls, damit die Suche funktioniert.
+  · **VoiceOver hört jetzt, was aktiv ist:** Sound- und Mood-Preset-Menüs sprechen
+    ihren aktiven Namen (+ „favorite"); der „Standard"-Rettungsknopf im
+    Tuning-Banner ist wieder ein eigenes, fokussierbares Element mit Hinweis;
+    das „Describe it"-Feld hat einen echten Namen statt des Beispiel-Platzhalters.
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. Video-Bibliothek (Video-Panel → Bibliothek): Play/Share/Delete gut
-     treffbar? Kein versehentlicher Delete-Treffer neben Share?
-  2. Sound-Chips und Look-Chips: Pillen minimal höher, gut tippbar, bei
-     größter Textstufe ohne Abschneiden?
-  3. Onboarding zurücksetzen (Neuinstallation oder Reset): nennt die
-     Ready-Seite Play/Kameralicht/Gurt — und auf einem deutschen Gerät
-     auf Deutsch?
-  4. Offene Proben von 2523: „Bio source"-Zeile im Bio-Panel (Menü öffnet,
-     Wechsel wirkt) · Auto-Tür-Caption · AX-Umbruch. Ältere: 2522
-     (Geste-gewinnt · Auto aus/an · Hörbarkeit) · 2521 · 2519.
+  1. MIDI-Export: frischen Take komponieren → Piano-Kachel → kommt das
+     Share-Sheet? Datei in der DAW öffnen. Danach: App neu starten, Take über
+     „Open" öffnen, nochmal exportieren. Falls wieder „geht nicht": bitte
+     echoel_diag.log nach „MIDI export" durchsuchen — die Zeile nennt den Fall.
+  2. VoiceOver an, Visual-Fenster: Rotor-Actions am Logo („Move to …") — landet
+     „bottom right" auf dem Dock-Platz?
+  3. VoiceOver an, Sound-Panel: sagt das Preset-Menü den aktiven Sound-Namen an?
+     Tuning verstellen → ist der „Standard"-Knopf einzeln fokussierbar?
+  4. Offene Proben von 2524: Video-Bibliothek-Treffbarkeit · Chips bei größter
+     Textstufe · Ready-Seite deutsch. Ältere: 2523 (Bio-source-Zeile) · 2522.
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert (Build-for-Testing grün auf dem
-  Spitzen-Commit; ein TEST-BUILD-Rot auf dem Zwischen-Commit war der
-  bekannte Modul-Cache-Flake der Infrastruktur, keine Repo-Datei in den
-  Fehlerzeilen). Echte Hit-Tests und VoiceOver-Reihenfolge sind
-  Geräteprobe — genau die Proben 1–3. Die adversarialen Reviews beider
-  Scheiben fanden 0 CRITICAL; alle Funde sind eingearbeitet, darunter die
-  Lektion, dass ein gewachsener Frame ohne contentShape nur Dekoration
-  ist (jetzt gewächtert).
+  ⚠ Ehrliche Grenzen: compile-verifiziert (Build-for-Testing grün auf der
+  Spitze; Gates der Zwischencommits sauber klassifiziert, nur der bekannte
+  Simulator-Clone-Tod). Gesprochene VoiceOver-Ansagen und Hit-Verhalten sind
+  Geräteprobe — genau die Proben 1–3. Alle vier Scheiben adversarial reviewt
+  (je 0 CRITICAL nach Nachlese); der MIDI-Fix beruht auf dem 24-Agenten-
+  Ultra-Audit, dessen voller Bericht im Repo liegt
+  (scratchpads/AUDIT_ULTRA_2026-08-19.md).
 
-  Vorgänger-Noten: 10.79.406 = Bio-Quellen-Zeile · 10.79.405 =
-  Geste-gewinnt + Erklärzeile · 10.79.404 = ehrliche Fehlertexte.
+  Vorgänger-Noten: 10.79.407 = Tap-Targets + Ready-Satz · 10.79.406 =
+  Bio-Quellen-Zeile · 10.79.405 = Geste-gewinnt + Erklärzeile.
   KEIN AUDIO wird je gespeichert.
