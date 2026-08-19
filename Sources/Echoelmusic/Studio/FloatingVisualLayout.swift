@@ -125,6 +125,54 @@ public enum FloatingVisualLayout {
         startButtonHeight + startButtonTopPadding + startButtonBottomPadding
     }
 
+    // MARK: - VoiceOver snap positions (#619, GUI-Board Zeile 9 / A11y#4)
+    //
+    // The floating card moved ONLY by a DragGesture on the logo handle — a gesture a
+    // VoiceOver user cannot perform, so for them the window was pinned wherever it spawned
+    // (possibly over the control they need next). These four snap targets back the named
+    // rotor actions the handle now offers. The DRAG STAYS — actions add a second door to
+    // the same `center` state, they replace nothing.
+    //
+    // The maths deliberately mirrors the view's own laws rather than inventing new ones:
+    //   · left/right/top edges keep the card `margin` clear of the container edge — the
+    //     same bound `FloatingVisualWindow.clamp` enforces on every drag;
+    //   · the BOTTOM corners additionally lift by `studioControlBandHeight`, exactly like
+    //     `FloatingVisualWindow.defaultCenter` — so "Move to bottom right" lands on the
+    //     dock spot the card starts at, not a few points lower than any drag would rest.
+    // The `max(min…, …)` folds guard a degenerate container (card wider than bounds):
+    // the near edge wins, matching `clamp`'s ordering, and the result stays finite.
+    //
+    // Names live HERE as rawValues — one definition (#416): the view builds its action
+    // buttons from `allCases`, so a fifth corner or a rename is one edit, and the guard
+    // (`TheFloatingWindowMovesWithoutADragTests`) pins the set without a second spelling.
+    public enum SnapCorner: String, CaseIterable, Sendable {
+        case topLeft = "Move to top left"
+        case topRight = "Move to top right"
+        case bottomLeft = "Move to bottom left"
+        case bottomRight = "Move to bottom right"
+    }
+
+    /// Centre point that puts the card in the given corner of `bounds`, honouring the
+    /// same margin the drag clamp uses and the same control-band lift the default dock
+    /// applies to the bottom edge. Pure; the view still runs its render-time clamp over
+    /// the result, so even a hostile size cannot push the card off screen.
+    public static func snapCenter(_ corner: SnapCorner,
+                                  in bounds: CGSize,
+                                  card: CGSize,
+                                  margin: CGFloat) -> CGPoint {
+        let minX = card.width / 2 + margin
+        let maxX = Swift.max(minX, bounds.width - card.width / 2 - margin)
+        let minY = card.height / 2 + margin
+        let maxY = Swift.max(minY, bounds.height - card.height / 2 - margin
+                                    - studioControlBandHeight)
+        switch corner {
+        case .topLeft:     return CGPoint(x: minX, y: minY)
+        case .topRight:    return CGPoint(x: maxX, y: minY)
+        case .bottomLeft:  return CGPoint(x: minX, y: maxY)
+        case .bottomRight: return CGPoint(x: maxX, y: maxY)
+        }
+    }
+
     // MARK: - Chrome bar budget (#365)
     //
     // ⛔ THE WINDOW WAS ADAPTIVE ON ONE AXIS ONLY, and that is the whole bug the founder

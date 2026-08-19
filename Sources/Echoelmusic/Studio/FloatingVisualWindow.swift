@@ -951,7 +951,30 @@ struct FloatingVisualWindow: View {
                         }
                         .onEnded { _ in dragAnchor = nil }
                 )
-                .accessibilityLabel("Echoelmusic — drag to move the visual")
+                // #619 (A11y#4): the drag above is the ONLY way this window moved, and a
+                // VoiceOver user cannot perform a DragGesture — for them the card was pinned
+                // wherever it spawned, possibly over the control they need next. Four named
+                // rotor actions snap `center` to the corners instead; the snap maths lives in
+                // `FloatingVisualLayout.snapCenter` (margin law of `clamp`, band lift of
+                // `defaultCenter`), and the action names are the `SnapCorner` rawValues —
+                // one definition, the view restates nothing (#416). Floating sizes only:
+                // fullscreen pins the card to the exact centre and ignores `center`, so an
+                // action there would silently edit an invisible state — the builder emits
+                // nothing rather than offering a lie. The label goes honest the same way:
+                // "drag to move" is only true where a drag can move it.
+                .accessibilityLabel(windowSize.isFullscreen
+                    ? "Echoelmusic"
+                    : "Echoelmusic — drag to move the visual")
+                .accessibilityActions {
+                    if !windowSize.isFullscreen {
+                        ForEach(FloatingVisualLayout.SnapCorner.allCases, id: \.rawValue) { corner in
+                            Button(corner.rawValue) {
+                                center = FloatingVisualLayout.snapCenter(
+                                    corner, in: bounds, card: card, margin: margin)
+                            }
+                        }
+                    }
+                }
             Spacer(minLength: 0)
             // PRODUCER DOOR (founder 2026-07-22: "die Ebene der tighten Loops — Video
             // und wav — muss für mich als Produzent noch mit reindürfen"). In fullscreen
