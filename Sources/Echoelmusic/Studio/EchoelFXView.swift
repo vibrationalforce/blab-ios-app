@@ -1256,6 +1256,20 @@ private struct BioModContributionRow: View {
                 Text(contribution.targetName)
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text).lineLimit(1)
                 Spacer(minLength: 0)
+                // #635b — origin BEFORE the number, the same order `AlwaysOnBioRow` uses and
+                // for the same reason: the origin decides whether the number describes a person
+                // at all, so it cannot arrive after the claim it qualifies. Same spelling, same
+                // dim-with-hairline treatment — green stays reserved for a real body, and
+                // running the demo is a choice, not a fault, so not `warning` either.
+                if contribution.synthetic {
+                    Text("Demo")
+                        .font(EchoelTheme.font(10, .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                            .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
+                        .foregroundStyle(EchoelTheme.dim)
+                }
                 // "—", never "+0.00", when the body did not report this carrier: the
                 // same rule the bio strip applies, and for the same reason — a confident
                 // zero reads as "you are at the bottom of the scale" rather than "this
@@ -1273,11 +1287,22 @@ private struct BioModContributionRow: View {
 
     /// VoiceOver must not state a percentage the body never produced either — that was
     /// the more misleading half, since "0 percent" sounds like a reading.
+    ///
+    /// ⚠️ THE ORIGIN PREFIX IS COMPUTED ABOVE THE `measured` GUARD, not inside the live
+    /// branch — otherwise the chip could be on screen while the ear hears nothing about it,
+    /// and this method's whole job is to give VoiceOver the same facts in the same order.
+    /// It is the PREFIX spelling (`"Simulated demo, "`), not the element-label one
+    /// (`"Bio source: simulated demo, not your body"`), because this string is a sentence
+    /// that continues — the position decides which of the three established spellings
+    /// applies (#416/#634b). Today `synthetic` is false whenever `measured` is, so the
+    /// first branch cannot carry a prefix; it is written for the law, not for a live case.
     private var accessibilityText: String {
+        let origin = contribution.synthetic ? "Simulated demo, " : ""
         guard contribution.measured else {
-            return "\(contribution.carrierName) to \(contribution.targetName), not measured"
+            return origin
+                + "\(contribution.carrierName) to \(contribution.targetName), not measured"
         }
-        return "\(contribution.carrierName) moving \(contribution.targetName), "
+        return origin + "\(contribution.carrierName) moving \(contribution.targetName), "
             + "\(Int((contribution.signal01 * 100).rounded())) percent"
     }
 
@@ -1301,8 +1326,11 @@ private struct BioModContributionRow: View {
                 Capsule().fill(EchoelTheme.border.opacity(0.4))
                 // No fill at all when unmeasured — the `max(2, …)` floor would otherwise
                 // draw a small but real bar, which is the same fabricated zero as "+0.00".
+                // Dim for the demo, accent for a body. Without this the loudest thing on the
+                // row — a full-strength accent bar — reads identically for a simulated signal
+                // and a real one, which is exactly the impression the chip is there to prevent.
                 if contribution.measured {
-                    Capsule().fill(EchoelTheme.accent)
+                    Capsule().fill(contribution.synthetic ? EchoelTheme.dim : EchoelTheme.accent)
                         .frame(width: Swift.max(2, geo.size.width * CGFloat(Swift.min(1, Swift.max(0, contribution.signal01)))))
                 }
             }

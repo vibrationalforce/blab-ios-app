@@ -166,15 +166,37 @@ public struct BioModContribution: Sendable, Equatable, Identifiable {
     /// rather than "nobody measured this". Always `true` for an LFO carrier, which
     /// needs no body.
     public var measured: Bool
+    /// Whether the reading behind this row came from the DEMO source rather than a body.
+    /// `measured` and `synthetic` answer different questions and both are needed: a demo
+    /// frame reports every channel, so it is `measured: true` and would otherwise draw a
+    /// confident number and a full-strength bar that nothing on screen distinguishes from
+    /// a real pulse. This is the same law the bio strip, the header pill, the always-on
+    /// channel rows, the Live-Colabo rows, the widget and the watch already carry.
+    ///
+    /// ⚠️ TRUE ONLY FOR A CONTRIBUTING BIO CARRIER, and both exclusions are deliberate:
+    /// an **LFO** carrier is a real oscillator and is not made simulated by the bio source
+    /// running in demo — marking it would be a fresh false claim of exactly the kind this
+    /// field exists to remove; an **unmeasured** row already renders "—" and says "not
+    /// measured", so it claims nothing that needs qualifying. `TheFXRoutesSayWhoseBodyTests`
+    /// carries both as counterweights.
+    public var synthetic: Bool
 
+    /// ⚠️ `synthetic` has NO DEFAULT, deliberately (#431/#440/#443): a defaulted argument
+    /// that no call site writes never appears in a diff, so the one construction site would
+    /// keep compiling while silently claiming every demo route is a real body. There is
+    /// exactly one construction site in `Sources/` and `Tests/` (`FXModulation.contributions`),
+    /// so the cost of no default is one edit. (`measured` predates this rule and keeps its
+    /// default; changing that is a separate slice, not a drive-by.)
     public init(id: UUID, carrierName: String, targetName: String,
-                signal01: Float, offset: Float, measured: Bool = true) {
+                signal01: Float, offset: Float, measured: Bool = true,
+                synthetic: Bool) {
         self.id = id
         self.carrierName = carrierName
         self.targetName = targetName
         self.signal01 = signal01
         self.offset = offset
         self.measured = measured
+        self.synthetic = synthetic
     }
 }
 
@@ -237,11 +259,21 @@ public enum FXModulation {
                 ? offset(target: route.target, signal: route.curve.apply(signal),
                          depth: route.depth, bipolar: route.bipolar)
                 : 0
+            // Demo-ness is a property of the BODY, so only a contributing `.bio` carrier
+            // can carry it: an LFO keeps running on its own clock and is never simulated,
+            // and an unmeasured row already renders "—" rather than a claim. `frame` is the
+            // only provenance this pure function has — deliberately, since reaching for a
+            // camera/publisher state here would make it stateful and no longer Linux-testable.
+            var isDemo = false
+            if case .bio = route.carrier, contributing, frame?.source == .fallback {
+                isDemo = true
+            }
             return BioModContribution(id: route.id,
                                       carrierName: route.carrier.displayName,
                                       targetName: route.target.displayName,
                                       signal01: clamp01(signal), offset: off,
-                                      measured: contributing)
+                                      measured: contributing,
+                                      synthetic: isDemo)
         }
     }
 
