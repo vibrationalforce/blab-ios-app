@@ -1,73 +1,63 @@
-build: v10.79.410 — Monitoring: die zweite, wahrscheinlichere Ursache Deines Screenshots
+build: v10.79.411 — Jede Bio-Zahl sagt jetzt, ob sie von Deinem Körper kommt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
+  Seit 10.79.411 ist diese Regel kein Prosa-Hinweis mehr, sondern ein Wächter im
+  blockierenden Bundle (`TheShippedVersionComesFromTheReleaseFileTests`, #635).
 
-  Der Vorgänger ist 10.79.409 (2526) — falls Du den übersprungen hast: davor 10.79.408 (2525).
-  Dieser Build bündelt: #623/#623b (MIDI Rang 3 — alle Takte im Export) und
-  #625/#625b (Dein Report „Live monitoring geht nicht und killt den restlichen Sound").
+  Der Vorgänger ist 10.79.410 (2527). Dieser Build bündelt ELF Scheiben —
+  #627/#627b, #629/#629b, #632/#632b, #634/#634b (Herkunfts-Ehrlichkeit), #633
+  (App-Store-Schutz) und #635 (Deploy-Loop).
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **DEIN SCREENSHOT hat die Suche entschieden.** Er zeigte „Monitoring could
-    not start — try again" — und NICHT „check microphone access in Settings".
-    Diese zwei Texte verzweigen auf die Mikrofon-Berechtigung, Dein Mikro ist
-    also freigegeben und das Einschalten ist aus einem anderen Grund
-    gescheitert. Übrig bleiben drei Stellen, und die wahrscheinlichste ist eine
-    Reihenfolge: die App wechselte die Audio-Session, WÄHREND die Engine lief,
-    und las erst danach das Eingangsformat — genau der Zustand, in dem iOS
-    „0 Hz" zurückgibt. Die Fehlermeldung beschuldigte dann das Mikrofon.
-    Jetzt wird zuerst pausiert, dann gewechselt, dann gelesen; ein
-    fehlgeschlagener Session-Wechsel bricht sauber ab statt weiterzulaufen; und
-    die Log-Zeile rät nicht mehr, sondern nennt Rate, Kanalzahl und
-    Engine-Zustand.
-  · **Monitoring sollte den Ton nicht mehr killen.** Gefunden: das Einschalten
-    hebt die Audio-Session an, und iOS darf darunter die laufende Engine
-    STOPPEN. Der Code las den Laufzustand aber erst danach — dachte also „lief
-    ja gar nicht" und startete nie wieder. Monitorkette auf tote Engine, Meldung
-    „Erfolg", Musik still, keine Logzeile. Der Neustart ist jetzt an JEDEM
-    Ausgang zugesichert, auch beim Ausschalten und beim Fehlerfall.
-  · **MIDI-Export: ein geöffneter Take exportiert jetzt alle Takte.** Vorher kam
-    nach „Open" genau 1 Takt statt z. B. 8 — und ausgerechnet der leise
-    Einstiegstakt. Beim Speichern lagen die vollen Takte längst im Projekt; sie
-    erreichten die Rolle nur, wenn man zufällig einen Mix-Fader anfasste.
-  · Nebenbei: der Autosave-Rettungspunkt gibt jetzt ebenfalls den ganzen Take
-    zurück statt einen von acht.
+  · **Der rote Faden dieses Builds: eine Zahl, die nicht von Dir kommt, darf sich
+    nicht so anfühlen, als käme sie von Dir.** Wenn die Demo-Quelle läuft, steht
+    jetzt auf JEDER Fläche, die einen Puls- oder Atemwert zeigt, ein kleines
+    „Demo": Bio-Streifen, Puls-Pille in der Kopfzeile, die Always-on-Kanalzeilen,
+    die Live-Colabo-Zeilen (und im Daten-Paket an Mitspieler), das
+    Home-Screen-Widget und die Uhr. Auch VoiceOver sagt es an, nicht nur die
+    Optik: die Ansage beginnt dann mit „Simulated demo, …".
+  · **Und die EchoelAI-Erklärzeile hört auf, Dir Deinen Körper zuzuschreiben.**
+    Sie schrieb bisher auch bei laufender Demo „from your live signal". Jetzt
+    heißt es „EchoelAI (demo signal) — … from the demo signal, …" und bei echtem
+    Sensor unverändert „from your live signal".
+  · **Ein Knopf im Auslieferungs-Pfad konnte alle Store-Screenshots löschen.**
+    `fastlane deliver` war so eingestellt, dass es zuerst jeden lebenden
+    App-Store-Screenshot entfernt und dann das hochlädt, was im Repo liegt — und
+    dort liegt genau nichts. Entschärft, mit Wächter. Das war die einzige
+    unumkehrbare Aktion im ganzen Einreichungs-Weg.
+  · **Deploy-Loop vermessen und abgesichert.** Der Weg „Version-Datei anfassen →
+    Build auf Deinem Telefon" dauert gemessen 12:47. Wo die Zeit hingeht und was
+    sie billiger machen würde, steht mit Zahlen in
+    `scratchpads/PLAN_TESTFLIGHT_LOOP_2026-08-19.md`. Fünf der sieben Vorschläge
+    liegen in Dateien, die ich nicht anfassen darf — die brauchen Deine Freigabe,
+    sie stehen dort sortiert. Gebaut ist die Hälfte in meiner Spur: ein Wächter
+    gegen den einzigen STILLEN Fehler des Loops (grüner Lauf, grüner Upload,
+    falsche Versionsnummer im App-Kopf).
 
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
-  1. **Der wichtigste Test:** Musik starten, dann Monitoring einschalten
-     (Master-Panel → „Audio input"). Geht der Schalter jetzt AN? Hörst Du Dich?
-     Läuft die Musik weiter?
-     · Falls wieder „could not start — try again": bitte das echoel_diag.log —
-       die neue Zeile nennt jetzt den echten Grund („input format unusable …
-       sampleRate 0, channels 0, engine running/stopped" ODER „session upgrade
-       failed"). Das sind zwei verschiedene Reparaturen, und die Zeile sagt
-       welche.
-     · Falls es WIEDER still wird: bitte echoel_diag.log schicken. Drei Zeilen
-       entscheiden, welche von zwei Ursachen es ist —
-       „session claim stopped the engine" (dann war meine Diagnose richtig),
-       oder „Audio route lost" / „stop source: route-lost" (dann ist es eine
-       ZWEITE, noch offene Ursache: der Route-Verlust stoppt den Transport).
-     · Bitte einmal MIT und einmal OHNE Bluetooth-Kopfhörer testen — die
-       Record-Route fordert HFP an, das ist ein eigener Verdachtsfall.
-  2. MIDI: Take komponieren, App neu starten, Take über „Open" laden,
-     exportieren → kommen jetzt alle Takte in der DAW an?
-  3. Offene Proben von 2525: MIDI frisch · VoiceOver-Rotor „Move to …" am
-     Visual-Fenster · VoiceOver-Preset-Ansagen + „Standard"-Knopf.
+  1. **Die wichtigste Probe, und sie hat zwei Hälften.**
+     · Demo-Quelle wählen (Puls-Pille → Quelle): steht überall dort, wo eine
+       Bio-Zahl steht, ein „Demo"? Bio-Streifen, Kopfzeilen-Pille, die
+       Kanalzeilen, das Widget auf dem Home-Screen, die Uhr.
+     · Danach die ECHTE Quelle (Finger auf der Kamera oder Gurt): verschwindet
+       das „Demo" überall wieder? Ein echter Puls, der als Demo etikettiert wird,
+       wäre der schlimmere Fehler von beiden.
+  2. EchoelAI-Erklärzeile: sagt sie bei Demo „demo signal" und bei echtem Sensor
+     „your live signal"?
+  3. Offene Proben von 2527: Monitoring (Master-Panel → „Audio input") — geht der
+     Schalter an, hörst Du Dich, läuft die Musik weiter? · MIDI-Export eines
+     geöffneten Takes: kommen alle Takte an?
 
-  ⚠ Ehrliche Grenzen: compile-verifiziert, NICHT geräteverifiziert — genau
-  deshalb Probe 1. Der Monitoring-Fix ist eine von vier Erklärungen für Deinen
-  Report; das Review hat den Route-Verlust-Pfad sogar HÖHER gerankt als meine
-  Diagnose. Die Diag-Log-Zeilen oben unterscheiden sie. Beide Scheiben
-  adversarial reviewt (#623: 0 CRITICAL, #625: zwei CRITICAL im Fix selbst
-  gefunden und nachgezogen). Noch NICHT gebaut: die Vocal Chain fürs Mikrofon —
-  Plan und Council-Verdikt liegen im Repo
-  (scratchpads/PLAN_VOCAL_CHAIN_V1.md), gebaut wird nach dieser Probe.
-
-  Vorgänger-Noten: 10.79.409 = Monitoring-Neustart-Zusage + MIDI alle Takte ·
-  10.79.408 = MIDI-Kachel + VoiceOver · 10.79.407 = Tap-Targets
-  + Ready-Satz · 10.79.406 = Bio-Quellen-Zeile.
+  ⚠ Ehrliche Grenzen: alles compile-verifiziert, NICHTS geräteverifiziert —
+  deshalb Probe 1. Widget und Uhr sind der unsicherste Teil: sie lesen ihren Wert
+  aus einem geteilten Speicher, und ein Wert, den ein ÄLTERER Build dort
+  hinterlassen hat, trägt die Herkunfts-Angabe noch nicht — der wird als „echt"
+  gezeigt, bis die App ihn einmal überschreibt. Weiterhin offen und nicht
+  behauptet: die FX-Beitragszeile und die Hälfte der Metrik-Ansicht tragen die
+  Markierung noch nicht.
   KEIN AUDIO wird je gespeichert.
