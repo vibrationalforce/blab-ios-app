@@ -1,16 +1,28 @@
-build: v10.79.409 — Monitoring killt nicht mehr den Ton, und ein geöffneter Take exportiert alle Takte
+build: v10.79.410 — Monitoring: die zweite, wahrscheinlichere Ursache Deines Screenshots
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
 
-  Der Vorgänger auf Deinem Gerät ist 10.79.408 (2525, MIDI-Fix + VoiceOver).
+  Der Vorgänger ist 10.79.409 (2526) — falls Du den übersprungen hast: davor 10.79.408 (2525).
   Dieser Build bündelt: #623/#623b (MIDI Rang 3 — alle Takte im Export) und
   #625/#625b (Dein Report „Live monitoring geht nicht und killt den restlichen Sound").
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
+  · **DEIN SCREENSHOT hat die Suche entschieden.** Er zeigte „Monitoring could
+    not start — try again" — und NICHT „check microphone access in Settings".
+    Diese zwei Texte verzweigen auf die Mikrofon-Berechtigung, Dein Mikro ist
+    also freigegeben und das Einschalten ist aus einem anderen Grund
+    gescheitert. Übrig bleiben drei Stellen, und die wahrscheinlichste ist eine
+    Reihenfolge: die App wechselte die Audio-Session, WÄHREND die Engine lief,
+    und las erst danach das Eingangsformat — genau der Zustand, in dem iOS
+    „0 Hz" zurückgibt. Die Fehlermeldung beschuldigte dann das Mikrofon.
+    Jetzt wird zuerst pausiert, dann gewechselt, dann gelesen; ein
+    fehlgeschlagener Session-Wechsel bricht sauber ab statt weiterzulaufen; und
+    die Log-Zeile rät nicht mehr, sondern nennt Rate, Kanalzahl und
+    Engine-Zustand.
   · **Monitoring sollte den Ton nicht mehr killen.** Gefunden: das Einschalten
     hebt die Audio-Session an, und iOS darf darunter die laufende Engine
     STOPPEN. Der Code las den Laufzustand aber erst danach — dachte also „lief
@@ -27,7 +39,13 @@ notes: |
   ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
 
   1. **Der wichtigste Test:** Musik starten, dann Monitoring einschalten
-     (Master-Panel → „Audio input"). Läuft die Musik weiter? Hörst Du Dich?
+     (Master-Panel → „Audio input"). Geht der Schalter jetzt AN? Hörst Du Dich?
+     Läuft die Musik weiter?
+     · Falls wieder „could not start — try again": bitte das echoel_diag.log —
+       die neue Zeile nennt jetzt den echten Grund („input format unusable …
+       sampleRate 0, channels 0, engine running/stopped" ODER „session upgrade
+       failed"). Das sind zwei verschiedene Reparaturen, und die Zeile sagt
+       welche.
      · Falls es WIEDER still wird: bitte echoel_diag.log schicken. Drei Zeilen
        entscheiden, welche von zwei Ursachen es ist —
        „session claim stopped the engine" (dann war meine Diagnose richtig),
@@ -49,6 +67,7 @@ notes: |
   Plan und Council-Verdikt liegen im Repo
   (scratchpads/PLAN_VOCAL_CHAIN_V1.md), gebaut wird nach dieser Probe.
 
-  Vorgänger-Noten: 10.79.408 = MIDI-Kachel + VoiceOver · 10.79.407 = Tap-Targets
+  Vorgänger-Noten: 10.79.409 = Monitoring-Neustart-Zusage + MIDI alle Takte ·
+  10.79.408 = MIDI-Kachel + VoiceOver · 10.79.407 = Tap-Targets
   + Ready-Satz · 10.79.406 = Bio-Quellen-Zeile.
   KEIN AUDIO wird je gespeichert.
