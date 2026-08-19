@@ -231,7 +231,12 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// and the composer is already treating it as no body.
     public func reading(in frame: BioSampleFrame?, now: TimeInterval) -> AlwaysOnBioReading {
         guard let frame else {
-            return AlwaysOnBioReading(value: 0.5, isMeasured: false, isHeld: false)
+            // `isSynthetic: false` and not "unknown": with no frame the row renders "—" and
+            // asserts nothing about a body, so there is no fabrication to mark. The three-state
+            // encoding the CROSS-PROCESS payloads use (`BioVitals.synthetic`, `BioPeek`) exists
+            // because a WRITER may not have said; here the reader holds the frame itself.
+            return AlwaysOnBioReading(value: 0.5, isMeasured: false, isHeld: false,
+                                      isSynthetic: false)
         }
         let measured = isMeasured(in: frame)
         let age = now - frame.timestamp
@@ -244,7 +249,11 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
             && age >= -BioSource.futureSkewTolerance
         return AlwaysOnBioReading(value: value(in: frame),
                                   isMeasured: measured,
-                                  isHeld: measured && !usable)
+                                  isHeld: measured && !usable,
+                                  // Asked of the FRAME, exactly like the other three — the row
+                                  // never reads the bus itself, so all four facts come from one
+                                  // snapshot and cannot describe two different instants.
+                                  isSynthetic: frame.source == .fallback)
     }
 }
 
@@ -262,11 +271,34 @@ public struct AlwaysOnBioReading: Equatable, Sendable {
     /// Whether that measurement has aged out of its own source's freshness window — the
     /// engine still has it, the body is no longer sending it.
     public let isHeld: Bool
+    /// Whether the frame came from the DEMO generator (`.fallback`) rather than a body (#634).
+    ///
+    /// ⭐ WHY A FOURTH FACT, on a type whose doc says three "must travel together". The first
+    /// three answer *is this number real, and is it still arriving* — both questions ABOUT A
+    /// MEASUREMENT. None of them can distinguish a measurement from a fabrication, because
+    /// `isMeasured` asks the frame's own `hasMeasured…` gates, which are tests on the NUMBER,
+    /// never on its origin. `BioSimulator` satisfies every one of them by construction, so
+    /// under Simulation all four channels reported `isMeasured == true`, drew a full-opacity
+    /// accent bar, and told VoiceOver "Coherence at 62 percent" — directly beneath the panel
+    /// sentence that promises "Four BODY channels shape the instrument's own timbre".
+    ///
+    /// ⛔ AND `isHeld` IS NOT A NEAR-MISS FOR IT. A demo frame is FRESH: it arrives about once
+    /// a second, so `isHeld` is false the whole time. The one fact that would have hinted at
+    /// something is the one the demo never trips.
+    ///
+    /// This completes on the always-on rows the law #627/#629/#632 built on the strip, the
+    /// header pill, the metric sheet, the Live-Colabo rows, the widget and the watch.
+    public let isSynthetic: Bool
 
-    public init(value: Float, isMeasured: Bool, isHeld: Bool) {
+    /// ⚠️ `isSynthetic` has NO DEFAULT, deliberately (#431/#440/#443): a defaulted argument
+    /// that no call site writes appears in no diff, and this type has exactly two production
+    /// construction sites — both in `reading(in:now:)` a few lines up. Requiring it is what
+    /// made the compiler point at both.
+    public init(value: Float, isMeasured: Bool, isHeld: Bool, isSynthetic: Bool) {
         self.value = value
         self.isMeasured = isMeasured
         self.isHeld = isHeld
+        self.isSynthetic = isSynthetic
     }
 }
 

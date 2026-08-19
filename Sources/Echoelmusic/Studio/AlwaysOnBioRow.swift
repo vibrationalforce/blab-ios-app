@@ -96,6 +96,20 @@ struct AlwaysOnBioRow: View {
                 Text(channel.shapes)
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim).lineLimit(1)
                 Spacer(minLength: 0)
+                // #634 — origin BEFORE age, because they answer different questions and the
+                // origin is the one that decides whether the number describes a person at all.
+                // Dim with a hairline outline: not `EchoelTheme.success` (green is reserved for
+                // a real body on the wire — the same reservation `BioStripView.demoTag` states)
+                // and not `warning` (running the demo is a choice, not a fault).
+                if reading.isSynthetic {
+                    Text("Demo")
+                        .font(EchoelTheme.font(10, .semibold))
+                        .lineLimit(1).minimumScaleFactor(0.8)
+                        .padding(.horizontal, 5).padding(.vertical, 1)
+                        .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
+                            .strokeBorder(EchoelTheme.text.opacity(0.25), lineWidth: 1))
+                        .foregroundStyle(EchoelTheme.dim)
+                }
                 if reading.isHeld {
                     // The word, not a countdown: a ticking age would be a second live-looking
                     // number on a row whose whole point is that nothing here is live.
@@ -119,14 +133,26 @@ struct AlwaysOnBioRow: View {
     /// the body — "not measured" and "no longer arriving" describe the reading, not the
     /// person, and neither sentence may be readable as an observation about a heart).
     private func accessibilityText(_ reading: AlwaysOnBioReading) -> String {
+        // #634 — leads, for the same reason the chip sits before "held": a listener who hears
+        // "Coherence at 62 percent" has already been told a fact about their body, and a
+        // qualifier arriving after it corrects a claim instead of preventing one. Same wording
+        // as the five sibling surfaces so the sentence is recognisable across the app.
+        //
+        // ⚠️ IT IS COMPUTED BEFORE THE `isMeasured` GUARD, not after, because the CHIP is gated
+        // on `isSynthetic` alone. Leaving the unmeasured branch bare would put "Demo" on screen
+        // and not in the ear — and this method's own doc says VoiceOver gets the same facts in
+        // the same order. (`BioSimulator` measures all four channels, so that branch is not
+        // reachable under Simulation today; it is written for the law, not for a live case.)
+        let origin = reading.isSynthetic ? "Simulated demo, not your body. " : ""
         guard reading.isMeasured else {
-            return "\(channel.name), not measured, shaping \(channel.shapes) at the neutral value"
+            return origin
+                + "\(channel.name), not measured, shaping \(channel.shapes) at the neutral value"
         }
         let percent = Int((reading.value * 100).rounded())
         guard reading.isHeld else {
-            return "\(channel.name) at \(percent) percent, shaping \(channel.shapes)"
+            return origin + "\(channel.name) at \(percent) percent, shaping \(channel.shapes)"
         }
-        return "\(channel.name) held at \(percent) percent, no longer arriving, "
+        return origin + "\(channel.name) held at \(percent) percent, no longer arriving, "
             + "still shaping \(channel.shapes)"
     }
 
@@ -138,7 +164,14 @@ struct AlwaysOnBioRow: View {
                     // Drawn, because the engine really is still being handed this — but dimmed
                     // when held, so a glance separates a moving body from a parked one without
                     // reading the word.
-                    Capsule().fill(EchoelTheme.accent.opacity(reading.isHeld ? 0.35 : 1))
+                    //
+                    // ⭐ #634: and NOT in the accent when the frame is the demo generator's. The
+                    // bar is the loudest thing on the row; painting a fabricated value in the
+                    // colour this app reserves for a live body is the same over-claim the lock
+                    // accent made on the header pill before #627. Held-and-demo keeps the
+                    // held dimming on top — the two facts compose, they do not replace.
+                    Capsule().fill((reading.isSynthetic ? EchoelTheme.dim : EchoelTheme.accent)
+                                   .opacity(reading.isHeld ? 0.35 : 1))
                         .frame(width: Swift.max(2, geo.size.width
                                                 * CGFloat(Swift.min(1, Swift.max(0, reading.value)))))
                 }
