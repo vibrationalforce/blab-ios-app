@@ -37,9 +37,13 @@
 //     and renders STATIC text with no bio read at all; it can neither mark nor over-claim.
 //     Two other guards inherited the same wrong name (`TheAlwaysOnRowsSayWhoseBodyTests`,
 //     `TheGlanceSaysWhetherItIsABodyTests`) and are corrected in the same commit as #637.
-//     ⚠️ "MARKED" here still means the header AND the rows, not the whole sheet: the HRV
-//     row's copy ("more variability opens the reverb") is the mapping CLAUDE.md struck at
-//     #546, and no guard scans `BioSoundMapping.swift` for it. Provenance closed, copy open.
+//     ⚠️ "MARKED" means provenance. The COPY half was open one cycle and is **CLOSED by
+//     #638**: the HRV row's "more variability opens the reverb" was the mapping CLAUDE.md
+//     struck at #546 — and the register understated it, because the same table was also
+//     selling a heart-rate filter sweep deleted at #331 and a breath filter modulation whose
+//     channel has no producer. All three rewritten; `BioSoundMapping.swift` is now scanned by
+//     `DisabledReverbIsNotClaimedLiveTests` and compared against the audited
+//     `AlwaysOnBioChannel.shapedParameters` by `TheGuideTableMatchesTheAuditedWritesTests`.
 //   · `OwnBioRow` in `LiveColaboView` ("You", bpm + coherence from `usableBio()`) —
 //     **MARKED (#629)**, together with the peer rows and the wire payload, exactly as the
 //     deferral said it should be: one decision, not two cycles. ⛔ This entry read "DEFERRED"

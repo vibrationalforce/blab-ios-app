@@ -109,20 +109,23 @@
 // opacity, too faint", at the two prose `Text`s). `EchoelTheme.dim` was lifted to 0.65 and
 // clears WCAG AA on `surface`; those two comments describe a state that no longer exists.
 //
-// ⚠️ AND ONE OVER-CLAIM IN THIS VERY SHEET IS **NOT** COVERED BY THIS FILE, registered rather
-// than quietly fixed (one slice per cycle): `BioSoundMapping.all`'s HRV row reads "more
-// variability opens the reverb, so the sound settles into a larger space". That is the mapping
-// CLAUDE.md struck at #546 — `applyBioReactive` writes `reverbMix` from `hrvVariability`, but
-// its only reader sits inside `if Self.useConvolutionReverb`, which is `false` with no writer
-// in `Sources/`. `DisabledReverbIsNotClaimedLiveTests` makes CLAIMS about `EchoelDDSP.swift`,
-// `AlwaysOnBioChannel.swift` and the published page, and additionally WALKS all of `Sources/`
-// hunting a writer of that flag — so its reach is wider than "two files", but its claim set is
-// not: its own "prose to move by hand" list names `CLAUDE.md` and `AlwaysOnBioChannel.swift`.
-// `BioSoundMapping.swift` is on neither, so this sentence is rendered to a user and guarded by
-// nothing. (⛔ The first version of this paragraph described that guard as scanning only the
-// channel file and the page. The CONCLUSION survives; the premise was too narrow, which is the
-// same defect one register-line up, at one remove.) Next slice — a COPY defect, not a
-// provenance one.
+// ⭐ THE OVER-CLAIM THIS BLOCK REGISTERED AS OPEN IS **CLOSED BY #638**, ticked off here in
+// the commit that closed it rather than left to rot for two cycles like the three bullets
+// below it had. It read: `BioSoundMapping.all`'s HRV row says "more variability opens the
+// reverb", the mapping CLAUDE.md struck at #546, rendered to a user and guarded by nothing.
+// #638 rewrote it — and found the register itself had been too NARROW: the same four-row
+// table was also selling a heart-rate filter sweep deleted at #331 and a breath filter
+// modulation whose channel (`breathDepth`) has no producer. Three false rows, not one.
+// Guards: `Tests/CISmoke/DisabledReverbIsNotClaimedLiveTests.swift` (the reverb decision,
+// which owns it, #416) and `Tests/CISmoke/TheGuideTableMatchesTheAuditedWritesTests.swift`
+// (the whole table against `AlwaysOnBioChannel.shapedParameters`, end-to-end).
+//
+// ⚠️ AND #638 PUT A FOURTH FALSE ROW IN BEFORE TAKING IT OUT AGAIN — worth recording next to
+// the finding it came from. Its first draft rewrote HRV as "opens the filter a little
+// further"; HRV never touches `filterCutoff`, which is a function of coherence alone in both
+// branches. A slice correcting a false mapping wrote a new one in the same commit, and the
+// audited table two directories away already said `case .hrv: return [.brightness]`. That is
+// why the new guard compares the two tables instead of adding a fifth careful comment.
 //
 // ⚠️ STILL OPEN in the provenance family after this slice: the four "body" sentences
 // (`AlwaysOnBioChannel.soundPanelSentence`, `bioPanelSentence`, `alwaysOnSentence`,

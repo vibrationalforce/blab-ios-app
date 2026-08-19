@@ -151,6 +151,142 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
             """)
     }
 
+
+    /// #638 — THE SAME INVARIANT, ON THE THIRD SURFACE, AND IT IS THE ONE #546 MISSED.
+    /// `BioSoundMapping.all`'s HRV entry read `target: "Reverb & sense of space"` /
+    /// `direction: "more variability opens the reverb, so the sound settles into a larger
+    /// space"`, and it is rendered to a user in `BioMetricsGuideView` — two doors on the bio
+    /// strip (the ⓘ and the activity light). #546 corrected `CLAUDE.md`'s DDSP table and
+    /// `AlwaysOnBioChannel`'s row and did not look here, so the struck mapping went on being
+    /// the most explicit statement of it anywhere in the app: a full sentence, in the sheet
+    /// whose whole job is to explain what the body moves.
+    ///
+    /// ⛔ AND THE REASON IT SURVIVED IS WORTH MORE THAN THE FIX. `Tests/EchoelmusicTests/
+    /// BioSoundMappingTests.swift` DID pin this routing — and it pinned it WRONG, asserting
+    /// `target("hrv").contains("reverb") || contains("space")`. A guard existed, it ran in no
+    /// gate (#208), and had it run it would have turned the correction RED. That is the mirror
+    /// of #364: there a guard forbids correct work by accident, here one forbade it on purpose
+    /// because its own premise was false. The lesson this file already carries — a mapping is
+    /// real when the WRITE reaches an UNGATED READ — applies to the guards over a mapping too.
+    ///
+    /// ⭐ THE POSITIVE HALF IS NOT OPTIONAL HERE, and this file's header is why: "Correcting a
+    /// false claim means finding the TRUE claim, not removing the sentence." So the HRV row is
+    /// also asserted to NAME something, and specifically what it really moves. Measured at
+    /// `applyBioReactive`: `hrvDev` is one of three terms summed into `targetBrightness` on the
+    /// anchored-patch path — the shipping one — and it is the only thing HRV moves
+    /// unconditionally. The needle is deliberately loose ("bright" OR "tone") so a copy edit
+    /// stays free while a silent emptying does not (#364).
+    ///
+    /// ⚠️ Scoped to `all`'s BRACKET-matched body, then to the HRV entry inside it — not to the
+    /// file, for the #546 reason: the declaration above `all` now explains at length WHY
+    /// "reverb" was struck, and while `SourceText.codeOnly` blanks that today, scoping to the
+    /// member keeps the assertion honest if someone later puts the word in a string literal
+    /// elsewhere in the file. BRACKET and not brace: see `bracketedBody`'s own ⛔ note — the
+    /// first version of this claim used `bracedBody` and silently extracted nothing.
+    ///
+    /// ⚠️ GRADING, transcribed against the parent `64caba2` and this tree, raw AND stripped,
+    /// every assertion driven:
+    ///   · **3 REGRESSIONS** — the array-wide "no reverb" scan, and the HRV row's two
+    ///     (names brightness/tone · does not name reverb). All three red on the parent for the
+    ///     reason their messages give. ONE finding (#486), not three: the row named a dead stage.
+    ///   · **2 COUNTERWEIGHTS** — the non-empty extraction and the `id: "hrv"` lookup, green on
+    ///     both trees. They are the assertions that stop this method passing over nothing, and
+    ///     the first of them is the only reason the bracket bug below was caught at all.
+    ///   · `SourceText.codeOnly` is **PROPHYLAKTISCH here — 0 of 5 verdicts flip** raw vs
+    ///     stripped, measured rather than assumed (#623/#625). It is kept because the ⛔ block
+    ///     explaining the strike sits directly ABOVE `all` and would land inside a less careful
+    ///     extraction; today the bracket matcher already excludes it. Note this is the OPPOSITE
+    ///     result from #546's method twelve lines up, which is genuinely load-bearing — one
+    ///     file, two methods, two different answers, which is why §2 says to measure per guard
+    ///     and not per file.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS GRADING BLOCK WAS WRONG IN THE GENEROUS DIRECTION,
+    /// which §3 calls the same defect as the harsh one. It booked the brightness assertion as a
+    /// REGRESSION. It was not: as first written that assertion scanned the WHOLE array, and the
+    /// coherence row ("Filter brightness & harmonics") satisfies it on the parent too — green
+    /// there while the HRV row said "Reverb & sense of space", i.e. an assertion that could not
+    /// fail for the reason its own message gave (#367). Scoping it to the HRV entry made the
+    /// booking true. Driving it is what found that; reading it did not.
+    func testTheBioGuideDoesNotClaimAReverbThatCannotSound() throws {
+        guard try convolutionReverbIsDisabled() else { return }   // silent once it is enabled
+
+        let path = "Sources/Echoelmusic/Bio/BioSoundMapping.swift"
+        let code = Self.codeOnly(try source(path))
+        let anchor = "public static let all: [BioSoundMapping]"
+        guard let start = code.range(of: anchor) else {
+            XCTFail("""
+                `\(anchor)` is gone from \(path). That declaration IS the body→sound map the \
+                bio guide renders; if it moved or was renamed, re-anchor this scan in the SAME \
+                commit rather than leaving it to pass over nothing (#454).
+                """)
+            return
+        }
+        let body = Self.bracketedBody(of: code, from: start.upperBound)
+        // ⚠️ NOT redundant, and not defensive padding: the first version of this claim
+        // used `bracedBody`, which looks for `{`. `all` is an ARRAY literal, there is no
+        // `{` after the declaration at all, and it returned "" — so the negative
+        // assertion below would have passed over nothing, forever (#454).
+        XCTAssertFalse(body.isEmpty, """
+            Bracket matching over `\(anchor)` produced nothing, so every assertion below \
+            would pass over an empty string. Re-anchor it in the SAME commit.
+            """)
+
+        XCTAssertFalse(body.lowercased().contains("reverb"), """
+            The bio guide's mapping list names a reverb while `EchoelDDSP.\(Self.flag)` is \
+            `false` with no writer in `Sources/`. HRV really does write `reverbMix`, and the \
+            only read of `reverbMix` is gated on that flag — so no user can hear it, and this \
+            list is a full explanatory sentence rendered in `BioMetricsGuideView`.
+            If you ENABLED the stage, this test falls silent by itself and the row may name it \
+            again. ⚠️ Note what does ALREADY exist and is not this: `FXBioModulator` writes \
+            `c.reverb.mix` for an `FXModTarget.reverbMix` route, `.hrv` passes `hasProducer`, \
+            and `EchoelFXView`'s "Add bio modulation…" menu builds such a route behind a \
+            reachable door — so a player CAN make a body signal move the ALGORITHMIC \
+            `EchoelReverb`, by choosing to. That is a route the player built, not a mapping \
+            this table describes, which is why it does not license the row. If the row is ever \
+            meant to describe THAT reverb, change this assertion in that commit and say which \
+            reverb it means.
+            ⚠️ Prose to move by hand in the same commit (no scan covers it, #491): the \
+            `BioSoundMapping.all` doc block, and `Tests/EchoelmusicTests/BioSoundMappingTests\
+            .swift`'s routing pin, which asserted the FALSE mapping until #638.
+            """)
+
+        // ⛔ SCOPED TO THE HRV ENTRY, and the first version was NOT — it asked whether the
+        // WHOLE array mentions brightness, which the coherence row ("Filter brightness &
+        // harmonics") satisfies on its own. Transcribed against the parent it came out GREEN
+        // there too, i.e. green while the HRV row said "Reverb & sense of space": an assertion
+        // that cannot fail for the reason its message gives (#367), booked as a regression in
+        // the first draft of the grading block above. Found by driving it, not by reading it.
+        let entries = body.components(separatedBy: "BioSoundMapping(")
+        guard let hrvEntry = entries.first(where: { $0.contains("id: \"hrv\"") }) else {
+            XCTFail("""
+                No `BioSoundMapping(` entry in `\(anchor)` carries `id: "hrv"`. The four ids are \
+                the stable join with `BioModulationMap.Driver`; if one was renamed, re-anchor \
+                this scan in the SAME commit.
+                """)
+            return
+        }
+        let hrv = hrvEntry.lowercased()
+        // ⚠️ FOUR SPELLINGS, not two (#364). "overtone"/"harmonic" are here because HRV has a
+        // SECOND real brightness-family target — `harmonicity = 0.40 + hrv * 0.50` under the
+        // `.harmonicSeries` map profile — and if that profile ever became the default the
+        // honest copy would be "Overtone spread", which contains neither of the first two
+        // needles while being MORE accurate. The outer `convolutionReverbIsDisabled()` guard
+        // does not fall silent for that case, so the needle has to.
+        XCTAssertTrue(hrv.contains("bright") || hrv.contains("tone")
+                      || hrv.contains("overtone") || hrv.contains("harmonic"), """
+            HRV's own row no longer names brightness or tone. Removing the false reverb claim \
+            is only half the repair — this file's header says correcting a false claim means \
+            finding the TRUE one. HRV's live target is the `hrvDev` term summed into \
+            `targetBrightness` in `applyBioReactive`, on the anchored-patch path; a row that \
+            names nothing replaces an overstatement with an understatement.
+            """)
+        XCTAssertFalse(hrv.contains("reverb"), """
+            HRV's own row names the reverb again. See the array-wide assertion above for what \
+            is and is not live; this one is the narrow version and is the one whose message \
+            you can trust about HRV specifically.
+            """)
+    }
+
     /// TRUE while the flag is declared `false` and no file turns it on. Both halves matter: a
     /// `false` default with a writer somewhere would make the page's LIVE claim legitimate,
     /// and this guard must not fire on a correct page.
@@ -181,6 +317,39 @@ final class DisabledReverbIsNotClaimedLiveTests: XCTestCase {
     /// before the swap the file's stripped text was byte-identical.
     private static func codeOnly(_ text: String) -> String {
         SourceText.codeOnly(text)
+    }
+
+    /// The bracket-matched ARRAY literal starting at the first `[` at or after `from`.
+    ///
+    /// ⛔ A SEPARATE HELPER BECAUSE `bracedBody` SILENTLY RETURNED "" HERE, and the first
+    /// version of #638's claim used it. `BioSoundMapping.all` is an array literal — its
+    /// members are `[` … `]`, and there is no `{` after the declaration at all, so brace
+    /// matching produced an EMPTY string and a negative assertion over nothing would have
+    /// passed forever (#454, the exact "green for a reason that does not exist" shape §4 of
+    /// `Tests/CISmoke/CLAUDE.md` names). It was caught only because the claim asserts the
+    /// extraction is non-empty before asserting anything about its content — which is why
+    /// that line stays in even though it looks redundant.
+    ///
+    /// ⚠️ Not a duplicate of `bracedBody` under #453: that rule is about ONE definition of
+    /// "code, not prose". This is a different delimiter and a different question, and folding
+    /// the two into a parameterised matcher would make both harder to read for no gain.
+    /// Returns "" when the brackets do not balance — callers must check.
+    private static func bracketedBody(of text: String, from: String.Index) -> String {
+        guard let open = text[from...].firstIndex(of: "[") else { return "" }
+        var depth = 0
+        var out = ""
+        var i = open
+        while i < text.endIndex {
+            let c = text[i]
+            if c == "[" { depth += 1 }
+            if c == "]" {
+                depth -= 1
+                if depth == 0 { out.append(c); return out }
+            }
+            out.append(c)
+            i = text.index(after: i)
+        }
+        return ""
     }
 
     /// The brace-matched block starting at the first `{` at or after `from`. Brace-matched and
