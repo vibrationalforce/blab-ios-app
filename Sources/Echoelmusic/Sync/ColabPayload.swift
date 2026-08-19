@@ -16,6 +16,24 @@ public struct BioPeek: Codable, Sendable, Equatable {
     public var coherence: Float       // 0…1; 0 = not available
     public var hrvNormalized: Float   // 0…1
     public var breathRate: Float      // breaths/min; 0 = not available
+    /// #629. Were these numbers MEASURED, or produced by the Demo source?
+    ///
+    /// `nil` means "the sender did not say" — an older build, which had no such field.
+    /// It must render exactly like today (unmarked), never like `false`: reading a silent
+    /// sender as "real" would be the same over-claim this field exists to end, only
+    /// dressed as a default. `false` is a positive statement by a build that knows.
+    ///
+    /// ⚠️ THE DEMO IS NOT BLOCKED FROM THE WIRE, and that is deliberate. `BioEgressPolicy`
+    /// admits `.fallback` (Echoel synthesises it itself; 5.1.3 is about what is read out of
+    /// HealthKit), and this type's own `writable` doc already settles the shape of the
+    /// choice: dropping the peek blanks the peer's row, which ASSERTS the network stopped —
+    /// "the worse of the two lies". Rehearsing or teaching with the simulator is a real use.
+    /// Mark it, do not silence it.
+    ///
+    /// ⚠️ Optional, so the synthesized `init(from:)` decodes it with `decodeIfPresent` and
+    /// an older peer's payload still round-trips — the forward-compatibility promise in this
+    /// file's header, kept rather than quoted.
+    public var synthetic: Bool?
 
     /// ⚠️ NON-FINITE INPUT BECOMES `0` HERE, which is this type's own documented "not
     /// available" — a widening of the existing convention, not a silent rounding.
@@ -53,11 +71,18 @@ public struct BioPeek: Codable, Sendable, Equatable {
     /// with this exact hazard. That is a wider slice and is registered, not smuggled in
     /// here — #512 fixes the channel that carries LIVE SENSOR data, which is the one this
     /// repo has already had to guard for non-finite input three times (#433/#434/#497).
-    public init(bpm: Float, coherence: Float, hrvNormalized: Float, breathRate: Float) {
+    ///
+    /// #629: `synthetic` defaults to `nil`, NOT to `false`. A hand-built peek — the exact
+    /// hole the `egressible` factory below exists to narrow — then says "unknown" instead of
+    /// claiming a measurement it cannot vouch for. The default is the honest direction, not
+    /// the convenient one.
+    public init(bpm: Float, coherence: Float, hrvNormalized: Float, breathRate: Float,
+                synthetic: Bool? = nil) {
         self.bpm = Self.writable(bpm)
         self.coherence = Self.writable(coherence)
         self.hrvNormalized = Self.writable(hrvNormalized)
         self.breathRate = Self.writable(breathRate)
+        self.synthetic = synthetic
     }
 
     /// `0` — this type's "not available" — for anything JSON cannot carry. Deliberately NOT
@@ -112,7 +137,14 @@ public struct BioPeek: Codable, Sendable, Equatable {
         return BioPeek(bpm: frame.heartRateBPM,
                        coherence: frame.coherence,
                        hrvNormalized: frame.hrvNormalized,
-                       breathRate: frame.breathRate)
+                       breathRate: frame.breathRate,
+                       // #629 — the SAME projection point that decides 5.1.3 also decides
+                       // provenance, for the same reason it was moved here in #511: this is
+                       // the only place that still HAS the frame. `BioPeek` carries no
+                       // source, so nothing downstream could recover this if it were asked
+                       // one call later. `.fallback` is the one synthetic source the policy
+                       // above admits, so the question is exactly this comparison.
+                       synthetic: frame.source == .fallback)
     }
 }
 

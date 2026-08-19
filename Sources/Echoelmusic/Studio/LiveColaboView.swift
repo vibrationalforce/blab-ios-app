@@ -317,7 +317,11 @@ private struct OwnBioRow: View {
             bioLine(name: "You",
                     bpm: f?.heartRateBPM ?? 0,
                     coherence: f?.coherence ?? 0,
-                    highlight: true)
+                    highlight: true,
+                    // #629: YOUR row reads the frame directly — no wire, no optionality.
+                    // `f == nil` gives `false`, which is right: with nothing to show there
+                    // is nothing to mark, and the numbers beside it are already "—".
+                    synthetic: f?.source == .fallback)
         }
     }
 }
@@ -361,7 +365,10 @@ private struct PeerBioRows: View {
                 bioLine(name: name,
                         bpm: live?.bpm ?? 0,
                         coherence: live?.coherence ?? 0,
-                        highlight: false)
+                        highlight: false,
+                        // #629: the peer's OWN statement about their numbers, passed
+                        // through as-is including `nil` (an older build that cannot say).
+                        synthetic: live?.synthetic)
             }
         }
     }
@@ -370,13 +377,27 @@ private struct PeerBioRows: View {
 /// One person's row: name · BPM · coherence (their OWN values; `0` shows as "—",
 /// mirroring BioSampleFrame's "not available"). Legible numbers first.
 @MainActor
-private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool) -> some View {
+/// #629 — `synthetic`: `true` = the Demo source, `false` = a measured body, `nil` = the
+/// sender did not say (an older build, or a locally-built peek). **`nil` renders exactly
+/// like `false`** — unmarked — because a silent sender is not a claim, and turning silence
+/// into "real" would be the over-claim this parameter exists to end.
+private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool,
+                     synthetic: Bool? = nil) -> some View {
     HStack(spacing: 8) {
         Image(systemName: highlight ? "heart.fill" : "heart")
             .font(.system(size: 12))
-            .foregroundStyle(highlight ? EchoelTheme.accent : EchoelTheme.dim)
+            // #629: the accent is the "a real pulse is here" colour, the same claim the
+            // header pill makes with it. A demo row keeps the dim heart even when it is
+            // YOUR row, so the marker is not only a word someone has to read.
+            .foregroundStyle((highlight && synthetic != true) ? EchoelTheme.accent : EchoelTheme.dim)
         Text(name).font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
             .lineLimit(1)
+        if synthetic == true {
+            Text("Demo")
+                .font(EchoelTheme.font(10, .semibold))
+                .foregroundStyle(EchoelTheme.dim)
+                .lineLimit(1)
+        }
         Spacer(minLength: 8)
         Text(bpm > 0 ? "\(EchoelDecimalText.string(bpm, decimals: 0)) bpm" : "— bpm")
             .font(EchoelTheme.font(13).monospacedDigit())
@@ -390,6 +411,9 @@ private func bioLine(name: String, bpm: Float, coherence: Float, highlight: Bool
     .padding(.vertical, 6).padding(.horizontal, 10)
     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel("\(name): \(bpm > 0 ? "\(Int(bpm)) beats per minute" : "no pulse yet"), coherence \(coherence > 0 ? EchoelDecimalText.string(coherence, decimals: 2) : "not available")")
+    // #629: the marker goes FIRST, the same ordering law the header pill's
+    // `accessibilityText` follows — a trailing "simulated" is heard as a measurement with
+    // an addendum.
+    .accessibilityLabel("\(synthetic == true ? "Simulated demo, " : "")\(name): \(bpm > 0 ? "\(Int(bpm)) beats per minute" : "no pulse yet"), coherence \(coherence > 0 ? EchoelDecimalText.string(coherence, decimals: 2) : "not available")")
 }
 #endif
