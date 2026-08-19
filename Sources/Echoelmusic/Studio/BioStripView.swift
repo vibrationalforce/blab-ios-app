@@ -832,7 +832,18 @@ struct BioStripView: View {
     /// `.fallback` stream. Gated on `reading` (the per-source freshness window), the same
     /// clock every number in this strip already uses, so the tag and the cells appear and
     /// expire together instead of one outliving the other (#503's defect, one surface over).
-    private var isSynthetic: Bool { reading?.source == .fallback }
+    ///
+    /// ⛔ #627b: the `!cameraRPPG.isRunning` term was MISSING in #627, and its absence made
+    /// this tag a FALSE ACCUSATION for up to five seconds. Switching source stops the
+    /// simulator but nothing clears `EngineBus.latestBio`, and `.fallback`'s window is 5 s —
+    /// so right after Simulation → Camera the last synthetic frame is still usable while the
+    /// camera is genuinely running. The strip said "Demo" over a real reading, AND — worse —
+    /// that branch sits ahead of `measuringTag`, so it swallowed the "Cover camera"
+    /// instruction at exactly the moment the user needs it. The header pill already carried
+    /// the equivalent term (`!cameraLive`); the two surfaces were asymmetric for one cycle.
+    /// `isRunning` is a low-frequency start/stop flag this leaf already reads, so no new
+    /// observation and no new churn (freeze rule).
+    private var isSynthetic: Bool { reading?.source == .fallback && !cameraRPPG.isRunning }
 
     private var sourceText: String {
         if let bio = reading, bio.source != .fallback {

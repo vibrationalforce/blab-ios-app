@@ -21,22 +21,36 @@
 // thing that was hiding a lie owes the lie's repair, and #626's own commit message
 // registered exactly this as the next slice.
 //
-// SCOPE, stated so nobody reads more into a green bar than is here. This slice marks the
-// two SwiftUI surfaces. It does NOT touch the network egress: `BioEgressPolicy` still
-// allows `.fallback`, and no OSC / ADM-OSC / Art-Net / sACN address carries a source field,
-// so a receiver on the LAN still cannot tell demo from body. That is a protocol change
-// (an address or a tag), not a view change, and it is a separate decision. Apple Health is
-// already clean and needs nothing: `HealthWritePolicy.isWritableSource` admits only `.ble`
-// and `.cameraPPG`, so no synthetic value can ever be written.
+// SCOPE. ⛔ #627 SAID "TWO reachable surfaces … A THIRD is deliberately NOT marked" AND THE
+// ENUMERATION WAS FALSE — the review measured at least two more, and one of them opens FROM
+// the strip #627 had just fixed. A confident count is what stops the next session from
+// looking, so the count is replaced by a measured list with a verdict per entry:
+//   · header pill (`PulseMonitorMini`) — MARKED (#627, corrected #627b).
+//   · Bio strip (`BioStripView`) — MARKED (#627, corrected #627b).
+//   · `BioMetricInfoView` ("How your body shapes the sound") — MARKED in #627b. Its door is
+//     `BioStripView`'s own `.sheet(item: $explain)`, so the #627 hole was one tap from the
+//     #627 fix; and under Simulation its `liveBio == nil` hint disappears, i.e. the sheet
+//     did not merely omit a marker, it asserted a measured body.
+//   · `OwnBioRow` in `LiveColaboView` ("You", bpm + coherence from `usableBio()`) —
+//     DEFERRED. Its own sheet, its own door (`showLiveColabo`), and it is the visible half
+//     of the Multipeer question below; marking the row while the payload still lies would
+//     split one decision across two cycles.
+//   · `AlwaysOnBioRow` — DEFERRED, and the recorded reason is now narrowed to the mount it
+//     actually covers. In the FX sheet its subject is genuinely the SOUND path (its own #484
+//     doc), so a synthetic 0.42 is a true statement about the engine's input. The Bio-panel
+//     mount is NOT covered by that argument: `AlwaysOnBioPanelStrip` is mounted directly
+//     under `AlwaysOnBioChannel.bioPanelSentence`, which promises that the BODY drives the
+//     sound, and the rows are named "Heart rate" / "HRV". Open question for the founder,
+//     not a settled deferral.
+//   · `BioModContributionRow` (FX sheet, "Live — body → sound") — needs a user-added route
+//     to render at all; unmeasured, listed so it is not mistaken for cleared.
 //
-// A THIRD surface renders these frames and is deliberately NOT marked: `AlwaysOnBioRow`
-// (reachable twice — the Bio panel's `AlwaysOnBioPanelStrip` and the FX sheet's
-// `AlwaysOnBioView`). It is left alone because its SUBJECT is different, and its own doc
-// says so under #484: it reports what the SOUND path is being handed, never what a heart is
-// doing — "not measured" / "no longer arriving" describe the reading, not the person. A
-// synthetic 0.42 on the harmonicity channel is a true statement about the engine's input.
-// Written down here rather than silently skipped so the next session can tell a decision
-// from an oversight; if the founder reads that row as a body claim, it becomes #627b.
+// EGRESS is untouched and that is a protocol decision, not an oversight: `BioEgressPolicy`
+// admits `.fallback`, no OSC / ADM-OSC / Art-Net / sACN address carries a source, and
+// `ColabPayload.egressible` builds a `BioPeek` with NO source field — so in a Live Colabo
+// session another performer sees your demo BPM under your peer name. #627 named the four
+// network protocols and missed the peer payload; it is named here. Apple Health is clean and
+// needs nothing: `HealthWritePolicy.isWritableSource` admits only `.ble` and `.cameraPPG`.
 //
 // KIND (§1): SOURCE-TEXT SCAN throughout. Both surfaces are SwiftUI leaves whose rendered
 // output this bundle cannot inspect; what is checkable is that the branch exists, that it
@@ -53,10 +67,27 @@
 //     bearing one: the cheap way to make the tag stop lying is to let `.fallback` into
 //     `hasLiveSignal`, which would paint the demo the GREEN reserved for a real body on the
 //     wire. That trade is the mirror of the bug, so it is nailed shut.
+//   · #627b added five things, graded against `2aa621f` (#627 itself) and MEASURED before
+//     being written down — because the first draft of this very paragraph called all five
+//     regressions and two of them are not:
+//       – claim 3's hardened form (0 → 1) and claims 11 (0 → 1) and 12 (0 → 1) are
+//         REGRESSIONS: `isSynthetic` had no camera term, the coherence cell was ungated, the
+//         metric sheet was unmarked.
+//       – claim 8's two new assertions are COUNTERWEIGHTS (1 and 2 on BOTH trees). #627
+//         already built the marker as a prefix on both exits; what was missing was a GUARD
+//         against moving it, not the ordering itself. The review's finding was vacuity, not
+//         a defect, and calling it a regression would have been the flattering direction §3
+//         warns about.
+//       – claim 10 is a COUNTERWEIGHT too (0 and 0 on both trees): `demoTag` never used the
+//         live or the warning colour. It nails a door shut that was never open.
+//     Relative to that same parent, claims 1, 2, 4, 5, 6, 7 and 9 are green — they ARE #627's
+//     fix. Two parents therefore appear in this file, named per claim rather than averaged
+//     into one sentence that would be false for half of them.
 //
-// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH** — all
-// eighteen verdicts (nine assertions × two trees) are identical raw and stripped, because
-// none of the prose added here spells a needle in its code form. It stays because the next
+// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH** twice —
+// #627's eighteen verdicts (nine needles × two trees) and #627b's sixteen (eight needles ×
+// two trees) are all identical raw and stripped, because none of the prose added here spells
+// a needle in its code form. It stays because the next
 // comment written near these branches is the one that would flip it, and because #623/#625
 // each ASSERTED "TRAGEND" from the shape of a diff and measured otherwise (#626 was the
 // first genuinely load-bearing one).
@@ -159,11 +190,20 @@ final class TheDemoSourceIsMarkedWhereItRendersTests: XCTestCase {
     /// flag that could disagree with what is actually on the bus.
     func testSyntheticIsDecidedByTheFramesOwnSource() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/BioStripView.swift")
-        XCTAssertEqual(lines.filter { $0.contains("reading?.source == .fallback") }.count, 1, """
-            `isSynthetic` no longer reads `reading?.source`. `reading` is `usableBio()` — \
-            the exact value every cell in this strip renders — so asking it is what keeps \
-            the tag and the numbers appearing and expiring together. A separate UI flag can \
-            drift from the bus, which is #503's defect one surface over.
+        // ⚠️ #627b: the first version counted the SUBSTRING file-wide while its failure
+        // message warned about "a separate UI flag that can drift from the bus" — so
+        // redefining `isSynthetic` as exactly such a flag kept this green as long as any
+        // other line still carried the substring. The whole declaration is pinned instead.
+        let declaration = "private var isSynthetic: Bool "
+            + "{ reading?.source == .fallback && !cameraRPPG.isRunning }"
+        XCTAssertEqual(lines.filter { $0.trimmingCharacters(in: .whitespaces) == declaration }.count, 1, """
+            `isSynthetic` is no longer exactly `\(declaration)`. Two things are pinned here \
+            and both are load-bearing: it must read the FRAME's own source through \
+            `reading` (= `usableBio()`, the exact value every cell renders, so tag and \
+            numbers appear and expire together — a separate UI flag drifts from the bus, \
+            #503's defect one surface over), and it must exclude a running camera, or the \
+            stale `.fallback` frame brands a real reading as a demo for up to five seconds \
+            AND swallows the "Cover camera" coaching that sits below it (#627b).
             """)
     }
 
@@ -235,6 +275,20 @@ final class TheDemoSourceIsMarkedWhereItRendersTests: XCTestCase {
             straight out as a measurement, which is the one presentation where a visual \
             "Demo" chip does nothing at all.
             """)
+        // ⚠️ #627b: presence alone was VACUOUS with respect to the property the source
+        // comment calls load-bearing — appending ", simulated" AFTER the number is exactly
+        // the presentation that comment argues against ("the marker goes FIRST"), and it
+        // kept the assertion above green. The prefix and BOTH its uses are pinned.
+        XCTAssertEqual(a11y.filter { $0.contains("let prefix = synthetic ?") }.count, 1, """
+            the synthetic marker is no longer built as a PREFIX. A trailing footnote is \
+            heard as a measurement with an addendum; "Simulated demo, 142 beats per minute" \
+            cannot be. That ordering is the whole reason this string is touched.
+            """)
+        XCTAssertEqual(a11y.filter { $0.contains("return \"\\(prefix)") }.count, 2, """
+            not both return paths lead with the prefix. `accessibilityText` has TWO exits \
+            (with and without coherence); a marker on one of them leaves the other reading \
+            a synthetic pulse out as a plain measurement.
+            """)
     }
 
     /// 9 — COUNTERWEIGHT: there is exactly ONE construction site IN THE WHOLE TREE, so
@@ -260,6 +314,61 @@ final class TheDemoSourceIsMarkedWhereItRendersTests: XCTestCase {
             `PulseMonitorMini` is constructed \(sites.count) times, not once: \(sites). \
             Claim 6 pins a single call site by name; a second mount can render synthetic \
             numbers unmarked while every assertion in this file stays green.
+            """)
+    }
+
+    /// 10 — COUNTERWEIGHT (#627b, measured 0/0 on both trees): the demo tag's COLOUR. The whole argument for a fifth branch
+    /// is that neither existing colour can describe a synthetic frame; nothing pinned that,
+    /// so a later "make it more visible" edit to `EchoelTheme.success` would reproduce the
+    /// exact mirror bug claim 4 exists to prevent, with every assertion still green.
+    func testTheDemoTagBorrowsNeitherTheLiveNorTheWarningColour() throws {
+        let lines = try codeLines("Sources/Echoelmusic/Studio/BioStripView.swift")
+        let tag = span(lines,
+                       from: "private var demoTag: some View {",
+                       to: "private var liveTag: some View {",
+                       "demoTag")
+        XCTAssertEqual(tag.filter { $0.contains("EchoelTheme.success") }.count, 0, """
+            `demoTag` now paints itself in `EchoelTheme.success` — the colour this file \
+            reserves for a real body on the wire. That is the same false claim #627 removed, \
+            moved into a nicer shade; claim 4 would not see it.
+            """)
+        XCTAssertEqual(tag.filter { $0.contains("EchoelTheme.warning") }.count, 0, """
+            `demoTag` now paints itself amber. Amber in this strip means "something is \
+            pending or wrong" (`measuringTag`, `openSettingsButton`); the demo is neither — \
+            the user chose it, and nothing is being awaited.
+            """)
+    }
+
+    /// 11 — REGRESSION (#627b): the pill's coherence cell must not carry a stale synthetic
+    /// frame while the camera owns the display. It is the ONE value in that call which reads
+    /// the bus in BOTH branches, so `synthetic:`'s `!cameraLive` term deliberately does not
+    /// cover it — and #627 did not notice.
+    func testTheCoherenceCellDropsAStaleSyntheticFrame() throws {
+        let lines = try codeLines("Sources/Echoelmusic/Studio/HeaderMonitors.swift")
+        let guardLine = "let coherenceFrame = (cameraLive && fresh?.source == .fallback) ? nil : fresh"
+        XCTAssertEqual(lines.filter { $0.contains(guardLine) }.count, 1, """
+            the coherence cell reads `fresh` unconditionally again. Switching source stops \
+            the simulator but nothing clears `EngineBus.latestBio`, and `.fallback`'s window \
+            is 5 s — so just after Simulation → Camera the pill prints the SIMULATOR's \
+            coherence with the demo marker deliberately off, because `synthetic:` is gated \
+            on `!cameraLive` (#627b).
+            """)
+        XCTAssertEqual(lines.filter { $0.contains("coherence: coherenceFrame.flatMap") }.count, 1, """
+            the guarded frame is computed but not used for the coherence argument — the \
+            repair would then be present in the source and absent from the render.
+            """)
+    }
+
+    /// 12 — REGRESSION (#627b): the sheet the fixed strip OPENS is marked too. This was the
+    /// hole in #627 — one tap from the "Demo" tag, live percentages with no marker, and the
+    /// "read your pulse" hint GONE because `liveBio` is non-nil under Simulation, i.e. an
+    /// assertion of a measured body rather than a missing footnote.
+    func testTheMetricSheetMarksTheDemoToo() throws {
+        let lines = try codeLines("Sources/Echoelmusic/Studio/BioMetricInfo.swift")
+        XCTAssertEqual(lines.filter { $0.contains("liveBio?.source == .fallback") }.count, 1, """
+            `BioMetricInfoView` no longer distinguishes a synthetic frame. Its door is \
+            `BioStripView`'s own `.sheet(item: $explain)`, so an unmarked sheet directly \
+            contradicts the tag one tap away.
             """)
     }
 }

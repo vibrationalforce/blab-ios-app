@@ -214,8 +214,21 @@ struct BioMetricsGuideView: View {
                             .font(EchoelTheme.font(15, .semibold))
                             .foregroundStyle(EchoelTheme.text)
                         Spacer(minLength: 0)
+                        // ⛔ #627b: THIS SHEET WAS THE HOLE IN #627, and its door is the very
+                        // strip #627 marked — `BioStripView` opens it from any metric cell.
+                        // A user saw "Demo" on the strip, tapped through, and got live
+                        // percentages plus a VoiceOver "Currently 62 percent" with no marker
+                        // at all. Worse than unmarked: under Simulation `liveBio` is non-nil,
+                        // so the "read your pulse" hint DISAPPEARS — the sheet actively
+                        // asserted a measured body. #627's own scope statement called the set
+                        // of rendering surfaces complete and it was not; the enumeration is
+                        // corrected in the guard rather than in a second confident sentence.
                         if liveBio == nil {
                             Text("read your pulse to see it move")
+                                .font(EchoelTheme.font(10))
+                                .foregroundStyle(EchoelTheme.dim)
+                        } else if liveBio?.source == .fallback {
+                            Text("demo values, not your body")
                                 .font(EchoelTheme.font(10))
                                 .foregroundStyle(EchoelTheme.dim)
                         }

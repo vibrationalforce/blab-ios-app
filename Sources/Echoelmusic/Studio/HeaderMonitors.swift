@@ -268,6 +268,18 @@ struct PulseMonitorMiniLive: View {
         //     in this leaf (freeze rule); WorkspaceView never subscribes.
         let fresh = bus.freshBio()
         let cameraLive = cameraRPPG.isRunning
+        // ⛔ #627b: the coherence cell below reads the BUS in BOTH branches — unlike `bpm`
+        // and `locked`, which come from `cameraRPPG` while the camera is live. #627's
+        // `synthetic:` term is `!cameraLive && …`, so in the window where the camera has
+        // just taken over and the last `.fallback` frame is still fresh (source switching
+        // stops the simulator but nothing clears `latestBio`; `.fallback`'s window is 5 s),
+        // the pill printed the SIMULATOR's coherence with the marker deliberately off. The
+        // inline note at the call site said "the BPM and the lock above come from
+        // `cameraRPPG`, NOT from the bus" — true for the two values it named, false for the
+        // third value in the same call. Dropping the number is the right repair, not
+        // marking it: the camera owns the display here, and a coherence it did not measure
+        // is not a footnote, it is a foreign reading.
+        let coherenceFrame = (cameraLive && fresh?.source == .fallback) ? nil : fresh
         PulseMonitorMini(waveform: cameraRPPG.waveform,
                          bpm: cameraLive ? cameraRPPG.displayBPM : Double(fresh?.heartRateBPM ?? 0),
                          locked: cameraLive ? cameraRPPG.isLocked : (fresh != nil),
@@ -277,7 +289,7 @@ struct PulseMonitorMiniLive: View {
                          // prints "0.00" — which reads as "incoherent", not "not yet".
                          // nil drops the number and leaves the pulse, the same law
                          // `BioStripView.coherenceString` already follows one row away.
-                         coherence: fresh.flatMap { $0.coherence > 0 ? Double($0.coherence) : nil },
+                         coherence: coherenceFrame.flatMap { $0.coherence > 0 ? Double($0.coherence) : nil },
                          // Only the camera has an acquisition cue ("cover the lens"); a
                          // strap/sim monitor stays plain. Denied access must surface even
                          // though the camera is NOT running (it can never run — UX-1) —
