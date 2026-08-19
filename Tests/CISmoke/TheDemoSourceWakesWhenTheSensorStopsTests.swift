@@ -24,9 +24,13 @@
 //     founder's Demo source actually starts ticking again is a DEVICE probe.
 //
 // GRADING (#433 / §3, against the pre-#626 parent):
-//   · claims 1-3 are COUNTERWEIGHTS — green on both trees. `usableBio()` and `latestBio`
-//     both predate this slice; the fix changes only WHO calls which. Booking them as
-//     regressions would be the flattering-direction defect §3 names.
+//   · claims 1-3 are COUNTERWEIGHTS — green on both trees ONCE THEY AWAIT THE SNAPSHOT.
+//     `usableBio()` and `latestBio` both predate this slice; the fix changes only WHO
+//     calls which. Booking them as regressions would be the flattering-direction defect
+//     §3 names. ⛔ #626b: as first shipped they were green on NEITHER tree — see
+//     `publishAndSettle`. A guard graded "green on both trees" while red on both is the
+//     #488 failure (a red gate riding a cycle), and it is worse than the mislabel §3 is
+//     usually about, because a wrong LABEL still leaves a working test.
 //   · claim 4 is a REGRESSION — red on the parent for the reason its name gives (the call
 //     site read the raw snapshot there). NOT "FORWARD": §3 reserves that for an assertion
 //     that could never have been red because the symbol did not exist. #625b carries the
@@ -65,11 +69,36 @@ final class TheDemoSourceWakesWhenTheSensorStopsTests: XCTestCase {
                        coherence: 0.7, motionEnergy: 0, source: source)
     }
 
+    /// Publish and WAIT for the snapshot. ⛔ #626b (review CRITICAL 1): the first version
+    /// of this file published and asserted synchronously, and all three behavioural
+    /// methods were therefore RED ON BOTH TREES — `EngineBus.publish(bio:)` is
+    /// `nonisolated` and assigns `latestBio` inside a `Task { @MainActor }`, which cannot
+    /// run before a synchronous main-actor body finishes. The repo had already written
+    /// this down twice (`BioEventSourceSwitchTests.step`, `EngineBusTests`), and the
+    /// commit message claimed those three claims were "green on both trees". They were
+    /// green nowhere. Worse, it made the ONE decisive assertion vacuous: with `latestBio`
+    /// still nil, `usableBio()` returns nil at its FIRST guard and never reaches the age
+    /// comparison the failure message names — it passed for the opposite of its reason.
+    @discardableResult
+    private func publishAndSettle(_ bus: EngineBus, _ f: BioSampleFrame,
+                                  tries: Int = 100) async -> Bool {
+        bus.publish(bio: f)
+        for _ in 0..<tries {
+            if bus.latestBio?.timestamp == f.timestamp { return true }
+            await Task.yield()
+        }
+        XCTFail("""
+            the frame stamped \(f.timestamp) never reached the bus snapshot — every \
+            assertion below would be measuring nil rather than the frame it names.
+            """)
+        return false
+    }
+
     /// 1 — COUNTERWEIGHT: a LIVE frame that just arrived is usable, so the simulator still
     /// yields. The fix must not turn the deferral off.
-    func testAFreshCameraFrameStillSilencesTheSimulator() {
+    func testAFreshCameraFrameStillSilencesTheSimulator() async {
         let bus = EngineBus()
-        bus.publish(bio: frame(ageSeconds: 0.5, source: .cameraPPG))
+        await publishAndSettle(bus, frame(ageSeconds: 0.5, source: .cameraPPG))
         XCTAssertNotNil(bus.usableBio(), """
             a camera frame half a second old is no longer usable — the Demo source would \
             then publish OVER a live sensor, which is the failure the deferral exists to \
@@ -79,9 +108,9 @@ final class TheDemoSourceWakesWhenTheSensorStopsTests: XCTestCase {
 
     /// 2 — THE PROPERTY THE FIX RESTS ON: past its window the live frame stops being
     /// usable, while the raw snapshot keeps handing it out unchanged. That gap IS the bug.
-    func testAStoppedCameraExpiresWhileTheSnapshotDoesNot() {
+    func testAStoppedCameraExpiresWhileTheSnapshotDoesNot() async {
         let bus = EngineBus()
-        bus.publish(bio: frame(ageSeconds: 30, source: .cameraPPG))
+        await publishAndSettle(bus, frame(ageSeconds: 30, source: .cameraPPG))
         XCTAssertNotNil(bus.latestBio, """
             `latestBio` no longer returns an aged frame — if the bus started CLEARING the \
             snapshot, #626's premise changed and this whole file should be re-read (that \
@@ -98,9 +127,9 @@ final class TheDemoSourceWakesWhenTheSensorStopsTests: XCTestCase {
     /// 3 — COUNTERWEIGHT: the window is PER SOURCE, and that is deliberate. A Watch
     /// reading of the same age is still usable, so Demo keeps yielding to a slow-but-live
     /// wrist instead of elbowing it aside.
-    func testTheWindowIsPerSourceNotOneGlobalNumber() {
+    func testTheWindowIsPerSourceNotOneGlobalNumber() async {
         let bus = EngineBus()
-        bus.publish(bio: frame(ageSeconds: 30, source: .healthKit))
+        await publishAndSettle(bus, frame(ageSeconds: 30, source: .healthKit))
         XCTAssertNotNil(bus.usableBio(), """
             a 30-second-old Watch frame expired — HealthKit is latent and sporadic (90 s \
             window by design). Collapsing every source onto one short window would make \

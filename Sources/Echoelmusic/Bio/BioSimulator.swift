@@ -9,7 +9,12 @@
 //  on a device that has no sensor connected.
 //
 //  Honesty: the frame's source is `.fallback`, and it only runs when the user
-//  explicitly enables it. It defers to any real bio publisher already on the bus.
+//  explicitly enables it. ⛔ #626b: this said it "defers to any real bio publisher
+//  ALREADY ON THE BUS" — that is the SNAPSHOT semantics #626 retired 130 lines below, and
+//  it is precisely the sentence that made the loop park forever. It defers to a publisher
+//  that is CURRENTLY publishing (`bus.usableBio()`, per-source window). Leaving the old
+//  wording in the header while fixing the code is this file's own documented failure mode:
+//  striking a word in one place is not striking it.
 //
 //  ⛔ "(or, in DEBUG, auto-on for development)" STOOD HERE AND WAS FALSE — found by two
 //  independent #464 reviewers, verified: `start(publishing:)` has exactly ONE call site in
@@ -28,8 +33,21 @@
 //  a grep run BEFORE it added three more of its own. `git grep -nw Demo -- Sources`
 //  is the check; the count is not worth restating, the property is.) The strip:
 //  `BioStripView.sourceLabel(.fallback)` returns "—" and `sourceText` returns
-//  "No signal" for `.fallback`, while `hrString`/`hrvString` render `bus.latestBio`
-//  with NO source filter. So a demo session shows a confident heart rate and
+//  "No signal" for `.fallback`, while `hrString`/`hrvString` render the reading with NO
+//  source filter. (⛔ #626b: this named `bus.latestBio` as the mechanism; since #507 both
+//  render `reading`, i.e. `bus.usableBio()`. The CONCLUSION is unchanged and now matters
+//  more — there is still no source filter — but a reader who greps `BioStripView` for
+//  `latestBio` finds nothing and could mistake the retraction for obsolete.)
+//
+//  ⚠️ #626 WIDENED THIS, and it is registered as the next slice rather than folded in.
+//  Before, a real frame parked the simulator forever, so after camera use the strip simply
+//  blanked — honest by accident. Now the simulator resumes, so the ORDINARY path is a
+//  continuous stream of synthetic numbers on the header pill (`PulseMonitorMiniLive`, which
+//  shows BPM and reports `locked` with no source marker at all) and on the strip. Apple
+//  Health is NOT affected: `HealthWritePolicy.isWritableSource` admits only `.ble` and
+//  `.cameraPPG`, so no synthetic value can ever be written. The OSC/ADM/Art-Net/sACN egress
+//  IS affected — `BioEgressPolicy` allows `.fallback` and no address carries a source — so
+//  an integrator cannot tell a demo walk from a measured pulse. So a demo session shows a confident heart rate and
 //  "HRV 50 ms" beside a source cell reading "No signal" — which reads as ABSENCE,
 //  not as SYNTHETIC. #215's principle ("a constant 0 is indistinguishable from a
 //  still performer") applies on the screen too, not only on the wire. Whether to
@@ -142,8 +160,12 @@ public final class BioSimulator {
                 // Apple's latency forced on us. That is a wait, not a hang, and it is the
                 // price of not letting the simulator elbow a slow-but-live sensor aside.
                 // Clearing `latestBio` on an explicit source switch would be faster and is
-                // a different, larger change (the field is `private(set)` on the bus, and
-                // every other consumer reads it); it is deliberately not folded in here.
+                // a different, larger change (the field is `private(set)` on the bus and has
+                // TEN external consumers); it is deliberately not folded in here.
+                // ⛔ #626b: the commit message said "zwanzig andere Leser". Twenty is a raw
+                // grep line count that swallows the declaration, the writer, the two
+                // in-class reads and SIX unrelated LOCAL variables also named `latestBio`
+                // in the two synth voices. The argument survives at ten; the number did not.
                 if let latest = bus.usableBio(), latest.source != .fallback {
                     try? await Task.sleep(for: .seconds(2))
                     continue
