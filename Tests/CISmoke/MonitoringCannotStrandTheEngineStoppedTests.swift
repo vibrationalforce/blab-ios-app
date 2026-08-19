@@ -213,10 +213,19 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
     /// branch sits outside the ON span the other claims use.
     func testEveryCategoryChangingExitRestoresAStoppedEngine() throws {
         let lines = try engineLines()
-        XCTAssertEqual(lines.filter { $0.contains("restoreEngineIfStranded(") }.count, 3, """
-            the exit-guarantee call sites changed. THREE occurrences are expected in \
-            STRIPPED source: the declaration plus TWO callers — the ON path's format-guard \
-            exit (review 2a: the claim may already have stopped the engine and that exit \
+        // ⛔ #631: this asserted THREE and the tree has FOUR — the assertion was RED from
+        // #628 until #631, invisibly, because the blocking bundle's per-test verdicts do not
+        // reliably reach the job log (#445). #628 added a third caller (the failed session
+        // claim) and moved neither this count nor `RecordRouteOwnershipTests`'. The failure
+        // message below had ALREADY written the rule — "a new exit … needs its own call and
+        // this count updated in the same commit" — so this is not a missing rule, it is a
+        // rule the author of the new exit did not read. That is the argument for the count
+        // being here at all.
+        XCTAssertEqual(lines.filter { $0.contains("restoreEngineIfStranded(") }.count, 4, """
+            the exit-guarantee call sites changed. FOUR occurrences are expected in \
+            STRIPPED source: the declaration plus THREE callers — the ON path's failed \
+            session claim (#628: the claim used to only log and fall through into a format \
+            read that cannot succeed), the ON path's format-guard exit (review 2a: that exit \
             does no graph work, so it returned with the music dead while the only visible \
             line blamed microphone permission) and the OFF path (review 2b: \
             `releaseRecordRoute` lowers the category the same way, and it sits on the \

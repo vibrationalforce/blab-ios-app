@@ -74,10 +74,17 @@ final class RecordRouteOwnershipTests: XCTestCase {
         owns nothing, so the next release by any other feature lowers the route out from under \
         a live monitor.
         """)
-        // Three exits after the claim: the format guard, the engine-restart failure, and OFF.
-        XCTAssertEqual(body.components(separatedBy: "releaseRecordRoute(.inputMonitoring)").count - 1, 3, """
-        input monitoring no longer releases the route on all THREE paths that follow its claim \
-        (no valid input format, engine restart failed, monitoring switched off). A missing one \
+        // FOUR exits after the claim: the failed claim itself, the format guard, the
+        // engine-restart failure, and OFF.
+        // ⛔ #631: this said THREE and had been RED since #628 added the failed-claim exit —
+        // unnoticed because the bundle's per-test verdicts do not reliably reach the job log
+        // (#445), so a red assertion here rides along looking exactly like the standing #396
+        // failure. Its twin in `MonitoringCannotStrandTheEngineStoppedTests` was red for the
+        // same commit and the same reason.
+        XCTAssertEqual(body.components(separatedBy: "releaseRecordRoute(.inputMonitoring)").count - 1, 4, """
+        input monitoring no longer releases the route on all FOUR paths that follow its claim \
+        (the claim itself failing, no valid input format, engine restart failed, monitoring \
+        switched off). A missing one \
         leaves every other app's Bluetooth headset on the HFP mono call codec until Echoel is \
         force-quit — silently, because nothing in Echoel sounds wrong.
         """)

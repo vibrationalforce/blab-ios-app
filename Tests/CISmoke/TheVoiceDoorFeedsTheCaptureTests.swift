@@ -89,7 +89,18 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
                        "a capture-rate observable read leaked ABOVE the leaf — the "
                        + "menu-freeze class (10.76.50) returned")
         // The panel hands over the REFERENCE only.
-        XCTAssertTrue(beforeLeaf.contains("VoiceCaptureRow(controller: voiceCapture)"))
+        //
+        // ⛔ #631: the needle was `VoiceCaptureRow(controller: voiceCapture)` — with a
+        // CLOSING PAREN — and #593c added a second argument (`, patch: $currentPatch`), so
+        // this assertion had been UNCONDITIONALLY RED ever since, with no failure message at
+        // all to say why. The same file gets it right one test up, at the `codeOccurrences`
+        // call, by matching the PREFIX. A guard pinned to a full argument list breaks on the
+        // next argument, which is exactly what happened; the property being defended is that
+        // the panel passes the OBJECT and not a read value, and the prefix carries that.
+        XCTAssertTrue(beforeLeaf.contains("VoiceCaptureRow(controller: voiceCapture"),
+                      "the panel must hand over the reference, not a read value — a "
+                      + "capture-rate read at the mount site is the menu-freeze class "
+                      + "(10.76.50). Mount: `EchoelStudioView`'s soundPanel.")
         XCTAssertFalse(studio[leafStart.upperBound...].contains("voiceCapture.progress"),
                        "nothing after the leaf declaration may read the state either — "
                        + "the leaf reads its own `controller`, not the view's property")

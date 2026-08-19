@@ -1723,7 +1723,10 @@ public final class AudioEngine {
             // ⚠️ HYPOTHESIS, not measurement — and it is the second one this week on this
             // method, after #625's. What makes it worth shipping anyway is that it costs
             // nothing if wrong: pausing a moment earlier changes no state the rest of the
-            // branch reads, and the restart at the end is unconditional on `wasRunning`.
+            // branch reads, and the restart at the end is gated on `wasRunning` exactly as
+            // the pause is. (⛔ #631: this sentence said the restart was "unconditional on
+            // `wasRunning`" — it is `if wasRunning { … start() }`, i.e. conditional ON it.
+            // The property that actually holds is the SYMMETRY: whoever paused restarts.)
             // The distinct log lines below are what will actually settle it on the device.
             if wasRunning { masterEngine.pause() }
             do { try AudioConfiguration.claimRecordRoute(.inputMonitoring) }
@@ -1737,25 +1740,26 @@ public final class AudioEngine {
                 restoreEngineIfStranded(wasRunning, at: "input monitoring claim failed")
                 return false
             }
-            // The one diag-log breadcrumb that names this mechanism on a device. It fires
-            // only when the claim actually changed the engine's running state, so it is
-            // silent on every healthy toggle and unmistakable on the broken one.
+            // ⛔ #631 — THE #625 BREADCRUMB STOOD HERE AND #628 TURNED IT INTO A CONSTANT.
+            // It read `if wasRunning && !masterEngine.isRunning { log "the session claim
+            // stopped the engine (#625)" }`, and its own comment promised it was "silent on
+            // every healthy toggle and unmistakable on the broken one". #628 then moved
+            // `masterEngine.pause()` ABOVE the claim — and `pause()` clears `isRunning`, so
+            // from that commit on the condition was true on EVERY toggle where the engine had
+            // been running. The line asserted the exact opposite of what it now measured.
             //
-            // ⛔ #625b (review 2a): this line said "restarting it below", and the very next
-            // guard returns WITHOUT restarting. Worse than imprecise — a log asserting the
-            // opposite of what happened is what sends the next reader past the real exit.
-            // The restart is now GUARANTEED at every exit (see `restoreEngineIfStranded`),
-            // so the text can promise it, but it promises the CONTRACT, not this line.
+            // ⭐ DELETED RATHER THAN REPAIRED, because there is nothing left for it to
+            // measure: once WE pause the engine, `isRunning == false` no longer distinguishes
+            // "our pause" from "the claim stopped it". Sampling before the pause would say
+            // nothing about the claim. The hypothesis #625 wanted to test is no longer
+            // testable at this point in the method, and saying so is worth more than a line
+            // that fires every time and reads like a confirmation.
             //
-            // ⚠️ AND IT ONLY CATCHES A SYNCHRONOUS STOP (review 1b). A configuration change
-            // is delivered asynchronously, so if iOS stops the engine AFTER this sample the
-            // breadcrumb stays silent — this tests one variant of the hypothesis, not the
-            // hypothesis. The exit guarantee below does not depend on the timing; it
-            // re-checks at each return.
-            if wasRunning && !masterEngine.isRunning {
-                log.audio("Input monitoring: the session claim stopped the engine (#625)",
-                          level: .warning)
-            }
+            // ⚠️ THIS MATTERS FOR THE PENDING DEVICE PROBE, which is the reason it is a
+            // deletion and not a note: the founder's monitoring log would have carried this
+            // warning on every healthy toggle, and the next session reading that log would
+            // have counted it as evidence FOR the mechanism it was built to falsify.
+            // What survives as evidence is `restoreEngineIfStranded`'s own line at each exit.
             let input = masterEngine.inputNode
             let inFmt = input.inputFormat(forBus: 0)
             guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else {
@@ -2129,9 +2133,15 @@ public final class AudioEngine {
     /// `attachSourceNode` stores no registry of what it attached and `prepareGraph()` is
     /// one-shot. That is a separate, bigger slice with its own Council; do not read this
     /// helper as covering it.
+    /// ⛔ #631: the message used to say "stopped by a session change", and after #628 that
+    /// names a cause this helper cannot know. On the monitoring ON path the engine may be
+    /// stopped because WE paused it a few lines earlier; on the OFF path and the other
+    /// callers nothing paused it, so a session change really is the candidate. One helper,
+    /// two causes — so it reports the STATE it measured and the exit it measured it at, and
+    /// leaves the cause to the reader who has the surrounding lines.
     private func restoreEngineIfStranded(_ wasRunning: Bool, at exit: String) {
         guard wasRunning, !masterEngine.isRunning else { return }
-        log.audio("Audio engine was stopped by a session change — restoring (\(exit))",
+        log.audio("Audio engine is not running at exit — restoring (\(exit))",
                   level: .warning)
         armTimingInstrument()
         restartOrDegrade(after: exit)
