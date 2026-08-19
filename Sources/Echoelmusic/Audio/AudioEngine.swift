@@ -1660,8 +1660,38 @@ public final class AudioEngine {
             // nothing ever lowered it — switching monitoring off left the whole system on
             // `.playAndRecord`, i.e. every other app's Bluetooth headset stuck on the HFP mono
             // call codec until Echoel was killed.
+            //
+            // #625 (founder 2026-08-19, "Es funktioniert gar nichts und killt den
+            // restlichen Sound auch") — READ THE RUNNING STATE **BEFORE** THE CLAIM.
+            // `claimRecordRoute` ends in `setCategory(.playAndRecord) + setActive(true,
+            // options: .notifyOthersOnDeactivation)`, and iOS may STOP a running
+            // `AVAudioEngine` underneath a session re-activation. The read used to sit
+            // twelve lines BELOW this call, so in exactly that case `wasRunning` latched
+            // **false** — and the restart block at the bottom of this branch is
+            // `if wasRunning`. Nothing started the engine again. The monitor chain was
+            // wired onto a stopped engine, `isInputMonitoring` was set to true and the
+            // method returned SUCCESS: no monitor sound, and the MUSIC dead with it,
+            // with not one line logged. That is the founder's report verbatim.
+            //
+            // #611 does not cover this. Its rollback is for `start()` THROWING on the
+            // `wasRunning == true` path; this is the path where the flag was already
+            // false, so no start was ever attempted and no catch could fire.
+            //
+            // Reading it early is safe in the other direction too: if the claim does NOT
+            // stop the engine, `wasRunning` is what it always was and everything below
+            // behaves identically — `pause()` on an already-stopped engine is a no-op.
+            // The cost of being wrong about the mechanism is nothing; the cost of the
+            // old order was total silence.
+            let wasRunning = masterEngine.isRunning
             do { try AudioConfiguration.claimRecordRoute(.inputMonitoring) }
             catch { log.audio("Input monitoring: session upgrade failed (\(error))", level: .error) }
+            // The one diag-log breadcrumb that names this mechanism on a device. It fires
+            // only when the claim actually changed the engine's running state, so it is
+            // silent on every healthy toggle and unmistakable on the broken one.
+            if wasRunning && !masterEngine.isRunning {
+                log.audio("Input monitoring: the session claim stopped the engine — restarting it below (#625)",
+                          level: .warning)
+            }
             let input = masterEngine.inputNode
             let inFmt = input.inputFormat(forBus: 0)
             guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else {
@@ -1672,7 +1702,8 @@ public final class AudioEngine {
                 try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)
                 return false
             }
-            let wasRunning = masterEngine.isRunning
+            // `wasRunning` is captured ABOVE, before the session claim (#625) — do not
+            // move this read back down here, that IS the bug.
             if wasRunning { masterEngine.pause() }
             if !monitorAttached { masterEngine.attach(monitorMixer); monitorAttached = true }
             // #595: the notch band is configured ONCE at attach; only frequency and
