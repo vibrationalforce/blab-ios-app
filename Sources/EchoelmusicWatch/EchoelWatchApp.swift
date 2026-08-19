@@ -84,6 +84,38 @@ struct WatchBioView: View {
     /// branding a real reading fake.
     private var isDemo: Bool { vitals.synthetic == true }
 
+    /// Whether the payload is still one the ENGINE would act on — `BioVitals.isFresh` had
+    /// ZERO production callers, so this face printed a 44-point number for a payload of any
+    /// age. The window is derived, not chosen: `BioVitals.glanceFreshnessWindow`.
+    ///
+    /// ⚠️ Unlike the Widget this view DOES own a clock — it refreshes on its own `tick`, so
+    /// `Date()` here is the moment being rendered rather than a value pulled out from under a
+    /// timeline entry. The default argument would do, but it is written out so the two glances
+    /// read as the same decision made twice, not as one of them forgetting a parameter.
+    private var isCurrent: Bool {
+        vitals.isFresh(within: BioVitals.glanceFreshnessWindow,
+                       now: Date().timeIntervalSinceReferenceDate)
+    }
+
+    /// A TIME qualifier, so plain secondary text — deliberately NOT `demoTag`'s boxed chip.
+    /// The two answer different questions ("whose body" vs "when"); two badges would read as
+    /// two labels of one class. Same spelling as the Widget's (#416): one decision, one string.
+    ///
+    /// ⚠️ THIS HALF IS UNOBSERVABLE TODAY and that is honest, not a defect of this slice:
+    /// the watch target is not embedded (`project.yml` keeps its dependency line commented
+    /// out) and nothing writes the WATCH's own App-Group container — a container is per
+    /// device, and there is no `WCSession` transport (#549). So `hasData` never becomes true
+    /// here and this branch cannot render. It is written now because the two glances are one
+    /// decision, and leaving one half behind is how the pair drifts.
+    private var staleTag: some View {
+        Text("Last session")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .accessibilityLabel(Text("Reading from an earlier session, not current"))
+    }
+
     /// `.secondary` with a hairline outline, never an accent or a warning colour —
     /// green would assert the body this tag exists to deny.
     private var demoTag: some View {
@@ -115,11 +147,13 @@ struct WatchBioView: View {
                 HStack(spacing: 5) {
                     Text("Heart rate").font(.caption2).foregroundStyle(.secondary)
                     if isDemo { demoTag }
+                    if !isCurrent { staleTag }
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("\(bpm)")
                         .font(.system(size: 44, weight: .semibold, design: .rounded))
                         .monospacedDigit()
+                        .foregroundStyle(isCurrent ? Color.primary : Color.secondary)
                     Text("bpm").font(.caption2).foregroundStyle(.secondary)
                 }
                 HStack(spacing: 14) {
@@ -147,10 +181,14 @@ struct WatchBioView: View {
         }
     }
 
+    /// ⚠️ HRV and coherence dim with the heart rate — same payload, same timestamp. Marking
+    /// only the pulse leaves a half-marked card, which teaches the reader that an unmarked
+    /// number is current. (Mirror of the Widget's `metric`; #636.)
     private func metric(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label).font(.caption2).foregroundStyle(.secondary)
             Text(value).font(.body.weight(.medium)).monospacedDigit()
+                .foregroundStyle(isCurrent ? Color.primary : Color.secondary)
         }
     }
 }

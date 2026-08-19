@@ -128,6 +128,44 @@ public struct BioVitals: Codable, Sendable, Equatable {
             && coherence.isFinite && breathRate.isFinite && timestamp.isFinite
     }
 
+    /// The window a GLANCE must use — an UPPER BOUND, derived rather than chosen.
+    ///
+    /// `isFresh`'s 2 s default below is a wire window: right for a live in-app read, useless on
+    /// a Home-Screen widget or a watch face, which render whenever the system decides. Those
+    /// surfaces need ONE window covering every source, because this payload carries no
+    /// `BioSource` — see the ⛔ note on `isFresh` for why the TYPE cannot travel into those
+    /// targets. So the value is the largest window the engine itself still believes:
+    /// `BioSource.freshnessWindow` is 6 s for camera/BLE/face and **90 s for
+    /// `.watch`/`.healthKit`**, of which `.healthKit` is the one with a producer
+    /// (`Bio/HealthKitBioPublisher`); `.watch` shares the number. `.oura`'s 600 s is excluded
+    /// because it has no producer at all — `Sequencer/BreathHold.swift` records the same
+    /// exclusion for the same reason.
+    ///
+    /// ⛔ IT IS A BOUND, NOT AN AGREEMENT, and the first draft of this comment claimed the
+    /// stronger thing — "at 90 s the glance agrees with `EngineBus.usableBio` exactly". It does
+    /// not: `usableBio` is PER-SOURCE, so a camera-rPPG payload — the app's own headline live
+    /// pipeline — is dropped by the engine at 6 s and still reads current here for another 84.
+    /// What 90 guarantees is the safe direction only: **it can never mark a live reading
+    /// stale.** The over-claim is exactly the kind this comment then warned against two
+    /// sentences later ("a hand-picked margin would open a band nobody could explain"), while
+    /// opening a 6→90 s band on the default source.
+    ///
+    /// ⭐ THE BETTER FIX IS A SLICE, NOT A NUMBER, and it is not blocked by anything: the
+    /// TYPE cannot cross into the extension targets, but the WINDOW is a `TimeInterval` and
+    /// can. `BioVitals` already gained `synthetic: Bool?` this way (#632, `decodeIfPresent`,
+    /// backward-compatible), so a `sourceFreshnessWindow: TimeInterval?` written by
+    /// `BioFeedbackPublisher.vitals(from:)` as `frame.source.freshnessWindow` would make the
+    /// glance agree with the engine for real. The first draft called that impossible; it is
+    /// merely unbuilt, and saying "impossible" would have taken the decision away from whoever
+    /// reads this next.
+    ///
+    /// ⚠️ THE NUMBER IS A LITERAL HERE for the same structural reason `isFresh`'s `-1` is
+    /// (#545): `Core/EngineBus.swift`, where `freshnessWindow` lives, is in neither extension
+    /// target. `TheGlanceSaysWhetherItIsCurrentTests` pins this to 90 AND pins the case in
+    /// `EngineBus` it is copied from, so the day that source window moves this goes red
+    /// instead of quietly meaning something else.
+    public static let glanceFreshnessWindow: TimeInterval = 90
+
     /// Whether this snapshot is recent enough to treat as LIVE. Age is measured
     /// on the shared `timeIntervalSinceReferenceDate` clock; a small negative
     /// age is tolerated for cross-process clock jitter, anything more

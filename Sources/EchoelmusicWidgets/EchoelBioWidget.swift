@@ -45,9 +45,31 @@ struct BioProvider: TimelineProvider {
         // WidgetKit budgets refreshes; ask again in 5 min. The app also nudges
         // the timeline (WidgetCenter.reloadTimelines) when it publishes fresh
         // vitals in the foreground, so live sessions update sooner.
-        let next = Calendar.current.date(byAdding: .minute, value: 5, to: Date())
-            ?? Date().addingTimeInterval(300)
-        completion(Timeline(entries: [makeEntry()], policy: .after(next)))
+        let now = Date()
+        let next = Calendar.current.date(byAdding: .minute, value: 5, to: now)
+            ?? now.addingTimeInterval(300)
+        let entry = makeEntry()
+        var entries = [entry]
+
+        // ⛔ A SECOND ENTRY AT THE MOMENT THE READING STOPS BEING CURRENT — and without it the
+        // freshness marker is nearly inert. `entry.date` is stamped when the TIMELINE is built,
+        // so with a single entry `isCurrent` is frozen at that instant for the whole life of the
+        // timeline. The error is one-directional and lands on the wrong side: `entry.date` is
+        // never later than the render, so the widget can only UNDERSTATE age — print a stale
+        // payload at full strength — which is the exact defect this marker exists to remove.
+        // Nothing forces a reload either: `BioFeedbackPublisher.reloadWidgetsIfDue()` is reached
+        // only from a publish tick, and publishing stops when the session does, so after a
+        // session ends the only refresh is `.after(next)`, which WidgetKit throttles by daily
+        // budget. Scheduling the transition as its own entry is how WidgetKit is meant to
+        // express "this changes at time T" and keeps the body a pure function of its entry.
+        if !entry.isPlaceholder {
+            let expiry = Date(timeIntervalSinceReferenceDate:
+                                entry.vitals.timestamp + BioVitals.glanceFreshnessWindow)
+            if expiry > now {
+                entries.append(BioEntry(date: expiry, vitals: entry.vitals, isPlaceholder: false))
+            }
+        }
+        completion(Timeline(entries: entries, policy: .after(next)))
     }
 
     private func makeEntry() -> BioEntry {
@@ -82,6 +104,38 @@ struct EchoelBioWidgetView: View {
     /// to `nil`; that stays unmarked, because branding a real reading "Demo" is the
     /// same kind of lie as printing a fake one as measured (see `BioVitals.synthetic`).
     private var isDemo: Bool { entry.vitals.synthetic == true }
+
+    /// Whether the payload is still one the ENGINE would act on. `BioVitals.isFresh`
+    /// existed with ZERO production callers, so this glance printed a 40-point "142 bpm"
+    /// for a payload of any age — a session that ended three hours ago read exactly like
+    /// a heart beating now. The window is derived, not chosen: see
+    /// `BioVitals.glanceFreshnessWindow`.
+    ///
+    /// ⚠️ `entry.date`, not `Date()`. WidgetKit renders a timeline entry at a moment it
+    /// chooses, and a view body must be a pure function of its entry — reading the wall
+    /// clock here would make the same entry render differently on every redraw and make
+    /// the state untestable. The entry's own date is when this reading was taken for.
+    private var isCurrent: Bool {
+        entry.vitals.isFresh(within: BioVitals.glanceFreshnessWindow,
+                             now: entry.date.timeIntervalSinceReferenceDate)
+    }
+
+    /// A TIME qualifier, so plain secondary text — deliberately NOT the boxed chip form
+    /// `demoTag` uses. The two answer different questions ("whose body" vs "when"), and
+    /// giving both a badge would read as two labels of one class. ⛔ The first draft of this
+    /// comment then said the corner-radius count "is unchanged at four" — four is the VALUE of
+    /// the single literal in this file, not a count of them; `grep -c cornerRadius` is 1. The
+    /// true statement is the one that matters anyway: this marker adds no rounded surface, so
+    /// `RadiusHasOneSpellingTests`' extension list is untouched — nothing was skipped to keep
+    /// a guard green, the marker simply is not a box.
+    private var staleTag: some View {
+        Text("Last session")
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .accessibilityLabel(Text("Reading from an earlier session, not current"))
+    }
 
     /// Deliberately `.secondary` with a hairline outline — NOT an accent or a warning
     /// colour. Green would read as "a body is connected" (the exact claim being denied)
@@ -140,11 +194,15 @@ struct EchoelBioWidgetView: View {
             HStack(spacing: 4) {
                 Text("HR").font(.caption2).foregroundStyle(.secondary)
                 if isDemo { demoTag }
+                if !isCurrent { staleTag }
             }
             HStack(alignment: .firstTextBaseline, spacing: 3) {
                 Text("\(bpm)")
                     .font(.system(size: 40, weight: .semibold, design: .rounded))
                     .monospacedDigit()
+                    // The number is the loudest thing on the glance; a caption beside a
+                    // full-strength number is a footnote under a headline that contradicts it.
+                    .foregroundStyle(isCurrent ? Color.primary : Color.secondary)
                 Text("bpm").font(.caption).foregroundStyle(.secondary)
             }
             Spacer(minLength: 0)
@@ -162,11 +220,13 @@ struct EchoelBioWidgetView: View {
                 HStack(spacing: 5) {
                     Text("Heart rate").font(.caption2).foregroundStyle(.secondary)
                     if isDemo { demoTag }
+                    if !isCurrent { staleTag }
                 }
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Text("\(bpm)")
                         .font(.system(size: 48, weight: .semibold, design: .rounded))
                         .monospacedDigit()
+                        .foregroundStyle(isCurrent ? Color.primary : Color.secondary)
                     Text("bpm").font(.subheadline).foregroundStyle(.secondary)
                 }
             }
@@ -179,10 +239,16 @@ struct EchoelBioWidgetView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
     }
 
+    /// ⚠️ HRV AND COHERENCE DIM WITH THE HEART RATE, because they come from the SAME payload
+    /// and the same timestamp. The first draft of #636 marked only the pulse and left these
+    /// two at full strength — a half-marked card, which is worse than an unmarked one: the
+    /// reader learns that an unmarked number is current. The widget's own App Store subtitle
+    /// names all three ("Live heart rate, HRV, and coherence from your session").
     private func metric(_ label: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 1) {
             Text(label).font(.caption2).foregroundStyle(.secondary)
-            Text(value).font(.callout.weight(.medium)).monospacedDigit().foregroundStyle(.primary)
+            Text(value).font(.callout.weight(.medium)).monospacedDigit()
+                .foregroundStyle(isCurrent ? Color.primary : Color.secondary)
         }
     }
 }
