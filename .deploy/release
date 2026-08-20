@@ -1,4 +1,4 @@
-build: v10.79.413 — Die App sagt jetzt auch auf dem Sound-Panel, im FX-Blatt und auf dem Draht, wessen Körper das ist
+build: v10.79.414 — Wenn Monitoring verweigert, sagt es ab jetzt WARUM, im Log das Du schickst
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,100 +6,100 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.412 (Build 2529). Dieser Build bündelt DREI Scheiben —
-  #639, #640, #641 — plus zwei Reviewer-Runden.
+  Der Vorgänger ist 10.79.413 (Build 2531). Dieser Build bündelt neun Scheiben —
+  #642 bis #650 — plus fünf Reviewer-Runden.
 
-  ── ZUERST EINE SACHE, DIE ICH NICHT VERSCHWEIGE ─────────────────────────
+  ── DAS HIER IST KEIN FIX. BITTE ZUERST LESEN ────────────────────────────
 
-  **Build 2530 trägt diesen Code schon.** Er ist ungeplant hochgeladen worden: ich habe
-  in DIESER Datei eine Geräteprobe korrigiert, und jede Änderung an ihr löst einen
-  TestFlight-Build aus. 2530 steht als VALID in App Store Connect. **2530 und der Build
-  aus diesen Notizen sind dieselbe App** — der einzige Unterschied ist, dass 2530 keine
-  Notizen hat, weil die Versionsnummer damals unverändert blieb. Wenn Du 2530 schon
-  installiert hast, prüfe damit; ein zweites Installieren bringt nichts Neues.
+  Du hast heute ein Video und ein Log geschickt: „Monitoring could not start — try again",
+  auch mit dem iPhone-Mikrofon, das in derselben Zeile als „gut für Live-Monitoring"
+  beworben wird.
 
-  ── WAS SICH ÄNDERT, UND WAS AUSDRÜCKLICH NICHT ──────────────────────────
+  **Dieser Build repariert das nicht.** Er kann es nicht, weil bis heute niemand wusste,
+  WORAN es scheitert — und das hat einen Grund, den ich beim Nachsehen gefunden habe:
 
-  **Kein Klang und kein Bild ändert sich in diesem Build.** Was sich ändert, ist, was die
-  App BEHAUPTET. Such also nicht nach einem neuen Sound — es gibt keinen.
+  Dein Log und Dein Video gehören zur selben Sitzung. Log ab 13:43:23, Aufnahme ab
+  13:43:35, der rote Kasten bei ~13:43:49, Log bis 13:44:09. **Der Fehlschlag liegt mitten
+  im geloggten Fenster — und das Log sagt kein Wort dazu.**
 
-  Die Linie ist dieselbe wie in 10.79.412: Echoel darf mit der Demo-Quelle laufen (ohne
-  sie gäbe es keinen Vorführmodus), aber keine Fläche darf dabei so tun, als sei das Dein
-  Körper. 412 hat die Flächen erledigt, die eine ZAHL zeichnen. Dieser Build erledigt die
-  Flächen, die einen SATZ sagen — und den Draht nach draußen.
+  Seit Monaten wurde genau dieser Fehler gejagt. Fünf Runden, jede hat eine eigene
+  Log-Zeile an einen anderen Ausstieg gehängt, jede geschrieben, damit ein Geräte-Log
+  endlich sagt, welcher es war. **Keine einzige davon konnte je in einem Geräte-Log
+  landen.** Sie gingen alle in Apples System-Log, das man nur mit angestecktem Mac sieht.
+  Die Datei, die Du exportierst — die mit `launch`, `init a:`, `rPPG:`, `trust:` — wird von
+  einem anderen Mechanismus geschrieben, und im Audio-Teil der App gab es davon genau
+  zwei Zeilen, beide für etwas anderes.
 
-  · **Sound-Panel (#640).** Zwei Sätze auf einem Bildschirm behaupteten „Dein Körper",
-    auch während der Demo-Generator lief:
-      · oben: „Your body also shapes this sound while a session runs: Brightness … move
-        around the values you set here."
-      · unten, in der Automations-Anzeige: „…Anything moving on its own **right now** is
-        your body, not automation."
-    Beide sind Aussagen über den AUGENBLICK, nicht über die Verdrahtung — der zweite sagt
-    „right now" sogar selbst. Beide nennen jetzt die Demo-Quelle. Der Wortlaut für einen
-    echten Körper ist Buchstabe für Buchstabe unverändert; die Sätze haben ein Argument
-    bekommen, keine Umformulierung. Das war Absicht: die naheliegende Alternative hätte
-    „Dein Körper" für JEDEN Spieler abgeschwächt, um bei der Demo recht zu haben.
+  Ab diesem Build laufen ZEHN Stellen dorthin: alle Berechtigungs-Ausstiege, alle drei
+  Fehler-Ausstiege, AN, AUS, die Rückstufung und das Nachjustieren bei Routen-Wechsel.
+  Eine Stelle war sogar in JEDER Senke stumm.
 
-  · **FX-Blatt „All parameters" (#641).** Dort stehen zwei Abschnitts-Überschriften, und
-    jede Zeile UNTER ihnen sagt bereits „Demo" (die Beitragszeilen seit 10.79.412, die
-    Always-on-Zeilen davor) — die Überschriften
-    behaupteten weiter einen Körper. Eine Fläche, zwei Antworten. Beide Überschriften
-    folgen jetzt ihren eigenen Zeilen.
-    Dazu ein Satz in der Fußnote: „…the engine still has it, your body has stopped
-    sending it" heißt jetzt „…the signal has stopped arriving". Bei laufender Demo war er
-    doppelt falsch — es hatte nie Dein Körper gesendet.
+  ── WAS ICH DICH ZU PRÜFEN BITTE — nur EINE Sache ────────────────────────
 
-  · **OSC-Ausgang (#639).** Neu ist die Adresse `/echoelmusic/bio/synthetic` (1 = Demo,
-    0 = echter Körper). ⚠ **Das kannst Du am Telefon NICHT sehen.** Es ist ausschließlich
-    für Empfänger — TouchDesigner, Resolume, ein Lichtpult, ein Mitspieler. Bisher bekam
-    so ein Empfänger `/echoelmusic/bio/heart/bpm 74` von einem Simulator und hatte keine
-    Möglichkeit, das zu merken. Ohne OSC-Empfänger im Netz gibt es hier nichts zu prüfen,
-    und ich behaupte auch nicht, dass es funktioniert — nur, dass es gebaut ist.
+  1. **Provoziere den Fehler noch einmal.** Mix-Panel → „Voice - your microphone" →
+     „Choose input…" → **Live monitoring** einschalten, bis der rote Kasten kommt.
+  2. Wenn möglich, direkt danach noch einmal — und einmal mit dem iPhone-Mikrofon,
+     einmal mit den HI-X25BT.
+  3. **Dann schick mir das Diagnose-Log.** Such nicht selbst danach; ich brauche nur die
+     Datei. Sie wird jetzt Zeilen enthalten, die mit `monitor:` beginnen. Eine davon
+     nennt den Ausstieg, und damit ist die nächste Scheibe eine Reparatur statt einer
+     sechsten Vermutung.
+
+  Wenn Monitoring diesmal ANGEHT: bitte trotzdem das Log — dann steht dort
+  `monitor: ON (…)` mit Rate und Kanalzahl, und ich weiß, wie ein gesunder Start aussieht.
+  Ohne diesen Vergleich ist ein ruhiges Log mehrdeutig.
+
+  ── ZU DEINER VOCAL-CHAIN-FRAGE ──────────────────────────────────────────
+
+  Kurz, weil es hier hingehört: **das meiste davon hast Du schon, hinter genau diesem
+  Schalter.** Im selben Input-Blatt, unter dem Monitoring-Schalter, sitzen „Tune to key"
+  mit **Amount** und **Tune** — das ist Autotune samt Charakter (Tune 1.00 = harter Snap).
+  Du siehst es nicht, weil der Schalter darüber verweigert.
+
+  Der Harmonizer ist ebenfalls gebaut, hängt aber am Synthesizer, nicht am Mikrofon — die
+  komplette Effektkette ist EINEN Knoten vom Mikro entfernt. Granular hat Maschinerie,
+  aber keine eigene Stufe. Voice clone gibt es nicht, in keiner Form; das ist die einzige
+  Position, die eine Entscheidung von Dir braucht, und sie eilt nicht.
+  Der ganze Plan: `scratchpads/PLAN_VOCAL_CHAIN_2026-08-20.md`.
+
+  ── WAS SICH SONST GEÄNDERT HAT (Fortsetzung von 413) ────────────────────
+
+  Dieselbe Linie: Echoel darf mit der Demo-Quelle laufen, aber keine Fläche darf so tun,
+  als sei das Dein Körper. 413 hat die Sätze erledigt; dieser Build die letzten Flächen,
+  die noch einen Körper behaupteten:
+
+  · **#643** die zwei „four body channels"-Sätze im Bio- und FX-Panel
+  · **#644** die Überschrift der Live-Erzählung
+  · **#645** die Variations-Karte („Dein Körper will …")
+  · **#646** der Titel des Erklär-Blatts „How your body shapes the sound"
+  · **#647** das gesprochene Tempo-Label und der Sperr-Knopf daneben
+  · **#648** die zwei Zeilen im Bio-Panel: „Breath voice" und „Auto mode". Beide hatten
+    schon verzweigt — die eine nach Atem, die andere nach laufender Quelle — und wirkten
+    deshalb sorgfältig geschrieben. Keine verzweigte danach, WESSEN Messwerte das sind.
+  · **#649** ist ein reiner Umbau ohne sichtbare Änderung: der Demo-Satz stand zehnmal im
+    Code, einmal davon so über zwei Zeilen zerlegt, dass keine Suche ihn je fand.
+
+  **Kein Klang und kein Bild ändert sich.** Such nicht nach einem neuen Sound.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
   Alles compile-verifiziert (beide echten Gates, „Build for Testing" grün), **NICHTS**
   geräteverifiziert. Von den neuen Prüfungen ist keine namentlich im Testprotokoll
   aufgetaucht — der Simulator-Klon leert nur einen Teil der Namen, und ein fehlender Name
-  beweist nichts. Ehrlich ist: sie bauen nachweislich, ihre Ausführung ist unbelegt.
+  beweist nichts.
 
-  Zwei Sätze im FX-Blatt bleiben ABSICHTLICH unmarkiert, und das ist eine Entscheidung,
-  kein Rest: „Let the body shape the effects…" erscheint, wenn es KEINE Route gibt, und
-  „Start a session to watch the body move these parameters." erscheint, wenn NICHTS läuft.
-  Beide sind Anleitungen auf Bildschirmen, auf denen über keinen aktuellen Messwert etwas
-  behauptet wird — sie zu markieren würde suggerieren, eine Demo laufe, wo keine läuft.
+  **Zweiter Befund aus Deinem Log, ausdrücklich NICHT repariert:** der Puls hat in diesen
+  33 Sekunden nie eingerastet (`trust: 1/30 ok`, Streuung 22 bpm), und beide
+  `generate`-Zeilen sagen `body=0` — der Körper hat den Komponisten nicht erreicht.
+  Auffällig ist die Stelle bei 13:44:05: die Konfidenz stieg gerade auf 0,89 bei stabilen
+  52–53 bpm, dann kam `Too bright`, die Belichtung wurde neu eingeregelt, und die
+  Konfidenz fiel auf 0,00. Es sieht so aus, als hätte die Nachregelung eine gerade
+  konvergierende Schätzung weggeworfen. Das ist eine Beobachtung, keine Diagnose — ich
+  messe es, bevor ich etwas ändere.
 
-  Weiterhin offen und ausdrücklich NICHT behauptet: das „Demo"-Schildchen pro Zeile in der
-  Metrik-Ansicht (registriert, bewusst verschoben) · zwei Sätze mit „body channels" im
-  Bio- und FX-Panel · zwei Studio-Bildunterschriften · zwei Tempo-Feld-Labels · und
-  ADM-OSC, Art-Net, sACN sowie die Ereignis-Adressen, die dem Empfänger bis heute nicht
-  sagen, ob es ein Körper war.
-
-  ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
-
-  Alle drei Proben brauchen die **DEMO-Quelle** und eine laufende Session. Die Quelle
-  wählst Du im Kontextmenü der Puls-Pille oder in der Zeile im Bio-Panel; der Eintrag
-  heißt wörtlich **„Play with the simulation"**.
-
-  1. **Die einfachste zuerst.** FX-Chip → „All parameters" → nach unten scrollen bis zum
-     Abschnitt, der mit „Always on —" beginnt. Steht dort „Always on — simulated demo →
-     timbre" statt „Always on — body → timbre"? (Dieser Abschnitt ist immer da, er
-     braucht keine Route.)
-  2. Auf demselben Blatt der Abschnitt darüber, „Live — …". Er zeigt Zeilen NUR, wenn Du
-     vorher über „Add bio modulation…" eine Route angelegt hast — und die Überschrift
-     nennt die Demo-Quelle nur, wenn mindestens eine BIO-Route dabei ist (eine reine
-     LFO-Route ist ein echter Oszillator und wird bewusst nicht als Demo markiert).
-  3. Sound-Chip → Sound-Panel. Ganz oben: nennt der Satz die Demo-Quelle statt „Your
-     body"? Und ganz unten, unter „Automation": steht dort „…is the simulated demo
-     source, not automation"?
-  4. Und die eine Frage, die kein Test beantworten kann: **liest sich das gut?** Die
-     Sätze sind gegen den Code geprüft, nicht gegen Dein Sprachgefühl. Wenn „simulated
-     demo" zu technisch klingt, sag es — das Wort ist eine Wahl, keine Notwendigkeit.
-
-  5. Offene Proben aus 2529/412, unverändert: die vier Zeilen im Abschnitt „How your body
-     shapes the sound" (Bio-Streifen → ⓘ, nach unten scrollen) · Widget-Kachel mit „Last
-     session" nach ein paar Minuten Pause · Monitoring (Master-Panel → „Audio input") ·
-     MIDI-Export eines geöffneten Takes.
+  Weiterhin offen: das „Demo"-Schildchen pro Zeile in der Metrik-Ansicht · ADM-OSC,
+  Art-Net, sACN und die Ereignis-Adressen, die dem Empfänger nicht sagen, ob es ein
+  Körper war.
 
   ⚠ Die Uhr-App bleibt ausgenommen: das Watch-Target ist in `project.yml` nicht
   eingebettet, und es gibt keinen Übertragungsweg vom Telefon ans Handgelenk. Gebaut,
