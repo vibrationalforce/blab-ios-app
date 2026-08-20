@@ -120,7 +120,26 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
             outputSeconds: 0.002_5,      // 2.5 ms
             inputAvailable: true,
             tuneStage: true,
+            // #667: this fixture is the `monitor on` line, so it is the one that carries
+            // stages. `notch` at 0 is deliberate — an AU that reports nothing is the case
+            // #654 warned about, and the field has to render it rather than hide it.
+            insertMilliseconds: [("notch", 0), ("tune", 21.33)],
             route: "Built-In Microphone→Speaker")
+        // #667 — EXECUTED, not scanned. Claim 8 checks that the FIELD exists in the source;
+        // only this can check what it RENDERS. A 0 must print as `notch=0.00`, because the
+        // whole purpose of the field is to let one founder log answer "does this AU report a
+        // real number or a zero?", and a hidden zero answers nothing.
+        XCTAssertTrue(line.contains("inserts[notch=0.00,tune=21.33]ms"), """
+            The insert field stopped rendering, or changed shape. It must name each stage and \
+            print its raw AU-reported value — including a 0. Got: \(line)
+            """)
+        // And it must NOT move the floor. 5.0 + 1.5 + 2.5 = 9.0, with 21.33 ms of pitch stage
+        // sitting right next to it in the same line and staying out of the sum (#654/#666).
+        XCTAssertTrue(line.contains("floor=9.0ms"), """
+            The AU-reported insert latency leaked into `floor=`. `floor` is a lower bound on \
+            the HARDWARE path; folding in a self-reported figure that may be a meaningless 0 \
+            would corrupt the one number the log already carries. Got: \(line)
+            """)
         XCTAssertTrue(line.hasPrefix("latency: monitor on "), """
             The line no longer opens with `latency: <reason> `. The prefix is what makes the \
             measurement greppable in a founder log that also carries `monitor:`, `rPPG:` and \
@@ -176,6 +195,7 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
             outputSeconds: 0.010,
             inputAvailable: true,
             tuneStage: nil,
+            insertMilliseconds: [],
             route: "none→none")
         XCTAssertFalse(line.lowercased().contains("nan"), "non-finite leaked: \(line)")
         // ⛔ #654: this used to assert `!line.contains("-")`, which passed only because the
@@ -184,6 +204,11 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         // negative", and would have gone spuriously red the moment the fixture got realistic.
         // A negative would render as `=-1.0`, so that is what is banned.
         XCTAssertFalse(line.contains("=-"), "a negative measurement leaked: \(line)")
+        XCTAssertFalse(line.contains("inserts["), """
+            An EMPTY stage list must omit the field entirely, not print `inserts[]ms`. This \
+            line describes a reconfiguration with no monitor chain up; an empty bracket would \
+            read as "measured, and there is nothing", which is a different fact (#667).
+            """)
         XCTAssertTrue(line.contains("sr=?"), "an unusable sample rate must read `?`: \(line)")
         XCTAssertTrue(line.contains("buf=?"), "an unusable buffer must read `?`: \(line)")
         XCTAssertTrue(line.contains("in=?"), "a negative input latency must read `?`: \(line)")
@@ -221,6 +246,7 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
             outputSeconds: 0.002_5,
             inputAvailable: false,
             tuneStage: nil,
+            insertMilliseconds: [],
             route: "none→Speaker")
         XCTAssertTrue(line.contains("in=n/a"), """
             A session with no input route reports `inputLatency == 0`, and printing that as \

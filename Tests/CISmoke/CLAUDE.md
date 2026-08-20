@@ -173,8 +173,33 @@ its own known positive is not a measurement.
 - `** TEST EXECUTE FAILED **` = **#396**, founder-gated, harmless — a simulator clone dies
   mid-suite. CI/CD reports `failure` on **every** push because of it, so the conclusion alone
   says nothing.
-- `** TEST BUILD FAILED **` ⇒ read the log. **Does any `error:` line name a repo file?** If
-  not, it is an infrastructure flake (stale module cache) — re-run, do not debug your slice.
+- `** TEST BUILD FAILED **` ⇒ read the log. **Does any diagnostic name a repo file?** If not,
+  it is an infrastructure flake (stale module cache) — re-run, do not debug your slice.
+  ⛔ **#667: THIS RULE SAID "any `error:` line" AND THAT NEARLY MISDIAGNOSED A REAL RED.**
+  `ci.yml` pipes `xcodebuild` through **xcbeautify**, which rewrites `…: error: …` as a line
+  beginning **`❌`** and drops the word. Measured on run `32412687490`: `TEST BUILD FAILED` = 1,
+  **`error:` = 0**, `❌` = 3 — and all three named
+  `Tests/CISmoke/TheMeasuredLatencyReachesTheDiagLogTests.swift` with a real compile error.
+  Following the old recipe literally gives "no `error:` line ⇒ flake ⇒ re-run", which would
+  have re-run a genuinely broken commit until someone noticed. **Count BOTH markers:**
+      t.count("error:")   # raw xcodebuild, and the SDK/module-cache flake prints these
+      t.count("❌")        # xcbeautify's rendering of the same thing
+  The flake case (#478) is still recognisable — its diagnostics name an SDK `module.modulemap`
+  and a `DerivedData` `.pcm`, never a file under `Sources/` or `Tests/`. The DISCRIMINATOR is
+  unchanged (does a diagnostic name a repo file?); only the search term was too narrow.
+- ⚠️ **Before changing a signature in `Sources/`, grep THIS directory for its callers.** #666
+  added one non-defaulted parameter to `AudioConfiguration.latencyLine`, updated the three
+  PRODUCTION call sites, and missed **three behavioural call sites in the guard file it was
+  editing at the time** — `TEST BUILD FAILED`, three errors, one cycle lost. Neither
+  `dead-needles.py` nor a source-text driver can see this: both read text, and this is a
+  type-check fact. The check that works is one command, and it is cheap enough to be reflexive:
+      git grep -n "\.<functionName>(" -- Tests/CISmoke Sources
+  ⛔ A SCRIPT FOR IT WAS PROTOTYPED AND DELIBERATELY NOT SHIPPED. Matching call arguments
+  against declared labels by name alone gave **59 false positives** on a correct tree (one
+  `apply` shadowing another); adding receiver-type attribution cut that to 7 but LOST all three
+  real positives, because last-`enum|struct`-before-the-func mis-attributes a nested type.
+  Per #665's own rule — a checker with false alarms is a checker nobody reads — the honest
+  output is this paragraph rather than a script that is wrong in both directions.
 - **#445:** a test name **in** the log proves it ran. Its **absence proves nothing** — the
   surviving clone flushes a non-deterministic subset. Honest wording for an unobserved guard:
   *"kompiliert nachweislich, Ausführung unbelegt."* Never "green", never "red".

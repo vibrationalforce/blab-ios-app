@@ -721,14 +721,20 @@ public final class AudioEngine {
                 // burst interleaves with the `monitor:` lines #650 put there to diagnose
                 // monitoring failure. Signal, not size. Hoisting does not change that count:
                 // the stopped-engine case is the one that emitted ZERO.
-                AudioConfiguration.latencyBreadcrumb(
-                    reason: "engine reconfigured",
-                    tuneStage: nil,
-                    // #666: a route change is exactly when a stage's latency could move, and
-                    // the gatherer returns [] on its own when monitoring is off — so this
-                    // asks rather than assuming, unlike `tuneStage`, which stays nil because
-                    // this line is not ABOUT the monitor chain.
-                    insertMilliseconds: self.monitorInsertLatencyMilliseconds)
+                // #666: a route change is exactly when a stage's latency could move, and the
+                // gatherer returns [] on its own when monitoring is off — so this ASKS rather
+                // than assuming, unlike `tuneStage`, which stays nil because this line is not
+                // ABOUT the monitor chain.
+                // ⛔ #667: KEEP `reason:` ON THIS LINE. #666 wrapped the call after the open
+                // paren, and two guards in `TheMeasuredLatencyReachesTheDiagLogTests` anchor on
+                // the substring `latencyBreadcrumb(reason: "engine reconfigured"` — which the
+                // wrap deleted. The compiler cannot see that; it was a silent runtime red on a
+                // correct tree, in the same commit that also broke three call sites the
+                // compiler COULD see. #656's law again: reshaping an anchored string is the
+                // same event as removing a surface.
+                AudioConfiguration.latencyBreadcrumb(reason: "engine reconfigured",
+                                                     tuneStage: nil,
+                                                     insertMilliseconds: self.monitorInsertLatencyMilliseconds)
                 // A healthy engine that simply re-mapped its output needs no restart —
                 // BUT the route may have switched the hardware sample rate (e.g. the
                 // rPPG camera activating mid-session drops it to 44.1 kHz). Re-install
