@@ -47,8 +47,26 @@ import SwiftUI
 struct AutomationStatusStrip: View {
     @Environment(AutomationPlayer.self) private var player
 
+    /// #640 — read ONLY to name the other self-moving source correctly, never to draw a value.
+    ///
+    /// ⚠️ WHAT THIS COSTS, measured rather than waved through, because this file's own header
+    /// says "it is a leaf is a reason to be safe, not a licence to be careless". `latestBio` is
+    /// written when a publisher publishes, and every wired publisher sends at ~1 Hz (CLAUDE.md
+    /// corrects the "10 Hz" reading: 10 Hz is the POLL, ~1 Hz is the applied rate, and each
+    /// consumer dedups on `frame.timestamp`). So this leaf re-renders about once a second, in
+    /// its OWN body — `soundPanel` and `EchoelStudioView.body` observe nothing new, which is
+    /// the whole reason the strip was a struct before this slice needed the read.
+    ///
+    /// ⚠️ `usableBio()` AND NOT `latestBio`, because the sentence says **right now**. A stale
+    /// frame past its source's freshness window is not driving anything, and naming a demo
+    /// source that stopped a minute ago would be a fresh false claim in the other direction.
+    /// `nil` therefore reads as "not synthetic" and the wording is unchanged — silence about a
+    /// source that is not arriving is correct here, unlike on a row that draws its number.
+    @Environment(EngineBus.self) private var bus
+
     var body: some View {
         let rows = statusRows
+        let synthetic = bus.usableBio()?.source.isSynthetic ?? false
         // NO HEADING HERE, DELIBERATELY. "Automation" is a section heading, and #362 unified
         // every one of them onto `EchoelStudioView.groupHeader` after finding three spellings
         // split by panel family — one of which asked for a weight the bundled font cannot
@@ -60,7 +78,7 @@ struct AutomationStatusStrip: View {
         VStack(alignment: .leading, spacing: 8) {
             enableRow
             if rows.isEmpty {
-                Text(AutomationStatus.emptySentence)
+                Text(AutomationStatus.emptySentence(synthetic: synthetic))
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             } else {

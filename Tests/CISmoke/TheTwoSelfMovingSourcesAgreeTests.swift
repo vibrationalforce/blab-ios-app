@@ -60,7 +60,7 @@ final class TheTwoSelfMovingSourcesAgreeTests: XCTestCase {
     /// The contradiction, driven rather than described. The body line names concrete row
     /// labels; the automation line must not make a blanket denial that covers them.
     func testTheEmptyAutomationLineDoesNotDenyTheBodyLine() {
-        let empty = AutomationStatus.emptySentence.lowercased()
+        let empty = AutomationStatus.emptySentence(synthetic: false).lowercased()
         let bodyRows = BioShapedParameter.shapedByTheBody.flatMap(\.soundPanelRows)
         XCTAssertFalse(bodyRows.isEmpty, """
             No parameter is reported as body-shaped, so this test has no contradiction left to \
@@ -89,7 +89,7 @@ final class TheTwoSelfMovingSourcesAgreeTests: XCTestCase {
     /// sound IS changing, and the strip that just told them nothing is automated is the last
     /// place they will look for why. The sentence has to name the other source.
     func testTheEmptyLineNamesTheOtherSelfMovingSource() {
-        let empty = AutomationStatus.emptySentence.lowercased()
+        let empty = AutomationStatus.emptySentence(synthetic: false).lowercased()
         XCTAssertTrue(empty.contains("body"), """
             The empty-automation line no longer names the body. With nothing recorded, the \
             always-on bio path is the ONLY other writer of these parameters — \
@@ -99,7 +99,7 @@ final class TheTwoSelfMovingSourcesAgreeTests: XCTestCase {
             self-moving source ever appears, this sentence becomes wrong again and this is the \
             assertion that should be widened rather than deleted.
             """)
-        XCTAssertFalse(AutomationStatus.emptySentence.isEmpty,
+        XCTAssertFalse(AutomationStatus.emptySentence(synthetic: false).isEmpty,
                        "an empty string would satisfy every negative assertion above")
     }
 
@@ -110,8 +110,13 @@ final class TheTwoSelfMovingSourcesAgreeTests: XCTestCase {
     /// is about a screen that no longer exists — so it goes red and says which half moved.
     func testBothLinesAreMountedOnTheSamePanel() throws {
         let body = try soundPanelBody()
-        XCTAssertTrue(body.contains("BioShapedParameter.soundPanelSentence"), """
-            `soundPanel` no longer renders the body-shaped line. If it moved to another \
+        // ⛔ RE-ANCHORED IN #640: the line is now mounted as `BodyShapesThisSoundLine()`, a
+        // leaf that reads bio in its own body so `soundPanel` stays a non-observer. The
+        // collision this file guards is between the two SENTENCES on one screen, so the mount
+        // is the right anchor — but a mount alone would not prove which sentence it draws, and
+        // `TheBodyShapedRowsAreNamedOnceTests` carries that second hop.
+        XCTAssertTrue(body.contains("BodyShapesThisSoundLine()"), """
+            `soundPanel` no longer mounts the body-shaped line. If it moved to another \
             surface, the contradiction this file guards moved with it — re-anchor here in the \
             same commit, or retire the file deliberately (#456).
             """)

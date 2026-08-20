@@ -179,9 +179,23 @@ public enum AutomationStatus {
     /// writer of these parameters today — `applyBioReactive` recomputes them per render block
     /// from their `bioBase*` anchors (#556). The day a third source appears, this sentence is
     /// wrong again and `TheTwoSelfMovingSourcesAgreeTests` is where that shows up.
-    public static let emptySentence =
+    ///
+    /// ⭐ #640 MADE THE SUBJECT AN ARGUMENT, and it is the same defect one level down from the
+    /// one this doc block already describes. The repaired second clause answers "why is this
+    /// moving?" with "your body" — and it says **right now**, which makes it a claim about the
+    /// current frame rather than about the wiring. While the DEMO generator drives, that clause
+    /// is false on the screen it ships on, in the same way the first version was false about
+    /// the panel it shipped on. The mechanism is unchanged (the demo feeds the same four
+    /// always-on channels through the same `bioBase*` anchors); only the subject is wrong.
+    ///
+    /// ⚠️ REQUIRED ARGUMENT, NO DEFAULT (#431/#440/#443) — a defaulted `synthetic: false` would
+    /// let the next surface that renders this line inherit the body claim without appearing in
+    /// any diff. The real-body string is byte-identical to what shipped before this slice.
+    public static func emptySentence(synthetic: Bool) -> String {
         "No automation recorded — nothing is replaying a curve. Anything moving on its own "
-        + "right now is your body, not automation."
+        + (synthetic ? "right now is the simulated demo source, not automation and not your body."
+                     : "right now is your body, not automation.")
+    }
 
     /// Describe every lane that has keyframes, in the order the player writes them.
     ///

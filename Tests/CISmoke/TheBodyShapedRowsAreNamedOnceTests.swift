@@ -127,7 +127,12 @@ final class TheBodyShapedRowsAreNamedOnceTests: XCTestCase {
     /// and a player would have gone looking for the one row on this panel the body does NOT
     /// move. Same class as #496: naming something the engine does not do.
     func testTheSentenceNamesEveryLiveRowAndNoDeadOne() {
-        let sentence = BioShapedParameter.soundPanelSentence
+        // #640 made the subject an argument. `false` is the ORDINARY path — a real measured
+        // body, or none arriving — and it is the path every assertion in this file was written
+        // about: the row NAMES must be identical in both variants, and only the demo variant's
+        // subject differs. The synthetic variant is guarded by
+        // `TheSoundPanelNamesItsActualDriverTests`, which also pins that the row list is shared.
+        let sentence = BioShapedParameter.soundPanelSentence(synthetic: false)
         for parameter in BioShapedParameter.shapedByTheBody {
             for row in parameter.soundPanelRows {
                 XCTAssertTrue(sentence.contains(row), """
@@ -182,11 +187,22 @@ final class TheBodyShapedRowsAreNamedOnceTests: XCTestCase {
 
     func testTheSoundPanelMountsTheLineAndStillReadsNoBio() throws {
         let code = try codeText(Self.studio)
-        XCTAssertTrue(code.contains("BioShapedParameter.soundPanelSentence"), """
-            Nothing in `\(Self.studio)` renders `BioShapedParameter.soundPanelSentence`. The \
-            rows on that panel are ANCHORS the body moves around, and without the line the \
-            panel presents them as final values — which is the misunderstanding #556's law is \
-            about, arriving at the player instead of at the next developer.
+        // ⛔ RE-ANCHORED IN #640, TWO HOPS INSTEAD OF ONE, and the second hop is why: the
+        // panel no longer names the sentence directly — it mounts `BodyShapesThisSoundLine`,
+        // which reads bio in its own body so the host stays a non-observer. Checking only for
+        // the mount would go green on a leaf that renders anything at all; checking only for
+        // the sentence would go red on the correct code. Both, or the chain is not proven.
+        XCTAssertTrue(code.contains("BodyShapesThisSoundLine()"), """
+            Nothing in `\(Self.studio)` mounts `BodyShapesThisSoundLine`. The rows on that \
+            panel are ANCHORS the body moves around, and without the line the panel presents \
+            them as final values — which is the misunderstanding #556's law is about, arriving \
+            at the player instead of at the next developer.
+            """)
+        let leaf = try codeText("Sources/Echoelmusic/Studio/BodyShapesThisSoundLine.swift")
+        XCTAssertTrue(leaf.contains("BioShapedParameter.soundPanelSentence("), """
+            `BodyShapesThisSoundLine` no longer renders `soundPanelSentence`. The mount above \
+            then proves only that SOMETHING is on the panel — re-anchor both hops in the same \
+            commit, or the assertion is green about a chain that no longer arrives.
             """)
         let body = try soundPanelBody()
         XCTAssertFalse(body.contains("latestBio"), """
@@ -194,9 +210,11 @@ final class TheBodyShapedRowsAreNamedOnceTests: XCTestCase {
             which `EchoelStudioView.body` evaluates PERMANENTLY, and that body hosts every \
             `.menu` Picker of the instrument — so this read makes the ROOT an observer of the \
             bio publisher and tears an open Picker down on every publish (10.76.41/50). \
-            `AnyView(...)` is not an observation boundary. The line this slice adds is built \
-            from a STATIC mapping precisely so it needs no read; the live values belong to \
-            `AlwaysOnBioPanelStrip`, which is its own `View` struct.
+            `AnyView(...)` is not an observation boundary. ⛔ THIS MESSAGE USED TO SAY the \
+            line "is built from a STATIC mapping precisely so it needs no read" — true until \
+            #640, which made the sentence name its driver and therefore needs one. The law did \
+            not move: the read went into `BodyShapesThisSoundLine`'s own body, so the host \
+            still observes nothing. Live VALUES remain `AlwaysOnBioPanelStrip`'s job.
             """)
     }
 

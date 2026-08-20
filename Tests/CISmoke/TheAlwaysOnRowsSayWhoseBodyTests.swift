@@ -90,13 +90,29 @@
 //     unreachable by rotor — ended "Currently N percent." with no prefix and filled its
 //     `liveBar` in full `EchoelTheme.accent`. #637 dims the number and the bar and prefixes
 //     the label; guard `Tests/CISmoke/TheMetricSheetRowsSayWhoseBodyTests.swift`.
-//   · **`AlwaysOnBioChannel.soundPanelSentence`: "Your body also shapes this sound…"** —
-//     possessive, second person, rendered in the Sound panel. Stronger than the `bioPanelSentence`
-//     the first version of this list named, and it was missing.
-//   · `bioPanelSentence`, `alwaysOnSentence` and `EchoelFXView.stopsArrivingNote` — the same
-//     noun ("body") in three more places. All four collapse into ONE edit by changing the
-//     noun rather than adding a condition; a condition here would put a live bio read into a
-//     property `EchoelStudioView.body` evaluates (the 10.76.41/50 freeze law).
+//   · ⭐ **`AlwaysOnBioChannel.soundPanelSentence`: "Your body also shapes this sound…"** —
+//     possessive, second person, rendered in the Sound panel. Stronger than the
+//     `bioPanelSentence` the first version of this list named, and it was missing.
+//     **CLOSED by #640**, together with `AutomationStatus.emptySentence` on the same panel —
+//     guard `Tests/CISmoke/TheSoundPanelNamesItsActualDriverTests.swift`.
+//   · `bioPanelSentence` and `alwaysOnSentence` — the same noun ("body") in two more places,
+//     both still open. ⛔ **THIS BULLET NAMED `EchoelFXView.stopsArrivingNote` AS A THIRD AND
+//     ITS STRING CONTAINS NO SUCH NOUN** ("When a channel stops arriving, its routes here
+//     release…"). Grep the FILE and you find one "body" — `var body: some View`, forty lines
+//     down and part of no sentence; grep the literal and you find none.
+//     The error travelled into two other registers verbatim; the count "four" was right and
+//     one of the four was the wrong file, which is worse than a wrong count because nothing
+//     ever contradicts it.
+//   · ⛔ **AND THE ADVICE ATTACHED HERE WAS AN IMPOSSIBILITY CLAIM THAT IS NOT TRUE.** It read:
+//     "All four collapse into ONE edit by changing the noun rather than adding a condition; a
+//     condition here would put a live bio read into a property `EchoelStudioView.body`
+//     evaluates (the 10.76.41/50 freeze law)." The premise holds for an INLINE condition; the
+//     conclusion assumed no leaf may exist — while this very panel already mounts
+//     `AutomationStatusStrip` and the panel next door mounts `AlwaysOnBioPanelStrip`, both
+//     reading live state in their own bodies for exactly this reason. #640 took the leaf route.
+//     What the discarded advice would have bought instead is worth naming: rewording the noun
+//     for EVERY player, so the instrument's identity line pays for the demo mode's honesty.
+//     A constraint recorded without its escape hatch reads as an impossibility.
 //   · Two `EchoelStudioView` captions ("your measured coherence…", "your inhale opens it") and
 //     `BodyTempoField`'s unconditional `.accessibilityLabel("Tempo, driven by your body")`.
 //   · ADM-OSC / Art-Net / sACN / the discrete events still carry no provenance (#462, second

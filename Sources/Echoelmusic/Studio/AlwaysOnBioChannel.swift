@@ -396,15 +396,28 @@ public enum BioShapedParameter: String, CaseIterable, Identifiable, Sendable {
     /// ⚠️ IT CLAIMS NO EFFECT SIZE. #497 measured two of these deviations at 25 % and 0.92 dB —
     /// loud enough to matter, small enough that a sentence is not a hearing test. "Move around"
     /// is the strongest verb the measurement supports.
-    public static var soundPanelSentence: String {
+    /// ⭐ #640 MADE THE SUBJECT AN ARGUMENT, and the argument is REQUIRED rather than defaulted
+    /// (#431/#440/#443: a defaulted parameter no call site writes appears in no diff, so the
+    /// next surface that renders this line would silently inherit the body claim). The demo
+    /// generator drives the same four channels through the same `applyBioReactive` anchors —
+    /// the MECHANISM is identical, so the second half of the sentence is unchanged. What is
+    /// false under the demo is only the SUBJECT: it is not your body doing it.
+    ///
+    /// ⚠️ THE REAL-BODY STRING IS BYTE-IDENTICAL to what shipped before this slice, and that is
+    /// deliberate: `TheBodyShapedRowsAreNamedOnceTests` pins the row names inside it character
+    /// for character, and the ordinary path must not pay for the demo path's honesty.
+    public static func soundPanelSentence(synthetic: Bool) -> String {
         let rows = shapedByTheBody.flatMap(\.soundPanelRows)
+        let subject = synthetic ? "The simulated demo source, not your body," : "Your body"
         let list: String
         switch rows.count {
-        case 0:  return "Your body is not shaping any control on this panel right now."
+        case 0:  return synthetic
+            ? "The simulated demo source is not shaping any control on this panel right now."
+            : "Your body is not shaping any control on this panel right now."
         case 1:  list = rows[0]
         default: list = rows.dropLast().joined(separator: ", ") + " and " + (rows.last ?? "")
         }
-        return "Your body also shapes this sound while a session runs: \(list) move around the "
+        return "\(subject) also shapes this sound while a session runs: \(list) move around the "
             + "values you set here. Open Bio to watch the four channels doing it."
     }
 }

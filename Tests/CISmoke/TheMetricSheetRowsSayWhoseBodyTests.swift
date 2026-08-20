@@ -127,11 +127,19 @@
 // audited table two directories away already said `case .hrv: return [.brightness]`. That is
 // why the new guard compares the two tables instead of adding a fifth careful comment.
 //
-// ⚠️ STILL OPEN in the provenance family after this slice: the four "body" sentences
-// (`AlwaysOnBioChannel.soundPanelSentence`, `bioPanelSentence`, `alwaysOnSentence`,
-// `EchoelFXView.stopsArrivingNote`), the two `EchoelStudioView` captions, `BodyTempoField`'s
-// unconditional "Tempo, driven by your body", and OSC / ADM-OSC / Art-Net / sACN (#462, second
-// half). `BioModContributionRow` is CLOSED (#635b) and `BioMetricsGuideView` is closed here —
+// ⚠️ STILL OPEN in the provenance family after this slice — corrected twice since, so read the
+// ticks rather than the original list: ⭐ `soundPanelSentence` is CLOSED (#640, together with
+// `AutomationStatus.emptySentence`, which this list never named and which says "right now");
+// ⭐ OSC is CLOSED (#639). Still open: `bioPanelSentence` and `alwaysOnSentence` (both say
+// "four body channels"), the two `EchoelStudioView` captions, `BodyTempoField`'s unconditional
+// "Tempo, driven by your body", and ADM-OSC / Art-Net / sACN / the discrete events (#462,
+// second half). ⛔ `EchoelFXView.stopsArrivingNote` STOOD IN THIS LIST AND DOES NOT BELONG:
+// its STRING reads "When a channel stops arriving, its routes here release…" and contains the
+// word "body" nowhere (the file does — `var body: some View` — which is exactly how a careless
+// grep would have "confirmed" the entry). It was carried into three registers as one of "the four body sentences"
+// without anyone grepping it — the count was right about four ITEMS and wrong about which,
+// and the item it displaced (`emptySentence`) is the strongest present-tense claim of the
+// set. `BioModContributionRow` is CLOSED (#635b) and `BioMetricsGuideView` is closed here —
 // both were listed as open in THREE guards, and all three are ticked off in this commit
 // (`TheAlwaysOnRowsSayWhoseBodyTests`, `TheGlanceSaysWhetherItIsABodyTests`,
 // `TheDemoSourceIsMarkedWhereItRendersTests`). ⛔ The first version of this line said "the two

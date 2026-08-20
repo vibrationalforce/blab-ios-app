@@ -6693,15 +6693,19 @@ struct EchoelStudioView: View {
             // ANCHORS, so the rows below are what the body moves AROUND, not final values.
             // That is the #556 law in the player's language, said once, where the numbers are.
             //
-            // A plain `Text` and NOT a leaf view, deliberately: the sentence is built from
-            // `AlwaysOnBioChannel`'s static mapping, which is a property of the ENGINE and not
-            // of any frame. Nothing here reads bio, so this body observes nothing new
-            // (10.76.41/50). The LIVE half — the four channels with their current values and
-            // whether they are still arriving — is the Bio panel's strip, which the sentence
-            // points at rather than duplicating (#416).
-            Text(BioShapedParameter.soundPanelSentence)
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
+            // ⛔ A PLAIN `Text` UNTIL #640, AND THE REASON GIVEN HERE WAS SOUND WHILE IT LASTED:
+            // the sentence came from `AlwaysOnBioChannel`'s static mapping — a property of the
+            // ENGINE, not of any frame — so nothing here read bio and this body observed
+            // nothing new (10.76.41/50). What changed is the sentence, not the law: it names a
+            // SUBJECT ("Your body"), and that subject is wrong while the demo generator drives.
+            // Naming it correctly needs one bio read, and `dropdownContent` is evaluated by
+            // `EchoelStudioView.body`, which hosts every `.menu` Picker — so the read went into
+            // its own `View` struct instead of into a condition here. `BodyShapesThisSoundLine`
+            // carries the whole argument; the ONE thing not to do is inline it back.
+            // The LIVE half — the four channels with their current values and whether they are
+            // still arriving — is still the Bio panel's strip, which the sentence points at
+            // rather than duplicating (#416).
+            BodyShapesThisSoundLine()
 
             // Every parameter is a scrubbable numeric value, one per row with its unit
             // shown after it (drag = fast/coarse or slow/fine to 0.0001; tap = type
