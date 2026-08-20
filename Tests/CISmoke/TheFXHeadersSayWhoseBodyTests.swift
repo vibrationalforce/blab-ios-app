@@ -382,6 +382,17 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
         let code = try codeText(Self.fxView)
         let live = try block(startingAt: "private struct BioModLiveView", in: code)
         let always = try block(startingAt: "private struct AlwaysOnBioView", in: code)
+        // ⚠️ WIDENED IN #643's REVIEW, AND THE REASON IS THAT SOMETHING ACTUALLY REACHED FOR IT.
+        // The needle was the spelling `bus.` alone — its own doc already called that NECESSARY,
+        // not sufficient. #643 needed a source flag in this view's footer and the obvious repair
+        // was `@Environment(EngineBus.self)` here; the fix went onto the modulator instead, so
+        // this never went red. Banning the declaration too makes the ban mean what it says.
+        XCTAssertFalse(squeezed(live).contains("@Environment(EngineBus.self)"), """
+            `BioModLiveView` declared its own `EngineBus` environment. Everything it renders \
+            comes from `modulator`, published on ONE throttled branch; a second, independent \
+            answer to "is this synthetic" is free to disagree with the rows beneath it, and this \
+            view hosts `.menu` Pickers (10.76.41/50). Publish the value on the modulator.
+            """)
         XCTAssertFalse(squeezed(live).contains("bus."), """
             `BioModLiveView` acquired a bus read. Its rows are drawn from \
             `modulator.liveContributions`; a header answering from a different source can \

@@ -68,6 +68,28 @@ public final class FXBioModulator {
     /// carried over from the #641 doc it was edited out of — true when the Bool was new, false
     /// for the enum that took its place.
     public private(set) var liveOrigin: LiveModOrigin = .noRoutes
+
+    /// The RAW source flag, published for the ALWAYS-ON note in the same sheet.
+    ///
+    /// ⛔ IT CAME BACK ONE COMMIT AFTER #642 REMOVED IT, and the reason is a mistake worth
+    /// keeping visible: #643's first cut wrote `frame?.source.isSynthetic` into the Live
+    /// section's FOOTER, having read a `sed` range that ended before the needle and concluded
+    /// the footer belonged to `AlwaysOnBioView` — where a `frame` really is bound. It belongs to
+    /// `BioModLiveView`, which binds none. That does not compile, and no guard could see it: the
+    /// only assertion over that line is a textual needle, which was present.
+    ///
+    /// ⚠️ AND THE OBVIOUS REPAIR — give `BioModLiveView` its own `bus` read — IS FORBIDDEN BY A
+    /// GUARD THIS FAMILY WROTE TWO COMMITS AGO, for a reason that still holds:
+    /// `TheFXHeadersSayWhoseBodyTests` claim 6a bans `bus.` in that struct, because a view whose
+    /// rows come from `modulator.liveContributions` must not grow a second, independent answer
+    /// to "is this synthetic" — and because it hosts `.menu` Pickers (10.76.41/50).
+    ///
+    /// ⭐ SO IT IS PUBLISHED HERE, from the SAME raw read `liveOrigin` uses, on the same throttled
+    /// branch. TWO properties and not one, deliberately: `liveOrigin` is conjoined with "is any
+    /// enabled route a bio route", which is exactly right for the LIVE heading and exactly wrong
+    /// for the always-on note — that path runs whether or not a single FX route exists. Two
+    /// questions, two answers (#416 read forwards).
+    public private(set) var sourceIsSynthetic = false
     @ObservationIgnored private var tickCount = 0
     /// 30 Hz tick / 3 ≈ 10 Hz UI refresh.
     @ObservationIgnored private static let publishEveryN = 3
@@ -168,6 +190,7 @@ public final class FXBioModulator {
         // in the stopped state — `BioModLiveView` renders the other branch, "Start a session to
         // watch the body move these parameters." The conclusion survives, the evidence did not.
         liveOrigin = .noRoutes
+        sourceIsSynthetic = false
         // Drop the fades too, so a later `start()` eases in from silence rather than
         // resuming a half-faded route. (Today the app never calls `stop()` — the driver
         // runs from launch to termination — so this is the correctness of the API, not
@@ -377,9 +400,9 @@ public final class FXBioModulator {
             // and deriving the heading through the freshness gate is exactly what made the two
             // headings contradict each other. The route arithmetic (enabled-only, bio-or-not)
             // lives in the pure function, which is what the guard exercises end to end.
-            let origin = FXModulation.liveOrigin(
-                routes: routes,
-                sourceIsSynthetic: bus?.latestBio?.source.isSynthetic ?? false)
+            let raw = bus?.latestBio?.source.isSynthetic ?? false
+            if raw != sourceIsSynthetic { sourceIsSynthetic = raw }
+            let origin = FXModulation.liveOrigin(routes: routes, sourceIsSynthetic: raw)
             if origin != liveOrigin { liveOrigin = origin }
         }
     }

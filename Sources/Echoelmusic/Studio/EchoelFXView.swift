@@ -1131,10 +1131,15 @@ private struct BioModLiveView: View {
     /// as it did — `Text(Self.alwaysOnNote(` is what `TheAlwaysOnBioPathIsNamedTests` anchors
     /// on, and that guard is re-anchored to the new home in the same commit (#456).
     ///
-    /// ⭐ #643 GAVE IT THE SOURCE FLAG, and the flag comes from the SAME `frame` the section's
-    /// header and every one of its rows already answer from — bound once at the top of
-    /// `AlwaysOnBioView.body`, raw. That is the #641 law applied to the third element of one
-    /// section: header, rows and footer may not each ask their own question.
+    /// ⭐ #643 GAVE IT THE SOURCE FLAG — `modulator.sourceIsSynthetic`, the RAW source read,
+    /// published on the same throttled branch as everything else this view observes.
+    ///
+    /// ⛔ THE FIRST CUT WROTE `frame?.source.isSynthetic` HERE AND DID NOT COMPILE. This footer
+    /// belongs to `BioModLiveView`, which binds no `frame`; the doc claimed it came from "the top
+    /// of `AlwaysOnBioView.body`" — a different struct, seventy lines down. The error came from
+    /// reading a `sed` range whose output did not contain the needle and treating the absence as
+    /// confirmation. Giving this view its own `bus` read would have been the other wrong repair:
+    /// `TheFXHeadersSayWhoseBodyTests` claim 6a bans it, and that ban is right.
     static func alwaysOnNote(synthetic: Bool) -> String {
         AlwaysOnBioChannel.alwaysOnSentence(synthetic: synthetic)
     }
@@ -1221,7 +1226,7 @@ private struct BioModLiveView: View {
             // it has to stay exactly the sentence that guard measures. `Text(Self.alwaysOnNote(`
             // is its needle and is kept verbatim (#456).
             VStack(alignment: .leading, spacing: 6) {
-                Text(Self.alwaysOnNote(synthetic: frame?.source.isSynthetic == true))
+                Text(Self.alwaysOnNote(synthetic: modulator.sourceIsSynthetic))
                 Text(Self.stopsArrivingNote)
             }
             .fixedSize(horizontal: false, vertical: true)

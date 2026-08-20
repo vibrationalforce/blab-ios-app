@@ -145,8 +145,10 @@ final class TheBioSourceChooserHasOneDefinitionTests: XCTestCase {
         // ⛔ THE RIGHT EDGE MOVED IN #643. It was `Text(AlwaysOnBioChannel.bioPanelSentence)`,
         // rendered by `bioPanel` itself; the sentence had to learn whose channels it names and
         // the flag for that must come from the same frame the rows use — a read `bioPanel` may
-        // not do (10.76.41/50) — so it moved into `AlwaysOnBioPanelStrip`, which renders at the
-        // same place on screen. The window this claim protects is unchanged in MEANING: the
+        // not do (10.76.41/50) — so it moved into `AlwaysOnBioPanelStrip`, which renders in the
+        // same POSITION in the panel (not pixel-identical: the strip spaces at 8, this VStack at
+        // 10, so the gap below the sentence tightens by two points). The window this claim
+        // protects is unchanged in MEANING: the
         // chooser sits between the caption that points at it and the always-on block below.
         for anchor in ["Choose your bio source below",
                        "\n            bioSourceRow\n",

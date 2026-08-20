@@ -3144,8 +3144,14 @@ struct EchoelStudioView: View {
             // whose channels it means (while the demo generator drives, "four body channels" is
             // false), and the flag has to be the SAME frame the rows under it answer from. This
             // body may not read live bio at all — the comment above says why — so the sentence
-            // moved to where the frame already is. That is one bio read FEWER in reach of this
-            // body, not one more, which is the only direction this file accepts.
+            // moved to where the frame already is. ⛔ AND THE FIRST DRAFT SOLD THAT AS "one bio
+            // read FEWER in reach of this body" — FALSE, and flattering in the direction this
+            // file is least allowed to be. What stood here before was `Text(AlwaysOnBioChannel
+            // .bioPanelSentence)`, a `static let` STRING: zero bio reads. The count went from
+            // zero to zero. The true statement is the counterfactual the rest of this paragraph
+            // already makes: reading the flag HERE would have been the FIRST bio read in this
+            // body. No guard can catch the difference — the one that watches this body asserts
+            // the absence of `latestBio`, and that was green before and is green after.
             AlwaysOnBioPanelStrip()
 
             BreathCoachStrip()

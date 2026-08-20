@@ -133,7 +133,37 @@
 // ⭐ OSC is CLOSED (#639). ⭐ `bioPanelSentence` and `alwaysOnSentence` — the two that said
 // "four body channels" — are CLOSED (#643): one conditional subject each, the flag taken from
 // the same raw frame their own rows use, and the Bio panel's copy moved into
-// `AlwaysOnBioPanelStrip` so that flag never has to be read in a root body. Still open: the two
+// `AlwaysOnBioPanelStrip` so that flag never has to be read in a root body.
+// ⛔ **AND #643's REVIEW FOUND SIX ENTRIES THIS REGISTER NEVER HELD** — measured, each with a
+// mount, not guessed. They are listed here because a register short by an entry is the failure
+// mode this whole file exists to document, and it has now happened four times:
+//   · `EchoelStudioView.swift` `Text("What your body is doing to the sound")` — renders while
+//     RUNNING, and heads a paragraph that under demo literally begins "EchoelAI (demo signal) —".
+//     Header asserts a body over a paragraph that denies it: the #640/#641 collision on a third
+//     surface, and the most-read of the three. Its `.accessibilityHint` says the same thing.
+//   · `EchoelStudioView.swift` `"Ideas from your pulse — tap to keep. Your body wants …"` — the
+//     density traces `bus.usableBio()`, so under the demo this attributes a PREFERENCE to the
+//     reader that no body expressed. The strongest possessive claim anywhere in this family.
+//     Its sibling ("your body curates, you pick") is capability copy — triage low, not zero.
+//   · `BioMetricInfo.swift` `Text("What your body is showing")` — the TOP heading of the very
+//     sheet #637 marked. A second header 54 lines down IS qualified. One sheet, one marked
+//     header and one unmarked, which is worse than neither.
+//   · `EchoelStudioView.swift` `.accessibilityHint("Sounds a held tone whose colour follows your
+//     body")` — sibling of a caption this register DOES name, but a distinct string. The
+//     #632/#627b pattern exactly: the register held the visible half and not the spoken one.
+// ⛔ **AND TWO SENTENCES ABOUT THE SAME MECHANISM NOW TAKE DIFFERENT FRESHNESS GATES.** The Bio
+// panel's reads `bus.latestBio` RAW (#643); the Sound panel's `BodyShapesThisSoundLine` reads
+// `bus.usableBio()` (#640). Both describe the ALWAYS-ON timbre path, which polls raw — so the
+// raw one is right and #640's is the one to move. Not moved here: the Sound panel's other
+// sentence (`AutomationStatus.emptySentence`) shares that gate, and `TheSoundPanelNames
+// ItsActualDriverTests` claim 8 pins the spelling for same-screen consistency. Changing one
+// without the other trades a cross-screen disagreement for a same-screen one. Own slice.
+// ⚠️ AND A NIL FRAME RENDERS THE BODY BRANCH: `frame?.source.isSynthetic == true` collapses
+// "nothing is arriving" into "a real body". The ROW answers "—" in that state on purpose; the
+// sentence prints a positive claim. It survives only because the sentence says "while a session
+// runs", which is weaker than the doc's own premise that this is a present-tense claim. A third
+// wording is the fix and it is a decision, not a typo.
+// Still open, from the original list: the two
 // `EchoelStudioView` captions, `BodyTempoField`'s unconditional
 // "Tempo, driven by your body", and ADM-OSC / Art-Net / sACN / the discrete events (#462,
 // second half). ⭐ The THREE `EchoelFXView` strings that no register held until #640's review

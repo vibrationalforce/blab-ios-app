@@ -117,7 +117,7 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// new call site render the body claim over a demo session without appearing in any diff.
     public static func alwaysOnSentence(synthetic: Bool) -> String {
         "Separately from these routes, "
-        + (synthetic ? "four channels from the simulated demo source — not your body — shape "
+        + (synthetic ? "four channels from the simulated demo source, not your body, shape "
                      : "four body channels shape ")
         + "the instrument's own timbre while a session runs: coherence, HRV, heart rate and "
         + "breath phase. Routes here add effect parameters on top."
@@ -136,11 +136,11 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// ⭐ #643 gave it the same conditional subject as its sibling, for the same reason and
     /// from the same flag. See `alwaysOnSentence` — the argument is there, once.
     public static func bioPanelSentence(synthetic: Bool) -> String {
-        (synthetic ? "Four channels from the simulated demo source — not your body — shape "
+        (synthetic ? "Four channels from the simulated demo source, not your body, shape "
                    : "Four body channels shape ")
         + "the instrument's own timbre while a session runs: coherence, HRV, heart rate and "
-        + "breath phase. To watch them move — and to add your own routes onto effect "
-        + "parameters — open Effects › All parameters."
+        + "breath phase — the four rows below. To add your own routes onto effect parameters, "
+        + "open Effects › All parameters."
     }
 
     /// What this channel moves in the engine, in the channel row's own reading order.

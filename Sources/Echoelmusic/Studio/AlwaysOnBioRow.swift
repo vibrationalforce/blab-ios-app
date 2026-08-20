@@ -218,8 +218,9 @@ struct AlwaysOnBioRow: View {
 /// twice retracted). It was a `Text` in `EchoelStudioView.bioPanel`, a body that must not read
 /// live bio at all (10.76.41/50): giving it the flag there would have put a bio read in the
 /// root. Here the frame is already bound, one line up, for the rows. So the sentence and its
-/// rows are ONE read by construction — no new leaf, no new observation, one read fewer in the
-/// panel body than before.
+/// rows are ONE read by construction — no new leaf and no new observation. ⛔ NOT "one read
+/// fewer in the panel body": what moved was a `static let` String, so that body went from zero
+/// bio reads to zero. The gain is that the flag never had to be read there at all.
 @MainActor
 struct AlwaysOnBioPanelStrip: View {
     @Environment(EngineBus.self) private var bus

@@ -100,8 +100,9 @@
 //     from the RAW frame their own rows answer from. The Bio panel's sentence MOVED one level
 //     down into `AlwaysOnBioPanelStrip` to get it: `bioPanel` is a body that may not read live
 //     bio (10.76.41/50), and the strip already binds that frame for the rows — so the claim and
-//     the numbers under it are now one read by construction, and the panel body holds one bio
-//     read fewer than before, not one more. Guard: claims 6a/6b of this file.
+//     the numbers under it are now one read by construction. ⛔ NOT "one bio read fewer in the
+//     panel body" — the string that moved was a `static let`, so that body went zero → zero. The
+//     gain is that the flag never had to be read there. Guard: claim 6 of this file.
 //     ⛔ **THIS BULLET NAMED `EchoelFXView.stopsArrivingNote` AS A THIRD AND
 //     ITS STRING CONTAINS NO SUCH NOUN** ("When a channel stops arriving, its routes here
 //     release…"). The error travelled into two other registers verbatim; the count "four" was

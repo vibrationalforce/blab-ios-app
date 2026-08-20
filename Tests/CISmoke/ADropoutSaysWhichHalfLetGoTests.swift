@@ -232,14 +232,6 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
     }
 
-    /// The concatenated contents of the `"…"` literals that make up a multi-line `static let`.
-    ///
-    /// ⚠️ ITS HONEST LIMIT: it walks forward from the anchor line and stops at the first line
-    /// that is neither the anchor nor a continuation (a trimmed line starting with `"` or `+`).
-    /// `SourceText.codeOnly` blanks comment lines while PRESERVING line count, so a doc comment
-    /// cannot be swept in — but a blank line inserted mid-constant WOULD truncate the value, and
-    /// the scans above would then fail on correct code. That is the intended direction: a
-    /// truncated read makes a positive assertion red, never a negative one green.
     /// What counts as a continuation of a multi-line string expression.
     ///
     /// ⛔ IT WAS `"` AND `+` ONLY, AND #643 WOULD HAVE TRUNCATED THE VALUE SILENTLY. The
@@ -249,8 +241,24 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
     /// still false, so nothing goes red, while every negative assertion below silently stops
     /// covering the half of the sentence it was written for. That is the #454 failure mode in
     /// its quietest form — not a guard that fails, a guard that shrinks.
-    private static let continuationPrefixes = ["\"", "+", "?", ":", "(", ")"]
+    ///
+    /// ⛔ AND THE FIRST FIX ADDED `(` AND `)` TOO, WHICH BREAKS THE TERMINATOR IN THE OTHER
+    /// DIRECTION. This array is shared by all four call sites, and `)` is how a multi-line CALL
+    /// ends — so the walk would continue past a declaration that closes on `)` and absorb the
+    /// next one's literals. An OVER-read is the worse direction: a truncated read only makes a
+    /// positive assertion red, an over-read can make a negative one red on correct code or bury
+    /// a real needle. Neither is needed — the two sentences this exists for open with `"` and
+    /// continue with `+`, `?`, `:`.
+    private static let continuationPrefixes = ["\"", "+", "?", ":"]
 
+    /// The concatenated contents of the `"…"` literals of a multi-line declaration.
+    ///
+    /// ⚠️ ITS HONEST LIMIT: it walks forward from the anchor line and stops at the first line
+    /// that is neither the anchor nor a continuation (see `continuationPrefixes`).
+    /// `SourceText.codeOnly` blanks comment lines while PRESERVING line count, so a doc comment
+    /// cannot be swept in — but a blank line inserted mid-declaration WOULD truncate the value,
+    /// and the scans above would then fail on correct code. That is the intended direction: a
+    /// truncated read makes a positive assertion red, never a negative one green.
     private func literalValue(of anchor: String, in relativePath: String) throws -> String {
         let text = try source(relativePath)
         let hits = text.components(separatedBy: anchor).count - 1
@@ -266,7 +274,7 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if !started {
                 if line.contains(anchor) { started = true } else { continue }
-            } else if !Self.continuationPrefixes.contains(where: trimmed.hasPrefix) {
+            } else if !Self.continuationPrefixes.contains(where: { trimmed.hasPrefix($0) }) {
                 break
             }
             // Every `"…"` on this line, concatenated in order.

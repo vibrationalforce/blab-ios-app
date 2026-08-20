@@ -185,7 +185,13 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
             "your body then drives the sound" one line above; without this it names nothing, \
             and the only place that does is two chips away behind Effects › All parameters.
             """)
-        let strip = try source(Self.row)
+        // ⚠️ DECLARATION-SCOPED, NOT FILE-SCOPED. The first draft scanned the whole file — and
+        // that file declares TWO views, the second of which renders four times per panel. The
+        // sentence moved into `AlwaysOnBioRow` would have printed four times and kept a
+        // file-scoped needle green (and `TheAlwaysOnRowsReachTheBioPanelTests` claim 3 too, which
+        // never mentions the sentence). The assertion this replaced was declaration-scoped; a
+        // re-anchor may not quietly widen what it covers (#408).
+        let strip = try declarationBody(of: "struct AlwaysOnBioPanelStrip: View", in: Self.row)
         XCTAssertTrue(strip.contains("Text(AlwaysOnBioChannel.bioPanelSentence("), """
             `AlwaysOnBioPanelStrip` no longer renders the sentence it took over in #643. If it \
             went back to `bioPanel`, the flag it needs would be a live bio read in a body that \
@@ -421,6 +427,11 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
     /// is unsound by construction" lesson as #408. Brace matching has no such edge; the honest
     /// limit the old form documented (a blank line mid-constant truncates the value) is gone
     /// with it, and `SourceText.codeOnly` still keeps doc comments out.
+    ///
+    /// ⚠️ ITS OWN HONEST LIMIT, restored because the rewrite dropped one rather than replacing
+    /// it: the `inside`/`escaped` pair models `\"` but NOT string interpolation, so a `\(…)`
+    /// containing a quote would desynchronise it. Neither sentence interpolates today, and both
+    /// are user-facing copy that has no reason to.
     private func literal(named: String, in relativePath: String) throws -> String {
         let text = try source(relativePath)
         let anchor = "static func \(named)"
