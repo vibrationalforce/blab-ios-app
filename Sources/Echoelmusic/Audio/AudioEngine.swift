@@ -656,6 +656,42 @@ public final class AudioEngine {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
+                // #653 — an engine reconfigure is the only event that changes the granted
+                // buffer and the hardware latencies without any user action, and it is
+                // exactly the moment a founder plugs in an interface or connects a Bluetooth
+                // headset. Without a line here the log would carry figures measured on a
+                // configuration that is no longer live.
+                //
+                // ⛔ #654 CORRECTED THE REASON STRING. It said "route change", but this
+                // observer's own doc above lists THREE causes — BT connect/disconnect, a
+                // hardware sample-rate switch, and a media-services rebuild — and the
+                // notification does not say which. Logging the rebuild (the one that
+                // invalidates every tap and is the hardest failure to diagnose) as a route
+                // change was the one lie that string could tell.
+                //
+                // ⛔ #657 MOVED IT HERE, OUT OF THE `isRunning` BRANCH, and the defect it
+                // fixes is the one the first sentence above CLAIMS to prevent. Gated on a
+                // running engine, a headset connected while the engine is STOPPED took the
+                // `recoverEngine` path and emitted nothing — and `prepareGraph` is once-only
+                // (`guard !graphPrepared`), so the log's ONLY latency line would describe a
+                // configuration that is genuinely no longer live. Exactly the failure the
+                // comment promised to close, left open by where the call sat. The handler is
+                // entered for every configuration change; only the BRANCH depends on
+                // `isRunning`, so one hoist covers both.
+                //
+                // ⚠️ #654 also retracted "route changes are rare, so this cannot flood the
+                // file" — an assertion, not a measurement, and it ignored the app's OWN
+                // category mutations, which post configuration changes too. Connecting a
+                // headset while monitoring runs takes the running branch, then
+                // `rearmInputMonitoring` toggles the category twice, each posting another
+                // change: realistically 3–6 lines per physical connect. It CONVERGES (the
+                // rearm re-captures the tap rate, so the follow-ups find rate equality) and
+                // ~120 bytes a line is nothing for the file — the honest cost is that the
+                // burst interleaves with the `monitor:` lines #650 put there to diagnose
+                // monitoring failure. Signal, not size. Hoisting does not change that count:
+                // the stopped-engine case is the one that emitted ZERO.
+                AudioConfiguration.latencyBreadcrumb(reason: "engine reconfigured",
+                                                     tuneStage: nil)
                 // A healthy engine that simply re-mapped its output needs no restart —
                 // BUT the route may have switched the hardware sample rate (e.g. the
                 // rPPG camera activating mid-session drops it to 44.1 kHz). Re-install
@@ -683,30 +719,6 @@ public final class AudioEngine {
                     // switch. Re-read the one, forget the baseline for the other (#193).
                     self.refreshRenderQuantum(fallbackSampleRate: self.sampleRate)
                     self.armTimingInstrument()
-                    // #653 — an engine reconfigure is the only event that changes the
-                    // granted buffer and the hardware latencies without any user action, and
-                    // it is exactly the moment a founder plugs in an interface or connects a
-                    // Bluetooth headset. Without a line here the log would carry figures
-                    // measured on a configuration that is no longer live.
-                    //
-                    // ⛔ #654 CORRECTS BOTH HALVES OF WHAT #653 WROTE HERE. (a) The reason
-                    // said "route change", but this observer's own doc twelve lines up lists
-                    // THREE causes — BT connect/disconnect, a hardware sample-rate switch,
-                    // and a media-services rebuild — and the notification does not say which.
-                    // Logging the rebuild (the one that invalidates every tap and is the
-                    // hardest failure to diagnose) as a route change is the one lie the
-                    // reason string could tell. (b) It asserted "route changes are rare, so
-                    // this cannot flood the file" — an assertion, not a measurement, and it
-                    // ignored the app's OWN category mutations, which post configuration
-                    // changes too. Connecting a headset while monitoring runs takes this
-                    // branch, then `rearmInputMonitoring` toggles the category twice, each
-                    // posting another change: realistically 3–6 lines per physical connect.
-                    // It CONVERGES (the rearm re-captures the tap rate, so the follow-ups
-                    // find rate equality) and ~120 bytes a line is nothing for the file — but
-                    // the burst interleaves with the `monitor:` lines #650 put there to
-                    // diagnose monitoring failure, so the honest cost is signal, not size.
-                    AudioConfiguration.latencyBreadcrumb(reason: "engine reconfigured",
-                                                         tuneStage: nil)
                     // #612 (mic-sweep CRITICAL, the rate half): `monitorTapSampleRate` is
                     // captured ONCE at tap install; after a 44.1↔48 route switch the
                     // notch maths sat up to ~9 % off and (since #599) YIN divided by the

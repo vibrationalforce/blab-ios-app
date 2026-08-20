@@ -78,6 +78,21 @@
 // label, which is narrower than any prose quoting the bare name — the third consecutive
 // measurement of that, and the reason the prediction is written after the run.
 //
+// ⭐ #657 ADDED CLAIM 7 AND CLOSED THE ITEM #655 REGISTERED RATHER THAN FIXED. The
+// `engine reconfigured` call sat inside the observer's `if self.masterEngine.isRunning {`
+// branch, which left open the exact failure its own comment promised to close: a headset
+// connected while the engine is STOPPED took the `recoverEngine` path and emitted nothing,
+// and `prepareGraph` is once-only, so the log's only latency line would then describe a
+// configuration that is no longer live. The handler is entered for every configuration
+// change; only the BRANCH depends on `isRunning`. One hoist.
+//
+// GRADING for #657, DRIVEN against the parent (4d8b477), both trees, raw and stripped:
+// **12 scan verdicts: 1 REGRESSION, 11 COUNTERWEIGHTS.** The single regression is claim 7c
+// (the call now precedes the gate); 7a and 7b — the two uniqueness assertions the ordering
+// rests on — are green on both trees by design, which is what makes 7c mean anything. The
+// four behavioural claims are unchanged and unaffected by this slice. Stripper again
+// **PROPHYLAKTISCH — 0 of 24**.
+//
 // ⚠️ #364: emitting the line from MORE places (a take starting, an export, an interface
 // swap) is expected and must never redden claim 2, which is why it is a floor. What is
 // forbidden silently is routing this measurement back into a sink the founder cannot export,
@@ -376,6 +391,53 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
             `floor=` deliberately excludes the node's own delay, so this field is the only \
             thing telling a founder that the figure is missing a phase vocoder. Got: \(args)
             """)
+    }
+
+    /// 7 — #657. The reconfigure line must fire whether or not the engine is RUNNING.
+    ///
+    /// #653 put this call inside the observer's `if self.masterEngine.isRunning {` branch,
+    /// which left open the exact failure its own comment promised to close: a headset
+    /// connected while the engine is STOPPED takes the `recoverEngine` path and emits
+    /// nothing — and `prepareGraph` is once-only (`guard !graphPrepared`), so the log's ONLY
+    /// latency line would then describe a configuration that is genuinely no longer live.
+    /// The handler is entered for every configuration change; only the BRANCH depends on
+    /// `isRunning`, so the call belongs above it.
+    func testTheReconfigureLineIsNotGatedOnARunningEngine() throws {
+        let code = try Self.codeText(Self.engine)
+        guard let watchdog = Self.body(of: "private func registerConfigurationChangeWatchdog",
+                                       in: code) else {
+            return XCTFail("""
+                `registerConfigurationChangeWatchdog` is no longer uniquely declared — \
+                re-anchor claim 7 (#454). An extraction that returns nothing would make the \
+                ordering assertion below vacuously green.
+                """)
+        }
+        let call = "latencyBreadcrumb(reason: \"engine reconfigured\""
+        let gate = "if self.masterEngine.isRunning {"
+        // Uniqueness first, because `range(of:)` silently takes the FIRST match and the
+        // ordering claim would then describe a pair nobody chose (#408).
+        XCTAssertEqual(Self.count(of: call, in: watchdog), 1, """
+            The reconfigure latency call no longer occurs exactly once in the watchdog — \
+            re-anchor (#408) rather than accepting the first match.
+            """)
+        XCTAssertEqual(Self.count(of: gate, in: watchdog), 1, """
+            The `isRunning` branch is no longer a single anchor in the watchdog — re-anchor \
+            (#408).
+            """)
+        guard let callAt = watchdog.range(of: call), let gateAt = watchdog.range(of: gate) else {
+            return XCTFail("watchdog anchors vanished between the count and the search (#454).")
+        }
+        XCTAssertTrue(callAt.lowerBound < gateAt.lowerBound, """
+            The reconfigure latency line sits INSIDE (or after) the `isRunning` branch again. \
+            A headset connected while the engine is stopped then emits no line at all, and \
+            since `prepareGraph` runs once per launch the log's only latency figure would \
+            describe a configuration that is no longer live — which is precisely what the \
+            comment above the call claims to prevent. Put it above the branch.
+            """)
+        // ⚠️ WHAT THIS DOES NOT PROVE: textual position, not control flow. A `guard … else
+        // { return }` inserted between the handler's entry and this call would still pass.
+        // The real guarantee is that the two statements sit in one straight-line prologue,
+        // which a human read (#655, same disclaimer as claim 5).
     }
 
     // MARK: - helpers
