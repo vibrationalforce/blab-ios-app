@@ -89,6 +89,46 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 | v10.79.195 | Immersive Stage — Touch room-map, each track a draggable spatial object (SpatialSceneStore + ImmersiveStageMath + ImmersiveStageView) | green |
 | v10.79.194 | Multi-Roll (tracks play simultaneously) + per-track Record (arm→play→capture MIDI/bio→Clip+region) | green |
 
+## OBSERVATION (2026-08-20, #638-Zyklus): ein `failed` OHNE Zusicherungstext ist KEIN Befund über den Test
+
+**Was gesehen wurde.** Im CI/CD-Lauf von `9185b6a` (Job 96217411688) steht
+`Test case 'TheAutomatableSetHasOneWriterTests.testBrightnessIsAutomatableOnlyWhileItsSentinelIsOutOfRange()'
+failed on 'Clone 2 …' (31.849 seconds)` — bei 171 `passed` und diesem einen `failed`. Die fünf
+Geschwister derselben Klasse laufen auf DEMSELBEN Clone durch.
+
+**Was gemessen wurde, bevor irgendetwas angefasst wurde.** Alle drei Zusicherungen dieses Tests
+transkribiert gegen den Baum, auf dem er lief (`9185b6a`) UND gegen HEAD:
+`"bioBaseBrightness > 0"` kommt in `EchoelDDSP.swift` **null** Mal vor (roh wie kommentar-frei),
+`public var bioBaseBrightness: Float = -1` steht da, und `ddsp.osc.brightness`s Deskriptor-min
+ist 0. **Drei von drei grün.** Die Vorbedingung greift ebenfalls nicht (`automatableBases`
+enthält den Pfad, also kein früher `return`).
+
+**Also ist der `failed` keine Aussage über den Test.** Der Job-Log enthält **null** `XCTAssert`-
+Text, **null** `error:`-Zeile mit einer Repo-Datei, und die Dauer von 31,8 s ist für einen Test
+absurd, dessen ganze Arbeit ein Datei-Read und drei Werte-Vergleiche sind (die Geschwister
+brauchen Bruchteile einer Sekunde). Das ist die Signatur einer ABGEBROCHENEN Ausführung, nicht
+einer fehlgeschlagenen Behauptung.
+
+**Was daraus NICHT folgt, und das ist der eigentliche Eintrag.** Es folgt nicht „der Test ist
+kaputt" und ebenso wenig „alles in Ordnung". Der Log kann die Frage nicht beantworten, und
+#445 verbietet, die Antwort aus einem weiteren Lauf zu holen: der überlebende Clone leert eine
+NICHT-deterministische Teilmenge, also ist „kommt nicht mehr vor" kein Beleg. In den beiden
+Folgeläufen (`64caba2`, `14ae51a`) taucht die Klasse gar nicht auf — was nichts heißt.
+
+**Richtige Reaktion, und sie ist billiger als jede Reparatur:** NICHT den grünen Test
+umschreiben. Ein `failed` ohne Zusicherungstext wird notiert und beobachtet. Wer ihn „fixt",
+ändert korrekten Code auf Verdacht — genau die Klasse Fehler, die dieses Repo bei #396
+dreimal bezahlt hat, als eine rote Conclusion für einen Befund gehalten wurde.
+
+**Diskriminator für den nächsten Treffer** (in dieser Reihenfolge, alles aus dem Job-Log):
+1. Steht ein `XCTAssert…`-Text oder eine `…:NN: error:`-Zeile mit einer Repo-Datei dabei?
+   Ja → echter Befund, normal behandeln. Nein → weiter.
+2. Transkribiere JEDE Zusicherung des Tests gegen den Baum, auf dem er lief (`git show <sha>:…`).
+   Alle grün → der Test hat nicht behauptet, was der Verdikt suggeriert.
+3. Ist die Dauer um Größenordnungen höher als bei seinen Geschwistern? Dann Abbruch, nicht
+   Fehlschlag.
+Erst wenn 1–3 nichts erklären, ist es einen Zyklus wert.
+
 ## PLAYBOOK (2026-07-18 A7 Audio-Clip-Launch)
 - **PLAYBOOK: Song-Wrap-Re-Trigger im GEFALTETEN Frame — der Audio-Twin zu `ClipLaunchEngine.shift`+`tick`.** Wenn eine loopende Override-/Launch-Schicht auf demselben Transport-Tick reitet und der Song am Ende wrappt: NICHT versuchen, den Boundary-koinzidenten Re-Trigger per Sonderfall-Phasenlogik zu erkennen. Stattdessen (1) den Anker mit `-loopTicks` falten (`shift`), (2) die Schicht über den Wrap im GLEICHEN gefalteten Fenster `(lastTick−loopTicks, newTick)` fahren. Dann sind `a=from−since` und `b=to−since` invariant unter dem Fold → `loopWrapped` entscheidet identisch, als wäre die Zeit kontinuierlich über das Song-Ende geflossen (koinzidente Boundary → Re-Fire, überspannendes Segment → bleibt spielen). FALLE: der Wrap-Step wird von `prime` bedient (nicht `apply`); wenn `prime` overridete Lanes überspringt, landet die koinzidente Boundary auf der from-EDGE des nächsten `apply`-Fensters, das `loopWrapped` (halboffen links) NICHT zählt → ein stiller Takt pro Loop. Getrennter Wrap-Pfad nötig.
 - **PLAYBOOK: Reviewer-„false confidence"-Lücke = Test trifft nicht den echten Dispatch.** Ein Test, der die PRIMITIVE (`apply`/`shift`) direkt aufruft, kann grün sein, während der ECHTE Pfad (transportStep→`prime` bei Wrap) den Bug hat. Bei jedem „Timing/Dispatch"-Fix einen Test auf dem ECHTEN Eintrittspunkt (transportStep über den Wrap) schreiben, nicht nur die Hilfsfunktion. Der audio-thread-reviewer benannte genau diese Lücke — Reviewer-Findings zu Testabdeckung ernst nehmen, nicht nur zu Code.

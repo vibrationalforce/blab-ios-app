@@ -1,4 +1,4 @@
-build: v10.79.411 — Jede Bio-Zahl sagt jetzt, ob sie von Deinem Körper kommt
+build: v10.79.412 — Die Erklärungen sagen jetzt, was wirklich klingt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -7,57 +7,106 @@ notes: |
   Seit 10.79.411 ist diese Regel kein Prosa-Hinweis mehr, sondern ein Wächter im
   blockierenden Bundle (`TheShippedVersionComesFromTheReleaseFileTests`, #635).
 
-  Der Vorgänger ist 10.79.410 (2527). Dieser Build bündelt ELF Scheiben —
-  #627/#627b, #629/#629b, #632/#632b, #634/#634b (Herkunfts-Ehrlichkeit), #633
-  (App-Store-Schutz) und #635 (Deploy-Loop).
+  Der Vorgänger ist 10.79.411. Dieser Build bündelt VIER Scheiben — #635b, #636,
+  #637 (Herkunfts-Ehrlichkeit) und #638 (Abbildungs-Ehrlichkeit).
 
   ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  · **Der rote Faden dieses Builds: eine Zahl, die nicht von Dir kommt, darf sich
-    nicht so anfühlen, als käme sie von Dir.** Wenn die Demo-Quelle läuft, steht
-    jetzt auf JEDER Fläche, die einen Puls- oder Atemwert zeigt, ein kleines
-    „Demo": Bio-Streifen, Puls-Pille in der Kopfzeile, die Always-on-Kanalzeilen,
-    die Live-Colabo-Zeilen (und im Daten-Paket an Mitspieler), das
-    Home-Screen-Widget und die Uhr. Auch VoiceOver sagt es an, nicht nur die
-    Optik: die Ansage beginnt dann mit „Simulated demo, …".
-  · **Und die EchoelAI-Erklärzeile hört auf, Dir Deinen Körper zuzuschreiben.**
-    Sie schrieb bisher auch bei laufender Demo „from your live signal". Jetzt
-    heißt es „EchoelAI (demo signal) — … from the demo signal, …" und bei echtem
-    Sensor unverändert „from your live signal".
-  · **Ein Knopf im Auslieferungs-Pfad konnte alle Store-Screenshots löschen.**
-    `fastlane deliver` war so eingestellt, dass es zuerst jeden lebenden
-    App-Store-Screenshot entfernt und dann das hochlädt, was im Repo liegt — und
-    dort liegt genau nichts. Entschärft, mit Wächter. Das war die einzige
-    unumkehrbare Aktion im ganzen Einreichungs-Weg.
-  · **Deploy-Loop vermessen und abgesichert.** Der Weg „Version-Datei anfassen →
-    Build auf Deinem Telefon" dauert gemessen 12:47. Wo die Zeit hingeht und was
-    sie billiger machen würde, steht mit Zahlen in
-    `scratchpads/PLAN_TESTFLIGHT_LOOP_2026-08-19.md`. Fünf der sieben Vorschläge
-    liegen in Dateien, die ich nicht anfassen darf — die brauchen Deine Freigabe,
-    sie stehen dort sortiert. Gebaut ist die Hälfte in meiner Spur: ein Wächter
-    gegen den einzigen STILLEN Fehler des Loops (grüner Lauf, grüner Upload,
-    falsche Versionsnummer im App-Kopf).
+  · **Die Herkunfts-Markierung erreicht jetzt JEDE Fläche, die eine Bio-Zahl
+    zeichnet.** 10.79.411 hat sie fast überall eingeführt und in seinen eigenen
+    Notizen ehrlich gesagt, welche zwei fehlten. Beide sind jetzt dran:
+      · **FX-Beitragszeile** (#635b): im „All parameters"-Blatt zeigt jede
+        Bio-Route, wie weit sie ihren Parameter gerade zieht. Läuft die
+        Demo-Quelle, steht dort ein „Demo", der Balken ist gedämpft, und
+        VoiceOver sagt „Simulated demo, " vor dem Satz.
+      · **Metrik-Ansicht** (#637): der Abschnitt „How your body shapes the sound"
+        trug die Markierung nur in seiner ÜBERSCHRIFT. Jede Zeile darunter
+        zeichnete weiter eine volle Zahl, einen vollen Balken und sprach
+        „Currently 62 percent" ohne Herkunft. Jede Zeile ist ein eigenes
+        VoiceOver-Element — wer sie der Reihe nach abhört, kam an der Überschrift
+        NIE vorbei. Jetzt trägt jede Zeile ihre eigene Markierung.
+    ⚠ „Fläche" heißt Fläche, nicht „fertig". Für ein SEHENDES Auge ist die
+    Markierung in diesen Zeilen nur FARBE (gedämpft statt Akzent) — das einzige
+    Wort steht in der Abschnitts-Überschrift, und die scrollt weg, während die
+    Zeilen stehen bleiben. Ein „Demo"-Schildchen pro Zeile wäre stärker; es
+    ändert das Zeilen-Layout und ist deshalb bewusst nicht in diesem Build.
 
-  ── BITTE AM GERÄT PRÜFEN ─────────────────────────────────────────────────
+  · **Das Widget gibt ein altes Bild nicht mehr als aktuelles aus** (#636). Es
+    zeigte den letzten bekannten Wert, ohne zu sagen, wie alt er ist. Ab 90
+    Sekunden steht jetzt „Last session" daneben (VoiceOver: „Reading from an
+    earlier session, not current") und die Zahlen dimmen. Die Reparatur war
+    größer als sie aussieht: das Widget lieferte dem System EINEN Zeitpunkt, die
+    Frische-Angabe wäre also für immer auf dem Stand ihres Baus eingefroren
+    gewesen — es gibt jetzt einen zweiten Eintrag genau zum Ablauf-Zeitpunkt.
+    ⚠ Dieselbe Änderung steht in der Uhr-App, und die kann Dich heute NICHT
+    erreichen: das Watch-Target ist in `project.yml` nicht eingebettet, und es
+    gibt keinen Übertragungsweg vom Telefon ans Handgelenk (ein App-Group-
+    Speicher gilt pro Gerät). Gebaut, nicht auslieferbar — bitte NICHT prüfen.
 
-  1. **Die wichtigste Probe, und sie hat zwei Hälften.**
-     · Demo-Quelle wählen (Puls-Pille → Quelle): steht überall dort, wo eine
-       Bio-Zahl steht, ein „Demo"? Bio-Streifen, Kopfzeilen-Pille, die
-       Kanalzeilen, das Widget auf dem Home-Screen, die Uhr.
-     · Danach die ECHTE Quelle (Finger auf der Kamera oder Gurt): verschwindet
-       das „Demo" überall wieder? Ein echter Puls, der als Demo etikettiert wird,
-       wäre der schlimmere Fehler von beiden.
-  2. EchoelAI-Erklärzeile: sagt sie bei Demo „demo signal" und bei echtem Sensor
-     „your live signal"?
-  3. Offene Proben von 2527: Monitoring (Master-Panel → „Audio input") — geht der
-     Schalter an, hörst Du Dich, läuft die Musik weiter? · MIDI-Export eines
-     geöffneten Takes: kommen alle Takte an?
+  · **Und die Erklärungen selbst waren falsch** (#638). Der Abschnitt listet vier
+    Zeilen „Körpersignal → Klang". DREI davon beschrieben etwas, das nicht
+    klingt:
+      · HRV → „Reverb & Raumgefühl": diese Hall-Stufe ist im Code abgeschaltet.
+      · Herzfrequenz → „beschleunigt den Filter-Sweep": den Filter-Sweep GIBT es,
+        er gehört zum Klang jedes Patches — aber die Herzfrequenz steuert ihn
+        nicht und hat das seit einem früheren Aufräumen nie wieder getan.
+        Dieselbe Zeile verschwieg gleichzeitig, was Herzfrequenz WIRKLICH tut:
+        sie hellt den Ton auf.
+      · Atem → „verbreitert die Filterbewegung": die Atem-TIEFE misst nichts in
+        dieser App; gemessen wird nur die Atem-PHASE, und die macht das
+        Anschwellen.
+    Alle vier Zeilen sind neu geschrieben und stimmen jetzt mit der geprüften
+    Tabelle überein, die die App an anderer Stelle schon benutzt.
 
-  ⚠ Ehrliche Grenzen: alles compile-verifiziert, NICHTS geräteverifiziert —
-  deshalb Probe 1. Widget und Uhr sind der unsicherste Teil: sie lesen ihren Wert
-  aus einem geteilten Speicher, und ein Wert, den ein ÄLTERER Build dort
-  hinterlassen hat, trägt die Herkunfts-Angabe noch nicht — der wird als „echt"
-  gezeigt, bis die App ihn einmal überschreibt. Weiterhin offen und nicht
-  behauptet: die FX-Beitragszeile und die Hälfte der Metrik-Ansicht tragen die
-  Markierung noch nicht.
-  KEIN AUDIO wird je gespeichert.
+  ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
+
+  Alles compile-verifiziert, NICHTS geräteverifiziert. ZWEI der vier Scheiben
+  (#636, #637) sind zusätzlich namentlich im Testprotokoll als gelaufen belegt.
+  Bei #635b und #638 ist belegt, dass sie BAUEN, nicht dass ihre neuen Prüfungen
+  liefen: der Simulator-Klon leert nur einen Teil der Namen, und ein fehlender
+  Name beweist nichts.
+
+  Eine Auffälligkeit, die ich nicht verschweige: im Lauf von #635b meldet EIN
+  Test einen Fehlschlag (eine Prüfung über die Helligkeits-Automation). Ich habe
+  alle drei Behauptungen dieses Tests gegen genau den Baum nachgerechnet, auf dem
+  er lief — alle drei stimmen. Der Log enthält keinen Fehlertext und keine Zeile
+  aus dem Projekt, und der Test brauchte 31 Sekunden für Arbeit, die seine
+  Geschwister in Sekundenbruchteilen erledigen. Das ist das Bild eines
+  ABGEBROCHENEN Laufs, nicht einer verletzten Regel. Ich habe deshalb NICHTS
+  daran geändert und die Beobachtung samt Prüf-Reihenfolge im Harness-Ledger
+  hinterlegt.
+
+  Weiterhin offen und ausdrücklich NICHT behauptet: VIER Sätze mit dem Wort
+  „Körper" (Sound-Panel, Bio-Panel, die Always-on-Zeile und der FX-Hinweis) und
+  VIER Beschriftungen (zwei Studio-Bildunterschriften, zwei Tempo-Feld-Labels)
+  tragen die Demo-Markierung noch nicht. Und was Echoel über OSC, ADM-OSC,
+  Art-Net oder sACN nach außen schickt, sagt dem Empfänger bis heute nicht, ob es
+  ein Körper war — Demo-Werte verlassen das Gerät unmarkiert.
+
+  ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
+
+  1. Bio-Streifen → ⓘ (oder das Aktivitätslicht) öffnet die Erklär-Seite. Sie
+     startet halbhoch: **nach unten scrollen** bis „How your body shapes the
+     sound". Bei laufender DEMO-Quelle: ist jede der vier Zeilen gedämpft, nicht
+     nur die Überschrift? Mit VoiceOver: hörst Du vor jeder Zeile „Simulated
+     demo"?
+  2. Lies diese vier Zeilen einmal als Nutzer. Sind sie verständlich, und
+     beschreiben sie das, was Du beim Spielen tatsächlich hörst? Das ist die eine
+     Frage, die kein Test beantworten kann — die Zeilen sind gegen den Code
+     geprüft, aber Klang ist Deine Sache.
+  3. FX → „All parameters", ganz nach unten zu „Live — body → sound". Die Zeile
+     erscheint nur, wenn Du vorher über „Add bio modulation…" eine Route angelegt
+     hast. Trägt sie bei Demo-Quelle ein „Demo"?
+  4. Widget auf dem Home-Screen: Puls-Quelle STARTEN (Kamera oder Demo), kurz
+     laufen lassen, App schließen, ein paar Minuten warten. Steht dann „Last
+     session" auf der Kachel und sind die Zahlen gedämpft? (Ohne laufende Quelle
+     wird gar kein Wert geschrieben und die Kachel bleibt leer — das ist kein
+     Fehler.)
+  5. Offene Proben von 2527/411: Monitoring (Master-Panel → „Audio input") ·
+     MIDI-Export eines geöffneten Takes.
+
+  ⚠ Das Widget bleibt der unsicherste Teil. Ein Wert, den ein ÄLTERER Build im
+  geteilten Speicher hinterlassen hat, trägt sein ALTER (das war schon immer ein
+  Pflichtfeld, wird also korrekt gedimmt), aber keine HERKUNFT — ein alter
+  Demo-Wert wird bis zum ersten Überschreiben ohne „Demo" gezeigt.
+  Der geteilte Speicher für Widget und Uhr enthält nie Audio; er trägt nur Zahlen.
