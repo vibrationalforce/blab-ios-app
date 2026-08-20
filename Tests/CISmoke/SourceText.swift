@@ -69,6 +69,30 @@
 // today. Nested `/* /* */ */` — legal in Swift — is treated as a single block, so the outer `*/`
 // leaks. Both are cheap to add the day a scan target needs them; neither is invented ahead of a
 // real case (#367: a guard should be able to fail for a reason that exists).
+//
+// ⛔ AND THE LIST ABOVE OMITTED THE BIGGEST CASE FOR ITS WHOLE LIFE (#659): a Swift MULTI-LINE
+// string literal, `"""`. String state is local to `stripLine`, so it resets at every newline —
+// nothing a `"""` opens survives the line it sits on, and every line INSIDE such a literal is
+// scanned as CODE. A `//` in that body ends the line; a `/*` in it opens a block. The contract
+// sentence on `codeOnly` below — "everything the compiler would see" — is therefore FALSE for a
+// multi-line body, and this block is where that should always have been said.
+//
+// ⭐ IT IS DELIBERATELY NOT FIXED, and the measurement is the reason rather than the effort.
+// Across all 368 `Sources/**/*.swift` on 2026-08-20: NINE carry a `"""`, and the shipped shape
+// disagrees with a `"""`-aware one on exactly ONE of them — `Views/MetalBioView.swift`, on 337
+// lines — where it changes NONE of the 36 needles the four guards scanning that file assert on.
+// Those 337 lines are the Metal shader, which the view holds as one `"""` literal, and its `//`
+// are REAL comments to the compiler that actually reads them. So for the single file where the
+// two shapes differ, today's behaviour is the one a source scanner wants, and teaching this
+// scanner about `"""` would begin handing shader PROSE to `GlitterCannotBecomeAFlashTests` — the
+// WCAG-3-Hz flash-safety guard — as though it were shader code. Latent, one file, benign today,
+// and the obvious repair is wrong for the only case that exists.
+//   ⛔ The first draft of this block put a shell recipe here and mangled its own quoting, which
+//   is the #480 failure — a recipe you cannot run is worse than none, because it reads as
+//   evidence. The executable form is the guard, and it is the only form kept:
+//   `TheStripperDoesNotKnowATripleQuoteTests` re-derives the census on every run and
+//   goes red the day a SECOND file joins the disagreeing set — that is the day a human, not a
+//   rule, has to make this call again. Its `tripleQuoteAwareCodeOnly` helper IS the second shape.
 
 import Foundation
 
