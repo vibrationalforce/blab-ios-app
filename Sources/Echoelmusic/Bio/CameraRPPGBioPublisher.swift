@@ -833,10 +833,13 @@ public final class CameraRPPGBioPublisher {
     /// the refill, and cannot destabilise the exposure state machine because it never
     /// touches it. `displayBPM` is held by the publish loop across the refill (it never
     /// advances on bpm=0), so the SHOWN pulse holds instead of snapping to 0 — the same
-    /// contract every other `resetForRecovery()` call site relies on. (This said "the two
-    /// existing" call sites; with this one there are three, and the count is written out at
-    /// the `respiration.reset()` comment. Left as a relative statement so it cannot go stale
-    /// a second time.)
+    /// contract every other `resetForRecovery()` call site relies on. (⛔ This said "the two
+    /// existing" call sites, then "with this one there are three" — and #651 made it five by
+    /// adding the two deliberate exposure re-settles. Its own defence was that it had been
+    /// "left as a relative statement so it cannot go stale a second time", which it was not:
+    /// "there are three" is an absolute. The relative half — *every* call site relies on the
+    /// held-`displayBPM` contract — is the part that survives, and it is now the only claim
+    /// made here.)
     ///
     /// 30 s of CONTINUED weakness *after* the budget ran out, self-rate-limited: the
     /// flush zeroes the counter and empties the window, so `weakTicksStep`'s
@@ -1692,8 +1695,32 @@ public final class CameraRPPGBioPublisher {
                 lockAgeTicks = 0
                 fingerStableTicks = 0
                 saturatedTicks = 0
+                // ⭐ #651 — FLUSH, and the argument is this file's own, twice over. Two OTHER
+                // exposure transitions already call `resetForRecovery()` here, and both name
+                // the same cause: "the exposure-unlock brightness STEP in the window" (finger
+                // loss) and "the brightness STEP the exposure re-lock injects" (camera stall).
+                // The two DELIBERATE re-settles — this one and the weak-periodicity one below
+                // — were the two that did not, and an autocorrelation over a window straddling
+                // two photometric regimes cannot find a pulse.
+                //
+                // Founder device log, build 2531, 2026-08-20, and it is the documented
+                // signature exactly: confidence had just reached 0.89 at a stable 52–53 bpm
+                // when this branch fired. One sample later `amp` jumped to 0.4898 and FROZE
+                // there across two consecutive reads, `acf` fell 0.40 → 0.05, `conf` went
+                // 0.89 → 0.07 → 0.00, and `win` stayed 150 the whole time — a full window
+                // that was never emptied. Both `generate` lines of that take report `body=0`.
+                //
+                // ⚠️ HONEST RESIDUAL, registered rather than hidden: this flushes at the
+                // UNLOCK, matching the two sibling sites. The ~3 s of AGC ramp before the next
+                // lock still enter the fresh window (measured in that log: unlock 13:44:05,
+                // lock 13:44:08). Flushing at the LOCK instead would be photometrically
+                // cleaner, but that path is shared with the FIRST lock of a take, and first
+                // acquisition demonstrably works today (it reached 0.89). Changing it without
+                // device evidence would trade a measured bug for an unmeasured one.
+                analyzer.resetForRecovery()
                 EchoelCrashLog.breadcrumb(String(format:
-                    "rPPG: re-settling exposure — saturated (bright=%.2f R=%.2f)", bright, red))
+                    "rPPG: re-settling exposure — saturated, window flushed (bright=%.2f R=%.2f)",
+                    bright, red))
             }
         } else {
             saturatedTicks = max(0, saturatedTicks - 1)
@@ -1739,9 +1766,17 @@ public final class CameraRPPGBioPublisher {
             fingerPresentTicks = 0   // restart the strict dark window — the point of the re-lock
             saturatedTicks = 0
             weakAcfTicks = 0
-            EchoelCrashLog.breadcrumb(String(format:
-                "rPPG: re-settling exposure — weak periodicity on a bright lock (bright=%.2f acf=%.2f conf=%.2f, relock %d/%d)",
-                bright, Float(analyzer.lastAutoStrength), Float(confidence), weakRelocksUsed, Self.maxWeakRelocks))
+            // #651 — the second deliberate re-settle, same reason as the saturation branch
+            // above. Read the state BEFORE the flush: `resetForRecovery()` zeroes
+            // `lastAutoStrength` and the confidence, so a breadcrumb built afterwards would
+            // print "acf=0.00 conf=0.00" every single time and could never show WHICH weak
+            // state triggered the re-lock. The dead-window flush a few lines up already had
+            // to learn this and says so at its own call site.
+            let weakNote = String(format:
+                "rPPG: re-settling exposure — weak periodicity on a bright lock, window flushed (bright=%.2f acf=%.2f conf=%.2f, relock %d/%d)",
+                bright, Float(analyzer.lastAutoStrength), Float(confidence), weakRelocksUsed, Self.maxWeakRelocks)
+            analyzer.resetForRecovery()
+            EchoelCrashLog.breadcrumb(weakNote)
             return
         }
 
@@ -1857,10 +1892,16 @@ public final class CameraRPPGBioPublisher {
         // cursor alongside is then hygiene, not a fix: it must never be NEWER than the
         // estimator's state, or the first beats of the next take would be skipped.
         //
-        // Deliberately NOT reset on any of the THREE `analyzer.resetForRecovery()` sites —
-        // two in `manageExposure()`, guarded by `deadWindowNeedsFlush` and by
-        // `fingerLostTicks >= relockOnLossTicks`, plus the stall recovery in
-        // `handleCameraSessionReset()`.
+        // Deliberately NOT reset on ANY `analyzer.resetForRecovery()` site — today FIVE:
+        // four in `manageExposure()` (the saturation re-settle and the weak-periodicity
+        // re-settle, both added by #651; the dead-window flush; the finger-loss flush) plus
+        // the stall recovery in `handleCameraSessionReset()`.
+        // ⛔ FIFTH ATTEMPT, and #651 is why: it added two call sites and this sentence said
+        // THREE. Round 4 below congratulates itself for surviving three rewrites — and the
+        // property it relied on was that the SET does not grow. **The invariant is "no site",
+        // not "these sites".** The count is kept only as a re-derivable fact, with the command
+        // that produces it, and the claim now leads with the universal:
+        //     grep -c '^ *analyzer\.resetForRecovery()$' Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift
         //
         // ⛔ FOURTH ATTEMPT AT THIS ONE SENTENCE, and the failure mode is worth more than the
         // fact. Round 1 named only the third site. Round 2 described the other two in prose
