@@ -76,6 +76,47 @@ public enum BioMetric: String, CaseIterable, Identifiable, Sendable {
     /// Shown under every explanation — the safety/scope disclaimer.
     public static let disclaimer =
         "For music and self-observation only — not a medical device and not for diagnosis. Readings are approximate; don’t use them for health decisions."
+
+    /// The origin note that belongs beside a heading claiming the body is showing something,
+    /// or `nil` when a real body genuinely is (#646).
+    ///
+    /// ⛔ THE GUIDE SHEET HAD ONE MARKED HEADING AND ONE UNMARKED, WHICH IS WORSE THAN NEITHER.
+    /// `"How your body shapes the sound"` carried a conditional note; the sheet's TOP heading,
+    /// `"What your body is showing"`, carried none — and it is the first line a reader sees
+    /// after tapping a metric cell. #636's law in one line: half-marked teaches the reader that
+    /// an unmarked claim is the real one, so the marked sibling actively made the unmarked title
+    /// more convincing.
+    ///
+    /// ⭐ ONE DEFINITION, TWO CALLERS (#416). Both strings were inlined at a single site; a
+    /// second heading needing them is exactly the moment a third spelling grows. It asks
+    /// `BioSource.isSynthetic` rather than re-writing `== .fallback` — that comparison is the
+    /// one definition (#639), and this file spelled it out twice.
+    ///
+    /// ⚠️ THE TITLE KEEPS ITS WORDS. A heading that rewrites itself as the source changes is
+    /// disorienting where a suffix is not, and the sibling section header already established
+    /// the suffix shape in this sheet. (⛔ "the sibling 54 lines down" stood here: that gap was
+    /// the PARENT's, and this very commit made it 73. A distance between two lines is a date,
+    /// not a fact, and it is deleted rather than refreshed — the same handling this repo chose
+    /// for #642's line-distance and #473's mis-attached line count.) The stronger reason to
+    /// keep the words: a per-source retitle would make the sheet's LOUDEST type flicker at the
+    /// freshness boundary, which is the straddle the rest of this slice is closing.
+    ///
+    /// ⚠️ ONE DOCTRINE TENSION, RESOLVED IN THE OPEN rather than silently. The three-spelling
+    /// positional rule further down says a whole-ELEMENT label takes the "Bio source: simulated
+    /// demo, not your body" form, and a sheet title labels a whole element — but
+    /// `TheMetricSheetRowsSayWhoseBodyTests` bans that spelling in this file. The suffix form
+    /// wins because the sibling heading in the same sheet already uses it and a reader compares
+    /// the two headings, not this file against the doctrine.
+    ///
+    /// ⭐ SIGNATURE DIVERGES FROM ITS THREE SIBLINGS ON PURPOSE. `alwaysOnSentence(synthetic:)`,
+    /// `bioPanelSentence(synthetic:)` and `soundPanelSentence(synthetic:)` all take a `Bool`.
+    /// This takes the frame and returns `String?` because it must express THREE states, and
+    /// #644 paid a cycle for exactly the `Bool` that could not (it said "your body" over "no
+    /// pulse measured yet"). Same family, one state more.
+    public static func originNote(for frame: BioSampleFrame?) -> String? {
+        guard let frame else { return "read your pulse to see it move" }
+        return frame.source.isSynthetic ? "demo values, not your body" : nil
+    }
 }
 
 #if canImport(SwiftUI)
@@ -165,11 +206,48 @@ struct BioMetricsGuideView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            // ⚠️ `.firstTextBaseline` + spacing 6, MIRRORING the sibling section header rather
+            // than only borrowing its idea (#646 review). A bare `HStack` centres a 10 pt note
+            // against an 18 pt semibold title, so the note floats at mid-cap-height instead of
+            // sitting on the baseline — and this row, unlike the sibling's, also carries the
+            // "Done" button, so the note goes AFTER the `Spacer` to be pushed to the trailing
+            // edge instead of competing with the title for width. `.lineLimit(nil)` below means
+            // an over-budget row WRAPS rather than truncates, and it wraps harder at large
+            // Dynamic Type — which is what `InfoSheetTextScalesTests` exists to protect.
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
                 Text("What your body is showing")
                     .font(EchoelTheme.font(18, .semibold))
                     .foregroundStyle(EchoelTheme.text)
-                Spacer()
+                // #646 — the sheet's TITLE was the only heading here claiming a body with no
+                // conditional beside it, while the section header below had carried one since
+                // #627b. A reader tapping a metric cell reads this line first.
+                // ⚠️ EVALUATION ACCOUNTING, twice corrected, because the obvious sentence here
+                // was wrong and so was its first repair. The section
+                // header used to call `liveBio` TWICE on its own (`== nil`, then `?.source`);
+                // routing it through `originNote(for:)` makes it ONE. Non-row evaluations go
+                // "at most 2" → "exactly 2", and the header's INTERNAL straddle is closed. ⛔ The
+                // first draft wrote "2 → 2" unconditionally and that is wrong in one case: the
+                // parent's `else if` is NOT reached when the first call returns nil, so with no
+                // reading the parent evaluated ONCE and the worktree evaluates twice. Worst case
+                // is unchanged; the no-reading case goes 1 → 2. The straddle it closes had a real
+                // failure mode, since a frame expiring between the two calls made the second
+                // return nil and NEITHER branch render, hiding the demo marker outright.
+                // What remains is a straddle BETWEEN the title and the section, which is the
+                // same hazard the ⚠️ block by the `ForEach` already registers for the rows, and
+                // it still needs the same single hoist — blocked on no local compiler and no
+                // precedent for a bare ViewBuilder `let`.
+                // ⚠️ REGISTERED, NOT FIXED: with no reading the sheet now prints "read your
+                // pulse to see it move" TWICE — here and above the mapping rows — and under the
+                // demo source "demo values, not your body" twice. At `.large` both can be on
+                // screen together. Defensible, because they head different things (what the
+                // sheet shows vs. what moves the sound), but it is a real consequence of
+                // marking the second heading and it should not be discovered as a surprise.
+                Spacer(minLength: 8)
+                if let note = BioMetric.originNote(for: liveBio) {
+                    Text(note)
+                        .font(EchoelTheme.font(10))
+                        .foregroundStyle(EchoelTheme.dim)
+                }
                 // Same change, same reason as the sibling sheet above (#353f). Kept spelled out
                 // in both places rather than factored into a shared button: two call sites is
                 // below the line where a helper earns its indirection, and the failure this
@@ -233,12 +311,13 @@ struct BioMetricsGuideView: View {
                         // asserted a measured body. #627's own scope statement called the set
                         // of rendering surfaces complete and it was not; the enumeration is
                         // corrected in the guard rather than in a second confident sentence.
-                        if liveBio == nil {
-                            Text("read your pulse to see it move")
-                                .font(EchoelTheme.font(10))
-                                .foregroundStyle(EchoelTheme.dim)
-                        } else if liveBio?.source == .fallback {
-                            Text("demo values, not your body")
+                        // #646 — the two literals moved to `BioMetric.originNote(for:)` so the
+                        // title above cannot grow a third spelling. Behaviour is unchanged: the
+                        // nil branch and the `.fallback` branch are the same two, in the same
+                        // order, now asking `BioSource.isSynthetic` (the one definition, #639)
+                        // instead of re-writing `== .fallback` a second time in this file.
+                        if let note = BioMetric.originNote(for: liveBio) {
+                            Text(note)
                                 .font(EchoelTheme.font(10))
                                 .foregroundStyle(EchoelTheme.dim)
                         }
@@ -272,9 +351,15 @@ struct BioMetricsGuideView: View {
                         //
                         // ⚠️ WHAT THIS BINDING DOES **NOT** FIX, stated plainly rather than left
                         // to read as closed: the ROW is now internally consistent, the SECTION is
-                        // not. The header above still evaluates `liveBio` twice on its own and
-                        // each row evaluates it once more, so at the freshness boundary a marked
-                        // row can sit under an unmarked header. Closing that needs one binding
+                        // not. ⛔ "The header above still evaluates `liveBio` twice on its own"
+                        // STOOD HERE AND #646 MADE IT FALSE — `originNote(for:)` takes one frame,
+                        // so the header now evaluates once and its internal straddle is closed.
+                        // The sheet TITLE evaluates once too, so the count above the rows is
+                        // "exactly two" where it used to be "at most two" — one, not two, when
+                        // there was no reading at all, because the old `else if` was skipped.
+                        // Each row evaluates it once more, so at the freshness
+                        // boundary a marked row can still sit under an unmarked header. Closing
+                        // that needs one binding
                         // above the `ForEach` — a bare `let` directly inside a `VStack`
                         // ViewBuilder, a shape this repo has NO precedent for and no local
                         // compiler to settle. Registered, not guessed at.
@@ -355,7 +440,15 @@ struct BioMetricsGuideView: View {
     /// blanked to "—" after 5 s — a false "your body isn't driving" while it was.
     /// `usableBio()` honours each source's own window (BLE/rPPG 6 s, Watch 90 s),
     /// still blanks a truly frozen source, and reads `latestBio` so the freeze-law
-    /// note above still holds (this sheet leaf is the only body observing it).
+    /// note above still holds.
+    ///
+    /// ⛔ "this sheet leaf is the only body observing it" STOOD HERE and the ⛔ block ~200 lines
+    /// up already retracts it by name (#646 review, #425 — a file must not carry a claim and
+    /// its own refutation). Measured: `BioStripView`, `AutomationStatusStrip`,
+    /// `BodyShapesThisSoundLine` and `AlwaysOnBioRow` all read it too. The freeze-law argument
+    /// does NOT depend on exclusivity — it depends on each read living in its own leaf `View`
+    /// rather than in an ancestor of a menu host — so the conclusion survives and only the
+    /// (false, and never necessary) uniqueness premise is withdrawn.
     private var liveBio: BioSampleFrame? { bus.usableBio() }
 
     /// The moving "right now" bar for a shaping row. `live == false` (no fresh

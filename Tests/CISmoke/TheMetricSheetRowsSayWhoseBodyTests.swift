@@ -157,9 +157,13 @@
 //     handle, the path is not. Guard: `TheVariationCardSaysWhoseTargetTests`.
 //     Its sibling ("your body curates, you pick") stays DELIBERATELY unmarked — it renders
 //     before any exploration exists, so it claims nothing about a current reading.
-//   · `BioMetricInfo.swift` `Text("What your body is showing")` — the TOP heading of the very
-//     sheet #637 marked. A second header 54 lines down IS qualified. One sheet, one marked
-//     header and one unmarked, which is worse than neither.
+//   · ⭐ **CLOSED (#646)** — `BioMetricInfo.swift` `Text("What your body is showing")`, the TOP
+//     heading of the very sheet #637 marked, while the section header below WAS qualified. One
+//     sheet, one marked header and one unmarked, which is worse than neither: the marked
+//     sibling makes the unmarked title MORE convincing, because a reader who sees one heading
+//     qualify itself concludes an unqualified one is measured. Both marker strings now live in
+//     `BioMetric.originNote(for:)` and both headings ask it. The title keeps its words — only
+//     the marking was added. Guard: `TheGuideSheetTitleSaysWhoseBodyTests`.
 //   · `EchoelStudioView.swift` `.accessibilityHint("Sounds a held tone whose colour follows your
 //     body")` — sibling of a caption this register DOES name, but a distinct string. The
 //     #632/#627b pattern exactly: the register held the visible half and not the spoken one.
@@ -284,10 +288,18 @@ final class TheMetricSheetRowsSayWhoseBodyTests: XCTestCase {
     /// and is 1 there, so this is a genuine regression, not a needle over a symbol that never
     /// existed.
     ///
-    /// ⚠️ Deliberately NOT a count pin on `liveBio` file-wide. The SECTION HEADER legitimately
-    /// evaluates it twice (`liveBio == nil`, `liveBio?.source == .fallback`) and a designer may
-    /// reasonably change that; pinning the total would turn an ordinary header edit red, which
-    /// is #364 exactly. What is pinned is the ROW's own shape.
+    /// ⚠️ Deliberately NOT a count pin on `liveBio` file-wide: a designer may reasonably change
+    /// how many headings ask for a frame, and pinning the total would turn an ordinary header
+    /// edit red, which is #364 exactly. What is pinned is the ROW's own shape.
+    ///
+    /// ⛔ THE PREMISE THIS USED TO GIVE IS DEAD (#646). It read "The SECTION HEADER legitimately
+    /// evaluates it twice (`liveBio == nil`, `liveBio?.source == .fallback`)" — both spellings
+    /// are gone: the header now passes ONE frame to `BioMetric.originNote(for:)`, and
+    /// `TheGuideSheetTitleSaysWhoseBodyTests` claim 5 actively BANS `liveBio == nil` because
+    /// that shape could render neither branch when a frame expired between the two calls. The
+    /// DECISION survives — do not count-pin `liveBio` file-wide — but its stated evidence no
+    /// longer exists, and a rationale whose evidence cannot be re-derived is the
+    /// `EchoelModalBank` defect: the next reader cannot check it, so they cannot revise it.
     func testTheRowDoesNotReachForTheFrameASecondTime() throws {
         let code = try collapsedCode(Self.sheet)
         XCTAssertEqual(count("liveBio.flatMap", in: code), 0, """
@@ -394,8 +406,14 @@ final class TheMetricSheetRowsSayWhoseBodyTests: XCTestCase {
     /// spelling of one decision is what #634b had to retract.
     func testTheSectionKeepsItsOwnSpellingAndNoFourthIsMinted() throws {
         let code = try collapsedCode(Self.sheet)
+        // ⚠️ SINCE #646 THIS LITERAL LIVES IN `BioMetric.originNote(for:)`, not in the section
+        // header — the count is still 1 and this assertion still holds, but the message below
+        // would send the next reader to the header to find it. Kept as a COUNT on the file,
+        // which is what it always measured; only the location word is corrected.
         XCTAssertEqual(count("\"demo values, not your body\"", in: code), 1, """
-            The SECTION header's spelling changed or was duplicated. It stays as it is: the \
+            The section marker's spelling changed or was duplicated (since #646 it is written \
+            once, in `BioMetric.originNote(for:)`, and rendered by two headings). It stays as \
+            it is: the \
             header labels a section, the row label prefixes a sentence, and collapsing the two \
             into one string makes one of the two read wrong (#416 is about one DEFINITION per \
             decision, not one string per repo).
@@ -409,10 +427,16 @@ final class TheMetricSheetRowsSayWhoseBodyTests: XCTestCase {
 
     // MARK: - 8–9  what the marking must NOT eat
 
-    /// 8 — COUNTERWEIGHT. The `liveBio == nil` branch is a DIFFERENT statement ("no body at
-    /// all") and it must survive the demo marking. Under Simulation `liveBio` is non-nil, so
+    /// 8 — COUNTERWEIGHT. The "no body at all" hint is a DIFFERENT statement from the demo
+    /// marker and it must survive the demo marking. Under Simulation a frame IS arriving, so
     /// this hint disappearing is precisely what made the unmarked rows an assertion rather
-    /// than an omission — the two branches are not interchangeable.
+    /// than an omission — the two are not interchangeable.
+    ///
+    /// ⛔ THIS SAID "the `liveBio == nil` BRANCH" and since #646 there is no such branch: the
+    /// two statements are the two returns of `BioMetric.originNote(for:)`, and its sibling
+    /// guard BANS `liveBio == nil` outright. The counterweight is unchanged in substance — the
+    /// hint must still exist exactly once — so only the name of the shape is corrected (#456:
+    /// a guard over a changed surface moves in the same commit as the change).
     func testTheMissingBodyHintSurvivesTheMarking() throws {
         let code = try collapsedCode(Self.sheet)
         XCTAssertEqual(count("\"read your pulse to see it move\"", in: code), 1, """

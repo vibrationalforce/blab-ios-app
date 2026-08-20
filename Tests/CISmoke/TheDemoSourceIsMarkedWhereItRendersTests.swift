@@ -411,13 +411,27 @@ final class TheDemoSourceIsMarkedWhereItRendersTests: XCTestCase {
     /// over-claim; the marking lives in `BioMetricsGuideView` (`.sheet(isPresented:
     /// $showGuide)`, the ⓘ). A message naming the wrong type sends the next session to a
     /// file that is already correct.
+    /// ⛔ (c) A THIRD REPAIR, AND THE NEEDLE BROKE THE SAME WAY TWICE (#646). Repair (a) fixed
+    /// the COUNT and left the needle a literal SPELLING — `liveBio?.source == .fallback`. #646
+    /// hoisted that comparison out of the view into `BioMetric.originNote(for:)` so a second
+    /// heading could ask it, and the spelling went to ZERO occurrences: correct work, red gate,
+    /// and a failure message that would have said the sheet "no longer distinguishes a
+    /// synthetic frame anywhere" while it distinguishes at three sites. That is the #367 mirror
+    /// — green or red for a reason other than the one stated. **The lesson repair (a) did not
+    /// draw: loosening `==` to `>=` fixes the arithmetic and leaves the FRAGILITY, because the
+    /// fragile part was never the number.** A needle naming an inline expression dies the day
+    /// somebody names that expression, which is the ordinary direction of improvement. The
+    /// anchor is now the FUNCTION the decision lives in; it survives a caller being added, a
+    /// caller being moved, and the comparison being respelled inside it.
     func testTheMetricSheetMarksTheDemoToo() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/BioMetricInfo.swift")
-        let hits = lines.filter { $0.contains("liveBio?.source == .fallback") }.count
+        let hits = lines.filter { $0.contains("BioMetric.originNote(") }.count
         XCTAssertGreaterThanOrEqual(hits, 1, """
             `BioMetricsGuideView` no longer distinguishes a synthetic frame anywhere. Its \
             door is `BioStripView`'s `.sheet(isPresented: $showGuide)`, one affordance from \
-            the "Demo" tag, so an unmarked sheet directly contradicts the tag beside it.
+            the "Demo" tag, so an unmarked sheet directly contradicts the tag beside it. \
+            `>= 1`, never `== n`: a THIRD heading asking the same question is this sheet \
+            getting more honest, and repair (a) already paid for pinning that as a defect.
             """)
     }
 }
