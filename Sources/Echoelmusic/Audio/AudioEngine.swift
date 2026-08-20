@@ -1638,19 +1638,54 @@ public final class AudioEngine {
             break
         case .undetermined:
             guard await AVAudioApplication.requestRecordPermission() else {
-                log.audio("Input monitoring: mic permission denied at the dialog", level: .warning)
+                logMonitorOutcome("mic permission denied at the dialog", level: .warning)
                 return false
             }
         case .denied:
-            log.audio("Input monitoring: mic permission previously denied — Settings is the only door", level: .warning)
+            logMonitorOutcome("mic permission previously denied — Settings is the only door",
+                              level: .warning)
             return false
         @unknown default:
+            // ⛔ THE ONE EXIT THAT LOGGED NOTHING AT ALL. A future `AVAudioApplication`
+            // permission case lands here, returns false, and the door renders "try again" with
+            // no line in any sink — the founder's report with no evidence attached, by
+            // construction. Unreachable today; that is exactly why it would have been the
+            // hardest one to diagnose if it ever fired.
+            logMonitorOutcome("unknown record-permission case — refused", level: .warning)
             return false
         }
         return setInputMonitoring(true)
         #else
         return false
         #endif
+    }
+
+    /// One monitoring outcome, written to BOTH sinks.
+    ///
+    /// ⭐ #650 EXISTS BECAUSE FIVE SLICES OF INSTRUMENTATION WENT SOMEWHERE THE FOUNDER
+    /// CANNOT READ. #613/#625/#628/#631 each added a distinct `log.audio` line to an exit of
+    /// this method, every one of them written to settle "Monitoring could not start — try
+    /// again" on a device. `log.audio` reaches `os_log` and an in-memory ring that
+    /// `ProfessionalLogger`'s own doc calls "write-only today". The file the founder exports —
+    /// `echoel_diag.log`, the one that carries `launch`, `init a:`, `rPPG:`, `trust:` — is
+    /// written by `EchoelCrashLog.breadcrumb` and by nothing else. `AudioEngine` had exactly
+    /// TWO breadcrumbs before this, both in the audio-timing tally.
+    ///
+    /// MEASURED, not inferred (build 2531, 2026-08-20): the founder's screen recording shows
+    /// the refusal banner at 13:43:49 and his diag log covers 13:43:23 → 13:44:09 — the
+    /// failure is INSIDE the logged window and the log names none of the five exits. That is
+    /// what makes this a hole and not a missing upload.
+    ///
+    /// ⚠️ NOT AUDIO-THREAD SAFE and never called from one. `breadcrumb` does `Date()` plus a
+    /// `write(2)` — file I/O, banned in a render block. Every caller here is graph
+    /// configuration on the main actor, which is the same place the existing `log.audio` calls
+    /// already sat.
+    ///
+    /// ⚠️ ONE MESSAGE, TWO SINKS (#416). The prefixes differ because the sinks do: `os_log`
+    /// carries a category, the breadcrumb file is flat and needs a greppable stem.
+    private func logMonitorOutcome(_ message: String, level: LogLevel = .error) {
+        log.audio("Input monitoring: \(message)", level: level)
+        EchoelCrashLog.breadcrumb("monitor: \(message)")
     }
 
     /// Start/stop monitoring the mic through the main output with FeedbackGuard.
@@ -1735,7 +1770,7 @@ public final class AudioEngine {
                 // read that cannot succeed, so the user saw "no valid input format (mic
                 // permission?)" for a failure that had nothing to do with the microphone.
                 // Naming it here is what lets a diag log tell the two apart.
-                log.audio("Input monitoring: session upgrade failed (\(error))", level: .error)
+                logMonitorOutcome("session upgrade failed (\(error))")
                 try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)
                 restoreEngineIfStranded(wasRunning, at: "input monitoring claim failed")
                 return false
@@ -1768,11 +1803,11 @@ public final class AudioEngine {
                 // production caller with `true` and it returns early on denial), so that
                 // parenthetical sent every reader — me included — down the wrong path. Say
                 // what was actually measured instead.
-                log.audio("""
-                    Input monitoring: input format unusable after the session claim \
+                logMonitorOutcome("""
+                    input format unusable after the session claim \
                     (sampleRate \(inFmt.sampleRate), channels \(inFmt.channelCount), \
                     engine \(masterEngine.isRunning ? "running" : "stopped")) — #628
-                    """, level: .error)
+                    """)
                 // The claim is already registered — hand it back on the way out, or a denied
                 // mic permission leaves the route raised for the rest of the session. This is
                 // the failure path that made a refcount unsafe; with a set it is one line.
@@ -1825,7 +1860,7 @@ public final class AudioEngine {
                 armTimingInstrument()
                 do { try masterEngine.start() }
                 catch {
-                    log.audio("Input monitoring: engine restart failed (\(error))", level: .error)
+                    logMonitorOutcome("engine restart failed (\(error))")
                     masterEngine.disconnectNodeOutput(notchEQ)
                     if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
                     masterEngine.disconnectNodeOutput(monitorMixer)
@@ -1901,7 +1936,13 @@ public final class AudioEngine {
             }
             isInputMonitoring = true
             monitorMixer.outputVolume = min(max(inputMonitorGain, 0), 1)
-            log.audio("Input monitoring ON (gain \(inputMonitorGain))")
+            // ⚠️ THE SUCCESS LINE IS NOT OPTIONAL. Six refusal breadcrumbs and no success
+            // breadcrumb makes a quiet log ambiguous between "never toggled" and "toggled and
+            // worked" — the #454 shape, applied to a diag file instead of a test. The rate and
+            // channel count ride along because they are what the format guard above rejects,
+            // so a working take and a refused one can be compared side by side.
+            logMonitorOutcome("ON (gain \(inputMonitorGain), \(inFmt.sampleRate) Hz, "
+                              + "\(inFmt.channelCount) ch)", level: .info)
             return true
         } else {
             guard isInputMonitoring else { return true }
@@ -1940,9 +1981,9 @@ public final class AudioEngine {
             // describes — through the door #625 left open.
             let offWasRunning = masterEngine.isRunning
             do { try AudioConfiguration.releaseRecordRoute(.inputMonitoring) }
-            catch { log.audio("Input monitoring: session downgrade failed (\(error))", level: .warning) }
+            catch { logMonitorOutcome("session downgrade failed (\(error))", level: .warning) }
             restoreEngineIfStranded(offWasRunning, at: "input monitoring off")
-            log.audio("Input monitoring OFF")
+            logMonitorOutcome("OFF", level: .info)
             return true
         }
         #else
@@ -2149,7 +2190,12 @@ public final class AudioEngine {
 
     private func rearmInputMonitoring(reason: String) {
         guard isInputMonitoring else { return }
-        log.audio("Input monitoring re-arm (\(reason))")
+        // Included deliberately (#650): this is the one monitoring line that fires DURING a
+        // take rather than at a toggle, so leaving it out of the diag file would keep exactly
+        // the event a founder report cannot otherwise explain — "it was working and then it
+        // was not" — invisible. It also brackets the OFF/ON pair below, which now breadcrumb
+        // themselves, so a re-arm reads as three lines instead of a silent gap.
+        logMonitorOutcome("re-arm (\(reason))", level: .info)
         let tuneWasOn = voiceTuneEnabled
         _ = setInputMonitoring(false)
         if tuneWasOn { setVoiceTune(true) }
