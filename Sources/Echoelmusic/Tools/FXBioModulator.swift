@@ -35,8 +35,9 @@ public final class FXBioModulator {
     /// observer (menu-freeze law). Empty when stopped or no enabled routes.
     public private(set) var liveContributions: [BioModContribution] = []
 
-    /// Whether the section heading over `liveContributions` may claim a body — published here
-    /// rather than derived in the view, and #641's review is the reason.
+    /// WHICH of the four things the section heading over `liveContributions` may say —
+    /// published here rather than derived in the view, and #641's review is the reason twice
+    /// over (once for the gate it is read through, once for the state it was missing).
     ///
     /// ⛔ THE FIRST CUT DERIVED IT IN THE VIEW, from `liveContributions.contains(where:
     /// \.synthetic)`, AND THAT RE-CREATED THE COLLISION THE SLICE EXISTS TO REMOVE — one
@@ -52,18 +53,18 @@ public final class FXBioModulator {
     /// Tests` pins them and unifying them is an audible change needing a hearing test — this
     /// only stops the two HEADINGS from being derived through different ones.
     ///
-    /// ⚠️ AND IT IS CONJOINED WITH "IS ANY ROUTE A BIO ROUTE", which is not decoration. An LFO
-    /// carrier is a real oscillator and is deliberately never marked synthetic; a set of only
-    /// LFO routes has no body and no demo in it, so a bare source test would have put
-    /// "simulated demo → sound" over rows nothing simulated is driving — trading one false
-    /// claim for another. (The residual over-claim in that state is that the heading then says
-    /// "body → sound" over LFO-only rows. That is PRE-EXISTING, unchanged here, and registered
-    /// in `TheFXHeadersSayWhoseBodyTests` claim 3 — `BioModContribution` carries no carrier
-    /// kind, so fixing it is its own slice.)
+    /// ⛔ AND THE SECOND CUT WAS A BOOL, WHICH COULD NOT SAY THE THIRD THING. An LFO carrier is
+    /// a real oscillator and is deliberately never marked synthetic, so a section of only LFO
+    /// routes fell through the demo test and printed "Live — body → sound" over rows in which
+    /// no body is involved at all — the product's core claim, over an oscillator. #641's own
+    /// review registered that and left it; a `Bool` has no room for it. `LiveModOrigin` is the
+    /// four states the section can actually be in, and `FXModulation.liveOrigin(routes:
+    /// sourceIsSynthetic:)` owns the decision as a pure function, so it is testable END TO END
+    /// instead of by scanning this file for a string.
     ///
     /// Written only inside the existing ~10 Hz throttled publish branch, and only on change, so
     /// it adds a tracked property but no new cadence and no new source.
-    public private(set) var sourceIsSynthetic = false
+    public private(set) var liveOrigin: LiveModOrigin = .noRoutes
     @ObservationIgnored private var tickCount = 0
     /// 30 Hz tick / 3 ≈ 10 Hz UI refresh.
     @ObservationIgnored private static let publishEveryN = 3
@@ -155,7 +156,10 @@ public final class FXBioModulator {
         isRunning = false
         task?.cancel(); task = nil
         liveContributions = []   // display empties when no session is live
-        sourceIsSynthetic = false // …and so does the claim its heading makes
+        // …and the heading falls back to the plain section name. `.noRoutes` is the honest
+        // stopped state precisely BECAUSE it claims nothing: with no display below it, the
+        // heading is a name, not a reading (see `LiveModOrigin.noRoutes`).
+        liveOrigin = .noRoutes
         // Drop the fades too, so a later `start()` eases in from silence rather than
         // resuming a half-faded route. (Today the app never calls `stop()` — the driver
         // runs from launch to termination — so this is the correctness of the API, not
@@ -361,15 +365,14 @@ public final class FXBioModulator {
         if FXModulation.shouldPublish(tick: tickCount, everyN: Self.publishEveryN) {
             let next = FXModulation.contributions(routes: routes, frame: frame, now: now)
             if next != liveContributions { liveContributions = next }
-            // RAW, not `frame` — see `sourceIsSynthetic`'s doc: `frame` above is
-            // `bus?.usableBio()`, and deriving the heading through the freshness gate is
-            // exactly what made the two headings contradict each other.
-            let anyBioRoute = routes.contains { route in
-                if case .bio = route.carrier { return true }
-                return false
-            }
-            let syn = anyBioRoute && (bus?.latestBio?.source.isSynthetic ?? false)
-            if syn != sourceIsSynthetic { sourceIsSynthetic = syn }
+            // RAW, not `frame` — see `liveOrigin`'s doc: `frame` above is `bus?.usableBio()`,
+            // and deriving the heading through the freshness gate is exactly what made the two
+            // headings contradict each other. The route arithmetic (enabled-only, bio-or-not)
+            // lives in the pure function, which is what the guard exercises end to end.
+            let origin = FXModulation.liveOrigin(
+                routes: routes,
+                sourceIsSynthetic: bus?.latestBio?.source.isSynthetic ?? false)
+            if origin != liveOrigin { liveOrigin = origin }
         }
     }
 

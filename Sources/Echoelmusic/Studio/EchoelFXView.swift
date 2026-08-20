@@ -1180,7 +1180,7 @@ private struct BioModLiveView: View {
             // image of #637, where the MARKING was in the header and the rows drew unmarked
             // numbers. A reader who scans headings gets the wrong one either way round.
             //
-            // ⭐ NO NEW SOURCE AND NO NEW CADENCE: `sourceIsSynthetic` is published by the same
+            // ⭐ NO NEW SOURCE AND NO NEW CADENCE: `liveOrigin` is published by the same
             // ~10 Hz throttled, change-gated branch that already publishes `liveContributions`,
             // which this body reads about thirty lines above. (⛔ Two earlier drafts of this
             // comment said "one line up" — it is ~30. The claim that matters, that the header
@@ -1193,10 +1193,15 @@ private struct BioModLiveView: View {
             // Past `.fallback`'s 5 s window this heading said "body → sound" while that one said
             // "simulated demo → timbre", from the same frame, permanently. The derivation moved
             // onto the modulator so both headings ask the RAW frame — its doc block carries the
-            // whole argument, including why it is conjoined with "is any route a bio route".
-            Text(modulator.sourceIsSynthetic
-                 ? "Live — simulated demo → sound"
-                 : "Live — body → sound")
+            // whole argument.
+            //
+            // ⛔ AND THE SECOND CUT WAS A `Bool` HERE, WHICH COULD NOT SAY THE THIRD THING (#642).
+            // An LFO carrier is a real oscillator and is deliberately never marked synthetic, so
+            // a section of only LFO routes rendered "Live — body → sound" over rows in which no
+            // body is involved at all. There is no ternary left to grow a third branch on: the
+            // four states and their four strings live in `LiveModOrigin.heading`, one `switch`,
+            // and this view renders whichever one the modulator published (#416).
+            Text(modulator.liveOrigin.heading)
                 .font(EchoelTheme.font(13, .bold)).textCase(nil)
         } footer: {
             // Two paragraphs, not one joined string: the always-on note is bound by

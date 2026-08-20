@@ -146,6 +146,75 @@ public struct FXModRoute: Codable, Sendable, Identifiable, Equatable {
     }
 }
 
+/// What the "Live" section's HEADING may honestly claim about who is driving it.
+///
+/// ⭐ WHY AN ENUM IN A PURE FILE RATHER THAN A TERNARY IN THE VIEW. #641 put the answer in
+/// `EchoelFXView` and it took two follow-ups to get right, because each state was decided in a
+/// different place: the demo half in the view, then on the modulator, while the LFO half was
+/// never decided at all. Here the four states and their four strings sit in ONE `switch` that a
+/// test bundle can drive — and `TheFXHeadersSayWhoseBodyTests` turns three source-text scans
+/// into END-TO-END assertions as a direct result (§1: that is the strong kind).
+///
+/// ⛔ THE STATE THIS TYPE EXISTS FOR IS `lfoOnly`, AND IT WAS A LIVE OVER-CLAIM. An LFO carrier
+/// is a real oscillator, deliberately never marked synthetic (`BioModContribution.synthetic`).
+/// So a section holding ONLY LFO routes fell through every demo test and rendered
+/// "Live — body → sound" over rows in which no body is involved at all — the product's core
+/// claim, printed over an oscillator. #641's own review registered it and did not fix it; this
+/// is that fix.
+///
+/// ⚠️ `noRoutes` KEEPS THE PLAIN HEADING ON PURPOSE. With nothing enabled the section renders
+/// its empty-state text ("No routes yet, so no effect parameter is moving. Add one above."), so
+/// the heading is the section's NAME and claims nothing about a current reading. Printing
+/// "LFO → sound" there would invent an oscillator that does not exist — the over-correction this
+/// family has had to retract twice already.
+public enum LiveModOrigin: String, Sendable, Equatable, CaseIterable {
+    /// No enabled route at all — the heading is a section name, not a claim.
+    case noRoutes
+    /// Enabled routes exist and none of them has a bio carrier.
+    case lfoOnly
+    /// At least one enabled bio route, fed by a real measured source.
+    case body
+    /// At least one enabled bio route, fed by the demo generator.
+    case simulatedDemo
+
+    /// The rendered heading. One `switch`, so the four states cannot drift into five spellings.
+    public var heading: String {
+        switch self {
+        case .noRoutes, .body: return "Live — body → sound"
+        case .lfoOnly:         return "Live — LFO → sound"
+        case .simulatedDemo:   return "Live — simulated demo → sound"
+        }
+    }
+}
+
+extension FXModulation {
+
+    /// Which of the four the "Live" section is in, from the routes and the SOURCE.
+    ///
+    /// ⚠️ `enabled` IS FILTERED, and that is a defect this function fixes rather than a detail.
+    /// The first version of the demo test asked `routes.contains { … .bio … }` over ALL routes,
+    /// so a route the player had switched OFF still put "simulated demo" over a section it
+    /// could not touch. `contributions(routes:frame:now:)` — the thing that actually builds the
+    /// rows — filters on `enabled` in its first line; the heading has to use the same set or it
+    /// describes a different section than the one below it (#416).
+    ///
+    /// ⚠️ THE SOURCE FLAG IS AN ARGUMENT, not read here, so this stays a pure function of its
+    /// inputs and the caller keeps the decision about WHICH gate it comes through. That matters:
+    /// the caller deliberately passes the RAW frame's source, because the always-on heading three
+    /// rows further down reads raw too, and deriving the two through different freshness gates is
+    /// exactly how #641 made them contradict each other.
+    public static func liveOrigin(routes: [FXModRoute], sourceIsSynthetic: Bool) -> LiveModOrigin {
+        let live = routes.filter { $0.enabled }
+        guard !live.isEmpty else { return .noRoutes }
+        let anyBio = live.contains { route in
+            if case .bio = route.carrier { return true }
+            return false
+        }
+        guard anyBio else { return .lfoOnly }
+        return sourceIsSynthetic ? .simulatedDemo : .body
+    }
+}
+
 /// One enabled route's LIVE effect, for the "which parameters is the body moving"
 /// display (Item 2). Pure value type — built deterministically from the routes +
 /// the current bio frame, so the leaf view reads a low-rate snapshot instead of

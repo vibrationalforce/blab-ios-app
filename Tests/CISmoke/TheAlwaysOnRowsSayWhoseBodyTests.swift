@@ -110,8 +110,15 @@
 //     direction that costs — a wrong entry gets found by the next reader, a missing one never
 //     does. THREE unmarked user-facing strings lived there. #641 triaged all three and closed
 //     the one that needed closing — the split is the useful part of the entry:
-//       · ⭐ **CLOSED (#641):** the section headers `Text("Live — body → sound")` and
-//         `Text("Always on — body → timbre")`. Both are rendered WHILE their rows are live, and
+//       · ⭐ **CLOSED (#641, and the Live half re-opened and re-closed by #642):** the section
+//         headers `Text("Live — body → sound")` and `Text("Always on — body → timbre")`.
+//         ⛔ THE FIRST LITERAL IS NO LONGER IN THE VIEW. #642 moved the Live heading's four
+//         states and four strings into `LiveModOrigin.heading` (`Core/FXModulation.swift`), so
+//         the view renders `modulator.liveOrigin.heading` and the entry's own quotation is now
+//         a NAME for the section rather than a line one can grep for. The reason was a state
+//         #641 closed this entry without: a section of only LFO routes still said "body →
+//         sound" over an oscillator, which #641's review registered and left. Both are rendered
+//         WHILE their rows are live, and
 //         every row under them has said "Demo" since #635b / #498 — a heading asserting a body
 //         over rows that say otherwise is the #640 collision on a second panel. Each now
 //         derives from the SAME value its own rows use, so neither adds an observation. The

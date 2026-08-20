@@ -14,7 +14,7 @@
 // the same reader: whichever of the two a person scans first is the one that lies to them.
 //
 // ⭐ NEITHER HEADER ADDS A NEW SOURCE OR A NEW CADENCE. The Live header asks
-// `modulator.sourceIsSynthetic`, published by the same ~10 Hz throttled, change-gated branch
+// `modulator.liveOrigin`, published by the same ~10 Hz throttled, change-gated branch
 // that already publishes `liveContributions` — a property this body reads about thirty lines
 // above (⛔ two drafts said "one line up"; it is ~30, and nobody checked). The always-on header
 // derives from `frame`, already bound at the top of ITS body and handed to every row.
@@ -25,11 +25,18 @@
 // "no new observation in any state the app reaches"; the absolute version is what the next
 // reader would have relied on instead of re-deriving it.
 //
-// ⚠️ `contains`, NOT `allSatisfy`, on the Live header, and claim 3 is what makes that a decision
-// rather than a coincidence. An LFO carrier is a real oscillator and is deliberately NEVER
-// marked synthetic (`BioModContribution.synthetic`'s own doc, and `TheFXRoutesSayWhoseBodyTests`
-// carries it as a counterweight). One bio route on the demo plus one LFO route would make
+// ⚠️ `contains`, NOT `allSatisfy`, on the bio half, and claim 1e is what makes that a decision
+// rather than a coincidence. One bio route on the demo plus one LFO route would make
 // `allSatisfy` false, and the header would claim a body for a section that is half simulated.
+//
+// ⛔ AND THE STATE THAT PARAGRAPH ORIGINALLY DESCRIBED WAS A LIVE OVER-CLAIM FOR ONE CYCLE
+// (#642). An LFO carrier is a real oscillator and is deliberately NEVER marked synthetic
+// (`BioModContribution.synthetic`'s own doc), so a section of only LFO routes fell through the
+// demo test and rendered "Live — body → sound" over rows in which no body is involved at all —
+// the product's core claim, printed over an oscillator. #641's own review registered it and
+// this file recorded it as "PRE-EXISTING and untouched"; a registered over-claim is still an
+// over-claim on the founder's screen. `FXModulation.liveOrigin(routes:sourceIsSynthetic:)` now
+// answers all FOUR states and `LiveModOrigin.heading` owns all four strings in one `switch`.
 //
 // ⚠️ TWO STRINGS IN THIS FILE ARE DELIBERATELY *NOT* TOUCHED, and naming them is half the point
 // of the slice — the honesty family's real risk now is over-correction, not under-correction:
@@ -42,46 +49,47 @@
 // is running when none is) and would cost the product its own sentence for nothing. Claim 5
 // pins both, so a later "sweep the file for `body`" cannot quietly take them.
 //
-// KIND (§1): **SOURCE-TEXT SCAN** throughout. `BioModLiveView` and `AlwaysOnBioView` are
-// `private` SwiftUI structs in another file; this bundle can neither mount nor render them, so
-// what a header says can only be read as text. The DATA behind it is end-to-end elsewhere
-// (`TheFXRoutesSayWhoseBodyTests` drives `BioModContribution.synthetic` itself). What stays a
-// DEVICE PROBE: that the changed headings read well above their rows.
+// KIND (§1): **MIXED, AND THE MIX IS THE POINT OF #642.** The Live heading's four states are
+// now decided by a pure function in `Core/FXModulation.swift`, so claims 1a–1f DRIVE IT AND READ
+// THE RENDERED STRING — end-to-end behaviour, the strong kind. Everything else stays a
+// SOURCE-TEXT SCAN, because `BioModLiveView` and `AlwaysOnBioView` are `private` SwiftUI structs
+// in another file that this bundle can neither mount nor render: that a view puts the published
+// value on screen, and that a header does not grow a second source, are only readable as text.
+// What stays a DEVICE PROBE: that the changed headings read well above their rows.
 //
-// GRADING (#433 / §3), transcribed in Python against the parent (e8482e5) and this tree:
-//   · **5 RED-ON-PARENT ASSERTIONS across 4 claims** — the two new headings (1a, 2a), the
-//     `contains(where:)` derivation (3a) and both halves of the footer clause (4a, 4b). FOUR
-//     separate strings, so four findings; #486's "one absence, N times" does not apply here
-//     because nothing shared is missing — each is its own edit.
-//   · **7 COUNTERWEIGHTS, green on both trees** — 1b and 2b (the real-body headings survive:
-//     this slice adds a second wording, it does not rename the sections), 3b (not `allSatisfy`,
-//     so an LFO route cannot be swept up), 5a and 5b (the two instructional strings untouched)
-//     and 6a/6b (each header still derives from the SAME value its own rows use, which is the
-//     thing that makes the fix worth anything).
-//   · **Stripper: TRAGEND — 2 of 12 verdicts flip on this tree, 1 of 12 on the parent.**
-//     Measured by driving every needle raw and stripped against both, not reasoned. The two are
-//     4b (the ⛔ block this slice added quotes the retracted clause verbatim — a retraction has
-//     to quote what it retracts) and 6a. ⛔ 6a's flip was attributed here to `AlwaysOnBioView`'s
-//     doc comment "twice", and that is impossible as written: that doc block sits ABOVE the
-//     `private struct AlwaysOnBioView` anchor, so it is outside the extracted block entirely —
-//     the block contains exactly one `bus.latestBio`, the code line. The three raw `bus.` hits
-//     that actually make 6a stripper-dependent are in **`BioModLiveView`**'s own doc comments.
-//     The measurement (1 flip on the parent) was right and its explanation was fiction, which
-//     is the more dangerous half: a number can be re-derived, a wrong mechanism gets believed.
-//   ⚠️ TWO BASELINES NOW, and both are stated because the file grew a claim after it shipped.
-//     Against **e8482e5** (before #641) the numbers above hold. Against **ce92d75** (#641 as
-//     first shipped) the only red assertions are the five of claims 3 and 3b — the review
-//     regression: the Live heading derived from the freshness-gated contributions while the
-//     always-on heading read raw, so the two contradicted each other past `.fallback`'s 5 s
-//     window. Everything else is green there, which is exactly what a follow-up that fixes a
-//     derivation and changes no wording should look like. Measured against both, 15/15 green
-//     on this tree.
-//   ⛔ AND THE MEASUREMENT CAUGHT TWO DEFECTS IN THIS FILE BEFORE IT SHIPPED, both in the
-//     flattering direction: claims 1a and 2a were written with `squeezed(...)` and were FALSE
-//     ON THEIR OWN TREE (`stripped=False raw=False`) — the squeeze removes the spaces INSIDE a
-//     string literal. The tool that earned its place one slice ago on a code expression is the
-//     wrong tool for a literal, and only driving it says so. The header count "3 REGRESSIONS /
-//     3 COUNTERWEIGHTS / 2 of 8" that stood here was written before any of it ran.
+// GRADING (#433 / §3), transcribed in Python against the parent (b1effab) and this tree:
+//   ⚠️ **THE END-TO-END CLAIMS CANNOT BE "RED ON PARENT", AND SAYING SO IS NOT A CONFESSION.**
+//     `FXModulation.liveOrigin` and `LiveModOrigin` do not exist on b1effab, so a bundle
+//     containing claims 1a–1f does not COMPILE there. "Red on parent" is true by construction
+//     and therefore measures nothing — the honest category for them is **FORWARD** (§3): they
+//     pin behaviour the next edit could break, not a defect this commit removed. Their strength
+//     comes from being behavioural, not from a colour on an old tree. Two families of guards
+//     have been over-sold in this repo by quoting a red that only proved a symbol was new.
+//   · **2 RED-ON-PARENT ASSERTIONS** — 1g, that `BioModLiveView` holds no `"Live — "` literal of
+//     its own (on b1effab it holds two, and this is what keeps a fifth spelling from growing
+//     back beside the `switch`, #416), and claim 3's middle assertion, that the view renders
+//     `modulator.liveOrigin.heading`. Both measured, not reasoned.
+//   · **6 FORWARD assertions (1a–1f)** — the four states, the `enabled` filter, and `contains`
+//     rather than `allSatisfy`. 1b and 1c also act as counterweights: `.body` and `.noRoutes`
+//     both keep the plain heading, so the slice adds wordings and renames nothing.
+//   · **10 COUNTERWEIGHTS, green on both trees** — 2a/2b (the always-on section untouched), 3a
+//     (the raw gate), 3c (no derivation from the contributions), 4a/4b (the footer clause),
+//     5a/5b (the two instructional strings) and 6a/6b (each header answers from the value its
+//     own rows use). 12 scan verdicts total, all green on this tree.
+//   · 3b is the one assertion this slice REWROTE rather than kept: it scanned the modulator for
+//     `anyBioRoute&&`, an expression #642 deleted when the arithmetic moved into the pure
+//     function. Its subject survives as 1e/1f, measured instead of scanned (§4 — a guard over a
+//     changed surface moves in the SAME commit).
+//   · **Stripper: TRAGEND — 4 of the 12 scan verdicts flip on this tree, 3 of 12 on b1effab.**
+//     Driven raw and stripped against both, not reasoned. The four are 1g, 3c, 4b and 6a, and
+//     three of them are `XCTAssertFalse`s whose forbidden text this file or the edited view
+//     QUOTES in a ⛔ block — a retraction has to name what it retracts, which is precisely how a
+//     negative scan without a stripper convicts a correct tree. (⛔ The first draft of this line
+//     said "the two … (4b and 6a) are unchanged here" and carried the count forward from the
+//     e8482e5 measurement. Both halves were wrong, in a paragraph whose subject is that verdicts
+//     must be driven.) ⚠️ NOT applied to any string literal — claims 1a–1f
+//     compare values, and claims 2a/2b/4a/5a/5b compare literals raw, because `squeezed` removes
+//     the spaces INSIDE a literal and made two assertions false on their own tree one slice ago.
 //
 // ⚠️ #364: a different honest shape is not forbidden. Dropping the arrow form, folding the two
 // sections into one, or marking at the sheet level instead would all satisfy the law and turn
@@ -97,29 +105,104 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
     private static let fxView = "Sources/Echoelmusic/Studio/EchoelFXView.swift"
     private static let modulator = "Sources/Echoelmusic/Tools/FXBioModulator.swift"
 
-    // MARK: - 1–2  each header can name the demo source
+    // MARK: - 1  the Live heading, driven — all four states, end to end
 
-    /// 1 — REGRESSION. The live-contribution heading follows its own rows.
-    func testTheLiveHeaderCanNameTheDemoSource() throws {
-        let code = try codeText(Self.fxView)
-        // ⛔ NOT `squeezed(...)` — THE FIRST DRAFT USED IT HERE AND THE ASSERTION WAS FALSE ON
-        // ITS OWN TREE. `squeezed` strips every whitespace character, INCLUDING the spaces
-        // inside a string literal, so this needle would have had to be written
-        // `"Live—simulateddemo→sound"` to match. The squeeze earned its place one slice ago
-        // (#640) on a CODE expression a line-wrap could break; a string literal is the one thing
-        // it must never touch, because whitespace is part of the value. Measured, not reasoned:
-        // driving the model printed `stripped=False raw=False` on the tree that renders it.
-        XCTAssertTrue(code.contains("\"Live — simulated demo → sound\""), """
-            The "Live — body → sound" heading is unconditional again. Every row beneath it has \
-            carried a "Demo" chip since #635b; a heading that asserts a body over them makes the \
-            screen say two things at once, and the heading is the half a scanning reader takes.
+    private func route(_ carrier: FXModCarrier, enabled: Bool = true) -> FXModRoute {
+        FXModRoute(carrier: carrier, target: .reverbMix, enabled: enabled)
+    }
+
+    /// 1 — FORWARD, and the strong kind (§1). The Live heading is no longer a ternary in a
+    /// `private` view that only a text scan can reach: `FXModulation.liveOrigin` decides, and
+    /// `LiveModOrigin.heading` renders. So the guard drives the four states and reads the string
+    /// the founder would see.
+    ///
+    /// ⚠️ `.noRoutes` KEEPS THE PLAIN HEADING ON PURPOSE (1c). With nothing enabled the section
+    /// renders its empty-state invitation, so the heading is the section's NAME and claims
+    /// nothing about a current reading. Printing "LFO → sound" there would invent an oscillator
+    /// that does not exist — the over-correction this family has already had to retract twice.
+    func testTheLiveHeadingAnswersAllFourStates() {
+        // 1a — a bio route on the demo generator.
+        XCTAssertEqual(
+            FXModulation.liveOrigin(routes: [route(.bio(.coherence))], sourceIsSynthetic: true),
+            .simulatedDemo)
+        XCTAssertEqual(LiveModOrigin.simulatedDemo.heading, "Live — simulated demo → sound", """
+            The demo heading changed wording. Every row beneath it has carried a "Demo" chip \
+            since #635b; a heading that asserts a body over them makes the screen say two things \
+            at once, and the heading is the half a scanning reader takes.
             """)
-        XCTAssertTrue(code.contains("\"Live — body → sound\""), """
-            The real-body heading is gone. This slice adds a second wording for one case; it \
-            does not rename the section. If the heading genuinely changed, four prose sites \
-            quote it by name and move in the SAME commit (#456).
+        // 1b — COUNTERWEIGHT. A measured body still gets the section's own name.
+        XCTAssertEqual(
+            FXModulation.liveOrigin(routes: [route(.bio(.coherence))], sourceIsSynthetic: false),
+            .body)
+        XCTAssertEqual(LiveModOrigin.body.heading, "Live — body → sound", """
+            The real-body heading is gone. This slice adds wordings for three cases; it does not \
+            rename the section. If the heading genuinely changed, several prose sites quote it \
+            by name and move in the SAME commit (#456).
+            """)
+        // 1c — COUNTERWEIGHT, and the deliberate one: no routes, no claim, plain name.
+        XCTAssertEqual(FXModulation.liveOrigin(routes: [], sourceIsSynthetic: true), .noRoutes)
+        XCTAssertEqual(LiveModOrigin.noRoutes.heading, LiveModOrigin.body.heading, """
+            `.noRoutes` grew its own heading. With nothing enabled the section shows its \
+            empty-state invitation and the heading is a NAME; a state-specific string there \
+            would describe a driver that is not running.
+            """)
+        // 1d — the state #642 exists for.
+        XCTAssertEqual(
+            FXModulation.liveOrigin(routes: [route(.lfo)], sourceIsSynthetic: true), .lfoOnly, """
+            An LFO-only section is being classified by the SOURCE again. An LFO carrier is a \
+            real oscillator and is deliberately never marked synthetic, so the source flag says \
+            nothing whatever about a section that contains no bio route.
+            """)
+        XCTAssertEqual(LiveModOrigin.lfoOnly.heading, "Live — LFO → sound", """
+            The LFO heading changed wording or went back to claiming a body. "body → sound" over \
+            rows driven by an oscillator is the product's core claim printed over a defect.
             """)
     }
+
+    /// 1e/1f — FORWARD, and the two ways this function can be wrong without being obviously
+    /// wrong. `enabled` is filtered because `contributions(routes:frame:now:)` — the thing that
+    /// builds the rows — filters on it in its first line; a heading computed over a different
+    /// set describes a different section than the one below it (#416). And the bio test is
+    /// `contains`, not `allSatisfy`, so a mixed section cannot claim a pure body.
+    func testTheLiveHeadingUsesTheSameRouteSetItsRowsDo() {
+        // 1e — a switched-off bio route may not mark a section it cannot touch.
+        XCTAssertEqual(
+            FXModulation.liveOrigin(
+                routes: [route(.bio(.coherence), enabled: false), route(.lfo)],
+                sourceIsSynthetic: true),
+            .lfoOnly, """
+            A DISABLED bio route is still deciding the heading. The rows below are built from \
+            enabled routes only; a heading that counts the disabled one describes a section the \
+            reader is not looking at.
+            """)
+        // …and with nothing enabled at all, that is `.noRoutes`, not a claim.
+        XCTAssertEqual(
+            FXModulation.liveOrigin(
+                routes: [route(.bio(.coherence), enabled: false)], sourceIsSynthetic: true),
+            .noRoutes)
+        // 1f — `contains`, not `allSatisfy`: half-simulated is not a body.
+        XCTAssertEqual(
+            FXModulation.liveOrigin(
+                routes: [route(.bio(.coherence)), route(.lfo)], sourceIsSynthetic: true),
+            .simulatedDemo, """
+            A section that is half demo-driven is claiming a body (or an LFO). `allSatisfy` \
+            here would let one LFO route launder a demo reading into "body → sound".
+            """)
+    }
+
+    /// 1g — REGRESSION, measured red on b1effab, and the only assertion in claim 1 that is.
+    /// The four strings live in `LiveModOrigin.heading`, one `switch`. A literal in the view
+    /// beside it is how a fifth spelling grows (#416).
+    func testTheViewHoldsNoHeadingStringOfItsOwn() throws {
+        let live = try block(startingAt: "private struct BioModLiveView", in: try codeText(Self.fxView))
+        XCTAssertFalse(live.contains("\"Live — "), """
+            `BioModLiveView` holds a "Live — …" string literal again. The heading's four states \
+            and four strings are owned by `LiveModOrigin.heading`; a literal here is a second \
+            definition of the same decision, free to drift out of step with the `switch`.
+            """)
+    }
+
+    // MARK: - 2  the always-on header
 
     /// 2 — REGRESSION. Same for the always-on section, whose rows mark themselves from the very
     /// frame this header now reads.
@@ -156,14 +239,14 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
     func testBothHeadingsAskTheRawGate() throws {
         let modulator = try codeText(Self.modulator)
         XCTAssertTrue(squeezed(modulator).contains("bus?.latestBio?.source.isSynthetic"), """
-            `FXBioModulator` no longer derives `sourceIsSynthetic` from the RAW frame. If it \
+            `FXBioModulator` no longer derives `liveOrigin` from the RAW frame. If it \
             went back to the freshness-gated `frame`, the Live heading contradicts the \
             always-on heading directly beneath it for every demo frame older than 5 s.
             """)
         let view = try block(startingAt: "private struct BioModLiveView", in: try codeText(Self.fxView))
-        XCTAssertTrue(squeezed(view).contains("modulator.sourceIsSynthetic"), """
-            The Live heading no longer asks `modulator.sourceIsSynthetic`. Deriving it in the \
-            view from `liveContributions` is precisely the first cut's defect — those flags \
+        XCTAssertTrue(squeezed(view).contains("modulator.liveOrigin.heading"), """
+            The Live heading no longer renders `modulator.liveOrigin.heading`. Deriving it in \
+            the view from `liveContributions` is precisely the first cut's defect — those flags \
             answer a different gate than the heading below them.
             """)
         XCTAssertFalse(squeezed(view).contains("liveContributions.contains(where:"), """
@@ -172,29 +255,14 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
             """)
     }
 
-    /// 3b — COUNTERWEIGHT, and the reason `sourceIsSynthetic` is a conjunction rather than a
-    /// bare source test. An LFO carrier is a real oscillator and is deliberately never marked
-    /// synthetic; a set of only LFO routes contains no body and no demo, so a bare source test
-    /// would have put "simulated demo → sound" over rows nothing simulated drives — trading one
-    /// false claim for another.
-    ///
-    /// ⚠️ REGISTERED, NOT FIXED: in that same LFO-only state the heading falls back to
-    /// "body → sound", which over-claims in the other direction. That is PRE-EXISTING and
-    /// untouched — `BioModContribution` carries no carrier-kind field, so naming it needs its
-    /// own slice. Recorded here rather than left implied, because claim 3 above reads as if the
-    /// LFO question were settled and it is not.
-    func testTheProvenanceIsConjoinedWithHavingABioRoute() throws {
-        let modulator = try codeText(Self.modulator)
-        XCTAssertTrue(squeezed(modulator).contains("anyBioRoute&&"), """
-            `sourceIsSynthetic` is no longer conjoined with "is any route a bio route". A bare \
-            source test marks an LFO-only section "simulated demo → sound", which is a fresh \
-            false claim made by the machinery built to remove false claims.
-            """)
-        XCTAssertTrue(squeezed(modulator).contains("ifcase.bio=route.carrier"), """
-            The bio-route test is gone or changed shape. It is the half that keeps an all-LFO \
-            section out of the demo heading.
-            """)
-    }
+    // ⛔ 3b STOOD HERE AND IS RETIRED BY #642, not deleted quietly. It scanned the modulator for
+    // `anyBioRoute&&`, the conjunction that kept a bare source test from marking an LFO-only
+    // section "simulated demo". That expression no longer exists: the arithmetic moved into
+    // `FXModulation.liveOrigin`, where the same subject is MEASURED by claims 1e/1f instead of
+    // spelled. Its own ⚠️ note recorded the opposite over-claim ("body → sound" over LFO rows) as
+    // "PRE-EXISTING and untouched" — that is what #642 fixed. §4: a guard over a changed surface
+    // moves in the SAME commit as the surface, and a scan whose needle the commit deleted would
+    // otherwise have gone red for the right reason with the wrong message.
 
     // MARK: - 4  the held clause stops naming the body as sender
 
