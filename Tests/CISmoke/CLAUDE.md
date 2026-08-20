@@ -143,6 +143,24 @@ searching for a string the new code can never contain again).
 If you delete a view or a file, grep afterwards too (#472): the blocker you registered is
 rarely the only one, and prose in other source files may cite what you removed.
 
+**RENAMING a logged string is the same event and is easier to miss (#655/#656).** #650 routed
+monitoring outcomes through a helper that OWNS the `"Input monitoring: "` prefix; a guard
+anchored on the old full literal then matched nothing, `XCTUnwrap` on nil failed, and it was
+**red on a correct tree for five commits** while three status deltas said "nothing red is
+mine". Nothing caught it because §5 is true: the pipeline reports `failure` on every push, so
+a genuinely red guard is indistinguishable from the host dying.
+
+```
+python3 scripts/dead-needles.py        # 0 = clean · 1 = a guard fails on a correct tree
+```
+
+It checks the two shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))` and
+`codeOccurrences(of: "…") >= N` — against comment-stripped `Sources/`. Its limits are in its
+own header and are real: it does not read negative assertions, interpolated needles, or
+whether a guard ran. It was validated against the commit that carried the known defect (finds
+exactly one) and the commit that repaired it (finds none) — a detector that has never found
+its own known positive is not a measurement.
+
 ---
 
 ## 5. Did it actually run?
