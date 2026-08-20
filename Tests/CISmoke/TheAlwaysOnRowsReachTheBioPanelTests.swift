@@ -77,9 +77,10 @@ final class TheAlwaysOnRowsReachTheBioPanelTests: XCTestCase {
     func testTheBioPanelMountsTheStrip() throws {
         let code = try codeText(Self.studio)
         XCTAssertTrue(code.contains("AlwaysOnBioPanelStrip()"), """
-            Nothing in `\(Self.studio)` mounts `AlwaysOnBioPanelStrip()`. The panel's sentence \
-            (`AlwaysOnBioChannel.bioPanelSentence`) promises that the body drives the sound and \
-            then names four channels; without the strip the numbers are three levels away again \
+            Nothing in `\(Self.studio)` mounts `AlwaysOnBioPanelStrip()`. Since #643 the strip \
+            renders the panel's sentence too (`AlwaysOnBioChannel.bioPanelSentence(synthetic:)`), \
+            so this mount is now the ONLY thing putting either the claim or the numbers on \
+            screen; without it the numbers are three levels away again \
             (Effects › All parameters › scroll), which is the state #542 had to leave behind and \
             #553 closed. If the mount was removed on purpose, the ⛔ block above that sentence \
             says the opposite and moves in the same commit.

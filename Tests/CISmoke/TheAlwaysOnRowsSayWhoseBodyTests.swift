@@ -95,8 +95,14 @@
 //     `bioPanelSentence` the first version of this list named, and it was missing.
 //     **CLOSED by #640**, together with `AutomationStatus.emptySentence` on the same panel —
 //     guard `Tests/CISmoke/TheSoundPanelNamesItsActualDriverTests.swift`.
-//   · `bioPanelSentence` and `alwaysOnSentence` — the same noun ("body") in two more places,
-//     both still open. ⛔ **THIS BULLET NAMED `EchoelFXView.stopsArrivingNote` AS A THIRD AND
+//   · ⭐ **`bioPanelSentence` and `alwaysOnSentence` — the same noun ("body") in two more
+//     places. CLOSED by #643**, both from the same conditional subject and both taking the flag
+//     from the RAW frame their own rows answer from. The Bio panel's sentence MOVED one level
+//     down into `AlwaysOnBioPanelStrip` to get it: `bioPanel` is a body that may not read live
+//     bio (10.76.41/50), and the strip already binds that frame for the rows — so the claim and
+//     the numbers under it are now one read by construction, and the panel body holds one bio
+//     read fewer than before, not one more. Guard: claims 6a/6b of this file.
+//     ⛔ **THIS BULLET NAMED `EchoelFXView.stopsArrivingNote` AS A THIRD AND
 //     ITS STRING CONTAINS NO SUCH NOUN** ("When a channel stops arriving, its routes here
 //     release…"). The error travelled into two other registers verbatim; the count "four" was
 //     right and one of the four was the wrong file, which is worse than a wrong count because
@@ -357,5 +363,53 @@ final class TheAlwaysOnRowsSayWhoseBodyTests: XCTestCase {
         XCTAssertTrue(lines.contains { $0.contains("reading.isMeasured") && $0.contains("\"—\"") }
                       || lines.contains { $0.contains(": \"—\"") },
                       "#498's em dash for an unmeasured channel is gone")
+    }
+
+    // MARK: - 6  the two sentences above the rows (#643) — END-TO-END
+
+    /// 6a/6b — REGRESSION, and the strong kind (§1): both sentences are pure `static func`s on a
+    /// public enum, so this drives them and reads what a player would see. Until #643 both said
+    /// "Four body channels shape the instrument's own timbre while a session runs" over rows
+    /// that had marked themselves "Demo" since #635b — a present-tense claim about a current
+    /// reading, false whenever the demo generator drives, on the two surfaces that make the
+    /// promise most plainly.
+    ///
+    /// ⚠️ THE COUNTERWEIGHT IS THE INTERESTING HALF, and it is why this is not four assertions.
+    /// Only the SUBJECT is allowed to differ: the channel list, the tail and each surface's
+    /// deictic half ("these routes" / "open Effects › All parameters") must be byte-identical
+    /// across the two branches, or a copy edit lands in one branch and a player sees a different
+    /// sentence depending on which source happens to be running. Asserting the shared SUFFIX
+    /// pins that without re-spelling it here (#416).
+    func testBothAlwaysOnSentencesNameWhoseChannelsTheyAre() {
+        for (label, real, demo) in [
+            ("FX footer",
+             AlwaysOnBioChannel.alwaysOnSentence(synthetic: false),
+             AlwaysOnBioChannel.alwaysOnSentence(synthetic: true)),
+            ("Bio panel",
+             AlwaysOnBioChannel.bioPanelSentence(synthetic: false),
+             AlwaysOnBioChannel.bioPanelSentence(synthetic: true)),
+        ] {
+            XCTAssertTrue(real.contains("body channels"), """
+                \(label): the measured-source wording no longer says whose channels these are. \
+                This slice adds a second subject for one case; it does not rewrite the sentence.
+                """)
+            XCTAssertFalse(real.contains("simulated demo"), """
+                \(label): a REAL body is being told it is the demo generator. That is the \
+                over-correction this family has already had to retract twice — marking is only \
+                honest when it is conditional.
+                """)
+            XCTAssertTrue(demo.contains("simulated demo") && demo.contains("not your body"), """
+                \(label): while the demo generator drives, the sentence still claims the \
+                player's body. Every row beneath it says "Demo"; the sentence above them is the \
+                half a scanning reader takes.
+                """)
+            // Only the subject differs — everything from the shared tail on must match.
+            let tail = "the instrument's own timbre while a session runs: coherence, HRV, "
+            XCTAssertTrue(real.contains(tail) && demo.contains(tail), """
+                \(label): the two branches diverge before the channel list. Only the SUBJECT may \
+                differ — a player must not read a different sentence depending on which source \
+                is running, and the four channel names have exactly one spelling (#416).
+                """)
+        }
     }
 }

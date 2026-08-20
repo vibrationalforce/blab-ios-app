@@ -210,6 +210,16 @@ struct AlwaysOnBioRow: View {
 ///
 /// ⚠️ NO `Section`, NO `.listRowBackground`: this strip lives in a `VStack`, not a `List`.
 /// Adding either is what makes a row render as a stray inset inside the panel.
+///
+/// ⭐ #643 MOVED THE PANEL'S SENTENCE IN HERE, and the move is what makes the claim checkable
+/// rather than merely conditional. The sentence has to name whose channels these are — while
+/// the demo generator drives, "four body channels" is false — and the flag has to come from
+/// the SAME frame as the rows underneath, or one screen carries two answers (the #641 defect,
+/// twice retracted). It was a `Text` in `EchoelStudioView.bioPanel`, a body that must not read
+/// live bio at all (10.76.41/50): giving it the flag there would have put a bio read in the
+/// root. Here the frame is already bound, one line up, for the rows. So the sentence and its
+/// rows are ONE read by construction — no new leaf, no new observation, one read fewer in the
+/// panel body than before.
 @MainActor
 struct AlwaysOnBioPanelStrip: View {
     @Environment(EngineBus.self) private var bus
@@ -217,6 +227,10 @@ struct AlwaysOnBioPanelStrip: View {
     var body: some View {
         let frame = bus.latestBio
         VStack(alignment: .leading, spacing: 8) {
+            Text(AlwaysOnBioChannel.bioPanelSentence(
+                synthetic: frame?.source.isSynthetic == true))
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
             ForEach(AlwaysOnBioChannel.allCases) { channel in
                 AlwaysOnBioRow(channel: channel, frame: frame)
             }

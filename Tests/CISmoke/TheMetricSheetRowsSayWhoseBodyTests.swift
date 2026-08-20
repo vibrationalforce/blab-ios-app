@@ -130,8 +130,11 @@
 // ⚠️ STILL OPEN in the provenance family after this slice — corrected twice since, so read the
 // ticks rather than the original list: ⭐ `soundPanelSentence` is CLOSED (#640, together with
 // `AutomationStatus.emptySentence`, which this list never named and which says "right now");
-// ⭐ OSC is CLOSED (#639). Still open: `bioPanelSentence` and `alwaysOnSentence` (both say
-// "four body channels"), the two `EchoelStudioView` captions, `BodyTempoField`'s unconditional
+// ⭐ OSC is CLOSED (#639). ⭐ `bioPanelSentence` and `alwaysOnSentence` — the two that said
+// "four body channels" — are CLOSED (#643): one conditional subject each, the flag taken from
+// the same raw frame their own rows use, and the Bio panel's copy moved into
+// `AlwaysOnBioPanelStrip` so that flag never has to be read in a root body. Still open: the two
+// `EchoelStudioView` captions, `BodyTempoField`'s unconditional
 // "Tempo, driven by your body", and ADM-OSC / Art-Net / sACN / the discrete events (#462,
 // second half). ⭐ The THREE `EchoelFXView` strings that no register held until #640's review
 // went looking are triaged and closed as an entry by #641 — and the Live half RE-OPENED and

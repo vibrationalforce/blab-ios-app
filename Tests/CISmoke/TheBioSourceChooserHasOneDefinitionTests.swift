@@ -140,22 +140,28 @@ final class TheBioSourceChooserHasOneDefinitionTests: XCTestCase {
             is the ONE owner of source switching (BLE-3: a second lifecycle owner \
             killed straps mid-performance) — the row may not grow its own start path.
             """)
-        // Mount window: caption ("Choose your bio source below") < row < the
-        // AlwaysOnBioChannel sentence. All three anchors asserted unique (#408).
+        // Mount window: caption ("Choose your bio source below") < row < the always-on strip.
+        // All three anchors asserted unique (#408).
+        // ⛔ THE RIGHT EDGE MOVED IN #643. It was `Text(AlwaysOnBioChannel.bioPanelSentence)`,
+        // rendered by `bioPanel` itself; the sentence had to learn whose channels it names and
+        // the flag for that must come from the same frame the rows use — a read `bioPanel` may
+        // not do (10.76.41/50) — so it moved into `AlwaysOnBioPanelStrip`, which renders at the
+        // same place on screen. The window this claim protects is unchanged in MEANING: the
+        // chooser sits between the caption that points at it and the always-on block below.
         for anchor in ["Choose your bio source below",
                        "\n            bioSourceRow\n",
-                       "Text(AlwaysOnBioChannel.bioPanelSentence)"] {
+                       "AlwaysOnBioPanelStrip()"] {
             XCTAssertEqual(studio.components(separatedBy: anchor).count - 1, 1,
                            "bioPanel window anchor `\(anchor.prefix(40))` not unique — re-anchor (#408).")
         }
         if let caption = studio.range(of: "Choose your bio source below"),
            let mount = studio.range(of: "\n            bioSourceRow\n"),
-           let sentence = studio.range(of: "Text(AlwaysOnBioChannel.bioPanelSentence)") {
+           let sentence = studio.range(of: "AlwaysOnBioPanelStrip()") {
             XCTAssertTrue(caption.upperBound <= mount.lowerBound
                             && mount.upperBound <= sentence.lowerBound, """
                 `bioSourceRow` is mounted outside the window the caption promises \
                 ("Choose your bio source below" → the row must follow that sentence, \
-                before the always-on channel sentence). Moving the row is fine — \
+                before the always-on block). Moving the row is fine — \
                 move the caption's pointer and this scan with it.
                 """)
         }

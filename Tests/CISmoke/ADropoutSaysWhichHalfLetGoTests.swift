@@ -69,6 +69,9 @@ import XCTest
 final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
 
     private static let fxView = "Sources/Echoelmusic/Studio/EchoelFXView.swift"
+    /// #643: the always-on sentence's literal lives here (moved by #542); the FX member of the
+    /// same name is now a forwarder with no literal in it.
+    private static let channels = "Sources/Echoelmusic/Studio/AlwaysOnBioChannel.swift"
     /// ⛔ THE ROW MOVED (#553). `AlwaysOnBioRow` was a `private` struct in `fxView`; it is now an
     /// internal type in its own file so the Bio panel can mount the same row the FX sheet does.
     /// This anchor is updated in the SAME commit as the move — the failure mode #456 warns about
@@ -174,7 +177,13 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
     /// making a copy edit about dropouts able to fail a guard about channel inventory, and
     /// vice versa. Two decisions, two strings (#416 read forwards, not backwards).
     func testTheAlwaysOnNoteStaysTheAlwaysOnNote() throws {
-        let note = try literalValue(of: "static let alwaysOnNote =", in: Self.fxView)
+        // ⛔ RE-ANCHORED TWICE OVER BY #643, and reading the OLD anchor would have been
+        // vacuous rather than red. It was `static let alwaysOnNote =` in `EchoelFXView` — but
+        // that member became `static func alwaysOnNote(synthetic:)`, a one-line FORWARDER whose
+        // body holds no string literal at all. Anchored there, this scan would have extracted
+        // the empty string and every `XCTAssertFalse(note.contains(…))` below would have passed
+        // over nothing (#454). The literal lives in `AlwaysOnBioChannel`, where #542 put it.
+        let note = try literalValue(of: "static func alwaysOnSentence", in: Self.channels)
         XCTAssertFalse(note.isEmpty, "the always-on note vanished — see #496")
         for word in ["held", "release", "dash"] {
             XCTAssertFalse(note.contains(word), """
@@ -231,6 +240,17 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
     /// cannot be swept in — but a blank line inserted mid-constant WOULD truncate the value, and
     /// the scans above would then fail on correct code. That is the intended direction: a
     /// truncated read makes a positive assertion red, never a negative one green.
+    /// What counts as a continuation of a multi-line string expression.
+    ///
+    /// ⛔ IT WAS `"` AND `+` ONLY, AND #643 WOULD HAVE TRUNCATED THE VALUE SILENTLY. The
+    /// always-on sentence grew a ternary — its subject now names the demo generator when the
+    /// demo generator is driving — so two of its lines begin with `?` and `:`. The walk would
+    /// have stopped at the first of them, kept the head, and dropped the TAIL: `note.isEmpty`
+    /// still false, so nothing goes red, while every negative assertion below silently stops
+    /// covering the half of the sentence it was written for. That is the #454 failure mode in
+    /// its quietest form — not a guard that fails, a guard that shrinks.
+    private static let continuationPrefixes = ["\"", "+", "?", ":", "(", ")"]
+
     private func literalValue(of anchor: String, in relativePath: String) throws -> String {
         let text = try source(relativePath)
         let hits = text.components(separatedBy: anchor).count - 1
@@ -246,7 +266,7 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if !started {
                 if line.contains(anchor) { started = true } else { continue }
-            } else if !(trimmed.hasPrefix("\"") || trimmed.hasPrefix("+")) {
+            } else if !Self.continuationPrefixes.contains(where: trimmed.hasPrefix) {
                 break
             }
             // Every `"…"` on this line, concatenated in order.

@@ -105,10 +105,23 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// wiring a real producer for one of the three pinned channels (`breathDepth`, `lfHf`,
     /// `coherenceTrend` — all handed neutral literals today) goes red HERE instead of quietly
     /// leaving the sentence one channel short.
-    public static let alwaysOnSentence =
-        "Separately from these routes, four body channels shape the instrument's own timbre "
-        + "while a session runs: coherence, HRV, heart rate and breath phase. Routes here add "
-        + "effect parameters on top."
+    /// ⭐ AND SINCE #643 IT NAMES WHOSE CHANNELS THEY ARE. "Four body channels shape the
+    /// instrument's own timbre while a session runs" is a PRESENT-TENSE claim about a current
+    /// reading, and while the demo generator drives it is false — no body is involved. Same
+    /// defect the FX headers carried until #641/#642, on the surface that makes the promise
+    /// most plainly. The channel list, the tail and the deictic half are byte-identical across
+    /// both branches; only the SUBJECT moves, which is what keeps the guard's four-name
+    /// assertions running over one shared string.
+    ///
+    /// ⚠️ REQUIRED ARGUMENT, NO DEFAULT (#431/#440/#443): a defaulted `synthetic:` would let a
+    /// new call site render the body claim over a demo session without appearing in any diff.
+    public static func alwaysOnSentence(synthetic: Bool) -> String {
+        "Separately from these routes, "
+        + (synthetic ? "four channels from the simulated demo source — not your body — shape "
+                     : "four body channels shape ")
+        + "the instrument's own timbre while a session runs: coherence, HRV, heart rate and "
+        + "breath phase. Routes here add effect parameters on top."
+    }
 
     /// The same claim for a surface that is NOT the FX sheet — same four channels, no "these
     /// routes" to point at.
@@ -120,10 +133,15 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// of routes and says "these", the Bio panel has no such list and must say where to look.
     /// Folding them into one string would force one of the two surfaces to point at something
     /// that is not there, which is exactly the class of copy #491 and #480 had to retract.
-    public static let bioPanelSentence =
-        "Four body channels shape the instrument's own timbre while a session runs: coherence, "
-        + "HRV, heart rate and breath phase. To watch them move — and to add your own routes "
-        + "onto effect parameters — open Effects › All parameters."
+    /// ⭐ #643 gave it the same conditional subject as its sibling, for the same reason and
+    /// from the same flag. See `alwaysOnSentence` — the argument is there, once.
+    public static func bioPanelSentence(synthetic: Bool) -> String {
+        (synthetic ? "Four channels from the simulated demo source — not your body — shape "
+                   : "Four body channels shape ")
+        + "the instrument's own timbre while a session runs: coherence, HRV, heart rate and "
+        + "breath phase. To watch them move — and to add your own routes onto effect "
+        + "parameters — open Effects › All parameters."
+    }
 
     /// What this channel moves in the engine, in the channel row's own reading order.
     ///

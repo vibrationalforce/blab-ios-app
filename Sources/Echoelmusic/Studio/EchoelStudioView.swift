@@ -3132,10 +3132,20 @@ struct EchoelStudioView: View {
             // The sentence stays because it is the one thing a player can read at a glance;
             // the numbers now stand under it instead of three levels away (Effects › All
             // parameters › scroll to the bottom), which is where #542 had to leave them.
-            Text(AlwaysOnBioChannel.bioPanelSentence)
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-
+            //
+            // ⭐ AND SINCE #643 THE SENTENCE IS RENDERED BY THE STRIP, not by this body — same
+            // words, same position in the panel, one line further down the view tree. (⚠️ NOT
+            // pixel-identical, and saying "same place on screen" would have been a claim nobody
+            // measured: this `VStack` spaces at 10, the strip's at 8, so the gap BELOW the
+            // sentence tightens by two points while the gap above it is unchanged. Two points
+            // between a caption and the rows it introduces is the right direction anyway — they
+            // belong together — but it is a difference, and this file does not round differences
+            // to zero.) It had to name
+            // whose channels it means (while the demo generator drives, "four body channels" is
+            // false), and the flag has to be the SAME frame the rows under it answer from. This
+            // body may not read live bio at all — the comment above says why — so the sentence
+            // moved to where the frame already is. That is one bio read FEWER in reach of this
+            // body, not one more, which is the only direction this file accepts.
             AlwaysOnBioPanelStrip()
 
             BreathCoachStrip()

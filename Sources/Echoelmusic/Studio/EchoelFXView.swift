@@ -1128,9 +1128,16 @@ private struct BioModLiveView: View {
     /// behind Effects → All parameters → scroll. Writing the Bio panel its own wording would
     /// have been two spellings of a claim that has already been corrected twice (#496
     /// over-claim, #498 channel list). This forwarder stays so the mount below reads the same
-    /// as it did — `Text(Self.alwaysOnNote)` is what `TheAlwaysOnBioPathIsNamedTests` anchors
+    /// as it did — `Text(Self.alwaysOnNote(` is what `TheAlwaysOnBioPathIsNamedTests` anchors
     /// on, and that guard is re-anchored to the new home in the same commit (#456).
-    static let alwaysOnNote = AlwaysOnBioChannel.alwaysOnSentence
+    ///
+    /// ⭐ #643 GAVE IT THE SOURCE FLAG, and the flag comes from the SAME `frame` the section's
+    /// header and every one of its rows already answer from — bound once at the top of
+    /// `AlwaysOnBioView.body`, raw. That is the #641 law applied to the third element of one
+    /// section: header, rows and footer may not each ask their own question.
+    static func alwaysOnNote(synthetic: Bool) -> String {
+        AlwaysOnBioChannel.alwaysOnSentence(synthetic: synthetic)
+    }
 
     /// What a DROPOUT looks like — the residue `FXBioModulator` registered and left on screen
     /// only half-explained (#540).
@@ -1211,10 +1218,10 @@ private struct BioModLiveView: View {
         } footer: {
             // Two paragraphs, not one joined string: the always-on note is bound by
             // `TheAlwaysOnBioPathIsNamedTests` to the two `…BioParams(` construction sites, so
-            // it has to stay exactly the sentence that guard measures. `Text(Self.alwaysOnNote)`
+            // it has to stay exactly the sentence that guard measures. `Text(Self.alwaysOnNote(`
             // is its needle and is kept verbatim (#456).
             VStack(alignment: .leading, spacing: 6) {
-                Text(Self.alwaysOnNote)
+                Text(Self.alwaysOnNote(synthetic: frame?.source.isSynthetic == true))
                 Text(Self.stopsArrivingNote)
             }
             .fixedSize(horizontal: false, vertical: true)

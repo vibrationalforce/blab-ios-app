@@ -91,6 +91,9 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
     /// Where the sentence lives since #542 — beside the four cases it names.
     private static let channels = "Sources/Echoelmusic/Studio/AlwaysOnBioChannel.swift"
+    /// Added by #643: the strip took over rendering the Bio panel's sentence, because that is
+    /// where the frame the sentence needs is already bound.
+    private static let row = "Sources/Echoelmusic/Studio/AlwaysOnBioRow.swift"
 
     /// The four channels the note is allowed to name, in the words it uses.
     private static let namedChannels = ["coherence", "HRV", "heart rate", "breath phase"]
@@ -157,7 +160,7 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
     func testTheNoteIsMountedAsTheSectionFooter() throws {
         let body = try declarationBody(of: "private struct BioModLiveView: View",
                                        in: Self.fxView)
-        XCTAssertTrue(body.contains("Text(Self.alwaysOnNote)"),
+        XCTAssertTrue(body.contains("Text(Self.alwaysOnNote(synthetic:"),
                       "the always-on note must be rendered as the section footer — otherwise it "
                       + "is a string constant that states a truth nobody can read")
     }
@@ -165,12 +168,28 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
     /// The #542 half: the same rule applied to the surface where a player actually asks the
     /// question. A constant nobody renders is prose, and this one exists BECAUSE the Bio panel
     /// made a promise it did not keep.
+    ///
+    /// ⛔ THE ANCHOR MOVED IN #643 AND THE CLAIM DID NOT. It read `Text(AlwaysOnBioChannel
+    /// .bioPanelSentence)` inside `bioPanel`'s own body. The sentence had to learn whose
+    /// channels it means — while the demo generator drives, "four body channels" is false —
+    /// and the flag must come from the SAME frame the rows beneath it answer from. `bioPanel`
+    /// is a body that may not read live bio at all (10.76.41/50), so the sentence moved one
+    /// level down into `AlwaysOnBioPanelStrip`, where that frame is already bound. What this
+    /// claim protects is unchanged: the panel must RENDER the sentence, not merely define it.
+    /// It now asserts the mount that carries it.
     func testTheBioPanelRendersItsSentence() throws {
         let body = try declarationBody(of: "private var bioPanel: some View", in: Self.studio)
-        XCTAssertTrue(body.contains("Text(AlwaysOnBioChannel.bioPanelSentence)"), """
-            `bioPanel` no longer renders the always-on sentence. It still tells the player \
+        XCTAssertTrue(body.contains("AlwaysOnBioPanelStrip()"), """
+            `bioPanel` no longer mounts `AlwaysOnBioPanelStrip`, which since #643 renders the \
+            always-on sentence as well as the four rows. The panel still tells the player \
             "your body then drives the sound" one line above; without this it names nothing, \
             and the only place that does is two chips away behind Effects › All parameters.
+            """)
+        let strip = try source(Self.row)
+        XCTAssertTrue(strip.contains("Text(AlwaysOnBioChannel.bioPanelSentence("), """
+            `AlwaysOnBioPanelStrip` no longer renders the sentence it took over in #643. If it \
+            went back to `bioPanel`, the flag it needs would be a live bio read in a body that \
+            must not have one — move the claim, not just the `Text` (10.76.41/50).
             """)
     }
 
@@ -390,38 +409,51 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
         try literal(named: "bioPanelSentence", in: Self.channels)
     }
 
-    /// The concatenated `"…"` pieces of a multi-line `public static let`, from its declaration
-    /// to the first line that is neither the declaration nor a continuation.
+    /// Every `"…"` piece inside a `public static func`'s braces — BOTH branches of the
+    /// source ternary, which is what the channel assertions want: the four names live in the
+    /// shared tail, and a list that drifted in only one branch has to go red.
     ///
-    /// ⚠️ HONEST LIMIT: `SourceText.codeOnly` blanks comments while preserving line count, so a
-    /// doc block cannot be swept in — but a blank line inserted mid-constant would truncate the
-    /// value. That direction is safe by construction: a short read makes the positive channel
-    /// assertions fail, never makes the negative ones pass.
+    /// ⛔ IT WAS PREFIX-SCOPED AND #643 WOULD HAVE MADE IT RED ON CORRECT CODE. The old form
+    /// anchored on `static let` and walked forward while each line began with `"` or `+`, which
+    /// is exactly how `bioPanelSentence` now opens — with `(synthetic ? …`. It would have
+    /// stopped on the first body line, returned the empty string, and failed every positive
+    /// channel assertion on a correct tree: the #364 failure mode, and the same "a line window
+    /// is unsound by construction" lesson as #408. Brace matching has no such edge; the honest
+    /// limit the old form documented (a blank line mid-constant truncates the value) is gone
+    /// with it, and `SourceText.codeOnly` still keeps doc comments out.
     private func literal(named: String, in relativePath: String) throws -> String {
         let text = try source(relativePath)
-        let anchor = "static let \(named)"
-        guard text.components(separatedBy: anchor).count - 1 == 1 else {
+        let anchor = "static func \(named)"
+        guard text.components(separatedBy: anchor).count - 1 == 1,
+              let start = text.range(of: anchor) else {
             throw BioNoteAnchorMissing(reason: """
                 `\(anchor)` does not occur exactly once in \(relativePath). It is the single \
                 definition of the always-on claim; re-anchor this scan and say why.
                 """)
         }
         var out = ""
-        var started = false
-        for line in text.split(separator: "\n", omittingEmptySubsequences: false).map(String.init) {
-            let trimmed = line.trimmingCharacters(in: .whitespaces)
-            if !started {
-                if line.contains(anchor) { started = true } else { continue }
-            } else if !(trimmed.hasPrefix("\"") || trimmed.hasPrefix("+")) {
-                break
+        var depth = 0
+        var opened = false
+        var inside = false
+        var escaped = false
+        for ch in text[start.lowerBound...] {
+            if inside {
+                if escaped { escaped = false; out.append(ch); continue }
+                if ch == "\\" { escaped = true; continue }
+                if ch == "\"" { inside = false; continue }
+                out.append(ch)
+                continue
             }
-            var inside = false
-            var piece = ""
-            for c in line {
-                if c == "\"" { inside.toggle(); continue }
-                if inside { piece.append(c) }
-            }
-            out += piece
+            if ch == "\"" { inside = true; continue }
+            if ch == "{" { depth += 1; opened = true }
+            if ch == "}" { depth -= 1; if opened, depth == 0 { break } }
+        }
+        guard opened, !out.isEmpty else {
+            throw BioNoteAnchorMissing(reason: """
+                Brace matching from `\(anchor)` in \(relativePath) yielded no string pieces — \
+                the extraction failed, and every channel assertion over it would pass over \
+                nothing (#454).
+                """)
         }
         return out
     }
