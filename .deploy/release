@@ -1,117 +1,106 @@
-build: v10.79.412 — Die Erklärungen sagen jetzt, was wirklich klingt
+build: v10.79.413 — Die App sagt jetzt auch auf dem Sound-Panel, im FX-Blatt und auf dem Draht, wessen Körper das ist
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
   sein. CI greift mit `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die GESAMTE Datei und
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
-  Seit 10.79.411 ist diese Regel kein Prosa-Hinweis mehr, sondern ein Wächter im
-  blockierenden Bundle (`TheShippedVersionComesFromTheReleaseFileTests`, #635).
+  Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.411. Dieser Build bündelt VIER Scheiben — #635b, #636,
-  #637 (Herkunfts-Ehrlichkeit) und #638 (Abbildungs-Ehrlichkeit).
+  Der Vorgänger ist 10.79.412 (Build 2529). Dieser Build bündelt DREI Scheiben —
+  #639, #640, #641 — plus zwei Reviewer-Runden.
 
-  ── WAS NEU IST ──────────────────────────────────────────────────────────
+  ── ZUERST EINE SACHE, DIE ICH NICHT VERSCHWEIGE ─────────────────────────
 
-  · **Die Herkunfts-Markierung erreicht jetzt JEDE Fläche, die eine Bio-Zahl
-    zeichnet.** 10.79.411 hat sie fast überall eingeführt und in seinen eigenen
-    Notizen ehrlich gesagt, welche zwei fehlten. Beide sind jetzt dran:
-      · **FX-Beitragszeile** (#635b): im „All parameters"-Blatt zeigt jede
-        Bio-Route, wie weit sie ihren Parameter gerade zieht. Läuft die
-        Demo-Quelle, steht dort ein „Demo", der Balken ist gedämpft, und
-        VoiceOver sagt „Simulated demo, " vor dem Satz.
-      · **Metrik-Ansicht** (#637): der Abschnitt „How your body shapes the sound"
-        trug die Markierung nur in seiner ÜBERSCHRIFT. Jede Zeile darunter
-        zeichnete weiter eine volle Zahl, einen vollen Balken und sprach
-        „Currently 62 percent" ohne Herkunft. Jede Zeile ist ein eigenes
-        VoiceOver-Element — wer sie der Reihe nach abhört, kam an der Überschrift
-        NIE vorbei. Jetzt trägt jede Zeile ihre eigene Markierung.
-    ⚠ „Fläche" heißt Fläche, nicht „fertig". Für ein SEHENDES Auge ist die
-    Markierung in diesen Zeilen nur FARBE (gedämpft statt Akzent) — das einzige
-    Wort steht in der Abschnitts-Überschrift, und die scrollt weg, während die
-    Zeilen stehen bleiben. Ein „Demo"-Schildchen pro Zeile wäre stärker; es
-    ändert das Zeilen-Layout und ist deshalb bewusst nicht in diesem Build.
+  **Build 2530 trägt diesen Code schon.** Er ist ungeplant hochgeladen worden: ich habe
+  in DIESER Datei eine Geräteprobe korrigiert, und jede Änderung an ihr löst einen
+  TestFlight-Build aus. 2530 steht als VALID in App Store Connect. **2530 und der Build
+  aus diesen Notizen sind dieselbe App** — der einzige Unterschied ist, dass 2530 keine
+  Notizen hat, weil die Versionsnummer damals unverändert blieb. Wenn Du 2530 schon
+  installiert hast, prüfe damit; ein zweites Installieren bringt nichts Neues.
 
-  · **Das Widget gibt ein altes Bild nicht mehr als aktuelles aus** (#636). Es
-    zeigte den letzten bekannten Wert, ohne zu sagen, wie alt er ist. Ab 90
-    Sekunden steht jetzt „Last session" daneben (VoiceOver: „Reading from an
-    earlier session, not current") und die Zahlen dimmen. Die Reparatur war
-    größer als sie aussieht: das Widget lieferte dem System EINEN Zeitpunkt, die
-    Frische-Angabe wäre also für immer auf dem Stand ihres Baus eingefroren
-    gewesen — es gibt jetzt einen zweiten Eintrag genau zum Ablauf-Zeitpunkt.
-    ⚠ Dieselbe Änderung steht in der Uhr-App, und die kann Dich heute NICHT
-    erreichen: das Watch-Target ist in `project.yml` nicht eingebettet, und es
-    gibt keinen Übertragungsweg vom Telefon ans Handgelenk (ein App-Group-
-    Speicher gilt pro Gerät). Gebaut, nicht auslieferbar — bitte NICHT prüfen.
+  ── WAS SICH ÄNDERT, UND WAS AUSDRÜCKLICH NICHT ──────────────────────────
 
-  · **Und die Erklärungen selbst waren falsch** (#638). Der Abschnitt listet vier
-    Zeilen „Körpersignal → Klang". DREI davon beschrieben etwas, das nicht
-    klingt:
-      · HRV → „Reverb & Raumgefühl": diese Hall-Stufe ist im Code abgeschaltet.
-      · Herzfrequenz → „beschleunigt den Filter-Sweep": den Filter-Sweep GIBT es,
-        er gehört zum Klang jedes Patches — aber die Herzfrequenz steuert ihn
-        nicht und hat das seit einem früheren Aufräumen nie wieder getan.
-        Dieselbe Zeile verschwieg gleichzeitig, was Herzfrequenz WIRKLICH tut:
-        sie hellt den Ton auf.
-      · Atem → „verbreitert die Filterbewegung": die Atem-TIEFE misst nichts in
-        dieser App; gemessen wird nur die Atem-PHASE, und die macht das
-        Anschwellen.
-    Alle vier Zeilen sind neu geschrieben und stimmen jetzt mit der geprüften
-    Tabelle überein, die die App an anderer Stelle schon benutzt.
+  **Kein Klang und kein Bild ändert sich in diesem Build.** Was sich ändert, ist, was die
+  App BEHAUPTET. Such also nicht nach einem neuen Sound — es gibt keinen.
+
+  Die Linie ist dieselbe wie in 10.79.412: Echoel darf mit der Demo-Quelle laufen (ohne
+  sie gäbe es keinen Vorführmodus), aber keine Fläche darf dabei so tun, als sei das Dein
+  Körper. 412 hat die Flächen erledigt, die eine ZAHL zeichnen. Dieser Build erledigt die
+  Flächen, die einen SATZ sagen — und den Draht nach draußen.
+
+  · **Sound-Panel (#640).** Zwei Sätze auf einem Bildschirm behaupteten „Dein Körper",
+    auch während der Demo-Generator lief:
+      · oben: „Your body also shapes this sound while a session runs: Brightness … move
+        around the values you set here."
+      · unten, in der Automations-Anzeige: „…Anything moving on its own **right now** is
+        your body, not automation."
+    Beide sind Aussagen über den AUGENBLICK, nicht über die Verdrahtung — der zweite sagt
+    „right now" sogar selbst. Beide nennen jetzt die Demo-Quelle. Der Wortlaut für einen
+    echten Körper ist Buchstabe für Buchstabe unverändert; die Sätze haben ein Argument
+    bekommen, keine Umformulierung. Das war Absicht: die naheliegende Alternative hätte
+    „Dein Körper" für JEDEN Spieler abgeschwächt, um bei der Demo recht zu haben.
+
+  · **FX-Blatt „All parameters" (#641).** Dort stehen zwei Abschnitts-Überschriften, und
+    jede Zeile UNTER ihnen sagt bereits „Demo" (die Beitragszeilen seit 10.79.412, die
+    Always-on-Zeilen davor) — die Überschriften
+    behaupteten weiter einen Körper. Eine Fläche, zwei Antworten. Beide Überschriften
+    folgen jetzt ihren eigenen Zeilen.
+    Dazu ein Satz in der Fußnote: „…the engine still has it, your body has stopped
+    sending it" heißt jetzt „…the signal has stopped arriving". Bei laufender Demo war er
+    doppelt falsch — es hatte nie Dein Körper gesendet.
+
+  · **OSC-Ausgang (#639).** Neu ist die Adresse `/echoelmusic/bio/synthetic` (1 = Demo,
+    0 = echter Körper). ⚠ **Das kannst Du am Telefon NICHT sehen.** Es ist ausschließlich
+    für Empfänger — TouchDesigner, Resolume, ein Lichtpult, ein Mitspieler. Bisher bekam
+    so ein Empfänger `/echoelmusic/bio/heart/bpm 74` von einem Simulator und hatte keine
+    Möglichkeit, das zu merken. Ohne OSC-Empfänger im Netz gibt es hier nichts zu prüfen,
+    und ich behaupte auch nicht, dass es funktioniert — nur, dass es gebaut ist.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Alles compile-verifiziert, NICHTS geräteverifiziert. ZWEI der vier Scheiben
-  (#636, #637) sind zusätzlich namentlich im Testprotokoll als gelaufen belegt.
-  Bei #635b und #638 ist belegt, dass sie BAUEN, nicht dass ihre neuen Prüfungen
-  liefen: der Simulator-Klon leert nur einen Teil der Namen, und ein fehlender
-  Name beweist nichts.
+  Alles compile-verifiziert (beide echten Gates, „Build for Testing" grün), **NICHTS**
+  geräteverifiziert. Von den neuen Prüfungen ist keine namentlich im Testprotokoll
+  aufgetaucht — der Simulator-Klon leert nur einen Teil der Namen, und ein fehlender Name
+  beweist nichts. Ehrlich ist: sie bauen nachweislich, ihre Ausführung ist unbelegt.
 
-  Eine Auffälligkeit, die ich nicht verschweige: im Lauf von #635b meldet EIN
-  Test einen Fehlschlag (eine Prüfung über die Helligkeits-Automation). Ich habe
-  alle drei Behauptungen dieses Tests gegen genau den Baum nachgerechnet, auf dem
-  er lief — alle drei stimmen. Der Log enthält keinen Fehlertext und keine Zeile
-  aus dem Projekt, und der Test brauchte 31 Sekunden für Arbeit, die seine
-  Geschwister in Sekundenbruchteilen erledigen. Das ist das Bild eines
-  ABGEBROCHENEN Laufs, nicht einer verletzten Regel. Ich habe deshalb NICHTS
-  daran geändert und die Beobachtung samt Prüf-Reihenfolge im Harness-Ledger
-  hinterlegt.
+  Zwei Sätze im FX-Blatt bleiben ABSICHTLICH unmarkiert, und das ist eine Entscheidung,
+  kein Rest: „Let the body shape the effects…" erscheint, wenn es KEINE Route gibt, und
+  „Start a session to watch the body move these parameters." erscheint, wenn NICHTS läuft.
+  Beide sind Anleitungen auf Bildschirmen, auf denen über keinen aktuellen Messwert etwas
+  behauptet wird — sie zu markieren würde suggerieren, eine Demo laufe, wo keine läuft.
 
-  Weiterhin offen und ausdrücklich NICHT behauptet: VIER Sätze mit dem Wort
-  „Körper" (Sound-Panel, Bio-Panel, die Always-on-Zeile und der FX-Hinweis) und
-  VIER Beschriftungen (zwei Studio-Bildunterschriften, zwei Tempo-Feld-Labels)
-  tragen die Demo-Markierung noch nicht. Und was Echoel über OSC, ADM-OSC,
-  Art-Net oder sACN nach außen schickt, sagt dem Empfänger bis heute nicht, ob es
-  ein Körper war — Demo-Werte verlassen das Gerät unmarkiert.
+  Weiterhin offen und ausdrücklich NICHT behauptet: das „Demo"-Schildchen pro Zeile in der
+  Metrik-Ansicht (registriert, bewusst verschoben) · zwei Sätze mit „body channels" im
+  Bio- und FX-Panel · zwei Studio-Bildunterschriften · zwei Tempo-Feld-Labels · und
+  ADM-OSC, Art-Net, sACN sowie die Ereignis-Adressen, die dem Empfänger bis heute nicht
+  sagen, ob es ein Körper war.
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  1. Bio-Streifen → ⓘ (oder das Aktivitätslicht) öffnet die Erklär-Seite. Sie
-     startet halbhoch: **nach unten scrollen** bis „How your body shapes the
-     sound". Bei laufender DEMO-Quelle: ist jede der vier Zeilen gedämpft, nicht
-     nur die Überschrift? Mit VoiceOver: hörst Du vor jeder Zeile „Simulated
-     demo"?
-  2. Lies diese vier Zeilen einmal als Nutzer. Sind sie verständlich, und
-     beschreiben sie das, was Du beim Spielen tatsächlich hörst? Das ist die eine
-     Frage, die kein Test beantworten kann — die Zeilen sind gegen den Code
-     geprüft, aber Klang ist Deine Sache.
-  3. FX → „All parameters", ganz nach unten zur „Live"-Sektion. ⚠ Die Überschrift
-     heißt bei laufender DEMO-Quelle seit #641 nicht mehr „Live — body → sound",
-     sondern „Live — simulated demo → sound" — also genau unter der Bedingung, die
-     dieser Punkt prüft. (Der alte Wortlaut stand hier als Navigations-Merkmal und
-     hätte Dich eine Geräteprobe gekostet, in der Du eine Überschrift suchst, die
-     es in diesem Zustand nicht gibt.) Die Zeile darunter erscheint nur, wenn Du
-     vorher über „Add bio modulation…" eine Route angelegt hast. Trägt sie ein
-     „Demo"?
-  4. Widget auf dem Home-Screen: Puls-Quelle STARTEN (Kamera oder Demo), kurz
-     laufen lassen, App schließen, ein paar Minuten warten. Steht dann „Last
-     session" auf der Kachel und sind die Zahlen gedämpft? (Ohne laufende Quelle
-     wird gar kein Wert geschrieben und die Kachel bleibt leer — das ist kein
-     Fehler.)
-  5. Offene Proben von 2527/411: Monitoring (Master-Panel → „Audio input") ·
+  Alle drei Proben brauchen die **DEMO-Quelle** und eine laufende Session. Die Quelle
+  wählst Du im Kontextmenü der Puls-Pille oder in der Zeile im Bio-Panel; der Eintrag
+  heißt wörtlich **„Play with the simulation"**.
+
+  1. **Die einfachste zuerst.** FX-Chip → „All parameters" → nach unten scrollen bis zum
+     Abschnitt, der mit „Always on —" beginnt. Steht dort „Always on — simulated demo →
+     timbre" statt „Always on — body → timbre"? (Dieser Abschnitt ist immer da, er
+     braucht keine Route.)
+  2. Auf demselben Blatt der Abschnitt darüber, „Live — …". Er zeigt Zeilen NUR, wenn Du
+     vorher über „Add bio modulation…" eine Route angelegt hast — und die Überschrift
+     nennt die Demo-Quelle nur, wenn mindestens eine BIO-Route dabei ist (eine reine
+     LFO-Route ist ein echter Oszillator und wird bewusst nicht als Demo markiert).
+  3. Sound-Chip → Sound-Panel. Ganz oben: nennt der Satz die Demo-Quelle statt „Your
+     body"? Und ganz unten, unter „Automation": steht dort „…is the simulated demo
+     source, not automation"?
+  4. Und die eine Frage, die kein Test beantworten kann: **liest sich das gut?** Die
+     Sätze sind gegen den Code geprüft, nicht gegen Dein Sprachgefühl. Wenn „simulated
+     demo" zu technisch klingt, sag es — das Wort ist eine Wahl, keine Notwendigkeit.
+
+  5. Offene Proben aus 2529/412, unverändert: die vier Zeilen im Abschnitt „How your body
+     shapes the sound" (Bio-Streifen → ⓘ, nach unten scrollen) · Widget-Kachel mit „Last
+     session" nach ein paar Minuten Pause · Monitoring (Master-Panel → „Audio input") ·
      MIDI-Export eines geöffneten Takes.
 
-  ⚠ Das Widget bleibt der unsicherste Teil. Ein Wert, den ein ÄLTERER Build im
-  geteilten Speicher hinterlassen hat, trägt sein ALTER (das war schon immer ein
-  Pflichtfeld, wird also korrekt gedimmt), aber keine HERKUNFT — ein alter
-  Demo-Wert wird bis zum ersten Überschreiben ohne „Demo" gezeigt.
-  Der geteilte Speicher für Widget und Uhr enthält nie Audio; er trägt nur Zahlen.
+  ⚠ Die Uhr-App bleibt ausgenommen: das Watch-Target ist in `project.yml` nicht
+  eingebettet, und es gibt keinen Übertragungsweg vom Telefon ans Handgelenk. Gebaut,
+  nicht auslieferbar — bitte NICHT prüfen.
