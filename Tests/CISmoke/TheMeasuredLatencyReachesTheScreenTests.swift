@@ -10,7 +10,7 @@
 // (`currentSessionLatency`) and one sum (`latencyFloorSeconds`), so the screen and the file
 // cannot drift (#416). Four spellings of that sum is what this file's predecessor found.
 //
-// ⚠️ HONEST LIMITS. 6 tests, 21 `XCTAssert*` (re-derive, do not re-type:
+// ⚠️ HONEST LIMITS. 6 tests, 25 `XCTAssert*` (re-derive, do not re-type:
 //   grep -n "XCTAssert" <this file> | grep -vc ':[[:space:]]*//'
 // ). Tests 1–3 are END-TO-END BEHAVIOUR on shipped value types — the sum and both rendered
 // strings are driven with real inputs, including the non-finite ones a session answers with
@@ -156,18 +156,42 @@ final class TheMeasuredLatencyReachesTheScreenTests: XCTestCase {
             `.menu` popover. Folding the row back into the parent body is the freeze bug.
             """)
         XCTAssertTrue(code.contains("MonitorLatencyRow()"), "the row is declared but never mounted.")
+        // #664 (review): the copy was unguarded, while the commit body claimed "the screen
+        // says that sentence out loud". `floor` is not `total` — hardware in + out + ONE
+        // buffer period is a LOWER BOUND on what the ear hears, and a reader who takes the
+        // number for the round trip will conclude the app is faster than it is. That is the
+        // same over-claim #654 removed from the log line; here it is on the surface a human
+        // actually looks at, so it is pinned rather than trusted.
+        XCTAssertTrue(code.contains("Lower bound — hardware plus one buffer"), """
+            The readout stopped saying that the number is a LOWER BOUND. Without it "9.0 ms" \
+            reads as the round trip, which is the stronger claim the measurement cannot make.
+            """)
+        XCTAssertTrue(code.contains("\"Monitor latency\""),
+                      "the readout lost its label, so the number on screen names nothing.")
 
         // The reads must sit AFTER the leaf's declaration — i.e. inside it, not in the parent.
         let leaf = try XCTUnwrap(code.range(of: "private struct MonitorLatencyRow: View"),
                                  "cannot anchor the leaf; re-anchor before trusting claim 5.")
         let above = String(code[code.startIndex..<leaf.lowerBound])
+        // ⛔ #664 (review): without this sentinel the claim is position-dependent. The leaf is
+        // last in the file today, so `above` is the whole parent. A normal leaf-first refactor
+        // that moves the struct up would make `above` EMPTY — the `== 0` below would then pass
+        // on nothing while a genuine ancestor read, now BELOW the anchor, went unseen (#454).
+        XCTAssertTrue(above.contains("struct AudioInputPickerView"), """
+            The leaf is declared BEFORE `AudioInputPickerView`, so the "nothing above the leaf \
+            reads the snapshot" claim below is measuring an empty or partial slice. Re-anchor \
+            it on the parent's own body before trusting it.
+            """)
         XCTAssertEqual(Self.occurrences(of: "latencySnapshot()", in: above), 0, """
             `latencySnapshot()` is called ABOVE the leaf's declaration — i.e. somewhere in \
             `AudioInputPickerView` itself. That is the ancestor read the freeze law forbids.
             """)
         XCTAssertEqual(Self.occurrences(of: "latencySnapshot()", in: code), 2, """
             Expected exactly two reads (on appear, on route change). Found \
-            \(Self.occurrences(of: "latencySnapshot()", in: code)).
+            \(Self.occurrences(of: "latencySnapshot()", in: code)). A third read is legitimate \
+            — refreshing after the monitoring toggle would be one — but it has to be added \
+            here deliberately, because the number this guard exists to prevent is not 3, it is \
+            a POLL. Raise the count and say which event the new read answers (#364/#664).
             """)
     }
 
@@ -175,8 +199,19 @@ final class TheMeasuredLatencyReachesTheScreenTests: XCTestCase {
 
     func testTheReadoutIsEventDrivenAndHopsToTheMainActor() throws {
         let code = try Self.codeText(Self.picker)
-        let leaf = try XCTUnwrap(code.range(of: "private struct MonitorLatencyRow: View"))
+        let leaf = try XCTUnwrap(code.range(of: "private struct MonitorLatencyRow: View"),
+                                 "cannot anchor the leaf; re-anchor before trusting claim 6.")
         let body = String(code[leaf.lowerBound...])
+        // ⛔ #664 (review): `routeChangeNotification` and `.receive(on: DispatchQueue.main)` are
+        // NOT unique in this file — `AudioInputPickerView` carries its own hop. If the leaf were
+        // moved above its use site, `body` would become the whole file and the parent's copies
+        // would satisfy both assertions below even if the leaf had lost its hop entirely. The
+        // slice is pinned to the tail by requiring the parent to sit outside it.
+        XCTAssertFalse(body.contains("struct AudioInputPickerView"), """
+            The slice examined for claim 6 contains `AudioInputPickerView` itself, so the \
+            parent's own route-change hop can satisfy assertions meant to be about the leaf. \
+            Re-anchor on the leaf's own body (#454/#664).
+            """)
 
         XCTAssertFalse(body.contains("Timer.publish") || body.contains("TimelineView"), """
             The latency readout acquired a POLL. `AVAudioSession` latency changes only when \

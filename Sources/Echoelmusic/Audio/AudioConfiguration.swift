@@ -159,7 +159,16 @@ enum AudioConfiguration {
         log.audio("   IO Buffer Duration: \(audioSession.ioBufferDuration * 1000) ms")
         log.audio("   Input Latency: \(audioSession.inputLatency * 1000) ms")
         log.audio("   Output Latency: \(audioSession.outputLatency * 1000) ms")
-        log.audio("   Total Latency: \((audioSession.inputLatency + audioSession.outputLatency + audioSession.ioBufferDuration) * 1000) ms")
+        // ⛔ #664: #663 claimed "the sum had FOUR spellings … all four now route through one
+        // function". There were THREE, and this one — the oldest — was not among the two it
+        // folded. It added the terms raw (so `nan`-capable) and called the result "Total",
+        // the exact word #654 replaced with `floor=` because it claimed the round trip and
+        // was not. A claim of completeness is worth checking BEFORE it is written down.
+        let latencyFloorMs = latencyFloorSeconds(ioBufferSeconds: audioSession.ioBufferDuration,
+                                                 inputSeconds: audioSession.inputLatency,
+                                                 outputSeconds: audioSession.outputLatency,
+                                                 inputAvailable: !audioSession.currentRoute.inputs.isEmpty) * 1000
+        log.audio("   Latency floor: \(latencyFloorMs) ms")
         #endif // !os(macOS)
     }
 
@@ -403,12 +412,17 @@ enum AudioConfiguration {
         // non-finite part is now dropped instead of poisoning the result.
         // ⚠️ It still differs from the picker in ONE way, deliberately: this returns a
         // TimeInterval with no way to say the sum was partial. Callers that show a number to
-        // a human must use `latencySnapshot()`, which carries `complete`.
+        // a human must use `latencySnapshot()`, which carries `complete` — and #664 had to
+        // apply that rule to `latencyStats()`, the one caller #663 left violating it.
+        // ⛔ #664: `inputAvailable` was hardcoded `true` here while the real value was
+        // computed 400 lines below. On `.playback` (no input route) that re-asserts the exact
+        // claim #654 retracted — "measured at zero" for a term never measured. Numerically
+        // harmless today because iOS reports 0 there, which is why it survived review once.
         let audioSession = AVAudioSession.sharedInstance()
         return latencyFloorSeconds(ioBufferSeconds: audioSession.ioBufferDuration,
                                    inputSeconds: audioSession.inputLatency,
                                    outputSeconds: audioSession.outputLatency,
-                                   inputAvailable: true)
+                                   inputAvailable: !audioSession.currentRoute.inputs.isEmpty)
         #endif
     }
 
@@ -614,58 +628,14 @@ enum AudioConfiguration {
     }
     #endif // !os(macOS)
 
-    /// ONE line about what the session GRANTED, shaped for the EXPORTABLE log.
-    ///
-    /// ⭐ #653 — WHY THIS EXISTS, AND IT IS THE #650 HOLE ONE LAYER UP. `latencyStats()`
-    /// below has exactly ONE caller (`AudioEngine.prepareGraph`), and it writes to
-    /// `log.audio` — `os_log` plus a write-only in-memory ring. Neither sink reaches
-    /// `echoel_diag.log`, the file the founder exports.
-    ///
-    /// ⛔ #654 — AND #653 SHIPPED A NUMBER THAT LIED IN FOUR WAYS. Recorded in full,
-    /// because every one of them is the same failure: a measurement carries more authority
-    /// than prose, so an over-claiming figure is worse than no figure at all.
-    ///
-    /// 1. **`total=` claimed to be the round trip and was not.** It is `in + out + one`
-    ///    buffer period — hardware latency plus a single buffer. The app-observable round
-    ///    trip needs at least TWO (one to fill the input buffer before the render callback
-    ///    runs, one to drain the output buffer it fills), and the monitor chain's own nodes
-    ///    are on top of that. Renamed `floor=`, which is what it always was.
-    /// 2. **It said nothing about the PITCH STAGE, while being addressed to `monitor on`.**
-    ///    The monitor chain is `input → notchEQ → [voiceTunePitch] → monitorMixer`, and
-    ///    `AVAudioUnitTimePitch` is a phase vocoder with real algorithmic delay.
-    ///    `AudioInputPickerView` already warns in prose — "The pitch stage adds a little
-    ///    latency to the monitor only" — so a number that omits it CONTRADICTS the app's own
-    ///    UI on the same feature, and the number wins. `tune=on|off` now states whether the
-    ///    stage is in the chain. ⚠️ A MEASURED figure for it is deliberately NOT printed:
-    ///    `auAudioUnit.latency` has zero precedent in this repo and returns 0 for a node
-    ///    that is attached but not initialised — and this whole retraction exists because a
-    ///    fabricated 0 is worse than an honest absence. Reading it is its own slice, gated
-    ///    on someone verifying the value on a device.
-    /// 3. **The session CATEGORY was missing, and it decides the number.** `start` is
-    ///    measured under `.playback` + `.allowBluetoothA2DP`; `monitor on` under
-    ///    `.playAndRecord` + `recordOptions`, which includes `.allowBluetooth` — the HFP
-    ///    mono call codec — and `.defaultToSpeaker`. Two lines with the same stem, adjacent
-    ///    in one file, described incomparable regimes with no field to tell them apart, in a
-    ///    line whose stated purpose is comparability. `cat=` closes it. (It also corrects the
-    ///    #653 commit body: "~150–250 ms on A2DP" names a regime that CANNOT exist while
-    ///    monitoring is on.)
-    /// 4. **`in=0.0` was a fabrication on the most common path.** At `prepareGraph` the
-    ///    session is `.playback` unless a record route is needed, so there is no input and
-    ///    `inputLatency` is 0 — finite and non-negative, so the `?` mechanism could not see
-    ///    it, and the founder read "input latency measured at zero". `inputAvailable` now
-    ///    distinguishes "no input configured" (`n/a`) from "measured as zero".
-    ///
-    /// PURE on purpose: no `AVAudioSession` read, so a guard can drive it. The live reader
-    /// is `latencyBreadcrumb(reason:tuneStage:)`.
-    ///
-    /// Milliseconds with one decimal: the interesting range spans 3 ms (wired, small buffer)
-    /// to 250 ms (Bluetooth), and a second decimal would suggest a precision the session's
-    /// own estimates do not have.
     /// Hardware in + ONE buffer period + hardware out, skipping any part that could not be
     /// measured.
     ///
-    /// #663. This sum had FOUR spellings in this file before #416 was applied to it, and only
-    /// the one inside `latencyLine` filtered non-finite values before adding. It is `floor`,
+    /// #663. This sum had THREE spellings in this file before #416 was applied to it, and only
+    /// the one inside `latencyLine` filtered non-finite values before adding. ⛔ #663 wrote
+    /// "FOUR … all four now route through one function" and folded TWO; the third — the
+    /// `Total Latency:` line in `configureAudioSession` — it never touched, so the sentence
+    /// was wrong in the count AND in the completeness. #664 folds it. It is `floor`,
     /// never `total`: a lower bound on what the ear hears, not the round trip. An unmeasurable
     /// part is DROPPED rather than counted as zero — the caller learns that from
     /// `LatencyReadout.complete`, never from a number that quietly shrank.
@@ -726,6 +696,14 @@ enum AudioConfiguration {
         }
     }
 
+    /// ⚠️ Never call from a render block — like `latencyBreadcrumb` this touches
+    /// `AVAudioSession` and allocates (`String`). It does NOT write a file, which is the only
+    /// difference; that is not enough to make it audio-thread safe.
+    /// ⛔ #664: this warning was missing here, and the one on `latencyBreadcrumb` had been
+    /// silently re-parented onto a plain value type by #663's insertion — a doc block appended
+    /// with no blank line adopts the declaration BELOW it, not the one it was written for. In
+    /// a repo whose first hard rule is the audio-thread ban, a "never call from a render block"
+    /// notice sitting on a struct that touches nothing is worse than no notice at all.
     static func latencySnapshot() -> LatencyReadout {
         let v = currentSessionLatency()
         func ms(_ seconds: Double) -> Double? {
@@ -747,6 +725,53 @@ enum AudioConfiguration {
                               complete: buf != nil && out != nil && input != nil)
     }
 
+    /// ONE line about what the session GRANTED, shaped for the EXPORTABLE log.
+    ///
+    /// ⭐ #653 — WHY THIS EXISTS, AND IT IS THE #650 HOLE ONE LAYER UP. `latencyStats()`
+    /// below has exactly ONE caller (`AudioEngine.prepareGraph`), and it writes to
+    /// `log.audio` — `os_log` plus a write-only in-memory ring. Neither sink reaches
+    /// `echoel_diag.log`, the file the founder exports.
+    ///
+    /// ⛔ #654 — AND #653 SHIPPED A NUMBER THAT LIED IN FOUR WAYS. Recorded in full,
+    /// because every one of them is the same failure: a measurement carries more authority
+    /// than prose, so an over-claiming figure is worse than no figure at all.
+    ///
+    /// 1. **`total=` claimed to be the round trip and was not.** It is `in + out + one`
+    ///    buffer period — hardware latency plus a single buffer. The app-observable round
+    ///    trip needs at least TWO (one to fill the input buffer before the render callback
+    ///    runs, one to drain the output buffer it fills), and the monitor chain's own nodes
+    ///    are on top of that. Renamed `floor=`, which is what it always was.
+    /// 2. **It said nothing about the PITCH STAGE, while being addressed to `monitor on`.**
+    ///    The monitor chain is `input → notchEQ → [voiceTunePitch] → monitorMixer`, and
+    ///    `AVAudioUnitTimePitch` is a phase vocoder with real algorithmic delay.
+    ///    `AudioInputPickerView` already warns in prose — "The pitch stage adds a little
+    ///    latency to the monitor only" — so a number that omits it CONTRADICTS the app's own
+    ///    UI on the same feature, and the number wins. `tune=on|off` now states whether the
+    ///    stage is in the chain. ⚠️ A MEASURED figure for it is deliberately NOT printed:
+    ///    `auAudioUnit.latency` has zero precedent in this repo and returns 0 for a node
+    ///    that is attached but not initialised — and this whole retraction exists because a
+    ///    fabricated 0 is worse than an honest absence. Reading it is its own slice, gated
+    ///    on someone verifying the value on a device.
+    /// 3. **The session CATEGORY was missing, and it decides the number.** `start` is
+    ///    measured under `.playback` + `.allowBluetoothA2DP`; `monitor on` under
+    ///    `.playAndRecord` + `recordOptions`, which includes `.allowBluetooth` — the HFP
+    ///    mono call codec — and `.defaultToSpeaker`. Two lines with the same stem, adjacent
+    ///    in one file, described incomparable regimes with no field to tell them apart, in a
+    ///    line whose stated purpose is comparability. `cat=` closes it. (It also corrects the
+    ///    #653 commit body: "~150–250 ms on A2DP" names a regime that CANNOT exist while
+    ///    monitoring is on.)
+    /// 4. **`in=0.0` was a fabrication on the most common path.** At `prepareGraph` the
+    ///    session is `.playback` unless a record route is needed, so there is no input and
+    ///    `inputLatency` is 0 — finite and non-negative, so the `?` mechanism could not see
+    ///    it, and the founder read "input latency measured at zero". `inputAvailable` now
+    ///    distinguishes "no input configured" (`n/a`) from "measured as zero".
+    ///
+    /// PURE on purpose: no `AVAudioSession` read, so a guard can drive it. The live reader
+    /// is `latencyBreadcrumb(reason:tuneStage:)`.
+    ///
+    /// Milliseconds with one decimal: the interesting range spans 3 ms (wired, small buffer)
+    /// to 250 ms (Bluetooth), and a second decimal would suggest a precision the session's
+    /// own estimates do not have.
     static func latencyLine(reason: String,
                             category: String,
                             sampleRate: Double,
@@ -812,13 +837,6 @@ enum AudioConfiguration {
         return flattened.count <= 80 ? flattened : String(flattened.prefix(80)) + "…"
     }
 
-    /// Read the live session and emit the #653 line. Never call from a render block — this
-    /// touches `AVAudioSession`, allocates, and ends in a blocking `write(2)`.
-    ///
-    /// ⚠️ `tuneStage` has NO default (#431/#440/#443): a defaulted argument that no call site
-    /// writes appears in no diff, and the whole point of the field is that each caller states
-    /// whether the pitch stage is in the chain it is describing. `nil` means "this line is not
-    /// about the monitor chain" and omits the field entirely.
     /// One gathering of the platform's latency facts, so the log line and the on-screen
     /// readout can never drift apart (#663). Everything platform-specific lives HERE; both
     /// consumers are platform-free below it.
@@ -868,6 +886,13 @@ enum AudioConfiguration {
         #endif
     }
 
+    /// Read the live session and emit the #653 line. Never call from a render block — this
+    /// touches `AVAudioSession`, allocates, and ends in a blocking `write(2)`.
+    ///
+    /// ⚠️ `tuneStage` has NO default (#431/#440/#443): a defaulted argument that no call site
+    /// writes appears in no diff, and the whole point of the field is that each caller states
+    /// whether the pitch stage is in the chain it is describing. `nil` means "this line is not
+    /// about the monitor chain" and omits the field entirely.
     static func latencyBreadcrumb(reason: String, tuneStage: Bool?) {
         let v = currentSessionLatency()
         EchoelCrashLog.breadcrumb(latencyLine(reason: reason,
@@ -883,24 +908,46 @@ enum AudioConfiguration {
 
     /// Get latency statistics
     static func latencyStats() -> String {
-        let totalLatency = measureLatency() * 1000  // Convert to ms
+        // ⛔ #664 — #663 INTRODUCED THE RULE AND THEN BROKE IT AT ITS ONLY CALL SITE.
+        // Folding `measureLatency()` onto the shared sum made it DROP a non-finite term. That
+        // is right for the sum and wrong here: before the fold a torn-down session printed
+        // `nan ms` with `❌ NEEDS OPTIMIZATION` (obviously broken); after it, the same session
+        // printed a plausible `7.50 ms` with `⚠️ GOOD` — a favourable verdict on a
+        // measurement that never happened. #663's own doc says "callers that show a number to
+        // a human must use `latencySnapshot()`, which carries `complete`", and this is the
+        // caller it was written about.
+        let readout = latencySnapshot()
+        let totalLatency = readout.floorMilliseconds
+        // Hoisted, not interpolated: #287 took the bundle red on a ternary chain inside a
+        // string interpolation inside an argument list.
+        let verdict: String
+        if !readout.complete {
+            verdict = "⚠️  PARTIAL — a term could not be measured, the floor is a lower bound"
+        } else if totalLatency < 5.0 {
+            verdict = "✅ EXCELLENT"
+        } else if totalLatency < 10.0 {
+            verdict = "⚠️  GOOD"
+        } else {
+            verdict = "❌ NEEDS OPTIMIZATION"
+        }
         #if os(macOS)
         return """
         🎵 Audio Latency Statistics (macOS HAL):
            Buffer: \(currentBufferSize) frames
-           Estimated Latency: \(String(format: "%.2f", totalLatency)) ms
+           Latency floor: \(readout.floorText)
+           Status: \(verdict)
         """
         #else
-        let audioSession = AVAudioSession.sharedInstance()
+        // `floor`, never `total`: hardware in + out + ONE buffer period is a lower bound on
+        // what the ear hears, not the round trip (#654's retraction, applied here too — this
+        // report said `Total Latency` for its whole life).
         return """
         🎵 Audio Latency Statistics:
-           Sample Rate: \(audioSession.sampleRate) Hz
-           IO Buffer: \(audioSession.ioBufferDuration * 1000) ms (\(currentBufferSize) frames)
-           Input Latency: \(audioSession.inputLatency * 1000) ms
-           Output Latency: \(audioSession.outputLatency * 1000) ms
-           Total Latency: \(String(format: "%.2f", totalLatency)) ms
+           Route: \(readout.route)
+           \(readout.breakdownText)
+           Latency floor: \(readout.floorText)
            Target: < 5.0 ms
-           Status: \(totalLatency < 5.0 ? "✅ EXCELLENT" : totalLatency < 10.0 ? "⚠️  GOOD" : "❌ NEEDS OPTIMIZATION")
+           Status: \(verdict)
         """
         #endif
     }

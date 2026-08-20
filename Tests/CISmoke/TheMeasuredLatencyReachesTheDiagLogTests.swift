@@ -302,16 +302,36 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         // to the argument-plus-value form, which only the call can produce.
         // ⛔ #658: this was `||`, and that let the SHIPPING branch drop its route while the
         // macOS branch alone kept the claim green — the one arm no device ever runs holding
-        // up an assertion about the one every device runs. Both arms are measured on the
-        // tree (`AudioConfiguration.swift` passes `route: "macOS HAL"` in the `os(macOS)`
-        // half and `route: routeName` in the other), so `&&` is not stricter than the code.
-        XCTAssertTrue(body.contains("route: routeName"), """
-            The iOS/tvOS branch stopped passing the route to `latencyLine`. `route=` is what \
-            makes two latency lines comparable — a number without the port that produced it \
-            cannot be read against another (#653/#655/#658).
+        // up an assertion about the one every device runs.
+        // ⛔ #664 — AND #663 BROKE BOTH OF THESE ON A CORRECT TREE, in the same session that
+        // repaired this exact defect class twice. It split the platform gathering out of
+        // `latencyBreadcrumb` into `currentSessionLatency`, so this body became nine lines of
+        // `v.`-prefixed forwarding: neither `route: routeName` nor `route: "macOS HAL"` is in
+        // it any more, and `routeName` as an identifier is gone from `Sources/` entirely.
+        // That is #456 — a guard over a changed surface must move in the SAME commit —
+        // violated by the author of the two commits that enforced it. Nothing caught it:
+        // `scripts/dead-needles.py` only reads `XCTUnwrap(range(of:))` and
+        // `codeOccurrences(of:)`, and these are `XCTAssertTrue(contains(…))`. Widening that
+        // script is registered, not done here (#665).
+        // The two arms now live in the GATHERING, so that is what is anchored — and the
+        // forwarding is pinned separately, because a breadcrumb that gathers correctly and
+        // then drops the route on the floor would satisfy the arms alone.
+        XCTAssertTrue(body.contains("route: v.route"), """
+            `latencyBreadcrumb` stopped forwarding the gathered route to `latencyLine`. \
+            `route=` is what makes two latency lines comparable — a number without the port \
+            that produced it cannot be read against another (#653/#655/#658/#664).
             """)
-        XCTAssertTrue(body.contains("route: \"macOS HAL\""),
-                      "the macOS branch stopped passing its route to `latencyLine` (#658).")
+        guard let gathering = Self.body(of: "private static func currentSessionLatency",
+                                        in: code) else {
+            return XCTFail("`currentSessionLatency` is no longer uniquely declared — re-anchor (#454).")
+        }
+        XCTAssertTrue(gathering.contains("route: inName + \"→\" + outName"), """
+            The iOS/tvOS branch stopped building a route from the live port names. This is the \
+            arm every device runs; #658 exists because the macOS arm alone once held this \
+            claim green.
+            """)
+        XCTAssertTrue(gathering.contains("route: \"macOS HAL\""),
+                      "the macOS branch stopped passing its route to the gathering (#658/#664).")
         XCTAssertTrue(body.contains("category:"), """
             The session category stopped being passed. Two lines measured under `.playback` \
             and `.playAndRecord` are not comparable, and comparability is why the line exists \
