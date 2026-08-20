@@ -201,6 +201,15 @@ Responses overflow the token cap; they are saved to a file. Parse runs with
   executable law it crowded out was 2.7 %. Nothing was deleted. A stale pointer here would be
   the #472 defect on the very rule that forbids a second chain.
 - **A private comment stripper** (§2, #453).
+  ⚠️ ONE recorded exception, and it is recorded HERE because the enforcing guard cannot see it:
+  `TheStripperDoesNotKnowATripleQuoteTests` declares `tripleQuoteAwareCodeOnly` on purpose (#659).
+  It is not a copy of the decision — it is the CONTRAST against which the shipped scanner is
+  measured, and the only thing it is ever asserted on is WHICH FILES the two shapes disagree
+  about, never what a file says. **It escapes `testNoUnlistedFileDeclaresItsOwnStripper` by
+  accident**: that guard anchors on the literal `func codeOnly`, and
+  `func tripleQuoteAwareCodeOnly` does not contain that substring. An exemption granted by a name-anchor is not an exemption, so it
+  is written down where the law lives. A SECOND such helper needs the same paragraph or it is
+  simply the thing this line forbids.
 - **A second copy of a threshold** that a shipped type already owns (§2, #416).
 - **A guard over a fact nobody can observe.** If neither behaviour nor source text can carry
   it, it is a device probe — register it as open instead of writing a scan that cannot fail.

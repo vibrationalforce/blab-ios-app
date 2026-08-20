@@ -78,11 +78,17 @@
 // multi-line body, and this block is where that should always have been said.
 //
 // ⭐ IT IS DELIBERATELY NOT FIXED, and the measurement is the reason rather than the effort.
-// Across all 368 `Sources/**/*.swift` on 2026-08-20: NINE carry a `"""`, and the shipped shape
-// disagrees with a `"""`-aware one on exactly ONE of them — `Views/MetalBioView.swift`, on 337
-// lines — where it changes NONE of the 36 needles the four guards scanning that file assert on.
-// Those 337 lines are the Metal shader, which the view holds as one `"""` literal, and its `//`
-// are REAL comments to the compiler that actually reads them. So for the single file where the
+// Over the 366 `.swift` files under `Sources/Echoelmusic` on 2026-08-20: NINE carry a `"""`, and
+// the shipped shape disagrees with a `"""`-aware one on exactly ONE of them —
+// `Views/MetalBioView.swift`, on 337 lines — changing the count of NONE of the 36 distinct
+// literal needles extracted from the four guards that read that file.
+// ⛔ Read those three numbers with the operation attached, because the first draft did not:
+// 337 is DISAGREEING LINES (the shader literal itself runs 1235→1898, i.e. 662 lines, and was
+// mislabelled "the 337-line Metal shader" in four places); 368 is `Sources/` as a whole while
+// the guard walks 366; 36 is needles pulled from four guard FILES, not needles aimed at that
+// one source. The conclusion survives all three, the descriptions did not.
+// The 337 are shader lines carrying a `//` or `/*`, and those markers are REAL comments to the
+// compiler that actually reads them. So for the single file where the
 // two shapes differ, today's behaviour is the one a source scanner wants, and teaching this
 // scanner about `"""` would begin handing shader PROSE to `GlitterCannotBecomeAFlashTests` — the
 // WCAG-3-Hz flash-safety guard — as though it were shader code. Latent, one file, benign today,

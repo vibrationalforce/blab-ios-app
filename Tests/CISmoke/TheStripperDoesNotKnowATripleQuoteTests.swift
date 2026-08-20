@@ -10,15 +10,28 @@
 // body that sentence is false.
 //
 // ⭐ AND THE FIX WOULD HAVE BEEN A REGRESSION, WHICH IS WHY THIS SLICE IS A GUARD AND NOT A
-// PATCH. Measured 2026-08-20 across all 368 `Sources/**/*.swift`:
+// PATCH. Measured 2026-08-20 over the 366 `.swift` files under `Sources/Echoelmusic`:
 //   · 9 files carry a `"""` at all
-//   · the two shapes disagree on exactly ONE of them — `Views/MetalBioView.swift`, 337 lines
-//   · across the 36 needles the four guards that scan that file assert on, ZERO change count
-// The 337 lines are the Metal shader, which `MetalBioView` holds as one `"""` literal. Its `//`
-// are REAL comments — to the Metal compiler, which is the compiler that reads them. So for the
-// single file where the shapes differ, today's behaviour is the one a source scanner wants, and
-// a `"""`-aware stripper would start feeding shader comments to guards as if they were shader
-// code. `GlitterCannotBecomeAFlashTests` — the WCAG-3-Hz flash-safety guard — is one of the four.
+//   · the two shapes disagree on exactly ONE of them — `Views/MetalBioView.swift`, on 337 lines
+//   · of 36 distinct literal needles extracted from the four guards that read that file, ZERO
+//     change count under either shape
+// ⛔ THREE OF THOSE NUMBERS WERE FIRST WRITTEN WITH THE WRONG NOUN ATTACHED, which is the
+// `TimelineAutomationRow` failure the root CLAUDE.md logs at length — a measured number carries
+// the OPERATION that produced it. (a) `337` is the count of DISAGREEING lines, not the shader's
+// size: the literal runs 1235→1898, so the shader body is **662** lines, and the first draft
+// called it "the 337-line Metal shader" in four places including inside a failure message.
+// (b) `368` is `Sources/` as a whole; this guard walks `Sources/Echoelmusic` and sees **366**
+// (the two extras are the Watch and Widget entry points, neither carrying a `"""`).
+// (c) `36` is how many DISTINCT needles a regex pulled out of those four guard FILES — not how
+// many they aim at `MetalBioView.swift`, which is roughly twenty. The conclusion (zero change)
+// survives all three; the descriptions did not.
+//
+// Those 337 lines are shader lines carrying a `//` or `/*`. `MetalBioView` holds the whole
+// shader as one `"""` literal, and those markers are REAL comments — to the Metal compiler,
+// which is the compiler that reads them. So for the single file where the shapes differ,
+// today's behaviour is the one a source scanner wants, and a `"""`-aware stripper would start
+// feeding shader comments to guards as if they were shader code.
+// `GlitterCannotBecomeAFlashTests` — the WCAG-3-Hz flash-safety guard — is one of the four.
 //
 // ⚠️ SO THE HONEST STATEMENT IS "latent, one file, currently benign, and the obvious repair is
 // wrong for the only case that exists" (#367: a guard should be able to fail for a reason that
@@ -59,13 +72,17 @@ final class TheStripperDoesNotKnowATripleQuoteTests: XCTestCase {
 
         XCTAssertFalse(code.contains("shader comment"), """
             `SourceText.codeOnly` now keeps the body of a multi-line string literal. That may \
-            well be the right change — but it is a CHANGE, and three things move with it in the \
+            well be the right change — but it is a CHANGE, and FOUR things move with it in the \
             same commit (#456):
-              1. the "WHAT IT DOES NOT HANDLE" block in `Tests/CISmoke/SourceText.swift`,
-              2. test 2 below, whose expected set becomes empty,
-              3. a re-measurement of the four guards that scan `Views/MetalBioView.swift` —
-                 its 337-line Metal shader is a `"""` literal whose `//` are real comments, so
-                 keeping them hands shader PROSE to a flash-safety scan as if it were shader code.
+              1. THIS assertion inverts — it becomes `XCTAssertTrue`. It is the one that went \
+                 red, so it is the first edit, not an afterthought.
+              2. the "WHAT IT DOES NOT HANDLE" block in `Tests/CISmoke/SourceText.swift`,
+              3. test 2 below, whose expected set becomes empty,
+              4. a re-measurement of the four guards that scan `Views/MetalBioView.swift`. Its
+                 shader is one 662-line `\"\"\"` literal; the two scanner shapes disagree on 337
+                 of those lines — the ones carrying a `//` or `/*`. Those markers are REAL
+                 comments to the Metal compiler, so keeping them hands shader PROSE to a
+                 flash-safety scan as if it were shader code.
             """)
         XCTAssertTrue(code.contains("float y = 2.0;"), """
             Non-comment text inside the multi-line body vanished, so the scanner is not merely \
@@ -96,8 +113,11 @@ final class TheStripperDoesNotKnowATripleQuoteTests: XCTestCase {
             }
         }
         XCTAssertGreaterThan(swiftFiles.count, 300, """
-            Only \(swiftFiles.count) Swift files found under Sources/ — the walk is looking at \
-            the wrong place, so a green result below proves nothing (#454).
+            Only \(swiftFiles.count) Swift files found under Sources/Echoelmusic — the walk is \
+            looking at the wrong place, so a green result below proves nothing (#454). Measured \
+            2026-08-20: 366 here. (`Sources/` as a whole holds 368; the extra two are the Watch \
+            and Widget entry points, which this walk deliberately does not reach and neither of \
+            which carries a `\"\"\"`.)
             """)
 
         var carryTripleQuote: [String] = []
@@ -112,8 +132,12 @@ final class TheStripperDoesNotKnowATripleQuoteTests: XCTestCase {
         }
 
         XCTAssertGreaterThanOrEqual(carryTripleQuote.count, 1, """
-            No source file carries a multi-line string literal at all, so the comparison below \
-            examined nothing. Measured 2026-08-20: 9 of 368 do. Re-anchor (#454).
+            No source file contains the token `\"\"\"` at all, so the comparison below \
+            examined nothing. Measured 2026-08-20: 9 of the 366 files under \
+            `Sources/Echoelmusic` do. ⚠️ This check is TEXTUAL — a `\"\"\"` inside a `//` \
+            comment satisfies it without being a literal (`Tests/CISmoke/SourceText.swift` is \
+            exactly that shape after this slice). Today all 9 hold real literals, so the number \
+            is honest; the check is a floor against examining nothing, not proof of a literal.
             """)
         XCTAssertEqual(differ.sorted(), ["MetalBioView.swift"], """
             The set of sources where the shipped scanner and a `\"\"\"`-aware one disagree is \
@@ -144,10 +168,21 @@ final class TheStripperDoesNotKnowATripleQuoteTests: XCTestCase {
             are read as code. A limitation that is real and unwritten is worse than one that is \
             written down, because nothing can contradict it (#167's "NICHT löschen" lesson).
             """)
-        XCTAssertTrue(doc.contains("Everything in `text` that the compiler would see"), """
-            The doc sentence this file measures against is gone. If `codeOnly`'s contract was \
-            reworded, re-read test 1 — its whole point is that the old sentence overstated the \
-            type for a `\"\"\"` body.
+        // ⛔ #659 review: the first version pinned the contract sentence VERBATIM
+        // ("Everything in `text` that the compiler would see"). That is the sentence this very
+        // slice calls FALSE for a multi-line body — so the guard made CORRECTING a documented
+        // falsehood a red gate. A slice that ships a claim and its own refutation, pointed at a
+        // future editor. What matters is that `codeOnly` still STATES a contract at all, not
+        // that it states the wrong one forever.
+        XCTAssertTrue(doc.contains("static func codeOnly"), """
+            `SourceText.codeOnly` is gone or renamed. Everything in this file measures that one \
+            function; re-anchor before trusting any of it.
+            """)
+        XCTAssertTrue(doc.contains("/// Everything in") || doc.contains("/// Returns"), """
+            `codeOnly` no longer states a contract in its doc comment. Whatever it now claims, \
+            it has to claim something a reader can check — the whole point of test 1 is that \
+            the ORIGINAL claim overstated the type for a `\"\"\"` body, and an unstated \
+            contract cannot be measured against at all.
             """)
     }
 
@@ -155,9 +190,13 @@ final class TheStripperDoesNotKnowATripleQuoteTests: XCTestCase {
 
     /// A reference scanner that DOES understand `"""`, used only for contrast in test 2.
     ///
-    /// ⛔ Never call this to make an assertion about source CONTENT. It exists to be different
-    /// from `SourceText.codeOnly` — that difference is the measurement — and a guard that
-    /// scanned with it would be asserting against a shape the bundle does not ship (#453).
+    /// ⛔ Never call this to make an assertion about what a source file SAYS. It exists to be
+    /// different from `SourceText.codeOnly` — that difference is the measurement — and a guard
+    /// that scanned with it would be asserting against a shape the bundle does not ship (#453).
+    /// ⚠️ Precisely: test 2 DOES assert on its output, but only on WHICH FILES the two shapes
+    /// disagree about — a relation between the shapes, never a claim about file content. The
+    /// first version of this sentence said "never used to make an assertion about source
+    /// content" full stop, which test 2 already contradicted.
     private static func tripleQuoteAwareCodeOnly(_ text: String) -> String {
         var out: [String] = []
         var inBlock = false
