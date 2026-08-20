@@ -88,13 +88,15 @@
 // the guard walks 366. The conclusion survives, the descriptions did not.
 // ⛔ AND THE NEEDLE HALF IS RETRACTED OUTRIGHT (#661), not re-labelled. It read "the count of
 // NONE of the 36 distinct literal needles". `36` was a regex yield over four guard FILES that
-// nobody reproduced — a reviewer counting by hand got ~22 — and the re-driving found the
-// sentence false in its own terms: over a 168-literal SUPERSET, SIX counts do change
-// (`0.82`, `fix`, `off`, `close`, `Bunter`, ` vs `). All six turned out to be prose fragments or
-// needles aimed at other files, so the CONCLUSION (no assertion moves) stands — but "no needle
-// differs" was never true, and it was the form that made the claim feel checked. A count in a
-// note is only worth what its operation is; when the operation is unrecorded, retract the count
-// and keep the finding.
+// nobody reproduced; the needles actually AIMED at that file are **22** distinct strings. And
+// the re-driving found the sentence false in its own terms: over a 168-literal SUPERSET, SIX
+// counts do change — `0.82` 1→2, `fix` 1→11, `off` 0→6, `close` 0→1, `Bunter` 0→1, ` vs ` 0→2.
+// Read at their use sites: `0.82` is a `///` doc comment, ` vs ` is a `joined(separator:)`
+// argument, the rest are comment or message prose. So the CONCLUSION (no assertion moves)
+// stands — but "no needle differs" was never true, and it was the form that made the claim feel
+// checked. A count in a note is only worth what its operation is; when the operation is
+// unrecorded, retract the count and keep the finding. The two operations are recorded in
+// `TheStripperDoesNotKnowATripleQuoteTests`'s header, in ONE place (#416), not restated here.
 // The 337 are shader lines carrying a `//` or `/*`, and those markers are REAL comments to the
 // compiler that actually reads them. So for the single file where the
 // two shapes differ, today's behaviour is the one a source scanner wants, and teaching this

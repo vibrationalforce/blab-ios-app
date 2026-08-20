@@ -13,8 +13,8 @@
 // PATCH. Measured 2026-08-20 over the 366 `.swift` files under `Sources/Echoelmusic`:
 //   · 9 files carry a `"""` at all
 //   · the two shapes disagree on exactly ONE of them — `Views/MetalBioView.swift`, on 337 lines
-//   · of 36 distinct literal needles extracted from the four guards that read that file, ZERO
-//     change count under either shape
+//   · and NO ASSERTION in the four guards that read that file changes verdict under either
+//     shape — 22 distinct needles aimed at it, driven under both
 // ⛔ THREE OF THOSE NUMBERS WERE FIRST WRITTEN WITH THE WRONG NOUN ATTACHED, which is the
 // `TimelineAutomationRow` failure the root CLAUDE.md logs at length — a measured number carries
 // the OPERATION that produced it. (a) `337` is the count of DISAGREEING lines, not the shader's
@@ -22,9 +22,11 @@
 // called it "the 337-line Metal shader" in four places including inside a failure message.
 // (b) `368` is `Sources/` as a whole; this guard walks `Sources/Echoelmusic` and sees **366**
 // (the two extras are the Watch and Widget entry points, neither carrying a `"""`).
-// (c) `36` is how many DISTINCT needles a regex pulled out of those four guard FILES — not how
-// many they aim at `MetalBioView.swift`, which is roughly twenty. The conclusion (zero change)
-// survives all three; the descriptions did not.
+// (c) `36` is RETRACTED, not re-labelled (#661 — see the ⛔ block below). It was a regex yield
+// over four guard FILES that nobody reproduced; the needles actually aimed at
+// `MetalBioView.swift` are **22** distinct strings. And the conclusion attached to it was itself
+// wrong: "zero change" is false — six literals DO change count. What survives is the narrower
+// "no ASSERTION changes verdict". (a) and (b) survive with the noun corrected; (c) does not.
 //
 // ⛔ #661 — AND THE #660 CORRECTION LANDED IN THIS HEADER AND NOT IN THE TWO FAILURE MESSAGES,
 // which is the half a human actually reads. The paragraph directly above says the mislabel
@@ -34,6 +36,13 @@
 // the only part of a guard that ever reaches someone. Both now name their operation, and the
 // needle count is GONE rather than restated — 36 has no derivation anyone reproduced, and the
 // repo rule is to hand over the command, not the number.
+// ⛔ AND THE FIRST DRAFT OF THAT VERY PARAGRAPH DID THE SAME THING ONE LEVEL UP: it declared `36`
+// "GONE" while the live bullet six lines above still asserted it, together with the "ZERO change
+// count" conclusion this slice had just shown to be false. Two of three copies corrected reads
+// as corrected and is not. The two operations, so the next reader re-derives instead of trusting:
+//   SUPERSET (168 distinct single-line literals, 209 occurrences, in the four guard FILES):
+//     re.findall(r'(?<!")"((?:[^"\\\n]|\\.){2,})"(?!")', guardText)   # skips `"""` bodies
+//   AIMED (22 distinct): the needles those files actually pass against MetalBioView.swift.
 //
 // Those 337 lines are shader lines carrying a `//` or `/*`. `MetalBioView` holds the whole
 // shader as one `"""` literal, and those markers are REAL comments — to the Metal compiler,
@@ -158,18 +167,29 @@ final class TheStripperDoesNotKnowATripleQuoteTests: XCTestCase {
               · A file LEFT the set → someone taught the scanner about `\"\"\"`, or the shader \
                 literal moved. Update this expectation and the doc block in `SourceText.swift`.
               · A file JOINED the set → a source now holds a multi-line literal whose body the \
-                guards read as code. Ask whether any guard SCANS that file
-                (`grep -l <name> Tests/CISmoke/*.swift`) and whether its needles sit after a \
-                `//` inside the literal. For MetalBioView the answer was: four guards read it \
-                (AClosedPictureSaysSo, AutoModeStartsOffAndOwnsNoTempo, GlitterCannotBecomeAFlash, \
-                TheVoiceTintsTheVisual), and NO ASSERTION changes verdict under either shape. \
-                ⚠️ Driven, not assumed, and the first driving DISAGREED with the claim it was \
-                meant to confirm: over the 168 single-line literals in those four files — a \
-                deliberate superset, it sweeps up prose fragments and needles aimed elsewhere — \
-                SIX change count (`0.82`, `fix`, `off`, `close`, `Bunter`, ` vs `). Each was then \
-                read at its use site; none is a needle aimed at this file. The conclusion holds \
-                and the shortcut "zero needles differ" does not. Derive the newcomer's answer the \
-                same way — superset first, then read every hit at its use site.
+                guards read as code. Ask whether any guard SCANS that file, and whether its \
+                needles sit after a `//` inside the literal. ⚠️ Grep the PATH, not the type name: \
+                `grep -l 'Views/<name>.swift' Tests/CISmoke/*.swift` gives 6 for MetalBioView, of \
+                which 4 pass it to a source-reading helper; the bare `grep -l MetalBioView` gives \
+                12, because eight files only mention it in prose. A recipe that does not \
+                reproduce its own worked example is the expired-recipe defect the root CLAUDE.md \
+                logs for `EchoelModalBank`.
+
+                For MetalBioView the answer was: four guards read it (AClosedPictureSaysSo, \
+                AutoModeStartsOffAndOwnsNoTempo, GlitterCannotBecomeAFlash, TheVoiceTintsTheVisual), \
+                22 distinct needles aimed at the file, and NO ASSERTION changes verdict under \
+                either shape. ⚠️ Driven, not assumed, and the first driving DISAGREED with the \
+                claim it was meant to confirm. Over a deliberate SUPERSET — the 168 distinct \
+                single-line literals (209 occurrences) in those four guard FILES; the extraction \
+                regex is in this file's header, written there because a `\"\"\"` body would have \
+                to re-escape it and a re-escaped recipe is a broken one — SIX change count: \
+                `0.82` 1→2, `fix` 1→11, `off` 0→6, `close` 0→1, `Bunter` 0→1, ` vs ` 0→2. \
+                Each was then read at its use site: `0.82` sits only in a `///` doc comment \
+                (GlitterCannotBecomeAFlashTests:113), ` vs ` is a `joined(separator:)` argument \
+                (:147), the rest are comment or message prose. None is a needle aimed at this \
+                file — so the conclusion holds and the shortcut "zero needles differ" does not. \
+                Derive the newcomer's answer the same way: superset first, then read every hit \
+                at its use site.
             """)
     }
 
