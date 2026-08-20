@@ -300,8 +300,18 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         // ⛔ #655: `contains("route:")` would have stayed green if a refactor introduced an
         // unrelated `let route: String` inside this body while dropping the ARGUMENT. Pinned
         // to the argument-plus-value form, which only the call can produce.
-        XCTAssertTrue(body.contains("route: routeName") || body.contains("route: \"macOS HAL\""),
-                      "the route stopped being passed to `latencyLine` (#653/#655).")
+        // ⛔ #658: this was `||`, and that let the SHIPPING branch drop its route while the
+        // macOS branch alone kept the claim green — the one arm no device ever runs holding
+        // up an assertion about the one every device runs. Both arms are measured on the
+        // tree (`AudioConfiguration.swift` passes `route: "macOS HAL"` in the `os(macOS)`
+        // half and `route: routeName` in the other), so `&&` is not stricter than the code.
+        XCTAssertTrue(body.contains("route: routeName"), """
+            The iOS/tvOS branch stopped passing the route to `latencyLine`. `route=` is what \
+            makes two latency lines comparable — a number without the port that produced it \
+            cannot be read against another (#653/#655/#658).
+            """)
+        XCTAssertTrue(body.contains("route: \"macOS HAL\""),
+                      "the macOS branch stopped passing its route to `latencyLine` (#658).")
         XCTAssertTrue(body.contains("category:"), """
             The session category stopped being passed. Two lines measured under `.playback` \
             and `.playAndRecord` are not comparable, and comparability is why the line exists \

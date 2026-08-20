@@ -10,9 +10,18 @@
 // written ONLY through the slew. The engage condition is a JOIN of two independent
 // signatures (`ducking && ringingBin`) so a loud clean note is never notched.
 //
-// ⚠️ HONEST LIMITS. 8 tests, 28 `XCTAssert*` statements (hand-counted per test,
-// 5+3+4+4+4+3+3+2 — the two `XCTUnwrap`s in test 6 also fail their test and sit
+// ⚠️ HONEST LIMITS. 8 tests, 29 `XCTAssert*` statements (in file order,
+// 5+3+4+4+4+4+3+2 — the two `XCTUnwrap`s in test 6 also fail their test and sit
 // deliberately outside this count, which counts assertions, not failure points).
+// ⛔ #658: this census read `28` and `5+3+4+4+4+3+3+2`, and BOTH halves were wrong —
+// #655 added a fourth `XCTAssertEqual` to test 6 (the uniqueness check on the renamed
+// `logMonitorOutcome("engine restart failed` anchor) and did not touch the header. The
+// per-test split had it at test 7. Re-derive, do not re-type:
+//   grep -n "XCTAssert" <this file> | grep -vc ':[[:space:]]*//'   # -> 29
+// (the filter is not decoration: the first draft of this recipe said "30 lines, minus
+// THIS comment block", and writing the comment moved the raw count to 32 — a recipe
+// that its own edit falsifies is the #480 failure, one file later.)
+// A census is a measurement with a date on it; the commit that changes the count owns it.
 // Tests 1–4 are END-TO-END BEHAVIOUR on shipped pure types
 // (`FeedbackGuard.slewedNotchGainDB`, `MonitorTapWindow`); tests 5–8 are SOURCE-TEXT
 // SCANS of `AudioEngine.swift` — the graph calls sit on a `@MainActor` engine no test

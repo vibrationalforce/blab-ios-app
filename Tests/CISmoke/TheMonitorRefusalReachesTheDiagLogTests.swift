@@ -159,29 +159,88 @@ final class TheMonitorRefusalReachesTheDiagLogTests: XCTestCase {
     /// which a human read and this file cannot.
     func testNoBreadcrumbSitsInsideARenderBlock() throws {
         let code = try Self.codeText(Self.engine)
+        // ⛔ #655 — THIS NEEDLE WENT ONE INDIRECTION BLIND AND NOTHING SAID SO. #653 added
+        // `AudioConfiguration.latencyBreadcrumb`, which performs the SAME `write(2)` behind a
+        // name `EchoelCrashLog.breadcrumb` cannot match. Both names are banned now. A THIRD
+        // wrapper would need adding here too — the honest limit of a text scan.
+        //
+        // ⛔ #658 — AND #655's OTHER HALF WAS VACUOUS EXACTLY WHERE IT MATTERED. It kept the
+        // `prefix(1200)` window and `range(of: marker)`, which takes the FIRST match:
+        // `installTap` occurs THREE times in this file, and the first is a metering tap ~1000
+        // lines from the monitor tap the slice was about. The two markers that actually name
+        // render blocks — `renderBlock`, `AURenderPullInputBlock` — appear ZERO times here, so
+        // their `continue` was a silent no-op. The whole law rested on one window around a
+        // meter tap.
+        //
+        // ⚠️ AND THE OBVIOUS REPAIR WOULD HAVE REDDENED A CORRECT TREE, which is the #655
+        // failure mode reproduced by #655. Simply looping all occurrences with the SAME
+        // character window finds `AudioConfiguration.latencyBreadcrumb` inside the monitor
+        // tap's 1200-character window — the `"monitor on"` call, which sits AFTER the closure
+        // closes, on the main actor, and is safe. A fixed character window is unsound by
+        // construction (#408); this file says so itself twenty lines up about a different one,
+        // and #650's `.prefix(400)` already paid for it once.
+        //
+        // So: every occurrence, and bounded by the closure's own BRACES. Measured on this
+        // tree — 3 `installTap` regions of 5841 / 831 / 230 characters, none containing a
+        // banned name — where the character window would have flagged the third.
+        var examined = 0
         for marker in ["installTap", "renderBlock", "AURenderPullInputBlock"] {
-            guard let hit = code.range(of: marker) else { continue }
-            let window = String(code[hit.lowerBound...].prefix(1200))
-            // ⛔ #655 — THIS NEEDLE WENT ONE INDIRECTION BLIND AND NOTHING SAID SO. #653 added
-            // `AudioConfiguration.latencyBreadcrumb`, which performs the SAME `write(2)`
-            // behind a name `EchoelCrashLog.breadcrumb` cannot match. All three of its call
-            // sites are main-actor graph configuration — verified by hand — so this was never
-            // a live hazard, but the guard was silently weaker than its own doc claimed.
-            // Both names are banned now. A THIRD wrapper would need adding here too, which is
-            // the honest limit of a text scan and is why the ⚠️ block above says so.
-            for banned in ["EchoelCrashLog.breadcrumb", "AudioConfiguration.latencyBreadcrumb"] {
-                XCTAssertFalse(window.contains(banned), """
-                    `\(banned)` appears within 1200 characters of `\(marker)`. It ends in \
-                    `Date()` plus `write(2)` — file I/O, which `.claude/rules/swift-audio.md` \
-                    bans outright on the audio thread. #650 added ten breadcrumb calls to this \
-                    file and #653 added three more behind a wrapper; this is the assertion \
-                    that keeps the next one out of a render path.
-                    """)
+            var searchFrom = code.startIndex
+            while let hit = code.range(of: marker, range: searchFrom..<code.endIndex) {
+                searchFrom = hit.upperBound
+                guard let closure = try? Self.closureBody(after: hit.upperBound, in: code) else {
+                    continue
+                }
+                examined += 1
+                for banned in ["EchoelCrashLog.breadcrumb", "AudioConfiguration.latencyBreadcrumb"] {
+                    XCTAssertFalse(closure.contains(banned), """
+                        `\(banned)` appears INSIDE the closure attached to `\(marker)`. It \
+                        ends in `Date()` plus `write(2)` — file I/O, which \
+                        `.claude/rules/swift-audio.md` bans outright on the audio thread. \
+                        #650 added ten breadcrumb calls to this file and #653 added three \
+                        more behind a wrapper; this is the assertion that keeps the next one \
+                        out of a render path.
+                        """)
+                }
             }
         }
+        // #454: a scan that examined nothing passes for the wrong reason. Two of the three
+        // markers match nothing in this file TODAY and are kept only so a render block added
+        // later is covered the day it is written — which is exactly why the count matters.
+        XCTAssertGreaterThanOrEqual(examined, 1, """
+            No tap or render closure was found in `AudioEngine.swift` at all, so every \
+            assertion above was skipped and this test passed without looking at anything. \
+            Re-anchor the marker list (#454) — do not accept a green from an empty loop.
+            """)
     }
 
     // MARK: - helpers
+
+    /// The brace-matched closure body that opens after `index`.
+    ///
+    /// #658. A tap call is `installTap(onBus:bufferSize:format:) { buffer, time in … }`, so the
+    /// first `{` after the call name opens the closure. Brace-matching it gives the region that
+    /// actually runs on the audio thread — which is the question — instead of a character count
+    /// that also sweeps up whatever happens to be written nearby.
+    private static func closureBody(after index: String.Index, in text: String) throws -> String {
+        guard let open = text[index...].firstIndex(of: "{") else {
+            throw MonitorAnchorMissing(reason: "no closure brace after a tap/render marker")
+        }
+        var depth = 0
+        var out = ""
+        var i = open
+        while i < text.endIndex {
+            let c = text[i]
+            if c == "{" { depth += 1 }
+            if c == "}" {
+                depth -= 1
+                if depth == 0 { return out }
+            }
+            out.append(c)
+            i = text.index(after: i)
+        }
+        throw MonitorAnchorMissing(reason: "unbalanced braces after a tap/render marker")
+    }
 
     private static func occurrences(of needle: String, in text: String) -> Int {
         text.components(separatedBy: needle).count - 1
