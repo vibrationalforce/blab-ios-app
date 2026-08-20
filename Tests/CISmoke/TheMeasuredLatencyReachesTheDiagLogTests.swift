@@ -470,6 +470,95 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         // which a human read (#655, same disclaimer as claim 5).
     }
 
+    // MARK: - 8. #666 — the AU-reported insert latencies reach the LOG and nothing else
+
+    /// #654 refused to print a measured pitch-stage figure and said reading `auAudioUnit.latency`
+    /// is "its own slice, gated on someone verifying the value on a device". #666 is that slice,
+    /// shaped so the gate stays CLOSED while the observation is collected: the value goes into
+    /// `echoel_diag.log` and nowhere a user can see it. This test is what keeps those apart.
+    func testTheInsertLatenciesAreObservedInTheLogAndClaimedNowhere() throws {
+        let config = try Self.codeText(Self.config)
+        let engine = try Self.codeText(Self.engine)
+
+        // 8a — the field is PRINTED, and printed raw.
+        guard let line = Self.body(of: "static func latencyLine", in: config) else {
+            return XCTFail("`latencyLine` is no longer uniquely declared — re-anchor (#454).")
+        }
+        XCTAssertTrue(line.contains("inserts["), """
+            `latencyLine` stopped printing the `inserts[…]` field. That field is the entire \
+            #666 slice: it is the only way #654's gate ("verify the value on a device") can \
+            be passed without asking the founder for a special probe.
+            """)
+
+        // 8b — and NOT folded into `floor=`. This is the whole safety property: `floor` is a
+        // lower bound on the HARDWARE path, and adding an AU's self-report (which may be a
+        // meaningless 0) into it would make the one number the log already carries worse.
+        guard let floorFn = Self.body(of: "static func latencyFloorSeconds", in: config) else {
+            return XCTFail("`latencyFloorSeconds` is no longer uniquely declared — re-anchor.")
+        }
+        XCTAssertFalse(floorFn.contains("insert"), """
+            The AU-reported insert latencies were folded into `latencyFloorSeconds`. They must \
+            not be: `floor=` is a lower bound on the hardware path, an `auAudioUnit.latency` of \
+            0 is "the AU reports nothing" rather than "there is nothing", and mixing an \
+            uninformative self-report into a measured sum is exactly the over-claim #654 \
+            retracted four of.
+            """)
+
+        // 8c — no default, at BOTH signatures (#431/#440/#443).
+        XCTAssertEqual(Self.count(of: "insertMilliseconds: [(String, Double)]", in: config), 2, """
+            Expected the parameter declared exactly twice with NO default — on `latencyLine` \
+            and on `latencyBreadcrumb`. A defaulted argument that no call site writes appears \
+            in no diff, which is how a field silently stops being stated (#431/#440/#443).
+            """)
+        XCTAssertFalse(config.contains("insertMilliseconds: [(String, Double)] ="), """
+            `insertMilliseconds` gained a default value. Every call site must state its own — \
+            `[]` at session start MEANS "no monitor node exists yet", and a default would make \
+            that statement indistinguishable from an omission.
+            """)
+
+        // 8d — every call site states it. Three breadcrumbs, three values.
+        XCTAssertEqual(Self.count(of: "insertMilliseconds:", in: engine), 3, """
+            Expected all three `latencyBreadcrumb` call sites to pass `insertMilliseconds:`. \
+            Found \(Self.count(of: "insertMilliseconds:", in: engine)). If a fourth caller is \
+            added it states its own value here too — that is the point of having no default.
+            """)
+
+        // 8e — the value is READ FROM THE NODES, not written down.
+        guard let gather = Self.body(of: "var monitorInsertLatencyMilliseconds", in: engine) else {
+            return XCTFail("the insert-latency gatherer is gone or duplicated — re-anchor (#454).")
+        }
+        XCTAssertEqual(Self.count(of: "auAudioUnit.latency", in: gather), 2, """
+            The gatherer stopped asking the graph nodes what they report, or gained a third \
+            stage without this guard moving with it (#456). A hardcoded figure here would be \
+            the fabrication #654 refused to ship, only harder to notice because it would look \
+            measured.
+            """)
+        XCTAssertTrue(gather.contains("guard isInputMonitoring else { return [] }"), """
+            The gatherer stopped checking that monitoring is actually on. An unconnected node \
+            reports 0, and a `notch=0.00` logged while the chain is DOWN reads as a measurement \
+            of a running chain — a fact about nothing, formatted as a fact about something.
+            """)
+
+        // 8f — ⭐ THE GATE. #654's condition was "do not show a user a number from this API
+        // until someone has verified it on a device". Nothing has. So the observation must
+        // reach the log and stop there.
+        let picker = try Self.codeText("Echoelmusic/Studio/AudioInputPickerView.swift")
+        XCTAssertFalse(picker.contains("monitorInsertLatencyMilliseconds"), """
+            The on-screen readout started consuming the AU-reported insert latencies. #654's \
+            gate is still CLOSED: `auAudioUnit.latency` returns 0 for an attached-but-\
+            uninitialised node, so until one real founder log shows what these values actually \
+            are, putting them on screen would ship exactly the fabricated 0 that retraction \
+            exists to prevent. Open the gate deliberately, with a log quoted in the commit — \
+            not as a side effect of wiring a readout (#364: this is not a ban, it is a \
+            sequence).
+            """)
+        XCTAssertFalse(picker.contains("auAudioUnit"), """
+            A view started reading `auAudioUnit` directly. Besides the gate above, this is an \
+            ObjC property read on the graph — it belongs in `AudioEngine`, which owns the \
+            nodes, not in a `body` that SwiftUI may evaluate at any rate.
+            """)
+    }
+
     // MARK: - helpers
 
     private static func count(of needle: String, in code: String) -> Int {

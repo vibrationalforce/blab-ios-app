@@ -40,6 +40,9 @@ against:
     is the point. Distinguishing those needs the assertion's polarity, which these two shapes
     give and a bare `.contains` does not.
   · It does NOT cover needles built by interpolation or held in a `let`.
+  · Shape 3's receiver set is per FUNCTION and split on `func ` (#666). A closure inside a
+    function that re-binds a source-text name to something else would still fool it. Coarse,
+    and coarse in the safe direction: an unknown name is skipped, never flagged.
   · A needle present in a DIFFERENT file than the guard intends still counts as present. This
     finds dead needles, not misaimed ones. Worked example from #664: `route: "macOS HAL"` was
     asserted on `latencyBreadcrumb`'s body, had MOVED to `currentSessionLatency`, and is not
@@ -161,15 +164,33 @@ def main(root="."):
         paths = set(SOURCE_PATH.findall(guard_code))
         if not paths or any(not p.startswith("Sources/") for p in paths):
             continue
-        receivers = {m.group(1) for m in SOURCE_BIND.finditer(guard_code)}
-        for match in POSITIVE_CONTAINS.finditer(guard_code):
-            receiver = match.group(1)
-            needle = match.group(2).replace('\\"', '"').replace("\\\\", "\\")
-            if len(needle) < MIN_NEEDLE or "\\(" in needle or receiver not in receivers:
+        # ⛔ #666 — THE RECEIVER SET IS PER FUNCTION, NOT PER FILE, AND #665 GOT THAT WRONG.
+        # Shipped with file scope, this produced SEVEN false positives on the very next
+        # commit. The cause is ordinary Swift style: one test binds
+        # `let line = Self.body(of: "static func latencyLine", in: config)` — source text —
+        # while four sibling tests bind `let line = AudioConfiguration.latencyLine(...)` — a
+        # PRODUCED string. File scope let the first `line` vouch for all the others, and every
+        # needle asserted against the produced line ("floor=9.0ms", "sr=48000") was reported
+        # as absent from Sources/, which is exactly what it is supposed to be.
+        # ⭐ The finding matters more than the fix: #665's own argument was that a checker with
+        # false alarms is a checker nobody reads, and it shipped with a scoping bug that makes
+        # them. Splitting on `func ` is coarse — a nested closure re-binding the same name
+        # would still confuse it — and coarse in the SAFE direction, because a name unknown to
+        # the enclosing function is simply skipped.
+        for chunk in re.split(r"\n    (?=(?:private |public |internal )?(?:static )?func )",
+                              guard_code):
+            receivers = {m.group(1) for m in SOURCE_BIND.finditer(chunk)}
+            if not receivers:
                 continue
-            if needle not in corpus:
-                line = guard_code[:match.start()].count("\n") + 1
-                dead.append((os.path.relpath(guard, root), line, needle))
+            for match in POSITIVE_CONTAINS.finditer(chunk):
+                receiver = match.group(1)
+                needle = match.group(2).replace('\\"', '"').replace("\\\\", "\\")
+                if len(needle) < MIN_NEEDLE or "\\(" in needle or receiver not in receivers:
+                    continue
+                if needle not in corpus:
+                    offset = guard_code.find(chunk)
+                    line = guard_code[:offset + match.start()].count("\n") + 1
+                    dead.append((os.path.relpath(guard, root), line, needle))
 
     if not dead:
         print(f"dead-needles: OK — {len(guards)} guard file(s), no dead must-be-present needle")

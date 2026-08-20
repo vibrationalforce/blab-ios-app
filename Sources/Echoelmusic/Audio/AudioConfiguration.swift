@@ -767,7 +767,7 @@ enum AudioConfiguration {
     ///    distinguishes "no input configured" (`n/a`) from "measured as zero".
     ///
     /// PURE on purpose: no `AVAudioSession` read, so a guard can drive it. The live reader
-    /// is `latencyBreadcrumb(reason:tuneStage:)`.
+    /// is `latencyBreadcrumb(reason:tuneStage:insertMilliseconds:)`.
     ///
     /// Milliseconds with one decimal: the interesting range spans 3 ms (wired, small buffer)
     /// to 250 ms (Bluetooth), and a second decimal would suggest a precision the session's
@@ -780,6 +780,7 @@ enum AudioConfiguration {
                             outputSeconds: Double,
                             inputAvailable: Bool,
                             tuneStage: Bool?,
+                            insertMilliseconds: [(String, Double)],
                             route: String) -> String {
         // Non-finite or negative values are an edge case at this boundary, not an
         // impossibility — a session queried mid-teardown can answer with anything, and a
@@ -816,6 +817,29 @@ enum AudioConfiguration {
         line += "in=\(inText) out=\(outText) floor=\(String(format: "%.1f", floorSeconds * 1000))ms"
         if incomplete { line += " partial" }
         if let tuneStage { line += tuneStage ? " tune=on" : " tune=off" }
+        // #666. What the graph's OWN nodes report, verbatim, with no interpretation and no
+        // arithmetic — it is deliberately NOT added into `floor=`.
+        //
+        // ⛔ THIS IS THE SLICE #654 REGISTERED AND GATED, and the gate is the reason for the
+        // shape. #654 refused to print a measured pitch-stage figure because
+        // `auAudioUnit.latency` "has zero precedent in this repo and returns 0 for a node that
+        // is attached but not initialised — a fabricated 0 is worse than an honest absence",
+        // and it said reading it is "its own slice, gated on someone verifying the value on a
+        // device". That gate cannot be passed by reasoning; it needs one observation.
+        //
+        // ⭐ SO THIS DOES NOT SHOW A USER ANYTHING. It writes the raw AU-reported value into
+        // the log the founder already exports, labelled by node, so the NEXT log he sends
+        // answers "does this AU report a real number or a 0?" without a special probe. If the
+        // answer is 0 the log says `notch=0.0` and we have learned that fact; nothing on
+        // screen has claimed a latency the chain does not have. An observation is not a claim,
+        // and keeping the two apart is what the whole #653–#665 chain was about.
+        if !insertMilliseconds.isEmpty {
+            let stages = insertMilliseconds
+                .map { "\($0.0)=" + (($0.1.isFinite && $0.1 >= 0)
+                                     ? String(format: "%.2f", $0.1) : "?") }
+                .joined(separator: ",")
+            line += " inserts[\(stages)]ms"
+        }
         return line + " route=\(sanitisedRoute(route))"
     }
 
@@ -893,7 +917,9 @@ enum AudioConfiguration {
     /// writes appears in no diff, and the whole point of the field is that each caller states
     /// whether the pitch stage is in the chain it is describing. `nil` means "this line is not
     /// about the monitor chain" and omits the field entirely.
-    static func latencyBreadcrumb(reason: String, tuneStage: Bool?) {
+    static func latencyBreadcrumb(reason: String,
+                                  tuneStage: Bool?,
+                                  insertMilliseconds: [(String, Double)]) {
         let v = currentSessionLatency()
         EchoelCrashLog.breadcrumb(latencyLine(reason: reason,
                                               category: v.category,
@@ -903,6 +929,7 @@ enum AudioConfiguration {
                                               outputSeconds: v.outputSeconds,
                                               inputAvailable: v.inputAvailable,
                                               tuneStage: tuneStage,
+                                              insertMilliseconds: insertMilliseconds,
                                               route: v.route))
     }
 

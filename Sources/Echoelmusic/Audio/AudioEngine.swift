@@ -419,6 +419,33 @@ public final class AudioEngine {
     // re-read ~1 Hz from the SAME stored values the studio writes
     // (`StudioDefaultKeys.rootIndex`/`scale` + `SessionContext.a4StorageKey` — #416,
     // one definition; a key change in the studio reaches the voice within a second).
+    /// What the monitor chain's OWN graph nodes report as their processing delay, in ms,
+    /// in chain order and only for stages actually connected.
+    ///
+    /// #666, and it exists to pass the gate #654 wrote rather than to display anything.
+    /// `auAudioUnit.latency` had zero precedent in this repo, and #654 refused to print a
+    /// figure from it because an uninitialised node reports 0 and "a fabricated 0 is worse
+    /// than an honest absence". This reads it into the LOG only, labelled per node, so the
+    /// next founder log settles what the AU actually reports. Nothing on screen consumes it.
+    ///
+    /// ⚠️ A 0 here means "this AU reports no latency", NOT "this stage adds none".
+    /// `AVAudioUnitTimePitch` is a phase vocoder and certainly has algorithmic delay; if it
+    /// answers 0 the value is uninformative, which is itself the finding this slice is for.
+    /// Do NOT add these into `floor=` and do NOT show them to a user until one real log has
+    /// been read (#654's gate, still closed until then).
+    ///
+    /// MainActor: `auAudioUnit` is an ObjC property read — never call this from a render
+    /// block. It is called from the two graph-configuration paths only.
+    var monitorInsertLatencyMilliseconds: [(String, Double)] {
+        guard isInputMonitoring else { return [] }
+        var stages: [(String, Double)] = []
+        if notchAttached { stages.append(("notch", notchEQ.auAudioUnit.latency * 1000)) }
+        if voiceTuneEnabled, voiceTuneAttached {
+            stages.append(("tune", voiceTunePitch.auAudioUnit.latency * 1000))
+        }
+        return stages
+    }
+
     @ObservationIgnored private let voiceTunePitch = AVAudioUnitTimePitch()
     @ObservationIgnored private var voiceTuneAttached = false
     @ObservationIgnored private var voiceTuneCorrector = VoicePitchCorrector()
@@ -576,7 +603,11 @@ public final class AudioEngine {
             // reaches `echoel_diag.log`. Keeping BOTH is deliberate: the report carries
             // the target and the ✅/⚠️/❌ verdict for a console session, the breadcrumb
             // carries the comparable one-liner for a shared log.
-            AudioConfiguration.latencyBreadcrumb(reason: "start", tuneStage: nil)
+            // #666: `insertMilliseconds` has NO default (#431/#440/#443 — a defaulted
+            // argument no call site writes appears in no diff). Empty here is a statement:
+            // this line is about the session, before any monitor node exists.
+            AudioConfiguration.latencyBreadcrumb(reason: "start", tuneStage: nil,
+                                                 insertMilliseconds: [])
         } catch {
             log.audio("Failed to configure audio session: \(error)", level: .warning)
         }
@@ -690,8 +721,14 @@ public final class AudioEngine {
                 // burst interleaves with the `monitor:` lines #650 put there to diagnose
                 // monitoring failure. Signal, not size. Hoisting does not change that count:
                 // the stopped-engine case is the one that emitted ZERO.
-                AudioConfiguration.latencyBreadcrumb(reason: "engine reconfigured",
-                                                     tuneStage: nil)
+                AudioConfiguration.latencyBreadcrumb(
+                    reason: "engine reconfigured",
+                    tuneStage: nil,
+                    // #666: a route change is exactly when a stage's latency could move, and
+                    // the gatherer returns [] on its own when monitoring is off — so this
+                    // asks rather than assuming, unlike `tuneStage`, which stays nil because
+                    // this line is not ABOUT the monitor chain.
+                    insertMilliseconds: self.monitorInsertLatencyMilliseconds)
                 // A healthy engine that simply re-mapped its output needs no restart —
                 // BUT the route may have switched the hardware sample rate (e.g. the
                 // rPPG camera activating mid-session drops it to 44.1 kHz). Re-install
@@ -1998,8 +2035,11 @@ public final class AudioEngine {
             // phase vocoder whose delay is NOT in `floor=`. `AudioInputPickerView` already
             // warns about it in prose; a number that omitted it contradicted the app's own
             // UI on the same feature, and a number wins that argument every time.
+            // ⭐ #666: and this is the line the `inserts[…]` field exists for — the only
+            // moment where every monitor node is attached and connected.
             AudioConfiguration.latencyBreadcrumb(reason: "monitor on",
-                                                 tuneStage: voiceTuneEnabled)
+                                                 tuneStage: voiceTuneEnabled,
+                                                 insertMilliseconds: monitorInsertLatencyMilliseconds)
             return true
         } else {
             guard isInputMonitoring else { return true }
