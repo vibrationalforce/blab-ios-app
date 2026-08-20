@@ -183,7 +183,22 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
         // body holds no string literal at all. Anchored there, this scan would have extracted
         // the empty string and every `XCTAssertFalse(note.contains(…))` below would have passed
         // over nothing (#454). The literal lives in `AlwaysOnBioChannel`, where #542 put it.
-        let note = try literalValue(of: "static func alwaysOnSentence", in: Self.channels)
+        // ⛔ RE-ANCHORED A THIRD TIME (#649), AND THIS ONE WAS A LIVE RED ON CORRECT WORK.
+        // `literalValue` walks FORWARD from the anchor line and stops at the first line that is
+        // not a continuation (`"` `+` `?` `:`). #649 restructured `alwaysOnSentence` from one
+        // implicit-return concatenation into `let opening = …` + `return …`, so the line after
+        // the anchor now trims to `let opening = synthetic` — the walk broke immediately and
+        // extracted "". Two failures, and the SECOND is the one §4 calls worse: `isEmpty` went
+        // red, AND the three `contains` assertions below went VACUOUSLY GREEN, so the guard
+        // could no longer catch the merge it exists to catch.
+        // ⭐ The extractor's own doc predicted this shape ("a blank line inserted mid-declaration
+        // WOULD truncate the value") and the ⛔ block above records one earlier re-anchor for a
+        // near-identical reason. The fix is NOT to add `let`/`return` to `continuationPrefixes`
+        // — that is the fixed-window family #408 deprecates, and it would over-read on the next
+        // shape nobody predicted. It is to use the BRACE-MATCHED extractor this same file
+        // already declares for exactly this reason.
+        let note = try literalsInDeclarationBody(of: "static func alwaysOnSentence",
+                                                in: Self.channels)
         XCTAssertFalse(note.isEmpty, "the always-on note vanished — see #496")
         for word in ["held", "release", "dash"] {
             XCTAssertFalse(note.contains(word), """
@@ -285,6 +300,35 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
                 if inside { piece.append(c) }
             }
             out += piece
+        }
+        return out
+    }
+
+    /// Every `"…"` inside the BRACE-MATCHED body of `key`, concatenated in order.
+    ///
+    /// ⚠️ WHY THIS EXISTS BESIDE `literalValue` RATHER THAN REPLACING IT. The other three call
+    /// sites read a `static let` whose value is a bare `+` chain with no braces at all —
+    /// brace-matching has nothing to match there. This one reads a FUNCTION, where the body is
+    /// exactly what braces delimit, so the shape of the statements inside it stops mattering.
+    /// A future `if`, `switch` or hoisted local cannot truncate it (#649).
+    ///
+    /// ⚠️ Uniqueness is checked HERE and not in `declarationBody`, which takes the FIRST match
+    /// (#408): a scan that silently reads a different declaration is the failure this whole
+    /// file's anchor history is made of.
+    private func literalsInDeclarationBody(of key: String, in relativePath: String) throws -> String {
+        let text = try source(relativePath)
+        let hits = text.components(separatedBy: key).count - 1
+        guard hits == 1 else {
+            throw DropoutAnchorMissing(reason: """
+                `\(key)` occurs \(hits)× in \(relativePath); this scan needs exactly one so it \
+                cannot silently read a different declaration.
+                """)
+        }
+        var out = ""
+        var inside = false
+        for c in try declarationBody(of: key, in: relativePath) {
+            if c == "\"" { inside.toggle(); continue }
+            if inside { out.append(c) }
         }
         return out
     }

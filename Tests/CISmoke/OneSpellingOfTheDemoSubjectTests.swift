@@ -28,7 +28,13 @@
 // open:** that VoiceOver speaks the phrase intelligibly is not checkable here.
 //
 // GRADING (#433 / §3), DRIVEN in Python against the parent (7e906cd), both trees, raw and
-// stripped by the same comment rule `SourceText.codeOnly` applies:
+// stripped by the same comment rule `SourceText.codeOnly` applies.
+// ⚠️ STATE THE COMPILE FACT FIRST, because §3 requires it and #488 shipped a red gate for a
+// cycle behind exactly this ambiguity: this file NAMES `BioProvenanceCopy`, a type born with
+// #649, so **it does not compile against the parent and NO assertion has a verdict there**.
+// Every verdict below is a HAND-TRANSCRIPTION driven in Python against the parent's text, not
+// an observed run — which is the substitute §3 prescribes, and the reason each one says what
+// it would have found rather than what it did find:
 //   · **1 REGRESSION — claim 4.** The contiguous phrase occurs **9** times in parent `Sources/`
 //     code and **1** in this tree. `== 1` is red there for exactly the reason its name gives.
 //   · **1 REGRESSION — claim 5** (the split-detector). `autoModeHint`'s parent form ends a
@@ -45,21 +51,28 @@
 //     it did not. ⚠️ `soundPanelSentence` is asserted SEPARATELY and more weakly, because its
 //     clause-carrying branch is conditional on a non-empty row list — folding it into the loop
 //     would have made a claim about the hoist depend on a fact about the channel audit.
-//   · **1 COUNTERWEIGHT — claim 6**, green on both trees: the OTHER two documented forms still
-//     exist at their own sites. Folding them into this one is #634b, and the cheapest wrong
+//   · **1 COUNTERWEIGHT — claim 6**, green on both trees: the OTHER THREE documented forms
+//     still exist at their own sites (element label · spoken prefix · section head). Folding them into this one is #634b, and the cheapest wrong
 //     next step after a successful hoist is exactly that.
-//   · **Stripper: TRAGEND, MEASURED — 2 of the 4 scan verdicts flip raw-vs-stripped on THIS
-//     tree.** The definition's own doc block quotes the phrase and quotes the split halves, so
-//     an unstripped claim 4 counts 4 instead of 1 and an unstripped claim 5 fires on the very
-//     comment that explains it. First genuinely load-bearing stripper in this family after
+//   · **Stripper: TRAGEND, MEASURED — 2 of the 7 scan verdicts flip raw-vs-stripped on THIS
+//     tree.** (Seven: claim 4's count and its suffix, claim 5's two seam needles, claim 6's
+//     three form needles. ⛔ The denominator read FOUR until the review added claim 6's third
+//     needle and made me recount — and four was already wrong before that, because it counted
+//     CLAIMS and not assertions. Two flip: claim 4's count and claim 5's first seam.) The definition's own doc block quotes the phrase and quotes the split halves, so
+//     an unstripped claim 4 counts **2** instead of 1 and an unstripped claim 5 fires on the
+//     very comment that explains it. ⛔ This said "counts 4", inferred from "the doc quotes it
+//     several times" rather than counted — and it is the flattering direction, in the slice
+//     whose whole thesis is *count, do not infer*. Measured: raw `Sources/` holds the phrase at
+//     two lines, the doc line quoting it and the definition; the split halves in the doc do not
+//     match a contiguous needle. The 2-of-4 FLIP count was right and is unchanged. First genuinely load-bearing stripper in this family after
 //     three prophylactic ones — and the reason is structural, not luck: a guard whose subject
 //     is A SPELLING will always be quoted by the prose that justifies it.
 //
 // ⚠️ #364: rewording the marker is NOT forbidden — change the one `static let` and every one of
 // the ten sites moves with it, which is the whole benefit. What claims 4–5 forbid is a SECOND
 // place that spells it. A genuinely new demo sentence that cannot use the constant (there are
-// four such today, each named at the definition with its grammatical reason) is legitimate; it
-// simply must not re-spell this phrase.
+// five such today, each named at the definition with its ACTUAL reason — only one of the five
+// is barred by grammar) is legitimate; it simply must not re-spell this phrase.
 
 import Foundation
 import XCTest
@@ -176,15 +189,20 @@ final class OneSpellingOfTheDemoSubjectTests: XCTestCase {
             \(hits.map(\.description).joined(separator: ", ")). It was TEN before #649 and one \
             of the ten was invisible to grep. Render \
             `BioProvenanceCopy.demoSubject` instead of writing it out; if a new sentence \
-            genuinely cannot use it, it must not re-spell it either — see the four grammatical \
-            exceptions named at the definition.
+            genuinely cannot use it, it must not re-spell it either — see the five exceptions \
+            named at the definition, each with its actual reason.
             """)
         // ⛔ THIS COMPARED THE PATH TO "Studio/AlwaysOnBioChannel.swift" AND WAS RED ON ITS OWN
         // CORRECT TREE — the walk is rooted at `Sources/`, so every path it yields begins
         // `Echoelmusic/`. Caught by driving the scan in Python before first run, which is the
         // only reason it is not another entry in this bundle's red-on-correct-work list. A
         // suffix, so the guard survives a directory move without inviting the next one.
-        XCTAssertEqual(hits.first?.file.hasSuffix("Studio/AlwaysOnBioChannel.swift"), true, """
+        // ⛔ AND THE SUFFIX FIRST INCLUDED `Studio/`, which made the comment above it false and
+        // contradicted the message inside it (#425): moving the file to `Core/` WITH its
+        // constant and literal — the very thing the message calls acceptable — would still have
+        // gone red. The file NAME is what identifies the declaration; the directory is the part
+        // a later slice is expected to change.
+        XCTAssertEqual(hits.first?.file.hasSuffix("AlwaysOnBioChannel.swift"), true, """
             The single spelling moved out of the file that declares `BioProvenanceCopy`. That \
             is not forbidden, but the constant and its one literal must travel together — \
             otherwise the definition reads as a reference to something written elsewhere.
@@ -205,7 +223,7 @@ final class OneSpellingOfTheDemoSubjectTests: XCTestCase {
     /// re-split would evade this half; the SECOND needle still catches it, and only a re-split
     /// that ALSO capitalises "Source" escapes both. That residue is registered, not closed.
     func testThePhraseIsNotReBrokenAcrossTwoLiterals() throws {
-        for (file, line, text) in try Self.codeLines() {
+        for (file, line, text) in try Self.strippedLines() {
             XCTAssertFalse(text.contains("simulated demo \""), """
                 \(file):\(line) ends a string literal on "simulated demo " with the sentence \
                 continuing in the next literal. That is exactly how the tenth spelling stayed \
@@ -222,7 +240,7 @@ final class OneSpellingOfTheDemoSubjectTests: XCTestCase {
     /// 6 — COUNTERWEIGHT, green on both trees. The other two documented forms are still their
     /// own strings. A successful hoist makes "fold the rest in too" look tidy; it is #634b.
     func testTheOtherFormsAreNotFoldedIntoThisOne() throws {
-        let all = try Self.codeLines().map(\.2).joined(separator: "\n")
+        let all = try Self.strippedLines().map(\.2).joined(separator: "\n")
         XCTAssertTrue(all.contains("Bio source: simulated demo, not your body"), """
             The element-LABEL form is gone from `Sources/`. It labels a whole control (strip · \
             widget · watch) and ends a sentence; this phrase continues into a clause. They are \
@@ -233,6 +251,16 @@ final class OneSpellingOfTheDemoSubjectTests: XCTestCase {
         XCTAssertTrue(all.contains("\"Simulated demo, \""), """
             The spoken-PREFIX form is gone from `Sources/`. It starts a spoken sentence; this \
             phrase sits inside one. Collapsing them makes one of the two read wrong.
+            """)
+        // ⛔ THIS CLAIM PINNED TWO OF THE THREE OTHER FORMS while the census at the definition
+        // says FOUR — the section HEAD was unguarded. That is the identical slip
+        // `TheBioPanelRowsSayWhoseBodyTests` retracted one slice earlier in its own ⛔ block
+        // ("THIS LIST WAS TWO AND THE DOCUMENTED CENSUS IS THREE"), repeated by the file that
+        // read that block while writing this one.
+        XCTAssertTrue(all.contains("demo values, not your body"), """
+            The section-HEAD form is gone from `Sources/`. It names a whole SECTION as demo \
+            values (`BioMetricInfo`), which is neither a label on one control nor a subject \
+            inside a sentence. Three jobs, three strings; folding any pair is #634b.
             """)
     }
 
@@ -260,7 +288,7 @@ final class OneSpellingOfTheDemoSubjectTests: XCTestCase {
     }
 
     /// Every code line under `Sources/`, comments blanked by the one stripper (#453).
-    private static func codeLines() throws -> [(String, Int, String)] {
+    private static func strippedLines() throws -> [(String, Int, String)] {
         let sources = try sourcesRoot()
         guard let walk = FileManager.default.enumerator(atPath: sources.path) else {
             XCTFail("cannot enumerate Sources/ — re-anchor this scan (#454)")
@@ -287,7 +315,7 @@ final class OneSpellingOfTheDemoSubjectTests: XCTestCase {
     }
 
     private static func phraseHits() throws -> [Hit] {
-        try codeLines().filter { $0.2.lowercased().contains(phrase) }
+        try strippedLines().filter { $0.2.lowercased().contains(phrase) }
             .map { Hit(file: $0.0, line: $0.1) }
     }
 }
