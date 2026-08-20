@@ -8,6 +8,12 @@
 // reaches `echoel_diag.log`, the file the founder exports. No view rendered the number either.
 // `git grep -n 'breadcrumb(.*[lL]atency' -- Sources` returned NOTHING.
 //
+// ⛔ ONE SENTENCE OF THE #653 COMMIT BODY IS RETRACTED HERE: it said neither the founder
+// nor this session could name ONE latency figure. `AudioInputPickerView.swift:259` renders
+// "~150–250 ms" for a Bluetooth output route. That is a CLASS estimate, not a measurement
+// of his hardware, so the slice's purpose stands — but the sentence as written was false,
+// and it was false about a surface this very feature already ships.
+//
 // ⭐ THIS IS THE #650 HOLE ONE LAYER UP, AND NAMING THAT IS THE POINT. #650 found the input
 // monitoring path fully instrumented into the unexportable sink and moved it to the breadcrumb
 // file; the founder's monitoring failure was never a missing diagnosis, it was a diagnosis
@@ -29,34 +35,48 @@
 // that nothing here can provide. **DEVICE PROBE, open:** what the numbers actually ARE on the
 // founder's phone, wired and over Bluetooth. That is the whole reason the line exists.
 //
-// GRADING (#433 / §3), DRIVEN in Python against the parent (4b1a52d), both trees, raw and
+// ⛔ #654 — AND #653 SHIPPED A NUMBER THAT LIED IN FOUR WAYS. The audio review found two
+// CRITICAL and two HIGH, all re-measured before acting, and all of them are the same failure:
+// a measurement outranks prose, so an over-claiming figure is worse than no figure.
+//   1. `total=` claimed to be the round trip. It is `in + out + ONE` buffer period; the
+//      app-observable round trip needs at least two. Renamed `floor=`.
+//   2. It omitted the PITCH STAGE while being addressed to `monitor on`.
+//      `AudioInputPickerView` already warns "The pitch stage adds a little latency to the
+//      monitor only" — so the number contradicted the app's own UI on the same feature, and
+//      a number wins that argument. `tune=on|off` now states whether the stage is in chain.
+//   3. The session CATEGORY was missing, in a line whose stated purpose is comparability.
+//      `start` is `.playback` + A2DP; `monitor on` is `.playAndRecord` + `.allowBluetooth`
+//      (HFP mono) + `.defaultToSpeaker`. Two incomparable regimes, one stem, no field to
+//      tell them apart.
+//   4. `in=0.0` was a fabrication on the MOST COMMON path — no input route means
+//      `inputLatency == 0`, which is finite and non-negative, so the `?` mechanism could not
+//      see it and the founder read a measurement that was never taken.
+// Plus one defect this slice INTRODUCED into a neighbour: port names are the first
+// externally controlled string this repo writes to the diagnostics file, and
+// `EchoelCrashLog.looksLikeUnseenCrash` triggers on the bare substring "CRASH". A paired
+// device named for it would auto-open the crash sheet on every later launch.
+//
+// GRADING (#433 / §3), DRIVEN in Python against the parent (24adff7), both trees, raw and
 // stripped. Numbers written after the run.
-// **Scan half — 6 verdicts: 4 REGRESSIONS, 2 COUNTERWEIGHTS.**
-//   · REGRESSION — claim 2: zero `latencyBreadcrumb` call sites on the parent.
-//   · REGRESSION — claims 3a and 3b: `latencyBreadcrumb` does not exist there, so nothing
-//     writes a latency figure to the exportable sink and nothing carries a route.
-//   · REGRESSION — claim 5: on the parent its two anchors do not both exist, so it takes the
-//     re-anchor `XCTFail` path. ⚠️ Stated plainly because it is the weaker kind of red: it
-//     fails there for "the pair is not present", which is literally true (the latency half was
-//     never written) but is not the *ordering* failure the claim is built to catch. The
-//     ordering can only be tested once both halves exist.
-//   · COUNTERWEIGHTS — claims 4a and 4b: `latencyStats()` and its `log.audio` call survive on
-//     both trees. They are the guard against "fixing" this by MOVING the report instead of
-//     adding a second reader.
+// **Scan half — 9 verdicts: 3 REGRESSIONS, 6 COUNTERWEIGHTS.**
+//   · REGRESSION — claims 3c, 3d and 6: the parent passes no category, no `inputAvailable`
+//     and no tune state, which are exactly lies 3, 4 and 2.
+//   · COUNTERWEIGHTS — the other six: the three call sites, the exportable sink, the route,
+//     the surviving console report, and the #650 monitor-ON pairing. They are what stops a
+//     later "cleanup" from undoing #653 while fixing #654.
 //
-// ⚠️ CLAIM 1 (BEHAVIOURAL) CANNOT BE GRADED AGAINST THE PARENT AT ALL, and that is the
-// honest statement rather than a flattering one: `AudioConfiguration.latencyLine` does not
-// exist on 4b1a52d, so the test file does not compile there. Its verdicts were driven against
-// a Python transcription of the function (both PASS: the wired set formats
-// `total=9.0ms` from 5.0 + 1.5 + 2.5, and a NaN/negative set yields `?` per field with the
-// total taken over the readable parts only). A behavioural claim over a brand-new pure
-// function is always in this position; saying so is the §3 requirement, not a defect.
+// ⚠️ THE FOUR BEHAVIOURAL CLAIMS CANNOT BE GRADED AGAINST THE PARENT, and saying so is the
+// §3 requirement rather than a defect: `latencyLine` has a different signature there and
+// `sanitisedRoute` does not exist, so this file does not compile against 24adff7. All four
+// were driven against a Python transcription and PASS — `floor=9.0ms` from 5.0+1.5+2.5 with
+// `tune=on`; a NaN/negative set yielding `?` per field plus ` partial` and NO `tune=`; a
+// no-input set yielding `in=n/a`, `floor=7.5ms` (NOT folding a phantom zero) and ` partial`;
+// and a forged "CRASH Bandits" device name masked while the route survives.
 //
-// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH — 0 of 12
-// scan verdicts flip** (6 claims × 2 trees). Every needle here carries call syntax
-// (`latencyBreadcrumb(reason:`, `log.audio(AudioConfiguration.latencyStats())`) or a
-// declaration prefix, which is narrower than any prose that quotes the bare name — the same
-// measurement as #652, and the reason the prediction is written after the run and not before.
+// Stripper: delegates to `SourceText.codeOnly` (#453). MEASURED **PROPHYLAKTISCH — 0 of 18
+// scan verdicts flip** (9 claims × 2 trees). Every needle carries call syntax or an argument
+// label, which is narrower than any prose quoting the bare name — the third consecutive
+// measurement of that, and the reason the prediction is written after the run.
 //
 // ⚠️ #364: emitting the line from MORE places (a take starting, an export, an interface
 // swap) is expected and must never redden claim 2, which is why it is a floor. What is
@@ -74,71 +94,155 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
 
     // MARK: - 1: behavioural — the formatting law, executed
 
-    /// 1a — a plausible wired set: the parts are reported and the total is their sum.
-    func testTheLineReportsThePartsAndTheirSum() {
+    /// 1a — a plausible wired set: the parts are reported and the floor is their sum.
+    func testTheLineReportsThePartsAndTheirFloor() {
         let line = AudioConfiguration.latencyLine(
             reason: "monitor on",
+            category: "AVAudioSessionCategoryPlayAndRecord",
             sampleRate: 48_000,
             ioBufferSeconds: 0.005,      // 5.0 ms
             inputSeconds: 0.001_5,       // 1.5 ms
             outputSeconds: 0.002_5,      // 2.5 ms
+            inputAvailable: true,
+            tuneStage: true,
             route: "Built-In Microphone→Speaker")
         XCTAssertTrue(line.hasPrefix("latency: monitor on "), """
             The line no longer opens with `latency: <reason> `. The prefix is what makes the \
             measurement greppable in a founder log that also carries `monitor:`, `rPPG:` and \
-            `launch` lines — a reader pulls one class of line with one search.
-            Got: \(line)
+            `launch` lines. Got: \(line)
+            """)
+        XCTAssertTrue(line.contains("cat=AVAudioSessionCategoryPlayAndRecord"), """
+            The session CATEGORY is gone, and it is the field that decides whether two lines \
+            can be compared at all (#654). `start` is measured under `.playback` with A2DP; \
+            `monitor on` under `.playAndRecord`, whose options include `.allowBluetooth` — \
+            the HFP mono call codec — and `.defaultToSpeaker`. Same stem, same format, \
+            incomparable regimes. Got: \(line)
             """)
         XCTAssertTrue(line.contains("sr=48000"), "sample rate missing or reshaped: \(line)")
         XCTAssertTrue(line.contains("buf=5.0"), "IO buffer missing or mis-scaled: \(line)")
         XCTAssertTrue(line.contains("in=1.5"), "input latency missing or mis-scaled: \(line)")
         XCTAssertTrue(line.contains("out=2.5"), "output latency missing or mis-scaled: \(line)")
-        // 5.0 + 1.5 + 2.5 = 9.0. The TOTAL is the number a founder reads first, and it is the
-        // one that decides whether monitoring is usable — a wrong sum is a wrong verdict.
-        XCTAssertTrue(line.contains("total=9.0ms"), """
-            The total is not the sum of the three parts. This is the figure that decides \
-            whether a take is monitorable at all; the parts exist to explain it.
-            Got: \(line)
+        // 5.0 + 1.5 + 2.5 = 9.0.
+        XCTAssertTrue(line.contains("floor=9.0ms"), """
+            The floor is not the sum of the three parts. Got: \(line)
+            """)
+        XCTAssertFalse(line.contains("total="), """
+            The figure calls itself `total=` again. It is NOT the round trip: it is hardware \
+            in + out plus ONE buffer period, while the app-observable round trip needs at \
+            least two (fill the input buffer, drain the output buffer) and the monitor \
+            chain's own nodes on top. #654 renamed it `floor=` because that is what it always \
+            measured, and a figure that overstates its own scope is worse than none — a \
+            number outranks the prose warning in `AudioInputPickerView`. Got: \(line)
+            """)
+        XCTAssertFalse(line.contains(" partial"), """
+            A complete set was marked partial. Got: \(line)
+            """)
+        XCTAssertTrue(line.contains("tune=on"), """
+            The pitch stage is no longer reported. The monitor chain is \
+            `input → notchEQ → [voiceTunePitch] → monitorMixer`, `AVAudioUnitTimePitch` is a \
+            phase vocoder with real algorithmic delay, and NONE of it is in `floor=`. \
+            `AudioInputPickerView` warns about it in prose on the same feature; a number that \
+            silently omits it contradicts that warning and wins. Got: \(line)
             """)
         XCTAssertTrue(line.contains("route=Built-In Microphone→Speaker"), """
-            The route is gone from the line. A latency figure without the combination it was \
-            measured on cannot be compared against another line in the same log, and \
-            "Kombinationen" is exactly what the founder asked to have optimised.
-            Got: \(line)
+            The route is gone. A latency figure without the combination it was measured on \
+            cannot be compared against another line in the same log. Got: \(line)
             """)
     }
 
     /// 1b — a session queried mid-teardown answers with anything. It must not print `nanms`.
-    ///
-    /// ⚠️ This is an edge case, not an impossibility (`engineering.md` §3): `AVAudioSession`
-    /// can report 0, a negative, or a non-finite value while the route is being rebuilt — and
-    /// a route rebuild is precisely when this line fires. A line reading `total=nanms` looks
-    /// like a parse bug in the log rather than a session that had no answer, which sends the
-    /// next reader after the wrong thing.
     func testANonFiniteMeasurementDoesNotPoisonTheLine() {
         let line = AudioConfiguration.latencyLine(
-            reason: "route change",
+            reason: "engine reconfigured",
+            category: "AVAudioSessionCategoryPlayback",
             sampleRate: .nan,
             ioBufferSeconds: .nan,
             inputSeconds: -1,
             outputSeconds: 0.010,
+            inputAvailable: true,
+            tuneStage: nil,
             route: "none→none")
-        XCTAssertFalse(line.lowercased().contains("nan"), "non-finite leaked into the line: \(line)")
-        XCTAssertFalse(line.contains("-"), "a negative measurement leaked into the line: \(line)")
+        XCTAssertFalse(line.lowercased().contains("nan"), "non-finite leaked: \(line)")
+        // ⛔ #654: this used to assert `!line.contains("-")`, which passed only because the
+        // fixture's route had no hyphen — and the commit's OWN example route is
+        // "Built-In Microphone", which does. It tested "no hyphen anywhere", not "no
+        // negative", and would have gone spuriously red the moment the fixture got realistic.
+        // A negative would render as `=-1.0`, so that is what is banned.
+        XCTAssertFalse(line.contains("=-"), "a negative measurement leaked: \(line)")
         XCTAssertTrue(line.contains("sr=?"), "an unusable sample rate must read `?`: \(line)")
         XCTAssertTrue(line.contains("buf=?"), "an unusable buffer must read `?`: \(line)")
         XCTAssertTrue(line.contains("in=?"), "a negative input latency must read `?`: \(line)")
-        // The one usable part still counts, and the total is over the usable parts only —
-        // reporting 0.0 because one field was unreadable would hide a real 10 ms output path.
         XCTAssertTrue(line.contains("out=10.0"), "the usable part was dropped: \(line)")
-        XCTAssertTrue(line.contains("total=10.0ms"), """
-            The total must sum the parts that ARE readable. Zeroing the whole line because one \
-            field was unavailable throws away the measurement this slice exists to capture.
-            Got: \(line)
+        XCTAssertTrue(line.contains("floor=10.0ms"), """
+            The floor must sum the parts that ARE readable. Got: \(line)
+            """)
+        XCTAssertTrue(line.contains(" partial"), """
+            An incomplete set is no longer marked. `buf=? in=? out=10.0 floor=10.0ms` reads \
+            as a complete 10 ms path unless something says otherwise — the `?`s are adjacent, \
+            which mitigates and does not fix it (#654).
+            """)
+        XCTAssertFalse(line.contains("tune="), """
+            A line that is not about the monitor chain reported a pitch-stage state. `nil` \
+            must omit the field, not render a default — a `tune=off` on the `start` line \
+            would read as "the pitch stage is off in the monitor chain", which that line \
+            knows nothing about.
             """)
     }
 
-    // MARK: - 2-5: the wiring
+    /// 1c — #654's CRITICAL: "no input route" and "input measured at zero" are different facts.
+    ///
+    /// At `prepareGraph` the session is `.playback` unless a record route is needed, so there
+    /// is no input and `inputLatency` reports 0 — finite and non-negative, so the `?`
+    /// mechanism could not see it. The founder read "input latency measured at zero
+    /// milliseconds" where the truth was "no input was configured". This is the most common
+    /// path in the app, not an edge case.
+    func testNoInputRouteIsNotReportedAsZeroLatency() {
+        let line = AudioConfiguration.latencyLine(
+            reason: "start",
+            category: "AVAudioSessionCategoryPlayback",
+            sampleRate: 48_000,
+            ioBufferSeconds: 0.005,
+            inputSeconds: 0,          // what a session with no input route actually answers
+            outputSeconds: 0.002_5,
+            inputAvailable: false,
+            tuneStage: nil,
+            route: "none→Speaker")
+        XCTAssertTrue(line.contains("in=n/a"), """
+            A session with no input route reports `inputLatency == 0`, and printing that as \
+            `in=0.0` claims a measurement that was never taken. Got: \(line)
+            """)
+        XCTAssertFalse(line.contains("in=0.0"), "the fabricated zero is back: \(line)")
+        XCTAssertTrue(line.contains("floor=7.5ms"), """
+            The floor must be over the parts that exist — 5.0 + 2.5 — and must NOT fold in a \
+            zero for an input that was never measured. Got: \(line)
+            """)
+        XCTAssertTrue(line.contains(" partial"), """
+            A line missing a whole half of the path is not complete. Got: \(line)
+            """)
+    }
+
+    /// 1d — port names are the first EXTERNALLY CONTROLLED string this repo writes into the
+    /// diagnostics file, and that file has a bare-substring trigger.
+    func testAPairedDeviceNameCannotForgeACrashMarker() {
+        let forged = AudioConfiguration.sanitisedRoute("Built-In Microphone→CRASH Bandits")
+        XCTAssertFalse(forged.contains(EchoelCrashLog.crashMarker), """
+            A paired device name can put `\(EchoelCrashLog.crashMarker)` into the diagnostics \
+            file. `EchoelCrashLog.looksLikeUnseenCrash` returns true for ANY log containing \
+            that bare substring, so every later launch would auto-open the crash sheet on a \
+            session that never crashed — undiagnosable from the outside. Got: \(forged)
+            """)
+        XCTAssertTrue(forged.hasPrefix("Built-In Microphone→"), """
+            Masking must not destroy the route itself; the point is still to say which \
+            combination was measured. Got: \(forged)
+            """)
+        let long = AudioConfiguration.sanitisedRoute(String(repeating: "x", count: 400))
+        XCTAssertLessThanOrEqual(long.count, 81, """
+            An unbounded route name lands in a file `currentLog()` reads whole into one \
+            String for the share sheet. Got \(long.count) characters.
+            """)
+    }
+
+    // MARK: - 2-6: the wiring
 
     /// 2 — a FLOOR (#364). Emitting from more places is expected; emitting from none is the bug.
     func testTheLineIsEmittedFromTheEngine() throws {
@@ -147,14 +251,14 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(sites, 3, """
             Only \(sites) `latencyBreadcrumb` call sites in `AudioEngine`; #653 wired THREE, \
             and each answers a different question: `start` (what does this device cost at \
-            rest), `route change` (a Bluetooth headset connecting is the only event that \
-            changes the round-trip with no user action), and `monitor on` (the moment that \
-            decides whether monitoring is usable at all). Removing one is a real decision — \
-            say which question stopped mattering.
+            rest), `engine reconfigured` (a Bluetooth headset connecting is the only event \
+            that changes the granted buffer with no user action), and `monitor on` (the \
+            moment that decides whether monitoring is usable at all). Removing one is a real \
+            decision — say which question stopped mattering.
             """)
     }
 
-    /// 3 — the whole point: it must reach the sink the founder can EXPORT.
+    /// 3 — the whole point: it must reach the sink the founder can EXPORT, with its regime.
     func testTheEmitterWritesToTheExportableSink() throws {
         let code = try Self.codeText(Self.config)
         guard let body = Self.body(of: "static func latencyBreadcrumb", in: code) else {
@@ -163,13 +267,17 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         XCTAssertTrue(body.contains("EchoelCrashLog.breadcrumb"), """
             `latencyBreadcrumb` no longer writes to `EchoelCrashLog`. That is the ENTIRE \
             slice: `log.audio` is `os_log` plus a write-only in-memory ring, and neither \
-            reaches `echoel_diag.log`. A latency measurement the founder cannot export is the \
-            state this file was written to end — and it is the same hole #650 closed for the \
-            monitoring path one slice earlier.
+            reaches `echoel_diag.log`. It is the same hole #650 closed for the monitoring path.
             """)
-        XCTAssertTrue(body.contains("route:"), """
-            `latencyBreadcrumb` stopped passing a route. The number alone cannot be compared \
-            between two lines of the same log; see the header.
+        XCTAssertTrue(body.contains("route:"), "the route stopped being passed (#653).")
+        XCTAssertTrue(body.contains("category:"), """
+            The session category stopped being passed. Two lines measured under `.playback` \
+            and `.playAndRecord` are not comparable, and comparability is why the line exists \
+            (#654).
+            """)
+        XCTAssertTrue(body.contains("inputAvailable:"), """
+            `inputAvailable` stopped being passed, so a session with no input route reports \
+            `in=0.0` again — a measurement that was never taken (#654).
             """)
     }
 
@@ -178,15 +286,12 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         let config = try Self.codeText(Self.config)
         XCTAssertTrue(config.contains("static func latencyStats()"), """
             `latencyStats()` is gone. #653 deliberately kept BOTH: the report carries the \
-            target and the ✅/⚠️/❌ verdict for someone with a console attached, the \
-            breadcrumb carries the comparable one-liner for a shared log. Replacing one with \
-            the other trades a working diagnostic for a different working diagnostic and gains \
-            nothing.
+            target and the verdict for someone with a console attached, the breadcrumb \
+            carries the comparable one-liner for a shared log.
             """)
         let engine = try Self.codeText(Self.engine)
         XCTAssertTrue(engine.contains("log.audio(AudioConfiguration.latencyStats())"), """
-            The console report is no longer logged at graph preparation. See above — the two \
-            sinks serve two different readers.
+            The console report is no longer logged at graph preparation. Two sinks, two readers.
             """)
     }
 
@@ -194,7 +299,7 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
     func testTheMonitorOnFactAndItsLatencySitTogether() throws {
         let code = try Self.codeText(Self.engine)
         guard let onSite = code.range(of: "logMonitorOutcome(\"ON (gain "),
-              let latency = code.range(of: "AudioConfiguration.latencyBreadcrumb(reason: \"monitor on\")"),
+              let latency = code.range(of: "AudioConfiguration.latencyBreadcrumb(reason: \"monitor on\""),
               onSite.upperBound < latency.lowerBound else {
             return XCTFail("""
                 The monitor-ON breadcrumb and its latency line are no longer both present with \
@@ -204,16 +309,34 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         }
         // ⚠️ NOT A CHARACTER WINDOW. #652 measured the previous guard in this family at TEN
         // characters from a false red because it bounded a region with `suffix(600)`. The
-        // question here is "does anything RETURN between the fact and its measurement", and
-        // a `return` is the exact token that would separate them — so the region between the
-        // two anchors is read for one, rather than its length being guessed at.
+        // question here is "does anything RETURN between the fact and its measurement", and a
+        // `return` is the exact token that would separate them.
         let between = String(code[onSite.upperBound..<latency.lowerBound])
         XCTAssertFalse(between.contains("return"), """
             A `return` now sits between the "monitor ON" breadcrumb and its latency line, so \
             every successful start logs the fact and never its cost. The pair is the \
-            deliverable: "monitoring started" and "on THIS combination it costs N ms" are one \
-            statement, and a founder log carrying only the first cannot answer whether the \
-            take was monitorable.
+            deliverable.
+            """)
+    }
+
+    /// 6 — #654. The monitor line must report the REAL pitch-stage state, not a placeholder.
+    func testTheMonitorLineReportsTheActualTuneState() throws {
+        let code = try Self.codeText(Self.engine)
+        guard let range = code.range(of: "reason: \"monitor on\"") else {
+            return XCTFail("the monitor-on latency call is gone — re-anchor claim 6 (#454).")
+        }
+        // Bounded at the call's own closing paren rather than by a character count (#652):
+        // the argument list is exactly the region the question is about.
+        guard let close = code[range.upperBound...].firstIndex(of: ")") else {
+            return XCTFail("the monitor-on latency call is not closed — re-anchor (#454).")
+        }
+        let args = String(code[range.upperBound..<close])
+        XCTAssertTrue(args.contains("tuneStage: voiceTuneEnabled"), """
+            The monitor line no longer reports whether the pitch stage is in the chain — or \
+            reports a literal instead of the engine's actual state. `voiceTuneEnabled` is the \
+            only writer-owned flag for it (`setVoiceTune` owns the graph rewire), and \
+            `floor=` deliberately excludes the node's own delay, so this field is the only \
+            thing telling a founder that the figure is missing a phase vocoder. Got: \(args)
             """)
     }
 

@@ -607,84 +607,161 @@ enum AudioConfiguration {
     }
     #endif // !os(macOS)
 
-    /// ONE line about the round-trip the session actually GRANTED, shaped for the
-    /// EXPORTABLE log.
+    /// ONE line about what the session GRANTED, shaped for the EXPORTABLE log.
     ///
     /// ⭐ #653 — WHY THIS EXISTS, AND IT IS THE #650 HOLE ONE LAYER UP. `latencyStats()`
     /// below has exactly ONE caller (`AudioEngine.prepareGraph`), and it writes to
     /// `log.audio` — `os_log` plus a write-only in-memory ring. Neither sink reaches
-    /// `echoel_diag.log`, the file the founder exports, and no view renders the number
-    /// either. Measured: `git grep -n 'breadcrumb(.*[lL]atency'` over `Sources/` returned
-    /// NOTHING before this slice. So the app measured its own round-trip, formatted a
-    /// tidy report with a ✅/⚠️/❌ verdict, and showed it to nobody — while the founder's
-    /// literal ask is "Alle Latenzen und Kombinationen optimiert für Sessions". You
-    /// cannot optimise a latency you have never seen from the hardware in question.
+    /// `echoel_diag.log`, the file the founder exports.
     ///
-    /// ⚠️ THE ROUTE IS PART OF THE MEASUREMENT, not decoration. The same phone reports a
-    /// different round-trip on the built-in mic, a wired interface and a Bluetooth
-    /// headset (~150–250 ms on A2DP), and "Kombinationen" is the founder's word for
-    /// exactly that. A latency number without the route it was measured on cannot be
-    /// compared against another line in the same log, so `route` is not optional here.
+    /// ⛔ #654 — AND #653 SHIPPED A NUMBER THAT LIED IN FOUR WAYS. Recorded in full,
+    /// because every one of them is the same failure: a measurement carries more authority
+    /// than prose, so an over-claiming figure is worse than no figure at all.
     ///
-    /// PURE on purpose: no `AVAudioSession` read, so a guard can drive it. The live
-    /// reader is `latencyBreadcrumb(reason:)`.
+    /// 1. **`total=` claimed to be the round trip and was not.** It is `in + out + one`
+    ///    buffer period — hardware latency plus a single buffer. The app-observable round
+    ///    trip needs at least TWO (one to fill the input buffer before the render callback
+    ///    runs, one to drain the output buffer it fills), and the monitor chain's own nodes
+    ///    are on top of that. Renamed `floor=`, which is what it always was.
+    /// 2. **It said nothing about the PITCH STAGE, while being addressed to `monitor on`.**
+    ///    The monitor chain is `input → notchEQ → [voiceTunePitch] → monitorMixer`, and
+    ///    `AVAudioUnitTimePitch` is a phase vocoder with real algorithmic delay.
+    ///    `AudioInputPickerView` already warns in prose — "The pitch stage adds a little
+    ///    latency to the monitor only" — so a number that omits it CONTRADICTS the app's own
+    ///    UI on the same feature, and the number wins. `tune=on|off` now states whether the
+    ///    stage is in the chain. ⚠️ A MEASURED figure for it is deliberately NOT printed:
+    ///    `auAudioUnit.latency` has zero precedent in this repo and returns 0 for a node
+    ///    that is attached but not initialised — and this whole retraction exists because a
+    ///    fabricated 0 is worse than an honest absence. Reading it is its own slice, gated
+    ///    on someone verifying the value on a device.
+    /// 3. **The session CATEGORY was missing, and it decides the number.** `start` is
+    ///    measured under `.playback` + `.allowBluetoothA2DP`; `monitor on` under
+    ///    `.playAndRecord` + `recordOptions`, which includes `.allowBluetooth` — the HFP
+    ///    mono call codec — and `.defaultToSpeaker`. Two lines with the same stem, adjacent
+    ///    in one file, described incomparable regimes with no field to tell them apart, in a
+    ///    line whose stated purpose is comparability. `cat=` closes it. (It also corrects the
+    ///    #653 commit body: "~150–250 ms on A2DP" names a regime that CANNOT exist while
+    ///    monitoring is on.)
+    /// 4. **`in=0.0` was a fabrication on the most common path.** At `prepareGraph` the
+    ///    session is `.playback` unless a record route is needed, so there is no input and
+    ///    `inputLatency` is 0 — finite and non-negative, so the `?` mechanism could not see
+    ///    it, and the founder read "input latency measured at zero". `inputAvailable` now
+    ///    distinguishes "no input configured" (`n/a`) from "measured as zero".
     ///
-    /// Milliseconds with one decimal: the interesting range spans 3 ms (wired, small
-    /// buffer) to 250 ms (Bluetooth), and a second decimal would suggest a precision the
-    /// session's own estimates do not have.
+    /// PURE on purpose: no `AVAudioSession` read, so a guard can drive it. The live reader
+    /// is `latencyBreadcrumb(reason:tuneStage:)`.
+    ///
+    /// Milliseconds with one decimal: the interesting range spans 3 ms (wired, small buffer)
+    /// to 250 ms (Bluetooth), and a second decimal would suggest a precision the session's
+    /// own estimates do not have.
     static func latencyLine(reason: String,
+                            category: String,
                             sampleRate: Double,
                             ioBufferSeconds: Double,
                             inputSeconds: Double,
                             outputSeconds: Double,
+                            inputAvailable: Bool,
+                            tuneStage: Bool?,
                             route: String) -> String {
         // Non-finite or negative values are an edge case at this boundary, not an
-        // impossibility — a session queried mid-teardown can answer with anything. A
-        // line reading "total=nanms" is worse than one reading 0.0, because it looks
+        // impossibility — a session queried mid-teardown can answer with anything, and a
+        // route rebuild is exactly when this line fires. A line reading "floor=nanms" looks
         // like a parse bug in the log rather than a session that had no answer.
+        var incomplete = false
         func ms(_ seconds: Double) -> String {
-            guard seconds.isFinite, seconds >= 0 else { return "?" }
+            guard seconds.isFinite, seconds >= 0 else {
+                incomplete = true
+                return "?"
+            }
             return String(format: "%.1f", seconds * 1000)
         }
-        let total = [ioBufferSeconds, inputSeconds, outputSeconds]
-            .filter { $0.isFinite && $0 >= 0 }
-            .reduce(0, +)
+        let bufText = ms(ioBufferSeconds)
+        // "no input route" and "input measured at zero" are DIFFERENT facts and #654 exists
+        // because printing both as 0.0 told the founder the second when it was the first.
+        let inText: String
+        if inputAvailable {
+            inText = ms(inputSeconds)
+        } else {
+            inText = "n/a"
+            incomplete = true
+        }
+        let outText = ms(outputSeconds)
+        var parts: [Double] = [ioBufferSeconds, outputSeconds]
+        if inputAvailable { parts.append(inputSeconds) }
+        let floorSeconds = parts.filter { $0.isFinite && $0 >= 0 }.reduce(0, +)
         let rate = sampleRate.isFinite && sampleRate > 0
             ? String(format: "%.0f", sampleRate) : "?"
-        return "latency: \(reason) sr=\(rate) buf=\(ms(ioBufferSeconds)) "
-            + "in=\(ms(inputSeconds)) out=\(ms(outputSeconds)) "
-            + "total=\(ms(total))ms route=\(route)"
+        // `floor`, never `total`: hardware in + out + ONE buffer period. It is a lower
+        // bound on what the ear hears, not the round trip — see retraction 1 above.
+        var line = "latency: \(reason) cat=\(category) sr=\(rate) buf=\(bufText) "
+        line += "in=\(inText) out=\(outText) floor=\(String(format: "%.1f", floorSeconds * 1000))ms"
+        if incomplete { line += " partial" }
+        if let tuneStage { line += tuneStage ? " tune=on" : " tune=off" }
+        return line + " route=\(sanitisedRoute(route))"
     }
 
-    /// Read the live session and emit the #653 line. Never call from a render block —
-    /// this touches `AVAudioSession` and formats a `String`.
-    static func latencyBreadcrumb(reason: String) {
+    /// Port names come from the USER's paired hardware ("Michael's AirPods"), so this is the
+    /// first externally controlled string this repo writes into the diagnostics file.
+    ///
+    /// ⛔ #654 — AND THAT FILE HAS A SUBSTRING TRIGGER. `EchoelCrashLog.looksLikeUnseenCrash`
+    /// returns true for ANY log containing `crashMarker`, which is the bare word "CRASH". A
+    /// paired device whose name contains it would make every later launch auto-open the crash
+    /// sheet on a session that never crashed. Low likelihood, trivially avoided, and the kind
+    /// of hole that is impossible to diagnose from the outside once it happens.
+    ///
+    /// Also bounded in length: `currentLog()` reads the whole file into one `String` for the
+    /// share sheet, and a route name is not worth an unbounded contribution to that.
+    static func sanitisedRoute(_ route: String) -> String {
+        let masked = route.replacingOccurrences(of: EchoelCrashLog.crashMarker,
+                                                with: "C-R-A-S-H")
+        let flattened = masked.replacingOccurrences(of: "\n", with: " ")
+        return flattened.count <= 80 ? flattened : String(flattened.prefix(80)) + "…"
+    }
+
+    /// Read the live session and emit the #653 line. Never call from a render block — this
+    /// touches `AVAudioSession`, allocates, and ends in a blocking `write(2)`.
+    ///
+    /// ⚠️ `tuneStage` has NO default (#431/#440/#443): a defaulted argument that no call site
+    /// writes appears in no diff, and the whole point of the field is that each caller states
+    /// whether the pitch stage is in the chain it is describing. `nil` means "this line is not
+    /// about the monitor chain" and omits the field entirely.
+    static func latencyBreadcrumb(reason: String, tuneStage: Bool?) {
         #if os(macOS)
+        // ⛔ #654: the previous version passed `inputSeconds: 0, outputSeconds: 0` here and
+        // printed "in=0.0 out=0.0" — a claim of zero hardware latency on a platform this
+        // file cannot measure. Both are now declared unavailable.
         let line = latencyLine(reason: reason,
+                               category: "macOS-HAL",
                                sampleRate: preferredSampleRate,
                                ioBufferSeconds: Double(currentBufferSize) / preferredSampleRate,
-                               inputSeconds: 0, outputSeconds: 0,
+                               inputSeconds: .nan,
+                               outputSeconds: .nan,
+                               inputAvailable: false,
+                               tuneStage: tuneStage,
                                route: "macOS HAL")
         #else
         let session = AVAudioSession.sharedInstance()
         let current = session.currentRoute
         // Port NAMES, not the classifier's latency CLASS. In a founder log "Built-In
-        // Microphone → HI-X25BT" answers "which combination was this?" immediately,
-        // where "high" would only repeat what the number already says. Multiple ports
-        // on one side are real (a split route) and are joined rather than truncated.
+        // Microphone → HI-X25BT" answers "which combination was this?" immediately, where
+        // "high" would only repeat what the number already says. Multiple ports on one side
+        // are real (a split route) and are joined rather than truncated.
         let ins = current.inputs.map(\.portName).joined(separator: "+")
         let outs = current.outputs.map(\.portName).joined(separator: "+")
         // Hoisted rather than interpolated inline: #287 took the bundle red on "unable to
         // type-check in reasonable time" for exactly this shape — a ternary inside a string
-        // interpolation inside an argument list. Three plain `let`s cost nothing.
+        // interpolation inside an argument list. Plain `let`s cost nothing.
         let inName = ins.isEmpty ? "none" : ins
         let outName = outs.isEmpty ? "none" : outs
         let routeName = inName + "→" + outName
         let line = latencyLine(reason: reason,
+                               category: session.category.rawValue,
                                sampleRate: session.sampleRate,
                                ioBufferSeconds: session.ioBufferDuration,
                                inputSeconds: session.inputLatency,
                                outputSeconds: session.outputLatency,
+                               inputAvailable: !current.inputs.isEmpty,
+                               tuneStage: tuneStage,
                                route: routeName)
         #endif
         EchoelCrashLog.breadcrumb(line)

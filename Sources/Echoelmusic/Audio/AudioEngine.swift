@@ -576,7 +576,7 @@ public final class AudioEngine {
             // reaches `echoel_diag.log`. Keeping BOTH is deliberate: the report carries
             // the target and the ✅/⚠️/❌ verdict for a console session, the breadcrumb
             // carries the comparable one-liner for a shared log.
-            AudioConfiguration.latencyBreadcrumb(reason: "start")
+            AudioConfiguration.latencyBreadcrumb(reason: "start", tuneStage: nil)
         } catch {
             log.audio("Failed to configure audio session: \(error)", level: .warning)
         }
@@ -683,12 +683,30 @@ public final class AudioEngine {
                     // switch. Re-read the one, forget the baseline for the other (#193).
                     self.refreshRenderQuantum(fallbackSampleRate: self.sampleRate)
                     self.armTimingInstrument()
-                    // #653 — a route switch is the ONLY event that changes the round-trip
-                    // without any user action, and it is exactly the moment a founder plugs
-                    // in a wired interface or connects a Bluetooth headset. Without a line
-                    // here the log would carry a latency measured on a route that is no
-                    // longer live. Route changes are rare, so this cannot flood the file.
-                    AudioConfiguration.latencyBreadcrumb(reason: "route change")
+                    // #653 — an engine reconfigure is the only event that changes the
+                    // granted buffer and the hardware latencies without any user action, and
+                    // it is exactly the moment a founder plugs in an interface or connects a
+                    // Bluetooth headset. Without a line here the log would carry figures
+                    // measured on a configuration that is no longer live.
+                    //
+                    // ⛔ #654 CORRECTS BOTH HALVES OF WHAT #653 WROTE HERE. (a) The reason
+                    // said "route change", but this observer's own doc twelve lines up lists
+                    // THREE causes — BT connect/disconnect, a hardware sample-rate switch,
+                    // and a media-services rebuild — and the notification does not say which.
+                    // Logging the rebuild (the one that invalidates every tap and is the
+                    // hardest failure to diagnose) as a route change is the one lie the
+                    // reason string could tell. (b) It asserted "route changes are rare, so
+                    // this cannot flood the file" — an assertion, not a measurement, and it
+                    // ignored the app's OWN category mutations, which post configuration
+                    // changes too. Connecting a headset while monitoring runs takes this
+                    // branch, then `rearmInputMonitoring` toggles the category twice, each
+                    // posting another change: realistically 3–6 lines per physical connect.
+                    // It CONVERGES (the rearm re-captures the tap rate, so the follow-ups
+                    // find rate equality) and ~120 bytes a line is nothing for the file — but
+                    // the burst interleaves with the `monitor:` lines #650 put there to
+                    // diagnose monitoring failure, so the honest cost is signal, not size.
+                    AudioConfiguration.latencyBreadcrumb(reason: "engine reconfigured",
+                                                         tuneStage: nil)
                     // #612 (mic-sweep CRITICAL, the rate half): `monitorTapSampleRate` is
                     // captured ONCE at tap install; after a 44.1↔48 route switch the
                     // notch maths sat up to ~9 % off and (since #599) YIN divided by the
@@ -1963,7 +1981,13 @@ public final class AudioEngine {
             // combination. Emitted after `logMonitorOutcome` deliberately — the ON line is
             // the fact, the latency is its measurement, and a reader scanning for failures
             // should hit the fact first.
-            AudioConfiguration.latencyBreadcrumb(reason: "monitor on")
+            // ⛔ #654: `tuneStage` is passed because the monitor chain is
+            // `input → notchEQ → [voiceTunePitch] → monitorMixer`, and the pitch node is a
+            // phase vocoder whose delay is NOT in `floor=`. `AudioInputPickerView` already
+            // warns about it in prose; a number that omitted it contradicted the app's own
+            // UI on the same feature, and a number wins that argument every time.
+            AudioConfiguration.latencyBreadcrumb(reason: "monitor on",
+                                                 tuneStage: voiceTuneEnabled)
             return true
         } else {
             guard isInputMonitoring else { return true }
