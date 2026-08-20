@@ -146,8 +146,30 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
     func testTheTapInstallsAfterEveryFailurePath() throws {
         let engine = try source("Sources/Echoelmusic/Audio/AudioEngine.swift")
         XCTAssertEqual(codeOccurrences(of: "input.installTap(onBus: 0,", in: engine), 1)
+        // ⛔ #655 — THIS ANCHOR WAS DEAD FOR FIVE COMMITS AND THIS TEST WAS RED ON A
+        // CORRECT TREE THE WHOLE TIME. It read `"Input monitoring: engine restart failed"`.
+        // #650 routed every monitoring outcome through `logMonitorOutcome`, which OWNS the
+        // `"Input monitoring: "` prefix and prepends it — so the call site now reads
+        // `logMonitorOutcome("engine restart failed (\(error))")` and the old literal
+        // matches nothing. `XCTUnwrap` on nil is a FAILURE, and `source()` below only skips
+        // when `Sources/` is absent, so nothing skipped it.
+        //
+        // ⭐ WHY NOBODY NOTICED, and it is the expensive half: #396 makes CI/CD report
+        // `failure` on EVERY push, and #445 established that a test name MISSING from the
+        // job log proves nothing about whether it ran. A guard that goes red inside that
+        // fog is indistinguishable from the host dying. The lesson is not "re-anchor" —
+        // it is that a slice which RENAMES a logged string must grep the blocking bundle
+        // for the old literal in the SAME commit (#456), because no gate will say so.
+        //
+        // Anchored on the surviving call, whose uniqueness is asserted rather than assumed
+        // (#408, `Tests/CISmoke/CLAUDE.md` §: checking uniqueness is part of writing the
+        // scan). The `logMonitorOutcome(` prefix is what makes it a CALL and not prose.
+        XCTAssertEqual(codeOccurrences(of: "logMonitorOutcome(\"engine restart failed",
+                                       in: engine), 1,
+                       "the restart-failure exit is no longer a single named call — "
+                       + "re-anchor (#408/#454) rather than widening the needle")
         let restartFailure = try XCTUnwrap(
-            engine.range(of: "Input monitoring: engine restart failed"),
+            engine.range(of: "logMonitorOutcome(\"engine restart failed"),
             "the restart-failure path was renamed — re-anchor (#454)")
         let tapInstall = try XCTUnwrap(engine.range(of: "input.installTap(onBus: 0,"))
         XCTAssertTrue(restartFailure.lowerBound < tapInstall.lowerBound,

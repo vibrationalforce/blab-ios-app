@@ -248,6 +248,19 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
     func testTheLineIsEmittedFromTheEngine() throws {
         let code = try Self.codeText(Self.engine)
         let sites = Self.count(of: "AudioConfiguration.latencyBreadcrumb(reason:", in: code)
+        // ⛔ #655: the count alone was satisfied by three copies of ONE reason, while the
+        // message below promised three distinct questions. An assertion that cannot fail for
+        // the reason its message states is #367 in the mirror, so the three reasons are
+        // pinned individually — and the count stays as the floor that keeps a FOURTH free.
+        for reason in ["\"start\"", "\"engine reconfigured\"", "\"monitor on\""] {
+            XCTAssertTrue(code.contains("latencyBreadcrumb(reason: " + reason), """
+                The `\(reason)` latency line is gone. The three are not interchangeable: \
+                `start` says what the device costs at rest, `engine reconfigured` catches the \
+                only change that happens with no user action, and `monitor on` is the one \
+                addressed to the decision the founder is actually making. Dropping one is a \
+                real decision — say which question stopped mattering.
+                """)
+        }
         XCTAssertGreaterThanOrEqual(sites, 3, """
             Only \(sites) `latencyBreadcrumb` call sites in `AudioEngine`; #653 wired THREE, \
             and each answers a different question: `start` (what does this device cost at \
@@ -269,7 +282,11 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
             slice: `log.audio` is `os_log` plus a write-only in-memory ring, and neither \
             reaches `echoel_diag.log`. It is the same hole #650 closed for the monitoring path.
             """)
-        XCTAssertTrue(body.contains("route:"), "the route stopped being passed (#653).")
+        // ⛔ #655: `contains("route:")` would have stayed green if a refactor introduced an
+        // unrelated `let route: String` inside this body while dropping the ARGUMENT. Pinned
+        // to the argument-plus-value form, which only the call can produce.
+        XCTAssertTrue(body.contains("route: routeName") || body.contains("route: \"macOS HAL\""),
+                      "the route stopped being passed to `latencyLine` (#653/#655).")
         XCTAssertTrue(body.contains("category:"), """
             The session category stopped being passed. Two lines measured under `.playback` \
             and `.playAndRecord` are not comparable, and comparability is why the line exists \
@@ -298,6 +315,20 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
     /// 5 — the #650 pairing: the monitor-ON fact and its measurement must stay together.
     func testTheMonitorOnFactAndItsLatencySitTogether() throws {
         let code = try Self.codeText(Self.engine)
+        // ⛔ #655 — UNIQUENESS IS PART OF WRITING THE SCAN, NOT OF REVIEWING IT
+        // (`Tests/CISmoke/CLAUDE.md`, #408). Both anchors happened to be unique, so this was
+        // latent rather than live — but `range(of:)` silently takes the FIRST match, and a
+        // second occurrence would have made the ordering assertion below describe a pair
+        // nobody chose. Two sibling guards in this bundle already assert this; this one did
+        // not, in the same commit family that spent a paragraph on #408.
+        for anchor in ["logMonitorOutcome(\"ON (gain ",
+                       "AudioConfiguration.latencyBreadcrumb(reason: \"monitor on\""] {
+            XCTAssertEqual(Self.count(of: anchor, in: code), 1, """
+                `\(anchor)` no longer occurs exactly once, so the ordering check below would \
+                silently compare the wrong pair. Re-anchor (#408) rather than accepting the \
+                first match.
+                """)
+        }
         guard let onSite = code.range(of: "logMonitorOutcome(\"ON (gain "),
               let latency = code.range(of: "AudioConfiguration.latencyBreadcrumb(reason: \"monitor on\""),
               onSite.upperBound < latency.lowerBound else {
@@ -311,6 +342,13 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         // characters from a false red because it bounded a region with `suffix(600)`. The
         // question here is "does anything RETURN between the fact and its measurement", and a
         // `return` is the exact token that would separate them.
+        //
+        // ⚠️ WHAT IT DOES NOT PROVE, stated because a sibling guard already carries this
+        // disclaimer and this one did not (#655): this is TEXTUAL adjacency, not control
+        // flow. A `throw`, a `fatalError`, or the breadcrumb wrapped in a never-taken `if`
+        // all pass. It also false-reds on any identifier merely CONTAINING `return`
+        // (`returning`, `returnValue`) in the region — none today. The real guarantee is that
+        // the two statements sit in one straight-line block, which a human read.
         let between = String(code[onSite.upperBound..<latency.lowerBound])
         XCTAssertFalse(between.contains("return"), """
             A `return` now sits between the "monitor ON" breadcrumb and its latency line, so \

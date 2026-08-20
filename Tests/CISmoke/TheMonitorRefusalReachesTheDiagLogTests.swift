@@ -162,12 +162,22 @@ final class TheMonitorRefusalReachesTheDiagLogTests: XCTestCase {
         for marker in ["installTap", "renderBlock", "AURenderPullInputBlock"] {
             guard let hit = code.range(of: marker) else { continue }
             let window = String(code[hit.lowerBound...].prefix(1200))
-            XCTAssertFalse(window.contains("EchoelCrashLog.breadcrumb"), """
-                A breadcrumb appears within 1200 characters of `\(marker)`. `breadcrumb` does \
-                `Date()` plus `write(2)` — file I/O, which `.claude/rules/swift-audio.md` bans \
-                outright on the audio thread. #650 added ten calls to this file; this is the \
-                assertion that keeps the eleventh out of a render path.
-                """)
+            // ⛔ #655 — THIS NEEDLE WENT ONE INDIRECTION BLIND AND NOTHING SAID SO. #653 added
+            // `AudioConfiguration.latencyBreadcrumb`, which performs the SAME `write(2)`
+            // behind a name `EchoelCrashLog.breadcrumb` cannot match. All three of its call
+            // sites are main-actor graph configuration — verified by hand — so this was never
+            // a live hazard, but the guard was silently weaker than its own doc claimed.
+            // Both names are banned now. A THIRD wrapper would need adding here too, which is
+            // the honest limit of a text scan and is why the ⚠️ block above says so.
+            for banned in ["EchoelCrashLog.breadcrumb", "AudioConfiguration.latencyBreadcrumb"] {
+                XCTAssertFalse(window.contains(banned), """
+                    `\(banned)` appears within 1200 characters of `\(marker)`. It ends in \
+                    `Date()` plus `write(2)` — file I/O, which `.claude/rules/swift-audio.md` \
+                    bans outright on the audio thread. #650 added ten breadcrumb calls to this \
+                    file and #653 added three more behind a wrapper; this is the assertion \
+                    that keeps the next one out of a render path.
+                    """)
+            }
         }
     }
 
