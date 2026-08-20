@@ -418,6 +418,7 @@ final class CameraAnalyzer {
     func togglePulseDetection() {
         isPulseDetecting.toggle()
         if isPulseDetecting {
+            rearmFrameRateAdaptation()   // fresh acquisition, like startPulseDetection (#652)
             resetPulseState()
         }
     }
@@ -426,6 +427,8 @@ final class CameraAnalyzer {
     func startPulseDetection() {
         guard !isPulseDetecting else { return }
         isPulseDetecting = true
+        // A fresh session may run a different capture format — re-measure (#652).
+        rearmFrameRateAdaptation()
         resetPulseState()
     }
 
@@ -471,7 +474,28 @@ final class CameraAnalyzer {
         lastFilteredAmplitude = 0
         lastActualRate = 0
         lastWindowSize = 0
-        // Re-measure the frame rate next session; restore the nominal filter until then.
+    }
+
+    /// Re-arm the ONE-TIME frame-rate measurement and restore the nominal filter until it
+    /// runs again.
+    ///
+    /// ⛔ #652 — THIS USED TO SIT INSIDE `resetPulseState()`, AND THAT MADE EVERY WINDOW
+    /// FLUSH RE-MEASURE THE FRAME RATE AT THE WORST POSSIBLE MOMENT. The re-tune above
+    /// samples the FIRST 30 samples after a reset (~2.5 s) and then latches
+    /// `filterRateAdapted = true` for the rest of the take. #651 added two flushes that fire
+    /// mid-take, immediately after an exposure unlock — i.e. squarely inside the AGC ramp,
+    /// the one stretch where the camera runs slowest. On the founder's build-2531 log that
+    /// depressed rate is **12.1 fps**. A highpass designed for 12.1 Hz but then clocked at the
+    /// recovered ~15 Hz puts its −3 dB corner at `0.7 × 15/12.1` = 0.8678 Hz = **52.07 bpm** —
+    /// and the pulse being hunted in that very log is **52–53 bpm**. The recovery would have
+    /// attenuated the exact component it was trying to find.
+    ///
+    /// So the split is by CAUSE, not by convenience: a mid-take flush empties the window but
+    /// does NOT change the camera's frame rate, so the already-measured rate still holds and
+    /// must be kept. Only a genuinely FRESH capture session can have a different format, and
+    /// only those two callers re-arm — `startPulseDetection()` and the capture-session-reset
+    /// path in `CameraRPPGBioPublisher`. Found by the #651 DSP review.
+    func rearmFrameRateAdaptation() {
         filterRateAdapted = false
         effectiveSampleRate = Self.defaultSampleRate
         bpc = BandpassCoefficients(sampleRate: Float(Self.defaultSampleRate))
@@ -1047,8 +1071,13 @@ final class CameraAnalyzer {
     /// Originally the scan wrote `Int(effectiveSampleRate * refractorySeconds(...))`. That
     /// rate is the ASSUMED 15 Hz, re-tuned at most once per acquisition (the re-tune sets
     /// `filterRateAdapted = true` unconditionally and only fires if the first ~2 s deviate by
-    /// >15 %; `resetPulseState` re-arms it, so it is "until the next recovery or finger lift",
-    /// NOT "forever" — #373's commit message overstated that and is corrected here). On a
+    /// >15 %). ⛔ #652: this line said `resetPulseState` re-arms it, so the scope was "until
+    /// the next recovery or finger lift". That stopped being true when the re-arm moved into
+    /// `rearmFrameRateAdaptation()` — a mid-take flush now KEEPS the measured rate on purpose
+    /// (see that method's doc: re-measuring during an AGC ramp latched a corner at 52.07 bpm
+    /// against a 52–53 bpm pulse). The honest scope today is "until the next FRESH capture
+    /// session"; #373's commit message said "forever" and was over-broad in the other
+    /// direction, which is why both wrong versions are kept here. On a
     /// device delivering 7.5–15 Hz the count was therefore derived from the wrong rate.
     ///
     /// #373 fixed the rate and kept the truncation, and a review caught what that combination
@@ -1237,6 +1266,7 @@ final class CameraAnalyzer {
     // MARK: - Cleanup
 
     func reset() {
+        rearmFrameRateAdaptation()   // full teardown returns the filter to nominal (#652)
         resetPulseState()
         brightness = 0.5
         redChannel = 0.5

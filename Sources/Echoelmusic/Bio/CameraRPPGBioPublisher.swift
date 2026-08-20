@@ -723,6 +723,15 @@ public final class CameraRPPGBioPublisher {
     private static let maxForcedRecoveries = 3
     private static let lockAfterTicks = 12      // ~1.2 s of stable finger before lock
     private static let resettleAfterTicks = 20  // ~2 s of saturation → re-settle
+    /// A rolling analysis window this long is worth reasoning about. 150 samples is the full
+    /// window (`min(n, rate*10)` in `CameraAnalyzer`); 140 is "essentially full".
+    ///
+    /// #652 hoisted this out of the `weakTicksStep(windowFull:)` call, where it was a bare
+    /// literal, because the saturation flush now needs the SAME test and #416 wants one
+    /// definition. The two uses are not coincidental — they are the same question ("is there
+    /// a full window here at all?") asked by the escalation ladder and by the flush that can
+    /// starve it.
+    private static let fullWindowSamples = 140
     private static let relockOnLossTicks = 30   // ~3 s without finger → allow re-lock
     // Only lock exposure when the finger scene is dark enough for PPG. A bright
     // finger scene means torch light is flooding the lens; locking there captured a
@@ -1700,27 +1709,74 @@ public final class CameraRPPGBioPublisher {
                 // the same cause: "the exposure-unlock brightness STEP in the window" (finger
                 // loss) and "the brightness STEP the exposure re-lock injects" (camera stall).
                 // The two DELIBERATE re-settles — this one and the weak-periodicity one below
-                // — were the two that did not, and an autocorrelation over a window straddling
-                // two photometric regimes cannot find a pulse.
+                // — were the two that did not.
+                //
+                // ⛔ #652 CORRECTS THE MECHANISM #651 GAVE, and in this repo a right note with
+                // a wrong reason is worse than none — it sends the next reader to the wrong
+                // file. #651 said "an autocorrelation over a window straddling two photometric
+                // regimes cannot find a pulse". Measured, the autocorrelation never gets a
+                // vote. The 0.7 Hz Butterworth highpass settles the DC step in ~1 s; what
+                // survives is the step's AMPLITUDE, and the very next thing computed on the
+                // window is `amplitude = maxAmp - minAmp` — a max/min pinned by ONE extreme
+                // sample for the window's whole ~10–12 s life. `CameraAnalyzer` then gates on
+                // `isMotionAmplitude(amplitude)` = `amplitude > 0.20`, and that branch zeroes
+                // the peak count and multiplies `bpmConfidence` by `motionBleed` PER SAMPLE
+                // (0.6 while acf ≤ 0.4, ~15–30 samples per tick ⇒ ≈0 in one tick) and RETURNS
+                // before peak detection runs. So confidence dies from the amplitude gate
+                // alone; the acf collapse rides alongside as a symptom. A flush is still the
+                // only mechanism that can clear a max/min-pinned window early — the fix is
+                // unchanged, the reason is not. (#651 DSP review.)
                 //
                 // Founder device log, build 2531, 2026-08-20, and it is the documented
                 // signature exactly: confidence had just reached 0.89 at a stable 52–53 bpm
-                // when this branch fired. One sample later `amp` jumped to 0.4898 and FROZE
-                // there across two consecutive reads, `acf` fell 0.40 → 0.05, `conf` went
-                // 0.89 → 0.07 → 0.00, and `win` stayed 150 the whole time — a full window
-                // that was never emptied. Both `generate` lines of that take report `body=0`.
+                // when this branch fired. One sample later `amp` jumped to 0.4898 — 20× a
+                // resting rPPG AC and 2.4× the 0.20 gate — and FROZE there across two
+                // consecutive reads, `acf` fell 0.40 → 0.05, `conf` went 0.89 → 0.07 → 0.00,
+                // and `win` stayed 150 the whole time: a full window that was never emptied.
+                // Both `generate` lines of that take report `body=0`.
                 //
-                // ⚠️ HONEST RESIDUAL, registered rather than hidden: this flushes at the
-                // UNLOCK, matching the two sibling sites. The ~3 s of AGC ramp before the next
-                // lock still enter the fresh window (measured in that log: unlock 13:44:05,
-                // lock 13:44:08). Flushing at the LOCK instead would be photometrically
-                // cleaner, but that path is shared with the FIRST lock of a take, and first
-                // acquisition demonstrably works today (it reached 0.89). Changing it without
-                // device evidence would trade a measured bug for an unmeasured one.
-                analyzer.resetForRecovery()
-                EchoelCrashLog.breadcrumb(String(format:
-                    "rPPG: re-settling exposure — saturated, window flushed (bright=%.2f R=%.2f)",
-                    bright, red))
+                // ⚠️ BUDGET, and #652 added it because its absence was a REGRESSION #651
+                // introduced. This branch has no cooldown of its own: entry costs 2 s of
+                // saturation, it clears `fingerStableTicks` but not `fingerPresentTicks`, and
+                // it never increments `quickFailLocks` — so a placement that oscillates around
+                // the washout line can re-settle every ~4–6 s while the window needs ~10–12 s
+                // to fill. An unbudgeted flush there pins `lastWindowSize` below
+                // `fullWindowSamples`, `weakTicksStep` returns 0 on its `windowFull` guard, and
+                // `weakAcfTicks` never accumulates — which makes BOTH escalations unreachable:
+                // `weakLockNeedsResettle` AND `deadWindowNeedsFlush`, the last-resort recovery
+                // written for device log 2465's four dead minutes. That converts "dead with a
+                // recovery ladder" into "dead with the ladder gone". Gating on a window that is
+                // actually worth flushing breaks the loop by construction and costs nothing —
+                // flushing an already-short window discards a refill for no gain.
+                //
+                // ⚠️ HONEST RESIDUAL, registered rather than hidden, and #652 SHARPENED it
+                // rather than resolving it. This flushes at the UNLOCK, matching the two
+                // sibling sites. The re-lock a second or two later is not a smooth AGC ramp —
+                // it is `lockExposure()` PLUS `setTorch(true)`, i.e. a second photometric STEP,
+                // and it lands after the flush. If that step alone exceeds 0.20 the flush buys
+                // no recovery time at all. Bounding it: the FIRST lock of a take injects the
+                // same step into an accumulating window and acquisition demonstrably works, so
+                // the lock step is the smaller of the two — but "smaller" is not "under 0.20".
+                // The breadcrumbs below now carry `amp` and `win`, so the next device log
+                // SETTLES this instead of another argument: if `amp` is already high at the
+                // unlock and the take still recovers, the placement is right.
+                //
+                // The two reads and the verdict are hoisted into `let`s BEFORE the flush for
+                // two independent reasons: `resetForRecovery()` zeroes both fields, so a
+                // breadcrumb built afterwards would print `amp=0.0000 win=0` on every
+                // re-settle and instrument nothing (the weak branch below learned this first);
+                // and #287 — a `String(format:)` whose argument list mixes a ternary with
+                // concatenation is exactly the expression shape that took the bundle red on
+                // "unable to type-check in reasonable time". One `let`, then one call.
+                let satAmp = analyzer.lastFilteredAmplitude
+                let satWin = analyzer.lastWindowSize
+                let satFlushed = satWin >= Self.fullWindowSamples
+                let satNote = String(format:
+                    "rPPG: re-settling exposure — saturated (bright=%.2f R=%.2f amp=%.4f win=%d)",
+                    bright, red, satAmp, satWin)
+                if satFlushed { analyzer.resetForRecovery() }
+                EchoelCrashLog.breadcrumb(satNote
+                    + (satFlushed ? " window flushed" : " window kept (too short to be worth it)"))
             }
         } else {
             saturatedTicks = max(0, saturatedTicks - 1)
@@ -1733,7 +1789,7 @@ public final class CameraRPPGBioPublisher {
         // on a FULL window while unsettled → hand exposure back to auto so the
         // strict dark gate above re-locks properly. Bounded per placement.
         weakAcfTicks = Self.weakTicksStep(current: weakAcfTicks,
-                                          windowFull: analyzer.lastWindowSize >= 140,
+                                          windowFull: analyzer.lastWindowSize >= Self.fullWindowSamples,
                                           acf: Float(analyzer.lastAutoStrength),
                                           confidence: Float(confidence),
                                           settled: isSettled)
@@ -1772,9 +1828,19 @@ public final class CameraRPPGBioPublisher {
             // print "acf=0.00 conf=0.00" every single time and could never show WHICH weak
             // state triggered the re-lock. The dead-window flush a few lines up already had
             // to learn this and says so at its own call site.
+            //
+            // ⚠️ #652 deliberately gives this branch NO window-full budget, unlike the
+            // saturation branch above — it already has two, and they are stronger. It is
+            // bounded to `maxWeakRelocks` per placement, and `weakTicksStep` opens with
+            // `guard windowFull` — so the flush HOLDS its own counter at zero for the whole
+            // refill. Adding a third limiter would be #364 machinery for a loop that cannot
+            // run. `amp`/`win` are logged for the same reason as above: to settle whether
+            // flushing at the unlock or at the lock is the right placement.
             let weakNote = String(format:
-                "rPPG: re-settling exposure — weak periodicity on a bright lock, window flushed (bright=%.2f acf=%.2f conf=%.2f, relock %d/%d)",
-                bright, Float(analyzer.lastAutoStrength), Float(confidence), weakRelocksUsed, Self.maxWeakRelocks)
+                "rPPG: re-settling exposure — weak periodicity on a bright lock, window flushed (bright=%.2f acf=%.2f conf=%.2f amp=%.4f win=%d, relock %d/%d)",
+                bright, Float(analyzer.lastAutoStrength), Float(confidence),
+                analyzer.lastFilteredAmplitude, analyzer.lastWindowSize,
+                weakRelocksUsed, Self.maxWeakRelocks)
             analyzer.resetForRecovery()
             EchoelCrashLog.breadcrumb(weakNote)
             return
@@ -1845,6 +1911,10 @@ public final class CameraRPPGBioPublisher {
         // re-stalling every few seconds it never flushed and the pulse never came back
         // (device log 1783442844). displayBPM is held by the publish loop (it never advances
         // on bpm=0), so the SHOWN pulse holds through re-acquire instead of dropping to 0.
+        // #652: a FRESH capture session may deliver a different format, so this is one of
+        // the two places that re-arms the one-time frame-rate measurement. The mid-take
+        // flushes deliberately do not — see `CameraAnalyzer.rearmFrameRateAdaptation()`.
+        analyzer.rearmFrameRateAdaptation()
         analyzer.resetForRecovery()
         // Do NOT reset forcedRecoveries here: every forced recovery fires this very
         // callback ~20 ms later, so zeroing the budget here made each recovery erase
@@ -1899,9 +1969,8 @@ public final class CameraRPPGBioPublisher {
         // ⛔ FIFTH ATTEMPT, and #651 is why: it added two call sites and this sentence said
         // THREE. Round 4 below congratulates itself for surviving three rewrites — and the
         // property it relied on was that the SET does not grow. **The invariant is "no site",
-        // not "these sites".** The count is kept only as a re-derivable fact, with the command
-        // that produces it, and the claim now leads with the universal:
-        //     grep -c '^ *analyzer\.resetForRecovery()$' Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift
+        // not "these sites".** The count is kept only as a fact; the command that produced it
+        // is gone — see the #652 block below for why every version of it falsified itself.
         //
         // ⛔ FOURTH ATTEMPT AT THIS ONE SENTENCE, and the failure mode is worth more than the
         // fact. Round 1 named only the third site. Round 2 described the other two in prose
@@ -1912,8 +1981,22 @@ public final class CameraRPPGBioPublisher {
         // time (the second flush really is the finger-off/re-placement one); only the label
         // was wrong, which is the hardest version to notice, because the sentence around it
         // reads true. An identifier is only more reliable than prose if someone checks that it
-        // is the identifier on the guard — `grep -n "resetForRecovery" ` shows the three call
-        // sites and the `if` directly above each one settles it in ten seconds.
+        // is the identifier on the guard.
+        //
+        // ⛔ #652 — AND THE RECIPE ITSELF HAS NOW FAILED TWICE, WHICH IS THE POINT. Round 4
+        // sent you to `grep -n "resetForRecovery"` "for the three call sites"; measured, that
+        // prints 14 lines for 5 sites, because every round of comment-writing ABOUT the sites
+        // (including this one) adds noise to its own evidence. Round 5 replaced it with the
+        // anchored `grep -c '^ *analyzer\.resetForRecovery()$'` — and #652 immediately made
+        // THAT return 4, by wrapping the saturation flush in `if satFlushed { … }` so the call
+        // no longer starts its line. Two different recipes, two different wrong numbers, both
+        // broken by the ordinary act of editing the code they describe.
+        //
+        // So no recipe. The FACT: five calls, four in `manageExposure()` and one in
+        // `handleCameraSessionReset()`. The AUTHORITY is the guard —
+        // `Tests/CISmoke/EveryDeliberateResettleFlushesTheWindowTests.swift` counts them on
+        // COMMENT-STRIPPED text, which is the only counter in this repo that cannot be fooled
+        // by prose about itself, and it pins the number as a FLOOR so adding a sixth is free.
         //
         // Naming them matters because the second one is where the obvious justification does
         // NOT hold: at a re-placement the finger may have been off the lens entirely, so "the
