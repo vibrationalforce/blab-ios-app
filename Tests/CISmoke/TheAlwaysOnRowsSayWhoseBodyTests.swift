@@ -162,6 +162,14 @@
 //     `"Tempo, driven by your body"` at both sites. Now `TempoFollowLabel.spoken(for:)`, keyed on
 //     `bus.usableBio()`. Ticked in the commit that closes it, in BOTH registers — #642 updated
 //     one and not the other, and that is the failure this list's own rule names.
+//     ⛔ #647 ALSO CALLED THIS "the last registered entry of the #632/#627b pattern" AND THAT
+//     WAS FALSE — the very next bullet in this list is spoken and still open. Retracted at the
+//     guard too. Declaring a pattern closed is how the next session stops looking for it.
+//     ⭐ #647's REVIEW then found a SECOND spoken claim in the same file that no register held:
+//     the lock button's "tap to let your body drive it again", false under Simulation because
+//     unlocking hands the clock to the demo generator. Now `TempoFollowLabel.unlockHint(for:)`.
+//     The lesson is the register's, not the reviewer's: a per-entry list finds what somebody
+//     already wrote down, and a file-wide sweep for the PHRASE finds what nobody did.
 //   · ⚠️ WATCH, not a defect yet: "simulated demo source, not your body" is now spelled inline at
 //     SEVEN sites (`AutomationStatus`, `BioVariationMaze`, `AlwaysOnBioChannel` ×4,
 //     `BodyTempoField`). That is NOT a #416 violation — each is a different SENTENCE for a

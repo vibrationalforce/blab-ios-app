@@ -112,7 +112,11 @@ final class TheTempoBoxShowsTheClockTests: XCTestCase {
             \(offenders.count) accessibility label(s) in \(Self.field) still say the tempo \
             box follows "your pulse": \
             \(offenders.map { $0.trimmingCharacters(in: .whitespaces) }). It follows the \
-            CLOCK, which your body drives through the generative mapping. Naming the pulse \
+            CLOCK. (⛔ This message said "which your body drives through the generative \
+            mapping" until #647's review — the unconditional claim #647 retracted one layer \
+            up, still asserted inside the guard whose subject is that very label. The clock \
+            is body-driven only when the flow servo wrote it from a trustworthy, \
+            non-synthetic frame.) Naming the pulse \
             names the pill's number — the exact duplication #491 removed — and says it in \
             the layer only VoiceOver users hear.
             """)

@@ -56,8 +56,10 @@
 // the number a session checks before folding the row somewhere, so it moves with the code.)
 // `cameraRPPG.displayBPM` updates ~10 Hz (the accent-tint flag), and since #491
 // `transport.tempo` is read UNCONDITIONALLY — 8 Hz at 120 BPM, up to ~20 Hz during a
-// glide. The third, added by #647, is the SLOWEST: bio applies at ~1 Hz. ⛔ This paragraph
-// named only the camera until #491, and it was written when the
+// glide. The third, added by #647, is the SLOWEST: `latestBio` is REASSIGNED at ~1 Hz. (That
+// is the PUBLISH rate, not the consumers' dedup rate — #459: a rate belongs to exactly one
+// operation, and quoting a neighbour's number takes its OPERATION with it.)
+// ⛔ This paragraph named only the camera until #491, and it was written when the
 // tempo read sat behind a `?:` that a live pulse short-circuited away; the second source
 // is not new here, it just became unavoidable. This is a LEAF `View` struct — ALL THREE
 // reads live HERE, so only this row rebuilds and the Picker-hosting Composition panel / root
@@ -96,28 +98,62 @@ import Foundation
 /// drives the clock — an over-correction, which is this family's remaining risk and what it has
 /// already had to retract twice. `usableBio()` is the same gate the composer itself asks.
 ///
-/// ⚠️ RESIDUE, WRITTEN DOWN RATHER THAN LEFT TO BE REDISCOVERED: this answers "what would drive
-/// the NEXT compose", not "what drove THIS clock value". The tempo is fixed at compose time
-/// (`makeComposerInput` reads `usableBio()` once, `BioComposer` folds it into the genre window);
-/// the label reads `usableBio()` again at RENDER time. Two windows follow, and they are not
-/// symmetric:
-///   · composed from a real body, sensor then drops → label says "no reading is driving it".
-///     Honest understatement — the clock genuinely is coasting on a value nobody is refreshing.
-///   · composed under Simulation, a real body then arrives before the next generate → the label
-///     says "driven by your body" over a demo-derived clock. **That is this slice's own defect,
-///     momentarily inverted**, and it lasts until the next generate.
-/// Not a reason to change the keying — `usableBio()` is still the right gate, and the argument
-/// against `liveBodyBPM` above is unaffected. Closing it needs the label to read the frame the
-/// take was COMPOSED from, which means carrying that frame on the transport or the take, i.e. a
-/// data-flow slice and not a copy slice. Same handling as `AlwaysOnBioRow`'s bounded lag.
+/// ⛔ THE VERB WAS "driven by" FOR ONE COMMIT AND THAT WAS AN OVER-CLAIM (#647 review). This
+/// function knows ONE thing: whether a usable reading is arriving and whose it is. It does NOT
+/// know whether the clock is following that reading, and there are FOUR other writers plus three
+/// gates between the two:
+///   · `bodyTempoTrustworthy(frame)` — for the camera this is `isSettled`, so through the ~13 s
+///     warm-up (and every re-lock) `usableBio()` returns a real frame while the composer
+///     DELIBERATELY holds the previous tempo. "driven by your body" was flatly false there.
+///   · `generate()` is the only `.flowServo` writer. Open the app, start the pulse, never press
+///     Start: the clock sits at the transport default and nothing has read a body at all. That
+///     is the ORDINARY first-run state, not an edge case.
+///   · opening a project restores a tempo from a file with the lock off.
+///   · `.automation` and `.modulationRoute` both write the clock; dormant today (#541/#473), but
+///     a persisted document reaches them.
+/// "following" is this file's OWN name for the unlocked state (`followingValue`, `followingText`,
+/// `followingSpoken`, "the FOLLOWING readout"), and it describes what is measured — a reading is
+/// arriving and this is whose it is — instead of asserting a causal chain this type cannot see.
+///
+/// ⭐ THE EXACT ROUTE EXISTS AND IS DELIBERATELY NOT TAKEN YET. `PatternEngine.lastTempoSource`
+/// already carries `user · flowServo · automation · modulationRoute · unspecified`, and this view
+/// already holds `@Environment(BeatPlayer.self)`. Two things make it its own slice rather than a
+/// one-line swap: it is documented "diagnostic only — nothing branches on it", so branching
+/// changes its contract; and the compose path stamps `.flowServo` even on the HOLD branch, so it
+/// still needs the trustworthy gate to exclude the warm-up. Registered, not guessed at.
+///
+/// ⚠️ AND ONE STALENESS THIS CANNOT SEE. `usableBio()` reads the observable `latestBio` AND the
+/// wall clock; observation registers on `latestBio` only. Unlocked, camera off (strap or Watch),
+/// transport stopped, nothing else in this body churns — so when the strap drops, `latestBio`
+/// stops changing, this view stops re-rendering, and the label keeps naming a body indefinitely.
+/// ⛔ The first version of this block called that "the same handling as `AlwaysOnBioRow`'s
+/// bounded lag" and that was FALSE IN THE LOAD-BEARING HALF: that row wraps its content in
+/// `TimelineView(.periodic(from: .now, by: 1))` precisely BECAUSE the wall-clock half needs its
+/// own tick, and its header calls that "load-bearing, not decoration". There is no such tick
+/// here, so the lag is UNBOUNDED, not bounded. The mechanism is named so the fix is a lookup and
+/// not a rediscovery; it is not taken in this pass because adding a 1 Hz tick to the transport
+/// row is a render-structure change with no local compiler and no device to check it against.
 public enum TempoFollowLabel {
 
     /// The VoiceOver label for the unlocked readout, given the frame currently driving the clock.
     public static func spoken(for frame: BioSampleFrame?) -> String {
-        guard let frame else { return "Tempo, following — no reading is driving it" }
+        guard let frame else { return "Tempo, following — no reading is arriving" }
         return frame.source.isSynthetic
-            ? "Tempo, driven by the simulated demo source, not your body"
-            : "Tempo, driven by your body"
+            ? "Tempo, following the simulated demo source, not your body"
+            : "Tempo, following your body"
+    }
+
+    /// What tapping the lock OPEN hands the clock back to (#647 review).
+    ///
+    /// ⚠️ A SEPARATE SENTENCE, NOT A REUSE OF `spoken(for:)`. This one is about what a TAP will
+    /// do, so it is future-tense and names an actor; that one is about what is arriving now. One
+    /// string for both would read wrong in one of the two places, which is the collapse #634b
+    /// had to retract. Same three states, same source of truth.
+    public static func unlockHint(for frame: BioSampleFrame?) -> String {
+        guard let frame else { return "Tempo locked — tap to let it follow again" }
+        return frame.source.isSynthetic
+            ? "Tempo locked — tap to let the simulated demo source drive it again"
+            : "Tempo locked — tap to let your body drive it again"
     }
 }
 
@@ -136,7 +172,9 @@ struct BodyTempoField: View {
     /// ⚠️ A THIRD OBSERVED SOURCE IN THIS LEAF, and the render-safety paragraph at the top of
     /// the file is the reason that is legal rather than an oversight: this is a leaf `View`
     /// struct, so the read lives HERE and no Picker-hosting ancestor subscribes. It is also the
-    /// SLOWEST of the three — bio applies at ~1 Hz, against `transport.tempo` at up to ~20 Hz
+    /// SLOWEST of the three — `latestBio` is REASSIGNED at ~1 Hz (the PUBLISH rate; #459 — a
+    /// rate belongs to exactly one operation, not the consumers' dedup rate), against
+    /// `transport.tempo` at up to ~20 Hz
     /// during a glide. Folding this row inline would still be the 10.76.41/50 freeze, now with
     /// three churn sources instead of two.
     @Environment(EngineBus.self) private var bus
@@ -385,7 +423,12 @@ struct BodyTempoField: View {
             // exactly the duplication this slice removed, and it said it in the layer that
             // no screenshot can show (#480: an accessibility string is invisible while
             // VoiceOver is off, which is how the wrong word survives).
-            .accessibilityLabel(lockBPM ? "Tempo locked — tap to let your body drive it again"
+            // #647 review: this button spoke the SAME unconditional body claim 268 lines below
+            // the readout that was just fixed, and a VoiceOver player reaches it on the next
+            // swipe. Under Simulation, unlocking hands the clock back to the demo generator —
+            // so "let your body drive it again" named the wrong actor in exactly the state the
+            // slice above exists to mark. It asks the same one definition.
+            .accessibilityLabel(lockBPM ? TempoFollowLabel.unlockHint(for: bus.usableBio())
                                         : "Lock tempo at this value")
         }
         // ⛔ THIS CONTROL CARRIES ITS OWN NON-GREEDINESS NOW, and #455 is why (founder
