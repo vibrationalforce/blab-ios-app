@@ -108,13 +108,25 @@
 //     after `stopsArrivingNote` is **six** lines down, not forty. Retracting a wrong SYMBOL was
 //     right; the sentence I replaced it with quietly closed a whole file, and closing is the
 //     direction that costs — a wrong entry gets found by the next reader, a missing one never
-//     does. THREE unmarked user-facing strings live there and are hereby OPEN:
-//       · `EchoelFXView.swift:1068` "Let the body shape the effects: e.g. coherence → reverb…"
-//       · `EchoelFXView.swift:1171` "Start a session to watch the body move these parameters."
-//       · `EchoelFXView.swift:1176` `Text("Live — body → sound")` — a header rendered WHILE the
-//         contributions are live, which makes it the strongest claim of the three.
-//     (Line numbers are a date, not a fact — re-grep `"body` in that file. The point is that
-//     the file has entries, not that they sit on those lines.)
+//     does. THREE unmarked user-facing strings lived there. #641 triaged all three and closed
+//     the one that needed closing — the split is the useful part of the entry:
+//       · ⭐ **CLOSED (#641):** the section headers `Text("Live — body → sound")` and
+//         `Text("Always on — body → timbre")`. Both are rendered WHILE their rows are live, and
+//         every row under them has said "Demo" since #635b / #498 — a heading asserting a body
+//         over rows that say otherwise is the #640 collision on a second panel. Each now
+//         derives from the SAME value its own rows use, so neither adds an observation. The
+//         held-state footer clause went with them, reworded rather than branched: "your body
+//         has stopped sending it" → "the signal has stopped arriving" (#484's precedent — a
+//         MECHANISM sentence takes the signal as its subject, and is then true under both
+//         sources). Guard: `Tests/CISmoke/TheFXHeadersSayWhoseBodyTests.swift`.
+//       · ⚠️ **DELIBERATELY NOT MARKED, and this is a decision, not a leftover:** "Let the body
+//         shape the effects: e.g. coherence → reverb…" renders when there are NO routes, and
+//         "Start a session to watch the body move these parameters." renders when the modulator
+//         is NOT running. Both are INSTRUCTIONS about what the instrument does, on screens where
+//         nothing is claimed about a current reading; marking them would imply a demo is running
+//         when none is. Claim 5 of that guard pins both, so a later "sweep the file for `body`"
+//         cannot quietly take them. **The family's remaining risk is over-correction.**
+//     (Line numbers are a date, not a fact — re-grep `"body` in that file.)
 //   · ⛔ **AND THE ADVICE ATTACHED HERE WAS AN IMPOSSIBILITY CLAIM THAT IS NOT TRUE.** It read:
 //     "All four collapse into ONE edit by changing the noun rather than adding a condition; a
 //     condition here would put a live bio read into a property `EchoelStudioView.body`

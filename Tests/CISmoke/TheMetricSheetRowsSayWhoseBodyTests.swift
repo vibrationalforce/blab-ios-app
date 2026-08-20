@@ -133,11 +133,11 @@
 // ⭐ OSC is CLOSED (#639). Still open: `bioPanelSentence` and `alwaysOnSentence` (both say
 // "four body channels"), the two `EchoelStudioView` captions, `BodyTempoField`'s unconditional
 // "Tempo, driven by your body", and ADM-OSC / Art-Net / sACN / the discrete events (#462,
-// second half) — plus THREE user-facing strings in `EchoelFXView` that no register held at all
-// until #640's review went looking: "Let the body shape the effects: e.g. coherence → reverb…",
-// "Start a session to watch the body move these parameters.", and the header
-// `Text("Live — body → sound")`, which is rendered WHILE contributions are live and is
-// therefore the strongest of the three. ⛔ They were invisible because the sibling register's
+// second half). ⭐ The THREE `EchoelFXView` strings that no register held until #640's review
+// went looking are triaged and closed as an entry by #641: both section headers are marked
+// (they render WHILE their rows are live, and the rows already said "Demo"), and the two
+// instructional strings are deliberately left alone because they render precisely when nothing
+// is being claimed about a current reading. See `TheFXHeadersSayWhoseBodyTests`. ⛔ They were invisible because the sibling register's
 // correction OVERSHOT: having found one wrong symbol in that file it declared the whole FILE
 // clean ("grep the FILE and you find one 'body'" — measured: 48 lines, seven `var body`).
 // Retracting a wrong entry is cheap; closing a file nobody re-opens is not.

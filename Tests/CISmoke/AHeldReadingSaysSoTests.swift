@@ -7,7 +7,9 @@
 // stopped — and that is not a hypothetical: `EngineBus.latestBio` is only ever ASSIGNED. Nothing
 // clears it — not `stop()`, not a lost pulse; its single writer is the `publish(bio:)` sink. And
 // `isMeasured` is a property of the FRAME, never of its age. So a frame from forty minutes ago
-// reported "measured" forever, under a header reading "Always on — body → timbre".
+// reported "measured" forever, under a header reading "Always on — body → timbre" (that header
+// is now conditional — #641 gives it "Always on — simulated demo → timbre" while the demo
+// generator drives, from the same frame these rows are handed).
 //
 // That is the exact ambiguity #497/#498 removed one level down, reintroduced by the surface that
 // removed it.
@@ -323,8 +325,18 @@ final class AHeldReadingSaysSoTests: XCTestCase {
 
     func testTheFooterExplainsHeldSeparatelyFromNoReading() throws {
         let src = try code(Self.fxView)
-        XCTAssertTrue(src.contains("your body has stopped sending it"),
+        // ⛔ THE NEEDLE WAS "your body has stopped sending it" UNTIL #641, which changed the
+        // clause's SUBJECT to the signal. Under the demo generator the old wording was false
+        // twice over (nothing your body sent had stopped, because your body was never sending
+        // it), and it sat in the footer of a section whose header and rows both say "simulated
+        // demo". What this case is actually about — that the footer distinguishes "no reading"
+        // from "held" — is untouched, so the needle moves rather than the assertion (§4).
+        XCTAssertTrue(src.contains("the signal has stopped arriving"),
                       "the footer must distinguish the two states it now shows: 'no reading' is a "
                       + "frame that never carried the channel, 'held' is one that did and stopped")
+        XCTAssertFalse(src.contains("your body has stopped sending it"),
+                       "the held clause went back to naming the body as the sender. It is a "
+                       + "MECHANISM sentence, so its subject is the signal under both sources "
+                       + "(#484/#641) — a body subject is false whenever the demo is driving")
     }
 }

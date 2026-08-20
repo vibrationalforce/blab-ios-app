@@ -1173,7 +1173,28 @@ private struct BioModLiveView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         } header: {
-            Text("Live — body → sound").font(EchoelTheme.font(13, .bold)).textCase(nil)
+            // #641 — THE HEADER HAD TO LEARN WHAT ITS OWN ROWS ALREADY KNEW. Since #635b every
+            // row below carries a "Demo" chip when the reading behind it came from the demo
+            // generator; this header went on asserting "body → sound" above them. One screen,
+            // two answers — the same defect #640 removed from the Sound panel, and the mirror
+            // image of #637, where the MARKING was in the header and the rows drew unmarked
+            // numbers. A reader who scans headings gets the wrong one either way round.
+            //
+            // ⭐ NO NEW OBSERVATION, and that is why this is cheap: it derives from
+            // `liveContributions`, which this body already reads one line up. `BioModContribution
+            // .synthetic` is exactly the flag the rows use, so the header cannot disagree with
+            // what is under it — the failure mode a second, independently computed test would
+            // have re-introduced (#416).
+            //
+            // ⚠️ `contains`, NOT `allSatisfy`: an LFO carrier is a real oscillator and is
+            // deliberately never marked synthetic (the field's own doc says so). With one bio
+            // route on the demo source and one LFO route, `allSatisfy` would be false and the
+            // header would claim a body for a section that is half simulated. Any synthetic row
+            // is enough to make the plain claim untrue.
+            Text(modulator.liveContributions.contains(where: \.synthetic)
+                 ? "Live — simulated demo → sound"
+                 : "Live — body → sound")
+                .font(EchoelTheme.font(13, .bold)).textCase(nil)
         } footer: {
             // Two paragraphs, not one joined string: the always-on note is bound by
             // `TheAlwaysOnBioPathIsNamedTests` to the two `…BioParams(` construction sites, so
@@ -1219,7 +1240,15 @@ private struct AlwaysOnBioView: View {
                 AlwaysOnBioRow(channel: channel, frame: frame)
             }
         } header: {
-            Text("Always on — body → timbre").font(EchoelTheme.font(13, .bold)).textCase(nil)
+            // #641 — same correction as the Live header above, from the SAME frame the rows
+            // below are handed. `AlwaysOnBioRow` marks each channel from `frame.source`; taking
+            // the header's answer from any other read would let the two disagree within one
+            // section (#416), and `frame` is already bound at the top of this body — so this
+            // costs no observation and cannot straddle two instants (#637's defect).
+            Text(frame?.source.isSynthetic == true
+                 ? "Always on — simulated demo → timbre"
+                 : "Always on — body → timbre")
+                .font(EchoelTheme.font(13, .bold)).textCase(nil)
         } footer: {
             // Says what a NEUTRAL reading is, because #497 made "0.50" ambiguous on purpose:
             // it is both the engine's declared neutral AND, for heart rate, exactly 120 bpm.
@@ -1231,10 +1260,22 @@ private struct AlwaysOnBioView: View {
             // and stopped arriving. #500 is the second — a take composed while every channel
             // was held prints `body=0` and sounds like the patch, which is the question this
             // line has to be able to answer.
+            // ⛔ THE LAST CLAUSE READ "your body has stopped sending it" AND #641 CHANGED ITS
+            // SUBJECT TO THE SIGNAL. Under the demo generator it was false twice over — nothing
+            // your body sent had stopped, because your body was never sending it — and it sat
+            // in the footer of a section whose header and rows now both say "simulated demo".
+            // ⭐ REWORDED RATHER THAN MADE CONDITIONAL, and the difference from #640 is the
+            // point: this sentence explains a MECHANISM ("what does held mean"), not who is in
+            // the room, so the honest subject is the signal under BOTH sources — no read, no
+            // branch, no second string to keep in step. `AlwaysOnBioRow`'s VoiceOver already
+            // took this route at #484 ("its subject must stay the SIGNAL rather than the body"),
+            // so this is one screen catching up with its own precedent rather than a new rule.
+            // The two states it distinguishes are unchanged, which is what
+            // `AHeldReadingSaysSoTests` is actually about; its needle moves in this commit (§4).
             Text("A channel with no reading hands the engine a neutral 0.50 on purpose, so the "
                  + "instrument keeps playing its patch instead of jumping to the bottom of the "
                  + "scale. A channel marked held is the last measurement: the engine still has "
-                 + "it, your body has stopped sending it.")
+                 + "it, the signal has stopped arriving.")
         }
         .listRowBackground(EchoelTheme.fill)
     }
