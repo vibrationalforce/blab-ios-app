@@ -1407,3 +1407,28 @@ Test-Erwartung schreibt, liegt um ~19 % daneben.
   93079793669): Build for Testing `success` 08:17:28→08:19:55, Run Tests `failure`
   08:19:55→08:32:50, `list_workflow_jobs` passt vollständig in eine Antwort, der Job-Log
   nicht.
+
+## DEAD-END (2026-08-20 #642 review — eine Distanz zwischen zwei Zeilen ist ein Datum)
+- **DEAD-END: eine Zahl, die den ABSTAND zwischen zwei Zeilen DERSELBEN Datei nennt, wird
+  gelöscht, nicht aktualisiert.** Ein Kommentar in `EchoelFXView` begründete „der Kopf
+  beobachtet nichts Neues" mit „diese Zeile liest es etwa dreißig Zeilen weiter oben". VIER
+  Fassungen trugen eine Zahl: „eine Zeile darüber" (falsch), „~30" (auf `b1effab` richtig),
+  wieder „~30" in genau dem Commit, der einen siebenzeiligen Block DAZWISCHEN einfügte und den
+  Abstand auf 40 schob, und dann „FORTY" — das drei weitere Kommentarzeilen im selben Review-Pass
+  auf 43 setzten, bevor es je committet war. Der Satz trug bereits eine ⛔-Notiz mit den Worten
+  „und niemand hat nachgesehen". Niemand sah nach.
+  **Do this instead:** die BEHAUPTUNG ohne Zahl schreiben („weiter oben im selben Rumpf") und
+  daneben sagen, wie man sie prüft (die zwei `modulator.`-Lesestellen ansehen). Eine
+  Zeilennummer ist in diesem Repo schon als unbelastbar aufgeschrieben; ein ABSTAND ist
+  schlimmer, weil er von ZWEI Positionen abhängt und jede Prosa-Einfügung dazwischen ihn
+  ändert — auch die Einfügung, die ihn gerade korrigiert. Die Klasse gilt für jede Zahl, deren
+  Messgröße der eigene Commit bewegt.
+- **DEAD-END (gleicher Zyklus, andere Familie): eine Aufzählung wird gegen den CODE geprüft,
+  nie gegen ihre eigene Symmetrie.** „Vier Zustände und ihre VIER Strings" stand in sechs
+  Dateien; es sind drei, weil `.noRoutes` und `.body` sich einen Text absichtlich teilen — und
+  **derselbe Commit enthielt seine Widerlegung zweimal**: eine Testbehauptung, die genau diese
+  Gleichheit prüft, und ein Doc-Block, der gegen einen fünften Fall argumentiert, WEIL dessen
+  Text ein Duplikat wäre. Vier Fälle → vier Strings klingt vollständig und wird deshalb nicht
+  gefahren. Identisch zur DDSP-Tabellen-Lehre in `CLAUDE.md` („ein Ziel je Kanal"), nur eine
+  Ebene kleiner. **Do this instead:** bei jeder n→n-Behauptung die zweite Seite ZÄHLEN
+  (`grep -c 'return "'` auf den `switch`), bevor man sie aufschreibt.

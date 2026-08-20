@@ -113,15 +113,21 @@
 //       · ⭐ **CLOSED (#641, and the Live half re-opened and re-closed by #642):** the section
 //         headers `Text("Live — body → sound")` and `Text("Always on — body → timbre")`.
 //         ⛔ THE FIRST LITERAL IS NO LONGER IN THE VIEW. #642 moved the Live heading's four
-//         states and four strings into `LiveModOrigin.heading` (`Core/FXModulation.swift`), so
-//         the view renders `modulator.liveOrigin.heading` and the entry's own quotation is now
-//         a NAME for the section rather than a line one can grep for. The reason was a state
+//         states and THREE strings into `LiveModOrigin.heading` (`Core/FXModulation.swift`), so
+//         the view renders `modulator.liveOrigin.heading`. ⛔ THE FIRST DRAFT SAID THE QUOTATION
+//         IS "no longer a line one can grep for" — false: `"Live — body → sound"` is still
+//         greppable, at its new home in `FXModulation.swift`. The narrower TRUE claim is that
+//         `Text("Live — body → sound")` is gone from the VIEW. The reason was a state
 //         #641 closed this entry without: a section of only LFO routes still said "body →
 //         sound" over an oscillator, which #641's review registered and left. Both are rendered
 //         WHILE their rows are live, and
 //         every row under them has said "Demo" since #635b / #498 — a heading asserting a body
 //         over rows that say otherwise is the #640 collision on a second panel. Each now
-//         derives from the SAME value its own rows use, so neither adds an observation. The
+//         derives from a value that adds no observation. (⛔ THIS SENTENCE SAID "from the SAME
+//         value its own rows use" and it is FALSE for the Live half — the rows' `synthetic` comes
+//         through `usableBio()`, the heading through raw `latestBio`, deliberately since #641's
+//         review pass. #642 copied the stale summary into this register before retracting it in
+//         `TheFXHeadersSayWhoseBodyTests` claim 6, where the whole argument lives.) The
 //         held-state footer clause went with them, reworded rather than branched: "your body
 //         has stopped sending it" → "the signal has stopped arriving" (#484's precedent — a
 //         MECHANISM sentence takes the signal as its subject, and is then true under both

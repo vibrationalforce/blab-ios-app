@@ -15,8 +15,10 @@
 //
 // ⭐ NEITHER HEADER ADDS A NEW SOURCE OR A NEW CADENCE. The Live header asks
 // `modulator.liveOrigin`, published by the same ~10 Hz throttled, change-gated branch
-// that already publishes `liveContributions` — a property this body reads about thirty lines
-// above (⛔ two drafts said "one line up"; it is ~30, and nobody checked). The always-on header
+// that already publishes `liveContributions` — a property this body reads FURTHER UP IN THE
+// SAME BODY (⛔ the DISTANCE is deleted, not refreshed: four drafts carried a number, the last
+// two of them wrong because the same edits that wrote them moved the two lines apart. A
+// distance between two lines of one file is a date, not a fact). The always-on header
 // derives from `frame`, already bound at the top of ITS body and handed to every row.
 // ⚠️ NOT THE ABSOLUTE "NO NEW OBSERVATION" THIS BLOCK CLAIMED FIRST. `if a, b` short-circuits,
 // so with `isRunning == false` the old body read only `isRunning` while a header reads its
@@ -36,7 +38,8 @@
 // the product's core claim, printed over an oscillator. #641's own review registered it and
 // this file recorded it as "PRE-EXISTING and untouched"; a registered over-claim is still an
 // over-claim on the founder's screen. `FXModulation.liveOrigin(routes:sourceIsSynthetic:)` now
-// answers all FOUR states and `LiveModOrigin.heading` owns all four strings in one `switch`.
+// answers all FOUR states and `LiveModOrigin.heading` owns their THREE strings in one `switch`
+// (`.noRoutes` and `.body` share one on purpose — claim 1c asserts exactly that).
 //
 // ⚠️ TWO STRINGS IN THIS FILE ARE DELIBERATELY *NOT* TOUCHED, and naming them is half the point
 // of the slice — the honesty family's real risk now is over-correction, not under-correction:
@@ -65,10 +68,12 @@
 //     pin behaviour the next edit could break, not a defect this commit removed. Their strength
 //     comes from being behavioural, not from a colour on an old tree. Two families of guards
 //     have been over-sold in this repo by quoting a red that only proved a symbol was new.
-//   · **2 RED-ON-PARENT ASSERTIONS** — 1g, that `BioModLiveView` holds no `"Live — "` literal of
-//     its own (on b1effab it holds two, and this is what keeps a fifth spelling from growing
-//     back beside the `switch`, #416), and claim 3's middle assertion, that the view renders
-//     `modulator.liveOrigin.heading`. Both measured, not reasoned.
+//   · **3 RED-ON-PARENT ASSERTIONS** — 1g, that `BioModLiveView` holds no `"Live — "` literal of
+//     its own (on b1effab it holds two, and this is what keeps a FOURTH spelling from growing
+//     back beside the `switch`, #416); claim 3's middle assertion, that the view renders
+//     `modulator.liveOrigin.heading`; and claim 3's LAST assertion, added by the review pass,
+//     that the modulator still calls `FXModulation.liveOrigin(`. All three driven against
+//     b1effab, not reasoned.
 //   · **6 FORWARD LABELS (1a–1f) over 11 `XCTAssertEqual` calls** — the four states, the
 //     `enabled` filter, and `contains` rather than `allSatisfy`. 1b and 1c also act as
 //     counterweights: `.body` and `.noRoutes` both keep the plain heading, so the slice adds
@@ -79,25 +84,32 @@
 //   · **10 COUNTERWEIGHTS, green on both trees** — 2a/2b (the always-on section untouched), 3a
 //     (the raw gate), 3c (no derivation from the contributions), 4a/4b (the footer clause),
 //     5a/5b (the two instructional strings) and 6a/6b (each header answers from the value its
-//     own rows use). 12 scan verdicts total, all green on this tree.
-//   · 3b is the one assertion this slice REWROTE rather than kept: it scanned the modulator for
+//     own rows use). **13 scan verdicts total, all green on this tree** — 12 until the review
+//     pass added the modulator-calls-the-function needle, which is the one hole the other 23
+//     assertions left open (see claim 3).
+//   · 3b is the one CLAIM this slice REWROTE rather than kept — two assertions, which is why
+//     the count of retired scans is FOUR (claim 1's two heading literals plus 3b's two), not the
+//     three `FXModulation.liveOrigin`'s doc first claimed. It scanned the modulator for
 //     `anyBioRoute&&`, an expression #642 deleted when the arithmetic moved into the pure
 //     function. Its subject survives as 1e/1f, measured instead of scanned (§4 — a guard over a
 //     changed surface moves in the SAME commit).
-//   · **Stripper: TRAGEND — 4 of the 12 scan verdicts flip on this tree, 3 of 12 on b1effab.**
+//   · **Stripper: TRAGEND — 4 of the 13 scan verdicts flip on this tree, 3 of 12 on b1effab.**
 //     Driven raw and stripped against both, not reasoned. The four are 1g, 3c, 4b and 6a, and
-//     three of them are `XCTAssertFalse`s whose forbidden text this file or the edited view
-//     QUOTES in a ⛔ block — a retraction has to name what it retracts, which is precisely how a
-//     negative scan without a stripper convicts a correct tree. (⛔ The first draft of this line
-//     said "the two … (4b and 6a) are unchanged here" and carried the count forward from the
-//     e8482e5 measurement. Both halves were wrong, in a paragraph whose subject is that verdicts
-//     must be driven.) ⚠️ NOT applied to any string literal — claims 1a–1f
+//     ALL FOUR are `XCTAssertFalse`s whose forbidden text a ⛔ block quotes — a retraction has
+//     to name what it retracts, which is precisely how a negative scan without a stripper
+//     convicts a correct tree. (⛔ THIS ONE LINE HAS NOW CARRIED THREE WRONG COUNTS IN THREE
+//     CONSECUTIVE DRAFTS: "the two … (4b and 6a) are unchanged here", carried forward from the
+//     e8482e5 measurement; then "4 of 12 … three of them are XCTAssertFalse", where the 4 was
+//     driven and the 3 was not. A paragraph whose subject is that verdicts must be driven kept
+//     appending an undriven number to a driven one — the cheap tell is that every count in a
+//     sentence needs the same treatment, not just the one that looked like a measurement.) ⚠️ NOT applied to any string literal — claims 1a–1f
 //     compare values, and claims 2a/2b/4a/5a/5b compare literals raw, because `squeezed` removes
 //     the spaces INSIDE a literal and made two assertions false on their own tree one slice ago.
 //
 // ⚠️ #364: a different honest shape is not forbidden. Dropping the arrow form, folding the two
-// sections into one, or marking at the sheet level instead would all satisfy the law and turn
-// claims 1/2 red — that is the moment to rewrite this file. What is forbidden silently is a
+// sections into one, marking at the sheet level instead, or giving `.noRoutes` its own honest
+// wording (claim 1c hard-pins that it does NOT have one today — a judgement call, not a law)
+// would all satisfy the law and turn claims 1/2 red — that is the moment to rewrite this file. What is forbidden silently is a
 // heading that claims a body over rows that say otherwise.
 
 import Foundation
@@ -195,13 +207,18 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
     }
 
     /// 1g — REGRESSION, measured red on b1effab, and the only assertion in claim 1 that is.
-    /// The four strings live in `LiveModOrigin.heading`, one `switch`. A literal in the view
-    /// beside it is how a fifth spelling grows (#416).
+    /// The three strings live in `LiveModOrigin.heading`, one `switch`. A literal in the view
+    /// beside it is how a fourth spelling grows (#416).
+    ///
+    /// ⚠️ IT FORBIDS *ANY* `"Live — ` LITERAL IN THAT STRUCT, including a future
+    /// `accessibilityLabel` that legitimately wants one. That is deliberate — the label would be
+    /// a second definition of the same decision — but the honest repair then is to give
+    /// `LiveModOrigin` a `voiceOverLabel` beside `heading`, not to weaken this assertion.
     func testTheViewHoldsNoHeadingStringOfItsOwn() throws {
         let live = try block(startingAt: "private struct BioModLiveView", in: try codeText(Self.fxView))
         XCTAssertFalse(live.contains("\"Live — "), """
             `BioModLiveView` holds a "Live — …" string literal again. The heading's four states \
-            and four strings are owned by `LiveModOrigin.heading`; a literal here is a second \
+            and three strings are owned by `LiveModOrigin.heading`; a literal here is a second \
             definition of the same decision, free to drift out of step with the `switch`.
             """)
     }
@@ -256,6 +273,19 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
         XCTAssertFalse(squeezed(view).contains("liveContributions.contains(where:"), """
             The Live heading derives from the contributions again. See above: same value, \
             different gate, contradictory headings on one screen.
+            """)
+        // ⚠️ ADDED BY THE #642 REVIEW, AND IT CLOSES A HOLE THE OTHER 23 ASSERTIONS LEFT OPEN.
+        // Claims 1a–1f drive the pure function; claim 3's middle assertion pins the VIEW's read;
+        // 3a pins only that the raw source flag appears SOMEWHERE in the modulator. Nothing
+        // asked whether the modulator still ROUTES through the pure function. A revert to an
+        // inline `routes.isEmpty ? .noRoutes : .body` in `tick()`, keeping a `latestBio?.source
+        // .isSynthetic` read elsewhere in the file, left every assertion green and shipped a
+        // wrong heading. The slice's whole thesis is "the pure function owns the decision"; this
+        // is the one needle that says so.
+        XCTAssertTrue(squeezed(modulator).contains("FXModulation.liveOrigin("), """
+            `FXBioModulator` no longer calls `FXModulation.liveOrigin(routes:sourceIsSynthetic:)`. \
+            The four states are then decided somewhere this bundle cannot drive, and claims 1a–1f \
+            go on passing over a function nothing calls (#454, one level up).
             """)
     }
 
@@ -323,7 +353,28 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
     }
 
     /// 6 — COUNTERWEIGHT, and the one that makes the whole slice worth more than two strings.
-    /// Each header must answer from the SAME value its own rows use. If either grew its own
+    ///
+    /// ⛔ ITS OLD ONE-LINE SUMMARY — "each header answers from the SAME value its own rows use" —
+    /// IS FALSE FOR THE LIVE HALF, and #642 copied it into a fourth site before this retraction.
+    /// It was true at #641's first cut, where the heading derived from `liveContributions`. The
+    /// review pass MOVED the derivation onto the raw frame on purpose, so today the Live rows'
+    /// `synthetic` comes through `bus?.usableBio()` and the heading through `bus?.latestBio`
+    /// RAW — different values, different freshness gate. Three places in this same commit say so
+    /// (`FXBioModulator.liveOrigin`'s doc, the view's ⛔ block, claim 3's doc); the summary was
+    /// simply never retracted, which is how a sentence outlives the code it described.
+    ///
+    /// ⚠️ THE CONSEQUENCE, NAMED because claim 6's old wording actively denied it: past
+    /// `.fallback`'s 5 s window the Live rows go to "—" while the heading still says
+    /// "simulated demo → sound". That is a heading/row disagreement INSIDE the section this
+    /// file's title claims to close — the stale-frame twin of the unmeasured-channel residual
+    /// named on `FXModulation.liveOrigin`. It is the SAFE direction (over-marking, never
+    /// under-marking) and it is the price of the two HEADINGS agreeing, which was the worse
+    /// defect; it is not nothing, and it is now written down in the file a session reads first.
+    ///
+    /// ⚠️ AND THE METHOD NAME OVERSTATES ITS ASSERTIONS. `XCTAssertFalse(…contains("bus."))`
+    /// proves the view grew no bus read — NECESSARY for the property, not sufficient. What the
+    /// two assertions really pin: neither header acquired a SECOND, independent source. If
+    /// either grew its own
     /// read, the header and the rows under it become two independent tests of "is this
     /// synthetic" — free to disagree inside one section, which is the defect this fixes rather
     /// than a smaller version of it (#416).

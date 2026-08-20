@@ -63,7 +63,10 @@ public final class FXBioModulator {
     /// instead of by scanning this file for a string.
     ///
     /// Written only inside the existing ~10 Hz throttled publish branch, and only on change, so
-    /// it adds a tracked property but no new cadence and no new source.
+    /// it REPLACES `sourceIsSynthetic` (#642) rather than adding anything: no new tracked
+    /// property, no new cadence, no new source. ⛔ The first draft said "adds a tracked property",
+    /// carried over from the #641 doc it was edited out of — true when the Bool was new, false
+    /// for the enum that took its place.
     public private(set) var liveOrigin: LiveModOrigin = .noRoutes
     @ObservationIgnored private var tickCount = 0
     /// 30 Hz tick / 3 ≈ 10 Hz UI refresh.

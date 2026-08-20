@@ -134,10 +134,17 @@
 // "four body channels"), the two `EchoelStudioView` captions, `BodyTempoField`'s unconditional
 // "Tempo, driven by your body", and ADM-OSC / Art-Net / sACN / the discrete events (#462,
 // second half). ⭐ The THREE `EchoelFXView` strings that no register held until #640's review
-// went looking are triaged and closed as an entry by #641: both section headers are marked
-// (they render WHILE their rows are live, and the rows already said "Demo"), and the two
-// instructional strings are deliberately left alone because they render precisely when nothing
-// is being claimed about a current reading. See `TheFXHeadersSayWhoseBodyTests`. ⛔ They were invisible because the sibling register's
+// went looking are triaged and closed as an entry by #641 — and the Live half RE-OPENED and
+// RE-CLOSED by #642: both section headers are marked (they render WHILE their rows are live, and
+// the rows already said "Demo"), and the two instructional strings are deliberately left alone
+// because they render precisely when nothing is being claimed about a current reading.
+// ⛔ #641 CLOSED THE LIVE HEADER OVER A LIVE OVER-CLAIM. A section of only LFO routes still said
+// "body → sound" over an oscillator; its own review registered that and left it. #642 moved the
+// heading's four states into `LiveModOrigin` (`Core/FXModulation.swift`), so one of these THREE
+// `EchoelFXView` strings no longer lives in `EchoelFXView` at all. Ticked here, in the commit
+// that moved it — this register's own lesson is that a per-entry list only beats a count if the
+// entries get ticked off in the commit that closes them, and #642's first cut updated the
+// sibling register and not this one. See `TheFXHeadersSayWhoseBodyTests`. ⛔ They were invisible because the sibling register's
 // correction OVERSHOT: having found one wrong symbol in that file it declared the whole FILE
 // clean ("grep the FILE and you find one 'body'" — measured: 48 lines, seven `var body`).
 // Retracting a wrong entry is cheap; closing a file nobody re-opens is not.

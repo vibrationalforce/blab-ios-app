@@ -1182,10 +1182,15 @@ private struct BioModLiveView: View {
             //
             // ⭐ NO NEW SOURCE AND NO NEW CADENCE: `liveOrigin` is published by the same
             // ~10 Hz throttled, change-gated branch that already publishes `liveContributions`,
-            // which this body reads about thirty lines above. (⛔ Two earlier drafts of this
-            // comment said "one line up" — it is ~30. The claim that matters, that the header
-            // observes nothing this body did not already observe, is unaffected; the number was
-            // simply never checked.)
+            // which this body reads FURTHER UP IN THE SAME BODY. (⛔ THE DISTANCE IS DELETED, NOT
+            // REFRESHED, AND THAT IS THE WHOLE LESSON. Four drafts carried a number: "one line
+            // up", then "~30" — correct on b1effab — then "~30" again in the edit that inserted
+            // a block between the two reads and widened it to 40, and then "FORTY", which three
+            // further comment lines in the same review pass made 43 before it was ever committed.
+            // The sentence even carried a ⛔ note saying nobody checked. A distance between two
+            // lines of ONE file is a date, not a fact, and nothing re-derives it. The claim that
+            // matters — that the header observes nothing this body did not already observe —
+            // never depended on it, and is checkable by reading the two `modulator.` reads.)
             //
             // ⛔ AND THE FIRST CUT DERIVED IT HERE, from `liveContributions.contains(where:
             // \.synthetic)`, WHICH PUT THE COLLISION BACK ONE SECTION AWAY. Those flags are
@@ -1199,7 +1204,7 @@ private struct BioModLiveView: View {
             // An LFO carrier is a real oscillator and is deliberately never marked synthetic, so
             // a section of only LFO routes rendered "Live — body → sound" over rows in which no
             // body is involved at all. There is no ternary left to grow a third branch on: the
-            // four states and their four strings live in `LiveModOrigin.heading`, one `switch`,
+            // four states and their three strings live in `LiveModOrigin.heading`, one `switch`,
             // and this view renders whichever one the modulator published (#416).
             Text(modulator.liveOrigin.heading)
                 .font(EchoelTheme.font(13, .bold)).textCase(nil)

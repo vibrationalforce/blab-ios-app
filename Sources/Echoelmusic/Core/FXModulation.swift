@@ -151,9 +151,17 @@ public struct FXModRoute: Codable, Sendable, Identifiable, Equatable {
 /// ⭐ WHY AN ENUM IN A PURE FILE RATHER THAN A TERNARY IN THE VIEW. #641 put the answer in
 /// `EchoelFXView` and it took two follow-ups to get right, because each state was decided in a
 /// different place: the demo half in the view, then on the modulator, while the LFO half was
-/// never decided at all. Here the four states and their four strings sit in ONE `switch` that a
-/// test bundle can drive — and `TheFXHeadersSayWhoseBodyTests` turns three source-text scans
+/// never decided at all. Here the four states and their THREE strings sit in ONE `switch` that a
+/// test bundle can drive — and `TheFXHeadersSayWhoseBodyTests` turns four source-text scans
 /// into END-TO-END assertions as a direct result (§1: that is the strong kind).
+///
+/// ⛔ "FOUR STRINGS" STOOD HERE AND IN FIVE OTHER PLACES, AND THE COMMIT THAT WROTE IT SHIPPED
+/// ITS OWN REFUTATION TWICE. `.noRoutes` and `.body` deliberately SHARE a literal (`heading`
+/// below), so four cases render three strings — the guard's claim 1c asserts exactly that
+/// equality, and `.noRoutes`' doc argues against a fifth CASE precisely because its heading
+/// "is a duplicate of an existing one". A symmetric-sounding count went unchecked past two
+/// contradictions already in the tree. Same class as the DDSP mapping table's "one target per
+/// channel": an enumeration is checked against the code, never against its own symmetry.
 ///
 /// ⛔ THE STATE THIS TYPE EXISTS FOR IS `lfoOnly`, AND IT WAS A LIVE OVER-CLAIM. An LFO carrier
 /// is a real oscillator, deliberately never marked synthetic (`BioModContribution.synthetic`).
@@ -172,7 +180,7 @@ public struct FXModRoute: Codable, Sendable, Identifiable, Equatable {
 /// anywhere in `Sources/` or `Tests/` — the speculative-surface family of #431/#440/#443, which
 /// this file's neighbour invokes two declarations down. `Equatable` earns its place: the
 /// modulator's change-gate is `if origin != liveOrigin`.
-public enum LiveModOrigin: Sendable, Equatable {
+public enum LiveModOrigin: Sendable, Equatable {   // #642
     /// Nothing to claim: no enabled route, OR the modulator is stopped. The heading is then the
     /// section's NAME, not a reading.
     ///
@@ -195,7 +203,8 @@ public enum LiveModOrigin: Sendable, Equatable {
     /// At least one enabled bio route, fed by the demo generator.
     case simulatedDemo
 
-    /// The rendered heading. One `switch`, so the four states cannot drift into five spellings.
+    /// The rendered heading. One `switch`, so the four states cannot drift into a FOURTH
+    /// spelling — three literals, because `.noRoutes` and `.body` share one on purpose.
     public var heading: String {
         switch self {
         case .noRoutes, .body: return "Live — body → sound"
@@ -240,12 +249,21 @@ extension FXModulation {
     /// between two wordings as a channel drops in and out would be less honest, not more. If it
     /// is ever fixed, `frame` becomes an argument here and the modulator has one to pass.
     public static func liveOrigin(routes: [FXModRoute], sourceIsSynthetic: Bool) -> LiveModOrigin {
-        // ⚠️ `contains(where:)` twice, NOT `routes.filter { … }` — the filter allocated a second
-        // array on every ~10 Hz publish on the main actor, and this file's neighbour carries a
-        // ⛔ note about that exact shape (#388). Same set, same answer, no allocation.
-        guard routes.contains(where: { $0.enabled }) else { return .noRoutes }
-        let anyBio = routes.contains { route in
-            guard route.enabled else { return false }
+        // ⛔ THIS WAS REWRITTEN TO TWO `contains(where:)` BY THE #642 REVIEW PASS AND REVERTED
+        // BY THE ONE AFTER IT — the retraction is kept because the rewrite LOOKED like pure
+        // profit. Its justification was "the filter allocates a second array on every ~10 Hz
+        // main-actor publish, the shape #388 warns about". Measured, both halves fail: one
+        // statement earlier in the SAME publish branch `contributions(routes:frame:now:)` does
+        // `routes.filter { $0.enabled }.map { … }` — two allocations, unchallenged — so removing
+        // one of three is not a budget; and the #388 guard bans `.filter`/`.map` only inside
+        // `tick()`'s own lines, which neither version trips. What the rewrite DID cost is real:
+        // it spelled `enabled` two ways here and a third way in `contributions`, while the doc
+        // above still said "`enabled` IS FILTERED". The property that matters is that this line
+        // and `contributions`' first line are the SAME expression (#416) — a reader can see the
+        // two sets are identical without reasoning about it.
+        let live = routes.filter { $0.enabled }
+        guard !live.isEmpty else { return .noRoutes }
+        let anyBio = live.contains { route in
             if case .bio = route.carrier { return true }
             return false
         }
