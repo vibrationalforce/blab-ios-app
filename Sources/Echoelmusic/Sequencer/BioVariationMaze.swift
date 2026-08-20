@@ -106,7 +106,7 @@ public enum BioVariationMaze {
         case .body:
             return "Ideas from your pulse — tap to keep. Your body wants \(density)."
         case .simulatedDemo:
-            return "Ideas from the simulated demo source, not your body — tap to keep. "
+            return "Ideas from " + BioProvenanceCopy.demoSubject + " — tap to keep. "
                 + "The demo asks for \(density)."
         case .nothingMeasured:
             return "No pulse was measured, so these are ranked against the engine's own "

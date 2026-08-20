@@ -65,6 +65,59 @@
 
 import Foundation
 
+/// The ONE spelling of the mid-sentence demo subject — the phrase every surface uses to say
+/// that a reading came from `BioSimulator` and not from a person.
+///
+/// ⭐ WHY A CONSTANT AND NOT TEN LITERALS, and the reason is stronger than ordinary #416:
+/// **one of the ten was invisible to `git grep`.** `autoModeHint` split the phrase MID-PHRASE
+/// across two literals to fit the line limit — `"… of the simulated demo " + "source, not your
+/// body"` — so a search for the contiguous phrase returned nine and the tenth was policed by
+/// nothing. The usual #416 argument is "two spellings drift"; the measurement here is that the
+/// repo's own tool for checking this family could not see one of the sites at all.
+/// ⛔ THE FIRST DRAFT OF THIS PARAGRAPH SAID "three of the nine were split" AND THAT WAS WRONG
+/// IN BOTH NUMBERS — written from the shape of the diff instead of from a count. Two others
+/// (`breathVoiceCaption`, `autoModeCaption`) break at a line boundary with the phrase intact
+/// INSIDE one literal, so grep found them; only `autoModeHint` broke the phrase itself. The
+/// count was ten, the invisible one was one. Corrected before the commit rather than after,
+/// which is the only difference between this and the entries this file keeps retracting.
+///
+/// ⚠️ THIS OWNS ONE OF FOUR DOCUMENTED FORMS, and saying so is the point — a type claiming to
+/// own the vocabulary while owning a quarter of it is the over-claim this whole family keeps
+/// retracting. The census (spelled identically in `AlwaysOnBioRow`, `BioMetricInfo` and
+/// `EchoelFXView`): element LABEL (`"Bio source: simulated demo, not your body"`) · spoken
+/// PREFIX (`"Simulated demo, "`) · section HEAD (`"demo values, not your body"`) · and this
+/// mid-sentence SUBJECT. **The label form is NOT hoistable here and that is measured, not
+/// assumed:** its three sites are `Studio/BioStripView.swift`,
+/// `Sources/EchoelmusicWatch/EchoelWatchApp.swift` and
+/// `Sources/EchoelmusicWidgets/EchoelBioWidget.swift`, and `project.yml` gives the watch and
+/// widget targets only their own directory plus `Core/BioFeedbackManager.swift` — neither
+/// compiles this file. Hoisting it would mean moving copy into `Core/`, which is a different
+/// decision and needs its own slice.
+///
+/// ⚠️ THREE SENTENCES DELIBERATELY DO NOT USE THIS and each names a different reason, so the
+/// next session does not "finish the migration" into a regression:
+///   · `BioShapedParameter.soundPanelSentence`'s empty-list branch and
+///     `BioMusicDirector`'s explanation title say "The simulated demo source is/is doing …" —
+///     the subject continues into a VERB, so the ", not your body" clause would be
+///     ungrammatical there.
+///   · `TempoFollowLabel.unlockHint` says "tap to let the simulated demo source drive it
+///     again" — same shape, the clause cannot sit before "drive".
+///   · `AutomationStatus` says "… is the simulated demo source, not automation and not your
+///     body", a THREE-way contrast this two-way phrase cannot express.
+/// A fourth, `FXModulation`/`EchoelFXView`, uses the short "simulated demo" inside a chip
+/// label with no room for a clause. All five are honest; none is a missed site.
+public enum BioProvenanceCopy {
+
+    /// Mid-sentence: "… follows **the simulated demo source, not your body**".
+    public static let demoSubject = "the simulated demo source, not your body"
+
+    /// Sentence-initial, for a claim that OPENS with the subject. **Derived, never re-spelled**
+    /// — a second literal here would be exactly the drift the enum exists to prevent, and the
+    /// capitalisation is the only difference. Callers add their own trailing punctuation.
+    public static let demoSubjectSentenceInitial: String =
+        demoSubject.prefix(1).uppercased() + demoSubject.dropFirst()
+}
+
 /// One of the four body channels wired into `EchoelDDSP.applyBioReactive` from a live frame.
 ///
 /// The other three inputs that function takes (`breathDepth`, `lfHfRatio`, `coherenceTrend`)
@@ -116,11 +169,13 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// ⚠️ REQUIRED ARGUMENT, NO DEFAULT (#431/#440/#443): a defaulted `synthetic:` would let a
     /// new call site render the body claim over a demo session without appearing in any diff.
     public static func alwaysOnSentence(synthetic: Bool) -> String {
-        "Separately from these routes, "
-        + (synthetic ? "four channels from the simulated demo source, not your body, shape "
-                     : "four body channels shape ")
-        + "the instrument's own timbre while a session runs: coherence, HRV, heart rate and "
-        + "breath phase. Routes here add effect parameters on top."
+        let opening = synthetic
+            ? "four channels from " + BioProvenanceCopy.demoSubject + ", shape "
+            : "four body channels shape "
+        return "Separately from these routes, "
+            + opening
+            + "the instrument's own timbre while a session runs: coherence, HRV, heart rate and "
+            + "breath phase. Routes here add effect parameters on top."
     }
 
     /// The same claim for a surface that is NOT the FX sheet — same four channels, no "these
@@ -136,11 +191,13 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// ⭐ #643 gave it the same conditional subject as its sibling, for the same reason and
     /// from the same flag. See `alwaysOnSentence` — the argument is there, once.
     public static func bioPanelSentence(synthetic: Bool) -> String {
-        (synthetic ? "Four channels from the simulated demo source, not your body, shape "
-                   : "Four body channels shape ")
-        + "the instrument's own timbre while a session runs: coherence, HRV, heart rate and "
-        + "breath phase — the four rows below. To add your own routes onto effect parameters, "
-        + "open Effects › All parameters."
+        let opening = synthetic
+            ? "Four channels from " + BioProvenanceCopy.demoSubject + ", shape "
+            : "Four body channels shape "
+        return opening
+            + "the instrument's own timbre while a session runs: coherence, HRV, heart rate and "
+            + "breath phase — the four rows below. To add your own routes onto effect parameters, "
+            + "open Effects › All parameters."
     }
 
     /// What this channel moves in the engine, in the channel row's own reading order.
@@ -435,7 +492,9 @@ public enum BioShapedParameter: String, CaseIterable, Identifiable, Sendable {
     /// for character, and the ordinary path must not pay for the demo path's honesty.
     public static func soundPanelSentence(synthetic: Bool) -> String {
         let rows = shapedByTheBody.flatMap(\.soundPanelRows)
-        let subject = synthetic ? "The simulated demo source, not your body," : "Your body"
+        let subject = synthetic
+            ? BioProvenanceCopy.demoSubjectSentenceInitial + ","
+            : "Your body"
         let list: String
         switch rows.count {
         case 0:  return synthetic
@@ -473,6 +532,18 @@ public enum BioShapedParameter: String, CaseIterable, Identifiable, Sendable {
 /// drift. Only the SUBJECT is shared — never a whole sentence, which is the collapse #634b had
 /// to retract.
 ///
+/// ⭐ THE REGISTERED MIGRATION IS DONE (#649) — and the register that carried it was WRONG
+/// TWICE, which is why the retraction stays instead of the note being deleted. It said "SIX
+/// code sites"; a driven count found **TEN**. It said "only FOUR are verbatim-substitutable";
+/// driven against every pair, only **TWO** are — nine of the ten real-body branches do not
+/// contain the phrase at all (they say "your pulse", "four body channels", "your measured body
+/// state"), so substituting a shared subject there would have forced the FOUNDER'S wording to
+/// change shape. That is the over-correction this family forbids, and a register claiming four
+/// would have invited it. **The hoist that WAS right is the other direction:** every DEMO
+/// branch now renders `BioProvenanceCopy.demoSubject`, and every real-body branch is untouched
+/// and byte-identical. ⚠️ The paragraphs below are kept verbatim as the record of what the
+/// register claimed before it was measured; read them as history, not as instructions.
+///
 /// ⚠️ MIGRATION REGISTERED, DELIBERATELY NOT DONE HERE — for SLICE DISCIPLINE, and that is the
 /// whole reason. ⛔ An earlier version said "guards pin those literals verbatim, so a migration
 /// must move the guards in the same commit (#456)", and a reviewer DROVE it false: every
@@ -508,7 +579,7 @@ public enum BioPanelRowCopy {
 
     /// The mid-sentence subject of a claim about whose reading drives something.
     static func subject(synthetic: Bool) -> String {
-        synthetic ? "the simulated demo source, not your body" : "your body"
+        synthetic ? BioProvenanceCopy.demoSubject : "your body"
     }
 
     /// `BreathVoiceRow`'s spoken hint. Describes what ARMING will do, so it is answerable even
@@ -521,10 +592,11 @@ public enum BioPanelRowCopy {
         guard let frame else {
             return "Sounds a held tone. Nothing is measured yet, so its colour will not move"
         }
-        guard frame.source.isSynthetic else {
-            return "Sounds a held tone whose colour follows your body"
-        }
-        return "Sounds a held tone whose colour follows the simulated demo source, not your body"
+        // ⭐ ONE EXPRESSION, TWO STATES. Both branches said "Sounds a held tone whose colour
+        // follows " and differed only in the subject, so the shared half is written once. This
+        // is also what finally gives `subject(synthetic:)` a production caller — #648 created
+        // it and wired it nowhere, which is dead code the repo's own rules forbid shipping.
+        return "Sounds a held tone whose colour follows " + subject(synthetic: frame.source.isSynthetic)
     }
 
     /// `BreathVoiceRow`'s caption. Two axes: whose reading, and whether breath is arriving.
@@ -532,8 +604,8 @@ public enum BioPanelRowCopy {
         let head: String
         switch frame?.source.isSynthetic {
         case false: head = "A held tone whose colour follows your heart and coherence."
-        case true:  head = "A held tone whose colour follows the heart and coherence of the "
-                         + "simulated demo source, not your body."
+        case true:  head = "A held tone whose colour follows the heart and coherence of "
+                         + BioProvenanceCopy.demoSubject + "."
         default:    head = "A held tone whose colour will follow a heart and coherence once "
                          + "something is measured."
         }
@@ -554,8 +626,8 @@ public enum BioPanelRowCopy {
         guard frame.source.isSynthetic else {
             return "Slowly steers the mood dials toward your measured body state"
         }
-        return "Slowly steers the mood dials toward the measured state of the simulated demo "
-            + "source, not your body"
+        return "Slowly steers the mood dials toward the measured state of "
+            + BioProvenanceCopy.demoSubject
     }
 
     /// `AutoModeRow`'s caption, all three states.
@@ -576,8 +648,8 @@ public enum BioPanelRowCopy {
             return "Needs a running bio source — choose one with the Bio source control above."
         }
         let head = frame.source.isSynthetic
-            ? "Gently steers mood toward the measured coherence, HRV and heart rate of the "
-                + "simulated demo source, not your body, when that reading is clearly settled "
+            ? "Gently steers mood toward the measured coherence, HRV and heart rate of "
+                + BioProvenanceCopy.demoSubject + ", when that reading is clearly settled "
                 + "or clearly driving"
             : "Gently steers mood toward your measured coherence, HRV and heart rate when your "
                 + "body is clearly settled or clearly driving"

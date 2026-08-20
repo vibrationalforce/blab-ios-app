@@ -138,9 +138,11 @@ public enum TempoFollowLabel {
     /// The VoiceOver label for the unlocked readout, given the frame currently driving the clock.
     public static func spoken(for frame: BioSampleFrame?) -> String {
         guard let frame else { return "Tempo, following — no reading is arriving" }
-        return frame.source.isSynthetic
-            ? "Tempo, following the simulated demo source, not your body"
-            : "Tempo, following your body"
+        // The second of exactly TWO sites whose real-body branch is the bare subject, so the
+        // shared half is written once (the other is `breathVoiceHint`). Nine of the eleven
+        // other sites cannot do this — their body branch says "your pulse", "four body
+        // channels", "your measured body state"; see `BioProvenanceCopy`.
+        return "Tempo, following " + BioPanelRowCopy.subject(synthetic: frame.source.isSynthetic)
     }
 
     /// What tapping the lock OPEN hands the clock back to (#647 review).
