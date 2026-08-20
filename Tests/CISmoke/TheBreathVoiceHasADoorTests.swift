@@ -111,10 +111,19 @@ final class TheBreathVoiceHasADoorTests: XCTestCase {
     func testTheCopyBranchesOnWhetherBreathIsMeasured() throws {
         let row = try block(startingAt: "private struct BreathVoiceRow: View {", in: viewPath)
         XCTAssertFalse(row.isEmpty, "anchor missing — `BreathVoiceRow` is not declared")
-        XCTAssertTrue(row.contains("hasMeasuredBreath"), """
-        `BreathVoiceRow` no longer asks whether breath is measured. Its sentence then claims \
-        "your inhale opens it, your exhale closes it" on a strap that never publishes \
-        respiration — a control that describes a behaviour the take cannot produce
+        // ⛔ THIS NEEDLE WAS `row.contains("hasMeasuredBreath")` AND #648 MOVED THE DECISION OUT
+        // OF THE ROW. The row now passes its frame to `BioPanelRowCopy.breathVoiceCaption(for:)`,
+        // which asks `hasMeasuredBreath` itself — so the INVARIANT is intact and the scan was
+        // red on a correct tree. Re-anchored to what the row must still DO, and the branch
+        // itself is now driven end-to-end by `TheBioPanelRowsSayWhoseBodyTests` claim 2
+        // (four combinations of breath × source), which is strictly stronger than any text scan
+        // this file can perform (§1).
+        XCTAssertTrue(row.contains("BioPanelRowCopy.breathVoiceCaption"), """
+        `BreathVoiceRow` no longer renders the pure caption. Its sentence then claims \
+        "the inhale opens it, the exhale closes it" on a strap that never publishes \
+        respiration — a control that describes a behaviour the take cannot produce. The \
+        breath branch itself lives in `BioPanelRowCopy` and is driven by \
+        `TheBioPanelRowsSayWhoseBodyTests`; this needle only keeps the row wired to it.
         """)
         XCTAssertTrue(row.contains("bus.usableBio()"), """
         the row no longer asks the per-source freshness question (#499/#507). Reading raw \

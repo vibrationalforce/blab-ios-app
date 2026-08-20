@@ -13,11 +13,14 @@
 // that asymmetry keeps happening: a marking gets added where it is SEEN during the change, and
 // speech is not seen.
 // ⛔ THIS SAID "the LAST registered entry of it in this family" AND THAT WAS FALSE (#647
-// review). Both registers still list open entries and at least one is SPOKEN:
-// `EchoelStudioView`'s `.accessibilityHint("Sounds a held tone whose colour follows your body")`
-// — which one register names as "the #632/#627b pattern exactly". Declaring a pattern closed is
-// how the next session stops looking for it, so it is the most expensive kind of flattering
-// sentence this family can write.
+// review). The register still listed open entries and one of them was SPOKEN — the Body-voice
+// toggle's hint, which a register named as "the #632/#627b pattern exactly". Declaring a
+// pattern closed is how the next session stops looking for it, so it is the most expensive
+// kind of flattering sentence this family can write.
+// ⭐ AND THE PROOF ARRIVED ONE SLICE LATER: #648 closed that hint AND a second spoken one
+// beside it (`AutoModeRow`) that NO register held at all. The retraction is kept because the
+// LESSON outlived its example — and because the example itself now shows both halves, the
+// registered entry and the unregistered neighbour a phrase-sweep found.
 //
 // ⚠️ THE KEYING IS THE WHOLE SLICE, and the tempting cheap version is wrong. This file has a
 // `liveBodyBPM` flag already, and keying the sentence on it costs nothing — but it is

@@ -87,6 +87,25 @@
 // (the sentence is born with #615); the dead-word scans stay the counterweight.
 // Raw==stripped for this needle (it lives in a string literal; the nearby test
 // comment paraphrases, never quotes it whole) — PROPHYLAKTISCH, measured.
+// ⚠️ #648, appended — and this paragraph exists because the slice INTRODUCED a
+// symbol into a pre-existing guard, which §3 says must be stated rather than left
+// to read as "graded as before". Against #648's parent (1f51ee9) this file no
+// longer compiles: `BioPanelRowCopy` is born with that commit, so NO assertion in
+// it has a verdict on that parent (#486 — one absence, not three). The three
+// re-anchored assertions in claim 6 are therefore **FORWARD**, not regressions:
+// they could never have been red there. What they replaced was worse than red —
+// two scanned `AutoModeRow`'s own text for a caption #648 moved OUT of the row
+// (red on a correct tree, #364), and the dead-word ban would have stayed **GREEN
+// over text it no longer sees**, the §4 failure this file's own comment names.
+// The ban also grew from 5 verdicts to **15** (5 words × 3 render states: body,
+// demo, nothing-measured) — the two extra states are #648's new caption forms,
+// and a ban checking one of three covers a third of the renders. All three now
+// DRIVE the pure static instead of scanning source, which upgrades them from
+// SOURCE-TEXT SCAN to END-TO-END BEHAVIOUR (§1) and makes them immune to the
+// sentence moving again. ⛔ The first repair spelled the static
+// `autoModeCaption(synthetic: Bool)`, which is the #644 Bool defect returning: a
+// Bool cannot express "nothing is measured yet", so that third state would have
+// had to be spelled a second way somewhere else (#416). It takes the FRAME.
 
 import Foundation
 import XCTest
@@ -279,7 +298,19 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
         // Caption honesty (#496): promise only channels a producer feeds today.
         let row = slice(code, from: "private struct AutoModeRow: View {", to: "\n}")
         XCTAssertFalse(row.isEmpty, "AutoModeRow slice empty — re-anchor (#454).")
-        XCTAssertTrue(row.contains("coherence, HRV and heart rate"), """
+        // ⛔ THE NEXT THREE CLAIMS SCANNED THE ROW'S OWN TEXT AND #648 MOVED THE CAPTION OUT
+        // OF THE ROW into `BioPanelRowCopy.autoModeCaption(for:)` — so two went red on a
+        // correct tree and the third (the dead-channel ban below) would have stayed GREEN over
+        // text it no longer sees, which is the §4 failure this file's own comment names. All
+        // three now DRIVE the pure static instead of scanning: strictly stronger, and immune to
+        // the sentence moving again.
+        // ⛔ AND THE FIRST REPAIR TOOK `synthetic: Bool`, WHICH IS THE #644 DEFECT RETURNING:
+        // a Bool cannot say "nothing is measured yet", so the no-frame state would have had to
+        // be spelled a second way somewhere else. The static takes the FRAME, like its three
+        // siblings; this needle picks the real-body form because that is the sentence the
+        // founder wrote.
+        let caption = BioPanelRowCopy.autoModeCaption(for: Self.bodyFrame)
+        XCTAssertTrue(caption.contains("coherence, HRV and heart rate"), """
             The door's caption no longer names the three channels the decision core \
             actually reads. The caption is the user's only statement of WHAT steers \
             — if the inputs changed, change the sentence and this needle together.
@@ -290,20 +321,27 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
         // fine-tune deliberately has NO pause (Council 2026-08-16, decisions.csv;
         // the term contests no user-owned dial) — do not read this needle as the
         // half-built version of that.
-        XCTAssertTrue(row.contains("Auto lets that dial go"), """
+        XCTAssertTrue(caption.contains("Auto lets that dial go"), """
             The door's caption no longer explains the gesture-pause (#614): a \
             player must be able to DISCOVER that editing a steered dial frees it \
             and that the Auto toggle hands it back. Reword freely, but keep a \
             sentence that says both, and move this needle with it.
             """)
+        // ⚠️ ALL THREE render states, because #648 gave the caption two more forms and a ban
+        // that only checks one of them covers a third of the renders. The nil state is the one
+        // the Bio panel is in most often (before Play, before a source is chosen).
+        let states: [BioSampleFrame?] = [Self.bodyFrame, Self.demoFrame, nil]
         for dead in ["trend", "valence", "emotion", "breath depth", "LF/HF"] {
-            XCTAssertFalse(row.contains(dead), """
-                The door's caption says "\(dead)" — a channel or estimate with NO \
-                producer today (#496 class). TheAlwaysOnBioPathIsNamedTests covers \
-                only the AlwaysOnBioChannel sentences, so this caption is the second \
-                surface that could over-claim; it may name a new channel only in the \
-                commit that ships its real producer.
-                """)
+            for frame in states {
+                XCTAssertFalse(
+                    BioPanelRowCopy.autoModeCaption(for: frame).contains(dead), """
+                    The door's caption says "\(dead)" — a channel or estimate with NO \
+                    producer today (#496 class). TheAlwaysOnBioPathIsNamedTests covers \
+                    only the AlwaysOnBioChannel sentences, so this caption is the second \
+                    surface that could over-claim; it may name a new channel only in the \
+                    commit that ships its real producer.
+                    """)
+            }
         }
     }
 
@@ -672,4 +710,16 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
         }
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
     }
+
+    // MARK: - #648 fixtures
+
+    /// A real-body frame — the caption form carrying the founder's own wording.
+    private static let bodyFrame = BioSampleFrame(
+        timestamp: 0, heartRateBPM: 60, hrvNormalized: 0.4, breathRate: 12,
+        breathPhase: 0.25, coherence: 0.7, motionEnergy: 0, source: .cameraPPG)
+
+    /// The same reading stamped `.fallback` — the demo generator, not a body.
+    private static let demoFrame = BioSampleFrame(
+        timestamp: 0, heartRateBPM: 60, hrvNormalized: 0.4, breathRate: 12,
+        breathPhase: 0.25, coherence: 0.7, motionEnergy: 0, source: .fallback)
 }

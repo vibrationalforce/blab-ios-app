@@ -157,7 +157,18 @@
 //     What the discarded advice would have bought instead is worth naming: rewording the noun
 //     for EVERY player, so the instrument's identity line pays for the demo mode's honesty.
 //     A constraint recorded without its escape hatch reads as an impossibility.
-//   · Two `EchoelStudioView` captions ("your measured coherence…", "your inhale opens it").
+//   · ⭐ **CLOSED (#648)** — the two `EchoelStudioView` captions ("your measured coherence…",
+//     "your inhale opens it"), plus the two SPOKEN hints beside them that no register held:
+//     `BreathVoiceRow`'s "Sounds a held tone whose colour follows your body" and `AutoModeRow`'s
+//     "Slowly steers the mood dials toward your measured body state". All four now come from
+//     `BioPanelRowCopy`. The shape is the finding: each row already branched — on breath
+//     measured, on source running — so each LOOKED conditioned, and **a row that conditions on
+//     one thing reads as conditioned on everything**. That is why this class survived five
+//     slices. Guard: `TheBioPanelRowsSayWhoseBodyTests`.
+//   · ⭐ **THRESHOLD MET (#648)** — the shared SUBJECT-PHRASE helper this list asked for is
+//     `BioPanelRowCopy.subject(synthetic:)`. It shares the NOUN only, never a sentence (#634b).
+//     The seven existing inline sites are NOT migrated: guards pin those literals verbatim, so
+//     a migration must move them in the same commit (#456).
 //   · ⭐ **CLOSED (#647)** — `BodyTempoField`'s `.accessibilityLabel`, which was the fixed string
 //     `"Tempo, driven by your body"` at both sites. Now `TempoFollowLabel.spoken(for:)`, keyed on
 //     `bus.usableBio()`. Ticked in the commit that closes it, in BOTH registers — #642 updated

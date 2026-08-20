@@ -164,9 +164,14 @@
 //     qualify itself concludes an unqualified one is measured. Both marker strings now live in
 //     `BioMetric.originNote(for:)` and both headings ask it. The title keeps its words — only
 //     the marking was added. Guard: `TheGuideSheetTitleSaysWhoseBodyTests`.
-//   · `EchoelStudioView.swift` `.accessibilityHint("Sounds a held tone whose colour follows your
-//     body")` — sibling of a caption this register DOES name, but a distinct string. The
-//     #632/#627b pattern exactly: the register held the visible half and not the spoken one.
+//   · ⭐ **CLOSED (#648)** — `EchoelStudioView.swift`'s Body-voice `.accessibilityHint`, the
+//     sibling of a caption this register DID name but a distinct string; the #632/#627b pattern
+//     exactly. Now `BioPanelRowCopy.breathVoiceHint(for:)`, together with the caption beside it
+//     and BOTH of `AutoModeRow`'s sentences — one of which no register held. Guard:
+//     `TheBioPanelRowsSayWhoseBodyTests`.
+//     ⚠️ The lesson this entry was written to teach still stands and is now doubled: a register
+//     holds the half somebody noticed. #648's second spoken claim was found by sweeping the
+//     PHRASE across the file, not by reading the list.
 // ⛔ **AND TWO SENTENCES ABOUT THE SAME MECHANISM NOW TAKE DIFFERENT FRESHNESS GATES.** The Bio
 // panel's reads `bus.latestBio` RAW (#643); the Sound panel's `BodyShapesThisSoundLine` reads
 // `bus.usableBio()` (#640). Both describe the ALWAYS-ON timbre path, which polls raw — so the

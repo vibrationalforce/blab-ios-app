@@ -11134,7 +11134,14 @@ private struct BreathVoiceRow: View {
         // `usableBio()` and not raw `bus.latestBio`: the question this row asks is "is breath
         // ARRIVING", which is exactly the per-source freshness question (#499/#507). A frozen
         // frame would otherwise keep claiming breath long after the finger left the lens.
-        let breathIsMeasured = bus.usableBio()?.hasMeasuredBreath ?? false
+        // #648: STILL ONE call — the hint and the caption now both come from THIS frame
+        // instead of the hint being a fixed string, so the row gained honesty and no read.
+        // ⛔ The first draft of this comment said "ONE call, not two" and cited #646's straddle.
+        // Measured on the parent: this row already made exactly one call (`breathIsMeasured`),
+        // and so did `AutoModeRow`. There was no straddle here to close. Reaching for the
+        // previous slice's lesson and fitting the facts to it is the failure this family keeps
+        // paying for in miniature — the mechanism has to be measured, not recognised.
+        let frame = bus.usableBio()
         VStack(alignment: .leading, spacing: 4) {
             Toggle(isOn: Binding(get: { voice.isArmed },
                                  set: { $0 ? voice.arm() : voice.disarm() })) {
@@ -11145,10 +11152,8 @@ private struct BreathVoiceRow: View {
             .toggleStyle(.switch)
             .tint(EchoelTheme.accent)
             .frame(minHeight: 44)
-            .accessibilityHint("Sounds a held tone whose colour follows your body")
-            Text(breathIsMeasured
-                 ? "A held tone whose colour follows your heart and coherence. Your inhale opens it, your exhale closes it."
-                 : "A held tone whose colour follows your heart and coherence. No breathing measured yet — once it is, your inhale and exhale take over the note.")
+            .accessibilityHint(BioPanelRowCopy.breathVoiceHint(for: frame))
+            Text(BioPanelRowCopy.breathVoiceCaption(for: frame))
                 .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
@@ -11177,7 +11182,25 @@ private struct AutoModeRow: View {
     @AppStorage(StudioDefaultKeys.autoMode.key) private var autoMode = StudioDefaultKeys.autoMode.value
 
     var body: some View {
-        let bioRunning = bus.usableBio() != nil
+        // #648: still ONE call, now feeding the disable, the hint AND the caption — the hint
+        // was a fixed string before. See `BreathVoiceRow` for why this is not #646's straddle.
+        let frame = bus.usableBio()
+        let bioRunning = frame != nil
+        // ⛔ A `let caption: String` + `if let frame { caption = … } else { … }` STATEMENT stood
+        // here first. A `var body: some View` is a `@ViewBuilder` context, so an `if` statement
+        // in it is transformed into VIEW building; branches that assign to a variable instead of
+        // producing views are the #643 class of compile failure, and there is no local compiler
+        // to find it. A reviewer confirmed the measurement: sweeping every `Sources/` file, NO
+        // `var body: some View` in this repo contains an uninitialised `let` followed by branch
+        // assignment — all 125 instances of that shape sit in ordinary functions.
+        // ⛔ The replacement was a ternary over `BioPanelRowCopy.autoModeCaption(synthetic:)`
+        // with the nil sentence stranded HERE — and that `Bool` was the #644 defect returning:
+        // "reachable only with a frame in hand, so two states, not three" is true of today's
+        // caller and is exactly the argument #644 lost. The caption now takes the frame like its
+        // three siblings and owns all three sentences, so this row renders one call.
+        // #616b lives on inside that function: the nil branch used to say "touch and hold the
+        // pulse display", teaching the long-press three rows BELOW the visible "Bio source" row
+        // #616 put in this same panel. Two captions in one panel disagreed on the route.
         VStack(alignment: .leading, spacing: 4) {
             Toggle(isOn: $autoMode) {
                 Text("Auto mode")
@@ -11188,16 +11211,11 @@ private struct AutoModeRow: View {
             .tint(EchoelTheme.accent)
             .frame(minHeight: 44)
             .disabled(!bioRunning)
-            .accessibilityHint("Slowly steers the mood dials toward your measured body state")
+            .accessibilityHint(BioPanelRowCopy.autoModeHint(for: frame))
             // #608b: the sentence names the CONDITION — between the hysteresis bands
             // Auto mode deliberately steers nothing, and a caption promising
             // unconditional steering would be the Weather-"nicht bemerkbar" class.
-            Text(bioRunning
-                 ? "Gently steers mood toward your measured coherence, HRV and heart rate when your body is clearly settled or clearly driving — over bars, not beats. Your own edits keep priority — edit a steered dial and Auto lets that dial go for the rest of this session (switch Auto off and on to hand it back)."
-                 // #616b: this branch said "touch and hold the pulse display" — teaching
-                 // the long-press three rows BELOW the visible "Bio source" row #616 put
-                 // in this same panel. Two captions in one panel disagreed on the route.
-                 : "Needs a running bio source — choose one with the Bio source control above.")
+            Text(BioPanelRowCopy.autoModeCaption(for: frame))
                 .font(EchoelTheme.font(10))
                 .foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)

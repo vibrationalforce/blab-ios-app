@@ -448,3 +448,141 @@ public enum BioShapedParameter: String, CaseIterable, Identifiable, Sendable {
             + "values you set here. Open Bio to watch the four channels doing it."
     }
 }
+
+/// The two `bioPanel` rows' spoken hints and captions, with their subject named (#648).
+///
+/// ⛔ BOTH ROWS DISCRIMINATED ON ONE AXIS AND NOT ON THE SOURCE. `BreathVoiceRow` already
+/// branched on whether breath was measured, and `AutoModeRow` on whether a source was running —
+/// so each looked carefully written, and each then said "your body" over the demo generator.
+/// Under Simulation `usableBio()` is non-nil, so `AutoModeRow`'s enabled branch renders and
+/// promises to steer the mood "toward your measured coherence, HRV and heart rate". A row that
+/// conditions on one thing reads as conditioned on everything, which is why this class survived
+/// five slices of the same family.
+///
+/// ⭐ NEITHER ROW NEEDS A NEW READ. Both already hold `EngineBus` and already call
+/// `usableBio()` exactly once; the frame they already had now feeds the hint too, where the
+/// hint used to be a fixed string. So both rows gain honesty and no churn.
+/// ⛔ The first draft of this paragraph said "each row ends up with ONE call where it had two"
+/// and cited #646's straddle. Measured on the parent: each row made exactly ONE call already.
+/// There was no straddle here to close. Carrying the previous slice's lesson into a place it
+/// does not fit is the same error class this family keeps correcting in its user-facing copy —
+/// a mechanism has to be measured, not recognised.
+///
+/// ⚠️ COMPOSED FROM A SHARED SUBJECT, NOT ENUMERATED. Breath-measured × source is four
+/// combinations and heart/coherence × source is two; writing six literals is how two of them
+/// drift. Only the SUBJECT is shared — never a whole sentence, which is the collapse #634b had
+/// to retract.
+///
+/// ⚠️ MIGRATION REGISTERED, DELIBERATELY NOT DONE HERE — for SLICE DISCIPLINE, and that is the
+/// whole reason. ⛔ An earlier version said "guards pin those literals verbatim, so a migration
+/// must move the guards in the same commit (#456)", and a reviewer DROVE it false: every
+/// assertion over those sites is on the RENDERED OUTPUT of a pure function, which a
+/// `subject(synthetic:)` migration leaves byte-identical. The only verbatim SOURCE pins in the
+/// bundle are over the prefix and section-head forms, which these sites do not use. The law
+/// broken was this repo's own: *a "do not do X" note whose stated reason is checkable and false
+/// is worse than none — the next session refutes it in one grep and does X.*
+/// ⚠️ SIX code sites, not seven, and only FOUR are verbatim-substitutable: `AutomationStatus`
+/// carries a DIFFERENT sentence ("…not automation and not your body") and
+/// `BioShapedParameter.soundPanelSentence` is sentence-INITIAL and capitalised, so both need a
+/// transform rather than a substitution. The seventh in the register is a doc comment — the
+/// same prose-corrupts-its-own-count defect as the retracted recipe below.
+/// ⛔ A `git grep` RECIPE STOOD HERE AND WAS WRONG THE MOMENT IT WAS WRITTEN — it claimed this
+/// file held three hits, and the recipe LINE ITSELF matched, so the true count was four the
+/// instant the comment existed (two before the commit). It also missed that one of the hits it
+/// counted is the DEFINITION below, not an un-migrated site, and that `BioShapedParameter`
+/// spells the capitalised variant, which the quoted needle never matches. This is CLAUDE.md's
+/// `EchoelModalBank` lesson verbatim: *a note that QUOTES a grep ages faster than one that
+/// states a fact, because every comment written about the thing corrupts its own evidence.*
+/// ⛔ "THREE FORMS, THREE JOBS" STOOD HERE AND IT WAS A DIFFERENT THREE FROM THE DOCUMENTED
+/// ONE. The census spelled identically in `AlwaysOnBioRow`, `BioMetricInfo` and `EchoelFXView`
+/// is: element LABEL (`"Bio source: simulated demo, not your body"` — strip · widget · watch) ·
+/// spoken PREFIX (`"Simulated demo, "`) · section HEAD (`"demo values, not your body"`). I kept
+/// the first two and silently substituted "mid-sentence subject" for the third — which makes
+/// this helper a de-facto FOURTH spelling while claiming to be one of three. Stated openly
+/// instead: **this IS a fourth form**, and it earns its place because a subject that continues
+/// into a subordinate clause is a grammatical job the other three cannot do (the label ends a
+/// sentence, the prefix starts one, the head names a section). Collapsing any of the four is
+/// #634b. ⚠️ The guard's form-ban therefore covers three spellings, not two — the section head
+/// was unguarded while this comment claimed completeness.
+public enum BioPanelRowCopy {
+
+    /// The mid-sentence subject of a claim about whose reading drives something.
+    static func subject(synthetic: Bool) -> String {
+        synthetic ? "the simulated demo source, not your body" : "your body"
+    }
+
+    /// `BreathVoiceRow`'s spoken hint. Describes what ARMING will do, so it is answerable even
+    /// with nothing measured — the tone still sounds, its colour just will not move.
+    ///
+    /// ⚠️ NO TERMINAL FULL STOP on any of the three, matching the two shipped hints this slice
+    /// replaced and every other `.accessibilityHint` in the app. The nil branch carried one for
+    /// a review pass — three spoken strings on one control under two conventions.
+    public static func breathVoiceHint(for frame: BioSampleFrame?) -> String {
+        guard let frame else {
+            return "Sounds a held tone. Nothing is measured yet, so its colour will not move"
+        }
+        guard frame.source.isSynthetic else {
+            return "Sounds a held tone whose colour follows your body"
+        }
+        return "Sounds a held tone whose colour follows the simulated demo source, not your body"
+    }
+
+    /// `BreathVoiceRow`'s caption. Two axes: whose reading, and whether breath is arriving.
+    public static func breathVoiceCaption(for frame: BioSampleFrame?) -> String {
+        let head: String
+        switch frame?.source.isSynthetic {
+        case false: head = "A held tone whose colour follows your heart and coherence."
+        case true:  head = "A held tone whose colour follows the heart and coherence of the "
+                         + "simulated demo source, not your body."
+        default:    head = "A held tone whose colour will follow a heart and coherence once "
+                         + "something is measured."
+        }
+        guard frame?.hasMeasuredBreath == true else {
+            return head + " No breathing measured yet — once it is, the inhale and exhale take "
+                + "over the note."
+        }
+        guard frame?.source.isSynthetic == true else {
+            return head + " Your inhale opens it, your exhale closes it."
+        }
+        return head + " Its simulated inhale opens it, its exhale closes it."
+    }
+
+    /// `AutoModeRow`'s spoken hint. The control is disabled without a source, but VoiceOver
+    /// still reads a hint on a disabled control, so the nil state gets its own sentence.
+    public static func autoModeHint(for frame: BioSampleFrame?) -> String {
+        guard let frame else { return "Needs a running bio source before it can steer anything" }
+        guard frame.source.isSynthetic else {
+            return "Slowly steers the mood dials toward your measured body state"
+        }
+        return "Slowly steers the mood dials toward the measured state of the simulated demo "
+            + "source, not your body"
+    }
+
+    /// `AutoModeRow`'s caption, all three states.
+    ///
+    /// ⛔ THIS TOOK A `Bool` FOR ONE REVIEW PASS, justified as "reachable only with a frame in
+    /// hand, so two states, not three" — which is true of TODAY'S caller and is precisely the
+    /// argument #644 lost. `BioMetric.originNote(for:)` records that lesson in a file this slice
+    /// reads: a `Bool` cannot separate "a real body" from "nothing measured", and the collapse
+    /// ships as "your body" over an empty reading. Its three siblings here already take the
+    /// frame; one 90-line enum with two conventions for one decision is how the next caller
+    /// picks the wrong one. The nil sentence also stops being stranded in the view, pinned only
+    /// by a source scan while everything else is driven.
+    ///
+    /// ⚠️ Names ONLY channels a producer actually feeds (coherence · HRV · heart rate). #496
+    /// struck breath depth, LF/HF and any "trend"; this sentence must not grow them back.
+    public static func autoModeCaption(for frame: BioSampleFrame?) -> String {
+        guard let frame else {
+            return "Needs a running bio source — choose one with the Bio source control above."
+        }
+        let head = frame.source.isSynthetic
+            ? "Gently steers mood toward the measured coherence, HRV and heart rate of the "
+                + "simulated demo source, not your body, when that reading is clearly settled "
+                + "or clearly driving"
+            : "Gently steers mood toward your measured coherence, HRV and heart rate when your "
+                + "body is clearly settled or clearly driving"
+        return head + " — over bars, not beats. Your own edits keep priority — edit a steered "
+            + "dial and Auto lets that dial go for the rest of this session (switch Auto off "
+            + "and on to hand it back)."
+    }
+}

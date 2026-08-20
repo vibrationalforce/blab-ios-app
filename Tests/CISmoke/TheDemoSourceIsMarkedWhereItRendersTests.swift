@@ -66,6 +66,29 @@
 //     off here. It needs a user-added route to render at all, which is why it sat unmeasured
 //     in this list; it now carries `BioModContribution.synthetic` (no default), a "Demo" chip
 //     and the prefix spelling. Guard `Tests/CISmoke/TheFXRoutesSayWhoseBodyTests.swift`.
+//   · `BreathVoiceRow` and `AutoModeRow` (both in `bioPanel`) — **MARKED (#648)**, the two
+//     rows that carry a spoken hint AND a caption each, so four strings. Both already
+//     branched — on whether breath was measured, on whether a source was running — which is
+//     why they read as carefully written and why this class survived five slices: **a row
+//     that conditions on ONE thing reads as conditioned on everything.** The copy now lives
+//     in `BioPanelRowCopy` (`Studio/AlwaysOnBioChannel.swift`), Foundation-only and driven
+//     end-to-end (§1) rather than scanned. Guard:
+//     `Tests/CISmoke/TheBioPanelRowsSayWhoseBodyTests.swift`.
+//
+// ⛔ THIS LIST STOPPED BEING TICKED AT #635b AND EIGHT SLICES LANDED WITHOUT AN ENTRY — the
+// exact defect its own bullets name three times ("a per-entry list only beats a count if the
+// entries get ticked off in the commit that closes them"), and the third-worst kind, because
+// here the correcting text was not merely in the file, it was in the same list. Each of the
+// eight carries its own guard and none is unregistered in the repo; what was missing is the
+// ONE place a session looks to ask "which surfaces are marked?". They are, in order:
+// **#639** OSC egress (below) · **#640** the sound panel's sentence · **#641/#642** the FX
+// headers (`TheFXHeadersSayWhoseBodyTests`) · **#643** the always-on sentences
+// (`TheAlwaysOnRowsSayWhoseBodyTests`) · **#644** the narration heading
+// (`TheNarrationCannotClaimABodyItDidNotReadTests`) · **#645** the variation card
+// (`TheVariationCardSaysWhoseTargetTests`) · **#646** the guide-sheet title
+// (`TheGuideSheetTitleSaysWhoseBodyTests`) · **#647** the spoken tempo
+// (`TheSpokenTempoSaysWhoseBodyTests`). Listed rather than re-argued: an entry per slice with
+// its reasoning restated would double this header and is already in each guard.
 //
 // EGRESS splits in two, and #629 closed one half:
 //   · **Peer payload — CLOSED (#629).** ⛔ This paragraph said `ColabPayload.egressible`
