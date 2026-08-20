@@ -34,6 +34,36 @@ public final class FXBioModulator {
     /// leaf view can observe it without registering the whole tree as a 30 Hz
     /// observer (menu-freeze law). Empty when stopped or no enabled routes.
     public private(set) var liveContributions: [BioModContribution] = []
+
+    /// Whether the section heading over `liveContributions` may claim a body — published here
+    /// rather than derived in the view, and #641's review is the reason.
+    ///
+    /// ⛔ THE FIRST CUT DERIVED IT IN THE VIEW, from `liveContributions.contains(where:
+    /// \.synthetic)`, AND THAT RE-CREATED THE COLLISION THE SLICE EXISTS TO REMOVE — one
+    /// section away. `synthetic` on a contribution is computed from `bus?.usableBio()`, i.e.
+    /// behind a FRESHNESS gate; the always-on heading three rows further down reads
+    /// `bus.latestBio` RAW, which is never cleared. Past `.fallback`'s 5 s window every
+    /// contribution goes non-contributing, so `synthetic` collapses to false and the sheet
+    /// renders "Live — body → sound" directly above "Always on — simulated demo → timbre",
+    /// from the SAME frame, permanently. Two gates, one screen, opposite claims.
+    ///
+    /// ⭐ SO IT ASKS THE RAW FRAME, matching the always-on half, and the two headings can no
+    /// longer disagree. The two REGIMES stay as they are — `TwoFreshnessRegimesAreDeliberate
+    /// Tests` pins them and unifying them is an audible change needing a hearing test — this
+    /// only stops the two HEADINGS from being derived through different ones.
+    ///
+    /// ⚠️ AND IT IS CONJOINED WITH "IS ANY ROUTE A BIO ROUTE", which is not decoration. An LFO
+    /// carrier is a real oscillator and is deliberately never marked synthetic; a set of only
+    /// LFO routes has no body and no demo in it, so a bare source test would have put
+    /// "simulated demo → sound" over rows nothing simulated is driving — trading one false
+    /// claim for another. (The residual over-claim in that state is that the heading then says
+    /// "body → sound" over LFO-only rows. That is PRE-EXISTING, unchanged here, and registered
+    /// in `TheFXHeadersSayWhoseBodyTests` claim 3 — `BioModContribution` carries no carrier
+    /// kind, so fixing it is its own slice.)
+    ///
+    /// Written only inside the existing ~10 Hz throttled publish branch, and only on change, so
+    /// it adds a tracked property but no new cadence and no new source.
+    public private(set) var sourceIsSynthetic = false
     @ObservationIgnored private var tickCount = 0
     /// 30 Hz tick / 3 ≈ 10 Hz UI refresh.
     @ObservationIgnored private static let publishEveryN = 3
@@ -125,6 +155,7 @@ public final class FXBioModulator {
         isRunning = false
         task?.cancel(); task = nil
         liveContributions = []   // display empties when no session is live
+        sourceIsSynthetic = false // …and so does the claim its heading makes
         // Drop the fades too, so a later `start()` eases in from silence rather than
         // resuming a half-faded route. (Today the app never calls `stop()` — the driver
         // runs from launch to termination — so this is the correctness of the API, not
@@ -330,6 +361,15 @@ public final class FXBioModulator {
         if FXModulation.shouldPublish(tick: tickCount, everyN: Self.publishEveryN) {
             let next = FXModulation.contributions(routes: routes, frame: frame, now: now)
             if next != liveContributions { liveContributions = next }
+            // RAW, not `frame` — see `sourceIsSynthetic`'s doc: `frame` above is
+            // `bus?.usableBio()`, and deriving the heading through the freshness gate is
+            // exactly what made the two headings contradict each other.
+            let anyBioRoute = routes.contains { route in
+                if case .bio = route.carrier { return true }
+                return false
+            }
+            let syn = anyBioRoute && (bus?.latestBio?.source.isSynthetic ?? false)
+            if syn != sourceIsSynthetic { sourceIsSynthetic = syn }
         }
     }
 

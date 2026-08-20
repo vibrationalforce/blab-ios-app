@@ -94,9 +94,14 @@ notes: |
      beschreiben sie das, was Du beim Spielen tatsächlich hörst? Das ist die eine
      Frage, die kein Test beantworten kann — die Zeilen sind gegen den Code
      geprüft, aber Klang ist Deine Sache.
-  3. FX → „All parameters", ganz nach unten zu „Live — body → sound". Die Zeile
-     erscheint nur, wenn Du vorher über „Add bio modulation…" eine Route angelegt
-     hast. Trägt sie bei Demo-Quelle ein „Demo"?
+  3. FX → „All parameters", ganz nach unten zur „Live"-Sektion. ⚠ Die Überschrift
+     heißt bei laufender DEMO-Quelle seit #641 nicht mehr „Live — body → sound",
+     sondern „Live — simulated demo → sound" — also genau unter der Bedingung, die
+     dieser Punkt prüft. (Der alte Wortlaut stand hier als Navigations-Merkmal und
+     hätte Dich eine Geräteprobe gekostet, in der Du eine Überschrift suchst, die
+     es in diesem Zustand nicht gibt.) Die Zeile darunter erscheint nur, wenn Du
+     vorher über „Add bio modulation…" eine Route angelegt hast. Trägt sie ein
+     „Demo"?
   4. Widget auf dem Home-Screen: Puls-Quelle STARTEN (Kamera oder Demo), kurz
      laufen lassen, App schließen, ein paar Minuten warten. Steht dann „Last
      session" auf der Kachel und sind die Zahlen gedämpft? (Ohne laufende Quelle

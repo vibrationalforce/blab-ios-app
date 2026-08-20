@@ -196,7 +196,8 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// is only ever ASSIGNED — nothing clears it, not `stop()`, not a lost pulse (its one
     /// writer is the `publish(bio:)` sink). `isMeasured` is a property of the FRAME, never of
     /// its age, so a frame from forty minutes ago reports `true` forever, under a header that
-    /// says "Always on — body → timbre". That is the same ambiguity #497/#498 removed, one
+    /// says "Always on — body → timbre" (conditional since #641 — "Always on — simulated demo
+    /// → timbre" while the demo generator drives). That is the same ambiguity #497/#498 removed, one
     /// level up, introduced by the surface that removed it.
     ///
     /// ⚠️ AND THE VALUE IS STILL RIGHT, WHICH IS WHY `isHeld` MARKS RATHER THAN BLANKS. The
@@ -256,7 +257,15 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
                                   // two different instants"; `isHeld` also depends on `now`,
                                   // read at draw time, and this file's own row documents a
                                   // bounded ~1 s lag against `usableBio()`. Three of four.
-                                  isSynthetic: frame.source == .fallback)
+                                  // ⭐ Migrated to `BioSource.isSynthetic` in #641's review
+                                  // pass. The FX section HEADER above these rows asks the same
+                                  // question of the same frame; while this said `== .fallback`
+                                  // and the header said `.isSynthetic`, the two agreed only
+                                  // because the property IS that comparison — one edit apart
+                                  // from diverging inside one section (#416). This is exactly
+                                  // the "old code gets converted when its own file is next
+                                  // opened for a real reason" the property's doc asks for.
+                                  isSynthetic: frame.source.isSynthetic)
     }
 }
 

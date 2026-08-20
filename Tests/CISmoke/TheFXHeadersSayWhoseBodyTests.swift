@@ -13,12 +13,17 @@
 // marking lived in the section header and the rows drew unmarked numbers. Both directions fail
 // the same reader: whichever of the two a person scans first is the one that lies to them.
 //
-// ⭐ NEITHER HEADER ADDS AN OBSERVATION, which is why this is a small slice rather than a
-// freeze-law question. The Live header derives from `modulator.liveContributions`, which that
-// body already reads one line above; the always-on header derives from `frame`, already bound at
-// the top of ITS body and handed to every row. Same source as the rows in both cases — so a
-// header cannot disagree with what is under it, which is the failure a second, independently
-// computed test would have re-introduced (#416).
+// ⭐ NEITHER HEADER ADDS A NEW SOURCE OR A NEW CADENCE. The Live header asks
+// `modulator.sourceIsSynthetic`, published by the same ~10 Hz throttled, change-gated branch
+// that already publishes `liveContributions` — a property this body reads about thirty lines
+// above (⛔ two drafts said "one line up"; it is ~30, and nobody checked). The always-on header
+// derives from `frame`, already bound at the top of ITS body and handed to every row.
+// ⚠️ NOT THE ABSOLUTE "NO NEW OBSERVATION" THIS BLOCK CLAIMED FIRST. `if a, b` short-circuits,
+// so with `isRunning == false` the old body read only `isRunning` while a header reads its
+// property unconditionally — a new observation EDGE, in a state the shipping app cannot reach
+// (`FXBioModulator.stop()` has no production caller; `start()` runs once at launch). True as
+// "no new observation in any state the app reaches"; the absolute version is what the next
+// reader would have relied on instead of re-deriving it.
 //
 // ⚠️ `contains`, NOT `allSatisfy`, on the Live header, and claim 3 is what makes that a decision
 // rather than a coincidence. An LFO carrier is a real oscillator and is deliberately NEVER
@@ -56,9 +61,21 @@
 //   · **Stripper: TRAGEND — 2 of 12 verdicts flip on this tree, 1 of 12 on the parent.**
 //     Measured by driving every needle raw and stripped against both, not reasoned. The two are
 //     4b (the ⛔ block this slice added quotes the retracted clause verbatim — a retraction has
-//     to quote what it retracts) and 6a (`AlwaysOnBioView`'s doc comment names `bus.latestBio`
-//     twice while explaining why it reads it). 6a flips on the PARENT too, which is why the
-//     stripper is not merely insurance here.
+//     to quote what it retracts) and 6a. ⛔ 6a's flip was attributed here to `AlwaysOnBioView`'s
+//     doc comment "twice", and that is impossible as written: that doc block sits ABOVE the
+//     `private struct AlwaysOnBioView` anchor, so it is outside the extracted block entirely —
+//     the block contains exactly one `bus.latestBio`, the code line. The three raw `bus.` hits
+//     that actually make 6a stripper-dependent are in **`BioModLiveView`**'s own doc comments.
+//     The measurement (1 flip on the parent) was right and its explanation was fiction, which
+//     is the more dangerous half: a number can be re-derived, a wrong mechanism gets believed.
+//   ⚠️ TWO BASELINES NOW, and both are stated because the file grew a claim after it shipped.
+//     Against **e8482e5** (before #641) the numbers above hold. Against **ce92d75** (#641 as
+//     first shipped) the only red assertions are the five of claims 3 and 3b — the review
+//     regression: the Live heading derived from the freshness-gated contributions while the
+//     always-on heading read raw, so the two contradicted each other past `.fallback`'s 5 s
+//     window. Everything else is green there, which is exactly what a follow-up that fixes a
+//     derivation and changes no wording should look like. Measured against both, 15/15 green
+//     on this tree.
 //   ⛔ AND THE MEASUREMENT CAUGHT TWO DEFECTS IN THIS FILE BEFORE IT SHIPPED, both in the
 //     flattering direction: claims 1a and 2a were written with `squeezed(...)` and were FALSE
 //     ON THEIR OWN TREE (`stripped=False raw=False`) — the squeeze removes the spaces INSIDE a
@@ -78,6 +95,7 @@ import XCTest
 final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
 
     private static let fxView = "Sources/Echoelmusic/Studio/EchoelFXView.swift"
+    private static let modulator = "Sources/Echoelmusic/Tools/FXBioModulator.swift"
 
     // MARK: - 1–2  each header can name the demo source
 
@@ -119,23 +137,62 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
             """)
     }
 
-    // MARK: - 3  the LFO exclusion survives
+    // MARK: - 3  both headings ask the SAME gate — the regression the review caught
 
-    /// 3 — COUNTERWEIGHT, and the assertion that makes claim 1 a decision instead of an
-    /// accident. An LFO carrier is a real oscillator; `BioModContribution.synthetic` is
-    /// deliberately false for it. `allSatisfy` would therefore leave a half-simulated section
-    /// claiming a body, and `contains` is the only form that reads "any synthetic row is enough".
-    func testTheLiveHeaderAsksWhetherANYRowIsSynthetic() throws {
-        let body = try block(startingAt: "private struct BioModLiveView", in: try codeText(Self.fxView))
-        XCTAssertTrue(squeezed(body).contains("liveContributions.contains(where:\\.synthetic)"), """
-            The Live header no longer asks `contains(where: \\.synthetic)`. If it moved to \
-            `allSatisfy`, one LFO route alongside one demo-driven bio route puts the plain \
-            "body → sound" heading back over a section that is half simulated — and nothing \
-            else in the tree would notice, because every row would still be individually right.
+    /// 3 — REGRESSION against the first cut of #641, and the assertion this whole follow-up
+    /// exists for. The first version derived the Live heading in the view from
+    /// `liveContributions.contains(where: \\.synthetic)`. Those flags are computed behind
+    /// `bus?.usableBio()` — a FRESHNESS gate — while the always-on heading three rows down reads
+    /// `bus.latestBio` RAW, which is never cleared. Past `.fallback`'s 5 s window every
+    /// contribution stops contributing, `synthetic` collapses to false, and the sheet renders
+    /// "Live — body → sound" directly above "Always on — simulated demo → timbre" from the SAME
+    /// frame, permanently. **The slice re-created its own defect one section away**, and a
+    /// source-text scan of the view could never have seen it.
+    ///
+    /// ⚠️ THE TWO REGIMES STAY SPLIT. `TwoFreshnessRegimesAreDeliberateTests` pins that the FX
+    /// routes gate on `usableBio()` while the always-on timbre path reads raw, and unifying THOSE
+    /// is an audible change needing a hearing test. What this pins is narrower and is not in
+    /// tension with it: the two HEADINGS may not be derived through different gates.
+    func testBothHeadingsAskTheRawGate() throws {
+        let modulator = try codeText(Self.modulator)
+        XCTAssertTrue(squeezed(modulator).contains("bus?.latestBio?.source.isSynthetic"), """
+            `FXBioModulator` no longer derives `sourceIsSynthetic` from the RAW frame. If it \
+            went back to the freshness-gated `frame`, the Live heading contradicts the \
+            always-on heading directly beneath it for every demo frame older than 5 s.
             """)
-        XCTAssertFalse(squeezed(body).contains("liveContributions.allSatisfy"), """
-            The Live header asks `allSatisfy`. See above: an LFO carrier is never synthetic by \
-            design, so `allSatisfy` is false exactly when a mixed section most needs marking.
+        let view = try block(startingAt: "private struct BioModLiveView", in: try codeText(Self.fxView))
+        XCTAssertTrue(squeezed(view).contains("modulator.sourceIsSynthetic"), """
+            The Live heading no longer asks `modulator.sourceIsSynthetic`. Deriving it in the \
+            view from `liveContributions` is precisely the first cut's defect — those flags \
+            answer a different gate than the heading below them.
+            """)
+        XCTAssertFalse(squeezed(view).contains("liveContributions.contains(where:"), """
+            The Live heading derives from the contributions again. See above: same value, \
+            different gate, contradictory headings on one screen.
+            """)
+    }
+
+    /// 3b — COUNTERWEIGHT, and the reason `sourceIsSynthetic` is a conjunction rather than a
+    /// bare source test. An LFO carrier is a real oscillator and is deliberately never marked
+    /// synthetic; a set of only LFO routes contains no body and no demo, so a bare source test
+    /// would have put "simulated demo → sound" over rows nothing simulated drives — trading one
+    /// false claim for another.
+    ///
+    /// ⚠️ REGISTERED, NOT FIXED: in that same LFO-only state the heading falls back to
+    /// "body → sound", which over-claims in the other direction. That is PRE-EXISTING and
+    /// untouched — `BioModContribution` carries no carrier-kind field, so naming it needs its
+    /// own slice. Recorded here rather than left implied, because claim 3 above reads as if the
+    /// LFO question were settled and it is not.
+    func testTheProvenanceIsConjoinedWithHavingABioRoute() throws {
+        let modulator = try codeText(Self.modulator)
+        XCTAssertTrue(squeezed(modulator).contains("anyBioRoute&&"), """
+            `sourceIsSynthetic` is no longer conjoined with "is any route a bio route". A bare \
+            source test marks an LFO-only section "simulated demo → sound", which is a fresh \
+            false claim made by the machinery built to remove false claims.
+            """)
+        XCTAssertTrue(squeezed(modulator).contains("ifcase.bio=route.carrier"), """
+            The bio-route test is gone or changed shape. It is the half that keeps an all-LFO \
+            section out of the demo heading.
             """)
     }
 

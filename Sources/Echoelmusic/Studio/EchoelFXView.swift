@@ -1180,18 +1180,21 @@ private struct BioModLiveView: View {
             // image of #637, where the MARKING was in the header and the rows drew unmarked
             // numbers. A reader who scans headings gets the wrong one either way round.
             //
-            // ⭐ NO NEW OBSERVATION, and that is why this is cheap: it derives from
-            // `liveContributions`, which this body already reads one line up. `BioModContribution
-            // .synthetic` is exactly the flag the rows use, so the header cannot disagree with
-            // what is under it — the failure mode a second, independently computed test would
-            // have re-introduced (#416).
+            // ⭐ NO NEW SOURCE AND NO NEW CADENCE: `sourceIsSynthetic` is published by the same
+            // ~10 Hz throttled, change-gated branch that already publishes `liveContributions`,
+            // which this body reads about thirty lines above. (⛔ Two earlier drafts of this
+            // comment said "one line up" — it is ~30. The claim that matters, that the header
+            // observes nothing this body did not already observe, is unaffected; the number was
+            // simply never checked.)
             //
-            // ⚠️ `contains`, NOT `allSatisfy`: an LFO carrier is a real oscillator and is
-            // deliberately never marked synthetic (the field's own doc says so). With one bio
-            // route on the demo source and one LFO route, `allSatisfy` would be false and the
-            // header would claim a body for a section that is half simulated. Any synthetic row
-            // is enough to make the plain claim untrue.
-            Text(modulator.liveContributions.contains(where: \.synthetic)
+            // ⛔ AND THE FIRST CUT DERIVED IT HERE, from `liveContributions.contains(where:
+            // \.synthetic)`, WHICH PUT THE COLLISION BACK ONE SECTION AWAY. Those flags are
+            // computed behind `usableBio()`; the always-on heading below reads `latestBio` RAW.
+            // Past `.fallback`'s 5 s window this heading said "body → sound" while that one said
+            // "simulated demo → timbre", from the same frame, permanently. The derivation moved
+            // onto the modulator so both headings ask the RAW frame — its doc block carries the
+            // whole argument, including why it is conjoined with "is any route a bio route".
+            Text(modulator.sourceIsSynthetic
                  ? "Live — simulated demo → sound"
                  : "Live — body → sound")
                 .font(EchoelTheme.font(13, .bold)).textCase(nil)
@@ -1241,10 +1244,16 @@ private struct AlwaysOnBioView: View {
             }
         } header: {
             // #641 — same correction as the Live header above, from the SAME frame the rows
-            // below are handed. `AlwaysOnBioRow` marks each channel from `frame.source`; taking
-            // the header's answer from any other read would let the two disagree within one
-            // section (#416), and `frame` is already bound at the top of this body — so this
+            // below are handed. `AlwaysOnBioRow` marks each channel from that frame's source;
+            // taking the header's answer from any other READ would let the two disagree within
+            // one section (#416), and `frame` is already bound at the top of this body — so this
             // costs no observation and cannot straddle two instants (#637's defect).
+            // ⛔ "CANNOT DISAGREE" WAS TRUE OF THE READ AND NOT OF THE DERIVATION when this
+            // shipped: the header asked `frame?.source.isSynthetic` while the row asked
+            // `frame.source == .fallback`. Equal only because `isSynthetic` IS `== .fallback` —
+            // one edit apart from silently diverging, which is #416 one level down. The row was
+            // migrated to the property in the same follow-up, so the two now share one
+            // definition rather than two spellings that happen to agree.
             Text(frame?.source.isSynthetic == true
                  ? "Always on — simulated demo → timbre"
                  : "Always on — body → timbre")
@@ -1268,8 +1277,11 @@ private struct AlwaysOnBioView: View {
             // point: this sentence explains a MECHANISM ("what does held mean"), not who is in
             // the room, so the honest subject is the signal under BOTH sources — no read, no
             // branch, no second string to keep in step. `AlwaysOnBioRow`'s VoiceOver already
-            // took this route at #484 ("its subject must stay the SIGNAL rather than the body"),
-            // so this is one screen catching up with its own precedent rather than a new rule.
+            // took this route at #484 — "the SIGNAL is the subject here, never the body"
+            // (`AlwaysOnBioRow.swift`) — so this is one screen catching up with its own
+            // precedent rather than a new rule. ⛔ The first draft put quotation marks around a
+            // sentence that exists nowhere in the tree; the precedent was real and the quote was
+            // invented, which is the worse half of that pair because a quote invites trust.
             // The two states it distinguishes are unchanged, which is what
             // `AHeldReadingSaysSoTests` is actually about; its needle moves in this commit (§4).
             Text("A channel with no reading hands the engine a neutral 0.50 on purpose, so the "
