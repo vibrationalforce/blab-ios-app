@@ -607,6 +607,89 @@ enum AudioConfiguration {
     }
     #endif // !os(macOS)
 
+    /// ONE line about the round-trip the session actually GRANTED, shaped for the
+    /// EXPORTABLE log.
+    ///
+    /// ⭐ #653 — WHY THIS EXISTS, AND IT IS THE #650 HOLE ONE LAYER UP. `latencyStats()`
+    /// below has exactly ONE caller (`AudioEngine.prepareGraph`), and it writes to
+    /// `log.audio` — `os_log` plus a write-only in-memory ring. Neither sink reaches
+    /// `echoel_diag.log`, the file the founder exports, and no view renders the number
+    /// either. Measured: `git grep -n 'breadcrumb(.*[lL]atency'` over `Sources/` returned
+    /// NOTHING before this slice. So the app measured its own round-trip, formatted a
+    /// tidy report with a ✅/⚠️/❌ verdict, and showed it to nobody — while the founder's
+    /// literal ask is "Alle Latenzen und Kombinationen optimiert für Sessions". You
+    /// cannot optimise a latency you have never seen from the hardware in question.
+    ///
+    /// ⚠️ THE ROUTE IS PART OF THE MEASUREMENT, not decoration. The same phone reports a
+    /// different round-trip on the built-in mic, a wired interface and a Bluetooth
+    /// headset (~150–250 ms on A2DP), and "Kombinationen" is the founder's word for
+    /// exactly that. A latency number without the route it was measured on cannot be
+    /// compared against another line in the same log, so `route` is not optional here.
+    ///
+    /// PURE on purpose: no `AVAudioSession` read, so a guard can drive it. The live
+    /// reader is `latencyBreadcrumb(reason:)`.
+    ///
+    /// Milliseconds with one decimal: the interesting range spans 3 ms (wired, small
+    /// buffer) to 250 ms (Bluetooth), and a second decimal would suggest a precision the
+    /// session's own estimates do not have.
+    static func latencyLine(reason: String,
+                            sampleRate: Double,
+                            ioBufferSeconds: Double,
+                            inputSeconds: Double,
+                            outputSeconds: Double,
+                            route: String) -> String {
+        // Non-finite or negative values are an edge case at this boundary, not an
+        // impossibility — a session queried mid-teardown can answer with anything. A
+        // line reading "total=nanms" is worse than one reading 0.0, because it looks
+        // like a parse bug in the log rather than a session that had no answer.
+        func ms(_ seconds: Double) -> String {
+            guard seconds.isFinite, seconds >= 0 else { return "?" }
+            return String(format: "%.1f", seconds * 1000)
+        }
+        let total = [ioBufferSeconds, inputSeconds, outputSeconds]
+            .filter { $0.isFinite && $0 >= 0 }
+            .reduce(0, +)
+        let rate = sampleRate.isFinite && sampleRate > 0
+            ? String(format: "%.0f", sampleRate) : "?"
+        return "latency: \(reason) sr=\(rate) buf=\(ms(ioBufferSeconds)) "
+            + "in=\(ms(inputSeconds)) out=\(ms(outputSeconds)) "
+            + "total=\(ms(total))ms route=\(route)"
+    }
+
+    /// Read the live session and emit the #653 line. Never call from a render block —
+    /// this touches `AVAudioSession` and formats a `String`.
+    static func latencyBreadcrumb(reason: String) {
+        #if os(macOS)
+        let line = latencyLine(reason: reason,
+                               sampleRate: preferredSampleRate,
+                               ioBufferSeconds: Double(currentBufferSize) / preferredSampleRate,
+                               inputSeconds: 0, outputSeconds: 0,
+                               route: "macOS HAL")
+        #else
+        let session = AVAudioSession.sharedInstance()
+        let current = session.currentRoute
+        // Port NAMES, not the classifier's latency CLASS. In a founder log "Built-In
+        // Microphone → HI-X25BT" answers "which combination was this?" immediately,
+        // where "high" would only repeat what the number already says. Multiple ports
+        // on one side are real (a split route) and are joined rather than truncated.
+        let ins = current.inputs.map(\.portName).joined(separator: "+")
+        let outs = current.outputs.map(\.portName).joined(separator: "+")
+        // Hoisted rather than interpolated inline: #287 took the bundle red on "unable to
+        // type-check in reasonable time" for exactly this shape — a ternary inside a string
+        // interpolation inside an argument list. Three plain `let`s cost nothing.
+        let inName = ins.isEmpty ? "none" : ins
+        let outName = outs.isEmpty ? "none" : outs
+        let routeName = inName + "→" + outName
+        let line = latencyLine(reason: reason,
+                               sampleRate: session.sampleRate,
+                               ioBufferSeconds: session.ioBufferDuration,
+                               inputSeconds: session.inputLatency,
+                               outputSeconds: session.outputLatency,
+                               route: routeName)
+        #endif
+        EchoelCrashLog.breadcrumb(line)
+    }
+
     /// Get latency statistics
     static func latencyStats() -> String {
         let totalLatency = measureLatency() * 1000  // Convert to ms

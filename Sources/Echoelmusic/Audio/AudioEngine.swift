@@ -570,6 +570,13 @@ public final class AudioEngine {
             try AudioConfiguration.configureAudioSession()
             AudioConfiguration.registerInterruptionHandlers()
             log.audio(AudioConfiguration.latencyStats())
+            // #653 — the same numbers, in the sink the founder can actually export.
+            // `latencyStats()` above is the human-readable report and has gone to
+            // `os_log` plus a write-only in-memory ring since it was written; neither
+            // reaches `echoel_diag.log`. Keeping BOTH is deliberate: the report carries
+            // the target and the ✅/⚠️/❌ verdict for a console session, the breadcrumb
+            // carries the comparable one-liner for a shared log.
+            AudioConfiguration.latencyBreadcrumb(reason: "start")
         } catch {
             log.audio("Failed to configure audio session: \(error)", level: .warning)
         }
@@ -676,6 +683,12 @@ public final class AudioEngine {
                     // switch. Re-read the one, forget the baseline for the other (#193).
                     self.refreshRenderQuantum(fallbackSampleRate: self.sampleRate)
                     self.armTimingInstrument()
+                    // #653 — a route switch is the ONLY event that changes the round-trip
+                    // without any user action, and it is exactly the moment a founder plugs
+                    // in a wired interface or connects a Bluetooth headset. Without a line
+                    // here the log would carry a latency measured on a route that is no
+                    // longer live. Route changes are rare, so this cannot flood the file.
+                    AudioConfiguration.latencyBreadcrumb(reason: "route change")
                     // #612 (mic-sweep CRITICAL, the rate half): `monitorTapSampleRate` is
                     // captured ONCE at tap install; after a 44.1↔48 route switch the
                     // notch maths sat up to ~9 % off and (since #599) YIN divided by the
@@ -1943,6 +1956,14 @@ public final class AudioEngine {
             // so a working take and a refused one can be compared side by side.
             logMonitorOutcome("ON (gain \(inputMonitorGain), \(inFmt.sampleRate) Hz, "
                               + "\(inFmt.channelCount) ch)", level: .info)
+            // #653 — the MOMENT that decides whether monitoring is usable at all. The
+            // session's own round-trip estimate plus the port names it was measured on go
+            // into the EXPORTABLE log here, right beside the "ON" line, so a founder take
+            // reads as one pair: monitoring started, and this is what it costs on THIS
+            // combination. Emitted after `logMonitorOutcome` deliberately — the ON line is
+            // the fact, the latency is its measurement, and a reader scanning for failures
+            // should hit the fact first.
+            AudioConfiguration.latencyBreadcrumb(reason: "monitor on")
             return true
         } else {
             guard isInputMonitoring else { return true }
