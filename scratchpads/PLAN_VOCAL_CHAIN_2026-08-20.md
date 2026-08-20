@@ -69,9 +69,70 @@ line, fix that exit. Nothing below is testable before this.
 insert between `notchEQ` and `monitorMixer`, driven from a mic-owned preset (NOT the synth's —
 two owners of one chain is the #416 shape). This single slice delivers harmonizer, reverb,
 delay, saturation, compressor and limiter on the voice, because they are already written.
-· Audio-thread: the chain's `processBuffer` already runs in a render path; the insert must be
-  an `AVAudioSourceNode`-style block or an `AVAudioUnit`, allocation-free, no locks.
 · Risk: **two owners.** The mic chain and the synth chain must not share a preset object.
+
+### V1's mechanism — the fork is RESOLVED (#669, measured 2026-08-20)
+
+This bullet used to read "an `AVAudioSourceNode`-style block **or** an `AVAudioUnit`" and
+left the choice open. It is decided, on a measured latency ground rather than taste, because
+the founder's ask is literally *"alle Latenzen und Kombinationen optimiert für Sessions"*.
+
+**First, a correction I owe the plan.** I had registered the blocker as *"`EchoelFXChain` is a
+generator, not an insert"*. **That is wrong.** `processBuffer(left:right:frameCount:)` is an
+**in-place** processor — it takes buffers and rewrites them, sample by sample through
+`processStereo`, with `advanceFilterGlide` once per block. It only *looks* generative because
+its one production caller (`PolySynthVoice`) hands it scratch buffers it has just synthesised.
+The chain has been insert-shaped all along; what is missing is a NODE to host it.
+
+Equally worth stating, because it changes the size of V1: **the monitor path is already a real
+insert rail.** `input → notchEQ (AVAudioUnitEQ) → [voiceTunePitch (AVAudioUnitTimePitch)] →
+monitorMixer`, and the autotune brain (`VoicePitchCorrector` → `appliedCents`) already drives
+that pitch node. Autotune with character controls is SHIPPED and doored ("Tune to key",
+strength, retune). V1 is not "build a vocal chain"; it is "add one node kind to a rail that
+runs".
+
+**Option A — `AVAudioSourceNode` fed from the mic tap through a lock-free ring. REJECTED.**
+Precedent exists (`MetronomeVoice`, `SessionEngine`, plus `AudioEngine.attachSourceNode`), and
+the tap→ring→consumer shape exists too (`MonitorTapWindow`, `RGBSampleQueue`). It is the
+cheapest thing to build and the wrong thing to ship:
+  · it ADDS latency by construction — one tap buffer plus one render quantum. The monitor tap
+    is installed at `bufferSize: monitorTapWindow.size` = **2048 frames ≈ 43 ms at 48 kHz**.
+    Even re-tapped at 256 frames it is ~5 ms on top of a floor that is ~9 ms. Adding half
+    again to the number the app now prints on screen, in the slice that answers a
+    latency-optimisation request, is the wrong direction.
+  · the signal would LEAVE the graph and re-enter it, so the direct connection has to be cut
+    or both paths sound at once — a second lifecycle owner on a chain that already had one
+    (the BLE-3 lesson, one owner per resource).
+
+**Option B — an `AUAudioUnit` subclass hosting the chain. CHOSEN.** A true in-graph insert,
+sitting exactly where `notchEQ` sits, with **zero added latency**. Honest costs, stated:
+  · **No precedent in this repo** — `git grep -n "class .*: AUAudioUnit\|registerSubclass\|
+    AVAudioUnit.instantiate" -- Sources` returns nothing. The only custom-AU-adjacent code is
+    Apple's own `kAudioUnitSubType_PeakLimiter` via `AVAudioUnitEffect` (`AutoMixChain:113`).
+    This is a first-of-its-kind mechanism and should be its own slice before any DSP rides on it.
+  · The contract is fiddly: bus arrays, `allocateRenderResources`, an `internalRenderBlock`
+    that must be allocation- and lock-free, and an async `AVAudioUnit.instantiate`.
+  · **One small API addition is required and is not optional.** The render block receives an
+    `AudioBufferList`, not Swift `Array`s, so `processBuffer(left: inout [Float], …)` cannot be
+    called from it without a copy. `EchoelFXChain` needs a pointer entry point —
+    `processInPlace(left: UnsafeMutablePointer<Float>, right:, frameCount:)` — doing exactly
+    what `processBuffer` does (glide once per block, then `processStereo` per sample). Same
+    law, one definition, no scratch buffer, no memcpy (#416).
+
+**Option C — Apple nodes only** (EQ, TimePitch, Distortion, Reverb, Delay). Cheapest and it
+ships today, but it cannot deliver the harmonizer or the granular stage the founder named, and
+those are the two the repo's own DSP already has. Rejected as an answer to the ask, though it
+stays the correct answer for anything Apple genuinely covers.
+
+**Council (compact).** Architect: one node kind, at the place a node already sits — no new
+coupling. DSP Purist: `processStereo` is already allocation- and lock-free; the pointer entry
+point keeps it that way and adds no second definition. Skeptic: the AU contract is the risk,
+not the DSP — build the empty pass-through AU and prove it in the graph BEFORE any stage rides
+on it. Shipper: V0 still gates whether any of this can be HEARD; do not start V1 code before
+one founder log. User-Advocate: the latency number is now on his screen, so a mechanism that
+inflates it would be visibly self-contradicting.
+**Gate: proceed to V1 as TWO slices — V1a an empty pass-through `AUAudioUnit` insert proven in
+the monitor chain, V1b the chain riding it — and neither before V0 returns.**
 
 **V2 — per-stage latency, stated not guessed.** The founder asked for "alle Latenzen und
 Kombinationen optimiert". The honest form is a measured budget the UI *shows*:
