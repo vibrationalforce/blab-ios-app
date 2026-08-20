@@ -396,12 +396,19 @@ enum AudioConfiguration {
         #if os(macOS)
         return Double(currentBufferSize) / preferredSampleRate
         #else
+        // #663 — routed through the SHARED sum. This was the last unfiltered spelling of
+        // "in + out + one buffer" in this file: it added the three terms raw, so a session
+        // queried mid-teardown made `latencyStats()` print `nan`. Behaviour on a healthy
+        // session is unchanged (`inputAvailable: true` keeps the input term), and a
+        // non-finite part is now dropped instead of poisoning the result.
+        // ⚠️ It still differs from the picker in ONE way, deliberately: this returns a
+        // TimeInterval with no way to say the sum was partial. Callers that show a number to
+        // a human must use `latencySnapshot()`, which carries `complete`.
         let audioSession = AVAudioSession.sharedInstance()
-        let inputLatency = audioSession.inputLatency
-        let outputLatency = audioSession.outputLatency
-        let ioBufferDuration = audioSession.ioBufferDuration
-
-        return inputLatency + outputLatency + ioBufferDuration
+        return latencyFloorSeconds(ioBufferSeconds: audioSession.ioBufferDuration,
+                                   inputSeconds: audioSession.inputLatency,
+                                   outputSeconds: audioSession.outputLatency,
+                                   inputAvailable: true)
         #endif
     }
 
@@ -654,6 +661,92 @@ enum AudioConfiguration {
     /// Milliseconds with one decimal: the interesting range spans 3 ms (wired, small buffer)
     /// to 250 ms (Bluetooth), and a second decimal would suggest a precision the session's
     /// own estimates do not have.
+    /// Hardware in + ONE buffer period + hardware out, skipping any part that could not be
+    /// measured.
+    ///
+    /// #663. This sum had FOUR spellings in this file before #416 was applied to it, and only
+    /// the one inside `latencyLine` filtered non-finite values before adding. It is `floor`,
+    /// never `total`: a lower bound on what the ear hears, not the round trip. An unmeasurable
+    /// part is DROPPED rather than counted as zero — the caller learns that from
+    /// `LatencyReadout.complete`, never from a number that quietly shrank.
+    static func latencyFloorSeconds(ioBufferSeconds: Double,
+                                    inputSeconds: Double,
+                                    outputSeconds: Double,
+                                    inputAvailable: Bool) -> Double {
+        var parts: [Double] = [ioBufferSeconds, outputSeconds]
+        if inputAvailable { parts.append(inputSeconds) }
+        return parts.filter { $0.isFinite && $0 >= 0 }.reduce(0, +)
+    }
+
+    /// The same measurement `latencyBreadcrumb` writes to `echoel_diag.log`, as NUMBERS.
+    ///
+    /// #663. The founder asked for "alle Latenzen und Kombinationen optimiert für Sessions".
+    /// A log line answers that only after an export; a readout answers it while he is choosing
+    /// the route. Both read ONE gathering (`currentSessionLatency`) and ONE sum
+    /// (`latencyFloorSeconds`), so the screen and the file can never disagree — which is the
+    /// whole reason this is a split and not a second implementation (#416).
+    ///
+    /// ⚠️ `inputMilliseconds` is OPTIONAL on purpose. "no input route" and "input measured at
+    /// zero" are different facts, and #654 exists because this file once printed both as 0.0.
+    struct LatencyReadout: Sendable, Equatable {
+        let floorMilliseconds: Double
+        /// Every part is OPTIONAL, and that is the #654 lesson applied rather than quoted:
+        /// `nil` means "this session could not answer", never "the hardware costs nothing".
+        /// `inputMilliseconds` is additionally `nil` when there is no input route at all.
+        let bufferMilliseconds: Double?
+        let inputMilliseconds: Double?
+        let outputMilliseconds: Double?
+        let route: String
+        /// `false` when any part above is `nil`, so `floorMilliseconds` is a PARTIAL sum.
+        /// A caller that shows the floor without showing this is publishing a number that
+        /// silently shrank.
+        let complete: Bool
+
+        /// The headline number. Carries a `+` when the sum is PARTIAL, because a floor that
+        /// silently dropped an unmeasurable part is worse than one that says so (#654).
+        ///
+        /// #663: this lives on the readout, not in the view, so it is reachable by a test and
+        /// so a second surface cannot invent a second spelling of the same number (#416).
+        var floorText: String {
+            let value = String(format: "%.1f", floorMilliseconds)
+            return complete ? value + " ms" : value + "+ ms"
+        }
+
+        /// `in 1.5 · buffer 5.0 · out 2.5 ms · Built-In Microphone→Speaker`, with `—` for any
+        /// part the session could not answer.
+        var breakdownText: String {
+            func part(_ name: String, _ value: Double?) -> String {
+                guard let value else { return name + " —" }
+                return name + " " + String(format: "%.1f", value)
+            }
+            let parts = [part("in", inputMilliseconds),
+                         part("buffer", bufferMilliseconds),
+                         part("out", outputMilliseconds)].joined(separator: " · ")
+            return parts + " ms · " + route
+        }
+    }
+
+    static func latencySnapshot() -> LatencyReadout {
+        let v = currentSessionLatency()
+        func ms(_ seconds: Double) -> Double? {
+            guard seconds.isFinite, seconds >= 0 else { return nil }
+            return seconds * 1000
+        }
+        let buf = ms(v.ioBufferSeconds)
+        let out = ms(v.outputSeconds)
+        let input = v.inputAvailable ? ms(v.inputSeconds) : nil
+        let floor = latencyFloorSeconds(ioBufferSeconds: v.ioBufferSeconds,
+                                        inputSeconds: v.inputSeconds,
+                                        outputSeconds: v.outputSeconds,
+                                        inputAvailable: v.inputAvailable)
+        return LatencyReadout(floorMilliseconds: floor * 1000,
+                              bufferMilliseconds: buf,
+                              inputMilliseconds: input,
+                              outputMilliseconds: out,
+                              route: sanitisedRoute(v.route),
+                              complete: buf != nil && out != nil && input != nil)
+    }
+
     static func latencyLine(reason: String,
                             category: String,
                             sampleRate: Double,
@@ -686,9 +779,10 @@ enum AudioConfiguration {
             incomplete = true
         }
         let outText = ms(outputSeconds)
-        var parts: [Double] = [ioBufferSeconds, outputSeconds]
-        if inputAvailable { parts.append(inputSeconds) }
-        let floorSeconds = parts.filter { $0.isFinite && $0 >= 0 }.reduce(0, +)
+        let floorSeconds = latencyFloorSeconds(ioBufferSeconds: ioBufferSeconds,
+                                               inputSeconds: inputSeconds,
+                                               outputSeconds: outputSeconds,
+                                               inputAvailable: inputAvailable)
         let rate = sampleRate.isFinite && sampleRate > 0
             ? String(format: "%.0f", sampleRate) : "?"
         // `floor`, never `total`: hardware in + out + ONE buffer period. It is a lower
@@ -725,20 +819,31 @@ enum AudioConfiguration {
     /// writes appears in no diff, and the whole point of the field is that each caller states
     /// whether the pitch stage is in the chain it is describing. `nil` means "this line is not
     /// about the monitor chain" and omits the field entirely.
-    static func latencyBreadcrumb(reason: String, tuneStage: Bool?) {
+    /// One gathering of the platform's latency facts, so the log line and the on-screen
+    /// readout can never drift apart (#663). Everything platform-specific lives HERE; both
+    /// consumers are platform-free below it.
+    private struct SessionLatencyValues {
+        let category: String
+        let sampleRate: Double
+        let ioBufferSeconds: Double
+        let inputSeconds: Double
+        let outputSeconds: Double
+        let inputAvailable: Bool
+        let route: String
+    }
+
+    private static func currentSessionLatency() -> SessionLatencyValues {
         #if os(macOS)
-        // ⛔ #654: the previous version passed `inputSeconds: 0, outputSeconds: 0` here and
+        // ⛔ #654: an earlier version passed `inputSeconds: 0, outputSeconds: 0` here and
         // printed "in=0.0 out=0.0" — a claim of zero hardware latency on a platform this
-        // file cannot measure. Both are now declared unavailable.
-        let line = latencyLine(reason: reason,
-                               category: "macOS-HAL",
-                               sampleRate: preferredSampleRate,
-                               ioBufferSeconds: Double(currentBufferSize) / preferredSampleRate,
-                               inputSeconds: .nan,
-                               outputSeconds: .nan,
-                               inputAvailable: false,
-                               tuneStage: tuneStage,
-                               route: "macOS HAL")
+        // file cannot measure. Both are declared unavailable instead.
+        return SessionLatencyValues(category: "macOS-HAL",
+                                    sampleRate: preferredSampleRate,
+                                    ioBufferSeconds: Double(currentBufferSize) / preferredSampleRate,
+                                    inputSeconds: .nan,
+                                    outputSeconds: .nan,
+                                    inputAvailable: false,
+                                    route: "macOS HAL")
         #else
         let session = AVAudioSession.sharedInstance()
         let current = session.currentRoute
@@ -753,18 +858,27 @@ enum AudioConfiguration {
         // interpolation inside an argument list. Plain `let`s cost nothing.
         let inName = ins.isEmpty ? "none" : ins
         let outName = outs.isEmpty ? "none" : outs
-        let routeName = inName + "→" + outName
-        let line = latencyLine(reason: reason,
-                               category: session.category.rawValue,
-                               sampleRate: session.sampleRate,
-                               ioBufferSeconds: session.ioBufferDuration,
-                               inputSeconds: session.inputLatency,
-                               outputSeconds: session.outputLatency,
-                               inputAvailable: !current.inputs.isEmpty,
-                               tuneStage: tuneStage,
-                               route: routeName)
+        return SessionLatencyValues(category: session.category.rawValue,
+                                    sampleRate: session.sampleRate,
+                                    ioBufferSeconds: session.ioBufferDuration,
+                                    inputSeconds: session.inputLatency,
+                                    outputSeconds: session.outputLatency,
+                                    inputAvailable: !current.inputs.isEmpty,
+                                    route: inName + "→" + outName)
         #endif
-        EchoelCrashLog.breadcrumb(line)
+    }
+
+    static func latencyBreadcrumb(reason: String, tuneStage: Bool?) {
+        let v = currentSessionLatency()
+        EchoelCrashLog.breadcrumb(latencyLine(reason: reason,
+                                              category: v.category,
+                                              sampleRate: v.sampleRate,
+                                              ioBufferSeconds: v.ioBufferSeconds,
+                                              inputSeconds: v.inputSeconds,
+                                              outputSeconds: v.outputSeconds,
+                                              inputAvailable: v.inputAvailable,
+                                              tuneStage: tuneStage,
+                                              route: v.route))
     }
 
     /// Get latency statistics

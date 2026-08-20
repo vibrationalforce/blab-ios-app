@@ -255,6 +255,14 @@ struct AudioInputPickerView: View {
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+                // #663 — THE NUMBER, next to the warning that motivates it. The founder asked
+                // for "alle Latenzen und Kombinationen optimiert für Sessions"; #653–#657 made
+                // that measurable but only inside `echoel_diag.log`, which answers after an
+                // export. This answers while he is choosing the route.
+                // ⚠️ Its OWN leaf, and that is the 10.76.41/50 freeze law, not tidiness: this
+                // view hosts Pickers, and a value read in THIS body would register the whole
+                // body as an observer of whatever the leaf watches.
+                MonitorLatencyRow()
                 if inputs.outputIsHighLatency {
                     Text("Output is on \(inputs.outputRouteName.isEmpty ? "Bluetooth" : inputs.outputRouteName) (~150–250 ms). The iPhone mic stays low-latency, but you'll hear your own voice slightly delayed through Bluetooth — fine for the beat, less tight for vocals. Plug in wired/USB headphones for delay-free self-monitoring.")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
@@ -372,4 +380,59 @@ struct AudioInputPickerView: View {
         }
     }
 }
+/// The measured monitor latency, as a number the founder can read without exporting a log.
+///
+/// #663. Same gathering and same sum as the `latency:` breadcrumb — `AudioConfiguration`
+/// owns both, so the screen and the file cannot disagree (#416).
+///
+/// ⚠️ A LEAF ON PURPOSE. `AudioInputPickerView` hosts Pickers, and 10.76.41/50 cost several
+/// device builds to learn that a value read in a Picker-hosting body tears down an open
+/// popover whenever it changes. Nothing here is polled: `AVAudioSession` latency changes only
+/// when the route changes, so the read happens on appear and on `routeChangeNotification`.
+/// There is no timer, and adding one would be the freeze bug.
+private struct MonitorLatencyRow: View {
+    @State private var readout: AudioConfiguration.LatencyReadout?
+
+    var body: some View {
+        Group {
+            if let readout {
+                VStack(alignment: .leading, spacing: 2) {
+                    HStack(spacing: 6) {
+                        Text("Monitor latency").font(EchoelTheme.font(11))
+                            .foregroundStyle(EchoelTheme.dim)
+                        Spacer(minLength: 8)
+                        Text(readout.floorText)
+                            .font(EchoelTheme.font(13, .semibold))
+                            .foregroundStyle(EchoelTheme.text)
+                            .monospacedDigit()
+                    }
+                    Text(readout.breakdownText + "\n" + Self.caveat)
+                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .onAppear { readout = AudioConfiguration.latencySnapshot() }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default
+            .publisher(for: AVAudioSession.routeChangeNotification)
+            .receive(on: DispatchQueue.main)) { _ in
+                // `.receive(on:)` is not decoration and it is not copied for symmetry:
+                // AVAudioSession posts this from its OWN thread, and this closure writes
+                // `@State` on a `@MainActor` view. The sibling refresh at the top of this
+                // file carries the same hop for the same reason.
+                readout = AudioConfiguration.latencySnapshot()
+            }
+        #endif
+    }
+
+    /// The one sentence the numbers cannot carry themselves.
+    ///
+    /// "floor", never "total": hardware in + out + ONE buffer period is a LOWER BOUND on what
+    /// the ear hears, not the round trip. Saying so beats letting the reader assume the
+    /// stronger claim — the same retraction `latencyLine` carries for the log.
+    static let caveat = "Lower bound — hardware plus one buffer. Effects add on top."
+}
+
 #endif
