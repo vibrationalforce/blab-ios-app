@@ -120,12 +120,22 @@ final class TheMeasuredLatencyReachesTheScreenTests: XCTestCase {
         XCTAssertEqual(Self.occurrences(of: "private static func currentSessionLatency", in: code), 1,
                        "the single gathering of the platform's latency facts is gone or duplicated.")
         XCTAssertTrue(code.contains("static func latencySnapshot"), "the on-screen readout is gone.")
-        // #663 folded the LAST unfiltered spelling in as well: `measureLatency()` added the
-        // three terms raw, so a session queried mid-teardown made `latencyStats()` print
-        // `nan`. Pinned because "one sum" is only true while this call site exists.
+        // #663 folded `measureLatency()` in: it added the three terms raw, so a session
+        // queried mid-teardown made `latencyStats()` print `nan`. Pinned because "one sum"
+        // is only true while this call site exists.
+        // ⛔ #665: this comment said "#663 folded the LAST unfiltered spelling" and the
+        // message below said "the FOURTH spelling". Both were wrong, and #664 measured it:
+        // there were THREE spellings, #663 folded TWO, and the third — `Total Latency:` in
+        // `configureAudioSession` — it never touched. #664 folded that one. So "last" became
+        // true only at #664, and "fourth" was never true.
+        // ⭐ The reason this needed its own slice is the point: #664 corrected the count where
+        // the REASONING lives (`AudioConfiguration.swift`) and left both copies standing here,
+        // in the message that FIRES. That is exactly what #662 was about, one commit later.
         XCTAssertTrue(code.contains("return latencyFloorSeconds(ioBufferSeconds: audioSession"), """
-            `measureLatency()` went back to adding the three latency terms itself. That was \
-            the fourth spelling of one decision, and the only one with no non-finite filter.
+            `measureLatency()` went back to adding the three latency terms itself. It was one \
+            of three spellings of one decision and the only one with no non-finite filter; \
+            the shared sum is what keeps the log and the picker from printing different \
+            numbers for one route.
             """)
         // Both consumers must go through the gathering. If either stops, the drift this whole
         // file guards against is back and nothing else would notice.
