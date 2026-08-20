@@ -3266,43 +3266,19 @@ struct EchoelStudioView: View {
     /// of rotating (no transform animations — Uncodixfy).
     @ViewBuilder private var liveNarrationBanner: some View {
         if running {
-            VStack(alignment: .leading, spacing: 10) {
-                Button {
-                    showLiveNarration.toggle()
-                } label: {
-                    HStack(spacing: 8) {
-                        Image(systemName: "text.bubble")
-                            .font(.system(size: 12))
-                            .foregroundStyle(EchoelTheme.dim)
-                        Text("What your body is doing to the sound")
-                            .font(EchoelTheme.font(12, .semibold))
-                            .foregroundStyle(EchoelTheme.dim)
-                        Spacer(minLength: 8)
-                        Image(systemName: showLiveNarration ? "chevron.down" : "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundStyle(EchoelTheme.dim)
-                    }
-                    // ~16 pt of intrinsic label height was the whole tap target (a
-                    // `.plain` Button hit-tests its label bounds) — under WCAG 2.5.8's
-                    // 24, let alone HIG's 44. `minHeight` (never `height` — the #353
-                    // clipping class) plus a −5 outset reaches ≥44: the bleed lands in
-                    // the card's own 12 pt padding above and, when open, in the 10 pt
-                    // gap to the non-interactive caption text below.
-                    .frame(minHeight: 34)
-                    .contentShape(Rectangle().inset(by: -5))
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Live narration")
-                .accessibilityHint("Shows or hides the plain-language description of how your body shapes the music")
-                if showLiveNarration {
-                    StudioCaptionView(caption: caption)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-            }
-            .padding(12)
-            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
-            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
-                .stroke(EchoelTheme.border, lineWidth: 1))
+            // ⭐ #644 MOVED THE WHOLE DISCLOSURE INTO A LEAF, and the heading is why. It read
+            // "What your body is doing to the sound" in all three states — including the one
+            // where the paragraph beneath it says "no pulse measured yet". The fact it needs
+            // lives on `StudioCaption`. ⛔ The first draft justified the move by claiming a read
+            // HERE would sit in a Picker-hosting body; this property is UNMOUNTED (founder,
+            // 2026-07-12), so that hazard is prospective, not present — it becomes true the day
+            // the surface is doored, which is exactly when a leaf is needed anyway.
+            LiveNarrationDisclosure(caption: caption, isOpen: $showLiveNarration)
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .stroke(EchoelTheme.border, lineWidth: 1))
         }
     }
 
@@ -9658,6 +9634,12 @@ struct EchoelStudioView: View {
         // one surface up — a reading that stopped arriving, still presented as live.
         // Unconditional now; nil is the all-unmeasured case the callee already renders.
         caption.text = BioExplanation.text(for: frame, tempo: tempo)
+        // #644: the heading above this paragraph has to name the same driver the paragraph
+        // does, and `BioExplanation.driver(for:)` is that decision — the SAME "was anything
+        // measured" predicate the line above uses to decide whether to print " from your live
+        // signal,". Same statement, same `frame`; see `StudioCaption.driver` for why the
+        // adjacency is the whole guarantee.
+        caption.driver = BioExplanation.driver(for: frame)
         let wasPlaying = beatPlayer.pattern.isPlaying
         // Start playback only for the user-initiated first generate; a background/onChange
         // re-seed must not restart a transport the user stopped from the transport bar.

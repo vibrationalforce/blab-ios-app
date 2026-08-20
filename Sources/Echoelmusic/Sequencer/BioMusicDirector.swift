@@ -79,7 +79,70 @@ public struct BioStateSummary: Sendable, Equatable {
 /// right now — simple but precise technical language. Deterministic, no LLM, so it
 /// works on iOS 18+ (not gated to the on-device model). Surfaced to the user as
 /// "EchoelAI" narration of the bio→sound process.
+/// WHO the narration paragraph is about — the three answers its own clauses already give.
+///
+/// ⛔ IT WAS A `Bool` FOR ONE COMMIT AND THE BOOL COULD NOT SAY THE COMMON THING (#644 review).
+/// `synthetic == false` collapsed "a real body" and "nothing was measured" into one value, so
+/// the heading rendered "What your body is doing to the sound" over a paragraph opening
+/// "tempo holds at N BPM; no pulse measured yet". That is not a corner: the doc on
+/// `BioExplanation.text` records device log 2494 measuring `body=0` in EVERY generate
+/// breadcrumb for ~475 s — the un-handled branch was the normal first minute, and the register
+/// in `TheMetricSheetRowsSayWhoseBodyTests` had already written the defect down in advance.
+///
+/// ⭐ THE THREE STRINGS LIVE IN ONE `switch`, so a fourth spelling cannot grow beside them, and
+/// `.nothingMeasured` drops the possessive entirely rather than inventing a subject.
+public enum BioNarrationDriver: Sendable, Equatable {
+    /// A measured, real body.
+    case body
+    /// A measured signal from the demo generator.
+    case simulatedDemo
+    /// Nothing was read — no clause in the paragraph is about anyone.
+    case nothingMeasured
+
+    /// The disclosure heading above the paragraph.
+    public var heading: String {
+        switch self {
+        case .body:            return "What your body is doing to the sound"
+        case .simulatedDemo:   return "What the simulated demo source is doing to the sound"
+        case .nothingMeasured: return "What is shaping the sound"
+        }
+    }
+
+    /// The spoken label for the disclosure control.
+    ///
+    /// ⚠️ THE MARKER IS IN THE LABEL, NOT THE HINT, and the #644 review is the reason. A
+    /// `Button`'s `accessibilityLabel` REPLACES its visible text for VoiceOver, and a hint is
+    /// user-suppressible in VoiceOver settings — so a marker carried only by the hint lets a
+    /// listener get exactly the different answer the sighted reader is protected from. Every
+    /// sibling surface in this family prefixes the LABEL (`AlwaysOnBioRow`, `HeaderMonitors`,
+    /// `EchoelFXView`, `BioMetricInfo`, `LiveColaboView` all spell it "Simulated demo, ").
+    public var voiceOverLabel: String {
+        switch self {
+        case .body, .nothingMeasured: return "Live narration"
+        case .simulatedDemo:          return "Simulated demo, live narration"
+        }
+    }
+}
+
 public enum BioExplanation {
+    /// Who the paragraph `text(for:tempo:)` is about, from the SAME predicate that decides
+    /// whether it prints " from your live signal," (#644).
+    ///
+    /// ⭐ ONE DEFINITION, TWO READERS. The heading above the paragraph and the paragraph itself
+    /// must not answer differently, and the only way to guarantee that is to compute the answer
+    /// once. `text` derives its own from the same private helper below, so a change to the
+    /// "was anything measured" rule moves both at once (#416).
+    public static func driver(for f: BioSampleFrame?) -> BioNarrationDriver {
+        driver(summary: BioStateSummary(from: f), frame: f)
+    }
+
+    private static func driver(summary s: BioStateSummary,
+                               frame f: BioSampleFrame?) -> BioNarrationDriver {
+        guard s.arousal != nil || s.steadiness != nil || s.breath != nil else {
+            return .nothingMeasured
+        }
+        return f?.source.isSynthetic == true ? .simulatedDemo : .body
+    }
     /// ⭐ THE FRAME IS OPTIONAL, and this is the whole point of #506. Everything below —
     /// the "no pulse measured yet" branch, the `measuredAnything` suppression of the
     /// phrase " from your live signal," — was written for the case where the body was
@@ -146,7 +209,11 @@ public enum BioExplanation {
         // The tail describes the ENGINE, so it is safe to always append — except for the
         // phrase "from your live signal", which is a claim about the body and directly
         // contradicts the "no pulse measured" opening when nothing was read.
-        let measuredAnything = s.arousal != nil || s.steadiness != nil || s.breath != nil
+        // #644: derived rather than re-spelled. `measuredAnything` and `synthetic` below were
+        // two halves of one question the heading now asks too; computing them here and there
+        // is how the paragraph and its heading drift apart.
+        let who = Self.driver(summary: s, frame: f)
+        let measuredAnything = who != .nothingMeasured
         // ⭐ #634b — WHOSE signal, not just whether there was one. Every clause above is a
         // sentence about the listener's body ("heart rate 72 BPM sets a flowing tempo"),
         // and `BioSimulator` satisfies every `hasMeasured…` gate by construction, so under
@@ -163,11 +230,18 @@ public enum BioExplanation {
         // spoken by "EchoelAI", so a qualifier placed anywhere but the front corrects a
         // claim the reader has already accepted. Same reason the VoiceOver prefixes on
         // `AlwaysOnBioRow` and `HeaderMonitors` lead instead of trail.
-        let synthetic = f?.source == .fallback
-        let who = synthetic ? " from the demo signal," : " from your live signal,"
+        // ⛔ #644's FIRST CUT WROTE `who == .simulatedDemo` HERE AND THAT SILENTLY CHANGED THE
+        // OUTPUT. `who` is `.nothingMeasured` whenever no clause was read, so a demo session
+        // that measured nothing would have lost its "(demo signal)" prefix — a marking removed
+        // by a refactor whose stated purpose was to add one. TWO QUESTIONS, and they are not
+        // the same: the HEADING asks who the paragraph is ABOUT (nothing measured = nobody),
+        // this asks which SOURCE is selected (the demo is the demo whether or not it produced
+        // a clause). Unifying them looked like #416 and was a behaviour change.
+        let synthetic = f?.source.isSynthetic == true
+        let signal = synthetic ? " from the demo signal," : " from your live signal,"
         // The connector rides INSIDE the conditional — leaving a bare " and" behind made
         // the no-body tail read "…opening pitch and dynamics and morphs in at the bar line".
-        let source = measuredAnything ? who : ""
+        let source = measuredAnything ? signal : ""
         return (synthetic ? "EchoelAI (demo signal) — " : "EchoelAI — ")
             + clauses.joined(separator: "; ")
             + ". Each phrase re-seeds the chords, opening pitch and dynamics\(source)"

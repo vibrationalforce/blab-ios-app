@@ -77,6 +77,10 @@ final class TapTargetFloorTests: XCTestCase {
     private static let tempoField = "Sources/Echoelmusic/Studio/BodyTempoField.swift"
     private static let workspace = "Sources/Echoelmusic/Studio/WorkspaceView.swift"
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+    /// #644 moved the narration disclosure out of `EchoelStudioView` into its own leaf, so its
+    /// heading could name the driver the paragraph beneath it already names. The geometry moved
+    /// with it, byte for byte — this scan follows it (§4).
+    private static let narration = "Sources/Echoelmusic/Studio/LiveNarrationDisclosure.swift"
 
     /// The outset idiom, spelled exactly as both transport-bar controls spell it.
     private static let outset6 = "contentShape(Rectangle().inset(by: -6))"
@@ -535,20 +539,27 @@ final class TapTargetFloorTests: XCTestCase {
     /// `NoDoorlessStudioViewsTests` and task #326. This case fixes the surface's geometry
     /// so the doored version inherits it; it does NOT claim a user can reach it today,
     /// and the audit case A11y#6 is closed only in that inherited sense.
+    ///
+    /// ⛔ RE-ANCHORED IN #644, and the old form would have gone RED ON CORRECT CODE rather than
+    /// skipping: the disclosure moved into `LiveNarrationDisclosure.swift` (its heading had to
+    /// name the driver its paragraph names, and doing that in `EchoelStudioView` would have put
+    /// an `@Observable` read in a Picker-hosting body). `hits.count` in the studio file drops to
+    /// zero, which trips the uniqueness assertion BEFORE the `XCTSkip` escape below can run.
+    /// Same window, same two needles, one file further out.
     func testTheNarrationDisclosureClearsTheFloor() throws {
-        let studio = try codeLines(Self.studio)
-        let anchor = "showLiveNarration.toggle()"
-        let hits = studio.indices.filter { studio[$0].contains(anchor) }
+        let narration = try codeLines(Self.narration)
+        let anchor = "isOpen.toggle()"
+        let hits = narration.indices.filter { narration[$0].contains(anchor) }
         XCTAssertEqual(hits.count, 1, """
-            `\(anchor)` is no longer unique in EchoelStudioView — re-anchor this window \
+            `\(anchor)` is no longer unique in LiveNarrationDisclosure — re-anchor this window \
             before trusting the assertions below.
             """)
         guard let start = hits.first,
-              let stop = studio[start...].firstIndex(where: {
-                  $0.contains("accessibilityLabel(\"Live narration\")")
+              let stop = narration[start...].firstIndex(where: {
+                  $0.contains("accessibilityLabel(caption.driver.voiceOverLabel)")
               })
         else { throw XCTSkip("the narration disclosure is gone — remove this case with it") }
-        let control = studio[start...stop]
+        let control = narration[start...stop]
         XCTAssertTrue(control.contains { $0.contains("frame(minHeight: 34)") }, """
             the narration disclosure lost its `frame(minHeight: 34)` (#617) — back to a \
             ~16 pt tap strip. `minHeight`, never `height`: the label wraps at large \

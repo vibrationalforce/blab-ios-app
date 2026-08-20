@@ -137,10 +137,16 @@
 // ⛔ **AND #643's REVIEW FOUND SIX ENTRIES THIS REGISTER NEVER HELD** — measured, each with a
 // mount, not guessed. They are listed here because a register short by an entry is the failure
 // mode this whole file exists to document, and it has now happened four times:
-//   · `EchoelStudioView.swift` `Text("What your body is doing to the sound")` — renders while
-//     RUNNING, and heads a paragraph that under demo literally begins "EchoelAI (demo signal) —".
-//     Header asserts a body over a paragraph that denies it: the #640/#641 collision on a third
-//     surface, and the most-read of the three. Its `.accessibilityHint` says the same thing.
+//   · ⭐ **CLOSED (#644)** — `Text("What your body is doing to the sound")` and its
+//     `.accessibilityHint`. The literal no longer lives in `EchoelStudioView`: the whole
+//     disclosure moved to `LiveNarrationDisclosure.swift` and the three strings to
+//     `BioNarrationDriver.heading`. ⛔ TWO CLAIMS IN THIS ENTRY WERE WRONG WHEN WRITTEN: it
+//     "renders while RUNNING" — the surface is UNMOUNTED and has been since a founder decision
+//     on 2026-07-12 — and it is the LEAST-read of the three, not the most (measured mounts: 1,
+//     1, 0). ⛔ AND THE FIX'S OWN FIRST CUT WAS HALF: a `Bool` collapsed "a real body" and
+//     "nothing measured" into one heading, so it still said "your body" over "no pulse measured
+//     yet" — the case THIS REGISTER had already written down four bullets below. A register
+//     entry that predicts the next slice's defect only helps if the next slice reads it.
 //   · `EchoelStudioView.swift` `"Ideas from your pulse — tap to keep. Your body wants …"` — the
 //     density traces `bus.usableBio()`, so under the demo this attributes a PREFERENCE to the
 //     reader that no body expressed. The strongest possessive claim anywhere in this family.

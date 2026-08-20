@@ -26,6 +26,26 @@ import Observation
 @Observable
 final class StudioCaption {
     var text = ""
+
+    /// Who this narration is about, for the heading above it (#644).
+    ///
+    /// ⭐ IT LIVES ON THE CAPTION, not on a second read, so the HEADING above the paragraph and
+    /// the paragraph itself answer from the same instant. `BioExplanation.text(for:tempo:)` has
+    /// marked its own provenance since #627 — while the demo drives it opens "EchoelAI (demo
+    /// signal) — " — and the disclosure row above it claimed a body unconditionally. Two answers
+    /// on one card, which is the #640/#641 collision on a third surface.
+    ///
+    /// ⛔ IT WAS A `Bool` FOR ONE COMMIT. `synthetic == false` meant BOTH "a real body" and
+    /// "nothing was measured", so the heading said "What your body is doing to the sound" over
+    /// a paragraph opening "no pulse measured yet" — and the doc on `BioExplanation.text`
+    /// records that as the COMMON case (device log 2494: `body=0` in every generate breadcrumb
+    /// for ~475 s). `BioNarrationDriver` has the third value; `.nothingMeasured` drops the
+    /// possessive rather than inventing a subject.
+    ///
+    /// ⚠️ WRITTEN AT THE SAME STATEMENT AS `text`, from the same `frame`, and that adjacency is
+    /// the whole guarantee. A separate read anywhere else could observe a different instant, and
+    /// then the heading and the paragraph disagree exactly the way #641 had to be fixed twice.
+    var driver: BioNarrationDriver = .nothingMeasured
 }
 
 @MainActor

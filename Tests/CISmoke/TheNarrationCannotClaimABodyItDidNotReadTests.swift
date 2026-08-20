@@ -19,8 +19,9 @@
 // the NORMAL first minute, not the exception.
 //
 // ⛔ HONEST LIMIT — READ THIS BEFORE TRUSTING A GREEN, because this file looks broader than it
-// is. The chain is DOORLESS TODAY. `StudioCaptionView` is mounted only inside
-// `liveNarrationBanner`, and that property has exactly ONE occurrence in `Sources/` — its own
+// is. The chain is DOORLESS TODAY. `StudioCaptionView` is mounted inside
+// `LiveNarrationDisclosure` (#644), which `liveNarrationBanner` mounts and nothing else does —
+// and that property has exactly ONE occurrence in `Sources/` — its own
 // declaration, zero mount sites (task #326). So nothing here is visible to a user right now,
 // and this slice fixes a MECHANISM, not a live screen. It is written anyway for the reason
 // #429/#433/#444/#470 were: the sentence is wrong whether or not a door exists, and a door
