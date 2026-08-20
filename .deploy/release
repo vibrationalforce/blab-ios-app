@@ -1,4 +1,4 @@
-build: v10.79.414 — Wenn Monitoring verweigert, sagt es ab jetzt WARUM, im Log das Du schickst
+build: v10.79.415 — Der Puls wirft eine gute Schätzung nicht mehr weg, und Latenz steht ab jetzt im Log
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,100 +6,104 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.413 (Build 2531). Dieser Build bündelt neun Scheiben —
-  #642 bis #650 — plus fünf Reviewer-Runden.
+  Der Vorgänger ist 10.79.414 (Build 2532). Dieser Build bündelt #651 bis #657 plus
+  vier Reviewer-Runden.
 
-  ── DAS HIER IST KEIN FIX. BITTE ZUERST LESEN ────────────────────────────
+  ── DER BEFUND AUS DEINEM LOG, JETZT REPARIERT ───────────────────────────
 
-  Du hast heute ein Video und ein Log geschickt: „Monitoring could not start — try again",
-  auch mit dem iPhone-Mikrofon, das in derselben Zeile als „gut für Live-Monitoring"
-  beworben wird.
+  In 414 stand das als Beobachtung, ausdrücklich nicht als Diagnose: bei 13:44:05 stieg
+  Deine Konfidenz gerade auf 0,89 bei stabilen 52–53 bpm, dann kam `Too bright`, die
+  Belichtung wurde neu eingeregelt — und die Konfidenz fiel auf 0,00.
 
-  **Dieser Build repariert das nicht.** Er kann es nicht, weil bis heute niemand wusste,
-  WORAN es scheitert — und das hat einen Grund, den ich beim Nachsehen gefunden habe:
+  Nachgemessen, und es stimmt. Die Belichtung wird an fünf Stellen an die Automatik
+  zurückgegeben. Vier davon laufen mitten in der Aufnahme weiter. **Zwei haben das
+  Analysefenster geleert, zwei nicht** — und die zwei, die es nicht taten, sind genau die
+  absichtlichen Nachregelungen. Ein einziger Ausreißer-Messwert klemmt danach die
+  Amplitude über der Bewegungsschwelle fest, und die Konfidenz stirbt pro Messwert. Das
+  Fenster braucht rund zehn Sekunden, um sich freizuspülen. Deine Zahlen passen Ziffer
+  für Ziffer: `amp` sprang auf 0,4898 und fror über zwei Messungen ein, `win` blieb 150.
 
-  Dein Log und Dein Video gehören zur selben Sitzung. Log ab 13:43:23, Aufnahme ab
-  13:43:35, der rote Kasten bei ~13:43:49, Log bis 13:44:09. **Der Fehlschlag liegt mitten
-  im geloggten Fenster — und das Log sagt kein Wort dazu.**
+  Beide Zweige spülen jetzt. Zwei weitere Dinge, die der Prüfdurchgang danach gefunden
+  hat und die schlimmer gewesen wären als der ursprüngliche Fehler:
 
-  Seit Monaten wurde genau dieser Fehler gejagt. Fünf Runden, jede hat eine eigene
-  Log-Zeile an einen anderen Ausstieg gehängt, jede geschrieben, damit ein Geräte-Log
-  endlich sagt, welcher es war. **Keine einzige davon konnte je in einem Geräte-Log
-  landen.** Sie gingen alle in Apples System-Log, das man nur mit angestecktem Mac sieht.
-  Die Datei, die Du exportierst — die mit `launch`, `init a:`, `rPPG:`, `trust:` — wird von
-  einem anderen Mechanismus geschrieben, und im Audio-Teil der App gab es davon genau
-  zwei Zeilen, beide für etwas anderes.
+  · Die Spülung war **unbegrenzt**. Eine flackernde Fingerlage hätte alle vier bis sechs
+    Sekunden gespült, während das Fenster zehn braucht — damit wären BEIDE Notfall-Stufen
+    unerreichbar geworden, auch die für „vier Minuten tot ohne Puls". Jetzt wird nur ein
+    volles Fenster geleert.
+  · Die Spülung hat die **Bildraten-Messung neu scharf gestellt** — mitten in der
+    Belichtungsrampe, wo die Kamera am langsamsten läuft (bei Dir 12,1 statt 15 Bilder/s).
+    Der Filter wäre dann für den Rest der Aufnahme auf eine Eckfrequenz von 52,07 bpm
+    eingerastet. **Dein Puls in demselben Log: 52–53 bpm.** Die Reparatur hätte den Ton
+    gedämpft, den sie sucht. Wird jetzt nur bei einer wirklich neuen Kamera-Sitzung neu
+    gemessen.
 
-  Ab diesem Build laufen ZEHN Stellen dorthin: alle Berechtigungs-Ausstiege, alle drei
-  Fehler-Ausstiege, AN, AUS, die Rückstufung und das Nachjustieren bei Routen-Wechsel.
-  Eine Stelle war sogar in JEDER Senke stumm.
+  ── LATENZ: AB JETZT MESSBAR STATT GESCHÄTZT ─────────────────────────────
 
-  ── WAS ICH DICH ZU PRÜFEN BITTE — nur EINE Sache ────────────────────────
+  Du hast „alle Latenzen und Kombinationen optimiert für Sessions" gefragt. Beim
+  Nachsehen: die App **misst** ihre Laufzeit vollständig — und schrieb das Ergebnis in
+  dieselbe unerreichbare Senke wie die Monitoring-Zeilen aus 414. Weder Du noch ich
+  konnten eine einzige Zahl von Deinem Gerät nennen.
 
-  1. **Provoziere den Fehler noch einmal.** Mix-Panel → „Voice - your microphone" →
-     „Choose input…" → **Live monitoring** einschalten, bis der rote Kasten kommt.
-  2. Wenn möglich, direkt danach noch einmal — und einmal mit dem iPhone-Mikrofon,
-     einmal mit den HI-X25BT.
-  3. **Dann schick mir das Diagnose-Log.** Such nicht selbst danach; ich brauche nur die
-     Datei. Sie wird jetzt Zeilen enthalten, die mit `monitor:` beginnen. Eine davon
-     nennt den Ausstieg, und damit ist die nächste Scheibe eine Reparatur statt einer
-     sechsten Vermutung.
+  Ab diesem Build steht sie im Log, an drei Stellen: beim Start, bei jedem
+  Konfigurations-Wechsel (Kabel oder Bluetooth ansteckt) und beim Einschalten des
+  Monitorings. Eine Zeile sieht so aus:
 
-  Wenn Monitoring diesmal ANGEHT: bitte trotzdem das Log — dann steht dort
-  `monitor: ON (…)` mit Rate und Kanalzahl, und ich weiß, wie ein gesunder Start aussieht.
-  Ohne diesen Vergleich ist ein ruhiges Log mehrdeutig.
+      latency: monitor on cat=…PlayAndRecord sr=48000 buf=5.0 in=1.5 out=2.5
+               floor=9.0ms tune=on route=Built-In Microphone→Speaker
 
-  ── ZU DEINER VOCAL-CHAIN-FRAGE ──────────────────────────────────────────
+  **Warum „floor" und nicht „total":** die Zahl ist eine Untergrenze, nicht das, was Dein
+  Ohr hört. Sie enthält die Hardware-Laufzeit und EINE Pufferperiode; ein echter Umlauf
+  braucht mindestens zwei, und die Tonhöhenstufe („Tune to key") kommt obendrauf. Deshalb
+  steht `tune=on|off` daneben — eine Zahl, die verschweigt, dass ein Vocoder in der Kette
+  hängt, widerspricht der Warnung, die im selben Blatt schon im Klartext steht.
+  Die Kategorie (`cat=`) steht dort, weil dieselbe Hardware unter Aufnahme-Betrieb anders
+  misst als bei reiner Wiedergabe — Bluetooth fällt dabei auf den Telefon-Codec.
 
-  Kurz, weil es hier hingehört: **das meiste davon hast Du schon, hinter genau diesem
-  Schalter.** Im selben Input-Blatt, unter dem Monitoring-Schalter, sitzen „Tune to key"
-  mit **Amount** und **Tune** — das ist Autotune samt Charakter (Tune 1.00 = harter Snap).
-  Du siehst es nicht, weil der Schalter darüber verweigert.
+  ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  Der Harmonizer ist ebenfalls gebaut, hängt aber am Synthesizer, nicht am Mikrofon — die
-  komplette Effektkette ist EINEN Knoten vom Mikro entfernt. Granular hat Maschinerie,
-  aber keine eigene Stufe. Voice clone gibt es nicht, in keiner Form; das ist die einzige
-  Position, die eine Entscheidung von Dir braucht, und sie eilt nicht.
-  Der ganze Plan: `scratchpads/PLAN_VOCAL_CHAIN_2026-08-20.md`.
+  **Dieselbe Bitte wie bei 414, sie steht noch offen** — die Monitoring-Zeilen aus 414
+  haben mich noch nicht erreicht:
 
-  ── WAS SICH SONST GEÄNDERT HAT (Fortsetzung von 413) ────────────────────
+  1. Mix-Panel → „Voice - your microphone" → „Choose input…" → **Live monitoring**
+     einschalten, bis der rote Kasten kommt. Gern zweimal: iPhone-Mikro und HI-X25BT.
+  2. **Dann das Diagnose-Log schicken.** Such nichts selbst heraus.
 
-  Dieselbe Linie: Echoel darf mit der Demo-Quelle laufen, aber keine Fläche darf so tun,
-  als sei das Dein Körper. 413 hat die Sätze erledigt; dieser Build die letzten Flächen,
-  die noch einen Körper behaupteten:
+  Neu darin, ohne Dein Zutun: Zeilen mit `monitor:` (welcher Ausstieg) UND Zeilen mit
+  `latency:` (was die Kombination kostet). Wenn Monitoring diesmal ANGEHT: bitte trotzdem
+  das Log — `monitor: ON (…)` plus die Latenz-Zeile daneben ist die Vergleichszeile, die
+  bisher fehlt.
 
-  · **#643** die zwei „four body channels"-Sätze im Bio- und FX-Panel
-  · **#644** die Überschrift der Live-Erzählung
-  · **#645** die Variations-Karte („Dein Körper will …")
-  · **#646** der Titel des Erklär-Blatts „How your body shapes the sound"
-  · **#647** das gesprochene Tempo-Label und der Sperr-Knopf daneben
-  · **#648** die zwei Zeilen im Bio-Panel: „Breath voice" und „Auto mode". Beide hatten
-    schon verzweigt — die eine nach Atem, die andere nach laufender Quelle — und wirkten
-    deshalb sorgfältig geschrieben. Keine verzweigte danach, WESSEN Messwerte das sind.
-  · **#649** ist ein reiner Umbau ohne sichtbare Änderung: der Demo-Satz stand zehnmal im
-    Code, einmal davon so über zwei Zeilen zerlegt, dass keine Suche ihn je fand.
-
-  **Kein Klang und kein Bild ändert sich.** Such nicht nach einem neuen Sound.
+  Und wenn Du eine Puls-Messung machst: eine Minute Finger auf der Linse reicht. Das Log
+  zeigt dann, ob nach einem `Too bright` die Konfidenz zurückkommt statt bei 0,00 zu
+  bleiben.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
   Alles compile-verifiziert (beide echten Gates, „Build for Testing" grün), **NICHTS**
-  geräteverifiziert. Von den neuen Prüfungen ist keine namentlich im Testprotokoll
-  aufgetaucht — der Simulator-Klon leert nur einen Teil der Namen, und ein fehlender Name
-  beweist nichts.
+  geräteverifiziert. Ob die Spülung an der richtigen Stelle sitzt — beim Loslassen der
+  Belichtung oder erst beim Wiedereinrasten — ist eine offene Frage, und die Latenz-Zeile
+  trägt jetzt die zwei Felder (`amp`, `win`), mit denen Dein nächstes Log sie beantwortet
+  statt eines weiteren Arguments.
 
-  **Zweiter Befund aus Deinem Log, ausdrücklich NICHT repariert:** der Puls hat in diesen
-  33 Sekunden nie eingerastet (`trust: 1/30 ok`, Streuung 22 bpm), und beide
-  `generate`-Zeilen sagen `body=0` — der Körper hat den Komponisten nicht erreicht.
-  Auffällig ist die Stelle bei 13:44:05: die Konfidenz stieg gerade auf 0,89 bei stabilen
-  52–53 bpm, dann kam `Too bright`, die Belichtung wurde neu eingeregelt, und die
-  Konfidenz fiel auf 0,00. Es sieht so aus, als hätte die Nachregelung eine gerade
-  konvergierende Schätzung weggeworfen. Das ist eine Beobachtung, keine Diagnose — ich
-  messe es, bevor ich etwas ändere.
+  Erstmals in dieser Reihe ein echter Ausführungs-Beleg aus dem Testprotokoll statt nur
+  einer grünen Ampel: 19 Prüfgruppen, 172 Fälle, **null Fehlschläge** — darunter der
+  Wächter über genau dieser Spülung mit allen sechs Fällen bestanden.
+
+  ── EINE EHRLICHE NOTIZ ZUM VERFAHREN ────────────────────────────────────
+
+  Beim Nachprüfen ist herausgekommen, dass ein Wächter im blockierenden Bundle **fünf
+  Commits lang rot war, auf korrektem Code** — ich hatte in 414 einen Log-Text umbenannt,
+  auf den er sich stützte. Gemerkt hat es niemand, weil die Pipeline bei jedem Push
+  ohnehin „failure" meldet (ein bekannter Simulator-Defekt), sodass ein echtes Rot und
+  ein sterbender Simulator identisch aussehen. Repariert, und es gibt jetzt ein kleines
+  Prüfskript dafür, das gegen den defekten Stand genau diesen einen Treffer findet und
+  gegen den reparierten keinen. Meine früheren „nichts Rotes ist meins"-Meldungen waren
+  in diesem Punkt zu selbstsicher.
 
   Weiterhin offen: das „Demo"-Schildchen pro Zeile in der Metrik-Ansicht · ADM-OSC,
-  Art-Net, sACN und die Ereignis-Adressen, die dem Empfänger nicht sagen, ob es ein
-  Körper war.
+  Art-Net, sACN und die Ereignis-Adressen ohne Herkunftsangabe · Harmonizer und Granular
+  am Mikrofon statt am Synthesizer (der Plan steht in
+  `scratchpads/PLAN_VOCAL_CHAIN_2026-08-20.md`) · Voice clone braucht Dein Wort.
 
   ⚠ Die Uhr-App bleibt ausgenommen: das Watch-Target ist in `project.yml` nicht
   eingebettet, und es gibt keinen Übertragungsweg vom Telefon ans Handgelenk. Gebaut,
