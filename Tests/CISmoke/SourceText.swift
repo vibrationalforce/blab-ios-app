@@ -80,13 +80,21 @@
 // ⭐ IT IS DELIBERATELY NOT FIXED, and the measurement is the reason rather than the effort.
 // Over the 366 `.swift` files under `Sources/Echoelmusic` on 2026-08-20: NINE carry a `"""`, and
 // the shipped shape disagrees with a `"""`-aware one on exactly ONE of them —
-// `Views/MetalBioView.swift`, on 337 lines — changing the count of NONE of the 36 distinct
-// literal needles extracted from the four guards that read that file.
-// ⛔ Read those three numbers with the operation attached, because the first draft did not:
+// `Views/MetalBioView.swift`, on 337 lines — and NO ASSERTION in the four guards that read that
+// file changes verdict under either shape.
+// ⛔ Read those numbers with the operation attached, because the first draft did not:
 // 337 is DISAGREEING LINES (the shader literal itself runs 1235→1898, i.e. 662 lines, and was
 // mislabelled "the 337-line Metal shader" in four places); 368 is `Sources/` as a whole while
-// the guard walks 366; 36 is needles pulled from four guard FILES, not needles aimed at that
-// one source. The conclusion survives all three, the descriptions did not.
+// the guard walks 366. The conclusion survives, the descriptions did not.
+// ⛔ AND THE NEEDLE HALF IS RETRACTED OUTRIGHT (#661), not re-labelled. It read "the count of
+// NONE of the 36 distinct literal needles". `36` was a regex yield over four guard FILES that
+// nobody reproduced — a reviewer counting by hand got ~22 — and the re-driving found the
+// sentence false in its own terms: over a 168-literal SUPERSET, SIX counts do change
+// (`0.82`, `fix`, `off`, `close`, `Bunter`, ` vs `). All six turned out to be prose fragments or
+// needles aimed at other files, so the CONCLUSION (no assertion moves) stands — but "no needle
+// differs" was never true, and it was the form that made the claim feel checked. A count in a
+// note is only worth what its operation is; when the operation is unrecorded, retract the count
+// and keep the finding.
 // The 337 are shader lines carrying a `//` or `/*`, and those markers are REAL comments to the
 // compiler that actually reads them. So for the single file where the
 // two shapes differ, today's behaviour is the one a source scanner wants, and teaching this

@@ -26,6 +26,15 @@
 // many they aim at `MetalBioView.swift`, which is roughly twenty. The conclusion (zero change)
 // survives all three; the descriptions did not.
 //
+// ⛔ #661 — AND THE #660 CORRECTION LANDED IN THIS HEADER AND NOT IN THE TWO FAILURE MESSAGES,
+// which is the half a human actually reads. The paragraph directly above says the mislabel
+// appeared "in four places including inside a failure message" — and then left `337 lines … are
+// read as code` in test 3's message and a bare `36 needles` in test 2's. A correction written
+// where the reasoning lives, but not where the text FIRES, has corrected nothing: the message is
+// the only part of a guard that ever reaches someone. Both now name their operation, and the
+// needle count is GONE rather than restated — 36 has no derivation anyone reproduced, and the
+// repo rule is to hand over the command, not the number.
+//
 // Those 337 lines are shader lines carrying a `//` or `/*`. `MetalBioView` holds the whole
 // shader as one `"""` literal, and those markers are REAL comments — to the Metal compiler,
 // which is the compiler that reads them. So for the single file where the shapes differ,
@@ -151,8 +160,16 @@ final class TheStripperDoesNotKnowATripleQuoteTests: XCTestCase {
               · A file JOINED the set → a source now holds a multi-line literal whose body the \
                 guards read as code. Ask whether any guard SCANS that file
                 (`grep -l <name> Tests/CISmoke/*.swift`) and whether its needles sit after a \
-                `//` inside the literal. For MetalBioView the answer was "four guards, 36 \
-                needles, zero affected"; for the newcomer it has to be measured, not assumed.
+                `//` inside the literal. For MetalBioView the answer was: four guards read it \
+                (AClosedPictureSaysSo, AutoModeStartsOffAndOwnsNoTempo, GlitterCannotBecomeAFlash, \
+                TheVoiceTintsTheVisual), and NO ASSERTION changes verdict under either shape. \
+                ⚠️ Driven, not assumed, and the first driving DISAGREED with the claim it was \
+                meant to confirm: over the 168 single-line literals in those four files — a \
+                deliberate superset, it sweeps up prose fragments and needles aimed elsewhere — \
+                SIX change count (`0.82`, `fix`, `off`, `close`, `Bunter`, ` vs `). Each was then \
+                read at its use site; none is a needle aimed at this file. The conclusion holds \
+                and the shortcut "zero needles differ" does not. Derive the newcomer's answer the \
+                same way — superset first, then read every hit at its use site.
             """)
     }
 
@@ -164,8 +181,9 @@ final class TheStripperDoesNotKnowATripleQuoteTests: XCTestCase {
         XCTAssertTrue(doc.contains("\"\"\"") && doc.lowercased().contains("multi-line"), """
             The "WHAT IT DOES NOT HANDLE" block in SourceText.swift no longer names multi-line \
             string literals. That block exists "so nobody assumes more than it does" — and the \
-            case it omitted for its whole life is the one where 337 lines of one scanned file \
-            are read as code. A limitation that is real and unwritten is worse than one that is \
+            case it omitted for its whole life is the one where a 662-line literal body in a \
+            scanned file is read as code — 337 of those lines visibly so, because they carry a \
+            `//` or `/*` the scanner then acts on. A limitation that is real and unwritten is worse than one that is \
             written down, because nothing can contradict it (#167's "NICHT löschen" lesson).
             """)
         // ⛔ #659 review: the first version pinned the contract sentence VERBATIM
