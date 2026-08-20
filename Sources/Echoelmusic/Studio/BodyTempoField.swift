@@ -51,15 +51,75 @@
 // to a session deciding whether the wide arm is load-bearing. Since #504 neither parameter
 // carries a default, so the next call site has to say which variant it wants out loud.
 //
-// RENDER SAFETY (freeze rule): this view observes TWO high-frequency sources, not one.
+// RENDER SAFETY (freeze rule): this view observes THREE sources, not one. (⛔ "TWO" stood
+// here until #647 added `bus.usableBio()` for the spoken label; a count in this paragraph is
+// the number a session checks before folding the row somewhere, so it moves with the code.)
 // `cameraRPPG.displayBPM` updates ~10 Hz (the accent-tint flag), and since #491
 // `transport.tempo` is read UNCONDITIONALLY — 8 Hz at 120 BPM, up to ~20 Hz during a
-// glide. ⛔ This paragraph named only the camera until #491, and it was written when the
+// glide. The third, added by #647, is the SLOWEST: bio applies at ~1 Hz. ⛔ This paragraph
+// named only the camera until #491, and it was written when the
 // tempo read sat behind a `?:` that a live pulse short-circuited away; the second source
-// is not new here, it just became unavoidable. This is a LEAF `View` struct — both reads
-// live HERE, so only this row rebuilds and the Picker-hosting Composition panel / root
+// is not new here, it just became unavoidable. This is a LEAF `View` struct — ALL THREE
+// reads live HERE, so only this row rebuilds and the Picker-hosting Composition panel / root
 // body never subscribe. Folding this row inline into `startControlRow` would be the
-// 10.76.41/50 freeze, and it would now be TWO churn sources instead of one.
+// 10.76.41/50 freeze, and it would now be THREE churn sources instead of one.
+// ⛔ THOSE TWO WORDS SAID "both" AND "TWO" FOR ONE REVIEW PASS — in the same paragraph whose
+// #647 edit had just declared "a count in this paragraph is the number a session checks before
+// folding the row somewhere, so it moves with the code". Updating the headline number and
+// leaving the two restatements below it is #425 in miniature: a claim and its own refutation,
+// 10 lines apart, with the WRONG one in the sentence a session reads last before deciding.
+
+// ⚠️ `import Foundation` is conventional here, NOT load-bearing: `TempoFollowLabel` uses only
+// `String` and same-module `Core/` types. What lets it sit above the guard is that
+// `BioSampleFrame`/`BioSource` are declared outside `Core/EngineBus.swift`'s
+// `#if canImport(Observation)` block — do not infer that removing the import would break it, or
+// that adding one elsewhere is what makes a type platform-free.
+import Foundation
+
+/// What VoiceOver is told is driving the UNLOCKED tempo readout (#647).
+///
+/// ⛔ THE SPOKEN LABEL WAS AN UNCONDITIONAL CAUSAL CLAIM. `"Tempo, driven by your body"` was
+/// read out whenever the field was unlocked, and the clock it describes is driven through
+/// `BioComposer.tempo(for:)` from the composer input — i.e. from `bus.usableBio()`, which under
+/// the Simulation source is the demo generator's fabricated frame and with no usable frame at
+/// all is whatever the clock was last set to. A sighted player already gets a discriminator
+/// (the readout tints accent while a pulse is driving it); a VoiceOver player got the same
+/// sentence in every state. That is the #632/#627b pattern exactly — the visible half marked,
+/// the spoken half not — and it is the last registered entry of that pattern in this family.
+///
+/// ⭐ `.body` KEEPS ITS WORDS. The claim is TRUE when a real body is driving the clock, and the
+/// phrase is the founder's. Only the other two states get their own sentence.
+///
+/// ⚠️ KEYED ON THE FRAME SOURCE, NOT ON THE FIELD'S OWN `liveBodyBPM`, and that choice is the
+/// whole slice. `liveBodyBPM` is camera-only (`cameraRPPG.isRunning && displayBPM > 0`), so
+/// keying the sentence on it would announce "not your body" while a BLE strap or Apple Watch
+/// drives the clock — an over-correction, which is this family's remaining risk and what it has
+/// already had to retract twice. `usableBio()` is the same gate the composer itself asks.
+///
+/// ⚠️ RESIDUE, WRITTEN DOWN RATHER THAN LEFT TO BE REDISCOVERED: this answers "what would drive
+/// the NEXT compose", not "what drove THIS clock value". The tempo is fixed at compose time
+/// (`makeComposerInput` reads `usableBio()` once, `BioComposer` folds it into the genre window);
+/// the label reads `usableBio()` again at RENDER time. Two windows follow, and they are not
+/// symmetric:
+///   · composed from a real body, sensor then drops → label says "no reading is driving it".
+///     Honest understatement — the clock genuinely is coasting on a value nobody is refreshing.
+///   · composed under Simulation, a real body then arrives before the next generate → the label
+///     says "driven by your body" over a demo-derived clock. **That is this slice's own defect,
+///     momentarily inverted**, and it lasts until the next generate.
+/// Not a reason to change the keying — `usableBio()` is still the right gate, and the argument
+/// against `liveBodyBPM` above is unaffected. Closing it needs the label to read the frame the
+/// take was COMPOSED from, which means carrying that frame on the transport or the take, i.e. a
+/// data-flow slice and not a copy slice. Same handling as `AlwaysOnBioRow`'s bounded lag.
+public enum TempoFollowLabel {
+
+    /// The VoiceOver label for the unlocked readout, given the frame currently driving the clock.
+    public static func spoken(for frame: BioSampleFrame?) -> String {
+        guard let frame else { return "Tempo, following — no reading is driving it" }
+        return frame.source.isSynthetic
+            ? "Tempo, driven by the simulated demo source, not your body"
+            : "Tempo, driven by your body"
+    }
+}
 
 #if canImport(SwiftUI)
 import SwiftUI
@@ -71,6 +131,15 @@ struct BodyTempoField: View {
     @Environment(CameraRPPGBioPublisher.self) private var cameraRPPG
     #endif
     @Environment(Transport.self) private var transport
+    /// The frame currently driving the clock — the SAME gate `BioComposer` asks (#647).
+    ///
+    /// ⚠️ A THIRD OBSERVED SOURCE IN THIS LEAF, and the render-safety paragraph at the top of
+    /// the file is the reason that is legal rather than an oversight: this is a leaf `View`
+    /// struct, so the read lives HERE and no Picker-hosting ancestor subscribes. It is also the
+    /// SLOWEST of the three — bio applies at ~1 Hz, against `transport.tempo` at up to ~20 Hz
+    /// during a glide. Folding this row inline would still be the 10.76.41/50 freeze, now with
+    /// three churn sources instead of two.
+    @Environment(EngineBus.self) private var bus
     @Environment(BeatPlayer.self) private var player
 
     // Shared with the transport-bar lock button + tap tempo (same keys + defaults).
@@ -119,6 +188,17 @@ struct BodyTempoField: View {
     /// beside it (see the ⛔ block at the top of the file). Kept as a `Double` rather than a
     /// `Bool` only because the `> 0` test is the same trust gate `PulseMonitorMiniLive` uses,
     /// and reading it the same way is what keeps the two in step.
+    ///
+    /// ⚠️ REGISTERED, NOT FIXED (#647): the sentence above — "a trustworthy pulse is driving the
+    /// clock" — is CAMERA-ONLY, so the accent tint stays plain while a BLE strap or Apple Watch
+    /// drives the clock just as truly. That is an UNDER-marking, and it is why #647 keyed the
+    /// spoken label on `bus.usableBio()` instead of on this flag: keying speech on a camera test
+    /// would have announced "not your body" to a strap user. The two halves therefore answer
+    /// slightly different questions on purpose — the tint means "the camera is locked on", the
+    /// label means "whose reading drives the clock". Making the tint ask the wider question is a
+    /// separate, visual slice; it must NOT be done by pointing this flag at a different
+    /// predicate, because its whole reason for existing is to stay byte-wise in step with
+    /// `PulseMonitorMiniLive` (#484).
     private var liveBodyBPM: Double {
         #if canImport(AVFoundation)
         if cameraRPPG.isRunning, cameraRPPG.displayBPM > 0 { return cameraRPPG.displayBPM }
@@ -230,7 +310,7 @@ struct BodyTempoField: View {
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
                     .accessibilityElement(children: .ignore)
-                    .accessibilityLabel("Tempo, driven by your body")
+                    .accessibilityLabel(TempoFollowLabel.spoken(for: bus.usableBio()))
                     .accessibilityValue(followingSpoken)
             } else {
                 // Following: the number runs along with the live biofeedback rate.
@@ -251,7 +331,7 @@ struct BodyTempoField: View {
                         .foregroundStyle(EchoelTheme.dim)
                 }
                 .accessibilityElement(children: .ignore)
-                .accessibilityLabel("Tempo, driven by your body")
+                .accessibilityLabel(TempoFollowLabel.spoken(for: bus.usableBio()))
                 .accessibilityValue(followingSpoken)
             }
 

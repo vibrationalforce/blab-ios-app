@@ -179,10 +179,14 @@
 // sentence prints a positive claim. It survives only because the sentence says "while a session
 // runs", which is weaker than the doc's own premise that this is a present-tense claim. A third
 // wording is the fix and it is a decision, not a typo.
-// Still open, from the original list: the two
-// `EchoelStudioView` captions, `BodyTempoField`'s unconditional
-// "Tempo, driven by your body", and ADM-OSC / Art-Net / sACN / the discrete events (#462,
-// second half). ⭐ The THREE `EchoelFXView` strings that no register held until #640's review
+// Still open, from the original list: the two `EchoelStudioView` captions, and ADM-OSC /
+// Art-Net / sACN / the discrete events (#462, second half).
+// ⭐ **CLOSED (#647)** — `BodyTempoField`'s unconditional "Tempo, driven by your body". Its
+// three forms now live in `TempoFollowLabel.spoken(for:)` and both label sites ask it, keyed on
+// `bus.usableBio()` — the same gate the composer asks — and deliberately NOT on the field's own
+// camera-only `liveBodyBPM`, which would have announced "not your body" to a strap or Watch
+// user. Guard: `TheSpokenTempoSaysWhoseBodyTests`. This was the last registered entry of the
+// #632/#627b pattern (visible half marked, spoken half not). ⭐ The THREE `EchoelFXView` strings that no register held until #640's review
 // went looking are triaged and closed as an entry by #641 — and the Live half RE-OPENED and
 // RE-CLOSED by #642: both section headers are marked (they render WHILE their rows are live, and
 // the rows already said "Demo"), and the two instructional strings are deliberately left alone

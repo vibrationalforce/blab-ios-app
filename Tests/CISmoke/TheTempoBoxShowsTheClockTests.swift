@@ -170,15 +170,23 @@ final class TheTempoBoxShowsTheClockTests: XCTestCase {
             """)
     }
 
-    /// The freeze law, pinned where a later reader will look for it. This view now observes
-    /// TWO high-frequency sources (`transport.tempo` ~8 Hz at 120 BPM since #491, plus the
-    /// ~10 Hz camera flag), so it may only ever be a leaf `View` struct — folding it inline
-    /// into `startControlRow` is the 10.76.41/50 freeze with twice the churn.
+    /// The freeze law, pinned where a later reader will look for it. This view observes THREE
+    /// sources (`transport.tempo` ~8 Hz at 120 BPM and up to ~20 Hz in a glide since #491, the
+    /// ~10 Hz camera flag, and since #647 `bus.usableBio()` at ~1 Hz), so it may only ever be a
+    /// leaf `View` struct — folding it inline into `startControlRow` is the 10.76.41/50 freeze
+    /// with all of that churn.
+    ///
+    /// ⛔ THIS SAID "TWO" AND THE ASSERTION STAYED GREEN, which is why it needed pulling in the
+    /// same commit rather than whenever somebody noticed (#456). The needle is
+    /// `struct BodyTempoField: View`, untouched by #647 — so nothing here would EVER go red over
+    /// a stale source count. A message that under-names the churn is only read on the day the
+    /// guard fails, and that is exactly the day it must be right.
     func testTheControlIsStillItsOwnView() throws {
         let code = try codeLines(Self.field)
         XCTAssertTrue(code.contains { $0.contains("struct BodyTempoField: View") }, """
-            `BodyTempoField` is no longer a `View` struct. Both of its high-frequency reads \
-            (`transport.tempo`, `cameraRPPG.displayBPM`) are legal ONLY because this is an \
+            `BodyTempoField` is no longer a `View` struct. All THREE of its live reads \
+            (`transport.tempo`, `cameraRPPG.displayBPM`, `bus.usableBio()`) are legal ONLY \
+            because this is an \
             observation boundary; `AnyView` is not one (10.76.50). Whatever body absorbed \
             them now rebuilds at up to 20 Hz and tears down every open `.menu` Picker \
             beneath it.

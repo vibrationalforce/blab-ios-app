@@ -157,8 +157,17 @@
 //     What the discarded advice would have bought instead is worth naming: rewording the noun
 //     for EVERY player, so the instrument's identity line pays for the demo mode's honesty.
 //     A constraint recorded without its escape hatch reads as an impossibility.
-//   · Two `EchoelStudioView` captions ("your measured coherence…", "your inhale opens it") and
-//     `BodyTempoField`'s unconditional `.accessibilityLabel("Tempo, driven by your body")`.
+//   · Two `EchoelStudioView` captions ("your measured coherence…", "your inhale opens it").
+//   · ⭐ **CLOSED (#647)** — `BodyTempoField`'s `.accessibilityLabel`, which was the fixed string
+//     `"Tempo, driven by your body"` at both sites. Now `TempoFollowLabel.spoken(for:)`, keyed on
+//     `bus.usableBio()`. Ticked in the commit that closes it, in BOTH registers — #642 updated
+//     one and not the other, and that is the failure this list's own rule names.
+//   · ⚠️ WATCH, not a defect yet: "simulated demo source, not your body" is now spelled inline at
+//     SEVEN sites (`AutomationStatus`, `BioVariationMaze`, `AlwaysOnBioChannel` ×4,
+//     `BodyTempoField`). That is NOT a #416 violation — each is a different SENTENCE for a
+//     different surface, and folding them into one string is what #634b had to retract. But the
+//     count is now high enough that a shared SUBJECT-PHRASE helper (the noun, not the sentence)
+//     is becoming cheaper than the eighth copy. Recorded as a threshold, not an instruction.
 //   · ADM-OSC / Art-Net / sACN / the discrete events still carry no provenance (#462, second
 //     half). ⭐ OSC itself is DONE since #639 (`/echoelmusic/bio/synthetic`); this line said
 //     "OSC" first and would otherwise send the next session to re-do it.

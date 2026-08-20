@@ -153,11 +153,12 @@ Solange das steht, entwerfen S6–S11, S17 und S23 einen Bildschirm, den niemand
 - Guard `TheVisualIsAnnouncedTests`: alle drei tragen Value.
 - Gesetz 2 — **der Value darf NIE aus einem Bio-Wert kommen**, sonst wird `FloatingVisualWindow.body` ein 10-Hz-Beobachter.
 
-**S17 · Tempo-Feld sagt die Wahrheit** · XS
-- Files: `Studio/BodyTempoField.swift:233`, `:254`
-- Ändert: Label bedingt — `liveBodyBPM > 0 ? "Tempo, driven by your body" : "Tempo, no body signal"`. Heute sagt VoiceOver „driven by your body", während nichts treibt; der gelockte Zweig (`:220`) variiert bereits korrekt. Schließt zugleich die Nur-Farbe-Lücke (`differentiateWithoutColor` = 0 Treffer im Repo).
-- Guard `TheTempoLabelTellsTheTruthTests`: beide nicht-gelockten Zweige verzweigen auf `liveBodyBPM`.
-- Kein neuer Read: `liveBodyBPM` steht in derselben Zeile schon für die Farb-Ternäre.
+**S17 · Tempo-Feld sagt die Wahrheit** · ⭐ **ERLEDIGT (#647) — aber NICHT so, wie dieser Eintrag es vorschrieb.**
+- Gebaut: `TempoFollowLabel.spoken(for:)` in `Studio/BodyTempoField.swift`, drei Zustände, beide Label-Stellen gekeyt auf `bus.usableBio()`. Wächter: `TheSpokenTempoSaysWhoseBodyTests`.
+- ⛔ **Der Vorschlag dieses Eintrags war die Über-Korrektur und steht hier stehen gelassen, damit niemand ihn nachträglich einbaut.** Er lautete: `liveBodyBPM > 0 ? "Tempo, driven by your body" : "Tempo, no body signal"` — mit der Begründung „kein neuer Read". Genau das ist der Fehler: `liveBodyBPM` ist **kamera-only** (`cameraRPPG.isRunning && displayBPM > 0`), hätte also einem Nutzer mit BLE-Gurt oder Apple Watch „kein Körpersignal" angesagt, während sein Gurt die Uhr treibt. Der billigste Read ist nicht der richtige Read; die Ersparnis war real und die Aussage falsch.
+- ⛔ Zweitens deckte der Vorschlag nur ZWEI Zustände ab. Der dritte — „ein Frame kommt an, aber vom Demo-Generator" — ist genau der, den #644 einen Zyklus zuvor mit einem `Bool` nicht ausdrücken konnte.
+- Der geplante Wächtername `TheTempoLabelTellsTheTruthTests` existiert nicht; er hätte die verworfene Verzweigung festgenagelt.
+- Die genannten Zeilennummern (`:233`, `:254`, `:220`) sind durch den Eingriff verschoben — in diesem Repo ist eine zitierte Phrase belastbar und eine Zeilennummer ein Datum.
 
 **S18 · Visual-Fenster per VoiceOver verschiebbar** · S
 - Files: `Studio/FloatingVisualWindow.swift:847`
