@@ -83,8 +83,12 @@
 // payload reaching either glance with nothing that says so.
 //
 // ⚠️ STILL OPEN after this slice, named so no session concludes the family is closed:
-//   · **OSC / ADM-OSC / Art-Net / sACN** — `/echoelmusic/bio/*` carries no provenance, so an
-//     integrator cannot tell a demo walk from a measured pulse. Named by #627 and #629 too.
+//   · ⭐ **OSC — CLOSED BY #639.** `/echoelmusic/bio/synthetic` is prepended to every non-empty
+//     bio batch (1 = demo, 0 = a real body), gated on the BATCH so #245's silence survives.
+//     Guard: `Tests/CISmoke/TheWireSaysWhoseBodyTests.swift`.
+//   · **ADM-OSC / Art-Net / sACN / the discrete events** — still no provenance, and each for
+//     its own reason (a foreign standard's namespace · a free DMX slot nobody has designated ·
+//     a separate code path). Named by #627 and #629 too; the reasons live in #639's guard.
 //   · ⛔ **AN AUv3 ITEM STOOD HERE AND THE TARGET DOES NOT EXIST.** It read "the AUv3's
 //     host-visible AUParameters (`pullSharedVitals`) now receive a payload that KNOWS".
 //     `project.yml` declares five targets and records the removal at 2026-07-24;

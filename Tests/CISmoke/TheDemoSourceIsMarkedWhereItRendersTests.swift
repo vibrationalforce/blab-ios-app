@@ -74,10 +74,12 @@
 //     the sentence is retracted rather than deleted, because it is the sentence #627b wrote
 //     to stop a session from concluding the peer path was fine. Guard:
 //     `Tests/CISmoke/ThePeerSeesWhetherItIsABodyTests.swift`.
-//   · **OSC / ADM-OSC / Art-Net / sACN — STILL OPEN, and a protocol decision rather than an
-//     oversight.** `BioEgressPolicy` admits `.fallback` and no address in the set carries a
-//     source, so an integrator cannot tell a demo walk from a measured pulse. #627 named
-//     these four and missed the peer payload; the peer payload is done, these four are not.
+//   · **The four egress protocols — one of the four is now done.** `BioEgressPolicy` admits
+//     `.fallback`, and #627 named these four while missing the peer payload. ⭐ #639 closed
+//     **OSC**: `/echoelmusic/bio/synthetic` rides every non-empty bio batch. **ADM-OSC,
+//     Art-Net/sACN and the discrete-event addresses stay open**, each for its own reason —
+//     see `Tests/CISmoke/TheWireSaysWhoseBodyTests.swift`, which is also where the first
+//     draft's false "DMX cannot carry metadata" is retracted (512 slots, four in use).
 // Apple Health is clean and needs nothing: `HealthWritePolicy.isWritableSource` admits only
 // `.ble` and `.cameraPPG`.
 //

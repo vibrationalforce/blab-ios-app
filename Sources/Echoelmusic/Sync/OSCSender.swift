@@ -30,6 +30,21 @@
 //        `HRVCoherence.minIntervals` = 16 accepted RR intervals, and the camera's RR series
 //        comes from a fixed 10 s peak window (`CameraAnalyzer.detectPeaks`) — about 10
 //        intervals at a resting heart rate. On the BLE strap it arrives after ~16 beats.
+//    /echoelmusic/bio/synthetic     float 0|1        — 1 = the DEMO generator, 0 = a real body
+//        (#639). Gated on THE BATCH, not on itself: it is prepended to every frame that sends
+//        at least one measured value, and omitted entirely from a frame that sends nothing —
+//        so #245's silence law is intact and a receiver never gets a bare flag. A receiver that
+//        never sees the address while values are arriving is talking to a build older than
+//        #639; that is the honest reading, and it is why the address is ADDITIVE rather than an
+//        extra argument on the existing ones (appending to `/heart/bpm` would break every
+//        integrator on the old contract in the name of honesty).
+//        ⚠️ TREAT IT AS STATE, NOT AS A PREFIX. These are separate UDP datagrams and UDP does
+//        not guarantee order, so it may arrive after the values of its own tick. It is re-sent
+//        with every frame (~1 Hz) and only changes when the player switches source, so latching
+//        the last value is correct and a one-tick inversion self-corrects.
+//        ⚠️ It answers "is this a body", not "which sensor". A richer per-source address may be
+//        added later as its OWN address; do not repurpose this one's meaning, which is the one
+//        thing a wire contract cannot survive.
 //    /echoelmusic/bio/motion        float [0..1]  — NOT SENT in this build (#215):
 //        nothing measures motion, so the address would carry a constant 0 that a
 //        receiver cannot tell apart from a motionless performer. It returns the day a
@@ -377,6 +392,57 @@ public final class OSCSender {
         // length and owns the predicate; this is the same question asked at egress.
         if ModSource.motion.hasProducer {
             msgs.append(("/echoelmusic/bio/motion", [frame.motionEnergy]))
+        }
+        // #639 — PROVENANCE, PREPENDED, AND GATED ON THE BATCH RATHER THAN ON ITSELF.
+        //
+        // WHY IT EXISTS. `BioEgressPolicy` lets the DEMO generator (`.fallback`) stream out, and
+        // that is correct — it is Echoel's own synthesis, not Health-store data (5.1.3). But it
+        // meant a lighting desk, an immersive renderer or a fellow performer received
+        // `/bio/heart/bpm 74` from a simulator with no way at all to tell. Every in-app surface
+        // has said "Demo" since #627…#637; THIS wire said nothing, and it is the half aimed at
+        // integrators who cannot see the screen.
+        //
+        // ⛔ NOT "the wire said nothing" FLAT — #629 already put provenance on a real network
+        // wire (`ColabPayload.BioPeek.synthetic`, the peer rows in a Live-Colabo session). The
+        // difference is the contract, and it is worth naming: that one is OUR OWN encoding
+        // between two copies of this app, so it could be widened at will and is deliberately
+        // TRI-STATE (`Bool?` — "old peer" is a third answer). OSC is a PUBLISHED contract with
+        // receivers we do not control, which is why this is an additive address and why it is
+        // binary: an OSC float has no "unknown", so "old build" had to be expressed as the
+        // ABSENCE of the address rather than as a third value.
+        //
+        // ⚠️ AND IT IS A DISCLOSURE, in the direction nobody asked about. The flag says nothing
+        // about WHICH sensor and opens no HealthKit path (claim 7 pins that 5.1.3 is untouched).
+        // What it does remove is plausible deniability: a receiver on the LAN can now tell that
+        // a real body is in the room rather than a simulator. That is the point — an integrator
+        // has to be able to trust the number — but it is a new fact on the network and belongs
+        // in writing, not in the gap between two honest sentences.
+        //
+        // ⛔ THE FIRST CUT APPENDED IT UNCONDITIONALLY AT THE TOP OF THIS FUNCTION AND BROKE
+        // #245 — the law this very function exists to enforce: a frame with NOTHING measured
+        // must be SILENT, so a receiver reads absence as absence. An always-present flag turns
+        // every dead frame into traffic. `OSCAbsenceTests.testAFrameWithNothingMeasuredSends
+        // NothingAtAll` went red, on correct-looking code, for the right reason.
+        //
+        // ⭐ THE THIRD KIND OF GATE, named because this file already has two and a reader will
+        // otherwise mis-file it. #245 gates each address on ITS OWN measurement. #215 drops an
+        // address that has no producer at all. This one is gated on THE BATCH: it ships only
+        // alongside data it describes, never alone. A receiver therefore never gets a bare flag,
+        // a silent frame stays perfectly silent, and every value that does arrive is
+        // accompanied by its origin.
+        //
+        // ⚠️ 0 IS A FACT HERE, not a missing measurement — "a real body" — which is why the
+        // no-structural-zeros rule above does not reach this line. And a receiver that never
+        // sees the address is talking to a build older than #639; that is the honest reading,
+        // and it is why this is an ADDITIVE address rather than an extra argument on the
+        // existing ones (appending to `/heart/bpm` would break every integrator on the old
+        // contract in the name of honesty).
+        //
+        // ⚠️ FIRST in the list is a courtesy, not a guarantee: separate datagrams, and UDP does
+        // not promise order. The header tells the receiver to latch it as state; at ~1 Hz and
+        // changing only when the player switches source, a one-tick inversion self-corrects.
+        if !msgs.isEmpty {
+            msgs.insert(("/echoelmusic/bio/synthetic", [frame.source.isSynthetic ? 1 : 0]), at: 0)
         }
         return msgs
     }

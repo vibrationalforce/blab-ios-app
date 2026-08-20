@@ -184,10 +184,14 @@ struct EchoelmusicApp: App {
     /// claim was aspirational, the retraction was measured, and the retraction still
     /// aged out. Measure with `git grep -n 'Text("Demo")' -- Sources`.
     ///
-    /// ⚠️ #462 IS NOT CLOSED BY THAT. It had two halves and only one shipped: the OSC /
-    /// ADM-OSC / Art-Net / sACN addresses still carry no provenance, so an integrator
-    /// cannot tell a demo walk from a measured pulse. Reading "the label is done" as
-    /// "#462 is done" is the exact half-close this comment now exists to prevent.
+    /// ⚠️ #462 IS STILL NOT CLOSED, but the count has changed and the wording had to change
+    /// with it. ⭐ #639 shipped provenance on the OSC bio set: `/echoelmusic/bio/synthetic`
+    /// rides every non-empty batch (1 = demo, 0 = a real body). What carries NO provenance
+    /// today is ADM-OSC (`/adm/obj/{n}/*` — a foreign standard's address space), Art-Net/sACN
+    /// (DMX has room, ~508 free slots, but no convention) and the discrete-event addresses
+    /// (`/bio/event/*`, a different code path). Reading "the label is done" as "#462 is done"
+    /// is the exact half-close this comment exists to prevent — and reading "OSC is done" as
+    /// "the wire is done" is the same defect one notch smaller.
     @State private var demoSource = BioSimulator()
 
     // Resonance-breathing guide (the active half of the coherence loop).

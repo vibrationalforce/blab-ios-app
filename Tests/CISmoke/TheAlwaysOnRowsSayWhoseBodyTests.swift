@@ -99,7 +99,9 @@
 //     property `EchoelStudioView.body` evaluates (the 10.76.41/50 freeze law).
 //   · Two `EchoelStudioView` captions ("your measured coherence…", "your inhale opens it") and
 //     `BodyTempoField`'s unconditional `.accessibilityLabel("Tempo, driven by your body")`.
-//   · OSC / ADM-OSC / Art-Net / sACN still carry no provenance (#462, second half).
+//   · ADM-OSC / Art-Net / sACN / the discrete events still carry no provenance (#462, second
+//     half). ⭐ OSC itself is DONE since #639 (`/echoelmusic/bio/synthetic`); this line said
+//     "OSC" first and would otherwise send the next session to re-do it.
 //
 // ⚠️ AND ONE ASYMMETRY TO WRITE DOWN RATHER THAN "HARMONISE": `AlwaysOnBioChannel` tests bare
 // `frame.source == .fallback`, while `BioStripView` and `HeaderMonitors` add `&& !isRunning`

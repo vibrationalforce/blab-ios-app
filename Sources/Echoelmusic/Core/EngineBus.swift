@@ -392,6 +392,23 @@ public enum BioSource: UInt8, Sendable, Equatable {
     /// modulation on this so a strap-only route stays silent on weak sources.
     public var providesTrustedHRV: Bool { self == .ble }
 
+    /// Whether this frame's numbers were GENERATED rather than measured — the demo
+    /// generator (`BioSimulator`), which the founder uses to show the instrument with no
+    /// body attached. Every surface that draws a bio number has to answer this question,
+    /// and until #639 every one of them answered it by spelling `source == .fallback`
+    /// inline: sixteen occurrences under `Sources/` at the time this property was added.
+    ///
+    /// ⚠️ #416 — ONE DEFINITION PER DECISION, AND THIS ONE IS NOT YET MIGRATED. The property
+    /// exists so the concept has a name; the sixteen existing spellings are deliberately
+    /// left alone in the slice that introduced it, because a sweep across six directories is
+    /// a migration, not a guard change (`OneDefinitionOfCodeNotProseTests` learned the same
+    /// lesson about 69 private strippers). New code asks this; old code gets converted when
+    /// its own file is next opened for a real reason.
+    ///
+    /// ⚠️ It answers "is this a body", NOT "which sensor". A per-source disclosure is a
+    /// different, larger question — on the wire it would also be a different address (#639).
+    public var isSynthetic: Bool { self == .fallback }
+
     /// How long a reading from this source stays musically usable. Live optical/
     /// electrical sources (BLE strap, camera rPPG) expire fast — a lifted finger or
     /// a dropped strap must NOT keep driving sound off a frozen value. But Apple

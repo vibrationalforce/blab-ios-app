@@ -650,6 +650,26 @@ the old list named eeg/{band}, audio/rms, audio/pitch which are NEVER sent):
 /echoelmusic/bio/breath/rate     float
 /echoelmusic/bio/breath/phase    float [0-1]
 /echoelmusic/bio/coherence       float [0-1]
+/echoelmusic/bio/synthetic       float 0|1  — 1 = Demo-Generator, 0 = echter Körper (#639).
+                                 PREPENDED und auf den BATCH gegated: begleitet jeden Frame,
+                                 der mindestens einen gemessenen Wert sendet, und fehlt in
+                                 einem stummen Frame ganz — #245 bleibt unangetastet. 0 ist
+                                 hier eine TATSACHE, kein fehlender Messwert. EIGENE Adresse,
+                                 KEIN zusätzliches Argument: ein zweiter Float auf
+                                 `/heart/bpm` bräche jeden Integrator auf dem alten Vertrag.
+                                 Über UDP nicht reihenfolge-garantiert → als ZUSTAND latchen.
+                                 ⛔ ADM-OSC, Art-Net und sACN tragen weiterhin KEINE Herkunft,
+                                 und die Gründe sind VERSCHIEDEN: `/adm/obj/{n}/*` ist ein
+                                 FREMDER Standard-Adressraum — dort etwas zu erfinden wäre das
+                                 Gegenteil der Offene-Standards-Haltung. ⛔ Für DMX stand hier
+                                 „hat gar keinen Platz für Metadaten (ein echtes ‚geht nicht')"
+                                 und das ist FALSCH: ein Universum hat 512 Slots,
+                                 `ArtNetSender.dmxChannels` belegt VIER (Dimmer + R + G + B),
+                                 acht bei 16 Bit. Es fehlt eine KONVENTION, nicht der Platz —
+                                 ein schwächeres Argument als ein „geht nicht", und genau die
+                                 Sorte Über-Behauptung, die diese Scheiben-Familie abbaut.
+                                 Die Event-Adressen unten tragen sie ebenfalls nicht
+                                 (anderer Codepfad, `drainAndSendEvents`).
 /echoelmusic/bio/motion          float      — NOT SENT in this build (#215): nothing
                                               measures motion, so a constant 0 would be
                                               indistinguishable from a still performer.

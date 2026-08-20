@@ -89,6 +89,28 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 | v10.79.195 | Immersive Stage — Touch room-map, each track a draggable spatial object (SpatialSceneStore + ImmersiveStageMath + ImmersiveStageView) | green |
 | v10.79.194 | Multi-Roll (tracks play simultaneously) + per-track Record (arm→play→capture MIDI/bio→Clip+region) | green |
 
+## PLAYBOOK (2026-08-20, #639-Zyklus): ein „geht nicht" in einer STILL-OPEN-Liste ist eine BEHAUPTUNG
+
+**Der Fehler.** #639 registrierte die drei nicht erledigten Egress-Pfade und schrieb über zwei
+davon: *„Art-Net und sACN tragen DMX-Kanalwerte und haben gar keinen Platz für Metadaten. Das
+ist ein echtes ‚geht nicht', keine Auslassung."* Gemessen: ein DMX-Universum hat **512** Slots,
+`ArtNetSender.dmxChannels` belegt **vier** (Dimmer + R + G + B), acht bei 16 Bit. **Über 500
+sind frei.** Es fehlt eine KONVENTION, kein Platz.
+
+**Warum das teurer ist als eine veraltete Zahl.** Eine STILL-OPEN-Liste ist genau die Zeile, aus
+der die nächste Sitzung triagiert. „Auslassung" heißt *bau es*; „geht nicht" heißt *streich es*.
+Ein falsches „geht nicht" löscht einen machbaren Posten aus dem Rückstand, und nichts wird je
+wieder rot deswegen — es gibt keinen Wächter über einer Behauptung, die niemand bestreitet.
+Es ist dieselbe Über-Behauptung, die dieselbe Scheiben-Familie gerade auf vier Flächen abbaut,
+nur eine Ebene höher: im Register statt im Produkt.
+
+**Die Regel.** Bevor ein Medium für „trägt keine Herkunft" erklärt wird, wird seine KAPAZITÄT
+gemessen (`grep` auf den Sender, nicht die Erinnerung an das Protokoll). Und wenn das Ergebnis
+„geht schon, will nur niemand" lautet, gehört genau das dahin — ein schwaches Argument, das
+stimmt, schlägt ein starkes, das nicht stimmt.
+
+---
+
 ## OBSERVATION (2026-08-20, #638-Zyklus): ein `failed` OHNE Zusicherungstext ist KEIN Befund über den Test
 
 **Was gesehen wurde.** Im CI/CD-Lauf von `9185b6a` (Job 96217411688) steht

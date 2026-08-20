@@ -33,6 +33,7 @@ receiving app at the phone's IP (UDP). Default namespace:
 
 | Address | Range | Meaning |
 |---|---|---|
+| `/echoelmusic/bio/synthetic` | 0 or 1 | **whose body this is.** 1 = the built-in DEMO generator, 0 = a real measured source. Sent FIRST in every tick that carries at least one value, and omitted entirely from a silent tick — so it never arrives alone. **Latch it as state, do not treat it as a prefix:** these are separate UDP datagrams and UDP does not preserve order, so it may land after the values of its own tick; it repeats every tick (~1 Hz) and only changes when the player switches source. If you never see this address while values are arriving, you are talking to an Echoel build that predates this address (it was added with the OSC provenance slice). It answers "is this a body", not "which sensor". |
 | `/echoelmusic/bio/heart/bpm` | 40–200 | heart rate — only with a measured pulse |
 | `/echoelmusic/bio/heart/hrv` | 0–1 | normalized HRV — needs a pulse AND a non-zero HRV |
 | `/echoelmusic/bio/heart/rmssd` · `/sdnn` · `/pnn50` | ms / ms / % | HRV detail (trusted source) — same rule: a pulse plus a real value |

@@ -68,8 +68,11 @@
 //  and it was ACTED ON; what stayed behind is the description of the gap. Apple
 //  Health is NOT affected: `HealthWritePolicy.isWritableSource` admits only `.ble` and
 //  `.cameraPPG`, so no synthetic value can ever be written. The OSC/ADM/Art-Net/sACN egress
-//  IS affected — `BioEgressPolicy` allows `.fallback` and no address carries a source — so
-//  an integrator cannot tell a demo walk from a measured pulse. So a demo session shows a confident heart rate and
+//  WAS affected — `BioEgressPolicy` allows `.fallback` and no address carried a source, so
+//  an integrator could not tell a demo walk from a measured pulse. ⭐ #639 CLOSED THE OSC HALF:
+//  `/echoelmusic/bio/synthetic` is prepended to every non-empty bio batch (1 = demo, 0 = a real
+//  body). ADM-OSC, Art-Net/sACN and the discrete-event addresses are still unmarked and stay
+//  registered as open in `TheWireSaysWhoseBodyTests`. So a demo session shows a confident heart rate and
 //  "HRV 50 ms" beside a source cell reading "No signal" — which reads as ABSENCE,
 //  not as SYNTHETIC. #215's principle ("a constant 0 is indistinguishable from a
 //  still performer") applies on the screen too, not only on the wire. Whether to
@@ -77,6 +80,17 @@
 //  founder question (#462), not something to decide inside an arithmetic fix — but
 //  the claim that it is ALREADY flagged had to go, because it is the sentence that
 //  stops the next session from looking.
+//
+//  ⛔ AND THAT FOUNDER GATE IS RETRACTED, by the slice that walked through it (#639). Both
+//  halves it named have now shipped without an ask, and the honest record of why: the sentence
+//  BUNDLED two decisions of very different weight; the strip label shipped at #627 unasked and
+//  was right to; and the wire marker is additive, reversible (delete one `insert`) and breaks
+//  no published contract — appending a float to `/heart/bpm` would have been the version that
+//  needed asking, and it is exactly the version that was rejected. What remains genuinely
+//  founder-shaped is not on this line at all: WHERE a provenance flag belongs inside ADM-OSC's
+//  foreign address space, and whether a DMX slot should be spent on one. **A registration that
+//  says "ask the founder" is itself a claim and ages like any other; leaving it standing after
+//  the work is done is how a closed question keeps costing sessions.**
 //
 
 import Foundation
