@@ -157,8 +157,13 @@ public final class FXBioModulator {
         task?.cancel(); task = nil
         liveContributions = []   // display empties when no session is live
         // …and the heading falls back to the plain section name. `.noRoutes` is the honest
-        // stopped state precisely BECAUSE it claims nothing: with no display below it, the
-        // heading is a name, not a reading (see `LiveModOrigin.noRoutes`).
+        // stopped state precisely BECAUSE it claims nothing — read its doc as "no claim", not
+        // as "the user has no routes", which is false here: the routes survive a `stop()`.
+        // ⛔ THE FIRST DRAFT OF THIS COMMENT NAMED THE WRONG STRING. It justified itself with
+        // "with no display below it", pointing at `.noRoutes`'s empty-state line ("No routes
+        // yet, so no effect parameter is moving."). That is the one string that CANNOT appear
+        // in the stopped state — `BioModLiveView` renders the other branch, "Start a session to
+        // watch the body move these parameters." The conclusion survives, the evidence did not.
         liveOrigin = .noRoutes
         // Drop the fades too, so a later `start()` eases in from silence rather than
         // resuming a half-faded route. (Today the app never calls `stop()` — the driver

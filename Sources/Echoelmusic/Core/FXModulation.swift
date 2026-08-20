@@ -167,12 +167,30 @@ public struct FXModRoute: Codable, Sendable, Identifiable, Equatable {
 /// the heading is the section's NAME and claims nothing about a current reading. Printing
 /// "LFO → sound" there would invent an oscillator that does not exist — the over-correction this
 /// family has had to retract twice already.
-public enum LiveModOrigin: String, Sendable, Equatable, CaseIterable {
-    /// No enabled route at all — the heading is a section name, not a claim.
+///
+/// ⚠️ NO RAW VALUE AND NO `CaseIterable`. Both were on the first cut and neither had a reader
+/// anywhere in `Sources/` or `Tests/` — the speculative-surface family of #431/#440/#443, which
+/// this file's neighbour invokes two declarations down. `Equatable` earns its place: the
+/// modulator's change-gate is `if origin != liveOrigin`.
+public enum LiveModOrigin: Sendable, Equatable {
+    /// Nothing to claim: no enabled route, OR the modulator is stopped. The heading is then the
+    /// section's NAME, not a reading.
+    ///
+    /// ⛔ THE NAME IS NARROWER THAN THE CASE, and the review that caught it is right that a
+    /// public case name which lies is a trap. `stop()` publishes `.noRoutes` with the user's
+    /// routes fully intact. It is kept as ONE case rather than split into `.stopped` because
+    /// both states render the same heading for the same reason — nothing is being asserted
+    /// about a current reading — and a fifth state whose `heading` is a duplicate of an existing
+    /// one is surface without a decision behind it. Read it as "no claim", and do NOT read it
+    /// as "the user has no routes".
     case noRoutes
     /// Enabled routes exist and none of them has a bio carrier.
     case lfoOnly
-    /// At least one enabled bio route, fed by a real measured source.
+    /// At least one enabled bio route, and the source feeding it is a real body.
+    ///
+    /// ⚠️ "REAL" IS ABOUT THE SOURCE, NOT ABOUT WHETHER ANYTHING IS ARRIVING — see the residual
+    /// named on `liveOrigin` below. A bio route whose channel reports nothing is still `.body`
+    /// here, and its row renders "—".
     case body
     /// At least one enabled bio route, fed by the demo generator.
     case simulatedDemo
@@ -203,10 +221,31 @@ extension FXModulation {
     /// the caller deliberately passes the RAW frame's source, because the always-on heading three
     /// rows further down reads raw too, and deriving the two through different freshness gates is
     /// exactly how #641 made them contradict each other.
+    ///
+    /// ⛔ **THE RESIDUAL, NAMED RATHER THAN LEFT IMPLIED — because #642's own argument is that a
+    /// registered over-claim is still an over-claim, and its first cut deleted #641's
+    /// registration without opening a replacement.** This function classifies by the route's
+    /// CARRIER, never by whether that channel is being MEASURED. `contributions(routes:frame:
+    /// now:)` makes a second distinction it cannot mirror: for a `.bio` carrier it sets
+    /// `measured = false` when the frame does not report that channel, and the row then renders
+    /// "—". Reachable today, and not exotic: the "add route" button always creates a `.coherence`
+    /// route, HealthKit publishes no coherence, so a HealthKit session shows a "—" row under
+    /// "Live — body → sound".
+    ///
+    /// ⭐ IT IS DELIBERATELY NOT A FIFTH STATE, and the distinction is the reason rather than the
+    /// cost. The LFO case #642 fixed was a CONFIGURATION falsehood — no body is involved in that
+    /// section at all, permanently, and nothing on screen said so. This one is a READING
+    /// falsehood in a section that IS configured for the body, and the rows already say so, one
+    /// "—" each, which is the display law this whole family enforces. A heading that flickered
+    /// between two wordings as a channel drops in and out would be less honest, not more. If it
+    /// is ever fixed, `frame` becomes an argument here and the modulator has one to pass.
     public static func liveOrigin(routes: [FXModRoute], sourceIsSynthetic: Bool) -> LiveModOrigin {
-        let live = routes.filter { $0.enabled }
-        guard !live.isEmpty else { return .noRoutes }
-        let anyBio = live.contains { route in
+        // ⚠️ `contains(where:)` twice, NOT `routes.filter { … }` — the filter allocated a second
+        // array on every ~10 Hz publish on the main actor, and this file's neighbour carries a
+        // ⛔ note about that exact shape (#388). Same set, same answer, no allocation.
+        guard routes.contains(where: { $0.enabled }) else { return .noRoutes }
+        let anyBio = routes.contains { route in
+            guard route.enabled else { return false }
             if case .bio = route.carrier { return true }
             return false
         }

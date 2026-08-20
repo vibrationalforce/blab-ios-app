@@ -69,9 +69,13 @@
 //     its own (on b1effab it holds two, and this is what keeps a fifth spelling from growing
 //     back beside the `switch`, #416), and claim 3's middle assertion, that the view renders
 //     `modulator.liveOrigin.heading`. Both measured, not reasoned.
-//   · **6 FORWARD assertions (1a–1f)** — the four states, the `enabled` filter, and `contains`
-//     rather than `allSatisfy`. 1b and 1c also act as counterweights: `.body` and `.noRoutes`
-//     both keep the plain heading, so the slice adds wordings and renames nothing.
+//   · **6 FORWARD LABELS (1a–1f) over 11 `XCTAssertEqual` calls** — the four states, the
+//     `enabled` filter, and `contains` rather than `allSatisfy`. 1b and 1c also act as
+//     counterweights: `.body` and `.noRoutes` both keep the plain heading, so the slice adds
+//     wordings and renames nothing. (⛔ The first draft wrote "6 FORWARD assertions", conflating
+//     labels with assertions, in a grading block whose whole subject is that counts are driven
+//     rather than written — and the paragraph it replaced had made the distinction correctly:
+//     "5 RED-ON-PARENT ASSERTIONS across 4 claims".)
 //   · **10 COUNTERWEIGHTS, green on both trees** — 2a/2b (the always-on section untouched), 3a
 //     (the raw gate), 3c (no derivation from the contributions), 4a/4b (the footer clause),
 //     5a/5b (the two instructional strings) and 6a/6b (each header answers from the value its
@@ -255,6 +259,20 @@ final class TheFXHeadersSayWhoseBodyTests: XCTestCase {
             """)
     }
 
+    // ⚠️ AND THE RESIDUAL 3b USED TO CARRY IS RE-OPENED, NOT CLOSED — the first cut of #642
+    // deleted the registration along with the scan, which is precisely the move it criticises
+    // #641 for. `liveOrigin` classifies by the route's CARRIER, never by whether that channel is
+    // being MEASURED, so an enabled bio route reporting nothing still yields `.body`. The row
+    // beneath renders "—" (`contributions` sets `measured: false`), and the heading over it says
+    // "body → sound". Reachable and not exotic: the "add route" button always creates a
+    // `.coherence` route and HealthKit publishes no coherence.
+    // ⭐ DELIBERATELY NOT A FIFTH STATE, and the distinction is the argument, not an excuse. The
+    // LFO case was a CONFIGURATION falsehood — no body involved at all, permanently, nothing on
+    // screen saying so. This is a READING falsehood in a section that IS configured for the body,
+    // and every row already says so with its own "—". The full argument is on
+    // `FXModulation.liveOrigin`; it is registered in BOTH places on purpose, because the last
+    // time it lived in only one of them it was deleted with the scan that held it.
+    //
     // ⛔ 3b STOOD HERE AND IS RETIRED BY #642, not deleted quietly. It scanned the modulator for
     // `anyBioRoute&&`, the conjunction that kept a bare source test from marking an LFO-only
     // section "simulated demo". That expression no longer exists: the arithmetic moved into
