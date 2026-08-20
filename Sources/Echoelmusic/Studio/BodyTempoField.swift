@@ -139,9 +139,11 @@ public enum TempoFollowLabel {
     public static func spoken(for frame: BioSampleFrame?) -> String {
         guard let frame else { return "Tempo, following — no reading is arriving" }
         // The second of exactly TWO sites whose real-body branch is the bare subject, so the
-        // shared half is written once (the other is `breathVoiceHint`). Nine of the eleven
-        // other sites cannot do this — their body branch says "your pulse", "four body
-        // channels", "your measured body state"; see `BioProvenanceCopy`.
+        // shared half is written once (the other is `breathVoiceHint`). Of the ten sites, one
+        // IS the definition and seven cannot do this — their body branch says "your pulse",
+        // "four body channels", "your measured body state"; see `BioProvenanceCopy`.
+        // ⛔ This read "Nine of the eleven other sites", which implies thirteen. The census is
+        // ten: 2 substitutable + 1 definition + 7 not. Written from the feel of the list.
         return "Tempo, following " + BioPanelRowCopy.subject(synthetic: frame.source.isSynthetic)
     }
 

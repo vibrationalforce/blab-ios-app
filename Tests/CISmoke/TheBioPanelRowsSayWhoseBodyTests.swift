@@ -25,10 +25,14 @@
 // source is two. Six literals is how two of them drift, so only the SUBJECT is shared. Never a
 // whole sentence — that collapse is what #634b had to retract.
 //
-// ⚠️ THREE FORMS EXIST AND THIS IS ONE OF THEM. `"Bio source: simulated demo, not your body"`
+// ⚠️ FOUR FORMS EXIST AND THIS IS ONE OF THEM. `"Bio source: simulated demo, not your body"`
 // labels a whole ELEMENT (strip · widget · watch); `"Simulated demo, "` PREFIXES a spoken
-// sentence; `"the simulated demo source, not your body"` is the MID-SENTENCE subject this file
-// shares. Claim 5 keeps the other two out of these rows.
+// sentence; `"demo values, not your body"` names a section HEAD; `"the simulated demo source,
+// not your body"` is the MID-SENTENCE subject this file shares — since #649 owned once, by
+// `BioProvenanceCopy.demoSubject`. Claim 5 keeps the other THREE out of these rows.
+// ⛔ This said THREE and omitted the section head, while the retraction at the definition and
+// this file's own claim 5 both say four and ban three spellings. One census, two numbers, in
+// one bundle (reviewer finding, #649).
 //
 // KIND (§1): **MIXED.** Claims 1–4 DRIVE `BioPanelRowCopy`, a pure enum in the Foundation-only
 // `AlwaysOnBioChannel.swift` — END-TO-END, the strong kind. Claims 5–6 are SOURCE-TEXT SCANS:

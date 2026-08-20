@@ -72,7 +72,15 @@ import Foundation
 /// **one of the ten was invisible to `git grep`.** `autoModeHint` split the phrase MID-PHRASE
 /// across two literals to fit the line limit — `"… of the simulated demo " + "source, not your
 /// body"` — so a search for the contiguous phrase returned nine and the tenth was policed by
-/// nothing. The usual #416 argument is "two spellings drift"; the measurement here is that the
+/// nothing. ⚠️ THE NEEDLE MATTERS AND IS STATED, per `.claude/rules/context.md` §2: the count
+/// is `git grep -c "simulated demo source, not your body"` — WITHOUT the leading article,
+/// which is 9 on the parent and 1 here. With "the " in front it returns SIX: one site
+/// capitalises the article (`soundPanelSentence`) and two break the line before it, leaving
+/// the article in the previous literal (`breathVoiceCaption`, `autoModeCaption`).
+/// ⛔ The first draft of THIS sentence said "two sites capitalise and two more break the
+/// line" — 6 + 2 + 2 = 10, which contradicts the 9 it was explaining. One and two. Written
+/// while correcting a review finding about exactly this, which is the whole reason the needle
+/// now sits next to the number instead of the reasoning. The usual #416 argument is "two spellings drift"; the measurement here is that the
 /// repo's own tool for checking this family could not see one of the sites at all.
 /// ⛔ THE FIRST DRAFT OF THIS PARAGRAPH SAID "three of the nine were split" AND THAT WAS WRONG
 /// IN BOTH NUMBERS — written from the shape of the diff instead of from a count. Two others
@@ -93,19 +101,34 @@ import Foundation
 /// widget targets only their own directory plus `Core/BioFeedbackManager.swift` — neither
 /// compiles this file. Hoisting it would mean moving copy into `Core/`, which is a different
 /// decision and needs its own slice.
+/// ⚠️ IF THAT SLICE EVER HAPPENS, THIS TYPE TRAVELS WITH IT. `Sequencer/BioVariationMaze.swift`
+/// already reads this constant across directories (precedent: `Sequencer/BioMusicDirector.swift`
+/// reads `Studio/BioMetricInfo.swift`), so the arrow is not new — but leaving `BioProvenanceCopy`
+/// in `Studio/` while the label form moves to `Core/` would give ONE vocabulary two homes, which
+/// is the state this type exists to end.
 ///
-/// ⚠️ THREE SENTENCES DELIBERATELY DO NOT USE THIS and each names a different reason, so the
-/// next session does not "finish the migration" into a regression:
-///   · `BioShapedParameter.soundPanelSentence`'s empty-list branch and
-///     `BioMusicDirector`'s explanation title say "The simulated demo source is/is doing …" —
-///     the subject continues into a VERB, so the ", not your body" clause would be
-///     ungrammatical there.
-///   · `TempoFollowLabel.unlockHint` says "tap to let the simulated demo source drive it
-///     again" — same shape, the clause cannot sit before "drive".
-///   · `AutomationStatus` says "… is the simulated demo source, not automation and not your
-///     body", a THREE-way contrast this two-way phrase cannot express.
-/// A fourth, `FXModulation`/`EchoelFXView`, uses the short "simulated demo" inside a chip
-/// label with no room for a clause. All five are honest; none is a missed site.
+/// ⚠️ FIVE SENTENCES DELIBERATELY DO NOT USE THIS, and only ONE of the five is barred by
+/// grammar. Naming the real reason per sentence is the point — a session that finds a stated
+/// reason false is entitled to ignore the whole note:
+///   · `AutomationStatus.emptySentence` — **GRAMMAR, and this one genuinely holds.** It says
+///     "… right now is the simulated demo source, not automation and not your body": a
+///     THREE-way contrast. Substituting the two-way constant yields "… the simulated demo
+///     source, not your body, not automation and not your body." Nonsense.
+///   · `BioShapedParameter.soundPanelSentence`'s empty-row branch — **A COPY DECISION, NOT
+///     GRAMMAR.** Using the constant would ADD the clause, i.e. change rendered copy, which is
+///     a copy slice and not a byte-identical hoist. ⛔ This bullet first claimed the appositive
+///     "…, not your body, is not shaping…" was ungrammatical — and the SAME FUNCTION builds
+///     exactly that shape six lines below, where `subject` is "The simulated demo source, not
+///     your body," followed by a verb. A justification refuted by its own sibling branch is the
+///     worst kind this repo ships. ⚠️ Note this branch is the one demo surface here that names
+///     the source and never denies the body; it is unreachable today (`shapedByTheBody` is
+///     never empty), which is why it is a registered gap and not a defect.
+///   · `BioMusicDirector`'s explanation title and `TempoFollowLabel.unlockHint` — **LENGTH AND
+///     HOW IT READS ALOUD, not grammar.** Both appositives parse fine; both would make a
+///     heading and a VoiceOver hint markedly longer for no added clarity at the point of use.
+///   · `FXModulation` / `EchoelFXView` use the short "simulated demo" inside a chip label with
+///     no room for any clause.
+/// None of the five is a missed byte-identical migration site.
 public enum BioProvenanceCopy {
 
     /// Mid-sentence: "… follows **the simulated demo source, not your body**".
@@ -535,10 +558,13 @@ public enum BioShapedParameter: String, CaseIterable, Identifiable, Sendable {
 /// ⭐ THE REGISTERED MIGRATION IS DONE (#649) — and the register that carried it was WRONG
 /// TWICE, which is why the retraction stays instead of the note being deleted. It said "SIX
 /// code sites"; a driven count found **TEN**. It said "only FOUR are verbatim-substitutable";
-/// driven against every pair, only **TWO** are — nine of the ten real-body branches do not
+/// driven against every pair, only **TWO** are — SEVEN of the ten real-body branches do not
 /// contain the phrase at all (they say "your pulse", "four body channels", "your measured body
-/// state"), so substituting a shared subject there would have forced the FOUNDER'S wording to
-/// change shape. That is the over-correction this family forbids, and a register claiming four
+/// state"), and the tenth IS the shared definition. So substituting a shared subject at those
+/// seven would have forced the FOUNDER'S wording to change shape.
+/// ⛔ This said "nine of the ten", which does not reconcile with "only two are substitutable"
+/// in the same sentence — 2 + 9 = 11 for a census of 10. Two substitutable, one definition,
+/// seven not. That is the over-correction this family forbids, and a register claiming four
 /// would have invited it. **The hoist that WAS right is the other direction:** every DEMO
 /// branch now renders `BioProvenanceCopy.demoSubject`, and every real-body branch is untouched
 /// and byte-identical. ⚠️ The paragraphs below are kept verbatim as the record of what the

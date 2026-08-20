@@ -181,12 +181,18 @@
 //     unlocking hands the clock to the demo generator. Now `TempoFollowLabel.unlockHint(for:)`.
 //     The lesson is the register's, not the reviewer's: a per-entry list finds what somebody
 //     already wrote down, and a file-wide sweep for the PHRASE finds what nobody did.
-//   · ⚠️ WATCH, not a defect yet: "simulated demo source, not your body" is now spelled inline at
-//     SEVEN sites (`AutomationStatus`, `BioVariationMaze`, `AlwaysOnBioChannel` ×4,
-//     `BodyTempoField`). That is NOT a #416 violation — each is a different SENTENCE for a
-//     different surface, and folding them into one string is what #634b had to retract. But the
-//     count is now high enough that a shared SUBJECT-PHRASE helper (the noun, not the sentence)
-//     is becoming cheaper than the eighth copy. Recorded as a threshold, not an instruction.
+//   · ⭐ **CLOSED (#649).** This stood as "WATCH, not a defect yet: spelled inline at SEVEN
+//     sites", and the helper it called for is now `BioProvenanceCopy.demoSubject`. Its analysis
+//     was right and its COUNT was wrong: a driven census found TEN, and one of the ten was
+//     invisible to the very grep the entry was written from — `autoModeHint` split the phrase
+//     mid-phrase across two literals. It also listed `AutomationStatus` as an inline site; that
+//     one is a permanent NON-site (three-way contrast, see `BioProvenanceCopy`).
+//     ⛔ THE FAMILY CARRIED THREE REGISTERS WITH THREE DIFFERENT WRONG COUNTS — six in
+//     `AlwaysOnBioChannel`, seven here, and the ten that was true. #649 retracted the first and
+//     left this one standing, so a reviewer found an open WATCH item for work that had already
+//     shipped, with a threshold ("the eighth copy") that no longer exists. **The register that
+//     records a threshold has to be ticked by the commit that crosses it** — the same rule the
+//     surfaces register states three times about itself, now paid for a fourth time.
 //   · ADM-OSC / Art-Net / sACN / the discrete events still carry no provenance (#462, second
 //     half). ⭐ OSC itself is DONE since #639 (`/echoelmusic/bio/synthetic`); this line said
 //     "OSC" first and would otherwise send the next session to re-do it.

@@ -113,9 +113,14 @@ final class OneSpellingOfTheDemoSubjectTests: XCTestCase {
         // this file must not silently assume: its subject branch only renders when
         // `shapedByTheBody.flatMap(\.soundPanelRows)` is non-empty. With no rows it returns
         // "The simulated demo source is not shaping any control on this panel right now." —
-        // honest, marked, and WITHOUT the clause, because "…, not your body, is not shaping…"
-        // is not a sentence. Asserting the full phrase over it would make this claim depend on
-        // the row list rather than on the hoist. It gets its own assertion below.
+        // marked, but WITHOUT the clause. Asserting the full phrase over it would make this
+        // claim depend on the row list rather than on the hoist, so it gets its own, weaker
+        // assertion below.
+        // ⛔ THIS SAID THE CLAUSE WOULD MAKE IT "not a sentence" AND THAT IS FALSE — the
+        // appositive parses, and the SAME function builds exactly that shape a few lines down.
+        // The honest reason the branch keeps its own wording is that adding the clause CHANGES
+        // RENDERED COPY, which is a copy slice and not a byte-identical hoist. Reviewer finding
+        // on #649; the definition carries the long version.
         let demo: [String] = [
             AlwaysOnBioChannel.alwaysOnSentence(synthetic: true),
             AlwaysOnBioChannel.bioPanelSentence(synthetic: true),
@@ -193,6 +198,12 @@ final class OneSpellingOfTheDemoSubjectTests: XCTestCase {
     /// BEGINNING with "source, not your body" — the exact seam `autoModeHint` had. No honest
     /// sentence ends a literal on "simulated demo " with more to come; the shipped prefix form
     /// ends on "Simulated demo, " (a comma), which this does not match.
+    ///
+    /// ⚠️ AND THE FIRST NEEDLE IS CASE-SENSITIVE WHILE CLAIM 4 LOWERCASES — stated rather than
+    /// silently fixed, because the asymmetry is deliberate. Matching "Simulated demo \"" too
+    /// would collide with the shipped PREFIX form on any line that ends there. A capitalised
+    /// re-split would evade this half; the SECOND needle still catches it, and only a re-split
+    /// that ALSO capitalises "Source" escapes both. That residue is registered, not closed.
     func testThePhraseIsNotReBrokenAcrossTwoLiterals() throws {
         for (file, line, text) in try Self.codeLines() {
             XCTAssertFalse(text.contains("simulated demo \""), """
