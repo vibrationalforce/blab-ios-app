@@ -75,11 +75,16 @@ public struct BioStateSummary: Sendable, Equatable {
     }
 }
 
-/// Plain-English, on-device explanation of how the live body is shaping the music
-/// right now — simple but precise technical language. Deterministic, no LLM, so it
-/// works on iOS 18+ (not gated to the on-device model). Surfaced to the user as
-/// "EchoelAI" narration of the bio→sound process.
-/// WHO the narration paragraph is about — the three answers its own clauses already give.
+/// WHO a bio-derived SENTENCE is about — the three answers the narration's clauses already give,
+/// and since #645 the answer the variation card needs too.
+///
+/// ⚠️ THE NAME SAYS "NARRATION" AND THE TYPE IS WIDER, deliberately and with the reason written
+/// down rather than renamed away. Both users render a sentence ABOUT a bio reading, which is what
+/// narration is; and the decision the type owns — "a real body / the demo generator / nobody" —
+/// is ONE decision, so a second enum for the second surface would be the #416 defect this family
+/// keeps paying for. What it must NOT grow is surface-specific strings: `heading` and
+/// `voiceOverLabel` belong to the narration card, the variation card's sentence lives on
+/// `BioVariationMaze`, and a third caller writes its own.
 ///
 /// ⛔ IT WAS A `Bool` FOR ONE COMMIT AND THE BOOL COULD NOT SAY THE COMMON THING (#644 review).
 /// `synthetic == false` collapsed "a real body" and "nothing was measured" into one value, so
@@ -124,6 +129,18 @@ public enum BioNarrationDriver: Sendable, Equatable {
     }
 }
 
+/// Plain-English, on-device explanation of how the live body is shaping the music
+/// right now — simple but precise technical language. Deterministic, no LLM, so it
+/// works on iOS 18+ (not gated to the on-device model). Surfaced to the user as
+/// "EchoelAI" narration of the bio→sound process.
+///
+/// ⛔ THIS DOC WAS ORPHANED FOR ONE COMMIT. #644 inserted `BioNarrationDriver` BETWEEN these
+/// four lines and the type they describe, so Swift attached them to the new enum and left
+/// `BioExplanation` — the type the whole file is named for — undocumented. Nothing goes red:
+/// a doc comment that lands on the wrong declaration still compiles, still renders in Quick
+/// Help, and reads plausibly, which is why it survived a review pass. Inserting a type above
+/// an existing one means checking what sits directly above the INSERTION POINT, not only
+/// below it.
 public enum BioExplanation {
     /// Who the paragraph `text(for:tempo:)` is about, from the SAME predicate that decides
     /// whether it prints " from your live signal," (#644).

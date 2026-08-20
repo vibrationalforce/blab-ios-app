@@ -7,20 +7,32 @@
 //
 //   Given the current bio snapshot, explore N deterministic VARIATIONS of the same
 //   piece (same structural skeleton, different melodic/rhythmic detail), score each by
-//   how closely its realized groove-density matches what the body is asking for
+//   how closely its realized groove-density matches what the DRIVER is asking for
 //   (BioComposer.musicalState → `busy`), and return a ranked leaderboard. The musician
 //   auditions the top ideas and picks.
 //
 // PURE value math on the control plane. Foundation-only, deterministic (seeded — same
 // bio + base seed ⇒ same leaderboard, across launches and peers), no Date/Random, no
 // audio-thread work, no allocation on any render path. Reuses BioComposer.compose (pure)
-// — it does NOT reimplement composition. Nothing wires it to the engine yet; it is a
-// pure core like VBAPPanner / AmbisonicsEncode until a Touch "audition the maze" surface
-// and/or the EchoelAI brain (LLM-assisted proposals) land in later cycles.
+// — it does NOT reimplement composition.
+//
+// ⛔ "Nothing wires it to the engine yet; it is a pure core like VBAPPanner / AmbisonicsEncode
+// until a Touch 'audition the maze' surface … lands in later cycles" STOOD HERE AND THE SURFACE
+// HAD LANDED. `variationsCard` is mounted in `tempoToolsPanel`, which the "Tempo & variations"
+// chip opens; its "Explore" button calls `explore(base:count:)` and its rows apply a candidate.
+// The staleness predates #645, but that slice added a doc block sixty lines below describing the
+// card this header said did not exist — a file arguing with itself, which is the exact drift the
+// #627 honesty family exists to remove. **A "not wired yet" note is a claim with an expiry date
+// and no alarm**: the commit that wires it has no reason to look at the file header of the pure
+// core it just consumed. The math below is still pure and still Foundation-only; that half was
+// never wrong.
 //
 // The score is TRANSPARENT and honest (principle 3, biofeedback-is-science): it is the
-// closeness of realized density to the body's requested busy-ness — a number the UI can
-// show ("this take matches your current calm 0.82"). It is NOT a health/benefit claim.
+// closeness of realized density to the DRIVER's requested busy-ness — a number the UI can
+// show. It is NOT a health/benefit claim. ⛔ The sample copy that stood here — "this take
+// matches your current calm 0.82" — was a USER-FACING string inside a developer comment, and
+// it carried the exact possessive #645 had to remove from the shipped card. A sample string
+// in a doc is a template the next surface copies; it gets the same bar as shipped copy.
 
 import Foundation
 
@@ -33,7 +45,7 @@ public enum BioVariationMaze {
         public let seed: UInt64
         /// Realized groove density 0…1 (how busy the take actually is).
         public let realizedDensity: Double
-        /// Bio-fit score 0…1, higher = closer to what the body is asking for.
+        /// Bio-fit score 0…1, higher = closer to what the driver is asking for.
         public let score: Double
         /// The composed take (pure BioComposer output).
         public let composition: BioComposition
@@ -49,8 +61,15 @@ public enum BioVariationMaze {
 
     /// A ranked exploration, plus the transparent target it was scored against.
     public struct Leaderboard: Sendable, Equatable {
-        /// The density the body is currently asking for (0…1) — the target every
+        /// The density the DRIVER is currently asking for (0…1) — the target every
         /// candidate is scored against. Surfaced so the UI can show the "why".
+        ///
+        /// ⛔ "the body" STOOD HERE and it is the line a session reads before writing the next
+        /// sentence about this value (#645 review). It is computed from the composer input,
+        /// which comes from `bus.usableBio()` — under the Simulation source that is the demo
+        /// generator's fabricated frame, and with no source at all it is the engine's own
+        /// neutral default. `BioVariationMaze.boardSentence(driver:density:)` is where the
+        /// three honest phrasings live; do not re-derive a possessive one from this doc.
         public let targetDensity: Double
         /// Candidates, best-first (highest score). Deterministic order.
         public let candidates: [Candidate]
@@ -62,6 +81,37 @@ public enum BioVariationMaze {
 
         /// The winning idea, if any.
         public var best: Candidate? { candidates.first }
+    }
+
+    /// The card's one-line explanation of a board, with its driver named (#645).
+    ///
+    /// ⛔ THE SHIPPED STRING ATTRIBUTED A PREFERENCE TO THE READER THAT NOBODY EXPRESSED. It read
+    /// "Ideas from your pulse — tap to keep. Your body wants a full groove." unconditionally, and
+    /// `targetDensity` traces `BioComposer.musicalState` → the composer input → `bus.usableBio()`
+    /// — which under the Simulation source is the demo generator's fabricated frame, and with no
+    /// source at all is the engine's own default. Of everything the #627 honesty family has had
+    /// to correct this is the strongest claim: not "your body is at 62%" but "your body WANTS
+    /// this", a desire put in the reader's mouth.
+    ///
+    /// ⭐ `.body` KEEPS "wants" UNCHANGED. The anthropomorphism is the founder's shipped voice and
+    /// it is TRUE when a real body was read; rewriting it would be the over-correction this family
+    /// has already had to retract twice. Only the SUBJECT moves.
+    ///
+    /// ⚠️ `.nothingMeasured` IS NOT A COSMETIC THIRD CASE — it is the one #644's `Bool` could not
+    /// express, one slice ago, on the surface next door. With no frame the target is the engine's
+    /// default, so naming any body at all invents the reason the ideas are ranked the way they
+    /// are.
+    public static func boardSentence(driver: BioNarrationDriver, density: String) -> String {
+        switch driver {
+        case .body:
+            return "Ideas from your pulse — tap to keep. Your body wants \(density)."
+        case .simulatedDemo:
+            return "Ideas from the simulated demo source, not your body — tap to keep. "
+                + "The demo asks for \(density)."
+        case .nothingMeasured:
+            return "No pulse was measured, so these are ranked against the engine's own "
+                + "target — tap to keep. They aim for \(density)."
+        }
     }
 
     // MARK: - Seed enumeration
@@ -91,7 +141,7 @@ public enum BioVariationMaze {
         return min(1, max(0, raw))
     }
 
-    /// Bio-fit score 0…1: how close a realized density sits to the target the body asks
+    /// Bio-fit score 0…1: how close a realized density sits to the target the driver asks
     /// for. 1 = exact match, falling linearly with the gap.
     public static func score(realizedDensity: Double, targetDensity: Double) -> Double {
         let gap = abs(realizedDensity - targetDensity)
@@ -114,7 +164,8 @@ public enum BioVariationMaze {
     /// - Returns: a `Leaderboard`, best-first, with the transparent target density.
     public static func explore(base: BioComposer.Input, count: Int) -> Leaderboard {
         let n = max(1, count)
-        // What the body is asking for, from the SAME model BioComposer uses.
+        // What the driver is asking for, from the SAME model BioComposer uses. "driver",
+        // not "body": under Simulation this input came from the demo generator (#645).
         let state = BioComposer.musicalState(coherence: base.coherence,
                                              hrvNormalized: base.hrvNormalized,
                                              heartRateBPM: Double(base.heartRateBPM))

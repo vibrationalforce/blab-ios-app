@@ -1432,3 +1432,29 @@ Test-Erwartung schreibt, liegt um ~19 % daneben.
   gefahren. Identisch zur DDSP-Tabellen-Lehre in `CLAUDE.md` („ein Ziel je Kanal"), nur eine
   Ebene kleiner. **Do this instead:** bei jeder n→n-Behauptung die zweite Seite ZÄHLEN
   (`grep -c 'return "'` auf den `switch`), bevor man sie aufschreibt.
+
+## DEAD-END (2026-08-20 #645 — ein Doc-Kommentar landet auf der falschen Deklaration und NICHTS wird rot)
+
+**Was passiert ist.** #644 hat `BioNarrationDriver` in `Sequencer/BioMusicDirector.swift`
+eingefügt — und zwar ZWISCHEN den vierzeiligen Doc-Block von `BioExplanation` und
+`BioExplanation` selbst. Swift hängt einen `///`-Block an die nächste Deklaration darunter,
+also beschrieb er ab da den neuen Enum, und der Typ, nach dem die Datei benannt ist, stand
+undokumentiert da. Gefunden erst einen Commit später, beim Lesen der Umgebung einer
+Folge-Änderung.
+
+**Warum kein Werkzeug es fängt.** Es kompiliert. Es rendert in Quick Help. Es liest sich
+plausibel, weil beide Typen zum selben Thema gehören — der geerbte Block sagte
+„Plain-English, on-device explanation …", und der Enum darunter beschreibt genau, WER in
+dieser Erklärung gemeint ist. Ein Reviewer, der den Diff liest, sieht nur die eingefügten
+Zeilen; der Schaden entsteht an der Zeile DAVOR, die im Diff gar nicht vorkommt.
+
+**Statt dessen:** beim Einfügen eines Typs über einem bestehenden nicht nur prüfen, was
+darunter steht, sondern was DIREKT ÜBER dem Einfügepunkt steht. Ist es ein `///`-Block,
+gehört er dem Typ darunter — also dem, den man gerade verdrängt hat. Billiger Test:
+`grep -n "enum \|struct \|class " <datei>` und für jede Deklaration einen Blick auf die Zeile
+davor.
+
+**Verwandt, aber NICHT dasselbe:** die Zeilennummern-Lehre („eine zitierte Phrase überlebt
+eine Einfügung, eine Zeilennummer nicht"). Hier überlebt die Phrase sehr wohl — sie wandert
+nur an ein anderes Objekt. Dieselbe Familie wie die 415-Zeilen-Zahl aus #473, die an das
+falsche Ding geheftet war: nicht veraltet, sondern von Anfang an falsch zugeordnet.

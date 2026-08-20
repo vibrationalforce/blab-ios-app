@@ -904,6 +904,11 @@ struct EchoelStudioView: View {
     // root body). `mazeBase` keeps the exact Input the board was scored from, so applying a
     // candidate replays the picked skeleton + detail seed precisely.
     @State private var mazeBoard: BioVariationMaze.Leaderboard?
+    /// Who the board's target density came from (#645). Written in the SAME statement group as
+    /// `mazeBoard`, from the same frame the composer input was built from — the adjacency is the
+    /// whole guarantee, exactly as for `StudioCaption.driver` (#644). A separate read could
+    /// describe a different exploration than the one on screen.
+    @State private var mazeDriver: BioNarrationDriver = .nothingMeasured
     @State private var mazeBase: BioComposer.Input?
     @State private var mazeAppliedSeed: UInt64?
 
@@ -3818,16 +3823,35 @@ struct EchoelStudioView: View {
     /// the EchoelStudioView modal chain is at its metadata ceiling).
     /// Reads only @State snapshots (board/appliedSeed), so hosting it in the root-body
     /// dropdown never churns (freeze rule). "Explore" ranks 6 variations of the same
-    /// groove by how close each sits to what the body is asking for; tapping one plays
-    /// it — the picked skeleton + detail seed reproduce exactly, the live body still
-    /// colours tempo/dynamics. Honest score: closeness of realized density to the
-    /// body's requested busy-ness (a number, not a health claim).
+    /// groove by how close each sits to what the DRIVER is asking for; tapping one plays
+    /// it — the picked skeleton + detail seed reproduce exactly, whatever source is live
+    /// still colours tempo/dynamics. Honest score: closeness of realized density to the
+    /// driver's requested busy-ness (a number, not a health claim).
+    ///
+    /// ⛔ "the body" TWICE HERE, and this is the doc a session reads before touching this
+    /// property (#645 review). The target traces `bus.usableBio()` — the demo generator's
+    /// fabricated frame under Simulation, the engine's default with no source. `mazeDriver`
+    /// carries which of the three it was; the sentence itself lives in
+    /// `BioVariationMaze.boardSentence(driver:density:)`.
     private var variationsCard: some View {
         mixStripCard("Variations") {
             HStack(spacing: 8) {
+                // ⚠️ THE no-board BRANCH IS DELIBERATELY NOT MARKED (#645). It renders before
+                // any exploration exists, so it claims nothing about a current reading — it says
+                // what the control is FOR. Marking it would imply a demo is running when none is,
+                // which is the over-correction this family has twice had to retract. The board
+                // branch is the one that prints a reading, and it is the one that moved.
+                // ⭐ AND THE DECISIVE ARGUMENT IS STRUCTURAL, NOT EDITORIAL (#645 review): there
+                // is no event to hang a `@State` write on before the first Explore, so the only
+                // way to mark this branch is a fresh `bus.usableBio()` read INSIDE this computed
+                // `var` — which the root body evaluates, registering it as an observer of the
+                // ~10 Hz publisher. That is the 10.76.50 menu-freeze verbatim. Marking it is not
+                // merely over-correction; it is unimplementable without reopening a ship-blocker.
                 Text(mazeBoard == nil
                      ? "Variations of the same groove — your body curates, you pick."
-                     : "Ideas from your pulse — tap to keep. Your body wants \(densityWord(mazeBoard?.targetDensity ?? 0)).")
+                     : BioVariationMaze.boardSentence(
+                        driver: mazeDriver,
+                        density: densityWord(mazeBoard?.targetDensity ?? 0)))
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
                 Spacer(minLength: 8)
@@ -9930,10 +9954,15 @@ struct EchoelStudioView: View {
     /// board (read-only — `advanceEvolution: false` doesn't perturb the evolve cursor).
     /// The base is captured so a later apply replays the exact skeleton it scored.
     private func exploreVariations() {
-        let base = makeComposerInput(advanceEvolution: false).input
+        let made = makeComposerInput(advanceEvolution: false)
+        let base = made.input
         mazeBase = base
         mazeAppliedSeed = nil
         mazeBoard = BioVariationMaze.explore(base: base, count: 6)
+        // #645: same statement group, same frame the input was built from. The card's sentence
+        // names whose target density it ranked against, and a driver read anywhere else could
+        // describe a different exploration than the one on screen.
+        mazeDriver = BioExplanation.driver(for: made.frame)
         log.log(.info, category: .ui, "Variation maze: \(mazeBoard?.candidates.count ?? 0) ideas, target \(mazeBoard?.targetDensity ?? 0)")
     }
 

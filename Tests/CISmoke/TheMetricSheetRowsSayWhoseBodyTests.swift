@@ -147,10 +147,16 @@
 //     "nothing measured" into one heading, so it still said "your body" over "no pulse measured
 //     yet" — the case THIS REGISTER had already written down four bullets below. A register
 //     entry that predicts the next slice's defect only helps if the next slice reads it.
-//   · `EchoelStudioView.swift` `"Ideas from your pulse — tap to keep. Your body wants …"` — the
-//     density traces `bus.usableBio()`, so under the demo this attributes a PREFERENCE to the
-//     reader that no body expressed. The strongest possessive claim anywhere in this family.
-//     Its sibling ("your body curates, you pick") is capability copy — triage low, not zero.
+//   · ⭐ **CLOSED (#645)** — `"Ideas from your pulse — tap to keep. Your body wants …"`. The
+//     density traces `bus.usableBio()`, so under the demo this attributed a PREFERENCE to the
+//     reader that no body expressed: the strongest possessive claim anywhere in this family.
+//     ⚠️ THE ENTRY NAMED `EchoelStudioView.swift` AND THAT IS NO LONGER WHERE IT LIVES — the
+//     three forms moved to `BioVariationMaze.boardSentence(driver:density:)`, driven by #644's
+//     `BioNarrationDriver`. A register entry that names a file rots the moment the fix moves
+//     the string, which is the ordinary outcome of fixing it; the STRING is the durable
+//     handle, the path is not. Guard: `TheVariationCardSaysWhoseTargetTests`.
+//     Its sibling ("your body curates, you pick") stays DELIBERATELY unmarked — it renders
+//     before any exploration exists, so it claims nothing about a current reading.
 //   · `BioMetricInfo.swift` `Text("What your body is showing")` — the TOP heading of the very
 //     sheet #637 marked. A second header 54 lines down IS qualified. One sheet, one marked
 //     header and one unmarked, which is worse than neither.
