@@ -23,9 +23,11 @@
 // the noun rather than adding a condition; a condition here would put a live bio read into a
 // property `EchoelStudioView.body` evaluates (the 10.76.41/50 freeze law)". The premise is
 // true of an INLINE condition; the conclusion silently assumed no leaf may exist — while the
-// same panel already mounts `AutomationStatusStrip` and the panel next door mounts
-// `AlwaysOnBioPanelStrip`, both of which read live state in their own bodies for exactly this
-// reason. So a cheap, lawful option was booked as unavailable, and what it left standing was
+// panel next door already mounts `AlwaysOnBioPanelStrip`, and `BioStripView` does the same,
+// both reading live bio in their own bodies for exactly this reason. (⛔ The first draft also
+// named `AutomationStatusStrip` as prior art. It is not: before THIS commit it read no bio at
+// all. It is a leaf, which is why the read could be added to it cheaply — but it did not set
+// the precedent, and citing it made the argument look better-supported than it was.) So a cheap, lawful option was booked as unavailable, and what it left standing was
 // the expensive one: weaken "your body" for every real player to be correct about the demo.
 // **A constraint recorded without its escape hatch reads as an impossibility** — the same
 // shape as #639's "DMX cannot carry metadata", one slice earlier, in the same family.
@@ -44,9 +46,11 @@
 //
 // KIND (§1): claims 1–5 are **END-TO-END BEHAVIOUR** — both sentence builders are `public
 // static` over Foundation-only types, so this bundle drives the shipped producers and reads
-// their real output. Claims 6–8 are **SOURCE-TEXT SCANS**: the two render sites are `private`
-// members of `View` structs no test bundle can instantiate, so where the read SITS can only be
-// read as text. What stays a DEVICE PROBE: that a player running the demo actually sees the
+// their real output. Claims 6–9 are **SOURCE-TEXT SCANS**: the render sites are `private`
+// members of `View` structs this bundle cannot RENDER (no environment, no host), so where the
+// read SITS can only be read as text. ⛔ That word was "instantiate" in the first draft and it
+// is wrong — `BodyShapesThisSoundLine` is `internal` with an implicit `init()`, so `@testable`
+// reaches it fine. The reason for a text scan survives the correction; the word did not. What stays a DEVICE PROBE: that a player running the demo actually sees the
 // changed subject, and that the panel still reads well.
 //
 // GRADING (#433 / §3) — and the honest headline first: **this file does not compile against
@@ -79,6 +83,12 @@
 //     and wrong, which is the third time this bundle has had to retract an unmeasured
 //     load-bearing claim. `SourceText.codeOnly` stays because the anchors sit in files whose
 //     prose quotes them constantly — it is insurance, and insurance is worth naming as such.
+//     ⚠️ AND THE STAKES ROSE AFTER THE REVIEW: claims 7 and 8 now scan a WHITESPACE-SQUEEZED
+//     copy, so a needle can match prose that was merely line-wrapped around it. Re-measured
+//     with the squeeze in place — still 0 of 6 squeezed verdicts flip (the near miss is this
+//     slice's own header sentence "asks `EngineBus.usableBio()`", which squeezes to
+//     `…Bus.usableBio()` and misses the lower-case needle by one character). Prophylactic
+//     today, and the kind of prophylactic that earns its place.
 //
 // ⚠️ #364: a DIFFERENT honest shape is not forbidden. A per-row "Demo" chip, a marked panel
 // header, or a redesign that drops one of the two sentences would all satisfy the law and turn
@@ -124,10 +134,15 @@ final class TheSoundPanelNamesItsActualDriverTests: XCTestCase {
             wrong source is worse than the silence #562 replaced, because the player now has a \
             confident wrong answer instead of an open question.
             """)
-        XCTAssertTrue(demo.lowercased().contains("automation"), """
-            The demo variant no longer names automation as its subject. #562's claim 1 is that \
-            a strip reporting on curves must scope its denial to curves; the demo variant is \
-            not exempt from the rule the real-body variant is bound by.
+        // ⛔ THIS ANCHORED ON `contains("automation")` AND WAS GREEN FOR THE WRONG REASON
+        // (#367): the string OPENS with "No automation recorded", so the assertion passed on
+        // the first clause while its message was about the second. Rewriting the demo variant
+        // to end "…is the simulated demo source." — dropping the scoping clause entirely, the
+        // exact regression this case exists to catch — would have left it green.
+        XCTAssertTrue(demo.contains("not automation"), """
+            The demo variant dropped its "not automation" clause. #562's claim 1 is that a \
+            strip reporting on curves must scope its denial to curves; the demo variant is not \
+            exempt from the rule the real-body variant is bound by.
             """)
     }
 
@@ -220,12 +235,18 @@ final class TheSoundPanelNamesItsActualDriverTests: XCTestCase {
     /// nothing.
     func testTheAutomationStripAsksTheFreshnessGate() throws {
         let code = try codeText(Self.strip)
-        XCTAssertTrue(code.contains("bus.usableBio()"), """
+        XCTAssertTrue(squeezed(code).contains("bus.usableBio()"), """
             `AutomationStatusStrip` does not ask `usableBio()`. Its sentence claims what is \
             moving RIGHT NOW; `latestBio` can be minutes old, and naming a demo source that \
             stopped long ago is a fresh false claim in the other direction.
             """)
-        XCTAssertTrue(code.contains("AutomationStatus.emptySentence(synthetic:"), """
+        // ⛔ WHITESPACE-INSENSITIVE, AND THE FIRST DRAFT WAS NOT — it went RED on correct code
+        // the moment the reviewer's fix wrapped the call across two lines to keep the read
+        // inside the `rows.isEmpty` branch. A needle that a reformat can break is a needle that
+        // forbids legitimate work (#364), and this one would have failed for a reason its
+        // message does not mention (#367). Collapsing whitespace makes the assertion about the
+        // CALL rather than about its line breaks.
+        XCTAssertTrue(squeezed(code).contains("AutomationStatus.emptySentence(synthetic:"), """
             The strip no longer passes a subject to `emptySentence`. The argument is required \
             precisely so a forgetful call site cannot compile (#431/#440/#443) — if this went \
             green while the argument was dropped, the argument grew a default.
@@ -236,12 +257,21 @@ final class TheSoundPanelNamesItsActualDriverTests: XCTestCase {
     /// sentences on one panel can never disagree about whether the source is synthetic.
     func testTheBodyLineLeafAsksTheSameGateTheSameWay() throws {
         let code = try codeText(Self.leaf)
-        XCTAssertTrue(code.contains("bus.usableBio()?.source.isSynthetic"), """
+        XCTAssertTrue(squeezed(code).contains("bus.usableBio()?.source.isSynthetic"), """
             `BodyShapesThisSoundLine` no longer resolves the subject through \
             `usableBio()?.source.isSynthetic`. Both sentences share one screen; two spellings \
             of "is this synthetic" is #416, and here it would show up as one line marked and \
             the other not, in the same glance.
             """)
+        // ⚠️ WHAT THIS PINS IS THE SPELLING, NOT THE INSTANT, and the difference is real
+        // enough to write down. The two sentences live in two independent leaves: this one
+        // observes `latestBio` alone, the strip also observes `player.lanes`/`enabled`. So the
+        // strip can re-render while this leaf does not — and if a stopped demo has aged past
+        // its window when someone touches the automation player, the strip flips to "your
+        // body" while the line above still reads "the simulated demo source". One glance, two
+        // evaluation instants. It needs a stopped demo AND an automation edit, and there is no
+        // automation writer today (#473/#204), so it is registered rather than fixed; a shared
+        // `TimelineView` or one hoisted leaf is the fix if a writer ever lands.
         XCTAssertTrue(code.contains("@Environment(EngineBus.self)"), """
             The leaf no longer takes the bus from the environment — so either it stopped \
             reading bio (and the subject is a constant again) or it acquired the value from a \
@@ -252,6 +282,14 @@ final class TheSoundPanelNamesItsActualDriverTests: XCTestCase {
     // MARK: - source access
 
     private struct SoundPanelAnchorMissing: Error { let reason: String }
+
+    /// Every whitespace character removed, so a scan asserts on a CALL and not on the line
+    /// breaks a formatter chose. `SourceText.codeOnly` preserves line count by design (several
+    /// guards assert on `lines[i - 1]` relations), so it cannot do this itself — squeeze at the
+    /// point of use, never in the shared stripper (#453).
+    private func squeezed(_ code: String) -> String {
+        code.filter { !$0.isWhitespace }
+    }
 
     private func codeText(_ relative: String) throws -> String {
         let root = URL(fileURLWithPath: #filePath)

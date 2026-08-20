@@ -98,11 +98,23 @@
 //   · `bioPanelSentence` and `alwaysOnSentence` — the same noun ("body") in two more places,
 //     both still open. ⛔ **THIS BULLET NAMED `EchoelFXView.stopsArrivingNote` AS A THIRD AND
 //     ITS STRING CONTAINS NO SUCH NOUN** ("When a channel stops arriving, its routes here
-//     release…"). Grep the FILE and you find one "body" — `var body: some View`, forty lines
-//     down and part of no sentence; grep the literal and you find none.
-//     The error travelled into two other registers verbatim; the count "four" was right and
-//     one of the four was the wrong file, which is worse than a wrong count because nothing
-//     ever contradicts it.
+//     release…"). The error travelled into two other registers verbatim; the count "four" was
+//     right and one of the four was the wrong file, which is worse than a wrong count because
+//     nothing ever contradicts it.
+//   · ⛔ **AND THE FIRST CORRECTION OVERSHOT INTO SOMETHING WORSE — IT EXONERATED THE WHOLE
+//     FILE.** It read: "Grep the FILE and you find one 'body' — `var body: some View`, forty
+//     lines down and part of no sentence". Measured: `grep -c body` on `EchoelFXView.swift`
+//     returns **48** lines, `var body: some View` occurs **seven** times, and the nearest one
+//     after `stopsArrivingNote` is **six** lines down, not forty. Retracting a wrong SYMBOL was
+//     right; the sentence I replaced it with quietly closed a whole file, and closing is the
+//     direction that costs — a wrong entry gets found by the next reader, a missing one never
+//     does. THREE unmarked user-facing strings live there and are hereby OPEN:
+//       · `EchoelFXView.swift:1068` "Let the body shape the effects: e.g. coherence → reverb…"
+//       · `EchoelFXView.swift:1171` "Start a session to watch the body move these parameters."
+//       · `EchoelFXView.swift:1176` `Text("Live — body → sound")` — a header rendered WHILE the
+//         contributions are live, which makes it the strongest claim of the three.
+//     (Line numbers are a date, not a fact — re-grep `"body` in that file. The point is that
+//     the file has entries, not that they sit on those lines.)
 //   · ⛔ **AND THE ADVICE ATTACHED HERE WAS AN IMPOSSIBILITY CLAIM THAT IS NOT TRUE.** It read:
 //     "All four collapse into ONE edit by changing the noun rather than adding a condition; a
 //     condition here would put a live bio read into a property `EchoelStudioView.body`

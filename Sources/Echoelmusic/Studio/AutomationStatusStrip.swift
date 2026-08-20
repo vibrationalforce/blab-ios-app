@@ -32,6 +32,13 @@
 //  open Pickers to print a number the ear already has. The readout is the SPAN a curve covers,
 //  which changes only when someone edits it.
 //
+//  ⭐ #640 ADDED A FOURTH, AND IT IS NOW THE FASTEST THING ON THIS LIST — so it belongs in the
+//  enumeration a reviewer reads first, not only in the property doc below. The empty-list
+//  sentence names WHO is moving the parameters, so it asks `EngineBus.usableBio()`, i.e. it
+//  observes `latestBio` at publish rate (~1 Hz for every wired publisher). It is read INSIDE
+//  the `rows.isEmpty` branch on purpose: on the path that draws a lane list instead, this
+//  strip observes no bio at all.
+//
 //  ⭐ IT GIVES `AutomationPlayer.extraAutomatableDescriptors` ITS FIRST CALLER SINCE #473.
 //  That property is the placebo law in executable form ("only offer a parameter that actually
 //  moves audio"); it was orphaned when the timeline row was deleted, and its doc block asks for
@@ -66,7 +73,6 @@ struct AutomationStatusStrip: View {
 
     var body: some View {
         let rows = statusRows
-        let synthetic = bus.usableBio()?.source.isSynthetic ?? false
         // NO HEADING HERE, DELIBERATELY. "Automation" is a section heading, and #362 unified
         // every one of them onto `EchoelStudioView.groupHeader` after finding three spellings
         // split by panel family — one of which asked for a weight the bundled font cannot
@@ -78,7 +84,16 @@ struct AutomationStatusStrip: View {
         VStack(alignment: .leading, spacing: 8) {
             enableRow
             if rows.isEmpty {
-                Text(AutomationStatus.emptySentence(synthetic: synthetic))
+                // ⛔ READ INSIDE THE BRANCH, NOT ABOVE IT, and the first cut of #640 had it
+                // hoisted next to `rows`. A read in the body registers the observation
+                // UNCONDITIONALLY — so the strip would have re-rendered its lane list and its
+                // `Toggle` once a second to compute a subject it then discarded, on exactly the
+                // path where the sentence is not drawn. Latent today (nothing writes automation,
+                // so `rows` is always empty), and live the day a lane exists. This file's header
+                // enumerates what it observes on purpose; widening that set for a branch that
+                // does not use it is the carelessness the header warns against.
+                Text(AutomationStatus.emptySentence(
+                    synthetic: bus.usableBio()?.source.isSynthetic ?? false))
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             } else {

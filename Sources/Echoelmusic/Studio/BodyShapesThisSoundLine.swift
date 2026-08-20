@@ -12,7 +12,11 @@
 //  that body evaluates PERMANENTLY while hosting every `.menu` Picker of the instrument.
 //  `AnyView(...)` is not an observation boundary; a `View` struct is (10.76.41/50). So the read
 //  moves into its own body rather than the condition moving into the host's — the same
-//  construction as `AlwaysOnBioPanelStrip`, `AutomationStatusStrip` and `BioStripView`.
+//  construction as `AlwaysOnBioPanelStrip` and `BioStripView`. ⛔ `AutomationStatusStrip` was
+//  cited here too and is NOT precedent: before this same commit it read no bio whatsoever, and
+//  its own header says its state changes "only when someone edits it". It became a second bio
+//  reader in this slice; listing it as prior art made the argument look better-supported than
+//  it was, which is the one kind of error a justification block must not make.
 //
 //  ⛔ AND THAT IS WHY THE REGISTER SAID THIS COULD NOT BE DONE. `TheAlwaysOnRowsSayWhoseBody`
 //  listed these sentences as fixable only "by changing the noun rather than adding a condition;
@@ -34,11 +38,23 @@
 //  a WALL CLOCK, but SwiftUI only re-evaluates this body when an OBSERVED value changes — and
 //  the only observed value here is `latestBio`. So time passing cannot by itself flip the
 //  subject back: if the demo stops publishing entirely, the last rendered sentence keeps saying
-//  "the simulated demo source" until something re-renders the leaf. That is bounded and it errs
-//  in the SAFE direction — over-marking a demo that has stopped, never under-marking one that
-//  is running — and the moment a real source publishes, `latestBio` changes and the subject
-//  corrects itself. `AlwaysOnBioRow` documents the same bounded lag against `usableBio()` for
-//  the rows next door; naming it in both places beats a footnote in neither.
+//  "the simulated demo source" until something re-renders the leaf.
+//
+//  ⛔ THE FIRST DRAFT CALLED THAT LAG "BOUNDED" AND CITED `AlwaysOnBioRow` AS DOCUMENTING "THE
+//  SAME" ONE. Both halves are wrong, and they are wrong together for one reason: that row wraps
+//  its content in `TimelineView(.periodic(from: .now, by: 1))` (`AlwaysOnBioRow.swift:85`) and
+//  its residue note says so verbatim — the ~1 s bound is BOUGHT by a timer. This leaf has no
+//  timer, so its lag has no wall-clock bound at all; it lasts until the next publish, which may
+//  be never. Citing the neighbour imported a guarantee this file does not have — a parity claim
+//  is a claim, and it needed the same measurement as a number.
+//
+//  ⭐ WHAT SURVIVES, AND IT IS THE HALF THAT MATTERS: the error is one-directional. A demo
+//  publish always renders with age ≈ 0, well inside `.fallback`'s 5 s window, so an UNMARKED
+//  running demo is unreachable; what the missing timer can produce is a MARKED demo that has
+//  already stopped. Over-marking, never under-marking. A `TimelineView` here would make the
+//  word "bounded" true and cost a 1 Hz redraw for a string that changes only when the player
+//  switches source — the honest sentence is cheaper than the timer that would justify the
+//  dishonest one.
 
 #if canImport(SwiftUI)
 import SwiftUI
