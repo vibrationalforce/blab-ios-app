@@ -1,4 +1,4 @@
-build: v10.79.416 — Die Monitor-Latenz steht jetzt auf dem Schirm, und die Kette sagt, was jede Stufe selbst meldet
+build: v10.79.417 — Bluetooth sagt jetzt, wenn es die Musik zum Telefon macht, und der Puffer hat endlich einen Regler
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,74 +6,101 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.415 (Build 2533). Dieser Build bündelt #658 bis #667.
+  Der Vorgänger ist 10.79.416. Dieser Build bündelt #670 bis #675.
 
-  ── WAS DU SIEHST ────────────────────────────────────────────────────────
+  ⭐ WICHTIG: 416 hast Du nie geprüft. Diese Bitte ersetzt die von damals — es ist
+  derselbe EINE Handgriff, er beantwortet jetzt nur mehr Fragen auf einmal.
 
-  **Die Latenz-Zahl ist jetzt auf dem Schirm, nicht nur im Log.** Mix-Panel →
-  „Voice - your microphone" → „Choose input…", und solange Live monitoring läuft, steht
-  dort eine Zeile: der Weg (welches Mikro → welcher Ausgang), die Aufschlüsselung
-  (Eingang · Puffer · Ausgang) und darunter die Summe.
+  ── DAS NEUE, UND ES IST DAS WICHTIGSTE SEIT LANGEM ──────────────────────
 
-  Sie heißt bewusst **Untergrenze**, nicht „Latenz": sie enthält die Hardware-Laufzeit
-  und EINE Pufferperiode. Ein echter Umlauf braucht mindestens zwei, und „Tune to key"
-  kommt obendrauf. Eine Zahl, die sich größer macht als sie ist, wäre schlimmer als keine.
+  **Bluetooth kann Deine Musik zum Telefon machen, und die App hat das bisher
+  verschwiegen.** Sobald Echoel das Mikrofon beansprucht, darf iOS die GANZE geteilte
+  Route auf den Anruf-Codec ziehen — mono, bandbegrenzt. Nicht nur das Mikro: die Musik
+  geht mit. Zwei Warnungen standen schon in der App, und beide reden über **Verzögerung**
+  („~150–250 ms"). Über den Klang-Verfall redete keine, weil keine Latenz-Zahl ihn
+  ausdrücken kann.
 
-  ── WAS IM LOG NEU IST, OHNE DASS DU ETWAS TUN MUSST ─────────────────────
+  Jetzt steht in derselben Zeile, in der die Latenz steht, ein roter Satz — **nur wenn es
+  wirklich passiert**. Bei gesunder Route steht dort nichts; eine Beruhigung, die niemand
+  bestellt hat, wäre auch eine Behauptung.
 
-  Die Latenz-Zeile trägt jetzt ein Feld, das die Kette selbst befragt:
+  Zwei Fälle, absichtlich verschieden formuliert: **iOS hat den Anruf-Port benannt**
+  („ist im Anruf-Modus") gegen **wir schließen aus der Abtastrate** („sieht aus wie").
+  Eine Vermutung darf nicht klingen wie eine Tatsache.
 
-      latency: monitor on cat=…PlayAndRecord sr=48000 buf=5.0 in=1.5 out=2.5
-               floor=9.0ms tune=on inserts[notch=0.00,tune=21.33]ms route=…
+  **Und der Log sagt es Dir jetzt auch.** Die Routen-Zeile trug bisher nur Geräte-NAMEN.
+  Ein Name sagt nichts über den Codec — „HI-X25BT" steht dort auch, wenn alles gut ist.
+  Jetzt steht der Port-TYP dabei:
 
-  `inserts[…]` ist das, was die einzelnen Stufen **über sich selbst melden** — roh,
-  unverrechnet, und ausdrücklich NICHT in `floor=` eingerechnet.
+      route=Built-In Microphone→HI-X25BT[HFP]
 
-  Warum das so vorsichtig ist: die Tonhöhenstufe ist ein Phasenvocoder und hat mit
-  Sicherheit eine echte Verzögerung. Ob Apples Knoten sie auch **meldet**, weiß niemand —
-  diese Schnittstelle war in diesem Projekt noch nie benutzt, und ein nicht initialisierter
-  Knoten meldet 0. Deshalb steht die Zahl im Log und **nirgends auf dem Bildschirm**:
-  eine erfundene 0 wäre schlimmer als eine ehrliche Leerstelle. Dein nächster Log
-  beantwortet das, ohne dass Du irgendetwas dafür tun musst.
+  `[HFP]` = Anruf-Modus. `[A2DP]` = volle Bandbreite. Damit kann ich in einem Log, das Du
+  in drei Wochen schickst, immer noch nachlesen, was an dem Abend wirklich passiert ist.
+
+  ── DER PUFFER HAT JETZT EINEN REGLER ────────────────────────────────────
+
+  Unter der Latenz-Zeile: **Ultra · Low · Normal**. Das ist die zweite Hälfte Deiner
+  Bitte („alle Latenzen und Kombinationen optimiert für Sessions") — bisher gab es die
+  drei Stufen im Code und **nichts konnte sie auswählen**. Der Puffer stand seit Monaten
+  fest auf Normal, egal was die Sitzung tat.
+
+  ⚠ **Normal bleibt die Voreinstellung, und das ist Absicht.** Low (256) WAR einmal die
+  Voreinstellung, bis Du bei dichten Akkorden „Aussetzer / Kratzen" gehört hast. Ich habe
+  den Regler deshalb NICHT automatisch gemacht: eine Automatik hätte genau den Rückfall
+  auf genau die Sitzung gezielt, die sie verbessern soll. Der Satz unter dem Regler sagt
+  Dir das auch.
+
+  Zwei Ehrlichkeiten dazu: die Stufe ist eine **Anfrage** — iOS deckelt sie, am härtesten
+  über Bluetooth —, und die Zahl darüber zeigt, was tatsächlich **gewährt** wurde. Wenn
+  der Regler leuchtet und die Zahl sich nicht bewegt, ist das die Wahrheit und kein
+  Fehler. Und: die Wahl **setzt sich beim Neustart zurück**.
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  **Es ist EIN Handgriff, und er beantwortet drei offene Fragen auf einmal:**
+  **Ein Handgriff, unverändert seit 416 — er beantwortet jetzt nur mehr:**
 
-  1. „Choose input…" öffnen, **Live monitoring** einschalten — egal ob es angeht oder den
-     roten Kasten zeigt, beides ist eine Antwort. Gern zweimal: iPhone-Mikro und HI-X25BT.
-  2. Wenn es angeht: kurz die Latenz-Zeile auf dem Schirm ansehen. Klingt die Zahl
-     plausibel für das, was Du hörst?
+  1. Mix-Panel → „Voice - your microphone" → „Choose input…", **Live monitoring** an.
+     Egal ob es angeht oder den roten Kasten zeigt: beides ist eine Antwort.
+     Gern zweimal — **iPhone-Mikro und HI-X25BT**. Der zweite Fall ist der interessante:
+     erscheint der rote Bluetooth-Satz? Klingt die Musik dabei dumpf/telefonig?
+  2. Wenn Du magst: einmal am Puffer-Regler ziehen und hören, ob es kratzt. Kein Muss —
+     Normal ist sicher.
   3. **Dann das Diagnose-Log schicken.** Such nichts heraus.
 
-  Wenn Du ohnehin am Gerät bist: eine Minute Finger auf der Linse. Das zeigt, ob nach
-  einem `Too bright` die Konfidenz zurückkommt statt bei 0,00 zu bleiben — die Reparatur
-  aus 415, immer noch ohne Geräte-Beleg.
+  Wenn Du ohnehin am Gerät bist: eine Minute Finger auf der Linse — zeigt, ob nach einem
+  `Too bright` die Konfidenz zurückkommt statt bei 0,00 zu bleiben (Reparatur aus 415,
+  immer noch ohne Geräte-Beleg).
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
   Alles compile-verifiziert (beide echten Gates, „Build for Testing" grün), **NICHTS**
-  geräteverifiziert. Ob die Latenz-Zeile auf dem kleinen Schirm gut liegt, ob die Zahl
-  stimmt, ob `inserts[…]` etwas anderes als Nullen liefert: alles offen.
+  geräteverifiziert. Ob iOS auf Deinem HI-X25BT wirklich `BluetoothHFP` meldet, ob der
+  rote Satz an der richtigen Stelle sitzt, ob `inserts[…]` etwas anderes als Nullen
+  liefert: alles offen.
 
   ── EINE EHRLICHE NOTIZ ZUM VERFAHREN ────────────────────────────────────
 
-  Diese Reihe hat mich dreimal beim selben Fehler erwischt: **ich ändere eine Fläche und
-  ziehe den Wächter darüber nicht im selben Commit mit.** Zweimal davon in einem einzigen
-  Commit — einmal so, dass der Compiler es sagte, einmal so, dass er es nicht konnte
-  (ich hatte einen Aufruf umbrochen, auf dessen Schreibweise zwei Prüfungen zeigen).
-  Beides repariert und an der Stelle vermerkt, wo der nächste es liest.
+  Dieser Block hat mich zwei Dinge gelehrt, die ich beide aufgeschrieben habe.
 
-  Dabei fiel auf, dass die Anleitung zum Lesen der roten Ampel **selbst zu eng war**: sie
-  suchte nach dem Wort `error:`, das Protokoll schreibt aber `❌`. Wer der Anleitung
-  wörtlich folgt, hält einen echten Fehler für eine Infrastruktur-Störung und lässt neu
-  laufen. Korrigiert.
+  **Erstens: ein Wächter kann von einem SPÄTEREN Commit entwaffnet werden.** Ich hatte
+  eine Prüfung auf ein Textmuster gestützt, das damals eindeutig war. Zwei Commits später
+  machte eine neue Funktion dasselbe Muster häufig — ab da wäre die Prüfung grün geblieben,
+  während genau ihr Defekt ausgeliefert worden wäre. Die Regel „Wächter im selben Commit
+  mitziehen" hat also ein Spiegelbild, das ich nicht kannte.
+
+  **Zweitens, und das war knapp: der Puffer-Regler, den ich gebaut hatte, löste beim
+  Antippen genau die Sequenz aus, die Dir damals den Ton komplett abgeschossen hat**
+  (`setCategory` + `setActive` auf laufender Engine) — und er war ausschließlich dort
+  erreichbar, wo sie zuschlägt: mitten in der laufenden Sitzung. Gefunden im Pflicht-Review,
+  bevor irgendetwas davon zu Dir kam. Die Reparatur ist kleiner als der Fehler war: eine
+  Puffer-Anfrage braucht **einen** Aufruf und fasst die Sitzung gar nicht an.
 
   Weiterhin offen: das „Demo"-Schildchen pro Zeile in der Metrik-Ansicht · ADM-OSC,
   Art-Net, sACN und die Ereignis-Adressen ohne Herkunftsangabe · Harmonizer und Granular
-  am Mikrofon statt am Synthesizer (Plan in `scratchpads/PLAN_VOCAL_CHAIN_2026-08-20.md`;
-  gemessen: die Monitor-Kette IST bereits eine echte Insert-Kette, der Autotune hängt
-  schon darin — es fehlt der Knoten für eigene DSP-Stufen) · Voice clone braucht Dein Wort.
+  am Mikrofon statt am Synthesizer (gemessen: die Monitor-Kette IST bereits eine echte
+  Insert-Kette, der Autotune hängt schon darin — es fehlt nur der Knoten für eigene
+  DSP-Stufen; ich halte ihn absichtlich zurück, bis Dein Log sagt, dass Monitoring am
+  Gerät überhaupt angeht) · Voice clone braucht Dein Wort.
 
   ⚠ Die Uhr-App bleibt ausgenommen: das Watch-Target ist in `project.yml` nicht
   eingebettet, und es gibt keinen Übertragungsweg vom Telefon ans Handgelenk. Gebaut,
