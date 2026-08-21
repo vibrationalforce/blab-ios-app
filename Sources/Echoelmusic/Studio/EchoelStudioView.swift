@@ -7565,6 +7565,25 @@ struct EchoelStudioView: View {
     }
 
     /// Stamp the chosen effect character on every live FX chain (independent of genre).
+    /// ⚠️ #695 — THIS RE-STAMP DOES NOT REFRESH THE FX PANEL'S MIRRORS, AND TODAY ONLY THE
+    /// MODAL SAVES IT. `FXViewModel` mirrors all fifteen chain enables and resyncs solely
+    /// through `reseed()`; `EchoelFXView.applyCharacter` calls it, this function does not. So a
+    /// character stamped from HERE while a live `EchoelFXView` existed would leave up to
+    /// fourteen switches reading ON over a chain that is off — the `applyDelaySync` failure
+    /// shape one panel over, multiplied.
+    ///
+    /// ⭐ IT IS UNREACHABLE TODAY, and the reason is presentation, not design: the character
+    /// `Picker` and the "All parameters" door are BOTH in `effectsPanel`, and the panel is
+    /// covered by `.sheet(isPresented: $showAllFX)` — a modal cannot be reached past. Generate
+    /// and `open(_:)` re-stamp too, and are behind the same modal. Dismissing destroys the
+    /// sheet's `@State`, so the next presentation re-seeds from the chain.
+    ///
+    /// ⛔ THAT GUARANTEE IS ONE UI CHANGE THICK. It breaks the day the FX surface stops being
+    /// modal, gains its own character control, or the panel becomes reachable behind it — and
+    /// nothing would go red, because the mirrors are `@State` and no test can see a live one.
+    /// #694 WIDENED the exposure from seven flags to fourteen (it made `.clean` write the seven
+    /// the preset could not), which is why it is written down here rather than left as an
+    /// unstated property of a sheet. The repair, on that day, is a call site — not new code.
     private func applyFX() {
         for chain in characterFXChains {
             fxCharacter.apply(to: chain, bpm: currentTempo, genre: style)

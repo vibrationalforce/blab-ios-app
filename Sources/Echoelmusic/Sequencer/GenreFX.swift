@@ -829,9 +829,17 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
             // "Everything off — a dry reset" as if it were all of it. `GenreFXPreset` can
             // express seven of the chain's fifteen enables; the other seven (tape, bitcrush,
             // flanger, tremolo, granular, widener, compressor) are written by `apply(to:bpm:
-            // genre:)` above, for `.clean` only (#694). Read the two together or the claim
-            // here is a completeness claim the type cannot keep. The safety limiter is
-            // touched by NEITHER and stays on.
+            // genre:)` BELOW, for `.clean` only (#694). (⛔ #695: this said "above". `apply` is
+            // ~120 lines further DOWN the file; a pointer that sends the reader the wrong way
+            // is worse than none, and it shipped in the slice whose subject was an invented
+            // citation.) Read the two together or the claim here is a completeness claim the
+            // type cannot keep.
+            //
+            // ⚠️ The safety limiter is touched by neither of THOSE TWO — which is not the same
+            // as "nothing can switch it off", and the first version of this line invited that
+            // reading. `FXPreset.apply` (the USER preset, a different type) and the FX panel's
+            // own toggle both write `limiterEnabled`. What holds here is narrower and exact:
+            // no CHARACTER and no GENRE disables it.
             return GenreFXPreset(filterEnabled: false, delayEnabled: false,
                                  chorusEnabled: false, phaserEnabled: false,
                                  saturation: 0)
@@ -911,8 +919,12 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
     /// supplied `genre`'s preset instead.
     ///
     /// ⛔ #694 — `.clean` NEEDED A SECOND STEP, because `GenreFXPreset` cannot express the
-    /// whole chain. The struct carries SEVEN enables (filter · delay · chorus · phaser ·
-    /// saturation · harmonizer · reverb); `EchoelFXChain` has FIFTEEN. So a character
+    /// whole chain. The struct declares SIX `*Enabled` fields (filter · delay · chorus ·
+    /// phaser · harmonizer · reverb) and one `saturation: Float` that `apply` converts into a
+    /// seventh write (`saturationEnabled = saturation > 0`); `EchoelFXChain` has FIFTEEN
+    /// enables. (⛔ #695: this read "the struct carries SEVEN enables", which is the WRITE
+    /// count wearing the DECLARATION's name — anyone re-deriving it counts six and concludes
+    /// the prose is stale. Two quantities, two sentences.) So a character
     /// subtitled *"No effects — reset to a dry signal"* left SEVEN stages running — tape,
     /// bitcrush, flanger, tremolo, granular, widener, compressor — and the more of them a
     /// player had switched on by hand, the less dry "dry" was.
@@ -939,9 +951,17 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
     /// larger decision covering all fourteen.
     ///
     /// ⭐ THE ENABLE-DOWN WRITE IS FREE ON THE SWITCH-CRACKLE RULE. Every stateful stage
-    /// resets on its flag's RISING edge (`willSet`), so writing `false` here schedules no
-    /// work and cannot click; the drain that matters happens when the player turns a stage
-    /// back on.
+    /// resets on its flag's RISING edge (`willSet`), so writing `false` here SCHEDULES NO
+    /// WORK — no reset, no allocation, nothing on the audio thread. The drain that matters
+    /// happens when the player turns a stage back on.
+    ///
+    /// ⚠️ THAT IS NOT THE SAME AS "CANNOT CLICK", which is what the first version of this
+    /// line said. Bypassing the tremolo steps its gain from the LFO's current value straight
+    /// back to unity mid-buffer; the compressor's gain-reduction plus makeup and the
+    /// widener's M/S width do the same. That step is inherent in what "dry" MEANS and is
+    /// already true of chorus and delay, so it is not a reason to change the code — but a
+    /// later session must not cite this line as proof that a falling edge can never click,
+    /// because the falling edge does not establish that.
     public func apply(to chain: EchoelFXChain, bpm: Double, genre: MusicStyle) {
         (preset ?? genre.fxPreset).apply(to: chain, bpm: bpm)
         guard self == .clean else { return }

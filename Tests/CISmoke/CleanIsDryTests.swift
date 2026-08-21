@@ -117,19 +117,32 @@ final class CleanIsDryTests: XCTestCase {
     func testTheDryResetCoversEveryEnableTheChainDeclares() throws {
         let url = try repoRoot()
             .appendingPathComponent("Sources/Echoelmusic/DSP/EchoelFXChain.swift")
-        let text = try String(contentsOf: url, encoding: .utf8)
+        // ⛔ #695 — THE FIRST VERSION OF THIS SCAN COULD NOT SEE THE DECLARATION IT EXISTS TO
+        // CATCH. It required `contains("Enabled: Bool")`, so a sixteenth stage written with an
+        // inferred type — `public var shimmerEnabled = false { willSet { … } }` — would have
+        // left `declared` at fifteen, `unknown` empty and this test GREEN while `.clean` let the
+        // new stage play on. All fifteen happen to write the annotation today; nothing requires
+        // it. The needle now keys on the IDENTIFIER, which is what the law is about, and takes
+        // the name up to whichever of `:`, `=` or `{` comes first.
+        //
+        // ⚠️ Comment-stripped like every sibling scan, so a `/* … */` block quoting a
+        // declaration cannot add a phantom name and turn this red on a correct tree.
+        let text = SourceText.codeOnly(try String(contentsOf: url, encoding: .utf8))
         var declared: [String] = []
         for line in text.components(separatedBy: .newlines) {
             let t = line.trimmingCharacters(in: .whitespaces)
-            guard t.hasPrefix("public var "), t.contains("Enabled: Bool") else { continue }
+            guard t.hasPrefix("public var ") else { continue }
             let after = t.dropFirst("public var ".count)
-            guard let colon = after.firstIndex(of: ":") else { continue }
-            declared.append(String(after[..<colon]))
+            let name = String(after.prefix { $0 != ":" && $0 != "=" && $0 != " " && $0 != "{" })
+            guard name.hasSuffix("Enabled") else { continue }
+            declared.append(name)
         }
         XCTAssertGreaterThan(declared.count, 10, """
-            Only \(declared.count) `public var …Enabled: Bool` declarations found in \
+            Only \(declared.count) `public var …Enabled` declarations found in \
             `EchoelFXChain.swift`. The scan lost its needle and the comparison below would pass \
-            on almost anything — re-point the extraction, do not relax it.
+            on almost anything — re-point the extraction, do not relax it. (Fifteen when this \
+            was written; the floor is deliberately far below that, because a SIXTEENTH stage is \
+            correct work and must not be forbidden here — `unknown` below is what notices it.)
             """)
 
         let known = Set(Self.switchable + ["limiterEnabled"])
