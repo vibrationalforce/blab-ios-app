@@ -103,6 +103,28 @@ struct AudioInputPickerView: View {
     // MARK: - Live monitoring + feedback guard
 
     @ViewBuilder
+    /// The character the LIVE values sit on, or nil once a field has been dragged off
+    /// every named point. Hoisted out of `monitoringSection` for two reasons: #287 (a
+    /// `Binding<Optional>` built inline inside a `Picker` inside a body this size is the
+    /// shape that has taken this bundle red on type-check time), and because the caption
+    /// below the picker asks the same question — one spelling, not two (#416).
+    private var voiceTuneCharacter: VoiceTuneCharacter? {
+        VoiceTuneCharacter.matching(strength: Double(audioEngine.voiceTuneStrength),
+                                    retuneSpeed: Double(audioEngine.voiceTuneRetune))
+    }
+
+    /// Derived selection: reads back from the two fields, writes both on a pick. No stored
+    /// selection anywhere — see the note at the picker.
+    private var voiceTuneCharacterBinding: Binding<VoiceTuneCharacter?> {
+        Binding(
+            get: { voiceTuneCharacter },
+            set: { choice in
+                guard let choice else { return }
+                audioEngine.voiceTuneStrength = Float(choice.strength)
+                audioEngine.voiceTuneRetune = Float(choice.retuneSpeed)
+            })
+    }
+
     private var monitoringSection: some View {
         #if os(iOS)
         VStack(alignment: .leading, spacing: 10) {
@@ -241,6 +263,33 @@ struct AudioInputPickerView: View {
                     .accessibilityLabel("Tune to key")
                 }
                 if audioEngine.voiceTuneEnabled {
+                    // #681 — the founder's "Autotune (Charakter Einstellungen)". A character is
+                    // a choice with NAMES, so it is a Picker and not a fifth number (CLAUDE.md,
+                    // "READ THE WORD NUMERIC"). It sits ABOVE the two fields it writes, the
+                    // preset-over-parameters shape `presetRow` already uses in the sound panel.
+                    //
+                    // ⭐ THE SELECTION IS DERIVED FROM THE LIVE VALUES, never stored. There is no
+                    // `@State` character here on purpose: a stored selection would keep claiming
+                    // "Tight" after a finger moved Amount, and a control that lies about what is
+                    // active is worse than none (the `DiatonicHarmonyFollower` ownership lesson).
+                    // `matching` returns nil once the values sit off every named point — then no
+                    // segment is highlighted and the caption below says why. That is also why
+                    // there is no "Custom" segment: choosing it could only be a no-op, which is
+                    // exactly the inert control this shape exists to avoid.
+                    Text("Character")
+                        .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                    Picker("Character", selection: voiceTuneCharacterBinding) {
+                        ForEach(VoiceTuneCharacter.allCases) { character in
+                            Text(character.label).tag(VoiceTuneCharacter?.some(character))
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .accessibilityLabel("Autotune character")
+                    if voiceTuneCharacter == nil {
+                        Text("Custom — your own Amount and Tune. Pick a character to return to a named setting.")
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                     EchoelValueField(
                         label: "Amount",
                         value: Binding(get: { audioEngine.voiceTuneStrength },

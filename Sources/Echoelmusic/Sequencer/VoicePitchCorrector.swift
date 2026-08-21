@@ -24,9 +24,28 @@
 //  key", default off). ⛔ This header described that consumer as a plan ("ratio
 //  into a delay-line shifter") for the whole first day it was shipped — wrong
 //  quantity (cents, not ratio) and wrong mechanism (first-party graph node).
-//  VL2 (`VoiceHarmony` → EchoelHarmonizer intervals) is genuinely still OPEN —
-//  #599b, next slice; until then its maths is pinned by Test 4 of
-//  TheVoiceTuneSnapsToTheSessionKeyTests.
+//  ⛔ AND THE LINE BELOW THAT ONE AGED THE SAME WAY, one slice later: it said
+//  "VL2 (`VoiceHarmony` → EchoelHarmonizer intervals) is genuinely still OPEN —
+//  #599b, next slice". VL2 IS wired: `Tools/DiatonicHarmonyFollower.swift` is the
+//  ~10 Hz bridge (`EngineBus.latestMusical` → `VoiceHarmony.interval` →
+//  `EchoelHarmonizer.interval1/2`), constructed in `EchoelmusicApp` and doored by
+//  the FX panel's "Follow the key". Its own header says "VL2 wired — #599b" while
+//  this one said OPEN. **A header that calls a built thing open is worse than a
+//  stale number: it makes the next session BUILD IT AGAIN.** Its maths stays
+//  pinned by Test 4 of TheVoiceTuneSnapsToTheSessionKeyTests.
+//
+//  ⚠️ WHAT IS GENUINELY STILL OPEN, so this header does not simply flip to a
+//  rosier lie: the harmonizer follows the SOUNDING LEAD (the piano-roll note the
+//  studio publishes), and it lives on `EchoelFXChain`, which is NOT in the monitor
+//  graph. Measured with a recipe that literally PRINTS the number, because `git grep
+//  -c` on a no-match file prints nothing at all and exits 1 — quoting that as "= 0"
+//  is the EchoelModalBank trap (a recipe whose output contradicts the prose beside it
+//  reads as a contradiction, not as a sloppy command):
+//      git grep -c EchoelFXChain -- Sources/Echoelmusic/Audio/AudioEngine.swift | wc -l
+//  → 0. The monitor path is `input → notchEQ → [voiceTunePitch] → monitorMixer`.
+//  So the singer's own voice reaches the notch and this corrector, and reaches NO
+//  harmonizer, reverb or delay. That gap is the vocal-chain host node (V1a), not
+//  VL2.
 //
 
 import Foundation
@@ -138,6 +157,85 @@ public struct VoicePitchCorrector: Sendable {
     private func ratioFromCents(_ cents: Double) -> Float {
         let r = pow(2.0, cents / 1200.0)
         return r.isFinite ? Float(r) : 1
+    }
+}
+
+// MARK: - Autotune character (the founder's "Charakter Einstellungen", #681)
+
+/// A NAMED combination of the corrector's two numbers, because "Charakter" is a
+/// choice with names and not a number to decode — the same law that turned the
+/// harmonizer's semitone field into `HarmonyInterval` (CLAUDE.md, "READ THE WORD
+/// NUMERIC"). The two `EchoelValueField` rows stay: this is a preset ON them, the
+/// `presetRow` shape the sound panel already uses, never a replacement for them.
+///
+/// ⭐ THE SELECTION IS DERIVED, NEVER STORED. `matching(strength:retuneSpeed:)`
+/// reads the live values back; there is deliberately no "selected character"
+/// property anywhere. A stored selection goes stale the instant a finger moves
+/// either field, and a control that lies about what is active is worse than no
+/// control — the ownership lesson `DiatonicHarmonyFollower` paid for. `nil` means
+/// the performer has dialled something of their own, and the door says so.
+///
+/// ⚠️ `tight` IS THE SHIPPED DEFAULT, not a new taste. `AudioEngine` has launched
+/// with `voiceTuneStrength = 1` / `voiceTuneRetune = 0.8` since #599, so naming
+/// that exact pair keeps this slice a LABEL over existing behaviour — no user
+/// hears a different monitor because a picker appeared. Moving either literal
+/// changes what people already ship with; the guard pins the pair to this case.
+public enum VoiceTuneCharacter: String, CaseIterable, Sendable, Identifiable {
+    /// A nudge. Vibrato and scoops survive; the pitch centre is merely tidied.
+    case natural
+    /// Clearly corrected, still recognisably a human moving between notes.
+    case smooth
+    /// Studio-tight: full correction, a short audible glide into each note.
+    case tight
+    /// The classic quantised effect — full correction, no glide at all.
+    case hard
+
+    public var id: String { rawValue }
+
+    /// How far toward the in-key target (`VoicePitchCorrector.strength`, 0…1).
+    public var strength: Double {
+        switch self {
+        case .natural: return 0.55
+        case .smooth:  return 0.80
+        case .tight:   return 1.00
+        case .hard:    return 1.00
+        }
+    }
+
+    /// How fast it gets there (`VoicePitchCorrector.retuneSpeed`, 0…1; 1 = instant
+    /// snap). The corrector turns this into a time constant — that maths lives
+    /// THERE and is not restated here (#416).
+    public var retuneSpeed: Double {
+        switch self {
+        case .natural: return 0.15
+        case .smooth:  return 0.45
+        case .tight:   return 0.80
+        case .hard:    return 1.00
+        }
+    }
+
+    /// Short label for the picker.
+    public var label: String {
+        switch self {
+        case .natural: return "Natural"
+        case .smooth:  return "Smooth"
+        case .tight:   return "Tight"
+        case .hard:    return "Hard"
+        }
+    }
+
+    /// The character whose pair the CURRENT values sit on, or `nil` when the
+    /// performer has moved a field off every named point. The tolerance is wide
+    /// enough to survive `Float` → `Double` widening at the door (0.8 as a `Float`
+    /// widens to 0.800000011920929) and far narrower than the gap between any two
+    /// neighbouring characters, the smallest of which is 0.20.
+    public static func matching(strength: Double, retuneSpeed: Double) -> VoiceTuneCharacter? {
+        guard strength.isFinite, retuneSpeed.isFinite else { return nil }
+        let tolerance = 1e-3
+        return allCases.first {
+            abs($0.strength - strength) <= tolerance &&
+            abs($0.retuneSpeed - retuneSpeed) <= tolerance
+        }
     }
 }
 
