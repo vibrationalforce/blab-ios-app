@@ -222,6 +222,26 @@ its own known positive is not a measurement.
 - **#445:** a test name **in** the log proves it ran. Its **absence proves nothing** — the
   surviving clone flushes a non-deterministic subset. Honest wording for an unobserved guard:
   *"kompiliert nachweislich, Ausführung unbelegt."* Never "green", never "red".
+- **#686 — #445 WITH A KNOWN-BAD CONTROL, which this directory never had before.** Until now
+  #445 was an inference: absence *ought* to prove nothing. On 2026-08-21 it was measured
+  against a test that provably fails.
+  `2e65ab7` shipped `AGrainCannotClickOrRunAwayTests.testZeroMixReturnsTheInputExactly…`
+  asserting `activeGrainCount > 0` one call after the mix was raised. The stage cannot
+  satisfy that — the spawn accumulator sits at 0.00091 after one call and the first grain
+  launches on call ~1 098 — confirmed by re-implementing the algorithm in Python. The file
+  was in the commit, it compiled (`build-for-testing: Succeeded`), and the gate reported
+  **170 tests passing, 0 failures, and not one result line from that suite.**
+  Whether it never ran or ran and was not flushed does not matter; the consequence is the
+  same and it is worth saying without softening: **the blocking bundle did not block a test
+  that was certain to fail.** 336 files in the directory, 170 results flushed on that run.
+  Two things follow, and neither is "write fewer guards":
+  · A new guard's numbers are only as good as the arithmetic you did BEFORE pushing. A CI
+    round trip is not a check on them — it is a lottery ticket that mostly comes up blank.
+    Derive the expectation (`#442`), or simulate the algorithm, or you have not tested it.
+  · The mandatory reviewer is not ceremony. On this slice it caught the failing expectation
+    that the gate then demonstrably did not.
+  ⚠️ Do not read this as "#396 is worse than we thought" and go quiet about it — the fix is
+  founder-gated and already recorded. Read it as: **the gate is a floor, not a verdict.**
 
 ⛔ **A `.md` file in THIS directory triggers both gates.** Their `paths:` filters list
 `Tests/**` — the filter matches a PATH, not a source extension — so editing this very file
