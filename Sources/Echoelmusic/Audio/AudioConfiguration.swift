@@ -648,6 +648,79 @@ enum AudioConfiguration {
         return parts.filter { $0.isFinite && $0 >= 0 }.reduce(0, +)
     }
 
+    /// What the route can CARRY. A different question from how long it takes, and the picker
+    /// could not answer it until #670.
+    ///
+    /// ⭐ WHY THIS EXISTS. The founder asked (2026-08-20) for "Interface per Kabel und auch per
+    /// Bluetooth … alle Latenzen und Kombinationen optimiert für Sessions". Two warnings in
+    /// `AudioInputPickerView` already cover the Bluetooth DELAY (~150–250 ms). Neither covers
+    /// the effect that actually ruins a take: once the mic is claimed, `recordOptions` carries
+    /// `.allowBluetooth` (HFP), and iOS then pulls the WHOLE shared route — the music, not just
+    /// the mic — down to the mono call codec. A player hears his own instrument turn into a
+    /// telephone and has no number on screen that says why, because no LATENCY number can.
+    ///
+    /// ⚠️ Two cases, not one, and they must never print the same sentence: `.telephony` is what
+    /// iOS NAMED, `.telephonySuspected` is what we INFERRED. #654 exists because this file once
+    /// rendered "could not measure" and "measured zero" identically.
+    /// ⚠️ Deliberately NOT `: String`. A raw value nothing reads is speculative surface, and
+    /// the one place it would have gone — the log line — is where this slice decided NOT to add
+    /// a field (`sr=` and `route=` already carry the evidence). Add it WITH its reader or not.
+    enum RouteCodec: Sendable, Equatable {
+        /// Nothing in the route says call mode.
+        case wideband
+        /// DEFINITIVE: an HFP port is in the route. iOS named it; nothing is being guessed.
+        case telephony
+        /// CORROBORATING ONLY: a Bluetooth output plus a sample rate that only call mode uses.
+        /// A wideband codec can also run low in theory — hence "looks like", never "is".
+        case telephonySuspected
+
+        /// The one sentence the numbers cannot carry. `nil` when there is nothing to say, so a
+        /// caller renders no row at all rather than a reassuring "all good" line nobody asked for.
+        var note: String? {
+            switch self {
+            case .wideband:
+                return nil
+            case .telephony:
+                return "Bluetooth is in call mode: mono and band-limited — the music too, not "
+                     + "only the mic. A cable, or the iPhone mic as input, keeps full bandwidth."
+            case .telephonySuspected:
+                return "This looks like Bluetooth call mode (mono, band-limited). Check which "
+                     + "input is selected; a cable keeps full bandwidth."
+            }
+        }
+    }
+
+    /// `AVAudioSessionPortBluetoothHFP`'s raw value.
+    ///
+    /// ⚠️ A STRING literal on purpose, so `routeCodec` stays a pure function a test can drive
+    /// without a live session. The typo that a literal invites is closed at the other end:
+    /// `TheBluetoothCodecReachesTheScreenTests` asserts the AVFoundation constant still equals
+    /// this exact text, so a rename in iOS turns the guard red instead of the verdict silent.
+    static let hfpPortType = "BluetoothHFP"
+
+    /// Raw values of `AVAudioSessionPortBluetoothA2DP` and `AVAudioSessionPortBluetoothLE` —
+    /// pinned by the same guard, for the same reason.
+    static let bluetoothOutputPortTypes = ["BluetoothA2DPOutput", "BluetoothLE"]
+
+    /// The highest rate any hands-free profile runs (8 · 16 · 24 kHz). Above it, a Bluetooth
+    /// route is carrying real bandwidth and there is nothing to warn about.
+    static let telephonyCeilingHz: Double = 24_000
+
+    /// The verdict, as a pure function of what the route reported.
+    ///
+    /// Deliberately NOT a new field in the log line: `latencyLine` already prints `sr=` and
+    /// `route=`, which together ARE the evidence, and a third round of call-site churn on a
+    /// signature that broke the bundle twice (#666/#667) is not worth a convenience.
+    static func routeCodec(outputPortTypes: [String], sampleRate: Double) -> RouteCodec {
+        if outputPortTypes.contains(hfpPortType) { return .telephony }
+        let bluetooth = outputPortTypes.contains { bluetoothOutputPortTypes.contains($0) }
+        // A session queried mid-route-change answers with 0 or NaN. Neither is evidence of a
+        // call codec, and treating them as such would put a red warning on a healthy cable.
+        guard bluetooth, sampleRate.isFinite, sampleRate > 0, sampleRate <= telephonyCeilingHz
+        else { return .wideband }
+        return .telephonySuspected
+    }
+
     /// The same measurement `latencyBreadcrumb` writes to `echoel_diag.log`, as NUMBERS.
     ///
     /// #663. The founder asked for "alle Latenzen und Kombinationen optimiert für Sessions".
@@ -671,6 +744,10 @@ enum AudioConfiguration {
         /// A caller that shows the floor without showing this is publishing a number that
         /// silently shrank.
         let complete: Bool
+        /// What the route can CARRY, alongside what it costs (#670). No default, deliberately:
+        /// a defaulted field appears in no diff and no call site has to think about it
+        /// (#431/#440/#443) — and this one is the difference between a session and a phone call.
+        let codec: RouteCodec
 
         /// The headline number. Carries a `+` when the sum is PARTIAL, because a floor that
         /// silently dropped an unmeasurable part is worse than one that says so (#654).
@@ -722,7 +799,9 @@ enum AudioConfiguration {
                               inputMilliseconds: input,
                               outputMilliseconds: out,
                               route: sanitisedRoute(v.route),
-                              complete: buf != nil && out != nil && input != nil)
+                              complete: buf != nil && out != nil && input != nil,
+                              codec: routeCodec(outputPortTypes: v.outputPortTypes,
+                                                sampleRate: v.sampleRate))
     }
 
     /// ONE line about what the session GRANTED, shaped for the EXPORTABLE log.
@@ -872,6 +951,10 @@ enum AudioConfiguration {
         let outputSeconds: Double
         let inputAvailable: Bool
         let route: String
+        /// Raw `portType` values of the OUTPUT ports, for `routeCodec`. Raw values rather than
+        /// `AVAudioSession.Port` so everything below this gathering stays platform-free — the
+        /// same split that lets the log line and the screen share one source (#663).
+        let outputPortTypes: [String]
     }
 
     private static func currentSessionLatency() -> SessionLatencyValues {
@@ -885,7 +968,11 @@ enum AudioConfiguration {
                                     inputSeconds: .nan,
                                     outputSeconds: .nan,
                                     inputAvailable: false,
-                                    route: "macOS HAL")
+                                    route: "macOS HAL",
+                                    // Not "no Bluetooth" — this file cannot classify a HAL
+                                    // route, and an empty list resolves to `.wideband`, which
+                                    // renders NO claim at all. Silence, not a reassurance.
+                                    outputPortTypes: [])
         #else
         let session = AVAudioSession.sharedInstance()
         let current = session.currentRoute
@@ -906,7 +993,8 @@ enum AudioConfiguration {
                                     inputSeconds: session.inputLatency,
                                     outputSeconds: session.outputLatency,
                                     inputAvailable: !current.inputs.isEmpty,
-                                    route: inName + "→" + outName)
+                                    route: inName + "→" + outName,
+                                    outputPortTypes: current.outputs.map(\.portType.rawValue))
         #endif
     }
 

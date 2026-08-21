@@ -68,13 +68,15 @@ final class TheMeasuredLatencyReachesTheScreenTests: XCTestCase {
     func testAPartialFloorIsMarkedAndACompleteOneIsNot() {
         let complete = AudioConfiguration.LatencyReadout(
             floorMilliseconds: 9, bufferMilliseconds: 5, inputMilliseconds: 1.5,
-            outputMilliseconds: 2.5, route: "Built-In Microphone→Speaker", complete: true)
+            outputMilliseconds: 2.5, route: "Built-In Microphone→Speaker", complete: true,
+            codec: .wideband)
         XCTAssertEqual(complete.floorText, "9.0 ms",
                        "a complete measurement gained a qualifier it has not earned.")
 
         let partial = AudioConfiguration.LatencyReadout(
             floorMilliseconds: 7.5, bufferMilliseconds: 5, inputMilliseconds: nil,
-            outputMilliseconds: 2.5, route: "none→Speaker", complete: false)
+            outputMilliseconds: 2.5, route: "none→Speaker", complete: false,
+            codec: .wideband)
         XCTAssertEqual(partial.floorText, "7.5+ ms", """
             A PARTIAL floor printed as if it were the whole measurement. The `+` is the entire \
             honesty of this readout: the sum silently dropped a part it could not measure, and \
@@ -87,7 +89,8 @@ final class TheMeasuredLatencyReachesTheScreenTests: XCTestCase {
     func testTheBreakdownPrintsADashForWhatCouldNotBeMeasured() {
         let r = AudioConfiguration.LatencyReadout(
             floorMilliseconds: 7.5, bufferMilliseconds: 5, inputMilliseconds: nil,
-            outputMilliseconds: 2.5, route: "none→Speaker", complete: false)
+            outputMilliseconds: 2.5, route: "none→Speaker", complete: false,
+            codec: .wideband)
         XCTAssertEqual(r.breakdownText, "in — · buffer 5.0 · out 2.5 ms · none→Speaker", """
             An unanswerable part stopped rendering as `—`. If it renders as `0.0` the reader \
             is told the hardware costs nothing, which is the exact defect #654 removed from \
@@ -96,7 +99,8 @@ final class TheMeasuredLatencyReachesTheScreenTests: XCTestCase {
 
         let full = AudioConfiguration.LatencyReadout(
             floorMilliseconds: 9, bufferMilliseconds: 5, inputMilliseconds: 1.5,
-            outputMilliseconds: 2.5, route: "Mic→HI-X25BT", complete: true)
+            outputMilliseconds: 2.5, route: "Mic→HI-X25BT", complete: true,
+            codec: .wideband)
         XCTAssertEqual(full.breakdownText, "in 1.5 · buffer 5.0 · out 2.5 ms · Mic→HI-X25BT",
                        "the breakdown stopped naming the route that produced the number.")
     }

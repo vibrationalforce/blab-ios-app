@@ -409,6 +409,21 @@ private struct MonitorLatencyRow: View {
                     Text(readout.breakdownText + "\n" + Self.caveat)
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
+                    // #670 — the BANDWIDTH fact, which no latency number can express. The two
+                    // Bluetooth warnings in the parent are both about DELAY; this one is about
+                    // the route collapsing to the mono call codec once the mic is claimed, and
+                    // it takes the music down with it. `danger`, and only when there is
+                    // something to say: `note` is `nil` for a healthy route, so a good cable
+                    // renders no line at all rather than a reassurance nobody asked for.
+                    // ⚠️ It appears only while monitoring runs, and that is CORRECT rather
+                    // than a gap: under `.playback` the session never asked for `.allowBluetooth`
+                    // and the route is still A2DP, so there is genuinely nothing to report. The
+                    // collapse and this row begin at the same moment — when the mic is claimed.
+                    if let note = readout.codec.note {
+                        Text(note)
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 .accessibilityElement(children: .combine)
             }
