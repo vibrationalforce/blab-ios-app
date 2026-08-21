@@ -1,40 +1,77 @@
 // TheVocalChainStopsAtTheAutotuneTests.swift
-// Echoel — #700. Blocking bundle, because the other suite cannot fail a merge (#208).
+// Echoel — #700, corrected in full by its reviewer as #701 (twelve findings, all twelve
+// re-measured and all twelve upheld). Blocking bundle: the other suite cannot fail a
+// merge (#208).
 //
 // WHAT THIS RECORDS. The founder asked (2026-08-20, verbatim) for "Monitoring und komplette
 // Vocal chain mit Autotune (Charakter Einstellungen), Harmonizer, Voice clone!?, Granular
 // Effekt". Four named stages. Measured 2026-08-21, TWO of them are on the signal he sings
-// into and TWO are not — and nothing in the repo said so.
+// into and TWO are not — and the file every session reads FIRST did not say so.
+//
+// ⛔ THE FIRST VERSION OF THAT SENTENCE SAID "nothing in the repo said so", AND THAT WAS
+// FALSE IN FIVE PLACES — every one of them older than this commit, four of them measured:
+// `scratchpads/PLAN_VOCAL_CHAIN_2026-08-20.md` ("The complete vocal chain is one connection
+// away from the microphone and nobody has made it", written the DAY of the ask),
+// `decisions.csv:398`, `Sources/Echoelmusic/Sequencer/VoicePitchCorrector.swift` and
+// `Sources/Echoelmusic/DSP/EchoelGranular.swift` (both carry the graph string and the
+// zero-count recipe in their own headers), and `PLAN_LIVE_MONITORING_VOICE_2026-08-19.md`.
+// So this file is not a DISCOVERY — it is the CLAUDE.md home for something four other
+// files already knew, plus a guard. That is still worth a cycle, and claiming more than it
+// is the exact shape #697/#698/#699 spent three commits retracting: an over-claim that the
+// tree could refute before it was written.
 //
 //   Monitoring   → HIS VOICE.  `setInputMonitoring`, doored by `AudioInputPickerView`.
-//   Autotune     → HIS VOICE.  `voiceTunePitch` + `VoicePitchCorrector` (#599/#599b),
-//                              character presets in the same sheet.
+//   Autotune     → HIS VOICE.  `voiceTunePitch` + `VoicePitchCorrector` (#599); the
+//                              character presets are #681, in the same sheet. (#599b is the
+//                              HARMONIZER's "Follow the key" — citing it here would have
+//                              used the half that is NOT on his voice as proof that it is.)
 //   Harmonizer   → NOT his voice. It lives in `EchoelFXChain`.
 //   Granular     → NOT his voice. It lives in `EchoelFXChain` (#684–#692).
 //
 // The monitor graph is exactly `input → notchEQ → [voiceTunePitch] → monitorMixer →
 // masterMixer`: two stages, both `AVAudioUnit` GRAPH nodes, no Swift-DSP insert anywhere.
 // `EchoelFXChain` occurs ZERO times in the whole of `Sources/Echoelmusic/Audio/` — not just
-// in `AudioEngine.swift` — and its four construction sites are two curated-library previews
-// plus the two SYNTH voices. So the harmonizer and the granular stage process the generated
-// MUSIC, never the singer.
+// in `AudioEngine.swift`, and neither do `EchoelHarmonizer` and `EchoelGranular`, which is
+// what claim 2 scans for since #701. Its four construction sites are two curated-library
+// previews plus the two SYNTH voices. So the harmonizer and the granular stage process the
+// generated MUSIC, never the singer.
 //
 // ⭐ WHY THIS IS A REGISTER ENTRY AND NOT A BUG. Every outward-facing text is already
 // honest, checked line by line: the store release notes say "harmony voices above the
 // MELODY", `ContentPipeline/CLAIMS.md` already separates "nur der Monitor, nie die Musik"
 // from the harmonizer line, `EchoelFXView`'s own header says "insert FX chain on the
-// bio-reactive synth voice". Nothing over-claims to a user. The gap is INWARD: a session
-// reading SESSION_LOG sees "Harmonizer shipped" and "Granular shipped" and concludes three
-// of the founder's four names are done. Three are built; ONE of the two is routed to him.
+// bio-reactive synth voice". Nothing over-claims to a user.
+// ⚠️ One row sits closer to the line than that sentence suggests, and naming it is cheaper
+// than defending it later: `ContentPipeline/CLAIMS.md:63` puts "Follow the key" (the
+// harmonizer) in the SAME row, under the heading „Tonart-Werkzeuge für die Stimme", as the
+// monitor-only "Tune to key". The qualifier does attach to Tune-to-key alone and §11 of that
+// file is explicit, so the claim holds — but that row is the one outward text a reader could
+// misread as putting the harmonizer on the singer. The gap is INWARD: a session
+// skimming the #684–#692 build reports reads the granular chain as closed and carries that
+// over to the whole ask. FOUR of the four are built; TWO of them are routed to him.
+//
+// ⛔ THE FIRST VERSION QUOTED "Harmonizer shipped" + "Granular shipped" AS SESSION_LOG TEXT.
+// Neither string exists anywhere in the repo, and the passage it pointed at says the
+// OPPOSITE — `SESSION_LOG.md`'s #692 entry reads "für das INSTRUMENT geschlossen", in caps.
+// A fabricated citation inside a block warning about over-claims, in a commit whose message
+// boasts of catching that class (#694). It also said "Three are built; ONE of the two",
+// contradicting this file's own table two paragraphs up. Both corrected here, in place,
+// rather than silently — the invented quotation is the more expensive half, because a
+// number invites re-measurement and a quotation invites trust.
 // That is the Section-C law of the doctor skill — unreachable is not a defect, unreachable
 // AND nowhere written down is.
 //
-// ⛔ THIS GUARD FORBIDS NOTHING (#364). Putting `EchoelFXChain` on the monitor path is the
-// intended next slice (V1a) and it is a real audio-thread move — the first Swift-DSP insert
-// on that path, hence Council, hence gated on the founder's pending device probe of the
-// monitoring toggle itself. On the day someone wires it, claim 2 goes red BY DESIGN and its
-// message names the prose to pull along in the SAME commit (#456). A red here is the good
-// news.
+// ⛔ THIS GUARD FORBIDS NOTHING (#364). Putting `EchoelFXChain` on the monitor path is
+// **V1b**, and it is gated on V1a and V0 before it. `decisions.csv:398` splits the work:
+// V1a = an EMPTY pass-through `AUAudioUnit` proven in the monitor chain, V1b = the chain
+// riding it — and the same row records that the mechanism question (AUAudioUnit subclass
+// vs. `AVAudioSourceNode` ring) was already decided by Council on measured latency (#669),
+// so this is not an open architectural question. (⛔ The first version of this block, and
+// of the CLAUDE.md line beside it, called the chain-on-the-path "V1a" and appended
+// "⇒ Council" — two spellings of one slice label, the new one in the ALWAYS-LOADED file,
+// which is #416 on the exact identifier a later session greps for.) On the day someone
+// wires it, claim 2 goes red BY DESIGN and its message names the prose to pull along in
+// the SAME commit (#456). A red here is the good news.
 //
 // ⚠️ WHAT THIS CANNOT SEE. It reads the GRAPH, so it proves which nodes are connected, never
 // what a listener hears. It also cannot tell an insert that is wired-but-bypassed from one
@@ -43,10 +80,14 @@
 //
 // ⛔ TWO COMPILE DEFECTS WERE CAUGHT BY READING, NOT BY A COMPILER — there is none here, and
 // the auto-merge waits for no gate (#683), so a non-building test bundle would reach `main`.
-// (1) Both filters over the file map were written `.map(\.key)`. `Dictionary.filter` returns a
-// Dictionary whose Element is the TUPLE `(key:value:)`, and Swift key paths cannot address a
-// tuple member — `git grep 'map(\.key)'` over `Sources` and `Tests` returns nothing, so there
-// was no precedent to lean on either. Now an explicit `{ $0.key }`, which is unambiguous.
+// (1) Both filters over the file map were written `.map(\.key)`. `git grep 'map(\.key)'` over
+// `Sources` and `Tests` returns nothing, so there was no precedent to lean on; now an
+// explicit `{ $0.key }`, chosen to avoid a question no local compiler can settle.
+// ⛔ The first version justified that swap with "Swift key paths cannot address a tuple
+// member" — a FALSE LAW, and this directory had already retracted it: `Tests/CISmoke/CLAUDE.md`
+// §5 #689 records exactly that sentence nearly entering the always-loaded file, and
+// `OneSpellingOfTheDemoSubjectTests.swift` runs `.map(\.2)` over a tuple array in THIS bundle
+// on every green build. The ACTION was right and stays; only its reason was invented.
 // (2) The root helper had `let root` inside `func root()`. Rewritten as `repoRoot()`/`base`.
 // Neither would have failed a review of the LOGIC; both would have failed the build.
 //
@@ -74,14 +115,23 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
     /// make "the FX chain is not on it" trivially true.
     func testTheMonitorChainExistsAndStartsAtTheNotch() throws {
         let src = try source(Self.engine)
-        XCTAssertTrue(src.contains("connect(input, to: notchEQ"), """
-            The monitor chain no longer starts `input → notchEQ`. Everything below is a \
-            statement about that graph — re-anchor it rather than letting the negatives \
-            pass empty.
+        // ⛔ The first version anchored ONLY on `connect(input, to: notchEQ`, and `input` is a
+        // LOCAL (`let input = masterEngine.inputNode`), not a member. `Tests/CISmoke/CLAUDE.md`
+        // §3 names that class outright: renaming that local to `inputNode` — an ordinary clarity
+        // edit that moves no cable — would turn this red on a fully correct tree, and §5 says a
+        // genuine red is indistinguishable from #396. Every other node in the chain IS a member,
+        // so the load-bearing anchor is now the member-to-member hop; the local-named one is
+        // kept only as the weaker second reading.
+        XCTAssertTrue(src.contains("connect(notchEQ, to: monitorMixer"), """
+            The `notchEQ → monitorMixer` hop is gone. Both nodes are members, so this is the \
+            anchor that a rename of a local cannot break — if it is missing, the monitor graph \
+            really was restructured. Re-measure which stages reach the singer before trusting \
+            anything below.
             """)
-        XCTAssertTrue(src.contains("monitorMixer"), """
-            `monitorMixer` is gone from the engine. If the monitor path was restructured, \
-            re-measure which stages reach the singer before trusting this file.
+        XCTAssertTrue(src.contains("connect(voiceTunePitch, to: monitorMixer"), """
+            The optional tune stage no longer feeds the monitor mixer. Claim 3 below says that \
+            stage is the founder's autotune ON his voice — if this hop is gone, that claim is \
+            what needs re-measuring first.
             """)
     }
 
@@ -97,12 +147,26 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
             file's header table, and CLAUDE.md's vocal-chain line, which currently states \
             that the harmonizer and the granular stage do NOT reach the sung voice.
             """)
+        // ⛔ The first version scanned for the TYPE `EchoelFXChain` only, and that is fail-open
+        // against a live option: the founder named two STAGES, and `decisions.csv:398` rejects an
+        // Apple-node route precisely because it "kann Harmonizer und Granular nicht liefern". A
+        // wiring that inserts `EchoelHarmonizer` directly would leave this green while CLAUDE.md's
+        // "Harmonizer und Granular NICHT" went silently false. All three names are scanned now.
         let audioDir = try directory("Sources/Echoelmusic/Audio")
-        let leaked = audioDir.filter { $0.value.contains("EchoelFXChain") }.map { $0.key }.sorted()
+        let hosts = ["EchoelFXChain", "EchoelHarmonizer", "EchoelGranular"]
+        let leaked = audioDir
+            .filter { file in hosts.contains(where: { file.value.contains($0) }) }
+            .map { $0.key }.sorted()
         XCTAssertTrue(leaked.isEmpty, """
-            \(leaked) in the audio layer now name `EchoelFXChain`. The finding was measured \
-            across the WHOLE directory, not just the engine, precisely so a second host \
-            node could not slip in beside it — see the message above for the prose to move.
+            \(leaked) in the audio layer now name one of \(hosts). The scan covers the WHOLE \
+            directory and all three names so neither a second host node nor a single stage can \
+            slip in. If this is V1b, SIX prose homes go stale in the same commit (#456): this \
+            file's header table · CLAUDE.md's vocal-chain line · \
+            Sources/Echoelmusic/Sequencer/VoicePitchCorrector.swift · \
+            Sources/Echoelmusic/DSP/EchoelGranular.swift · \
+            scratchpads/PLAN_VOCAL_CHAIN_2026-08-20.md · decisions.csv:398. The two source \
+            headers are the dangerous ones — they are `///` docs a session reads WHILE editing \
+            the files V1b touches.
             """)
     }
 
@@ -129,12 +193,22 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
     /// pointed at the synth bus. Deleting either because "the vocal chain is unbuilt"
     /// would be the exact wrong reading.
     func testTheFXChainIsBuiltAndLivesOnTheSynthVoices() throws {
+        // ⛔ The first version only asserted `!builders.isEmpty` while its NAME and CLAUDE.md
+        // both assert WHICH files — #367: a claim must fail for the reason it gives. A fifth site
+        // on a third bus would have left it green and the register line stale. Keys are relative
+        // SUBPATHS (`FileManager.enumerator(atPath:)` yields those, not bare names), and
+        // `FXCuratedLibrary` contributes ONE key for its two construction sites.
         let sources = try directory("Sources/Echoelmusic")
         let builders = sources.filter { $0.value.contains("EchoelFXChain(") }.map { $0.key }.sorted()
-        XCTAssertFalse(builders.isEmpty, """
-            Nothing constructs an `EchoelFXChain` any more. Then the harmonizer and the \
-            granular stage make no sound at all, on ANY path, and this file's "built, just \
-            routed elsewhere" framing is wrong — correct it before trusting claim 2.
+        XCTAssertEqual(builders, ["Studio/FXCuratedLibrary.swift",
+                                  "Tools/BioReactiveSynthVoice.swift",
+                                  "Tools/PolySynthVoice.swift"], """
+            The set of files constructing an `EchoelFXChain` changed. If it SHRANK to empty the \
+            stages make no sound on ANY path and this file's "built, just routed elsewhere" \
+            framing is wrong. If it GREW, CLAUDE.md's "vier Konstruktionsstellen: zwei \
+            Vorschauen in FXCuratedLibrary plus die zwei SYNTH-Stimmen" is stale — move it in \
+            this commit (#456). Note a site under `Audio/` would ALSO make claim 2 red; that \
+            is the V1b case and its message lists the prose.
             """)
     }
 
@@ -186,7 +260,9 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
     }
 
-    /// Every `.swift` under `relativePath`, stripped of comments, keyed by file name.
+    /// Every `.swift` under `relativePath`, stripped of comments, keyed by its path RELATIVE
+    /// to that directory — `FileManager.enumerator(atPath:)` yields subpaths, not bare names,
+    /// so a key reads `Tools/PolySynthVoice.swift`. Claim 4's expected set depends on that.
     /// ⚠️ Comments are stripped on purpose, and it is NOT load-bearing today: measured
     /// 2026-08-21, `Sources/Echoelmusic/Audio/` names `EchoelFXChain` zero times in code
     /// AND zero times in prose. It becomes load-bearing the first time someone writes
