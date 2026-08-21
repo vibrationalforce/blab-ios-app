@@ -35,7 +35,9 @@
 //  ⭐ AND THE FIRST #480 PASS TRADED THE FALSE CLAIM FOR A DIFFERENT FALSE CLAIM — found by the
 //  reviewer, measured before repairing. The replacement hint read "Open every effect stage —
 //  filter, delay, modulation and dynamics, with every parameter exposed". `EchoelFXView` declares
-//  FOURTEEN `effectSection(` calls; those four categories cover eight. Saturation, Tape / VHS,
+//  FOURTEEN `effectSection(` calls AT THE TIME (fifteen since #692 added Granular — the
+//  denominator is dated, not re-bumped, because it describes a hint that no longer exists);
+//  those four categories covered eight. Saturation, Tape / VHS,
 //  Bitcrush, Harmonizer, Reverb and Stereo Width fell outside all four, and Reverb is the one a
 //  musician notices missing. Worse, the order was wrong as well: `EchoelFXChain.processStereo`
 //  runs modulation BEFORE delay. A sighted user can glance at the sheet and see the rest; a
@@ -177,11 +179,18 @@ final class TheFXDoorNamesAControlThatExistsTests: XCTestCase {
 
     /// The SECOND false claim, and the one that #480's own first pass shipped: the door must not
     /// ENUMERATE what is behind it. A subset under the word "every" reads as exhaustive, and the
-    /// four categories that pass named eight of fourteen stages.
+    /// four categories that pass named eight of the fourteen stages there were then.
     ///
     /// The needle list is DERIVED from `EchoelFXView`, never repeated here (#416) — so adding a
-    /// fifteenth stage automatically extends the ban instead of quietly falling outside a
-    /// hand-written list, which is precisely how the first version rotted.
+    /// stage automatically extends the ban instead of quietly falling outside a hand-written
+    /// list, which is precisely how the first version rotted.
+    ///
+    /// ⭐ #693 — AND THAT PROMISE WAS KEPT, WHICH IS WHY IT IS WORTH RECORDING. This line said
+    /// "adding a FIFTEENTH stage automatically extends the ban"; #692 added the fifteenth
+    /// (Granular) and this test needed no edit — `stageNames()` picked it up and the hint was
+    /// re-checked against it for free. Every hand-written count in the same file DID have to be
+    /// walked. A derived list survives the change that dates a literal; that is the whole
+    /// argument for #416 in one commit.
     ///
     /// RED against `0ff8479`, where the hint said "filter, delay, modulation and dynamics".
     func testTheDoorDoesNotEnumerateTheStages() throws {
@@ -189,7 +198,8 @@ final class TheFXDoorNamesAControlThatExistsTests: XCTestCase {
         XCTAssertGreaterThan(stages.count, 10, """
             Only \(stages.count) `effectSection("…")` stages found in `EchoelFXView.swift` — the \
             scan below has lost its needles and would pass on anything. Fix the extraction, do \
-            not relax the assertion. (14 at the time of writing.)
+            not relax the assertion. (The count is printed above and derived on every run; a \
+            literal used to sit here and was one short from #692 until #693 removed it.)
             """)
 
         let hints = try doorWindow(codeLines(studio)).filter { $0.contains(".accessibilityHint(") }
@@ -227,8 +237,9 @@ final class TheFXDoorNamesAControlThatExistsTests: XCTestCase {
         let stageCount = try stageNames().count
         XCTAssertGreaterThan(stageCount, 10, """
             `EchoelFXView.swift` no longer declares the stages this test is about (found \
-            \(stageCount), 14 at the time of writing). The negative assertion below would pass on \
-            an empty or renamed file — re-point it, do not delete it.
+            \(stageCount), and the floor is 10). The negative assertion below would pass on \
+            an empty or renamed file — re-point it, do not delete it. No literal count here: \
+            the one that used to be went stale at #692 inside a message nothing re-derives.
             """)
         let sites = lines.filter { $0.contains("Slider(") }
         XCTAssertTrue(sites.isEmpty, """

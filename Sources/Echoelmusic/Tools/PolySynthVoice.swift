@@ -239,10 +239,18 @@ public final class PolySynthVoice {
         // #397 — the SWITCH-CRACKLE RULE applied to the one WHOLE-chain bypass switch.
         // Every per-stage flag in `EchoelFXChain` that owns STATE resets its stage on the
         // rising edge, because a skipped stage freezes holding old audio and bursts it on
-        // resume. (Thirteen of the fourteen `*Enabled` flags; `saturationEnabled` has no
+        // resume. (Fourteen of the fifteen `*Enabled` flags; `saturationEnabled` has no
         // `willSet` because a waveshaper is stateless. The first version of this line said
-        // "every per-stage flag" without that qualifier — one of fourteen is a small error,
-        // but it is the sentence a later session would cite when adding the fifteenth.)
+        // "every per-stage flag" without that qualifier — one of fifteen is a small error,
+        // but it is the sentence a later session would cite when adding the sixteenth.)
+        //
+        // ⛔ #693 — AND THAT PARENTHESIS PREDICTED ITS OWN DEATH AND STILL DIED. It said
+        // "the sentence a later session would cite when adding the fifteenth"; #687 added the
+        // fifteenth (granular) and did not walk this line. Worse, #692 corrected the IDENTICAL
+        // sentence in `BypassingTheChainEmptiesItOnTheWayBackTests` and stopped there, so for
+        // one commit the repo carried two spellings of one fact (#416). Walking "the" prose
+        // home is not walking EVERY prose home. Re-measure, never re-quote:
+        //   grep -c "public var [a-zA-Z]*Enabled: Bool" Sources/Echoelmusic/DSP/EchoelFXChain.swift
         // This gate skips ALL of them at once, so it owed the same debt: bypass mid-take,
         // wait, re-enable, and the delay line and reverb tank walk out audio from before
         // the bypass. #389 fixed the audio-thread twin of this (the 2.5 s idle sleep) and

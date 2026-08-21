@@ -7461,9 +7461,15 @@ struct EchoelStudioView: View {
             //
             // ⛔ AND THE FIRST #480 PASS LEFT THIS VERY LINE FALSE WHILE REWRITING EVERYTHING
             // AROUND IT. It read "open every stage (filter, delay, chorus, flanger, phaser,
-            // tremolo, compressor, limiter)" — EIGHT of the FOURTEEN `effectSection(` calls in
-            // `EchoelFXView`. Missing: Saturation · Tape / VHS · Bitcrush · Harmonizer · Reverb ·
-            // Stereo Width. So the commit whose whole thesis is "somebody corrected the prose and
+            // tremolo, compressor, limiter)" — EIGHT of the `effectSection(` calls in
+            // `EchoelFXView`, out of fourteen AT THE TIME. Missing: Saturation · Tape / VHS ·
+            // Bitcrush · Harmonizer · Reverb · Stereo Width.
+            // ⛔ #693: that count said "the FOURTEEN" in the present tense until #692 added
+            // Granular. The MISSING list is what carries the argument and it is still complete
+            // for the hint being retracted; the denominator was decoration that had to be
+            // re-counted forever. It is now dated instead of dropped, because a subset-of-eight
+            // means nothing without knowing what it was eight OF. The live count is derived by
+            // `TheFXDoorNamesAControlThatExistsTests.stageNames()` — ask it (#416). So the commit whose whole thesis is "somebody corrected the prose and
             // left the claim" corrected the prose and left THIS claim, three lines above the ⛔
             // that says so. Do not re-enumerate here: a list that names a subset under the word
             // "every" is the same defect in a new shape, and it needs re-counting every time a
@@ -7507,7 +7513,9 @@ struct EchoelStudioView: View {
             .buttonStyle(.plain)
             // ⛔ The first #480 hint read "Open every effect stage — filter, delay, modulation and
             // dynamics, with every parameter exposed". It traded a false CONTROL-TYPE claim for a
-            // false COMPLETENESS one: those four categories cover 8 of the 14 stages, and its
+            // false COMPLETENESS one: those four categories covered 8 of the 14 stages THEN
+            // (#693 dated this — the chain has fifteen since #692; the count is not re-bumped
+            // here because it describes a hint that no longer exists), and its
             // order was wrong too (`EchoelFXChain.processStereo` runs modulation BEFORE delay).
             // A sighted user can glance at the sheet; a VoiceOver user has only this sentence.
             // No enumeration here — `TheFXDoorNamesAControlThatExistsTests` derives the stage
