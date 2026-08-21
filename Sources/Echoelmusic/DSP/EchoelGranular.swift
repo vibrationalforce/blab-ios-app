@@ -40,29 +40,34 @@ import Foundation
 /// `delaySpread`'s documented decision), but it is a different behaviour and the note
 /// has to say which one is current.
 ///
-/// ⛔ THE CLEAN PATH STILL CANNOT REACH IT, and #690 DELETED the line that said so —
-/// at the exact moment the fact stopped being theoretical. `GenreFX.apply` writes
-/// seven enables and `granular` appears ZERO times in that whole file, so
-/// `FXCharacter.clean` — subtitled "No effects — reset to a dry signal" — would leave
-/// a granular cloud running. It is now the FIFTH stage `.clean` cannot silence
-/// (tape, bitcrush, flanger, tremolo were already out of its reach, and that file
-/// says so about itself).
+/// ⭐ THE CLEAN PATH REACHES IT SINCE #694, and the three-commit history of this one
+/// paragraph is kept because each step failed differently:
 ///
-/// ⛔ AND #692 TOOK THE WORD "LATENT" AWAY. This paragraph read "latent only because
-/// nothing can set the enable yet" — true while the stage had no door, and false the
-/// moment one existed. The sequence is now reachable by hand: turn Granular on in the
-/// FX panel, then stamp a character, and `.clean` — subtitled "No effects — reset to
-/// a dry signal" — leaves the cloud running. **That is a live defect, not a latent
-/// one, and the escalation happened inside the slice that opened the door.** The
-/// premise that carried the word ("nothing can set the enable") was written one file
-/// away from the change that falsified it, which is why it survived the diff.
+///   #690 DELETED the note saying `.clean` could not reach granular — at the exact
+///   moment the fact stopped being theoretical.
+///   #692 restored it and took away the word "latent": the door it shipped made the
+///   sequence reachable by hand (turn Granular on, stamp a character, hear the cloud
+///   survive a control subtitled "No effects — reset to a dry signal").
+///   #694 closed it — `FXCharacter.apply` now writes the enables `GenreFXPreset`
+///   cannot express, for `.clean` only.
 ///
-/// ⚠️ NOT FIXED HERE, AND THE REASON IS NOT LAZINESS. Adding `granularEnabled = false`
-/// to the clean path would take one line and would make `.clean` MORE misleading, not
-/// less: four other stages (tape, bitcrush, flanger, tremolo) have the identical gap,
-/// so a reader who saw granular handled would conclude the path is complete. The fix
-/// is all five together, as its own slice. **Registered, and deleting the
-/// registration is how a known gap becomes an unknown one.**
+/// ⛔ AND #692's OWN REGISTRATION CARRIED TWO FALSE CLAIMS, both found while fixing it.
+/// It said granular was "the FIFTH stage `.clean` cannot silence (tape, bitcrush,
+/// flanger, tremolo were already out of its reach, and that file says so about
+/// itself)". **It was the SEVENTH** — `widener` and `compressor` were out of reach too,
+/// and were never counted because they are not the sort of thing one pictures when
+/// picturing "an effect left running". **And `GenreFX.swift` said nothing of the kind
+/// about itself**: the citation was invented, in a ⛔ block, which is the form this repo
+/// reserves for its most load-bearing claims. A fabricated citation is worse than a
+/// wrong number — a number invites re-measurement, a citation invites trust.
+///
+/// ⚠️ WHAT #692 GOT RIGHT AND IS WORTH KEEPING: it refused to add the one line for
+/// granular alone, on the grounds that handling one stage would make `.clean` read as
+/// complete when it was not. That call was correct, and it is why #694 could fix all
+/// seven at once with a guard that now derives the list from the chain itself
+/// (`CleanIsDryTests.testTheDryResetCoversEveryEnableTheChainDeclares`) instead of
+/// enumerating it in prose that goes stale — which is exactly what this paragraph did
+/// twice.
 ///
 /// ⭐ THE DOOR EXISTS SINCE #692, and this block is inverted rather than deleted
 /// because the shape of the old gap is what a later session needs to recognise the

@@ -825,8 +825,13 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
         case .auto:
             return nil
         case .clean:
-            // Everything off — a dry reset, including saturation. The safety
-            // limiter (not touched by a preset) stays on.
+            // ⚠️ THIS PRESET IS ONLY HALF OF "CLEAN", and the comment that stood here said
+            // "Everything off — a dry reset" as if it were all of it. `GenreFXPreset` can
+            // express seven of the chain's fifteen enables; the other seven (tape, bitcrush,
+            // flanger, tremolo, granular, widener, compressor) are written by `apply(to:bpm:
+            // genre:)` above, for `.clean` only (#694). Read the two together or the claim
+            // here is a completeness claim the type cannot keep. The safety limiter is
+            // touched by NEITHER and stays on.
             return GenreFXPreset(filterEnabled: false, delayEnabled: false,
                                  chorusEnabled: false, phaserEnabled: false,
                                  saturation: 0)
@@ -904,7 +909,48 @@ public enum FXCharacter: String, CaseIterable, Sendable, Identifiable {
 
     /// Apply this character to a live chain at `bpm`. For `.auto`, applies the
     /// supplied `genre`'s preset instead.
+    ///
+    /// ⛔ #694 — `.clean` NEEDED A SECOND STEP, because `GenreFXPreset` cannot express the
+    /// whole chain. The struct carries SEVEN enables (filter · delay · chorus · phaser ·
+    /// saturation · harmonizer · reverb); `EchoelFXChain` has FIFTEEN. So a character
+    /// subtitled *"No effects — reset to a dry signal"* left SEVEN stages running — tape,
+    /// bitcrush, flanger, tremolo, granular, widener, compressor — and the more of them a
+    /// player had switched on by hand, the less dry "dry" was.
+    ///
+    /// ⚠️ WHY HERE AND NOT IN `GenreFXPreset.apply`. Putting the reset there would make
+    /// EVERY genre stamp silence those seven, and that is a different product decision: a
+    /// genre is a CHARACTER laid over what the player built, not a reset. Only the control
+    /// that promises dryness owes dryness. `.auto` therefore does NOT get this step even
+    /// when it resolves to a preset, because `.auto` is the genre path wearing another name.
+    ///
+    /// ⚠️ THE LIMITER IS DELIBERATELY NOT IN THE LIST, and that is the older decision this
+    /// slice inherits rather than revisits: a "dry" character must never become a way to
+    /// defeat the output protection. `CleanIsDryTests` asserts both halves.
+    ///
+    /// ⚠️ THE CONSEQUENCE, STATED RATHER THAN DISCOVERED: `.clean` is re-stamped
+    /// AUTOMATICALLY, not only from the character menu — `applyFX()`, generate, and
+    /// `open(_:)` all re-apply the persisted `fxCharacter`. So a player who has `.clean`
+    /// selected and then hand-dials granular in the FX panel loses it at the next generate.
+    /// That was ALREADY true of delay, filter, chorus, phaser, saturation, harmonizer and
+    /// reverb; this makes the behaviour uniform instead of arbitrary — seven stages wiped and
+    /// seven kept, with nothing distinguishing the two groups but which fields a struct
+    /// happens to carry. Uniform-and-documented beats arbitrary-and-silent, and if the
+    /// founder wants "a character never overwrites a hand-dialled stage" that is a different,
+    /// larger decision covering all fourteen.
+    ///
+    /// ⭐ THE ENABLE-DOWN WRITE IS FREE ON THE SWITCH-CRACKLE RULE. Every stateful stage
+    /// resets on its flag's RISING edge (`willSet`), so writing `false` here schedules no
+    /// work and cannot click; the drain that matters happens when the player turns a stage
+    /// back on.
     public func apply(to chain: EchoelFXChain, bpm: Double, genre: MusicStyle) {
         (preset ?? genre.fxPreset).apply(to: chain, bpm: bpm)
+        guard self == .clean else { return }
+        chain.tapeEnabled = false
+        chain.bitcrushEnabled = false
+        chain.flangerEnabled = false
+        chain.tremoloEnabled = false
+        chain.granularEnabled = false
+        chain.widenerEnabled = false
+        chain.compressorEnabled = false
     }
 }
