@@ -25,20 +25,24 @@ import Foundation
 /// the default spray against hundreds for a typical delay. Checking two constructor
 /// defaults would have cost less than writing the superlative three times.
 ///
-/// ⛔ WHAT IS STILL MISSING, so this note does not simply flip to a rosier lie:
-/// **it is not persisted and it has no door.** `FXPreset` carries no granular
-/// field, and no panel row can turn it on.
+/// ⭐ PERSISTED SINCE #690. All seven control-plane values round-trip through
+/// `FXPreset` — enabled, mix, grain length, density, spray, pitch, spread — at all
+/// seven sites that file needs, including `apply(to:)`, the one whose absence is
+/// silent (the value would save, load and simply never reach the audio). Decode
+/// defaults match this file's own defaults exactly, so a preset written before the
+/// field existed loads with the stage off and nothing shifts under an existing user.
 ///
-/// ⚠️ THE PERSISTENCE GAP RUNS THE OTHER WAY FROM THE OBVIOUS READING, and the first
-/// version of this note had it backwards. It said a recall "silently drops whatever
-/// was dialled in". `FXPreset.apply(to:)` sets every OTHER switchable enable
-/// explicitly; granular is the one it does not write — so a recall does not drop the
-/// state, it LEAVES it. A preset that is meant to be dry can play with granular still
-/// running. That is the more surprising half and the one the persistence slice has to
-/// plan for. Same shape as `FXCharacter.clean`, which already cannot reach tape,
-/// bitcrush, flanger or tremolo and says so. Both are registered next slices. The stage is inert
-/// twice over until then — `granularEnabled` is false AND `mix` is 0 — so nothing
-/// can hear it yet. Do not cite it as a shipping effect.
+/// ⛔ WHAT IS STILL MISSING, so this note does not flip to a rosier lie: **it has no
+/// door.** No panel row can turn it on, so today the persistence records a state
+/// only a preset file could have set. That is the next slice. Until then the stage
+/// is inert twice over — `granularEnabled` is false AND `mix` is 0 — and it must
+/// not be cited as a shipping effect.
+///
+/// ⚠️ The note that stood here said a preset recall would "silently drop" the state.
+/// That was backwards and is worth keeping visible: before #690, `apply(to:)` wrote
+/// every OTHER switchable enable and simply skipped granular, so a recall LEFT the
+/// state rather than dropping it — a preset meant to be dry could play with granular
+/// running. The direction of a gap is not a detail; it is what the fix has to target.
 ///
 /// METHOD. A ring buffer holds the recent past. A scheduler launches grains at a
 /// rate derived from `density` and `grainMilliseconds`; each grain picks a start

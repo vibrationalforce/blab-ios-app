@@ -19,7 +19,7 @@
 // yet mention granular — which will go red on the next slice for the same good reason.
 // A guard that reds on the change it predicted is working, not failing.
 //
-// ⚠️ HONEST LIMITS. 7 tests, 25 assertion statements (5+3+4+3+4+2+4; counted in Python over
+// ⚠️ HONEST LIMITS. 7 tests, 26 assertion statements (5+3+4+3+4+3+4; counted in Python over
 // lines whose first token is XCTAssert). Everything here is executed behaviour on the real
 // type — no mocks, no host, no source scanning except claim 5. What no test can prove: that
 // it SOUNDS like a granular effect. Grain size, density and spray are taste, and taste is a
@@ -237,24 +237,58 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
             """)
     }
 
-    // MARK: - 5b: the persistence gap, named so its red is self-describing
+    // MARK: - 5b: persisted at every site, not at most of them
 
-    /// ⚠️ SPLIT OUT OF CLAIM 5 (#688). It lived inside the wiring test, so the day the
-    /// persistence slice lands the red would have been reported under a test name that says
-    /// "the wiring is broken" — a predicted red that misdescribes itself is worse than none.
-    /// Forbids nothing (#364): its message names the block to correct in the same commit.
-    func testFXPresetDoesNotYetCarryGranular() throws {
+    /// ⭐ THIS CLAIM INVERTED IN #690, AS ITS PREDECESSOR PREDICTED. It used to assert that
+    /// `FXPreset` did NOT carry granular, and its message said doing so "is the intended NEXT
+    /// slice, not a defect — delete this test and correct the ⛔ block in the header in the
+    /// SAME commit". That is what happened. Second guard this week to red on the change it
+    /// forecast, which is the only kind of red that is good news.
+    ///
+    /// ⚠️ WHAT REPLACES IT IS THE HARDER QUESTION. Persisting a stage in this file means
+    /// SEVEN separate edits per field — stored property, decoder line, init parameter, init
+    /// assignment, capture from the chain, apply to the chain, morph — spread over 400 lines,
+    /// with no local compiler. Six of the seven fail LOUDLY if missed (the compiler notices).
+    /// **`apply(to:)` is the one that fails SILENTLY**: miss it and the value saves, loads,
+    /// round-trips through every equality test you could write — and never reaches the audio.
+    /// That is the site this test exists for; the other six come along because checking all
+    /// seven costs the same as checking one.
+    func testEveryGranularFieldIsPersistedAtAllSevenSites() throws {
         let preset = try source("Sources/Echoelmusic/DSP/FXPreset.swift")
-        XCTAssertTrue(preset.contains("harmonizerMix"), """
-            `FXPreset` no longer carries harmonizer state — re-anchor this scan; without a \
-            known-present neighbour the negative below proves nothing (#454).
+        let fields: [(String, String)] = [
+            ("granularEnabled", "Bool"), ("granularMix", "Float"),
+            ("granularGrainMs", "Float"), ("granularDensity", "Float"),
+            ("granularSpraySeconds", "Float"), ("granularPitchSemitones", "Float"),
+            ("granularStereoSpread", "Float"),
+        ]
+        var gaps: [String] = []
+        for (f, type) in fields {
+            let decoder = type == "Bool" ? "\(f) = b(.\(f)," : "\(f) = f(.\(f),"
+            let sites: [(String, Bool)] = [
+                ("property",   preset.contains("public var \(f): \(type)")),
+                ("decoder",    preset.contains(decoder)),
+                ("init param", preset.contains("\(f): \(type),")),
+                ("assignment", preset.contains("self.\(f) = \(f)")),
+                ("capture",    preset.contains("\(f): chain.")),
+                ("apply",      preset.range(of: "chain\\.granular[^\n=]* = \(f)\\b",
+                                            options: .regularExpression) != nil),
+                ("morph",      preset.contains("(\(f), other.\(f))")),
+            ]
+            gaps += sites.filter { !$0.1 }.map { "\(f)/\($0.0)" }
+        }
+        XCTAssertEqual(gaps, [], """
+            Granular state is missing from these preset sites: \(gaps). If `apply` is in the \
+            list, the value saves and loads and reaches NO audio — the only one of the seven \
+            that a compiler cannot catch and a round-trip test would not notice.
             """)
-        // `granularEnabled`, not `granular`: "granularity" is live English in this codebase
-        // (`EchoelFXView`), so the looser needle would red on an ordinary doc comment.
-        XCTAssertFalse(preset.contains("granularEnabled"), """
-            `FXPreset` now carries granular state — the intended NEXT slice, not a defect. \
-            Delete this test and correct the ⛔ "not persisted and it has no door" block in \
-            `EchoelGranular.swift`'s header in the SAME commit (#456).
+        XCTAssertTrue(preset.contains("granularMix = f(.granularMix, 0)"), """
+            The decoder's default for the wet mix is no longer 0. A decode default that \
+            disagrees with the stage's own default silently MOVES the sound of every preset \
+            written before this field existed.
+            """)
+        XCTAssertTrue(preset.contains("granularGrainMs = f(.granularGrainMs, 80)"), """
+            The decoder's grain-length default no longer matches `EchoelGranular`'s own 80 ms \
+            — see the message above; same silent shift.
             """)
     }
 
