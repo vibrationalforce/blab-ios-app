@@ -5711,3 +5711,63 @@ aufeinanderfolgende Stände erlauben deshalb KEINE Richtungsableitung.
   369 gegen die CLAUDE.md-Zeile stellt, ohne selbst zu vergleichen. Der voreilige Schluss wäre
   „der Doctor prüft die Zahl" — er DRUCKT sie nebeneinander; das Vergleichen bleibt Handarbeit,
   und genau das sagt seine eigene Sektion-D-Notiz.
+
+
+---
+
+## C — `Tests/EchoelmusicTests/` (die NICHT-blockierende Suite)
+
+**Umgezogen am 2026-08-21 (#702)**, aus demselben Grund wie §A und §B und nach derselben
+Regel: die Kette ist BUCHFÜHRUNG, das Gesetz darüber bleibt in `CLAUDE.md`. Der Block hatte
+sich nach #538 neu aufgefüllt — die Datei sagte an dieser Stelle selbst, die Kette sei nach
+`LEDGER_COUNTS.md` verschoben, und trug darunter drei frische ⛔-Rücknahmen. **Genau die
+Akkretion, gegen die #538 geschrieben wurde**, und sie ist nicht durch Nachlässigkeit
+entstanden, sondern weil jede einzelne Rücknahme für sich richtig und wertvoll war.
+
+⚠️ **VIER SÄTZE SIND BEWUSST IN `CLAUDE.md` GEBLIEBEN**, weil sie Gesetz sind und keine
+Provenienz: „Ein Name ist genauso ein `git ls-files` wert wie eine Zahl" · die Suite ist
+NICHT das blockierende Bundle (das baut aus `Tests/CISmoke`) · „MESSEN, nicht zitieren" ·
+die Workflow-Beschriftung ist founder-gated (#208). Wer hier etwas zurückholt, holt
+Buchführung zurück, kein Gesetz.
+
+⛔ **NICHT ZITIEREN, SONDERN MESSEN:** `git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l`.
+Jede Zahl unten ist ein DATUM, kein Zustand.
+
+### Wortlaut beim Umzug (Stand 2026-08-07, unverändert übernommen)
+
+Tests/EchoelmusicTests/ ← **314** test files (`git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l`,
+2026-08-07 nach `MIDIFileExporterTests.swift` (#469 — die **22**
+MIDI-Export-Tests, die in keinem Target standen und nie gelaufen sind.
+⛔ Hier stand „24", und diese Zahl stammt aus #469s eigener
+Commit-Betreffzeile — sie war NIE eine Zählung: `grep -c "func test"`
+liefert 22, und auf `6a8deb8` selbst auch 22, denn #469 war ein reiner
+`git mv` mit null Einfügungen. Beim Reparieren des erfundenen
+Dateinamens ist die falsche ZAHL unangetastet mitgereist, in genau dem
+Satz, der „ein Name ist genauso ein `git ls-files` wert wie eine Zahl"
+festhält.).
+⛔ **Hier stand `MIDIFileExporterDrumTests.swift`, eine Datei, die es
+NIE gegeben hat** — #469 hat `Tests/EchoelmusicCoreTests/MIDIFileExporterTests.swift`
+VERSCHOBEN, nicht eine neue angelegt. Gefunden bei #474, als der
+Befehl `ls Tests/EchoelmusicTests | grep -i midi` den Namen nicht
+lieferte. **Die ZAHL war richtig und der NAME erfunden**, und das ist
+die Sorte, die dieser Absatz sonst nicht kennt: seine ganze Disziplin
+zielt auf veraltete Zahlen, während der Name daneben ungeprüft
+durchläuft. Ein Name ist genauso ein `git ls-files` wert wie eine Zahl.
+⛔ Hier stand „313", ein Stand vom 2026-07-31, und der Commit, der die
+Datei anlegte, hat DIESE Zeile nicht nachgeführt — derselbe Fehler, den
+der Sources-Absatz oben dreiundzwanzigmal protokolliert, nur in der Suite,
+die niemand blockiert und deshalb niemand nachzählt. ⛔ Drei Zahlen
+kursierten für DIESE eine Suite: 305 hier, 294 in den Schrittnamen von
+`full-tests.yml`, 311 auf der Platte am 2026-07-28 — dann 314, dann 313.
+Die Workflow-Beschriftung ist founder-gated und bleibt vorerst falsch (#208).
+Und die Suite ist NICHT das blockierende Bundle — das baut aus
+`Tests/CISmoke` (`git ls-files 'Tests/CISmoke/*.swift' | wc -l` —
+MESSEN, nicht zitieren; wie dort ein Wächter geschrieben, benotet und
+gemeldet wird, steht in `Tests/CISmoke/CLAUDE.md`).
+⛔ **Die ZÄHL-KETTE dieser Suite — jeder frühere Stand, jede
+⛔-Rücknahme, die ganze Provenienz — ist am 2026-08-12 nach
+`memory/LEDGER_COUNTS.md` §A verschoben (#538). Sie stand hier als
+5 599 Zeilen und war 80,2 % dieser Datei, also mehr als alles Gesetz
+zusammen; verdichtet wird beim Kompaktieren zuerst das Gesetz. KEINE
+Zeile ist gelöscht. Wer eine Zahl nachführt, führt sie DORT nach.**
+Siehe KEY TESTS.
