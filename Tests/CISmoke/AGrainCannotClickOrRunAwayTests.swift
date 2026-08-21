@@ -14,14 +14,23 @@
 // ⭐ CLAIM 5 ALREADY DID THAT ONCE. It used to assert the core was NOT wired, and its
 // failure message said wiring it would be "the intended next slice, not a defect — delete
 // this claim and correct the header in the SAME commit (#456)". #687 wired it and the claim
-// inverted on its own instructions. It now pins the six wiring sites plus the two switches
-// that keep the stage inert, and carries ONE forward-looking negative — `FXPreset` must not
-// yet mention granular — which will go red on the next slice for the same good reason.
-// A guard that reds on the change it predicted is working, not failing.
+// inverted on its own instructions, and #690 inverted claim 5b the same way. Claim 5 now
+// pins the six wiring sites plus the two switches that keep the stage inert; claim 5b pins
+// the seven persistence sites. A guard that reds on the change it predicted is working, not
+// failing — twice here now.
+//
+// ⛔ AND THIS PARAGRAPH WAS FALSE FOR ONE COMMIT. It still described the forward-looking
+// negative ("`FXPreset` must not yet mention granular") that #690 deleted, and the sentence
+// below still said "no source scanning except claim 5" while 5b is nothing but source
+// scanning. The commit that deleted the claim corrected the OTHER file's header — the one
+// the old failure message named — and left this one, which is the header a session reads
+// FIRST to learn what this guard covers. #456 means every prose home, not the one you were
+// told about.
 //
 // ⚠️ HONEST LIMITS. 7 tests, 26 assertion statements (5+3+4+3+4+3+4; counted in Python over
 // lines whose first token is XCTAssert). Everything here is executed behaviour on the real
-// type — no mocks, no host, no source scanning except claim 5. What no test can prove: that
+// type — no mocks, no host — except claims 5 and 5b, which are source scans. What no test
+// can prove: that
 // it SOUNDS like a granular effect. Grain size, density and spray are taste, and taste is a
 // device probe (NEEDS-FOUNDER-VERIFY once it is wired and reachable).
 //
@@ -254,24 +263,53 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
     /// That is the site this test exists for; the other six come along because checking all
     /// seven costs the same as checking one.
     func testEveryGranularFieldIsPersistedAtAllSevenSites() throws {
+        // ⛔ NORMALISED, AND #690's VERSION WAS NOT — twelve lines under claim 5's ⛔ block
+        // explaining why a column-aligned needle reports a wired stage as unwired. Six of the
+        // seven needles below are whitespace-literal, and this repo already writes aligned
+        // assignments elsewhere (`Core/Project.swift` aligns its `=`), so every one of them
+        // was a FALSE FAIL waiting to happen: "granular is not persisted" printed over a file
+        // that persists it perfectly. Writing the warning is not the same as applying it.
         let preset = try source("Sources/Echoelmusic/DSP/FXPreset.swift")
+            .replacingOccurrences(of: "[ \t]+", with: " ", options: .regularExpression)
         let fields: [(String, String)] = [
             ("granularEnabled", "Bool"), ("granularMix", "Float"),
             ("granularGrainMs", "Float"), ("granularDensity", "Float"),
             ("granularSpraySeconds", "Float"), ("granularPitchSemitones", "Float"),
             ("granularStereoSpread", "Float"),
         ]
+        // The one mapping this file asserts: preset field → the chain property it must read
+        // from and write to. Everything below checks against THIS, not against a wildcard.
+        let chainPath: [String: String] = [
+            "granularEnabled": "granularEnabled",
+            "granularMix": "granular.mix",
+            "granularGrainMs": "granular.grainMilliseconds",
+            "granularDensity": "granular.density",
+            "granularSpraySeconds": "granular.spraySeconds",
+            "granularPitchSemitones": "granular.pitchSemitones",
+            "granularStereoSpread": "granular.stereoSpread",
+        ]
         var gaps: [String] = []
         for (f, type) in fields {
             let decoder = type == "Bool" ? "\(f) = b(.\(f)," : "\(f) = f(.\(f),"
+            // Hoisted rather than written inline as `\(chainPath[f] ?? "?")`: a nested string
+            // literal inside an interpolation inside a literal is legal Swift and still the
+            // kind of construct that costs a CI round trip to be sure about. Two have already
+            // been paid this session; this one is free to avoid.
+            let path = chainPath[f] ?? "?"
             let sites: [(String, Bool)] = [
                 ("property",   preset.contains("public var \(f): \(type)")),
                 ("decoder",    preset.contains(decoder)),
                 ("init param", preset.contains("\(f): \(type),")),
                 ("assignment", preset.contains("self.\(f) = \(f)")),
-                ("capture",    preset.contains("\(f): chain.")),
-                ("apply",      preset.range(of: "chain\\.granular[^\n=]* = \(f)\\b",
-                                            options: .regularExpression) != nil),
+                // ⛔ THESE TWO WERE WILDCARDED ON THE CHAIN SIDE and could not detect a
+                // CROSSED mapping: `granularMix: chain.granular.density` satisfied the old
+                // `"\(f): chain."`, and `chain.granular.density = granularMix` satisfied the
+                // old regex. Both crossings are Float-to-Float, so the compiler is silent
+                // too, and the only behavioural round-trip test has no granular coverage and
+                // sits in the non-blocking suite. A swapped pair would have been green
+                // everywhere. Pinning the pair literally costs the same and closes both.
+                ("capture",    preset.contains("\(f): chain.\(path)")),
+                ("apply",      preset.contains("chain.\(path) = \(f)")),
                 ("morph",      preset.contains("(\(f), other.\(f))")),
             ]
             gaps += sites.filter { !$0.1 }.map { "\(f)/\($0.0)" }
@@ -284,7 +322,10 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
         XCTAssertTrue(preset.contains("granularMix = f(.granularMix, 0)"), """
             The decoder's default for the wet mix is no longer 0. A decode default that \
             disagrees with the stage's own default silently MOVES the sound of every preset \
-            written before this field existed.
+            written before this field existed. ⚠️ This needle also pins the `f(.key, default)` \
+            SPELLING, so a future migration of `FXPreset` from `try?` to `decodeIfPresent` \
+            reds it for a reason that has nothing to do with the default — that migration is \
+            correct work (#364); update the needle with it.
             """)
         XCTAssertTrue(preset.contains("granularGrainMs = f(.granularGrainMs, 80)"), """
             The decoder's grain-length default no longer matches `EchoelGranular`'s own 80 ms \

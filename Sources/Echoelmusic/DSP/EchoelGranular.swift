@@ -28,9 +28,28 @@ import Foundation
 /// ⭐ PERSISTED SINCE #690. All seven control-plane values round-trip through
 /// `FXPreset` — enabled, mix, grain length, density, spray, pitch, spread — at all
 /// seven sites that file needs, including `apply(to:)`, the one whose absence is
-/// silent (the value would save, load and simply never reach the audio). Decode
-/// defaults match this file's own defaults exactly, so a preset written before the
-/// field existed loads with the stage off and nothing shifts under an existing user.
+/// silent (the value would save, load and simply never reach the audio). Six decode
+/// defaults match this file's own; the seventh, `granularEnabled`, matches
+/// `EchoelFXChain`'s, because the enable is the CHAIN's property, not this type's —
+/// an attribution the first version of this note got wrong by one file. Either way a
+/// preset written before these fields existed loads with the stage off and nothing
+/// shifts under an existing user.
+///
+/// ⚠️ AND `apply(to:)` NOW FORCES THE STATE RATHER THAN LEAVING IT — the inverse of
+/// the gap described three paragraphs down, and the right call (it matches
+/// `delaySpread`'s documented decision), but it is a different behaviour and the note
+/// has to say which one is current.
+///
+/// ⛔ THE CLEAN PATH STILL CANNOT REACH IT, and #690 DELETED the line that said so —
+/// at the exact moment the fact stopped being theoretical. `GenreFX.apply` writes
+/// seven enables and `granular` appears ZERO times in that whole file, so
+/// `FXCharacter.clean` — subtitled "No effects — reset to a dry signal" — would leave
+/// a granular cloud running. It is now the FIFTH stage `.clean` cannot silence
+/// (tape, bitcrush, flanger, tremolo were already out of its reach, and that file
+/// says so about itself). Latent only because nothing can set the enable yet: the one
+/// bundled preset carries no granular keys and `FXCuratedLibrary` builds through
+/// `capture` with the stage off. **Registered next slice, and deleting the
+/// registration is how a known gap becomes an unknown one.**
 ///
 /// ⛔ WHAT IS STILL MISSING, so this note does not flip to a rosier lie: **it has no
 /// door.** No panel row can turn it on, so today the persistence records a state

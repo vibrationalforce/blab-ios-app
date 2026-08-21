@@ -20,7 +20,15 @@ public struct FXPreset: Codable, Identifiable, Sendable, Equatable {
     public var name: String
     /// Curation tags ("vapor", "dub", "lofi", …). Empty for plain user presets.
     public var tags: [String]
-    /// Forward-compat schema version (bump when fields change).
+    /// Forward-compat schema version.
+    ///
+    /// ⛔ This said "bump when fields change", and #690 added seven fields without
+    /// bumping — so the file stated a rule its own change broke. The rule as written was
+    /// wrong, not the change: nothing in the repo BRANCHES on this value
+    /// (`git grep "\.schema\b"` → a writer, the decoder, and one test pinning the decode
+    /// default of 1), so a bump would be a number nobody reads. Bump it when a decode has
+    /// to behave differently for old documents — not when a purely additive,
+    /// default-tolerant field arrives, which every reader already survives.
     public var schema: Int
 
     // Master gate
