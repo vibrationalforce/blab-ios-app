@@ -10779,3 +10779,59 @@ Diskriminator ist `TEST EXECUTE FAILED` gegen `TEST BUILD FAILED`, die Mach-Zeil
 `AudioEngine.swift` NULL mal vor, die gesungene Stimme erreicht keine dieser Stufen. Der
 Vocal-Chain-Host-Knoten (V1a) hängt bewusst an der Founder-Geräteprobe auf v10.79.417
 (einmal Live monitoring umschalten, dann `echoel_diag.log`).
+
+## 2026-08-21 (cron, ULTRACODE 24h) — #695 Wächter-Loch, #696 gemessen statt erinnert
+
+**#695 `76eaf99` — der Reviewer fand ein Loch in genau dem Wächter, den #694 dagegen schrieb.**
+`CleanIsDryTests`' abgeleiteter Test verlangte `contains("Enabled: Bool")`. Alle fünfzehn Flaggen
+schreiben die Annotation heute; nichts erzwingt es. Eine sechzehnte Stufe als
+`public var shimmerEnabled = false { … }` wäre unsichtbar geblieben — Zähler bleibt 15, `unknown`
+leer, Test grün, `.clean` lässt sie laufen: **der Defekt, den der Test einen Commit vorher
+verhindern sollte.** Nadel greift jetzt am IDENTIFIER (Name bis `:`/`=`/`{`/Leerzeichen, muss auf
+`Enabled` enden), Datei kommentar-gestrippt wie jeder Geschwister-Scan. Mit Kontrolle nachgemessen:
+echter Baum 15 grün, un-annotierte sechzehnte Deklaration ROT und namentlich.
+Untergrenze bleibt `> 10` statt `== 15` (#364): eine sechzehnte Stufe ist RICHTIGE Arbeit.
+Dazu drei Präzisionsfehler in #694s eigener Prosa — „die Struktur trägt SIEBEN Schalter" (sie
+DEKLARIERT sechs plus ein `saturation: Float`, das beim Anwenden zum siebten SCHREIBVORGANG wird:
+die Schreib-Zahl im Namen der Deklarations-Zahl), „`apply` … ABOVE" (es steht ~120 Zeilen
+DARUNTER) und „cannot click" (überzieht: ein Tremolo-Bypass springt mitten im Puffer auf
+Einheitsverstärkung; „schedules no work" ist die exakte Hälfte).
+Ein Risiko AUFGESCHRIEBEN statt repariert: `applyFX()` stempelt den Charakter ohne `reseed()`, also
+könnten bis zu vierzehn Panel-Schalter „AN" über einer ausgeschalteten Kette zeigen. Nachgemessen
+**unerreichbar — aber durch PRÄSENTATION, nicht durch Entwurf**: Picker und FX-Tür liegen beide in
+`effectsPanel`, das unter `.sheet(isPresented: $showAllFX)` verschwindet. Diese Garantie ist eine
+UI-Änderung dick und nichts würde rot (die Spiegel sind `@State`, kein Test sieht einen lebenden).
+
+**#696 — die Lehre dieses Zyklus ist nicht der Fix, sondern wie er gefunden wurde.**
+Ich hatte drei Ehrlichkeits-Rückstände im Kopf und wollte daraus planen. **Alle drei waren längst
+geschlossen:** `BioVitals.isFresh` hat echte Aufrufer in Uhr UND Widget (`glanceFreshnessWindow`),
+`AlwaysOnBioChannel` führt `isSynthetic` seit #641, und das Metrik-Blatt trägt Provenienz an
+dreizehn Stellen. Ebenso die Latenz-Hälfte der Founder-Bitte: `latencySnapshot()` mit `complete`-
+Flagge und drei Auffrischpunkten steht erreichbar im `AudioInputPickerView` (#654/#663/#664).
+**Aus einem erinnerten Rückstand zu planen ist dieselbe Fehlerklasse wie aus einer erinnerten Zahl
+zu zitieren** — nur teurer, weil man erst am Ende merkt, dass es die Arbeit nicht mehr gibt.
+`python3 scripts/doctor.py` in zehn Sekunden hätte das vorweg beantwortet; ab jetzt läuft er, BEVOR
+ein Punkt aus dem Gedächtnis gewählt wird.
+**Was der Doctor fand:** Sektion C sauber gegen das Register (alle acht türlosen Ansichten und
+alle drei setterlosen Modal-Flaggen sind in CLAUDE.md als absichtlich geparkt vermerkt).
+Sektion A: nur founder-gated CI-Befunde (`|| true` und fehlendes `set -o pipefail` in
+`benchmark.yml`/`ci.yml`, zwei Filter auf die nicht existierende Suite `ComprehensiveTestSuite`,
+`full-tests.yml` beschriftet „294" für 314). Sektion D: **`Sources/` = 369, CLAUDE.md sagte 368.**
+Korrigiert, und der Zuwachs ist BELEGT statt geraten — `git log --diff-filter=A` nennt genau eine
+Datei, `DSP/EchoelGranular.swift` (#684). Gegenfall zum Ledger-Eintrag darüber, wo sechs Dateien
+Differenz nicht mehr rekonstruierbar waren: **wer oft nachführt, muss weniger raten.**
+Der Immer-geladen-Umfang liegt bei 158 678 B, `CLAUDE.md` allein bei 145 834 — 4 166 B unter der
+Decke, die nur auf diese eine Datei zielt.
+
+**OFFEN und gemessen, nicht erinnert:** Ereignis-Provenienz auf `/echoelmusic/bio/event/*`.
+`BioEvent` hat **kein** Quellfeld (`EngineBus.swift:515` — `timestamp`, `kind`, `confidence`,
+`aux`), also hieße das entweder den Bus-Typ verbreitern (alle Produzenten) oder beim Senden aus
+`bus.latestBio` schließen. Das ist eine Entwurfsentscheidung für den Council, keine Scheibe zum
+Anhängen — deshalb hier registriert statt hastig gebaut. ADM-OSC bleibt bewusst ohne (fremder
+Standard), Art-Net fehlt eine KONVENTION, nicht der Platz.
+
+**GATES:** `c9df6ea` (#694) und `76eaf99` (#695) beide `Xcode Compile Check` success UND
+`Build for Testing: Succeeded`; #695 171 Tests bestanden, 0 Fehler, 0 `error:`-Zeilen.
+`CleanIsDryTests` steht in keiner der beiden Namenslisten — nach #445 beweist das NICHTS
+(die Zuteilung ist nicht deterministisch). Ehrlich: **kompiliert nachweislich, Ausführung
+unbelegt.**

@@ -5696,3 +5696,18 @@ aufeinanderfolgende Stände erlauben deshalb KEINE Richtungsableitung.
   2026-08-14 und heute in `Sources/` entstanden; welche das sind, ist nachträglich nur über
   `git log --diff-filter=A --name-only` rekonstruierbar und ist hier bewusst NICHT geraten.
 
+- **2026-08-21 → 369** (`git ls-files 'Sources/**/*.swift' | wc -l` = **369**, alles getrackt —
+  kein Untracked-Nachschlag wie beim vorigen Eintrag). Der Zuwachs ist GENAU EINE Datei und sie
+  ist BELEGT statt geraten: `git log --diff-filter=A --name-only --since=2026-08-19 -- 'Sources/**/*.swift'`
+  liefert `DSP/EchoelGranular.swift` (#684, `2e65ab7`) und sonst nichts in diesem Fenster.
+  ⭐ **Das ist der Gegenfall zum Eintrag direkt darüber, und deshalb steht er hier:** dort waren
+  SECHS Dateien Differenz und der Absatz musste schreiben „welche das sind, ist … bewusst NICHT
+  geraten". Hier ist die Differenz eins, `--diff-filter=A` beantwortet sie in einer Zeile, und
+  die Antwort ist mitgeschrieben. **Der Unterschied ist nicht Sorgfalt, sondern ABSTAND:** eine
+  Differenz von eins lässt sich zurückverfolgen, eine von sechs über sechs Tage praktisch nicht.
+  Wer den Zähler oft nachführt, muss weniger raten — das ist das ganze Argument für den Wächter,
+  den dieser Zähler weiterhin NICHT hat.
+  ⚠️ Gefunden nicht durch Nachdenken, sondern von `python3 scripts/doctor.py --section D`, das
+  369 gegen die CLAUDE.md-Zeile stellt, ohne selbst zu vergleichen. Der voreilige Schluss wäre
+  „der Doctor prüft die Zahl" — er DRUCKT sie nebeneinander; das Vergleichen bleibt Handarbeit,
+  und genau das sagt seine eigene Sektion-D-Notiz.
