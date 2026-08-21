@@ -10,8 +10,8 @@
 // own instrument turn into a telephone while every number on screen still reads healthy,
 // because no LATENCY number can express a BANDWIDTH collapse.
 //
-// ⚠️ HONEST LIMITS. 10 test methods under 7 numbered sections (1 and 7 hold more than one),
-// 39 `XCTAssert*` — re-derive both, do not re-type:
+// ⚠️ HONEST LIMITS. 11 test methods under 7 numbered sections (1 and 7 hold more than one),
+// 45 `XCTAssert*` — re-derive both, do not re-type:
 //   grep -c "^    func test" <this file>
 //   grep -n "XCTAssert" <this file> | grep -vc ':[[:space:]]*//'
 // ⛔ The first recipe was `grep -c "    func test"` and it printed 8 where the prose said 7,
@@ -21,9 +21,13 @@
 // excluded itself; only one of the two did, which is how the asymmetry survived being written
 // AND read.
 //
-// Sections 1, 3 and 7 are END-TO-END BEHAVIOUR — the verdict, both sentences and the route
-// label are driven with real inputs, including the values a session answers with
-// mid-route-change. Section 2 is a CONSTANT PIN: it asserts the AVFoundation raw values still
+// Sections 1, 3 and most of 7 are EXECUTED BEHAVIOUR — the verdict, both sentences, the route
+// label and the sanitiser are driven with real inputs, including the values a session answers
+// with mid-route-change and a route that exceeds the log's length budget.
+// ⚠️ NOT "end-to-end", which the first version of this line said: nothing here composes
+// `routeLabel` → `currentSessionLatency` → `latencyLine` → `route=`. That chain is covered by
+// an occurrence count and nothing more. The section-2 sentence below was rewritten in an
+// earlier commit to stop overstating exactly this, and section 7 then got the looser word. Section 2 is a CONSTANT PIN: it asserts the AVFoundation raw values still
 // equal the literals `AudioConfiguration` compares against, so an iOS rename turns this red
 // instead of turning the verdict silently permissive. It exercises no behaviour of `routeCodec`
 // at all, and saying otherwise would overstate what this file proves. Sections 4–6 and the
@@ -211,20 +215,40 @@ final class TheBluetoothCodecReachesTheScreenTests: XCTestCase {
             so a new construction site can omit it and silently report `.wideband` about a route \
             it never classified.
             """)
-        // ⛔ And the needle below was the literal expression `current.outputs.map(\\.portType…)`.
-        // Hoisting that into a local — which this very file already does two declarations away
-        // to dodge #287 type-check blowups — would have reddened a CORRECT tree. Two mechanism
-        // tokens instead: the field must be POPULATED, and it must be populated from the port
-        // TYPE (port NAMES are what `route=` uses, and they cannot classify a codec).
-        XCTAssertTrue(code.contains("outputPortTypes: "), """
-            The gathering stopped populating `outputPortTypes`, so `routeCodec` is handed an \
-            empty list — which resolves to `.wideband` and renders NOTHING. This is the \
-            silent-failure shape: the row disappears and nothing goes red.
+        // ⛔ TWO earlier versions, and the second was broken by a LATER commit rather than by
+        // its own author — the rarer failure mode and the one no amount of care at writing
+        // time prevents.
+        //  (1) The needle was the literal expression `current.outputs.map(\\.portType…)`.
+        //      Hoisting that into a local — which this very file already does two declarations
+        //      away to dodge #287 — would have reddened a CORRECT tree.
+        //  (2) The repair used two file-wide tokens, `"outputPortTypes: "` and
+        //      `"portType.rawValue"`. Both were unique to the classifier feed WHEN WRITTEN.
+        //      #672 added `routeLabel(portName:portType:)` to both port lists, taking
+        //      `portType.rawValue` from 1 occurrence to 3 and `outputPortTypes: ` to 5 — so
+        //      deleting the classifier feed entirely would have left BOTH assertions green,
+        //      satisfied by the unrelated LABEL path, while `routeCodec` received an empty
+        //      list and the red bandwidth warning silently vanished from the picker.
+        // A file-wide token is only a mechanism pin while it is unique, and nothing warns you
+        // on the day a sibling feature makes it common. Scoped to the gathering and to the
+        // LINES that actually feed the field.
+        let gathering = try Self.body(after: "private static func currentSessionLatency", in: code)
+        let feeds = gathering.split(separator: Character("\n"), omittingEmptySubsequences: false)
+            .filter { $0.contains("outputPortTypes:") }
+        XCTAssertEqual(feeds.count, 2, """
+            The gathering has \(feeds.count) lines feeding `outputPortTypes`, not 2 (one per \
+            platform branch). #658 exists because the macOS arm alone once held a claim green \
+            while the arm every device runs had lost it.
             """)
-        XCTAssertTrue(code.contains("portType.rawValue"), """
-            The port TYPE no longer reaches the verdict. `portName` is what the route string \
-            uses and it cannot classify a codec — "HI-X25BT" says nothing about HFP. Feeding \
-            names here makes every route report `.wideband`, silently.
+        XCTAssertTrue(feeds.contains { $0.contains("portType") }, """
+            No branch feeds `outputPortTypes` from the port TYPE any more, so `routeCodec` is \
+            handed an empty or name-derived list. `portName` cannot classify a codec — \
+            "HI-X25BT" says nothing about HFP — so every route reports `.wideband` and the \
+            warning disappears from the picker with nothing going red.
+            """)
+        XCTAssertTrue(feeds.contains { $0.contains("[]") }, """
+            The macOS branch stopped declaring its port list EMPTY. Empty resolves to \
+            `.wideband`, which renders no claim at all — silence. Anything else there would be \
+            a classification of a HAL route this file cannot classify (#654).
             """)
     }
 
@@ -329,8 +353,21 @@ final class TheBluetoothCodecReachesTheScreenTests: XCTestCase {
             80-char budget on a fact its NAME already carries, and the truncation that budget \
             enforces eats the far end — where the output port is.
             """)
+        // ⛔ The first version asserted `routeLabel("", "Speaker") == ""` and called it "an
+        // empty port name grew content out of nothing" — but "Speaker" takes the early return,
+        // the one branch that is DEFINITIONALLY identity. The named risk can only occur on the
+        // Bluetooth branch, and there it genuinely happens. It is pinned as INTENDED, because
+        // it is: before #672 an unnamed Bluetooth port collapsed to `route=none→…` while
+        // `inputAvailable` said `true` on the same line — the file contradicting itself.
         XCTAssertEqual(AudioConfiguration.routeLabel(portName: "", portType: "Speaker"), "",
-                       "an empty port name grew content out of nothing.")
+                       "a wired port with no name grew content out of nothing.")
+        XCTAssertEqual(AudioConfiguration.routeLabel(portName: "", portType: "BluetoothHFP"),
+                       "[HFP]", """
+            An unnamed Bluetooth port stopped reporting its type. It then collapses the joined \
+            string to empty and the gathering prints `route=none→…` — while `inputAvailable` \
+            reports `true` on the SAME line. A file that contradicts itself in two fields is \
+            worse than one that says "there is a port here and iOS did not name it".
+            """)
     }
 
     func testTheMarkerSurvivesTheLogSanitiserAndTheListStaysDerived() {
@@ -339,9 +376,32 @@ final class TheBluetoothCodecReachesTheScreenTests: XCTestCase {
         // bracket, but "should not" is what a guard is for.
         let sanitised = AudioConfiguration.sanitisedRoute("Built-In Microphone→HI-X25BT[HFP]")
         XCTAssertTrue(sanitised.contains("[HFP]"), """
-            `sanitisedRoute` now strips or truncates away the port marker, so the fact is \
-            computed, put in the string, and then removed one step before it reaches the file. \
-            Nothing else would go red — the log would simply stop explaining itself.
+            `sanitisedRoute` now strips the port marker, so the fact is computed, put in the \
+            string, and then removed one step before it reaches the file. Nothing else would \
+            go red — the log would simply stop explaining itself.
+            """)
+
+        // ⛔ The assertion above is 33 characters long and `sanitisedRoute` only truncates past
+        // 80 — so its first version drove the masking branch, never the truncation branch, and
+        // said "strips OR TRUNCATES" in its failure message anyway. Half the named risk was
+        // unguarded, and it was the REAL half: the marker is appended to each port name, the
+        // OUTPUT port is the far end of the string, and the case that gets closest to the
+        // budget is BT mic + BT headphones — precisely the HFP scenario this file exists for.
+        // #673 changed the truncation to keep BOTH ends; this is what proves it.
+        let doubled = "Michael Terbuyken's iPhone Mikrofon[HFP]"
+                    + "→Michael Terbuyken's Beyerdynamic HI-X25BT[HFP]"
+        XCTAssertGreaterThan(doubled.count, 80,
+                             "the fixture no longer exceeds the budget, so it proves nothing.")
+        let cut = AudioConfiguration.sanitisedRoute(doubled)
+        XCTAssertTrue(cut.hasSuffix("[HFP]"), """
+            Truncation dropped the OUTPUT port's marker: "\(cut)". The output is where the \
+            collapse is HEARD, so it is the end worth guaranteeing — a head-only truncation \
+            removes exactly the fact the marker was added to carry, in exactly the case that \
+            needs it.
+            """)
+        XCTAssertLessThanOrEqual(cut.count, 81, """
+            The route grew past the bound `currentLog()` depends on — it reads the whole file \
+            into one String for the share sheet. Got \(cut.count).
             """)
 
         // #416: the marker table is THE definition and the list is derived from it. If someone
@@ -356,6 +416,27 @@ final class TheBluetoothCodecReachesTheScreenTests: XCTestCase {
             """)
         XCTAssertNotNil(AudioConfiguration.bluetoothPortMarkers[AudioConfiguration.hfpPortType],
                         "the HFP port lost its marker, so the definitive case reaches no log.")
+    }
+
+    func testTheListIsDerivedInSourceAndNotMerelyEqualToTheDerivation() throws {
+        // ⛔ #672 claimed "a guard pins the derivation, not just the contents". FALSE as
+        // written: the assertion above compares VALUES, so re-typing `bluetoothOutputPortTypes`
+        // as the literal `["BluetoothA2DPOutput", "BluetoothLE"]` keeps it green — the #416
+        // hazard it says it closed is re-openable with no red test. A value check only fires
+        // AFTER the two lists have already drifted, i.e. after the damage. This pins the
+        // mechanism instead: the declaration must READ the marker table.
+        let code = try Self.codeText(Self.config)
+        let declaration = try XCTUnwrap(
+            Self.line(containing: "static let bluetoothOutputPortTypes", in: code), """
+            cannot find the declaration of `bluetoothOutputPortTypes` — re-anchor (#454).
+            """)
+        XCTAssertTrue(declaration.contains("bluetoothPortMarkers"), """
+            `bluetoothOutputPortTypes` no longer derives from the marker table \
+            ("\(declaration.trimmingCharacters(in: .whitespaces))"). Two hand-maintained lists \
+            of "which port types are Bluetooth" can drift, and then a port is marked in the \
+            log but invisible to the verdict, or classified by the verdict but unnamed in the \
+            log — with both lists individually looking correct.
+            """)
     }
 
     func testBothSidesOfTheRouteAreLabelled() throws {

@@ -709,13 +709,30 @@ enum AudioConfiguration {
     /// route string carries. Every literal appears exactly once, here (#416).
     ///
     /// ⭐ #672 — WHY THE ROUTE STRING CARRIES A MARKER AT ALL. #671 retracted the claim that the
-    /// log already held the evidence: `route=` is built from `portName`, so a reader can
+    /// log already held the evidence: `route=` was built from `portName`, so a reader could
     /// reconstruct the INFERENCE (a low `sr=` beside a Bluetooth-ish name) but never the FACT,
     /// because the named HFP port appeared nowhere in the file. The screen could show a red
     /// line the exported log could not explain — in a subsystem whose entire purpose is that
     /// the two cannot disagree. This closes it without touching `latencyLine`'s signature,
     /// which is the churn that broke the bundle twice (#666/#667): the marker rides INSIDE the
     /// string that was already being passed.
+    ///
+    /// ⛔ #673: #672 rewrote the OTHER copy of that retraction (on `routeCodec`) and left this
+    /// area's second statement of the same false premise standing — a reader landing on the
+    /// wrong one got the bare claim with none of the history the file spends eleven lines
+    /// preserving. A retraction that exists in one of two places is a coin flip.
+    ///
+    /// ⚠️ THIS IS NOT LOG-ONLY, and #672's commit message framed it as if it were. The same
+    /// sanitised string feeds `LatencyReadout.route` → `breakdownText` → `MonitorLatencyRow`,
+    /// so `HI-X25BT[HFP]` is on SCREEN as well. That is wanted — naming the profile beside the
+    /// number is science-first, the same bar as the numbers themselves — but it is a
+    /// user-facing copy change and is recorded as one rather than discovered later.
+    ///
+    /// ⚠️ THREE SPELLINGS OF "port + type" NOW EXIST IN THIS REPO: `Name (BluetoothHFP)`
+    /// (`AudioEngine`), `Name [BluetoothHFP]` (`AudioInputManager`) and `Name[HFP]` here. The
+    /// LITERAL `"BluetoothHFP"` is single-sourced as claimed; the CONVENTION is not. Not
+    /// unified here — those two are `os_log` lines with different readers and different
+    /// budgets — but a fourth spelling should be a decision, not an accident.
     static let bluetoothPortMarkers: [String: String] = [
         hfpPortType: "HFP",
         "BluetoothA2DPOutput": "A2DP",
@@ -742,6 +759,11 @@ enum AudioConfiguration {
     /// ⚠️ Non-Bluetooth ports are returned UNCHANGED. A marker on every port would be noise on
     /// the common case (`Built-In Microphone[BuiltInMic]` says nothing the name does not), and
     /// the route string feeds an 80-character budget that truncates with `…`.
+    /// ⚠️ AN UNNAMED BLUETOOTH PORT BECOMES `"[HFP]"`, NOT `""` — and that is deliberate, not
+    /// an oversight. Before #672 such a port made the joined string empty, so the gathering
+    /// reported `route=none→…` while `inputAvailable` was `true` on the same line: the file
+    /// said in one field that there was no input and in another that there was. The marker
+    /// alone is the honest answer — there IS a port, iOS just did not name it.
     static func routeLabel(portName: String, portType: String) -> String {
         guard let marker = bluetoothPortMarkers[portType] else { return portName }
         return portName + "[" + marker + "]"
@@ -998,7 +1020,19 @@ enum AudioConfiguration {
         let masked = route.replacingOccurrences(of: EchoelCrashLog.crashMarker,
                                                 with: "C-R-A-S-H")
         let flattened = masked.replacingOccurrences(of: "\n", with: " ")
-        return flattened.count <= 80 ? flattened : String(flattened.prefix(80)) + "…"
+        guard flattened.count > 80 else { return flattened }
+        // ⭐ #673 — BOTH ENDS, not a head. This was `prefix(80) + "…"`, and #672 made that a
+        // real defect rather than a cosmetic one: the port marker is APPENDED to each port
+        // name, and the OUTPUT port is the far end of the string. A tail-drop removes exactly
+        // the fact the marker exists to carry, and does it WORST in the double-Bluetooth case
+        // (BT mic + BT headphones, +10 characters) — which is the HFP scenario this whole
+        // subsystem exists to make readable. 39 + "…" + 40 = 80, so the existing ≤ 81 bound
+        // holds unchanged.
+        // ⚠️ HONEST LIMIT: this guarantees the OUTPUT marker, not both. A very long INPUT name
+        // can still push its own marker into the cut. Output is where the collapse is HEARD,
+        // so that is the end worth guaranteeing; pretending both are safe would be the
+        // over-claim this file keeps retracting.
+        return String(flattened.prefix(39)) + "…" + String(flattened.suffix(40))
     }
 
     /// One gathering of the platform's latency facts, so the log line and the on-screen
