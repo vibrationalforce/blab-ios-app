@@ -5,7 +5,17 @@
 // pulse pill (`PulseMonitorMiniLive` → `.echoelChromeDoor` "bio" → `activeMenu = .bio`), with
 // the pill's long-press context menu carrying a duplicate "Bio details…" entry. It is NOT a
 // chip: `.bio` is absent from `EchoelStudioView.studioChips`, and #290 REJECTED adding one as
-// a "zweite Tür". The doc beside that array has said so, correctly, since #290.
+// a "zweite Tür" — a RETURN: the chip really shipped with B3 on 2026-07-12 (8ec7f11) and was
+// pulled on 2026-07-14, which is the fact #706 had to restore in `CLAUDE.md` after #705
+// declared that dated line simply "false".
+//
+// ⚠️ SAY "STANDING STRIP", NOT "NO CHIP". A chip labelled "Bio" IS drawn while the panel is
+// open: `visibleChips` appends `displayedMenu` when the standing list does not carry it, and
+// `case .bio: return "Bio"` gives it that label. What does not exist is a chip that OPENS the
+// panel. #705's prose said "there is no Bio chip" in seven places and was refutable by anyone
+// who opened the panel and looked at the strip — the same re-reversal risk this file was
+// written to stop, one level down. `EchoelStudioView`'s "on the Bio tab" is CORRECT; do not
+// "fix" it.
 //
 // ⭐ WHY IT NEEDED A GUARD RATHER THAN SEVEN QUIET EDITS. "Bio chip" had become a house idiom:
 // seven live prose sites in `Sources/` and `Tests/CISmoke` named a control that does not exist,
@@ -37,16 +47,36 @@
 // simulating the scan in Python before the commit, not by reasoning about it. The carve-out is
 // THIS FILE ONLY, keyed off `#filePath` so a rename cannot silently widen it — the file that
 // DEFINES the rule is the one place the phrase may appear as a claim.
+// ⛔ #705 described those four reds as "its own header and its own failure message" — measured,
+// they were THREE header lines and a `MARK:` comment. The failure message escaped only because
+// its wording happens to WRAP mid-phrase; reflow that string and the guard goes red on a
+// correct tree. Keep it wrapped, or let claim 5's own text be the thing that flags it.
 //
-// ⚠️ HONEST LIMITS. 5 tests, 8 assertion statements (2+1+3+1+1; counted in Python over lines
+// ⚠️ THE `SAID` EXEMPTION CAN FALSE-GREEN, AND THE OBVIOUS TIGHTENING IS WRONG. `SAID` is not
+// exclusively a retraction marker here — `Studio/AutomationStatusStrip.swift` carries
+// "⭐ THE PLAN PUT IT LAST AND SAID WHY", a live argument — so a line reading "the founder SAID
+// the Bio chip should be the door" would pass. Requiring `⛔` on the SAME line does NOT fix it:
+// that is red on the correct tree at `Studio/PulseMeasurementView.swift`, whose retraction's ⛔
+// sits five lines above the quoted phrase. Three narrower guards in this bundle accept the same
+// risk; this is the widest use of the technique so far, and the risk is accepted knowingly.
+//
+// ⚠️ THE EXEMPTION TOKEN IS ENGLISH, THE NEEDLE IS BILINGUAL. There is no German prose in the
+// scanned directories today, so `bio-chip` never fires there — but if German ever lands in one,
+// a correct German retraction (`⛔ hier stand „Bio-Chip"`) has no `SAID` and would be a
+// correct-tree red. Add the German token to the exemption on the day that happens, not before.
+//
+// ⚠️ HONEST LIMITS. 5 tests, 9 assertion statements (2+1+3+1+2; counted in Python over lines
 // whose first token is XCTAssert). It reads the SOURCE, so it proves which control posts the
 // door notification, never that a finger can find it on glass. `CLAUDE.md` and the scratchpads
 // are deliberately outside claim 5's scan: the law file quotes withdrawn claims on purpose
 // (#491) and the ledgers are history that must not be rewritten.
 //
 // ⭐ GRADING (§3). Claims 1–4 are COUNTERWEIGHTS — green at the parent too; they record a
-// standing state that #290 created and this commit does not touch. Claim 5 is FORWARD: it is
-// red at the parent, by five separate offending lines, and this commit is what makes it green.
+// standing state that #290 created and this commit does not touch. Claim 5 is a REGRESSION:
+// red at the parent for exactly the reason its name gives, by five offending lines in five
+// files, and this slice is what makes it green. (⛔ #705 graded it FORWARD, which
+// `Tests/CISmoke/CLAUDE.md` §3 reserves for a claim that "could never have been red" —
+// the UNflattering direction of the same vocabulary error, and still an error.)
 
 import Foundation
 import XCTest
@@ -69,13 +99,18 @@ final class TheBioPanelDoorIsThePulsePillTests: XCTestCase {
             `studioChips` is gone or renamed. Claim 2 below is a NEGATIVE over that array, so \
             it goes quietly vacuous without this — re-anchor rather than letting it pass empty.
             """)
-        XCTAssertTrue(src.contains(".sound") && src.contains(".export"), """
-            The chip list no longer names the chips it did. Re-measure which menus the strip \
-            carries before trusting claim 2.
+        // ⛔ #705 asserted this over the WHOLE 9,700-line file, where `.sound` and `.export`
+        // occur dozens of times outside the array — the strip could have been emptied to `[]`
+        // and this stayed green, leaving claim 2's negative resting on nothing (#367).
+        let list = Self.chipList(in: src)
+        XCTAssertTrue(list.contains(".sound") && list.contains(".export"), """
+            The chip array no longer names the chips it did (extracted: \(list)). Re-measure \
+            which menus the strip carries before trusting claim 2 — an EMPTY array would make \
+            that negative vacuous.
             """)
     }
 
-    // MARK: - 2: THE FINDING — there is no Bio chip
+    // MARK: - 2: THE FINDING — no chip OPENS the panel
 
     /// ⭐ #290 rejected one as a "zweite Tür". Seven prose sites said otherwise anyway.
     func testTheStripDoesNotCarryABioChip() throws {
@@ -133,16 +168,23 @@ final class TheBioPanelDoorIsThePulsePillTests: XCTestCase {
     /// ⭐ THE ANTI-DRIFT CLAIM, and the reason this is a guard and not seven edits.
     func testNoLivingProseCallsItAChip() throws {
         var offenders: [String] = []
+        var skipped = 0
         for (path, text) in try scannedFiles() {
-            if path.hasSuffix(Self.thisFileName) { continue }   // see the ⛔ in the header
+            if path.hasSuffix(Self.thisFileName) { skipped += 1; continue }   // ⛔ in the header
             for (n, line) in text.components(separatedBy: .newlines).enumerated()
-            where (line.contains("Bio chip") || line.contains("Bio-Chip")) && !line.contains("SAID") {
+            where Self.namesAChip(line) && !line.contains("SAID") {
                 offenders.append("\(path):\(n + 1)")
             }
         }
+        XCTAssertEqual(skipped, 1, """
+            The carve-out matched \(skipped) files, not one. It exists so THIS file can state \
+            the rule it enforces; matching zero means the exemption stopped working (and the \
+            next assertion is about to flag this file's own header), matching more means a \
+            second file is now invisible to the rule.
+            """)
         XCTAssertTrue(offenders.isEmpty, """
-            \(offenders) call `bioPanel`'s door a chip outside a retraction. There is no Bio \
-            chip — `.bio` is absent from `studioChips` (claim 2) and #290 declined to add one. \
+            \(offenders) call `bioPanel`'s door a chip outside a retraction. No chip OPENS the \
+            panel — `.bio` is absent from `studioChips` (claim 2) and #290 declined to add one. \
             The door is a TAP on the pulse pill, long-press second. If a line must quote the \
             old phrase, quote it inside a withdrawal that carries the word SAID, the way the \
             seven sites #705 corrected do.
@@ -163,11 +205,31 @@ final class TheBioPanelDoorIsThePulsePillTests: XCTestCase {
         return String(source[open.upperBound..<close.lowerBound])
     }
 
-    /// Raw text of every `.swift` under `Sources/Echoelmusic` and `Tests/CISmoke`, keyed by a
-    /// repo-relative path. RAW on purpose — see the ⚠️ note in the header.
+    /// Does this line call the door a chip, in any spelling this repo actually writes?
+    ///
+    /// ⛔ #705's needle was the two bare substrings `Bio chip` / `Bio-Chip`, and it MISSED the
+    /// commonest written form — `the "Bio" chip`, which is what `CLAUDE.md:167` said and what
+    /// `CLAUDE.md:47` said before #705 edited it. One quoted word between the two halves and
+    /// the scan goes blind, so the eighth and strongest site survived the very slice written
+    /// to find it. Quotes, backticks and case are stripped before matching.
+    private static func namesAChip(_ line: String) -> Bool {
+        let flat = line
+            .replacingOccurrences(of: "\"", with: "")
+            .replacingOccurrences(of: "„", with: "")
+            .replacingOccurrences(of: "“", with: "")
+            .replacingOccurrences(of: "”", with: "")
+            .replacingOccurrences(of: "`", with: "")
+            .replacingOccurrences(of: "'", with: "")
+            .lowercased()
+        return flat.contains("bio chip") || flat.contains("bio-chip")
+    }
+
+    /// Raw text of every `.swift` under `Sources/Echoelmusic`, `Tests/CISmoke` and
+    /// `Tests/EchoelmusicTests`, keyed by a repo-relative path. RAW on purpose — see the ⚠️
+    /// note in the header.
     private func scannedFiles() throws -> [(String, String)] {
         var out: [(String, String)] = []
-        for dir in ["Sources/Echoelmusic", "Tests/CISmoke"] {
+        for dir in ["Sources/Echoelmusic", "Tests/CISmoke", "Tests/EchoelmusicTests"] {
             let base = try repoRoot().appendingPathComponent(dir)
             guard let walker = FileManager.default.enumerator(atPath: base.path) else {
                 throw DiagAnchorMissing(reason: "\(dir) cannot be walked — re-anchor (#454).")

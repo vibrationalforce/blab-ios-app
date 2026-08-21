@@ -24,7 +24,7 @@
 // label), so a new chooser surface must be added to the file list here. Whether the row reads well at AX sizes,
 // and whether the Menu opens above the keyboard-free panel, are DEVICE PROBES —
 // registered open, not implied covered. `bioPanel` reachability is the pulse pill's
-// ⛔ (THIS LINE SAID "the Bio chip's" — there is no Bio chip; #705)
+// ⛔ (THIS LINE SAID "the Bio chip's" — no chip OPENS the panel; `.bio` is absent from the standing strip; #705/#706)
 // premise (sibling guards), not re-proven here.
 //
 // ⚠️ HONEST GRADING (#433/#464), transcribed in Python against the parent

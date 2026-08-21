@@ -798,7 +798,8 @@ struct BioStripView: View {
     /// coherence cell fall to "—" after 5 s, while the heart rate, HRV and breath numbers kept
     /// standing — for the rest of the process — right beside the label saying nothing was
     /// arriving. That is #503's defect on the surface that actually HAS a door (the pulse pill;
-    /// ⛔ this SAID "the Bio chip" and there is none — `.bio` is not in `studioChips`, #705),
+    /// ⛔ this SAID "the Bio chip" and no chip OPENS the panel — `.bio` is not in the standing
+    /// `studioChips` (#705/#706),
     /// where #503 fixed the always-on list inside the FX sheet.
     ///
     /// ⭐ AND IT IS NOT A NEW POLICY — it is this file's OWN, finally applied to the three

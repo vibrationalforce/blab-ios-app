@@ -6,7 +6,8 @@
 // breath phase — as a two-decimal value plus a filled accent bar, and tells VoiceOver
 // "Coherence at 62 percent, shaping …". Two reachable hosts: `AlwaysOnBioPanelStrip` in
 // `bioPanel` (reached by a TAP on the pulse pill) and `AlwaysOnBioView` in the FX "All
-// parameters" sheet. ⛔ THIS LINE SAID "(Bio chip)" — no such chip exists (#705).
+// parameters" sheet. ⛔ THIS LINE SAID "(Bio chip)" — no chip OPENS the panel; `.bio` is absent from the
+// standing strip and appears there only as the selected tab once it is open (#705/#706).
 //
 // ⛔ WHY `isMeasured` COULD NOT CATCH IT, and this is the whole finding. `isMeasured` asks the
 // frame's own `hasMeasuredCoherence` / `hasMeasuredHRV` / `hasMeasuredHeartRate` /

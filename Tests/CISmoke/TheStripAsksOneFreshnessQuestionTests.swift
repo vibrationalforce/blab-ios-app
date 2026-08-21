@@ -2,7 +2,7 @@
 // Echoel — #507. One row on screen, three different answers to "is a body still arriving?"
 //
 // WHAT WENT WRONG. `BioStripView` is the reachable bio readout (pulse-pill tap → `bioPanel`;
-// ⛔ this SAID "Bio chip →" and no such chip exists, #705), and it
+// ⛔ this SAID "Bio chip →" and no chip OPENS the panel, #705/#706), and it
 // was the only file in `Studio/` that used all three of the bus freshness accessors at once:
 //
 //   · the "live" tag and the activity light asked `bus.usableBio()`  — the source's OWN window
