@@ -32,7 +32,9 @@
 //  the FX panel's "Follow the key". Its own header says "VL2 wired — #599b" while
 //  this one said OPEN. **A header that calls a built thing open is worse than a
 //  stale number: it makes the next session BUILD IT AGAIN.** Its maths stays
-//  pinned by Test 4 of TheVoiceTuneSnapsToTheSessionKeyTests.
+//  pinned by `testDiatonicThirdBreathesWithTheKey` in
+//  TheVoiceTuneSnapsToTheSessionKeyTests — NAMED, not "Test 4": an ordinal silently
+//  re-points the moment somebody inserts a test above it.
 //
 //  ⚠️ WHAT IS GENUINELY STILL OPEN, so this header does not simply flip to a
 //  rosier lie: the harmonizer follows the SOUNDING LEAD (the piano-roll note the

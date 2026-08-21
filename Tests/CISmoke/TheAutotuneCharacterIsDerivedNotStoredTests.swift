@@ -21,11 +21,13 @@
 // side or the character side — and claim 2 goes red, because that is the moment a user
 // starts hearing a different monitor than the one they shipped with.
 //
-// ⚠️ HONEST LIMITS. 7 tests, 27 assertion statements (6+3+4+3+4+3+4; counted in Python
-// over lines whose first token is XCTAssert, NOT `grep -c`, which also catches the two
-// prose mentions above and below — the header-counts-itself trap this repo has paid for
-// twice). The first draft of this line wrote 26 from memory. Claims 1–4 are executed
-// behaviour on the shipped pure type (no mocks, no host). Claims 5–7 are SOURCE-TEXT JOINS — the
+// ⚠️ HONEST LIMITS. 7 tests, 26 assertion statements (6+3+4+3+3+3+4; counted in Python
+// over lines whose first token is XCTAssert, NOT `grep -c`, which also catches the prose
+// mentions around it — the header-counts-itself trap this repo has paid for twice). The
+// number has now been wrong TWICE in one file, in both directions: the first draft wrote
+// 26 from memory when it was 27, and the review fix (#682) folded claim 5's two name-tied
+// negatives into one regex, taking it back to 26. Recount, never adjust by memory of the
+// delta. Claims 1–4 are executed behaviour on the shipped pure type (no mocks, no host). Claims 5–7 are SOURCE-TEXT JOINS — the
 // picker lives in a SwiftUI view this bundle cannot build, the house pattern
 // (`SoundPanelPresetBarTests`, `TheVoiceTuneSnapsToTheSessionKeyTests`). What no test
 // here can prove: that four characters are the RIGHT four, that `.natural` sounds
@@ -87,14 +89,21 @@ final class TheAutotuneCharacterIsDerivedNotStoredTests: XCTestCase {
     /// launch pair, every existing user's monitor either changes or shows "Custom" on a
     /// setting they never chose. It reads the literals out of `AudioEngine.swift` rather
     /// than hard-coding 1 / 0.8 twice, so moving them on EITHER side is caught (#416).
+    ///
+    /// ⛔ THE NEEDLES CARRY A TRAILING NEWLINE AND THAT IS THE WHOLE POINT. Without it
+    /// `contains("… Float = 0.8")` also matches `= 0.85`, `= 0.82`, `= 0.8123` — so the
+    /// one drift this claim exists to catch would pass it green. Both lines are verified
+    /// newline-terminated with no trailing whitespace (`cat -A`), and `codeOnly` preserves
+    /// line structure, so anchoring on the newline is safe. A needle that is a PREFIX of
+    /// the failure it forbids fails open, and nothing about the green tick says so.
     func testTheShippedDefaultIsExactlyTheTightCharacter() throws {
         let engine = try source("Sources/Echoelmusic/Audio/AudioEngine.swift")
-        XCTAssertTrue(engine.contains("var voiceTuneStrength: Float = 1"), """
+        XCTAssertTrue(engine.contains("var voiceTuneStrength: Float = 1\n"), """
             The engine's default correction amount is no longer `Float = 1`. If that was \
             deliberate, `VoiceTuneCharacter.tight` must move with it — otherwise the app \
             launches on a setting the picker calls Custom.
             """)
-        XCTAssertTrue(engine.contains("var voiceTuneRetune: Float = 0.8"), """
+        XCTAssertTrue(engine.contains("var voiceTuneRetune: Float = 0.8\n"), """
             The engine's default retune speed is no longer `Float = 0.8`. Same rule as \
             above: the named character and the launch value are ONE decision.
             """)
@@ -142,13 +151,20 @@ final class TheAutotuneCharacterIsDerivedNotStoredTests: XCTestCase {
             The character picker is gone or renamed. Re-anchor this scan rather than \
             letting it pass vacuously (#454) — the negative below proves nothing without it.
             """)
-        XCTAssertFalse(view.contains("@State private var voiceTuneCharacter"), """
-            A STORED character selection is back. It goes stale the first time a finger \
-            moves Amount or Tune, and then the picker claims a setting that is not active. \
-            Derive it from the live values (`VoiceTuneCharacter.matching`) instead.
+        // ⛔ NAME-INDEPENDENT ON PURPOSE (#646/#673). The first version forbade two exact
+        // spellings, `@State private var voiceTuneCharacter` and the one without
+        // `private` — the IDENTIFIER, not the defect. A later cycle adding
+        // `@State private var selectedCharacter: VoiceTuneCharacter?` for the picker while
+        // leaving `matching(` in place for the caption would pass every assertion here with
+        // the stored-selection defect fully present. The prose above the picker does say
+        // "@State", but `source(_:)` returns `SourceText.codeOnly`, so a comment cannot
+        // trip this.
+        XCTAssertNil(view.range(of: #"@State[^\n]*VoiceTuneCharacter"#, options: .regularExpression), """
+            A STORED character selection is back, under whatever name. It goes stale the \
+            first time a finger moves Amount or Tune, and then the picker claims a setting \
+            that is not active. Derive it from the live values \
+            (`VoiceTuneCharacter.matching`) instead.
             """)
-        XCTAssertFalse(view.contains("@State var voiceTuneCharacter"),
-                       "Same defect without the `private` — see the message above.")
         XCTAssertTrue(view.contains("VoiceTuneCharacter.matching("), """
             The derived read is gone. Whatever feeds the picker now, it is no longer the \
             live values, which is the one thing this file exists to keep true.
@@ -161,9 +177,9 @@ final class TheAutotuneCharacterIsDerivedNotStoredTests: XCTestCase {
     /// glide of whatever was selected before, so "Hard" would not snap.
     func testPickingACharacterWritesBothFields() throws {
         let view = try source("Sources/Echoelmusic/Studio/AudioInputPickerView.swift")
-        XCTAssertTrue(view.contains("audioEngine.voiceTuneStrength = Float(choice.strength)"),
+        XCTAssertTrue(view.contains("audioEngine.voiceTuneStrength = Float("),
                       "The picker no longer writes the correction amount.")
-        XCTAssertTrue(view.contains("audioEngine.voiceTuneRetune = Float(choice.retuneSpeed)"),
+        XCTAssertTrue(view.contains("audioEngine.voiceTuneRetune = Float("),
                       "The picker no longer writes the retune speed — `Hard` would not snap.")
         XCTAssertTrue(view.contains("guard let choice else { return }"), """
             The nil branch is gone. A nil selection is the Custom state being REPORTED, \
@@ -186,7 +202,13 @@ final class TheAutotuneCharacterIsDerivedNotStoredTests: XCTestCase {
             """)
         XCTAssertTrue(view.contains("label: \"Tune\""),
                       "The Tune field is gone — see the message above.")
-        XCTAssertFalse(view.contains("VoiceTuneCharacter?.none"), """
+        // ⛔ FOUR SPELLINGS, NOT ONE. The first version forbade only
+        // `VoiceTuneCharacter?.none` and missed `.tag(nil as …)`,
+        // `.tag(Optional<VoiceTuneCharacter>.none)` — and this file's OTHER picker uses the
+        // opposite house spelling (`.tag(Optional(option))`), so the author most likely to
+        // add a nil tag is the one following the neighbour.
+        XCTAssertNil(view.range(of: #"\.tag\((nil|Optional<VoiceTuneCharacter>\.none|VoiceTuneCharacter\?\.none)"#,
+                                options: .regularExpression), """
             A `nil` tag is a "Custom" segment. Selecting it cannot change either number, \
             so it is an inert control; the caption under the picker reports Custom instead.
             """)

@@ -102,7 +102,6 @@ struct AudioInputPickerView: View {
 
     // MARK: - Live monitoring + feedback guard
 
-    @ViewBuilder
     /// The character the LIVE values sit on, or nil once a field has been dragged off
     /// every named point. Hoisted out of `monitoringSection` for two reasons: #287 (a
     /// `Binding<Optional>` built inline inside a `Picker` inside a body this size is the
@@ -125,6 +124,16 @@ struct AudioInputPickerView: View {
             })
     }
 
+    // ⚠️ THE ATTRIBUTE BELONGS TO THIS DECLARATION, and #681 briefly gave it away. Two
+    // computed members were inserted above `private var monitoringSection`, anchored on
+    // that line — which put them BETWEEN the attribute and the declaration it decorates.
+    // A doc comment between an attribute and a declaration is trivia, so it still PARSES:
+    // `@ViewBuilder` simply bound to the new `voiceTuneCharacter`, and the builder then
+    // tried to make a `View` out of `VoiceTuneCharacter?`. It is load-bearing here because
+    // the `#if os(iOS)` below leaves an EMPTY body on every other platform, which only a
+    // result builder tolerates. Anchor an insertion on the declaration and you can still
+    // land above its attribute — check what sits above the anchor, not only the anchor.
+    @ViewBuilder
     private var monitoringSection: some View {
         #if os(iOS)
         VStack(alignment: .leading, spacing: 10) {
