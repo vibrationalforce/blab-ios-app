@@ -157,15 +157,25 @@ final class ThePulseReadoutHasNoDoorTests: XCTestCase {
     ///
     /// `coachingHint` exists to be read. If its last reader disappears, the property becomes a
     /// producer with no consumer and this whole file is describing nothing.
+    /// ⛔ THIS MESSAGE ONCE SAID a second reader "changes #523's premise — the rPPG remedy
+    /// would reach a surface other than this doorless one", and that premise was ALREADY false
+    /// when it was written (#703). The remedy reaches a sighted user through
+    /// `acquisitionCue.fullHint`, not through this property: `BioStripView` banners it in
+    /// `bioPanel` behind the Bio chip, gated by `cueWarrantsFullHintOnScreen`, and
+    /// `TheStallRemedyReachesTheScreenTests.testTheStripRendersTheStallRemedy` — in this same
+    /// bundle — pins exactly that. Two guards one directory apart resting on premises that
+    /// contradict each other, and CLAUDE.md inherited the wrong one and stated a shipped
+    /// capability as missing. The ASSERTION below was and is correct; only its explanation was
+    /// wrong. **What is dead is the PROPERTY, not the capability** — which is why this claim is
+    /// worth keeping and why its message must not imply otherwise.
     func testTheReadoutIsStillTheOnlyReaderOfTheCoachingHint() throws {
         let readers = try filesUnderSources(containing: "coachingHint")
             .filter { $0 != "Bio/CameraRPPGBioPublisher.swift" }
         XCTAssertEqual(readers, ["Studio/PulseMeasurementView.swift"], """
             `coachingHint` is read by \(readers.isEmpty ? "nothing" : readers.joined(separator: ", ")) \
-            rather than only the pulse readout. A SECOND reader is good news and changes #523's \
-            premise — the rPPG remedy would reach a surface other than this doorless one — so \
-            the ⛔ blocks in `PulseCue` and `BioStripView` need rewriting with it. NO reader at \
-            all means the publisher is computing a sentence for nobody.
+            rather than only the pulse readout. A SECOND reader means the ⛔ blocks in \
+            `PulseCue` and `BioStripView` need rewriting with it. NO reader at all means the \
+            publisher is computing a sentence for nobody.
             """)
     }
 

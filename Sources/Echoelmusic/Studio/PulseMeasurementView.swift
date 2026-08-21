@@ -15,9 +15,17 @@
 //  about WHERE a reader will find this on screen, written in the file's first paragraph — the
 //  place a session reads before deciding whether a fix here can be device-verified. It cannot.
 //  And it is the second half of the same defect #523 hit from the other end: `coachingHint`
-//  (= `acquisitionCue.fullHint`) has exactly ONE reader, and that reader is this view, so the
-//  rPPG remedy reached a sighted user nowhere. A file that says it is on screen is precisely
-//  what stops someone noticing that.
+//  (= `acquisitionCue.fullHint`) has exactly ONE reader, and that reader is this view. A file
+//  that says it is on screen is precisely what stops someone noticing that.
+//
+//  ⛔ THAT PARAGRAPH ONCE ENDED "so the rPPG remedy reached a sighted user nowhere", AND THAT
+//  HALF IS NO LONGER TRUE (#703). #523/#569 gave the remedy a reachable surface: `BioStripView`
+//  banners the SAME STRING via `acquisitionCue.fullHint` in `bioPanel`, behind the Bio chip,
+//  gated by `cueWarrantsFullHintOnScreen`. The measurement above stands — one reader of the
+//  PROPERTY — but the conclusion drawn from it does not: what is dead is the property, not the
+//  capability. Left as a retraction rather than deleted because CLAUDE.md and
+//  `ThePulseReadoutHasNoDoorTests` both inherited the wrong half and had to be pulled along in
+//  the same commit (#456), and a silent edit here would have hidden why.
 //
 //  ⚠️ DOORLESS IS NOT A DEFECT HERE AND THIS FILE MUST NOT BE "CLEANED UP" INTO ONE. The block
 //  below is the canonical statement of the 10.76.41/50 freeze law for this shape, and three
