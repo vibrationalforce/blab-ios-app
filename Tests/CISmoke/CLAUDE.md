@@ -200,6 +200,25 @@ its own known positive is not a measurement.
   real positives, because last-`enum|struct`-before-the-func mis-attributes a nested type.
   Per #665's own rule — a checker with false alarms is a checker nobody reads — the honest
   output is this paragraph rather than a script that is wrong in both directions.
+- ⛔ **#679 — A THIRD NEEDLE WAS WRONG, AND THIS ONE CALLED A COMMIT WITH FOUR FAILING TESTS
+  "clean". `TEST EXECUTE FAILED` is #396 AND a real assertion failure looks identical from
+  outside.** Both print that banner; the difference is only in the per-test lines. I searched
+  for `failed (` — measured on `34be877`: `failed (` = **0**, `error:` = 0, `❌` = 0, and FOUR
+  named guards had failed. The line xcodebuild actually writes is
+      Test case 'Suite.testName()' failed on 'Clone 1 of iPhone 17 …' (0.039 seconds)
+  so the literal `failed (` can never occur — the word is followed by ` on `, not ` (`.
+  **THE NEEDLE IS `" failed on "` ON A LINE CONTAINING `"Test case "`.** Same class as #667
+  one layer down: the discriminator was right, the search term could not match the format.
+  ⚠️ **AND THE LOG IS ONE JSON BLOB WITH ESCAPED NEWLINES.** `get_job_logs` writes
+  `{"logs":[{"logs_content":"…\n…"}]}` to the overflow file, so a plain `split("\n")` yields
+  ONE line and every per-line filter silently returns nothing while `count()` on the raw text
+  still works. That is why the first reading showed "0 failure lines" next to correct counts:
+  two different bugs agreeing on a wrong answer. `json.loads` first, then split.
+  **Both halves are closed in `scripts/gh-test-verdict.py`** — point it at the overflow file:
+      python3 scripts/gh-test-verdict.py <file>
+  It prints build-for-testing, the two banners, the count of tests OBSERVED PASSING, every
+  compile-error line and every failing test by name; exit 1 if anything failed. Extend that
+  script rather than writing a fourth ad-hoc needle set.
 - **#445:** a test name **in** the log proves it ran. Its **absence proves nothing** — the
   surviving clone flushes a non-deterministic subset. Honest wording for an unobserved guard:
   *"kompiliert nachweislich, Ausführung unbelegt."* Never "green", never "red".
