@@ -55,11 +55,19 @@
 // `SourceText.codeOnly` is a SWIFT stripper; YAML comments start with `#`, so running it here
 // would mangle rather than clean (#453, the same reasoning as `TheAutoMergeWaitsForNoGate`).
 // But a whole-file negative would be WRONG here for a second reason that file does not face:
-// `- 'claude/**'` at line 14 is a BRANCH pattern and `- 'Sources/**'` at line 16 is a PATH,
-// and they are indistinguishable by shape — same indent, same quoting, four lines apart. So
+// `- 'claude/**'` is a BRANCH pattern and `- 'Sources/**'` is a PATH, and they are
+// indistinguishable by shape — same indent, same quoting, a few lines apart. (⛔ #699 removed
+// the two line numbers that stood here: a quoted token survives an insertion, a line number
+// does not, and this repo has paid for that distinction repeatedly.) So
 // every claim below reads the list that FOLLOWS the `paths:` key and stops at the first line
 // that is not a list item. A needle that scanned the file would one day be "fixed" by someone
 // who noticed it also matched the branch filter.
+//
+// ⚠️ CLAIM 2 SCANS ONLY `auto-merge-claude.yml`. If the founder instead widened
+// `auto-merge-docs.yml`, the catch falls entirely to claim 3's `positives.count == 1` — which
+// does fire, but by a different mechanism than this file's name advertises. Said here rather
+// than duplicating the three needles onto the second workflow (#416): two scans of one decision
+// is the defect, and claim 3 already owns that side.
 //
 // ⚠️ HONEST LIMITS. 5 tests. This proves what the workflows SAY, never what GitHub does:
 // branch-protection and required-checks live in repository settings, not in the tree. It also
@@ -213,6 +221,15 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
         var out: [String] = []
         for line in lines[(start + 1)...] {
             var t = line.trimmingCharacters(in: .whitespaces)
+            // ⛔ #699 — WITHOUT THESE TWO SKIPS THE GUARD WAS BLIND TO THE REPAIR IT EXISTS TO
+            // DETECT. The loop used to `break` on the first line that is not `- `, and this repo
+            // writes FULL-LINE comments inside a `paths:` list: `ci.yml` has five of them, and
+            // running this slicer over that file returns 4 entries while silently dropping
+            // `.github/workflows/ci.yml`. So the likely repair — `- 'CLAUDE.md'` under a comment
+            // saying why — would have left claims 1, 2 and 4 ALL GREEN with the law file in the
+            // filter: green for a reason other than the one its message states (#367). A
+            // following KEY (`jobs:`) still breaks the loop, so the extraction stays bounded.
+            if t.isEmpty || t.hasPrefix("#") { continue }
             guard t.hasPrefix("- ") else { break }
             t = String(t.dropFirst(2))
             // A trailing `# comment` is legal on a YAML list item and one is present in

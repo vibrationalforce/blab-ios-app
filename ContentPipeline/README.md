@@ -47,10 +47,21 @@ geht über einen Menschen. Die Pipeline erzeugt Entwürfe, keine Posts.
 - **`ContentPipeline/**` steht in KEINEM Pfad-Filter der Auto-Merge-Workflows**
   (`auto-merge-claude.yml`: `Sources/**`, `Tests/**`, `Package.swift`, `project.yml`,
   `.github/workflows/**`; `auto-merge-docs.yml`: `docs/**`). Commits, die nur hier
-  liegen, erreichen `main` durch keine Automatik — dasselbe strukturelle Loch wie bei
+  liegen, lösen **keinen eigenen Merge** aus — dasselbe strukturelle Loch wie bei
   `README.md`, `fastlane/**` und `.deploy/release` (#252, founder-gated). Bis das
   gelöst ist: Änderungen hier zusammen mit einer Änderung unter `Sources/`/`Tests/`
   pushen, oder von Hand mergen.
+
+  ⛔ **#699: hier stand „erreichen `main` durch KEINE Automatik", und das war zu stark
+  — widerlegt von `CLAIMS.md` in DIESEM Verzeichnis**, das die Passagier-Wirkung seit
+  jeher richtig beschreibt („ein Commit, der beide anfasst, zieht diese Datei mit nach
+  `main`"). Der Merge nimmt `${{ github.sha }}`, also die ganze Vorgeschichte: ein
+  reiner Pipeline-Commit fährt auf dem nächsten `Sources/`/`Tests/`-Commit mit. Genau
+  diese Formulierung ist am 2026-08-21 in CLAUDE.md neu erfunden und dort als #698
+  zurückgenommen worden — **zwei Dateien nebeneinander, eine richtig, eine falsch, und
+  die falsche wurde eine Ebene höher kopiert, statt die richtige gelesen zu werden.**
+  Die HANDLUNGSANWEISUNG darüber bleibt unverändert richtig: wer Isolation WILL, fasst
+  `Tests/` nicht an; wer den Merge will, hängt sich an einen Code-Commit.
 
 ## Große Dateien
 

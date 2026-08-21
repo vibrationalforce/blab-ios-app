@@ -26,7 +26,11 @@
 // go red BY DESIGN, and their messages name the prose to pull along in the same commit
 // (#456). A red here is then the good news, not a regression.
 //
-// ⚠️ WHY THIS FILE READS ITS TARGET RAW, alone in the bundle. `SourceText.codeOnly` is a
+// ⚠️ WHY THIS FILE READS ITS TARGET RAW. (⛔ #699: "alone in the bundle" stood here and is no
+// longer true — `TheLawFileNeverReachesMainByItselfTests` reads YAML raw for the same reason,
+// and `BioApplyRateIsTheDedupedRateTests` is a third private raw reader. An "only one" claim is
+// a COUNT wearing a word, and it ages exactly like a number; a later consolidation onto a shared
+// raw reader would have grepped for it, found one site and left the others.) `SourceText.codeOnly` is a
 // SWIFT stripper: in YAML the comment character is `#`, and `//` appears inside URLs, so
 // running it here would mangle the file rather than clean it. Adding a YAML stripper would
 // break the one-stripper rule (#453). Instead every needle is LINE-ANCHORED (`^\s*needs:`),

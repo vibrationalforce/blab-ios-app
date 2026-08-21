@@ -105,7 +105,15 @@ lives in scratchpads + SESSION_LOG. Phases:
 
 ## Deploy pipeline (token-free, verified)
 
-- `git push -u origin claude/<branch>` → auto-merges to main; `docs/` auto-merges + Pages publishes.
+- `git push -u origin claude/<branch>` → auto-merges to main **only if the push touches a watched
+  path** (`Sources/** · Tests/** · Package.swift · project.yml · .github/workflows/**`); `docs/`
+  auto-merges + Pages publishes. ⛔ #699: this line was unconditional, and it is `cat`-ed whole at
+  every session start while the correction sits in CLAUDE.md's CI section — the more-read file
+  said the looser thing. A commit touching only `CLAUDE.md`, `memory/**` or `scratchpads/**`
+  triggers no merge of its own; it rides to `main` as a passenger on the next code commit, and
+  **stays behind for good if the branch ENDS on it** — the ordinary end of a 24h mandate. It also
+  blocks `auto-merge-docs.yml`, which skips its cherry-pick when the branch delta is not docs-only
+  and still exits green.
 - `git push -f origin HEAD:deploy-dryrun` → **Compile Check** job (xcodebuild iOS device SDK, no
   signing, no upload) = the real compile gate.
 - `git push -f origin HEAD:deploy` → full build: iOS **Archive** (the compile gate on this path) →
