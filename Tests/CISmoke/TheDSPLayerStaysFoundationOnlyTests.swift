@@ -1,7 +1,14 @@
 // TheDSPLayerStaysFoundationOnlyTests.swift
 // Echoel — #550. The law survived; the reason printed next to it had been dead for weeks.
 //
-// WHAT THIS GUARDS. `DSP/` is a pure processing layer: 38 files whose entire import set is
+// ⛔ THE FILE COUNT WAS STALE BEFORE #684 TOUCHED IT, and the honest version of the bump
+// is worth one line: this comment said 38, the directory held 39, and #684's
+// `EchoelGranular.swift` made it 40. So this is a correction plus an increment, not an
+// increment — the claim below survives either way because it asserts `> 30` and not an
+// equality, which is exactly why nobody noticed. Re-derive, never adjust by one:
+//     ls Sources/Echoelmusic/DSP/*.swift | wc -l
+//
+// WHAT THIS GUARDS. `DSP/` is a pure processing layer: 40 files whose entire import set is
 // `{Foundation, Accelerate}`, and which name no Core/Sequencer type in code. That property is
 // real, it is one of the standing laws, and until this slice nothing executable held it — it
 // was carried by a prose block in `.claude/rules/swift-audio.md` that prescribed AUv3 patterns
@@ -23,7 +30,7 @@
 // in isolation', which this message said for one commit — that target was removed
 // 2026-07-24.)" This file asserts the PROPERTY; that one owns the WHY.
 //
-// ⚠️ AND IT IS NOT "LINUX-TESTABLE", deliberately not written anywhere: 7 of the 38 import
+// ⚠️ AND IT IS NOT "LINUX-TESTABLE", deliberately not written anywhere: 7 of the 40 import
 // Accelerate, and `EchoelWSOLA.swift:16-17` does so with NO `#if canImport` guard while the
 // other 6 have one. The honest property is DECOUPLING from the app's control plane, not
 // portability. Claim 3 pins that asymmetry as a measured fact rather than repairing it —

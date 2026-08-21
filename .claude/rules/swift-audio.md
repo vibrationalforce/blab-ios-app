@@ -90,7 +90,7 @@ guard divisor != 0 else { return defaultValue }
 for f in Sources/Echoelmusic/DSP/*.swift; do grep -o '^import [A-Za-z]*' "$f"; done | sort -u
 ```
 
-Measure, do not quote: today 38 files, set exactly `{Foundation, Accelerate}` (7 take
+Measure, do not quote: today 40 files, set exactly `{Foundation, Accelerate}` (7 take
 Accelerate). No control-plane type — `EngineBus`, `BioSampleFrame`, `MusicalFrame`,
 `PatternEngine` — in **code** there; the four that appear are in comments. A DSP file that
 reaches for a Core or Sequencer type has stopped being a pure processor.
