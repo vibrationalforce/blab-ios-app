@@ -17,10 +17,16 @@ also carried its own contradiction: it said the executable law is "~11 %" of the
 then "2.7 %" of it, six lines apart. **Refreshing the numbers would have rebuilt the trap**;
 a table of bytes in an always-loaded file is a date, not a fact, and nothing re-derives it.
 
-**The live figure is `python3 scripts/doctor.py --section D`** — it prints the surface, the
-per-file split, and WARNs above 150,000 B. Read it there. `memory/LEDGER_COUNTS.md` is where
-#538 moved the two count-provenance chains verbatim; it is NOT in the hook's `cat` list and
-must never be added to it.
+**The live figure is `python3 scripts/doctor.py --section D`** — it prints the surface total,
+the per-file split, and WARNs when **`CLAUDE.md` alone** passes 150,000 B. ⚠️ The threshold is
+on that ONE file, not on the total, and the earlier wording here attached it to the total —
+so on 2026-08-21 the section printed "Under the ceiling" at a surface of 155,062 B
+(`CLAUDE.md` 142,688). A stated threshold that does not test the quantity it names is the
+same defect class as a needle that cannot match. The ceiling is on the one file on purpose:
+#538's repair — moving provenance to `memory/LEDGER_COUNTS.md` — only shrinks `CLAUDE.md`.
+
+That ledger holds the two count-provenance chains verbatim; it is NOT in the hook's `cat`
+list and must never be added to it.
 
 `.claude/settings.json` sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "50"`, so compaction fires at
 half budget, and the executable law (audio-thread bans, force-unwrap ban, `EchoelValueField`,
