@@ -797,7 +797,8 @@ struct BioStripView: View {
     /// on). So stopping the camera made the tag fall to "No signal" after 6 s and the
     /// coherence cell fall to "—" after 5 s, while the heart rate, HRV and breath numbers kept
     /// standing — for the rest of the process — right beside the label saying nothing was
-    /// arriving. That is #503's defect on the surface that actually HAS a door (the Bio chip),
+    /// arriving. That is #503's defect on the surface that actually HAS a door (the pulse pill;
+    /// ⛔ this SAID "the Bio chip" and there is none — `.bio` is not in `studioChips`, #705),
     /// where #503 fixed the always-on list inside the FX sheet.
     ///
     /// ⭐ AND IT IS NOT A NEW POLICY — it is this file's OWN, finally applied to the three

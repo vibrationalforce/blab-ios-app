@@ -1,7 +1,10 @@
 // TheBioPanelRowsSayWhoseBodyTests.swift
 // Echoel — #648: two `bioPanel` rows each conditioned on ONE axis and not on the source.
 //
-// WHAT THIS GUARDS. `BreathVoiceRow` and `AutoModeRow` are the two toggles behind the Bio chip.
+// WHAT THIS GUARDS. `BreathVoiceRow` and `AutoModeRow` are the two toggles in `bioPanel`.
+// ⛔ THIS LINE SAID "behind the Bio chip" (#705). There is no Bio chip: `.bio` is absent from
+// `EchoelStudioView.studioChips`, and #290 rejected adding one as a "zweite Tuer". The door is
+// a TAP on the pulse pill (`PulseMonitorMiniLive` -> chrome door "bio"), long-press second.
 // Each already branched — the first on whether breath was measured, the second on whether a
 // source was running — so each LOOKED carefully written. Neither branched on WHOSE reading it
 // was. Under Simulation `usableBio()` is non-nil, so `AutoModeRow` renders its enabled branch

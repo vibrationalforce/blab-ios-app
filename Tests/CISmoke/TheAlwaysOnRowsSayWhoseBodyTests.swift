@@ -5,7 +5,8 @@
 // WHAT THIS GUARDS. `AlwaysOnBioRow` renders four bio channels — coherence, HRV, heart rate,
 // breath phase — as a two-decimal value plus a filled accent bar, and tells VoiceOver
 // "Coherence at 62 percent, shaping …". Two reachable hosts: `AlwaysOnBioPanelStrip` in
-// `bioPanel` (Bio chip) and `AlwaysOnBioView` in the FX "All parameters" sheet.
+// `bioPanel` (reached by a TAP on the pulse pill) and `AlwaysOnBioView` in the FX "All
+// parameters" sheet. ⛔ THIS LINE SAID "(Bio chip)" — no such chip exists (#705).
 //
 // ⛔ WHY `isMeasured` COULD NOT CATCH IT, and this is the whole finding. `isMeasured` asks the
 // frame's own `hasMeasuredCoherence` / `hasMeasuredHRV` / `hasMeasuredHeartRate` /
