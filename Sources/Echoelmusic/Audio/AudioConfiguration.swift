@@ -705,13 +705,47 @@ enum AudioConfiguration {
     /// this exact text, so a rename in iOS turns the guard red instead of the verdict silent.
     static let hfpPortType = "BluetoothHFP"
 
-    /// Raw values of `AVAudioSessionPortBluetoothA2DP` and `AVAudioSessionPortBluetoothLE`.
+    /// THE definition of "a Bluetooth port" in this file: raw port type → the short marker the
+    /// route string carries. Every literal appears exactly once, here (#416).
+    ///
+    /// ⭐ #672 — WHY THE ROUTE STRING CARRIES A MARKER AT ALL. #671 retracted the claim that the
+    /// log already held the evidence: `route=` is built from `portName`, so a reader can
+    /// reconstruct the INFERENCE (a low `sr=` beside a Bluetooth-ish name) but never the FACT,
+    /// because the named HFP port appeared nowhere in the file. The screen could show a red
+    /// line the exported log could not explain — in a subsystem whose entire purpose is that
+    /// the two cannot disagree. This closes it without touching `latencyLine`'s signature,
+    /// which is the churn that broke the bundle twice (#666/#667): the marker rides INSIDE the
+    /// string that was already being passed.
+    static let bluetoothPortMarkers: [String: String] = [
+        hfpPortType: "HFP",
+        "BluetoothA2DPOutput": "A2DP",
+        "BluetoothLE": "LE",
+    ]
+
+    /// Raw values of `AVAudioSessionPortBluetoothA2DP` and `AVAudioSessionPortBluetoothLE` —
+    /// DERIVED from the marker table, not repeated (#416). Every known Bluetooth port except
+    /// the HFP one, which the verdict treats separately because it is the definitive case.
     ///
     /// ⚠️ The guard pins membership AND the count (2). Membership alone was the first version
     /// and it is a one-way check: a spurious third entry — a mis-typed `"BluetoothA2DP"`, say —
     /// would pass every assertion while widening `.telephonySuspected` onto routes this array
     /// claims not to list. A list whose length nothing checks is not pinned, it is sampled.
-    static let bluetoothOutputPortTypes = ["BluetoothA2DPOutput", "BluetoothLE"]
+    /// `sorted()` so the order is a fact and not a dictionary's hashing.
+    static let bluetoothOutputPortTypes = bluetoothPortMarkers.keys
+        .filter { $0 != hfpPortType }
+        .sorted()
+
+    /// A port as the route string names it: the device name, plus a bracketed marker when the
+    /// port is Bluetooth. `HI-X25BT` becomes `HI-X25BT[HFP]` — and THAT is the fact the founder
+    /// can read back out of an exported `echoel_diag.log` months later.
+    ///
+    /// ⚠️ Non-Bluetooth ports are returned UNCHANGED. A marker on every port would be noise on
+    /// the common case (`Built-In Microphone[BuiltInMic]` says nothing the name does not), and
+    /// the route string feeds an 80-character budget that truncates with `…`.
+    static func routeLabel(portName: String, portType: String) -> String {
+        guard let marker = bluetoothPortMarkers[portType] else { return portName }
+        return portName + "[" + marker + "]"
+    }
 
     /// The rate at or below which a Bluetooth output is TREATED as call mode. Above it, the
     /// route is carrying real bandwidth and there is nothing to warn about.
@@ -728,16 +762,16 @@ enum AudioConfiguration {
 
     /// The verdict, as a pure function of what the route reported.
     ///
-    /// ⛔ NO LOG FIELD — and the reason first given for that was FALSE. It read: "`latencyLine`
-    /// already prints `sr=` and `route=`, which together ARE the evidence." They are not.
-    /// `route=` is built from `portName` (device names like "HI-X25BT"), never from `portType`.
-    /// A log reader can therefore reconstruct the INFERENCE (`sr=16000` beside a Bluetooth-ish
-    /// name) but never the FACT, because the named HFP port appears nowhere in the file. In a
-    /// subsystem that exists so the screen and the file cannot disagree, that is a real gap:
-    /// the exported log cannot explain a red line the founder is looking at.
-    /// The decision stands on the WEAKER, honest reason — a third round of call-site churn on a
-    /// signature that broke the bundle twice (#666/#667) is not worth doing in the same slice
-    /// that introduces the verdict. Closing the gap is registered work, not a settled "no".
+    /// ⛔ NO LOG FIELD — and the reason #670 first gave for that was FALSE. It read:
+    /// "`latencyLine` already prints `sr=` and `route=`, which together ARE the evidence."
+    /// They were not: `route=` was built from `portName` alone, so a reader could reconstruct
+    /// the INFERENCE (a low `sr=` beside a Bluetooth-ish name) but never the FACT, because the
+    /// named HFP port appeared nowhere in the file.
+    /// ⭐ #672 MADE THE SENTENCE TRUE INSTEAD OF DELETING IT. `routeLabel` puts the port TYPE
+    /// inside the route string — `HI-X25BT[HFP]` — so `route=` now carries the definitive half
+    /// and `sr=` the corroborating one. No field was added and no signature moved, which is the
+    /// churn that broke the bundle twice (#666/#667). The marker rides in a string that was
+    /// already being passed.
     static func routeCodec(outputPortTypes: [String], sampleRate: Double) -> RouteCodec {
         if outputPortTypes.contains(hfpPortType) { return .telephony }
         let bluetooth = outputPortTypes.contains { bluetoothOutputPortTypes.contains($0) }
@@ -1007,8 +1041,15 @@ enum AudioConfiguration {
         // Microphone → HI-X25BT" answers "which combination was this?" immediately, where
         // "high" would only repeat what the number already says. Multiple ports on one side
         // are real (a split route) and are joined rather than truncated.
-        let ins = current.inputs.map(\.portName).joined(separator: "+")
-        let outs = current.outputs.map(\.portName).joined(separator: "+")
+        // #672: labelled, not bare `portName`. The INPUT side is labelled too — a Bluetooth
+        // mic is what pulls the shared route into HFP in the first place, so a log that marked
+        // only the output would name the symptom and not the cause.
+        let ins = current.inputs
+            .map { routeLabel(portName: $0.portName, portType: $0.portType.rawValue) }
+            .joined(separator: "+")
+        let outs = current.outputs
+            .map { routeLabel(portName: $0.portName, portType: $0.portType.rawValue) }
+            .joined(separator: "+")
         // Hoisted rather than interpolated inline: #287 took the bundle red on "unable to
         // type-check in reasonable time" for exactly this shape — a ternary inside a string
         // interpolation inside an argument list. Plain `let`s cost nothing.

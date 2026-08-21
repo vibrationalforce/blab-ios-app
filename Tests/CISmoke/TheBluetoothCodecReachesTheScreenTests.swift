@@ -10,22 +10,25 @@
 // own instrument turn into a telephone while every number on screen still reads healthy,
 // because no LATENCY number can express a BANDWIDTH collapse.
 //
-// ⚠️ HONEST LIMITS. 7 test methods under 6 numbered sections (section 1 has two), 30
-// `XCTAssert*` — re-derive both, do not re-type:
+// ⚠️ HONEST LIMITS. 10 test methods under 7 numbered sections (1 and 7 hold more than one),
+// 39 `XCTAssert*` — re-derive both, do not re-type:
 //   grep -c "^    func test" <this file>
 //   grep -n "XCTAssert" <this file> | grep -vc ':[[:space:]]*//'
-// ⛔ The first recipe was `grep -c "    func test"` and it printed 8, because the recipe LINE
-// matched itself — a quoted command that contradicts the prose beside it is read as evidence
-// against the prose, and a later session would have "corrected" a correct 7 to 8. The `^`
-// anchors it past the comment marker. The sibling recipe already excluded itself; only one of
-// the two did, which is exactly how the asymmetry survived being written and read.
-// Sections 1 and 3 are END-TO-END BEHAVIOUR; section 2 is a CONSTANT PIN — it asserts two
-// AVFoundation raw values still equal two literals and exercises no behaviour at all: the verdict and both sentences are driven with real
-// port lists, including the values a session answers with mid-route-change. Test 2 is the one
-// that closes the string-literal hole — it asserts the AVFoundation constants still equal the
-// text `AudioConfiguration` compares against, so an iOS rename turns this red instead of
-// turning the verdict silently permissive. Sections 4–6 are SOURCE-TEXT SCANS, because the
-// gathering and the view sit behind `AVAudioSession` and `@MainActor`.
+// ⛔ The first recipe was `grep -c "    func test"` and it printed 8 where the prose said 7,
+// because the recipe LINE matched itself. A quoted command that contradicts the prose beside
+// it is read as evidence against the prose, so a later session would have "corrected" a
+// correct 7 to 8. The `^` anchors it past the comment marker. The sibling recipe already
+// excluded itself; only one of the two did, which is how the asymmetry survived being written
+// AND read.
+//
+// Sections 1, 3 and 7 are END-TO-END BEHAVIOUR — the verdict, both sentences and the route
+// label are driven with real inputs, including the values a session answers with
+// mid-route-change. Section 2 is a CONSTANT PIN: it asserts the AVFoundation raw values still
+// equal the literals `AudioConfiguration` compares against, so an iOS rename turns this red
+// instead of turning the verdict silently permissive. It exercises no behaviour of `routeCodec`
+// at all, and saying otherwise would overstate what this file proves. Sections 4–6 and the
+// last method of 7 are SOURCE-TEXT SCANS, because the gathering and the view sit behind
+// `AVAudioSession` and `@MainActor`.
 // What NO test here can prove: that iOS actually reports `BluetoothHFP` on the founder's
 // HI-X25BT while monitoring. That is a device probe, and the note is written to be correct
 // either way — `.telephonySuspected` says "looks like", never "is".
@@ -294,6 +297,75 @@ final class TheBluetoothCodecReachesTheScreenTests: XCTestCase {
             body hosts Pickers, and a value read there registers the whole body as an observer: \
             every route change tears down an open `.menu` popover (10.76.41/50). The row is a \
             separate `View` for this reason and no other.
+            """)
+    }
+
+    // MARK: - 7. The exported log can explain the red line on screen (#672)
+
+    func testTheRouteStringCarriesThePortTypeForBluetoothOnly() {
+        XCTAssertEqual(AudioConfiguration.routeLabel(portName: "HI-X25BT",
+                                                     portType: "BluetoothHFP"),
+                       "HI-X25BT[HFP]", """
+            The route string stopped carrying the port TYPE for a named HFP port. This is the \
+            only place the DEFINITIVE half of the verdict reaches `echoel_diag.log`: without \
+            it the founder can export a log taken while a red warning was on screen, and \
+            nothing in the file explains the warning (#671's retraction, closed by #672).
+            """)
+        XCTAssertEqual(AudioConfiguration.routeLabel(portName: "HI-X25BT",
+                                                     portType: "BluetoothA2DPOutput"),
+                       "HI-X25BT[A2DP]",
+                       "an A2DP port stopped being distinguishable from HFP in the log.")
+        XCTAssertEqual(AudioConfiguration.routeLabel(portName: "AirPods",
+                                                     portType: "BluetoothLE"),
+                       "AirPods[LE]", "an LE port stopped being marked.")
+
+        // Non-Bluetooth is returned UNCHANGED, and that is a decision, not an omission: a
+        // marker on every port is noise on the common case, and the route string feeds an
+        // 80-character budget that truncates with `…`.
+        XCTAssertEqual(AudioConfiguration.routeLabel(portName: "Built-In Microphone",
+                                                     portType: "MicrophoneBuiltIn"),
+                       "Built-In Microphone", """
+            A wired port gained a marker. Every wired route now spends characters from the \
+            80-char budget on a fact its NAME already carries, and the truncation that budget \
+            enforces eats the far end — where the output port is.
+            """)
+        XCTAssertEqual(AudioConfiguration.routeLabel(portName: "", portType: "Speaker"), "",
+                       "an empty port name grew content out of nothing.")
+    }
+
+    func testTheMarkerSurvivesTheLogSanitiserAndTheListStaysDerived() {
+        // The marker is useless if the step between it and the file removes it. `sanitisedRoute`
+        // masks "CRASH", flattens newlines and truncates at 80 — none of which should touch a
+        // bracket, but "should not" is what a guard is for.
+        let sanitised = AudioConfiguration.sanitisedRoute("Built-In Microphone→HI-X25BT[HFP]")
+        XCTAssertTrue(sanitised.contains("[HFP]"), """
+            `sanitisedRoute` now strips or truncates away the port marker, so the fact is \
+            computed, put in the string, and then removed one step before it reaches the file. \
+            Nothing else would go red — the log would simply stop explaining itself.
+            """)
+
+        // #416: the marker table is THE definition and the list is derived from it. If someone
+        // re-types the list as literals, the two can disagree — which is how a port ends up
+        // marked in the log and invisible to the verdict, or the reverse.
+        XCTAssertEqual(AudioConfiguration.bluetoothOutputPortTypes,
+                       AudioConfiguration.bluetoothPortMarkers.keys
+                        .filter { $0 != AudioConfiguration.hfpPortType }.sorted(), """
+            `bluetoothOutputPortTypes` is no longer the marker table minus HFP. Two lists of \
+            "which ports are Bluetooth" can disagree, and then a port is marked in the log but \
+            invisible to the verdict, or classified by the verdict but unnamed in the log.
+            """)
+        XCTAssertNotNil(AudioConfiguration.bluetoothPortMarkers[AudioConfiguration.hfpPortType],
+                        "the HFP port lost its marker, so the definitive case reaches no log.")
+    }
+
+    func testBothSidesOfTheRouteAreLabelled() throws {
+        let code = try Self.codeText(Self.config)
+        let gathering = try Self.body(after: "private static func currentSessionLatency", in: code)
+        XCTAssertEqual(Self.occurrences(of: "routeLabel(portName:", in: gathering), 2, """
+            The gathering labels \(Self.occurrences(of: "routeLabel(portName:", in: gathering)) \
+            of its two port lists, not both. The INPUT side matters as much as the output: a \
+            Bluetooth MIC is what pulls the shared route into HFP in the first place, so a log \
+            that marked only the output would name the symptom and not the cause.
             """)
     }
 
