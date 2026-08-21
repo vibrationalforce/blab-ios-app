@@ -19,7 +19,7 @@
 // yet mention granular — which will go red on the next slice for the same good reason.
 // A guard that reds on the change it predicted is working, not failing.
 //
-// ⚠️ HONEST LIMITS. 6 tests, 23 assertion statements (5+3+4+3+4+4; counted in Python over
+// ⚠️ HONEST LIMITS. 7 tests, 25 assertion statements (5+3+4+3+4+2+4; counted in Python over
 // lines whose first token is XCTAssert). Everything here is executed behaviour on the real
 // type — no mocks, no host, no source scanning except claim 5. What no test can prove: that
 // it SOUNDS like a granular effect. Grain size, density and spray are taste, and taste is a
@@ -190,38 +190,71 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
     /// take. `noteRenderSleeping` matters here more than for any other stage — this one
     /// holds the longest buffer in the chain.
     func testTheStageIsWiredAtEverySiteAndIsInertByDefault() throws {
+        // ⛔ WHITESPACE-NORMALISED, and the first version was not. Two needles carried three
+        // literal spaces (`if granularEnabled   {`) that exist only because the flag is
+        // column-aligned to the longest name in the file. Add a stage with an 18-character
+        // flag and the column re-indents — both needles miss and the guard reports the stage
+        // as UNWIRED while it is fully wired. That is #646 in its purest form: a needle
+        // naming a spelling a harmless reformat breaks.
         let chain = try source("Sources/Echoelmusic/DSP/EchoelFXChain.swift")
+            .replacingOccurrences(of: "[ \t]+", with: " ", options: .regularExpression)
         let sites: [(String, String)] = [
             ("declaration",   "public let granular: EchoelGranular"),
             ("bypass flag",   "public var granularEnabled: Bool = false"),
             ("crackle reset", "if newValue && !granularEnabled { granular.reset() }"),
             ("construction",  "self.granular = EchoelGranular(sampleRate: sampleRate)"),
-            ("render path",   "if granularEnabled   { (l, r) = granular.processStereo(l, r) }"),
-            ("sleep drain",   "if granularEnabled   { granular.reset() }"),
+            ("render path",   "if granularEnabled { (l, r) = granular.processStereo(l, r) }"),
+            ("sleep drain",   "if granularEnabled { granular.reset() }"),
         ]
-        let missing = sites.filter { !chain.contains($0.1) }.map(\.0)
+        let missing = sites.filter { !chain.contains($0.1) }.map { $0.0 }
         XCTAssertEqual(missing, [], """
-            The granular stage is missing from \(missing) in `EchoelFXChain`. Five of six \
-            is the dangerous state, not a partial one — in particular a stage absent from \
-            `noteRenderSleeping()` sounds correct until the render sleeps, then sprays \
-            second-old audio into the next take.
+            The granular stage is missing from \(missing) in `EchoelFXChain`. Five of six is \
+            the dangerous state, not a partial one — a stage absent from `noteRenderSleeping()` \
+            sounds correct until the render sleeps, then sprays second-old audio into the next \
+            take.
             """)
-        XCTAssertTrue(chain.contains("public var granularEnabled: Bool = false"), """
-            The stage no longer defaults to OFF. It has no door and no preset support yet, \
-            so defaulting it on would turn it into an effect nobody can hear about and \
-            nobody can switch off.
+        // ⛔ READ RAW, AND THE FIRST VERSION OF THESE TWO DID NOT — a trap I set for myself
+        // one line after fixing the missing stripper. The signal-flow line is a `///` DOC
+        // COMMENT, so `codeOnly` blanks it: asserting on it through the stripped text would
+        // have failed on a perfectly correct tree. A stripper is not a default; it is a choice
+        // per needle, and a needle aimed at PROSE must read prose.
+        let chainRaw = try rawSource("Sources/Echoelmusic/DSP/EchoelFXChain.swift")
+        XCTAssertTrue(chainRaw.contains("in → filter → saturation"), """
+            The file's canonical signal-flow line is gone or reworded. Re-anchor the assertion \
+            below rather than letting it pass on a line that no longer exists (#454).
+            """)
+        XCTAssertTrue(chainRaw.contains("tremolo → granular → delay"), """
+            The signal-flow line at the top of `EchoelFXChain.swift` does not place granular \
+            between tremolo and delay. #687 wired the stage at six code sites and left this \
+            line — the SEVENTH site, and the one a session reads to learn the chain — still \
+            listing fourteen stages. The file then stated its own order in two places that \
+            disagreed.
             """)
         let core = try source("Sources/Echoelmusic/DSP/EchoelGranular.swift")
         XCTAssertTrue(core.contains("public var mix: Float = 0"), """
             The stage's own wet mix no longer defaults to 0. Inert TWICE over is deliberate \
             while there is no door: the bypass flag and the mix are independent switches.
             """)
+    }
+
+    // MARK: - 5b: the persistence gap, named so its red is self-describing
+
+    /// ⚠️ SPLIT OUT OF CLAIM 5 (#688). It lived inside the wiring test, so the day the
+    /// persistence slice lands the red would have been reported under a test name that says
+    /// "the wiring is broken" — a predicted red that misdescribes itself is worse than none.
+    /// Forbids nothing (#364): its message names the block to correct in the same commit.
+    func testFXPresetDoesNotYetCarryGranular() throws {
         let preset = try source("Sources/Echoelmusic/DSP/FXPreset.swift")
-        XCTAssertFalse(preset.lowercased().contains("granular"), """
-            `FXPreset` now carries granular state — that is the intended NEXT slice, not a \
-            defect. Delete this assertion and correct the ⛔ "not persisted and it has no \
-            door" block in `EchoelGranular.swift`'s header in the SAME commit (#456), so \
-            the code and the note stop disagreeing.
+        XCTAssertTrue(preset.contains("harmonizerMix"), """
+            `FXPreset` no longer carries harmonizer state — re-anchor this scan; without a \
+            known-present neighbour the negative below proves nothing (#454).
+            """)
+        // `granularEnabled`, not `granular`: "granularity" is live English in this codebase
+        // (`EchoelFXView`), so the looser needle would red on an ordinary doc comment.
+        XCTAssertFalse(preset.contains("granularEnabled"), """
+            `FXPreset` now carries granular state — the intended NEXT slice, not a defect. \
+            Delete this test and correct the ⛔ "not persisted and it has no door" block in \
+            `EchoelGranular.swift`'s header in the SAME commit (#456).
             """)
     }
 
@@ -267,5 +300,48 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
             The RNG, the spawn accumulator or the delay lines survived the reset, which means \
             a preset recall would inherit the previous take's texture.
             """)
+    }
+
+    // MARK: - source access (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)
+    //
+    // ⛔ #687 CALLED `source(_:)` THREE TIMES WITHOUT DECLARING IT. In this repo the helper is
+    // a per-file `private func`, re-pasted in every scanning guard — there is no shared
+    // extension. The blocking bundle would have died on "cannot find 'source' in scope", and
+    // neither local check catches it: `Xcode Compile Check` builds `Sources/` only, and
+    // SwiftPM's test target resolves to `Tests/EchoelmusicTests`, not this directory.
+    // Restoring it also restores `SourceText.codeOnly`, which #687's hand-rolled scan had
+    // dropped — without it a ⛔ block QUOTING a needle would have satisfied it (a false green).
+
+    private struct DiagAnchorMissing: Error { let reason: String }
+
+    private func source(_ relativePath: String) throws -> String {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
+        else { throw XCTSkip("source tree not present under \(root.path)") }
+        let path = root.appendingPathComponent(relativePath)
+        guard FileManager.default.fileExists(atPath: path.path) else {
+            throw DiagAnchorMissing(reason: """
+                \(relativePath) is missing while the tree is present — it was renamed or moved. \
+                Re-anchor this scan; do not let it skip (#454).
+                """)
+        }
+        return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
+    }
+
+    /// The same file WITHOUT the stripper, for needles aimed at prose. Kept as a separate
+    /// entry point rather than a flag, so every call site says which one it wanted.
+    private func rawSource(_ relativePath: String) throws -> String {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
+        else { throw XCTSkip("source tree not present under \(root.path)") }
+        let path = root.appendingPathComponent(relativePath)
+        guard FileManager.default.fileExists(atPath: path.path) else {
+            throw DiagAnchorMissing(reason: "\(relativePath) is missing while the tree is present.")
+        }
+        return try String(contentsOf: path, encoding: .utf8)
     }
 }

@@ -3,7 +3,7 @@ import Foundation
 /// Ordered, audio-thread-safe composition of the EchoelFX processors — the unit
 /// the render block, UI, and (later) AUv3 wrapper drive. Signal flow:
 ///
-///   in → filter → saturation → tape → bitcrush → harmonizer → chorus → flanger → phaser → tremolo → delay → reverb → widener → compressor → limiter → out
+///   in → filter → saturation → tape → bitcrush → harmonizer → chorus → flanger → phaser → tremolo → granular → delay → reverb → widener → compressor → limiter → out
 ///
 /// The filter sits first so its colour (muffled "underwater" low-pass, telephone
 /// band-pass) shapes the source before the echoes and modulation inherit it.
@@ -317,7 +317,8 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// ship blocker, and this paragraph exists so the "obvious" one-liner is not written a
     /// second time. `reset()` is documented CONTROL PLANE ONLY ninety lines above
     /// (`snapFilterToTarget`: "two threads snapping the same `ParamGlide` structs is a race with
-    /// no guard on it"), and it resets ALL THIRTEEN stages UNCONDITIONALLY. The second half is
+    /// no guard on it"), and it resets ALL FOURTEEN stages UNCONDITIONALLY (thirteen
+    /// until #687 added granular; `filterL`/`filterR` count as one). The second half is
     /// the worse one: the SWITCH-CRACKLE RULE at the top of this file is safe only because the
     /// control thread resets a stage exclusively while its flag is still FALSE — i.e. exactly
     /// when the audio thread is not touching it. An unconditional reset from the audio thread
@@ -353,7 +354,12 @@ public final class EchoelFXChain: @unchecked Sendable {
     /// `EchoelDelay` DOMINATES at 262,144 floats (two `EchoelDelayLine`s, each rounding
     /// ceil(2.0 s × 48 k) + 4 up to the next power of two = 131,072), which is 9.5× the reverb's
     /// 27,688 (8 combs + 4 all-passes × 2 channels, Freeverb tunings scaled from 44.1 k).
-    /// Harmonizer 32,768 · tape 8,192 · chorus 8,192 · flanger 2,048.
+    /// **Granular 131,072** (two lines × 65,536, one second per side — the SECOND largest
+    /// entry, 4.7× the reverb and half the delay; an enabled granular takes the everyday
+    /// bill from ~36 k stores to ~167 k) · harmonizer 32,768 · tape 8,192 · chorus 8,192 ·
+    /// flanger 2,048. Granular was added to the drain by #687 and to THIS TABLE only by
+    /// #688 — adding a stage to the drain without adding its line here is exactly the
+    /// failure the ⛔ below was written to prevent.
     ///
     /// ⛔ THE FIRST VERSION OF THAT COUNT READ "the dominant cost is `EchoelReverb`, ≈40 k float
     /// stores, tens of microseconds against a ~5 ms deadline". Three numbers, three wrong: 40 k
@@ -375,10 +381,20 @@ public final class EchoelFXChain: @unchecked Sendable {
         if flangerEnabled    { flanger.reset() }
         if phaserEnabled     { phaser.reset() }
         if tremoloEnabled    { tremolo.reset() }
-        // ⚠️ THE SITE A CARELESS WIRING MISSES, and the one with real audible cost:
-        // this stage holds a ONE-SECOND ring buffer, the longest in the chain. Skip it
-        // here and waking after a silence sprays second-old audio into a new take —
-        // exactly the stale-audio class this method exists for.
+        // ⚠️ THE SITE A CARELESS WIRING MISSES. This stage holds a one-second ring buffer,
+        // the SECOND largest in the chain — 131,072 floats against the delay's 262,144.
+        //
+        // ⛔ The first version called it "the longest in the chain" and said the drain
+        // "matters here more than anywhere else". Both false, neither measured: `EchoelDelay`
+        // defaults to `maxDelaySeconds: 2.0` and the chain takes that default. Worse on the
+        // AUDIBLE reading, which is the one that matters — what a woken stage sprays is how
+        // far BACK it reads, and granular's grains sit `1 + rand·spray` behind the head with
+        // spray defaulting to 0.05 s, so it wakes with ~50 ms of stale audio while a typical
+        // delay wakes with hundreds. The ⛔ block in the doc above is a retraction of an
+        // EARLIER wrong version of this same arithmetic, whose stated lesson was that naming
+        // the wrong dominant stage is the dangerous half. Written directly beneath it, and
+        // then repeated in three files. The drain line is right; only the superlative was
+        // invented, and inventing one is easier than checking two constructor defaults.
         if granularEnabled   { granular.reset() }
         if delayEnabled      { delay.reset() }
         if reverbEnabled     { reverb.reset() }

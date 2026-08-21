@@ -15,13 +15,28 @@ import Foundation
 /// a stage of `EchoelFXChain`". It is now a stage, at six sites: the declaration,
 /// the `granularEnabled` bypass with the switch-crackle `willSet`, construction at
 /// the chain's sample rate, the render path, `reset()`, and — the site a careless
-/// wiring misses — `noteRenderSleeping()`, which matters here more than anywhere
-/// else in the chain because this stage holds the longest buffer in it.
+/// wiring misses — `noteRenderSleeping()`, which this stage genuinely needs because
+/// its ring is one second long.
+///
+/// ⛔ That last clause said "the longest buffer in the chain" and "matters here more
+/// than anywhere else". Both invented: `EchoelDelay` defaults to 2 s and the chain
+/// takes the default, so this is the SECOND largest — and on the audible reading it
+/// is not close, because a woken stage sprays how far BACK it reads, ~50 ms here at
+/// the default spray against hundreds for a typical delay. Checking two constructor
+/// defaults would have cost less than writing the superlative three times.
 ///
 /// ⛔ WHAT IS STILL MISSING, so this note does not simply flip to a rosier lie:
 /// **it is not persisted and it has no door.** `FXPreset` carries no granular
-/// field, so a preset save/recall silently drops whatever was dialled in, and no
-/// panel row can turn it on. Both are registered next slices. The stage is inert
+/// field, and no panel row can turn it on.
+///
+/// ⚠️ THE PERSISTENCE GAP RUNS THE OTHER WAY FROM THE OBVIOUS READING, and the first
+/// version of this note had it backwards. It said a recall "silently drops whatever
+/// was dialled in". `FXPreset.apply(to:)` sets every OTHER switchable enable
+/// explicitly; granular is the one it does not write — so a recall does not drop the
+/// state, it LEAVES it. A preset that is meant to be dry can play with granular still
+/// running. That is the more surprising half and the one the persistence slice has to
+/// plan for. Same shape as `FXCharacter.clean`, which already cannot reach tape,
+/// bitcrush, flanger or tremolo and says so. Both are registered next slices. The stage is inert
 /// twice over until then — `granularEnabled` is false AND `mix` is 0 — so nothing
 /// can hear it yet. Do not cite it as a shipping effect.
 ///
@@ -42,9 +57,17 @@ public final class EchoelGranular: @unchecked Sendable {
     // MARK: - Control-plane parameters (plain reads on the audio thread)
 
     /// Wet blend [0…1]. **0 is an exact bypass**: the stage returns its (sanitised)
-    /// input untouched and does not advance a single grain. That is the house
-    /// switch-crackle behaviour — a bypassed stage freezes rather than decaying,
-    /// so re-enabling it starts from silence instead of from stale audio.
+    /// input untouched, and every live grain is ENDED on the falling edge so that
+    /// re-enabling really does start from silence.
+    ///
+    /// ⛔ THE DOC SAID THAT BEFORE THE CODE DID. The first version only skipped the
+    /// grain loop, so grains kept their position and delay while the ring went on
+    /// filling. On the way back each grain resumed reading at the same DISTANCE behind
+    /// a write head that had moved N samples — the window amplitude stayed continuous,
+    /// but the source material jumped. At the window's peak that is an audible splice:
+    /// a click, introduced by the one stage whose test file is named "a grain cannot
+    /// click". Unreachable today (no door, no bio target on `mix`), and it would have
+    /// become reachable with the first of either.
     public var mix: Float = 0
     /// Grain length in milliseconds. Short reads as texture/stutter, long as a
     /// smeared cloud. Clamped to 10…500 on use.
@@ -95,6 +118,9 @@ public final class EchoelGranular: @unchecked Sendable {
     private let maxDelay: Float
     private var grains: [Grain]
     private var spawnAccumulator: Float = 0
+    /// Latches the mix-0 state so the grain pool is cleared once on the falling edge
+    /// rather than on every bypassed sample.
+    private var bypassed = false
     private var rngState: UInt64
     private let seed: UInt64
 
@@ -133,7 +159,17 @@ public final class EchoelGranular: @unchecked Sendable {
         lineR.write(dryR)
 
         let m = Swift.min(Swift.max(mix.isFinite ? mix : 0, 0), 1)
-        guard m > 0 else { return (dryL, dryR) }
+        guard m > 0 else {
+            // Falling edge only — eight stores once, not per bypassed sample. See the ⛔ on
+            // `mix`: freezing the grains instead of ending them splices on the way back.
+            if !bypassed {
+                for i in 0..<grains.count { grains[i].active = false }
+                spawnAccumulator = 0
+                bypassed = true
+            }
+            return (dryL, dryR)
+        }
+        bypassed = false
 
         let lengthSamples = Swift.min(Swift.max(grainMilliseconds.isFinite ? grainMilliseconds : 80,
                                                 10), 500) * 0.001 * sr
@@ -189,6 +225,7 @@ public final class EchoelGranular: @unchecked Sendable {
     public func reset() {
         for i in 0..<grains.count { grains[i] = Grain() }
         spawnAccumulator = 0
+        bypassed = false
         rngState = seed
         lineL.reset()
         lineR.reset()
