@@ -4,9 +4,32 @@
 // WHAT THIS RECORDS, and it is the twin of #683 rather than a repeat of it. That one found
 // that the auto-merge waits for no GATE. This one finds what it does not WATCH: neither
 // auto-merge workflow lists `CLAUDE.md`, `memory/**` or `scratchpads/**` in its `paths:`
-// filter. A commit that touches only those never reaches `main` by automation — so the file
-// every session reads FIRST can drift on `main` while the branch is correct, and nothing
-// anywhere says so.
+// filter. A commit that touches only those triggers NO MERGE OF ITS OWN — so the file every
+// session reads FIRST can drift on `main` while the branch is correct, and nothing anywhere
+// says so.
+//
+// ⛔ THE FIRST VERSION OF THIS FILE SAID "never reaches `main` by automation" AND THAT WAS AN
+// OVER-CLAIM — caught an hour later by reading the workflow instead of re-reading my own
+// sentence. The merge step takes `${{ github.sha }}`: the pushed commit WITH ITS WHOLE
+// ANCESTRY, not a path-filtered subset. A law-only commit therefore rides to `main` as a
+// PASSENGER on the next commit that touches a watched path. Measured twice: `c86a351`
+// (SESSION_LOG only) rode on #695, `4ef259b` (#696) rode on #697.
+//
+// ⚠️ AND THE EVIDENCE I CITED COULD NOT TELL THE TWO APART. A snapshot of `main` looks
+// identical under "never" and under "not yet"; only the workflow's merge step distinguishes
+// them. That is the whole lesson of this retraction — the measurement was real and the
+// conclusion drawn from it was one word too strong.
+//
+// ⭐ THE FILENAME SURVIVES THE RETRACTION, and that is worth one line rather than a rename
+// (#374 asks for a rename when a name describes a procedure the code no longer takes). "Never
+// reaches main BY ITSELF" is exactly what is true: it rides, it does not travel alone. The
+// three words that had to go were in the prose, not in the name — a rarer outcome here than
+// the reverse, and the reason to check the name against the correction instead of assuming.
+//
+// ⭐ THE FINDING SURVIVES IN TWO WEAKER, TRUE FORMS. The drift is UNBOUNDED in duration (the
+// next code commit may be days away), and it becomes PERMANENT if a branch ENDS on such a
+// commit — the ordinary case at the end of a 24h mandate. In neither form is there a signal:
+// no run, no notification, nothing that surfaces it.
 //
 // ⭐ IT IS NOT A HYPOTHESIS; it was measured on the drift it caused. #696 corrected the
 // tracked-Swift-file count from 368 to 369. No workflow fired on that push (docs-only), and
@@ -101,8 +124,8 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
 
                 If the founder widened the filter, this claim has done its job: delete it and \
                 correct CLAUDE.md's CI section in the SAME commit (#456) — it currently states \
-                that a commit touching only the law file never reaches `main` by automation, \
-                and #696's 368-vs-369 drift is cited there as the evidence.
+                that a commit touching only the law file triggers no merge of its own, and \
+                reaches `main` only as a passenger on a later code commit.
                 """)
         }
     }
@@ -161,9 +184,12 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
             CLAUDE.md's Active Workflows table no longer names the workflow this file is \
             about — re-anchor claim 5 rather than deleting it. (#683 added that row.)
             """)
-        XCTAssertTrue(claude.contains("erreicht `main` nie durch Automatik"), """
-            The sentence recording that a CLAUDE.md-only commit never reaches `main` by \
-            automation is gone. If the founder widened a path filter, claim 2 above is red too \
+        XCTAssertTrue(claude.contains("löst KEINEN eigenen Merge aus"), """
+            The sentence recording that a CLAUDE.md-only commit triggers no merge of its own \
+            is gone. (#698 replaced an earlier, stronger needle — "erreicht `main` nie durch \
+            Automatik" — because the workflow merges the pushed commit's whole ancestry, so \
+            such a commit DOES reach `main` as a passenger on the next code commit. If you are \
+            restoring the old wording, re-read the workflow's merge step first.) If the founder widened a path filter, claim 2 above is red too \
             and THAT is the correct order of repair; if claim 2 is green, the prose has drifted \
             from the workflow and the prose is what is wrong.
             """)
