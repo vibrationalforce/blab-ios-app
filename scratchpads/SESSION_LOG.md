@@ -10716,3 +10716,66 @@ Art-Net-Default ist 255.255.255.255, ein Modus hinter einem Entitlement, das die
 unter dem markierten `BioStripView` und direkt unter „Four body channels…" — beide Reviewer und ich am
 Code bestätigt · #635 `BioVitals.isFresh` hat NULL Produktions-Aufrufer, beide Glances rendern eine
 beliebig alte Nutzlast als „Live" (macht auch den Widget-Store-Text „Live heart rate…" unwahr).
+
+## 2026-08-21 (cron, ULTRACODE 24h) — Granular bekommt eine Tür (#692), sieben Prosa-Heimaten (#693), „Clean" wird wirklich trocken (#694)
+
+**#692 `767aae8` — die Granular-Tür.** Damit ist die Kette der Founder-Bitte „Granular Effekt"
+für das INSTRUMENT geschlossen: Kern (#684) → Kette (#687) → Preset (#690) → Tür (#692).
+`effectSection("Granular")` in `EchoelFXView`: Abschnitts-Schalter plus sechs `EchoelValueField`-
+Zeilen, sieben VM-Spiegel in der Hausform (`didSet { for c in allChains { … } }`), gesät an
+BEIDEN vorhandenen Stellen (`init(chain:)` und `reseed()`). Vier Stellen je Spiegel, pro Spiegel
+gezählt statt summiert — `reseed()` ist die, deren Fehlen STILL ist: jeder Regler funktionierte
+weiter, nur ein Preset-Recall zeigte alte Zahlen bei neuem Klang.
+**Der Wächter LEITET AB statt zu kopieren:** Claim 6 liest jede Klammer aus `EchoelGranular.swift`
+und vergleicht sie mit der Spanne der Zeile. Beide Seiten sind `Float`, also sieht der Compiler
+nichts; die Stufe ist bei Standardwerten stumm, also hört ein Hörtest auch nichts. Drei
+absichtlich kaputte Kontrollen (verbreiterte Grenze, gelöschte `reseed()`-Saat, gekreuzte
+Zuordnung) laufen rot, der echte Baum grün.
+Kein Präsentations-Modifier dazu, kein 10-Hz-Read — `ui-state-reviewer` fand am Code NULL Defekte
+und hat Claim 6 von Hand nachgerechnet.
+
+**#693 `0fee01e` — eine Zahl, sieben Heimaten, zwei nachgezogen.** Der Reviewer fand: „vierzehn
+FX-Stufen" stand von Hand an SIEBEN Stellen. #692 zog zwei nach — und schrieb im Commit-Text
+„#687 hat die Prosa nicht mitgezogen". Fünf blieben, darunter ein **exakter Zwilling** einer der
+zwei reparierten (`PolySynthVoice.swift:242`), dessen eigene Klammer voraussagte, sie werde „von
+der Sitzung zitiert, die die fünfzehnte hinzufügt" — und genau davon überholt wurde.
+**Reparaturregel, nicht Hochzählen:** eine veraltete Zahl wird durch Bumpen nur neu datiert. Wo
+sie etwas Historisches trägt, ist sie als „damals" markiert; wo sie Gegenwart behauptete, ist sie
+weg und zeigt auf den EINEN abgeleiteten Zähler (`TheFXDoorNamesAControlThatExistsTests.stageNames()`).
+Zwei der Literale standen in LEBENDEN Fehlermeldungen, direkt neben der abgeleiteten Zahl, die
+dieselbe Meldung schon druckt.
+**Ein Versprechen wurde gehalten und ist deshalb protokolliert:** derselbe Türwächter sagte
+„eine fünfzehnte Stufe erweitert das Verbot automatisch" — #692 fügte sie hinzu, der Wächter
+brauchte KEINE Änderung. Jede handgeschriebene Zahl in derselben Datei musste laufen.
+
+**#694 `c9df6ea` — „Clean (dry) — No effects" war nie trocken.** `GenreFXPreset` kann SIEBEN der
+FÜNFZEHN `*Enabled`-Schalter ausdrücken; Tape · Bitcrush · Flanger · Tremolo · Granular ·
+Widener · Compressor liefen unter einer Taste weiter, die „reset to a dry signal" verspricht.
+Fix in `FXCharacter.apply` hinter `guard self == .clean`, NICHT in `GenreFXPreset.apply` (ein
+Genre ist ein Charakter über dem, was der Spieler gebaut hat, kein Reset; `.auto` ist der
+Genre-Pfad unter anderem Namen). Limiter bleibt unberührt — „trocken" darf nie der Weg werden,
+den Ausgangsschutz abzuschalten.
+**Der eigentliche Fund war der Wächter:** `CleanIsDryTests` behauptete seit Tag eins „jede
+schaltbare Stufe aus" und prüfte SECHS von fünfzehn; neun ungeprüft, sieben davon nie
+zurückgesetzt. Und seine Ausgangslage stempelte `.underwater`, was DREI Stufen scharf macht —
+die meisten Zusagen verglichen `false` gegen `false`. Die Datei sagte das über EINE davon (den
+Phaser) und hörte auf. Jetzt: alle fünfzehn von Hand scharf, geprüfte Vorbedingung gegen genau
+diese Leere, alle vierzehn geprüft, plus ein abgeleiteter Test, der die Schalterliste aus
+`EchoelFXChain.swift` liest und in BEIDE Richtungen rot wird.
+**Zwei eigene Falschbehauptungen aus #692 zurückgenommen:** „die FÜNFTE Stufe" (es war die
+siebte — `widener`/`compressor` blieben ungezählt, weil sie nicht das sind, was man sich unter
+„ein laufender Effekt" vorstellt) und ein **ERFUNDENES ZITAT** („und diese Datei sagt das über
+sich selbst" über `GenreFX.swift`, die nichts dergleichen sagt). Ein erfundener Beleg ist
+schlimmer als eine falsche Zahl: eine Zahl lädt zum Nachmessen ein, ein Beleg zum Vertrauen.
+
+**GATES, an den Job-SCHRITTEN gelesen:** `767aae8` und `0fee01e` beide `Xcode Compile Check`
+success UND `Build for Testing: success`; `0fee01e` 136 Tests bestanden, 0 Fehler. Das rote
+CI/CD-Häkchen ist #396 — diesmal in einer DRITTEN Schreibweise:
+`FBSOpenApplicationServiceErrorDomain Code=1 "Simulator device failed to launch"` statt
+`Code=-308`/`server died`. Bestätigt `Tests/CISmoke/CLAUDE.md` §5: der verlässliche
+Diskriminator ist `TEST EXECUTE FAILED` gegen `TEST BUILD FAILED`, die Mach-Zeile ist Bonus.
+
+**OFFEN:** die Tür sitzt im FX-Panel, das den SYNTH bearbeitet — `EchoelFXChain` kommt in
+`AudioEngine.swift` NULL mal vor, die gesungene Stimme erreicht keine dieser Stufen. Der
+Vocal-Chain-Host-Knoten (V1a) hängt bewusst an der Founder-Geräteprobe auf v10.79.417
+(einmal Live monitoring umschalten, dann `echoel_diag.log`).
