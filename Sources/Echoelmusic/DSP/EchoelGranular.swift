@@ -93,7 +93,11 @@ public final class EchoelGranular: @unchecked Sendable {
     /// `seed` is explicit and defaulted so a test can pin the grain pattern. Two
     /// instances with the same seed produce identical output for identical input.
     public init(sampleRate: Float = 48000, seed: UInt64 = 0x9E37_79B9_7F4A_7C15) {
-        self.sr = sampleRate > 0 ? sampleRate : 48000
+        // `.isFinite` as well as `> 0`: NaN is rejected by the comparison alone, but
+        // `.infinity` passes it and then reaches `Int((inf * sr).rounded(.up))` inside
+        // `EchoelDelayLine.init`, which TRAPS. Init-time, not the audio thread — still a
+        // crash, and one word closes it.
+        self.sr = (sampleRate.isFinite && sampleRate > 0) ? sampleRate : 48000
         // 1 s holds the widest spray plus the delay swing a half-second grain can
         // accumulate at the lowest supported ratio, with room to spare.
         self.lineL = EchoelDelayLine(maxDelaySeconds: 1.0, sampleRate: self.sr)
@@ -158,6 +162,13 @@ public final class EchoelGranular: @unchecked Sendable {
         // The windows of `overlap` simultaneous grains sum to about overlap/2, so
         // dividing by that keeps a dense cloud at roughly dry level instead of
         // letting density double as a volume control.
+        //
+        // ⭐ This is the COLA condition, not a heuristic, and the reason is worth keeping:
+        // spawning is driven by an accumulator incremented by a CONSTANT, so the grain hop is
+        // uniform (`length/overlap` samples) — and Hann windows at a uniform hop sum to
+        // exactly overlap/2. The randomness in this stage is in the start POINT and the pan,
+        // never in the spawn timing. Make spawning stochastic and this normalisation stops
+        // being exact.
         let norm = 1.0 / Swift.max(1.0, overlap * 0.5)
         let outL = dryL * (1 - m) + wetL * norm * m
         let outR = dryR * (1 - m) + wetR * norm * m
@@ -186,9 +197,30 @@ public final class EchoelGranular: @unchecked Sendable {
         // `ratio` therefore needs its distance behind that head to change by
         // (1 - ratio) each sample. Up-shifts walk toward the head, down-shifts away.
         let step = 1.0 - ratio
-        // Start far enough back that a down-shifting grain cannot walk past the end
-        // of the line before its window closes.
-        let headroom = Swift.max(0, -step) * lengthSamples
+        // ⛔ THE COMMENT HERE NAMED THE WRONG DIRECTION AND THE WRONG BOUNDARY. It said
+        // "a DOWN-shifting grain cannot walk past the END of the line". `step = 1 - ratio`,
+        // so `-step > 0` means `ratio > 1`, an UP-shift — and an up-shifting grain's delay
+        // SHRINKS, so it walks toward the write head (the `delay == 1` floor), the opposite
+        // boundary. The arithmetic was right; the sentence a later session would reason from
+        // was wrong on both nouns.
+        //
+        // Start far enough back that an up-shifting grain cannot reach the write head before
+        // its window closes. Down-shifts need no headroom: they walk the other way, and the
+        // 1 s line absorbs their swing.
+        //
+        // ⚠️ AND THE WALK IS BUDGETED, not just offset. Clamping only the START let a long
+        // up-shifting grain run out of line mid-window: at 500 ms and +24 st the wanted start
+        // is 74 401 samples against a 65 532-sample line, so `delay` bottomed out at 1 and the
+        // grain SILENTLY STOPPED PITCH-SHIFTING for its tail, reading live input at unity
+        // instead. No trap and no click — the window stayed intact — which is exactly why it
+        // would never have surfaced as a bug report. Both trigger points sit inside the public
+        // parameter ranges (>438 ms at default spray, >288 ms at maximum spray), so this is
+        // reachable, not theoretical. Shortening the grain keeps the ratio true for its whole
+        // life, which is the property that matters.
+        let walk = Swift.max(0, -step)
+        let budget = Swift.max(1, maxDelay - 1 - spray)
+        let len = walk > 0 ? Swift.min(lengthSamples, budget / walk) : lengthSamples
+        let headroom = walk * len
         let start = 1 + next01() * spray + headroom
         let spread = Swift.min(Swift.max(stereoSpread.isFinite ? stereoSpread : 0.5, 0), 1)
         let pan = (next01() * 2 - 1) * spread            // -1 … +1
@@ -196,7 +228,7 @@ public final class EchoelGranular: @unchecked Sendable {
                              delay: Swift.min(start, maxDelay),
                              delayStep: step,
                              position: 0,
-                             length: Swift.max(lengthSamples, 1),
+                             length: Swift.max(len, 1),
                              gainL: sqrtf(Swift.max(0, 0.5 * (1 - pan))),
                              gainR: sqrtf(Swift.max(0, 0.5 * (1 + pan))))
     }

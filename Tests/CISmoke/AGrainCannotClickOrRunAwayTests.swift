@@ -17,7 +17,7 @@
 // somebody wires it, claim 5 goes red BY DESIGN and its message names the file header to
 // correct in the same commit (#456). A red there is the good news.
 //
-// ⚠️ HONEST LIMITS. 6 tests, 19 assertion statements (5+3+3+3+1+4; counted in Python over
+// ⚠️ HONEST LIMITS. 6 tests, 20 assertion statements (5+3+4+3+1+4; counted in Python over
 // lines whose first token is XCTAssert). Everything here is executed behaviour on the real
 // type — no mocks, no host, no source scanning except claim 5. What no test can prove: that
 // it SOUNDS like a granular effect. Grain size, density and spray are taste, and taste is a
@@ -81,37 +81,69 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
             Grains were scheduled while the stage was bypassed. The house switch-crackle \
             rule is that a bypassed stage FREEZES, so re-enabling starts from silence.
             """)
+        // ⛔ THE FIRST VERSION MADE ONE ENABLED CALL HERE AND WOULD HAVE GONE RED. The
+        // bypass guard returns BEFORE the spawn accumulator advances, so 4 800 bypassed
+        // calls leave it at exactly 0 — and one enabled call at these settings adds
+        // 3.5/3840 = 0.00091. The first grain launches on call 1 098, about 23 ms in.
+        // That wait is CORRECT behaviour; the expectation was what was wrong. 4 800 calls
+        // accumulate 4.37, so this clears the threshold with room.
         g.mix = 0.5
-        _ = g.processStereo(0.1, 0.1)
+        for i in 0..<4800 { _ = g.processStereo(Float(i % 97) / 97.0 - 0.5, 0.1) }
         XCTAssertGreaterThan(g.activeGrainCount, 0, """
-            Turning the mix up scheduled nothing. An enabled effect that never launches a \
-            grain is indistinguishable from a broken one (#454 — without this the claim \
-            above would pass on a stage that does nothing at all).
+            Turning the mix up scheduled nothing over 4 800 samples. An enabled effect that \
+            never launches a grain is indistinguishable from a broken one (#454 — without \
+            this the claim above would pass on a stage that does nothing at all).
             """)
     }
 
-    // MARK: - 3: a non-finite sample cannot escape, and cannot poison the buffer
+    // MARK: - 3: a non-finite sample cannot escape, and cannot poison the ring buffer
 
-    /// The ring buffer is the danger: one NaN written into it comes back out of every
-    /// grain that later reads that region, long after the bad sample is gone.
+    /// ⛔ THE FIRST VERSION OF THIS CLAIM COULD NOT FAIL FOR THE REASON IT NAMED (#367). It
+    /// fed one NaN and then asserted every later output was finite — but `processStereo`
+    /// ends with `outL.isFinite ? outL : dryL`, so a POISONED buffer would surface as a
+    /// silent fall back to dry, which is finite. The assertion passed on the exact defect it
+    /// claimed to guard.
+    ///
+    /// The falsifiable form is a DIFFERENTIAL: two same-seeded instances, one fed a NaN
+    /// where the other is fed a 0. If the sanitise-before-write at the top of
+    /// `processStereo` holds, the NaN BECOMES a 0 and the two render bit-identically. Remove
+    /// that sanitise and the poisoned instance falls back to dry for every sample a grain
+    /// reads the bad region — visibly different from the clean one.
+    ///
+    /// ⚠️ `spraySeconds = 0` and `pitchSemitones = 0` are what make it DETERMINISTIC rather
+    /// than probabilistic: every grain then starts at delay 1 and holds there, so the sample
+    /// written on the injection call is read by every live grain on the very next call. With
+    /// the default spray a grain only sweeps the poisoned slot if its random start happens to
+    /// land near it, which would trade an unfalsifiable claim for a flaky one.
     func testANonFiniteInputNeitherEscapesNorPoisonsTheRingBuffer() {
+        func run(injecting bad: Float) -> [Float] {
+            let g = EchoelGranular(sampleRate: 48000, seed: 4242)
+            g.mix = 1; g.density = 1; g.spraySeconds = 0; g.pitchSemitones = 0
+            var out: [Float] = []
+            for i in 0..<1200 { _ = g.processStereo(sinf(Float(i) * 0.01), sinf(Float(i) * 0.01)) }
+            _ = g.processStereo(bad, bad)
+            for i in 1200..<3200 {
+                out.append(g.processStereo(sinf(Float(i) * 0.01), sinf(Float(i) * 0.01)).0)
+            }
+            return out
+        }
         let g = EchoelGranular(sampleRate: 48000)
         g.mix = 1
-        g.density = 1
         let (badL, badR) = g.processStereo(.nan, .infinity)
         XCTAssertTrue(badL.isFinite && badR.isFinite,
-                      "A non-finite input escaped the stage.")
-        var allFinite = true
-        for i in 0..<9600 {
-            let (l, r) = g.processStereo(sinf(Float(i) * 0.01), sinf(Float(i) * 0.011))
-            if !l.isFinite || !r.isFinite { allFinite = false; break }
-        }
-        XCTAssertTrue(allFinite, """
-            The buffer stayed poisoned after ONE bad sample — grains kept reading the \
-            region it landed in. Sanitise before the write, not after the read.
+                      "A non-finite input escaped the stage on the very call that carried it.")
+
+        let poisoned = run(injecting: .nan)
+        let clean = run(injecting: 0)
+        XCTAssertEqual(poisoned.count, clean.count, "Sanity: the two runs must be comparable.")
+        let firstDiff = zip(poisoned, clean).enumerated().first { $0.element.0 != $0.element.1 }?.offset
+        XCTAssertNil(firstDiff, """
+            The two runs diverged at sample \(firstDiff ?? -1). A NaN must be turned into a 0 \
+            BEFORE it enters the ring buffer, so a run that saw one is indistinguishable from \
+            a run that saw a zero. Divergence means the bad sample reached the buffer and every \
+            grain reading that region now falls back to dry.
             """)
-        XCTAssertTrue(g.processStereo(0.5, 0.5).0.isFinite,
-                      "Still non-finite after a full second of clean input.")
+        XCTAssertTrue(poisoned.allSatisfy { $0.isFinite }, "A later output went non-finite.")
     }
 
     // MARK: - 4: density is a texture control, not a volume control
@@ -154,8 +186,11 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
         else { throw XCTSkip("source tree not present") }
         var sites: [String] = []
         let dir = root.appendingPathComponent("Sources")
-        let walker = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)
-        while let url = walker?.nextObject() as? URL {
+        // A nil enumerator would leave `sites` empty and report a green this scan did not
+        // earn (#454) — the house precedent is to skip loudly instead.
+        guard let walker = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)
+        else { throw XCTSkip("cannot enumerate Sources — refusing a green it did not earn") }
+        while let url = walker.nextObject() as? URL {
             guard url.pathExtension == "swift",
                   url.lastPathComponent != "EchoelGranular.swift" else { continue }
             let code = SourceText.codeOnly((try? String(contentsOf: url, encoding: .utf8)) ?? "")
@@ -189,9 +224,13 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
         let b = EchoelGranular(sampleRate: 48000, seed: 12345)
         let (outA, maxA) = render(a)
         let (outB, _) = render(b)
-        XCTAssertEqual(outA, outB, """
-            Two instances with the same seed rendered differently. Without determinism no \
-            failure in this file can be reproduced, and the grain pattern is untestable.
+        // Compared by first-mismatch index rather than by whole array: XCTest dumps both
+        // operands on failure, and 24 000 floats would bury the message under them.
+        let diffAB = zip(outA, outB).enumerated().first { $0.element.0 != $0.element.1 }?.offset
+        XCTAssertNil(diffAB, """
+            Two instances with the same seed diverged at sample \(diffAB ?? -1). Without \
+            determinism no failure in this file can be reproduced, and the grain pattern is \
+            untestable.
             """)
         XCTAssertLessThanOrEqual(maxA, EchoelGranular.maxGrains, """
             \(maxA) grains were live at once against a pool of \(EchoelGranular.maxGrains). \
@@ -201,10 +240,11 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
         XCTAssertGreaterThan(maxA, 0, "No grain ever became active; the run proves nothing.")
         a.reset()
         let (outC, _) = render(a)
-        XCTAssertEqual(outA, outC, """
-            After `reset()` the stage did not reproduce a fresh instance. The RNG, the \
-            spawn accumulator or the delay lines survived the reset, which means a preset \
-            recall would inherit the previous take's texture.
+        let diffAC = zip(outA, outC).enumerated().first { $0.element.0 != $0.element.1 }?.offset
+        XCTAssertNil(diffAC, """
+            After `reset()` the stage diverged from a fresh instance at sample \(diffAC ?? -1). \
+            The RNG, the spawn accumulator or the delay lines survived the reset, which means \
+            a preset recall would inherit the previous take's texture.
             """)
     }
 }
