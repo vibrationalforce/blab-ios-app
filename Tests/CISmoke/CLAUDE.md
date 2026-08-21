@@ -242,6 +242,25 @@ its own known positive is not a measurement.
     that the gate then demonstrably did not.
   ⚠️ Do not read this as "#396 is worse than we thought" and go quiet about it — the fix is
   founder-gated and already recorded. Read it as: **the gate is a floor, not a verdict.**
+- **#689 — COUNT THE ROOT CAUSES, NOT THE ERROR LINES, and this one nearly became a false
+  law in the always-loaded file.** `6eb172b` produced four `error:` lines naming a repo file:
+  three `cannot find 'source' in scope` and one `type 'Any' cannot conform to 'Equatable'`.
+  The fourth reads as an independent defect in `map(\.0)` — a key path to a tuple element —
+  and the review that found the slice flagged exactly that construct as suspect.
+  It is a **cascade**. `chain` is bound by `try source(...)` on the failing line, so it has no
+  type; the closure `{ !chain.contains($0.1) }` cannot resolve; `filter` returns something
+  unresolved; `map(\.0)` degrades to `[Any]`; and `XCTAssertEqual` then reports the only
+  thing it can see. One root cause, four lines.
+  Measured proof that the construct is fine: `OneSpellingOfTheDemoSubjectTests.swift:243`
+  does `strippedLines().map(\.2).joined(separator:)` on a `[(String, Int, String)]`, in THIS
+  bundle, and it compiles on every green run. A `[Any]` there could not be `joined`.
+  **The rule: when several errors name one file, fix the FIRST — the unresolved symbol — and
+  re-measure before believing any of the others.** Had this not been re-measured, a row saying
+  "`map(\.N)` on a tuple does not compile" would have gone into CLAUDE.md's build-error table,
+  where it is prescriptive and always loaded, and the next session would have obeyed it.
+  ⚠️ The cheap swap to `map { $0.0 }` was kept — both forms compile and churn is not free —
+  but the REASON given for it at the time was wrong, and that is recorded rather than quietly
+  dropped.
 
 ⛔ **A `.md` file in THIS directory triggers both gates.** Their `paths:` filters list
 `Tests/**` — the filter matches a PATH, not a source extension — so editing this very file
