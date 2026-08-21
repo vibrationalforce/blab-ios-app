@@ -32,6 +32,11 @@ public final class EchoelFXChain: @unchecked Sendable {
     public let flanger: EchoelFlanger
     public let phaser: EchoelPhaser
     public let tremolo: EchoelTremolo
+    /// Granular texture. Sits AFTER harmony and modulation and BEFORE the time
+    /// effects on purpose: grains inherit the pitch and movement above them, and
+    /// the delay/reverb below then place those grains in a room. Put it last and
+    /// it would only smear a finished mix.
+    public let granular: EchoelGranular
     public let delay: EchoelDelay
     public let reverb: EchoelReverb
     public let widener: EchoelStereoWidener
@@ -91,6 +96,11 @@ public final class EchoelFXChain: @unchecked Sendable {
     }
     public var flangerEnabled: Bool = false {
         willSet { if newValue && !flangerEnabled { flanger.reset() } }
+    }
+    /// Granular texture. Off by default, and its own `mix` also defaults to 0, so
+    /// the stage is inert twice over until something deliberately opens both.
+    public var granularEnabled: Bool = false {
+        willSet { if newValue && !granularEnabled { granular.reset() } }
     }
     public var phaserEnabled: Bool = false {
         willSet { if newValue && !phaserEnabled { phaser.reset() } }
@@ -181,6 +191,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         self.tape = EchoelTape(sampleRate: sampleRate)
         self.bitcrush = EchoelBitcrush(sampleRate: sampleRate)
         self.harmonizer = EchoelHarmonizer(sampleRate: sampleRate)
+        self.granular = EchoelGranular(sampleRate: sampleRate)
         self.chorus = EchoelChorus(sampleRate: sampleRate)
         // Gentle default: low wet mix + modest depth + slow rate → ensemble
         // warmth and width without an obvious "seasick" wobble.
@@ -364,6 +375,11 @@ public final class EchoelFXChain: @unchecked Sendable {
         if flangerEnabled    { flanger.reset() }
         if phaserEnabled     { phaser.reset() }
         if tremoloEnabled    { tremolo.reset() }
+        // ⚠️ THE SITE A CARELESS WIRING MISSES, and the one with real audible cost:
+        // this stage holds a ONE-SECOND ring buffer, the longest in the chain. Skip it
+        // here and waking after a silence sprays second-old audio into a new take —
+        // exactly the stale-audio class this method exists for.
+        if granularEnabled   { granular.reset() }
         if delayEnabled      { delay.reset() }
         if reverbEnabled     { reverb.reset() }
         if widenerEnabled    { widener.reset() }
@@ -442,6 +458,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         if flangerEnabled    { (l, r) = flanger.processStereo(l, r) }
         if phaserEnabled     { (l, r) = phaser.processStereo(l, r) }
         if tremoloEnabled    { (l, r) = tremolo.processStereo(l, r) }
+        if granularEnabled   { (l, r) = granular.processStereo(l, r) }
         if delayEnabled      { (l, r) = delay.processStereo(l, r) }
         if reverbEnabled     { (l, r) = reverb.processStereo(l, r) }
         if widenerEnabled    { (l, r) = widener.processStereo(l, r) }
@@ -524,6 +541,7 @@ public final class EchoelFXChain: @unchecked Sendable {
         flanger.reset()
         phaser.reset()
         tremolo.reset()
+        granular.reset()
         delay.reset()
         reverb.reset()
         widener.reset()

@@ -11,11 +11,19 @@ import Foundation
 /// hit in `Sources/` was the unrelated word "granularity" or `EchoelHarmonizer`
 /// describing its own delay-line technique.
 ///
-/// ⛔ HONEST STATE: this is the PURE CORE ONLY. It is NOT a stage of
-/// `EchoelFXChain` yet and nothing constructs it outside its tests — deliberately,
-/// because adding a stage also means the switch-crackle rule, `FXPreset`
-/// round-trip, `GenreFX` and a panel row, and half-wiring that is worse than not
-/// starting it. Wiring is the next slice. Do not cite it as a shipping effect.
+/// ⭐ WIRED SINCE #687, and the ⛔ block that stood here said "PURE CORE ONLY … NOT
+/// a stage of `EchoelFXChain`". It is now a stage, at six sites: the declaration,
+/// the `granularEnabled` bypass with the switch-crackle `willSet`, construction at
+/// the chain's sample rate, the render path, `reset()`, and — the site a careless
+/// wiring misses — `noteRenderSleeping()`, which matters here more than anywhere
+/// else in the chain because this stage holds the longest buffer in it.
+///
+/// ⛔ WHAT IS STILL MISSING, so this note does not simply flip to a rosier lie:
+/// **it is not persisted and it has no door.** `FXPreset` carries no granular
+/// field, so a preset save/recall silently drops whatever was dialled in, and no
+/// panel row can turn it on. Both are registered next slices. The stage is inert
+/// twice over until then — `granularEnabled` is false AND `mix` is 0 — so nothing
+/// can hear it yet. Do not cite it as a shipping effect.
 ///
 /// METHOD. A ring buffer holds the recent past. A scheduler launches grains at a
 /// rate derived from `density` and `grainMilliseconds`; each grain picks a start

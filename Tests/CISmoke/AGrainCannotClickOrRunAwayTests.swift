@@ -11,13 +11,15 @@
 // Claims 2 and 3 are the boundary laws every stage in this repo owes: an exact bypass and
 // a non-finite input that cannot escape or poison the ring buffer.
 //
-// ⛔ CLAIM 5 RECORDS THAT IT IS NOT WIRED, and it forbids nothing (#364). The core ships
-// alone on purpose: making it a chain stage also means the switch-crackle rule, `FXPreset`
-// round-trip, `GenreFX` and a panel row, and half of that is worse than none. The day
-// somebody wires it, claim 5 goes red BY DESIGN and its message names the file header to
-// correct in the same commit (#456). A red there is the good news.
+// ⭐ CLAIM 5 ALREADY DID THAT ONCE. It used to assert the core was NOT wired, and its
+// failure message said wiring it would be "the intended next slice, not a defect — delete
+// this claim and correct the header in the SAME commit (#456)". #687 wired it and the claim
+// inverted on its own instructions. It now pins the six wiring sites plus the two switches
+// that keep the stage inert, and carries ONE forward-looking negative — `FXPreset` must not
+// yet mention granular — which will go red on the next slice for the same good reason.
+// A guard that reds on the change it predicted is working, not failing.
 //
-// ⚠️ HONEST LIMITS. 6 tests, 20 assertion statements (5+3+4+3+1+4; counted in Python over
+// ⚠️ HONEST LIMITS. 6 tests, 23 assertion statements (5+3+4+3+4+4; counted in Python over
 // lines whose first token is XCTAssert). Everything here is executed behaviour on the real
 // type — no mocks, no host, no source scanning except claim 5. What no test can prove: that
 // it SOUNDS like a granular effect. Grain size, density and spray are taste, and taste is a
@@ -175,32 +177,51 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
             """)
     }
 
-    // MARK: - 5: it is not wired yet, and this claim does not forbid wiring it
+    // MARK: - 5: wired at every site, and inert until two things are opened
 
-    /// The header says "PURE CORE ONLY, not a stage of `EchoelFXChain`". This is that
-    /// sentence made checkable, so it cannot quietly become false in either direction.
-    func testTheCoreHasNoProductionConstructionSite() throws {
-        let root = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
-            .deletingLastPathComponent().deletingLastPathComponent()
-        guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
-        else { throw XCTSkip("source tree not present") }
-        var sites: [String] = []
-        let dir = root.appendingPathComponent("Sources")
-        // A nil enumerator would leave `sites` empty and report a green this scan did not
-        // earn (#454) — the house precedent is to skip loudly instead.
-        guard let walker = FileManager.default.enumerator(at: dir, includingPropertiesForKeys: nil)
-        else { throw XCTSkip("cannot enumerate Sources — refusing a green it did not earn") }
-        while let url = walker.nextObject() as? URL {
-            guard url.pathExtension == "swift",
-                  url.lastPathComponent != "EchoelGranular.swift" else { continue }
-            let code = SourceText.codeOnly((try? String(contentsOf: url, encoding: .utf8)) ?? "")
-            if code.contains("EchoelGranular(") { sites.append(url.lastPathComponent) }
-        }
-        XCTAssertEqual(sites.sorted(), [], """
-            `EchoelGranular` is constructed in \(sites.sorted()) — it is WIRED now. That is \
-            the intended next slice, not a defect: delete this claim and correct the ⛔ \
-            "PURE CORE ONLY … not a stage of EchoelFXChain" block in the file header in \
-            the SAME commit (#456), so the code and the note stop disagreeing.
+    /// ⭐ THIS CLAIM INVERTED IN #687, ON ITS OWN INSTRUCTIONS. It used to assert that
+    /// nothing in `Sources/` constructed `EchoelGranular`, and its failure message said:
+    /// wiring it "is the intended next slice, not a defect — delete this claim and correct
+    /// the header in the SAME commit (#456)". That is what happened. The guard did its job
+    /// by going red on purpose, which is the only kind of red that is good news.
+    ///
+    /// It now pins the six sites, because a stage wired at five of them is the worse bug:
+    /// it sounds right until the render sleeps, and then sprays second-old audio into a new
+    /// take. `noteRenderSleeping` matters here more than for any other stage — this one
+    /// holds the longest buffer in the chain.
+    func testTheStageIsWiredAtEverySiteAndIsInertByDefault() throws {
+        let chain = try source("Sources/Echoelmusic/DSP/EchoelFXChain.swift")
+        let sites: [(String, String)] = [
+            ("declaration",   "public let granular: EchoelGranular"),
+            ("bypass flag",   "public var granularEnabled: Bool = false"),
+            ("crackle reset", "if newValue && !granularEnabled { granular.reset() }"),
+            ("construction",  "self.granular = EchoelGranular(sampleRate: sampleRate)"),
+            ("render path",   "if granularEnabled   { (l, r) = granular.processStereo(l, r) }"),
+            ("sleep drain",   "if granularEnabled   { granular.reset() }"),
+        ]
+        let missing = sites.filter { !chain.contains($0.1) }.map(\.0)
+        XCTAssertEqual(missing, [], """
+            The granular stage is missing from \(missing) in `EchoelFXChain`. Five of six \
+            is the dangerous state, not a partial one — in particular a stage absent from \
+            `noteRenderSleeping()` sounds correct until the render sleeps, then sprays \
+            second-old audio into the next take.
+            """)
+        XCTAssertTrue(chain.contains("public var granularEnabled: Bool = false"), """
+            The stage no longer defaults to OFF. It has no door and no preset support yet, \
+            so defaulting it on would turn it into an effect nobody can hear about and \
+            nobody can switch off.
+            """)
+        let core = try source("Sources/Echoelmusic/DSP/EchoelGranular.swift")
+        XCTAssertTrue(core.contains("public var mix: Float = 0"), """
+            The stage's own wet mix no longer defaults to 0. Inert TWICE over is deliberate \
+            while there is no door: the bypass flag and the mix are independent switches.
+            """)
+        let preset = try source("Sources/Echoelmusic/DSP/FXPreset.swift")
+        XCTAssertFalse(preset.lowercased().contains("granular"), """
+            `FXPreset` now carries granular state — that is the intended NEXT slice, not a \
+            defect. Delete this assertion and correct the ⛔ "not persisted and it has no \
+            door" block in `EchoelGranular.swift`'s header in the SAME commit (#456), so \
+            the code and the note stop disagreeing.
             """)
     }
 
