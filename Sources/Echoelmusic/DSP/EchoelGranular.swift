@@ -46,16 +46,38 @@ import Foundation
 /// `FXCharacter.clean` — subtitled "No effects — reset to a dry signal" — would leave
 /// a granular cloud running. It is now the FIFTH stage `.clean` cannot silence
 /// (tape, bitcrush, flanger, tremolo were already out of its reach, and that file
-/// says so about itself). Latent only because nothing can set the enable yet: the one
-/// bundled preset carries no granular keys and `FXCuratedLibrary` builds through
-/// `capture` with the stage off. **Registered next slice, and deleting the
+/// says so about itself).
+///
+/// ⛔ AND #692 TOOK THE WORD "LATENT" AWAY. This paragraph read "latent only because
+/// nothing can set the enable yet" — true while the stage had no door, and false the
+/// moment one existed. The sequence is now reachable by hand: turn Granular on in the
+/// FX panel, then stamp a character, and `.clean` — subtitled "No effects — reset to
+/// a dry signal" — leaves the cloud running. **That is a live defect, not a latent
+/// one, and the escalation happened inside the slice that opened the door.** The
+/// premise that carried the word ("nothing can set the enable") was written one file
+/// away from the change that falsified it, which is why it survived the diff.
+///
+/// ⚠️ NOT FIXED HERE, AND THE REASON IS NOT LAZINESS. Adding `granularEnabled = false`
+/// to the clean path would take one line and would make `.clean` MORE misleading, not
+/// less: four other stages (tape, bitcrush, flanger, tremolo) have the identical gap,
+/// so a reader who saw granular handled would conclude the path is complete. The fix
+/// is all five together, as its own slice. **Registered, and deleting the
 /// registration is how a known gap becomes an unknown one.**
 ///
-/// ⛔ WHAT IS STILL MISSING, so this note does not flip to a rosier lie: **it has no
-/// door.** No panel row can turn it on, so today the persistence records a state
-/// only a preset file could have set. That is the next slice. Until then the stage
-/// is inert twice over — `granularEnabled` is false AND `mix` is 0 — and it must
-/// not be cited as a shipping effect.
+/// ⭐ THE DOOR EXISTS SINCE #692, and this block is inverted rather than deleted
+/// because the shape of the old gap is what a later session needs to recognise the
+/// next one. It read: "**it has no door.** No panel row can turn it on, so today the
+/// persistence records a state only a preset file could have set." That is now false.
+/// `EchoelFXView` carries an `effectSection("Granular")` with six `EchoelValueField`
+/// rows plus the section toggle, and every row's range is compared against THIS
+/// file's clamps by `AGrainCannotClickOrRunAwayTests` claim 6 — so a widened row or a
+/// moved clamp fails in CI instead of lying to a player.
+///
+/// ⛔ WHAT IS STILL MISSING, so this note does not flip to a rosier lie: **the door is
+/// in the FX panel, which processes the SYNTH. It is not in the vocal path.** The
+/// founder's ask was a vocal chain with a granular effect; `EchoelFXChain` appears
+/// ZERO times in `Audio/AudioEngine.swift`, so a singer's monitored voice still
+/// reaches no granular stage. Cite this as a shipping effect FOR THE INSTRUMENT only.
 ///
 /// ⚠️ The note that stood here said a preset recall would "silently drop" the state.
 /// That was backwards and is worth keeping visible: before #690, `apply(to:)` wrote
@@ -89,8 +111,9 @@ public final class EchoelGranular: @unchecked Sendable {
     /// a write head that had moved N samples — the window amplitude stayed continuous,
     /// but the source material jumped. At the window's peak that is an audible splice:
     /// a click, introduced by the one stage whose test file is named "a grain cannot
-    /// click". Unreachable today (no door, no bio target on `mix`), and it would have
-    /// become reachable with the first of either.
+    /// click". It was unreachable when it was written — no door, no bio target on `mix` —
+    /// and #692 supplied the first of those two, so the fix is now load-bearing rather
+    /// than precautionary. Do not read the fix as optional because the note calls it early.
     public var mix: Float = 0
     /// Grain length in milliseconds. Short reads as texture/stutter, long as a
     /// smeared cloud. Clamped to 10…500 on use.

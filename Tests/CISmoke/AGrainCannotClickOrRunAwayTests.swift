@@ -241,8 +241,12 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
             """)
         let core = try source("Sources/Echoelmusic/DSP/EchoelGranular.swift")
         XCTAssertTrue(core.contains("public var mix: Float = 0"), """
-            The stage's own wet mix no longer defaults to 0. Inert TWICE over is deliberate \
-            while there is no door: the bypass flag and the mix are independent switches.
+            The stage's own wet mix no longer defaults to 0. The two switches stay \
+            independent on purpose, and #692 CHANGED THE REASON without changing the value: \
+            there IS a door now, so this is no longer "inert twice over while nothing can \
+            reach it". It is that a preset which flips `granularEnabled` should turn the stage \
+            ON, not turn it UP — the player asked for a switch, not for a sound. Claim 6 \
+            asserts the door; this line asserts the quiet default behind it.
             """)
     }
 
@@ -375,6 +379,145 @@ final class AGrainCannotClickOrRunAwayTests: XCTestCase {
             The RNG, the spawn accumulator or the delay lines survived the reset, which means \
             a preset recall would inherit the previous take's texture.
             """)
+    }
+
+    // MARK: - 6: the door, and every row bounded by the stage's own clamp
+
+    /// ⭐ THIS CLAIM IS NEW IN #692 AND IT INVERTS CLAIM 5's JUSTIFICATION. Claim 5 asserts
+    /// `public var mix: Float = 0` and explains it with "inert TWICE over is deliberate while
+    /// there is no door". There is a door now. The DEFAULT is unchanged and still right, but
+    /// for a different reason: a stage that starts audible the moment a preset flips its enable
+    /// would surprise a player who only wanted the switch. Claim 5's message is corrected in
+    /// this same commit rather than left to read as a premise that no longer holds (#456).
+    ///
+    /// ⛔ WHAT THIS CHECKS THAT AN EYE CANNOT. Every `field(…)` range is compared against the
+    /// clamp READ OUT OF `EchoelGranular.swift`, not against a number written here (#442).
+    /// A row wider than its clamp is the failure the whole `EchoelValueField` law exists to
+    /// prevent: the player dials 700 ms, the engine silently uses 500, and the control lies
+    /// about what it does. Nothing else can catch it — both sides are `Float`, so the compiler
+    /// is silent, and the stage is inaudible at its defaults, so a listening test is silent too.
+    ///
+    /// ⚠️ THE MIRROR→PROPERTY MAP IS PINNED, NOT WILDCARDED. #690 shipped needles that could
+    /// not see a CROSSED mapping (`granularMix` writing `granular.density` would have passed).
+    /// Spelling both halves means a swap fails here instead of reaching a player's ear.
+    ///
+    /// ⚠️ BOTH EXTRACTIONS FAIL LOUDLY WHEN THEY MISS (#454). A scan that quietly finds nothing
+    /// on a renamed property would report "all ranges agree" about zero comparisons.
+    func testEveryGranularRowIsBoundedByTheStagesOwnClamp() throws {
+        let view = try source("Sources/Echoelmusic/Studio/EchoelFXView.swift")
+        let dsp = try source("Sources/Echoelmusic/DSP/EchoelGranular.swift")
+        let v = view.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        let d = dsp.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+
+        XCTAssertTrue(v.contains("effectSection(\"Granular\", isOn: $vm.granularEnabled)"), """
+            `EchoelFXView` has no `effectSection("Granular", isOn: $vm.granularEnabled)`. The \
+            granular stage is wired into the chain (#687) and persisted (#690); without this \
+            section nothing a player can touch reaches it, and `EchoelGranular.swift`'s header \
+            must go back to saying it has no door.
+            """)
+
+        // mirror in the view  ->  the property whose clamp bounds it in the DSP file
+        let bounds: [(mirror: String, property: String)] = [
+            ("granularMix", "mix"),
+            ("granularGrainMs", "grainMilliseconds"),
+            ("granularDensity", "density"),
+            ("granularSpray", "spraySeconds"),
+            ("granularPitch", "pitchSemitones"),
+            ("granularSpread", "stereoSpread"),
+        ]
+
+        for (mirror, property) in bounds {
+            // DSP shape: `Swift.min(Swift.max(<p>.isFinite ? <p> : <default>, <LO>), <HI>)`
+            let needle = "Swift.max(\(property).isFinite ? \(property) : "
+            guard let n = d.range(of: needle) else {
+                XCTFail("""
+                    No clamp of the shape `Swift.max(\(property).isFinite ? …)` in \
+                    `EchoelGranular.swift`. Either the property was renamed or the sanitising \
+                    clamp was dropped. Re-anchor this scan; do not let it pass on nothing (#454).
+                    """)
+                continue
+            }
+            // After the needle the text reads `<default>, <LO>), <HI>)`. Split on ")" gives
+            // ["<default>, <LO>", ", <HI>", …]. Written out step by step on purpose: a clever
+            // one-liner here would be unverifiable without a local compiler.
+            let after = String(d[n.upperBound...])
+            let parts = after.split(separator: ")", maxSplits: 2, omittingEmptySubsequences: false)
+            var lo = ""
+            var hi = ""
+            if parts.count >= 2 {
+                let loPiece = parts[0].split(separator: ",").last ?? ""
+                lo = loPiece.trimmingCharacters(in: .whitespaces)
+                var hiPiece = parts[1].trimmingCharacters(in: .whitespaces)
+                if hiPiece.hasPrefix(",") { hiPiece.removeFirst() }
+                hi = hiPiece.trimmingCharacters(in: .whitespaces)
+            }
+            if lo.isEmpty || hi.isEmpty {
+                XCTFail("""
+                    Found the clamp for `\(property)` but could not read its bounds out of: \
+                    \(after.prefix(80)). The clamp's SHAPE changed; update this reader in the \
+                    same commit rather than deleting the comparison.
+                    """)
+                continue
+            }
+
+            // View shape: `field("<title>", $vm.<mirror>, <LO>...<HI>, …)`
+            let rowNeedle = "$vm.\(mirror), "
+            guard let r = v.range(of: rowNeedle) else {
+                XCTFail("""
+                    `EchoelFXView` has no row for `\(mirror)`. Six of the seven granular values \
+                    are numeric rows and the seventh is the section's own toggle; a missing row \
+                    is a parameter the player cannot reach while the engine still reads it.
+                    """)
+                continue
+            }
+            let rowTail = v[r.upperBound...]
+            let rowRange = rowTail.prefix { $0 != "," }.trimmingCharacters(in: .whitespaces)
+            let ends = rowRange.components(separatedBy: "...")
+            guard ends.count == 2 else {
+                XCTFail("""
+                    The row for `\(mirror)` does not pass a `LO...HI` literal — it reads \
+                    "\(rowRange)". A range built from a variable cannot be compared against the \
+                    stage's clamp here; if that is deliberate, say why and widen this reader.
+                    """)
+                continue
+            }
+
+            XCTAssertEqual(ends[0], lo, """
+                The `\(mirror)` row starts at \(ends[0]) but `EchoelGranular` clamps \
+                `\(property)` to \(lo)…\(hi). A row wider than its clamp lets a player dial a \
+                value the engine silently ignores; a row narrower than its clamp hides range \
+                the engine would honour. Move both or neither.
+                """)
+            XCTAssertEqual(ends[1], hi, """
+                The `\(mirror)` row ends at \(ends[1]) but `EchoelGranular` clamps \
+                `\(property)` to \(lo)…\(hi). Same failure as the lower bound: the control would \
+                stop telling the truth about what the engine does.
+                """)
+        }
+    }
+
+    /// The site census. Seven mirrors, four sites each — declaration, `init(chain:)`, `reseed()`,
+    /// panel — and a TOTAL that is right while one site is missing is exactly how #690's
+    /// predecessor nearly shipped. Counted per mirror, never summed.
+    ///
+    /// ⚠️ `reseed()` is the site whose absence is silent: the mirrors would still write the
+    /// chain, so every knob would work — until a preset recall, after which the panel shows the
+    /// OLD values while the engine runs the new ones.
+    func testEveryGranularMirrorAppearsAtAllFourSites() throws {
+        let view = try source("Sources/Echoelmusic/Studio/EchoelFXView.swift")
+        let lines = view.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let mirrors = ["granularEnabled", "granularMix", "granularGrainMs", "granularDensity",
+                       "granularSpray", "granularPitch", "granularSpread"]
+        for m in mirrors {
+            let hits = lines.filter { $0.contains(m) }.count
+            XCTAssertEqual(hits, 4, """
+                `\(m)` appears on \(hits) line(s) of `EchoelFXView.swift`, expected 4: the \
+                declaration with its fan-out `didSet`, the seed in `init(chain:)`, the seed in \
+                `reseed()`, and the panel row. Which one is missing decides what breaks — a \
+                missing `reseed()` seed shows stale numbers after every preset recall, and \
+                nothing else in this bundle would notice.
+                """)
+        }
     }
 
     // MARK: - source access (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)

@@ -188,6 +188,10 @@ final class FXViewModel {
         saturationEnabled = c.saturationEnabled; saturationDrive = c.saturationDrive; saturationMix = c.saturationMix
         harmonizerEnabled = c.harmonizerEnabled; harmInterval1 = c.harmonizer.interval1
         harmInterval2 = c.harmonizer.interval2; harmVoice2 = c.harmonizer.voice2Enabled; harmMix = c.harmonizer.mix
+        granularEnabled = c.granularEnabled; granularMix = c.granular.mix
+        granularGrainMs = c.granular.grainMilliseconds; granularDensity = c.granular.density
+        granularSpray = c.granular.spraySeconds; granularPitch = c.granular.pitchSemitones
+        granularSpread = c.granular.stereoSpread
         reverbEnabled = c.reverbEnabled; reverbRoomSize = c.reverb.roomSize
         reverbDamping = c.reverb.damping; reverbMix = c.reverb.mix; reverbWidth = c.reverb.width
         tapeEnabled = c.tapeEnabled; tapeDepth = c.tape.depth
@@ -297,6 +301,15 @@ final class FXViewModel {
     var harmVoice2: Bool { didSet { for c in allChains { c.harmonizer.voice2Enabled = harmVoice2 } } }
     var harmMix: Float { didSet { for c in allChains { c.harmonizer.mix = harmMix } } }
 
+    // Granular (#692 — the door for the stage wired in #687 and persisted in #690)
+    var granularEnabled: Bool { didSet { for c in allChains { c.granularEnabled = granularEnabled } } }
+    var granularMix: Float { didSet { for c in allChains { c.granular.mix = granularMix } } }
+    var granularGrainMs: Float { didSet { for c in allChains { c.granular.grainMilliseconds = granularGrainMs } } }
+    var granularDensity: Float { didSet { for c in allChains { c.granular.density = granularDensity } } }
+    var granularSpray: Float { didSet { for c in allChains { c.granular.spraySeconds = granularSpray } } }
+    var granularPitch: Float { didSet { for c in allChains { c.granular.pitchSemitones = granularPitch } } }
+    var granularSpread: Float { didSet { for c in allChains { c.granular.stereoSpread = granularSpread } } }
+
     /// #599b — the RESTORE half of "Follow the key". While following, the
     /// DiatonicHarmonyFollower rewrites the chains' intervals every tick and this
     /// view-model's stored values stay the user's source of truth, untouched. The
@@ -366,6 +379,10 @@ final class FXViewModel {
         saturationEnabled = c.saturationEnabled; saturationDrive = c.saturationDrive; saturationMix = c.saturationMix
         harmonizerEnabled = c.harmonizerEnabled; harmInterval1 = c.harmonizer.interval1
         harmInterval2 = c.harmonizer.interval2; harmVoice2 = c.harmonizer.voice2Enabled; harmMix = c.harmonizer.mix
+        granularEnabled = c.granularEnabled; granularMix = c.granular.mix
+        granularGrainMs = c.granular.grainMilliseconds; granularDensity = c.granular.density
+        granularSpray = c.granular.spraySeconds; granularPitch = c.granular.pitchSemitones
+        granularSpread = c.granular.stereoSpread
         reverbEnabled = c.reverbEnabled; reverbRoomSize = c.reverb.roomSize
         reverbDamping = c.reverb.damping; reverbMix = c.reverb.mix; reverbWidth = c.reverb.width
         tapeEnabled = c.tapeEnabled; tapeDepth = c.tape.depth
@@ -508,10 +525,18 @@ struct EchoelFXView: View {
                     .accessibilityHint("Apply a production sound like Underwater or Telephone, then tweak below")
                 } footer: {
                     // ⛔ #480 follow-up: this read "the EchoelFX chain: filter → modulation →
-                    // delay → dynamics", which is FOUR of the fourteen `effectSection(` calls
-                    // below it — Saturation, Tape / VHS, Bitcrush, Harmonizer, Reverb and
-                    // Stereo Width fell outside all four, and Reverb is the one a musician
-                    // notices missing. The relative ORDER was right (checked against
+                    // delay → dynamics", which is FOUR of the `effectSection(` calls below it —
+                    // Saturation, Tape / VHS, Bitcrush, Harmonizer, Reverb and Stereo Width fell
+                    // outside all four, and Reverb is the one a musician notices missing.
+                    // (The count of stages is deliberately NOT written here. It said "fourteen"
+                    // until #692 added Granular, and a number in a comment that nothing
+                    // re-derives is a date. The ONE derived count lives in
+                    // `TheFXDoorNamesAControlThatExistsTests.stageNames()`, which reads the
+                    // section titles out of this file — ask it, do not re-count here (#416).
+                    // ⛔ The first version of this note quoted a `grep -c` recipe instead, and
+                    // the note itself became the 16th match: writing ABOUT a needle changed
+                    // what the needle finds. Same trap as the `EchoelModalBank` recipe.)
+                    // The relative ORDER was right (checked against
                     // `EchoelFXChain.processStereo`), the completeness was not. Replaced with a
                     // claim that stays true when a stage is added: the two ENDS of the real
                     // signal path, which are stable, instead of a middle that has to be
@@ -576,6 +601,33 @@ struct EchoelFXView: View {
                     }
                     Toggle("Voice 2", isOn: $vm.harmVoice2).tint(EchoelTheme.accent)
                     field("Mix", $vm.harmMix, 0...1, decimals: 2)
+                }
+
+                // #692 — the granular door, and the reason it sits HERE. This panel is
+                // ordered by familiarity, NOT by the signal chain (Reverb precedes Delay,
+                // the modulation group follows both), so "move it to match the chain" is a
+                // change nobody asked for. It goes after Harmonizer because both are
+                // pitch/texture character, which is how a player looks for it.
+                //
+                // ⚠️ EVERY RANGE BELOW MUST EQUAL THE STAGE'S OWN CLAMP, and the numbers are
+                // deliberately NOT restated in this comment — `AGrainCannotClickOrRunAwayTests`
+                // claim 6 reads them out of `EchoelGranular.swift` and compares, so moving a
+                // clamp without moving its row fails in CI (#442/#416). A row wider than its
+                // clamp lets a player dial a value the engine silently ignores; the control
+                // then lies about what it does, which is the failure the whole
+                // `EchoelValueField` law exists to prevent. Both sides are `Float`, so nothing
+                // else would catch it.
+                effectSection("Granular", isOn: $vm.granularEnabled) {
+                    Text("Sprays short grains of the last second back over the sound. Small grains stutter, long ones smear. Mix starts at 0 — turn it up to hear anything.")
+                        .font(EchoelTheme.font(10))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .fixedSize(horizontal: false, vertical: true)
+                    field("Mix", $vm.granularMix, 0...1, decimals: 2)
+                    field("Grain", $vm.granularGrainMs, 10...500, unit: "ms", decimals: 0)
+                    field("Density", $vm.granularDensity, 0...1, decimals: 2)
+                    field("Spray", $vm.granularSpray, 0...0.5, unit: "s", decimals: 3)
+                    field("Pitch", $vm.granularPitch, -24...24, unit: "st", decimals: 0)
+                    field("Spread", $vm.granularSpread, 0...1, decimals: 2)
                 }
 
                 effectSection("Reverb", isOn: $vm.reverbEnabled) {

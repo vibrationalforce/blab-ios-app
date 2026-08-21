@@ -10,9 +10,15 @@
 // ⛔ WHY IT IS THE SAME DEFECT AND NOT A SMALLER ONE. `EchoelFXChain`'s SWITCH-CRACKLE RULE
 // (founder: "knistert beim Umschalten von Dingen") resets every STATEFUL stage on its enable
 // flag's rising edge, because a bypassed stage is skipped entirely and freezes holding old
-// audio. (Thirteen of the fourteen `*Enabled` flags — `saturationEnabled` has no `willSet`
+// audio. (Fourteen of the fifteen `*Enabled` flags — `saturationEnabled` has no `willSet`
 // because a waveshaper has no state to freeze.)
-// `fxEnabled` skips all thirteen at once and reset nothing: bypass mid-take, wait, re-enable,
+//
+// ⛔ THOSE TWO NUMBERS WERE "thirteen of the fourteen" UNTIL #692, AND #687 IS WHAT MADE THEM
+// STALE — the granular stage added a fifteenth flag with a reset, and the slice that added it
+// did not walk the prose. Nothing here counts, so nothing went red; a hand number in a file
+// nobody re-derives is a date, not a fact. Re-measure, do not re-quote:
+//   grep -c "public var [a-zA-Z]*Enabled: Bool" Sources/Echoelmusic/DSP/EchoelFXChain.swift
+// `fxEnabled` skips all fourteen at once and reset nothing: bypass mid-take, wait, re-enable,
 // and the delay line and the reverb tank walk out audio from before the bypass. Unlike the
 // idle sleep this one is a DELIBERATE user action with a visible control (Effects panel,
 // applied to both `synth` and `touchSynth`), so the burst arrives at the exact moment the
@@ -109,7 +115,7 @@ final class BypassingTheChainEmptiesItOnTheWayBackTests: XCTestCase {
                 XCTFail("""
                     \(path) no longer drains the chain when FX are re-enabled (#397).
 
-                    Bypassing skips all thirteen stages at once, so the delay line and the \
+                    Bypassing skips every stateful stage at once, so the delay line and the \
                     reverb tank keep the take's last seconds for the whole bypass and release \
                     them on the way back — the switch-crackle the founder reported, arriving \
                     through the master gate instead of a per-stage toggle.
