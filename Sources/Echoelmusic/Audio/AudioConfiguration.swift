@@ -44,8 +44,16 @@ enum AudioConfiguration {
     static let normalBufferSize: AVAudioFrameCount = 512
 
     /// Current buffer size (defaults to the 512-frame / 10.67 ms "normal" buffer).
-    /// Audio thread + main thread access — nonisolated(unsafe) because writes are
-    /// always followed by a full session reconfiguration (memory barrier).
+    ///
+    /// Audio thread + main thread access — `nonisolated(unsafe)` because the single write
+    /// after launch is IMMEDIATELY PRECEDED by an `AVAudioSession` call that has already
+    /// crossed to the audio server (`setLatencyMode`), and the write is skipped entirely when
+    /// that call throws.
+    /// ⛔ This said "writes are always followed by a full session reconfiguration" — a claim
+    /// that was untested for months because the write had ZERO callers, and that #674 made
+    /// false the moment it added one behind a `try?`: the write happened, the reconfiguration
+    /// did not, and nothing logged it. The ordering is now the other way round on purpose, and
+    /// this sentence describes what the code does rather than what it should have done.
     ///
     /// Was `lowLatencyBufferSize` (256 / 5.33 ms): too tight a render deadline for the
     /// polyphonic additive synth under dense chords → underruns heard as dropouts /
@@ -326,12 +334,17 @@ enum AudioConfiguration {
     /// Therefore: the default is UNCHANGED and the choice is the player's, with the cost
     /// written next to it. The number it moves is already on screen directly above the
     /// control, so the loop closes without anyone having to believe a label.
-    enum LatencyMode: String, CaseIterable, Identifiable, Sendable {
+    enum LatencyMode: String, CaseIterable, Identifiable, Sendable, CustomStringConvertible {
         case ultraLow   // 128 frames (~2.7ms @ 48kHz) - max CPU usage
         case low        // 256 frames (~5.3ms @ 48kHz) - balanced
         case normal     // 512 frames (~10.7ms @ 48kHz) - battery friendly
 
         var id: String { rawValue }
+
+        /// ⚠️ `CustomStringConvertible`, so `"\(mode)"` and `mode.description` are the SAME
+        /// string. Without it the enum printed `"low"` in string interpolation and
+        /// `"Low (~5.3ms)"` through `.description` — two spellings of one value (#416), in a
+        /// type whose own doc argues against exactly that.
 
         /// Short enough for a segmented control; the cost lives in the caveat beside it, not
         /// in the label, because a label that carries a warning stops being a label.
@@ -351,6 +364,7 @@ enum AudioConfiguration {
             }
         }
 
+        // swiftlint:disable:next type_contents_order
         var description: String {
             switch self {
             case .ultraLow: return "Ultra-Low (~2.7ms)"
@@ -372,13 +386,48 @@ enum AudioConfiguration {
         LatencyMode.allCases.first { $0.bufferSize == currentBufferSize }
     }
 
-    /// Set latency mode and reconfigure audio session
+    /// Request a buffer tier. The ONLY producer of `currentBufferSize` after launch.
+    ///
+    /// ⛔ #675 — THIS CALLED `configureAudioSession()` AND THAT WAS A SESSION-KILLER, not a
+    /// heavy-handed choice. `configureAudioSession` ends in `setCategory(.playAndRecord,
+    /// options: recordOptions)` + `setActive(true, options: .notifyOthersOnDeactivation)` —
+    /// the exact pair `AudioEngine` documents as able to STOP a running `AVAudioEngine`
+    /// underneath it (#625: "Es funktioniert gar nichts und killt den restlichen Sound auch";
+    /// #628 then required pausing the engine BEFORE any such claim). #674 put that sequence
+    /// behind a control whose only reachable state is "monitoring is live and the music is
+    /// playing" — i.e. it aimed the known failure at the one session it existed to improve,
+    /// and it followed neither the pause nor the gated-restart discipline.
+    /// The buffer needs NONE of that. `setPreferredIOBufferDuration` is one call, changes no
+    /// category, deactivates nothing, and is the API this control should always have used.
+    ///
+    /// ⚠️ THE WRITE COMES AFTER THE REQUEST, and the order is the point: if the session
+    /// refuses, `currentBufferSize` must not move. The old order wrote first and then threw,
+    /// leaving the constant that the measurement, the log line and the on-screen floor all
+    /// read describing a size the session never granted — and #674's `try?` swallowed the
+    /// throw, so nothing anywhere said so.
+    ///
+    /// ⚠️ REQUESTED, NOT GRANTED. iOS clamps this, hardest on Bluetooth HFP — which
+    /// `recordOptions` enables by necessity. `latencySnapshot()` reads the GRANTED
+    /// `ioBufferDuration`, so the number on screen and the selected tier can legitimately
+    /// disagree. The control's caveat says so; do not "fix" that by displaying the request.
     static func setLatencyMode(_ mode: LatencyMode) throws {
+        #if os(macOS)
         currentBufferSize = mode.bufferSize
-        #if !os(macOS)
-        try configureAudioSession()
+        #else
+        // Hoisted, not interpolated inline: #287 took the bundle red on "unable to type-check
+        // in reasonable time" for a string built inside an argument list.
+        let requested = Double(mode.bufferSize) / preferredSampleRate
+        try AVAudioSession.sharedInstance().setPreferredIOBufferDuration(requested)
+        currentBufferSize = mode.bufferSize
+        let reason = "buffer " + mode.shortName + " requested"
+        // The first producer this constant has ever had needs a line in the EXPORTABLE file.
+        // `log.audio` does not reach `echoel_diag.log` — only this does (#653) — and without
+        // it a buffer change would show up in the founder's log attributed to the incidental
+        // "engine reconfigured" breadcrumb, which is precisely the wrong `reason:` #654
+        // retracted.
+        latencyBreadcrumb(reason: reason, tuneStage: nil, insertMilliseconds: [])
         #endif
-        log.audio("🎵 Latency mode set to: \(mode.description)")
+        log.audio("🎵 Latency mode requested: \(mode.description)")
     }
 
 

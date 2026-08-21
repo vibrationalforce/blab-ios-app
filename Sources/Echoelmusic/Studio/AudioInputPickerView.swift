@@ -107,7 +107,7 @@ struct AudioInputPickerView: View {
         #if os(iOS)
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-            Image(systemName: "headphones").foregroundStyle(EchoelTheme.dim).frame(width: 24)
+                Image(systemName: "headphones").foregroundStyle(EchoelTheme.dim).frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Live monitoring").font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
                     Text("Hear your mic through the output, in time with the beat")
@@ -460,6 +460,10 @@ private struct MonitorLatencyRow: View {
                 // `@State` on a `@MainActor` view. The sibling refresh at the top of this
                 // file carries the same hop for the same reason.
                 readout = AudioConfiguration.latencySnapshot()
+                // `mode` too: `.onAppear` set both, this handler set only the readout, and two
+                // `@State` fields in one leaf with different staleness rules is a bug waiting
+                // for its first writer.
+                mode = AudioConfiguration.currentLatencyMode
             }
         #endif
     }
@@ -481,7 +485,16 @@ private struct MonitorLatencyRow: View {
                 get: { mode },
                 set: { newValue in
                     guard let newValue, newValue != mode else { return }
-                    try? AudioConfiguration.setLatencyMode(newValue)
+                    // ⛔ `try?` stood here and it swallowed the ONE failure this whole family
+                    // (#653–#674) exists to surface. `setLatencyMode` can throw; on a throw the
+                    // buffer is unchanged, so the segment must snap BACK rather than sit lit
+                    // over a size the session refused. Both branches end by re-deriving the
+                    // mode from the buffer, which is the only value that can be trusted.
+                    do {
+                        try AudioConfiguration.setLatencyMode(newValue)
+                    } catch {
+                        log.audio("Buffer request refused: \(error.localizedDescription)")
+                    }
                     // The THIRD `latencySnapshot()` read in this file, added deliberately and
                     // named: a buffer change is not a route change, so without it the floor
                     // above would keep showing the previous size and the control would look
@@ -505,7 +518,8 @@ private struct MonitorLatencyRow: View {
     /// heard on the device as crackle (10.76.49). Offering the smaller buffer without saying
     /// that would hand the player a switch whose failure mode is a mystery.
     static let bufferCaveat = "Smaller buffer = less delay, tighter deadline. "
-                            + "Dense chords have crackled at Low before — Normal is the safe default."
+                            + "Dense chords have crackled at Low before — Normal is the safe default. "
+                            + "This is a request: the system may grant less, and it resets on relaunch."
 
     /// The one sentence the numbers cannot carry themselves.
     ///
