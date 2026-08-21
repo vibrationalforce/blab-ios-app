@@ -655,9 +655,16 @@ enum AudioConfiguration {
     /// Bluetooth … alle Latenzen und Kombinationen optimiert für Sessions". Two warnings in
     /// `AudioInputPickerView` already cover the Bluetooth DELAY (~150–250 ms). Neither covers
     /// the effect that actually ruins a take: once the mic is claimed, `recordOptions` carries
-    /// `.allowBluetooth` (HFP), and iOS then pulls the WHOLE shared route — the music, not just
-    /// the mic — down to the mono call codec. A player hears his own instrument turn into a
-    /// telephone and has no number on screen that says why, because no LATENCY number can.
+    /// `.allowBluetooth` (HFP), and iOS CAN then pull the WHOLE shared route — the music, not
+    /// just the mic — down to the mono call codec. A player hears his own instrument turn into
+    /// a telephone and has no number on screen that says why, because no LATENCY number can.
+    ///
+    /// ⛔ The first version of this block wrote "and iOS THEN pulls", i.e. as a consequence of
+    /// the category alone. That is the strongest version of a claim the code below deliberately
+    /// refuses to make, and it is wrong: `recordOptions` also carries `.allowBluetoothA2DP`, and
+    /// with the BUILT-IN mic selected iOS need not move the output to HFP at all. That is
+    /// exactly why `routeCodec` inspects the ROUTE instead of inferring from the category — a
+    /// doc comment that infers from the category argues against the function underneath it.
     ///
     /// ⚠️ Two cases, not one, and they must never print the same sentence: `.telephony` is what
     /// iOS NAMED, `.telephonySuspected` is what we INFERRED. #654 exists because this file once
@@ -698,19 +705,39 @@ enum AudioConfiguration {
     /// this exact text, so a rename in iOS turns the guard red instead of the verdict silent.
     static let hfpPortType = "BluetoothHFP"
 
-    /// Raw values of `AVAudioSessionPortBluetoothA2DP` and `AVAudioSessionPortBluetoothLE` —
-    /// pinned by the same guard, for the same reason.
+    /// Raw values of `AVAudioSessionPortBluetoothA2DP` and `AVAudioSessionPortBluetoothLE`.
+    ///
+    /// ⚠️ The guard pins membership AND the count (2). Membership alone was the first version
+    /// and it is a one-way check: a spurious third entry — a mis-typed `"BluetoothA2DP"`, say —
+    /// would pass every assertion while widening `.telephonySuspected` onto routes this array
+    /// claims not to list. A list whose length nothing checks is not pinned, it is sampled.
     static let bluetoothOutputPortTypes = ["BluetoothA2DPOutput", "BluetoothLE"]
 
-    /// The highest rate any hands-free profile runs (8 · 16 · 24 kHz). Above it, a Bluetooth
+    /// The rate at or below which a Bluetooth output is TREATED as call mode. Above it, the
     /// route is carrying real bandwidth and there is nothing to warn about.
+    ///
+    /// ⛔ This said "the highest rate any hands-free profile runs (8 · 16 · 24 kHz)" and every
+    /// part of that was wrong. HFP runs CVSD at 8 kHz, mSBC at 16 kHz, and LC3-SWB at 32 kHz
+    /// (HFP 1.9). 24 kHz is not an HFP rate at all — it is Apple's AAC-ELD voice rate. So this
+    /// number is a JUDGEMENT, not a specification, and it is stated as one: 32 kHz would catch
+    /// super-wideband on a port iOS did not name, at the cost of calling a genuinely decent
+    /// 32 kHz stream "call mode". The definitive half does not depend on it — a NAMED HFP port
+    /// returns `.telephony` at ANY rate — so the cost of this choice falls only on the
+    /// inference, and there the quiet error is the safer one.
     static let telephonyCeilingHz: Double = 24_000
 
     /// The verdict, as a pure function of what the route reported.
     ///
-    /// Deliberately NOT a new field in the log line: `latencyLine` already prints `sr=` and
-    /// `route=`, which together ARE the evidence, and a third round of call-site churn on a
-    /// signature that broke the bundle twice (#666/#667) is not worth a convenience.
+    /// ⛔ NO LOG FIELD — and the reason first given for that was FALSE. It read: "`latencyLine`
+    /// already prints `sr=` and `route=`, which together ARE the evidence." They are not.
+    /// `route=` is built from `portName` (device names like "HI-X25BT"), never from `portType`.
+    /// A log reader can therefore reconstruct the INFERENCE (`sr=16000` beside a Bluetooth-ish
+    /// name) but never the FACT, because the named HFP port appears nowhere in the file. In a
+    /// subsystem that exists so the screen and the file cannot disagree, that is a real gap:
+    /// the exported log cannot explain a red line the founder is looking at.
+    /// The decision stands on the WEAKER, honest reason — a third round of call-site churn on a
+    /// signature that broke the bundle twice (#666/#667) is not worth doing in the same slice
+    /// that introduces the verdict. Closing the gap is registered work, not a settled "no".
     static func routeCodec(outputPortTypes: [String], sampleRate: Double) -> RouteCodec {
         if outputPortTypes.contains(hfpPortType) { return .telephony }
         let bluetooth = outputPortTypes.contains { bluetoothOutputPortTypes.contains($0) }

@@ -415,10 +415,17 @@ private struct MonitorLatencyRow: View {
                     // it takes the music down with it. `danger`, and only when there is
                     // something to say: `note` is `nil` for a healthy route, so a good cable
                     // renders no line at all rather than a reassurance nobody asked for.
-                    // ⚠️ It appears only while monitoring runs, and that is CORRECT rather
-                    // than a gap: under `.playback` the session never asked for `.allowBluetooth`
-                    // and the route is still A2DP, so there is genuinely nothing to report. The
-                    // collapse and this row begin at the same moment — when the mic is claimed.
+                    // ⚠️ It appears only while monitoring runs, because the row it lives in
+                    // does. That covers the case this slice is about — Echoel claiming the mic
+                    // — and NOT every case.
+                    // ⛔ The first version justified the gap with "under `.playback` the route
+                    // is still A2DP, so there is genuinely nothing to report". That does not
+                    // follow. `AVAudioSession` is a SYSTEM-SHARED route: another app holding
+                    // `.playAndRecord` with `.allowBluetooth`, or a call in progress, puts the
+                    // shared route in HFP while Echoel sits in `.playback` — the music is
+                    // degraded exactly as described and this row is hidden. "We did not cause
+                    // it" was silently converted into "it cannot be happening", which is the
+                    // over-claim class this file's ⛔ blocks exist to catch.
                     if let note = readout.codec.note {
                         Text(note)
                             .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
