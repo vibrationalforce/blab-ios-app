@@ -26,22 +26,54 @@ import XCTest
 
 final class OneSpellingOfWhoseBodyItIsTests: XCTestCase {
 
-    /// The ONE file allowed to compare against the case, because it is where the predicate is
-    /// defined. Everything else asks the predicate.
-    private static let definition = "Sources/Echoelmusic/Core/EngineBus.swift"
+    /// The ONE LINE allowed to compare against the case: the body of the predicate itself.
+    ///
+    /// ⛔ #678 (review): the first version exempted the whole FILE, all 784 lines of
+    /// `EngineBus.swift` — so any future `frame.source == .fallback` written anywhere in it was
+    /// invisible. Worse, the exemption was a raw PATH: moving `BioSource` or splitting the file
+    /// would make claim 1 fire on the definition of `isSynthetic` itself, telling the author to
+    /// "ask `BioSource.isSynthetic`" inside the body of `BioSource.isSynthetic`. A line is both
+    /// narrower and portable.
+    private static let definitionLine = "public var isSynthetic: Bool { self == .fallback }"
+
+    /// Every spelling of the same comparison, not just the one that happened to be in the tree.
+    ///
+    /// ⛔ #678 (review): the first version matched `== .fallback` and `!= .fallback` only —
+    /// one space, short form, our operand order. `== BioSource.fallback` (the natural
+    /// disambiguating form the day a second synthetic case exists), `==.fallback` and the
+    /// reversed `.fallback == frame.source` all sailed past a guard whose whole purpose is that
+    /// day. Zero occurrences of any of them today, so this closes a latent hole, not a live one.
+    /// ⚠️ Still NOT matched, deliberately: `switch` / `if case`, the documented escape for a
+    /// caller that needs the narrow question; and a comparison split across a continuation line,
+    /// which this line-local scan cannot see. Both are stated rather than pretended away.
+    private static let spellings = ["== .fallback", "!= .fallback", "==.fallback", "!=.fallback",
+                                    "== BioSource.fallback", "!= BioSource.fallback",
+                                    ".fallback ==", ".fallback !="]
 
     // MARK: - 1. The comparison is written once, where the predicate lives
 
     func testNothingSpellsTheSyntheticTestByHand() throws {
         var offenders: [String] = []
+        var sawDefinition = false
         for (path, code) in try Self.allSourceText() {
             for (number, line) in code.split(separator: Character("\n"),
-                                             omittingEmptySubsequences: false).enumerated()
-            where line.contains("== .fallback") || line.contains("!= .fallback") {
-                guard path != Self.definition else { continue }
-                offenders.append("\(path):\(number + 1): \(line.trimmingCharacters(in: .whitespaces))")
+                                             omittingEmptySubsequences: false).enumerated() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed == Self.definitionLine { sawDefinition = true; continue }
+                guard Self.spellings.contains(where: { trimmed.contains($0) }) else { continue }
+                offenders.append("\(path):\(number + 1): \(trimmed)")
             }
         }
+        // ⚠️ #454: without this the negative is vacuous the moment the predicate is renamed or
+        // reformatted — the exemption stops matching, nothing is exempt, and a repo with ZERO
+        // offenders still reports zero. The guard would then be measuring an empty question.
+        XCTAssertTrue(sawDefinition, """
+            The exempted definition line was not found in `Sources/`. Expected exactly:
+              \(Self.definitionLine)
+            Either `isSynthetic` was renamed, reformatted or moved — in which case update this \
+            line and re-run — or it is gone, in which case every honesty surface in the app and \
+            the `/echoelmusic/bio/synthetic` wire flag have lost the property they all read.
+            """)
         XCTAssertEqual(offenders, [], """
             "Is this a real body?" is spelled by hand at \(offenders.count) site(s) instead of \
             asking `BioSource.isSynthetic`:
@@ -84,10 +116,10 @@ final class OneSpellingOfWhoseBodyItIsTests: XCTestCase {
         XCTAssertFalse(BioSource.ble.isSynthetic, """
             The BLE chest strap reports as synthetic. It is an electrode on a real chest.
             """)
-        XCTAssertNotEqual(BioSource.fallback.isSynthetic, BioSource.cameraPPG.isSynthetic, """
-            The predicate returns the same answer for the demo generator and a live sensor, \
-            so it discriminates nothing and every honesty surface reading it is decoration.
-            """)
+        // ⛔ #678 (review): a third assertion stood here — `XCTAssertNotEqual(fallback,
+        // cameraPPG)` — and it is strictly implied by the `true` above and the `false` beside
+        // it. It cannot fail unless one of them already has, so it carried no information and
+        // still cost a line in the header count. Removed rather than kept for symmetry.
     }
 
     // MARK: - Helpers

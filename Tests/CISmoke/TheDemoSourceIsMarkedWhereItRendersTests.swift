@@ -248,8 +248,19 @@ final class TheDemoSourceIsMarkedWhereItRendersTests: XCTestCase {
         // message warned about "a separate UI flag that can drift from the bus" — so
         // redefining `isSynthetic` as exactly such a flag kept this green as long as any
         // other line still carried the substring. The whole declaration is pinned instead.
+        // ⛔ #678: this literal said `reading?.source == .fallback`, and #677 respelled that
+        // comparison to `reading?.source.isSynthetic == true` — an identity-preserving change
+        // that took this needle to ZERO while the property it protects was untouched. The
+        // message below would then have said "`isSynthetic` is no longer exactly …" and the
+        // cheapest way to make it green is to REVERT the migration. That is the #646 ⛔ block
+        // at the bottom of this very file, arriving exactly as it predicted: "a needle naming
+        // an inline expression dies the day somebody names that expression". The repair there
+        // was applied to claim 12 only; claims 3, 4 and 11 kept literal spellings.
+        // Kept as a whole-declaration pin rather than moved to a function anchor, because BOTH
+        // halves of this line are the claim (the frame's own source AND the camera exclusion)
+        // and a function anchor cannot see either.
         let declaration = "private var isSynthetic: Bool "
-            + "{ reading?.source == .fallback && !cameraRPPG.isRunning }"
+            + "{ reading?.source.isSynthetic == true && !cameraRPPG.isRunning }"
         XCTAssertEqual(lines.filter { $0.trimmingCharacters(in: .whitespaces) == declaration }.count, 1, """
             `isSynthetic` is no longer exactly `\(declaration)`. Two things are pinned here \
             and both are load-bearing: it must read the FRAME's own source through \
@@ -266,11 +277,19 @@ final class TheDemoSourceIsMarkedWhereItRendersTests: XCTestCase {
     /// the live-source colour and trade this bug for its mirror.
     func testTheLiveTagStillExcludesTheDemo() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/BioStripView.swift")
-        XCTAssertEqual(lines.filter { $0.contains("bio.source != .fallback") }.count, 2, """
-            `hasLiveSignal` / `sourceText` no longer exclude `.fallback`. The green tag and \
-            the source name mean "a real body is on the wire"; admitting the simulator there \
-            makes the demo indistinguishable from a strap — the same false claim #627 is \
+        // ⛔ #678: this counted `bio.source != .fallback` and expected TWO. #677 respelled
+        // BOTH of them to `!bio.source.isSynthetic`, so it dropped to zero in one step — the
+        // worst of the five, because a count of 2 going to 0 reads as "both exclusions were
+        // deleted" when neither was touched.
+        XCTAssertEqual(lines.filter { $0.contains("!bio.source.isSynthetic") }.count, 2, """
+            `hasLiveSignal` / `sourceText` no longer exclude the demo generator. The green tag \
+            and the source name mean "a real body is on the wire"; admitting the simulator \
+            there makes the demo indistinguishable from a strap — the same false claim #627 is \
             removing, moved into a nicer colour.
+            ⚠️ The needle is the PREDICATE (`isSynthetic`), not the case (`.fallback`). Since \
+            #677 those are one spelling; if you are respelling it again, respell it here in the \
+            SAME commit (#456) — a needle that goes to zero on an identity-preserving change \
+            tells the next session to undo correct work.
             """)
     }
 
@@ -399,7 +418,10 @@ final class TheDemoSourceIsMarkedWhereItRendersTests: XCTestCase {
     /// cover it — and #627 did not notice.
     func testTheCoherenceCellDropsAStaleSyntheticFrame() throws {
         let lines = try codeLines("Sources/Echoelmusic/Studio/HeaderMonitors.swift")
-        let guardLine = "let coherenceFrame = (cameraLive && fresh?.source == .fallback) ? nil : fresh"
+        // ⛔ #678: respelled by #677 (`== .fallback` → `.isSynthetic == true`). Same
+        // whole-line pin, new spelling — the line IS the claim here, both the `cameraLive`
+        // term and the `? nil :` are load-bearing and no function anchor sees them.
+        let guardLine = "let coherenceFrame = (cameraLive && fresh?.source.isSynthetic == true) ? nil : fresh"
         XCTAssertEqual(lines.filter { $0.contains(guardLine) }.count, 1, """
             the coherence cell reads `fresh` unconditionally again. Switching source stops \
             the simulator but nothing clears `EngineBus.latestBio`, and `.fallback`'s window \

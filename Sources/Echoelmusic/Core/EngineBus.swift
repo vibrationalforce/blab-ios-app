@@ -398,12 +398,19 @@ public enum BioSource: UInt8, Sendable, Equatable {
     /// and until #639 every one of them answered it by spelling `source == .fallback`
     /// inline: sixteen occurrences under `Sources/` at the time this property was added.
     ///
-    /// ⚠️ #416 — ONE DEFINITION PER DECISION, AND THIS ONE IS NOT YET MIGRATED. The property
-    /// exists so the concept has a name; the sixteen existing spellings are deliberately
-    /// left alone in the slice that introduced it, because a sweep across six directories is
-    /// a migration, not a guard change (`OneDefinitionOfCodeNotProseTests` learned the same
-    /// lesson about 69 private strippers). New code asks this; old code gets converted when
-    /// its own file is next opened for a real reason.
+    /// ⭐ #416 — ONE DEFINITION PER DECISION, AND THE MIGRATION IS DONE (#677). Sixteen inline
+    /// spellings at #639, eleven left by 2026-08-21, zero now: the only `== .fallback` under
+    /// `Sources/` is the line below, and `OneSpellingOfWhoseBodyItIsTests` keeps it that way.
+    /// Ask this property. If you genuinely need `.fallback` SPECIFICALLY — the narrower
+    /// question, not "any synthetic source" — that is legitimate: use a `switch` or `if case`,
+    /// which the guard does not match, and say at the site why the narrow question is right.
+    ///
+    /// ⛔ THIS BLOCK SAID "NOT YET MIGRATED" AND KEPT SAYING IT AFTER #677 FINISHED THE JOB.
+    /// It is the definition site — the first thing a session reads before deciding whether to
+    /// hand-write the comparison — and it explicitly LICENSED leaving hand-written spellings
+    /// alone. A session trusting it would have written `== .fallback` and met a red gate whose
+    /// message contradicts the doc two lines above the property it names. The repo's recurring
+    /// "a note that declares a live state dead" failure, at the one place it costs most.
     ///
     /// ⚠️ It answers "is this a body", NOT "which sensor". A per-source disclosure is a
     /// different, larger question — on the wire it would also be a different address (#639).

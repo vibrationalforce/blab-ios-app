@@ -178,7 +178,8 @@ final class ThePeerSeesWhetherItIsABodyTests: XCTestCase {
         let lines = SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
 
-        XCTAssertEqual(lines.filter { $0.contains("synthetic: f?.source == .fallback") }.count, 1, """
+        // ⛔ #678: respelled by #677 (`== .fallback` → `.isSynthetic == true`).
+        XCTAssertEqual(lines.filter { $0.contains("synthetic: f?.source.isSynthetic == true") }.count, 1, """
             your OWN row no longer marks the demo. It reads the frame directly — no wire, no \
             optionality — so this is the one row that can always answer (#629).
             """)

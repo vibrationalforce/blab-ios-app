@@ -285,7 +285,9 @@ final class TheMetricSheetRowsSayWhoseBodyTests: XCTestCase {
                   in: code), 1, """
             The amount is no longer derived from the bound `frame`.
             """)
-        XCTAssertEqual(count("let synthetic = frame?.source == .fallback", in: code), 1, """
+        // ⛔ #678: respelled by #677. The claim is "derived from the BOUND `frame`", so the
+        // needle keeps the `frame?.` receiver and only the predicate moved.
+        XCTAssertEqual(count("let synthetic = frame?.source.isSynthetic == true", in: code), 1, """
             The origin is no longer derived from the bound `frame`. Both answers must come \
             from ONE evaluation or the row can mark itself and its own number differently.
             """)
