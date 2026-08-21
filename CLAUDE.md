@@ -585,6 +585,17 @@ list named 11 files that never existed — do not reintroduce it.)
 | `xcode-compile-check.yml` | XcodeGen + `xcodebuild` compile gate (catches Xcode/AUv3-only errors) |
 | `quick-test.yml` | Fast test suite |
 | `pr-check.yml` | PR validation |
+| `auto-merge-claude.yml` | **Entscheidet, was `main` erreicht** — siehe den ⛔-Absatz direkt unter dieser Tabelle |
+
+⛔ **DIESE TABELLE HAT VIER MONATE LANG DEN WORKFLOW VERSCHWIEGEN, DER ENTSCHEIDET, WAS `main` ERREICHT** (nachgetragen 2026-08-21, #683). Sie nannte fünf von vierzehn Dateien in `.github/workflows/`, und `auto-merge-claude.yml` war keine davon — genau die Register-Lücke, die diese Datei an anderer Stelle „teurer als eine falsche Zahl" nennt, weil sie gar nicht erst als Frage auftaucht.
+
+**Der Befund, gemessen: der Merge nach `main` wartet auf KEIN Gate.** Der Workflow feuert auf `push` nach `claude/**` und merged sofort. Er hat **kein `needs:`**, **keinen `workflow_run:`**-Trigger und liest **keine** fremde Conclusion (`grep -n "needs:\|workflow_run\|conclusion" .github/workflows/auto-merge-claude.yml` → nichts) — er KANN also strukturell nicht auf `Xcode Compile Check` oder die CI/CD-Pipeline warten. Die drei laufen parallel, und der Merge gewinnt. Er pusht direkt (`git push origin main`), es gibt keinen Pull Request, der die Checks dazwischenstellen würde.
+
+⭐ **Und das ist keine Theorie:** #681 ist am `Xcode Compile Check` gescheitert (Lauf 32457537356, `f61be63`) und steht trotzdem auf `origin/main`. #682 hat zehn Minuten später repariert — aber in diesen zehn Minuten hat `main` nicht kompiliert, und nirgends stand, dass das möglich ist.
+
+⚠️ **Das VERHÄLTNIS gehört dazu, sonst liest sich der Absatz alarmistischer als der Zustand ist:** der TestFlight-Dispatch im selben Workflow steht auf `if: false` (abgeschaltet 2026-06-16 wegen Apples Upload-Kontingent). Ein ungetesteter Merge erreicht also `main`, aber **nie einen Nutzer**; Deploy bleibt absichtlich (`.deploy/release`). Fällt dieses `if: false`, ändert sich die Schwere des Befunds sofort — deshalb ist es mitgepinnt.
+
+**Reparatur ist founder-gated** (`.github/workflows/**` = berichten, nicht editieren). Wächter: `Tests/CISmoke/TheAutoMergeWaitsForNoGateTests.swift` — er verbietet das Gate NICHT (#364); er wird an dem Tag rot, an dem der Founder eins einbaut, und nennt in seiner Fehlermeldung diesen Absatz als die Prosa, die dann im selben Commit mitzuziehen ist.
 
 **⚠️ WELCHES GATE WAS BEWEIST — die Unterscheidung, die jede Session sonst neu falsch rät** (per Workflow-Lesung 2026-07-31; sie hat in dieser Woche zweimal einen Commit rot gemacht, den ein grüner Compile-Check schon abgesegnet hatte):
 
