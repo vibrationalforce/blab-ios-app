@@ -18,10 +18,14 @@
 //  (= `acquisitionCue.fullHint`) has exactly ONE reader, and that reader is this view. A file
 //  that says it is on screen is precisely what stops someone noticing that.
 //
-//  ⛔ THAT PARAGRAPH ONCE ENDED "so the rPPG remedy reached a sighted user nowhere", AND THAT
+//  ⛔ THAT PARAGRAPH ONCE SAID "so the rPPG remedy reached a sighted user nowhere", AND THAT
 //  HALF IS NO LONGER TRUE (#703). #523/#569 gave the remedy a reachable surface: `BioStripView`
-//  banners the SAME STRING via `acquisitionCue.fullHint` in `bioPanel`, behind the Bio chip,
-//  gated by `cueWarrantsFullHintOnScreen`. The measurement above stands — one reader of the
+//  banners the SAME STRING via `acquisitionCue.fullHint` in `bioPanel`, gated by
+//  `cueWarrantsFullHintOnScreen`. That panel's door is the PULSE PILL (`PulseMonitorMiniLive`
+//  tap → chrome door "bio"), NOT a chip: `.bio` is absent from `EchoelStudioView.studioChips`,
+//  and #704 corrected "behind the Bio chip" here — SAID, not ENDED, because this file's guard
+//  keys its scoped filter on that exact word and two retraction idioms in one file would make
+//  the technique unreusable. The measurement above stands — one reader of the
 //  PROPERTY — but the conclusion drawn from it does not: what is dead is the property, not the
 //  capability. Left as a retraction rather than deleted because CLAUDE.md and
 //  `ThePulseReadoutHasNoDoorTests` both inherited the wrong half and had to be pulled along in

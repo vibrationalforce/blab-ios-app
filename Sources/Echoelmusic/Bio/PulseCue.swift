@@ -204,8 +204,14 @@ public enum PulseCue: Equatable, Sendable {
     ///     `.finding` — i.e. when the user moves their finger. It cannot churn.
     ///
     /// ⛔ AND UNTIL THIS PROPERTY HAD A CONSUMER, `.stalled`'s `fullHint` REACHED A SIGHTED
-    /// USER NOWHERE. Measured, not assumed (`git grep -n 'fullHint' -- Sources`, three hits
-    /// outside this file): `CameraRPPGBioPublisher.coachingHint` is `acquisitionCue.fullHint`,
+    /// USER NOWHERE. Measured before #523 (⛔ the recipe quoted here said "`git grep -n
+    /// 'fullHint' -- Sources`, three hits outside this file" — today the same command prints
+    /// FOUR files / twelve lines, because #523 and #569 added the consumers this paragraph
+    /// says did not exist. The CONCLUSION is unharmed, it is governed by "UNTIL THIS PROPERTY
+    /// HAD A CONSUMER" — but a quoted recipe whose output contradicts the prose beside it
+    /// reads as a contradiction, which is the `EchoelModalBank` trap this very file warns
+    /// about elsewhere. #704: state the past measurement, do not re-quote a live
+    /// command): `CameraRPPGBioPublisher.coachingHint` is `acquisitionCue.fullHint`,
     /// and its only reader is `PulseMeasurementView`, whose only mount is `BioSourceView` —
     /// which has ZERO construction sites anywhere in `Sources/`; `HeaderMonitors` renders
     /// `fullHint` as an `.accessibilityValue`, i.e. VoiceOver only, while the pixels get

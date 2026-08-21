@@ -8,10 +8,17 @@
 // terminates one hop up — nothing in the app mounts it, during a take or otherwise.
 //
 // ⭐ WHY IT IS WORTH A GUARD RATHER THAN A QUIET EDIT. This is the OTHER END of #523. That
-// slice found the rPPG stall remedy reaching a sighted user nowhere; the reason is that
+// slice found the rPPG stall remedy reaching a sighted user nowhere AND FIXED IT: since
+// #523/#569 `BioStripView` banners the same string via `acquisitionCue.fullHint`, gated by
+// `cueWarrantsFullHintOnScreen`. What survives is the DEAD PROPERTY PATH —
 // `CameraRPPGBioPublisher.coachingHint` has exactly ONE reader in `Sources/`, and that reader
 // is this view. A file whose opening line says it is on screen is precisely what stops the
-// next person noticing. Six places now assert this view's doorlessness in prose — this file,
+// next person noticing.
+// ⛔ THIS PARAGRAPH SAID "the reason is that `coachingHint` has exactly ONE reader", present
+// tense and causal, i.e. the same property-for-capability conflation #703 retracted forty
+// lines below — so this FILE contradicted itself, and the CLAUDE.md sentence #703 wrote
+// ("nur diese Zeile und die Fehlermeldung") was false because of it, refutable by one grep.
+// Two guards can disagree; one file must not (#704). Six places now assert this view's doorlessness in prose — this file,
 // the view's own header, `BioStripView`, `PulseCue`, and two blocks in
 // `TheStallRemedyReachesTheScreenTests` — and prose cannot notice when it stops being true.
 //
@@ -125,7 +132,10 @@ final class ThePulseReadoutHasNoDoorTests: XCTestCase {
             It is not: its only parent, `BioSourceView`, has zero construction sites. That \
             sentence is what made the #523 defect hard to see — `coachingHint`'s ONLY reader is \
             this view, so a header saying it is on screen implies the rPPG remedy reaches \
-            somebody. If it has genuinely been re-doored, this guard's two construction-site \
+            somebody THROUGH THIS PROPERTY. (It reaches a sighted user by another route since \
+            #523/#569 — `BioStripView`'s banner off `acquisitionCue.fullHint`. The property is \
+            the dead path, not the capability; #704.) If it has genuinely been re-doored, \
+            this guard's two construction-site \
             assertions go red in the same run and the six prose sites they name are the work.
             """)
     }
@@ -161,7 +171,9 @@ final class ThePulseReadoutHasNoDoorTests: XCTestCase {
     /// would reach a surface other than this doorless one", and that premise was ALREADY false
     /// when it was written (#703). The remedy reaches a sighted user through
     /// `acquisitionCue.fullHint`, not through this property: `BioStripView` banners it in
-    /// `bioPanel` behind the Bio chip, gated by `cueWarrantsFullHintOnScreen`, and
+    /// `bioPanel`, gated by `cueWarrantsFullHintOnScreen`. ⚠️ That panel's door is the PULSE
+    /// PILL (`PulseMonitorMiniLive` tap → chrome door "bio"), NOT a chip — `.bio` is absent
+    /// from `EchoelStudioView.studioChips`, and the doc beside that array says so. And
     /// `TheStallRemedyReachesTheScreenTests.testTheStripRendersTheStallRemedy` — in this same
     /// bundle — pins exactly that. Two guards one directory apart resting on premises that
     /// contradict each other, and CLAUDE.md inherited the wrong one and stated a shipped
