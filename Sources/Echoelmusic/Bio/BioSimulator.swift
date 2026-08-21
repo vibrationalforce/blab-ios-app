@@ -202,7 +202,7 @@ public final class BioSimulator {
                 // grep line count that swallows the declaration, the writer, the two
                 // in-class reads and SIX unrelated LOCAL variables also named `latestBio`
                 // in the two synth voices. The argument survives at ten; the number did not.
-                if let latest = bus.usableBio(), latest.source != .fallback {
+                if let latest = bus.usableBio(), !latest.source.isSynthetic {
                     try? await Task.sleep(for: .seconds(2))
                     continue
                 }

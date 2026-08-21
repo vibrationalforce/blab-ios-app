@@ -287,7 +287,7 @@ struct PulseMonitorMiniLive: View {
         // third value in the same call. Dropping the number is the right repair, not
         // marking it: the camera owns the display here, and a coherence it did not measure
         // is not a footnote, it is a foreign reading.
-        let coherenceFrame = (cameraLive && fresh?.source == .fallback) ? nil : fresh
+        let coherenceFrame = (cameraLive && fresh?.source.isSynthetic == true) ? nil : fresh
         PulseMonitorMini(waveform: cameraRPPG.waveform,
                          bpm: cameraLive ? cameraRPPG.displayBPM : Double(fresh?.heartRateBPM ?? 0),
                          locked: cameraLive ? cameraRPPG.isLocked : (fresh != nil),
@@ -315,7 +315,7 @@ struct PulseMonitorMiniLive: View {
                          // a stale `.fallback` frame still sitting in the snapshot must not
                          // brand a real reading as a demo. Off-camera the pill reads the bus,
                          // and then the frame's own source is the only truth there is.
-                         synthetic: !cameraLive && fresh?.source == .fallback)
+                         synthetic: !cameraLive && fresh?.source.isSynthetic == true)
             // E-Bio-Header — bio's HOME is this header pill (founder 2026-07-14 +
             // 2026-07-15 video: "Lange drücken = drop down: camera light · Search for
             // Bluetooth Device · Simulation").

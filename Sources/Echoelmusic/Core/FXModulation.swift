@@ -391,7 +391,7 @@ public enum FXModulation {
             // only provenance this pure function has — deliberately, since reaching for a
             // camera/publisher state here would make it stateful and no longer Linux-testable.
             var isDemo = false
-            if case .bio = route.carrier, contributing, frame?.source == .fallback {
+            if case .bio = route.carrier, contributing, frame?.source.isSynthetic == true {
                 isDemo = true
             }
             return BioModContribution(id: route.id,

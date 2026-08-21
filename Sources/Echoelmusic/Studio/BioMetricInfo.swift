@@ -363,7 +363,7 @@ struct BioMetricsGuideView: View {
                         // above the `ForEach` — a bare `let` directly inside a `VStack`
                         // ViewBuilder, a shape this repo has NO precedent for and no local
                         // compiler to settle. Registered, not guessed at.
-                        let synthetic = frame?.source == .fallback
+                        let synthetic = frame?.source.isSynthetic == true
                         // ⚠️ HOISTED into two `let`s instead of one three-term `+` chain, and that
                         // is the house idiom at three of the four sibling surfaces
                         // (`HeaderMonitors`, `EchoelFXView`, `AlwaysOnBioRow`). Not taste: a single

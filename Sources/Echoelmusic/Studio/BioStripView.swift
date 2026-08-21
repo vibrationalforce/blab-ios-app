@@ -824,7 +824,7 @@ struct BioStripView: View {
         // every few minutes (its reading stays usable for 90 s and keeps driving
         // the music), so the live indicator now matches whether the body is
         // actually shaping the sound. A truly frozen source still expires.
-        if let bio = reading, bio.source != .fallback { return true }
+        if let bio = reading, !bio.source.isSynthetic { return true }
         return false
     }
 
@@ -843,10 +843,10 @@ struct BioStripView: View {
     /// the equivalent term (`!cameraLive`); the two surfaces were asymmetric for one cycle.
     /// `isRunning` is a low-frequency start/stop flag this leaf already reads, so no new
     /// observation and no new churn (freeze rule).
-    private var isSynthetic: Bool { reading?.source == .fallback && !cameraRPPG.isRunning }
+    private var isSynthetic: Bool { reading?.source.isSynthetic == true && !cameraRPPG.isRunning }
 
     private var sourceText: String {
-        if let bio = reading, bio.source != .fallback {
+        if let bio = reading, !bio.source.isSynthetic {
             return sourceLabel(bio.source)
         }
         return "No signal"

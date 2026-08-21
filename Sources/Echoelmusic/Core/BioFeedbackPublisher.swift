@@ -103,7 +103,7 @@ public final class BioFeedbackPublisher {
             // numbers as a body. `.fallback` IS egress-allowed (it is nobody's pulse, so
             // it cannot leak one) — which is exactly why the provenance has to travel
             // SEPARATELY: `egressAllowed == true` says "safe to show", never "measured".
-            synthetic: frame.source == .fallback
+            synthetic: frame.source.isSynthetic
         )
     }
 

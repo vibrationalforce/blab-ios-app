@@ -334,7 +334,7 @@ private struct OwnBioRow: View {
                     // camera term would print the simulator's numbers with the marker OFF —
                     // the very defect #627b repaired, mirrored. The send path has the same
                     // one-frame shape (`egressible(from:)`), deliberately.
-                    synthetic: f?.source == .fallback)
+                    synthetic: f?.source.isSynthetic == true)
         }
     }
 }

@@ -144,7 +144,7 @@ public struct BioPeek: Codable, Sendable, Equatable {
                        // source, so nothing downstream could recover this if it were asked
                        // one call later. `.fallback` is the one synthetic source the policy
                        // above admits, so the question is exactly this comparison.
-                       synthetic: frame.source == .fallback)
+                       synthetic: frame.source.isSynthetic)
     }
 }
 
