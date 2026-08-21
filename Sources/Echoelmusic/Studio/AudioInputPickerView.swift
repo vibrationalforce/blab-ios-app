@@ -107,7 +107,7 @@ struct AudioInputPickerView: View {
         #if os(iOS)
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 10) {
-                Image(systemName: "headphones").foregroundStyle(EchoelTheme.dim).frame(width: 24)
+            Image(systemName: "headphones").foregroundStyle(EchoelTheme.dim).frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Live monitoring").font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
                     Text("Hear your mic through the output, in time with the beat")
@@ -392,50 +392,65 @@ struct AudioInputPickerView: View {
 /// There is no timer, and adding one would be the freeze bug.
 private struct MonitorLatencyRow: View {
     @State private var readout: AudioConfiguration.LatencyReadout?
+    /// `nil` until the first read, and `nil` again if anything sets a buffer size outside the
+    /// three named tiers — the segmented control then shows no selection, which is the honest
+    /// rendering of "this size has no name" (see `currentLatencyMode`).
+    @State private var mode: AudioConfiguration.LatencyMode?
 
     var body: some View {
         Group {
             if let readout {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text("Monitor latency").font(EchoelTheme.font(11))
-                            .foregroundStyle(EchoelTheme.dim)
-                        Spacer(minLength: 8)
-                        Text(readout.floorText)
-                            .font(EchoelTheme.font(13, .semibold))
-                            .foregroundStyle(EchoelTheme.text)
-                            .monospacedDigit()
-                    }
-                    Text(readout.breakdownText + "\n" + Self.caveat)
-                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                        .fixedSize(horizontal: false, vertical: true)
-                    // #670 — the BANDWIDTH fact, which no latency number can express. The two
-                    // Bluetooth warnings in the parent are both about DELAY; this one is about
-                    // the route collapsing to the mono call codec once the mic is claimed, and
-                    // it takes the music down with it. `danger`, and only when there is
-                    // something to say: `note` is `nil` for a healthy route, so a good cable
-                    // renders no line at all rather than a reassurance nobody asked for.
-                    // ⚠️ It appears only while monitoring runs, because the row it lives in
-                    // does. That covers the case this slice is about — Echoel claiming the mic
-                    // — and NOT every case.
-                    // ⛔ The first version justified the gap with "under `.playback` the route
-                    // is still A2DP, so there is genuinely nothing to report". That does not
-                    // follow. `AVAudioSession` is a SYSTEM-SHARED route: another app holding
-                    // `.playAndRecord` with `.allowBluetooth`, or a call in progress, puts the
-                    // shared route in HFP while Echoel sits in `.playback` — the music is
-                    // degraded exactly as described and this row is hidden. "We did not cause
-                    // it" was silently converted into "it cannot be happening", which is the
-                    // over-claim class this file's ⛔ blocks exist to catch.
-                    if let note = readout.codec.note {
-                        Text(note)
-                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
+                // Two siblings, not one: the readout carries
+                // `.accessibilityElement(children: .combine)` so VoiceOver reads the number as
+                // one item, and folding the control into that would make it unreachable. An
+                // explicit outer stack so the spacing between them is a decision, not whatever
+                // the mounting context happens to impose.
+                VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        HStack(spacing: 6) {
+                            Text("Monitor latency").font(EchoelTheme.font(11))
+                                .foregroundStyle(EchoelTheme.dim)
+                            Spacer(minLength: 8)
+                            Text(readout.floorText)
+                                .font(EchoelTheme.font(13, .semibold))
+                                .foregroundStyle(EchoelTheme.text)
+                                .monospacedDigit()
+                        }
+                        Text(readout.breakdownText + "\n" + Self.caveat)
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                             .fixedSize(horizontal: false, vertical: true)
+                        // #670 — the BANDWIDTH fact, which no latency number can express. The two
+                        // Bluetooth warnings in the parent are both about DELAY; this one is about
+                        // the route collapsing to the mono call codec once the mic is claimed, and
+                        // it takes the music down with it. `danger`, and only when there is
+                        // something to say: `note` is `nil` for a healthy route, so a good cable
+                        // renders no line at all rather than a reassurance nobody asked for.
+                        // ⚠️ It appears only while monitoring runs, because the row it lives in
+                        // does. That covers the case this slice is about — Echoel claiming the mic
+                        // — and NOT every case.
+                        // ⛔ The first version justified the gap with "under `.playback` the route
+                        // is still A2DP, so there is genuinely nothing to report". That does not
+                        // follow. `AVAudioSession` is a SYSTEM-SHARED route: another app holding
+                        // `.playAndRecord` with `.allowBluetooth`, or a call in progress, puts the
+                        // shared route in HFP while Echoel sits in `.playback` — the music is
+                        // degraded exactly as described and this row is hidden. "We did not cause
+                        // it" was silently converted into "it cannot be happening", which is the
+                        // over-claim class this file's ⛔ blocks exist to catch.
+                        if let note = readout.codec.note {
+                            Text(note)
+                                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
                     }
+                    .accessibilityElement(children: .combine)
+                    bufferPicker
                 }
-                .accessibilityElement(children: .combine)
             }
         }
-        .onAppear { readout = AudioConfiguration.latencySnapshot() }
+        .onAppear {
+            readout = AudioConfiguration.latencySnapshot()
+            mode = AudioConfiguration.currentLatencyMode
+        }
         #if os(iOS)
         .onReceive(NotificationCenter.default
             .publisher(for: AVAudioSession.routeChangeNotification)
@@ -448,6 +463,49 @@ private struct MonitorLatencyRow: View {
             }
         #endif
     }
+
+    /// #674 — the door for a policy that had no producer. A `Picker`, NOT an `EchoelValueField`,
+    /// and that is the rule rather than an exception to it: the UI law says every adjustable
+    /// NUMERIC parameter is a value field, and it says in the same breath that a parameter whose
+    /// values have NAMES is a picker. "Ultra / Low / Normal" are three named tiers of one enum,
+    /// not a continuum — offering 128–512 as a typed number would invite sizes the audio graph
+    /// never agreed to.
+    ///
+    /// It sits INSIDE this leaf on purpose. The number it changes is rendered two lines above
+    /// it, so the refresh stays local: a control in the parent would have to reach down, and a
+    /// read in the parent is the 10.76.41/50 freeze.
+    @ViewBuilder
+    private var bufferPicker: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Picker("Buffer", selection: Binding(
+                get: { mode },
+                set: { newValue in
+                    guard let newValue, newValue != mode else { return }
+                    try? AudioConfiguration.setLatencyMode(newValue)
+                    // The THIRD `latencySnapshot()` read in this file, added deliberately and
+                    // named: a buffer change is not a route change, so without it the floor
+                    // above would keep showing the previous size and the control would look
+                    // like it did nothing. The sibling guard's count moves with it (#364/#664).
+                    mode = AudioConfiguration.currentLatencyMode
+                    readout = AudioConfiguration.latencySnapshot()
+                })) {
+                ForEach(AudioConfiguration.LatencyMode.allCases) { option in
+                    Text(option.shortName).tag(Optional(option))
+                }
+            }
+            .pickerStyle(.segmented)
+            Text(Self.bufferCaveat)
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// ⚠️ THE COST IS IN THE COPY BECAUSE IT IS REAL AND ALREADY HAPPENED. 256 frames was the
+    /// shipped default until dense polyphonic chords missed the render deadline and it was
+    /// heard on the device as crackle (10.76.49). Offering the smaller buffer without saying
+    /// that would hand the player a switch whose failure mode is a mystery.
+    static let bufferCaveat = "Smaller buffer = less delay, tighter deadline. "
+                            + "Dense chords have crackled at Low before — Normal is the safe default."
 
     /// The one sentence the numbers cannot carry themselves.
     ///

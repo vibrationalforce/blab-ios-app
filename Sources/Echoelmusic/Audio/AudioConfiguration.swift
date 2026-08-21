@@ -311,10 +311,37 @@ enum AudioConfiguration {
 
     // MARK: - Latency Modes
 
-    enum LatencyMode {
+    /// ⭐ #674 — THIS POLICY HAD NO PRODUCER FOR MONTHS. `setLatencyMode` had zero callers in
+    /// `Sources/`, so `currentBufferSize` never left `normalBufferSize` (512) whatever the
+    /// session was doing. That is the Doctor §C shape: a mechanism that exists, reads as
+    /// live, and nothing can select.
+    ///
+    /// ⛔ AND THE OBVIOUS FIX IS A TRAP THIS REPO HAS ALREADY PAID FOR. "Monitoring is on, so
+    /// drop the buffer" would silently re-introduce 10.76.49: 256 frames was the shipped
+    /// default until dense polyphonic chords missed the render deadline and the founder heard
+    /// "Aussetzer / Kratzen" on the device. The declaration of `currentBufferSize` says so.
+    /// A monitoring session on this app is usually the generative music PLUS the live voice —
+    /// the dense case AND a monitor path — so an automatic switch would aim the regression at
+    /// exactly the session it claims to optimise.
+    /// Therefore: the default is UNCHANGED and the choice is the player's, with the cost
+    /// written next to it. The number it moves is already on screen directly above the
+    /// control, so the loop closes without anyone having to believe a label.
+    enum LatencyMode: String, CaseIterable, Identifiable, Sendable {
         case ultraLow   // 128 frames (~2.7ms @ 48kHz) - max CPU usage
         case low        // 256 frames (~5.3ms @ 48kHz) - balanced
         case normal     // 512 frames (~10.7ms @ 48kHz) - battery friendly
+
+        var id: String { rawValue }
+
+        /// Short enough for a segmented control; the cost lives in the caveat beside it, not
+        /// in the label, because a label that carries a warning stops being a label.
+        var shortName: String {
+            switch self {
+            case .ultraLow: return "Ultra"
+            case .low: return "Low"
+            case .normal: return "Normal"
+            }
+        }
 
         var bufferSize: AVAudioFrameCount {
             switch self {
@@ -331,6 +358,18 @@ enum AudioConfiguration {
             case .normal: return "Normal (~10.7ms)"
             }
         }
+    }
+
+    /// The mode the session is actually in, DERIVED from the one buffer value rather than
+    /// tracked beside it (#416). A second stored field could disagree with the size that the
+    /// measurement, the log line and the on-screen floor all read.
+    ///
+    /// `nil` is possible and is not an error: `currentBufferSize` is a `var` that anything may
+    /// set, so a size outside the three tiers means "no named mode", which a segmented control
+    /// renders as no selection. Inventing a nearest match would be a claim about a value this
+    /// enum did not choose.
+    static var currentLatencyMode: LatencyMode? {
+        LatencyMode.allCases.first { $0.bufferSize == currentBufferSize }
     }
 
     /// Set latency mode and reconfigure audio session

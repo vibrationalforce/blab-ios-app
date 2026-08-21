@@ -200,12 +200,17 @@ final class TheMeasuredLatencyReachesTheScreenTests: XCTestCase {
             `latencySnapshot()` is called ABOVE the leaf's declaration — i.e. somewhere in \
             `AudioInputPickerView` itself. That is the ancestor read the freeze law forbids.
             """)
-        XCTAssertEqual(Self.occurrences(of: "latencySnapshot()", in: code), 2, """
-            Expected exactly two reads (on appear, on route change). Found \
-            \(Self.occurrences(of: "latencySnapshot()", in: code)). A third read is legitimate \
-            — refreshing after the monitoring toggle would be one — but it has to be added \
-            here deliberately, because the number this guard exists to prevent is not 3, it is \
-            a POLL. Raise the count and say which event the new read answers (#364/#664).
+        XCTAssertEqual(Self.occurrences(of: "latencySnapshot()", in: code), 3, """
+            Expected exactly three reads. Found \
+            \(Self.occurrences(of: "latencySnapshot()", in: code)). The three events, each \
+            named because the number this guard exists to prevent is not 3, it is a POLL:
+              1. on appear — the row has no value before it is shown;
+              2. on route change — plugging a cable changes every term;
+              3. #674, after the buffer picker writes a new `LatencyMode` — a buffer change is \
+                 NOT a route change, so without this read the floor two lines above the control \
+                 keeps showing the previous size and the control looks like it did nothing.
+            A fourth is legitimate too, on the same terms: add it deliberately, raise this \
+            count, and name the event here (#364/#664).
             """)
     }
 
