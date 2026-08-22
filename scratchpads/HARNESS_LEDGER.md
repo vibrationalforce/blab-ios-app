@@ -1518,3 +1518,26 @@ Baum war korrekt, nur der Commit nicht.
 Verifikations-Zeile davor. Wer zwischen Stagen und Committen noch etwas anfasst, hat einen
 Commit gebaut, den er nie gesehen hat. Gegenprobe vor dem Push, eine Zeile:
 `git status --short` muss LEER sein — nicht „nur Kleinkram".
+
+## DEAD-END (2026-08-22 #745): eine Mutations-Probe, die den Baum EINMAL auflistet
+
+**Der Mechanismus.** Ein Wächter mit VORWÄRTS-Behauptungen („keine ANDERE Datei nennt X")
+wird bewiesen, indem man eine neue Datei anlegt, die X nennt. Meine Probe hat `Sources/`
+aber einmal am Anfang aufgelistet und die Liste wiederverwendet — **die Mutanten-Datei war
+in dieser Liste nicht drin**. Drei von acht Behauptungen meldeten daraufhin „kein Rot",
+also exakt das Bild eines Wächters, der nicht scharf ist.
+
+**Warum das gefährlich ist und nicht bloß lästig:** ein MISMATCH liest sich wie ein Befund
+über den WÄCHTER („die Behauptung kann nicht rot werden"), ist aber ein Befund über die
+PROBE. Wer ihn beim Wortsinn nimmt, schwächt oder löscht eine korrekte Behauptung.
+
+**Zweite Falle im selben Lauf:** der erste Mutant für eine Teilstring-Nadel benannte
+`case admOSCCartesian` in `…CartesianXX` um — die Nadel ist ein TEILSTRING, die Zusicherung
+sah also gar keine Änderung. **Eine Mutation, die die Zusicherung nicht von der Vorlage
+unterscheiden kann, ist keine Mutation.** Bei Teilstring-Nadeln die Zeile LÖSCHEN.
+
+**Regel:** in der Probe wird der Baum INNERHALB jeder Prüfung gelaufen, nie davor
+zwischengespeichert — und jeder Mutant wird daran gemessen, ob er die Nadel wirklich
+zerstört. Beides ist die #739-Lehre eine Ebene höher: **eine Kontrolle, die ihr eigenes
+Positiv besteht, ist keine Kontrolle — das gilt auch für die Probe, nicht nur für den
+Wächter.**

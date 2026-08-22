@@ -11266,3 +11266,55 @@ geleerten Log — nach #445 beweist das nichts: **kompiliert nachweislich, Ausf�
 **Offen:** V0-Geräteprobe (Live-Monitoring) · „Voice clone — ja oder nein?" · ob die vier
 Master-Klangfarben richtig KLINGEN (Behauptung 8 beweist nur, dass sie verschieden sind, nicht
 dass eine gut ist) · Geräteprobe 8-bit-Fixture (#732).
+
+**#742 `765b0b9`** — die zwei ÜBRIGEN Zeiger aus #741. Gefunden vom Stop-Hook, nicht von
+einem Test: #741 hatte vier Reparaturen behauptet und zwei ausgeliefert, weil `git add -A` in
+der VERIFIKATIONS-Zeile stand und danach noch zwei Dateien editiert wurden — `git commit -F`
+ohne `-a` committet nur den Stage. Der Baum war korrekt, nur der Commit nicht. Als DEAD-END im
+Ledger, samt Gegenprobe: `git status --short` muss vor dem Push LEER sein.
+
+**#743 `4f1ba49`** — `normaliseUnparseableMasterCharacter()` im `.onAppear`-Block, neben den
+zwei gleichartigen Normalisierern (#227, #255). Grund: ein persistierter `masterCharacter`,
+den kein `Preset` mehr kennt, ließ Picker und Klang auseinanderlaufen. Zwei Selbst-Funde vor
+dem Push: die erste Nadel traf Aufruf UND Deklaration (auf exakte getrimmte Zeilen gehärtet),
+und das Stripper-Etikett las 3 von 17, weil ich mit `contains` gemessen habe, während die
+Behauptungen exakte Zeilen prüfen — wahr ist 1 von 17. **Eine Nadel wird in der FORM gemessen,
+die ihre Zusicherung benutzt.**
+
+**#744 `09a6f0d`** — die Nachlese zu #743, und der teuerste Einzelbefund war eine
+BEGRÜNDUNG, die in drei Heimaten invertiert stand: ich schrieb, der Normalisierer laufe NACH
+`applyPersistedPreset()`. Gemessen läuft `.onAppear` als erster synchroner Durchgang, die
+Startup-Task mit `prepareGraph()` danach — zwei Kommentare im Repo sagten das bereits. Dazu
+gelöscht: Behauptung 12, die angewiesene künftige Arbeit verbot (#364) und eine Tatsache ein
+DRITTES Mal besaß (#416), obwohl einer der beiden Besitzer das Nach-Verankern ausdrücklich
+abgelehnt hatte.
+
+**#745 (dieser Commit)** — zurück ans Produkt: die Suche nach dem nächsten echten
+„gebaut · verdrahtet · keine Tür". Der Detektor ist LEER — alle 35 schreiberlosen Einträge
+sind entweder DSP-Interna (Rauschen per Konstruktion) oder bereits registriert (#724, #727,
+`VoiceCaptureController` für `inputMonitoringEnabled`). Der EINZIGE unregistrierte:
+**`ADMOSCSender.sceneDialect`** — eine Drei-Wege-Wahl des OSC-Drahtformats (ADM-OSC polar ·
+ADM-OSC kartesisch · IEM MultiEncoder), vollständig gebaut, golden-file-getestet, auf dem
+Sendepfad GELESEN, und in `Sources/` von NICHTS geschrieben.
+
+⚠️ **Und genau deshalb ist keine Tür gebaut worden.** Der Fund ist **zweiter Ordnung**
+türlos: der lesende Zweig hängt an `streamsScene`, dessen einziger Schreiber ein `Toggle` in
+`ImmersiveStageView` ist — null Konstruktionsstellen, absichtlich geparkt (Ship-Gate 4). Ein
+Picker dort wäre ein Bedienelement, das niemand öffnen kann. Der Unterschied zu #736
+(`AutoMixChain.preset`, dieselbe Form auf einer ERREICHBAREN Fläche) ist die ganze
+Entscheidung. **Registriert statt gebaut**; die Tür gehört in den Commit, der die Bühne
+wieder einhängt.
+
+Mit-repariert: der Kopf von `SpatialSceneOSC.swift` sagte „scene-driven send has NO callers
+yet" — gemessen hat er EINEN (`sendIfFresh`, hinter dem Gate). Die SCHLUSSFOLGERUNG
+(Release bit-identisch) überlebt, die BEGRÜNDUNG nicht — die schlechtere Hälfte zum
+Stehenlassen (#402).
+
+**Wächter:** `Tests/CISmoke/TheSceneDialectHasNoWriterTests.swift`, 8 Behauptungen, alle
+gegen den Worktree in Python nachgefahren, zehn Mutanten je genau eine rot. Zwei Fallen der
+PROBE selbst im Ledger: eine zwischengespeicherte Dateiliste kann den Mutanten nicht sehen
+(drei Vorwärts-Behauptungen meldeten fälschlich „kein Rot"), und eine Umbenennung zerstört
+eine Teilstring-Nadel nicht.
+
+**Offen (unverändert):** V0-Geräteprobe (Live-Monitoring) · „Voice clone — ja oder nein?" ·
+ob die vier Master-Klangfarben richtig KLINGEN · Geräteprobe 8-bit-Fixture (#732).

@@ -71,8 +71,34 @@ public final class ADMOSCSender {
         didSet { if streamsScene != oldValue { lastSentScene = nil } }
     }
 
-    /// Dialect for SCENE streaming (ADM-OSC or IEM MultiEncoder). The bio→object
-    /// path is always ADM-OSC; this only affects `streamsScene`.
+    /// Dialect for SCENE streaming. The bio→object path is always ADM-OSC polar;
+    /// this only affects the `streamsScene` branch.
+    ///
+    /// ⛔ NOTHING IN `Sources/` WRITES THIS (#745). Measured with comments
+    /// stripped: the name occurs TWICE in code, both in this file — this
+    /// declaration and the read in `sendIfFresh`. `ImmersiveStageView`, the one
+    /// surface that touches this sender's stream controls, names it ZERO times;
+    /// its `Toggle` binds `streamsScene` and nothing else. So all three cases of
+    /// `SpatialOSCDialect` are built and golden-file tested, and exactly one of
+    /// them can ever reach the wire.
+    ///
+    /// ⚠️ THIS IS SECOND-ORDER DOORLESS, and that distinction decides what to do
+    /// about it. `AutoMixChain.preset` (#736) was a live multi-way choice on a
+    /// REACHABLE surface, so it earned a door. Here the branch that reads this
+    /// property sits behind `streamsScene`, whose only writer lives in a view with
+    /// zero construction sites — deliberately parked, like `BroadcastView`. Adding
+    /// a picker here would build a control nobody can open. **Register it, do not
+    /// door it**; the door belongs in the same commit that re-mounts the stage.
+    ///
+    /// ⭐ The user-facing copy is already honest about this by accident: the stage
+    /// toggle reads "Stream to renderer (ADM-OSC)" — it names the one dialect that
+    /// can actually happen. Whoever adds the picker must widen that label in the
+    /// same commit, or the label starts lying the moment the choice becomes real.
+    ///
+    /// NOT A DEFECT TO DELETE. `admCartesianMessages` and `iemMessages` are the
+    /// difference between "speaks the open standard" and "speaks our corner of it"
+    /// — Cartesian-only consoles and the IEM suite are exactly the rigs the
+    /// identity line's immersive pillar is aimed at.
     public var sceneDialect: SpatialOSCDialect = .admOSC
 
     /// Object count in the most recent streamed scene — drives a UI activity readout
