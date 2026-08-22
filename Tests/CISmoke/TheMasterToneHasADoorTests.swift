@@ -20,9 +20,18 @@
 // value to a `Preset` a second time, so a persisted choice and a live tap cannot disagree.
 // #714 is the cycle that paid for a launch path which "obviously" ran and did not.
 //
-// ⚠️ LABELLED "Tone", NOT "Character", and that is deliberate: `EchoelStudioView` already has
-// two `labeledRow("Character")` rows — the sound preset row and the Effects picker. A third
+// ⚠️ LABELLED "Tone", NOT "Character": `EchoelStudioView` already has two
+// `labeledRow("Character")` rows — the sound preset row and the Effects picker — and a third
 // meaning of one word in one app is worse than a longer label.
+//
+// ⛔ AND #736 MEASURED THE WORD IT REJECTED WITHOUT MEASURING THE WORD IT CHOSE (#737).
+// `groupHeader("Tone")` already exists in the Sound panel (the synth-timbre group:
+// Brightness / Harmonics / Noise / Shape). So the slice avoided a third "Character" by
+// creating a **second "Tone"**. The choice still stands — different panel, a group HEADER
+// rather than a row label, and the master row is unambiguous in place — but it is weaker
+// than the collision it avoided, and the original paragraph presented a measurement it had
+// not run on its own pick. **A justification that counts the alternatives must count the
+// choice.**
 //
 // LIMITS, STATED FIRST (§1). Claims 1-2 are END-TO-END BEHAVIOUR over shipped value types.
 // Claims 3-7 are a SOURCE-TEXT SCAN: `AutoMixChain` is `@MainActor` and owns an
@@ -38,25 +47,73 @@
 //     never have been red. What earns them a place is that they check the two failure modes a
 //     compiler cannot: a stored default that does not PARSE (silently identical to a working
 //     one), and two characters sharing a display name.
+//   · ⛔ ONE SUB-ASSERTION INSIDE CLAIM 1 IS A MIRROR AND IS NOW LABELLED AS ONE (#367/#737).
+//     `XCTAssertEqual(Preset(rawValue: p.rawValue), p)` cannot fail against the shipped enum:
+//     `Preset` is a plain `String`-raw enum, so the compiler synthesises `rawValue` and
+//     `init?(rawValue:)` from ONE case table and rejects duplicate raw values outright. There
+//     is no mutation of today's code that makes it red — which is exactly what #367 forbids
+//     counting as evidence. It is KEPT, not deleted, because it stops being a mirror the day
+//     anyone writes a custom `init?(rawValue:)` (a normaliser that lower-cases, a migration
+//     that maps an old token), and that is the day a case would stop round-tripping in
+//     silence. Read it as a FORWARD tripwire on a hand-written initialiser, never as proof
+//     that persistence works. The two sibling assertions in the same method — distinct
+//     `displayName`s, non-empty `displayName` — are genuine and CAN fail today.
 //   · Claims 3-5 are REGRESSIONS: the parent has no Picker, no launch call, and spells the
 //     `.balanced` gains twice. Counted as ONE finding — the door's absence (#486).
 //   · Claims 6-7 are COUNTERWEIGHTS, green on both. Without them, deleting the chain from the
 //     graph or collapsing `applyPreset()` to one case would leave the door green over a
 //     control that moves nothing.
 //
-// ⚠️ STRIPPER (#453/#477): **PROPHYLAKTISCH (0 of 3)**, measured — and the first draft of
-// this paragraph said `TRAGEND (1 of 3)` on the reasoning that claim 5's negative needle
-// would be satisfied by the comment this commit put there. It is not: that comment writes
-// "the three gains" and `eq.bands[N].gain` in prose, never the literal `eq.bands[1].gain`,
-// so the needle is absent raw AND stripped. Driven both ways before pushing.
+// ⚠️ STRIPPER (#453/#477): **TRAGEND (1 of 12)** — corrected in #737 after the #736 review,
+// and the correction is in BOTH halves of the label.
+//   · The DENOMINATOR was 3. This file reads **12** needles from source: claim 3 two,
+//     claim 4 one, claim 5 three (negative), claim 6 two, claim 7 four. The 3 counted only
+//     claim 5's negatives, i.e. the claim I happened to be thinking about.
+//   · The VERDICT was PROPHYLAKTISCH. Exactly one needle is comment-resident in its own
+//     scanned region: `applyPersistedPreset()` occurs TWICE raw inside `configureEQ`'s body
+//     and ONCE stripped, because #736 itself put a "⚠️ THE THREE GAINS ARE NOT SET HERE ANY
+//     MORE (#736) — applyPersistedPreset() at …" comment there. Delete the real call at
+//     the end of that body and leave the comment: claim 4 goes **green raw, red stripped**.
+//     The stripper is what keeps the launch path (#714) honest, today, not prophylactically.
 //
-// ⛔ THAT IS THE THIRD SLICE RUNNING TO WRITE THIS LABEL FROM INTUITION (#728 in the
-// flattering direction, #731 in the other, #732 caught by its own run). The pattern is
-// specific enough to name: a NEGATIVE claim feels stripper-dependent because a comment
-// nearby discusses the thing — but the needle is a literal, and prose about a literal is not
-// the literal. **Count it, do not reason about it.** The stripper stays because claims 3, 4
-// and 7 read member bodies that are half comment by volume, and a needle shortened by a
-// later slice would inherit a real flip.
+// ⛔ THAT IS THE FOURTH SLICE RUNNING TO WRITE THIS LABEL FROM INTUITION (#728 flattering,
+// #731 the other way, #732 caught by its own run, #736 caught only by review). The old
+// paragraph even named the right rule — "count it, do not reason about it" — and then did
+// not count. Two things are newly specific and worth carrying:
+//   · **Count the needles, not the claims.** Every `contains`/`XCTAssertFalse` needle in the
+//     file is a denominator entry, including the ones in counterweights.
+//   · **"Driven both ways before pushing" cannot surface this.** For a POSITIVE claim both
+//     drives are green today; the flip only appears under a MUTATION. The measurement the
+//     rule asks for is a raw-vs-stripped COUNT per needle in its scanned region, which is a
+//     dozen lines of Python and takes seconds.
+// The stripper also stays for the original reason: claims 3, 4 and 7 read member bodies that
+// are half comment by volume.
+//
+// ⚠️ REGISTERED, MEASURED, NOT BUILT — three gaps the #736 review found that #737 did NOT
+// close, because each is new work rather than a false statement. Written here so the next
+// session plans from facts instead of rediscovering them:
+//   1. **NO INJECTABLE SEAM, so 5 of 7 claims are text scans.** `applyPersistedPreset()`
+//      hardcodes `UserDefaults.standard` and lives on a `@MainActor` class owning an
+//      `AVAudioUnitEQ`, so the stored-value RESOLUTION — including the `?? .balanced`
+//      fallback the key's own doc calls load-bearing — has no behavioural coverage at all.
+//      Sixty lines above it in the same file, `nonisolated static func resolvedTarget(from:)`
+//      is the file's OWN idiom for exactly this, with a doc saying why ("that distinction is
+//      the whole reason this bug lived so long"). A `nonisolated static func
+//      resolvedPreset(from: UserDefaults) -> Preset` would make it drivable.
+//   2. **NOTHING ASSERTS THE FOUR CURVES ARE DISTINCT** — a #343 counterweight gap. Give all
+//      four cases identical gains and claim 7 stays green while producing precisely the
+//      failure claim 7's own message describes ("the Picker offers a character that changes
+//      nothing"). Closing it wants the same shape: `nonisolated static func gains(for:
+//      Preset) -> (Float, Float, Float)`, then assert the four tuples differ. That single
+//      seam closes 1 and 2 together, which is why they are one follow-up and not two.
+//   3. **AN UNPARSEABLE STORED VALUE SPLITS ENGINE FROM CONTROL.** `applyPersistedPreset()`
+//      falls back to `.balanced` in the ENGINE, but nothing normalises the stored key, so
+//      `@AppStorage` would still hold a raw value matching no `.tag(...)` and a SwiftUI
+//      `Picker` with an unmatched selection shows NOTHING selected. Engine plays Balanced,
+//      control reads blank — which contradicts this file's own "a persisted choice and a live
+//      tap cannot disagree". Only reachable after a case RENAME, and claim 2 is the tripwire
+//      for that, so it is a corner. The repair has a precedent in the very same view:
+//      `normaliseUnreachableDonutMode()`.
 
 #if canImport(AVFoundation)
 import XCTest

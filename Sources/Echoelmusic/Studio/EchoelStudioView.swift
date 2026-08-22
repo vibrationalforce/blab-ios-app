@@ -317,6 +317,14 @@ struct EchoelStudioView: View {
     /// already has two `labeledRow("Character")` rows (the sound preset row and the Effects
     /// picker), and a third meaning of one word in one app is a worse defect than a longer
     /// label. The accessibility label spells it out for VoiceOver.
+    ///
+    /// ⛔ AND #736 COUNTED THE WORD IT REJECTED WITHOUT COUNTING THE WORD IT CHOSE (#737).
+    /// `groupHeader("Tone")` already exists in this same file — the synth-timbre group in the
+    /// Sound panel (Brightness / Harmonics / Noise / Shape). The pick STANDS: different panel,
+    /// a group HEADER rather than a row label, and on the master row the word is unambiguous
+    /// in place. But it is a SECOND "Tone", i.e. weaker than the collision it avoided, and the
+    /// paragraph above asserted a measurement it had not run on its own choice. **A rationale
+    /// that counts the alternatives must count the choice** — one `grep` either way.
     @AppStorage(StudioDefaultKeys.masterCharacter.key) private var masterCharacterRaw = StudioDefaultKeys.masterCharacter.value
     /// Immersive visual mode: the spectrum→visible donut renderer vs the Metal field.
     /// **Default is now `false` and there is no reachable control that turns it on** (#227) —

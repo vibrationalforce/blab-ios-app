@@ -467,9 +467,15 @@ final class AutoMixChain {
         eq.bands[1].frequency   = 140
         eq.bands[1].bypass      = false
 
-        // Band 2: Presence at 2.8 kHz (clarity/definition). Under `.balanced` this is
-        // +1.5 dB, trimmed 2026-07-07 (warmth pass) from +2 dB so the master doesn't push
-        // voices forward/cold; the other three characters move it — see `applyPreset()`.
+        // Band 2: Presence at 2.8 kHz (clarity/definition). The GAIN is not here — every
+        // character sets it in `applyPreset()`, and `.balanced`'s value was trimmed on the
+        // 2026-07-07 warmth pass so the master doesn't push voices forward/cold.
+        // ⛔ THIS COMMENT NAMED THE dB FIGURE TWICE OVER (#737): #736 removed the duplicated
+        // `.balanced` gains from this method for #416 and then wrote one of the three numbers
+        // back into prose one line above. A literal in a comment drifts exactly like a literal
+        // in code and NO needle catches it — claim 5 of the guard scans for `eq.bands[N].gain`,
+        // and the guard's own rule says prose about a literal is not the literal. This number
+        // had already drifted once (from +2 dB), so it was not hypothetical.
         eq.bands[2].filterType  = .parametric
         eq.bands[2].frequency   = 2800
         eq.bands[2].bandwidth   = 1.5

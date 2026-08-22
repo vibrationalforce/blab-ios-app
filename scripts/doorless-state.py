@@ -44,9 +44,13 @@ THREE SECTIONS, BECAUSE THE FIRST VERSION DROPPED TWO KINDS OF HIT IN SILENCE (#
     there — squarely the target shape, silently gone;
   · **MASKED** — written somewhere, but never in the file that declares it. `written` is keyed
     on the identifier alone, so any same-named binding anywhere hides a real hit. The case
-    this section exists for is `AutoMixChain.preset`: a documented four-way tonal choice with
-    `didSet { applyPreset() }` on a node `AudioEngine` constructs, invisible because
-    `BioSignalDeconvolver` and `BioSpaceMap` each write `self.preset = preset`. Typed
+    this section was BUILT for was `AutoMixChain.preset`: a documented four-way tonal choice
+    with `didSet { applyPreset() }` on a node `AudioEngine` constructs, invisible because
+    `BioSignalDeconvolver` and `BioSpaceMap` each write `self.preset = preset`. ⛔ PAST TENSE
+    SINCE #736 — that slice gave it a Picker, so `applyPersistedPreset()` now writes `preset`
+    inside its own file and the name has left this section for good. Kept as the worked
+    EXAMPLE, because it is the only positive this section has ever been proven to find; do
+    not read it as a live finding, and do not go looking for it in the output. Typed
     attribution is NOT the fix — #665 measured that last-type-before-the-member mis-attributes
     nested types and lost every real positive. Listing suspects is honest; deciding them is a
     human's job. Capped at 12; `DOORLESS_ALL=1` shows all.
@@ -179,10 +183,12 @@ def main():
 
     # ⛔ AND THE BLIND SPOT GETS A SECTION TOO, because naming it in prose was not enough.
     # `written` is keyed on the identifier alone, with no receiver type, so ANY same-named
-    # binding anywhere masks a real hit. Measured worst case: `AutoMixChain.preset` — a
-    # documented four-way tonal choice with `didSet { applyPreset() }` on a node the audio
-    # engine constructs — is invisible because `BioSignalDeconvolver` and `BioSpaceMap` each
-    # write `self.preset = preset`. Typed attribution is NOT the fix: #665 measured that
+    # binding anywhere masks a real hit. Measured worst case WHEN THIS SECTION WAS WRITTEN:
+    # `AutoMixChain.preset` — a documented four-way tonal choice with `didSet { applyPreset() }`
+    # on a node the audio engine constructs — WAS invisible because `BioSignalDeconvolver` and
+    # `BioSpaceMap` each write `self.preset = preset`. #736 doored it, so it is no longer in
+    # this list; the blind spot it demonstrated is unchanged. Typed attribution is NOT the fix:
+    # #665 measured that
     # last-type-before-the-member mis-attributes nested types and lost every real positive.
     # Listing the suspects is honest and cheap; deciding them is a human's job.
     suspect = sorted(
@@ -230,14 +236,19 @@ def main():
             print(f"    {name:26s} {' · '.join(h.split('/')[-1] for h in homes)}")
 
     if suspect:
-        # Capped by default: 96 suspects would drown the 35 hits, and a tool whose output
-        # nobody reads is the failure mode the doctor skill already names. What is withheld
-        # is stated, with the command that shows it — this repo's own slicing rule.
+        # Capped by default: a suspect list in the high dozens would drown the ~35 hits, and
+        # a tool whose output nobody reads is the failure mode the doctor skill already names.
+        # What is withheld is stated, with the command that shows it — this repo's own slicing
+        # rule. ⛔ THIS COMMENT SAID "96 suspects" AND "35 hits" AS FACTS; #736 doored one
+        # suspect and the 96 became 95 in the same commit that wrote it. Both live numbers are
+        # PRINTED four lines below and in the header — a count written down beside a count the
+        # program computes is a date, not a fact (`.claude/rules/context.md` §2).
         show = suspect if os.environ.get("DOORLESS_ALL") else suspect[:12]
         print(f"\n  MASKED — written somewhere, but never in the file that declares it")
         print(f"  ({len(suspect)}). A same-named binding elsewhere may be hiding a real hit;")
-        print(f"  most are ordinary cross-file setters. The one this section was built for is")
-        print(f"  `AutoMixChain.preset`, masked by two unrelated `self.preset = preset` lines.")
+        print(f"  most are ordinary cross-file setters. Decide them by hand; the section")
+        print(f"  lists candidates, it does not accuse. (The case it was built for,")
+        print(f"  `AutoMixChain.preset`, was doored by #736 and is no longer in this list.)")
         for name, f in show:
             print(f"    {name:26s} {f}")
         if len(show) < len(suspect):
