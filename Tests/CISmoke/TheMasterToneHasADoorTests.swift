@@ -35,15 +35,20 @@
 //
 // LIMITS, STATED FIRST (§1). Claims 1-2 and 8-10 are END-TO-END BEHAVIOUR over shipped value
 // types — 8-10 only became possible with #740, which lifted the curves and the stored-token
-// resolution out of the `@MainActor` class as pure values. Claims 3-7 remain a SOURCE-TEXT
-// SCAN: `applyPreset()` writes into an `AVAudioUnitEQ` and `masterPanel`'s members are
+// resolution out of the `@MainActor` class as pure values. Claims 3-7 AND 11 are a SOURCE-TEXT
+// SCAN (⛔ #743 added claim 11 and left this sentence saying "3-7", i.e. its own new claim was
+// missing from the file's statement of what kind of evidence it offers): `applyPreset()` writes into an `AVAudioUnitEQ` and `masterPanel`'s members are
 // `private` on a `View`, so the hand-off itself cannot be driven here. That the four curves
 // SOUND different, and that Warm actually reads warm, is a DEVICE PROBE and stays open — it
 // is also the only thing that matters to the founder's ear. **Claim 8 proves the four curves
 // are DIFFERENT; nothing here proves any of them is GOOD.**
 //
-// ⚠️ HONEST GRADING (#433/#464/#486) — AND IT IS TWO EPOCHS, WHICH #740 BOLTED TOGETHER AND
-// #741 SEPARATES. This block was written for #736 against ITS parent `e837ccb`; #740 then
+// ⚠️ HONEST GRADING (#433/#464/#486) — AND IT IS THREE EPOCHS. #740 BOLTED TWO TOGETHER,
+// #741 SEPARATED THEM, AND #743 ADDED A THIRD TREE WITHOUT ADDING A THIRD EPOCH — so for one
+// commit its two new claims had no grading entry anywhere in the file, in the block whose own
+// lesson (#741) is that these accumulate and must stay labelled. Applying a lesson to two of
+// three blocks in a file and not the third is how it looks when a rule is followed by memory
+// instead of by checklist (#744). This block was written for #736 against ITS parent `e837ccb`; #740 then
 // added bullets graded against ITS parent `c2895c8` into the same list. The result named two
 // different commits as "the parent" nine lines apart, and its "Claims 3-5 are REGRESSIONS"
 // bullet — true of `e837ccb` — was FALSE of `c2895c8`, where all three are green. **A grading
@@ -86,6 +91,16 @@
 //     could not close — an identical-curve collapse, and a stored-token resolution with no
 //     behavioural coverage at all.
 //
+// EPOCH 3 — #743 against `765b0b9`, corrected by #744:
+//   · Claims 1-10 are ALL GREEN on `765b0b9` — measured. #743 added no behaviour any of them
+//     read.
+//   · Claim 11 is a REGRESSION: `765b0b9` has ZERO call lines for
+//     `normaliseUnparseableMasterCharacter()`, and its `memberBody` anchor is absent as well,
+//     so it throws — a FAIL, not a skip (#454), which is right because the FILE exists.
+//   · Claim 12 was a COUNTERWEIGHT here and is DELETED by #744 — see the tombstone above the
+//     claim-7 mark. It forbade an instructed future deletion (#364) and was a third owner of a
+//     fact two guards in this bundle already hold (#416).
+//
 // ⚠️ STRIPPER (#453/#477): **TRAGEND (1 of 12)** — corrected in #737 after the #736 review,
 // and the correction is in BOTH halves of the label.
 //   · The DENOMINATOR was 3. This file reads **12** needles from source: claim 3 two,
@@ -95,13 +110,18 @@
 //     and contribute no source needles, and claim 7's four moved region-for-region. Measured
 //     rather than assumed, because "my new claims are behavioural so the count is the same"
 //     is precisely the kind of reasoning this paragraph exists to forbid.
-//   · ⭐ RE-MEASURED AGAIN AFTER #743: **TRAGEND (1 of 17)** — claims 11-12 add five needles
-//     and the single flip is unchanged. ⚠️ AND THE FIRST MEASUREMENT SAID **3 of 17**, because
+//   · ⭐ RE-MEASURED AGAIN AFTER #744: **TRAGEND (1 of 15)** — #743 read 17 with claim 12's
+//     two needles; deleting that claim removes them and the single flip is unchanged. The
+//     denominator moves whenever claims do, which is why it is re-counted every time rather
+//     than carried forward. ⚠️ AND THE FIRST MEASUREMENT SAID **3 of 17**, because
 //     it counted with `contains` while claims 11-12 test an EXACT TRIMMED LINE. As substrings,
 //     `normaliseUnreachableDonutMode()` is 5 raw / 2 stripped and `normaliseDoorlessLeadMix()`
 //     4 / 2 — the neighbouring prose discusses them by name. In the form the claims ACTUALLY
-//     use, a comment line trims to `// …` and never to the bare call, so all three are immune
-//     by construction: 1 raw / 1 stripped each. **Measure a needle in the form its assertion
+//     use, a comment line cannot equal the bare call, so all three are immune by construction:
+//     1 raw / 1 stripped each. (⛔ #743 wrote "a comment line trims to `// …`" — that is the
+//     RAW form; `SourceText.codeOnly` REMOVES `//` and everything after it, so a pure comment
+//     line becomes whitespace and trims to the empty string. Right conclusion, wrong mechanism,
+//     inside the paragraph explicitly about the stripped form.) **Measure a needle in the form its assertion
 //     uses.** Counting substrings for a line-equality claim overstated the flip by two — the
 //     same error class as measuring a whole file for a claim scoped to one member (#741).
 //   · The VERDICT was PROPHYLAKTISCH. Exactly one needle is comment-resident in its own
@@ -417,17 +437,28 @@ final class TheMasterToneHasADoorTests: XCTestCase {
         let calls: [String] = code.components(separatedBy: "\n")
             .map({ $0.trimmingCharacters(in: .whitespaces) })
             .filter({ $0 == "normaliseUnparseableMasterCharacter()" })
-        XCTAssertEqual(calls.count, 1, """
-            The launch normalisation is not CALLED exactly once (found \(calls.count)).
+        // ⛔ THIS WAS `XCTAssertEqual(calls.count, 1)` AND ITS UPPER BOUND NAMED A HARM THAT
+        // DOES NOT EXIST (#744). The stated reason was "two launch paths write the store and
+        // the later one wins silently" — but the method is guarded (`== nil else { return }`)
+        // and therefore idempotent: a second call is a no-op and nothing wins. A legitimate
+        // second call site — a scene-phase foreground re-check, say — would have gone red for
+        // a reason that is not real (#364). `>= 1` closes the hole that matters (zero = dead
+        // code) and forbids nothing.
+        XCTAssertGreaterThanOrEqual(calls.count, 1, """
+            The launch normalisation is never CALLED (found \(calls.count) call lines).
             `normaliseUnreachableDonutMode()` (#227) and `normaliseDoorlessLeadMix()` (#255)
             are the same shape one store over, and all three exist for one reason: a persisted
-            value whose only door cannot show it. Zero calls means the repair is dead code;
-            more than one means two launch paths write the store and the later one wins
-            silently.
+            value whose only door cannot show it. A declaration without a call is dead code —
+            which is why this counts CALL lines and not occurrences of the name.
             """)
         let fn = try memberBody(startingWith: "private func normaliseUnparseableMasterCharacter",
                                 in: Self.studio).joined(separator: "\n")
-        XCTAssertTrue(fn.contains("AutoMixChain.Preset.resolved(from: .standard)"), """
+        // The needle stops at the OPEN PAREN on purpose (#744): pinning `(from: .standard)`
+        // would red the day someone makes this normaliser injectable — which is the exact move
+        // #740 is credited for one level down (`resolved(from: defaults)`, the
+        // `resolvedTarget(from:)` shape). The guarantee worth naming is "resolves through the
+        // one owner", not which store it happens to be handed.
+        XCTAssertTrue(fn.contains("AutoMixChain.Preset.resolved(from:"), """
             The normalisation no longer resolves through `Preset.resolved(from:)`.
 
             Writing `.balanced` (or any literal) here would be a SECOND owner of token →
@@ -435,32 +466,43 @@ final class TheMasterToneHasADoorTests: XCTestCase {
             it would silently stop following the day the canonical fallback changes.
             """)
         XCTAssertFalse(fn.contains("applyPersistedPreset()"), """
-            The normalisation now re-applies the preset. It must not: the engine already
-            resolved the same way while building the graph, so the EQ is correct BEFORE this
-            runs. Re-applying makes this a second writer on the audio node for no gain, and
-            two writers on one node is how the launch-order bugs in this file started.
+            The normalisation now re-applies the preset. It must not, and #744 corrected WHY:
+            this `onAppear` is the first SYNCHRONOUS appear pass and `prepareGraph()` →
+            `configureEQ()` → `applyPersistedPreset()` runs from the ASYNC startup task
+            AFTERWARDS. (#743 said the engine had already resolved — the reverse.) So the store
+            is corrected first and the engine never sees an unparseable token; re-applying here
+            would write the EQ before the graph exists, and two writers on one node is how the
+            launch-order bugs in this file started.
             """)
     }
 
-    // MARK: - 12 · COUNTERWEIGHT: the launch block that hosts it is still there
-
-    /// If the whole normalisation block were removed, claim 11's first needle would go red —
-    /// but only because the CALL vanished, which reads as "someone deleted my line". This says
-    /// the SIBLINGS are the reason the block exists, so a red here names the real event: the
-    /// launch-time repair pass itself is gone, and three stores lost their only correction.
-    func testTheNormalisationBlockStillCarriesItsSiblings() throws {
-        let code = try codeOf(Self.studio)
-        for sibling in ["normaliseUnreachableDonutMode()", "normaliseDoorlessLeadMix()"] {
-            let called = code.components(separatedBy: "\n")
-                .contains(where: { $0.trimmingCharacters(in: .whitespaces) == sibling })
-            XCTAssertTrue(called, """
-                `\(sibling)` is gone from the launch block. #743 added a third normalisation
-                on the strength of those two being the established shape; if the pass itself is
-                being retired, this claim and `normaliseUnparseableMasterCharacter()` go with
-                it in the same commit (#456) — do not leave one orphan behind.
-                """)
-        }
-    }
+    // ⛔ CLAIM 12 STOOD HERE AND IS DELETED (#744). It hard-asserted that BOTH sibling
+    // normalisations — `normaliseUnreachableDonutMode()` (#227) and `normaliseDoorlessLeadMix()`
+    // (#255) — are still called, as a counterweight saying "the launch repair pass itself is
+    // gone" rather than "someone deleted my line".
+    //
+    // It was a TRAP, in two ways that the review measured and I had not:
+    //   1. **It forbids instructed future work (#364).** Both siblings carry a written expiry
+    //      in their own declarations — verbatim: "⛔ DELETE THIS TOGETHER WITH THE LINE THAT
+    //      CALLS IT, IN THE SAME COMMIT THAT GIVES `showVisual` A SETTER AGAIN (#227)" and the
+    //      same sentence for `MixerStore.lead`. The day either door returns, the correct and
+    //      explicitly-ordered change makes claim 12 RED — and its failure message then gave
+    //      the wrong diagnosis ("the pass is being retired") and prescribed the wrong repair
+    //      (delete an unrelated third normaliser whose own store still has no door).
+    //   2. **It was a THIRD owner of a fact two guards already hold (#416).** Both expiries are
+    //      pinned as XOR pairings in this same bundle — `VisualFineTuneReflowsTests`
+    //      (`XCTAssertNotEqual(hasDoor, normalises)`) and `LeadMixDoorAndNormalisationTests`.
+    //      The first of those even says in its own doc: "Deliberately NOT re-anchored here
+    //      (#416: one definition of that fact)." I added the re-anchoring it had refused, in
+    //      the same bundle, without reading it.
+    //
+    // ⭐ THE LESSON IS NOT "COUNTERWEIGHTS ARE RISKY" — #343 still holds. It is narrower:
+    // **before pinning a neighbour's state, read whether that neighbour has a documented
+    // expiry, and whether something already pins it.** A counterweight over a value someone
+    // is under instructions to delete is a guard against the plan.
+    //
+    // Claim 11 keeps its own diagnosis without help: it counts CALL lines, so zero says "dead
+    // code" and its message says so.
 
     // MARK: - 7 · COUNTERWEIGHT: all four curves still exist
 

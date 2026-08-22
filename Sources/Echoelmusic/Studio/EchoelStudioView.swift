@@ -5811,9 +5811,24 @@ struct EchoelStudioView: View {
     /// from the Picker's `.onChange`. If the fallback ever stops being `.balanced`, this
     /// follows without being touched.
     ///
-    /// ⚠️ It does NOT call `applyPersistedPreset()`. The engine already resolved the same way
-    /// at launch, so the EQ is correct before this runs; this only makes the STORE agree with
-    /// it. Re-applying would be a second writer on the audio node for no gain.
+    /// ⚠️ It does NOT call `applyPersistedPreset()` — and the reason is the OPPOSITE of what
+    /// #743 wrote here. That version said "the engine already resolved the same way at launch,
+    /// so the EQ is correct before this runs". ⛔ THE ORDER IS REVERSED (#744): this `onAppear`
+    /// is the first SYNCHRONOUS appear pass, and `prepareGraph()` → `configureEQ()` →
+    /// `applyPersistedPreset()` runs from the ASYNC startup task afterwards. Two comments in
+    /// this repo already state that order — one nine lines below this block, one in
+    /// `EchoelmusicApp` beside the startup task — and the #743 rationale contradicted both.
+    ///
+    /// The correct reason is stronger: **the store is corrected FIRST, so the engine never
+    /// sees an unparseable token at all** and resolves the already-normalised one. Re-applying
+    /// here would write the EQ before the graph exists. Today's outcome is identical either
+    /// way (both routes land on `.balanced`), which is exactly why a wrong rationale could sit
+    /// in three places without anything going red — the case this file legislates against by
+    /// name: a comment with a wrong reason is worse than no comment.
+    ///
+    /// ⚠️ ONE REAL CONSEQUENCE, worth knowing before someone adds logging: a future
+    /// `resolved(from:)` that wanted to LOG or MIGRATE on an unparseable token would never see
+    /// one, because the view erased it first. Put such a hook here, not in the engine path.
     private func normaliseUnparseableMasterCharacter() {
         guard AutoMixChain.Preset(rawValue: masterCharacterRaw) == nil else { return }
         masterCharacterRaw = AutoMixChain.Preset.resolved(from: .standard).rawValue
