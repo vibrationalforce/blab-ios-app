@@ -54,13 +54,36 @@ public final class ResourceGovernor {
     public private(set) var settings: QualitySettings =
         AdaptiveQuality.settings(for: .balanced)
 
-    /// Whether automatic governing is on. When off, `settings` is held at
-    /// `manualTier` so a performer can pin a tier (e.g. force High for a show).
+    /// Whether automatic governing is on.
+    ///
+    /// ⛔ THIS LINE SAID a performer "can pin a tier (e.g. force High for a show)" AND NO
+    /// PERFORMER CAN (#727). Measured across all 369 files under `Sources/`, comments
+    /// stripped: `isAutomatic` occurs THREE times — this declaration, its own `didSet`, and
+    /// the `guard` in `recompute()`. There is no writer, no binding, no control. It is
+    /// permanently `true`.
+    ///
+    /// ⚠️ AND THE CONSEQUENCE IS ONE STEP FURTHER THAN A MISSING SWITCH: because the flag can
+    /// never be `false`, the `guard isAutomatic else { apply(…manualTier) }` branch in
+    /// `recompute()` is UNREACHABLE, so `manualTier` — whose only read lives inside it — can
+    /// never affect anything either. Two `public var`s that read as the manual-override half
+    /// of this class, and that half does not run.
+    ///
+    /// ⭐ THE AUTOMATIC HALF IS LIVE AND UNAFFECTED. `EchoelmusicApp` constructs the governor,
+    /// `MetalBioView` reads it via `@Environment`, `ExternalStageBridge` wires it, and its
+    /// `bioHz` output drives `OSCSender`'s egress ceiling. Nothing here is dead code in the
+    /// sense of "delete it" — what is absent is the DOOR, and the sentence that promised one.
+    ///
+    /// ⚠️ WHETHER A PERFORMER SHOULD BE ABLE TO PIN A TIER IS A FOUNDER QUESTION, not a
+    /// cleanup. Pinning High for a show is a real live-performance need, and the machinery is
+    /// two lines from working; this note exists so that question gets asked from facts rather
+    /// than from a doc comment that already claims the answer. Guard:
+    /// `Tests/CISmoke/TheQualityPinHasNoDoorTests.swift` — it forbids building one (#364).
     public var isAutomatic: Bool = true {
         didSet { recompute() }
     }
 
-    /// The tier used when `isAutomatic == false`.
+    /// The tier used when `isAutomatic == false` — i.e. never, until that flag gets a writer.
+    /// See the ⛔ block above; this property's only read is inside the unreachable branch.
     public var manualTier: QualityTier = .balanced {
         didSet { if !isAutomatic { recompute() } }
     }
