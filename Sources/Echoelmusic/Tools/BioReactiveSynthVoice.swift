@@ -66,7 +66,23 @@ public final class BioReactiveSynthVoice {
 
     /// When true, breath inhale/exhale onsets from the bus drive the
     /// envelope (the synth breathes with you) whenever the voice is armed
-    /// and no external controller note is held. Toggle off for pure manual play.
+    /// and no external controller note is held.
+    ///
+    /// ⛔ THIS LINE SAID "Toggle off for pure manual play" AND THERE IS NOTHING TO TOGGLE
+    /// IT WITH (#724). Measured across `Sources/`: exactly ONE assignment, the declaration
+    /// below; zero `$breathPlayEnabled` bindings; zero `.toggle()` calls. It is therefore
+    /// permanently `true`, and the two-condition gate in `consumeBioEventsIfFresh` —
+    /// `guard isArmed, breathPlayEnabled, !heldByController` — is effectively one condition.
+    ///
+    /// ⭐ THE ENGINE HALF IS REAL AND THAT IS WHY THIS STAYS. The consumer reads it on every
+    /// bio event, so wiring a door is one line plus a control; the flag is a knob waiting
+    /// for a surface, not dead code. What was wrong is a doc comment describing a capability
+    /// ("toggle off") in the present tense when no producer exists — the same shape CLAUDE.md
+    /// records for `.motion`, `.eegBurst` and the tempo modulation route.
+    ///
+    /// ⚠️ NOT a decision that it SHOULD have a door. "Breathe with me / manual only" is a
+    /// product question for the founder, next to the Body-voice arm switch (#277) in the
+    /// bio panel. This note records the state so that question is asked from facts.
     public var breathPlayEnabled = true
 
     // MARK: - Bus subscription state
