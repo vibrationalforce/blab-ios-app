@@ -64,6 +64,47 @@ def read(path: Path) -> str:
         return ""
 
 
+def _interpolation_end(line: str, at: int) -> int:
+    """Index just past the `)` that closes an interpolation whose `(` is at `at`.
+
+    Returns `len(line)` when the span does not close on this line — the span is then treated
+    as running to end of line, which keeps the walk in literal state instead of guessing.
+
+    ⛔ WHY THIS EXISTS: without it, `\(` was consumed as a plain escape and the next `"` — the
+    OPENING quote of a nested literal inside the interpolation — read as the CLOSING quote of
+    the outer one. Phase inverted for the rest of the interpolation, so its text was emitted
+    as CODE. Measured on `XCTFail("no \(a["func ghostX("]) here")`: the needle survived the
+    haystack blanking and found ITSELF, i.e. the #708 self-match again, one literal-shape over
+    from the one #718 closed. The shape exists 146 times in `Tests/CISmoke` and 45 in
+    `Sources/` — latent then, not any more.
+
+    Nested literals are skipped with their own escape handling, so a `)` inside a string
+    (`\(a[")"])`) does not close the span early.
+    """
+    depth, i, n = 0, at, len(line)
+    while i < n:
+        ch = line[i]
+        if ch == '"':
+            i += 1
+            while i < n:
+                if line[i] == "\\":
+                    i += 2
+                    continue
+                if line[i] == '"':
+                    i += 1
+                    break
+                i += 1
+            continue
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return i + 1
+        i += 1
+    return n
+
+
 def _code_only(text: str, blank_strings: bool = False) -> str:
     """Swift source with comments blanked, line count preserved.
 
@@ -75,9 +116,14 @@ def _code_only(text: str, blank_strings: bool = False) -> str:
     delimiters. That is what a haystack needs: a real declaration survives, a needle cannot
     find itself (#708). ⛔ Both passes come from THIS ONE WALK on purpose. The first version
     did the second pass with `re.sub(r'"[^"]*"', '""', line)`, a second and weaker idea of
-    where a literal ends — it mis-pairs on a backslash-escaped quote, so on the 304 guard-file
-    lines that carry one, the needle text emerged unblanked and found itself. Two definitions
-    of "where a string starts" is the #416 shape; there is now one.
+    where a literal ends — it mis-pairs on a backslash-escaped quote, so the needle text could
+    emerge unblanked and find itself. Two definitions of "where a string starts" is the #416
+    shape; there is now one. ⚠️ THAT ONE WAS LATENT, NOT LIVE: measured over the real guard
+    bundle, ZERO needles survived the old blanking. The repro needs an escaped quote BEFORE
+    the needle on the same line (`contains("a \" b"), "func phantomX("`). The commit that
+    made this repair asserted an occurrence and had none — the same standard the boundary
+    check below applies to itself ("a latent false green, not a live one") had not been
+    applied to it.
 
     ⚠️ HONEST LIMITS — a stripper that silently mis-parses is worse than none, and the
     failure direction is NOT one-sided: this walk ERASES text, and erased text feeds both the
@@ -85,11 +131,21 @@ def _code_only(text: str, blank_strings: bool = False) -> str:
       · It understands `"` strings with backslash escapes, Swift triple-quoted literals, raw
         strings (`#"…"#`, any number of hashes, including `#\"\"\"…\"\"\"#`), `//` to end of
         line and `/* */` across lines.
+      · Interpolation (`\\(expr)`, `\\#(expr)` in a raw string) is spanned by
+        `_interpolation_end` and emitted as LITERAL text, so a declaration mentioned inside
+        one is invisible — a MISS, the safe direction. ⛔ Until that helper existed the
+        opposite happened: the walk desynchronised and emitted the interpolation as CODE, so
+        a needle inside one found ITSELF. The docstring stated the safe direction while the
+        code did the unsafe one, which is worse than either — a reader who trusts the line
+        does not look. Now the line is true.
+      · A backslash-escaped `\\"\"\"` inside a triple-quoted body no longer closes it. It used
+        to, and the real terminator then RE-OPENED the literal, erasing every declaration to
+        end of file (a FALSE ALARM, the expensive direction).
       · It does NOT understand NESTED block comments, which Swift permits: in
         `/* a /* b */ func real() {}` the outer `*/` leaks and `func real` survives. Same
         behaviour as the Swift twin, which documents it.
-      · It is a character scan, not a lexer. Interpolation (`\\(expr)`) inside a literal is
-        treated as literal text, so a declaration mentioned there is invisible.
+      · It is a character scan, not a lexer. Anything above is a shape it was TAUGHT, not a
+        grammar it derives — the next unknown shape fails silently, in either direction.
 
     ⛔ THE `\"\"\"` CASE IS WHY THIS IS NOT OPTIONAL. Before it was handled, a `/*` inside a
     triple-quoted failure message — and this repo routinely writes globs like `Sources/**` in
@@ -98,11 +154,26 @@ def _code_only(text: str, blank_strings: bool = False) -> str:
     including 37 real declarations, and a phantom needle injected into the swallowed region
     was NOT caught. `Tests/CISmoke/SourceText.swift` had already written that exact analysis
     ("a negative scan goes GREEN ON NOTHING") for the `///` case; this reproduced it one
-    literal-shape over. Re-derive with:
+    literal-shape over. The recipe below is a REGRESSION CHECK and must print 0 — reproducing
+    the 621 needs `git show b618883:scripts/doctor.py`, because the defect is in that walk:
         python3 -c "import sys;sys.path.insert(0,'scripts');import doctor as d;\\
     print(sum(1 for f in d.tracked('Tests/CISmoke/*.swift') \\
     for r,o in zip(d.read(f).split(chr(10)), d._code_only(d.read(f)).split(chr(10))) \\
     if r.strip() and not o.strip() and not r.strip().startswith('//')))"
+
+    ⛔ THE TWINS NOW DIVERGE ON `\"\"\"`, DELIBERATELY, AND THAT IS A DECISION THE REPO HAS
+    ALREADY GUARDED. `Tests/CISmoke/SourceText.swift` says of its own `\"\"\"` blindness "IT IS
+    DELIBERATELY NOT FIXED, and the measurement is the reason rather than the effort": teaching
+    the SWIFT scanner about `\"\"\"` would start handing Metal shader PROSE to
+    `GlitterCannotBecomeAFlashTests`, the WCAG 3 Hz guard, and
+    `TheStripperDoesNotKnowATripleQuoteTests` exists to go red the day a second file joins the
+    disagreeing set. That reason does NOT transfer here: this walk feeds a needle scan and a
+    declaration haystack, no safety guard reads it, and `\"\"\"` bodies are prose to it. Making
+    THIS twin `\"\"\"`-aware is therefore right and the Swift one staying blind is also right —
+    but they are no longer the same algorithm, and nothing checks that. ⚠️ The commit that
+    introduced the divergence cited SourceText's `///` analysis as supporting precedent and
+    omitted its `\"\"\"` conclusion from the same file, which is the citation failure this repo
+    names most often.
 
     ⚠️ NOT covered by `OneDefinitionOfCodeNotProseTests` — that census anchors on the literal
     `func codeOnly` and scans Swift only, so this twin is invisible to it. Drift between the
@@ -137,6 +208,20 @@ def _code_only(text: str, blank_strings: bool = False) -> str:
 
             if in_multi:
                 closing = '"""' + "#" * multi_hashes
+                interp = "\\" + "#" * multi_hashes + "("
+                # ⛔ A BACKSLASH-ESCAPED `\"""` INSIDE THE BODY CLOSED IT EARLY, and the real
+                # terminator then RE-OPENED the literal — blinding every declaration to the end
+                # of the file (a false alarm, the expensive direction). 7,504 lines currently
+                # sit inside a `"""` body carrying a backslash; one `\"""` was all it took.
+                if multi_hashes == 0 and ch == "\\" and not line.startswith(interp, i):
+                    emit(line[i:i + 2], True)
+                    i += 2
+                    continue
+                if line.startswith(interp, i):
+                    end = _interpolation_end(line, i + len(interp) - 1)
+                    emit(line[i:end], True)
+                    i = end
+                    continue
                 if line.startswith(closing, i):
                     in_multi = False
                     buf.append(closing)
@@ -148,6 +233,12 @@ def _code_only(text: str, blank_strings: bool = False) -> str:
 
             if in_str:
                 closing = '"' + "#" * str_hashes
+                interp = "\\" + "#" * str_hashes + "("
+                if not esc and line.startswith(interp, i):
+                    end = _interpolation_end(line, i + len(interp) - 1)
+                    emit(line[i:end], True)
+                    i = end
+                    continue
                 if esc:
                     esc = False
                     emit(ch, True)
@@ -594,13 +685,16 @@ def section_b() -> Section:
     # targets. Consequence measured: a needle for `func openAppSettings()` — declared only in
     # `MicrophoneManager.swift` — reported as a phantom. That is the cry-wolf failure this
     # block's own comment warns against, inside the check that warns about it. `Sources/**`
-    # alone returns all 369; the two other Sources-globs in this file already knew to widen.
+    # alone returns all 369 — but so does `Sources/*.swift`, because git's `*` in an ls-files
+    # pathspec crosses `/`, and that is the form the two other Sources-globs in this file use
+    # (`:726`, `:816`). `**/*.swift` would STILL miss a file placed directly in `Sources/`, so
+    # this line now uses their form rather than a second one that happens to agree today.
     def _declarations_only(paths: list[Path]) -> str:
         return "\n".join(_code_only(read(f), blank_strings=True) for f in paths)
 
     guards = sorted(tracked("Tests/CISmoke/*.swift"))
     if guards:
-        haystack = _declarations_only(sorted(tracked("Sources/**/*.swift")) + guards)
+        haystack = _declarations_only(sorted(tracked("Sources/*.swift")) + guards)
         phantoms = []
         for f in guards:
             for i, line in enumerate(_code_only(read(f)).split("\n")):
@@ -608,8 +702,10 @@ def section_b() -> Section:
                     continue
                 for m in needle_shape.finditer(line):
                     # A bare needle (`"struct Bio"`) must not resolve by PREFIX against
-                    # `struct BioStripView` — 28 of the needles carry no `(`. All 28 resolve
-                    # exactly today, so this closes a latent false green, not a live one.
+                    # `struct BioStripView` — 28 of the 38 needles that are actually SCANNED
+                    # carry no `(` (31 of the 41 matched; all 3 absence-exempt ones are
+                    # paren-less, so the two denominators differ). All 28 resolve exactly
+                    # today, so this closes a latent false green, not a live one.
                     #
                     # ⛔ THE BOUNDARY MUST NOT BE APPLIED TO A NEEDLE THAT ENDS IN `(`. The
                     # first version appended it unconditionally and produced EIGHT false
