@@ -376,7 +376,7 @@ struct PatchbayView: View {
     }
     private static func clampPort(_ v: Float) -> UInt16 { UInt16(min(max(Int(v.rounded()), 1), 65_535)) }
 
-    // MARK: - Licht (L1: Grand Master + Blackout, drives Art-Net AND sACN)
+    // MARK: - Licht (L1: Grand Master + Blackout + DMX resolution, drives Art-Net AND sACN)
 
     private var lichtSection: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -401,13 +401,42 @@ struct PatchbayView: View {
                 .buttonStyle(.plain)
                 .accessibilityLabel(artNet.blackout ? "Blackout active — turn the light back on" : "Blackout — black out the light immediately")
             }
-            Text("Master scales the brightness of all outgoing light data (Art-Net + sACN). Blackout goes dark instantly; the return fades back in flicker-free.")
+            HStack(spacing: 10) {
+                Text("DMX").font(EchoelTheme.font(11, .semibold)).foregroundStyle(EchoelTheme.dim)
+                Picker("DMX resolution", selection: dmxResolutionBinding) {
+                    Text("16-bit").tag(ArtNetSender.DMXResolution.sixteenBit)
+                    Text("8-bit").tag(ArtNetSender.DMXResolution.eightBit)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityLabel("DMX resolution — 16-bit for smooth fades, 8-bit for legacy fixtures")
+            }
+            Text("Master scales the brightness of all outgoing light data (Art-Net + sACN). Blackout goes dark instantly; the return fades back in flicker-free. 16-bit sends paired coarse/fine channels for smooth fades; pick 8-bit only for fixtures that cannot read them.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+    }
+
+    /// One choice, both protocols — the same law as the master fader above. Until this row
+    /// existed, `resolution` had ZERO writers in the whole repository while its own doc called
+    /// 8-bit "the legacy mode for simple fixtures": a selectable mode with no selector, and the
+    /// `.eightBit` encoder branch was reachable only from a unit test. The row is what makes
+    /// that sentence true.
+    ///
+    /// ⚠️ LIVE STATE, NOT PERSISTED — deliberately the same rule as `grandMaster`/`blackout` in
+    /// this section, so a fresh launch always starts at the higher-precision default. A fixed
+    /// installation would rather have it persist like `universe` does; that is a separate
+    /// slice, and it needs its own key plus a decode default, not a `didSet` bolted on here.
+    private var dmxResolutionBinding: Binding<ArtNetSender.DMXResolution> {
+        Binding(
+            get: { artNet.resolution },
+            set: { r in
+                artNet.resolution = r
+                sacn.resolution = r
+            }
+        )
     }
 
     /// One fader, both protocols — the patchbay is the "kleines Lichtpult".
