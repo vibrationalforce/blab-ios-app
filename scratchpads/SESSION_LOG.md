@@ -10936,3 +10936,34 @@ grün. `1d481a9` (#714) lief noch. `13a8a96` (#712) war ein **Infrastruktur-Flak
 dokumentierte Antwort ist ein neuer Lauf, keine Codeänderung; #713s Push hat ihn geliefert.
 
 **Nicht geräteverifiziert.** Braucht einen Founder-Lauf am Gerät.
+
+## 2026-08-22 (cron, 24h-Mandat) — v10.79.418 ausgeliefert · #715/#716: MIDI-out hinterlässt jetzt eine LESBARE Spur
+
+**v10.79.418 ist erfolgreich auf TestFlight** (Lauf 2536, `7c67c12`). Bündelt #676–#714 und
+ersetzt die offenen Prüf-Bitten von 416 UND 417 — derselbe eine Handgriff, mehr Antworten.
+Neu bedienbar: Autotune-Charakter (#681) · Granular-Stufe (#684–#695, **auf der Musik, nicht
+auf der Stimme** — steht so in der Notiz) · MPE über MIDI-out (#713/#714).
+
+**#715** schließt ein Loch, das ich beim Fragen „kann sein Log überhaupt beantworten, worum ich
+ihn bitte?" gefunden habe. `log.log` erreicht `os_log` plus einen Ring, den `ProfessionalLogger`
+selbst „write-only today" nennt. Die Datei, die der Founder exportiert (`echoel_diag.log`),
+schreibt nur `EchoelCrashLog`. `MIDIOutput` hatte **neun** `log.log`-Zeilen und **null**
+Breadcrumbs — die zwei MPE-Schalter aus #713 waren vom Gerät aus also unsichtbar. Ein
+`logOutcome`-Helfer schreibt jetzt BEIDE Senken, an sieben Zustandswechseln. **Nicht** auf dem
+Noten- oder Puls-Pfad: `breadcrumb` macht `write(2)`.
+
+**#716** = zehn Reviewer-Befunde, zwei davon blockierend:
+1. **Der Wächter war blind für genau den Pfad, für den er existiert.** Seine Nadeln hießen
+   `pulseClock` / `sendClock` — beide hat es **nie gegeben**. Der Puls-Handler ist `emitPulse()`
+   (24 PPQN ⇒ 48 Aufrufe/s bei 120 bpm). Ein Breadcrumb dort wäre grün durchgelaufen. Jetzt
+   richtige Namen UND jede Nadel verankert (#367). **Dritter Fall dieser Klasse in dieser
+   Session** — eine Nadel, die nichts trifft.
+2. **Eine `public`-API hat ihren Doc-Kommentar verloren.** #715 schob den neuen Helfer zwischen
+   Doc-Block und Deklaration; zusammenhängende `///`-Zeilen sind EIN Kommentar, also gehörten
+   ~20 Zeilen über den Preferences-Besitzer (samt #714s Korrektur) plötzlich einem Log-Helfer.
+3. Dazu: alle Fehlermeldungen druckten `\(...)` wörtlich statt des Werts · „re-enabled on an
+   open port" feuerte bei JEDEM Play und behauptete eine Zustandsänderung, die nicht stattfand ·
+   die zwei MIDI-Clock-FEHLER blieben unlesbar · „nur `breadcrumb` schreibt die Datei" war an
+   der Kante falsch (die Crash-Handler schreiben direkt auf den fd).
+
+**Gates:** #713/#714 grün (170 Tests, 0 Fehler). #715/#716 liefen zum Schreibzeitpunkt noch.
