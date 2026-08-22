@@ -11059,3 +11059,50 @@ zählte die Geschwister mit demselben Merge-Loch auf und nannte drei (`README.md
 **Erlaubnis-Liste aus fünf Pfaden**, also hat **jeder andere** Pfad das Loch — auch
 `scripts/**`, `Resources/**` und die `*.entitlements`. Steht dort jetzt so, samt gemessener
 Filter-Liste aller Workflows.
+
+---
+
+## 2026-08-22 — #729/#730: eine falsche Messung zurückgenommen, eine tote Wahl aufgemacht
+
+**#729 (`548ecb3`)** — Reparatur nach dem Pflicht-Reviewer auf #728. Zwölf Befunde, zehn
+unter Nachmessung bestätigt; vier entscheiden die Scheibe:
+· Die Stripper-Messung war FALSCH und in der schmeichelnden Richtung: #728 druckte
+  `PROPHYLAKTISCH (0 of 6)`, während seine eigene Zähl-Behauptung 7 roh gegen 3 gestrippt
+  las — also `TRAGEND (1 of 6)`. Dieselbe Scheibe hat die Messung eingeführt UND die
+  Behauptung in die stripper-abhängige Form umgeschrieben.
+· „its own `didSet`" ist falsch in drei Heimaten: `isAutomatic`s eigenes `didSet` ist
+  `didSet { recompute() }` und enthält den Namen gar nicht; das dritte Code-Vorkommen
+  gehört `manualTier`.
+· `git grep -c isAutomatic -- Sources` druckt 7, zitiert für die Zahl DREI — die
+  `EchoelModalBank`-Form, einen Commit nach dem Zitat derselben Lehre. Repariert durch
+  GAR KEINE rohe Zahl: der erste Entwurf ersetzte das Rezept durch die 7 und machte sie im
+  selben Commit zur 8, indem er die erklärenden Zeilen hinzufügte.
+· Die `== 3`-Behauptung ist ZURÜCKGENOMMEN (#364), einen Commit nach ihrer Entstehung. Sie
+  wird rot bei zwei gewöhnlichen KORREKTEN Edits (Vereinfachung von `manualTier`s `didSet`
+  → 2; `oldValue`-Deduplizierung auf der Deklaration → 4), und ihre Fehlermeldung nennt in
+  beiden Fällen die falsche Ursache. Das GESETZ bleibt in Prosa, die brüchige Behauptung
+  nicht.
+Zusätzlich: Claim 1s Ausnahme ist jetzt block- statt zeilen-basiert (die Zeile war 89
+Zeichen breit gegen einen Umbruch bei ~96 — dieselbe Umbruch-Fragilität, die #728 für
+Claim 1b reparierte und für Claim 1 stehen ließ). Zwei Prosa-Ausfälle in anderen Heimaten
+mitgezogen (#456). Benotung gegen `8af1934`: ALLE SECHS grün, NULL Regressionen.
+
+**#730 (`71bdd94`)** — `ArtNetSender.resolution` / `SACNSender.resolution`: `CaseIterable`,
+`public var`, **null Schreiber im GANZEN Repo**, nicht persistiert; die `.eightBit`-Zweige
+der drei Encoder waren aus der laufenden App unerreichbar. Anders als #724/#727 EXISTIERT
+hier die Fläche: `PatchbayView.lichtSection` fährt beide Sender schon gemeinsam
+(Grand Master, Blackout) und hängt hinter dem Routing-Sheet. Also **Tür gebaut statt
+Abwesenheit aufgeschrieben** — ein segmentierter Picker über `dmxResolutionBinding`, gleiche
+Form wie `grandMasterBinding`. Kein neuer Modal. Live-Zustand, nicht persistiert (die Regel
+dieses Abschnitts); Persistenz ist als eigene Scheibe an der Bindung vermerkt.
+Wächter: `Tests/CISmoke/TheDMXResolutionHasADoorTests.swift`, 7 Methoden, gegen `548ecb3`
+transkribiert (1 Regression, einmal gezählt (#486); 4 Gegengewichte), vier absichtlich
+kaputte Bäume geprüft. Stripper PROPHYLAKTISCH (0 von 7) mit zwei GEMESSENEN
+Gegenbeispielen statt einer Vermutung.
+
+**Gates zu #727/#728:** `Xcode Compile Check` success, `Build for Testing: Succeeded`,
+0 Compile-Fehler, 0 Testfehler, 170 beobachtet bestanden. Die beiden neuen Wächter standen
+NICHT im geleerten Log — #445: Abwesenheit beweist nichts.
+
+**Offen:** V0-Geräteprobe (Live-Monitoring-Schalter) beim Founder; „Voice clone — ja oder
+nein?"; Pflicht-Review zu #730 lief zum Zeitpunkt dieses Eintrags noch.
