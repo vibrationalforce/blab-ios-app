@@ -1,6 +1,6 @@
 // TheLawFileStaysUnderItsCeilingTests.swift
-// Echoel — #702, extended by #707 (§D) and corrected by #708. Blocking bundle: the other
-// suite cannot fail a merge (#208).
+// Echoel — #702, extended by #707 (§D), corrected by #708, widened by #746 (§E + §F).
+// Blocking bundle: the other suite cannot fail a merge (#208).
 //
 // WHAT THIS RECORDS. `CLAUDE.md` is loaded before the first line of work in EVERY session,
 // and `.claude/settings.json` sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "50"`, so compaction
@@ -32,8 +32,15 @@
 // same quantity the doctor prints or the two instruments disagree — the exact defect §D of
 // that file already paid for, where a stated threshold did not test the quantity it named.
 //
-// ⚠️ HONEST LIMITS. 5 tests, 10 assertion statements (1+1+4+2+2; counted in Python over lines
-// whose first token is XCTAssert). It measures SIZE, never quality: a file stuffed with 149 KB
+// ⚠️ HONEST LIMITS. 5 tests, 12 assertion statements (1+1+6+2+2; counted in Python over lines
+// whose first token is XCTAssert), and the count moved TWICE inside #746 while I wrote this
+// line. ⛔ I first put "8 (1+1+4+2)" here from the SHAPE of the edit — claim 5's two literal
+// assertions had become a loop, and I read that as "fewer". Measured, it was still 10: the
+// same two statements now run over three witnesses, so the statements held while the checks
+// went from two to six. Then extending claim 3 to §E and §F made it 12. Both retractions stay
+// visible in the header whose neighbour says `measure; do not recite`, because this is that
+// defect in its smallest form. The number that means something is what a claim PROVES; the
+// statement count tracks neither coverage nor strength. It measures SIZE, never quality: a file stuffed with 149 KB
 // of nonsense passes. And it cannot see the rest of the always-loaded surface — the three
 // `.claude/rules/*.md` files add ~13.7 KB that no assertion here bounds, deliberately, because
 // the ceiling belongs on the ONE file that grows.
@@ -43,7 +50,20 @@
 // repeated defect in its smallest possible form — a measured number quoted one edit later.
 // Re-derive: `for f in CLAUDE.md .claude/rules/*.md; do wc -c "$f"; done`.
 //
-// ⭐ GRADING (§3), restated for #708's parent because #707 edited this file and left #702's
+// ⭐ GRADING FOR #746 (this tree, parent `1d5b041`) — EPOCH 4. Claims 1, 2 and 4 are
+// COUNTERWEIGHTS (green on the parent too). Claim 3 is MIXED: its §A–§D assertions are
+// counterweights, its §E and §F assertions FORWARD (those sections did not exist on the
+// parent). Claim 5 is MIXED for the same reason and must be labelled as such: its
+// §C witness is a counterweight (it predates this commit), while the §E and §F witnesses are
+// FORWARD — the sections they name were created by THIS commit, so those four assertions were
+// unfalsifiable on the parent. Booking the whole claim as a counterweight would be the modest
+// direction and booking it all forward the flattering one (#464); it is neither.
+// ⚠️ And claim 2 came within 4,715 B of red rather than the 1,762 B it had before: #746 moved
+// the `PianoRollView` line-count nachlese (§E) and the `AdaptiveCardGrid` panel-count chain
+// (§F) out, taking `CLAUDE.md` from 148,238 B to 145,285 B. That is the repair claim 2's
+// message prescribes, executed — not a relaxation of the ceiling.
+//
+// ⭐ EARLIER GRADING (§3), restated for #708's parent because #707 edited this file and left #702's
 // grading describing #702's parent — the block is required to describe THE parent of the commit
 // that ships it, and a stale one is worse than none. Against `68625c1`: claims 1, 2, 4 and 5 are
 // COUNTERWEIGHTS (green there too — `CLAUDE.md` was 146,984 B, under the ceiling; the hook never
@@ -126,6 +146,23 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
             Presentation and CRAFT-TOOL-DOORS bullets both POINT at it instead of carrying \
             the history — same dangling-pointer failure as §C above.
             """)
+        // #746 moved two blocks for HEADROOM, the #707 shape: `CLAUDE.md` 148,238 → 145,285 B
+        // (2,953 B recovered on the file this guard tests; the always-loaded SURFACE fell by
+        // the same 2,953 B, because this commit spent nothing on `.claude/rules/*`). Both
+        // quantities are named on purpose — §D's lesson is a threshold that did not test what
+        // it named, and one number standing for two is how that happens.
+        XCTAssertTrue(ledger.contains("## E — `PianoRollView` (#475)"), """
+            §E (the `PianoRollView` line-count nachlese, moved by #746) is gone. CLAUDE.md's \
+            register bullet POINTS at it and keeps only the law (state the size of the edit, \
+            never a living file's line count) — a dangling pointer here means the law file \
+            promises a nachlese that no longer exists.
+            """)
+        XCTAssertTrue(ledger.contains("## F — `AdaptiveCardGrid` / reflowende Panels"), """
+            §F (the four versions of the reflowing-panel count, moved by #746) is gone. The \
+            adaptivity paragraph in CLAUDE.md POINTS here and keeps only the number, the \
+            re-derivation commands and the one sentence needed to USE them (a grid can live \
+            in a `private var` that is not a panel — follow the CALLER).
+            """)
     }
 
     // MARK: - 4: THE INVARIANT that makes the move worth anything
@@ -148,22 +185,36 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
             """)
     }
 
-    // MARK: - 5: the #702 move actually happened, in both directions
+    // MARK: - 5: the moves actually happened, in both directions
 
-    /// #472: grep AFTER moving. One retraction stands witness for the whole block — it is a
-    /// literal filename that never existed, so it cannot be re-derived by accident.
+    /// #472: grep AFTER moving. ONE witness stands for each moved block, chosen so it cannot
+    /// be re-derived by accident: a filename that never existed (#702 → §C), a struck line
+    /// count (#746 → §E), and a sentence naming the panel that never had a grid (#746 → §F).
+    ///
+    /// ⚠️ A witness is NOT a summary of its block — it is a tripwire. Its absence from the
+    /// ledger means a paid-for lesson was DELETED rather than moved; its presence in
+    /// `CLAUDE.md` means the block is re-accreting in the always-loaded file, which is how
+    /// the surface refilled in the nine days after #538.
     func testTheMovedProvenanceIsInTheLedgerAndNotInTheLawFile() throws {
-        let witness = "MIDIFileExporterDrumTests"
-        XCTAssertTrue(try rawFile("memory/LEDGER_COUNTS.md").contains(witness), """
-            The #474 retraction (a cited test file that NEVER existed) is missing from the \
-            ledger. #702 moved it out of CLAUDE.md on the promise that the ledger keeps \
-            every line — if it is gone from both, a paid-for lesson was deleted, not moved.
-            """)
-        XCTAssertFalse(try rawFile("CLAUDE.md").contains(witness), """
-            The moved provenance is back in CLAUDE.md. That is the re-accretion #702 exists \
-            to stop — it is how the block re-filled in the nine days after #538. Point at \
-            `memory/LEDGER_COUNTS.md` §C instead of re-quoting it.
-            """)
+        let ledger: String = try rawFile("memory/LEDGER_COUNTS.md")
+        let law: String = try rawFile("CLAUDE.md")
+        let witnesses: [(needle: String, section: String, what: String)] = [
+            ("MIDIFileExporterDrumTests", "§C", "the #474 retraction — a cited test file that NEVER existed"),
+            ("988 Zeilen", "§E", "the struck `PianoRollView` line count (#475 wrote 988; it was 987)"),
+            ("Der Träger sitzt in `weatherRow`", "§F", "the sentence naming the panel that never had a grid")
+        ]
+        for w in witnesses {
+            XCTAssertTrue(ledger.contains(w.needle), """
+                \(w.what) is missing from `memory/LEDGER_COUNTS.md` \(w.section).
+                Every move out of CLAUDE.md was made on the ledger's promise to keep every \
+                line. If this needle is in NEITHER file, the lesson was deleted, not moved.
+                """)
+            XCTAssertFalse(law.contains(w.needle), """
+                \(w.what) is back in CLAUDE.md. That is the re-accretion this guard exists \
+                to stop. Point at `memory/LEDGER_COUNTS.md` \(w.section) instead of \
+                re-quoting the provenance in the always-loaded file.
+                """)
+        }
     }
 
     // MARK: - file access

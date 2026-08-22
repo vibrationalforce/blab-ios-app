@@ -11318,3 +11318,34 @@ eine Teilstring-Nadel nicht.
 
 **Offen (unverändert):** V0-Geräteprobe (Live-Monitoring) · „Voice clone — ja oder nein?" ·
 ob die vier Master-Klangfarben richtig KLINGEN · Geräteprobe 8-bit-Fixture (#732).
+
+**#746** — die Decke über `CLAUDE.md` war der nächste echte Blocker: 148.238 B gegen die harte
+150.000-B-Grenze im BLOCKIERENDEN Bundle, also **1.762 B Luft** — der nächste Register-Eintrag
+hätte die Suite rot gemacht. Die vorgeschriebene Reparatur ist nicht Löschen, sondern
+PROVENIENZ verschieben. Zwei Blöcke sind wörtlich nach `memory/LEDGER_COUNTS.md` gewandert:
+**§E** (die `PianoRollView`-Nachlese: 988 gegen 987 Zeilen, acht gegen neun Behauptungen, die
+gestrichene 2291→1278) und **§F** (die vier Fassungen der reflowenden-Panel-Zahl, samt der
+dreimal geerbten `sessionPanel`-Fehlnennung). In der immer-geladenen Datei bleibt das GESETZ:
+die Größe des Eingriffs statt einer Zeilenzahl · ein Vermerk, der Lebendes für tot erklärt, ist
+die teuerste Sorte · ein Gitter kann in einem `private var` liegen, das kein Panel ist. Stand
+jetzt **145.283 B**, also **4.717 B Luft**.
+
+**Sicherheitsnetz statt Hoffnung:** vor dem Schnitt wurden alle String-Literale aus
+`Tests/CISmoke`, `Tests/EchoelmusicTests` und `scripts/doctor.py` indiziert, die wörtlich in
+`CLAUDE.md` vorkommen (350). Danach fehlten vier — drei zufällige Fragmente (` contains `,
+`func test`) und `struct PianoRollView`; keines wird von einem Wächter GELESEN. Die acht
+Stellen, die `CLAUDE.md` wirklich als Datei lesen, sind einzeln nachgefahren und alle grün.
+
+**Wächter mitgezogen (#456):** `TheLawFileStaysUnderItsCeilingTests` kennt jetzt §E und §F
+(Behauptung 3) und hat für jeden verschobenen Block einen eigenen Zeugen (Behauptung 5, jetzt
+eine Schleife über drei) — ein Zeuge fehlt im Ledger = Lehre gelöscht statt verschoben; ein
+Zeuge steht wieder in `CLAUDE.md` = der Block wächst dort nach. Sechs Mutanten, jeder genau
+eine Behauptung rot.
+
+⛔ **Und die Zahl im Kopf dieses Wächters ist mir zweimal weggelaufen, während ich sie schrieb:**
+erst „8 (1+1+4+2)", aus der FORM des Edits geraten (eine Schleife sieht nach weniger aus) —
+gemessen waren es weiter 10; dann durch die zwei neuen Behauptungen 12. Beide Rücknahmen stehen
+im Kopf, weil das genau der Defekt in kleinster Form ist, den der Nachbarabsatz verbietet.
+
+**Doctor:** 2 CRITICAL, beide unverändert und founder-gated (`ci.yml`-Masken, Phantom-Suite
+`ComprehensiveTestSuite`) — berichten, nicht editieren.
