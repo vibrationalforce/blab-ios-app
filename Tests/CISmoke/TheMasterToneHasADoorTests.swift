@@ -42,12 +42,20 @@
 // is also the only thing that matters to the founder's ear. **Claim 8 proves the four curves
 // are DIFFERENT; nothing here proves any of them is GOOD.**
 //
-// ⚠️ HONEST GRADING (#433/#464/#486). This file names `AutoMixChain.Preset.allCases` and
-// `StudioDefaultKeys.masterCharacter`, both created by THIS commit, so it **does not compile
-// against the parent `e837ccb` and no assertion has a verdict there** (#488 shipped a red gate
-// for a cycle behind exactly that ambiguity). Hand-transcribed in Python against both trees:
-//   · Claims 1-2 are FORWARD guards (#433) — they drive symbols this commit adds and could
-//     never have been red. What earns them a place is that they check the two failure modes a
+// ⚠️ HONEST GRADING (#433/#464/#486) — AND IT IS TWO EPOCHS, WHICH #740 BOLTED TOGETHER AND
+// #741 SEPARATES. This block was written for #736 against ITS parent `e837ccb`; #740 then
+// added bullets graded against ITS parent `c2895c8` into the same list. The result named two
+// different commits as "the parent" nine lines apart, and its "Claims 3-5 are REGRESSIONS"
+// bullet — true of `e837ccb` — was FALSE of `c2895c8`, where all three are green. **A grading
+// block is a statement about ONE tree; a guard that survives several commits accumulates
+// several, and they have to stay labelled or they start contradicting each other.**
+//
+// EPOCH 1 — #736 against `e837ccb`. The file named `AutoMixChain.Preset.allCases` and
+// `StudioDefaultKeys.masterCharacter`, both created by #736, so it **did not compile against
+// `e837ccb` and no assertion had a verdict there** (#488 shipped a red gate for a cycle behind
+// exactly that ambiguity). Hand-transcribed in Python against both trees at the time:
+//   · Claims 1-2 were FORWARD guards (#433) — they drive symbols #736 added and could never
+//     have been red. What earns them a place is that they check the two failure modes a
 //     compiler cannot: a stored default that does not PARSE (silently identical to a working
 //     one), and two characters sharing a display name.
 //   · ⛔ ONE SUB-ASSERTION INSIDE CLAIM 1 IS A MIRROR AND IS NOW LABELLED AS ONE (#367/#737).
@@ -61,15 +69,19 @@
 //     silence. Read it as a FORWARD tripwire on a hand-written initialiser, never as proof
 //     that persistence works. The two sibling assertions in the same method — distinct
 //     `displayName`s, non-empty `displayName` — are genuine and CAN fail today.
-//   · Claims 3-5 are REGRESSIONS: the parent has no Picker, no launch call, and spells the
-//     `.balanced` gains twice. Counted as ONE finding — the door's absence (#486).
-//   · Claim 6 is a COUNTERWEIGHT, green on both. Without it, deleting the chain from the
-//     graph would leave the door green over a control that moves nothing.
+//   · Claims 3-5 were REGRESSIONS on `e837ccb`: it has no Picker, no launch call, and spells
+//     the `.balanced` gains twice. Counted as ONE finding — the door's absence (#486).
+//   · Claim 6 is a COUNTERWEIGHT, green on every tree in this chain. Without it, deleting the
+//     chain from the graph would leave the door green over a control that moves nothing.
+//
+// EPOCH 2 — #740 against `c2895c8`, re-transcribed for #741:
+//   · Claims 1-6 are ALL GREEN on `c2895c8` — measured, not assumed. Everything #736 built is
+//     already there, so relative to #740's parent they are counterweights, not regressions.
 //   · Claim 7 is re-anchored by #740 and is ANCHOR-ABSENT on `c2895c8` (the branches lived in
 //     `applyPreset()` there, not on `Preset.gains`) — a FAIL, not a skip, which is the right
 //     reading per #454 since the FILE exists and only the member moved.
 //   · Claims 8-10 are FORWARD (#433): they name `Preset.gains` and `Preset.resolved(from:)`,
-//     both created by #740, so they do not compile against the parent and have no verdict
+//     both created by #740, so they do not compile against `c2895c8` and have no verdict
 //     there. What earns them their place is that they close the two gaps #737 registered and
 //     could not close — an identical-curve collapse, and a stored-token resolution with no
 //     behavioural coverage at all.
@@ -111,7 +123,8 @@
 //      `resolvedTarget(from:)` shape, and `applyPersistedPreset()` calls it.
 //   2. ✅ **CLOSED BY #740** — was: nothing asserted the four curves are DISTINCT, so giving
 //      all four identical gains stayed green while producing exactly the failure claim 7's
-//      message describes. `Preset.gains` is a pure tuple and claims 8-10 compare them.
+//      message describes. `Preset.gains` is a pure tuple and claims 8 AND 9 compare them
+//      (⛔ #740 wrote "claims 8-10"; claim 10 compares stored TOKENS and never reads a curve).
 //   3. **AN UNPARSEABLE STORED VALUE SPLITS ENGINE FROM CONTROL.** `applyPersistedPreset()`
 //      falls back to `.balanced` in the ENGINE, but nothing normalises the stored key, so
 //      `@AppStorage` would still hold a raw value matching no `.tag(...)` and a SwiftUI
@@ -226,7 +239,10 @@ final class TheMasterToneHasADoorTests: XCTestCase {
                 `configureEQ()` sets `\(band)` again. Until #736 the `.balanced` gains were
                 spelled out twice — here and in `applyPreset()`'s `.balanced` case, the same
                 three numbers — so changing one drifted from the other (#416). The gains belong
-                to `applyPreset()`; frequency, filter type, bandwidth and bypass belong here,
+                to `Preset.gains` (⛔ this message said `applyPreset()` until #741, and #740 is
+                the commit that moved them off it — a reader who redded this claim was told to
+                put them back where they no longer live); frequency, filter type, bandwidth
+                and bypass belong here,
                 because those are the same under every character.
                 """)
         }
@@ -254,6 +270,18 @@ final class TheMasterToneHasADoorTests: XCTestCase {
     /// Picker silently stopped doing anything. That is a worse state than the doorless one it
     /// replaced, because the operator would believe the master had moved. #740's pure
     /// `Preset.gains` is what makes this assertable at all.
+    ///
+    /// ⚠️ SCOPE, STATED (#741). It catches an EXACT duplicate and nothing softer. The key is
+    /// string-formatted, so `-0.0` and `0.0` — equal as `Float`, identical on the bus — read
+    /// as distinct; so does a 0.0001 dB difference, which is inaudible. The failure this
+    /// guards ("a Picker entry that changes nothing") has near-miss forms it does not see, and
+    /// tightening it would mean choosing an audibility threshold, which is the founder's ear
+    /// and not a constant.
+    ///
+    /// ⚠️ IT ALSO OVERLAPS CLAIM 9: any mutation making a non-transparent character flat reds
+    /// BOTH. Claim 9 earns its place on the other direction only — `transparent` ceasing to be
+    /// flat — which this claim cannot see. Said here because the header presents claim 9 as
+    /// two independent halves and only one of them is.
     func testEveryCharacterIsADistinctCurve() {
         let all = AutoMixChain.Preset.allCases
         var seen: [String: AutoMixChain.Preset] = [:]
@@ -285,9 +313,20 @@ final class TheMasterToneHasADoorTests: XCTestCase {
                 second Transparent. Both are audible, neither is a compile error.
                 """)
         }
-        // Every gain must stay inside what an AVAudioUnitEQ band accepts (±96 dB), and well
-        // inside what a master bus should ever do. A typo of one decimal place here is a
-        // shipped loudness bug, not a rounding difference.
+        // A sanity rail on the values, and its limits are stated because #740's version
+        // claimed more than it checks.
+        //   ⛔ "±96 dB" was WRONG: `AVAudioUnitEQFilterParameters.gain` accepts −96…+24 dB,
+        //     asymmetric. An unmeasured API range in a comment, in a file whose header spends
+        //     two paragraphs on "measure, do not assume".
+        //   ⛔ "a typo of one decimal place" has TWO directions and this bound catches ONE.
+        //     `5.0 → 50.0` reds; `5.0 → 0.5` is just as much a shipped loudness bug and passes
+        //     here AND passes claim 8, since it stays distinct. Read the bound as a rail
+        //     against a gross error, never as a check that the curve is right — the shipped
+        //     maximum is 5.0, so it carries 2.4× headroom by design.
+        //   ⚠️ `isFinite` is a MIRROR on today's code and is labelled as one (#367), the same
+        //     treatment claim 1's round-trip gets: `gains` returns four hand-written constant
+        //     tuples, so no mutation short of literally typing `.nan` can trip it. It stays as
+        //     a forward tripwire for the day these become computed.
         for p in AutoMixChain.Preset.allCases {
             let g = p.gains
             for (name, v) in [("low", g.low), ("presence", g.presence), ("air", g.air)] {
@@ -324,8 +363,16 @@ final class TheMasterToneHasADoorTests: XCTestCase {
         XCTAssertEqual(AutoMixChain.Preset.resolved(from: defaults), .balanced, """
             A FRESH INSTALL does not resolve to `.balanced`. Nothing calls
             `UserDefaults.register(defaults:)` for this key and `@AppStorage` defaults are
-            per-declaration, so `string(forKey:)` returns nil here and the canonical
-            fresh-install value in `StudioDefaultKeys` is doing all the work.
+            per-declaration, so `string(forKey:)` returns nil here.
+
+            ⚠️ WHAT THIS PROVES AND WHAT IT DOES NOT (#741). It proves the RESULT. It does not
+            prove that the `?? StudioDefaultKeys.masterCharacter.value` step is load-bearing,
+            because that value IS "balanced" and the terminal `?? .balanced` lands in the same
+            place — revert the seam to `Preset(rawValue: string(forKey:) ?? "")` and this stays
+            green. The two `??`s are provably interchangeable TODAY and stop being so the
+            moment the canonical default is anything but balanced; claim 2 is what pins that.
+            #740's message claimed the first `??` was "doing all the work" — it is doing work
+            no assertion can currently see.
             """)
 
         for p in AutoMixChain.Preset.allCases {
@@ -358,7 +405,13 @@ final class TheMasterToneHasADoorTests: XCTestCase {
     /// It stays because a `default:` collapsing three characters into one branch would go red
     /// here and is the cheapest way to accidentally erase them.
     func testAllFourCurvesStillHaveABranch() throws {
-        let body = try memberBody(startingWith: "        var gains:", in: Self.chain)
+        // ⛔ THE ANCHOR CARRIED EIGHT LEADING SPACES UNTIL #741 AND THEY BOUGHT NOTHING.
+        // `var gains:` occurs exactly once in the file, and `memberBody` derives the closing
+        // indent from the FOUND line, not from the prefix — so the spaces added only a false
+        // FAIL on a pure re-indent or on moving the property into an `extension`, which is the
+        // very failure mode #740 was fixing when it re-anchored this claim. It is also the
+        // only anchor in this file that carried whitespace; the others do not (#408).
+        let body = try memberBody(startingWith: "var gains:", in: Self.chain)
             .joined(separator: "\n")
         for c in ["case .balanced", "case .warm", "case .bright", "case .transparent"] {
             XCTAssertTrue(body.contains(c), """

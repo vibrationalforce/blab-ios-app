@@ -113,8 +113,16 @@ final class AutoMixChain {
     /// ⚠️ ONE OWNER, TWO CALLERS — the `MIDIOutput.applyOutputPreferences()` shape. The Picker
     /// in the Master panel writes the persisted key and this property; `configureEQ()` reads
     /// the key at launch through `applyPersistedPreset()`. Neither path re-implements the
-    /// curve: `applyPreset()` is the only place the numbers live (#416 — the static setup used
-    /// to spell the `.balanced` gains a second time, so changing one drifted from the other).
+    /// curve: **`Preset.gains` is the only place the numbers live** (#416 — the static setup
+    /// used to spell the `.balanced` gains a second time, so changing one drifted from the
+    /// other).
+    ///
+    /// ⛔ THIS SENTENCE SAID `applyPreset()` UNTIL #741, AND #740 IS THE COMMIT THAT MOVED
+    /// THEM OUT OF IT — while its own message claimed "the numbers are spelled exactly ONCE".
+    /// They were; the sentence that tells the next session WHERE was left pointing at a
+    /// method that is now three assignments from a tuple. Same class as #737's finding
+    /// against #736, one level up: a canonical "the numbers live here" line is worth more
+    /// than the count it accompanies, and it is the half that goes stale silently.
     enum Preset: String, CaseIterable, Identifiable, Sendable, Equatable {
         case balanced, warm, bright, transparent
 
@@ -132,11 +140,22 @@ final class AutoMixChain {
             }
         }
 
-        /// The three EQ gains in dB — low shelf @140 Hz, presence @2.8 kHz, air @9 kHz.
+        /// The three EQ gains in dB, in the band order `configureEQ()` sets up: low shelf,
+        /// presence, air.
+        ///
+        /// ⚠️ THE FREQUENCIES ARE DELIBERATELY NOT REPEATED HERE (#741). They are code in
+        /// `configureEQ()` and prose in each of its three band comments; a fourth restatement
+        /// is exactly the defect #737 charged against #736 — "a literal in a comment drifts
+        /// like a literal in code and NO needle catches it". #740's first draft wrote
+        /// "@140 Hz, @2.8 kHz, @9 kHz" right here, in the same commit whose message claimed
+        /// the numbers were spelled once. The ORDER is what a reader of this tuple needs; the
+        /// values are one jump away.
         ///
         /// ⭐ PULLED OUT AS A PURE VALUE SO THE CURVES CAN BE ASSERTED (#740). It is the same
-        /// move `resolvedTarget(from:)` makes sixty lines below, for the same reason its doc
-        /// gives: *"that distinction is the whole reason this bug lived so long."* Until this
+        /// move `resolvedTarget(from:)` makes ~58 lines ABOVE (⛔ #740 wrote "sixty lines
+        /// below" — inverted; the #737 register block it was rewriting said "above"), for the
+        /// same reason its doc gives: *"that distinction is the whole reason this bug lived
+        /// so long."* Until this
         /// existed, #736's guard could only check that the four `case` LABELS appeared in
         /// `applyPreset()`'s text — so making all four write identical gains stayed green
         /// while producing exactly the failure that guard's own message describes, a Picker
@@ -163,6 +182,16 @@ final class AutoMixChain {
         /// `AVAudioUnitEQ`, so before #740 the RESOLUTION — including this `?? .balanced`,
         /// which `StudioDefaultKeys.masterCharacter`'s own doc calls load-bearing — had no
         /// behavioural coverage at all. Now a scratch `UserDefaults` can drive it.
+        ///
+        /// ⚠️ ISOLATION, SINCE THE NEXT PERSON WILL COPY THIS. `AutoMixChain` is `@MainActor`,
+        /// yet this is a bare `static func` while the idiom it follows — `resolvedTarget(from:)`
+        /// on the CLASS — needs `nonisolated`. The difference is the nesting: a nested type
+        /// does not inherit the enclosing type's isolation, a member of the class does. The
+        /// load-bearing precedent is `displayName`, a plain computed property on this enum
+        /// already read from a non-isolated `XCTestCase` in a build proven green. ⛔ #740's
+        /// message argued from `allCases` and `init?(rawValue:)` instead — both are synthesised
+        /// witnesses of nonisolated protocol requirements, so they would compile either way
+        /// and prove nothing. Right conclusion, evidence that does not carry it.
         ///
         /// ⚠️ `StudioDefaultKeys.masterCharacter.value` is the CANONICAL FRESH-INSTALL value,
         /// NOT a registered one — nothing calls `UserDefaults.register(defaults:)` for it and
