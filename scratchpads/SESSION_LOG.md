@@ -11451,3 +11451,41 @@ ihrer Zusicherung gemessen, nicht im größtmöglichen** — sonst repariert man
 nicht geprüft werden. Nach exakter Transkription: 0 Treffer, 1 Selbst-Ausnahme.
 
 Nachgemessen: Klammerbilanz identisch zum Eltern-Commit, Behauptungen 6a/6b/6c unverändert grün.
+
+**#750** — Gates von #749 **grün** (Compile Check `success`, „Build for Testing" `Succeeded`,
+**171 bestanden, 0 Fehler**) — und `testNoLivingProseCallsItAChip` steht NAMENTLICH im Log, ist
+also nachweislich GELAUFEN und bestanden (#445-Positiv, nicht nur „kompiliert").
+
+Danach: die **Ship-Gate-Zeile** ist die Zeile, aus der die Freeze-Frage beantwortet wird, und sie
+sagte fünf Checks, ohne zu sagen, WER jeden entscheidet. Nachgetragen, gemessen:
+· **1 Klang = Founder-Ohr** (die strukturelle Hälfte ist gepinnt: `GenreFamilyDistinctnessTests`,
+  kein Paar angebotener Genres teilt einen hörbaren Fingerabdruck — „gut" beweist das nicht)
+· **2 Kontrolle = ERFÜLLT**, code-belegbar · **3 Modi = ERFÜLLT**, code-belegbar
+· **4 Ausgabe = Code-Hälfte ERFÜLLT seit #748**, „kontemplativ am Gerät" bleibt ein Blick
+· **5 Stabilität = nur Gerät**
+
+⭐ **Der Befund daraus ist nicht die Buchführung, sondern die Folgerung: die zwei offenen Checks
+sind BEIDE sensorisch.** Keine Sitzung kann sie durch Bauen schließen. Wer die Zeile bisher las,
+konnte „noch viel zu tun" verstehen; wahr ist „es fehlt eine Geräte-Session".
+
+⛔ **Zwei Selbstkorrekturen beim Schreiben, beide vom Messen:**
+(1) Ich schrieb `BioComposer.mode(locked:)` — **den Namen gibt es nicht.** Real ist
+`ComposerMode.init(locked:)`. Ein erfundener Symbolname in der immer-geladenen Datei ist der
+#474-Defekt in Reinform; die Regel „ein Name ist genauso ein `git ls-files` wert wie eine Zahl"
+hat ihn gefangen, bevor er gepusht wurde.
+(2) Ich belegte Check 3 mit dem **Loop-Längen-Picker** — der misst, wie viele TAKTE eine Schleife
+hat, nicht welcher MODUS läuft. Der Quelltext sagt es selbst: **Loop = `studioLocked`** (fester
+BPM), **Flow = `flowFree`**, beides EINE Wahrheit — das BPM-Schloss in `BodyTempoField`. Zwei
+Dinge mit demselben Wort, und ich hatte das falsche als Beweis genommen.
+
+⚠️ **Kostenbilanz ehrlich:** der Eintrag hat die 2.953 B, die #746 freigeräumt hatte, wieder
+weitgehend verbraucht — `CLAUDE.md` steht bei **148.028 B**, also **1.972 B** unter der Decke.
+Die Rücknahme oben wurde deshalb auf einen Halbsatz gekürzt und die Nachlese hierher verschoben:
+genau die Trennung, die der Deckel-Wächter vorschreibt (Gesetz bleibt, Provenienz zieht um).
+Der nächste Register-Eintrag braucht wieder eine Verschiebung ins Ledger.
+
+**Nicht gebaut, bewusst:** eine Tür für den MIDI-**Import**. `importMIDI(_:)` ist vollständig
+gebaut und getestet, der `.fileImporter`-Steckplatz existiert, nur der Setzer fehlt — dieselbe
+Form wie #748. Dagegen: der Founder hat den Noten-Editor entfernt, eine Import-Tür wäre ein NEUES
+Feature ohne Ask, sie verbraucht einen der letzten zwei freien Modal-Steckplätze (Kopfraum, den
+das Black-Screen-Gesetz reserviert), und `importNotes` ERSETZT die aktuelle Aufnahme. Gate: HALTEN.
