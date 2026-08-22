@@ -11349,3 +11349,37 @@ im Kopf, weil das genau der Defekt in kleinster Form ist, den der Nachbarabsatz 
 
 **Doctor:** 2 CRITICAL, beide unverändert und founder-gated (`ci.yml`-Masken, Phantom-Suite
 `ComprehensiveTestSuite`) — berichten, nicht editieren.
+
+**#747** — Zyklus als PLAN, nicht als Bau, und der Grund ist gemessen. Drei Struktur-Linsen
+liefen leer: (a) mein Türlos-Detektor — alle 35 schreiberlosen Einträge sind DSP-Interna oder
+schon registriert; (b) **persistierte Schlüssel ohne Verbraucher** — von 57 `StudioDefaultKeys`
+haben nur drei genau eine Fundstelle, und in allen dreien IST die Ansicht der Verbraucher; (c)
+**`false`-Flaggen, die Code abschalten** — 51 Kandidaten, die interessanten drei
+(`tapeEnabled`, `granularEnabled`, `compressorEnabled`) haben sehr wohl Türen in `EchoelFXView`,
+meine Nadel (`= true`) hat die `didSet`-Fan-outs nur nicht gesehen. Auch der Doctor-Blick auf
+Flächen ist sauber: acht türlose Views, **alle acht** in `CLAUDE.md` aufgeschrieben.
+
+Der eine echte Fund ist damit **#270**: das Vollbild-Visual. `.fullScreenCover($showVisual)`
+enthält eine FERTIGE Fläche — Vollbild-`MetalBioView`, VJ-Overlay, Donut-Renderer, Aufnahme,
+Schließen — und `showVisual` hat wortgrenzen-genau **zwei** Schreiber, beide `false`. Das trifft
+Ship-Gate 4 direkt. Der Steckplatz existiert, die Modal-Kette wüchse also nicht, und
+`.onChange(of: showVisual)` regelt die GPU-Exklusivität bereits.
+
+⚠️ **Und genau deshalb ist es NICHT ein Einzeiler, sondern ein Vertrag** — den der Quelltext
+selbst geschrieben hat: `normaliseUnreachableDonutMode()` trägt in ihrem Doc-Kommentar den
+Befehl, im SELBEN Commit gelöscht zu werden; der #227-Grabstein verlangt die „Donuts"-Pille
+zurück; `lookScrub`s Setter löscht `spectralDonuts`; und `VisualFineTuneReflowsTests`
+Behauptung 6 ist ein Gegengewicht, das an diesem Tag rot werden SOLL. Zehn Dateien nennen
+`showVisual`, `CLAUDE.md` viermal.
+
+⛔ **Eine der vier Code-Pflichten ist beim Nachmessen fragwürdig geworden** und steht deshalb als
+Frage im Plan statt als Aufgabe: die Pille wird mit „das Overlay hätte sonst kein Look-Bedienelement"
+begründet — die obere Leiste des Covers trägt aber bereits einen Donut-Umschalter. Blind befolgt
+wäre das ein zweites Bedienelement für einen Zustand (#290). **Ein Vermerk mit prüfbarer
+Begründung gehört geprüft, bevor er Arbeit auslöst** — dieselbe Lehre wie beim `outputLevel`-Trim.
+
+Ergebnis: `scratchpads/PLAN_REDOOR_FULLSCREEN_VISUAL.md` (Pflichten, Reihenfolge, Mess-Befehle,
+und was der Plan ausdrücklich NICHT entscheidet). Nächster Zyklus führt ihn aus.
+
+**Gates #746:** grün (Compile Check `success`, „Build for Testing" `Succeeded`, 135 Tests, 0
+Fehler). Der erweiterte Deckel-Wächter steht nicht im geleerten Log — #445, Ausführung unbelegt.
