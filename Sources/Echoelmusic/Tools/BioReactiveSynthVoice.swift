@@ -69,16 +69,25 @@ public final class BioReactiveSynthVoice {
     /// and no external controller note is held.
     ///
     /// ⛔ THIS LINE SAID "Toggle off for pure manual play" AND THERE IS NOTHING TO TOGGLE
-    /// IT WITH (#724). Measured across `Sources/`: exactly ONE assignment, the declaration
-    /// below; zero `$breathPlayEnabled` bindings; zero `.toggle()` calls. It is therefore
-    /// permanently `true`, and the two-condition gate in `consumeBioEventsIfFresh` —
-    /// `guard isArmed, breathPlayEnabled, !heldByController` — is effectively one condition.
+    /// IT WITH (#724). Measured across all 369 files under `Sources/`: exactly ONE assignment,
+    /// the declaration below, and no read of any other write shape. It is therefore permanently
+    /// `true`, and the THREE-condition gate in `consumeBioEventsIfFresh` —
+    /// `guard isArmed, breathPlayEnabled, !heldByController` — is effectively two conditions.
+    /// (⛔ The first version of this note said "two-condition … effectively one" and quoted the
+    /// three-condition guard one clause later, #725.)
     ///
     /// ⭐ THE ENGINE HALF IS REAL AND THAT IS WHY THIS STAYS. The consumer reads it on every
     /// bio event, so wiring a door is one line plus a control; the flag is a knob waiting
     /// for a surface, not dead code. What was wrong is a doc comment describing a capability
-    /// ("toggle off") in the present tense when no producer exists — the same shape CLAUDE.md
-    /// records for `.motion`, `.eegBurst` and the tempo modulation route.
+    /// ("toggle off") in the present tense when no producer exists — the shape CLAUDE.md
+    /// records for the tempo modulation route (engine running, destination registered, no
+    /// route ever constructed).
+    ///
+    /// ⚠️ AND THE SIGN IS THE OPPOSITE OF THE OTHER TWO CASES THAT REGISTER NAMES, which is
+    /// why they are not cited here (#725): where a source has no producer, the capability
+    /// does not HAPPEN. Here the missing writer means it always happens — breath-play is fully
+    /// functional and only the ability to switch it OFF is absent. Read as "same shape", a
+    /// later session would treat breath-play as a dormant feature to wire up. It is not.
     ///
     /// ⚠️ NOT a decision that it SHOULD have a door. "Breathe with me / manual only" is a
     /// product question for the founder, next to the Body-voice arm switch (#277) in the
