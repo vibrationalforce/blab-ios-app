@@ -97,10 +97,9 @@ final class TheBreathPlaySwitchHasNoDoorTests: XCTestCase {
 
     func testTheDocNoLongerPromisesAToggle() throws {
         let phrase = "Toggle off for pure manual play"
-        let offenders = try rawText(Self.voice)
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-            .filter { $0.contains(phrase) && !$0.contains("SAID") }
+        let raw: String = try rawText(Self.voice)
+        let offenders: [String] = raw.components(separatedBy: "\n")
+            .filter({ $0.contains(phrase) && !$0.contains("SAID") })
         XCTAssertTrue(offenders.isEmpty, """
             `BioReactiveSynthVoice` promises again that you can "\(phrase)", outside a \
             retraction:
@@ -149,16 +148,21 @@ final class TheBreathPlaySwitchHasNoDoorTests: XCTestCase {
     /// that file, so without this a door added INSIDE it (a `setBreathPlay(_:)`, a
     /// `#if canImport(SwiftUI)` extension — this repo does put views beside models) would be
     /// invisible forever.
+    /// ⛔ WRITTEN AS A PLAIN LOOP ON PURPOSE. The first version chained
+    /// `split().map(String.init).filter { … range(of:) … drop(while:) … }`, and CI reported
+    /// "took 550ms to type-check (limit: 200ms)" — the ONLY such warning under `Tests/` in a
+    /// log carrying 89 of them. A guard is read far more often than it runs; an expression
+    /// that costs the type checker half a second is one a reader also has to unpick (#726).
     func testTheDeclaringFileAssignsItExactlyOnce() throws {
-        let code = try codeOf(Self.voice)
-        let assignments = code
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-            .filter { line in
-                guard let r = line.range(of: "breathPlayEnabled") else { return false }
-                let rest = line[r.upperBound...].drop(while: { $0 == " " })
-                return rest.first == "=" && rest.dropFirst().first != "="
-            }
+        let code: String = try codeOf(Self.voice)
+        var assignments: [String] = []
+        for line in code.components(separatedBy: "\n") {
+            guard let hit = line.range(of: "breathPlayEnabled") else { continue }
+            let tail: String = String(line[hit.upperBound...])
+            let trimmed: String = tail.trimmingCharacters(in: .whitespaces)
+            guard trimmed.hasPrefix("="), !trimmed.hasPrefix("==") else { continue }
+            assignments.append(line)
+        }
         XCTAssertEqual(assignments.count, 1, """
             \(Self.voiceRelative) now assigns `breathPlayEnabled` \(assignments.count) times, \
             not once:
@@ -190,10 +194,9 @@ final class TheBreathPlaySwitchHasNoDoorTests: XCTestCase {
     /// red on `: Bool = true`, which is a non-semantic normalisation AND the majority style in
     /// this codebase — that would be a #364 violation on a correct refactor.
     func testTheDeclarationIsPresentAndPublic() throws {
-        let declaration = try codeOf(Self.voice)
-            .split(separator: "\n", omittingEmptySubsequences: false)
-            .map(String.init)
-            .first { $0.contains("var breathPlayEnabled") }
+        let code: String = try codeOf(Self.voice)
+        let declaration: String? = code.components(separatedBy: "\n")
+            .first(where: { $0.contains("var breathPlayEnabled") })
         let line = try XCTUnwrap(declaration, """
             No `var breathPlayEnabled` declaration in \(Self.voice).
 
