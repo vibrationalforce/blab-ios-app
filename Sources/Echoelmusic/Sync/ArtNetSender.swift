@@ -51,7 +51,22 @@ public final class ArtNetSender {
     /// DMX value resolution per parameter. 16-bit uses paired coarse/fine
     /// channels (65 536 steps) for smooth, professional fades; 8-bit (256 steps)
     /// is the legacy mode for simple fixtures. Defaults to 16-bit precision.
-    public var resolution: DMXResolution = .sixteenBit
+    /// Selectable since #730 (`PatchbayView`'s Light section, one Picker for both
+    /// protocols); before that it had no writer anywhere in the repository.
+    ///
+    /// ⚠️ THE `didSet` IS NOT DECORATION (#732). `sendIfFresh` has a HOLD branch that
+    /// reuses `lastChannels` when no fresh or allowed source is available, so a
+    /// Blackout or Grand-Master move is still honoured after bio stops (L1). That
+    /// array is sized for the resolution in force when it was built. While nothing
+    /// could write this property the sizes could never disagree; the moment a door
+    /// existed, flipping it mid-hold left one tick encoded with a stride the array
+    /// does not match. Re-encoding — rather than clearing — is what keeps the L1
+    /// guarantee: clearing `lastChannels` would send the hold branch down its
+    /// `else { return }` path and freeze a blackout until the next fresh frame
+    /// (~1 s), which is the exact failure the hold branch exists to prevent.
+    public var resolution: DMXResolution = .sixteenBit {
+        didSet { lastChannels = Self.reencode(lastChannels, from: oldValue, to: resolution) }
+    }
 
     public enum DMXResolution: String, Sendable, CaseIterable {
         case eightBit  = "8-bit"
@@ -371,6 +386,39 @@ public final class ArtNetSender {
                 let w = word(slewed)
                 channels[idx] = w[0]; channels[idx + 1] = w[1]
             }
+        }
+    }
+
+    /// Re-encode a held DMX byte array between the two resolutions, so a
+    /// mid-hold resolution change cannot leave `sendIfFresh` reading a stride the
+    /// array does not have. Pure and shared by both protocols — `SACNSender` holds
+    /// the same kind of array and calls this too.
+    ///
+    /// 8-bit → 16-bit is EXACT and stays exact: `65535 / 255 == 257`, so a byte `b`
+    /// becomes the word `b * 257`, i.e. coarse `b` + fine `b`, and converting back
+    /// yields `b` again for all 256 values (verified for every byte, not sampled).
+    /// 16-bit → 8-bit is lossy by construction — that IS what choosing 8-bit means.
+    static func reencode(_ channels: [UInt8], from old: DMXResolution,
+                         to new: DMXResolution) -> [UInt8] {
+        guard old != new, !channels.isEmpty else { return channels }
+        switch (old, new) {
+        case (.sixteenBit, .eightBit):
+            var out: [UInt8] = []
+            out.reserveCapacity(channels.count / 2)
+            var i = 0
+            while i + 1 < channels.count {
+                let v = UInt16(channels[i]) << 8 | UInt16(channels[i + 1])
+                out.append(byte(Float(v) / 65535))
+                i += 2
+            }
+            return out
+        case (.eightBit, .sixteenBit):
+            var out: [UInt8] = []
+            out.reserveCapacity(channels.count * 2)
+            for b in channels { out.append(contentsOf: word(Float(b) / 255)) }
+            return out
+        default:
+            return channels
         }
     }
 

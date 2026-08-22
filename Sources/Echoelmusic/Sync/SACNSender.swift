@@ -51,8 +51,16 @@ public final class SACNSender {
     }
 
     /// DMX value resolution (shared with Art-Net): 16-bit coarse/fine pairs by
-    /// default for professional precision, 8-bit for legacy fixtures.
-    public var resolution: ArtNetSender.DMXResolution = .sixteenBit
+    /// default for professional precision, 8-bit for legacy fixtures. Selectable
+    /// since #730 — one Picker in `PatchbayView`'s Light section drives BOTH senders,
+    /// so this `didSet` must mirror Art-Net's exactly. See the long note there
+    /// (#732): re-encoding the held array keeps the L1 blackout guarantee that
+    /// clearing it would break.
+    public var resolution: ArtNetSender.DMXResolution = .sixteenBit {
+        didSet {
+            lastChannels = ArtNetSender.reencode(lastChannels, from: oldValue, to: resolution)
+        }
+    }
 
     public private(set) var isActive = false
     public private(set) var lastSentTimestamp: TimeInterval = 0
