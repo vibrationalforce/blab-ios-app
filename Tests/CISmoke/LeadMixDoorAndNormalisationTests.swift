@@ -22,20 +22,20 @@
 // commit. The present state is measurable; the duration is not — the `presetRow` lesson in
 // CLAUDE.md, hit again one file over.)
 //
-// ⛔ AND THE "EITHER DIRECTION" ABOVE IS WEAKER THAN IT READS — measured in the same review that
-// added the cross-reference (#710 finding 1), and it is the sharper half of the lesson. The
-// donut twin is now the STRICTER shape, not a copy of this one:
-//   · this file reads RAW source (`source(_:)` below, no comment stripping) and its needle is a
-//     bare `contains("normaliseDoorlessLeadMix()")`. That token appears FOUR times in
-//     `EchoelStudioView` — the call, the declaration, and two prose comments. So the
-//     "normalisation missing" direction cannot fire on a deleted CALL; all four would have to go.
-//     In practice this file guards one direction, not two.
-//   · the donut claim strips comments (`SourceText.codeOnly`) and excludes the declaration by its
-//     `func` keyword, so a deleted call really does turn it red.
-// Left as a measurement rather than repaired here: tightening this needle is its own slice with
-// its own broken-tree runs, and #710 is a review follow-up, not a second feature. The paragraph
-// this block sits under says a "same shape as X" claim goes unchecked — and the very next thing
-// checked was X itself.
+// ⛔ AND THE "EITHER DIRECTION" ABOVE WAS FALSE FOR THIS FILE UNTIL #711 — measured in the review
+// that added the cross-reference (#710 finding 1), repaired here one cycle later.
+//   · WAS: raw source, no comment stripping, and a bare `contains("normaliseDoorlessLeadMix()")`.
+//     That token appears FOUR times in `EchoelStudioView` — the call, the declaration, and two
+//     prose comments. Deleting the CALL left three, so the pairing still read "normalisation
+//     present" and the assertion PASSED. Simulated on a tree with the call removed: green. The
+//     direction this file names first was the one it could not detect.
+//   · IS: comments blanked (`codeOf`), the declaration excluded by its `func` keyword, and a
+//     #367 anchor on the door needle's spelling. Same four trees as the donut twin: call
+//     deleted → red · door restored with the normalisation kept → red · both together → green.
+// ⭐ The lesson is not "raw text is sloppy". It is that a guard whose needle also matches the
+// PROSE ABOUT ITSELF gets quieter the more carefully it is documented — this file gained its two
+// explanatory comments honestly, and each one weakened it. The donut twin (#709) was written
+// from this file's shape and hit the same wall one file over, which is how it was found at all.
 //
 //   · door removed, normalisation missing  → the stale-value trap above
 //   · door restored, normalisation left in → every launch stamps the fader back to unity, so the
@@ -61,9 +61,30 @@ final class LeadMixDoorAndNormalisationTests: XCTestCase {
     /// assertions would report "missing normalisation" for a commit that legitimately restored
     /// the door, and send the next session to add back the very thing it should delete.
     func testTheLeadFaderAndItsNormalisationAreMutuallyExclusive() throws {
-        let code = try source(Self.studio)
+        let code = try codeOf(Self.studio)
+
+        // #367 anchor, and the one this claim lacked: the door needle has ZERO occurrences today
+        // (that is the point — the door is gone), so nothing else can show it is still spelled
+        // the way a restored fader would spell it. The two SURVIVING mix fields are the witness.
+        let idiom = code.components(separatedBy: "mixBinding(\\.").count - 1
+        XCTAssertGreaterThanOrEqual(idiom, 2, """
+            `mixBinding(\\.` appears \(idiom) time(s) in code — the house spelling for a mix field \
+            has changed or the remaining fields are gone. The door needle below checks a form the \
+            file no longer uses, so it could never notice a restored Lead fader. Re-derive the \
+            needle from how the surviving fields are written.
+            """)
+
         let hasDoor = code.contains("mixBinding(\\.lead)")
-        let hasNormalisation = code.contains("normaliseDoorlessLeadMix()")
+        // The declaration carries the same token; the obligation is the CALL, so exclude it —
+        // anchored on `func`, not on `private`, so dropping the access modifier cannot turn the
+        // declaration into a phantom call site.
+        let hasNormalisation = code
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+            .contains { line in
+                line.contains("normaliseDoorlessLeadMix()")
+                    && !line.contains("func normaliseDoorlessLeadMix")
+            }
 
         XCTAssertNotEqual(hasDoor, hasNormalisation, """
             The Lead mix door and its launch normalisation are out of step. \
@@ -118,6 +139,13 @@ final class LeadMixDoorAndNormalisationTests: XCTestCase {
     }
 
     // MARK: - helpers
+
+    /// `source(_:)` with comments blanked. Claim 1 needs this and the others do not: its
+    /// normalisation needle is a bare token that ALSO appears in two prose comments in
+    /// `EchoelStudioView`, which is why the raw form could not fail for its own stated reason.
+    private func codeOf(_ path: String) throws -> String {
+        SourceText.codeOnly(try source(path))
+    }
 
     private func source(_ path: String) throws -> String {
         let here = URL(fileURLWithPath: #filePath)
