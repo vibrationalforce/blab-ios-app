@@ -97,7 +97,7 @@ Bedienelement (#724 `breathPlayEnabled`, #727 `isAutomatic`, #730 `ArtNetSender.
 dazu das schon notierte `inputMonitoringEnabled`). Jeder Fund war ein Zufall und kostete einen
 Zyklus. Seit #734 gibt es dafür einen Befehl:
 
-    python3 scripts/doorless-state.py     # ~2 s, 35 Treffer über 251 Klassen-Properties
+    python3 scripts/doorless-state.py     # ~1,7 s · 320 Deklarationen / 254 Namen · 35 ohne Schreiber
 
 Er trägt seine eigene **Bekannt-Positiv-Kontrolle** (`isAutomatic` + `inputMonitoringEnabled`
 müssen auftauchen, sonst Exit 2) — das Gesetz „ein Detektor, der seinen eigenen bekannten
@@ -105,14 +105,29 @@ Positivfall nie gefunden hat, ist keine Messung", ausführbar gemacht.
 ⚠️ Ein Treffer ist eine **FRAGE**, kein Defekt. Eine DSP-Stellschraube ohne Schreiber ist in
 Ordnung; der Defekt ist ein Knopf, dessen Doc einen Benutzer nennt, der ihn nicht drehen kann.
 
-**DEAD-END: NICHT über `struct` laufen lassen.** Gemessen am selben Tag: über alle Typarten
-91 Treffer, über Klassen 35 — und die Differenz ist fast vollständig EINE Falsch-Positiv-
-Familie: SwiftUI-`View`-Member sind **memberwise-Init-Parameter**. `MetalBioView.autoAttuned`,
-`entrainmentPulseHz`, `EchoelValueField.boxWidth` erscheinen als „ohne Schreiber", weil sie an
-jeder Aufrufstelle als `autoAttuned: autoMode` ÜBERGEBEN und nie zugewiesen werden. Alle drei
-sind voll verdrahtet, zwei davon sogar schon von einem Wächter gepinnt. Nach der #665-Regel —
-ein Prüfer mit Fehlalarmen ist ein Prüfer, den niemand liest — ist die enge Fassung die
-ausgelieferte.
+**Klassen-Beschränkung: eine SIGNAL-RAUSCH-ENTSCHEIDUNG, kein „alles Fehlalarme".**
+⛔ Die erste Fassung dieses Absatzes behauptete, die Differenz 91→35 sei „fast vollständig
+EINE Falsch-Positiv-Familie" (SwiftUI-`View`-Member als memberwise-Init-Parameter). Das ist
+um den Faktor fünf überzogen und wurde in der #735-Review nachgemessen. Die 56 Extras sind:
+**11** `View`-Member (echte Fehlalarme, `MetalBioView.autoAttuned` & Co.), **22**
+`BioUniforms`-Felder, die per **Tupel-Destrukturierung** geschrieben werden
+(`(uniforms.cc0r, uniforms.cc0g, uniforms.cc0b) = (…)`) — ein DRITTER Fehlalarm-Mechanismus,
+den weder Kopf noch dieser Eintrag kannte —, **1** Enum und **~22 Nicht-`View`-Structs, die
+vermutlich echte Treffer sind** (`CrashSafeStatePersistence.artNetEnabled`, `TapTempo.minBPM`,
+`VoiceAnalyzer.floorDB`). Die enge Fassung bleibt richtig (#665: ein Prüfer mit Fehlalarmen
+wird nicht gelesen), aber aus dem RICHTIGEN Grund: Rauschen, nicht Wertlosigkeit. Eine
+Erweiterung ist eine echte Option — sie braucht zuerst den Tupel-Matcher.
+
+⛔ **UND DIE ERSTE FASSUNG DES WERKZEUGS BESTAND IHRE EIGENE KONTROLLE AUS DEM FALSCHEN GRUND
+(#735).** Die Bekannt-Positiv-Kontrolle prüfte `isAutomatic` + `inputMonitoringEnabled` und
+war grün — während `EchoelDDSP.useConvolutionReverb`, der in FÜNF Dateien als DER türlose
+Schalter dokumentiert ist, unsichtbar blieb: `nonisolated(unsafe) static var` lag außerhalb
+der Modifikator-Liste. Eine Kontrolle, die den bestdokumentierten Positivfall des Repos nicht
+enthält, ist keine Kontrolle. Er ist jetzt drin, die Modifikator-Liste ist geweitet, und die
+Kontrolle ist damit aus dem richtigen Grund grün. Mit repariert: ein Fehlalarm (`fronts`, per
+`append`/`removeAll` geschrieben — mutierende Methoden fehlten im Schreib-Satz), zwei still
+verworfene Gruppen (jetzt als Abschnitte AMBIGUOUS und MASKED), und ein Exit-Code, den ein
+`| head` auf 0 wusch.
 
 **Zweiter DEAD-END, teurer:** der erste Entwurf verglich jeden Kandidaten gegen jede Zeile
 (O(n²)) und lief nach 560 s nicht durch. Die tragfähige Form ist EIN Durchlauf, der alle

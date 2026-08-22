@@ -16,13 +16,18 @@ recorded in CLAUDE.md), a debug knob. What the list is good for is the OTHER kin
 user is described as being able to turn, that no shipped path can turn. Read the doc comment
 next to each hit; if it names a person or a use case, that is the defect.
 
-⛔ CLASSES AND ACTORS ONLY, AND THAT LIMIT IS MEASURED, NOT CAUTION. Run over `struct`s as
-well and the top of the list fills with SwiftUI `View` members — `MetalBioView.autoAttuned`,
-`entrainmentPulseHz`, `EchoelValueField.boxWidth`. Those are memberwise-INIT PARAMETERS,
-written at every call site as `autoAttuned: autoMode`, which is not an assignment and never
-will be. 91 hits over all type kinds, 35 over classes, and the difference was almost entirely
-that one false-positive family. Per #665's rule — a checker with false alarms is a checker
-nobody reads — the narrow version is the shipped one.
+⛔ CLASSES AND ACTORS ONLY — AND THE FIRST VERSION'S REASON FOR THAT WAS OVERSTATED BY A
+FACTOR OF FIVE (#735). It said the 91-vs-35 difference was "almost entirely" SwiftUI `View`
+memberwise-init parameters. Measured, the 56 extras are: **11** `View` members (real false
+positives — `MetalBioView.autoAttuned` is passed at every call site as `autoAttuned: autoMode`,
+which is not an assignment), **22** `MetalBioView.BioUniforms` fields written by TUPLE
+DESTRUCTURING (`(uniforms.cc0r, uniforms.cc0g, uniforms.cc0b) = (…)`, a third false-positive
+mechanism the write matcher cannot see), **1** enum, and **~22 non-`View` structs that are
+arguably real hits** — `CrashSafeStatePersistence.artNetEnabled`, `TapTempo.minBPM`,
+`VoiceAnalyzer.floorDB`. So the narrow scope is a signal-to-noise CHOICE (per #665: a checker
+with false alarms is a checker nobody reads), not the "it is all one false family" the first
+version claimed. Widening it is a real option for a later slice, and it needs the tuple-write
+matcher first.
 
 KNOWN-POSITIVE CONTROL (this repo's own law: a detector that has never found its own known
 positive is not a measurement). Two properties are recorded IN THE SOURCE as doorless:
@@ -30,13 +35,36 @@ positive is not a measurement). Two properties are recorded IN THE SOURCE as doo
 (recorded at `VoiceCaptureController.swift`). If either stops appearing, this script is
 broken OR someone built the door — either way it is not a silent pass: exit code 2.
 
+THREE SECTIONS, BECAUSE THE FIRST VERSION DROPPED TWO KINDS OF HIT IN SILENCE (#735):
+  · the main list — one declaration of the name, no writer;
+  · **AMBIGUOUS** — no writer, but the name is declared on more than one type, so the untyped
+    writer test cannot attribute it. The old `len(homes) == 1` filter discarded 39 names over
+    100 declarations before the writer test ever ran, and `loopEnabled` (declared identically
+    in `ArrangementPlayer` and `TimelineRegionPlayer`, read on both, written nowhere) was in
+    there — squarely the target shape, silently gone;
+  · **MASKED** — written somewhere, but never in the file that declares it. `written` is keyed
+    on the identifier alone, so any same-named binding anywhere hides a real hit. The case
+    this section exists for is `AutoMixChain.preset`: a documented four-way tonal choice with
+    `didSet { applyPreset() }` on a node `AudioEngine` constructs, invisible because
+    `BioSignalDeconvolver` and `BioSpaceMap` each write `self.preset = preset`. Typed
+    attribution is NOT the fix — #665 measured that last-type-before-the-member mis-attributes
+    nested types and lost every real positive. Listing suspects is honest; deciding them is a
+    human's job. Capped at 12; `DOORLESS_ALL=1` shows all.
+
 OTHER LIMITS, stated so nobody reads more into a green list than is there:
-  · writes through a KeyPath, reflection or an unsafe pointer are invisible;
+  · writes through a KeyPath, reflection, an unsafe pointer or TUPLE DESTRUCTURING are
+    invisible (the last one is measured above, in `BioUniforms`);
   · a property written only from `Tests/` is reported as doorless — correct for "no product
     path can set it", and #728 is the cycle that paid for confusing the two, so the scope is
     printed with the result;
-  · multi-declaration lines (`var a: Float = 0; var b: Float = 0`) parse as one property.
+  · multi-declaration lines (`var a: Float = 0; var b: Float = 0`) parse as one property;
+  · `#if os(...)` / `#else` duplicated stored properties land in AMBIGUOUS, not the main list —
+    there is no preprocessor awareness here (`EchoelBioEngine.smoothBreathDepth` and its
+    platform-stub twin are the measured example);
+  · the `mentions` column is a GLOBAL word frequency, not mentions of that property. Sort by
+    it; never conclude from it.
 """
+import os
 import re
 import subprocess
 import sys
@@ -47,17 +75,35 @@ sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
 import doctor  # noqa: E402  — one definition of "code, not prose" (#416)
 
 TYPE_OPENER = re.compile(r"\b(class|actor)\b")
+# ⛔ THE MODIFIER LIST IS THE PART THAT WAS WRONG (#735). The first version accepted only
+# `public `/`internal `, which rejected `nonisolated(unsafe) static var useConvolutionReverb`
+# — the flag this repo documents in FIVE places as the canonical doorless one. The detector
+# shipped a known-positive control that passed while its best-documented positive was
+# invisible. Measured families the old list refused: 7 `other-prefix` (incl.
+# `public internal(set)`), 6 `lazy`, 1 `nonisolated`.
+MODIFIER = (r"(?:@\w+(?:\([^)]*\))?\s+|public\s+|internal\s+|nonisolated(?:\(unsafe\))?\s+"
+            r"|static\s+|final\s+|lazy\s+|weak\s+|unowned\s+|class\s+"
+            r"|public\s*\((?:set|get)\)\s+|(?:public|internal)\s+(?:internal|private)\(set\)\s+)*")
 DECL = re.compile(
-    r"^\s*(?:@\w+(?:\([^)]*\))?\s+)*(?:public |internal |)var ([a-z]\w*)"
+    r"^\s*" + MODIFIER + r"var ([a-z]\w*)"
     r"\s*(?::\s*([\w\.<>\[\], ?]+?))?\s*=\s*(\S.*?)\s*(?:\{\s*)?$")
 
-ASSIGN = re.compile(r"(?<![=!<>])\b([a-z]\w*)\s*=(?!=)")
+ASSIGN = re.compile(r"(?<![=!<>])\b([a-z]\w*)\s*(?:\+|-|\*|/)?=(?!=)")
 BINDING = re.compile(r"\$[A-Za-z_]\w*\.([a-z]\w*)\b")
 TOGGLE = re.compile(r"\.([a-z]\w*)\s*\.toggle\(\)")
 INOUT = re.compile(r"&[A-Za-z_]\w*\.([a-z]\w*)\b")
+# ⛔ A COLLECTION IS WRITTEN WITHOUT EVER BEING ASSIGNED (#735). `fronts` was the one false
+# positive in the first version's 35: `fronts[i].radius = …`, `fronts.append(…)`,
+# `fronts.removeAll { … }`, `fronts.removeFirst(…)` — the `=` belongs to `radius`, and a
+# mutating method has no `=` at all.
+MUTATE = re.compile(r"\b([a-z]\w*)\s*(?:\[|\.(?:append|insert|remove\w*|popLast|sort\w*"
+                    r"|reverse|swapAt|replaceSubrange|updateValue|formUnion|subtract\w*"
+                    r"|toggle)\s*\()")
 WORD = re.compile(r"\b([a-z]\w*)\b")
 
-CONTROL = ("isAutomatic", "inputMonitoringEnabled")
+# The control is what makes this a measurement rather than a guess. `useConvolutionReverb` is
+# added by #735 precisely BECAUSE the first version could not see it (see MODIFIER above).
+CONTROL = ("isAutomatic", "inputMonitoringEnabled", "useConvolutionReverb")
 
 
 def class_members(text):
@@ -92,21 +138,26 @@ def main():
 
     candidates = {}
     decl_lines = set()
+    declarations = 0
     for f, code in codes.items():
         for name, typ, default, raw in class_members(code):
             candidates.setdefault(name, []).append((f, typ, default))
             decl_lines.add(raw)
+            declarations += 1
 
     written = collections.Counter()
     mentions = collections.Counter()
-    for code in codes.values():
+    write_files = {}
+    for path, code in codes.items():
         for line in code.split("\n"):
             if line.strip() not in decl_lines:
                 for m in ASSIGN.finditer(line):
                     written[m.group(1)] += 1
-            for pattern in (BINDING, TOGGLE, INOUT):
+                    write_files.setdefault(m.group(1), set()).add(path)
+            for pattern in (BINDING, TOGGLE, INOUT, MUTATE):
                 for m in pattern.finditer(line):
                     written[m.group(1)] += 1
+                    write_files.setdefault(m.group(1), set()).add(path)
             for m in WORD.finditer(line):
                 mentions[m.group(1)] += 1
 
@@ -115,34 +166,93 @@ def main():
             if written[name] == 0 and len(homes) == 1]
     hits.sort(key=lambda h: (-h[4], h[0]))
 
-    print("doorless-state — settable class state with no writer under Sources/")
-    print(f"  scope: {len(files)} Swift files under Sources/ ONLY "
-          f"(a write from Tests/ does not count as a door)")
-    print(f"  {len(candidates)} class properties examined · {len(hits)} without a writer\n")
-    for name, f, typ, default, seen in hits:
-        shown = f"{typ}" if typ else "(inferred)"
-        print(f"  {name:26s} {shown[:22]:22s} = {default[:18]:18s} "
-              f"mentions={seen:3d}  {f}")
+    # ⛔ NOTHING IS SILENTLY DROPPED ANY MORE (#735). The first version required
+    # `len(homes) == 1` and said nothing about the rest: 39 names over 100 declarations were
+    # discarded before the writer test, and four of them had no writer at all — including
+    # `loopEnabled`, declared identically in `ArrangementPlayer` and `TimelineRegionPlayer`,
+    # which is squarely the shape this tool exists to find. They cannot be reported in the
+    # main list because the untyped writer test cannot tell two same-named properties apart,
+    # so they get their own section rather than a shrug.
+    ambiguous = sorted((name, [h[0] for h in homes])
+                       for name, homes in candidates.items()
+                       if written[name] == 0 and len(homes) > 1)
+
+    # ⛔ AND THE BLIND SPOT GETS A SECTION TOO, because naming it in prose was not enough.
+    # `written` is keyed on the identifier alone, with no receiver type, so ANY same-named
+    # binding anywhere masks a real hit. Measured worst case: `AutoMixChain.preset` — a
+    # documented four-way tonal choice with `didSet { applyPreset() }` on a node the audio
+    # engine constructs — is invisible because `BioSignalDeconvolver` and `BioSpaceMap` each
+    # write `self.preset = preset`. Typed attribution is NOT the fix: #665 measured that
+    # last-type-before-the-member mis-attributes nested types and lost every real positive.
+    # Listing the suspects is honest and cheap; deciding them is a human's job.
+    suspect = sorted(
+        (name, homes[0][0]) for name, homes in candidates.items()
+        if len(homes) == 1 and written[name] > 0
+        and write_files.get(name) and homes[0][0] not in write_files[name])
 
     found = {h[0] for h in hits}
     missing = [c for c in CONTROL if c not in found]
-    print()
+    status = 2 if missing else 0
+
+    print("doorless-state — settable class state with no writer under Sources/")
+    print(f"  scope: {len(files)} Swift files under Sources/ ONLY "
+          f"(a write from Tests/ does not count as a door)")
+    print(f"  {declarations} declarations / {len(candidates)} distinct names examined "
+          f"· {len(hits)} without a writer")
+    # The verdict prints BEFORE the listing on purpose: the first version printed it last,
+    # so `… | head` showed a clean banner and the BrokenPipeError handler returned 0 even
+    # when the control had FAILED — the opposite of the "not a silent pass" promise (#735).
     if missing:
-        print(f"  ⛔ KNOWN-POSITIVE CONTROL FAILED: {', '.join(missing)} not reported.")
-        print("     Either this detector broke, or a door was built for it. Both need a")
-        print("     human: if a door exists, move the prose that calls it doorless (#456)")
-        print("     and drop the name from CONTROL here.")
-        return 2
-    print(f"  ✅ known-positive control passed ({', '.join(CONTROL)} both reported).")
-    print("     Reminder: a hit is a QUESTION. A tuning constant with no writer is fine;")
-    print("     a knob whose doc names a user who cannot turn it is the defect.")
-    return 0
+        print(f"\n  ⛔ KNOWN-POSITIVE CONTROL FAILED: {', '.join(missing)} not reported.")
+        print("     THREE possible causes, in the order worth checking:")
+        print("       1. someone built the door — then move the prose that calls it doorless")
+        print("          (#456) and drop the name from CONTROL below;")
+        print("       2. a second property of the same name appeared, so it fell into the")
+        print("          AMBIGUOUS section instead of the main list;")
+        print("       3. this detector broke — a modifier or write shape it cannot parse.")
+    else:
+        print(f"\n  ✅ known-positive control passed "
+              f"({', '.join(CONTROL)} all reported).")
+    print("     A hit is a QUESTION. A tuning constant with no writer is fine; a knob whose")
+    print("     doc names a user who cannot turn it is the defect.")
+    print("     `mentions` is a GLOBAL word frequency, not mentions of this property — a")
+    print("     common name inflates it. Use it to sort, never to conclude.\n")
+
+    for name, f, typ, default, seen in hits:
+        shown = typ if typ else "(inferred)"
+        print(f"  {name:26s} {shown[:22]:22s} = {default[:18]:18s} "
+              f"mentions={seen:3d}  {f}")
+
+    if ambiguous:
+        print(f"\n  AMBIGUOUS — no writer, but the name is declared on more than one type,")
+        print(f"  so the untyped writer test cannot attribute it ({len(ambiguous)}):")
+        for name, homes in ambiguous:
+            print(f"    {name:26s} {' · '.join(h.split('/')[-1] for h in homes)}")
+
+    if suspect:
+        # Capped by default: 96 suspects would drown the 35 hits, and a tool whose output
+        # nobody reads is the failure mode the doctor skill already names. What is withheld
+        # is stated, with the command that shows it — this repo's own slicing rule.
+        show = suspect if os.environ.get("DOORLESS_ALL") else suspect[:12]
+        print(f"\n  MASKED — written somewhere, but never in the file that declares it")
+        print(f"  ({len(suspect)}). A same-named binding elsewhere may be hiding a real hit;")
+        print(f"  most are ordinary cross-file setters. The one this section was built for is")
+        print(f"  `AutoMixChain.preset`, masked by two unrelated `self.preset = preset` lines.")
+        for name, f in show:
+            print(f"    {name:26s} {f}")
+        if len(show) < len(suspect):
+            print(f"    … {len(suspect) - len(show)} more — "
+                  f"DOORLESS_ALL=1 python3 scripts/doorless-state.py")
+
+    return status
 
 
 if __name__ == "__main__":
     try:
         sys.exit(main())
     except BrokenPipeError:
-        # `… | head` closes the pipe; a traceback there reads like a broken tool.
+        # `… | head` closes the pipe; a traceback there reads like a broken tool. The
+        # control verdict prints BEFORE the listing, so it has already been seen — but the
+        # exit code must not be laundered to 0 by a closed pipe (#735).
         sys.stderr.close()
-        sys.exit(0)
+        sys.exit(2)
