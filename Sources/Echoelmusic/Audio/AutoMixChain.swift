@@ -99,9 +99,57 @@ final class AutoMixChain {
 
     // MARK: - Preset
 
-    enum Preset: Equatable { case balanced, warm, bright, transparent }
+    /// The master-bus tonal character. Four named curves over the same three EQ bands.
+    ///
+    /// ⛔ FROM 2026-06-23 UNTIL #736 THIS HAD NO WRITER ANYWHERE, so every session ran
+    /// `.balanced` and the other three were unreachable — a documented four-way choice with
+    /// no chooser, the same shape as `breathPlayEnabled` (#724), `ResourceGovernor.isAutomatic`
+    /// (#727) and `ArtNetSender.resolution` (#730). It was also the case that made
+    /// `scripts/doorless-state.py` visibly incomplete: its write matcher is keyed on the bare
+    /// identifier, so two unrelated `self.preset = preset` lines in `BioSignalDeconvolver` and
+    /// `BioSpaceMap` masked it entirely. #735 added the MASKED section for exactly this, and
+    /// this is the first thing that section found.
+    ///
+    /// ⚠️ ONE OWNER, TWO CALLERS — the `MIDIOutput.applyOutputPreferences()` shape. The Picker
+    /// in the Master panel writes the persisted key and this property; `configureEQ()` reads
+    /// the key at launch through `applyPersistedPreset()`. Neither path re-implements the
+    /// curve: `applyPreset()` is the only place the numbers live (#416 — the static setup used
+    /// to spell the `.balanced` gains a second time, so changing one drifted from the other).
+    enum Preset: String, CaseIterable, Identifiable, Sendable, Equatable {
+        case balanced, warm, bright, transparent
+
+        var id: String { rawValue }
+
+        /// User-facing name. Deliberately not the raw value: the Picker is a named choice
+        /// (the UI law's `Picker`, not an `EchoelValueField`), and the raw value is a
+        /// persistence token that must stay stable if the label ever changes.
+        var displayName: String {
+            switch self {
+            case .balanced:    return "Balanced"
+            case .warm:        return "Warm"
+            case .bright:      return "Bright"
+            case .transparent: return "Transparent"
+            }
+        }
+    }
+
     var preset: Preset = .balanced {
         didSet { applyPreset() }
+    }
+
+    /// Read the stored character and apply it. Called from `configureEQ()`, i.e. from
+    /// `insert(...)`, which `AudioEngine` calls unconditionally while building the graph —
+    /// so a persisted choice survives a relaunch.
+    ///
+    /// ⚠️ `applyPreset()` IS CALLED EXPLICITLY rather than left to `didSet`. Swift does fire
+    /// `didSet` on a same-value write, but #714 is the cycle that paid for a launch path which
+    /// "obviously" ran and did not: an explicit call cannot depend on that reading being right.
+    /// An unknown stored value falls back to `.balanced` instead of substituting some other
+    /// character — the `fieldAutoPlayMotion` rule.
+    func applyPersistedPreset() {
+        let stored = UserDefaults.standard.string(forKey: StudioDefaultKeys.masterCharacter.key)
+        preset = Preset(rawValue: stored ?? "") ?? .balanced
+        applyPreset()
     }
 
     // MARK: - AVAudio nodes
@@ -408,27 +456,34 @@ final class AutoMixChain {
         eq.bands[0].frequency   = 45
         eq.bands[0].bypass      = false
 
-        // Band 1: Low-shelf CUT -1.5 dB at 140 Hz — tame the boom/mud that swamped
-        // the mids (was a +1.5 dB boost).
+        // ⚠️ THE THREE GAINS ARE NOT SET HERE ANY MORE (#736) — `applyPersistedPreset()` at
+        // the end of this method owns them, through `applyPreset()`. They used to be spelled
+        // out twice, here and in `applyPreset()`'s `.balanced` case, with the same three
+        // numbers; changing one would have drifted from the other (#416). Frequencies, filter
+        // types, bandwidth and bypass stay here: those are the same under every character.
+        //
+        // Band 1: Low-shelf at 140 Hz — tames the boom/mud that swamped the mids.
         eq.bands[1].filterType  = .lowShelf
         eq.bands[1].frequency   = 140
-        eq.bands[1].gain        = -1.5
         eq.bands[1].bypass      = false
 
-        // Band 2: Presence boost +1.5 dB at 2.8 kHz (clarity/definition). Trimmed 2026-07-07
-        // (warmth pass) from +2 dB so the master doesn't push voices forward/cold.
+        // Band 2: Presence at 2.8 kHz (clarity/definition). Under `.balanced` this is
+        // +1.5 dB, trimmed 2026-07-07 (warmth pass) from +2 dB so the master doesn't push
+        // voices forward/cold; the other three characters move it — see `applyPreset()`.
         eq.bands[2].filterType  = .parametric
         eq.bands[2].frequency   = 2800
         eq.bands[2].bandwidth   = 1.5
-        eq.bands[2].gain        = 1.5
         eq.bands[2].bypass      = false
 
-        // Band 3: Air shelf +2.5 dB at 9 kHz (openness). Trimmed 2026-07-07 (warmth pass)
-        // from +3.5 dB — the glassy 9 kHz air was what made bright voices read cold.
+        // Band 3: Air shelf at 9 kHz (openness). Trimmed 2026-07-07 (warmth pass) from
+        // +3.5 dB — the glassy 9 kHz air was what made bright voices read cold.
         eq.bands[3].filterType  = .highShelf
         eq.bands[3].frequency   = 9000
-        eq.bands[3].gain        = 2.5
         eq.bands[3].bypass      = false
+
+        // The gains, last, from the stored character. Everything above is character-
+        // independent; everything this sets is not.
+        applyPersistedPreset()
     }
 
     // MARK: - Preset switching

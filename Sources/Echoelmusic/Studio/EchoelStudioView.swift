@@ -313,6 +313,11 @@ struct EchoelStudioView: View {
     @State private var showVideoLibrary = false
     /// Delivery loudness target (shared key with MasterLoudnessGrid's colour-coding).
     @AppStorage(StudioDefaultKeys.loudnessTarget.key) private var loudnessTargetRaw = StudioDefaultKeys.loudnessTarget.value
+    /// #736 — the master-bus tonal character. Labelled "Tone", NOT "Character": this file
+    /// already has two `labeledRow("Character")` rows (the sound preset row and the Effects
+    /// picker), and a third meaning of one word in one app is a worse defect than a longer
+    /// label. The accessibility label spells it out for VoiceOver.
+    @AppStorage(StudioDefaultKeys.masterCharacter.key) private var masterCharacterRaw = StudioDefaultKeys.masterCharacter.value
     /// Immersive visual mode: the spectrum→visible donut renderer vs the Metal field.
     /// **Default is now `false` and there is no reachable control that turns it on** (#227) —
     /// see `StudioDefaultKeys.visualSpectralDonuts` for why, and `normaliseUnreachableDonutMode()`
@@ -4720,6 +4725,25 @@ struct EchoelStudioView: View {
                 }
                 .pickerStyle(.menu).tint(EchoelTheme.text)
                 .accessibilityLabel("Loudness delivery target")
+            }
+
+            // The `.onChange` calls the SAME method the launch path calls
+            // (`configureEQ()` → `applyPersistedPreset()`), rather than mapping the raw value
+            // to a `Preset` a second time here. One owner, two callers — the
+            // `MIDIOutput.applyOutputPreferences()` shape, and the reason a stored choice and
+            // a live tap can never disagree.
+            labeledRow("Tone") {
+                Picker("Tone", selection: $masterCharacterRaw) {
+                    ForEach(AutoMixChain.Preset.allCases) { p in
+                        Text(p.displayName).tag(p.rawValue)
+                    }
+                }
+                .pickerStyle(.menu).tint(EchoelTheme.text)
+                .onChange(of: masterCharacterRaw) { _, _ in
+                    audioEngine.autoMixChain.applyPersistedPreset()
+                }
+                .accessibilityLabel("Master tonal character")
+                .accessibilityHint("Balanced, warm, bright or transparent — the EQ curve on the master bus")
             }
 
             // The live numbers live in their own view so the 60 Hz meter refresh

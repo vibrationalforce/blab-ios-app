@@ -89,6 +89,15 @@ public enum StudioDefaultKeys {
     public static let lockedBPM = StudioDefault(key: "studio.lockedBPM", value: 70.0)
     public static let loudnessTarget = StudioDefault(key: "studio.loudnessTarget",
                                                      value: LoudnessTarget.streaming.rawValue)
+    /// #736 — the master-bus tonal character (`AutoMixChain.Preset`), stored as its raw value.
+    ///
+    /// ⚠️ `balanced` IS THE SHIPPED CURVE AND MUST STAY THE DEFAULT. It is the one retuned
+    /// 2026-06-23 from an FFT of a real take, and until #736 it was the ONLY curve any session
+    /// could hear — the property had no writer anywhere. Persisted rather than live-only
+    /// because its neighbour in the same panel (`loudnessTarget`) is, and because a tonal
+    /// character is a studio setting, not a performance gesture like Blackout.
+    public static let masterCharacter = StudioDefault(key: "studio.masterCharacter",
+                                                      value: "balanced")
     /// #253 A3 — the rhythm character the BASS walks in, or `""` meaning "the genre's own".
     ///
     /// ⚠️ **`""` IS THE DEFAULT AND IT MUST STAY THE DEFAULT** until a founder says otherwise. The
