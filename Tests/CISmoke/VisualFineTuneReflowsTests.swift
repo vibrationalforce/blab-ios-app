@@ -52,7 +52,8 @@
 //      to go red on the day of the re-door, with the prose bill in its message. It fired, the
 //      bill was paid in that same commit (#456), and the claim turned around: the door must
 //      exist (zero = a lost capability, not a lost plan), there must be exactly ONE of it
-//      (two = a second entrance to one surface, the #290 trap that removed the "Bio" chip), and
+//      (two = a second entrance to one surface — the #290 trap: a second door to `bioPanel` was
+//      shipped in 2026-07-12 and pulled two days later), and
 //      it must be a labelled Button rather than a hidden gesture — the cover's own top bar
 //      cites WCAG 2.2 for that. **The guard working looks exactly like this, not like a green.**
 //   7. The donut normalisation and that door are MUTUALLY EXCLUSIVE — and #747 is the commit
@@ -323,7 +324,7 @@ final class VisualFineTuneReflowsTests: XCTestCase {
     ///
     /// The assertion now runs the normal way round: the door must EXIST, and there must be
     /// exactly ONE of it. A second true-writer is a second door to one surface (#290) — the trap
-    /// that got a "Bio" chip removed in 2026-07-14 — and it is the likeliest next regression,
+    /// that pulled a second `bioPanel` door in 2026-07-14 — and it is the likeliest next regression,
     /// because a fullscreen toggle is an obvious thing to also put in a header.
     ///
     /// The scan stays word-bounded: `showVisualSettings`, `showVisualFineTune` and
@@ -366,9 +367,11 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         with it (claim 7 owns that pairing and will be red in the same run).
 
         TWO OR MORE means a second door to one surface (#290): a header toggle plus the panel \
-        button, say. Pick one and delete the other. The 2026-07-14 removal of the "Bio" chip is \
-        the precedent — a second entrance to a surface that already has one reads as a bug to \
-        the player long before it reads as convenience.
+        button, say. Pick one and delete the other. The 2026-07-14 removal of `bioPanel`'s second \
+        door is the precedent — a second entrance to a surface that already has one reads as a bug \
+        to the player long before it reads as convenience. (Phrased without the word this repo \
+        bans there: `TheBioPanelDoorIsThePulsePillTests` went RED on the first draft of these \
+        three lines, which is the guard doing its job on prose I wrote by habit.)
         """)
         // The cover's own top bar cites WCAG 2.2 against gating controls behind a hidden
         // gesture. A `showVisual = true` reachable only from a long-press would satisfy the

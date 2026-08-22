@@ -11430,3 +11430,24 @@ Nach dem Schnitt neu gegrept, gefunden, korrigiert.
 Querformat drehen, prüfen ob die zwei Spalten des VJ-Overlays lesbar bleiben; und ob das
 schwebende Fenster verschwindet und danach zurückkommt (GPU-Regel, nie am Gerät gelaufen). Genau
 diese Bitte musste `VisualFineTuneReflowsTests` einmal als unmögliche Founder-Frage zurückziehen.
+
+**#749** — Gate-Rot von #748, sofort repariert. **Ein echter Testfehler, kein #396-Rauschen:**
+`TheBioPanelDoorIsThePulsePillTests.testNoLivingProseCallsItAChip()` — und der Verursacher war
+ich. In der Fehlermeldung meines neuen Wächters stand dreimal die Wendung „the ‚Bio' chip" als
+#290-Präzedenzfall. Genau dieses Idiom ist seit #705/#706 verboten: **kein Chip öffnet das
+Bio-Panel** (`.bio` fehlt in `studioChips`), die Tür ist der TAP auf die Puls-Pille. Umformuliert
+auf „ein zweiter `bioPanel`-Türeingang, 2026-07-12 ausgeliefert und zwei Tage später gezogen".
+
+⭐ **Der Befund ist die Lehre, nicht der Tippfehler:** ich habe die Wendung aus dem Gedächtnis
+geschrieben, weil sie als Beispiel eingängig ist — und das ist exakt der Mechanismus, gegen den
+#706 gebaut wurde. **Ein verbotenes Idiom stirbt nicht durch Löschen der Fundstellen, sondern
+nur durch einen Wächter, der die nächste Wiederholung fängt.** Er hat sie beim ersten Versuch
+gefangen, in einem Commit, dessen Thema Türen war.
+
+⚠️ Zweite Lehre, methodisch: mein erster tree-weiter Scan meldete 20 Treffer und hätte fast eine
+Panik über CLAUDE.md und die Ledger ausgelöst. Der Wächter läuft nur über **drei** Verzeichnisse
+(`Sources/Echoelmusic`, `Tests/CISmoke`, `Tests/EchoelmusicTests`). **Eine Nadel wird im SCOPE
+ihrer Zusicherung gemessen, nicht im größtmöglichen** — sonst repariert man Dateien, die gar
+nicht geprüft werden. Nach exakter Transkription: 0 Treffer, 1 Selbst-Ausnahme.
+
+Nachgemessen: Klammerbilanz identisch zum Eltern-Commit, Behauptungen 6a/6b/6c unverändert grün.
