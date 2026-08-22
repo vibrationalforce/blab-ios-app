@@ -22,6 +22,21 @@
 // commit. The present state is measurable; the duration is not — the `presetRow` lesson in
 // CLAUDE.md, hit again one file over.)
 //
+// ⛔ AND THE "EITHER DIRECTION" ABOVE IS WEAKER THAN IT READS — measured in the same review that
+// added the cross-reference (#710 finding 1), and it is the sharper half of the lesson. The
+// donut twin is now the STRICTER shape, not a copy of this one:
+//   · this file reads RAW source (`source(_:)` below, no comment stripping) and its needle is a
+//     bare `contains("normaliseDoorlessLeadMix()")`. That token appears FOUR times in
+//     `EchoelStudioView` — the call, the declaration, and two prose comments. So the
+//     "normalisation missing" direction cannot fire on a deleted CALL; all four would have to go.
+//     In practice this file guards one direction, not two.
+//   · the donut claim strips comments (`SourceText.codeOnly`) and excludes the declaration by its
+//     `func` keyword, so a deleted call really does turn it red.
+// Left as a measurement rather than repaired here: tightening this needle is its own slice with
+// its own broken-tree runs, and #710 is a review follow-up, not a second feature. The paragraph
+// this block sits under says a "same shape as X" claim goes unchecked — and the very next thing
+// checked was X itself.
+//
 //   · door removed, normalisation missing  → the stale-value trap above
 //   · door restored, normalisation left in → every launch stamps the fader back to unity, so the
 //     control moves, persists, and is silently undone on the next start. That is a lying control

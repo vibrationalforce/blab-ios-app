@@ -54,9 +54,14 @@
 //      commit instead of leaving it quietly false (#456). Its failure message names the NINE
 //      files that carry that prose today rather than a count, because a count of scattered
 //      sentences is a number this repo has learned not to write down.
-//   7. The donut normalisation and that door are MUTUALLY EXCLUSIVE. Claim 6 names nine prose
-//      homes and zero CODE obligations, and there are two of those, written only in doc comments
-//      inside `EchoelStudioView`. Obeying claim 6 to the letter still ships a lying pill.
+//   7. The donut normalisation and that door are MUTUALLY EXCLUSIVE. Claim 6 lists nine prose
+//      files and zero CODE obligations, and there are at least three of those. Obeying claim 6
+//      to the letter still ships a lying pill. (⛔ Claim 6's nine is a LIST, not a census — item
+//      6 above says in its own last sentence that a count of scattered sentences is a number
+//      this repo does not write down, and #709 then restated "nine" three times as though it
+//      were one. At least two more homes carry the same prose today:
+//      `AutoModeStartsOffAndOwnsNoTempoTests` and `EchoelStudioView`'s un-settable-flags note.
+//      Read it as "the nine claim 6 happens to name" — #710 review finding 8.)
 //
 // It does NOT re-assert that `EchoelPanel`'s content spacing is 14 — `SoundPanelReflowsTests`
 // owns that fact (`testThePanelStillUsesThatSpacingForItsContent`), and a second copy of a
@@ -318,7 +323,7 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         "doorless (#270)" prose in the same commit.
         """)
         for line in writers {
-            XCTAssertTrue(line.contains("= false"), """
+            XCTAssertFalse(isTrueWriter(line), """
             `showVisual` now has a writer that is not `= false`: \
             \(line.trimmingCharacters(in: .whitespaces))
 
@@ -341,18 +346,34 @@ final class VisualFineTuneReflowsTests: XCTestCase {
 
     /// ⭐ Claim 7 — the PAIRING claim 6 could not make, and the reason this commit exists.
     ///
-    /// Claim 6 goes red at the re-door and its message names nine PROSE homes. It names ZERO code
-    /// obligations, and there are two, written only in doc comments inside `EchoelStudioView`
-    /// itself: bring the "Donuts" pill back in `visualLookStrip` at BOTH mounts (the overlay has
-    /// no `visualLookCustomizer` beneath it, so the pill was its last look control), and DELETE
-    /// `normaliseUnreachableDonutMode()` together with the line that calls it.
+    /// Claim 6 goes red at the re-door and its message lists nine PROSE files. It names ZERO code
+    /// obligations, and there are AT LEAST THREE: restore the "Donuts" pill in `visualLookStrip`
+    /// behind `showsDonutState` (see below — NOT at both mounts), DELETE
+    /// `normaliseUnreachableDonutMode()` together with the line that calls it, and flip
+    /// `StudioDefaultKeys.visualSpectralDonuts` back with `VisualLookTruthTests`
+    /// `.testAFreshInstallDoesNotClaimTheDonutRenderer`, whose own message asks for exactly that.
+    ///
+    /// ⛔ "TWO, WRITTEN ONLY IN DOC COMMENTS INSIDE `EchoelStudioView`" IS WHAT THIS SAID FIRST,
+    /// and both halves were wrong (#710 review finding 2). The third obligation is a `Sources/`
+    /// change in a different file, and of the two that ARE in `EchoelStudioView` the pill one is
+    /// a `//` body comment inside `visualLookStrip`, not a `///` doc comment. A count stated as
+    /// complete is the failure this whole file argues against; "at least three, and here they
+    /// are" is the honest form.
     ///
     /// Obey claim 6 to the letter and the second half still ships wrong: the pill returns, a
     /// player switches Donuts on, and the next launch stamps it back off. A control that moves,
     /// persists and is silently undone — the exact failure class
     /// `LeadMixDoorAndNormalisationTests` was written to prevent ONE STORE DOWN, on a normaliser
     /// whose own doc comment calls itself "the same shape and same reason" as that one. The lead
-    /// pairing has a guard in both directions; its donut twin had none. This is that guard.
+    /// pairing has a guard; its donut twin had none. This is that guard.
+    ///
+    /// ⛔ "THE LEAD PAIRING HAS A GUARD IN BOTH DIRECTIONS" IS WHAT THIS SAID, and measuring it
+    /// was the one thing #709 did not do (#710 review finding 1). That file reads RAW source and
+    /// uses a bare token, which also matches two prose comments and the declaration — so its
+    /// "normalisation missing" direction cannot fire on a deleted call. This claim is the
+    /// STRICTER shape (comments stripped, declaration excluded by its `func` keyword), not a
+    /// copy of it. Writing an unchecked "X is guarded too" into a commit whose whole subject is
+    /// unchecked standing claims is the failure itself; the note is left where it was made.
     ///
     /// ⚠️ THE TWO DIRECTIONS ARE NOT THE SAME KIND, graded separately (#433/#464/#486):
     ///   · door absent + normalisation deleted → RED, and this half COULD always have been red.
@@ -362,26 +383,48 @@ final class VisualFineTuneReflowsTests: XCTestCase {
     ///
     /// It does not forbid the re-door (#364): a commit that adds the door AND removes the
     /// normalisation passes. Driven against four deliberately broken trees before it was written
-    /// — call deleted → red · door without the deletion → red · both together → green · a
-    /// prose-only mention of the assignment → green, which is where the `codeOnly` pass in
-    /// `studioLines()` earns its keep.
+    /// — call deleted → red · door without the deletion → red · both together → green · a `//`
+    /// COMMENT mentioning the assignment → green, which is where the `codeOnly` pass in
+    /// `studioLines()` earns its keep. ⛔ That last one first read "a prose-only mention", which
+    /// claims more cover than exists (#710 review finding 5): `codeOnly` does NOT blank the body
+    /// of a `"""` literal — `SourceText`'s own header says so — and `EchoelStudioView` already
+    /// writes such literals. The same assignment inside one would turn this claim, and claim 6,
+    /// red on a correct tree. See `isTrueWriter`, where both limits now live once.
+    ///
+    /// ⚠️ THE PILL GOES BACK AT ONE MOUNT, NOT TWO, and getting this wrong would re-create the
+    /// exact defect #227 removed (#710 review finding 3). `visualLookStrip` is mounted twice:
+    /// inline in the Field panel with `showsDonutState: false`, and in the VJ overlay with
+    /// `true`. The inline panel's visual is `FloatingVisualWindow`, which does not read
+    /// `spectralDonuts` AT ALL — a pill there would fill, the readout would say "Donuts", and
+    /// nothing on screen would change, which is precisely what #227 deleted. The re-door changes
+    /// what the OVERLAY can show; it changes nothing about the inline panel. So: behind
+    /// `showsDonutState`. The source line being paraphrased ("Restore it there, not only inline")
+    /// is ambiguous read alone; the `showsDonutState` parameter doc resolves it.
     ///
     /// ⚠️ IT CANNOT SEE THE PILL, and the message says so rather than implying full cover. The
     /// pill is a view control; a token scan would pin a spelling, not a capability. That
     /// obligation is carried in the failure text, where the person doing the re-door reads it.
     ///
     /// ⚠️ TWO RENAMES, TWO DIFFERENT OUTCOMES, and neither is a silent pass. Renaming the FLAG
-    /// would make both sides read `false` and this claim would go green on nothing — the #367
-    /// hole — except that claim 6 anchors on exactly that and goes RED first, in this same file.
+    /// leaves `normalises` untouched at `true` while `hasDoor` reads `false`, so this claim would
+    /// pass on nothing — the #367 hole — except that claim 6 anchors on exactly that and goes RED
+    /// first, in this same file. (⛔ This sentence first said "both sides read `false`". The
+    /// conclusion was right and the mechanism was not; `normalises` does not depend on the flag.
+    /// A reason given for a true conclusion is checked here too — #710 review finding 6.)
     /// Deliberately NOT re-anchored here (#416: one definition of that fact). Renaming the
     /// NORMALISER instead turns this claim red with the "NEITHER present" branch, which is a red
     /// for a true reason under a slightly wrong name; the repair is the same either way.
     func testTheDonutNormalisationExpiresExactlyWhenTheDoorReturns() throws {
         let lines = try studioLines()
-        let hasDoor = lines.contains { flagAssignments(in: $0) && !$0.contains("= false") }
+        let hasDoor = lines.contains { isTrueWriter($0) }
         // The declaration carries the same token; the obligation is the CALL, so exclude it.
+        // ⛔ ANCHORED ON `func`, NOT ON `private` (#710 review finding 4). The first draft
+        // excluded lines containing "private func", so dropping the access modifier — or
+        // splitting it onto its own line — would have made the DECLARATION read as a call and
+        // handed a false green to the one direction this claim grades as a regression guard.
         let normalises = lines.contains {
-            $0.contains("normaliseUnreachableDonutMode()") && !$0.contains("private func")
+            $0.contains("normaliseUnreachableDonutMode()")
+                && !$0.contains("func normaliseUnreachableDonutMode")
         }
 
         XCTAssertNotEqual(hasDoor, normalises, """
@@ -390,16 +433,41 @@ final class VisualFineTuneReflowsTests: XCTestCase {
 
         BOTH present: `showVisual` has a real writer, so the overlay's Donuts toggle is reachable \
         again — while `normaliseUnreachableDonutMode()` still stamps `visual.spectralDonuts` back \
-        to `false` on every launch. In THIS commit: delete that function AND the line that calls \
-        it, and bring the "Donuts" pill back in `visualLookStrip` at BOTH mounts — the overlay has \
-        no `visualLookCustomizer` under it, so the pill was its last look control. Its own doc \
-        comment asks for both.
+        to `false` on every launch (the call sits in `.onAppear`). In THIS commit: delete that \
+        function AND the line that calls it; restore the "Donuts" pill in `visualLookStrip` \
+        behind `showsDonutState`, i.e. at the OVERLAY mount only — the overlay has no \
+        `visualLookCustomizer` under it, so the pill was its last look control, while the inline \
+        Field panel renders `FloatingVisualWindow`, which does not read `spectralDonuts` at all, \
+        so a pill there is the #227 lie again; and flip \
+        `StudioDefaultKeys.visualSpectralDonuts` with `VisualLookTruthTests`.
 
         NEITHER present: `visual.spectralDonuts` is persisted, still has no reachable writer, and \
         now nothing repairs an install that stored `true` before #227 — those players keep the \
         launch look-snap skipped, with no control able to undo it. Restore the call, or restore \
-        the door in the same commit.
+        the door in the same commit. Third legitimate tree, and the one this message used to \
+        misdirect: the donut renderer was RETIRED outright (key, `SpectralDonutView`, the cover \
+        branch). Then delete this claim together with the key, the way claim 5's overlay half and \
+        claim 6 retire together.
         """)
+    }
+
+    /// True when `line` both assigns to the flag AND is not the `= false` form — the ONE spelling
+    /// of "this is a door" in this file, so claims 6 and 7 cannot drift into disagreeing about
+    /// what a door is (#416/#453). Claim 6 asks whether any such line exists at all; claim 7
+    /// pairs the answer against the normalisation.
+    ///
+    /// ⚠️ TWO HONEST LIMITS, shared by both callers (#710 review findings 5 and 9).
+    ///   · The `= false` needle is whitespace-sensitive. `showVisual=false` satisfies
+    ///     `flagAssignments` (a bare `=` is accepted) but not this test, so a reformat of an
+    ///     existing false-writer reads as a door → RED on a correct tree. A single line carrying
+    ///     BOTH forms reads as no door → false green. Both are cheap to fix the day either shape
+    ///     appears; neither is invented ahead of a real case (#367).
+    ///   · `SourceText.codeOnly` blanks `//` and `/* */`, NOT the body of a Swift `"""` literal —
+    ///     its own header says so and explains why the omission is deliberate. Every line inside
+    ///     such a literal is scanned as CODE, and `EchoelStudioView` already writes them. So the
+    ///     stripper protects against a COMMENT quoting the assignment, not against any prose.
+    private func isTrueWriter(_ line: String) -> Bool {
+        flagAssignments(in: line) && !line.contains("= false")
     }
 
     /// True when `line` assigns to the `showVisual` flag itself — `=` or `.toggle()`, and never a
