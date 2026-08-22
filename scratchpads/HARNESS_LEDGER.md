@@ -89,6 +89,35 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 | v10.79.195 | Immersive Stage — Touch room-map, each track a draggable spatial object (SpatialSceneStore + ImmersiveStageMath + ImmersiveStageView) | green |
 | v10.79.194 | Multi-Roll (tracks play simultaneously) + per-track Record (arm→play→capture MIDI/bio→Clip+region) | green |
 
+## PLAYBOOK + DEAD-END (2026-08-22, #734): „settable state ohne Schreiber" ist mechanisierbar — aber NUR auf Klassen
+
+**PLAYBOOK.** Vier Zyklen in Folge fanden dieselbe Form von Hand: ein nicht-privates `var` mit
+Default, auf einem lebenden Pfad gelesen, **null Schreiber irgendwo** — ein Schalter ohne
+Bedienelement (#724 `breathPlayEnabled`, #727 `isAutomatic`, #730 `ArtNetSender.resolution`,
+dazu das schon notierte `inputMonitoringEnabled`). Jeder Fund war ein Zufall und kostete einen
+Zyklus. Seit #734 gibt es dafür einen Befehl:
+
+    python3 scripts/doorless-state.py     # ~2 s, 35 Treffer über 251 Klassen-Properties
+
+Er trägt seine eigene **Bekannt-Positiv-Kontrolle** (`isAutomatic` + `inputMonitoringEnabled`
+müssen auftauchen, sonst Exit 2) — das Gesetz „ein Detektor, der seinen eigenen bekannten
+Positivfall nie gefunden hat, ist keine Messung", ausführbar gemacht.
+⚠️ Ein Treffer ist eine **FRAGE**, kein Defekt. Eine DSP-Stellschraube ohne Schreiber ist in
+Ordnung; der Defekt ist ein Knopf, dessen Doc einen Benutzer nennt, der ihn nicht drehen kann.
+
+**DEAD-END: NICHT über `struct` laufen lassen.** Gemessen am selben Tag: über alle Typarten
+91 Treffer, über Klassen 35 — und die Differenz ist fast vollständig EINE Falsch-Positiv-
+Familie: SwiftUI-`View`-Member sind **memberwise-Init-Parameter**. `MetalBioView.autoAttuned`,
+`entrainmentPulseHz`, `EchoelValueField.boxWidth` erscheinen als „ohne Schreiber", weil sie an
+jeder Aufrufstelle als `autoAttuned: autoMode` ÜBERGEBEN und nie zugewiesen werden. Alle drei
+sind voll verdrahtet, zwei davon sogar schon von einem Wächter gepinnt. Nach der #665-Regel —
+ein Prüfer mit Fehlalarmen ist ein Prüfer, den niemand liest — ist die enge Fassung die
+ausgelieferte.
+
+**Zweiter DEAD-END, teurer:** der erste Entwurf verglich jeden Kandidaten gegen jede Zeile
+(O(n²)) und lief nach 560 s nicht durch. Die tragfähige Form ist EIN Durchlauf, der alle
+geschriebenen Namen in einen `Counter` sammelt, danach Mengendifferenz — 1,8 s.
+
 ## PLAYBOOK (2026-08-20, #639-Zyklus): ein „geht nicht" in einer STILL-OPEN-Liste ist eine BEHAUPTUNG
 
 **Der Fehler.** #639 registrierte die drei nicht erledigten Egress-Pfade und schrieb über zwei
