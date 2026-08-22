@@ -69,14 +69,18 @@ def _interpolation_end(line: str, at: int) -> int:
 
     Returns `len(line)` when the span does not close on this line — the span is then treated
     as running to end of line, which keeps the walk in literal state instead of guessing.
+    ⚠️ In `blank_strings=True` that ERASES the remainder of the line, which is the FALSE-ALARM
+    direction; 0 genuinely unclosed spans exist across the tracked tree today.
 
     ⛔ WHY THIS EXISTS: without it, `\(` was consumed as a plain escape and the next `"` — the
     OPENING quote of a nested literal inside the interpolation — read as the CLOSING quote of
     the outer one. Phase inverted for the rest of the interpolation, so its text was emitted
     as CODE. Measured on `XCTFail("no \(a["func ghostX("]) here")`: the needle survived the
     haystack blanking and found ITSELF, i.e. the #708 self-match again, one literal-shape over
-    from the one #718 closed. The shape exists 146 times in `Tests/CISmoke` and 45 in
-    `Sources/` — latent then, not any more.
+    from the one #718 closed. The shape sits on 146 LINES in `Tests/CISmoke` and 45 in
+    `Sources/` (`grep -c '\\([^)]*"'` — a line count, not an occurrence count: occurrences are
+    148/50 and the spans this walk actually enters are 161/52; three defensible numbers, so the
+    operation belongs beside the figure) — latent then, not any more.
 
     Nested literals are skipped with their own escape handling, so a `)` inside a string
     (`\(a[")"])`) does not close the span early.
@@ -88,6 +92,16 @@ def _interpolation_end(line: str, at: int) -> int:
             i += 1
             while i < n:
                 if line[i] == "\\":
+                    # ⛔ THE SKIP LOOP TREATED EVERY `\` AS A PLAIN ESCAPE, so an interpolation
+                    # INSIDE the nested literal was not spanned: its opening `"` read as the
+                    # nested literal's CLOSING quote, the span ended at the wrong `)`, and phase
+                    # inverted for the rest of the line. The self-match was therefore still
+                    # constructible ONE NESTING LEVEL DEEPER — the third repetition of this class,
+                    # each time in the shape the previous fix did not reach. Recursing here is the
+                    # whole repair, and it changed output on 0 of 711 files × 2 modes.
+                    if i + 1 < n and line[i + 1] == "(":
+                        i = _interpolation_end(line, i + 1)
+                        continue
                     i += 2
                     continue
                 if line[i] == '"':
@@ -132,8 +146,14 @@ def _code_only(text: str, blank_strings: bool = False) -> str:
         strings (`#"…"#`, any number of hashes, including `#\"\"\"…\"\"\"#`), `//` to end of
         line and `/* */` across lines.
       · Interpolation (`\\(expr)`, `\\#(expr)` in a raw string) is spanned by
-        `_interpolation_end` and emitted as LITERAL text, so a declaration mentioned inside
-        one is invisible — a MISS, the safe direction. ⛔ Until that helper existed the
+        `_interpolation_end` and emitted as LITERAL text. ⚠️ READ WHICH PASS THAT AFFECTS: with
+        `blank_strings=False` nothing is erased, so the NEEDLE SCAN still sees a declaration
+        mentioned inside an interpolation and will report it; only the HAYSTACK blanks it, and
+        haystack erasure is the FALSE-ALARM direction. It is benign here only because a real
+        declaration never lives inside a literal. (The first version of this bullet said
+        "invisible — a MISS, the safe direction", naming the wrong pass AND the opposite of this
+        docstring's own framing — the very defect #719 was written to repair, one pass over.)
+        ⛔ Until that helper existed the
         opposite happened: the walk desynchronised and emitted the interpolation as CODE, so
         a needle inside one found ITSELF. The docstring stated the safe direction while the
         code did the unsafe one, which is worse than either — a reader who trusts the line
@@ -653,12 +673,23 @@ def section_b() -> Section:
     # `normaliseDoorlessLeadMix()`) are not, and remain uncatchable by construction. The list
     # is the REASON this exists, not a claim about its reach.
     #
-    # ⚠️ AND THE REACH IS NARROWER THAN THE SHAPE ALLOWS, measured: 41 of ~640 declaration-ish
-    # needles in the bundle match this regex. It misses `"func X()"` (empty parens, 5),
-    # a leading modifier inside the literal (`"private func X("`, 61), arguments inside the
-    # literal (3), and `var`/`let`/`case`/`init`/`extension`/`typealias` (21). Widening is a
-    # separate slice and must come AFTER the glob repair below — with the old glob it
-    # false-alarmed on `func openAppSettings()` immediately.
+    # ⚠️ AND THE REACH IS NARROWER THAN THE SHAPE ALLOWS: 41 needles match this regex, against a
+    # larger pool of declaration-ish literals in the bundle. Re-derived and stable: 41 matched,
+    # and the empty-parens bucket (`"func X()"`) is 5, the `var`/`let`/`case`/`init`/`extension`/
+    # `typealias` bucket 21. ⚠️ NOT re-derivable as first written: "~640" lands anywhere between
+    # 558 and 683 depending on what counts as declaration-ish, "61" (leading modifier) re-derives
+    # to 57 and "3" (arguments inside the literal) to 14 — no definition was recorded beside them,
+    # which is the whole failure this repo names as "measure; do not recite". Treat the three as
+    # OWED a definition, not as counts.
+    #
+    # ⭐ THE ORDERING CONSTRAINT IS DISCHARGED. Widening had to wait for the glob repair — with
+    # `Sources/Echoelmusic/**` the empty-parens shape false-alarmed on `func openAppSettings()`
+    # immediately. That landed in #718/#719, and re-measuring the same widening against the
+    # shipped haystack now yields 0. A deferred item still marked blocked by a blocker that no
+    # longer exists is the "doorless note that outlived its reason" shape. Forecast for whoever
+    # does it: the `var`/`let`/`case` bucket produces prose fragments, not needles (`'init param'`,
+    # `'var peerBio'`, `'let breathAddress'`, `'case wetDry'`), so that bucket needs a tighter
+    # shape or it is cry-wolf.
     #
     # ⛔ THE FIRST VERSION MATCHED ITSELF AND CAUGHT NOTHING — the #708 failure, reproduced in
     # the check written to stop that family. It searched a haystack that INCLUDED
@@ -687,8 +718,16 @@ def section_b() -> Section:
     # block's own comment warns against, inside the check that warns about it. `Sources/**`
     # alone returns all 369 — but so does `Sources/*.swift`, because git's `*` in an ls-files
     # pathspec crosses `/`, and that is the form the two other Sources-globs in this file use
-    # (`:726`, `:816`). `**/*.swift` would STILL miss a file placed directly in `Sources/`, so
-    # this line now uses their form rather than a second one that happens to agree today.
+    # — the form the file's two other Sources-glob sites reach for (`section_c`'s
+    # `swift = tracked(...)`, `section_d`'s `src_count = len(set(...))`), both of which UNION the
+    # two globs. `**/*.swift` would STILL miss a file placed directly in `Sources/`, so this line
+    # now uses a form that cannot, rather than one that happens to agree today.
+    #
+    # ⛔ THE FIRST VERSION CITED THOSE TWO SITES BY LINE NUMBER (`:726`, `:816`) AND BOTH WERE
+    # WRONG WHEN WRITTEN — the same commit shifted the file by ~90 lines; the sites are ~:746 and
+    # ~:836, and by the time you read this they have moved again. It also said they "already knew
+    # to widen", which reads as "they use this form"; they use the UNION. A quoted phrase survives
+    # an insertion, a line number does not — this file's own subject matter, made in this file.
     def _declarations_only(paths: list[Path]) -> str:
         return "\n".join(_code_only(read(f), blank_strings=True) for f in paths)
 
@@ -830,6 +869,12 @@ def section_c() -> Section:
 def section_d() -> Section:
     sec = Section("D", "DOCS — do the numbers in CLAUDE.md still hold?")
 
+    # ⛔ THE REASON THAT STOOD HERE WAS FALSE, and the correction is ~90 lines above in this same
+    # file: `Sources/**/*.swift` MISSES a file placed directly in `Sources/`, because git's `**/`
+    # needs an intervening directory. The two globs agree today only because no `.swift` sits
+    # there — exactly the "happens to agree" trap the phantom-needle block names. The union stays
+    # (it is harmless and makes the dedup explicit); only its justification was wrong.
+    # Historic wording, kept so the claim is not re-derived:
     # `git ls-files 'Sources/**/*.swift'` already matches top-level files, so unioning it with
     # 'Sources/*.swift' by ADDING the lengths double-counts everything — the first run of this
     # reported 656 for a 328-file tree. Deduplicate on the path.

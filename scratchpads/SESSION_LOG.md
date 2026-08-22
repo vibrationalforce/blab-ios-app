@@ -11019,22 +11019,33 @@ ihm BEIGEBRACHT wurde, keine Grammatik, die er ableitet").
    Richtig sind 711.
 
 **Bewusst NICHT gebaut, damit es niemand neu herleitet:**
-- **Nadel-Form erweitern:** heute greifen **41 von ~640** deklarations-ähnlichen Nadeln.
+- **Nadel-Form erweitern — die Sperre ist WEG (nachgemessen bei #721):** die Erweiterung
+  musste hinter die Glob-Reparatur, und die ist mit #718/#719 gelandet; dieselbe Erweiterung
+  gegen den ausgelieferten Heuhaufen ergibt jetzt **0 Fehlalarme**. Heute greifen **41** Nadeln,
+  gegen einen größeren Vorrat deklarations-ähnlicher Literale.
   Nicht erfasst: `"func X()"` (leere Klammern, 5) · führende Modifier im Literal
   (`"private func X("`, 61) · Argumente im Literal (3) · `var`/`let`/`case`/`init`/
-  `extension`/`typealias` (21). **Muss NACH der Glob-Reparatur kommen** — vorher hätte es
-  sofort auf `func openAppSettings()` Fehlalarm gegeben (die zwei Fehler hoben sich auf).
+  `extension`/`typealias` (21). ⚠️ **Die Zahlen „~640", „61" und „3" sind NICHT nachrechenbar**
+  — ohne mitgeschriebene Definition ergeben sie 558–683, 57 und 14; sie schulden eine Definition,
+  sie sind keine Messwerte. **Prognose:** der `var`/`let`/`case`-Eimer liefert Prosa-Fragmente
+  statt Nadeln (`'init param'`, `'var peerBio'`), braucht also eine engere Form, sonst Cry-Wolf.
 - `XCTAssertFalse(...isEmpty)` aus der Abwesenheits-Ausnahme nehmen (0 lebende Fälle heute).
 - `emit` aus der Zeilenschleife heben (gemessen 0 Verhaltensunterschied, ~4 % schneller).
 
-**Gates:** #717–#719 fassen nur `scripts/**` an. Das steht in **keinem** Pfad-Filter —
-weder `ci.yml` noch `xcode-compile-check.yml` noch `auto-merge-claude.yml` — also läuft
-darauf **kein Gate** und sie erreichen `main` erst als Passagier des nächsten
-`Sources/`/`Tests/`-Commits. Kein ausgelieferter Code, kein Gate, kein Test-Bundle berührt;
+**Gates:** #717–#719 fassen nur `scripts/doctor.py` an, und **diese Datei** steht in keinem
+Pfad-Filter — also läuft darauf **kein Gate** und sie erreichen `main` erst als Passagier des
+nächsten `Sources/`/`Tests/`-Commits. ⛔ **Hier stand „`scripts/**` steht in keinem Filter",
+und das ist genau die Über-Behauptung, die #720 EINEN COMMIT SPÄTER in
+`ContentPipeline/README.md` als solche benannt hat** — dort korrigiert, hier stehen gelassen:
+`xcode-compile-check.yml` listet `scripts/check-infoplist.sh`, also ist `scripts/` nicht
+pauschal ungesehen. Zwei Homes derselben Tatsache, einer im selben Zug repariert und einer
+nicht (#456). Kein ausgelieferter Code, kein Gate, kein Test-Bundle berührt;
 verifiziert durch Ausführen (8 Bäume, sauber → 0, jedes der vier versteckten Phantome
 gefangen, kein Fehlalarm).
 
-**Nebenbefund fürs Register (offen):** `ContentPipeline/README.md` zählt die Geschwister mit
-demselben Merge-Loch auf und nennt drei (`README.md`, `fastlane/**`, `.deploy/release`).
-Wahr ist die Umkehrung: der Filter ist eine **Erlaubnis-Liste aus fünf Pfaden**, also hat
-**jeder andere** Pfad das Loch — auch `scripts/**`, `Resources/**` und die `*.entitlements`.
+**Nebenbefund fürs Register — mit #720 (`b4957b2`) ERLEDIGT:** `ContentPipeline/README.md`
+zählte die Geschwister mit demselben Merge-Loch auf und nannte drei (`README.md`,
+`fastlane/**`, `.deploy/release`). Wahr ist die Umkehrung: der Filter ist eine
+**Erlaubnis-Liste aus fünf Pfaden**, also hat **jeder andere** Pfad das Loch — auch
+`scripts/**`, `Resources/**` und die `*.entitlements`. Steht dort jetzt so, samt gemessener
+Filter-Liste aller Workflows.
