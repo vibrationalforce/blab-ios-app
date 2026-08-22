@@ -51,10 +51,12 @@
 //
 // ⭐ THE SWEEP THAT FOUND THIS FOUND MORE, and #724 claimed "exactly one". Recorded here so
 // the next slice does not re-derive it — neither is fixed by this file:
-//   · `ResourceGovernor.isAutomatic` + `manualTier` — zero production writers, gate at
-//     `guard isAutomatic else`, and a doc that says a performer "can pin a tier (e.g. force
-//     High for a show)". A user-facing capability claim in the present tense, in live code.
-//     STRONGER than this finding, and nothing anywhere records it.
+//   · ~~`ResourceGovernor.isAutomatic` + `manualTier`~~ — **RECORDED AND CORRECTED by #727**,
+//     with its own guard (`TheQualityPinHasNoDoorTests`). This bullet said "nothing anywhere
+//     records it" and that stopped being true one commit later; a sweep list that keeps
+//     claiming an item is unrecorded is the #456 failure — prose over a changed surface moves
+//     in the same commit, in EVERY home. The `ArtNetSender`/`SACNSender` half below is still
+//     open.
 //   · `ArtNetSender.resolution` / `SACNSender.resolution` — non-Bool, `CaseIterable` (the tell
 //     that a Picker was intended), zero writers anywhere, six gating reads, and a doc calling
 //     8-bit "the legacy mode for simple fixtures": a selectable mode with no selector.

@@ -2,16 +2,27 @@
 // Echoel — a doc comment that names the user and the use case for a branch that never runs. #727.
 //
 // WHAT WAS WRONG. `ResourceGovernor.isAutomatic` is `public var … = true` and its doc said a
-// performer "can pin a tier (e.g. force High for a show)". Measured across all 369 files under
-// `Sources/`, comments stripped: `isAutomatic` occurs THREE times — the declaration, its own
-// `didSet`, and the `guard` in `recompute()`. No writer, no binding, no control.
+// performer "can pin a tier (e.g. force High for a show)". Measured in `Sources/`
+// (`git grep -c isAutomatic -- Sources`), comments stripped: `isAutomatic` occurs THREE times — the declaration, its own `didSet`, and the
+// `guard` in `recompute()`. No writer, no binding, no control in any shipped path.
 //
 // ⚠️ AND IT GOES ONE STEP FURTHER THAN THE BREATH-PLAY FINDING (#724/#725), which is why it is
 // its own guard rather than a second claim there. There, a permanently-true flag meant the
-// feature ALWAYS ran. Here, because `isAutomatic` can never be false, the
-// `guard isAutomatic else { apply(…manualTier) }` branch is UNREACHABLE — so `manualTier`,
-// whose only read lives inside it, can never affect anything either. The manual-override half
-// of a live class does not run, and the doc described it in the present tense to a performer.
+// feature ALWAYS ran. Here, no shipped path sets the flag false, so the
+// `guard isAutomatic else { apply(…manualTier) }` branch never runs in the product — and
+// `manualTier`, whose only read lives inside it, cannot affect the app. The manual-override
+// half of a live class is unreachable, and the doc described it to a performer in the present
+// tense.
+//
+// ⛔ SCOPE MATTERS AND #727 DROPPED IT MID-SENTENCE (#728). Its measurement said "across
+// `Sources/`" and its conclusions then said "no writer", "permanently true", "can never affect
+// anything" — repo-wide claims from a directory-wide measurement, the shape this repo names
+// after `EchoelModalBank`. There IS one writer:
+// `Tests/EchoelmusicTests/PollingLoopTests.testResourceGovernor_publishesTheCeilingForAPinnedTier`
+// pins `isAutomatic = false` and steps `manualTier` so its `bioHz` assertion is
+// device-independent. The branch is therefore not dead code — it is the only deterministic way
+// to drive this class. ⚠️ That suite is compiled by NO gate (#208), so nothing goes red when it
+// breaks; that is a reason to NAME the writer, not to overlook it.
 //
 // ⭐ THE AUTOMATIC HALF IS LIVE, WHICH IS WHY CLAIMS 4 AND 5 EXIST. `EchoelmusicApp` constructs
 // the governor, `MetalBioView` takes it from `@Environment`, `ExternalStageBridge` wires it,
@@ -19,8 +30,12 @@
 // for deletion — what is missing is the DOOR. Without the counterweights, "remove the unused
 // manual-tier code" would pass claims 1-3 and quietly answer a founder question.
 //
-// ⚠️ IT FORBIDS NOTHING (#364). Pinning a tier for a show is a real live-performance need and
-// the machinery is two lines from working; whether it should exist is the founder's call. On
+// ⚠️ IT FORBIDS NOTHING (#364). Pinning a tier for a show is a real live-performance need;
+// whether it should exist is the founder's call. (⛔ #727 wrote "two lines from working" and
+// that was an unmeasured number inside a block about unmeasured numbers: `manualTier` defaults
+// to `.balanced`, so a bare toggle pins BALANCED and cannot "force High" — the example given
+// three lines away. A working pin needs the toggle, a `QualityTier` picker AND a reachable
+// panel, and the presentation-modifier ceiling makes the last one the expensive part.) On
 // the day a writer appears, claim 2 goes red BY DESIGN and its message names the ⛔ block in
 // `ResourceGovernor.swift` that must move in the same commit (#456).
 //
@@ -48,6 +63,17 @@
 //     (#343). Seven test methods in total: 1 regression, 1 anchor-absence, 5 counterweights.
 //   · SOURCE-TEXT SCAN throughout (§1). Nothing here drives the governor: `recompute()` is
 //     private and the class is `@MainActor`.
+//
+// ⚠️ IS THE STRIPPER LOAD-BEARING? Required by `Tests/CISmoke/CLAUDE.md` §2, and #725 omitted
+// it. Measured: **PROPHYLAKTISCH — 0 of 6 verdicts flip** on either tree today. But
+// COUNTERFACTUALLY load-bearing for exactly the two claims it protects: raw text contains
+// `guard isAutomatic else` in a COMMENT (this file's own header quotes it, and so does the ⛔
+// block in `ResourceGovernor.swift`), so without `codeOnly` claim 3 would stay green if the
+// real branch were deleted and the prose kept — the precise scenario it exists for. Likewise
+// raw `ResourceGovernor` matches `AdaptiveQuality.swift`, `EngineBus.swift` and
+// `PollingLoop.swift`, all of which name it only in comments, so claim 5 would pass on prose.
+// Claim 1 reads RAW text on purpose: the retraction quotes the withdrawn phrase, and the
+// stripper would blank the very line the per-line `SAID` exemption exists to recognise.
 //
 // ⚠️ AND THE LIMIT FIRST. This proves no line in `Sources/` can turn automatic governing off,
 // and that the prose agrees. It proves nothing about thermal behaviour on a device.
@@ -89,7 +115,7 @@ final class TheQualityPinHasNoDoorTests: XCTestCase {
         let raw: String = try rawText(Self.governor)
         // The needle lives on ONE line by construction — a two-line quote matches nothing and
         // is red on a correct tree (#725 made exactly that mistake and caught it in simulation).
-        XCTAssertTrue(raw.contains("THIS LINE SAID a performer"), """
+        XCTAssertTrue(raw.contains("THIS LINE SAID"), """
             The ⛔ retraction above `isAutomatic` is gone from \(Self.governor).
 
             If a door was built, that block SHOULD change — but then claim 2 is red too and \
@@ -116,32 +142,30 @@ final class TheQualityPinHasNoDoorTests: XCTestCase {
 
     /// 2b — the declaring file must still assign it exactly once. Claim 2 skips that file, so
     /// a door added inside it would otherwise be invisible forever.
-    /// ⛔ THE TYPE ANNOTATION IS WHY THIS IS NOT A COPY OF #725's VERSION. There the
-    /// declaration reads `= true` straight after the name; here it is
-    /// `public var isAutomatic: Bool = true`, so a test that demands `=` immediately after the
-    /// name counts ZERO and is red on a correct tree. Caught in simulation before pushing —
-    /// the same class of miss as a needle that matches nothing (#367), one level down: the
-    /// rule was right and the spelling it assumed was not.
-    func testTheDeclaringFileAssignsItExactlyOnce() throws {
+    /// ⛔ THIS COUNTS OCCURRENCES, NOT ASSIGNMENTS, AND THE REWRITE IS THE POINT (#728).
+    /// Two earlier shapes both failed for the same underlying reason — a write-shape guess,
+    /// which is exactly what this file's header forbids twelve lines above:
+    ///   · #725's form demanded `=` immediately after the name and counted ZERO here, because
+    ///     the declaration carries `: Bool`. Red on a correct tree; caught in simulation.
+    ///   · #727's `: Type` skip fixed that and still missed every realistic door —
+    ///     `Toggle(…, isOn: $g.isAutomatic)`, `isAutomatic.toggle()`, and a second hit on a
+    ///     line whose first hit is a read (`range(of:)` finds one). It also MIS-counted
+    ///     `var isAutomatic: Bool { power != .low }` as an assignment, because
+    ///     `firstIndex(of: "=")` lands on the `=` of `!=`.
+    /// Counting the NAME is wrap-proof, shape-proof, and asserts the same THREE the ⛔ block in
+    /// `ResourceGovernor.swift` states — one number, one definition (#416).
+    func testTheDeclaringFileNamesItExactlyThreeTimes() throws {
         let code: String = try codeOf(Self.governor)
-        var assignments: [String] = []
-        for line in code.components(separatedBy: "\n") {
-            guard let hit = line.range(of: "isAutomatic") else { continue }
-            var tail: String = String(line[hit.upperBound...])
-                .trimmingCharacters(in: .whitespaces)
-            if tail.hasPrefix(":") {                    // skip an explicit `: Bool`
-                guard let eq = tail.firstIndex(of: "=") else { continue }
-                tail = String(tail[eq...])
-            }
-            guard tail.hasPrefix("="), !tail.hasPrefix("==") else { continue }
-            assignments.append(line)
-        }
-        XCTAssertEqual(assignments.count, 1, """
-            \(Self.governorRelative) now assigns `isAutomatic` \(assignments.count) times, \
-            not once:
-            \(assignments.joined(separator: "\n"))
-            One assignment is the declaration. A second is a door built inside the declaring \
-            file, which claim 2 cannot see — same repair: move the ⛔ block.
+        let occurrences: Int = code.components(separatedBy: "isAutomatic").count - 1
+        XCTAssertEqual(occurrences, 3, """
+            `isAutomatic` now occurs \(occurrences) times in \(Self.governorRelative), not 3.
+
+            The three are the declaration, its own `didSet`, and the `guard` in `recompute()`. \
+            A fourth is a door built inside the declaring file — which claim 2 cannot see, \
+            because it skips this file. Fewer than three means the flag or its gate was \
+            removed, which decides a founder question by cleanup. Either way the repair is to \
+            move the ⛔ block above the declaration in the SAME commit (#456), not to change \
+            this number.
             """)
     }
 
@@ -154,10 +178,13 @@ final class TheQualityPinHasNoDoorTests: XCTestCase {
         XCTAssertTrue(code.contains("guard isAutomatic else"), """
             `recompute()` no longer guards on `isAutomatic`.
 
-            If the manual-override branch was DELETED, that decides a founder question by \
-            cleanup: pinning a tier for a show is a real live-performance need and the \
-            machinery was two lines from working. If it was merely reformatted, re-anchor \
-            this needle on the new spelling — an unanchored scan is the #367 defect.
+            Deleting it does two things. It breaks \
+            `PollingLoopTests.testResourceGovernor_publishesTheCeilingForAPinnedTier`, the one \
+            test proving `bioHz` reaches `PollingRateCeiling` — and that suite is compiled by \
+            NO gate (#208), so nothing else would tell you. And it decides a founder question \
+            by cleanup: pinning a tier for a show is a real live-performance need. If the \
+            branch was merely reformatted, re-anchor this needle on the new spelling — an \
+            unanchored scan is the #367 defect.
             """)
         XCTAssertTrue(code.contains("AdaptiveQuality.settings(for: manualTier)"), """
             The unreachable branch no longer applies `manualTier`, so the second half of the \

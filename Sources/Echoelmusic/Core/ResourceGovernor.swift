@@ -57,16 +57,25 @@ public final class ResourceGovernor {
     /// Whether automatic governing is on.
     ///
     /// ⛔ THIS LINE SAID a performer "can pin a tier (e.g. force High for a show)" AND NO
-    /// PERFORMER CAN (#727). Measured across all 369 files under `Sources/`, comments
-    /// stripped: `isAutomatic` occurs THREE times — this declaration, its own `didSet`, and
-    /// the `guard` in `recompute()`. There is no writer, no binding, no control. It is
-    /// permanently `true`.
+    /// PERFORMER CAN (#727). Measured in `Sources/`, comments stripped (`git grep` it):
+    /// `isAutomatic` occurs THREE times — this declaration, its own `didSet`, and the `guard`
+    /// in `recompute()`. No writer, no binding, no control in any shipped code path.
     ///
-    /// ⚠️ AND THE CONSEQUENCE IS ONE STEP FURTHER THAN A MISSING SWITCH: because the flag can
-    /// never be `false`, the `guard isAutomatic else { apply(…manualTier) }` branch in
-    /// `recompute()` is UNREACHABLE, so `manualTier` — whose only read lives inside it — can
-    /// never affect anything either. Two `public var`s that read as the manual-override half
-    /// of this class, and that half does not run.
+    /// ⚠️ AND THE CONSEQUENCE IS ONE STEP FURTHER THAN A MISSING SWITCH: because no shipped
+    /// path sets the flag `false`, the `guard isAutomatic else { apply(…manualTier) }` branch
+    /// in `recompute()` never runs there, so `manualTier` — whose only read lives inside it —
+    /// cannot affect the app. Two `public var`s that read as the manual-override half of this
+    /// class, and that half is unreachable from the product.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS BLOCK SAID "no writer", "permanently `true`" and "can
+    /// never affect anything either" — UNSCOPED CONCLUSIONS drawn from a correctly scoped
+    /// measurement (#728). There IS one writer:
+    /// `Tests/EchoelmusicTests/PollingLoopTests.testResourceGovernor_publishesTheCeilingForAPinnedTier`
+    /// pins `isAutomatic = false` and steps `manualTier` precisely so its `bioHz` assertion is
+    /// device-independent. So the branch is not dead code — it is the only way to drive this
+    /// class deterministically, and it is exercised. ⚠️ That suite is compiled by NO gate
+    /// (#208), which is why nothing here turns red when it breaks — a reason to state the
+    /// writer, not to ignore it.
     ///
     /// ⭐ THE AUTOMATIC HALF IS LIVE AND UNAFFECTED. `EchoelmusicApp` constructs the governor,
     /// `MetalBioView` reads it via `@Environment`, `ExternalStageBridge` wires it, and its
