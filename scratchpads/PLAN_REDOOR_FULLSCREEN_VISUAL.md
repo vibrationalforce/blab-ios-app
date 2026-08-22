@@ -1,5 +1,10 @@
 # PLAN — dem Vollbild-Visual eine Tür geben (offene Aufgabe #270)
 
+⭐ **AUSGEFÜHRT am 2026-08-22 durch #747.** Der Plan bleibt als Beleg stehen, weil eine seiner
+vier Code-Pflichten beim Ausführen ABGELEHNT wurde und der Grund nachlesbar sein muss (Pflicht 3,
+die „Donuts"-Pille — die Begründung hielt der Messung nicht stand). Was tatsächlich passiert ist,
+steht in `Tests/CISmoke/VisualFineTuneReflowsTests` Kopf-Punkt 7 und in `decisions.csv`.
+
 **Stand:** 2026-08-22, gemessen gegen `2a1ae15`. **Noch nicht gebaut** — dieser Plan existiert,
 weil die Scheibe einen VERTRAG hat, den der Quelltext selbst aufgeschrieben hat, und ein halb
 ausgeführter Vertrag ist schlechter als keiner.

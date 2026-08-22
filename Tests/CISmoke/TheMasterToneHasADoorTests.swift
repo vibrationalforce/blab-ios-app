@@ -446,8 +446,9 @@ final class TheMasterToneHasADoorTests: XCTestCase {
         // code) and forbids nothing.
         XCTAssertGreaterThanOrEqual(calls.count, 1, """
             The launch normalisation is never CALLED (found \(calls.count) call lines).
-            `normaliseUnreachableDonutMode()` (#227) and `normaliseDoorlessLeadMix()` (#255)
-            are the same shape one store over, and all three exist for one reason: a persisted
+            `normaliseDoorlessLeadMix()` (#255) is the same shape one store over — as was
+            `normaliseUnreachableDonutMode()` (#227) until #747 doored the fullscreen visual and
+            DELETED it, on the instruction its own declaration carried. They exist for one reason: a persisted
             value whose only door cannot show it. A declaration without a call is dead code —
             which is why this counts CALL lines and not occurrences of the name.
             """)

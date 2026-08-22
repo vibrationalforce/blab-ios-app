@@ -192,8 +192,11 @@ final class TapTargetFloorTests: XCTestCase {
     /// ⛔ THE ANCHOR IS THE ACTION, NOT THE GLYPH, and the first draft got that wrong in a way
     /// that would have passed while testing the wrong control. `xmark.circle.fill` appears
     /// TWICE in this file; the other is a "Close visual" button inside the
-    /// `.fullScreenCover(isPresented: $showVisual)` overlay — which `showVisual` has no setter
-    /// for, so it is unreachable and its size is nobody's problem. `firstIndex` found THAT one,
+    /// `.fullScreenCover(isPresented: $showVisual)` overlay. ⚠️ That overlay was unreachable
+    /// when this note was written, and #747 doored it — so "its size is nobody's problem" is no
+    /// longer true, and its tap targets are a real open question (recorded in
+    /// `VisualFineTuneReflowsTests`' device-verify note, not re-asserted here). The needle
+    /// lesson is untouched by that. `firstIndex` found THAT one,
     /// six hundred lines earlier, and the assertion failed against a control this slice never
     /// touched. `locationNamer.manualPlace = ""` is unique and names the button by what it
     /// does, which is the property a glyph name does not have.

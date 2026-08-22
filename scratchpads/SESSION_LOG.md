@@ -11383,3 +11383,50 @@ und was der Plan ausdrücklich NICHT entscheidet). Nächster Zyklus führt ihn a
 
 **Gates #746:** grün (Compile Check `success`, „Build for Testing" `Succeeded`, 135 Tests, 0
 Fehler). Der erweiterte Deckel-Wächter steht nicht im geleerten Log — #445, Ausführung unbelegt.
+
+**#748** — der Plan aus #747 ist AUSGEFÜHRT: **das Vollbild-Visual hat eine Tür** (offene Aufgabe
+#270 geschlossen). Ein sichtbarer Knopf „Full screen" im `visualPanel`, direkt neben dem
+Fenster-Schalter. Damit sind erreichbar: das Vollbild-`MetalBioView`, der `visualVJOverlay`, der
+Donut-Renderer und die REC-Taste des Covers — **Ship-Gate 4 hatte seine zweite Hälfte türlos**.
+Die Modal-Kette wächst NICHT (der Steckplatz existierte), und `.onChange(of: showVisual)` regelte
+die GPU-Exklusivität schon vorher.
+
+**Sichtbarer Knopf statt Geste** — der Cover-Quelltext zitiert selbst WCAG 2.2 gegen versteckte
+Gesten; ein Langdruck auf den Header wäre billiger gewesen und hätte genau den Defekt wiederholt,
+den dieser Code benennt.
+
+**Die drei Code-Pflichten, die andere Commits an genau diesen gehängt hatten:**
+· `normaliseUnreachableDonutMode()` **gelöscht**, samt Aufrufstelle — wörtlich so in ihrem eigenen
+  Doc-Block befohlen. Mit Tür hätte sie die Donut-Wahl bei JEDEM Start wieder gelöscht.
+· die „Donuts"-Pille **NICHT wiederhergestellt.** ⛔ Die #227-Begründung („das Overlay hätte sonst
+  kein Look-Bedienelement") hielt der Messung nicht stand: die obere Leiste des Covers trägt
+  bereits einen Donut-Umschalter. Zurückholen wäre ein ZWEITES Bedienelement für einen Zustand.
+· `visualSpectralDonuts` **nicht auf `true` geflippt**, und `VisualLookTruthTests` nicht gedreht:
+  die Zusicherung ist weiter wahr und sagt jetzt eine WAHL statt einer Einschränkung.
+
+**Wächter:** `VisualFineTuneReflowsTests` Behauptung 6 war ein Gegengewicht, das für diesen Tag
+gebaut wurde — es wurde rot und ist umgeschrieben: die Tür muss existieren, es darf **genau eine**
+geben (#290), und ihr Label ist gepinnt, damit sie nicht zur Geste wird. Fünf Mutanten, jeder
+trifft seine Behauptung. Behauptung 7 (XOR Tür ↔ Normalisierer) bleibt grün — gemessen, bevor
+gepusht wurde.
+
+⛔ **Zwei Selbstkorrekturen vor dem Push, beide vom Nachmessen gefunden:**
+(1) Ich hatte in den Wächter geschrieben, der Kommentar-Stripper sei jetzt TRAGEND, weil meine
+neue Prosa die Zuweisungsform enthalte. Gemessen stimmen roh und gestrippt exakt überein (3
+Zuweisungszeilen, 1 echter Schreiber) — meine Notizen sagen „gibt `showVisual` einen Setzer",
+nie die Zuweisung selbst. **Eine Begründung, die die Abhängigkeit eines Wächters HERAUFSTUFT,
+ist genauso eine Behauptung und braucht denselben einen Befehl.**
+(2) `CLAUDE.md` behauptete, zwei Phrasen seien wörtlich grep-bar. Die zweite stand im Doc-Block
+der Funktion, die dieser Commit löscht — **ein Zitat ist nur so haltbar wie sein Zeuge** (#472).
+Nach dem Schnitt neu gegrept, gefunden, korrigiert.
+
+**Prosa im selben Commit gezogen (#456):** `EchoelStudioView` (Flaggen-Notiz jetzt ZWEI statt drei,
+`spectralDonuts`-Deklaration, zwei Grabsteine), `StudioDefaultKeys`, `AnalysisSpectrumView`,
+`NoDoorlessStudioViewsTests`, `AutoModeStartsOffAndOwnsNoTempoTests`, `TapTargetFloorTests`,
+`ResetSoundClearsWhatTheLaunchLineReportsTests`, `VisualLookTruthTests`, `TheMasterToneHasADoorTests`,
+`CLAUDE.md` (fünf Stellen), `decisions.csv`.
+
+**NEEDS-FOUNDER-VERIFY (neu und erstmals ausführbar):** Field → „Full screen" öffnen, ins
+Querformat drehen, prüfen ob die zwei Spalten des VJ-Overlays lesbar bleiben; und ob das
+schwebende Fenster verschwindet und danach zurückkommt (GPU-Regel, nie am Gerät gelaufen). Genau
+diese Bitte musste `VisualFineTuneReflowsTests` einmal als unmögliche Founder-Frage zurückziehen.

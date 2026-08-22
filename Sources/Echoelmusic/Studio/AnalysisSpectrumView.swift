@@ -14,8 +14,9 @@ import SwiftUI
 //
 // ⛔ THIS IS NOT A SECOND `SpectralDonutView`, and the difference is not cosmetic.
 // `SpectralDonutView` is the IMMERSIVE artwork — full-screen, `ignoresSafeArea`, black,
-// 60 fps, one animated ring per band — and it has no reachable door (its only mount sits
-// inside the `showVisual` fullScreenCover, whose flag has no setter). This is a
+// 60 fps, one animated ring per band. Since #747 it IS reachable (Field → "Full screen",
+// then the cover's top-bar donut toggle); this comment said "no reachable door" until then
+// and the distinction it drew never depended on that. This is a
 // PANEL-SIZED MEASURING INSTRUMENT inside the Field panel: 88 pt tall, 20 fps, a number
 // first. They share the pure parts on purpose (`SpectrumAnalysis`, `SpectralColor`,
 // `EchoelRealFFT`) and nothing else. Do not "unify" them — one is art, one is a meter, and

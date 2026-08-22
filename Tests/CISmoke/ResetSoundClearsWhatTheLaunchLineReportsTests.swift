@@ -546,10 +546,12 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         the file-wide total at 16 and still grows the generic type. That is exactly why both \
         numbers are checked.
 
-        Reuse an existing slot — `showVisual`, `showMeditation` and `midiImportPresented` have no \
-        setter that can OPEN them (⛔ "no setter at all" is the inherited, wrong phrasing: \
-        `showVisual = false` exists on the close button; what is missing is any writer of `true`) \
-        — or consolidate the chain into one `.sheet(item:)` enum FIRST.
+        Reuse an existing slot — `showMeditation` and `midiImportPresented` have no setter that \
+        can OPEN them (⛔ "no setter at all" is the inherited, wrong phrasing: a `= false` writer \
+        exists; what is missing is any writer of `true`) — or consolidate the chain into one \
+        `.sheet(item:)` enum FIRST. ⭐ `showVisual` WAS the third and is not spare any more: \
+        #747 gave it the "Full screen" button in `visualPanel`, so taking that slot over now \
+        deletes the fullscreen field, the VJ overlay and the donut renderer.
 
         On the chain: \(chain.map { $0.trimmingCharacters(in: .whitespaces).prefix(44) })
         """)

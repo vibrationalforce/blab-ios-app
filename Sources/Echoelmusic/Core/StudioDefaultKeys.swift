@@ -175,9 +175,18 @@ public enum StudioDefaultKeys {
     /// field. **Default `false`, and it used to be `true` (#227).**
     ///
     /// ⛔ WHY THE DEFAULT FLIPPED. `SpectralDonutView` is constructed at exactly ONE place —
-    /// inside `EchoelStudioView`'s `.fullScreenCover(isPresented: $showVisual)` — and `showVisual`'s
-    /// only setter was the deleted `openTool`, so that cover cannot be presented. The visual a
-    /// player can actually reach is `FloatingVisualWindow`, which never reads this key at all.
+    /// inside `EchoelStudioView`'s `.fullScreenCover(isPresented: $showVisual)` — and from the
+    /// tools-grid removal until #747 `showVisual` had no setter, so that cover could not be
+    /// presented. The visual a player could actually reach was `FloatingVisualWindow`, which
+    /// never reads this key at all.
+    ///
+    /// ⭐ THE COVER IS REACHABLE AGAIN (#747) — the "Full screen" button in `visualPanel` — and
+    /// the default STAYS `false` anyway. The reason changed, and that is worth stating because
+    /// the number did not: `false` used to be the only truthful value; it is now the right
+    /// OPENING state. A fresh install lands on the Metal field, which is the identity look, and
+    /// the cover's top-bar toggle is how a player asks for donuts. The launch normaliser that
+    /// enforced the old reason is DELETED (`normaliseUnreachableDonutMode()`, #227 → #747) —
+    /// with a door in place it would have erased that choice on every launch.
     /// With the old default, a FRESH INSTALL showed a filled "Donuts" pill and a readout saying
     /// "Donuts" while the one visible visual drew a Metal look — the #164/#227 lying control, on
     /// first launch, before the player has touched anything. It also skipped the launch look-snap
@@ -198,9 +207,11 @@ public enum StudioDefaultKeys {
     /// stood in the same file. What kept the view alive from 2026-07-07 to 2026-08-01 was the
     /// ordinary failure: present-tense comments about a removal, and no guard.
     ///
-    /// The KEY STRING is deliberately unchanged: an existing install may have `true` stored, and
-    /// the launch normalisation in `EchoelStudioView` has to be able to FIND that value to clear it.
-    /// Renaming the key here would strand exactly the people the flip is for.
+    /// The KEY STRING is deliberately unchanged. Its original reason expired with #747 (the
+    /// launch normalisation that had to FIND a stored `true` in order to clear it no longer
+    /// exists), and a weaker one takes its place: an install that stored `true` before #227 gets
+    /// that choice back the moment it opens the cover, and a rename would silently reset it
+    /// instead. `VisualLookTruthTests` still pins the string.
     public static let visualSpectralDonuts = StudioDefault(key: "visual.spectralDonuts", value: false)
     public static let visualStyle = StudioDefault(key: "visual.style", value: 5)
     public static let visualStyleB = StudioDefault(key: "visual.styleB", value: 0)

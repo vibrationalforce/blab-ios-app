@@ -506,9 +506,11 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
         for (host, needle) in [
             ("Sources/Echoelmusic/Studio/FloatingVisualWindow.swift", "autoAttuned: autoMode"),
             ("Sources/Echoelmusic/Studio/ExternalDisplayScene.swift", "autoAttuned: autoMode"),
-            // #609b (review finding 3): the third host — unreachable today (#270,
-            // `showVisual` has no true-writer), pinned anyway so the flag cannot
-            // silently rot out of the copy that would wake up with that door.
+            // #609b (review finding 3): the third host. It was pinned while UNREACHABLE
+            // (#270, `showVisual` had no true-writer) so the flag could not silently rot out
+            // of the copy that would wake up with a door. #747 built that door, so this host
+            // is live and the pin is now an ordinary one — the foresight paid off rather than
+            // expiring.
             ("Sources/Echoelmusic/Studio/EchoelStudioView.swift", "autoAttuned: autoMode"),
         ] {
             let code = try source(host)

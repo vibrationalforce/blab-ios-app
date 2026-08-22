@@ -45,11 +45,14 @@
 //     down the file — would mask each other and both read as mounted. Harmless today (no
 //     such collision exists), and it is a false-NEGATIVE vector only: it can hide an
 //     orphan, never invent one.
-//  4. **It cannot catch a view referenced from a DEAD caller.** `visualVJOverlay` is the
-//     live proof: it has two occurrences — its declaration and one use inside
-//     `.fullScreenCover(isPresented: $showVisual)`, whose flag has no setter anywhere in
-//     `Sources/`. So the whole VJ control panel is unreachable and this file says nothing
-//     about it (that is #270). Catching THAT needs reachability, not reference-counting,
+//  4. **It cannot catch a view referenced from a DEAD caller.** ⛔ `visualVJOverlay` WAS the
+//     live proof of this and is no longer: it has two occurrences — its declaration and one
+//     use inside `.fullScreenCover(isPresented: $showVisual)` — and until #747 that flag had
+//     no setter anywhere in `Sources/`, so the whole VJ control panel was unreachable while
+//     this file said nothing about it (open task #270, now closed). The LIMIT is unchanged and
+//     is the reason this item stays: reference-counting still cannot tell a live caller from a
+//     dead one, so the next such view will go unnoticed exactly the same way. Losing the
+//     example is not losing the hole. Catching THAT needs reachability, not reference-counting,
 //     and reference-counting is what can be done exactly and without a compiler. A guard
 //     that overstates its reach is the failure mode this repo keeps paying for, so the
 //     reach is stated instead of implied.

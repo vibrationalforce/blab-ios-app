@@ -327,9 +327,12 @@ struct EchoelStudioView: View {
     /// that counts the alternatives must count the choice** — one `grep` either way.
     @AppStorage(StudioDefaultKeys.masterCharacter.key) private var masterCharacterRaw = StudioDefaultKeys.masterCharacter.value
     /// Immersive visual mode: the spectrum→visible donut renderer vs the Metal field.
-    /// **Default is now `false` and there is no reachable control that turns it on** (#227) —
-    /// see `StudioDefaultKeys.visualSpectralDonuts` for why, and `normaliseUnreachableDonutMode()`
-    /// below for the one line that has to go when the donut renderer gets a door again.
+    /// **Default stays `false`, and since #747 that is a CHOICE rather than a limitation.** The
+    /// reachable control is the donut toggle in the fullscreen cover's top bar, reached through
+    /// the "Full screen" button in `visualPanel`. From #227 until then nothing could turn it on,
+    /// which is why a launch-time normaliser existed; that function is deleted — see the
+    /// tombstone where it stood. A fresh install opens on the Metal field because that is the
+    /// identity look, not because donuts are unreachable.
     @AppStorage(StudioDefaultKeys.visualSpectralDonuts.key)
     private var spectralDonuts = StudioDefaultKeys.visualSpectralDonuts.value
     /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water
@@ -785,8 +788,11 @@ struct EchoelStudioView: View {
     // roll's craft-editor slot went (founder 2026-07-26, "Pianoroll soll raus" — it
     // held exactly one case, so removing the roll's door would have left an undoored
     // enum, the lying-`toolItems` trap), then 15 → 14 with this sample-browser slot.
-    // Three un-settable flags remain (`showVisual`, `showMeditation`,
-    // `midiImportPresented`) — reuse one of those before ever appending a 15th.
+    // TWO un-settable flags remain (`showMeditation`, `midiImportPresented`) — reuse one of
+    // those before ever appending a 15th. ⭐ It said THREE until #747, which gave `showVisual`
+    // a real setter (the "Full screen" button in `visualPanel`). That slot is now a LIVE
+    // surface, not spare headroom: taking it over would delete the fullscreen field, the VJ
+    // overlay and the donut renderer, which is ship-gate 4's second half.
     // Whoever adds the next craft editor re-introduces its slot as a
     // `.sheet(item:)` + enum + out-of-body content builder, never a bare `.sheet`.
 
@@ -1233,11 +1239,15 @@ struct EchoelStudioView: View {
             // active sequence so the slider is never stuck on an unreachable stop. Also
             // clear a stale blend onto a now-absent B-style (review L5) so the renderer
             // matches the slider immediately, not only after the first drag.
-            // #227: a stored `true` from before the pill was removed would leave that install with
-            // hidden Blend controls, a readout saying "Donuts", and NO control able to undo it —
-            // strictly worse than the lie it replaced. Cleared here, BEFORE the snap below, so the
-            // snap runs for those installs too.
-            normaliseUnreachableDonutMode()
+            // ⛔ `normaliseUnreachableDonutMode()` STOOD HERE AND IS DELETED (#747), on the
+            // instruction its own doc comment carried: "DELETE THIS TOGETHER WITH THE LINE THAT
+            // CALLS IT, IN THE SAME COMMIT THAT GIVES `showVisual` A SETTER AGAIN (#227)". That
+            // setter is the "Full screen" button in `visualPanel`. Keeping the line would have
+            // turned an honest normalisation into a silent state-eater: it stamped
+            // `visual.spectralDonuts` back to `false` on EVERY launch, so a player who chose
+            // donut mode in the cover would find it gone the next time the app opened.
+            // `normaliseDoorlessLeadMix()` below is UNAFFECTED — different store, different
+            // expiry condition, and `MixerStore.lead` still has no door.
             // #255: same shape, one store down — the Mix board's "Lead" field was the only
             // door to the persisted `mixer.lead`, so a value dialled before its removal would
             // silently attenuate the first lead a future genre produces.
@@ -5007,6 +5017,43 @@ struct EchoelStudioView: View {
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .accessibilityLabel(floatingVisualVisible ? "Hide the floating visual window" : "Show the floating visual window")
+            // #747 — THE DOOR TO THE FULLSCREEN FIELD (open task #270, closed here). Everything
+            // behind `.fullScreenCover(isPresented: $showVisual)` was already built and polished
+            // — the fullscreen `MetalBioView`, the VJ overlay, `SpectralDonutView`, record, close
+            // — and `showVisual` had exactly two writers in code, its own `@State` initialiser
+            // and the close button, BOTH `false`. Ship-gate 4 ("visual live + contemplative on
+            // device") had its second half unreachable.
+            //
+            // ⚠️ A VISIBLE BUTTON, NOT A GESTURE, and the cover's own top bar is why: it cites
+            // WCAG 2.2 against gating controls behind a hidden gesture. A long-press on the
+            // header monitor would have been cheaper and would have repeated the defect this
+            // code already names. It sits HERE, next to the window toggle, because that is where
+            // a player already goes to decide how the field is shown — not a second door to the
+            // same thing (#290): the floating window and the fullscreen field are two surfaces.
+            //
+            // ⚠️ THE MODAL CHAIN DOES NOT GROW. The slot has existed all along; this adds a
+            // setter, not a modifier. The black-screen metadata law (10.76.34) is untouched, and
+            // the un-settable-flag list above is now TWO, not three.
+            //
+            // GPU exclusivity is already handled: `.onChange(of: showVisual)` hides the floating
+            // window while the cover is up and restores its prior state on dismiss, because only
+            // ONE `MetalBioView` may drive a CADisplayLink at a time.
+            Button {
+                showVisual = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                    Text("Full screen").font(EchoelTheme.font(13))
+                    Spacer(minLength: 0)
+                }
+                .foregroundStyle(EchoelTheme.text)
+                .padding(.horizontal, 12).frame(height: 36)
+                .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+                .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                    .strokeBorder(EchoelTheme.border, lineWidth: 1))
+            }
+            .accessibilityLabel("Open the visual full screen")
+            .accessibilityHint("Fills the display with the bio-reactive field and its performance controls.")
             // ⛔ `signalSection` STOOD HERE AND IS REMOVED (#575, founder 2026-08-13). He
             // circled the whole block on a v10.79.388 screenshot — the wavefront, its
             // paragraph, the spectrum, its paragraph, the `63,0 Hz · B1 +36 ct` readout —
@@ -5754,25 +5801,21 @@ struct EchoelStudioView: View {
         )
     }
 
-    /// ⛔ DELETE THIS TOGETHER WITH THE LINE THAT CALLS IT, IN THE SAME COMMIT THAT GIVES
-    /// `showVisual` A SETTER AGAIN (#227). It exists for exactly one reason and has an expiry
-    /// condition written into it, because a permanent forced-off would be its own lying control.
-    ///
-    /// #227 removed the only reachable control that could set `spectralDonuts` and flipped the
-    /// default to `false`. That leaves ONE group unserved: an install that already has `true`
-    /// stored. Without this, those players keep the launch look-snap skipped and the customizer's
-    /// live re-snap skipped — and now have no reachable control at all able to undo it. That is
-    /// strictly worse than the lie the slice removes, which is why the flip and this line have to
-    /// ship together. (This note said "keep `visualBlendControls` HIDDEN" for one commit. That view
-    /// had no mount sites at all, so nothing was hidden — see `StudioDefaultKeys` for the full
-    /// retraction — and it is DELETED as of #324. The remaining reasons stand on their own.)
-    ///
-    /// Deliberately NOT a "migration flag": there is nothing to remember. While no door exists,
-    /// the only truthful value is `false`, and re-asserting it every launch costs one comparison.
-    private func normaliseUnreachableDonutMode() {
-        guard spectralDonuts else { return }   // untouched for everyone already on `false`
-        spectralDonuts = false
-    }
+    // ⛔ `private func normaliseUnreachableDonutMode()` STOOD HERE AND IS DELETED (#747).
+    // It cleared a persisted `visual.spectralDonuts == true` on every launch, for the one
+    // reason written into its own doc block: while the donut renderer had no door, `true` was
+    // a state nothing could undo. #747 gave `showVisual` a setter ("Full screen" in
+    // `visualPanel`), so the cover's top-bar donut toggle is reachable and the value is the
+    // player's again. The deletion is the instruction, not an inference — the doc block
+    // ordered it in this exact commit.
+    //
+    // ⚠️ WHAT DID *NOT* CHANGE, because the obvious follow-up is wrong: the persisted DEFAULT
+    // stays `false` (`StudioDefaultKeys.visualSpectralDonuts`), and
+    // `VisualLookTruthTests.testAFreshInstallDoesNotClaimTheDonutRenderer` is NOT flipped. Its
+    // failure message invited the flip, but the assertion it makes is still true and now states
+    // a design choice instead of a limitation: a fresh install opens on the Metal field, which
+    // is the identity look, and donut mode is something a player CHOOSES from the cover. Only
+    // that test's PROSE needed correcting.
 
     /// ⛔ DELETE THIS TOGETHER WITH THE LINE THAT CALLS IT, IN THE SAME COMMIT THAT GIVES
     /// `MixerStore.lead` A DOOR AGAIN (a lead fader, or any other control that writes it).
