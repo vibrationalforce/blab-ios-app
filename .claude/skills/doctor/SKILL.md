@@ -120,8 +120,14 @@ die in CLAUDE.md eine Behauptung aufstellen.
 brüchig und würde falsche Sicherheit erzeugen. Lies die zitierten Zeilen gegen die Zahlen.
 Der Modifier-Wert ist **dateiweit**, nicht nur die Body-Kette; ein Modifier im Content-Closure
 eines anderen zählt hier mit, sitzt aber nicht auf dem generischen Typ des Body. Wer diese
-Zahl korrigiert, muss beide Stellen in CLAUDE.md mitziehen (Zeile ~40 und der
-CRAFT-TOOL-DOORS-Absatz) — die Datei sagt selbst, dass sie synchron zu halten sind.
+Zahl korrigiert, zieht in CLAUDE.md nur noch EINE Stelle mit (der Presentation-Absatz);
+ihre Provenienz liegt seit #707 in `memory/LEDGER_COUNTS.md` §D. ⛔ Hier stand „muss beide
+Stellen in CLAUDE.md mitziehen … die Datei sagt selbst, dass sie synchron zu halten sind" —
+alle drei Teilaussagen sind seit #707 falsch: der CRAFT-TOOL-DOORS-Absatz trägt keinen Zähler
+mehr, und der zitierte Selbst-Hinweis („keep the two in sync or delete one") ist derselbe
+Commit los geworden, weil er die Entdopplung ausdrücklich erlaubt hatte. Eine veraltete
+Anweisung in DIESEM Werkzeug ist teurer als anderswo — es ist das, was eine Sitzung laufen
+lässt, BEVOR sie einer Zahl glaubt (#708).
 
 ## Wann laufen lassen
 

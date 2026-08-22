@@ -5775,19 +5775,27 @@ Siehe KEY TESTS.
 
 ---
 
-## D — `EchoelStudioView` Präsentations-Modifier (Kette 14 / dateiweit 16)
+## D — `EchoelStudioView` Präsentations-Modifier (Modifier-Kette, nicht Zähl-Kette)
 
 **Umgezogen am 2026-08-22 (#707)**, nach derselben Regel wie §A–§C: die Kette ist BUCHFÜHRUNG,
 das Gesetz bleibt in `CLAUDE.md`. Anlass war kein Fehler, sondern der Kopfraum — `CLAUDE.md`
 stand nach #706 bei 149 058 B, also 942 B unter der Decke, die
-`TheLawFileStaysUnderItsCeilingTests` erzwingt, und deren Fehlermeldung genau diesen Schnitt
+`TheLawFileStaysUnderItsCeilingTests` erzwingt, und dessen Fehlermeldung genau diesen Schnitt
 vorschreibt: Provenienz raus, Gesetz bleibt.
 
-⚠️ **DIE ZAHL SELBST IST NICHT HIER.** Sie steht EINMAL, im Presentation-Absatz von
-`CLAUDE.md` („Dateiweit also 16, auf der Kette 14"), und ist im blockierenden Bundle von
-`ResetSoundClearsWhatTheLaunchLineReportsTests` festgenagelt — dateiweit `== 16` fängt das
-HINZUFÜGEN, kettenweise `<= 14` fängt das VERSCHIEBEN eines verschachtelten Modifiers auf die
-Kette. Wer die Zahl prüft, liest den Wächter, nicht diesen Abschnitt.
+⚠️ **DIE GELTENDE ZAHL STEHT NICHT HIER — was unten steht, ist der WORTLAUT BEIM UMZUG.**
+Der geltende Stand steht im Presentation-Absatz von `CLAUDE.md`, genau einmal, und ist im
+blockierenden Bundle von `ResetSoundClearsWhatTheLaunchLineReportsTests` festgenagelt. Wer die
+Zahl prüft, liest den Wächter, nicht diesen Abschnitt.
+
+⛔ **DIESER HINWEIS ZITIERTE DEN SATZ, AUF DEN ER ZEIGT — UND DAS ZITAT BESTÄTIGTE SICH SELBST
+(#708).** Er schrieb „Dateiweit also 16, auf der Kette 14"; der Absatz in `CLAUDE.md` sagt seit
+#707 „dateiweit 16, auf der Kette 14", klein und ohne „also". `grep "Dateiweit also 16"
+CLAUDE.md` lieferte damit **genau einen** Treffer — den Zeiger selbst, in derselben Datei —, und
+wer den Zeiger prüfte, bekam einen Treffer und hielt ihn für aufgelöst. Das ist die
+#472-Lehre („ein Zeiger ist nur so haltbar wie das, worauf er zeigt") mit einer zusätzlichen
+Drehung: **ein Zitat, das sich selbst als Beleg zählt.** Die Wörter sind ersatzlos weg; es wird
+nur noch der Absatz BENANNT, nie sein Wortlaut nachgesprochen.
 
 ⚠️ **EBENFALLS GESETZ UND BEWUSST DRÜBEN GEBLIEBEN:** das Black-Screen-Gesetz (10.76.34 —
 Kette nicht wachsen lassen, Slot wiederverwenden oder erst konsolidieren), „nie zwei Modals

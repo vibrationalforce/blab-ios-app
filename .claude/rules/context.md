@@ -28,7 +28,10 @@ same defect class as a needle that cannot match. The ceiling is on the one file 
 That ledger holds the count-provenance chains verbatim, one section each; it is NOT in the
 hook's `cat` list and must never be added to it. ⛔ THE NUMBER THAT STOOD HERE IS DELETED, NOT
 REFRESHED — it said "the two" until #702 made it three and "**three**" until #707 made it four,
-i.e. it went stale TWICE in six days, in the file whose own §2 says *measure; do not recite*.
+i.e. it went stale TWICE in the three days after it was written (2026-08-19 `54e4612` →
+2026-08-21 `6136dff` → 2026-08-22), in the file whose own §2 says *measure; do not recite*.
+⛔ "six days" stood here for one commit and was never measured — no pairing of those dates
+yields six (#708).
 A count of sections is a date, not a fact. Re-derive:
 `grep -c '^## [A-Z] — ' memory/LEDGER_COUNTS.md`.
 

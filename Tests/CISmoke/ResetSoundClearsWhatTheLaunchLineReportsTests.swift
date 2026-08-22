@@ -438,8 +438,11 @@ final class ResetSoundClearsWhatTheLaunchLineReportsTests: XCTestCase {
         Reuse an existing slot, or consolidate the chain into one `.sheet(item:)` enum FIRST.
 
         If it SHRANK, that is the safe direction — update this number, the `CHAIN LENGTH` comment \
-        in `EchoelStudioView`, and the two counts in `CLAUDE.md` in the same commit. They are \
-        supposed to be one fact; they have been three different numbers before.
+        in `EchoelStudioView`, and the ONE count in `CLAUDE.md`'s Presentation bullet in the same \
+        commit. (#708: this said "the two counts in CLAUDE.md" until #707 deduplicated them — the \
+        CRAFT-TOOL-DOORS bullet now points at the Presentation one instead of restating it, and \
+        the number's history lives in `memory/LEDGER_COUNTS.md` §D.) They are supposed to be one \
+        fact; they have been three different numbers before.
 
         Found: \(modals.map { $0.trimmingCharacters(in: .whitespaces).prefix(48) })
         """)

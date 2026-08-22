@@ -1,5 +1,6 @@
 // TheLawFileStaysUnderItsCeilingTests.swift
-// Echoel — #702. Blocking bundle, because the other suite cannot fail a merge (#208).
+// Echoel — #702, extended by #707 (§D) and corrected by #708. Blocking bundle: the other
+// suite cannot fail a merge (#208).
 //
 // WHAT THIS RECORDS. `CLAUDE.md` is loaded before the first line of work in EVERY session,
 // and `.claude/settings.json` sets `CLAUDE_AUTOCOMPACT_PCT_OVERRIDE = "50"`, so compaction
@@ -42,11 +43,15 @@
 // repeated defect in its smallest possible form — a measured number quoted one edit later.
 // Re-derive: `for f in CLAUDE.md .claude/rules/*.md; do wc -c "$f"; done`.
 //
-// ⭐ GRADING (§3). Claims 1, 2 and 4 are COUNTERWEIGHTS — green at the parent too (`CLAUDE.md`
-// was 149,372 B there, under the ceiling, and the hook never named the ledger). Claims 3 and 5
-// are FORWARD: §C and the moved text are created by this same commit and could not have been
-// red before it. ZERO regressions; booking any of these as one would be the flattering
-// direction (#464).
+// ⭐ GRADING (§3), restated for #708's parent because #707 edited this file and left #702's
+// grading describing #702's parent — the block is required to describe THE parent of the commit
+// that ships it, and a stale one is worse than none. Against `68625c1`: claims 1, 2, 4 and 5 are
+// COUNTERWEIGHTS (green there too — `CLAUDE.md` was 146,984 B, under the ceiling; the hook never
+// named the ledger; the witness was already split). Claim 3's four assertions are counterweights
+// as well, §D included, because #707 created it one commit earlier. ZERO regressions and ZERO
+// forwards this time; booking a counterweight as a forward is the flattering direction (#464).
+// (For the record, #702's own grading was: 1/2/4 counterweights, 3 and 5 forward — §C and the
+// moved text were created by THAT commit. #707's was: 3 counterweights + §D forward.)
 
 import Foundation
 import XCTest
@@ -89,9 +94,13 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
 
     // MARK: - 3: the ledger the repair depends on
 
-    /// "Moved, not deleted" is only true while the destination exists and holds all three
-    /// chains. If it were gone, claim 2's message would be advising a deletion.
-    func testTheLedgerExistsAndHoldsAllThreeChains() throws {
+    /// "Moved, not deleted" is only true while the destination exists and holds every chain
+    /// that left this file. If one were gone, claim 2's message would be advising a deletion.
+    /// ⛔ RENAMED FROM `…AllThreeChains` (#708, the #374 precedent): a count in a TEST NAME is
+    /// the same stale-number defect this very commit deleted from `.claude/rules/context.md`,
+    /// and #707 added §D in the same breath that left "three" standing. The name now says what
+    /// it checks instead of how many, so the next move cannot age it.
+    func testTheLedgerExistsAndHoldsEveryMovedChain() throws {
         let ledger = try rawFile("memory/LEDGER_COUNTS.md")
         XCTAssertTrue(ledger.contains("## A — `Tests/CISmoke/`"), """
             §A (the blocking bundle's chain, moved by #538) is gone from the ledger. Claim \
@@ -107,7 +116,11 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
             """)
         // ⚠️ #707 is the first section moved for HEADROOM rather than to fix an accretion:
         // CLAUDE.md stood 942 B under this file's own ceiling, and claim 2's message names
-        // exactly this trade. It recovered 2,074 B and lost no law.
+        // exactly this trade. It recovered 2,074 B ON THE FILE THIS GUARD TESTS and lost no
+        // law. ⛔ Not the same as the always-loaded SURFACE, which recovered 2,027 B — the
+        // same commit spent 47 B on `.claude/rules/context.md`. Naming the wrong quantity is
+        // this file's own §D lesson (a threshold that does not test what it names), so both
+        // numbers are stated rather than one (#708).
         XCTAssertTrue(ledger.contains("## D — `EchoelStudioView` Präsentations-Modifier"), """
             §D (the presentation-modifier chain, moved by #707) is gone. CLAUDE.md's \
             Presentation and CRAFT-TOOL-DOORS bullets both POINT at it instead of carrying \
