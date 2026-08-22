@@ -30,8 +30,18 @@
 //     present" and the assertion PASSED. Simulated on a tree with the call removed: green. The
 //     direction this file names first was the one it could not detect.
 //   · IS: comments blanked (`codeOf`), the declaration excluded by its `func` keyword, and a
-//     #367 anchor on the door needle's spelling. Same four trees as the donut twin: call
-//     deleted → red · door restored with the normalisation kept → red · both together → green.
+//     #367 anchor on the door needle's spelling. Driven against four trees, the same DISCIPLINE
+//     as the donut twin but not the same set (⛔ "same four trees" is what this said, and the
+//     twin's fourth is a `//` comment quoting the assignment, which is not one of these —
+//     #712 review finding 5): real → green · call deleted → red · door restored with the
+//     normalisation kept → red · both together → green.
+//
+// ⭐ AND #711 REPAIRED TWO DIRECTIONS, NOT ONE — the commit claimed only the first, which
+// under-sells it (#712 review finding 7). Under the old raw logic the CORRECT re-door (fader
+// restored AND the call deleted) was **RED**, because the two prose comments kept the
+// normalisation side reading `true`. Its failure text then said "Delete `normaliseDoorlessLeadMix()`
+// and the line that calls it" — which that commit had just done. An unfixable red on a correct
+// tree is a #364 violation, and it sat in the guard that exists to permit exactly that change.
 // ⭐ The lesson is not "raw text is sloppy". It is that a guard whose needle also matches the
 // PROSE ABOUT ITSELF gets quieter the more carefully it is documented — this file gained its two
 // explanatory comments honestly, and each one weakened it. The donut twin (#709) was written
@@ -56,22 +66,38 @@ final class LeadMixDoorAndNormalisationTests: XCTestCase {
 
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
 
-    /// EXACTLY ONE of the two must be present. Written as one assertion rather than two so the
-    /// failure message can state which side of the pairing broke — a pair of independent
-    /// assertions would report "missing normalisation" for a commit that legitimately restored
-    /// the door, and send the next session to add back the very thing it should delete.
+    /// EXACTLY ONE of the two must be present. The PAIRING is one assertion rather than two so
+    /// its failure message can state which side broke — a pair of independent assertions would
+    /// report "missing normalisation" for a commit that legitimately restored the door, and send
+    /// the next session to add back the very thing it should delete. (⛔ This said "written as
+    /// one assertion" flat, and since #711 the method holds TWO: the #367 anchor comes first and
+    /// fails under the same test name. The one-assertion rule is about the pairing, not the
+    /// method — #712 review finding 8.)
     func testTheLeadFaderAndItsNormalisationAreMutuallyExclusive() throws {
         let code = try codeOf(Self.studio)
 
         // #367 anchor, and the one this claim lacked: the door needle has ZERO occurrences today
-        // (that is the point — the door is gone), so nothing else can show it is still spelled
-        // the way a restored fader would spell it. The two SURVIVING mix fields are the witness.
+        // (that is the point — the door is gone), so nothing else can show its spelling is still
+        // the live one. The witness is the two surviving `MixerStore` ROLE LEVELS — `\\.bass` and
+        // `\\.pad`. Not "the remaining mix fields": the board has five strips, and Field, Click and
+        // Voice each bind a different way, so this counts a narrower thing than its name suggests.
+        //
+        // ⚠️ WHAT IT DETECTS AND WHAT IT CANNOT (#712 review findings 3 and 4). It detects that
+        // the needle's SPELLING has gone stale. It cannot force a restored fader to use that
+        // spelling: a Lead field written `mixBinding(\\MixerStore.lead)` leaves this anchor happy
+        // and `hasDoor` false, so the pairing would read green on a broken tree. That gap is
+        // named rather than papered over — closing it means a semantic scan, not a longer needle.
+        //
+        // ⚠️ THRESHOLD IS 1, NOT 2, and the difference is a real tree. Today the count is exactly
+        // 2, so `>= 2` had ZERO headroom: the founder call that removes one more role level — the
+        // same shape as #255, which removed Lead — would turn this RED on a correct tree. One
+        // surviving occurrence still proves the idiom is live, which is all this anchor claims.
         let idiom = code.components(separatedBy: "mixBinding(\\.").count - 1
-        XCTAssertGreaterThanOrEqual(idiom, 2, """
-            `mixBinding(\\.` appears \(idiom) time(s) in code — the house spelling for a mix field \
-            has changed or the remaining fields are gone. The door needle below checks a form the \
-            file no longer uses, so it could never notice a restored Lead fader. Re-derive the \
-            needle from how the surviving fields are written.
+        XCTAssertGreaterThanOrEqual(idiom, 1, """
+            `mixBinding(\\.` appears \(idiom) time(s) in code — the house spelling for a mix ROLE \
+            LEVEL is gone. The door needle below checks a form the file no longer uses, so a \
+            restored Lead fader would not be spelled that way either and this pairing would sit \
+            green through it. Re-derive the needle from how the surviving fields are written.
             """)
 
         let hasDoor = code.contains("mixBinding(\\.lead)")
@@ -143,6 +169,14 @@ final class LeadMixDoorAndNormalisationTests: XCTestCase {
     /// `source(_:)` with comments blanked. Claim 1 needs this and the others do not: its
     /// normalisation needle is a bare token that ALSO appears in two prose comments in
     /// `EchoelStudioView`, which is why the raw form could not fail for its own stated reason.
+    ///
+    /// ⚠️ TWO RESIDUAL HOLES, named here so the cover is not overread (#712 findings 6 and 9).
+    /// `SourceText.codeOnly` does NOT blank the body of a `"""` literal — its own header says so
+    /// and says why the omission is deliberate; `EchoelStudioView` already writes such literals,
+    /// so the token placed inside one would read as a live call. And the declaration exclusion
+    /// matches `func normaliseDoorlessLeadMix` on ONE line: splitting `func` from the name
+    /// defeats it. Both are unlikely shapes, neither is worth code today, and both would be
+    /// invisible if this block did not exist.
     private func codeOf(_ path: String) throws -> String {
         SourceText.codeOnly(try source(path))
     }

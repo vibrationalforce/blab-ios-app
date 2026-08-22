@@ -368,12 +368,18 @@ final class VisualFineTuneReflowsTests: XCTestCase {
     /// pairing has a guard; its donut twin had none. This is that guard.
     ///
     /// ⛔ "THE LEAD PAIRING HAS A GUARD IN BOTH DIRECTIONS" IS WHAT THIS SAID, and measuring it
-    /// was the one thing #709 did not do (#710 review finding 1). That file reads RAW source and
-    /// uses a bare token, which also matches two prose comments and the declaration — so its
-    /// "normalisation missing" direction cannot fire on a deleted call. This claim is the
-    /// STRICTER shape (comments stripped, declaration excluded by its `func` keyword), not a
-    /// copy of it. Writing an unchecked "X is guarded too" into a commit whose whole subject is
-    /// unchecked standing claims is the failure itself; the note is left where it was made.
+    /// was the one thing #709 did not do (#710 review finding 1). That file read RAW source with
+    /// a bare token, which also matched two prose comments and the declaration — so its
+    /// "normalisation missing" direction could not fire on a deleted call. Writing an unchecked
+    /// "X is guarded too" into a commit whose whole subject is unchecked standing claims is the
+    /// failure itself; the note is left where it was made.
+    ///
+    /// ⭐ AND IT IS REPAIRED — #711, one cycle later, gave that file `codeOnly` and the same
+    /// `func`-keyword exclusion. The two are now the SAME shape, so the sentence that stood here
+    /// ("This claim is the STRICTER shape … not a copy of it") is withdrawn: it was true for two
+    /// commits and describes nothing today. ⚠️ #711 did not move it, which is the #456/#472
+    /// lesson landing on the very pair of files that were arguing about it — the repair was made
+    /// in one file and its description lived in the other. Caught by the #712 review.
     ///
     /// ⚠️ THE TWO DIRECTIONS ARE NOT THE SAME KIND, graded separately (#433/#464/#486):
     ///   · door absent + normalisation deleted → RED, and this half COULD always have been red.

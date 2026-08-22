@@ -10863,8 +10863,8 @@ dieselbe Klasse, die der Wächter fängt, einen Sprung weiter außen:
 1. die Fehlermeldung hätte eine Sitzung angewiesen, die Pille an BEIDEN Mounts zu bauen = der
    #227-Defekt wortwörtlich neu;
 2. „das Blei-Paar ist in beiden Richtungen bewacht" stand ungemessen im Kopf jenes Wächters —
-   er liest ROHTEXT mit einem Token, das auch zwei Kommentare trifft, also feuert die
-   „Normalisierung fehlt"-Richtung bei gelöschtem Aufruf gar nicht;
+   er las ROHTEXT mit einem Token, das auch zwei Kommentare trifft, also feuerte die
+   „Normalisierung fehlt"-Richtung bei gelöschtem Aufruf gar nicht (**mit #711 repariert**);
 3. „zwei Code-Pflichten, nur in Doc-Kommentaren" war zweifach falsch (es sind drei, und eine ist
    ein `//`-Rumpfkommentar).
 Dazu zwei echte False-Green-Löcher im Code: die Deklaration war über `private func` ausgeschlossen
@@ -10877,3 +10877,31 @@ kompiliert mit Claim 7. `2c423ec` (#710) lief zum Schreibzeitpunkt noch.
 **Nicht gebaut, absichtlich:** die Wieder-Tür selbst. Sie ist ein Mehr-Datei-Epos, kein
 Ralph-Schnitt, und sie ist außerdem eine Produktfrage (eine ZWEITE Sichtfläche neben
 `FloatingVisualWindow`) — offene Aufgabe #270, jetzt mit vollständiger Kostenrechnung.
+
+## 2026-08-22 (cron, 24h-Mandat) — #711/#712: der Wächter, dessen Nadel die Prosa ÜBER SICH SELBST traf
+
+**#711** repariert `LeadMixDoorAndNormalisationTests` — den Nachbarn, den #710 als ungemessen
+entlarvt hatte. Er las ROHTEXT und fragte nach einem blanken Token. Das Token steht viermal in
+`EchoelStudioView`: der Aufruf, die Deklaration und **zwei Prosa-Kommentare**. Aufruf löschen ⇒
+drei Treffer bleiben ⇒ „Normalisierung vorhanden" ⇒ **grün**. Genau die Richtung, die der
+Dateikopf ZUERST nennt, war nicht detektierbar.
+
+Reparatur: `codeOf()` (Kommentare geschwärzt) · Deklaration über `func …` ausgeschlossen (nicht
+über `private`) · ein #367-Anker auf die Schreibweise der Tür-Nadel.
+
+**#712** = zehn Reviewer-Befunde, alle nachgemessen. Die drei mit Substanz:
+1. **Der Zwilling trug die veraltete Beschreibung.** `VisualFineTuneReflowsTests` sagte im
+   Präsens, die Blei-Datei lese Rohtext und sei die schwächere Form — nach #711 sind beide
+   dieselbe Form. Die Reparatur lag in der einen Datei, ihre Beschreibung in der anderen: das
+   #456/#472-Gesetz, gelandet auf genau dem Dateipaar, das darüber stritt.
+2. **#711 hat ZWEI Richtungen repariert und nur eine behauptet.** Unter der alten Logik war die
+   KORREKTE Wieder-Tür (Regler zurück UND Aufruf gelöscht) **rot** — und die Fehlermeldung
+   verlangte genau das, was der Commit gerade getan hatte. Ein unbehebbares Rot auf korrektem
+   Baum ist ein #364-Verstoß, im Wächter, der diese Änderung erlauben soll.
+3. **Der neue Anker hatte null Luft** (`>= 2` bei genau 2). Ein Founder-Schnitt wie #255 hätte
+   ihn auf korrektem Baum rot gemacht. Jetzt `>= 1`, und die Meldung sagt, was er wirklich
+   erkennt: eine veraltete SCHREIBWEISE — er kann einen anders geschriebenen Regler nicht sehen.
+
+Dazu: „the two surviving mix fields" überlas das Board (fünf Streifen, zwei Rollen-Level) ·
+„same four trees" war eine falsche Gleichsetzung · zwei Restlöcher (`"""`-Rumpf, `func` auf
+eigener Zeile) jetzt benannt statt stillschweigend.
