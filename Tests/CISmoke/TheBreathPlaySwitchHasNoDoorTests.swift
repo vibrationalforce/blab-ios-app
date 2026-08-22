@@ -136,7 +136,8 @@ final class TheBreathPlaySwitchHasNoDoorTests: XCTestCase {
             `breathPlayEnabled` is now named outside its own declaration, in: \
             \(writers.joined(separator: ", ")).
 
-            That is GOOD NEWS if it is a real door — this guard forbids building one (#364). \
+            That is GOOD NEWS if it is a real door — this guard does NOT forbid building one \
+            (#364); its red is what tells you one was built. \
             It also fires on a mere READ, deliberately: enumerating write shapes is a guess \
             about the future, and #724's four-shape guess missed `$voice.breathPlayEnabled`, \
             the `@Observable` binding that is the likeliest door of all. The repair is not to \

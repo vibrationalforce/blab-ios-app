@@ -57,9 +57,15 @@ public final class ResourceGovernor {
     /// Whether automatic governing is on.
     ///
     /// ⛔ THIS LINE SAID a performer "can pin a tier (e.g. force High for a show)" AND NO
-    /// PERFORMER CAN (#727). Measured in `Sources/`, comments stripped (`git grep` it):
-    /// `isAutomatic` occurs THREE times — this declaration, its own `didSet`, and the `guard`
-    /// in `recompute()`. No writer, no binding, no control in any shipped code path.
+    /// PERFORMER CAN (#727). Do not reach for `git grep -c isAutomatic -- Sources`: it counts
+    /// LINES, strips nothing, and therefore returns the code occurrences plus every comment
+    /// line — including this one — that quotes them.
+    /// With comments stripped the name occurs THREE times: this declaration, **`manualTier`'s**
+    /// `didSet`, and the `guard` in `recompute()`. (⛔ #727 and #728 both wrote "its own
+    /// `didSet`" — measured, `isAutomatic`'s own `didSet` is `didSet { recompute() }` and does
+    /// not contain the name at all; #729. And "(`git grep` it)" pointed at a recipe that
+    /// prints 7 where the sentence promises 3 — the `EchoelModalBank` shape, one commit after
+    /// this file quoted that lesson.) No writer, no binding, no control in any shipped path.
     ///
     /// ⚠️ AND THE CONSEQUENCE IS ONE STEP FURTHER THAN A MISSING SWITCH: because no shipped
     /// path sets the flag `false`, the `guard isAutomatic else { apply(…manualTier) }` branch
@@ -83,10 +89,15 @@ public final class ResourceGovernor {
     /// sense of "delete it" — what is absent is the DOOR, and the sentence that promised one.
     ///
     /// ⚠️ WHETHER A PERFORMER SHOULD BE ABLE TO PIN A TIER IS A FOUNDER QUESTION, not a
-    /// cleanup. Pinning High for a show is a real live-performance need, and the machinery is
-    /// two lines from working; this note exists so that question gets asked from facts rather
-    /// than from a doc comment that already claims the answer. Guard:
-    /// `Tests/CISmoke/TheQualityPinHasNoDoorTests.swift` — it forbids building one (#364).
+    /// cleanup. Pinning High for a show is a real live-performance need; this note exists so
+    /// that question gets asked from facts rather than from a doc comment that already claims
+    /// the answer. (⛔ "the machinery is two lines from working" stood here and was withdrawn
+    /// in the guard one commit earlier as an unmeasured number, while surviving verbatim in
+    /// THIS home for a further commit — a #456 miss inside the slice whose subject was #456;
+    /// #729. `manualTier` defaults to `.balanced`, so a bare toggle pins BALANCED, not the
+    /// High the sentence above names.) Guard:
+    /// `Tests/CISmoke/TheQualityPinHasNoDoorTests.swift` — it does NOT forbid building one
+    /// (#364); its red is what tells you a door was built.
     public var isAutomatic: Bool = true {
         didSet { recompute() }
     }

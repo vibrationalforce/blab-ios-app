@@ -2,9 +2,27 @@
 // Echoel — a doc comment that names the user and the use case for a branch that never runs. #727.
 //
 // WHAT WAS WRONG. `ResourceGovernor.isAutomatic` is `public var … = true` and its doc said a
-// performer "can pin a tier (e.g. force High for a show)". Measured in `Sources/`
-// (`git grep -c isAutomatic -- Sources`), comments stripped: `isAutomatic` occurs THREE times — the declaration, its own `didSet`, and the
-// `guard` in `recompute()`. No writer, no binding, no control in any shipped path.
+// performer "can pin a tier (e.g. force High for a show)". Comments stripped, the name occurs
+// THREE times in `Sources/`: the declaration, **`manualTier`'s** `didSet`, and the `guard` in
+// `recompute()`. No writer, no binding, no control in any shipped path.
+//
+// ⛔ TWO PARTS OF THAT SENTENCE WERE WRONG WHEN #728 SHIPPED IT (#729). It said "its own
+// `didSet`" — `isAutomatic`'s own `didSet` is `didSet { recompute() }` and does not contain
+// the name; the third occurrence belongs to `manualTier`. And it cited
+// `git grep -c isAutomatic -- Sources` for the number THREE: that flag counts LINES and
+// strips nothing, so it prints the code occurrences PLUS every comment line quoting them —
+// the recipe contradicted the number it was cited for, the `EchoelModalBank` shape, one
+// commit after this file quoted that lesson.
+//
+// ⚠️ NO RAW COUNT IS WRITTEN DOWN HERE ON PURPOSE. #729's own first draft replaced the
+// recipe with the measured value 7 and made it 8 in the same commit, by adding these very
+// lines. A count that this file's OWN prose moves is a date, not a fact; only the code
+// occurrence count is stable, and the way to get it is to strip comments first:
+//     python3 - <<'EOF'
+//     import sys; sys.path.insert(0,'scripts'); import doctor
+//     t=open('Sources/Echoelmusic/Core/ResourceGovernor.swift').read()
+//     print(doctor._code_only(t).count('isAutomatic'))
+//     EOF
 //
 // ⚠️ AND IT GOES ONE STEP FURTHER THAN THE BREATH-PLAY FINDING (#724/#725), which is why it is
 // its own guard rather than a second claim there. There, a permanently-true flag meant the
@@ -54,19 +72,39 @@
 // against both trees and every assertion has a verdict. Hand-transcribed (a Python rebuild of
 // `SourceText.codeOnly` driven against `git show <parent>:` and the worktree) — a CI round
 // trip is a lottery ticket, not a check (#686):
-//   · **1 REGRESSION** on the parent `bf069b8`: claim 1, the promise "can pin a tier" is
-//     present and unretracted. Claim 1b is red there too, but by ANCHOR ABSENCE (the
-//     retraction does not exist yet) — one absence, reported once (#486), not a second finding.
-//   · **5 COUNTERWEIGHTS** green on both trees: no writer outside the file (2), exactly one
-//     assignment inside it (2b), the unreachable branch still exists (3), the automatic half
-//     is still constructed (4) and consumed (5). Green on both is the point, not padding
-//     (#343). Seven test methods in total: 1 regression, 1 anchor-absence, 5 counterweights.
+//   · Against `bf069b8` — the tree BEFORE #727 built the doc block: **1 REGRESSION**, claim 1,
+//     the promise "can pin a tier" present and unretracted; claim 1b red there too but by
+//     ANCHOR ABSENCE — one absence, reported once (#486), not a second finding.
+//   · ⛔ AGAINST THE ACTUAL PARENT THERE ARE NONE, and #728's header did not say so (#729).
+//     `bf069b8` is the GRANDparent. Driven against `bedfd37`, every claim is green: #728 was
+//     a pure prose-and-guard rewrite. "1 REGRESSION" is a true statement about a tree that is
+//     named — and the number a reader carries away is not that commit's.
+//   · **4 COUNTERWEIGHTS** green on both trees: no writer outside the file (2), the
+//     unreachable branch still exists (3), the automatic half is still constructed (4) and
+//     consumed (5). Green on both is the point, not padding (#343). Six test methods.
+//   · Against `8af1934`, THIS slice's parent: **all six green**, ZERO regressions — #729 is a
+//     prose repair plus one withdrawal, and it says so rather than borrowing an older tree's
+//     number. Driven with a Python transcription of `SourceText.codeOnly` over
+//     `git show 8af1934:` and the worktree; the walk saw 369 files and the declaring file on
+//     both. The repaired claim 1 was additionally probed on two DELIBERATELY broken trees:
+//     a re-wrap that splits the quote off the marker line is GREEN under the new block rule
+//     and RED under #728's same-line rule (the defect), and a fresh promise placed away from
+//     any retraction is RED under both (#367 — it can still fail for its named reason).
 //   · SOURCE-TEXT SCAN throughout (§1). Nothing here drives the governor: `recompute()` is
 //     private and the class is `@MainActor`.
 //
 // ⚠️ IS THE STRIPPER LOAD-BEARING? Required by `Tests/CISmoke/CLAUDE.md` §2, and #725 omitted
-// it. Measured: **PROPHYLAKTISCH — 0 of 6 verdicts flip** on either tree today. But
-// COUNTERFACTUALLY load-bearing for exactly the two claims it protects: raw text contains
+// it. Measured today: **PROPHYLAKTISCH — 0 of 5 verdicts flip**.
+//
+// ⛔ #728 PRINTED THAT SAME LABEL WHILE IT WAS FALSE, AND ITS OWN SLICE IS WHAT MADE IT FALSE
+// (#729). `isAutomatic` occurs MORE times raw in `ResourceGovernor.swift` than the THREE in
+// code — the ⛔ blocks quote it, and the exact raw figure moves whenever anyone edits them,
+// so the occurrence-count claim #728 wrote was red without `codeOnly` — `TRAGEND (1 of 6)`,
+// in the flattering direction, and the counterfactual paragraph below names claims 3 and 5
+// as the protected ones and never names the only one that actually was. The label is true
+// again only because #729 withdrew that claim (see below); saying so is the point, because
+// a measurement that becomes true by deleting its subject is not the same as one that was
+// right. COUNTERFACTUALLY the stripper is still load-bearing for two claims: raw text contains
 // `guard isAutomatic else` in a COMMENT (this file's own header quotes it, and so does the ⛔
 // block in `ResourceGovernor.swift`), so without `codeOnly` claim 3 would stay green if the
 // real branch were deleted and the prose kept — the precise scenario it exists for. Likewise
@@ -94,11 +132,24 @@ final class TheQualityPinHasNoDoorTests: XCTestCase {
 
     // MARK: - 1: the doc no longer promises a performer control
 
+    /// ⛔ THE EXEMPTION IS BLOCK-SCOPED, NOT LINE-SCOPED (#729). #728 required `SAID` on the
+    /// SAME raw line as the phrase, and the one line that satisfies both is 89 characters
+    /// wide against a wrap that sits near 96 — an ordinary re-wrap pushing the quote onto the
+    /// next line would have made this red on a correct tree. That is the exact failure §6 of
+    /// #728 cited when it SHORTENED claim 1b's needle; the repair was applied to 1b and not
+    /// to claim 1, which is the more exposed of the two. A quote is exempt if the retraction
+    /// marker stands on its own line or within the three lines above it.
     func testTheDocNoLongerPromisesAPin() throws {
         let phrase = "can pin a tier"
         let raw: String = try rawText(Self.governor)
-        let offenders: [String] = raw.components(separatedBy: "\n")
-            .filter({ $0.contains(phrase) && !$0.contains("SAID") })
+        let lines: [String] = raw.components(separatedBy: "\n")
+        let offenders: [String] = lines.indices
+            .filter({ i in
+                guard lines[i].contains(phrase) else { return false }
+                let from = max(0, i - 3)
+                return !lines[from...i].contains(where: { $0.contains("THIS LINE SAID") })
+            })
+            .map({ lines[$0] })
         XCTAssertTrue(offenders.isEmpty, """
             `ResourceGovernor` promises again that a performer "\(phrase)", outside a \
             retraction:
@@ -132,7 +183,8 @@ final class TheQualityPinHasNoDoorTests: XCTestCase {
             `isAutomatic` is now named outside `ResourceGovernor.swift`, in: \
             \(writers.joined(separator: ", ")).
 
-            That is GOOD NEWS if it is a real door — this guard forbids building one (#364). \
+            That is GOOD NEWS if it is a real door — this guard does NOT forbid building one \
+            (#364); its red is what tells you one was built. \
             It fires on a mere READ too, deliberately: a needle list of write shapes misses \
             `$g.isAutomatic`, the `@Observable` binding that is the likeliest door of all \
             (#725). The repair is not to relax this: move the ⛔ block above the declaration \
@@ -140,34 +192,27 @@ final class TheQualityPinHasNoDoorTests: XCTestCase {
             """)
     }
 
-    /// 2b — the declaring file must still assign it exactly once. Claim 2 skips that file, so
-    /// a door added inside it would otherwise be invisible forever.
-    /// ⛔ THIS COUNTS OCCURRENCES, NOT ASSIGNMENTS, AND THE REWRITE IS THE POINT (#728).
-    /// Two earlier shapes both failed for the same underlying reason — a write-shape guess,
-    /// which is exactly what this file's header forbids twelve lines above:
-    ///   · #725's form demanded `=` immediately after the name and counted ZERO here, because
-    ///     the declaration carries `: Bool`. Red on a correct tree; caught in simulation.
-    ///   · #727's `: Type` skip fixed that and still missed every realistic door —
-    ///     `Toggle(…, isOn: $g.isAutomatic)`, `isAutomatic.toggle()`, and a second hit on a
-    ///     line whose first hit is a read (`range(of:)` finds one). It also MIS-counted
-    ///     `var isAutomatic: Bool { power != .low }` as an assignment, because
-    ///     `firstIndex(of: "=")` lands on the `=` of `!=`.
-    /// Counting the NAME is wrap-proof, shape-proof, and asserts the same THREE the ⛔ block in
-    /// `ResourceGovernor.swift` states — one number, one definition (#416).
-    func testTheDeclaringFileNamesItExactlyThreeTimes() throws {
-        let code: String = try codeOf(Self.governor)
-        let occurrences: Int = code.components(separatedBy: "isAutomatic").count - 1
-        XCTAssertEqual(occurrences, 3, """
-            `isAutomatic` now occurs \(occurrences) times in \(Self.governorRelative), not 3.
-
-            The three are the declaration, its own `didSet`, and the `guard` in `recompute()`. \
-            A fourth is a door built inside the declaring file — which claim 2 cannot see, \
-            because it skips this file. Fewer than three means the flag or its gate was \
-            removed, which decides a founder question by cleanup. Either way the repair is to \
-            move the ⛔ block above the declaration in the SAME commit (#456), not to change \
-            this number.
-            """)
-    }
+    // ⛔ CLAIM 2b IS WITHDRAWN ONE COMMIT AFTER IT WAS WRITTEN (#729), and the reason is
+    // #364 rather than a typo. It asserted that `isAutomatic` occurs EXACTLY THREE times in
+    // the declaring file's code, to catch a door built inside the one file claim 2 skips.
+    // Simulated against the worktree, it goes red on two ordinary, CORRECT edits:
+    //   · simplifying `manualTier`'s `didSet { if !isAutomatic { recompute() } }` to
+    //     `didSet { recompute() }` — a legitimate simplification, since `recompute()` already
+    //     gates on the flag — drops the count to 2, and the message would report "the flag or
+    //     its gate was removed". Neither was.
+    //   · the standard `oldValue` de-duplication on `isAutomatic`'s OWN `didSet` raises it to
+    //     4, and the message would report "a door built inside the declaring file". False.
+    // Both are #367 in its stated mirror form: red for a reason other than the one the message
+    // gives — and the prescribed repair ("move the ⛔ block, do not change this number") is
+    // wrong for both. A guard that reds correct work gets deleted and takes the law with it
+    // (#364), so the LAW is kept in prose here and in the ⛔ block above the declaration: the
+    // one file claim 2 skips is a Foundation-only model file with no SwiftUI import, where the
+    // realistic door shapes claim 2 hunts for cannot occur.
+    //
+    // ⚠️ AND THE #416 CITATION IT CARRIED WAS INVERTED. It justified the number by saying it
+    // "asserts the same THREE the ⛔ block states — one number, one definition (#416)". #416
+    // forbids the second spelling; the claim WAS the second spelling, and with its message it
+    // made five.
 
     // MARK: - 3: COUNTERWEIGHT — the branch the finding is about still exists
 
