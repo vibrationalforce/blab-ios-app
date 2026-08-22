@@ -10967,3 +10967,74 @@ Noten- oder Puls-Pfad: `breadcrumb` macht `write(2)`.
    der Kante falsch (die Crash-Handler schreiben direkt auf den fd).
 
 **Gates:** #713/#714 grün (170 Tests, 0 Fehler). #715/#716 liefen zum Schreibzeitpunkt noch.
+
+---
+
+## 2026-08-22 (cron, 24h-Mandat) — #717/#718/#719: der Prüfer, der sich selbst nicht lesen konnte
+
+**Der Punkt:** eine Wächter-Nadel, die einen Namen sucht, den niemand geschrieben hat, ist
+**für immer grün**, während der Fehler, den sie verhindern soll, mitfährt. Das ist in DIESER
+Session dreimal passiert (#705 „Bio chip" · #711 ein Token, das auch die Prosa ÜBER den
+Wächter traf · #716 `func pulseClock(` / `func sendClock(`, die es nie gab).
+`Tests/CISmoke/CLAUDE.md` sagt die Regel seit #367/#408 — Prosa hat es dreimal nicht
+verhindert, also ist die Reparatur mechanisch: **doctor Sektion B** prüft jetzt jede Nadel in
+**Deklarations-Form** gegen `Sources/` + das Wächter-Bündel.
+
+**Drei Commits, weil zwei Prüf-Runden je einen Fehler IM PRÜFER fanden — jedes Mal denselben,
+eine Literal-Form weiter:**
+
+- **#717** (`b618883`) baut den Check. Die erste Fassung **traf sich selbst** (#708): der
+  Heuhaufen enthielt `Tests/CISmoke` als Rohtext, also fand `"func pulseClock("` sich in der
+  eigenen Zeile. Behoben durch Leeren der Zeichenketten im Heuhaufen.
+- **#718** (`7b93d71`) — drei blockierende Befunde am **Lesewerkzeug**: der Heuhaufen ließ
+  **vier lebende Dateien** aus (`**/` in git verlangt ein Zwischenverzeichnis — betroffen war
+  u. a. `EchoelmusicApp.swift`, der `@main`-Einstiegspunkt) · das Leeren benutzte eine
+  **zweite, schwächere** Vorstellung davon, wo ein Literal endet (`re.sub`), die an einem
+  escapten Anführungszeichen falsch paart · ein `/*` in einer `"""`-Meldung öffnete einen
+  **Phantom-Blockkommentar** und verschluckte **621 Zeilen in 6 Dateien**. Einen VIERTEN habe
+  ich beim Ausführen der Reparatur selbst erzeugt: die neue Wortgrenze machte **acht
+  Fehlalarme**, weil `func send(` von `_` gefolgt wird.
+- **#719** (`e9f45cd`) — die Selbst-Treffer-Lücke war **weiter erreichbar**, über
+  String-Interpolation: `\(` wurde als gewöhnliches Escape gelesen, das nächste `"` als
+  SCHLUSS statt als Anfang eines verschachtelten Literals. **Und der Doc-Kommentar behauptete
+  genau die sichere Richtung, während der Code die unsichere nahm** — schlimmer als beides,
+  weil ein Leser dort nicht mehr hinsieht. Dazu: `\"""` im Körper schloss ihn zu früh und
+  blendete den Rest der Datei aus.
+
+**Die Lehre, die keine Zahlen-Lehre ist:** #717 und #718 haben je eine Behauptung
+aufgestellt („die Nadel kann sich nicht mehr selbst finden"), die für die gerade reparierte
+Literal-Form stimmte und für die nächste nicht. Ein handgeschriebener Lexer hat so viele
+Formen, wie ihm jemand beigebracht hat — der Vermerk sagt das jetzt selbst („eine Form, die
+ihm BEIGEBRACHT wurde, keine Grammatik, die er ableitet").
+
+**Zwei Zitat-Befunde, beide teurer als die Bugs:**
+1. #718 zitierte `SourceText.swift` als Beleg (die `///`-Analyse) und **ließ dessen
+   `"""`-Schluss aus derselben Datei weg** — dort steht „IT IS DELIBERATELY NOT FIXED", weil
+   ein `"""`-bewusster Swift-Scanner Shader-Prosa an `GlitterCannotBecomeAFlashTests` (die
+   WCAG-3-Hz-Grenze) reichen würde. Für den Python-Zwilling gilt der Grund NICHT (kein
+   Sicherheits-Wächter liest ihn) — die Divergenz ist also richtig, aber sie war **still**.
+   Steht jetzt an der Deklaration.
+2. #718s Prüf-Block behauptete „707 Dateien" — das ist die Menge VOR der Reparatur. Die vier
+   Dateien, die der Commit hinzufügt, waren aus der Behauptung ausgeschlossen, die ihn belegt.
+   Richtig sind 711.
+
+**Bewusst NICHT gebaut, damit es niemand neu herleitet:**
+- **Nadel-Form erweitern:** heute greifen **41 von ~640** deklarations-ähnlichen Nadeln.
+  Nicht erfasst: `"func X()"` (leere Klammern, 5) · führende Modifier im Literal
+  (`"private func X("`, 61) · Argumente im Literal (3) · `var`/`let`/`case`/`init`/
+  `extension`/`typealias` (21). **Muss NACH der Glob-Reparatur kommen** — vorher hätte es
+  sofort auf `func openAppSettings()` Fehlalarm gegeben (die zwei Fehler hoben sich auf).
+- `XCTAssertFalse(...isEmpty)` aus der Abwesenheits-Ausnahme nehmen (0 lebende Fälle heute).
+- `emit` aus der Zeilenschleife heben (gemessen 0 Verhaltensunterschied, ~4 % schneller).
+
+**Gates:** #717–#719 fassen nur `scripts/**` an. Das steht in **keinem** Pfad-Filter —
+weder `ci.yml` noch `xcode-compile-check.yml` noch `auto-merge-claude.yml` — also läuft
+darauf **kein Gate** und sie erreichen `main` erst als Passagier des nächsten
+`Sources/`/`Tests/`-Commits. Kein ausgelieferter Code, kein Gate, kein Test-Bundle berührt;
+verifiziert durch Ausführen (8 Bäume, sauber → 0, jedes der vier versteckten Phantome
+gefangen, kein Fehlalarm).
+
+**Nebenbefund fürs Register (offen):** `ContentPipeline/README.md` zählt die Geschwister mit
+demselben Merge-Loch auf und nennt drei (`README.md`, `fastlane/**`, `.deploy/release`).
+Wahr ist die Umkehrung: der Filter ist eine **Erlaubnis-Liste aus fünf Pfaden**, also hat
+**jeder andere** Pfad das Loch — auch `scripts/**`, `Resources/**` und die `*.entitlements`.
