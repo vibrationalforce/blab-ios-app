@@ -11106,3 +11106,38 @@ NICHT im geleerten Log — #445: Abwesenheit beweist nichts.
 
 **Offen:** V0-Geräteprobe (Live-Monitoring-Schalter) beim Founder; „Voice clone — ja oder
 nein?"; Pflicht-Review zu #730 lief zum Zeitpunkt dieses Eintrags noch.
+
+---
+
+## 2026-08-22 (Fortsetzung) — #731/#732/#733: die Tür weckt einen schlafenden Zweig
+
+**#731 `ad0a5cb`** — Reparatur nach dem Pflicht-Reviewer auf #730. Die Tür selbst war sauber
+(erreichbar, render-sicher, null andere Schreiber); die Befunde trafen den Wächter. Sechs
+Reparaturen, die schärfste: die Sweep-Liste im Geschwister-Wächter behauptete weiter „zero
+writers anywhere" und „still open" — der Eintrag DIREKT DARÜBER existiert, um genau diesen
+#456-Fehler festzuhalten. Ein Kommentar macht nichts rot, deshalb fiel es nicht auf.
+Weiter: Stripper-Label zählte einen roh-lesenden Claim in einer gestrippten Messung ·
+die Gegengewichte waren gleichmäßig über-verkauft (der COMPILER verdeckt zwei davon, weil
+`project.yml` das Test-Bundle ans App-Target hängt) · falscher Eltern-Commit zweimal ·
+Claim 1 auf `lichtSection` eingegrenzt · Claim 4 auch auf `MusicMediaMapping.swift`.
+
+**#732 `023cbf2`** — der Halte-Zweig in `sendIfFresh` hält das letzte Kanal-Array, damit
+Blackout ohne Bio wirkt (L1). Das Array ist für die DAMALIGE Auflösung dimensioniert; erst
+#730s Picker konnte das auseinanderlaufen lassen. Gebaut: `ArtNetSender.reencode`, rein,
+von BEIDEN Sendern per `didSet` gerufen. **Umkodieren statt Leeren** — Leeren (so in #731
+registriert) hätte den Halte-Zweig in `return` geschickt und den Blackout eingefroren.
+Arithmetik VOR dem Code hergeleitet, über alle 256 Bytes: 65535/255 = 257 exakt.
+Erster Wächter dieser Reihe mit **echtem Verhalten** statt Quelltext-Scan (6 von 8 Claims).
+
+**#733 `5d6590a`** — und genau das war die Lehre, die noch fehlte: **ein Mutant lief durch
+alle acht Behauptungen**. Verbreitern erzeugt nur Wörter der Form `[b,b]`, und dort IST das
+grobe Byte der richtige Pegel — Claim 6s drei Vektoren waren alle von dieser Form. Eine
+„nimm einfach das grobe Byte"-Implementierung war grün. **Ein Verhaltens-Wächter ist nur so
+stark wie seine VEKTOREN.** Dazu: beide Zahlen, die #732 in `Sources/` geschrieben hatte,
+waren zu mild („ein Tick" → jeder 33-ms-Tick; „~1 s" → unbegrenzt, weil `bus.latestBio` das
+rohe, nie zurückgesetzte Snapshot ist und `BioEgressPolicy` nach QUELLE sperrt, nicht nach
+Alter). Und #732 hatte die #731-Registrierung nicht mitgezogen — #456, in genau der Datei,
+deren #731-Reparatur davon handelte.
+
+**Offen:** V0-Geräteprobe (Live-Monitoring) · „Voice clone — ja oder nein?" · Geräteprobe,
+ob ein echtes 8-bit-Fixture den umkodierten Halte-Zustand richtig liest.
