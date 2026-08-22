@@ -384,6 +384,28 @@ public enum StudioDefaultKeys {
     /// this is a thing that accepts. Those are not the same consent.
     public static let networkMIDI = StudioDefault(key: "midi.networkSession", value: false)
 
+    /// **MPE note layout on the MIDI OUT stream (#713).** Off = every note on channel 1,
+    /// which is what shipped. On = notes spread across the 15 member channels of the MPE
+    /// lower zone, and the zone RPN is sent when the port opens.
+    ///
+    /// It exists because the capability was BUILT and had no control anywhere. `MIDIOutput`
+    /// has carried `mpeEnabled` and `expressionEnabled` since the MIDI-out slice; both lost
+    /// their only surface when the Tools grid was removed (2026-07-02), so a player routing
+    /// to a hardware rig got plain notes and could not ask for anything else. CLAUDE.md has
+    /// listed them as an open capability gap since — "gehören in die Routing-Fläche".
+    public static let midiOutMPE = StudioDefault(key: "midi.out.mpe", value: false)
+
+    /// **Per-note expression on the MIDI OUT stream (#713).** Glide/Slide/Press alongside
+    /// each note-on, sourced from the body.
+    ///
+    /// ⚠️ ONLY MEANINGFUL WITH `midiOutMPE`, and that is not a style note — `MIDIOutput`'s
+    /// send path is literally `if mpeEnabled, expressionEnabled`, because per-note bend and
+    /// pressure need a member channel per note. A switch that can be turned on while MPE is
+    /// off would move, persist, and change nothing: this repo's own lying-control class. The
+    /// Routing surface therefore DISABLES it while MPE is off rather than hiding it, so the
+    /// dependency is visible instead of mysterious.
+    public static let midiOutExpression = StudioDefault(key: "midi.out.expression", value: false)
+
     // MARK: music.*
 
     /// How pitch classes are SPELLED — `NoteNaming`'s raw value (#232 E, founder 2026-07-29

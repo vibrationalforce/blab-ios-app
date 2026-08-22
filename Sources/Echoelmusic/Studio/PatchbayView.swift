@@ -27,6 +27,25 @@ struct PatchbayView: View {
     /// engine reads the SAME key in `MIDIInput.applyNetworkSessionPreference()`.
     @AppStorage(StudioDefaultKeys.networkMIDI.key)
     private var networkMIDI = StudioDefaultKeys.networkMIDI.value
+
+    /// #713 — the two MIDI-OUT quality switches. Same shape as `networkMIDI` above: the key
+    /// string and the default-OFF literal live once in `StudioDefaultKeys`, and the engine
+    /// reads the SAME keys in `MIDIOutput.applyOutputPreferences()`.
+    @AppStorage(StudioDefaultKeys.midiOutMPE.key)
+    private var midiOutMPE = StudioDefaultKeys.midiOutMPE.value
+
+    @AppStorage(StudioDefaultKeys.midiOutExpression.key)
+    private var midiOutExpression = StudioDefaultKeys.midiOutExpression.value
+
+    /// The live MIDI-out engine, injected at the app root (`EchoelmusicApp`, `.environment`).
+    /// Read only to APPLY the two switches above; the flags themselves are never assigned
+    /// from here, so this surface never becomes a second lifecycle owner (the BLE-3 lesson).
+    ///
+    /// Declared INSIDE this guard, next to its only users, rather than beside `router`: an
+    /// `@Environment(Type.self)` with no injected value traps when it is READ, so keeping the
+    /// declaration and the reads under one condition means there is no platform on which this
+    /// view can compile with a lookup it cannot satisfy.
+    @Environment(MIDIOutput.self) private var midiOut
     #endif
 
     /// `true` when hosted as a workspace surface rather than a sheet.
@@ -70,6 +89,7 @@ struct PatchbayView: View {
                 // `PatchbayView(embedded:)` has no caller today — but a control that only
                 // works on one of two hosts is exactly how a door goes missing again.
                 networkMIDISection
+                midiOutSection
                 #endif
                 ForEach(router.graph.sources) { src in
                     sourceCard(src)
@@ -170,6 +190,73 @@ struct PatchbayView: View {
             .onChange(of: networkMIDI) { _, _ in MIDIInput.applyNetworkSessionPreference() }
         }
     }
+
+    // MARK: - MIDI out quality (#713: the two switches the Tools-grid removal took)
+
+    /// The MPE layout and per-note expression switches for the OUTBOUND stream.
+    ///
+    /// WHY IT IS HERE. `MIDIOutput.mpeEnabled` and `.expressionEnabled` gate live code — the
+    /// zone RPN when the port opens, and the Glide/Slide/Press bytes that ride with each
+    /// note-on — and both lost their only control when the Tools grid was removed
+    /// (2026-07-02). Since then a player routing to a hardware rig has got plain channel-1
+    /// notes with no way to ask for anything else. `networkMIDISection` above states the rule
+    /// this follows: a capability with no switch is not a feature. Routing is the right home
+    /// because these describe the OUTBOUND stream, not a sound.
+    ///
+    /// `Toggle`, not `EchoelValueField`: the app-wide field law covers adjustable NUMERIC
+    /// parameters, and these are binary, exactly like the switch above.
+    ///
+    /// ⚠️ THE SECOND SWITCH IS DISABLED WHILE THE FIRST IS OFF, and that is the honesty half
+    /// of this slice rather than polish. `MIDIOutput`'s send path reads
+    /// `if mpeEnabled, expressionEnabled` — per-note bend and pressure need a member channel
+    /// per note — so an expression switch that could be turned on alone would move, persist
+    /// and change nothing. Disabled and visible beats hidden: the dependency is the thing a
+    /// player needs to understand, and hiding the row would make it a mystery instead.
+    private var midiOutSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("MIDI out").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
+            VStack(alignment: .leading, spacing: 6) {
+                Toggle(isOn: $midiOutMPE) {
+                    Text("MPE note layout")
+                        .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                }
+                .tint(EchoelTheme.accent)
+                .accessibilityHint(midiOutMPE
+                    ? "On. Notes are spread across the MPE member channels, so a rig can bend and press each note on its own."
+                    : "Off. Every note is sent on channel 1.")
+
+                Toggle(isOn: $midiOutExpression) {
+                    Text("Per-note expression")
+                        .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.text)
+                }
+                .tint(EchoelTheme.accent)
+                .disabled(!midiOutMPE)
+                .accessibilityHint(midiOutMPE
+                    ? (midiOutExpression
+                       ? "On. Each note carries the body's live Glide, Slide and Press."
+                       : "Off. Notes are sent without per-note expression.")
+                    : "Unavailable while MPE note layout is off, because per-note expression needs one channel per note.")
+
+                Text(midiOutMPE
+                     ? (midiOutExpression
+                        ? "Notes go out across the MPE member channels, each carrying the body's live Glide, Slide and Press. Point it at an MPE synth or a DAW track."
+                        : "Notes go out across the MPE member channels. Turn on per-note expression to send the body's Glide, Slide and Press with each note.")
+                     : "Every note goes out on channel 1 — what any MIDI device understands. Turn on the MPE note layout to give each note its own channel; per-note expression needs that and stays unavailable until then.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
+            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
+            // Apply from the SAME entry point launch uses, so the switch and the live engine
+            // can never disagree — the `networkMIDISection` pattern. @AppStorage has already
+            // written the key by the time this fires.
+            .onChange(of: midiOutMPE) { _, _ in midiOut.applyOutputPreferences() }
+            .onChange(of: midiOutExpression) { _, _ in midiOut.applyOutputPreferences() }
+        }
+    }
+
     #endif
 
 

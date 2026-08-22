@@ -65,6 +65,29 @@ public final class MIDIOutput {
     /// Number of MPE member channels (lower zone): MIDI channels 2…16.
     public static let mpeMemberChannels = 15
 
+    /// Read the two persisted MIDI-out preferences into the live flags — the ONE owner of
+    /// that transfer (#713).
+    ///
+    /// Both the launch path (`startIfNeeded`) and the Routing switches call THIS, the shape
+    /// `MIDIInput.applyNetworkSessionPreference()` established: a switch and the live engine
+    /// cannot disagree if only one piece of code moves the value. The alternative — the view
+    /// assigning `mpeEnabled` directly — would make the surface a second lifecycle owner,
+    /// which is the mistake BLE-3 had to undo when the patchbay was starting and stopping a
+    /// heart-rate strap behind the player's back.
+    ///
+    /// ⚠️ It reads `UserDefaults` rather than taking arguments so that a caller cannot pass a
+    /// value the persisted key does not hold. `StudioDefault`'s own default is the fallback,
+    /// so an install that has never seen the switches behaves exactly as before this slice.
+    public func applyOutputPreferences() {
+        let store = UserDefaults.standard
+        let mpe = store.object(forKey: StudioDefaultKeys.midiOutMPE.key) as? Bool
+            ?? StudioDefaultKeys.midiOutMPE.value
+        let expression = store.object(forKey: StudioDefaultKeys.midiOutExpression.key) as? Bool
+            ?? StudioDefaultKeys.midiOutExpression.value
+        if mpeEnabled != mpe { mpeEnabled = mpe }
+        if expressionEnabled != expression { expressionEnabled = expression }
+    }
+
     public private(set) var isReady = false
 
     #if canImport(CoreMIDI)
@@ -86,6 +109,11 @@ public final class MIDIOutput {
 
     private func startIfNeeded() {
         guard !isReady else { return }
+        // #713: read the two persisted quality preferences BEFORE the port exists. Placement
+        // is exact, not incidental — `mpeEnabled`'s `didSet` calls `sendMPEConfiguration()`,
+        // which `guard isReady`s out here, so the zone RPN is sent EXACTLY once, by the line
+        // after `isReady = true`. Applying them after that line would send it twice.
+        applyOutputPreferences()
         #if canImport(CoreMIDI)
         let clientStatus = MIDIClientCreateWithBlock("Echoelmusic Output" as CFString, &client, nil)
         guard clientStatus == noErr else {
