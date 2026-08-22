@@ -390,9 +390,10 @@ public enum StudioDefaultKeys {
     ///
     /// It exists because the capability was BUILT and had no control anywhere. `MIDIOutput`
     /// has carried `mpeEnabled` and `expressionEnabled` since the MIDI-out slice; both lost
-    /// their only surface when the Tools grid was removed (2026-07-02), so a player routing
-    /// to a hardware rig got plain notes and could not ask for anything else. CLAUDE.md has
-    /// listed them as an open capability gap since — "gehören in die Routing-Fläche".
+    /// their only surface when the Tools grid was removed, so a player routing to a hardware
+    /// rig got plain notes and could not ask for anything else. CLAUDE.md has listed them as
+    /// an open capability gap since — "gehören in die Routing-Fläche". (⛔ #713 dated that
+    /// removal here as a fact; this clone is shallow and cannot show it — #714 finding F.)
     public static let midiOutMPE = StudioDefault(key: "midi.out.mpe", value: false)
 
     /// **Per-note expression on the MIDI OUT stream (#713).** Glide/Slide/Press alongside

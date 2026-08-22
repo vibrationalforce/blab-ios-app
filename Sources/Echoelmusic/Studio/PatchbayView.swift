@@ -197,9 +197,10 @@ struct PatchbayView: View {
     ///
     /// WHY IT IS HERE. `MIDIOutput.mpeEnabled` and `.expressionEnabled` gate live code — the
     /// zone RPN when the port opens, and the Glide/Slide/Press bytes that ride with each
-    /// note-on — and both lost their only control when the Tools grid was removed
-    /// (2026-07-02). Since then a player routing to a hardware rig has got plain channel-1
-    /// notes with no way to ask for anything else. `networkMIDISection` above states the rule
+    /// note-on — and both lost their only control when the Tools grid was removed. Until this
+    /// section a player routing to a hardware rig got plain channel-1 notes with no way to ask
+    /// for anything else. (⛔ #713 dated that removal as a fact; the clone is shallow and cannot
+    /// show it — the measured part is that no control existed anywhere. #714 finding F.) `networkMIDISection` above states the rule
     /// this follows: a capability with no switch is not a feature. Routing is the right home
     /// because these describe the OUTBOUND stream, not a sound.
     ///
@@ -242,6 +243,20 @@ struct PatchbayView: View {
                         ? "Notes go out across the MPE member channels, each carrying the body's live Glide, Slide and Press. Point it at an MPE synth or a DAW track."
                         : "Notes go out across the MPE member channels. Turn on per-note expression to send the body's Glide, Slide and Press with each note.")
                      : "Every note goes out on channel 1 — what any MIDI device understands. Turn on the MPE note layout to give each note its own channel; per-note expression needs that and stays unavailable until then.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                // ⛔ #713 SHIPPED THE THREE SENTENCES ABOVE WITHOUT THIS ONE, and they say
+                // "notes go out" unconditionally. Nothing goes out unless the `midi.out` sink
+                // is routed below — `MIDIOutput.noteOn` guards on `enabled`, which only
+                // `applyRouting()` sets. With the route off, both switches move, persist,
+                // change the engine flags and change NO byte: the same lying-control class the
+                // `.disabled(!midiOutMPE)` above exists to prevent, one level out (#714).
+                //
+                // A sentence rather than `.disabled(!midiOut.enabled)`: the disabled form would
+                // read an engine property in `body`, and this surface deliberately touches
+                // `midiOut` only inside `.onChange` so it registers no observation at all.
+                Text("Both need the MIDI out route switched on below — without it nothing is sent, whatever these say.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }

@@ -68,12 +68,20 @@ public final class MIDIOutput {
     /// Read the two persisted MIDI-out preferences into the live flags — the ONE owner of
     /// that transfer (#713).
     ///
-    /// Both the launch path (`startIfNeeded`) and the Routing switches call THIS, the shape
+    /// Both the port-open path (`startIfNeeded`) and the Routing switches call THIS, the shape
     /// `MIDIInput.applyNetworkSessionPreference()` established: a switch and the live engine
     /// cannot disagree if only one piece of code moves the value. The alternative — the view
     /// assigning `mpeEnabled` directly — would make the surface a second lifecycle owner,
     /// which is the mistake BLE-3 had to undo when the patchbay was starting and stopping a
     /// heart-rate strap behind the player's back.
+    ///
+    /// ⛔ "THE LAUNCH PATH" IS WHAT #713 CALLED IT, AND THAT NAMES A HOOK THAT DOES NOT EXIST
+    /// (#714). `startIfNeeded()` runs from `enabled`'s didSet, and `enabled` is only ever set
+    /// by `applyRouting()` from the persisted `midi.out` route. With that route OFF at launch
+    /// the didSet short-circuits and this method never runs — so it is the PORT-OPEN path, not
+    /// the launch path. Harmless today (nothing can be sent while the route is off), but a
+    /// name that describes a mechanism the code does not take is how the next session plans
+    /// from a hook it cannot find (#374).
     ///
     /// ⚠️ It reads `UserDefaults` rather than taking arguments so that a caller cannot pass a
     /// value the persisted key does not hold. `StudioDefault`'s own default is the fallback,
@@ -108,12 +116,31 @@ public final class MIDIOutput {
     // MARK: - Lifecycle
 
     private func startIfNeeded() {
-        guard !isReady else { return }
-        // #713: read the two persisted quality preferences BEFORE the port exists. Placement
-        // is exact, not incidental — `mpeEnabled`'s `didSet` calls `sendMPEConfiguration()`,
-        // which `guard isReady`s out here, so the zone RPN is sent EXACTLY once, by the line
-        // after `isReady = true`. Applying them after that line would send it twice.
+        // #713/#714: read the two persisted quality preferences FIRST, on EVERY enable edge.
+        // Placement is exact, not incidental. On the first call `isReady` is still false, so
+        // `mpeEnabled`'s `didSet` calls `sendMPEConfiguration()` into its own `guard isReady`
+        // and the zone RPN is announced by the line after `isReady = true` instead.
         applyOutputPreferences()
+
+        // ⛔ #713 WROTE `guard !isReady else { return }` HERE AND THAT WAS A SILENT DEFECT.
+        // `isReady` is never reset — un-routing `midi.out` sets `enabled = false` and leaves
+        // the port open — so a player who turned the route OFF, switched MPE ON in Routing,
+        // and turned the route back on got member-channel notes with the zone RPN never
+        // announced at all: the didSet's `enabled && mpeEnabled` was false at toggle time, and
+        // this early return skipped the announce at re-enable. A receiving rig then reads
+        // ordinary multi-channel MIDI. #713 CREATED that state, because before it `mpeEnabled`
+        // could not move at runtime.
+        //
+        // ⚠️ THE GUARANTEE IS "ANNOUNCED BEFORE ANY NOTE CAN FLOW", NOT "EXACTLY ONCE", and
+        // that is a deliberate downgrade of #713's wording. Re-enabling after a preference
+        // change sends the RPN twice — once from the didSet, once here. It is a state-setting
+        // RPN and receivers apply it idempotently, whereas suppressing the duplicate would
+        // mean remembering what was announced, which would also suppress the re-announce a
+        // rig that disappeared and came back actually needs.
+        if isReady {
+            if mpeEnabled { sendMPEConfiguration() }
+            return
+        }
         #if canImport(CoreMIDI)
         let clientStatus = MIDIClientCreateWithBlock("Echoelmusic Output" as CFString, &client, nil)
         guard clientStatus == noErr else {

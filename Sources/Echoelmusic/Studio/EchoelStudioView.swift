@@ -3218,7 +3218,7 @@ struct EchoelStudioView: View {
             // and a VoiceOver user reaches that line immediately BEFORE this button. Saying it
             // three times (Text, hint, comment) is not thoroughness.
             .accessibilityLabel("Open Routing")
-            .accessibilityHint("Opens MIDI pairing, the OSC, Art-Net, sACN and spatial-audio targets, and the light master.")
+            .accessibilityHint("Opens MIDI pairing, the MIDI out switches, the OSC, Art-Net, sACN and spatial-audio targets, and the light master.")
             // The Apple Health WRITE opt-in belongs here, with the bio data it writes.
             // Its only switch used to live in the Tools grid, which stopped rendering on
             // 2026-07-02 and was deleted 2026-07-26 — but the flag is PERSISTED

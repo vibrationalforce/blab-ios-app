@@ -88,6 +88,11 @@ final class StudioDefaultKeysTests: XCTestCase {
             StudioDefaultKeys.touchSyncStrength.key, StudioDefaultKeys.touchSyncGrid.key,
             StudioDefaultKeys.weatherEnabled.key,
             StudioDefaultKeys.networkMIDI.key,
+            // #713/#714. Also pinned in the BLOCKING bundle
+            // (`Tests/CISmoke/MIDIOutQualitySwitchesTests`, claim 1) together with their
+            // defaults — listed here too because `StudioDefaultKeys`' own header asks for it,
+            // and because THIS is the uniqueness check.
+            StudioDefaultKeys.midiOutMPE.key, StudioDefaultKeys.midiOutExpression.key,
         ]
         XCTAssertEqual(keys.count, Set(keys).count, "keys must be unique")
         // ULTRASYNC ships OFF. This pins that as a decision, not an accident: the value
