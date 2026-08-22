@@ -11019,16 +11019,19 @@ ihm BEIGEBRACHT wurde, keine Grammatik, die er ableitet").
    Richtig sind 711.
 
 **Bewusst NICHT gebaut, damit es niemand neu herleitet:**
-- **Nadel-Form erweitern — die Sperre ist WEG (nachgemessen bei #721):** die Erweiterung
-  musste hinter die Glob-Reparatur, und die ist mit #718/#719 gelandet; dieselbe Erweiterung
-  gegen den ausgelieferten Heuhaufen ergibt jetzt **0 Fehlalarme**. Heute greifen **41** Nadeln,
-  gegen einen größeren Vorrat deklarations-ähnlicher Literale.
+- ~~**Nadel-Form erweitern**~~ — **mit #722 GEBAUT.** Die Sperre (erst die Glob-Reparatur) war
+  mit #718/#719 gefallen. Gemessen, kumulativ: Schlüsselwort+Name **41/38/0** → leere Klammern
+  **46/43/0** → Modifier IM Literal **130/127/0** → Text nach dem Namen **266/261/0**. Also
+  **6,4-fache Reichweite, null neue Befunde** auf sauberem Baum. Der letzte Schritt zählt am
+  meisten: `"func occurrencePeriod(forUnit"` ist genau die Nadel, die beim Ändern einer Signatur
+  veraltet — und war vorher unsichtbar.
   Nicht erfasst: `"func X()"` (leere Klammern, 5) · führende Modifier im Literal
   (`"private func X("`, 61) · Argumente im Literal (3) · `var`/`let`/`case`/`init`/
-  `extension`/`typealias` (21). ⚠️ **Die Zahlen „~640", „61" und „3" sind NICHT nachrechenbar**
-  — ohne mitgeschriebene Definition ergeben sie 558–683, 57 und 14; sie schulden eine Definition,
-  sie sind keine Messwerte. **Prognose:** der `var`/`let`/`case`-Eimer liefert Prosa-Fragmente
-  statt Nadeln (`'init param'`, `'var peerBio'`), braucht also eine engere Form, sonst Cry-Wolf.
+  `extension`/`typealias` — **bewusst AUSGESCHLOSSEN, und das ist gemessen statt vermutet:**
+  dieser Eimer trifft 231 Literale und lässt **16 ungelöst**, jedes davon ein Prosa-Fragment und
+  keine Nadel (`'init param'`, `'var peerBio'`, `'let site = '`). Die Prognose des #721-Reviews
+  hat die Messung bestätigt. ⚠️ **Die Zahlen „~640", „61" und „3" sind ZURÜCKGEZOGEN, nicht
+  korrigiert** — ohne mitgeschriebene Definition ergeben sie 558–683, 57 und 14.
 - `XCTAssertFalse(...isEmpty)` aus der Abwesenheits-Ausnahme nehmen (0 lebende Fälle heute).
 - `emit` aus der Zeilenschleife heben (gemessen 0 Verhaltensunterschied, ~4 % schneller).
 

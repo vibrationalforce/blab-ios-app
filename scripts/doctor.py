@@ -673,23 +673,31 @@ def section_b() -> Section:
     # `normaliseDoorlessLeadMix()`) are not, and remain uncatchable by construction. The list
     # is the REASON this exists, not a claim about its reach.
     #
-    # ⚠️ AND THE REACH IS NARROWER THAN THE SHAPE ALLOWS: 41 needles match this regex, against a
-    # larger pool of declaration-ish literals in the bundle. Re-derived and stable: 41 matched,
-    # and the empty-parens bucket (`"func X()"`) is 5, the `var`/`let`/`case`/`init`/`extension`/
-    # `typealias` bucket 21. ⚠️ NOT re-derivable as first written: "~640" lands anywhere between
-    # 558 and 683 depending on what counts as declaration-ish, "61" (leading modifier) re-derives
-    # to 57 and "3" (arguments inside the literal) to 14 — no definition was recorded beside them,
-    # which is the whole failure this repo names as "measure; do not recite". Treat the three as
-    # OWED a definition, not as counts.
+    # ⭐ THE REACH WAS WIDENED IN #722, AFTER the glob repair it had to wait for. Measured on the
+    # real bundle, each step cumulative, `unresolved` = would be reported today:
+    #     keyword + name + optional `(`      41 matched / 38 scanned / 0 unresolved  (#717 shape)
+    #     + an empty `()`                    46 / 43 / 0
+    #     + a leading modifier IN the literal 130 / 127 / 0
+    #     + text after the name (arguments)  266 / 261 / 0   <- shipped
+    # So the reach is 6.4× the first shape with no new finding on a correct tree. The last step
+    # is the one that matters most: `"func occurrencePeriod(forUnit"` is exactly the kind of
+    # needle that goes stale when a signature is edited, and it was invisible before.
     #
-    # ⭐ THE ORDERING CONSTRAINT IS DISCHARGED. Widening had to wait for the glob repair — with
-    # `Sources/Echoelmusic/**` the empty-parens shape false-alarmed on `func openAppSettings()`
-    # immediately. That landed in #718/#719, and re-measuring the same widening against the
-    # shipped haystack now yields 0. A deferred item still marked blocked by a blocker that no
-    # longer exists is the "doorless note that outlived its reason" shape. Forecast for whoever
-    # does it: the `var`/`let`/`case` bucket produces prose fragments, not needles (`'init param'`,
-    # `'var peerBio'`, `'let breathAddress'`, `'case wetDry'`), so that bucket needs a tighter
-    # shape or it is cry-wolf.
+    # ⚠️ AND WIDENING CHANGES WHAT A FINDING MEANS, which is the honest part. With arguments in
+    # the needle, a report can mean "the declaration was reformatted" rather than "the name was
+    # invented" — but that is still a guard scanning for text that is not there, i.e. still the
+    # #367 defect. It is not a false alarm; it is a weaker true one.
+    #
+    # ⛔ `var`/`let`/`case`/`init`/`extension`/`typealias` ARE DELIBERATELY EXCLUDED, and this is
+    # measured, not assumed: that bucket matches 231 literals and leaves 16 unresolved, every one
+    # a prose fragment rather than a needle (`'init param'`, `'var peerBio'`, `'let site = '`,
+    # `'case sound   // \\'`). Including it would be the cry-wolf failure this file warns about
+    # twice. The forecast came from the #721 review and the measurement upheld it.
+    #
+    # ⚠️ THREE NUMBERS FROM THE FIRST VERSION ARE WITHDRAWN, NOT CORRECTED: "~640" landed between
+    # 558 and 683 depending on what counts as declaration-ish, "61" (leading modifier) re-derived
+    # to 57, "3" (arguments) to 14 — none had its definition recorded, which is the failure this
+    # repo names as "measure; do not recite". The table above records the operation instead.
     #
     # ⛔ THE FIRST VERSION MATCHED ITSELF AND CAUGHT NOTHING — the #708 failure, reproduced in
     # the check written to stop that family. It searched a haystack that INCLUDED
@@ -703,7 +711,10 @@ def section_b() -> Section:
     # lines carry one, and on those the needle found itself again. Blanking now comes from the
     # same walk as comment-stripping (`_code_only(..., blank_strings=True)`); see its docstring
     # for the `"""`-swallows-the-file case found in the same review.
-    needle_shape = re.compile(r'"((?:func|struct|enum|class|protocol) [A-Za-z_][A-Za-z0-9_]*\(?)"')
+    _decl_modifier = (r"(?:(?:@\w+|private|fileprivate|internal|public|open|static|final|class"
+                      r"|override|mutating|nonisolated|indirect|convenience|required)\s+)*")
+    needle_shape = re.compile(r'"(' + _decl_modifier
+                              + r'(?:func|struct|enum|class|protocol) [A-Za-z_][A-Za-z0-9_]*[^"]*)"')
     # A needle used in an ABSENCE assertion names something that must NOT exist. Flagging it is
     # the cry-wolf failure in its purest form. Same-line only, for the reason the path check
     # above learned the hard way: a neighbourhood exemption exempts live things by accident.
