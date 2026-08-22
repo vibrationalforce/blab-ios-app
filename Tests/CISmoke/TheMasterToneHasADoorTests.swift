@@ -33,11 +33,14 @@
 // not run on its own pick. **A justification that counts the alternatives must count the
 // choice.**
 //
-// LIMITS, STATED FIRST (§1). Claims 1-2 are END-TO-END BEHAVIOUR over shipped value types.
-// Claims 3-7 are a SOURCE-TEXT SCAN: `AutoMixChain` is `@MainActor` and owns an
-// `AVAudioUnitEQ`, and `masterPanel`'s members are `private` on a `View`, so neither can be
-// driven here. That the four curves SOUND different, and that Warm actually reads warm, is a
-// DEVICE PROBE and stays open — it is also the only thing that matters to the founder's ear.
+// LIMITS, STATED FIRST (§1). Claims 1-2 and 8-10 are END-TO-END BEHAVIOUR over shipped value
+// types — 8-10 only became possible with #740, which lifted the curves and the stored-token
+// resolution out of the `@MainActor` class as pure values. Claims 3-7 remain a SOURCE-TEXT
+// SCAN: `applyPreset()` writes into an `AVAudioUnitEQ` and `masterPanel`'s members are
+// `private` on a `View`, so the hand-off itself cannot be driven here. That the four curves
+// SOUND different, and that Warm actually reads warm, is a DEVICE PROBE and stays open — it
+// is also the only thing that matters to the founder's ear. **Claim 8 proves the four curves
+// are DIFFERENT; nothing here proves any of them is GOOD.**
 //
 // ⚠️ HONEST GRADING (#433/#464/#486). This file names `AutoMixChain.Preset.allCases` and
 // `StudioDefaultKeys.masterCharacter`, both created by THIS commit, so it **does not compile
@@ -60,15 +63,26 @@
 //     `displayName`s, non-empty `displayName` — are genuine and CAN fail today.
 //   · Claims 3-5 are REGRESSIONS: the parent has no Picker, no launch call, and spells the
 //     `.balanced` gains twice. Counted as ONE finding — the door's absence (#486).
-//   · Claims 6-7 are COUNTERWEIGHTS, green on both. Without them, deleting the chain from the
-//     graph or collapsing `applyPreset()` to one case would leave the door green over a
-//     control that moves nothing.
+//   · Claim 6 is a COUNTERWEIGHT, green on both. Without it, deleting the chain from the
+//     graph would leave the door green over a control that moves nothing.
+//   · Claim 7 is re-anchored by #740 and is ANCHOR-ABSENT on `c2895c8` (the branches lived in
+//     `applyPreset()` there, not on `Preset.gains`) — a FAIL, not a skip, which is the right
+//     reading per #454 since the FILE exists and only the member moved.
+//   · Claims 8-10 are FORWARD (#433): they name `Preset.gains` and `Preset.resolved(from:)`,
+//     both created by #740, so they do not compile against the parent and have no verdict
+//     there. What earns them their place is that they close the two gaps #737 registered and
+//     could not close — an identical-curve collapse, and a stored-token resolution with no
+//     behavioural coverage at all.
 //
 // ⚠️ STRIPPER (#453/#477): **TRAGEND (1 of 12)** — corrected in #737 after the #736 review,
 // and the correction is in BOTH halves of the label.
 //   · The DENOMINATOR was 3. This file reads **12** needles from source: claim 3 two,
 //     claim 4 one, claim 5 three (negative), claim 6 two, claim 7 four. The 3 counted only
-//     claim 5's negatives, i.e. the claim I happened to be thinking about.
+//     claim 5's negatives, i.e. the claim I happened to be thinking about. ⭐ RE-MEASURED
+//     AFTER #740 and unchanged at 12 with the same single flip — claims 8-10 are behavioural
+//     and contribute no source needles, and claim 7's four moved region-for-region. Measured
+//     rather than assumed, because "my new claims are behavioural so the count is the same"
+//     is precisely the kind of reasoning this paragraph exists to forbid.
 //   · The VERDICT was PROPHYLAKTISCH. Exactly one needle is comment-resident in its own
 //     scanned region: `applyPersistedPreset()` occurs TWICE raw inside `configureEQ`'s body
 //     and ONCE stripped, because #736 itself put a "⚠️ THE THREE GAINS ARE NOT SET HERE ANY
@@ -92,20 +106,12 @@
 // ⚠️ REGISTERED, MEASURED, NOT BUILT — three gaps the #736 review found that #737 did NOT
 // close, because each is new work rather than a false statement. Written here so the next
 // session plans from facts instead of rediscovering them:
-//   1. **NO INJECTABLE SEAM, so 5 of 7 claims are text scans.** `applyPersistedPreset()`
-//      hardcodes `UserDefaults.standard` and lives on a `@MainActor` class owning an
-//      `AVAudioUnitEQ`, so the stored-value RESOLUTION — including the `?? .balanced`
-//      fallback the key's own doc calls load-bearing — has no behavioural coverage at all.
-//      Sixty lines above it in the same file, `nonisolated static func resolvedTarget(from:)`
-//      is the file's OWN idiom for exactly this, with a doc saying why ("that distinction is
-//      the whole reason this bug lived so long"). A `nonisolated static func
-//      resolvedPreset(from: UserDefaults) -> Preset` would make it drivable.
-//   2. **NOTHING ASSERTS THE FOUR CURVES ARE DISTINCT** — a #343 counterweight gap. Give all
-//      four cases identical gains and claim 7 stays green while producing precisely the
-//      failure claim 7's own message describes ("the Picker offers a character that changes
-//      nothing"). Closing it wants the same shape: `nonisolated static func gains(for:
-//      Preset) -> (Float, Float, Float)`, then assert the four tuples differ. That single
-//      seam closes 1 and 2 together, which is why they are one follow-up and not two.
+//   1. ✅ **CLOSED BY #740** — was: no injectable seam, so 5 of 7 claims were text scans.
+//      `Preset.resolved(from: UserDefaults)` now exists in the file's own
+//      `resolvedTarget(from:)` shape, and `applyPersistedPreset()` calls it.
+//   2. ✅ **CLOSED BY #740** — was: nothing asserted the four curves are DISTINCT, so giving
+//      all four identical gains stayed green while producing exactly the failure claim 7's
+//      message describes. `Preset.gains` is a pure tuple and claims 8-10 compare them.
 //   3. **AN UNPARSEABLE STORED VALUE SPLITS ENGINE FROM CONTROL.** `applyPersistedPreset()`
 //      falls back to `.balanced` in the ENGINE, but nothing normalises the stored key, so
 //      `@AppStorage` would still hold a raw value matching no `.tag(...)` and a SwiftUI
@@ -241,16 +247,124 @@ final class TheMasterToneHasADoorTests: XCTestCase {
             """)
     }
 
+    // MARK: - 8 · the four characters are genuinely DIFFERENT curves
+
+    /// ⭐ THE CLAIM #736 COULD NOT MAKE. Its claim 7 checks that four `case` LABELS appear in
+    /// `applyPreset()`'s text — so making all four write the same gains was green while the
+    /// Picker silently stopped doing anything. That is a worse state than the doorless one it
+    /// replaced, because the operator would believe the master had moved. #740's pure
+    /// `Preset.gains` is what makes this assertable at all.
+    func testEveryCharacterIsADistinctCurve() {
+        let all = AutoMixChain.Preset.allCases
+        var seen: [String: AutoMixChain.Preset] = [:]
+        for p in all {
+            let g = p.gains
+            let key = "\(g.low)|\(g.presence)|\(g.air)"
+            if let clash = seen[key] {
+                XCTFail("""
+                    `\(p.rawValue)` and `\(clash.rawValue)` write the SAME curve \(key).
+                    Two names for one sound is a Picker entry that changes nothing — the
+                    failure #736's text-scan claim could not see. If two characters really
+                    should converge, delete one; do not ship both.
+                    """)
+            }
+            seen[key] = p
+        }
+    }
+
+    // MARK: - 9 · only Transparent is flat, and it IS flat
+
+    func testTransparentIsTheOnlyFlatCurve() {
+        for p in AutoMixChain.Preset.allCases {
+            let g = p.gains
+            let flat = g.low == 0 && g.presence == 0 && g.air == 0
+            XCTAssertEqual(flat, p == .transparent, """
+                `\(p.rawValue)` is \(flat ? "flat" : "not flat") and that is the wrong way
+                round. Transparent means the master EQ contributes nothing — if it stops being
+                flat the name lies; if any OTHER character becomes flat it is an unlabelled
+                second Transparent. Both are audible, neither is a compile error.
+                """)
+        }
+        // Every gain must stay inside what an AVAudioUnitEQ band accepts (±96 dB), and well
+        // inside what a master bus should ever do. A typo of one decimal place here is a
+        // shipped loudness bug, not a rounding difference.
+        for p in AutoMixChain.Preset.allCases {
+            let g = p.gains
+            for (name, v) in [("low", g.low), ("presence", g.presence), ("air", g.air)] {
+                XCTAssertTrue(v.isFinite && abs(v) <= 12, """
+                    `\(p.rawValue)`'s \(name) gain is \(v) dB. A master-bus character that
+                    moves a band by more than 12 dB is a mastering error, and a non-finite
+                    value would put NaN on the master EQ — the permanent-silence class this
+                    repo has shipped before.
+                    """)
+            }
+        }
+    }
+
+    // MARK: - 10 · the stored token resolves through ONE pure function
+
+    /// Drives the seam #740 added, against a scratch `UserDefaults` — the first BEHAVIOURAL
+    /// coverage of a resolution that had none. The `?? .balanced` fallback is the specific
+    /// thing under test: it is what a case RENAME hits, and until now it was reachable only
+    /// through a `@MainActor` method that also touches an `AVAudioUnitEQ`.
+    func testTheStoredTokenResolvesAndFallsBackToBalanced() throws {
+        // `XCTUnwrap`, NOT `XCTSkip` — the house pattern (`SignatureIsThePersonNotTheMoment`,
+        // `LeadMixDoorAndNormalisation`). A test host always has a scratch suite; failing to
+        // get one is an environment fault, and skipping would hide it behind a green run —
+        // the #454 distinction pointing the other way, since nothing here is a missing TREE.
+        let suite = "echoel.test.masterCharacter.resolved"
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: suite), """
+            No scratch `UserDefaults` suite. Not a finding about the master bus — the host
+            could not give this test a sandbox to write in.
+            """)
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let key = StudioDefaultKeys.masterCharacter.key
+        XCTAssertEqual(AutoMixChain.Preset.resolved(from: defaults), .balanced, """
+            A FRESH INSTALL does not resolve to `.balanced`. Nothing calls
+            `UserDefaults.register(defaults:)` for this key and `@AppStorage` defaults are
+            per-declaration, so `string(forKey:)` returns nil here and the canonical
+            fresh-install value in `StudioDefaultKeys` is doing all the work.
+            """)
+
+        for p in AutoMixChain.Preset.allCases {
+            defaults.set(p.rawValue, forKey: key)
+            XCTAssertEqual(AutoMixChain.Preset.resolved(from: defaults), p, """
+                A stored `\(p.rawValue)` does not come back as `\(p.rawValue)`. The raw value
+                is the PERSISTENCE token — a character that cannot be read back is a choice
+                that silently reverts on the next launch.
+                """)
+        }
+
+        defaults.set("chromatic-mahogany", forKey: key)
+        XCTAssertEqual(AutoMixChain.Preset.resolved(from: defaults), .balanced, """
+            A stored token that no longer parses does not fall back to `.balanced`. This is
+            what a case RENAME produces on an existing install, and `.balanced` is the curve
+            retuned 2026-06-23 from an FFT of a real take — the only safe landing.
+            """)
+    }
+
     // MARK: - 7 · COUNTERWEIGHT: all four curves still exist
 
+    /// ⛔ THIS CLAIM POINTED AT `applyPreset()` AND #740 MOVED THE BRANCHES OUT OF IT. The
+    /// four `case`s now live on `Preset.gains`, and `applyPreset()` is three assignments from
+    /// a tuple. Re-anchored in the SAME commit as the move (#456) — a needle left pointing at
+    /// a vacated member fails for a reason that has nothing to do with what it guards, and
+    /// `dead-needles.py` cannot see it because the FILE still exists.
+    ///
+    /// ⚠️ It is also WEAKER than it looks now, and that is stated rather than left implied:
+    /// claim 8 compares the actual curves, so THIS one only guards the shape of the switch.
+    /// It stays because a `default:` collapsing three characters into one branch would go red
+    /// here and is the cheapest way to accidentally erase them.
     func testAllFourCurvesStillHaveABranch() throws {
-        let body = try memberBody(startingWith: "private func applyPreset", in: Self.chain)
+        let body = try memberBody(startingWith: "        var gains:", in: Self.chain)
             .joined(separator: "\n")
         for c in ["case .balanced", "case .warm", "case .bright", "case .transparent"] {
             XCTAssertTrue(body.contains(c), """
-                `applyPreset()` no longer has a `\(c)` branch, so the Picker offers a character
-                that changes nothing — worse than the doorless state it replaced, because the
-                operator would believe the master had moved.
+                `Preset.gains` no longer has a `\(c)` branch — most likely folded into a
+                `default:`, which silently gives that character somebody else's curve. Claim 8
+                catches an exact duplicate; this catches the branch disappearing.
                 """)
         }
     }

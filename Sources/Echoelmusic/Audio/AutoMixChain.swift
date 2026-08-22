@@ -131,6 +131,50 @@ final class AutoMixChain {
             case .transparent: return "Transparent"
             }
         }
+
+        /// The three EQ gains in dB — low shelf @140 Hz, presence @2.8 kHz, air @9 kHz.
+        ///
+        /// ⭐ PULLED OUT AS A PURE VALUE SO THE CURVES CAN BE ASSERTED (#740). It is the same
+        /// move `resolvedTarget(from:)` makes sixty lines below, for the same reason its doc
+        /// gives: *"that distinction is the whole reason this bug lived so long."* Until this
+        /// existed, #736's guard could only check that the four `case` LABELS appeared in
+        /// `applyPreset()`'s text — so making all four write identical gains stayed green
+        /// while producing exactly the failure that guard's own message describes, a Picker
+        /// offering a character that changes nothing. A tuple of three `Float`s can be
+        /// compared; a `switch` writing into an `AVAudioUnitEQ` on the main actor cannot.
+        ///
+        /// Balanced is the shipped default, retuned 2026-06-23 from an FFT of a real take;
+        /// warm leans back toward body and low-mids; bright pushes presence and air;
+        /// transparent is flat and is the ONLY case that may be all-zero — a second all-zero
+        /// character would be an unlabelled duplicate, which is what the guard checks.
+        var gains: (low: Float, presence: Float, air: Float) {
+            switch self {
+            case .balanced:    return (-1.5, 1.5, 2.5)
+            case .warm:        return ( 1.5, 0.5, 1.5)
+            case .bright:      return (-2.5, 3.0, 5.0)
+            case .transparent: return (   0,   0,   0)
+            }
+        }
+
+        /// The stored token → a character, with the fresh-install fallback made explicit.
+        ///
+        /// ⭐ INJECTABLE ON PURPOSE, the `resolvedTarget(from:)` shape. `applyPersistedPreset()`
+        /// reads `UserDefaults.standard` and lives on a `@MainActor` class owning an
+        /// `AVAudioUnitEQ`, so before #740 the RESOLUTION — including this `?? .balanced`,
+        /// which `StudioDefaultKeys.masterCharacter`'s own doc calls load-bearing — had no
+        /// behavioural coverage at all. Now a scratch `UserDefaults` can drive it.
+        ///
+        /// ⚠️ `StudioDefaultKeys.masterCharacter.value` is the CANONICAL FRESH-INSTALL value,
+        /// NOT a registered one — nothing calls `UserDefaults.register(defaults:)` for it and
+        /// `@AppStorage` defaults are per-declaration, never written to the store. On a fresh
+        /// install `string(forKey:)` returns nil and the first `??` does all the work. The
+        /// second `??` is the different case: a stored token that no longer parses, which is
+        /// what a case RENAME produces. Both are needed; neither covers the other.
+        static func resolved(from defaults: UserDefaults) -> Preset {
+            let raw = defaults.string(forKey: StudioDefaultKeys.masterCharacter.key)
+                ?? StudioDefaultKeys.masterCharacter.value
+            return Preset(rawValue: raw) ?? .balanced
+        }
     }
 
     var preset: Preset = .balanced {
@@ -147,8 +191,7 @@ final class AutoMixChain {
     /// An unknown stored value falls back to `.balanced` instead of substituting some other
     /// character — the `fieldAutoPlayMotion` rule.
     func applyPersistedPreset() {
-        let stored = UserDefaults.standard.string(forKey: StudioDefaultKeys.masterCharacter.key)
-        preset = Preset(rawValue: stored ?? "") ?? .balanced
+        preset = Preset.resolved(from: .standard)
         applyPreset()
     }
 
@@ -494,28 +537,14 @@ final class AutoMixChain {
 
     // MARK: - Preset switching
 
+    /// Write the selected character's curve onto the EQ. The NUMBERS live on `Preset.gains`
+    /// and are spelled exactly once (#416/#740); this method is only the hand-off from a pure
+    /// value to the audio node, which is the part that cannot be driven in a test.
     private func applyPreset() {
-        // Gains are (low-shelf @140, presence @2.8k, air @9k). Balanced = the new
-        // clear default; warm leans back toward body/low-mids; bright pushes
-        // presence + air; transparent is flat.
-        switch preset {
-        case .balanced:
-            eq.bands[1].gain = -1.5
-            eq.bands[2].gain =  1.5
-            eq.bands[3].gain =  2.5
-        case .warm:
-            eq.bands[1].gain =  1.5
-            eq.bands[2].gain =  0.5
-            eq.bands[3].gain =  1.5
-        case .bright:
-            eq.bands[1].gain = -2.5
-            eq.bands[2].gain =  3.0
-            eq.bands[3].gain =  5.0
-        case .transparent:
-            eq.bands[1].gain =  0
-            eq.bands[2].gain =  0
-            eq.bands[3].gain =  0
-        }
+        let g = preset.gains
+        eq.bands[1].gain = g.low
+        eq.bands[2].gain = g.presence
+        eq.bands[3].gain = g.air
     }
 
     // MARK: - Bypass
