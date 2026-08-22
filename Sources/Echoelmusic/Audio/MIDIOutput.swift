@@ -86,14 +86,40 @@ public final class MIDIOutput {
     /// ⚠️ It reads `UserDefaults` rather than taking arguments so that a caller cannot pass a
     /// value the persisted key does not hold. `StudioDefault`'s own default is the fallback,
     /// so an install that has never seen the switches behaves exactly as before this slice.
+    /// One MIDI-out STATE CHANGE, written to BOTH sinks — the #650 shape, one subsystem over.
+    ///
+    /// ⭐ WHY (#715). Every one of this file's nine log lines went to `log.log`, which reaches
+    /// `os_log` and an in-memory ring `ProfessionalLogger`'s own doc calls "write-only today".
+    /// The file the founder exports — `echoel_diag.log` — is written by
+    /// `EchoelCrashLog.breadcrumb` and by nothing else. So #713 shipped two switches whose
+    /// entire evidence trail was unreadable from a device: if he turns MPE on and something
+    /// misbehaves, the log he sends says nothing about MIDI out at all. #650 found exactly this
+    /// hole in the monitoring path after five slices of instrumentation had gone somewhere
+    /// nobody could read; this is the same hole, found the same way, before it cost a round trip.
+    ///
+    /// ⚠️ STATE CHANGES ONLY, never per event. `breadcrumb` does `Date()` plus a `write(2)`, so
+    /// a call on the note path would be file I/O at note rate — and `send` is reached from the
+    /// clock timer. Every call site here is port lifecycle or a preference edge, all on the main
+    /// actor, which is where the `log.log` lines it joins already sat.
+    ///
+    /// ⚠️ ONE MESSAGE, TWO SINKS (#416). The prefixes differ because the sinks do: `os_log`
+    /// carries a category, the breadcrumb file is flat and needs a greppable stem.
+    private func logOutcome(_ message: String, level: LogLevel = .info) {
+        log.log(level, category: .system, "MIDI OUT: \(message)")
+        EchoelCrashLog.breadcrumb("midiout: \(message)")
+    }
+
     public func applyOutputPreferences() {
         let store = UserDefaults.standard
         let mpe = store.object(forKey: StudioDefaultKeys.midiOutMPE.key) as? Bool
             ?? StudioDefaultKeys.midiOutMPE.value
         let expression = store.object(forKey: StudioDefaultKeys.midiOutExpression.key) as? Bool
             ?? StudioDefaultKeys.midiOutExpression.value
+        let moved = (mpeEnabled != mpe) || (expressionEnabled != expression)
         if mpeEnabled != mpe { mpeEnabled = mpe }
         if expressionEnabled != expression { expressionEnabled = expression }
+        // Only an actual edge, so a no-op re-apply on every enable leaves no line.
+        if moved { logOutcome("prefs mpe=\(mpe) expression=\(expression)") }
     }
 
     public private(set) var isReady = false
@@ -139,17 +165,19 @@ public final class MIDIOutput {
         // rig that disappeared and came back actually needs.
         if isReady {
             if mpeEnabled { sendMPEConfiguration() }
+            logOutcome("re-enabled on an open port"
+                       + (mpeEnabled ? " · MPE zone re-announced" : " · channel 1"))
             return
         }
         #if canImport(CoreMIDI)
         let clientStatus = MIDIClientCreateWithBlock("Echoelmusic Output" as CFString, &client, nil)
         guard clientStatus == noErr else {
-            log.log(.warning, category: .system, "MIDI OUT: client create failed (\(clientStatus))")
+            logOutcome("client create failed (\(clientStatus))", level: .warning)
             return
         }
         let portStatus = MIDIOutputPortCreate(client, "Echoelmusic Out" as CFString, &outputPort)
         guard portStatus == noErr else {
-            log.log(.warning, category: .system, "MIDI OUT: output port create failed (\(portStatus))")
+            logOutcome("output port create failed (\(portStatus))", level: .warning)
             return
         }
         // The virtual source: this is what hosts see as "Echoelmusic" to record from.
@@ -158,7 +186,7 @@ public final class MIDIOutput {
         // supported call and avoids a -warnings-as-errors build failure.)
         let srcStatus = MIDISourceCreateWithProtocol(client, "Echoelmusic" as CFString, ._1_0, &virtualSource)
         guard srcStatus == noErr else {
-            log.log(.warning, category: .system, "MIDI OUT: virtual source create failed (\(srcStatus))")
+            logOutcome("virtual source create failed (\(srcStatus))", level: .warning)
             return
         }
         // Persist a stable unique ID so the host re-binds to the same source across
@@ -166,9 +194,11 @@ public final class MIDIOutput {
         _ = MIDIObjectSetIntegerProperty(virtualSource, kMIDIPropertyUniqueID, 0x4543_484F) // "ECHO"
         isReady = true
         if mpeEnabled { sendMPEConfiguration() }
-        log.log(.info, category: .system, "MIDI OUT: ready (virtual source 'Echoelmusic'\(mpeEnabled ? " · MPE" : ""))")
+        logOutcome("ready (virtual source 'Echoelmusic'"
+                   + (mpeEnabled ? " · MPE zone announced" : " · channel 1")
+                   + (expressionEnabled ? " · expression" : "") + ")")
         #else
-        log.log(.info, category: .system, "MIDI OUT: CoreMIDI unavailable on this platform — no-op")
+        logOutcome("CoreMIDI unavailable on this platform — no-op")
         #endif
     }
 
