@@ -11213,3 +11213,56 @@ richtig klingen — das ist das Ohr des Founders, kein Test.**
 ⚠️ **`CLAUDE.md` steht bei 148.238 B, harte Decke 150.000 B im blockierenden Bundle —
 1.762 B Luft.** Der nächste Register-Eintrag dort stößt wahrscheinlich dagegen; die Reparatur
 ist Provenienz nach `memory/LEDGER_COUNTS.md` verschieben, nicht Gesetz löschen.
+
+---
+
+## 2026-08-22 (Fortsetzung) — #738/#739/#740/#741: das Messgerät, seine Kontrolle, und die Master-Kurven
+
+**#738 `1d806f0`** — beim Prüfen der #737-Gates meldete `scripts/gh-test-verdict.py`
+„**1** Test bestanden"; im Log standen **136**. Ursache: `get_job_logs` schreibt ZWEI Hüllen
+(`{"logs":[…]}` bei `failed_only`, `{"job_id":…,"logs_content":…}` bei `job_id`), und der
+Loader kannte nur eine. Bei der zweiten war `json.loads` **erfolgreich**, der Schlüsseltest
+schlug fehl, und es fiel auf den ROHTEXT zurück — eine Zeile mit 2 999 wörtlichen `\n`.
+Gegen ein Fixture mit zwei Fehlern meldete es **einen**, dessen Text mit dem Namen eines
+BESTANDENEN Tests begann. **Lehre: ein erfolgreiches `json.loads` ist kein gelungenes
+Dekodieren** — das Dokument war wohlgeformt, nur der Schlüssel war anders.
+
+**#739 `c2895c8`** — und #738s Reparatur war eine **Kontrolle, die ihr eigener Positivfall
+besteht**. Gemessen: #738s vier Formprüfungen gegen #737s kaputten Loader → **alle vier grün**.
+Jede Zusicherung war zeilenunabhängig, und JSON maskiert keine einfachen Anführungszeichen,
+also stehen die Nadeln im un-dekodierten Dokument wörtlich. **Sie prüfte die ANTWORT, während
+der Fehler in der EINGABE saß** — #735s Lehre, wiederholt in derselben Sitzung. Der Sweep prüft
+jetzt das DEKODIEREN und trägt drei lebende Kanarienvögel (echte Zeilenzahl · #737s gieriges
+Regex · #738s entfernter Zeilen-Filter); Fixture 3 Erfolge / 2 Fehler, damit keine Zahl
+zufällig stimmt. Gegen den echten #737-Zustand: **3 von 5 Formen rot**. Weitere Funde: der
+`unescape`-Gürtel wurde von EINEM echten Zeilenende ausgehebelt; die Fehler-Erkennung deckte
+nur xcbeautify ab, nicht das reine `xcodebuild`-Format (`Test Case '-[…]' failed (…)`) — dort
+**0 Fehler, Exit 0**, ein STUMMES Grün; und `.claude/rules/context.md` (always-loaded) sagte
+weiterhin, man solle Log-Nadeln selbst basteln, und nannte dieses Werkzeug nie.
+
+**#740 `11f8fc0`** — die zwei von #737 registrierten Lücken, mit EINEM Seam geschlossen:
+`Preset.gains` (reines Tupel) und `Preset.resolved(from:)` (injizierbar), beides die Form, die
+`resolvedTarget(from:)` sechzig Zeilen weiter oben schon hat. Damit erstmals prüfbar: die vier
+Kurven sind **verschieden** (Mutant `bright == warm` → rot), nur Transparent ist flach, und der
+gespeicherte Token trägt über Frisch-Installation und Rename hinweg. Vorher hätte „alle vier
+gleich" jeden Test bestanden, während der Picker still nichts mehr tut.
+
+**#741 `b9fc541`** — die Nachlese: kein Blocker, aber **vier Zeiger, die den Umzug überlebt
+haben**, den sie beschreiben. #740 hob die Zahlen aus `applyPreset()` und sagte „genau einmal
+buchstabiert" — stimmte; vier Sätze zeigten trotzdem weiter auf `applyPreset()`, darunter die
+kanonische „hier leben die Zahlen"-Zeile und die Fehlermeldung von Claim 5, die einen Leser
+aufforderte, sie dorthin ZURÜCK zu schieben. **Die Zahl stimmte, die Landkarte nicht — und die
+Landkarte ist die Hälfte, die eine Sitzung liest.** Dazu: der Grading-Block benotete gegen ZWEI
+verschiedene Eltern-Commits gleichzeitig (jetzt in Epoche 1 / Epoche 2 getrennt); drei
+Meldungen behaupteten mehr Deckung als ihre Zusicherung hat (`±96 dB` ist falsch, echt ist
+−96…+24; die ±12-Schranke fängt nur EINE Richtung eines Kommafehlers; Claim 10 beweist das
+Ergebnis, nicht den Mechanismus); und der Anker trug acht führende Leerzeichen, die nur einen
+falschen Fehlschlag bei Um-Einrückung erkaufen.
+
+**Gates:** #736–#740 alle grün (Xcode Compile Check `success`, CI/CD „Build for Testing"
+`Succeeded`; zuletzt 171 bestandene Tests, 0 Fehler). Die neuen Wächter erscheinen NICHT im
+geleerten Log — nach #445 beweist das nichts: **kompiliert nachweislich, Ausführung unbelegt.**
+
+**Offen:** V0-Geräteprobe (Live-Monitoring) · „Voice clone — ja oder nein?" · ob die vier
+Master-Klangfarben richtig KLINGEN (Behauptung 8 beweist nur, dass sie verschieden sind, nicht
+dass eine gut ist) · Geräteprobe 8-bit-Fixture (#732).
