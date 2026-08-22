@@ -31,28 +31,64 @@
 // persistence (#456). Nothing here pins `.sixteenBit` as the default: that is a design value
 // a founder may change, and #364 forbids pinning it.
 //
-// ⚠️ HONEST GRADING (#433/#464/#486). Hand-transcribed against `git show 8af1934:` and the
+// ⚠️ HONEST GRADING (#433/#464/#486). Hand-transcribed against `git show 548ecb3:` and the
 // worktree — a CI round trip is a lottery ticket, not a check (#686):
-//   · **1 REGRESSION** on the parent `8af1934`: the door does not exist there. Claims 1, 2
+//   · **1 REGRESSION** on the parent `548ecb3`: the door does not exist there. Claims 1, 2
 //     and 7 all go red for that ONE reason and are counted ONCE (#486), not as three.
 //     Claim 2 and claim 7 fail by ANCHOR ABSENCE (the member and its doc are not there);
 //     claim 1's needle is simply absent.
 //   · **4 COUNTERWEIGHTS** green on both trees: both senders still declare a writable
-//     `resolution` (3), the encoder still branches on both cases (4), the routing sheet still
+//     `resolution` (3), the encoders still branch on both cases (4), the routing sheet still
 //     has a producer and still builds `PatchbayView` (5), `lichtSection` is still mounted (6).
-//     Without them, deleting the enum, the encoder branch or the panel would leave claims 1
-//     and 2 green over a row that selects nothing.
 //
-// ⚠️ STRIPPER LOAD-BEARING MEASUREMENT (#453/#477): **PROPHYLAKTISCH (0 of 7 verdicts flip)**.
-// Every needle was counted raw and comment-stripped on both trees; nothing flips today. Two
+// ⛔ AND THE FIRST VERSION OVER-SOLD ALL FOUR EQUALLY (#731). It said "without them, deleting
+// the enum, the encoder branch or the panel would leave claims 1 and 2 green" — measured, the
+// COMPILER shadows most of that. `project.yml:355-361` gives `EchoelmusicTests` a
+// `dependencies: [target: Echoelmusic]`, so `Sources/` must build before any assertion has a
+// verdict at all:
+//   · delete `DMXResolution`, or make `resolution` a `let` (claim 3's named reason) → the
+//     Picker and the binding stop compiling → NO verdict, not "green";
+//   · delete `case .eightBit:` from a two-case `switch` → non-exhaustive → the same.
+// Claim 4 therefore bites only on the narrower edit that replaces a case with `default:`, and
+// claim 3 only on a rename that keeps everything compiling. **Claims 5 and 6 are the genuinely
+// load-bearing pair** — demounting `lichtSection` or removing the sheet's producer compiles
+// perfectly and would leave a row nobody can reach. Keeping 3 and 4 is still right (they name
+// the premise in the failure message a compile error never states), but this file will not
+// pretend they carry the weight the panel checks do.
+//
+// ⚠️ STRIPPER LOAD-BEARING MEASUREMENT (#453/#477): **six claims read stripped text and 0 of
+// those 6 flip; claim 7 reads RAW on purpose and DOES flip** — its needle lives only in a
+// `///` block, so stripped it reads 0 and the claim would be red on a correct tree.
+//
+// ⛔ THE FIRST VERSION WROTE "PROPHYLAKTISCH (0 of 7 verdicts flip) … nothing flips today"
+// (#731), which counted a raw-reading claim in a stripped-reading measurement and was false by
+// its own arithmetic — one commit after #729 was spent on exactly that error, in the opposite
+// direction. The label must name WHICH reading each claim uses before it counts flips. Two
 // measured counterfactuals say why it is kept, rather than the usual assertion that it might
 // matter one day:
 //   · Comment out the `artNet.resolution = r` line and claim 2 is RED stripped and GREEN raw —
 //     driven on a deliberately broken copy of the file. The two prose blocks this slice added
 //     discuss the very strings the scan hunts for, so this is not hypothetical.
-//   · `lichtSection` already occurs THREE times raw and TWICE in code (line 108 names it in a
-//     comment about card grammar). Claim 6 wants at least two CODE occurrences; read raw, a
-//     section that had been declared and demounted would still count two and pass.
+//   · `lichtSection` already occurs THREE times raw and TWICE in code — the third is the
+//     comment `"same grammar as \`lichtSection\`"` above `learnCard`. Claim 6 wants at least
+//     two CODE occurrences; read raw, a section that had been declared and demounted would
+//     still count two and pass. (A quoted phrase survives an insertion; a line number does
+//     not, and the first version cited one — #731.)
+//
+// ⚠️ REGISTERED, NOT FIXED — THE DOOR MADE A LATENT BRANCH REACHABLE (#731, from the #730
+// review). `ArtNetSender.sendIfFresh` has a HOLD branch: with no fresh or allowed source it
+// reuses `lastChannels` and keeps running master/blackout/slew, so a Blackout is honoured
+// even when bio has stopped. That array is sized for the resolution in force when it was
+// built. Until #730 the property had no writer, so the sizes could never disagree; now an
+// operator can flip the Picker while the hold branch is live and ONE tick is encoded with a
+// stride the array does not match — 8-bit stride reading a 16-bit array hits the dimmer-fine
+// and red coarse/fine bytes, 16-bit stride on a 4-byte array simply writes less. Bounded and
+// bounded tightly: every access is `guard idx < channels.count` (no crash), `lastColour` stays
+// unit-space and every channel still rides `FlashGuard.slewedDimmer` (no flash-safety breach),
+// and the next fresh frame (~1 Hz) rebuilds the array. It is a ≤1-tick cosmetic wrinkle.
+// The repair is a `didSet` on `resolution` in BOTH senders clearing the held state, so the
+// hold branch cannot reuse a wrongly-sized array — its own slice, because it changes sender
+// behaviour rather than the door, and it needs its own guard.
 //
 // LIMIT (§1): SOURCE-TEXT SCAN. It proves the row and the binding are written; it cannot prove
 // the segmented control renders, that a fixture reads 8-bit correctly, or that the fade looks
@@ -71,11 +107,19 @@ final class TheDMXResolutionHasADoorTests: XCTestCase {
     private static let artNet = "Sources/Echoelmusic/Sync/ArtNetSender.swift"
     private static let sacn = "Sources/Echoelmusic/Sync/SACNSender.swift"
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+    private static let musicMap = "Sources/Echoelmusic/Sync/MusicMediaMapping.swift"
 
     // MARK: - 1 · the selector exists
 
+    /// ⛔ SCOPED TO `lichtSection`, NOT TO THE FILE (#731). The first version read the whole
+    /// file while its failure message said "the LIGHT SECTION no longer binds a Picker" —
+    /// moving the row into `networkOutSection` would have kept it green while the message
+    /// asserted something untested. That is #367 in its mirror form: green for a reason other
+    /// than the one the message states.
     func testTheLightSectionOffersBothResolutions() throws {
-        let code = try codeOf(Self.patchbay)
+        let section: [String] = try memberBody(startingWith: "private var lichtSection",
+                                               in: Self.patchbay)
+        let code: String = section.joined(separator: "\n")
         XCTAssertTrue(code.contains("selection: dmxResolutionBinding"), """
             The Light section no longer binds a Picker to `dmxResolutionBinding`. Before #730 \
             `resolution` had ZERO writers in the whole repository while its own doc offered \
@@ -126,17 +170,26 @@ final class TheDMXResolutionHasADoorTests: XCTestCase {
 
     // MARK: - 4 · counterweight: both branches still encode
 
+    /// ⛔ IT SCANS TWO FILES, NOT ONE (#731). The first version read `ArtNetSender.swift`
+    /// alone, but the resolution the new binding writes also selects a branch in
+    /// `MusicMediaMapping.swift:43-44`, reached from `ArtNetSender.swift` and `SACNSender.swift`
+    /// on the music-driven path — removing THAT branch was invisible.
+    /// ⚠️ AND THE MESSAGE READS STRONGER THAN THE ASSERTION: `case .eightBit` occurs three
+    /// times in `ArtNetSender.swift`, so this reds only when ALL of them are gone. It is a
+    /// premise-holder, not an exhaustiveness check — the compiler is the exhaustiveness check.
     func testTheEncoderStillBranchesOnBothResolutions() throws {
-        let code = try codeOf(Self.artNet)
-        XCTAssertTrue(code.contains("case .eightBit"), """
-            `ArtNetSender` no longer has an `.eightBit` encoder branch. The Picker would then \
-            offer a mode that produces nothing, which is worse than the doorless state it \
-            replaced — the operator would believe the rig was switched.
-            """)
-        XCTAssertTrue(code.contains("case .sixteenBit"), """
-            `ArtNetSender` no longer has a `.sixteenBit` encoder branch — the default mode of \
-            every launch.
-            """)
+        for path in [Self.artNet, Self.musicMap] {
+            let code: String = try codeOf(path)
+            XCTAssertTrue(code.contains("case .eightBit"), """
+                \(path) no longer has an `.eightBit` encoder branch. The Picker would then \
+                offer a mode that produces nothing on that path, which is worse than the \
+                doorless state it replaced — the operator would believe the rig was switched.
+                """)
+            XCTAssertTrue(code.contains("case .sixteenBit"), """
+                \(path) no longer has a `.sixteenBit` encoder branch — the default mode of \
+                every launch.
+                """)
+        }
     }
 
     // MARK: - 5 · counterweight: the panel is still reachable
@@ -184,22 +237,44 @@ final class TheDMXResolutionHasADoorTests: XCTestCase {
     /// Lines of a member, from the line containing `prefix` to the closing `}` at that line's
     /// OWN indentation. Structural, not a fixed window — this repo writes 30-line comment
     /// blocks and `SourceText.codeOnly` preserves line count, so any window is unsound (#408).
+    /// ⛔ WRITTEN WITH `components(separatedBy:)` AND A PLAIN LOOP ON PURPOSE (#731). The
+    /// first version used `split(separator:omittingEmptySubsequences:).map(String.init)` plus
+    /// two inferred `prefix { … }.count` closures inside a `firstIndex { … }` — the exact
+    /// four-stage generic chain #726 had spent a cycle removing from the sibling guard one
+    /// commit earlier ("took 550ms to type-check, limit 200ms"). It is a warning, not an
+    /// error, so nothing would have turned red; it would simply have been re-paid.
     private func memberBody(startingWith prefix: String, in path: String) throws -> [String] {
-        let lines = try codeOf(path)
-            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-        guard let start = lines.firstIndex(where: { $0.contains(prefix) }) else {
+        let lines: [String] = try codeOf(path).components(separatedBy: "\n")
+        var start: Int = -1
+        for i in 0..<lines.count where lines[i].contains(prefix) {
+            start = i
+            break
+        }
+        guard start >= 0 else {
             throw DMXAnchorMissing(reason: """
                 `\(prefix)` is gone from \(path). A missing ANCHOR fails rather than skips \
                 (#454) — otherwise a rename would leave this claim silent about a binding that \
                 no longer drives both senders.
                 """)
         }
-        let indent = lines[start].prefix { $0 == " " }.count
-        let close = lines[(start + 1)...].firstIndex {
-            $0.trimmingCharacters(in: .whitespaces) == "}"
-                && $0.prefix { c in c == " " }.count == indent
-        } ?? lines.endIndex
+        let indent: Int = Self.leadingSpaces(lines[start])
+        var close: Int = lines.count
+        for i in (start + 1)..<lines.count {
+            let trimmed: String = lines[i].trimmingCharacters(in: .whitespaces)
+            if trimmed == "}" && Self.leadingSpaces(lines[i]) == indent {
+                close = i
+                break
+            }
+        }
         return Array(lines[(start + 1)..<close])
+    }
+
+    private static func leadingSpaces(_ line: String) -> Int {
+        var n: Int = 0
+        for c in line {
+            if c == " " { n += 1 } else { break }
+        }
+        return n
     }
 
     private func codeOf(_ relativePath: String) throws -> String {

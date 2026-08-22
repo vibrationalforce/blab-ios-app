@@ -55,11 +55,19 @@
 //     with its own guard (`TheQualityPinHasNoDoorTests`). This bullet said "nothing anywhere
 //     records it" and that stopped being true one commit later; a sweep list that keeps
 //     claiming an item is unrecorded is the #456 failure — prose over a changed surface moves
-//     in the same commit, in EVERY home. The `ArtNetSender`/`SACNSender` half below is still
-//     open.
-//   · `ArtNetSender.resolution` / `SACNSender.resolution` — non-Bool, `CaseIterable` (the tell
-//     that a Picker was intended), zero writers anywhere, six gating reads, and a doc calling
-//     8-bit "the legacy mode for simple fixtures": a selectable mode with no selector.
+//     in the same commit, in EVERY home.
+//   · ~~`ArtNetSender.resolution` / `SACNSender.resolution`~~ — **CLOSED by #730**, which built
+//     the door instead of recording the absence a third time: a segmented Picker in
+//     `PatchbayView`'s Light section drives both senders together, so the `.eightBit` encoder
+//     branches are reachable from the running app. Guard: `TheDMXResolutionHasADoorTests`.
+//     ⛔ AND THIS BULLET IS THE SECOND CONSECUTIVE #456 BREACH IN THIS SAME COMMENT BLOCK
+//     (#731). The bullet ABOVE it was written to record exactly that failure — "a sweep list
+//     that keeps claiming an item is unrecorded is the #456 failure" — and #730 then shipped
+//     the door while leaving "zero writers anywhere", "a selectable mode with no selector" and
+//     "still open" standing right underneath that sentence. No assertion goes red over a
+//     comment, which is why nothing surfaced it; the check that finds it is the one
+//     `Tests/CISmoke/CLAUDE.md` §4 prescribes — `git grep` the surface in THIS directory
+//     before shipping, not only in `Sources/`.
 //
 // ⚠️ HONEST GRADING (#433/#464/#486). This file names no symbol the slice adds, so it COMPILES
 // against both trees and every assertion has a verdict. Transcribed by hand (a Python rebuild
