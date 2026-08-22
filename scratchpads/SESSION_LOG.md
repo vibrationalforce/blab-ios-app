@@ -10835,3 +10835,45 @@ Standard), Art-Net fehlt eine KONVENTION, nicht der Platz.
 `CleanIsDryTests` steht in keiner der beiden Namenslisten — nach #445 beweist das NICHTS
 (die Zuteilung ist nicht deterministisch). Ehrlich: **kompiliert nachweislich, Ausführung
 unbelegt.**
+
+## 2026-08-22 (cron, 24h-Mandat) — #709/#710: die Wieder-Tür für `showVisual` GEMESSEN statt gebaut
+
+**Kandidat des Zyklus war `showVisual`** — der einzige türlose Modal-Slot, dessen
+`.fullScreenCover` schon auf der Präsentations-Kette hängt, also **null neue Modifier** unter
+dem 10.76.34-Black-Screen-Gesetz. Die Messung sagte: noch nicht bauen, und sie sagte warum.
+
+**Was eine Wieder-Tür in EINEM Commit kostet** (gemessen, nicht geschätzt):
+- Claim 6 von `VisualFineTuneReflowsTests` wird rot und nennt **neun Prosa-Dateien**.
+- Dazu **mindestens drei CODE-Pflichten, die dort NICHT stehen**: die „Donuts"-Pille zurück in
+  `visualLookStrip` (hinter `showsDonutState`, **nur** am Overlay-Mount), `normaliseUnreachable\
+DonutMode()` samt Aufrufzeile löschen, und `StudioDefaultKeys.visualSpectralDonuts` mit
+  `VisualLookTruthTests` umlegen.
+- Wer Claim 6 wörtlich befolgt, liefert trotzdem eine **lügende Pille**: sie kehrt zurück, der
+  Spieler schaltet Donuts an, der nächste Start stempelt es weg. Genau die Klasse, die
+  `LeadMixDoorAndNormalisationTests` eine Ebene tiefer verhindert — an einem Normalisierer, dessen
+  eigener Kommentar sich „the same shape and same reason" nennt. Das Blei-Paar ist bewacht, sein
+  Donut-Zwilling war es **nicht**.
+
+**#709** schließt genau diese Lücke: EIN Claim (`hasDoor` XOR `normalises`) in der Datei, der die
+Tatsache schon gehört — kein zweiter Erkennungsmechanismus (#416/#453). #364-sicher: eine korrekt
+ausgeführte Wieder-Tür ist GRÜN.
+
+**#710** = elf Reviewer-Befunde, alle nachgemessen, alle bestätigt. Die drei teuersten waren
+dieselbe Klasse, die der Wächter fängt, einen Sprung weiter außen:
+1. die Fehlermeldung hätte eine Sitzung angewiesen, die Pille an BEIDEN Mounts zu bauen = der
+   #227-Defekt wortwörtlich neu;
+2. „das Blei-Paar ist in beiden Richtungen bewacht" stand ungemessen im Kopf jenes Wächters —
+   er liest ROHTEXT mit einem Token, das auch zwei Kommentare trifft, also feuert die
+   „Normalisierung fehlt"-Richtung bei gelöschtem Aufruf gar nicht;
+3. „zwei Code-Pflichten, nur in Doc-Kommentaren" war zweifach falsch (es sind drei, und eine ist
+   ein `//`-Rumpfkommentar).
+Dazu zwei echte False-Green-Löcher im Code: die Deklaration war über `private func` ausgeschlossen
+(Modifier weglassen ⇒ Deklaration zählt als Aufruf) und „ist ein true-Schreiber" stand zweimal
+buchstäblich in einer Datei. Beide behoben, sechs Kontrollbäume nachgefahren.
+
+**Gates:** `73f617e` (#709) → **`Build for Testing: success`** = das blockierende Bundle
+kompiliert mit Claim 7. `2c423ec` (#710) lief zum Schreibzeitpunkt noch.
+
+**Nicht gebaut, absichtlich:** die Wieder-Tür selbst. Sie ist ein Mehr-Datei-Epos, kein
+Ralph-Schnitt, und sie ist außerdem eine Produktfrage (eine ZWEITE Sichtfläche neben
+`FloatingVisualWindow`) — offene Aufgabe #270, jetzt mit vollständiger Kostenrechnung.
