@@ -1502,3 +1502,19 @@ davor.
 eine Einfügung, eine Zeilennummer nicht"). Hier überlebt die Phrase sehr wohl — sie wandert
 nur an ein anderes Objekt. Dieselbe Familie wie die 415-Zeilen-Zahl aus #473, die an das
 falsche Ding geheftet war: nicht veraltet, sondern von Anfang an falsch zugeordnet.
+
+## DEAD-END: `git add -A` in der Verifikations-Phase, danach noch editieren
+
+**#741 hat zwei von vier Reparaturen ausgeliefert und in seiner Nachricht vier behauptet** —
+in genau dem Commit, dessen Thema „ein Zeiger hat den Umzug überlebt, den er beschreibt" war.
+
+Der Mechanismus ist rein mechanisch und deshalb wiederholbar: die Verifikations-Zeile lautete
+`git add -A && git diff --cached … && git status`, danach fielen beim Nachlesen zwei weitere
+Fundstellen auf, die noch editiert wurden — und `git commit -F <datei>` **ohne `-a`** committet
+nur den STAGE. Der Stop-Hook hat es gefangen, kein Test und kein Reviewer hätte es können: der
+Baum war korrekt, nur der Commit nicht.
+
+**Regel:** `git add -A` gehört in dieselbe Kommandozeile wie `git commit`, nie in die
+Verifikations-Zeile davor. Wer zwischen Stagen und Committen noch etwas anfasst, hat einen
+Commit gebaut, den er nie gesehen hat. Gegenprobe vor dem Push, eine Zeile:
+`git status --short` muss LEER sein — nicht „nur Kleinkram".

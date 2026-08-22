@@ -529,10 +529,11 @@ final class AutoMixChain {
         eq.bands[0].bypass      = false
 
         // ⚠️ THE THREE GAINS ARE NOT SET HERE ANY MORE (#736) — `applyPersistedPreset()` at
-        // the end of this method owns them, through `applyPreset()`. They used to be spelled
-        // out twice, here and in `applyPreset()`'s `.balanced` case, with the same three
-        // numbers; changing one would have drifted from the other (#416). Frequencies, filter
-        // types, bandwidth and bypass stay here: those are the same under every character.
+        // the end of this method owns them, and the NUMBERS live on `Preset.gains` (#740).
+        // They used to be spelled out twice, here and in `applyPreset()`'s `.balanced` case,
+        // with the same three numbers; changing one would have drifted from the other (#416).
+        // Frequencies, filter types, bandwidth and bypass stay here: those are the same under
+        // every character.
         //
         // Band 1: Low-shelf at 140 Hz — tames the boom/mud that swamped the mids.
         eq.bands[1].filterType  = .lowShelf
@@ -540,8 +541,8 @@ final class AutoMixChain {
         eq.bands[1].bypass      = false
 
         // Band 2: Presence at 2.8 kHz (clarity/definition). The GAIN is not here — every
-        // character sets it in `applyPreset()`, and `.balanced`'s value was trimmed on the
-        // 2026-07-07 warmth pass so the master doesn't push voices forward/cold.
+        // character carries its own on `Preset.gains`, and `.balanced`'s value was trimmed on
+        // the 2026-07-07 warmth pass so the master doesn't push voices forward/cold.
         // ⛔ THIS COMMENT NAMED THE dB FIGURE TWICE OVER (#737): #736 removed the duplicated
         // `.balanced` gains from this method for #416 and then wrote one of the three numbers
         // back into prose one line above. A literal in a comment drifts exactly like a literal
