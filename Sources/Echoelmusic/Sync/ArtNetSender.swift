@@ -55,15 +55,28 @@ public final class ArtNetSender {
     /// protocols); before that it had no writer anywhere in the repository.
     ///
     /// ⚠️ THE `didSet` IS NOT DECORATION (#732). `sendIfFresh` has a HOLD branch that
-    /// reuses `lastChannels` when no fresh or allowed source is available, so a
-    /// Blackout or Grand-Master move is still honoured after bio stops (L1). That
-    /// array is sized for the resolution in force when it was built. While nothing
-    /// could write this property the sizes could never disagree; the moment a door
-    /// existed, flipping it mid-hold left one tick encoded with a stride the array
-    /// does not match. Re-encoding — rather than clearing — is what keeps the L1
-    /// guarantee: clearing `lastChannels` would send the hold branch down its
-    /// `else { return }` path and freeze a blackout until the next fresh frame
-    /// (~1 s), which is the exact failure the hold branch exists to prevent.
+    /// reuses `lastChannels` when no allowed source is available, so a Blackout or
+    /// Grand-Master move is still honoured (L1). That array is sized for the
+    /// resolution in force when it was built. While nothing could write this
+    /// property the sizes could never disagree; the moment a door existed, flipping
+    /// it mid-hold left the held array at a stride the encoders no longer use.
+    /// Re-encoding — rather than clearing — is what keeps the L1 guarantee.
+    ///
+    /// ⛔ AND THE TWO QUANTITIES #732 WROTE HERE WERE BOTH TOO MILD (#733). It said
+    /// "one tick" and "until the next fresh frame (~1 s)". Measured:
+    ///   · NOT one tick. The hold branch stores its own input straight back
+    ///     (`channels = lastChannels`, then `lastChannels = channels`), so without
+    ///     this `didSet` the wrongly-sized array is re-stored on EVERY hold tick —
+    ///     33 ms apart, not once.
+    ///   · NOT ~1 s, and there is no clock in it. The bio branch above reads
+    ///     `bus.latestBio`, the RAW snapshot, with no freshness window, and nothing
+    ///     ever sets it back to nil. So the hold branch is reached only when there
+    ///     is no sounding music AND no bio frame from an egress-ALLOWED source has
+    ///     ever arrived — and `BioEgressPolicy` gates HealthKit/Watch/ring sources
+    ///     permanently, by SOURCE and not by age. For an operator on a wrist source
+    ///     there is no "next fresh frame": clearing would have frozen the blackout
+    ///     for the rest of the session. The decision was right and the reasoning
+    ///     understated it in both directions.
     public var resolution: DMXResolution = .sixteenBit {
         didSet { lastChannels = Self.reencode(lastChannels, from: oldValue, to: resolution) }
     }

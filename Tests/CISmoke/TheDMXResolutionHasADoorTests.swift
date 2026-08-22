@@ -75,20 +75,27 @@
 //     still count two and pass. (A quoted phrase survives an insertion; a line number does
 //     not, and the first version cited one — #731.)
 //
-// ⚠️ REGISTERED, NOT FIXED — THE DOOR MADE A LATENT BRANCH REACHABLE (#731, from the #730
-// review). `ArtNetSender.sendIfFresh` has a HOLD branch: with no fresh or allowed source it
-// reuses `lastChannels` and keeps running master/blackout/slew, so a Blackout is honoured
-// even when bio has stopped. That array is sized for the resolution in force when it was
-// built. Until #730 the property had no writer, so the sizes could never disagree; now an
-// operator can flip the Picker while the hold branch is live and ONE tick is encoded with a
-// stride the array does not match — 8-bit stride reading a 16-bit array hits the dimmer-fine
-// and red coarse/fine bytes, 16-bit stride on a 4-byte array simply writes less. Bounded and
-// bounded tightly: every access is `guard idx < channels.count` (no crash), `lastColour` stays
-// unit-space and every channel still rides `FlashGuard.slewedDimmer` (no flash-safety breach),
-// and the next fresh frame (~1 Hz) rebuilds the array. It is a ≤1-tick cosmetic wrinkle.
-// The repair is a `didSet` on `resolution` in BOTH senders clearing the held state, so the
-// hold branch cannot reuse a wrongly-sized array — its own slice, because it changes sender
-// behaviour rather than the door, and it needs its own guard.
+// ⭐ THE DOOR MADE A LATENT BRANCH REACHABLE — REGISTERED BY #731, **FIXED BY #732**, and this
+// paragraph is rewritten by #733 because #732 shipped without moving it (#456, in the file
+// whose own #731 repair was about that very failure two bullets up). `ArtNetSender.sendIfFresh`
+// has a HOLD branch: with no allowed source it reuses `lastChannels` and keeps running
+// master/blackout/slew, so a Blackout is honoured with bio stopped. That array is sized for
+// the resolution in force when it was built; until #730 the property had no writer, so the
+// sizes could never disagree. The repair is a `didSet` on `resolution` in BOTH senders that
+// **RE-ENCODES** the held array (`ArtNetSender.reencode`), guarded by
+// `TheHeldFrameSurvivesAResolutionFlipTests`.
+//
+// ⛔ AND THE THREE THINGS THIS PARAGRAPH ORIGINALLY SAID ARE ALL WRONG, WHICH IS WHY IT IS
+// REWRITTEN RATHER THAN TICKED OFF:
+//   · it prescribed **CLEARING** the held state. Measured, that is worse than the defect: the
+//     hold branch would fall to `else { return }` and the blackout would stop working — the
+//     exact L1 failure the branch exists to prevent.
+//   · "ONE tick" — the hold branch stores its own input back, so without the fix the
+//     wrongly-sized array is re-stored every 33 ms, not once.
+//   · "the next fresh frame (~1 Hz) rebuilds the array" — there is no clock in it. The bio
+//     branch reads `bus.latestBio`, the raw snapshot, with no freshness window and no reset,
+//     and `BioEgressPolicy` gates wrist/ring sources by SOURCE, permanently. On such a source
+//     the hold branch is where the sender lives, and "the next fresh frame" never comes.
 //
 // LIMIT (§1): SOURCE-TEXT SCAN. It proves the row and the binding are written; it cannot prove
 // the segmented control renders, that a fixture reads 8-bit correctly, or that the fade looks

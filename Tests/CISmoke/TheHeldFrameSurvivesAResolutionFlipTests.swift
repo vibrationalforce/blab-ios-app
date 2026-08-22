@@ -26,21 +26,42 @@
 // ⚠️ HONEST GRADING (#433/#464/#486). This file names `ArtNetSender.reencode`, which THIS
 // commit creates, so it **does not compile against the parent `ad0a5cb` and no assertion has a
 // verdict there** — saying that plainly, because #488 shipped a red gate for a cycle behind
-// exactly this ambiguity. Hand-transcribed instead, in Python against the worktree:
+// exactly this ambiguity. Hand-transcribed instead, in Python against BOTH trees — the parent
+// is read too, because claim 7's regression verdict is a statement about the parent and the
+// first version claimed only the worktree had been driven (#733):
 //   · Claims 1-6 are FORWARD guards (#433). They could never have been red on the parent, and
 //     booking them as regressions would be the flattering-direction defect. What makes them
 //     worth writing is that they are arithmetic a CI round trip cannot check for me (#686):
 //     the exactness claim was derived over all 256 byte values BEFORE the code was written,
 //     not sampled, and re-derived against a deliberately wrong implementation (`b * 256`
 //     instead of `b * 257`), which reds claim 1 for 255 of 256 inputs.
+//   · ⛔ AND ONE MUTANT WALKED THROUGH ALL EIGHT (#733). A narrowing that simply TAKES THE
+//     COARSE BYTE passed every claim in the first version of this file, because widening only
+//     ever produces words of the form `[b, b]` and for those the coarse byte IS the correct
+//     level — and claim 6's three vectors were all of that form. The lesson is narrower and
+//     more useful than "behavioural beats source-text": a behavioural guard is only as strong
+//     as its VECTORS. Claim 6 now carries pairs whose fine byte differs from the coarse one.
+//   · ⚠️ CLAIMS 3 AND 4 ARE PROPERTY PINS, NOT GUARD-CLAUSE PINS, and say so rather than
+//     implying more (#733). Delete `old != new` from `reencode` and claim 3 stays green (the
+//     `default:` arm returns the input anyway); delete `!channels.isEmpty` and claim 4 stays
+//     green (an empty loop appends nothing). They pin the observable PROPERTY — idempotent
+//     write, unlit rig stays unlit — which is what a caller depends on. They do not prove the
+//     early return exists, and the first version's messages read as if they did.
 //   · Claim 7 is a REGRESSION: the parent has no `didSet` on either sender.
+//   · Against `023cbf2` — #733's own parent — **all eight are green**: that slice is a prose
+//     and VECTOR repair, not a behaviour change, and the vectors are why it was worth doing.
+//     Re-driven on both trees; claim 7 red on `ad0a5cb` for BOTH senders, claim 8 green on all
+//     three trees for both.
 //   · Claim 8 is a COUNTERWEIGHT, green on both — and it is the load-bearing one. If the hold
 //     branch is ever removed, the `didSet` becomes dead weight and the long note on
 //     `ArtNetSender.resolution` becomes false; this claim is what forces both to move (#456).
 //
 // ⚠️ NO STRIPPER MEASUREMENT IS OWED FOR CLAIMS 1-6 — they read no source text at all. For the
 // two that do, `SourceText.codeOnly` is **PROPHYLAKTISCH (0 of 2)**, measured: both needles are
-// long enough that no comment contains them (raw 1, code 1, in all three files).
+// long enough that no comment contains them — raw 1, code 1, at each of the FOUR needle sites
+// across TWO scanned files (each claim now reads both senders). (⛔ The first version said "in
+// all three files"; only two files are scanned, and at that point one of the two claims read
+// only one of them — #733.)
 //
 // ⛔ THE FIRST DRAFT OF THIS PARAGRAPH CLAIMED `TRAGEND (1 of 2)` AND WAS CAUGHT BY MEASURING
 // IT BEFORE THE COMMIT, NOT AFTER — the third slice in a row to write a stripper label from
@@ -150,15 +171,32 @@ final class TheHeldFrameSurvivesAResolutionFlipTests: XCTestCase {
 
     // MARK: - 6 · the narrowing is the real physical level
 
+    /// ⛔ THE FIRST VERSION USED ONLY `[b, b]` WORDS AND DISCRIMINATED NOTHING (#733). Its
+    /// three vectors were 0xFFFF, 0x0000, 0x8080 and its message claimed a conversion that
+    /// "merely TOOK the coarse byte" would fail claim 1 elsewhere. Measured, BOTH halves are
+    /// false: for every word of the form `[b, b]` the correct narrowing IS `b`, and widening
+    /// produces only that form — so a coarse-byte implementation passed claim 1, claim 1b,
+    /// claim 2, claim 3, claim 4, claim 5 AND claim 6. The whole file was green against a
+    /// mutant. #367 in its stated mirror form, and the reason a behavioural guard is not
+    /// automatically a strong one: the VECTORS decide, not the technique.
+    /// The pairs below have a fine byte that differs from the coarse one, which is the only
+    /// shape that can tell the two implementations apart.
     func testNarrowingReturnsTheLevelTheWordRepresents() {
-        XCTAssertEqual(ArtNetSender.reencode([0xFF, 0xFF], from: .sixteenBit, to: .eightBit), [255])
-        XCTAssertEqual(ArtNetSender.reencode([0x00, 0x00], from: .sixteenBit, to: .eightBit), [0])
-        XCTAssertEqual(ArtNetSender.reencode([0x80, 0x80], from: .sixteenBit, to: .eightBit), [128], """
-            0x8080 is 128 * 257, i.e. exactly half-ish scale; narrowing must return the level the
-            word represents, not its coarse byte by coincidence. (Those two agree here — that is
-            the point of the 257 scaling — but a conversion that merely TOOK the coarse byte
-            would pass this one and fail claim 1 for other inputs.)
-            """)
+        let cases: [(word: [UInt8], level: UInt8, coarse: UInt8)] = [
+            ([0x01, 0x00], 0, 1),
+            ([0x40, 0x00], 63, 64),
+            ([0xFF, 0x00], 254, 255),
+            ([0xFF, 0xFF], 255, 255)
+        ]
+        for c in cases {
+            let out: [UInt8] = ArtNetSender.reencode(c.word, from: .sixteenBit, to: .eightBit)
+            XCTAssertEqual(out, [c.level], """
+                Word \(c.word) narrowed to \(out) instead of [\(c.level)]. It must return the
+                LEVEL the 16-bit word represents. Taking the coarse byte would give \(c.coarse)
+                here — that is the mutant this vector exists to kill, and the three `[b, b]`
+                vectors the first version used could not see it.
+                """)
+        }
     }
 
     // MARK: - 7 · REGRESSION: one control, both protocols — both senders re-encode
@@ -180,16 +218,23 @@ final class TheHeldFrameSurvivesAResolutionFlipTests: XCTestCase {
 
     // MARK: - 8 · COUNTERWEIGHT: the hold branch this all protects still exists
 
+    /// ⛔ IT LOOPS BOTH SENDERS (#733). The first version scanned Art-Net only while claim 7
+    /// already looped both, so removing sACN's hold branch left this green while sACN's
+    /// `didSet` became dead weight and its doc pointer became false — exactly the #456
+    /// movement this claim exists to force, missed in the claim that names #456.
     func testTheHoldBranchStillExists() throws {
-        let code: String = try codeOf(Self.artNet)
-        XCTAssertTrue(code.contains("channels = lastChannels"), """
-            `ArtNetSender.sendIfFresh` no longer holds its last channels.
+        for path in [Self.artNet, Self.sacn] {
+            let code: String = try codeOf(path)
+            XCTAssertTrue(code.contains("channels = lastChannels"), """
+                \(path) no longer holds its last channels in `sendIfFresh`.
 
-            Then the `didSet` above is dead weight and the long note on `resolution` describes a
-            branch that is gone — both must move in the SAME commit (#456). This is the claim
-            that makes claims 1-7 mean something: without the hold branch there is nothing to
-            re-encode, and a green claim 7 would be guarding a repair with no defect left.
-            """)
+                Then that sender's `didSet` is dead weight and the note on `resolution` \
+                describes a branch that is gone — both must move in the SAME commit (#456). \
+                This is the claim that makes claims 1-7 mean something: without the hold \
+                branch there is nothing to re-encode, and a green claim 7 would be guarding a \
+                repair with no defect left.
+                """)
+        }
     }
 
     // MARK: - helpers
