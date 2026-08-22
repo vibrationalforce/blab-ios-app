@@ -54,6 +54,9 @@
 //      commit instead of leaving it quietly false (#456). Its failure message names the NINE
 //      files that carry that prose today rather than a count, because a count of scattered
 //      sentences is a number this repo has learned not to write down.
+//   7. The donut normalisation and that door are MUTUALLY EXCLUSIVE. Claim 6 names nine prose
+//      homes and zero CODE obligations, and there are two of those, written only in doc comments
+//      inside `EchoelStudioView`. Obeying claim 6 to the letter still ships a lying pill.
 //
 // It does NOT re-assert that `EchoelPanel`'s content spacing is 14 — `SoundPanelReflowsTests`
 // owns that fact (`testThePanelStillUsesThatSpacingForItsContent`), and a second copy of a
@@ -328,8 +331,75 @@ final class VisualFineTuneReflowsTests: XCTestCase {
             `ResetSoundClearsWhatTheLaunchLineReportsTests` (the modal budget gains a live slot), \
             CLAUDE.md's #292-Slice-4 paragraph, and open task #270. The overlay's landscape \
             device check becomes real at the same moment — see the honest-limit block above.
+
+            That list is PROSE only, and it is not the whole bill: two obligations live in CODE \
+            (the "Donuts" pill and `normaliseUnreachableDonutMode()`). Claim 7 owns that pairing \
+            and will tell you about them separately.
             """)
         }
+    }
+
+    /// ⭐ Claim 7 — the PAIRING claim 6 could not make, and the reason this commit exists.
+    ///
+    /// Claim 6 goes red at the re-door and its message names nine PROSE homes. It names ZERO code
+    /// obligations, and there are two, written only in doc comments inside `EchoelStudioView`
+    /// itself: bring the "Donuts" pill back in `visualLookStrip` at BOTH mounts (the overlay has
+    /// no `visualLookCustomizer` beneath it, so the pill was its last look control), and DELETE
+    /// `normaliseUnreachableDonutMode()` together with the line that calls it.
+    ///
+    /// Obey claim 6 to the letter and the second half still ships wrong: the pill returns, a
+    /// player switches Donuts on, and the next launch stamps it back off. A control that moves,
+    /// persists and is silently undone — the exact failure class
+    /// `LeadMixDoorAndNormalisationTests` was written to prevent ONE STORE DOWN, on a normaliser
+    /// whose own doc comment calls itself "the same shape and same reason" as that one. The lead
+    /// pairing has a guard in both directions; its donut twin had none. This is that guard.
+    ///
+    /// ⚠️ THE TWO DIRECTIONS ARE NOT THE SAME KIND, graded separately (#433/#464/#486):
+    ///   · door absent + normalisation deleted → RED, and this half COULD always have been red.
+    ///     Deleting a doorless `private` helper is an ordinary tidy-up. A REGRESSION guard.
+    ///   · door present + normalisation kept → RED. Green today and green after a CORRECT
+    ///     re-door, so that half is a COUNTERWEIGHT with an expiry, the same shape as claim 6.
+    ///
+    /// It does not forbid the re-door (#364): a commit that adds the door AND removes the
+    /// normalisation passes. Driven against four deliberately broken trees before it was written
+    /// — call deleted → red · door without the deletion → red · both together → green · a
+    /// prose-only mention of the assignment → green, which is where the `codeOnly` pass in
+    /// `studioLines()` earns its keep.
+    ///
+    /// ⚠️ IT CANNOT SEE THE PILL, and the message says so rather than implying full cover. The
+    /// pill is a view control; a token scan would pin a spelling, not a capability. That
+    /// obligation is carried in the failure text, where the person doing the re-door reads it.
+    ///
+    /// ⚠️ TWO RENAMES, TWO DIFFERENT OUTCOMES, and neither is a silent pass. Renaming the FLAG
+    /// would make both sides read `false` and this claim would go green on nothing — the #367
+    /// hole — except that claim 6 anchors on exactly that and goes RED first, in this same file.
+    /// Deliberately NOT re-anchored here (#416: one definition of that fact). Renaming the
+    /// NORMALISER instead turns this claim red with the "NEITHER present" branch, which is a red
+    /// for a true reason under a slightly wrong name; the repair is the same either way.
+    func testTheDonutNormalisationExpiresExactlyWhenTheDoorReturns() throws {
+        let lines = try studioLines()
+        let hasDoor = lines.contains { flagAssignments(in: $0) && !$0.contains("= false") }
+        // The declaration carries the same token; the obligation is the CALL, so exclude it.
+        let normalises = lines.contains {
+            $0.contains("normaliseUnreachableDonutMode()") && !$0.contains("private func")
+        }
+
+        XCTAssertNotEqual(hasDoor, normalises, """
+        The fullscreen visual door and its donut normalisation are out of step. \
+        door=\(hasDoor) normalisation=\(normalises).
+
+        BOTH present: `showVisual` has a real writer, so the overlay's Donuts toggle is reachable \
+        again — while `normaliseUnreachableDonutMode()` still stamps `visual.spectralDonuts` back \
+        to `false` on every launch. In THIS commit: delete that function AND the line that calls \
+        it, and bring the "Donuts" pill back in `visualLookStrip` at BOTH mounts — the overlay has \
+        no `visualLookCustomizer` under it, so the pill was its last look control. Its own doc \
+        comment asks for both.
+
+        NEITHER present: `visual.spectralDonuts` is persisted, still has no reachable writer, and \
+        now nothing repairs an install that stored `true` before #227 — those players keep the \
+        launch look-snap skipped, with no control able to undo it. Restore the call, or restore \
+        the door in the same commit.
+        """)
     }
 
     /// True when `line` assigns to the `showVisual` flag itself — `=` or `.toggle()`, and never a

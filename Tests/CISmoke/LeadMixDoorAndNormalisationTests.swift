@@ -12,6 +12,16 @@
 // shape as `normaliseUnreachableDonutMode()` (#227) one store down. This file pins that the two
 // halves can never drift apart — in EITHER direction:
 //
+// ⭐ AND THAT SENTENCE DESCRIBED ONLY THIS STORE. The donut twin it names had NO pairing guard of
+// its own — measured, not remembered — until `VisualFineTuneReflowsTests`
+// `.testTheDonutNormalisationExpiresExactlyWhenTheDoorReturns`, which is written from this file's
+// shape. That is why the cross-reference is worth carrying: a guard saying "same shape as X" reads
+// as a standing claim that X is guarded too, and nobody had checked.
+// (⛔ The first draft said "for two months". Unprovable here: this clone is shallow and `545b19e`
+// is its graft root, so `git log -S` reports BOTH files as first appearing in that one deploy
+// commit. The present state is measurable; the duration is not — the `presetRow` lesson in
+// CLAUDE.md, hit again one file over.)
+//
 //   · door removed, normalisation missing  → the stale-value trap above
 //   · door restored, normalisation left in → every launch stamps the fader back to unity, so the
 //     control moves, persists, and is silently undone on the next start. That is a lying control
