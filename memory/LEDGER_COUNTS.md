@@ -63,7 +63,19 @@ Befehl zurückgeführt; `Tests/CISmoke/CLAUDE.md` §0 ist am selben Tag nachgezo
 08-14-Stand (284) und heute liegen **+64 Dateien**, für die diese Kette wieder keine
 Einzelstände trägt — dieselbe Lücke wie oben, in derselben Form, und sie wird hier BENANNT
 statt rekonstruiert (erfundene Glieder wären schlimmer). Wer sie braucht:
-`git log --diff-filter=A --since=2026-08-14 -- 'Tests/CISmoke/*.swift'`.
+`git log --diff-filter=A --name-only --pretty=format: d906c8c..HEAD -- 'Tests/CISmoke/*.swift'`
+(`d906c8c` = der Commit des 08-14-Eintrags).
+
+⛔ **DIE ERSTE FASSUNG DRUCKTE HIER `--since=2026-08-14` UND DIESER BEFEHL LIEFERT 63, NICHT
+64** (#739, vom Reviewer gefunden). `--since` beschneidet die TRAVERSIERUNG, nicht nur die
+Ausgabe: `TheHarmonizerFollowsTheKeyTests.swift` (`d5f1a09`, 2026-08-14 12:31 UTC) fällt
+heraus, obwohl es ein Vorfahr von HEAD ist. **In genau der Datei, deren Regel lautet
+„schreib den Befehl neben jede Zahl, damit der nächste Leser sie nachrechnen kann", stand ein
+Befehl, der die eigene Zahl nicht reproduziert** — schlimmer als keiner, weil der Leser die
+Zahl für veraltet hält statt den Befehl für falsch. Für Datei-Zählungen ist die
+COMMIT-SPANNE die belastbare Form; `--since` ist es nie. Derselbe defekte Rezept-Typ steht im
+08-08-Eintrag darüber und ist dort NICHT nachgebessert — er wird beim nächsten Anfassen
+mitgezogen, statt hier ein zweites Mal abgeschrieben zu werden (#416).
 
 ⚠️ **Und die Anweisung, die diese Kette selbst gibt („das Nachführen dieser Zeile ist Teil
 jedes Commits, der eine Datei in dieses Verzeichnis legt"), ist damit zweimal in Folge

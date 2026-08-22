@@ -63,12 +63,17 @@ def decode(raw):
 
 
 def unescape(text):
-    """Turn literal backslash-n into newlines when a document has none of its own.
+    """Turn literal backslash-n into newlines when a document is mostly escaped.
 
-    Guarded on `"\n" not in text` so a genuinely multi-line log that happens to contain
-    an escaped sequence is left alone.
+    ⛔ THE FIRST VERSION GUARDED ON `"\n" not in text` AND ONE REAL NEWLINE DEFEATED IT
+    (#739). A file read off disk normally ends in a newline, so an otherwise fully escaped
+    document scored `realNewlines == 1` and was left alone — after which every per-line
+    filter saw one 250 kB line again, which is the whole #738 defect wearing a trailing `\n`.
+    The honest test is the RATIO, not the presence: a document with more escaped sequences
+    than real newlines is an escaped document. A genuine multi-line log that happens to quote
+    a few `\\n` has far more real newlines and is left alone.
     """
-    if "\n" not in text and "\\n" in text:
+    if text.count("\\n") > text.count("\n"):
         return text.replace("\\n", "\n")
     return text
 
@@ -77,22 +82,64 @@ def load(path):
     return decode(open(path, encoding="utf-8", errors="replace").read())
 
 
+# ── The two renderings xcodebuild can emit, and why BOTH are here (#739) ────────────────
+#
+# xcbeautify (what CI uses today):
+#     Test case 'Suite.testName()' failed on 'Clone 1 of iPhone 17 …' (0.039 seconds)
+# plain xcodebuild (no formatter — a local run, or a workflow that drops the pipe):
+#     Test Case '-[SuiteTests testName]' failed (0.001 seconds).
+#
+# ⛔ #738 ANCHORED ONLY ON THE FIRST AND ITS GUARD THEN FORBADE THE SECOND OUTRIGHT. Measured:
+# on a plain-xcodebuild log the tool printed `TEST FAILURES: 0` and EXITED 0 — a silent green,
+# strictly worse than the loud-but-wrong reading #679 paid four failing tests to find. Latent
+# rather than live (today's pipeline only emits the first form), and recorded because that is
+# exactly how #679 started: a discriminator that was right about the format it had seen.
+#
+# The `failed (` needle is BANNED ALONE and REQUIRED IN THE ALTERNATION. #679's mistake was
+# searching for it INSTEAD of `" failed on "`; the repair is both, never either.
+PASS_LINE = re.compile(r"Test [Cc]ase '([^']+)' passed", re.MULTILINE)
+FAIL_LINE = re.compile(r"Test [Cc]ase '([^']+)' (?:failed on |failed \()", re.MULTILINE)
+FAILED_OR_PASSED_PASS = PASS_LINE
+
+
+def find_failures(text):
+    return FAIL_LINE.findall(text)
+
+
 SELFTEST_BODY = (
     "2026-01-01T00:00:00Z Test build Succeeded\n"
     "2026-01-01T00:00:01Z Test case 'A.testOne()' passed on 'Clone 1 of iPhone 17' (0.1 seconds)\n"
     "2026-01-01T00:00:02Z Test case 'A.testTwo()' failed on 'Clone 1 of iPhone 17' (0.2 seconds)\n"
-    "2026-01-01T00:00:03Z Test case 'B.testThree()' failed on 'Clone 1 of iPhone 17' (0.3 seconds)\n"
-    "2026-01-01T00:00:04Z ** TEST EXECUTE FAILED **\n"
+    "2026-01-01T00:00:03Z Test case 'B.testThree()' passed on 'Clone 1 of iPhone 17' (0.3 seconds)\n"
+    "2026-01-01T00:00:04Z Test case 'B.testFour()' failed on 'Clone 1 of iPhone 17' (0.4 seconds)\n"
+    "2026-01-01T00:00:05Z Test case 'C.testFive()' passed on 'Clone 1 of iPhone 17' (0.5 seconds)\n"
+    "2026-01-01T00:00:06Z /src/Foo.swift:12:3: error: cannot find 'Bar' in scope\n"
+    "2026-01-01T00:00:07Z ** TEST EXECUTE FAILED **\n"
 )
+SELFTEST_LINES = SELFTEST_BODY.count("\n")
 
 
 def selftest():
-    """Drive BOTH envelopes and assert the same verdict comes out of each (#738).
+    """Drive every envelope AND ASSERT THE DECODE, not just the verdict computed off it.
 
-    The defect this replaces was not a wrong needle — every needle was right. It was a
-    loader that returned an un-decoded string for a well-formed document, so the needles
-    ran over one 250 kB line. A shape-level check is therefore the only kind that could
-    have caught it; a fixture of one shape would have passed forever.
+    ⛔ THE FIRST VERSION OF THIS SWEEP WAS A CONTROL ITS OWN KNOWN-POSITIVE PASSED (#739),
+    which is #735's lesson arriving one commit later in the same session. Measured: run
+    #738's four shape checks against #737's BROKEN loader and all four report `ok`. Every
+    assertion it made — `re.findall` over the whole text, a substring test — is
+    NEWLINE-INDEPENDENT, and JSON does not escape single quotes, so the needles sit in the
+    un-decoded document verbatim. It asserted the ANSWER while the DEFECT was in the INPUT.
+
+    Three things make this version discriminate, and each maps to a way #738 went wrong:
+      · `newlines` — the decode itself. A one-line document fails here first, whatever any
+        regex says about it.
+      · `greedy` — the exact expression #737 shipped (`Test case .* passed on ` with a greedy
+        `.*`). On correctly decoded text it counts 3; on one line it counts 1. This is the
+        original symptom, kept as a live canary rather than a story in a comment.
+      · `line_filter` — the exact predicate #738 removed. On one line it matches once for the
+        whole log. Keeping it here means the bug can never be reintroduced unnoticed, even
+        though production no longer uses it.
+    The fixture carries THREE passes and TWO failures on purpose: with one of each, a count
+    of 1 is correct by accident and every one of these canaries stays quiet.
     """
     shapes = {
         "single-job  {job_id, logs_content}":
@@ -100,18 +147,40 @@ def selftest():
         "failed_only {logs: [{logs_content}]}":
             json.dumps({"logs": [{"logs_content": SELFTEST_BODY}], "run_id": 2}),
         "plain text (no envelope)": SELFTEST_BODY,
-        "plain text, newlines already escaped": SELFTEST_BODY.replace("\n", "\\n"),
+        "plain text, newlines escaped": SELFTEST_BODY.replace("\n", "\\n"),
+        "plain text, escaped + trailing real newline":
+            SELFTEST_BODY.replace("\n", "\\n") + "\n",
     }
     bad = 0
     for name, raw in shapes.items():
         text = decode(raw)
-        passed = len(re.findall(r"Test case '[^']+' passed on ", text))
-        failed = re.findall(r"Test case '([^']+)' failed on ", text)
-        ok = (passed == 1 and failed == ["A.testTwo()", "B.testThree()"]
+        newlines = text.count("\n")
+        greedy = len(re.findall(r"Test case .* passed on ", text))
+        line_filter = len([ln for ln in text.split("\n")
+                           if "Test case " in ln and " failed on " in ln])
+        passed = len(PASS_LINE.findall(text))
+        failed = find_failures(text)
+        errors = len([ln for ln in text.split("\n") if " error:" in ln])
+        ok = (newlines >= SELFTEST_LINES
+              and greedy == 3 and line_filter == 2 and errors == 1
+              and passed == 3 and failed == ["A.testTwo()", "B.testFour()"]
               and "Test build Succeeded" in text)
         bad += 0 if ok else 1
-        print(f"  {'ok ' if ok else 'BAD'}  {name:38}  passed={passed}  failed={failed}")
-    print("selftest: OK" if not bad else f"selftest: {bad} shape(s) MISREAD")
+        print(f"  {'ok ' if ok else 'BAD'}  {name:44}  nl={newlines} greedy={greedy} "
+              f"lines={line_filter} err={errors} pass={passed} fail={len(failed)}")
+
+    # A renderer sweep, separate because it is about the FORMAT and not the envelope.
+    renders = {
+        "xcbeautify":       "Test case 'S.testA()' failed on 'Clone 1' (0.1 seconds)",
+        "plain xcodebuild": "Test Case '-[STests testA]' failed (0.1 seconds).",
+    }
+    for name, line in renders.items():
+        hit = find_failures(line)
+        good = len(hit) == 1
+        bad += 0 if good else 1
+        print(f"  {'ok ' if good else 'BAD'}  renderer {name:34}  -> {hit}")
+
+    print("selftest: OK" if not bad else f"selftest: {bad} check(s) MISREAD")
     return 0 if not bad else 1
 
 
@@ -131,13 +200,17 @@ def main():
     build_failed = "TEST BUILD FAILED" in text
     # A repo-file `error:` or an xcbeautify `❌` means YOUR commit; an error naming
     # only an SDK/module-cache path is infrastructure (#478).
+    # DELIBERATELY line-based, and it must stay that way: #478's discriminator is "does this
+    # error line name a repo file or only an SDK path", which needs the WHOLE line. Its
+    # correctness therefore rests entirely on `decode()`; that is why the selftest asserts the
+    # decode itself (#739) and not just the verdict computed off it.
     compile_errors = [ln.strip() for ln in text.split("\n")
                       if (" error:" in ln or "❌" in ln)]
     # Anchored, non-greedy, and NOT dependent on line splitting (#738): on a document
     # that arrived as one line, the old line filter matched once and printed the whole
     # remainder of the log as if it were the name of a single failing test.
-    failures = re.findall(r"Test case '([^']+)' failed on ", text)
-    ran = len(re.findall(r"Test case '[^']+' passed on ", text))
+    failures = find_failures(text)
+    ran = len(FAILED_OR_PASSED_PASS.findall(text))
 
     print(f"build-for-testing : {'Succeeded' if build else 'NOT SEEN'}")
     print(f"TEST BUILD FAILED : {build_failed}")

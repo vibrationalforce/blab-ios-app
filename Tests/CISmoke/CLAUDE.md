@@ -209,12 +209,24 @@ its own known positive is not a measurement.
   so the literal `failed (` can never occur — the word is followed by ` on `, not ` (`.
   **THE NEEDLE IS `" failed on "` ON A LINE CONTAINING `"Test case "`.** Same class as #667
   one layer down: the discriminator was right, the search term could not match the format.
+  ⛔ **AND THAT SENTENCE PRESCRIBES A LINE PREDICATE THAT THE TOOL NO LONGER USES (#739), for
+  a reason worth carrying: on a badly decoded log the whole file is ONE line, and
+  `"Test case " in ln && " failed on " in ln` is then satisfied by the log as a whole. The
+  live scan is an anchored regex on the quoted test name. ⛔ **The needle itself was also only
+  HALF the format.** Plain `xcodebuild` with no formatter writes
+      Test Case '-[SuiteTests testName]' failed (0.001 seconds).
+  — capital `Case`, and `failed (`, the very spelling this paragraph bans. #738 matched only
+  the xcbeautify form and on such a log printed `TEST FAILURES: 0` and **exited 0**, a SILENT
+  green — worse than #679's loud-but-wrong reading. The rule is therefore: `failed (` is
+  wrong ALONE and required IN THE ALTERNATION with `" failed on "`. Never either.
   ⚠️ **AND THE LOG IS ONE JSON BLOB WITH ESCAPED NEWLINES.** `get_job_logs` writes
   `{"logs":[{"logs_content":"…\n…"}]}` to the overflow file, so a plain `split("\n")` yields
   ONE line and every per-line filter silently returns nothing while `count()` on the raw text
   still works. That is why the first reading showed "0 failure lines" next to correct counts:
   two different bugs agreeing on a wrong answer. `json.loads` first, then split.
-  **Both halves are closed in `scripts/gh-test-verdict.py`** — point it at the overflow file:
+  **Both halves were closed in `scripts/gh-test-verdict.py`** — and the second half REOPENED
+  on 2026-08-22, see the ⛔ block below; read "closed" as "closed as of #739", never as a
+  standing property. Point it at the overflow file:
       python3 scripts/gh-test-verdict.py <file>
   It prints build-for-testing, the two banners, the count of tests OBSERVED PASSING, every
   compile-error line and every failing test by name; exit 1 if anything failed. Extend that
