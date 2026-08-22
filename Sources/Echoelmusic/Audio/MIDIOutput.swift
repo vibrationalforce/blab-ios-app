@@ -65,6 +65,31 @@ public final class MIDIOutput {
     /// Number of MPE member channels (lower zone): MIDI channels 2…16.
     public static let mpeMemberChannels = 15
 
+    /// One MIDI-out STATE CHANGE, written to BOTH sinks — the #650 shape, one subsystem over.
+    ///
+    /// ⭐ WHY (#715). Every one of this file's nine log lines went to `log.log`, which reaches
+    /// `os_log` and an in-memory ring `ProfessionalLogger`'s own doc calls "write-only today".
+    /// The file the founder exports — `echoel_diag.log` — is written only by `EchoelCrashLog`
+    /// (⛔ #715 said "by `breadcrumb` and by NOTHING else" in three places; the crash handlers
+    /// write the marker and the backtrace straight to the fd, bypassing it. The TYPE is the
+    /// exclusive writer, the FUNCTION is not — #716). So #713 shipped two switches whose
+    /// entire evidence trail was unreadable from a device: if he turns MPE on and something
+    /// misbehaves, the log he sends says nothing about MIDI out at all. #650 found exactly this
+    /// hole in the monitoring path after five slices of instrumentation had gone somewhere
+    /// nobody could read; this is the same hole, found the same way, before it cost a round trip.
+    ///
+    /// ⚠️ STATE CHANGES ONLY, never per event. `breadcrumb` does `Date()` plus a `write(2)`, so
+    /// a call on the note path would be file I/O at note rate — and `send` is reached from the
+    /// clock timer. Every call site here is port lifecycle or a preference edge, all on the main
+    /// actor, which is where the `log.log` lines it joins already sat.
+    ///
+    /// ⚠️ ONE MESSAGE, TWO SINKS (#416). The prefixes differ because the sinks do: `os_log`
+    /// carries a category, the breadcrumb file is flat and needs a greppable stem.
+    private func logOutcome(_ message: String, level: LogLevel = .info) {
+        log.log(level, category: .system, "MIDI OUT: \(message)")
+        EchoelCrashLog.breadcrumb("midiout: \(message)")
+    }
+
     /// Read the two persisted MIDI-out preferences into the live flags — the ONE owner of
     /// that transfer (#713).
     ///
@@ -86,29 +111,6 @@ public final class MIDIOutput {
     /// ⚠️ It reads `UserDefaults` rather than taking arguments so that a caller cannot pass a
     /// value the persisted key does not hold. `StudioDefault`'s own default is the fallback,
     /// so an install that has never seen the switches behaves exactly as before this slice.
-    /// One MIDI-out STATE CHANGE, written to BOTH sinks — the #650 shape, one subsystem over.
-    ///
-    /// ⭐ WHY (#715). Every one of this file's nine log lines went to `log.log`, which reaches
-    /// `os_log` and an in-memory ring `ProfessionalLogger`'s own doc calls "write-only today".
-    /// The file the founder exports — `echoel_diag.log` — is written by
-    /// `EchoelCrashLog.breadcrumb` and by nothing else. So #713 shipped two switches whose
-    /// entire evidence trail was unreadable from a device: if he turns MPE on and something
-    /// misbehaves, the log he sends says nothing about MIDI out at all. #650 found exactly this
-    /// hole in the monitoring path after five slices of instrumentation had gone somewhere
-    /// nobody could read; this is the same hole, found the same way, before it cost a round trip.
-    ///
-    /// ⚠️ STATE CHANGES ONLY, never per event. `breadcrumb` does `Date()` plus a `write(2)`, so
-    /// a call on the note path would be file I/O at note rate — and `send` is reached from the
-    /// clock timer. Every call site here is port lifecycle or a preference edge, all on the main
-    /// actor, which is where the `log.log` lines it joins already sat.
-    ///
-    /// ⚠️ ONE MESSAGE, TWO SINKS (#416). The prefixes differ because the sinks do: `os_log`
-    /// carries a category, the breadcrumb file is flat and needs a greppable stem.
-    private func logOutcome(_ message: String, level: LogLevel = .info) {
-        log.log(level, category: .system, "MIDI OUT: \(message)")
-        EchoelCrashLog.breadcrumb("midiout: \(message)")
-    }
-
     public func applyOutputPreferences() {
         let store = UserDefaults.standard
         let mpe = store.object(forKey: StudioDefaultKeys.midiOutMPE.key) as? Bool
@@ -165,7 +167,13 @@ public final class MIDIOutput {
         // rig that disappeared and came back actually needs.
         if isReady {
             if mpeEnabled { sendMPEConfiguration() }
-            logOutcome("re-enabled on an open port"
+            // ⛔ #715 WROTE "re-enabled on an open port" HERE AND THAT IS A CLAIM, NOT A PATH
+            // (#716). `startIfNeeded` is reached from `enabled`'s didSet AND from `startClock`,
+            // i.e. from every transport Play — and the port is open in the steady state, so the
+            // line fired on every Play saying the route had been re-enabled when nothing had
+            // been touched. Read three weeks later it invites exactly the wrong conclusion.
+            // Now it names the STATE it found, which is true on both paths.
+            logOutcome("port already open"
                        + (mpeEnabled ? " · MPE zone re-announced" : " · channel 1"))
             return
         }
@@ -194,9 +202,12 @@ public final class MIDIOutput {
         _ = MIDIObjectSetIntegerProperty(virtualSource, kMIDIPropertyUniqueID, 0x4543_484F) // "ECHO"
         isReady = true
         if mpeEnabled { sendMPEConfiguration() }
+        // The expression clause is gated on BOTH flags because the SENDER is
+        // (`if mpeEnabled, expressionEnabled`). On the flag alone the line could read
+        // "channel 1 · expression", which is self-contradictory (#716).
         logOutcome("ready (virtual source 'Echoelmusic'"
                    + (mpeEnabled ? " · MPE zone announced" : " · channel 1")
-                   + (expressionEnabled ? " · expression" : "") + ")")
+                   + (mpeEnabled && expressionEnabled ? " · expression" : "") + ")")
         #else
         logOutcome("CoreMIDI unavailable on this platform — no-op")
         #endif
@@ -373,7 +384,7 @@ public final class MIDIOutput {
     public func startClock(bpm: Double, startingIn delay: TimeInterval = 0) {
         guard enabled else { return }
         guard let interval = UMPEncoder.clockInterval(bpm: bpm) else {
-            log.log(.warning, category: .system, "MIDI CLOCK: refused to start at bpm \(bpm)")
+            logOutcome("clock refused to start at bpm \(bpm)", level: .warning)
             return
         }
         startIfNeeded()
@@ -381,7 +392,7 @@ public final class MIDIOutput {
         // `isReady`, so claiming "on" before checking would make BOTH the published flag and
         // the log line lie about a clock that emits nothing.
         guard isReady else {
-            log.log(.warning, category: .system, "MIDI CLOCK: port not ready, not started")
+            logOutcome("clock: port not ready, not started", level: .warning)
             return
         }
         stopClockTimer()                       // idempotent re-arm, no double timer
