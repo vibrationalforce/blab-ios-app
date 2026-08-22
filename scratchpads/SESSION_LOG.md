@@ -11141,3 +11141,75 @@ deren #731-Reparatur davon handelte.
 
 **Offen:** V0-Geräteprobe (Live-Monitoring) · „Voice clone — ja oder nein?" · Geräteprobe,
 ob ein echtes 8-bit-Fixture den umkodierten Halte-Zustand richtig liest.
+
+---
+
+## 2026-08-22 — #734/#735/#736/#737: der Detektor, sein erster Fund, und die vier Reparaturen daran
+
+**#734 `f534fa4` / #735 `e837ccb`** — `scripts/doorless-state.py`: findet gesetzt-aber-nie-
+geschriebene Klassen-Zustände unter `Sources/`. Vier Zyklen hatten dieselbe Form per Zufall
+gefunden; das ist der Befehl, der sie absichtlich findet. #735 reparierte die eigene
+Kontrolle: sie bestand, WÄHREND der bestdokumentierte Positivfall unsichtbar war
+(`nonisolated(unsafe) static var` fehlte in der Deklarations-Erlaubnisliste). Dazu die
+MASKED-Sektion, weil der Schreib-Test auf den nackten Bezeichner geht und jede gleichnamige
+Bindung irgendwo einen echten Treffer verdeckt.
+
+**#736 `1118b46`** — der erste Fund dieser Sektion: `AutoMixChain.preset`, vier benannte
+Master-Bus-Klangfarben (balanced · warm · bright · transparent) mit echten EQ-Gains auf einer
+Kette, die `AudioEngine` baut und einhängt — **von 2026-06-23 bis zu diesem Commit ohne
+jeden Schreiber**. Jede Session lief `.balanced`, die anderen drei waren unerreichbar.
+Verdeckt durch zwei unbeteiligte `self.preset = preset`-Zeilen in `BioSignalDeconvolver` und
+`BioSpaceMap`. Gebaut: `Preset` als `String`/`CaseIterable`/`Identifiable` mit `displayName`,
+ein persistierter Schlüssel `studio.masterCharacter`, ein `labeledRow("Tone")`-Picker im
+`masterPanel` — und EIN Besitzer, `applyPersistedPreset()`, den sowohl der Start-Pfad
+(`configureEQ()`) als auch der Picker rufen (die `MIDIOutput.applyOutputPreferences()`-Form).
+`configureEQ()` buchstabiert die `.balanced`-Gains nicht mehr ein zweites Mal (#416).
+
+**#737 `7644011`** — die Nachlese fand sechs Befunde, alle nachgemessen, fünf repariert:
+1. **Das Stripper-Label war in BEIDEN Hälften falsch.** „PROPHYLAKTISCH (0 of 3)" — gemessen
+   sind es **zwölf** Nadeln, und **eine** ist kommentar-resident: `applyPersistedPreset()`
+   steht zweimal roh und einmal gestrippt in `configureEQ`s Rumpf, weil **#736 selbst** dort
+   einen erklärenden Kommentar hingeschrieben hat. Echten Aufruf löschen, Kommentar stehen
+   lassen → Claim 4 wird **grün roh, rot gestrippt**. Ehrlich ist **TRAGEND (1 von 12)**.
+   **Vierte Scheibe in Folge mit diesem Label aus dem Bauch.** Zwei neue Schärfungen:
+   *Nadeln zählen, nicht Claims*; und *„beide Wege durchgespielt" kann das gar nicht zeigen* —
+   bei einer POSITIVEN Behauptung sind heute beide grün, der Umschlag erscheint erst unter
+   einer Mutation. Verlangt ist ein roh-gegen-gestrippt-ZÄHLEN pro Nadel.
+2. **Eine Spiegel-Behauptung ist jetzt als solche benannt (#367).** Der Round-Trip eines
+   `String`-Roh-Enums kann nicht rot werden — der Compiler synthetisiert beide Richtungen aus
+   EINER Falltabelle. Behalten statt gelöscht: er wird echt, sobald jemand ein eigenes
+   `init?(rawValue:)` schreibt.
+3. **Vier veraltete Stellen im Detektor (#456), eine davon ein laufender `print`** — er sagte
+   jedem Bediener bei jedem Lauf, die MASKED-Sektion sei für einen Namen gebaut, den sie nicht
+   mehr enthält. Eine Falschaussage, gedruckt vom Wahrheits-Messgerät des Repos. Plus „96
+   suspects" als Tatsache, während der Lauf 95 druckt — und die Differenz ist genau der
+   Eintrag, den der Eltern-Commit entfernt hat.
+4. **#416 in der Prosa wieder aufgemacht, in der Scheibe, deren Zweck #416 war** — #736 nahm
+   die doppelten `.balanced`-Gains aus dem Code und schrieb eine der drei Zahlen eine Zeile
+   höher als „+1.5 dB" in einen Kommentar zurück. Ein Literal im Kommentar driftet genauso,
+   und KEINE Nadel fängt es. Die Zahl war schon einmal gedriftet (von +2 dB).
+5. **Die Begründung zählte das verworfene Wort und nicht das gewählte** — „Tone statt
+   Character" maß die zwei `labeledRow("Character")` korrekt und grepte nie „Tone".
+   `groupHeader("Tone")` gibt es in derselben Datei. Die Wahl bleibt, die Begründung ist
+   schwächer als behauptet.
+
+**Registriert, gemessen, NICHT gebaut** (im Wächter-Kopf, damit es nicht verjährt): kein
+injizierbarer Seam für die Preset-Auflösung (die Datei hat das Idiom sechzig Zeilen höher,
+`resolvedTarget(from:)`) · nichts behauptet, dass die **vier Kurven verschieden** sind — vier
+identische Gains lassen Claim 7 grün und erzeugen genau dessen beschriebenen Fehler · ein
+unparsbarer gespeicherter Wert lässt die Engine auf `.balanced` fallen, während der Picker
+NICHTS ausgewählt zeigt. Ein Seam (`gains(for:)` + `resolvedPreset(from:)`) schließt die
+ersten beiden zusammen — das ist der nächste Kandidat.
+
+**Gates:** #736 Xcode Compile Check `success`, CI/CD „Build for Testing" `success` — das
+blockierende Bundle kompiliert samt neuem Wächter. Die sieben Testnamen stehen NICHT im
+geleerten Log; nach #445 beweist deren Abwesenheit nichts. Ehrlich: **kompiliert
+nachweislich, Ausführung unbelegt.**
+
+**Offen:** V0-Geräteprobe (Live-Monitoring) · „Voice clone — ja oder nein?" · Geräteprobe, ob
+ein echtes 8-bit-Fixture den umkodierten Halte-Zustand liest · **ob die vier Klangfarben
+richtig klingen — das ist das Ohr des Founders, kein Test.**
+
+⚠️ **`CLAUDE.md` steht bei 148.238 B, harte Decke 150.000 B im blockierenden Bundle —
+1.762 B Luft.** Der nächste Register-Eintrag dort stößt wahrscheinlich dagegen; die Reparatur
+ist Provenienz nach `memory/LEDGER_COUNTS.md` verschieben, nicht Gesetz löschen.
