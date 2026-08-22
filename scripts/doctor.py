@@ -64,6 +64,65 @@ def read(path: Path) -> str:
         return ""
 
 
+def _code_only(text: str) -> str:
+    """Swift source with comments blanked, line count preserved.
+
+    The Python twin of `SourceText.codeOnly` in `Tests/CISmoke`. It exists because a needle
+    scan that reads RAW text also matches the prose ABOUT the guard — that is #711, where a
+    token appeared in two explanatory comments and deleting the real call still passed green.
+
+    ⚠️ HONEST LIMIT, stated because a stripper that silently mis-parses is worse than none:
+    this is a character scan, not a Swift lexer. It tracks ordinary `"` strings (with
+    backslash escapes) so a `//` inside a URL literal is not mistaken for a comment, and it
+    tracks `/* */` across lines. It does NOT understand Swift triple-quoted multi-line
+    literals or raw strings (`#"..."#`) — inside those, a `//` would still be blanked. Both
+    are rare in the guard bundle and the failure direction is a MISS, never a false alarm.
+    """
+    out: list[str] = []
+    in_block = False
+    for line in text.split("\n"):
+        buf: list[str] = []
+        i, n, in_str, esc = 0, len(line), False, False
+        while i < n:
+            ch = line[i]
+            if in_block:
+                if ch == "*" and i + 1 < n and line[i + 1] == "/":
+                    in_block = False
+                    buf.append("  ")
+                    i += 2
+                    continue
+                buf.append(" ")
+                i += 1
+                continue
+            if in_str:
+                buf.append(ch)
+                if esc:
+                    esc = False
+                elif ch == "\\":
+                    esc = True
+                elif ch == '"':
+                    in_str = False
+                i += 1
+                continue
+            if ch == '"':
+                in_str = True
+                buf.append(ch)
+                i += 1
+                continue
+            if ch == "/" and i + 1 < n and line[i + 1] == "/":
+                buf.append(" " * (n - i))
+                break
+            if ch == "/" and i + 1 < n and line[i + 1] == "*":
+                in_block = True
+                buf.append("  ")
+                i += 2
+                continue
+            buf.append(ch)
+            i += 1
+        out.append("".join(buf))
+    return "\n".join(out)
+
+
 def rel(path: Path) -> str:
     try:
         return str(path.relative_to(ROOT))
@@ -388,6 +447,66 @@ def section_b() -> Section:
                 "In this environment CI is the only compiler AND the only test runner. A command "
                 "whose first step cannot run tends to be abandoned mid-way. Either guard the step "
                 "explicitly ('on Linux: check CI instead') or drop it."))
+
+    # ------------------------------------------------------------------ phantom guard needles
+    #
+    # ⭐ ADDED BECAUSE IT HAPPENED THREE TIMES IN ONE SESSION, not because it sounded useful.
+    # A guard in `Tests/CISmoke` that scans SOURCE TEXT is only as good as its needle, and a
+    # needle that matches nothing passes green forever while the defect it names ships:
+    #   · #705 — a "Bio chip" needle blind to the quoted spelling that produced the miss
+    #   · #711 — a token that also matched the two prose comments ABOUT the guard, so the
+    #            direction the file names first could not fire
+    #   · #716 — `func pulseClock(` and `func sendClock(`, neither of which has ever existed;
+    #            the real per-pulse handler is `emitPulse()`, so the ONE path that guard was
+    #            written to protect was the one it could not see
+    # `Tests/CISmoke/CLAUDE.md` states the rule (#367/#408) and it was still missed three
+    # times, so the repair is mechanical, not more prose.
+    #
+    # ⚠️ SCOPE IS DELIBERATELY NARROW: only string literals shaped like a Swift DECLARATION
+    # (`"func x("`, `"struct X"`, …). Those are mechanically checkable. An arbitrary needle
+    # ("Bio chip", `.disabled(!midiOutMPE)`) is not, and pretending otherwise would produce a
+    # finding nobody can act on.
+    #
+    # ⛔ THE FIRST VERSION MATCHED ITSELF AND CAUGHT NOTHING — the #708 failure, reproduced in
+    # the check written to stop that family. It searched a haystack that INCLUDED
+    # `Tests/CISmoke`, so `"func pulseClock("` found itself in the very line under test and
+    # reported clean. The haystack is therefore built with string literals BLANKED: a real
+    # declaration survives, a needle does not. Measured both ways — 0 findings on the correct
+    # tree, and both #716 phantoms caught when re-injected.
+    needle_shape = re.compile(r'"((?:func|struct|enum|class|protocol) [A-Za-z_][A-Za-z0-9_]*\(?)"')
+    # A needle used in an ABSENCE assertion names something that must NOT exist. Flagging it is
+    # the cry-wolf failure in its purest form. Same-line only, for the reason the path check
+    # above learned the hard way: a neighbourhood exemption exempts live things by accident.
+    absence = re.compile(r"XCTAssertFalse|XCTAssertNil|\.isEmpty|deleted|no longer|must be ABSENT")
+
+    def _declarations_only(paths: list[Path]) -> str:
+        out = []
+        for f in paths:
+            text = _code_only(read(f))
+            out.append("\n".join(re.sub(r'"[^"]*"', '""', line) for line in text.split("\n")))
+        return "\n".join(out)
+
+    guards = sorted(tracked("Tests/CISmoke/*.swift"))
+    if guards:
+        haystack = _declarations_only(sorted(tracked("Sources/Echoelmusic/**/*.swift")) + guards)
+        phantoms = []
+        for f in guards:
+            for i, line in enumerate(_code_only(read(f)).split("\n")):
+                if absence.search(line):
+                    continue
+                for m in needle_shape.finditer(line):
+                    if m.group(1) not in haystack:
+                        phantoms.append(f"{rel(f)}:{i + 1}  {m.group(1)!r} — declared nowhere")
+        if phantoms:
+            sec.findings.append(Finding(
+                WARN,
+                "A guard needle names a declaration that does not exist",
+                phantoms[:20] + ([f"... and {len(phantoms) - 20} more"] if len(phantoms) > 20 else []),
+                "The guard cannot fail for its named reason (#367): the scan looks for something "
+                "that is not there, so it is green whatever the code does. Re-derive the needle "
+                "from the real declaration and ANCHOR it — assert the needle itself is present "
+                "before asserting anything about it. If the name is meant to be absent, put the "
+                "absence assertion on the SAME line, which exempts it here."))
 
     if not sec.findings:
         sec.clean_note = "Commands and skills reference only paths that exist."
