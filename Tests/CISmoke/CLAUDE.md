@@ -219,6 +219,21 @@ its own known positive is not a measurement.
   It prints build-for-testing, the two banners, the count of tests OBSERVED PASSING, every
   compile-error line and every failing test by name; exit 1 if anything failed. Extend that
   script rather than writing a fourth ad-hoc needle set.
+  ⛔ **AND THE ESCAPED-NEWLINE HALF CAME BACK ON 2026-08-22 (#738), so "closed" above means
+  closed AS OF #738 — not closed forever.** `get_job_logs` writes TWO envelopes and the
+  loader decoded one: `job_id=…` returns `{"job_id": …, "logs_content": "…"}` with no `logs`
+  key, `json.loads` SUCCEEDED, the key test failed, and the loader fell through to the RAW
+  string — one line, literal backslash-n, every per-line filter running over it. Measured on
+  `7644011`: it printed **1** test passing where **136** ran; on `1118b46`, 1 where **172**
+  ran. On a fixture that really fails it printed **1** failure where **2** had failed, and
+  the text began with the name of a test that had PASSED. Not silent (exit stayed 1), but
+  wrong in the direction that matters. **The narrow lesson: a JSON parse that SUCCEEDS is not
+  a decode that WORKED** — the document was well-formed, its only sin was a different key.
+  Repaired with a shape SELFTEST rather than another fixture, because a fixture of either
+  single shape passes forever against a loader that mishandles the other:
+      python3 scripts/gh-test-verdict.py --selftest
+  Run that before trusting a verdict from a log shape you have not seen before. Shape pinned
+  by `TheVerdictParserReadsBothLogShapesTests`.
 - **#445:** a test name **in** the log proves it ran. Its **absence proves nothing** — the
   surviving clone flushes a non-deterministic subset. Honest wording for an unobserved guard:
   *"kompiliert nachweislich, Ausführung unbelegt."* Never "green", never "red".

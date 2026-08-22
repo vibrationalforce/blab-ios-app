@@ -58,6 +58,21 @@ Eintrag protokolliert den Messwert und die Lücke. Drei früher kursierende Zahl
 eine Suite (Ledger 234 · dir-CLAUDE.md 238 · Platte 284) sind damit auf EINE Messung mit
 Befehl zurückgeführt; `Tests/CISmoke/CLAUDE.md` §0 ist am selben Tag nachgezogen.
 
+⭐ **Stand 2026-08-22, gemessen: 348** (`git ls-files 'Tests/CISmoke/*.swift' | wc -l`, nach
+`git add` von `TheVerdictParserReadsBothLogShapesTests.swift`, #738). Zwischen dem
+08-14-Stand (284) und heute liegen **+64 Dateien**, für die diese Kette wieder keine
+Einzelstände trägt — dieselbe Lücke wie oben, in derselben Form, und sie wird hier BENANNT
+statt rekonstruiert (erfundene Glieder wären schlimmer). Wer sie braucht:
+`git log --diff-filter=A --since=2026-08-14 -- 'Tests/CISmoke/*.swift'`.
+
+⚠️ **Und die Anweisung, die diese Kette selbst gibt („das Nachführen dieser Zeile ist Teil
+jedes Commits, der eine Datei in dieses Verzeichnis legt"), ist damit zweimal in Folge
+gebrochen worden — von den Scheiben #501–#599 und von #600–#737.** Das ist keine Nachlässigkeit
+einzelner Zyklen, sondern der Befund, dass eine Anweisung in einer Datei, die beim
+Sitzungsstart bewusst NICHT gelesen wird (#538), niemanden erreicht. Die ehrliche Konsequenz
+steht schon oben: **messen, nie zitieren** — die Kette ist als Provenienz brauchbar und als
+laufendes Register nicht. Ein Wächter darüber bleibt bewusst aus (#364).
+
                           2026-08-08 nach `TheMoodTravelsWithTheTakeTests.swift` (#275 Slice 2 — der Zwilling
                           des Eintrags direkt darunter, EINE Tür weiter: Slice 1 gab den acht Stimmungs-Reglern
                           überhaupt Persistenz, und die war GLOBAL. Ein gespeicherter Take stellte also Genre,
