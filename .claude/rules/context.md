@@ -25,11 +25,12 @@ so on 2026-08-21 the section printed "Under the ceiling" at a surface of 155,062
 same defect class as a needle that cannot match. The ceiling is on the one file on purpose:
 #538's repair — moving provenance to `memory/LEDGER_COUNTS.md` — only shrinks `CLAUDE.md`.
 
-That ledger holds the count-provenance chains verbatim — **three** since #702 added §C
-(`Tests/EchoelmusicTests/`) beside #538's §A and §B; it is NOT in the hook's `cat` list and must
-never be added to it. ⛔ This sentence said "the two" until #702 and was a stale COUNT in the
-file whose own §2 says *measure; do not recite* — re-derive with
-`grep -c '^## [A-Z] — ' memory/LEDGER_COUNTS.md` rather than trusting the word here.
+That ledger holds the count-provenance chains verbatim, one section each; it is NOT in the
+hook's `cat` list and must never be added to it. ⛔ THE NUMBER THAT STOOD HERE IS DELETED, NOT
+REFRESHED — it said "the two" until #702 made it three and "**three**" until #707 made it four,
+i.e. it went stale TWICE in six days, in the file whose own §2 says *measure; do not recite*.
+A count of sections is a date, not a fact. Re-derive:
+`grep -c '^## [A-Z] — ' memory/LEDGER_COUNTS.md`.
 
 ⚠️ **The ceiling now has teeth, and a red is not an order to delete your paragraph.**
 `Tests/CISmoke/TheLawFileStaysUnderItsCeilingTests.swift` (#702) asserts the same 150,000 B on

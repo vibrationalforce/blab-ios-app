@@ -31,7 +31,7 @@
 // same quantity the doctor prints or the two instruments disagree — the exact defect §D of
 // that file already paid for, where a stated threshold did not test the quantity it named.
 //
-// ⚠️ HONEST LIMITS. 5 tests, 9 assertion statements (1+1+3+2+2; counted in Python over lines
+// ⚠️ HONEST LIMITS. 5 tests, 10 assertion statements (1+1+4+2+2; counted in Python over lines
 // whose first token is XCTAssert). It measures SIZE, never quality: a file stuffed with 149 KB
 // of nonsense passes. And it cannot see the rest of the always-loaded surface — the three
 // `.claude/rules/*.md` files add ~13.7 KB that no assertion here bounds, deliberately, because
@@ -104,6 +104,14 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
             §C (the non-blocking suite's chain, moved by #702) is gone. That is the chain \
             CLAUDE.md now POINTS at instead of carrying — a dangling pointer here means the \
             law file promises provenance that no longer exists.
+            """)
+        // ⚠️ #707 is the first section moved for HEADROOM rather than to fix an accretion:
+        // CLAUDE.md stood 942 B under this file's own ceiling, and claim 2's message names
+        // exactly this trade. It recovered 2,074 B and lost no law.
+        XCTAssertTrue(ledger.contains("## D — `EchoelStudioView` Präsentations-Modifier"), """
+            §D (the presentation-modifier chain, moved by #707) is gone. CLAUDE.md's \
+            Presentation and CRAFT-TOOL-DOORS bullets both POINT at it instead of carrying \
+            the history — same dangling-pointer failure as §C above.
             """)
     }
 

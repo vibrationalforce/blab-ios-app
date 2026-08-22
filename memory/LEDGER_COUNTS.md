@@ -5771,3 +5771,35 @@ gemeldet wird, steht in `Tests/CISmoke/CLAUDE.md`).
 zusammen; verdichtet wird beim Kompaktieren zuerst das Gesetz. KEINE
 Zeile ist gelöscht. Wer eine Zahl nachführt, führt sie DORT nach.**
 Siehe KEY TESTS.
+
+
+---
+
+## D — `EchoelStudioView` Präsentations-Modifier (Kette 14 / dateiweit 16)
+
+**Umgezogen am 2026-08-22 (#707)**, nach derselben Regel wie §A–§C: die Kette ist BUCHFÜHRUNG,
+das Gesetz bleibt in `CLAUDE.md`. Anlass war kein Fehler, sondern der Kopfraum — `CLAUDE.md`
+stand nach #706 bei 149 058 B, also 942 B unter der Decke, die
+`TheLawFileStaysUnderItsCeilingTests` erzwingt, und deren Fehlermeldung genau diesen Schnitt
+vorschreibt: Provenienz raus, Gesetz bleibt.
+
+⚠️ **DIE ZAHL SELBST IST NICHT HIER.** Sie steht EINMAL, im Presentation-Absatz von
+`CLAUDE.md` („Dateiweit also 16, auf der Kette 14"), und ist im blockierenden Bundle von
+`ResetSoundClearsWhatTheLaunchLineReportsTests` festgenagelt — dateiweit `== 16` fängt das
+HINZUFÜGEN, kettenweise `<= 14` fängt das VERSCHIEBEN eines verschachtelten Modifiers auf die
+Kette. Wer die Zahl prüft, liest den Wächter, nicht diesen Abschnitt.
+
+⚠️ **EBENFALLS GESETZ UND BEWUSST DRÜBEN GEBLIEBEN:** das Black-Screen-Gesetz (10.76.34 —
+Kette nicht wachsen lassen, Slot wiederverwenden oder erst konsolidieren), „nie zwei Modals
+gleichzeitig auf true", die drei setterlosen Slots als Kopfraum-Reservoir, und die Lehre, dass
+ein Slot nur wiederverwendbar ist, solange sein Inhalt noch kompiliert.
+
+### Wortlaut beim Umzug (unverändert übernommen)
+
+**Aus dem Presentation-Absatz:**
+
+(⛔ „ein 15ter“ war eine Zahl zu wenig: es sind **ZWEI** verschachtelte, gemessen 2026-08-07 — `.sheet(item: $visualShare)` im `showVisual`-Vollbild und `.fileImporter(isPresented: $projectImportPresented)` in `openSheet`. **Dateiweit also 16, auf der Kette 14**, und nur die 14 sind das Metadata-Budget. Seit #479 behauptet `ResetSoundClearsWhatTheLaunchLineReportsTests` BEIDE Zahlen: dateiweit `== 16` fängt das HINZUFÜGEN, kettenweise `<= 14` fängt das VERSCHIEBEN eines verschachtelten Modifiers auf die Kette — der dateiweite Zähler bleibt dabei grün, während der generische Typ wächst. `<=` und nicht `==`, weil die vorgeschriebene Reparatur — alles in EIN `.sheet(item:)`-Enum falten — die Kette VERKÜRZT und ein Gleichheitstest die Reparatur selbst rot färben würde.) The old "= 16" here was stale by two — and it was the number a session reads BEFORE adding a modal, so believing in headroom that does not exist is how the black-screen SIGSEGV comes back. The CRAFT-TOOL DOORS bullet below carries the same count; keep the two in sync or delete one.
+
+**Aus dem CRAFT-TOOL-DOORS-Absatz:**
+
+**Body presentation-modifier count = 14** (8 sheet + 2 cover + 3 alert + 1 fileImporter; dateiweit 16 — die zwei verschachtelten stehen im Absatz oben, und seit #479 sind BEIDE Zahlen im blockierenden Bundle festgenagelt), nachgemessen 2026-08-07 und erstmals gegen die `struct EchoelStudioView: View`-DEKLARATION verankert statt gegen die Einrückung allein. ⛔ Hier stand „alle 14 lösen auf `var body: some View` auf, kein anderes `var …: some View` trägt heute einen“ — **falsch, und widerlegt vom Absatz darüber**: `private var openSheet: some View` trägt sehr wohl einen (`.fileImporter`), und genau den nennt derselbe Absatz als verschachtelten Wirt. Wahr ist das ENGERE: kein anderes `var …: some View` trägt einen auf EINRÜCKUNG 8, also auf seiner eigenen obersten Kette. Dazu zwei fail-open-Pfade der ersten Fassung, beide im Review gefunden: der Anker nahm das erste 4-Einrückungs-`var body` DATEIWEIT (es gibt **sieben**; `EchoelStudioView` gewann nur, weil die `struct` bei :47 beginnt), und der Terminator verglich exakt auf `"    }"`, was ein `    } // …` verfehlt, weil der Kommentar-Stripper eine nachlaufende Leerstelle hinterlässt. **Beide machen die Kette KLEINER, und `<=` sieht das nicht** — deshalb steht jetzt ein Sentinel daneben, der verlangt, dass die Scheibe ihr LETZTES Kettenglied noch enthält. **Die Historie der Zahl:** the sample-browser `.sheet(item:)` went with `SampleBrowserView` (#167). It was 15 the day before — it was 16 the day before, and the "= 12" before that counted only `.sheet`+`.fullScreenCover` and read as headroom that does not exist. Alerts and the file importer sit on the same chain and carry the same metadata cost.
