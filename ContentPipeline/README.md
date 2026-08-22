@@ -47,10 +47,40 @@ geht über einen Menschen. Die Pipeline erzeugt Entwürfe, keine Posts.
 - **`ContentPipeline/**` steht in KEINEM Pfad-Filter der Auto-Merge-Workflows**
   (`auto-merge-claude.yml`: `Sources/**`, `Tests/**`, `Package.swift`, `project.yml`,
   `.github/workflows/**`; `auto-merge-docs.yml`: `docs/**`). Commits, die nur hier
-  liegen, lösen **keinen eigenen Merge** aus — dasselbe strukturelle Loch wie bei
-  `README.md`, `fastlane/**` und `.deploy/release` (#252, founder-gated). Bis das
+  liegen, lösen **keinen eigenen Merge** aus (#252, founder-gated). Bis das
   gelöst ist: Änderungen hier zusammen mit einer Änderung unter `Sources/`/`Tests/`
   pushen, oder von Hand mergen.
+
+  ⛔ **#720: hier stand „dasselbe strukturelle Loch wie bei `README.md`, `fastlane/**`
+  und `.deploy/release`" — eine AUFZÄHLUNG, wo die Sache eine UMKEHRUNG ist.** Der
+  Filter oben ist eine **Erlaubnis-Liste aus fünf Einträgen**; das Loch haben also
+  nicht drei Geschwister, sondern **jeder andere getrackte Pfad**. Eine Teil-Liste in
+  einem Register liest sich als vollständig, und das ist teurer als eine falsche Zahl:
+  sie beantwortet die Frage „bin ich betroffen?" mit Nein für alles, was nicht
+  dasteht. Nicht dastanden unter anderem `scripts/**`, `memory/**`, `scratchpads/**`,
+  `CLAUDE.md`, `decisions.csv`, `Resources/**`, `ci_scripts/**` und die
+  `*.entitlements` — die letzten drei sind ship-relevant.
+
+  ⭐ **Aufgefallen ist es an drei eigenen Commits** (#717–#719, alle nur unter
+  `scripts/**`): kein Gate lief, kein Merge feuerte. **Präzise gesagt**, weil `scripts/`
+  nicht pauschal ungesehen ist: `xcode-compile-check.yml` listet **eine einzelne Datei
+  daraus**, `scripts/check-infoplist.sh`. Ein Commit an DIESER Datei zieht also sehr
+  wohl ein Gate; einer an `scripts/doctor.py` nicht. „`scripts/**` steht in keinem
+  Filter" wäre die nächste Über-Behauptung gewesen.
+
+  ⚠️ **Die Pfad-Filter, gemessen am 2026-08-22** (`grep -A12 '^on:' .github/workflows/*.yml`;
+  Befehl daneben, weil diese Liste altert):
+  `ci.yml` und `full-tests.yml` = `Sources/** · Tests/** · Package.swift · project.yml` plus
+  je die eigene Workflow-Datei · `xcode-compile-check.yml` zusätzlich `Package.resolved ·
+  Resources/iOS/Info.plist · scripts/check-infoplist.sh` · `quick-test.yml` = `Sources/**/*.swift ·
+  Tests/**/*.swift · Package.swift` · `benchmark.yml` = `Sources/** · Package.swift · project.yml` ·
+  `testflight.yml` = **nur** `.deploy/release` · `pages.yml` = `docs/**`.
+
+  ⚠️ **Und „kein eigener Merge" heißt nicht „erreicht `main` nie"** — das ist die
+  #699-Rücknahme, die eine Zeile höher schon steht: der Merge nimmt `${{ github.sha }}`
+  samt Vorgeschichte, ein solcher Commit fährt als **Passagier** auf dem nächsten
+  Commit mit, der einen gefilterten Pfad berührt. Unbegrenzt lange wartend, dauerhaft
+  hängend nur, wenn ein Zweig darauf ENDET.
 
   ⛔ **#699: hier stand „erreichen `main` durch KEINE Automatik", und das war zu stark
   — widerlegt von `CLAIMS.md` in DIESEM Verzeichnis**, das die Passagier-Wirkung seit
