@@ -10905,3 +10905,34 @@ Reparatur: `codeOf()` (Kommentare geschwärzt) · Deklaration über `func …` a
 Dazu: „the two surviving mix fields" überlas das Board (fünf Streifen, zwei Rollen-Level) ·
 „same four trees" war eine falsche Gleichsetzung · zwei Restlöcher (`"""`-Rumpf, `func` auf
 eigener Zeile) jetzt benannt statt stillschweigend.
+
+## 2026-08-22 (cron, 24h-Mandat) — #713/#714: zwei gebaute Fähigkeiten bekommen wieder Schalter
+
+**#713** holt `mpeEnabled` und `expressionEnabled` zurück an die Oberfläche. Beide steuern
+LEBENDEN Code (MPE-Zonen-RPN beim Portöffnen; Glide/Slide/Press-Bytes an jedem Note-On aus
+`PianoRollModel`) und hatten seit dem Tools-Grid-Removal **kein Bedienelement**. Zwei
+persistierte Schalter im `midiOutSection` der erreichbaren Routing-Fläche, Default aus, EIN
+Besitzer (`MIDIOutput.applyOutputPreferences()`), zweiter Schalter deaktiviert solange MPE aus
+ist (Sendepfad ist `if mpeEnabled, expressionEnabled`). Keine neue Sheet-Ebene.
+
+**#714** = zehn Reviewer-Befunde. Der erste ist ein echter Defekt, den #713 SELBST erzeugt hat:
+
+- **Die MPE-Zone wurde auf einem realen Nutzerpfad nie angekündigt.** `isReady` wird nie
+  zurückgesetzt — Route aus lässt den Port offen. Also: Route aus → MPE anschalten (didSet sieht
+  `enabled == false`, sendet nichts) → Route an → `guard !isReady` kehrt sofort zurück. Noten
+  gingen auf Member-Kanälen raus, ohne dass die Zone je angekündigt wurde. Vor #713 war der
+  Zustand unerreichbar, weil `mpeEnabled` zur Laufzeit nicht bewegt werden konnte.
+- **Und der Wächter stand VOR der Reparatur**: Claim 4 verlangte exakt ZWEI Aufrufstellen, jede
+  dritte korrekte hätte ihn rot gemacht (#364).
+- **Claim 3 verfehlte die wahrscheinlichste Regression**: `Toggle(isOn: $midiOut.mpeEnabled)`
+  enthält gar kein `mpeEnabled =`. Jetzt drei Regexe; alle vier Ausweichformen rot.
+- „the launch path" benannte einen Hook, den es nicht gibt (`startIfNeeded` hängt an der
+  persistierten Route, nicht am Start) · die Kopie behauptete Bytes, die ohne `midi.out`-Route
+  nicht fließen · das Datum „seit 2026-07-02" ist im flachen Klon unbelegbar.
+
+**Gates:** `1e7ba05` (#713) → **`Build for Testing: Succeeded`**, 0 Compile-Fehler, 170 Tests
+grün. `1d481a9` (#714) lief noch. `13a8a96` (#712) war ein **Infrastruktur-Flake**
+(`_StoreKit_SwiftUI.pcm` mtime, 4 Fehlerzeilen, **null** nennt eine Repo-Datei) — die
+dokumentierte Antwort ist ein neuer Lauf, keine Codeänderung; #713s Push hat ihn geliefert.
+
+**Nicht geräteverifiziert.** Braucht einen Founder-Lauf am Gerät.
