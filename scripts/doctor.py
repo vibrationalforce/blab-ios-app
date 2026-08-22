@@ -64,29 +64,69 @@ def read(path: Path) -> str:
         return ""
 
 
-def _code_only(text: str) -> str:
+def _code_only(text: str, blank_strings: bool = False) -> str:
     """Swift source with comments blanked, line count preserved.
 
     The Python twin of `SourceText.codeOnly` in `Tests/CISmoke`. It exists because a needle
     scan that reads RAW text also matches the prose ABOUT the guard — that is #711, where a
     token appeared in two explanatory comments and deleting the real call still passed green.
 
-    ⚠️ HONEST LIMIT, stated because a stripper that silently mis-parses is worse than none:
-    this is a character scan, not a Swift lexer. It tracks ordinary `"` strings (with
-    backslash escapes) so a `//` inside a URL literal is not mistaken for a comment, and it
-    tracks `/* */` across lines. It does NOT understand Swift triple-quoted multi-line
-    literals or raw strings (`#"..."#`) — inside those, a `//` would still be blanked. Both
-    are rare in the guard bundle and the failure direction is a MISS, never a false alarm.
+    `blank_strings=True` additionally blanks the INTERIOR of every literal, keeping the
+    delimiters. That is what a haystack needs: a real declaration survives, a needle cannot
+    find itself (#708). ⛔ Both passes come from THIS ONE WALK on purpose. The first version
+    did the second pass with `re.sub(r'"[^"]*"', '""', line)`, a second and weaker idea of
+    where a literal ends — it mis-pairs on a backslash-escaped quote, so on the 304 guard-file
+    lines that carry one, the needle text emerged unblanked and found itself. Two definitions
+    of "where a string starts" is the #416 shape; there is now one.
+
+    ⚠️ HONEST LIMITS — a stripper that silently mis-parses is worse than none, and the
+    failure direction is NOT one-sided: this walk ERASES text, and erased text feeds both the
+    needle scan (a miss) and the haystack (a false alarm).
+      · It understands `"` strings with backslash escapes, Swift triple-quoted literals, raw
+        strings (`#"…"#`, any number of hashes, including `#\"\"\"…\"\"\"#`), `//` to end of
+        line and `/* */` across lines.
+      · It does NOT understand NESTED block comments, which Swift permits: in
+        `/* a /* b */ func real() {}` the outer `*/` leaks and `func real` survives. Same
+        behaviour as the Swift twin, which documents it.
+      · It is a character scan, not a lexer. Interpolation (`\\(expr)`) inside a literal is
+        treated as literal text, so a declaration mentioned there is invisible.
+
+    ⛔ THE `\"\"\"` CASE IS WHY THIS IS NOT OPTIONAL. Before it was handled, a `/*` inside a
+    triple-quoted failure message — and this repo routinely writes globs like `Sources/**` in
+    one — opened a phantom block comment that swallowed every line to the next `*/`. Measured
+    on the real tree at the time: 621 non-comment lines blanked across 6 guard files,
+    including 37 real declarations, and a phantom needle injected into the swallowed region
+    was NOT caught. `Tests/CISmoke/SourceText.swift` had already written that exact analysis
+    ("a negative scan goes GREEN ON NOTHING") for the `///` case; this reproduced it one
+    literal-shape over. Re-derive with:
+        python3 -c "import sys;sys.path.insert(0,'scripts');import doctor as d;\\
+    print(sum(1 for f in d.tracked('Tests/CISmoke/*.swift') \\
+    for r,o in zip(d.read(f).split(chr(10)), d._code_only(d.read(f)).split(chr(10))) \\
+    if r.strip() and not o.strip() and not r.strip().startswith('//')))"
+
+    ⚠️ NOT covered by `OneDefinitionOfCodeNotProseTests` — that census anchors on the literal
+    `func codeOnly` and scans Swift only, so this twin is invisible to it. Drift between the
+    two is unguarded; if you change one, read the other.
     """
     out: list[str] = []
     in_block = False
+    in_multi = False       # inside a Swift triple-quoted literal
+    multi_hashes = 0       # raw-string hashes that must follow its closing delimiter
     for line in text.split("\n"):
         buf: list[str] = []
-        i, n, in_str, esc = 0, len(line), False, False
+        i, n = 0, len(line)
+        in_str = False     # inside a single-line literal
+        str_hashes = 0
+        esc = False
+
+        def emit(s: str, literal: bool) -> None:
+            buf.append(" " * len(s) if (literal and blank_strings) else s)
+
         while i < n:
             ch = line[i]
+
             if in_block:
-                if ch == "*" and i + 1 < n and line[i + 1] == "/":
+                if line.startswith("*/", i):
                     in_block = False
                     buf.append("  ")
                     i += 2
@@ -94,31 +134,79 @@ def _code_only(text: str) -> str:
                 buf.append(" ")
                 i += 1
                 continue
+
+            if in_multi:
+                closing = '"""' + "#" * multi_hashes
+                if line.startswith(closing, i):
+                    in_multi = False
+                    buf.append(closing)
+                    i += len(closing)
+                    continue
+                emit(ch, True)
+                i += 1
+                continue
+
             if in_str:
-                buf.append(ch)
+                closing = '"' + "#" * str_hashes
                 if esc:
                     esc = False
-                elif ch == "\\":
+                    emit(ch, True)
+                    i += 1
+                    continue
+                if str_hashes == 0 and ch == "\\":
                     esc = True
-                elif ch == '"':
+                    emit(ch, True)
+                    i += 1
+                    continue
+                if line.startswith(closing, i):
                     in_str = False
+                    buf.append(closing)
+                    i += len(closing)
+                    continue
+                emit(ch, True)
                 i += 1
                 continue
+
+            # a raw-string opener is `#`*k + `"` (or `"""`); count the hashes first
+            hashes = 0
+            while i + hashes < n and line[i + hashes] == "#":
+                hashes += 1
+            if hashes and line.startswith('"', i + hashes):
+                opener_is_multi = line.startswith('"""', i + hashes)
+                opener = "#" * hashes + ('"""' if opener_is_multi else '"')
+                buf.append(opener)
+                i += len(opener)
+                if opener_is_multi:
+                    in_multi, multi_hashes = True, hashes
+                else:
+                    in_str, str_hashes = True, hashes
+                continue
+
+            if line.startswith('"""', i):
+                in_multi, multi_hashes = True, 0
+                buf.append('"""')
+                i += 3
+                continue
+
             if ch == '"':
-                in_str = True
-                buf.append(ch)
+                in_str, str_hashes = True, 0
+                buf.append('"')
                 i += 1
                 continue
-            if ch == "/" and i + 1 < n and line[i + 1] == "/":
+
+            if line.startswith("//", i):
                 buf.append(" " * (n - i))
                 break
-            if ch == "/" and i + 1 < n and line[i + 1] == "*":
+
+            if line.startswith("/*", i):
                 in_block = True
                 buf.append("  ")
                 i += 2
                 continue
+
             buf.append(ch)
             i += 1
+
         out.append("".join(buf))
     return "\n".join(out)
 
@@ -454,11 +542,12 @@ def section_b() -> Section:
     # A guard in `Tests/CISmoke` that scans SOURCE TEXT is only as good as its needle, and a
     # needle that matches nothing passes green forever while the defect it names ships:
     #   · #705 — a "Bio chip" needle blind to the quoted spelling that produced the miss
+    #            (normalised by #706)
     #   · #711 — a token that also matched the two prose comments ABOUT the guard, so the
     #            direction the file names first could not fire
-    #   · #716 — `func pulseClock(` and `func sendClock(`, neither of which has ever existed;
-    #            the real per-pulse handler is `emitPulse()`, so the ONE path that guard was
-    #            written to protect was the one it could not see
+    #   · #716 — `func pulseClock(` and `func sendClock(`, neither of which has ever existed
+    #            (shipped by #715, found by #716); the real per-pulse handler is `emitPulse()`,
+    #            so the ONE path that guard was written to protect was the one it could not see
     # `Tests/CISmoke/CLAUDE.md` states the rule (#367/#408) and it was still missed three
     # times, so the repair is mechanical, not more prose.
     #
@@ -467,35 +556,72 @@ def section_b() -> Section:
     # ("Bio chip", `.disabled(!midiOutMPE)`) is not, and pretending otherwise would produce a
     # finding nobody can act on.
     #
+    # ⛔ SO SAY THE PLAIN THING, because a three-item list reads as three-item coverage: OF THE
+    # THREE FAILURES ABOVE, THIS CHECK WOULD HAVE CAUGHT ONE. #716's needles are
+    # declaration-shaped and are caught. #705's ("Bio chip") and #711's (a bare call token,
+    # `normaliseDoorlessLeadMix()`) are not, and remain uncatchable by construction. The list
+    # is the REASON this exists, not a claim about its reach.
+    #
+    # ⚠️ AND THE REACH IS NARROWER THAN THE SHAPE ALLOWS, measured: 41 of ~640 declaration-ish
+    # needles in the bundle match this regex. It misses `"func X()"` (empty parens, 5),
+    # a leading modifier inside the literal (`"private func X("`, 61), arguments inside the
+    # literal (3), and `var`/`let`/`case`/`init`/`extension`/`typealias` (21). Widening is a
+    # separate slice and must come AFTER the glob repair below — with the old glob it
+    # false-alarmed on `func openAppSettings()` immediately.
+    #
     # ⛔ THE FIRST VERSION MATCHED ITSELF AND CAUGHT NOTHING — the #708 failure, reproduced in
     # the check written to stop that family. It searched a haystack that INCLUDED
     # `Tests/CISmoke`, so `"func pulseClock("` found itself in the very line under test and
     # reported clean. The haystack is therefore built with string literals BLANKED: a real
     # declaration survives, a needle does not. Measured both ways — 0 findings on the correct
     # tree, and both #716 phantoms caught when re-injected.
+    #
+    # ⛔ AND THE SECOND VERSION BLANKED THEM WITH A DIFFERENT, WEAKER IDEA OF WHERE A LITERAL
+    # ENDS (`re.sub(r'"[^"]*"', …)`), which mis-pairs on a backslash-escaped quote — 304 guard
+    # lines carry one, and on those the needle found itself again. Blanking now comes from the
+    # same walk as comment-stripping (`_code_only(..., blank_strings=True)`); see its docstring
+    # for the `"""`-swallows-the-file case found in the same review.
     needle_shape = re.compile(r'"((?:func|struct|enum|class|protocol) [A-Za-z_][A-Za-z0-9_]*\(?)"')
     # A needle used in an ABSENCE assertion names something that must NOT exist. Flagging it is
     # the cry-wolf failure in its purest form. Same-line only, for the reason the path check
     # above learned the hard way: a neighbourhood exemption exempts live things by accident.
     absence = re.compile(r"XCTAssertFalse|XCTAssertNil|\.isEmpty|deleted|no longer|must be ABSENT")
 
+    # ⛔ THE GLOB WAS `Sources/Echoelmusic/**/*.swift` AND DROPPED FOUR LIVE FILES — including
+    # `EchoelmusicApp.swift`, the `@main` entry point. Git's `**/` requires at least one
+    # intervening directory, so the two loose top-level files CLAUDE.md names explicitly
+    # ("plus the two loose top-level files") were invisible, as were the Watch and Widget
+    # targets. Consequence measured: a needle for `func openAppSettings()` — declared only in
+    # `MicrophoneManager.swift` — reported as a phantom. That is the cry-wolf failure this
+    # block's own comment warns against, inside the check that warns about it. `Sources/**`
+    # alone returns all 369; the two other Sources-globs in this file already knew to widen.
     def _declarations_only(paths: list[Path]) -> str:
-        out = []
-        for f in paths:
-            text = _code_only(read(f))
-            out.append("\n".join(re.sub(r'"[^"]*"', '""', line) for line in text.split("\n")))
-        return "\n".join(out)
+        return "\n".join(_code_only(read(f), blank_strings=True) for f in paths)
 
     guards = sorted(tracked("Tests/CISmoke/*.swift"))
     if guards:
-        haystack = _declarations_only(sorted(tracked("Sources/Echoelmusic/**/*.swift")) + guards)
+        haystack = _declarations_only(sorted(tracked("Sources/**/*.swift")) + guards)
         phantoms = []
         for f in guards:
             for i, line in enumerate(_code_only(read(f)).split("\n")):
                 if absence.search(line):
                     continue
                 for m in needle_shape.finditer(line):
-                    if m.group(1) not in haystack:
+                    # A bare needle (`"struct Bio"`) must not resolve by PREFIX against
+                    # `struct BioStripView` — 28 of the needles carry no `(`. All 28 resolve
+                    # exactly today, so this closes a latent false green, not a live one.
+                    #
+                    # ⛔ THE BOUNDARY MUST NOT BE APPLIED TO A NEEDLE THAT ENDS IN `(`. The
+                    # first version appended it unconditionally and produced EIGHT false
+                    # alarms in one run — `func send(` is followed by `_` in
+                    # `func send(_ bytes:)`, and `_` is a word character, so every real
+                    # declaration with an unnamed first argument read as missing. Caught by
+                    # running it; it is exactly the cry-wolf this block warns about.
+                    needle = m.group(1)
+                    pattern = re.escape(needle)
+                    if needle[-1].isalnum() or needle[-1] == "_":
+                        pattern += r"(?![A-Za-z0-9_])"
+                    if not re.search(pattern, haystack):
                         phantoms.append(f"{rel(f)}:{i + 1}  {m.group(1)!r} — declared nowhere")
         if phantoms:
             sec.findings.append(Finding(
