@@ -95,6 +95,15 @@
 //     and contribute no source needles, and claim 7's four moved region-for-region. Measured
 //     rather than assumed, because "my new claims are behavioural so the count is the same"
 //     is precisely the kind of reasoning this paragraph exists to forbid.
+//   · ⭐ RE-MEASURED AGAIN AFTER #743: **TRAGEND (1 of 17)** — claims 11-12 add five needles
+//     and the single flip is unchanged. ⚠️ AND THE FIRST MEASUREMENT SAID **3 of 17**, because
+//     it counted with `contains` while claims 11-12 test an EXACT TRIMMED LINE. As substrings,
+//     `normaliseUnreachableDonutMode()` is 5 raw / 2 stripped and `normaliseDoorlessLeadMix()`
+//     4 / 2 — the neighbouring prose discusses them by name. In the form the claims ACTUALLY
+//     use, a comment line trims to `// …` and never to the bare call, so all three are immune
+//     by construction: 1 raw / 1 stripped each. **Measure a needle in the form its assertion
+//     uses.** Counting substrings for a line-equality claim overstated the flip by two — the
+//     same error class as measuring a whole file for a claim scoped to one member (#741).
 //   · The VERDICT was PROPHYLAKTISCH. Exactly one needle is comment-resident in its own
 //     scanned region: `applyPersistedPreset()` occurs TWICE raw inside `configureEQ`'s body
 //     and ONCE stripped, because #736 itself put a "⚠️ THE THREE GAINS ARE NOT SET HERE ANY
@@ -125,14 +134,11 @@
 //      all four identical gains stayed green while producing exactly the failure claim 7's
 //      message describes. `Preset.gains` is a pure tuple and claims 8 AND 9 compare them
 //      (⛔ #740 wrote "claims 8-10"; claim 10 compares stored TOKENS and never reads a curve).
-//   3. **AN UNPARSEABLE STORED VALUE SPLITS ENGINE FROM CONTROL.** `applyPersistedPreset()`
-//      falls back to `.balanced` in the ENGINE, but nothing normalises the stored key, so
-//      `@AppStorage` would still hold a raw value matching no `.tag(...)` and a SwiftUI
-//      `Picker` with an unmatched selection shows NOTHING selected. Engine plays Balanced,
-//      control reads blank — which contradicts this file's own "a persisted choice and a live
-//      tap cannot disagree". Only reachable after a case RENAME, and claim 2 is the tripwire
-//      for that, so it is a corner. The repair has a precedent in the very same view:
-//      `normaliseUnreachableDonutMode()`.
+//   3. ✅ **CLOSED BY #743** — was: an unparseable stored value split engine from control.
+//      `normaliseUnparseableMasterCharacter()` now rewrites the store at launch, in the same
+//      block and the same shape as `normaliseUnreachableDonutMode()` / `normaliseDoorlessLeadMix()`,
+//      resolving through `Preset.resolved(from:)` so the fallback stays spelled once.
+//      **All three registered items are now closed** — the register is empty, not abandoned.
 
 #if canImport(AVFoundation)
 import XCTest
@@ -390,6 +396,70 @@ final class TheMasterToneHasADoorTests: XCTestCase {
             what a case RENAME produces on an existing install, and `.balanced` is the curve
             retuned 2026-06-23 from an FFT of a real take — the only safe landing.
             """)
+    }
+
+    // MARK: - 11 · REGRESSION: an unparseable stored character is rewritten at launch
+
+    /// ⛔ WITHOUT THIS, THE ENGINE AND THE PICKER DISAGREE AND NOTHING CAN FIX IT. The engine
+    /// falls back to `.balanced` on its own; the store keeps the unparseable token; the
+    /// `@AppStorage`-bound `Picker` finds no matching `.tag(...)` and renders NO selection. The
+    /// operator sees a blank control over a master bus that is doing something — and the only
+    /// control that could repair the store is the blank one.
+    func testTheLaunchPathRewritesAnUnparseableCharacter() throws {
+        let code = try codeOf(Self.studio)
+        // ⛔ THE NEEDLE IS THE CALL, NOT THE NAME, and the first draft was the name. Measured
+        // in the stripped source: `normaliseUnparseableMasterCharacter()` occurs TWICE — the
+        // call at launch and the `private func` declaration — so deleting the CALL and leaving
+        // a now-dead method would have kept the claim green over exactly the broken state it
+        // exists to catch (#367). A call line trims to the bare invocation; a declaration line
+        // starts with `private func`. The same trap sits under both siblings (each also occurs
+        // twice), which is why this is written as a reusable predicate rather than a needle.
+        let calls: [String] = code.components(separatedBy: "\n")
+            .map({ $0.trimmingCharacters(in: .whitespaces) })
+            .filter({ $0 == "normaliseUnparseableMasterCharacter()" })
+        XCTAssertEqual(calls.count, 1, """
+            The launch normalisation is not CALLED exactly once (found \(calls.count)).
+            `normaliseUnreachableDonutMode()` (#227) and `normaliseDoorlessLeadMix()` (#255)
+            are the same shape one store over, and all three exist for one reason: a persisted
+            value whose only door cannot show it. Zero calls means the repair is dead code;
+            more than one means two launch paths write the store and the later one wins
+            silently.
+            """)
+        let fn = try memberBody(startingWith: "private func normaliseUnparseableMasterCharacter",
+                                in: Self.studio).joined(separator: "\n")
+        XCTAssertTrue(fn.contains("AutoMixChain.Preset.resolved(from: .standard)"), """
+            The normalisation no longer resolves through `Preset.resolved(from:)`.
+
+            Writing `.balanced` (or any literal) here would be a SECOND owner of token →
+            character (#416) — the same defect #736 removed from the Picker's `.onChange`, and
+            it would silently stop following the day the canonical fallback changes.
+            """)
+        XCTAssertFalse(fn.contains("applyPersistedPreset()"), """
+            The normalisation now re-applies the preset. It must not: the engine already
+            resolved the same way while building the graph, so the EQ is correct BEFORE this
+            runs. Re-applying makes this a second writer on the audio node for no gain, and
+            two writers on one node is how the launch-order bugs in this file started.
+            """)
+    }
+
+    // MARK: - 12 · COUNTERWEIGHT: the launch block that hosts it is still there
+
+    /// If the whole normalisation block were removed, claim 11's first needle would go red —
+    /// but only because the CALL vanished, which reads as "someone deleted my line". This says
+    /// the SIBLINGS are the reason the block exists, so a red here names the real event: the
+    /// launch-time repair pass itself is gone, and three stores lost their only correction.
+    func testTheNormalisationBlockStillCarriesItsSiblings() throws {
+        let code = try codeOf(Self.studio)
+        for sibling in ["normaliseUnreachableDonutMode()", "normaliseDoorlessLeadMix()"] {
+            let called = code.components(separatedBy: "\n")
+                .contains(where: { $0.trimmingCharacters(in: .whitespaces) == sibling })
+            XCTAssertTrue(called, """
+                `\(sibling)` is gone from the launch block. #743 added a third normalisation
+                on the strength of those two being the established shape; if the pass itself is
+                being retired, this claim and `normaliseUnparseableMasterCharacter()` go with
+                it in the same commit (#456) — do not leave one orphan behind.
+                """)
+        }
     }
 
     // MARK: - 7 · COUNTERWEIGHT: all four curves still exist

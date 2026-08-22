@@ -1242,6 +1242,13 @@ struct EchoelStudioView: View {
             // door to the persisted `mixer.lead`, so a value dialled before its removal would
             // silently attenuate the first lead a future genre produces.
             normaliseDoorlessLeadMix()
+            // #743: same shape again, one failure mode over — a stored master character that
+            // no longer PARSES. The engine falls back to `.balanced` on its own, but nothing
+            // rewrites the store, so the `@AppStorage`-bound Picker holds a raw value matching
+            // no `.tag(...)` and SwiftUI renders no selection at all. Engine plays Balanced,
+            // control reads blank, and the two disagree — which is the one thing #736's
+            // one-owner design exists to prevent.
+            normaliseUnparseableMasterCharacter()
             if !spectralDonuts, !sliderLooks.contains(visualStyle) {
                 visualStyle = sliderLooks.first ?? 3   // → first look (default Water)
                 visualStyleB = 0
@@ -5787,6 +5794,29 @@ struct EchoelStudioView: View {
     private func normaliseDoorlessLeadMix() {
         guard mixer.lead != 1.0 else { return }
         mixer.lead = 1.0
+    }
+
+    /// Rewrite a stored master character that no longer parses, so the Picker and the engine
+    /// cannot disagree (#743, closing the last item #737 registered against #736).
+    ///
+    /// ⚠️ WHEN THIS FIRES: only after a `Preset` case is RENAMED — a rawValue is a persistence
+    /// token, and #736's guard pins the four that ship. So this is a corner, not a live bug,
+    /// and it is written anyway for the same reason `normaliseUnreachableDonutMode()` was: the
+    /// install that hits it has NO control able to undo the state, because the Picker it would
+    /// use is the thing showing nothing.
+    ///
+    /// ⭐ IT RESOLVES THROUGH `Preset.resolved(from:)`, NOT A SECOND `?? .balanced`. That
+    /// method is the one owner of token → character (#740); spelling the fallback again here
+    /// would be a second mapping of one decision (#416) — precisely the shape #736 removed
+    /// from the Picker's `.onChange`. If the fallback ever stops being `.balanced`, this
+    /// follows without being touched.
+    ///
+    /// ⚠️ It does NOT call `applyPersistedPreset()`. The engine already resolved the same way
+    /// at launch, so the EQ is correct before this runs; this only makes the STORE agree with
+    /// it. Re-applying would be a second writer on the audio node for no gain.
+    private func normaliseUnparseableMasterCharacter() {
+        guard AutoMixChain.Preset(rawValue: masterCharacterRaw) == nil else { return }
+        masterCharacterRaw = AutoMixChain.Preset.resolved(from: .standard).rawValue
     }
 
     /// Display name of the look nearest the slider position (no per-stop labels).
