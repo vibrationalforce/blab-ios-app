@@ -99,6 +99,11 @@ def _interpolation_end(line: str, at: int) -> int:
                     # constructible ONE NESTING LEVEL DEEPER — the third repetition of this class,
                     # each time in the shape the previous fix did not reach. Recursing here is the
                     # whole repair, and it changed output on 0 of 711 files × 2 modes.
+                    # ⛔ THE COMMIT THAT ADDED THIS SAID "45 real lines already carry the nested
+                    # shape". That 45 is the SHALLOW shape's count (a literal inside an
+                    # interpolation, the docstring above) — the neighbour's number. Instrumenting
+                    # THIS branch: it is entered on 1 line in `Tests/CISmoke` and 1 in `Sources/`.
+                    # "Latent, not live" was right; the figure attached to it was not.
                     if i + 1 < n and line[i + 1] == "(":
                         i = _interpolation_end(line, i + 1)
                         continue
@@ -131,7 +136,10 @@ def _code_only(text: str, blank_strings: bool = False) -> str:
     find itself (#708). ⛔ Both passes come from THIS ONE WALK on purpose. The first version
     did the second pass with `re.sub(r'"[^"]*"', '""', line)`, a second and weaker idea of
     where a literal ends — it mis-pairs on a backslash-escaped quote, so the needle text could
-    emerge unblanked and find itself. Two definitions of "where a string starts" is the #416
+    emerge unblanked and find itself. (⛔ "304 guard lines carry one" stood here and is WITHDRAWN,
+    not corrected: today the raw bundle gives 321 and this walk gives 315, no command was recorded
+    beside it, and it survived two audits that withdrew three other un-sourced numbers for exactly
+    this. `grep -c` the escaped quote yourself if the figure matters.) Two definitions of "where a string starts" is the #416
     shape; there is now one. ⚠️ THAT ONE WAS LATENT, NOT LIVE: measured over the real guard
     bundle, ZERO needles survived the old blanking. The repro needs an escaped quote BEFORE
     the needle on the same line (`contains("a \" b"), "func phantomX("`). The commit that
@@ -679,8 +687,11 @@ def section_b() -> Section:
     #     + an empty `()`                    46 / 43 / 0
     #     + a leading modifier IN the literal 130 / 127 / 0
     #     + text after the name (arguments)  266 / 261 / 0   <- shipped
-    # So the reach is 6.4× the first shape with no new finding on a correct tree. The last step
-    # is the one that matters most: `"func occurrencePeriod(forUnit"` is exactly the kind of
+    # So the reach is 6.5× matched (266/41) with no new finding on a correct tree. ⛔ "6.4×" stood
+    # here and was a CROSS-COLUMN ratio — 261 scanned over 41 matched, the two denominators this
+    # file says elsewhere "differ". Scanned-over-scanned is 6.9× (261/38). The table is the honest
+    # form; the multiplier is a convenience. The last step is the one that matters most:
+    # `"func occurrencePeriod(forUnit"` is exactly the kind of
     # needle that goes stale when a signature is edited, and it was invisible before.
     #
     # ⚠️ AND WIDENING CHANGES WHAT A FINDING MEANS, which is the honest part. With arguments in
@@ -688,11 +699,31 @@ def section_b() -> Section:
     # invented" — but that is still a guard scanning for text that is not there, i.e. still the
     # #367 defect. It is not a false alarm; it is a weaker true one.
     #
-    # ⛔ `var`/`let`/`case`/`init`/`extension`/`typealias` ARE DELIBERATELY EXCLUDED, and this is
-    # measured, not assumed: that bucket matches 231 literals and leaves 16 unresolved, every one
-    # a prose fragment rather than a needle (`'init param'`, `'var peerBio'`, `'let site = '`,
-    # `'case sound   // \\'`). Including it would be the cry-wolf failure this file warns about
-    # twice. The forecast came from the #721 review and the measurement upheld it.
+    # ⚠️ ONE SUB-CASE WHERE THE EVIDENCE STRING ITSELF IS MISLEADING: 341 of 2,744 `func`
+    # declarations in `Sources/` (12.4 %) WRAP their signature across lines, and the haystack is
+    # joined per line, so a needle carrying arguments cannot match one. The finding would print
+    # "declared nowhere" about a declaration that is declared — on two lines. The diagnosis (this
+    # guard scans for text that is not there) stays right; the wording would be wrong on its face.
+    # 116 of the 261 scanned needles carry text after `(`, so this is live-adjacent rather than
+    # theoretical. Left as a known limit instead of a per-line join, which would cost the
+    # file:line the finding is useful for.
+    #
+    # ⛔ `var`/`let`/`case`/`init`/`extension`/`typealias` ARE DELIBERATELY EXCLUDED. The DECISION
+    # is right and the reason first written for it was wrong, which matters because the reason is
+    # what a later session would act on. That bucket matches 231 literals and leaves 16
+    # unresolved — and they are NOT "prose fragments":
+    #   · EIGHT name declarations that DO exist, unresolvable only because the needle carries an
+    #     escape, an interpolation or a regex metacharacter — `'var voiceTuneStrength: Float = 1\n'`
+    #     against `AudioEngine.swift`, `'static let recording = \(red)'` against `EchoelTheme.swift`,
+    #     `'private let handleHeight: CGFloat = (\d+)'` against `FloatingVisualWindow.swift`.
+    #   · THREE are genuine ABSENCE needles written in an idiom the `absence` regex below does not
+    #     recognise (`occurrences(of:…), 0` · `count(…), 0` · a `for dead in [...]` list).
+    #   · Only the remaining ~5 are prose or in-test fixtures.
+    # So the blocker is escape/metachar needles plus a gap in the absence idiom, NOT prose — and
+    # "tighten the shape against prose" would have been the wrong repair. Written out because the
+    # first version was a forecast that the measurement then contradicted while the CONCLUSION
+    # happened to survive; a right answer with a wrong reason is the booby-trap shape this repo
+    # names in its own ledger.
     #
     # ⚠️ THREE NUMBERS FROM THE FIRST VERSION ARE WITHDRAWN, NOT CORRECTED: "~640" landed between
     # 558 and 683 depending on what counts as declaration-ish, "61" (leading modifier) re-derived
@@ -711,7 +742,14 @@ def section_b() -> Section:
     # lines carry one, and on those the needle found itself again. Blanking now comes from the
     # same walk as comment-stripping (`_code_only(..., blank_strings=True)`); see its docstring
     # for the `"""`-swallows-the-file case found in the same review.
-    _decl_modifier = (r"(?:(?:@\w+|private|fileprivate|internal|public|open|static|final|class"
+    # ⛔ `@\w+` STOOD IN THIS CHAIN AND WAS A PURE FALSE-ALARM GENERATOR. In `Sources/` 1,557
+    # lines carry an attribute and only 13 put it on the same line as the declaration keyword
+    # (99.2 % on their own line); the haystack is joined per line, so `"@MainActor func x("` is
+    # unresolvable BY CONSTRUCTION against essentially the whole tree. Live needles starting with
+    # `@`: 0. The other alternatives cost nothing (only `private` 126, `public` 43, `static` 15
+    # and `nonisolated` 1 actually head a live needle) — an unmatchable branch is not the same as
+    # an unused one.
+    _decl_modifier = (r"(?:(?:private|fileprivate|internal|public|open|static|final|class"
                       r"|override|mutating|nonisolated|indirect|convenience|required)\s+)*")
     needle_shape = re.compile(r'"(' + _decl_modifier
                               + r'(?:func|struct|enum|class|protocol) [A-Za-z_][A-Za-z0-9_]*[^"]*)"')
@@ -752,10 +790,19 @@ def section_b() -> Section:
                     continue
                 for m in needle_shape.finditer(line):
                     # A bare needle (`"struct Bio"`) must not resolve by PREFIX against
-                    # `struct BioStripView` — 28 of the 38 needles that are actually SCANNED
-                    # carry no `(` (31 of the 41 matched; all 3 absence-exempt ones are
-                    # paren-less, so the two denominators differ). All 28 resolve exactly
-                    # today, so this closes a latent false green, not a live one.
+                    # `struct BioStripView`. The condition below is the one that matters —
+                    # does the needle END in a word character — and it applies to 110 of the
+                    # 261 SCANNED needles (115 of 266 matched). All resolve exactly today, so
+                    # this closes a latent false green, not a live one.
+                    #
+                    # ⛔ THESE FOUR FIGURES READ "28 of 38 … 31 of 41 … all 3 exempt are
+                    # paren-less" UNTIL #723, i.e. they described the pre-#722 shape from
+                    # inside the loop #722 widened — and the last clause had become FALSE
+                    # (5 exempt now, and one of them, `func occurrencePeriod(forUnit`, carries
+                    # a paren). The same commit that withdrew three un-re-derivable numbers
+                    # elsewhere left the numbers inside its own loop unmeasured. Re-derive by
+                    # running `needle_shape` over `_code_only(read(f))` across
+                    # `Tests/CISmoke/*.swift` and testing `n[-1].isalnum() or n[-1] == "_"`.
                     #
                     # ⛔ THE BOUNDARY MUST NOT BE APPLIED TO A NEEDLE THAT ENDS IN `(`. The
                     # first version appended it unconditionally and produced EIGHT false
@@ -764,6 +811,17 @@ def section_b() -> Section:
                     # declaration with an unnamed first argument read as missing. Caught by
                     # running it; it is exactly the cry-wolf this block warns about.
                     needle = m.group(1)
+                    # ⚠️ A NEEDLE CARRYING A BACKSLASH CANNOT BE COMPARED WITH SOURCE TEXT, so it
+                    # is skipped rather than reported. `[^"]*` stops at ANY quote including an
+                    # escaped one, so `contains("say \\"func ghost(\\" now")` captures
+                    # `func ghost(\\` — a needle that can never resolve, i.e. a permanent false
+                    # alarm. And a Swift literal's RAW text is not its RUNTIME text: `\\n` and
+                    # `\\(x)` never appear in the declaration being searched for. Live count in
+                    # this bucket: 0 — but FIVE of the sixteen unresolved in the EXCLUDED bucket
+                    # above are exactly this shape, so the evidence for this hazard was already in
+                    # the run and had been filed under the wrong reason (#723).
+                    if "\\" in needle:
+                        continue
                     pattern = re.escape(needle)
                     if needle[-1].isalnum() or needle[-1] == "_":
                         pattern += r"(?![A-Za-z0-9_])"

@@ -11022,16 +11022,23 @@ ihm BEIGEBRACHT wurde, keine Grammatik, die er ableitet").
 - ~~**Nadel-Form erweitern**~~ — **mit #722 GEBAUT.** Die Sperre (erst die Glob-Reparatur) war
   mit #718/#719 gefallen. Gemessen, kumulativ: Schlüsselwort+Name **41/38/0** → leere Klammern
   **46/43/0** → Modifier IM Literal **130/127/0** → Text nach dem Namen **266/261/0**. Also
-  **6,4-fache Reichweite, null neue Befunde** auf sauberem Baum. Der letzte Schritt zählt am
-  meisten: `"func occurrencePeriod(forUnit"` ist genau die Nadel, die beim Ändern einer Signatur
-  veraltet — und war vorher unsichtbar.
-  Nicht erfasst: `"func X()"` (leere Klammern, 5) · führende Modifier im Literal
-  (`"private func X("`, 61) · Argumente im Literal (3) · `var`/`let`/`case`/`init`/
-  `extension`/`typealias` — **bewusst AUSGESCHLOSSEN, und das ist gemessen statt vermutet:**
-  dieser Eimer trifft 231 Literale und lässt **16 ungelöst**, jedes davon ein Prosa-Fragment und
-  keine Nadel (`'init param'`, `'var peerBio'`, `'let site = '`). Die Prognose des #721-Reviews
-  hat die Messung bestätigt. ⚠️ **Die Zahlen „~640", „61" und „3" sind ZURÜCKGEZOGEN, nicht
-  korrigiert** — ohne mitgeschriebene Definition ergeben sie 558–683, 57 und 14.
+  **6,5-fache Reichweite (266/41), null neue Befunde** auf sauberem Baum. ⛔ „6,4-fach" stand
+  hier und war ein SPALTEN-ÜBERGREIFENDES Verhältnis (261 geprüft / 41 getroffen); geprüft zu
+  geprüft sind 6,9-fach. Der letzte Schritt zählt am meisten: `"func occurrencePeriod(forUnit"`
+  ist genau die Nadel, die beim Ändern einer Signatur veraltet — und war vorher unsichtbar.
+  ⛔ **Hier folgte eine Liste „Nicht erfasst" mit VIER Einträgen — drei davon hat #722 gerade
+  GEBAUT** (leere Klammern · Modifier im Literal · Argumente im Literal), und sie druckte im
+  selben Atemzug die Zahlen „61" und „3", die vier Zeilen tiefer als zurückgezogen erklärt
+  wurden. Zwei Widersprüche in einem Absatz. Nicht erfasst ist heute nur noch:
+  `var`/`let`/`case`/`init`/`extension`/`typealias` — **bewusst AUSGESCHLOSSEN.**
+  ⛔ **Und die BEGRÜNDUNG dafür war falsch, obwohl der Schluss stimmt** (#723): dieser Eimer
+  trifft 231 Literale und lässt 16 ungelöst — **acht** davon benennen Deklarationen, die es
+  WIRKLICH gibt (unlösbar nur, weil die Nadel ein Escape, eine Interpolation oder ein
+  Regex-Sonderzeichen trägt), **drei** sind echte Abwesenheits-Nadeln in einer Schreibweise,
+  die die Ausnahme-Regel nicht kennt, und nur ~5 sind Prosa. Der Blocker ist also NICHT Prosa
+  — „Form gegen Prosa verengen" wäre die falsche Reparatur gewesen. ⚠️ **Die Zahlen „~640",
+  „61" und „3" sind ZURÜCKGEZOGEN, nicht korrigiert** — ohne mitgeschriebene Definition
+  ergeben sie 558–683, 57 und 14.
 - `XCTAssertFalse(...isEmpty)` aus der Abwesenheits-Ausnahme nehmen (0 lebende Fälle heute).
 - `emit` aus der Zeilenschleife heben (gemessen 0 Verhaltensunterschied, ~4 % schneller).
 
