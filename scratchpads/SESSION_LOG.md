@@ -12517,3 +12517,48 @@ Verzeichnis, nicht getippt (#769) · (2) jeder Pfad hat eine Datei (Pages-Auflö
 `docs/CNAME`, sonst prüfen 2 und 3 Pfade gegen den falschen Baum.
 
 **Benotung: ZERO REGRESSIONS, korrekt** — die Scheibe ändert keine Seite und keine URL.
+
+### #773 — der Verify-Rückstand konnte nur WACHSEN (2026-08-23)
+
+**Befund, und das Werkzeug hatte ihn selbst aufgeschrieben.** `founder-verify.py` druckte
+unter LIMITS: *„It CANNOT tell an answered ask from an open one … The repair is a convention
+(e.g. `VERIFIED-<date>` on the same line), not a smarter parser."* Also: 50 Bitten in 48
+Dateien, und keine Möglichkeit, eine davon je abzuhaken. Jede Gerätesitzung hätte damit
+begonnen, erledigte Aufträge erneut zu lesen — bei der knappsten Ressource des Projekts.
+Das ist die #772-Lehre in ihrer reinsten Form: **eine deklarierte Grenze ist ein offener
+Auftrag, kein Freibrief.**
+
+**Gebaut.** Konvention `VERIFIED-JJJJ-MM-TT` auf DERSELBEN Zeile wie der Marker (die Zeile,
+auf die das Werkzeug ohnehin schlüsselt; eine Marke eine Zeile tiefer wäre mehrdeutig, sobald
+zwei Bitten nebeneinander stehen). Markierte Bitten wandern in einen ANSWERED-Abschnitt,
+werden aber **nie gelöscht** — das Datum ist die Antwort auf „wann zuletzt bestätigt", die
+erste Frage bei einer Regression. Dazu ein „HOW TO RETIRE AN ASK"-Block in der Ausgabe, damit
+die Konvention dort steht, wo der Founder sie liest.
+
+⭐ **Die #753-Falle KOMMEN SEHEN statt bezahlen.** `VERIFIED-<date>` ist die Schreibweise, in
+der man ÜBER die Konvention schreibt — sie steht dreimal in dieser Datei, davon einmal in dem
+Text, den das Werkzeug selbst druckt. Ein Parser auf das nackte Präfix hätte seine eigene
+Dokumentation als Antwort gelesen und Bitten stillgelegt, die niemand ausgeführt hat. Die
+Nadel verlangt deshalb ein ECHTES Datum (`\d{4}-\d{2}-\d{2}`).
+
+⭐ **Und sie versagt Richtung LÄRM**, genau wie die Determiner-Regel daneben: eine halb
+getippte Marke lässt die Bitte OFFEN. Eine erledigte Bitte anzuzeigen kostet einen Blick, eine
+offene zu verstecken kostet eine Gerätesitzung — das sind nicht dieselben Fehler.
+
+**End-to-End gefahren, nicht vorhergesagt** (die #772-Lehre): eine echte Bitte markiert →
+49 offen / 1 beantwortet, mit Datum und Bereich gelistet · Marke zu `VERIFIED-2026` verstümmelt
+→ wieder 50 offen · Datei byte-identisch zurückgestellt (`git status` leer).
+
+**Selftest um zwei Prüfungen erweitert** — die REGEL (fünf Zeichenketten, davon eine wörtlich
+aus der eigenen LIMITS-Ausgabe) und die VERDRAHTUNG (#739: Regel 7 bliebe grün, wenn
+`collect()` `verified_on` nie riefe; Prüfung 8 läuft über den echten Baum und behauptet die
+EIGENSCHAFT statt einer Zahl).
+
+⚠️ **Heute trägt KEINE Bitte die Marke, und das ist ehrlich statt enttäuschend** — ich kann
+nicht wissen, welche der Founder schon erledigt hat, und Raten würde echte Aufträge stilllegen.
+
+⚠️ **Grenze:** `scripts/**` löst KEINEN Workflow aus (#720), der Selftest läuft also nie
+automatisch. Er ist Handarbeit vor dem Commit, wie bei `doctor.py` und `gh-test-verdict.py`.
+
+**Prosa mitgezogen (#456):** `CLAUDE.md` behauptete „Es weiß NICHT, welche schon beantwortet
+sind (es gibt keine ‚erledigt'-Konvention)" — mit diesem Commit falsch.

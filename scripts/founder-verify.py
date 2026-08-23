@@ -21,9 +21,35 @@ the next run reported 54 asks instead of 53. The 54th was the sentence describin
 tool. Four such lines exist: two in CLAUDE.md, two in guard headers that talk ABOUT the
 backlog. They are not asks; nobody can perform them. See is_reference().
 
-WHAT IT IS NOT. It does not decide anything and it cannot tell an ANSWERED ask from an
-open one — see LIMITS. It turns scattered prose into a list you can walk with a phone
-in your hand.
+WHAT IT IS NOT. It does not decide anything. It turns scattered prose into a list you
+can walk with a phone in your hand.
+
+⭐ ANSWERED ASKS (#773). Until now the queue could only GROW: nothing in the tree said
+"the founder did this one", so a settled ask stayed listed forever and every device
+session started by re-reading jobs that were already done. The tool named its own repair
+in its LIMITS — "a convention, not a smarter parser" — and this is that convention:
+
+    // NEEDS-FOUNDER-VERIFY VERIFIED-2026-08-23: lock while stopped, listen to the ease.
+
+The mark goes on the SAME LINE as the marker, because that is the line this tool already
+keys on; a mark one line below would be ambiguous the moment two asks sit adjacent. A
+marked ask leaves the open queue and is counted under ANSWERED — never deleted, because
+deleting it also deletes the DATE, and "when was this last confirmed" is the question a
+regression makes you ask.
+
+⛔ IT MUST MATCH A REAL DATE, NOT THE WORD, and that is the #753 trap seen coming instead
+of paid for. `VERIFIED-<date>` is how one WRITES ABOUT the convention — it appears twice
+in this very file and once in the LIMITS text the tool prints. A parser keying on the
+bare prefix would read its own documentation as an answer and silently retire an ask
+nobody performed. The needle is therefore `VERIFIED-` followed by `\d{4}-\d{2}-\d{2}`.
+
+⭐ AND IT FAILS TOWARD NOISE, exactly like the determiner rule below. A malformed or
+half-typed mark leaves the ask OPEN. Showing a settled ask costs the founder a glance;
+hiding an open one costs a device session, and those are not the same mistake.
+
+⚠️ ZERO ASKS CARRY THE MARK TODAY, and that is honest rather than disappointing: I cannot
+know which ones the founder has already done, and guessing would retire real jobs. The
+feature ships with ANSWERED at 0 and fills up as he walks the list.
 
     python3 scripts/founder-verify.py             # counts per area + one line each
     python3 scripts/founder-verify.py --all       # the full instruction for every ask
@@ -90,6 +116,21 @@ AREAS = [
 DETERMINERS = {"the", "a", "this", "der", "dem", "den", "die", "das",
                "jeden", "jede", "jedes", "einen", "eine", "einem"}
 
+# See the ANSWERED paragraph in the module docstring. The date is REQUIRED: the bare
+# prefix is how the convention is written ABOUT, including three times in this file, so a
+# prefix-only needle would retire asks by reading documentation (#753, one layer over).
+VERIFIED = re.compile(r"VERIFIED-(\d{4}-\d{2}-\d{2})")
+
+
+def verified_on(line: str):
+    """The ISO date a founder confirmed this ask, or None while it is open.
+
+    Malformed marks return None on purpose — an unreadable mark leaves the ask in the
+    queue, which is the direction that costs a glance instead of a device session.
+    """
+    m = VERIFIED.search(line)
+    return m.group(1) if m else None
+
 
 def is_reference(line: str, at: int):
     """The determiner in front of the marker, or None when this line is an ask.
@@ -133,7 +174,7 @@ def comment_body(lines, i):
 
 
 def collect():
-    found, refs = [], []
+    found, refs, done = [], [], []
     for root in ROOTS:
         paths = [root] if os.path.isfile(root) else [
             os.path.join(d, f)
@@ -151,9 +192,13 @@ def collect():
                 det = is_reference(line, line.index(MARKER))
                 if det:
                     refs.append((p, i + 1, det))
+                    continue
+                when = verified_on(line)
+                if when:
+                    done.append((area_of(p), p, i + 1, when))
                 else:
                     found.append((area_of(p), p, i + 1, comment_body(lines, i)))
-    return found, refs
+    return found, refs, done
 
 
 def selftest() -> int:
@@ -231,7 +276,7 @@ def selftest() -> int:
     #    passed all five while the header went back to counting 54. This walks the real
     #    tree and asserts the PROPERTY instead of a number: nothing in the ask list may
     #    have a determiner in front of it. It survives the tree changing; a count would not.
-    asks, references = collect()
+    asks, references, _answered = collect()
     for _, path, line_no, _ in asks:
         try:
             raw = open(path, encoding="utf-8").read().split("\n")[line_no - 1]
@@ -242,6 +287,36 @@ def selftest() -> int:
             bad.append(f"a noun-use stayed in the ask list: {path}:{line_no} (after {det!r})")
     if not references:
         bad.append("no references found at all — the split is wired out or the tree moved")
+
+    # 7. THE ANSWERED RULE (#773). A real date retires an ask; the way the convention is
+    #    WRITTEN ABOUT must not. The third string is transcribed from this file's own
+    #    LIMITS output — the exact sentence that would have retired asks by documentation.
+    for line, want in [
+        ("// NEEDS-FOUNDER-VERIFY VERIFIED-2026-08-23: lock while stopped", "2026-08-23"),
+        ("// NEEDS-FOUNDER-VERIFY: tap the thing", None),
+        ("a convention (e.g. VERIFIED-<date> on the same line), not a smarter parser", None),
+        ("// NEEDS-FOUNDER-VERIFY VERIFIED-2026: half-typed, stays open", None),
+        ("// NEEDS-FOUNDER-VERIFY VERIFIED: no date at all, stays open", None),
+    ]:
+        got = verified_on(line)
+        if got != want:
+            bad.append(f"verified_on({line[:44]!r}) = {got!r}, expected {want!r}")
+
+    # 8. THE WIRING for it, the check 6 lesson repeated deliberately (#739): rule 7 passes
+    #    even if collect() never calls verified_on. Assert the PROPERTY over the real tree —
+    #    no line in the OPEN queue may carry a date, and no line in ANSWERED may lack one.
+    #    A count would go stale the first time the founder marks something; this does not.
+    open_asks, _, answered = collect()
+    for _, path, line_no, _ in open_asks:
+        try:
+            raw = open(path, encoding="utf-8").read().split("\n")[line_no - 1]
+        except OSError:
+            continue
+        if verified_on(raw):
+            bad.append(f"an answered ask stayed in the open queue: {path}:{line_no}")
+    for _, path, line_no, when in answered:
+        if not when:
+            bad.append(f"an ask reached ANSWERED with no date: {path}:{line_no}")
 
     for line in bad:
         print("FAIL:", line)
@@ -262,7 +337,7 @@ def main() -> int:
             print("--area needs a name (bio audio visual sync ui other)")
             return 2
 
-    found, refs = collect()
+    found, refs, done = collect()
     if not found:
         print("No NEEDS-FOUNDER-VERIFY markers found — that is either a clean backlog "
               "or a broken walk. Check that Sources/ and Tests/ are present.")
@@ -272,8 +347,9 @@ def main() -> int:
     for area, p, n, body in found:
         by_area.setdefault(area, []).append((p, n, body))
 
-    print(f"Founder device-session checklist — {len(found)} asks in "
-          f"{len({p for _, p, _, _ in found})} files\n")
+    answered_note = f", {len(done)} answered" if done else ", none answered yet"
+    print(f"Founder device-session checklist — {len(found)} OPEN asks in "
+          f"{len({p for _, p, _, _ in found})} files{answered_note}\n")
     for area in sorted(by_area, key=lambda a: -len(by_area[a])):
         items = by_area[area]
         if only and area != only:
@@ -294,11 +370,26 @@ def main() -> int:
             print(f"   {short}:{n_}   (\"{det}\" in front of it — prose about the backlog)")
         print()
 
+    if done:
+        print(f"── ANSWERED ({len(done)}) — confirmed on a device, kept for the date")
+        for area, p_, n_, when in sorted(done, key=lambda r: r[3], reverse=True):
+            short = p_.replace("Sources/Echoelmusic/", "").replace("Tests/CISmoke/", "CISmoke/")
+            print(f"   {when}  {area:7} {short}:{n_}")
+        print()
+
+    print("── HOW TO RETIRE AN ASK once you have done it on a device")
+    print("   Put the date on the SAME line as the marker, then commit:")
+    print("     // NEEDS-FOUNDER-VERIFY VERIFIED-YYYY-MM-DD: <the original instruction>")
+    print("   Keep the instruction. The line stays as the record of WHAT was confirmed and")
+    print("     WHEN — deleting it also deletes the date, which is the first thing you want")
+    print("     back when the behaviour regresses.\n")
+
     print("── LIMITS (read before treating this as a work queue)")
-    print("   It CANNOT tell an answered ask from an open one. There is no 'verified' "
-          "convention in\n     the tree, so an ask stays listed after the founder has "
-          "done it. The repair is a\n     convention (e.g. VERIFIED-<date> on the same "
-          "line), not a smarter parser.")
+    print("   ANSWERED depends on somebody writing the mark. An ask you did on a device but\n"
+          "     never marked stays in the open list — the tool reads the tree, not your\n"
+          "     memory. It fails toward noise on purpose: a half-typed mark leaves the ask\n"
+          "     OPEN, because showing a settled ask costs a glance and hiding an open one\n"
+          "     costs a device session.")
     print("   The AREA is derived from the file path, never from the words. A layout ask "
           "living in a\n     bio file lands under 'bio'. Order the walk yourself; this "
           "only makes the queue visible.")
