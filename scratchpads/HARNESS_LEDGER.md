@@ -1854,3 +1854,29 @@ mitschreiben.
 („FORWARD — unfalsifiable on the parent") statt gemessen.** Gemessen ist er ein REGRESSION CATCH:
 beide Zusicherungen sind auf dem Eltern-Baum rot. Untertreiben ist die bescheidene Richtung von
 #464 und trotzdem eine falsche Behauptung über den eigenen Wächter.
+
+## DEAD-END — Eine Zahl auffrischen, die in einer immer-geladenen Datei steht (#764)
+
+`.claude/rules/context.md` §1 hatte schon einmal eine Byte-Tabelle GELÖSCHT statt aufgefrischt,
+mit der Begründung „a table of bytes in an always-loaded file is a date, not a fact". Der Absatz
+DANEBEN trug trotzdem vier Byte-Zahlen weiter — und alle vier waren veraltet, eine um 325 %.
+
+**Die Regel war geschrieben; der Nachbar-Absatz wurde nie daran gehalten.** Wer die Zahlen
+aufgefrischt hätte, hätte die Falle nachgebaut.
+
+**STATT DESSEN:** die DAUERHAFTE Behauptung behalten (hier: „einstelliger Prozentsatz"), die
+Zahl in ein Werkzeug legen, das sie bei jedem Lauf neu misst, und im Werkzeug sagen, was es
+NICHT liest.
+
+**Erkennungszeichen:** eine Datei, die eine Zahl-Disziplin VERFÜGT, ist der wahrscheinlichste
+Ort für einen Verstoß dagegen — niemand prüft die Regel gegen ihren eigenen Text.
+
+## PLAYBOOK — Wenn die Rücknahme die verbotene Nadel zitiert, gibt es keinen Wächter (#764)
+
+Ein Nadel-Verbot auf eine gestrichene Falschangabe ist auf dem KORREKTEN Baum rot, sobald die
+ehrliche Rücknahme die Angabe zitiert — und das tut sie fast immer, weil sonst niemand
+nachvollziehen kann, was zurückgenommen wurde (#491).
+
+**Regel: erst prüfen, ob die eigene Rücknahme die Nadel enthält.** Wenn ja, den Posten als
+OFFEN registrieren und den Grund hinschreiben, statt einen Scan zu bauen, der nicht fehlschlagen
+kann oder auf korrektem Baum rot ist. Die messbare Hälfte gehört stattdessen in ein Skript.

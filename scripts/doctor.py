@@ -1123,6 +1123,54 @@ def section_d() -> Section:
         "Under the ceiling. This number only moves in the wrong direction by accretion, so it is "
         "worth re-reading whenever a cycle adds a paragraph to CLAUDE.md rather than to a ledger."))
 
+    # --- what the SessionStart hook reads, measured rather than recited ------------------------
+    #
+    # ⛔ #764: `.claude/rules/context.md` argued for its two hook caps with FOUR literal byte
+    # figures, and all four had gone stale — in the file whose own §2 says *measure; do not
+    # recite* and whose §1 had already deleted a byte table for exactly this. They were stale in
+    # the DANGEROUS direction: each understated the cost the caps prevent (its 191,875 B for an
+    # uncapped `cat memory/*.md` predates `LEDGER_COUNTS.md` moving into that directory, which
+    # alone is bigger than that whole figure), so the sentence defending the caps made them look
+    # optional. The numbers were deleted rather than refreshed; this is where they are re-derived.
+    #
+    # ⚠️ THIS DOES NOT PARSE `.claude/settings.json`. It re-implements the hook's slice from the
+    # same literals the hook uses, so a change to the hook that this list does not follow makes
+    # the ratio WRONG WITHOUT SAYING SO. It is a magnitude check, not a contract: the durable
+    # claim is "single-digit percentage", and only a number that leaves that range is news.
+    #
+    # ⚠️ It is also APPROXIMATE by a few hundred bytes: the hook `cat`s whole files and prints
+    # banners between them, this joins sliced line lists, so the two disagree on newline
+    # boundaries (measured 88,631 here against 88,811 from the shell pipeline — 0.009 %). Stated
+    # rather than chased, because a magnitude check that pretends to be exact invites someone to
+    # quote it as one.
+    small = ["people", "user", "vision", "project_knowledge", "preferences"]
+    def size(p: pathlib.Path) -> int:
+        return p.stat().st_size if p.exists() else 0
+    def head_tail(p: pathlib.Path, head: int, tail: int) -> int:
+        if not p.exists():
+            return 0
+        lines = read(p).split("\n")
+        keep = lines[:head] + (lines[-tail:] if tail else [])
+        return len("\n".join(keep).encode())
+    capped = sum(size(ROOT / f"memory/{n}.md") for n in small)
+    capped += head_tail(ROOT / "memory/decisions.md", 0, 400)
+    capped += head_tail(ROOT / "memory/inspiration_intake.md", 60, 120)
+    capped += head_tail(ROOT / "scratchpads/SESSION_LOG.md", 80, 0)
+    uncapped = sum(size(f) for f in sorted((ROOT / "memory").glob("*.md")))
+    uncapped += size(ROOT / "scratchpads/SESSION_LOG.md")
+    pct = (capped / uncapped * 100) if uncapped else 0.0
+    sec.findings.append(Finding(
+        WARN if pct >= 10 else INFO,
+        f"SessionStart hook reads {capped:,} B of a possible {uncapped:,} B ({pct:.1f} %)",
+        [f"{uncapped - capped:>9,} B  kept off the bill by the two caps",
+         f"{size(ROOT / 'memory/LEDGER_COUNTS.md'):>9,} B  memory/LEDGER_COUNTS.md — "
+         f"in memory/ and deliberately NOT in the hook's cat list"],
+        "The two caps have stopped paying. Re-read `.claude/rules/context.md` §1 before widening "
+        "any slice — this is the number that argues for them."
+        if pct >= 10 else
+        "Single digits is the durable claim `.claude/rules/context.md` §1 makes; the literal "
+        "bytes are a date, so they live here and not in an always-loaded file (#764)."))
+
     # --- a routing line that does not resolve is worse than no routing line ---------------------
     #
     # CLAUDE.md deliberately narrates DELETED source files ("`PianoRollView.swift` IST GELÖSCHT"),

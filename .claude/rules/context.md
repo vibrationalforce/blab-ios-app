@@ -48,11 +48,20 @@ the 3 Hz flash ceiling, the OSC address set) is the small share that gets summar
 first. **Do not grow the always-loaded set.** Adding a line to an accreting ledger is cheap
 for you and charged to every future session.
 
-**Two caps hold this line. Do not remove either.** `sed -n '1,80p'` on `SESSION_LOG.md` keeps
-778,917 B off the bill. `cat memory/*.md` was uncapped at 191,875 B (`decisions.md` alone
-112,829, `inspiration_intake.md` 44,665) and is now sliced: five small files whole,
-`decisions.md` tail-400, `inspiration_intake.md` head-60 (the funnel + the gate) plus
-tail-120. Each slice prints what it withheld and the command to read the whole file.
+**Two caps hold this line. Do not remove either.** `sed -n '1,80p'` on `SESSION_LOG.md` and a
+slice of `memory/`: five small files whole, `decisions.md` tail-400, `inspiration_intake.md`
+head-60 (the funnel + the gate) plus tail-120. Each slice prints what it withheld and the
+command to read the whole file.
+
+⛔ **FOUR BYTE FIGURES STOOD HERE AND ALL FOUR WERE STALE (#764) — in the file whose §2 says
+*measure; do not recite* and whose §1 deleted a byte table for exactly this.** They ran in the
+dangerous direction: each UNDERSTATED what the caps prevent (the quoted 191,875 B for an
+uncapped `cat memory/*.md` predates `LEDGER_COUNTS.md` moving into that directory, which alone
+is bigger than that whole figure), so the sentence arguing for the caps made them look optional.
+Deleted, not refreshed. Re-derive both sides with `wc -c` — pipe the hook's own `cat`/`tail`/
+`head`/`sed` list from `.claude/settings.json` into it, and the uncapped equivalent beside it.
+The DURABLE fact: the hook reads a **single-digit percentage** of the uncapped cost, and the gap
+widens every time a ledger grows. Removing a cap does not add a little — it multiplies.
 
 ⚠️ The `decisions.md` slice is a **heuristic, not a guarantee**, and the banner says so:
 that file is **not** in date order. The tail wins only because the newest entry happens to sit

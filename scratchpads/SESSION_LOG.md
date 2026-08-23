@@ -12093,3 +12093,58 @@ untertreibt, was die Datei beweist. Korrigiert zu **REGRESSION CATCH**, mit dem 
 **GATES:** Dieser Commit berührt `Tests/CISmoke/**` → **beide echten Gates laufen** (die
 `paths:`-Filter matchen einen PFAD, keine Endung — `Tests/CISmoke/CLAUDE.md` startet einen vollen
 `build-for-testing`). Erstes Mal seit #759, dass ein Zyklus überhaupt ein Gate auslöst.
+
+## #764 — Vier veraltete Byte-Zahlen in der Datei, die „measure; do not recite" verfügt (2026-08-23)
+
+**Befund in einem Satz:** `.claude/rules/context.md` §1 begründete seine zwei Hook-Deckel mit
+**vier wörtlichen Byte-Zahlen**, und **alle vier waren veraltet** — in der Datei, deren eigener §2
+*„Measure; do not recite, estimate, or remember"* heißt und deren §1 aus genau diesem Grund schon
+eine Byte-Tabelle **gelöscht** hatte („a table of bytes in an always-loaded file is a date, not a
+fact, and nothing re-derives it").
+
+| behauptet | gemessen 2026-08-23 | Abweichung |
+|---|---|---|
+| `SESSION_LOG.md` 778.917 B | **1.107.842 B** | +42 % |
+| `cat memory/*.md` 191.875 B | **816.069 B** | **+325 %** |
+| `decisions.md` 112.829 B | 114.122 B | +1.293 |
+| `inspiration_intake.md` 44.665 B | 45.926 B | +1.261 |
+
+⭐ **Die Richtung ist das eigentliche Problem: JEDE Zahl UNTERTREIBT die Kosten, die die Deckel
+verhindern.** Die 191.875 datieren vor dem Einzug von `LEDGER_COUNTS.md` (620.933 B) in
+`memory/` — diese eine Datei ist größer als die gesamte behauptete Summe. **Ein Satz, der für
+die Deckel argumentiert, ließ sie damit optional aussehen.**
+
+**GEMESSEN, was die Deckel wirklich sparen:** der Hook liest **88.631 B von möglichen
+1.923.911 B = 4,6 %**. Ein Deckel zu entfernen addiert nicht ein bisschen — es multipliziert.
+
+**REPARATUR: gelöscht, nicht aufgefrischt.** Auffrischen hätte die Falle nachgebaut — die Zahlen
+sind beim nächsten Commit wieder falsch. Es bleibt die DAUERHAFTE Behauptung („einstelliger
+Prozentsatz") plus die Rücknahme. Kosten: **+723 B** auf einer immer-geladenen Datei; erst
++1.406 geschrieben, dann auf die Hälfte gekürzt, weil §1 derselben Datei das Wachsen des
+immer-geladenen Satzes verbietet.
+
+**WO DIE ZAHLEN JETZT LEBEN:** neue Sektion-D-Zeile in `scripts/doctor.py`, die beide Seiten
+misst und WARNt, sobald der Anteil zweistellig wird. **WARN-Zweig rot getrieben** (Schwelle
+temporär 4 %) — die Zeile erscheint mit ihrem eigenen Text; Datei danach byte-identisch.
+
+⚠️ **Zwei Grenzen stehen im Code, nicht im Commit:** die Prüfung **parst `.claude/settings.json`
+NICHT**, sondern bildet die Hook-Scheibe nach — eine Hook-Änderung, der diese Liste nicht folgt,
+macht das Verhältnis still falsch. Und sie ist um ein paar hundert Byte **ungenau** (88.631 hier
+gegen 88.811 aus der Shell-Pipeline, 0,009 %), weil Zeilenumbruch-Grenzen anders zusammenfallen.
+Beides gesagt, statt verfolgt: eine Größenordnungs-Prüfung, die Exaktheit vortäuscht, lädt dazu
+ein, sie als exakt zu zitieren.
+
+⛔ **KEIN Wächter im blockierenden Bundle, und das ist eine Entscheidung, keine Lücke.** Ein
+Nadel-Verbot auf „191.875" wäre auf dem KORREKTEN Baum sofort rot: die Rücknahme, die ich gerade
+geschrieben habe, **zitiert die Zahl** (#491, dieselbe Falle wie ein Text-Scan über CLAUDE.md).
+Ein Verbot beliebiger Byte-Zahlen in `.claude/rules/**` wäre #364 — eine legitime Byte-Angabe
+muss möglich bleiben.
+
+**GATES:** berührt `.claude/rules/`, `scripts/`, `scratchpads/` → **kein Workflow läuft**.
+Vierter Zustand, weder grün noch rot.
+
+**Vorheriger Zyklus nachgetragen:** #763 (`034f813`) Gates gelesen — `Xcode Compile Check`
+success, `Build for Testing: Succeeded`, **171 Tests beobachtet, 0 Fehler, 0 Compile-Fehler**;
+`TEST EXECUTE FAILED` = das bekannte #396. Der geänderte Wächter kompiliert nachweislich; sein
+Name steht nicht in der geflushten Teilmenge → **Ausführung unbelegt** (#445). Die fünf Zeugen
+sind ohnehin von Hand in Python gegen den Baum getrieben.
