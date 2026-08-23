@@ -12562,3 +12562,37 @@ automatisch. Er ist Handarbeit vor dem Commit, wie bei `doctor.py` und `gh-test-
 
 **Prosa mitgezogen (#456):** `CLAUDE.md` behauptete „Es weiß NICHT, welche schon beantwortet
 sind (es gibt keine ‚erledigt'-Konvention)" — mit diesem Commit falsch.
+
+### #774 — die achte Fläche war die Datei, die genau das verhindern soll (2026-08-23)
+
+**Befund.** `ContentPipeline/CLAIMS.md` ist das Register, das ein Kurzvideo-Skript LESEN MUSS,
+bevor es eine Caption schreibt. Seine MIDI-EINGANGS-Zeile lautete: *„externer Controller
+spielt **die Stimmen**"*. Plural — **genau das Wort, das #548 aus `CLAUDE.md` gestrichen hat**
+(„notes, plural — unreachable by construction"), und es stand seither monatelang in der einen
+Datei, deren einziger Zweck es ist, falsche Behauptungen zu verhindern.
+
+**Gemessen (kommentar-bereinigt):** außerhalb von `EngineBus` gibt es **genau EINEN**
+Verbraucher von `controllerEvents` — `BioReactiveSynthVoice`, monophon (`heldByController`
+ein einzelner `Bool`, `playNote` setzt eine `synth.frequency`). `PolySynthVoice` ruft zwar
+`start(subscribing:)`, liest diese Topic aber nicht; die Stimme im `LaneVoiceRack` sagt im
+eigenen Kommentar „NEVER subscribed to the bus".
+
+⭐ **Die Zeile DIREKT DARUNTER war die ganze Zeit peinlich genau** — „gespielte NOTEN an dein
+Rig (MIDI 1.0)", mit Schalter und Default. Zwei benachbarte Zeilen, ein Autor, eine Tabelle,
+und nur eine wurde geprüft. **Eine Zeile ehrlich zu schreiben härtet die daneben nicht** — die
+schärfste Form der Aufzählungs-Lehre bisher.
+
+⚠️ **Die naheliegende ÜBER-Korrektur geprüft und verworfen:** der MIDI-Eingang ist NICHT hinter
+dem „Body voice"-Schalter versteckt. `apply(controller:)` ist ausdrücklich nicht
+`isArmed`-gated („the performer always leads"); nur der ATEM-Pfad ist es. Ein Controller
+klingt sofort — nur eben einstimmig. Hätte ich das nicht gemessen, wäre die Rücknahme selbst
+eine Falschbehauptung geworden.
+
+**Wächter:** Claim 8 in `TheMPEDimensionsReachNoVoiceTests` (die eine Heimat dieser
+Entscheidung, #416 — jetzt acht Flächen in einer Datei). Verankert auf der ZEILE, nicht
+dateiweit: die Korrektur und der neue §6b zitieren die gestrichene Formulierung, ein
+dateiweites Verbot wäre auf dem Reparatur-Commit rot (#491).
+
+**Benotung: REGRESSION CATCH** — rot am Elternteil `534a9f3`, grün hier. #367 gefahren:
+Plural zurück → rot · Zeilen-Label umbenannt → ANKER fällt (statt still grün, #454) ·
+KONTROLLE: §6b zitiert die gestrichene Formulierung und lässt es grün.

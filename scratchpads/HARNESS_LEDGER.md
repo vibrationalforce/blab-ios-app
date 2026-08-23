@@ -2016,3 +2016,6 @@ erratbar ist. Ohne den Vermerk kopiert die nächste Sitzung den falschen Vertrag
 | PLAYBOOK | Wenn ein Werkzeug seine eigene Reparatur in seinen LIMITS benennt („the repair is a convention, not a smarter parser"), ist das ein fertiger Auftrag — nicht eine Entschuldigung. #773 hat den von #752 nach vier Wochen eingelöst. |
 | PLAYBOOK | Ein Marker, der auch ein gewöhnliches Wort ist, verlangt eine Nadel mit STRUKTUR (hier: ein echtes Datum), sonst liest das Werkzeug seine eigene Dokumentation. #753 bezahlt, #773 vorher gesehen. |
 | PLAYBOOK | Jede Klassifizierungs-Regel braucht eine erklärte AUSFALLRICHTUNG. Beide Regeln in `founder-verify.py` versagen Richtung Lärm (mehr anzeigen), weil Verstecken eine Gerätesitzung kostet und Anzeigen einen Blick. Ohne diesen Satz rät die nächste Änderung. |
+
+| DEAD-END | Eine Tabellen-Zeile für geprüft halten, weil die Zeile DANEBEN sorgfältig formuliert ist. #774: MIDI-OUT war peinlich genau, MIDI-IN direkt darüber trug den Plural, den #548 schon gestrichen hatte. Do this instead: Nachbarschaft ist kein Beleg — jede Zeile einzeln gegen den Code. |
+| PLAYBOOK | Bei einer Rücknahme immer auch die ÜBER-Korrektur messen. #774 hätte fast „MIDI-Eingang steckt hinter dem Body-voice-Schalter" behauptet; `apply(controller:)` ist ausdrücklich NICHT isArmed-gated. Eine Rücknahme ist auch eine Behauptung. |

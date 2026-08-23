@@ -52,7 +52,7 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 | **Immersiver Raum: ADM-OSC** Objekt-Ausgabe (`/adm/obj/{n}/*`) | `ADMOSCSender` |
 | **OSC-Ausgabe** des Bio-Signals an jede Software im Netz | `OSCSender`, Adressliste in `CLAUDE.md` |
 | **MIDI-Export** der erzeugten Musik als `.mid` | `MIDIFileExporter`, Tür im Export-Schacht |
-| **MIDI-Eingang**: externer Controller spielt die Stimmen | CoreMIDI → `controllerEvents` |
+| **MIDI-Eingang**: ein externer Controller spielt EINE monophone Stimme — Noten + Pitch-Bend | `BioReactiveSynthVoice` ist der EINZIGE Verbraucher von `controllerEvents`; `heldByController` ist ein einzelner `Bool`, `playNote` setzt eine `synth.frequency`. Wächter: `TheMPEDimensionsReachNoVoiceTests` |
 | **MIDI-Ausgang live**: gespielte NOTEN an dein Rig (MIDI 1.0) | `MIDIOutput`, Schalter in der Routing-Fläche (`midi.out`), Default AUS |
 | **Universeller BLE-Herzgurt** (0x180D), z. B. Polar H10 | gebaut + verdrahtet, Geräte-Verify offen — **so kennzeichnen** |
 | **Apple Health** als Pulsquelle | `HealthKitBioPublisher` |
@@ -126,6 +126,28 @@ richtiges Verbot** — wer sie prüft und kippen sieht, kippt das Verbot gleich 
 **Für Content heißt das dasselbe wie vorher: nicht behaupten.** Der Unterschied liegt
 nicht im Verbot, sondern in seiner Haltbarkeit — und darin, dass „nie gebaut" eine
 Session dazu einlädt, etwas neu zu bauen, das schon da ist.
+
+### 6b. „spielt die Stimmen" (Plural) — gestrichen 2026-08-23 (#774)
+
+Die Zeile im Wahr-Register hieß **„externer Controller spielt die Stimmen"**. Gemessen:
+`git grep -n controllerEvents -- Sources` (kommentar-bereinigt) liefert außerhalb von
+`EngineBus` **genau einen** Verbraucher — `BioReactiveSynthVoice`, und der ist monophon
+(`heldByController` ein einzelner `Bool`, `playNote` setzt eine `synth.frequency`).
+`PolySynthVoice` abonniert den Bus zwar, aber nicht diese Topic; die Stimme im
+`LaneVoiceRack` ist laut eigenem Kommentar „NEVER subscribed to the bus".
+
+**Es ist genau dasselbe Wort, das #548 aus `CLAUDE.md` gestrichen hat** („notes, plural —
+unreachable by construction"), und es stand hier weiter in der Datei, deren einziger Zweck
+es ist, falsche Captions zu verhindern. Die Zeile direkt darunter (MIDI-AUSGANG) war die
+ganze Zeit peinlich genau — „gespielte NOTEN an dein Rig (MIDI 1.0)", mit Schalter und
+Default. Eine Zeile ehrlich zu schreiben härtet die daneben nicht.
+
+*Erlaubt: „steck einen Controller an und spiel die Körperstimme", „Noten und Pitch-Bend
+kommen an". Nicht erlaubt: „spielt die Stimmen", „spiel Akkorde", „polyphon".*
+
+⚠️ Nicht überkorrigieren: der Eingang ist NICHT hinter dem „Body voice"-Schalter versteckt —
+`apply(controller:)` ist ausdrücklich nicht `isArmed`-gated („the performer always leads").
+Ein Controller klingt sofort. Nur eben einstimmig.
 
 ### 6. MPE
 Aus dem I/O-Satz gestrichen. ⛔ **Die BEGRÜNDUNG, die hier stand, ist seit #713 falsch**

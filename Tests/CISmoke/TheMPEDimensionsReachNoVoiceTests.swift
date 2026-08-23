@@ -64,6 +64,27 @@
 // one. The byte is dropped by `default: return nil` one layer below any wiring. Claim 6 pins
 // that, so the note can never drift back to naming the wrong file.
 //
+// ⛔ THE EIGHTH SURFACE (#774) IS THE FILE WHOSE ONLY JOB IS TO PREVENT THIS. Claim 3 below
+// has pinned "one monophonic voice" in the CODE since #548 — and `ContentPipeline/CLAIMS.md`,
+// the register a video script is required to read before writing a caption, still listed
+// "**MIDI-Eingang**: externer Controller spielt die Stimmen". Plural. The very word #548 struck
+// from `CLAUDE.md` for being unreachable by construction, sitting for months in the one file
+// that exists to keep captions honest. Measured again for #774, comment-stripped: outside
+// `EngineBus` there is exactly ONE consumer of `controllerEvents`. `PolySynthVoice` does call
+// `start(subscribing:)` but never reads that topic, and `LaneVoiceRack`'s bio voice says in its
+// own comment that it is "NEVER subscribed to the bus".
+//
+// ⭐ AND THE ROW DIRECTLY BELOW IT WAS SCRUPULOUS THE WHOLE TIME — "gespielte NOTEN an dein Rig
+// (MIDI 1.0)", switch and default named. **Writing one line honestly does not harden the line
+// next to it.** That is the sharpest form of the enumeration lesson so far: the two rows are
+// adjacent, one author, one table, and only one of them was checked.
+//
+// ⚠️ AND THE OBVIOUS OVER-CORRECTION WAS CHECKED AND REJECTED: the MIDI input is NOT hidden
+// behind the "Body voice" arm switch. `apply(controller:)` is deliberately not `isArmed`-gated
+// ("the performer always leads", `BioReactiveSynthVoice.swift:285`) — only the BREATH path is.
+// A controller sounds immediately; it is merely monophonic. Claim 8 asserts the copy, and
+// claim 4 already pins the arm-independence premise it rests on.
+//
 // ⚠️ HONEST GRADING FOR #766 (parent `c1d285b`), TRANSCRIBED in Python against both trees:
 // **claim 5 is a REGRESSION** — the `id: "midi.in"` line reads `name: "MIDI / MPE In"` on the
 // parent and `name: "MIDI In"` here. Claims 1-4 stay COUNTERWEIGHTS, green on both; they are
@@ -74,6 +95,13 @@
 // described code neither tree touched, so all four were green on both by construction. Booking
 // them as caught regressions would have been the flattering-direction defect (#433). What the
 // file bought was the FUTURE red — and #766 is the first instalment of exactly that.
+//
+// ⚠️ HONEST GRADING FOR #774 (parent `534a9f3`), TRANSCRIBED in Python against both trees:
+// **claim 8 is a REGRESSION CATCH** — the `**MIDI-Eingang**` row reads "spielt die Stimmen" on
+// the parent and names one monophonic voice here. #367 driven: restoring the plural into the
+// row turns it red; relabelling the row makes the ANCHOR fail rather than pass silently (#454);
+// and a CONTROL confirms the new §6b, which QUOTES the struck wording, leaves it green — the
+// #491 trap the row anchor exists to avoid. Claims 1-7 are unchanged COUNTERWEIGHTS here.
 //
 // ⚠️ HONEST GRADING FOR #770 (parent `4267cb5`), TRANSCRIBED in Python against both trees:
 // **`testTheInputLogLineDoesNotAnnounceMPE` is a REGRESSION CATCH** — the log literal reads
@@ -110,6 +138,7 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
     private static let router = "Sources/Echoelmusic/Core/SignalRouter.swift"
     private static let parse = "Sources/Echoelmusic/Audio/MIDIEventParse.swift"
     private static let input = "Sources/Echoelmusic/Audio/MIDIInput.swift"
+    private static let claims = "ContentPipeline/CLAIMS.md"
 
     /// The correction this guard protects, quoted so a failure can point at it precisely.
     private static let prose = """
@@ -241,6 +270,38 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             """)
     }
 
+    // MARK: - claim 8 — the caption register does not promise voices, plural
+
+    /// #774. `ContentPipeline/CLAIMS.md` is the list a short-form script must read before
+    /// writing a caption; a wrong row there becomes a public promise. Its MIDI-INPUT row said
+    /// the controller plays "die Stimmen".
+    ///
+    /// ⚠️ IT ANCHORS ON THE ROW, NOT ON THE FILE. The corrected row and the new §6b both QUOTE
+    /// the struck wording — a file-wide ban would go red on the very commit that repairs it,
+    /// the #491 shape this bundle has paid for. The row is found by its own label, which occurs
+    /// once, and only that line is asked the question.
+    func testTheClaimsRegisterDoesNotPromisePolyphonicMIDIInput() throws {
+        let text = try rawFile(Self.claims)
+        let rows = text.split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { $0.contains("**MIDI-Eingang**") }
+        guard rows.count == 1, let row = rows.first else {
+            throw MPEAnchorMissing(reason: """
+                Expected exactly one row labelled `**MIDI-Eingang**` in \(Self.claims); found \
+                \(rows.count). This scan found nothing rather than nothing wrong (#454) — if \
+                the register was restructured, re-anchor it here in the same commit.
+                """)
+        }
+        XCTAssertFalse(String(row).contains("die Stimmen"), """
+            The caption register promises "die Stimmen" (plural) for MIDI input again: \
+            "\(row.trimmingCharacters(in: .whitespaces))".
+
+            Measured, and claim 3 above pins it: `BioReactiveSynthVoice` is the only consumer \
+            of `controllerEvents`, `heldByController` is a single `Bool`, and `playNote` sets \
+            one `synth.frequency`. If the performer path really became polyphonic, this whole \
+            file goes red together and \(Self.prose)
+            """)
+    }
+
     // MARK: - claim 6 — the PRESS dimension is never parsed, so no wiring could carry it
 
     /// #770. Claims 1-5 all live on the CONSUMER side: what the voice ignores, what the routing
@@ -328,6 +389,21 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
                 """)
         }
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
+    }
+
+    /// A file read WITHOUT the Swift comment stripper. `CLAIMS.md` is Markdown: `codeOnly`
+    /// would treat a `//` inside a URL as a line comment and a `/*` in prose as a block, which
+    /// is the shape `SourceText`'s own header warns about. A SKIP without a checkout, a FAILURE
+    /// when a named file moved (#454).
+    private func rawFile(_ relativePath: String) throws -> String {
+        let path = try repoRoot().appendingPathComponent(relativePath)
+        guard FileManager.default.fileExists(atPath: path.path) else {
+            throw MPEAnchorMissing(reason: """
+                \(relativePath) is missing while the tree is present — renamed or moved. \
+                Re-anchor this scan; do not let it skip.
+                """)
+        }
+        return try String(contentsOf: path, encoding: .utf8)
     }
 
     /// The brace-matched body of `signature`. Brace-matched rather than a line window because
