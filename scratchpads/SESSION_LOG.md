@@ -11982,3 +11982,61 @@ blinde Fleck selbst steht jetzt in den LIMITS des Doctors.
 `PrincipalClass`, kein `NSExtensionPrincipalClass`. Der Wächter ist also heute eine
 Ein-Zeilen-Versicherung; er kostet nichts und deckt genau die Stelle, an der ein Umbenennen
 sonst unbemerkt bliebe.
+
+## #762 — Der Vermerk, der die türlose Fläche vor dem Türlos-Prüfer versteckte (2026-08-23)
+
+**Befund in einem Satz:** Die Notiz, die `BioSourceView` als türlos DOKUMENTIERT, war der
+Grund, warum der Doctor sie nicht als türlos MELDETE.
+
+`Sources/Echoelmusic/Studio/PulseMeasurementView.swift:11` schreibt das Rezept
+`git grep -n 'BioSourceView(' -- Sources` returns ZERO. Sektion C des Doctors las rohen
+Quelltext und zählte genau dieses zitierte `BioSourceView(` als **Konstruktionsstelle**.
+Ergebnis: eine Ansicht mit null echten Aufrufern fehlte in der Fundliste — und zwar in der
+**schmeichelnden Richtung** (weniger Befunde), also der, die niemandem auffällt.
+
+**Das ist CLAUDE.mds `EchoelModalBank`-Gesetz eine Ebene höher.** Dort verfälscht ein
+Kommentar über eine Sache das zitierte `grep`-Rezept eines Menschen; hier verfälschte er das
+**Urteil eines Messgeräts**. Die Fläche war versteckt in genau dem Maß, in dem sie sorgfältig
+aufgeschrieben worden war.
+
+**GEMESSEN auf dem Baum, der diese Zeile ausliefert:**
+
+| Prüfung | roh | kommentarfrei | Differenz |
+|---|---|---|---|
+| C1 türlose Views | 8 | **9** | genau `BioSourceView`, **kein Eintrag geht verloren** |
+| C2 setzerlose Modal-Flags | 2 | 2 | **keine** — LATENT, nicht live |
+
+C2 wird mitrepariert, weil es derselbe Mechanismus in derselben Zeile ist: ein Kommentar, der
+`showX = true` zitiert, versteckte einen toten Steckplatz genauso.
+
+**KEIN Produkt-Defekt folgt:** `BioSourceView` steht in `CLAUDE.md:45` als „unerreichbar, aber
+restaurierbar" — dokumentierte Parkstellung, genau der Test, den der Doctor-Befund selbst
+vorschreibt. Repariert ist das INSTRUMENT, nicht das Produkt.
+
+**SELFTEST IN ZWEI SCHICHTEN, weil #753 bewiesen hat, dass eine nicht reicht** (dort bestand
+ein Mutant alle Regel-Prüfungen, weil die Regel intakt und nur ABGEHÄNGT war):
+- Schicht 1 (Regel, als Paar): ein zitiertes Rezept wird geschwärzt — und ein ECHTER Aufruf
+  auf derselben Zeile wird NICHT geschwärzt.
+- Schicht 2 (Verdrahtung): das echte `section_c` läuft über den echten Baum, seine Antwort muss
+  der KOMMENTARFREIEN Lesung entsprechen, nicht der rohen.
+
+**Schicht 2 meldet ehrlich INCONCLUSIVE, wenn beide Lesungen übereinstimmen** (#364) — genau
+der Zustand an dem Tag, an dem `BioSourceView` eine Tür bekommt. Dann rot zu werden hieße,
+korrekte Arbeit zu verbieten.
+
+**ROT GETRIEBEN, beide Schichten, je für ihren GENANNTEN Grund:**
+- Mutant „Stripper abgehängt" (`_code_only` aus `section_c` entfernt) → Schicht 2 rot, nennt
+  die fehlende `BioSourceView`.
+- Mutant „Stripper ist Identität" (`return text` an den Anfang) → Schicht 1 rot; Schicht 2
+  meldet dabei korrekt INCONCLUSIVE, die zwei Schichten decken einander.
+- Datei nach jedem Mutanten byte-identisch wiederhergestellt (`diff -q` → IDENTICAL).
+
+⛔ **Und mein eigener Selftest war beim ersten Lauf falsch, in genau der #679/#738-Klasse:**
+die Nadel hieß `"never constructs"`, der Titel sagt `"ever constructs"`. Sie traf nichts, der
+Selftest meldete eine leere Menge und **beschuldigte einen korrekt verdrahteten Stripper**.
+Der Diskriminator war richtig, der Suchbegriff konnte den Text nicht treffen. Danach ein
+zweiter Selbstfehler derselben Art: `f.lines` statt `f.evidence` (`AttributeError`).
+**Beide gefunden, weil der Selftest ausgeführt wurde, statt ihn zu behaupten.**
+
+**GATES:** Der Commit berührt nur `scripts/` und `scratchpads/` → **kein Workflow läuft**
+(#720). Vierter Zustand, weder grün noch rot; wird nicht als grün gemeldet.

@@ -1794,3 +1794,32 @@ Reparaturrichtung ist der SWIFT-Name (Info.plist ist founder-gated).
 Closure ohne Klammern** (`SafeModeView {`). **Wer Erreichbarkeit misst, muss `Name(` UND
 `Name {` treffen** — sonst meldet man lebende Flächen als Leichen. Gefunden, weil die Liste
 von Hand nachgeprüft wurde, statt sie zu melden.
+
+## DEAD-END — Ein Erreichbarkeits-Scan über ROHEN Quelltext (#762)
+
+**Die Prosa ÜBER eine Sache ist Teil des Heuhaufens.** Sektion C des Doctors las rohen Swift
+und zählte `BioSourceView(` — zitiert in einem Kommentar, der die Türlosigkeit DOKUMENTIERT —
+als Konstruktionsstelle. Die Fläche war dadurch versteckt in genau dem Maß, in dem sie
+sorgfältig aufgeschrieben worden war, und zwar in der schmeichelnden Richtung.
+
+**STATT DESSEN:** vor jedem Zähl-Scan über `Sources/` durch `_code_only` schicken
+(Doctor) bzw. `SourceText.codeOnly` (Tests/CISmoke). Messen, ob es TRAGEND ist: C1 8→9,
+C2 2→2 — also live in der einen Hälfte, latent in der anderen, und beides gehört gesagt.
+
+**Erkennungszeichen im Voraus:** ein Scan, dessen Nadel ein Bezeichner ist, über eine Datei,
+in der jemand über diesen Bezeichner schreibt. In diesem Repo ist das der Normalfall, nicht
+die Ausnahme.
+
+## PLAYBOOK — Ein Selftest braucht eine WIRKUNGS-Schicht, nicht nur eine Regel-Schicht (#762)
+
+#753 zeigte: ein Mutant, der die Regel intakt lässt und sie nur ABHÄNGT, besteht jede
+Regel-Prüfung. Also zwei Schichten:
+1. **Regel, als Paar** — die Ausnahme feuert auf der verbotenen Form UND feuert nicht auf der
+   erlaubten, am besten auf derselben Zeile.
+2. **Verdrahtung** — die ECHTE Funktion über den ECHTEN Baum laufen lassen und ihre Antwort
+   gegen die erwartete Rechnung halten.
+
+**Und Schicht 2 muss INCONCLUSIVE sagen können.** Wenn beide Lesungen auf dem heutigen Baum
+übereinstimmen, kann der Lauf verdrahtet und abgehängt nicht unterscheiden — das auszusprechen
+ist billiger als ein grünes Häkchen, das nichts gemessen hat, und verhindert das #364-Rot an
+dem Tag, an dem der Unterschied legitim verschwindet.

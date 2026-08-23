@@ -951,7 +951,30 @@ def section_c() -> Section:
     sec = Section("C", "SURFACES — is there a door to what the code builds?")
 
     swift = tracked("Sources/*.swift") + tracked("Sources/**/*.swift")
-    bodies = {f: read(f) for f in swift}
+
+    # ⛔ COMMENTS ARE BLANKED HERE, AND THE REASON IS THE MOST EMBARRASSING SHAPE THIS REPO
+    # KNOWS: the note that DOCUMENTS a doorless view hid it from the check that looks for
+    # doorless views. `PulseMeasurementView.swift:11` writes the recipe
+    # `git grep -n 'BioSourceView(' -- Sources` returns ZERO — and the raw scan below counted
+    # that quoted recipe as a construction site, so `BioSourceView` (zero real callers,
+    # registered as doorless in CLAUDE.md) was ABSENT from the finding list. A surface was
+    # hidden in exact proportion to how carefully it had been written down.
+    #
+    # This is CLAUDE.md's `EchoelModalBank` law one layer up: *ein Vermerk, der ein `grep`
+    # ZITIERT, altert schneller als einer, der eine Tatsache behauptet — weil jeder Kommentar,
+    # den man über die Sache schreibt, den eigenen Beleg verfälscht.* There it corrupted a
+    # human's recipe; here it corrupted an instrument's verdict, silently and in the
+    # flattering direction (fewer findings).
+    #
+    # MEASURED on the tree that shipped this line: C1 raw = 8 doorless, stripped = 9, the
+    # difference is exactly `BioSourceView`, and NO entry is lost by stripping. C2 (modal
+    # flags) is unchanged today — 2 either way — so its share of this repair is LATENT, not
+    # live; a comment quoting `showX = true` would hide a dead slot the same way.
+    #
+    # ⚠️ LIMIT: `blank_strings` stays False, because the declaration haystack must survive.
+    # A view name inside a STRING literal followed by `(` still counts as a construction site.
+    # No such string exists today; nothing pins that.
+    bodies = {f: _code_only(read(f)) for f in swift}
 
     # C1. A View struct that NOTHING anywhere constructs is a surface the user cannot reach —
     # the "doorless view" class CLAUDE.md keeps re-discovering by hand (PatchEditorView,
@@ -1180,16 +1203,95 @@ def selftest_negated_needle() -> int:
     return 1 if bad else 0
 
 
+def selftest_comment_is_not_a_call() -> int:
+    """Pin the #762 rule: a construction site QUOTED IN A COMMENT is not a construction site.
+
+    ⚠️ SAME LIMIT AS ITS NEIGHBOUR — this covers one rule in section C, not the doctor.
+
+    ⛔ WRITTEN IN TWO LAYERS BECAUSE #753 PROVED ONE IS NOT ENOUGH. There, a mutant that left
+    the rule intact but UNWIRED it from the caller passed every rule-level check. So:
+      · Layer 1 (rules): the stripper blanks a quoted recipe, and — the pair that matters —
+        does NOT blank a real call on the same line.
+      · Layer 2 (wiring): run the REAL `section_c` over the REAL tree and check its answer
+        matches the STRIPPED computation rather than the raw one.
+
+    ⚠️ LAYER 2 IS HONESTLY INCONCLUSIVE WHEN THE TWO AGREE, and it says so instead of
+    printing a green tick (#364): if every doorless view is doorless under both readings,
+    the run cannot tell a wired stripper from an unwired one. That is the state this check
+    will reach the day `BioSourceView` gets a door — and going red then would be the guard
+    forbidding correct work.
+
+    ⚠️ LAYER 2 RE-IMPLEMENTS THE C1 WALK RATHER THAN CALLING IT, and that is the point, not
+    sloppiness: a wiring check that reuses the code it is checking is vacuous. The cost is a
+    second copy of one regex, so this WILL go red if someone edits C1's pattern and not this
+    one — the failure text names both readings so that divergence is readable rather than
+    mysterious, and the repair is to update both in the same commit.
+    """
+    bad: list[str] = []
+
+    # Layer 1 — the rule, as a pair.
+    quoted = '    // `git grep -n \'BioSourceView(\' -- Sources` returns ZERO\n'
+    real = "        BioSourceView(model: m)\n"
+    if "BioSourceView(" in _code_only(quoted):
+        bad.append("a construction site quoted in a comment survived the stripper")
+    if "BioSourceView(" not in _code_only(real):
+        bad.append("a REAL construction site was blanked — the stripper erases too much")
+
+    # Layer 2 — is the rule actually wired into section_c?
+    swift = tracked("Sources/*.swift") + tracked("Sources/**/*.swift")
+    raw = {f: read(f) for f in swift}
+    stripped = {f: _code_only(s) for f, s in raw.items()}
+
+    def doorless(bodies: dict) -> set:
+        out = set()
+        for src in bodies.values():
+            for m in VIEW_DECL.finditer(src):
+                name = m.group(1)
+                if name.endswith("_Previews") or name.endswith("Preview"):
+                    continue
+                uses = sum(len(re.findall(
+                    rf"(?<!struct )(?<!extension )\b{name}\s*[\(\{{]", o))
+                    for o in bodies.values())
+                if uses == 0:
+                    out.add(name)
+        return out
+
+    want, other = doorless(stripped), doorless(raw)
+    if want == other:
+        print("selftest (section C wiring): INCONCLUSIVE — raw and stripped agree on this "
+              "tree, so the run cannot tell a wired stripper from an unwired one")
+    else:
+        sec = section_c()
+        # ⛔ THIS NEEDLE WAS "never constructs" ON ITS FIRST RUN AND MATCHED NOTHING — the
+        # title says "ever constructs". The selftest then reported an empty set and accused
+        # a correctly wired stripper of being unwired. Same class as #679/#738: the
+        # discriminator was right, the search term could not match the text it was aimed at.
+        reported = {ln.split("struct ")[1].split(":")[0]
+                    for f in sec.findings if "ever constructs" in f.title
+                    for ln in f.evidence if "struct " in ln}
+        if reported != want:
+            bad.append(f"section_c reported {sorted(reported)}; the stripped reading is "
+                       f"{sorted(want)} — either the stripper is not wired into C1, or C1's "
+                       f"pattern was edited and this transcription was not")
+
+    for line in bad:
+        print("FAIL:", line)
+    print(f"selftest (section C comment-is-not-a-call): "
+          f"{'FAILED' if bad else 'ok'} ({len(bad)} problem(s))")
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--section", choices=list("ABCD"), help="run only one section")
     ap.add_argument("--quiet", action="store_true", help="print findings only, no clean sections")
     ap.add_argument("--selftest", action="store_true",
-                    help="check ONE rule (section B's negated-needle exemption), not the doctor")
+                    help="check TWO rules (section B's negated needle, section C's "
+                             "comment-is-not-a-call) — not the doctor as a whole")
     args = ap.parse_args()
 
     if args.selftest:
-        return selftest_negated_needle()
+        return selftest_negated_needle() | selftest_comment_is_not_a_call()
 
     runners = {"A": section_a, "B": section_b, "C": section_c, "D": section_d}
     keys = [args.section] if args.section else list("ABCD")
@@ -1227,6 +1329,8 @@ def main() -> int:
     for line in [
         "Reachability is grep-based: it proves a NAME is never constructed, not that a surface is",
         "  unreachable at runtime. The chain to a rendering parent still has to be read by hand.",
+        "  Comments no longer count as calls (#762 — the note documenting a doorless view used",
+        "  to hide it); STRING LITERALS still do. No such string exists today, nothing pins that.",
         "And an entry point can live OUTSIDE Swift entirely: `ExternalDisplaySceneDelegate` has",
         "  zero references in Sources/ and is reached from an Info.plist string. A grep-based",
         "  audit calls that file dead and is wrong. Section B checks the plist name RESOLVES;",
