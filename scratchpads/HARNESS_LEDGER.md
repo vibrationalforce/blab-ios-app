@@ -1929,3 +1929,22 @@ Routing-Fläche kam in der Aufzählung nicht vor und trug die Falschbehauptung z
 
 **Erkennungszeichen:** wenn alle geprüften Flächen dieselbe GATTUNG haben (hier: Prosa), ist die
 Aufzählung mit hoher Wahrscheinlichkeit unvollständig.
+
+## PLAYBOOK — „Der String existiert" ist kein Beweis, dass ihn jemand liest (#767)
+
+Vier Wächter pinnten die fünf Pflicht-Sicherheitshinweise auf EXISTENZ und Übersetzung. Ein
+Mutant, der den Hinweis in eine **türlose** Ansicht verschiebt, lässt **alle vier grün** — und
+die App zeigt keinen einzigen.
+
+**Regel: für jede Behauptung „X ist in der App" braucht es ZWEI Hälften** — der Text existiert
+UND sein Träger ist montiert. Die zweite Hälfte ist Erreichbarkeit erster Ordnung
+(„irgendwo konstruiert"), was das Negativ beweist und mehr nicht; das reicht, weil das Negativ
+der real vorgekommene Fehler ist.
+
+**Erkennungszeichen:** ein Wächter-Kommentar, der die Gefahr NENNT, ohne sie zu schließen
+(„zwei dieser Sätze stehen auch in zwei türlosen Views"). Eine benannte, ungeschlossene Gefahr
+ist eine offene Aufgabe, keine Dokumentation.
+
+⛔ Und der #762-Defekt hat beim Schreiben dieser Scheibe erneut zugeschlagen: ein von Hand
+getipptes `git grep -c "SomeView(" -- Sources` meldete einen Treffer, der ein KOMMENTAR war.
+**Jede Erreichbarkeits-Messung — auch die schnelle von Hand — muss kommentar-gestrippt sein.**

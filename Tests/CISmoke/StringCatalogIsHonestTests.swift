@@ -27,6 +27,24 @@
 //     translated, and is never found again. For the MANDATED SAFETY WARNINGS this is not
 //     cosmetic — it silently reverts a warning to a language the user may not read.
 //
+// ⛔ #767 ADDED A FIFTH INVARIANT, AND THE FOUR ABOVE ARE THE REASON IT WAS NEEDED: every one
+// of them asks whether a sentence EXISTS and is translated. None asks WHERE. The comment on
+// `testEveryKeyStillExistsAsALiteralInSources` already named the danger without closing it —
+// two of the five mandated warnings are ALSO embedded in `BioSourceView` and `SessionView`, and
+// both of those views are DOORLESS. MEASURED rather than reasoned: with the notice moved out of
+// the onboarding screen into `BioSourceView`, `testEveryKeyStillExistsAsALiteralInSources`
+// stayed **GREEN on all five** while the app showed none of them. For a label that would be a
+// stale string; CLAUDE.md lists these five under "SAFETY WARNINGS (must be in app)".
+// `testEveryMandatedWarningIsOnAReachableScreen` is the one that goes red on that tree.
+//
+// ⭐ GRADING FOR #767 (parent `d87d76c`). The new claim is a COUNTERWEIGHT on the parent —
+// green there too, because the notice has not moved. Booking it as a caught regression would be
+// the flattering direction (#464). What it buys is the FUTURE red, and that red was driven
+// deliberately on a mutated tree rather than imagined: all five went red for their named
+// reason, and both mutated files were restored byte-identically. The other eight assertions are
+// untouched; the mandated list moved to a `static let` so the two claims that read it cannot
+// fork a second copy and drift apart while both stay green (#416).
+//
 // ⚠️ HONEST LIMITS — read before trusting a green result:
 //   · This inspects SOURCE TEXT, not a built bundle. If the checkout is not at the path this
 //     file was compiled from, it SKIPS. A skip is not a pass — the same rule the sibling
@@ -46,6 +64,60 @@ final class StringCatalogIsHonestTests: XCTestCase {
     /// `testEveryKeyCarriesEveryLanguage`, which is the intended direction: the list is a
     /// promise, and the test is what makes it one.
     private static let languages: Set<String> = ["en", "de"]
+
+    /// The five sentences CLAUDE.md lists under "SAFETY WARNINGS (must be in app)".
+    ///
+    /// ⚠️ ONE LIST, TWO CLAIMS (#416). `testEveryMandatedSafetyWarningIsTranslated` asks whether
+    /// they are in the catalog; `testEveryMandatedWarningIsOnAReachableScreen` asks whether a
+    /// user can ever read them. A second copy of these strings would let the two drift, and the
+    /// drift would be invisible — both tests would keep passing about different sentences.
+    private static let mandated = [
+        "For self-observation, not medical diagnosis.",
+        "Not while driving or operating machinery.",
+        "Not under the influence of alcohol or drugs.",
+        "Coordinate any therapeutic use with your provider.",
+        "Visuals are capped at a safe 3 Hz flash rate."
+    ]
+
+    /// `struct X: View` declarations in comment-stripped source.
+    private static func viewNames(in code: String) -> [String] {
+        let pattern = #"\bstruct\s+([A-Za-z_]\w*)\s*:\s*View\b"#
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return [] }
+        let ns = code as NSString
+        return re.matches(in: code, range: NSRange(location: 0, length: ns.length))
+            .compactMap { $0.numberOfRanges > 1 ? ns.substring(with: $0.range(at: 1)) : nil }
+    }
+
+    /// A construction site for `view`, accepting both `Name(` and SwiftUI's trailing-closure
+    /// `Name {`, and excluding the declaration and `extension Name {`.
+    ///
+    /// ⚠️ THE `{` HALF IS NOT OPTIONAL. A scan for `Name(` alone misses `SafeModeView { … }`
+    /// and reports live surfaces as dead — measured in this repo, at least three false
+    /// positives including the app's own black-screen recovery screen.
+    private static func constructs(_ view: String, in code: String) -> Bool {
+        let pattern = "(?<!struct )(?<!extension )\\b\(view)\\s*[\\(\\{]"
+        guard let re = try? NSRegularExpression(pattern: pattern) else { return false }
+        let ns = code as NSString
+        return re.firstMatch(in: code, range: NSRange(location: 0, length: ns.length)) != nil
+    }
+
+    /// Every tracked Swift file under `Sources/`, comment-stripped once.
+    private func swiftSources() throws -> [(path: String, code: String)] {
+        let sources = try repoRoot().appendingPathComponent("Sources")
+        guard let walker = FileManager.default.enumerator(at: sources,
+                                                          includingPropertiesForKeys: nil) else {
+            throw NSError(domain: "StringCatalogIsHonest", code: 1, userInfo: [
+                NSLocalizedDescriptionKey: "cannot enumerate Sources/ — refusing to report a green it did not earn"
+            ])
+        }
+        var out: [(String, String)] = []
+        while let url = walker.nextObject() as? URL {
+            guard url.pathExtension == "swift" else { continue }
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            out.append((url.lastPathComponent, SourceText.codeOnly(text)))
+        }
+        return out
+    }
 
     /// Repo root, derived from this file's compile-time path (`Tests/CISmoke/…` → up two).
     private func repoRoot() throws -> URL {
@@ -223,16 +295,75 @@ final class StringCatalogIsHonestTests: XCTestCase {
     /// they are two edits apart in the file, which is why the pointer is spelled out.)
     /// What THIS test catches is the other direction: a mandated warning deleted from the
     /// catalog, or never added to it.
+    /// A mandated warning must sit on a screen a user can actually reach.
+    ///
+    /// ⛔ WHY THIS WAS MISSING AND WHY IT MATTERS MOST HERE (#767). The two claims above pin
+    /// that each sentence EXISTS as a quoted literal somewhere in `Sources/` and is translated.
+    /// Neither asks WHERE. The comment on `testEveryKeyStillExistsAsALiteralInSources` already
+    /// names the danger without closing it: two of these five sentences are ALSO embedded in
+    /// `BioSourceView` and `SessionView`, and **both of those views are doorless** — nothing in
+    /// `Sources/` constructs them. Move the notice from the onboarding screen into either one
+    /// and every existing assertion stays GREEN while the app stops showing a safety warning.
+    /// For ordinary copy that would be a stale label; CLAUDE.md lists these five under
+    /// "SAFETY WARNINGS (must be in app)".
+    ///
+    /// ⚠️ IT DOES NOT PIN A LOCATION (#364). Moving the notice to a better home is welcome —
+    /// what it pins is the PROPERTY: some file carrying the sentence must declare a `View` that
+    /// something ELSE in `Sources/` constructs. Measured on this tree, all five have exactly one
+    /// carrier, `Views/OnboardingView.swift`, mounted from `EchoelmusicApp.swift`. That single
+    /// point of failure is the finding, not a reassurance.
+    ///
+    /// ⚠️ HONEST LIMIT — this is FIRST-ORDER reachability, the same limit `scripts/doctor.py`
+    /// states for its own section C. "Constructed somewhere" is not proof of reachability: the
+    /// constructor may itself be dead, which is exactly how the Tools-grid views stayed "wired"
+    /// for weeks. What it PROVES is the negative — a sentence whose only carrier is constructed
+    /// nowhere cannot be on screen. That negative is the failure mode this repo has actually had.
+    ///
+    /// ⚠️ COMMENT-STRIPPED ON BOTH SIDES, and it is load-bearing rather than hygiene: the repo
+    /// writes `git grep -n 'SomeView(' -- Sources` INSIDE comments to document doorlessness, so
+    /// a raw scan reads the note that records a view as unreachable as proof that it is mounted.
+    /// That defect was live in `scripts/doctor.py` until #762 and it bit a hand-run `git grep`
+    /// again while this file was being written.
+    func testEveryMandatedWarningIsOnAReachableScreen() throws {
+        let files = try swiftSources()
+        XCTAssertGreaterThan(files.count, 250, """
+            Only \(files.count) Swift files were read — every check below would pass vacuously \
+            on a tree it never walked (#454).
+            """)
+        for sentence in Self.mandated {
+            let literal = "\"\(sentence)\""
+            let carriers = files.filter { $0.code.contains(literal) }
+            XCTAssertFalse(carriers.isEmpty, """
+                MANDATED SAFETY WARNING \"\(sentence)\" appears in no Swift file at all. \
+                `testEveryKeyStillExistsAsALiteralInSources` covers the same ground from the \
+                catalog side; if both are red, the sentence was deleted rather than moved.
+                """)
+            var mounted: [String] = []
+            for carrier in carriers {
+                for view in Self.viewNames(in: carrier.code) {
+                    let others = files.filter { $0.path != carrier.path }
+                    if others.contains(where: { Self.constructs(view, in: $0.code) }) {
+                        mounted.append("\(carrier.path): \(view)")
+                    }
+                }
+            }
+            XCTAssertFalse(mounted.isEmpty, """
+                MANDATED SAFETY WARNING \"\(sentence)\" is only in \
+                \(carriers.map(\.path).joined(separator: ", ")), and no `View` declared there is \
+                constructed anywhere else in Sources/ — so no user can read it.
+
+                This is NOT a ban on moving the notice. Put it wherever it belongs and make sure \
+                that screen is mounted; the check follows it. Two of these five sentences also \
+                sit in `BioSourceView` and `SessionView`, both doorless, so "the string still \
+                exists" is exactly the reassurance that must not be trusted here. CLAUDE.md lists \
+                these five under "SAFETY WARNINGS (must be in app)".
+                """)
+        }
+    }
+
     func testEveryMandatedSafetyWarningIsTranslated() throws {
-        let mandated = [
-            "For self-observation, not medical diagnosis.",
-            "Not while driving or operating machinery.",
-            "Not under the influence of alcohol or drugs.",
-            "Coordinate any therapeutic use with your provider.",
-            "Visuals are capped at a safe 3 Hz flash rate."
-        ]
         let strings = try strings()
-        for sentence in mandated {
+        for sentence in Self.mandated {
             guard let entry = strings[sentence] else {
                 XCTFail("MANDATED SAFETY WARNING not in the catalog: \"\(sentence)\". It will "
                         + "display in English to every user in every language.")

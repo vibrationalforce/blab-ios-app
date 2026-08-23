@@ -12252,3 +12252,54 @@ Wächter **kompiliert nachweislich**; Ausführung unbelegt (#445), aber alle 5 C
 in Python gegen beide Bäume getrieben.
 
 **GATES:** berührt `Sources/`, `Tests/CISmoke/` und `CLAUDE.md` → **beide echten Gates laufen**.
+
+## #767 — Die fünf Pflicht-Sicherheitshinweise waren auf EXISTENZ gepinnt, nicht auf ERREICHBARKEIT (2026-08-23)
+
+**Befund in einem Satz:** Vier Wächter fragten, ob die fünf Pflicht-Warnungen **existieren** und
+übersetzt sind. **Keiner fragte, WO.**
+
+**Erst die gute Nachricht — gemessen, nicht angenommen:** alle fünf von CLAUDE.mds
+„SAFETY WARNINGS (must be in app)" stehen heute in `Views/OnboardingView.swift`, und das ist
+in `EchoelmusicApp.swift` montiert. **Die Anforderung ist erfüllt.** Genau EIN Träger für alle
+fünf — ein einzelner Ausfallpunkt, und das ist der Befund, nicht die Beruhigung.
+
+**Die Lücke, MESSEND belegt statt argumentiert:** Ich habe den Hinweis im Baum aus dem
+Onboarding in das **türlose** `BioSourceView` verschoben. Ergebnis:
+
+| Wächter | auf dem Mutanten |
+|---|---|
+| `testEveryKeyStillExistsAsALiteralInSources` | **GRÜN auf allen fünf** |
+| `testEveryMandatedSafetyWarningIsTranslated` | grün (liest `Sources/` gar nicht) |
+| **neu:** `testEveryMandatedWarningIsOnAReachableScreen` | **ROT auf allen fünf** |
+
+Der Kommentar des bestehenden Wächters **nannte die Gefahr bereits** („zwei der fünf Sätze
+stehen auch in `BioSourceView` und `SessionView`") — und schloss sie nicht. Beide Views sind
+türlos.
+
+**Die neue Behauptung pinnt KEINEN ORT (#364):** sie pinnt die EIGENSCHAFT — irgendeine Datei,
+die den Satz trägt, muss ein `View` deklarieren, das etwas ANDERES in `Sources/` konstruiert.
+Den Hinweis umzuziehen ist willkommen; der Wächter folgt ihm.
+
+⚠️ **Ehrliche Grenze, wörtlich aus der Doctor-Sektion-C übernommen:** das ist Erreichbarkeit
+**erster Ordnung**. „Irgendwo konstruiert" ist KEIN Beweis für Erreichbarkeit — der Aufrufer kann
+selbst tot sein. **Bewiesen wird das Negativ**, und genau dieses Negativ ist der Fehler, den
+dieses Repo wirklich schon hatte.
+
+⚠️ **Kommentar-Strippen auf beiden Seiten, und es ist tragend, nicht Hygiene:** das Repo schreibt
+`git grep -n 'SomeView(' -- Sources` **in Kommentare**, um Türlosigkeit zu dokumentieren. Ein
+roher Scan liest also die Notiz, die eine Ansicht als unerreichbar festhält, als Beweis dafür,
+dass sie montiert ist. Genau der #762-Defekt — **und er hat mich beim Schreiben dieser Scheibe
+erneut erwischt**: ein von Hand getipptes `git grep -c "BioSourceView(" -- Sources` meldete einen
+Treffer, und der war der Kommentar in `PulseMeasurementView`.
+
+**#416:** die Fünfer-Liste ist zu einem `static let` gehoben. Zwei Behauptungen lesen sie; eine
+zweite Kopie hätte beide grün bleiben lassen, während sie über **verschiedene Sätze** reden.
+
+**Rot getrieben, Bäume byte-identisch wiederhergestellt.**
+
+**Vorheriger Zyklus nachgetragen:** #766 (`d87d76c`) — `Xcode Compile Check` success,
+`Build for Testing: Succeeded`, **134 Tests, 0 Fehler, 0 Compile-Fehler**. Beide geänderten
+Wächter kompilieren nachweislich; Ausführung unbelegt (#445).
+
+**GATES:** berührt nur `Tests/CISmoke/` und `scratchpads/` → **beide echten Gates laufen**
+(die `paths:`-Filter matchen einen PFAD, keine Endung).
