@@ -2019,3 +2019,8 @@ erratbar ist. Ohne den Vermerk kopiert die nächste Sitzung den falschen Vertrag
 
 | DEAD-END | Eine Tabellen-Zeile für geprüft halten, weil die Zeile DANEBEN sorgfältig formuliert ist. #774: MIDI-OUT war peinlich genau, MIDI-IN direkt darüber trug den Plural, den #548 schon gestrichen hatte. Do this instead: Nachbarschaft ist kein Beleg — jede Zeile einzeln gegen den Code. |
 | PLAYBOOK | Bei einer Rücknahme immer auch die ÜBER-Korrektur messen. #774 hätte fast „MIDI-Eingang steckt hinter dem Body-voice-Schalter" behauptet; `apply(controller:)` ist ausdrücklich NICHT isArmed-gated. Eine Rücknahme ist auch eine Behauptung. |
+
+| DEAD-END | Nur nach ÜBER-Behauptungen suchen. #775 fand die erste UNTER-Behauptung: die Website verkaufte ausgelieferten MPE-Ausgang als Roadmap, zehn Passagen in sechs Dateien. Jede Nadel-Liste in den Claim-Wächtern ist eine Liste von Dingen-die-man-nicht-verspricht. Do this instead: auch fragen, was die App KANN und die Kopie verschweigt. |
+| DEAD-END | Einen Claim-Wächter auf DIE SEITE pinnen, die man gerade repariert hat. #775 tat das und fand danach neun weitere Vorkommen. Do this instead: das Verzeichnis fegen, bevor man den Wächter schreibt — die Zahl der Fundstellen entscheidet über seine FORM. |
+| PLAYBOOK | Ein zeilenweiser `grep` findet keine Behauptung, die über eine Zeilengrenze läuft. #775: neun Treffer per Zeile, das zehnte erst per Satz-Scan (`press.html`). Bei Prosa-Behauptungen immer satzweise messen. |
+| PLAYBOOK | Einen neuen Text-Wächter IMMER gegen den korrekten Baum fahren, bevor er gepusht wird — nicht nur gegen den Elternteil. #775s Satztrenner schlug auf korrektem Text Alarm (`".)"` trennt nicht). |

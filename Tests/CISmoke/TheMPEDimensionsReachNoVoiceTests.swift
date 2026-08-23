@@ -96,6 +96,30 @@
 // them as caught regressions would have been the flattering-direction defect (#433). What the
 // file bought was the FUTURE red — and #766 is the first instalment of exactly that.
 //
+// ⛔ THE NINTH SURFACE (#775) IS THE FIRST THAT UNDER-CLAIMED. Eight surfaces promised MPE the
+// app does not have; `docs/architecture.html` did the opposite — it listed "MPE out" among the
+// ROADMAP items, twice, while `CLAUDE.md` had said since #713 that MPE OUT is real and
+// switchable. **A truth sweep that only looks for over-claims finds half the defects**, and
+// every needle set in this repo's claim guards is a list of things-not-to-promise. The under-
+// claim costs differently but it does cost: it is the page a rig owner reads before deciding
+// whether Echoel can drive their MPE synth, and it told them no.
+//
+// ⚠️ HONEST GRADING FOR #775 (parent `d7c1083`), TRANSCRIBED in Python against both trees:
+// **claim 9's page sweep is a REGRESSION CATCH** — twelve sentences across five pages call MPE
+// output roadmap on the parent, none here. Its code half (three dimensions plus the zone
+// announcer) is a COUNTERWEIGHT, green on both, and is the DURABLE one: it reds the day MPE
+// output is removed and names the prose to move back. #367 driven: making any one page lump it
+// again reds the sweep; deleting the Press send or renaming `sendMPEConfiguration` reds the code
+// half; and a CONTROL that rewords an honest sentence stays GREEN — the #364 property, checked
+// rather than asserted.
+//
+// ⛔ AND THE SWEEP CRIED WOLF ONCE ON A CORRECT TREE BEFORE IT SHIPPED, which is recorded rather
+// than quietly fixed. `components(separatedBy: ". ")` does not split `".)"`, so `faq.html`'s
+// honest MPE sentence was glued to the next one — "VST3 and CLAP are not planned." — and
+// inherited the word "planned". The driver caught it; the boundary now skips a run of closing
+// marks after the terminator. A checker with false alarms is a checker nobody reads (#665), and
+// this one would have started its life with one.
+//
 // ⚠️ HONEST GRADING FOR #774 (parent `534a9f3`), TRANSCRIBED in Python against both trees:
 // **claim 8 is a REGRESSION CATCH** — the `**MIDI-Eingang**` row reads "spielt die Stimmen" on
 // the parent and names one monophonic voice here. #367 driven: restoring the plural into the
@@ -139,6 +163,7 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
     private static let parse = "Sources/Echoelmusic/Audio/MIDIEventParse.swift"
     private static let input = "Sources/Echoelmusic/Audio/MIDIInput.swift"
     private static let claims = "ContentPipeline/CLAIMS.md"
+    private static let out = "Sources/Echoelmusic/Audio/MIDIOutput.swift"
 
     /// The correction this guard protects, quoted so a failure can point at it precisely.
     private static let prose = """
@@ -270,6 +295,80 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             """)
     }
 
+    // MARK: - claim 9 — the website sold the working half as roadmap
+
+    /// #775. Every surface before this one over-claimed; this is the FIRST that UNDER-claimed,
+    /// and it is worth naming as a distinct failure. `docs/architecture.html` listed "MPE out"
+    /// twice among things that are ROADMAP, while `CLAUDE.md` had said since #713 that MPE OUT
+    /// is real and switchable. One of the two was wrong for months and the code says which.
+    ///
+    /// Measured: `MIDIOutput` announces the zone from three sites, allocates member channels
+    /// 2–16, and `sendExpression` emits all three per-note dimensions on every note-on while
+    /// the two shipped switches are on — Glide (0xE0), Slide (CC 74) and Press (0xD0). The
+    /// producer is `PianoRollModel`'s tick handler, which runs from app start.
+    ///
+    /// ⚠️ MIDI 2.0 OUT REALLY IS ROADMAP AND WAS LEFT ALONE. `MPEExpression.midi2NoteOnMessages`
+    /// has zero callers — declaration only. The page was right about that half, and correcting
+    /// a sentence is not a licence to correct the clause next to it (#774's lesson, applied in
+    /// the other direction).
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS TEST PINNED ONE PAGE, which is the exact defect the
+    /// header above spends four paragraphs on. `docs/architecture.html` carried two of the
+    /// occurrences; a line-based grep then found seven more across `faq`, `overview`, `index`
+    /// and `tools`, and a SENTENCE-level pass found a tenth in `press.html` that the
+    /// line-based one could not see. **Ten passages edited across six files** — and the finished
+    /// guard, transcribed against the parent, flags **twelve sentences** there, because a page's
+    /// JSON-LD block repeats the claim in prose the editor never sees. Two numbers, two
+    /// operations, both correct: passages I rewrote vs. sentences the scan rejects. A guard
+    /// pinned to the page I happened to open would have gone green with eleven alive. It sweeps
+    /// `docs/` from the directory now (#769), sentence by sentence (#775's own near-miss).
+    ///
+    /// ⚠️ ONE ACCEPTED COST, STATED (#364): a genuinely correct future sentence — "MPE out over
+    /// MIDI 2.0 is on the roadmap" — would red here. The failure message asks for the transport
+    /// in its own sentence instead, which is the wording this cycle had to write nine times
+    /// anyway. A guard that cannot be tripped by a careless sentence cannot catch this defect.
+    ///
+    /// The second half is the DURABLE one: it pins the code premise, so removing MPE out reds
+    /// here and the message names the prose to move back.
+    func testTheSiteDoesNotSellShippedMPEOutputAsRoadmap() throws {
+        for (name, html) in try websitePages() {
+            for sentence in sentences(in: html) where mentionsMPEOutput(sentence) {
+                let lower = sentence.lowercased()
+                XCTAssertFalse(lower.contains("roadmap") || lower.contains("planned"), """
+                    `docs/\(name)` calls MPE output roadmap: "\(sentence)"
+
+                    MPE OUT SHIPS. `MIDIOutput` announces the zone, allocates member channels \
+                    2–16 and sends Glide (0xE0), Slide (CC 74) and Press (0xD0) on every \
+                    note-on while the two routing switches are on. What IS roadmap is MPE on \
+                    the way IN, and native MIDI 2.0 out — name those separately, in their own \
+                    sentence, rather than in one clause with the half that works.
+
+                    If MPE output was actually REMOVED, the second half of this test is red \
+                    too and this sentence is correct again — read that failure first.
+                    """)
+            }
+        }
+
+        // COUNTERWEIGHT (#343): the premise that makes "LIVE" true on the page. Without this,
+        // a tree that deleted MPE output would keep this file green while the site promised it.
+        let code = try source(Self.out)
+        for (needle, dimension) in [("0xE0 | UInt8(ch)", "Glide (14-bit pitch bend)"),
+                                    ("MPEExpression.slideCCIndex", "Slide (CC 74)"),
+                                    ("0xD0 | UInt8(ch)", "Press (channel pressure)")] {
+            XCTAssertTrue(code.contains(needle), """
+                `MIDIOutput` no longer sends \(dimension) on the MPE output path. The page now \
+                says MPE out is LIVE with all three dimensions — if the path lost one, that \
+                sentence in `\(Self.architecture)` must move in the same commit (#456), and so \
+                must `CLAUDE.md`'s "MPE OUT ist real und schaltbar".
+                """)
+        }
+        XCTAssertTrue(code.contains("private func sendMPEConfiguration()"), """
+            `MIDIOutput` no longer announces the MPE zone. Zone announcement is what makes the \
+            output MPE rather than plain multi-channel MIDI; the site's "the zone is announced" \
+            sentence must move with it.
+            """)
+    }
+
     // MARK: - claim 8 — the caption register does not promise voices, plural
 
     /// #774. `ContentPipeline/CLAIMS.md` is the list a short-form script must read before
@@ -389,6 +488,71 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
                 """)
         }
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
+    }
+
+    /// Every shipped page under `docs/`, read from the directory (#769: a hand-typed page list
+    /// is the trap this repo has closed twice). Non-recursive on purpose — the six files one
+    /// level down are three redirect stubs and three screenshot mockups, measured in #772 to
+    /// carry no capability claim.
+    private func websitePages() throws -> [(String, String)] {
+        let docs = try repoRoot().appendingPathComponent("docs")
+        let names = try FileManager.default.contentsOfDirectory(atPath: docs.path)
+            .filter { $0.hasSuffix(".html") }.sorted()
+        guard !names.isEmpty else {
+            throw MPEAnchorMissing(reason: """
+                No `.html` under `docs/`. This scan found nothing rather than nothing wrong \
+                (#454) — if the site moved, re-anchor it here in the same commit.
+                """)
+        }
+        return try names.map {
+            ($0, try String(contentsOf: docs.appendingPathComponent($0), encoding: .utf8))
+        }
+    }
+
+    /// Tag-stripped sentences. ⛔ THE FIRST VERSION OF #775 SCANNED LINES AND FOUND NINE OF THE
+    /// TEN OCCURRENCES — `docs/press.html` split its claim across a line the needle could not
+    /// see, and only a sentence-level pass found it. A claim does not respect line boundaries.
+    private func sentences(in html: String) -> [String] {
+        var text = ""
+        var inTag = false
+        for ch in html {
+            if ch == "<" { inTag = true; text.append(" "); continue }
+            if ch == ">" { inTag = false; continue }
+            if !inTag { text.append(ch) }
+        }
+        text = text.replacingOccurrences(of: "&nbsp;", with: " ")
+            .replacingOccurrences(of: "&mdash;", with: "—")
+        // ⛔ AND `components(separatedBy: ". ")` WAS NOT ENOUGH, caught by the driver on a
+        // CORRECT tree before this shipped: `faq.html` ends a sentence with ".)" and the next
+        // one is "VST3 and CLAP are not planned." — glued together, the honest MPE sentence
+        // inherited the word "planned" and the guard cried wolf. A checker with false alarms is
+        // a checker nobody reads (#665), so the boundary skips a run of closing marks after the
+        // period rather than demanding the period sit directly against a space.
+        var out: [String] = []
+        var current = ""
+        let chars = Array(text)
+        var i = 0
+        while i < chars.count {
+            let ch = chars[i]
+            current.append(ch)
+            i += 1
+            guard ch == "." || ch == "!" || ch == "?" else { continue }
+            var j = i
+            while j < chars.count, ")\"']»".contains(chars[j]) { j += 1 }
+            guard j < chars.count, chars[j].isWhitespace else { continue }
+            out.append(current)
+            current = ""
+            i = j
+        }
+        out.append(current)
+        return out
+            .map { $0.split(separator: " ").joined(separator: " ") }
+            .filter { !$0.isEmpty }
+    }
+
+    private func mentionsMPEOutput(_ sentence: String) -> Bool {
+        let lower = sentence.lowercased()
+        return lower.contains("mpe out") || lower.contains("mpe output")
     }
 
     /// A file read WITHOUT the Swift comment stripper. `CLAIMS.md` is Markdown: `codeOnly`

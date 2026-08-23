@@ -12596,3 +12596,40 @@ dateiweites Verbot wäre auf dem Reparatur-Commit rot (#491).
 **Benotung: REGRESSION CATCH** — rot am Elternteil `534a9f3`, grün hier. #367 gefahren:
 Plural zurück → rot · Zeilen-Label umbenannt → ANKER fällt (statt still grün, #454) ·
 KONTROLLE: §6b zitiert die gestrichene Formulierung und lässt es grün.
+
+### #775 — die erste UNTER-Behauptung: die Website verkaufte die funktionierende Hälfte als Roadmap (2026-08-23)
+
+**Befund, und er ist eine neue Sorte.** Acht Flächen (#548 … #774) haben MPE VERSPROCHEN, das
+die App nicht hat. `docs/` macht das Gegenteil: **„MPE out … ROADMAP"**, während `CLAUDE.md`
+seit #713 sagt „MPE OUT ist real und schaltbar". Eine der beiden war monatelang falsch, und
+der Code sagt welche.
+
+**Gemessen:** `MIDIOutput` kündigt die Zone an (drei Stellen), verteilt auf Member-Kanäle
+2–16, und `sendExpression` schickt bei JEDEM Note-on **alle drei** Dimensionen — Glide (0xE0),
+Slide (CC 74), Press (0xD0) — sobald die zwei ausgelieferten Schalter an sind. Erzeuger ist
+`PianoRollModel`s Tick-Handler, der ab App-Start läuft.
+
+⚠️ **MIDI 2.0 OUT ist WIRKLICH Roadmap und blieb unangetastet**: `midi2NoteOnMessages` hat
+NULL Aufrufer. Einen Satz zu korrigieren ist keine Lizenz, die Klausel daneben mitzukorrigieren
+(#774s Lehre, in die andere Richtung).
+
+⛔ **UND DIE ERSTE FASSUNG DIESES ZYKLUS HAT GENAU DEN FEHLER GEMACHT, ÜBER DEN ICH SEIT #766
+SCHREIBE.** Ich reparierte `architecture.html`, schrieb einen Wächter, der GENAU DIESE SEITE
+pinnt, und war fertig. Dann ein `grep`: **neun weitere Vorkommen in `faq`, `overview`, `index`,
+`tools`**. Dann ein SATZ-weiser Scan: ein **zehntes** in `press.html` — der Seite, die ein
+Journalist liest —, das der zeilenweise `grep` nicht sehen konnte, weil die Behauptung über
+eine Zeilengrenze lief. **Zehn Passagen, sechs Dateien.** Der fertige Wächter meldet am
+Elternteil **zwölf Sätze** (ein JSON-LD-Block wiederholt die Behauptung in Prosa, die kein
+Redakteur sieht) — zwei Zahlen, zwei Operationen, beide richtig.
+
+⛔ **Und der Wächter selbst hat auf KORREKTEM Baum EINMAL falschen Alarm geschlagen**, gefangen
+vom Treiber vor dem Push: `components(separatedBy: ". ")` trennt `".)"` nicht, also klebte
+`faq.html`s ehrlicher MPE-Satz am nächsten („VST3 and CLAP are not planned.") und erbte das
+Wort. Die Grenze überspringt jetzt schließende Zeichen nach dem Punkt. Ein Prüfer mit
+Fehlalarmen ist ein Prüfer, den niemand liest (#665) — dieser hätte mit einem angefangen.
+
+**Wächter:** Claim 9 fegt jetzt `docs/` aus dem VERZEICHNIS (#769), satzweise. Zweite Hälfte
+= Code-Prämisse (drei Dimensionen + Zonen-Ansage), grün auf beiden, und die dauerhafte:
+sie wird rot, wenn MPE-Out entfernt wird, und nennt die Prosa, die dann mitzuziehen ist.
+
+**Benotung: REGRESSION CATCH** (12 Sätze am Elternteil, 0 hier) + COUNTERWEIGHT.
