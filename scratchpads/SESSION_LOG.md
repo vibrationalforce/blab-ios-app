@@ -11519,3 +11519,44 @@ braucht dieselbe Messung wie das, was sie zurücknimmt (dieselbe Lehre wie die #
 
 **Wächter mitgezogen:** `TheLawFileStaysUnderItsCeilingTests` kennt §G und hat dafür einen vierten
 Zeugen (die mehrdeutige Slot-Budget-Phrase). Vier Mutanten, jeder genau eine Behauptung rot.
+
+**#752** — Gates von #751 **grün** (Compile Check `success`, „Build for Testing" `Succeeded`,
+171 bestanden, 0 Fehler).
+
+**Der Fund kam aus einer Frage, die ich vorher nie gestellt hatte: wie groß ist eigentlich der
+Geräte-Rückstand?** Gemessen: **53 `NEEDS-FOUNDER-VERIFY`-Bitten in 49 Dateien** — als Fließtext
+in Kommentaren verstreut, ohne Sammelstelle, ohne Reihenfolge, für den Founder unsichtbar. Und
+das trifft genau den Engpass: die zwei offenen Ship-Gate-Checks (#750) sind BEIDE sensorisch, also
+ist Geräte-Zeit die knappste Ressource im Projekt — mit einer unsichtbaren Warteschlange davor.
+
+Gebaut: **`scripts/founder-verify.py`** — sammelt alle Bitten, gruppiert nach Bereich
+(AUDIO 17 · OTHER 12 · UI 12 · VISUAL 7 · BIO 5), druckt je Bitte `datei:zeile` plus die
+Anweisung. `--all`, `--area <name>`, `--selftest`. Read-only, ohne Abhängigkeiten, wie `doctor.py`.
+
+⭐ **Der Selbsttest hat beim ERSTEN Lauf einen echten Fehler gefangen, vor dem ersten Commit:**
+`MetalBioView.swift` trägt „Metal" UND „Bio"; mit `bio` zuerst landete der Visual-Renderer im
+falschen Fach. Die Reihenfolge der Bereiche IST die Tie-Break-Regel und steht jetzt als Kommentar
+daneben. Das ist die #739-Lehre in ihrer nützlichen Richtung.
+
+⛔ **Und die erste Fassung des Klassifikators war ein Etikett ohne Inhalt:** sie matchte nur
+Verzeichnis-Segmente (`/Bio/`, `/Audio/`) und legte **32 von 53** in „other". Jeder Wächter in
+`Tests/CISmoke` liegt auf EINEM flachen Pfad — dort kann eine Verzeichnisregel nichts sehen, und
+genau dort stehen die reichhaltigsten Geräte-Anweisungen. **Ein Fach, das 60 % der Warteschlange
+schluckt, ist keine Klassifikation, sondern eine Liste.** Jetzt trägt der Dateiname die Zuordnung.
+
+⚠️ **Zwei Zahlen für dieselbe Sache, beide richtig, und das gehört dazugesagt:**
+`git grep -o` über vier Wurzeln (inkl. `scratchpads/`) liefert **108 VORKOMMEN**, das Skript zählt
+**53 ZEILEN** über drei Wurzeln. Verschiedene Operation, verschiedener Bereich — dieselbe Klasse
+wie „SCHREIB-Rate gegen LESE-Rate". Wer die Zahl nennt, nennt beides mit.
+
+⚠️ **Die Grenze druckt das Skript selbst:** es kann eine BEANTWORTETE Bitte nicht von einer offenen
+unterscheiden — es gibt keine „erledigt"-Konvention. Die Reparatur wäre eine Konvention
+(`VERIFIED-<Datum>`), kein schlauerer Parser. Das ist bewusst NICHT miterfunden worden: eine
+Konvention, die der Founder nie benutzt, wäre schlimmer als keine.
+
+⭐ Nebenbefund: `TheWayOutSurvivesRotationTests` bittet bereits um die Vollbild-Rotationsprobe, die
+ich in #748 als „neu" notiert habe — die Bitte war schon da, nur unsichtbar. Genau der Grund für
+dieses Werkzeug.
+
+Registriert in der Ship-Gate-Zeile (`CLAUDE.md`, +~400 B, Luft jetzt **2.481 B**) und als
+PLAYBOOK im `HARNESS_LEDGER`.

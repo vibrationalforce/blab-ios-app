@@ -1541,3 +1541,30 @@ zwischengespeichert — und jeder Mutant wird daran gemessen, ob er die Nadel wi
 zerstört. Beides ist die #739-Lehre eine Ebene höher: **eine Kontrolle, die ihr eigenes
 Positiv besteht, ist keine Kontrolle — das gilt auch für die Probe, nicht nur für den
 Wächter.**
+
+## PLAYBOOK (2026-08-23 #752): die Geräte-Bitten einsammeln, bevor man den Founder fragt
+
+**`python3 scripts/founder-verify.py`** druckt jeden `NEEDS-FOUNDER-VERIFY`-Vermerk aus
+`Sources/`, `Tests/` und `CLAUDE.md` als Liste nach Bereichen (`--all`, `--area bio`,
+`--selftest`). Stand beim Bau: **53 Bitten in 49 Dateien**.
+
+**Warum das ein Playbook und keine Spielerei ist:** die zwei offenen Ship-Gate-Checks sind BEIDE
+sensorisch. Der Engpass des Projekts ist Geräte-Zeit des Founders — und die Warteschlange dafür
+lag als Fließtext in fünfzig Dateien verstreut. Wer eine Geräte-Session vorbereitet, plant sie
+aus dieser Liste, statt sich an drei Bitten zu erinnern.
+
+⚠️ **Zwei Zahlen für dieselbe Sache, und beide sind richtig:** `git grep -o NEEDS-FOUNDER-VERIFY`
+über vier Wurzeln (inkl. `scratchpads/`) liefert **108 VORKOMMEN**; das Skript zählt **53 ZEILEN**
+über drei Wurzeln. Verschiedene Operation, verschiedener Bereich — genau die Klasse Fehler, die
+dieses Repo „SCHREIB-Rate gegen LESE-Rate" nennt. **Wer die Zahl zitiert, nennt Operation UND
+Bereich mit.**
+
+⚠️ **Grenze, die das Skript selbst druckt:** es kann eine BEANTWORTETE Bitte nicht von einer
+offenen unterscheiden — es gibt keine „erledigt"-Konvention im Baum. Die Reparatur wäre eine
+Konvention (`VERIFIED-<Datum>` auf derselben Zeile), kein schlauerer Parser.
+
+⭐ **Der Selbsttest hat beim ERSTEN Lauf einen echten Fehler gefangen:** `MetalBioView.swift`
+trägt „Metal" UND „Bio", und mit `bio` zuerst landete der Visual-Renderer im falschen Fach. Die
+Reihenfolge der Bereiche IST die Tie-Break-Regel; sie steht jetzt als Kommentar daneben. Das ist
+die #739-Lehre in ihrer nützlichen Richtung — eine Kontrolle, die etwas findet, bevor der Code
+das erste Mal committet wird.
