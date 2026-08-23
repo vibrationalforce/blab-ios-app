@@ -741,13 +741,14 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     /// guarded because it is the shape the site produced three times unprompted — motion reads as
     /// a natural fourth item after heart, breath and coherence.
     ///
-    /// ⚠️ AND ONE CORRECT ROW SITS ONE COPY-EDIT AWAY FROM A FALSE POSITIVE. `overview.html`
-    /// carries `Heart rate | Vibrato · filter motion · intensity` — "Heart rate" is 44 characters
-    /// before `motion`, well inside the precondition window, and the ONLY thing keeping that row
-    /// green is that its separator is `&middot;` and not a comma. If someone rewrites it as
-    /// "Vibrato, filter, motion" this test goes red on a correct sentence about a bio→target
-    /// mapping. When that happens the guard is wrong and the site is right: narrow the rule, do
-    /// not edit the row.
+    /// ⚠️ THE ROW THIS NOTE USED TO WARN ABOUT IS GONE (#755), and the warning is kept because
+    /// its SHAPE will come back. `overview.html` carried `Heart rate | Vibrato · filter motion ·
+    /// intensity` — "Heart rate" 44 characters before `motion`, inside the precondition window,
+    /// green only because the separator was `&middot;` and not a comma. #755 rewrote that row
+    /// (heart rate drives vibrato and brightness; the filter belongs to coherence), so the words
+    /// "filter motion" no longer occur anywhere under `docs/`. The rule stands: if a future row
+    /// puts a comma there, THIS GUARD is wrong and the site is right — narrow the rule, do not
+    /// edit the row.
     func testMotionIsNotListedAsABodySignalTheAppSenses() throws {
         XCTAssertFalse(ModSource.motion.hasProducer, """
             `ModSource.motion.hasProducer` is now true — something measures motion again. \
@@ -800,5 +801,65 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
             `hasProducer` is false and every `BioSampleFrame` writes `motionEnergy: 0`. Name \
             the three real ones (heart, breath, coherence) or say the field is always 0.
             """)
+    }
+
+    /// The three bio channels that have NO producer must not be presented as mappings.
+    ///
+    /// ⛔ WHY THIS EXISTS, AND WHY IT IS A WEBSITE TEST. #496 measured that `breathDepth`,
+    /// `lfHf` and `coherenceTrend` are pinned literals at BOTH `PolyBioParams`/`BioParams`
+    /// construction sites, and three guards now forbid naming them in the app's own panel copy
+    /// (`TheAlwaysOnBioPathIsNamedTests`, `ADropoutSaysWhichHalfLetGoTests`,
+    /// `TheBioPanelRowsSayWhoseBodyTests`). All three scan **Swift**. The website was never in
+    /// that scan, so `overview.html` kept shipping `Breath depth | Noise level` and
+    /// `LF/HF ratio | Spectral tilt` as live mappings — on the page a visitor reads BEFORE
+    /// `architecture.html`, which had said "no audible mapping today" the whole time. A cleanup
+    /// that fixes the app copy and not the site fixes the quieter half.
+    ///
+    /// ⚠️ IT IS SCOPED TO ONE SECTION ON PURPOSE, and the alternative was measured first. A
+    /// tree-wide ban on the WORDS would go red on honest copy: `faq.html` says "HRV, heart rate,
+    /// breath &amp; LF/HF analysis", and that is TRUE — `HRVCoherence` really computes the ratio
+    /// (Welch + Lomb-Scargle). What is false is only the MAPPING claim, and the mapping claim
+    /// lives in exactly one place: the `<section id="bio">` table. Analysed ≠ mapped.
+    ///
+    /// ⚠️ AND IT MUST STAY POSSIBLE TO NAME THEM HONESTLY (#364). The corrected table names both
+    /// surviving channels in a "Not mapped yet" row; a needle-ban on "breath depth" would have
+    /// forbidden the very sentence that repairs the page. So claim 1 anchors on the QUALIFIER
+    /// and claim 2 bans only the three dead TARGET names, which have no honest use while their
+    /// sources are pinned.
+    func testTheProducerlessBioChannelsAreNotSoldAsMappings() throws {
+        let pages = try self.pages()
+        guard let overview = pages.first(where: { $0.name == "overview.html" })?.html else {
+            return XCTFail("docs/overview.html is missing — the Bio-Mappings table lives there")
+        }
+        guard let start = overview.range(of: "<section id=\"bio\">"),
+              let end = overview.range(of: "</section>", range: start.upperBound..<overview.endIndex)
+        else {
+            return XCTFail("""
+                `<section id="bio">` no longer exists in docs/overview.html, so this guard \
+                checked nothing (#454: a missing ANCHOR fails, it does not skip). If the \
+                Bio-Mappings table moved, point this test at its new home in the same commit.
+                """)
+        }
+        let section = String(overview[start.lowerBound..<end.upperBound]).lowercased()
+
+        XCTAssertTrue(section.contains("drive neither sound nor picture today"), """
+            The Bio-Mappings table lost its honesty qualifier. Breath depth, LF/HF and \
+            coherence trend are pinned to literals at both bio construction sites \
+            (`breathDepth: 0.5`, `lfHf: 0.5`, `coherenceTrend: 0`), so a table that lists \
+            any of them without saying they drive nothing is claiming a mapping that does \
+            not exist. Re-derive from `docs/architecture.html`, which has said the same in \
+            more detail since before #755, and keep ONE wording.
+            """)
+
+        for dead in ["spectral tilt", "shape morphing", "color palette"] {
+            XCTAssertFalse(section.contains(dead), """
+                The Bio-Mappings table names "\(dead)" again. Measured: LF/HF is not read \
+                in `applyBioReactive`'s body at all, the coherence-trend spectral morph can \
+                never leave its deadband while `coherenceTrend` is 0, and HRV drives pattern \
+                COMPLEXITY while COHERENCE drives hue — the palette row had them swapped. If \
+                a real producer appears, wire it, then change this line and the table \
+                together.
+                """)
+        }
     }
 }

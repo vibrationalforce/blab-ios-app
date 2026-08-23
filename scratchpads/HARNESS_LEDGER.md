@@ -1625,3 +1625,28 @@ Block. Gemessen vor der Regel: 261 Nadel-Zeilen, **sechs** in negierter Form.
 weiterhin gemeldet (Sonde in eine getrackte Datei geschrieben, danach byte-identisch
 zurück), und die Mutation „per Zeile" macht den neuen `--selftest` rot. `doctor.py` hatte bis
 hierher gar keine Kontrolle; die neue prüft **eine** Regel und sagt das in ihrer Ausgabe.
+
+## DEAD-END (2026-08-23 #755): eine Kopie-Bereinigung, die nur Swift scannt, bereinigt die Hälfte
+
+**#496 nahm drei erzeugerlose Bio-Kanäle (`breathDepth`, `lfHf`, `coherenceTrend`) aus der
+App-Kopie und setzte DREI Wächter dagegen. Alle drei lesen `Sources/`.** Die Website behielt
+sie: `docs/overview.html` verkaufte „Breath depth → Noise level" und „LF/HF → Spectral tilt"
+noch elf Wochen als Abbildung — auf der Seite, die ein Besucher VOR `architecture.html` liest,
+die es die ganze Zeit richtig sagte.
+
+**Regel: eine nutzersichtbare Behauptung hat mehrere Oberflächen** (App-Kopie · `docs/**` ·
+`fastlane/metadata` · `ContentPipeline/CLAIMS.md`). Wer eine Über-Behauptung zurücknimmt,
+grept ALLE VIER — sonst ist der Wächter ein Beleg für Vollständigkeit, die es nicht gibt.
+
+⛔ **Und das naheliegende Verbot wäre rot auf EHRLICHER Kopie geworden.** Ein baumweites
+Verbot der Wörter träfe `faq.html`s „LF/HF-**Analyse**" — und die ist WAHR, `HRVCoherence`
+rechnet den Quotienten wirklich (Welch + Lomb-Scargle). **Analysiert ≠ abgebildet.** Der
+Wächter ankert deshalb auf dem ehrlichen ZUSATZ und verbietet nur die toten ZIELNAMEN
+(„spectral tilt", „shape morphing", „color palette"), und nur im Abschnitt, der eine
+Abbildungs-TABELLE ist.
+
+⭐ **Nebenbefund derselben Messung, noch nicht gebaut:** `AudioEngine.spatialAudioEnabled`
+hat GENAU EIN Vorkommen im ganzen Baum (kein Leser, kein Schreiber), und
+`.claude/settings.json` nennt 16 „engines", von denen **15 nicht existieren**, plus
+`platforms` mit Android/Windows/Linux/PWA. Beide Blöcke liest nichts. ⚠️ Die erste Messung
+sagte 14 — sie zählte Kommentare mit; `StreamEngine` steht nur in einem `SPSCQueue`-Kommentar.

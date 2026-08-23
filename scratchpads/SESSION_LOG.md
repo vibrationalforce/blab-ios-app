@@ -11650,3 +11650,56 @@ Werkzeug, dessen Thema Instrumente sind, die mehr behaupten als sie gemessen hab
 
 **Section B ist danach sauber (0 Befunde).** Section A hat weiterhin 2 CRITICALs, beide
 founder-gated (`.github/workflows/**`), beide längst berichtet.
+
+## 2026-08-23 (cron, 24h-Mandat) — #755: die Website verkaufte drei Abbildungen ohne Erzeuger
+
+**Gates #754: keine gelaufen** (`.claude/`, `scripts/`, `scratchpads/` — außerhalb aller
+Pfadfilter). **#755 fasst `Tests/` und `docs/` an, also laufen die Gates wieder** — nach
+elf Zyklen ohne Gate-Lauf ist das auch eine Probe der Kette selbst.
+
+**Der Weg dorthin ging über zwei Sackgassen, und beide sind es wert.**
+Erst `AudioEngine.spatialAudioEnabled`: **genau EIN Vorkommen im ganzen Baum** (Sources +
+Tests), kein Leser, kein Schreiber, nicht persistiert. Ein plausibel aussehender Haken auf
+eine Fähigkeit, die es gibt — aber woanders (ADM-OSC-Ausgang, `BinauralPanner`). Notiert,
+nicht gebaut. Dann `.claude/settings.json`: der `engines`-Block nennt 16 Typen, **15
+existieren nicht** (`SpatialAudioEngine`, `CymaticsRenderer`, `CircadianRhythmEngine`,
+`GroupCoherenceEngine` … BLAB/Syng-Vokabular), `platforms` nennt Android/Windows/Linux/PWA.
+Niemand liest die zwei Blöcke. ⚠️ Meine erste Messung sagte „14 von 16" — sie zählte
+KOMMENTARE mit (`StreamEngine` steht nur in einem `SPSCQueue`-Kommentar). Ohne Kommentare:
+15. Beides notiert für einen eigenen Zyklus.
+
+**Was der Weg dann fand — und es ist nutzersichtbar.** `docs/overview.html` führte in
+seiner Bio-Mappings-Tabelle:
+· „Coherence → … visual complexity · shape morphing"
+· „HRV → Brightness · color palette"
+· „Heart rate → Vibrato · **filter motion** · intensity"
+· „Breath depth → Noise level"
+· „LF/HF ratio → Spectral tilt"
+
+**Gemessen gegen die Engine:** `breathDepth: 0.5`, `lfHf: 0.5`, `coherenceTrend: 0` sind an
+BEIDEN Konstruktionsstellen festgenagelt (`BioReactiveSynthVoice:549`, `PolySynthVoice:929`)
+— zwei ganze Zeilen also falsch. Dazu waren **Kohärenz und HRV auf der Bildseite vertauscht**:
+`BioVisualParams.from` gibt Kohärenz → hue + intensity und HRV → complexity. Und „filter
+motion" gehört der Kohärenz, nicht dem Puls.
+
+**`docs/architecture.html:227` war die ganze Zeit RICHTIG** („have no audible mapping
+today", nennt sogar die abgeschaltete Convolution-Stufe). Zwei Seiten derselben Site
+widersprachen sich, und die falsche ist die, die man zuerst liest.
+
+**Warum es niemand fand:** #496 hat die drei aus der APP-Kopie entfernt und drei Wächter
+dafür gesetzt — `TheAlwaysOnBioPathIsNamedTests`, `ADropoutSaysWhichHalfLetGoTests`,
+`TheBioPanelRowsSayWhoseBodyTests`. **Alle drei lesen Swift.** Die Website stand in keinem.
+
+**Der neue Wächter verbietet die WÖRTER NICHT (#364).** Ein baumweites Verbot wäre rot auf
+ehrlicher Kopie geworden: `faq.html` sagt „LF/HF-**Analyse**", und die ist echt (`HRVCoherence`
+rechnet Welch + Lomb-Scargle). Falsch ist nur die ABBILDUNGS-Behauptung, und die steht an
+genau einer Stelle. Also: Anker auf den ehrlichen Zusatz („drive neither sound nor picture
+today") plus ein Verbot der drei toten ZIELNAMEN, im Abschnitt `<section id="bio">`.
+**Analysiert ≠ abgebildet.**
+
+**Beide Richtungen transkribiert und getrieben**: Zusatz entfernt → rot; totes Ziel wieder
+eingesetzt → rot; fehlender Anker → `XCTFail` statt Skip (#454). Der Motion-Wächter, dessen
+⚠️-Notiz genau die geänderte Zeile zitierte, ist im selben Commit nachgezogen (#456) und
+zählt weiterhin 0 Treffer.
+
+`CLAUDE.md` 148 376 B, 1 624 B unter der harten Decke.
