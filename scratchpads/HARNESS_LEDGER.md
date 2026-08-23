@@ -1772,3 +1772,25 @@ das im Ablauf steht, aber nie läuft, ist genauso stumm wie ein maskiertes Gate.
 Typografische Anführungszeichen (`„ “`) sind sicher, ASCII ist es nicht — und `decisions.csv`
 benutzt sonst ausschließlich ASCII, diese eine Zeile griff nach Typografie und traf nur die
 öffnende Hälfte.
+
+## DEAD-END (2026-08-23 #761): grep-Erreichbarkeit sieht keine plist-verdrahteten Einstiegspunkte
+
+`ExternalDisplaySceneDelegate` hat **null** Verweise in `Sources/` und ist trotzdem LIVE —
+`Resources/iOS/Info.plist` nennt es als `$(PRODUCT_MODULE_NAME).ExternalDisplaySceneDelegate`
+für die externe Bildschirm-Szenenrolle; iOS instanziiert die Klasse über ihren NAMEN.
+
+**Regel: bevor eine Datei „türlos/tot" heißt, prüfe die plists.** Ein Einstiegspunkt kann
+komplett außerhalb von Swift liegen (Szenen-Delegates, Extension-Principal-Classes,
+`UIApplicationDelegate`-Ersatz). `doctor.py` Sektion C und jede `git grep`-Runde sind hier
+blind — die Blindheit steht jetzt in den LIMITS des Doctors.
+
+⚠️ **Und es ist ein still brechbarer Vertrag:** ein Umbenennen der Swift-Klasse tötet die
+Funktion ohne Compile-Fehler und ohne roten Test. Sektion B prüft die Auflösung jetzt;
+Reparaturrichtung ist der SWIFT-Name (Info.plist ist founder-gated).
+
+⛔ **Und die Messung, mit der ich angefangen habe, war selbst kaputt:** eine transitive Hülle
+über `View`-Structs mit der Nadel `Name(` erklärte 26 Typen für unerreichbar, darunter
+`EchoelNumberPad` und `SafeModeView`. SwiftUI konstruiert massenhaft mit **nachgestelltem
+Closure ohne Klammern** (`SafeModeView {`). **Wer Erreichbarkeit misst, muss `Name(` UND
+`Name {` treffen** — sonst meldet man lebende Flächen als Leichen. Gefunden, weil die Liste
+von Hand nachgeprüft wurde, statt sie zu melden.

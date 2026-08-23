@@ -902,9 +902,43 @@ def section_b() -> Section:
                     "field — in CSV it must be doubled (`\"\"`). Fix the row, then re-run "
                     "`bash review.sh` to see the backlog it was hiding."))
 
+    # ⛔ A CLASS NAME THAT LIVES IN A PLIST STRING HAS NO COMPILER BEHIND IT (#761).
+    # `Resources/iOS/Info.plist` wires the external-display scene to
+    # `$(PRODUCT_MODULE_NAME).ExternalDisplaySceneDelegate`. That class has **zero** Swift
+    # references anywhere in `Sources/` — iOS instantiates it BY NAME when a beamer or an
+    # AirPlay display connects. Rename the Swift class and the feature stops working with no
+    # compiler error, no linker error and no test: the string simply stops resolving at
+    # runtime, on hardware nobody has plugged in during CI.
+    #
+    # ⭐ IT IS ALSO THE BLIND SPOT OF EVERY REACHABILITY CHECK IN THIS FILE AND OF `git grep`
+    # ITSELF. Section C proves a View is never CONSTRUCTED; this one is constructed only by
+    # its own sibling, and that sibling is reached from a plist. A grep-based audit calls the
+    # whole file dead and would be wrong — measured while doing exactly that.
+    #
+    # ⚠️ THE REPAIR DIRECTION IS FIXED: `Resources/iOS/Info.plist` is founder-gated (report,
+    # do not edit), so a mismatch is repaired by restoring the SWIFT name, not by editing the
+    # plist.
+    plist_class = re.compile(r"\$\(PRODUCT_MODULE_NAME\)\.([A-Za-z_]\w*)")
+    swift_all = "\n".join(read(f) for f in sorted(tracked("Sources/*.swift")))
+    missing = []
+    for pl in sorted(tracked("*.plist")):
+        text = read(pl)
+        for i, line in enumerate(text.split("\n")):
+            for m in plist_class.finditer(line):
+                name = m.group(1)
+                if not re.search(r"\bclass\s+" + re.escape(name) + r"\b", swift_all):
+                    missing.append(f"{rel(pl)}:{i + 1}  '{name}' — no `class {name}` in Sources/")
+    if missing:
+        sec.findings.append(Finding(
+            WARN, "A plist names a Swift class that is not declared",
+            missing,
+            "iOS resolves this name at RUNTIME, so a rename breaks the feature with no compile "
+            "error and no failing test. Info.plist is founder-gated — restore the Swift class "
+            "name rather than editing the plist, and say so in the status delta."))
+
     if not sec.findings:
         sec.clean_note = ("Commands and skills reference only paths that exist; "
-                          "decisions.csv parses.")
+                          "decisions.csv parses; every plist-named class is declared.")
     return sec
 
 
@@ -1193,6 +1227,10 @@ def main() -> int:
     for line in [
         "Reachability is grep-based: it proves a NAME is never constructed, not that a surface is",
         "  unreachable at runtime. The chain to a rendering parent still has to be read by hand.",
+        "And an entry point can live OUTSIDE Swift entirely: `ExternalDisplaySceneDelegate` has",
+        "  zero references in Sources/ and is reached from an Info.plist string. A grep-based",
+        "  audit calls that file dead and is wrong. Section B checks the plist name RESOLVES;",
+        "  nothing here finds the next such entry point on its own.",
         "Nothing here compiles or runs anything. A green doctor says the instruments look honest,",
         "  never that the code works.",
         "Sound, feel and device behaviour are outside its reach entirely — those need a listen.",

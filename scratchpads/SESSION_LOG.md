@@ -11934,3 +11934,51 @@ Folge des kaputten Anführungszeichens — der lief nur vier Tage; die 239 sind 
 `active` 166 **und** `ACTIVE` 137, dazu `resolved`/`RESOLVED`, `open`/`OPEN`,
 `in-progress`/`in_progress`. Das ist eine Taxonomie-Entscheidung über 300+ Zeilen, kein
 Aufräumen nebenbei.
+
+## 2026-08-23 (cron, 24h-Mandat) — #761: eine lebende Funktion mit NULL Swift-Verweisen
+
+**Gates #760 (`0113481`): keiner gelaufen** — der Commit fasst `decisions.csv`, `scripts/`
+und `scratchpads/` an, alle außerhalb der Pfadfilter (#720). Erwartet, kein Befund.
+
+**Der Zyklus begann als Erreichbarkeits-Sweep und die erste Messung war FALSCH — das gehört
+zuerst hin.** Ich baute eine transitive Hülle über alle 93 `View`-Structs ab
+`EchoelmusicApp` + `WorkspaceView` und bekam **26 unerreichbare**. Von Hand nachgeprüft
+statt gemeldet — und die Regex hatte einen blinden Fleck: sie suchte `Name(`, aber SwiftUI
+konstruiert massenhaft mit **nachgestelltem Closure ohne Klammern** (`SafeModeView {`,
+`SoundMoodPadLeaf { x, y in`). Mindestens drei Fehlalarme, darunter `EchoelNumberPad` — die
+app-weite Zahlentastatur. **Eine Erreichbarkeits-Messung, die `Name {` nicht kennt, erklärt
+lebende Flächen für tot.**
+
+**Zweiter Fehlalarm, aufgelöst durch Nachlesen statt Melden:** `BreathGuideView` wird nur in
+`BioSourceView` konstruiert, und die ist türlos — sieht nach „zweiter Ordnung türlos" aus.
+Ist es aber nicht: `TheBreathingPracticeIsInTheMainViewTests` sagt, dass die Fähigkeit seit
+#486 als `BreathCoachStrip` IM `bioPanel` sitzt, und dass die Türlosigkeit von
+`BreathGuideView`/`MeditationView` eine **Founder-Entscheidung** ist (2026-07-12, wörtlich:
+„Meditation View nicht extra"). Kein Defekt.
+
+⭐ **Was übrig blieb, ist der eigentliche Fund — und er ist das Gegenteil eines Defekts.**
+`ExternalDisplaySceneDelegate` (externer Bildschirm/Beamer, #206) hat **null Verweise in
+`Sources/`**. Kein Swift-Code ruft es. Trotzdem ist es LIVE: `Resources/iOS/Info.plist:44`
+verdrahtet es als `$(PRODUCT_MODULE_NAME).ExternalDisplaySceneDelegate` für die Szenenrolle
+`UIWindowSceneSessionRoleExternalDisplayNonInteractive`. iOS instanziiert die Klasse **über
+ihren Namen**, sobald ein Beamer oder AirPlay-Display ankommt.
+
+**Damit ist es der blinde Fleck jeder Erreichbarkeits-Prüfung in diesem Repo — auch der von
+`doctor.py` Sektion C und meiner eigenen von heute Morgen.** Ein grep-basiertes Audit erklärt
+die Datei für tot und liegt falsch.
+
+**Und es ist ein echter, still brechbarer Vertrag:** wer die Swift-Klasse umbenennt, killt die
+Funktion **ohne Compile-Fehler, ohne Linker-Fehler, ohne roten Test** — die Zeichenkette löst
+zur Laufzeit einfach nicht mehr auf, auf Hardware, die in CI niemand ansteckt.
+
+**Gebaut: `doctor.py` Sektion B prüft jetzt jeden `$(PRODUCT_MODULE_NAME).X`-Namen in jedem
+`.plist` gegen eine echte `class X`-Deklaration in `Sources/`.** Rot getrieben durch
+Umbenennen der Klasse im Baum (`… — no 'class ExternalDisplaySceneDelegate' in Sources/`),
+Datei danach byte-identisch. ⚠️ Die Reparaturrichtung steht in der Meldung: `Info.plist` ist
+founder-gated, also wird der **Swift-Name** zurückgesetzt, nicht die plist editiert. Der
+blinde Fleck selbst steht jetzt in den LIMITS des Doctors.
+
+⚠️ **Gemessen: es gibt genau EINEN solchen Namen im ganzen Repo** — kein zweiter
+`PrincipalClass`, kein `NSExtensionPrincipalClass`. Der Wächter ist also heute eine
+Ein-Zeilen-Versicherung; er kostet nichts und deckt genau die Stelle, an der ein Umbenennen
+sonst unbemerkt bliebe.
