@@ -159,4 +159,54 @@ final class ContentPipelineClaimsTests: XCTestCase {
         "bio-music app content" prompt reliably invents an AUv3 plugin and a meditation audience.
         """)
     }
+
+    /// The claims list must name the three bio channels that drive nothing.
+    ///
+    /// ⛔ WHY (#759). This was the FOURTH surface to carry the same false mapping, and the only
+    /// one whose whole job is to stop it. `breathDepth`, `lfHf` and `coherenceTrend` are pinned
+    /// to literals at both `BioParams`/`PolyBioParams` construction sites, and `applyBioReactive`
+    /// says at that line they "must not be claimed as live in any user-facing copy". #496 struck
+    /// them from the app, #755 from `docs/overview.html`, #757 from the ENGLISH App Store text
+    /// (the German locale of the same listing had been honest the whole time) — and this file,
+    /// the one a content session is told to read BEFORE writing a script, had no entry at all.
+    /// A writer consulting it would have found nothing to stop them.
+    ///
+    /// ⚠️ IT ASSERTS PRESENCE, NOT ABSENCE, and that is the #364 shape. The section is allowed
+    /// to be rewritten the day a real producer appears — this guard goes red then and its
+    /// message says so, which is exactly when a human should look. What it forbids is the
+    /// section quietly disappearing while the strike still holds.
+    func testTheClaimsListNamesTheProducerlessBioChannels() throws {
+        let url = try repoRoot().appendingPathComponent("ContentPipeline/CLAIMS.md")
+        guard let claims = try? String(contentsOf: url, encoding: .utf8) else {
+            return XCTFail("ContentPipeline/CLAIMS.md could not be read — this checked nothing")
+        }
+        let lower = claims.lowercased()
+
+        // The three channels, in the words a German caption would actually use.
+        //
+        // ⚠️ "kohärenz-trend" AND NOT "trend", measured before it was written: every one of
+        // this file's occurrences of all three needles sits inside section 12 today, but bare
+        // "trend" is an ordinary word — a future section mentioning any trend would satisfy it
+        // while section 12 was gone, i.e. the needle would stop being able to go red for its
+        // named reason (#367). The compound cannot be satisfied by accident.
+        for term in ["atemtiefe", "lf/hf", "kohärenz-trend"] {
+            XCTAssertTrue(lower.contains(term), """
+                ContentPipeline/CLAIMS.md no longer names "\(term)". All three producerless bio \
+                channels (breathDepth, lfHf, coherenceTrend) are pinned to literals at both \
+                construction sites, so a caption claiming any of them as a mapping is false. If \
+                a real producer was wired, wire it, then rewrite the section and this test in \
+                the same commit — do not simply delete the entry.
+                """)
+        }
+
+        // …and the honest counterpart, so the section cannot degrade into a bare ban with no
+        // alternative. A prohibition without a replacement is the one a writer works around.
+        XCTAssertTrue(lower.contains("alwaysonbiochannel.shapedparameters"), """
+            The claims list bans three bio mappings without pointing at the audited table that \
+            replaces them (`AlwaysOnBioChannel.shapedParameters`: coherence → filter cutoff · \
+            brightness · harmonicity · noise; HRV → brightness; heart rate → vibrato · \
+            brightness; breath PHASE → amplitude). A ban with no alternative is the one a \
+            content writer routes around instead of obeying.
+            """)
+    }
 }

@@ -1724,3 +1724,30 @@ gedacht"; eine ehrliche Kachel sagt, was es stattdessen gibt.
 ⚠️ **Und eine Barrierefreiheits-Über-Behauptung ist keine Marketing-Ungenauigkeit.** Sie
 entscheidet für einen blinden Nutzer, ob die App überhaupt bedienbar ist. Diese Seite gehört
 in dieselbe Prüfroutine wie der Store-Text, nicht in „irgendwann mal".
+
+## PLAYBOOK (2026-08-23 #759): ein Verbot braucht einen ERSATZ, sonst wird darum herumgeschrieben
+
+`ContentPipeline/CLAIMS.md` bekam §12 (die drei erzeugerlosen Bio-Kanäle). Der Eintrag nennt
+nicht nur, was verboten ist, sondern die **geprüfte Vier-Kanal-Tabelle**, aus der man
+stattdessen zitiert — und der Wächter pinnt genau diesen Zeiger als zweite Behauptung.
+
+**Regel: ein ⛔-Eintrag ohne erlaubte Alternative ist der, um den ein Autor herumschreibt.**
+Er streicht dann nicht die Behauptung, sondern formuliert sie um, bis sie durch die Nadel
+passt. Wer eine Behauptung verbietet, liefert im selben Absatz den wahren Satz mit.
+
+⚠️ **Und eine Nadel vor dem Schreiben auf EXKLUSIVITÄT prüfen.** „trend" ist ein gewöhnliches
+Wort — ein künftiger Abschnitt über irgendeinen Trend hätte die Nadel erfüllt, während der
+bewachte Abschnitt längst weg ist. Sie könnte dann nicht mehr für ihren genannten Grund rot
+werden (#367). Gemessen, ersetzt durch „kohärenz-trend", exklusiv.
+
+⛔ **Zweiter Fund derselben Runde: §6 (MPE) trug eine BEGRÜNDUNG, die seit #713 falsch war.**
+Der Schluss (nicht „MPE" behaupten) hält — aus einem anderen Grund: MPE OUT ist real, MPE IN
+nicht. **Ein „darf man nicht"-Vermerk mit falscher Begründung ist schlimmer als keiner:** die
+nächste Sitzung widerlegt die Begründung, hält den Eintrag für erledigt und schreibt die
+Behauptung zurück. Beim Prüfen einer Verbotsliste also nicht nur fragen „gilt das noch?",
+sondern **„gilt der GRUND noch?"**.
+
+⛔ **Und eine eigene Über-Verallgemeinerung, im selben Zyklus widerlegt:** #758 notierte
+„vierter Lauf in Folge mit exakt 172 … die geleerte Teilmenge ist stabil". Der nächste Lauf
+druckt 171. **Vier gleiche Stichproben sind kein Gesetz.** Belastbar bleibt nur #445: die
+Zahl im geleerten Log sagt nichts darüber, welche Tests liefen.

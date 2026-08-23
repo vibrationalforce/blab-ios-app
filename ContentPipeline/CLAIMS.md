@@ -128,8 +128,16 @@ nicht im Verbot, sondern in seiner Haltbarkeit — und darin, dass „nie gebaut
 Session dazu einlädt, etwas neu zu bauen, das schon da ist.
 
 ### 6. MPE
-Aus dem I/O-Satz gestrichen — die Schalter haben seit dem Tools-Grid-Removal keinen
-Schreiber.
+Aus dem I/O-Satz gestrichen. ⛔ **Die BEGRÜNDUNG, die hier stand, ist seit #713 falsch**
+(„die Schalter haben seit dem Tools-Grid-Removal keinen Schreiber") — „MPE note layout"
+und „Per-note expression" sind persistiert und haben zwei Schalter in der erreichbaren
+Routing-Fläche. Der Schluss hält aus einem ANDEREN Grund: **MPE OUT ist real und
+schaltbar, MPE IN nicht** (#548). `MIDIBusPublisher` parst MPE-Verkehr, unterscheidet
+aber keine Zonen, und `BioReactiveSynthVoice.apply(controller:)` läuft für Slide (CC 74),
+Air und Channel Pressure in ein einziges `break` — genau die drei Dimensionen, die MPE
+erst zu MPE machen. Ein „MPE"-Wort in einer Caption verspricht also die Hälfte, die
+fehlt. *Erlaubt: „MIDI-Noten raus an Dein Rig". Nicht erlaubt: „MPE", „per-note
+expression", „spielt Deinen MPE-Controller".*
 
 ### 7. Abo, „Pro", Paywall, „Monthly/Annual Access", MRR
 **v1.0 ist vollständig KOSTENLOS und zeigt KEINE Kauf-Oberfläche.** Das ist eine
@@ -200,6 +208,35 @@ Spieler am Gerät, und ein gespeicherter Patch trägt immer ein Namens-Label
 Musik läuft nicht durch einen Autotune. *Erlaubt: „das Instrument klingt nach
 Dir", „gemessen, nie aufgenommen". Nicht erlaubt: „AI voice", „clones your
 voice", „records you", „Autotune auf dem Track".*
+
+
+### 12. Atemtiefe, LF/HF und Kohärenz-TREND als Klang-Abbildung
+**Drei Bio-Kanäle bewegen heute NICHTS, und sie klingen in einer Caption besonders gut** —
+genau deshalb steht das hier. Gemessen: `breathDepth`, `lfHf` und `coherenceTrend` sind an
+BEIDEN Konstruktionsstellen (`BioReactiveSynthVoice`, `PolySynthVoice`) auf die Literale
+`0.5`, `0.5` und `0` festgenagelt. Der Atemtiefen-Faktor ist damit auf jedem Frame exakt
+1,0, `lfHfRatio` wird im Rumpf gar nicht gelesen, und der Spektral-Morph kommt nie aus
+seinem Deadband. `applyBioReactive` sagt es an der Stelle selbst: *„must not be claimed as
+live in any user-facing copy."*
+
+**Das ist die Behauptung mit den meisten Fundstellen in der Geschichte dieses Repos.** Sie
+wurde dreimal getilgt: #496 aus der App-Kopie (drei Wächter, alle lesen nur Swift), #755
+aus `docs/overview.html`, #757 aus dem **englischen** App-Store-Text — wo die deutsche
+Fassung derselben Anzeige die ganze Zeit ehrlich war. Diese Datei war die vierte Fläche und
+hatte keinen Eintrag; ein Skript-Autor, der sie liest, hätte nichts gefunden, was ihn
+aufhält.
+
+⚠️ **LF/HF wird sehr wohl BERECHNET** (`HRVCoherence`, Welch + Lomb-Scargle) — die FAQ nennt
+das korrekt „LF/HF-Analyse". **Analysiert ist nicht abgebildet.** Verboten ist der Pfeil,
+nicht das Wort.
+
+**Was stattdessen stimmt — die geprüfte Vier-Kanal-Tabelle** (`AlwaysOnBioChannel.shapedParameters`):
+Kohärenz → Filter-Cutoff · Brillanz · Harmonizität · Rauschanteil ·
+HRV → Brillanz · Herzfrequenz → Vibrato (Tiefe UND Rate) · Brillanz ·
+Atem**phase** → die Amplituden-Schwelle. Daraus zitieren.
+*Erlaubt: „Dein Atem lässt den Klang anschwellen und wieder absinken". Nicht erlaubt:
+„Deine Atemtiefe formt das Rauschen", „LF/HF kippt das Spektrum", „der Kohärenz-Trend
+morpht die Form".*
 
 ---
 

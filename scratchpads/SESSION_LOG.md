@@ -11848,3 +11848,46 @@ Mutanten getrieben**: Voice-Kachel zurück → rot · „all interactive element
 numerische Eingabe für **jeden** Parameter" — benannte Auswahlen sind Picker, nicht Zahlen.
 Jetzt „für jeden **numerischen** Parameter". Der #757-Wächter läuft danach weiter grün
 (nachgerechnet).
+
+## 2026-08-23 (cron, 24h-Mandat) — #759: die Claims-Liste kannte die meistgetilgte Behauptung nicht
+
+**Gates #758 (`d0907d2`): GRÜN** — `Build for Testing: Succeeded`, **0 Compile-Fehlerzeilen**,
+**0 Fehlschläge**. ⛔ **Und eine Behauptung aus meinem eigenen #758-Commit ist damit
+widerlegt:** ich schrieb „vierter Lauf in Folge mit exakt 172 … die geleerte Teilmenge ist
+stabil". Dieser Lauf druckt **171**. Aus drei bis vier gleichen Werten „stabil" zu folgern
+war eine Verallgemeinerung aus vier Stichproben — dieselbe Klasse Fehler, die diese Sitzung
+die ganze Zeit findet, nur diesmal meine. Belastbar bleibt allein #445: **eine Zahl im
+geleerten Log sagt nichts darüber, welche Tests liefen.**
+
+**Der Befund: `ContentPipeline/CLAIMS.md` hatte elf ⛔-Abschnitte — und keinen für die
+Behauptung mit den meisten Fundstellen in der Geschichte dieses Repos.** `breathDepth`,
+`lfHf` und `coherenceTrend` sind an beiden Konstruktionsstellen auf `0.5`/`0.5`/`0`
+festgenagelt; getilgt wurde das aus der App-Kopie (#496), aus `docs/overview.html` (#755)
+und aus dem englischen App-Store-Text (#757). **Diese Datei ist die vierte Fläche — und
+zugleich die einzige, deren ganzer Zweck es ist, genau so etwas zu verhindern.** Ein
+Skript-Autor, der sie liest, hätte nichts gefunden, was ihn aufhält.
+
+Neuer **§12** mit der Messung, den drei verbotenen Formulierungen und — wichtiger — der
+**erlaubten Alternative**: der geprüften Vier-Kanal-Tabelle. ⚠️ Ausdrücklich mitgeschrieben:
+**LF/HF wird sehr wohl BERECHNET** (`HRVCoherence`, Welch + Lomb-Scargle); verboten ist der
+PFEIL, nicht das Wort. Analysiert ≠ abgebildet.
+
+⛔ **Zweiter Befund in derselben Datei: §6 (MPE) trug eine Begründung, die seit #713 falsch
+ist** — „die Schalter haben seit dem Tools-Grid-Removal keinen Schreiber". Beide sind
+persistiert und haben zwei Schalter in der erreichbaren Routing-Fläche. Der SCHLUSS hält aus
+einem anderen Grund: **MPE OUT ist real, MPE IN nicht** (#548 — keine Zonen-Unterscheidung,
+Slide/Air/Pressure laufen in ein `break`). Genau die Lehre, die dieses Repo an anderer Stelle
+notiert: **ein „darf man nicht"-Vermerk mit falscher Begründung ist schlimmer als keiner —
+die nächste Sitzung kann ihn widerlegen und hält dann den ganzen Eintrag für erledigt.**
+
+**Wächter** im bestehenden `ContentPipelineClaimsTests` (#416). Er behauptet ANWESENHEIT,
+nicht Abwesenheit — der Abschnitt DARF umgeschrieben werden, sobald ein echter Erzeuger da
+ist; dann wird er rot und sagt das (#364). Zweite Behauptung: der Zeiger auf die erlaubte
+Alternative muss stehenbleiben — **ein Verbot ohne Ersatz ist das, um das ein Autor
+herumschreibt.**
+
+⚠️ **Eine Nadel wurde vor dem Schreiben nachgeschärft:** „trend" ist ein gewöhnliches Wort;
+ein künftiger Abschnitt über irgendeinen Trend hätte sie erfüllt, während §12 weg ist — die
+Nadel könnte dann nicht mehr für ihren genannten Grund rot werden (#367). Jetzt
+„kohärenz-trend", gemessen exklusiv. **Beide Mutanten getrieben** (Abschnitt gelöscht → vier
+Fehlschläge; Zeiger entfernt → einer), Datei danach byte-identisch.
