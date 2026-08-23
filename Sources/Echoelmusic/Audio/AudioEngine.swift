@@ -13,7 +13,27 @@ public final class AudioEngine {
     // MARK: - Observed Properties
 
     var isRunning: Bool = false
-    var spatialAudioEnabled: Bool = false
+    // ⛔ `var spatialAudioEnabled: Bool = false` STOOD HERE AND WAS DELETED (#756). Measured
+    // across `Sources/` AND `Tests/`: exactly ONE occurrence, its own declaration. No reader,
+    // no writer, not persisted, no UserDefaults key, and no spatial code anywhere else in this
+    // file. It was not a switch that had lost its UI — it was a switch that never had one.
+    //
+    // ⚠️ DELETED RATHER THAN REGISTERED, and the difference matters here. The doorless
+    // surfaces this repo deliberately keeps (`ImmersiveStageView`, `BroadcastView`,
+    // `AudioLanePlayer`) are kept because something PERSISTED can still reach them, so cutting
+    // them turns "obviously absent" into "silently mute". Nothing persists this flag, so there
+    // is nothing to keep alive — what it did instead was MISDIRECT: Echoel really does have a
+    // spatial output, and it is nowhere near this class. It is `Sync/ADMOSCSender` streaming
+    // `/adm/obj/{n}/*` over the network, with `DSP/BinauralPanner` for the cues; the stage
+    // surface is `Studio/ImmersiveStageView`, doorless on purpose (ship-gate 4 makes
+    // light/space "demonstrable, not required for v1"). A plausible-looking hook on the audio
+    // engine invites the next session to wire in-engine spatial audio that duplicates a
+    // capability the app already ships somewhere else.
+    //
+    // ⚠️ NO GUARD PINS ITS ABSENCE, deliberately (#364). A test forbidding the name would
+    // forbid someone genuinely building in-engine spatial audio one day — which is legitimate
+    // work. This comment is the record; if the property comes back it should come back with a
+    // reader, a writer and a door, and this block should go with it.
     var inputMonitoringEnabled: Bool = false
     var masterLevel: Float = 0.0
     var masterLevelR: Float = 0.0

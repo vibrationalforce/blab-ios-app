@@ -11703,3 +11703,54 @@ eingesetzt → rot; fehlender Anker → `XCTFail` statt Skip (#454). Der Motion-
 zählt weiterhin 0 Treffer.
 
 `CLAUDE.md` 148 376 B, 1 624 B unter der harten Decke.
+
+## 2026-08-23 (cron, 24h-Mandat) — #756: ein Schalter, der nie eine Tür hatte
+
+**Gates #755 (`04a2038`): GRÜN** — erster Gate-Lauf seit elf Zyklen, und er hat gehalten:
+`Build for Testing: Succeeded`, **0 Compile-Fehlerzeilen**, **172 bestanden, 0 Fehlschläge**.
+⚠️ Der neue Wächter `testTheProducerlessBioChannelsAreNotSoldAsMappings` steht **nicht
+namentlich im geleerten Log** — nach #445 beweist eine Abwesenheit nichts. Ehrlich ist:
+**kompiliert nachweislich, Ausführung unbelegt.** Die 172 gegen 171 als „mein Test ist die
++1" zu lesen wäre genau der Schluss, den #445 verbietet: die geleerte Teilmenge schwankt
+von Lauf zu Lauf.
+
+**Gebaut: `AudioEngine.spatialAudioEnabled` gelöscht.** Gemessen über `Sources/` UND
+`Tests/`: **genau EIN Vorkommen**, seine eigene Deklaration. Kein Leser, kein Schreiber,
+nicht persistiert, kein `UserDefaults`-Key, und sonst kein Zeichen von Spatial-Code in der
+Datei. Kein Schalter, der seine Tür verloren hat — einer, der nie eine hatte.
+
+**Gelöscht statt registriert, und der Unterschied ist der Punkt.** Die türlosen Flächen, die
+dieses Repo absichtlich behält (`ImmersiveStageView`, `BroadcastView`, `AudioLanePlayer`),
+bleiben, weil etwas PERSISTIERTES sie noch erreichen kann — Abklemmen macht daraus „still
+stumm". Hier persistiert nichts. Was das Flag stattdessen tat, war **fehlleiten**: Echoel
+HAT eine räumliche Ausgabe, sie liegt nur ganz woanders — `Sync/ADMOSCSender` über
+`/adm/obj/{n}/*`, mit `DSP/BinauralPanner` für die Cues. Ein plausibel aussehender Haken auf
+der Audio-Engine lädt die nächste Sitzung ein, etwas nachzubauen, das die App schon hat.
+
+**Kein Wächter auf die Abwesenheit (#364)** — ein Verbot des Namens verböte echte Arbeit an
+In-Engine-Spatial-Audio. Der Grabstein im Code ist der Beleg.
+
+**Nebenprüfung, weil ich auf derselben Seite gerade eine Bio-Tabelle repariert hatte:**
+`docs/overview.html:239` behauptet ADM-OSC „breath→azimuth, coherence→distance,
+HRV→elevation". Gegen `Core/BioSpaceMap.swift:127-129` geprüft — **stimmt exakt.** Und die
+FAQ nennt Spatial Audio korrekt als Roadmap. Kein zweiter #755-Fall.
+
+**BERICHTET, NICHT EDITIERT — `.claude/settings.json`.** Der Versuch, die Datei zu
+korrigieren, wurde vom Berechtigungs-Klassifikator abgelehnt; eine Einstellungsdatei gehört
+dem Nutzer, also gilt hier dieselbe Regel wie für `.github/workflows/**`: berichten. Der
+Arbeitsbaum blieb sauber, es ist nichts halb gelandet. Befunde, alle gemessen:
+
+· **`workflow.prRequired: true`** — der gefährlichste Eintrag. Er widerspricht der stehenden
+  Anweisung „keine Pull Requests ohne ausdrückliche Bitte" UND dem tatsächlichen Ablauf
+  (`auto-merge-claude.yml` pusht direkt nach `main`, es gibt keinen PR). Eine Sitzung, die
+  ihn befolgt, tut das Falsche.
+· **`workflow.testBeforeCommit: true`** — es gibt keine lokale Swift-Toolchain; die Gates
+  testen in CI. Genau die Doctor-Sektion-B-Klasse.
+· **`engines`: 16 Namen, 15 existieren nicht** (`SpatialAudioEngine`, `CymaticsRenderer`,
+  `CircadianRhythmEngine`, `GroupCoherenceEngine`, `EvidenceBasedHRVTraining` … BLAB/Syng-
+  Vokabular, das CLAUDE.md als rote Linie führt). Nur `AudioEngine` ist echt.
+· **`platforms`**: Android/Windows/Linux/PWA als Ziele, gegen die gemessene Reifeleiter.
+· **`project.version: "10000.2"`** gegen ein reales v10.79.x; `description` sagt
+  „production suite", die kanonische Produktdefinition sagt **Instrument**.
+· Nichts liest `platforms`/`engines`/`workflow` — kein Skript, kein Hook, keine Skill.
+  Gelesen werden sie von der nächsten Sitzung, und das ist der Schaden.

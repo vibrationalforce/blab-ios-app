@@ -1650,3 +1650,24 @@ hat GENAU EIN Vorkommen im ganzen Baum (kein Leser, kein Schreiber), und
 `.claude/settings.json` nennt 16 „engines", von denen **15 nicht existieren**, plus
 `platforms` mit Android/Windows/Linux/PWA. Beide Blöcke liest nichts. ⚠️ Die erste Messung
 sagte 14 — sie zählte Kommentare mit; `StreamEngine` steht nur in einem `SPSCQueue`-Kommentar.
+
+## PLAYBOOK (2026-08-23 #756): löschen oder registrieren? Die Frage ist, ob etwas PERSISTIERT
+
+Dieses Repo behält türlose Sachen absichtlich (`ImmersiveStageView`, `BroadcastView`,
+`AudioLanePlayer`, die Modulations-Matrix) — **weil ein von einem älteren Build
+persistiertes Dokument sie noch erreichen kann.** Abklemmen macht dort aus „offensichtlich
+abwesend" ein „still stumm". Das ist die Regel, und sie hat einen Anwendungsbereich.
+
+**Sie gilt NICHT für ein Feld, das nichts speichert.** `AudioEngine.spatialAudioEnabled`
+hatte genau EIN Vorkommen im ganzen Baum (Sources + Tests): seine Deklaration. Kein Leser,
+kein Schreiber, kein Key. Es gab nichts am Leben zu halten — es hat nur FEHLGELEITET, weil
+die App eine räumliche Ausgabe wirklich hat, nur woanders (`ADMOSCSender` + `BinauralPanner`).
+
+**Prüffrage vor jedem „registrieren statt löschen":** *Kann ein bestehendes Dokument oder ein
+persistierter Key diesen Code noch erreichen?* Ja → registrieren. Nein → ein Grabstein-
+Kommentar an der Stelle, der sagt, wo die Fähigkeit WIRKLICH liegt. Ein Register, das auch
+folgenlose Leichen führt, wird zu lang, um gelesen zu werden — und die Länge dieses Registers
+ist selbst schon ein Problem.
+
+⚠️ **Und KEIN Wächter auf die Abwesenheit (#364):** ein Verbot des Namens verböte echte
+Arbeit an genau der Fähigkeit. Der Kommentar ist der Beleg, nicht ein Test.
