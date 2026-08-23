@@ -11560,3 +11560,44 @@ dieses Werkzeug.
 
 Registriert in der Ship-Gate-Zeile (`CLAUDE.md`, +~400 B, Luft jetzt **2.481 B**) und als
 PLAYBOOK im `HARNESS_LEDGER`.
+
+## 2026-08-23 (cron, 24h-Mandat) — #753: der Marker ist auch ein Substantiv
+
+**Gates #752 (`d242ce4`): KEINE gelaufen, und das ist erwartet.** Der Commit fasst nur
+`scripts/`, `CLAUDE.md` und `scratchpads/` an — alle drei liegen außerhalb jedes
+Pfadfilters (#720, in `ContentPipeline/README.md` bereits registriert; `scripts/` hat
+GENAU EINE Ausnahme, `scripts/check-infoplist.sh`). Gates #751 (`ed828cf`) waren im
+Zyklus davor grün: 171 bestanden, 0 Fehlschläge.
+
+**Der Befund, der diesen Zyklus ausgelöst hat:** der erste Lauf von
+`founder-verify.py` nach #752 meldete **54** Bitten statt 53. Ursache: die Zeile, mit der
+#752 das Werkzeug in `CLAUDE.md` REGISTRIERT hat — „es sammelt jeden
+`NEEDS-FOUNDER-VERIFY`-Vermerk" — enthält den Marker. **Das Werkzeug zählte seine eigene
+Beschreibung als Auftrag.** Insgesamt vier solche Zeilen: zwei in `CLAUDE.md`, zwei in
+Wächter-Köpfen, die über den Rückstand REDEN.
+
+**Die naheliegende Reparatur wurde zuerst gemessen und ist tot.** „Eine echte Bitte hat
+einen Doppelpunkt" — gemessen über alle 54 Treffer: 30 verschiedene 3-Zeichen-Enden, und
+15 der Nicht-Doppelpunkt-Fälle sind ECHTE Bitten. Die Regel hätte fünfzehn Aufträge
+versteckt, um vier Sätze zu entfernen.
+
+**Was trägt: das Wort DAVOR.** Eine Bitte hat nie einen Artikel vor sich, eine
+Substantiv-Nutzung immer. Vier Treffer, alle vier von Hand gegen die Quelle geprüft.
+
+**Die Richtung ist die Sicherheits-Eigenschaft.** Die Regel kann nur AUS der Liste
+nehmen. Eine artikellose Referenz bleibt als Bitte gezählt — Rauschen kostet einen Blick,
+eine versteckte Bitte eine Geräte-Session.
+
+**Ein Mutant lief grün durch fünf Prüfungen** (`if det:` → `if False:`): alle Prüfungen
+testeten die REGEL, keine die VERDRAHTUNG. Prüfung 6 misst jetzt die Eigenschaft über den
+echten Baum. Drei weitere Mutanten wurden getrieben und wurden rot für ihren Grund.
+
+**Nebenreparatur:** `founder-verify.py | head` warf einen `BrokenPipeError`-Stacktrace.
+SIGPIPE auf `SIG_DFL` — ein Werkzeug, das beim Überfliegen einen Stacktrace druckt, liest
+sich als kaputt.
+
+**Stand jetzt: 50 Bitten in 48 Dateien** (AUDIO 16 · UI 12 · OTHER 11 · VISUAL 6 · BIO 5),
+plus 4 Nicht-Bitten. ⛔ **Diese Klammer stand eine Minute lang mit „OTHER 13 · BIO 3“ da**
+— aus dem Kopf geschrieben, im Zyklus, der vom Zählen handelt, und vor dem Commit
+gemessen. Die Lehre steht in `.claude/rules/context.md` §2 und ist genau deshalb dort:
+sie greift auch dann nicht von allein, wenn man gerade über sie schreibt. `CLAUDE.md` 147 800 B, 2 200 B unter der harten Decke.

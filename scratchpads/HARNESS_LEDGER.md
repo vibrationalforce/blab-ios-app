@@ -1546,7 +1546,8 @@ Wächter.**
 
 **`python3 scripts/founder-verify.py`** druckt jeden `NEEDS-FOUNDER-VERIFY`-Vermerk aus
 `Sources/`, `Tests/` und `CLAUDE.md` als Liste nach Bereichen (`--all`, `--area bio`,
-`--selftest`). Stand beim Bau: **53 Bitten in 49 Dateien**.
+`--selftest`). Stand nach #753: **50 Bitten in 48 Dateien**, plus vier Prosa-Stellen, die
+den Marker als Substantiv tragen und getrennt unter „NOT ASKS" stehen.
 
 **Warum das ein Playbook und keine Spielerei ist:** die zwei offenen Ship-Gate-Checks sind BEIDE
 sensorisch. Der Engpass des Projekts ist Geräte-Zeit des Founders — und die Warteschlange dafür
@@ -1554,7 +1555,7 @@ lag als Fließtext in fünfzig Dateien verstreut. Wer eine Geräte-Session vorbe
 aus dieser Liste, statt sich an drei Bitten zu erinnern.
 
 ⚠️ **Zwei Zahlen für dieselbe Sache, und beide sind richtig:** `git grep -o NEEDS-FOUNDER-VERIFY`
-über vier Wurzeln (inkl. `scratchpads/`) liefert **108 VORKOMMEN**; das Skript zählt **53 ZEILEN**
+über vier Wurzeln (inkl. `scratchpads/`) liefert **108 VORKOMMEN**; das Skript zählt **50 ZEILEN**
 über drei Wurzeln. Verschiedene Operation, verschiedener Bereich — genau die Klasse Fehler, die
 dieses Repo „SCHREIB-Rate gegen LESE-Rate" nennt. **Wer die Zahl zitiert, nennt Operation UND
 Bereich mit.**
@@ -1568,3 +1569,37 @@ trägt „Metal" UND „Bio", und mit `bio` zuerst landete der Visual-Renderer i
 Reihenfolge der Bereiche IST die Tie-Break-Regel; sie steht jetzt als Kommentar daneben. Das ist
 die #739-Lehre in ihrer nützlichen Richtung — eine Kontrolle, die etwas findet, bevor der Code
 das erste Mal committet wird.
+
+## DEAD-END (2026-08-23 #753): der Marker ist auch ein Substantiv — das Werkzeug zählte sich selbst
+
+**Was passiert ist:** #752 registrierte `founder-verify.py` in `CLAUDE.md` mit dem Satz
+„es sammelt jeden `NEEDS-FOUNDER-VERIFY`-Vermerk". Der nächste Lauf meldete **54** statt 53
+Bitten. Die 54. war die Beschreibung des Werkzeugs. Insgesamt vier solche Zeilen: zwei in
+`CLAUDE.md`, zwei in Wächter-Köpfen, die ÜBER den Rückstand reden.
+
+**Die naheliegende Regel wurde gemessen und verworfen — das ist der eigentliche Eintrag.**
+Naheliegend war: „eine echte Bitte hat einen Doppelpunkt hinter dem Marker". Gemessen über
+alle 54 Treffer: **30 verschiedene 3-Zeichen-Enden**, und **15 der Nicht-Doppelpunkt-Fälle
+sind echte Bitten** („NEEDS-FOUNDER-VERIFY on device…", „…, and the honest failure mode…").
+Diese Regel hätte dem Founder fünfzehn Aufträge versteckt, um vier Sätze zu entfernen.
+
+**Was stattdessen trägt:** das Wort DAVOR. Eine Bitte hat nie einen Artikel vor sich, eine
+Substantiv-Nutzung immer („the backlog", „jeden Vermerk", „aus dem der …-Rückstand").
+Markup dazwischen wird gestrippt.
+
+⭐ **Die RICHTUNG ist die Sicherheits-Eigenschaft, nicht die Trefferquote.** Die Regel kann
+eine Zeile nur AUS der Liste nehmen, und nur bei einem Artikel davor. Eine ohne Artikel
+formulierte Referenz bleibt als Bitte gezählt — Rauschen, das einen Blick kostet. Eine
+versteckte Bitte kostet eine Geräte-Session. **Wer eine Heuristik über eine Warteschlange
+legt, entscheidet zuerst, in welche Richtung sie falsch liegen darf.**
+
+⛔ **Und ein Mutant lief GRÜN durch fünf Prüfungen:** wer die Trennung in `collect()`
+aushängt (`if det:` → `if False:`), lässt `is_reference()` unberührt — alle Prüfungen, die
+die REGEL testen, bleiben grün, während die Kopfzeile wieder 54 zählt. Prüfung 6 misst
+deshalb die VERDRAHTUNG als Eigenschaft über den echten Baum („keine Zeile in der
+Auftragsliste hat einen Artikel davor") statt als Zahl — eine Zahl wäre beim nächsten
+Vermerk veraltet. **Eine Kontrolle über eine Funktion beweist nicht, dass jemand sie ruft.**
+
+⚠️ **Grenze:** `--selftest` läuft in KEINEM CI-Gate, so wenig wie `doctor.py`. Es ist ein
+Werkzeug mit eigener Kontrolle, kein Wächter im blockierenden Bundle — ein zweiter Swift-
+Wächter, der Python aufruft, wäre #416.
