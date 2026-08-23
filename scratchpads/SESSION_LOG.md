@@ -11891,3 +11891,46 @@ ein künftiger Abschnitt über irgendeinen Trend hätte sie erfüllt, während �
 Nadel könnte dann nicht mehr für ihren genannten Grund rot werden (#367). Jetzt
 „kohärenz-trend", gemessen exklusiv. **Beide Mutanten getrieben** (Abschnitt gelöscht → vier
 Fehlschläge; Zeiger entfernt → einer), Datei danach byte-identisch.
+
+## 2026-08-23 (cron, 24h-Mandat) — #760: ein Anführungszeichen hat vier Tage lang die Entscheidungs-Review abgeschaltet
+
+**Gates #759 (`c73cf54`): GRÜN** — `Build for Testing: Succeeded`, **0 Compile-Fehlerzeilen**,
+**0 Fehlschläge**. (Geleerte Zahl diesmal **135** nach 172/172/172/171 — die #759-Rücknahme
+war richtig: die Teilmenge schwankt stark.)
+
+**Der Befund, und er kam davon, das Werkzeug einmal wirklich AUSZUFÜHREN.** `bash review.sh`
+— das Werkzeug, das fällige Entscheidungen aufdeckt und das CLAUDE.md im Sitzungsstart nennt
+— antwortete seit Tagen nur mit:
+`MALFORMED — 1 row(s) do not have 6 columns: line 397: 7 columns`
+und meldete **gar nichts** sonst. Ich hatte es fünfzehn Zyklen lang nicht aufgerufen.
+
+**Ursache, exakt:** die Zeile vom 2026-08-19 (ULTRAACCESSIBLE DESIGN) schließt ein deutsches
+öffnendes `„` mit einem **ASCII-`"`**. In einem gequoteten CSV-Feld BEENDET ein einzelnes `"`
+das Feld — die Zeile zerfiel in **sieben** Spalten. Gemessen: `„` kommt im ganzen File
+**genau einmal** vor (nämlich hier), `"` (U+201C) **null Mal** — die Konvention der Datei ist
+ASCII, und diese eine Zeile griff nach Typografie und traf nur die halbe. Repariert per
+CSV-Regel: inneres `"` wird verdoppelt. Text unverändert, jetzt 6 Spalten, 399 Zeilen sauber.
+
+⛔ **UND EIN KORREKTER WÄCHTER IM BLOCKIERENDEN BUNDLE HAT NICHT GEHOLFEN.**
+`TheDecisionLogIsMachineReadableTests.testEveryDecisionRowHasTheHeaderShape` prüft genau das
+und WÄRE rot geworden — er ist in diesen vier Tagen schlicht **in keinem geleerten Log
+aufgetaucht** (#396 tötet den Simulator-Klon, nur ein Bruchteil der Ausgabe wird geleert).
+**Ein Wächter in einem Bundle, das größtenteils nicht ausgeführt wird, ist eine
+Absichtserklärung, kein Sicherheitsnetz.** Gefunden hat es das Ausführen des Werkzeugs.
+
+**Deshalb liegt die Prüfung jetzt AUCH im Doctor** (Sektion B, „beschreiben unsere eigenen
+Kommandos noch dieses Repo?"): der läuft auf Abruf, in diesem Container, ohne Simulator. Rot
+getrieben am echten Defekt (`decisions.csv:397 7 columns, expected 6`), Datei danach
+byte-identisch. Die Fehlermeldung nennt die Ursache (bares `"` verdoppeln) und den nächsten
+Schritt (`bash review.sh`).
+
+**Was die Reparatur sichtbar gemacht hat — und das ist Founder-Sache, nicht meine:**
+**239 von 398 Entscheidungen sind über ihrem Review-Datum**, die älteste vom **2026-04-10**
+(viereinhalb Monate). Der `--flag`-Pfad wurde nachweislich nie benutzt (`grep -c REVIEW_DUE`
+= 0, was der Skript-Kopf selbst „Glück, nicht Absicht" nennt). ⚠️ Der Rückstand ist NICHT
+Folge des kaputten Anführungszeichens — der lief nur vier Tage; die 239 sind älter.
+
+⚠️ **Zusatzbefund, gemessen, NICHT angefasst:** das Status-Vokabular ist gespalten —
+`active` 166 **und** `ACTIVE` 137, dazu `resolved`/`RESOLVED`, `open`/`OPEN`,
+`in-progress`/`in_progress`. Das ist eine Taxonomie-Entscheidung über 300+ Zeilen, kein
+Aufräumen nebenbei.

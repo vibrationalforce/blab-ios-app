@@ -1751,3 +1751,24 @@ sondern **„gilt der GRUND noch?"**.
 „vierter Lauf in Folge mit exakt 172 … die geleerte Teilmenge ist stabil". Der nächste Lauf
 druckt 171. **Vier gleiche Stichproben sind kein Gesetz.** Belastbar bleibt nur #445: die
 Zahl im geleerten Log sagt nichts darüber, welche Tests liefen.
+
+## DEAD-END (2026-08-23 #760): ein Wächter im blockierenden Bundle ist KEIN Sicherheitsnetz
+
+`decisions.csv` war vier Tage lang kaputt (ein ASCII-`"` schloss ein deutsches `„` und
+beendete damit das CSV-Feld → 7 statt 6 Spalten). `review.sh` verweigerte in dieser Zeit
+JEDE Ausgabe außer „MALFORMED". Der passende Wächter existierte,
+`TheDecisionLogIsMachineReadableTests.testEveryDecisionRowHasTheHeaderShape`, war korrekt und
+**wäre rot geworden** — er tauchte nur in keinem geleerten Log auf (#396).
+
+**Regel: solange #396 lebt, ist ein Wächter eine ABSICHTSERKLÄRUNG, kein Netz.** Für alles,
+was ein Skript in diesem Container prüfen KANN, gehört die Prüfung zusätzlich in
+`scripts/doctor.py` — der läuft auf Abruf, ohne Simulator, und seine Ausgabe liest jemand.
+
+⭐ **Und der eigentliche Auslöser war banal: das Werkzeug einmal AUSFÜHREN.** CLAUDE.md nennt
+`./review.sh` im Sitzungsstart; fünfzehn Zyklen lang hat es niemand getippt. **Ein Werkzeug,
+das im Ablauf steht, aber nie läuft, ist genauso stumm wie ein maskiertes Gate.**
+
+⚠️ **CSV-Falle zum Merken:** in einem gequoteten Feld muss ein inneres `"` VERDOPPELT werden.
+Typografische Anführungszeichen (`„ “`) sind sicher, ASCII ist es nicht — und `decisions.csv`
+benutzt sonst ausschließlich ASCII, diese eine Zeile griff nach Typografie und traf nur die
+öffnende Hälfte.

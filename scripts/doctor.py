@@ -28,6 +28,7 @@ Exit:   0 = no CRITICAL findings, 1 = at least one CRITICAL.
 from __future__ import annotations
 
 import argparse
+import csv
 import re
 import shutil
 import subprocess
@@ -862,8 +863,48 @@ def section_b() -> Section:
                 "before asserting anything about it. If the name is meant to be absent, put the "
                 "absence assertion on the SAME line, which exempts it here."))
 
+    # ⛔ THE DECISION LOG, BECAUSE IT BROKE AND NOBODY NOTICED FOR FOUR DAYS (#760).
+    # `decisions.csv` is read by `review.sh` (and a cron), which REFUSES to report anything
+    # when a row does not have six columns — so one bad row silently disables the whole
+    # decision-review instrument. On 2026-08-19 the ULTRAACCESSIBLE-DESIGN row closed a
+    # German opening quote (`„`) with an ASCII `"`; inside a quoted CSV field a lone `"`
+    # ends the field, and the row parsed as SEVEN columns. `review.sh` printed MALFORMED on
+    # every run from then on, and 239 due reviews stayed invisible.
+    #
+    # ⚠️ A CORRECT GUARD ALREADY EXISTED AND DID NOT HELP.
+    # `Tests/CISmoke/TheDecisionLogIsMachineReadableTests.testEveryDecisionRowHasTheHeaderShape`
+    # asserts exactly this and would have failed — it simply never appeared in a flushed log,
+    # because #396 kills the simulator clone and only a fraction of the bundle's output is
+    # ever emitted. That is why the check is ALSO here: the doctor runs on demand, in this
+    # container, with no simulator. A guard in a bundle that mostly does not execute is a
+    # record of intent, not a safety net.
+    log = ROOT / "decisions.csv"
+    if log.exists():
+        try:
+            with log.open(encoding="utf-8", newline="") as fh:
+                rows = list(csv.reader(fh))
+        except (OSError, csv.Error) as exc:
+            sec.findings.append(Finding(
+                WARN, "decisions.csv could not be parsed at all",
+                [f"decisions.csv  {exc}"],
+                "`review.sh` reads this file with the same parser and reports nothing while it "
+                "cannot be read. Repair the file, then re-run `bash review.sh`."))
+        else:
+            width = len(rows[0]) if rows else 0
+            odd = [f"decisions.csv:{i + 1}  {len(r)} columns, expected {width}"
+                   for i, r in enumerate(rows) if width and len(r) != width]
+            if odd:
+                sec.findings.append(Finding(
+                    WARN, "A decisions.csv row does not have the header's column count",
+                    odd[:10] + ([f"... and {len(odd) - 10} more"] if len(odd) > 10 else []),
+                    "`review.sh` prints MALFORMED and reports NOTHING while this holds, so every "
+                    "due review stays invisible. The usual cause is a bare `\"` inside a quoted "
+                    "field — in CSV it must be doubled (`\"\"`). Fix the row, then re-run "
+                    "`bash review.sh` to see the backlog it was hiding."))
+
     if not sec.findings:
-        sec.clean_note = "Commands and skills reference only paths that exist."
+        sec.clean_note = ("Commands and skills reference only paths that exist; "
+                          "decisions.csv parses.")
     return sec
 
 
