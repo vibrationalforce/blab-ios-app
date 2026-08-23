@@ -11601,3 +11601,52 @@ plus 4 Nicht-Bitten. ⛔ **Diese Klammer stand eine Minute lang mit „OTHER 13 
 — aus dem Kopf geschrieben, im Zyklus, der vom Zählen handelt, und vor dem Commit
 gemessen. Die Lehre steht in `.claude/rules/context.md` §2 und ist genau deshalb dort:
 sie greift auch dann nicht von allein, wenn man gerade über sie schreibt. `CLAUDE.md` 147 800 B, 2 200 B unter der harten Decke.
+
+## 2026-08-23 (cron, 24h-Mandat) — #754: der Doctor konnte eine Verneinung nicht sehen
+
+**Gates #753 (`f4c08fc`): keine gelaufen** — derselbe Pfadfilter-Grund wie #752
+(`scripts/`, `CLAUDE.md`, `scratchpads/`, alle außerhalb, #720).
+
+**Zwei Messungen ZUERST, die beide NICHTS fanden — und das ist ein Ergebnis, kein Leerlauf.**
+Die neue Bitten-Liste warf die Frage auf, ob eine der 50 Bitten UNAUSFÜHRBAR ist (die Klasse,
+die #749 an der zurückgezogenen VJ-Overlay-Bitte gefunden hat: eine Geräteprobe, die auf ein
+entferntes Bedienelement zeigt). Mechanisch geprüft: **jede in Anführungszeichen genannte
+UI-Beschriftung** und **jedes in Backticks genannte Symbol** aus allen 50 Bitten gegen
+`Sources/`. Beschriftungen: 1 Treffer, ein Prosa-Zitat, kein Bedienelement. Symbole: **0**.
+Der Rückstand ist auf dieser Achse sauber. Ein Skript daraus zu bauen, das nichts findet,
+wäre kein Zyklus gewesen.
+
+**Was der Doctor stattdessen fand — und es war MEINS.** `doctor.py` meldete, dass
+`VisualFineTuneReflowsTests.swift:478` eine Nadel auf `func normaliseUnreachableDonutMode`
+trägt, die #748 gelöscht hat. Die Doctor-Skill sagt selbst: nach dem Löschen eines Features
+laufen lassen. Genau so gekommen.
+
+**Aber die Diagnose war falsch, und DAS ist der Zyklus.** Die Nadel steht in einem
+NEGIERTEN `contains(` — der Ausschluss-Form `contains("foo()") && !contains("func foo")`
+(„ein AUFRUF, nicht die Deklaration"). Der Wächter ist korrekt und BLEIBT korrekt: eine
+negierte Nadel, die ins Leere zeigt, ist ein No-op und kann kein falsches Grün erzeugen; was
+die Wahrheit trägt, ist die POSITIVE Hälfte mit demselben Token, und die wird weiter geprüft.
+Gemeldet wurde ein korrekter Wächter — der Cry-Wolf-Fehler, vor dem derselbe Block warnt,
+im Block selbst.
+
+**Gemessen, bevor die Regel geschrieben wurde:** 261 Nadel-Zeilen in `Tests/CISmoke`, davon
+**sechs** in dieser negierten Form. Fünf lösen heute auf (die Deklaration existiert), eine
+nicht — jede künftige Löschung einer solchen Funktion hätte denselben Daueralarm erzeugt.
+
+**Die Ausnahme gilt der NADEL, nie der ZEILE.** `MIDIOutQualitySwitchesTests:141` trägt eine
+positive und eine negierte auf EINER Zeile; per Zeile auszunehmen hätte die positive
+mitausgeschaltet. Und sie schaut NIE auf Nachbarzeilen — die Begründung dafür steht schon
+über der bestehenden `absence`-Ausnahme. Zwei der sechs stehen auf einer Fortsetzungszeile
+und sind durch ihre EIGENE Form ausgenommen.
+
+**Beide Richtungen bewiesen.** Positiv: eine Sonden-Zeile mit einer echten Phantom-Nadel in
+eine getrackte Wächter-Datei geschrieben → weiterhin gemeldet; Datei danach byte-identisch
+wiederhergestellt. Negativ: die Mutation „per Zeile statt per Nadel" macht vier der fünf
+Selbsttest-Fälle rot.
+
+**`doctor.py` hatte KEINE eigene Kontrolle.** Jetzt gibt es `--selftest`, und die Ausgabe
+sagt in ihrem eigenen Text, dass sie GENAU EINE Regel prüft und nicht den Doctor — in einem
+Werkzeug, dessen Thema Instrumente sind, die mehr behaupten als sie gemessen haben.
+
+**Section B ist danach sauber (0 Befunde).** Section A hat weiterhin 2 CRITICALs, beide
+founder-gated (`.github/workflows/**`), beide längst berichtet.

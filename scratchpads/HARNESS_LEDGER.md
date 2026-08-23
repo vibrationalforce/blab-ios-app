@@ -1603,3 +1603,25 @@ Vermerk veraltet. **Eine Kontrolle über eine Funktion beweist nicht, dass jeman
 ⚠️ **Grenze:** `--selftest` läuft in KEINEM CI-Gate, so wenig wie `doctor.py`. Es ist ein
 Werkzeug mit eigener Kontrolle, kein Wächter im blockierenden Bundle — ein zweiter Swift-
 Wächter, der Python aufruft, wäre #416.
+
+## PLAYBOOK (2026-08-23 #754): nach einer Löschung den Doctor laufen lassen — und seine Diagnose prüfen
+
+**`python3 scripts/doctor.py --section B`** findet Wächter-Nadeln, deren Deklaration nicht
+(mehr) existiert. #748 löschte eine Funktion und ließ eine Nadel darauf stehen; der Doctor
+fand sie einen Zyklus später.
+
+⛔ **Seine SCHLUSSFOLGERUNG war trotzdem falsch, und der Fehler ist wiederholbar:** die Nadel
+stand in einem NEGIERTEN `contains(`. Die Form `contains("foo()") && !contains("func foo")`
+heißt „ein AUFRUF, nicht die Deklaration". Zeigt die negierte Hälfte ins Leere, ist sie ein
+**No-op** — sie kann kein falsches Grün erzeugen, und die POSITIVE Hälfte derselben Zeile
+trägt die Wahrheit weiter. **Ein Befund über eine Nadel ist erst dann ein Befund, wenn man
+gelesen hat, ob sie bejaht oder verneint wird.**
+
+⚠️ **Ausnahme per NADEL, nie per ZEILE** (eine Zeile trägt beide Formen), und **nie über
+Nachbarzeilen** — die Begründung steht seit langem über der `absence`-Ausnahme im selben
+Block. Gemessen vor der Regel: 261 Nadel-Zeilen, **sechs** in negierter Form.
+
+⭐ **Beide Richtungen bewiesen, bevor der Commit lief:** eine echte Phantom-Nadel wird
+weiterhin gemeldet (Sonde in eine getrackte Datei geschrieben, danach byte-identisch
+zurück), und die Mutation „per Zeile" macht den neuen `--selftest` rot. `doctor.py` hatte bis
+hierher gar keine Kontrolle; die neue prüft **eine** Regel und sagt das in ihrer Ausgabe.

@@ -757,6 +757,28 @@ def section_b() -> Section:
     # the cry-wolf failure in its purest form. Same-line only, for the reason the path check
     # above learned the hard way: a neighbourhood exemption exempts live things by accident.
     absence = re.compile(r"XCTAssertFalse|XCTAssertNil|\.isEmpty|deleted|no longer|must be ABSENT")
+    # ⛔ AND A NEEDLE INSIDE A **NEGATED** `contains(` IS THE SAME CRY-WOLF, IN A SHAPE THE
+    # LINE ABOVE CANNOT SEE (#754). The repo-idiomatic form is
+    #     lines.contains { $0.contains("foo()") && !$0.contains("func foo") }
+    # — "a CALL, not the declaration". Measured across `Tests/CISmoke/*.swift`: 261 code lines
+    # carry a needle, SIX carry one in this negated shape, and this check flagged one of them
+    # the day #748 deleted `normaliseUnreachableDonutMode` — a guard that is CORRECT and stays
+    # correct, reported as broken forever.
+    #
+    # Why exempting is right and does not open a hole: a negated needle that resolves to
+    # nothing is a NO-OP, so it cannot manufacture a false green. What drives the guard's truth
+    # is the POSITIVE half carrying the same token, and that half is still scanned. A rename
+    # therefore still turns the guard red through its own logic — the doctor does not need to
+    # protect the spelling twice. And a bare `!x.contains("func ghost")` used as an assertion
+    # IS an absence assertion, which the line above already exempts on purpose.
+    #
+    # ⚠️ PER-NEEDLE, NOT PER-LINE, and SAME-LINE ONLY. `MIDIOutQualitySwitchesTests:141` puts a
+    # positive and a negated `contains` on ONE line; exempting the whole line would stop
+    # checking the positive one too. And the exemption never looks at neighbouring lines — the
+    # reason is written above `absence`: a neighbourhood exemption exempts live things by
+    # accident. Two of the six sit on a continuation line and are exempted by their OWN shape,
+    # not by reading the line before them.
+    negated_contains = re.compile(r"!\s*[A-Za-z0-9_$.\[\]]*\.contains\(\s*$")
 
     # ⛔ THE GLOB WAS `Sources/Echoelmusic/**/*.swift` AND DROPPED FOUR LIVE FILES — including
     # `EchoelmusicApp.swift`, the `@main` entry point. Git's `**/` requires at least one
@@ -789,6 +811,8 @@ def section_b() -> Section:
                 if absence.search(line):
                     continue
                 for m in needle_shape.finditer(line):
+                    if negated_contains.search(line[:m.start()]):
+                        continue          # an exclusion, not a presence scan (#754)
                     # A bare needle (`"struct Bio"`) must not resolve by PREFIX against
                     # `struct BioStripView`. The condition below is the one that matters —
                     # does the needle END in a word character — and it applies to 110 of the
@@ -1043,11 +1067,54 @@ def section_d() -> Section:
 
 # --------------------------------------------------------------------------------------- report
 
+def selftest_negated_needle() -> int:
+    """Pin the ONE rule #754 added: a needle inside a negated `contains(` is an exclusion.
+
+    ⚠️ THIS IS NOT A SELFTEST OF THE DOCTOR. It covers one regex in section B and nothing
+    else — the other checks in this file still have no control, which is worth saying out
+    loud in a tool whose whole subject is instruments that overstate what they measured.
+
+    ⛔ IT IS WRITTEN AS A PAIR ON PURPOSE (#739). A check that only feeds its own positive is
+    not a check: the exemption must fire on the negated shape AND must NOT fire on a positive
+    needle sitting on the SAME line, or it silently disarms the phantom scan it lives inside.
+    """
+    dm = (r"(?:(?:private|fileprivate|internal|public|open|static|final|class"
+          r"|override|mutating|nonisolated|indirect|convenience|required)\s+)*")
+    shape = re.compile(r'"(' + dm + r'(?:func|struct|enum|class|protocol) [A-Za-z_][A-Za-z0-9_]*[^"]*)"')
+    negated = re.compile(r"!\s*[A-Za-z0-9_$.\[\]]*\.contains\(\s*$")
+    cases = [
+        # (line, exempt-per-needle) — the first three are transcribed from Tests/CISmoke.
+        ('&& !$0.contains("func normaliseUnreachableDonutMode")', [True]),
+        ('&& !line.contains("func normaliseDoorlessLeadMix")', [True]),
+        ('$0.text.contains("startBiofeedback()") && !$0.text.contains("func startBiofeedback")',
+         [True]),
+        ('lines.contains("func realDeclaration(")', [False]),
+        # The one that matters: mixed on one line. Exempting per LINE would read [True, True]
+        # and stop checking the positive needle.
+        ('line.contains("func a(") && !line.contains("func b(")', [False, True]),
+    ]
+    bad = []
+    for line, want in cases:
+        got = [bool(negated.search(line[:m.start()])) for m in shape.finditer(line)]
+        if got != want:
+            bad.append(f"{line[:60]!r}: got {got}, expected {want}")
+    for line in bad:
+        print("FAIL:", line)
+    print(f"selftest (section B negation rule ONLY): "
+          f"{'FAILED' if bad else 'ok'} ({len(bad)} problem(s))")
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--section", choices=list("ABCD"), help="run only one section")
     ap.add_argument("--quiet", action="store_true", help="print findings only, no clean sections")
+    ap.add_argument("--selftest", action="store_true",
+                    help="check ONE rule (section B's negated-needle exemption), not the doctor")
     args = ap.parse_args()
+
+    if args.selftest:
+        return selftest_negated_needle()
 
     runners = {"A": section_a, "B": section_b, "C": section_c, "D": section_d}
     keys = [args.section] if args.section else list("ABCD")

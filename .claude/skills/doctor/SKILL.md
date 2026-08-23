@@ -90,7 +90,15 @@ CI-Abschnitt in `CLAUDE.md`.
 ### B — TOOLING: beschreiben unsere eigenen Kommandos noch dieses Repo?
 Prüft Pfade in `.claude/commands/*.md` und `.claude/skills/*/SKILL.md`, die es nicht mehr
 gibt, und Kommandos, die `swift build`/`swift test` verlangen, obwohl hier keine Toolchain
-existiert.
+existiert. **Und die Nadeln der Wächter:** ein `contains("func …")` in `Tests/CISmoke`, dessen
+Deklaration nirgends steht, kann nicht für seinen genannten Grund rot werden (#367).
+
+⚠️ Zwei Formen sind davon AUSGENOMMEN, und beide Ausnahmen sind bezahlt: eine Nadel in einer
+Abwesenheits-Behauptung (`XCTAssertFalse`, …) und — seit #754 — eine Nadel in einem
+NEGIERTEN `contains(`, also die Ausschluss-Form `contains("foo()") && !contains("func foo")`.
+Die zweite Form ist ein No-op, wenn sie ins Leere zeigt, und die POSITIVE Hälfte derselben
+Zeile wird weiter geprüft. Ausgenommen wird die einzelne NADEL, nie die Zeile.
+`python3 scripts/doctor.py --selftest` prüft genau diese eine Regel — und sonst nichts.
 
 **Deine Aufgabe:** Ein Kommando, das gelöschte Verzeichnisse scannt, meldet „sauber" für
 Arbeit, die es nie angesehen hat — das ist dieselbe Lüge wie ein maskiertes Gate, nur eine
