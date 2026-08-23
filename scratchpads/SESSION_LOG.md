@@ -11804,3 +11804,47 @@ gebaut; die Frage braucht einen echten Entwurf, kein Stichwort.
 
 `CLAUDE.md` 148 802 B, **1 198 B** unter der harten Decke — der nächste Eintrag braucht eine
 Provenienz-Auslagerung nach `memory/LEDGER_COUNTS.md`.
+
+## 2026-08-23 (cron, 24h-Mandat) — #758: die Barrierefreiheits-Seite versprach eine Funktion ohne Code
+
+**Gates #757 (`9804703`): GRÜN** — `Build for Testing: Succeeded`, **0 Compile-Fehlerzeilen**,
+**172 bestanden, 0 Fehlschläge**. Der neue Store-Wächter kompiliert. ⚠️ Vierter Lauf in Folge
+mit exakt 172 — und das Bundle ist in dieser Zeit um drei Testmethoden gewachsen. Die
+geleerte Teilmenge ist also stabil und meine neuen Wächter liegen außerhalb; nach #445 sagt
+das nichts über rot/grün. **Kompiliert nachweislich, Ausführung unbelegt.**
+
+**Der Befund: `docs/accessibility.html` listete fünf Kacheln unter „was die App heute tut" —
+vier davon stimmten nicht.**
+
+| Kachel | Gemessen |
+|---|---|
+| „Voice Control — navigate and create using only your voice" | **NULL Code.** Kein `SFSpeech`, kein Spracherkenner, kein Sprachbefehl, und `accessibilityCustomAction` kommt in `Sources/` **nirgends** vor |
+| „VoiceOver … for **all** interactive elements" | Dieselbe Seite sagt **zweimal** „primary controls" — im Hero-Badge und in der iPhone-Karte —, und der App-Store-Text auch |
+| „High Contrast — enhanced visibility **mode**" | Es gibt keinen Kontrast-Schalter. Die Oberfläche IST kontraststark; ein „Modus" verspricht eine Einstellung, die es nicht gibt |
+| „Haptic Feedback — tactile responses for **key interactions**" | Falsch in der ART: `hapticsRow` („Haptic beat (feel)") sitzt im `tempoToolsPanel` und pulst auf jeder Viertelnote. Es folgt der MUSIK, nicht den Fingertipps |
+| „Reduced Motion" | **stimmt** — unverändert gelassen |
+
+⭐ **Und die Seite widersprach sich selbst:** „Hands-Free — Voice + switch nav" steht weiter
+unten unter **„(planned)"**. Eine Seite behauptete, dieselbe Fähigkeit sei fertig UND geplant.
+
+⚠️ **Warum das schwerer wiegt als eine Marketing-Ungenauigkeit:** ein blinder Nutzer, der die
+App wegen „full screen reader support for all interactive elements" und „create using only
+your voice" auswählt, trifft eine Kaufentscheidung darüber, ob die App überhaupt bedienbar
+ist. Deshalb steht der Wächter auf der Barrierefreiheits-Seite und nicht nur auf dem
+Store-Text.
+
+**Die Voice-Control-Kachel ist ERSETZT, nicht gelöscht** — durch etwas, das es wirklich gibt
+und das dieselbe Not adressiert (Motorik): **exakte numerische Eingabe** über `EchoelValueField`
++ `EchoelNumberPad` mit eigener Vorzeichentaste. Nichts hängt an einer präzisen Zieh-Geste.
+Das Mikrofon-Icon ist mitgetauscht.
+
+**Wächter im bestehenden Website-Haus (#416), auf den LIEFER-Abschnitt begrenzt** — die
+Begrenzung wurde VOR dem Schreiben gemessen: „Voice + switch nav" liegt hinter dem Abschnitt
+und muss erlaubt bleiben, ein seitenweites Verbot wäre die #364-Falle gewesen. **Drei
+Mutanten getrieben**: Voice-Kachel zurück → rot · „all interactive elements" zurück → rot ·
+Überschrift umbenannt → `XCTFail` statt stillem Grün (#454). Datei danach byte-identisch.
+
+**Vierte Fläche mitgezogen (#456):** der App-Store-Text sagte in BEIDEN Sprachen „exakte
+numerische Eingabe für **jeden** Parameter" — benannte Auswahlen sind Picker, nicht Zahlen.
+Jetzt „für jeden **numerischen** Parameter". Der #757-Wächter läuft danach weiter grün
+(nachgerechnet).

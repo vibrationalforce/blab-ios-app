@@ -1699,3 +1699,28 @@ dass die App sie benutzt.** Immer die Aufrufer mitzählen, nicht nur den Inhalt 
 per Stichwort-Grep (`claim|copy|forbidden`) trifft **312 von ~330** Dateien in
 `Tests/CISmoke`. Ein Filter, der 95 % durchlässt, ist eine Liste. Die Frage ist gut, das
 Messverfahren war es nicht.
+
+## DEAD-END (2026-08-23 #758): eine Seite, die eine Fähigkeit gleichzeitig als fertig UND geplant führt
+
+`docs/accessibility.html` verkaufte „Voice Control — navigate and create using only your
+voice" im LIEFER-Abschnitt und „Hands-Free — Voice + switch nav" im **„(planned)"**-Abschnitt
+derselben Seite. Gemessen: **null** Sprach-Code in `Sources/` (kein `SFSpeech`, kein
+Erkenner, kein `accessibilityCustomAction`).
+
+**Der billigste Test für eine Roadmap-Seite: liest dieselbe Seite eine Fähigkeit zweimal, in
+zwei verschiedenen Zeitformen?** Ein Widerspruch INNERHALB einer Datei braucht keinen Blick in
+den Quelltext, um verdächtig zu sein — und er zeigt genau dorthin, wo der Quelltext dann die
+Antwort gibt.
+
+⚠️ **Der Wächter muss auf den LIEFER-Abschnitt begrenzt sein**, sonst wird ehrliche
+Roadmap-Kopie rot (#364). Die Begrenzung wurde gemessen, bevor sie geschrieben wurde: das
+Wortpaar liegt nachweislich hinter der Abschnittsgrenze.
+
+⭐ **Eine falsche Kachel wird ERSETZT, nicht gelöscht.** Statt „Voice Control" steht jetzt
+„exakte numerische Eingabe" — eine echte, doorbare Fähigkeit, die dieselbe Not (Motorik)
+adressiert. Eine Lücke in einer Barrierefreiheits-Liste liest sich als „daran wurde nicht
+gedacht"; eine ehrliche Kachel sagt, was es stattdessen gibt.
+
+⚠️ **Und eine Barrierefreiheits-Über-Behauptung ist keine Marketing-Ungenauigkeit.** Sie
+entscheidet für einen blinden Nutzer, ob die App überhaupt bedienbar ist. Diese Seite gehört
+in dieselbe Prüfroutine wie der Store-Text, nicht in „irgendwann mal".

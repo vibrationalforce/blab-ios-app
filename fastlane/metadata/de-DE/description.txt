@@ -44,7 +44,7 @@ Vier Funktionen senden Bio-Werte nach außen — jede erst, wenn Du sie einschal
 
 BARRIEREFREIHEIT
 
-Accessibility-first entwickelt: VoiceOver, große, gut lesbare Bio-Anzeigen, exakte numerische Eingabe für jeden Parameter und eine 3-Hz-Begrenzung der Bildblitzrate für photosensitive Sicherheit.
+Accessibility-first entwickelt: VoiceOver, große, gut lesbare Bio-Anzeigen, exakte numerische Eingabe für jeden numerischen Parameter und eine 3-Hz-Begrenzung der Bildblitzrate für photosensitive Sicherheit.
 
 
 Echoel ist in aktiver Entwicklung — mehr folgt. Feedback und Zusammenarbeit willkommen: echoel@tropicaldrones.com

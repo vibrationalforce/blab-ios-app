@@ -45,7 +45,7 @@ Four things send bio values outward, each only after you switch it on, and each 
 
 ACCESSIBILITY
 
-Designed accessibility-first: VoiceOver, large legible bio readouts, exact numeric entry for every parameter, and a 3 Hz visual flash cap for photosensitive safety.
+Designed accessibility-first: VoiceOver, large legible bio readouts, exact numeric entry for every numeric parameter, and a 3 Hz visual flash cap for photosensitive safety.
 
 
 Echoel is in active development — more is on the way. Feedback and collaboration welcome: echoel@tropicaldrones.com

@@ -862,4 +862,64 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
                 """)
         }
     }
+
+    /// The accessibility page's SHIPPING list must describe features that exist.
+    ///
+    /// ⛔ WHAT IT CAUGHT (#758). `accessibility.html` presented five tiles under "what the app
+    /// does today". Measured against the tree: "Voice Control — navigate and create using only
+    /// your voice" had **zero** implementation (no `SFSpeech`, no speech recogniser, no voice
+    /// commands, and `accessibilityCustomAction` occurs nowhere in `Sources/`), while the SAME
+    /// PAGE listed "Hands-Free — Voice + switch nav" in its "(planned)" block. One page said a
+    /// capability both ships and is coming. "VoiceOver … for all interactive elements"
+    /// contradicted the same page's "primary controls" — twice — and the App Store text.
+    /// "High Contrast — enhanced visibility mode" implied a setting; there is no contrast
+    /// toggle, the interface is high-contrast by design. "Haptic Feedback — tactile responses
+    /// for key interactions" was wrong in KIND: `hapticsRow` ("Haptic beat (feel)") sits in
+    /// `tempoToolsPanel` and plays a quarter-note pulse — it follows the music, not taps.
+    ///
+    /// ⚠️ AN ACCESSIBILITY OVERCLAIM IS NOT A MARKETING QUIBBLE. A blind user choosing this app
+    /// on "full screen reader support for all interactive elements" and "create using only your
+    /// voice" is misled into a purchase decision about whether the app is usable at all. That is
+    /// why this guard exists on the accessibility page specifically and not only on the store
+    /// copy.
+    ///
+    /// ⚠️ SCOPED TO THE SHIPPING SECTION, and the scoping was measured before it was written.
+    /// The "(planned)" block further down legitimately says "Voice + switch nav"; a page-wide
+    /// needle would go red on honest roadmap copy — the #364 trap. The window runs from the
+    /// `Accessibility Features` heading to the next `</section>`.
+    func testTheAccessibilityPageShipsWhatItLists() throws {
+        guard let page = try pages().first(where: { $0.name == "accessibility.html" })?.html else {
+            return XCTFail("docs/accessibility.html is missing — this guard checked nothing")
+        }
+        guard let start = page.range(of: "<h2>Accessibility Features</h2>"),
+              let end = page.range(of: "</section>", range: start.upperBound..<page.endIndex)
+        else {
+            return XCTFail("""
+                The `Accessibility Features` heading is gone from docs/accessibility.html, so \
+                the shipping list could not be located (#454: a missing ANCHOR fails, it does \
+                not skip). If that section was renamed or moved, point this test at it in the \
+                same commit.
+                """)
+        }
+        let shipping = String(page[start.lowerBound..<end.upperBound]).lowercased()
+
+        for claim in ["voice control", "using only your voice", "hands-free"] {
+            XCTAssertFalse(shipping.contains(claim), """
+                The shipping accessibility list claims "\(claim)". Measured: `Sources/` contains \
+                no speech recogniser, no voice-command handling and not one \
+                `accessibilityCustomAction`. The same page already lists voice navigation under \
+                "(planned)", where it belongs. If someone builds it, wire it first, then move \
+                the tile up and change this test in the same commit.
+                """)
+        }
+
+        XCTAssertFalse(shipping.contains("all interactive elements"), """
+            The shipping list claims VoiceOver labels on ALL interactive elements. The same \
+            page says "primary controls" twice — in the hero badge and in the iPhone platform \
+            card — and so does the App Store description. Two spellings of one decision (#416), \
+            and the optimistic one is the outlier. The guards that exist cover a SUBSET \
+            (`EveryIconOnlyControlSpeaksTests`, `TheStatefulControlsSpeakTheirStateTests`); \
+            claim the subset.
+            """)
+    }
 }
