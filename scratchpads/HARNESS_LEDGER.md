@@ -1911,3 +1911,21 @@ Absicherung und war das Loch.
 **STATT DESSEN:** „in development" ist eine Behauptung über die GEGENWART und braucht Code als
 Beleg. Für alles andere: **„planned, not built yet"**. Der Unterschied ist nicht Höflichkeit —
 auf einer Bezahlschranke ist er 2.3.
+
+## PLAYBOOK — Erst die FLÄCHEN zählen, dann die Kopien je Fläche (#766, schärft #757)
+
+#757 lehrte: jede Claim-Fläche hat so viele Kopien wie Locales. #766 zeigt die Stufe darüber:
+**#548 meldete fünf Flächen als geprüft, und alle fünf waren PROSA** — die App-eigene
+Routing-Fläche kam in der Aufzählung nicht vor und trug die Falschbehauptung zwei Monate weiter.
+#765 war derselbe Fehler eine Woche vorher (App-Kopie fehlte in der Aufzählung).
+
+**Die Aufzählung ist der Defekt, nicht die Sorgfalt.** Checkliste vor „alle Flächen geprüft":
+1. `docs/**` (jede Seite, nicht die, an die man denkt)
+2. `fastlane/metadata/<jedes Locale>`
+3. `ContentPipeline/CLAIMS.md`
+4. **App-Kopie in `Sources/`** — `Text("…")`, `accessibilityLabel/Hint`, Enum-`displayName`,
+   **Port-/Kanal-NAMEN** (`SignalPort(name:)`), Menü-Untertitel
+5. die immer-geladene `CLAUDE.md` selbst
+
+**Erkennungszeichen:** wenn alle geprüften Flächen dieselbe GATTUNG haben (hier: Prosa), ist die
+Aufzählung mit hoher Wahrscheinlichkeit unvollständig.

@@ -31,18 +31,30 @@
 // and this bundle cannot hear. What the text can carry is that the three cases still fall
 // into one `break` and that no member channel is read; that is the claim, stated as such.
 //
-// ⚠️ AND ONE THING THIS FILE DOES NOT TOUCH: the other four surfaces are already honest —
-// `docs/faq.html` ("Full MPE zone handling (per-note channels, pressure) … on the roadmap,
-// not in the app today"), `docs/architecture.html`, the App Store description and
-// `ContentPipeline/CLAIMS.md`. `CLAUDE.md` was the lone outlier, which is why the correction
-// borrows the FAQ's already-vetted wording instead of inventing a fifth spelling (#416).
+// ⚠️ THE OTHER PROSE SURFACES ARE ALREADY HONEST — `docs/faq.html` ("Full MPE zone handling
+// (per-note channels, pressure) … on the roadmap, not in the app today"),
+// `docs/architecture.html`, the App Store description and `ContentPipeline/CLAIMS.md`. That is
+// why the correction borrows the FAQ's already-vetted wording instead of inventing a fifth
+// spelling (#416).
 //
-// ⚠️ HONEST GRADING — TRANSCRIBED against the parent and this tree. **ZERO REGRESSIONS, and
-// that is the correct result, not a gap.** This slice changes PROSE in `CLAUDE.md`; every
-// assertion below describes code neither tree touches, so all four are green on both by
-// construction. Booking them as caught regressions would be the flattering-direction defect
-// (#433). What the file buys is the FUTURE red: the correction cannot silently rot back,
-// because the day the consumer grows a real MPE path this guard names the line to rewrite.
+// ⛔ AND THIS PARAGRAPH SAID "`CLAUDE.md` WAS THE LONE OUTLIER". IT WAS NOT (#766). Every one
+// of the five surfaces #548 enumerated is PROSE. `SignalRouter`'s SOURCE port was still named
+// "MIDI / MPE In", rendered by `PatchbayView` behind the reachable `showRouting` sheet — the
+// only surface a player reads WHILE PATCHING, and it carried the claim for two months after
+// the prose was corrected. `testTheRoutingScreenOffersNoMPEInput` is the sixth. **A capability
+// claim has as many surfaces as somebody enumerates**; "all of them checked" only ever means
+// "all the ones I thought of".
+//
+// ⚠️ HONEST GRADING FOR #766 (parent `c1d285b`), TRANSCRIBED in Python against both trees:
+// **claim 5 is a REGRESSION** — the `id: "midi.in"` line reads `name: "MIDI / MPE In"` on the
+// parent and `name: "MIDI In"` here. Claims 1-4 stay COUNTERWEIGHTS, green on both; they are
+// the premises that make claim 5 true rather than a style preference.
+//
+// ⭐ EARLIER GRADING FOR #548 (the commit that created this file): **ZERO REGRESSIONS, and that
+// was the correct result, not a gap.** That slice changed PROSE in `CLAUDE.md`; every assertion
+// described code neither tree touched, so all four were green on both by construction. Booking
+// them as caught regressions would have been the flattering-direction defect (#433). What the
+// file bought was the FUTURE red — and #766 is the first instalment of exactly that.
 //
 // ⚠️ `SourceText.codeOnly` is PROPHYLACTIC here, MEASURED (#453) over {4 claims × 2 trees}:
 // **0 of 8** verdicts flip. The scanned members carry comments that mention `.slide` and
@@ -59,6 +71,7 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
 
     private static let voice = "Sources/Echoelmusic/Tools/BioReactiveSynthVoice.swift"
     private static let bus = "Sources/Echoelmusic/Core/EngineBus.swift"
+    private static let router = "Sources/Echoelmusic/Core/SignalRouter.swift"
 
     /// The correction this guard protects, quoted so a failure can point at it precisely.
     private static let prose = """
@@ -145,6 +158,49 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
                 the corrected sentence overstates in the other direction — \(Self.prose)
                 """)
         }
+    }
+
+    /// The routing screen must not offer an MPE INPUT the app cannot receive.
+    ///
+    /// ⛔ #766 — THE SIXTH SURFACE, AND #548 CHECKED FIVE. That slice corrected CLAUDE.md's
+    /// pipeline line, the FAQ, `architecture.html`, the App Store text and
+    /// `ContentPipeline/CLAIMS.md`. Every one of them is PROSE. `SignalRouter`'s source port
+    /// was named "MIDI / MPE In" and is rendered by `PatchbayView`, which is reachable through
+    /// the `showRouting` sheet — so the only surface a player reads WHILE PATCHING kept the
+    /// claim for two months after the prose was fixed. A capability claim's surfaces are only
+    /// as many as somebody enumerates.
+    ///
+    /// ⚠️ THE SINK KEEPS ITS NAME ON PURPOSE (#364). "MIDI / MPE Out" is TRUE: MPE out is real
+    /// and switchable since #713, with two persisted toggles in this same routing surface. The
+    /// asymmetry is the finding; a guard that banned "MPE" from the file would forbid the
+    /// honest half and be deleted along with the law.
+    ///
+    /// ⚠️ IT ANCHORS ON THE SOURCE LINE, NOT ON A FILE-WIDE COUNT. `id: "midi.in"` occurs once
+    /// and is the identity a rename cannot silently take with it; the display name travels
+    /// beside it. A file-wide "MPE In" ban would also match the retraction comment above the
+    /// line, which QUOTES the struck name — the #491 shape, red on the commit that fixes it.
+    func testTheRoutingScreenOffersNoMPEInput() throws {
+        let router = try source(Self.router)
+        guard let line = SourceText.codeOnly(router)
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .first(where: { $0.contains("id: \"midi.in\"") })
+        else {
+            throw MPEAnchorMissing(reason: """
+                No port declares `id: "midi.in"` in \(Self.router) — this scan found nothing \
+                rather than nothing wrong (#454). If the port moved, re-anchor it here in the \
+                same commit.
+                """)
+        }
+        XCTAssertFalse(String(line).contains("MPE"), """
+            The MIDI INPUT port is called "\(line.trimmingCharacters(in: .whitespaces))" again.
+
+            The app cannot receive MPE: `MIDIBusPublisher` disambiguates no zones, and \
+            `apply(controller:)` `break`s on `.slide`, `.airCC` and `.channelPressure` while \
+            never reading `event.channel` — the three claims the tests above pin. MPE **out** \
+            is real, so the sink port keeps its name; only the SOURCE must not promise it. \
+            If a real MPE receiver is built, this whole file goes red together and the \
+            corrected prose goes back — \(Self.prose)
+            """)
     }
 
     // MARK: - source access

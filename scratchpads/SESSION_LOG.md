@@ -12201,3 +12201,54 @@ Baum rot (#491).
    abbrechen, nicht antworten.**
 
 **GATES:** berührt `Sources/` **und** `Tests/CISmoke/` → **beide echten Gates laufen**.
+
+## #766 — Die sechste Fläche: die Routing-Fläche bot einen MPE-Eingang an, den es nicht gibt (2026-08-23)
+
+**Befund in einem Satz:** `SignalRouter`s Quell-Port hieß **„MIDI / MPE In"** — und die App kann
+**kein MPE empfangen**.
+
+**Warum das zwei Monate überlebt hat, und das ist die eigentliche Lehre:** #548 hat den Defekt
+gemessen und **fünf** Flächen korrigiert — CLAUDE.mds Pipeline-Zeile, die FAQ,
+`architecture.html`, den App-Store-Text und `ContentPipeline/CLAIMS.md`. **Alle fünf sind PROSA.**
+Der Port wird von `PatchbayView` gerendert, erreichbar über das `showRouting`-Sheet
+(`EchoelStudioView:1499`) — also die einzige Stelle, die ein Spieler **beim Patchen** liest.
+
+> **Eine Fähigkeits-Behauptung hat so viele Flächen, wie jemand aufzählt.**
+> „Alle geprüft" heißt nur „alle, die mir eingefallen sind".
+
+Das ist die verschärfte Form der #757-Lehre (jede Fläche hat so viele Kopien wie Locales):
+**erst die Flächen zählen, dann die Kopien je Fläche.** Zweimal in Folge hat eine als
+vollständig gemeldete Prüfung eine ganze Kategorie ausgelassen — #765 die App-Kopie,
+#766 die Routing-Fläche.
+
+**Gemessen (unverändert seit #548):** `MIDIBusPublisher` parst MPE-Verkehr, unterscheidet aber
+**keine Zonen** (sagt sein eigener Kopf); `BioReactiveSynthVoice.apply(controller:)` läuft für
+`.slide`, `.airCC` und `.channelPressure` in **ein einziges `break`** und liest `event.channel`
+**nirgends**.
+
+**Der SENKEN-Port behält seinen Namen** — „MIDI / MPE Out" ist **wahr** (#713, zwei persistierte
+Schalter in derselben Routing-Fläche). Die Asymmetrie IST der Befund.
+
+**WÄCHTER: kein neuer, sondern eine fünfte Behauptung in `TheMPEDimensionsReachNoVoiceTests`**
+(#416 — dieselbe Entscheidung gehört in dieselbe Datei). Transkribiert gegen beide Bäume:
+**Claim 5 = REGRESSION** (Eltern-Baum `name: "MIDI / MPE In"`, Worktree `name: "MIDI In"`),
+Claims 1–4 bleiben Gegengewichte.
+
+⭐ **Und die #548-Benotung dieser Datei war ehrlich UND wird jetzt eingelöst:** sie schrieb
+„ZERO REGRESSIONS, and that is the correct result" und begründete es damit, dass die Datei ein
+**künftiges Rot** kauft. #766 ist die erste Rate davon.
+
+⚠️ **Anker auf der ZEILE, nicht dateiweit:** `id: "midi.in"` kommt genau einmal vor und ist die
+Identität, die ein Umbenennen nicht stillschweigend mitnimmt. Ein dateiweites „MPE In"-Verbot
+träfe den Rücknahme-Kommentar direkt darüber, der den gestrichenen Namen **zitiert** — die
+#491-Form, rot auf dem Commit, der repariert.
+
+**CLAUDE.md mitgezogen (#456):** die Zeile „diese Zeile war der einzige Ausreißer" ist als falsch
+markiert und nennt die sechste Fläche. Datei 140.468 B, Kopfraum 9.532 B.
+
+**Vorheriger Zyklus nachgetragen:** #765 (`c1d285b`) Gates gelesen — `Xcode Compile Check`
+success, `Build for Testing: Succeeded`, **171 Tests, 0 Fehler, 0 Compile-Fehler**. Der neue
+Wächter **kompiliert nachweislich**; Ausführung unbelegt (#445), aber alle 5 Claims waren vorher
+in Python gegen beide Bäume getrieben.
+
+**GATES:** berührt `Sources/`, `Tests/CISmoke/` und `CLAUDE.md` → **beide echten Gates laufen**.

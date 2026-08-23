@@ -138,7 +138,18 @@ public final class SignalRouter {
             SignalPort(id: "bus.bio",     name: "Body (bio)",   kind: .controlBio,     direction: .source, transport: .internalBus),
             SignalPort(id: "bus.musical", name: "Music",        kind: .controlMusical, direction: .source, transport: .internalBus),
             // External input
-            SignalPort(id: "midi.in",     name: "MIDI / MPE In", kind: .note,          direction: .source, transport: .coreMIDI),
+            // ⛔ THIS PORT WAS NAMED "MIDI / MPE In" AND THE APP CANNOT RECEIVE MPE (#766).
+            // #548 measured it and corrected five surfaces — CLAUDE.md's pipeline line, the
+            // FAQ, `architecture.html`, the App Store text and `ContentPipeline/CLAIMS.md` —
+            // all of them PROSE. The routing screen was a sixth surface and the only one a
+            // player reads while patching, so it kept the claim for two months. Measured:
+            // `MIDIBusPublisher` parses MPE traffic but disambiguates no zones (its own header
+            // says so), and `BioReactiveSynthVoice.apply(controller:)` runs into a single
+            // `break` for `.slide`, `.airCC` and `.channelPressure` — the three dimensions that
+            // MAKE it MPE — and never reads `event.channel`. MPE **out** is real and switchable
+            // (#713), which is why the sink below keeps its name. Guard:
+            // `Tests/CISmoke/TheMPEDimensionsReachNoVoiceTests`.
+            SignalPort(id: "midi.in",     name: "MIDI In", kind: .note,                 direction: .source, transport: .coreMIDI),
             // Universal BLE heart-rate strap (0x180D — Polar/Garmin/Wahoo/…).
             // DATA-FLOW PORT ONLY — it does NOT drive the strap's lifecycle. B4
             // (2026-07-12) briefly made `applyRouting` start/stop the scan from
