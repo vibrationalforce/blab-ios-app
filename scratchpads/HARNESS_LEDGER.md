@@ -1823,3 +1823,34 @@ Regel-Prüfung. Also zwei Schichten:
 übereinstimmen, kann der Lauf verdrahtet und abgehängt nicht unterscheiden — das auszusprechen
 ist billiger als ein grünes Häkchen, das nichts gemessen hat, und verhindert das #364-Rot an
 dem Tag, an dem der Unterschied legitim verschwindet.
+
+## DEAD-END — Eine Entscheidung in der immer-geladenen Datei „zur Sicherheit" wiederholen (#763)
+
+Der CI-Gate-Diskriminator stand in DREI Dateien. Die Kopie in `CLAUDE.md` war als Bequemlichkeit
+gedacht (immer da, nie nachschlagen müssen) und wurde dadurch zur **ältesten**: #667, #679, #738
+und #739 haben nur die kanonische Fassung in `Tests/CISmoke/CLAUDE.md` §5 nachgeführt.
+
+**Die immer-geladene Kopie gewinnt per Default.** Ist sie die stalest, ist die Redundanz nicht
+neutral, sondern aktiv schädlich — sie überschreibt die richtige Antwort.
+
+**STATT DESSEN:** Kurzfassung (2 Sätze, das was IMMER gilt) plus benannter Zeiger auf Datei UND
+Abschnitt. `.claude/rules/context.md` §3 hatte genau das schon getan; die Verletzung stand
+woanders.
+
+**Erkennungszeichen:** eine Datei sagt „X ist hier nicht wiederholt (#416)" und eine dritte Datei
+wiederholt X trotzdem. Suchbar: die Absage zitieren und prüfen, ob sie stimmt.
+
+## PLAYBOOK — Ein Umzugs-Wächter braucht ein ZIEL PRO ZEUGE (#763)
+
+`testTheMovedProvenance…` hatte `memory/LEDGER_COUNTS.md` hart verdrahtet, weil alle bisherigen
+Umzüge Zähl-Ketten waren. Der erste Umzug, der KEINE Zähl-Kette ist, hätte dorthin gezwungen eine
+VIERTE Kopie der zu entdoppelnden Entscheidung erzeugt.
+
+**Regel: ein Wächter, der ein einziges Ziel erzwingt, ist eine Wette darauf, dass alle künftigen
+Fälle dieselbe Sorte sind.** Ziel pro Zeuge führen, und den Grund für die Wahl im Zeugen selbst
+mitschreiben.
+
+⛔ **Und die Benotung des neuen Zeugen war beim ersten Schreiben aus EPOCH 4 abgeschrieben
+(„FORWARD — unfalsifiable on the parent") statt gemessen.** Gemessen ist er ein REGRESSION CATCH:
+beide Zusicherungen sind auf dem Eltern-Baum rot. Untertreiben ist die bescheidene Richtung von
+#464 und trotzdem eine falsche Behauptung über den eigenen Wächter.

@@ -50,6 +50,28 @@
 // repeated defect in its smallest possible form — a measured number quoted one edit later.
 // Re-derive: `for f in CLAUDE.md .claude/rules/*.md; do wc -c "$f"; done`.
 //
+// ⭐ GRADING FOR #763 (this tree, parent `99155dc`) — EPOCH 6. Claims 1-4 are COUNTERWEIGHTS
+// (green on the parent too). Claim 5 is MIXED, and the split is not the usual one: its four
+// LEDGER witnesses are counterweights, its fifth witness (`RUN_DESTINATION_DEVICE_NAME`,
+// pointing at `Tests/CISmoke/CLAUDE.md` §5b) is a REGRESSION CATCH — both of its assertions
+// are RED on the parent, measured (`git show HEAD:` on both files): the needle was absent from
+// §5b and PRESENT in `CLAUDE.md`, which is precisely the state this commit repairs.
+// ⛔ I first wrote "FORWARD — unfalsifiable on the parent" here, copying the §E/§F wording from
+// EPOCH 4 without measuring. That is the MODEST direction of #464 rather than the flattering
+// one, and it is still wrong: a forward guard CANNOT go red on the parent, this one does, and
+// calling a real regression catch unfalsifiable understates what the file proves. The claim's SHAPE also
+// changed: the destination is now per-witness, because #763's block is not count provenance
+// and forcing it into the counts ledger would have made a FOURTH copy of the decision the move
+// exists to de-duplicate. Statements still 13 (1+1+7+2+2, counted in Python over lines whose
+// first token is XCTAssert); the checks claim 5 RUNS went 8 → 10. Same lesson as EPOCH 4: the
+// statement count tracks neither coverage nor strength.
+// ⚠️ Claim 2's margin is the reason this commit exists. The parent stood at 148,802 B — 1,198 B
+// under the ceiling, i.e. the next register entry would have turned this guard RED. #763 moved
+// the 10,019 B gate-discriminator block out and `CLAUDE.md` is 139,890 B, so the headroom is
+// 10,110 B. That is claim 2's own prescribed repair executed, not a relaxation — and unusually,
+// the moved block was a DUPLICATE rather than provenance: `.claude/rules/context.md` §3 had
+// already named `Tests/CISmoke/CLAUDE.md` §5 as its one home and said it "is not repeated here".
+//
 // ⭐ GRADING FOR #751 (this tree, parent `a5dd049`) — EPOCH 5. Claims 1, 2 and 4 are
 // COUNTERWEIGHTS. Claims 3 and 5 are MIXED again, for the same structural reason as EPOCH 4:
 // their §A–§F halves are counterweights, their §G halves FORWARD (that section is created by
@@ -203,31 +225,47 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
 
     /// #472: grep AFTER moving. ONE witness stands for each moved block, chosen so it cannot
     /// be re-derived by accident: a filename that never existed (#702 → §C), a struck line
-    /// count (#746 → §E), and a sentence naming the panel that never had a grid (#746 → §F).
+    /// count (#746 → §E), a sentence naming the panel that never had a grid (#746 → §F), and a
+    /// simulator log key that appears exactly once in the tree (#763 → `Tests/CISmoke` §5b).
     ///
     /// ⚠️ A witness is NOT a summary of its block — it is a tripwire. Its absence from the
-    /// ledger means a paid-for lesson was DELETED rather than moved; its presence in
+    /// destination means a paid-for lesson was DELETED rather than moved; its presence in
     /// `CLAUDE.md` means the block is re-accreting in the always-loaded file, which is how
     /// the surface refilled in the nine days after #538.
-    func testTheMovedProvenanceIsInTheLedgerAndNotInTheLawFile() throws {
-        let ledger: String = try rawFile("memory/LEDGER_COUNTS.md")
+    ///
+    /// ⭐ THE DESTINATION IS PER-WITNESS SINCE #763, and that generalisation is the point
+    /// rather than tidiness. Four blocks went to `memory/LEDGER_COUNTS.md` because they are
+    /// COUNT provenance and that ledger is where count chains live. The fifth is not a count:
+    /// it is the CI-gate discriminator, whose one home `.claude/rules/context.md` §3 already
+    /// named as `Tests/CISmoke/CLAUDE.md` §5 — so sending it to the counts ledger to satisfy
+    /// a hard-coded path would have created a FOURTH copy of the very decision it was moved
+    /// to de-duplicate. A guard that forces the wrong destination is worse than no guard.
+    func testTheMovedProvenanceIsInItsLedgerAndNotInTheLawFile() throws {
         let law: String = try rawFile("CLAUDE.md")
-        let witnesses: [(needle: String, section: String, what: String)] = [
-            ("MIDIFileExporterDrumTests", "§C", "the #474 retraction — a cited test file that NEVER existed"),
-            ("988 Zeilen", "§E", "the struck `PianoRollView` line count (#475 wrote 988; it was 987)"),
-            ("Der Träger sitzt in `weatherRow`", "§F", "the sentence naming the panel that never had a grid"),
-            ("statt einen 17. anzuhängen", "§G", "the ambiguous slot-budget phrase from the donut-pill block")
+        let witnesses: [(needle: String, home: String, section: String, what: String)] = [
+            ("MIDIFileExporterDrumTests", "memory/LEDGER_COUNTS.md", "§C",
+             "the #474 retraction — a cited test file that NEVER existed"),
+            ("988 Zeilen", "memory/LEDGER_COUNTS.md", "§E",
+             "the struck `PianoRollView` line count (#475 wrote 988; it was 987)"),
+            ("Der Träger sitzt in `weatherRow`", "memory/LEDGER_COUNTS.md", "§F",
+             "the sentence naming the panel that never had a grid"),
+            ("statt einen 17. anzuhängen", "memory/LEDGER_COUNTS.md", "§G",
+             "the ambiguous slot-budget phrase from the donut-pill block"),
+            ("RUN_DESTINATION_DEVICE_NAME", "Tests/CISmoke/CLAUDE.md", "§5b",
+             "the Clone-2 evidence from the #763 gate-discriminator move — the log line that "
+             + "settled which simulator clone dies under #396")
         ]
         for w in witnesses {
-            XCTAssertTrue(ledger.contains(w.needle), """
-                \(w.what) is missing from `memory/LEDGER_COUNTS.md` \(w.section).
-                Every move out of CLAUDE.md was made on the ledger's promise to keep every \
+            let home: String = try rawFile(w.home)
+            XCTAssertTrue(home.contains(w.needle), """
+                \(w.what) is missing from `\(w.home)` \(w.section).
+                Every move out of CLAUDE.md was made on that file's promise to keep every \
                 line. If this needle is in NEITHER file, the lesson was deleted, not moved.
                 """)
             XCTAssertFalse(law.contains(w.needle), """
                 \(w.what) is back in CLAUDE.md. That is the re-accretion this guard exists \
-                to stop. Point at `memory/LEDGER_COUNTS.md` \(w.section) instead of \
-                re-quoting the provenance in the always-loaded file.
+                to stop. Point at `\(w.home)` \(w.section) instead of re-quoting the \
+                provenance in the always-loaded file.
                 """)
         }
     }

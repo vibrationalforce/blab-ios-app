@@ -12040,3 +12040,56 @@ zweiter Selbstfehler derselben Art: `f.lines` statt `f.evidence` (`AttributeErro
 
 **GATES:** Der Commit berührt nur `scripts/` und `scratchpads/` → **kein Workflow läuft**
 (#720). Vierter Zustand, weder grün noch rot; wird nicht als grün gemeldet.
+
+## #763 — Der Gate-Diskriminator war DREIMAL da, und die immer-geladene Kopie war die älteste (2026-08-23)
+
+**Befund in einem Satz:** `CLAUDE.md` trug 10.019 B des CI-Gate-Diskriminators — eine dritte
+Kopie einer Entscheidung, deren EINE Heimat `.claude/rules/context.md` §3 schon namentlich
+benannt hatte, mit den Worten *„it is not repeated here (#416)"*.
+
+**Warum das schlimmer ist als bloße Redundanz:** die drei Kopien hatten VERSCHIEDENE ALTER.
+Die `CLAUDE.md`-Fassung datiert vor #667 (xcbeautify schreibt `❌` statt `error:`), vor #679,
+#738 und #739. Sie ist die einzige, die **immer geladen** ist — sie gewinnt per Default, und sie
+war die falsche. Eine Sitzung, die ein rotes Gate liest, folgte hier einem Rezept, das §5 längst
+korrigiert hatte.
+
+**Zweiter, akuter Grund:** `CLAUDE.md` stand bei **148.802 B**, also **1.198 B** unter der harten
+150.000-B-Grenze, die `Tests/CISmoke/TheLawFileStaysUnderItsCeilingTests` im **blockierenden**
+Bundle prüft. Der nächste Register-Eintrag hätte das Gate rot gemacht.
+
+| | vorher | nachher |
+|---|---|---|
+| `CLAUDE.md` | 148.802 B | **139.890 B** |
+| Kopfraum zur Decke | 1.198 B | **10.110 B** |
+
+**WÖRTLICH verschoben, nicht zusammengefasst** — vier Fakten leben NUR in diesem Block:
+der Beleg, dass `Xcode Compile Check` allein `Sources/` kompiliert (`project.yml` `build.targets`);
+die `pr-check.yml`/#210-Notiz, die CI/CDs Exklusivität zur NEBENWIRKUNG statt zum Entwurf macht;
+der #478-DerivedData-Cache-Schlüssel; und die Clone-2-Rücknahme.
+
+**In `CLAUDE.md` bleibt ein Zwei-Satz-Zeiger** mit der Kurzfassung, die immer gilt
+(Compile-Check = nur `Sources/`; CI/CD-Conclusion sagt wegen #396 nichts → Job-Schritte lesen).
+
+**WÄCHTER-ÄNDERUNG, und sie ist die eigentliche Lehre:** `testTheMovedProvenance…` hatte das
+Ziel `memory/LEDGER_COUNTS.md` **hart verdrahtet**. Dieser Block ist aber keine ZÄHL-Provenienz;
+ihn dorthin zu zwingen hätte eine **VIERTE** Kopie genau der Entscheidung erzeugt, die der Umzug
+entdoppeln soll. Das Ziel ist jetzt **pro Zeuge**. *Ein Wächter, der das falsche Ziel erzwingt,
+ist schlechter als keiner.*
+
+**ROT GETRIEBEN, beide Richtungen, je für den GENANNTEN Grund** (Zeuge
+`RUN_DESTINATION_DEVICE_NAME`, je genau einmal im Baum):
+- Nadel im neuen Zuhause gelöscht → „missing from its home" (= Lektion gelöscht statt verschoben)
+- Nadel zurück in `CLAUDE.md` geschrieben → „re-accreted in CLAUDE.md" (= Wieder-Anwachsen)
+- Beide Dateien danach byte-identisch wiederhergestellt.
+
+**GEMESSEN gegen den Eltern-Baum** (`git show HEAD:` auf beide Dateien): **beide** Zusicherungen
+des neuen Zeugen sind dort **ROT** — die Nadel fehlte in §5b und stand in `CLAUDE.md`.
+
+⛔ **Und meine erste Benotung war falsch:** ich schrieb „FORWARD — unfalsifiable on the parent",
+abgeschrieben aus EPOCH 4, ohne zu messen. Ein Forward-Wächter KANN auf dem Eltern-Baum nicht rot
+werden; dieser wird es. Das ist die **bescheidene** Richtung von #464 und trotzdem falsch — es
+untertreibt, was die Datei beweist. Korrigiert zu **REGRESSION CATCH**, mit dem Messbefehl daneben.
+
+**GATES:** Dieser Commit berührt `Tests/CISmoke/**` → **beide echten Gates laufen** (die
+`paths:`-Filter matchen einen PFAD, keine Endung — `Tests/CISmoke/CLAUDE.md` startet einen vollen
+`build-for-testing`). Erstes Mal seit #759, dass ein Zyklus überhaupt ein Gate auslöst.
