@@ -129,7 +129,11 @@ Deprecated from main flow: the old SoundscapeEngine, ClipEngine, MomentCaptureVi
   BioSourceManager, Oura/EEG bridges, WeatherProvider, CircadianClock files have all
   been REMOVED in cleanup (2026-06-19 audit) — they no longer exist. (HealthKit + rPPG
   are now LIVE, not deprecated.) The genuinely app-unwired pure cores remaining are
-  BioModulation and CloudSync. NOW WIRED — do NOT list these as unwired: BioVisualParams
+  BioModulation, CloudSync und — nachgetragen 2026-08-23 (#757) — **`Core/BioSpaceMap`**
+  (null Produktions-Aufrufer; die bio→Objekt-Abbildung, die WIRKLICH sendet, steht in
+  `Sync/ADMOSCSender` selbst). ⛔ #756 nannte `BioSpaceMap` als BELEG dafür, dass die
+  Website-Zeile „breath→azimuth, coherence→distance, HRV→elevation" stimmt. Der SCHLUSS
+  hält, der ZEUGE nicht — geprüft wurde der Inhalt der Karte, nicht ob jemand sie ruft. NOW WIRED — do NOT list these as unwired: BioVisualParams
   (read by EchoelBioEngine + MetalBioView), FeedbackGuard (AudioEngine duck loop + the
   masterDoorButton „Audio input" door), LearnLibrary (LearnView), EchoelFXView (doored via
   `showAllFX`). ⛔ **VocoderCore stand hier als „NOW WIRED" mit dem Zusatz „whether THAT chain

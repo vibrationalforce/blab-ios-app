@@ -9,7 +9,7 @@ Read your pulse from Apple Health (e.g. Apple Watch), a Bluetooth heart-rate str
 
 - Heart rate shapes tempo and vibrato
 - HRV and coherence shape brightness, harmonicity, texture and space
-- Breath shapes the amplitude envelope and filter movement
+- Breath shapes the amplitude envelope — the sound swells and settles once with each breath
 
 Not every source measures everything: the camera reads pulse, HRV and breath; a chest strap reads pulse and HRV; Apple Watch provides heart rate through Health. What isn't measured simply doesn't modulate.
 

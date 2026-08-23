@@ -1671,3 +1671,31 @@ ist selbst schon ein Problem.
 
 ⚠️ **Und KEIN Wächter auf die Abwesenheit (#364):** ein Verbot des Namens verböte echte
 Arbeit an genau der Fähigkeit. Der Kommentar ist der Beleg, nicht ein Test.
+
+## DEAD-END (2026-08-23 #757): Flächen sind auch LOKALISIERUNGEN, nicht nur Dateien
+
+**Vierte Fundstelle derselben Behauptung.** `breathDepth` treibt nichts (beide
+Konstruktionsstellen pinnen `0.5`). #496 nahm es aus der App-Kopie, #755 aus der Website —
+und der **englische** App-Store-Text verkaufte es weiter („Breath shapes the amplitude
+envelope and filter movement"), während der **deutsche** derselben Anzeige seit jeher ehrlich
+war („Atem formt die Hüllkurve").
+
+**Regel, schärfer als die #755-Fassung:** eine nutzersichtbare Behauptung hat vier Flächen
+(App-Kopie · `docs/**` · `fastlane/metadata` · `ContentPipeline/CLAIMS.md`) — **und jede
+Fläche hat so viele Kopien, wie sie Sprachen hat.** Wer eine Über-Behauptung zurücknimmt,
+grept alle Lokalisierungen, nicht nur die eine, in der er sie gefunden hat.
+
+⚠️ **NÄHE statt Wort-Verbot (#364):** „Filter" ist im Store-Text WAHR — Kohärenz treibt
+`filterCutoff`. Verboten ist nur ATEM neben FILTER. Ein Wortverbot hätte ehrliche Kopie
+gesperrt und wäre binnen eines Zyklus umgangen worden.
+
+⛔ **Und ein Zeugen-Fehler aus dem Zyklus davor, im selben Themenfeld:** #756 bestätigte die
+ADM-OSC-Zeile der Website „gegen `Core/BioSpaceMap.swift`". Der Schluss stimmt, der Zeuge
+nicht — `BioSpaceMap` hat **null Produktions-Aufrufer**; die sendende Abbildung steht in
+`ADMOSCSender` selbst. **Eine Datei, die die richtige Antwort ENTHÄLT, ist kein Beleg dafür,
+dass die App sie benutzt.** Immer die Aufrufer mitzählen, nicht nur den Inhalt lesen.
+
+⚠️ **Nicht gebaut, weil die Auswahl keine war:** „welche Kopie-Wächter lesen `docs/` nicht?"
+per Stichwort-Grep (`claim|copy|forbidden`) trifft **312 von ~330** Dateien in
+`Tests/CISmoke`. Ein Filter, der 95 % durchlässt, ist eine Liste. Die Frage ist gut, das
+Messverfahren war es nicht.

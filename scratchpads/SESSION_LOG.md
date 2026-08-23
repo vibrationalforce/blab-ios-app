@@ -11754,3 +11754,53 @@ Arbeitsbaum blieb sauber, es ist nichts halb gelandet. Befunde, alle gemessen:
   „production suite", die kanonische Produktdefinition sagt **Instrument**.
 · Nichts liest `platforms`/`engines`/`workflow` — kein Skript, kein Hook, keine Skill.
   Gelesen werden sie von der nächsten Sitzung, und das ist der Schaden.
+
+## 2026-08-23 (cron, 24h-Mandat) — #757: der App-Store-Text war die vierte Fundstelle
+
+**Gates #756 (`15175ce`): GRÜN** — `Build for Testing: Succeeded`, **0 Compile-Fehlerzeilen**,
+**172 bestanden, 0 Fehlschläge**. Die Löschung kompiliert. ⚠️ Der Website-Wächter aus #755
+steht auch im zweiten Lauf nicht im geleerten Log; die ganze Suite `WebsitePagesAreFindable…`
+fehlt in beiden. Nach #445 heißt das nichts über rot/grün — nur, dass diese Suite nicht in
+der geleerten Teilmenge liegt. **Kompiliert nachweislich, Ausführung unbelegt.**
+
+**Der Befund: `fastlane/metadata/en-US/description.txt` verkaufte**
+„Breath shapes the amplitude envelope **and filter movement**" — die Filter-Hälfte reitet auf
+`breathDepth`, und beide `BioParams`-Konstruktionsstellen übergeben das Literal `0.5`. Der
+Faktor ist auf JEDEM Frame exakt 1,0. `applyBioReactive` sagt an genau dieser Zeile:
+*„must not be claimed as live in any user-facing copy."*
+
+**Das ist dieselbe Behauptung zum vierten Mal, auf der teuersten Fläche.** #496 nahm sie aus
+der App-Kopie (drei Wächter, alle lesen Swift) · #755 aus der Website · und hier steht sie im
+App-Store-Text, wo eine falsche Behauptung eine **2.3-Ablehnung** ist — genau der Preis, den
+#184 schon einmal mit zwölf Streichungen bezahlt hat.
+
+⭐ **Und die DEUTSCHE Fassung derselben Anzeige war die ganze Zeit ehrlich:** „Atem formt die
+Hüllkurve", ohne Filter. **Zwei Sprachen EINER Anzeige widersprachen sich, und die falsche war
+Englisch — der Hauptmarkt.** Die schärfste Form der Mehrflächen-Lehre: Flächen sind nicht nur
+verschiedene DATEIEN, sondern verschiedene LOKALISIERUNGEN derselben Datei.
+
+**Neuer Wächter `TheStoreTextClaimsOnlyWhatShipsTests`** (vierte Fläche, vorher null
+Abdeckung), zwei Behauptungen: Atem darf nicht neben einem Filter stehen (**Nähe, kein
+Wort-Verbot** — „Filter" allein ist WAHR, Kohärenz treibt `filterCutoff`; ein Verbot des
+Wortes verböte ehrliche Kopie, #364), und die drei erzeugerlosen Kanalnamen dürfen im
+Store-Text gar nicht vorkommen. Anker: die sechs Dateien müssen existieren und nicht leer
+sein, sonst `XCTFail` statt stillem Grün (#454). **Beide Mutanten getrieben** — alte
+Formulierung zurück → Behauptung 1 rot; „Breath depth shapes noise level" ergänzt →
+Behauptung 2 rot; kein Kreuzfeuer; Datei danach byte-identisch.
+
+⛔ **SELBSTKORREKTUR ZU #756.** Ich schrieb, die Website-Zeile „breath→azimuth,
+coherence→distance, HRV→elevation" sei „gegen `Core/BioSpaceMap.swift:127-129` geprüft —
+stimmt exakt". Der SCHLUSS hält, der ZEUGE nicht: **`BioSpaceMap` hat NULL
+Produktions-Aufrufer** (kommentarfrei gemessen; alle Treffer außerhalb der Datei sind Prosa).
+Die Abbildung, die wirklich sendet, steht in `Sync/ADMOSCSender` selbst (Kopf-Zeilen 26–30,
+Sendepfad ab 304). Ich habe den INHALT der Karte geprüft, nicht ob jemand sie ruft — genau
+der Fehler „dem Wert einen Sprung weit folgen und einen zu früh aufhören", den dieses Repo
+an anderer Stelle benennt. CLAUDE.md führt `BioSpaceMap` jetzt bei den unverdrahteten Kernen.
+
+⚠️ **Und eine Sackgasse, die ich fast gebaut hätte:** um zu finden, welche Kopie-Wächter die
+Website nicht lesen, habe ich nach „claim/copy/forbidden" in `Tests/CISmoke` gegrept —
+**312 von ~330 Dateien** trafen. Ein Filter, der 95 % durchlässt, ist keine Auswahl. Nicht
+gebaut; die Frage braucht einen echten Entwurf, kein Stichwort.
+
+`CLAUDE.md` 148 802 B, **1 198 B** unter der harten Decke — der nächste Eintrag braucht eine
+Provenienz-Auslagerung nach `memory/LEDGER_COUNTS.md`.
