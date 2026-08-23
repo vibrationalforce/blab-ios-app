@@ -26,6 +26,22 @@
 //  What is false is specifically BREATH attached to a FILTER, so that is what is measured: the
 //  two words inside one short window, in either language.
 //
+//  ⛔ #768 — THE GUARD READ SIX OF THE TEN FILES, AND THE FOUR IT SKIPPED WERE CARRYING A CLAIM
+//  #758 BELIEVED IT HAD FIXED. `release_notes.txt` still said "numeric entry for every
+//  parameter" in BOTH locales three weeks after the same sentence was narrowed in
+//  `description.txt`. Third instance of one lesson in three cycles — #765 the app's own copy,
+//  #766 the routing screen, this one two leaves of the directory the file already walks.
+//  **The enumeration is the defect, not the care taken over it.** The walk now covers all five
+//  leaves; `keywords.txt` is the sharper of the two additions, because ASO is exactly where an
+//  unbuilt capability gets stuffed for reach.
+//
+//  ⭐ GRADING FOR #768 (parent `5cb1506`). Claim 4 is a REGRESSION — red on the parent in two
+//  files, green here. Claim 3 (removed capabilities) is PREVENTIVE and green on both trees; all
+//  twenty-three of its needles score zero either way, and booking it as a catch would be the
+//  flattering direction (#464). It is justified anyway by a failure this repo has already paid
+//  for: #184 removed TWELVE false capability claims from this exact text and nothing has
+//  guarded the return since. Claims 1 and 2 are unchanged counterweights.
+//
 //  ⚠️ WHAT IT CANNOT DO. It reads the text that is COMMITTED, not what is live on App Store
 //  Connect — a claim edited in the web UI never passes through this file. And it judges three
 //  named channels, not truthfulness in general; a fresh false claim about something else walks
@@ -44,7 +60,17 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
         let root = try repoRoot()
         var out: [(String, String)] = []
         for locale in ["en-US", "de-DE"] {
-            for leaf in ["description.txt", "promotional_text.txt", "subtitle.txt"] {
+            // ⛔ THIS LIST HELD THREE LEAVES AND THE DIRECTORY HAS FIVE (#768). `keywords.txt`
+            // and `release_notes.txt` were unread — and `release_notes.txt` was carrying a claim
+            // #758 believed it had corrected: "numeric entry for every parameter", in BOTH
+            // locales, three weeks after the same sentence was fixed in `description.txt`. The
+            // rule is app-wide and reads "every adjustable NUMERIC parameter"; a named choice
+            // (filter mode, delay mode, harmony interval) is a `Picker` by design and by an
+            // explicit founder ask. **Keywords are the sharper omission of the two**: ASO is
+            // exactly where an unbuilt capability gets stuffed for reach, and it is submitted
+            // with the build like any other metadata.
+            for leaf in ["description.txt", "promotional_text.txt", "subtitle.txt",
+                         "keywords.txt", "release_notes.txt"] {
                 let rel = "fastlane/metadata/\(locale)/\(leaf)"
                 let url = root.appendingPathComponent(rel)
                 guard let text = try? String(contentsOf: url, encoding: .utf8),
@@ -129,6 +155,98 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
             `AlwaysOnBioChannel.shapedParameters`: coherence → filter cutoff · brightness · \
             harmonicity · noise; HRV → brightness; heart rate → vibrato · brightness; \
             breath phase → amplitude. Claim from that list.
+            """)
+    }
+
+    /// Capabilities this repo has REMOVED must not reappear in the listing.
+    ///
+    /// ⛔ THE FAILURE THIS PREVENTS ALREADY HAPPENED HERE, TWELVE TIMES. #184 removed twelve
+    /// false capability claims from this exact text, and #158/#192 spent two whole cycles taking
+    /// ONE of them off the website. Nothing has guarded the return since. On the App Store a
+    /// false capability claim is not a stale sentence — it is a 2.3 rejection of the build.
+    ///
+    /// ⚠️ GRADED HONESTLY (#464): this is PREVENTIVE, not a catch. All twenty-two needles score
+    /// zero on this tree and on the parent; the slice's real finding is the release-notes line
+    /// fixed alongside it. Booking a green preventive guard as a caught regression is the
+    /// flattering direction.
+    ///
+    /// ⚠️ WHY THESE WORDS AND NOT MORE (#364). Every needle names a capability that provably does
+    /// not exist: the AUv3 target was deleted (#121 Slice 2), RTMP was never linked
+    /// (`Package.swift` has no dependencies), the drum engine and step grid went with #166/#167,
+    /// the note editor with #475, video EDIT with #121 Slice 3, and multitrack is built but
+    /// flag-gated off and doorless. Deliberately NOT banned, and each for a measured reason:
+    ///   · "trim" — `SingleExport.trimLengthSeconds` is real, so a loop-trim claim could be
+    ///     honest; only VIDEO trim is gone, and the word alone cannot tell them apart.
+    ///   · "timeline", "arrangement", "clips", "video" — ordinary words with honest uses
+    ///     ("video capture" ships: `VisualRecorder` plus an mp4 share sheet).
+    ///   · "sampler" — `SamplerVoice` exists and sounds.
+    ///   · "MPE" — MPE **out** is real and switchable (#713); only the input half is absent,
+    ///     and the store text already says "MIDI note input and output" without claiming it.
+    /// A ban that catches honest copy gets deleted, and the law goes with it.
+    func testNoRemovedCapabilityIsSoldAgain() throws {
+        let removed = [
+            "auv3", "audio unit",                                   // target deleted 2026-07-24
+            "rtmp", "live stream", "livestream", "broadcast", "srt", // never linked
+            "multitrack", "multi-track", "mehrspur",                 // built, flag-gated off, doorless
+            "beat maker", "beatmaker", "drum machine", "drumcomputer",
+            "step sequencer", "step-sequencer", "schrittsequenzer",  // #166/#167
+            "piano roll", "pianoroll", "note editor", "noten-editor", // #475
+            "video edit", "videoschnitt"                             // #121 Slice 3
+        ]
+        var offenders: [String] = []
+        for file in try storeCopy() {
+            let flat = file.text.lowercased()
+            for term in removed where flat.contains(term) {
+                offenders.append("\(file.path): \"\(term)\"")
+            }
+        }
+        XCTAssertTrue(offenders.isEmpty, """
+            The App Store listing names a capability this repo removed: \
+            \(offenders.joined(separator: ", ")).
+
+            #184 already removed twelve such claims from this text; a false capability claim \
+            here is a 2.3 rejection, not a stale sentence. If one of these was genuinely built, \
+            that is welcome — delete its needle in the SAME commit as the code, and pull \
+            `ContentPipeline/CLAIMS.md`, `docs/**` and the app's own copy along with it. Do not \
+            delete the needle to get the gate green.
+            """)
+    }
+
+    /// "Numeric entry for every parameter" overstates a rule that says NUMERIC on purpose.
+    ///
+    /// ⛔ WHAT IT CAUGHT (#768). #758 corrected this sentence in `description.txt` for both
+    /// locales. `release_notes.txt` kept the un-narrowed form in BOTH — "numeric entry for every
+    /// parameter" / "numerische Eingabe für jeden Parameter" — because the guard walked three of
+    /// the directory's five leaves. The claim is false as written: `EchoelValueField` covers
+    /// every adjustable NUMERIC parameter, and CLAUDE.md's own rule shouts *READ THE WORD
+    /// "NUMERIC"* — the filter mode, the delay mode and the two harmony intervals are `Picker`s,
+    /// the last by an explicit founder ask ("keine semitone Schritte sondern sinnvolle
+    /// harmonische"). A blind user choosing the app on "numeric entry for every parameter" finds
+    /// menus where the sentence promised a keypad.
+    ///
+    /// ⚠️ THE NEEDLE CANNOT HIT THE CORRECTED SENTENCE. "every numeric parameter" does not
+    /// contain the substring "every parameter" — the word sits between — and the same holds for
+    /// "jeden numerischen Parameter" against "jeden Parameter". Checked before it was written,
+    /// because a ban that also forbids the repair is the #491 shape.
+    func testNumericEntryIsNotClaimedForEveryParameter() throws {
+        let overclaims = ["every parameter", "each parameter",
+                          "jeden parameter", "alle parameter"]
+        var offenders: [String] = []
+        for file in try storeCopy() {
+            let flat = file.text.lowercased()
+            for term in overclaims where flat.contains(term) {
+                offenders.append("\(file.path): \"\(term)\"")
+            }
+        }
+        XCTAssertTrue(offenders.isEmpty, """
+            The store text promises numeric entry for EVERY parameter: \
+            \(offenders.joined(separator: ", ")).
+
+            The app-wide rule is "every adjustable NUMERIC parameter" and says so in capitals: a \
+            parameter whose values have NAMES is a `Picker` by design — filter mode, delay mode, \
+            and the two harmony intervals, that last one by an explicit founder ask. Write \
+            "every numeric parameter" (the correction #758 already made in `description.txt`), \
+            and keep the two locales in step.
             """)
     }
 

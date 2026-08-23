@@ -12303,3 +12303,54 @@ Wächter kompilieren nachweislich; Ausführung unbelegt (#445).
 
 **GATES:** berührt nur `Tests/CISmoke/` und `scratchpads/` → **beide echten Gates laufen**
 (die `paths:`-Filter matchen einen PFAD, keine Endung).
+
+## #768 — Der Store-Wächter las SECHS von ZEHN Dateien, und in den vier übersprungenen stand eine Behauptung, die #758 für repariert hielt (2026-08-23)
+
+**Befund in einem Satz:** `release_notes.txt` versprach in **beiden** Locales weiterhin
+„numeric entry for **every parameter**" / „numerische Eingabe für **jeden Parameter**" — drei
+Wochen nachdem #758 exakt denselben Satz in `description.txt` auf „every **numeric** parameter"
+verengt hatte.
+
+**Warum das falsch ist:** die app-weite Regel sagt **NUMERIC** und schreit es in Großbuchstaben.
+Ein Parameter, dessen Werte **Namen** haben, ist per Entwurf ein `Picker` — Filter-Modus,
+Delay-Modus und die zwei Harmonie-Intervalle, letztere auf ausdrücklichen Founder-Wunsch
+(„keine semitone Schritte sondern sinnvolle harmonische"). Ein blinder Nutzer, der die App wegen
+„numeric entry for every parameter" wählt, findet dort Menüs, wo der Satz ein Ziffernfeld
+versprach.
+
+⭐ **DRITTE Instanz derselben Lehre in drei Zyklen:**
+
+| Zyklus | ausgelassene Fläche |
+|---|---|
+| #765 | die App-eigene Kopie (Bezahl-Seite) |
+| #766 | die Routing-Fläche (Port-Name) |
+| **#768** | **zwei Blätter des Verzeichnisses, das der Wächter schon durchläuft** |
+
+> **Die Aufzählung ist der Defekt, nicht die Sorgfalt.**
+
+**Was der Wächter jetzt liest: 10 statt 6 Dateien.** Neu dabei `keywords.txt` und
+`release_notes.txt`. **`keywords.txt` ist die schärfere der beiden Ergänzungen** — ASO ist genau
+der Ort, an dem eine ungebaute Fähigkeit für Reichweite hineingeschrieben wird, und es wird mit
+dem Build eingereicht wie jede andere Metadatei.
+
+**Zwei neue Behauptungen, ehrlich benotet:**
+- **Claim 4 (numeric entry) = REGRESSION** — auf dem Eltern-Baum in **zwei** Dateien rot, hier grün.
+- **Claim 3 (entfernte Fähigkeiten) = PRÄVENTIV** — 23 Nadeln, **null Treffer auf beiden Bäumen**.
+  Als „gefangene Regression" zu buchen wäre die schmeichelnde Richtung (#464). Gerechtfertigt ist
+  sie trotzdem durch einen bereits bezahlten Fehler: **#184 hat ZWÖLF falsche Fähigkeits-
+  Behauptungen aus genau diesem Text entfernt**, und seither bewacht nichts die Rückkehr.
+
+⚠️ **Bewusst NICHT verboten, jedes mit gemessenem Grund (#364):** „trim" (`SingleExport
+.trimLengthSeconds` ist echt — nur der VIDEO-Schnitt fehlt, und das Wort kann beides nicht
+unterscheiden) · „timeline"/„arrangement"/„clips"/„video" (gewöhnliche Wörter mit ehrlichem
+Gebrauch — Video-AUFNAHME wird ausgeliefert) · „sampler" (`SamplerVoice` klingt) · „MPE"
+(MPE **out** ist real, #713).
+
+⚠️ **Die Nadel kann den reparierten Satz nicht treffen:** „every **numeric** parameter" enthält
+den Teilstring „every parameter" nicht — das Wort steht dazwischen. Vor dem Schreiben geprüft,
+weil ein Verbot, das auch die Reparatur trifft, die #491-Form ist.
+
+**Vorheriger Zyklus nachgetragen:** #767 (`5cb1506`) — `Xcode Compile Check` success,
+`Build for Testing: Succeeded`, **171 Tests, 0 Fehler, 0 Compile-Fehler**.
+
+**GATES:** berührt `Tests/CISmoke/` und `fastlane/` → **beide echten Gates laufen**.

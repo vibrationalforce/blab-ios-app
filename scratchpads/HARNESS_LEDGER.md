@@ -1948,3 +1948,27 @@ ist eine offene Aufgabe, keine Dokumentation.
 ⛔ Und der #762-Defekt hat beim Schreiben dieser Scheibe erneut zugeschlagen: ein von Hand
 getipptes `git grep -c "SomeView(" -- Sources` meldete einen Treffer, der ein KOMMENTAR war.
 **Jede Erreichbarkeits-Messung — auch die schnelle von Hand — muss kommentar-gestrippt sein.**
+
+## DEAD-END — Einen Wächter über ein VERZEICHNIS schreiben und die Blattliste von Hand tippen (#768)
+
+`TheStoreTextClaimsOnlyWhatShipsTests` lief über zwei Locales × **drei** hart getippte Blätter.
+Das Verzeichnis hat **fünf**. Die zwei ausgelassenen trugen eine Behauptung, die ein früherer
+Zyklus für repariert hielt — und beide Wächter blieben grün.
+
+**STATT DESSEN:** entweder das Verzeichnis wirklich aufzählen, oder die Liste mit der Zahl der
+tatsächlich vorhandenen Dateien abgleichen und bei Abweichung FEHLSCHLAGEN. Eine handgetippte
+Teilmenge, die aussieht wie eine Aufzählung, ist die teuerste Form: sie liest sich vollständig.
+
+**Erkennungszeichen:** eine Schleife über eine Literal-Liste von Dateinamen neben einem
+Verzeichnis, das wachsen kann. `ls` das Verzeichnis, bevor man der Liste glaubt.
+
+## PLAYBOOK — Ein präventiver Wächter ist zulässig, wenn er einen BEREITS BEZAHLTEN Fehler benennt (#768)
+
+Die Doctor-Skill-Regel lautet: nur prüfen, was hier schon einmal schiefging. Claim 3 (23 Nadeln
+auf entfernte Fähigkeiten) fängt heute **nichts** — und ist trotzdem richtig, weil **#184 zwölf
+falsche Behauptungen aus genau diesem Text entfernt hat** und seither nichts die Rückkehr
+bewacht.
+
+**Regel: ein präventiver Wächter muss den Vorfall NAMENTLICH nennen und sich selbst als
+PRÄVENTIV benoten (#464).** Beides fehlt bei „nice to have"-Wächtern — und ohne das ist die
+Unterscheidung zwischen Vorsorge und Spekulation nicht nachprüfbar.

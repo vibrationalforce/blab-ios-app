@@ -21,7 +21,7 @@ Sound
 
 Workflow
 - Retroactive capture of the loop you just played
-- Precise controls and numeric entry for every parameter
+- Precise controls and numeric entry for every numeric parameter
 
 Improvements
 - Stability and audio quality polished throughout

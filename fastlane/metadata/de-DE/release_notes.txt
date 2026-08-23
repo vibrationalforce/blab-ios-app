@@ -21,7 +21,7 @@ Klang
 
 Workflow
 - Rückwirkendes Aufnehmen des zuletzt gespielten Loops
-- Präzise Regler und numerische Eingabe für jeden Parameter
+- Präzise Regler und numerische Eingabe für jeden numerischen Parameter
 
 Verbesserungen
 - Stabilität und Audio-Qualität durchgehend optimiert
