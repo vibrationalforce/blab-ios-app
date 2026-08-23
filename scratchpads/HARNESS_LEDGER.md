@@ -1880,3 +1880,34 @@ nachvollziehen kann, was zurückgenommen wurde (#491).
 **Regel: erst prüfen, ob die eigene Rücknahme die Nadel enthält.** Wenn ja, den Posten als
 OFFEN registrieren und den Grund hinschreiben, statt einen Scan zu bauen, der nicht fehlschlagen
 kann oder auf korrektem Baum rot ist. Die messbare Hälfte gehört stattdessen in ein Skript.
+
+## DEAD-END — Eine Kopie-Prüfung, die nur die AUFZÄHLUNG liest und nicht den Fließtext (#765)
+
+Die drei falschen Pro-Zeilen fielen sofort auf. Der **Kopfsatz** derselben Fläche trug dieselbe
+Falschbehauptung in ihrer schärfsten Form (ein Kauf-VERSPRECHEN) und wäre bei einer
+Zeile-für-Zeile-Lesung durchgegangen — gefunden hat ihn erst die Transkription, die einen
+überlebenden Treffer druckte.
+
+**STATT DESSEN:** die ganze Datei kommentarfrei nach der Nadel absuchen und die TREFFERZAHL
+lesen, nicht nur die Stellen, an die man gerade denkt. Ein Rest-Treffer nach der „Reparatur" ist
+das Signal.
+
+## PLAYBOOK — Ein Transkriptions-Treiber braucht ein `assert`, dass er überhaupt etwas gelesen hat (#765)
+
+Mein Treiber baute eine leere Dateikarte (`doctor.tracked()` liefert ABSOLUTE Pfade) und meldete
+für zwei Claims fröhlich „RED" — auf Basis von null gelesenen Dateien. Die Zahlen sahen wie eine
+Messung aus.
+
+**Regel: jede Mess-Schleife über eine Dateimenge beginnt mit `assert files` (oder dem
+Äquivalent).** Eine Messung, die nichts gemessen hat, muss ABBRECHEN, nicht antworten — genau die
+`InstrumentUnavailable`-Lehre des Doctors, eine Ebene tiefer.
+
+## DEAD-END — „Ungebautes als ‚in development' kennzeichnen" als Ehrlichkeits-Regel (#765)
+
+Der Kopf von `ProUnlockView` schrieb genau das vor und machte damit ein Wort zur sanktionierten
+Formel für ALLES Ungebaute — auch für Arbeit, die GELÖSCHT wurde. Die Regel las sich als
+Absicherung und war das Loch.
+
+**STATT DESSEN:** „in development" ist eine Behauptung über die GEGENWART und braucht Code als
+Beleg. Für alles andere: **„planned, not built yet"**. Der Unterschied ist nicht Höflichkeit —
+auf einer Bezahlschranke ist er 2.3.

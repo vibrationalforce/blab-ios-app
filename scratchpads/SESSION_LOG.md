@@ -12148,3 +12148,56 @@ success, `Build for Testing: Succeeded`, **171 Tests beobachtet, 0 Fehler, 0 Com
 `TEST EXECUTE FAILED` = das bekannte #396. Der geänderte Wächter kompiliert nachweislich; sein
 Name steht nicht in der geflushten Teilmenge → **Ausführung unbelegt** (#445). Die fünf Zeugen
 sind ohnehin von Hand in Python gegen den Baum getrieben.
+
+## #765 — Die Bezahl-Seite verkaufte Arbeit, die es nicht gibt (2026-08-23)
+
+**Befund in einem Satz:** `ProUnlockView` — die Pro-Kauf-Fläche — beschrieb **vier** Stellen
+lang Arbeit als „in development", und **keine einzige davon existiert**.
+
+**Gemessen, Zeile für Zeile:**
+
+| Zeile | behauptet | Wirklichkeit |
+|---|---|---|
+| Kopfsatz | „One purchase unlocks every Pro extension — **including the ones still in development, when they ship**" | ein **Kauf-VERSPRECHEN** auf Arbeit, die es nicht gibt |
+| Zeile | „AUv3 plugin in your DAW — In development" | Target **GELÖSCHT** 2026-07-24 (#121 Slice 2) |
+| Zeile | „Video FX catalog — In development" | `videoFXCatalog` = ein Enum-Case, sonst nichts |
+| Zeile | „Export format presets — 4K & aspect ratios — in development" | **kein** 4K-/Seitenverhältnis-Code in `Sources/` |
+
+⭐ **Der Kopfsatz ist der schärfere Fund, und ich hätte ihn beinahe verpasst.** Ich hielt die drei
+Zeilen für den ganzen Defekt; die Transkription druckte danach **einen überlebenden Treffer**.
+Eine Zeile-für-Zeile-Lesung hätte ihn nicht gefunden — die Messung schon.
+
+⛔ **Und der Datei-KOPF war das Loch, nicht die Absicherung:** er sagte *„Pro extensions that are
+still in development are labelled as such"* und machte „in development" damit zur **sanktionierten
+Formulierung für alles Ungebaute**. Die Regel heißt jetzt: *„in development" ist eine Behauptung
+über die GEGENWART und darf nur geschrieben werden, wenn Code sie stützt.*
+
+**Warum es zählt, obwohl die Fläche türlos ist** — das ist der Punkt, nicht die Einschränkung:
+CLAUDE.md ordnet an, `ProUnlockView` für v1.1 „Echoel Live" **aufzuheben und umzuwidmen**. An dem
+Tag wird sie eine **Bezahlschranke** — die eine Fläche, auf der eine falsche Fähigkeits-Behauptung
+eine **App-Store-2.3-Ablehnung** ist; #184 hat genau dafür zwölf Behauptungen aus dem Store-Text
+entfernt. Und **jeder** AUv3-Wächter im Repo liest `docs/**`, `ContentPipeline/CLAIMS.md`,
+`fastlane/metadata` oder den Pfad des gelöschten Targets — **keiner liest App-Kopie**.
+
+**Scope unberührt:** das Zeilen-SET ist eine Preis-Entscheidung des Founders. Geändert wurde
+**nur die Zeitform**; keine Zeile hinzu, keine weg.
+
+**WÄCHTER** `TheProScreenSellsNoWorkThatIsNotHappeningTests` — 5 Claims, transkribiert gegen
+beide Bäume: **Claim 2 = REGRESSION** (auf dem Eltern-Baum rot, 4 Treffer im CODE), Claims
+1/3/4/5 = **Gegengewichte**. Claim 5 ist die **Stolperdraht**-Hälfte: sie verbietet das
+Wieder-Aufmachen NICHT (#364), sie wird rot und nennt die Kopie-Prüfung als Arbeit im selben
+Commit. `SourceText.codeOnly` ist **TRAGEND (1 von 1)**: roh 7 Treffer (alle in meinen
+Rücknahme-Kommentaren), gestrippt 0 — ohne Stripper wäre der Wächter auf dem **korrigierten**
+Baum rot (#491).
+
+⛔ **RÜCKNAHME AN DER EIGENEN MESSUNG, zweimal, beide vor dem Push gefangen:**
+1. Claim 4 erwartete **zwei** Dateien. Der Bildschirm trägt die ANZEIGE-Zeichenkette
+   „Video FX catalog", nicht den Bezeichner `videoFXCatalog` — ich hatte
+   `git grep -in "video fx\|videoFXCatalog"` laufen lassen und **die Vereinigung zweier Muster
+   als Ergebnis eines einzigen gelesen**. Wäre rot auf korrektem Baum gewesen (#656-Klasse).
+2. Mein erster Transkriptions-Treiber baute eine **leere Dateikarte** (`doctor.tracked()` liefert
+   ABSOLUTE Pfade, mein `startswith("Sources/…")` traf nichts) und meldete deshalb Unsinn.
+   Seither hat der Treiber ein `assert files` — **eine Messung, die nichts gemessen hat, muss
+   abbrechen, nicht antworten.**
+
+**GATES:** berührt `Sources/` **und** `Tests/CISmoke/` → **beide echten Gates laufen**.
