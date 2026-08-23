@@ -45,6 +45,14 @@
 // untouched; the mandated list moved to a `static let` so the two claims that read it cannot
 // fork a second copy and drift apart while both stay green (#416).
 //
+// ⭐ #769 ADDED A SIXTH INVARIANT — the app must speak every language the STORE LISTING is
+// written in. `fastlane/metadata/<locale>/` and this catalog are maintained by different hands
+// at different times and nothing had ever compared them. A French listing over an `en`/`de`
+// catalog delivers an English app to a French buyer, five mandated safety warnings included.
+// Graded honestly: green on both trees (the two sides agree today), so it is PREVENTIVE, not a
+// catch — driven red on a mutated tree with an `fr-FR` listing, which fired for its named
+// reason; the directory was removed afterwards.
+//
 // ⚠️ HONEST LIMITS — read before trusting a green result:
 //   · This inspects SOURCE TEXT, not a built bundle. If the checkout is not at the path this
 //     file was compiled from, it SKIPS. A skip is not a pass — the same rule the sibling
@@ -117,6 +125,54 @@ final class StringCatalogIsHonestTests: XCTestCase {
             out.append((url.lastPathComponent, SourceText.codeOnly(text)))
         }
         return out
+    }
+
+    /// The app must speak every language the App Store listing is written in.
+    ///
+    /// ⛔ WHY THIS PAIRING (#769). `fastlane/metadata/<locale>/` and
+    /// `Localizable.xcstrings` are maintained by different hands at different times, and
+    /// nothing has ever compared them. Ship a French listing while the catalog carries only
+    /// `en` and `de` and a French user arrives at an English app — including, per the claim
+    /// above, all five MANDATED SAFETY WARNINGS. That is the same failure as an untranslated
+    /// key, one level out: not a stale label, a warning in a language the reader may not have.
+    ///
+    /// ⚠️ IT COMPARES LANGUAGE, NOT REGION. `en-US` and `de-DE` reduce to `en` and `de`; the
+    /// catalog is language-keyed. A future `de-AT` listing would therefore be satisfied by the
+    /// existing `de`, which is correct — Apple falls back the same way.
+    ///
+    /// ⚠️ ONE DIRECTION ONLY (#364). A catalog language with no store locale is FINE and stays
+    /// unchecked: translating ahead of a listing is ordinary work, and forbidding it would make
+    /// this guard the thing that blocks going international.
+    func testTheCatalogSpeaksEveryLanguageTheStoreListingUses() throws {
+        // ⛔ I FIRST WROTE TWO `deletingLastPathComponent()` CALLS HERE, "climbing out of
+        // Sources/". `repoRoot()` in this file already RETURNS the repo root — it only
+        // *checks* for `Sources/Echoelmusic` before doing so. Two more climbs land two levels
+        // above the checkout, `contentsOfDirectory` returns nothing, and the anchor below
+        // would have failed on a correct tree. Read the helper; do not infer it from its name.
+        let base = try repoRoot().appendingPathComponent("fastlane/metadata")
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []
+        let locales = names.filter { name in
+            var isDir: ObjCBool = false
+            let path = base.appendingPathComponent(name).path
+            return FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+                && isDir.boolValue
+        }.sorted()
+        XCTAssertFalse(locales.isEmpty, """
+            `fastlane/metadata/` holds no locale directory, so this claim compared nothing \
+            (#454). If the metadata tree moved, point this at its new home in the same commit.
+            """)
+        for locale in locales {
+            let language = String(locale.prefix(while: { $0 != "-" }))
+            XCTAssertTrue(Self.languages.contains(language), """
+                The App Store listing ships a \(locale) page, but `Localizable.xcstrings` \
+                carries no "\(language)" — every string in the app, INCLUDING the five \
+                mandated safety warnings, would reach that user in English.
+
+                Add "\(language)" to the catalog and to `Self.languages` in the same commit as \
+                the listing. If the listing was added deliberately without a translation, that \
+                is a decision to record in `decisions.csv`, not a needle to delete.
+                """)
+        }
     }
 
     /// Repo root, derived from this file's compile-time path (`Tests/CISmoke/…` → up two).

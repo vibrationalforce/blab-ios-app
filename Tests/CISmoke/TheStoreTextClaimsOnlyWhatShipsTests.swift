@@ -42,6 +42,15 @@
 //  for: #184 removed TWELVE false capability claims from this exact text and nothing has
 //  guarded the return since. Claims 1 and 2 are unchanged counterweights.
 //
+//  ⭐ GRADING FOR #769 (parent `f8c23fb`). STRUCTURAL, no regression caught: the locale walk
+//  now READS `fastlane/metadata/` instead of naming two directories, so every claim already in
+//  the file follows a third locale automatically. Green on both trees — booking it as a catch
+//  would be the flattering direction (#464). Justified by two incidents rather than a hunch:
+//  #768 (three of five leaves hand-typed, in THIS file) and the note in
+//  `WebsitePagesAreFindableAndHonestTests` recording that "only en-US was scanned until the
+//  de-DE notes were caught stale a week after the roster changed" — where the repair was to
+//  type the second locale in, which leaves the third to be skipped in the same silence.
+//
 //  ⚠️ WHAT IT CANNOT DO. It reads the text that is COMMITTED, not what is live on App Store
 //  Connect — a claim edited in the web UI never passes through this file. And it judges three
 //  named channels, not truthfulness in general; a fresh false claim about something else walks
@@ -59,7 +68,14 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
     private func storeCopy() throws -> [(path: String, text: String)] {
         let root = try repoRoot()
         var out: [(String, String)] = []
-        for locale in ["en-US", "de-DE"] {
+        // ⛔ AND THE LOCALES WERE HAND-TYPED TOO (#769) — the same defect as the leaf list
+        // above, one level out, and #768 repaired only the inner half. `fastlane/metadata/`
+        // is a DIRECTORY: a third locale would be skipped in silence, and its false claim
+        // would ship unguarded. `WebsitePagesAreFindableAndHonestTests` had already paid for
+        // exactly this once — its own comment records that "only en-US was scanned until the
+        // de-DE notes were caught stale a week after the roster changed", and the repair then
+        // was to type the second locale in. That repair does not scale; this one does.
+        for locale in try localeDirectories() {
             // ⛔ THIS LIST HELD THREE LEAVES AND THE DIRECTORY HAS FIVE (#768). `keywords.txt`
             // and `release_notes.txt` were unread — and `release_notes.txt` was carrying a claim
             // #758 believed it had corrected: "numeric entry for every parameter", in BOTH
@@ -248,6 +264,28 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
             "every numeric parameter" (the correction #758 already made in `description.txt`), \
             and keep the two locales in step.
             """)
+    }
+
+    /// Every locale directory under `fastlane/metadata/`, read rather than assumed.
+    ///
+    /// ⚠️ ANCHOR (#454): an empty or unreadable directory FAILS. A locale walk that silently
+    /// finds nothing would make every claim in this file pass vacuously — the same green-on-
+    /// nothing shape the whole file exists to prevent.
+    private func localeDirectories() throws -> [String] {
+        let base = try repoRoot().appendingPathComponent("fastlane/metadata")
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []
+        let locales = names.filter { name in
+            var isDir: ObjCBool = false
+            let path = base.appendingPathComponent(name).path
+            return FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+                && isDir.boolValue
+        }.sorted()
+        XCTAssertFalse(locales.isEmpty, """
+            `fastlane/metadata/` holds no locale directory, so every claim in this file \
+            checked nothing. If the metadata layout moved, point this walk at its new home \
+            in the same commit.
+            """)
+        return locales
     }
 
     // MARK: - file access

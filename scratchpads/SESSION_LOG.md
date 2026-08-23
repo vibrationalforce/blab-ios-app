@@ -12354,3 +12354,56 @@ weil ein Verbot, das auch die Reparatur trifft, die #491-Form ist.
 `Build for Testing: Succeeded`, **171 Tests, 0 Fehler, 0 Compile-Fehler**.
 
 **GATES:** berührt `Tests/CISmoke/` und `fastlane/` → **beide echten Gates laufen**.
+
+## #769 — Die Locale-Liste war von Hand getippt, in beiden Store-Wächtern (2026-08-23)
+
+**Befund in einem Satz:** #768 hat die BLATT-Liste enumeriert und die **Locale**-Liste stehen
+lassen — dieselbe Falle, eine Ebene weiter außen, im selben Commit.
+
+**Und es ist die ZWEITE Reparatur desselben Defekts.** Der Kommentar in
+`WebsitePagesAreFindableAndHonestTests` hielt die erste fest:
+> *„only en-US was scanned until the de-DE notes were caught stale a week after the roster changed"*
+
+Die Reparatur damals war, **das zweite Locale einzutippen** — was das dritte in derselben Stille
+überspringen lässt.
+
+> **Eine von Hand getippte Teilmenge eines Verzeichnisses liest sich wie eine Aufzählung und ist
+> keine.**
+
+**Gebaut, drei Teile:**
+
+| | |
+|---|---|
+| `TheStoreTextClaimsOnlyWhatShipsTests` | liest `fastlane/metadata/` statt zwei Namen · **Anker**: leeres Verzeichnis = FEHLSCHLAG (die Datei liest sonst nichts) |
+| `WebsitePagesAreFindableAndHonestTests` | dieselbe Enumeration · **kein** Anker, weil die Store-Notizen dort eine ERGÄNZUNG zu `docs/` sind — gleicher Helfername, **absichtlich anderer Vertrag**, und der Unterschied steht dran, weil er nicht erratbar ist |
+| `StringCatalogIsHonestTests` | **neue, sechste Invariante**: die App muss jede Sprache sprechen, in der das Store-Listing geschrieben ist |
+
+**Warum die dritte:** `fastlane/metadata/<locale>/` und `Localizable.xcstrings` werden von
+verschiedenen Händen zu verschiedenen Zeiten gepflegt, und **nichts hat sie je verglichen**. Ein
+französisches Listing über einem `en`/`de`-Katalog liefert einem französischen Käufer eine
+englische App — **einschließlich aller fünf Pflicht-Sicherheitshinweise** (#767). Das ist derselbe
+Fehler wie ein unübersetzter Key, eine Ebene weiter außen.
+
+⚠️ **Eine Richtung, absichtlich (#364):** eine Katalog-Sprache ohne Store-Locale ist in Ordnung
+und bleibt ungeprüft — im Voraus zu übersetzen ist normale Arbeit, und das zu verbieten machte
+diesen Wächter zu dem, was das Internationalwerden blockiert.
+
+**Rot getrieben:** ein `fr-FR`-Listing in den Baum gelegt → die neue Behauptung feuert für ihren
+genannten Grund, und der Store-Wächter LIEST das neue Locale automatisch mit. Verzeichnis danach
+entfernt.
+
+⛔ **Rücknahme an meinem eigenen Code, vor dem Push gefangen:** ich schrieb zwei
+`deletingLastPathComponent()` in die neue Behauptung, „um aus `Sources/` herauszuklettern".
+`repoRoot()` in dieser Datei **liefert schon die Wurzel** — es *prüft* nur auf
+`Sources/Echoelmusic`, bevor es sie zurückgibt. Zwei weitere Sprünge landen zwei Ebenen über dem
+Checkout, und der Anker wäre auf korrektem Baum rot geworden. **Den Helfer LESEN, nicht aus
+seinem Namen ableiten.**
+
+**Benotung:** alle drei Teile sind STRUKTURELL/PRÄVENTIV, grün auf beiden Bäumen. Als Fang zu
+buchen wäre die schmeichelnde Richtung (#464). Gerechtfertigt durch **zwei** bereits bezahlte
+Vorfälle, beide namentlich genannt.
+
+**Vorheriger Zyklus nachgetragen:** #768 (`f8c23fb`) — `Xcode Compile Check` success,
+`Build for Testing: Succeeded`, **135 Tests, 0 Fehler, 0 Compile-Fehler**.
+
+**GATES:** berührt nur `Tests/CISmoke/` und `scratchpads/` → **beide echten Gates laufen**.

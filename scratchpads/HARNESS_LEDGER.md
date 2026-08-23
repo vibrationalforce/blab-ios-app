@@ -1972,3 +1972,31 @@ bewacht.
 **Regel: ein präventiver Wächter muss den Vorfall NAMENTLICH nennen und sich selbst als
 PRÄVENTIV benoten (#464).** Beides fehlt bei „nice to have"-Wächtern — und ohne das ist die
 Unterscheidung zwischen Vorsorge und Spekulation nicht nachprüfbar.
+
+## DEAD-END — Eine unvollständige Aufzählung reparieren, indem man das fehlende Element eintippt (#769)
+
+`WebsitePagesAreFindableAndHonestTests` scannte nur `en-US`, bis die `de-DE`-Notizen eine Woche
+lang veraltet waren. Die Reparatur: `de-DE` dazutippen. Damit wird das DRITTE Locale in exakt
+derselben Stille übersprungen — und #768 hat die identische Form eine Ebene weiter innen
+getroffen (drei von fünf Metadaten-Blättern von Hand getippt).
+
+**STATT DESSEN:** das Verzeichnis LESEN. Wenn die Aufzählung wirklich eine Spezifikation ist
+(z. B. „welche Sprachen MUSS der Katalog tragen"), dann sie als Spezifikation stehen lassen —
+und sie GEGEN das Verzeichnis prüfen, statt zu hoffen, dass beide gleich bleiben.
+
+**Erkennungszeichen:** eine Literal-Liste, deren Elemente Dateien oder Verzeichnisse eines
+existierenden Ordners sind. `ls` den Ordner, bevor man der Liste glaubt.
+
+**Und die Meta-Lehre aus #768/#769 zusammen:** wer eine unvollständige Aufzählung repariert, muss
+fragen, ob die REPARATUR dieselbe Form hat wie der Defekt. #768 enumerierte die Blätter und ließ
+die Locales von Hand — die Falle saß im eigenen Fix.
+
+## PLAYBOOK — Zwei Helfer gleichen Namens dürfen verschiedene Verträge haben, wenn es DRANSTEHT (#769)
+
+`localeDirectories()` existiert jetzt in zwei Wächtern: in einem SCHLÄGT ein leeres Verzeichnis
+FEHL (die Datei liest sonst nichts), im anderen liefert es eine leere Liste (die Store-Notizen
+sind dort eine Ergänzung zu `docs/`). Das ist kein #416-Verstoß — es ist EIN Mechanismus mit
+zwei bewusst verschiedenen Ausfall-Verträgen.
+
+**Regel: der Unterschied gehört in beide Dokumentations-Blöcke**, weil er aus dem Namen nicht
+erratbar ist. Ohne den Vermerk kopiert die nächste Sitzung den falschen Vertrag.

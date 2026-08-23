@@ -41,6 +41,24 @@ import XCTest
 
 final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
 
+    /// Every locale directory under `fastlane/metadata/`, read rather than assumed.
+    ///
+    /// ⚠️ It returns an EMPTY list rather than failing, because this file's store-notes scan is
+    /// an ADDITION to its `docs/` sources: the surrounding test still checks every website page
+    /// if the metadata tree is absent. The sibling `TheStoreTextClaimsOnlyWhatShipsTests` reads
+    /// nothing else, so there the same walk must FAIL — same helper name, deliberately
+    /// different contract, and the difference is written down because it is not guessable.
+    private func localeDirectories() throws -> [String] {
+        let base = try repoRoot().appendingPathComponent("fastlane/metadata")
+        let names = (try? FileManager.default.contentsOfDirectory(atPath: base.path)) ?? []
+        return names.filter { name in
+            var isDir: ObjCBool = false
+            let path = base.appendingPathComponent(name).path
+            return FileManager.default.fileExists(atPath: path, isDirectory: &isDir)
+                && isDir.boolValue
+        }.sorted()
+    }
+
     private func repoRoot() throws -> URL {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent().deletingLastPathComponent()
@@ -508,10 +526,16 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
         let expectedScales = Scale.Family.allCases.flatMap(\.scales).count
 
         var sources = try pages().map { (name: "docs/\($0.name)", text: $0.html) }
-        // BOTH store locales. `fastlane/Deliverfile` ships en-US and de-DE with
-        // `skip_metadata false`, so both files ARE the live listing; only en-US was scanned
-        // until the de-DE notes were caught stale a week after the roster changed.
-        for locale in ["en-US", "de-DE"] {
+        // EVERY store locale, READ rather than typed. `fastlane/Deliverfile` ships this
+        // directory with `skip_metadata false`, so these files ARE the live listing.
+        //
+        // ⛔ THIS LINE IS THE SECOND REPAIR OF ONE DEFECT (#769). The note that stood here
+        // recorded the first: "only en-US was scanned until the de-DE notes were caught stale
+        // a week after the roster changed" — and the repair then was to TYPE the second locale
+        // in, which leaves a third to be skipped in the same silence. #768 hit the identical
+        // shape one level in (three of five metadata leaves hand-typed) on the sibling guard.
+        // A hand-typed subset of a directory reads as an enumeration and is not one.
+        for locale in try localeDirectories() {
             let notes = try repoRoot()
                 .appendingPathComponent("fastlane/metadata/\(locale)/release_notes.txt")
             if let text = try? String(contentsOf: notes, encoding: .utf8) {
