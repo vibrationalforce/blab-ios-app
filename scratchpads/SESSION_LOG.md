@@ -12480,3 +12480,40 @@ sein, während Claim 2 grün ist; sein Wert ist die Diagnose, nicht ein zweiter 
 Schlüssel nicht — letzteres stürzt am Gerät sofort und laut ab, ersteres schweigt.
 Reparatur ist **founder-gated** (`Resources/iOS/Info.plist`) — die Fehlermeldungen sagen
 „berichten, nicht löschen".
+
+### #772 — die sechs App-Store-URLs prüfte niemand (2026-08-23)
+
+**Befund.** `fastlane/metadata/<locale>/{marketing,privacy,support}_url.txt` veröffentlichen
+sechs URLs an den App Store. `privacy_url` lautet `https://echoelmusic.com/privacy` — **ohne
+`.html`**. Nichts im Repo prüfte, ob dieser Pfad irgendwo landet: der Store-Wächter liest
+description/promo/subtitle/keywords/release-notes, `*_url.txt` steht in keiner Liste; die
+sitemap führt `privacy.html`, nicht `/privacy`; und `WebsitePagesAreFindableAndHonestTests`
+kann es strukturell nicht — sein `pages()` ist eine NICHT-rekursive Auflistung von
+`docs/*.html`, und die sechs Dateien eine Ebene tiefer sind für jede seiner Zusicherungen
+unsichtbar. **Diese Grenze war DEKLARIERT, nicht versteckt** — und genau deshalb blieb sie
+stehen (#762-Lehre: ein ehrlicher „nicht geprüft"-Vermerk lebt ewig, bis jemand die Messung
+macht, die ihn auflöst).
+
+**Was die drei unsichtbaren Nicht-Stubs angeht:** `docs/screenshots/demo-*.html` tragen keine
+Fähigkeits-Behauptung (ihre einzigen „wav"-Treffer sind das Wort *waveform*). Die
+Ehrlichkeits-Prüfung verliert also nichts dadurch, sie nicht zu sehen.
+
+⛔ **MEINE ERSTE FASSUNG DES KOPFES WAR EINE ÜBER-BEHAUPTUNG, und die Mutation hat sie
+gefangen, nicht ich.** Ich schrieb, `/privacy` werde von `docs/privacy/index.html` (dem
+Redirect-Stub) bedient. GitHub Pages probiert `privacy.html` ZUERST; der Stub zu löschen
+ändert nichts. **Ich hatte das erwartete Mutations-Ergebnis in den Kopf geschrieben, bevor ich
+sie fuhr** — dieselbe Klasse wie #765s Claim 4, einen Zyklus später. Im Dateikopf als ⛔
+festgehalten statt still gelöscht.
+
+**Was überlebt und die Datei rechtfertigt:** die Route ist ungeprüft, und der Weg, auf dem sie
+wirklich bricht, ist `docs/privacy.html` umbenennen und den Stub stehen lassen — dann fällt die
+Auflösung auf den Stub durch, der Stub leitet auf eine gelöschte Seite, und der Besucher
+bekommt einen 404 EINEN Sprung nach einer Verzeichnisauflistung, die gesund aussah. Das ist
+Claim 3, die einzige der vier Mutationen, die kein bestehender Wächter fangen konnte.
+
+**Wächter** `Tests/CISmoke/TheStoreURLsResolveToAPageTests.swift`: (1) Liste aus dem
+Verzeichnis, nicht getippt (#769) · (2) jeder Pfad hat eine Datei (Pages-Auflösungsreihenfolge)
+· (3) jeder Redirect landet auf einer echten Seite · (4) GEGENGEWICHT: der Host stammt aus
+`docs/CNAME`, sonst prüfen 2 und 3 Pfade gegen den falschen Baum.
+
+**Benotung: ZERO REGRESSIONS, korrekt** — die Scheibe ändert keine Seite und keine URL.
