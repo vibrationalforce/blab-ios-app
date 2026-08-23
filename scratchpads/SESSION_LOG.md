@@ -12633,3 +12633,30 @@ Fehlalarmen ist ein Prüfer, den niemand liest (#665) — dieser hätte mit eine
 sie wird rot, wenn MPE-Out entfernt wird, und nennt die Prosa, die dann mitzuziehen ist.
 
 **Benotung: REGRESSION CATCH** (12 Sätze am Elternteil, 0 hier) + COUNTERWEIGHT.
+
+### #776 — #775 war rot, und zwar meine Schuld (2026-08-23)
+
+**Gate-Befund.** `342f3df` → `TEST BUILD FAILED`, zwei Diagnosen, **eine Ursache** (#689):
+`Tests/CISmoke/TheMPEDimensionsReachNoVoiceTests.swift:361: type 'Self' has no member
+'architecture'`. Ich hatte `private static let architecture` korrekt entfernt (der Sweep nennt
+keine Einzelseite mehr) und **eine Referenz in einer Fehlermeldung übersehen** — in einer
+String-**Interpolation** `\(Self.architecture)`.
+
+**Die Prüfung, die es gefangen hätte, ist eine Zeile** und ist ab jetzt reflexartig nach dem
+Löschen eines Members:
+```
+git grep -n "Self\.<name>" -- Tests/CISmoke Sources
+```
+Das ist #472 („nach dem Löschen nochmal grepen") in seiner billigsten Form — ich habe nach der
+DEKLARATION gegrept, nicht nach den BENUTZUNGEN.
+
+⚠️ **Und der naive Bundle-weite Audit meldet ZWANZIG Dateien, alle falsch.** `Self.x` steht dort
+in NADEL-Strings, die für den Compiler Prosa sind. Die Form, die INNERHALB eines Literals
+trotzdem Code ist, ist die **Interpolation** `\(Self.x)` — genau das, was hier brach, und genau
+das, was ein String-Blanking-Durchgang übersehen hätte. Auf diese Form nachgemessen: **meine
+Datei war die einzige echte.**
+
+**Zeitlinie ehrlich:** #775s Inhalt (zehn Passagen in sechs docs-Dateien, der Sweep-Wächter)
+ist unverändert richtig und wurde von `Xcode Compile Check` grün gemeldet — das Gate baut
+`Sources/` allein und konnte über die Testdatei nichts sagen. Erst CI/CD hat es gefunden.
+Genau der Unterschied, den `Tests/CISmoke/CLAUDE.md` §5 beschreibt.

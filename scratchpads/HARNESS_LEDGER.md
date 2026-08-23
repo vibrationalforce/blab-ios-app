@@ -2024,3 +2024,6 @@ erratbar ist. Ohne den Vermerk kopiert die nächste Sitzung den falschen Vertrag
 | DEAD-END | Einen Claim-Wächter auf DIE SEITE pinnen, die man gerade repariert hat. #775 tat das und fand danach neun weitere Vorkommen. Do this instead: das Verzeichnis fegen, bevor man den Wächter schreibt — die Zahl der Fundstellen entscheidet über seine FORM. |
 | PLAYBOOK | Ein zeilenweiser `grep` findet keine Behauptung, die über eine Zeilengrenze läuft. #775: neun Treffer per Zeile, das zehnte erst per Satz-Scan (`press.html`). Bei Prosa-Behauptungen immer satzweise messen. |
 | PLAYBOOK | Einen neuen Text-Wächter IMMER gegen den korrekten Baum fahren, bevor er gepusht wird — nicht nur gegen den Elternteil. #775s Satztrenner schlug auf korrektem Text Alarm (`".)"` trennt nicht). |
+
+| PLAYBOOK | Nach dem Löschen eines `static let`/`func`: `git grep -n "Self\.<name>" -- Tests/CISmoke Sources`. Die Deklaration zu grepen reicht NICHT — #776 ließ eine Referenz in einer Fehlermeldung stehen und der Commit ging rot raus. |
+| DEAD-END | Einen „undeklariertes Self-Member"-Audit mit `\bSelf\.(\w+)` fahren: 20 Fehlalarme, weil Nadel-Strings dieselbe Schreibweise tragen. Do this instead: auf die INTERPOLATION `\(Self\.` matchen — das ist die einzige Form, die innerhalb eines Literals Code ist. |

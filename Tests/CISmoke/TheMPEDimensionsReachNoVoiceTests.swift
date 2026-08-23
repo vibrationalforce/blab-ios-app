@@ -113,6 +113,18 @@
 // half; and a CONTROL that rewords an honest sentence stays GREEN — the #364 property, checked
 // rather than asserted.
 //
+// ⛔ AND #775 SHIPPED RED (#776). Removing `private static let architecture` — correct, the
+// sweep no longer names one page — left ONE reference alive inside a failure message's string
+// INTERPOLATION, `\(Self.architecture)`, and the gate answered with `TEST BUILD FAILED`. Two
+// diagnostics, ONE root cause (#689: count causes, not lines). The check that would have caught
+// it is one line and is now reflexive after deleting a member:
+//     git grep -n "Self\.<name>" -- Tests/CISmoke Sources
+// ⚠️ And a naive version of that audit over the whole bundle reports TWENTY files, all false:
+// `Self.x` also occurs inside NEEDLE STRINGS, which are prose to the compiler. The shape that
+// is genuinely code inside a literal is the INTERPOLATION `\(Self.x)` — which is exactly what
+// broke here, and what a string-blanking pass would have missed. Re-audited on that shape:
+// this file was the only real one.
+//
 // ⛔ AND THE SWEEP CRIED WOLF ONCE ON A CORRECT TREE BEFORE IT SHIPPED, which is recorded rather
 // than quietly fixed. `components(separatedBy: ". ")` does not split `".)"`, so `faq.html`'s
 // honest MPE sentence was glued to the next one — "VST3 and CLAP are not planned." — and
@@ -358,7 +370,7 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             XCTAssertTrue(code.contains(needle), """
                 `MIDIOutput` no longer sends \(dimension) on the MPE output path. The page now \
                 says MPE out is LIVE with all three dimensions — if the path lost one, that \
-                sentence in `\(Self.architecture)` must move in the same commit (#456), and so \
+                sentences under `docs/` must move in the same commit (#456), and so \
                 must `CLAUDE.md`'s "MPE OUT ist real und schaltbar".
                 """)
         }
