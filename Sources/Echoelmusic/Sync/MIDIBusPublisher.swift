@@ -3,7 +3,7 @@
 //  Echoelmusic — EchoelSync module
 //
 //  Bridges CoreMIDI input (via MIDIInput) onto EngineBus.controllerEvents.
-//  MIDIInput already parses MIDI 1.0 + MIDI 2.0 + MPE wire format into
+//  MIDIInput parses MIDI 1.0 + MIDI 2.0 channel-voice messages into
 //  normalized [0..1] / [-1..1] closure callbacks (onNoteOn, onNoteOff,
 //  onCC, onPitchBend). This class wires those callbacks to publish
 //  ControllerEvent onto the bus, source-tagged by MIDI message kind:
@@ -16,8 +16,29 @@
 //    pitch bend            → .pitchBend (range already normalized to [-1..1])
 //
 //  MPE master vs. member channel disambiguation, RPN 6,6 zone detection,
-//  and channelPressure are intentionally NOT wired in this first cycle —
-//  they're tracked as the MPE-completeness follow-up.
+//  and channelPressure are NOT available here — tracked as the
+//  MPE-completeness follow-up.
+//
+//  ⛔ THIS BLOCK SAID "intentionally NOT wired in this first cycle", AND THAT
+//  IS THE WRONG LAYER (#770). It reads as a gap in THIS file, so a session
+//  picking up the follow-up would open this class looking for a callback to
+//  attach — and find nothing to attach. Measured in
+//  `MIDIEventParse.event(word0:word1:)`: Channel Pressure (0xD0 in the MIDI 1.0
+//  branch, 0xD in the MIDI 2.0 branch) has **no case in either switch** and
+//  falls to `default: return nil`; `MIDIInEvent` has no case to carry it.
+//  The byte is never parsed, so there is no callback that could ever fire.
+//  The follow-up starts in `MIDIEventParse` + `MIDIInEvent` + `MIDIInput`,
+//  and only THEN reaches this file. A "not wired yet" note that points at the
+//  wrong file costs the next session the same search twice.
+//
+//  ⛔ AND THE LINE ABOVE SAID "MIDIInput already parses … + MPE wire format".
+//  Parsing the bytes an MPE controller happens to send — per-channel notes,
+//  bend, CC 74 — is not parsing MPE: no zone is detected, no member channel is
+//  distinguished, and the Press dimension never arrives at all. The consumer
+//  half of the same claim is pinned by
+//  `Tests/CISmoke/TheMPEDimensionsReachNoVoiceTests.swift`; #770 added the
+//  producer half. MPE **out** is real and shipped (#713) and is a different
+//  code path (`MPEExpression` / `UMPEncoder`) — do not "correct" that one.
 //
 
 #if canImport(CoreMIDI)

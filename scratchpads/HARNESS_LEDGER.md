@@ -2000,3 +2000,7 @@ zwei bewusst verschiedenen Ausfall-Verträgen.
 
 **Regel: der Unterschied gehört in beide Dokumentations-Blöcke**, weil er aus dem Namen nicht
 erratbar ist. Ohne den Vermerk kopiert die nächste Sitzung den falschen Vertrag.
+
+| DEAD-END | Eine Fähigkeits-Aufzählung für vollständig halten, weil jeder EINTRAG geprüft wurde. #548 (5 Flächen) → #766 (6.) → #770 (7.). Do this instead: prüfe die GATTUNGEN, nicht die Einträge — Prosa · UI-Label · Log-Zeile · Doc-Kommentar · Store-Text · Website · String-Katalog. Teilen alle geprüften Flächen eine Gattung, fehlt eine Gattung. |
+| PLAYBOOK | Ein „noch nicht verdrahtet"-Vermerk gehört an die Schicht, in der die Arbeit ANFÄNGT. `MIDIBusPublisher` sagte „channelPressure intentionally NOT wired" und schickte damit in die falsche Datei — das Byte wird eine Schicht tiefer gar nicht geparst. Prüfe bei jedem solchen Vermerk EINE Ebene tiefer, ob es überhaupt etwas zu verdrahten gibt. |
+| PLAYBOOK | Zu jeder Mutations-Probe (#367) gehört eine KONTROLL-Mutation, die dieselbe Zeichenkette nur in einen KOMMENTAR schreibt. Sie beweist, dass der Wächter den #762-Fallstrick nicht hat — geraten reicht nicht, es ist eine Zeile Python. |

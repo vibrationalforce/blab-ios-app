@@ -5,8 +5,11 @@
 // "CoreMIDI MPE → controllerEvents → synth notes (performer priority)". Measured, that arrow
 // carries three claims and keeps one:
 //   · MPE — `MIDIBusPublisher` parses MPE traffic but does NOT disambiguate zones; its own
-//     header says "MPE master vs. member channel disambiguation, RPN 6,6 zone detection, and
-//     channelPressure are intentionally NOT wired in this first cycle".
+//     header names "MPE master vs. member channel disambiguation, RPN 6,6 zone detection, and
+//     channelPressure" as absent. (⛔ That header used to end the sentence with "intentionally
+//     NOT wired in this first cycle" and #770 struck those words — see claim 6. The quotation
+//     is trimmed to the half that still exists verbatim; a citation of a live file that no
+//     longer contains the quoted words is the stale-witness defect, #472.)
 //   · → synth — the consumer `BioReactiveSynthVoice.apply(controller:)` handles `.noteOn`,
 //     `.noteOff` and `.pitchBend`, and `break`s on `.slide` (CC 74 timbre), `.airCC` and
 //     `.channelPressure`: exactly the three dimensions that MAKE it MPE rather than MIDI 1.0.
@@ -45,6 +48,22 @@
 // claim has as many surfaces as somebody enumerates**; "all of them checked" only ever means
 // "all the ones I thought of".
 //
+// ⛔ AND THE SIXTH WAS NOT THE LAST EITHER (#770) — the SEVENTH is a GATTUNG this file had
+// not looked at once. Surfaces one to five were prose a founder reads; six was a label a player
+// reads; seven is what a DEVELOPER reads: `MIDIInput`'s own class doc ("Minimal CoreMIDI input
+// receiver for MIDI 2.0, MPE, and standard MIDI") and the `os_log` line at the end of its
+// `setupMIDI()` ("MIDI: Input ready (MIDI 2.0 + MPE + network)"). The detection sign worked
+// exactly as written down after #768: when every checked surface shares one GATTUNG, the
+// ENUMERATION is what was incomplete, not the care taken over each item.
+//
+// ⭐ AND MEASURING IT MADE THE FINDING SHARPER THAN THE COPY FIX. `MIDIBusPublisher`'s header
+// called channel pressure "intentionally NOT wired in this first cycle" — a WIRING gap, which
+// sends a session to that class to attach a callback. There is no callback:
+// `MIDIEventParse.event(word0:word1:)` has no case for Channel Pressure (0xD0 in the MIDI 1.0
+// branch, 0xD in the MIDI 2.0 branch) in EITHER switch, and `MIDIInEvent` has no case to carry
+// one. The byte is dropped by `default: return nil` one layer below any wiring. Claim 6 pins
+// that, so the note can never drift back to naming the wrong file.
+//
 // ⚠️ HONEST GRADING FOR #766 (parent `c1d285b`), TRANSCRIBED in Python against both trees:
 // **claim 5 is a REGRESSION** — the `id: "midi.in"` line reads `name: "MIDI / MPE In"` on the
 // parent and `name: "MIDI In"` here. Claims 1-4 stay COUNTERWEIGHTS, green on both; they are
@@ -56,7 +75,24 @@
 // them as caught regressions would have been the flattering-direction defect (#433). What the
 // file bought was the FUTURE red — and #766 is the first instalment of exactly that.
 //
-// ⚠️ `SourceText.codeOnly` is PROPHYLACTIC here, MEASURED (#453) over {4 claims × 2 trees}:
+// ⚠️ HONEST GRADING FOR #770 (parent `4267cb5`), TRANSCRIBED in Python against both trees:
+// **`testTheInputLogLineDoesNotAnnounceMPE` is a REGRESSION CATCH** — the log literal reads
+// "(MIDI 2.0 + MPE + network)" on the parent and "(MIDI 1.0 + 2.0 notes/CC/bend + network)"
+// here. **`testTheInputPathParsesNoChannelPressure` is a COUNTERWEIGHT, green on both** (#343):
+// it pins the premise that makes the retraction more than a wording preference, and it is the
+// assertion that goes red the day the follow-up is really built. Both were driven against
+// deliberately mutated trees (#367) — adding `case channelPressure` to `MIDIInEvent`, adding
+// `case 0xD0:` to the MIDI 1.0 switch, and adding `case 0xD:` to the MIDI 2.0 switch each turn
+// the intended assertion red, and a CONTROL that only writes "0xD0" into a COMMENT leaves it
+// green (the #762 comment-as-code trap, checked rather than assumed).
+//
+// ⚠️ `SourceText.codeOnly` is PROPHYLACTIC for claim 6, MEASURED over {3 assertions × 2 trees}:
+// **0 of 6** verdicts flip raw-vs-stripped today. It stops being prophylactic the moment anyone
+// writes the obvious explanatory comment next to that `default:` — which the CONTROL mutation
+// above is exactly — so it stays, stated as insurance rather than claimed load-bearing.
+//
+// ⚠️ `SourceText.codeOnly` is PROPHYLACTIC for claims 1-4 too, MEASURED (#453) over
+// {4 claims × 2 trees}:
 // **0 of 8** verdicts flip. The scanned members carry comments that mention `.slide` and
 // `channel`, but every assertion is scoped to a brace-matched body and asks about tokens that
 // the comments happen not to spell in a way that would flip a verdict. Said plainly rather
@@ -72,6 +108,8 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
     private static let voice = "Sources/Echoelmusic/Tools/BioReactiveSynthVoice.swift"
     private static let bus = "Sources/Echoelmusic/Core/EngineBus.swift"
     private static let router = "Sources/Echoelmusic/Core/SignalRouter.swift"
+    private static let parse = "Sources/Echoelmusic/Audio/MIDIEventParse.swift"
+    private static let input = "Sources/Echoelmusic/Audio/MIDIInput.swift"
 
     /// The correction this guard protects, quoted so a failure can point at it precisely.
     private static let prose = """
@@ -200,6 +238,67 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             is real, so the sink port keeps its name; only the SOURCE must not promise it. \
             If a real MPE receiver is built, this whole file goes red together and the \
             corrected prose goes back — \(Self.prose)
+            """)
+    }
+
+    // MARK: - claim 6 — the PRESS dimension is never parsed, so no wiring could carry it
+
+    /// #770. Claims 1-5 all live on the CONSUMER side: what the voice ignores, what the routing
+    /// screen promises. This one is the PRODUCER side, and it is the stronger statement — MPE's
+    /// Press dimension is Channel Pressure, and this receiver has no case for it in either
+    /// protocol branch. That is why `MIDIBusPublisher`'s "not wired yet" wording had to go: a
+    /// gap you cannot close from the file the note points at is not a wiring gap.
+    ///
+    /// ⚠️ IT ANCHORS ON THE EVENT TYPE, NOT ON A FILE-WIDE BAN OF THE WORD. `MIDIEventParse`'s
+    /// own header legitimately discusses "a dense MPE stream" — MPE traffic really does arrive
+    /// here as ordinary per-channel notes, bend and CC 74, and that sentence explains a real
+    /// performance fix. Banning the token would forbid the honest half (#364) and would also
+    /// match the retraction comments #770 wrote (#491). The scan asks the two questions that
+    /// can only be answered by code: does the event type carry pressure, and does the log line
+    /// still sell MPE input?
+    func testTheInputPathParsesNoChannelPressure() throws {
+        let body = try memberBody("public enum MIDIInEvent", in: Self.parse)
+        XCTAssertFalse(body.contains("channelPressure") || body.contains("pressure"), """
+            `MIDIInEvent` now carries a pressure case. If Channel Pressure (0xD0 / 0xD) is \
+            parsed, MPE's Press dimension can finally arrive and every claim in this file is \
+            due for review together — starting with `MIDIBusPublisher`'s header, `MIDIInput`'s \
+            class doc, the routing screen's source port, and \(Self.prose)
+            """)
+
+        // The other half: the parser must still DROP it. A type without the case but a switch
+        // that maps 0xD0 onto, say, `.cc` would be worse than either — it would deliver the
+        // byte under a wrong name. Both protocol branches end in `default: return nil`.
+        let decode = try memberBody("public static func event(word0: UInt32, word1: UInt32?)",
+                                    in: Self.parse)
+        XCTAssertFalse(decode.contains("0xD0") || decode.contains("case 0xD:"), """
+            `MIDIEventParse` now has a Channel Pressure case. See the message above — the \
+            producer half of the MPE claim has changed and the prose must move with it.
+            """)
+    }
+
+    /// The `os_log` line the seventh surface was found in. Anchored on the message prefix rather
+    /// than on the whole literal, because the surrounding text is exactly what a future cycle may
+    /// legitimately reword (#655: a guard pinned to a full literal went red for five commits when
+    /// a helper took ownership of the prefix).
+    func testTheInputLogLineDoesNotAnnounceMPE() throws {
+        let code = try source(Self.input)
+        guard let line = code
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .first(where: { $0.contains("\"MIDI: Input ready") })
+        else {
+            throw MPEAnchorMissing(reason: """
+                No "MIDI: Input ready" log line in \(Self.input) — this scan found nothing \
+                rather than nothing wrong (#454). If the line moved or was renamed, re-anchor \
+                it here in the same commit.
+                """)
+        }
+        XCTAssertFalse(String(line).contains("MPE"), """
+            The MIDI input readiness log announces MPE again: \
+            "\(line.trimmingCharacters(in: .whitespaces))".
+
+            A developer reading Console during device triage is a surface like any other, and \
+            this was the seventh one for this single claim. If a real MPE receiver was built, \
+            the line is finally true — and then \(Self.prose)
             """)
     }
 

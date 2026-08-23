@@ -12407,3 +12407,36 @@ Vorfälle, beide namentlich genannt.
 `Build for Testing: Succeeded`, **135 Tests, 0 Fehler, 0 Compile-Fehler**.
 
 **GATES:** berührt nur `Tests/CISmoke/` und `scratchpads/` → **beide echten Gates laufen**.
+
+### #770 — der MPE-Eingang wurde auch dem ENTWICKLER verkauft (2026-08-23)
+
+**Befund.** #548 zählte fünf Flächen für die Behauptung „MPE In", #766 fand die sechste
+(den Quell-Port der Routing-Fläche). Beide Aufzählungen teilten eine GATTUNG: die ersten
+fünf sind Prosa, die eine Sitzung liest, die sechste ein Label, das ein Spieler liest.
+Die **siebte** liest ein ENTWICKLER — `MIDIInput`s Klassen-Doc („Minimal CoreMIDI input
+receiver for MIDI 2.0, MPE, and standard MIDI") und seine `os_log`-Zeile
+(`"MIDI: Input ready (MIDI 2.0 + MPE + network)"`, in Console beim Geräte-Triage sichtbar).
+
+**Das Messen hat den Befund geschärft.** `MIDIBusPublisher`s Kopf nannte Channel Pressure
+„intentionally NOT wired in this first cycle" — das liest sich als Verdrahtungs-Lücke IN
+DIESER DATEI. Gemessen in `MIDIEventParse.event(word0:word1:)`: Channel Pressure hat in
+KEINEM Zweig einen Case (0xD0 in MIDI 1.0, 0xD in MIDI 2.0), `MIDIInEvent` hat gar kein
+Feld dafür, das Byte fällt in `default: return nil`. **Es gibt nichts zu verdrahten.**
+Wer die Nachfolge-Arbeit aufnimmt, hätte in `MIDIBusPublisher` gesucht und nichts gefunden.
+
+**Geändert.** `MIDIInput` (Doc + Log-Zeile), `MIDIBusPublisher` (zwei Kopf-Behauptungen),
+`CLAUDE.md:40` (das Zitat zeigte auf Worte, die es nicht mehr gibt — #472),
+`TheMPEDimensionsReachNoVoiceTests` (Claim 6 = Parser-Hälfte, Claim 7 = Log-Zeile).
+
+**Benotung, transkribiert gegen beide Bäume (Eltern `4267cb5`).**
+`testTheInputLogLineDoesNotAnnounceMPE` = **REGRESSION** (rot am Elternteil).
+`testTheInputPathParsesNoChannelPressure` = **GEGENGEWICHT**, grün auf beiden — es wird
+rot an dem Tag, an dem die Nachfolge-Arbeit wirklich gebaut wird (#364).
+#367 an mutierten Bäumen bewiesen: `case channelPressure` in `MIDIInEvent`, `case 0xD0:`
+im 1.0-Zweig und `case 0xD:` im 2.0-Zweig machen je die gemeinte Zusicherung rot; eine
+KONTROLLE, die `0xD0` nur in einen KOMMENTAR schreibt, bleibt grün (#762).
+`SourceText.codeOnly` = **PROPHYLAKTISCH**, gemessen: 0 von 6 Verdikten kippen.
+
+**Was NICHT angefasst wurde.** `MIDIEventParse`s Kopf spricht von „a dense MPE stream" —
+das ist WAHR (MPE-Verkehr kommt als gewöhnliche Kanal-Noten/Bend/CC 74 an) und erklärt
+einen echten Performance-Fix. MPE **OUT** (`MPEExpression`/`UMPEncoder`) ist real (#713).

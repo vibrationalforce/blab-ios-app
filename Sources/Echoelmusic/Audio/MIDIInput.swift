@@ -2,9 +2,36 @@
 import Foundation
 import CoreMIDI
 
-/// Minimal CoreMIDI input receiver for MIDI 2.0, MPE, and standard MIDI.
-/// Receives note on/off, CC, pitch bend from any connected MIDI device.
-/// Audio-thread safe callbacks via closures.
+/// Minimal CoreMIDI input receiver for MIDI 1.0 and MIDI 2.0 channel-voice
+/// messages. Receives note on/off, CC and pitch bend from any connected MIDI
+/// device. Audio-thread safe callbacks via closures.
+///
+/// ⛔ THIS LINE SAID "for MIDI 2.0, MPE, and standard MIDI" AND THE MPE HALF IS
+/// FALSE (#770) — the seventh surface of one claim #548 first struck, and the
+/// first one that is neither prose a founder reads nor a label a player reads.
+/// #766 found the sixth (the routing screen's SOURCE port, then still named
+/// "MIDI / MPE In"); every surface enumerated before it was prose, and this one
+/// sits one layer under the UI, in the engine's own doc comment and in the
+/// `os_log` line at the end of `setupMIDI()`. **A capability claim has as many
+/// surfaces as somebody enumerates**, and when every checked surface shares one
+/// GATTUNG the enumeration is the thing that was incomplete.
+///
+/// MEASURED, not inferred: `MIDIEventParse.event(word0:word1:)` decodes exactly
+/// four things in either protocol — Note On (0x90 / 0x9), Note Off (0x80 / 0x8),
+/// CC (0xB0 / 0xB) and Pitch Bend (0xE0 / 0xE). **Channel Pressure (0xD0 / 0xD)
+/// has no case and falls to `default: return nil`**, and `MIDIInEvent` has no
+/// case to carry it. Channel pressure is MPE's Press dimension, so this receiver
+/// cannot deliver it — not "not wired yet", but structurally absent one layer
+/// below any wiring. Zone detection (RPN 6,6) and master-vs-member channel
+/// disambiguation are likewise nowhere in this file.
+///
+/// What IS true and must not be over-corrected away: MPE traffic on the wire
+/// still ARRIVES here as ordinary per-channel notes, bend and CC 74 — that is
+/// why `MIDIEventParse`'s own header talks about a dense MPE stream flooding the
+/// executor, and why `MIDIBusPublisher` can map CC 74 to `.slide`. Parsing the
+/// bytes an MPE controller happens to send is not supporting MPE. MPE **out** is
+/// real and shipped (#713); only the input half is the claim being retracted.
+/// Guard: `Tests/CISmoke/TheMPEDimensionsReachNoVoiceTests.swift`.
 @MainActor @Observable
 final class MIDIInput {
 
@@ -87,7 +114,7 @@ final class MIDIInput {
         // source by the time `connectAllSources()` runs.)
         // Connect to all existing sources
         connectAllSources()
-        log.log(.info, category: .system, "MIDI: Input ready (MIDI 2.0 + MPE + network)")
+        log.log(.info, category: .system, "MIDI: Input ready (MIDI 1.0 + 2.0 notes/CC/bend + network)")
     }
 
     /// Bring Apple network MIDI (RTP-MIDI, RFC 6295) in line with the user's
