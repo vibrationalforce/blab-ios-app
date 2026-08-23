@@ -11489,3 +11489,33 @@ gebaut und getestet, der `.fileImporter`-Steckplatz existiert, nur der Setzer fe
 Form wie #748. Dagegen: der Founder hat den Noten-Editor entfernt, eine Import-Tür wäre ein NEUES
 Feature ohne Ask, sie verbraucht einen der letzten zwei freien Modal-Steckplätze (Kopfraum, den
 das Black-Screen-Gesetz reserviert), und `importNotes` ERSETZT die aktuelle Aufnahme. Gate: HALTEN.
+
+**#751** — Gates von #750: **keine Läufe**, weil der Commit nur `CLAUDE.md` + `scratchpads/**`
+anfasste — erwartetes Verhalten der Pfad-Filter (#697/#699), nichts rot.
+
+**Der Fund war MEIN eigener Fehler, einen Zyklus alt:** die Zeile „**3** der 14 Präsentations-Slots
+hängen an Flags, die niemand setzen kann" stand noch so da — mit #748 sind es **zwei**
+(`showVisual` hat eine Tür). #748 hatte die Flaggen-Notiz in `EchoelStudioView` und die
+CRAFT-TOOL-DOORS-Zeile mitgezogen und **diese dritte Heimat übersehen**. Genau das, wovor #456
+warnt: „jede Heimat" heißt **gemessen**, nicht erinnert.
+
+Dabei ~1,6 KB reine Provenienz nach `memory/LEDGER_COUNTS.md` **§G** verschoben (die Pillen-
+Rücknahme samt verwaistem Zitat-Zeugen, die Tools-Katalog-Löschung `f371d27`, die
+Zeilennummern-Lehre). In `CLAUDE.md` bleibt das GESETZ: **unerreichbar ≠ wirkungslos** (die
+Unterscheidung entscheidet, ob man löscht oder eine Tür baut), der bewusste Verzicht auf einen
+Text-Scan-Wächter (#491), und die zwei Lehren über Erreichbarkeit und persistierte Flags.
+`CLAUDE.md` 148.028 → **147.117 B**, Luft **2.883 B**.
+
+⚠️ **Die Verschiebung fiel kleiner aus als bei #746, und das ist die richtige Form, kein Defizit:**
+zwei Drittel des Blocks stellten sich beim Lesen als lebendes Gesetz heraus (MPE-Schalter #713/#714,
+das Health-Opt-in, MeditationView/BroadcastView, BioVisualParams). **Provenienz erkennt man beim
+Lesen, nicht an der Blockgröße.**
+
+⛔ **Und meine erste Korrektur war selbst eine ungemessene Behauptung.** Ich schrieb, die Zahl „17"
+in „statt einen 17. anzuhängen" sei „schon vorher falsch" gewesen. Sie war **mehrdeutig, nicht
+falsch**: sie zählt DATEIWEIT (16+1), während dieselbe Satzhälfte „der 14" von der KETTE spricht —
+beide Zahlen stehen so im Präsentations-Absatz. **Eine Rücknahme ist auch eine Behauptung** und
+braucht dieselbe Messung wie das, was sie zurücknimmt (dieselbe Lehre wie die #396-Clone-Nummer).
+
+**Wächter mitgezogen:** `TheLawFileStaysUnderItsCeilingTests` kennt §G und hat dafür einen vierten
+Zeugen (die mehrdeutige Slot-Budget-Phrase). Vier Mutanten, jeder genau eine Behauptung rot.

@@ -32,7 +32,7 @@
 // same quantity the doctor prints or the two instruments disagree — the exact defect §D of
 // that file already paid for, where a stated threshold did not test the quantity it named.
 //
-// ⚠️ HONEST LIMITS. 5 tests, 12 assertion statements (1+1+6+2+2; counted in Python over lines
+// ⚠️ HONEST LIMITS. 5 tests, 13 assertion statements (1+1+7+2+2; counted in Python over lines
 // whose first token is XCTAssert), and the count moved TWICE inside #746 while I wrote this
 // line. ⛔ I first put "8 (1+1+4+2)" here from the SHAPE of the edit — claim 5's two literal
 // assertions had become a loop, and I read that as "fewer". Measured, it was still 10: the
@@ -50,7 +50,15 @@
 // repeated defect in its smallest possible form — a measured number quoted one edit later.
 // Re-derive: `for f in CLAUDE.md .claude/rules/*.md; do wc -c "$f"; done`.
 //
-// ⭐ GRADING FOR #746 (this tree, parent `1d5b041`) — EPOCH 4. Claims 1, 2 and 4 are
+// ⭐ GRADING FOR #751 (this tree, parent `a5dd049`) — EPOCH 5. Claims 1, 2 and 4 are
+// COUNTERWEIGHTS. Claims 3 and 5 are MIXED again, for the same structural reason as EPOCH 4:
+// their §A–§F halves are counterweights, their §G halves FORWARD (that section is created by
+// this commit). #751 moved the donut-pill provenance out and CORRECTED a stale number while
+// doing it — `CLAUDE.md` 148,028 → 147,117 B. The move is smaller than #746's because two
+// thirds of the block turned out to be live LAW, not provenance; that is the expected shape,
+// not a shortfall.
+//
+// ⭐ EARLIER GRADING FOR #746 (parent `1d5b041`) — EPOCH 4. Claims 1, 2 and 4 are
 // COUNTERWEIGHTS (green on the parent too). Claim 3 is MIXED: its §A–§D assertions are
 // counterweights, its §E and §F assertions FORWARD (those sections did not exist on the
 // parent). Claim 5 is MIXED for the same reason and must be labelled as such: its
@@ -157,6 +165,12 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
             never a living file's line count) — a dangling pointer here means the law file \
             promises a nachlese that no longer exists.
             """)
+        XCTAssertTrue(ledger.contains("## G — Die „Donuts\"-Pille und der tote Tools-Katalog"), """
+            §G (the donut-pill retraction and the dead tools catalogue, moved by #751) is gone.
+            CLAUDE.md's Absent-register bullet POINTS here and keeps only the law: unreachable is
+            NOT the same as ineffective, this line deliberately gets no text-scan guard (#491),
+            and the two lessons about reachability and persisted flags.
+            """)
         XCTAssertTrue(ledger.contains("## F — `AdaptiveCardGrid` / reflowende Panels"), """
             §F (the four versions of the reflowing-panel count, moved by #746) is gone. The \
             adaptivity paragraph in CLAUDE.md POINTS here and keeps only the number, the \
@@ -201,7 +215,8 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
         let witnesses: [(needle: String, section: String, what: String)] = [
             ("MIDIFileExporterDrumTests", "§C", "the #474 retraction — a cited test file that NEVER existed"),
             ("988 Zeilen", "§E", "the struck `PianoRollView` line count (#475 wrote 988; it was 987)"),
-            ("Der Träger sitzt in `weatherRow`", "§F", "the sentence naming the panel that never had a grid")
+            ("Der Träger sitzt in `weatherRow`", "§F", "the sentence naming the panel that never had a grid"),
+            ("statt einen 17. anzuhängen", "§G", "the ambiguous slot-budget phrase from the donut-pill block")
         ]
         for w in witnesses {
             XCTAssertTrue(ledger.contains(w.needle), """
