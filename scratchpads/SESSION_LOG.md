@@ -12440,3 +12440,43 @@ KONTROLLE, die `0xD0` nur in einen KOMMENTAR schreibt, bleibt grün (#762).
 **Was NICHT angefasst wurde.** `MIDIEventParse`s Kopf spricht von „a dense MPE stream" —
 das ist WAHR (MPE-Verkehr kommt als gewöhnliche Kanal-Noten/Bend/CC 74 an) und erklärt
 einen echten Performance-Fix. MPE **OUT** (`MPEExpression`/`UMPEncoder`) ist real (#713).
+
+### #771 — die Systemdialoge waren in keiner Aufzählung (2026-08-23)
+
+**Die Lücke.** Sechs Zyklen haben Fähigkeits-Behauptungen geprüft: Bezahl-Seite (#765),
+Routing-Port (#766), Sicherheitshinweise (#767), Store-Metadaten (#768/#769), Log-Zeile und
+Doc-Kommentar (#770). Alle sind Swift, Markdown oder `.txt`. **Die neun
+`NS…UsageDescription`-Strings in `Resources/iOS/Info.plist` sind ein VIERTES Medium** — der
+Satz, den iOS wörtlich im Berechtigungsdialog zeigt, und der erste, den App-Review für 5.1.1
+liest. Sie standen in keiner der sechs Aufzählungen.
+
+**Gemessen: die Kopie ist EHRLICH.** Alle neun Schlüssel haben heute lebenden Produktionscode
+— `PHPhotoLibrary` in `VisualRecorder`, `CBCentralManager` in `PolarH10BioPublisher`,
+`CLLocationManager` in `LocationNamer`, `MCNearbyServiceAdvertiser` in `MultipeerSession`.
+Auch die Tür geprüft: `LiveColaboView` IST montiert (`EchoelStudioView:1595`), sonst wäre
+„nearby collaboration" ein Versprechen im Systemdialog, das niemand erreichen kann.
+Der Zyklus ist also **PRÄVENTIV, keine Reparatur** — und sagt das, statt eine saubere
+Messung als Fang zu verkaufen (#464).
+
+**Wofür er bezahlt ist.** #167 löschte die Drums, #121 den Video-Schnitt; jede Löschung hat
+anderswo eine Tür verwaist. Löscht eine Scheibe `VisualRecorder`, wird der Foto-Satz zu einem
+Versprechen ohne Code UND zu einem ungenutzten Berechtigungs-String im Binary — und kein Gate
+sagt ein Wort.
+
+**Wächter** `Tests/CISmoke/EveryPermissionPromptHasACapabilityTests.swift`, drei Zusicherungen:
+1. Die LISTE kommt aus der plist, nicht aus dem Wächter (#769) — ein neuer Schlüssel ohne
+   Zeile wird rot.
+2. Jeder Schlüssel hat noch Code hinter sich (kommentar-bereinigt).
+3. Der Stripper wird IM TEST gemessen (#453): eine Nadel, die nur noch in Prosa steht, ist
+   der #762-Fall — gelöschte Fähigkeit mit Nachruf.
+
+**Benotung: ZERO REGRESSIONS, korrekt so** (die Scheibe ändert weder `Sources/` noch die plist).
+#367 an mutierten Bäumen gefahren: zehnter plist-Schlüssel → Claim 1 rot · `PHPhotoLibrary`
+entfernt → Claim 2 rot · entfernt + Nachruf → Claim 2 UND 3 rot · unbeteiligter Kommentar →
+alles grün. ⛔ Die dritte Zeile ist EIN Befund, zweimal gemeldet (#486) — Claim 3 kann nie rot
+sein, während Claim 2 grün ist; sein Wert ist die Diagnose, nicht ein zweiter Fang.
+
+**Richtung bewusst einseitig (#364):** Schlüssel ohne Fähigkeit wird geprüft, Fähigkeit ohne
+Schlüssel nicht — letzteres stürzt am Gerät sofort und laut ab, ersteres schweigt.
+Reparatur ist **founder-gated** (`Resources/iOS/Info.plist`) — die Fehlermeldungen sagen
+„berichten, nicht löschen".
