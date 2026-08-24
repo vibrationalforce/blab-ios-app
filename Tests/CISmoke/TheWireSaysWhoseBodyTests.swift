@@ -391,8 +391,10 @@ final class TheWireSaysWhoseBodyTests: XCTestCase {
     private static let beatAddress = "/echoelmusic/bio/event/heartbeat"
 
     /// 9 — REGRESSION. A demo burst announces itself, and BEFORE the event it describes.
-    /// Ordering is asserted by index rather than by `contains`, because a flag that arrives
-    /// after the value it labels leaves a receiver one event behind for the whole burst.
+    /// Ordering is asserted by WHOLE-LIST equality rather than by `contains`, because array
+    /// equality is positional and `contains` is not: a flag that arrives after the value it
+    /// labels leaves a receiver one event behind for the whole burst, and `contains` would
+    /// happily accept that.
     func testADemoEventBurstAnnouncesItselfBeforeTheFirstEvent() {
         let out = built([beat(.fallback)])
         let addresses = out.messages.map(\.address)
@@ -471,11 +473,18 @@ final class TheWireSaysWhoseBodyTests: XCTestCase {
         XCTAssertEqual(out.announced, true)
     }
 
-    /// 14 — COUNTERWEIGHT. #245's silence law, on the new path. An empty drain — the normal
-    /// state, since events are sparse and the poll is 10 Hz — must emit NOTHING, not a bare
-    /// flag describing no event. This is the executable form of the second rejected shape
-    /// ("send it unconditionally"), and it is green on the parent too: the parent's inline
-    /// loop simply sent nothing when the queue was empty.
+    /// 14 — **SPLIT: one counterweight assertion and one regression assertion**, and the
+    /// header's GRADING block explains why they stay in one method. #245's silence law on the
+    /// new path: an empty drain — the normal state, since events are sparse and the poll is
+    /// 10 Hz — must emit NOTHING, not a bare flag describing no event.
+    ///
+    /// The MESSAGE assertions are the counterweight (green on the parent too: its inline loop
+    /// simply sent nothing when the queue was empty) and are the executable form of the second
+    /// rejected shape, "send it unconditionally". The `announced` assertions are a REGRESSION —
+    /// the parent has no latch at all, so nothing there could preserve it across an empty
+    /// drain. ⛔ THIS COMMENT FIRST CLAIMED THE WHOLE METHOD WAS A COUNTERWEIGHT, which the
+    /// GRADING block above retracts; corrected here too, because a claim and its own
+    /// refutation in one file is #425 and this file has already paid for it once.
     func testAnEmptyDrainSaysNothingAtAll() {
         let out = built([])
         XCTAssertTrue(out.messages.isEmpty, """
