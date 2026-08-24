@@ -12884,3 +12884,36 @@ derselben Sitzung: die andere war eine Anker-Mutation, die nur den Suffix umbena
 
 **Note (#464): PRÄVENTIV** — der Prüfer fängt ab sofort die Klasse, die #776 einen Zyklus und
 #780 einen Beinahe-Unfall gekostet hat.
+
+## 2026-08-24 — #782: ein Zyklus, der nichts baut, weil nichts kaputt war
+
+Nach #778–#781 (Wahrheits-Flächen, Formulierungen, Roadmap-Seite, Prüfer-Lücke) war die
+ehrliche nächste Frage nicht „was baue ich", sondern **„wo sitzt noch ein Defekt"**. Vier
+Hypothesen, alle gemessen, alle sauber — die Einzelheiten stehen im `HARNESS_LEDGER` unter
+DEAD-ENDS (#782), damit sie nicht erneut gefahren werden:
+
+1. Veraltete NEEDS-FOUNDER-VERIFY-Bitten → **null**.
+2. Bitten, die auf künftige Arbeit warten → **eine**, zu wenig für eine Scheibe.
+3. `codeOnly`-Blindheit außerhalb `Sources/` (Verallgemeinerung von #781) → **sauber**.
+4. Der #659-Pin könnte gealtert sein → **stimmt unverändert** (9 Dateien, Widerspruch bei
+   genau `MetalBioView.swift`, 337 Zeilen).
+
+⭐ **Zu (4) gehört, dass der Wächter dafür schon existiert und grün ist**
+(`testExactlyOneScannedSourceDiffersUnderATripleQuoteAwareScanner`). Meine unabhängige
+Nachrechnung war eine BESTÄTIGUNG, kein Ersatz — einen zweiten zu bauen wäre #416 gewesen.
+
+⚠️ **Und meine Nachrechnung meldete erst „EchoelStudioView.swift, 2108 abweichende Zeilen".**
+Das wäre ein spektakulärer Befund gewesen und war mein eigener Fehler: **eine Zeile kann ZWEI
+`"""` tragen** (`:8246` ist `""" : """`). Wer pro Zeile umschaltet statt pro Vorkommen,
+verlässt das Literal zu früh, öffnet bei 8250 eines, das nie schließt, und verschluckt den
+Rest der Datei. Drei Zeilen `grep -n '"""'` haben es erledigt. **Dieselbe Klasse wie die 283
+„ndi"-Treffer aus #779: eine dramatische Zahl aus einem selbstgebauten Automaten wird am
+Quelltext gegengeprüft, bevor sie ein Befund wird.**
+
+**Note (#464): kein Fund.** Das ist ein zulässiges Ergebnis und wird als solches gebucht,
+statt eine Änderung zu erfinden, damit der Zyklus „etwas" zeigt.
+
+**Was das über den Zustand sagt:** die Wahrheits-Schicht ist versorgt. Was jetzt fehlt, ist
+nicht Prüfarbeit, sondern **eine Geräte-Session** — die zwei offenen Ship-Gate-Checks (Klang,
+Stabilität) sind beide sensorisch, und V0 der Vokal-Kette blockiert die ganze Founder-Bitte
+vom 2026-08-20.

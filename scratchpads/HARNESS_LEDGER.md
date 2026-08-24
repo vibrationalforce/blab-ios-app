@@ -2100,3 +2100,35 @@ aus:
 **Regel: nach jeder Mutation den mutierten Baum grepen und die Änderung SEHEN**, bevor man das
 Ergebnis als Aussage über den Prüfer bucht. Ein `grep -c` auf die alte Form (muss 0 sein) ist
 eine Zeile.
+
+### DEAD-ENDS (#782) — vier Hypothesen gemessen, Repo in allen vier gesund
+
+Ein Zyklus ohne Codeänderung, absichtlich. Damit die nächste Sitzung sie nicht erneut fährt:
+
+1. **Veraltete NEEDS-FOUNDER-VERIFY-Bitten** (Präzedenz: CLAUDE.md hat eine zurückgezogen,
+   weil #475 den Knopf löschte). Gemessen über alle 50 Bitten: jedes zitierte Bedien-Element
+   existiert noch in `Sources/`. **Ein einziger Treffer war ein Fehlalarm meines Suchmusters**
+   — die Bitte schreibt `"Undo delete of …"` als Abkürzung, der Code hat
+   `Text("Undo delete of \(d.title)")`; ein interpoliertes Literal kann eine Text-Nadel nicht
+   treffen. **Null echte Fundstellen.**
+2. **Bitten, die auf künftige Arbeit warten** und die Warteschlange größer aussehen lassen als
+   sie ist: **eine** (`AGrainCannotClickOrRunAway`, „once it is wired and reachable"). Zu wenig
+   für eine Scheibe.
+3. **`SourceText.codeOnly`-Blindheit außerhalb von `Sources/`** — die Verallgemeinerung des
+   #781-Befunds. Gemessen: JEDER `codeOnly`-Aufruf in `Tests/CISmoke` zielt auf `Sources/`;
+   nur vier Wächter lesen überhaupt eine `Tests/`-Datei, und keiner davon Swift. **Sauber.**
+4. **Der #659-Pin könnte veraltet sein** („die zwei Formen widersprechen sich bei GENAU EINER
+   Datei"). Unabhängig nachgerechnet: 9 Dateien tragen ein `"""`, Widerspruch bei genau
+   `MetalBioView.swift`, 337 Zeilen. **Der Pin von 2026-08-20 stimmt heute unverändert.**
+   (Kontextzahl im Wächter ist um eins gealtert — 366 → 367 unter `Sources/Echoelmusic`, der
+   Zuwachs ist `DSP/EchoelGranular.swift` und trägt kein `"""`. Die Schwelle dort ist `> 300`,
+   also unberührt, und die Zahl ist DATIERT, also historisch und nicht falsch.)
+
+⚠️ **Und die Nachrechnung zu (4) produzierte erst eine Falschmeldung: „EchoelStudioView.swift,
+2108 abweichende Zeilen".** Ursache in meiner Transkription, nicht im Repo: **eine Zeile kann
+ZWEI `"""` tragen** (`EchoelStudioView.swift:8246` ist `""" : """` — schließt ein Literal und
+öffnet das nächste). Wer pro ZEILE umschaltet statt pro VORKOMMEN, verlässt das Literal einmal
+zu früh, öffnet bei 8250 eines, das nie schließt, und verschluckt den Rest der Datei.
+**Regel: eine dramatische Zahl aus einem selbstgebauten Zustandsautomaten wird am Quelltext
+gegengeprüft, bevor sie ein Befund wird** — `grep -n '"""' <datei>` waren drei Zeilen Ausgabe
+und haben es sofort erledigt. Dieselbe Klasse wie die 283 „ndi"-Treffer aus #779.
