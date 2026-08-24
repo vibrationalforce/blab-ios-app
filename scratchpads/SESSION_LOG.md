@@ -13252,3 +13252,32 @@ Gegenprobe: alle anderen in dieser Sitzung neu geschriebenen Wächter (`TheWireS
 ihren jeweiligen Commits mit `Build for Testing: success` belegt — der Bruch ist auf diese eine
 Datei begrenzt.
 
+
+## #793 — die Claim-Liste wusste nichts von der Herkunfts-Flagge (2026-08-24)
+
+`ContentPipeline/CLAIMS.md` ist die Datei, die CLAUDE.md jede Sitzung VOR jedem Skript, jeder
+Caption und jedem Hashtag lesen lässt — „die eine Liste, was heute wahr ist und was gestrichen
+ist". Sie hatte für #639, #785 und #789 keine Zeile. Neu: eine ✅-Zeile für die Herkunfts-Flagge
+auf OSC und sACN, mit der Grenze im selben Feld (**NIE »alle Ausgänge«** — ADM-OSC und Art-Net
+tragen sie nicht, und aus VERSCHIEDENEN Gründen) und der offenen Geräte-Probe der sACN-Hälfte.
+
+**Dritter Zyklus in Folge, in dem eine AUSGELIEFERTE Fähigkeit die Fläche nicht erreicht hat, die
+sie VERKAUFT** — #788 die Integrator-Tabellen, #791 der Store-Text, jetzt die Claim-Liste. Eine
+UNTER-Behauptung ist für jede Prüfung unsichtbar, die nach falschen Aussagen sucht; deshalb hat
+nie jemand hingesehen.
+
+**Behauptung 17 pinnt die GRENZE, nicht die Zeile** (`TheWireSaysWhoseBodyTests`, jetzt 17): die
+Adresse muss vorkommen, und eine Verallgemeinerung auf „alle Ausgänge / jeder Ausgang / every
+output" im Herkunfts-Kontext ist verboten.
+
+⛔ **Der erste Entwurf dieser Behauptung bestand durch GLÜCK.** Die neue Zeile zitiert die
+verbotene Wendung, um sie zu verbieten — die #491-Form —, und der Entwurf lief nur deshalb grün,
+weil zufällig kein Herkunfts-Wort im 160-Zeichen-Fenster dahinter stand. Jetzt ist die Rücknahme
+Teil des Prädikats: ein Fenster, dem innerhalb von 60 Zeichen ein `⛔` / `nie ` / `never ` /
+`nicht ` vorangeht, wird übersprungen. **Ein negativer Scan über eine Datei, die ihre eigenen
+Rücknahmen zitiert, muss die Rücknahme LESEN können — sonst ist grün kein Beleg.**
+
+Eltern `2028795` rot („keine Herkunfts-Adresse"), Arbeitsbaum grün, drei Mutationen: Zeile
+entfernt → rot · verallgemeinert mit ⛔ ersetzt → rot · verallgemeinert ohne Marker → rot.
+Dazu ein verschachteltes `try` aufgelöst (zwei Anweisungen statt einer) — `-warnings-as-errors`
+auf dem SwiftPM-Pfad.

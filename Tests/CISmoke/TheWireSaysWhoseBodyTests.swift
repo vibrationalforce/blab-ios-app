@@ -603,6 +603,63 @@ final class TheWireSaysWhoseBodyTests: XCTestCase {
             """)
     }
 
+    /// 17 — REGRESSION (#793). `ContentPipeline/CLAIMS.md` is the file CLAUDE.md tells a session
+    /// to read BEFORE writing any script, caption or hashtag — and it did not know provenance
+    /// existed at all: no row for #639, #785 or #789. A content writer asked for "bio-music app"
+    /// material invents features (the AUv3 that cost #158/#192 two cycles); a writer who cannot
+    /// see a real, differentiating one simply never says it. **Three cycles in a row this
+    /// session, a shipping capability failed to reach the surface that SELLS it** — the
+    /// integrator tables (#788), the store text (#791), and now the claim ledger.
+    ///
+    /// WHAT THIS PINS IS THE BOUNDARY, NOT THE ROW. A row can be reworded freely. What must
+    /// never appear is the over-generalisation this whole file exists to prevent: provenance
+    /// rides OSC and sACN and NOT ADM-OSC or Art-Net, for reasons that differ per protocol. A
+    /// caption saying "every output tells your rig whose body it is" would be false on two of
+    /// four, in the document whose job is to stop exactly that.
+    ///
+    /// ⚠️ #364: closing the Art-Net half (an `ArtPollReply` implementation) is legitimate and
+    /// turns this red. The message names what moves with it.
+    func testTheClaimLedgerKnowsProvenanceAndItsBoundary() throws {
+        // Two statements, not one nested expression: a `try` inside an already-`try`
+        // expression is redundant and Swift warns on it, and this repo builds with
+        // warnings-as-errors on the SwiftPM path.
+        let url = try repoRoot().appendingPathComponent("ContentPipeline/CLAIMS.md")
+        let text = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(text.contains(Self.provenance), """
+            CLAIMS.md never names \(Self.provenance). It is the one list a script is written
+            from, so a capability missing here is a capability nobody will ever mention — the
+            under-claim shape #788 and #791 already paid for on two other surfaces.
+            """)
+        let lower = text.lowercased()
+        // ⚠️ THE RETRACTION MARKER IS PART OF THE PREDICATE, not decoration. This file's own
+        // row QUOTES the forbidden phrase in order to forbid it (»NIE «alle Ausgänge»
+        // schreiben«) — the #491 shape, where a negative scan hits its own retraction. A first
+        // draft passed only because of what happened to follow the quote within the window;
+        // passing by luck is not passing. A window that carries a retraction marker is skipped
+        // explicitly, so the claim survives a reworded row.
+        for forbidden in ["alle ausgänge", "jeder ausgang", "every output"] {
+            guard let r = lower.range(of: forbidden) else { continue }
+            let before = String(lower[..<r.lowerBound].suffix(60))
+            if before.contains("⛔") || before.contains("nie ")
+                || before.contains("never ") || before.contains("nicht ") { continue }
+            let after = String(lower[r.upperBound...].prefix(160))
+            guard after.contains("herkunft") || after.contains("synthetic")
+                    || after.contains("demo") else { continue }
+            XCTFail("""
+                CLAIMS.md generalises provenance to \(forbidden). It rides OSC and sACN only;
+                ADM-OSC and Art-Net carry none, for different reasons (a foreign address space
+                whose extension rules sit behind an AES paywall, #786 · an ArtDMX packet with no
+                name field whose ArtPollReply counterpart is unbuilt, #789). This is the exact
+                over-generalisation the file exists to stop.
+                """)
+        }
+        XCTAssertTrue(text.contains("ArtPollReply") || text.contains("Art-Net"), """
+            The row no longer names the protocols that are EXCLUDED. Naming what is covered
+            without naming what is not is how a caption reaches \"every output\" honestly-by-
+            omission — re-anchor this case in the same commit (#454).
+            """)
+    }
+
     /// 15 — COUNTERWEIGHT, the executable form of the FIRST rejected shape and the load-bearing
     /// one: appending provenance as an extra argument on `/bio/event/*` would break every
     /// integrator reading `[confidence, aux]`. Green on the parent by construction — the parent
