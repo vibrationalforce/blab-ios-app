@@ -171,6 +171,21 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
     /// and must not trip (#486 — one finding per real defect, not one per nearby word).
     private static let mpeInputClaims = ["mpe input", "mpe-eingang", "mpe eingang", "mpe in from"]
 
+    /// Phrasings that SELL the voice capture (#592a/#593). Both locales, both the long-form
+    /// description and the release notes — the door is the Sound panel's "Voice timbre" row.
+    private static let voiceCaptureClaims = ["voice timbre", "voice becomes the instrument",
+                                             "stimmfarbe", "stimme wird die klangfarbe"]
+
+    /// The qualifier that must travel with it. Measured at the source, not assumed:
+    /// `SynthPatch` embeds `voiceProfileTaps` — about 64 floats of max-normalized spectral
+    /// envelope — and its own comment states "NO AUDIO is persisted here". Neither
+    /// `VoiceAnalyzer` nor `VoiceCaptureEngine` touches `AVAudioFile`, `FileManager` or
+    /// `write(to:)`. So the honest sentence is "measured, not recorded", and the envelope
+    /// itself IS stored inside a saved patch — which is why the store line says both halves.
+    private static let voiceNoAudioQualifiers = ["no audio recorded", "no audio is recorded",
+                                                  "never recorded", "nie aufgenommen",
+                                                  "kein ton wird aufgenommen", "nicht aufgenommen"]
+
     func testEveryOutputThePrivacyBlockNamesIsAlsoSold() throws {
         let outputs = ["osc", "adm-osc", "art-net", "sacn"]
         var offenders: [String] = []
@@ -434,6 +449,52 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
             that changed, this assertion is WRONG and must be lifted in the same commit as the \
             parser work — together with `ContentPipeline/CLAIMS.md` section 6, \
             `docs/architecture.html` and the MPE line in `docs/dev/FEATURE_MATRIX.md`.
+            """)
+    }
+
+    /// Claim 7 (#795) — the voice capture is never sold without its no-audio qualifier.
+    ///
+    /// A microphone feature is the one place where a vague sentence costs more than a wrong
+    /// one: it drives the privacy nutrition label and the 2.3 review, and a reader assumes the
+    /// worst reading. What actually happens is narrow and provable — a held tone is reduced to
+    /// about 64 floats of spectral envelope, no audio is written anywhere, and a saved patch
+    /// carries that envelope under a name the player gives it. The claim and the qualifier must
+    /// therefore live in the SAME file: a later edit that moves the selling line into a
+    /// different leaf and leaves the qualifier behind is exactly the failure this catches.
+    ///
+    /// ⚠️ GRADED HONESTLY (#464): PREVENTIVE, and GREEN ON BOTH TREES — the parent's release
+    /// notes already carried claim and qualifier together, and #795 only adds a second, equally
+    /// qualified home. It catches nothing today and is booked as catching nothing.
+    ///
+    /// ⭐ The slice's real finding is again an UNDER-claim, the fifth in a row: "your voice
+    /// becomes the instrument's timbre" lived ONLY in `release_notes.txt`, in both locales.
+    /// Release notes are per-version and scroll away; `description.txt` is the permanent sales
+    /// surface, and it did not mention the voice at all. The measurement that found it was a
+    /// directory-driven sweep of the ✅ rows in `ContentPipeline/CLAIMS.md` against the whole
+    /// metadata corpus — not another lucky read.
+    ///
+    /// ⛔ AND THAT SWEEP PRODUCED TWO FALSE ALARMS I ALMOST ACTED ON. Probing the German text
+    /// for "generativ" and "pitch" reported both missing; the German copy says "erzeugt" and
+    /// "Kammerton" and is complete. A probe measures the WORD, not the capability (#679/#738) —
+    /// the two hits were read against the source before either was called a gap.
+    func testTheVoiceCaptureAlwaysCarriesItsNoAudioQualifier() throws {
+        var unqualified: [String] = []
+        for file in try storeCopy() {
+            let flat = file.text.lowercased()
+            guard Self.voiceCaptureClaims.contains(where: { flat.contains($0) }) else { continue }
+            if !Self.voiceNoAudioQualifiers.contains(where: { flat.contains($0) }) {
+                unqualified.append(file.path)
+            }
+        }
+        XCTAssertTrue(unqualified.isEmpty, """
+            The store text sells the voice capture without saying that no audio is kept: \
+            \(unqualified.joined(separator: ", ")).
+
+            `SynthPatch` says it in its own comment — "NO AUDIO is persisted here": what is \
+            stored is about 64 floats of spectral envelope, and neither `VoiceAnalyzer` nor \
+            `VoiceCaptureEngine` writes a file. A microphone claim without that sentence \
+            drives the privacy nutrition label and the 2.3 review on the reader's worst \
+            assumption. Keep the qualifier in the SAME file as the claim, in every locale.
             """)
     }
 

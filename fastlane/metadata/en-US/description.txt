@@ -20,6 +20,7 @@ CREATE
 
 - Bio-reactive additive synthesis engine (DDSP) — vDSP-accelerated, no external dependencies
 - Design and save your own patches
+- Your voice becomes the instrument's timbre: hold a tone and Echoel measures its spectral envelope — about 64 numbers, no audio recorded and none stored. A saved patch can carry that envelope under a name you give it
 - Composition: pick a genre and a key; your body generates in-key material you shape with the sound and character controls
 - Concert pitch (A4 / Kammerton) set exactly to the cent; lock a BPM for tight loops or stay sync-free
 - Effects: reverb, delay, chorus, flanger, phaser, tremolo, saturation, harmonizer and more

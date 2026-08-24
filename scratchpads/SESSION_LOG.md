@@ -13318,3 +13318,43 @@ Kontrolle bleibt nützlich, ihre Schwelle ist aber „0 im CODE", nicht „0 in 
 
 Getrieben: Arbeitsbaum grün, Eltern `c097229` grün (= die Leere), vier Mutationen: nacktes „MPE"
 → rot · englischer Eingangs-Anspruch → rot · deutscher → rot · Variante „MPE out" → grün (#364).
+
+## #795 — die Stimme stand nur in den Release-Notes, nicht in der Beschreibung (2026-08-24)
+
+Statt weiter einzeln über Unter-Behauptungen zu stolpern (vier Zyklen in Folge), habe ich sie
+gemessen: alle ✅-Zeilen aus `ContentPipeline/CLAIMS.md` gegen den GANZEN
+`fastlane/metadata/`-Korpus. Ergebnis: eine echte Lücke, zwei Fehlalarme, und eine Fähigkeit,
+die nur in der falschen Datei stand.
+
+**Der Fund:** „Deine Stimme wird die Klangfarbe des Instruments" (#592a/#593) kommt in BEIDEN
+Locales ausschließlich in `release_notes.txt` vor. `description.txt` erwähnt die Stimme mit
+keinem Wort. **Release-Notes sind versionsgebunden und scrollen weg; die Beschreibung ist die
+bleibende Verkaufsfläche.** Neu: eine Zeile im ERSCHAFFEN/CREATE-Block beider Locales.
+
+**Vor dem Behaupten gemessen, nicht abgeschrieben:** `VoiceAnalyzer` und `VoiceCaptureEngine`
+fassen weder `AVAudioFile` noch `FileManager` noch `write(to:)` an; `SynthPatch` sagt in seinem
+eigenen Kommentar „NO AUDIO is persisted here" und legt ~64 Floats Spektral-Hüllkurve ab. Die
+Store-Zeile trägt deshalb BEIDE Hälften — kein Ton aufgenommen oder gespeichert, aber die
+Hüllkurve wandert benannt in einen gespeicherten Patch. Die Release-Notes-Fassung ließ die
+zweite Hälfte weg; das ist keine Über-Behauptung, aber auf der bleibenden Fläche zu ungenau,
+weil eine Mikrofon-Zeile das Privacy-Label und die 2.3-Prüfung treibt.
+
+**Behauptung 7** (jetzt 7): wer die Stimm-Aufnahme verkauft, muss den „kein Ton"-Zusatz in
+DERSELBEN Datei tragen. Selbstverankernd — sie greift nur, wenn der Anspruch existiert.
+
+⚠️ **Ehrliche Benotung (#464): PREVENTIV und auf BEIDEN Bäumen grün.** Die Eltern trugen
+Anspruch und Zusatz schon gemeinsam in den Release-Notes; #795 fügt nur eine zweite, ebenso
+qualifizierte Heimat hinzu. Fängt heute nichts, und wird als „fängt nichts" gebucht.
+
+⛔ **Der Sweep produzierte ZWEI Fehlalarme, und beide hätte ich fast repariert:** die Sonde
+suchte im deutschen Text nach „generativ" und „pitch" und meldete beides fehlend — die deutsche
+Kopie sagt „erzeugt" und „Kammerton" und ist vollständig. **Eine Sonde misst das WORT, nicht die
+Fähigkeit** (#679/#738). Beide Treffer wurden gegen den Quelltext gelesen, bevor einer „Lücke"
+hieß.
+
+⭐ **Nebenbefund an meiner eigenen Prüfroutine (#794):** die Kontrolle „`file.rel` muss 0-mal
+vorkommen" schlug an — der Treffer war der ⛔-Vermerk, der `file.rel` zitiert, um ihn
+zurückzunehmen. Dieselbe #491-Form eine Ebene tiefer; die Schwelle heißt „0 im CODE".
+
+Getrieben: Arbeitsbaum grün, Eltern `7e84710` grün, drei Mutationen: Zusatz aus der Beschreibung
+→ rot · Zusatz aus den Release-Notes → rot · Anspruch ganz entfernt → grün (#364).
