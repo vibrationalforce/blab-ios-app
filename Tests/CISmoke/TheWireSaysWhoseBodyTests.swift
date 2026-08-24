@@ -121,6 +121,26 @@
 //     else. Inventing `/adm/obj/n/synthetic` inside it would pollute that namespace, which is
 //     the opposite of the open-standards posture this slice serves. It needs a decision about
 //     WHERE such a flag belongs, not a quick append.
+//     ⭐ #786 MEASURED TWO THINGS THAT MAKE THAT DECISION CHEAPER, and pinned them in
+//     `TheADMObjectCarriesNoOriginTests`:
+//       (a) **Whether the standard reserves a vendor namespace is UNMEASURED and not measurable
+//           from public sources.** The public README of `immersive-audio-live/ADM-OSC` defines
+//           only `/adm/obj/{n}/…` and says a fuller dictionary "is being discussed"; the
+//           document that would answer it — "Specification v1.0 and implementation guide" — is
+//           an AES e-library paper (aes2.org id=22722), i.e. paywalled. So today a session
+//           cannot check whether an extension address would even be LEGAL. Written as
+//           UNMEASURED rather than guessed (§2), because "there is no vendor space" and "I could
+//           not read the spec" are different facts and only the second one is ours.
+//       (b) ⛔ **THE OBVIOUS WORKAROUND IS FALSE BY DEFAULT.** "An ADM integrator can just also
+//           subscribe to our own `/echoelmusic/bio/synthetic`" sounds right and does not hold:
+//           `OSCSender` and `ADMOSCSender` are INDEPENDENT senders with separately persisted
+//           targets (`net.osc.host`/`net.osc.port` vs `net.adm.host`/`net.adm.port`) and
+//           different default ports. A renderer listening on the ADM port receives no
+//           `/echoelmusic/*` at all. It works only if an operator deliberately aligns both on
+//           one host that listens on both ports — a configuration coincidence, not a contract,
+//           and never something a spec sheet may claim. This is the half worth a guard: it is a
+//           CODE property that could change, and if it changed this bullet would silently
+//           overstate how open the open half is.
 //   · **Art-Net and sACN** carry DMX and are the honest gap in this family. ⛔ THE FIRST DRAFT
 //     CALLED THIS "a genuine cannot — no metadata room at all", AND THAT IS FALSE. A DMX
 //     universe is 512 slots; `ArtNetSender.dmxChannels` uses FOUR (dimmer + R + G + B), eight

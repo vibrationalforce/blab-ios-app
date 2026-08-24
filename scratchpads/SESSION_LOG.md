@@ -13050,3 +13050,38 @@ einem Lauf, der die Lage perfekt zeigt — eine Nadel aus dem WORTLAUT des letzt
 eine Nadel für den letzten Vorfall. `scripts/gh-test-verdict.py` war korrekt, weil es die
 `** TEST … FAILED **`-Marker prüft und nicht die Mach-Zeile. Genau deshalb sagt
 `.claude/rules/context.md` §4 „hand-roll keine Nadeln".
+
+## #786 — die ADM-OSC-Hälfte gemessen, statt sie weiter „als Entscheidung" zu führen (2026-08-24)
+
+Kein Bau am Instrument, sondern eine MESSUNG an einem registrierten offenen Punkt (#451: messen,
+bevor man fragt). Drei Tatsachen, zwei davon neu:
+
+1. `/adm/obj/{n}/*` ist ein fremder Adressraum — unverändert.
+2. ⭐ **Ob der Standard einen Hersteller-Namensraum reserviert, ist UNGEMESSEN und aus
+   öffentlichen Quellen NICHT messbar.** Das öffentliche README von `immersive-audio-live/ADM-OSC`
+   definiert nur `/adm/obj/{n}/…` und sagt, ein vollständigeres Wörterbuch werde „diskutiert";
+   das Dokument, das die Frage beantworten würde („Specification v1.0 and implementation guide"),
+   ist ein AES-Paper hinter der Paywall (aes2.org id=22722). **„Es gibt keinen Hersteller-Raum"
+   und „ich konnte die Spec nicht lesen" sind verschiedene Tatsachen, und nur die zweite ist
+   unsere** — also als UNGEMESSEN notiert, nicht geraten (§2).
+3. ⛔ **UND DIE NAHELIEGENDE ABHILFE IST IM STANDARDFALL FALSCH — der eigentliche Fund.**
+   „Ein ADM-Integrator kann doch einfach auch unser `/echoelmusic/bio/synthetic` abonnieren"
+   klingt richtig und hält nicht: `OSCSender` und `ADMOSCSender` sind UNABHÄNGIGE Sender mit
+   getrennt persistierten Zielen (`net.osc.*` gegen `net.adm.*`) und verschiedenen Standard-Ports.
+   Ein Renderer am ADM-Port bekommt gar kein `/echoelmusic/*`. Es funktioniert nur, wenn ein
+   Operator beide absichtlich auf EINEN Host ausrichtet, der auf beiden Ports hört — ein
+   Konfigurations-Zufall, kein Vertrag, und nie etwas für ein Datenblatt.
+
+**Wächter:** `Tests/CISmoke/TheADMObjectCarriesNoOriginTests.swift`, 2 Behauptungen, beide
+**PRÄVENTIV** benotet (kein Eltern-Commit wird rot — hier wird nichts reparariert). Sie werden rot
+an dem Tag, an dem jemand dem ADM-Arm Provenienz gibt oder die zwei Ziele zu einer Konfiguration
+vereint — genau dann, wenn die Register-Zeile mitzuziehen ist (#364/#456). Mutationen gefahren:
+`/synthetic` an `admMessages` angehängt → Behauptung 1 rot; `net.adm.host` → `net.osc.host`
+umbenannt → Behauptung 2 rot; Kontrolle grün.
+
+**Handwerklicher Fund am eigenen Entwurf:** ich hatte einen eigenen Repo-Wurzel-Helfer geschrieben
+(`for _ in 0..<3 { deleteLastPathComponent() }`), obwohl das Bundle einen etablierten `repoRoot()`
+mit `XCTSkip` hat. Ersetzt durch die Bundle-Form — ein selbstgebauter Helfer wäre eine zweite
+Definition derselben Entscheidung (#416) und hätte bei fehlendem Baum ein falsches Rot statt eines
+ehrlichen Skips geliefert.
+
