@@ -1,6 +1,14 @@
 // TheLawFileCitesGuardsThatExistTests.swift
-// Echoel — #800/#802. The always-loaded files name 35 guard files. Nothing checked
-// that they exist.
+// Echoel — #800/#802. The always-loaded files name guard files by the dozen. Nothing
+// checked that they exist.
+//
+// ⛔ THE COUNT LIVES IN ONE PLACE IN THIS FILE, AND #803 IS WHY. #802 widened the corpus
+// from one file to four, which moved the count from 32 to 35 — and the number was written
+// out FOUR times here. Three were updated and the fourth, in the grading block, still said
+// "All 32 resolve" when it shipped. That is #416 applied to a count: two spellings of one
+// fact is the defect whether or not they agree today, and this file argues against exactly
+// that. Below, `citationsWhenWritten` is the only place a number appears; every sentence
+// that needs it says so in words or interpolates the constant.
 //
 // ⭐ WHY THIS AND NOT ANOTHER STALE-NUMBER CHECK. This repo has paid for the pointer
 // class twice already, and both times the pointer was prose while the target was code:
@@ -20,7 +28,8 @@
 //   · a backticked identifier  `` `<Name>Tests` ``   — must exist as `<Name>Tests.swift`
 //     under EITHER bundle, because the KEY TESTS block cites the non-blocking suite
 //     (`Tests/EchoelmusicTests/`) in exactly this form.
-// Counted when written: 17 by path + 19 by backtick, 35 distinct, all resolving.
+// Counted when written: see `citationsWhenWritten`. All of them resolved, on this tree and
+// on the parent.
 //
 // ⛔ #800 READ `CLAUDE.md` ALONE, AND THAT WAS THE #787 GAP ONE LEVEL UP: the law file is
 // not the only thing a session is charged for before its first line of work. #802 added
@@ -45,8 +54,8 @@
 // beats broad and disarmed — the same trade `WebsitePagesAreFindableAndHonestTests`
 // spells out for the word "streaming".
 //
-// ⚠️ GRADED HONESTLY (#464): PREVENTIVE. All 32 resolve on this tree AND on the parent —
-// this catches nothing today and is booked as catching nothing. It is worth its bytes
+// ⚠️ GRADED HONESTLY (#464): PREVENTIVE. Every citation resolves on this tree AND on the
+// parent — this catches nothing today and is booked as catching nothing. It is worth its bytes
 // because the failure it prevents is silent: a renamed guard leaves the prose pointing
 // at a file that no longer exists, and the next session follows the pointer, finds
 // nothing, and cannot tell "renamed" from "deleted" from "never existed".
@@ -69,6 +78,13 @@ final class TheLawFileCitesGuardsThatExistTests: XCTestCase {
     /// ordinary work and must not turn this red, while a drop to zero can only mean the
     /// law file moved or the citation style changed wholesale.
     private static let citationFloor = 20
+
+    /// How many distinct citations the corpus carried when this guard was last measured.
+    /// ⚠️ It is DOCUMENTATION, never an assertion: adding or removing a citation is
+    /// ordinary work and must not turn this red (#364) — that is what `citationFloor`
+    /// is for. It exists so the failure message can say what "normal" looked like
+    /// without a second sentence repeating the number (#416).
+    private static let citationsWhenWritten = 35
 
     /// The files every session is charged for before its first line of work: the law file
     /// plus the three always-loaded rule files. Directory-scoped `CLAUDE.md`s are NOT in
@@ -128,7 +144,8 @@ final class TheLawFileCitesGuardsThatExistTests: XCTestCase {
         let all = Set(pathForm).union(tickForm)
         XCTAssertGreaterThanOrEqual(all.count, Self.citationFloor, """
             The always-loaded files cite only \(all.count) guard file(s) — the scan \
-            expected at least \(Self.citationFloor) and found 35 when it was written.
+            expected at least \(Self.citationFloor) and found \(Self.citationsWhenWritten) \
+            when it was written.
 
             A collapse like this means the corpus moved, not that the law file got tidy \
             (#454). Either a file moved out of the always-loaded set, or citations stopped \

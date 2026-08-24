@@ -13588,3 +13588,23 @@ die Stale-Zahl-Falle, gegen die dieselbe Datei argumentiert.
 Getrieben (6 Fälle): Arbeitsbaum grün · Eltern `edb9673` grün · `context.md`-Zitat entfernt → rot ·
 `swift-audio.md`-Zitat entfernt → rot · Regeldatei fehlt → rot über #454 · Bundle-Name zitiert →
 grün · dasselbe mit leerem `project.yml` → rot.
+
+## #803 — dieselbe Zahl stand viermal in EINER Datei, und eine blieb stehen (2026-08-24)
+
+Selbst gefunden, im eigenen Commit von vor einer Stunde. #802 hat den Korpus von einer auf vier
+Dateien erweitert; damit wurde aus 32 Zitaten 35 — und **die Zahl war in
+`TheLawFileCitesGuardsThatExistTests.swift` VIERMAL ausgeschrieben**. Drei habe ich nachgezogen,
+die vierte im Benotungs-Block sagte beim Push noch „All 32 resolve".
+
+**Das ist #416 auf eine Zahl angewandt: zwei Schreibweisen einer Tatsache sind der Defekt, ob sie
+heute übereinstimmen oder nicht** — und die Datei argumentiert selbst gegen genau das. Die
+Reparatur ist deshalb nicht „die vierte Stelle nachziehen", sondern **die Zahl auf EINE Stelle
+reduzieren**: `citationsWhenWritten` ist ab jetzt der einzige Ort, an dem eine Ziffer steht; die
+Fehlermeldung interpoliert sie, der Rest sagt es in Worten.
+
+⚠️ Die Konstante ist ausdrücklich **Dokumentation, keine Zusicherung** — ein Zitat hinzuzufügen
+ist gewöhnliche Arbeit und darf nicht rot werden (#364). Dafür ist `citationFloor` da.
+
+⭐ **Warum das keine Kosmetik ist:** das Muster hatte in dieser Sitzung schon zweimal zugeschlagen
+(#802s Kopfzahl, und davor #789s Zitat-Rezept). Eine Zahl an N Stellen altert an N−1 Stellen
+still; wer sie nachführt, führt sie an den Stellen nach, an die er gerade denkt.
