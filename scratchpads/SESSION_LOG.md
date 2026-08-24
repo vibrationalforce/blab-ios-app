@@ -13429,3 +13429,22 @@ unsichtbar, die nach FALSCHEN Aussagen sucht.** Diese hier ist die erste, die da
 Getrieben: Arbeitsbaum grün, Eltern `6d9ea17` **ROT** („keine Seite nennt die Fähigkeit"), drei
 Mutationen rot — Zusatz aus `faq.html` · Zusatz aus `architecture.html` · Anspruch überall
 entfernt bei stehender Prämisse.
+
+## #798 — die Playbooks der Unter-Behauptungs-Reihe in den HARNESS_LEDGER (2026-08-24)
+
+Reine Harness-Hygiene, keine Codeänderung. Drei Einträge, damit die nächste Sitzung nicht
+sechsmal einzeln stolpert:
+
+1. **PLAYBOOK — Unter-Behauptungen findet man nur, wenn man danach sucht.** Sechs Zyklen, sechs
+   Flächen. Das Werkzeug ist eine MESSUNG, kein Wächter: ✅-Zeilen aus `ContentPipeline/CLAIMS.md`
+   gegen den GANZEN `fastlane/metadata`- und `docs/`-Korpus, verzeichnis-getrieben. Mit der
+   Warnung, dass eine Sonde das WORT misst und nicht die Fähigkeit (zwei Fehlalarme in einem
+   Lauf).
+2. **PLAYBOOK — ein Wächter mit im Code gemessener PRÄMISSE kann keine #364-Falle werden.**
+   Zählt man erst `Module(` bzw. die Konstruktionsstellen und stellt die Forderung nur unter
+   dieser Prämisse, hebt sie sich beim Verdrahten oder Entfernen selbst auf. Kein „im selben
+   Commit aufheben"-Zettel, den jemand lesen muss. Plus: Kommentare IMMER strippen.
+3. **DEAD-END — pro DATEI prüfen sieht einen Selbstwiderspruch IN der Datei nicht.** Der erste
+   #796-Entwurf war auf dem kaputten Elternteil grün; nur das Treiben hat es gezeigt.
+
+Der Ledger ist damit 2266 Zeilen.

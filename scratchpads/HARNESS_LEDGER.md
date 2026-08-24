@@ -2203,3 +2203,64 @@ mit `python3 scripts/founder-verify.py`, ob dieselbe Frage schon dasteht, und se
 EINEN Ort — die #416-Regel, angewandt auf Bitten statt auf Entscheidungen. Der Zeiger im
 Nachbarn ist Prosa, kein zweiter Marker.
 
+
+## PLAYBOOK (2026-08-24, #788–#797): UNTER-Behauptungen findet man nur, wenn man danach sucht
+
+**Der Befund, sechs Zyklen lang und jedes Mal woanders:** eine ausgelieferte, betürte Fähigkeit
+hatte die Fläche nicht erreicht, die sie VERKAUFT. #788 die Integrator-Tabellen · #791 sACN im
+Store-Text · #793 die Claim-Liste · #794 der MPE-Ausgang · #795 die Stimme (nur in den
+Release-Notes) · #797 die Stimme auf der Website (null von achtzehn Seiten).
+
+**Warum das so lange lief: jede Prüfung in diesem Repo sucht nach FALSCHEN Aussagen.** Eine
+Fähigkeit, die nirgends behauptet wird, verletzt keine davon. Sie ist unsichtbar, und
+Unsichtbarkeit sieht aus wie Sauberkeit.
+
+**Das billige Werkzeug, das die Reihe beendet hat (eine Messung, kein Wächter):**
+```
+✅-Zeilen aus ContentPipeline/CLAIMS.md  ×  GESAMTER fastlane/metadata-Korpus
+✅-Zeilen aus ContentPipeline/CLAIMS.md  ×  GESAMTER docs/-Korpus
+```
+Verzeichnis-getrieben, nie als Dateiliste. #795 fand so die Stimme (nur in `release_notes.txt`),
+#796 fiel dabei als ÜBER-Behauptung mit ab (zwei Synth-Module ohne Instanziierung, als `LIVE`
+verkauft).
+
+⚠️ **Und die Sonde misst das WORT, nicht die Fähigkeit.** Zwei Fehlalarme in einem Lauf: „generativ"
+und „pitch" fehlten im deutschen Store-Text, der „erzeugt" und „Kammerton" sagt und vollständig
+ist. Jeden Treffer gegen den Quelltext lesen, bevor er „Lücke" heißt (#679/#738).
+
+## PLAYBOOK (2026-08-24, #796/#797): ein Wächter, dessen PRÄMISSE im Code gemessen wird, kann keine #364-Falle werden
+
+**Das Problem:** ein Wächter, der eine Prosa-Regel festnagelt („nenne X immer mit Zusatz Y"),
+verbietet die künftige Arbeit, die X wahr macht — und die Lösung war bisher immer eine Notiz
+„im selben Commit aufheben", die jemand lesen muss.
+
+**Die Form, die das nicht braucht:** zuerst die Prämisse ZÄHLEN, dann die Forderung nur unter
+ihr stellen.
+· #796: `Module(` im CODE von `Sources/**` = 0 → jede öffentliche Zeile muss „not wired" sagen.
+  Wer das Modul verdrahtet, wird übersprungen. Nichts aufzuheben.
+· #797: `VoiceCaptureEngine(` + `VoiceAnalyzer(` > 0 → mindestens EINE Seite muss die Fähigkeit
+  nennen, und jede nennende Seite den „kein Ton"-Zusatz. Verschwindet die Kette, verschwinden
+  beide Forderungen.
+
+⚠️ **Kommentare IMMER strippen** (`SourceText.codeOnly`). CLAUDE.mds eigene Notiz ZITIERT das
+Rezept `git grep -n "EchoelModalBank(" -- Sources`; eine Quelldatei, die diese Notiz
+zurückzitiert, ließe einen naiven Scan seine eigene Dokumentation als Instanziierung lesen.
+
+## DEAD-END (2026-08-24, #796): pro DATEI prüfen kann einen Selbstwiderspruch IN der Datei nicht sehen
+
+**Versucht:** „nennt eine Datei ein totes Modul, muss irgendwo darin ein ‚not wired' stehen."
+Gewählt, um eine legitime dritte Nennung nicht anzumeckern (#486).
+
+**Ergebnis: auf dem KAPUTTEN Elternteil GRÜN.** Der Defekt war eine Übersichtszeile, die einer
+Detailzeile **derselben Datei** widerspricht (#425) — `architecture.html` trug „Not wired" auf
+Zeile 224 und verkaufte dasselbe Modul auf Zeile 346 als `LIVE`. Pro-Datei kann das prinzipiell
+nicht sehen. Die Fenster-Variante danach schlug in `FEATURE_MATRIX.md` falsch an, wo jeder
+Eintrag eine `**Code:**`- gefolgt von einer `**Live:**`-Zeile hat.
+
+**Stattdessen:** beide Hälften am ANSPRUCH verankern (die Roster-Zeile über ihren
+`<div class="k">`-Schlüssel, die Live-Zeile über ihre Abschnittsüberschrift), mit
+#454-Zusicherung, wenn der Anker fehlt. Kein Fenster, keine Nähe, keine Fehlalarme.
+
+**Und die Lehre über das Verfahren, nicht über den Inhalt:** das hätte niemand am Text gesehen —
+nur das TREIBEN gegen den Elternteil hat es gezeigt. Ein Wächter, der auf dem kaputten Baum
+grün ist, ist kein Wächter.
