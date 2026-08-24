@@ -12743,3 +12743,52 @@ geprüft statt behauptet.
 FLÄCHEN, wie jemand aufzählt. #778: sie hat so viele **FORMULIERUNGEN**, wie jemand aufzählt —
 und eine Nadel, die aus dem Wort des letzten Defekts gebaut ist, ist eine Nadel für den letzten
 Defekt. Anspruch 10 ist deshalb aus dem KÖNNEN gebaut, nicht aus einem Wort.
+
+## 2026-08-24 — #779: die Roadmap-Seite des Sweeps — eine Fundstelle in ~100 Sätzen
+
+**Was #778 als Methode hinterließ**, hier zum ersten Mal systematisch angewandt: nicht nach
+Über-Behauptungen suchen, sondern nach **Roadmap-Sätzen, die schon wahr sind**. Gescannt:
+jeder Satz in `docs/*.html` mit `roadmap|planned|not in the app today` — rund 100 Stück.
+
+**Ergebnis: genau EINE Falschstelle.** `docs/architecture.html:251`, die `BioComposer`-Zeile:
+„Per-note velocity, automation and richer voice-leading are ROADMAP." **Ein Drittel davon ist
+ausgeliefert.**
+
+Kette Ende-zu-Ende gemessen:
+- `BioComposer` schreibt **fünf** unabhängige Velocity-Quellen — `hVel` (±0,05 Jitter),
+  `metricAccent(step:)` (1,0 / 0,95 / 0,92 / 0,86 nach metrischer Position), `padVelocity` und
+  `subVel` (folgen der Atemtiefe), `bassVelocity` (vom Pad abgehoben), `pulseVel` (0,45×).
+- `Note.velocity` ist `Float`, geklammert 0…1, `Codable`, persistiert.
+- `EchoelStudioView` → `MIDIFileExporter.exportCombined` → `melodyEvents` →
+  `Int(n.velocity * 127 * velScale)` als Note-On-Velocity-Byte. Nichts flacht dazwischen ab.
+
+**Die anderen zwei Drittel bleiben korrekt Roadmap** — `AutomationPlayer` hat keinen
+Produktions-Schreiber, „richer voice-leading" ist ein Urteil. Der Satz wird deshalb **geteilt,
+nicht umgedreht**; der Wächter verbietet nur das Velocity-Drittel in einem Roadmap-Satz (#364).
+
+**Alles andere gemessen und ehrlich:** `LinkKit` 0 Dateien (Ableton Link wirklich Roadmap; die
+35 „Ableton"-Treffer sind Kommentare), `HomeKit` 0, `CoreML` 0, `Syphon` 0, `Atmos` 0, `NDI` 1
+(ein Kommentar). `LoopExporter.swift:340` setzt `outputFormat = .wav` wirklich hart — „the
+encoder exists, the export path forces WAV" stimmt. `MIDIOutput` sendet wirklich MIDI-1.0-Bytes
+(„native MIDI 2.0 out ROADMAP" stimmt). Kein modellierter Analog-Kompressor existiert
+(VCA/Opto/FET/VariMu = 0 Treffer), ein generischer `EchoelCompressor` schon — die Seite sagt
+genau das.
+
+⚠️ **Zwei eigene Messfehler unterwegs, beide sofort korrigiert:** ein `grep -i` auf `ndi` traf
+283 Dateien („handling", „indicator"), einer auf `link` 35 — **eine Nadel ohne Wortgrenze misst
+das Alphabet, nicht die Sache.** Mit `\b` bleiben 1 bzw. 0 echte Treffer.
+
+**Wächter:** `Tests/CISmoke/TheComposerWritesPerNoteVelocityTests.swift`, drei Ansprüche.
+1 = `metricAccent` liefert vier verschiedene Gewichte (COUNTERWEIGHT) · 2 = **behavioural**, der
+Export erzeugt für 0,25 wirklich Byte 31 und für 0,95 Byte 120, durch denselben Einstiegspunkt,
+den die App ruft (COUNTERWEIGHT) · 3 = die Seite nennt Velocity nicht Roadmap (REGRESSIONSFANG).
+
+**#367 getrieben, in Python transkribiert:** Elternbaum 1 Rot (Anspruch 3), Arbeitsbaum 0.
+Mutation „metricAccent flachgelegt" → Anspruch 1 rot. Mutation „Exporter schreibt Konstante" →
+Anspruch 2 rot.
+
+**Note (#464): Regressionsfang plus zwei Gegengewichte.**
+
+**Lehre.** Eine Trefferquote von 1 zu 100 ist kein Argument gegen den Sweep, sondern für ihn:
+er ist billig, und der eine Treffer saß auf der Seite, die ein DAW-Nutzer liest, bevor er
+entscheidet, ob sich der Export zu öffnen lohnt.

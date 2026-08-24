@@ -2048,3 +2048,23 @@ KONTROLL-Mutation prüfen, die die ehrliche Formulierung einspeist und grün ble
 
 **Erkennungszeichen, dass eine Nadel zu eng ist:** sie besteht aus einem Eigennamen oder
 Akronym. Ein Nutzer beschreibt eine Fähigkeit selten mit dem Fachwort.
+
+### PLAYBOOK (#779) — den Sweep von der ROADMAP-Seite fahren
+
+**Warum.** Jede Claim-Nadel dieses Repos ist eine Liste von Dingen, die man NICHT versprechen
+darf. Damit findet man Über-Behauptungen und ist gegen die Gegenrichtung strukturell blind:
+eine Fähigkeit, die ausgeliefert ist und auf der Website „ROADMAP" heißt.
+
+**Rezept.** Satzweise (nicht zeilenweise) über `docs/*.html`, Nadel
+`\b(roadmap|planned|not in the app today)\b`, dann jede Zeile gegen den Code messen. Kosten:
+~100 Sätze, eine Sitzung. Ausbeute bei #779: **1 Falschstelle** — und die saß auf der Seite,
+die ein DAW-Nutzer vor dem Export liest.
+
+**Reparaturform: den Satz TEILEN, nicht umdrehen.** „A, B und C sind ROADMAP" mit nur A
+ausgeliefert wird zu „A ist LIVE … B und C sind ROADMAP". Der Wächter verbietet dann NUR A in
+einem Roadmap-Satz — B später zu verdrahten braucht keine Änderung am Wächter (#364).
+
+**Fallstrick, zweimal in einer Stunde getroffen:** `grep -i ndi` traf 283 Dateien
+(„handling", „indicator"), `grep -i link` 35. **Eine Nadel ohne `\b` misst das Alphabet, nicht
+die Sache.** Und: die Treffer ANSCHAUEN, nicht nur zählen — `\bAbleton\b` = 35 echte Treffer,
+alle Kommentare, `\bLinkKit\b` = 0. Die Schlussfolgerung hängt am zweiten Befehl.
