@@ -3,6 +3,7 @@
 
   A. a needle asserted PRESENT in Sources/ that is not there  (shapes 1-3, #656/#665)
   B. a `\(Self.member)` reference the file cannot compile     (shape 4, #776)
+  B2. a plain `Self.member` reference, same fatality           (shape 5, #781)
 
 Both are "the guard is wrong, not the code", and both are invisible to a reading of the diff.
 
@@ -75,9 +76,31 @@ against:
     static declared in an extension elsewhere would be reported falsely; measured today, no
     file in the bundle does that (0 hits on a correct tree). If one ever does, widen the
     declaration set rather than deleting the check.
-  · Shape 4 sees only INTERPOLATIONS. A plain `Self.gone` in ordinary code is an equally fatal
-    compile error and is NOT covered — that spelling cannot be told apart from the same text
-    inside a needle without a parser, and 20 false alarms is how a checker gets ignored (#665).
+  · Shape 5 (#781) covers the plain `Self.gone` that shape 4 cannot see. ⛔ THE BULLET THAT
+    STOOD HERE SAID IT COULD NOT BE DONE "without a parser" — one measurement short, and the
+    gap cost a near-miss repeat of #776 at #780. `strip_comments` already tracks string state;
+    it just kept what it tracked. `strip_strings` blanks it instead, and the two shapes read
+    opposite inputs: interpolations live inside strings (shape 4 keeps them), a plain reference
+    is code (shape 5 blanks them). The 20-false-alarm figure was true of a naive
+    `\bSelf\.(\w+)` (#777), not of the checker's own machinery.
+  · Shape 5 OPENED WITH 17 FALSE ALARMS ON A CORRECT TREE, and both causes are worth keeping
+    because they are the reason it is safe now — a checker with false alarms is a checker
+    nobody reads (#665). (a) A line that OPENS a multi-line literal kept everything before the
+    opener unblanked, so an ordinary `code.contains("Self.maxRate ...")` sitting on the same line as
+    a triple-quote opener leaked a needle into the scan. (b) The declaration set came from
+    `strip_comments(src)`, which is line-based and does not know a Swift multi-line literal, so
+    a `/*` inside a failure message swallowed real code,
+    measured at `TheLawFileNeverReachesMainByItselfTests.swift:216`, whose
+    `private static func pathFilter` line came back EMPTY. The set is read from RAW text now:
+    a name that appears only in prose counts as declared, so the checker stays quiet when it is
+    unsure. That direction is deliberate — a missed finding costs a cycle, a false one costs
+    the checker.
+  · The Swift twin of cause (b) is measured and deliberately PINNED, not fixed, in
+    `TheStripperDoesNotKnowATripleQuoteTests` — for `Sources/` the current behaviour is the one
+    a scanner wants, because the only differing file holds a Metal shader whose `//` are real
+    comments. That decision is about `Sources/`; this one is about GUARD files, where the same
+    blindness swallows declarations instead of shader comments. Different corpus, opposite
+    consequence — do not "unify" them.
 
 VALIDATED, not assumed, once per shape. Shapes 1-2: run against e5956b9 it reports exactly
 one hit — the known one — and against the commit that repaired it, zero. Shape 3: run against
@@ -85,6 +108,20 @@ one hit — the known one — and against the commit that repaired it, zero. Sha
 `route: routeName`, the assertion #664 found red on a correct tree — and zero against the
 commit that repaired it. A detector that has never found its own known positive is not a
 measurement.
+
+Shape 5: driven against the #780 near-miss — `Self.readme` used by one step of a script while
+the step that would have declared it crashed before writing the file — it reports exactly that
+one reference and nothing else; zero on the repaired tree. Shape 4 was RE-driven after the
+declaration set moved to raw text: renaming `ALaneSurvivesAFieldItDoesNotKnowTests`'
+`static let timeline` reports its interpolation (line 241) and, via shape 5, its two plain
+references (138, 239).
+⛔ AND THE FIRST ATTEMPT AT THAT SHAPE-4 RE-DRIVE WAS A NO-OP THAT READ AS A PASS. It renamed
+`private static let architecture` in the MPE guard — a declaration #776 had already deleted, so
+the only occurrences left were in comments. The mutation changed nothing and the checker
+correctly said nothing, which looks identical to "the shape is broken". **A mutation is not
+evidence until you have confirmed it LANDED** — grep the mutated file before trusting either
+outcome. The same slip, in the same session, also produced a heading-anchor mutation that only
+renamed a suffix (`range(of:)` matches a prefix).
 
 Usage:  python3 scripts/dead-needles.py [repo-root]
 Exit:   0 = no dead needles · 1 = at least one · 2 = could not look (no Tests/CISmoke)
@@ -117,6 +154,9 @@ MIN_NEEDLE = 8   # shorter literals are punctuation or fragments, not anchors
 # searching production text for the literal `\(Self.x)` — can be told from a real one.
 SELF_INTERPOLATION = re.compile(r"(\\*)\(Self\.(\w+)")
 STATIC_MEMBER = re.compile(r"static\s+(?:let|var|func)\s+(\w+)")
+# Shape 5 (#781). The PLAIN reference — `rawFile(Self.readme)` — on text whose string literals
+# have been blanked, so the same spelling inside a needle cannot reach it.
+SELF_PLAIN = re.compile(r"(?<![\w.])Self\.(\w+)")
 
 
 def strip_comments(text):
@@ -161,6 +201,65 @@ def strip_comments(text):
     return "\n".join(out)
 
 
+def strip_strings(text):
+    """Blank the CONTENTS of Swift string literals, keeping line structure.
+
+    Shape 5 (#781) needs the opposite input from shape 4. An interpolation lives INSIDE a
+    string, so shape 4 must keep strings; a plain `Self.gone` reference is code, and the
+    identical text inside a needle is prose. Telling them apart is exactly what this does.
+
+    ⛔ THE HEADER USED TO SAY THIS COULD NOT BE DONE "without a parser", and that was one
+    measurement short. `strip_comments` above ALREADY tracks `in_string` — it simply keeps
+    what it tracks. The only genuinely missing piece was the multi-line triple-quote block,
+    a handful of lines because it cannot nest. The claim was true about a naive
+    `\bSelf\.(\w+)` (#777 measured 20 false alarms on a correct tree); it was not true about
+    the checker's own machinery, and the gap cost a near-miss repeat of #776 at #780.
+
+    ⚠️ Interpolations are blanked along with the rest of the literal. That is correct here and
+    NOT a loss: shape 4 owns them, on the un-blanked text, and reports them separately.
+    """
+    out = []
+    in_multiline = False
+    for raw in text.split("\n"):
+        if in_multiline:
+            if '"""' in raw:
+                in_multiline = False
+                out.append(" " * len(raw))
+            else:
+                out.append(" " * len(raw))
+            continue
+        head = None
+        if '"""' in raw and raw.count('"""') % 2 == 1:
+            # ⛔ THE FIRST VERSION KEPT `raw[:index]` VERBATIM and that produced 2 of the 17
+            # false alarms this shape opened with: `code.contains("Self.maxRate ..."), """`
+            # has an ORDINARY literal before the opener, and leaving it unblanked is exactly
+            # the confusion this function exists to remove. Blank the head, keep the opener.
+            in_multiline = True
+            raw, head = raw[:raw.index('"""')], '"""'
+        line, i, n, in_string = [], 0, len(raw), False
+        while i < n:
+            c = raw[i]
+            nxt = i + 1
+            if in_string:
+                if c == "\\" and nxt < n:
+                    line.append("  ")
+                    i = nxt + 1
+                    continue
+                if c == '"':
+                    in_string = False
+                    line.append(c)
+                else:
+                    line.append(" ")
+                i = nxt
+                continue
+            if c == '"':
+                in_string = True
+            line.append(c)
+            i = nxt
+        out.append("".join(line) + (head or ""))
+    return "\n".join(out)
+
+
 def main(root="."):
     guards = sorted(glob.glob(os.path.join(root, "Tests/CISmoke/*.swift")))
     if not guards:
@@ -195,7 +294,18 @@ def main(root="."):
         # Shape 4 (#776). Comments stripped first (#753 — this file's own header names the
         # spelling it looks for). Only a single-backslash interpolation is code.
         code_for_self = strip_comments(src)
-        declared = set(STATIC_MEMBER.findall(code_for_self))
+        # ⛔ THE DECLARATION SET IS READ FROM THE RAW FILE, NOT FROM `strip_comments(src)`, and
+        # that is the OTHER 15 of the 17 false alarms shape 5 opened with. `strip_comments` is
+        # line-based and does not know a Swift `"""` block (the Swift twin of this blindness is
+        # measured and deliberately PINNED in `TheStripperDoesNotKnowATripleQuoteTests`), so a
+        # `/*` inside a failure message opens a block comment that swallows real code until the
+        # next `*/` — including, measured, `private static func pathFilter` at
+        # `TheLawFileNeverReachesMainByItselfTests.swift:216`, whose whole line came back empty.
+        # A swallowed line costs shape 4 only a missed finding (safe); it costs shape 5 a FALSE
+        # ONE (unsafe), because a missing declaration looks exactly like a deleted member.
+        # Reading declarations from raw text errs the other way: a name that appears only in
+        # prose counts as declared, so the checker stays quiet when it is unsure (#665).
+        declared = set(STATIC_MEMBER.findall(src))
         for match in SELF_INTERPOLATION.finditer(code_for_self):
             if len(match.group(1)) != 1:
                 continue                      # 0 = not an interpolation, 2 = escaped needle
@@ -204,6 +314,20 @@ def main(root="."):
                 continue
             line = code_for_self[:match.start()].count("\n") + 1
             uncompilable.append((os.path.relpath(guard, root), line, name))
+
+        # Shape 5 (#781). Same declaration set, opposite input: strings BLANKED, so a plain
+        # `Self.gone` in ordinary code is visible and the identical text inside a needle is
+        # not. This is the spelling that slipped past shape 4 at #780 — a static declared by a
+        # script step that crashed before writing the file, and used by a later step.
+        code_no_strings = strip_strings(code_for_self)
+        for match in SELF_PLAIN.finditer(code_no_strings):
+            name = match.group(1)
+            if name in declared:
+                continue
+            line = code_no_strings[:match.start()].count("\n") + 1
+            entry = (os.path.relpath(guard, root), line, name)
+            if entry not in uncompilable:
+                uncompilable.append(entry)
 
         # Shape 3 (#665). Comments are stripped FIRST here: this repo's guards quote their own
         # retracted needles in ⛔ blocks, and a scan that read those would report a finding
@@ -251,7 +375,7 @@ def main(root="."):
         print("\nEach is a guard that FAILS on a correct tree. Re-anchor it on a literal that")
         print("exists, and assert that literal's uniqueness while you are there (#408).")
     if uncompilable:
-        print(f"dead-needles: {len(uncompilable)} `\\(Self.x)` reference(s) with no matching "
+        print(f"dead-needles: {len(uncompilable)} `Self.x` reference(s) with no matching "
               "`static let/var/func` in the same file:")
         for path, line, name in uncompilable:
             print(f"  {path}:{line}  Self.{name}")

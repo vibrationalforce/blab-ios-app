@@ -2086,3 +2086,17 @@ fragen: gibt es darunter eine Kurzform, die dasselbe noch einmal sagt?
 
 Hier: §6s Absatz sagte seit #548 „MPE OUT ist real", die Regelzeile darunter verbot „MPE"
 pauschal — zwei Monate lang, in der Datei, deren einziger Zweck falsche Captions sind.
+
+### PLAYBOOK (#781) — eine Mutation ist kein Beweis, bevor sie GELANDET ist
+
+Zweimal in einer Sitzung getroffen. Beide Male sah eine Null-Mutation wie ein bestandener Test
+aus:
+1. `sed 's/static let architecture =/.../'` auf eine Datei, in der diese Deklaration seit #776
+   gar nicht mehr existiert — nur Kommentar-Treffer. Prüfer meldet nichts. Liest sich wie
+   „Prüfer kaputt", ist aber „nichts mutiert".
+2. `### 6. MPE` → `### 6. MPE-Zeug`, um einen Anker zu prüfen. `range(of:)`/`find` treffen ein
+   **Präfix** — grün, und der Anker war nie getestet.
+
+**Regel: nach jeder Mutation den mutierten Baum grepen und die Änderung SEHEN**, bevor man das
+Ergebnis als Aussage über den Prüfer bucht. Ein `grep -c` auf die alte Form (muss 0 sein) ist
+eine Zeile.

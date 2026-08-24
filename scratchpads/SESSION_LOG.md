@@ -12837,3 +12837,50 @@ Arbeitsbaum 0, Mutationen einzeln getrieben.
 ab, nicht die schlichte Referenz `rawFile(Self.member)`.** Genau die Lücke, die hier zugeschlagen
 hat. Die Erweiterung muss zusätzlich STRING-Literale strippen — die #777-Notiz hält fest, dass
 ein naives `\bSelf\.(\w+)` zwanzig Fehlalarme erzeugte, weil `Self.x` auch in Nadel-Strings steht.
+
+## 2026-08-24 — #781: der Prüfer sah nur die Interpolation, nicht die schlichte Referenz
+
+**Der Anlass ist der Beinahe-Unfall aus #780:** ein Skript-Schritt legte
+`private static let readme` an und stürzte vor dem Schreiben ab, ein späterer Schritt BENUTZTE
+`Self.readme`. Gefangen hat es ein Handvergleich, **nicht** `scripts/dead-needles.py` — dessen
+Form 4 sieht nur `\(Self.x)`-INTERPOLATIONEN.
+
+**Und der Kopf der Datei erklärte das für unmöglich:** „that spelling cannot be told apart from
+the same text inside a needle **without a parser**". Das war **eine Messung zu kurz.**
+`strip_comments` verfolgt den String-Zustand längst — es BEHÄLT nur, was es verfolgt. Neu:
+`strip_strings` leert ihn stattdessen. Die zwei Formen lesen entgegengesetzte Eingaben:
+eine Interpolation lebt IM String (Form 4 behält Strings), eine schlichte Referenz ist Code
+(Form 5 leert sie).
+
+⚠️ **Form 5 startete mit 17 FEHLALARMEN auf einem korrekten Baum** — genau das #665-Ergebnis,
+vor dem der Kopf warnte. Beide Ursachen gemessen und behoben:
+- **(a)** Eine Zeile, die ein `"""` ÖFFNET, behielt alles davor unbereinigt — ein gewöhnliches
+  `code.contains("Self.maxRate …")` auf derselben Zeile leckte in den Scan (2 von 17).
+- **(b)** Die Deklarations-Menge kam aus `strip_comments(src)`, und das ist zeilenbasiert und
+  kennt keinen Swift-`"""`-Block: ein `/*` in einer Fehlermeldung öffnet einen Blockkommentar,
+  der echten Code verschluckt — gemessen an
+  `TheLawFileNeverReachesMainByItselfTests.swift:216`, dessen ganze Zeile
+  `private static func pathFilter` LEER zurückkam (15 von 17). Die Menge kommt jetzt aus dem
+  ROHTEXT: ein Name, der nur in Prosa steht, gilt als deklariert — **der Prüfer schweigt im
+  Zweifel.** Ein verpasster Fund kostet einen Zyklus, ein falscher kostet den Prüfer.
+
+⭐ **Ursache (b) hat einen Swift-Zwilling, der bewusst NICHT repariert ist**
+(`TheStripperDoesNotKnowATripleQuoteTests`, #659): für `Sources/` ist das heutige Verhalten das
+richtige, weil die einzige abweichende Datei einen Metal-Shader hält, dessen `//` echte
+Kommentare sind. **Andere Sammlung, gegenteilige Folge** — nicht vereinheitlichen.
+
+**Validiert, nicht behauptet** (die Hausregel der Datei, je Form einmal): Form 5 gegen den
+#780-Beinahe-Unfall → genau ein Fund, der richtige; korrekter Baum → 0. Form 4 NEU getrieben,
+weil die Deklarations-Quelle sich geändert hat → `static let timeline` umbenannt meldet die
+Interpolation (241), Form 5 die zwei schlichten Referenzen (138, 239).
+
+⛔ **UND DER ERSTE VERSUCH DIESER FORM-4-VALIDIERUNG WAR EINE NULL-MUTATION, DIE WIE EIN PASS
+AUSSAH.** Er benannte `private static let architecture` in der MPE-Wache um — eine Deklaration,
+die #776 längst gelöscht hat; übrig waren nur Kommentar-Vorkommen. Die Mutation änderte nichts,
+der Prüfer sagte korrekt nichts, und das sieht identisch aus wie „die Form ist kaputt".
+**Eine Mutation ist kein Beweis, bevor man bestätigt hat, dass sie GELANDET ist.** Zweimal in
+derselben Sitzung: die andere war eine Anker-Mutation, die nur den Suffix umbenannte
+(`range(of:)` trifft ein Präfix).
+
+**Note (#464): PRÄVENTIV** — der Prüfer fängt ab sofort die Klasse, die #776 einen Zyklus und
+#780 einen Beinahe-Unfall gekostet hat.
