@@ -12660,3 +12660,40 @@ Datei war die einzige echte.**
 ist unverändert richtig und wurde von `Xcode Compile Check` grün gemeldet — das Gate baut
 `Sources/` allein und konnte über die Testdatei nichts sagen. Erst CI/CD hat es gefunden.
 Genau der Unterschied, den `Tests/CISmoke/CLAUDE.md` §5 beschreibt.
+
+### #777 — der Prüfer, der #776 gefangen hätte (2026-08-24)
+
+**Anlass.** #776 war ein `TEST BUILD FAILED`, das mich einen Zyklus gekostet hat: nach dem
+Löschen von `private static let architecture` überlebte eine Referenz in einer
+String-**Interpolation** einer Fehlermeldung. `Xcode Compile Check` kann so etwas strukturell
+nicht sehen (baut `Sources/` allein), und der einzige Leser ist die Pipeline, deren Conclusion
+wegen #396 auf jedem Push `failure` lautet.
+
+**Gebaut:** `scripts/dead-needles.py` bekommt **Form 4**. Seine Charta ist dabei ehrlich
+geweitet — von „Nadeln, die in `Sources/` fehlen" auf „**Wächter, die auf korrektem Baum
+kaputt sind**", zwei Wege: (A) tote Nadel, (B) `\(Self.member)` ohne Deklaration in derselben
+Datei.
+
+**Die Enge ist gemessen, nicht behauptet.** Ein naives `\bSelf\.(\w+)` über das Bundle meldet
+**ZWANZIG** Dateien, jede falsch: `Self.x` steht auch in NADEL-Strings, die für den Compiler
+Prosa sind. Was innerhalb eines Literals wirklich Code ist, ist die **Interpolation**
+`\(Self.x)`; eine ESKAPIERTE (`\\(Self.x)` — eine Nadel, die Produktionstext nach dieser
+Schreibweise durchsucht) ist es nicht.
+
+⭐ **Kommentar-Strippen ist hier TRAGEND, gemessen:** ohne es meldet der REPARIERTE Baum einen
+Fehltreffer — erzeugt von der Prosa, die den Prüfer beschreibt. Das ist #753 (das Werkzeug
+zählt seine eigene Dokumentation), diesmal beim Bauen gesehen statt danach.
+
+**Validiert wie das Haus es verlangt** (ein Detektor, der seinen eigenen bekannten Positivfall
+nie gefunden hat, ist keine Messung): `342f3df` → **genau ein** Treffer, der echte, Exit 1 ·
+`7145854` und `d7c1083` → **null**, Exit 0. Die Wächter-Datei danach byte-identisch
+zurückgestellt (`git status` leer).
+
+⚠️ **Zwei Grenzen aufgeschrieben:** Form 4 nimmt an, dass ein `Self.`-Member in DERSELBEN Datei
+deklariert ist (heute stimmt das für alle 353 Dateien; sonst wäre es ein Fehlalarm) — und sie
+sieht **nur** Interpolationen. Ein schlichtes `Self.gone` im Code ist derselbe fatale Fehler
+und ist NICHT abgedeckt: diese Schreibweise ist ohne Parser nicht von derselben in einer Nadel
+zu unterscheiden, und 20 Fehlalarme sind der Weg, wie ein Prüfer ignoriert wird (#665).
+
+⚠️ `scripts/**` löst keinen Workflow aus (#720) — dieser Commit fährt als Passagier mit dem
+nächsten Code-Commit nach `main`.

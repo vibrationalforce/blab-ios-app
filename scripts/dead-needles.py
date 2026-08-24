@@ -1,5 +1,10 @@
 #!/usr/bin/env python3
-"""Find guard needles that MUST be present in Sources/ but are not.
+"""Find guards that are BROKEN on a correct tree — two different ways.
+
+  A. a needle asserted PRESENT in Sources/ that is not there  (shapes 1-3, #656/#665)
+  B. a `\(Self.member)` reference the file cannot compile     (shape 4, #776)
+
+Both are "the guard is wrong, not the code", and both are invisible to a reading of the diff.
 
 WHY THIS EXISTS (#656). `Tests/CISmoke/TheNotchIsSlewedAndMonitorOnlyTests` anchored on the
 literal "Input monitoring: engine restart failed". #650 routed monitoring outcomes through a
@@ -34,6 +39,23 @@ to 26. THAT IS 3 % REACH and it is stated rather than hidden: the alternative wa
 alarms, which is how a checker gets ignored — the same mechanism that made
 `continue-on-error` invisible.
 
+SHAPE 4 (#776) — A GUARD THAT CANNOT COMPILE. `TheMPEDimensionsReachNoVoiceTests` dropped
+`private static let architecture` when its claim became a directory sweep, and one reference
+survived inside a failure message's string INTERPOLATION. The push answered `TEST BUILD FAILED`
+and cost a cycle. `Xcode Compile Check` cannot see this — it builds `Sources/` alone — so the
+only reader is the pipeline whose conclusion is `failure` on every push anyway (#396).
+
+The shape is narrow on purpose and the narrowness is measured, not asserted. A naive
+`\bSelf\.(\w+)` audit over the bundle reports TWENTY files, every one false: `Self.x` also sits
+inside NEEDLE STRINGS, which are prose to the compiler. What IS code inside a literal is the
+INTERPOLATION `\(Self.x)`, and an ESCAPED one (`\\(Self.x)` — a needle searching production
+text for that spelling) is not. Comments are stripped first for the #753 reason: this very
+paragraph names `Self.x`, and a scan that read its own documentation would report itself.
+
+VALIDATED against the commit that broke and the commit that repaired: `342f3df` → exactly one
+hit, the real one; `7145854` and `d7c1083` → none. Comment-stripping is LOAD-BEARING, measured:
+without it the repaired tree reports one false hit, produced by the prose above.
+
 HONEST LIMITS, because a checker that overstates its reach is the thing it is guarding
 against:
   · It does NOT cover negative assertions (`XCTAssertFalse(... .contains(X))`), where absence
@@ -49,6 +71,13 @@ against:
     flagged — it is alive in `Sources/`, just not where the guard looks. Its sibling
     `route: routeName` had left `Sources/` entirely and IS flagged.
   · It proves nothing about whether a guard RUNS. See #445.
+  · Shape 4 assumes a `Self.` member is declared in the SAME file. A guard that reached a
+    static declared in an extension elsewhere would be reported falsely; measured today, no
+    file in the bundle does that (0 hits on a correct tree). If one ever does, widen the
+    declaration set rather than deleting the check.
+  · Shape 4 sees only INTERPOLATIONS. A plain `Self.gone` in ordinary code is an equally fatal
+    compile error and is NOT covered — that spelling cannot be told apart from the same text
+    inside a needle without a parser, and 20 false alarms is how a checker gets ignored (#665).
 
 VALIDATED, not assumed, once per shape. Shapes 1-2: run against e5956b9 it reports exactly
 one hit — the known one — and against the commit that repaired it, zero. Shape 3: run against
@@ -83,6 +112,11 @@ POSITIVE_CONTAINS = re.compile(
     r'XCTAssertTrue\(\s*(?:try )?([A-Za-z_]\w*)\.contains\(\s*"((?:[^"\\]|\\.)+)"\s*\)')
 
 MIN_NEEDLE = 8   # shorter literals are punctuation or fragments, not anchors
+
+# Shape 4 (#776). The capture keeps the backslash run so an ESCAPED interpolation — a needle
+# searching production text for the literal `\(Self.x)` — can be told from a real one.
+SELF_INTERPOLATION = re.compile(r"(\\*)\(Self\.(\w+)")
+STATIC_MEMBER = re.compile(r"static\s+(?:let|var|func)\s+(\w+)")
 
 
 def strip_comments(text):
@@ -146,6 +180,7 @@ def main(root="."):
         return 2
 
     dead = []
+    uncompilable = []
     for guard in guards:
         with open(guard, encoding="utf-8") as handle:
             src = handle.read()
@@ -156,6 +191,19 @@ def main(root="."):
             if needle not in corpus:
                 line = src[:match.start()].count("\n") + 1
                 dead.append((os.path.relpath(guard, root), line, needle))
+
+        # Shape 4 (#776). Comments stripped first (#753 — this file's own header names the
+        # spelling it looks for). Only a single-backslash interpolation is code.
+        code_for_self = strip_comments(src)
+        declared = set(STATIC_MEMBER.findall(code_for_self))
+        for match in SELF_INTERPOLATION.finditer(code_for_self):
+            if len(match.group(1)) != 1:
+                continue                      # 0 = not an interpolation, 2 = escaped needle
+            name = match.group(2)
+            if name in declared:
+                continue
+            line = code_for_self[:match.start()].count("\n") + 1
+            uncompilable.append((os.path.relpath(guard, root), line, name))
 
         # Shape 3 (#665). Comments are stripped FIRST here: this repo's guards quote their own
         # retracted needles in ⛔ blocks, and a scan that read those would report a finding
@@ -192,14 +240,25 @@ def main(root="."):
                     line = guard_code[:offset + match.start()].count("\n") + 1
                     dead.append((os.path.relpath(guard, root), line, needle))
 
-    if not dead:
-        print(f"dead-needles: OK — {len(guards)} guard file(s), no dead must-be-present needle")
+    if not dead and not uncompilable:
+        print(f"dead-needles: OK — {len(guards)} guard file(s), no dead needle, "
+              "no unresolvable `Self.` reference")
         return 0
-    print(f"dead-needles: {len(dead)} needle(s) asserted present but ABSENT from Sources/:")
-    for path, line, needle in dead:
-        print(f"  {path}:{line}  {needle!r}")
-    print("\nEach is a guard that FAILS on a correct tree. Re-anchor it on a literal that")
-    print("exists, and assert that literal's uniqueness while you are there (#408).")
+    if dead:
+        print(f"dead-needles: {len(dead)} needle(s) asserted present but ABSENT from Sources/:")
+        for path, line, needle in dead:
+            print(f"  {path}:{line}  {needle!r}")
+        print("\nEach is a guard that FAILS on a correct tree. Re-anchor it on a literal that")
+        print("exists, and assert that literal's uniqueness while you are there (#408).")
+    if uncompilable:
+        print(f"dead-needles: {len(uncompilable)} `\\(Self.x)` reference(s) with no matching "
+              "`static let/var/func` in the same file:")
+        for path, line, name in uncompilable:
+            print(f"  {path}:{line}  Self.{name}")
+        print("\nEach is a guard that CANNOT COMPILE — `TEST BUILD FAILED`, and `Xcode Compile")
+        print("Check` will still say success because it builds Sources/ alone. Usually a member")
+        print("was deleted and a failure message kept naming it (#776): grep the USAGES, not")
+        print("just the declaration, whenever you remove one.")
     return 1
 
 
