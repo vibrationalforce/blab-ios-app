@@ -13024,3 +13024,29 @@ Prosa in ALLEN drei Heimaten mitgezogen (#456): CLAUDE.mds OSC-Abschnitt, der Ad
 in `OSCSender.swift`, und der WATCH-Eintrag in `TheAlwaysOnRowsSayWhoseBodyTests`, der die
 Ereignisse noch als „carry no provenance" führte. **Offen bleiben ADM-OSC und DMX — zwei
 Hälften, nicht drei.**
+
+### Gate-Nachlese #785 (2026-08-24)
+
+`bea1a83`: `Xcode Compile Check` **grün** · `Build for Testing` **Succeeded** → die sieben neuen
+Behauptungen KOMPILIEREN nachweislich. `Run Tests` = failure, und zwar die registrierte
+#396-Lage: Clone 2 des Simulators konnte die App nicht starten, Clone 1 lief weiter und druckte
+27 `passed`-Zeilen; **null** fehlgeschlagene Zusicherungen im ganzen Log.
+
+**Ehrliche Formulierung nach #445: die sieben Behauptungen sind „kompiliert nachweislich,
+Ausführung unbelegt" — nicht grün, nicht rot.** Ihre Namen stehen in keinem Log-Ausschnitt, und
+die Clone-Zuteilung ist nicht deterministisch, also wäre Neu-Laufen eine Lotterie. Was die
+LOGIK stützt, ist die Python-Transkription gegen Eltern und Arbeitsbaum plus sieben Mutationen —
+ein Modell, kein Lauf.
+
+**NEUER BEFUND, in `Tests/CISmoke/CLAUDE.md` §5 nachgetragen: #396 hat eine ZWEITE
+Fehlersignatur.** Registriert war `NSMachErrorDomain Code=-308 "(ipc/mig) server died"`. Dieser
+Lauf hat davon **null** Zeilen und ist dieselbe Lage: `Simulator device failed to launch` →
+`FBProcessExit Code=64` → „denied by service delegate (SBMainWorkspace)". Clone 2 stirbt also
+entweder BEIM LAUFEN oder BEIM START. Der Diskriminator bleibt `TEST EXECUTE FAILED` gegen
+`TEST BUILD FAILED`; neu ist nur, dass die Bonus-Zeile zwei Formen hat.
+
+**Lehre = #778/#779 eine Ebene tiefer:** wer `grep "server died"` fährt, bekommt 0 Treffer bei
+einem Lauf, der die Lage perfekt zeigt — eine Nadel aus dem WORTLAUT des letzten Vorfalls ist
+eine Nadel für den letzten Vorfall. `scripts/gh-test-verdict.py` war korrekt, weil es die
+`** TEST … FAILED **`-Marker prüft und nicht die Mach-Zeile. Genau deshalb sagt
+`.claude/rules/context.md` §4 „hand-roll keine Nadeln".
