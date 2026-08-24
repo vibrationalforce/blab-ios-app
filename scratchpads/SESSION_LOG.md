@@ -12917,3 +12917,39 @@ statt eine Änderung zu erfinden, damit der Zyklus „etwas" zeigt.
 nicht Prüfarbeit, sondern **eine Geräte-Session** — die zwei offenen Ship-Gate-Checks (Klang,
 Stabilität) sind beide sensorisch, und V0 der Vokal-Kette blockiert die ganze Founder-Bitte
 vom 2026-08-20.
+
+## 2026-08-24 — #783: die V0-Anweisung stand in der Datei, die V0 besitzt, ohne Tür und ohne Log-Zeile
+
+**Fünf Messungen, vier sauber, eine Lücke.** Nach #782 („nichts kaputt") habe ich weiter
+gemessen statt zu bauen:
+
+| Prüfung | Ergebnis |
+|---|---|
+| `print(` in `Sources/` (verboten) | **0** |
+| Force-Unwraps | 7 Treffer, davon **3 Prosa in `"""`**, 3 kurzschluss-sicher (`if best == nil \|\| … best!`), **1 echt** (`Project.swift:82`) |
+| Der eine echte — `UUID(uuidString:)!` | **absichtlich und CI-gepinnt** (`AutosaveSlotTests.swift:125` nagelt genau diesen String). Ein Fallback wäre SCHLIMMER: ein Tippfehler würde die Autosave-Identität still ändern statt laut zu scheitern |
+| `doctor --section B` | **0 kritisch** |
+| `doctor --section C` | 9 türlose Ansichten, **alle 9 in CLAUDE.md dokumentiert** — die Doctor-Regel lautet „undokumentiert UND unerreichbar ist der Defekt" |
+| V0-Instrumentierung | **vollständig**: Erfolg mit Gain/Rate/Kanälen, OFF, und JEDER Fehlausgang geloggt |
+
+⛔ **Die Lücke saß in `PLAN_VOCAL_CHAIN_2026-08-20.md` selbst.** Es besitzt V0 („Deploy
+`3a54a08`, one founder take, read the `monitor:` line") und nannte **weder eine Tür noch eine
+Log-Zeile** — die eine Anweisung, die die ganze Founder-Bitte blockiert, war aus der Datei, die
+sie besitzt, nicht ausführbar. Jetzt drin, jede Zeichenkette aus dem Quelltext kopiert und
+danach einzeln gegen `Sources/` geprüft (15 von 15 vorhanden).
+
+⚠️ **UND EIN EIN-ZEICHEN-SUCHMUSTER HÄTTE DARAUS FAST EINEN FALSCHEN BEFUND GEMACHT.** Die
+ausgelieferte Release-Note schreibt `Voice - your microphone` mit BINDESTRICH; der Code hat
+`Voice · your microphone` mit MITTELPUNKT. Mein `grep` lieferte 0 — und ich stand eine Minute
+lang vor dem Schluss „die Note nennt eine Tür, die es nicht gibt", also einem gemeldeten Defekt
+auf der wichtigsten Anweisung im Repo. **Eine nutzersichtbare Beschriftung wird aus der Quelle
+KOPIERT, nie abgetippt.** Dieselbe Familie wie das `\b`-lose Suchmuster, das bei #779 283
+Dateien traf.
+
+⭐ **Die Release-Note selbst bleibt unangetastet** — `.deploy/release` zu editieren riskiert
+einen TestFlight-Upload, und der Unterschied ist kosmetisch (der Founder hat die Tür bei 416
+und 417 gefunden). Die korrigierten Zeichenketten stehen jetzt dort, wo die NÄCHSTE Note
+daraus geschrieben wird.
+
+**Note (#464): vorbeugend** — die nächste Geräte-Session ist zwei Minuten statt einer Suche,
+und die Log-Triage ist ein `grep monitor:`.

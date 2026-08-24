@@ -65,6 +65,48 @@ Ordering this first is not caution — it is the only way the next four slices c
 **V0 — the refusal names itself.** Deploy `3a54a08`, one founder take, read the `monitor:`
 line, fix that exit. Nothing below is testable before this.
 
+### V0's exact recipe — measured 2026-08-24 (#783), not remembered
+
+This section existed for four days naming NEITHER the door nor the log lines, so the one
+instruction that blocks the whole founder ask could not be executed from the file that owns it.
+Every string below is copied from source, not retyped — see the ⚠️ at the end for why that
+sentence is load-bearing.
+
+**The two doors, both real** (`showInput` has THREE writers; two are findable by a human):
+- `mixerPanel` → the card titled **`Voice · your microphone`** → button **`Choose input…`**
+  (`EchoelStudioView.swift:3719`). The card's own `Monitor` toggle is a *second* control for
+  the same state — the founder does not need it.
+- `masterPanel` → **`Audio input`** (`EchoelStudioView.swift:4855`). Same sheet.
+- (Third writer: `PlugInInviteRow` at :2008 — appears only when a plug-in is detected.)
+
+**Inside the sheet** (`AudioInputPickerView`) the switch is labelled **`Live monitoring`**
+(:143). That is the one toggle V0 asks for.
+
+**The log door:** `Save & Export` panel → **`Diagnostics`** (`EchoelStudioView.swift:8191`).
+
+**What the log will say.** Every line carries the greppable stem `monitor: `
+(`AudioEngine.logMonitorOutcome`, :1792 — one message, two sinks, #416):
+
+| line | meaning |
+|---|---|
+| `monitor: ON (gain G, SR Hz, N ch)` | it worked; the `latency:` line right after is its cost |
+| `monitor: OFF` | clean shutdown |
+| `monitor: mic permission denied at the dialog` | refused at the prompt |
+| `monitor: mic permission previously denied — Settings is the only door` | needs Settings |
+| `monitor: session upgrade failed (…)` | `.playAndRecord` claim refused |
+| `monitor: input format unusable after the session claim (…) — #628` | 0 Hz / channel-count bail |
+| `monitor: engine restart failed (…)` | the graph did not come back |
+| `monitor: session downgrade failed (…)` | only on the way OFF, warning-level |
+| `monitor: re-arm (…)` | a route change re-armed it |
+
+**No line at all** is itself the answer: the toggle never reached the engine.
+
+⚠️ **A one-character needle nearly turned this correct instruction into a reported defect.**
+The shipped release note writes `Voice - your microphone` with a HYPHEN; the code has
+`Voice · your microphone` with a MIDDLE DOT, so `grep` returned zero and the door read as
+non-existent. **Copy a user-facing label out of the source; never retype it.** Same family as
+the `\b`-less needle that matched 283 files at #779.
+
 **V1 — the FX chain reaches the microphone.** One `EchoelFXChain` instance as a monitor
 insert between `notchEQ` and `monitorMixer`, driven from a mic-owned preset (NOT the synth's —
 two owners of one chain is the #416 shape). This single slice delivers harmonizer, reverb,

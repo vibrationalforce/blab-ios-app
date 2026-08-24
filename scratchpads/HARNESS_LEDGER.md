@@ -2132,3 +2132,17 @@ zu früh, öffnet bei 8250 eines, das nie schließt, und verschluckt den Rest de
 **Regel: eine dramatische Zahl aus einem selbstgebauten Zustandsautomaten wird am Quelltext
 gegengeprüft, bevor sie ein Befund wird** — `grep -n '"""' <datei>` waren drei Zeilen Ausgabe
 und haben es sofort erledigt. Dieselbe Klasse wie die 283 „ndi"-Treffer aus #779.
+
+### PLAYBOOK (#783) — eine nutzersichtbare Beschriftung wird KOPIERT, nie abgetippt
+
+`grep "Voice - your microphone"` → 0 Treffer. Der Code hat `Voice · your microphone` mit
+MITTELPUNKT. Ein Bindestrich statt eines Mittelpunkts, und die korrekte Anweisung an den
+Founder liest sich als „nennt eine Tür, die es nicht gibt".
+
+**Regel:** jede Beschriftung, die in eine Anweisung, eine Release-Note oder einen Wächter
+geht, wird per Copy-Paste aus `Sources/` genommen und danach mit `grep -F` gegengeprüft.
+Betroffen sind besonders `·` `…` `—` `’` — Zeichen, die eine Tastatur anders tippt als ein
+Designer sie setzt.
+
+**Gegenprobe, die es sofort entscheidet:** `grep -rqF '<label>' Sources/ --include=*.swift`.
+Bei 0 Treffern ist die ERSTE Hypothese „mein Suchmuster", nicht „das Repo".
