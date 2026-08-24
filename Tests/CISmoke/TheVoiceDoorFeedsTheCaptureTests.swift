@@ -22,6 +22,17 @@
 // tone via Sound panel → Capture, then play). Presentation-modifier budget is pinned by
 // `ResetSoundClearsWhatTheLaunchLineReportsTests`, not re-counted here (#416).
 //
+// ⚠️ THE STAKES OF THAT ONE PROBE CHANGED ON 2026-08-24, AND NOTHING ELSE RECORDS IT.
+// The ask itself is unchanged — do not file a second marker for it (#790: one question,
+// one place). What changed is what rides on the answer. Until #795 the capability was
+// sold only in `release_notes.txt`, which is version-scoped and scrolls away. #795 put it
+// in `description.txt` in both locales and #797 put it on `docs/faq.html`,
+// `docs/architecture.html` and `docs/dev/FEATURE_MATRIX.md`. Both moves were correct —
+// the feature ships, is doored and is guard-pinned, and leaving it unsold was the
+// under-claim those cycles existed to end — but a permanent App Store line is what a
+// 2.3 review reads, and it is now backed by a probe nobody has run. That makes this the
+// highest-stakes entry in the `scripts/founder-verify.py` backlog, not merely one of ~50.
+//
 // ⭐ GRADING (§3). Every needle names code this same commit writes — the file compiles
 // against the parent (it names no new Swift symbol, only string needles) but every
 // join assertion is red there by ANCHOR ABSENCE: one absence per file-pair, reported

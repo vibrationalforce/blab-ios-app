@@ -13448,3 +13448,35 @@ sechsmal einzeln stolpert:
    #796-Entwurf war auf dem kaputten Elternteil grün; nur das Treiben hat es gezeigt.
 
 Der Ledger ist damit 2266 Zeilen.
+
+## #799 — der Einsatz einer Geräte-Bitte hat sich geändert, die Bitte selbst nicht (2026-08-24)
+
+Kleiner Zyklus, und die Hälfte davon war eine MESSUNG, die eine Arbeit verhindert hat.
+
+**Zuerst gemessen, dann NICHT gebaut:** ob die Stimm-Klangfarbe eine Geräte-Bitte braucht.
+`python3 scripts/founder-verify.py` zeigt sie längst — `TheVoiceDoorFeedsTheCaptureTests.swift:21`
+(„hold a tone via Sound panel → Capture, then play"). Einen zweiten Vermerk zu setzen wäre
+exakt das Duplikat, das #790 vor drei Zyklen verboten hat. **Die Regel hat gegriffen, weil ich
+vorher gegrept habe** — genau das, was #790 statt einer Heuristik hinterlassen hat.
+
+**Was sich WIRKLICH geändert hat und nirgends stand: der EINSATZ.** Bis #795 wurde die Fähigkeit
+nur in `release_notes.txt` verkauft — versionsgebunden, scrollt weg. #795 hat sie in
+`description.txt` beider Locales gesetzt, #797 auf `docs/faq.html`, `docs/architecture.html` und
+`docs/dev/FEATURE_MATRIX.md`. **Beide Schritte waren richtig** (die Funktion liefert aus, ist
+betürt und wächter-gepinnt; sie ungesagt zu lassen war die Unter-Behauptung, die die Reihe
+beenden sollte) — aber eine bleibende App-Store-Zeile ist das, was eine 2.3-Prüfung liest, und
+sie hängt jetzt an einer Probe, die niemand gelaufen ist.
+
+Der Vermerk sagt das jetzt an seiner einen Stelle: **höchster Einsatz im Rückstand von 51 Bitten,
+nicht bloß eine von 51.** Ohne neuen Marker — die Zählung bleibt 51 (16 Audio · 12 UI · 11 Other ·
+6 Visual · 5 Bio · 1 Sync, plus 4 NOT-ASKS).
+
+⭐ **Und das ist der ehrliche Nachtrag zu #795/#797:** ich habe eine nicht geräteverifizierte
+Fähigkeit auf die bleibende Verkaufsfläche gesetzt. Das war richtig und bleibt es, aber es gehört
+gesagt statt stillschweigend gebucht (`.claude/rules/engineering.md`, Verification honesty).
+
+**Doctor-Lauf davor, als Beleg statt Bauchgefühl:** Sektion A unverändert founder-gated,
+Sektion C deckt sich Eintrag für Eintrag mit dem Register (alle neun türlosen Ansichten sind in
+CLAUDE.md aufgeschrieben — „undokumentiert UND unerreichbar" ist der Defekt, nicht Unerreichbarkeit),
+Sektion D hält jede Zahl: Sources 369 · `Tests/EchoelmusicTests` 314 · Modifier dateiweit 16 ·
+CLAUDE.md 144.210 B unter der 150.000-Decke.
