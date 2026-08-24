@@ -512,26 +512,99 @@ def section_a() -> Section:
             "founder-gated in this repo — report, do not edit."))
 
     # A2. Does the BLOCKING test bundle actually contain the test files people write?
+    #
+    # ⛔ THIS CHECK USED TO RAISE A WARNING NOBODY COULD EVER CLEAR (#801). It flagged EVERY
+    # bundle whose sources are not the biggest suite on disk, and this repo has two bundles
+    # BY DESIGN — a blocking one and a non-blocking reveal one — so the second was warned
+    # about on every single run, forever. Its own text admitted it could not decide:
+    # "Whether this is wrong depends on which bundle the BLOCKING gate runs." That answer
+    # is derivable from the repo, and now it is derived: ci.yml names the scheme, project.yml
+    # maps scheme -> test targets -> sources. A permanent unfixable warning is the #665
+    # failure mode (a checker with false alarms is a checker nobody reads) — and it sat in
+    # the one tool whose whole job is asking whether the instruments are honest.
     proj = read(ROOT / "project.yml")
-    bundles = re.findall(r"\n  (\w+):\n    type: bundle\.unit-test\n(?:.*\n)*?    sources:\n"
-                         r"((?:      - path: \S+\n)+)", proj)
+    bundles = dict(re.findall(r"\n  (\w+):\n    type: bundle\.unit-test\n(?:.*\n)*?    sources:\n"
+                              r"((?:      - path: \S+\n)+)", proj))
     test_dirs = {d.name for d in (ROOT / "Tests").iterdir() if d.is_dir()} if (ROOT / "Tests").is_dir() else set()
     biggest = max(((d, len(list((ROOT / "Tests" / d).rglob("*.swift")))) for d in test_dirs),
                   key=lambda kv: kv[1], default=(None, 0))
-    for name, srcs in bundles:
-        paths = re.findall(r"- path: (\S+)", srcs)
-        covered = any(biggest[0] and biggest[0] in p for p in paths)
-        if not covered and biggest[0]:
-            counts = ", ".join(f"{p} ({len(list((ROOT / p).rglob('*.swift'))) if (ROOT / p).is_dir() else 0} files)"
-                               for p in paths)
+
+    # scheme named by the blocking workflow's build-for-testing step
+    ci = read(ROOT / ".github/workflows/ci.yml")
+    schemes_used = re.findall(r"-scheme\s+(\w+)", ci)
+    blocking_scheme = schemes_used[0] if schemes_used else None
+
+    # scheme -> test targets, from project.yml's schemes block
+    # ⛔ THE FIRST VERSION OF THIS PARSE LEAKED ACROSS SCHEME BOUNDARIES, and only driving a
+    # mutation found it: `(?:.*\n)*?` is lazy but UNBOUNDED, so a scheme with no `test:
+    # targets:` of its own silently matched the NEXT scheme's block and the doctor reported
+    # the wrong bundle with full confidence. The block is cut at the next same-indent key
+    # first, then searched — a parse that cannot see past its own subject cannot borrow
+    # another one's answer.
+    # ⛔ AND THE SECOND VERSION FAILED ON THE REAL FILE, for a reason worth writing down:
+    # `Echoelmusic:` appears TWICE in project.yml — once as a TARGET and once as a SCHEME —
+    # and `re.search` takes the first, which has no `test:` block at all. The unbounded
+    # first version "worked" only by scanning forward out of the target and into the
+    # scheme, i.e. it got the right answer through the very leak that made it wrong. The
+    # schemes section is cut off first so the name resolves in the namespace it belongs to.
+    blocking_targets: list[str] = []
+    schemes_block = proj.split("\nschemes:\n", 1)[1] if "\nschemes:\n" in proj else ""
+    if blocking_scheme and schemes_block:
+        block = re.search(r"(?:^|\n)  " + re.escape(blocking_scheme)
+                          + r":\n((?:    .*\n|\n)*)", schemes_block)
+        if block:
+            m = re.search(r"    test:\n(?:      .*\n)*?      targets:\n"
+                          r"((?:        - \w+\n)+)", block.group(1))
+            if m:
+                blocking_targets = re.findall(r"- (\w+)", m.group(1))
+
+    def sources_of(bundle: str) -> list[str]:
+        return re.findall(r"- path: (\S+)", bundles.get(bundle, ""))
+
+    if not blocking_scheme or not blocking_targets:
+        # #454 inside the doctor: an unresolvable chain is reported, never silently passed.
+        sec.findings.append(Finding(
+            WARN,
+            "Could not resolve which test bundle the blocking gate runs",
+            [f"ci.yml -scheme = {blocking_scheme!r}",
+             f"project.yml schemes.{blocking_scheme}.test.targets = {blocking_targets}"],
+            "The chain ci.yml -> scheme -> test targets -> bundle sources is how this section "
+            "decides whether the guards people write are actually gated. If it stopped "
+            "resolving, re-point the parse in the same commit as whatever moved — do not "
+            "delete the check, and do not read its silence as an all-clear."))
+    else:
+        covered_by: dict[str, list[str]] = {b: sources_of(b) for b in blocking_targets}
+        gated = any(biggest[0] and biggest[0] in p
+                    for paths in covered_by.values() for p in paths)
+        parts = []
+        for b, paths in covered_by.items():
+            shown = []
+            for q in paths:
+                n = len(list((ROOT / q).rglob("*.swift"))) if (ROOT / q).is_dir() else 0
+                shown.append(f"{q} ({n} files)")
+            parts.append(f"{b} = " + (", ".join(shown) or "(no sources)"))
+        detail = "; ".join(parts)
+        if not gated and biggest[0]:
             sec.findings.append(Finding(
                 WARN,
-                f"Test bundle {name!r} does not build the directory where the tests live",
-                [f"project.yml: {name}.sources = {counts}",
+                "The BLOCKING gate does not run the largest test suite on disk",
+                [f"ci.yml -scheme {blocking_scheme} -> test targets {blocking_targets}",
+                 f"those bundles build: {detail}",
                  f"largest suite on disk = Tests/{biggest[0]} ({biggest[1]} files)"],
-                f"Whether this is wrong depends on which bundle the BLOCKING gate runs. If the "
-                f"blocking gate runs {name!r}, then {biggest[1]} test files only ever run in a "
-                f"non-blocking workflow. Founder-gated (project.yml)."))
+                "Every guard in that suite then runs only in a non-blocking workflow, which "
+                "means nothing it protects is actually gated. Founder-gated (project.yml) — "
+                "report, do not edit."))
+        else:
+            sec.findings.append(Finding(
+                INFO,
+                "The blocking gate runs the largest test suite",
+                [f"ci.yml -scheme {blocking_scheme} -> test targets {blocking_targets}",
+                 f"those bundles build: {detail}",
+                 f"largest suite on disk = Tests/{biggest[0]} ({biggest[1]} files)"],
+                "Stated positively on purpose: a guard written into that suite gates a push. "
+                "The OTHER bundle building a different directory is the deliberate "
+                "reveal-only split, not a defect — which is exactly what the old wording "
+                "could not tell apart."))
 
     # A3. A `-only-testing:` filter naming a suite that does not exist tests nothing, silently.
     suites = set()

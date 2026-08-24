@@ -13519,3 +13519,38 @@ Getrieben: Arbeitsbaum grün · Eltern `7c86a74` grün · M1' zitierte Pfad-Date
 M1b zitierte Datei der anderen Suite entfernt → rot · M2 Backtick-Name gedreht → rot ·
 M3 Zitierformen entfernt → rot über den Boden (#454) · M4 Prosa-Nennung ohne Backticks → grün (#491).
 CLAUDE.md 144.627 B, unter der 150.000-Decke. CISmoke jetzt 357 Dateien.
+
+## #801 — der Doctor warnte vor etwas, das niemand je abstellen konnte (2026-08-24)
+
+**Zuerst die Frage beantwortet, die diese ganze Sitzung trägt:** läuft das blockierende Gate
+über `Tests/CISmoke`? Kette gemessen: `ci.yml` baut `-scheme Echoelmusic` → dessen `test.targets`
+ist `[EchoelmusicTests]` → dieses Bundle hat `sources: Tests/CISmoke` (357 Dateien). **Ja.** Die
+357 Wächter gaten wirklich; CLAUDE.md hat recht.
+
+**Damit war die Doctor-Warnung ein FEHLALARM.** Sektion A2 meldete jedes Bundle, dessen Quellen
+nicht die größte Suite sind — und dieses Repo hat ZWEI Bundles ABSICHTLICH (blockierend +
+reveal-only). Die zweite wurde also bei jedem Lauf gemeldet, für immer. Ihr eigener Text gab auf:
+*„Whether this is wrong depends on which bundle the BLOCKING gate runs."* Diese Antwort steht im
+Repo. Jetzt wird sie hergeleitet, und der Befund ist eine POSITIVE Aussage statt einer ewigen
+Warnung. **#665 in dem einen Werkzeug, dessen ganze Aufgabe es ist, zu fragen, ob die
+Messgeräte ehrlich sind.**
+
+⛔ **MEIN PARSER WAR ZWEIMAL FALSCH, und nur das Treiben hat beide gefunden.**
+· **Erste Fassung:** `(?:.*\n)*?` ist zwar faul, aber UNBEGRENZT — ein Scheme ohne eigenen
+  `test.targets`-Block griff still auf den des NÄCHSTEN Schemes zu und meldete das falsche
+  Bundle mit voller Zuversicht. Aufgefallen an M3 (Scheme ohne Targets → erwartet
+  „unresolved", bekam „not-gated").
+· **Zweite Fassung** war begrenzt und scheiterte am ECHTEN Baum: **`Echoelmusic:` steht zweimal
+  in `project.yml`** — einmal als TARGET (Zeile 78), einmal als SCHEME (Zeile 436) — und
+  `re.search` nimmt das erste, das gar keinen `test:`-Block hat. **Die unbegrenzte erste Fassung
+  „funktionierte" nur, weil sie durch genau das Leck aus dem Target ins Scheme lief, das sie
+  falsch machte.** Ein richtiges Ergebnis aus einem kaputten Mechanismus ist kein Beleg.
+  Reparatur: erst den `schemes:`-Abschnitt abschneiden, dann den Namen auflösen.
+
+Getrieben (Logik transkribiert, fünf Fälle): Ist-Zustand → INFO-gated · blockierendes Scheme auf
+das Reveal-Bundle → WARN-not-gated · `-scheme` aus `ci.yml` → WARN-unresolved · Scheme ohne
+`test.targets` → WARN-unresolved · Bundle-Quelle umbenannt → WARN-not-gated. Jede Mutation mit
+`assert` auf ihr Landen geprüft (#782).
+
+Nicht angefasst: `project.yml` und `.github/workflows/**` (founder-gated). Geändert wurde nur
+`scripts/doctor.py`. Die zwei Sektion-A-CRITICALs bleiben unverändert gemeldet.
