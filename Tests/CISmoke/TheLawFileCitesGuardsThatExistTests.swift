@@ -1,5 +1,6 @@
 // TheLawFileCitesGuardsThatExistTests.swift
-// Echoel — #800. CLAUDE.md names 32 guard files. Nothing checked that they exist.
+// Echoel — #800/#802. The always-loaded files name 35 guard files. Nothing checked
+// that they exist.
 //
 // ⭐ WHY THIS AND NOT ANOTHER STALE-NUMBER CHECK. This repo has paid for the pointer
 // class twice already, and both times the pointer was prose while the target was code:
@@ -12,14 +13,28 @@
 // any number you record"), and #474 extended it from numbers to NAMES — "ein Name ist
 // genauso ein `git ls-files` wert wie eine Zahl". Nothing enforced that extension.
 //
-// WHAT IT READS. `CLAUDE.md` only, in two citation forms, because those are the two the
-// file actually uses:
-//   · an explicit path  `Tests/CISmoke/<Name>.swift`  — 16 today, must exist at exactly
-//     that path, since the sentence around it tells a reader where to look;
-//   · a backticked identifier  `` `<Name>Tests` ``   — 17 today, must exist as
-//     `<Name>Tests.swift` under EITHER bundle, because the KEY TESTS block cites the
-//     non-blocking suite (`Tests/EchoelmusicTests/`) in exactly this form.
-// The two overlap by one, so 32 distinct names. All 32 resolve on this tree.
+// WHAT IT READS. The ALWAYS-LOADED set — `CLAUDE.md` plus the three `.claude/rules/*.md`
+// files — in two citation forms, because those are the two those files actually use:
+//   · an explicit path  `Tests/CISmoke/<Name>.swift`  — must exist at exactly that path,
+//     since the sentence around it tells a reader where to look;
+//   · a backticked identifier  `` `<Name>Tests` ``   — must exist as `<Name>Tests.swift`
+//     under EITHER bundle, because the KEY TESTS block cites the non-blocking suite
+//     (`Tests/EchoelmusicTests/`) in exactly this form.
+// Counted when written: 17 by path + 19 by backtick, 35 distinct, all resolving.
+//
+// ⛔ #800 READ `CLAUDE.md` ALONE, AND THAT WAS THE #787 GAP ONE LEVEL UP: the law file is
+// not the only thing a session is charged for before its first line of work. #802 added
+// the three rules files — `context.md` cites one guard by path, `swift-audio.md` two by
+// backtick. All three resolved, so nothing was broken; what was missing was the check.
+//
+// ⛔ AND EXTENDING THE CORPUS EXPOSED A FALSE POSITIVE THAT #800 PASSED BY LUCK. Measuring
+// the directory-scoped `Tests/CISmoke/CLAUDE.md` reported `EchoelmusicTests` unresolvable
+// — correctly, because it is a build TARGET in `project.yml`, cited in exactly the
+// backticks a test class uses. The rule "backticked, ends in Tests" cannot tell a suite
+// from a bundle; it passed on the law file only because that file happens never to name
+// one. Bundle names are now READ from `project.yml` and excluded. Directory-scoped
+// `CLAUDE.md`s stay out of the corpus on principle — they load only inside their own
+// tree, which is a different question, not a way around the false positive.
 //
 // ⛔ WHY NOT A BROADER SCAN, measured before it was written rather than assumed. A bare
 // `\b[A-Z][A-Za-z0-9_]*Tests\b` sweep is the obvious "stronger" version and it is WRONG
@@ -55,23 +70,68 @@ final class TheLawFileCitesGuardsThatExistTests: XCTestCase {
     /// law file moved or the citation style changed wholesale.
     private static let citationFloor = 20
 
-    func testEveryGuardCLAUDEmdNamesResolvesToAFile() throws {
-        let root = try repoRoot()
-        let law = try String(contentsOf: root.appendingPathComponent("CLAUDE.md"),
-                             encoding: .utf8)
+    /// The files every session is charged for before its first line of work: the law file
+    /// plus the three always-loaded rule files. Directory-scoped `CLAUDE.md`s are NOT in
+    /// here — they load only while working in their own tree, and one of them cites a build
+    /// TARGET in the same backticks a test class uses, which is a different question.
+    private static let alwaysLoaded = [
+        "CLAUDE.md",
+        ".claude/rules/context.md",
+        ".claude/rules/engineering.md",
+        ".claude/rules/swift-audio.md",
+    ]
 
+    /// Unit-test TARGET names, read from `project.yml` rather than listed here.
+    static func unitTestTargets(in project: String) -> Set<String> {
+        var found: Set<String> = []
+        let lines = project.split(separator: "\n", omittingEmptySubsequences: false)
+        for (index, line) in lines.enumerated() {
+            guard line.contains("type: bundle.unit-test"), index > 0 else { continue }
+            let head = lines[index - 1].trimmingCharacters(in: .whitespaces)
+            if head.hasSuffix(":") { found.insert(String(head.dropLast())) }
+        }
+        return found
+    }
+
+    func testEveryGuardTheAlwaysLoadedFilesNameResolvesToAFile() throws {
+        let root = try repoRoot()
         var pathForm: [String] = []
         var tickForm: [String] = []
-        scan(law, pattern: "Tests/CISmoke/", suffix: ".swift", into: &pathForm)
-        scanBackticked(law, into: &tickForm)
+        var readFiles: [String] = []
+        for rel in Self.alwaysLoaded {
+            let url = root.appendingPathComponent(rel)
+            guard let text = try? String(contentsOf: url, encoding: .utf8) else { continue }
+            readFiles.append(rel)
+            scan(text, pattern: "Tests/CISmoke/", suffix: ".swift", into: &pathForm)
+            scanBackticked(text, into: &tickForm)
+        }
+        XCTAssertEqual(readFiles.count, Self.alwaysLoaded.count, """
+            Only \(readFiles.count) of \(Self.alwaysLoaded.count) always-loaded files were \
+            readable: \(readFiles.joined(separator: ", ")).
+
+            The set this guards is exactly the one every session pays for before its first \
+            line of work (#454). If a rules file moved or was renamed, re-point this list in \
+            the same commit — a shrinking corpus makes the assertions below pass on less.
+            """)
+
+        // Bundle names are read, never assumed: `EchoelmusicTests` is a TARGET in
+        // project.yml, and `Tests/CISmoke/CLAUDE.md` cites it in backticks exactly as it
+        // cites test classes. Measuring that file was what exposed the ambiguity — the rule
+        // "backticked, ends in Tests" cannot tell a suite from a bundle, and it passed on
+        // CLAUDE.md only because that file happens not to name a bundle. Passing by luck is
+        // not passing.
+        let targets = Self.unitTestTargets(in:
+            (try? String(contentsOf: root.appendingPathComponent("project.yml"),
+                         encoding: .utf8)) ?? "")
+        tickForm.removeAll { targets.contains($0) }
 
         let all = Set(pathForm).union(tickForm)
         XCTAssertGreaterThanOrEqual(all.count, Self.citationFloor, """
-            CLAUDE.md cites only \(all.count) guard file(s) — the scan expected at least \
-            \(Self.citationFloor) and found 32 when it was written.
+            The always-loaded files cite only \(all.count) guard file(s) — the scan \
+            expected at least \(Self.citationFloor) and found 35 when it was written.
 
             A collapse like this means the corpus moved, not that the law file got tidy \
-            (#454). Either the file is no longer at `CLAUDE.md`, or citations stopped \
+            (#454). Either a file moved out of the always-loaded set, or citations stopped \
             using the two forms this reads: an explicit `Tests/CISmoke/<Name>.swift` path, \
             or a backticked `<Name>Tests`. Re-point the scan in the same commit.
             """)

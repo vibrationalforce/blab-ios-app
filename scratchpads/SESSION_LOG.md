@@ -13554,3 +13554,37 @@ das Reveal-Bundle → WARN-not-gated · `-scheme` aus `ci.yml` → WARN-unresolv
 
 Nicht angefasst: `project.yml` und `.github/workflows/**` (founder-gated). Geändert wurde nur
 `scripts/doctor.py`. Die zwei Sektion-A-CRITICALs bleiben unverändert gemeldet.
+
+## #802 — #800 las nur eine der vier immer-geladenen Dateien (2026-08-24)
+
+**Erst gemessen, dann NICHT geschrieben:** `scripts/**` steht in keinem Pfadfilter — deshalb lief
+für #801 kein einziger Workflow. Das wollte ich aufschreiben, und es steht **schon vollständig da**
+(`ContentPipeline/README.md` #717–#720, samt der Feinheit, dass `scripts/check-infoplist.sh` als
+EINZELNE Datei sehr wohl ein Gate zieht; und `Tests/CISmoke/CLAUDE.md` §5 sagt denselben Satz).
+Eine zweite Fassung wäre #416 gewesen. **Register lesen, bevor man einen Befund aufschreibt.**
+
+Stattdessen die Lücke, die #800 selbst gelassen hat — und es ist **#787 eine Ebene höher**: die
+Datei ist nicht die einzige, für die eine Sitzung vor der ersten Arbeitszeile bezahlt. Gemessen:
+`.claude/rules/context.md` zitiert **einen** Wächter per Pfad, `.claude/rules/swift-audio.md`
+**zwei** per Backtick. Alle drei lösen auf — kaputt war nichts, es fehlte die **Prüfung**.
+Korpus jetzt 4 Dateien, **35** Zitate (17 Pfad + 19 Backtick).
+
+⛔ **UND DIE KORPUS-ERWEITERUNG HAT EINEN FEHLALARM AUFGEDECKT, DEN #800 DURCH GLÜCK BESTANDEN
+HAT.** Beim Messen der verzeichnis-eigenen `Tests/CISmoke/CLAUDE.md` meldete die Regel
+`EchoelmusicTests` als unauflösbar — **korrekt**, denn das ist ein Build-TARGET aus `project.yml`,
+zitiert in genau denselben Backticks wie eine Testklasse. „Backtick, endet auf Tests" kann Suite
+und Bundle nicht unterscheiden; auf CLAUDE.md ging es nur gut, weil diese Datei zufällig kein
+Bundle nennt. **Bestehen durch Zufall ist kein Bestehen.** Bundle-Namen werden jetzt aus
+`project.yml` GELESEN und ausgenommen — M5 beweist die Herkunft: mit leerem `project.yml` wird
+derselbe Baum rot.
+
+⚠️ Verzeichnis-eigene `CLAUDE.md`s bleiben **aus Prinzip** draußen — sie laden nur im eigenen
+Baum, das ist eine andere Frage. Nicht, um dem Fehlalarm auszuweichen; der ist unabhängig behoben.
+
+⛔ **Und die Zahl im Kopf war nach der Erweiterung falsch (33 statt 35), weil ich sie aus der
+Messung VOR der Bundle-Ausnahme übernommen hatte.** Beim erneuten Treiben aufgefallen — genau
+die Stale-Zahl-Falle, gegen die dieselbe Datei argumentiert.
+
+Getrieben (6 Fälle): Arbeitsbaum grün · Eltern `edb9673` grün · `context.md`-Zitat entfernt → rot ·
+`swift-audio.md`-Zitat entfernt → rot · Regeldatei fehlt → rot über #454 · Bundle-Name zitiert →
+grün · dasselbe mit leerem `project.yml` → rot.
