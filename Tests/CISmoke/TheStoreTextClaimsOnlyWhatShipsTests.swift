@@ -161,6 +161,16 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
     /// `grep -n '^[A-ZÄÖÜ][A-ZÄÖÜ ]\{3,\}$' fastlane/metadata/*/description.txt`.
     private static let privacyHeadings = ["privacy", "privatsphäre", "datenschutz"]
 
+    /// Words that make an "MPE" line say which WAY it goes. Deliberately short and literal:
+    /// a bare "out" would also match "routing" and "about", so the tokens are the whole word
+    /// forms the copy actually uses. Re-derive with `git grep -i mpe -- fastlane/metadata`.
+    private static let mpeDirectionWords = ["output", "mpe out", "ausgang", "raus an"]
+
+    /// The exact phrasings that claim the half that does not exist. Adjacent phrases, not
+    /// "any input word": "MPE output ... the input side stays plain MIDI notes" is honest copy
+    /// and must not trip (#486 — one finding per real defect, not one per nearby word).
+    private static let mpeInputClaims = ["mpe input", "mpe-eingang", "mpe eingang", "mpe in from"]
+
     func testEveryOutputThePrivacyBlockNamesIsAlsoSold() throws {
         let outputs = ["osc", "adm-osc", "art-net", "sacn"]
         var offenders: [String] = []
@@ -292,8 +302,10 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
     ///   · "timeline", "arrangement", "clips", "video" — ordinary words with honest uses
     ///     ("video capture" ships: `VisualRecorder` plus an mp4 share sheet).
     ///   · "sampler" — `SamplerVoice` exists and sounds.
-    ///   · "MPE" — MPE **out** is real and switchable (#713); only the input half is absent,
-    ///     and the store text already says "MIDI note input and output" without claiming it.
+    ///   · "MPE" — MPE **out** is real and switchable (#713); only the input half is absent.
+    ///     ⛔ This note ended "and the store text already says 'MIDI note input and output'
+    ///     without claiming it" — true until #794, which ADDED an MPE-output line to both
+    ///     locales. The word is now guarded by claim 6, not merely left unbanned here.
     /// A ban that catches honest copy gets deleted, and the law goes with it.
     func testNoRemovedCapabilityIsSoldAgain() throws {
         let removed = [
@@ -359,6 +371,69 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
             and the two harmony intervals, that last one by an explicit founder ask. Write \
             "every numeric parameter" (the correction #758 already made in `description.txt`), \
             and keep the two locales in step.
+            """)
+    }
+
+    /// Claim 6 (#794) — "MPE" in the store text always carries its DIRECTION.
+    ///
+    /// MPE **out** is real and switchable (#713): the zone is announced, notes are spread over
+    /// member channels 2-16, and each carries glide (14-bit bend), slide (CC 74) and pressure.
+    /// MPE **in** is not: `MIDIBusPublisher` parses MPE traffic but tells no zones apart, and
+    /// `BioReactiveSynthVoice.apply(controller:)` runs into a single `break` for slide, air and
+    /// channel pressure — the three dimensions that make MPE MPE (#548). Channel pressure is not
+    /// merely unwired: `MIDIEventParse` has no case for 0xD0/0xD at all, so the byte never
+    /// arrives (#770). A directionless "MPE" therefore promises exactly the missing half.
+    /// `ContentPipeline/CLAIMS.md` section 6 states the rule; this is the store text's copy of it.
+    ///
+    /// ⚠️ GRADED HONESTLY (#464): PREVENTIVE, and until this very commit it was also VACUOUS —
+    /// `git grep -i mpe -- fastlane/metadata` returned NOTHING, so a guard written a day earlier
+    /// would have scanned a corpus with no occurrence of its own subject and gone green on air.
+    /// The slice's real finding is the UNDER-claim it repairs (the fourth in a row: #788 the
+    /// integrator tables, #791 sACN in the store text, #793 the claim ledger, now this) — a
+    /// shipped, doored capability that never reached the surface that SELLS it. An under-claim
+    /// is invisible to every check that looks for false statements, which is why nobody looked.
+    /// The guard earns its keep only because the same commit creates the line it protects.
+    ///
+    /// ⚠️ WHY A DIRECTION WORD AND NOT A BAN (#364). Banning "mpe" outright would forbid the
+    /// honest half and delete a live selling point; a ban that catches correct copy gets deleted,
+    /// and the law goes with it. And the day someone builds MPE input — starting at
+    /// `MIDIEventParse`, not at the bus publisher — the second assertion here must be lifted in
+    /// the SAME commit, together with `ContentPipeline/CLAIMS.md` section 6 and
+    /// `docs/architecture.html`. Its message says so rather than leaving it to be discovered.
+    func testMPEIsNeverWrittenWithoutItsDirection() throws {
+        var directionless: [String] = []
+        var inputClaims: [String] = []
+        for file in try storeCopy() {
+            let lines = file.text.split(separator: "\n", omittingEmptySubsequences: false)
+            for (index, raw) in lines.enumerated() {
+                let line = raw.lowercased()
+                guard line.contains("mpe") else { continue }
+                if !Self.mpeDirectionWords.contains(where: { line.contains($0) }) {
+                    directionless.append("\(file.path):\(index + 1)")
+                }
+                for phrase in Self.mpeInputClaims where line.contains(phrase) {
+                    inputClaims.append("\(file.path):\(index + 1) — \"\(phrase)\"")
+                }
+            }
+        }
+        XCTAssertTrue(directionless.isEmpty, """
+            The store text writes "MPE" without saying which way it goes: \
+            \(directionless.joined(separator: ", ")).
+
+            MPE OUT ships and is switchable (#713). MPE IN does not exist (#548/#770), so a \
+            directionless "MPE" sells the half that is missing — and a wrong capability claim \
+            in this text is an App Store 2.3 rejection, not a stale sentence. Write \
+            "MPE output" / "MPE-Ausgang", never a bare "MPE". The rule and its reason live in \
+            `ContentPipeline/CLAIMS.md` section 6.
+            """)
+        XCTAssertTrue(inputClaims.isEmpty, """
+            The store text claims MPE INPUT: \(inputClaims.joined(separator: ", ")).
+
+            `MIDIEventParse` has no case for channel pressure in either protocol branch, and \
+            the voice runs into a single `break` for slide, air and pressure (#548/#770). If \
+            that changed, this assertion is WRONG and must be lifted in the same commit as the \
+            parser work — together with `ContentPipeline/CLAIMS.md` section 6, \
+            `docs/architecture.html` and the MPE line in `docs/dev/FEATURE_MATRIX.md`.
             """)
     }
 

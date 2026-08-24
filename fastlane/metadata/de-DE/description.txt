@@ -30,6 +30,7 @@ ERSCHAFFEN
 VERBINDEN
 
 - MIDI-Noten-Eingang und -Ausgang (Ausgang im Routing-Panel aktivierbar)
+- MPE-Ausgang an Dein Rig — die Zone wird angekündigt, Noten liegen auf den Member-Kanälen 2-16 und tragen je Glide, Slide und Druck (zwei Schalter im Routing-Panel, beide standardmäßig aus; die Eingangsseite bleibt einfacher MIDI-Noten-Empfang)
 - OSC-Ausgabe für Live-Rigs und Visuals
 - ADM-OSC immersive Objekt-Ausgabe
 - Natives Art-Net-Lichtsignal für Installationen und Bühne

@@ -31,6 +31,7 @@ CREATE
 CONNECT
 
 - MIDI note input and output (output enabled in the routing panel)
+- MPE output to your rig — the zone is announced, notes spread over member channels 2-16, each carrying glide, slide and pressure (two switches in the routing panel, both off by default; the input side stays plain MIDI notes)
 - OSC output for live rigs and visuals
 - ADM-OSC immersive object output
 - Art-Net native light output for installations and stage

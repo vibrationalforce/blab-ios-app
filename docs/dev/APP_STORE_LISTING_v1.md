@@ -14,7 +14,11 @@ localization = post-launch follow-up.
 > AUv3 target and host (#121 Slices 1+2), its drum apparatus (#166/#167), its note
 > editor (#178) and its clip/arrangement surfaces (#121 Slice 4). The genre roster was
 > curated down from the 33-case taxonomy to the 16 in `MusicStyle.offered` (⛔ this said "from 23 to the 8": BOTH numbers were wrong — 23 was never the taxonomy either, and #254 took the roster to 16. Recount with `MusicStyle.offered.count`). MIDI-file export and MPE output
-> are built but have no caller/writer, so they are not claimed. Shipping metadata that
+> were listed here as built-but-unclaimable; ⛔ **both halves are now false and were
+> corrected in the same commit as the copy change** — MIDI export got its door back with
+> #188 and the LIVE text claims it, and MPE **out** got its two persisted switches with
+> #713 and is claimed as of #794, always WITH the direction word. MPE **in** stays
+> unclaimable (#548/#770). Shipping metadata that
 > claims a removed feature is an App Store 2.3 ("Accurate Metadata") rejection risk —
 > re-verify against `FEATURE_MATRIX.md` and the code before each submission anyway.
 
@@ -278,7 +282,7 @@ features are gone or unreachable. ⛔ **The MIDI-export half of that is no longe
 was corrected 2026-08-06 (#428 follow-up):** #188 put the door back in the existing export
 slot (`EchoelStudioView.swift:6579`), and the LIVE description already claims it
 (`fastlane/metadata/en-US/description.txt:28`). Do not "remove the overclaim" — it is not
-one. NOT claimed here, deliberately: MPE out (⛔ **the reason given here was stale, not the entry** — it said "`mpeEnabled` has no writer", and since #713 it HAS one: `MIDIOutput.applyOutputPreferences()` reads the two persisted keys the routing panel's switches set. MPE out is real and switchable; it is simply not in the shipped text, which is what this list is about. Claiming it would now be ALLOWED, not an overclaim — that is a copy decision, not a correctness one. MPE **in** stays unclaimable, #548/#770), drums, note
+one. NOT claimed here, deliberately: ⛔ **MPE out was in this list until #794 and is now CLAIMED** — the entry stood on a reason that had already expired (⛔ **the reason given here was stale, not the entry** — it said "`mpeEnabled` has no writer", and since #713 it HAS one: `MIDIOutput.applyOutputPreferences()` reads the two persisted keys the routing panel's switches set. MPE out is real and switchable; it was simply not in the shipped text AT THE TIME, which is what this list is about. Claiming it would now be ALLOWED, not an overclaim — that is a copy decision, not a correctness one. MPE **in** stays unclaimable, #548/#770). **#794 made that copy decision**: both locales now carry an MPE-**output** line in CONNECT, and `TheStoreTextClaimsOnlyWhatShipsTests` claim 6 pins the direction word so a later edit cannot shorten it to a bare "MPE". Still NOT claimed here: drums, note
 editor, clips/arrangement, video edit, RTMP, AUv3. Re-run the whole claim check
 against `FEATURE_MATRIX.md` + the code before every submission.
 

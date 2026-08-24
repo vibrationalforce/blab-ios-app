@@ -13281,3 +13281,40 @@ Eltern `2028795` rot („keine Herkunfts-Adresse"), Arbeitsbaum grün, drei Muta
 entfernt → rot · verallgemeinert mit ⛔ ersetzt → rot · verallgemeinert ohne Marker → rot.
 Dazu ein verschachteltes `try` aufgelöst (zwei Anweisungen statt einer) — `-warnings-as-errors`
 auf dem SwiftPM-Pfad.
+
+## #794 — der MPE-AUSGANG fehlte im App-Store-Text (2026-08-24)
+
+Gemessen: `git grep -i mpe -- fastlane/metadata` → **null Treffer**, während MPE OUT seit #713
+real und schaltbar ist (zwei persistierte Schalter in der erreichbaren Routing-Fläche) und
+`docs/architecture.html` es seit #775 ehrlich und ausführlich beschreibt. **Vierter Zyklus in
+Folge mit demselben Muster** (#788 Integrator-Tabellen · #791 sACN im Store-Text · #793
+Claim-Liste · jetzt MPE): eine ausgelieferte, betürte Fähigkeit erreichte die Fläche nicht, die
+sie VERKAUFT.
+
+Neu im CONNECT-Block beider Locales: eine MPE-**Ausgangs**-Zeile mit Zone, Member-Kanälen 2–16
+und den drei Dimensionen — und mit dem ausdrücklichen Zusatz, dass die Eingangsseite einfacher
+MIDI-Noten-Empfang bleibt. Beide Dateien liegen bei ~3,2 k Zeichen, weit unter dem 4000er-Limit.
+
+**Behauptung 6** (`TheStoreTextClaimsOnlyWhatShipsTests`, jetzt 6): jede Zeile mit „mpe" muss ein
+Richtungswort tragen, und die vier Formulierungen, die den EINGANG behaupten, sind verboten.
+Kein Wort-Verbot — ein Verbot, das die ehrliche Hälfte mitfängt, wird gelöscht (#364).
+
+⚠️ **Ehrliche Benotung (#464): PREVENTIV — und bis zu genau diesem Commit auch LEER.** Der
+Wächter lief auf den Eltern grün, weil das Wort im Korpus gar nicht vorkam. **Ein Wächter, dessen
+Korpus kein einziges Vorkommen seines eigenen Gegenstands enthält, ist grün auf Luft** — er
+verdient seinen Platz erst dadurch, dass derselbe Commit die Zeile erzeugt, die er schützt.
+Der eigentliche Fund der Scheibe ist die UNTER-Behauptung, nicht der Wächter.
+
+Prosa im selben Commit mitgezogen (#456): `APP_STORE_LISTING_v1.md` führte MPE out zweimal als
+„gebaut, aber nicht behauptet" — beide Stellen korrigiert, die zweite mit dem Hinweis, dass die
+Kopie-Entscheidung jetzt getroffen ist; und der Kopf des Wächters selbst sagte „the store text
+already says 'MIDI note input and output' without claiming it", was dieser Commit ungültig macht.
+
+⭐ **Nebenbefund an meiner eigenen Prüfroutine:** die Post-#792-Kontrolle „`file.rel` muss 0 mal
+vorkommen" schlug an — der Treffer ist der ⛔-Vermerk, der `file.rel` zitiert, um ihn
+zurückzunehmen. Dieselbe #491-Form eine Ebene tiefer: **ein Prüfer, der eine Zeichenkette
+verbietet, kollidiert mit der Datei, die genau diese Zeichenkette als Rücknahme führt.** Die
+Kontrolle bleibt nützlich, ihre Schwelle ist aber „0 im CODE", nicht „0 in der Datei".
+
+Getrieben: Arbeitsbaum grün, Eltern `c097229` grün (= die Leere), vier Mutationen: nacktes „MPE"
+→ rot · englischer Eingangs-Anspruch → rot · deutscher → rot · Variante „MPE out" → grün (#364).
