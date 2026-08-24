@@ -103,7 +103,8 @@ to a file instead. Do not read such a file whole.
 
 - Runs → `python3 scripts/gh-run-status.py <file>` (one line per run). Extend this script
   rather than writing a second parser.
-- Logs → `python3 scripts/gh-test-verdict.py <file>` (build verdict, failing tests by name),
+- Logs → `python3 scripts/gh-test-verdict.py <file>` (build verdict, failing AND skipped
+  tests by name — a skip is not a pass, #806),
   and `--selftest` when you have touched it. Do NOT hand-roll needles: #679 and #738 are both
   a session inventing a needle set that could not match the format it was pointed at.
 - Never paste a raw log or a large file into the transcript to "have it".

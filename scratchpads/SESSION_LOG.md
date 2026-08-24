@@ -13727,3 +13727,60 @@ ein fehlender Anker muss FEHLSCHLAGEN, nicht überspringen.
 **Gate-Ergebnis des Vorgängers #804 (`cf73f3f`):** `Build for Testing: success`, 0 Compile-Fehler,
 0 Testfehler, 135 beobachtete Durchläufe. Keiner der drei berührten Wächter war in der geleerten
 Teilmenge — also **kompiliert nachweislich, Ausführung unbelegt** (#445), nicht „grün".
+
+---
+
+## #806 — der Verdikt-Parser meldete Durchläufe und Fehler und schwieg über ÜBERSPRUNGENE
+
+**Befund.** `scripts/gh-test-verdict.py` ist laut `Tests/CISmoke/CLAUDE.md` §5 das Werkzeug,
+das eine Sitzung liest, statt eigene Nadeln zu bauen. Es druckte Durchläufe, Fehlschläge und
+Compile-Fehler — und **nichts über Skips**, während in diesem Verzeichnis die meisten Dateien
+ein `XCTSkip` werfen können (`grep -rln XCTSkip Tests/CISmoke/*.swift | wc -l`: 268 von 358,
+371 Aufrufstellen).
+
+**Ein übersprungener Wächter ist kein bestandener Wächter — er hat nichts geprüft.** Das
+Werkzeug hat nie FALSCH gelesen (das Verb ist ein anderes, ein Skip wurde nie als `passed`
+gezählt); es hat nur geschwiegen, und damit war `TEST FAILURES: 0` als „das Bundle ist in
+Ordnung" lesbar, während ein verrutschter Anker still einen Wächter aus dem Lauf nimmt. Das ist
+die 2026-07-28-Form, gegen die dieses Verzeichnis existiert.
+
+**Gemessen, bevor gebaut wurde:** im #805-Lauf (`67eef12`) kommt „skipped" **viermal** vor —
+alle vier sind GitHub-Actions-SCHRITT-Ergebnisse, **null** Testresultate. Ebenso die sieben
+`" failed"`-Treffer: alle sieben sind der Clone-2-Startfehler, also #396s **zweite** Signatur
+(`FBSOpenApplicationServiceErrorDomain Code=1` → `FBProcessExit Code=64`), genau wie §5 sie
+beschreibt. Der Parser lag also richtig — er war nur blind für eine dritte Kategorie.
+
+⚠️ **Die Nadel ist ABGELEITET, nicht beobachtet, und das steht an der Definition.** `.claude/
+rules/context.md` §4 verbietet handgeschnitzte Nadeln, und #679/#738/#778 sind drei Vorfälle
+genau davon. BEWIESEN ist die ZEILENFORM — `Test [Cc]ase '<Name>' <Verb>…` gilt für zwei Verben
+über beide Renderer, und das Pass-Muster hat exakt diese Form ohne Suffix, weshalb es xcbeautify
+und nacktes `xcodebuild` gleichermaßen trifft. Angenommen ist allein das dritte Verb. Kein Log
+in Reichweite enthält eine echte Skip-Zeile, also treibt `--selftest` eine Form, die diese
+Sitzung KONSTRUIERT hat — in beiden Schreibweisen, was die #738-Lehre ist, bevor sie etwas
+kostet.
+
+⚠️ **Exit 1 bei einem Skip ist Absicht und NICHT die #665-Falle:** dieses Bundle hat keinen
+legitim überspringbaren Test. Jedes `XCTSkip` hier bewacht einen ANKER, und §4 sagt, ein
+fehlender Anker muss FEHLSCHLAGEN statt auf weniger zu bestehen. Gemessen: **nichts konsumiert
+den Exit-Code außer einem Menschen** (`git grep` findet nur Prosa-Verweise), die Änderung kann
+also keinen Workflow rot machen. Und Drucken allein genügt nicht — das ist das Einzige, was der
+maskierte-Gate-Vorfall vom 2026-07-28 endgültig geklärt hat: die Zusammenfassung DRUCKTE
+vierzehn Stunden lang `build-for-testing: failure`, und niemand las sie.
+
+**Getrieben:** `--selftest` grün über alle fünf Umschläge und **beide** Renderer für **beide**
+Verben · echte Logs von #804 und #805 unverändert (0 Skips, Exit 0) · ein mutiertes Log mit
+EINEM Skip nennt ihn namentlich und liefert Exit 1 · Anspruch 6 grün im Arbeitsbaum, rot im
+Elternbaum `67eef12`, Anker genau **einmal** im Parser (#408).
+
+**Prosa mitgezogen (#456):** `Tests/CISmoke/CLAUDE.md` §5 und `.claude/rules/context.md` §4
+beschreiben beide, was das Werkzeug druckt — beide waren mit dieser Änderung unvollständig. Die
+Zahl dort steht mit ihrem Befehl daneben statt nackt (#803).
+
+⚠️ **Verworfen, mit Grund:** die 371 `XCTSkip`-Aufrufstellen auf harte Fehlschläge umzustellen
+wäre eine MIGRATION über 268 Dateien, nicht eine Scheibe — dieselbe Form wie #460, das aus genau
+diesem Grund aufgeschoben blieb. Das Werkzeug ehrlich zu machen kostet zwei Dateien und deckt
+denselben Ausfall ab.
+
+**Gate-Ergebnis des Vorgängers #805 (`67eef12`):** `Build for Testing: success`, 0 Compile-Fehler,
+0 Testfehler, 135 beobachtete Durchläufe, **0 Skips**. Anspruch 7 war nicht in der geleerten
+Teilmenge — kompiliert nachweislich, Ausführung unbelegt (#445).

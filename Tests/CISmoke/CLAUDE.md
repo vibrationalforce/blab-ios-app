@@ -229,7 +229,13 @@ its own known positive is not a measurement.
   standing property. Point it at the overflow file:
       python3 scripts/gh-test-verdict.py <file>
   It prints build-for-testing, the two banners, the count of tests OBSERVED PASSING, every
-  compile-error line and every failing test by name; exit 1 if anything failed. Extend that
+  compile-error line, every failing test by name, and — since #806 — every SKIPPED test by
+  name; exit 1 if anything failed OR skipped. **A skip is not a pass:** it asserted nothing,
+  and most of the files here can throw `XCTSkip`, each one guarding an ANCHOR — count with
+  `grep -rln XCTSkip Tests/CISmoke/*.swift | wc -l` rather than trusting a number in prose
+  (#803; it was 268 of 358 when this was written). The skip needle
+  is DERIVED from the proven line shape rather than observed — no log in reach contains a
+  test-result skip line — and the parser says so at its definition. Extend that
   script rather than writing a fourth ad-hoc needle set.
   ⛔ **AND THE ESCAPED-NEWLINE HALF CAME BACK ON 2026-08-22 (#738), so "closed" above means
   closed AS OF #738 — not closed forever.** `get_job_logs` writes TWO envelopes and the

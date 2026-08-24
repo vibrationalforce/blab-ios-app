@@ -101,9 +101,34 @@ PASS_LINE = re.compile(r"Test [Cc]ase '([^']+)' passed", re.MULTILINE)
 FAIL_LINE = re.compile(r"Test [Cc]ase '([^']+)' (?:failed on |failed \()", re.MULTILINE)
 FAILED_OR_PASSED_PASS = PASS_LINE
 
+# ⛔ #806 — THE TOOL REPORTED PASSES AND FAILURES AND WAS SILENT ABOUT SKIPS, while 268 of the
+# 358 files in `Tests/CISmoke` can throw `XCTSkip`. A skipped guard is not a passing guard: it
+# asserted nothing. The tool never MIS-read one (the verb differs, so a skip was never counted
+# as a pass) — it simply did not mention them, and `Tests/CISmoke/CLAUDE.md` §5 tells every
+# session to read this script's verdict instead of hand-rolling needles. "TEST FAILURES: 0" was
+# therefore readable as "the bundle is fine" while an anchor-miss quietly skipped a guard. That
+# is the 2026-07-28 shape that this whole directory exists to prevent: 14 hours of "success"
+# over a build that was not building.
+#
+# ⚠️ THIS NEEDLE IS DERIVED, NOT OBSERVED — stated plainly because `.claude/rules/context.md` §4
+# bans hand-rolled needles, and #679/#738/#778 are three separate incidents of a session
+# inventing a spelling that could not match. What is PROVEN here is the LINE SHAPE:
+# `Test [Cc]ase '<name>' <verb>…` holds for two verbs across both envelopes, and `PASS_LINE`
+# takes exactly this form with no suffix, which is why it covers xcbeautify and plain
+# xcodebuild alike. Only the third verb is assumed, and it is Apple's documented wording for
+# `XCTSkip`. No log in this repo's reach contains a skip line — measured on the #805 run
+# (`67eef12`): 4 occurrences of "skipped", all of them GitHub Actions step outcomes, zero test
+# results. So the selftest below drives a shape this session CONSTRUCTED, not one it saw; if a
+# real skip ever prints differently, fix it here and say so, do not add a fourth needle set.
+SKIP_LINE = re.compile(r"Test [Cc]ase '([^']+)' skipped", re.MULTILINE)
+
 
 def find_failures(text):
     return FAIL_LINE.findall(text)
+
+
+def find_skips(text):
+    return SKIP_LINE.findall(text)
 
 
 SELFTEST_BODY = (
@@ -113,8 +138,10 @@ SELFTEST_BODY = (
     "2026-01-01T00:00:03Z Test case 'B.testThree()' passed on 'Clone 1 of iPhone 17' (0.3 seconds)\n"
     "2026-01-01T00:00:04Z Test case 'B.testFour()' failed on 'Clone 1 of iPhone 17' (0.4 seconds)\n"
     "2026-01-01T00:00:05Z Test case 'C.testFive()' passed on 'Clone 1 of iPhone 17' (0.5 seconds)\n"
-    "2026-01-01T00:00:06Z /src/Foo.swift:12:3: error: cannot find 'Bar' in scope\n"
-    "2026-01-01T00:00:07Z ** TEST EXECUTE FAILED **\n"
+    "2026-01-01T00:00:06Z Test case 'C.testSix()' skipped on 'Clone 1 of iPhone 17' (0.0 seconds)\n"
+    "2026-01-01T00:00:07Z Test Case '-[DTests testSeven]' skipped (0.0 seconds).\n"
+    "2026-01-01T00:00:08Z /src/Foo.swift:12:3: error: cannot find 'Bar' in scope\n"
+    "2026-01-01T00:00:09Z ** TEST EXECUTE FAILED **\n"
 )
 SELFTEST_LINES = SELFTEST_BODY.count("\n")
 
@@ -161,13 +188,18 @@ def selftest():
         passed = len(PASS_LINE.findall(text))
         failed = find_failures(text)
         errors = len([ln for ln in text.split("\n") if " error:" in ln])
+        # TWO skips, one per renderer, so a needle that only knows xcbeautify counts 1 and
+        # is caught — the #738 lesson applied to the third verb before it can cost anything.
+        skipped = find_skips(text)
         ok = (newlines >= SELFTEST_LINES
               and greedy == 3 and line_filter == 2 and errors == 1
               and passed == 3 and failed == ["A.testTwo()", "B.testFour()"]
+              and skipped == ["C.testSix()", "-[DTests testSeven]"]
               and "Test build Succeeded" in text)
         bad += 0 if ok else 1
         print(f"  {'ok ' if ok else 'BAD'}  {name:44}  nl={newlines} greedy={greedy} "
-              f"lines={line_filter} err={errors} pass={passed} fail={len(failed)}")
+              f"lines={line_filter} err={errors} pass={passed} fail={len(failed)} "
+              f"skip={len(skipped)}")
 
     # A renderer sweep, separate because it is about the FORMAT and not the envelope.
     renders = {
@@ -179,6 +211,17 @@ def selftest():
         good = len(hit) == 1
         bad += 0 if good else 1
         print(f"  {'ok ' if good else 'BAD'}  renderer {name:34}  -> {hit}")
+
+    skips = {
+        "xcbeautify":       "Test case 'S.testA()' skipped on 'Clone 1' (0.1 seconds)",
+        "plain xcodebuild": "Test Case '-[STests testA]' skipped (0.1 seconds).",
+    }
+    for name, line in skips.items():
+        hit = find_skips(line)
+        # A skip must NOT be counted as a pass or a failure — that is the whole point.
+        good = len(hit) == 1 and not PASS_LINE.findall(line) and not find_failures(line)
+        bad += 0 if good else 1
+        print(f"  {'ok ' if good else 'BAD'}  skip-renderer {name:29}  -> {hit}")
 
     print("selftest: OK" if not bad else f"selftest: {bad} check(s) MISREAD")
     return 0 if not bad else 1
@@ -210,6 +253,7 @@ def main():
     # that arrived as one line, the old line filter matched once and printed the whole
     # remainder of the log as if it were the name of a single failing test.
     failures = find_failures(text)
+    skips = find_skips(text)
     ran = len(FAILED_OR_PASSED_PASS.findall(text))
 
     print(f"build-for-testing : {'Succeeded' if build else 'NOT SEEN'}")
@@ -222,10 +266,23 @@ def main():
     print(f"TEST FAILURES         : {len(failures)}")
     for line in failures:
         print("   ", line[:200])
-    if not failures and not compile_errors:
-        print("\nVERDICT: no failure in the FLUSHED log. #445 — a test name's ABSENCE "
-              "proves nothing; only its presence proves it ran.")
-    return 1 if (failures or compile_errors or build_failed) else 0
+    print(f"TESTS SKIPPED         : {len(skips)}")
+    for line in skips:
+        print("   ", line[:200])
+    if skips:
+        # Non-zero exit on a skip is deliberate, and it is NOT the #665 false-alarm trap:
+        # this bundle has no legitimately-skippable test — every `XCTSkip` here guards an
+        # ANCHOR, and §4 says a missing anchor must FAIL rather than pass on less. A skipped
+        # guard asserted nothing while looking exactly like one that did. If a genuinely
+        # environment-dependent test ever belongs here, name it in this script rather than
+        # loosening the check — printing alone is not enough, which is the one thing the
+        # 2026-07-28 masked-gate incident settled.
+        print("\nVERDICT: a guard SKIPPED. A skip is not a pass — it asserted nothing. "
+              "Find its `XCTSkip` and re-anchor it (#454); do not read this run as clean.")
+    elif not failures and not compile_errors:
+        print("\nVERDICT: no failure and no skip in the FLUSHED log. #445 — a test name's "
+              "ABSENCE proves nothing; only its presence proves it ran.")
+    return 1 if (failures or compile_errors or build_failed or skips) else 0
 
 
 if __name__ == "__main__":

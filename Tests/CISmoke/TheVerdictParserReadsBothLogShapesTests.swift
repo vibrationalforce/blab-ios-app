@@ -315,6 +315,60 @@ final class TheVerdictParserReadsBothLogShapesTests: XCTestCase {
             """)
     }
 
+    // MARK: - 6 · REGRESSION: a skip is not a pass, and the tool must say so
+
+    /// Claim 6 (#806). `Tests/CISmoke/CLAUDE.md` §5 sends every session to this parser instead
+    /// of a hand-rolled needle set, so what the parser is SILENT about, the session does not
+    /// see. It reported passes, failures and compile errors — and said nothing about SKIPS,
+    /// while **268 of the 358 files in this directory can throw `XCTSkip`** (371 call sites).
+    ///
+    /// A skipped guard is not a passing guard: it asserted nothing. The tool never MIS-read one
+    /// — the verb differs, so a skip was never counted as a pass — it simply did not mention
+    /// them, which made `TEST FAILURES: 0` readable as "the bundle is fine" while an anchor-miss
+    /// quietly took a guard out of the run. That is the 2026-07-28 shape this directory exists
+    /// to prevent: fourteen hours of "success" over a build that was not building.
+    ///
+    /// ⚠️ THE NEEDLE IS DERIVED, NOT OBSERVED, and the parser says so at the definition. What
+    /// is PROVEN is the LINE SHAPE — `Test [Cc]ase '<name>' <verb>…` holds for two verbs across
+    /// both renderers, and the pass pattern takes exactly that form with no suffix, which is why
+    /// it covers xcbeautify and plain `xcodebuild` alike. Only the third verb is assumed.
+    /// Measured on the #805 run (`67eef12`): the log contains four occurrences of "skipped" and
+    /// every one is a GitHub Actions STEP outcome, not a test result — so no log in reach could
+    /// validate the spelling. `--selftest` therefore drives a shape that was CONSTRUCTED, in
+    /// both renderings, which is the #738 lesson applied before it can cost anything.
+    ///
+    /// ⚠️ NON-ZERO EXIT ON A SKIP IS DELIBERATE and is NOT the #665 false-alarm trap: this
+    /// bundle has no legitimately-skippable test. Every `XCTSkip` here guards an ANCHOR, and §4
+    /// says a missing anchor must FAIL rather than pass on less. Nothing consumes this script's
+    /// exit code except a human, so the change cannot red a workflow — measured, `git grep`
+    /// finds only prose references in `.claude/rules/context.md` and `Tests/CISmoke/CLAUDE.md`.
+    ///
+    /// GRADING (#464): REGRESSION. On the parent tree the parser has no skip pattern at all, so
+    /// both assertions are red there for the reason their messages give.
+    func testASkipIsReportedAndNotSilentlyCountedAsClean() throws {
+        let code = try text(Self.parser)
+        XCTAssertTrue(code.contains(#"' skipped""#), """
+            The verdict parser has no needle for a SKIPPED test. It will print
+            `TEST FAILURES: 0` on a run in which a guard skipped, and §5 of this directory's
+            CLAUDE.md tells sessions to read that verdict.
+
+            268 of the files here can throw `XCTSkip`; each one guards an anchor, so a skip
+            means an anchor moved and the guard asserted NOTHING. Restore a pattern of the
+            proven shape — `Test [Cc]ase '<name>' skipped` — rather than a substring test that
+            cannot tell a step outcome from a test result.
+            """)
+        XCTAssertTrue(code.contains("or build_failed or skips"), """
+            A skipped guard no longer changes the parser's exit status, so a run with a skip
+            exits 0 like a clean one.
+
+            Printing alone is not enough, and that is the one thing the 2026-07-28 masked-gate
+            incident settled: the summary DID print `build-for-testing: failure` for fourteen
+            hours and nobody read it. If a genuinely environment-dependent test ever belongs in
+            this bundle, name it in the script — do not loosen this back to a print (#665 cuts
+            the other way here, because today the false-alarm rate is measured at zero).
+            """)
+    }
+
     // MARK: - 5 · COUNTERWEIGHT: the directory law still points sessions at this tool
 
     func testTheDirectoryLawStillNamesTheScript() throws {
