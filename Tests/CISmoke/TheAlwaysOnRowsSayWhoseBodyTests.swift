@@ -195,9 +195,13 @@
 //     shipped, with a threshold ("the eighth copy") that no longer exists. **The register that
 //     records a threshold has to be ticked by the commit that crosses it** — the same rule the
 //     surfaces register states three times about itself, now paid for a fourth time.
-//   · ADM-OSC / Art-Net / sACN / the discrete events still carry no provenance (#462, second
-//     half). ⭐ OSC itself is DONE since #639 (`/echoelmusic/bio/synthetic`); this line said
-//     "OSC" first and would otherwise send the next session to re-do it.
+//   · ADM-OSC / Art-Net / sACN still carry no provenance (#462, second half). ⭐ OSC itself is
+//     DONE since #639 (`/echoelmusic/bio/synthetic`) — this line said "OSC" first and would
+//     otherwise send the next session to re-do it — and the DISCRETE EVENTS are done since
+//     #785, which is why they are struck from this bullet here rather than only in
+//     `TheWireSaysWhoseBodyTests`. Exactly the rule stated two bullets up: **the register that
+//     records a threshold has to be ticked by the commit that crosses it**, and a register
+//     entry lives in as many files as somebody wrote it into (#456).
 //
 // ⚠️ AND ONE ASYMMETRY TO WRITE DOWN RATHER THAN "HARMONISE": `AlwaysOnBioChannel` tests bare
 // `frame.source == .fallback`, while `BioStripView` and `HeaderMonitors` add `&& !isRunning`

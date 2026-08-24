@@ -50,7 +50,14 @@
 //        receiver cannot tell apart from a motionless performer. It returns the day a
 //        CoreMotion producer does; see `bioMessages` and `ModSource.hasProducer`.
 //
-//  Discrete BioEventGraph events (kind → address, args [confidence, aux]):
+//  Discrete BioEventGraph events (kind → address, args [confidence, aux]).
+//  ⭐ #785: these carry provenance too, but on a DIFFERENT cadence from the batch above —
+//  `/echoelmusic/bio/synthetic` is emitted immediately before the event it describes and again
+//  only when the origin CHANGES, latched across drains. Reason: events CLUSTER (per-RR beats,
+//  paired breath onsets), so re-stating it per event would multiply traffic on the path shaped
+//  by latency. A receiver joining mid-session learns the state from the ~1 Hz batch, which is
+//  what "treat it as state" above already asks of it. Arity is UNCHANGED — provenance is an
+//  additive address, never a third float. See `eventMessages(for:lastAnnounced:)`.
 //    /echoelmusic/bio/event/heartbeat      float[2]  aux = inter-beat interval ms
 //    /echoelmusic/bio/event/breath/inhale  float[2]
 //    /echoelmusic/bio/event/breath/exhale  float[2]
@@ -183,6 +190,18 @@ public final class OSCSender {
         lastSentTimestamp = CFAbsoluteTimeGetCurrent()
     }
 
+    /// The provenance value most recently announced on the EVENT path, latched across drains
+    /// so the flag is sent once per change rather than once per event (#785).
+    ///
+    /// ⚠️ SEPARATE FROM THE BATCH PATH'S LATCH ON PURPOSE — there isn't one. `bioMessages`
+    /// re-states the flag on every non-empty batch, which is correct there: a batch is ~1 Hz
+    /// and already carries several messages, so one more is free and a receiver that joined
+    /// late gets the state on its next frame. Events are bursty (breath onsets cluster), so
+    /// re-stating per event would multiply the traffic on the one path that is latency-shaped.
+    /// A receiver that joins mid-session therefore learns the state from the BATCH, which is
+    /// exactly what CLAUDE.md's "als ZUSTAND latchen" asks of it.
+    private var lastAnnouncedEventSynthetic: Bool?
+
     /// Sends the latest discrete bio event if it is newer than the one we
     /// last forwarded. Reads the `@MainActor` snapshot (`latestBioEvent`),
     /// not the lock-free `bioEvents` queue, so it never contends with the
@@ -199,6 +218,7 @@ public final class OSCSender {
     /// unaffected.
     private func drainAndSendEvents(from bus: EngineBus) {
         var sentAny = false
+        var accepted: [BioEvent] = []
         while let event = bus.bioEvents.dequeue() {
             // 5.1.3, same rule as the frame path above (#186). This gate was MISSING:
             // `sendIfFresh` refuses a HealthKit/Watch frame, while this loop sent breath
@@ -218,14 +238,52 @@ public final class OSCSender {
             // and drift (it did, in the first cut of this fix). Dequeue stays above the
             // guard — a blocked event must still be consumed or it wedges the queue.
             guard BioEgressPolicy.allowsEgress(event) else { continue }
-            send(event: event)
+            accepted.append(event)
             sentAny = true
         }
+        // #785 — the flag and the events go out through ONE pure builder, so the ordering
+        // question the #639 register left open ("a separate edit with a separate ordering
+        // question") is answered in a testable place rather than inline. Collecting first
+        // costs one array on the egress poll — not the audio thread, and this function
+        // already allocated a `[Float]` per event.
+        let built = Self.eventMessages(for: accepted, lastAnnounced: lastAnnouncedEventSynthetic)
+        for message in built.messages { send(address: message.address, floats: message.floats) }
+        lastAnnouncedEventSynthetic = built.announced
         if sentAny { lastSentTimestamp = CFAbsoluteTimeGetCurrent() }
     }
 
-    private func send(event: BioEvent) {
-        send(address: Self.address(for: event.kind), floats: [event.confidence, event.aux])
+    /// Messages for a drained burst of ALREADY-GATED events, with the provenance flag placed
+    /// immediately before the first event it describes and again only when it CHANGES (#785).
+    ///
+    /// Pure and `static` for the reason `BioEgressPolicy` records one screen up: the first cut
+    /// of the egress gate was inlined here and the test re-implemented it, so the test passed
+    /// with the production guard deleted. One symbol, called by both.
+    ///
+    /// ⛔ THE THREE SHAPES THAT WERE REJECTED, same list as #639 one level down:
+    ///   · Append the flag to `/bio/event/*` — breaks every integrator reading `[confidence,
+    ///     aux]` on the old contract. The addresses keep their arity.
+    ///   · Send it unconditionally — an empty drain would emit a flag describing nothing,
+    ///     the #245 defect this family exists to remove ("not sending is the only form the
+    ///     protocol has for I-do-not-know").
+    ///   · Re-state it per event — correct but noisy on the burstiest path; see the latch above.
+    ///
+    /// `events` must already have passed `BioEgressPolicy.allowsEgress`, which is fail-closed
+    /// on `source == nil`; the `?? false` below is therefore unreachable in production and is
+    /// a total-function default, not a policy decision.
+    nonisolated static func eventMessages(
+        for events: [BioEvent], lastAnnounced: Bool?
+    ) -> (messages: [(address: String, floats: [Float])], announced: Bool?) {
+        var messages: [(address: String, floats: [Float])] = []
+        var announced = lastAnnounced
+        for event in events {
+            let synthetic = event.source?.isSynthetic ?? false
+            if announced != synthetic {
+                messages.append(("/echoelmusic/bio/synthetic", [synthetic ? 1 : 0]))
+                announced = synthetic
+            }
+            messages.append((Self.address(for: event.kind), [event.confidence, event.aux]))
+        }
+        return (messages, announced)
     }
 
     /// Stream one modulation-matrix output value out as

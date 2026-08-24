@@ -51,10 +51,11 @@
 // new fact on the network, and it belongs written down rather than in the gap between two
 // honest sentences.
 //
-// KIND (§1): **END-TO-END BEHAVIOUR**, all eight claims. `OSCSender.bioMessages(for:)` is
-// `nonisolated static`, and `BioSampleFrame` / `BioSource` / `BioEgressPolicy` are public
-// Foundation-only value types, so this bundle drives the shipped producer and reads its real
-// output. No source-text scanning and no needles anywhere in this file. What stays a DEVICE
+// KIND (§1): **END-TO-END BEHAVIOUR**, all fifteen claims. `OSCSender.bioMessages(for:)` and
+// `OSCSender.eventMessages(for:lastAnnounced:)` are both `nonisolated static`, and
+// `BioSampleFrame` / `BioEvent` / `BioSource` / `BioEgressPolicy` are public Foundation-only
+// value types, so this bundle drives the shipped producers and reads their real output. No
+// source-text scanning and no needles anywhere in this file. What stays a DEVICE
 // PROBE: that a real receiver (TouchOSC, a desk, an ADM renderer) actually latches the flag.
 //
 // GRADING (#433 / §3), driven against the parent (096d519) and this tree — the gates modelled
@@ -79,9 +80,40 @@
 //   · No stripper: this file reads no source text, so §2's raw-vs-stripped measurement does
 //     not apply. Stated rather than omitted, because every sibling in this family reports one.
 //
+// GRADING for #785's claims 9–15, driven against 94d396c and this tree:
+//   · **5 REGRESSIONS** — claims 9, 10, 11, 12, 13. `eventMessages` does not EXIST on the
+//     parent, so per #486 this is ONE finding, not five: the parent's `drainAndSendEvents`
+//     sent each event inline with no provenance at all. The five split the finding by the
+//     property each pins (present · both cases · once per burst · re-announce in place · across
+//     drains), because a single "the flag is there" assertion would have been satisfied by the
+//     per-event shape the latch exists to avoid.
+//   · **1 COUNTERWEIGHT + 1 SPLIT** — claim 15 (the two-float contract) is a pure counterweight:
+//     the parent sent exactly those two floats, so it guards the rejected "append an argument"
+//     design and not the defect. ⛔ CLAIM 14 WAS BOOKED AS THE SECOND COUNTERWEIGHT AND IS NOT
+//     ONE. Driving the model showed it splits: its MESSAGE half (an empty drain emits nothing)
+//     is green on the parent — the parent's inline loop sent nothing when the queue was empty —
+//     but its LATCH half (`announced` survives an empty drain) is RED there, because the parent
+//     has no such concept at all. So claim 14 is one counterweight assertion and one regression
+//     assertion in one method. Kept together on purpose: they describe one behaviour ("an empty
+//     drain changes nothing"), and separating them would leave the silence assertion able to
+//     pass while the latch was quietly reset. Recorded because booking a regression half as a
+//     counterweight is §3's flattering direction — the same error the block above retracted for
+//     claim 5, found the same way, by driving the model rather than re-reading the prose.
+//     Neither can literally RUN on the parent, since the symbol is new; both were modelled in
+//     Python against the parent's inline loop.
+//   · MUTATION EVIDENCE (§3: a claim that no mutation can redden is not a guard). Seven
+//     deliberate mutations of the builder, each reddening exactly the claims that name it:
+//     unconditional flag → 11, 13 · flag placed AFTER its event → 9, 10, 12 · origin hardcoded
+//     synthetic → 10, 12 · incoming latch ignored → 13, 14-latch · provenance as a third float
+//     → 15 · flag on an empty drain → 14-messages · `announced` never returned → 9, 10, 12, 13,
+//     14-latch. Every claim is covered and the unmutated control stays green.
+//   ⛔ NOT BOOKED AS A FINDING: `send(event:)` lost its last caller in this slice and was
+//     deleted. That is housekeeping inside the change, not a defect the guard caught.
+//
 // ⚠️ #364: a DIFFERENT provenance shape is not forbidden. A richer per-source address, a
-// bundle, or a return channel would all satisfy the law and turn claims 1/2/4/8 red — that is
-// the moment to rewrite this file. What is forbidden silently is a `.fallback` frame's values
+// bundle, or a return channel would all satisfy the law and turn claims 1/2/4/8 red — and, on
+// the event path, 9/10/12; a different CADENCE (per event, or once per drain regardless of
+// change) would turn 11/13 red without being wrong. That is the moment to rewrite this file. What is forbidden silently is a `.fallback` frame's values
 // reaching the wire with nothing that says so.
 //
 // ⚠️ STILL OPEN and deliberately NOT solved here, because each needs its own decision:
@@ -97,17 +129,33 @@
 //     an impossibility, and one a lighting designer could reasonably reject. Writing "cannot"
 //     where the truth is "nobody has designed it" is the same over-claim this whole family of
 //     slices exists to remove, one level up.
-//   · The discrete-event path (`/echoelmusic/bio/event/*`) carries `[confidence, aux]` and is
-//     also unlabelled. It goes through `drainAndSendEvents`, not `bioMessages`, so it is a
-//     separate edit with a separate ordering question.
+//   (The discrete-event path stood here as the third open half and is CLOSED by #785 — see
+//   the block below. Two halves remain.)
+//
+// ⭐ #785 — THE EVENT PATH, and the one design difference worth reading before the claims.
+// `/echoelmusic/bio/event/*` now carries provenance too, through `OSCSender.eventMessages`.
+// The ordering question the bullet above registered has an answer: the flag goes immediately
+// BEFORE the event it describes, and again only when the origin CHANGES. It is NOT the batch
+// path's unconditional `insert`, and that asymmetry is deliberate, not an oversight:
+//   · A batch is ~1 Hz and already carries several messages, so re-stating the flag every time
+//     is free and lets a late receiver learn the state on its next frame.
+//   · Events CLUSTER — a strap delivers several per-RR beats in one 100 ms drain, breath onsets
+//     arrive in pairs. Re-stating per event would multiply traffic on the one path shaped by
+//     latency, for no information. So the sender LATCHES the last announced value across
+//     drains (`lastAnnouncedEventSynthetic`) and the builder is pure and takes it as input.
+//   · A receiver that joins mid-session therefore learns the state from the BATCH, which is
+//     exactly what CLAUDE.md's "als ZUSTAND latchen" already asks of it. The event path is not
+//     a second source of truth for the state; it is the same state, announced when it moves.
+// The third rejected shape is unchanged from #639 and now has its own claim: appending a float
+// to `/bio/event/*` would break every integrator on the `[confidence, aux]` contract (claim 15).
 //
 // ⚠️ THE FOUNDER GATE THIS SLICE RETRACTED, stated here because a retraction that only lives in
 // a commit message is not written down. `BioSimulator`'s header registered "whether to add …
 // a synthetic marker on the OSC egress" as **a founder question (#462)**. #639 answers the OSC
 // half unilaterally, and the reasons are on the record: the sentence bundled two decisions, the
 // screen half was already shipped without an ask (#627), and this one is additive, reversible
-// and breaks no published contract. The three halves it does NOT answer (ADM-OSC, DMX, events)
-// stay registered as open, above. If the founder wants the flag gone, deleting the `insert`
+// and breaks no published contract. #785 answers the EVENT half on the same reasoning; the two
+// halves neither answers (ADM-OSC, DMX) stay registered as open, above. If the founder wants the flag gone, deleting the `insert`
 // restores the previous wire exactly.
 
 #if canImport(Network)
@@ -324,6 +372,136 @@ final class TheWireSaysWhoseBodyTests: XCTestCase {
                 """)
         }
         XCTAssertEqual(flag.floats, [1], "a breath-only demo batch is still synthetic")
+    }
+
+    // MARK: - 9–15  the discrete-event path (#785)
+
+    /// A stamped event. `aux` is an inter-beat interval in ms for `.heartbeat`, per `BioEvent`.
+    private func beat(_ source: BioSource?, confidence: Float = 0.82,
+                      aux: Float = 640) -> BioEvent {
+        BioEvent(timestamp: 2000, kind: .heartbeat, confidence: confidence,
+                 aux: aux, source: source)
+    }
+
+    private func built(_ events: [BioEvent], lastAnnounced: Bool? = nil)
+        -> (messages: [(address: String, floats: [Float])], announced: Bool?) {
+        OSCSender.eventMessages(for: events, lastAnnounced: lastAnnounced)
+    }
+
+    private static let beatAddress = "/echoelmusic/bio/event/heartbeat"
+
+    /// 9 — REGRESSION. A demo burst announces itself, and BEFORE the event it describes.
+    /// Ordering is asserted by index rather than by `contains`, because a flag that arrives
+    /// after the value it labels leaves a receiver one event behind for the whole burst.
+    func testADemoEventBurstAnnouncesItselfBeforeTheFirstEvent() {
+        let out = built([beat(.fallback)])
+        let addresses = out.messages.map(\.address)
+        XCTAssertEqual(addresses, [Self.provenance, Self.beatAddress], """
+            A demo heartbeat produced \(addresses). Expected the flag first, then the event: \
+            an integrator reading `/bio/event/heartbeat` from a simulator otherwise has no \
+            way at all to tell — the same gap #639 closed on the batch path.
+            """)
+        XCTAssertEqual(out.messages.first?.floats, [1], "1 means synthetic")
+        XCTAssertEqual(out.announced, true, """
+            The builder must report what it announced, or the caller's latch cannot carry \
+            across drains and the flag degenerates to once-per-event.
+            """)
+    }
+
+    /// 10 — REGRESSION. A real body says 0 rather than staying silent, for the reason claim 2
+    /// spells out one screen up: absence must keep meaning exactly one thing.
+    func testARealBodysEventsAlsoSaySo() {
+        for source in [BioSource.cameraPPG, .ble, .faceCam] {
+            let out = built([beat(source)])
+            XCTAssertEqual(out.messages.map(\.address),
+                           [Self.provenance, Self.beatAddress], """
+                A `\(source)` heartbeat produced \(out.messages.map(\.address)).
+                """)
+            XCTAssertEqual(out.messages.first?.floats, [0], """
+                `\(source)` is a real body; 0 is a FACT here, not a missing measurement.
+                """)
+            XCTAssertEqual(out.announced, false)
+        }
+    }
+
+    /// 11 — REGRESSION, and the whole reason this path got a latch instead of copying the batch
+    /// path's unconditional `insert`. Breath onsets and per-RR heartbeats CLUSTER: a strap
+    /// delivers several beats in one 100 ms drain. Re-stating provenance per event would
+    /// multiply traffic on the one path shaped by latency.
+    func testASameOriginBurstAnnouncesItselfExactlyOnce() {
+        let out = built([beat(.fallback, aux: 640), beat(.fallback, aux: 655),
+                         beat(.fallback, aux: 631)])
+        let flags = out.messages.filter { $0.address == Self.provenance }
+        XCTAssertEqual(flags.count, 1, """
+            Three same-origin events produced \(flags.count) flags in one drain \
+            (\(out.messages.map(\.address))). Once per CHANGE, not once per event.
+            """)
+        XCTAssertEqual(out.messages.count, 4, "one flag plus three events")
+    }
+
+    /// 12 — REGRESSION. A source switch mid-drain must re-announce, and immediately before the
+    /// event it describes — not at the head of the burst, where it would mislabel every event
+    /// in front of the switch.
+    func testASourceChangeMidBurstReAnnouncesInPlace() {
+        let out = built([beat(.fallback), beat(.cameraPPG)])
+        XCTAssertEqual(out.messages.map(\.address),
+                       [Self.provenance, Self.beatAddress,
+                        Self.provenance, Self.beatAddress], """
+            A demo→camera switch produced \(out.messages.map(\.address)). The second flag \
+            must sit between the two events, or the camera beat inherits the demo label.
+            """)
+        // Guarded rather than subscripted: on a shorter list a raw `[2]` would TRAP and the
+        // named failure above would never be printed (`guard all array access`).
+        let flags = out.messages.filter { $0.address == Self.provenance }.map(\.floats)
+        XCTAssertEqual(flags, [[1], [0]], """
+            The two flags carried \(flags). Demo first (1), then the camera beat (0).
+            """)
+        XCTAssertEqual(out.announced, false, "the latch ends on the last event's origin")
+    }
+
+    /// 13 — REGRESSION. The latch survives the drain boundary: a second drain of the SAME
+    /// origin adds no flag. Without this the once-per-change rule would hold only inside a
+    /// single 100 ms tick, which is not a rule at all at strap rates.
+    func testASecondDrainOfTheSameOriginIsSilentAboutOrigin() {
+        let out = built([beat(.fallback)], lastAnnounced: true)
+        XCTAssertEqual(out.messages.map(\.address), [Self.beatAddress], """
+            A repeat drain re-announced provenance (\(out.messages.map(\.address))). \
+            The caller latches `announced`; matching state must produce nothing.
+            """)
+        XCTAssertEqual(out.announced, true)
+    }
+
+    /// 14 — COUNTERWEIGHT. #245's silence law, on the new path. An empty drain — the normal
+    /// state, since events are sparse and the poll is 10 Hz — must emit NOTHING, not a bare
+    /// flag describing no event. This is the executable form of the second rejected shape
+    /// ("send it unconditionally"), and it is green on the parent too: the parent's inline
+    /// loop simply sent nothing when the queue was empty.
+    func testAnEmptyDrainSaysNothingAtAll() {
+        let out = built([])
+        XCTAssertTrue(out.messages.isEmpty, """
+            An empty drain emitted \(out.messages.map(\.address)). The flag never travels \
+            alone (claim 3, same law): a receiver must read absence as absence.
+            """)
+        XCTAssertNil(out.announced, "nothing announced, so nothing latched")
+
+        let repeated = built([], lastAnnounced: false)
+        XCTAssertTrue(repeated.messages.isEmpty, "an empty drain is silent whatever the latch")
+        XCTAssertEqual(repeated.announced, false, "and it must not FORGET the latch either")
+    }
+
+    /// 15 — COUNTERWEIGHT, the executable form of the FIRST rejected shape and the load-bearing
+    /// one: appending provenance as an extra argument on `/bio/event/*` would break every
+    /// integrator reading `[confidence, aux]`. Green on the parent by construction — the parent
+    /// sent exactly these two floats — so it guards the decision rather than the defect.
+    func testTheEventAddressesKeepTheirOldTwoFloatShape() {
+        let out = built([beat(.fallback, confidence: 0.71, aux: 812)])
+        guard let event = out.messages.first(where: { $0.address == Self.beatAddress }) else {
+            return XCTFail("the heartbeat event vanished — re-anchor this case (#454)")
+        }
+        XCTAssertEqual(event.floats, [0.71, 812], """
+            `\(Self.beatAddress)` carried \(event.floats). The published contract is exactly \
+            [confidence, aux]; provenance is an ADDITIVE address, never a third argument.
+            """)
     }
 }
 #endif

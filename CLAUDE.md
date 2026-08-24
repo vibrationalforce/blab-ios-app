@@ -653,8 +653,16 @@ the old list named eeg/{band}, audio/rms, audio/pitch which are NEVER sent):
                                  acht bei 16 Bit. Es fehlt eine KONVENTION, nicht der Platz —
                                  ein schwächeres Argument als ein „geht nicht", und genau die
                                  Sorte Über-Behauptung, die diese Scheiben-Familie abbaut.
-                                 Die Event-Adressen unten tragen sie ebenfalls nicht
-                                 (anderer Codepfad, `drainAndSendEvents`).
+                                 ⭐ **Die Event-Adressen unten tragen sie SEIT #785 auch** —
+                                 anderer Codepfad (`drainAndSendEvents` → `eventMessages`) und
+                                 bewusst andere Kadenz: die Flagge steht unmittelbar VOR dem
+                                 Ereignis, das sie beschreibt, und wird nur bei WECHSEL erneut
+                                 gesendet (über Drains gelatcht). Grund: Ereignisse kommen in
+                                 Bündeln (Per-RR-Schläge, Atem-Onsets paarweise) — pro Ereignis
+                                 zu wiederholen vervielfacht den Verkehr auf genau dem Pfad, der
+                                 latenzgeformt ist, ohne Information. Wer mitten in der Session
+                                 dazukommt, lernt den Zustand aus dem ~1-Hz-Batch. Die Arität
+                                 der Event-Adressen bleibt `[confidence, aux]`.
 /echoelmusic/bio/motion          float      — NOT SENT in this build (#215): nothing
                                               measures motion, so a constant 0 would be
                                               indistinguishable from a still performer.
