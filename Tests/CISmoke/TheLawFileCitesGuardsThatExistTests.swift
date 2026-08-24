@@ -222,11 +222,40 @@ final class TheLawFileCitesGuardsThatExistTests: XCTestCase {
 
     // MARK: - file access
 
+    /// The repo root: walk up from this file to the directory that holds `Package.swift`.
+    ///
+    /// ⛔ THE SENTINEL WAS `CLAUDE.md` UNTIL #804, AND THAT MADE EVERY ASSERTION IN THIS FILE
+    /// RED ON A CORRECT TREE. The walk STARTS in `Tests/CISmoke/`, and that directory holds a
+    /// `CLAUDE.md` of its own — the directory-scoped one that owns how a guard is written. The
+    /// first hop matched, `repoRoot()` returned `Tests/CISmoke`, and everything below read the
+    /// wrong tree. A sentinel is only a sentinel if it is unique to the place it marks, and
+    /// this one was not unique in the one directory the walk cannot avoid.
+    ///
+    /// ⚠️ THE ANCHORS WORKED; THEY WERE JUST NEVER HEARD. #454 made the miss fail loudly
+    /// instead of passing on less — that is exactly what it is for. Nothing read the failure:
+    /// CI/CD reports `failure` on every push (#396), so a genuinely red guard is
+    /// indistinguishable from the host dying, and this suite was never in a flushed subset
+    /// (#445). This is the #655/#656 shape again, and the fix for the READING half is
+    /// founder-gated, so the fix for the WRITING half is: make the guard right the first time.
+    ///
+    /// ⚠️ WHY THE PYTHON DRIVER MISSED IT — the transferable half. Every claim here was
+    /// transcribed and driven against both trees, as §0 requires. But the driver handed the
+    /// scanner its files BY PATH; the shipped guard FINDS its own. **Logic and file resolution
+    /// are two things to transcribe, and only one of them was.** #782/#800 say a mutation is
+    /// not evidence until it hits the thing under test; this is the control side of the same
+    /// coin — a control that never exercises the broken part proves nothing.
+    ///
+    /// `Package.swift` is the house sentinel (three other guards already use it) and exists
+    /// nowhere on the walk but the root. Pinned by `TheRootSentinelIsUniqueToTheRootTests`.
+    ///
+    /// ⚠️ SCOPE HERE: red since #800, i.e. this guard has never once run green. #802 widened
+    /// the corpus and #803 tidied a count inside a file that could not pass — two cycles spent
+    /// on the contents of a guard whose FIRST line read the wrong directory.
     private func repoRoot() throws -> URL {
         var dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         for _ in 0..<8 {
             if FileManager.default.fileExists(atPath:
-                dir.appendingPathComponent("CLAUDE.md").path) { return dir }
+                dir.appendingPathComponent("Package.swift").path) { return dir }
             dir = dir.deletingLastPathComponent()
         }
         throw NSError(domain: "TheLawFileCitesGuardsThatExist", code: 1, userInfo: [

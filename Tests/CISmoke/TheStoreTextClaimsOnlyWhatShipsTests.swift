@@ -190,7 +190,22 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
         let outputs = ["osc", "adm-osc", "art-net", "sacn"]
         var offenders: [String] = []
         var unreadable: [String] = []
-        for file in try storeCopy() {
+        // ⛔ SCOPED TO THE LONG-FORM DESCRIPTION (#804), AND THE MISS WAS #768'S. That slice
+        // widened `storeCopy()` from three leaves to five — rightly, `keywords.txt` is exactly
+        // where an unbuilt capability gets stuffed for ASO reach — but this claim reasons about
+        // two BLOCKS, a CONNECT list and a PRIVACY paragraph, and only the long-form description
+        // has blocks. `en-US/keywords.txt` is a comma-separated list that contains "sACN" and no
+        // heading of any kind, so the #454 anchor fired on a file that cannot structurally carry
+        // the thing it looks for: red on correct copy, the #665 shape.
+        //
+        // ⚠️ NOTHING NOTICED FOR SIX COMMITS because this guard could not run at all — its
+        // `repoRoot()` walked to `Tests/CISmoke`. One defect hid the other, which is the reason
+        // #804 drove every claim in this file rather than only the one it came to fix.
+        //
+        // The narrowing is principled, not convenience: the OTHER six claims stay on all five
+        // leaves, because "does the text name something that does not ship" is a question a
+        // keyword list answers perfectly well.
+        for file in try storeCopy() where file.path.hasSuffix("description.txt") {
             let flat = file.text.lowercased()
             guard flat.contains("sacn") || flat.contains("art-net") else { continue }
             guard let heading = Self.privacyHeadings.first(where: { flat.contains($0) }),
@@ -522,11 +537,43 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
 
     // MARK: - file access
 
+    /// The repo root: walk up from this file to the directory that holds `Package.swift`.
+    ///
+    /// ⛔ THE SENTINEL WAS `CLAUDE.md` UNTIL #804, AND THAT MADE EVERY ASSERTION IN THIS FILE
+    /// RED ON A CORRECT TREE. The walk STARTS in `Tests/CISmoke/`, and that directory holds a
+    /// `CLAUDE.md` of its own — the directory-scoped one that owns how a guard is written. The
+    /// first hop matched, `repoRoot()` returned `Tests/CISmoke`, and everything below read the
+    /// wrong tree. A sentinel is only a sentinel if it is unique to the place it marks, and
+    /// this one was not unique in the one directory the walk cannot avoid.
+    ///
+    /// ⚠️ THE ANCHORS WORKED; THEY WERE JUST NEVER HEARD. #454 made the miss fail loudly
+    /// instead of passing on less — that is exactly what it is for. Nothing read the failure:
+    /// CI/CD reports `failure` on every push (#396), so a genuinely red guard is
+    /// indistinguishable from the host dying, and this suite was never in a flushed subset
+    /// (#445). This is the #655/#656 shape again, and the fix for the READING half is
+    /// founder-gated, so the fix for the WRITING half is: make the guard right the first time.
+    ///
+    /// ⚠️ WHY THE PYTHON DRIVER MISSED IT — the transferable half. Every claim here was
+    /// transcribed and driven against both trees, as §0 requires. But the driver handed the
+    /// scanner its files BY PATH; the shipped guard FINDS its own. **Logic and file resolution
+    /// are two things to transcribe, and only one of them was.** #782/#800 say a mutation is
+    /// not evidence until it hits the thing under test; this is the control side of the same
+    /// coin — a control that never exercises the broken part proves nothing.
+    ///
+    /// `Package.swift` is the house sentinel (three other guards already use it) and exists
+    /// nowhere on the walk but the root. Pinned by `TheRootSentinelIsUniqueToTheRootTests`.
+    ///
+    /// ⚠️ SCOPE HERE IS THE SERIOUS PART: red since #757, so this guard has been failing at
+    /// `localeDirectories()` through #768, #769, #791, #792, #794 and #795 — every cycle in
+    /// which a status delta said the App Store text was pinned. The store copy was NOT
+    /// guarded during the two under-claim repairs that added MPE-output and voice-timbre
+    /// sentences to it. The claims themselves were measured by hand and still hold; what was
+    /// missing was the machine that keeps them holding.
     private func repoRoot() throws -> URL {
         var dir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         for _ in 0..<8 {
             if FileManager.default.fileExists(atPath:
-                dir.appendingPathComponent("CLAUDE.md").path) { return dir }
+                dir.appendingPathComponent("Package.swift").path) { return dir }
             dir = dir.deletingLastPathComponent()
         }
         throw NSError(domain: "TheStoreTextClaimsOnlyWhatShips", code: 1, userInfo: [

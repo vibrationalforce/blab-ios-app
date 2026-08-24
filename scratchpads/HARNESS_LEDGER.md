@@ -2264,3 +2264,34 @@ Eintrag eine `**Code:**`- gefolgt von einer `**Live:**`-Zeile hat.
 **Und die Lehre über das Verfahren, nicht über den Inhalt:** das hätte niemand am Text gesehen —
 nur das TREIBEN gegen den Elternteil hat es gezeigt. Ein Wächter, der auf dem kaputten Baum
 grün ist, ist kein Wächter.
+
+---
+
+### PLAYBOOK (#804) — einen Wächter treibt man samt seiner DATEI-AUFLÖSUNG
+
+**Situation:** ein neuer Wächter liest Dateien, die er selbst findet (Repo-Wurzel per Aufwärtslauf,
+Verzeichnis-Aufzählung, Locale-Walk).
+
+**Der Fehler, der zweimal bezahlt wurde:** der Python-Treiber reicht dem Scanner die Dateien
+**per Pfad**. Damit ist die LOGIK geprüft und die AUFLÖSUNG nie. Zwei Wächter waren so von
+Tag eins an rot — einer sechs Commits lang, während Status-Deltas sagten, er pinne den
+App-Store-Text.
+
+**Stattdessen:** die Auflösung mit-transkribieren. Konkret für einen Aufwärtslauf: den Lauf in
+Python nachbauen, ab dem echten Startverzeichnis, und ausdrucken, WO er landet — nicht nur, was
+der Scanner dann sagt.
+
+**Und die Regel, die daraus fällt:** ein Sentinel muss **eindeutig für den Ort sein, den er
+markiert**. `CLAUDE.md` ist es nicht — `Tests/CISmoke/` hat ein eigenes, und genau dort beginnt
+der Lauf. `Package.swift` ist es. Gepinnt von `TheRootSentinelIsUniqueToTheRootTests`.
+
+### DEAD-END (#804) — `SourceText.codeOnly` auf `Tests/CISmoke/` verstümmelt
+
+**Nicht nochmal probieren:** einen Wächter, der das GUARD-BUNDLE scannt, mit
+`SourceText.codeOnly` zu strippen. Der Stripper trägt Block-Kommentar-Zustand über Zeilen und
+kennt `"""` nicht, also öffnet ein `docs/**` in einer Fehlermeldung einen Block, der nie
+schließt. Gemessen: **8 Dateien, 943 Zeilen unsichtbar** — gegen **0 von 369** unter `Sources/`.
+
+**Stattdessen:** zeilenweise lesen und `//`-Zeilen überspringen (kein Zustand, nicht
+entgleisbar). Für `Sources/` bleibt `codeOnly` richtig und Pflicht (#453) — die Grenze verläuft
+am Korpus, nicht am Verfahren.

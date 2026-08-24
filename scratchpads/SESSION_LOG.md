@@ -13608,3 +13608,67 @@ ist gewöhnliche Arbeit und darf nicht rot werden (#364). Dafür ist `citationFl
 ⭐ **Warum das keine Kosmetik ist:** das Muster hatte in dieser Sitzung schon zweimal zugeschlagen
 (#802s Kopfzahl, und davor #789s Zitat-Rezept). Eine Zahl an N Stellen altert an N−1 Stellen
 still; wer sie nachführt, führt sie an den Stellen nach, an die er gerade denkt.
+
+---
+
+## #804 — zwei Wächter zeigten auf `Tests/CISmoke/`, nicht auf die Wurzel
+
+**Befund, gemessen.** `TheLawFileCitesGuardsThatExistTests` und
+`TheStoreTextClaimsOnlyWhatShipsTests` suchten die Repo-Wurzel, indem sie von `#filePath`
+aufwärts das erste Verzeichnis mit **`CLAUDE.md`** nahmen. Der Lauf BEGINNT in
+`Tests/CISmoke/`, und dieses Verzeichnis hat ein eigenes `CLAUDE.md` — das
+verzeichnis-eigene, das regelt, wie ein Wächter geschrieben wird. Der erste Sprung traf also,
+`repoRoot()` lieferte `Tests/CISmoke`, und alles darunter las den falschen Baum:
+
+- Der Gesetzes-Wächter fand **1 von 4** immer-geladenen Dateien → **rot seit #800**.
+- Der Store-Wächter fand **kein** Locale-Verzeichnis → **rot seit #757**.
+
+Beide sind laut gescheitert, genau wie #454 es will. Gehört hat es niemand: CI/CD meldet auf
+jedem Push `failure` (#396), und keine der beiden Suiten war je in einer geleerten Teilmenge
+(#445). Die #655/#656-Form.
+
+**Der teure Teil ist der zweite:** der Store-Wächter hat #768, #769, #791, #792, #794 und #795
+begleitet — jeden Zyklus, in dem ein Status-Delta sagte, der App-Store-Text sei gepinnt. Der
+Text war in dieser Zeit **nicht** bewacht. Die Behauptungen selbst sind von Hand gemessen und
+halten; gefehlt hat die Maschine, die sie hält.
+
+**Warum der Python-Treiber es nicht fand — die übertragbare Hälfte.** Jede Behauptung war
+transkribiert und gegen beide Bäume getrieben, wie §0 verlangt. Aber der Treiber reichte dem
+Scanner seine Dateien **per Pfad**; der ausgelieferte Wächter **sucht sie selbst**. *Logik und
+Datei-Auflösung sind zwei Dinge zum Transkribieren, und nur eines war es.* #782/#800 sagen: eine
+Mutation ist kein Beleg, bevor sie das Prüfobjekt trifft — das hier ist die Kontroll-Seite
+derselben Münze.
+
+**Reparatur.** Beide auf `Package.swift` (wurzel-eindeutig, Hausstandard — drei andere Wächter
+nutzten es längst, zwei nicht, und nichts prüfte, dass die zwei Familien übereinstimmen).
+Neuer Wächter `Tests/CISmoke/TheRootSentinelIsUniqueToTheRootTests.swift`: er verlangt, dass
+ein Sentinel nirgends AUF dem Lauf liegt außer am Ziel. Er verbietet nichts (#364) — Sentinel
+wechseln, Wächter hinzufügen, alles erlaubt; nur eine Kopie in `Tests/` oder `Tests/CISmoke/`
+nicht. Er leitet seine eigene Wurzel per STRUKTUR ab (zwei Verzeichnisse hoch), nicht per Suche.
+
+**Zwei Nebenbefunde, beide beim Treiben aufgetaucht:**
+
+1. ⛔ **`SourceText.codeOnly` verstümmelt genau EINEN Korpus: dieses Verzeichnis.** Der Stripper
+   trägt Block-Kommentar-Zustand über Zeilen und kennt `"""` nicht — ein `docs/**` in einer
+   Fehlermeldung liest sich als `/*`, öffnet einen Block, der nie schließt, und schwärzt den
+   Rest der Datei. Gemessen: **8 Wächter-Dateien verlieren 943 Zeilen**, `Sources/` **0 von 369**
+   (Wächter schreiben lange Prosa in `"""`, ausgelieferter Code nicht). Deshalb liest der neue
+   Wächter **zeilenweise** statt gestrippt, und die Abweichung ist TRAGEND: mit `codeOnly` sieht
+   der Elternbaum EINEN Übeltäter, zeilenweise ZWEI — die ältere und schwerere der beiden
+   Fundstellen wäre unsichtbar geblieben. Der `"""`-Mangel selbst ist #659s bekannte Grenze;
+   seine Reparatur ist eine bundle-weite Migration, nicht diese Scheibe. **Offen, notiert.**
+2. ⛔ **Anspruch 1 des Store-Wächters war rot auf korrektem Text** — und das hat der Sentinel-Fehler
+   verdeckt. #768 hat den Korpus zu Recht von drei auf fünf Blätter geweitet; der Anspruch
+   argumentiert aber über zwei BLÖCKE (CONNECT und PRIVACY), und die hat nur die Langfassung.
+   `en-US/keywords.txt` enthält „sACN" und gar keine Überschrift → der #454-Anker feuerte auf
+   einer Datei, die das Gesuchte strukturell nicht tragen kann. Jetzt auf `description.txt`
+   verengt; die anderen sechs Ansprüche bleiben auf allen fünf Blättern.
+
+**Getrieben** (alles gegen Arbeitsbaum UND Eltern `92ddb00`): Wurzel-Auflösung beider Wächter ·
+Zitat-Logik (35 Zitate, 4 Mutationen) · neuer Wächter (Kontrolle grün, Eltern rot mit genau den
+zwei Übeltätern, 4 Mutationen je für ihren eigenen Grund rot) · **alle sieben Store-Ansprüche
+gegen die echten 10 Metadaten-Dateien, zum ersten Mal überhaupt**. `dead-needles` sauber bei
+358 Dateien, `review.sh --check` OK bei 430.
+
+⚠️ **Ehrlich:** kompiliert ist nichts davon lokal — es gibt keine Toolchain. Die Gates
+entscheiden.
