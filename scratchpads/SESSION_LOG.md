@@ -13231,3 +13231,24 @@ nur der Widerspruch.
 Eltern rot in BEIDEN Locales, Arbeitsbaum grün, drei Mutationen: sACN nur aus CONNECT → rot ·
 aus beiden → grün (#364) · Überschrift umbenannt → rot über die Anker-Zusicherung.
 
+## #792 — Behauptung 5 kompilierte nicht: `file.rel` statt `file.path` (2026-08-24)
+
+`Build for Testing` war ROT auf `6f7dcaa` — der erste echte Compile-Bruch dieser Sitzung. Ursache:
+zwei Zeilen schrieben `file.rel`, während das Tupel, das `storeCopy()` zurückgibt, mit `path`
+beschriftet ist.
+
+**Die schärfste Form der Lehre: die richtige Bezeichnung stand VIERMAL in derselben Datei.** Die
+vier Geschwister-Behauptungen benutzen alle `file.path`. Ich habe den Namen aus einer
+Fehlermeldung INNERHALB des Helfers abgeleitet — dort ist `rel` eine lokale Variable — und die
+Signatur vier Zeilen darüber nie gelesen. Das ist #783 („eine Beschriftung wird aus der Quelle
+KOPIERT, nie abgetippt"), angewandt auf ein API-Mitglied statt auf eine UI-Zeichenkette.
+
+`dead-needles.py` kann das nicht fangen: es löst `Self.x`-Referenzen auf, keine Tupel-Mitglieder.
+Gefangen hat es `Build for Testing` — wofür es genau da ist —, aber das kostet einen vollen
+Zyklus. **Regel: die Signatur lesen, nicht die Prosa daneben.**
+
+Gegenprobe: alle anderen in dieser Sitzung neu geschriebenen Wächter (`TheWireSaysWhoseBody`
+9–16, `TheADMObjectCarriesNoOrigin`, `TheLightRigSeesTheSimulator`, MPE-Behauptung 12) waren an
+ihren jeweiligen Commits mit `Build for Testing: success` belegt — der Bruch ist auf diese eine
+Datei begrenzt.
+

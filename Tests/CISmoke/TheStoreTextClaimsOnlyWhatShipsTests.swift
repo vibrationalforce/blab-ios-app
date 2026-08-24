@@ -42,6 +42,16 @@
 //  for: #184 removed TWELVE false capability claims from this exact text and nothing has
 //  guarded the return since. Claims 1 and 2 are unchanged counterweights.
 //
+//  ⛔ AND CLAIM 5 DID NOT COMPILE ON ITS FIRST PUSH (#792). It wrote `file.rel`; the tuple
+//  `storeCopy()` returns is labelled `path`, and the four sibling claims in THIS FILE all say
+//  `file.path`. I took the name from a message inside the helper — where `rel` is a local — and
+//  never read the signature four lines above it. **The correct label was in the same file, four
+//  times.** That is #783's rule (a label is COPIED from source, never retyped) applied to an
+//  API member instead of a UI string, and `dead-needles.py` cannot catch it: it resolves
+//  `Self.x` references, not tuple members. The gate that caught it is `Build for Testing`, which
+//  is exactly what it is for — but it costs a full cycle, so read the signature, not the
+//  neighbouring prose.
+//
 //  ⭐ GRADING FOR #791 (parent `278fd2d`). Claim 5 is a REGRESSION, red on the parent in BOTH
 //  locales, and it is the FIRST claim in this file that points the other way. Every other claim
 //  here asks *is something SOLD that does not ship* — the 2.3 direction. Claim 5 asks *does
@@ -166,13 +176,13 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
                 // looked for "privacy"/"datenschutz", the German listing's heading is
                 // PRIVATSPHÄRE, so de-DE was skipped in silence while carrying the identical
                 // defect en-US was caught for.
-                unreadable.append(file.rel)
+                unreadable.append(file.path)
                 continue
             }
             let sold = String(flat[..<split.lowerBound])
             let warned = String(flat[split.upperBound...])
             for name in outputs where warned.contains(name) && !sold.contains(name) {
-                offenders.append("\(file.rel): \(name)")
+                offenders.append("\(file.path): \(name)")
             }
         }
         XCTAssertTrue(unreadable.isEmpty, """
