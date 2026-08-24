@@ -33,7 +33,7 @@ receiving app at the phone's IP (UDP). Default namespace:
 
 | Address | Range | Meaning |
 |---|---|---|
-| `/echoelmusic/bio/synthetic` | 0 or 1 | **whose body this is.** 1 = the built-in DEMO generator, 0 = a real measured source. Sent FIRST in every tick that carries at least one value, and omitted entirely from a silent tick — so it never arrives alone. **Latch it as state, do not treat it as a prefix:** these are separate UDP datagrams and UDP does not preserve order, so it may land after the values of its own tick; it repeats every tick (~1 Hz) and only changes when the player switches source. If you never see this address while values are arriving, you are talking to an Echoel build that predates this address (it was added with the OSC provenance slice). It answers "is this a body", not "which sensor". |
+| `/echoelmusic/bio/synthetic` | 0 or 1 | **whose body this is.** 1 = the built-in DEMO generator, 0 = a real measured source. Sent FIRST in every tick that carries at least one value, and omitted entirely from a silent tick — so it never arrives alone. **Latch it as state, do not treat it as a prefix:** these are separate UDP datagrams and UDP does not preserve order, so it may land after the values of its own tick; it repeats every tick (~1 Hz) and only changes when the player switches source. If you never see this address while values are arriving, you are talking to an Echoel build that predates this address (it was added with the OSC provenance slice). It answers "is this a body", not "which sensor". **The discrete `/bio/event/*` rows below carry this flag too, on a DIFFERENT cadence** (#785): there it is sent immediately BEFORE the event it describes and again only when the origin CHANGES, latched across polls — because events arrive in bursts (per-RR beats, paired breath onsets) and repeating it per event would multiply traffic for no information. Same latch either way: if you joined mid-session, the ~1 Hz batch above tells you the current state. |
 | `/echoelmusic/bio/heart/bpm` | 40–200 | heart rate — only with a measured pulse |
 | `/echoelmusic/bio/heart/hrv` | 0–1 | normalized HRV — needs a pulse AND a non-zero HRV |
 | `/echoelmusic/bio/heart/rmssd` · `/sdnn` · `/pnn50` | ms / ms / % | HRV detail (trusted source) — same rule: a pulse plus a real value |
@@ -41,7 +41,7 @@ receiving app at the phone's IP (UDP). Default namespace:
 | `/echoelmusic/bio/breath/phase` | 0–1 | inhale→exhale phase (great for smooth motion) — rides the RATE's gate, never its own value, because 0 is a real position |
 | `/echoelmusic/bio/coherence` | 0–1 | HRV coherence — see the note above; frequently absent |
 | `/echoelmusic/bio/motion` | 0–1 | body motion energy — **NOT SENT today** (#215): no CoreMotion provider exists, every publisher writes `motionEnergy: 0`. It used to arrive as a constant 0, which no receiver can tell apart from a performer standing still; now the address simply does not appear. It returns when a motion sensor does. |
-| `/echoelmusic/bio/event/heartbeat` | trigger | per-beat bang (flash on the beat) |
+| `/echoelmusic/bio/event/heartbeat` | trigger | per-beat bang (flash on the beat). Preceded by `/bio/synthetic` when the origin changes — see that row |
 | `/echoelmusic/bio/event/breath/inhale` · `/exhale` | trigger | breath onsets |
 | `/echoelmusic/bio/event/coherence` · `/eeg` · `/motion` | trigger | onset bangs (the `/motion` bang cannot fire while motion energy is a constant 0) |
 

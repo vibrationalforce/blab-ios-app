@@ -13118,3 +13118,31 @@ bleiben die ⛔-Blöcke legal, die die zurückgenommene Behauptung absichtlich w
 (#491). Richtungslose Nennungen bleiben absichtlich draußen — die Regel gehört `CLAIMS.md` §6
 (#416). Eltern rot mit 4 Fundstellen, Arbeitsbaum grün, drei Mutationen je rot für ihren Grund.
 
+## #788 — die Integrator-Tabellen wussten nichts von #785 (2026-08-24)
+
+Direkte #456-Nachkontrolle zu #785. Ich hatte drei Prosa-Heimaten mitgezogen; die Flächen, die ein
+INTEGRATOR liest, waren nicht dabei. `docs/dev/VJ_BRIDGE.md`, `docs/architecture.html` und
+`docs/dev/FEATURE_MATRIX.md` beschrieben die Herkunftsflagge mit der reinen BATCH-Regel — vor #785
+vollständig, danach eine halbe Wahrheit, und zwar in genau den Tabellen, für deren Publikum diese
+ganze Scheiben-Familie existiert. **Eine UNTER-Behauptung**, die kein Scan nach falschen Aussagen
+je gefunden hätte.
+
+**Wächter: Behauptung 16, verzeichnisgetrieben** — jede Datei unter `docs/`, die eine
+`/echoelmusic/bio/event/`-Adresse LISTET, muss auch `/echoelmusic/bio/synthetic` nennen. Der
+Korpus definiert sich selbst.
+
+**Und das war nicht theoretisch: der Treiber fand eine DRITTE Datei.** Ich hatte zwei editiert und
+hätte eine Zwei-Datei-Liste geschrieben; `FEATURE_MATRIX.md` listet die Ereignis-Adressen ebenfalls
+und war still. **#787s Lehre einen Zyklus später angewandt und im selben Zyklus bezahlt** — hätte
+ich die Liste statt des Verzeichnisses genommen, wäre die Lücke sofort wieder offen gewesen.
+
+**Zwei Selbst-Funde am eigenen Entwurf:**
+· Die KIND-Zeile des Wächters sagte „No source-text scanning and no needles anywhere in this file".
+  Behauptung 16 macht das falsch — also im selben Commit korrigiert. Das ist #425, und **dieselbe
+  Datei hat zwei Commits vorher schon einmal dafür bezahlt** (Behauptung 14s Doc-Kommentar gegen
+  den korrigierten Kopf).
+· Meine eigene Kontroll-Nadel meldete die Zeile danach weiter als „stale" — sie traf das
+  absichtliche ⛔-Zitat der Rücknahme. Genau #491, diesmal an meinem PRÜFER statt am Repo.
+
+Eltern rot (eine stille Datei), Arbeitsbaum grün, zwei Mutationen je rot für ihren Grund.
+

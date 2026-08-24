@@ -54,8 +54,13 @@
 // KIND (§1): **END-TO-END BEHAVIOUR**, all fifteen claims. `OSCSender.bioMessages(for:)` and
 // `OSCSender.eventMessages(for:lastAnnounced:)` are both `nonisolated static`, and
 // `BioSampleFrame` / `BioEvent` / `BioSource` / `BioEgressPolicy` are public Foundation-only
-// value types, so this bundle drives the shipped producers and reads their real output. No
-// source-text scanning and no needles anywhere in this file. What stays a DEVICE
+// value types, so this bundle drives the shipped producers and reads their real output.
+// ⛔ "No source-text scanning and no needles anywhere in this file" STOOD HERE AND CLAIM 16
+// MAKES IT FALSE (#788). Claims 1-15 are still pure behaviour; claim 16 walks `docs/` and reads
+// text, because what it guards is a DOC, and no behavioural path can reach one. Corrected here
+// rather than left standing: a header that describes a method the file no longer uses is #374,
+// and a claim contradicted by its own file is #425 - this file paid for that once already, two
+// commits ago, on claim 14. What stays a DEVICE
 // PROBE: that a real receiver (TouchOSC, a desk, an ADM renderer) actually latches the flag.
 //
 // GRADING (#433 / §3), driven against the parent (096d519) and this tree — the gates modelled
@@ -199,6 +204,22 @@ final class TheWireSaysWhoseBodyTests: XCTestCase {
         BioSampleFrame(timestamp: 1000, heartRateBPM: 0, hrvNormalized: 0,
                        breathRate: 0, breathPhase: 0.25, coherence: 0,
                        motionEnergy: 0, source: source)
+    }
+
+    /// The bundle's repo-root idiom - copied, not re-invented (#416/#786). It SKIPS when the
+    /// tree is absent so claim 16's source read cannot report a green it did not earn.
+    private func repoRoot() throws -> URL {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        guard FileManager.default.fileExists(
+            atPath: root.appendingPathComponent("docs").path) else {
+            throw XCTSkip("""
+                docs/ not present under \(root.path) - claim 16 reads doc text, so it SKIPS \
+                rather than reporting a green it did not earn
+                """)
+        }
+        return root
     }
 
     private func messages(_ f: BioSampleFrame) -> [(address: String, floats: [Float])] {
@@ -516,6 +537,56 @@ final class TheWireSaysWhoseBodyTests: XCTestCase {
         let repeated = built([], lastAnnounced: false)
         XCTAssertTrue(repeated.messages.isEmpty, "an empty drain is silent whatever the latch")
         XCTAssertEqual(repeated.announced, false, "and it must not FORGET the latch either")
+    }
+
+    /// 16 — REGRESSION (#788). Every doc that LISTS a discrete event address must also say the
+    /// events carry provenance. `docs/dev/VJ_BRIDGE.md` and `docs/architecture.html` described
+    /// the flag with the BATCH rule only ("sent first in every tick that carries a value"), which
+    /// was complete before #785 and became a half-truth the moment the event path got its own
+    /// cadence — in the two tables an INTEGRATOR reads, which is the whole audience this family
+    /// of slices exists for. An under-claim, not an over-claim, and it would never have shown up
+    /// in a scan looking for false statements.
+    ///
+    /// ⭐ DIRECTORY-DRIVEN ON PURPOSE, and that is #787's lesson applied one cycle later. A named
+    /// list of two files would have missed `docs/dev/FEATURE_MATRIX.md`, which also lists the
+    /// event addresses — I only found the third file by running the sweep instead of trusting the
+    /// two I had just edited. The corpus defines itself: any file under `docs/` that names
+    /// `/echoelmusic/bio/event/` is in scope, whatever its extension or directory depth.
+    ///
+    /// ⚠️ #364: this does NOT mandate a wording. It asks only that a doc listing the event
+    /// addresses mentions `/echoelmusic/bio/synthetic` somewhere, so a reader of that table
+    /// learns the events are labelled at all. Removing provenance from the event path is a
+    /// legitimate future decision — it turns this red, and the message says what to pull.
+    func testEveryDocListingEventAddressesMentionsTheirProvenance() throws {
+        let docs = try repoRoot().appendingPathComponent("docs")
+        guard let walker = FileManager.default.enumerator(atPath: docs.path) else {
+            return XCTFail("cannot walk docs/ — re-anchor this claim (#454)")
+        }
+        var listing: [String] = []
+        var silent: [String] = []
+        for case let rel as String in walker {
+            guard rel.hasSuffix(".md") || rel.hasSuffix(".html") else { continue }
+            guard let text = try? String(contentsOf: docs.appendingPathComponent(rel),
+                                         encoding: .utf8) else { continue }
+            guard text.contains("/echoelmusic/bio/event/") else { continue }
+            listing.append(rel)
+            if !text.contains(Self.provenance) { silent.append(rel) }
+        }
+        XCTAssertFalse(listing.isEmpty, """
+            No file under docs/ names /echoelmusic/bio/event/ any more. That is not a pass — the \
+            needle can no longer match its corpus (#454/#779). Re-anchor before trusting a green.
+            """)
+        XCTAssertTrue(silent.isEmpty, """
+            \(silent.count) doc(s) list the discrete event addresses but never mention \
+            \(Self.provenance): \(silent.joined(separator: ", ")).
+            Since #785 those events ARE labelled — the flag goes immediately before the event it \
+            describes and again only on a change of origin, latched across polls. A table that \
+            lists the addresses and stays silent about it leaves an integrator believing a \
+            simulator's heartbeat bang is indistinguishable from a body's, which is exactly the \
+            gap #639 opened this family to close. If provenance was deliberately REMOVED from the \
+            event path, this red is correct and the register above plus CLAUDE.md's OSC section \
+            move in the SAME commit (#456).
+            """)
     }
 
     /// 15 — COUNTERWEIGHT, the executable form of the FIRST rejected shape and the load-bearing
