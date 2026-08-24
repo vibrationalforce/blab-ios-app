@@ -12953,3 +12953,45 @@ daraus geschrieben wird.
 
 **Note (#464): vorbeugend** — die nächste Geräte-Session ist zwei Minuten statt einer Suche,
 und die Log-Triage ist ein `grep monitor:`.
+
+## 2026-08-24 — #784: die Release-Note nennt etwas offen, das seit sieben Scheiben fertig ist
+
+**Befund.** `.deploy/release:79` sagt dem Founder: *„Weiterhin offen: das ‚Demo'-Schildchen pro
+Zeile in der Metrik-Ansicht"*. **Gemessen: geschlossen, und zwar gründlich.**
+
+Jede erreichbare Fläche, die einen Bio-WERT als Text druckt, markiert die Herkunft:
+
+| Fläche | Zustand |
+|---|---|
+| Kopf-Pille (`PulseMonitorMini`) | MARKIERT (#627/#627b) |
+| Bio-Streifen (`BioStripView`) | MARKIERT (#627/#627b) |
+| `BioMetricsGuideView` | Abschnitt #627b, **Zeilen #637** |
+| `OwnBioRow` (`LiveColaboView`) | markiert |
+| `AlwaysOnBioRow` | **MARKIERT (#634)**, beide Montagestellen, `Text("Demo")` pro Zeile |
+| `BioModContributionRow` (FX-Blatt) | GESCHLOSSEN (#635b) |
+| `BreathVoiceRow` + `AutoModeRow` | MARKIERT (#648) |
+| Der Draht (`/echoelmusic/bio/synthetic`) | #639 |
+
+**Zwölf Wächter** decken das ab, angeführt von `TheDemoSourceIsMarkedWhereItRendersTests` —
+dessen Bereichsliste **keinen einzigen offenen Eintrag** mehr hat.
+
+**Nicht-Treffer, gemessen und bewusst kein Defekt:** `SpectralDonutView` (seit #747 erreichbar)
+fährt Grafik aus Kohärenz und druckt keine Zahl — eine demo-getriebene GRAFIK ist keine
+behauptete Messung. `BreathGuideView` druckt eine, ist aber nur aus dem türlosen `BioSourceView`
+erreichbar. `AnalysisPoincareView` und `MeditationView` ebenso türlos, beide dokumentiert.
+
+⛔ **Ich habe KEINEN Wächter gebaut, und das ist die Pointe.** Der Reflex war „diese Invariante
+gehört gepinnt" — sie IST gepinnt, zwölffach, und ein dreizehnter wäre #416 gewesen. **Vor dem
+Bauen eines Wächters gehört ein `grep` über `Tests/CISmoke` auf das Gesetz, nicht auf den
+Dateinamen.**
+
+⭐ **`.deploy/release` bleibt unangetastet, und diesmal GEMESSEN statt vermutet:**
+`testflight.yml` triggert auf `push: paths: ['.deploy/release']` — auf die DATEI, nicht auf die
+Versionszeile. Eine reine Text-Korrektur würde einen echten TestFlight-Upload auslösen. Die
+Zeile fällt daher beim nächsten echten Deploy weg, nicht vorher.
+
+**→ AUFTRAG AN DIE NÄCHSTE DEPLOY-NOTE:** die Zeile „Weiterhin offen" enthält einen Posten zu
+viel. Offen bleiben **ADM-OSC / Art-Net / sACN ohne Herkunftsangabe** und **Harmonizer/Granular
+auf der Stimme** (wartet auf V0). Das Demo-Schildchen NICHT mehr aufführen.
+
+**Note (#464): kein Code-Fund; eine falsche Founder-Information korrigiert.**

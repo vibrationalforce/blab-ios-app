@@ -2146,3 +2146,20 @@ Designer sie setzt.
 
 **Gegenprobe, die es sofort entscheidet:** `grep -rqF '<label>' Sources/ --include=*.swift`.
 Bei 0 Treffern ist die ERSTE Hypothese „mein Suchmuster", nicht „das Repo".
+
+### PLAYBOOK (#784) — vor dem Bauen eines Wächters das GESETZ grepen, nicht den Dateinamen
+
+#784 stand kurz davor, eine Herkunfts-Invariante zu pinnen („jede Fläche, die einen Bio-Wert
+druckt, muss Demo markieren"). Ein `grep -rln 'isSynthetic|"Demo"' Tests/CISmoke` lieferte
+**zwölf** Wächter, darunter `TheDemoSourceIsMarkedWhereItRendersTests`, also exakt diese
+Invariante. Ein dreizehnter wäre #416 gewesen.
+
+**Regel:** die Suche geht auf die SACHE (`isSynthetic`, `"Demo"`), nicht auf einen vermuteten
+Dateinamen. Ein Wächter heißt hier nach seiner Aussage, nicht nach seinem Gegenstand — wer
+`grep DemoTag` oder `grep BioStripViewTests` macht, findet ihn nicht und baut ihn neu.
+
+### DEAD-END (#784) — `.deploy/release` NIE für eine Textkorrektur anfassen
+
+Gemessen in `testflight.yml`: `push: paths: ['.deploy/release']`. Der Filter steht auf der
+DATEI, nicht auf der Versionszeile — eine reine Prosa-Korrektur löst einen echten
+TestFlight-Upload aus. Korrekturen an der Note warten auf den nächsten echten Deploy.
