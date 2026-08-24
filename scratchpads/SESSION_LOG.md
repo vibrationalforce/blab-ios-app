@@ -13085,3 +13085,36 @@ mit `XCTSkip` hat. Ersetzt durch die Bundle-Form — ein selbstgebauter Helfer w
 Definition derselben Entscheidung (#416) und hätte bei fehlendem Baum ein falsches Rot statt eines
 ehrlichen Skips geliefert.
 
+## #787 — „MPE in" stand in SECHS `docs/dev/*.md`-Zeilen, und kein Wächter sah diese Dateiklasse (2026-08-24)
+
+Ausgelöst durch die #456-Nachkontrolle zu #785: ich hatte drei Prosa-Heimaten mitgezogen und
+gefragt, ob es eine vierte gibt. Beim Absuchen der nutzersichtbaren Flächen fiel etwas anderes
+auf — eine **falsche Fähigkeits-Behauptung**, nicht nur eine unvollständige.
+
+Gemessen und unverändert seit #548/#770: `MIDIEventParse` hat **gar keinen**
+Channel-Pressure-Zweig, `MIDIBusPublisher` unterscheidet keine MPE-Zonen, und
+`BioReactiveSynthVoice.apply(controller:)` läuft für `.slide`, `.airCC` und `.channelPressure`
+in **ein einziges `break`**. **MPE-EINGANG existiert nicht. MPE-AUSGANG ist real (#713).**
+
+Korrigiert in sechs Zeilen, fünf Dateien: `FEATURE_MATRIX.md` (:230 und :267 — :230 nannte
+namentlich genau die drei Dimensionen, die nicht ankommen), `ROADMAP.md` (:29, :40 — dort mit
+**LIVE** markiert), `COLLAB_SYNC_TRIAGE.md`, `VISION_REALITY_2026-07.md` (:82 — mit einem ✅).
+
+**LEHRE (#787) — #766s Lehre mit einem NEUEN Mechanismus.** #766: eine Fähigkeits-Behauptung hat
+so viele FLÄCHEN, wie jemand aufzählt. #778: so viele FORMULIERUNGEN. Hier war beides in Ordnung
+und trotzdem eine Lücke: **eine unaufgezählte DATEIKLASSE.** Der Wächter tastet `docs/*.html`
+verzeichnisgetrieben ab und nennt einzelne `.md`-Dateien namentlich — `docs/dev/*.md` fiel
+zwischen die beiden Hälften. Behauptung 12 ist deshalb VERZEICHNISGETRIEBEN.
+
+**ZWEITE LEHRE, und sie ist die peinlichere: mein eigenes `grep … | head` hat die sechste
+Fundstelle abgeschnitten.** Gefunden hat sie erst der Python-Treiber gegen den Eltern-Baum, der
+vier statt drei Fundstellen meldete. **Ein `head` auf einer Suche, aus der man eine Vollständigkeits-
+Aussage ableitet, ist dieselbe Klasse Fehler wie eine Nadel ohne Wortgrenze (#779)** — man misst,
+wie viel man sehen wollte, nicht wie viel da ist.
+
+Regel der neuen Behauptung, bewusst schwächer als „schreib nie MPE": **eine Zeile, die MPE-EINGANG
+behauptet, muss ihre eigene Rücknahme (#548 oder #770) auf DERSELBEN Zeile zitieren.** Damit
+bleiben die ⛔-Blöcke legal, die die zurückgenommene Behauptung absichtlich wörtlich zitieren
+(#491). Richtungslose Nennungen bleiben absichtlich draußen — die Regel gehört `CLAIMS.md` §6
+(#416). Eltern rot mit 4 Fundstellen, Arbeitsbaum grün, drei Mutationen je rot für ihren Grund.
+

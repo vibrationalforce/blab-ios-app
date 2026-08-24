@@ -10,7 +10,7 @@
 
 - Der Braindump stammt aus einer Zeit vor der Swift-6/SwiftUI-Architektur. Fast alles ist konzeptioneller Pseudocode, kein lauffähiger Code. **Nichts 1:1 portieren — nur Konzepte übernehmen.**
 - Harte Constraints aus CLAUDE.md bleiben unverändert gültig:
-  - Swift 6, SwiftUI, AVAudioEngine, CoreMIDI (MIDI 2.0/MPE), Metal, OSC-Output (EchoelSync), **Zero JUCE**.
+  - Swift 6, SwiftUI, AVAudioEngine, CoreMIDI (MIDI 1.0/2.0 note in · **MPE out** only — MPE _in_ is not wired, #548/#770), Metal, OSC-Output (EchoelSync), **Zero JUCE**.
   - Audio-Thread-Regeln: keine Allocations, keine Locks, kein ObjC/Swift-Runtime-Dispatch im Render-Callback.
   - Protected DSP (read-only): `BioEventGraph`, `HilbertSensorMapper`, `BioSignalDeconvolver`. Mapping-Ideen aus dem Braindump sind **Inspiration für neue Module**, niemals Änderungen an den geschützten Komponenten.
   - **Science-only-Positionierung**: keine esoterischen Frequenz-/Farbheilungs-Claims, keine Therapie-Sprache, keine Gesundheitsversprechen (auch App-Store-relevant).

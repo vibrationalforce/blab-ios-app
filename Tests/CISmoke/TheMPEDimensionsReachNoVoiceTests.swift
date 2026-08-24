@@ -638,6 +638,77 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
     }
 
+    /// 12 — REGRESSION. `docs/dev/*.md` claimed MPE **input** in five files, and NOTHING here
+    /// swept them (#787). Claim 10 reads `docs/*.html`; claims 1–9 and 11 name individual files.
+    /// Markdown one directory down fell in the gap between the two, which is why a plain
+    /// "MIDI 2.0/MPE in" survived in `FEATURE_MATRIX.md` and a ✅ next to "MIDI/MPE **IN**"
+    /// survived in `VISION_REALITY_2026-07.md` — the two files a session reads to learn what
+    /// ships.
+    ///
+    /// ⭐ THE LESSON IS #766's, WITH A NEW MECHANISM, and it is why this claim is
+    /// DIRECTORY-DRIVEN rather than a list. #766 said a capability claim has as many SURFACES as
+    /// somebody enumerated; #778 said as many WORDINGS. This one had neither problem — it had an
+    /// unenumerated FILE TYPE. The sweep covered `.html` under `docs/` and named `.md` files one
+    /// by one, so `docs/dev/*.md` was invisible to both halves. A guard that names its inputs
+    /// can only ever be as complete as the last person's memory.
+    ///
+    /// THE RULE, and it is deliberately weaker than "never write MPE": **a line that claims MPE
+    /// INPUT must cite its own retraction (#548 or #770) on the same line.** That keeps every
+    /// honest mention legal — including the ⛔ blocks this repo writes on purpose, which quote
+    /// the retracted claim verbatim and would trip any naive negative scan (#491) — while a
+    /// fresh, uncited "MPE in" is red.
+    ///
+    /// ⚠️ OUT OF SCOPE ON PURPOSE: a DIRECTIONLESS "MPE" (e.g. "CoreMIDI (MIDI 2.0/MPE)"). Three
+    /// such lines were corrected by hand in #787, but forbidding the bare word here would
+    /// duplicate `ContentPipeline/CLAIMS.md` §6, which already owns that rule (#416). This claim
+    /// owns exactly one thing: the INPUT direction being asserted without its retraction.
+    ///
+    /// ⚠️ #364: building real MPE input is legitimate and turns this red. That red is the
+    /// signal, not the verdict — the message names what must move with it.
+    func testTheDevDocsDoNotClaimMPEInput() throws {
+        let dir = try repoRoot().appendingPathComponent("docs/dev")
+        let names = try FileManager.default.contentsOfDirectory(atPath: dir.path)
+            .filter { $0.hasSuffix(".md") }.sorted()
+        guard !names.isEmpty else {
+            throw MPEAnchorMissing(reason: """
+                No `.md` under `docs/dev`. Found nothing rather than nothing wrong (#454) — \
+                if those docs moved, re-anchor this claim in the same commit.
+                """)
+        }
+        var offenders: [String] = []
+        var sawAnyMention = false
+        for name in names {
+            let text = try String(contentsOf: dir.appendingPathComponent(name), encoding: .utf8)
+            for (n, rawLine) in text.components(separatedBy: .newlines).enumerated() {
+                let line = rawLine.replacingOccurrences(of: "*", with: "")
+                    .replacingOccurrences(of: "_", with: " ").lowercased()
+                guard line.contains("mpe") else { continue }
+                sawAnyMention = true
+                let claimsInput = line.contains("mpe in") || line.contains("mpe input")
+                    || line.contains("mpe-in") || line.contains("mpe eingang")
+                guard claimsInput else { continue }
+                let cited = line.contains("#548") || line.contains("#770")
+                if !cited { offenders.append("docs/dev/\(name):\(n + 1) — \(rawLine.trimmingCharacters(in: .whitespaces))") }
+            }
+        }
+        XCTAssertTrue(sawAnyMention, """
+            No line under docs/dev mentions MPE at all. That is not a pass — the needle can no \
+            longer match the corpus it points at (#454/#779). Re-anchor before trusting a green.
+            """)
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) line(s) under docs/dev claim MPE INPUT without citing the \
+            retraction that governs it:
+            \(offenders.joined(separator: "\n"))
+            Measured and unchanged since #548/#770: `MIDIEventParse` has NO Channel Pressure \
+            case at all, `MIDIBusPublisher` tells no MPE zones apart, and \
+            `BioReactiveSynthVoice.apply(controller:)` runs into ONE `break` for slide, air-CC \
+            and channel pressure — the three dimensions that make MPE MPE. MPE **out** is real \
+            and switchable (#713); the direction word is the whole claim. If real MPE input was \
+            just built, this red is correct and the prose in CLAUDE.md, README.md and \
+            ContentPipeline/CLAIMS.md §6 moves in the SAME commit (#456).
+            """)
+    }
+
     /// Every shipped page under `docs/`, read from the directory (#769: a hand-typed page list
     /// is the trap this repo has closed twice). Non-recursive on purpose — the six files one
     /// level down are three redirect stubs and three screenshot mockups, measured in #772 to

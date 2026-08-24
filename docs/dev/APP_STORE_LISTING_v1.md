@@ -278,7 +278,7 @@ features are gone or unreachable. ⛔ **The MIDI-export half of that is no longe
 was corrected 2026-08-06 (#428 follow-up):** #188 put the door back in the existing export
 slot (`EchoelStudioView.swift:6579`), and the LIVE description already claims it
 (`fastlane/metadata/en-US/description.txt:28`). Do not "remove the overclaim" — it is not
-one. NOT claimed here, deliberately: MPE out (`mpeEnabled` has no writer), drums, note
+one. NOT claimed here, deliberately: MPE out (⛔ **the reason given here was stale, not the entry** — it said "`mpeEnabled` has no writer", and since #713 it HAS one: `MIDIOutput.applyOutputPreferences()` reads the two persisted keys the routing panel's switches set. MPE out is real and switchable; it is simply not in the shipped text, which is what this list is about. Claiming it would now be ALLOWED, not an overclaim — that is a copy decision, not a correctness one. MPE **in** stays unclaimable, #548/#770), drums, note
 editor, clips/arrangement, video edit, RTMP, AUv3. Re-run the whole claim check
 against `FEATURE_MATRIX.md` + the code before every submission.
 

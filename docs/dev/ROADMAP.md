@@ -26,7 +26,7 @@ _Last structured: 2026-06-19. Re-confirm at each session start alongside `memory
 
 ## 1. The five dimensions — reality status (anchor)
 
-Body → Sound → Space → Light → Vibration, with **Data** (OSC/MIDI 2.0/MPE) as the spine.
+Body → Sound → Space → Light → Vibration, with **Data** (OSC · MIDI 1.0/2.0 · **MPE out**) as the spine. The direction word is not decoration: MPE **out** ships, MPE **in** does not (#548/#770).
 Full LIVE/ROADMAP/NORTH-STAR detail in [`vision.md`](../../memory/vision.md) and
 [`FEATURE_MATRIX.md`](FEATURE_MATRIX.md). One-line status:
 
@@ -37,7 +37,7 @@ Full LIVE/ROADMAP/NORTH-STAR detail in [`vision.md`](../../memory/vision.md) and
 | **Light** | LIVE | native Art-Net + sACN (zero-dep UDP) |
 | **Space** | LIVE | ADM-OSC object out `/adm/obj/{n}/*` |
 | **Vibration** | LIVE | sub-bass/LFE voice + Core Haptics infra |
-| **Data spine** | LIVE | OSC, MIDI 2.0/MPE in, RTP-MIDI, Widgets (AUv3 target deleted — #121 Slice 1) |
+| **Data spine** | LIVE | OSC, MIDI 1.0/2.0 note **in**, **MPE out** (#713), RTP-MIDI, Widgets (AUv3 target deleted — #121 Slice 1). ⛔ **MPE _in_ is NOT live** and was claimed here as such — #548/#770: no zone disambiguation, no Channel Pressure case, and the three per-note dimensions reach a `break` in the voice. |
 
 ---
 

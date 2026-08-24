@@ -227,7 +227,7 @@ acceptance line.
 
 ### 5. EchoelMIDI — `LIVE`
 - **Code:** `Audio/MIDIInput.swift`, `Sync/MIDIBusPublisher.swift` → `EngineBus.controllerEvents`
-- **Live:** MIDI 2.0 + MPE input (per-note bend, slide/CC74, air-CC) → bio-modulated synth notes (performer priority over breath).
+- **Live:** MIDI 1.0/2.0 note input (notes + per-note pitch bend) → ONE monophonic bio-modulated performer voice (performer priority over breath). ⛔ **This said "MPE input (per-note bend, slide/CC74, air-CC)" and named exactly the three dimensions that do NOT arrive** — #548/#770: `MIDIEventParse` has no Channel Pressure case at all, `MIDIBusPublisher` tells no MPE zones apart, and `BioReactiveSynthVoice.apply(controller:)` runs into ONE `break` for `.slide`, `.airCC` and `.channelPressure` and never reads `event.channel`. "notes" in the plural was wrong too: `heldByController` is a single `Bool`. **MPE _out_ is real and switchable (#713).**
 - **Roadmap:** Standard MIDI File I/O, MIDI output, touch instruments, audio-to-MIDI.
 - **TestFlight acceptance:** an external MPE controller triggers synth notes.
 - **Fixed:** `MIDIInput.swift:94` force-cast (`as! UInt32`) → crash-safe `compactMap { as? UInt32 }` (behavior-preserving; the word tuple is homogeneous UInt32).
@@ -264,7 +264,7 @@ acceptance line.
 
 ### 11. EchoelNet — `LIVE` (partial)
 - **Code:** `Sync/OSCSender.swift`, `Sync/ADMOSCSender.swift`, `Sync/MIDIBusPublisher.swift`
-- **Live:** OSC 1.0 over UDP — 5 continuous `/echoelmusic/bio/*` (`/bio/motion` is the 6th and is NOT sent in this build, #215: no motion sensor) + 6 discrete `/echoelmusic/bio/event/*` + `/echoelmusic/mod/*` (modulation), default `localhost:8000`. **ADM-OSC** immersive object output (`/adm/obj/{n}/position/{azimuth|elevation|distance}` + `/gain`, bio→object) into FletcherMachine/L-ISA/d&b — opt-in from the Sync tab. MIDI 2.0/MPE in.
+- **Live:** OSC 1.0 over UDP — 5 continuous `/echoelmusic/bio/*` (`/bio/motion` is the 6th and is NOT sent in this build, #215: no motion sensor) + 6 discrete `/echoelmusic/bio/event/*` + `/echoelmusic/mod/*` (modulation), default `localhost:8000`. **ADM-OSC** immersive object output (`/adm/obj/{n}/position/{azimuth|elevation|distance}` + `/gain`, bio→object) into FletcherMachine/L-ISA/d&b — opt-in from the Sync tab. MIDI 1.0/2.0 note input (⛔ **not MPE in** — #548/#770: the parser reads MPE traffic but tells no zones apart, `MIDIEventParse` has no Channel Pressure case at all, and the consumer `BioReactiveSynthVoice.apply(controller:)` runs into a single `break` for slide, air-CC and channel pressure. **MPE OUT is real and switchable** since #713).
 - **Beat-sync (audit fix 2026-06-09):** OSCSender now DRAINS the `bioEvents` SPSC queue (sole consumer) → every PolarH10 per-RR `.heartbeat` (+ breath/motion) event is sent at full resolution, no longer lost to the 100 ms snapshot. The synth's breath path still uses the independent `latestBioEvent` snapshot.
 - **Roadmap:** Ableton Link tempo/phase, bidirectional OSC, RTP-MIDI, ADM-OSC native-protocol fallback lane.
 - **TestFlight acceptance:** OSC frames reach a LAN receiver; ADM-OSC `/adm/obj/1/*` visible on an OSC monitor; heartbeat events arrive per-beat.
