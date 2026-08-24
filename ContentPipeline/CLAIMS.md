@@ -54,6 +54,7 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 | **MIDI-Export** der erzeugten Musik als `.mid` | `MIDIFileExporter`, Tür im Export-Schacht |
 | **MIDI-Eingang**: ein externer Controller spielt EINE monophone Stimme — Noten + Pitch-Bend | `BioReactiveSynthVoice` ist der EINZIGE Verbraucher von `controllerEvents`; `heldByController` ist ein einzelner `Bool`, `playNote` setzt eine `synth.frequency`. Wächter: `TheMPEDimensionsReachNoVoiceTests` |
 | **MIDI-Ausgang live**: gespielte NOTEN an dein Rig (MIDI 1.0) | `MIDIOutput`, Schalter in der Routing-Fläche (`midi.out`), Default AUS |
+| **MPE-AUSGANG an Dein Rig**: Zone angekündigt, Noten über Member-Kanäle 2–16, jede mit Glide (Pitch-Bend), Slide (CC 74) und Press (Channel Pressure) | `MIDIOutput.sendMPEConfiguration()` plus die drei Sendepfade; zwei Schalter in der erreichbaren Routing-Fläche (»MPE note layout«, »Per-note expression«), beide Default AUS. **Nur MIT Richtungswort schreiben** — warum, steht in §6 |
 | **Universeller BLE-Herzgurt** (0x180D), z. B. Polar H10 | gebaut + verdrahtet, Geräte-Verify offen — **so kennzeichnen** |
 | **Apple Health** als Pulsquelle | `HealthKitBioPublisher` |
 | **Offene Standards, kein SDK-Lock-in** | OSC · ADM-OSC · MIDI · Art-Net/sACN · BLE HRS |
@@ -158,8 +159,28 @@ schaltbar, MPE IN nicht** (#548). `MIDIBusPublisher` parst MPE-Verkehr, untersch
 aber keine Zonen, und `BioReactiveSynthVoice.apply(controller:)` läuft für Slide (CC 74),
 Air und Channel Pressure in ein einziges `break` — genau die drei Dimensionen, die MPE
 erst zu MPE machen. Ein „MPE"-Wort in einer Caption verspricht also die Hälfte, die
-fehlt. *Erlaubt: „MIDI-Noten raus an Dein Rig". Nicht erlaubt: „MPE", „per-note
-expression", „spielt Deinen MPE-Controller".*
+fehlt.
+
+⛔ **UND DIE REGELZEILE, DIE HIER STAND, WAR SEIT #713 ZU BREIT — gestrichen 2026-08-24
+(#780).** Sie lautete *»Nicht erlaubt: MPE, per-note expression, spielt Deinen
+MPE-Controller«* und verbot damit auch die Hälfte, die AUSGELIEFERT ist. Zwei Kosten,
+beide konkret: »per-note expression« ist die wörtliche Beschriftung eines Schalters, den
+der Nutzer auf dem Schirm sieht (`PatchbayView`) — eine Caption durfte eine sichtbare
+Bedienstelle nicht benennen; und ein Rig-Besitzer las »nein«, wo die App »ja« sagt. **Der
+Absatz DARÜBER sagte seit #548 das Richtige** (»MPE OUT ist real und schaltbar, MPE IN
+nicht«) — die Begründung wurde nachgeführt, die Regelzeile nicht, und die Regelzeile ist
+die, die ein Skript-Autor kopiert. Genau die Lücke, die #775 auf der Website geschlossen
+hat und die hier einen Zyklus länger stand, in der Datei, deren einziger Zweck es ist,
+falsche Captions zu verhindern (#456: jede Heimat im selben Commit).
+
+⚠️ **Der GRUND für das Verbot bleibt gültig und trägt die neue Fassung: ein RICHTUNGSLOSES
+»MPE« verspricht die fehlende Hälfte.** Deshalb ist das Richtungswort Pflicht, nicht
+Geschmack — »MPE« allein bleibt verboten, »MPE-Ausgang« ist erlaubt.
+
+*Erlaubt: »MIDI-Noten raus an Dein Rig«; »MPE-AUSGANG an Dein Rig« bzw. »MPE out« — immer
+MIT dem Wort Ausgang/out; »per-note expression RAUS an Dein Rig«. Nicht erlaubt: ein
+richtungsloses »MPE«; »MPE-Eingang«; »spielt Deinen MPE-Controller«; »per-note expression«
+ohne Richtungswort.*
 
 ### 7. Abo, „Pro", Paywall, „Monthly/Annual Access", MRR
 **v1.0 ist vollständig KOSTENLOS und zeigt KEINE Kauf-Oberfläche.** Das ist eine

@@ -187,6 +187,7 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
     private static let input = "Sources/Echoelmusic/Audio/MIDIInput.swift"
     private static let claims = "ContentPipeline/CLAIMS.md"
     private static let out = "Sources/Echoelmusic/Audio/MIDIOutput.swift"
+    private static let readme = "README.md"
 
     /// The correction this guard protects, quoted so a failure can point at it precisely.
     private static let prose = """
@@ -389,6 +390,82 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             `MIDIOutput` no longer announces the MPE zone. Zone announcement is what makes the \
             output MPE rather than plain multi-channel MIDI; the site's "the zone is announced" \
             sentence must move with it.
+            """)
+    }
+
+    // MARK: - claim 11 — the caption register may say the half that ships
+
+    /// #780. THE PARAGRAPH WAS CORRECTED AND THE RULE LINE WAS NOT, AND THE RULE LINE IS THE
+    /// ONE A SCRIPT AUTHOR COPIES. `ContentPipeline/CLAIMS.md` §6 has said since #548 that
+    /// "MPE OUT ist real und schaltbar, MPE IN nicht" — and the Erlaubt/Nicht-erlaubt line
+    /// underneath still banned the bare tokens "MPE" and "per-note expression" outright.
+    ///
+    /// Two concrete costs, which is why this is a defect and not editorial taste:
+    ///   · "per-note expression" is the literal on-screen label of a shipped switch
+    ///     (`PatchbayView`), so a caption could not name a control the user can see.
+    ///   · A rig owner read "no" where the app says yes — the same under-claim #775 removed
+    ///     from the website, left standing one cycle longer in the file whose entire purpose
+    ///     is stopping false captions (#456: every home in the same commit).
+    ///
+    /// ⚠️ THE BAN'S REASON SURVIVES AND SHAPES THE REPAIR. A DIRECTIONLESS "MPE" really does
+    /// promise the missing half, so the direction word is mandatory, not decoration: "MPE"
+    /// alone stays forbidden, "MPE-Ausgang" / "MPE out" is allowed. This claim asserts that the
+    /// ALLOWANCE exists; it never asserts the ban is gone.
+    ///
+    /// ⚠️ AND THE HEADING ANCHOR IS LENIENT BY CONSTRUCTION, measured while driving this:
+    /// `range(of: "### 6. MPE")` matches a PREFIX, so renaming the section to "### 6. MPE-Zeug"
+    /// keeps it green. That is acceptable (it is still the MPE section) but it must be said,
+    /// because a driven mutation that only renames the suffix proves nothing — the mutation
+    /// that actually tests the anchor removes the token.
+    ///
+    /// The code premise is not restated here (#416): claim 9 already pins the zone announcer
+    /// and all three send paths, so removing MPE output reds there first.
+    func testTheCaptionRegisterMaySayMPEOutput() throws {
+        let text = try rawFile(Self.claims)
+        XCTAssertTrue(text.contains("| **MPE-AUSGANG an Dein Rig**"), """
+            `ContentPipeline/CLAIMS.md` has no allowed row for MPE OUTPUT.
+            It ships: the zone is announced, notes are spread over member channels 2–16, and
+            each carries Glide, Slide and Press, behind two switches in the reachable routing
+            surface. A caption writer reads the ✅ table to learn what may be said; with no row
+            there, the shipped half is invisible to them.
+            If MPE output was genuinely removed, claim 9's code half is red too — read that
+            failure first, then this row, `docs/`, `README.md` and `CLAUDE.md` all move in the
+            same commit (#456).
+            """)
+        guard let start = text.range(of: "### 6. MPE") else {
+            throw MPEAnchorMissing(reason: """
+                `CLAIMS.md` no longer has a "### 6. MPE" section. This guard cannot look, which
+                is not the same as finding nothing wrong (#454) — re-anchor it in the same
+                commit as the rename.
+                """)
+        }
+        let rest = text[start.upperBound...]
+        let section = String(rest[..<(rest.range(of: "\n### ")?.lowerBound ?? rest.endIndex)])
+        XCTAssertTrue(section.contains("MPE-AUSGANG") || section.contains("MPE out"), """
+            `CLAIMS.md` §6 no longer allows the DIRECTED output wording. Its own paragraph says
+            MPE out is real and switchable; a rule line that forbids every form of the word
+            contradicts the reasoning printed directly above it.
+            The repair is not to drop the ban — a directionless "MPE" still promises the input
+            half, which runs into a `break` (claim 1). It is to require the direction word.
+            """)
+
+        // THE SECOND PROSE HOME, and the one that denies the capability with a CODE premise
+        // rather than a caption rule. `README.md` said the two output flags had no writer in
+        // `Sources/` — false since #713. One decision, two homes, one claim (#416); the
+        // enumeration of homes is the whole lesson of #766/#778.
+        let readme = try rawFile(Self.readme)
+        XCTAssertFalse(readme.contains("neither flag has a writer"), """
+            `README.md` still says the MPE output flags have no writer.
+            They do: `MIDIOutput.applyOutputPreferences()` reads `StudioDefaultKeys.midiOutMPE`
+            and `.midiOutExpression`, and `PatchbayView`'s two toggles drive them through
+            `.onChange`. Both default OFF, which is the honest caveat — "off by default" is not
+            the same sentence as "impossible".
+            """)
+        let code = try source(Self.out)
+        XCTAssertTrue(code.contains("public func applyOutputPreferences()"), """
+            `MIDIOutput.applyOutputPreferences()` is gone — the writer that makes both prose
+            repairs above true. If the switches were genuinely unwired again, `README.md` and
+            `CLAIMS.md` §6 move back in the same commit (#456).
             """)
     }
 

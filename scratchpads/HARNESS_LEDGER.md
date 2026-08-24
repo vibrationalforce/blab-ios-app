@@ -2068,3 +2068,21 @@ einem Roadmap-Satz — B später zu verdrahten braucht keine Änderung am Wächt
 („handling", „indicator"), `grep -i link` 35. **Eine Nadel ohne `\b` misst das Alphabet, nicht
 die Sache.** Und: die Treffer ANSCHAUEN, nicht nur zählen — `\bAbleton\b` = 35 echte Treffer,
 alle Kommentare, `\bLinkKit\b` = 0. Die Schlussfolgerung hängt am zweiten Befehl.
+
+### DEAD-END (#780) — eine Anker-Mutation, die nur den SUFFIX umbenennt, beweist nichts
+
+`text.range(of: "### 6. MPE")` (und Pythons `find`) treffen ein **Präfix**. Wer den Anker
+prüfen will, indem er `### 6. MPE` → `### 6. MPE-Zeug` umbenennt, bekommt GRÜN und bucht das
+als „Anker hält". Die Mutation, die den Anker wirklich testet, **entfernt das Wort**
+(`### 6. Ausdruck`). Gilt für jede Überschriften-Verankerung in diesem Bundle.
+
+### PLAYBOOK (#780) — Absatz und REGELZEILE altern getrennt
+
+In `CLAIMS.md`, `CLAUDE.md` und jedem Wächter-Kopf steht die Begründung als Fließtext und die
+Entscheidung noch einmal als **kurze Regelzeile** („*Erlaubt: … Nicht erlaubt: …*"). Wird die
+Fähigkeit korrigiert, führt man die Begründung nach — und die Regelzeile bleibt stehen.
+**Die Regelzeile ist die, die kopiert wird.** Beim Korrigieren eines Absatzes also immer
+fragen: gibt es darunter eine Kurzform, die dasselbe noch einmal sagt?
+
+Hier: §6s Absatz sagte seit #548 „MPE OUT ist real", die Regelzeile darunter verbot „MPE"
+pauschal — zwei Monate lang, in der Datei, deren einziger Zweck falsche Captions sind.

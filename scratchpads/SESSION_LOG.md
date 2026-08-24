@@ -12792,3 +12792,48 @@ Anspruch 2 rot.
 **Lehre.** Eine Trefferquote von 1 zu 100 ist kein Argument gegen den Sweep, sondern für ihn:
 er ist billig, und der eine Treffer saß auf der Seite, die ein DAW-Nutzer liest, bevor er
 entscheidet, ob sich der Export zu öffnen lohnt.
+
+## 2026-08-24 — #780: der Absatz wurde nachgeführt, die REGELZEILE nicht
+
+**Befund, in zwei Prosa-Heimaten derselben Fähigkeit.** #775 hat MPE-OUT auf der Website von
+„roadmap" auf „live" korrigiert. Zwei Dateien, die dasselbe behaupten, standen noch falsch:
+
+1. **`ContentPipeline/CLAIMS.md` §6.** Sein Absatz sagt seit #548 richtig „MPE OUT ist real und
+   schaltbar, MPE IN nicht" — und die **Regelzeile darunter** verbot pauschal „MPE" und
+   „per-note expression". **Die Regelzeile ist die, die ein Skript-Autor kopiert.** Zwei
+   konkrete Kosten: „per-note expression" ist die wörtliche Beschriftung eines Schalters, den
+   der Nutzer auf dem Schirm sieht (`PatchbayView`), und ein Rig-Besitzer las „nein", wo die
+   App „ja" sagt.
+2. **`README.md`.** „…and neither flag has a writer in `Sources/` — so live MIDI out is
+   note-only, MIDI 1.0." **Seit #713 falsch**: `MIDIOutput.applyOutputPreferences()` (Zeilen
+   114–124) schreibt BEIDE Flaggen aus zwei persistierten Keys, die die zwei Toggles in
+   `PatchbayView` über `.onChange` treiben.
+
+**Der GRUND des Verbots bleibt gültig und trägt die neue Fassung:** ein RICHTUNGSLOSES „MPE"
+verspricht die fehlende Hälfte. Das Richtungswort ist deshalb Pflicht — „MPE" allein bleibt
+verboten, „MPE-Ausgang"/„MPE out" ist erlaubt. Neu im ✅-Register: eine eigene Zeile für den
+MPE-AUSGANG mit genau dieser Auflage.
+
+**Council** (nutzersichtbare Kopie): Vision-Keeper — Unter-Verkauf eines offenen Standards
+kostet echt; Skeptiker — Risiko ist ein Rig-Besitzer, der EINGANG erwartet ⇒ Richtungswort
+zwingend; User-Advocate — eine sichtbare Bedienstelle muss benennbar sein. **Gate: proceed
+with mitigation.**
+
+**Wächter:** Anspruch 11 in `TheMPEDimensionsReachNoVoiceTests` (die EINE Heimat, #416) — vier
+Teile: ✅-Zeile vorhanden · §6 erlaubt die gerichtete Form · README verneint die Schreiber
+nicht mehr · `applyOutputPreferences()` existiert (Gegengewicht). Elternbaum 3 Rote,
+Arbeitsbaum 0, Mutationen einzeln getrieben.
+
+⚠️ **Zwei eigene Fehler unterwegs, beide vor dem Push gefangen:**
+- Eine Mutation, die `### 6. MPE` → `### 6. MPE-Zeug` umbenannte, blieb GRÜN, und ich hätte sie
+  fast als Anker-Beweis gebucht. **`range(of:)` trifft ein PRÄFIX** — die Mutation, die den
+  Anker wirklich prüft, ENTFERNT das Wort. Steht jetzt im Kopf von Anspruch 11.
+- **#776 fast wiederholt:** ein Python-Schritt legte `private static let readme` an und stürzte
+  danach an einem `assert` ab — die Datei wurde nie geschrieben —, während ein späterer Schritt
+  `Self.readme` BENUTZTE. Gefangen von einem Handvergleich Benutzungen-gegen-Deklarationen,
+  **nicht** von `scripts/dead-needles.py`.
+
+**→ NÄCHSTER PUNKT (#781): `dead-needles.py` Form 4 deckt nur `\(Self.member)`-INTERPOLATIONEN
+ab, nicht die schlichte Referenz `rawFile(Self.member)`.** Genau die Lücke, die hier zugeschlagen
+hat. Die Erweiterung muss zusätzlich STRING-Literale strippen — die #777-Notiz hält fest, dass
+ein naives `\bSelf\.(\w+)` zwanzig Fehlalarme erzeugte, weil `Self.x` auch in Nadel-Strings steht.
