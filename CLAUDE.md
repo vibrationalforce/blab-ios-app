@@ -750,8 +750,8 @@ date,decision,reasoning,expected_outcome,review_date,status
 
 - Log every architectural/strategic decision the user describes
 - Review dates default to 30 days from decision date
-- Run `./review.sh` to surface decisions due for review
-- Daily cron job auto-flags overdue decisions with `REVIEW_DUE`
+- Run `./review.sh` to surface decisions due for review; `./review.sh --flag` schreibt `REVIEW_DUE` in die Datei zurück
+- ⛔ **NICHTS FLAGGT AUTOMATISCH — hier stand ein täglicher Cron als Tatsache.** #510 hat genau diese Behauptung am 2026-08-08 in `.claude/routines/05-decision-review.md` zurückgenommen („unwired as automation") und **diese** Datei stehen lassen, die jede Sitzung ZUERST liest — die #456-Form: Prosa zieht in JEDEM Zuhause mit, nicht nur dort, wo man gerade schreibt, und 16 Tage lang gewann das immer-geladene Zuhause. Gemessen: `git log -S REVIEW_DUE -- decisions.csv` ist über die GANZE Historie leer, und **kein einziger Workflow trägt überhaupt einen `schedule:`-Trigger**; `check-decisions.sh` ist eine crontab-Zeile, die ein Mensch installiert. Die Folge ist nicht kosmetisch: der Rückstand — Zahl mit `./review.sh | grep -c '^REVIEW DUE'` messen, nicht hier ablesen (#803) — sieht betreut aus und ist es nicht. Wächter: `TheDecisionLogIsMachineReadableTests`, Anspruch 7.
 
 ### Long-Term Memory (scratchpads/)
 

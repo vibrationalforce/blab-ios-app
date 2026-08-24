@@ -7,6 +7,13 @@ import XCTest
 /// auto-flags overdue decisions with `REVIEW_DUE`". Both halves were broken, in two
 /// different ways, and neither could go red.
 ///
+/// ⛔ THAT SECOND QUOTE IS HISTORICAL AS OF #805 — CLAUDE.md no longer says it, and the
+/// sentence was not merely broken but false: nothing has ever flagged anything. #510 retracted
+/// the same claim in `.claude/routines/05-decision-review.md` on 2026-08-08 and left the
+/// always-loaded file asserting it for another 16 days. Claim 7 below is the executable form of
+/// the fact this header already stated in prose ("It has never run"), and the quote is kept
+/// rather than deleted because it is what the #509 narrative was written against.
+///
 /// **The file:** 5 of 361 decisions did not have 6 columns, and the repair brings
 /// the log to 363 — the arithmetic is the point: two decisions had stopped being
 /// rows at all. Three separate authoring habits produced the five —
@@ -160,6 +167,107 @@ final class TheDecisionLogIsMachineReadableTests: XCTestCase {
             """)
         XCTAssertFalse(sh.contains("echo \"$date,$decision"),
                        "the hand-reassembled rewrite is the destructive form and must not return")
+    }
+
+    // MARK: - the schedule
+
+    /// Claim 7 (#805) — nothing flags overdue decisions automatically, and the always-loaded
+    /// law file must not tell a session otherwise.
+    ///
+    /// ⛔ THE DEFECT THIS CORRECTS IS #510's SECOND HOME. That slice, on 2026-08-08, retracted
+    /// the "daily cron" claim in `.claude/routines/05-decision-review.md` — its ⛔ block is still
+    /// there and says "unwired as automation". It did not touch `CLAUDE.md`, which went on
+    /// asserting "Daily cron job auto-flags overdue decisions with `REVIEW_DUE`" as a plain fact
+    /// for another 16 days, in the one file every session reads before its first line of work.
+    /// The #456 law again, and the expensive direction of it: when two homes disagree, the
+    /// always-loaded one wins by default, and here it was the wrong one.
+    ///
+    /// MEASURED, three ways, none of them recalled:
+    ///   · `git log -S REVIEW_DUE -- decisions.csv` returns nothing over the WHOLE history — no
+    ///     run of `--flag` has ever reached the repo. That is the decisive one, because `--flag`
+    ///     WRITES to a tracked file: a run on anyone's machine would leave a diff.
+    ///   · No workflow carries a `schedule:` trigger at all (not one, of fourteen).
+    ///   · `check-decisions.sh` is a crontab line a human installs; `crontab` does not even
+    ///     exist in the session container.
+    ///
+    /// ⚠️ WHY THIS IS NOT COSMETIC. The review mechanism is the founder's, and the report it
+    /// feeds is long — measure it with `./review.sh | grep -c '^REVIEW DUE'` rather than reading
+    /// a number here (#803). A law file that says the backlog is flagged automatically is the
+    /// reason nobody looks at it.
+    ///
+    /// ⚠️ #364 — WHAT THIS DOES **NOT** DO. It does not forbid installing a scheduler; that is
+    /// the repair, and `.github/workflows/**` is founder-gated so it is not mine to make. When
+    /// one appears, the premise below flips and this claim goes red ONCE, with the two prose
+    /// homes named in its message — the `TheAutoMergeWaitsForNoGateTests` shape. It also does not
+    /// pin a wording: any of several markers satisfies it, and it deliberately does NOT assert on
+    /// `review.sh`'s "it has never run" sentence, which becomes false the day someone runs the
+    /// flag by hand and must then be free to change.
+    ///
+    /// ⚠️ POSITIVE, NOT A NEGATIVE SCAN, and that is deliberate (#491): this repo quotes its own
+    /// retracted claims on purpose, so a scan for "daily cron" would meet the ⛔ block that
+    /// retracts it. The assertion asks that the honest sentence be PRESENT, inside the anchored
+    /// section it belongs to (#408) — a marker elsewhere in a 145 KB file would not count.
+    ///
+    /// GRADING (#464): REGRESSION. On the parent tree the anchored section contains none of the
+    /// markers, because the sentence this commit writes is the only place any of them occur.
+    func testTheLawFileDoesNotPromiseAutomaticFlagging() throws {
+        let root = try treeRoot()
+        let fm = FileManager.default
+
+        // PREMISE, measured rather than assumed.
+        var schedulers: [String] = []
+        let workflows = root.appendingPathComponent(".github/workflows")
+        for name in ((try? fm.contentsOfDirectory(atPath: workflows.path)) ?? []).sorted()
+        where name.hasSuffix(".yml") || name.hasSuffix(".yaml") {
+            guard let text = try? String(contentsOf: workflows.appendingPathComponent(name),
+                                         encoding: .utf8),
+                  text.contains("schedule:"),
+                  text.contains("review.sh") || text.contains("check-decisions") else { continue }
+            schedulers.append(".github/workflows/\(name)")
+        }
+
+        let law = try String(contentsOf: root.appendingPathComponent("CLAUDE.md"),
+                             encoding: .utf8)
+
+        // ANCHOR (#408/#454): the claim belongs to the decision-logging section. A missing
+        // anchor FAILS — a section-wide scan that cannot find its section proves nothing.
+        guard let start = law.range(of: "### Decision Logging"),
+              let end = law.range(of: "\n### ", range: start.upperBound..<law.endIndex) else {
+            throw AnchorMissing(reason:
+                "CLAUDE.md has no `### Decision Logging` section followed by another `### ` "
+                + "heading — claim 7 could not locate the text it grades")
+        }
+        let section = String(law[start.upperBound..<end.lowerBound]).lowercased()
+
+        guard schedulers.isEmpty else {
+            XCTFail("""
+                A scheduler for the decision review now exists: \(schedulers.joined(separator: ", ")).
+
+                That is good news and this claim is now the stale one. Two prose homes \
+                describe the flagging as MANUAL and must be corrected in the same commit \
+                that installs the scheduler:
+                  · CLAUDE.md, the `### Decision Logging` block
+                  · .claude/routines/05-decision-review.md, its ⛔ block (#510)
+                Then retire this claim, or invert it to require that the scheduler stays.
+                """)
+            return
+        }
+
+        let markers = ["nichts flaggt automatisch", "flaggt nichts automatisch",
+                       "kein automatischer", "keine automatik", "no scheduler", "not automated"]
+        XCTAssertTrue(markers.contains(where: { section.contains($0) }), """
+            Nothing in this repo flags overdue decisions, and the `### Decision Logging` \
+            block of CLAUDE.md does not say so.
+
+            Measured: `git log -S REVIEW_DUE -- decisions.csv` is empty over the whole \
+            history, no workflow carries a `schedule:` trigger, and `check-decisions.sh` is a \
+            crontab line a human installs. A law file that presents the flagging as automatic \
+            tells every session the backlog is watched when it is not — which is exactly what \
+            it did from #510 until #805, because #510 corrected the routine file and left \
+            this one.
+
+            Say it in the section, in any of these forms: \(markers.joined(separator: " / ")).
+            """)
     }
 
     // MARK: - helpers

@@ -13672,3 +13672,58 @@ gegen die echten 10 Metadaten-Dateien, zum ersten Mal überhaupt**. `dead-needle
 
 ⚠️ **Ehrlich:** kompiliert ist nichts davon lokal — es gibt keine Toolchain. Die Gates
 entscheiden.
+
+---
+
+## #805 — die immer-geladene Datei versprach eine Automatik, die es nie gab
+
+**Befund, dreifach gemessen.** `CLAUDE.md` sagte jeder Sitzung als Tatsache:
+*„Daily cron job auto-flags overdue decisions with `REVIEW_DUE`"*. Nichts davon ist je passiert.
+
+- `git log -S REVIEW_DUE -- decisions.csv` ist über die **ganze** Historie leer. Das ist der
+  entscheidende Beleg, weil `--flag` in eine **versionierte** Datei schreibt: ein Lauf auf
+  irgendeiner Maschine hinterließe einen Diff.
+- **Kein einziger** der 14 Workflows trägt überhaupt einen `schedule:`-Trigger.
+- `check-decisions.sh` ist eine crontab-Zeile, die ein Mensch installiert; `crontab` existiert
+  im Container gar nicht.
+
+**Und es ist #510s zweites Zuhause.** Genau diese Behauptung wurde am 2026-08-08 in
+`.claude/routines/05-decision-review.md` zurückgenommen — der ⛔-Block steht dort noch und sagt
+„unwired as automation". `CLAUDE.md` blieb 16 Tage lang unangetastet. Die #456-Form in ihrer
+teuren Richtung: **wenn zwei Zuhause sich widersprechen, gewinnt das immer-geladene per Default,
+und hier war es das falsche.**
+
+**Warum das nicht kosmetisch ist:** der Rückstand ist lang (messen mit
+`./review.sh | grep -c '^REVIEW DUE'`, nicht ablesen — #803). Eine Gesetzes-Datei, die sagt, er
+werde automatisch geflaggt, ist der Grund, warum niemand hinsieht. Das Review-Verfahren ist das
+des Founders.
+
+**Repariert:** die Zeile in `CLAUDE.md` (jetzt 145.526 B, Decke 150.000) plus **Anspruch 7** im
+BESTEHENDEN Wächter `TheDecisionLogIsMachineReadableTests` — kein neunter Wächter, denn dessen
+Kopf sagte die Tatsache („It has never run") längst in Prosa; Anspruch 7 ist ihre ausführbare
+Form. Sein Zitat der alten `CLAUDE.md`-Zeile ist im selben Commit als historisch markiert (#456).
+
+⚠️ **Der Anspruch verbietet nichts (#364).** Einen Scheduler zu bauen ist die eigentliche
+Reparatur und ist founder-gated (`.github/workflows/**`). Taucht einer auf, kippt die gemessene
+Prämisse und der Anspruch wird EINMAL rot — mit den zwei Prosa-Zuhausen in der Fehlermeldung
+(die `TheAutoMergeWaitsForNoGateTests`-Form). Er pinnt auch **nicht** `review.sh`s Satz „it has
+never run", der an dem Tag falsch wird, an dem jemand `--flag` von Hand laufen lässt.
+
+⚠️ **Positiv formuliert, kein Negativ-Scan (#491):** dieses Repo zitiert zurückgenommene
+Behauptungen absichtlich, eine Suche nach „daily cron" träfe also den ⛔-Block, der sie
+zurücknimmt. Verlangt wird die ANWESENHEIT des ehrlichen Satzes, und zwar **im verankerten
+Abschnitt** (#408) — ein Marker irgendwo sonst in 145 KB zählt nicht. Mutation M3 belegt genau
+das.
+
+**Getrieben** gegen Arbeitsbaum UND Eltern `cf73f3f`, samt Datei-Auflösung (#804-Lehre):
+Kontrolle grün · Eltern rot (kein Marker im Abschnitt) · M1 Scheduler existiert → rot · M2 Anker
+fehlt → `AnchorMissing` · M3 Marker außerhalb des Abschnitts → rot. `dead-needles` sauber bei
+358, `review.sh --check` OK bei 432.
+
+⚠️ **Nebenbei beobachtet, NICHT repariert** (eigene Scheibe, damit dieser Zyklus einer bleibt):
+`treeRoot()` in derselben Datei wirft bei fehlendem Anker `XCTSkip` statt zu scheitern — §4 sagt,
+ein fehlender Anker muss FEHLSCHLAGEN, nicht überspringen.
+
+**Gate-Ergebnis des Vorgängers #804 (`cf73f3f`):** `Build for Testing: success`, 0 Compile-Fehler,
+0 Testfehler, 135 beobachtete Durchläufe. Keiner der drei berührten Wächter war in der geleerten
+Teilmenge — also **kompiliert nachweislich, Ausführung unbelegt** (#445), nicht „grün".
