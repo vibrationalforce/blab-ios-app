@@ -34,6 +34,7 @@ CONNECT
 - OSC output for live rigs and visuals
 - ADM-OSC immersive object output
 - Art-Net native light output for installations and stage
+- sACN (E1.31) light output — unicast to an address you set; multicast is not available on iOS
 
 
 PRIVACY

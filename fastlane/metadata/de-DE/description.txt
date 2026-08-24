@@ -33,6 +33,7 @@ VERBINDEN
 - OSC-Ausgabe für Live-Rigs und Visuals
 - ADM-OSC immersive Objekt-Ausgabe
 - Natives Art-Net-Lichtsignal für Installationen und Bühne
+- sACN-Lichtausgabe (E1.31) — Unicast an eine von Dir gesetzte Adresse; Multicast ist unter iOS nicht verfügbar
 
 
 PRIVATSPHÄRE

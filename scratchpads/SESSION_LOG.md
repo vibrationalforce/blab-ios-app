@@ -13196,3 +13196,38 @@ den echten Doppelten** (meine zwei, die verschieden anfangen). Das ist #778 auf 
 angewandt: **eine FRAGE hat so viele Formulierungen, wie jemand geschrieben hat**, und ein
 Präfix-Schlüssel misst die Formulierung. Nicht gebaut — #665.
 
+## #791 — der Store-Text widersprach sich selbst über sACN (2026-08-24)
+
+#184 hat zwölf ÜBER-Behauptungen aus dem App-Store-Text entfernt. **Niemand hat je in die andere
+Richtung geschaut** — und dort lag ein Fund: der **CONNECT**-Block listete Art-Net und NICHT sACN,
+während der **PRIVACY**-Block DERSELBEN Datei „Art-Net or sACN light output" nennt. In beiden
+Locales. Eine Beschreibung, die sich selbst widerspricht, über eine Fähigkeit, die live und
+betürt ist (Route `sacn.out` → Zielfelder in der Routing-Fläche → `SACNSender.start`).
+
+Warum eine UNTER-Behauptung überhaupt zählt, wo 2.3 das Gegenteil bestraft: der Leser dieses
+Blocks ist ein Lichtprofi, und sACN ist das, was ein großes Rig wirklich spricht (Prioritätsfeld,
+das Art-Net fehlt). Wer CONNECT nach seinem Protokoll absucht, schließt, dass die App sein Pult
+nicht bedienen kann.
+
+Ergänzt in beiden Locales, mit **unicast** ausgeschrieben — Multicast ist unter iOS wirklich nicht
+verfügbar (Apples genehmigungspflichtige Entitlement), und eine unqualifizierte Nennung hätte genau
+den Fachleser getäuscht, für den die Zeile da ist.
+
+**Wächter: Behauptung 5, SELBST-VERANKERND** — was der PRIVACY-Block als nach außen sendend nennt,
+muss auch im CONNECT-Block stehen. Keine Fähigkeitsliste zu pflegen; ein fünfter Ausgang morgen ist
+ohne Datei-Änderung abgedeckt. #364: sACN aus BEIDEN Blöcken zu entfernen besteht — verboten ist
+nur der Widerspruch.
+
+**ZWEI FEHLER IM EIGENEN ENTWURF, beide innerhalb dieses Zyklus bezahlt:**
+· Der erste Entwurf spaltete auf „privacy"/„datenschutz". **Die deutsche Überschrift heißt
+  PRIVATSPHÄRE.** Also lief de-DE in ein `continue` und wurde **still übersprungen**, während es
+  denselben Defekt trug. Eine handgetippte Nadel für ein Korpus, das niemand angesehen hat
+  (#679/#738) — die Überschriften sind jetzt gegrept, der Befehl steht neben der Liste.
+· Und dieses `continue` ist der #454-Defekt: **ein Wächter, der seinen Anker nicht findet, muss
+  ROT werden, nicht still bestehen.** Jetzt eine eigene Zusicherung mit eigener Meldung.
+  Der Dateikopf warnte schon, dass die Flächen LOCALES einer Datei sind — der Entwurf tippte
+  trotzdem das Wort einer Locale.
+
+Eltern rot in BEIDEN Locales, Arbeitsbaum grün, drei Mutationen: sACN nur aus CONNECT → rot ·
+aus beiden → grün (#364) · Überschrift umbenannt → rot über die Anker-Zusicherung.
+

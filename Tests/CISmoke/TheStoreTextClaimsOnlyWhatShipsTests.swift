@@ -42,6 +42,22 @@
 //  for: #184 removed TWELVE false capability claims from this exact text and nothing has
 //  guarded the return since. Claims 1 and 2 are unchanged counterweights.
 //
+//  ⭐ GRADING FOR #791 (parent `278fd2d`). Claim 5 is a REGRESSION, red on the parent in BOTH
+//  locales, and it is the FIRST claim in this file that points the other way. Every other claim
+//  here asks *is something SOLD that does not ship* — the 2.3 direction. Claim 5 asks *does
+//  something SHIP that is not sold*, and found it: CONNECT listed Art-Net and not sACN while the
+//  PRIVACY block of the same file named "Art-Net or sACN". A listing contradicting itself about
+//  a live, doored capability, in the block a lighting professional reads.
+//
+//  ⛔ AND THE FIRST DRAFT OF CLAIM 5 CAUGHT ONLY ENGLISH. It split on "privacy"/"datenschutz";
+//  the German listing's heading is **PRIVATSPHÄRE**, so de-DE hit a `continue` and was skipped
+//  IN SILENCE while carrying the identical defect. Two lessons, both already law here and both
+//  paid for again inside one cycle: a hand-typed needle for a corpus nobody looked at
+//  (#679/#738 — the headings are now `grep`ed, and the command is next to the list), and a
+//  guard that cannot find its anchor must FAIL rather than pass (#454 — the skip is now a
+//  separate assertion with its own message). The file header above already warned that the
+//  surfaces are LOCALES of one file; the draft still typed one locale's word.
+//
 //  ⭐ GRADING FOR #769 (parent `f8c23fb`). STRUCTURAL, no regression caught: the locale walk
 //  now READS `fastlane/metadata/` instead of naming two directories, so every claim already in
 //  the file follows a third locale automatically. Green on both trees — booking it as a catch
@@ -104,6 +120,76 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
         }
         XCTAssertFalse(out.isEmpty, "no store copy was read at all — the walk is broken")
         return out
+    }
+
+    /// 5 — REGRESSION, and the FIRST claim in this file that points the other way (#791).
+    /// Every other claim here asks "is something sold that does not ship". This one asks
+    /// "does something ship that is not sold", and it found one in the shipped text: the
+    /// CONNECT block listed Art-Net and NOT sACN, while the PRIVACY block of the SAME file
+    /// named "Art-Net or sACN light output". A store description that contradicts itself, in
+    /// both locales, about a capability that is live and doored (`sacn.out` route → the
+    /// routing panel's target fields → `SACNSender.start(subscribing:)`).
+    ///
+    /// ⭐ WHY AN UNDER-CLAIM IS WORTH GUARDING AT ALL, given 2.3 punishes the opposite: the
+    /// reader this block is written for is a lighting professional, and sACN is what a large
+    /// rig actually speaks (it has the priority field Art-Net lacks). Someone scanning CONNECT
+    /// concludes the app cannot talk to their console. #184 removed twelve over-claims from
+    /// this text and nobody has ever looked the other way; #788 found the same shape one
+    /// surface out, in the integrator docs.
+    ///
+    /// THE RULE IS SELF-ANCHORING, which is what keeps it from going stale: whatever network
+    /// output the PRIVACY block names as sending bio values outward must also appear in the
+    /// CONNECT block. No hand-typed capability list to maintain — the text checks itself, so a
+    /// FIFTH output added tomorrow is covered without touching this file.
+    ///
+    /// ⚠️ #364: this does not mandate wording or force a capability to be sold. Removing sACN
+    /// from BOTH blocks would pass — that is a legitimate copy decision. What it forbids is the
+    /// two blocks disagreeing.
+    /// Lower-cased privacy headings across the shipped locales. ⛔ THE FIRST DRAFT OF THIS CLAIM
+    /// ASSUMED THE GERMAN ONE WAS "DATENSCHUTZ" AND IT IS "PRIVATSPHÄRE" — a hand-typed needle
+    /// for a corpus nobody looked at, the #679/#738 shape. Measured from the files, not recalled:
+    /// `grep -n '^[A-ZÄÖÜ][A-ZÄÖÜ ]\{3,\}$' fastlane/metadata/*/description.txt`.
+    private static let privacyHeadings = ["privacy", "privatsphäre", "datenschutz"]
+
+    func testEveryOutputThePrivacyBlockNamesIsAlsoSold() throws {
+        let outputs = ["osc", "adm-osc", "art-net", "sacn"]
+        var offenders: [String] = []
+        var unreadable: [String] = []
+        for file in try storeCopy() {
+            let flat = file.text.lowercased()
+            guard flat.contains("sacn") || flat.contains("art-net") else { continue }
+            guard let heading = Self.privacyHeadings.first(where: { flat.contains($0) }),
+                  let split = flat.range(of: heading) else {
+                // ⛔ THIS WAS A `continue` FOR ONE DRAFT, which is the #454 defect this repo
+                // names most often: a guard that cannot find its boundary must FAIL, not
+                // quietly pass the file. It cost a real miss INSIDE this cycle — the draft
+                // looked for "privacy"/"datenschutz", the German listing's heading is
+                // PRIVATSPHÄRE, so de-DE was skipped in silence while carrying the identical
+                // defect en-US was caught for.
+                unreadable.append(file.rel)
+                continue
+            }
+            let sold = String(flat[..<split.lowerBound])
+            let warned = String(flat[split.upperBound...])
+            for name in outputs where warned.contains(name) && !sold.contains(name) {
+                offenders.append("\(file.rel): \(name)")
+            }
+        }
+        XCTAssertTrue(unreadable.isEmpty, """
+            No privacy heading found in \(unreadable.joined(separator: ", ")), so this claim could
+            not locate the boundary between what the listing SELLS and what it WARNS about — and
+            a guard that cannot find its anchor reports a pass it did not earn (#454). Known
+            headings: \(Self.privacyHeadings). Add a renamed one here in the SAME commit.
+            """)
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) network output(s) are named in the PRIVACY block but never in the
+            CONNECT block: \(offenders.joined(separator: ", ")).
+            The listing contradicts itself: it warns a reader that this output sends bio values
+            outward, while the capability list says the app does not have it. A lighting
+            professional scanning CONNECT for their protocol concludes it is unsupported. If the
+            capability was deliberately DROPPED, remove it from the privacy sentence too — this
+            claim forbids the disagreement, not either choice (#364).
+            """)
     }
 
     /// Breath must not be sold as driving a filter, in any locale.
