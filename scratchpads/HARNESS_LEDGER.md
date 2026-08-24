@@ -2176,3 +2176,30 @@ modellieren, jede Behauptung als Prädikat gegen BEIDE fahren und die Wahrheitst
 ausdrucken. Was im Eltern grün ist, ist Gegengewicht; was rot ist, Regression. Eine Methode
 kann in beiden Spalten stehen — dann sagt man das, statt zu runden. Danach sieben Mutationen
 gegen dieselben Prädikate, damit keine Behauptung ununterscheidbar von ihrer Verletzung ist.
+
+### DEAD-END — automatische Duplikat-Erkennung in der Founder-Checkliste (#790)
+
+**Nicht noch einmal naiv versuchen.** `scripts/founder-verify.py` sammelt jeden
+`NEEDS-FOUNDER-VERIFY`-Vermerk zu der Liste, aus der eine Geräte-Sitzung triagiert wird. Zwei
+Vermerke für EINE Frage kosten eine verschwendete Probe. Naheliegend: Duplikate automatisch
+finden.
+
+**Gemessen 2026-08-24 an 52 Einträgen mit einem Schlüssel aus den ersten 8 normalisierten
+Wörtern — und das Ergebnis war in BEIDE Richtungen falsch:**
+· **Ein Fehlalarm.** Der einzige Treffer (`ParameterRowStacksAtAccessibilitySizesTests` und
+  `BioNumbersGrowWithTheTextTests`) ist KEIN Duplikat: beide beginnen mit demselben
+  Geräte-SETUP („iOS Settings → Display → Text Size auf eine Accessibility-Größe"), prüfen
+  danach aber Verschiedenes. Zusammenzulegen wäre ein Verlust.
+· **Der echte Doppelte wurde NICHT gefunden.** Meine eigenen zwei sACN-Vermerke aus #789 fragen
+  dasselbe („cacht ein Pult den Quellnamen?"), fangen aber verschieden an — „whether a real
+  console…" gegen „a console may CACHE…".
+
+**Das ist #778 auf die Warteschlange angewandt: eine FRAGE hat so viele Formulierungen, wie
+jemand geschrieben hat.** Ein Präfix-Schlüssel misst die Formulierung, nicht die Frage. Ein
+Prüfer mit Fehlalarmen ist ein Prüfer, den niemand liest (#665) — deshalb NICHT gebaut.
+
+**Stattdessen die billige Regel, die keine Heuristik braucht:** wer einen Vermerk setzt, prüft
+mit `python3 scripts/founder-verify.py`, ob dieselbe Frage schon dasteht, und setzt sie an
+EINEN Ort — die #416-Regel, angewandt auf Bitten statt auf Entscheidungen. Der Zeiger im
+Nachbarn ist Prosa, kein zweiter Marker.
+

@@ -59,8 +59,12 @@
 // implementation, or a decision to drop the suffix would each turn a claim red — that red is the
 // signal, and the message names the prose to pull with it (#456).
 //
-// ⚠️ NEEDS-FOUNDER-VERIFY: whether a real console REDRAWS the source name when it changes
-// mid-session. E1.31 permits it; desks may cache per CID. Not measurable in this repo.
+// ⚠️ THE DEVICE QUESTION FOR THIS SLICE — whether a real console redraws the source name when it
+// changes mid-session — is raised ONCE, at `SACNSender.sourceName(synthetic:)`, and deliberately
+// NOT repeated here as a second marker. ⛔ IT WAS, FOR ONE CYCLE, AND THAT IS A DEFECT IN THE
+// FOUNDER'S QUEUE, not in the prose: `scripts/founder-verify.py` collects every marker into the
+// list a device session is triaged from, so two markers for one question is one wasted probe.
+// Same #416 rule the rest of this repo applies to decisions, applied to ASKS.
 
 #if canImport(Network)
 import Foundation

@@ -13181,3 +13181,18 @@ DISKRETEN EREIGNISSE noch als offen, die #785 vier Zyklen vorher geschlossen hat
 Sweep war also unvollständig. Alle drei plus CLAUDE.md plus die Integrator-Seite
 `docs/artnet-sacn-from-a-phone.html` in diesem Commit mitgezogen.
 
+## #790 — ich hatte dieselbe Geräte-Frage zweimal in die Founder-Liste geschrieben (2026-08-24)
+
+Nachkontrolle meiner eigenen #789-Arbeit: beide neuen `NEEDS-FOUNDER-VERIFY`-Vermerke werden vom
+Werkzeug erfasst (52 statt 50) — **aber es sind zwei Vermerke für EINE Frage.** Die Liste ist die
+Warteschlange, aus der eine Geräte-Sitzung triagiert wird; ein Doppelter kostet eine Probe.
+Behoben: die Frage steht jetzt einmal, an `SACNSender.sourceName(synthetic:)`; der Wächter zeigt
+in Prosa darauf statt einen zweiten Marker zu setzen. 51 offen.
+
+**Und der Versuch, so etwas automatisch zu finden, ist ein DEAD-END** (in `HARNESS_LEDGER`
+notiert). Ein Schlüssel aus den ersten 8 normalisierten Wörtern lieferte **einen Fehlalarm** (zwei
+Prüfungen, die denselben Geräte-Setup-Schritt teilen, aber Verschiedenes beobachten) und **verfehlte
+den echten Doppelten** (meine zwei, die verschieden anfangen). Das ist #778 auf die Warteschlange
+angewandt: **eine FRAGE hat so viele Formulierungen, wie jemand geschrieben hat**, und ein
+Präfix-Schlüssel misst die Formulierung. Nicht gebaut — #665.
+
