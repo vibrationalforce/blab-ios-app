@@ -86,9 +86,14 @@
 //   · ⭐ **OSC — CLOSED BY #639.** `/echoelmusic/bio/synthetic` is prepended to every non-empty
 //     bio batch (1 = demo, 0 = a real body), gated on the BATCH so #245's silence survives.
 //     Guard: `Tests/CISmoke/TheWireSaysWhoseBodyTests.swift`.
-//   · **ADM-OSC / Art-Net / sACN / the discrete events** — still no provenance, and each for
-//     its own reason (a foreign standard's namespace · a free DMX slot nobody has designated ·
-//     a separate code path). Named by #627 and #629 too; the reasons live in #639's guard.
+//   · **ADM-OSC and Art-Net** — still no provenance, each for its own reason (a foreign
+//     standard's namespace whose extension rules sit behind an AES paywall, #786 · an `ArtDMX`
+//     packet with no name field, whose `ArtPollReply` counterpart is unbuilt, #789).
+//     ⛔ **sACN AND THE DISCRETE EVENTS STOOD HERE AND ARE CLOSED** — events by #785, sACN by
+//     #789 via E1.31's own 64-byte Source Name. Note what the retracted parenthetical got
+//     wrong: "a free DMX slot nobody has designated" was true of raw DMX and hid that sACN is
+//     DMX *carried over* E1.31 — the carrier has a header the payload does not. Named by #627
+//     and #629 too; the reasons live in #639's and #789's guards.
 //   · ⛔ **AN AUv3 ITEM STOOD HERE AND THE TARGET DOES NOT EXIST.** It read "the AUv3's
 //     host-visible AUParameters (`pullSharedVitals`) now receive a payload that KNOWS".
 //     `project.yml` declares five targets and records the removal at 2026-07-24;

@@ -163,6 +163,11 @@ public final class SACNSender {
 
     // MARK: - Subscriber tick
 
+    /// Provenance of the last egress-allowed bio frame, or `nil` before one arrives (#789).
+    /// Latched rather than read per tick because two of the three arms in `sendIfFresh` have
+    /// no source to read.
+    private var lastKnownSynthetic: Bool?
+
     private func sendIfFresh(from bus: EngineBus) {
         // Music drives the COLOUR when sounding (SpectralColor), bio otherwise.
         // Dedup on the chosen source's timestamp. (sACN shares Art-Net's mapping.)
@@ -181,6 +186,13 @@ public final class SACNSender {
             sourceTimestamp = frame.timestamp
             channels = ArtNetSender.dmxChannels(for: frame, resolution: resolution)
             dimmer = ArtNetSender.dimmerUnit(for: frame)
+            // #789 — latch provenance HERE and nowhere else: this is the only arm whose input
+            // carries a source. The music arm drives the colour from a `MusicalFrame`, which
+            // has no source field at all, and the held arm re-sends what an earlier tick
+            // produced. Latching from the last EGRESS-ALLOWED bio frame is therefore the only
+            // honest answer available on every tick, and it is the same frame family that fed
+            // the composer behind the music arm.
+            lastKnownSynthetic = frame.source.isSynthetic
         } else if !lastChannels.isEmpty {
             // No fresh/allowed source, but the rig is already lit: hold the last
             // colour and keep running the master/slew logic so a Blackout or
@@ -222,7 +234,8 @@ public final class SACNSender {
         // hue swing at high dimmer would otherwise strobe past 3 Hz, Law 6 gap).
         ArtNetSender.applySlewedColour(&channels, resolution: resolution, last: &lastColour,
                                        maxDelta: FlashGuard.senderTickDelta)
-        let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid, channels: channels)
+        let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid,
+                                     channels: channels, synthetic: lastKnownSynthetic)
         sequence = sequence &+ 1   // wraps 0…255 (0 is valid in E1.31)
         send(packet)
         lastSentTimestamp = CFAbsoluteTimeGetCurrent()
@@ -243,7 +256,33 @@ public final class SACNSender {
 
     /// Builds a full E1.31 Data Packet (always 512 slots). `channels` is padded
     /// to 512 with zeros. `cid` must be 16 bytes. Pure — unit-testable.
-    public nonisolated static func e131Packet(universe: Int, sequence: UInt8, cid: [UInt8], channels: [UInt8]) -> Data {
+    /// The E1.31 Source Name a console shows in its source list (#789). ⭐ THIS IS THE
+    /// STANDARD'S OWN PLACE for it: 64 bytes in the framing layer of every data packet, which
+    /// is why the DMX half of the provenance family turned out to be buildable rather than a
+    /// namespace decision. No slot to patch, nothing invented — an operator already reads this
+    /// field to tell one source from another.
+    public nonisolated static let baseSourceName = "Echoelmusic"
+
+    /// The name to send for a given provenance. `nil` = not known on this tick (the music arm
+    /// drives the colour and `MusicalFrame` carries no source), which reads the same as a real
+    /// body on purpose — see the ⚠️ below.
+    ///
+    /// ⚠️ TWO STRINGS, THREE STATES, AND THAT IS A DELIBERATE TRADE, not an oversight. A plain
+    /// "Echoelmusic" means EITHER a real body OR a build older than #789 — the ambiguity
+    /// #639's claim 2 argues against on the OSC wire. It is accepted here because the medium is
+    /// different: this is a HUMAN-READABLE operator display, not a machine contract, and nobody
+    /// parses it. Suffixing every real session with "(body)" would put noise in a console's
+    /// source list for the case that needs no warning. The DEMO case is the whole point.
+    ///
+    /// ⚠️ NEEDS-FOUNDER-VERIFY: a console may CACHE the name per CID and not redraw it when the
+    /// player switches source mid-session. E1.31 permits the change; whether a given desk shows
+    /// it is a device fact this repo cannot measure.
+    public nonisolated static func sourceName(synthetic: Bool?) -> String {
+        synthetic == true ? baseSourceName + " (DEMO)" : baseSourceName
+    }
+
+    public nonisolated static func e131Packet(universe: Int, sequence: UInt8, cid: [UInt8],
+                                              channels: [UInt8], synthetic: Bool?) -> Data {
         let slotCount = 512
         var slots = channels
         if slots.count < slotCount { slots += Array(repeating: 0, count: slotCount - slots.count) }
@@ -268,7 +307,8 @@ public final class SACNSender {
         // ---- Framing layer (77) ----
         d.append(contentsOf: flagsLen(total - 38))  // Framing flags+length
         d.append(contentsOf: [0x00, 0x00, 0x00, 0x02]) // Vector E131_DATA_PACKET
-        var name = Array("Echoelmusic".utf8); name = Array((name + Array(repeating: 0, count: 64)).prefix(64))
+        var name = Array(sourceName(synthetic: synthetic).utf8)
+        name = Array((name + Array(repeating: 0, count: 64)).prefix(64))
         d.append(contentsOf: name)                  // Source Name (64)
         d.append(100)                               // Priority
         d.append(contentsOf: [0x00, 0x00])          // Sync address

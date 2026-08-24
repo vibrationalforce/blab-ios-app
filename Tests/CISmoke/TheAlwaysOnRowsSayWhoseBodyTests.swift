@@ -195,7 +195,12 @@
 //     shipped, with a threshold ("the eighth copy") that no longer exists. **The register that
 //     records a threshold has to be ticked by the commit that crosses it** — the same rule the
 //     surfaces register states three times about itself, now paid for a fourth time.
-//   · ADM-OSC / Art-Net / sACN still carry no provenance (#462, second half). ⭐ OSC itself is
+//   · ADM-OSC and Art-Net still carry no provenance (#462, second half) — ⛔ **sACN STOOD IN
+//     THIS LIST ONE CYCLE AGO AND IS CLOSED (#789)**: E1.31 puts a 64-byte Source Name in the
+//     framing layer of every data packet, `SACNSender` was already filling it with a hardcoded
+//     name, and a demo session now reads "Echoelmusic (DEMO)" in a console's source list.
+//     Art-Net stays open for a PRECISE reason: `ArtDMX` carries no name and `ArtPollReply`,
+//     which does, is not implemented — a build, not a decision. ⭐ OSC itself is
 //     DONE since #639 (`/echoelmusic/bio/synthetic`) — this line said "OSC" first and would
 //     otherwise send the next session to re-do it — and the DISCRETE EVENTS are done since
 //     #785, which is why they are struck from this bullet here rather than only in

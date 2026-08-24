@@ -146,7 +146,21 @@
 //           and never something a spec sheet may claim. This is the half worth a guard: it is a
 //           CODE property that could change, and if it changed this bullet would silently
 //           overstate how open the open half is.
-//   · **Art-Net and sACN** carry DMX and are the honest gap in this family. ⛔ THE FIRST DRAFT
+//   · **Art-Net and sACN** — ⛔ **THIS BULLET WAS ONE ENTRY AND IS NOW TWO, because #789 found
+//     the two protocols do NOT share the answer.** **sACN is CLOSED**: E1.31 puts a 64-byte
+//     **Source Name** in the framing layer of every data packet, `SACNSender` had been filling
+//     it with a hardcoded "Echoelmusic" since the file was written, and a demo session now says
+//     "Echoelmusic (DEMO)" there — the standard's own field, which a console already displays.
+//     **Art-Net stays open, for a PRECISE reason rather than a shared one**: its data packet
+//     (`ArtDMX`, 0x5000 — the only opcode `ArtNetSender` implements) carries no name at all; the
+//     identity fields live in `ArtPollReply` (0x2100), a discovery packet Echoel does not
+//     implement. So its convention exists too, and what is missing is a BUILD, not a decision.
+//     ⭐ THE LESSON IS ABOUT REGISTERS, not about DMX: this entry named what the two protocols
+//     have in COMMON ("carry DMX") and thereby hid the difference that decides the question —
+//     sACN is DMX *carried over* E1.31, and the carrier has a header the payload does not.
+//     Guard: `TheLightRigSeesTheSimulatorTests`.
+//     The paragraph below is the ORIGINAL entry, kept because its arithmetic is still right
+//     about raw DMX and because its retraction is the reason this one exists: ⛔ THE FIRST DRAFT
 //     CALLED THIS "a genuine cannot — no metadata room at all", AND THAT IS FALSE. A DMX
 //     universe is 512 slots; `ArtNetSender.dmxChannels` uses FOUR (dimmer + R + G + B), eight
 //     at 16-bit. Over five hundred are free. What is missing is a CONVENTION — a slot a desk

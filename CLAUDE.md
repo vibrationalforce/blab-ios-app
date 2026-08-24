@@ -643,16 +643,33 @@ the old list named eeg/{band}, audio/rms, audio/pitch which are NEVER sent):
                                  KEIN zusätzliches Argument: ein zweiter Float auf
                                  `/heart/bpm` bräche jeden Integrator auf dem alten Vertrag.
                                  Über UDP nicht reihenfolge-garantiert → als ZUSTAND latchen.
-                                 ⛔ ADM-OSC, Art-Net und sACN tragen weiterhin KEINE Herkunft,
-                                 und die Gründe sind VERSCHIEDEN: `/adm/obj/{n}/*` ist ein
-                                 FREMDER Standard-Adressraum — dort etwas zu erfinden wäre das
-                                 Gegenteil der Offene-Standards-Haltung. ⛔ Für DMX stand hier
-                                 „hat gar keinen Platz für Metadaten (ein echtes ‚geht nicht')"
-                                 und das ist FALSCH: ein Universum hat 512 Slots,
-                                 `ArtNetSender.dmxChannels` belegt VIER (Dimmer + R + G + B),
-                                 acht bei 16 Bit. Es fehlt eine KONVENTION, nicht der Platz —
-                                 ein schwächeres Argument als ein „geht nicht", und genau die
-                                 Sorte Über-Behauptung, die diese Scheiben-Familie abbaut.
+                                 ⛔ ADM-OSC und Art-Net tragen weiterhin KEINE Herkunft — **sACN
+                                 seit #789 SCHON**, und die Gründe der drei sind VERSCHIEDEN.
+                                 **sACN: ERLEDIGT.** E1.31 hat ein 64-Byte-**Source-Name**-Feld im
+                                 Framing-Layer JEDES Datenpakets; `SACNSender` füllte es seit
+                                 jeher hart mit „Echoelmusic", eine Demo-Sitzung schreibt dort
+                                 jetzt „Echoelmusic (DEMO)". Das ist das EIGENE Feld des
+                                 Standards, das ein Pult ohnehin in seiner Quellenliste anzeigt —
+                                 nichts erfunden, kein Slot zu patchen. **Art-Net: OFFEN, aber
+                                 aus einem PRÄZISEN Grund** — sein Datenpaket (`ArtDMX`, 0x5000,
+                                 der einzige Opcode, den `ArtNetSender` baut) trägt gar keinen
+                                 Namen; die Identität liegt in `ArtPollReply` (0x2100), einem
+                                 Discovery-Paket, das Echoel nicht implementiert. Also fehlt ein
+                                 BAU, keine Entscheidung. **ADM-OSC: OFFEN** — `/adm/obj/{n}/*`
+                                 ist ein FREMDER Standard-Adressraum, dort etwas zu erfinden wäre
+                                 das Gegenteil der Offene-Standards-Haltung, und ob er einen
+                                 Hersteller-Namensraum reserviert, ist aus öffentlichen Quellen
+                                 nicht messbar (Spec v1.0 = AES-Paper hinter der Paywall, #786).
+                                 ⭐ **DIE LEHRE IST ÜBER REGISTER, nicht über DMX:** dieser
+                                 Eintrag nannte, was Art-Net und sACN GEMEINSAM haben („tragen
+                                 DMX"), und verbarg damit den Unterschied, der die Frage
+                                 entscheidet — sACN ist DMX ÜBER E1.31, und der Träger hat einen
+                                 Kopf, den die Nutzlast nicht hat. ⛔ Und die Vorgänger-Fassung
+                                 sagte für DMX „hat gar keinen Platz für Metadaten" — auch das
+                                 war falsch: ein Universum hat 512 Slots,
+                                 `ArtNetSender.dmxChannels` belegt VIER (acht bei 16 Bit). Zwei
+                                 Rücknahmen an derselben Zeile, beide in Richtung „es geht mehr
+                                 als behauptet".
                                  ⭐ **Die Event-Adressen unten tragen sie SEIT #785 auch** —
                                  anderer Codepfad (`drainAndSendEvents` → `eventMessages`) und
                                  bewusst andere Kadenz: die Flagge steht unmittelbar VOR dem

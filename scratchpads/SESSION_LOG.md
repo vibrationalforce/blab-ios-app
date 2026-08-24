@@ -13146,3 +13146,38 @@ ich die Liste statt des Verzeichnisses genommen, wäre die Lücke sofort wieder 
 
 Eltern rot (eine stille Datei), Arbeitsbaum grün, zwei Mutationen je rot für ihren Grund.
 
+## #789 — die DMX-Hälfte war KEINE Entscheidung, sondern ein Bau (2026-08-24)
+
+Das Register sagte über die Licht-Hälfte: „Es fehlt eine KONVENTION — ein Slot, den ein Pult
+patchen müsste." **Für sACN ist das falsch, und der Gegenbeweis lag im eigenen Paketbauer.**
+E1.31 hat ein 64-Byte-**Source-Name**-Feld im Framing-Layer JEDES Datenpakets; `SACNSender` füllte
+es seit jeher hart mit `"Echoelmusic"`. Ein Pult zeigt genau diesen String in seiner Quellenliste.
+
+Gebaut: eine Demo-Sitzung schreibt dort `"Echoelmusic (DEMO)"`. Nichts erfunden, kein fremder
+Namensraum, kein Slot zu patchen — das eigene Feld des Standards.
+
+**DIE LEHRE IST ÜBER REGISTER, nicht über DMX.** Der Eintrag nannte, was Art-Net und sACN
+GEMEINSAM haben („tragen DMX"), und verbarg damit den Unterschied, der die Frage entscheidet:
+**sACN ist DMX ÜBER E1.31, und der Träger hat einen Kopf, den die Nutzlast nicht hat.** Eine
+Register-Zeile, die zwei Dinge unter ihrer Gemeinsamkeit zusammenfasst, kann das Trennende
+verstecken — und dieses Register hatte an derselben Stelle schon einmal zu tief gestapelt
+(„kein Platz für Metadaten", zurückgenommen, als jemand die 512 Slots nachzählte). **Zwei
+Rücknahmen an einer Zeile, beide in Richtung „es geht mehr als behauptet".**
+
+**Art-Net bleibt offen, jetzt mit präzisem Grund:** `ArtDMX` (0x5000, der einzige Opcode, den wir
+bauen) trägt keinen Namen; die Identität liegt in `ArtPollReply` (0x2100), das Echoel nicht
+implementiert. Das ist ein BAU, keine Entscheidung.
+
+**Selbst-Fund beim Fahren:** Behauptung 3 war als sauberes Gegengewicht gebucht und ist geteilt —
+ihre Kanal-Hälfte ist echtes Gegengewicht, ihre LÄNGEN-Hälfte ist präventiv und heute
+**unerreichbar** (die 64-Byte-Kappung greift nur für Namen >64 Bytes; unsere längste Zeichenkette
+hat 18). **Und die erste Mutation dafür war ein NO-OP** — Kappung entfernt, während der Name noch
+passte: nichts bewegte sich, nichts wurde rot. Das ist #785s Behauptung-14-Teilung vier Zyklen
+später und #782s Regel wörtlich: **eine Mutation ist kein Beleg, bevor man bestätigt hat, dass sie
+gelandet ist.**
+
+**#456-Sweep: das Register lag in DREI Wächtern, nicht einem** — und zwei davon nannten die
+DISKRETEN EREIGNISSE noch als offen, die #785 vier Zyklen vorher geschlossen hatte. #785s eigener
+Sweep war also unvollständig. Alle drei plus CLAUDE.md plus die Integrator-Seite
+`docs/artnet-sacn-from-a-phone.html` in diesem Commit mitgezogen.
+

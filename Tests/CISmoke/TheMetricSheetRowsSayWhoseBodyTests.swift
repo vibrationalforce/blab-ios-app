@@ -184,8 +184,12 @@
 // sentence prints a positive claim. It survives only because the sentence says "while a session
 // runs", which is weaker than the doc's own premise that this is a present-tense claim. A third
 // wording is the fix and it is a decision, not a typo.
-// Still open, from the original list: the two `EchoelStudioView` captions, and ADM-OSC /
-// Art-Net / sACN / the discrete events (#462, second half).
+// Still open, from the original list: the two `EchoelStudioView` captions, and **ADM-OSC plus
+// Art-Net** (#462, second half). ⛔ THIS LINE ALSO NAMED sACN AND THE DISCRETE EVENTS AND BOTH
+// ARE CLOSED: the events since #785 (the flag goes immediately before the event it describes,
+// re-sent only on a change of origin), sACN since #789 (E1.31's own 64-byte Source Name — a
+// demo session reads "Echoelmusic (DEMO)" in a console's source list). Art-Net stays open for a
+// PRECISE reason: `ArtDMX` carries no name and `ArtPollReply`, which does, is not implemented.
 // ⭐ **CLOSED (#647)** — `BodyTempoField`'s unconditional "Tempo, driven by your body". Its
 // three forms now live in `TempoFollowLabel.spoken(for:)` and both label sites ask it, keyed on
 // `bus.usableBio()` — the same gate the composer asks — and deliberately NOT on the field's own
