@@ -597,6 +597,111 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
     /// They agree on this tree and are NOT interchangeable in general — do not "unify" them by
     /// swapping one unit for the other.
     ///
+    /// #796 — the two synth modules that cannot sound are not sold as live.
+    ///
+    /// `EchoelSynth` is a TAXONOMY, not a type: two published places name the modules grouped
+    /// under it, and both read them as shipping. `EchoelModalBank`'s only caller was the drum
+    /// voice removed by #167; `EchoelCellular` never had one. Both stay in the tree deliberately
+    /// (the founder said "erstmal") — what must not stay is a public line reading them as live.
+    ///
+    /// ⭐ THE PREMISE IS MEASURED, SO THIS CANNOT BECOME A TRAP (#364). It counts `Module(` in
+    /// the CODE of `Sources/**` first and skips any module with even one instantiation. The day
+    /// somebody wires one, the guard stops demanding a qualifier instead of forbidding the work;
+    /// there is no "lift this in the same commit" instruction because there is nothing to lift.
+    /// Comments are stripped for a concrete reason: CLAUDE.md's note about `EchoelModalBank`
+    /// QUOTES the recipe `git grep -n "EchoelModalBank(" -- Sources`, so a source file quoting
+    /// that note back would make a naive scan read documentation as an instantiation.
+    ///
+    /// ⛔ THE FIRST DRAFT OF THIS GUARD WAS GREEN ON THE BROKEN PARENT, and driving it is the
+    /// only reason that was found. It asked, per FILE, whether a not-wired marker appears
+    /// anywhere — chosen to avoid flagging a legitimate third mention (#486). But the defect WAS
+    /// a roster line contradicting a detail row IN THE SAME FILE (#425), which per-file can
+    /// never see: `architecture.html` carried "Not wired" on lines 224/225 and sold both modules
+    /// as LIVE on line 346. A window-based version then false-alarmed on `FEATURE_MATRIX.md`,
+    /// where every entry has a `**Code:**` line followed by a `**Live:**` line and one paragraph
+    /// legitimately names the module while discussing a documentation lesson. So both halves are
+    /// ANCHORED at the exact claim instead: no windows, no proximity, no false alarms (#665).
+    func testTheUnwiredSynthModulesAreNotSoldAsLive() throws {
+        let modules = ["EchoelModalBank", "EchoelCellular"]
+        let notWired = ["not wired", "no voice instantiates", "makes no sound",
+                        "neither makes a sound", "nicht verdrahtet"]
+
+        let sources = try repoRoot().appendingPathComponent("Sources")
+        guard let walk = FileManager.default.enumerator(atPath: sources.path) else {
+            throw XCTSkip("`Sources/` is not present — a docs-only checkout cannot judge the premise")
+        }
+        var code = ""
+        for case let rel as String in walk where rel.hasSuffix(".swift") {
+            let text = try String(contentsOf: sources.appendingPathComponent(rel), encoding: .utf8)
+            code += SourceText.codeOnly(text)
+        }
+        XCTAssertFalse(code.isEmpty, """
+            The walk over `Sources/**` read no Swift at all, so the premise was never measured \
+            and both assertions below would have passed vacuously (#454). Re-point the walk in \
+            the same commit as whatever moved the sources.
+            """)
+
+        let unsounding = modules.filter { code.components(separatedBy: $0 + "(").count - 1 == 0 }
+        guard !unsounding.isEmpty else { return }   // all wired — nothing left to qualify
+
+        // ANCHOR 1 — the published roster row on the website.
+        let html = try String(contentsOf: try repoRoot()
+            .appendingPathComponent("docs/architecture.html"), encoding: .utf8)
+        // A plain literal with escaped quotes, NOT a `"""` block: Swift forbids content
+        // on the delimiter line, and the first draft wrote exactly that — the #792 class
+        // of break, caught here by reading the emitted line instead of trusting the patch.
+        let rosterKey = "<div class=\"k\">EchoelSynth "
+        guard let keyAt = html.range(of: rosterKey) else {
+            return XCTFail("""
+                `docs/architecture.html` no longer carries a `<div class="k">EchoelSynth ` \
+                roster row, so this guard checked nothing (#454). If the roster moved, \
+                re-anchor it here in the same commit — do not delete the check.
+                """)
+        }
+        let rowEnd = html.range(of: "</div></div>", range: keyAt.upperBound..<html.endIndex)
+        let row = String(html[keyAt.upperBound..<(rowEnd?.upperBound ?? html.endIndex)]).lowercased()
+        for module in unsounding where row.contains(module.lowercased()) {
+            XCTAssertTrue(notWired.contains(where: { row.contains($0) }), """
+                The EchoelSynth roster row in `docs/architecture.html` lists \(module) beside \
+                `EchoelDDSP` under a LIVE tag, with no word saying it cannot sound.
+
+                It has ZERO instantiations in the code of `Sources/**`. The detail rows higher \
+                up the same page already say "Not wired" and "no voice instantiates it today" — \
+                so the page contradicted itself, and the roster row is the one a skimmer reads. \
+                Say it in the row, or wire the module.
+                """)
+        }
+
+        // ANCHOR 2 — the reference document's Live inventory for the same tool.
+        let matrix = try String(contentsOf: try repoRoot()
+            .appendingPathComponent("docs/dev/FEATURE_MATRIX.md"), encoding: .utf8)
+        guard let section = matrix.range(of: "### 1. EchoelSynth") else {
+            return XCTFail("""
+                `docs/dev/FEATURE_MATRIX.md` no longer has a "### 1. EchoelSynth" section, so \
+                the second half of this guard checked nothing (#454). Re-anchor it here.
+                """)
+        }
+        let after = matrix[section.upperBound...]
+        let liveLine = after.split(separator: "\n").first { $0.hasPrefix("- **Live:**") }
+        guard let live = liveLine.map({ $0.lowercased() }) else {
+            return XCTFail("""
+                The "### 1. EchoelSynth" section carries no `- **Live:**` line any more, so the \
+                inventory this guard reads is gone (#454). Re-anchor it here.
+                """)
+        }
+        for word in ["modal", "cellular"] where live.contains(word) {
+            XCTFail("""
+                `FEATURE_MATRIX.md`'s EchoelSynth Live line still sells "\(word)" synthesis.
+
+                Neither `EchoelModalBank` nor `EchoelCellular` is instantiated anywhere in the \
+                code of `Sources/**` — this line read "DDSP / modal / cellular synthesis" until \
+                #796. This is the document a session reads to decide what is live, so a false \
+                entry here plans the next cycle's work around a module that makes no sound. \
+                Wire it, or leave it out of the Live line.
+                """)
+        }
+    }
+
     /// ⚠️ THE WINDOW IS ASYMMETRIC ON PURPOSE and the numbers are not decorative: English
     /// qualifies AFTER the noun far more often than before it ("RTMP was never built"), so the
     /// forward reach carries most of the weight, while the backward reach only has to cross a

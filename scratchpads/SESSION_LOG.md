@@ -13358,3 +13358,46 @@ zurückzunehmen. Dieselbe #491-Form eine Ebene tiefer; die Schwelle heißt „0 
 
 Getrieben: Arbeitsbaum grün, Eltern `7e84710` grün, drei Mutationen: Zusatz aus der Beschreibung
 → rot · Zusatz aus den Release-Notes → rot · Anspruch ganz entfernt → grün (#364).
+
+## #796 — die Website verkaufte zwei Synth-Module, die keinen Ton machen (2026-08-24)
+
+Die erste ÜBER-Behauptung nach vier Unter-Behauptungen — und sie stand auf der öffentlichen
+Seite. `docs/architecture.html` führte in der Werkzeug-Übersicht **EchoelSynth `LIVE` =
+EchoelDDSP · EchoelCellular · EchoelModalBank**, während DIESELBE Seite 120 Zeilen höher für
+beide „Not wired — makes no sound in the shipping app" sagt. Ein Anspruch und seine eigene
+Widerlegung in einer Datei (#425), und die Übersichtszeile ist die, die ein Überflieger liest.
+Zweite Fundstelle: `docs/dev/FEATURE_MATRIX.md` verkaufte „**Live:** DDSP / **modal** /
+**cellular** synthesis" — das Dokument, aus dem eine Sitzung ableitet, was live ist.
+
+Gemessen: `git grep -n "EchoelModalBank(\|EchoelCellular(" -- Sources` → **nichts**. Null
+Instanziierungen für beide. `EchoelModalBank`s einziger Aufrufer war die mit #167 entfernte
+Drum-Stimme; `EchoelCellular` hatte nie einen.
+
+⛔ **DER ERSTE WÄCHTER-ENTWURF WAR AUF DEM KAPUTTEN ELTERN GRÜN — und nur das Treiben hat es
+gezeigt.** Er fragte PRO DATEI, ob irgendwo ein „not wired"-Vermerk steht; so gewählt, um eine
+legitime dritte Nennung nicht anzumeckern (#486). Aber der Defekt WAR eine Übersichtszeile, die
+einer Detailzeile **in derselben Datei** widerspricht — das kann eine Pro-Datei-Prüfung
+prinzipiell nicht sehen. Die Fenster-Variante danach schlug in `FEATURE_MATRIX.md` falsch an,
+wo jeder Eintrag eine `**Code:**`- gefolgt von einer `**Live:**`-Zeile hat. **Beide Hälften sind
+jetzt am Anspruch selbst VERANKERT** — kein Fenster, keine Nähe, keine Fehlalarme (#665).
+
+⭐ **Die Prämisse wird gemessen, deshalb kann dieser Wächter keine Falle werden (#364):** er
+zählt zuerst `Module(` im CODE von `Sources/**` und überspringt jedes Modul mit auch nur einer
+Instanziierung. Wer eines verdrahtet, muss nichts „im selben Commit aufheben" — es gibt nichts
+aufzuheben. Kommentare werden gestrippt, weil CLAUDE.mds eigene Notiz das Rezept
+`git grep -n "EchoelModalBank(" -- Sources` ZITIERT: eine Quelldatei, die diese Notiz
+zurückzitiert, ließe einen naiven Scan seine eigene Dokumentation als Instanziierung lesen.
+
+⛔ **Und ein zweiter Fehler wurde VOR dem Push gefangen, weil ich die erzeugte Zeile gelesen
+habe statt dem Patch zu glauben:** `let rosterKey = """<div …"""` — Swift verbietet Inhalt auf
+der Trennzeile eines `"""`-Literals. Genau die #792-Klasse; diesmal kostete sie keinen Zyklus.
+
+⭐ **Nebenbefund über Beweismittel:** `grep -n … | cut -c1-230` verbarg eine echte dritte
+Fundstelle in `FEATURE_MATRIX.md:159`, weil der Name jenseits von Spalte 230 stand. Dieselbe
+Lehre wie #787s `| head`: **eine Kürzung auf Beweismaterial misst, wie viel man sehen wollte.**
+Die Zeile ist übrigens eine legitime Nennung (eine Doku-Lehre), und genau sie hätte ein
+Fenster-Wächter falsch angemeckert.
+
+Getrieben: Arbeitsbaum grün, Eltern `648cb6a` **ROT mit allen vier Befunden** (also eine echte
+Regression, kein preventiver Grüneintrag), vier Mutationen rot — Qualifier aus der Roster-Zeile ·
+Live-Zeile zurückgedreht · Anker 1 umbenannt · Anker 2 umbenannt (beide #454).

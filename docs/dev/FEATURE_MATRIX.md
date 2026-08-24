@@ -150,7 +150,8 @@ acceptance line.
 
 ### 1. EchoelSynth — `LIVE`
 - **Code:** `DSP/EchoelDDSP.swift`, `DSP/EchoelCellular.swift`, `DSP/EchoelModalBank.swift`, `EchoelPolyDDSP`, `Sequencer/SamplerVoice.swift`, `Tools/BioReactiveSynthVoice.swift`
-- **Live:** DDSP / modal / cellular synthesis; one-shot sampler; bio-reactive voice (HR→vibrato, HRV→brightness, coherence→harmonicity, breath→envelope), audible via `AVAudioSourceNode` → master mixer.
+- **Live:** DDSP synthesis; one-shot sampler; bio-reactive voice (HR→vibrato, HRV→brightness, coherence→harmonicity, breath→envelope), audible via `AVAudioSourceNode` → master mixer.
+- ⛔ **"modal / cellular" stood in that Live line and neither makes a sound (#796).** Measured, not remembered: `git grep -n "EchoelModalBank(\|EchoelCellular(" -- Sources` returns **nothing** — zero production instantiators for either. `EchoelModalBank`'s only caller was the drum voice removed by #167; `EchoelCellular` never had one. Both stay in the tree deliberately (founder said "erstmal"), and both stay OUT of any Live line. ⚠️ The grep on the bare NAME is polluted by prose — fourteen files under `Sources/` mention them, all in comments; the grep that measures the thing is the one on `Name(`.
 - **Roadmap:** EchoelBeat, breakbeat chopper, spectral morph.
 - **TestFlight acceptance:** tapping play on `BioStripView` opens the envelope and produces sound; bio frames audibly modulate timbre.
 
