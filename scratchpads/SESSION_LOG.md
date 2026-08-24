@@ -12995,3 +12995,32 @@ viel. Offen bleiben **ADM-OSC / Art-Net / sACN ohne Herkunftsangabe** und **Harm
 auf der Stimme** (wartet auf V0). Das Demo-Schildchen NICHT mehr aufführen.
 
 **Note (#464): kein Code-Fund; eine falsche Founder-Information korrigiert.**
+
+## #785 — die Ereignis-Adressen tragen jetzt Herkunft (2026-08-24)
+
+`204d045`. #639 setzte `/echoelmusic/bio/synthetic` auf den Batch-Pfad und registrierte die
+Ereignis-Hälfte ausdrücklich als offen. Geschlossen: die Flagge steht unmittelbar VOR dem
+Ereignis und wird nur bei WECHSEL erneut gesendet, über Drains gelatcht. Arithmetik in einem
+reinen `nonisolated static eventMessages(for:lastAnnounced:)`; `send(event:)` verlor dabei
+seinen letzten Aufrufer und ist gelöscht.
+
+Warum eine ANDERE Kadenz als der Batch: Ereignisse kommen in Bündeln (Per-RR-Schläge, Atem-
+Onsets paarweise), der Batch ist ~1 Hz. Pro Ereignis zu wiederholen vervielfacht den Verkehr
+auf dem latenzgeformten Pfad ohne Information. Ein spät dazukommender Empfänger lernt den
+Zustand aus dem Batch.
+
+**LEHRE (#785) — eine Behauptung kann HALB Gegengewicht sein, und das Modell sagt es, die
+Prosa nicht.** Behauptung 14 („ein leerer Drain schweigt") war als zweites Gegengewicht
+gebucht. Ausgeführt gegen den Eltern-Commit: ihre NACHRICHTEN-Hälfte ist dort grün (der
+Eltern schwieg bei leerer Queue), ihre LATCH-Hälfte rot (der Eltern hat kein `announced`).
+Also eine Gegengewichts- und eine Regressions-Behauptung in EINER Methode. Zusammengelassen,
+weil sie ein Verhalten beschreiben — getrennt könnte die Schweige-Zusicherung grün bleiben,
+während der Latch still zurückgesetzt wird. Dieselbe schmeichelnde Richtung, die derselbe
+Block für Behauptung 5 schon einmal zurücknehmen musste; gefunden durch AUSFÜHREN des
+Modells, nicht durch erneutes Lesen.
+
+Sieben Mutationen, jede rötet genau die Behauptungen, die sie benennen; Kontrolle grün.
+Prosa in ALLEN drei Heimaten mitgezogen (#456): CLAUDE.mds OSC-Abschnitt, der Adress-Katalog
+in `OSCSender.swift`, und der WATCH-Eintrag in `TheAlwaysOnRowsSayWhoseBodyTests`, der die
+Ereignisse noch als „carry no provenance" führte. **Offen bleiben ADM-OSC und DMX — zwei
+Hälften, nicht drei.**

@@ -2163,3 +2163,16 @@ Dateinamen. Ein Wächter heißt hier nach seiner Aussage, nicht nach seinem Gege
 Gemessen in `testflight.yml`: `push: paths: ['.deploy/release']`. Der Filter steht auf der
 DATEI, nicht auf der Versionszeile — eine reine Prosa-Korrektur löst einen echten
 TestFlight-Upload aus. Korrekturen an der Note warten auf den nächsten echten Deploy.
+
+### PLAYBOOK — benote eine Behauptung, indem du das Modell AUSFÜHRST, nicht indem du sie liest (#785)
+
+Eine Behauptung kann HALB Gegengewicht sein. `TheWireSaysWhoseBodyTests`' Behauptung 14 war
+als Gegengewicht gebucht; im Eltern-Commit ausgeführt zeigte sie eine grüne
+(Nachrichten-)Hälfte und eine rote (Latch-)Hälfte. Der Fehler ist die schmeichelnde Richtung
+aus §3 und im SELBEN Block schon einmal für Behauptung 5 passiert.
+
+**Vorgehen:** die Produktionsfunktion in Python transkribieren, den ELTERN-Zweig daneben
+modellieren, jede Behauptung als Prädikat gegen BEIDE fahren und die Wahrheitstabelle
+ausdrucken. Was im Eltern grün ist, ist Gegengewicht; was rot ist, Regression. Eine Methode
+kann in beiden Spalten stehen — dann sagt man das, statt zu runden. Danach sieben Mutationen
+gegen dieselben Prädikate, damit keine Behauptung ununterscheidbar von ihrer Verletzung ist.
