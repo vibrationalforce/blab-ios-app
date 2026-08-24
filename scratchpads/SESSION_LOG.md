@@ -13480,3 +13480,42 @@ Sektion C deckt sich Eintrag für Eintrag mit dem Register (alle neun türlosen 
 CLAUDE.md aufgeschrieben — „undokumentiert UND unerreichbar" ist der Defekt, nicht Unerreichbarkeit),
 Sektion D hält jede Zahl: Sources 369 · `Tests/EchoelmusicTests` 314 · Modifier dateiweit 16 ·
 CLAUDE.md 144.210 B unter der 150.000-Decke.
+
+## #800 — CLAUDE.md nennt 32 Wächter-Dateien, und nichts prüfte, ob es sie gibt (2026-08-24)
+
+Gemessen: die immer-geladene Datei zitiert **32** verschiedene Wächter — 16 als expliziten Pfad
+`Tests/CISmoke/<Name>.swift`, 17 als Backtick-Bezeichner `` `<Name>Tests` `` (eine Überschneidung).
+**Alle 32 lösen heute auf.** Kein Defekt gefunden — der Wert liegt darin, dass es jetzt geprüft
+wird: dieses Repo hat die Zeiger-Klasse zweimal bezahlt (#472 eine Zeilenspanne, die eine frühere
+Scheibe entwertet hatte; #473 fünf Prosa-Zitate auf eine im selben Commit gelöschte Ansicht,
+darunter ein Wächter, der die entfernte Datei las und auf korrektem Baum HART ROT geworden wäre).
+#474 hat das Gesetz von Zahlen auf NAMEN erweitert — durchgesetzt hat es nie jemand.
+
+**Warum kein breiterer Scan** (vor dem Schreiben gemessen, nicht angenommen): ein nacktes
+`\b[A-Z]\w*Tests\b` ist die naheliegende „stärkere" Fassung und wäre die #491-Falle — CLAUDE.md
+zitiert zurückgenommene Namen ABSICHTLICH in ihren ⛔-Blöcken. Backticks und explizite Pfade sind
+die Art, wie die Datei ein LEBENDES Zitat markiert; die ⛔-Prosa daneben benutzt sie nicht.
+
+⚠️ **Ehrliche Benotung (#464): PREVENTIV, grün auf beiden Bäumen.** Fängt heute nichts. Der
+verhinderte Fehler ist still: ein umbenannter Wächter lässt die Prosa ins Leere zeigen, und die
+nächste Sitzung kann „umbenannt" nicht von „gelöscht" nicht von „gab es nie" unterscheiden.
+Er verbietet KEIN Umbenennen (#364) — er macht #456 ausführbar: das Zitat zieht im selben Commit mit.
+
+⛔ **UND MEINE ERSTE MUTATION WAR GRÜN, WEIL SIE DAS FALSCHE ZIEL TRAF.** Ich entfernte
+`TheWireSaysWhoseBodyTests.swift` aus dem Dateisatz und erwartete Rot — aber CLAUDE.md zitiert
+diesen Wächter gar nicht (er steht in `ContentPipeline/CLAIMS.md`). Erst die korrigierte Mutation
+gegen eine WIRKLICH zitierte Datei (`TempoInvariantTests`) wurde rot. **Das ist #782 in einer neuen
+Form: „die Mutation ist gelandet" reicht nicht — sie muss das GEPRÜFTE treffen.** Ich hatte den
+Namen aus dem Gedächtnis gegriffen statt aus der Zitatliste, die derselbe Lauf zwei Zeilen höher
+druckte.
+
+**Prosa-Hälfte im selben Commit (#456):** CLAUDE.mds Satz „Der Test ist dabei umbenannt" las sich,
+als sei der ZITIERTE Name der alte — Datei und Klasse heißen aber genau so. Wer daraus einen neuen
+Namen sucht, sucht nichts. Der alte Name ist in diesem Shallow-Klon nicht mehr nachlesbar (die
+Datei existiert schon am Graft `545b19e`, `git log --diff-filter=R` über das Verzeichnis ist leer),
+also steht er bewusst nirgends statt erfunden.
+
+Getrieben: Arbeitsbaum grün · Eltern `7c86a74` grün · M1' zitierte Pfad-Datei entfernt → rot ·
+M1b zitierte Datei der anderen Suite entfernt → rot · M2 Backtick-Name gedreht → rot ·
+M3 Zitierformen entfernt → rot über den Boden (#454) · M4 Prosa-Nennung ohne Backticks → grün (#491).
+CLAUDE.md 144.627 B, unter der 150.000-Decke. CISmoke jetzt 357 Dateien.
