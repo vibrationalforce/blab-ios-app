@@ -2030,3 +2030,21 @@ erratbar ist. Ohne den Vermerk kopiert die nächste Sitzung den falschen Vertrag
 
 | PLAYBOOK | `python3 scripts/dead-needles.py` deckt seit #777 ZWEI Defekte ab: tote Nadel UND `\(Self.x)` ohne Deklaration. Vor jedem Push laufen lassen — es ist der billigste Ersatz für den Compiler, den es hier nicht gibt. |
 | PLAYBOOK | Einen neuen Prüfer IMMER gegen den Commit fahren, der den Defekt hatte, UND gegen den, der ihn reparierte. #777: 1 Treffer / 0 Treffer. Ein Detektor ohne seinen eigenen bekannten Positivfall ist keine Messung. |
+
+### PLAYBOOK (#778) — eine Claim-Nadel aus dem KÖNNEN bauen, nicht aus dem Wort
+
+**Symptom.** Ein Wächter sweept jede Fläche, jeden Satz — und lässt trotzdem eine falsche
+Behauptung stehen, weil sie das Wort nicht benutzt, nach dem gefragt wurde. (#775 suchte
+„MPE" und ging an „CC 74 slide plays the built-in voices" vorbei.)
+
+**Regel.** Die Nadel wird aus der FÄHIGKEIT gebaut, nicht aus dem Vokabular des letzten
+Defekts: hier „ein Dimensions-Wort (slide · CC 74 · timbre · air-CC · channel pressure)"
+UND „plays/reaches … voice". Ein Synonym-Wechsel kann daran nicht vorbei.
+
+**Zwei-teilig, wenn eine Richtung der Fähigkeit wirklich existiert.** MPE OUT sendet alle drei
+Dimensionen — ein Verbot des Dimensions-Wortes allein wäre #364 (verbietet korrekte Arbeit).
+Deshalb: Teil 1 = die Sache, Teil 2 = die falsche AUSSAGE über sie. Immer mit einer
+KONTROLL-Mutation prüfen, die die ehrliche Formulierung einspeist und grün bleiben MUSS.
+
+**Erkennungszeichen, dass eine Nadel zu eng ist:** sie besteht aus einem Eigennamen oder
+Akronym. Ein Nutzer beschreibt eine Fähigkeit selten mit dem Fachwort.

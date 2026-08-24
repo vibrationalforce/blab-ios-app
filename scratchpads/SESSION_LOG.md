@@ -12697,3 +12697,49 @@ zu unterscheiden, und 20 Fehlalarme sind der Weg, wie ein Prüfer ignoriert wird
 
 ⚠️ `scripts/**` löst keinen Workflow aus (#720) — dieser Commit fährt als Passagier mit dem
 nächsten Code-Commit nach `main`.
+
+## 2026-08-24 — #778: die Nadel war das Wort "MPE", die Behauptung kam ohne es aus
+
+**Befund.** `#775` hat einen Satz-Sweep über ALLE `docs/*.html` gebaut — genau, weil eine
+zeilenbasierte Suche eine Behauptung über einen Zeilenumbruch hinweg nicht findet. Derselbe
+Sweep ist an drei Sätzen vorbeigelaufen, die in klaren Worten etwas Falsches sagen:
+
+- `docs/tools.html` — „Notes, pitch bend and CC 74 slide **play the built-in voices** today"
+- `docs/faq.html` — „notes, pitch bend and CC 74 slide **reach the built-in voices**"
+- `docs/faq.html` — „any external MIDI controller you plug in **plays the built-in voices**"
+
+Keiner benutzt das Token, nach dem der Sweep gefragt hat.
+
+**Gemessen (beide Hälften falsch).**
+- `BioReactiveSynthVoice.apply(controller:)` ist der EINZIGE `ControllerEvent`-Verbraucher in
+  `Sources/`; `.slide`, `.airCC` und `.channelPressure` laufen dort in **ein einziges `break`**.
+  Die Dimension wird geparst (`MIDIBusPublisher.swift:148`, CC 74 → `.slide`) und auf den Bus
+  gelegt — sie klingt nirgends.
+- „voices", Plural: `grep -c ControllerEvent` über `PolySynthVoice.swift` und
+  `SubBassVoice.swift` = **0/0**. Es ist EINE monophone Stimme. Dieselbe Mehrzahl, die
+  `CLAUDE.md` bei #770 über die eigene Zeile und `CLAIMS.md` bei #774 zurückgenommen hat —
+  **die Website war die neunte Fläche** und trug sie zwei Monate länger.
+
+**Grenze, die den Umfang entscheidet.** Ein Satz ist falsch, wenn er sagt, die Dimension
+KLINGT. Sätze über den Bus („carried", „input", „arrives") sind wahr und bleiben:
+`architecture.html:180/193/299/350`, `overview.html:163/227/240`, `press.html:128`,
+`brainstorming.html:141`, `README.md:22`, `CLAIMS.md` §6. Genau drei Sätze überschreiten die
+Grenze; die App-Store-Texte sagen „MIDI note input" und sind ehrlich.
+
+**Wächter.** Anspruch 10 in `TheMPEDimensionsReachNoVoiceTests` (die EINE Heimat, #416).
+Zweiteilige Nadel — Dimensions-Wort **plus** „plays/reaches … voice". Ein Dimensions-Wort
+allein bleibt erlaubt (MPE-OUT sendet alle drei wirklich), ein Klang-Verb allein auch. Die
+Code-Prämisse wiederholt er NICHT; Anspruch 1 pinnt das `break` und wird zuerst rot, wenn
+jemand die Dimension verdrahtet.
+
+**#367 getrieben, in Python gegen beide Bäume transkribiert:** Elternbaum 3 Rote, genau die
+drei Sätze; Arbeitsbaum 0. Mutation A (ein neuer schlampiger Satz) → rot. Mutation B
+(KONTROLLE, ehrlicher MPE-OUT-Satz mit „plays … your rig") → **grün**, also die #364-Eigenschaft
+geprüft statt behauptet.
+
+**Note (#464): REGRESSIONSFANG.** Drei falsche Sätze auf dem Elternbaum, null hier.
+
+**Lehre, eine Drehung weiter als #766.** #766: eine Fähigkeits-Behauptung hat so viele
+FLÄCHEN, wie jemand aufzählt. #778: sie hat so viele **FORMULIERUNGEN**, wie jemand aufzählt —
+und eine Nadel, die aus dem Wort des letzten Defekts gebaut ist, ist eine Nadel für den letzten
+Defekt. Anspruch 10 ist deshalb aus dem KÖNNEN gebaut, nicht aus einem Wort.

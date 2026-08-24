@@ -104,6 +104,17 @@
 // claim costs differently but it does cost: it is the page a rig owner reads before deciding
 // whether Echoel can drive their MPE synth, and it told them no.
 //
+// ⛔ AND #775's OWN SWEEP WALKED PAST THREE FALSE SENTENCES (#778). It read every sentence on
+// every page — the sentence-level pass was the whole point of that cycle — and it asked each
+// one only about the token "MPE". `docs/tools.html` and `docs/faq.html` (twice) said in plain
+// words that "CC 74 slide plays/reaches the built-in voices", without ever using that token.
+// **The lesson is one turn past #766: an enumeration is incomplete when it enumerates SURFACES
+// but not the WORDINGS a claim can take.** #766 said a capability claim has as many surfaces as
+// someone lists; #778 says it has as many phrasings as someone lists, and a needle built from
+// the word the last defect happened to use is a needle for the last defect. Claim 10's needle
+// is therefore built from the CAPABILITY (a per-note dimension + "plays/reaches a voice"),
+// which no rewording of "MPE" can slip past.
+//
 // ⚠️ HONEST GRADING FOR #775 (parent `d7c1083`), TRANSCRIBED in Python against both trees:
 // **claim 9's page sweep is a REGRESSION CATCH** — twelve sentences across five pages call MPE
 // output roadmap on the parent, none here. Its code half (three dimensions plus the zone
@@ -381,6 +392,54 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             """)
     }
 
+    // MARK: - claim 10 — the site does not say a per-note dimension plays a voice
+
+    /// #778. THE NEEDLE WAS THE WORD "MPE", AND THE CLAIM WAS MADE WITHOUT IT. Claim 9 swept
+    /// every `docs/*.html` sentence one cycle earlier and passed over three sentences that
+    /// said, in plain words, that CC 74 slide *plays* / *reaches* "the built-in voices":
+    /// `tools.html`, and twice in `faq.html`. They never used the token the sweep looked for.
+    ///
+    /// Both halves of those sentences were false, measured at the single consumer:
+    ///   · `.slide` (and `.airCC`, `.channelPressure`) hit `break` in `apply(controller:)`
+    ///     — claim 1 above pins exactly that, so this claim does NOT restate the code premise
+    ///     (#416); if someone wires the dimension, claim 1 reds first and names the prose.
+    ///   · "voices", plural — `git grep -c ControllerEvent` over `PolySynthVoice.swift` and
+    ///     `SubBassVoice.swift` is 0/0. ONE monophonic voice consumes the bus. That is the
+    ///     same plural `CLAUDE.md` retracted about its own line at #770 and `CLAIMS.md` at
+    ///     #774 — the website was the ninth surface, and it held the claim two months longer.
+    ///
+    /// ⚠️ THE NEEDLE IS DELIBERATELY TWO-PART, because MPE **out** legitimately sends all
+    /// three dimensions and must stay sayable (#364). A dimension word alone is fine
+    /// ("Slide (CC 74) and Press" on the output path); a sounding verb alone is fine
+    /// ("notes and pitch bend play the built-in performer voice"). Only a dimension word in a
+    /// sentence that then claims it plays or reaches a VOICE is the defect — sending to an
+    /// external rig does not involve one of our voices.
+    func testTheSiteDoesNotSayAPerNoteDimensionPlaysAVoice() throws {
+        for (name, html) in try websitePages() {
+            for sentence in sentences(in: html) where namesAPerNoteInputDimension(sentence) {
+                XCTAssertFalse(claimsItPlaysAVoice(sentence), """
+                    `docs/\(name)` says a per-note expression dimension plays or reaches one \
+                    of our voices: "\(sentence)"
+
+                    IT DOES NOT. `BioReactiveSynthVoice.apply(controller:)` — the only \
+                    `ControllerEvent` consumer in `Sources/` — handles `.noteOn`, `.noteOff` \
+                    and `.pitchBend`, and runs `.slide`, `.airCC` and `.channelPressure` into \
+                    a single `break`. The dimension is parsed and carried on the bus; nothing \
+                    sounds it. And the voice it reaches is ONE monophonic voice, not "voices".
+
+                    Say the true thing in two sentences, the way the repaired pages do: what \
+                    plays the voice (notes, pitch bend), then what only arrives on the bus.
+
+                    If a voice now really consumes the dimension, claim 1 \
+                    (`testTheThreeExpressionDimensionsAreDiscarded`) is red too — read that \
+                    failure first, then this sentence is correct again and this guard, \
+                    `CLAIMS.md` §6b, `README.md` and `CLAUDE.md`'s MPE paragraph all move in \
+                    the same commit (#456).
+                    """)
+            }
+        }
+    }
+
     // MARK: - claim 8 — the caption register does not promise voices, plural
 
     /// #774. `ContentPipeline/CLAIMS.md` is the list a short-form script must read before
@@ -560,6 +619,31 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
         return out
             .map { $0.split(separator: " ").joined(separator: " ") }
             .filter { !$0.isEmpty }
+    }
+
+    /// #778. The per-note expression dimensions that arrive on the bus and reach no voice.
+    /// `pressure` is included even though `MIDIEventParse` never produces it (claim 6) — a
+    /// sentence that promises it sounds is wrong for a stronger reason, not a weaker one.
+    private func namesAPerNoteInputDimension(_ sentence: String) -> Bool {
+        let lower = sentence.lowercased().replacingOccurrences(of: "\u{00A0}", with: " ")
+        return lower.contains("slide")
+            || lower.contains("cc 74") || lower.contains("cc74")
+            || lower.contains("timbre")
+            || lower.contains("air-cc")
+            || lower.contains("channel pressure")
+    }
+
+    /// The second half of the two-part needle: does the sentence claim it PLAYS or REACHES one
+    /// of our voices? "consumes"/"carried"/"parsed" are deliberately NOT verbs here — the
+    /// repaired pages use them to say the opposite, and a guard that reddens on its own repair
+    /// is the #491 shape this bundle has already paid for.
+    private func claimsItPlaysAVoice(_ sentence: String) -> Bool {
+        let lower = sentence.lowercased()
+        for verb in ["play", "plays", "played", "reach", "reaches"] {
+            guard let r = lower.range(of: verb) else { continue }
+            if String(lower[r.upperBound...]).contains("voice") { return true }
+        }
+        return false
     }
 
     private func mentionsMPEOutput(_ sentence: String) -> Bool {
