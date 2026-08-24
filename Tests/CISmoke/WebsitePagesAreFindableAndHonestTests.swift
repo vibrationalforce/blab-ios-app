@@ -702,6 +702,86 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
         }
     }
 
+    /// #797 — the voice capture ships, so the site says so, and never without its qualifier.
+    ///
+    /// Two assertions, and the PREMISE for both is measured in `Sources/**` rather than listed
+    /// here, so neither can outlive the feature. `VoiceCaptureController` constructs
+    /// `VoiceCaptureEngine`, which constructs `VoiceAnalyzer`; the door is the Sound panel's
+    /// "Voice timbre" row. If that chain is ever removed, the premise fails and BOTH halves
+    /// lift themselves — no maintained capability list, nothing to remember (#364).
+    ///
+    /// ⭐ WHY THE FIRST HALF POINTS THE OTHER WAY. Almost every guard in this bundle asks
+    /// whether the site claims too much. This one asks whether it claims too LITTLE, because
+    /// five cycles running (#788, #791, #793, #794, #795) each found a shipped, doored
+    /// capability that had never reached a surface selling it — and an UNDER-claim is invisible
+    /// to every check that looks for false statements, which is why nobody had looked. Measured
+    /// on the parent of this commit: `grep -ril "voice timbre" docs/` returned NOTHING across
+    /// all eighteen pages, while the store's release notes had carried the feature since #592a.
+    ///
+    /// ⚠️ THE SECOND HALF IS THE PRIVACY LAW AND IT IS NOT DECORATION. A microphone feature is
+    /// the one place a vague sentence costs more than a wrong one: it drives the privacy
+    /// nutrition label and the 2.3 review, and a reader assumes the worst reading. What happens
+    /// is narrow and provable — `SynthPatch`'s own comment says "NO AUDIO is persisted here",
+    /// the taps are about 64 floats of spectral envelope, and neither `VoiceAnalyzer` nor
+    /// `VoiceCaptureEngine` touches `AVAudioFile`, `FileManager` or `write(to:)`. The same rule
+    /// guards the store copy as claim 7 of `TheStoreTextClaimsOnlyWhatShipsTests`; this is the
+    /// website's copy of it, because the two corpora are read by different people.
+    func testTheVoiceCaptureIsPublishedAndAlwaysQualified() throws {
+        let sources = try repoRoot().appendingPathComponent("Sources")
+        guard let walk = FileManager.default.enumerator(atPath: sources.path) else {
+            throw XCTSkip("`Sources/` is not present — a docs-only checkout cannot judge the premise")
+        }
+        var code = ""
+        for case let rel as String in walk where rel.hasSuffix(".swift") {
+            let text = try String(contentsOf: sources.appendingPathComponent(rel), encoding: .utf8)
+            code += SourceText.codeOnly(text)
+        }
+        let constructed = code.components(separatedBy: "VoiceAnalyzer(").count - 1
+            + (code.components(separatedBy: "VoiceCaptureEngine(").count - 1)
+        guard constructed > 0 else {
+            // The chain is gone. Nothing to publish and nothing to qualify — say so loudly
+            // enough that the next reader knows the silence is measured, not overlooked.
+            print("#797: no VoiceAnalyzer/VoiceCaptureEngine construction in Sources — premise off")
+            return
+        }
+
+        let claims = ["voice timbre", "your own voice can become", "your voice becomes"]
+        let qualifiers = ["no audio recorded", "no audio is recorded", "never recorded",
+                          "none is stored", "none stored"]
+
+        var naming: [String] = []
+        var unqualified: [String] = []
+        for page in try pages() {
+            let flat = page.html.lowercased()
+            guard claims.contains(where: { flat.contains($0) }) else { continue }
+            naming.append(page.name)
+            if !qualifiers.contains(where: { flat.contains($0) }) { unqualified.append(page.name) }
+        }
+
+        XCTAssertFalse(naming.isEmpty, """
+            The voice capture is constructed \(constructed) time(s) in the code of `Sources/**` \
+            and no published page mentions it at all.
+
+            A player holds a tone in the Sound panel's "Voice timbre" row and their own spectrum \
+            becomes the instrument's — one of the few things here nothing else does. It reached \
+            the store's release notes with #592a and stayed off the website for months, which is \
+            the same under-claim #788/#791/#793/#794/#795 each found on a different surface. If \
+            the feature was deliberately removed, this assertion lifts itself once the \
+            construction is gone; while it stands, the site has to say it.
+            """)
+
+        XCTAssertTrue(unqualified.isEmpty, """
+            A page sells the voice capture without saying that no audio is kept: \
+            \(unqualified.joined(separator: ", ")).
+
+            `SynthPatch` says it in its own comment — "NO AUDIO is persisted here": what is \
+            stored is about 64 floats of spectral envelope, and neither `VoiceAnalyzer` nor \
+            `VoiceCaptureEngine` writes a file. A microphone claim without that sentence drives \
+            the privacy nutrition label and the 2.3 review on the reader's worst assumption. \
+            Keep the qualifier on the SAME page as the claim.
+            """)
+    }
+
     /// ⚠️ THE WINDOW IS ASYMMETRIC ON PURPOSE and the numbers are not decorative: English
     /// qualifies AFTER the noun far more often than before it ("RTMP was never built"), so the
     /// forward reach carries most of the weight, while the backward reach only has to cross a

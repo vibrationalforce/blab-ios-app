@@ -13401,3 +13401,31 @@ Fenster-Wächter falsch angemeckert.
 Getrieben: Arbeitsbaum grün, Eltern `648cb6a` **ROT mit allen vier Befunden** (also eine echte
 Regression, kein preventiver Grüneintrag), vier Mutationen rot — Qualifier aus der Roster-Zeile ·
 Live-Zeile zurückgedreht · Anker 1 umbenannt · Anker 2 umbenannt (beide #454).
+
+## #797 — die Stimm-Funktion fehlte auf allen 18 Website-Seiten (2026-08-24)
+
+Der Nebenbefund aus #796, jetzt geschlossen. `grep -ril "voice timbre" docs/` lieferte auf dem
+Elternteil **nichts** — über achtzehn Seiten hinweg. Die Fähigkeit ist seit #592a/#593 gebaut,
+betürt (Sound-Panel → „Voice timbre") und stand im Store nur in den Release-Notes (#795).
+
+Neu: die Synth-Antwort in `docs/faq.html` (**beide** Hälften — sichtbares HTML UND der JSON-LD
+`FAQPage`-Block, sonst widersprechen sich Seite und strukturierte Daten), eine `data-row` in
+`docs/architecture.html` neben den Synth-Modulen, und ein Eintrag in
+`docs/dev/FEATURE_MATRIX.md` — dem Dokument, aus dem eine Sitzung ableitet, was live ist, und
+das die Funktion ebenfalls nicht kannte. Beide JSON-LD-Blöcke parsen weiterhin.
+
+**Der Wächter misst die PRÄMISSE im Code und hat deshalb ZWEI Hälften, die sich selbst
+aufheben, wenn die Funktion verschwindet (#364):** `VoiceCaptureController` → `VoiceCaptureEngine`
+→ `VoiceAnalyzer` — zwei Konstruktionsstellen. Solange die stehen, MUSS mindestens eine Seite
+die Fähigkeit nennen, und JEDE nennende Seite muss den „kein Ton"-Zusatz tragen. Verschwindet
+die Kette, greift keine der beiden Hälften mehr; es gibt keine gepflegte Fähigkeitsliste.
+
+⭐ **Die erste Hälfte zeigt in die ANDERE Richtung als fast jeder Wächter dieses Bündels** — sie
+fragt, ob die Seite zu WENIG behauptet. Fünf Zyklen in Folge (#788 · #791 · #793 · #794 · #795)
+haben je eine ausgelieferte, betürte Fähigkeit gefunden, die die Fläche nicht erreicht hat, die
+sie verkauft. Der Grund, warum das so lange lief: **eine Unter-Behauptung ist für jede Prüfung
+unsichtbar, die nach FALSCHEN Aussagen sucht.** Diese hier ist die erste, die danach sucht.
+
+Getrieben: Arbeitsbaum grün, Eltern `6d9ea17` **ROT** („keine Seite nennt die Fähigkeit"), drei
+Mutationen rot — Zusatz aus `faq.html` · Zusatz aus `architecture.html` · Anspruch überall
+entfernt bei stehender Prämisse.
