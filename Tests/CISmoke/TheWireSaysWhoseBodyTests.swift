@@ -674,5 +674,77 @@ final class TheWireSaysWhoseBodyTests: XCTestCase {
             [confidence, aux]; provenance is an ADDITIVE address, never a third argument.
             """)
     }
+
+    // MARK: - #821 — what the Art-Net half would actually cost
+
+    /// ⛔ THE REGISTER CALLED THE ART-NET GAP "ein BAU, keine Entscheidung", AND THAT WAS
+    /// OPTIMISTIC. The CLAUDE.md clause is corrected in the SAME commit as this claim — writing
+    /// it here in the present tense would have minted a fresh stale sentence in the file that
+    /// fixes one (#812). Two things measured 2026-08-25 say why, both pinned below so the
+    /// sentence cannot drift back to the cheerful version:
+    ///
+    /// 1. `ArtNetSender` builds **exactly one** opcode — `ArtDMX` (0x5000). Identity lives in
+    ///    `ArtPollReply` (0x2100), a **239-byte** record of a foreign specification, and this
+    ///    environment has no device, no console and no verifiable copy of that layout. A build
+    ///    whose CORRECTNESS cannot be checked here is a different category from the sACN half,
+    ///    where E1.31 already had a source-name field that `SACNSender` was already filling —
+    ///    #789 changed what went INTO an existing slot and could be proved by reading the code.
+    ///
+    /// 2. `Sources/` contains **zero** `NWListener` — the app has no inbound socket of any kind.
+    ///    That does not by itself block an announcement (a node may broadcast an unsolicited
+    ///    reply), but it does mean the Art-Net half is the app's first inbound-protocol surface
+    ///    if it is ever answered properly, which is a Council-sized decision and not a slice.
+    ///
+    /// ⚠️ DELIBERATELY NOT ASSERTED HERE: the `ArtPollReply` field layout, and whether an
+    /// unsolicited reply is conformant. Both are exactly the kind of claim this repo keeps
+    /// having to retract; stating them from memory would put an unverifiable spec detail into
+    /// the file a future session plans from.
+    ///
+    /// #364 — this forbids nothing. Building `ArtPollReply` is legitimate; the day a second
+    /// opcode or an inbound socket appears, this claim goes red and names the prose to pull
+    /// along: the OSC block in `CLAUDE.md` and the Art-Net bullet in this file's header.
+    func testTheArtNetHalfIsAnUnverifiableBuildAndNotJustAnUnwrittenOne() throws {
+        let senderURL = try repoRoot()
+            .appendingPathComponent("Sources/Echoelmusic/Sync/ArtNetSender.swift")
+        let sender = try String(contentsOf: senderURL, encoding: .utf8)
+        let opcodeLines = sender.components(separatedBy: "\n")
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .filter { $0.contains("OpCode") }
+        XCTAssertEqual(opcodeLines.count, 1, """
+            ArtNetSender builds \(opcodeLines.count) opcodes, not one. If the new one is \
+            ArtPollReply (0x2100), the provenance register is out of date: correct the Art-Net \
+            bullet in this file's header AND the OSC block in CLAUDE.md in the same commit.
+            """)
+        XCTAssertTrue(opcodeLines.first?.contains("0x50") == true, """
+            The single opcode ArtNetSender builds is no longer ArtDMX (0x5000). Everything the \
+            register says about Art-Net carrying no name field rests on that.
+            """)
+
+        let sources = try repoRoot().appendingPathComponent("Sources")
+        guard let walk = FileManager.default.enumerator(atPath: sources.path) else {
+            XCTFail("ANCHOR MISSING: Sources/ could not be walked — this claim fails rather "
+                    + "than skips (§4).")
+            return
+        }
+        var swiftFiles = 0
+        var listeners: [String] = []
+        for case let relative as String in walk where relative.hasSuffix(".swift") {
+            guard let body = try? String(
+                contentsOf: sources.appendingPathComponent(relative), encoding: .utf8)
+            else { continue }
+            swiftFiles += 1
+            if body.contains("NWListener") { listeners.append(relative) }
+        }
+        XCTAssertGreaterThan(swiftFiles, 300, """
+            Walked only \(swiftFiles) Swift files — the walk is broken, so the absence it \
+            reports means nothing.
+            """)
+        XCTAssertTrue(listeners.isEmpty, """
+            The app now has an inbound socket (\(listeners.joined(separator: ", "))). That is \
+            the first one, and the Art-Net paragraph above calls it a Council-sized step — \
+            re-read it rather than letting this guard just go green again.
+            """)
+    }
+
 }
 #endif

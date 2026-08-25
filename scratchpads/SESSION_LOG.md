@@ -14442,3 +14442,45 @@ neue Text selbst enthält, ist kein Anker":**
 3. Ein Skript-Edit ankerte auf `var tokens: Set<String> = []` — eine Zeile, die die neue
    Hilfsfunktion des Edits **selbst enthielt** — und fraß zwei Ansprüche. Danach die Datei
    komplett neu geschrieben statt weiter zu flicken.
+
+---
+
+## #821 — „ein BAU, keine Entscheidung" war zu optimistisch (2026-08-25)
+
+**Zwei Verifikationen, ein Befund.**
+
+**Verifiziert und in Ordnung (kein Defekt):** #789s sACN-Herkunft ist wirklich ende-zu-ende
+verdrahtet. `sendIfFresh(from:)` latcht `lastKnownSynthetic = frame.source.isSynthetic` aus dem
+frischen, egress-erlaubten Bio-Frame, und der Paketbauer schreibt daraus „Echoelmusic (DEMO)" in
+das E1.31-Source-Name-Feld. **Nachgemessen statt angenommen** — genau die #814-Falle („sieht
+verdrahtet aus"), hier mit sauberem Ergebnis.
+
+**Befund.** Das Register sagte über die Art-Net-Hälfte „Also fehlt ein **BAU, keine
+Entscheidung**". Gemessen:
+- `ArtNetSender` baut **genau EINEN** Opcode, `ArtDMX` (0x5000) — im CODE, Kommentare
+  abgezogen. `ArtPollReply` (0x2100) ist **239 Byte fremder Spezifikation**, und diese Umgebung
+  hat kein Gerät, kein Pult und keine prüfbare Fassung dieses Layouts.
+- `Sources/` enthält **NULL** `NWListener` — die App hat überhaupt keinen Eingangs-Socket.
+
+**Die Unterscheidung, die der Satz verwischte:** sACN war billig, weil E1.31 das Feld **schon
+hatte** und `SACNSender` es **schon füllte** — #789 änderte, was hineingeht, und das ist am Code
+beweisbar. Art-Net verlangt, ein fremdes Paket aus dem Gedächtnis zu bauen, **dessen Richtigkeit
+hier niemand prüfen kann**. Das ist keine fehlende Entscheidung, sondern ein unprüfbarer Bau.
+
+**Bewusst NICHT behauptet:** das `ArtPollReply`-Feldlayout und ob eine unaufgeforderte Antwort
+konform ist. Beides ist genau die Sorte Aussage, die dieses Repo dauernd zurücknehmen muss.
+
+**Gebaut:** die CLAUDE.md-Klausel korrigiert (+~380 B, Datei jetzt 147 953 B, 2 047 B Kopfraum)
+und ein Anspruch im Herkunfts-EIGENTÜMER `TheWireSaysWhoseBodyTests` (#416 — die Art-Net-Prosa
+wohnt dort schon), der beide Messungen festnagelt: **ein** Opcode, und der ist ArtDMX; **null**
+Eingangs-Sockets über 370 Swift-Dateien. #364: er verbietet den Bau nicht, er wird rot, sobald
+ein zweiter Opcode oder ein Socket auftaucht, und nennt dann die zwei Prosa-Stellen.
+
+**⛔ Zwei Fehler in der eigenen Scheibe, beide vor dem Commit gefangen:**
+1. **Ein erfundener Helfer.** Mein Anspruch rief `sourceText(...)` — den Namen gibt es in dieser
+   Datei nicht (#474: ein Name ist genauso ein `grep` wert wie eine Zahl). Ersetzt durch das
+   Lesemuster, das die Datei selbst benutzt.
+2. **Eine frische veraltete Behauptung im selben Commit.** Der Anspruchs-Kopf schrieb im
+   PRÄSENS „das Register SAGT ‚ein BAU, keine Entscheidung'" — während derselbe Commit genau
+   diesen Satz korrigiert. Das ist #812 in Reinform, nur mit null Tagen Alterung. Auf Vergangen-
+   heitsform gesetzt, mit dem Hinweis, dass die Korrektur im selben Commit steckt.

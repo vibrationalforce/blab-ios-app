@@ -655,7 +655,12 @@ the old list named eeg/{band}, audio/rms, audio/pitch which are NEVER sent):
                                  der einzige Opcode, den `ArtNetSender` baut) trägt gar keinen
                                  Namen; die Identität liegt in `ArtPollReply` (0x2100), einem
                                  Discovery-Paket, das Echoel nicht implementiert. Also fehlt ein
-                                 BAU, keine Entscheidung. **ADM-OSC: OFFEN** — `/adm/obj/{n}/*`
+                                 BAU — aber einer, dessen RICHTIGKEIT hier niemand prüfen
+                                 kann: 239 Byte fremder Spec, kein Gerät, kein Pult. Das ist eine
+                                 andere Klasse als sACN, wo das Feld schon existierte und schon
+                                 gefüllt wurde. Dazu: `git grep -ln NWListener -- Sources | wc -l`
+                                 → **0** — die App hat gar keinen Eingangs-Socket (#821, gepinnt in
+                                 `TheWireSaysWhoseBodyTests`). **ADM-OSC: OFFEN** — `/adm/obj/{n}/*`
                                  ist ein FREMDER Standard-Adressraum, dort etwas zu erfinden wäre
                                  das Gegenteil der Offene-Standards-Haltung, und ob er einen
                                  Hersteller-Namensraum reserviert, ist aus öffentlichen Quellen
