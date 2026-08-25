@@ -10,13 +10,22 @@
 // of the two the founder's finger hit, the root cause is shared and both are fixed:
 // no monitor-chain surgery on a running engine.
 //
+// ⛔ #835 — THE PAUSE HALF OF #831 WAS FALSIFIED BY THE NEXT DEVICE LOG. v10.79.422
+// (2540), the build WITH #831, crashed with the SAME assert, again out of a
+// toggle's Binding set. Of the two sites only setVoiceTune still merely PAUSED —
+// and #823 already measured that pause() keeps the built I/O unit (converter
+// machinery included) alive. The measured-safe state is the stop the ON path uses,
+// proven in the same log (`monitor: ON` = stop → connect input chain → start).
+// Claim 2 therefore pins a STOP now; its first shipped form pinned the pause and
+// was red-by-design the day this falsification landed.
+//
 // SOURCE-TEXT SCANS (§1) — no AVAudioEngine runs in a test host; the "no more
 // SIGABRT" fact itself is the founder's next device log. Comment lines stripped
 // (#491: the retraction docs quote the old defense).
 //
-// #364: pause/stop-around-surgery is the law this file pins; a redesign that makes
+// #364: stop-around-surgery is the law this file pins; a redesign that makes
 // surgery safe another way must re-anchor these claims in the same commit and pull
-// the #831 blocks in AudioEngine.swift plus the SESSION_LOG entry (#456).
+// the #831/#835 blocks in AudioEngine.swift plus the SESSION_LOG entries (#456).
 
 import Foundation
 import XCTest
@@ -69,9 +78,9 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             """)
     }
 
-    // MARK: - 2. The voice-tune rewire pauses around the surgery
+    // MARK: - 2. The voice-tune rewire STOPS around the surgery (#835)
 
-    func testTheVoiceTuneRewirePausesAroundTheSurgery() {
+    func testTheVoiceTuneRewireStopsAroundTheSurgery() {
         let code = engineCode()
         guard !code.isEmpty else { return }
         guard let fn = code.range(of: "func setVoiceTune") else {
@@ -79,23 +88,24 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             return
         }
         let window = String(code[fn.lowerBound...].prefix(1_600))
-        guard let pause = window.range(of: "if wasRunning { masterEngine.pause() }"),
+        guard let stop = window.range(of: "if wasRunning { masterEngine.stop() }"),
               let surgery = window.range(of: "disconnectNodeOutput(notchEQ)") else {
             XCTFail("""
-                setVoiceTune lost its pause (or its surgery moved out of the window). \
+                setVoiceTune lost its stop (or its surgery moved out of the window). \
                 Rewiring the input-fed chain through the time-pitch node (converter \
-                machinery) while the engine renders is an ObjC assert no Swift catch \
-                sees — the v10.79.421 SIGABRT. The old "no start() to fail here" \
-                defense is retracted by measurement; do not restore it.
+                machinery) without releasing the I/O unit is the founder-measured \
+                SIGABRT — TWICE: v10.79.421 with no quieting at all, and v10.79.422 \
+                with a mere pause() (#835). Only a stop is measured safe; do not \
+                restore either weaker form.
                 """)
             return
         }
-        XCTAssertTrue(pause.lowerBound < surgery.lowerBound, """
-            The pause comes AFTER the first disconnect — the surgery still races the \
-            render.
+        XCTAssertTrue(stop.lowerBound < surgery.lowerBound, """
+            The stop comes AFTER the first disconnect — the surgery still races the \
+            live converter machinery.
             """)
         XCTAssertTrue(window.contains("restartOrDegrade(after: \"voice tune rewire\")"), """
-            The rewire's restart-failure path is gone. The pause creates exactly the \
+            The rewire's restart-failure path is gone. The stop creates exactly the \
             start()-can-fail case the old doc said did not exist — without this \
             fallback a failed restart strands the whole app silent (#611).
             """)

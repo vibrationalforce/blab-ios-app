@@ -14966,3 +14966,23 @@ kürzeren Trust-Lücke.
 - Deploy-Note in Python gegen alle drei Wächter-Regeln gefahren (Version-first,
   pathTokens {Mix, Save/Export}, Diagnostics-Tür, Vorgänger ohne v) — alle grün.
 - TestFlight-Delivered-Beweis = „Verify build landed"-Schritt; Check-in geplant.
+
+### 2026-08-25 (nachts) — #835: setVoiceTune pause→stop (Founder-Log v422/2540)
+- Founder-Log kam um ~23:20 UTC: v10.79.422 (2540) — der Build MIT #831 — crasht
+  WEITER mit `isInputConnToConverter`, ~2 s nach „megaphone on", synchron aus einem
+  Toggle-Binding (LocationBox.set → 2 Echoelmusic-Frames → 5 AVFAudio-Frames).
+- Diagnose per Ausschluss + Mechanik: OFF-Teardown und ON-Aufbau STOPPEN seit
+  #831/#823 (und der ON-Aufbau lief im selben Log nachweislich: `monitor: ON` bei
+  +14 s = stop→connect-Input-Kette→start). Die EINZIGE verbliebene
+  Input-Ketten-Chirurgie unter bloßem pause() war `setVoiceTune` — und die Probe
+  bat ausdrücklich, Autotune dazuzuschalten. pause() hält die gebaute I/O-Unit samt
+  Input-Converter am Leben (#823, gemessen); der Connect durch den
+  Time-Pitch-Knoten unter lebender Converter-Maschinerie ist genau dieser Assert.
+- Fix: `masterEngine.pause()` → `masterEngine.stop()` in setVoiceTune (eine
+  Code-Zeile), Doc-Block trägt die #835-Rücknahme der #831-„pause reicht"-Hälfte.
+  Wächter im selben Commit mitgezogen (§4): Claim 2 pinnt jetzt den STOP, Methode
+  umbenannt, Header trägt die Falsifikation. In Python gegen den Worktree gefahren:
+  Claim 1 + 2 grün, Pre-Claim-Wächter unberührt. dead-needles 0, reachability 0.
+- Die 6 übrigen pause()-Stellen sind Output-seitig (Interruption/Route-Lost,
+  stopEverything, Source-/Player-/Warp-Attach an masterMixer) — bewusst NICHT
+  angefasst: die Evidenz deckt nur die Input-Kette; Scope-Treue vor Symmetrie.

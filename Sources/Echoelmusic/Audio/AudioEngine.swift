@@ -2304,6 +2304,17 @@ public final class AudioEngine {
     /// engine renders is an ObjC assert no Swift catch can see. A bounded pause
     /// hiccup beats the whole app dying; the surgery is now paused around, with the
     /// `start()` failure path the old argument said did not exist.
+    /// ⛔ #835 — AND THE PAUSE HALF OF #831 IS MEASURED FALSE TOO. The founder's
+    /// v10.79.422 (2540) log — the build WITH #831 — carries the SAME assert,
+    /// again ~2 s after "megaphone on", again out of a toggle's Binding set. Of
+    /// the two #831 sites only this one still merely PAUSED, and #823's own
+    /// measurement says why that is not enough: `pause()` keeps the built I/O
+    /// unit (and its input converter) alive, so the connect through the
+    /// time-pitch node still races live converter machinery. The measured-SAFE
+    /// state is the one the ON path uses — `stop()` — proven on the same device
+    /// in the same log (`monitor: ON` at +14 s is stop → connect input chain →
+    /// start). So: STOP, not pause. Same symmetry as everywhere else: whoever
+    /// stopped restarts, and a failed restart hands over to `restartOrDegrade`.
     /// Both branches stay straight-line between disconnect and connect, so no exit
     /// leaves `notchEQ` outputless.
     func setVoiceTune(_ on: Bool) {
@@ -2317,10 +2328,12 @@ public final class AudioEngine {
         // LOW): mixing input- and output-format reads across the two wiring sites is
         // the connect-time-exception seed after a mid-session hardware-rate change.
         let inFmt = masterEngine.inputNode.inputFormat(forBus: 0)
-        // #831: quiet the engine around the rewire — pause, not stop: no category
-        // change happens here, and the pause is what removes the running-render race.
+        // #835: quiet the engine around the rewire — a STOP, not a pause. #831
+        // chose pause here ("no category change happens here") and the founder's
+        // v10.79.422 log falsified it: pause keeps the I/O unit's converter
+        // machinery live and the rewire still SIGABRTs. Stop releases it (#823).
         let wasRunning = masterEngine.isRunning
-        if wasRunning { masterEngine.pause() }
+        if wasRunning { masterEngine.stop() }
         if on {
             if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
             masterEngine.disconnectNodeOutput(notchEQ)
