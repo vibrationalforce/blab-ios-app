@@ -14789,3 +14789,16 @@ Getrieben: HEAD scheitert an allen Forward-Ansprüchen, Gegengewichte grün auf 
 **Damit ist der 5-Scheiben-Plan aus dem Ultracode-Audit KOMPLETT:** #823 Live-Input ·
 #824→#827 HFP-Verbot · #825 Grant-Leck · #826 Format-Gate · #828 Urteil sichtbar ·
 #829 Megaphone (Zusatz-Ask) · #830 Interface-Ehrlichkeit.
+
+## 2026-08-25 — DEPLOY v10.79.421 (bündelt #821–#830)
+
+Erster Build seit v10.79.420 — und 420 hatte KEINE der heutigen Founder-Antworten an
+Bord. Die Note trägt: Live-Input-Reparatur (#823, als benannte Hypothese, die sein
+nächstes Log entscheidet) · HFP-Verbot (#824–#827, mit Founder-Zitat) · immer sichtbare
+Route-Warnung (#828) · Megaphone Mode (#829, mit Heul-Provokations-Probe) · Interface-
+Ehrlichkeit (#830) · Voice clone = NEIN (die offene Frage der 420er-Note, geschlossen
+per Founder-Ansage — Entscheid 448, „fährt mit dem nächsten echten Deploy").
+Note gegen `TheDeployNoteNamesRealDoorsTests`-Logik getrieben: Versions-Regel (v10.79.421
+erster Treffer), Chip-Tokens {Mix, Save/Export} ⊂ Label-Menge, Diagnostics-Tür benannt,
+Vorgänger ohne v. Der EINE Handgriff aus 416–420 bleibt derselbe, jetzt mit der
+Erwartung „es geht an".

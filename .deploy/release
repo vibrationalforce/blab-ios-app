@@ -1,4 +1,4 @@
-build: v10.79.420 — dieselben vier neuen Dinge wie in 419, aber mit den RICHTIGEN Wegen: 419 schickte Dich zu einem Chip namens „Visual", den es nicht gibt
+build: v10.79.421 — Dein Tagwerk vom 25.08.: Live-Input repariert, Bluetooth klingt nie mehr nach Telefon, Megaphone Mode ist da
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,80 +6,72 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.419. Dieser Build bündelt #715 bis #820.
+  Der Vorgänger ist 10.79.420. Dieser Build bündelt #821 bis #830 — alle sieben
+  Scheiben sind Antworten auf Deine drei Nachrichten von heute.
 
-  ⭐ WARUM SCHON WIEDER EIN BUILD: 419 nannte drei Wege durch die Oberfläche, und einer
-  davon existiert nicht. Die Chips heißen **Sound · FX · Mix · Master · Mood · Tempo ·
-  Field · Save/Export** — ein Chip „Visual" ist nicht dabei, er heißt **Field**. Dazu
-  stand nirgends, WO das Diagnose-Log liegt, obwohl es der wichtigste Schritt ist.
-  Beides unten korrigiert; ein Wächter prüft ab jetzt jeden Panel-Namen dieser Notiz
-  gegen die echten Chip-Beschriftungen.
+  ── DEINE DREI ANSAGEN, UND WAS DARAUS WURDE ─────────────────────────────
 
-  ⭐ WICHTIG: 416, 417 UND 418 hast Du nie geprüft. Diese Bitte ersetzt alle drei — der
-  EINE Handgriff unten ist unverändert derselbe, er beantwortet nur noch mehr Fragen.
+  **1. „Live Input funktioniert noch gar nicht" → repariert (#823).** Dein Log zeigte
+  viermal dieselbe Zeile: der Eingang meldete für immer 0 Hz. Ursache: vor dem
+  Mikrofon-Anschluss wurde der Audio-Motor nur PAUSIERT — ein pausierter Motor behält
+  seine alte Bauform ohne Eingang. Jetzt wird er richtig GESTOPPT und beim Start neu
+  gebaut, mit Eingang. Dazu ein Notnagel: meldet der Eingang trotzdem 0 Hz, nimmt die
+  App die Werte, die das iPhone selbst über seine Hardware kennt, und schreibt eine
+  eigene Log-Zeile, welcher Weg griff.
 
-  ── VIER SACHEN, DIE DU JETZT SEHEN ODER HÖREN KANNST ────────────────────
+  **2. „Keine Telefonqualität zulassen, das mag niemand" → verboten (#824–#827).**
+  Echoel fordert das Telefon-Profil (HFP) jetzt in KEINER Konstellation mehr an:
+  Bluetooth-Kopfhörer bleiben immer im vollen Stereo-Musikmodus, das Mikrofon kommt
+  vom iPhone oder von Kabel/USB. Auch das versteckte Leck ist zu, durch das die bloße
+  Mikrofon-ERLAUBNIS die App dauerhaft degradierbar machte. Was bleibt: eine FREMDE
+  App oder ein Anruf kann die geteilte Route weiter degradieren — dafür zeigt das
+  Input-Sheet die rote Warnzeile jetzt IMMER, nicht nur bei laufendem Monitoring (#828).
 
-  **1. Der Master hat eine Klangfarbe (#736/#740/#743).** **Master**-Chip → Zeile „Tone".
-  Vier Charaktere auf der Summe: **Balanced · Warm · Bright · Transparent**. Sie waren
-  seit Monaten im Code und es gab keinen Weg, einen davon zu wählen. Die Wahl wird
-  gespeichert.
+  **3. „Megaphone Mode" → gebaut (#829).** **Mix**-Chip → „Voice · your microphone" →
+  „Choose input…" → Schalter **„Megaphone"** (unter „Monitor level", sichtbar bei
+  laufendem Monitoring). Deine Stimme kommt +12 dB verstärkt aus dem Lautsprecher.
+  Der Feedback-Wächter ist dabei verschärft: er reagiert früher und kann mehr
+  wegnehmen, als das Megaphon dazugibt — ein Aufheulen wird binnen ~1 s geduckt und
+  die Heul-Frequenz zusätzlich per Notch gezogen. Leises Sprechen duckt er nie.
 
-  **2. Das Visual geht ins Vollbild (#748).** **Field**-Chip → Knopf „Full screen".
-  Das Vollbild-Feld, das VJ-Overlay und der Donut-Renderer existierten seit Langem und
-  waren durch KEINE Tür erreichbar — es gab schlicht keinen Knopf, der sie aufmacht.
-
-  **3. Licht: die DMX-Auflösung ist wählbar (#730/#732).** **Master**-Chip → „Routing" →
-  „16-bit / 8-bit". 16 Bit sendet Grob-/Fein-Kanalpaare für weiche Fades; 8 Bit nur für Geräte, die
-  das nicht lesen können. Auch hier: die Fähigkeit war da, die Auswahl nicht.
-
-  **4. Der Klang folgt der RICHTUNG Deiner Kohärenz (#813).** Neu, und das ist das
-  einzige Stück in diesem Build, das den KLANG verändert. Bisher hörte das Instrument nur
-  auf den STAND Deiner Kohärenz. Jetzt hört es zusätzlich darauf, ob sie STEIGT oder
-  FÄLLT: steigend zieht die Klangfarbe zur Spektralform „Natural", fallend zu „Metallic",
-  und in Ruhe geht sie in Deinen Patch zurück. **Das sind die Namen zweier Obertonformen,
-  kein Urteil** — steigende Kohärenz klingt nicht „besser", nur anders. Absichtlich subtil.
+  Dazu: **Voice clone — beantwortet, NEIN** (Deine Ansage vom 25.08.; die Frage aus
+  der 420er-Notiz ist geschlossen). Und ein USB-Interface mit mehr als zwei Eingängen
+  zeigt jetzt ehrlich „N inputs — Echoel uses the first two channels." statt still
+  gestutzt zu werden (#830).
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  **Ein Handgriff, unverändert seit 416 — er blockiert die ganze Vokal-Kette:**
+  **Der EINE Handgriff, derselbe wie in 420 — jetzt mit der Erwartung, dass es angeht:**
 
   1. **Mix**-Chip → „Voice · your microphone" → „Choose input…", **Live monitoring** an.
-     Egal ob es angeht oder den roten Kasten zeigt: beides ist eine Antwort.
-     Gern zweimal — **iPhone-Mikro und HI-X25BT**. Der zweite Fall ist der interessante:
-     erscheint der rote Bluetooth-Satz? Klingt die Musik dabei dumpf/telefonig?
-  2. **Dann das Diagnose-Log schicken.** Such nichts heraus — der Weg dorthin stand bis
-     jetzt nirgends: **Save/Export**-Chip → „Diagnostics" → oben rechts **Share**.
+     Erwartung NEU: Du hörst Dich. Wenn nicht, ist auch das eine Antwort — die
+     Fehlerzeile im Log sagt jetzt zusätzlich, was das iPhone selbst über den Eingang
+     wusste (Rate, Kanäle, verfügbar ja/nein).
+  2. **Mit Bluetooth-Kopfhörer (HI-X25BT):** Monitoring an — die MUSIK muss voll und
+     stereo bleiben (kein Telefonklang mehr), und im Log darf kein [HFP] stehen.
+  3. **Megaphone:** auf dem Lautsprecher Monitoring an, Schalter an → Stimme deutlich
+     lauter; provozier ruhig ein Aufheulen (Mikro Richtung Lautsprecher) — es muss
+     binnen ~1 s weggeduckt werden und nach dem Verstummen zurückkommen.
+  4. **Dann das Diagnose-Log schicken:** **Save/Export**-Chip → „Diagnostics" → oben
+     rechts **Share**. Es trägt jetzt `monitor: ON (gain …, megaphone on/off, …)`,
+     die #823-Zeilen und die Megaphone-Breadcrumbs — ein Log beantwortet alles oben.
 
-  **Neu und rein sensorisch — nur ein Ohr kann das entscheiden:**
-
-  3. Session laufen lassen, Kohärenz steigen und fallen lassen. **Ist die Verschiebung der
-     Klangfarbe hörbar, aber nicht störend?** Ich habe die Empfindlichkeit geschätzt
-     (voller Ausschlag bei ~0,05 Kohärenz pro Sekunde). Zu träge oder zu zappelig sind
-     beides brauchbare Antworten — ich drehe an einer Zahl.
-
-  Optional, wenn Du ohnehin am Gerät bist:
-  · **Master**-Chip → „Tone": klingen die vier Charaktere wirklich verschieden?
-  · **Field**-Chip → „Full screen": kommt das Bild, und kommst Du wieder heraus?
+  Optional, aus 420 weiter offen (rein sensorisch): Kohärenz steigen/fallen lassen —
+  ist die Klangfarben-Verschiebung hörbar, aber nicht störend?
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
   Alles compile-verifiziert (Xcode Compile Check grün, „Build for Testing" grün),
-  **NICHTS** geräteverifiziert. Insbesondere nicht: ob die vier Master-Charaktere sich
-  unterscheiden lassen, ob das Vollbild sauber auf- und zugeht, ob der Kohärenz-Trend
-  gut klingt.
+  **NICHTS** geräteverifiziert. Insbesondere nicht: ob Monitoring jetzt wirklich
+  angeht (die Reparatur ist eine belegte, aber am Gerät unbewiesene Hypothese — Dein
+  nächstes Log entscheidet sie), ob Bluetooth hörbar voll bleibt, ob der
+  Megaphone-Duck musikalisch reagiert. Lautsprecher-Rückkopplung und
+  Bluetooth-Routing existieren in keinem Simulator.
 
-  ── EHRLICH ZUM REST DES BUILDS ──────────────────────────────────────────
-
-  Zwischen 418 und hier liegen rund hundert Zyklen, und **die große Mehrheit davon hat
-  nichts hinzugefügt, sondern Behauptungen zurückgenommen**, die im Code, auf der Website
-  oder im Store-Text nicht mehr stimmten (MPE-Eingang, eine Bezahl-Seite ohne Ware, eine
-  Bio-Abbildung ohne Erzeuger, ein Reverb, der abgeschaltet ist). Das ist unsichtbar und
-  war nötig: eine falsche Behauptung im Store ist ein Ablehnungsgrund.
-
-  Weiterhin offen: Harmonizer und Granular liegen auf der MUSIK, nicht auf Deiner Stimme
-  (wartet auf Dein Log aus Schritt 1) · ADM-OSC und Art-Net tragen noch keine Herkunfts-
-  angabe · **Voice clone braucht Dein Wort — ja oder nein?**
+  Weiterhin offen: Harmonizer und Granular liegen auf der MUSIK, nicht auf Deiner
+  Stimme — die Kette auf die Stimme ist beauftragt und in Arbeit (V1a: Insert auf der
+  Monitor-Schiene; die Pflicht-Vorstufe #822 ist gebaut) · ADM-OSC und Art-Net tragen
+  noch keine Herkunftsangabe.
 
   ⚠ Die Uhr-App bleibt ausgenommen: das Watch-Target ist in `project.yml` nicht
   eingebettet, und es gibt keinen Übertragungsweg vom Telefon ans Handgelenk. Gebaut,
