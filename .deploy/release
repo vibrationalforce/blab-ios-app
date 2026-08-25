@@ -1,4 +1,4 @@
-build: v10.79.422 — Der Absturz aus Deinem Log ist behoben; und Dein Log hat bewiesen: Live-Input geht jetzt an
+build: v10.79.423 — Drei Antworten in einem Log: Absturz-Probe, Puls-Vertrauensdaten, und der Baustein für Deine Stimm-Effekte
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,46 +6,54 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.421. Dieser Build ist EINE Reparatur (#831) — der Absturz,
-  den Dein Log von heute gezeigt hat.
+  Der Vorgänger ist 10.79.422 (die Absturz-Reparatur #831 — falls Du die noch nicht
+  probiert hast: ihre ganze Probe steckt auch in diesem Build, Punkt 1 unten).
+  Neu sind DREI Dinge, und Dein nächstes Diagnose-Log beantwortet alle drei auf einmal —
+  jede Schicht schreibt ihre eigene Zeile ins Log, ich kann sie also auseinanderhalten.
 
-  ── WAS DEIN LOG BEWIESEN HAT ────────────────────────────────────────────
+  ── WAS NEU IST ──────────────────────────────────────────────────────────
 
-  **✅ Live-Input funktioniert.** Dein Log zeigt `monitor: ON (gain 0.6, megaphone off,
-  48000.0 Hz, 1 ch)` — der Eingang meldet echtes Format, die 421er-Reparatur hat am
-  Gerät gegriffen, der Notnagel wurde nicht gebraucht. Das war die eine Frage aus der
-  421er-Notiz, und Dein Log hat sie mit JA beantwortet.
+  **1. Der Baustein für Harmonizer & Granular auf Deiner Stimme (#832).** Du hast die
+  Effekt-Kette auf dem Monitoring beauftragt. Damit die sicher wird, sitzt in diesem
+  Build erst einmal ein LEERES Zwischenstück im Monitorweg — es verändert den Klang
+  um exakt null, beweist aber am Gerät, dass die Steckverbindung hält. Im Log steht
+  dann `insert in` (Zwischenstück drin) oder `insert unavailable` (konnte nicht
+  geladen werden — dann läuft Monitoring wie bisher ohne). Erst wenn Dein Log
+  `insert in` zeigt UND das Monitoring unverändert klingt, baue ich die Effekte
+  hinein — so bleibt jeder Fehler einer Schicht zuordenbar.
 
-  **❌ Und dann der Absturz**, ~2 Sekunden nach dem zweiten „megaphone on":
-  `required condition is false: isInputConnToConverter`. Ursache: die App baute den
-  Monitor-Signalweg um, WÄHREND der Audio-Motor noch lief. Zwei Stellen taten das —
-  das Monitoring-AUS (Abriss von Abgriff und Verbindungen) und der Autotune-Umbau.
-  Beide sind repariert: der Motor wird vor jedem Umbau angehalten und danach wieder
-  gestartet; schlägt der Neustart fehl, greift derselbe Rettungsweg wie beim
-  Monitoring selbst.
+  **2. Der Puls verliert seine Schätzung nicht mehr bei Helligkeitssprüngen (#834).**
+  Dein Log von gestern zeigte es um 13:44:05: das Vertrauen war gerade auf 0,89
+  geklettert, dann hat die Kamera einmal die Belichtung nachgeregelt — und die App
+  warf den ganzen Puls-Fund weg und fing bei null an. Jetzt behält sie die
+  Herz-Schätzung (Dein Herz ändert sich ja nicht, nur das Licht) und prüft sie nur
+  neu. Erwartung: nach so einem Sprung ist der Puls in ~3–4 s wieder da statt in ~20.
+
+  **3. Das Log sagt jetzt, WARUM es einem Puls nicht traut (#833).** Jede
+  Vertrauens-Zeile trägt Rohdaten der abgelehnten Messfenster. Damit entscheidet
+  Dein nächstes Log die offene Frage, ob die Vertrauens-Schwelle zu streng ist —
+  ich musste bisher raten, ab jetzt messe ich an Deinen Daten.
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  Dieselbe Probe wie in 421, jetzt mit der Erwartung: KEIN Absturz.
-
-  1. **Mix**-Chip → „Voice · your microphone" → „Choose input…", **Live monitoring**
-     an. Dann **Megaphone** mehrfach an/aus, Monitoring mehrfach aus/an, gern auch
-     Autotune dazuschalten — genau das Hin- und Herschalten, das gestern den Absturz
-     ausgelöst hat.
-  2. **Megaphone-Aufheulen:** Mikro Richtung Lautsprecher — muss binnen ~1 s
-     weggeduckt werden und nach dem Verstummen zurückkommen.
-  3. **Mit Bluetooth-Kopfhörer (HI-X25BT):** Monitoring an — die Musik muss voll und
-     stereo bleiben, und im Log darf kein [HFP] stehen.
-  4. **Dann das Diagnose-Log schicken:** **Save/Export**-Chip → „Diagnostics" → oben
-     rechts **Share**. Ein Log beantwortet alles oben.
+  1. **Die Absturz-Probe aus 422** (falls noch offen): **Mix**-Chip → „Voice · your
+     microphone" → „Choose input…", **Live monitoring** an. Megaphone mehrfach
+     an/aus, Monitoring mehrfach aus/an, Autotune dazu — genau das Umschalten, das
+     vorgestern den Absturz auslöste. Erwartung: KEIN Absturz. Dabei hinhören:
+     klingt das Monitoring exakt wie vorher? (Das prüft das leere Zwischenstück.)
+  2. **Eine Puls-Messung mit Finger auf der Kamera**, 1–2 Minuten, ruhig — gern
+     absichtlich mal die Hand ins Licht/in den Schatten bewegen, damit die
+     Belichtung nachregelt. Erwartung: der Puls kommt nach so einem Sprung schnell
+     zurück.
+  3. **Dann das Diagnose-Log schicken:** **Save/Export**-Chip → „Diagnostics" →
+     oben rechts **Share**. Ein Log beantwortet alle drei Punkte.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Die Absturz-Reparatur ist compile-verifiziert, NICHT geräteverifiziert — ob der
-  Absturz wirklich weg ist, entscheidet Dein nächster Versuch am Gerät. Ebenfalls
-  weiter offen (rein am Gerät prüfbar): Bluetooth-Klang, Megaphone-Duck, und ob das
-  Anhalten beim Umschalten hörbar knackst (falls ja: bitte sagen, das ist die
-  nächste Scheibe).
+  Alles Neue ist compile-verifiziert, NICHT geräteverifiziert. Ob das Zwischenstück
+  am Gerät lädt und klanglich unsichtbar ist, ob die Puls-Rückkehr wirklich schneller
+  fühlt, und ob der Absturz weg ist — das entscheidet Dein Gerät, nicht meine Tests.
+  Falls beim Umschalten ein Knacks hörbar ist: bitte sagen, das ist die nächste Scheibe.
 
   ⚠ Die Uhr-App bleibt ausgenommen: das Watch-Target ist in `project.yml` nicht
   eingebettet, und es gibt keinen Übertragungsweg vom Telefon ans Handgelenk. Gebaut,
