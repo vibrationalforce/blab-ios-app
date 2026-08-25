@@ -14147,3 +14147,48 @@ exakt der #812-Fehler gewesen.
 **PLAYBOOK aus beiden:** eine Kandidaten-Quelle wird mit `grep "<name> *="` auf ihre SCHREIBER
 geprüft, nicht auf ihre Existenz. Ein `public var` mit plausiblem Namen und neutralem Initialwert
 ist die häufigste Form von „sieht verdrahtet aus".
+
+---
+
+## #815 (2026-08-25) — der Entscheidungs-Review meldete 246 und filterte nichts
+
+**Gate von #814 (`42e5578`):** grün, 170 Tests, 0 Fehler, 0 Skips.
+
+**Erstmals in dieser Sitzung die fällige Entscheidungs-Prüfung gemacht** — CLAUDE.md nennt sie
+als SESSION-START-Pflicht, und #810 hat gezeigt, dass sie **nichts** automatisch anstößt.
+Ergebnis: **246 überfällig, älteste 2026-04-10** — vier ein halb Monate, 56 % aller Zeilen.
+
+**⛔ Der Filter enthielt zwei Status, die es in der Datei GAR NICHT GIBT.**
+`SKIP_STATUS = {"REVIEW_DUE", "REVIEWED"}` — `grep -c REVIEW_DUE decisions.csv` ist 0 und war es
+immer. Die Skip-Liste war praktisch leer, also meldete der Bericht **jede** vergangene Zeile,
+auch Entscheidungen, die ausdrücklich als *ersetzt* oder *abgelehnt* verbucht sind.
+**Eine Filterliste, deren Einträge nicht treffen können, ist dieselbe Defektklasse wie eine
+Nadel, die nicht treffen kann (#808)** — und sie überlebte vier Monate, weil ein
+über-meldender Filter wie ein gründlicher aussieht.
+
+**Die vertagte Entscheidung getroffen.** Der Dateikopf sagte selbst: „widening it … is a
+judgment call about the review workflow, not a parse fix, and does not belong in the same
+change." Jetzt getroffen und begründet: übersprungen wird, was **nicht mehr in Kraft** ist
+(`superseded*`, `rejected`, `resolved`, `fixed`). **`shipped` bewusst NICHT** — „ist der
+erwartete Ausgang eingetreten?" ist genau die Frage eines Reviews.
+**Groß-/kleinschreibungs-unabhängig**, weil die Datei `active` (199) **und** `ACTIVE` (137)
+führt — ein Status in zwei Schreibweisen, und eine case-sensitive Liste trifft jeweils die Hälfte.
+
+**Wirkung: 246 → 219, 27 übersprungen. Das ist klein, und das ist der Punkt:** der Rückstand ist
+NICHT überwiegend Rauschen. **219 Entscheidungen sind wirklich nie geprüft worden**, und ein
+30-Tage-Default auf jeder Zeile macht den Rückstand **von Bauart unbegrenzt**. Der Bericht sagt
+seine eigene Größe jetzt in der ersten Zeile, samt Alter und Zahl der gefilterten.
+
+**⛔ ZWEI FEHLER IN MEINER EIGENEN ARBEIT, beide vom Treiben:**
+1. **Vorhergesagt 216, ausgeliefert 219.** Mein Prototyp-Filter hatte vier Status mehr als der
+   ausgelieferte. Die Zahl im Kommentar ist jetzt die, **die der ausgelieferte Code druckt**.
+2. **Der Wächter reproduzierte den Defekt, den er bewacht.** Seine Ausnahmeliste
+   (`review_due`/`reviewed` = was `--flag` SCHREIBT) verglich klein gegen die
+   GROSS-Einträge des Elternbaums — dieselbe Groß-/Kleinschreibungs-Falle, die ich eine Datei
+   weiter gerade behoben hatte. Nach dem Fix stimmt meine Vorhersage wieder — **aber nur, weil
+   ich den Fehler behoben habe.** „Die Vorhersage war doch richtig" ist die falsche
+   Zusammenfassung: sie war über den AUSGANG richtig und über den CODE falsch.
+
+Wächter: `TheDecisionLogIsMachineReadableTests` Anspruch 8 — Kontrolle grün, Eltern rot auf
+beiden 8b-Zusicherungen, Mutation mit erfundenem Status rot auf 8a. Er sagt bewusst **nicht**,
+WELCHE Status in die Liste gehören (#364) — nur, dass jeder Eintrag etwas treffen kann.

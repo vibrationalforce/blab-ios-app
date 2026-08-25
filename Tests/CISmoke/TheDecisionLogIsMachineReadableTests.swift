@@ -366,4 +366,85 @@ final class TheDecisionLogIsMachineReadableTests: XCTestCase {
         let reason: String
         var description: String { reason }
     }
+
+    // MARK: - 8 · the review filter can actually match (#815)
+
+    /// ⛔ WHAT THIS CAUGHT. `review.sh` skipped `{REVIEW_DUE, REVIEWED}` — two statuses that
+    /// occur ZERO times in `decisions.csv` and always have. The skip was empty in practice, so
+    /// the report listed every past-dated row including decisions explicitly recorded as
+    /// replaced or refused. **A filter whose entries cannot match is the same defect class as a
+    /// needle that cannot match (#808)**, and it survived four months because an over-reporting
+    /// filter looks like a thorough one.
+    ///
+    /// ⚠️ THIS ASSERTS MATCHABILITY, NOT MEMBERSHIP (#364). It does not say WHICH statuses
+    /// belong in the list — that is the workflow judgment `review.sh`'s header argues out, and a
+    /// later slice may widen or narrow it. It says every entry must correspond to something the
+    /// log actually contains, so the list cannot silently become decoration again. Two entries
+    /// are exempt BY NAME: `review_due` and `reviewed` are what `--flag` WRITES, so they are
+    /// legitimately absent until it runs — without that exemption this claim would forbid the
+    /// flagging path (#364 again, one level down).
+    ///
+    /// KIND (§1): **REGRESSION, and the DRIVE corrected the grading.** I predicted "8a passes on
+    /// the parent because both entries are exempt". It does not: the parent's entries are
+    /// `REVIEW_DUE`/`REVIEWED` in CAPITALS and the exempt set is lower-case, so the exemption
+    /// missed — **the very case-sensitivity defect this slice fixed in `review.sh`, reproduced
+    /// inside its own guard.** The entries are now lower-cased before both the exemption and the
+    /// status lookup, and with that fix the prediction holds again: re-driven against `HEAD`,
+    /// **8a passes and only 8b fails** (no BACKLOG line, no skipped-count).
+    ///
+    /// ⚠️ READ THAT SEQUENCE EXACTLY, because "the prediction was right after all" is the wrong
+    /// summary. The prediction was right about the OUTCOME and wrong about the CODE: as first
+    /// written, this guard did not do what the prediction assumed it did. A drive that ends
+    /// green after a fix does not retroactively make the untested version correct. Fourth time
+    /// this session a predicted verdict differed from the driven one (#808, #813, and the
+    /// 216-vs-219 correction in `review.sh`'s own header).
+    func testTheReviewFilterEntriesCanActuallyMatch() throws {
+        let script = try readerScript()
+        guard let open = script.range(of: "SKIP_STATUS = {"),
+              let close = script.range(of: "}", range: open.upperBound ..< script.endIndex)
+        else {
+            return XCTFail("""
+                `SKIP_STATUS = {` is gone from review.sh. It is the review report's only filter;
+                if it was renamed, re-anchor this claim rather than deleting it — the defect it
+                guards does not go away with the name.
+                """)
+        }
+        let quoteAndSpace = CharacterSet(charactersIn: " \"\n")
+        let entries = script[open.upperBound ..< close.lowerBound]
+            .split(separator: ",")
+            .map { $0.trimmingCharacters(in: quoteAndSpace).lowercased() }
+            .filter { !$0.isEmpty }
+        XCTAssertFalse(entries.isEmpty, "SKIP_STATUS is empty — the filter cannot skip anything.")
+
+        let written: Set<String> = ["review_due", "reviewed"]   // what `--flag` WRITES, not reads
+        let rows = try decisionRows().dropFirst()
+        let statuses = Set(rows.compactMap { row -> String? in
+            guard let last = row.last else { return nil }
+            let head = last.trimmingCharacters(in: .whitespaces).lowercased()
+            return head.split(separator: "-").first.map(String.init)
+        })
+        for entry in entries where !written.contains(entry) {
+            XCTAssertTrue(statuses.contains(entry), """
+                `review.sh` skips the status "\(entry)", which appears nowhere in decisions.csv.
+                That is exactly how the old `{REVIEW_DUE, REVIEWED}` list read as a filter while
+                skipping nothing for four months. Either the status was renamed in the log and
+                this entry must follow it, or the entry was a guess.
+                """)
+        }
+    }
+
+    /// The report has to state its size BEFORE the first entry. Two hundred-odd items is a
+    /// BACKLOG, not a to-do list, and a reader who starts at entry one cannot tell which.
+    func testTheReviewReportStatesItsOwnSize() throws {
+        let script = try readerScript()
+        XCTAssertTrue(script.contains("BACKLOG:"), """
+            The review report stopped stating its own size and age. Without it the output is a
+            wall of entries that reads as a work queue; with it a session sees at once that the
+            oldest is months old and that nothing has ever flagged them (#810 — there is no cron).
+            """)
+        XCTAssertTrue(script.contains("skipped as no longer in force"), """
+            The report stopped saying how many rows the filter removed. That count is the only
+            thing between an honest filter and one that quietly grows into hiding real work.
+            """)
+    }
 }

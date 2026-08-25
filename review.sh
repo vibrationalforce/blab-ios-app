@@ -32,10 +32,44 @@
 # That normalisation is deliberately NOT done eagerly here — reflowing 295 KB in a
 # commit nobody can review is worse than a one-time diff on the day it is needed.
 #
-# ⚠️ The due-predicate is PRESERVED exactly as it was (review_date <= today AND
-# status not in {REVIEW_DUE, REVIEWED}) — widening it to also skip `superseded` /
-# `shipped` / `RESOLVED` is a judgment call about the review workflow, not a parse
-# fix, and does not belong in the same change.
+# ⚠️ THE DEFERRED JUDGMENT CALL IS MADE (#815). This block used to say the predicate
+# was "PRESERVED exactly as it was … widening it is a judgment call about the review
+# workflow, not a parse fix, and does not belong in the same change." Correct then;
+# the call is now taken, and here is the measurement it rests on.
+#
+# ⛔ THE OLD SKIP LIST NAMED TWO STATUSES THAT DO NOT OCCUR IN THE FILE.
+# `{REVIEW_DUE, REVIEWED}` — `grep -c REVIEW_DUE decisions.csv` is 0 and always has
+# been, and nothing writes REVIEWED either. So the skip was empty in practice and the
+# report listed every past-dated row, including decisions explicitly recorded as
+# replaced or refused. A filter whose entries cannot match is the same defect class as
+# a needle that cannot match (#808).
+#
+# WHAT IS SKIPPED NOW, and why exactly these: a decision that is NO LONGER IN FORCE
+# asks nothing on review — `superseded*` (replaced by a later decision), `rejected`
+# (refused), `resolved` and `fixed` (the question is closed). `shipped` is deliberately
+# NOT skipped: the change landed, but "did the expected outcome happen?" is precisely
+# what a review asks, and skipping it would hide the only rows where the log can be
+# wrong about reality. `active` obviously stays.
+#
+# CASE-INSENSITIVE, because the file holds `active` (199) AND `ACTIVE` (137) — one
+# status in two casings — plus `resolved`/`RESOLVED` and `in-progress`/`in_progress`.
+# A case-sensitive list catches half of each pair and looks like it works.
+#
+# MEASURED EFFECT: 246 due -> 219, with 27 skipped. ⛔ The first version of this line
+# said "-> 216" and "30 skipped" — the numbers from the PROTOTYPE, whose terminal set
+# also held `confirmed`, `assessed`, `amended` and `parked`. Those four are not in the
+# shipped list (each is one or two rows and none clearly means "no longer in force"), so
+# the shipped filter is narrower than the one I measured with. Third time this session a
+# predicted number differed from the driven one (#808, #813): **the number that goes in
+# the comment is the one the SHIPPED code prints.** These two are re-derivable and stay
+# only as the size of this change; the live figures are the BACKLOG line the script now
+# prints on every run.
+#
+# The change is small on purpose: the backlog is NOT mostly noise. 219 decisions really
+# have never been reviewed, the oldest dated 2026-04-10 — four and a half months.
+# Nothing flags them (#810: there is no cron), and a 30-day default on every row makes
+# the backlog unbounded by design. Fixing the filter does not fix that, and this line
+# must not be read as having done so.
 
 set -euo pipefail
 
@@ -90,15 +124,29 @@ if mode == "--check":
     print(f"decisions.csv OK — {len(body)} decisions, {EXPECTED} columns each.")
     sys.exit(0)
 
-SKIP_STATUS = {"REVIEW_DUE", "REVIEWED"}
+# Lower-case, and matched on the token BEFORE any "-" so `superseded-#122/#123` and
+# `superseded-2026-07-24-#121` are caught by the one entry. See the block at the top of
+# this file for why each is here and why `shipped` is not.
+SKIP_STATUS = {"review_due", "reviewed", "superseded", "rejected", "resolved", "fixed"}
+
+def not_in_force(row):
+    return row[5].strip().lower().split("-")[0] in SKIP_STATUS
 
 def is_due(row):
-    return row[4] <= today and row[5] not in SKIP_STATUS
+    return row[4] <= today and not not_in_force(row)
 
 print(f"=== Decision Review — {today} ===")
 print()
 
 due = [r for r in body if is_due(r)]
+# The size and the age FIRST, because 216 items is a backlog and not a to-do list, and a
+# reader who starts at the first entry cannot tell which they are looking at. `skipped`
+# is printed so the filter never quietly grows into hiding real work.
+skipped = sum(1 for r in body if r[4] <= today and not_in_force(r))
+if due:
+    print(f"BACKLOG: {len(due)} due, oldest {min(r[4] for r in due)}; "
+          f"{skipped} past-dated row(s) skipped as no longer in force.")
+    print()
 for r in due:
     print(f"REVIEW DUE [{r[4]}]")
     print(f"  Decision:  {r[1]}")
