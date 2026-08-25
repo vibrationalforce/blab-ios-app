@@ -3148,9 +3148,13 @@ struct EchoelStudioView: View {
             //
             // ⚠️ ONE DEFINITION, TWO SURFACES (#416): the four channel names come from
             // `AlwaysOnBioChannel`'s own cases, and `TheAlwaysOnBioPathIsNamedTests` binds that
-            // sentence to the two `…BioParams(` construction sites — so giving one of the three
-            // pinned channels (`breathDepth`, `lfHf`, `coherenceTrend`) a real producer reddens
-            // THERE instead of quietly leaving this sentence one channel short.
+            // sentence to the two `…BioParams(` construction sites — so giving one of the
+            // pinned channels a real producer reddens THERE instead of quietly leaving this
+            // sentence one channel short. ⭐ THAT IS NOT THEORY: #813 gave `coherenceTrend` a
+            // producer, the guard went red, and the decision it forced was recorded rather than
+            // patched away — the trend MAY now be named here and deliberately is not, because a
+            // fifth channel in a live panel sentence is a copy decision. Still pinned and still
+            // unnameable: `breathDepth` and `lfHf`.
             //
             // ⚠️ THIS LINE IS STATIC TEXT AND OBSERVES NOTHING — that part is unchanged and is
             // the freeze law, not laziness: `bioPanel` is reached through `dropdownContent`,

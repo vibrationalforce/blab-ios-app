@@ -1162,13 +1162,21 @@ private struct BioModLiveView: View {
     /// different question than "who reads the frame", and that substitution is how one file came
     /// to carry two numbers for one fact, sixty lines apart, for a whole cycle.
     ///
-    /// ⚠️ FOUR, NOT SEVEN, AND THAT IS MEASURED. `applyBioReactive` takes seven body inputs, and
-    /// CLAUDE.md's "DDSP Bio-Mappings" table lists all seven as if live. BOTH producers — the
-    /// only two `…BioParams(` construction sites in `Sources/` — pin three of them to neutral
-    /// literals: `breathDepth: 0.5`, `lfHf: 0.5`, `coherenceTrend: 0`. So breath DEPTH, LF/HF and
-    /// coherence TREND move nothing today, and naming them here would be the over-claim that
-    /// #439 had to retract in the other direction. Only `coherence`, `hrv`, `heartRate` and
-    /// `breathPhase` are derived from the frame.
+    /// ⚠️ FOUR, AND THE REASON CHANGED WITH #813 WITHOUT THE NUMBER CHANGING — which is exactly
+    /// the kind of coincidence that makes a stale sentence survive, so it is spelled out.
+    /// `applyBioReactive` takes seven body inputs. Both producers — the only two `…BioParams(`
+    /// sites in `Sources/` — used to pin THREE to neutral literals; #813 gave `coherenceTrend` a
+    /// real producer (`Core/CoherenceTrend`, derived from the coherence history), so only
+    /// `breathDepth: 0.5` and `lfHf: 0.5` are still pinned. ⛔ The old sentence said "breath
+    /// DEPTH, LF/HF and coherence TREND move nothing today"; the trend now moves the spectral
+    /// morph.
+    ///
+    /// ⭐ SO WHY STILL FOUR? Because this sentence is a COPY decision, not an inventory. Naming
+    /// the trend here is now ALLOWED — it would be true — and it is deliberately not done in the
+    /// wiring slice: adding a fifth channel to a live panel sentence is a change a reader feels,
+    /// and it belongs to whoever decides the copy, not to whoever soldered the wire. The five
+    /// derived from the frame are `coherence`, `hrv`, `heartRate`, `breathPhase` and the trend;
+    /// the four NAMED here are the first four.
     ///
     /// This is ONE string, not one per branch, so the two cannot drift (#416); the guard
     /// `TheAlwaysOnBioPathIsNamedTests` binds it to those construction sites, so wiring a real

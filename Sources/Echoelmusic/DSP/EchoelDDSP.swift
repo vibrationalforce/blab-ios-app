@@ -2272,18 +2272,22 @@ public final class EchoelDDSP: @unchecked Sendable {
         //    (never startMorph — it re-zeros morphPosition every call). CHANGE-GATED so the
         //    shared spectral-buffer rebuild fires only on a real change, not every 10 Hz frame.
         //
-        //    ⛔ AND `coherenceTrend` HAS NO PRODUCER EITHER — the third pinned channel, and the
-        //    only one that was never written down (#496). Both `…BioParams(` construction sites
-        //    in `Sources/` pass the literal `coherenceTrend: 0`, so `trendMag` is exactly 0 on
-        //    every frame the shipped app can produce, the deadband below always wins, and the
-        //    else-branch — the whole rising/falling spectral morph — is unreachable. Same class
-        //    as the `breathDepth` note above and the `lfHfRatio` note at the sanitizer, except
-        //    that those two say so and this one did not, which is why CLAUDE.md's DDSP
-        //    Bio-Mappings table still listed "Coherence trend → Shape morphing" as live.
-        //    KEEP the code: `BioSampleFrame` has no trend field yet, and deriving one from the
-        //    coherence history is a real slice — this branch is what it will drive. But it must
-        //    NOT be claimed as live in any user-facing copy, and the FX panel's always-on note
-        //    deliberately names four channels, not seven.
+        //    ⭐ `coherenceTrend` HAS A PRODUCER SINCE #813, and this branch is reachable for the
+        //    first time since it was written. ⛔ The note here said it had none: both
+        //    `…BioParams(` sites passed the literal 0 (#496 measured it), so `trendMag` was
+        //    exactly 0 on every frame the shipped app could produce and the deadband always won.
+        //    The note also said what to do about it — "deriving one from the coherence history
+        //    is a real slice — this branch is what it will drive" — and that is what #813 did:
+        //    `Core/CoherenceTrend`, a pure struct each voice owns, fed on the MAIN ACTOR from
+        //    the RAW `frame.coherence` (never `coherenceForSound`, whose neutral substitution
+        //    would read as movement to a derivative) and reset across an unmeasured stretch, a
+        //    source switch or a long gap so no transition mints a full-scale trend.
+        //    ⚠️ ITS TWO NEIGHBOURS ARE STILL DEAD: `breathDepth` and `lfHfRatio` remain pinned
+        //    literals, and the FX panel's always-on note still deliberately names FOUR channels.
+        //    Naming the trend in panel copy is now ALLOWED and not required — a copy decision,
+        //    not a side effect of wiring one. And the valence rule is unchanged and binds the
+        //    new producer too: rising coherence is an ENGINEERING mapping, never "purer" or
+        //    "calmer".
         let trendMag = abs(coherenceTrend)
         if trendMag < 0.10 {                                   // deadband → release to the patch shape
             if morphTarget != nil {

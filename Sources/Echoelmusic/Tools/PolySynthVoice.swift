@@ -912,6 +912,13 @@ public final class PolySynthVoice {
         isSubscribed = false
     }
 
+
+    /// #813 — one per voice, main-actor only. Two independent trackers over the same frame
+    /// sequence produce the same output, which is why the trend is NOT a field on
+    /// `BioSampleFrame`: keeping it here leaves the six frame construction sites, the OSC
+    /// egress and the wire contract untouched.
+    private var coherenceTrend = CoherenceTrend()
+
     private func applyLatestIfFresh(from bus: EngineBus) {
         guard bioModulationEnabled else { return }
         guard let frame = bus.latestBio else { return }
@@ -926,6 +933,17 @@ public final class PolySynthVoice {
         // applies it on the one audio thread (after the patch drain, so `bioBase*` is
         // already set). `profile` is resolved here on the main actor (reads the
         // control-plane `bioMappingHarmonic`) and carried in the value.
+        // #813 — the coherence TREND, which had no producer until now. `applyBioReactive`'s
+        // rising/falling spectral morph reads it and every construction site passed the literal
+        // 0, so the whole else-branch was unreachable (#496). Fed from the RAW `frame.coherence`
+        // and the house measured-test, NOT from `coherenceForSound`: substituting a neutral for
+        // an unmeasured channel is right for a LEVEL and wrong for a DERIVATIVE, because the
+        // substitution itself would read as movement. Computed HERE, on the main actor, for the
+        // same reason the rest of this value is — only the drain is on the audio thread.
+        let trend = coherenceTrend.update(coherence: frame.coherence,
+                                          measured: BioModulationMap.isMeasured(.coherence, in: frame),
+                                          at: frame.timestamp)
+
         _ = bioCommands.tryEnqueue(PolyBioParams(
             coherence: frame.coherenceForSound,
             hrv: frame.hrvForSound,   // 0 = unmeasured → neutral; see BioSampleFrame
@@ -939,7 +957,7 @@ public final class PolySynthVoice {
             breathPhase: frame.breathPhaseForSound,
             breathDepth: 0.5,
             lfHf: 0.5,
-            coherenceTrend: 0,
+            coherenceTrend: trend,
             profile: bioMappingHarmonic ? .harmonicSeries : .natural
         ))
         applyEntrainment(neutralCoherence: frame.coherenceForSound,

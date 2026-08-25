@@ -14047,3 +14047,61 @@ Zeilenabstand die nächste Bearbeitung ungültig machte.
 **Erhalten bleibt**, was wahr ist: der HELFER-Vorbehalt (`sourceLabel`/`sourceText` sagen
 weiterhin nichts über Herkunft — wer die Marke durch sie umleitet, öffnet das Loch wieder) und
 #215s Prinzip.
+
+---
+
+## #813 (2026-08-25) — der dritte erzeugerlose Bio-Kanal bekommt einen Erzeuger
+
+**Gate von #812 (`cbdc777`):** grün, 170 Tests, 0 Fehler, 0 Skips.
+
+**Erste echte PRODUKT-Scheibe seit #806.** CLAUDE.md nominierte sie wörtlich („ein echter
+Produzent — z. B. ein Trend aus der Kohärenz-Historie — ist eine eigene Scheibe und wird genau
+diese Zweige antreiben"), und der Verbraucher-Kommentar in `EchoelDDSP` ebenso.
+
+**Was tot war:** `applyBioReactive` nimmt seit jeher `coherenceTrend` (−1…+1) und fährt damit den
+steigend/fallend-**Spektralmorph** (Deadband 0,10 → `.natural`/`.metallic`, Kappe 0,30). Beide
+`…BioParams(`-Stellen schrieben die Literal-**0** → `trendMag` war auf jedem Frame exakt 0, der
+ganze Else-Zweig unerreichbar (#496).
+
+**Gebaut:** `Core/CoherenceTrend` — reiner, deterministischer Werttyp. Auf dem **MainActor**
+gerechnet (die Parameter entstehen dort und gehen über die SPSC-Queue an den Render-Thread), also
+**keine Audio-Thread-Auflagen**. Gespeist aus dem **ROHEN** `frame.coherence`, nie aus
+`coherenceForSound`: eine Neutral-Ersetzung ist für einen PEGEL richtig und für eine ABLEITUNG
+falsch — die Ersetzung selbst läse sich als Bewegung.
+
+**Drei Rücksetzer als Sicherheitseigenschaft** (jeder mit Test): ungemessen→gemessen ·
+Quellenwechsel · langes Loch. Ohne sie prägt jeder dieser Übergänge einen Vollausschlag aus dem
+Nichts.
+
+**⛔ ZWEI ECHTE FEHLER FAND DER PFLICHT-REVIEW IM EIGENEN ERSTEN WURF:**
+1. **`defer` speicherte auf JEDEM Rückgabepfad** — auch dem `dt ≤ 0`. Ein **verspätet
+   eintreffender** Frame wäre damit zur Basislinie geworden, und der nächste echte Frame hätte
+   sein Intervall von diesem älteren Moment gemessen: aufgeblähtes dt, echte Steigung liest sich
+   als flachere. Die Deduplizierung der Stimmen schließt exakte Dubletten aus, **Umordnung
+   nicht**. Behoben (jeder Pfad speichert explizit, der Halte-Pfad gar nicht) + Regressionstest.
+2. **`clamped(to:)` bildet NaN auf den UNTEREN Rand ab** — bei `-1...1` also **−1**, ein
+   Vollausschlag „fallend" statt neutral. Kann heute nicht feuern (`isFinite`-Wächter am
+   Eingang), steht aber jetzt an der Stelle, weil das Versagen sonst still und in die falsche
+   Richtung zeigt.
+
+**⭐ Und ein Test-Label war eine falsche Vorhersage:** „violent jump must saturate at 1.0" —
+gemessen **0,221**, weil die ratenbasierte Glättung (α ≈ 0,22 bei dt = 1 s) einen Ein-Frame-
+Ausreißer auf ein Fünftel dämpft. Das ist **besseres** Verhalten als das Label; der Test pinnt
+die gemessene Schranke und sagt warum (#808).
+
+**Wahrheits-Pflege, vorbeugend nach der #811-Lehre — ALLE Wohnorte im selben Commit:**
+· 3 Wächter, die sonst rot geworden wären oder **korrekte Arbeit verboten hätten** (#364):
+`TheAlwaysOnBioPathIsNamedTests` (Pin-Liste 3→2, Verbotsliste), `TheStoreTextClaimsOnlyWhatShips`,
+`WebsitePagesAreFindableAndHonest` („shape morphing" raus)
+· **`docs/overview.html` behauptete „coherence trend is not computed at all"** — eine negative
+Falschaussage auf der Seite, die ein Besucher zuerst liest. Ersetzt durch die echte Abbildung
+· `docs/architecture.html` · `EchoelDDSP` · `AlwaysOnBioChannel` · `EchoelFXView` ·
+`EchoelStudioView` · CLAUDE.md (2 Absätze)
+
+**⭐ Die Panel-Kopie bleibt bei VIER Kanälen** — Nennen ist jetzt ERLAUBT, nicht erforderlich.
+Ein fünfter Kanal in einem lebenden Satz ist eine **Kopie-Entscheidung** und gehört nicht als
+Nebenwirkung des Verdrahtens dazu.
+
+**NEEDS-FOUNDER-VERIFY:** `fullScaleRisePerSecond = 0,05/s` ist eine Schätzung und das Einzige
+hier, was kein Test entscheiden kann — Sitzung fahren, Kohärenz steigen und fallen lassen, sagen
+ob die Klangfarbenverschiebung hörbar-aber-nicht-störend ist.

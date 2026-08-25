@@ -143,7 +143,9 @@ public enum BioProvenanceCopy {
 
 /// One of the four body channels wired into `EchoelDDSP.applyBioReactive` from a live frame.
 ///
-/// The other three inputs that function takes (`breathDepth`, `lfHfRatio`, `coherenceTrend`)
+/// ⛔ THIS SAID "the other THREE inputs" until #813 gave `coherenceTrend` a producer
+/// (`Core/CoherenceTrend`). Two remain dead: the other inputs that function takes
+/// (`breathDepth`, `lfHfRatio`)
 /// are pinned to neutral literals at BOTH construction sites and are deliberately absent —
 /// see `TheAlwaysOnBioPathIsNamedTests` (#496), which keeps them absent.
 public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
@@ -179,7 +181,7 @@ public enum AlwaysOnBioChannel: String, CaseIterable, Identifiable, Sendable {
     /// ⚠️ IT NAMES EXACTLY THE FOUR CASES OF THIS ENUM, and that is enforced, not hoped:
     /// `TheAlwaysOnBioPathIsNamedTests` binds it to the two `…BioParams(` construction sites, so
     /// wiring a real producer for one of the three pinned channels (`breathDepth`, `lfHf`,
-    /// `coherenceTrend` — all handed neutral literals today) goes red HERE instead of quietly
+    /// — the two still handed neutral literals today) goes red HERE instead of quietly
     /// leaving the sentence one channel short.
     /// ⭐ AND SINCE #643 IT NAMES WHOSE CHANNELS THEY ARE. "Four body channels shape the
     /// instrument's own timbre while a session runs" is a PRESENT-TENSE claim about a current

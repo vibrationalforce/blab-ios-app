@@ -1052,15 +1052,18 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
         let section = String(overview[start.lowerBound..<end.upperBound]).lowercased()
 
         XCTAssertTrue(section.contains("drive neither sound nor picture today"), """
-            The Bio-Mappings table lost its honesty qualifier. Breath depth, LF/HF and \
-            coherence trend are pinned to literals at both bio construction sites \
-            (`breathDepth: 0.5`, `lfHf: 0.5`, `coherenceTrend: 0`), so a table that lists \
-            any of them without saying they drive nothing is claiming a mapping that does \
-            not exist. Re-derive from `docs/architecture.html`, which has said the same in \
+            The Bio-Mappings table lost its honesty qualifier. Breath depth and LF/HF are \
+            pinned to literals at both bio construction sites (`breathDepth: 0.5`, \
+            `lfHf: 0.5`), so a table that lists either without saying it drives nothing is \
+            claiming a mapping that does not exist. The coherence TREND was the third until \
+            #813 gave it a producer; the page now states it as a real mapping, and this \
+            qualifier covers the remaining two. Re-derive from `docs/architecture.html`, which has said the same in \
             more detail since before #755, and keep ONE wording.
             """)
 
-        for dead in ["spectral tilt", "shape morphing", "color palette"] {
+        // ⛔ "shape morphing" LEFT THIS LIST WITH #813. It was the coherence-trend mapping and it
+        // now has a producer, so the ban would stop the site from stating something TRUE (#364).
+        for dead in ["spectral tilt", "color palette"] {
             XCTAssertFalse(section.contains(dead), """
                 The Bio-Mappings table names "\(dead)" again. Measured: LF/HF is not read \
                 in `applyBioReactive`'s body at all, the coherence-trend spectral morph can \

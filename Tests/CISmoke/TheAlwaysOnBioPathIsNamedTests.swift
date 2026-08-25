@@ -11,16 +11,22 @@
 // ⭐ THE HALF THAT TOOK THE MEASURING: FOUR channels, not seven. `applyBioReactive` takes seven
 // body inputs and CLAUDE.md's "DDSP Bio-Mappings" table lists all seven. Both producers — and
 // `git grep "PolyBioParams(\|BioParams("` over `Sources/` finds exactly two construction sites —
-// pin three to neutral LITERALS: `breathDepth: 0.5`, `lfHf: 0.5`, `coherenceTrend: 0`. So breath
-// DEPTH, LF/HF and coherence TREND move nothing today. Naming them in the new copy would be the
-// over-claim #439 had to retract in the other direction, so the note names exactly the four that
-// are derived from the frame, and half this file exists to keep it that way.
+// pinned THREE to neutral LITERALS. Naming a pinned channel in the copy would be the over-claim
+// #439 had to retract in the other direction, so the note names exactly the channels derived
+// from the frame, and half this file exists to keep it that way.
 //
-// ⭐ `coherenceTrend` IS THE NEW FINDING. The source already documented the other two at their
-// consumer sites (`breathDepth` has a ⛔ block, `lfHfRatio` is called out at the sanitizer).
-// Nothing said that `trendMag = abs(coherenceTrend)` is therefore always 0, so the deadband
-// always wins and the whole rising/falling spectral morph is unreachable. That note is added in
-// the same slice; this guard is what keeps it true.
+// ⛔ TWO, NOT THREE, SINCE #813 — and this guard is what forced the question. `coherenceTrend`
+// was the third pin and the whole point of the original slice ("`coherenceTrend` IS THE NEW
+// FINDING … `trendMag = abs(coherenceTrend)` is therefore always 0, so the deadband always wins
+// and the rising/falling spectral morph is unreachable"). It now has a producer:
+// `Core/CoherenceTrend`, derived from the coherence history on the main actor. The claim below
+// went RED, which is what a guard of this shape is FOR (#364) — it does not forbid the wiring,
+// it makes the wiring drag every prose home with it. Still pinned, still unnameable:
+// `breathDepth: 0.5` and `lfHf: 0.5`.
+//
+// ⭐ AND THE COPY DID NOT CHANGE. The panel note still names FOUR channels, because naming the
+// trend is now ALLOWED rather than required — a copy decision, deliberately left to whoever owns
+// the copy instead of taken as a side effect of soldering a wire.
 //
 // ⚠️ THE LIMIT FIRST, because a guard about a claim looks broader than it is: EVERY assertion
 // here is a SOURCE SCAN. `BioModLiveView` is `private` inside a SwiftUI view this bundle cannot
@@ -101,7 +107,14 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
     /// The three the note must NOT name, in every spelling a well-meaning edit would reach for.
     /// Deliberately includes "coherence trend" even though "coherence" alone is legal — the
     /// assertion is on the two-word phrase, so the legal single word cannot trip it.
-    private static let forbiddenChannels = ["breath depth", "LF/HF", "LF-HF", "coherence trend"]
+    // ⛔ "coherence trend" LEFT THIS LIST WITH #813 and that is the point of the list existing.
+    // It banned the words from panel copy because the channel had no producer; it now has one
+    // (`CoherenceTrend`, fed at both construction sites from the raw `frame.coherence`), so the
+    // ban would forbid CORRECT copy — #364, the failure mode a guard must never have. The two
+    // that remain are still producerless and still banned. Naming the trend in panel copy is now
+    // ALLOWED, not required: it is a copy decision, and the always-on note deliberately says
+    // four channels until somebody makes that decision.
+    private static let forbiddenChannels = ["breath depth", "LF/HF", "LF-HF"]
 
     // MARK: - the copy (the regressions)
 
@@ -234,12 +247,23 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
         ]
         for (path, anchor) in sites {
             let block = try argumentList(after: anchor, in: path)
-            for pinned in ["breathDepth: 0.5", "lfHf: 0.5", "coherenceTrend: 0"] {
+            // ⛔ THIS LIST HELD THREE UNTIL #813 AND NOW HOLDS TWO. `coherenceTrend: 0` was the
+            // third pin; both sites now pass a live `coherenceTrend: trend`. The instruction the
+            // old failure message carried was followed rather than deleted — every prose home of
+            // "this channel has no producer" moved in the same commit (#456), and the list of
+            // those homes is in that commit's message.
+            for pinned in ["breathDepth: 0.5", "lfHf: 0.5"] {
                 XCTAssertTrue(block.contains(pinned),
                               "\(path): \(pinned) is the pin that makes that channel dead. If "
                               + "you gave it a producer, the FX panel's always-on note must "
                               + "name it in the same commit.")
             }
+            // The trend is the one that GOT a producer; assert the wiring, not the pin.
+            XCTAssertTrue(block.contains("coherenceTrend: trend"),
+                          "\(path): the coherence trend fell back to a literal. Its producer is "
+                          + "`CoherenceTrend`, updated from the RAW `frame.coherence` — never "
+                          + "`coherenceForSound`, whose neutral substitution reads as movement "
+                          + "to a derivative.")
             XCTAssertTrue(block.contains("coherence: frame."),
                           "\(path): coherence must come from the frame")
             XCTAssertTrue(block.contains("hrv: frame."),
@@ -290,11 +314,13 @@ final class TheAlwaysOnBioPathIsNamedTests: XCTestCase {
                       + "returns immediately when this flag is false")
     }
 
-    /// The undocumented pin, pinned. `trendMag = abs(coherenceTrend)` with a producer that always
-    /// passes 0 means the deadband always wins and the spectral morph is unreachable; the note
-    /// added in this slice says so. Assert the note survives, because deleting it is exactly how
-    /// the mapping gets re-claimed as live.
-    func testTheDeadTrendMappingIsWrittenDownAtItsConsumer() throws {
+    /// ⛔ THIS CLAIM GUARDED A DEAD MAPPING AND NOW GUARDS A LIVE ONE (#813). It read: "with a
+    /// producer that always passes 0 the deadband always wins and the spectral morph is
+    /// unreachable". Both construction sites now pass a real trend, so the else-branch is
+    /// reachable for the first time since it was written. The ANCHOR is unchanged and still
+    /// worth holding: `trendMag = abs(coherenceTrend)` is where the deadband lives, and a slice
+    /// that moves it must re-anchor the scan rather than drop it.
+    func testTheTrendConsumerKeepsItsAnchor() throws {
         let dsp = try source("Sources/Echoelmusic/DSP/EchoelDDSP.swift")
         XCTAssertTrue(dsp.contains("let trendMag = abs(coherenceTrend)"),
                       "the trend consumer moved — re-anchor this scan rather than deleting it")

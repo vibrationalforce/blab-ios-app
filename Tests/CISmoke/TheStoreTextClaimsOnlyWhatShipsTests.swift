@@ -290,7 +290,10 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
     /// text ever wants to say "breath depth is coming", it should say it in the release notes,
     /// which this guard does not read.
     func testTheProducerlessChannelsAreNotNamedAsDrivers() throws {
-        let dead = ["breath depth", "atemtiefe", "lf/hf", "lf-hf", "coherence trend",
+        // ⛔ "coherence trend" LEFT THIS LIST WITH #813 — it has a producer now, so banning the
+        // words from store copy would forbid a true claim (#364). Still dead, still banned: the
+        // breath-depth and LF/HF pair.
+        let dead = ["breath depth", "atemtiefe", "lf/hf", "lf-hf",
                     "kohärenz-trend", "spectral tilt", "spektrale neigung"]
         var offenders: [String] = []
         for file in try storeCopy() {
@@ -301,9 +304,11 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
         }
         XCTAssertTrue(offenders.isEmpty, """
             The store text names a bio channel that drives nothing: \
-            \(offenders.joined(separator: ", ")). All three are pinned to literals at both \
-            `BioParams`/`PolyBioParams` construction sites (`breathDepth: 0.5`, `lfHf: 0.5`, \
-            `coherenceTrend: 0`). The audited in-app truth table is \
+            \(offenders.joined(separator: ", ")). Both are pinned to literals at both \
+            `BioParams`/`PolyBioParams` construction sites (`breathDepth: 0.5`, `lfHf: 0.5`). \
+            It was THREE until #813 gave the coherence trend a real producer, which is why \
+            "coherence trend" left the banned list rather than being reworded. \
+            The audited in-app truth table is \
             `AlwaysOnBioChannel.shapedParameters`: coherence → filter cutoff · brightness · \
             harmonicity · noise; HRV → brightness; heart rate → vibrato · brightness; \
             breath phase → amplitude. Claim from that list.
