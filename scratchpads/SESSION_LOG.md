@@ -13842,3 +13842,48 @@ Lauf.
 
 **Gate-Ergebnis des Vorgängers #806 (`aec6cea`):** `Build for Testing: success`, 0 Compile-Fehler,
 0 Testfehler, **0 Skips** — die erste echte Bestätigung der neuen Skip-Meldung.
+
+---
+
+## #808 (2026-08-25) — der erste echte Testfehlschlag der Sitzung: eine Nadel, die seit ihrer Geburt nie traf
+
+**Rot hatte Vorrang.** Das Gate von #807 (`79c12f0`) meldete `Build for Testing: success` und
+**`TEST FAILURES: 1`** — `TheBioPanelRowsSayWhoseBodyTests.testTheAutoModeHintAnswersInEveryState()`,
+Clone 2, 110,681 s (erster Test auf dem Clone, also Start+Setup). **Keine #396-Signatur im Log**
+(0 `failed to launch`, 0 `Code=-308`, 0 `server died`) — also eine echte Zusicherung, kein
+Clone-Kollateral.
+
+**Der Befund, gemessen.** Die Nadel des Realkörper-Falls war `contains("your body")`. Der Satz
+lautet `"Slowly steers the mood dials toward your measured body state"` — er nennt den Körper des
+Lesers, in anderer Wortstellung. `git log -S` auf BEIDE Hälften liefert denselben Commit
+(`7e906cd`, #648): **die Zusicherung hat nie getroffen, seit sie existiert.**
+
+**Die Ursache ist strukturell, nicht „Nadel abgeschrieben".** Jede andere `contains("your body")`
+in dieser Datei ist grün, weil ihr Satz durch `BioPanelRowCopy.subject(synthetic:)` gebaut wird —
+den geteilten Helfer, dessen Realkörper-Zweig genau dieses Literal IST. `autoModeHint` ist der
+einzige Static, der den Helfer NICHT ruft (sein Satz trägt „measured … state", was der Helfer
+nicht ausdrücken kann). **Der eine Satz, der am geteilten Subjekt vorbeiging, ist der eine, dessen
+Nadel danebenging.**
+
+**Warum es zwei Monate unsichtbar blieb: #807.** Der Job-Log trägt nur `tail -200 test.log`. Der
+Fehlschlag wurde an dem Tag sichtbar, an dem dieses Fenster gemessen wurde — nicht an dem, an dem
+er entstand.
+
+**Und die Benotung war mit-schuldig.** Der GRADING-Block dieser Datei benotet Anspruch 3 als
+„FORWARD" und sagt zwei Aufzählungspunkte höher selbst, dass das Bundle gegen den Elternbaum nicht
+kompiliert und deshalb „jeder Punkt eine Hand-Transkription" ist. Die Hand ging in der härtesten
+Richtung falsch: nicht ein falsches Urteil über den ELTERN-Baum (wovor §3 warnt), sondern über den
+Baum, den der Commit ausgeliefert hat. **Eine Nadel zu transkribieren ist nicht, sie zu treiben.**
+
+**Repariert wurde die NADEL, nicht die Kopie** — Anspruch 6 derselben Datei pinnt dasselbe Literal
+als beabsichtigte Kopie. Die Demo-Hälfte fragt jetzt `BioProvenanceCopy.demoSubject` (eine
+Definition, #416) statt eines Bruchstücks davon; der nil-Zustand verbietet zwei Schreibweisen
+(`your body`, `your measured`), weil das Verbot genau EINER Schreibweise der Mechanismus dieses
+Fehlschlags war. Ein Gegengewicht kam dazu: der Realkörper-Satz darf das Demo-Subjekt nicht tragen.
+
+**Getrieben, nicht behauptet:** Kontrolle grün, fünf Mutationen, jede scheitert an genau ihrer
+benannten Zusicherung; die ausgelieferten Zeichenketten werden per `re` AUS der Swift-Quelle
+gelesen statt abgetippt, damit die Transkription nicht driften kann.
+
+⚠️ **Was ich NICHT behaupte:** dass keine weitere Nadel dieser Art in den anderen ~2264
+Testmethoden steht. Der Log kann das nicht sagen — dasselbe Fenster.

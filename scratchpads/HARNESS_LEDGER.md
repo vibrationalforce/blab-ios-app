@@ -2295,3 +2295,24 @@ schließt. Gemessen: **8 Dateien, 943 Zeilen unsichtbar** — gegen **0 von 369*
 **Stattdessen:** zeilenweise lesen und `//`-Zeilen überspringen (kein Zustand, nicht
 entgleisbar). Für `Sources/` bleibt `codeOnly` richtig und Pflicht (#453) — die Grenze verläuft
 am Korpus, nicht am Verfahren.
+
+## DEAD-END + PLAYBOOK (2026-08-25, #808): eine Nadel gegen einen grünen Nachbarn zu prüfen ist keine Prüfung
+
+**DEAD-END.** Einen `contains(...)`-Nadel-Text aus einer benachbarten, grünen Zusicherung zu
+übernehmen und ihn für verifiziert zu halten. `TheBioPanelRowsSayWhoseBodyTests` trug zwei Monate
+`contains("your body")` gegen einen Satz, der „your measured **body state**" lautet — nie getroffen,
+seit dem Geburts-Commit (`7e906cd`, `git log -S` auf beide Hälften).
+
+**Warum die Nachbarn grün waren (die eigentliche Lehre).** Sie bauen ihren Satz durch den geteilten
+Helfer `subject(synthetic:)`, dessen Realkörper-Zweig das Literal IST. Der eine Static, der den
+Helfer nicht ruft, ist der eine, dessen Nadel danebenging. **Prüf-Rezept: wenn N Nadeln dieselbe
+Zeichenkette benutzen und eine rot ist, frag nicht „wer hat abgeschrieben", sondern „welcher Satz
+geht am geteilten Erzeuger vorbei".**
+
+**PLAYBOOK — Nadeln treiben, nicht transkribieren.** Die Zeichenketten mit `re` AUS der Quelldatei
+lesen (nicht abtippen), dann Kontrolle + eine Mutation je Zusicherung fahren. Kostet zehn Minuten
+und hätte diesen Fehlschlag am Tag seiner Entstehung gefangen.
+
+**Verstärker: #807.** Ein Fehlschlag ist im Job-Log nur sichtbar, wenn er in `tail -200 test.log`
+fällt. „Gates grün" heißt nie „die Suite lief" — die `WINDOW`-Zeile von `gh-test-verdict.py` vor
+jedem Zitat lesen.

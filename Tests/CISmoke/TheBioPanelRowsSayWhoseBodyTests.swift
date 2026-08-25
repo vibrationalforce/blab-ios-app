@@ -55,6 +55,17 @@
 //     the same defect — it still means the number was not derived from the file.
 //   · **4 FORWARD, BEHAVIOURAL (claims 1–4)** — they drive the four pure statics. Loop
 //     iterations are ONE assertion each, not one per execution.
+//   · ⛔ **AND ONE OF THOSE FOUR WAS GRADED GREEN WHILE IT WAS RED ON THIS SLICE'S OWN TREE
+//     (#808).** Claim 3's real-body needle was `contains("your body")`; the sentence `7e906cd`
+//     shipped in the SAME commit reads "toward your measured **body state**". It never matched.
+//     The block two bullets up names the exact risk that produced this — the bundle does not
+//     compile against the parent, so "every bullet below is a hand-transcription" — and the
+//     hand went wrong in the harshest direction available: not a wrong verdict on the PARENT,
+//     which is what §3 warns about, but a wrong verdict on the tree the commit shipped.
+//     **Transcribing a needle is not driving it.** Claim 3 is REGRESSION as of #808 and is now
+//     driven, control plus five mutations, with the shipped strings read out of the Swift
+//     source rather than retyped. It stayed invisible for two months because of #807: the CI
+//     job log carries only `tail -200 test.log`.
 //   · **3 COUNTERWEIGHTS, green on both trees — the three form-bans**, which keep the
 //     element-label, the spoken-prefix and the section-head spellings out of these rows.
 //     (Claim 4's "no unfed channel" loop is FORWARD, not a counterweight — it drives a static
@@ -150,21 +161,59 @@ final class TheBioPanelRowsSayWhoseBodyTests: XCTestCase {
             """)
     }
 
-    /// 3 — FORWARD. The Auto-mode hint answers even while the control is disabled, because
+    /// 3 — REGRESSION. The Auto-mode hint answers even while the control is disabled, because
     /// VoiceOver reads hints on disabled controls.
+    ///
+    /// ⛔ THIS CLAIM WAS RED FROM BIRTH AND STAYED RED FOR TWO MONTHS. Its real-body needle was
+    /// `contains("your body")`; the sentence #648 shipped in the same commit (`7e906cd`, proved
+    /// with `git log -S` on both halves) reads "toward your measured **body state**". The
+    /// sentence was never wrong — it names the reader's body, in a different word order — so the
+    /// repair is the NEEDLE, and claim 6 below independently pins that literal as the intended
+    /// copy. What made it invisible is #807: the CI job log carries only `tail -200 test.log`,
+    /// so a failure has to land inside the last 200 lines to be seen at all. It surfaced the day
+    /// that window was measured, not the day it broke.
+    ///
+    /// ⭐ THE ROOT IS MEASURABLE AND IT IS NOT "a copied needle". Every OTHER `contains("your
+    /// body")` in this file is green, and the reason is structural: `breathVoiceHint` builds its
+    /// sentence through `BioPanelRowCopy.subject(synthetic:)`, the shared helper whose real-body
+    /// branch IS the literal "your body". `autoModeHint` is the one static that does not call
+    /// that helper — it spells its own sentence, because it carries "measured … state", which
+    /// the helper cannot express. **The one sentence that bypassed the shared subject is the one
+    /// sentence whose needle missed.** The divergence is deliberate copy, so the guard asks for
+    /// the sentence this static actually has; the demo half now asks
+    /// `BioProvenanceCopy.demoSubject` (the one definition, #416) instead of re-spelling a
+    /// fragment of it.
+    ///
+    /// ⚠️ WHAT THIS DOES NOT DO: it does not route `autoModeHint` through `subject(synthetic:)`.
+    /// That would be a user-facing copy change on a red-gate fix, and it would drop "the measured
+    /// state of" from the demo branch. If a later slice wants one path, that is a copy decision
+    /// with a founder in it, not a needle repair.
     func testTheAutoModeHintAnswersInEveryState() {
-        XCTAssertTrue(BioPanelRowCopy.autoModeHint(for: Self.frame(.healthKit))
-                        .contains("your body"), "The real-body Auto hint lost its subject.")
+        let real = BioPanelRowCopy.autoModeHint(for: Self.frame(.healthKit))
+        XCTAssertTrue(real.contains("your measured body state"), """
+            The real-body Auto hint lost its subject. A hint that steers "the mood dials" without
+            saying whose reading moves them is the exact ambiguity this file exists to close.
+            """)
+        XCTAssertFalse(real.contains(BioProvenanceCopy.demoSubject), """
+            The real-body Auto hint carries the demo subject. Counterweight to the assertion
+            above: naming a body is only half the claim — it has to be the RIGHT body, and this
+            asks the one definition rather than a second spelling of it.
+            """)
         XCTAssertTrue(BioPanelRowCopy.autoModeHint(for: Self.frame(.fallback))
-                        .contains("not your body"), """
-            The Auto hint promises to steer toward a body while the demo generator is the only \
+                        .contains(BioProvenanceCopy.demoSubject), """
+            The Auto hint promises to steer toward a body while the demo generator is the only
             thing being measured.
             """)
-        XCTAssertFalse(BioPanelRowCopy.autoModeHint(for: nil).contains("your body"), """
-            With no source the hint names a body. The control is disabled in that state, but a \
-            hint is still spoken on a disabled control — which is exactly why it needs its own \
-            sentence rather than inheriting one.
-            """)
+        let none = BioPanelRowCopy.autoModeHint(for: nil)
+        for presentTenseClaim in ["your body", "your measured"] {
+            XCTAssertFalse(none.contains(presentTenseClaim), """
+                With no source the hint claims a present measurement (\(presentTenseClaim)). The
+                control is disabled in that state, but a hint is still spoken on a disabled
+                control — which is exactly why it needs its own sentence rather than inheriting
+                one. Both spellings are banned because banning only the first is how this very
+                claim went red unnoticed: a re-worded body claim slips past a single literal.
+                """)
+        }
     }
 
     /// 4 — FORWARD. The Auto caption marks its subject and promises only fed channels.
