@@ -1,4 +1,4 @@
-build: v10.79.419 — vier Dinge sind neu bedienbar: Master-Klangfarbe, Vollbild-Visual, DMX-Auflösung, und der Klang folgt jetzt der RICHTUNG Deiner Kohärenz
+build: v10.79.420 — dieselben vier neuen Dinge wie in 419, aber mit den RICHTIGEN Wegen: 419 schickte Dich zu einem Chip namens „Visual", den es nicht gibt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,24 +6,31 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.418. Dieser Build bündelt #715 bis #816.
+  Der Vorgänger ist 10.79.419. Dieser Build bündelt #715 bis #820.
+
+  ⭐ WARUM SCHON WIEDER EIN BUILD: 419 nannte drei Wege durch die Oberfläche, und einer
+  davon existiert nicht. Die Chips heißen **Sound · FX · Mix · Master · Mood · Tempo ·
+  Field · Save/Export** — ein Chip „Visual" ist nicht dabei, er heißt **Field**. Dazu
+  stand nirgends, WO das Diagnose-Log liegt, obwohl es der wichtigste Schritt ist.
+  Beides unten korrigiert; ein Wächter prüft ab jetzt jeden Panel-Namen dieser Notiz
+  gegen die echten Chip-Beschriftungen.
 
   ⭐ WICHTIG: 416, 417 UND 418 hast Du nie geprüft. Diese Bitte ersetzt alle drei — der
   EINE Handgriff unten ist unverändert derselbe, er beantwortet nur noch mehr Fragen.
 
   ── VIER SACHEN, DIE DU JETZT SEHEN ODER HÖREN KANNST ────────────────────
 
-  **1. Der Master hat eine Klangfarbe (#736/#740/#743).** Master-Panel → Zeile „Tone".
+  **1. Der Master hat eine Klangfarbe (#736/#740/#743).** **Master**-Chip → Zeile „Tone".
   Vier Charaktere auf der Summe: **Balanced · Warm · Bright · Transparent**. Sie waren
   seit Monaten im Code und es gab keinen Weg, einen davon zu wählen. Die Wahl wird
   gespeichert.
 
-  **2. Das Visual geht ins Vollbild (#748).** Visual-Panel → Knopf „Full screen".
+  **2. Das Visual geht ins Vollbild (#748).** **Field**-Chip → Knopf „Full screen".
   Das Vollbild-Feld, das VJ-Overlay und der Donut-Renderer existierten seit Langem und
   waren durch KEINE Tür erreichbar — es gab schlicht keinen Knopf, der sie aufmacht.
 
-  **3. Licht: die DMX-Auflösung ist wählbar (#730/#732).** Routing-Fläche → „16-bit /
-  8-bit". 16 Bit sendet Grob-/Fein-Kanalpaare für weiche Fades; 8 Bit nur für Geräte, die
+  **3. Licht: die DMX-Auflösung ist wählbar (#730/#732).** **Master**-Chip → „Routing" →
+  „16-bit / 8-bit". 16 Bit sendet Grob-/Fein-Kanalpaare für weiche Fades; 8 Bit nur für Geräte, die
   das nicht lesen können. Auch hier: die Fähigkeit war da, die Auswahl nicht.
 
   **4. Der Klang folgt der RICHTUNG Deiner Kohärenz (#813).** Neu, und das ist das
@@ -37,11 +44,12 @@ notes: |
 
   **Ein Handgriff, unverändert seit 416 — er blockiert die ganze Vokal-Kette:**
 
-  1. Mix-Panel → „Voice - your microphone" → „Choose input…", **Live monitoring** an.
+  1. **Mix**-Chip → „Voice · your microphone" → „Choose input…", **Live monitoring** an.
      Egal ob es angeht oder den roten Kasten zeigt: beides ist eine Antwort.
      Gern zweimal — **iPhone-Mikro und HI-X25BT**. Der zweite Fall ist der interessante:
      erscheint der rote Bluetooth-Satz? Klingt die Musik dabei dumpf/telefonig?
-  2. **Dann das Diagnose-Log schicken.** Such nichts heraus.
+  2. **Dann das Diagnose-Log schicken.** Such nichts heraus — der Weg dorthin stand bis
+     jetzt nirgends: **Save/Export**-Chip → „Diagnostics" → oben rechts **Share**.
 
   **Neu und rein sensorisch — nur ein Ohr kann das entscheiden:**
 
@@ -51,8 +59,8 @@ notes: |
      beides brauchbare Antworten — ich drehe an einer Zahl.
 
   Optional, wenn Du ohnehin am Gerät bist:
-  · Master-Panel → „Tone": klingen die vier Charaktere wirklich verschieden?
-  · Visual-Panel → „Full screen": kommt das Bild, und kommst Du wieder heraus?
+  · **Master**-Chip → „Tone": klingen die vier Charaktere wirklich verschieden?
+  · **Field**-Chip → „Full screen": kommt das Bild, und kommst Du wieder heraus?
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 

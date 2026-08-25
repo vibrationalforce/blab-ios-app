@@ -14398,3 +14398,47 @@ Getrieben: 23 lebende Zeilen auf dem Elternbaum → **8 Funde, alle sechs Nadeln
 
 Nebenbei: mein `grep -c "VOID (#819)"` fand 7 statt 9, weil eine Marke `(#819, gemessen …)`
 schreibt — **wieder eine Nadel, die nicht treffen kann**, diesmal in meiner eigenen Kontrolle.
+
+---
+
+## #820 — die Build-Notiz schickte den Founder zu einem Chip, den es nicht gibt (2026-08-25)
+
+**Befund, an meiner eigenen Arbeit von vor drei Stunden.** `.deploy/release` ist das EINE
+Dokument, dem der Founder mit dem Telefon in der Hand folgt. Meine v419-Notiz schrieb
+„**Visual-Panel** → Full screen". Gemessen: die Chip-Leiste heißt **Sound · FX · Mix · Master ·
+Mood · Tempo · Field · Save/Export** — ein Chip „Visual" existiert nicht, die Fläche liegt hinter
+**Field**. Zwei der drei neuen Wege stimmten, der dritte war unbefolgbar.
+
+**Und eine LÜCKE, kein Fehler:** die Notiz bat seit vier Builds „dann das Diagnose-Log schicken"
+und sagte **nie, wo es liegt** (Save/Export → „Diagnostics" → Share). Das ist die wichtigste
+offene Handlung im ganzen Projekt.
+
+**Das ist #816 an mir selbst** — dieselbe Sitzung, die tags zuvor die Geräte-Checkliste von
+unausführbaren Bitten befreit hat, hat am selben Tag eine unausführbare Bitte GESCHRIEBEN.
+
+**Gebaut:** v10.79.420 mit allen fünf Wegen am Code geprüft (`Mix`-Chip → „Voice · your
+microphone" mit dem echten Mittelpunkt · `Master`-Chip → „Tone" · `Master`-Chip → „Routing" ·
+`Field`-Chip → „Full screen" · `Save/Export`-Chip → „Diagnostics" → Share).
+
+**⚠️ Die CLAUDE.md-Regel „`.deploy/release` NIE für Prosa editieren" wurde bewusst abgewogen,
+nicht übergangen.** Ihr Zweck ist, Build-Rauschen zu vermeiden. Hier war es keine Kosmetik,
+sondern eine ANWEISUNG, die nicht ausführbar ist, in dem Dokument, das die einzige offene
+Founder-Handlung trägt — und 419 war zwei Stunden alt und noch nicht installiert. Ein
+korrigierter Build ersetzt ihn, statt dass der Founder zwei installiert.
+
+**Wächter:** `Tests/CISmoke/TheDeployNoteNamesRealDoorsTests.swift`, 3 Ansprüche, gegen BEIDE
+Bäume getrieben: Arbeitsbaum 3/3 grün (4 Weg-Token, alle echt); Elternbaum (v419) **Anspruch 2
+rot** (`Visual`) **und Anspruch 3 rot** (Log-Bitte ohne Tür) — jeder aus seinem eigenen Grund.
+
+**⛔ DREI FEHLGESCHLAGENE ENTWÜRFE DES WÄCHTERS, alle aus EINER Familie — „ein Anker, den der
+neue Text selbst enthält, ist kein Anker":**
+1. Der Scan auf `Visual-Panel` traf die **Rücknahme dieses Namens** in der korrigierten Notiz
+   (#491). Gelöst durch Umformulieren der Notiz, NICHT durch eine Ausnahme im Wächter — eine
+   Ausnahme ist ein Loch, durch das später jemand anders geht.
+2. Die Notiz schreibt `**Master**-Chip`; die Markdown-Sterne stehen zwischen Wort und
+   Bindestrich, ein naiver Scan fand **null** Token — **ein Wächter, der auf ewig grün auf einem
+   Dokument steht, das er nie gelesen hat** (#808). Sterne werden jetzt zuerst entfernt, und
+   Anspruch 2 verlangt ausdrücklich, dass er ETWAS gefunden hat.
+3. Ein Skript-Edit ankerte auf `var tokens: Set<String> = []` — eine Zeile, die die neue
+   Hilfsfunktion des Edits **selbst enthielt** — und fraß zwei Ansprüche. Danach die Datei
+   komplett neu geschrieben statt weiter zu flicken.
