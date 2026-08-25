@@ -14345,3 +14345,56 @@ hätte es; lesbar war es nicht. Neu eingesetzt über ein bash-Heredoc mit zitier
 keine Interpretation): längste Zeile jetzt < 150. **Lehre: wer Swift durch Python schreibt,
 prüft das ERGEBNIS, nicht die Absicht** — `\` bedeutet in beiden Sprachen etwas, und nicht
 dasselbe.
+
+---
+
+## #819 — das Board, aus dem eine Sitzung Arbeit zieht, führte neun tote Zeilen (2026-08-25)
+
+**Befund.** `.claude/skills/baustellen/SKILL.md` sagt: Board lesen → oberste offene Slice ziehen.
+`scratchpads/BAUSTELLEN_BOARD.md` nennt sich selbst „die eine Übersicht" und wurde zuletzt am
+**2026-07-21** geführt. Seither haben #121 Slice 4, #166/#167, #475 und die AUv3-Entfernung
+Flächen gelöscht, auf die **neun Warte-Zeilen** weiterhin zeigen — **A1 ist die erste, die eine
+Sitzung ziehen würde.**
+
+| Zeile | Messung |
+|---|---|
+| A1 Piano-Roll-Pro | `RollChordStamp(` → **0** Konstruktionsstellen (#475) |
+| A7 Clip-Launch/Performance | `launchGlyphOverlay` → **0** in `Sources` (#121 Slice 4) |
+| A8 · A9 · B1 AUv3 | Target am 2026-07-24 entfernt |
+| O1 Clip-Handhabung · O2 Warp-Editor · O3 MIDI/MPE-Station | keine Clip-/Roll-Fläche mehr |
+| O5 Per-Instrument-Synth | HALB: Anwendung lebt, die `.patch(lane)`-Tür ging mit `craftEditor` |
+
+**Das ist #816 eine Ebene höher** — dort kostete es Founder-GERÄTEZEIT, hier kostet es einen
+ganzen Sitzungs-Zyklus. Und es ist schlimmer in einem Punkt: das Board gibt sich als *die*
+Übersicht aus, also sucht eine Sitzung, die ihm glaubt, gar nicht erst nach dem echten Vorrat.
+
+**Gebaut.** Ein datierter ⛔-STAND-Block ganz oben (mit Zeigern auf `founder-verify.py`,
+`FOUNDER_DEVICE_SESSION.md`, `.deploy/release`, `SESSION_LOG.md`) und ein ⛔-VOID mit MESSUNG an
+jeder der neun Zeilen. **Gelöscht wurde nichts** — das ist das Gesetz des Boards.
+
+**Zwei Zeilen bekamen statt VOID eine schärfere Diagnose:**
+- **REIHENFOLGE-Punkt 2 („Bio-Modulation live sichtbar") ist NICHT geräte-gegated**, wie die
+  07-18-Zeile behauptet. `orderedOutputs` hat **null Verbraucher** und die Matrix **null Routen**
+  (#541) — ein Messgerät darüber zeigte immer eine leere Liste. Blockiert durch die fehlende
+  ROUTE, nicht durch ein Gerät.
+- **A5 BodyVibe-Kamera lebt** (`FaceExpressionBioPublisher`, `cameraExpression` in 5 Dateien) und
+  bleibt korrekt founder-gegated (Info.plist-Datenschutztext).
+
+**Wächter:** `Tests/CISmoke/TheWorkBoardDoesNotQueueDeletedSurfacesTests.swift`, 3 Ansprüche.
+Getrieben: 23 lebende Zeilen auf dem Elternbaum → **8 Funde, alle sechs Nadeln treffen**;
+14 lebende Zeilen im Arbeitsbaum → **0**. Anspruch 2 läuft über **370** Swift-Dateien.
+
+**⛔ DREI FEHLER IN MEINER EIGENEN SCHEIBE, alle vom TREIBEN gefunden, keiner vom Lesen:**
+1. **Der Wächter zerstörte seinen eigenen Anker.** Der Bereich wurde mit `split("## AKTIV")`
+   genommen — und der neue STAND-Block NENNT „## AKTIV" in der Prosa. Der Bereich öffnete also
+   mitten in der Dokumentation des Wächters und schrumpfte auf drei Zeilen. Überschriften werden
+   jetzt am ZEILENANFANG getroffen.
+2. **Die Reparatur ließ die Nadelzahl von sechs auf drei fallen** — weil das Zurücksetzen an
+   jeder `## `-Überschrift den Bereich auch bei `## OFFEN` schließt. **Eine Nadelmenge, die
+   plötzlich nicht mehr trifft, ist ein Signal, dass sich der BEREICH bewegt hat, nicht dass die
+   Datei sauber wurde.** Die verlockende Lesart ist die beruhigende.
+3. **Anspruch 2 prüfte zwei benannte Dateien** und wäre grün geblieben, während seine eigene
+   Prämisse falsch ist. Er läuft jetzt über den Baum.
+
+Nebenbei: mein `grep -c "VOID (#819)"` fand 7 statt 9, weil eine Marke `(#819, gemessen …)`
+schreibt — **wieder eine Nadel, die nicht treffen kann**, diesmal in meiner eigenen Kontrolle.
