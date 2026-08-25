@@ -64,12 +64,6 @@ struct AudioInputPickerView: View {
     /// door self-corrects a stale refusal here.
     @State private var monitorRefused = false
 
-    /// #824 — the HFP opt-in. This `@AppStorage` IS the one writer of the key;
-    /// `AudioConfiguration.bluetoothHFPMicEnabled` is the reader that folds it
-    /// into `recordOptions`. Default `false` on both sides: the music's quality
-    /// wins by default, the headset's own mic is the conscious exception.
-    @AppStorage(AudioConfiguration.bluetoothHFPMicKey) private var bluetoothHFPMic = false
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -332,32 +326,14 @@ struct AudioInputPickerView: View {
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                // #824 — HFP is opt-in. A named binary → Toggle (like monitoring and
-                // "Tune to key" above). The copy states the trade-off the option IS:
-                // there is no world with both the headset's own mic and full-quality
-                // music on one Bluetooth link.
-                HStack(spacing: 10) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Bluetooth headset mic")
-                            .font(EchoelTheme.font(13, .semibold))
-                            .foregroundStyle(EchoelTheme.text)
-                        Text("Uses the headset's own mic at call quality — the music drops to mono and loses its highs too. Off, the sound stays full-quality stereo and the mic comes from the iPhone or a wired/USB input.")
-                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-                    Spacer(minLength: 8)
-                    Toggle("", isOn: Binding(
-                        get: { bluetoothHFPMic },
-                        set: { on in
-                            bluetoothHFPMic = on
-                            // Takes effect immediately when a mic feature is live;
-                            // no-op otherwise (the next claim reads the flag).
-                            AudioConfiguration.reapplyRecordRouteForHFPChoice()
-                        }
-                    ))
-                    .labelsHidden()
-                    .accessibilityLabel("Bluetooth headset mic")
-                }
+                // ⛔ #827 — the #824 "Bluetooth headset mic" toggle STOOD HERE for one
+                // cycle and was struck by the founder the same day ("Keine
+                // Telefonqualität zulassen, das mag niemand"). Echoel never requests
+                // HFP: the headset's own mic is simply never used — mic from
+                // iPhone/wired/USB, output stays full-quality A2DP stereo. Do not
+                // re-add a door to call quality; the ban lives in
+                // `AudioConfiguration.recordOptions`, guarded by
+                // `TheRecordRouteDoesNotDefaultToHFPTests`.
                 Text("Use headphones or an interface to avoid acoustic feedback. On the speaker, the guard automatically ducks any howl that builds up.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)

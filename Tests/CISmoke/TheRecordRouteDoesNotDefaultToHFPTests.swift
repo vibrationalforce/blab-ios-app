@@ -1,21 +1,25 @@
-// TheRecordRouteDoesNotDefaultToHFPTests — pins the #824 Bluetooth-quality repair.
+// TheRecordRouteDoesNotDefaultToHFPTests — pins the HFP ban (#824 → #827).
 //
-// THE FAILURE THIS GUARDS (founder, 2026-08-25: "Mit Bluetooth Kopfhörer/headset
-// komischen gesamt Klang vermeiden"): `recordOptions` carried `.allowBluetooth`
-// (HFP) unconditionally, so the moment any mic feature claimed the route, iOS
-// could move a dual-profile Bluetooth headset onto the 8/16 kHz mono call codec —
-// MUSIC included. #824 makes HFP an OPT-IN: the default record set is A2DP-only
-// (full-quality stereo out, mic from iPhone/wired/USB), and `.allowBluetooth` is
-// added only behind the persisted `audio.bluetoothHFPMic` flag, whose one door is
-// the "Bluetooth headset mic" toggle in `AudioInputPickerView`.
+// HISTORY, because this guard changed shape within one day and the reason is a
+// FOUNDER DECISION, not a redesign: #824 removed `.allowBluetooth` (HFP) from the
+// default record options and put it behind a persisted opt-in toggle ("Bluetooth
+// headset mic"). The founder struck the opt-in the same day — verbatim: "Keine
+// Telefonqualität zulassen, das mag niemand" — so #827 deleted the toggle, its
+// key and the live re-apply helper outright. Echoel NEVER requests HFP: with it,
+// iOS may move a dual-profile Bluetooth headset onto the 8/16 kHz mono call
+// codec the moment the mic route is claimed, music included (the "komischer
+// Gesamtklang", 2026-08-25). The headset's own mic is simply never used.
 //
-// All claims are source scans (Bluetooth routing does not exist in any simulator;
-// the routing outcome itself is a device-only fact and sits in the founder-verify
-// queue). #364: this guard does not forbid future work — if the mechanism is
-// deliberately redesigned, re-anchor these claims in the same commit and pull the
-// prose homes its messages name (#456): AudioConfiguration's recordOptions doc,
-// the routeCodec doc, TheBluetoothCodecReachesTheScreenTests' header, and the
-// SESSION_LOG #824 entry.
+// SOURCE-TEXT SCANS (§1) — Bluetooth routing exists in no simulator; the routing
+// outcome is a device fact in the founder-verify queue. Comment lines are
+// stripped before every needle: the retraction docs QUOTE the banned token and
+// the deleted key on purpose (#491), and a scan that read prose would hit its
+// own history.
+//
+// #364 note: this guard DOES forbid re-adding HFP — deliberately, because it
+// enforces an explicit founder decision, which is the one thing a guard may pin
+// hard. If the founder ever reverses it, update this file, the recordOptions
+// doc, the routeCodec doc and the SESSION_LOG in the same commit (#456).
 
 import Foundation
 import XCTest
@@ -34,69 +38,61 @@ final class TheRecordRouteDoesNotDefaultToHFPTests: XCTestCase {
         return text
     }
 
-    func testTheDefaultRecordOptionsCarryNoHFP() {
-        let config = source("Sources/Echoelmusic/Audio/AudioConfiguration.swift")
-        guard !config.isEmpty else { return }
-        guard let start = config.range(of: "private static var recordOptions") else {
-            XCTFail("recordOptions is no longer a computed var in AudioConfiguration — "
-                    + "#824 made it computed so HFP can be opt-in. If it was renamed or "
-                    + "redesigned, re-anchor this guard in the same commit.")
-            return
-        }
-        let window = String(config[start.lowerBound...].prefix(500))
-        // The base set must be A2DP-only. `.allowBluetoothA2DP` CONTAINS
-        // `.allowBluetooth` as a substring, so strip the A2DP spelling first —
-        // a naive needle here could never fail (#808) or never pass.
-        guard let baseLineRange = window.range(of: "var options: AVAudioSession.CategoryOptions") else {
-            XCTFail("The recordOptions base-set line moved — re-anchor this guard.")
-            return
-        }
-        let base = String(window[baseLineRange.lowerBound...].prefix(140))
-        let baseWithoutA2DP = base.replacingOccurrences(of: ".allowBluetoothA2DP", with: "")
-        XCTAssertTrue(base.contains(".allowBluetoothA2DP"),
-                      "The default record set lost .allowBluetoothA2DP — Bluetooth "
-                      + "OUTPUT (the good codec) must stay allowed. Base line: \(base)")
-        XCTAssertFalse(baseWithoutA2DP.contains(".allowBluetooth"),
-                       "#824 is undone: .allowBluetooth (HFP) is back in the DEFAULT "
-                       + "record set. That lets iOS pull a Bluetooth headset — music "
-                       + "included — onto the mono call codec whenever the mic route is "
-                       + "claimed: the founder's 'komischer Gesamtklang'. HFP must stay "
-                       + "behind the bluetoothHFPMicEnabled opt-in. Base line: \(base)")
-        XCTAssertTrue(window.contains("if bluetoothHFPMicEnabled")
-                      && window.contains("insert(.allowBluetooth)"),
-                      "The HFP opt-in gate is gone from recordOptions — either the flag "
-                      + "no longer feeds the option set (the toggle becomes a lie) or the "
-                      + "mechanism was redesigned without re-anchoring this guard.")
+    /// Comment lines removed — the ⛔ retraction blocks quote the banned token
+    /// and the deleted key deliberately (#491).
+    private func code(_ repoRelative: String) -> String {
+        source(repoRelative)
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
     }
 
-    func testTheFlagHasExactlyOneKeyDefinitionAndAReachableDoor() {
-        let config = source("Sources/Echoelmusic/Audio/AudioConfiguration.swift")
-        let picker = source("Sources/Echoelmusic/Studio/AudioInputPickerView.swift")
+    func testEchoelNeverRequestsHFP() {
+        let config = code("Sources/Echoelmusic/Audio/AudioConfiguration.swift")
+        guard !config.isEmpty else { return }
+        // `.allowBluetoothA2DP` CONTAINS `.allowBluetooth` as a substring — strip
+        // the A2DP spelling first, or this needle could never fail (#808) or
+        // never pass.
+        let a2dpCount = config.components(separatedBy: ".allowBluetoothA2DP").count - 1
+        let withoutA2DP = config.replacingOccurrences(of: ".allowBluetoothA2DP", with: "")
+        // Anti-vacuous: the file must still configure Bluetooth OUTPUT at its
+        // three sites (playback set, record set, downgrade set). Zero here means
+        // an anchor moved, not a clean file.
+        XCTAssertGreaterThanOrEqual(a2dpCount, 3, """
+            Fewer than three .allowBluetoothA2DP sites in AudioConfiguration — \
+            Bluetooth OUTPUT (the good stereo codec) must stay allowed on the \
+            playback, record and downgrade option sets. If a set was legitimately \
+            restructured, re-anchor this count in the same commit.
+            """)
+        XCTAssertFalse(withoutA2DP.contains(".allowBluetooth"), """
+            `.allowBluetooth` (HFP) is back in AudioConfiguration's CODE. The \
+            founder banned telephone quality outright (#827, "Keine Telefonqualität \
+            zulassen, das mag niemand" — it was an opt-in for exactly one cycle, \
+            #824). With HFP requested, iOS may pull the WHOLE shared route — music \
+            included — onto the 8/16 kHz mono call codec. If the founder reverses \
+            this decision, update this guard, the recordOptions doc, the routeCodec \
+            doc and the SESSION_LOG in the same commit (#456).
+            """)
+    }
+
+    func testTheStruckOptInLeavesNoResidue() {
+        let config = code("Sources/Echoelmusic/Audio/AudioConfiguration.swift")
+        let picker = code("Sources/Echoelmusic/Studio/AudioInputPickerView.swift")
         guard !config.isEmpty, !picker.isEmpty else { return }
-        // ONE definition of the key literal (#416) — the door must reference the
-        // constant, never re-type the string.
-        let literal = "\"audio.bluetoothHFPMic\""
-        let inConfig = config.components(separatedBy: literal).count - 1
-        let inPicker = picker.components(separatedBy: literal).count - 1
-        XCTAssertEqual(inConfig, 1,
-                       "The key literal must appear exactly once, in AudioConfiguration "
-                       + "(found \(inConfig)) — a second spelling is the two-owners drift "
-                       + "this repo keeps paying for (#416).")
-        XCTAssertEqual(inPicker, 0,
-                       "AudioInputPickerView re-types the key literal (found \(inPicker)) "
-                       + "instead of using AudioConfiguration.bluetoothHFPMicKey.")
-        // The door: an @AppStorage on the shared constant, honest copy, and the
-        // live re-apply so the choice takes effect mid-monitoring.
-        XCTAssertTrue(picker.contains("@AppStorage(AudioConfiguration.bluetoothHFPMicKey)"),
-                      "The HFP opt-in lost its door — a persisted flag nothing can set is "
-                      + "the doorless-state defect (#204/#713): the reader would resolve "
-                      + "false forever and the capability silently vanishes.")
-        XCTAssertTrue(picker.contains("call quality"),
-                      "The toggle's copy no longer states the trade-off (call quality). "
-                      + "An opt-in into degraded sound without saying so is the overclaim "
-                      + "class in reverse — the user must choose knowingly.")
-        XCTAssertTrue(picker.contains("reapplyRecordRouteForHFPChoice()"),
-                      "The toggle no longer re-applies the record route — flipping it "
-                      + "mid-monitoring would silently do nothing until the next claim.")
+        for needle in ["\"audio.bluetoothHFPMic\"", "bluetoothHFPMicEnabled",
+                       "reapplyRecordRouteForHFPChoice"] {
+            XCTAssertFalse(config.contains(needle) || picker.contains(needle), """
+                A piece of the struck #824 HFP opt-in is back in code: \(needle). \
+                The founder deleted the capability, not just its default (#827) — \
+                a surviving reader or key invites the next session to re-door it \
+                (the doorless-state trap in reverse).
+                """)
+        }
+        XCTAssertFalse(picker.contains("Text(\"Bluetooth headset mic\")"), """
+            The "Bluetooth headset mic" toggle is back in the Input sheet. The \
+            founder struck it the same day it shipped (#827): there is no world \
+            with both the headset's own mic and full-quality music on one \
+            Bluetooth link, and the founder chose the music for everyone.
+            """)
     }
 }

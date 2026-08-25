@@ -14671,3 +14671,31 @@ Rate-Gate grün auf beiden Bäumen (Gegengewichte, #343).
 
 **Ehrlich:** compile-verifizierbar; das hörbare Verhalten (kein Doppel-Recycle, kein
 Ping-Pong bei flatternder BT-Verbindung) ist Geräteprobe — im #824-Risikoregister benannt.
+
+## 2026-08-25 — #827: Telefonqualität KOMPLETT verboten (Founder: „Keine Telefonqualität zulassen, das mag niemand")
+
+**Founder-Verdikt, noch am Tag von #824:** Das Opt-in ist gestrichen. Echoel fordert HFP
+NIE an — der Toggle „Bluetooth headset mic", sein Key `audio.bluetoothHFPMic` und
+`reapplyRecordRouteForHFPChoice()` sind GELÖSCHT, nicht gated. `recordOptions` ist wieder
+eine Konstante: `[.allowBluetoothA2DP, .defaultToSpeaker, .mixWithOthers]`. Konsequenz
+offen benannt: das Headset-eigene Mikro wird nie benutzt (iPhone/Kabel/USB stattdessen),
+Ausgabe bleibt volles A2DP-Stereo. Was das NICHT verhindern kann: eine FREMDE App oder
+ein Anruf degradiert die GETEILTE Route — `routeCodec` erkennt den Fall; wir garantieren
+nur, dass Echoel nie die Ursache ist (→ Scheibe 4 macht das Urteil immer sichtbar).
+
+**Kein Alt-Zustand-Risiko:** Zwischen #824 und #827 ging kein TestFlight-Build raus
+(letzter Deploy v10.79.420, vor #824) — niemand kann den Key je gesetzt haben; ein
+verwaister UserDefaults-Eintrag existiert nicht.
+
+**Prosa mitgezogen (#456):** recordOptions-Doc (jetzt ⛔-Block mit Founder-Zitat +
+angepasstem NEEDS-FOUNDER-VERIFY ohne Toggle-Probe), routeCodec-Doc, Latenz-Doc Punkt 3,
+Picker-⛔-Vermerk an der Stelle des Toggles („Do not re-add a door to call quality"),
+beide Testdatei-Köpfe (TheBluetoothCodec… / TheMeasuredLatency…, je #827-Fassung).
+
+**Wächter:** `TheRecordRouteDoesNotDefaultToHFPTests` umgebaut — pinnt jetzt das VERBOT:
+(1) null `.allowBluetooth` im Code von AudioConfiguration (A2DP-Substring erst gestrippt;
+Gegengewicht: ≥3 A2DP-Sites), (2) null Reste des Opt-ins (Key/Leser/Helper/Toggle),
+Kommentare gestrippt (#491 — die Rücknahme-Docs zitieren das Verbotene absichtlich).
+#364-Vermerk im Kopf: der Wächter verbietet bewusst — er erzwingt eine ausdrückliche
+Founder-Entscheidung, mit benanntem Rückweg falls sie je kippt. Getrieben: Worktree
+alles grün, HEAD (#824-Stand) scheitert an JEDEM neuen Anspruch.

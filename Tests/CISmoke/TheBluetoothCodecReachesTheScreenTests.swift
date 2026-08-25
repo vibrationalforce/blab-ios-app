@@ -7,9 +7,10 @@
 // effect that actually ruins a take: with `.allowBluetooth` (HFP) in the record options iOS
 // can pull the WHOLE shared route down to the mono call codec once the mic is claimed.
 // (⛔ "and it has to, that is how a Bluetooth mic works at all" stood here as the reason it
-// was in the DEFAULT set — #824 rejected exactly that: the headset's own mic is the OPT-IN,
-// the music's quality is the default. The verdict this file pins matters in both worlds:
-// another app or a call can put the shared route on HFP regardless of Echoel's options.)
+// was in the DEFAULT set — #824 rejected that and made it an opt-in; #827 struck even the
+// opt-in on the founder's verdict "Keine Telefonqualität zulassen": Echoel never requests
+// HFP at all now. The verdict this file pins matters regardless: another app or a call can
+// put the shared route on HFP whatever Echoel's options say.)
 // The music goes with it. A player hears his
 // own instrument turn into a telephone while every number on screen still reads healthy,
 // because no LATENCY number can express a BANDWIDTH collapse.

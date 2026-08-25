@@ -46,8 +46,8 @@
 //      a number wins that argument. `tune=on|off` now states whether the stage is in chain.
 //   3. The session CATEGORY was missing, in a line whose stated purpose is comparability.
 //      `start` is `.playback` + A2DP; `monitor on` is `.playAndRecord` + `.defaultToSpeaker`
-//      (+ `.allowBluetooth`/HFP mono only behind the #824 opt-in). Two incomparable
-//      regimes, one stem, no field to tell them apart.
+//      (A2DP-only since #827 — HFP is banned outright; #824's opt-in lasted one cycle).
+//      Two incomparable regimes, one stem, no field to tell them apart.
 //   4. `in=0.0` was a fabrication on the MOST COMMON path — no input route means
 //      `inputLatency == 0`, which is finite and non-negative, so the `?` mechanism could not
 //      see it and the founder read a measurement that was never taken.
@@ -148,9 +148,9 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         XCTAssertTrue(line.contains("cat=AVAudioSessionCategoryPlayAndRecord"), """
             The session CATEGORY is gone, and it is the field that decides whether two lines \
             can be compared at all (#654). `start` is measured under `.playback` with A2DP; \
-            `monitor on` under `.playAndRecord` with `.defaultToSpeaker` (and, only behind \
-            the #824 opt-in, `.allowBluetooth` — the HFP mono call codec). Same stem, same \
-            format, incomparable regimes. Got: \(line)
+            `monitor on` under `.playAndRecord` with `.defaultToSpeaker` — A2DP-only since \
+            #827, HFP is banned outright. Same stem, same format, incomparable regimes. \
+            Got: \(line)
             """)
         XCTAssertTrue(line.contains("sr=48000"), "sample rate missing or reshaped: \(line)")
         XCTAssertTrue(line.contains("buf=5.0"), "IO buffer missing or mis-scaled: \(line)")
