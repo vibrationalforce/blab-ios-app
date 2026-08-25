@@ -14802,3 +14802,39 @@ Note gegen `TheDeployNoteNamesRealDoorsTests`-Logik getrieben: Versions-Regel (v
 erster Treffer), Chip-Tokens {Mix, Save/Export} ⊂ Label-Menge, Diagnostics-Tür benannt,
 Vorgänger ohne v. Der EINE Handgriff aus 416–420 bleibt derselbe, jetzt mit der
 Erwartung „es geht an".
+
+## 2026-08-25 — #831: Der v421-Crash — Monitor-Chirurgie hält jetzt den Motor an
+
+**Founder-Log v10.79.421 (2539), zwei Botschaften:** ✅ **#823 IST AM GERÄT BESTÄTIGT** —
+`monitor: ON (gain 0.6, megaphone off, 48000.0 Hz, 1 ch)`: Live-Input geht an, echtes
+Format, der Session-Fallback wurde nicht einmal gebraucht. Die benannte Hypothese ist in
+die bestätigende Richtung entschieden. ❌ **Neuer Crash**: ~2 s nach „megaphone on"
+`required condition is false: false == isInputConnToConverter` → SIGABRT, SYNCHRON aus
+einem Toggle-Binding (SwiftUI LocationBox-Kette im Stack).
+
+**Diagnose:** ZWEI Stellen operierten am Monitor-Graphen bei LAUFENDEM Render — der
+Monitoring-OFF-Teardown (removeTap + drei Disconnects) und `setVoiceTune`s Live-Rewire
+durch den Time-Pitch-Knoten (Konverter-Maschinerie = exakt das Subjekt der Assertion) —
+während der #628-Block der Datei selbst sagt, dass jede Geschwister-Stelle den Motor
+zuerst beruhigt. Welcher der zwei Toggles es war, ist ohne dSYM nicht beweisbar; die
+Wurzel ist geteilt, beide sind repariert. ⭐ Der `setVoiceTune`-Doc-Block VERTEIDIGTE
+die Live-Chirurgie („pausing would hiccup the MUSIC … no start() to fail here") und
+ließ nur „klickt es hörbar?" als Geräteprobe offen — **der Crash ist die gemessene
+Antwort, und sie ist härter als die Frage**: ⛔-Rücknahme im Doc-Block.
+
+**Fix:** OFF-Pfad: `offWasRunning`-Capture ZUM BRANCH-ANFANG verschoben (stand NACH der
+Chirurgie — hätte nach meinem Stop immer `false` gelesen) + `stop()` vor dem ersten
+Graph-Griff (stop statt pause: es folgt ein Kategorie-Wechsel, #823-Gesetz);
+`restoreEngineIfStranded` restartet wie bisher. `setVoiceTune`: `pause()` um die
+Chirurgie (kein Kategorie-Wechsel → pause reicht), mit `try start()` +
+`restartOrDegrade("voice tune rewire")` — genau der Fehlerpfad, den das alte Argument
+für inexistent erklärte. Kosten ehrlich: Monitoring-OFF und Tune-Umschalten haben jetzt
+einen kurzen Musik-Aussetzer; ein Aussetzer schlägt einen Absturz.
+
+**Wächter:** `TheMonitorSurgeryQuietsTheEngineTests` — 2 Ordnungs-Ansprüche
+(Stop vor removeTap · Pause vor Disconnect, je mit Restore/Fallback-Gegengewicht).
+Getrieben: HEAD scheitert an beiden, ALLE Geschwister-Zählungen unverändert
+(Tune-Connects 2/2/3/2, Rearm-Sites 3, Megaphone-Fenster, Restore-Zeile).
+
+**Ehrlich:** compile-verifizierbar; „kein SIGABRT mehr" beweist nur das nächste
+Geräte-Log. Deploy v10.79.422 folgt sofort — der Crash blockiert die laufende Probe.

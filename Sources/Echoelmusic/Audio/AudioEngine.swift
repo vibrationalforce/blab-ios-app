@@ -2165,6 +2165,18 @@ public final class AudioEngine {
             return true
         } else {
             guard isInputMonitoring else { return true }
+            // #831 (founder crash v10.79.421, 2539: `required condition is false:
+            // false == isInputConnToConverter`, SIGABRT thrown synchronously out of a
+            // toggle's Binding set): graph surgery on the monitor chain must not race
+            // a RUNNING render. This branch tore the chain down live — removeTap plus
+            // three disconnects — while the file's own #628 block says every sibling
+            // site quiets the engine before touching the graph. The capture moves up
+            // here from below the surgery (it was read AFTER, #625b) and it is a
+            // STOP, not a pause: a category change follows on this path, and #823
+            // measured that a paused I/O unit keeps its built configuration across
+            // category changes. `restoreEngineIfStranded` below restarts, as before.
+            let offWasRunning = masterEngine.isRunning
+            if offWasRunning { masterEngine.stop() }
             monitorMixer.outputVolume = 0
             if monitorTapInstalled {
                 masterEngine.inputNode.removeTap(onBus: 0)
@@ -2199,7 +2211,9 @@ public final class AudioEngine {
             // → OFF → category change → if THAT stops the engine, the immediately following
             // ON reads `wasRunning == false` and strands the engine exactly as #625
             // describes — through the door #625 left open.
-            let offWasRunning = masterEngine.isRunning
+            // (#831: `offWasRunning` is now captured at the TOP of this branch, before
+            // the engine is stopped for the graph surgery — reading it here would
+            // always see `false` and the restore below would never fire.)
             do { try AudioConfiguration.releaseRecordRoute(.inputMonitoring) }
             catch { logMonitorOutcome("session downgrade failed (\(error))", level: .warning) }
             restoreEngineIfStranded(offWasRunning, at: "input monitoring off")
@@ -2221,12 +2235,20 @@ public final class AudioEngine {
     /// ⛔ The first version cited "graph edits while running are the #595/#299
     /// pattern" — WRONG PRECEDENT (#599 review): #595's `setInputMonitoring` PAUSES
     /// the engine before connecting and restarts after; #299 is session-category
-    /// claiming, not graph work. This method is deliberately the OTHER documented
-    /// pattern — dynamic reconfiguration on a RUNNING engine — because there is no
-    /// `start()` to fail here, and pausing the master engine would hiccup the MUSIC
-    /// for a monitor-only toggle. Both branches are straight-line between disconnect
-    /// and connect, so no exit can leave `notchEQ` outputless. Whether the live
-    /// rewire clicks audibly is part of the device probe.
+    /// claiming, not graph work.
+    /// ⛔ #831 — AND THE SECOND VERSION'S DEFENSE IS MEASURED FALSE. It read: this
+    /// method is "deliberately the OTHER documented pattern — dynamic reconfiguration
+    /// on a RUNNING engine — because there is no `start()` to fail here, and pausing
+    /// the master engine would hiccup the MUSIC", with "whether the live rewire
+    /// clicks audibly" left as the device probe. The founder's v10.79.421 device log
+    /// answered it: `required condition is false: false == isInputConnToConverter`,
+    /// SIGABRT, thrown synchronously out of a toggle's Binding set — rewiring the
+    /// input-fed chain through the time-pitch node (converter machinery) while the
+    /// engine renders is an ObjC assert no Swift catch can see. A bounded pause
+    /// hiccup beats the whole app dying; the surgery is now paused around, with the
+    /// `start()` failure path the old argument said did not exist.
+    /// Both branches stay straight-line between disconnect and connect, so no exit
+    /// leaves `notchEQ` outputless.
     func setVoiceTune(_ on: Bool) {
         guard on != voiceTuneEnabled else { return }
         voiceTuneEnabled = on
@@ -2238,6 +2260,10 @@ public final class AudioEngine {
         // LOW): mixing input- and output-format reads across the two wiring sites is
         // the connect-time-exception seed after a mid-session hardware-rate change.
         let inFmt = masterEngine.inputNode.inputFormat(forBus: 0)
+        // #831: quiet the engine around the rewire — pause, not stop: no category
+        // change happens here, and the pause is what removes the running-render race.
+        let wasRunning = masterEngine.isRunning
+        if wasRunning { masterEngine.pause() }
         if on {
             if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
             masterEngine.disconnectNodeOutput(notchEQ)
@@ -2247,6 +2273,14 @@ public final class AudioEngine {
             masterEngine.disconnectNodeOutput(notchEQ)
             if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
             masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
+        }
+        if wasRunning {
+            armTimingInstrument()
+            do { try masterEngine.start() }
+            catch {
+                logMonitorOutcome("voice tune rewire restart failed (\(error))")
+                restartOrDegrade(after: "voice tune rewire")
+            }
         }
         #endif
     }
