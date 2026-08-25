@@ -218,6 +218,17 @@ struct AudioInputPickerView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
+            if !audioEngine.isInputMonitoring {
+                // #828 — the codec verdict, no longer hidden behind monitoring. The
+                // route is SYSTEM-SHARED: another app holding `.playAndRecord` with
+                // HFP, or a call in progress, degrades the music while Echoel sits
+                // in `.playback` — and since #827 Echoel itself never requests HFP,
+                // so external causes are the ONLY ones left. Gated on !monitoring
+                // because while monitoring runs, `MonitorLatencyRow` below renders
+                // the same verdict — one sentence on screen, never two (#416).
+                // Renders nothing for a healthy route.
+                RouteCodecRow()
+            }
             if audioEngine.isInputMonitoring {
                 // #605 (UX audit #9): the engine-stopped case the refusal line above cannot
                 // see — permission was granted, the graph is wired, but the engine is paused
@@ -491,17 +502,15 @@ private struct MonitorLatencyRow: View {
                         // it takes the music down with it. `danger`, and only when there is
                         // something to say: `note` is `nil` for a healthy route, so a good cable
                         // renders no line at all rather than a reassurance nobody asked for.
-                        // ⚠️ It appears only while monitoring runs, because the row it lives in
-                        // does. That covers the case this slice is about — Echoel claiming the mic
-                        // — and NOT every case.
-                        // ⛔ The first version justified the gap with "under `.playback` the route
-                        // is still A2DP, so there is genuinely nothing to report". That does not
-                        // follow. `AVAudioSession` is a SYSTEM-SHARED route: another app holding
-                        // `.playAndRecord` with `.allowBluetooth`, or a call in progress, puts the
-                        // shared route in HFP while Echoel sits in `.playback` — the music is
-                        // degraded exactly as described and this row is hidden. "We did not cause
-                        // it" was silently converted into "it cannot be happening", which is the
-                        // over-claim class this file's ⛔ blocks exist to catch.
+                        // ⚠️ This copy of the verdict appears only while monitoring runs,
+                        // because the row it lives in does. ⛔ Until #828 that was the ONLY
+                        // copy, and the gap was real: the route is SYSTEM-SHARED — another
+                        // app holding `.playAndRecord` with HFP, or a call, degrades the
+                        // music while Echoel sits in `.playback`, and the warning was
+                        // hidden. #828 closed it with `RouteCodecRow` in the parent, gated
+                        // on !monitoring so exactly ONE copy of the sentence is on screen
+                        // at any time (#416). Do not remove either copy without the other's
+                        // gate in the same commit.
                         if let note = readout.codec.note {
                             Text(note)
                                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
@@ -593,6 +602,40 @@ private struct MonitorLatencyRow: View {
     /// the ear hears, not the round trip. Saying so beats letting the reader assume the
     /// stronger claim — the same retraction `latencyLine` carries for the log.
     static let caveat = "Lower bound — hardware plus one buffer. Effects add on top."
+}
+
+/// #828 — the codec verdict, visible whenever the Input sheet is open and monitoring is
+/// OFF (while monitoring runs, `MonitorLatencyRow` carries the same sentence — one copy
+/// on screen, never two, #416). Since #827 Echoel never requests HFP itself, so what
+/// this row names is the cause we cannot prevent: another app or a call putting the
+/// SHARED route on the mono call codec while Echoel plays. Renders NOTHING for a
+/// healthy route (`note` is `nil` — no reassurance line nobody asked for).
+///
+/// ⚠️ A LEAF on purpose (10.76.41/50): the codec is read in THIS body only, never in
+/// the Picker-hosting parent. Event-driven refresh — appear + `routeChangeNotification`,
+/// no timer; adding one would be the freeze bug.
+private struct RouteCodecRow: View {
+    @State private var codec: AudioConfiguration.RouteCodec?
+
+    var body: some View {
+        Group {
+            if let note = codec?.note {
+                Text(note)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.danger)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .onAppear { codec = AudioConfiguration.latencySnapshot().codec }
+        #if os(iOS)
+        .onReceive(NotificationCenter.default
+            .publisher(for: AVAudioSession.routeChangeNotification)
+            .receive(on: DispatchQueue.main)) { _ in
+                // AVAudioSession posts from its own thread; this writes `@State` on a
+                // `@MainActor` view — same hop as every sibling handler in this file.
+                codec = AudioConfiguration.latencySnapshot().codec
+            }
+        #endif
+    }
 }
 
 #endif

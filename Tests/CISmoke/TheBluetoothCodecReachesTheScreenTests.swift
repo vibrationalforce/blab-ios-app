@@ -15,8 +15,8 @@
 // own instrument turn into a telephone while every number on screen still reads healthy,
 // because no LATENCY number can express a BANDWIDTH collapse.
 //
-// ⚠️ HONEST LIMITS. 11 test methods under 7 numbered sections (1 and 7 hold more than one),
-// 45 `XCTAssert*` — re-derive both, do not re-type:
+// ⚠️ HONEST LIMITS. 12 test methods under 8 numbered sections (1 and 7 hold more than one),
+// 49 `XCTAssert*` — re-derive both, do not re-type:
 //   grep -c "^    func test" <this file>
 //   grep -n "XCTAssert" <this file> | grep -vc ':[[:space:]]*//'
 // ⛔ The first recipe was `grep -c "    func test"` and it printed 8 where the prose said 7,
@@ -452,6 +452,45 @@ final class TheBluetoothCodecReachesTheScreenTests: XCTestCase {
             of its two port lists, not both. The INPUT side matters as much as the output: a \
             Bluetooth MIC is what pulls the shared route into HFP in the first place, so a log \
             that marked only the output would name the symptom and not the cause.
+            """)
+    }
+
+    // MARK: - 8. The verdict is visible WITHOUT monitoring (#828)
+
+    /// Until #828 the note rendered only inside `MonitorLatencyRow`, i.e. only while
+    /// monitoring ran — and the route is SYSTEM-SHARED, so another app or a call could
+    /// degrade the music while the warning was hidden (the gap section 6's own ⛔ block
+    /// documented). `RouteCodecRow` closes it: mounted in the parent gated on
+    /// !monitoring, so exactly ONE copy of the sentence is on screen at any time.
+    func testTheVerdictIsVisibleWithoutMonitoring() throws {
+        let code = try Self.codeText(Self.picker)
+        XCTAssertTrue(code.contains("private struct RouteCodecRow: View"), """
+            RouteCodecRow is gone — the codec verdict is again invisible unless \
+            monitoring runs, while another app or a call can degrade the SHARED route \
+            with Echoel in .playback. Since #827 Echoel never causes HFP itself, so \
+            the external case is the ONLY one left to warn about.
+            """)
+        guard let gate = code.range(of: "if !audioEngine.isInputMonitoring {") else {
+            XCTFail("The !monitoring gate is gone from monitoringSection — re-anchor "
+                    + "this claim in the same commit if the mount was restructured.")
+            return
+        }
+        let window = String(code[gate.lowerBound...].prefix(700))
+        XCTAssertTrue(window.contains("RouteCodecRow()"), """
+            RouteCodecRow is no longer mounted inside the !monitoring gate. Ungated it \
+            would render the same sentence twice while monitoring runs (MonitorLatency\
+            Row carries the other copy); unmounted it is a leaf nobody sees.
+            """)
+        guard let leaf = code.range(of: "private struct RouteCodecRow: View") else { return }
+        let leafBody = String(code[leaf.lowerBound...].prefix(900))
+        XCTAssertTrue(leafBody.contains("if let note = codec?.note"), """
+            RouteCodecRow renders unconditionally — `nil` is the healthy case and MUST \
+            render no row at all (section 6's law, same reason).
+            """)
+        XCTAssertTrue(leafBody.contains("latencySnapshot().codec"), """
+            RouteCodecRow no longer reads the codec in its OWN body. Moving the read \
+            into the Picker-hosting parent registers the whole body as an observer — \
+            the 10.76.41/50 freeze (section 6's law, same reason).
             """)
     }
 

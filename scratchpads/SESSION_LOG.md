@@ -14699,3 +14699,30 @@ Kommentare gestrippt (#491 — die Rücknahme-Docs zitieren das Verbotene absich
 #364-Vermerk im Kopf: der Wächter verbietet bewusst — er erzwingt eine ausdrückliche
 Founder-Entscheidung, mit benanntem Rückweg falls sie je kippt. Getrieben: Worktree
 alles grün, HEAD (#824-Stand) scheitert an JEDEM neuen Anspruch.
+
+## 2026-08-25 — #828: Das HFP-Urteil ist immer sichtbar (Scheibe 4; Founder: „ansonsten weiter machen")
+
+**Der Rest-Spalt nach #827:** Echoel verursacht nie mehr Telefonqualität — aber die Route
+ist SYSTEM-GETEILT: eine fremde App mit `.playAndRecord`+HFP oder ein Anruf degradiert
+die Musik, während Echoel in `.playback` sitzt. Die Warnung dafür (`routeCodec.note`)
+lebte NUR in `MonitorLatencyRow`, sichtbar nur bei laufendem Monitoring — der ⛔-Block
+der Datei dokumentierte den Spalt selbst.
+
+**Gebaut:** `RouteCodecRow` — eigenes Leaf (Freeze-Gesetz: Codec-Read nur im eigenen
+Body, event-getrieben via Appear + routeChangeNotification, kein Timer), montiert im
+Monitoring-Abschnitt hinter `if !audioEngine.isInputMonitoring` — bei laufendem
+Monitoring trägt `MonitorLatencyRow` denselben Satz: EIN Satz auf dem Schirm, nie zwei
+(#416). Gesunde Route rendert NICHTS (note = nil). Prosa mitgezogen (#456): der
+⚠️/⛔-Block in MonitorLatencyRow trägt jetzt die Schließung.
+
+**Wächter:** `TheBluetoothCodecReachesTheScreenTests` Sektion 8 neu
+(`testTheVerdictIsVisibleWithoutMonitoring`: Leaf existiert · im !monitoring-Gate
+montiert · nil-rendert-nichts · Read im eigenen Body); Kopfzählung nachgeführt
+(12 Methoden / 8 Sektionen / 49 Asserts, per Rezept re-deriviert). Getrieben:
+Worktree alles grün, HEAD scheitert an allen vier neuen Ansprüchen; Claim 6
+(Freeze-Gesetz) grün auf beiden Bäumen (Gegengewicht).
+
+**Ehrlich:** compile-verifizierbar; ob die Zeile im richtigen Moment ERSCHEINT
+(fremde App degradiert die Route) ist nur am Gerät prüfbar — der bestehende
+NEEDS-FOUNDER-VERIFY am recordOptions-Doc deckt die BT-Probe, dieser Fall braucht
+eine zweite App mit HFP-Anspruch (z. B. Sprachmemo in Aufnahme + Echoel offen).
