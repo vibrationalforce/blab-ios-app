@@ -254,6 +254,28 @@ struct AudioInputPickerView: View {
                     value: Binding(get: { audioEngine.inputMonitorGain },
                                    set: { audioEngine.inputMonitorGain = $0 }),
                     range: 0...1, decimals: 2)
+                // #829 — Megaphone Mode: a named binary → Toggle (law; like monitoring
+                // and "Tune to key"). The boost value in the copy is DERIVED from the
+                // one constant, never re-typed (#416). Distinct from the "Megaphone"
+                // FX character in GenreFX — that one shapes the MUSIC; this amplifies
+                // the live mic.
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Megaphone")
+                            .font(EchoelTheme.font(13, .semibold))
+                            .foregroundStyle(EchoelTheme.text)
+                        Text("Boosts your live voice by \(Int(AudioEngine.megaphoneBoostDB)) dB through the speaker. The feedback guard listens earlier and can pull back more than the whole boost — pointing the mic away from the speaker is still the best suppressor.")
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: Binding(
+                        get: { audioEngine.megaphoneMode },
+                        set: { audioEngine.megaphoneMode = $0 }
+                    ))
+                    .labelsHidden()
+                    .accessibilityLabel("Megaphone mode")
+                }
                 HStack(spacing: 8) {
                     Circle()
                         .fill(audioEngine.feedbackGuardActive ? Color.orange : EchoelTheme.accent)

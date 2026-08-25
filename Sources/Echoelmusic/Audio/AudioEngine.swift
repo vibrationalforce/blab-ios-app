@@ -397,6 +397,32 @@ public final class AudioEngine {
             if isInputMonitoring && !feedbackGuardActive { monitorMixer.outputVolume = g }
         }
     }
+    /// #829 — Megaphone Mode (founder: "On Device mic directly Verstärkung mit
+    /// intelligenter Rückkopplungsunterdrückung"). Amplifies the monitored mic by
+    /// `megaphoneBoostDB` through the EXISTING `notchEQ`'s `globalGain` (−96…+24 dB) —
+    /// a parameter on a node already in the monitor chain, so no graph change, no new
+    /// presentation slot, and the MUSIC path is untouched (it never passes the notch).
+    /// Deliberately NOT persisted, like monitoring itself: amplification through the
+    /// speaker must never surprise on relaunch.
+    /// NEEDS-FOUNDER-VERIFY: Megaphone am Gerät — Monitoring auf dem Lautsprecher,
+    /// Schalter an: Stimme deutlich lauter, beginnendes Aufheulen wird binnen ~1 s
+    /// weggeduckt und kommt nach dem Verstummen zurück; Schalter aus = alter Pegel.
+    /// (Lautsprecher-Rückkopplung existiert in keinem Simulator.)
+    var megaphoneMode: Bool = false {
+        didSet {
+            guard isInputMonitoring else { return }
+            notchEQ.globalGain = megaphoneMode ? Self.megaphoneBoostDB : 0
+            logMonitorOutcome("megaphone \(megaphoneMode ? "on" : "off") "
+                              + "(boost \(Self.megaphoneBoostDB) dB) — #829", level: .info)
+        }
+    }
+    /// ONE definition each (#416). THE AUTHORITY LAW: while boosted, the duck's depth
+    /// is `FeedbackGuard.defaultMaxReductionDB + megaphoneBoostDB` — the guard must
+    /// always be able to undo MORE than the boost, or an amplified howl saturates at
+    /// unity gain and never comes down. The lower ceiling makes it react EARLIER
+    /// while boosted; the notch half needs no change (it targets frequency, not level).
+    nonisolated static let megaphoneBoostDB: Float = 12
+    nonisolated static let megaphoneDuckCeiling: Float = 0.70
     /// Output-RMS window (MainActor) that feeds FeedbackGuard while monitoring.
     @ObservationIgnored private var monitorLevelHistory: [Float] = []
     @ObservationIgnored private var monitorPollTick = 0
@@ -2107,12 +2133,17 @@ public final class AudioEngine {
             }
             isInputMonitoring = true
             monitorMixer.outputVolume = min(max(inputMonitorGain, 0), 1)
+            // #829: monitoring ON re-applies the megaphone choice — the flag can be
+            // flipped while monitoring is off, and the OFF path resets globalGain.
+            notchEQ.globalGain = megaphoneMode ? Self.megaphoneBoostDB : 0
             // ⚠️ THE SUCCESS LINE IS NOT OPTIONAL. Six refusal breadcrumbs and no success
             // breadcrumb makes a quiet log ambiguous between "never toggled" and "toggled and
             // worked" — the #454 shape, applied to a diag file instead of a test. The rate and
             // channel count ride along because they are what the format guard above rejects,
             // so a working take and a refused one can be compared side by side.
-            logMonitorOutcome("ON (gain \(inputMonitorGain), \(inFmt.sampleRate) Hz, "
+            logMonitorOutcome("ON (gain \(inputMonitorGain), "
+                              + "megaphone \(megaphoneMode ? "on" : "off"), "
+                              + "\(inFmt.sampleRate) Hz, "
                               + "\(inFmt.channelCount) ch)", level: .info)
             // #653 — the MOMENT that decides whether monitoring is usable at all. The
             // session's own round-trip estimate plus the port names it was measured on go
@@ -2148,6 +2179,7 @@ public final class AudioEngine {
             notchGainDB = 0
             notchHoldTicks = 0
             notchEQ.bands.first?.gain = 0
+            notchEQ.globalGain = 0   // #829: the boost never survives monitoring OFF
             // #599 sweep M1: monitoring OFF also DISARMS the tune. The flag was a
             // pure latch, but the ONLY surface that can show or clear it renders
             // while monitoring is on (the input sheet) — so the mixer strip's
@@ -2263,7 +2295,15 @@ public final class AudioEngine {
         let level = Swift.max(_rawMeterL.pointee, _rawMeterR.pointee)
         monitorLevelHistory.append(level)
         if monitorLevelHistory.count > 8 { monitorLevelHistory.removeFirst() }
-        let duckDB = FeedbackGuard.gainReductionDB(rmsHistory: monitorLevelHistory)
+        // #829: while boosted, the guard reacts EARLIER (lower ceiling) and its
+        // authority exceeds the boost (default depth + boost — derived, never a
+        // second literal, #416). Unboosted, the call keeps the defaults untouched.
+        let duckDB = megaphoneMode
+            ? FeedbackGuard.gainReductionDB(rmsHistory: monitorLevelHistory,
+                                            ceiling: Self.megaphoneDuckCeiling,
+                                            maxReductionDB: FeedbackGuard.defaultMaxReductionDB
+                                                            + Self.megaphoneBoostDB)
+            : FeedbackGuard.gainReductionDB(rmsHistory: monitorLevelHistory)
         let base = Swift.min(Swift.max(inputMonitorGain, 0), 1)
         let factor: Float = duckDB > 0 ? powf(10, -duckDB / 20) : 1
         monitorMixer.outputVolume = base * factor

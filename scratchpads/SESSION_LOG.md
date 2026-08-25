@@ -14726,3 +14726,37 @@ Worktree alles grün, HEAD scheitert an allen vier neuen Ansprüchen; Claim 6
 (fremde App degradiert die Route) ist nur am Gerät prüfbar — der bestehende
 NEEDS-FOUNDER-VERIFY am recordOptions-Doc deckt die BT-Probe, dieser Fall braucht
 eine zweite App mit HFP-Anspruch (z. B. Sprachmemo in Aufnahme + Echoel offen).
+
+## 2026-08-25 — #829: Megaphone Mode (Founder: „On Device mic directly Verstärkung mit intelligenter Rückkopplungsunterdrückung")
+
+**Entwurf (Council: proceed):** Der Boost ist ein PARAMETER, kein neuer Knoten — die
+Monitor-Kette hat mit `notchEQ` schon einen EQ, dessen `globalGain` (−96…+24 dB) fest auf 0
+stand. Megaphone = `globalGain` +12 dB (`megaphoneBoostDB`, EINE Definition), Musik-Pfad
+unberührt (läuft nie durch den Notch), kein Graph-Umbau, kein neuer Sheet-Slot.
+
+**Die „intelligente" Hälfte — DAS AUTORITÄTS-GESETZ:** Solange geboostet wird, ist der
+Duck des FeedbackGuards (a) FRÜHER dran (Ceiling 0,70 statt Default) und (b) TIEFER:
+`FeedbackGuard.defaultMaxReductionDB + megaphoneBoostDB` (= 24 dB Autorität gegen 12 dB
+Boost) — der Guard kann die Verstärkung immer MEHR als aufheben, sonst sättigt ein
+verstärktes Aufheulen bei Unity und kommt nie runter. Dafür bekam `FeedbackGuard` die
+benannte Konstante `defaultMaxReductionDB` (die 12 stand nur als Default-Literal in der
+Signatur — #416). Notch-Hälfte unverändert (zielt auf Frequenz, nicht Pegel).
+
+**Verdrahtung:** `megaphoneMode` (nicht persistiert — Verstärkung darf beim Relaunch
+nie überraschen, wie Monitoring selbst) · didSet + Monitoring-ON-Pfad wenden den Boost
+an (genau ZWEI Stellen), OFF-Pfad setzt `globalGain = 0` · ON-Logzeile trägt
+`megaphone on/off`, eigener `#829`-Breadcrumb beim Umschalten · Tür: Toggle „Megaphone"
+im Monitoring-Abschnitt des Input-Sheets, Kopie leitet die dB-Zahl aus der Konstante ab
+(#416; bewusst abgegrenzt vom „Megaphone"-FX-CHARAKTER in GenreFX, der die MUSIK färbt).
+
+**Wächter:** `TheMegaphoneGuardOutgunsTheBoostTests` — 3 END-TO-END-Fixtures
+(per Python-Transkription vorgerechnet, #686-Lehre: Runaway 23,2 dB > 12 · „früher"
+11,2 vs 0 · leises Sprechen 0) + 2 Quelltext-Scans (2 Apply-Stellen, OFF-Reset mit
+rückwärtigem Fenster vor `setVoiceTune(false)` — die ersten zwei Anker waren BEIDE die
+#367-Falle: Init-Zeile bzw. Deklaration matchten zuerst; am Baum getrieben, dann
+verworfen · Autorität DERIVIERT statt Literal · Tür + abgeleitete Kopie).
+HEAD scheitert an jedem Forward-Anspruch, Fixtures auf beiden Bäumen deterministisch.
+
+**Ehrlich:** compile-verifizierbar; Lautsprecher-Rückkopplung existiert in keinem
+Simulator — NEEDS-FOUNDER-VERIFY am `megaphoneMode`-Doc (Probe: Stimme lauter,
+beginnendes Heulen duckt binnen ~1 s, Schalter aus = alter Pegel).

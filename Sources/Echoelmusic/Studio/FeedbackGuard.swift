@@ -47,6 +47,12 @@ import Foundation
 
 public enum FeedbackGuard {
 
+    /// ONE spelling of the duck's default depth (#416). A caller that widens the
+    /// authority — Megaphone Mode uses `defaultMaxReductionDB + megaphoneBoostDB`,
+    /// so the guard can always undo more than the boost — derives from this
+    /// constant instead of restating the 12.
+    public static let defaultMaxReductionDB: Float = 12
+
     /// Recommended gain reduction in dB (0 = none) when the level is both ABOVE a
     /// ceiling and trending upward across the short RMS history — the signature of
     /// feedback building up. Pure: depends only on the passed history.
@@ -57,7 +63,7 @@ public enum FeedbackGuard {
     ///   - maxReductionDB: clamp on how much we duck in one step.
     public static func gainReductionDB(rmsHistory: [Float],
                                        ceiling: Float = 0.85,
-                                       maxReductionDB: Float = 12) -> Float {
+                                       maxReductionDB: Float = defaultMaxReductionDB) -> Float {
         guard let last = rmsHistory.last, rmsHistory.count >= 3 else { return 0 }
         let first = rmsHistory.first ?? last
         // Rising trend: newest meaningfully louder than oldest in the window.
