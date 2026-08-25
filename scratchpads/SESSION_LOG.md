@@ -14274,3 +14274,34 @@ Anfuehrungszeichen aller Zeilen normalisiert. Semantisch identisch (`--check` OK
 angehaengte Zeile: **7 statt 889**. Lehre: eine strukturierte Datei mit EINER Zeile pro Zeile
 wird zeilenweise editiert; ein Parser-Roundtrip ist nur dann richtig, wenn die Struktur selbst
 sich aendert.
+
+---
+
+## #817 — Deploy v10.79.419: hundert Zyklen werden zum ersten Mal sichtbar (2026-08-25)
+
+`.deploy/release` von 418 auf **v10.79.419** (bündelt #715–#816). Grund: seit 418 sind vier
+Dinge **bedienbar oder hörbar** geworden, und keines davon kann ohne Build geprüft werden.
+
+| Neu | Tür | Beleg |
+|---|---|---|
+| Master-Klangfarbe (Balanced · Warm · Bright · Transparent) | Master-Panel → „Tone" | `Picker("Tone")` in `masterPanel` (`EchoelStudioView.swift:4768`, Panel ab 4742), `@AppStorage` |
+| Vollbild-Visual | Visual-Panel → „Full screen" | Label `EchoelStudioView.swift:5053`, `visualPanel` ab 5003 (#748, schließt #270) |
+| DMX-Auflösung 16/8 Bit | Routing-Fläche | `PatchbayView.swift:407` (#730/#732) |
+| Klangfarbe folgt der RICHTUNG der Kohärenz | keine Tür nötig | `EchoelDDSP` Deadband 0,10 → `.natural`/`.metallic` (#813) |
+
+**Jede Behauptung der Notiz wurde vor dem Schreiben am Code gemessen** — vier Presets
+(`AutoMixChain.Preset`: balanced/warm/bright/transparent), die Panel-Zugehörigkeit beider
+Knöpfe, und die zwei `SpectralShape`-Namen. Das ist die #184-Klasse: eine falsche Behauptung
+in einer Founder- oder Store-Notiz ist teurer als gar keine Notiz.
+
+**Brand-Wächter beachtet:** „Natural"/„Metallic" stehen ausdrücklich als **Namen zweier
+Obertonformen, kein Urteil** in der Notiz — der Code selbst verbietet an dieser Stelle, eine
+steigende Kohärenz als „reiner/ruhiger/besser" zu verkaufen.
+
+**Der eine Handgriff (Monitoring) ist unverändert** und bleibt der Blocker der Vokal-Kette;
+die Notiz ersetzt ausdrücklich die Bitten aus 416, 417 und 418. **Neu dazugekommen ist genau
+eine sensorische Frage:** ist die Klangfarben-Verschiebung hörbar, aber nicht störend
+(Empfindlichkeit ~0,05 Kohärenz/s — eine Schätzung, die nur ein Ohr entscheiden kann).
+
+**Ehrlich in der Notiz benannt:** die große Mehrheit der hundert Zyklen hat nichts hinzugefügt,
+sondern Behauptungen zurückgenommen. Unsichtbar und nötig.

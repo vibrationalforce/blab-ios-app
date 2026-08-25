@@ -1,4 +1,4 @@
-build: v10.79.418 — drei Dinge, die Du gewünscht hast, sind jetzt bedienbar: Autotune-Charakter, ein Granular-Effekt, und MIDI-out kann endlich MPE
+build: v10.79.419 — vier Dinge sind neu bedienbar: Master-Klangfarbe, Vollbild-Visual, DMX-Auflösung, und der Klang folgt jetzt der RICHTUNG Deiner Kohärenz
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,42 +6,36 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.417. Dieser Build bündelt #676 bis #714.
+  Der Vorgänger ist 10.79.418. Dieser Build bündelt #715 bis #816.
 
-  ⭐ WICHTIG: 416 UND 417 hast Du nie geprüft. Diese Bitte ersetzt beide — es ist immer
-  noch derselbe EINE Handgriff, er beantwortet jetzt nur noch mehr Fragen.
+  ⭐ WICHTIG: 416, 417 UND 418 hast Du nie geprüft. Diese Bitte ersetzt alle drei — der
+  EINE Handgriff unten ist unverändert derselbe, er beantwortet nur noch mehr Fragen.
 
-  ── DREI SACHEN AUS DEINER LISTE SIND JETZT BEDIENBAR ────────────────────
+  ── VIER SACHEN, DIE DU JETZT SEHEN ODER HÖREN KANNST ────────────────────
 
-  Du hattest am 20.08. geschrieben: „Monitoring und komplette Vocal chain mit Autotune
-  (Charakter Einstellungen), Harmonizer, Voice clone!?, Granular Effekt."
+  **1. Der Master hat eine Klangfarbe (#736/#740/#743).** Master-Panel → Zeile „Tone".
+  Vier Charaktere auf der Summe: **Balanced · Warm · Bright · Transparent**. Sie waren
+  seit Monaten im Code und es gab keinen Weg, einen davon zu wählen. Die Wahl wird
+  gespeichert.
 
-  **1. Autotune-Charakter (#681).** In derselben Tür wie das Monitoring
-  (Mix-Panel → „Voice - your microphone" → „Choose input…") sitzt jetzt eine
-  Charakter-Auswahl. Sie ist NICHT neben den Reglern gespeichert, sondern aus ihnen
-  ABGELEITET: ziehst Du einen Regler weg, erlischt der Charakter von selbst, statt weiter
-  etwas zu behaupten, das nicht mehr eingestellt ist.
+  **2. Das Visual geht ins Vollbild (#748).** Visual-Panel → Knopf „Full screen".
+  Das Vollbild-Feld, das VJ-Overlay und der Donut-Renderer existierten seit Langem und
+  waren durch KEINE Tür erreichbar — es gab schlicht keinen Knopf, der sie aufmacht.
 
-  **2. Ein Granular-Effekt (#684–#695).** Neue Stufe in der Effekt-Fläche, mit Schalter.
-  ⚠ **Und hier die ehrliche Hälfte, weil sie Dir wichtig ist:** dieser Granular liegt auf
-  der ERZEUGTEN MUSIK, nicht auf Deiner Stimme. Dasselbe gilt für den Harmonizer, den es
-  schon gab. Auf Deiner Stimme liegen heute genau zwei Dinge: das Monitoring und das
-  Autotune. Die Kette bis zu Deiner Stimme zu verlängern ist gebaut-denkbar, aber ich
-  halte sie zurück, bis Dein Log sagt, dass Monitoring am Gerät überhaupt angeht — sonst
-  baue ich vier Stufen auf einen Pfad, von dem ich nicht weiß, ob er läuft.
+  **3. Licht: die DMX-Auflösung ist wählbar (#730/#732).** Routing-Fläche → „16-bit /
+  8-bit". 16 Bit sendet Grob-/Fein-Kanalpaare für weiche Fades; 8 Bit nur für Geräte, die
+  das nicht lesen können. Auch hier: die Fähigkeit war da, die Auswahl nicht.
 
-  **3. MIDI-out kann MPE (#713/#714).** Routing-Fläche (Master-Panel → „Routing"):
-  zwei neue Schalter, **„MPE note layout"** und **„Per-note expression"**. Bis heute ging
-  jede Note auf Kanal 1 raus, und es gab nirgends einen Weg, das zu ändern — die Fähigkeit
-  war seit Monaten im Code und ohne Bedienelement. Beide sind **standardmäßig aus**: wenn
-  Du Routing nie öffnest, sendet die App exakt wie vorher.
-  Der zweite Schalter ist gesperrt, solange der erste aus ist. Das ist kein Schönheits-
-  fehler: Per-Noten-Ausdruck braucht pro Note einen eigenen Kanal, sonst bewegt sich der
-  Schalter und passiert nichts.
+  **4. Der Klang folgt der RICHTUNG Deiner Kohärenz (#813).** Neu, und das ist das
+  einzige Stück in diesem Build, das den KLANG verändert. Bisher hörte das Instrument nur
+  auf den STAND Deiner Kohärenz. Jetzt hört es zusätzlich darauf, ob sie STEIGT oder
+  FÄLLT: steigend zieht die Klangfarbe zur Spektralform „Natural", fallend zu „Metallic",
+  und in Ruhe geht sie in Deinen Patch zurück. **Das sind die Namen zweier Obertonformen,
+  kein Urteil** — steigende Kohärenz klingt nicht „besser", nur anders. Absichtlich subtil.
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  **Ein Handgriff, unverändert seit 416:**
+  **Ein Handgriff, unverändert seit 416 — er blockiert die ganze Vokal-Kette:**
 
   1. Mix-Panel → „Voice - your microphone" → „Choose input…", **Live monitoring** an.
      Egal ob es angeht oder den roten Kasten zeigt: beides ist eine Antwort.
@@ -49,37 +43,35 @@ notes: |
      erscheint der rote Bluetooth-Satz? Klingt die Musik dabei dumpf/telefonig?
   2. **Dann das Diagnose-Log schicken.** Such nichts heraus.
 
+  **Neu und rein sensorisch — nur ein Ohr kann das entscheiden:**
+
+  3. Session laufen lassen, Kohärenz steigen und fallen lassen. **Ist die Verschiebung der
+     Klangfarbe hörbar, aber nicht störend?** Ich habe die Empfindlichkeit geschätzt
+     (voller Ausschlag bei ~0,05 Kohärenz pro Sekunde). Zu träge oder zu zappelig sind
+     beides brauchbare Antworten — ich drehe an einer Zahl.
+
   Optional, wenn Du ohnehin am Gerät bist:
-  · einmal am Puffer-Regler ziehen (Ultra · Low · Normal) und hören, ob es kratzt.
-    Kein Muss — Normal ist sicher.
-  · eine Minute Finger auf der Linse — zeigt, ob nach einem `Too bright` die Konfidenz
-    zurückkommt statt bei 0,00 zu bleiben (Reparatur aus 415, immer noch ohne Beleg).
-  · Routing öffnen, MPE anschalten, sehen ob die Expression-Zeile aufgeht. Nur wenn Du
-    ein MPE-Gerät zur Hand hast, lohnt der zweite Teil.
+  · Master-Panel → „Tone": klingen die vier Charaktere wirklich verschieden?
+  · Visual-Panel → „Full screen": kommt das Bild, und kommst Du wieder heraus?
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Alles compile-verifiziert (beide echten Gates, „Build for Testing" grün, 170 Tests ohne
-  Fehler), **NICHTS** geräteverifiziert. Insbesondere: ob die MPE-Zonenmeldung bei Deinem
-  Gerät wirklich rausgeht, ob der Charakter-Wähler sich so anfühlt wie gedacht, ob der
-  Granular gut klingt.
+  Alles compile-verifiziert (Xcode Compile Check grün, „Build for Testing" grün),
+  **NICHTS** geräteverifiziert. Insbesondere nicht: ob die vier Master-Charaktere sich
+  unterscheiden lassen, ob das Vollbild sauber auf- und zugeht, ob der Kohärenz-Trend
+  gut klingt.
 
-  ── EINE EHRLICHE NOTIZ ZUM VERFAHREN ────────────────────────────────────
+  ── EHRLICH ZUM REST DES BUILDS ──────────────────────────────────────────
 
-  Der MPE-Schalter hatte im ersten Wurf einen stillen Fehler, den der Pflicht-Review
-  gefunden hat, bevor irgendetwas zu Dir kam: Route aus → MPE anschalten → Route an, und
-  die Zonenmeldung wäre NIE rausgegangen. Die Töne hätten auf getrennten Kanälen gelegen,
-  ohne dass das Gerät am anderen Ende erfährt, dass es MPE ist. Der Zustand war vorher gar
-  nicht erreichbar — der neue Schalter hat ihn erst erzeugt. Repariert im selben Zyklus.
+  Zwischen 418 und hier liegen rund hundert Zyklen, und **die große Mehrheit davon hat
+  nichts hinzugefügt, sondern Behauptungen zurückgenommen**, die im Code, auf der Website
+  oder im Store-Text nicht mehr stimmten (MPE-Eingang, eine Bezahl-Seite ohne Ware, eine
+  Bio-Abbildung ohne Erzeuger, ein Reverb, der abgeschaltet ist). Das ist unsichtbar und
+  war nötig: eine falsche Behauptung im Store ist ein Ablehnungsgrund.
 
-  Zweitens, kleiner, aber dieselbe Familie: der Wächter, den ich dafür geschrieben hatte,
-  verlangte GENAU zwei Aufrufstellen — und stand damit vor genau der Reparatur, die der
-  Fehler brauchte. Ein Wächter, der korrekte Arbeit verbietet, ist selbst ein Defekt.
-
-  Weiterhin offen: das „Demo"-Schildchen pro Zeile in der Metrik-Ansicht · ADM-OSC,
-  Art-Net, sACN und die Ereignis-Adressen ohne Herkunftsangabe · Harmonizer und Granular
-  auf der STIMME statt auf der Musik (siehe oben, wartet auf Dein Log) · **Voice clone
-  braucht Dein Wort — ja oder nein?**
+  Weiterhin offen: Harmonizer und Granular liegen auf der MUSIK, nicht auf Deiner Stimme
+  (wartet auf Dein Log aus Schritt 1) · ADM-OSC und Art-Net tragen noch keine Herkunfts-
+  angabe · **Voice clone braucht Dein Wort — ja oder nein?**
 
   ⚠ Die Uhr-App bleibt ausgenommen: das Watch-Target ist in `project.yml` nicht
   eingebettet, und es gibt keinen Übertragungsweg vom Telefon ans Handgelenk. Gebaut,
