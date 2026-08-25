@@ -130,11 +130,14 @@ final class MicrophoneManager: NSObject {
                     if granted {
                         log.audio("Microphone permission granted")
                         self.permissionDenied = false
-                        do {
-                            try AudioConfiguration.upgradeToPlayAndRecord()
-                        } catch {
-                            log.audio("Failed to upgrade audio session to play-and-record: \(error.localizedDescription)", level: .error)
-                        }
+                        // #825: a bare `upgradeToPlayAndRecord()` stood here (and in the
+                        // legacy branch below) ON THE GRANT — an OWNERLESS raise of the
+                        // shared session. The ownership Set cannot see it, so nothing
+                        // ever lowered it: grant once, and the whole app could sit on
+                        // `.playAndRecord` for the rest of the session while the user
+                        // only PLAYS. Permission is consent, not use — every real mic
+                        // use claims for itself (`startRecording`, `setInputMonitoring`,
+                        // `MultiTrackRecorder`), each with a release on every exit.
                     } else {
                         log.audio("Microphone permission denied", level: .error)
                         self.permissionDenied = true
@@ -150,11 +153,7 @@ final class MicrophoneManager: NSObject {
                     if granted {
                         log.audio("Microphone permission granted")
                         self?.permissionDenied = false
-                        do {
-                            try AudioConfiguration.upgradeToPlayAndRecord()
-                        } catch {
-                            log.audio("Failed to upgrade audio session to play-and-record: \(error.localizedDescription)", level: .error)
-                        }
+                        // #825: same removal as the iOS 17+ branch above — see there.
                     } else {
                         log.audio("Microphone permission denied", level: .error)
                         self?.permissionDenied = true
@@ -185,12 +184,13 @@ final class MicrophoneManager: NSObject {
         }
 
         do {
-            // The app's DEFAULT session is now .playback (output only) so it never
+            // The app's DEFAULT session is .playback (output only) so it never
             // drags other apps' Bluetooth audio down to HFP call quality. Recording
             // needs the mic, so upgrade to .playAndRecord HERE — the moment the user
-            // actually records. (Permission was granted in a prior launch, so
-            // requestPermission's upgrade didn't run this time.) .playAndRecord — not
-            // .record — keeps the synth/drum output alive alongside the mic.
+            // actually records. (#825: `requestPermission` no longer upgrades at
+            // grant time at all — this claim is the one that raises the route.)
+            // .playAndRecord — not .record — keeps the synth output alive alongside
+            // the mic.
             #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
             if !AudioConfiguration.isSessionConfigured {
                 try AudioConfiguration.configureAudioSession()

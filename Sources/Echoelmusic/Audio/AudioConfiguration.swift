@@ -319,10 +319,16 @@ enum AudioConfiguration {
     /// Upgrade audio session from .playback to .playAndRecord when the user actually
     /// records or monitors the mic. No-op if already using .playAndRecord.
     ///
-    /// ⚠️ PREFER `claimRecordRoute(_:)`. Calling this directly raises the route with no owner,
-    /// so the next release by anyone else lowers it again. That is correct ONLY where the
-    /// upgrade is speculative — `MicrophoneManager.requestPermission`, which upgrades on the
-    /// permission grant itself, before any recording exists to own it.
+    /// ⚠️ ALWAYS use `claimRecordRoute(_:)` from feature code. Calling this directly raises
+    /// the route with NO owner — and an ownerless raise has no releaser BY CONSTRUCTION:
+    /// `releaseRecordRoute` only lowers when the owner set empties, and the set was never
+    /// entered. (⛔ #825: the sentence that stood here blessed exactly one bare caller —
+    /// `MicrophoneManager.requestPermission`, "speculative", on the permission grant — and
+    /// argued it was safe because "the next release by anyone else lowers it again". That
+    /// only holds if a claim/release cycle EVER happens; grant once and never record, and
+    /// the whole app sat on `.playAndRecord` for the rest of the session. The grant-time
+    /// upgrade is deleted; permission is consent, not use. Zero bare production callers
+    /// remain — `RecordRouteOwnershipTests` pins that at zero.)
     static func upgradeToPlayAndRecord() throws {
         #if os(macOS)
         return

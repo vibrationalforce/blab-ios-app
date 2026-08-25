@@ -124,32 +124,35 @@ final class RecordRouteOwnershipTests: XCTestCase {
         """)
     }
 
-    // MARK: - The one deliberate exception
+    // MARK: - No bare upgrades anywhere (#825 — the exception is retired)
 
-    /// `requestPermission` upgrades on the permission GRANT, before any recording exists to own
-    /// it. That is left as a bare upgrade on purpose — and it is safe precisely because an
-    /// unowned raise is lowered again by the next release, instead of persisting.
+    /// ⛔ Until #825 this section was called "The one deliberate exception" and BLESSED the
+    /// two grant-time upgrades in `MicrophoneManager.requestPermission`, on the argument
+    /// that "an unowned raise is lowered again by the next release". That argument was
+    /// measured false in the case that matters: grant once and never record, and NO
+    /// claim/release cycle ever runs — the ownerless raise persists for the whole session,
+    /// which kept the shared route record-capable while the user only played (the #824
+    /// audit's amplifier finding). Permission is consent, not use; every real mic use
+    /// claims for itself (`startRecording`, `setInputMonitoring`, `MultiTrackRecorder`).
     ///
-    /// ⛔ The first version checked only `AudioEngine` and `MultiTrackRecorder` while its name
-    /// claimed to cover everything — leaving out `MicrophoneManager`, the ONE file where a new
-    /// bare upgrade is both easiest to add and most harmful, because it already contains two
-    /// legitimate ones. Bounding it to exactly TWO there is the assertion that matters.
-    func testTheOnlyRemainingBareUpgradesAreThePermissionGrant() throws {
+    /// ⛔ The first version of the OLD test checked only `AudioEngine` and
+    /// `MultiTrackRecorder` while its name claimed to cover everything — leaving out
+    /// `MicrophoneManager`, the one file where a new bare upgrade is easiest to add. The
+    /// repaired shape bounds ALL THREE files at zero.
+    func testNoProductionFileCallsTheBareUpgrade() throws {
         for path in ["Sources/Echoelmusic/Audio/AudioEngine.swift",
-                     "Sources/Echoelmusic/Audio/MultiTrackRecorder.swift"] {
+                     "Sources/Echoelmusic/Audio/MultiTrackRecorder.swift",
+                     "Sources/Echoelmusic/MicrophoneManager.swift"] {
             XCTAssertFalse(try code(path).contains("upgradeToPlayAndRecord()"), """
-            \(path) calls `upgradeToPlayAndRecord()` directly again. Only \
-            `MicrophoneManager.requestPermission` may — everywhere else the raise must be \
-            owned, or it cannot be handed back.
+            \(path) calls `upgradeToPlayAndRecord()` directly again. Since #825 there is \
+            NO sanctioned bare caller: an ownerless raise has no releaser by construction \
+            (the owner set is never entered, so `releaseRecordRoute`'s empty-check can \
+            never fire for it) and persists for the whole session. Claim through \
+            `claimRecordRoute(_:)` with a release on every exit — and if this is a \
+            deliberate redesign, pull the ⚠️ doc on `upgradeToPlayAndRecord` and the \
+            SESSION_LOG #825 entry in the same commit (#456).
             """)
         }
-        let mic = try code("Sources/Echoelmusic/MicrophoneManager.swift")
-        XCTAssertEqual(mic.components(separatedBy: "upgradeToPlayAndRecord()").count - 1, 2, """
-        `MicrophoneManager` has a number of bare `upgradeToPlayAndRecord()` calls other than \
-        the two permission-grant sites (iOS 17+ and the older callback). A third one would \
-        raise the shared session with no owner from a path that is not "permission just \
-        granted" — the raise it cannot hand back.
-        """)
     }
 
     // MARK: - Helpers

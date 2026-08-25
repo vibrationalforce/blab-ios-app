@@ -14620,3 +14620,30 @@ mit konkreter Probe ([HFP]-Marker darf nicht mehr erscheinen).
 Grant-Upgrade in MicrophoneManager töten (macht die Degradierung heute DAUERHAFT) ·
 3 = #612-Re-Arm-Gate um channelCount erweitern · 4 = routeCodec-Urteil unbedingt anzeigen ·
 5 = USB-Interface-Mehrkanal (Pro-Interface-Hälfte des Founder-Asks).
+
+## 2026-08-25 — #825: Das besitzerlose Grant-Upgrade ist tot (Scheibe 2 des BT-Plans)
+
+**Der Verstärker aus dem #824-Audit:** `MicrophoneManager.requestPermission` hob die
+Session bei der bloßen ERLAUBNIS auf `.playAndRecord` — besitzerlos (beide Zweige, iOS 17+
+und Legacy). Die Besitzer-Menge sah diesen Anstieg nie; `releaseRecordRoute` senkt nur,
+wenn die Menge LEER wird — eine nie betretene Menge kann nie leeren. Einmal Erlaubnis
+erteilt und nie aufgenommen = die ganze Sitzung record-fähig, während der Nutzer nur
+spielt. (Die alte Wächter-Begründung „an unowned raise is lowered again by the next
+release" galt nur, WENN je ein Claim/Release-Zyklus lief.)
+
+**Gebaut:** Beide bare `upgradeToPlayAndRecord()`-Aufrufe gelöscht (Erlaubnis ist
+Einwilligung, nicht Nutzung — jede echte Mikro-Nutzung claimt selbst: `startRecording`,
+`setInputMonitoring`, `MultiTrackRecorder`, je mit Release auf jedem Exit). Prosa im
+selben Commit (#456): das ⚠️-PREFER-Doc an `upgradeToPlayAndRecord` (segnete den einen
+bare Aufrufer; jetzt ⛔-Rücknahme mit der gemessenen Widerlegung), der
+`startRecording`-Kommentar (Parenthese über das Grant-Upgrade), und
+`RecordRouteOwnershipTests`: Sektion „The one deliberate exception" → „No bare upgrades
+anywhere", Test umbenannt (`testNoProductionFileCallsTheBareUpgrade` — der alte Name
+beschrieb ein Verfahren, das der Code nicht mehr nimmt, #374), pinnt jetzt ALLE DREI
+Dateien auf null. Getrieben: Worktree 0/0/0, HEAD 2/0/0.
+
+**Ehrlich:** compile-verifizierbar. Verhaltens-Risiko benannt: nach Grant ist die Session
+nicht mehr vor-angehoben; die Input-Liste füllt sich erst beim ersten echten Claim
+(dokumentiertes Verhalten des Pickers). Geräteprobe: Grant→Aufnahme in derselben Sitzung
+einmal durchspielen (der `startRecording`-Claim deckt den Pfad, sein eigener Kommentar
+sagte das schon immer).
