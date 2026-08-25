@@ -97,12 +97,18 @@
 //     the sentence is retracted rather than deleted, because it is the sentence #627b wrote
 //     to stop a session from concluding the peer path was fine. Guard:
 //     `Tests/CISmoke/ThePeerSeesWhetherItIsABodyTests.swift`.
-//   · **The four egress protocols — one of the four is now done.** `BioEgressPolicy` admits
-//     `.fallback`, and #627 named these four while missing the peer payload. ⭐ #639 closed
-//     **OSC**: `/echoelmusic/bio/synthetic` rides every non-empty bio batch. **ADM-OSC,
-//     Art-Net/sACN and the discrete-event addresses stay open**, each for its own reason —
-//     see `Tests/CISmoke/TheWireSaysWhoseBodyTests.swift`, which is also where the first
-//     draft's false "DMX cannot carry metadata" is retracted (512 slots, four in use).
+//   · **The egress protocols — the per-protocol verdict is NOT kept here any more.**
+//     `BioEgressPolicy` admits `.fallback`, and #627 named four while missing the peer
+//     payload. ⛔ **THIS BULLET SAID "ADM-OSC, Art-Net/sACN and the discrete-event addresses
+//     stay open" AND WAS WRONG ON TWO OF THE THREE** (#811): #785 closed the event path and
+//     #789 closed sACN — E1.31 carries a 64-byte source name that a demo session fills with
+//     "Echoelmusic (DEMO)". The bullet aged in the file whose own header calls it "THE ONE
+//     place a session looks", which is the sharpest form of the failure it was written to
+//     prevent: **a register that restates a neighbour's fact is a COPY, and a copy ages while
+//     the owner moves.** The owner is `Tests/CISmoke/TheWireSaysWhoseBodyTests.swift` — it
+//     carries the verdict per protocol, the precise reason Art-Net differs from sACN, and the
+//     retraction of the first draft's false "DMX cannot carry metadata" (512 slots, four in
+//     use). This bullet now points; it does not count.
 // Apple Health is clean and needs nothing: `HealthWritePolicy.isWritableSource` admits only
 // `.ble` and `.cameraPPG`.
 //

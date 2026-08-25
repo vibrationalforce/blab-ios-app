@@ -71,8 +71,11 @@
 //  WAS affected — `BioEgressPolicy` allows `.fallback` and no address carried a source, so
 //  an integrator could not tell a demo walk from a measured pulse. ⭐ #639 CLOSED THE OSC HALF:
 //  `/echoelmusic/bio/synthetic` is prepended to every non-empty bio batch (1 = demo, 0 = a real
-//  body). ADM-OSC, Art-Net/sACN and the discrete-event addresses are still unmarked and stay
-//  registered as open in `TheWireSaysWhoseBodyTests`. So a demo session shows a confident heart rate and
+//  body). ⛔ THIS SENTENCE NAMED "ADM-OSC, Art-Net/sACN and the discrete-event addresses" as
+//  still unmarked and was wrong on two of the three (#811): #785 closed the events, #789 closed
+//  sACN. It already POINTED at the right owner and restated the list anyway — the pointer is
+//  what survives, the list is deleted. Which protocols are still open, and why each differs,
+//  lives in `TheWireSaysWhoseBodyTests`. So a demo session shows a confident heart rate and
 //  "HRV 50 ms" beside a source cell reading "No signal" — which reads as ABSENCE,
 //  not as SYNTHETIC. #215's principle ("a constant 0 is indistinguishable from a
 //  still performer") applies on the screen too, not only on the wire. Whether to

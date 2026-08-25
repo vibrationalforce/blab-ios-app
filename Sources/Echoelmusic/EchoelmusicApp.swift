@@ -176,22 +176,30 @@ struct EchoelmusicApp: App {
     /// hardware (owned here now the single window is the root).
     /// ⛔ THIS SAID «Clearly-labeled "Demo"», was retracted as false ("there is no
     /// user-facing "Demo" string in `Sources/`"), and the RETRACTION is what is stale
-    /// now: #627/#629/#632/#634 built the label on six surfaces — the bio strip, the header
-    /// pill, the Live-Colabo rows, the Home-Screen widget, the Watch glance and the
-    /// always-on channel rows. (⛔ "five" here and in `BioSimulator`'s header aged within a
-    /// day of being written; measure, do not carry the number forward.) Both
+    /// now: #627/#629/#632/#634 built the label, and it is on more surfaces than any list
+    /// here has managed to keep up with. ⛔ "five" aged within a day; the "six" that replaced
+    /// it — bio strip, header pill, Live-Colabo rows, widget, Watch glance, always-on rows —
+    /// aged too, and **omitted `EchoelFXView`** (#811, measured). The sentence saying "measure,
+    /// do not carry the number forward" was standing directly beside its own carried-forward
+    /// list. So there is no list here now: the per-surface register is
+    /// `Tests/CISmoke/TheDemoSourceIsMarkedWhereItRendersTests.swift`, which calls itself the
+    /// one place a session looks; the measurement is the command below. Both
     /// spellings of this comment are kept because the pair is the lesson: the original
     /// claim was aspirational, the retraction was measured, and the retraction still
     /// aged out. Measure with `git grep -n 'Text("Demo")' -- Sources`.
     ///
-    /// ⚠️ #462 IS STILL NOT CLOSED, but the count has changed and the wording had to change
-    /// with it. ⭐ #639 shipped provenance on the OSC bio set: `/echoelmusic/bio/synthetic`
-    /// rides every non-empty batch (1 = demo, 0 = a real body). What carries NO provenance
-    /// today is ADM-OSC (`/adm/obj/{n}/*` — a foreign standard's address space), Art-Net/sACN
-    /// (DMX has room, ~508 free slots, but no convention) and the discrete-event addresses
-    /// (`/bio/event/*`, a different code path). Reading "the label is done" as "#462 is done"
-    /// is the exact half-close this comment exists to prevent — and reading "OSC is done" as
-    /// "the wire is done" is the same defect one notch smaller.
+    /// ⚠️ #462 IS STILL NOT CLOSED, and this note stops enumerating what is left, because
+    /// enumerating is how it went wrong. ⛔ It listed "Art-Net/sACN … and the discrete-event
+    /// addresses" as carrying no provenance — **both halves closed while this line stood**:
+    /// #785 put the flag on the event path and #789 put "Echoelmusic (DEMO)" in E1.31's own
+    /// 64-byte source-name field. Two of the three homes of that same sentence were equally
+    /// stale (`BioSimulator`, and the register that calls itself "THE ONE place"), so it was
+    /// not one comment ageing — it was one FACT living in four places and moving in one, the
+    /// #456 shape at its widest. **The owner is
+    /// `Tests/CISmoke/TheWireSaysWhoseBodyTests.swift`**: it carries the per-protocol verdict
+    /// and the reason each open one is open. Read it instead of a copy. Reading "the label is
+    /// done" as "#462 is done" is the exact half-close this comment exists to prevent — and
+    /// reading "OSC is done" as "the wire is done" is the same defect one notch smaller.
     @State private var demoSource = BioSimulator()
 
     // Resonance-breathing guide (the active half of the coherence loop).

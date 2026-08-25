@@ -13961,3 +13961,51 @@ Definition gestellt hätte.
 die alte Zahl zitiert. Genau die Falle, in die der #809-Wächter eine Stunde vorher lief.
 Provenienz in `memory/LEDGER_COUNTS.md` §H (der achte Abschnitt; `.claude/rules/context.md` §1
 nennt dort bewusst keine Zahl mehr, also nichts nachzuziehen).
+
+---
+
+## #811 (2026-08-25) — die REIHENFOLGE ist leer, und eine Tatsache wohnte in vier Häusern
+
+**Erst die REIHENFOLGE gegen den Baum gemessen statt weiter zitiert** (der Cron wiederholt sie
+stündlich; keine Sitzung hatte sie je Punkt für Punkt geprüft):
+
+| # | Punkt | Gemessen |
+|---|---|---|
+| 5 | Visuals grau (B9) | **gebaut UND deployt** — `colourOn * 2.4` (`MetalBioView:1802`), warm `0.92` (:1811), im Baum seit `545b19e` = v10.79.383, heute v418. Wartet auf Geräteprobe |
+| 1 | Automation in der Spur | **vom PRODUCT_DEFINITION (2026-07-25) gestrichen** — „arranging material over time" ist die CUT-Seite; Fläche ging mit #121 Slice 4. Der zitierte Verdikt v10.79.183 ist ÄLTER |
+| 2 | Bio-Modulation live sichtbar | **gebaut und erreichbar** — `AlwaysOnBioRow` in `bioPanel:3190` (Puls-Pille) und `EchoelFXView:1317`; 1-Hz-Ticker im Leaf, Freeze-Gesetz gehalten |
+| 3 | Externe AUv3 | **Ziel entfernt 2026-07-24** (`project.yml:225` sagt es selbst), null Host-API im Code |
+| 4 | Leisten-Verteilung Timeline | **Fläche existiert nicht** — keine Timeline-/Spur-Ansicht in `Studio/` |
+
+**Zwei fertig, drei überholt. Kein Punkt der Liste ist heute baubar.**
+
+**Der Befund des Zyklus kam aus Punkt 2.** Beim Prüfen der Bio-Anzeige führte der Weg zum
+#462-Statusvermerk — und der nannte sACN und die Ereignis-Adressen als „ohne Herkunft".
+**Beide seit #785/#789 geschlossen.** Gemessen: `SACNSender.sourceName(synthetic:)` schreibt
+`"Echoelmusic (DEMO)"` ins E1.31-Quellnamensfeld; `OSCSender:279-282` setzt die Flagge vor jedes
+Ereignis, auf Wechsel gelatcht.
+
+**Und es war nicht EIN Kommentar, sondern EINE Tatsache in VIER Häusern**, bewegt in einem:
+`CLAUDE.md` (aktuell) · `EchoelmusicApp.swift` · `BioSimulator.swift` · und
+`TheDemoSourceIsMarkedWhereItRendersTests`, **dessen eigener Kopf sich „THE ONE place a session
+looks" nennt**. `BioSimulator` ist der schlimmste Fall: es ZEIGTE schon auf den richtigen
+Eigentümer und behielt die veraltete Liste daneben — Zeiger plus Kopie liest sich wie eine
+bestätigte Kopie.
+
+⭐ **Die Lehre, verschieden von #456:** #456 sagt „Prosa zieht in JEDEM Zuhause mit". Neu ist,
+**warum ein Zuhause übersehen wird — ein Register, das die Tatsache eines Nachbarn nachspricht,
+sieht nicht wie eine Kopie aus, sondern wie Abdeckung.**
+
+**Dieselbe Klasse ein zweites Mal, im selben Kommentar:** die Flächen-Liste sagte „sechs" und
+`EchoelFXView` fehlte (gemessen: sieben `Text("Demo")`-Stellen) — direkt neben dem Satz „measure,
+do not carry the number forward". Beide Listen sind jetzt durch Eigentümer + Befehl ersetzt.
+
+**⛔ Und die Messung hat meine eigene Benotung widerlegt.** Ich schrieb, Anspruch 1 sei eine
+REGRESSION; getrieben gegen `HEAD` ist er GRÜN — der Eigentümer hatte alles die ganze Zeit,
+genau deshalb ist er der Eigentümer. Echte Regressionen sind exakt zwei (die zwei fehlenden
+Zeiger). Korrigiert statt still umgeschrieben: **eine Note zu vergeben ist so wenig ein Treiben
+wie eine Nadel abzuschreiben (#808).**
+
+Wächter: `TheProvenanceVerdictHasOneOwnerTests` — Kontrolle grün, Eltern rot auf zwei, sechs
+Mutationen je an ihrem Anspruch. Bewusst nur POSITIVE Nadeln: alle drei Dateien zitieren jetzt
+den zurückgenommenen Satz, ein negativer Scan träfe die eigene Rücknahme (#491, wie #809).
