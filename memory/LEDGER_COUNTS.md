@@ -5739,6 +5739,30 @@ aufeinanderfolgende Stände erlauben deshalb KEINE Richtungsableitung.
   „der Doctor prüft die Zahl" — er DRUCKT sie nebeneinander; das Vergleichen bleibt Handarbeit,
   und genau das sagt seine eigene Sektion-D-Notiz.
 
+### 2026-08-25 (#818) — **370**, und das Literal ist aus `CLAUDE.md` VERSCHWUNDEN
+
+`git ls-files 'Sources/**/*.swift' | wc -l` → **370**. Der Zuwachs gegenüber 369 ist GENAU EINE
+Datei, `Core/CoherenceTrend.swift` (#813), belegt mit
+`git log --diff-filter=A --name-only --since=2026-08-21 -- 'Sources/**/*.swift'`.
+
+⛔ **Und das ist der Grund, warum die Zahl jetzt NICHT mehr in `CLAUDE.md` steht.** #813 hat eine
+Datei angelegt und die Zeile um eins falsch gemacht, **ohne dass irgendetwas rot wurde** — genau
+das, was der Eintrag vom 2026-08-21 eine Zeile weiter oben als offene Flanke benannt hatte
+(„das ist das ganze Argument für den Wächter, den dieser Zähler weiterhin NICHT hat"). Die
+Antwort ist nicht der Wächter auf die ZAHL, sondern die Löschung der Zahl: ein Wächter auf ein
+Literal in der immer geladenen Datei würde bei JEDER neuen Quelldatei rot und einen Edit an der
+Datei erzwingen, die 2,5 kB unter ihrer Decke steht. **Derselbe Schluss wie #810 (Founder-
+Rückstand) und #803 (Entscheidungs-Rückstand): eine Zahl, die niemand nachführen kann, wird
+durch ihren BEFEHL ersetzt, nicht durch eine Pflicht.**
+
+Was `CLAUDE.md` behält: den Befehl, den Zeiger auf diesen Abschnitt, und einen POSITIVEN Wächter
+darauf, dass der Befehl dort steht (ein Negativ-Scan auf die Abwesenheit der Zahl träfe die
+Rücknahme selbst — #491).
+
+**Der gelöschte Wortlaut, damit die Kette lückenlos bleibt** (983 B, aus `CLAUDE.md` Zeile 76):
+
+> **369** Swift under `Sources/` (Stand 2026-08-21, #696 — gemessen, nicht fortgeschrieben: der Zuwachs gegenüber 368 ist GENAU EINE Datei, `DSP/EchoelGranular.swift` (#684), belegt mit `git log --diff-filter=A --name-only`. Der vorige Stand war 2026-08-20 — seit #644s Commit waren es 368 GETRACKTE; die erste Fassung dieser Zeile schrieb „367 getrackt plus die in diesem Commit angelegte `Studio/LiveNarrationDisclosure.swift`", was am Tag des Schreibens stimmte und beim ersten `git commit` ungültig wurde — **eine Zahl, die eine UNGETRACKTE Datei mitzählt, beschreibt einen Zustand, der genau einen Commit lang existiert**; #644s Review fand den Stand bei 362, also SECHS daneben und schon vor dieser Scheibe veraltet; `git ls-files 'Sources/**/*.swift' | wc -l`, die ZÄHL-KETTE — jeder frühere Stand, die Taxonomie ±0/+1/+2/−1 und jede ⛔-Rücknahme — steht seit 2026-08-12 in `memory/LEDGER_COUNTS.md` §B (#538); MESSEN statt zitieren, und dort nachführen)
+
 
 ---
 

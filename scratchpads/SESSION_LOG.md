@@ -14305,3 +14305,43 @@ eine sensorische Frage:** ist die Klangfarben-Verschiebung hörbar, aber nicht s
 
 **Ehrlich in der Notiz benannt:** die große Mehrheit der hundert Zyklen hat nichts hinzugefügt,
 sondern Behauptungen zurückgenommen. Unsichtbar und nötig.
+
+---
+
+## #818 — die Dateizahl war wieder abgelaufen, also ist sie jetzt weg (2026-08-25)
+
+**Befund, gefunden von `python3 scripts/doctor.py --section D`:** `git ls-files
+'Sources/**/*.swift' | wc -l` → **370**, `CLAUDE.md` sagte **369**. Die Differenz ist GENAU EINE
+Datei, `Core/CoherenceTrend.swift`, angelegt von **#813 — also von mir, fünf Zyklen vorher, und
+nichts wurde rot.**
+
+**Und genau das hatte der Ledger-Eintrag vom 2026-08-21 vorhergesagt:** „das ist das ganze
+Argument für den Wächter, den dieser Zähler weiterhin NICHT hat."
+
+**Die Antwort ist NICHT der Wächter auf die Zahl.** Ein Wächter auf ein Literal in der immer
+geladenen Datei würde bei JEDER neuen Quelldatei rot und einen Edit an genau der Datei
+erzwingen, die 2,5 kB unter ihrer Decke steht. Gemacht wurde stattdessen die Reparatur, die
+dieses Repo schon zweimal gefunden hat (#810 Founder-Rückstand, #803 Entscheidungs-Rückstand):
+**eine Zahl, die niemand nachführen kann, wird durch ihren BEFEHL ersetzt.**
+
+- `CLAUDE.md` Zeile 76: Literal + 983 B Zähl-Kette raus, Befehl + Zeiger + „MESSEN, nicht
+  zitieren" rein. Datei **147 695 → 147 456 B**.
+- Der gelöschte Wortlaut steht **vollständig** in `memory/LEDGER_COUNTS.md` §B, mit der
+  #818-Begründung darüber. Keine Zeile verloren.
+
+**Wächter — kein neues File, sondern das richtige Zuhause** (#416): beide Ansprüche liegen in
+`TheLawFileStaysUnderItsCeilingTests`, das genau diese Umzüge schon bewacht.
+1. Eine Zeuge-Zeile mehr in `testTheMovedProvenanceIsInItsLedgerAndNotInTheLawFile` — die Nadel
+   muss im Ledger sein UND in `CLAUDE.md` fehlen (beide Richtungen getrieben).
+2. `testTheFileCountLineRoutesInsteadOfAssertingANumber`, **rein POSITIV**: Befehl, Ledger-
+   Zeiger und Instruktion stehen in der Zeile, und das Ledger nennt DENSELBEN Befehl. Ein
+   Negativ-Scan („keine Ziffern auf dieser Zeile") träfe die eigene Byte-Angabe der Rücknahme —
+   der #491-Selbsttreffer.
+
+**⛔ Ein Werkzeugfehler in meiner eigenen Scheibe, beim Hinsehen gefunden:** der erste Einschub
+lief durch eine Python-Zeichenkette, in der `\` am Zeilenende eine FORTSETZUNG ist — die
+Zeilenumbrüche in vier Swift-Meldungen wurden gefressen, Zeilen bis **239 Zeichen**. Kompiliert
+hätte es; lesbar war es nicht. Neu eingesetzt über ein bash-Heredoc mit zitiertem Delimiter (gar
+keine Interpretation): längste Zeile jetzt < 150. **Lehre: wer Swift durch Python schreibt,
+prüft das ERGEBNIS, nicht die Absicht** — `\` bedeutet in beiden Sprachen etwas, und nicht
+dasselbe.

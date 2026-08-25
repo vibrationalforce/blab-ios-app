@@ -251,6 +251,10 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
              "the sentence naming the panel that never had a grid"),
             ("statt einen 17. anzuhängen", "memory/LEDGER_COUNTS.md", "§G",
              "the ambiguous slot-budget phrase from the donut-pill block"),
+            ("eine Zahl, die eine UNGETRACKTE Datei mitzählt", "memory/LEDGER_COUNTS.md", "§B",
+             "the #818 move — the source-file COUNT and its whole chain (983 B) left the law "
+             + "file; the literal was deleted rather than nursed, because #813 added one file "
+             + "and made the number wrong with nothing going red"),
             ("RUN_DESTINATION_DEVICE_NAME", "Tests/CISmoke/CLAUDE.md", "§5b",
              "the Clone-2 evidence from the #763 gate-discriminator move — the log line that "
              + "settled which simulator clone dies under #396")
@@ -268,6 +272,41 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
                 provenance in the always-loaded file.
                 """)
         }
+    }
+
+    /// #818 — the source-file count was DELETED from the law file, not refreshed. A guard on
+    /// the literal would go red on every new source file and force an edit to the file that
+    /// sits ~2.5 kB under its ceiling; the repair is the one #810 and #803 already made, twice:
+    /// **replace an unmaintainable number with its command.** So this claim is POSITIVE — it
+    /// pins that the routing is there. A negative scan for "no digits on this line" would hit
+    /// the retraction's own byte figure and is exactly the #491 self-hit.
+    func testTheFileCountLineRoutesInsteadOfAssertingANumber() throws {
+        let law: String = try rawFile("CLAUDE.md")
+        let candidates = law.components(separatedBy: "\n").filter { $0.hasPrefix("- **Files:**") }
+        XCTAssertEqual(candidates.count, 1, """
+            Expected exactly one `- **Files:**` line in CLAUDE.md, found \(candidates.count).
+            This scan anchors on that prefix; re-anchor it rather than letting it match nothing.
+            """)
+        let line = candidates.first ?? ""
+        let command = "git ls-files 'Sources/**/*.swift' | wc -l"
+        XCTAssertTrue(line.contains(command), """
+            The Files line no longer carries the counting command. Whoever removed it has to
+            put a literal back in its place, and that literal is what #818 deleted — it went
+            stale silently four times, most recently on #813.
+            """)
+        XCTAssertTrue(line.contains("memory/LEDGER_COUNTS.md` §B"), """
+            The Files line must point at the ledger section that holds the counting chain, or
+            the provenance moved there becomes unreachable from the file a session reads first.
+            """)
+        XCTAssertTrue(line.contains("MESSEN, nicht zitieren"), """
+            The Files line must carry the instruction, not just the command — the command
+            without it reads as an optional extra rather than the rule.
+            """)
+        let ledger: String = try rawFile("memory/LEDGER_COUNTS.md")
+        XCTAssertTrue(ledger.contains(command), """
+            LEDGER_COUNTS.md §B must name the SAME command, so the two homes cannot teach two
+            different recipes for one number (#416).
+            """)
     }
 
     // MARK: - file access
