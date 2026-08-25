@@ -99,6 +99,27 @@ reaches you where a gate builds the caller: `Tests/EchoelmusicTests` is compiled
 **#442 — write assertions from the algebra, not from the printed value.** `1000 + 3.2`
 subtracted back is 3,2000000000000455; anchor at zero where the subtraction is exact.
 
+**#808 — a RUNTIME needle is not self-verifying, so run the checker before you push it.**
+A SCAN needle (`code.contains("…")`) is verified by the `grep` you did while writing it. A
+needle that CALLS a shipped function — `SomeCopy.hint(for: x).contains("your body")` — is
+verified by nothing until CI runs, and CI shows only `tail -200 test.log` (#807). That is how
+`TheBioPanelRowsSayWhoseBodyTests` shipped a needle in the SAME commit as the sentence it was
+written for and stayed red for two months: the sentence reads "your measured **body state**".
+
+```
+python3 scripts/needle-reachability.py            # scan the whole bundle against Sources/
+python3 scripts/needle-reachability.py --selftest # after touching it
+```
+
+It asks one question — does the literal occur in the source of the function the needle calls
+— joining concatenation seams (`"… your " + "body …"`) and resolving ONE helper hop, because
+the first version reported exactly two findings and both were those. **Read a finding, do not
+obey it.** Its error directions run BOTH ways and the tool's own docstring got this backwards
+until its selftest disproved it: *incomplete* resolution (two hops, interpolation) reports a
+needle that works — a false ALARM; *over-broad* resolution (a literal in a comment, in a
+branch this state never takes, in a same-named function elsewhere) is a false GREEN. Zero
+findings today across the bundle. Guard: `TheNeedleCheckerNamesBothErrorDirectionsTests`.
+
 ---
 
 ## 3. Honest grading (#433 / #464) — required in every guard header

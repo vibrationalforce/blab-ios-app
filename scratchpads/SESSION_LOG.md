@@ -13887,3 +13887,42 @@ gelesen statt abgetippt, damit die Transkription nicht driften kann.
 
 ⚠️ **Was ich NICHT behaupte:** dass keine weitere Nadel dieser Art in den anderen ~2264
 Testmethoden steht. Der Log kann das nicht sagen — dasselbe Fenster.
+
+---
+
+## #809 (2026-08-25) — die Verallgemeinerung von #808: kann diese Nadel überhaupt treffen?
+
+**Gate von #808 (`298231d`):** `Build for Testing: success`, 0 Compile-Fehler, **0 Testfehler,
+0 Skips**. ⚠️ **Und der Testname taucht im Fenster NICHT auf** — 0 Treffer für
+`AutoModeHintAnswersInEveryState`. Nach #445 beweist Abwesenheit nichts. Ehrlich ist: **der
+Fehlschlag ist weg, dass der Test lief kann dieses Instrument nicht zeigen.** Genau die
+#807-Kosten, einen Zyklus nach ihrer Messung, an der eigenen Reparatur.
+
+**Die Frage des Zyklus.** War #808 ein Einzelfall? Gemessen über das blockierende Bundle:
+**1015 positive `contains`-Nadeln**. Ein roher „Literal fehlt in `Sources/`"-Scan meldete 90 —
+fast alle Fehlalarme (Workflows, Docs, whitespace-gestrippter Code). Ein Scan, der nur
+LAUFZEIT-Nadeln auflöst (`Typ.methode(...).contains("lit")` → Rumpf der gerufenen Funktion),
+meldete **zwei**. Beide waren Fehlalarme meines Scanners, und beide aus genau den zwei Gründen,
+die man vorher raten könnte: **Konkatenations-Naht** (`"… when your " + "body is settled"`) und
+**Helfer-Sprung** (`breathVoiceHint` baut über `subject(synthetic:)`). Nach Behebung beider:
+**null echte Treffer.** #808 war in dieser Klasse ein Einzelfall.
+
+**Gebaut: `scripts/needle-reachability.py`** (mit `--selftest`, 5/5) plus Wächter
+`TheNeedleCheckerNamesBothErrorDirectionsTests` und ein Eintrag in `Tests/CISmoke/CLAUDE.md` §2.
+Der Unterschied, den das Werkzeug schließt: eine SCAN-Nadel prüft sich beim Schreiben selbst
+(man grept), eine LAUFZEIT-Nadel nicht — ohne lokale Toolchain und mit einem 200-Zeilen-Fenster
+im Log gibt es bis zum Zufall keine Rückmeldung.
+
+**ZWEI BEFUNDE ÜBER MICH SELBST, beide vom Treiben, keiner vom Lesen:**
+
+1. **Der Docstring behauptete die falsche Fehlerrichtung.** Er sagte „every miss it cannot see
+   is a FALSE GREEN, never a false alarm" — die beruhigende Richtung, und rückwärts.
+   **Unvollständige** Auflösung meldet eine funktionierende Nadel (FEHLALARM); **zu breite**
+   Auflösung (Literal im Kommentar, im nie genommenen Zweig, in einer gleichnamigen Funktion)
+   ist das FALSCHE GRÜN. Selftest-Fall 5 hat den Satz eine Minute nach dem Schreiben widerlegt.
+2. **Der Wächter trat in die #491-Falle** — geschrieben von jemandem, der #491 gerade gelesen
+   hatte. Eine sechste Zusicherung verbot den zurückgenommenen Satz; der Docstring ZITIERT ihn,
+   um ihn zurückzunehmen, also traf die Nadel ihre eigene Rücknahme und der KONTROLL-Baum kam
+   rot zurück. Gestrichen, mit Vermerk an Anspruch 2.
+
+**Getrieben:** Kontrolle grün, sieben Mutationen, jede scheitert an genau ihrem Anspruch.

@@ -2316,3 +2316,24 @@ und hätte diesen Fehlschlag am Tag seiner Entstehung gefangen.
 **Verstärker: #807.** Ein Fehlschlag ist im Job-Log nur sichtbar, wenn er in `tail -200 test.log`
 fällt. „Gates grün" heißt nie „die Suite lief" — die `WINDOW`-Zeile von `gh-test-verdict.py` vor
 jedem Zitat lesen.
+
+## PLAYBOOK (2026-08-25, #809): eine Nadel, die eine FUNKTION ruft, ist nicht selbstprüfend
+
+**Der Unterschied, den dieses Repo bisher nicht benannt hatte.** `code.contains("…")` (SCAN)
+prüft sich beim Schreiben selbst — man grept die Zeichenkette. `Typ.methode(x).contains("…")`
+(LAUFZEIT) prüft nichts, weil es hier keine Swift-Toolchain gibt und der Job-Log nur
+`tail -200 test.log` zeigt. Genau so überlebte #808 zwei Monate rot.
+
+**Rezept:** `python3 scripts/needle-reachability.py` vor dem Push einer Laufzeit-Nadel. Es fragt,
+ob das Literal im Quelltext der gerufenen Funktion vorkommt — Konkatenations-Nähte
+zusammengefügt, EIN Helfer-Sprung aufgelöst. Heute null Treffer über 1015 Nadeln.
+
+**DEAD-END im Werkzeugbau selbst — zweimal in einem Zyklus, beide nur durchs TREIBEN gefunden:**
+· Ein Werkzeug-Docstring, der seine Fehlerrichtung behauptet, ohne sie zu treiben: „never a
+  false alarm" war exakt rückwärts. **Unvollständige** Auflösung erzeugt FEHLALARME, **zu
+  breite** erzeugt falsche GRÜNS. Ein Werkzeug, das seine Richtung falsch angibt, ist schlimmer
+  als eines, das schweigt — ein Befund wird als Beweis gelesen oder als „bekannte sichere
+  Richtung" verworfen.
+· Eine negative Nadel über Prosa, die ihre eigene Rücknahme ZITIERT (#491) — der Kontroll-Baum
+  kommt rot zurück. Das passiert auch dem, der #491 in derselben Stunde gelesen hat. **Nur der
+  Kontroll-Lauf zeigt es; Zurücklesen nicht.**
