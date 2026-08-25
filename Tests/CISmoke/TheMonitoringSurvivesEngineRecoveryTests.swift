@@ -95,20 +95,36 @@ final class TheMonitoringSurvivesEngineRecoveryTests: XCTestCase {
             """)
     }
 
-    // MARK: - claim 3 — the rate-change branch re-arms, gated on a real changed rate
+    // MARK: - claim 3 — the format-change branch re-arms, gated on a REAL change
+    // (#826 widened the gate from rate-only to rate OR channel count — the #625b
+    // registered gap: mono BT mic → stereo USB at the same 48 kHz re-armed nothing)
 
     func testTheConfigChangeBranchRearmsOnRateChange() throws {
         let code = try source(Self.engine)
-        XCTAssertTrue(code.contains("rearmInputMonitoring(reason: \"route sample-rate change\")"), """
-            The configuration-change running branch no longer re-arms monitoring on a \
-            rate switch — `monitorTapSampleRate` then goes stale again: notch maths up \
-            to ~9 % off, YIN snapping Tune-to-key to wrong notes until a manual recycle.
+        XCTAssertTrue(code.contains("\"route sample-rate change\"")
+                      && code.contains("\"route channel-count change\""), """
+            The configuration-change running branch no longer names BOTH re-arm \
+            reasons. Rate-only was #612 (stale `monitorTapSampleRate`: notch maths up \
+            to ~9 % off, YIN snapping Tune-to-key to wrong notes); channel-count was \
+            #826 (#625b's registered gap — a route switch that changes channels but \
+            not rate left the monitor chain connected at the old count). Two named \
+            reasons, so the founder's diag log says WHICH half fired.
             """)
         XCTAssertTrue(code.contains("newRate != self.monitorTapSampleRate"), """
             The rate gate is gone. Without comparing against the captured tap rate the \
             branch would recycle monitoring on EVERY configuration change (audible \
             interruption for no reason); without the `> 0` companion a transient \
             input-less moment mid-switch would tear monitoring down entirely.
+            """)
+        XCTAssertTrue(code.contains("newFormat.channelCount != self.monitorTapChannelCount"), """
+            The channel-count half of the #826 gate is gone — the #625b gap reopens: \
+            a BT-mic → USB-interface switch at the same sample rate re-arms nothing \
+            and the monitor chain stays connected at the old channel count.
+            """)
+        XCTAssertTrue(code.contains("monitorTapChannelCount = inFmt.channelCount"), """
+            The channel count is no longer captured at tap install — the #826 gate \
+            then compares against a permanent 0 and re-arms on EVERY configuration \
+            change (the exact needless-recycle failure the rate gate exists to avoid).
             """)
         XCTAssertEqual(occurrences(of: "rearmInputMonitoring(reason:", in: code), 3, """
             The re-arm call-site count changed (expected 3: the declaration, start(), \

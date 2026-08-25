@@ -412,6 +412,11 @@ public final class AudioEngine {
     @ObservationIgnored private let monitorTapWindow = MonitorTapWindow(size: 2048)
     @ObservationIgnored private var monitorTapInstalled = false
     @ObservationIgnored private var monitorTapSampleRate: Double = 0
+    /// #826 — captured beside the rate at tap install, for the re-arm gate's second
+    /// half: a route switch that changes the CHANNEL COUNT without changing the rate
+    /// (mono BT mic → stereo USB interface at 48 kHz both) used to re-arm nothing and
+    /// left the monitor chain connected at the old count (#625b's registered gap).
+    @ObservationIgnored private var monitorTapChannelCount: AVAudioChannelCount = 0
     /// Lazy so the FFT setup is only paid once monitoring is actually used. Under
     /// extreme memory pressure `EchoelRealFFT` can fall back to a smaller size — the
     /// guard tick checks `size` against the window and simply skips the notch then
@@ -792,10 +797,19 @@ public final class AudioEngine {
                     // its own retraction there), so the pointer outlived what it pointed
                     // at. THIS call is the re-arm; nothing else has to name it. `newRate > 0` keeps a transient
                     // input-less moment mid-switch from tearing monitoring down.
-                    let newRate = self.masterEngine.inputNode.inputFormat(forBus: 0).sampleRate
-                    if self.isInputMonitoring, newRate > 0,
-                       newRate != self.monitorTapSampleRate {
-                        self.rearmInputMonitoring(reason: "route sample-rate change")
+                    // #826 — the gate tests BOTH halves of the format now. Rate was #612;
+                    // channel count was the #625b registered gap: mono BT mic → stereo
+                    // USB interface at the same 48 kHz changed nothing this gate read,
+                    // so the chain stayed connected at the old count. Same guard shape
+                    // (`> 0` keeps the transient input-less moment from tearing down).
+                    let newFormat = self.masterEngine.inputNode.inputFormat(forBus: 0)
+                    let newRate = newFormat.sampleRate
+                    if self.isInputMonitoring, newRate > 0, newFormat.channelCount > 0,
+                       newRate != self.monitorTapSampleRate
+                        || newFormat.channelCount != self.monitorTapChannelCount {
+                        self.rearmInputMonitoring(reason: newRate != self.monitorTapSampleRate
+                            ? "route sample-rate change"
+                            : "route channel-count change")
                     }
                     return
                 }
@@ -2064,9 +2078,10 @@ public final class AudioEngine {
                 // need to — but it is now RE-captured on every route switch, so neither
                 // consumer runs stale for longer than one configuration-change hop.
                 // ⚠️ #625b (review LOW): that sentence reads as total coverage and is not.
-                // The re-arm gate is `newRate != monitorTapSampleRate` — a RATE test only.
-                // A route change that alters the CHANNEL COUNT without altering the rate
-                // re-arms nothing and leaves the monitor chain connected at the old count.
+                // ⛔ #826 CLOSED THE HALF #625b REGISTERED: the gate now tests rate OR
+                // channel count (both captured below), so "a route change that alters
+                // the CHANNEL COUNT without altering the rate re-arms nothing" is no
+                // longer true — that was the mono-BT-mic → stereo-USB-at-48k case.
                 //
                 // Why the retraction and not a deletion: a comment that files a fix as
                 // outstanding is an instruction to the next session to build it, and
@@ -2078,6 +2093,7 @@ public final class AudioEngine {
                 // that, and nothing above, is what a device report would have to
                 // distinguish.
                 monitorTapSampleRate = inFmt.sampleRate
+                monitorTapChannelCount = inFmt.channelCount   // #826, the gate's other half
                 let window = monitorTapWindow
                 input.installTap(onBus: 0,
                                  bufferSize: AVAudioFrameCount(monitorTapWindow.size),

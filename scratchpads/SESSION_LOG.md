@@ -14647,3 +14647,27 @@ nicht mehr vor-angehoben; die Input-Liste füllt sich erst beim ersten echten Cl
 (dokumentiertes Verhalten des Pickers). Geräteprobe: Grant→Aufnahme in derselben Sitzung
 einmal durchspielen (der `startRecording`-Claim deckt den Pfad, sein eigener Kommentar
 sagte das schon immer).
+
+## 2026-08-25 — #826: Re-Arm-Gate erkennt jetzt auch Kanalzahl-Wechsel (Scheibe 3 des BT-Plans)
+
+**Der registrierte #625b-Spalt, vom #824-Audit bestätigt:** Das Konfigurations-Wechsel-Gate
+verglich NUR die Sample-Rate. Ein Routen-Wechsel, der die KANALZAHL ändert, aber nicht die
+Rate (Mono-BT-Mikro → Stereo-USB-Interface, beide 48 kHz), re-armte nichts — die
+Monitor-Kette blieb auf der alten Kanalzahl verbunden.
+
+**Gebaut:** `monitorTapChannelCount` wird neben der Rate beim Tap-Install erfasst; das Gate
+feuert bei Rate- ODER Kanalzahl-Änderung, mit ZWEI benannten Gründen („route sample-rate
+change" / „route channel-count change") — der Diag-Log sagt damit, welche Hälfte griff.
+Gleiche Schutzform (`> 0` gegen den transienten eingangslosen Moment). Kein Kontakt mit
+`setInputMonitoring` (#823 unberührt); `rearmInputMonitoring`-Aufrufstellen bleiben 3.
+Prosa mitgezogen (#456): der ⚠️-#625b-Vermerk am Tap-Install trägt jetzt die
+⛔-Schließung; der Rest-Riskio-Absatz (Route-Switch ohne Notification) bleibt offen und
+bleibt dokumentiert — NICHT als geschlossen behaupten.
+
+**Wächter:** `TheMonitoringSurvivesEngineRecoveryTests` Claim 3 erweitert (beide
+Gründe · beide Gate-Hälften · Capture-Zeile · Aufrufstellen-Zahl 3 unverändert).
+Getrieben: Worktree alles grün; HEAD scheitert an beiden neuen Ansprüchen, Zähler und
+Rate-Gate grün auf beiden Bäumen (Gegengewichte, #343).
+
+**Ehrlich:** compile-verifizierbar; das hörbare Verhalten (kein Doppel-Recycle, kein
+Ping-Pong bei flatternder BT-Verbindung) ist Geräteprobe — im #824-Risikoregister benannt.
