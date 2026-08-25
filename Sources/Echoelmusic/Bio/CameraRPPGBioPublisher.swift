@@ -1379,14 +1379,20 @@ public final class CameraRPPGBioPublisher {
                 guard tick % 10 == 0, let bus = self.bus else { continue }
                 let bpm = self.analyzer.estimatedBPM
                 // All three evidence values read HERE, not reused from the display block
-                // above: `manageExposure()` runs in between and can call
-                // `analyzer.resetForRecovery()`, which zeroes estimatedBPM, bpmConfidence
-                // AND lastAutoStrength together. Reusing the earlier `autoStrength` local
-                // would compare a stale-high periodicity against a fresh-zero confidence.
-                // Harmless today only because the same flush zeroes `bpm` and the `bpm > 0`
-                // conjunct short-circuits — a stale `acf >= strongAutoFloor` satisfies
-                // `pulseTrustworthy` on its own, so anyone who later relaxes `bpm > 0` or
-                // makes the flush preserve the last estimate would silently reopen it.
+                // above: `manageExposure()` runs in between and can flush the analyzer.
+                // Reusing the earlier `autoStrength` local would compare a stale-high
+                // periodicity against a fresh-zero confidence — a stale
+                // `acf >= strongAutoFloor` satisfies `pulseTrustworthy` on its own.
+                // ⛔ #834 RETIRES THE BELT THIS SENTENCE USED TO LEAN ON. It read "harmless
+                // today only because the same flush zeroes `bpm` and the `bpm > 0` conjunct
+                // short-circuits … anyone who makes the flush preserve the last estimate
+                // would silently reopen it" — and #834 does exactly that at the SATURATION
+                // site (`keepEstimate: true`): after that flush `bpm` stays > 0 while the
+                // fresh `lastAutoStrength` is 0. The fresh reads below are therefore the
+                // ONLY defense now, load-bearing rather than belt-and-braces, and
+                // `TheSaturationResettleKeepsThePulseEstimateTests` pins their ordering
+                // (manageExposure first, then all three reads). The gate itself stays
+                // sound either way: a freshly-zeroed acf fails both clauses.
                 // ⛔ THE #566 ENGAGE LATCH IS REMOVED (#572), on device evidence rather than
                 // taste. It required three SUSTAINED seconds of `shouldPublish` — thirty
                 // consecutive ticks at 10 Hz — before a live frame reached the bus. Device log
@@ -1774,9 +1780,20 @@ public final class CameraRPPGBioPublisher {
                 let satNote = String(format:
                     "rPPG: re-settling exposure — saturated (bright=%.2f R=%.2f amp=%.4f win=%d)",
                     bright, red, satAmp, satWin)
-                if satFlushed { analyzer.resetForRecovery() }
+                // #834: THIS site keeps the physiological estimate — the founder's 13:44:05
+                // case is precisely a saturation re-settle firing while a real, stable
+                // estimate was converging (conf 0.89 at 52–53 bpm), and the finger stays on
+                // the lens through the whole event. The other four flush sites state
+                // `false`: their estimates are unsettled, or the finger/person may have
+                // changed. The publish gate still refuses until fresh acf exists. Reviewed
+                // side effect (deliberate): the halved confidence can keep the analyzer's
+                // `pulseCorroborated` finger floor EASED through the re-settle where it
+                // used to harden — helpful in the dark-lock regime, same premise as this
+                // branch (the finger is still there).
+                if satFlushed { analyzer.resetForRecovery(keepEstimate: true) }
                 EchoelCrashLog.breadcrumb(satNote
-                    + (satFlushed ? " window flushed" : " window kept (too short to be worth it)"))
+                    + (satFlushed ? " window flushed, estimate kept — #834"
+                                  : " window kept (too short to be worth it)"))
             }
         } else {
             saturatedTicks = max(0, saturatedTicks - 1)
@@ -1809,7 +1826,7 @@ public final class CameraRPPGBioPublisher {
                 "rPPG: flushing a dead analysis window — budget spent, still no pulse (bright=%.2f acf=%.2f conf=%.2f)",
                 bright, Float(analyzer.lastAutoStrength), Float(confidence))
             weakAcfTicks = 0
-            analyzer.resetForRecovery()
+            analyzer.resetForRecovery(keepEstimate: false)
             EchoelCrashLog.breadcrumb(note)
         }
 
@@ -1841,7 +1858,7 @@ public final class CameraRPPGBioPublisher {
                 bright, Float(analyzer.lastAutoStrength), Float(confidence),
                 analyzer.lastFilteredAmplitude, analyzer.lastWindowSize,
                 weakRelocksUsed, Self.maxWeakRelocks)
-            analyzer.resetForRecovery()
+            analyzer.resetForRecovery(keepEstimate: false)
             EchoelCrashLog.breadcrumb(weakNote)
             return
         }
@@ -1877,7 +1894,7 @@ public final class CameraRPPGBioPublisher {
             // With the flush a fresh placement re-acquires from clean, exactly like startup.
             // displayBPM is held by the publish loop (never advances on bpm=0), so the SHOWN
             // pulse holds through re-acquire instead of snapping to 0.
-            analyzer.resetForRecovery()
+            analyzer.resetForRecovery(keepEstimate: false)
         }
     }
 
@@ -1915,7 +1932,7 @@ public final class CameraRPPGBioPublisher {
         // the two places that re-arms the one-time frame-rate measurement. The mid-take
         // flushes deliberately do not — see `CameraAnalyzer.rearmFrameRateAdaptation()`.
         analyzer.rearmFrameRateAdaptation()
-        analyzer.resetForRecovery()
+        analyzer.resetForRecovery(keepEstimate: false)
         // Do NOT reset forcedRecoveries here: every forced recovery fires this very
         // callback ~20 ms later, so zeroing the budget here made each recovery erase
         // its own count — "(1/3)" forever, cold restart unreachable (device log
@@ -1962,7 +1979,7 @@ public final class CameraRPPGBioPublisher {
         // cursor alongside is then hygiene, not a fix: it must never be NEWER than the
         // estimator's state, or the first beats of the next take would be skipped.
         //
-        // Deliberately NOT reset on ANY `analyzer.resetForRecovery()` site — today FIVE:
+        // Deliberately NOT reset on ANY `analyzer.resetForRecovery(keepEstimate:)` site — today FIVE:
         // four in `manageExposure()` (the saturation re-settle and the weak-periodicity
         // re-settle, both added by #651; the dead-window flush; the finger-loss flush) plus
         // the stall recovery in `handleCameraSessionReset()`.

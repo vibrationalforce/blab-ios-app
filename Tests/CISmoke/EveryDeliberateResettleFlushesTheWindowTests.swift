@@ -161,9 +161,9 @@ final class EveryDeliberateResettleFlushesTheWindowTests: XCTestCase {
     /// 2 — a floor, never an equality (#364).
     func testTheFlushCountIsAFloorNotASet() throws {
         let code = try Self.codeText(Self.publisher)
-        let flushes = Self.lineNumbers(of: "analyzer.resetForRecovery()", in: code).count
+        let flushes = Self.lineNumbers(of: "analyzer.resetForRecovery(keepEstimate:", in: code).count
         XCTAssertGreaterThanOrEqual(flushes, 5, """
-            Only \(flushes) `analyzer.resetForRecovery()` call sites; #651 left five (four in \
+            Only \(flushes) `analyzer.resetForRecovery(keepEstimate:)` call sites; #651 left five (four in \
             `manageExposure()`, one in `handleCameraSessionReset()`). Removing one is a real \
             decision — say which transition stopped needing a clean window and why — not a \
             tidy-up. ADDING one is expected and must never redden this, which is why the \
@@ -198,8 +198,10 @@ final class EveryDeliberateResettleFlushesTheWindowTests: XCTestCase {
         XCTAssertTrue(code.contains("if self.displayBPM == 0 {"), """
             The `displayBPM` hold branch is gone. It is assigned ONLY from a confident reading \
             — first one adopted as-is, later ones EMA-smoothed and slew-capped — so a flushed \
-            window (which publishes bpm=0) cannot move it. Without that branch each flush would \
-            snap the shown reading to zero and the cure would read worse than the disease.
+            window cannot move it: four sites publish bpm=0 after their flush, and the #834 \
+            keep site retains bpm but zeroes acf, which fails the same trust conjunct. Without \
+            that branch each flush would snap the shown reading to zero and the cure would \
+            read worse than the disease.
             """)
     }
 
@@ -231,7 +233,7 @@ final class EveryDeliberateResettleFlushesTheWindowTests: XCTestCase {
         }
         let before = String(code[entry.lowerBound..<range.lowerBound])
         let after = String(code[range.upperBound...].prefix(600))
-        XCTAssertTrue(after.contains("analyzer.resetForRecovery()"), """
+        XCTAssertTrue(after.contains("analyzer.resetForRecovery(keepEstimate:"), """
             The weak-periodicity branch composes its breadcrumb AFTER flushing (or no longer \
             flushes). `resetForRecovery()` zeroes `lastAutoStrength`, `lastFilteredAmplitude`, \
             `lastWindowSize` and the confidence, so a line built afterwards prints \
@@ -239,7 +241,7 @@ final class EveryDeliberateResettleFlushesTheWindowTests: XCTestCase {
             show which weak state caused it. The dead-window flush a few lines up had to learn \
             this once already and says so at its own call site.
             """)
-        XCTAssertFalse(before.contains("analyzer.resetForRecovery()"), """
+        XCTAssertFalse(before.contains("analyzer.resetForRecovery(keepEstimate:"), """
             A flush now sits between the weak branch's ENTRY and its breadcrumb — the window is \
             the branch itself, so this can only be a flush that really belongs to it. Same \
             failure as above, seen from the other side.
@@ -257,7 +259,7 @@ final class EveryDeliberateResettleFlushesTheWindowTests: XCTestCase {
                 extraction that returns nothing makes the assertions below vacuously green.
                 """)
         }
-        XCTAssertTrue(branch.contains("analyzer.resetForRecovery()"), """
+        XCTAssertTrue(branch.contains("analyzer.resetForRecovery(keepEstimate:"), """
             The saturation re-settle stopped flushing the analysis window. That is the #651 bug \
             itself: on build 2531 it took a take from conf 0.89 to conf 0.00 with amp frozen at \
             0.4898 across a full 150-sample window.
@@ -349,7 +351,7 @@ final class EveryDeliberateResettleFlushesTheWindowTests: XCTestCase {
             let t = lines[i].trimmingCharacters(in: .whitespaces)
             depth += t.filter { $0 == "{" }.count
             let closes = t.filter { $0 == "}" }.count
-            if t.contains("analyzer.resetForRecovery()") { return true }
+            if t.contains("analyzer.resetForRecovery(keepEstimate:") { return true }
             // ⛔ THE TEARDOWN SITE, AND WITHOUT THIS THE GUARD WAS RED ON CORRECT WORK. The
             // first draft asserted the flat universal "no branch may unlock without flushing"
             // and I wrote "the four transitions" in the header — the driver found FIVE

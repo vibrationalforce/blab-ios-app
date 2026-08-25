@@ -419,7 +419,7 @@ final class CameraAnalyzer {
         isPulseDetecting.toggle()
         if isPulseDetecting {
             rearmFrameRateAdaptation()   // fresh acquisition, like startPulseDetection (#652)
-            resetPulseState()
+            resetPulseState(keepEstimate: false)
         }
     }
 
@@ -429,7 +429,7 @@ final class CameraAnalyzer {
         isPulseDetecting = true
         // A fresh session may run a different capture format — re-measure (#652).
         rearmFrameRateAdaptation()
-        resetPulseState()
+        resetPulseState(keepEstimate: false)
     }
 
     /// Stop pulse detection
@@ -445,12 +445,23 @@ final class CameraAnalyzer {
     /// flushed, so the pulse — locked cleanly at conf 0.90 before the stall — never
     /// came back). Startup began from an EMPTY window and locked fine; a recovery must
     /// do the same. Only meaningful while detecting (no-op otherwise).
-    func resetForRecovery() {
+    ///
+    /// #834 — `keepEstimate` separates OPTICAL state from PHYSIOLOGICAL state. The window,
+    /// filters, peaks and acf are facts about the LIGHT and are invalid after an exposure
+    /// step — they always flush. `estimatedBPM`/`recentBPMs` are facts about the HEART,
+    /// which does not change because the exposure re-locked: the founder's v10.79.420 log
+    /// (13:44:05) shows a converging estimate — conf 0.89 at a stable 52–53 bpm — discarded
+    /// by the saturation re-settle, restarting the trust climb from zero. `true` keeps the
+    /// estimate and HALVES the confidence (the agreement term then carries it back up as
+    /// soon as a fresh window agrees); the publish gate still refuses until fresh acf
+    /// exists, because `lastAutoStrength` is optical and always clears. No default (#431):
+    /// every call site states which continuity it believes in.
+    func resetForRecovery(keepEstimate: Bool) {
         guard isPulseDetecting else { return }
-        resetPulseState()
+        resetPulseState(keepEstimate: keepEstimate)
     }
 
-    private func resetPulseState() {
+    private func resetPulseState(keepEstimate: Bool) {
         rawRedSignal.removeAll()
         filteredRedSignal.removeAll()
         signalTimestamps.removeAll()
@@ -462,10 +473,18 @@ final class CameraAnalyzer {
         dcEstimate = 0
         dcWarmupCount = 0
         peakTick = 0
-        recentBPMs.removeAll()
-        lastEstimateTimestamp = 0
-        estimatedBPM = 0
-        bpmConfidence = 0
+        if keepEstimate {
+            // #834: physiological continuity. Halving (not keeping) the confidence makes
+            // the retained number honestly provisional; retaining `lastEstimateTimestamp`
+            // keeps the physiological slew limiter armed against a wild first window
+            // (its dt is capped at 2 s, so the gap grants no huge jump).
+            bpmConfidence *= 0.5
+        } else {
+            recentBPMs.removeAll()
+            lastEstimateTimestamp = 0
+            estimatedBPM = 0
+            bpmConfidence = 0
+        }
         signalQuality = 0
         rmssd = 0
         lastPeakCount = 0
@@ -1267,7 +1286,7 @@ final class CameraAnalyzer {
 
     func reset() {
         rearmFrameRateAdaptation()   // full teardown returns the filter to nominal (#652)
-        resetPulseState()
+        resetPulseState(keepEstimate: false)
         brightness = 0.5
         redChannel = 0.5
         isPulseDetecting = false

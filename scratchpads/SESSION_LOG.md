@@ -14912,3 +14912,45 @@ gegen das neue Suffix — grün. Klammer-Bilanzen ausgeglichen, dead-needles sau
 **Ertrag:** Das v422-Log, das der Founder für die Crash-Probe ohnehin schickt, trägt damit
 die Koinzidenz-Daten, die die Trust-Regel-Debatte entscheiden — statt noch einer Runde
 Fenster-Maxima-Deutung.
+
+## 2026-08-25 (cron, 24h-Mandat) — #834: der Saturations-Resettle wirft den Puls nicht mehr weg
+
+**Founder-gemessen (v420-Log, 13:44:05):** conf 0,89 bei stabilen 52–53 bpm → `bright=0.99`
+→ Saturations-Resettle → conf 0,00. Der Flush warf mit dem OPTISCHEN Fenster (zu Recht
+ungültig nach einem Belichtungs-Schritt) auch den PHYSIOLOGISCHEN Zustand weg — das Herz
+ändert sich nicht, weil die Belichtung neu einregelt, und der Finger bleibt auf der Linse.
+
+**Slice:** `resetPulseState`/`resetForRecovery` bekommen ein PFLICHT-Argument `keepEstimate:`
+(#431, kein Default). Der Keep-Pfad (GENAU eine Stelle: der Saturations-Resettle) behält
+`estimatedBPM`/`recentBPMs`/`lastEstimateTimestamp` und HALBIERT die Konfidenz; alles
+Optische (Fenster, Filter, Peaks, acf, Amplitude, Qualität) löscht weiter. Die vier anderen
+Flush-Stellen sagen explizit `false`. Breadcrumb: `… window flushed, estimate kept — #834`.
+⛔ Der Publisher-Kommentar (1383), der „makes the flush preserve the last estimate would
+silently reopen it" warnte, ist MITGEZOGEN: der `bpm > 0`-Gürtel ist an dieser Stelle
+bewusst weg, die Frischlese-Ordnung (manageExposure → bpm → conf → acf) ist jetzt die
+EINZIGE Verteidigung und per Wächter gepinnt.
+
+**dsp-reviewer: „the estimator change is sound"** — alle sechs Audit-Fragen beantwortet
+(Konvergenz nach Keep-Flush ~3–4 s auch bei echt geändertem Puls; Agreement-Term kann eine
+falsche Retention NICHT hochpinnen, ab ±12 bpm trägt cvConf; Gate doppelt zu: acf immer 0
+nach Flush UND halbierte conf ≤ 0,5 < displayThreshold 0,6). Fünf Befunde umgesetzt:
+SourceText.codeOnly statt privatem Stripper (die Equality-Zählungen wären sonst
+Trailing-Comment-anfällig) · false-Zählung als FLOOR statt Equality (#364-Spannung zum
+Nachbar-Wächter aufgelöst) · displayBPM-Hold-Message des Nachbarn ehrlich gemacht (#425) ·
+`#if canImport(AVFoundation)` um die End-to-End-Tests · pulseCorroborated-Nebenwirkung am
+Keep-Site-Kommentar benannt. ⭐ Und ein LIVE-#408: das `prefix(1_200)`-Fenster von Claim 3
+scheiterte am eigenen Commit, als die Review fünf Kommentar-Zeilen einfügte —
+brace-matched Body-Extraktion ersetzt es (die Bundle-Regel „fixed window is unsound by
+construction" einmal mehr am eigenen Leib).
+
+**Wächter:** NEU `TheSaturationResettleKeepsThePulseEstimateTests` (3 END-TO-END auf dem
+echten CameraAnalyzer: Keep behält/halbiert/löscht-Optik · False-Pfad-Vertrag · no-op ohne
+Detection; 2 Scans: genau EINE true-Stelle im Saturations-Branch + Floor 4× false ·
+Frischlese-Ordnung). MITGEZOGEN (#655-Klasse): `EveryDeliberateResettleFlushesTheWindowTests`
+— fünf Nadeln von `resetForRecovery()` auf `resetForRecovery(keepEstimate:`, sonst wäre der
+Wächter auf korrektem Baum rot geworden. Alles in Python gegen beide Bäume getrieben
+(28 Checks + Re-Drive nach Review-Fixes), dead-needles + needle-reachability sauber.
+
+**Ehrlich:** compile-/CI-prüfbar; ob die Kontinuität HÖRBAR ist (Musik folgt dem Körper
+durch einen Resettle hindurch), sagt erst ein Log mit dem neuen Breadcrumb neben einer
+kürzeren Trust-Lücke.
