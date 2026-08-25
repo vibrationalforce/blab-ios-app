@@ -14571,3 +14571,52 @@ feuert + Monitoring läuft = bestätigt; #628/#823-Zeile mit lebender Session-Ra
 **Beobachtet, VERTAGT (ein Punkt pro Zyklus):** rPPG besteht im selben Log nie das
 Trust-Gate (`trust: 0/30 ok` durchgehend, conf-Spitzen 0,8, bpmSpread bis 113, 2/2
 Exposure-Relocks) — eigener Zyklus.
+
+## 2026-08-25 — #824: Bluetooth-Klang — HFP wird Opt-in (Founder: „komischen gesamt Klang vermeiden")
+
+**Founder-Auftrag (mit „Ultracode"):** Bluetooth-Kopfhörer sollen nicht mehr „komisch"
+klingen; professionelle Audio-Interface-Integration. Team-Audit gefahren (3 read-only-Leser
++ 1 adversarial verifizierender Audio-Lead, 4 Agenten, alle Zitate zeilenweise nachgelesen,
+NULL verworfene Befunde).
+
+**Verifiziertes Urteil:** `recordOptions` trug `.allowBluetooth` (HFP) UNBEDINGT
+(`AudioConfiguration.swift:189-190` alt). Sobald irgendein Mikro-Feature die Route
+beansprucht, darf iOS einen Dual-Profil-BT-Kopfhörer aufs Telefon-Codec (8/16 kHz mono)
+ziehen — die MUSIK gleich mit. Verstärker: `MicrophoneManager.requestPermission` hob die
+Session schon bei der ERLAUBNIS besitzerlos an (Zeilen 134/154) — nie wieder freigegeben,
+also potenziell sitzungslang HFP-fähig. (Der Verstärker ist Scheibe 2, eigener Zyklus.)
+
+**Gebaut (Scheibe 1):** HFP ist jetzt OPT-IN.
+- `recordOptions` ist computed: Default `[.allowBluetoothA2DP, .defaultToSpeaker,
+  .mixWithOthers]` — `.allowBluetooth` kommt nur hinter `bluetoothHFPMicEnabled` dazu.
+- Persistierter Key `audio.bluetoothHFPMic` (EIN Literal, EIN Leser in AudioConfiguration,
+  EINE Tür); bewusst NICHT registriert (unregistriertes `bool(forKey:)` = false = der
+  sichere Default — die audioLaneRecording-Lehre in die sichere Richtung).
+- Tür: Toggle „Bluetooth headset mic" im Monitoring-Abschnitt des Input-Sheets
+  (`@AppStorage` = der eine Schreiber), ehrliche Kopie („call quality … music drops to
+  mono"), bei LIVE-Mikro sofortiges Re-Apply via `reapplyRecordRouteForHFPChoice()`
+  (kein Kontakt mit `setInputMonitoring` — #823 bleibt unberührt).
+- Prosa mitgezogen (#456): recordOptions-Doc, routeCodec-Doc (+ die Fremde-App-Hälfte
+  bleibt wahr), Latenz-Doc Punkt 3, zwei Testdatei-Köpfe
+  (`TheBluetoothCodecReachesTheScreenTests` — dort auch die ⛔-Rücknahme von „and it has
+  to" — und `TheMeasuredLatencyReachesTheDiagLogTests` zweimal).
+
+**Trade-off, dem Founder offen benannt:** Unter A2DP-only ist das HEADSET-EIGENE Mikro
+nicht verfügbar — Eingang kommt vom iPhone/Kabel/USB, Ausgang bleibt volle Stereo-Qualität.
+Das ist der Default jeder Instrument-App; wer das Headset-Mikro wirklich braucht, kippt
+den Schalter und akzeptiert Telefonklang wissentlich.
+
+**Wächter:** `Tests/CISmoke/TheRecordRouteDoesNotDefaultToHFPTests.swift` — 2 Methoden:
+Default-Set ohne HFP (A2DP-Substring-Falle behandelt: `.allowBluetoothA2DP` ENTHÄLT
+`.allowBluetooth` — erst strippen, dann prüfen), Gate vorhanden, Key genau 1× definiert,
+Tür + Kopie + Re-Apply vorhanden. Gegen beide Bäume getrieben: Worktree grün, HEAD
+scheitert an jedem Sach-Anspruch.
+
+**Ehrlich:** compile-verifizierbar; das ROUTING-Ergebnis selbst ist eine reine
+Geräte-Tatsache (kein Simulator hat BT-Routing) — NEEDS-FOUNDER-VERIFY am recordOptions-Doc
+mit konkreter Probe ([HFP]-Marker darf nicht mehr erscheinen).
+
+**Nächste Scheiben (aus dem Lead-Plan, je eigener Zyklus):** 2 = besitzerloses
+Grant-Upgrade in MicrophoneManager töten (macht die Degradierung heute DAUERHAFT) ·
+3 = #612-Re-Arm-Gate um channelCount erweitern · 4 = routeCodec-Urteil unbedingt anzeigen ·
+5 = USB-Interface-Mehrkanal (Pro-Interface-Hälfte des Founder-Asks).

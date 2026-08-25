@@ -4,9 +4,13 @@
 // WHY THIS EXISTS. The founder asked (2026-08-20) for "Interface per Kabel und auch per
 // Bluetooth … alle Latenzen und Kombinationen optimiert für Sessions". Two warnings already
 // stood in `AudioInputPickerView` and BOTH are about DELAY ("~150–250 ms"). Neither covers the
-// effect that actually ruins a take: `recordOptions` carries `.allowBluetooth` (HFP) — and it
-// has to, that is how a Bluetooth mic works at all — so once the mic is claimed iOS pulls the
-// WHOLE shared route down to the mono call codec. The music goes with it. A player hears his
+// effect that actually ruins a take: with `.allowBluetooth` (HFP) in the record options iOS
+// can pull the WHOLE shared route down to the mono call codec once the mic is claimed.
+// (⛔ "and it has to, that is how a Bluetooth mic works at all" stood here as the reason it
+// was in the DEFAULT set — #824 rejected exactly that: the headset's own mic is the OPT-IN,
+// the music's quality is the default. The verdict this file pins matters in both worlds:
+// another app or a call can put the shared route on HFP regardless of Echoel's options.)
+// The music goes with it. A player hears his
 // own instrument turn into a telephone while every number on screen still reads healthy,
 // because no LATENCY number can express a BANDWIDTH collapse.
 //

@@ -181,13 +181,61 @@ enum AudioConfiguration {
     }
 
 
+    /// The persisted HFP opt-in (#824). The VALUE is written by the one door
+    /// (`AudioInputPickerView`'s "Bluetooth headset mic" toggle, via
+    /// `@AppStorage` on this key); this side reads it. Read with the implicit
+    /// `false` default on purpose — the key is deliberately NOT registered, and
+    /// an unregistered `bool(forKey:)` already resolves to `false`, which is the
+    /// safe default (the `FeatureFlags.audioLaneRecording` lesson cuts both
+    /// ways: what matters is that reader and door agree on ONE key and ONE
+    /// default, and they do — the guard test pins both). Outside the platform
+    /// guard on purpose: the door compiles wherever SwiftUI does.
+    static let bluetoothHFPMicKey = "audio.bluetoothHFPMic"
+    static var bluetoothHFPMicEnabled: Bool {
+        UserDefaults.standard.bool(forKey: bluetoothHFPMicKey)
+    }
+
     #if !os(macOS)
-    /// Record-mode options. `.allowBluetooth` (HFP) is here — and ONLY here — so a
-    /// Bluetooth mic works while recording; that route is call-quality, which is why
-    /// we never request it for plain `.playback`. `.mixWithOthers` keeps other apps
-    /// audible even while we record.
-    private static let recordOptions: AVAudioSession.CategoryOptions =
-        [.allowBluetooth, .allowBluetoothA2DP, .defaultToSpeaker, .mixWithOthers]
+    /// Record-mode options. Since #824, `.allowBluetooth` (HFP) is OPT-IN, not
+    /// default. With it in the set, iOS may move a dual-profile Bluetooth headset
+    /// onto the HFP call codec (8/16 kHz mono) the moment the mic route is
+    /// claimed — and the MUSIC goes down with it, not just the mic (the founder's
+    /// "komischer Gesamtklang", 2026-08-25; the mechanism is spelled out in
+    /// `routeCodec`'s doc below). The default set keeps `.allowBluetoothA2DP`
+    /// only: output stays full-quality stereo, and the mic comes from the iPhone
+    /// (or wired/USB) — a Bluetooth headset's OWN mic is unavailable under A2DP.
+    /// Whoever genuinely needs the headset mic flips the toggle in
+    /// `AudioInputPickerView` and accepts call quality knowingly.
+    /// `.mixWithOthers` keeps other apps audible even while we record.
+    /// NEEDS-FOUNDER-VERIFY: Bluetooth-Kopfhörer verbinden, spielen, Monitoring
+    /// EINschalten — die Musik muss Stereo/voll bleiben und der Routen-Marker
+    /// darf kein [HFP] mehr zeigen; danach den Schalter „Bluetooth headset mic"
+    /// kippen und hören, dass BEIDES (Musik + Mikro) bewusst auf Telefonqualität
+    /// wechselt. (Kein Simulator hat Bluetooth-Routing — nur am Gerät prüfbar.)
+    private static var recordOptions: AVAudioSession.CategoryOptions {
+        var options: AVAudioSession.CategoryOptions =
+            [.allowBluetoothA2DP, .defaultToSpeaker, .mixWithOthers]
+        if bluetoothHFPMicEnabled { options.insert(.allowBluetooth) }
+        return options
+    }
+
+    /// Re-apply the record category after the HFP toggle flips WHILE a mic
+    /// feature is live, so the choice takes effect now and not at the next
+    /// claim. No-op when nothing holds the record route. `setCategory` posts a
+    /// configuration change; monitoring self-heals through the existing
+    /// watchdog — nothing here touches `setInputMonitoring` (#823 stays intact).
+    static func reapplyRecordRouteForHFPChoice() {
+        guard recordingRouteNeeded else { return }
+        do {
+            try AVAudioSession.sharedInstance()
+                .setCategory(.playAndRecord, mode: .default, options: recordOptions)
+            log.audio("Record route re-applied — Bluetooth headset mic "
+                      + (bluetoothHFPMicEnabled ? "ON (HFP possible)" : "OFF (A2DP kept)"))
+        } catch {
+            log.audio("Record route re-apply failed after HFP toggle (\(error))",
+                      level: .warning)
+        }
+    }
     #endif
 
     // MARK: - Who is holding the record route (#299)
@@ -742,10 +790,13 @@ enum AudioConfiguration {
     /// ⭐ WHY THIS EXISTS. The founder asked (2026-08-20) for "Interface per Kabel und auch per
     /// Bluetooth … alle Latenzen und Kombinationen optimiert für Sessions". Two warnings in
     /// `AudioInputPickerView` already cover the Bluetooth DELAY (~150–250 ms). Neither covers
-    /// the effect that actually ruins a take: once the mic is claimed, `recordOptions` carries
-    /// `.allowBluetooth` (HFP), and iOS CAN then pull the WHOLE shared route — the music, not
+    /// the effect that actually ruins a take: once the mic is claimed AND the HFP opt-in is on
+    /// (#824 — `recordOptions` carries `.allowBluetooth` only behind `bluetoothHFPMicEnabled`;
+    /// the default set is A2DP-only), iOS CAN then pull the WHOLE shared route — the music, not
     /// just the mic — down to the mono call codec. A player hears his own instrument turn into
     /// a telephone and has no number on screen that says why, because no LATENCY number can.
+    /// This verdict still matters with the opt-in OFF: ANOTHER app or a phone call can put the
+    /// shared route on HFP while Echoel plays, and the route inspection below sees that too.
     ///
     /// ⛔ The first version of this block wrote "and iOS THEN pulls", i.e. as a consequence of
     /// the category alone. That is the strongest version of a claim the code below deliberately
@@ -1004,8 +1055,9 @@ enum AudioConfiguration {
     ///    on someone verifying the value on a device.
     /// 3. **The session CATEGORY was missing, and it decides the number.** `start` is
     ///    measured under `.playback` + `.allowBluetoothA2DP`; `monitor on` under
-    ///    `.playAndRecord` + `recordOptions`, which includes `.allowBluetooth` — the HFP
-    ///    mono call codec — and `.defaultToSpeaker`. Two lines with the same stem, adjacent
+    ///    `.playAndRecord` + `recordOptions` — which since #824 includes `.allowBluetooth`
+    ///    (the HFP mono call codec) only behind the opt-in, plus `.defaultToSpeaker`.
+    ///    Two lines with the same stem, adjacent
     ///    in one file, described incomparable regimes with no field to tell them apart, in a
     ///    line whose stated purpose is comparability. `cat=` closes it. (It also corrects the
     ///    #653 commit body: "~150–250 ms on A2DP" names a regime that CANNOT exist while
