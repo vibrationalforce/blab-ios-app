@@ -14105,3 +14105,45 @@ Nebenwirkung des Verdrahtens dazu.
 **NEEDS-FOUNDER-VERIFY:** `fullScaleRisePerSecond = 0,05/s` ist eine Schätzung und das Einzige
 hier, was kein Test entscheiden kann — Sitzung fahren, Kohärenz steigen und fallen lassen, sagen
 ob die Klangfarbenverschiebung hörbar-aber-nicht-störend ist.
+
+---
+
+## #814 (2026-08-25) — meine eigene Begründung aus #813 war die schwächere Hälfte
+
+**Gate von #813 (`889162d`):** `Xcode Compile Check` **success** — `Core/CoherenceTrend.swift` und
+beide Verdrahtungsstellen kompilieren. `Build for Testing: success`, 170 Tests, 0 Fehler, 0 Skips.
+Die vier betroffenen Wächter liegen außerhalb des Fensters (#445: Abwesenheit beweist nichts).
+**Fünfter Zyklus in Folge mit derselben Grenze.**
+
+**Deshalb zuerst die Frage gestellt, statt sie wieder nur zu berichten: gibt es einen nicht-gated
+Weg an den vollständigen Bericht?** Gemessen: **nein.** Das Artefakt existiert
+(`test-results-ios-iPhone 17`, 4,4 MB, ~90 Tage Aufbewahrung), ist aber aus drei unabhängigen
+Gründen unerreichbar — kein Download-Werkzeug im MCP-Satz, `actions:read`-Auth auch bei einem
+öffentlichen Repo (und kein Token im Container), und `.xcresult` bräuchte macOS-`xcresulttool`.
+Als DEAD-END im Ledger, damit kein künftiger Zyklus es erneut versucht.
+
+**Der eigentliche Befund: #813s Begründung, warum die Panel-Kopie bei VIER Kanälen bleibt.**
+Ich schrieb, das sei „eine KOPIE-Entscheidung … sie gehört dem, der die Kopie entscheidet, nicht
+dem, der den Draht gelötet hat". Gemessen ist das die **schwächere Hälfte der Wahrheit** und lädt
+die nächste Sitzung ein, einfach zu entscheiden und einen fünften Kanal zu ergänzen.
+
+**Sie kann es nicht.** Der Satz wird aus `AlwaysOnBioChannel.allCases` gebaut (#416), jeder Case
+rendert in `AlwaysOnBioRow` eine LIVE-ABLESUNG, und der Trend hat keine: `CoherenceTrend` ist ein
+`private var` **in jeder Stimme** — bewusst kein Feld auf `BioSampleFrame`, damit die sechs
+Frame-Konstruktionsstellen, der OSC-Ausgang und der Draht-Vertrag unangetastet blieben. **Keine
+Fläche kann ihn lesen.** Der Grund ist STRUKTURELL und der Preis, den #813 wissentlich bezahlt hat.
+
+Was es kosten würde, steht jetzt daneben: entweder ein Trend-Feld auf dem Frame (öffnet alle sechs
+Stellen und den Ausgang — und dann muss der Draht sagen, ob es eine Messung oder eine Ableitung
+ist) oder ein fünfter Case mit einer Zugriffsform, die keiner der anderen vier hat. **Beides sind
+echte Scheiben. Keine ist eine Kopie-Entscheidung.**
+
+**Zweite Sackgasse, gemessen:** `EchoelBioEngine.smoothBreathDepth` sieht aus wie die fehlende
+Atem-TIEFE für den zweiten toten Kanal und ist ein **Platzhalter** — `grep "smoothBreathDepth *="`
+findet nur den Initialwert `0.5`, der einzige Leser `audioParameters()` hat **null Aufrufer**.
+**Zwei Deklarationen** (die zwei `#if`-Zweige), **beide** markiert — eine allein zu markieren wäre
+exakt der #812-Fehler gewesen.
+
+**PLAYBOOK aus beiden:** eine Kandidaten-Quelle wird mit `grep "<name> *="` auf ihre SCHREIBER
+geprüft, nicht auf ihre Existenz. Ein `public var` mit plausiblem Namen und neutralem Initialwert
+ist die häufigste Form von „sieht verdrahtet aus".

@@ -1171,12 +1171,20 @@ private struct BioModLiveView: View {
     /// DEPTH, LF/HF and coherence TREND move nothing today"; the trend now moves the spectral
     /// morph.
     ///
-    /// ⭐ SO WHY STILL FOUR? Because this sentence is a COPY decision, not an inventory. Naming
-    /// the trend here is now ALLOWED — it would be true — and it is deliberately not done in the
-    /// wiring slice: adding a fifth channel to a live panel sentence is a change a reader feels,
-    /// and it belongs to whoever decides the copy, not to whoever soldered the wire. The five
-    /// derived from the frame are `coherence`, `hrv`, `heartRate`, `breathPhase` and the trend;
-    /// the four NAMED here are the first four.
+    /// ⛔ SO WHY STILL FOUR — AND #813's OWN ANSWER WAS THE WEAKER HALF OF THE TRUTH (#814). It
+    /// said "this sentence is a COPY decision … it belongs to whoever decides the copy, not to
+    /// whoever soldered the wire", which invites the next session to simply decide and add a
+    /// fifth. Measured: it cannot. This sentence is built from `AlwaysOnBioChannel.allCases`
+    /// (#416, one definition for two surfaces), every case renders a LIVE READING in
+    /// `AlwaysOnBioRow`, and the trend has no reading to render — `CoherenceTrend` is a
+    /// `private var` inside each voice, deliberately NOT a field on `BioSampleFrame`, so the six
+    /// frame construction sites, the OSC egress and the wire contract stayed untouched. **No
+    /// surface can read it.** The reason is STRUCTURAL, and it is the price #813 knowingly paid.
+    ///
+    /// ⚠️ WHAT IT WOULD TAKE, so the next session does not rediscover it: either a trend field on
+    /// the frame (which re-opens all six sites and the egress — and then the wire has to say
+    /// whether it is a measurement or a derivation) or a fifth channel case with an accessor
+    /// shape none of the other four has. Both are real slices. Neither is a copy decision.
     ///
     /// This is ONE string, not one per branch, so the two cannot drift (#416); the guard
     /// `TheAlwaysOnBioPathIsNamedTests` binds it to those construction sites, so wiring a real

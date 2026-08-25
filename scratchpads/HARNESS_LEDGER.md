@@ -2337,3 +2337,26 @@ zusammengefügt, EIN Helfer-Sprung aufgelöst. Heute null Treffer über 1015 Nad
 · Eine negative Nadel über Prosa, die ihre eigene Rücknahme ZITIERT (#491) — der Kontroll-Baum
   kommt rot zurück. Das passiert auch dem, der #491 in derselben Stunde gelesen hat. **Nur der
   Kontroll-Lauf zeigt es; Zurücklesen nicht.**
+
+## DEAD-END × 2 (2026-08-25, #814): das Ergebnis-Artefakt ist unerreichbar, und `smoothBreathDepth` ist kein Messwert
+
+**DEAD-END 1 — den `.xcresult`-Bericht holen, um das #807-Fenster zu umgehen.** Der vollständige
+Testbericht EXISTIERT (`test-results-ios-iPhone 17`, ~4,4 MB, Aufbewahrung ~90 Tage;
+`mcp__github__actions_list method=list_workflow_run_artifacts` zeigt ihn). Er ist von einer
+Sitzung aus trotzdem **nicht lesbar**, aus drei unabhängigen Gründen: (a) der MCP-Satz hat kein
+Download-Werkzeug, nur `list` · (b) `archive_download_url` verlangt `actions:read`-Auth, auch bei
+einem ÖFFENTLICHEN Repo, und in diesem Container gibt es kein Token (`.claude/settings.local.json`
+existiert nicht) · (c) selbst heruntergeladen bräuchte ein `.xcresult` `xcresulttool`, also macOS.
+**Nicht noch einmal versuchen.** Die einzige echte Reparatur liegt in `ci.yml` (Tail erhöhen ODER
+einen Schritt, der eine kompakte Pass/Fail-Liste aus dem Bundle druckt) und ist founder-gated.
+
+**DEAD-END 2 — `EchoelBioEngine.smoothBreathDepth` als Quelle für den toten `breathDepth`-Kanal.**
+Es sieht aus wie die fehlende Atem-TIEFE und ist ein Platzhalter: `git grep "smoothBreathDepth *="`
+findet nur den Initialwert `0.5`, und der einzige Leser `audioParameters()` hat **null Aufrufer**.
+Zwei Deklarationen (die zwei `#if`-Zweige der Datei), beide jetzt am Ort markiert. Wer den
+`breathDepth`-Kanal beleben will, fängt bei der **Respirations-Analyse** an, nicht hier — das ist
+eine echte DSP-Scheibe und grenzt an die geschützte Triade.
+
+**PLAYBOOK, aus beiden:** eine Kandidaten-Quelle wird mit `grep "<name> *="` auf ihre SCHREIBER
+geprüft, nicht auf ihre Existenz. Ein `public var` mit plausiblem Namen und einem neutralen
+Initialwert ist die häufigste Form von „sieht verdrahtet aus".

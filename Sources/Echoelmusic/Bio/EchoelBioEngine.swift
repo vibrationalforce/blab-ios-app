@@ -120,6 +120,12 @@ public final class EchoelBioEngine {
     public var smoothHRV: Double = 0.5
     public var smoothCoherence: Double = 0.5
     public var smoothBreathPhase: Double = 0.5
+    /// ⛔ A PLACEHOLDER, NOT A MEASUREMENT (#814, measured). `git grep "smoothBreathDepth *="`
+    /// finds only this initialiser: nothing in `Sources/` ever writes it, and its only reader,
+    /// `audioParameters()`, has zero callers. It looks like the breath-DEPTH source the dead
+    /// `breathDepth` bio channel is waiting for and it is not one — a session chasing that
+    /// channel starts at the respiration analysis, not here. Left in place rather than deleted
+    /// because the shape is the intended API for a real depth once one is measured.
     public var smoothBreathDepth: Double = 0.5
 
     // MARK: - HealthKit
@@ -547,6 +553,11 @@ public final class EchoelBioEngine {
     public var smoothHRV: Double = 0.5
     public var smoothHeartRate: Double = 72.0
     public var smoothBreathPhase: Double = 0.5
+    /// ⛔ THE TWIN OF THE PLACEHOLDER IN THE `#if canImport(HealthKit)` BRANCH ABOVE. Same
+    /// measurement, same verdict: nothing in `Sources/` writes it, and its only reader
+    /// `audioParameters()` has no callers. Marked HERE TOO rather than only once — #812: a
+    /// note survives just as badly in the other declaration of the same thing, and a reader who
+    /// lands on this branch has no reason to scroll to the other one.
     public var smoothBreathDepth: Double = 0.5
     private init() {}
 

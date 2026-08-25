@@ -3152,9 +3152,12 @@ struct EchoelStudioView: View {
             // pinned channels a real producer reddens THERE instead of quietly leaving this
             // sentence one channel short. ⭐ THAT IS NOT THEORY: #813 gave `coherenceTrend` a
             // producer, the guard went red, and the decision it forced was recorded rather than
-            // patched away — the trend MAY now be named here and deliberately is not, because a
-            // fifth channel in a live panel sentence is a copy decision. Still pinned and still
-            // unnameable: `breathDepth` and `lfHf`.
+            // patched away. ⛔ It then said the trend "MAY now be named here and deliberately is
+            // not, because a fifth channel is a copy decision" — the weaker half (#814). It
+            // CANNOT be named: this sentence comes from `AlwaysOnBioChannel.allCases`, every
+            // case renders a live reading, and the trend lives in a `private var` inside each
+            // voice by design. No surface can read it. Still pinned and still unnameable for the
+            // ORIGINAL reason (no producer): `breathDepth` and `lfHf`.
             //
             // ⚠️ THIS LINE IS STATIC TEXT AND OBSERVES NOTHING — that part is unchanged and is
             // the freeze law, not laziness: `bioPanel` is reached through `dropdownContent`,
