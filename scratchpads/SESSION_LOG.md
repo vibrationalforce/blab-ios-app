@@ -14528,3 +14528,46 @@ Founder-Stufe nie abgedeckt, die dieser Einstieg transportieren soll.
 **Nächste Slice (eigener Zyklus, mit audio-thread-review):** V1a — leerer Pass-Through-
 `AUAudioUnit` auf der Monitor-Schiene, erst danach V1b (Kette auf dem Insert, mic-eigenes
 Preset, NIE das Synth-Preset — zwei Besitzer wären die #416-Form).
+
+## 2026-08-25 — #823: Live-Input-Reparatur — stop() statt pause() vor dem Session-Claim
+
+**Founder-Auftrag (wörtlich): „1. Live Input funktioniert noch gar nicht, vermeide das."**
+Beweis im mitgeschickten Gerätelog v10.79.420 (2538): VIERMAL identisch
+`monitor: input format unusable after the session claim (sampleRate 0.0, channels 2,
+engine stopped) — #628` über ~10 s — ein DAUERZUSTAND, kein Race.
+
+**Diagnose (dritte datierte Hypothese auf dieser Methode, nach #625/#628):** `pause()`
+hält die I/O-Unit mit ihrer BAU-Konfiguration am Leben — und ein aus dem Playback-Graph
+gestarteter Engine hat auf dieser Unit keinen Input-Scope. Ein Kategorie-Wechsel unter
+einer pausierten Unit baut sie nicht neu; `inputFormat(forBus: 0)` liefert für immer den
+0-Hz/2-ch-Platzhalter. `stop()` gibt die vorbereitete Unit frei, das spätere `start()`
+baut sie gegen die record-fähige Session neu — Input-Scope inklusive.
+
+**Drei Patches in `AudioEngine.swift` `setInputMonitoring` (58+/9−):**
+1. `pause()` → `stop()` vor dem Claim, mit #823-Block (Hypothese benannt, Diskriminator
+   beschrieben). Symmetrie unverändert: wer stoppte, startet; jeder Fehler-Exit läuft
+   weiter durch `restoreEngineIfStranded`.
+2. Session-Fallback: liefert der Node nach dem Claim weiter den Platzhalter, wird das
+   Connect-Format aus den SESSION-Werten gebaut (nie erfunden — ein Format gegen die
+   Hardware wirft eine ObjC-Exception, die kein Swift-catch sieht) und loggt
+   `input format from session fallback (…) — #823`.
+3. Bail-Zeile trägt jetzt die Session-Fakten (`session X Hz/Y in, inputAvailable Z`) und
+   den Tag `#628/#823` — „gar kein Input" und „Node verschweigt ihn" sind damit im
+   nächsten Log ohne zweite Probe unterscheidbar.
+
+**Prosa im selben Commit mitgezogen (#456):** #628-Kopfblock (⛔-Supersession), die
+„PAUSE happens up there"-Zeile, der #631-Löschvermerk, der #611-Satz im Rollback-Pfad.
+
+**Wächter:** `Tests/CISmoke/TheMonitorStopsInsteadOfPausingTests.swift` — 3 Ansprüche
+(stop-nicht-pause vor dem Claim mit Kommentar-Strip #491 + Anti-Vakuum #808 · Fallback
+existiert und loggt · Bail-Zeile trägt Session-Fakten), in Python gegen BEIDE Bäume
+getrieben: Worktree alles grün, HEAD scheitert an jedem Sach-Anspruch.
+
+**Ehrlich:** compile-verifizierbar, NICHT geräteverifiziert (Linux-Container, kein
+Simulator — „Ultratestsimulation" kann hier nicht laufen). Die Hypothese ist so
+gelabelt, dass der NÄCHSTE Founder-Log sie in eine Richtung entscheidet: Fallback-Zeile
+feuert + Monitoring läuft = bestätigt; #628/#823-Zeile mit lebender Session-Rate = falsch.
+
+**Beobachtet, VERTAGT (ein Punkt pro Zyklus):** rPPG besteht im selben Log nie das
+Trust-Gate (`trust: 0/30 ok` durchgehend, conf-Spitzen 0,8, bpmSpread bis 113, 2/2
+Exposure-Relocks) — eigener Zyklus.

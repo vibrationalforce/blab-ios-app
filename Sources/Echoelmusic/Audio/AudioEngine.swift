@@ -1842,7 +1842,9 @@ public final class AudioEngine {
             let wasRunning = masterEngine.isRunning
             // #628 (founder screenshot 2026-08-19: "Monitoring could not start — try
             // again", the NON-permission copy) — PAUSE BEFORE THE CLAIM, and read the input
-            // format with the engine paused.
+            // format with the engine paused. (⛔ the PAUSE half is superseded by #823
+            // below: same position, but it is now a STOP — the pause kept the
+            // input-scope-less I/O unit alive. The BEFORE-THE-CLAIM half still holds.)
             //
             // The screenshot is more precise than it looks. `AudioInputPickerView` branches
             // its refusal copy on `micPermissionDenied` (#613), and the founder got the
@@ -1869,7 +1871,24 @@ public final class AudioEngine {
             // `wasRunning`" — it is `if wasRunning { … start() }`, i.e. conditional ON it.
             // The property that actually holds is the SYMMETRY: whoever paused restarts.)
             // The distinct log lines below are what will actually settle it on the device.
-            if wasRunning { masterEngine.pause() }
+            // #823 (founder device log v10.79.420: FOUR identical "input format
+            // unusable" lines over ~10 s — a persistent state, not a race): STOP, do
+            // not pause. `pause()` keeps the running I/O unit alive with the
+            // configuration it was BUILT with — and an engine started from the
+            // playback-only launch graph has no input scope on that unit. A category
+            // change under a paused unit does not rebuild it, so
+            // `inputFormat(forBus: 0)` returns the 0 Hz/2 ch placeholder on every
+            // retry — exactly the four logged lines. `stop()` releases the prepared
+            // I/O unit so the `start()` below rebuilds it against the NEW
+            // record-capable session, input scope included. The #628 symmetry is
+            // unchanged: whoever stopped restarts (`if wasRunning { … start() }`),
+            // and every failure exit still goes through `restoreEngineIfStranded`.
+            // ⚠️ HYPOTHESIS #3 on this method (#625 and #628 came first) — labeled so
+            // the NEXT device log discriminates: if the session-fallback line below
+            // fires and monitoring runs, the mechanism is confirmed; if the
+            // #628/#823 line still fires WITH a live session rate in it, the
+            // placeholder survives even a rebuild and this fix is wrong.
+            if wasRunning { masterEngine.stop() }
             do { try AudioConfiguration.claimRecordRoute(.inputMonitoring) }
             catch {
                 // #628: the claim used to only LOG and fall through — straight into a format
@@ -1890,7 +1909,7 @@ public final class AudioEngine {
             // been running. The line asserted the exact opposite of what it now measured.
             //
             // ⭐ DELETED RATHER THAN REPAIRED, because there is nothing left for it to
-            // measure: once WE pause the engine, `isRunning == false` no longer distinguishes
+            // measure: once WE pause (a stop since #823) the engine, `isRunning == false` no longer distinguishes
             // "our pause" from "the claim stopped it". Sampling before the pause would say
             // nothing about the claim. The hypothesis #625 wanted to test is no longer
             // testable at this point in the method, and saying so is worth more than a line
@@ -1902,17 +1921,46 @@ public final class AudioEngine {
             // have counted it as evidence FOR the mechanism it was built to falsify.
             // What survives as evidence is `restoreEngineIfStranded`'s own line at each exit.
             let input = masterEngine.inputNode
-            let inFmt = input.inputFormat(forBus: 0)
+            var inFmt = input.inputFormat(forBus: 0)
+            if inFmt.sampleRate <= 0 || inFmt.channelCount == 0 {
+                // #823: the node can still hand back its placeholder right after the
+                // claim (the I/O unit rebuilds lazily on `start()`). The SESSION knows
+                // the real hardware format by now — build the connect format from ITS
+                // values, never from an invented constant: a connect format that
+                // disagrees with hardware raises an ObjC exception no Swift `catch`
+                // sees. Guarded on the session's own numbers, so this can only
+                // substitute a format the hardware itself just reported.
+                let session = AVAudioSession.sharedInstance()
+                let sessionRate = session.sampleRate
+                let sessionChannels = AVAudioChannelCount(min(max(session.inputNumberOfChannels, 1), 2))
+                if sessionRate > 0, session.isInputAvailable,
+                   let fallback = AVAudioFormat(standardFormatWithSampleRate: sessionRate,
+                                                channels: sessionChannels) {
+                    logMonitorOutcome("""
+                        input format from session fallback \
+                        (node \(inFmt.sampleRate) Hz/\(inFmt.channelCount) ch, \
+                        session \(sessionRate) Hz/\(session.inputNumberOfChannels) ch) — #823
+                        """, level: .info)
+                    inFmt = fallback
+                }
+            }
             guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else {
                 // #628: the message no longer guesses "mic permission?". By the time this
                 // runs the permission is granted (`engageInputMonitoring` is the only
                 // production caller with `true` and it returns early on denial), so that
                 // parenthetical sent every reader — me included — down the wrong path. Say
                 // what was actually measured instead.
+                // #823: carry the SESSION's view of the hardware in the same line, so
+                // the next device log distinguishes "no input at all" (session rate 0
+                // or input unavailable) from "input exists but the node won't say so"
+                // (live session rate beside a 0 Hz node) without a second probe.
+                let session = AVAudioSession.sharedInstance()
                 logMonitorOutcome("""
                     input format unusable after the session claim \
                     (sampleRate \(inFmt.sampleRate), channels \(inFmt.channelCount), \
-                    engine \(masterEngine.isRunning ? "running" : "stopped")) — #628
+                    engine \(masterEngine.isRunning ? "running" : "stopped"), \
+                    session \(session.sampleRate) Hz/\(session.inputNumberOfChannels) in, \
+                    inputAvailable \(session.isInputAvailable)) — #628/#823
                     """)
                 // The claim is already registered — hand it back on the way out, or a denied
                 // mic permission leaves the route raised for the rest of the session. This is
@@ -1928,8 +1976,9 @@ public final class AudioEngine {
                 return false
             }
             // `wasRunning` is captured ABOVE, before the session claim (#625), and the
-            // PAUSE now happens up there too (#628) — do not move either back down here;
-            // the read being late was #625's bug and the pause being late is #628's.
+            // engine is STOPPED up there too (#628 paused it there; #823 turned the
+            // pause into a stop) — do not move either back down here; the read being
+            // late was #625's bug and the pause being late is #628's.
             if !monitorAttached { masterEngine.attach(monitorMixer); monitorAttached = true }
             // #595: the notch band is configured ONCE at attach; only frequency and
             // gain move at runtime (gain slewed by the guard tick, never stepped).
@@ -1971,8 +2020,8 @@ public final class AudioEngine {
                     if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
                     masterEngine.disconnectNodeOutput(monitorMixer)
                     try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)   // #299
-                    // #611: the pause above was OURS. Returning false with the engine
-                    // still paused stranded the WHOLE app silent (music included) behind
+                    // #611: the pause (a stop since #823) above was OURS. Returning
+                    // false with the engine still down stranded the WHOLE app silent (music included) behind
                     // a stale `isRunning`, while the only visible line blamed microphone
                     // permission. The monitor chain is disconnected again, so this start
                     // restores the exact pre-toggle graph; if even that fails, the
