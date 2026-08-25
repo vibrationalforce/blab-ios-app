@@ -1,68 +1,86 @@
-# Founder Device Session — EINE Sitzung, alles abhaken (2026-07-16)
+# Founder Device Session — was NUR am Gerät entschieden werden kann
 
-**Warum dieses Dokument:** Der projektweite Audit (2026-07-16, wf_a57ff877-49d) hat den
-einen echten strategischen Engpass benannt: **352 geräte-unverifizierte Commits unter dem
-TestFlight-Freeze, zwei DEFAULT-ON-Flags auf dem Kern-Klangpfad.** Der Founder ist der
-einzige Geräte-Prüfer (single point of failure). Statt pro Punkt zu blockieren, bündeln wir
-ALLE geräte-/urteils-gebundenen Punkte in EINE Sitzung am Freeze-Lift.
+**Stand 2026-08-25 (#816).** Diese Datei ist die **Urteils-Hälfte** der Geräte-Sitzung.
+Die code-verankerten Bitten stehen NICHT hier, sondern im Werkzeug:
 
-> **Regel:** Solange dieser Freeze läuft, baue ich autonom weiter (flag-OFF, reversibel).
-> NICHTS hiervon wird geflippt/eingereicht, bis du es an EINEM Gerät geprüft hast.
-> Rollback für jedes Flag: `FeatureFlags.set(.<flag>, false)`.
+```
+python3 scripts/founder-verify.py
+```
+
+Es sammelt jede `NEEDS-FOUNDER-VERIFY`-Zeile aus `Sources/`, `Tests/` und `CLAUDE.md` und
+gruppiert sie nach Bereich. **`scratchpads/` durchsucht es ABSICHTLICH nicht** (sein eigener
+Kopf sagt: „scratchpads sind Sitzungsprosa, keine Bitten"). Genau daran ist diese Datei
+kaputtgegangen: sie war eine ZWEITE Liste, die kein Werkzeug sah und kein Wächter prüfte —
+und deshalb konnte sie zwei Monate lang um Prüfungen bitten, die niemand mehr ausführen kann.
+Der ⛔-Abschnitt unten führt jede einzelne mit Messung auf.
+
+**Was hier steht:** nur Punkte, die kein Marker tragen kann, weil sie an keiner Codezeile
+hängen — Screenshots, Ein-Feld-Entscheide, Klang- und Gefühls-Urteile, offene Fragen an Dich.
+
+**Was in DIESEM Build zu drücken ist,** steht in der Build-Notiz `.deploy/release`.
+Diese Datei wiederholt sie nicht (#416: eine Entscheidung, ein Zuhause).
 
 ---
 
-## A · Kern-Klangpfad verifizieren (die zwei DEFAULT-ON-Flags)
+## 1 · Der eine Handgriff — er blockiert die ganze Vokal-Kette
 
-- [ ] **multiRoll** — zwei dichte MIDI-Spuren gleichzeitig hörbar? Jede mit eigenem Timbre?
-      CPU < 30 %, Speicher im Rahmen (Xcode-Gauge beim Spielen)?
-- [ ] **laneAUInstruments** — ein Drittanbieter-AUv3-Instrument einer Spur zugewiesen → spielt
-      es? Kein Stuck-Note beim Mid-Take-Wechsel?
-- [ ] Menü/Picker reagiert flüssig während Biofeedback läuft (kein 10-Hz-Freeze)?
-- [ ] Launch bleibt still bis zum ersten Arm (keine Bio-Stimme beim Start)?
-- **Wenn ein Flag fehlschlägt:** `FeatureFlags.set(.<flag>, false)` = Ein-Zeilen-Rollback,
-      dann melde mir den Symptom-Fall (device-log-triage / watch-clip).
+Steht wörtlich in `.deploy/release` (heute v10.79.418) und wird hier nur VERORTET, nicht
+wiederholt: Mix-Panel → „Voice - your microphone" → „Choose input…" → **Live monitoring**.
 
-## B · S2-W2 „Spur = Instrument" — Slice-7-Geräte-Gate (Flag `voiceKindRouting`, aktuell OFF)
+**Warum das ein Blocker ist und keine Fleißaufgabe:** `decisions.csv:398` staffelt die
+Vokal-Kette als V0 → V1a → V1b. V0 IST dieser Handgriff. Solange nicht feststeht, ob der
+Monitorpfad am Gerät überhaupt anläuft, würde jede weitere Stufe (Harmonizer und Granular
+auf die STIMME statt auf die Musik) auf einen unbewiesenen Pfad gebaut.
 
-Erst NACH bestandenem Gate flippe ich Slice 8 (den fxBus-Pin — irreversibel-ish, macht
-`TrackInstrument.fxBus` zur Engine-Zusage). Prüfen mit Flag testweise ON:
+---
 
-- [ ] **Drums-Spur trommelt** (Kit statt Poly) — Groove OHNE Becken testen (das 4-Pad-Kit
-      voiced GM-Becken 49/51/55/57/59 aktuell als gestimmte Toms; Becken-Pad ist ein
-      späterer Ausbau, kein Blocker).
-- [ ] **Bass-Spur wummert** fühlbaren Sub (Oktav-Fold-Band) — und **bei A≠440 in Tune**
-      (der Kammerton-Fan aus Slice 5 muss greifen; teste einmal mit A=432).
-- [ ] Poly-Spuren unverändert; kein Menü-Freeze; CPU < 30 % bei 4-Spur-Doc.
-- [ ] Kein hängender Ton beim Mid-Take-Instrumentwechsel.
-- [ ] **Live-Same-Region-Instrumentwechsel** (S2-W2-6 Code-Review-LOW): ändere die
-      builtinInstrument der PRIMARY-Lane MITTEN im Take ohne Region-Grenze zu kreuzen —
-      der Roll bindet die Kind-Stimme erst an der nächsten Region-Grenze / beim
-      Transport-Restart neu (refreshStructure feuert rollKindSink nur bei
-      oldActive≠newActive). Falls das am Gerät stört, ist der Fix ein gezieltes
-      rollKindSink-Re-Fire bei builtinInstrument-Change (kein Blocker fürs Gate).
-- **Design-Bestätigung nötig:** der `.drums`-Bus-Effekt ist EIN geteilter Charakter über
-      BeatPlayer UND alle Lane-Kits (kein Per-Lane-Kit-FX in v1). Ist das gewollt? (Per-Lane-
-      Kit-FX wäre ein separater, aufgeschobener Workstream.)
+## 2 · Kern-Klangpfad — die Punkte, die weiterhin ausführbar sind
 
-## C · App-Store-Wahrheit verifizieren (2 Beschreibungs-Zeilen)
+⚠️ **Diese Liste stand schon in der Fassung von 2026-07-16 und wäre bei der #816-Aufräumung
+beinahe mit-gestrichen worden.** Der erste Entwurf schob sie „in die `NEEDS-FOUNDER-VERIFY`-
+Marker" — ohne sie dorthin zu schreiben. Gemessen: das Werkzeug deckt keinen dieser Punkte ab.
+**Eine Streichung mit dem Zusatz „gehört woanders hin" ist erst dann eine, wenn der Umzug
+stattgefunden hat.** Bis Marker existieren, ist das hier ihr Zuhause.
 
-- [ ] **BLE-Gurt end-to-end** (Polar H10, jetzt bestellt): Gurt anlegen → Puls-Pille zeigt den
-      Gurt-Namen, HR/HRV kommt an, überlebt Foreground. Die Listing-Zeile nennt „Polar,
-      Wahoo, Garmin".
-- [ ] **AUv3 im Fremd-Host** (AUM / GarageBand): Echoelmusic als Plugin geladen, spielt. Zeile
-      nennt „AUv3 inside Logic, GarageBand or AUM".
-- **Wenn eins fehlschlägt:** ich tausche die exakte Zeile per Ein-Commit gegen eine
-      abgeschwächte Fassung VOR dem Submit (Fallback-Zeilen schreibe ich vor).
+- [ ] **multiRoll** (Flag registriert, also AN): zwei dichte MIDI-Spuren gleichzeitig hörbar?
+      Jede mit eigenem Timbre? CPU < 30 %, Speicher im Rahmen (Xcode-Gauge beim Spielen)?
+- [ ] **voiceKindRouting** — **Bass-Spur wummert** fühlbaren Sub, und **bei A≠440 in Tune**
+      (einmal mit A = 432 gegenprüfen). Poly-Spuren unverändert.
+- [ ] **Kein hängender Ton** beim Instrumentwechsel mitten im Take.
+- [ ] **Live-Same-Region-Wechsel:** Instrument der Primary-Spur MITTEN im Take ändern, ohne eine
+      Regionsgrenze zu kreuzen — bindet der Roll die Stimme erst an der nächsten Grenze neu?
+      Falls das stört, ist der Fix ein gezieltes Re-Fire, kein Umbau.
+- [ ] **Launch bleibt still** bis zum ersten Arm (keine Bio-Stimme beim Start).
+- **Rollback für jedes Flag:** `FeatureFlags.set(.<flag>, false)` — eine Zeile.
+- ⛔ **Der Punkt „Drums-Spur trommelt" ist hier ersatzlos weg**, siehe ⛔-Tabelle: es gibt keine
+      Schlagzeug-Stimme mehr.
 
-## D · Screenshots (nur du, am echten Gerät)
+---
 
-- [ ] 6.9" Set (1320×2868), 8 Shots laut `docs/dev/APP_STORE_LISTING_v1.md` — die ersten 3:
+## 3 · Die zwei Ship-Gate-Checks, die nur ein Mensch schließen kann
+
+Von den fünf Checks des Gates „Instrument-Complete v1" (CLAUDE.md) sind **Kontrolle** und
+**Modi** code-belegt und zu. Offen sind genau die zwei sensorischen:
+
+- [ ] **Klang** — klingen die kuratierten Genres professionell? Bleibt die Identität eines
+      Genres über eine Session erhalten (kein Zusammenlaufen)? Die strukturelle Hälfte ist
+      im Repo gepinnt (`GenreFamilyDistinctnessTests`) — dass es GUT klingt, beweist kein Test.
+- [ ] **Stabilität** — sauberer Start, kein Schwarzbild, kein Menü-Freeze während Biofeedback.
+- [ ] (halb) **Ausgabe** — die Code-Hälfte ist seit #748 zu; offen bleibt das Urteil, ob das
+      Visual auf dem Gerät wirklich **kontemplativ** wirkt.
+
+---
+
+## 4 · Screenshots — nur Du, am echten Gerät
+
+- [ ] 6.9" Set (1320×2868), 8 Shots laut `docs/dev/APP_STORE_LISTING_v1.md` — die ersten drei:
       (1) Instrument spielt + Bio-Strip, (2) Immersive Visual, (3) „Generate from Body".
       Captions sind fertig getextet (keyword-tragend) — verbatim übernehmen.
 - [ ] 6.5" Set falls bequem.
 
-## E · Ein-Feld-App-Store-Entscheide (kurz bestätigen)
+---
+
+## 5 · Ein-Feld-Entscheide (kurz bestätigen, kein Gerät nötig)
 
 - [ ] Privacy-Label = **„Data Not Collected"** (on-device, kein Server/Analytics/Account) — OK?
 - [ ] Kategorie Music + Health & Fitness — OK?
@@ -70,55 +88,34 @@ Erst NACH bestandenem Gate flippe ich Slice 8 (den fxBus-Pin — irreversibel-is
 
 ---
 
-## F · Piano-Roll-Editing (#58 „nicht mehr rudimentär") — kurz durchspielen
+## 6 · Offene Frage an Dich
 
-- [ ] **Note verschieben** (Body ziehen → neue Tonhöhe/Position), **Länge ziehen**
-      (rechte Kante), **Velocity malen** (die Lane UNTER dem Raster). Alles über die
-      eine Geste, entschieden beim Antippen. Fühlt sich das flüssig an?
-- [ ] **Velocity-Lane-Erreichbarkeit (Slice-4b-Entscheid):** die Lane sitzt aktuell
-      UNTER den 49 Tonreihen — im Editor NACH UNTEN scrollen, um sie zu sehen. Frage:
-      soll ich sie an den unteren Rand PINNEN (immer sichtbar)? Das kostet Horizontal-
-      Offset-Sync (fragiler in der Launch-View) — darum warte ich auf dein Ja + wie
-      der echte Viewport aussieht, bevor ich es umbaue.
-- **#58-Stand + eine Richtungsfrage (kein Blocker):** die Station kann jetzt Note
-      **setzen · verschieben · in der Länge ziehen · Velocity malen · mehrfach
-      auswählen+löschen · als Gruppe verschieben** (6 Primitive). Das adressiert dein
-      „noch sehr rudimentär". OFFEN: **manuelles Pro-Note-MPE** (pro Note Bend/Slide/
-      Pressure von Hand zeichnen). Council-Einschätzung: das konkurriert mit dem
-      Echoel-Kern (Ausdruck kommt aus dem Körper — globales Bio→MPE) und riecht nach
-      „control-room cosplay". **Willst du manuelles Per-Note-MPE, oder war das Editing
-      der Punkt?** Ich baue Slice 6 nur auf dein Ja (dann eigene Strecke, Note-Feld
-      absent=Bio-MPE unverändert).
+- [ ] **Voice clone — ja oder nein?** Aus Deiner Liste vom 2026-08-20 ist das der einzige
+      Punkt, der eine Richtungsentscheidung braucht und keine Prüfung.
 
-## G · Warp #54 Slice A — Editor-Preview-Hörtest (Flag-frei, reversibel)
+---
 
-- [ ] **Warp-ON:** Audio-Clip-Editor öffnen, Warp einschalten, „Clip BPM" auf einen vom
-      Projekt-Tempo abweichenden Wert → Play: der Clip zieht hörbar aufs Projekt-Tempo,
-      **Tonhöhe bleibt** (kein Chipmunk). Stretch-Zeile zeigt den ×-Faktor.
-- [ ] **Warp-OFF klingt sauber?** Der Spectral-Node (`AVAudioUnitTimePitch`) bleibt bei
-      Slice A IMMER in der Preview-Kette (rate 1.0 ≠ bit-transparent, trägt Overlap-Add-
-      Latenz). Prüfen: ein Warp-OFF-Preview vs. vorher — hörbare Färbung/Latenz? Falls ja,
-      Ein-Commit-Follow-up: Warp-OFF durch den plain Single-Node-Pfad routen.
-- Nur der **Editor-Preview** warpt; die Timeline-Wiedergabe bleibt unangetastet (Slice B).
-- **Slice C offen (Founder-Ja):** die EINE Dependency-Frage (Signalsmith Stretch MIT-C++-
-  Bridge) steht im Chat-Delta — Slice A/B brauchen KEINE Entscheidung (gratis Apple-Nodes).
+## ⛔ Was gestrichen ist — und warum, gemessen am 2026-08-25
 
-## Was ich WÄHRENDDESSEN autonom weiterbaue (nicht geräte-gebunden)
+Die erste Fassung dieser Datei (2026-07-16) bündelte „ALLE geräte-gebundenen Punkte in EINE
+Sitzung". Vier ihrer sieben Abschnitte baten danach um Prüfungen an Oberflächen, die es nicht
+mehr gibt. **Das ist die teuerste Sorte veralteter Prosa in diesem Projekt: Geräte-Zeit ist die
+knappste Ressource, und ein Posten, der auf ein entferntes Bedienelement zeigt, kostet eine
+Probe, die nichts entscheiden kann** (dieselbe Lehre wie #525, nur auf Dokument-Ebene).
 
-- S2-W2 Slice 6 (Primary-Roll-Kind-Routing, riskanteste reine Scheibe) — flag-OFF.
-- **Sheet-Chain-Konsolidierung → RECLASSIFIED als GERÄTE-GEPAART (nicht mehr blind-autonom):**
-  `EchoelStudioView` trägt aktuell **12×.sheet + 2×.fullScreenCover** auf 4360 Zeilen. Die
-  Konsolidierung zu EINEM `.sheet(item:)`-Enum ist die sanktionierte SIGSEGV-Abwehr — ABER
-  „launcht es noch?" ist ein Runtime-First-Render-SIGSEGV, den CI NICHT fängt, nur ein Gerät.
-  Mein eigener Audit nannte den Stapel geräte-unverifizierter Launch-View-Commits als DAS
-  Risiko; blind unter Freeze draufsatteln macht deine Geräte-Session fraglicher, nicht sicherer.
-  Kein akuter Blocker (es wird gerade keine neue Root-Sheet angehängt). **Plan: ich mache den
-  Refactor in DEM Moment, wo du einen Launch verifizieren kannst** (Freeze-Lift / Geräte-Session),
-  nicht vorher. — Council 2026-07-16: proceed-with-mitigation.
-- #58 MIDI/MPE-Station (Velocity-Lane zuerst), danach #54 Warp (nach Freeze-Lift-Verify).
-- Kleinschulden: #57 (Lane-Label + Notice-Compose), #62 (lane-gate Move-Vorschau), CI-Guard-
-  Symmetrie; #63 Archiv-Hygiene; #52 SEO (Pipeline).
+| Gestrichener Posten | Messung heute |
+|---|---|
+| **Piano-Roll-Editing** (6 Primitive, Velocity-Lane, Pin-Frage) | `grep -c "struct PianoRollView" Sources/Echoelmusic/Studio/PianoRollView.swift` → **0**. Der Editor ist mit #475 gelöscht, die Tür schon 2026-07-26 auf Founder-Wunsch („Pianoroll soll raus"). Keines der sechs Primitive ist ausführbar. |
+| **Drums-Spur trommelt** (Slice-7-Gate, `.drums`-Bus-Frage) | Es gibt keine Schlagzeug-Stimme mehr: `DrumSynthVoice`, `LaneDrumKitVoice` und `DrumNoteMap` sind mit #166/#167 als Dateien gelöscht. Es kann kein Drum-Klang entstehen. Das Flag `voiceKindRouting` existiert weiter — der Rest des Gates (Bass, Poly, Stuck-Note) ist als Bitte in den `NEEDS-FOUNDER-VERIFY`-Markern zu führen, nicht hier. |
+| **`laneAUInstruments`-Flag prüfen** | `git grep -l laneAUInstruments -- Sources Tests | wc -l` → **0**. Das Flag existiert nicht. |
+| **AUv3 im Fremd-Host** (AUM/GarageBand) | Das AUv3-Target ist am 2026-07-24 entfernt (`project.yml` sagt es selbst). Zusätzlich: die Listing-Zeile, die dieser Test verteidigen sollte, steht nicht mehr in `fastlane/metadata/` — `grep -rn "AUv3\|AUM\|GarageBand" fastlane/metadata/ | wc -l` → **0** (#184). |
+| **Warp-Hörtest im Audio-Clip-Editor** | Es gibt keine Clip-Editor-Tür: `git grep -ln "clipEditor\|ClipEditorView\|AudioClipEditor" -- Sources | wc -l` → **0**. Die Clip-/Arrangement-Fläche ging mit #121 Slice 4. Die Stretch-Kerne (`StretchPlan`, `AudioClipPlayer`) leben weiter, sind aber unerreichbar. |
+| **BLE-Gurt-Begründung** | Die PRÜFUNG bleibt gültig und gehört zu den `NEEDS-FOUNDER-VERIFY`-Markern (CLAUDE.md: „Gerät-Verify wartet auf Gurt-Eintreffen"). Gestrichen ist nur ihre BEGRÜNDUNG: die Listing-Zeile „Polar, Wahoo, Garmin" steht nicht mehr in `fastlane/metadata/`. |
+| **„352 geräte-unverifizierte Commits"** | Eine Zahl vom 2026-07-16 — ein Datum, keine Tatsache. Ersatzlos gestrichen statt fortgeschrieben (dieselbe Regel wie in `.claude/rules/context.md` §2). |
+| **Sheet-Chain: „12×.sheet + 2×.fullScreenCover auf 4360 Zeilen"** | Die Datei hat heute 11 749 Zeilen; die verbindliche Zahl der Kette steht an genau einer Stelle, im Präsentations-Absatz von CLAUDE.md. Hier zu wiederholen war #416. Die SACHLICHE Entscheidung bleibt: die Konsolidierung ist geräte-gepaart, nicht blind-autonom. |
 
-**Deferred bis eigener Zyklus:** #36 Oktaver (spawnt Stimmen — audio-thread-verifiziert bauen),
-#61 EEG (Muse S Athena unterwegs), #60 Bio-Session-Brain (Council gegen die Wellness-Linie),
-#59 Weather-Synth, #51 Publish (net-new, verwässern bio-first pre-launch).
+**Wächter:** `Tests/CISmoke/TheDeviceChecklistOnlyAsksWhatExistsTests.swift`. Er prüft nur die
+Ankreuz-Zeilen (`- [ ]`), nie die Prosa — ein negativer Scan über die ganze Datei träfe genau
+diese ⛔-Tabelle, die die gestrichenen Namen absichtlich zitiert (#491). Und er verbietet die
+Rückkehr keiner dieser Flächen (#364): kommt eine zurück, wird er rot und nennt diese Tabelle
+als die Prosa, die dann im selben Commit mitzuziehen ist.

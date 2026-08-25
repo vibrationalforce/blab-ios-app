@@ -2360,3 +2360,37 @@ eine echte DSP-Scheibe und grenzt an die geschützte Triade.
 **PLAYBOOK, aus beiden:** eine Kandidaten-Quelle wird mit `grep "<name> *="` auf ihre SCHREIBER
 geprüft, nicht auf ihre Existenz. Ein `public var` mit plausiblem Namen und einem neutralen
 Initialwert ist die häufigste Form von „sieht verdrahtet aus".
+
+---
+
+## PLAYBOOK (2026-08-25, #816): eine Liste, die kein Werkzeug scannt, verrottet unbemerkt
+
+**Der Fall.** `scratchpads/FOUNDER_DEVICE_SESSION.md` bündelt seit 2026-07-16 alle
+geräte-/urteilsgebundenen Punkte, weil der Founder der einzige Geräte-Prüfer ist. Zwei Monate
+später baten VIER ihrer sieben Abschnitte um Proben an gelöschten Flächen (Piano-Roll-Editor,
+Drums-Spur, AUv3-Host, Clip-Editor-Warp) plus ein Flag, das es nie mehr gibt.
+
+**Warum es niemandem auffiel — und das ist der übertragbare Teil:** `scripts/founder-verify.py`
+scannt `Sources/`, `Tests/` und `CLAUDE.md`, **absichtlich nicht `scratchpads/`**. Die Datei war
+damit eine ZWEITE Liste **neben** dem Werkzeug, das behauptet, den Einkaufszettel zu drucken.
+Es gab keinen Widerspruch zu finden: die eine Liste wusste von der anderen nichts.
+
+**Erkennungszeichen.** Wenn ein Werkzeug eine Wurzelmenge NENNT, frag als Nächstes, was
+AUSSERHALB dieser Wurzeln dieselbe Sorte Inhalt trägt. Der Ausschluss ist meist richtig
+begründet (hier: „scratchpads sind Sitzungsprosa"), und genau diese gute Begründung ist der
+Grund, warum niemand hinschaut.
+
+**Kosten-Asymmetrie, die den Fall vom üblichen Stale-Prosa-Fall trennt:** veraltete Prosa kostet
+sonst Lesezeit. Diese kostet **Geräte-Zeit des Founders** — die einzige Ressource, die keine
+Sitzung erzeugen kann. Ein Posten, der auf ein entferntes Bedienelement zeigt, verbraucht eine
+Probe, die nichts entscheiden kann (#525, hier auf Dokument-Ebene).
+
+**Playbook, wenn man so eine Liste repariert:**
+1. Jeden Posten gegen den Code messen, nicht gegen die Erinnerung — die Streichungen kamen aus
+   fünf verschiedenen Epics, keine davon hatte diese Datei im Blick.
+2. Die Liste auf das reduzieren, was **kein Marker tragen kann** (Urteile, Screenshots,
+   Ein-Feld-Entscheide); alles Code-Verankerte gehört ins Werkzeug, sonst entsteht die zweite
+   Liste sofort neu.
+3. Den Wächter **nur auf die Ankreuz-Zeilen** setzen. Ein dateiweiter Negativ-Scan trifft die
+   ⛔-Tabelle, die die gestrichenen Namen zitiert (#491 — derselbe Selbsttreffer wie #809).
+4. Jede Nadel **gegen den Elternbaum treiben**, bevor sie ausgeliefert wird (#808/#815).

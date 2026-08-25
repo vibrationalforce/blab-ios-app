@@ -14192,3 +14192,85 @@ seine eigene Größe jetzt in der ersten Zeile, samt Alter und Zahl der gefilter
 Wächter: `TheDecisionLogIsMachineReadableTests` Anspruch 8 — Kontrolle grün, Eltern rot auf
 beiden 8b-Zusicherungen, Mutation mit erfundenem Status rot auf 8a. Er sagt bewusst **nicht**,
 WELCHE Status in die Liste gehören (#364) — nur, dass jeder Eintrag etwas treffen kann.
+
+---
+
+## #816 — die Geräte-Checkliste bat um vier Dinge, die es nicht mehr gibt (2026-08-25)
+
+**Befund.** `scratchpads/FOUNDER_DEVICE_SESSION.md` ist die EINE Datei, die alle geräte- und
+urteilsgebundenen Punkte bündeln soll, weil der Founder der einzige Geräte-Prüfer ist. Gemessen
+am 2026-08-25 baten **vier ihrer sieben Abschnitte** um Proben an Flächen, die gelöscht sind:
+
+| Posten | Messung |
+|---|---|
+| Piano-Roll-Editing (6 Primitive, Velocity-Lane) | `struct PianoRollView` → **0** (#475) |
+| „Drums-Spur trommelt" | `DrumSynthVoice`/`LaneDrumKitVoice`/`DrumNoteMap` als Dateien weg (#166/#167) |
+| `laneAUInstruments`-Flag | `git grep -c` über Sources+Tests → **0** |
+| AUv3 im Fremd-Host | Target am 2026-07-24 entfernt; die Listing-Zeile steht nicht mehr in `fastlane/metadata/` (#184) |
+| Warp-Hörtest im Clip-Editor | keine Clip-Editor-Tür (#121 Slice 4) |
+
+Dazu zwei Zahlen als Datum statt Tatsache („352 unverifizierte Commits", „12×.sheet auf 4360
+Zeilen" — die Datei hat 11 749).
+
+**Warum das die teuerste Sorte veralteter Prosa ist:** Geräte-Zeit ist die knappste Ressource
+des Projekts. Ein Posten, der auf ein entferntes Bedienelement zeigt, kostet eine Probe, die
+nichts entscheiden kann — **#525, nur auf Dokument- statt Zeilen-Ebene.**
+
+**Warum es zwei Monate überlebt hat, und das ist der strukturelle Teil:** `founder-verify.py`
+scannt `scratchpads/` **absichtlich nicht** („scratchpads sind Sitzungsprosa, keine Bitten").
+Diese Datei war also eine **ZWEITE Liste, die kein Werkzeug sah und kein Wächter prüfte** —
+während das Werkzeug daneben behauptet, den Einkaufszettel des Founders zu drucken.
+
+**Gebaut.** Die Datei ist auf ihre Urteils-Hälfte reduziert: Screenshots, Ein-Feld-Entscheide,
+die zwei sensorischen Ship-Gate-Checks, die offene Frage „Voice clone — ja oder nein?", plus
+ein Zeiger auf das Werkzeug und auf `.deploy/release` für den Handgriff DIESES Builds (#416:
+eine Entscheidung, ein Zuhause — der #813-Skalen-Verify steht schon im Marker und wird hier
+NICHT wiederholt). Jeder gestrichene Posten steht mit seiner Messung in einer ⛔-Tabelle.
+
+**Wächter:** `Tests/CISmoke/TheDeviceChecklistOnlyAsksWhatExistsTests.swift`, 4 Ansprüche.
+Getrieben (Python-Transkription, beide Bäume): Kontrolle 4/4 grün; **Anspruch 1 rot auf dem
+Elternbaum** (6 Funde über 4 Ankreuz-Zeilen, alle fünf Nadeln treffen), rot auf leerem
+Dokument; Anspruch 2 rot bei jeder der vier Rückkehren; Anspruch 3 rot ohne Werkzeug-Zeiger;
+Anspruch 4 rot, sobald `ROOTS` scratchpads aufnimmt.
+
+**Zwei Entwurfsentscheidungen, die beide aus früheren Fehlern stammen:**
+1. **Der Scan trifft nur Ankreuz-Zeilen** (`- [ ]`, plus ihre eingerückten Fortsetzungen), nie
+   Prosa — ein dateiweiter Negativ-Scan träfe die ⛔-Tabelle, die die gestrichenen Namen
+   absichtlich zitiert (**#491**, derselbe Selbsttreffer wie in #809).
+2. **Jede Nadel wurde vor dem Ausliefern gegen den Elternbaum getrieben** und trifft dort
+   wirklich (**#808/#815**: eine Nadel, die nichts treffen kann, ist kein Wächter).
+
+**Ehrliche Grenze, Richtung FALSCH-GRÜN:** die Nadelliste ist FEST und nennt fünf bekannte
+Flächen. Ein veralteter Posten über eine sechste gelöschte Fläche läuft ungesehen durch.
+
+**decisions.csv:** 211 und 212 auf `superseded` (ihre erwarteten Ergebnisse können nicht mehr
+eintreten). **213 bleibt `active`** — seine Sheet-ZAHL ist veraltet, seine ENTSCHEIDUNG
+(Konsolidierung ist geräte-gepaart) gilt weiter. Rückstand gemessen: **219 → 217 fällig, 27 →
+29 gefiltert.**
+
+**⛔ EIN FEHLER IN MEINER EIGENEN SCHEIBE, gefunden im Pflicht-Review, vor dem Commit.** Der
+erste Entwurf strich mit den vier unmöglichen Abschnitten auch **sieben Punkte, die sehr wohl
+ausführbar sind** (multiRoll-Doppelspur, Bass + A≠440, Poly unverändert, hängender Ton beim
+Instrumentwechsel, Live-Same-Region-Wechsel, stiller Launch) — begründet mit dem Satz „gehört
+in die `NEEDS-FOUNDER-VERIFY`-Marker". **Gemessen deckt das Werkzeug keinen dieser Punkte ab**,
+und ich hatte sie auch nirgends hingeschrieben. Wiederhergestellt als Abschnitt 2, mit genau
+dieser Warnung im Kopf. **Lehre: eine Streichung mit dem Zusatz „gehört woanders hin" ist erst
+dann eine, wenn der Umzug stattgefunden hat** — sonst ist sie eine Löschung mit guter Prosa.
+Der Ironie halber festgehalten: das ist derselbe Defekt wie der, den diese Scheibe repariert,
+nur in der Gegenrichtung — dort standen Bitten ohne Fläche, hier wären Flächen ohne Bitte übrig
+geblieben.
+
+**Zweiter Review-Fund, kleiner, dieselbe Familie:** drei der vier Rezepte in der ⛔-Tabelle
+druckten NICHT die Zahl, die die Prosa daneben behauptete (`git grep -c` / `-ln` geben bei null
+Treffern **leere Ausgabe**, nicht `0`). Ein Rezept, das man ausführt und das der Behauptung zu
+widersprechen scheint, wird als Widerspruch gelesen (#815). Alle drei tragen jetzt `| wc -l`
+und wurden einzeln nachgemessen.
+
+**Dritter Fund, Werkzeug statt Inhalt:** die Statusaenderung ueber `csv.writer` schrieb die
+GANZE `decisions.csv` neu — **889 geaenderte Zeilen fuer drei Aenderungen**, weil das Modul die
+Anfuehrungszeichen aller Zeilen normalisiert. Semantisch identisch (`--check` OK, Rueckstand
+217/29 vor und nach dem Umbau), aber ein Diff, der die eigentliche Aenderung versteckt und
+`git log -S` fuer immer verrauscht. Neu geschrieben als Textedit auf zwei Zeilenenden plus eine
+angehaengte Zeile: **7 statt 889**. Lehre: eine strukturierte Datei mit EINER Zeile pro Zeile
+wird zeilenweise editiert; ein Parser-Roundtrip ist nur dann richtig, wenn die Struktur selbst
+sich aendert.
