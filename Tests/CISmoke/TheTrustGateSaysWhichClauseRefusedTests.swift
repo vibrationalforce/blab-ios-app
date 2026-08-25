@@ -16,6 +16,8 @@
 //   · claims 5–6 are SOURCE-TEXT SCANS. They exist because `shouldPublish`'s own doc block
 //     records the gap they close: *"no test asserts that the publish loop actually CALLS this"*.
 //     A tally that is never fed is silent, not red — the ONE failure mode behaviour cannot see.
+//   · claim 7 (#833) is END-TO-END BEHAVIOUR over the per-class `acfOnly(…)` block — the
+//     coincidence statistics the v10.79.420 log could not deliver from window-wide maxima.
 //   · DEVICE PROBE, open and NOT covered: whether the `trust:` line is legible in the diag file
 //     and whether one line per ~30 s is the right cadence. That is the founder's read, and the
 //     window size is pinned as a floor (#364) so it stays retunable without a red gate.
@@ -32,6 +34,11 @@
 //     `trustAutoFloor` ever exceeded `strongAutoFloor`, a frame that PASSES via the strong-only
 //     clause could be classified `.periodicityLow` — the instrument would report a refusal that
 //     did not happen, and nothing else in this file would notice.
+//   · claim 7 (#833) names NO new symbol — unlike claims 1–3 it WOULD compile against its
+//     parent (the #832 tree). Graded there by transcription: the exact-block assertions in
+//     tests 1 and 3 (and 4's em-dash form) are FORWARD guards (red by suffix absence — one
+//     absence, reported once, #486); test 1's window-max assertion and all of test 2 are
+//     COUNTERWEIGHTS, green on both trees on purpose (#343).
 //   · STRIPPER: measured, not assumed. Each of the SIX source needles was counted raw and
 //     through `SourceText.codeOnly` on both trees. Verdict: **PROPHYLAKTISCH (0 of 6 flip)** —
 //     every needle is a code form the surrounding prose does not spell. It stays because the
@@ -330,6 +337,75 @@ final class TheTrustGateSaysWhichClauseRefusedTests: XCTestCase {
             `trustVerdict` now names `strongAutoFloor`. The refusal branches run only after \
             `shouldPublish` already said no, where the strong-only clause is known to have \
             failed — re-testing it there is either dead code or a second rule.
+            """)
+    }
+
+    // MARK: - claim 7 (END-TO-END) — the binding class reports its OWN coincidence (#833)
+
+    /// The v10.79.420 log's window maxima could not answer the one question that decides the
+    /// trust-rule debate: on the ticks where ONLY periodicity refused, how close did acf come,
+    /// and was the estimate flat? Window-wide maxima are not tuples — `maxAcf=0.45` in a
+    /// window can belong to a wild `bothLow` tick while every conf-OK tick sat at 0.30. These
+    /// are RAW per-class observations of the SHIPPED verdict (no new threshold, no candidate
+    /// rule — the file header's law), so the founder's next log carries the coincidence.
+    func testTheAcfOnlyClassReportsItsOwnCoincidence() {
+        var tally = TrustWindowTally()
+        tally.note(verdict: .periodicityLow, bpm: 52, confidence: 0.90, autoStrength: 0.31)
+        tally.note(verdict: .periodicityLow, bpm: 54, confidence: 0.85, autoStrength: 0.38)
+        tally.note(verdict: .periodicityLow, bpm: 53, confidence: 0.92, autoStrength: 0.29)
+        // A wild tick from ANOTHER class must not contaminate the class stats — this is the
+        // entire reason the per-class block exists beside the window-wide maxima.
+        tally.note(verdict: .bothLow, bpm: 120, confidence: 0.10, autoStrength: 0.45)
+        // Precomputed (#442): class max acf = 0.38, class spread = 54 − 52 = 2.0 — while the
+        // window-wide figures read maxAcf=0.45 and bpmSpread=68.0.
+        XCTAssertTrue(tally.summary.contains("acfOnly(maxAcf=0.38 bpmSpread=2.0)"), """
+            The acf-only class no longer reports its own maxAcf/spread — or another class's \
+            samples leaked into it: \(tally.summary)
+            Without this block the next device log is again a pile of window maxima that \
+            cannot say whether the refused-but-confident ticks were stable near-misses.
+            """)
+        XCTAssertTrue(tally.summary.contains("maxAcf=0.45"), """
+            The window-wide maximum vanished — the class block must be IN ADDITION to it, \
+            not a replacement: \(tally.summary)
+            """)
+    }
+
+    /// A window that never hit the class must not print an empty block — the line is read
+    /// by a human in a crash-triage file, and `acfOnly(maxAcf=0.00 …)` would read as a
+    /// measurement of nothing (#454's shape, in a log line).
+    func testTheAcfOnlyBlockIsAbsentWhenTheClassNeverFired() {
+        var tally = TrustWindowTally()
+        tally.note(verdict: .published, bpm: 60, confidence: 0.7, autoStrength: 0.5)
+        tally.note(verdict: .bothLow, bpm: 59, confidence: 0.1, autoStrength: 0.1)
+        XCTAssertFalse(tally.summary.contains("acfOnly"), """
+            The class block prints for a window that never saw a periodicity-only refusal: \
+            \(tally.summary)
+            """)
+    }
+
+    /// Same NaN law as the window-wide maxima: accumulator first, one poisoned sample
+    /// must not pin the class maximum.
+    func testANonFiniteSampleCannotPoisonTheClassMaximum() {
+        var tally = TrustWindowTally()
+        tally.note(verdict: .periodicityLow, bpm: 52, confidence: 0.9, autoStrength: .nan)
+        tally.note(verdict: .periodicityLow, bpm: 53, confidence: 0.9, autoStrength: 0.20)
+        XCTAssertTrue(tally.summary.contains("acfOnly(maxAcf=0.20 bpmSpread=1.0)"), """
+            One non-finite acf sample poisoned the class maximum (or the class spread \
+            counted a non-usable estimate): \(tally.summary)
+            """)
+        XCTAssertFalse(tally.summary.contains("nan"), "the summary prints nan: \(tally.summary)")
+    }
+
+    /// The class can fire with NO usable estimate — the shipped gate filters NaN/≤0 bpm to
+    /// `.noEstimate`, but `+∞` passes `bpm > 0` and a defensive caller may classify oddly.
+    /// The block must then print the honest em-dash, not a fabricated number (reviewer #833).
+    func testAClassTickWithoutAUsableEstimatePrintsTheDash() {
+        var tally = TrustWindowTally()
+        tally.note(verdict: .periodicityLow, bpm: .infinity, confidence: 0.9, autoStrength: 0.20)
+        XCTAssertTrue(tally.summary.contains("acfOnly(maxAcf=0.20 bpmSpread=—)"), """
+            A class tick without a usable bpm no longer prints the em-dash — either a \
+            non-finite estimate reached the class spread (a fabricated measurement), or \
+            the block's absence hid a fired class: \(tally.summary)
             """)
     }
 

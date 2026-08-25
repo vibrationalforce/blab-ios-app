@@ -14882,3 +14882,33 @@ Region-Isolation nicht in einen `@MainActor`-Task sendbar (Xcode-Gate-Risiko);
 (2) LOW `release()` un-publisht VOR dem Freigeben (capacity=0 → nil → dealloc) +
 super-first in `deallocateRenderResources`; (3) LOW Test-ABL `bindMemory` statt
 `assumingMemoryBound` (UB dem Buchstaben nach).
+
+## 2026-08-25 (cron, 24h-Mandat) — #833: die Vertrauens-Zeile sagt jetzt, WIE knapp der zweite Zeuge scheiterte
+
+**Befund (v10.79.420-Log, aus dem Transkript rekonstruiert):** Die `trust:`-Fenster zeigen
+das Aushungern präzise — Fenster mit `bpmSpread=6.0` und `maxConf=0.91–0.98` verweigerten
+trotzdem 17–21 von 30 Ticks mit `acf=` (Konfidenz da, Periodizität unter 0.4). Damit sind
+BEIDE Hälften der `trustAutoFloor`-Kalibrierung („echte Locks immer 0.57–0.84, Junk max
+~0.29") am neuen Gerät falsifiziert: echte stabile Fenster peaken bei acf 0.41–0.52,
+wilde Fenster erreichen 0.45. **Eine Floor-Änderung allein kann es also nicht sein** —
+der Trenner in den Daten ist die STABILITÄT, aber Fenster-Maxima sind keine Tupel:
+`maxAcf=0.45` kann zum wilden `both`-Tick gehören. Die Entscheidungs-Daten fehlen.
+
+**Slice:** `TrustWindowTally` (pur, #573) bekommt Per-Klassen-Beobachtung für GENAU die
+bindende Klasse: `acfOnly(maxAcf=… bpmSpread=…)` — max-acf und bpm-Spread NUR über die
+`periodicityLow`-Ticks, konditional gedruckt (nie ein leerer Block). KEINE Schwelle, KEIN
+Kandidaten-Zähler — das Gate-Doc verbietet „would have passed under a relaxed rule"
+ausdrücklich (#425-Disziplin: der Header-Absatz ist mitgezogen). Kein Verhalten geändert;
+der Publisher ruft `note()` unverändert. Bewusst NICHT gebaut (je eigener Zyklus + Daten):
+Floor/Gate-Änderung (Daten fehlen bis zum nächsten Log) · Estimate-Erhalt über den
+Saturations-Resettle (CameraRPPGBioPublisher:1383 nennt „makes the flush preserve the last
+estimate" als Wiederöffner — erst mit dem Kommentar-Gefüge zusammen entscheiden).
+
+**Wächter:** `TheTrustGateSaysWhichClauseRefusedTests` Claim 7 (3 END-TO-END-Tests:
+Klassen-Block exakt + Kontaminations-Gegenprobe · abwesend ohne Klassen-Tick ·
+NaN-Disziplin). Alle Fixtures in Python getrieben (#442), inkl. der ALTEN Claim-3-Fixtures
+gegen das neue Suffix — grün. Klammer-Bilanzen ausgeglichen, dead-needles sauber.
+
+**Ertrag:** Das v422-Log, das der Founder für die Crash-Probe ohnehin schickt, trägt damit
+die Koinzidenz-Daten, die die Trust-Regel-Debatte entscheiden — statt noch einer Runde
+Fenster-Maxima-Deutung.

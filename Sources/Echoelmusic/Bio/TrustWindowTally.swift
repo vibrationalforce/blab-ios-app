@@ -23,6 +23,14 @@
 // as a raw spread with NO threshold precisely so that reaching for it costs a decision:
 // there is no number here for a later cycle to quietly promote into the trust rule. Whether
 // a flat estimate is trustworthy is a question the founder's log answers, not this file.
+//
+// ⚠️ THE SAME LAW COVERS THE PER-CLASS BLOCK (#833). The v10.79.420 log exposed the gap in
+// window-wide maxima: they are not tuples, so `maxConf=0.98 maxAcf=0.41 bpmSpread=6.0` in
+// one window cannot say whether the confident-but-refused ticks were the stable near-misses
+// or the wild ones. `acfOnly(maxAcf=… bpmSpread=…)` restricts the SAME two raw observations
+// to the `periodicityLow` class — still no threshold, still no candidate rule, and the gate
+// doc's ban on "would have passed under a relaxed rule" counters stands untouched: nothing
+// here evaluates any rule the shipped gate has not already applied.
 
 import Foundation
 
@@ -82,6 +90,17 @@ public struct TrustWindowTally: Sendable, Equatable {
     public private(set) var bpmLow: Double?
     public private(set) var bpmHigh: Double?
 
+    /// #833 — the same evidence, restricted to the `periodicityLow` class. The v10.79.420
+    /// log showed why window-wide maxima cannot decide the trust-rule debate: they are not
+    /// TUPLES. A window can print `maxAcf=0.45` where that peak belongs to a wild `bothLow`
+    /// tick, while every confident-but-refused tick sat at 0.30 — or the reverse. These
+    /// fields record, for exactly the class the device logs point at (confidence there,
+    /// second witness missing), how close acf came and whether the estimate was flat.
+    /// Raw observations of the SHIPPED verdict — no new threshold, per this file's header.
+    public private(set) var periodicityLowMaxAcf = 0.0
+    public private(set) var periodicityLowBpmLow: Double?
+    public private(set) var periodicityLowBpmHigh: Double?
+
     public init() {}
 
     /// True once the window holds a full line's worth of decisions.
@@ -91,6 +110,12 @@ public struct TrustWindowTally: Sendable, Equatable {
     /// estimate was seen. NOT compared against anything here — see the file header.
     public var bpmSpread: Double? {
         guard let low = bpmLow, let high = bpmHigh else { return nil }
+        return high - low
+    }
+
+    /// The estimate's travel across the `periodicityLow` ticks only (#833). Same nil law.
+    public var periodicityLowBpmSpread: Double? {
+        guard let low = periodicityLowBpmLow, let high = periodicityLowBpmHigh else { return nil }
         return high - low
     }
 
@@ -110,7 +135,14 @@ public struct TrustWindowTally: Sendable, Equatable {
         case .noEstimate:     noEstimate += 1
         case .bothLow:        bothLow += 1
         case .confidenceLow:  confidenceLow += 1
-        case .periodicityLow: periodicityLow += 1
+        case .periodicityLow:
+            periodicityLow += 1
+            // Same NaN law as the window-wide maxima below: accumulator FIRST.
+            periodicityLowMaxAcf = Swift.max(periodicityLowMaxAcf, autoStrength)
+            if bpm.isFinite, bpm > 0 {
+                periodicityLowBpmLow = periodicityLowBpmLow.map { Swift.min($0, bpm) } ?? bpm
+                periodicityLowBpmHigh = periodicityLowBpmHigh.map { Swift.max($0, bpm) } ?? bpm
+            }
         }
         // Accumulator FIRST in both `max` calls. `max(x, y)` is `y >= x ? y : x`, so a NaN
         // second argument compares false and the accumulator survives; the other order would
@@ -144,6 +176,13 @@ public struct TrustWindowTally: Sendable, Equatable {
         let blocks = parts.map { "\($0.0.rawValue)=\($0.1)" }.joined(separator: " ")
         let head = "\(published)/\(attempts) ok"
         let tail = "maxConf=\(confText) maxAcf=\(acfText) bpmSpread=\(spreadText)"
-        return "\(head) · \(blocks) · \(tail)"
+        let base = "\(head) · \(blocks) · \(tail)"
+        // #833 — printed only when the class fired: an `acfOnly(maxAcf=0.00 …)` on a quiet
+        // window would read as a measurement of nothing, in a file read for crash triage.
+        guard periodicityLow > 0 else { return base }
+        let classAcf = String(format: "%.2f", periodicityLowMaxAcf)
+        let classSpread = periodicityLowBpmSpread.map { String(format: "%.1f", $0) } ?? "—"
+        let label = PulseTrustVerdict.periodicityLow.rawValue
+        return base + " · \(label)Only(maxAcf=\(classAcf) bpmSpread=\(classSpread))"
     }
 }
