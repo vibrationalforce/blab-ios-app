@@ -14009,3 +14009,41 @@ wie eine Nadel abzuschreiben (#808).**
 Wächter: `TheProvenanceVerdictHasOneOwnerTests` — Kontrolle grün, Eltern rot auf zwei, sechs
 Mutationen je an ihrem Anspruch. Bewusst nur POSITIVE Nadeln: alle drei Dateien zitieren jetzt
 den zurückgenommenen Satz, ein negativer Scan träfe die eigene Rücknahme (#491, wie #809).
+
+---
+
+## #812 (2026-08-25) — dieselbe Datei hielt beide Lesarten, 30 Zeilen auseinander
+
+**Gate von #811 (`c5f0536`):** `Build for Testing: success`, 0 Fehler, 0 Skips — **und diesmal
+lief eine der geänderten Dateien SICHTBAR im Fenster** (`DemoSourceIsMarkedWhereItRenders`,
+13 Zeilen). Nach #445 beweist Anwesenheit, dass sie lief; die zwei neuen Wächter (#809/#811)
+liegen wie immer außerhalb der 200 Zeilen.
+
+**Der Befund kam aus #472** („nach dem Schnitt nochmal grepen"). Zwei Absätze unter dem
+#811-Fix stand in `BioSimulator`: *„a demo session shows a confident heart rate and 'HRV 50 ms'
+beside a source cell reading 'No signal' — which reads as ABSENCE, not as SYNTHETIC."*
+
+**Gemessen in `BioStripView.sourceControl`:** `else if isSynthetic { demoTag }` steht **VOR**
+`noSignalTag` in der Kette. Eine Demo-Sitzung zeigt **„Demo"**, seit #627. Die Zweigreihenfolge
+ist bereits von `TheDemoSourceIsMarkedWhereItRendersTests` gepinnt — **kein neuer Wächter
+nötig**, nur die Prosa.
+
+⭐ **Und die Lehre ist eine Stufe kleiner als #811 und deshalb eigenständig.** Der Absatz
+„WHAT SURVIVES UNCHANGED" in DERSELBEN Datei sagt es korrekt („the marking is a SEPARATE branch
+… that sits AHEAD of them"). Die Datei hielt also **beide Lesarten gleichzeitig**:
+
+> **Eine abgelaufene Behauptung überlebt nicht nur in einer anderen DATEI, sondern in einem
+> anderen ABSATZ der Datei, die sie widerlegt** — weil ein Leser, der auf dem späteren landet,
+> keinen Anlass hat, nach oben zu scrollen.
+
+#811 war „eine Tatsache, vier Häuser". Das hier ist „eine Tatsache, ein Haus, zwei Zimmer" —
+und das zweite Zimmer ist das, an dem die #462-Diskussion hängt, also genau das, das eine
+Sitzung öffnet, wenn sie fragt „was fehlt noch?".
+
+**Verweis als ZITAT, nicht als Zeilenabstand** — der Verweis nennt den Absatz beim Namen
+(„WHAT SURVIVES UNCHANGED"), weil dieses Repo zweimal für einen Kommentar bezahlt hat, dessen
+Zeilenabstand die nächste Bearbeitung ungültig machte.
+
+**Erhalten bleibt**, was wahr ist: der HELFER-Vorbehalt (`sourceLabel`/`sourceText` sagen
+weiterhin nichts über Herkunft — wer die Marke durch sie umleitet, öffnet das Loch wieder) und
+#215s Prinzip.

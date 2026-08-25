@@ -75,10 +75,23 @@
 //  still unmarked and was wrong on two of the three (#811): #785 closed the events, #789 closed
 //  sACN. It already POINTED at the right owner and restated the list anyway — the pointer is
 //  what survives, the list is deleted. Which protocols are still open, and why each differs,
-//  lives in `TheWireSaysWhoseBodyTests`. So a demo session shows a confident heart rate and
-//  "HRV 50 ms" beside a source cell reading "No signal" — which reads as ABSENCE,
-//  not as SYNTHETIC. #215's principle ("a constant 0 is indistinguishable from a
-//  still performer") applies on the screen too, not only on the wire. Whether to
+//  lives in `TheWireSaysWhoseBodyTests`.
+//
+//  ⛔ AND THE NEXT SENTENCE HERE WAS STALE TOO, WHILE THIS FILE SAID THE OPPOSITE IN THE
+//  PARAGRAPH THAT OPENS "WHAT SURVIVES UNCHANGED" (#812 — a phrase, not a line count: this
+//  repo has paid twice for a comment whose line distance the next edit invalidated). It read: "a demo session shows a confident heart rate and 'HRV 50 ms' beside
+//  a source cell reading 'No signal' — which reads as ABSENCE, not as SYNTHETIC." Measured in
+//  `BioStripView.sourceControl`: the `else if isSynthetic { demoTag }` branch sits AHEAD of
+//  `noSignalTag`, so a demo session shows **"Demo"** and has since #627. The branch ORDER is
+//  pinned by `TheDemoSourceIsMarkedWhereItRendersTests`; nothing here needs to restate it.
+//  ⭐ The paragraph above already says the same thing correctly ("the marking is a SEPARATE
+//  branch … that sits AHEAD of them"), so this file held BOTH readings at once. That is the
+//  #811 shape one notch smaller and worth naming separately: **a stale claim does not only
+//  survive in another file, it survives in another PARAGRAPH of the file that refutes it** —
+//  because a reader who lands on the later one has no reason to scroll up. What survives from
+//  the old sentence is the HELPER caveat above (`sourceLabel`/`sourceText` still say nothing
+//  about provenance) and #215's principle ("a constant 0 is indistinguishable from a still
+//  performer"), which applies on the screen as well as on the wire. Whether to
 //  add a Demo label on the strip and a synthetic marker on the OSC egress is a
 //  founder question (#462), not something to decide inside an arithmetic fix — but
 //  the claim that it is ALREADY flagged had to go, because it is the sentence that
