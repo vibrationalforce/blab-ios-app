@@ -5900,3 +5900,43 @@ zwei LEHREN über Erreichbarkeit und persistierte Flags — plus ein Zeiger hier
 ### G.2 — die Ausführung: warum die Unterscheidung eine eigene Rücknahme wert war
 
 ⭐ **Der Unterschied ist nicht Wortklauberei, und deshalb steht die Rücknahme hier statt einer stillen Reparatur: „wirkungslos" lädt die nächste Sitzung ein, ein totes Bedienelement zu löschen — sie fände keins und würde beim Suchen ein FUNKTIONIERENDES hinter einer fehlenden Tür finden.** Der Halbsatz über `FloatingVisualWindow` bleibt wahr (gemessen: `grep -n spectralDonuts` in dessen Datei = 0 Treffer) — er begründet nur nicht mehr, was er begründen sollte. ⚠️ **Und diese Zeile bekommt bewusst KEINEN Wächter.** `VisualLookTruthTests` (#227) deckt die Persistenz-Hälfte ab und sagt in seinem eigenen Kopf, dass es die Pille NICHT beweisen kann. Ein Text-Scan auf CLAUDE.md wäre hier die #364/#486-Falle in Reinform: diese Datei ZITIERT zurückgenommene Behauptungen absichtlich in ⛔-Blöcken, ein negativer Scan träfe also zwangsläufig seine eigene Rücknahme — genau die Kollision, die #486 und #491 bezahlt haben. **3 der 14 Präsentations-Slots hängen an Flags, die niemand setzen kann** = freier Kopfraum an der Metadata-Decke, statt einen 17. anzuhängen. Der tote Tools-Katalog selbst ist mit `f371d27` gelöscht (`ToolCat`/`ToolItem`/`toolItems`/`openTool`/`toolsSection`/`toolGroup`/`gridChip`/`gridChipLabel`, 157 Zeilen) — die drei Modifier stehen absichtlich weiter da, als wiederverwendbare Slots. **Er nahm dabei die einzige Oberfläche für drei Opt-ins mit:** „Save to Apple Health" (persistiert! mit `083cec8` als `HealthWriteOptInRow` im Bio-Panel zurückgeholt — ein persistiertes Gesundheits-Einverständnis MUSS einen erreichbaren Aus-Schalter haben) sowie `midiOut.mpeEnabled` / `expressionEnabled` — **mit #713 ERLEDIGT**: zwei persistierte Schalter („MPE note layout", „Per-note expression") im `midiOutSection` der erreichbaren Routing-Fläche, Default aus, EIN Besitzer (`MIDIOutput.applyOutputPreferences()` liest die Keys; PORT-ÖFFNUNG und Schalter rufen dieselbe Methode — die `MIDIInput.applyNetworkSessionPreference()`-Form. ⛔ #713 schrieb hier „Start"; `startIfNeeded()` hängt an `enabled`s didSet, also an der persistierten `midi.out`-Route — bei ausgeschalteter Route läuft beim Start GAR NICHTS, #714). Der zweite Schalter ist deaktiviert, solange der erste aus ist, weil der Sendepfad `if mpeEnabled, expressionEnabled` liest. Wächter: `Tests/CISmoke/MIDIOutQualitySwitchesTests.swift`. **Nicht geräteverifiziert**. ZWEI LEHREN: (1) „per direktem Code-Read verifiziert" heißt nur etwas, wenn die Kette bis zum RENDERNDEN Elternteil verfolgt wurde — Slot + Setzer beweist keine Erreichbarkeit. (2) **Vor dem Löschen eines UI-Blocks prüfen, welche Modelle er als EINZIGER schreibt** — ein Toggle mit persistiertem Flag hinterlässt beim Löschen einen unwiderruflichen Zustand, keine Lücke. **Keine Zeilennummern in diesem Absatz:** die erste Fassung zitierte Nummern, die derselbe Commit um 157 verschob. MeditationView bleibt bewusst türlos (Founder: Teil des Produktionsflusses, keine eigene Tür gewollt). **BroadcastView bleibt türlos — korrekt so**, solange HaishinKit/RTMP nicht verlinkt ist (eine Tür zu einem nicht funktionierenden Backend wäre ein Halbfertig-Feature). **BioVisualParams** (immersive flash-safe pulse) is **wired**. See `docs/dev/FEATURE_MATRIX.md` + `scratchpads/DEEP_AUDIT_2026-07-12.md`.
+
+---
+
+## H — Der Founder-Rückstand (`scripts/founder-verify.py`): warum dort keine Zahl mehr steht
+
+**Die Kette.**
+
+| Stand | Quelle | Zahl |
+|---|---|---|
+| #752 (Einführung, `f4c08fc`) | `CLAUDE.md`, Gegenwartsform „heute" | 50 Bitten in 48 Dateien |
+| #753 | `scratchpads/HARNESS_LEDGER.md`, datiert („Stand nach #753") | 50 Bitten in 48 Dateien |
+| #810 (2026-08-25) | `python3 scripts/founder-verify.py` | **51 Bitten in 49 Dateien** |
+
+**Die Zahl wurde GELÖSCHT, nicht nachgeführt** — das ist der Punkt dieses Abschnitts. Eine
+nachgeführte Zahl in der immer-geladenen Datei läuft wieder ab; der Befehl steht seit #752
+direkt daneben, und die Zeile hat trotzdem drei Wochen lang das Literal gewinnen lassen.
+Der HARNESS_LEDGER-Eintrag bleibt unverändert und ist KEIN Fehler: er sagt „Stand nach #753",
+also ein Datum, und Provenienz ist genau das, was hier gehört.
+
+**⚠️ ZWEI NENNER FÜR EINE SACHE, und das ist der belastbare Teil dieses Eintrags.** Ein
+Handzählen liefert eine ANDERE Zahl als das Werkzeug, ohne dass eines von beiden falsch ist:
+
+```
+python3 scripts/founder-verify.py                                   # 51 Bitten in 49 Dateien
+git grep -l NEEDS-FOUNDER-VERIFY -- Sources Tests CLAUDE.md          # 50 Dateien
+```
+
+`git grep -l` zählt jede Datei, die den Marker TRÄGT — einschließlich der vier
+NOT-ASKS-Prosastellen (zwei in `CLAUDE.md`, zwei in Wächter-Köpfen, #753) und `CLAUDE.md`
+selbst. Das Werkzeug zählt Dateien mit einer echten BITTE. Wer die Zahl per `grep` prüft,
+prüft eine andere Größe und liest den Unterschied als Drift.
+
+**Und die Marker-Datei-Zahl ist über mindestens zehn Commits STABIL** (HEAD, HEAD~2, HEAD~5,
+HEAD~10 = je 50). Die Drift 50→51 liegt also VOR diesem Fenster; sie hier zu rekonstruieren
+hätte eine Zahl gegen eine zweite Definition gestellt, und genau das ist der Fehler, den
+dieser Abschnitt beschreibt. **Nicht rekonstruiert, absichtlich.**
+
+**Kein Wächter, absichtlich (#491).** Ein negativer Scan auf `CLAUDE.md` („enthält keine
+Literal-Zahl für diesen Rückstand") träfe die Rücknahme, die die alte Zahl zitiert, um sie
+zurückzunehmen — dieselbe Falle, in die der #809-Wächter eine Stunde vorher lief.

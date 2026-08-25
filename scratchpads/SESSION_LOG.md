@@ -13926,3 +13926,38 @@ im Log gibt es bis zum Zufall keine Rückmeldung.
    rot zurück. Gestrichen, mit Vermerk an Anspruch 2.
 
 **Getrieben:** Kontrolle grün, sieben Mutationen, jede scheitert an genau ihrem Anspruch.
+
+---
+
+## #810 (2026-08-25) — der Founder-Rückstand stand als Zahl da, und es waren zwei Zahlen
+
+**Gate von #809 (`a1f3874`):** `Build for Testing: success`, 0 Compile-Fehler, 0 Fehler, 0 Skips.
+Der neue Wächter KOMPILIERT damit nachweislich; ob er lief, zeigt das 200-Zeilen-Fenster nicht
+(0 Treffer, #445). Dritter Zyklus in Folge mit derselben Grenze.
+
+**Doctor-Lauf (voll, `--quiet`):** beide CRITICALs sind die bekannten founder-gated CI-Masken
+(`|| true`, fehlendes `set -o pipefail`, `ComprehensiveTestSuite` existiert nicht). Sektion C:
+**alle neun türlosen Ansichten sind im Register** — kein „unerreichbar UND nirgends
+aufgeschrieben". Sektion D: 369 Quelldateien, 314 Testdateien, 16 Modifier dateiweit — alle drei
+Zahlen in CLAUDE.md stimmen. **Nichts Neues zu reparieren**, und das ist ein Befund, kein
+Leerlauf.
+
+**Was der Doctor NICHT prüft und wo die Zahl abgelaufen war.** `python3 scripts/founder-verify.py`
+sagt **51 Bitten in 49 Dateien**; CLAUDE.md sagte „heute **50 Bitten in 48 Dateien**". Beide
+Hälften abgelaufen, in Gegenwartsform, in der Datei, die jede Sitzung zuerst liest.
+
+**GELÖSCHT, NICHT NACHGEFÜHRT.** Der Befehl steht seit #752 direkt daneben — die Zeile hat
+trotzdem drei Wochen lang das Literal gewinnen lassen. Eine nachgeführte Zahl läuft wieder ab.
+
+**⚠️ Der belastbare Teil: zwei Nenner für eine Sache.** `git grep -l NEEDS-FOUNDER-VERIFY --
+Sources Tests CLAUDE.md` liefert **50 Dateien** — es zählt die vier NOT-ASKS-Prosastellen und
+CLAUDE.md selbst mit. Das Werkzeug zählt Dateien mit einer echten BITTE. **Wer die Zahl per
+`grep` nachprüft, prüft eine andere Größe und liest den Unterschied als Drift.** Und die
+Marker-Datei-Zahl ist über HEAD, HEAD~2, HEAD~5, HEAD~10 konstant 50 — die Drift 50→51 liegt
+VOR diesem Fenster und wurde bewusst nicht rekonstruiert, weil das eine Zahl gegen eine zweite
+Definition gestellt hätte.
+
+**Kein Wächter, absichtlich (#491)** — ein negativer Scan auf CLAUDE.md träfe die Rücknahme, die
+die alte Zahl zitiert. Genau die Falle, in die der #809-Wächter eine Stunde vorher lief.
+Provenienz in `memory/LEDGER_COUNTS.md` §H (der achte Abschnitt; `.claude/rules/context.md` §1
+nennt dort bewusst keine Zahl mehr, also nichts nachzuziehen).
