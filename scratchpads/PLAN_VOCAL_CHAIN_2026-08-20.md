@@ -9,6 +9,20 @@
 
 ---
 
+## 0. ⭐ FOUNDER-UPDATE 2026-08-25 — dieser Plan ist AKTIVIERT, mit einer Änderung
+
+Wörtlich: *"No Voice clone. Monitoring soll Direct on Device funktionieren, latenzfrei und mit
+intelligenter Harmonizer und Granular Synthese Effekt Strategie für immersive Musik Erfahrung.
+… resourcen sparende Strategie, vermeide Fehler."*
+
+Folgen für die Slices unten: **Voice clone ist NEIN** (Zeile in §1 damit erledigt, nicht mehr
+offen) · der Council-Gate-Zusatz "neither before V0 returns" ist vom Founder ÜBERSTIMMT — der
+BAU läuft, **V0 bleibt die Hör-Bestätigung** · die #669-Mechanik (AU-Insert, null Zusatz-
+Latenz) ist durch "latenzfrei" noch einmal bestätigt · "ressourcenschonend" heißt kleine
+Slices mit Pflicht-Review, kein Agent-Feuerwerk. **#822** hat die Pflicht-Vorstufe gebaut:
+`EchoelFXChain.processInPlace` (Pointer-Einstieg für den AU-Render-Block), Wächter
+`TheChainPointerEntryMatchesTheArrayEntryTests` im blockierenden Bundle.
+
 ## 1. What already exists (and the founder cannot see)
 
 | Ask | State | Evidence |

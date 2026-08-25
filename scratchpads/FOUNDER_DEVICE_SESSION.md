@@ -90,8 +90,9 @@ Von den fünf Checks des Gates „Instrument-Complete v1" (CLAUDE.md) sind **Kon
 
 ## 6 · Offene Frage an Dich
 
-- [ ] **Voice clone — ja oder nein?** Aus Deiner Liste vom 2026-08-20 ist das der einzige
-      Punkt, der eine Richtungsentscheidung braucht und keine Prüfung.
+- [x] **Voice clone — BEANTWORTET 2026-08-25: NEIN.** Zugleich beauftragt: Monitoring
+      direkt am Gerät, latenzfrei, mit Harmonizer- und Granular-Strategie auf der Stimme
+      (ressourcenschonend). Der Bau läuft (#822 ff.); die Hör-Bestätigung bleibt Punkt 1.
 
 ---
 

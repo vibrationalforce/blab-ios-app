@@ -536,6 +536,29 @@ public final class EchoelFXChain: @unchecked Sendable {
         }
     }
 
+    /// Process raw L/R pointers in place — the entry point the V1a monitor insert's
+    /// `internalRenderBlock` needs (#822, mechanism decided at #669). An `AUAudioUnit` render
+    /// block receives an `AudioBufferList`, not Swift `Array`s, so `processBuffer(left:right:)`
+    /// cannot be called from it without a copy on the audio thread. This is the SAME law as
+    /// `processBuffer`, one definition (#416): glide once per block, then `processStereo` per
+    /// sample. No allocation, no lock, no copy.
+    ///
+    /// ⚠️ CALLER CONTRACT, stated because a pointer cannot state it: both pointers must be
+    /// valid for at least `frameCount` floats. `processBuffer` clamps to `min(count)` because
+    /// an `Array` knows its length; a pointer does not, so the render block that calls this
+    /// owns the bound (it gets the true frame count from the render call itself).
+    public func processInPlace(left: UnsafeMutablePointer<Float>,
+                               right: UnsafeMutablePointer<Float>,
+                               frameCount: Int) {
+        guard frameCount > 0 else { return }
+        advanceFilterGlide(frameCount: frameCount)
+        for i in 0..<frameCount {
+            let (l, r) = processStereo(left[i], right[i])
+            left[i] = l
+            right[i] = r
+        }
+    }
+
     // MARK: - Reset
 
     public func reset() {

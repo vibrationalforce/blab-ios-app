@@ -76,7 +76,7 @@
 // ⚠️ WHAT THIS CANNOT SEE. It reads the GRAPH, so it proves which nodes are connected, never
 // what a listener hears. It also cannot tell an insert that is wired-but-bypassed from one
 // that is absent — it only asserts absence, which is the weaker and currently true claim.
-// "Voice clone" is not asserted anywhere here: it is an open founder question, not a state.
+// "Voice clone" is not asserted anywhere here: the founder answered NO on 2026-08-25.
 //
 // ⛔ TWO COMPILE DEFECTS WERE CAUGHT BY READING, NOT BY A COMPILER — there is none here, and
 // the auto-merge waits for no gate (#683), so a non-building test bundle would reach `main`.

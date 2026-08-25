@@ -14484,3 +14484,47 @@ ein zweiter Opcode oder ein Socket auftaucht, und nennt dann die zwei Prosa-Stel
    PRÄSENS „das Register SAGT ‚ein BAU, keine Entscheidung'" — während derselbe Commit genau
    diesen Satz korrigiert. Das ist #812 in Reinform, nur mit null Tagen Alterung. Auf Vergangen-
    heitsform gesetzt, mit dem Hinweis, dass die Korrektur im selben Commit steckt.
+
+---
+
+## #822 — Founder-Antwort verarbeitet: kein Voice clone, Vokal-Kette beauftragt; die Pflicht-Vorstufe ist gebaut (2026-08-25)
+
+**Die erste echte Founder-Nachricht dieses Fensters**, wörtlich: *"No Voice clone. Monitoring
+soll Direct on Device funktionieren, latenzfrei und mit intelligenter Harmonizer und Granular
+Synthese Effekt Strategie für immersive Musik Erfahrung. ultraechoel, resourcen sparende
+Strategie, vermeide Fehler ultradoctor"*
+
+**Entscheidungen festgeschrieben (decisions.csv 448/449):**
+1. **Voice clone = NEIN.** Alle vier Heime der offenen Frage nachgezogen: CLAUDE.md-Vokal-
+   Zeile, FOUNDER_DEVICE_SESSION §6 (auf `[x]`), der Wächter-Kopf von
+   `TheVocalChainStopsAtTheAutotuneTests`. **`.deploy/release` bewusst NICHT** — ein Edit
+   triggert einen Build; die Antwort fährt mit dem nächsten echten Deploy.
+2. **Die Kette ist beauftragt.** Der Council-Gate-Zusatz „neither before V0 returns" ist vom
+   Founder überstimmt — der BAU läuft, **V0 bleibt die Hör-Bestätigung**. Mechanik unverändert
+   #669 (AU-Insert, null Zusatz-Latenz — „latenzfrei" bestätigt genau die Ablehnung der
+   Tap-Ring-Route, die Latenz ADDIERT hätte).
+
+**Gebaut (die risikofreie Hälfte zuerst — „vermeide Fehler"):**
+`EchoelFXChain.processInPlace(left:right:frameCount:)` — der Pointer-Einstieg, den der
+AU-Render-Block zwingend braucht (er bekommt eine `AudioBufferList`, keine Swift-Arrays; der
+Plan nennt diese API „required and not optional"). Gleiches Gesetz wie `processBuffer`, eine
+Definition (#416): Glide einmal pro Block, dann `processStereo` pro Sample. Kein Alloc, kein
+Lock, keine Kopie. Caller-Contract (Pointer kennt keine Länge) im Doc-Kommentar.
+
+**Wächter:** `Tests/CISmoke/TheChainPointerEntryMatchesTheArrayEntryTests.swift`, 3 Ansprüche:
+1. **Bitweise Gleichheit** beider Einstiege über 4 Blöcke, mit Harmonizer + Granular
+   (die zwei Founder-Stufen) + Sättigung scharf — inkl. Nicht-Identitäts-Vorbedingung, damit
+   die Gleichheit nie Stille mit Stille vergleicht (CleanIsDry-Lehre).
+2. frameCount ≤ 0 fasst kein Sample an.
+3. Quelltext-Pin: der Pointer-Rumpf ruft dieselben zwei Funktionen und baut kein `Array(` —
+   Fenster gegen den echten Baum getrieben (Glide ✓, processStereo ✓, kein Array-Treffer im
+   900-Zeichen-Fenster, auch nicht im angeschnittenen `reset()`).
+
+**Zwei Prämissen GEMESSEN statt angenommen:** Granular ist seeded-deterministisch (eigener
+Doc-Satz: gleiche Seed ⇒ identische Ausgabe) — und sein `mix` DEFAULTET AUF 0, weshalb die
+Fixture ihn explizit auf 0,6 setzt; ohne das hätte die Gleichheit den Wet-Pfad der einen
+Founder-Stufe nie abgedeckt, die dieser Einstieg transportieren soll.
+
+**Nächste Slice (eigener Zyklus, mit audio-thread-review):** V1a — leerer Pass-Through-
+`AUAudioUnit` auf der Monitor-Schiene, erst danach V1b (Kette auf dem Insert, mic-eigenes
+Preset, NIE das Synth-Preset — zwei Besitzer wären die #416-Form).
