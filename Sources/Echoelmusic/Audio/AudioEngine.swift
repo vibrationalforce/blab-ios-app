@@ -2328,6 +2328,13 @@ public final class AudioEngine {
         // LOW): mixing input- and output-format reads across the two wiring sites is
         // the connect-time-exception seed after a mid-session hardware-rate change.
         let inFmt = masterEngine.inputNode.inputFormat(forBus: 0)
+        // #835b (review LOW): monitoring can be FLAGGED on while the session is
+        // deactivated (`stop(reason:)` clears neither), and the node then reports
+        // the 0 Hz placeholder — a connect built from it raises an ObjC exception
+        // no Swift catch sees, the same family as the #835 assert. Store the
+        // choice only (the method's own contract for the monitoring-off case);
+        // the next monitoring ON builds the chain from a live format.
+        guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else { return }
         // #835: quiet the engine around the rewire — a STOP, not a pause. #831
         // chose pause here ("no category change happens here") and the founder's
         // v10.79.422 log falsified it: pause keeps the I/O unit's converter
