@@ -553,9 +553,10 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         guard let gather = Self.body(of: "var monitorInsertLatencyMilliseconds", in: engine) else {
             return XCTFail("the insert-latency gatherer is gone or duplicated — re-anchor (#454).")
         }
-        XCTAssertEqual(Self.count(of: "auAudioUnit.latency", in: gather), 2, """
-            The gatherer stopped asking the graph nodes what they report, or gained a third \
-            stage without this guard moving with it (#456). A hardcoded figure here would be \
+        XCTAssertEqual(Self.count(of: "auAudioUnit.latency", in: gather), 3, """
+            The gatherer stopped asking the graph nodes what they report, or changed its \
+            stage count without this guard moving with it (#456). Three stages since #832: \
+            notch, tune, and the V1a pass-through insert. A hardcoded figure here would be \
             the fabrication #654 refused to ship, only harder to notice because it would look \
             measured.
             """)

@@ -494,11 +494,24 @@ public final class AudioEngine {
         if voiceTuneEnabled, voiceTuneAttached {
             stages.append(("tune", voiceTunePitch.auAudioUnit.latency * 1000))
         }
+        // #832: the pass-through insert reports its own figure — expected 0, and the
+        // first founder log with `insert=` decides whether that 0 is honest (#654's
+        // gate applies to this stage exactly as to the other two).
+        if monitorInsertAttached, let insert = monitorInsertUnit {
+            stages.append(("insert", insert.auAudioUnit.latency * 1000))
+        }
         return stages
     }
 
     @ObservationIgnored private let voiceTunePitch = AVAudioUnitTimePitch()
     @ObservationIgnored private var voiceTuneAttached = false
+    // #832 (V1a): the pass-through insert on the monitor rail — the future home of the
+    // V1b vocal stage. Instantiated ASYNCHRONOUSLY in `prepareGraph()` (the AU factory
+    // completes long before a human reaches the input sheet); nil means instantiation
+    // failed or has not landed, and the monitor chain then builds exactly as before —
+    // monitoring is never hostage to this node.
+    @ObservationIgnored private var monitorInsertUnit: AVAudioUnit?
+    @ObservationIgnored private var monitorInsertAttached = false
     @ObservationIgnored private var voiceTuneCorrector = VoicePitchCorrector()
     @ObservationIgnored private var voiceTuneBuffer = [Float](repeating: 0, count: 2048)
     @ObservationIgnored private var voiceTuneKeyRefreshTick = 0
@@ -664,8 +677,25 @@ public final class AudioEngine {
         }
         AudioConfiguration.setAudioThreadPriority()
         setupMasterEngine()
+        prepareMonitorInsert()
         registerConfigurationChangeWatchdog()
         log.audio("AudioEngine graph prepared — master output wired to hardware")
+    }
+
+    /// #832 (V1a): instantiates the pass-through monitor insert. Fire-and-forget — the
+    /// completion stores the unit for the NEXT monitor-chain build; a failure logs a
+    /// `monitor:`-stem breadcrumb (exportable) and monitoring proceeds insert-less.
+    private func prepareMonitorInsert() {
+        MonitorInsertFactory.instantiate { [weak self] unit, failure in
+            guard let self else { return }
+            if let unit {
+                self.monitorInsertUnit = unit
+            } else {
+                self.logMonitorOutcome(
+                    "insert unavailable (\(failure ?? "no error detail")) — "
+                    + "monitoring runs without it (#832)", level: .info)
+            }
+        }
     }
 
     /// Should a stopped engine be restarted automatically? Pure, so the one rule that
@@ -2045,7 +2075,20 @@ public final class AudioEngine {
             } else {
                 masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
             }
-            masterEngine.connect(monitorMixer, to: masterMixer, format: outFmt)
+            // #832 (V1a): the pass-through insert sits between the monitor mixer and the
+            // master mixer — ONE connect site, untouched by the `setVoiceTune` rewires,
+            // and at outFmt (stereo) so the V1b stage gets left/right pointers. The
+            // engine is STOPPED here (#823/#831), so this connect never races a render.
+            if let insert = monitorInsertUnit {
+                if !monitorInsertAttached {
+                    masterEngine.attach(insert)
+                    monitorInsertAttached = true
+                }
+                masterEngine.connect(monitorMixer, to: insert, format: outFmt)
+                masterEngine.connect(insert, to: masterMixer, format: outFmt)
+            } else {
+                masterEngine.connect(monitorMixer, to: masterMixer, format: outFmt)
+            }
             monitorLevelHistory.removeAll(keepingCapacity: true)
             feedbackGuardActive = false
             notchGainDB = 0
@@ -2059,6 +2102,12 @@ public final class AudioEngine {
                     masterEngine.disconnectNodeOutput(notchEQ)
                     if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
                     masterEngine.disconnectNodeOutput(monitorMixer)
+                    // #832: `disconnectNodeOutput(monitorMixer)` above removed the hop
+                    // INTO the insert; this removes the hop out of it. Stays attached —
+                    // the attach-once pattern of every monitor node.
+                    if let insert = monitorInsertUnit, monitorInsertAttached {
+                        masterEngine.disconnectNodeOutput(insert)
+                    }
                     try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)   // #299
                     // #611: the pause (a stop since #823) above was OURS. Returning
                     // false with the engine still down stranded the WHOLE app silent (music included) behind
@@ -2143,6 +2192,10 @@ public final class AudioEngine {
             // so a working take and a refused one can be compared side by side.
             logMonitorOutcome("ON (gain \(inputMonitorGain), "
                               + "megaphone \(megaphoneMode ? "on" : "off"), "
+                              // #832: whether the pass-through insert made it into THIS
+                              // build of the chain — the V1a device probe reads exactly
+                              // this word ("in" = the AU render contract is live).
+                              + "insert \(monitorInsertAttached ? "in" : "out"), "
                               + "\(inFmt.sampleRate) Hz, "
                               + "\(inFmt.channelCount) ch)", level: .info)
             // #653 — the MOMENT that decides whether monitoring is usable at all. The
@@ -2186,6 +2239,10 @@ public final class AudioEngine {
             masterEngine.disconnectNodeOutput(notchEQ)
             if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
             masterEngine.disconnectNodeOutput(monitorMixer)
+            // #832: the insert's outgoing hop, same reasoning as the rollback site.
+            if let insert = monitorInsertUnit, monitorInsertAttached {
+                masterEngine.disconnectNodeOutput(insert)
+            }
             isInputMonitoring = false
             feedbackGuardActive = false
             notchGainDB = 0

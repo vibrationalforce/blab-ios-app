@@ -14838,3 +14838,47 @@ Getrieben: HEAD scheitert an beiden, ALLE Geschwister-Zählungen unverändert
 
 **Ehrlich:** compile-verifizierbar; „kein SIGABRT mehr" beweist nur das nächste
 Geräte-Log. Deploy v10.79.422 folgt sofort — der Crash blockiert die laufende Probe.
+
+## 2026-08-25 (cron, 24h-Mandat) — v10.79.422 deployed + #832 V1a: der leere Pass-Through-Insert auf der Monitor-Schiene
+
+**Deploy:** v10.79.421 ist nachweislich in App Store Connect gelandet (TestFlight-Lauf
+32875640590 = success). v10.79.422 (NUR der #831-Crash-Fix) gebumpt und gepusht
+(`e179aec`); Note gegen `TheDeployNoteNamesRealDoorsTests` in Python getrieben (Tokens
+Mix + Save/Export, Diagnostics-Tür benannt, Version-first-Regel). Xcode Compile Check
+für `1d8411e` = success; CI/CD-Verdikt und TestFlight-Lauf 32880891819 prüft der
+send_later-Check-in (trig_013HMuEo4ptszEPNuL1RttUw).
+
+**#832 (V1a, decisions.csv:398/450):** `MonitorInsertAudioUnit` + `MonitorInsertFactory`
+(neue Datei `Audio/MonitorInsertAU.swift`): AUAudioUnit-Subclass, deren Render-Block den
+Input DIREKT in die Output-Puffer zieht — null Klangänderung, der AU-VERTRAG ist das
+De-Risking, nicht das DSP. Sitz: `monitorMixer → insert → masterMixer` (EINE
+Connect-Stelle, von den `setVoiceTune`-Rewires unberührt, outFmt = stereo für V1bs
+left/right). Async instanziert in `prepareGraph()`; nil ⇒ Kette baut exakt wie vor #832
+(Monitoring ist nie Geisel des Inserts) + `insert unavailable`-Breadcrumb. ON-Zeile
+trägt jetzt `insert in/out` (die Geräteprobe liest genau dieses Wort);
+Latenz-Sammler hat eine dritte Stufe („insert", erwartet 0), Wächter 8e 2→3 im selben
+Commit (seine eigene Meldung sanktioniert das). Beide Teardown-Stellen (Rollback + OFF)
+trennen den ausgehenden Hop.
+
+**Wächter:** `TheMonitorInsertIsAnEmptyPassThroughTests` — Tests 1–2 END-TO-END: die
+Produktions-Factory + der echte Render-Block laufen im Testhost, Rampe rein, Output muss
+BIT-IDENTISCH sein (Host-Puffer-Zweig UND nil-mData-Zweig; ABL handgebaut statt
+AVAudioPCMBuffer-Hijack). Tests 3–5 Source-Scans (Hops + Fallback + 2 Disconnects ·
+leere-Insert-Tripwire gegen die drei DSP-Namen + processInPlace · Breadcrumbs). Alles in
+Python gegen beide Bäume getrieben: 30/30 grün, Klammer-Bilanzen ausgeglichen,
+needle-reachability + dead-needles sauber. Nachbarn geprüft: Vocal-Chain-Dir-Scan sauber,
+#831-Fenster, #829-Fenster, #826-Gate, Latenz-Wächter Anker/Ordnung.
+
+**Ehrlich:** compile- und CI-verifizierbar (die END-TO-END-Tests laufen nur, wenn der
+CI-Würfel sie flusht — #445/#807); ob der Insert am GERÄT klanglich neutral ist, sagt
+erst ein Founder-Log mit `insert in` bei unverändertem Monitor-Klang.
+NEEDS-FOUNDER-VERIFY am `monitorInsertUnit`-Doc wäre doppelt — die ON-Zeile IST die Probe.
+
+**Review (#832):** audio-thread-reviewer: Render-Block CLEAN (null Alloc/Lock/ObjC/
+self-Capture; Scratch-POD-Reads ohne msgSend). Drei Befunde, alle im selben Commit
+umgesetzt: (1) MEDIUM Factory auf die ASYNC-Form von `AVAudioUnit.instantiate`
+umgestellt — der Completion-Handler-Parameter ist non-Sendable und unter Swift-6-
+Region-Isolation nicht in einen `@MainActor`-Task sendbar (Xcode-Gate-Risiko);
+(2) LOW `release()` un-publisht VOR dem Freigeben (capacity=0 → nil → dealloc) +
+super-first in `deallocateRenderResources`; (3) LOW Test-ABL `bindMemory` statt
+`assumingMemoryBound` (UB dem Buchstaben nach).
