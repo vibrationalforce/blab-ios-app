@@ -14986,3 +14986,16 @@ kürzeren Trust-Lücke.
 - Die 6 übrigen pause()-Stellen sind Output-seitig (Interruption/Route-Lost,
   stopEverything, Source-/Player-/Warp-Attach an masterMixer) — bewusst NICHT
   angefasst: die Evidenz deckt nur die Input-Kette; Scope-Treue vor Symmetrie.
+
+### 2026-08-25 (nachts, Fortsetzung) — Review #835 + #835b + Deploy v10.79.424
+- Pflicht-Review (Audio-Thread-Lens): Fix korrekt/ausreichend/symmetrisch, 0 CRITICAL.
+  Q2 bestätigt per Enumeration: setVoiceTune war die LETZTE Input-Ketten-Chirurgie
+  ohne stop(); die 6 pause()-Stellen sind Output-seitig. Informational registriert:
+  stop() wirft Player-Node-Schedules ab (gleicher Preis wie die Monitoring-Toggles,
+  bewusst akzeptiert — Aussetzer schlägt SIGABRT).
+- #835b (Review-LOW im selben Zug geschlossen): setVoiceTune verweigert das
+  0-Hz-Placeholder-Format (Connect damit = ObjC-Exception, gleiche Familie).
+  Claim-2-Fenster nachgefahren: letzte Nadel bei 1323/1600 — hält.
+- Deploy v10.79.424 (#835/#835b): Note in Python gegen alle Wächter-Regeln grün.
+- Zweite Review-LOW (detach-Stellen ohne Pause, Output-seitig, seit langem so
+  ausgeliefert) bewusst NICHT angefasst — als Kandidat notiert, keine Evidenz.

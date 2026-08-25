@@ -1,4 +1,4 @@
-build: v10.79.423 — Drei Antworten in einem Log: Absturz-Probe, Puls-Vertrauensdaten, und der Baustein für Deine Stimm-Effekte
+build: v10.79.424 — Dein Log von heute Nacht hat die dritte Stelle gefunden: der Autotune-Schalter war der Absturz
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,55 +6,42 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.422 (die Absturz-Reparatur #831 — falls Du die noch nicht
-  probiert hast: ihre ganze Probe steckt auch in diesem Build, Punkt 1 unten).
-  Neu sind DREI Dinge, und Dein nächstes Diagnose-Log beantwortet alle drei auf einmal —
-  jede Schicht schreibt ihre eigene Zeile ins Log, ich kann sie also auseinanderhalten.
+  Der Vorgänger ist 10.79.423 (falls Du den noch nicht installiert hast: seine drei
+  Neuerungen — leeres Monitor-Zwischenstück, Puls-Vertrauensdaten, Puls überlebt
+  Belichtungssprünge — stecken alle auch in diesem Build).
 
-  ── WAS NEU IST ──────────────────────────────────────────────────────────
+  ── WAS DEIN NACHT-LOG BEWIESEN HAT (v422, 23:20) ───────────────────────
 
-  **1. Der Baustein für Harmonizer & Granular auf Deiner Stimme (#832).** Du hast die
-  Effekt-Kette auf dem Monitoring beauftragt. Damit die sicher wird, sitzt in diesem
-  Build erst einmal ein LEERES Zwischenstück im Monitorweg — es verändert den Klang
-  um exakt null, beweist aber am Gerät, dass die Steckverbindung hält. Im Log steht
-  dann `insert in` (Zwischenstück drin) oder `insert unavailable` (konnte nicht
-  geladen werden — dann läuft Monitoring wie bisher ohne). Erst wenn Dein Log
-  `insert in` zeigt UND das Monitoring unverändert klingt, baue ich die Effekte
-  hinein — so bleibt jeder Fehler einer Schicht zuordenbar.
-
-  **2. Der Puls verliert seine Schätzung nicht mehr bei Helligkeitssprüngen (#834).**
-  Dein Log von gestern zeigte es um 13:44:05: das Vertrauen war gerade auf 0,89
-  geklettert, dann hat die Kamera einmal die Belichtung nachgeregelt — und die App
-  warf den ganzen Puls-Fund weg und fing bei null an. Jetzt behält sie die
-  Herz-Schätzung (Dein Herz ändert sich ja nicht, nur das Licht) und prüft sie nur
-  neu. Erwartung: nach so einem Sprung ist der Puls in ~3–4 s wieder da statt in ~20.
-
-  **3. Das Log sagt jetzt, WARUM es einem Puls nicht traut (#833).** Jede
-  Vertrauens-Zeile trägt Rohdaten der abgelehnten Messfenster. Damit entscheidet
-  Dein nächstes Log die offene Frage, ob die Vertrauens-Schwelle zu streng ist —
-  ich musste bisher raten, ab jetzt messe ich an Deinen Daten.
+  Der Absturz kam WIEDER, trotz der 422er-Reparatur — und genau das war die
+  entscheidende Information: die zwei reparierten Stellen waren es nicht. Es gibt
+  im Monitorweg genau DREI Stellen, die den Signalweg umbauen. Zwei davon halten
+  den Audio-Motor seit 422 vor dem Umbau ganz an. Die dritte — der
+  **Autotune-Schalter** — hat ihn nur PAUSIERT. Pausieren lässt die Maschinerie
+  innen weiterleben, und der Umbau unter lebender Maschinerie ist exakt dieser
+  Absturz. Der Beweis, dass Anhalten sicher ist, steht in Deinem eigenen Log:
+  der Monitoring-Start (der anhält, umbaut, neu startet) lief darin fehlerfrei.
+  Jetzt hält auch der Autotune-Umbau ganz an. Zusätzlich (aus der Review):
+  der Umbau verweigert jetzt ein ungültiges Eingangs-Format, statt daran zu
+  sterben.
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  1. **Die Absturz-Probe aus 422** (falls noch offen): **Mix**-Chip → „Voice · your
-     microphone" → „Choose input…", **Live monitoring** an. Megaphone mehrfach
-     an/aus, Monitoring mehrfach aus/an, Autotune dazu — genau das Umschalten, das
-     vorgestern den Absturz auslöste. Erwartung: KEIN Absturz. Dabei hinhören:
-     klingt das Monitoring exakt wie vorher? (Das prüft das leere Zwischenstück.)
-  2. **Eine Puls-Messung mit Finger auf der Kamera**, 1–2 Minuten, ruhig — gern
-     absichtlich mal die Hand ins Licht/in den Schatten bewegen, damit die
-     Belichtung nachregelt. Erwartung: der Puls kommt nach so einem Sprung schnell
-     zurück.
-  3. **Dann das Diagnose-Log schicken:** **Save/Export**-Chip → „Diagnostics" →
-     oben rechts **Share**. Ein Log beantwortet alle drei Punkte.
+  1. **Genau Deine Nacht-Sequenz:** **Mix**-Chip → „Voice · your microphone" →
+     Live monitoring an → Megaphone an → **Autotune dazuschalten**, mehrfach
+     an/aus, dazu Megaphone und Monitoring hin und her. Erwartung: KEIN Absturz.
+     Beim Umschalten darf die Musik kurz aussetzen (das ist das Anhalten) —
+     falls der Aussetzer störend lang ist: sagen, das wird die nächste Scheibe.
+  2. Danach wie gehabt: **Puls-Messung** mit Finger auf der Kamera (1–2 min, gern
+     mit Licht/Schatten-Wechsel) und dann das Diagnose-Log: **Save/Export**-Chip
+     → „Diagnostics" → **Share**. Ein Log beantwortet Absturz, Zwischenstück
+     (`insert in`), Puls-Rückkehr und Vertrauensdaten auf einmal.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Alles Neue ist compile-verifiziert, NICHT geräteverifiziert. Ob das Zwischenstück
-  am Gerät lädt und klanglich unsichtbar ist, ob die Puls-Rückkehr wirklich schneller
-  fühlt, und ob der Absturz weg ist — das entscheidet Dein Gerät, nicht meine Tests.
-  Falls beim Umschalten ein Knacks hörbar ist: bitte sagen, das ist die nächste Scheibe.
+  Compile-verifiziert, nicht geräteverifiziert — ob der Absturz wirklich weg ist,
+  entscheidet Dein Versuch. Es war die letzte der drei Umbau-Stellen; sollte es
+  JETZT noch krachen, ist die Ursache eine andere Klasse, und Dein Log zeigt mir
+  welche.
 
-  ⚠ Die Uhr-App bleibt ausgenommen: das Watch-Target ist in `project.yml` nicht
-  eingebettet, und es gibt keinen Übertragungsweg vom Telefon ans Handgelenk. Gebaut,
-  nicht auslieferbar — bitte NICHT prüfen.
+  ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
+  bitte NICHT prüfen.
