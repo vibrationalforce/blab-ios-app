@@ -14954,3 +14954,15 @@ Wächter auf korrektem Baum rot geworden. Alles in Python gegen beide Bäume get
 **Ehrlich:** compile-/CI-prüfbar; ob die Kontinuität HÖRBAR ist (Musik folgt dem Körper
 durch einen Resettle hindurch), sagt erst ein Log mit dem neuen Breadcrumb neben einer
 kürzeren Trust-Lücke.
+
+### 2026-08-25 (spät) — Deploy v10.79.423 (eb718ac)
+- Gates für 9d9d1ea (#834) geprüft: Xcode Compile Check grün, CI/CD im #396-Muster
+  (`build-for-testing: Succeeded`, 0 Compile-Fehler, 0 Failures/Skips im Fenster).
+  Die neuen #834-Tests: kompilieren nachweislich, Ausführung unbelegt (#445).
+- Entscheidung: Halt für v423 aufgehoben. Begründung: #832/#833/#834 warten ALLE auf
+  ein Geräte-Log ≥423; jede Schicht schreibt ihren eigenen Breadcrumb (`insert in/out`,
+  `acfOnly(…)`, `estimate kept — #834`), also attribuiert das LOG die Schichten — nicht
+  die Trennung der Builds. Ein Founder-Test beantwortet so vier Fragen statt einer.
+- Deploy-Note in Python gegen alle drei Wächter-Regeln gefahren (Version-first,
+  pathTokens {Mix, Save/Export}, Diagnostics-Tür, Vorgänger ohne v) — alle grün.
+- TestFlight-Delivered-Beweis = „Verify build landed"-Schritt; Check-in geplant.
