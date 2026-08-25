@@ -13784,3 +13784,61 @@ denselben Ausfall ab.
 **Gate-Ergebnis des Vorgängers #805 (`67eef12`):** `Build for Testing: success`, 0 Compile-Fehler,
 0 Testfehler, 135 beobachtete Durchläufe, **0 Skips**. Anspruch 7 war nicht in der geleerten
 Teilmenge — kompiliert nachweislich, Ausführung unbelegt (#445).
+
+---
+
+## #807 — der Job-Log IST nicht der Testlauf. Er ist `tail -200 test.log`.
+
+**Wie ich darauf kam.** Mir fiel auf, dass die „beobachteten Durchläufe" drei Läufe hintereinander
+exakt **135** waren und keiner meiner neuen Wächter je auftauchte. §5 erklärte das mit einer
+Lotterie („der überlebende Clone leert eine nicht-deterministische Teilmenge"). Also gemessen
+statt geglaubt: über **vier** aufeinanderfolgende Läufe sind **133 von 135** Ergebniszeilen
+IDENTISCH. Das ist keine Lotterie.
+
+**Erst die eigene Messung geprüft (#801-Lehre).** Ich hatte `tail_lines=6000` an die Log-API
+gegeben — die Zahlen hätten ein Artefakt meines eigenen Aufrufs sein können. Sie sind es nicht:
+`original_length = 4148` und der dekodierte Log hat 4148 Zeilen, beginnt bei „Current runner
+version" und endet bei „Cleaning up orphan processes". **Vollständig.**
+
+**Dann der Befund, im Log selbst:**
+- Das LIVE-Fenster des Testschritts ist **16 Zeilen** — Befehls-Echo, env-Block, und
+  `##[error]Process completed with exit code 65`. **xcpretty hat für einen zwölfminütigen Lauf
+  NICHTS gedruckt.**
+- Alle 134 Ergebniszeilen liegen in einem **0,06-Sekunden-Fenster ganz am Ende**, direkt vor
+  `upload-artifact`.
+- `ci.yml` bestätigt es: `Print test log on failure` → **`tail -200 test.log`**. Der 210-Zeilen-
+  Block (200 Tail-Zeilen plus Schritt-Gerüst) trägt **alle** Ergebniszeilen UND den
+  `** TEST EXECUTE FAILED **`-Marker, in jedem gemessenen Lauf.
+
+**Die Folge, und sie ist die schwerste dieser Reihe: ein Test, der außerhalb der letzten 200
+Rohzeilen fehlschlägt, hinterlässt im Job-Log keine Spur.** `gh-test-verdict.py` druckt dann
+`TEST FAILURES: 0` über einen Lauf, der wirklich fehlgeschlagen ist — ein stilles Grün,
+STRUKTURELL statt Nadel-Fehler, also durch keine Schreibweise reparierbar. Und es erklärt **#686**
+exakt: der Test, der nicht bestehen KONNTE, zeigte keine Ergebniszeile, weil er außerhalb des
+Fensters lag — nicht weil ein Clone ihn verschluckt hat.
+
+⚠️ **Damit ist das „Lotterie"-Modell in §5 überholt** — im GRUND, nicht im Ergebnis. #445 bleibt
+wörtlich richtig; neu-laufen kauft weiterhin nichts, aber weil das Fenster immer am selben Ende
+liegt, nicht weil gewürfelt wird. `test.log` selbst ist vollständig; nur der JOB-Log ist
+beschnitten.
+
+**Gebaut:** das Werkzeug druckt jetzt eine `WINDOW`-Zeile, die den tatsächlich gesehenen Tail
+NENNT — **aus dem Log gelesen, nicht angenommen** (`TAIL_STEP`), damit es die neue Wirklichkeit
+meldet, falls der Workflow je mehr druckt. Der Verdikt-Satz sagt nicht mehr „im FLUSHED log",
+sondern „in den letzten 200 Zeilen von test.log" und ausdrücklich, dass das **nicht** „die Suite
+ist grün" heißt. `--selftest` deckt drei Fenster-Formen ab (Tail vorhanden, Tail umbenannt, kein
+Tail). Anspruch 7 im Wächter pinnt beides.
+
+⚠️ **Reparatur ist founder-gated** (`.github/workflows/**` — berichten, nicht editieren) und hat
+eine billige Form: der Lauf schreibt bereits `-resultBundlePath TestResults` und lädt es als
+Artefakt hoch — **die vollständigen Ergebnisse EXISTIEREN**, sie erreichen nur den Job-Log nie.
+
+**Prosa mitgezogen (#456):** §5 (neuer ⛔-Block plus Annotation am „Lotterie"-Satz) und
+`.claude/rules/context.md` §4.
+
+⚠️ **Was ich NICHT behaupte:** dass die anderen ~2264 Testmethoden nicht laufen. Der Log kann das
+nicht sagen — genau das ist der Punkt. Die Zahl „135 von 2399" beschreibt das FENSTER, nicht den
+Lauf.
+
+**Gate-Ergebnis des Vorgängers #806 (`aec6cea`):** `Build for Testing: success`, 0 Compile-Fehler,
+0 Testfehler, **0 Skips** — die erste echte Bestätigung der neuen Skip-Meldung.

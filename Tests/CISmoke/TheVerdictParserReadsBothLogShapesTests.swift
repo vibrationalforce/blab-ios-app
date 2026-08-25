@@ -369,6 +369,57 @@ final class TheVerdictParserReadsBothLogShapesTests: XCTestCase {
             """)
     }
 
+    // MARK: - 7 · REGRESSION: the verdict must state that it only saw a tail
+
+    /// Claim 7 (#807). The job log is NOT the test run. `ci.yml` pipes `xcodebuild
+    /// test-without-building` through `tee test.log | xcpretty`, and the next step is
+    /// `Print test log on failure` → **`tail -200 test.log`**. Measured on three COMPLETE job
+    /// logs (`original_length` matched the decoded line count, so these were not tails of my
+    /// own making — `aec6cea`, `67eef12`, `92ddb00`):
+    ///   · the live test window is **16 lines** — the command echo, the env block, and
+    ///     `##[error]Process completed with exit code 65`. xcpretty printed NOTHING for a
+    ///     twelve-minute run.
+    ///   · the `tail` step's 210-line block holds ALL 134 result lines AND the
+    ///     `** TEST EXECUTE FAILED **` marker, in every run.
+    ///
+    /// ⛔ SO A TEST THAT FAILS OUTSIDE THE LAST 200 RAW LINES LEAVES NO TRACE IN THE JOB LOG,
+    /// and this parser then prints `TEST FAILURES: 0` over a run that really failed. Structural,
+    /// not a needle bug — the same silent-green shape as #738 and worse, because no spelling
+    /// change can fix it. It also explains #686 exactly: the test that could not pass showed no
+    /// result line because it was outside the window, not because a clone swallowed it.
+    ///
+    /// ⚠️ IT RETIRES THE "FLUSH LOTTERY" MODEL that §5 of this directory's CLAUDE.md carried.
+    /// Measured across four consecutive runs, **133 of 135 result lines are IDENTICAL** — a
+    /// fixed tail, not a non-deterministic subset. `test.log` itself is complete; only the job
+    /// log is cut. #445's conclusion survives untouched and its REASON changes.
+    ///
+    /// ⚠️ THE REPAIR IS FOUNDER-GATED (`.github/workflows/**` — report, do not edit), and it
+    /// already has a cheap shape: the run writes `-resultBundlePath TestResults` and uploads it
+    /// as an artifact, so complete results EXIST; they simply never reach the job log. This
+    /// claim does not demand that fix (#364) — it demands that the tool stop implying it saw
+    /// the run.
+    ///
+    /// GRADING (#464): REGRESSION. On the parent tree the parser has no window detector and its
+    /// verdict says "in the FLUSHED log", which is the sentence this measurement disproves.
+    func testTheVerdictSaysHowMuchOfTheRunItActuallySaw() throws {
+        let code = try text(Self.parser)
+        XCTAssertTrue(code.contains("TAIL_STEP"), """
+            The parser no longer detects the `tail -N test.log` step, so it cannot say how much
+            of the run it saw.
+
+            The job log carries only that tail. Without this, `TEST FAILURES: 0` reads as "the
+            suite passed" when it means "nothing failed in the last 200 lines". Read the window
+            FROM the log rather than hardcoding 200 — if the workflow ever prints more, or
+            starts parsing the uploaded `TestResults` bundle, the tool must report the new
+            reality and not a remembered one.
+            """)
+        XCTAssertTrue(code.contains("WINDOW"), """
+            The verdict no longer prints a WINDOW line. That line is the whole point of #807:
+            every "gates green" sentence a session writes rests on it, and for four runs it
+            rested on 200 lines without saying so.
+            """)
+    }
+
     // MARK: - 5 · COUNTERWEIGHT: the directory law still points sessions at this tool
 
     func testTheDirectoryLawStillNamesTheScript() throws {

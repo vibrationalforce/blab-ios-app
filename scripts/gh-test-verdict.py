@@ -122,6 +122,35 @@ FAILED_OR_PASSED_PASS = PASS_LINE
 # real skip ever prints differently, fix it here and say so, do not add a fourth needle set.
 SKIP_LINE = re.compile(r"Test [Cc]ase '([^']+)' skipped", re.MULTILINE)
 
+# ⛔ #807 — THE JOB LOG IS NOT THE TEST RUN. IT IS `tail -200 test.log`, AND EVERY VERDICT THIS
+# SCRIPT HAS EVER PRINTED WAS COMPUTED OVER THAT WINDOW ALONE.
+#
+# Measured on `aec6cea`, `67eef12` and `92ddb00`, from COMPLETE job logs (`original_length`
+# matched the decoded line count, so these are not tails of my own making):
+#   · `ci.yml` runs `xcodebuild test-without-building … 2>&1 | tee test.log | xcpretty`, and
+#     xcpretty printed NOTHING for a twelve-minute run — the live window is 16 lines: the
+#     command echo, the env block, and `##[error]Process completed with exit code 65`.
+#   · The next step is `Print test log on failure` → `tail -200 test.log`. That 210-line block
+#     (200 tail lines plus the step scaffolding) is where ALL 134 result lines and the
+#     `** TEST EXECUTE FAILED **` marker live, in every run measured.
+#
+# CONSEQUENCE, and it is the reason this block exists rather than a comment somewhere: a test
+# that FAILS outside the last 200 raw lines produces no line in the job log at all, so this
+# script prints `TEST FAILURES: 0` over a run that really failed. That is a silent green, the
+# same shape as #738 and strictly worse, because it is structural rather than a needle bug.
+# It also explains #686 exactly — the test that could not pass showed no result line because it
+# was not in the window, not because a clone swallowed it.
+#
+# ⚠️ IT ALSO RETIRES THE "FLUSH LOTTERY" MODEL. `Tests/CISmoke/CLAUDE.md` §5 said the log
+# carries the non-deterministic subset a surviving clone managed to flush. Measured across four
+# consecutive runs, 133 of 135 result lines are IDENTICAL — a fixed tail, not a lottery.
+# `test.log` itself is complete; only the job log is cut.
+#
+# The window is READ from the log rather than assumed, so if the workflow ever prints more (or
+# uploads `TestResults`, which it already produces via `-resultBundlePath`), this reports the
+# new reality instead of a remembered one.
+TAIL_STEP = re.compile(r"tail -(\d+) (\S*test\.log)")
+
 
 def find_failures(text):
     return FAIL_LINE.findall(text)
@@ -223,6 +252,20 @@ def selftest():
         bad += 0 if good else 1
         print(f"  {'ok ' if good else 'BAD'}  skip-renderer {name:29}  -> {hit}")
 
+    # The WINDOW detector (#807). Read from the log, never assumed — so both answers must be
+    # reachable: a log that carries the tail step, and one that does not.
+    windows = {
+        "tail step present": ("2026-01-01T00:00:00Z ##[group]Run tail -200 test.log\n", "200"),
+        "tail step renamed": ("2026-01-01T00:00:00Z ##[group]Run tail -40 build/test.log\n", "40"),
+        "no tail step":      ("2026-01-01T00:00:00Z ##[group]Run echo done\n", None),
+    }
+    for name, (line, expected) in windows.items():
+        hit = TAIL_STEP.search(line)
+        got = hit.group(1) if hit else None
+        good = got == expected
+        bad += 0 if good else 1
+        print(f"  {'ok ' if good else 'BAD'}  window {name:33}  -> {got}")
+
     print("selftest: OK" if not bad else f"selftest: {bad} check(s) MISREAD")
     return 0 if not bad else 1
 
@@ -254,8 +297,14 @@ def main():
     # remainder of the log as if it were the name of a single failing test.
     failures = find_failures(text)
     skips = find_skips(text)
+    window = TAIL_STEP.search(text)
     ran = len(FAILED_OR_PASSED_PASS.findall(text))
 
+    if window:
+        print(f"WINDOW            : job log carries only `tail -{window.group(1)} "
+              f"{window.group(2)}` — a failure before that window does NOT appear here (#807)")
+    else:
+        print("WINDOW            : no `tail -N test.log` step seen — treating the log as whole")
     print(f"build-for-testing : {'Succeeded' if build else 'NOT SEEN'}")
     print(f"TEST BUILD FAILED : {build_failed}")
     print(f"TEST EXECUTE FAILED: {execute_failed}   (#396 — expected on every push)")
@@ -280,8 +329,12 @@ def main():
         print("\nVERDICT: a guard SKIPPED. A skip is not a pass — it asserted nothing. "
               "Find its `XCTSkip` and re-anchor it (#454); do not read this run as clean.")
     elif not failures and not compile_errors:
-        print("\nVERDICT: no failure and no skip in the FLUSHED log. #445 — a test name's "
-              "ABSENCE proves nothing; only its presence proves it ran.")
+        scope = (f"the last {window.group(1)} lines of {window.group(2)}"
+                 if window else "the whole job log")
+        print(f"\nVERDICT: no failure and no skip IN {scope.upper()}. That is NOT "
+              "'the suite passed' (#807): the job log is a tail, so a failure earlier in the "
+              "run leaves no trace here. #445 — a test name's ABSENCE proves nothing; only "
+              "its presence proves it ran.")
     return 1 if (failures or compile_errors or build_failed or skips) else 0
 
 
