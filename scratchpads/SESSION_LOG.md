@@ -14760,3 +14760,32 @@ HEAD scheitert an jedem Forward-Anspruch, Fixtures auf beiden Bäumen determinis
 **Ehrlich:** compile-verifizierbar; Lautsprecher-Rückkopplung existiert in keinem
 Simulator — NEEDS-FOUNDER-VERIFY am `megaphoneMode`-Doc (Probe: Stimme lauter,
 beginnendes Heulen duckt binnen ~1 s, Schalter aus = alter Pegel).
+
+## 2026-08-25 — #830: Interface-Kanalzahl ehrlich angezeigt (Scheibe 5, Abschluss des BT/Interface-Plans)
+
+**Der Befund aus dem #824-Audit:** Ein 8-Kanal-USB-Interface wird heute STILL
+gestutzt — die Engine clampt den Eingang auf max. 2 Kanäle
+(`min(max(session.inputNumberOfChannels, 1), 2)`), der Master-Graph ist hart Stereo
+(`min(outputFormat.channelCount, 2)`) — und keine Fläche sagte es.
+
+**Gebaut:** `AudioInputInfo.inputChannelCount: Int?` — die Zahl kommt vom PORT selbst
+(`port.channels?.count`, die Behauptung der Hardware, nie erfunden; `nil` = „Session hat
+nichts gesagt", nicht „2", #654). Der Picker-Row rendert bei >2 gemeldeten Eingängen:
+„N inputs — Echoel uses the first two channels." — Mono/Stereo-Geräte bekommen keine
+Zeile. Optional-Feld ⇒ synthetisiertes `decodeIfPresent`, Alt-Payloads dekodieren weiter
+(Persistenz-Steward-Gesetz automatisch erfüllt; Init-Default `nil` hält die bestehenden
+Konstruktions-Stellen inkl. Tests kompilierend).
+
+**Bewusst NICHT in dieser Scheibe (Lead-Plan-Gate):** echtes Mehrkanal-Stems-Routing
+und der Mid-Session-Hardware-Format-Reconnect — beides Council-gated eigene Scheiben
+(`RESEARCH_MULTI_INTERFACE_2026-07-10.md`: EIN Interface, Stems auf seine Kanäle).
+
+**Wächter:** `TheInterfaceChannelCountIsHonestTests` — 1 END-TO-END (Alt-Payload ohne
+Key → nil statt Wurf; Round-Trip mit 8) + Scans (Port-Read · >2-Gate · „first two
+channels") + 2 GEGENGEWICHTE (#343): die zwei Clamp-Zeilen, die den Satz WAHR machen —
+fällt eine (echtes Mehrkanal landet), muss die Row-Kopie im selben Commit mitziehen.
+Getrieben: HEAD scheitert an allen Forward-Ansprüchen, Gegengewichte grün auf beiden.
+
+**Damit ist der 5-Scheiben-Plan aus dem Ultracode-Audit KOMPLETT:** #823 Live-Input ·
+#824→#827 HFP-Verbot · #825 Grant-Leck · #826 Format-Gate · #828 Urteil sichtbar ·
+#829 Megaphone (Zusatz-Ask) · #830 Interface-Ehrlichkeit.

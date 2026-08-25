@@ -393,6 +393,17 @@ struct AudioInputPickerView: View {
                     Text(input.latency.advice)
                         .font(EchoelTheme.font(11)).foregroundStyle(color(for: input.latency))
                         .fixedSize(horizontal: false, vertical: true)
+                    // #830 — the multichannel truth, stated instead of silently
+                    // truncated: the engine's input clamp and the stereo master
+                    // graph use the first two channels at most. Rendered only when
+                    // the PORT reports more than two — a mono or stereo device gets
+                    // no line (nothing to warn about), and `nil` means the session
+                    // did not say, which is not the same as "2" (#654).
+                    if let channels = input.inputChannelCount, channels > 2 {
+                        Text("\(channels) inputs — Echoel uses the first two channels.")
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
                 }
                 Spacer(minLength: 8)
                 if selected {

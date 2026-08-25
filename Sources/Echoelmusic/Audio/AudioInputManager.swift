@@ -38,14 +38,24 @@ public struct AudioInputInfo: Identifiable, Equatable, Sendable, Codable {
     public var portTypeRaw: String
     public var kind: AudioInputKind
     public var latency: MonitoringLatency
+    /// #830 — how many input channels the PORT reports (`nil` = the session did not
+    /// say). Read from `AVAudioSessionPortDescription.channels`, so it is the
+    /// HARDWARE's claim, not ours. The engine records/monitors the first two at most
+    /// (its input clamp and the stereo master graph), and the picker says so on any
+    /// row where this exceeds 2 — an 8-in interface is honest instead of silently
+    /// truncated. Optional, so the synthesized Codable treats a missing key as `nil`
+    /// (the decodeIfPresent law) and older payloads keep decoding.
+    public var inputChannelCount: Int?
 
     public init(id: String, name: String, portTypeRaw: String,
-                kind: AudioInputKind, latency: MonitoringLatency) {
+                kind: AudioInputKind, latency: MonitoringLatency,
+                inputChannelCount: Int? = nil) {
         self.id = id
         self.name = name
         self.portTypeRaw = portTypeRaw
         self.kind = kind
         self.latency = latency
+        self.inputChannelCount = inputChannelCount
     }
 }
 
@@ -124,7 +134,8 @@ public final class AudioInputManager {
             let c = AudioInputClassifier.classify(portTypeRaw: port.portType.rawValue)
             return AudioInputInfo(id: port.uid, name: port.portName,
                                   portTypeRaw: port.portType.rawValue,
-                                  kind: c.kind, latency: c.latency)
+                                  kind: c.kind, latency: c.latency,
+                                  inputChannelCount: port.channels?.count)
         }
         selectedID = session.preferredInput?.uid ?? session.currentRoute.inputs.first?.uid
         // Output route: a low-latency input (built-in mic) paired with a Bluetooth
