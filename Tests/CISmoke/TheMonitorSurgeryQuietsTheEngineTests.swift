@@ -10,6 +10,16 @@
 // of the two the founder's finger hit, the root cause is shared and both are fixed:
 // no monitor-chain surgery on a running engine.
 //
+// ⛔ #836 — AND THE THIRD DEVICE LOG (v10.79.424, 2542) PINNED THE REAL SITE. The
+// assert survived #835 because the crash is not in the teardown at all: the OFF
+// path disconnected every monitor node EXCEPT the input's own edge, released the
+// record route (session → playback-only), and then restart()ed an engine whose
+// graph still wired `input → notchEQ` — an input node with no input scope. #831's
+// stop made that reachable on EVERY off-toggle (we always stop, so the restore
+// always restarts). v421's crash was the live teardown (one AVFAudio stack shape);
+// v422/v424's is the restart (another). Claim 3 pins the input-edge disconnect at
+// both restart-preceding sites: the OFF teardown and the ON rollback.
+//
 // ⛔ #835 — THE PAUSE HALF OF #831 WAS FALSIFIED BY THE NEXT DEVICE LOG. v10.79.422
 // (2540), the build WITH #831, crashed with the SAME assert, again out of a
 // toggle's Binding set. Of the two sites only setVoiceTune still merely PAUSED —
@@ -108,6 +118,44 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             The rewire's restart-failure path is gone. The stop creates exactly the \
             start()-can-fail case the old doc said did not exist — without this \
             fallback a failed restart strands the whole app silent (#611).
+            """)
+    }
+
+    // MARK: - 3. Every restart after a route release sees the launch-shape graph (#836)
+
+    /// The OFF teardown and the ON rollback both release the record route and then
+    /// restart. A restart whose graph still holds the input edge wires an input node
+    /// under a playback-only session — the v10.79.424 assert. The disconnect must sit
+    /// BEFORE the route release at both sites.
+    func testTheInputEdgeIsGoneBeforeEveryPostReleaseRestart() {
+        let code = engineCode()
+        guard !code.isEmpty else { return }
+        XCTAssertEqual(
+            code.components(separatedBy: "disconnectNodeOutput(masterEngine.inputNode)").count - 1,
+            2, """
+            The input-edge disconnect count changed — TWO sites precede a restart \
+            after releaseRecordRoute (the OFF teardown and the ON rollback). A third \
+            restart-preceding site needs its own disconnect; a removed one restores \
+            the v10.79.424 start-shaped SIGABRT (#836).
+            """)
+        guard let off = code.range(of: "guard isInputMonitoring else { return true }") else {
+            XCTFail("The OFF branch's guard is gone — re-anchor this claim (§4).")
+            return
+        }
+        let offWindow = String(code[off.lowerBound...].prefix(1_400))
+        guard let edge = offWindow.range(of: "disconnectNodeOutput(masterEngine.inputNode)"),
+              let release = offWindow.range(of: "releaseRecordRoute(.inputMonitoring)") else {
+            XCTFail("""
+                The OFF teardown lost the input-edge disconnect or its route release \
+                moved out of the window. The restart after the release must see the \
+                launch-shape graph (playback-only, no input edge) — the one shape \
+                proven to start on every app launch (#836).
+                """)
+            return
+        }
+        XCTAssertTrue(edge.lowerBound < release.lowerBound, """
+            The input edge outlives the route release — the restore's start() then \
+            wires an input node with no input scope, the v10.79.424 assert.
             """)
     }
 }

@@ -14999,3 +14999,20 @@ kürzeren Trust-Lücke.
 - Deploy v10.79.424 (#835/#835b): Note in Python gegen alle Wächter-Regeln grün.
 - Zweite Review-LOW (detach-Stellen ohne Pause, Output-seitig, seit langem so
   ausgeliefert) bewusst NICHT angefasst — als Kandidat notiert, keine Evidenz.
+
+### 2026-08-26 (früh) — #836: die Input-Kante überlebte den OFF-Teardown (drittes Crash-Log)
+- Founder-Log v10.79.424 (2542, MIT #835): Assert überlebt, ~1,2 s nach megaphone on,
+  wieder Binding-Stack — aber ANDERE AVFAudio-Offsets als v421 (start-förmig, nicht
+  teardown-förmig). Und in KEINEM der drei Logs ist je `monitor: OFF` erschienen.
+- Mechanik: OFF trennt notchEQ/voiceTune/monitorMixer/insert — NIE die Input-Kante.
+  releaseRecordRoute → playback-only → restoreEngineIfStranded → start() mit
+  `input → notchEQ` im Graphen eines Input-losen Systems = der Assert. #831s Stop
+  hat das Loch auf jedem OFF erreichbar gemacht (Restore feuert seither immer).
+  setVoiceTune für v424 ausgeschlossen: stop→connect ist durch den ON-Pfad bewiesen.
+- Fix: `disconnectNodeOutput(masterEngine.inputNode)` an BEIDEN Restart-Vorstufen
+  (OFF-Teardown + ON-Rollback), vor dem Route-Release — jeder Neustart sieht den
+  Launch-Graphen (playback-only, keine Input-Kante), der bei jedem App-Start beweist,
+  dass er startet. Wächter Claim 3 (Count==2 + Kante-vor-Release), Header trägt die
+  Drei-Logs-Chronik. Python-Fahrt: alle Claims grün, dead-needles 0, reachability 0.
+- ⭐ Nebenbefund aus demselben Log: `insert in` — das V1a-Zwischenstück lädt am
+  Gerät und Monitoring startet damit (Klang-Urteil steht noch aus).

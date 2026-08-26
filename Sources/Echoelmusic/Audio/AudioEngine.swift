@@ -2099,6 +2099,11 @@ public final class AudioEngine {
                 do { try masterEngine.start() }
                 catch {
                     logMonitorOutcome("engine restart failed (\(error))")
+                    // #836: the rollback's restart has the same shape as the OFF
+                    // path's — it releases the record route below and then starts.
+                    // The input edge must go too, or the start wires an input node
+                    // under a playback-only session (the v424 assert).
+                    masterEngine.disconnectNodeOutput(masterEngine.inputNode)
                     masterEngine.disconnectNodeOutput(notchEQ)
                     if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
                     masterEngine.disconnectNodeOutput(monitorMixer)
@@ -2236,6 +2241,18 @@ public final class AudioEngine {
                 monitorTapInstalled = false
             }
             monitorTapWindow.clear()
+            // #836 (founder crash v10.79.424, 2542 — the THIRD log of this assert, and
+            // the one that finally pinned it): this teardown disconnected every monitor
+            // node EXCEPT the input's own edge. `input → notchEQ` stayed in the graph,
+            // the route release below downgraded the session to playback-only, and
+            // `restoreEngineIfStranded` then start()ed an engine whose graph still
+            // wired an input node with no input scope — converter machinery, the
+            // exact assert, now in a start-shaped AVFAudio stack (v424) instead of
+            // v421's live-teardown stack. #831's stop made this hole REACHABLE on
+            // every OFF: since we always stop, the restore always restarts. The
+            // restart must see the LAUNCH-shape graph — playback-only, no input
+            // edge — which is proven to start on every app launch.
+            masterEngine.disconnectNodeOutput(masterEngine.inputNode)
             masterEngine.disconnectNodeOutput(notchEQ)
             if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
             masterEngine.disconnectNodeOutput(monitorMixer)
