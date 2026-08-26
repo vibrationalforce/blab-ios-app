@@ -15115,3 +15115,13 @@ kürzeren Trust-Lücke.
   — vor der ersten hörbaren Stufe Kettenrate aus dem verhandelten Bus-Format ableiten.
 - Geräteprobe (offen): unveränderter Monitor-Klang + kein Knacksen/CPU-Sprung bei
   `insert in` — im selben v425+1-Log wie die Monitoring-AUS-Probe ablesbar.
+
+### 2026-08-26 (~09:00 UTC) — Gates #839: BEIDE Wächter liefen nachweislich grün
+- 07ce5fe: Xcode Compile Check success, Build-for-Testing Succeeded, 0 Compile-Fehler,
+  0 Failures/Skips im #807-Fenster, TEST EXECUTE FAILED = #396-Muster.
+- ⭐ Stärker als üblich (§5b: Testname IM Log beweist „gelaufen"): ALLE 10 Tests der
+  zwei umgebauten Wächter stehen namentlich als `passed` im Fenster — darunter die zwei
+  E2E-Claims, die die Produktions-Factory instanziieren und den ECHTEN Render-Block MIT
+  montierter Kette fahren (`testTheRenderBlockPassesTheInputThroughBitExactly` +
+  nil-mData-Zweig). Die Neutral-Montage ist damit auf dem CI-Host AUSGEFÜHRT bewiesen,
+  nicht nur kompiliert. Offen bleibt allein die Geräteprobe (Klang/CPU auf echter Route).
