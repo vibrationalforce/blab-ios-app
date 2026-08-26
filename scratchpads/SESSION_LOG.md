@@ -15187,3 +15187,12 @@ kürzeren Trust-Lücke.
   decisions.csv. dead-needles 0, Klammern ausgeglichen.
 - Geräteprobe (offen): Toggle an → zwei Harmoniestimmen unter der eigenen Stimme,
   `monitor: harmony on` im Diag-Log; Toggle aus → unverändert.
+
+### 2026-08-26 (~15:00 UTC) — Gates #841 grün im Rahmen des Beweisbaren
+- 50f3229: Compile Check success, Build-for-Testing Succeeded (der NEUE Wächter
+  kompiliert), 0 Compile-Fehler, 0 Failures/Skips im #807-Fenster, #396-Muster.
+- Im Fenster namentlich `passed`: alle 5 Tests des Neutral-Wächters + alle 5 des
+  Vocal-Wächters (beide von #841 umgebaut — die geänderten Nadeln laufen grün).
+  `TheHarmonyVoicesReachTheSingersDoorTests` steht NICHT im Fenster: kompiliert
+  nachweislich, Ausführung unbelegt (#445/#807). Die :79-Warnung ist die bekannte
+  harmlose Type-Check-Zeit-Meldung der E2E-Hilfsfunktion.
