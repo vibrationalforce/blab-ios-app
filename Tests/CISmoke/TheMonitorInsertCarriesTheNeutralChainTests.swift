@@ -34,6 +34,12 @@
 //
 // #364: nothing here forbids V1b-2. Turning a stage ON for the voice will red claim 4's
 // all-off count BY DESIGN — its message names the prose to move in the same commit.
+//
+// #840 ADDENDUM (same cycle family): the chain rate now FOLLOWS the negotiated bus
+// format — a rate mismatch rebuilds the neutral chain through the one factory, held in
+// a swap box the render block captures (so a block the host fetched early still sees
+// the swap). Claim 4 grew two needles for it; on #840's parent they are red as ONE
+// absence (#486) while everything else in this file is a counterweight, green on both.
 
 import Foundation
 import XCTest
@@ -254,6 +260,22 @@ final class TheMonitorInsertCarriesTheNeutralChainTests: XCTestCase {
             on) are tuned for the synth bus and would color the singer's voice as a \
             side effect. Turning a stage ON for the voice is V1b-2: do it as its own \
             slice, and move this count plus the prose homes in the same commit (#456).
+            """)
+        // #840: the chain rate FOLLOWS the negotiated bus format. The chain's rate is
+        // immutable (baked into all 15 stage constructors), so following means
+        // REBUILDING through the one neutral factory — which is also where a future
+        // mic preset must be re-applied so a rate swap cannot drop it (V1b-2).
+        XCTAssertTrue(insert.contains("let negotiated = Float(outputBus.format.sampleRate)"), """
+            allocateRenderResources no longer reads the negotiated bus rate. Without \
+            it the chain trusts the 48_000 it was constructed with, and a renegotiated \
+            route would run every rate-dependent stage (V1b-2's audible ones) against \
+            the wrong clock — the #839 review NIT this line exists to close (#840).
+            """)
+        XCTAssertTrue(insert.contains("chainBox.replace(chain: Self.neutralChain(sampleRate: negotiated),"), """
+            The rate-mismatch branch no longer rebuilds the chain through the ONE \
+            neutral factory. Rebuilding any other way forks the all-off configuration \
+            (and later the mic preset re-apply) into a second spelling — the #416 \
+            shape on the singer's own path.
             """)
     }
 

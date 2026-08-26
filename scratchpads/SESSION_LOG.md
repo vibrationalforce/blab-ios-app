@@ -15125,3 +15125,25 @@ kürzeren Trust-Lücke.
   montierter Kette fahren (`testTheRenderBlockPassesTheInputThroughBitExactly` +
   nil-mData-Zweig). Die Neutral-Montage ist damit auf dem CI-Host AUSGEFÜHRT bewiesen,
   nicht nur kompiliert. Offen bleibt allein die Geräteprobe (Klang/CPU auf echter Route).
+
+### 2026-08-26 (~10:20 UTC) — #840: Kettenrate folgt dem verhandelten Bus-Format
+- Schließt die #839-Review-Vorbedingung VOR V1b-2: `EchoelFXChain`s Rate ist `private
+  let` (in 15 Stufen-Konstruktoren eingebacken) — folgen heißt NEU BAUEN. Design:
+  `MonitorInsertChainBox` (Scratch-Disziplin: geschrieben nur init/allocate, gelesen
+  vom Render); `allocateRenderResources` liest `outputBus.format.sampleRate`, bei
+  endlicher/positiver Abweichung Neubau durch die EINE `neutralChain`-Factory (dort
+  hängt auch der künftige Preset-Re-Apply-Haken, V1b-2). Render-Block captured die
+  BOX, nicht die Kette — ein früh geholter Block sieht den Swap.
+- Wächter: Claim 4 des Neutral-Wächters +2 Nadeln (negotiated-Read, Factory-Rebuild),
+  Header-Addendum. Fahrt beidseitig: Parent = EINE Abwesenheit (#486), Rest
+  Counterweights; dead-needles 0, Balance ausgeglichen.
+- Pflicht-Review #2 (audio-thread, fokussiert): KEIN HIGH/MEDIUM. NIT (Doppel-Literal
+  48_000 im Box-Default → EIN `rate`-Local) sofort gefixt. Zwei LOWs REGISTRIERT,
+  nicht gebaut: (a) `box.chain`-Read = ein swift_retain/release-Paar pro Render
+  (lock-freie Atomics, erlaubtes Muster; Unmanaged wäre die Null-Kosten-Form) ·
+  (b) Straggler-Render während replace nur bei VERTRAGSBRECHENDEM Host — gleiche
+  Klasse/Schwere wie das vorbestehende Scratch-Fenster; Belt-and-braces wäre ein
+  `retired`-Slot in der Box, erst bauen wenn je ein Host den Vertrag bricht.
+- ARC-Dealloc der Alt-Kette läuft auf dem Control-Thread (letzte starke Referenz ist
+  `box.chain` beim replace) — nie auf dem Audio-Thread. Init-Order der Static-Factory
+  im Stored-Property-Default: sauber (kein `static let`, kein @MainActor).

@@ -70,6 +70,27 @@ final class MonitorInsertScratch: @unchecked Sendable {
     deinit { release() }
 }
 
+/// Holds the mic-owned chain plus the rate it was built at (#840). A swap box exists
+/// because `EchoelFXChain`'s rate is immutable — following a renegotiated bus rate
+/// means REPLACING the chain — while the render block holds one stable reference.
+/// `@unchecked Sendable`: written only from init/`allocateRenderResources` (this node
+/// is not rendering then, the AU contract `MonitorInsertScratch` already relies on),
+/// read from the render thread.
+final class MonitorInsertChainBox: @unchecked Sendable {
+    private(set) var chain: EchoelFXChain
+    private(set) var sampleRate: Float
+
+    init(chain: EchoelFXChain, sampleRate: Float) {
+        self.chain = chain
+        self.sampleRate = sampleRate
+    }
+
+    func replace(chain: EchoelFXChain, sampleRate: Float) {
+        self.chain = chain
+        self.sampleRate = sampleRate
+    }
+}
+
 /// The pass-through effect unit. Mono or stereo (the monitor rail connects it at the
 /// master mixer's output format, which the engine clamps to ≤2 channels).
 public final class MonitorInsertAudioUnit: AUAudioUnit {
@@ -80,13 +101,31 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
     private var _outputBusses: AUAudioUnitBusArray?
     private let scratch = MonitorInsertScratch()
 
-    /// V1b-1 (#839): the mic-owned chain. NEUTRAL by construction — the type's own
-    /// defaults enable saturation, chorus and limiter (tuned for the SYNTH bus), so
-    /// relying on them would ship a sound change as a side effect of mounting.
-    /// Every flag is set explicitly; the guard derives the expected count from the
-    /// chain's own `…Enabled` declarations so a 16th stage cannot arrive half-wired.
-    private let voiceChain: EchoelFXChain = {
-        let chain = EchoelFXChain(sampleRate: 48_000)
+    /// V1b-1 (#839) + #840: the mic-owned chain, held in a swap box because its
+    /// sample rate is `let` — baked into all 15 stage constructors at init — so
+    /// following a renegotiated bus rate means building a FRESH chain, not mutating
+    /// one. The box is the `MonitorInsertScratch` discipline: written only while this
+    /// node is not rendering (init / `allocateRenderResources`), read from the render
+    /// thread through the one captured reference.
+    private let chainBox: MonitorInsertChainBox = {
+        // ONE rate literal (review NIT, #840): the box's shadow copy must describe
+        // the chain it holds — two independent literals here could drift and make
+        // the mismatch-detect in allocateRenderResources silently mis-fire.
+        let rate: Float = 48_000
+        return MonitorInsertChainBox(chain: MonitorInsertAudioUnit.neutralChain(sampleRate: rate),
+                                     sampleRate: rate)
+    }()
+
+    /// NEUTRAL by construction — the type's own defaults enable saturation, chorus
+    /// and limiter (tuned for the SYNTH bus), so relying on them would ship a sound
+    /// change as a side effect of mounting. Every flag is set explicitly; the guard
+    /// derives the expected count from the chain's own `…Enabled` declarations so a
+    /// 16th stage cannot arrive half-wired.
+    /// ⚠️ V1b-2 lives HERE: when the mic preset arrives, this factory is the ONE
+    /// place that must re-apply it, so a rate-swap rebuild can never silently drop
+    /// the user's settings back to neutral.
+    private static func neutralChain(sampleRate: Float) -> EchoelFXChain {
+        let chain = EchoelFXChain(sampleRate: sampleRate)
         chain.filterEnabled = false
         chain.saturationEnabled = false
         chain.tapeEnabled = false
@@ -103,7 +142,7 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
         chain.compressorEnabled = false
         chain.limiterEnabled = false
         return chain
-    }()
+    }
 
     public override init(componentDescription: AudioComponentDescription,
                          options: AudioComponentInstantiationOptions = []) throws {
@@ -132,15 +171,24 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
     public override func allocateRenderResources() throws {
         try super.allocateRenderResources()
         scratch.allocate(frames: Int(maximumFramesToRender))
+        // #840 (closes the #839 review NIT): the chain rate FOLLOWS the negotiated
+        // bus format instead of trusting the 48_000 both were created with. A
+        // renegotiated rate rebuilds the neutral chain at the real rate, so a future
+        // audible stage (V1b-2) can never run its delay/glide maths against the
+        // wrong clock. Guarded non-finite/zero (a defensive impossibility under the
+        // bus contract, but a Float cast of garbage must not bake into 15 stages).
+        let negotiated = Float(outputBus.format.sampleRate)
+        if negotiated.isFinite, negotiated > 0, negotiated != chainBox.sampleRate {
+            chainBox.replace(chain: Self.neutralChain(sampleRate: negotiated),
+                             sampleRate: negotiated)
+        }
         // Every monitor start begins from defined chain state (empty delay lines, no
         // stale glide) — reset() clears STATE only, never the user-set targets. The AU
         // contract guarantees THIS NODE is not rendering during (re)allocation (not
-        // that the whole engine is stopped) — the same guarantee scratch relies on.
-        // ⚠️ V1b-2 PRECONDITION (review NIT, #839): the chain's 48_000 at construction
-        // duplicates the bus-format rate below. Harmless while every stage is off (no
-        // rate-dependent math runs); before a stage becomes AUDIBLE, derive the chain
-        // rate from the negotiated bus format so a renegotiation cannot detune it.
-        voiceChain.reset()
+        // that the whole engine is stopped) — the same guarantee scratch relies on;
+        // the box swap above shares it, which is why the render block may read the
+        // box without a lock.
+        chainBox.chain.reset()
     }
 
     public override func deallocateRenderResources() {
@@ -149,10 +197,12 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
     }
 
     public override var internalRenderBlock: AUInternalRenderBlock {
-        // Captures ONLY the scratch class and the chain — never self (an ObjC-backed
-        // object whose property access would message the runtime on the render thread).
+        // Captures ONLY the scratch class and the chain box — never self (an
+        // ObjC-backed object whose property access would message the runtime on the
+        // render thread). The BOX is captured, not the chain, so a rate-swap in
+        // `allocateRenderResources` reaches a render block the host fetched earlier.
         let scratch = self.scratch
-        let chain = self.voiceChain
+        let box = self.chainBox
         return { _, timestamp, frameCount, _, outputData, _, pullInputBlock in
             guard let pull = pullInputBlock else { return kAudioUnitErr_NoConnection }
             guard Int(frameCount) <= scratch.capacity else {
@@ -189,6 +239,10 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
             if buffers.count == 2,
                let left = buffers[0].mData?.assumingMemoryBound(to: Float.self),
                let right = buffers[1].mData?.assumingMemoryBound(to: Float.self) {
+                // One field read on a pure Swift final class — direct access, no
+                // ObjC. Stable within a render: the box is only written while this
+                // node is not rendering.
+                let chain = box.chain
                 chain.processInPlace(left: left, right: right, frameCount: Int(frameCount))
             }
             return noErr
