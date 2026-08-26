@@ -41,9 +41,10 @@
 //  studio publishes) on the SYNTH bus. Since #839 (V1b-1) a mic-owned `EchoelFXChain`
 //  IS mounted on the monitor insert (`MonitorInsertAU`) — but NEUTRAL, every stage
 //  off, output bit-identical. The monitor path is `input → notchEQ →
-//  [voiceTunePitch] → monitorMixer → [insert] → masterMixer`. So the singer's own
-//  voice reaches the notch and this corrector, and still HEARS no harmonizer,
-//  reverb or delay — an audible stage on his voice is V1b-2 (own door + preset).
+//  [voiceTunePitch] → monitorMixer → [insert] → masterMixer`. Since #841 (V1b-2)
+//  the HARMONIZER on that insert is switchable — "Harmony voices" in the input
+//  sheet, default OFF — so the singer hears harmony voices only after he flips the
+//  toggle; reverb/delay/granular on his voice still have no door.
 //  `AudioEngine.swift` itself stays chain-free by design (the engine wires nodes,
 //  the insert hosts the DSP; guard: TheVocalChainStopsAtTheAutotuneTests claim 2).
 //

@@ -5,8 +5,10 @@
 // founder's v10.79.424 logs show `insert in` on device. V1b-1 mounts the mic-owned
 // `EchoelFXChain` inside that render block, NEUTRAL: every stage flag explicitly off,
 // so the output stays bit-identical while the chain's DSP cost runs on device for the
-// first time. Audible stages (harmonizer/granular — the founder's ask) are V1b-2, a
-// separate slice with its own door and preset.
+// first time. #841 (V1b-2) opened the HARMONIZER's door — runtime preset via ONE
+// apply path (TheHarmonyVoicesReachTheSingersDoorTests pins it); the DEFAULTS this
+// file pins stay all-off, so claim 4's count remains the law: a stage sounds only
+// after the singer acts, never because a default drifted.
 //
 // (This file was `TheMonitorInsertIsAnEmptyPassThroughTests` until #839 — renamed
 // because after V1b-1 the insert is NOT empty, and a guard whose name states a
@@ -271,10 +273,16 @@ final class TheMonitorInsertCarriesTheNeutralChainTests: XCTestCase {
             route would run every rate-dependent stage (V1b-2's audible ones) against \
             the wrong clock — the #839 review NIT this line exists to close (#840).
             """)
-        XCTAssertTrue(insert.contains("chainBox.replace(chain: Self.neutralChain(sampleRate: negotiated),"), """
+        // #841 reshaped the rebuild into apply-before-publish (`let fresh = …;
+        // apply; replace`) — the ordering itself is pinned by
+        // TheHarmonyVoicesReachTheSingersDoorTests claim 2 (#416); THIS needle pins
+        // only that the rebuild goes through the ONE neutral factory. (The previous
+        // one-line spelling went red on the correct tree and was caught by the
+        // pre-push drive — the §4 class, fixed in the same commit.)
+        XCTAssertTrue(insert.contains("let fresh = Self.neutralChain(sampleRate: negotiated)"), """
             The rate-mismatch branch no longer rebuilds the chain through the ONE \
             neutral factory. Rebuilding any other way forks the all-off configuration \
-            (and later the mic preset re-apply) into a second spelling — the #416 \
+            (and the mic preset re-apply) into a second spelling — the #416 \
             shape on the singer's own path.
             """)
     }

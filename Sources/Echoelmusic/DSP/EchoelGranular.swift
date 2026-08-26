@@ -81,10 +81,11 @@ import Foundation
 /// ⛔ WHAT IS STILL MISSING, so this note does not flip to a rosier lie: **the door is
 /// in the FX panel, which processes the SYNTH. There is no vocal-path door yet.** The
 /// founder's ask was a vocal chain with a granular effect; since #839 (V1b-1) a
-/// mic-owned `EchoelFXChain` is mounted on the monitor insert — NEUTRAL, every stage
-/// including this one OFF — so a singer's monitored voice still HEARS no granular
-/// stage. Audible-on-his-voice is V1b-2 (own door + mic preset). Until then, cite
-/// this as a shipping effect FOR THE INSTRUMENT only.
+/// mic-owned `EchoelFXChain` is mounted on the monitor insert — and #841 opened the
+/// HARMONIZER's door there, but THIS stage's `granularEnabled` stays off with no
+/// door: a singer's monitored voice still HEARS no granular stage. Its door is a
+/// follow-up slice (extend `MonitorVoicePreset` + the input-sheet section). Until
+/// then, cite this as a shipping effect FOR THE INSTRUMENT only.
 ///
 /// ⚠️ The note that stood here said a preset recall would "silently drop" the state.
 /// That was backwards and is worth keeping visible: before #690, `apply(to:)` wrote

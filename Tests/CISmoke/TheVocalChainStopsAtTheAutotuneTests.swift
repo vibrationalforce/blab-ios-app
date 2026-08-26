@@ -25,9 +25,10 @@
 //                              character presets are #681, in the same sheet. (#599b is the
 //                              HARMONIZER's "Follow the key" — citing it here would have
 //                              used the half that is NOT on his voice as proof that it is.)
-//   Harmonizer   → MOUNTED on his monitor insert since #839 (V1b-1) — NEUTRAL, not
-//                              audible: the mic-owned chain has every stage off.
-//   Granular     → same. Audible on his voice only with V1b-2 (own door + preset).
+//   Harmonizer   → HIS VOICE, SWITCHABLE since #841 (V1b-2): "Harmony voices" in the
+//                              input sheet, default OFF; mounted neutral since #839.
+//   Granular     → mounted (in the neutral chain, #839) but NO audible path yet —
+//                              its door is a follow-up slice; `granularEnabled` stays off.
 //
 // The monitor graph is `input → notchEQ → [voiceTunePitch] → monitorMixer → [insert] →
 // masterMixer`. Since #839 the insert's render block feeds a mic-owned `EchoelFXChain`
@@ -234,12 +235,17 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
             written for — a session that cannot read it will re-derive "three of four are \
             done" from SESSION_LOG, which is true of BUILT and false of ROUTED.
             """)
-        XCTAssertTrue(claude.contains("Harmonizer und Granular NOCH NICHT HÖRBAR"), """
-            The half of the register line that says the two mounted-but-neutral stages \
-            are not yet AUDIBLE on his voice is gone. If V1b-2 landed (a stage turned \
-            on), the neutral-chain guard's all-off count is red too and that is the \
-            correct order of repair; if that count is green, the prose drifted and the \
-            prose is wrong.
+        XCTAssertTrue(claude.contains("Granular NOCH NICHT HÖRBAR auf ihm"), """
+            The register no longer says the granular stage has no audible path to \
+            his voice. If a granular door landed (the follow-up to #841), update this \
+            needle, the EchoelGranular header and the ladder line in the same commit \
+            (#456); if no door landed, the prose drifted and the prose is wrong.
+            """)
+        XCTAssertTrue(claude.contains("Harmonizer auf seiner Stimme SCHALTBAR seit #841"), """
+            The register no longer records that the harmonizer is switchable on the \
+            singer's monitor (#841, default off). Without it a session re-derives \
+            "harmonizer not routed to him" from the older entries and rebuilds the \
+            door that already exists.
             """)
     }
 

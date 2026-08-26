@@ -526,6 +526,49 @@ public final class AudioEngine {
     /// (`VoicePitchCorrector.retuneSpeed`; the time constant lives THERE, #416).
     var voiceTuneRetune: Float = 0.8
 
+    // MARK: Voice harmony (#841, V1b-2) — the first AUDIBLE stage on the singer's
+    // monitor insert. Session-local like the voiceTune settings above (deliberately
+    // not persisted). Every write funnels through `pushVoiceHarmony()` into the
+    // insert's ONE preset-apply path, so the #840 rate rebuild re-applies it.
+    /// Observable so the input sheet's toggle reflects it. Default OFF — the insert
+    /// stays provably neutral until the singer asks for harmony voices.
+    private(set) var voiceHarmonyEnabled = false
+    /// Harmony intervals in semitones (named choices in the sheet — `HarmonyInterval`).
+    var voiceHarmonyInterval1: Float = 4 { didSet { pushVoiceHarmony() } }
+    var voiceHarmonyInterval2: Float = 7 { didSet { pushVoiceHarmony() } }
+    /// 0…1 wet mix of the harmony voices under the dry monitor.
+    var voiceHarmonyMix: Float = 0.5 { didSet { pushVoiceHarmony() } }
+    /// True while the V1a/V1b insert node exists — the sheet hides the harmony
+    /// section when the factory failed, so no control can claim a stage that has
+    /// no host (`insert unavailable (…)` in the diag log says why).
+    /// Deliberately reads `@ObservationIgnored` storage (#841 review LOW): the
+    /// section's appearance is not observation-driven, which is acceptable because
+    /// the factory completes during engine setup, long before the sheet can open;
+    /// worst case the section appears on the sheet's next unrelated redraw.
+    var voiceHarmonyAvailable: Bool { monitorInsertUnit != nil }
+
+    /// The one enable/disable door (the `setVoiceTune(_:)` shape — a setter owns
+    /// the transition; no graph rewire here, the insert node is always in place).
+    func setVoiceHarmony(_ on: Bool) {
+        guard on != voiceHarmonyEnabled else { return }
+        voiceHarmonyEnabled = on
+        pushVoiceHarmony()
+        logMonitorOutcome("harmony \(on ? "on (i1 \(Int(voiceHarmonyInterval1)) st, i2 \(Int(voiceHarmonyInterval2)) st, mix \(String(format: "%.2f", voiceHarmonyMix)))" : "off")",
+                          level: .info)
+    }
+
+    private func pushVoiceHarmony() {
+        guard let unit = monitorInsertUnit?.auAudioUnit as? MonitorInsertAudioUnit else { return }
+        var preset = MonitorVoicePreset()
+        preset.harmonizerEnabled = voiceHarmonyEnabled
+        // ±12 st clamp = defense in depth (#841 review NIT): today's only writer is
+        // the named-interval picker, whose range is exactly one octave either way.
+        preset.interval1 = Swift.min(Swift.max(voiceHarmonyInterval1, -12), 12)
+        preset.interval2 = Swift.min(Swift.max(voiceHarmonyInterval2, -12), 12)
+        preset.mix = Swift.min(Swift.max(voiceHarmonyMix, 0), 1)
+        unit.applyVoicePreset(preset)
+    }
+
     let microphoneManager: MicrophoneManager
     @ObservationIgnored private var cancellables = Set<AnyCancellable>()
     /// True once the audio session is configured and the master graph is built.

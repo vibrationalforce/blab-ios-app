@@ -15147,3 +15147,43 @@ kürzeren Trust-Lücke.
 - ARC-Dealloc der Alt-Kette läuft auf dem Control-Thread (letzte starke Referenz ist
   `box.chain` beim replace) — nie auf dem Audio-Thread. Init-Order der Static-Factory
   im Stored-Property-Default: sauber (kein `static let`, kein @MainActor).
+
+### 2026-08-26 (~14:15 UTC) — #841 (V1b-2): der Harmonizer bekommt seine Tür
+- Neubewertung des Halts: der Founder hat die Kette WÖRTLICH beauftragt und V0 hält
+  den Bau nicht an — das zusätzliche Warten auf die Hör-Bestätigung war strenger als
+  sein Auftrag. Default-AUS wahrt die Attribution der v425-Probe vollständig.
+- Slice: `MonitorVoicePreset` (Werttyp, alle Defaults aus) + Box speichert Kopie;
+  `MonitorInsertAudioUnit.applyVoicePreset` (@MainActor) + EIN `static apply`-Pfad
+  (Parameter zuerst, Enable-Flag ZULETZT — willSet-Reset auf steigender Flanke);
+  #840-Neubau appliziert VOR dem Publish (`fresh` → apply → replace). Engine:
+  `voiceHarmony*`-Props in der voiceTune-Form (session-lokal, NICHT persistiert —
+  Parität, eigene Entscheidung später), `setVoiceHarmony` mit Idempotenz-Guard +
+  Diag-Zeile `monitor: harmony on/off (i1/i2/mix)`. Tür: „Harmony voices" im
+  bestehenden Input-Sheet (Kette wächst nicht) — Toggle + zwei BENANNTE
+  `HarmonyInterval`-Picker (.menu) + Mix-`EchoelValueField`; ganz versteckt ohne
+  Insert (`voiceHarmonyAvailable`).
+- Wächter NEU: `TheHarmonyVoicesReachTheSingersDoorTests` (5 Claims: ein Apply-Pfad
+  mit exakt 2 Aufrufstellen · apply-vor-publish-Ordnung · Engine-Trichter ·
+  Tür-Form/benannte Intervalle/Mix-Feld/Avail-Gate · Counterweight defaults-off).
+  Fahrt beidseitig: Parent = EINE Abwesenheit (#486). ⭐ Die Fahrt fing dabei einen
+  frischen Toter-Nadel-Fall: die #840-Nadel des Neutral-Wächters passte nach dem
+  apply-vor-publish-Refactor nicht mehr (wäre rot auf korrektem Baum, §4) —
+  im selben Commit auf die `let fresh`-Factory-Zeile umgezogen, Ordnung pinnt
+  jetzt der neue Wächter (#416).
+- Pflicht-Review (audio-thread): KEIN HIGH. Q1 = Glitch-nicht-Crash, exakt dieselbe
+  Klasse wie `EchoelFXView`s Live-Toggle derselben Flagge auf den Synth-Ketten
+  (steigende Flanke resettet eine Stufe, die eine ms vorher stumm war). MEDIUM
+  GEFIXT: der Datei-Kopf des Sheets behauptete „kein .menu-Picker hier" — mit #841
+  falsch geworden; `feedbackGuardActive` (flippt auf Duck-Flanken) las im
+  Picker-Wirt-Body → in eigenes Leaf `FeedbackGuardStatusRow` verlegt
+  (10.76.41/50-Form) + Kommentar-Bein ⛔-korrigiert. Beide LOWs (Box-Doc-Invariante
+  präzisiert; voiceHarmonyAvailable-Unobserviertheit begründet) + NIT (±12-st-Klammer
+  im Trichter) übernommen. Q5 verifiziert: KEIN Aufrufer beim Start, AUS-Pfad bleibt
+  bit-exakt (didSet feuert nicht auf Deklarationswerte).
+- Sechs Prosa-Stellen gezogen: CLAUDE.md-Zeile+Leiter · Vocal-Wächter Kopftabelle +
+  Claim-5-Nadeln (jetzt „Granular NOCH NICHT HÖRBAR auf ihm" + „Harmonizer …
+  SCHALTBAR seit #841") · Neutral-Wächter-Kopf · VoicePitchCorrector-Kopf ·
+  EchoelGranular-Kopf (Granular bleibt türlos, Folge-Scheibe benannt) · Plan §6 +
+  decisions.csv. dead-needles 0, Klammern ausgeglichen.
+- Geräteprobe (offen): Toggle an → zwei Harmoniestimmen unter der eigenen Stimme,
+  `monitor: harmony on` im Diag-Log; Toggle aus → unverändert.

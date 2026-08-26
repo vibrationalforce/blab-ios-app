@@ -267,3 +267,13 @@ attribuiert Knacksen/CPU sauber der KETTE, bevor irgendetwas hörbar wird.
 Sheet, Sheet-Kette wächst nicht), Start-Kandidat: Harmonizer mit „Follow the key"-Anbindung
 an die Tonart. Danach V2 (Latenz-Budget sichtbar) → V3 (BT-Verhalten) → V4 (echte
 Granular-Stufe in der Kette, landet damit automatisch auch auf der Stimme).
+
+**⭐ V1b-2 GEBAUT (#841, 2026-08-26):** „Harmony voices" im Input-Sheet — Toggle (default
+AUS) + zwei benannte `HarmonyInterval`-Picker + Mix-`EchoelValueField`; Engine-Props in der
+voiceTune-Form (session-lokal, NICHT persistiert — Persistenz ist eine eigene spätere
+Entscheidung); EIN Apply-Pfad (`MonitorInsertAudioUnit.applyVoicePreset` →
+`static apply`), den der #840-Raten-Neubau re-appliziert; Diag-Zeile
+`monitor: harmony on/off`. Sichtbar nur bei existierendem Insert
+(`voiceHarmonyAvailable`). Wächter: `TheHarmonyVoicesReachTheSingersDoorTests`.
+GRANULAR auf der Stimme bleibt türlos (Folge-Scheibe: `MonitorVoicePreset` + Sheet-Sektion
+erweitern). Geräteprobe: Toggle an → zwei Harmoniestimmen unter der eigenen Stimme.

@@ -70,15 +70,41 @@ final class MonitorInsertScratch: @unchecked Sendable {
     deinit { release() }
 }
 
-/// Holds the mic-owned chain plus the rate it was built at (#840). A swap box exists
-/// because `EchoelFXChain`'s rate is immutable — following a renegotiated bus rate
-/// means REPLACING the chain — while the render block holds one stable reference.
-/// `@unchecked Sendable`: written only from init/`allocateRenderResources` (this node
-/// is not rendering then, the AU contract `MonitorInsertScratch` already relies on),
-/// read from the render thread.
+/// The mic-owned voice-stage settings (#841, V1b-2). Value type on purpose: the box
+/// stores a COPY, so the control plane can never mutate what a rebuild is reading.
+/// Defaults are ALL-OFF/neutral — a fresh insert sounds exactly like V1a until the
+/// singer turns a stage on in the input sheet. Session-local like the voiceTune
+/// settings (deliberately NOT persisted; persistence is its own future decision with
+/// its own reachable off-switch).
+public struct MonitorVoicePreset: Sendable, Equatable {
+    /// The harmonizer stage on the singer's monitor. Default OFF (the neutral law).
+    public var harmonizerEnabled: Bool = false
+    /// First/second harmony interval in semitones (the chain's own defaults:
+    /// major third + perfect fifth — `EchoelHarmonizer.interval1/2`, #416).
+    public var interval1: Float = 4
+    public var interval2: Float = 7
+    /// 0…1 wet mix (`EchoelHarmonizer.mix`).
+    public var mix: Float = 0.5
+
+    public init() {}
+}
+
+/// Holds the mic-owned chain plus the rate it was built at (#840) and the voice
+/// preset applied to it (#841). A swap box exists because `EchoelFXChain`'s rate is
+/// immutable — following a renegotiated bus rate means REPLACING the chain — while
+/// the render block holds one stable reference.
+/// `@unchecked Sendable`: `chain`/`sampleRate` are written only from
+/// init/`allocateRenderResources` (this node is not rendering then, the AU contract
+/// `MonitorInsertScratch` already relies on) and read from the render thread;
+/// `preset` is control-plane only: written on the main thread, read in
+/// `allocateRenderResources` — which is nonisolated by signature but reached in this
+/// app ONLY from the main actor (every graph mutation runs there; the config-change
+/// handlers hop via `Task { @MainActor }` first). The render thread never touches
+/// the preset — it reads the chain the preset was applied TO (#841 review LOW).
 final class MonitorInsertChainBox: @unchecked Sendable {
     private(set) var chain: EchoelFXChain
     private(set) var sampleRate: Float
+    private(set) var preset = MonitorVoicePreset()
 
     init(chain: EchoelFXChain, sampleRate: Float) {
         self.chain = chain
@@ -88,6 +114,10 @@ final class MonitorInsertChainBox: @unchecked Sendable {
     func replace(chain: EchoelFXChain, sampleRate: Float) {
         self.chain = chain
         self.sampleRate = sampleRate
+    }
+
+    func store(preset: MonitorVoicePreset) {
+        self.preset = preset
     }
 }
 
@@ -144,6 +174,28 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
         return chain
     }
 
+    /// #841: the ONE place preset values reach a chain (#416) — used by the live
+    /// door (`applyVoicePreset`) and by the rate-swap rebuild, so a renegotiated
+    /// route can never silently reset the singer's settings to neutral. Parameters
+    /// first, the enable flag LAST: `harmonizerEnabled`'s own `willSet` resets the
+    /// stage on the rising edge, so it must see the final intervals/mix.
+    private static func apply(_ preset: MonitorVoicePreset, to chain: EchoelFXChain) {
+        chain.harmonizer.interval1 = preset.interval1
+        chain.harmonizer.interval2 = preset.interval2
+        chain.harmonizer.mix = preset.mix
+        chain.harmonizerEnabled = preset.harmonizerEnabled
+    }
+
+    /// Control-plane door for the input sheet (#841). Stores the preset in the box
+    /// (so a #840 rate rebuild re-applies it) and applies it to the live chain.
+    /// Writing a stage flag while the node renders is the established discipline —
+    /// the synth chains toggle the same `…Enabled` vars from the FX panel mid-play.
+    @MainActor
+    public func applyVoicePreset(_ preset: MonitorVoicePreset) {
+        chainBox.store(preset: preset)
+        Self.apply(preset, to: chainBox.chain)
+    }
+
     public override init(componentDescription: AudioComponentDescription,
                          options: AudioComponentInstantiationOptions = []) throws {
         guard let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2) else {
@@ -179,8 +231,12 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
         // bus contract, but a Float cast of garbage must not bake into 15 stages).
         let negotiated = Float(outputBus.format.sampleRate)
         if negotiated.isFinite, negotiated > 0, negotiated != chainBox.sampleRate {
-            chainBox.replace(chain: Self.neutralChain(sampleRate: negotiated),
-                             sampleRate: negotiated)
+            // #841: the rebuild re-applies the stored voice preset BEFORE the box
+            // publishes the fresh chain — the box never holds a chain the singer's
+            // settings have not reached.
+            let fresh = Self.neutralChain(sampleRate: negotiated)
+            Self.apply(chainBox.preset, to: fresh)
+            chainBox.replace(chain: fresh, sampleRate: negotiated)
         }
         // Every monitor start begins from defined chain state (empty delay lines, no
         // stale glide) — reset() clears STATE only, never the user-set targets. The AU

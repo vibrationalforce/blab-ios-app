@@ -42,11 +42,12 @@ import Combine   // NotificationCenter.publisher for AVAudioSession route change
 // ⚠️ THIS CLEARS THE OBSERVER, NOT THE WHOLE VIEW. The freeze law (CLAUDE.md 10.76.50) bans
 // HIGH-FREQUENCY reads in an ancestor body; the `.onReceive` below is an event publisher that
 // fires when a cable moves, in a leaf that only exists while the sheet is open — not a poll, no
-// violation. Separately and PRE-EXISTING: `monitoringSection` reads
-// `audioEngine.feedbackGuardActive`, which is assigned every guard tick (~15 Hz) while
-// monitoring runs, so this body already rebuilt at that rate. `AudioEngine` now gates that
-// assignment on change; there is no `.menu` Picker in this sheet either way, so it was never a
-// freeze here — but do not read the sentence above as a clean bill of health for the view.
+// violation. ⛔ The exemption leg that stood here — "there is no `.menu` Picker in this sheet
+// either way, so it was never a freeze here" — DIED with #841: the harmony section adds two
+// `.pickerStyle(.menu)` Pickers to this very body. The repair is structural, not prose: the
+// `feedbackGuardActive` read (assigned on duck engage/release EDGES while monitoring runs;
+// gated on change in `AudioEngine`) now lives in its own leaf, `FeedbackGuardStatusRow`, so
+// an edge rebuilds only that row and can never tear down an open interval menu (10.76.41/50).
 
 @MainActor
 struct AudioInputPickerView: View {
@@ -276,14 +277,13 @@ struct AudioInputPickerView: View {
                     .labelsHidden()
                     .accessibilityLabel("Megaphone mode")
                 }
-                HStack(spacing: 8) {
-                    Circle()
-                        .fill(audioEngine.feedbackGuardActive ? Color.orange : EchoelTheme.accent)
-                        .frame(width: 8, height: 8)
-                    Text(audioEngine.feedbackGuardActive ? "Feedback guard — ducking runaway" : "Feedback guard armed")
-                        .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                }
-                .accessibilityElement(children: .combine)
+                // #841 review MEDIUM: its OWN leaf, and since #841 that is load-bearing,
+                // not tidiness — this body now hosts two `.menu` Pickers (harmony
+                // intervals), and `feedbackGuardActive` flips on duck engage/release
+                // edges while monitoring runs. Read in THIS body, each edge would tear
+                // down an open interval menu (the 10.76.41/50 freeze law); in the leaf,
+                // only the little status row churns.
+                FeedbackGuardStatusRow()
                 // VL3 (#599) — the OPTIONAL in-key correction. The toggle is the
                 // optionality (default OFF); "Tune" is the character: 1 = the classic
                 // hard snap, 0 = gentle drift. Both numeric → EchoelValueField (law);
@@ -345,6 +345,57 @@ struct AudioInputPickerView: View {
                     Text("Tune 1.00 is the classic hard-snap vocal effect; low values drift gently. The pitch stage adds a little latency to the monitor only — the music is untouched.")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                         .fixedSize(horizontal: false, vertical: true)
+                }
+                // #841 (V1b-2) — the first AUDIBLE stage on the monitor insert. Hidden
+                // entirely when the insert factory failed (`voiceHarmonyAvailable`):
+                // a toggle over a stage with no host would be an inert control.
+                // Intervals are choices with NAMES → Pickers, never a semitone number
+                // (CLAUDE.md "READ THE WORD NUMERIC" + the founder's "keine semitone
+                // Schritte"); the mix is genuinely numeric → EchoelValueField.
+                if audioEngine.voiceHarmonyAvailable {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Harmony voices").font(EchoelTheme.font(13, .semibold))
+                                .foregroundStyle(EchoelTheme.text)
+                            Text("Two pitched copies of your monitored voice under the dry signal — on the monitor only, the music is untouched.")
+                                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        Toggle("", isOn: Binding(
+                            get: { audioEngine.voiceHarmonyEnabled },
+                            set: { audioEngine.setVoiceHarmony($0) }
+                        ))
+                        .labelsHidden()
+                        .accessibilityLabel("Harmony voices")
+                    }
+                    if audioEngine.voiceHarmonyEnabled {
+                        Picker("First voice", selection: Binding(
+                            get: { HarmonyInterval(rawValue: Int(audioEngine.voiceHarmonyInterval1)) ?? .majorThirdUp },
+                            set: { audioEngine.voiceHarmonyInterval1 = $0.semitones }
+                        )) {
+                            ForEach(HarmonyInterval.allCases) { interval in
+                                Text(interval.displayName).tag(interval)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .accessibilityLabel("First harmony voice")
+                        Picker("Second voice", selection: Binding(
+                            get: { HarmonyInterval(rawValue: Int(audioEngine.voiceHarmonyInterval2)) ?? .fifthUp },
+                            set: { audioEngine.voiceHarmonyInterval2 = $0.semitones }
+                        )) {
+                            ForEach(HarmonyInterval.allCases) { interval in
+                                Text(interval.displayName).tag(interval)
+                            }
+                        }
+                        .pickerStyle(.menu)
+                        .accessibilityLabel("Second harmony voice")
+                        EchoelValueField(
+                            label: "Mix",
+                            value: Binding(get: { audioEngine.voiceHarmonyMix },
+                                           set: { audioEngine.voiceHarmonyMix = $0 }),
+                            range: 0...1, decimals: 2)
+                    }
                 }
                 // #663 — THE NUMBER, next to the warning that motivates it. The founder asked
                 // for "alle Latenzen und Kombinationen optimiert für Sessions"; #653–#657 made
@@ -500,6 +551,26 @@ struct AudioInputPickerView: View {
 /// popover whenever it changes. Nothing here is polled: `AVAudioSession` latency changes only
 /// when the route changes, so the read happens on appear and on `routeChangeNotification`.
 /// There is no timer, and adding one would be the freeze bug.
+/// The feedback-guard status dot + line in its OWN leaf (#841 review MEDIUM).
+/// `feedbackGuardActive` flips on duck engage/release edges while monitoring runs;
+/// reading it in the sheet's body — which since #841 hosts two `.menu` Pickers —
+/// would tear down an open menu on every edge (the 10.76.41/50 freeze law). Here,
+/// only this row rebuilds.
+private struct FeedbackGuardStatusRow: View {
+    @Environment(AudioEngine.self) private var audioEngine
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Circle()
+                .fill(audioEngine.feedbackGuardActive ? Color.orange : EchoelTheme.accent)
+                .frame(width: 8, height: 8)
+            Text(audioEngine.feedbackGuardActive ? "Feedback guard — ducking runaway" : "Feedback guard armed")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
 private struct MonitorLatencyRow: View {
     @State private var readout: AudioConfiguration.LatencyReadout?
     /// `nil` until the first read, and `nil` again if anything sets a buffer size outside the
