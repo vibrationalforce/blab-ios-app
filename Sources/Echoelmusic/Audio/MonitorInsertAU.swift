@@ -146,6 +146,11 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
                                      sampleRate: rate)
     }()
 
+    /// NEEDS-FOUNDER-VERIFY: Monitoring an (Log zeigt „insert in") und normal
+    /// sprechen/singen — klingt der Monitor UNVERÄNDERT gegenüber v423, ohne
+    /// Knacksen und ohne spürbaren CPU-/Wärme-Sprung? Das ist die #839-Probe:
+    /// die Kette läuft dann erstmals auf dem Gerät, beweisbar stumm.
+    ///
     /// NEUTRAL by construction — the type's own defaults enable saturation, chorus
     /// and limiter (tuned for the SYNTH bus), so relying on them would ship a sound
     /// change as a side effect of mounting. Every flag is set explicitly; the guard

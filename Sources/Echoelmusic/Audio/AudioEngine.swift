@@ -549,6 +549,10 @@ public final class AudioEngine {
 
     /// The one enable/disable door (the `setVoiceTune(_:)` shape — a setter owns
     /// the transition; no graph rewire here, the insert node is always in place).
+    /// NEEDS-FOUNDER-VERIFY: Mix-Chip → Choose input… → „Harmony voices" AN — zwei
+    /// Harmoniestimmen (Terz + Quinte) unter der eigenen Stimme, nur im Monitor?
+    /// Intervalle wechseln, Mix drehen, dann AUS — wieder exakt der normale
+    /// Monitor? Log-Beleg: `monitor: harmony on/off` im Diagnose-Export (#841).
     func setVoiceHarmony(_ on: Bool) {
         guard on != voiceHarmonyEnabled else { return }
         voiceHarmonyEnabled = on
