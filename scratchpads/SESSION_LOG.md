@@ -15016,3 +15016,13 @@ kürzeren Trust-Lücke.
   Drei-Logs-Chronik. Python-Fahrt: alle Claims grün, dead-needles 0, reachability 0.
 - ⭐ Nebenbefund aus demselben Log: `insert in` — das V1a-Zwischenstück lädt am
   Gerät und Monitoring startet damit (Klang-Urteil steht noch aus).
+
+### 2026-08-26 (~01:10 UTC) — v10.79.425 GELIEFERT, #836-Gates grün
+- TestFlight-Lauf 2543 (1c3aa26): „Verify build landed in App Store Connect" =
+  success (00:28 UTC) — der echte Liefer-Beweis. v425 (#836 Input-Kante) ist beim
+  Founder abholbar.
+- CI/CD für 492cf15 (#836+#836b): build-for-testing Succeeded (Wächter-Claim 3
+  kompiliert), 0 Compile-Fehler, 0 Failures/Skips im Fenster, #396-Muster. Die
+  neuen Claims selbst: kompilieren nachweislich, Ausführung unbelegt (#445).
+- Alles Weitere blockiert bewusst auf dem v425-Gerätetest: Monitoring-AUS ohne
+  Absturz + erstes „monitor: OFF" (+ neue „restoring engine"-Zeile) im Log.
