@@ -89,7 +89,9 @@ final class TheMIDIOutRearmsOnForegroundTests: XCTestCase {
             The re-arm no longer sits in the .active transition beside the resume \
             gate. It must run on the SAME gesture the founder's log shows healing \
             audio ("scene: audio resumed", 30 s after the -2) — and OUTSIDE the \
-            gate, which can stay shut while MIDI still deserves its retry.
+            gate, which can stay shut while MIDI still deserves its retry. (The 900 \
+            is a bounded window over stripped code — ~200 chars at writing; if \
+            legitimate code grew between gate and call, widen it here, #364.)
             """)
     }
 
@@ -101,9 +103,15 @@ final class TheMIDIOutRearmsOnForegroundTests: XCTestCase {
     func testNotesStillRefuseWhileNotReady() {
         let midi = text("Sources/Echoelmusic/Audio/MIDIOutput.swift")
         guard !midi.isEmpty else { return }
-        XCTAssertTrue(midi.contains("guard enabled, isReady, (0...127).contains(pitch)"), """
-            noteOn no longer refuses while the port never came up — the #837 re-arm \
-            story depends on unready meaning SILENT, not on sends into a zero ref.
+        // ≥ 2, not `contains` (review LOW, #367): the needle sits in BOTH noteOn and
+        // noteOff — a bare contains stayed green if one of the two lost its guard,
+        // green for a reason other than this message.
+        XCTAssertGreaterThanOrEqual(
+            midi.components(separatedBy: "guard enabled, isReady, (0...127).contains(pitch)").count - 1,
+            2, """
+            noteOn/noteOff no longer BOTH refuse while the port never came up — the \
+            #837 re-arm story depends on unready meaning SILENT, not on sends into a \
+            zero ref.
             """)
     }
 }

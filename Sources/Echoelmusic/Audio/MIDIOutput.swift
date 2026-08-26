@@ -192,6 +192,13 @@ public final class MIDIOutput {
             return
         }
         #if canImport(CoreMIDI)
+        // ⚠️ #837 review (pre-existing, registered not fixed): if a PREVIOUS attempt
+        // created the client but failed at the port/source stage, this re-runs the
+        // client create into `&client` and the old client (a live midiserver
+        // connection) is never disposed — one leak per retry. Pre-dates #837 (the
+        // enable edge and every transport Play already retried); the founder's
+        // measured -2 failed AT client create, so that path retries clean. A
+        // dispose-before-recreate is its own slice.
         let clientStatus = MIDIClientCreateWithBlock("Echoelmusic Output" as CFString, &client, nil)
         guard clientStatus == noErr else {
             logOutcome("client create failed (\(clientStatus))", level: .warning)
