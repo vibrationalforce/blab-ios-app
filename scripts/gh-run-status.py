@@ -16,9 +16,16 @@ agent to ask. `name` is the workflow's own `name:` field, which is what to match
 Usage:
     python3 scripts/gh-run-status.py <saved-tool-result.json> [--limit N]
 
-Works on both shapes the tools emit:
+Works on the shapes the tools emit:
   • a single run object (actions_get get_workflow_run)
   • {"workflow_runs": [...]} or a bare [...] (actions_list list_workflow_runs)
+  • the MCP text envelope [{"type": "text", "text": "<json>"}] some persisted
+    tool results wrap the payload in. ⛔ The first version did not know this
+    shape: json.load SUCCEEDED (the envelope is valid JSON), _rows walked a
+    list whose one dict has no head_sha, and the output was a single
+    "?  -  ?  ?" row — wrong, but not silent. Same defect class as #738 in
+    gh-test-verdict.py: a JSON parse that succeeds is not a decode that
+    worked. The unwrap below re-parses the inner text.
 
 Zero deps (stdlib only). Never touches the network — it only reads a local file
 the MCP tool already wrote, so it composes with the tokenless / MCP-only setup.
@@ -27,7 +34,39 @@ import json
 import sys
 
 
+def _unwrap_text_envelope(data):
+    """Resolve the MCP persisted-output shape [{"type":"text","text":"<json>"}].
+
+    Only unwraps when EVERY list item is such an envelope, so a bare list of
+    run objects (which _rows handles) is never touched. The inner texts are
+    each parsed; a single payload is returned as-is, several are merged by
+    concatenating their run lists.
+    """
+    if not (isinstance(data, list) and data
+            and all(isinstance(i, dict) and i.get("type") == "text"
+                    and isinstance(i.get("text"), str) for i in data)):
+        return data
+    payloads = []
+    for item in data:
+        try:
+            payloads.append(json.loads(item["text"]))
+        except ValueError:
+            return data  # inner text is not JSON — leave the caller's data alone
+    if len(payloads) == 1:
+        return payloads[0]
+    merged = []
+    for p in payloads:
+        if isinstance(p, dict) and "workflow_runs" in p:
+            merged.extend(p["workflow_runs"])
+        elif isinstance(p, list):
+            merged.extend(p)
+        else:
+            merged.append(p)
+    return merged
+
+
 def _rows(data):
+    data = _unwrap_text_envelope(data)
     if isinstance(data, dict) and "workflow_runs" in data:
         runs = data["workflow_runs"]
     elif isinstance(data, list):

@@ -15073,3 +15073,16 @@ kürzeren Trust-Lücke.
   dead-needles 0, reachability 0, Klammerbilanz ausgeglichen. Kein eigener Deploy —
   fährt wie #837/#838 mit dem nächsten mit; offen bleibt (Review, out-of-scope):
   Voll-Erfolg-dann-Daemon-Tod lässt isReady true mit stale Refs zurück.
+
+### 2026-08-26 (~06:05 UTC) — Gates #838b grün + gh-run-status lernt den MCP-Umschlag
+- 18e5e73 (#838b): Xcode Compile Check success, Build-for-Testing Succeeded (der
+  umgebaute Wächter kompiliert), 0 Compile-Fehler, 0 Failures/Skips im #807-Fenster,
+  TEST EXECUTE FAILED = #396-Muster. Claims: kompilieren nachweislich, Ausführung
+  unbelegt (#445).
+- Werkzeug-Befund im selben Zyklus: `gh-run-status.py` druckte auf der
+  Overflow-Datei `?  -  ?  ?` — die Datei trägt den MCP-Text-Umschlag
+  `[{"type":"text","text":"<json>"}]`, den der Loader nicht kannte. #738-Klasse
+  (JSON parst erfolgreich ≠ Decode funktioniert), diesmal laut statt still.
+  Fix: `_unwrap_text_envelope` (nur wenn JEDES Listen-Element ein Umschlag ist;
+  inneres JSON geparst, mehrere Payloads gemerged). Regression über alle vier
+  Alt-Formen gefahren (dict/list/single/non-json-Umschlag) — alle unverändert.
