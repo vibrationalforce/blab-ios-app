@@ -15196,3 +15196,21 @@ kürzeren Trust-Lücke.
   `TheHarmonyVoicesReachTheSingersDoorTests` steht NICHT im Fenster: kompiliert
   nachweislich, Ausführung unbelegt (#445/#807). Die :79-Warnung ist die bekannte
   harmlose Type-Check-Zeit-Meldung der E2E-Hilfsfunktion.
+
+## 2026-08-26 ~23:05 (cron-Zyklus nach Ultra-Grep) — memory/user.md entgiftet (#842, docs-only)
+
+- **Anlass:** Founder-Ask „Ultragreballtasks ultracode" → Workflow `ultragrep-all-tasks`
+  (11 Agenten: 5 Sweeper je Quelle, 5 adversariale Prüfer, 1 Vollständigkeits-Kritiker;
+  read-only). Konsolidiertes Board an den Founder geliefert (drei Körbe: Founder-sensorisch ·
+  baubar · bewusst geparkt). Kritiker-Spitzenfund: `.deploy/release` steht auf v425, 12 Commits
+  darüber sind in KEINEM TestFlight-Build — v426 wartet planmäßig auf das v425-Geräte-Log.
+- **Ralph-Scheibe dieses Zyklus (kleinster verifizierter Hygiene-Fund):** der
+  „Current state (2026-06-02)"-Block in `memory/user.md` behauptete AUv3-Plugin ausgeliefert
+  (Target entfernt 07-24), Polar H10 als eigene Live-Quelle und rPPG „dormant" — alle drei
+  invers zur Wahrheit; der SessionStart-Hook cat't diese Datei VOR CLAUDE.md. Ersetzt durch
+  einen Zeiger-Block (kanonisch = CLAUDE.md CURRENT STATE) mit ⛔-Rücknahme; dazu die
+  Android/Desktop-Ambitions-Zeile (steht quer zur No-JUCE/Android-disabled-Doktrin) durch das
+  wörtliche Plattform-Ziel 2026-07-31 ersetzt und die abgelaufenen Zählliterale in „Key Dates"
+  durch Messbefehle. Kein Wächter: memory/ ist prosa-frei von CI, ein Text-Scan wäre #491.
+- **Gates:** memory/+scratchpads-only ⇒ vierter Zustand (kein Lauf). Kein Code angefasst.
+- **Stand unverändert:** v426-Deploy + Granular-Tür warten auf das Founder-Ohr (v425-Probe).

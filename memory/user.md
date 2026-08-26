@@ -13,7 +13,10 @@ The multidimensional production instrument: ONE unified instrument (single Echoe
 - Swift/SwiftUI primary (85% of codebase)
 - DSP expertise (DDSP, vDSP, spectral morphing)
 - Audio engineering (AVFoundation, Accelerate, Metal)
-- Cross-platform ambitions (iOS, Android, Desktop plugins)
+- Platform ambition (Founder 2026-07-31, wörtlich): „Das gesamte Apple Ökosystem soll
+  langfristig unterstützt werden auch VR/XR und Waerables." iPhone-first ist Reihenfolge,
+  kein Umfang. (Die alte Zeile hier nannte Android + Desktop-Plugins — Android ist
+  deaktiviert, Desktop/JUCE ist eine harte Regel dagegen; beides stand quer zur Doktrin.)
 
 ## Working Style
 - Prefers iterative tightening over big-bang changes
@@ -28,18 +31,31 @@ The multidimensional production instrument: ONE unified instrument (single Echoe
 - **Ernaehrungsberatung** — Details TBD
 
 ## Key Dates
-- iOS 26 SDK deadline: April 28, 2026
-- TestFlight build: 22572541274
-- 1,560+ commits, 1,060+ test methods
+- iOS 26 SDK deadline: April 28, 2026 (erfüllt — Xcode 26.2 in `testflight.yml`)
+- Zählwerte (Commits, Builds, Testmethoden) sind Daten, keine Tatsachen — messen statt
+  zitieren (`git rev-list --count HEAD`, `git ls-files 'Tests/**/*.swift' | wc -l`).
+  Die Literale, die hier standen, waren um Monate abgelaufen; die „1.060+ Testmethoden"
+  gehörten zu einer Liste, die CLAUDE.md längst als nie-existent zurückgezogen hat.
 
 ---
 
-## Current state (2026-06-02)
-- **TestFlight build 1477 VALID** — app + EchoelmusicWidgets + AUv3 plugin + CX (bio→App Group glance) + Release auto-demo (lives without hardware) + brand-clean Info.plist.
-- **Live bio sources:** HealthKit + Polar H10 + Demo (auto-starts in Release after 4 s grace). Camera rPPG exists but dormant (not bus-wired) — Planned.
-- **3 Apple surfaces shipping.** Watch compile-verified but embed-blocked (needs local Xcode). macOS-Catalyst/visionOS/tvOS/Clip = roadmap.
-- **Biggest open gap:** nothing is runtime-verified — needs build 1477 on a real iPhone (audio/launch/tabs + App Store screenshots).
-- **"12 EchoelTools" reframed:** a taxonomy over real modules; 4 LIVE, 5 partial, 3 roadmap (see FEATURE_MATRIX). Not 12 separate Swift tools.
+## Current state (2026-08-26 — ersetzt den 2026-06-02-Block)
+⛔ Der alte Block behauptete ein ausgeliefertes **AUv3-Plugin** (Target entfernt 2026-07-24),
+**Polar H10 als eigene Live-Quelle** (heute: universeller BLE-HR-Pfad, gebaut+verdrahtet,
+Gurt noch nicht eingetroffen) und **rPPG als „dormant"** (seit Juni LIVE und die Hauptquelle).
+Eine Session, die hieraus Kontext restaurierte, plante gegen ein Repo, das es nicht mehr gibt.
+
+- **Kanonischer Zustand steht in `CLAUDE.md` (CURRENT STATE)** — dieser Block ist bewusst
+  nur ein Zeiger plus das Wenige, das zur Nutzer-Ebene gehört, damit er nicht wieder
+  still altert wie sein Vorgänger.
+- Produkt: das bio-reaktive Instrument (`docs/dev/PRODUCT_DEFINITION.md`, 2026-07-25).
+  DMMW ist RETIRED; Drums (#166/#167), Noten-Editor (#475) und AUv3 sind per
+  Founder-Entscheidung entfernt.
+- Ship-Gate „Instrument-Complete v1": die offenen Checks sind SENSORISCH (Founder-Ohr /
+  Gerät). Der Geräte-Einkaufszettel: `python3 scripts/founder-verify.py`.
+- Vokal-Kette auf dem Monitorpfad: neutrale FX-Kette + schaltbarer Harmonizer
+  ausgeliefert (#839–#841); Granular auf der Stimme ist die benannte nächste Scheibe;
+  v426-Deploy wartet auf das v425-Geräte-Log des Founders.
 
 ---
 
