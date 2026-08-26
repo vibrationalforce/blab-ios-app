@@ -18,9 +18,10 @@
 // `ready (virtual source 'Echoelmusic'…)`.
 //
 // GRADING (§3): claims 1–2 name text the #837 commit writes and claim 3 names the
-// #838 reuse guards — on each slice's parent the new needles are red as ONE
-// absence per slice (#486). Claim 4 is a COUNTERWEIGHT, green on both trees.
-// Driven in Python against parent and worktree before push.
+// #838b dispose helper (the #838 reuse design it replaced is retracted in claim 3's
+// doc block) — on each slice's parent the new needles are red as ONE absence per
+// slice (#486). Claim 4 is a COUNTERWEIGHT, green on both trees. Driven in Python
+// against parent and worktree before push.
 //
 // #364: nothing here forbids moving the call site — a redesign re-anchors claim 2
 // in the same commit and pulls the #837 comments in both source files (#456).
@@ -96,22 +97,45 @@ final class TheMIDIOutRearmsOnForegroundTests: XCTestCase {
             """)
     }
 
-    // MARK: - 3. Retries resume a half-built lifecycle instead of leaking it (#838)
+    // MARK: - 3. A failed attempt leaves the TRUE launch state behind (#838/#838b)
 
     /// #837 made retries more frequent, and its review measured the cost: a retry
     /// after a port/source-stage failure re-ran the CLIENT create into a live ref —
-    /// one leaked midiserver connection per attempt. Each stage now creates only
-    /// from zero. Three guards, one per CoreMIDI resource.
-    func testEachCreateStageIsGuardedOnItsZeroRef() {
+    /// one leaked midiserver connection per attempt. ⛔ #838's first fix REUSED
+    /// nonzero refs and the follow-up review refuted it: nothing anywhere resets a
+    /// ref, so one stale client (the daemon dying mid-sequence is the likeliest
+    /// cause of a half-built state) would be reused forever — a permanent-failure
+    /// trap where the old code leaked but recovered. The shipped design is ATOMIC:
+    /// a later-stage failure disposes the half-built lifecycle and nulls all refs.
+    func testALaterStageFailureDisposesTheHalfBuiltLifecycle() {
         let midi = text("Sources/Echoelmusic/Audio/MIDIOutput.swift")
         guard !midi.isEmpty else { return }
-        for needle in ["if client == 0 {", "if outputPort == 0 {", "if virtualSource == 0 {"] {
-            XCTAssertEqual(midi.components(separatedBy: needle).count - 1, 1, """
-                `\(needle)` no longer guards its create stage exactly once. Without \
-                it a retry after a later-stage failure recreates a still-live \
-                CoreMIDI resource — one leaked midiserver connection per attempt \
-                (#838). If the lifecycle was redesigned (e.g. dispose-before- \
-                recreate), re-anchor this claim in the same commit (#456).
+        // THREE: the declaration line contains the same substring as a call — the
+        // Python drive caught this claim asserting 2 and being red on the correct
+        // tree (#408, the decl-substring hazard, caught before CI ever saw it).
+        XCTAssertEqual(midi.components(separatedBy: "disposeHalfBuiltLifecycle()").count - 1, 3, """
+            One declaration + TWO later-stage failure calls (port, source) is the \
+            #838b shape. Fewer calls restores either the per-retry leak or the \
+            stale-ref trap; a third create stage brings its own call.
+            """)
+        guard let helper = midi.range(of: "private func disposeHalfBuiltLifecycle()") else {
+            return XCTFail("""
+                The dispose helper is gone. A later-stage failure must return the \
+                lifecycle to the true launch state (dispose + all three refs zeroed) \
+                or retries either leak or reuse a stale client forever (#838b). If \
+                redesigned, re-anchor this claim in the same commit (#456).
+                """)
+        }
+        let body = String(midi[helper.lowerBound...].prefix(400))
+        XCTAssertTrue(body.contains("MIDIClientDispose(client)"), """
+            The helper no longer disposes the client — zeroing without disposing is \
+            the #837-review leak again, one midiserver connection per failed retry.
+            """)
+        for reset in ["client = 0", "outputPort = 0", "virtualSource = 0"] {
+            XCTAssertTrue(body.contains(reset), """
+                The helper no longer resets `\(reset)` — a nonzero ref survives into \
+                the next attempt, which is the stale-ref trap the #838b review \
+                refuted the reuse design over.
                 """)
         }
     }

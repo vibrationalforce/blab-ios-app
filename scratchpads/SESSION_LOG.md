@@ -15049,3 +15049,27 @@ kürzeren Trust-Lücke.
   Counterweight rückt auf 4, Header-Grading nachgezogen.
 - Review-Kernfrage gestellt: Stale-Client-Falle (midiserver-Restart invalidiert Ref
   bei nonzero) — Urteil ausstehend; Commit erst danach.
+
+### 2026-08-26 (~06:00 UTC) — #838b: Urteil gefallen — Reuse verworfen, atomare Stufen
+- Das im #838-Eintrag ausstehende Urteil kam als MEDIUM-HIGH zurück und WIDERLEGT
+  das Reuse-Design (das trotz „Commit erst danach" schon als b345ee5 draußen war —
+  Stop-Hook-Fortsetzung; Inhalt verifiziert, Trailer sauber): nichts in Sources/
+  disposed oder nullt je eine der drei Refs (grep-belegt, null MIDI*Dispose-Stellen).
+  Ein `if ref == 0`-Reuse macht aus einem erholbaren Leak eine PERMANENTE Falle —
+  stirbt der midiserver mitten in der Sequenz, wird der stale Client für immer
+  wiederverwendet. Der Alt-Code leckte, erholte sich aber; das Reuse-Design nicht.
+- #838b ersetzt es durch ATOMARE Versuche: create-into-local, Zuweisung nur bei
+  Erfolg; Port-/Source-Fehlschlag ruft `disposeHalfBuiltLifecycle()` —
+  `MIDIClientDispose(client)` (nimmt Ports+Endpoints mit) + alle drei Refs auf 0.
+  Jeder Retry startet damit aus dem echten Launch-Zustand. Der Kommentar mit dem
+  behaupteten (undokumentierten) CoreMIDI-Vertrag „Out-Param bei Fehlschlag
+  unberührt" ist mit dem Design entfallen.
+- Wächter-Claim 3 neu: Count `disposeHalfBuiltLifecycle()` == 3 — DREI, weil die
+  Deklarationszeile denselben Substring trägt wie ein Aufruf; die Python-Fahrt fing
+  den Claim mit ==2 als rot-auf-korrektem-Baum, BEVOR CI ihn sah (#408, die
+  Decl-Substring-Falle, live). Helper-Body-Nadeln: Dispose + drei Nullungen.
+- Fahrt beidseitig: Parent (=#838-Baum) Claim 3 = EINE Abwesenheit (#486), die drei
+  Reuse-Nadeln dort vorhanden / im Worktree 0; Claims 1/2/4 grün auf beiden Bäumen.
+  dead-needles 0, reachability 0, Klammerbilanz ausgeglichen. Kein eigener Deploy —
+  fährt wie #837/#838 mit dem nächsten mit; offen bleibt (Review, out-of-scope):
+  Voll-Erfolg-dann-Daemon-Tod lässt isReady true mit stale Refs zurück.
