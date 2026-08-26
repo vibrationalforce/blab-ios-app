@@ -1327,6 +1327,12 @@ struct EchoelmusicApp: App {
                         log.log(.info, category: .system, "App active — audio resumed")
                         EchoelCrashLog.breadcrumb("scene: audio resumed")
                     }
+                    // #837: heal a launch-time `client create failed` (measured -2 on
+                    // the relaunch after a SIGABRT) on the user's natural recovery
+                    // gesture. Outside the resume gate on purpose — the gate can stay
+                    // shut (deliberate stop wins) while MIDI out still deserves its
+                    // retry; the call is a guarded no-op in every healthy state.
+                    midiOut.rearmIfDead()
                 case .background:
                     wasBackgrounded = true
                     // App-Group-Puls-Brücke (2026-07-17): bioFeedback deliberately

@@ -126,6 +126,20 @@ public final class MIDIOutput {
 
     public private(set) var isReady = false
 
+    /// #837 (founder log v10.79.424, build 2542, the relaunch 5 s after a SIGABRT):
+    /// the launch enable hit `client create failed (-2)` — a transient midiserver
+    /// refusal while the daemon recovered from the abrupt kill — and the whole
+    /// session then ran without MIDI out, because the only retriggers are an
+    /// enable edge and a transport Play. Foreground return is the user's natural
+    /// recovery gesture (that very log shows "scene: audio resumed" 30 s later,
+    /// where this would have healed it). A no-op in every healthy state: the
+    /// route off, or the port already up, both return before any CoreMIDI call.
+    public func rearmIfDead() {
+        guard enabled, !isReady else { return }
+        logOutcome("re-arm after failed create (foreground return)", level: .info)
+        startIfNeeded()
+    }
+
     #if canImport(CoreMIDI)
     @ObservationIgnored private var client: MIDIClientRef = 0
     @ObservationIgnored private var outputPort: MIDIPortRef = 0

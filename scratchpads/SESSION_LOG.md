@@ -15026,3 +15026,15 @@ kürzeren Trust-Lücke.
   neuen Claims selbst: kompilieren nachweislich, Ausführung unbelegt (#445).
 - Alles Weitere blockiert bewusst auf dem v425-Gerätetest: Monitoring-AUS ohne
   Absturz + erstes „monitor: OFF" (+ neue „restoring engine"-Zeile) im Log.
+
+### 2026-08-26 (~03:15 UTC) — #837: MIDI-Out heilt sich beim Foreground-Return
+- Untriagierte Beobachtung aus dem zweiten Nacht-Log: der Relaunch nach dem SIGABRT
+  zeigte `midiout: client create failed (-2)` — die Session lief ohne MIDI-Out, erst
+  der nächste Kaltstart heilte es (dort wieder `midiout: ready`).
+- Slice: `MIDIOutput.rearmIfDead()` (guard enabled, !isReady → startIfNeeded) + EIN
+  Aufruf im `.active`-Übergang, bewusst AUSSERHALB des Resume-Gates (Gate darf zu
+  bleiben — bewusster Stopp gewinnt — während MIDI seinen Retry verdient). Dasselbe
+  Founder-Log beweist, dass die Geste den Handler erreicht („scene: audio resumed").
+- Wächter TheMIDIOutRearmsOnForegroundTests (3 Claims, Python-Fahrt beidseitig:
+  Worktree 6/6 grün, Parent = EINE Abwesenheit #486 + Counterweight grün).
+  dead-needles 0, reachability 0. Kein eigener Deploy — fährt mit dem nächsten mit.
