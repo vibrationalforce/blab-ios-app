@@ -2538,8 +2538,11 @@ public final class AudioEngine {
     /// leaves the cause to the reader who has the surrounding lines.
     private func restoreEngineIfStranded(_ wasRunning: Bool, at exit: String) {
         guard wasRunning, !masterEngine.isRunning else { return }
-        log.audio("Audio engine is not running at exit — restoring (\(exit))",
-                  level: .warning)
+        // #836b: routed through logMonitorOutcome so it reaches the DIAG file, not
+        // only os_log. Three founder crash logs were read for this line's absence
+        // before it was measured that `log.audio` never wrote it there — the
+        // restore was invisible exactly where the crash it precedes is visible.
+        logMonitorOutcome("restoring engine at exit (\(exit))", level: .warning)
         armTimingInstrument()
         restartOrDegrade(after: exit)
     }
