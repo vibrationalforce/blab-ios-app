@@ -17,9 +17,10 @@
 // answered by a future log showing `re-arm after failed create` followed by
 // `ready (virtual source 'Echoelmusic'…)`.
 //
-// GRADING (§3): claims 1–2 name text this same commit writes — on the parent both
-// are red as ONE absence (#486, the slice absent). Claim 3 is a COUNTERWEIGHT,
-// green on both trees. Driven in Python against parent and worktree before push.
+// GRADING (§3): claims 1–2 name text the #837 commit writes and claim 3 names the
+// #838 reuse guards — on each slice's parent the new needles are red as ONE
+// absence per slice (#486). Claim 4 is a COUNTERWEIGHT, green on both trees.
+// Driven in Python against parent and worktree before push.
 //
 // #364: nothing here forbids moving the call site — a redesign re-anchors claim 2
 // in the same commit and pulls the #837 comments in both source files (#456).
@@ -95,7 +96,27 @@ final class TheMIDIOutRearmsOnForegroundTests: XCTestCase {
             """)
     }
 
-    // MARK: - 3. COUNTERWEIGHT: readiness still gates every note
+    // MARK: - 3. Retries resume a half-built lifecycle instead of leaking it (#838)
+
+    /// #837 made retries more frequent, and its review measured the cost: a retry
+    /// after a port/source-stage failure re-ran the CLIENT create into a live ref —
+    /// one leaked midiserver connection per attempt. Each stage now creates only
+    /// from zero. Three guards, one per CoreMIDI resource.
+    func testEachCreateStageIsGuardedOnItsZeroRef() {
+        let midi = text("Sources/Echoelmusic/Audio/MIDIOutput.swift")
+        guard !midi.isEmpty else { return }
+        for needle in ["if client == 0 {", "if outputPort == 0 {", "if virtualSource == 0 {"] {
+            XCTAssertEqual(midi.components(separatedBy: needle).count - 1, 1, """
+                `\(needle)` no longer guards its create stage exactly once. Without \
+                it a retry after a later-stage failure recreates a still-live \
+                CoreMIDI resource — one leaked midiserver connection per attempt \
+                (#838). If the lifecycle was redesigned (e.g. dispose-before- \
+                recreate), re-anchor this claim in the same commit (#456).
+                """)
+        }
+    }
+
+    // MARK: - 4. COUNTERWEIGHT: readiness still gates every note
 
     /// Green on both trees. The re-arm is only honest because an un-created client
     /// can never be sent to — remove this guard and a failed create turns into

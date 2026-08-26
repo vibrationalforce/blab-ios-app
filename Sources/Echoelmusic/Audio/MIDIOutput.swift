@@ -192,35 +192,42 @@ public final class MIDIOutput {
             return
         }
         #if canImport(CoreMIDI)
-        // ⚠️ #837 review (pre-existing, registered not fixed): if a PREVIOUS attempt
-        // created the client but failed at the port/source stage, this re-runs the
-        // client create into `&client` and the old client (a live midiserver
-        // connection) is never disposed — one leak per retry. Pre-dates #837 (the
-        // enable edge and every transport Play already retried); the founder's
-        // measured -2 failed AT client create, so that path retries clean. A
-        // dispose-before-recreate is its own slice.
-        let clientStatus = MIDIClientCreateWithBlock("Echoelmusic Output" as CFString, &client, nil)
-        guard clientStatus == noErr else {
-            logOutcome("client create failed (\(clientStatus))", level: .warning)
-            return
+        // #838 (closes the leak #837's review registered): REUSE, never recreate.
+        // A previous attempt can succeed at the client stage and fail at port or
+        // source; re-running a create into a still-live ref leaked one midiserver
+        // connection per retry — and #837's foreground re-arm made retries more
+        // frequent. Each stage now creates only from zero (the refs are value-type
+        // UInt32s initialised to 0, and CoreMIDI leaves the out-param untouched on
+        // failure), so a half-built lifecycle resumes exactly where it stopped.
+        if client == 0 {
+            let clientStatus = MIDIClientCreateWithBlock("Echoelmusic Output" as CFString, &client, nil)
+            guard clientStatus == noErr else {
+                logOutcome("client create failed (\(clientStatus))", level: .warning)
+                return
+            }
         }
-        let portStatus = MIDIOutputPortCreate(client, "Echoelmusic Out" as CFString, &outputPort)
-        guard portStatus == noErr else {
-            logOutcome("output port create failed (\(portStatus))", level: .warning)
-            return
+        if outputPort == 0 {
+            let portStatus = MIDIOutputPortCreate(client, "Echoelmusic Out" as CFString, &outputPort)
+            guard portStatus == noErr else {
+                logOutcome("output port create failed (\(portStatus))", level: .warning)
+                return
+            }
         }
         // The virtual source: this is what hosts see as "Echoelmusic" to record from.
         // MIDI 1.0 protocol → we send classic MIDIPacketList bytes via MIDIReceived.
         // (MIDISourceCreate is deprecated since iOS 14; the protocol variant is the
         // supported call and avoids a -warnings-as-errors build failure.)
-        let srcStatus = MIDISourceCreateWithProtocol(client, "Echoelmusic" as CFString, ._1_0, &virtualSource)
-        guard srcStatus == noErr else {
-            logOutcome("virtual source create failed (\(srcStatus))", level: .warning)
-            return
+        if virtualSource == 0 {
+            let srcStatus = MIDISourceCreateWithProtocol(client, "Echoelmusic" as CFString, ._1_0, &virtualSource)
+            guard srcStatus == noErr else {
+                logOutcome("virtual source create failed (\(srcStatus))", level: .warning)
+                return
+            }
+            // Persist a stable unique ID so the host re-binds to the same source
+            // across launches instead of treating each run as a new device. Inside
+            // the create branch: a reused source already carries it.
+            _ = MIDIObjectSetIntegerProperty(virtualSource, kMIDIPropertyUniqueID, 0x4543_484F) // "ECHO"
         }
-        // Persist a stable unique ID so the host re-binds to the same source across
-        // launches instead of treating each run as a new device.
-        _ = MIDIObjectSetIntegerProperty(virtualSource, kMIDIPropertyUniqueID, 0x4543_484F) // "ECHO"
         isReady = true
         if mpeEnabled { sendMPEConfiguration() }
         // The expression clause is gated on BOTH flags because the SENDER is

@@ -15038,3 +15038,14 @@ kürzeren Trust-Lücke.
 - Wächter TheMIDIOutRearmsOnForegroundTests (3 Claims, Python-Fahrt beidseitig:
   Worktree 6/6 grün, Parent = EINE Abwesenheit #486 + Counterweight grün).
   dead-needles 0, reachability 0. Kein eigener Deploy — fährt mit dem nächsten mit.
+
+### 2026-08-26 (~05:10 UTC) — #838: MIDI-Create-Stufen wiederverwendbar statt leckend
+- Schließt die im #837-Review registrierte MEDIUM: Retry nach Port-/Source-Fehlschlag
+  erzeugte den Client NEU in eine lebende Ref — ein midiserver-Connection-Leak pro
+  Versuch, durch #837s Foreground-Re-Arm häufiger erreichbar.
+- Fix: jede der drei Create-Stufen hinter `if <ref> == 0` (Refs sind UInt32, 0-init,
+  CoreMIDI lässt Out-Param bei Fehlschlag unberührt); Unique-ID-Set in den
+  Source-Create-Zweig gezogen. Wächter: neuer Claim 3 (drei Nadeln, Count==1 je),
+  Counterweight rückt auf 4, Header-Grading nachgezogen.
+- Review-Kernfrage gestellt: Stale-Client-Falle (midiserver-Restart invalidiert Ref
+  bei nonzero) — Urteil ausstehend; Commit erst danach.
