@@ -1,21 +1,32 @@
 // MonitorInsertAU.swift
-// Echoel — V1a (#832): the EMPTY pass-through insert on the monitor rail.
+// Echoel — V1a (#832): the pass-through insert on the monitor rail.
+// V1b-1 (#839): the mic-owned `EchoelFXChain` rides it — NEUTRAL, every stage off.
 //
-// WHY AN EMPTY NODE SHIPS ON ITS OWN (decisions.csv:398/450): the risk in putting a
+// WHY AN EMPTY NODE SHIPPED FIRST (decisions.csv:398/450): the risk in putting a
 // vocal chain on the singer's monitor path is the AUAudioUnit render CONTRACT — bus
 // format negotiation, host-owned vs. unit-owned output buffers, the pull-input hop —
-// not the DSP that will later ride on it. This slice proves the contract with zero
-// sound change: the render block pulls the input straight into the output buffers and
-// does nothing else. V1b then swaps "nothing else" for the processing stage WITHOUT
-// touching the graph shape again.
+// not the DSP that rides on it. V1a proved the contract with zero sound change; the
+// founder's v10.79.424 logs show `insert in` on device. V1b-1 now swaps "nothing
+// else" for `voiceChain.processInPlace` WITHOUT touching the graph shape — and keeps
+// the zero-sound-change property by construction: with all 15 stage flags off,
+// `processStereo` returns its input bit-exactly (one `if` per stage, no unconditional
+// math on the samples), so any audible difference or CPU cost in the next device log
+// is attributable to the CHAIN's presence, not to a stage. Making a stage AUDIBLE
+// (the founder's harmonizer/granular ask) is V1b-2, a deliberate separate slice with
+// its own door and preset.
 //
-// LATENCY: a pass-through AU adds no algorithmic delay and buffers nothing — the
-// founder's ask says "latenzfrei", and `AudioEngine.monitorInsertLatencyMilliseconds`
-// logs what the node itself reports so the next device log can confirm the 0.
+// OWNERSHIP: `voiceChain` is created HERE and configured HERE. It is never the synth
+// voices' instance and never reads their presets — two owners of one preset object is
+// the #416/BLE-3 shape this file exists to avoid.
+//
+// LATENCY: the chain buffers nothing (in-place, sample by sample) — the insert still
+// adds no algorithmic delay, and `AudioEngine.monitorInsertLatencyMilliseconds` logs
+// what the node reports so the next device log can confirm the 0.
 //
 // AUDIO THREAD (render block): no allocation, no locks, no ObjC messaging, no self
-// capture — only the pre-allocated scratch (filled in `allocateRenderResources`, which
-// runs while the engine is stopped) and the host's pull block.
+// capture — only the pre-allocated scratch, the captured `voiceChain` (a pure Swift
+// `@unchecked Sendable` final class already running in two synth render paths), and
+// the host's pull block. `reset()` runs in `allocateRenderResources` (engine stopped).
 
 import Foundation
 #if canImport(AVFoundation)
@@ -69,6 +80,31 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
     private var _outputBusses: AUAudioUnitBusArray?
     private let scratch = MonitorInsertScratch()
 
+    /// V1b-1 (#839): the mic-owned chain. NEUTRAL by construction — the type's own
+    /// defaults enable saturation, chorus and limiter (tuned for the SYNTH bus), so
+    /// relying on them would ship a sound change as a side effect of mounting.
+    /// Every flag is set explicitly; the guard derives the expected count from the
+    /// chain's own `…Enabled` declarations so a 16th stage cannot arrive half-wired.
+    private let voiceChain: EchoelFXChain = {
+        let chain = EchoelFXChain(sampleRate: 48_000)
+        chain.filterEnabled = false
+        chain.saturationEnabled = false
+        chain.tapeEnabled = false
+        chain.bitcrushEnabled = false
+        chain.harmonizerEnabled = false
+        chain.chorusEnabled = false
+        chain.flangerEnabled = false
+        chain.granularEnabled = false
+        chain.phaserEnabled = false
+        chain.tremoloEnabled = false
+        chain.delayEnabled = false
+        chain.reverbEnabled = false
+        chain.widenerEnabled = false
+        chain.compressorEnabled = false
+        chain.limiterEnabled = false
+        return chain
+    }()
+
     public override init(componentDescription: AudioComponentDescription,
                          options: AudioComponentInstantiationOptions = []) throws {
         guard let format = AVAudioFormat(standardFormatWithSampleRate: 48_000, channels: 2) else {
@@ -96,6 +132,15 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
     public override func allocateRenderResources() throws {
         try super.allocateRenderResources()
         scratch.allocate(frames: Int(maximumFramesToRender))
+        // Every monitor start begins from defined chain state (empty delay lines, no
+        // stale glide) — reset() clears STATE only, never the user-set targets. The AU
+        // contract guarantees THIS NODE is not rendering during (re)allocation (not
+        // that the whole engine is stopped) — the same guarantee scratch relies on.
+        // ⚠️ V1b-2 PRECONDITION (review NIT, #839): the chain's 48_000 at construction
+        // duplicates the bus-format rate below. Harmless while every stage is off (no
+        // rate-dependent math runs); before a stage becomes AUDIBLE, derive the chain
+        // rate from the negotiated bus format so a renegotiation cannot detune it.
+        voiceChain.reset()
     }
 
     public override func deallocateRenderResources() {
@@ -104,9 +149,10 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
     }
 
     public override var internalRenderBlock: AUInternalRenderBlock {
-        // Captures ONLY the scratch class — never self (an ObjC-backed object whose
-        // property access would message the runtime on the render thread).
+        // Captures ONLY the scratch class and the chain — never self (an ObjC-backed
+        // object whose property access would message the runtime on the render thread).
         let scratch = self.scratch
+        let chain = self.voiceChain
         return { _, timestamp, frameCount, _, outputData, _, pullInputBlock in
             guard let pull = pullInputBlock else { return kAudioUnitErr_NoConnection }
             guard Int(frameCount) <= scratch.capacity else {
@@ -130,9 +176,22 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
                 buffers[index].mDataByteSize = byteSize
             }
             var pullFlags = AudioUnitRenderActionFlags()
-            // The input renders DIRECTLY into the output buffers — the pass-through IS
-            // this call; there is deliberately no per-sample loop for V1b to inherit.
-            return pull(&pullFlags, timestamp, frameCount, 0, outputData)
+            // The input renders DIRECTLY into the output buffers; the chain then
+            // processes them in place (V1b-1, #839). With every stage off this is
+            // bit-identical to the V1a pass-through — the E2E guard asserts exactly
+            // that through this very block.
+            let status = pull(&pullFlags, timestamp, frameCount, 0, outputData)
+            guard status == noErr else { return status }
+            // Stereo only: the chain's entry is (left, right). A mono host shape
+            // stays pure pass-through rather than processing one buffer as both
+            // channels — defensive, since the engine connects this node at the
+            // master mixer's stereo output format.
+            if buffers.count == 2,
+               let left = buffers[0].mData?.assumingMemoryBound(to: Float.self),
+               let right = buffers[1].mData?.assumingMemoryBound(to: Float.self) {
+                chain.processInPlace(left: left, right: right, frameCount: Int(frameCount))
+            }
+            return noErr
         }
     }
 }

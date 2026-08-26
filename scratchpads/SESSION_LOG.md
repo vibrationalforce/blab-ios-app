@@ -15086,3 +15086,32 @@ kürzeren Trust-Lücke.
   Fix: `_unwrap_text_envelope` (nur wenn JEDES Listen-Element ein Umschlag ist;
   inneres JSON geparst, mehrere Payloads gemerged). Regression über alle vier
   Alt-Formen gefahren (dict/list/single/non-json-Umschlag) — alle unverändert.
+
+### 2026-08-26 (~08:30 UTC) — #839 (V1b-1): die Kette reitet den Insert — NEUTRAL
+- Founder-Auftrag (2026-08-25: „latenzfrei… Harmonizer und Granular…"; V0 hält den Bau
+  nicht mehr an) + V1a am Gerät bewiesen (`insert in`, v424) ⇒ nächste Leiter-Stufe.
+- Slice: `MonitorInsertAU` besitzt jetzt die mic-eigene `EchoelFXChain` (NIE das
+  Synth-Preset — ein Besitzer). ALLE 15 Stufen-Flags explizit aus: die Werks-Defaults
+  Saturation/Chorus/Limiter=AN sind Synth-Bus-Tuning und würden den Sänger färben.
+  Render-Block: pull → bei Stereo `chain.processInPlace` in place; Mono bleibt purer
+  Pass-Through. `reset()` in `allocateRenderResources`. Bit-exakt = Eingang, weil
+  `processStereo` mit allen Flags aus keine unbedingte Sample-Mathematik hat.
+- Wächter: `TheMonitorInsertIsAnEmptyPassThroughTests` → umbenannt
+  `TheMonitorInsertCarriesTheNeutralChainTests` (#374; Claims 1–2 E2E bit-exakt bleiben
+  und beweisen jetzt MEHR; Claim 4 neu: genau EINE `EchoelFXChain(`-Stelle + Stereo-Gate
+  + processInPlace-Aufruf + All-Off-Zähler mit ABGELEITETEM Nenner aus den
+  `…Enabled: Bool`-Deklarationen der Kette, #416). `TheVocalChainStopsAtTheAutotuneTests`
+  im selben Commit umgebaut (#456): Claim 2 pinnt jetzt [MonitorInsertAU.swift] als
+  einzigen Audio-Host, Claim 4 die Vierer-Builder-Liste (+ Umbenennung, #374), Claim 5
+  die neue Register-Nadel „Harmonizer und Granular NOCH NICHT HÖRBAR".
+- Sechs Prosa-Stellen im selben Commit gezogen: Wächter-Kopftabelle · CLAUDE.md-Zeile
+  (Leiter-Stand: V1a ✅ · #822 ✅ · V1b-1 ✅ · V1b-2 OFFEN) · VoicePitchCorrector-Kopf ·
+  EchoelGranular-Kopf · PLAN_VOCAL_CHAIN §6 · decisions.csv (neue Zeile, :398 bleibt).
+- Python-Fahrt beidseitig: Worktree alle Claims grün; Parent = EINE Abwesenheit (die
+  Montage, #486), Counterweights beidseitig grün. dead-needles 0, reachability 0.
+- Pflicht-Review (audio-thread): CLEAN auf allen 6 Punkten. LOW (Kommentar behauptete
+  „engine stopped", Vertrag ist „dieser Knoten rendert nicht") sofort gefixt; NIT
+  (48_000 doppelt: Ketten-Init vs. Bus-Format) als V1b-2-VORBEDINGUNG am Ort registriert
+  — vor der ersten hörbaren Stufe Kettenrate aus dem verhandelten Bus-Format ableiten.
+- Geräteprobe (offen): unveränderter Monitor-Klang + kein Knacksen/CPU-Sprung bei
+  `insert in` — im selben v425+1-Log wie die Monitoring-AUS-Probe ablesbar.

@@ -79,10 +79,12 @@ import Foundation
 /// moved clamp fails in CI instead of lying to a player.
 ///
 /// ⛔ WHAT IS STILL MISSING, so this note does not flip to a rosier lie: **the door is
-/// in the FX panel, which processes the SYNTH. It is not in the vocal path.** The
-/// founder's ask was a vocal chain with a granular effect; `EchoelFXChain` appears
-/// ZERO times in `Audio/AudioEngine.swift`, so a singer's monitored voice still
-/// reaches no granular stage. Cite this as a shipping effect FOR THE INSTRUMENT only.
+/// in the FX panel, which processes the SYNTH. There is no vocal-path door yet.** The
+/// founder's ask was a vocal chain with a granular effect; since #839 (V1b-1) a
+/// mic-owned `EchoelFXChain` is mounted on the monitor insert — NEUTRAL, every stage
+/// including this one OFF — so a singer's monitored voice still HEARS no granular
+/// stage. Audible-on-his-voice is V1b-2 (own door + mic preset). Until then, cite
+/// this as a shipping effect FOR THE INSTRUMENT only.
 ///
 /// ⚠️ The note that stood here said a preset recall would "silently drop" the state.
 /// That was backwards and is worth keeping visible: before #690, `apply(to:)` wrote

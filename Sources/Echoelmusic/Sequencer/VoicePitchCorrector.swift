@@ -38,16 +38,14 @@
 //
 //  ⚠️ WHAT IS GENUINELY STILL OPEN, so this header does not simply flip to a
 //  rosier lie: the harmonizer follows the SOUNDING LEAD (the piano-roll note the
-//  studio publishes), and it lives on `EchoelFXChain`, which is NOT in the monitor
-//  graph. Measured with a recipe that literally PRINTS the number, because `git grep
-//  -c` on a no-match file prints nothing at all and exits 1 — quoting that as "= 0"
-//  is the EchoelModalBank trap (a recipe whose output contradicts the prose beside it
-//  reads as a contradiction, not as a sloppy command):
-//      git grep -c EchoelFXChain -- Sources/Echoelmusic/Audio/AudioEngine.swift | wc -l
-//  → 0. The monitor path is `input → notchEQ → [voiceTunePitch] → monitorMixer`.
-//  So the singer's own voice reaches the notch and this corrector, and reaches NO
-//  harmonizer, reverb or delay. That gap is the vocal-chain host node (V1a), not
-//  VL2.
+//  studio publishes) on the SYNTH bus. Since #839 (V1b-1) a mic-owned `EchoelFXChain`
+//  IS mounted on the monitor insert (`MonitorInsertAU`) — but NEUTRAL, every stage
+//  off, output bit-identical. The monitor path is `input → notchEQ →
+//  [voiceTunePitch] → monitorMixer → [insert] → masterMixer`. So the singer's own
+//  voice reaches the notch and this corrector, and still HEARS no harmonizer,
+//  reverb or delay — an audible stage on his voice is V1b-2 (own door + preset).
+//  `AudioEngine.swift` itself stays chain-free by design (the engine wires nodes,
+//  the insert hosts the DSP; guard: TheVocalChainStopsAtTheAutotuneTests claim 2).
 //
 
 import Foundation

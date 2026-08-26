@@ -1,28 +1,39 @@
-// TheMonitorInsertIsAnEmptyPassThroughTests — pins #832 (V1a of the vocal chain).
+// TheMonitorInsertCarriesTheNeutralChainTests — pins #832 (V1a) + #839 (V1b-1).
 //
-// THE SLICE (decisions.csv:398/450): before any vocal DSP rides on the singer's monitor
-// path, the AUAudioUnit render CONTRACT is proven with an EMPTY pass-through insert —
-// zero sound change, mounted between `monitorMixer` and `masterMixer` (one connect
-// site, untouched by the voice-tune rewires, stereo so V1b gets left/right).
+// THE SLICES (decisions.csv:398/450): V1a proved the AUAudioUnit render CONTRACT with
+// an EMPTY pass-through insert between `monitorMixer` and `masterMixer` — and the
+// founder's v10.79.424 logs show `insert in` on device. V1b-1 mounts the mic-owned
+// `EchoelFXChain` inside that render block, NEUTRAL: every stage flag explicitly off,
+// so the output stays bit-identical while the chain's DSP cost runs on device for the
+// first time. Audible stages (harmonizer/granular — the founder's ask) are V1b-2, a
+// separate slice with its own door and preset.
+//
+// (This file was `TheMonitorInsertIsAnEmptyPassThroughTests` until #839 — renamed
+// because after V1b-1 the insert is NOT empty, and a guard whose name states a
+// falsehood is the #374 defect. Claims 1–2 survive the rename UNCHANGED in meaning:
+// a neutral chain is identity by construction, so bit-exactness still holds and now
+// proves MORE — the chain really is neutral, not merely absent.)
 //
 // KINDS (§1), per test:
 // · tests 1–2 are END-TO-END BEHAVIOUR — they run the production factory and the real
-//   render block on this host and compare samples. This is the strong kind, and it is
-//   the entire purpose of V1a: if the AU contract breaks, it breaks HERE, not on the
-//   founder's device.
-// · tests 3–5 are SOURCE-TEXT SCANS over AudioEngine.swift / MonitorInsertAU.swift.
-// · Whether the insert is audible-neutral on a REAL route is a DEVICE PROBE — open,
-//   answered by the next founder log's `insert in` + unchanged monitoring sound.
+//   render block (WITH the chain in it since #839) on this host and compare samples.
+// · tests 3–5 are SOURCE-TEXT SCANS over AudioEngine.swift / MonitorInsertAU.swift /
+//   EchoelFXChain.swift.
+// · Whether the neutral chain is audible-neutral and CPU-invisible on a REAL route is
+//   a DEVICE PROBE — open, answered by the next founder log (unchanged monitoring
+//   sound, no crackle while monitoring runs).
 //
-// GRADING (§3): every test names a symbol or line this same commit creates — the file
-// does not compile against the parent tree, so no assertion has a verdict there
-// (FORWARD guards, zero regressions bookable). Source-scan logic was driven in Python
-// against the worktree before push; the end-to-end expectations are derived (#442):
-// a pass-through's output IS its input, exactness is not a tolerance question.
+// GRADING (§3, for the #839 slice against its parent): claims 1–2 and 3 and 5 are
+// COUNTERWEIGHTS — green on both trees (the neutral chain preserves bit-exactness, and
+// the mount/breadcrumb sites are untouched). Claim 4 is the flipped tripwire: on the
+// parent its needles (`EchoelFXChain(`, `processInPlace`, the 15 `= false` lines) are
+// absent — ONE absence, reported once (#486). The all-off count uses a DERIVED
+// denominator (the chain's own `…Enabled` declarations, #416), so it could never have
+// been green-by-accident on the parent. Driven in Python against parent and worktree
+// before push.
 //
-// #364: nothing here forbids V1b. When the pass-through gains its processing stage,
-// test 2's "no per-sample loop" scan goes red on purpose and its message names the
-// prose to move in the same commit.
+// #364: nothing here forbids V1b-2. Turning a stage ON for the voice will red claim 4's
+// all-off count BY DESIGN — its message names the prose to move in the same commit.
 
 import Foundation
 import XCTest
@@ -32,7 +43,7 @@ import AudioToolbox
 #endif
 @testable import Echoelmusic
 
-final class TheMonitorInsertIsAnEmptyPassThroughTests: XCTestCase {
+final class TheMonitorInsertCarriesTheNeutralChainTests: XCTestCase {
 
     // MARK: - helpers
 
@@ -67,13 +78,14 @@ final class TheMonitorInsertIsAnEmptyPassThroughTests: XCTestCase {
         await fulfillment(of: [landed], timeout: 10)
         let unit = try XCTUnwrap(instantiated, """
             The production factory failed to instantiate the insert ON THIS HOST. The app \
-            degrades gracefully (monitoring builds without the insert), but V1a's deliverable \
-            is a working AU contract — a nil here means the contract is broken everywhere.
+            degrades gracefully (monitoring builds without the insert), but the vocal \
+            chain's deliverable is a working AU contract — a nil here means the contract \
+            is broken everywhere.
             """).auAudioUnit
         XCTAssertTrue(unit is MonitorInsertAudioUnit, """
             The factory's component description resolved to some OTHER audio unit — the \
             registration is not reaching our subclass, so the node in the monitor chain is \
-            not the pass-through this file certifies.
+            not the insert this file certifies.
             """)
         try unit.allocateRenderResources()
         defer { unit.deallocateRenderResources() }
@@ -124,9 +136,8 @@ final class TheMonitorInsertIsAnEmptyPassThroughTests: XCTestCase {
         let render = unit.internalRenderBlock
         let status = render(&flags, &timestamp, frameCount, 0, list, nil, pull)
         XCTAssertEqual(status, noErr, """
-            The render block returned \(status) instead of noErr — the pass-through \
-            contract failed on the \(hostProvidesBuffers ? "host-buffer" : "nil-mData") \
-            branch.
+            The render block returned \(status) instead of noErr — the insert contract \
+            failed on the \(hostProvidesBuffers ? "host-buffer" : "nil-mData") branch.
             """)
 
         var output: [[Float]] = []
@@ -141,19 +152,23 @@ final class TheMonitorInsertIsAnEmptyPassThroughTests: XCTestCase {
         return (ramp, output)
     }
 
-    // MARK: - 1. END-TO-END: the output IS the input, on the host-buffer branch
+    // MARK: - 1. END-TO-END: the NEUTRAL chain is bit-exact identity (host buffers)
 
     @MainActor
     func testTheRenderBlockPassesTheInputThroughBitExactly() async throws {
         let (input, output) = try await renderOnce(hostProvidesBuffers: true)
         guard output.count == input.count else { return }
         for channel in 0..<input.count {
-            // Exactness, not tolerance (#442): a pass-through COPIES. Any epsilon here
-            // would let a quiet DSP stage ship inside the "empty" insert.
+            // Exactness, not tolerance (#442): with every stage flag off,
+            // `processStereo` returns its input — one `if` per stage, no unconditional
+            // sample math. Any difference here means a stage turned ON in the neutral
+            // configuration (that is V1b-2, a deliberate separate slice) or the buffer
+            // plumbing broke.
             XCTAssertEqual(output[channel], input[channel], """
-                Channel \(channel) is not bit-identical through the insert. V1a's whole \
-                claim is ZERO sound change — if this differs, either a stage crept in \
-                (that is V1b, a separate deliberate slice) or the buffer plumbing is wrong.
+                Channel \(channel) is not bit-identical through the insert. Since #839 \
+                the chain runs INSIDE this block — bit-exactness is the proof it is \
+                mounted NEUTRAL. A stage that colors the voice must arrive as V1b-2 \
+                with its own door, never as a drifted default.
                 """)
         }
     }
@@ -183,8 +198,9 @@ final class TheMonitorInsertIsAnEmptyPassThroughTests: XCTestCase {
         XCTAssertTrue(engine.contains("masterEngine.connect(monitorMixer, to: insert, format: outFmt)")
                       && engine.contains("masterEngine.connect(insert, to: masterMixer, format: outFmt)"), """
             The insert's two hops are gone from the monitor-chain build. If the insert \
-            moved, re-anchor; if it was removed, the V1a groundwork for the commissioned \
-            vocal chain is gone and CLAUDE.md's vocal-chain line must say so (#456).
+            moved, re-anchor; if it was removed, the V1a/V1b groundwork for the \
+            commissioned vocal chain is gone and CLAUDE.md's vocal-chain line must say \
+            so (#456).
             """)
         XCTAssertTrue(engine.contains("masterEngine.connect(monitorMixer, to: masterMixer, format: outFmt)"), """
             The insert-less fallback connect is gone — monitoring is now HOSTAGE to the \
@@ -200,25 +216,45 @@ final class TheMonitorInsertIsAnEmptyPassThroughTests: XCTestCase {
             """)
     }
 
-    // MARK: - 4. The pass-through is EMPTY — no DSP name reaches it (V1b's tripwire)
+    // MARK: - 4. The chain is mounted NEUTRAL — one instance, every stage off (V1b-2's tripwire)
 
-    func testTheInsertFileCarriesNoProcessingStage() {
+    func testTheChainIsMountedWithEveryStageOff() {
         let insert = code("Sources/Echoelmusic/Audio/MonitorInsertAU.swift")
         guard !insert.isEmpty else { return }
-        XCTAssertTrue(insert.contains("return pull(&pullFlags, timestamp, frameCount, 0, outputData)"), """
-            The render block no longer ends in the direct pull-into-output call — the \
-            pass-through IS that call. If a processing stage landed here, this is V1b: \
-            move this guard's claims and the six prose homes the vocal-chain guard names, \
-            in the same commit (#456).
+        XCTAssertEqual(insert.components(separatedBy: "EchoelFXChain(").count - 1, 1, """
+            Expected exactly ONE EchoelFXChain construction in the insert — zero means \
+            the V1b-1 mount is gone (CLAUDE.md's vocal-chain line and the six prose \
+            homes in TheVocalChainStopsAtTheAutotuneTests then overstate the path); two \
+            means a second owner appeared (the BLE-3 class of defect).
             """)
-        for stage in ["EchoelFXChain", "EchoelHarmonizer", "EchoelGranular", "processInPlace"] {
-            XCTAssertFalse(insert.contains(stage), """
-                `\(stage)` appeared in the V1a insert. That is the V1b wiring — a \
-                deliberate separate slice with an audio-thread review, a mic-owned \
-                preset, and six prose homes to move (#456). It must not arrive as a \
-                side effect of the pass-through file growing.
-                """)
-        }
+        XCTAssertTrue(insert.contains("chain.processInPlace(left: left, right: right, frameCount: Int(frameCount))"), """
+            The render block no longer feeds the pulled buffers through the chain — the \
+            insert is back to an empty pass-through. If that is deliberate (a V1b \
+            rollback), this file's name and header, CLAUDE.md's vocal-chain line and \
+            the six prose homes go stale in the same commit (#456).
+            """)
+        XCTAssertTrue(insert.contains("if buffers.count == 2,"), """
+            The stereo gate in front of the chain call is gone. `processInPlace` takes \
+            (left, right); a mono host shape must stay pure pass-through rather than \
+            process one buffer as both channels.
+            """)
+        // The all-off count uses a DERIVED denominator (#416): the chain's own
+        // `…Enabled: Bool` declarations. A 16th stage added to EchoelFXChain without a
+        // 16th explicit `= false` here goes red — a new stage must not arrive
+        // half-wired on the singer's path with whatever default it happens to carry.
+        let chainSource = code("Sources/Echoelmusic/DSP/EchoelFXChain.swift")
+        guard !chainSource.isEmpty else { return }
+        let declared = chainSource.components(separatedBy: "Enabled: Bool")
+            .dropLast().count
+        let switchedOff = insert.components(separatedBy: "Enabled = false").count - 1
+        XCTAssertEqual(switchedOff, declared, """
+            The insert switches \(switchedOff) stage flags off while EchoelFXChain \
+            declares \(declared). V1b-1's whole claim is NEUTRAL — every stage \
+            explicitly off, because the chain's own defaults (saturation/chorus/limiter \
+            on) are tuned for the synth bus and would color the singer's voice as a \
+            side effect. Turning a stage ON for the voice is V1b-2: do it as its own \
+            slice, and move this count plus the prose homes in the same commit (#456).
+            """)
     }
 
     // MARK: - 5. The device probe can read whether the insert was in the chain
@@ -228,7 +264,7 @@ final class TheMonitorInsertIsAnEmptyPassThroughTests: XCTestCase {
         guard !engine.isEmpty else { return }
         XCTAssertTrue(engine.contains("insert \\(monitorInsertAttached ? \"in\" : \"out\"), "), """
             The monitor-ON breadcrumb no longer states whether the insert made it into \
-            the chain. V1a's device probe is exactly this word in the founder's next \
+            the chain. The device probe is exactly this word in the founder's next \
             diag log — without it, "insert works" and "insert silently absent" produce \
             identical logs (#454's shape).
             """)

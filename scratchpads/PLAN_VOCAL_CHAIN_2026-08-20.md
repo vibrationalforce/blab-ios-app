@@ -247,3 +247,23 @@ is done.
 
 **Gate: proceed with V0 → V1 → V2 → V3 → V4. Voice clone holds for the founder's word,
 and holding it blocks nothing.**
+
+---
+
+## 6. ⭐ FORTSCHRITT 2026-08-26 — V1b ist GETEILT und die erste Hälfte ist gebaut (#839)
+
+Leiter-Stand, gemessen: **V0** Monitoring läuft am Gerät (v424-Logs: `monitor: ON … insert
+in`; der OFF-Absturz ist mit v425/#836 repariert, Geräteprobe offen) · **V1a** ✅
+gerätebewiesen · **#822 processInPlace** ✅ · **V1b-1 ✅ (#839): die mic-eigene
+`EchoelFXChain` reitet den Insert — NEUTRAL.** Alle 15 Stufen-Flags explizit aus (die
+Werks-Defaults Saturation/Chorus/Limiter=AN sind Synth-Tuning und würden den Sänger als
+Nebenwirkung färben), Ausgang bit-exakt = Eingang, per E2E-Wächter durch den echten
+Render-Block bewiesen (`TheMonitorInsertCarriesTheNeutralChainTests`, umbenannt aus
+`…IsAnEmptyPassThroughTests`, #374). Zweck der Neutral-Stufe: der nächste Geräte-Log
+attribuiert Knacksen/CPU sauber der KETTE, bevor irgendetwas hörbar wird.
+
+**V1b-2 (offen, nächste Scheibe):** eine hörbare Stufe + Tür — mic-eigenes Preset
+(NIE das Synth-Preset, ein Besitzer), Bedienung in `AudioInputPickerView` (bestehendes
+Sheet, Sheet-Kette wächst nicht), Start-Kandidat: Harmonizer mit „Follow the key"-Anbindung
+an die Tonart. Danach V2 (Latenz-Budget sichtbar) → V3 (BT-Verhalten) → V4 (echte
+Granular-Stufe in der Kette, landet damit automatisch auch auf der Stimme).

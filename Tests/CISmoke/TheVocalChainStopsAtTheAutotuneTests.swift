@@ -25,16 +25,19 @@
 //                              character presets are #681, in the same sheet. (#599b is the
 //                              HARMONIZER's "Follow the key" — citing it here would have
 //                              used the half that is NOT on his voice as proof that it is.)
-//   Harmonizer   → NOT his voice. It lives in `EchoelFXChain`.
-//   Granular     → NOT his voice. It lives in `EchoelFXChain` (#684–#692).
+//   Harmonizer   → MOUNTED on his monitor insert since #839 (V1b-1) — NEUTRAL, not
+//                              audible: the mic-owned chain has every stage off.
+//   Granular     → same. Audible on his voice only with V1b-2 (own door + preset).
 //
-// The monitor graph is exactly `input → notchEQ → [voiceTunePitch] → monitorMixer →
-// masterMixer`: two stages, both `AVAudioUnit` GRAPH nodes, no Swift-DSP insert anywhere.
-// `EchoelFXChain` occurs ZERO times in the whole of `Sources/Echoelmusic/Audio/` — not just
-// in `AudioEngine.swift`, and neither do `EchoelHarmonizer` and `EchoelGranular`, which is
-// what claim 2 scans for since #701. Its four construction sites are two curated-library
-// previews plus the two SYNTH voices. So the harmonizer and the granular stage process the
-// generated MUSIC, never the singer.
+// The monitor graph is `input → notchEQ → [voiceTunePitch] → monitorMixer → [insert] →
+// masterMixer`. Since #839 the insert's render block feeds a mic-owned `EchoelFXChain`
+// — mounted NEUTRAL, all 15 stages off, output bit-identical (the E2E guard in
+// TheMonitorInsertCarriesTheNeutralChainTests proves it through the real render block).
+// The Audio layer therefore names `EchoelFXChain` in EXACTLY ONE file,
+// `MonitorInsertAU.swift`, which is what claim 2 pins since #839 (it pinned total
+// absence from #701 to #839). The SOUNDING chain instances remain the two SYNTH voices
+// (+ two curated-library previews) — the harmonizer and the granular stage still
+// process the generated MUSIC; the singer hears them only after V1b-2.
 //
 // ⭐ WHY THIS IS A REGISTER ENTRY AND NOT A BUG. Every outward-facing text is already
 // honest, checked line by line: the store release notes say "harmony voices above the
@@ -61,17 +64,17 @@
 // That is the Section-C law of the doctor skill — unreachable is not a defect, unreachable
 // AND nowhere written down is.
 //
-// ⛔ THIS GUARD FORBIDS NOTHING (#364). Putting `EchoelFXChain` on the monitor path is
-// **V1b**, and it is gated on V1a and V0 before it. `decisions.csv:398` splits the work:
-// V1a = an EMPTY pass-through `AUAudioUnit` proven in the monitor chain, V1b = the chain
-// riding it — and the same row records that the mechanism question (AUAudioUnit subclass
-// vs. `AVAudioSourceNode` ring) was already decided by Council on measured latency (#669),
-// so this is not an open architectural question. (⛔ The first version of this block, and
-// of the CLAUDE.md line beside it, called the chain-on-the-path "V1a" and appended
-// "⇒ Council" — two spellings of one slice label, the new one in the ALWAYS-LOADED file,
-// which is #416 on the exact identifier a later session greps for.) On the day someone
-// wires it, claim 2 goes red BY DESIGN and its message names the prose to pull along in
-// the SAME commit (#456). A red here is the good news.
+// ⛔ THIS GUARD FORBIDS NOTHING (#364). The V1b-1 wiring LANDED as #839: claim 2 went
+// red by design on that slice's parent and was re-anchored in the same commit, together
+// with the six prose homes its message named — exactly the repair path this block
+// promised. What claim 2 pins NOW is the narrower surviving fact: ONE host file in the
+// Audio layer, and `AudioEngine.swift` itself still chain-free. `decisions.csv:398`
+// still records the mechanism decision (#669, AUAudioUnit subclass over a source-node
+// ring, measured latency); V1b-2 (an audible stage + door) is the open half. (⛔ The
+// first version of this block, and of the CLAUDE.md line beside it, called the
+// chain-on-the-path "V1a" and appended "⇒ Council" — two spellings of one slice label,
+// the new one in the ALWAYS-LOADED file, which is #416 on the exact identifier a later
+// session greps for.)
 //
 // ⚠️ WHAT THIS CANNOT SEE. It reads the GRAPH, so it proves which nodes are connected, never
 // what a listener hears. It also cannot tell an insert that is wired-but-bypassed from one
@@ -94,12 +97,13 @@
 // ⚠️ HONEST LIMITS. 5 tests, 9 assertion statements (2+2+2+1+2; counted in Python over lines
 // whose first token is XCTAssert).
 //
-// ⭐ GRADING (§3). Every needle was transcribed in Python against the real tree before this
-// file was written. Claims 1–4 are COUNTERWEIGHTS: green at the parent too, and that is the
-// point — they record a standing state, they do not create it. Claim 5 is FORWARD: the
-// CLAUDE.md line it reads is created by this same commit and could never have been red
-// before it. ZERO regressions, and booking any of these as one would be the flattering
-// direction (#464).
+// ⭐ GRADING (§3, re-graded for the #839 slice; the #700/#701 grading is history in git).
+// Driven in Python against parent and worktree. Claims 1 and 3 are COUNTERWEIGHTS (green
+// both trees). Claims 2, 4 and 5 flip WITH the slice: on the parent their new
+// expectations ([MonitorInsertAU.swift], the four-site builder list, the "NOCH NICHT
+// HÖRBAR" needle) are red because the mount and the reworded register line do not exist
+// there — that is the #456 same-commit move this file's own claim-2 message demanded,
+// ONE finding (the mount's absence), not three (#486).
 
 import Foundation
 import XCTest
@@ -135,38 +139,41 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
             """)
     }
 
-    // MARK: - 2: THE FINDING — no Swift-DSP insert reaches the sung voice
+    // MARK: - 2: THE FINDING — the chain reaches the Audio layer in exactly ONE host file
 
-    /// ⭐ Two of the founder's four named stages live in `EchoelFXChain`, and that type is
-    /// absent from the entire audio layer.
-    func testTheFXChainIsAbsentFromTheWholeAudioLayer() throws {
+    /// ⭐ Since #839 (V1b-1) the mic-owned chain is mounted on the monitor insert. This
+    /// claim pins the surviving structure: `MonitorInsertAU.swift` is the ONE host, and
+    /// `AudioEngine.swift` itself stays chain-free (the engine wires NODES; the DSP
+    /// lives inside the insert). Whether the mounted chain is NEUTRAL is pinned by
+    /// TheMonitorInsertCarriesTheNeutralChainTests claim 4, not here (#416).
+    func testTheFXChainReachesTheAudioLayerOnlyThroughTheInsert() throws {
         let src = try source(Self.engine)
         XCTAssertFalse(src.contains("EchoelFXChain"), """
-            `EchoelFXChain` APPEARED IN AudioEngine. If that is the V1a wiring, this claim \
-            has done its job — delete it, and in the SAME commit (#456) correct: this \
-            file's header table, and CLAUDE.md's vocal-chain line, which currently states \
-            that the harmonizer and the granular stage do NOT reach the sung voice.
+            `EchoelFXChain` APPEARED IN AudioEngine itself. The V1b design keeps the DSP \
+            inside the insert node (`MonitorInsertAU.swift`) — a second wiring in the \
+            engine would be a second owner of the mic chain (the BLE-3 class). If this \
+            is a deliberate redesign, re-anchor this claim and the header table in the \
+            same commit (#456).
             """)
-        // ⛔ The first version scanned for the TYPE `EchoelFXChain` only, and that is fail-open
-        // against a live option: the founder named two STAGES, and `decisions.csv:398` rejects an
-        // Apple-node route precisely because it "kann Harmonizer und Granular nicht liefern". A
-        // wiring that inserts `EchoelHarmonizer` directly would leave this green while CLAUDE.md's
-        // "Harmonizer und Granular NICHT" went silently false. All three names are scanned now.
+        // The scan still covers the WHOLE directory and all three names (#701's widening:
+        // a wiring that inserts `EchoelHarmonizer` directly would slip past a type-only
+        // scan). Since #839 the expected result is ONE precise host, not zero.
         let audioDir = try directory("Sources/Echoelmusic/Audio")
         let hosts = ["EchoelFXChain", "EchoelHarmonizer", "EchoelGranular"]
         let leaked = audioDir
             .filter { file in hosts.contains(where: { file.value.contains($0) }) }
             .map { $0.key }.sorted()
-        XCTAssertTrue(leaked.isEmpty, """
-            \(leaked) in the audio layer now name one of \(hosts). The scan covers the WHOLE \
-            directory and all three names so neither a second host node nor a single stage can \
-            slip in. If this is V1b, SIX prose homes go stale in the same commit (#456): this \
-            file's header table · CLAUDE.md's vocal-chain line · \
+        XCTAssertEqual(leaked, ["MonitorInsertAU.swift"], """
+            \(leaked) name one of \(hosts) — expected exactly [MonitorInsertAU.swift] \
+            (the #839 mount). EMPTY means the V1b-1 mount is gone and the SIX prose \
+            homes overstate the path; a SECOND file means a stage host slipped in beside \
+            the insert. Either way, move in the same commit (#456): this file's header \
+            table · CLAUDE.md's vocal-chain line · \
             Sources/Echoelmusic/Sequencer/VoicePitchCorrector.swift · \
             Sources/Echoelmusic/DSP/EchoelGranular.swift · \
             scratchpads/PLAN_VOCAL_CHAIN_2026-08-20.md · decisions.csv:398. The two source \
-            headers are the dangerous ones — they are `///` docs a session reads WHILE editing \
-            the files V1b touches.
+            headers are the dangerous ones — they are `///` docs a session reads WHILE \
+            editing the files V1b touches.
             """)
     }
 
@@ -187,12 +194,14 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
             """)
     }
 
-    // MARK: - 4: the other counterweight — this is a ROUTING gap, not a missing capability
+    // MARK: - 4: the other counterweight — the SOUNDING chains still live on the synth voices
 
-    /// The harmonizer and the granular stage are BUILT and reachable; they are simply
-    /// pointed at the synth bus. Deleting either because "the vocal chain is unbuilt"
-    /// would be the exact wrong reading.
-    func testTheFXChainIsBuiltAndLivesOnTheSynthVoices() throws {
+    /// The harmonizer and the granular stage are BUILT and audible on the synth bus;
+    /// the insert's instance (#839) is the neutral fourth site. Deleting a synth chain
+    /// because "the vocal chain is unbuilt" would be the exact wrong reading.
+    /// (Renamed at #839 — the old name `…IsBuiltAndLivesOnTheSynthVoices` stated an
+    /// exclusivity that stopped being true when the insert gained its instance, #374.)
+    func testTheFXChainBuilderSetIsExactlyTheFourKnownSites() throws {
         // ⛔ The first version only asserted `!builders.isEmpty` while its NAME and CLAUDE.md
         // both assert WHICH files — #367: a claim must fail for the reason it gives. A fifth site
         // on a third bus would have left it green and the register line stale. Keys are relative
@@ -200,15 +209,16 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
         // `FXCuratedLibrary` contributes ONE key for its two construction sites.
         let sources = try directory("Sources/Echoelmusic")
         let builders = sources.filter { $0.value.contains("EchoelFXChain(") }.map { $0.key }.sorted()
-        XCTAssertEqual(builders, ["Studio/FXCuratedLibrary.swift",
+        XCTAssertEqual(builders, ["Audio/MonitorInsertAU.swift",
+                                  "Studio/FXCuratedLibrary.swift",
                                   "Tools/BioReactiveSynthVoice.swift",
                                   "Tools/PolySynthVoice.swift"], """
-            The set of files constructing an `EchoelFXChain` changed. If it SHRANK to empty the \
-            stages make no sound on ANY path and this file's "built, just routed elsewhere" \
-            framing is wrong. If it GREW, CLAUDE.md's "vier Konstruktionsstellen: zwei \
-            Vorschauen in FXCuratedLibrary plus die zwei SYNTH-Stimmen" is stale — move it in \
-            this commit (#456). Note a site under `Audio/` would ALSO make claim 2 red; that \
-            is the V1b case and its message lists the prose.
+            The set of files constructing an `EchoelFXChain` changed. If the SYNTH voices \
+            vanished the stages make no SOUND on any path and this file's framing is \
+            wrong; if `Audio/MonitorInsertAU.swift` vanished the #839 mount is gone and \
+            claim 2 is red too (that is the correct repair order). If it GREW, CLAUDE.md's \
+            "FÜNF EchoelFXChain(-Stellen" register line is stale — move it in this \
+            commit (#456).
             """)
     }
 
@@ -224,10 +234,12 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
             written for — a session that cannot read it will re-derive "three of four are \
             done" from SESSION_LOG, which is true of BUILT and false of ROUTED.
             """)
-        XCTAssertTrue(claude.contains("Harmonizer und Granular NICHT"), """
-            The half of the register line that names the two stages which do NOT reach his \
-            voice is gone. If V1a landed, claim 2 above is red too and that is the correct \
-            order of repair; if claim 2 is green, the prose drifted and the prose is wrong.
+        XCTAssertTrue(claude.contains("Harmonizer und Granular NOCH NICHT HÖRBAR"), """
+            The half of the register line that says the two mounted-but-neutral stages \
+            are not yet AUDIBLE on his voice is gone. If V1b-2 landed (a stage turned \
+            on), the neutral-chain guard's all-off count is red too and that is the \
+            correct order of repair; if that count is green, the prose drifted and the \
+            prose is wrong.
             """)
     }
 
