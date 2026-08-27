@@ -623,3 +623,18 @@ ein Binary, kein Electron). Nachgelesen im Shallow-Clone, nicht nur im README-Ma
 - **App/Pipeline-Impact: null.** Keine Code-Abhängigkeit (Zero-Dep-Gesetz unberührt),
   berührt nie `Sources/`, auch nicht ContentPipeline.
 **Kein App-Code-Impact. Kein neuer Task.**
+
+## 2026-08-27 — IG-Reel @getintoai: „10 prompts … code with Claude" (Founder-Clip, ohne Text)
+14,7-s-Screen-Recording eines Instagram-Carousels: zehn Persona-Prompts („Act as a senior
+security engineer…", Tech-Lead-Modus, DevOps usw.). Gegen die Pipeline gescort, nicht gegen
+das Produkt (der Clip handelt vom ENTWICKELN, nicht von Bio/Sound/Space).
+- **REJECT (redundant), Zeile in inspiration.csv.** Jeder der zehn Prompts existiert hier
+  als stärkeres, repo-spezifisches Werkzeug: Team-Fan-out mit Leads (ultracode-teams) statt
+  einer Persona, spezialisierte Reviewer-Agents (audio-thread/security/ui-state/concurrency)
+  statt „act as senior X", the-council als echter Tech-Lead-Modus (Sitze + Dissens),
+  device-log-triage statt „production debugger", doctor/e2e-test-agent statt DevOps-Prompt.
+  Der eigentliche Unterschied ist die MESS-Disziplin: Wächter + Python-Transkription + ehrliche
+  Gate-Lesung — genau das, was generische Persona-Prompts nicht haben.
+- Nr. 5 („rebuild messy code into clean architecture") widerspricht sogar `engineering.md`
+  (kein unbeauftragtes Refactoring) — als Arbeitsanweisung hier verboten, nicht nur unnötig.
+**Kein App-Code-Impact. Kein neuer Task.**
