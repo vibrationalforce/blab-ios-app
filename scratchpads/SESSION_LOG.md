@@ -15427,3 +15427,22 @@ kürzeren Trust-Lücke.
   ersetzt den überholten nicht — die GANZE Datei nach der alten Behauptung greppen, nicht
   nur den Absatz, den man editiert. LOW mitgenommen: `voiceHarmonyAvailable`-Doc sagt jetzt
   „insert available, beide Sektionen, kein Granular-Zwilling bauen".
+
+## 2026-08-27 ~14:10 — #850: ein eingefrorenes Fenster erreicht den Detector nicht mehr (F4 gebaut)
+
+- Der im #848-Review registrierte F4: `MonitorTapWindow.copyLatest` liefert nach dem
+  Füllen für immer dasselbe Fenster — ein Engine-Halt OHNE `stop(reason:)` (Session-
+  Interruption) ließ den Guard-Tick ein eingefrorenes Spektrum beobachten; ein Track
+  mit überschrittener Growth-Schwelle emittierte dann jeden Tick einen Kandidaten und
+  parkte ein Band auf −24 dB bis zum nächsten Start (unhörbar, aber falscher Zustand).
+- Fix: monotoner `writeStamp` (unter demselben Lock, `&+= 1` pro push; `clear()` setzt
+  ihn ABSICHTLICH nicht zurück — Alias-Gefahr). Engine merkt sich den zuletzt
+  analysierten Stamp; unbewegt → FFT/observe übersprungen, die LEERE Kandidatenliste
+  erreicht weiter `applyNotchDefence`, Holds verfallen, alle Bänder lösen. Nebeneffekt:
+  CPU-Ersparnis (keine FFT auf totem Fenster). YIN-Pfad bewusst außerhalb des Scopes
+  (eingefrorenes Fenster + gestoppte Engine = unhörbar).
+- Wächter: Test 10 in `TheNotchIsSlewedAndMonitorOnlyTests` (5 E2E-Stamp-Zusicherungen +
+  1 beschrifteter Scan auf den Freshness-Join), Zensus 35→41, #850-Grading-Absatz
+  (FORWARD; Tests 1–9 Gegengewichte, test 7s observe-Zählung unverändert).
+  Transkription: Stamp-Algebra + Frozen-Loop (1 observe, Band released) OK; Zensus per
+  Datei-Rezept 41; dead-needles 0; reachability 0; Balance 3/3 sauber.

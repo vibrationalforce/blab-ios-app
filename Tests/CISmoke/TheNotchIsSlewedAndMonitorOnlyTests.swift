@@ -15,11 +15,11 @@
 // un-notched, at low level, before audibility (founder: "es soll erst gar kein Piepsen
 // entstehen"). Four dynamic bands instead of one; the duck is the broadband last resort.
 //
-// ⚠️ HONEST LIMITS. 9 tests, 35 `XCTAssert*` statements (in file order,
-// 5+3+4+4+4+4+4+2+5 — the two `XCTUnwrap`s in test 6 also fail their test and sit
+// ⚠️ HONEST LIMITS. 10 tests, 41 `XCTAssert*` statements (in file order,
+// 5+3+4+4+4+4+4+2+5+6 — the two `XCTUnwrap`s in test 6 also fail their test and sit
 // deliberately outside this count, which counts assertions, not failure points;
-// #848 rewrote test 7 from 3 to 4, #848b appended test 9, each owning its census
-// per the rule below).
+// #848 rewrote test 7 from 3 to 4, #848b appended test 9, #850 appended test 10,
+// each owning its census per the rule below).
 // ⛔ #658: this census read `28` and `5+3+4+4+4+3+3+2`, and BOTH halves were wrong —
 // #655 added a fourth `XCTAssertEqual` to test 6 (the uniqueness check on the renamed
 // `logMonitorOutcome("engine restart failed` anchor) and did not touch the header. The
@@ -29,10 +29,11 @@
 // THIS comment block", and writing the comment moved the raw count to 32 — a recipe
 // that its own edit falsifies is the #480 failure, one file later.)
 // A census is a measurement with a date on it; the commit that changes the count owns it.
-// Tests 1–4 and 9 are END-TO-END BEHAVIOUR on shipped pure types
-// (`FeedbackGuard.slewedNotchGainDB`, `MonitorTapWindow`, `sameBandHalfWidthHz`);
-// tests 5–8 are SOURCE-TEXT SCANS of `AudioEngine.swift` — the graph calls sit on a
-// `@MainActor` engine no test host can run honestly. What no test here can prove: that the notch SOUNDS right,
+// Tests 1–4, 9 and 10 are END-TO-END BEHAVIOUR on shipped pure types
+// (`FeedbackGuard.slewedNotchGainDB`, `MonitorTapWindow`, `sameBandHalfWidthHz`;
+// test 10's last assertion is a labeled SOURCE-TEXT SCAN of the engine's freshness
+// join); tests 5–8 are SOURCE-TEXT SCANS of `AudioEngine.swift` — the graph calls
+// sit on a `@MainActor` engine no test host can run honestly. What no test here can prove: that the notch SOUNDS right,
 // that it takes the whistle and not the voice on a real speaker — the device probe
 // (NEEDS-FOUNDER-VERIFY: speaker monitoring, provoke a howl, hear it die as a ramp).
 // ⚠️ KNOWN BLIND SPOT (#595 reviewer F1): the tap-count scan covers AudioEngine.swift
@@ -55,6 +56,13 @@
 // by algebra and re-driven in Python against the worktree (§0, #442). Tests 1–8 are
 // COUNTERWEIGHTS for this slice: the predicate #848b widened (engaged-or-releasing,
 // windowed match) sits between test 7's needles, none of which pin it.
+//
+// ⭐ GRADING of #850 (§3): test 10 is a FORWARD guard — `writeStamp` is created by
+// the same commit, so against its parent (96fa9d0) the file does not compile and no
+// assertion has a verdict there; the stamp algebra was driven in Python against the
+// worktree, and the one scan needle counts exactly 1 there. Tests 1–9 are
+// COUNTERWEIGHTS: #850 adds one condition ahead of `howlDetector.observe(`, whose
+// count in test 7 is unchanged.
 //
 // ⭐ GRADING of the original #595 commit (historical). This file names `MonitorTapWindow` and `slewedNotchGainDB`, both
 // created by this same commit — against the parent tree the file DOES NOT COMPILE, so
@@ -272,6 +280,49 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
         XCTAssertEqual(FeedbackGuard.sameBandHalfWidthHz(
             frequencyHz: .nan, binWidthHz: 0, ratio: 0.05, binFloor: 1.5), 0,
             "fully degenerate inputs yield a 0 window — nothing false-matches")
+    }
+
+    // MARK: - 10. A frozen window cannot feed the detector (#850, F4)
+
+    /// Assertions 1–5 are END-TO-END on `MonitorTapWindow.writeStamp` (the freshness
+    /// signal); assertion 6 is a SOURCE-TEXT SCAN pinning the engine's join on it.
+    /// The failure this retires: an engine halt that bypasses `stop(reason:)` leaves
+    /// the guard tick observing one frozen spectrum forever — a track whose growth
+    /// already crossed the threshold then re-emits a candidate every tick and parks a
+    /// band at −24 dB until the next start (#848 review, F4, registered then).
+    func testAFrozenWindowCannotFeedTheDetector() throws {
+        let window = MonitorTapWindow(size: 64)
+        let before = window.writeStamp()
+        var samples = [Float](repeating: 0.25, count: 64)
+        samples.withUnsafeBufferPointer { p in
+            window.push(p.baseAddress!, count: p.count)
+        }
+        let afterPush = window.writeStamp()
+        XCTAssertNotEqual(before, afterPush,
+                          "a push must move the stamp — it IS the 'new audio arrived' signal")
+        var out = [Float](repeating: 0, count: 64)
+        XCTAssertTrue(window.copyLatest(into: &out),
+                      "the window filled in one push of exactly `size` samples")
+        XCTAssertEqual(window.writeStamp(), afterPush,
+                       "READING must not move the stamp — a reader that bumps it would " +
+                       "hide the very freeze it exists to expose")
+        samples.withUnsafeBufferPointer { p in
+            window.push(p.baseAddress!, count: p.count)
+        }
+        XCTAssertNotEqual(window.writeStamp(), afterPush,
+                          "every push moves it again — monotone identity of writes")
+        let stampBeforeClear = window.writeStamp()
+        window.clear()
+        XCTAssertEqual(window.writeStamp(), stampBeforeClear,
+                       "clear() must NOT reset the stamp — resetting could alias a value " +
+                       "a reader still remembers, turning a frozen window back into a fresh one")
+        let engine = try source("Sources/Echoelmusic/Audio/AudioEngine.swift")
+        XCTAssertEqual(codeOccurrences(of: "if stamp != lastSpectrumStamp,", in: engine), 1, """
+            The freshness join is gone from the notch half — without it the detector \
+            observes a frozen spectrum every tick after a non-stop(reason:) engine \
+            halt, and a crossed-threshold track parks a band at full depth. If the \
+            join was redesigned, re-anchor here in the same commit (#456).
+            """)
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)

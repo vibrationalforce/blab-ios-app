@@ -468,6 +468,15 @@ public final class AudioEngine {
     /// The early-detection brain (#847). MainActor state, reset whenever monitoring
     /// stops or re-arms — persistence must never survive a world change.
     @ObservationIgnored private var howlDetector = FeedbackGuard.HowlDetector()
+    /// #850 (the #848 review's F4): the window stamp of the last spectrum the detector
+    /// analysed. When it has not moved, NO new audio arrived (an engine halt that
+    /// bypasses `stop(reason:)` leaves the guard tick alive over a frozen window) —
+    /// the FFT/observe is skipped, so a frozen spectrum cannot refresh a track and
+    /// park a band at full depth; the empty candidate list still reaches
+    /// `applyNotchDefence`, so holds decay and every band releases. Deliberately NOT
+    /// reset in `resetNotchDefence`: a static stamp is exactly the "nothing new"
+    /// signal, and the first real push moves it again.
+    @ObservationIgnored private var lastSpectrumStamp: UInt64 = 0
     /// ~2 s at the ~15 Hz guard cadence (60 Hz poll gated %4 — see `monitorPollTick`).
     private static let notchHoldTickCount = 30
     /// ONE spelling of the notch depth (#416): engaged bands slew toward this.
@@ -2561,9 +2570,12 @@ public final class AudioEngine {
         // audibility; the duck above remains the broadband last resort. All of this
         // runs HERE, on the MainActor at ~15 Hz — the tap only filled the window.
         var candidates: [FeedbackGuard.HowlDetector.Candidate] = []
-        if monitorSpectrumFFT.size == monitorTapWindow.size,
+        let stamp = monitorTapWindow.writeStamp()
+        if stamp != lastSpectrumStamp,
+           monitorSpectrumFFT.size == monitorTapWindow.size,
            monitorTapSampleRate > 0,
            monitorTapWindow.copyLatest(into: &monitorSpectrumBuffer) {
+            lastSpectrumStamp = stamp
             candidates = howlDetector.observe(
                 magnitudes: monitorSpectrumFFT.forward(monitorSpectrumBuffer).magnitudes)
         }

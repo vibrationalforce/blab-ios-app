@@ -6,8 +6,9 @@
 // into this lock-protected window with zero actor hops; the EXISTING ~15 Hz feedback-
 // guard tick (main actor) copies the latest full window out and runs the FFT there.
 // A torn window is impossible (the lock covers both sides); a STALE window merely
-// delays the notch by one tick. `@unchecked Sendable` for the same reason as
-// `RGBSampleQueue`: all shared state sits behind the one lock.
+// delays the notch by one tick — but a FROZEN window (no new writes at all) is a
+// different case, answered by `writeStamp` (#850, see its doc). `@unchecked Sendable`
+// for the same reason as `RGBSampleQueue`: all shared state sits behind the one lock.
 //
 // NSLock in a TAP callback is deliberate and matches the repo's law: the tap thread is
 // NOT the render thread (`MicrophoneManager` allocates in its tap for the same reason,
@@ -21,6 +22,14 @@ final class MonitorTapWindow: @unchecked Sendable {
     private var ring: [Float]
     private var writeIndex = 0
     private var filled = 0
+    /// #850 (the #848 review's F4): monotone count of `push` calls. `copyLatest`
+    /// alone cannot say whether the audio it returns is NEW — once filled it returns
+    /// the same window forever, and an engine halt that bypasses `stop(reason:)`
+    /// (a session interruption) leaves the guard tick observing a FROZEN spectrum:
+    /// a track whose growth already crossed the threshold then re-emits a candidate
+    /// every tick and parks a notch band at full depth until the next start. The
+    /// stamp lets the reader ask "did anything arrive since I last looked".
+    private var stamp: UInt64 = 0
     let size: Int
 
     init(size: Int) {
@@ -38,7 +47,18 @@ final class MonitorTapWindow: @unchecked Sendable {
             writeIndex = (writeIndex + 1) % size
         }
         filled = min(size, filled + count)
+        stamp &+= 1
         lock.unlock()
+    }
+
+    /// MAIN ACTOR (guard tick). The stamp after the most recent `push` — equal to the
+    /// value a previous call returned exactly when NO new audio arrived in between.
+    /// Deliberately NOT reset by `clear()`: the stamp is an identity of writes, not of
+    /// content, and resetting it could alias a value a reader still remembers.
+    func writeStamp() -> UInt64 {
+        lock.lock()
+        defer { lock.unlock() }
+        return stamp
     }
 
     /// MAIN ACTOR (guard tick). The latest `size` samples in time order, or nil until
