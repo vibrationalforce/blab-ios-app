@@ -546,6 +546,18 @@ public final class AudioEngine {
     @ObservationIgnored private var monitorInsertAttached = false
     @ObservationIgnored private var voiceTuneCorrector = VoicePitchCorrector()
     @ObservationIgnored private var voiceTuneBuffer = [Float](repeating: 0, count: 2048)
+    /// #851: the #850 freshness gate, shared with the YIN path — but gating ONLY the
+    /// ANALYSIS, never the corrector tick. On an unmoved stamp the window is
+    /// byte-identical, so `PitchTracker.detect` would re-derive the same pitch at
+    /// ~1–2 ms; the cached result feeds `process(dt:)` instead, which keeps running
+    /// EVERY tick so glide/relax timing is bit-identical to pre-#851 in every case
+    /// (an early-return form was rejected for exactly that: iOS may deliver tap
+    /// buffers larger than requested, and skipping process() would then slow the
+    /// retune glide live). Own consumption var — the notch half owns
+    /// `lastSpectrumStamp`, and the two consume the one stamp independently.
+    @ObservationIgnored private var lastVoiceTuneStamp: UInt64 = 0
+    /// The cached YIN result the stamp gate re-serves; cleared with the window.
+    @ObservationIgnored private var voiceTuneLastDetectedHz: Double?
     @ObservationIgnored private var voiceTuneKeyRefreshTick = 0
     /// Whether the in-key correction stage sits in the monitor chain. Observable so
     /// the input sheet's toggle reflects it; written ONLY via `setVoiceTune(_:)`
@@ -2260,6 +2272,9 @@ public final class AudioEngine {
             // ONLY tap on masterEngine.inputNode" — false in `Sources/`, reviewer #595.
             if !monitorTapInstalled {
                 monitorTapWindow.clear()
+                // #851: the cached YIN result describes the cleared window — drop it
+                // (the stamp itself stays monotone by design, #850).
+                voiceTuneLastDetectedHz = nil
                 // Captured ONCE at install (#595 reviewer F2). Two consumers divide by
                 // this rate: `binToHz` for the notch (a stale rate puts the 0.15-octave
                 // band up to ~9 % off, i.e. beside the howl) and — since #599 — YIN,
@@ -2360,6 +2375,7 @@ public final class AudioEngine {
                 monitorTapInstalled = false
             }
             monitorTapWindow.clear()
+            voiceTuneLastDetectedHz = nil
             // #836 (founder crash v10.79.424, 2542 — the THIRD log of this assert, and
             // the one that finally pinned it): this teardown disconnected every monitor
             // node EXCEPT the input's own edge. `input → notchEQ` stayed in the graph,
@@ -2522,13 +2538,21 @@ public final class AudioEngine {
         // construction.
         voiceTuneCorrector.strength = Double(Swift.min(Swift.max(voiceTuneStrength, 0), 1))
         voiceTuneCorrector.retuneSpeed = Double(Swift.min(Swift.max(voiceTuneRetune, 0), 1))
-        var detected: Double?
-        if monitorTapSampleRate > 0, monitorTapWindow.copyLatest(into: &voiceTuneBuffer) {
-            detected = PitchTracker.detect(voiceTuneBuffer, sampleRate: monitorTapSampleRate)
+        // #851: analyse only FRESH audio (see lastVoiceTuneStamp's doc) — an unmoved
+        // stamp re-serves the cached pitch, which is what re-analysis would return.
+        let stamp = monitorTapWindow.writeStamp()
+        if stamp != lastVoiceTuneStamp {
+            if monitorTapSampleRate > 0, monitorTapWindow.copyLatest(into: &voiceTuneBuffer) {
+                lastVoiceTuneStamp = stamp
+                voiceTuneLastDetectedHz = PitchTracker.detect(voiceTuneBuffer, sampleRate: monitorTapSampleRate)
+            } else {
+                voiceTuneLastDetectedHz = nil
+            }
         }
         // dt = the guard cadence (60 Hz poll gated %4); unvoiced frames relax the
         // correction toward zero inside the corrector — no stale bend on the next onset.
-        let correction = voiceTuneCorrector.process(detectedHz: detected, dt: 4.0 / 60.0)
+        let correction = voiceTuneCorrector.process(detectedHz: voiceTuneLastDetectedHz,
+                                                    dt: 4.0 / 60.0)
         voiceTunePitch.pitch = Float(correction.appliedCents)
     }
 

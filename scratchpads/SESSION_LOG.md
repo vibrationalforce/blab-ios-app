@@ -15458,3 +15458,23 @@ kürzeren Trust-Lücke.
   Audio (#850)" nachgeführt. Informativ registriert, kein Bau: ein Resume-Pfad ohne
   Rearm (Config-Change bei gleicher Rate) lässt Detector-Tracks über die Lücke leben;
   YIN-Pfad teilt den Stamp-Gate bewusst nicht (CPU-Nettigkeit, keine Korrektheit).
+
+## 2026-08-27 ~15:20 — #851: YIN analysiert nur frisches Audio (das #850-Gate, geteilt — richtig herum)
+
+- Der im #850-Review registrierte LOW: der Autotune-Tick fuhr YIN (~1–2 ms) auch auf einem
+  byte-identischen (oder eingefrorenen) Fenster. Fix: der Stempel gatet NUR die ANALYSE —
+  unbewegt wird der GECACHTE Pitch wiederverwendet (identisch mit dem, was Re-Analyse
+  ergäbe); `process(dt:)` läuft weiter JEDEN Tick, damit Glide/Relax-Timing bitgleich
+  bleibt. ⚠️ Die naheliegende Early-Return-Form wurde bewusst verworfen: iOS darf Tap-
+  Puffer größer liefern als bestellt, und ein gegateter Corrector-Tick hätte dann LIVE den
+  Retune-Glide verlangsamt. Eigene Konsum-Variable (`lastVoiceTuneStamp`) — Notch-Hälfte
+  und YIN konsumieren den EINEN Stempel unabhängig. Cache stirbt mit dem Fenster (nil im
+  Unfilled-Zweig + neben BEIDEN `monitorTapWindow.clear()`-Stellen).
+- ⚠️ Beinahe-Defekt, vom eigenen §4-Grep gefangen: der Umbruch des Detect-Aufrufs hätte
+  die Ein-Zeilen-Nadel in `TheVoiceTuneSnapsToTheSessionKeyTests` Test 5 getötet —
+  dead-needles.py LIEST diese XCTAssertEqual-Form nicht (sagte OK über den toten Anker).
+  Aufruf einzeilig gehalten; die Nadel überlebt wörtlich.
+- Wächter: Test 8 ebendort (3 Joins: Gate existiert · Corrector tickt auf dem CACHE ·
+  Cache-nil an 3 Stellen), Zensus 25→28 per Handzählung + Rezept, Grading-Absatz (#486
+  eine Abwesenheit auf Parent; Stripper GEMESSEN: PROPHYLAKTISCH 0/3). Balance sauber,
+  dead-needles 0, reachability 0.

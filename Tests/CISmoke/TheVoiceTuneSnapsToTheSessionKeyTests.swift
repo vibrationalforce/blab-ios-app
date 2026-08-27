@@ -14,11 +14,12 @@
 // `SessionContext.a4StorageKey`) — the Echoel edge the corrector's header
 // states: the key is KNOWN, never guessed from the signal.
 //
-// ⚠️ HONEST LIMITS. 7 tests, 25 `XCTAssert*` statements (hand-counted per test,
-// 4+3+2+3+5+5+3; one `XCTUnwrap` in test 2, outside the count — the first draft
-// wrote 24 with "4" for test 6 from memory; the recount found 5). Tests 1–4 are
+// ⚠️ HONEST LIMITS. 8 tests, 28 `XCTAssert*` statements (hand-counted per test,
+// 4+3+2+3+5+5+3+3; one `XCTUnwrap` in test 2, outside the count — the first draft
+// wrote 24 with "4" for test 6 from memory; the recount found 5. #851 appended
+// test 8 and owns this census). Tests 1–4 are
 // END-TO-END BEHAVIOUR on the shipped pure types (real corrector state machine,
-// no mocks). Tests 5–7 are SOURCE-TEXT JOINS — the graph rewire sits on a
+// no mocks). Tests 5–8 are SOURCE-TEXT JOINS — the graph rewire sits on a
 // running `AVAudioEngine` no test host can drive. What no test here can prove:
 // that the corrected monitor SOUNDS in key on a device, the added latency of
 // the time-pitch stage, and CPU of YIN-at-15-Hz on old hardware — device probe
@@ -35,6 +36,15 @@
 // Stripper: TRAGEND (1 of 13 join-needle verdicts flip — the a4StorageKey
 // count-1 finds a SECOND mention in the engine's own member doc-comment when
 // run raw; `codeOnly` blanking it is precisely the stripper's job).
+//
+// ⭐ GRADING of #851 (§3): test 8's three needles name code that commit creates —
+// against its parent (abca633) red as ONE absence (#486). Tests 1–7 are
+// COUNTERWEIGHTS: the detect one-liner needle in test 5 survives verbatim (#851
+// deliberately kept the call on one line for exactly that needle), and the
+// corrector algebra is untouched — process() still runs every tick, now on the
+// cached pitch. Stripper for test 8: PROPHYLAKTISCH (0 of 3 verdicts flip —
+// measured raw vs stripped on the worktree; the #851 doc-comments name the
+// members but never quote a needle's exact call/assignment spelling).
 
 import Foundation
 import XCTest
@@ -159,6 +169,33 @@ final class TheVoiceTuneSnapsToTheSessionKeyTests: XCTestCase {
         XCTAssertEqual(codeOccurrences(of: "audioEngine.voiceTuneRetune = $0", in: picker), 1,
                        "the character control exists — an EchoelValueField binding "
                        + "(the numeric-parameter law; the toggle is the named binary)")
+    }
+
+    // MARK: - 8. The analysis is gated on fresh audio; the corrector tick is NOT (#851)
+
+    /// SOURCE-TEXT JOINS. The #850 freshness stamp reaches YIN, but ONLY the analysis:
+    /// `process(dt:)` must keep running every tick on the cached pitch, or glide/relax
+    /// timing would slow whenever iOS delivers tap buffers larger than requested.
+    func testTheAnalysisIsFreshnessGatedButTheCorrectorTickIsNot() throws {
+        let engine = try source("Sources/Echoelmusic/Audio/AudioEngine.swift")
+        XCTAssertEqual(codeOccurrences(of: "if stamp != lastVoiceTuneStamp {", in: engine), 1, """
+            The YIN freshness gate is gone — the tick would re-run a ~1-2 ms pitch \
+            analysis on a byte-identical window (and on a FROZEN one, #850's case). \
+            If redesigned, re-anchor here in the same commit (#456).
+            """)
+        XCTAssertEqual(codeOccurrences(
+            of: "voiceTuneCorrector.process(detectedHz: voiceTuneLastDetectedHz,", in: engine), 1, """
+            The corrector no longer ticks on the CACHED pitch — either the cache was \
+            bypassed (analysis runs every tick again) or the tick itself became \
+            gated, which slows glide/relax timing whenever tap buffers arrive \
+            slower than the guard tick. Both directions are the named defect.
+            """)
+        XCTAssertEqual(codeOccurrences(of: "voiceTuneLastDetectedHz = nil", in: engine), 3, """
+            The cache must die with the window: once in the gate's not-yet-filled \
+            branch and once beside EACH monitorTapWindow.clear() site — a cached \
+            pitch surviving a cleared window would re-apply a stale correction for \
+            one tick on the next monitoring session.
+            """)
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)
