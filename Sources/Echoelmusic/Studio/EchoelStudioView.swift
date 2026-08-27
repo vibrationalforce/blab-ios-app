@@ -4751,31 +4751,41 @@ struct EchoelStudioView: View {
             // menu-hosting studio body. (Was the remaining take-time Picker-freeze source.)
             MasterVolumeField()
 
-            labeledRow("Target") {
-                Picker("Target", selection: $loudnessTargetRaw) {
-                    ForEach(LoudnessTarget.allCases) { t in Text(t.displayName).tag(t.rawValue) }
-                }
-                .pickerStyle(.menu).tint(EchoelTheme.text)
-                .accessibilityLabel("Loudness delivery target")
-            }
-
-            // The `.onChange` calls the SAME method the launch path calls
-            // (`configureEQ()` → `applyPersistedPreset()`), rather than mapping the raw value
-            // to a `Preset` a second time here. One owner, two callers — the
-            // `MIDIOutput.applyOutputPreferences()` shape, and the reason a stored choice and
-            // a live tap can never disagree.
-            labeledRow("Tone") {
-                Picker("Tone", selection: $masterCharacterRaw) {
-                    ForEach(AutoMixChain.Preset.allCases) { p in
-                        Text(p.displayName).tag(p.rawValue)
+            // #292 Slice 5: the two delivery choices are the panel's only pair of same-height
+            // parameter rows, so they reflow to two columns on a wide layout. `spacing: 14`
+            // matches `EchoelPanel`'s own content spacing because in ONE column the grid's
+            // `VStack` REPLACES the host's rhythm (the `visualAdjustFields` lesson) — the
+            // default (10) would silently tighten iPhone portrait, which does not reflow at
+            // all. Everything else in this panel stays OUTSIDE the grid on purpose: the
+            // volume field and the loudness numbers are churn-isolating leaves, and the
+            // caption/button rows want the full measure (`MasterPanelReflowsTests`).
+            AdaptiveCardGrid(spacing: 14) {
+                labeledRow("Target") {
+                    Picker("Target", selection: $loudnessTargetRaw) {
+                        ForEach(LoudnessTarget.allCases) { t in Text(t.displayName).tag(t.rawValue) }
                     }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .accessibilityLabel("Loudness delivery target")
                 }
-                .pickerStyle(.menu).tint(EchoelTheme.text)
-                .onChange(of: masterCharacterRaw) { _, _ in
-                    audioEngine.autoMixChain.applyPersistedPreset()
+
+                // The `.onChange` calls the SAME method the launch path calls
+                // (`configureEQ()` → `applyPersistedPreset()`), rather than mapping the raw value
+                // to a `Preset` a second time here. One owner, two callers — the
+                // `MIDIOutput.applyOutputPreferences()` shape, and the reason a stored choice and
+                // a live tap can never disagree.
+                labeledRow("Tone") {
+                    Picker("Tone", selection: $masterCharacterRaw) {
+                        ForEach(AutoMixChain.Preset.allCases) { p in
+                            Text(p.displayName).tag(p.rawValue)
+                        }
+                    }
+                    .pickerStyle(.menu).tint(EchoelTheme.text)
+                    .onChange(of: masterCharacterRaw) { _, _ in
+                        audioEngine.autoMixChain.applyPersistedPreset()
+                    }
+                    .accessibilityLabel("Master tonal character")
+                    .accessibilityHint("Balanced, warm, bright or transparent — the EQ curve on the master bus")
                 }
-                .accessibilityLabel("Master tonal character")
-                .accessibilityHint("Balanced, warm, bright or transparent — the EQ curve on the master bus")
             }
 
             // The live numbers live in their own view so the 60 Hz meter refresh

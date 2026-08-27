@@ -15224,3 +15224,21 @@ kürzeren Trust-Lücke.
   nie kommt, ist eine Einladung, sie zu bauen. Entfernt; DirectDDSPBioTests direkt darunter
   deckt den Nachfolge-Pfad. Kommentar-only, aber Tests/** ⇒ beide Gates laufen (Pfadfilter).
 - Kein Wächter (#364-Klasse: ein Scan gegen das Wort träfe historische Prosa in CISmoke).
+
+## 2026-08-27 ~01:20 (cron-Zyklus) — #292 Slice 5: masterPanel reflowt (#844)
+
+- `masterPanel`s Target/Tone-Paar (die einzigen zwei gleich hohen Parameter-Zeilen des Panels)
+  in EIN `AdaptiveCardGrid(spacing: 14)` — breit zweispaltig, Portrait/Accessibility unverändert
+  (Host-Abstand 14 = Grid-Abstand, die visualAdjustFields-Lehre). Leaves (`MasterVolumeField`,
+  `MasterLoudnessGrid`, `AudioTimingRow`) und Vollbreiten-Zeilen bleiben absichtlich draußen.
+- Wächter NEU: `Tests/CISmoke/MasterPanelReflowsTests.swift` (SOURCE-TEXT SCAN; nutzt
+  `SourceText.codeOnly`, gemessen PROPHYLAKTISCH 0/8). Python-Transkription gegen Parent
+  `7566479` + Worktree gefahren: Parent = EINE Anker-Abwesenheit (3 Assertions, #486),
+  Gegengewichte beidseitig grün; Worktree = alles PASS. dead-needles 0, needle-reachability 0,
+  string-aware Brace-Balance 0/0/0. `TheMasterToneHasADoorTests`-Nadeln überleben (substring,
+  einrückungsunabhängig; §4-Grep gemacht).
+- CLAUDE.md: BEIDE Zähler 4→5 von 10 nachgeführt (iPad-Tabellenzelle + „Kein nie"-Zeile),
+  masterPanel aus der Starr-Liste in die Reflow-Liste; die Starr-Liste ist jetzt fünf.
+- ui-state-reviewer läuft asynchron; ein etwaiger Befund landet als Folge-Commit im selben
+  Zyklusfenster. Geräteprobe (Querformat-Lesbarkeit) bleibt offen — Landscape ist ein Blick,
+  kein Test.
