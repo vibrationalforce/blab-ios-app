@@ -15288,3 +15288,30 @@ kürzeren Trust-Lücke.
   App-Version/Gerät, Repro-Schritte und Crash-Log (.ips via Settings→Analytics ODER
   echoel_diag.log via Save/Export→Diagnostics), mit Zwei-Wochen-Hinweis auf Schließen als
   not-reproducible. Kein Code, keine Zusagen, kein Founder-Gate berührt.
+
+## 2026-08-27 ~10:40 — FOUNDER-ASK: Feedback-Guard pro Frequenzband, „gar kein Piepsen" (#847, Scheibe 1)
+
+- **Founder wörtlich:** „Feedback guard soll auf die Betroffenen Frequenzbändern reagieren
+  arbeiten oder gibt es noch eine intelligentere Lösung es soll erst gar kein piepsen
+  entstehen." Gemessener Ist-Zustand: Duck = Breitband-reaktiv (RMS > 0.85 UND steigend —
+  da piepst es schon); Notch = EIN Band, gegated auf `if ducking,` (zweiter Responder,
+  keine Prävention). Beides in `updateFeedbackGuard()` (~15 Hz MainActor).
+- **Design (3 Scheiben):** (1) reiner Früherkennungs-Kern `FeedbackGuard.HowlDetector` —
+  vierfache Howl-Signatur: Nachbarschafts-Dominanz (×6 lokal, nicht global) + Persistenz
+  (4 Ticks ≈ 270 ms, ±1-Bin-Jitter-Toleranz, ein Miss = Reset) + Wachstum (×1.25 über
+  Track-Leben) + Oberton-Veto (Energie bei 2f > 0.35×Peak = Gesang) + absoluter Boden.
+  Feuert bei LEISEM Pegel → Notch bevor hörbar. (2) Verdrahtung: notchEQ 1→4 Bänder,
+  Kandidaten-Zuweisung/Hold/Release, `if ducking,`-Gate fällt (Wächter-Nadel wandert im
+  selben Commit — §4-Fund vorab), Duck = letzte Verteidigung. (3) optional, NICHT ungefragt:
+  +3–5-Hz-Frequenzversatz als echte Loop-Brechung — verstimmt die Stimme minimal, Konflikt
+  mit Autotune/Harmonizer, founder-gated registriert.
+- **Scheibe 1 GEBAUT, test-first:** `Tests/CISmoke/AHowlIsCaughtBeforeItIsHeardTests.swift`
+  (END-TO-END, pur; 9 Tests) + Implementierung in `FeedbackGuard.swift` (bewusst UNVERDRAHTET,
+  Doc sagt es; Header-Zweiwege-Wächter `AudioInputDoorTests` unberührt — der watcht `ringingBin`).
+  Python-Transkription: **alle 12 Vektoren PASS** auf dem Worktree; ein eigener Testvektor-Fehler
+  (Dominanz-Schwelle im Leise-Test) vor dem Commit gefunden und repariert (#367 an mir selbst).
+  Balance sauber, dead-needles 0, needle-reachability 0. Benotung: Datei kompiliert nicht gegen
+  Parent (neues Symbol) → kein Verdikt dort, Hand-Transkription ist die Benotung; Duck/Slew-
+  Counterweights grün auf beiden Bäumen. Pflicht-Review läuft asynchron (Spezial-Reviewer in
+  dieser Umgebung nicht verfügbar → general-purpose mit Audio-Checkliste); Befunde folgen als
+  Nachtrag-Commit (Muster #844).

@@ -119,4 +119,174 @@ public enum FeedbackGuard {
         if cur > tgt { return Swift.max(tgt, cur - step) }
         return cur
     }
+
+    // MARK: - Early howl detection (#847 — founder 2026-08-27: "es soll erst gar kein
+    // Piepsen entstehen")
+
+    /// The PREVENTIVE half of the guard's brain: catches a howl while it is still quiet,
+    /// so the wiring can notch the affected band before anything is audible.
+    ///
+    /// `ringingBin` above answers "which single bin dominates the whole spectrum RIGHT
+    /// NOW" — a reactive question, asked only after the duck already fired. A howl's
+    /// earlier signature is different and FOURFOLD: one spectral peak that (1) dominates
+    /// its local NEIGHBOURHOOD (not the whole spectrum — a bass note dominates globally),
+    /// (2) PERSISTS at the same bin (±1 for FFT-leakage jitter) across consecutive
+    /// observations, (3) GROWS steadily (a regenerating loop always builds; a held note
+    /// does not), and (4) has NO harmonic partner at 2f (a voice or instrument does).
+    /// All four must hold — each one alone matches some musical signal.
+    ///
+    /// ⚠️ NOT YET WIRED as of #847: this type has zero production callers — it is the
+    /// brain only. The wiring slice (multi-band notch) consumes it from the existing
+    /// ~15 Hz MainActor guard tick and must move `TheNotchIsSlewedAndMonitorOnlyTests`'
+    /// `if ducking,` needle in the same commit — the notch stops being gated on the duck,
+    /// which becomes the last-resort defence. Behaviour is pinned by
+    /// `AHowlIsCaughtBeforeItIsHeardTests` (END-TO-END, pure).
+    ///
+    /// Control-plane, MainActor cadence (~15 Hz): unlike the free functions above this
+    /// type may allocate (bounded: `maxTracks`); it must NEVER be called from a render
+    /// block — the FFT it consumes is already produced upstream on the MainActor.
+    public struct HowlDetector {
+
+        public struct Candidate: Equatable, Sendable {
+            /// The affected FFT bin (the wiring maps it to Hz via `binToHz`).
+            public let bin: Int
+            /// Growth factor over the track's life — ranks candidates when the wiring
+            /// has fewer EQ bands than candidates. Always finite.
+            public let severity: Float
+        }
+
+        public struct Config: Sendable {
+            /// Bins each side of a peak that form its neighbourhood mean.
+            public var neighborhoodRadius: Int = 8
+            /// Peak must exceed the neighbourhood mean by this factor. Lower than
+            /// `ringingBin`'s global ×8 on purpose: local dominance is the sharper test.
+            public var dominanceRatio: Float = 6
+            /// Newest magnitude must exceed the track's first by this factor.
+            public var growthRatio: Float = 1.25
+            /// Consecutive observations before a track may become a candidate.
+            /// At the ~15 Hz guard tick, 4 ≈ 270 ms — well inside a howl's build-up,
+            /// well past any transient.
+            public var persistenceTicks: Int = 4
+            /// Veto: energy at 2×bin above this fraction of the peak = a musical note.
+            public var harmonicMaxRatio: Float = 0.35
+            /// Absolute floor — relative dominance over near-silence is not a howl.
+            public var minMagnitude: Float = 0.001
+            /// Bins below this are rumble/DC, never howl (the wiring additionally
+            /// clamps to ≥ 40 Hz when converting to a filter frequency).
+            public var minBin: Int = 2
+            /// Upper bound on reported candidates per observation.
+            public var maxCandidates: Int = 4
+            public init() {}
+        }
+
+        private struct Track {
+            var bin: Int
+            var ticksSeen: Int
+            var firstMagnitude: Float
+            var lastMagnitude: Float
+        }
+
+        /// Bounded state: more simultaneous narrowband tracks than this is not a howl
+        /// scenario, it is noise — the strongest survive.
+        private static let maxTracks = 16
+
+        public var config: Config
+        private var tracks: [Track] = []
+
+        public init(config: Config = Config()) {
+            self.config = config
+        }
+
+        /// Forget all tracks (the wiring calls this when monitoring stops or the route
+        /// changes — persistence must never survive a world change).
+        public mutating func reset() {
+            tracks.removeAll(keepingCapacity: true)
+        }
+
+        /// Feed one magnitude spectrum (bin 0 = DC, linear magnitudes); returns the
+        /// bands whose four signatures all hold RIGHT NOW, strongest growth first.
+        public mutating func observe(magnitudes: [Float]) -> [Candidate] {
+            let peaks = localPeaks(in: magnitudes)
+
+            // Match peaks to existing tracks (±1 bin — FFT leakage makes a stationary
+            // howl breathe between neighbouring bins). One miss resets a track: at the
+            // guard cadence a real regenerating loop never skips an observation.
+            var next: [Track] = []
+            var claimed = [Bool](repeating: false, count: peaks.count)
+            for track in tracks {
+                guard let i = peaks.indices.first(where: { !claimed[$0]
+                    && abs(peaks[$0].bin - track.bin) <= 1 }) else { continue }
+                claimed[i] = true
+                var t = track
+                t.bin = peaks[i].bin
+                t.ticksSeen += 1
+                t.lastMagnitude = peaks[i].magnitude
+                next.append(t)
+            }
+            for i in peaks.indices where !claimed[i] {
+                next.append(Track(bin: peaks[i].bin, ticksSeen: 1,
+                                  firstMagnitude: peaks[i].magnitude,
+                                  lastMagnitude: peaks[i].magnitude))
+            }
+            if next.count > Self.maxTracks {
+                next.sort { $0.lastMagnitude > $1.lastMagnitude }
+                next.removeLast(next.count - Self.maxTracks)
+            }
+            tracks = next
+
+            var out: [Candidate] = []
+            for t in tracks where t.ticksSeen >= Swift.max(1, config.persistenceTicks) {
+                let base = Swift.max(t.firstMagnitude, Float.leastNormalMagnitude)
+                let growth = t.lastMagnitude / base
+                guard growth.isFinite, growth >= config.growthRatio else { continue }
+                out.append(Candidate(bin: t.bin, severity: growth))
+            }
+            out.sort { $0.severity > $1.severity }
+            if out.count > Swift.max(0, config.maxCandidates) {
+                out.removeLast(out.count - Swift.max(0, config.maxCandidates))
+            }
+            return out
+        }
+
+        private struct Peak { let bin: Int; let magnitude: Float }
+
+        /// Signatures (1) and (4): locally dominant, harmonic-free peaks above the
+        /// absolute floor. Non-finite bins are invisible — skipped as a peak, excluded
+        /// from every mean, vetoing nothing.
+        private func localPeaks(in magnitudes: [Float]) -> [Peak] {
+            let n = magnitudes.count
+            let lo = Swift.max(1, config.minBin)
+            guard n > lo + 1 else { return [] }
+            var found: [Peak] = []
+            for i in lo..<(n - 1) {
+                let m = magnitudes[i]
+                guard m.isFinite, m >= config.minMagnitude else { continue }
+                let left = magnitudes[i - 1]
+                let right = magnitudes[i + 1]
+                guard m >= (left.isFinite ? left : 0),
+                      m >= (right.isFinite ? right : 0) else { continue }
+                // Neighbourhood mean, peak excluded, poisoned bins excluded.
+                let r = Swift.max(1, config.neighborhoodRadius)
+                var sum: Float = 0
+                var count = 0
+                for j in Swift.max(lo, i - r)...Swift.min(n - 1, i + r) where j != i {
+                    let v = magnitudes[j]
+                    guard v.isFinite else { continue }
+                    sum += v
+                    count += 1
+                }
+                guard count > 0 else { continue }
+                let mean = sum / Float(count)
+                guard mean > 0, m >= mean * config.dominanceRatio else { continue }
+                // Harmonic veto: strong energy at 2f = a musical note, not a loop.
+                let h = i * 2
+                if h < n {
+                    let hv = magnitudes[h]
+                    if hv.isFinite, hv > m * config.harmonicMaxRatio { continue }
+                }
+                found.append(Peak(bin: i, magnitude: m))
+            }
+            return found
+        }
+    }
 }
