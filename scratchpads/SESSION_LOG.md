@@ -15331,3 +15331,28 @@ kürzeren Trust-Lücke.
   (Bin 50) statt vakuösem allSatisfy. Python-Transkription: 13/13 PASS (inkl. Alt-Stand-
   Rot-Beweis). Registriert für die Verdrahtungs-Scheibe: windowed growth als Option,
   Greedy-Matching-Randfälle (Review 6a/b, false-negative-Richtung, akzeptiert).
+
+## 2026-08-27 ~11:30 — #848: die Verdrahtung — präventiver Mehrband-Notch, Duck wird letzte Verteidigung
+
+- `notchEQ` 1→4 parametrische Bänder (Setup-Loop statt bands.first); neuer Per-Band-Zustand
+  `notchBands` (frequencyHz/gainDB/holdTicks) + `howlDetector` in der Engine. Guard-Tick:
+  FFT läuft jetzt auf JEDEM Tick während Monitoring (nicht mehr nur beim Ducking),
+  `howlDetector.observe` liefert Kandidaten, `applyNotchDefence` verteilt sie: ±6 %-Match
+  refresht ein aktives Band, sonst freies Band (Kandidaten sind ranked — bei Band-Mangel
+  gewinnen die stärksten); jede Band-Gain NUR durch `slewedNotchGainDB`; Hold ~2 s;
+  `resetNotchDefence()` (Detector-Reset + alle Bänder 0) an BEIDEN Exits (OFF + Rollback).
+  Neues Diag-Ereignis „notch engaged N Hz" (level .info, nur bei Neu-Belegung).
+- **Im selben Commit gewandert (§4):** FeedbackGuard-Header-Notch-Bullet (präventiv/4 Bänder,
+  ⛔-Historie der #595-Reaktiv-Fassung), `ringingBin`-Doc (kein Produktions-Aufrufer seit
+  #848, bewusst behalten), HowlDetector-Doc + AHowl-Testheader („NOT YET WIRED" → „WIRED
+  since #848", #425), `AudioInputDoorTests`-Zweiwege-Proxy ringingBin→HowlDetector,
+  `TheNotchIsSlewedAndMonitorOnlyTests`: Header (Join-Satz ⛔-ersetzt), Test 7 neu
+  (4 Nadeln: observe einmal pro Tick · EIN Zuweisungs-Pfad · Per-Band-Slew · Reset),
+  Zensus 29→30 (per Datei-eigenem Rezept nachgemessen), #848-Grading-Absatz.
+  CLAUDE.md-FeedbackGuard-Zeile nachgeführt.
+- **Transkription:** Test-7-Nadeln + Gegengewichte + Zweiwege-Logik auf BEIDEN Bäumen
+  gefahren — Parent: vier Nadeln rot durch EINE Anker-Abwesenheit (#486), Gegengewichte
+  grün; Worktree: alles OK. Balance 5/5 Dateien sauber, dead-needles 0, reachability 0.
+- NEEDS-FOUNDER-VERIFY (neu, an applyNotchDefence): Lautsprecher-Howl provozieren — darf
+  gar nicht erst hörbar piepsen („notch engaged" im Log); Singen/Pfeifen darf NICHT dünner
+  werden. Pflicht-Review folgt asynchron als Nachtrag (Muster #847b).

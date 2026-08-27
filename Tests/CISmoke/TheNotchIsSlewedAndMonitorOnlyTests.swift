@@ -1,18 +1,24 @@
 // TheNotchIsSlewedAndMonitorOnlyTests.swift
-// Echoel — the feedback notch ramps, holds, and lives in the monitor path only. #595.
+// Echoel — the feedback notches ramp, hold, and live in the monitor path only. #595/#848.
 //
 // WHAT THIS GUARDS. The notch half of FeedbackGuard: `slewedNotchGainDB` (the pure
 // slew brain), `MonitorTapWindow` (the 10.76.48 lock queue between the tap thread and
 // the ~15 Hz guard tick), and the AudioEngine wiring joins — chain order
 // input → notchEQ → [voiceTunePitch #599] → monitorMixer (the music never passes
 // through the notch; the optional tune stage sits BEHIND it, never before), the tap
-// installed only after every failure path, removed on the OFF path, and the band gain
-// written ONLY through the slew. The engage condition is a JOIN of two independent
-// signatures (`ducking && ringingBin`) so a loud clean note is never notched.
+// installed only after every failure path, removed on the OFF path, and every band
+// gain written ONLY through the slew.
+// ⛔ #848 RETIRED THE `ducking && ringingBin` JOIN this header praised: the notch is
+// PREVENTIVE now — the FFT runs on every guard tick and `HowlDetector`'s four-signature
+// join (dominance · persistence · growth · no harmonic/subharmonic partner, pinned
+// END-TO-END by `AHowlIsCaughtBeforeItIsHeardTests`) is what keeps a loud clean note
+// un-notched, at low level, before audibility (founder: "es soll erst gar kein Piepsen
+// entstehen"). Four dynamic bands instead of one; the duck is the broadband last resort.
 //
-// ⚠️ HONEST LIMITS. 8 tests, 29 `XCTAssert*` statements (in file order,
-// 5+3+4+4+4+4+3+2 — the two `XCTUnwrap`s in test 6 also fail their test and sit
-// deliberately outside this count, which counts assertions, not failure points).
+// ⚠️ HONEST LIMITS. 8 tests, 30 `XCTAssert*` statements (in file order,
+// 5+3+4+4+4+4+4+2 — the two `XCTUnwrap`s in test 6 also fail their test and sit
+// deliberately outside this count, which counts assertions, not failure points;
+// #848 rewrote test 7 from 3 to 4 and owns this census per the rule below).
 // ⛔ #658: this census read `28` and `5+3+4+4+4+3+3+2`, and BOTH halves were wrong —
 // #655 added a fourth `XCTAssertEqual` to test 6 (the uniqueness check on the renamed
 // `logMonitorOutcome("engine restart failed` anchor) and did not touch the header. The
@@ -35,7 +41,14 @@
 // door slice owns turning it into an enforced law (a scan here could not observe
 // reachability, only text — it would be green through the exact collision it names).
 //
-// ⭐ GRADING (§3). This file names `MonitorTapWindow` and `slewedNotchGainDB`, both
+// ⭐ GRADING of #848's rewrite (§3): test 7's four needles name wiring that commit
+// creates (`howlDetector.observe(`, `applyNotchDefence`, the per-band slew write,
+// `howlDetector.reset()`) — against its parent (27258b4) all four are red by ONE
+// anchor absence (#486: the wiring did not exist), never for test 7's named reasons.
+// Every other test is untouched and green on both trees. Driven by transcription (§0);
+// the census above moved 29→30 in the same commit.
+//
+// ⭐ GRADING of the original #595 commit (historical). This file names `MonitorTapWindow` and `slewedNotchGainDB`, both
 // created by this same commit — against the parent tree the file DOES NOT COMPILE, so
 // no assertion has a verdict there (§3's exact wording; hand-transcribed instead: the
 // slew and window logic were re-driven in Python against the worktree). All join
@@ -191,20 +204,29 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
                        + "leave the input tapped")
     }
 
-    /// The engage condition and the slew: the notch requires the duck's signature
-    /// (`if ducking,`) AND a dominant bin, and the band gain is written ONLY through
-    /// `slewedNotchGainDB` — one slewed write, plus bare `= 0` resets.
-    func testTheNotchEngagesOnlyWhileDuckingAndIsAlwaysSlewed() throws {
+    /// #848 — the engage path and the slew. The detector (not the duck) decides, it is
+    /// consulted on EVERY guard tick, and every band's gain advances ONLY through the
+    /// slew. (The pre-#848 needles here were `if ducking,` and `FeedbackGuard.ringingBin(`
+    /// — the reactive join this slice retired; asserting their absence would be a
+    /// negative scan over prose that legitimately cites them as history, #491.)
+    func testTheNotchIsDetectorDrivenAndAlwaysSlewed() throws {
         let engine = try source("Sources/Echoelmusic/Audio/AudioEngine.swift")
-        XCTAssertEqual(codeOccurrences(of: "if ducking,", in: engine), 1,
-                       "the notch must key off the duck's own verdict — two independent "
-                       + "feedback signatures, so a loud clean note is never notched")
-        XCTAssertEqual(codeOccurrences(of: "FeedbackGuard.ringingBin(", in: engine), 1)
+        XCTAssertEqual(codeOccurrences(of: "howlDetector.observe(", in: engine), 1,
+                       "exactly ONE consult of the early detector per guard tick — the "
+                       + "four-signature join is what keeps a loud clean note un-notched "
+                       + "now that the duck no longer gates the notch")
+        XCTAssertEqual(codeOccurrences(of: "applyNotchDefence(candidates:", in: engine), 2,
+                       "one declaration + one call: every candidate reaches the bands "
+                       + "through the ONE assignment/slew path")
         XCTAssertEqual(
-            codeOccurrences(of: "notchGainDB = FeedbackGuard.slewedNotchGainDB(current: notchGainDB",
+            codeOccurrences(of: "notchBands[i].gainDB = FeedbackGuard.slewedNotchGainDB(",
                             in: engine), 1,
-            "the gain state must advance through the slew — a direct assignment would "
-            + "be the audible step the slew law exists to prevent")
+            "every band's gain state must advance through the slew — a direct "
+            + "assignment would be the audible step the slew law exists to prevent")
+        XCTAssertEqual(codeOccurrences(of: "howlDetector.reset()", in: engine), 1,
+                       "monitoring OFF/rollback must forget the detector's persistence — "
+                       + "a half-built track must never survive into the next world "
+                       + "(both exits funnel through resetNotchDefence)")
     }
 
     // MARK: - 8. Counterweight — the duck (the level half) is undisturbed

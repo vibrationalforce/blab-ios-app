@@ -427,13 +427,16 @@ public final class AudioEngine {
     @ObservationIgnored private var monitorLevelHistory: [Float] = []
     @ObservationIgnored private var monitorPollTick = 0
     // #595: the NOTCH half of FeedbackGuard (the duck above is the LEVEL half; the
-    // FeedbackGuard.swift header records which halves are wired). One parametric EQ
-    // band sits in the MONITOR path only (input → notchEQ → monitorMixer) — the music
+    // FeedbackGuard.swift header records which halves are wired). Parametric EQ bands
+    // sit in the MONITOR path only (input → notchEQ → monitorMixer) — the music
     // never passes through it, exactly the duck's scoping. The spectrum comes from a
     // tap on the input node pushing into `MonitorTapWindow` (the 10.76.48 lock-queue
     // shape, zero actor hops in the tap); the EXISTING ~15 Hz guard tick copies the
     // window out and runs the FFT on the MainActor — no DSP in the tap, none in render.
-    @ObservationIgnored private let notchEQ = AVAudioUnitEQ(numberOfBands: 1)
+    // #848 (founder: "auf die betroffenen Frequenzbändern … gar kein Piepsen"): FOUR
+    // bands, each an independent dynamic notch driven by `HowlDetector` — one filter
+    // per affected frequency band, engaged while the howl is still quiet.
+    @ObservationIgnored private let notchEQ = AVAudioUnitEQ(numberOfBands: 4)
     @ObservationIgnored private var notchAttached = false
     @ObservationIgnored private let monitorTapWindow = MonitorTapWindow(size: 2048)
     @ObservationIgnored private var monitorTapInstalled = false
@@ -449,16 +452,29 @@ public final class AudioEngine {
     /// (the duck still defends; a wrong-size FFT would misread every bin).
     @ObservationIgnored private lazy var monitorSpectrumFFT = EchoelRealFFT(size: 2048)
     @ObservationIgnored private var monitorSpectrumBuffer = [Float](repeating: 0, count: 2048)
-    /// Current slewed notch gain in dB (≤ 0; 0 = released). Written only by the guard
-    /// tick via `FeedbackGuard.slewedNotchGainDB` — never stepped.
-    @ObservationIgnored private var notchGainDB: Float = 0
-    /// Ticks the notch stays engaged after the LAST ringing detection (~2 s at ~15 Hz).
-    /// Once the notch bites, the ring decays and the DETECTOR loses it — without a
-    /// hold the notch would release, the howl would return, and the loop would audibly
-    /// oscillate. The hold keeps the notch parked on the same frequency through that gap.
-    @ObservationIgnored private var notchHoldTicks = 0
+    /// #848: per-band notch state, index-aligned with `notchEQ.bands`. `gainDB` (≤ 0;
+    /// 0 = released) is written ONLY through `FeedbackGuard.slewedNotchGainDB` — never
+    /// stepped. `holdTicks` keeps a band engaged past the LAST detection: once the
+    /// notch bites, the ring decays and the DETECTOR loses it — without a hold the
+    /// band would release, the howl would return, and the loop would audibly
+    /// oscillate. The hold parks each band on its own frequency through that gap.
+    private struct NotchBandState {
+        var frequencyHz: Float = 0
+        var gainDB: Float = 0
+        var holdTicks = 0
+    }
+    @ObservationIgnored private var notchBands =
+        [NotchBandState](repeating: NotchBandState(), count: 4)
+    /// The early-detection brain (#847). MainActor state, reset whenever monitoring
+    /// stops or re-arms — persistence must never survive a world change.
+    @ObservationIgnored private var howlDetector = FeedbackGuard.HowlDetector()
     /// ~2 s at the ~15 Hz guard cadence (60 Hz poll gated %4 — see `monitorPollTick`).
     private static let notchHoldTickCount = 30
+    /// ONE spelling of the notch depth (#416): engaged bands slew toward this.
+    private static let notchDepthDB: Float = -24
+    /// Two candidate frequencies within ±6 % (≈ one semitone) are the SAME howl —
+    /// refresh that band instead of burning a second one.
+    private static let notchSameBandTolerance: Float = 0.06
     // VL3 (#599): in-key pitch correction ("tune to key") on the MONITOR path only —
     // the optional autotune-with-character the founder asked for. Chain when enabled:
     // input → notchEQ → voiceTunePitch → monitorMixer (disabled: the unchanged #595
@@ -2097,12 +2113,12 @@ public final class AudioEngine {
             // pause into a stop) — do not move either back down here; the read being
             // late was #625's bug and the pause being late is #628's.
             if !monitorAttached { masterEngine.attach(monitorMixer); monitorAttached = true }
-            // #595: the notch band is configured ONCE at attach; only frequency and
-            // gain move at runtime (gain slewed by the guard tick, never stepped).
+            // #595/#848: the notch bands are configured ONCE at attach; only frequency
+            // and gain move at runtime (gain slewed by the guard tick, never stepped).
             if !notchAttached {
                 masterEngine.attach(notchEQ)
                 notchAttached = true
-                if let band = notchEQ.bands.first {
+                for band in notchEQ.bands {
                     band.filterType = .parametric
                     band.bandwidth = 0.15   // octaves — narrow, takes the whistle not the voice
                     band.gain = 0
@@ -2138,9 +2154,7 @@ public final class AudioEngine {
             }
             monitorLevelHistory.removeAll(keepingCapacity: true)
             feedbackGuardActive = false
-            notchGainDB = 0
-            notchHoldTicks = 0
-            notchEQ.bands.first?.gain = 0
+            resetNotchDefence()
             if wasRunning {
                 armTimingInstrument()
                 do { try masterEngine.start() }
@@ -2309,9 +2323,7 @@ public final class AudioEngine {
             }
             isInputMonitoring = false
             feedbackGuardActive = false
-            notchGainDB = 0
-            notchHoldTicks = 0
-            notchEQ.bands.first?.gain = 0
+            resetNotchDefence()
             notchEQ.globalGain = 0   // #829: the boost never survives monitoring OFF
             // #599 sweep M1: monitoring OFF also DISARMS the tune. The flag was a
             // pure latch, but the ONLY surface that can show or clear it renders
@@ -2492,33 +2504,76 @@ public final class AudioEngine {
         let ducking = duckDB > 0
         if ducking != feedbackGuardActive { feedbackGuardActive = ducking }
 
-        // #595: the NOTCH half. Engage ONLY while the duck already fires AND one bin
-        // clearly dominates the input spectrum (`ringingBin`, dominance ×8) — two
-        // independent signatures, so a loud clean note never gets notched. The gain is
-        // slewed (±4 dB/tick) and held ~2 s past the last detection so the notch does
-        // not audibly pump as the ring decays under it. All of this runs HERE, on the
-        // MainActor at ~15 Hz — the tap only filled the window.
-        var target: Float = 0
-        if ducking,
-           monitorSpectrumFFT.size == monitorTapWindow.size,
+        // #848: the NOTCH half is PREVENTIVE now (founder: "es soll erst gar kein
+        // Piepsen entstehen"). The FFT runs on EVERY guard tick while monitoring — not
+        // only while the duck fires — and `HowlDetector` decides which bands ring: its
+        // four-signature join (neighbourhood dominance · persistence · growth · no
+        // harmonic/subharmonic partner) is what keeps a loud clean note un-notched,
+        // the protection the old `ducking && ringingBin` join provided REACTIVELY.
+        // Each affected band gets its own slewed parametric notch at low level, before
+        // audibility; the duck above remains the broadband last resort. All of this
+        // runs HERE, on the MainActor at ~15 Hz — the tap only filled the window.
+        var candidates: [FeedbackGuard.HowlDetector.Candidate] = []
+        if monitorSpectrumFFT.size == monitorTapWindow.size,
            monitorTapSampleRate > 0,
-           monitorTapWindow.copyLatest(into: &monitorSpectrumBuffer),
-           let bin = FeedbackGuard.ringingBin(
-               magnitudes: monitorSpectrumFFT.forward(monitorSpectrumBuffer).magnitudes) {
-            let hz = FeedbackGuard.binToHz(bin, fftSize: monitorSpectrumFFT.size,
+           monitorTapWindow.copyLatest(into: &monitorSpectrumBuffer) {
+            candidates = howlDetector.observe(
+                magnitudes: monitorSpectrumFFT.forward(monitorSpectrumBuffer).magnitudes)
+        }
+        applyNotchDefence(candidates: candidates)
+    }
+
+    /// #848: assign detector candidates to the four dynamic notch bands and advance
+    /// every band's slew. A candidate within ±6 % of an ENGAGED band refreshes that
+    /// band (same howl breathing, not a second howl); otherwise it takes a free band —
+    /// ranked candidates first, so when howls outnumber bands the strongest are the
+    /// ones that get filters. MainActor, called only from the guard tick.
+    /// NEEDS-FOUNDER-VERIFY: Lautsprecher-Monitoring, Howl provozieren (Mic Richtung
+    /// Lautsprecher) — es darf GAR NICHT erst hörbar piepsen (Log zeigt „notch engaged
+    /// … Hz"); danach normal singen und pfeifen — Stimme und Pfeifton dürfen NICHT
+    /// dünner werden (kein fälschliches Notchen).
+    private func applyNotchDefence(candidates: [FeedbackGuard.HowlDetector.Candidate]) {
+        guard notchEQ.bands.count >= notchBands.count else { return }
+        for cand in candidates {
+            let hz = FeedbackGuard.binToHz(cand.bin, fftSize: monitorSpectrumFFT.size,
                                            sampleRate: monitorTapSampleRate)
             // Clamp to the EQ's sane range: below ~40 Hz is rumble not howl, and the
             // band frequency must stay under Nyquist for the current input rate.
-            let clamped = Swift.min(Swift.max(hz, 40), monitorTapSampleRate * 0.45)
-            notchEQ.bands.first?.frequency = Float(clamped)
-            target = -24
-            notchHoldTicks = Self.notchHoldTickCount
-        } else if notchHoldTicks > 0 {
-            notchHoldTicks -= 1
-            target = -24   // hold on the parked frequency while the ring decays
+            let clamped = Float(Swift.min(Swift.max(hz, 40), monitorTapSampleRate * 0.45))
+            if let i = notchBands.indices.first(where: { notchBands[$0].holdTicks > 0
+                && abs(notchBands[$0].frequencyHz - clamped)
+                    <= notchBands[$0].frequencyHz * Self.notchSameBandTolerance }) {
+                notchBands[i].frequencyHz = clamped
+                notchBands[i].holdTicks = Self.notchHoldTickCount
+                notchEQ.bands[i].frequency = clamped
+            } else if let i = notchBands.indices.first(where: { notchBands[$0].holdTicks == 0
+                && notchBands[$0].gainDB == 0 }) {
+                notchBands[i].frequencyHz = clamped
+                notchBands[i].holdTicks = Self.notchHoldTickCount
+                notchEQ.bands[i].frequency = clamped
+                // A NEW band engaging is a rare, diagnosable event (holds + slew stop
+                // it flapping) — the founder's log shows which frequency rang.
+                logMonitorOutcome("notch engaged \(Int(clamped)) Hz", level: .info)
+            }
+            // All bands busy: the candidate goes unfiltered this tick — the duck
+            // above still defends, and a freed band picks it up on a later tick.
         }
-        notchGainDB = FeedbackGuard.slewedNotchGainDB(current: notchGainDB, target: target)
-        notchEQ.bands.first?.gain = notchGainDB
+        for i in notchBands.indices {
+            if notchBands[i].holdTicks > 0 { notchBands[i].holdTicks -= 1 }
+            let target: Float = notchBands[i].holdTicks > 0 ? Self.notchDepthDB : 0
+            notchBands[i].gainDB = FeedbackGuard.slewedNotchGainDB(
+                current: notchBands[i].gainDB, target: target)
+            notchEQ.bands[i].gain = notchBands[i].gainDB
+        }
+    }
+
+    /// #848: forget every notch band and the detector's persistence — called on
+    /// monitoring OFF and on the rollback path. A held frequency or a half-built
+    /// track must never survive into the next monitoring world.
+    private func resetNotchDefence() {
+        howlDetector.reset()
+        for i in notchBands.indices { notchBands[i] = NotchBandState() }
+        for band in notchEQ.bands { band.gain = 0 }
     }
     #endif
 

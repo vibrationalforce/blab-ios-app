@@ -18,11 +18,12 @@
 // howl has neither. The detector encodes exactly those signatures, so the wiring slice
 // can notch at low level, before audibility.
 //
-// ⚠️ SLICE BOUNDARY, stated so the header cannot lie the #298 way: as of THIS slice the
-// detector has ZERO production callers — it is the brain only, wired by the follow-up
-// slice (multi-band notch). `AudioInputDoorTests`' two-way header guard watches
-// `ringingBin`, not this type; the FeedbackGuard header says "not yet wired" about the
-// detector and the wiring slice moves BOTH together.
+// ⭐ WIRED since #848: `AudioEngine.updateFeedbackGuard()` consults the detector on
+// every guard tick and `applyNotchDefence` maps candidates onto four dynamic notch
+// bands (shape pinned by `TheNotchIsSlewedAndMonitorOnlyTests` test 7).
+// `AudioInputDoorTests`' two-way header guard watches `HowlDetector` as its wiring
+// proxy since the same commit. (#847 shipped the type deliberately caller-less for
+// one commit; that boundary note is retired with the wiring, #425.)
 //
 // ⭐ GRADING (§3). Two commits share this file. Against #847's parent (0a7eb88) it named
 // a symbol that did not exist — no verdict there, hand-transcribed in Python instead

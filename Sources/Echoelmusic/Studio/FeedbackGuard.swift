@@ -18,19 +18,28 @@
 //      poll, gated to every 4th tick (`monitorPollTick % 4 == 0`), i.e. ~15 Hz. ⛔ The first
 //      version of this line called it "the ~15 Hz meter poll" — the poll is 60 Hz and the GATE
 //      makes it 15. Anyone budgeting work onto that poll from this sentence would be off by 4×.
-//    • the NOTCH is WIRED since #595 — `AudioEngine` taps the monitor input into
-//      `MonitorTapWindow` (lock queue, zero actor hops in the tap), the same ~15 Hz guard
-//      tick runs the FFT + `ringingBin` on the MainActor, and an `AVAudioUnitEQ` parametric
-//      band sits in the MONITOR path only (input → notchEQ → monitorMixer — the music never
-//      passes through it, the duck's exact scoping). It engages ONLY while the duck already
-//      fires AND one bin dominates (×8), its gain is slewed via `slewedNotchGainDB` (never
-//      stepped), and it holds ~2 s past the last detection so it cannot audibly pump.
-//      ⛔ Until #595 this bullet stated the opposite (unwired, `ringingBin` with ZERO callers
-//      in `Sources/` — NOT quoted verbatim here: the two-way guard scans this RAW header for
-//      the old sentence, and a verbatim quote would re-trigger it, the #491 collision);
-//      that was true for a year. The paired two-way guard
+//    • the NOTCH is WIRED, and since #848 it is PREVENTIVE and PER-BAND (founder
+//      2026-08-27: "auf die betroffenen Frequenzbändern … es soll erst gar kein Piepsen
+//      entstehen"). `AudioEngine` taps the monitor input into `MonitorTapWindow` (lock
+//      queue, zero actor hops in the tap); the ~15 Hz guard tick runs the FFT on EVERY
+//      tick while monitoring and feeds `HowlDetector`, whose four-signature join
+//      (neighbourhood dominance · persistence · growth · no harmonic/subharmonic
+//      partner) fires while the howl is still QUIET; each affected band gets one of
+//      FOUR `AVAudioUnitEQ` parametric notches in the MONITOR path only (input →
+//      notchEQ → monitorMixer — the music never passes through it, the duck's exact
+//      scoping), gain slewed via `slewedNotchGainDB` (never stepped), held ~2 s past
+//      the last detection so a band cannot audibly pump. The duck is the broadband
+//      LAST RESORT now, not the notch's gatekeeper.
+//      ⛔ From #595 to #848 the notch was REACTIVE — single band, engaged only while
+//      the duck already fired, keyed on `ringingBin` (which since #848 has no
+//      production caller; it stays below as a tested pure primitive). ⛔ Until #595
+//      this bullet stated the opposite (unwired, zero callers — NOT quoted verbatim
+//      here: the two-way guard scans this RAW header for the old sentence, and a
+//      verbatim quote would re-trigger it, the #491 collision); that was true for a
+//      year. The paired two-way guard
 //      (`AudioInputDoorTests.testFeedbackGuardHeaderMatchesWhatIsActuallyWired`) forces this
-//      sentence and the wiring to move together, in BOTH directions.
+//      sentence and the wiring to move together, in BOTH directions — since #848 its
+//      wiring proxy is `HowlDetector`, matching what production actually consumes.
 //    • the AEC is NOT wired — `setVoiceProcessingEnabled` appears NOWHERE in `Sources/`.
 //      Deliberate: it changes the whole I/O character and is Council-gated (see
 //      `scratchpads/PLAN_VOICE_STAGE_2026-08-14.md`, "NICHT bauen").
@@ -78,6 +87,12 @@ public enum FeedbackGuard {
 
     /// The index of a dominant, persistent peak in a magnitude spectrum — the
     /// likely ringing frequency to notch — or nil when nothing clearly dominates.
+    ///
+    /// ⚠️ No production caller since #848: the preventive `HowlDetector` below
+    /// superseded this reactive single-bin question in `updateFeedbackGuard`. Kept as
+    /// a tested pure primitive (its global-dominance framing is the documented
+    /// CONTRAST to the detector's local-neighbourhood one), not as dead weight to
+    /// silently delete — see the header's notch bullet.
     ///
     /// - Parameters:
     ///   - magnitudes: linear FFT magnitudes (bin 0 = DC).
@@ -143,12 +158,13 @@ public enum FeedbackGuard {
     /// track of its own — #847 review finding 1). All must hold — each alone matches
     /// some musical signal.
     ///
-    /// ⚠️ NOT YET WIRED as of #847: this type has zero production callers — it is the
-    /// brain only. The wiring slice (multi-band notch) consumes it from the existing
-    /// ~15 Hz MainActor guard tick and must move `TheNotchIsSlewedAndMonitorOnlyTests`'
-    /// `if ducking,` needle in the same commit — the notch stops being gated on the duck,
-    /// which becomes the last-resort defence. Behaviour is pinned by
-    /// `AHowlIsCaughtBeforeItIsHeardTests` (END-TO-END, pure).
+    /// ⭐ WIRED since #848: `AudioEngine.updateFeedbackGuard()` feeds it the monitor
+    /// FFT on every guard tick and `applyNotchDefence` maps its candidates onto four
+    /// dynamic notch bands — the notch is no longer gated on the duck, which is the
+    /// broadband last resort. (#847 shipped this type deliberately caller-less for one
+    /// commit; that boundary note is retired with the wiring, #425.) Behaviour is
+    /// pinned by `AHowlIsCaughtBeforeItIsHeardTests` (END-TO-END, pure); the wiring
+    /// shape by `TheNotchIsSlewedAndMonitorOnlyTests`.
     ///
     /// Control-plane, MainActor cadence (~15 Hz): unlike the free functions above this
     /// type may allocate (bounded: `maxTracks`); it must NEVER be called from a render

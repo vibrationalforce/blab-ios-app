@@ -144,11 +144,15 @@ final class AudioInputDoorTests: XCTestCase {
         let header = try String(contentsOf: try repoRoot().appendingPathComponent(Self.guardBrain),
                                 encoding: .utf8)
 
-        let notchWired = try symbolAppearsOutsideItsOwnFile("ringingBin", ownFile: Self.guardBrain)
+        // #848: the wiring proxy is `HowlDetector`, not `ringingBin` — production
+        // switched to the preventive detector and `ringingBin` deliberately kept its
+        // declaration with zero consumers (its own doc says so). A proxy symbol must
+        // be the one production actually consumes, or this guard tests a memory.
+        let notchWired = try symbolAppearsOutsideItsOwnFile("HowlDetector", ownFile: Self.guardBrain)
         let headerSaysNotchUnwired = header.contains("the NOTCH is NOT wired")
         XCTAssertNotEqual(notchWired, headerSaysNotchUnwired, """
         `FeedbackGuard.swift`'s header and the codebase disagree about the notch. \
-        ringingBin has a consumer: \(notchWired). Header still says it is unwired: \
+        HowlDetector has a consumer: \(notchWired). Header still says it is unwired: \
         \(headerSaysNotchUnwired). If you wired it, delete that sentence in the same commit — \
         a header that under-claims is as misleading as one that over-claims, and this file's \
         whole ⛔ block exists because it over-claimed for months.
