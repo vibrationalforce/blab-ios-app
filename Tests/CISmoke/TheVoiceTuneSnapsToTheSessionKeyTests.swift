@@ -39,8 +39,10 @@
 //
 // ⭐ GRADING of #851 (§3): test 8's three needles name code that commit creates —
 // against its parent (abca633) red as ONE absence (#486). Tests 1–7 are
-// COUNTERWEIGHTS: the detect one-liner needle in test 5 survives verbatim (#851
-// deliberately kept the call on one line for exactly that needle), and the
+// COUNTERWEIGHTS: the detect one-liner needle in `testTheTickReadsTheOneKeyDefinition`
+// survives verbatim (#851 deliberately kept the call on one line for exactly that
+// needle — ⛔ this sentence first said "test 5", the ordinal slip the header above
+// warns about; the needle lives in the SIXTH test, so it is named now), and the
 // corrector algebra is untouched — process() still runs every tick, now on the
 // cached pitch. Stripper for test 8: PROPHYLAKTISCH (0 of 3 verdicts flip —
 // measured raw vs stripped on the worktree; the #851 doc-comments name the

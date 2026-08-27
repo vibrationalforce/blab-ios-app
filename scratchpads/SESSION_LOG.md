@@ -15478,3 +15478,21 @@ kürzeren Trust-Lücke.
   Cache-nil an 3 Stellen), Zensus 25→28 per Handzählung + Rezept, Grading-Absatz (#486
   eine Abwesenheit auf Parent; Stripper GEMESSEN: PROPHYLAKTISCH 0/3). Balance sauber,
   dead-needles 0, reachability 0.
+
+## 2026-08-27 ~15:50 — #851b: Review-Nachtrag (Prosa)
+
+- Pflicht-Review zu #851: **korrekt in jedem aufgezählten Fall** (PitchTracker.detect ist
+  pur+deterministisch → Cache ≡ Re-Analyse; Cache kann sein Fenster nicht überleben —
+  einziger Schreiber von monitorTapSampleRate sitzt im clearenden Install-Block; Lock-
+  Haltezeit netto GESUNKEN). Kein Code-Follow-up. Drei Prosa-Punkte umgesetzt:
+  (A) #204-Spiegelnotiz nennt jetzt BEIDE Charaktere im Frozen-Fall — Notch fällt OFFEN
+  (Bänder verfallen), Tune PARKT (gecachte Korrektur bleibt stehen; vor-#851-identisch,
+  aber nur der Notch stand da). Ein Freshness-Timeout, der zu nil relaxt, wäre eine
+  eigene VERHALTENS-Scheibe — registriert, nicht gebaut.
+  (B) Ordinal-Fehler in meinem eigenen Grading-Absatz („test 5" → die Nadel wohnt im
+  SECHSTEN Test) — genau die Falle, vor der der Datei-Kopf warnt; Test jetzt beim Namen
+  genannt, Rücknahme im Absatz. Auch der Commit-Text von #851 trug den Fehler — Commits
+  sind unveränderlich, die Korrektur wohnt hier und im Wächter.
+  (C) updateVoiceTune-Doc + #599-Member-Block um den #851-Gate ergänzt (waren einen
+  Commit hinterher). Registriert ohne Bau: der gutartige Stamp-vor-Copy-Race (eine
+  redundante Re-Analyse, sichere Richtung).

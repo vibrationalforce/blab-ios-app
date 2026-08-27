@@ -497,7 +497,8 @@ public final class AudioEngine {
     // shape). `AVAudioUnitTimePitch` is a GRAPH node — no render code here. The
     // EXISTING ~15 Hz guard tick reads the EXISTING `MonitorTapWindow` (`copyLatest`
     // COPIES — the notch FFT and YIN share one window without stealing from each
-    // other), runs `PitchTracker` (YIN) + `VoicePitchCorrector` (pure, tested), and
+    // other), runs `PitchTracker` (YIN, since #851 only on fresh audio via the
+    // window's write stamp) + `VoicePitchCorrector` (pure, tested), and
     // writes the smoothed correction in CENTS onto the node. Key + Kammerton are
     // re-read ~1 Hz from the SAME stored values the studio writes
     // (`StudioDefaultKeys.rootIndex`/`scale` + `SessionContext.a4StorageKey` — #416,
@@ -2265,7 +2266,9 @@ public final class AudioEngine {
             // share one tap): started together, the recorder's `removeTap` silently
             // kills this tap while `monitorTapInstalled` stays true — the notch then
             // goes BLIND (#850: the frozen window is skipped via the write stamp, so
-            // bands decay while monitoring continues UNPROTECTED) — and the
+            // bands decay while monitoring continues UNPROTECTED), the tune half
+            // PARKS (#851: the cached pitch keeps feeding the corrector, so a
+            // nonzero cents correction stays applied indefinitely) — and the
             // monitoring-OFF path below would remove
             // the RECORDER's tap mid-take. The mirror note sits at the recorder's
             // `installTap` site. ⛔ The first version of this comment said "this is the
@@ -2516,7 +2519,9 @@ public final class AudioEngine {
     /// VL3 (#599): the ~15 Hz correction step, on the guard tick — YIN over the shared
     /// monitor window → pure `VoicePitchCorrector` → smoothed cents onto the graph
     /// node. MainActor throughout; the audio thread never sees any of this. YIN over
-    /// 2048 samples is ~1–2 ms — the same budget class as the notch FFT beside it.
+    /// 2048 samples is ~1–2 ms — the same budget class as the notch FFT beside it —
+    /// and since #851 it runs only on FRESH audio (unmoved stamp → cached pitch;
+    /// the corrector still ticks every call, see `lastVoiceTuneStamp`).
     private func updateVoiceTune() {
         guard voiceTuneEnabled else { return }
         // ~1 Hz: re-read key + Kammerton from the ONE stored definition the studio
