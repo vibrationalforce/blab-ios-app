@@ -39,8 +39,10 @@
 //  done, three layers deep". Headphone/IEM monitoring remains the zero-feedback path; on a
 //  speaker the defence is now duck (level) + notch (frequency), still no AEC.
 //
-//  All functions are allocation-free over caller-provided buffers, so the audio
-//  thread can call them directly (Accelerate does the FFT upstream).
+//  The free functions above the HowlDetector are allocation-free over caller-provided
+//  buffers, so the audio thread can call them directly (Accelerate does the FFT
+//  upstream). `HowlDetector` is the exception and says so at its declaration:
+//  control-plane only, bounded allocation, never from a render block.
 //
 
 import Foundation
@@ -131,9 +133,15 @@ public enum FeedbackGuard {
     /// earlier signature is different and FOURFOLD: one spectral peak that (1) dominates
     /// its local NEIGHBOURHOOD (not the whole spectrum — a bass note dominates globally),
     /// (2) PERSISTS at the same bin (±1 for FFT-leakage jitter) across consecutive
-    /// observations, (3) GROWS steadily (a regenerating loop always builds; a held note
-    /// does not), and (4) has NO harmonic partner at 2f (a voice or instrument does).
-    /// All four must hold — each one alone matches some musical signal.
+    /// observations, (3) GROWS across the track's life (endpoint ratio over a 3-bin
+    /// energy sum — the sum is leakage-invariant, so a stationary tone sitting between
+    /// two bins cannot fake growth out of scalloping; a windowed "grew over the last N
+    /// ticks" variant is registered for the wiring slice if the life-ratio proves too
+    /// eager on very slow swells), and (4) has NO harmonic partner at 2f AND no
+    /// SUBharmonic parent at f/2 (a voice or instrument has one or the other; the
+    /// subharmonic veto is what keeps a crescendo's own octave from forming a clean
+    /// track of its own — #847 review finding 1). All must hold — each alone matches
+    /// some musical signal.
     ///
     /// ⚠️ NOT YET WIRED as of #847: this type has zero production callers — it is the
     /// brain only. The wiring slice (multi-band notch) consumes it from the existing
@@ -167,8 +175,12 @@ public enum FeedbackGuard {
             /// At the ~15 Hz guard tick, 4 ≈ 270 ms — well inside a howl's build-up,
             /// well past any transient.
             public var persistenceTicks: Int = 4
-            /// Veto: energy at 2×bin above this fraction of the peak = a musical note.
+            /// Veto: energy at 2×bin (±1 — an off-bin note's harmonic lands beside the
+            /// exact double) above this fraction of the peak = a musical note.
             public var harmonicMaxRatio: Float = 0.35
+            /// Veto: energy around bin/2 above this fraction of the peak = this peak IS
+            /// the harmonic of a musical note (a crescendo's octave), not a howl.
+            public var subharmonicMaxRatio: Float = 0.5
             /// Absolute floor — relative dominance over near-silence is not a howl.
             public var minMagnitude: Float = 0.001
             /// Bins below this are rumble/DC, never howl (the wiring additionally
@@ -220,13 +232,13 @@ public enum FeedbackGuard {
                 var t = track
                 t.bin = peaks[i].bin
                 t.ticksSeen += 1
-                t.lastMagnitude = peaks[i].magnitude
+                t.lastMagnitude = peaks[i].energy
                 next.append(t)
             }
             for i in peaks.indices where !claimed[i] {
                 next.append(Track(bin: peaks[i].bin, ticksSeen: 1,
-                                  firstMagnitude: peaks[i].magnitude,
-                                  lastMagnitude: peaks[i].magnitude))
+                                  firstMagnitude: peaks[i].energy,
+                                  lastMagnitude: peaks[i].energy))
             }
             if next.count > Self.maxTracks {
                 next.sort { $0.lastMagnitude > $1.lastMagnitude }
@@ -248,15 +260,35 @@ public enum FeedbackGuard {
             return out
         }
 
-        private struct Peak { let bin: Int; let magnitude: Float }
+        private struct Peak {
+            let bin: Int
+            /// 3-bin energy (i−1 + i + i+1, finite parts) — the growth quantity.
+            /// Leakage-invariant: a stationary tone between two bins sloshes magnitude
+            /// between them but keeps the sum, so scalloping cannot fake growth
+            /// (#847 review finding 2).
+            let energy: Float
+        }
 
-        /// Signatures (1) and (4): locally dominant, harmonic-free peaks above the
-        /// absolute floor. Non-finite bins are invisible — skipped as a peak, excluded
-        /// from every mean, vetoing nothing.
+        /// Signatures (1) and (4): locally dominant peaks above the absolute floor with
+        /// neither a harmonic partner nor a subharmonic parent. Non-finite bins are
+        /// invisible — skipped as a peak, excluded from every mean and sum, vetoing
+        /// nothing.
         private func localPeaks(in magnitudes: [Float]) -> [Peak] {
             let n = magnitudes.count
             let lo = Swift.max(1, config.minBin)
             guard n > lo + 1 else { return [] }
+            // Strongest finite magnitude in bins [a, b] ∩ [0, n), or 0 for an empty/
+            // poisoned window — shared by both veto reads below.
+            func windowMax(_ a: Int, _ b: Int) -> Float {
+                let low = Swift.max(0, a)
+                let high = Swift.min(n - 1, b)
+                guard low <= high else { return 0 }
+                var best: Float = 0
+                for j in low...high where magnitudes[j].isFinite {
+                    best = Swift.max(best, magnitudes[j])
+                }
+                return best
+            }
             var found: [Peak] = []
             for i in lo..<(n - 1) {
                 let m = magnitudes[i]
@@ -278,13 +310,23 @@ public enum FeedbackGuard {
                 guard count > 0 else { continue }
                 let mean = sum / Float(count)
                 guard mean > 0, m >= mean * config.dominanceRatio else { continue }
-                // Harmonic veto: strong energy at 2f = a musical note, not a loop.
-                let h = i * 2
-                if h < n {
-                    let hv = magnitudes[h]
-                    if hv.isFinite, hv > m * config.harmonicMaxRatio { continue }
+                // Harmonic veto: strong energy around 2f = a musical note, not a loop.
+                // ±1 because an off-bin note's harmonic lands BESIDE the exact double
+                // (#847 review finding 3).
+                if i * 2 - 1 < n, windowMax(i * 2 - 1, i * 2 + 1) > m * config.harmonicMaxRatio {
+                    continue
                 }
-                found.append(Peak(bin: i, magnitude: m))
+                // Subharmonic veto: strong energy around f/2 means THIS peak is the
+                // octave of a musical note mid-crescendo — the review's sharpest false
+                // positive (finding 1): without this, the fundamental is vetoed but its
+                // own 2nd harmonic builds a clean track and gets notched, audibly
+                // thinning the voice.
+                let s = i / 2
+                if s >= lo, windowMax(s - 1, s + 1) > m * config.subharmonicMaxRatio {
+                    continue
+                }
+                let e = (left.isFinite ? left : 0) + m + (right.isFinite ? right : 0)
+                found.append(Peak(bin: i, energy: e))
             }
             return found
         }

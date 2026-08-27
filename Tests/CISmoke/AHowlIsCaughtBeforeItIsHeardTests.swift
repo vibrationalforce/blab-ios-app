@@ -13,9 +13,10 @@
 // (`if ducking,` — pinned by `TheNotchIsSlewedAndMonitorOnlyTests`, which the wiring slice
 // must move). By then the beep is audible. A howl's actual signature appears EARLIER and
 // is narrowband: ONE stationary spectral peak, dominating its neighbourhood, growing
-// steadily across ticks, with NO harmonic partner — a sung note has harmonics, a howl does
-// not. The detector encodes exactly those four signatures, so the wiring slice can notch
-// at low level, before audibility.
+// across ticks (3-bin energy, so FFT scalloping cannot fake growth), with NO harmonic
+// partner at 2f and NO subharmonic parent at f/2 — a sung note has one or the other, a
+// howl has neither. The detector encodes exactly those signatures, so the wiring slice
+// can notch at low level, before audibility.
 //
 // ⚠️ SLICE BOUNDARY, stated so the header cannot lie the #298 way: as of THIS slice the
 // detector has ZERO production callers — it is the brain only, wired by the follow-up
@@ -23,13 +24,16 @@
 // `ringingBin`, not this type; the FeedbackGuard header says "not yet wired" about the
 // detector and the wiring slice moves BOTH together.
 //
-// ⭐ GRADING (§3, against parent 0a7eb88): this file names `HowlDetector`, created by this
-// same commit — against the parent the file DOES NOT COMPILE, so no assertion has a
-// verdict there (hand-transcribed instead: the detector algorithm was re-implemented in
-// Python and driven over every vector below against the worktree implementation; all
-// expectations are derived by algebra, #442/#686 — a CI round trip is a lottery ticket,
-// not a check). Test 8's duck/slew assertions are COUNTERWEIGHTS, green on both trees:
-// this slice must not disturb the level half or the slew law.
+// ⭐ GRADING (§3). Two commits share this file. Against #847's parent (0a7eb88) it named
+// a symbol that did not exist — no verdict there, hand-transcribed in Python instead
+// (every expectation derived by algebra, #442/#686 — a CI round trip is a lottery
+// ticket, not a check). Against the FOLLOW-UP's parent (cb0acc0, the first cut of the
+// detector): `testAHarmonicRichCrescendoIsVetoedOnBothPartials` is ONE genuine
+// REGRESSION-witness — red there at tick 5, where the octave bin's clean track fired
+// (the #847 review's finding 1, reproduced in transcription before the fix). The poison
+// test's witness additions and every other vector are green on both trees; test 8's
+// duck/slew assertions are COUNTERWEIGHTS — no slice here may disturb the level half or
+// the slew law.
 
 import Foundation
 import XCTest
@@ -115,15 +119,20 @@ final class AHowlIsCaughtBeforeItIsHeardTests: XCTestCase {
     }
 
     /// A growing peak WITH a strong second harmonic is a crescendoing sung note, not
-    /// feedback — the harmonic veto must hold even though every other signature matches.
-    func testAHarmonicRichCrescendoIsVetoed() {
+    /// feedback — and BOTH halves of the pair stay silent: the fundamental falls to the
+    /// harmonic veto, and the harmonic itself falls to the SUBharmonic veto. Six ticks,
+    /// not four, on purpose: the #847 review proved the first version's octave bin built
+    /// a clean track and fired at tick 5 — one tick past where the test stopped looking
+    /// (#367: green for a reason other than its message).
+    func testAHarmonicRichCrescendoIsVetoedOnBothPartials() {
         var d = FeedbackGuard.HowlDetector(config: config())
-        for m in [0.1, 0.13, 0.16, 0.2] as [Float] {
+        for m in [0.1, 0.13, 0.16, 0.2, 0.24, 0.29] as [Float] {
             // 2 × bin 20 = bin 40 carries half the peak's energy — a voice, not a howl.
             XCTAssertTrue(d.observe(magnitudes: spectrum([20: m, 40: m * 0.5])).isEmpty,
-                          "energy at 2f above `harmonicMaxRatio` × peak is the VOICE " +
-                          "signature; the veto is what lets the detector act early " +
-                          "without notching singing")
+                          "a crescendo must notch NEITHER its fundamental (harmonic " +
+                          "veto) NOR its octave (subharmonic veto) — notching the 2nd " +
+                          "harmonic audibly thins the voice, the exact false positive " +
+                          "this ask is priced against")
         }
     }
 
@@ -189,11 +198,15 @@ final class AHowlIsCaughtBeforeItIsHeardTests: XCTestCase {
 
     // MARK: 4. Poison + the untouched neighbours
 
-    /// Non-finite magnitudes are skipped, never propagated, never a candidate.
+    /// Non-finite magnitudes are skipped, never propagated, never a candidate — while a
+    /// clean howl elsewhere in the SAME spectrum is still caught. The witness peak is
+    /// what keeps this from being vacuously green over an inert detector (#847 review
+    /// finding 7a: without it, an empty result satisfied every `allSatisfy`).
     func testNonFiniteMagnitudesCannotPoisonTheDetector() {
         var d = FeedbackGuard.HowlDetector(config: config())
-        for _ in 0..<6 {
-            var m = spectrum([20: 0.2])
+        let witness: [Float] = [0.1, 0.12, 0.15, 0.2, 0.25, 0.3]
+        for tick in 0..<6 {
+            var m = spectrum([50: witness[tick]])
             m[20] = .nan
             m[30] = .infinity
             let out = d.observe(magnitudes: m)
@@ -201,6 +214,14 @@ final class AHowlIsCaughtBeforeItIsHeardTests: XCTestCase {
                           "a poisoned bin must be invisible, not a candidate")
             XCTAssertTrue(out.allSatisfy { $0.severity.isFinite },
                           "severity reaches UI/log surfaces — non-finite must not escape")
+            if tick >= 3 {
+                XCTAssertEqual(out.map(\.bin), [50],
+                               "the clean growing peak must still be caught amid the " +
+                               "poison — a detector that goes inert under NaN would " +
+                               "pass the two checks above for the wrong reason")
+            } else {
+                XCTAssertTrue(out.isEmpty, "persistence still applies to the witness")
+            }
         }
     }
 

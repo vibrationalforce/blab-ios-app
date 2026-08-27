@@ -15315,3 +15315,19 @@ kürzeren Trust-Lücke.
   Counterweights grün auf beiden Bäumen. Pflicht-Review läuft asynchron (Spezial-Reviewer in
   dieser Umgebung nicht verfügbar → general-purpose mit Audio-Checkliste); Befunde folgen als
   Nachtrag-Commit (Muster #844).
+
+### #847b: Review-Befunde eingebaut (Nachtrag-Commit)
+
+- Pflicht-Review-Verdikt: „darf shippen", aber 4 Befunde VOR der Verdrahtung fällig — alle
+  jetzt drin: (1) **Subharmonisches Veto** (f/2±1 > 0.5×Peak = dieser Peak IST die Oktave
+  eines Crescendos; ohne das baute das 2f-Bin einen sauberen Track und feuerte bei Tick 5 —
+  in der Transkription reproduziert, alter Stand nachweislich rot am neuen 6-Tick-Test =
+  echter Regression-Zeuge). (2) **3-Bin-Energie** als Wachstums-Größe (Scalloping eines
+  Halb-Bin-Tons kann kein Wachstum mehr vortäuschen — eigener Slosh-Vektor beweist es).
+  (3) **Oberton-Veto liest 2f±1** (halb-binnige Noten behalten den Gesangs-Schutz).
+  (4) **#425-Header** repariert („All functions allocation-free" → nur die freien
+  Funktionen; AudioInputDoorTests-Anker unberührt, vom Reviewer verifiziert).
+  Tests gehärtet: Crescendo 6 Ticks + beide Partials, Poison-Test mit lebendem Zeugen
+  (Bin 50) statt vakuösem allSatisfy. Python-Transkription: 13/13 PASS (inkl. Alt-Stand-
+  Rot-Beweis). Registriert für die Verdrahtungs-Scheibe: windowed growth als Option,
+  Greedy-Matching-Randfälle (Review 6a/b, false-negative-Richtung, akzeptiert).
