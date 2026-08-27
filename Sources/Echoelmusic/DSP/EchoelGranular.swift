@@ -84,14 +84,15 @@ import Foundation
 /// file's clamps by `AGrainCannotClickOrRunAwayTests` claim 6 — so a widened row or a
 /// moved clamp fails in CI instead of lying to a player.
 ///
-/// ⛔ WHAT IS STILL MISSING, so this note does not flip to a rosier lie: **the door is
-/// in the FX panel, which processes the SYNTH. There is no vocal-path door yet.** The
-/// founder's ask was a vocal chain with a granular effect; since #839 (V1b-1) a
-/// mic-owned `EchoelFXChain` is mounted on the monitor insert — and #841 opened the
-/// HARMONIZER's door there, but THIS stage's `granularEnabled` stays off with no
-/// door: a singer's monitored voice still HEARS no granular stage. Its door is a
-/// follow-up slice (extend `MonitorVoicePreset` + the input-sheet section). Until
-/// then, cite this as a shipping effect FOR THE INSTRUMENT only.
+/// ⛔ RETIRED 2026-08-27 (#849b): the block that stood here said **"There is no
+/// vocal-path door yet … cite this as a shipping effect FOR THE INSTRUMENT only"**
+/// — true until #849 built exactly the door it predicted (extend
+/// `MonitorVoicePreset` + the input-sheet section, its own words). The ⭐ #849
+/// paragraph above is the current state. Kept inverted rather than deleted because
+/// #849 itself shipped with BOTH paragraphs standing — the new record above, this
+/// refutation below, the #425 shape in one header — and only the mandatory review
+/// caught it: adding a record does not retire the claim it supersedes; grep the
+/// WHOLE file for the old claim, not the paragraph you happen to be editing.
 ///
 /// ⚠️ The note that stood here said a preset recall would "silently drop" the state.
 /// That was backwards and is worth keeping visible: before #690, `apply(to:)` wrote

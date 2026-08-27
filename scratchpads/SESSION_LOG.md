@@ -15414,3 +15414,16 @@ kürzeren Trust-Lücke.
 - NEEDS-FOUNDER-VERIFY (an setVoiceGranular): Toggle an → Grain-Wolke unter der Stimme,
   nur Monitor; Mix/Grain/Pitch drehen; AUS → exakt der normale Monitor.
   Pflicht-Review folgt asynchron als Nachtrag (Muster #847b/#848b).
+
+## 2026-08-27 ~13:45 — #849b: Review-Nachtrag (Prosa)
+
+- Pflicht-Review (Audio-Thread-Linse): **Code in jeder mechanischen Hinsicht sauber** —
+  Audio-Thread-Gesetz clean (reset nur auf steigender Flanke, VOR dem Enable-Store sichtbar),
+  geteilter Push korrekt+vollständig, Kosten ehrlich ressourcenschonend (~2 Grains, disabled
+  = exakt 0), UI ohne Freeze-Leak, alle Nadeln zählen. EIN Pflicht-Befund (#425): mein #849
+  hat dem `EchoelGranular`-Kopf den ⭐-Türvermerk HINZUGEFÜGT, aber den 55 Zeilen tieferen
+  ⛔-Block („There is no vocal-path door yet") stehen lassen — Behauptung und Widerlegung in
+  einem Kopf. Invertiert statt gelöscht (Datei-eigener Stil), mit der Lehre: ein Vermerk
+  ersetzt den überholten nicht — die GANZE Datei nach der alten Behauptung greppen, nicht
+  nur den Absatz, den man editiert. LOW mitgenommen: `voiceHarmonyAvailable`-Doc sagt jetzt
+  „insert available, beide Sektionen, kein Granular-Zwilling bauen".

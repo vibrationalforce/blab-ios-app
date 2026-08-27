@@ -575,9 +575,11 @@ public final class AudioEngine {
     /// intervals, a granular shift is a continuous texture number, so the sheet
     /// gives it an `EchoelValueField`, not a named picker.
     var voiceGranularPitch: Float = 0 { didSet { pushVoicePreset() } }
-    /// True while the V1a/V1b insert node exists — the sheet hides the harmony
-    /// section when the factory failed, so no control can claim a stage that has
-    /// no host (`insert unavailable (…)` in the diag log says why).
+    /// True while the V1a/V1b insert node exists — the sheet hides the harmony AND
+    /// granular sections when the factory failed (#849: the name predates the second
+    /// door; it really means "insert available" — do not add a granular-specific
+    /// twin, both sections share this one condition), so no control can claim a
+    /// stage that has no host (`insert unavailable (…)` in the diag log says why).
     /// Deliberately reads `@ObservationIgnored` storage (#841 review LOW): the
     /// section's appearance is not observation-driven, which is acceptable because
     /// the factory completes during engine setup, long before the sheet can open;
