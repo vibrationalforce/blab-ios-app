@@ -4773,6 +4773,12 @@ struct EchoelStudioView: View {
                 // to a `Preset` a second time here. One owner, two callers — the
                 // `MIDIOutput.applyOutputPreferences()` shape, and the reason a stored choice and
                 // a live tap can never disagree.
+                // ⚠️ Since #292 Slice 5 this observer lives in a LAZY grid cell: a write to
+                // `masterCharacterRaw` from OUTSIDE this Picker while the cell is off-screen
+                // (two-column mode, scrolled away) would not reach the engine until relaunch.
+                // Unreachable today — the only other writer is the onAppear migration, which the
+                // launch path re-applies anyway (#744). A SECOND programmatic writer must call
+                // `applyPersistedPreset()` itself, not rely on this `.onChange`.
                 labeledRow("Tone") {
                     Picker("Tone", selection: $masterCharacterRaw) {
                         ForEach(AutoMixChain.Preset.allCases) { p in

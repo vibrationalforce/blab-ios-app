@@ -15242,3 +15242,16 @@ kürzeren Trust-Lücke.
 - ui-state-reviewer läuft asynchron; ein etwaiger Befund landet als Folge-Commit im selben
   Zyklusfenster. Geräteprobe (Querformat-Lesbarkeit) bleibt offen — Landscape ist ein Blick,
   kein Test.
+
+### #844-Nachtrag: ui-state-reviewer-Verdikt (asynchron, nach dem Push von f3e5e26)
+
+- SAUBER auf allen fünf Prüfachsen (Freeze-Gesetz inkl. Vorfahren-Audit, Modifier-Decke,
+  LazyVGrid-Nesting, Wächter per eigener Python-Transkription auf beiden Bäumen bestätigt,
+  ViewBuilder 7 von 10 Kindern — einer WENIGER als vorher). Zwei LOW-Befunde:
+  1. `.onChange(of: masterCharacterRaw)` sitzt jetzt in einer lazy Zelle — ein ZWEITER
+     programmatischer Schreiber würde bei abgescrollter Zelle verpuffen. Heute unerreichbar
+     (einziger anderer Schreiber = onAppear-Migration, vom Launch-Pfad ohnehin re-appliziert,
+     #744). → Bewusstseins-Kommentar an der Stelle (dieser Commit).
+  2. Nadel „spacing: 14 auf derselben Zeile wie AdaptiveCardGrid" bricht bei Mehrzeilen-Reformat
+     — akzeptiert-registriert, identisch zum MoodPanel-Präzedenz; der Helper XCTFailt mit
+     Reparatur-Anleitung.
