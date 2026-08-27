@@ -435,10 +435,6 @@ final class PolyDDSPBioTests: XCTestCase {
     }
 }
 
-// MARK: - Soundscape Engine Pipeline Tests (placeholder for new architecture)
-
-// TODO: Add SoundscapeEngine tests after full wiring
-
 // MARK: - Direct DDSP Bio-Reactive Tests
 
 @MainActor

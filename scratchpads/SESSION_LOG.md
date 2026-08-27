@@ -15214,3 +15214,13 @@ kürzeren Trust-Lücke.
   durch Messbefehle. Kein Wächter: memory/ ist prosa-frei von CI, ein Text-Scan wäre #491.
 - **Gates:** memory/+scratchpads-only ⇒ vierter Zustand (kein Lauf). Kein Code angefasst.
 - **Stand unverändert:** v426-Deploy + Granular-Tür warten auf das Founder-Ohr (v425-Probe).
+
+## 2026-08-27 ~00:05 (cron-Zyklus) — der letzte tote TODO ist raus (#843, Test-Hygiene)
+
+- `Tests/EchoelmusicTests/BioIntegrationTests.swift:438-440`: der EINZIGE TODO/FIXME/HACK-Treffer
+  im ganzen Sources+Tests-Baum („Add SoundscapeEngine tests after full wiring") plus sein
+  verwaister MARK-Platzhalter — beide zeigten auf die 2026-06-19 gelöschte SoundscapeEngine
+  (git grep -ln SoundscapeEngine -- Sources = 0). Ein Platzhalter für eine Architektur, die
+  nie kommt, ist eine Einladung, sie zu bauen. Entfernt; DirectDDSPBioTests direkt darunter
+  deckt den Nachfolge-Pfad. Kommentar-only, aber Tests/** ⇒ beide Gates laufen (Pfadfilter).
+- Kein Wächter (#364-Klasse: ein Scan gegen das Wort träfe historische Prosa in CISmoke).
