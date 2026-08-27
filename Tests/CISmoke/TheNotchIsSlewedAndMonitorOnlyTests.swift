@@ -15,10 +15,11 @@
 // un-notched, at low level, before audibility (founder: "es soll erst gar kein Piepsen
 // entstehen"). Four dynamic bands instead of one; the duck is the broadband last resort.
 //
-// ⚠️ HONEST LIMITS. 8 tests, 30 `XCTAssert*` statements (in file order,
-// 5+3+4+4+4+4+4+2 — the two `XCTUnwrap`s in test 6 also fail their test and sit
+// ⚠️ HONEST LIMITS. 9 tests, 35 `XCTAssert*` statements (in file order,
+// 5+3+4+4+4+4+4+2+5 — the two `XCTUnwrap`s in test 6 also fail their test and sit
 // deliberately outside this count, which counts assertions, not failure points;
-// #848 rewrote test 7 from 3 to 4 and owns this census per the rule below).
+// #848 rewrote test 7 from 3 to 4, #848b appended test 9, each owning its census
+// per the rule below).
 // ⛔ #658: this census read `28` and `5+3+4+4+4+3+3+2`, and BOTH halves were wrong —
 // #655 added a fourth `XCTAssertEqual` to test 6 (the uniqueness check on the renamed
 // `logMonitorOutcome("engine restart failed` anchor) and did not touch the header. The
@@ -28,10 +29,10 @@
 // THIS comment block", and writing the comment moved the raw count to 32 — a recipe
 // that its own edit falsifies is the #480 failure, one file later.)
 // A census is a measurement with a date on it; the commit that changes the count owns it.
-// Tests 1–4 are END-TO-END BEHAVIOUR on shipped pure types
-// (`FeedbackGuard.slewedNotchGainDB`, `MonitorTapWindow`); tests 5–8 are SOURCE-TEXT
-// SCANS of `AudioEngine.swift` — the graph calls sit on a `@MainActor` engine no test
-// host can run honestly. What no test here can prove: that the notch SOUNDS right,
+// Tests 1–4 and 9 are END-TO-END BEHAVIOUR on shipped pure types
+// (`FeedbackGuard.slewedNotchGainDB`, `MonitorTapWindow`, `sameBandHalfWidthHz`);
+// tests 5–8 are SOURCE-TEXT SCANS of `AudioEngine.swift` — the graph calls sit on a
+// `@MainActor` engine no test host can run honestly. What no test here can prove: that the notch SOUNDS right,
 // that it takes the whistle and not the voice on a real speaker — the device probe
 // (NEEDS-FOUNDER-VERIFY: speaker monitoring, provoke a howl, hear it die as a ramp).
 // ⚠️ KNOWN BLIND SPOT (#595 reviewer F1): the tap-count scan covers AudioEngine.swift
@@ -47,6 +48,13 @@
 // anchor absence (#486: the wiring did not exist), never for test 7's named reasons.
 // Every other test is untouched and green on both trees. Driven by transcription (§0);
 // the census above moved 29→30 in the same commit.
+//
+// ⭐ GRADING of #848b (§3): test 9 is a FORWARD guard — `sameBandHalfWidthHz` is
+// created by the same commit, so against its parent (fa21d28) the file does not
+// compile and no assertion has a verdict there; all five expectations were derived
+// by algebra and re-driven in Python against the worktree (§0, #442). Tests 1–8 are
+// COUNTERWEIGHTS for this slice: the predicate #848b widened (engaged-or-releasing,
+// windowed match) sits between test 7's needles, none of which pin it.
 //
 // ⭐ GRADING of the original #595 commit (historical). This file names `MonitorTapWindow` and `slewedNotchGainDB`, both
 // created by this same commit — against the parent tree the file DOES NOT COMPILE, so
@@ -239,6 +247,31 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
                                        in: engine), 1)
         XCTAssertEqual(codeOccurrences(of: "monitorMixer.outputVolume = base * factor",
                                        in: engine), 1)
+    }
+
+    // MARK: - 9. The same-band window (#848b, END-TO-END, pure)
+
+    /// `sameBandHalfWidthHz` is the WIDER of two arms. Every expectation here is exact
+    /// Float algebra (#442): binWidth 20, ratio 0.05, floor 1.5 → the absolute arm is
+    /// 30 (= 20 · 1.5), the relative arm is f · 0.05, and the crossover sits at exactly
+    /// f = 600 (600 · 0.05 = 30). Degenerate inputs collapse their arm to 0 — a fully
+    /// degenerate call returns a 0 window, which no positive distance satisfies.
+    func testTheSameBandWindowIsTheWiderOfItsTwoArms() {
+        XCTAssertEqual(FeedbackGuard.sameBandHalfWidthHz(
+            frequencyHz: 100, binWidthHz: 20, ratio: 0.05, binFloor: 1.5), 30,
+            "below the crossover the bin floor governs (F1: jitter > percentage)")
+        XCTAssertEqual(FeedbackGuard.sameBandHalfWidthHz(
+            frequencyHz: 1000, binWidthHz: 20, ratio: 0.05, binFloor: 1.5), 50,
+            "above the crossover the percentage governs")
+        XCTAssertEqual(FeedbackGuard.sameBandHalfWidthHz(
+            frequencyHz: 600, binWidthHz: 20, ratio: 0.05, binFloor: 1.5), 30,
+            "at the exact crossover both arms agree")
+        XCTAssertEqual(FeedbackGuard.sameBandHalfWidthHz(
+            frequencyHz: .nan, binWidthHz: 20, ratio: 0.05, binFloor: 1.5), 30,
+            "a poisoned frequency collapses ONLY the relative arm")
+        XCTAssertEqual(FeedbackGuard.sameBandHalfWidthHz(
+            frequencyHz: .nan, binWidthHz: 0, ratio: 0.05, binFloor: 1.5), 0,
+            "fully degenerate inputs yield a 0 window — nothing false-matches")
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)

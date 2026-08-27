@@ -15356,3 +15356,32 @@ kürzeren Trust-Lücke.
 - NEEDS-FOUNDER-VERIFY (neu, an applyNotchDefence): Lautsprecher-Howl provozieren — darf
   gar nicht erst hörbar piepsen („notch engaged" im Log); Singen/Pfeifen darf NICHT dünner
   werden. Pflicht-Review folgt asynchron als Nachtrag (Muster #847b).
+
+## 2026-08-27 ~12:30 — #848b: Review-Nachtrag zur Notch-Verdrahtung (F1/F2/F3; F4 registriert)
+
+- Pflicht-Review (Audio-/Concurrency-Linse, voller Commit + Live-Baum) kam zurück:
+  **kein Blocker, ship-quality für die Geräteprobe** — Audio-Thread-Gesetz sauber, CPU sane,
+  Log-Spam ok, Reset-Abdeckung vollständig, Guard-Ehrlichkeit bestätigt. Drei Befunde umgesetzt:
+- **F1 (MEDIUM):** ±6 % Same-Band-Fenster ist unter ~390 Hz enger als EIN FFT-Bin (23,4 Hz
+  bei 48 k) — der Detector lässt einen Track absichtlich ±1 Bin atmen, also verbrannte EIN
+  tieffrequenter Howl im Wechsel ZWEI Bänder. Fix: Fenster = MAX aus ±6 % und 1,5 Bins,
+  als pure `FeedbackGuard.sameBandHalfWidthHz` (Argumente ohne Defaults, #431; die zwei
+  Zahlen behalten ihre EINE Schreibweise in AudioEngine, #416). Transkription beweist die
+  Reparatur: Band ~281 Hz, Kandidat ±1 Bin → alt no-match, neu match; ±2 Bins bleibt draußen.
+- **F2 (LOW-MED):** ein RELEASENDES Band (hold 0, Gain noch < 0, ~0,4 s Rampe) war weder
+  refreshbar noch frei — ein zurückkehrender Howl nahm ein ZWEITES Band. Match-Prädikat
+  jetzt „engaged ODER releasing" (`holdTicks > 0 || gainDB < 0`); freie Bänder gehen
+  weiter durch den geloggten Frei-Pfad.
+- **F3 (Doc, #425):** AHowl-Testheader sprach noch im Präsens vom reaktiven `ducking`-Join —
+  past-tensed („until #848").
+- **F4 (INFO, NUR REGISTRIERT, kein Bau):** `MonitorTapWindow.copyLatest` hat kein
+  Frische-Gate — nach einem Engine-Halt OHNE `stop(reason:)` (Session-Interruption) läuft
+  der 60-Hz-Timer weiter und der Detector sieht ein eingefrorenes Spektrum; ein Track mit
+  Growth ≥ 1.25 parkt dann ein Band auf −24 dB (unhörbar, Engine steht; heilt bei `start()`
+  → `rearmInputMonitoring`). Gehört der Scheibe, die als Nächstes Interruption-Handling anfasst.
+- Wächter im selben Commit: `TheNotchIsSlewedAndMonitorOnlyTests` Test 9 (END-TO-END auf
+  der puren Funktion, 5 exakte Float-Algebra-Erwartungen #442, alle in Float32 nachgeprüft),
+  Zensus 30→35 (Rezept nachgemessen), #848b-Grading-Absatz (Test 9 = FORWARD, 1–8 =
+  Gegengewichte — keine Test-7-Nadel pinnt das geänderte Prädikat). Transkription 5/5 +
+  Prädikat-Simulation; dead-needles 0, reachability 0, Balance der Additionen sauber.
+- NICHT gebaut (weiter founder-gated): +3–5-Hz-Frequenzshift-Option; windowed-growth-Variante.

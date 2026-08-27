@@ -472,9 +472,16 @@ public final class AudioEngine {
     private static let notchHoldTickCount = 30
     /// ONE spelling of the notch depth (#416): engaged bands slew toward this.
     private static let notchDepthDB: Float = -24
-    /// Two candidate frequencies within ±6 % (≈ one semitone) are the SAME howl —
-    /// refresh that band instead of burning a second one.
+    /// Two candidate frequencies within the same-band window are the SAME howl —
+    /// refresh that band instead of burning a second one. The window is the WIDER of
+    /// ±6 % (≈ one semitone) and `notchToleranceBinFloor` FFT bins, joined in the pure
+    /// `FeedbackGuard.sameBandHalfWidthHz` (#848b review F1: below ≈ 390 Hz one bin
+    /// step exceeds 6 %, and the detector deliberately lets a track breathe ±1 bin —
+    /// a pure percentage made one low-mid howl alternate bins and burn TWO bands).
     private static let notchSameBandTolerance: Float = 0.06
+    /// The absolute arm of that window, in FFT bins (1 bin ≈ 23 Hz at 48 k/2048); 1.5
+    /// covers the detector's ±1-bin jitter with headroom for the clamp at the edges.
+    private static let notchToleranceBinFloor: Float = 1.5
     // VL3 (#599): in-key pitch correction ("tune to key") on the MONITOR path only —
     // the optional autotune-with-character the founder asked for. Chain when enabled:
     // input → notchEQ → voiceTunePitch → monitorMixer (disabled: the unchanged #595
@@ -2524,25 +2531,38 @@ public final class AudioEngine {
     }
 
     /// #848: assign detector candidates to the four dynamic notch bands and advance
-    /// every band's slew. A candidate within ±6 % of an ENGAGED band refreshes that
-    /// band (same howl breathing, not a second howl); otherwise it takes a free band —
-    /// ranked candidates first, so when howls outnumber bands the strongest are the
-    /// ones that get filters. MainActor, called only from the guard tick.
+    /// every band's slew. A candidate inside the same-band window of a band that is
+    /// ENGAGED **or still RELEASING** refreshes that band (same howl breathing — or
+    /// returning inside the ~0.4 s release ramp, #848b review F2: without the releasing
+    /// arm a re-detected howl in that window burned a SECOND band while the first was
+    /// still audible on the same frequency); otherwise it takes a free band — ranked
+    /// candidates first, so when howls outnumber bands the strongest are the ones that
+    /// get filters. MainActor, called only from the guard tick.
     /// NEEDS-FOUNDER-VERIFY: Lautsprecher-Monitoring, Howl provozieren (Mic Richtung
     /// Lautsprecher) — es darf GAR NICHT erst hörbar piepsen (Log zeigt „notch engaged
     /// … Hz"); danach normal singen und pfeifen — Stimme und Pfeifton dürfen NICHT
     /// dünner werden (kein fälschliches Notchen).
     private func applyNotchDefence(candidates: [FeedbackGuard.HowlDetector.Candidate]) {
         guard notchEQ.bands.count >= notchBands.count else { return }
+        let binWidthHz = monitorSpectrumFFT.size > 0
+            ? Float(monitorTapSampleRate / Double(monitorSpectrumFFT.size)) : 0
         for cand in candidates {
             let hz = FeedbackGuard.binToHz(cand.bin, fftSize: monitorSpectrumFFT.size,
                                            sampleRate: monitorTapSampleRate)
             // Clamp to the EQ's sane range: below ~40 Hz is rumble not howl, and the
             // band frequency must stay under Nyquist for the current input rate.
             let clamped = Float(Swift.min(Swift.max(hz, 40), monitorTapSampleRate * 0.45))
-            if let i = notchBands.indices.first(where: { notchBands[$0].holdTicks > 0
-                && abs(notchBands[$0].frequencyHz - clamped)
-                    <= notchBands[$0].frequencyHz * Self.notchSameBandTolerance }) {
+            if let i = notchBands.indices.first(where: {
+                let band = notchBands[$0]
+                // Engaged (holdTicks > 0) OR releasing (gain not yet back to 0) —
+                // both mean "this filter already sits on that frequency" (F2).
+                guard band.holdTicks > 0 || band.gainDB < 0 else { return false }
+                return abs(band.frequencyHz - clamped)
+                    <= FeedbackGuard.sameBandHalfWidthHz(
+                        frequencyHz: band.frequencyHz, binWidthHz: binWidthHz,
+                        ratio: Self.notchSameBandTolerance,
+                        binFloor: Self.notchToleranceBinFloor)
+            }) {
                 notchBands[i].frequencyHz = clamped
                 notchBands[i].holdTicks = Self.notchHoldTickCount
                 notchEQ.bands[i].frequency = clamped

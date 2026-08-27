@@ -8,10 +8,11 @@
 // it. That is a device probe and stays open (NEEDS-FOUNDER-VERIFY lives on the wiring
 // slice, not here).
 //
-// WHY THIS TYPE EXISTS. The shipped guard is REACTIVE: the broadband duck fires only when
-// RMS is already over 0.85 and rising, and the single notch engages only AFTER the duck
-// (`if ducking,` — pinned by `TheNotchIsSlewedAndMonitorOnlyTests`, which the wiring slice
-// must move). By then the beep is audible. A howl's actual signature appears EARLIER and
+// WHY THIS TYPE EXISTS. The guard it replaced WAS REACTIVE (until #848): the broadband
+// duck fires only when RMS is already over 0.85 and rising, and the single notch engaged
+// only AFTER the duck (the `ducking && ringingBin` join — retired by the wiring slice,
+// #848b review F3 past-tensed this paragraph). By then the beep was audible. A howl's
+// actual signature appears EARLIER and
 // is narrowband: ONE stationary spectral peak, dominating its neighbourhood, growing
 // across ticks (3-bin energy, so FFT scalloping cannot fake growth), with NO harmonic
 // partner at 2f and NO subharmonic parent at f/2 — a sung note has one or the other, a

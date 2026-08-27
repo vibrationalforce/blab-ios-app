@@ -137,6 +137,26 @@ public enum FeedbackGuard {
         return cur
     }
 
+    /// #848b (review F1): how far a candidate frequency may sit from an engaged notch
+    /// band's frequency and still be the SAME howl. A pure percentage breaks in the
+    /// low mids: one FFT bin is `sampleRate/fftSize` Hz (≈ 23 Hz at 48 k/2048), and the
+    /// detector deliberately lets a track breathe ±1 bin — below `binWidthHz / ratio`
+    /// (≈ 390 Hz at 48 k with ±6 %) a single bin step already exceeds the percentage
+    /// window, so one room-mode howl alternated bins and burned TWO bands. The window
+    /// is therefore the WIDER of the relative and the absolute arm; the absolute arm
+    /// governs below `binWidthHz · binFloor / ratio` (≈ 586 Hz for a 1.5-bin floor).
+    /// Arguments carry no defaults (#431 — the caller owns the one spelling of both
+    /// numbers). Pure, allocation-free; non-finite or negative inputs collapse to 0,
+    /// which no real frequency distance satisfies against a > 0 distance.
+    public static func sameBandHalfWidthHz(frequencyHz: Float, binWidthHz: Float,
+                                           ratio: Float, binFloor: Float) -> Float {
+        let f = (frequencyHz.isFinite && frequencyHz > 0) ? frequencyHz : 0
+        let w = (binWidthHz.isFinite && binWidthHz > 0) ? binWidthHz : 0
+        let r = (ratio.isFinite && ratio > 0) ? ratio : 0
+        let b = (binFloor.isFinite && binFloor > 0) ? binFloor : 0
+        return Swift.max(f * r, w * b)
+    }
+
     // MARK: - Early howl detection (#847 — founder 2026-08-27: "es soll erst gar kein
     // Piepsen entstehen")
 
