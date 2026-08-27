@@ -25,6 +25,12 @@ import Foundation
 /// the default spray against hundreds for a typical delay. Checking two constructor
 /// defaults would have cost less than writing the superlative three times.
 ///
+/// ⭐ ON THE SINGER'S MONITOR SINCE #849 (V1b-3): the mic-owned insert chain's
+/// instance of this stage got its door — "Granular texture" in the input sheet,
+/// default OFF, `MonitorVoicePreset.granular*` through the one apply path. Until
+/// then the stage was audible only on the SYNTH bus; the earlier "no audible path
+/// to his voice" prose in the register and the vocal-chain guard is retired.
+///
 /// ⭐ PERSISTED SINCE #690. All seven control-plane values round-trip through
 /// `FXPreset` — enabled, mix, grain length, density, spray, pitch, spread — at all
 /// seven sites that file needs, including `apply(to:)`, the one whose absence is

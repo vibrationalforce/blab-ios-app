@@ -551,16 +551,30 @@ public final class AudioEngine {
 
     // MARK: Voice harmony (#841, V1b-2) — the first AUDIBLE stage on the singer's
     // monitor insert. Session-local like the voiceTune settings above (deliberately
-    // not persisted). Every write funnels through `pushVoiceHarmony()` into the
+    // not persisted). Every write funnels through `pushVoicePreset()` into the
     // insert's ONE preset-apply path, so the #840 rate rebuild re-applies it.
     /// Observable so the input sheet's toggle reflects it. Default OFF — the insert
     /// stays provably neutral until the singer asks for harmony voices.
     private(set) var voiceHarmonyEnabled = false
     /// Harmony intervals in semitones (named choices in the sheet — `HarmonyInterval`).
-    var voiceHarmonyInterval1: Float = 4 { didSet { pushVoiceHarmony() } }
-    var voiceHarmonyInterval2: Float = 7 { didSet { pushVoiceHarmony() } }
+    var voiceHarmonyInterval1: Float = 4 { didSet { pushVoicePreset() } }
+    var voiceHarmonyInterval2: Float = 7 { didSet { pushVoicePreset() } }
     /// 0…1 wet mix of the harmony voices under the dry monitor.
-    var voiceHarmonyMix: Float = 0.5 { didSet { pushVoiceHarmony() } }
+    var voiceHarmonyMix: Float = 0.5 { didSet { pushVoicePreset() } }
+
+    // MARK: Voice granular (#849, V1b-3) — the SECOND audible stage, same shape as
+    // #841 in every discipline: session-local, default OFF, one shared push.
+    /// Observable so the input sheet's toggle reflects it. Default OFF.
+    private(set) var voiceGranularEnabled = false
+    /// 0…1 wet mix of the grain cloud under the dry monitor.
+    var voiceGranularMix: Float = 0.4 { didSet { pushVoicePreset() } }
+    /// Grain length in milliseconds (the FX panel's own granular row spans the same
+    /// 10…500 ms — the voice door mirrors it rather than inventing a second span).
+    var voiceGranularGrainMs: Float = 80 { didSet { pushVoicePreset() } }
+    /// Grain pitch shift in semitones. Genuinely NUMERIC — unlike the harmony
+    /// intervals, a granular shift is a continuous texture number, so the sheet
+    /// gives it an `EchoelValueField`, not a named picker.
+    var voiceGranularPitch: Float = 0 { didSet { pushVoicePreset() } }
     /// True while the V1a/V1b insert node exists — the sheet hides the harmony
     /// section when the factory failed, so no control can claim a stage that has
     /// no host (`insert unavailable (…)` in the diag log says why).
@@ -579,12 +593,31 @@ public final class AudioEngine {
     func setVoiceHarmony(_ on: Bool) {
         guard on != voiceHarmonyEnabled else { return }
         voiceHarmonyEnabled = on
-        pushVoiceHarmony()
+        pushVoicePreset()
         logMonitorOutcome("harmony \(on ? "on (i1 \(Int(voiceHarmonyInterval1)) st, i2 \(Int(voiceHarmonyInterval2)) st, mix \(String(format: "%.2f", voiceHarmonyMix)))" : "off")",
                           level: .info)
     }
 
-    private func pushVoiceHarmony() {
+    /// The granular door (#849) — the `setVoiceHarmony` shape: a setter owns the
+    /// transition; no graph rewire, the insert node is always in place.
+    /// NEEDS-FOUNDER-VERIFY: Mix-Chip → Choose input… → „Granular texture" AN —
+    /// eine schimmernde Grain-Wolke unter der eigenen Stimme, nur im Monitor?
+    /// Mix/Grain/Pitch drehen, dann AUS — wieder exakt der normale Monitor?
+    /// Log-Beleg: `monitor: granular on/off` im Diagnose-Export.
+    func setVoiceGranular(_ on: Bool) {
+        guard on != voiceGranularEnabled else { return }
+        voiceGranularEnabled = on
+        pushVoicePreset()
+        logMonitorOutcome("granular \(on ? "on (mix \(String(format: "%.2f", voiceGranularMix)), grain \(Int(voiceGranularGrainMs)) ms, pitch \(Int(voiceGranularPitch)) st)" : "off")",
+                          level: .info)
+    }
+
+    /// #841/#849: ONE push for the WHOLE voice preset. Both doors' setters and every
+    /// parameter `didSet` funnel through here, and the preset is rebuilt from ALL the
+    /// engine's voice-stage state — a push that carried only one stage's fields would
+    /// silently reset the OTHER stage on every unrelated edit (the clobber this
+    /// funnel exists to make impossible).
+    private func pushVoicePreset() {
         guard let unit = monitorInsertUnit?.auAudioUnit as? MonitorInsertAudioUnit else { return }
         var preset = MonitorVoicePreset()
         preset.harmonizerEnabled = voiceHarmonyEnabled
@@ -593,6 +626,11 @@ public final class AudioEngine {
         preset.interval1 = Swift.min(Swift.max(voiceHarmonyInterval1, -12), 12)
         preset.interval2 = Swift.min(Swift.max(voiceHarmonyInterval2, -12), 12)
         preset.mix = Swift.min(Swift.max(voiceHarmonyMix, 0), 1)
+        preset.granularEnabled = voiceGranularEnabled
+        // Same defense: clamps mirror the sheet's field ranges (the FX panel's spans).
+        preset.granularMix = Swift.min(Swift.max(voiceGranularMix, 0), 1)
+        preset.granularGrainMs = Swift.min(Swift.max(voiceGranularGrainMs, 10), 500)
+        preset.granularPitch = Swift.min(Swift.max(voiceGranularPitch, -24), 24)
         unit.applyVoicePreset(preset)
     }
 

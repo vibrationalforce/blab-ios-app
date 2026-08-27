@@ -86,6 +86,17 @@ public struct MonitorVoicePreset: Sendable, Equatable {
     /// 0…1 wet mix (`EchoelHarmonizer.mix`).
     public var mix: Float = 0.5
 
+    /// The granular texture stage on the singer's monitor (#849, V1b-3). Default OFF
+    /// (the neutral law) — the parameter defaults below only matter once he enables.
+    public var granularEnabled: Bool = false
+    /// 0…1 wet mix of the grain cloud (`EchoelGranular.mix`). The STAGE's own default
+    /// is 0 — an enabled stage would be silent — so the door carries an audible one.
+    public var granularMix: Float = 0.4
+    /// Grain length in milliseconds (`EchoelGranular.grainMilliseconds`).
+    public var granularGrainMs: Float = 80
+    /// Grain pitch shift in semitones (`EchoelGranular.pitchSemitones`).
+    public var granularPitch: Float = 0
+
     public init() {}
 }
 
@@ -179,16 +190,20 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
         return chain
     }
 
-    /// #841: the ONE place preset values reach a chain (#416) — used by the live
+    /// #841/#849: the ONE place preset values reach a chain (#416) — used by the live
     /// door (`applyVoicePreset`) and by the rate-swap rebuild, so a renegotiated
-    /// route can never silently reset the singer's settings to neutral. Parameters
-    /// first, the enable flag LAST: `harmonizerEnabled`'s own `willSet` resets the
-    /// stage on the rising edge, so it must see the final intervals/mix.
+    /// route can never silently reset the singer's settings to neutral. Per stage:
+    /// parameters first, the enable flag LAST — each `…Enabled`'s own `willSet`
+    /// resets its stage on the rising edge, so it must see the final values.
     private static func apply(_ preset: MonitorVoicePreset, to chain: EchoelFXChain) {
         chain.harmonizer.interval1 = preset.interval1
         chain.harmonizer.interval2 = preset.interval2
         chain.harmonizer.mix = preset.mix
         chain.harmonizerEnabled = preset.harmonizerEnabled
+        chain.granular.mix = preset.granularMix
+        chain.granular.grainMilliseconds = preset.granularGrainMs
+        chain.granular.pitchSemitones = preset.granularPitch
+        chain.granularEnabled = preset.granularEnabled
     }
 
     /// Control-plane door for the input sheet (#841). Stores the preset in the box

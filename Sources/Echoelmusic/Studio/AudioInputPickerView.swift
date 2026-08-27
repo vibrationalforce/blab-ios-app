@@ -397,6 +397,47 @@ struct AudioInputPickerView: View {
                             range: 0...1, decimals: 2)
                     }
                 }
+                // #849 (V1b-3) — the second audible stage: the granular texture the
+                // founder commissioned alongside the harmonizer. Same availability
+                // gate (no toggle over a stage with no host). All three parameters
+                // are genuinely NUMERIC — mix, grain length, pitch shift — so all
+                // three are EchoelValueFields; nothing here is a named choice. The
+                // ranges mirror the FX panel's own granular rows, not a new span.
+                if audioEngine.voiceHarmonyAvailable {
+                    HStack(spacing: 10) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Granular texture").font(EchoelTheme.font(13, .semibold))
+                                .foregroundStyle(EchoelTheme.text)
+                            Text("A shimmering cloud of short grains of your monitored voice under the dry signal — on the monitor only, the music is untouched.")
+                                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                                .fixedSize(horizontal: false, vertical: true)
+                        }
+                        Spacer(minLength: 8)
+                        Toggle("", isOn: Binding(
+                            get: { audioEngine.voiceGranularEnabled },
+                            set: { audioEngine.setVoiceGranular($0) }
+                        ))
+                        .labelsHidden()
+                        .accessibilityLabel("Granular texture")
+                    }
+                    if audioEngine.voiceGranularEnabled {
+                        EchoelValueField(
+                            label: "Mix",
+                            value: Binding(get: { audioEngine.voiceGranularMix },
+                                           set: { audioEngine.voiceGranularMix = $0 }),
+                            range: 0...1, decimals: 2)
+                        EchoelValueField(
+                            label: "Grain",
+                            value: Binding(get: { audioEngine.voiceGranularGrainMs },
+                                           set: { audioEngine.voiceGranularGrainMs = $0 }),
+                            range: 10...500, unit: "ms", decimals: 0)
+                        EchoelValueField(
+                            label: "Pitch",
+                            value: Binding(get: { audioEngine.voiceGranularPitch },
+                                           set: { audioEngine.voiceGranularPitch = $0 }),
+                            range: -24...24, unit: "st", decimals: 0)
+                    }
+                }
                 // #663 — THE NUMBER, next to the warning that motivates it. The founder asked
                 // for "alle Latenzen und Kombinationen optimiert für Sessions"; #653–#657 made
                 // that measurable but only inside `echoel_diag.log`, which answers after an

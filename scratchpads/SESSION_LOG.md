@@ -15385,3 +15385,32 @@ kürzeren Trust-Lücke.
   Gegengewichte — keine Test-7-Nadel pinnt das geänderte Prädikat). Transkription 5/5 +
   Prädikat-Simulation; dead-needles 0, reachability 0, Balance der Additionen sauber.
 - NICHT gebaut (weiter founder-gated): +3–5-Hz-Frequenzshift-Option; windowed-growth-Variante.
+
+## 2026-08-27 ~13:15 — #849 (V1b-3): die Granular-Tür auf der Stimme des Sängers
+
+- Founder-beauftragte zweite hörbare Stufe (2026-08-25 „Harmonizer und Granular…
+  ressourcenschonend"; V0 hält den Bau nicht an). Exakt die #841-Form: `MonitorVoicePreset`
+  + `granularEnabled/Mix/GrainMs/Pitch` (default AUS; Mix-Default 0.4, weil die STUFE
+  selbst mit 0 stumm wäre) · der EINE Apply-Pfad schreibt Parameter zuerst, Enable
+  zuletzt (willSet-Reset auf steigender Flanke) · Engine: `setVoiceGranular` (idempotent,
+  Diag `monitor: granular on/off`) · Input-Sheet: „Granular texture"-Sektion hinter
+  demselben Verfügbarkeits-Gate, Mix/Grain/Pitch als `EchoelValueField`s mit den
+  FX-Panel-Spannen (0…1 · 10…500 ms · ±24 st) — alles echt numerisch, keine Picker.
+- **Kern-Entscheid: `pushVoiceHarmony` → `pushVoicePreset`, EIN Push trägt BEIDE Stufen**
+  (ein Push mit nur einer Stufe hätte beim Toggeln der einen die andere still
+  zurückgesetzt — der Clobber, den Wächter-Claim 5 jetzt verbietet). Null externe
+  Referenzen auf den alten Namen (gemessen).
+- Wächter im selben Commit (§4): NEU `TheGranularCloudReachesTheSingersDoorTests`
+  (5 Claims: Apply-Reihenfolge · Setter-Idempotenz+Funnel · Sheet-Routing · Defaults-AUS ·
+  Anti-Clobber) · `TheVocalChainStopsAtTheAutotuneTests`: Register-Nadel „NOCH NICHT
+  HÖRBAR"→„SCHALTBAR seit #849", Kopf-Tabelle Granular→HIS VOICE, „TWO routed"-Satz
+  korrigiert (war schon seit #841 eine Tür zu alt — gegen die eigene Tabelle gezählt) ·
+  Harmony-Guard-Kopf past-tensed · CLAUDE.md Register-Zeile + Leiter (V1b-3 = ✅) ·
+  EchoelGranular-Kopf (⭐ on the singer's monitor since #849).
+- Transkription beider Bäume: Worktree alle PASS; Parent = EINE Abwesenheit (#486),
+  Harmony-Guard auf BEIDEN Bäumen grün (Rename bricht nichts), Builder-Set unverändert
+  (4 Dateien). dead-needles 0 · reachability 0 · Balance aller 6 Dateien sauber (echter
+  String/Kommentar-Stripper; der Schnell-Check meldete ein Artefakt).
+- NEEDS-FOUNDER-VERIFY (an setVoiceGranular): Toggle an → Grain-Wolke unter der Stimme,
+  nur Monitor; Mix/Grain/Pitch drehen; AUS → exakt der normale Monitor.
+  Pflicht-Review folgt asynchron als Nachtrag (Muster #847b/#848b).

@@ -27,8 +27,9 @@
 //                              used the half that is NOT on his voice as proof that it is.)
 //   Harmonizer   → HIS VOICE, SWITCHABLE since #841 (V1b-2): "Harmony voices" in the
 //                              input sheet, default OFF; mounted neutral since #839.
-//   Granular     → mounted (in the neutral chain, #839) but NO audible path yet —
-//                              its door is a follow-up slice; `granularEnabled` stays off.
+//   Granular     → HIS VOICE, SWITCHABLE since #849 (V1b-3): "Granular texture" in
+//                              the same sheet, default OFF. (Until #849 this row read
+//                              "NO audible path yet — its door is a follow-up slice".)
 //
 // The monitor graph is `input → notchEQ → [voiceTunePitch] → monitorMixer → [insert] →
 // masterMixer`. Since #839 the insert's render block feeds a mic-owned `EchoelFXChain`
@@ -38,7 +39,8 @@
 // `MonitorInsertAU.swift`, which is what claim 2 pins since #839 (it pinned total
 // absence from #701 to #839). The SOUNDING chain instances remain the two SYNTH voices
 // (+ two curated-library previews) — the harmonizer and the granular stage still
-// process the generated MUSIC; the singer hears them only after V1b-2.
+// process the generated MUSIC; on the singer's monitor each is heard only behind
+// its own default-off door (#841 harmony, #849 granular).
 //
 // ⭐ WHY THIS IS A REGISTER ENTRY AND NOT A BUG. Every outward-facing text is already
 // honest, checked line by line: the store release notes say "harmony voices above the
@@ -52,7 +54,10 @@
 // file is explicit, so the claim holds — but that row is the one outward text a reader could
 // misread as putting the harmonizer on the singer. The gap is INWARD: a session
 // skimming the #684–#692 build reports reads the granular chain as closed and carries that
-// over to the whole ask. FOUR of the four are built; TWO of them are routed to him.
+// over to the whole ask. FOUR of the four are built; since #849 all FOUR reach him —
+// the last two each behind its own default-off door (#841 harmony, #849 granular).
+// (This sentence read "TWO of them are routed" through #841 and #849's parent — it was
+// one door stale even then; counted against the table above, not from memory.)
 //
 // ⛔ THE FIRST VERSION QUOTED "Harmonizer shipped" + "Granular shipped" AS SESSION_LOG TEXT.
 // Neither string exists anywhere in the repo, and the passage it pointed at says the
@@ -235,11 +240,13 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
             written for — a session that cannot read it will re-derive "three of four are \
             done" from SESSION_LOG, which is true of BUILT and false of ROUTED.
             """)
-        XCTAssertTrue(claude.contains("Granular NOCH NICHT HÖRBAR auf ihm"), """
-            The register no longer says the granular stage has no audible path to \
-            his voice. If a granular door landed (the follow-up to #841), update this \
-            needle, the EchoelGranular header and the ladder line in the same commit \
-            (#456); if no door landed, the prose drifted and the prose is wrong.
+        XCTAssertTrue(claude.contains("Granular auf seiner Stimme SCHALTBAR seit #849"), """
+            The register no longer records that the granular stage is switchable on \
+            the singer's monitor (#849, default off — the door this needle's previous \
+            form, "Granular NOCH NICHT HÖRBAR auf ihm", waited for). Without it a \
+            session re-derives "granular not routed to him" and rebuilds the door \
+            that already exists. If the door was REMOVED, restore the old needle and \
+            the ladder line in the same commit (#456).
             """)
         XCTAssertTrue(claude.contains("Harmonizer auf seiner Stimme SCHALTBAR seit #841"), """
             The register no longer records that the harmonizer is switchable on the \

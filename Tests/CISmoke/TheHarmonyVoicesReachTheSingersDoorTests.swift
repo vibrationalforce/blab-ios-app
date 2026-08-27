@@ -7,8 +7,9 @@
 // (session-local, deliberately not persisted), a section in the existing input
 // sheet (the sheet chain does NOT grow), and ONE preset-apply path into the insert
 // that the #840 rate rebuild re-applies. DEFAULT OFF — the insert stays provably
-// neutral until the singer flips the toggle. Granular has no audible stage on the
-// voice yet (it needs its own slice; its `granularEnabled` stays off).
+// neutral until the singer flips the toggle. (Granular had no audible stage on the
+// voice until #849 gave it the same-shaped door — TheGranularCloudReachesTheSingersDoorTests;
+// the shared push means neither door can clobber the other's stage.)
 //
 // KIND (§1): SOURCE-TEXT SCANS throughout (the door is `private` view code; the
 // engine props live on a @MainActor @Observable the test host cannot drive
