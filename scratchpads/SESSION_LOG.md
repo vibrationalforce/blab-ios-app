@@ -15264,3 +15264,18 @@ kürzeren Trust-Lücke.
   steht NICHT im Fenster → Ausführung unbelegt (#445/#807); die Benotung trägt die
   Python-Transkription auf beiden Bäumen. f3e5e26s Compile-Check wurde durch den
   Folge-Push regulär gecancelt — 3e06c82 deckt denselben Baum ab.
+
+## 2026-08-27 ~03:05 (cron-Zyklus) — Board-Korrektur: V2 ist #654-gegated, nicht baubar (#845, docs-only)
+
+- Anlauf auf Vocal-Kette V2 (Latenz pro Stufe sichtbar) ergab: **die Messung existiert seit
+  #666/#832** (`AudioEngine.monitorInsertLatencyMilliseconds` — notch/tune/insert, je nur wenn
+  verbunden), und ihr eigener Doc-Block verhängt das Anzeige-Verbot: „Do NOT … show them to a
+  user until one real log has been read (#654's gate, still closed until then)" — ein
+  uninitialisierter AU meldet 0, und eine erfundene 0 auf dem Schirm ist schlimmer als ehrliche
+  Abwesenheit. Die Werte stehen bereits im Diag-Log-Breadcrumb; **das erste Founder-Log mit
+  `tune=`/`insert=`-Zeilen öffnet das Tor.**
+- **Konsequenz fürs Ultra-Grep-Board:** „V2 per-stage latency" wandert von open-buildable zu
+  **blocked-on-founder** (dasselbe v425-Log wie Deploy/Granular). V3 (BT default-off) bleibt
+  ohnehin gehalten, um die laufende Probe nicht zu verwässern. Gebaut wurde diesen Takt bewusst
+  NICHTS — der Ralph-Punkt ist die Register-Korrektur selbst, bevor eine Session gegen das
+  #654-Tor baut.
