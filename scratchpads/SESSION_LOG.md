@@ -15279,3 +15279,12 @@ kürzeren Trust-Lücke.
   ohnehin gehalten, um die laufende Probe nicht zu verwässern. Gebaut wurde diesen Takt bewusst
   NICHTS — der Ralph-Punkt ist die Register-Korrektur selbst, bevor eine Session gegen das
   #654-Tor baut.
+
+## 2026-08-27 ~05:05 (cron-Zyklus) — Issue #418 triagiert: Log-Bitte gepostet (#846)
+
+- GitHub-Issue #418 „echomusic Crash Report" (extern, dharmesh-10, 2026-07-21): leerer Body,
+  null Kommentare, nichts diagnostizierbar — seit fünf Wochen unbeantwortet. Vom Ultra-Grep-
+  Board als baubar verifiziert. Kommentar gepostet (issuecomment-5434604860): Bitte um
+  App-Version/Gerät, Repro-Schritte und Crash-Log (.ips via Settings→Analytics ODER
+  echoel_diag.log via Save/Export→Diagnostics), mit Zwei-Wochen-Hinweis auf Schließen als
+  not-reproducible. Kein Code, keine Zusagen, kein Founder-Gate berührt.
