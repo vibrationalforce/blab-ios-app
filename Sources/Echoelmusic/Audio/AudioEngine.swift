@@ -2252,7 +2252,9 @@ public final class AudioEngine {
             // monitoring and multitrack recording mutually exclusive on this bus (or
             // share one tap): started together, the recorder's `removeTap` silently
             // kills this tap while `monitorTapInstalled` stays true — the notch then
-            // reads a frozen window — and the monitoring-OFF path below would remove
+            // goes BLIND (#850: the frozen window is skipped via the write stamp, so
+            // bands decay while monitoring continues UNPROTECTED) — and the
+            // monitoring-OFF path below would remove
             // the RECORDER's tap mid-take. The mirror note sits at the recorder's
             // `installTap` site. ⛔ The first version of this comment said "this is the
             // ONLY tap on masterEngine.inputNode" — false in `Sources/`, reviewer #595.
@@ -2561,8 +2563,9 @@ public final class AudioEngine {
         if ducking != feedbackGuardActive { feedbackGuardActive = ducking }
 
         // #848: the NOTCH half is PREVENTIVE now (founder: "es soll erst gar kein
-        // Piepsen entstehen"). The FFT runs on EVERY guard tick while monitoring — not
-        // only while the duck fires — and `HowlDetector` decides which bands ring: its
+        // Piepsen entstehen"). The FFT runs on every guard tick WITH FRESH AUDIO
+        // while monitoring (#850: a frozen window is skipped via the write stamp) —
+        // not only while the duck fires — and `HowlDetector` decides which bands ring: its
         // four-signature join (neighbourhood dominance · persistence · growth · no
         // harmonic/subharmonic partner) is what keeps a loud clean note un-notched,
         // the protection the old `ducking && ringingBin` join provided REACTIVELY.

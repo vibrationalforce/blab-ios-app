@@ -15446,3 +15446,15 @@ kürzeren Trust-Lücke.
   (FORWARD; Tests 1–9 Gegengewichte, test 7s observe-Zählung unverändert).
   Transkription: Stamp-Algebra + Frozen-Loop (1 observe, Band released) OK; Zensus per
   Datei-Rezept 41; dead-needles 0; reachability 0; Balance 3/3 sauber.
+
+## 2026-08-27 ~14:35 — #850b: Review-Nachtrag (Prosa)
+
+- Pflicht-Review zu #850: **korrekt, lock-sauber, Race nur in der konservativen
+  Richtung** (push zwischen writeStamp und copyLatest → höchstens EINE Doppel-Beobachtung
+  desselben Fensters, nie ein Verlust) — kein Code-Follow-up. Vier LOW-Prosa-Stellen
+  behaupteten weiter „FFT auf JEDEM Guard-Tick": AudioEngine (#848-Kommentar + #204-
+  Spiegelnotiz, deren Folge-Klausel jetzt „geht BLIND, Monitoring läuft UNGESCHÜTZT
+  weiter" heißt), FeedbackGuard-WIRED-Banner, AHowl-Testkopf — alle auf „mit frischem
+  Audio (#850)" nachgeführt. Informativ registriert, kein Bau: ein Resume-Pfad ohne
+  Rearm (Config-Change bei gleicher Rate) lässt Detector-Tracks über die Lücke leben;
+  YIN-Pfad teilt den Stamp-Gate bewusst nicht (CPU-Nettigkeit, keine Korrektheit).

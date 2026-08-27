@@ -179,7 +179,8 @@ public enum FeedbackGuard {
     /// some musical signal.
     ///
     /// ⭐ WIRED since #848: `AudioEngine.updateFeedbackGuard()` feeds it the monitor
-    /// FFT on every guard tick and `applyNotchDefence` maps its candidates onto four
+    /// FFT on every guard tick with fresh audio (#850 skips a frozen window via the
+    /// tap window's write stamp) and `applyNotchDefence` maps its candidates onto four
     /// dynamic notch bands — the notch is no longer gated on the duck, which is the
     /// broadband last resort. (#847 shipped this type deliberately caller-less for one
     /// commit; that boundary note is retired with the wiring, #425.) Behaviour is

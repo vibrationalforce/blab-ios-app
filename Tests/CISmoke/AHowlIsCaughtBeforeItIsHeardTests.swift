@@ -20,8 +20,9 @@
 // can notch at low level, before audibility.
 //
 // ⭐ WIRED since #848: `AudioEngine.updateFeedbackGuard()` consults the detector on
-// every guard tick and `applyNotchDefence` maps candidates onto four dynamic notch
-// bands (shape pinned by `TheNotchIsSlewedAndMonitorOnlyTests` test 7).
+// every guard tick with fresh audio (#850: a frozen window is skipped) and
+// `applyNotchDefence` maps candidates onto four dynamic notch bands (shape pinned
+// by `TheNotchIsSlewedAndMonitorOnlyTests` test 7).
 // `AudioInputDoorTests`' two-way header guard watches `HowlDetector` as its wiring
 // proxy since the same commit. (#847 shipped the type deliberately caller-less for
 // one commit; that boundary note is retired with the wiring, #425.)
