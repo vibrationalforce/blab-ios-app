@@ -15784,3 +15784,17 @@ Frozen-Tap+YIN · #853/#853b Texture+Glitter · #853B Structure · #292 Slice 5 
 Slices 1–5b (Website/CLAIMS/Identität/In-App) · DMMW-Kommentar-Aufräumer · Site-Versionen
 10.22.0. Prüfbitten in den Notes: Monitor-Toggle-Torture (Leiter!), Autotune-Toggle, drei
 Bild-Regler, Diag-Log.
+
+## 2026-08-28 — #855: Latenz — die Buffer-Präferenz überlebt jetzt den Kategorie-Wechsel
+
+Founder („alle Latenzprobleme lösen") + sein v425-Log als Messung: `buf=23.0 ms` GRANTED
+auf der eingebauten Route gegen den 512-Frame-Default (10,7 ms). Ursache: `setCategory`
+(rauf UND runter) verhandelt den IO-Buffer neu, die beim Launch gesetzte Präferenz trägt
+nicht über den Wechsel. Fix: beide Übergangsmethoden re-assertieren die GEWÄHLTE Stufe
+nach dem Kategorie-Wechsel (Ablehnung loggt, bricht den Route-Claim nicht ab). KEIN
+#674-Verstoß: die Stufe bleibt Spielerwahl (Ultra/Low/Normal-Control existiert seit #674
+im Input-Sheet), nur der schon gewählte Wert wird der neuen Route wiederholt. Wächter:
+RecordRouteOwnershipTests.testBothCategoryMovesReassertThePreferredBuffer (Ordnung
+Kategorie→Re-assert, beide Methoden; transkribiert: PASS/PASS). Geräteerwartung: die
+nächste `latency:`-Zeile zeigt buf≈10.7 statt 23 auf der eingebauten Route; Ultra/Low
+drücken weiter darunter.

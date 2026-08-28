@@ -155,6 +155,39 @@ final class RecordRouteOwnershipTests: XCTestCase {
         }
     }
 
+    // MARK: - #855: both category moves re-assert the chosen IO-buffer tier
+
+    /// The founder's v10.79.425 log measured `buf=23.0` ms GRANTED on the built-in
+    /// route against the 512-frame (10.7 ms) default: a category change renegotiates
+    /// the IO buffer and the launch-time preference does not carry across it. Both
+    /// transition methods must repeat the CURRENT tier after `setCategory`. This is
+    /// not the #674 auto-drop trap — the tier itself stays the player's choice; only
+    /// the already-chosen value is re-asserted to the new route.
+    func testBothCategoryMovesReassertThePreferredBuffer() throws {
+        let config = try code("Sources/Echoelmusic/Audio/AudioConfiguration.swift")
+        for fn in ["static func upgradeToPlayAndRecord", "static func downgradeToPlaybackAfterRecording"] {
+            guard let start = config.range(of: fn) else {
+                XCTFail("`\(fn)` is gone — re-anchor this claim (§4).")
+                continue
+            }
+            let body = String(config[start.lowerBound...].prefix(1_400))
+            let cat = body.range(of: "setCategory(")
+            let reassert = body.range(of: "setPreferredIOBufferDuration(")
+            XCTAssertNotNil(cat, "`\(fn)` no longer changes the category in its first 1400 chars — re-anchor.")
+            XCTAssertNotNil(reassert, """
+                `\(fn)` no longer re-asserts the IO-buffer preference after its category \
+                change (#855). The next monitoring session then runs on whatever the OS \
+                renegotiates — the founder-measured 23 ms against a 10.7 ms choice.
+                """)
+            if let c = cat, let r = reassert {
+                XCTAssertTrue(c.lowerBound < r.lowerBound, """
+                    the re-assert in `\(fn)` sits BEFORE the category change — the OS \
+                    renegotiates after it and the preference is lost again (#855).
+                    """)
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     private func slice(of text: String, from: String, to: String) -> String {

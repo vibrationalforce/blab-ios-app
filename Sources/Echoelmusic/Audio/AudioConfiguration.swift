@@ -305,6 +305,16 @@ enum AudioConfiguration {
         guard audioSession.category != .playAndRecord else { return }
 
         try audioSession.setCategory(.playAndRecord, mode: .default, options: recordOptions)
+        // #855 (founder v425 log: `buf=23.0` ms GRANTED on the built-in route against
+        // the 512-frame/10.7 ms default): a category change renegotiates the IO
+        // buffer, and the preference set at launch does not carry across it. Re-assert
+        // the CURRENT tier after every category move — this changes no policy (#674:
+        // the tier stays the player's choice; this only repeats the choice to the new
+        // route). Requested-not-granted still applies; the latency breadcrumb reads
+        // the GRANTED value. A refusal must not abort the route claim, so it only logs.
+        do { try audioSession.setPreferredIOBufferDuration(
+                 Double(currentBufferSize) / preferredSampleRate) }
+        catch { log.audio("IO-buffer re-assert refused on upgrade (\(error))") }
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         log.audio("Audio session upgraded to .playAndRecord")
         #endif
@@ -332,6 +342,10 @@ enum AudioConfiguration {
         guard audioSession.category != .playback else { return }
         try audioSession.setCategory(.playback, mode: .default,
                                      options: [.allowBluetoothA2DP, .mixWithOthers])
+        // #855: same re-assert on the way DOWN — the playback route renegotiates too.
+        do { try audioSession.setPreferredIOBufferDuration(
+                 Double(currentBufferSize) / preferredSampleRate) }
+        catch { log.audio("IO-buffer re-assert refused on downgrade (\(error))") }
         // Deliberately NO setActive(false): the master output engine still needs the
         // session live — deactivating it here is exactly the silence bug this fixes.
         log.audio("Audio session downgraded to .playback (mic stopped)")
