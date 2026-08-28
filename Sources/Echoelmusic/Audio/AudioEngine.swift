@@ -2379,9 +2379,9 @@ public final class AudioEngine {
             // toggle paths, never the render thread, so the diag write is free.
             // And HYPOTHESIS #4 on this assert (#831 pause → #835 stop → #836 input
             // edge → now this): `stop()` halts rendering but KEEPS the engine's
-            // prepared state — #823's own measurement ("a paused I/O unit keeps its
-            // built configuration"; stop releases the unit, but the GRAPH's prepared
-            // converter chain survives until reset). `reset()` after the stop
+            // prepared state. (#823 MEASURED that for pause; that stop leaves the
+            // GRAPH's prepared converter chain alive is the un-measured half of
+            // this hypothesis — the ladder exists to falsify it.) `reset()` after the stop
             // releases that prepared state, so the disconnects and the later
             // playback-only restart operate on a cold graph — the launch-proven
             // shape. If the next log still carries the assert, its step breadcrumb
@@ -2520,11 +2520,11 @@ public final class AudioEngine {
         // branch, same crash family (this path was #835's surgery site and is as
         // silent-until-done as the OFF path was — a crash here and a crash there
         // are indistinguishable in a diag log without these lines).
-        logMonitorOutcome("tune \(on ? "on" : "off") 1/3: stop + reset for rewire", level: .info)
+        logMonitorOutcome("tune \(on ? "on" : "off") 1/4: stop + reset for rewire", level: .info)
         let wasRunning = masterEngine.isRunning
         if wasRunning { masterEngine.stop() }
         masterEngine.reset()
-        logMonitorOutcome("tune 2/3: rewiring", level: .info)
+        logMonitorOutcome("tune 2/4: rewiring", level: .info)
         if on {
             if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
             masterEngine.disconnectNodeOutput(notchEQ)
@@ -2536,6 +2536,13 @@ public final class AudioEngine {
             masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
         }
         if wasRunning {
+            // #854b (review MEDIUM): the restart gets its OWN rung. v10.79.424
+            // proved this assert family also fires INSIDE start() — an ObjC assert
+            // never reaches the Swift catch, so without this line a start-shaped
+            // death would read as "tune 2/4: rewiring" and the triage would blame
+            // the rewire. (The OFF path's restart self-logs in
+            // `restoreEngineIfStranded`; this is its missing twin.)
+            logMonitorOutcome("tune 3/4: restarting engine", level: .info)
             armTimingInstrument()
             do { try masterEngine.start() }
             catch {
@@ -2543,7 +2550,7 @@ public final class AudioEngine {
                 restartOrDegrade(after: "voice tune rewire")
             }
         }
-        logMonitorOutcome("tune 3/3: rewire done (\(on ? "on" : "off"))", level: .info)
+        logMonitorOutcome("tune 4/4: rewire done (\(on ? "on" : "off"))", level: .info)
         #endif
     }
 

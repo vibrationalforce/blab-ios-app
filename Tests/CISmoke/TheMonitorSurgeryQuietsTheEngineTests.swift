@@ -208,13 +208,17 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             XCTFail("setVoiceTune is gone — re-anchor this claim (§4).")
             return
         }
-        let tuneWindow = String(code[fn.lowerBound...].prefix(2_200))
+        // #854b: window covers through the restart rung (the ladder's last
+        // ObjC-asserting op); re-measure before shrinking.
+        let tuneWindow = String(code[fn.lowerBound...].prefix(2_600))
         var tCursor = tuneWindow.startIndex
         for step in ["logMonitorOutcome(\"tune ",
                      "masterEngine.stop()",
                      "masterEngine.reset()",
-                     "logMonitorOutcome(\"tune 2/3",
-                     "disconnectNodeOutput(notchEQ)"] {
+                     "logMonitorOutcome(\"tune 2/4",
+                     "disconnectNodeOutput(notchEQ)",
+                     "logMonitorOutcome(\"tune 3/4",
+                     "try masterEngine.start()"] {
             guard let r = tuneWindow.range(of: step, range: tCursor..<tuneWindow.endIndex) else {
                 XCTFail("""
                     setVoiceTune ladder broken at `\(step)` — same crash family as the \

@@ -15755,3 +15755,16 @@ Finish-Guard-Kopf jetzt beide Eltern mit GEMESSENEN Zahlen f63433e 92=92 · e5ae
 Baum 95=95; drei Both→Every-Testnamen, #374). Compile-verifiziert erst nach Gate-Lauf;
 GERÄTE-verifiziert erst durch Dein nächstes Log — Erwartung: Toggle überlebt, oder das Log
 nennt erstmals den Schritt.
+
+### Nachtrag #854b (Audio-Reviewer-Befunde)
+
+Reviewer auf #854: kein HIGH. Angewandt: (MEDIUM) der Autotune-NEUSTART bekommt eine
+eigene Sprosse „tune 3/4: restarting engine" — v424 bewies, dass die Assert-Familie auch
+IN start() feuert (ObjC-Assert erreicht den Swift-catch nie); ohne die Zeile läse sich ein
+Start-Tod als „rewiring". Leiter renummeriert 1/3→1/4 usw.; Wächter-Claim 4 um Sprosse+
+`try masterEngine.start()` erweitert (Fenster 2200→2600, gemessen); die über-gemessene
+#823-Satzhälfte im Kommentar als Hypothese markiert. Registriert (LOW, bewusst NICHT
+gebaut): reset() droppt AVAudioPlayerNode-Queues (pfad-still, da der Toggle-stop sie eh
+schweigt — vor einem „Audition-Dropout-Fix durch reset()-Entfernen" warnt der Review);
+Notch-Band-Parameter über reset() = Geräteannahme; „off 5/5" druckt nie (5/5 IST der
+Restore mit eigener Zeile — bei offWasRunning=false fehlt sie LEGITIM).
