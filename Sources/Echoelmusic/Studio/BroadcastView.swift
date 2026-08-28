@@ -34,7 +34,7 @@ struct BroadcastView: View {
         @Bindable var broadcast = broadcast
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Stream the live instrument straight from your phone — no laptop, no OBS. Your body, music, light and visuals go out together.")
+                Text("Destination setup for live streaming (RTMP/SRT). The streaming engine is not linked in this build — settings are saved, nothing goes out yet.")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
 
@@ -93,9 +93,10 @@ struct BroadcastView: View {
                 .buttonStyle(.plain)
                 .disabled(!broadcast.isConfigured)
 
-                Text("Tip: you can also turn broadcast on from the patchbay — connect a source to Broadcast (RTMP/SRT).")
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                    .fixedSize(horizontal: false, vertical: true)
+                // ⛔ A "turn broadcast on from the patchbay" tip stood here and was FALSE
+                // (brand audit 2026-08-28): the patchbay is a pure dataflow surface —
+                // `hasEnabledRoute(fromSource:)` has no production caller (BLE-3 lesson,
+                // SignalRouter.swift), so connecting a route starts nothing.
             }
             .padding(16)
         }

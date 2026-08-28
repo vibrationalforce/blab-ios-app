@@ -15647,3 +15647,23 @@ Ein Audit-Befund ist eine Frage, keine Diagnose.
 
 Guards: kein Needle berührt (grep über Tests/CISmoke: 2 Treffer, beide Kommentare);
 dead-needles.py OK (378 Dateien). Docs-only-Commit → Gates NOT TRIGGERED (nicht „grün").
+
+## 2026-08-28 — Brand-Audit Slice 5: In-App-Copy (Sources, 4 Dateien)
+
+- BioSourceView:155: „Body-driven brainwave stimulus (isochronic)" → „Body-driven isochronic
+  pulsing" — „brainwave" überclaimt einen neurologischen Effekt (Brand-Rotlinie); die Ansicht
+  ist türlos, aber Copy bleibt Claim-Fläche.
+- BroadcastView: Intro behauptet kein funktionierendes Streaming mehr (HaishinKit nicht
+  verlinkt, Package.swift dependencies leer) — jetzt „settings are saved, nothing goes out
+  yet"; der falsche Patchbay-Tipp („turn broadcast on from the patchbay") ist durch einen
+  ⛔-Kommentar ersetzt (hasEnabledRoute hat null Produktions-Aufrufer, BLE-3-Lehre).
+- BioMetricInfo:60: „your heart rate sets the energy and tempo" → konditional (Flow-Servo
+  vs. Loop-Lock, TEMPO INVARIANT T1/T2).
+- SignalRouter:162: Port-Name „Herzgurt (BLE)" → „Heart strap (BLE)" (einziger deutscher
+  Name in der englischen Port-Liste; Tests pinnen nur die ID `blehrs.in`).
+
+Guards: kein Needle berührt (grep Tests/ auf alle Alt-Strings = 0 Treffer); balance.py OK
+auf allen vier Dateien; dead-needles.py OK. Reviewer-Lauf angestoßen; Befunde folgen ggf.
+als Nachtrag-Commit. Gate-Verdicts der Vorgänger-Pushes gelesen (gh-test-verdict.py):
+9cfeed9 + b5c2c29 beide build-for-testing Succeeded, 0 beobachtete Failures/Skips,
+TEST EXECUTE FAILED = #396 (erwartet).

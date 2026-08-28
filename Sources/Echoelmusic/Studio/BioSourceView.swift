@@ -152,7 +152,7 @@ struct BioSourceView: View {
                                  set: { synth.entrainmentEnabled = $0 })) {
                 VStack(alignment: .leading, spacing: 1) {
                     Text("Entrainment").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
-                    Text("Body-driven brainwave stimulus (isochronic)")
+                    Text("Body-driven isochronic pulsing")
                         .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 }
             }

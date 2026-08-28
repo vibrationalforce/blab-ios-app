@@ -159,7 +159,7 @@ public final class SignalRouter {
             // source dropdown (`startBioSource`). See EchoelmusicApp.applyRouting.
             // `hasEnabledRoute(fromSource:)` consequently has NO production
             // caller today — do not re-derive a start hook from its existence.
-            SignalPort(id: "blehrs.in",   name: "Herzgurt (BLE)", kind: .controlBio,   direction: .source, transport: .bleHRS),
+            SignalPort(id: "blehrs.in",   name: "Heart strap (BLE)", kind: .controlBio,   direction: .source, transport: .bleHRS),
             // External outputs
             SignalPort(id: "midi.out",    name: "MIDI / MPE Out", kind: .note,         direction: .sink,   transport: .coreMIDI),
             SignalPort(id: "osc.out",     name: "OSC Out",       kind: .controlChange,  direction: .sink,   transport: .osc),
