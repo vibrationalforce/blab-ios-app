@@ -417,9 +417,10 @@ public final class AudioEngine {
         }
     }
     /// ONE definition each (#416). THE AUTHORITY LAW: while boosted, the duck's depth
-    /// is `FeedbackGuard.defaultMaxReductionDB + megaphoneBoostDB` — the guard must
-    /// always be able to undo MORE than the boost, or an amplified howl saturates at
-    /// unity gain and never comes down. The lower ceiling makes it react EARLIER
+    /// is `FeedbackGuard.defaultMaxReductionDB + megaphoneBoostDB + voicePresenceDB`
+    /// (#856b — the presence peak stacks on the boost in the same spectral region) —
+    /// the guard must always be able to undo MORE than the boost, or an amplified
+    /// howl saturates at unity gain and never comes down. The lower ceiling makes it react EARLIER
     /// while boosted; the notch half needs no change (it targets frequency, not level).
     nonisolated static let megaphoneBoostDB: Float = 12
     nonisolated static let megaphoneDuckCeiling: Float = 0.70
@@ -436,11 +437,18 @@ public final class AudioEngine {
     /// monitoring ON re-applies it (the #829 pattern).
     var voicePresenceDB: Float = 0 {
         didSet {
+            // Clamp-by-reassignment: under @Observable the synthesized setter re-fires
+            // didSet once with v == value, which then applies the band gain and
+            // terminates (worst-case depth 2, #856b).
             let v = min(max(voicePresenceDB.isFinite ? voicePresenceDB : 0, 0), 6)
             if v != voicePresenceDB { voicePresenceDB = v; return }
             guard notchAttached, notchEQ.bands.count > Self.presenceBand else { return }
             notchEQ.bands[Self.presenceBand].gain = v
-            logMonitorOutcome("presence \(String(format: "%.1f", v)) dB — #856", level: .info)
+            // Deliberately NO logMonitorOutcome here (#856b): the door is a DRAG field
+            // that live-applies every step — a per-step breadcrumb is MainActor file
+            // I/O at drag rate and buries the #854 surgery ladder in echoel_diag.log.
+            // The sibling inputMonitorGain drag makes the same choice; the discrete
+            // toggles (megaphone, telephone) still log.
         }
     }
 
@@ -2673,13 +2681,16 @@ public final class AudioEngine {
         monitorLevelHistory.append(level)
         if monitorLevelHistory.count > 8 { monitorLevelHistory.removeFirst() }
         // #829: while boosted, the guard reacts EARLIER (lower ceiling) and its
-        // authority exceeds the boost (default depth + boost — derived, never a
-        // second literal, #416). Unboosted, the call keeps the defaults untouched.
+        // authority exceeds the boost (default depth + boost + presence — derived,
+        // never a second literal, #416; presence joined in #856b because band 4 adds
+        // up to +6 dB in the same region). Unboosted, the call keeps the defaults
+        // untouched (presence alone stays under the default authority).
         let duckDB = megaphoneMode
             ? FeedbackGuard.gainReductionDB(rmsHistory: monitorLevelHistory,
                                             ceiling: Self.megaphoneDuckCeiling,
                                             maxReductionDB: FeedbackGuard.defaultMaxReductionDB
-                                                            + Self.megaphoneBoostDB)
+                                                            + Self.megaphoneBoostDB
+                                                            + voicePresenceDB)
             : FeedbackGuard.gainReductionDB(rmsHistory: monitorLevelHistory)
         let base = Swift.min(Swift.max(inputMonitorGain, 0), 1)
         let factor: Float = duckDB > 0 ? powf(10, -duckDB / 20) : 1

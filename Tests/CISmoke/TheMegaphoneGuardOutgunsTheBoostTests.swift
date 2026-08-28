@@ -138,10 +138,14 @@ final class TheMegaphoneGuardOutgunsTheBoostTests: XCTestCase {
         }
         let window = String(engine[duckSite.lowerBound...].prefix(600))
         XCTAssertTrue(window.contains("FeedbackGuard.defaultMaxReductionDB")
-                      && window.contains("+ Self.megaphoneBoostDB"), """
-            The duck authority is no longer DERIVED (default + boost). A literal here \
-            is a second spelling (#416) that silently decouples from a retuned boost — \
-            the exact path back to a guard that cannot undo the amplification.
+                      && window.contains("+ Self.megaphoneBoostDB")
+                      && window.contains("+ voicePresenceDB"), """
+            The duck authority is no longer DERIVED (default + boost + presence, \
+            #856b). A literal here is a second spelling (#416) that silently \
+            decouples from a retuned boost, and a derivation missing the presence \
+            term lets the stacked boost (megaphone + band-4 peak) outgrow the \
+            guard's worst-case depth — the exact path back to a guard that cannot \
+            undo the amplification.
             """)
     }
 
