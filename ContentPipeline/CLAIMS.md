@@ -10,7 +10,9 @@ entfernte zwölf falsche Behauptungen aus dem App-Store-Text — dort ist eine f
 Behauptung ein 2.3-Ablehnungsgrund („Accurate Metadata"). Ein Skript, das eine
 gestrichene Behauptung wieder einführt, macht diese Arbeit rückgängig.
 
-Stand: 2026-08-14 (EchoelVoice-Zeilen ergänzt, §11 neu). **Vor jeder neuen Kampagne
+Stand: 2026-08-28 (Brand-Audit: §12 korrigiert — Kohärenz-Trend ist seit #813 WAHR;
+✅-Zeilen für Harmonizer/Granular/Feedback-Schutz/Visual-Aufnahme/Beamer/Texture+Glitter
+ergänzt). **Vor jeder neuen Kampagne
 gegen `CLAUDE.md` „CURRENT STATE" und `docs/dev/FEATURE_MATRIX.md` gegenprüfen.** (Die Versionsnummer stand hier früher
 daneben und veraltete schneller als der Inhalt — sie belegte nichts, was das Datum
 nicht besser belegt.)
@@ -63,6 +65,12 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 | **Barrierefrei spielbar**: Notennamen International/Deutsch/Solfège, VoiceOver auf der Spielfläche, Atkinson Hyperlegible | #232 C/E, `EchoelValueField` |
 | **Deine Stimme wird die Klangfarbe des Instruments**: Ton halten („Voice timbre" → Capture), die gemessene Farbe spielt in den Synth-Stimmen; speicherbar im Patch UND im Take (Projekt-Save/Autosave/Live Colabo), immer MIT Namens-Label | EchoelVoice #591–#593 (ausgeliefert 10.79.391) + #600 Take-Hälfte (ausgeliefert 10.79.393, Build 2510, TestFlight-Lauf 31822323904 mit ASC-Verify), gebaut + verdrahtet + wächter-gepinnt, **Geräte-Verify offen — so kennzeichnen**. Formulierung siehe §11: MESSUNG, nie „Aufnahme" |
 | **Tonart-Werkzeuge für die Stimme**: „Tune to key" zieht das Mic-Monitor-Signal optional in die Session-Tonart (nur der Monitor, nie die Musik); „Follow the key" macht die Harmonizer-Stimmen diatonisch (Terz atmet mit der Tonart) | #599/#599b (ausgeliefert 10.79.391/392), Default AUS, Kammerton-treu; **Geräte-Verify offen — so kennzeichnen** |
+| **Harmoniestimmen auf deiner Stimme** (zwei benannte Intervalle + Mix, nur im Monitor, Default AUS) | #841, Tür im Input-Sheet („Harmony voices"); **Geräte-Verify offen — so kennzeichnen** |
+| **Granular-Textur auf deiner Stimme** (Grain-Wolke unter dem trockenen Signal, Mix/Grain/Pitch, nur im Monitor, Default AUS) | #849, Tür im Input-Sheet („Granular texture"); **Geräte-Verify offen — so kennzeichnen** |
+| **Feedback-Schutz, der Pfeifen VERHINDERT statt es wegzuducken**: vier dynamische Notch-Bänder greifen pro Frequenzband, bevor ein Howl hörbar wird; Breitband-Duck nur als letzte Verteidigung | #847/#848 (`HowlDetector` + Notch-Kette im Monitorpfad); **Geräte-Verify offen — so kennzeichnen** |
+| **Visual-Aufnahme + mp4-Export**: das laufende Visual wird auf dem Gerät aufgezeichnet und aus der Video-Bibliothek geteilt | `VisualRecorder` + `videoPanel` → `VideoLibraryPanelContent` |
+| **Beamer/Externer Bildschirm**: das Visual bespielt ein angeschlossenes Display als eigene Bühne, das Telefon bleibt Spielfläche | `ExternalDisplayScene` (#206) |
+| **Texture- und Glitter-Regler im Visual** (Korn-Tiefe + Glitzer-Menge, 0–2, Default = bisheriger Look) | #853, Fine-tune-Fläche; **Geräte-Verify offen — so kennzeichnen** |
 
 ---
 
@@ -254,14 +262,24 @@ Dir", „gemessen, nie aufgenommen". Nicht erlaubt: „AI voice", „clones your
 voice", „records you", „Autotune auf dem Track".*
 
 
-### 12. Atemtiefe, LF/HF und Kohärenz-TREND als Klang-Abbildung
-**Drei Bio-Kanäle bewegen heute NICHTS, und sie klingen in einer Caption besonders gut** —
-genau deshalb steht das hier. Gemessen: `breathDepth`, `lfHf` und `coherenceTrend` sind an
-BEIDEN Konstruktionsstellen (`BioReactiveSynthVoice`, `PolySynthVoice`) auf die Literale
-`0.5`, `0.5` und `0` festgenagelt. Der Atemtiefen-Faktor ist damit auf jedem Frame exakt
-1,0, `lfHfRatio` wird im Rumpf gar nicht gelesen, und der Spektral-Morph kommt nie aus
-seinem Deadband. `applyBioReactive` sagt es an der Stelle selbst: *„must not be claimed as
-live in any user-facing copy."*
+### 12. Atemtiefe und LF/HF als Klang-Abbildung — der Kohärenz-TREND ist seit #813 WAHR
+**Zwei Bio-Kanäle bewegen heute NICHTS, und sie klingen in einer Caption besonders gut** —
+genau deshalb steht das hier. Gemessen: `breathDepth` und `lfHf` sind an BEIDEN
+Konstruktionsstellen (`BioReactiveSynthVoice`, `PolySynthVoice`) auf das Literal `0.5`
+festgenagelt. Der Atemtiefen-Faktor ist damit auf jedem Frame exakt 1,0, und `lfHfRatio`
+wird im Rumpf gar nicht gelesen. `applyBioReactive` sagt es an der Stelle selbst: *„must
+not be claimed as live in any user-facing copy."*
+
+⛔ **Hier standen DREI Kanäle, und der dritte war beim Audit 2026-08-28 seit zwei Wochen
+falsch:** `coherenceTrend` hat seit **#813** einen echten Produzenten — `Core/CoherenceTrend`
+leitet aus der Kohärenz-HISTORIE eine Änderungsrate ab, und beide Konstruktionsstellen
+übergeben `coherenceTrend: trend` statt der Literal-0 (nachmessbar:
+`git grep -n "coherenceTrend: trend" -- Sources` → zwei Treffer). **„Der Kohärenz-Trend
+morpht die Klangform (steigend/fallend)" ist damit ERLAUBT** — mit der ehrlichen Fußnote,
+dass die SKALA des Effekts eine Schätzung ist (NEEDS-FOUNDER-VERIFY am Gerät). Diese Datei
+war die Fläche, die #813 NICHT mitzog, und sie hat damit vierzehn Tage einen wahren Claim
+verboten und eine widerlegte Messung behauptet — genau der Defekt, vor dem §5 warnt: eine
+widerlegbare Begründung entwertet auch ein richtiges Verbot.
 
 **Das ist die Behauptung mit den meisten Fundstellen in der Geschichte dieses Repos.** Sie
 wurde dreimal getilgt: #496 aus der App-Kopie (drei Wächter, alle lesen nur Swift), #755
@@ -277,10 +295,11 @@ nicht das Wort.
 **Was stattdessen stimmt — die geprüfte Vier-Kanal-Tabelle** (`AlwaysOnBioChannel.shapedParameters`):
 Kohärenz → Filter-Cutoff · Brillanz · Harmonizität · Rauschanteil ·
 HRV → Brillanz · Herzfrequenz → Vibrato (Tiefe UND Rate) · Brillanz ·
-Atem**phase** → die Amplituden-Schwelle. Daraus zitieren.
-*Erlaubt: „Dein Atem lässt den Klang anschwellen und wieder absinken". Nicht erlaubt:
-„Deine Atemtiefe formt das Rauschen", „LF/HF kippt das Spektrum", „der Kohärenz-Trend
-morpht die Form".*
+Atem**phase** → die Amplituden-Schwelle · **Kohärenz-Trend → Klangform-Morph (#813)**.
+Daraus zitieren.
+*Erlaubt: „Dein Atem lässt den Klang anschwellen und wieder absinken", „wird dein Körper
+ruhiger, verschiebt sich die Klangfarbe". Nicht erlaubt: „Deine Atemtiefe formt das
+Rauschen", „LF/HF kippt das Spektrum".*
 
 ---
 

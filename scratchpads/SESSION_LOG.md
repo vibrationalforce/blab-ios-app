@@ -15571,3 +15571,18 @@ kürzeren Trust-Lücke.
   · (5) In-App-LOWs (BioSourceView brainwave-Zeile, BroadcastView-Tipp, BioMetricInfo:60
   Konditional, Herzgurt-Portname) · Register: PLAN-Stempel (8 Dateien), decisions.csv
   181/197 superseded, docs/dev-Robots-Frage (founder-adjacent).
+
+## 2026-08-28 ~13:15 — Brand-Audit Slice 2: CLAIMS.md holt #813/#841/#849/#847/#853 ein
+
+- §12 umgeschrieben: ZWEI tote Kanäle (breathDepth/lfHf, beide 0.5-Literale, nachgemessen)
+  + datierte ⛔-Rücknahme: der Kohärenz-Trend ist seit #813 WAHR (zwei `coherenceTrend:
+  trend`-Stellen) — die Datei hatte 14 Tage einen wahren Claim verboten und eine widerlegte
+  Messung behauptet. Vier-Kanal-Tabelle → fünf Zeilen (Trend-Morph ergänzt).
+- ✅-Tabelle: 7 neue Zeilen (Harmony-Tür #841 · Granular-Tür #849 · präventiver
+  Feedback-Schutz #847/#848 · Visual-Aufnahme+mp4 · Beamer #206 · Texture+Glitter #853),
+  jede offene Geräteprobe als solche gekennzeichnet. Stand-Datum 2026-08-28.
+- Wächter mitgezogen (§4): `TheStoreTextClaimsOnlyWhatShipsTests` — die deutsche Nadel
+  „kohärenz-trend" stand einen Zyklus länger im dead-Array als ihr eigener Kommentar
+  erlaubte (locale-asymmetrisches #364, Audit-F3) — entfernt, Rücknahme im Kommentar;
+  `ContentPipelineClaimsTests` — Prosa von „drei tote" auf „zwei tote + einer wurde wahr",
+  Nadeln unverändert (alle vier transkribiert grün, Store-Copy beider Sprachen sauber).

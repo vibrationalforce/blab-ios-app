@@ -182,20 +182,24 @@ final class ContentPipelineClaimsTests: XCTestCase {
         }
         let lower = claims.lowercased()
 
-        // The three channels, in the words a German caption would actually use.
+        // The channel names, in the words a German caption would actually use. Since the
+        // 2026-08-28 brand audit §12 carries TWO dead channels (breathDepth, lfHf — both
+        // pinned to 0.5 literals at both construction sites) AND the retraction that made
+        // the third TRUE: coherenceTrend has a real producer since #813, so "kohärenz-trend"
+        // must stay named as the ALLOWED mapping, not vanish with the ban.
         //
-        // ⚠️ "kohärenz-trend" AND NOT "trend", measured before it was written: every one of
-        // this file's occurrences of all three needles sits inside section 12 today, but bare
-        // "trend" is an ordinary word — a future section mentioning any trend would satisfy it
+        // ⚠️ "kohärenz-trend" AND NOT "trend", measured before it was written: bare "trend"
+        // is an ordinary word — a future section mentioning any trend would satisfy it
         // while section 12 was gone, i.e. the needle would stop being able to go red for its
         // named reason (#367). The compound cannot be satisfied by accident.
         for term in ["atemtiefe", "lf/hf", "kohärenz-trend"] {
             XCTAssertTrue(lower.contains(term), """
-                ContentPipeline/CLAIMS.md no longer names "\(term)". All three producerless bio \
-                channels (breathDepth, lfHf, coherenceTrend) are pinned to literals at both \
-                construction sites, so a caption claiming any of them as a mapping is false. If \
-                a real producer was wired, wire it, then rewrite the section and this test in \
-                the same commit — do not simply delete the entry.
+                ContentPipeline/CLAIMS.md no longer names "\(term)". Section 12 must keep all \
+                three names: breathDepth and lfHf as the DEAD mappings (pinned to literals at \
+                both construction sites — a caption claiming them is false), and the coherence \
+                trend as the LIVE one (#813) so a writer knows it moved sides rather than \
+                finding silence. If the truth changes again, rewrite the section and this test \
+                in the same commit — do not simply delete an entry.
                 """)
         }
 

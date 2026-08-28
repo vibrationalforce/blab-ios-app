@@ -282,7 +282,7 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
             """)
     }
 
-    /// The three producerless channels must not be named as drivers anywhere in the store text.
+    /// The two producerless channels must not be named as drivers anywhere in the store text.
     ///
     /// ⚠️ Unlike the website guard (#755), there is no "not mapped yet" row to protect here —
     /// store copy sells what ships, it does not carry a roadmap table. So the channel NAMES are
@@ -293,8 +293,13 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
         // ⛔ "coherence trend" LEFT THIS LIST WITH #813 — it has a producer now, so banning the
         // words from store copy would forbid a true claim (#364). Still dead, still banned: the
         // breath-depth and LF/HF pair.
+        // ⛔ AND THE GERMAN HALF STAYED A CYCLE TOO LONG: "kohärenz-trend" survived in this
+        // array while the comment above said the claim had left it — a truthful de-DE sentence
+        // would have failed the gate that its English twin passed. Removed by the 2026-08-28
+        // brand audit; a locale-asymmetric ban is the same #364 defect wearing a flag.
+        // "spectral tilt"/"spektrale neigung" stay: they name the LF/HF MAPPING, which is dead.
         let dead = ["breath depth", "atemtiefe", "lf/hf", "lf-hf",
-                    "kohärenz-trend", "spectral tilt", "spektrale neigung"]
+                    "spectral tilt", "spektrale neigung"]
         var offenders: [String] = []
         for file in try storeCopy() {
             let flat = file.text.lowercased()
@@ -307,7 +312,8 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
             \(offenders.joined(separator: ", ")). Both are pinned to literals at both \
             `BioParams`/`PolyBioParams` construction sites (`breathDepth: 0.5`, `lfHf: 0.5`). \
             It was THREE until #813 gave the coherence trend a real producer, which is why \
-            "coherence trend" left the banned list rather than being reworded. \
+            "coherence trend" (and, one cycle late, "kohärenz-trend") left the banned list \
+            rather than being reworded. \
             The audited in-app truth table is \
             `AlwaysOnBioChannel.shapedParameters`: coherence → filter cutoff · brightness · \
             harmonicity · noise; HRV → brightness; heart rate → vibrato · brightness; \
