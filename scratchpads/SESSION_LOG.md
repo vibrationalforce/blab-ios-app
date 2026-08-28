@@ -15868,3 +15868,31 @@ tail-200, mehr behauptet niemand). Deploy: .deploy/release → v10.79.427 (Notes
 Latenz mit Geräteerwartung buf≈10.7 · #856 Presence · #857 Telephone inkl.
 Lossless-Zusicherung · Apple-Kontingent-Hinweis). v426-TestFlight-Verify davor: Lauf
 33176484386 = echter Upload-Erfolg.
+
+## 2026-08-28 — #858: Die Tune-Chirurgie ist abgeschafft (5. Crash-Log, Leiter hat geliefert)
+
+Founder-Log v10.79.427 (2545): ZWEI Siege + der entscheidende Befund. Siege: #855
+verifiziert am Gerät (`latency: … buf=10.7` statt 23!) und `telephone on — #857` lief
+crashfrei. Befund: `tune on 1/4 → 2/4 → 3/4: restarting engine → CRASH
+isInputConnToConverter`. Die #854-Leiter hat nach vier blinden Logs zum ersten Mal den
+sterbenden Schritt benannt: der Assert feuert IN `masterEngine.start()` nach dem Rewire,
+als ObjC-Exception, für Swift unfangbar — TROTZ stop()+reset().
+
+Fünf Logs, vier widerlegte Quieting-Strategien (v421 ohne / v422 pause / v425 stop /
+v427 stop+reset): der ZYKLUS stop→rewire→start auf der Input-Kette ist der Defekt,
+nicht die Quieting-Tiefe. #858 = Struktur statt Hypothese Nr. 5: `voiceTunePitch` wird
+vom Monitoring-ON-Aufbau IMMER fest verdrahtet (bypass = !voiceTuneEnabled, pitch 0);
+`setVoiceTune` ist nur noch ein Bypass-Flip — dieselbe Live-Parameter-Klasse wie der
+Telefon-Band-Bypass, der im selben v427-Log Sekunden vor dem Crash bewiesen lief. Der
+einzige verbleibende start() ist der des ON-Aufbaus (5 Builds gerätebewiesen). Die
+Latenz-Diagnose meldet die tune-Stufe jetzt IMMER (auch bypassed) — das nächste
+Founder-Log misst, ob der bypasste Vocoder Latenz kostet. Falls ja: Fallback =
+Parallel-Zweig mit Crossfade (registriert, nicht gebaut).
+
+Wächter im selben Commit (§4): TheMonitorSurgeryQuietsTheEngine Claim 2 INVERTIERT
+(setVoiceTune muss chirurgiefrei sein: bypass-Flip vorhanden, stop/reset/start/
+disconnect/connect verboten), Claim-4-Tune-Leiter gelöscht (Leiter über gelöschte Ops
+wäre #367); TheVoiceTuneSnapsToTheSessionKey Zähler 2→1/2→1/3→2/2→0 + zwei
+Bypass-Pins; TheNotchIsSlewedAndMonitorOnly Direktverbindung 2→0. OFF-Leiter bleibt
+(diese Chirurgie existiert weiter). Transkription: 37/37 grün, dead-needles sauber.
+Gerät offen: Tune-Toggle-Folter crashfrei; tune=-Latenzwert im Log.

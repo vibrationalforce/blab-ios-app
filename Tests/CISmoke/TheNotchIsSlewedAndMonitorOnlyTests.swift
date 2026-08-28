@@ -153,8 +153,9 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
 
     // MARK: - 5–7. The wiring joins (SOURCE-TEXT)
 
-    /// Chain order: the mic goes THROUGH the notch into the monitor mixer, and the old
-    /// direct input→monitorMixer connect is gone — present, it would bypass the notch.
+    /// Chain order: the mic goes THROUGH the notch (and since #858 through the
+    /// permanently wired tune stage) into the monitor mixer, and the old direct
+    /// input→monitorMixer connect is gone — present, it would bypass the notch.
     /// ⛔ The notchEQ→monitorMixer count stood at 1 and went RED with #599, which added
     /// the voice-tune off-branch's restore of the same connect (setVoiceTune) — #599
     /// applied the §4 move-the-guard discipline to its OWN file and never grepped THIS
@@ -166,10 +167,13 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
         XCTAssertEqual(codeOccurrences(of: "connect(input, to: notchEQ, format: inFmt)",
                                        in: engine), 1)
         XCTAssertEqual(codeOccurrences(of: "connect(notchEQ, to: monitorMixer, format: inFmt)",
-                                       in: engine), 2,
-                       "the #595 build path AND the #599 setVoiceTune off-branch — "
-                       + "sibling guard TheVoiceTuneSnapsToTheSessionKeyTests pins the "
-                       + "same fact; the two counts must move together")
+                                       in: engine), 0,
+                       "RETIRED by #858: the notch reaches monitorMixer only through "
+                       + "the permanently wired (possibly bypassed) voice-tune stage — "
+                       + "a direct connect returning means the graph re-split into the "
+                       + "two shapes whose live rewire five device logs killed. Sibling "
+                       + "guard TheVoiceTuneSnapsToTheSessionKeyTests pins the same "
+                       + "count; the two must move together")
         XCTAssertEqual(codeOccurrences(of: "connect(input, to: monitorMixer", in: engine), 0,
                        "a surviving direct input→monitorMixer connect would bypass the notch "
                        + "— the mic reaches monitorMixer only through notchEQ (since #599 "

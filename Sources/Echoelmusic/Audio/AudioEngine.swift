@@ -569,7 +569,10 @@ public final class AudioEngine {
         guard isInputMonitoring else { return [] }
         var stages: [(String, Double)] = []
         if notchAttached { stages.append(("notch", notchEQ.auAudioUnit.latency * 1000)) }
-        if voiceTuneEnabled, voiceTuneAttached {
+        // #858: report whenever ATTACHED, not only enabled — the stage is now
+        // permanently in the chain and the BYPASSED cost is exactly the number
+        // the founder's next log must settle.
+        if voiceTuneAttached {
             stages.append(("tune", voiceTunePitch.auAudioUnit.latency * 1000))
         }
         // #832: the pass-through insert reports its own figure — expected 0, and the
@@ -2262,15 +2265,23 @@ public final class AudioEngine {
             monitorMixer.outputVolume = 0          // silent until connected, avoids a pop
             let outFmt = masterMixer.outputFormat(forBus: 0)
             masterEngine.connect(input, to: notchEQ, format: inFmt)
-            if voiceTuneEnabled {
-                if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
-                voiceTuneCorrector.reset()
-                voiceTunePitch.pitch = 0
-                masterEngine.connect(notchEQ, to: voiceTunePitch, format: inFmt)
-                masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)
-            } else {
-                masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
-            }
+            // #858: the tune stage is ALWAYS in the chain, BYPASSED while off — the
+            // fifth and structural answer to the isInputConnToConverter SIGABRT.
+            // Five founder logs (v421 no quieting, v422 pause, v424 input edge,
+            // v425 crash-before-restart, v427 "tune 3/4: restarting engine" — the
+            // ladder finally NAMED the dying op) proved that ANY stop-rewire-start
+            // cycle on the input-fed chain can assert inside start(), uncatchably.
+            // So the mid-session surgery is gone entirely: the toggle flips
+            // `bypass`, a live parameter write of the same class as the telephone
+            // band bypass — which ran crash-free in the very v427 log that killed
+            // the rewire. This build site is now the ONLY place the tune stage is
+            // wired, and the only start() left is the one this path has always done.
+            if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
+            voiceTuneCorrector.reset()
+            voiceTunePitch.pitch = 0
+            voiceTunePitch.bypass = !voiceTuneEnabled
+            masterEngine.connect(notchEQ, to: voiceTunePitch, format: inFmt)
+            masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)
             // #832 (V1a): the pass-through insert sits between the monitor mixer and the
             // master mixer — ONE connect site, untouched by the `setVoiceTune` rewires,
             // and at outFmt (stereo) so the V1b stage gets left/right pointers. The
@@ -2531,41 +2542,29 @@ public final class AudioEngine {
         #endif
     }
 
-    /// VL3 (#599): toggle the in-key correction stage. Rewires the LIVE monitor chain
-    /// when monitoring is on; otherwise it only stores the choice — the next
-    /// `setInputMonitoring(true)` builds the chain accordingly. NOT persisted, same
-    /// law as the monitoring toggle itself: tuning the monitor is a performance act —
-    /// and the monitoring-OFF path DISARMS it (sweep M1), so a later re-arm of
-    /// monitoring from any door never carries a tune no visible control admits to.
+    /// VL3 (#599) / #858: toggle the in-key correction stage. Since #858 this is a
+    /// BYPASS FLIP on a permanently wired stage — while monitoring is off it only
+    /// stores the choice, and the next `setInputMonitoring(true)` builds the chain
+    /// with the stage bypassed or live accordingly. NOT persisted, same law as the
+    /// monitoring toggle itself: tuning the monitor is a performance act — and the
+    /// monitoring-OFF path DISARMS it (sweep M1), so a later re-arm of monitoring
+    /// from any door never carries a tune no visible control admits to.
     ///
-    /// ⛔ The first version cited "graph edits while running are the #595/#299
-    /// pattern" — WRONG PRECEDENT (#599 review): #595's `setInputMonitoring` PAUSES
-    /// the engine before connecting and restarts after; #299 is session-category
-    /// claiming, not graph work.
-    /// ⛔ #831 — AND THE SECOND VERSION'S DEFENSE IS MEASURED FALSE. It read: this
-    /// method is "deliberately the OTHER documented pattern — dynamic reconfiguration
-    /// on a RUNNING engine — because there is no `start()` to fail here, and pausing
-    /// the master engine would hiccup the MUSIC", with "whether the live rewire
-    /// clicks audibly" left as the device probe. The founder's v10.79.421 device log
-    /// answered it: `required condition is false: false == isInputConnToConverter`,
-    /// SIGABRT, thrown synchronously out of a toggle's Binding set — rewiring the
-    /// input-fed chain through the time-pitch node (converter machinery) while the
-    /// engine renders is an ObjC assert no Swift catch can see. A bounded pause
-    /// hiccup beats the whole app dying; the surgery is now paused around, with the
-    /// `start()` failure path the old argument said did not exist.
-    /// ⛔ #835 — AND THE PAUSE HALF OF #831 IS MEASURED FALSE TOO. The founder's
-    /// v10.79.422 (2540) log — the build WITH #831 — carries the SAME assert,
-    /// again ~2 s after "megaphone on", again out of a toggle's Binding set. Of
-    /// the two #831 sites only this one still merely PAUSED, and #823's own
-    /// measurement says why that is not enough: `pause()` keeps the built I/O
-    /// unit (and its input converter) alive, so the connect through the
-    /// time-pitch node still races live converter machinery. The measured-SAFE
-    /// state is the one the ON path uses — `stop()` — proven on the same device
-    /// in the same log (`monitor: ON` at +14 s is stop → connect input chain →
-    /// start). So: STOP, not pause. Same symmetry as everywhere else: whoever
-    /// stopped restarts, and a failed restart hands over to `restartOrDegrade`.
-    /// Both branches stay straight-line between disconnect and connect, so no exit
-    /// leaves `notchEQ` outputless.
+    /// ⛔ #858 — THE SURGERY THAT LIVED HERE IS DELETED, after FIVE device logs
+    /// falsified four quieting strategies in a row: v421 live rewire (no quieting)
+    /// → SIGABRT; v422 pause() around it (#831) → same assert; v425 stop() (#835)
+    /// → crash BEFORE the restart, step unknown; v427 stop()+reset() with the #854
+    /// step ladder → the ladder finally NAMED it: "tune 3/4: restarting engine",
+    /// i.e. the assert fires INSIDE start() after the rewire, as an ObjC exception
+    /// no Swift catch can see. (#823 measured the pause half: pause() keeps the
+    /// built I/O unit and its input converter alive — which killed #831's theory
+    /// but, per v427, releasing them via stop()+reset() dies too.) Conclusion: it
+    /// is the stop-rewire-start CYCLE on an input-fed chain that asserts, not any
+    /// particular quieting depth. The stage
+    /// is therefore wired ONCE by the monitoring build path (see #858 there) and
+    /// this method touches parameters only. Do NOT reintroduce graph work here —
+    /// the guard pins this method surgery-free.
+    ///
     func setVoiceTune(_ on: Bool) {
         guard on != voiceTuneEnabled else { return }
         voiceTuneEnabled = on
@@ -2573,56 +2572,12 @@ public final class AudioEngine {
         voiceTunePitch.pitch = 0
         #if os(iOS)
         guard isInputMonitoring else { return }
-        // Same format SOURCE as the build path (`inputFormat(forBus: 0)`, #599 review
-        // LOW): mixing input- and output-format reads across the two wiring sites is
-        // the connect-time-exception seed after a mid-session hardware-rate change.
-        let inFmt = masterEngine.inputNode.inputFormat(forBus: 0)
-        // #835b (review LOW): monitoring can be FLAGGED on while the session is
-        // deactivated (`stop(reason:)` clears neither), and the node then reports
-        // the 0 Hz placeholder — a connect built from it raises an ObjC exception
-        // no Swift catch sees, the same family as the #835 assert. Store the
-        // choice only (the method's own contract for the monitoring-off case);
-        // the next monitoring ON builds the chain from a live format.
-        guard inFmt.sampleRate > 0, inFmt.channelCount > 0 else { return }
-        // #835: quiet the engine around the rewire — a STOP, not a pause. #831
-        // chose pause here ("no category change happens here") and the founder's
-        // v10.79.422 log falsified it: pause keeps the I/O unit's converter
-        // machinery live and the rewire still SIGABRTs. Stop releases it (#823).
-        // #854: same step breadcrumbs + stop-then-RESET as the monitoring-OFF
-        // branch, same crash family (this path was #835's surgery site and is as
-        // silent-until-done as the OFF path was — a crash here and a crash there
-        // are indistinguishable in a diag log without these lines).
-        logMonitorOutcome("tune \(on ? "on" : "off") 1/4: stop + reset for rewire", level: .info)
-        let wasRunning = masterEngine.isRunning
-        if wasRunning { masterEngine.stop() }
-        masterEngine.reset()
-        logMonitorOutcome("tune 2/4: rewiring", level: .info)
-        if on {
-            if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
-            masterEngine.disconnectNodeOutput(notchEQ)
-            masterEngine.connect(notchEQ, to: voiceTunePitch, format: inFmt)
-            masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)
-        } else {
-            masterEngine.disconnectNodeOutput(notchEQ)
-            if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
-            masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)
-        }
-        if wasRunning {
-            // #854b (review MEDIUM): the restart gets its OWN rung. v10.79.424
-            // proved this assert family also fires INSIDE start() — an ObjC assert
-            // never reaches the Swift catch, so without this line a start-shaped
-            // death would read as "tune 2/4: rewiring" and the triage would blame
-            // the rewire. (The OFF path's restart self-logs in
-            // `restoreEngineIfStranded`; this is its missing twin.)
-            logMonitorOutcome("tune 3/4: restarting engine", level: .info)
-            armTimingInstrument()
-            do { try masterEngine.start() }
-            catch {
-                logMonitorOutcome("voice tune rewire restart failed (\(error))")
-                restartOrDegrade(after: "voice tune rewire")
-            }
-        }
-        logMonitorOutcome("tune 4/4: rewire done (\(on ? "on" : "off"))", level: .info)
+        // #858: a PARAMETER write, not graph work. The stage is permanently wired
+        // by the monitoring build path; while off it is bypassed and parked at
+        // 0 cents. Same live-write class as the telephone band bypass and the
+        // ~15 Hz pitch writes — both device-proven on a rendering engine.
+        voiceTunePitch.bypass = !on
+        logMonitorOutcome("tune \(on ? "on" : "off") — bypass flip, no rewire (#858)", level: .info)
         #endif
     }
 

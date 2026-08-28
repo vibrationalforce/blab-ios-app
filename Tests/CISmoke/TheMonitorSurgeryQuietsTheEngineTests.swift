@@ -33,9 +33,23 @@
 // SIGABRT" fact itself is the founder's next device log. Comment lines stripped
 // (#491: the retraction docs quote the old defense).
 //
-// #364: stop-around-surgery is the law this file pins; a redesign that makes
-// surgery safe another way must re-anchor these claims in the same commit and pull
-// the #831/#835 blocks in AudioEngine.swift plus the SESSION_LOG entries (#456).
+// ⛔ #858 — THE FIFTH DEVICE LOG (v10.79.427, 2545) RETIRED THE TUNE SURGERY
+// ENTIRELY. The #854 step ladder did its job: "tune 3/4: restarting engine" was
+// the last line before the assert — start() itself dies after the rewire, as an
+// ObjC exception no Swift catch sees, even after stop()+reset(). Four quieting
+// strategies falsified in a row (none/pause/stop/stop+reset) means the CYCLE is
+// the defect, so setVoiceTune no longer does graph work at all: the tune stage
+// is permanently wired by the monitoring build path and the toggle flips
+// `bypass` — the live-parameter class the same v427 log proved crash-free
+// (telephone band bypass ran seconds before the crash). Claim 2 now pins the
+// ABSENCE of surgery in setVoiceTune; claim 4's tune ladder walk went with the
+// ladder (a breadcrumb ladder over deleted ops would be #367 — green for a
+// reason that no longer exists). The OFF-teardown ladder stays: that surgery
+// still exists and still needs its steps named.
+//
+// #364: this header once said "stop-around-surgery is the law this file pins; a
+// redesign that makes surgery safe another way must re-anchor these claims in
+// the same commit" — #858 IS that redesign, and this is that commit.
 
 import Foundation
 import XCTest
@@ -88,37 +102,38 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             """)
     }
 
-    // MARK: - 2. The voice-tune rewire STOPS around the surgery (#835)
+    // MARK: - 2. The voice-tune toggle does NO surgery (#858)
 
-    func testTheVoiceTuneRewireStopsAroundTheSurgery() {
+    /// Inverted by #858 (five falsified quieting strategies — see the header): the
+    /// toggle must be a parameter flip on a permanently wired stage. ANY engine or
+    /// graph verb reappearing in this window is the road back to the five-log
+    /// SIGABRT, whatever quieting wraps it.
+    func testTheVoiceTuneToggleDoesNoSurgery() {
         let code = engineCode()
         guard !code.isEmpty else { return }
         guard let fn = code.range(of: "func setVoiceTune") else {
             XCTFail("setVoiceTune is gone — re-anchor this claim (§4).")
             return
         }
-        let window = String(code[fn.lowerBound...].prefix(1_600))
-        guard let stop = window.range(of: "if wasRunning { masterEngine.stop() }"),
-              let surgery = window.range(of: "disconnectNodeOutput(notchEQ)") else {
-            XCTFail("""
-                setVoiceTune lost its stop (or its surgery moved out of the window). \
-                Rewiring the input-fed chain through the time-pitch node (converter \
-                machinery) without releasing the I/O unit is the founder-measured \
-                SIGABRT — TWICE: v10.79.421 with no quieting at all, and v10.79.422 \
-                with a mere pause() (#835). Only a stop is measured safe; do not \
-                restore either weaker form.
+        let window = String(code[fn.lowerBound...].prefix(900))
+        XCTAssertTrue(window.contains("voiceTunePitch.bypass = !on"), """
+            The bypass flip is gone from setVoiceTune — the toggle then either does \
+            nothing while monitoring runs, or someone brought the graph surgery \
+            back. Five device logs (v421/v422/v424/v425/v427) killed every quieted \
+            form of that surgery; the flip is the surviving mechanism.
+            """)
+        for verb in ["masterEngine.stop()",
+                     "masterEngine.reset()",
+                     "masterEngine.start()",
+                     "disconnectNodeOutput",
+                     "masterEngine.connect("] {
+            XCTAssertFalse(window.contains(verb), """
+                `\(verb)` is back inside setVoiceTune. The v427 ladder proved the \
+                assert fires INSIDE start() after a stop-rewire cycle, uncatchably — \
+                no quieting depth survived the device. Wire the stage in the \
+                monitoring build path and flip parameters here (#858).
                 """)
-            return
         }
-        XCTAssertTrue(stop.lowerBound < surgery.lowerBound, """
-            The stop comes AFTER the first disconnect — the surgery still races the \
-            live converter machinery.
-            """)
-        XCTAssertTrue(window.contains("restartOrDegrade(after: \"voice tune rewire\")"), """
-            The rewire's restart-failure path is gone. The stop creates exactly the \
-            start()-can-fail case the old doc said did not exist — without this \
-            fallback a failed restart strands the whole app silent (#611).
-            """)
     }
 
     // MARK: - 3. Every restart after a route release sees the launch-shape graph (#836)
@@ -203,31 +218,10 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             }
             cursor = r.upperBound
         }
-        // setVoiceTune: crumb -> stop -> reset -> crumb -> surgery.
-        guard let fn = code.range(of: "func setVoiceTune") else {
-            XCTFail("setVoiceTune is gone — re-anchor this claim (§4).")
-            return
-        }
-        // #854b: window covers through the restart rung (the ladder's last
-        // ObjC-asserting op); re-measure before shrinking.
-        let tuneWindow = String(code[fn.lowerBound...].prefix(2_600))
-        var tCursor = tuneWindow.startIndex
-        for step in ["logMonitorOutcome(\"tune ",
-                     "masterEngine.stop()",
-                     "masterEngine.reset()",
-                     "logMonitorOutcome(\"tune 2/4",
-                     "disconnectNodeOutput(notchEQ)",
-                     "logMonitorOutcome(\"tune 3/4",
-                     "try masterEngine.start()"] {
-            guard let r = tuneWindow.range(of: step, range: tCursor..<tuneWindow.endIndex) else {
-                XCTFail("""
-                    setVoiceTune ladder broken at `\(step)` — same crash family as the \
-                    OFF teardown (#835 was this method's surgery), same requirement: a \
-                    breadcrumb before every op, and reset() after the stop.
-                    """)
-                return
-            }
-            tCursor = r.upperBound
-        }
+        // #858: the setVoiceTune ladder walk that stood here is DELETED with the
+        // surgery it narrated — a breadcrumb ladder over removed ops would be
+        // green-for-a-dead-reason (#367). Claim 2 now pins that method
+        // surgery-free; the OFF teardown above keeps its ladder because its
+        // surgery still exists.
     }
 }

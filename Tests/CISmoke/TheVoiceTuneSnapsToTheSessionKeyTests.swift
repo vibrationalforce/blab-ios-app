@@ -111,29 +111,42 @@ final class TheVoiceTuneSnapsToTheSessionKeyTests: XCTestCase {
 
     // MARK: - 5–7. The wiring joins (SOURCE-TEXT)
 
-    /// The graph: the pitch stage sits between notchEQ and monitorMixer on BOTH
-    /// build paths (monitoring-start and live toggle), and BOTH teardown paths
-    /// disconnect it — a leaked connection would keep pitching a rebuilt chain.
+    /// The graph since #858: the pitch stage is PERMANENTLY wired between notchEQ
+    /// and monitorMixer by the ONE monitoring build path (bypassed while the
+    /// toggle is off), and both teardown paths disconnect it. The counts below
+    /// moved 2→1, 2→1, 3→2 and 2→0 in the #858 commit — five device logs killed
+    /// every quieted form of the live rewire (see
+    /// TheMonitorSurgeryQuietsTheEngineTests' header), so the second wiring site
+    /// and the plain notchEQ→monitorMixer chain are DELETED, not optional.
     func testThePitchStageIsInTheMonitorChainOnly() throws {
         let engine = try source("Sources/Echoelmusic/Audio/AudioEngine.swift")
         XCTAssertEqual(codeOccurrences(
-            of: "masterEngine.connect(notchEQ, to: voiceTunePitch, format: inFmt)", in: engine), 2,
-            "two build paths: setInputMonitoring(true) with the flag set, and the live rewire")
+            of: "masterEngine.connect(notchEQ, to: voiceTunePitch, format: inFmt)", in: engine), 1,
+            "ONE build path (#858): setInputMonitoring(true) wires the stage "
+            + "unconditionally. A second site means the live rewire is back — "
+            + "the five-log SIGABRT road.")
         XCTAssertEqual(codeOccurrences(
-            of: "masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)", in: engine), 2)
+            of: "masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)", in: engine), 1)
         XCTAssertEqual(codeOccurrences(
-            of: "if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }", in: engine), 3,
-            "all THREE release sites use the guarded form — both teardowns "
-            + "(restart-failure, monitoring-off) and the live-rewire off branch "
-            + "(was unguarded-but-unreachable; made symmetric per the #599 review, "
-            + "and this count moved in the same commit — the §4 discipline)")
+            of: "if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }", in: engine), 2,
+            "TWO release sites use the guarded form — the restart-failure rollback "
+            + "and the monitoring-off teardown. The live-rewire off branch went "
+            + "with #858 (this count moved in the same commit — §4).")
         XCTAssertEqual(codeOccurrences(
-            of: "masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)", in: engine), 2,
-            "COUNTERWEIGHT: the plain #595 chain survives — the else of the "
-            + "monitoring build and the off branch of the live rewire (the "
-            + "pre-#599 tree had exactly 1, the unconditional build); 2 pins "
-            + "that OFF restores it on both paths rather than leaving the "
-            + "stage wedged in")
+            of: "masterEngine.connect(notchEQ, to: monitorMixer, format: inFmt)", in: engine), 0,
+            "the plain pre-#599 chain is RETIRED (#858): the notch reaches "
+            + "monitorMixer only through the permanently wired (possibly bypassed) "
+            + "tune stage. A direct connect returning means the graph re-split "
+            + "into two shapes — and with it the rewire the device killed five "
+            + "times. Sibling TheNotchIsSlewedAndMonitorOnlyTests pins the same "
+            + "count; the two must move together.")
+        XCTAssertEqual(codeOccurrences(of: "voiceTunePitch.bypass = !voiceTuneEnabled", in: engine), 1,
+                       "the build path sets the bypass from the stored choice — "
+                       + "without it a pre-armed tune goes silent-active or a "
+                       + "disarmed one keeps tuning")
+        XCTAssertEqual(codeOccurrences(of: "voiceTunePitch.bypass = !on", in: engine), 1,
+                       "the toggle is the bypass flip (#858) — the mechanism that "
+                       + "replaced the surgery")
         XCTAssertEqual(codeOccurrences(of: "AVAudioUnitTimePitch()", in: engine), 1,
                        "one stage — a second instance would double the latency cost")
     }
@@ -160,14 +173,14 @@ final class TheVoiceTuneSnapsToTheSessionKeyTests: XCTestCase {
     }
 
     /// The door: default OFF (the founder's "optional"), toggled only through
-    /// setVoiceTune (which owns the rewire), numeric params on EchoelValueField.
+    /// setVoiceTune (which owns the bypass flip, #858), numeric params on EchoelValueField.
     func testTheDoorIsOptionalAndLawful() throws {
         let engine = try source("Sources/Echoelmusic/Audio/AudioEngine.swift")
         XCTAssertEqual(codeOccurrences(of: "private(set) var voiceTuneEnabled = false", in: engine), 1,
                        "default OFF, and no writer outside setVoiceTune can exist")
         let picker = try source("Sources/Echoelmusic/Studio/AudioInputPickerView.swift")
         XCTAssertEqual(codeOccurrences(of: "audioEngine.setVoiceTune($0)", in: picker), 1,
-                       "the toggle goes through the setter that owns the graph rewire")
+                       "the toggle goes through the setter that owns the bypass flip (#858)")
         XCTAssertEqual(codeOccurrences(of: "audioEngine.voiceTuneRetune = $0", in: picker), 1,
                        "the character control exists — an EchoelValueField binding "
                        + "(the numeric-parameter law; the toggle is the named binary)")
