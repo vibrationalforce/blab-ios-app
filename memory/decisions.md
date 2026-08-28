@@ -1289,3 +1289,27 @@ beschränken (#292, `afcf3aa`).
   (EchoelVoice, `PLAN_ECHOEL_VOICE.md`). Kein neues Target, keine Dependency.
 - **Revisit:** nur wenn der Founder AUv3-Hosting explizit zurückverlangt — dann als eigene
   Epic mit Council, nicht als Beifang. (csv-Zeile 2026-08-14, review 2026-09-14.)
+
+### 2026-08-28 — #858: Der Autotune-Umbau ist abgeschafft; die Tune-Stufe ist permanent, der Schalter ein Bypass-Flip
+
+- **Entscheidung:** `voiceTunePitch` (AVAudioUnitTimePitch) wird vom Monitoring-ON-Aufbau
+  IMMER fest in den Monitorpfad verdrahtet (`input → notchEQ → voiceTunePitch →
+  monitorMixer`), bei Autotune AUS bypassed und auf 0 Cent geparkt. `setVoiceTune` macht
+  keine Graph-Arbeit mehr — nur noch `bypass = !on`. Deployed als v10.79.428.
+- **Beweiskette (der Grund, warum das keine sechste Hypothese ist, sondern Struktur):**
+  Fünf Founder-Geräte-Logs mit demselben `isInputConnToConverter`-SIGABRT — v421 (Live-
+  Rewire ohne Quieting), v422 (pause, #831), v425 (stop, #835/#854), v427 (stop+reset,
+  und die #854-Leiter benannte erstmals den Schritt: „tune 3/4: restarting engine").
+  Der Assert feuert IN `start()` nach dem Rewire, als ObjC-Exception, unfangbar. Vier
+  Quieting-Tiefen widerlegt ⇒ der stop-rewire-start-ZYKLUS ist der Defekt.
+- **Warum Bypass sicher ist:** AU-Property-Write auf dem MainActor, keine Graph-Mutation,
+  kein start() — dieselbe Sicherheitsklasse wie der Telefon-Band-Bypass (#857), der im
+  selben v427-Log Sekunden vor dem Crash bewiesen lief.
+- **Offenes Risiko + Plan B:** Ob die bypasste Vocoder-Stufe Latenz kostet, misst
+  `inserts[tune=…]` im nächsten Founder-Log (wird seit #858 immer gemeldet). Falls ja:
+  Parallel-Zweig mit Crossfade statt Bypass (registriert, nicht gebaut).
+- **Wächter:** TheMonitorSurgeryQuietsTheEngineTests Claim 2 pinnt `setVoiceTune`
+  chirurgiefrei (invertiert); Verdrahtungs-Zähler in drei Geschwister-Wächtern
+  mitgezogen, ein vierter (#858b, Reviewer-HIGH) nachverankert.
+- **Revisit:** nur wenn die Geräteprobe Bypass-Latenz zeigt (dann Plan B) oder der
+  Toggle-Foltertest wider Erwarten crasht. (csv-Zeile 2026-08-28, review 2026-09-27.)
