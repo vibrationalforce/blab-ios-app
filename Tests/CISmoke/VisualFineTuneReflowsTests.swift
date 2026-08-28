@@ -39,8 +39,8 @@
 //
 // ⚠️ WHAT THIS FILE GUARDS, and what it deliberately does NOT.
 //   1. Two grids exist in `visualAdjustFields` and both pass the PARAMETER, not a number.
-//   2. All eight fine-tune rows are INSIDE a grid (six at #292 Slice 4; Texture + Glitter joined
-//      with #853). A surface where some rows reflow and others do
+//   2. All nine fine-tune rows are INSIDE a grid (six at #292 Slice 4; Texture + Glitter
+//      joined with #853, Structure with #853B). A surface where some rows reflow and others do
 //      not is worse than one that never reflows — the ragged half-width/full-width column
 //      `MoodPanelReflowsTests` condemns, and counting grids alone cannot see it.
 //   3. Energy, the disclosure Button and the Detail caveat caption stay OUTSIDE. This is the half
@@ -137,9 +137,11 @@ final class VisualFineTuneReflowsTests: XCTestCase {
 
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
 
-    /// The eight rows behind "Fine tune", by their label literal (Texture/Glitter since #853).
+    /// The nine rows behind "Fine tune", by their label literal (Texture/Glitter since #853,
+    /// Structure since #853B).
     private static let fineTuneLabels = ["Intensity", "Detail", "Motion", "Spread",
-                                         "Hue", "Saturation", "Texture", "Glitter"]
+                                         "Hue", "Saturation", "Texture", "Glitter",
+                                         "Structure"]
 
     // MARK: - The reflow
 
@@ -151,7 +153,7 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         XCTAssertEqual(grids.count, 2, """
         `visualAdjustFields` has \(grids.count) `AdaptiveCardGrid` groups, expected exactly 2.
 
-        The eight fine-tune rows are split across two grids so the Detail caveat caption can sit \
+        The nine fine-tune rows are split across two grids so the Detail caveat caption can sit \
         BETWEEN them at full width. Two cards fill exactly one two-column row, so the split costs \
         nothing to look at. If they were merged, the caption lands in a half-width cell — read \
         the doc block on `visualAdjustFields(spacing:)` before changing this number.
@@ -196,7 +198,7 @@ final class VisualFineTuneReflowsTests: XCTestCase {
     /// ⛔ Claim 3 — the COUNTERWEIGHT, and the likelier regression. Green before this slice and
     /// after it: it exists so the obvious tidy-up ("put everything in one grid") goes red.
     ///
-    /// Energy is separated from the eight by a caption and the disclosure Button, so a grid around
+    /// Energy is separated from the nine by a caption and the disclosure Button, so a grid around
     /// it would order a SINGLE card — and a grid that orders one card orders nothing (#359 step 2
     /// deleted one for exactly that reason). The Detail caveat wraps and wants the full measure.
     func testEnergyTheDisclosureAndTheCaveatStayOutsideTheGrids() throws {

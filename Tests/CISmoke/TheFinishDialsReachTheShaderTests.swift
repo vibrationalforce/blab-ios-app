@@ -1,7 +1,9 @@
 // TheFinishDialsReachTheShaderTests.swift
-// Echoel — #853. The founder asked for "mehr Struktur/Textur Regler"; the two #578 finishing
-// stages (grain texture, per-speck glitter) got user dials. This file pins the one fact NO gate
-// can check and the chain that makes the dials real.
+// Echoel — #853 + #853B. The founder asked for "mehr Struktur/Textur Regler"; the two #578
+// finishing stages (grain texture, per-speck glitter) got user dials (#853), and the "Struktur"
+// half followed as a NEW static domain-warp stage with its own dial (#853B, neutral 0 — the
+// stage did not exist before, so 0 IS the shipped look, unlike the two gain dials whose neutral
+// is 1). This file pins the one fact NO gate can check and the chain that makes the dials real.
 //
 // ⭐ WHY THE LAYOUT TWIN IS THE CENTRAL CLAIM. `BioUniforms` is a Swift struct handed to the GPU
 // as raw bytes; the MSL `Uniforms` struct in the same file must match it FIELD FOR FIELD, in
@@ -30,7 +32,11 @@
 // the clamp's existence, the reach of each dial into the fragment, and the three-surface binding.
 //
 // ⚠️ HONEST GRADING (§3), transcribed in Python against the parent (`f63433e`) and this tree —
-// no local toolchain (§0). **12 checks: 10 assertions + claim 1's 2 `XCTUnwrap` anchors.** The
+// no local toolchain (§0). At #853: **12 checks: 10 assertions + claim 1's 2 `XCTUnwrap`
+// anchors.** #853B widened four of them (claim 1's contains, one clamp needle, one surface
+// key) and added one shader-read assert — **14 checks** now; the #853B additions were graded
+// the same way (Python transcription, both trees) and are FORWARD checks whose parent-redness
+// is the one shared absence of the structure field (#486). The
 // file names no new Swift symbol, so it compiles against the parent and every check has a
 // verdict there (measured, not assumed — the parent run printed 92 = 92 fields):
 //   · **4 COUNTERWEIGHT** green on both trees: claim 1's two struct anchors, its size floor
@@ -81,10 +87,11 @@ final class TheFinishDialsReachTheShaderTests: XCTestCase {
             reads from the wrong offset and the picture breaks with no log line. Append to \
             BOTH structs, at the SAME position (the end), in the same commit.
             """)
-        XCTAssertTrue(swiftFields.contains("textureAmt") && swiftFields.contains("glitterAmt"), """
-            the #853 finish fields are gone from BioUniforms. If the dials were removed on \
-            purpose, this whole file moves with them (§4) — panel rows, surface bindings, \
-            shared keys and all.
+        XCTAssertTrue(swiftFields.contains("textureAmt") && swiftFields.contains("glitterAmt")
+                      && swiftFields.contains("structureAmt"), """
+            a finish field (#853 textureAmt/glitterAmt, #853B structureAmt) is gone from \
+            BioUniforms. If a dial was removed on purpose, its rows, surface bindings and \
+            shared key move with it in the same commit (§4).
             """)
     }
 
@@ -104,6 +111,12 @@ final class TheFinishDialsReachTheShaderTests: XCTestCase {
             `u.glitterAmt` is not read exactly once in the shader — same two failure \
             directions as the texture needle above.
             """)
+        XCTAssertEqual(occurrences(of: "* u.structureAmt", in: src), 1, """
+            `u.structureAmt` is not read exactly once in the shader — same two failure \
+            directions as the texture needle above. The one read is the STATIC domain warp \
+            on the styleField coordinate (#853B); its flash argument (a pure function of \
+            pf, no phase) lives at that shader comment, not here.
+            """)
     }
 
     // MARK: - claim 3 — the update() clamps exist (the GPU never sees a wild value)
@@ -111,7 +124,8 @@ final class TheFinishDialsReachTheShaderTests: XCTestCase {
     func testBothAmountsAreClampedInUpdate() throws {
         let src = try source(Self.viewPath)
         for needle in ["target.textureAmt = min(max(textureAmt.isFinite",
-                       "target.glitterAmt = min(max(glitterAmt.isFinite"] {
+                       "target.glitterAmt = min(max(glitterAmt.isFinite",
+                       "target.structureAmt = min(max(structureAmt.isFinite"] {
             XCTAssertEqual(occurrences(of: needle, in: src), 1, """
                 `\(needle)` is gone. Every other look parameter sanitises non-finite input \
                 and clamps its range before the GPU sees it (`update()`); these two must not \
@@ -132,8 +146,10 @@ final class TheFinishDialsReachTheShaderTests: XCTestCase {
                      "Sources/Echoelmusic/Studio/ExternalDisplayScene.swift"] {
             let src = try source(path)
             XCTAssertTrue(src.contains("StudioDefaultKeys.visualTexture.key")
-                          && src.contains("StudioDefaultKeys.visualGlitter.key"), """
-                \(path) no longer binds `visual.texture` and `visual.glitter`. That surface \
+                          && src.contains("StudioDefaultKeys.visualGlitter.key")
+                          && src.contains("StudioDefaultKeys.visualStructure.key"), """
+                \(path) no longer binds `visual.texture`, `visual.glitter` and \
+                `visual.structure`. That surface \
                 then renders the struct fallbacks instead of the user's dials, and the three \
                 surfaces can show three different finishes in the same session.
                 """)

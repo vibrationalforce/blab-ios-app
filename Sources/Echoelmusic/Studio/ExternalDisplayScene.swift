@@ -145,6 +145,7 @@ private struct ExternalStageView: View {
     @AppStorage(StudioDefaultKeys.visualSaturation.key) private var saturation = StudioDefaultKeys.visualSaturation.value
     @AppStorage(StudioDefaultKeys.visualTexture.key) private var texture = StudioDefaultKeys.visualTexture.value
     @AppStorage(StudioDefaultKeys.visualGlitter.key) private var glitter = StudioDefaultKeys.visualGlitter.value
+    @AppStorage(StudioDefaultKeys.visualStructure.key) private var structure = StudioDefaultKeys.visualStructure.value
 
     var body: some View {
         // Read `.shared` INLINE, not via a stored `private let`. Observation registers on
@@ -176,6 +177,7 @@ private struct ExternalStageView: View {
                              saturation: Float(saturation),
                              textureAmount: Float(texture),
                              glitterAmount: Float(glitter),
+                             structureAmount: Float(structure),
                              style: style, styleB: styleB, blend: Float(blend))
                     .environment(bus)
                     .environment(governor)

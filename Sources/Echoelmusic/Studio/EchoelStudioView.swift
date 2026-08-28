@@ -955,6 +955,8 @@ struct EchoelStudioView: View {
     /// user-dialable (#853). Shared keys, same three-surface pattern as hue/saturation.
     @AppStorage(StudioDefaultKeys.visualTexture.key) private var visualTexture = StudioDefaultKeys.visualTexture.value
     @AppStorage(StudioDefaultKeys.visualGlitter.key) private var visualGlitter = StudioDefaultKeys.visualGlitter.value
+    /// Structure (#853B): static domain-warp depth, 0 = off (the pre-dial picture).
+    @AppStorage(StudioDefaultKeys.visualStructure.key) private var visualStructure = StudioDefaultKeys.visualStructure.value
     /// The floating visual window's show/hide state — SHARED with WorkspaceView's header
     /// monitor button and the window's own close button, so the Visual panel can toggle it
     /// directly (founder: everything user-optimized; don't make the header the only way in).
@@ -1528,6 +1530,7 @@ struct EchoelStudioView: View {
                                  motion: Float(visualMotion), spread: Float(visualSpread),
                                  hueShift: Float(visualHue), saturation: Float(visualSaturation),
                                  textureAmount: Float(visualTexture), glitterAmount: Float(visualGlitter),
+                                 structureAmount: Float(visualStructure),
                                  style: visualStyle, styleB: visualStyleB,
                                  blend: Float(visualBlend),
                                  entrainmentPulseHz: entrainmentVisualPulseHz).ignoresSafeArea()
@@ -6328,6 +6331,11 @@ struct EchoelStudioView: View {
                 // of the visual presets — no `visualPresetDiverged()` on purpose.
                 EchoelValueField(label: "Texture", value: $visualTexture, range: 0...2, decimals: 2)
                 EchoelValueField(label: "Glitter", value: $visualGlitter, range: 0...2, decimals: 2)
+                // Structure (#853B, the "Struktur" half of the same ask): a NEW static
+                // domain warp that bends the 2D field's geometry. Neutral is 0 — the
+                // stage did not exist before, so 0 IS the shipped look. Same
+                // palette-class rule: not part of the presets, no divergence call.
+                EchoelValueField(label: "Structure", value: $visualStructure, range: 0...2, decimals: 2)
             }
         }
     }
@@ -6598,7 +6606,7 @@ struct EchoelStudioView: View {
     /// block whose whole subject is a count. Registered as its own decision rather than quietly
     /// widened here, and that decision SHIPPED as #427: the six visual rows of that day (Energy ·
     /// Intensity · Motion · Spread · Hue · Saturation) pass `decimals: 2` — Texture and
-    /// Glitter, added by #853, do too — guarded by
+    /// Glitter (#853) and Structure (#853B) do too — guarded by
     /// `Tests/CISmoke/VisualPresetValuesAreReachableTests`. Ten `EchoelValueField` call sites in
     /// `Sources/` still take the default — and two of them want it (A4 concert pitch and the
     /// locked tempo both say "editable to 0.0001" in their own comments), so this is deliberately

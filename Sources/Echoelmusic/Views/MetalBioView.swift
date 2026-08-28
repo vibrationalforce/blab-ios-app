@@ -153,6 +153,11 @@ private struct BioUniforms {
     /// phase+frequency; static grain) is independent of these gains.
     var textureAmt: Float = 1
     var glitterAmt: Float = 1
+    /// #853B "Structure": a NEW static domain-warp stage, not a #578 multiplier —
+    /// so its neutral value is 0 (no warp = the exact pre-dial picture), unlike the
+    /// two gains above whose neutral is 1. Appended at the end for the same raw-bytes
+    /// layout law; clamped to [0, 2] in `update()`.
+    var structureAmt: Float = 0
 }
 
 /// The touch surface's water-drop events for the Metal renderer (structural rebuild
@@ -387,6 +392,7 @@ struct MetalBioView: UIViewRepresentable {
     /// today does not exist. Kept equal to the shared defaults so the two can never disagree.
     var textureAmount: Float = 1
     var glitterAmount: Float = 1
+    var structureAmount: Float = 0
     /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (see `BioUniforms.style`).
     var style: Int = 0
     /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism.
@@ -474,6 +480,7 @@ struct MetalBioView: UIViewRepresentable {
         c.setLook(toneFallbackHz: toneHz, intensity: intensity, ringDensity: ringDensity,
                   motion: motion, spread: spread, hueShift: hueShift, saturation: saturation,
                   textureAmount: textureAmount, glitterAmount: glitterAmount,
+                  structureAmount: structureAmount,
                   style: style, styleB: styleB, blend: blend, reduceMotionAccessibility: reduceMotion,
                   autoAttuned: autoAttuned, entrainmentPulseHz: entrainmentPulseHz)
     }
@@ -546,6 +553,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var lookSaturation: Float = 1
     private var lookTexture: Float = 1
     private var lookGlitter: Float = 1
+    private var lookStructure: Float = 0
     private var lookStyle: Int = 0
     private var lookStyleB: Int = 0
     private var lookBlend: Float = 0
@@ -616,7 +624,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// reads here — those are pulled per-frame in `draw(in:)`.
     func setLook(toneFallbackHz: Double, intensity: Float, ringDensity: Float, motion: Float,
                  spread: Float, hueShift: Float, saturation: Float,
-                 textureAmount: Float, glitterAmount: Float, style: Int, styleB: Int,
+                 textureAmount: Float, glitterAmount: Float, structureAmount: Float,
+                 style: Int, styleB: Int,
                  blend: Float, reduceMotionAccessibility: Bool, autoAttuned: Bool,
                  entrainmentPulseHz: Double = 0) {
         lookToneFallbackHz = toneFallbackHz
@@ -628,6 +637,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         lookSaturation = saturation
         lookTexture = textureAmount
         lookGlitter = glitterAmount
+        lookStructure = structureAmount
         lookStyle = style
         lookStyleB = styleB
         lookBlend = blend
@@ -653,7 +663,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
                 intensity: Float, ringDensity: Float, motion: Float, spread: Float,
                 pulseHz: Float, hueShift: Float, saturation: Float,
-                textureAmt: Float, glitterAmt: Float,
+                textureAmt: Float, glitterAmt: Float, structureAmt: Float,
                 style: Int, styleB: Int, blend: Float, reduceMotion: Bool) {
         // Writes the TARGET; draw() eases the live uniforms toward it. Same clamps as
         // before (the GPU never sees an out-of-range / non-finite value).
@@ -700,6 +710,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Texture/Glitter (#853): same clamp family as saturation — [0, 2], 1 = neutral.
         target.textureAmt = min(max(textureAmt.isFinite ? textureAmt : 1, 0), 2)
         target.glitterAmt = min(max(glitterAmt.isFinite ? glitterAmt : 1, 0), 2)
+        target.structureAmt = min(max(structureAmt.isFinite ? structureAmt : 0, 0), 2)
         self.reduceMotion = reduceMotion
         // First update: snap (no glide from defaults), so the opening frame is correct.
         if !hasTarget {
@@ -993,6 +1004,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    pulseHz: Float(lookEntrainmentPulseHz > 0 ? lookEntrainmentPulseHz : vp.pulseHz),
                    hueShift: lookHue + voiceHueBias, saturation: lookSaturation * voiceSatFactor,
                    textureAmt: lookTexture, glitterAmt: lookGlitter,
+                   structureAmt: lookStructure,
                    style: lookStyle, styleB: lookStyleB, blend: lookBlend,
                    reduceMotion: effectiveReduceMotion)
             // Feed the render cadence back to the governor so a sustained FPS drop can
@@ -1193,6 +1205,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // kind of live performance control, and a snap would step the finish visibly.
             uniforms.textureAmt = Self.ease(uniforms.textureAmt, target.textureAmt, tau: 0.2, dt: dt)
             uniforms.glitterAmt = Self.ease(uniforms.glitterAmt, target.glitterAmt, tau: 0.2, dt: dt)
+            uniforms.structureAmt = Self.ease(uniforms.structureAmt, target.structureAmt, tau: 0.2, dt: dt)
             // The A↔B mix morphs smoothly (snappy — it's a live performance control).
             uniforms.blend = Self.ease(uniforms.blend, target.blend, tau: 0.3, dt: dt)
         }
@@ -1282,7 +1295,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                       float rp3x; float rp3y; float rp3p; float rp3a; float rp3r; float rp3g; float rp3b;
                       float rp4x; float rp4y; float rp4p; float rp4a; float rp4r; float rp4g; float rp4b;
                       float rp5x; float rp5y; float rp5p; float rp5a; float rp5r; float rp5g; float rp5b;
-                      float textureAmt; float glitterAmt; };
+                      float textureAmt; float glitterAmt; float structureAmt; };
 
     // TOUCH RIPPLES — the water feedback drawn IN the field's own pipeline
     // (structural rebuild 2026-07-09; the old CAShapeLayer sandwich over the Metal
@@ -1732,6 +1745,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // SQUARE, aspect-independent coordinate in [-1,1]² for the 2D fields, so the
         // pattern keeps its frequency in BOTH axes on a tall phone (fixes the flood).
         float2 pf = in.uv * 2.0 - 1.0;
+        // u.structureAmt (#853B "Structure"): a STATIC domain warp on the 2D-field
+        // coordinate. The offset is a pure function of pf — no phase, no time — so it
+        // bends WHERE the pattern lives, never WHEN it moves: the flash law counts
+        // extrema of phase-bearing quantities, and pf carries none. Applied to the
+        // styleField coordinate ONLY — the radial framing (d), the bloom and the
+        // note-cloud/prism colour anchors below keep their true places (colour truth).
+        // 0 = no warp (the exact pre-dial picture); 2 = double bend.
+        float2 spf = pf + float2(sin(pf.y * 3.7 + sin(pf.x * 2.9)),
+                                 sin(pf.x * 3.1 + sin(pf.y * 2.3))) * 0.09 * u.structureAmt;
 
         // The temporal motion is the ACCUMULATED phase (integrated on the CPU from the
         // flash-safe frequency), NOT time × frequency — so an HR change alters the rate,
@@ -1754,13 +1776,13 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // both their field AND their vignette by the eased Mix ratio. blend 0 = pure A,
         // 1 = pure B, anything between = a true overlap of the two physical fields.
         float blend = clamp(u.blend, 0.0, 1.0);
-        float2 fa = styleField(u.style,  d, pf, density, u.toneHz, phase, coh, u.breath, spread);
+        float2 fa = styleField(u.style,  d, spf, density, u.toneHz, phase, coh, u.breath, spread);
         // Only evaluate the SECOND look when actually blending. At the default blend = 0 the
         // B field is fully masked by mix(), so computing it is pure waste — and B can be a
         // heavy look (Fractal/Depth), doubling fragment cost for nothing. Skip it below the
         // blend threshold; this is the common single-style case (perf/thermal win).
         float2 fb = (blend > 0.001)
-            ? styleField(u.styleB, d, pf, density, u.toneHz, phase, coh, u.breath, spread)
+            ? styleField(u.styleB, d, spf, density, u.toneHz, phase, coh, u.breath, spread)
             : fa;
         float field    = mix(fa.x, fb.x, blend);
         float vignette = mix(fa.y, fb.y, blend);

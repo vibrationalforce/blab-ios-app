@@ -161,7 +161,7 @@ struct FloatingVisualWindow: View {
     // Visual DESIGN (founder: "Visual Design muss möglich sein" + "Feinschliff, alles
     // User-optimiert"). EVERY design control the Visual panel exposes is now SHARED
     // (@AppStorage), so each live tweak shows in this window immediately — Look/blend and
-    // the eight energy/palette params (Texture + Glitter joined with #853). Single source
+    // the nine energy/palette params (Texture + Glitter joined with #853, Structure with #853B). Single source
     // of truth; no drift between panel + window.
     // Defaults: a rich look (Aurora, index 5) out of the box — "interessanter" than flat
     // Rings. ⛔ This line also RESTATED "saturation 0.82 (professional, not neon)" and #578
@@ -182,6 +182,7 @@ struct FloatingVisualWindow: View {
     @AppStorage(StudioDefaultKeys.visualSaturation.key) private var visualSaturation = StudioDefaultKeys.visualSaturation.value
     @AppStorage(StudioDefaultKeys.visualTexture.key) private var visualTexture = StudioDefaultKeys.visualTexture.value
     @AppStorage(StudioDefaultKeys.visualGlitter.key) private var visualGlitter = StudioDefaultKeys.visualGlitter.value
+    @AppStorage(StudioDefaultKeys.visualStructure.key) private var visualStructure = StudioDefaultKeys.visualStructure.value
 
     // P5: the sky mixed into the IMAGE, per parameter (founder: "Klang und Bild
     // aber getrennte und mehrere Parameter"). Each visual influence crossfades the
@@ -754,7 +755,7 @@ struct FloatingVisualWindow: View {
 
     /// The real renderer. `capturesVideo: true` → this instance feeds the shared
     /// VisualRecorder when recording (on the phone it is the only Metal path, so no
-    /// double-capture). The look params are the SHARED design keys (style/blend + the six
+    /// double-capture). The look params are the SHARED design keys (style/blend + the nine
     /// energy/palette params), so every tweak in the Visual panel shows here live.
     private func liveVisual(_ wv: (hue: Double, saturation: Double, intensity: Double, motion: Double)) -> some View {
         MetalBioView(capturesVideo: true, reduceMotion: reduceMotion,
@@ -763,6 +764,7 @@ struct FloatingVisualWindow: View {
                      motion: Float(wv.motion), spread: Float(visualSpread),
                      hueShift: Float(wv.hue), saturation: Float(wv.saturation),
                      textureAmount: Float(visualTexture), glitterAmount: Float(visualGlitter),
+                     structureAmount: Float(visualStructure),
                      style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend),
                      entrainmentPulseHz: entrainmentPulse)
     }

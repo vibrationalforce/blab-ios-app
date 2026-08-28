@@ -251,6 +251,9 @@ public enum StudioDefaultKeys {
     /// defaults in `MetalBioView.swift` are fallbacks for a caller that does not exist.
     public static let visualTexture = StudioDefault(key: "visual.texture", value: 1.0)
     public static let visualGlitter = StudioDefault(key: "visual.glitter", value: 1.0)
+    /// #853B "Structure" — static domain-warp depth. Neutral is 0 (the stage is NEW;
+    /// 0 = the exact pre-dial picture), unlike the two multipliers above whose neutral is 1.
+    public static let visualStructure = StudioDefault(key: "visual.structure", value: 0.0)
     /// TRUE — the living visual greets a fresh install ("wow von Sekunde 1",
     /// WorkspaceView header monitor). The studio panel's old `false` copy made
     /// its toggle button lie until the key was first written.

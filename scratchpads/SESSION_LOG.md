@@ -15678,3 +15678,30 @@ gezogen: zwei MARK-Kommentare (BioSourceView, EchoelStudioView), BroadcastPublis
 (jetzt: CUT, Engine nicht verlinkt), SignalRouter-Portkommentar, docs/dev/VJ_BRIDGE.md §5.
 NICHT angefasst: die Band-Chips/„Beta·Alpha·Theta"-Copy in BioSourceView (Frequenz-Namen
 der Pulsraten, Zeile ist qualifiziert, Ansicht türlos — als Registereintrag belassen).
+
+## 2026-08-28 — #853B: „Structure"-Regler (die Struktur-Hälfte des Founder-Asks)
+
+Founder 2026-08-28 („mehr Struktur/Textur Regler"; Textur+Glitter = #853, Struktur = diese
+Scheibe). NEUE Stufe, kein #578-Multiplikator: ein STATISCHER Domain-Warp auf der
+2D-Feld-Koordinate — `spf = pf + sin-Feld(pf) * 0.09 * u.structureAmt`, nur in die zwei
+`styleField`-Aufrufe gereicht. Flash-sicher per Konstruktion: der Versatz ist eine reine
+Funktion von pf (keine Phase, keine Zeit) — er verbiegt WO das Muster lebt, nie WANN es
+sich bewegt; d/Bloom/Noten-Wolken/Prisma behalten ihre wahren Orte (Farb-Wahrheit).
+**Neutral ist 0** (Stufe existierte vorher nicht → 0 = exakt das ausgelieferte Bild),
+anders als die zwei Gain-Regler (neutral 1) — im Key-Doc benannt.
+
+Kette (#853 exakt gespiegelt): `visual.structure` in StudioDefaultKeys (Default 0) →
+@AppStorage an allen DREI Flächen (EchoelStudioView-Mount, FloatingVisualWindow,
+ExternalDisplayScene/Beamer) → View-Param `structureAmount` (required, kein Default) →
+`setLook`/`lookStructure` → `update(structureAmt:)` mit isFinite+[0,2]-Klammer →
+Easing tau 0.2 → Fragment. Beide Struct-Zwillinge (Swift `BioUniforms` + MSL `Uniforms`)
+am ENDE erweitert (Raw-Bytes-Layout-Gesetz). Panel: 9. `EchoelValueField`-Reihe
+„Structure" 0…2 im zweiten Grid, palette-class, kein `visualPresetDiverged()`.
+
+Wächter mitgezogen und in Python gegen den Baum transkribiert (roh + gestrippt identisch):
+TheFinishDialsReachTheShaderTests 12→14 Checks (Twin 95=95 Felder, `* u.structureAmt`
+genau 1, Klammer-Nadel, dritter Key an allen drei Flächen) · VisualFineTuneReflowsTests
+Labels 8→9 (+4 Prosa-Stellen) · VisualPresetValuesAreReachableTests calls.count 9→10
+(+2 Prosa). GlitterCannotBecomeAFlash-Nadeln unberührt (geprüft). dead-needles +
+needle-reachability + balance.py OK. NEEDS-FOUNDER-VERIFY: liest sich „Structure" bei 2
+als Struktur statt Chaos, und bleibt 0 wirklich ununterscheidbar vom Vorher-Bild.
