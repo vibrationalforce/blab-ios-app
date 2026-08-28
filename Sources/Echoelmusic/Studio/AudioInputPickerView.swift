@@ -277,6 +277,34 @@ struct AudioInputPickerView: View {
                     .labelsHidden()
                     .accessibilityLabel("Megaphone mode")
                 }
+                // #856 — founder: "der Sound der Stimme muss präsenter". Numeric →
+                // EchoelValueField (law). Drives a dedicated presence peak on the
+                // monitor EQ (band 4); 0 = neutral, the music never passes that node.
+                EchoelValueField(
+                    label: "Presence",
+                    value: Binding(get: { audioEngine.voicePresenceDB },
+                                   set: { audioEngine.voicePresenceDB = $0 }),
+                    range: 0...6, unit: "dB", decimals: 1)
+                // #857 — founder: "Telephonmodus optional einführen". Named binary →
+                // Toggle (law, like Megaphone above). Band-pass 300–3400 Hz on the
+                // monitored voice only; default OFF.
+                HStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Telephone")
+                            .font(EchoelTheme.font(13, .semibold))
+                            .foregroundStyle(EchoelTheme.text)
+                        Text("Narrows your live voice to the classic 300–3400 Hz telephone band. A sound character for performance — off restores the full voice.")
+                            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 8)
+                    Toggle("", isOn: Binding(
+                        get: { audioEngine.telephoneMode },
+                        set: { audioEngine.telephoneMode = $0 }
+                    ))
+                    .labelsHidden()
+                    .accessibilityLabel("Telephone mode")
+                }
                 // #841 review MEDIUM: its OWN leaf, and since #841 that is load-bearing,
                 // not tidiness — this body now hosts two `.menu` Pickers (harmony
                 // intervals), and `feedbackGuardActive` flips on duck engage/release

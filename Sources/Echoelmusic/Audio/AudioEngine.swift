@@ -423,6 +423,38 @@ public final class AudioEngine {
     /// while boosted; the notch half needs no change (it targets frequency, not level).
     nonisolated static let megaphoneBoostDB: Float = 12
     nonisolated static let megaphoneDuckCeiling: Float = 0.70
+
+    /// #856/#857 — the finish bands' indices on `notchEQ` (see the BAND MAP at its
+    /// declaration). Named so no loop or write can confuse them with a defence band.
+    nonisolated static let presenceBand = 4
+    nonisolated static let telephoneHPBand = 5
+    nonisolated static let telephoneLPBand = 6
+
+    /// #856 — founder: "der Sound der Stimme muss präsenter". A dedicated presence
+    /// peak on the MONITOR EQ (band 4) — the generated music never passes this node.
+    /// 0 dB = neutral (default), clamped 0…+6. Session-local like the megaphone;
+    /// monitoring ON re-applies it (the #829 pattern).
+    var voicePresenceDB: Float = 0 {
+        didSet {
+            let v = min(max(voicePresenceDB.isFinite ? voicePresenceDB : 0, 0), 6)
+            if v != voicePresenceDB { voicePresenceDB = v; return }
+            guard notchAttached, notchEQ.bands.count > Self.presenceBand else { return }
+            notchEQ.bands[Self.presenceBand].gain = v
+            logMonitorOutcome("presence \(String(format: "%.1f", v)) dB — #856", level: .info)
+        }
+    }
+
+    /// #857 — founder: "Telephonmodus optional einführen". Band-pass 300–3400 Hz on
+    /// the monitored voice (bands 5+6), default OFF — a sound character, not a
+    /// quality claim. Session-local; monitoring ON re-applies (the #829 pattern).
+    var telephoneMode: Bool = false {
+        didSet {
+            guard notchAttached, notchEQ.bands.count > Self.telephoneLPBand else { return }
+            notchEQ.bands[Self.telephoneHPBand].bypass = !telephoneMode
+            notchEQ.bands[Self.telephoneLPBand].bypass = !telephoneMode
+            logMonitorOutcome("telephone \(telephoneMode ? "on" : "off") — #857", level: .info)
+        }
+    }
     /// Output-RMS window (MainActor) that feeds FeedbackGuard while monitoring.
     @ObservationIgnored private var monitorLevelHistory: [Float] = []
     @ObservationIgnored private var monitorPollTick = 0
@@ -436,7 +468,12 @@ public final class AudioEngine {
     // #848 (founder: "auf die betroffenen Frequenzbändern … gar kein Piepsen"): FOUR
     // bands, each an independent dynamic notch driven by `HowlDetector` — one filter
     // per affected frequency band, engaged while the howl is still quiet.
-    @ObservationIgnored private let notchEQ = AVAudioUnitEQ(numberOfBands: 4)
+    /// BAND MAP (#856/#857 widened this node — ONE EQ, three jobs, music never
+    /// passes it): bands 0..<4 = the #848 dynamic howl notches (index-aligned with
+    /// `notchBands`; every defence loop is scoped to `notchBands.indices`, never to
+    /// `notchEQ.bands`) · band 4 = the voice PRESENCE peak (#856, gain 0 = neutral)
+    /// · bands 5+6 = the optional TELEPHONE band-pass (#857, bypassed unless on).
+    @ObservationIgnored private let notchEQ = AVAudioUnitEQ(numberOfBands: 7)
     @ObservationIgnored private var notchAttached = false
     @ObservationIgnored private let monitorTapWindow = MonitorTapWindow(size: 2048)
     @ObservationIgnored private var monitorTapInstalled = false
@@ -2187,11 +2224,30 @@ public final class AudioEngine {
             if !notchAttached {
                 masterEngine.attach(notchEQ)
                 notchAttached = true
-                for band in notchEQ.bands {
+                // #856/#857: the node carries three jobs now — see the BAND MAP at
+                // its declaration. The defence loop is SCOPED, no longer `.bands`.
+                for i in notchBands.indices where i < notchEQ.bands.count {
+                    let band = notchEQ.bands[i]
                     band.filterType = .parametric
                     band.bandwidth = 0.15   // octaves — narrow, takes the whistle not the voice
                     band.gain = 0
                     band.bypass = false
+                }
+                if notchEQ.bands.count > Self.telephoneLPBand {
+                    let presence = notchEQ.bands[Self.presenceBand]
+                    presence.filterType = .parametric
+                    presence.frequency = 3200        // the classic vocal-presence region
+                    presence.bandwidth = 1.2         // octaves — broad, a lift not a whistle
+                    presence.gain = voicePresenceDB  // 0 = neutral until the player raises it
+                    presence.bypass = false
+                    let hp = notchEQ.bands[Self.telephoneHPBand]
+                    hp.filterType = .highPass
+                    hp.frequency = 300
+                    hp.bypass = !telephoneMode
+                    let lp = notchEQ.bands[Self.telephoneLPBand]
+                    lp.filterType = .lowPass
+                    lp.frequency = 3400
+                    lp.bypass = !telephoneMode
                 }
                 notchEQ.globalGain = 0
             }
@@ -2327,6 +2383,14 @@ public final class AudioEngine {
             // #829: monitoring ON re-applies the megaphone choice — the flag can be
             // flipped while monitoring is off, and the OFF path resets globalGain.
             notchEQ.globalGain = megaphoneMode ? Self.megaphoneBoostDB : 0
+            // #856/#857: same re-apply for the finish bands — their values can be
+            // set while monitoring is off, and attach configured them from the
+            // state at ATTACH time, which this toggle may postdate.
+            if notchEQ.bands.count > Self.telephoneLPBand {
+                notchEQ.bands[Self.presenceBand].gain = voicePresenceDB
+                notchEQ.bands[Self.telephoneHPBand].bypass = !telephoneMode
+                notchEQ.bands[Self.telephoneLPBand].bypass = !telephoneMode
+            }
             // ⚠️ THE SUCCESS LINE IS NOT OPTIONAL. Six refusal breadcrumbs and no success
             // breadcrumb makes a quiet log ambiguous between "never toggled" and "toggled and
             // worked" — the #454 shape, applied to a diag file instead of a test. The rate and
@@ -2716,7 +2780,10 @@ public final class AudioEngine {
     private func resetNotchDefence() {
         howlDetector.reset()
         for i in notchBands.indices { notchBands[i] = NotchBandState() }
-        for band in notchEQ.bands { band.gain = 0 }
+        // #856: scoped — zeroing ALL bands would silently wipe the presence gain.
+        for i in notchBands.indices where i < notchEQ.bands.count {
+            notchEQ.bands[i].gain = 0
+        }
     }
     #endif
 

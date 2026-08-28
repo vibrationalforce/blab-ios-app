@@ -15798,3 +15798,24 @@ RecordRouteOwnershipTests.testBothCategoryMovesReassertThePreferredBuffer (Ordnu
 Kategorie→Re-assert, beide Methoden; transkribiert: PASS/PASS). Geräteerwartung: die
 nächste `latency:`-Zeile zeigt buf≈10.7 statt 23 auf der eingebauten Route; Ultra/Low
 drücken weiter darunter.
+
+## 2026-08-28 — #856/#857: Presence-Regler + Telefon-Modus (Founder-Ask, ein EQ, drei Jobs)
+
+Founder: „der Sound der Stimme muss präsenter" + „Telephonmodus optional einführen. Vermeide
+Abhängigkeiten von big Playern". Beides hausintern auf dem VORHANDENEN Monitor-EQ gelandet
+(`notchEQ`, 4→7 Bänder; die Musik passiert den Knoten nie — TheNotchIsSlewedAndMonitorOnly
+besitzt das Gesetz): Bänder 0..<4 = #848-Howl-Notches (unverändert, index-aligned mit
+`notchBands`) · Band 4 = Presence-Peak 3,2 kHz breit, Gain 0…+6 dB, 0 = neutral (Default —
+präsenter wird es, wenn der Sänger dreht; kein stiller Klangwechsel) · Bänder 5+6 =
+Telefon-Bandpass 300–3400 Hz (HP+LP), default AUS. Session-lokal wie Megaphone; Monitoring
+ON re-appliziert alle drei (#829-Muster). Türen: EchoelValueField „Presence" (dB, 1
+Dezimal) + Toggle „Telephone" im Input-Sheet direkt unter Megaphone.
+
+GEFÄHRLICHSTE Stelle war nicht das Feature, sondern die SKOPIERUNG: zwei Defence-Loops
+iterierten `notchEQ.bands` (ALLE Bänder) — mit 7 Bändern hätte jeder Howl-Reset den
+Presence-Gain gewischt und die Telefon-Bänder ent-bypassed. Beide Loops jetzt
+`notchBands.indices`-skopiert; Wächter `TheFinishBandsShareTheNotchNodeTests` pinnt genau
+das (Claim 2: exakt 2 skopierte Loops, 0 All-Bands-Loops) plus Band-Map, Re-Apply neben
+dem #829-Anker und beide Türen. Alle Claims in Python transkribiert: grün. Chirurgie-
+Leitern (#854) re-transkribiert: PASS. Gerät offen: klingt +6 dB nach Präsenz oder Härte;
+klingt der Bandpass nach Telefon.
