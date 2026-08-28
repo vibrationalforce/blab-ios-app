@@ -26,8 +26,8 @@
 //      (neighbourhood dominance · persistence · growth · no harmonic/subharmonic
 //      partner) fires while the howl is still QUIET; each affected band gets one of
 //      FOUR `AVAudioUnitEQ` parametric notches in the MONITOR path only (input →
-//      notchEQ → monitorMixer — the music never passes through it, the duck's exact
-//      scoping), gain slewed via `slewedNotchGainDB` (never stepped), held ~2 s past
+//      notchEQ → voiceTunePitch (permanent since #858) → monitorMixer — the music
+//      never passes through it, the duck's exact scoping), gain slewed via `slewedNotchGainDB` (never stepped), held ~2 s past
 //      the last detection so a band cannot audibly pump. The duck is the broadband
 //      LAST RESORT now, not the notch's gatekeeper.
 //      ⛔ From #595 to #848 the notch was REACTIVE — single band, engaged only while

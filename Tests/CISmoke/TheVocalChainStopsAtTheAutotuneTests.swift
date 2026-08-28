@@ -31,7 +31,8 @@
 //                              the same sheet, default OFF. (Until #849 this row read
 //                              "NO audible path yet — its door is a follow-up slice".)
 //
-// The monitor graph is `input → notchEQ → [voiceTunePitch] → monitorMixer → [insert] →
+// The monitor graph is `input → notchEQ → voiceTunePitch (#858: permanent, bypassed
+// while tune is off) → monitorMixer → [insert] →
 // masterMixer`. Since #839 the insert's render block feeds a mic-owned `EchoelFXChain`
 // — mounted NEUTRAL, all 15 stages off, output bit-identical (the E2E guard in
 // TheMonitorInsertCarriesTheNeutralChainTests proves it through the real render block).
@@ -132,14 +133,22 @@ final class TheVocalChainStopsAtTheAutotuneTests: XCTestCase {
         // genuine red is indistinguishable from #396. Every other node in the chain IS a member,
         // so the load-bearing anchor is now the member-to-member hop; the local-named one is
         // kept only as the weaker second reading.
-        XCTAssertTrue(src.contains("connect(notchEQ, to: monitorMixer"), """
-            The `notchEQ → monitorMixer` hop is gone. Both nodes are members, so this is the \
+        // ⛔ #858b: this anchored on `connect(notchEQ, to: monitorMixer` — and #858
+        // legitimately DELETED that hop (the tune stage is permanently wired, bypassed
+        // while off), turning this claim red on a correct tree for one commit. The §4
+        // sweep updated the two siblings that pin the hop as a COUNT and missed this
+        // third file pinning it as a boolean; found by the mandatory reviewer, the
+        // #655/#656 class exactly. The member-to-member anchor is now the hop INTO
+        // the permanent stage.
+        XCTAssertTrue(src.contains("connect(notchEQ, to: voiceTunePitch"), """
+            The `notchEQ → voiceTunePitch` hop is gone. Both nodes are members, so this is the \
             anchor that a rename of a local cannot break — if it is missing, the monitor graph \
-            really was restructured. Re-measure which stages reach the singer before trusting \
-            anything below.
+            really was restructured (since #858 the tune stage is PERMANENT, bypassed while \
+            off — there is no direct notchEQ→monitorMixer chain any more). Re-measure which \
+            stages reach the singer before trusting anything below.
             """)
         XCTAssertTrue(src.contains("connect(voiceTunePitch, to: monitorMixer"), """
-            The optional tune stage no longer feeds the monitor mixer. Claim 3 below says that \
+            The tune stage no longer feeds the monitor mixer. Claim 3 below says that \
             stage is the founder's autotune ON his voice — if this hop is gone, that claim is \
             what needs re-measuring first.
             """)

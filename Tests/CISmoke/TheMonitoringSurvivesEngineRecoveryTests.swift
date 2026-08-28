@@ -66,7 +66,8 @@ final class TheMonitoringSurvivesEngineRecoveryTests: XCTestCase {
         XCTAssertTrue(o.lowerBound < t.lowerBound && t.lowerBound < n.lowerBound, """
             The recycle order changed — it must be OFF, then restore the tune choice, \
             then ON. The restore only STORES the choice while monitoring is off; moved \
-            after the ON it would rewire a live chain instead, and before the OFF it \
+            after the ON it would bypass-flip a live chain instead (#858 — harmless \
+            but the wrong mechanism), and before the OFF it \
             would be disarmed again by the OFF path itself.
             """)
     }

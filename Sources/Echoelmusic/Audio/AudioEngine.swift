@@ -468,7 +468,8 @@ public final class AudioEngine {
     @ObservationIgnored private var monitorPollTick = 0
     // #595: the NOTCH half of FeedbackGuard (the duck above is the LEVEL half; the
     // FeedbackGuard.swift header records which halves are wired). Parametric EQ bands
-    // sit in the MONITOR path only (input → notchEQ → monitorMixer) — the music
+    // sit in the MONITOR path only (input → notchEQ → voiceTunePitch → monitorMixer,
+    // the tune stage permanent since #858) — the music
     // never passes through it, exactly the duck's scoping. The spectrum comes from a
     // tap on the input node pushing into `MonitorTapWindow` (the 10.76.48 lock-queue
     // shape, zero actor hops in the tap); the EXISTING ~15 Hz guard tick copies the
@@ -537,9 +538,13 @@ public final class AudioEngine {
     /// covers the detector's ±1-bin jitter with headroom for the clamp at the edges.
     private static let notchToleranceBinFloor: Float = 1.5
     // VL3 (#599): in-key pitch correction ("tune to key") on the MONITOR path only —
-    // the optional autotune-with-character the founder asked for. Chain when enabled:
-    // input → notchEQ → voiceTunePitch → monitorMixer (disabled: the unchanged #595
-    // shape). `AVAudioUnitTimePitch` is a GRAPH node — no render code here. The
+    // the optional autotune-with-character the founder asked for. Chain (#858):
+    // input → notchEQ → voiceTunePitch → monitorMixer, the stage PERMANENTLY wired
+    // and bypassed while tune is off — the pre-#858 "disabled = the #595 shape" is
+    // retired with the surgery (five falsified device logs, see setVoiceTune).
+    // `bypass` mirrors `voiceTuneEnabled` only WHILE monitoring is on; between OFF
+    // and the next ON only the build path re-establishes it (#858b L3).
+    // `AVAudioUnitTimePitch` is a GRAPH node — no render code here. The
     // EXISTING ~15 Hz guard tick reads the EXISTING `MonitorTapWindow` (`copyLatest`
     // COPIES — the notch FFT and YIN share one window without stealing from each
     // other), runs `PitchTracker` (YIN, since #851 only on fresh audio via the
@@ -608,9 +613,10 @@ public final class AudioEngine {
     /// The cached YIN result the stamp gate re-serves; cleared with the window.
     @ObservationIgnored private var voiceTuneLastDetectedHz: Double?
     @ObservationIgnored private var voiceTuneKeyRefreshTick = 0
-    /// Whether the in-key correction stage sits in the monitor chain. Observable so
-    /// the input sheet's toggle reflects it; written ONLY via `setVoiceTune(_:)`
-    /// (the setter owns the graph rewire). Default OFF — the founder's "optional".
+    /// Whether the in-key correction is ACTIVE (#858: the stage itself is always in
+    /// the chain, bypassed while this is false). Observable so the input sheet's
+    /// toggle reflects it; written ONLY via `setVoiceTune(_:)` (the setter owns the
+    /// bypass flip). Default OFF — the founder's "optional".
     private(set) var voiceTuneEnabled = false
     /// 0…1 correction amount (`VoicePitchCorrector.strength`). Control-plane; the
     /// tick hands it to the corrector, so a mid-note edit takes effect immediately.
@@ -2283,8 +2289,8 @@ public final class AudioEngine {
             masterEngine.connect(notchEQ, to: voiceTunePitch, format: inFmt)
             masterEngine.connect(voiceTunePitch, to: monitorMixer, format: inFmt)
             // #832 (V1a): the pass-through insert sits between the monitor mixer and the
-            // master mixer — ONE connect site, untouched by the `setVoiceTune` rewires,
-            // and at outFmt (stereo) so the V1b stage gets left/right pointers. The
+            // master mixer — ONE connect site (the setVoiceTune rewires it once dodged
+            // are deleted, #858), at outFmt (stereo) so the V1b stage gets l/r pointers. The
             // engine is STOPPED here (#823/#831), so this connect never races a render.
             if let insert = monitorInsertUnit {
                 if !monitorInsertAttached {
@@ -2430,11 +2436,13 @@ public final class AudioEngine {
             // combination. Emitted after `logMonitorOutcome` deliberately — the ON line is
             // the fact, the latency is its measurement, and a reader scanning for failures
             // should hit the fact first.
-            // ⛔ #654: `tuneStage` is passed because the monitor chain is
-            // `input → notchEQ → [voiceTunePitch] → monitorMixer`, and the pitch node is a
-            // phase vocoder whose delay is NOT in `floor=`. `AudioInputPickerView` already
-            // warns about it in prose; a number that omitted it contradicted the app's own
-            // UI on the same feature, and a number wins that argument every time.
+            // ⛔ #654: `tuneStage` is passed because the pitch node is a phase vocoder
+            // whose delay is NOT in `floor=`. ⛔ #858b: since #858 the stage is
+            // PERMANENTLY in the chain (bypassed while off), so `tune=on/off` now
+            // means "correction ACTIVE", no longer "vocoder in chain" — the vocoder
+            // is always behind `floor=`, and the `inserts[tune=…]` figure (reported
+            // whenever attached) is the number that says what the bypassed stage
+            // costs. Read the founder's next latency log with THESE semantics.
             // ⭐ #666: and this is the line the `inserts[…]` field exists for — the only
             // moment where every monitor node is attached and connected.
             AudioConfiguration.latencyBreadcrumb(reason: "monitor on",

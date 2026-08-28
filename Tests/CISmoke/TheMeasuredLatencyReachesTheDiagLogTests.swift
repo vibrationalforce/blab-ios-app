@@ -173,7 +173,8 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
             """)
         XCTAssertTrue(line.contains("tune=on"), """
             The pitch stage is no longer reported. The monitor chain is \
-            `input → notchEQ → [voiceTunePitch] → monitorMixer`, `AVAudioUnitTimePitch` is a \
+            `input → notchEQ → voiceTunePitch (permanent since #858, bypassed while \
+            off) → monitorMixer`, `AVAudioUnitTimePitch` is a \
             phase vocoder with real algorithmic delay, and NONE of it is in `floor=`. \
             `AudioInputPickerView` warns about it in prose on the same feature; a number that \
             silently omits it contradicts that warning and wins. Got: \(line)
@@ -443,7 +444,8 @@ final class TheMeasuredLatencyReachesTheDiagLogTests: XCTestCase {
         XCTAssertTrue(args.contains("tuneStage: voiceTuneEnabled"), """
             The monitor line no longer reports whether the pitch stage is in the chain — or \
             reports a literal instead of the engine's actual state. `voiceTuneEnabled` is the \
-            only writer-owned flag for it (`setVoiceTune` owns the graph rewire), and \
+            only writer-owned flag for it (`setVoiceTune` owns the bypass flip, #858 — \
+            `tune=` means correction ACTIVE, the stage itself is always in the chain), and \
             `floor=` deliberately excludes the node's own delay, so this field is the only \
             thing telling a founder that the figure is missing a phase vocoder. Got: \(args)
             """)
