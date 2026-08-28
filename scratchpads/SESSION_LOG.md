@@ -15819,3 +15819,29 @@ das (Claim 2: exakt 2 skopierte Loops, 0 All-Bands-Loops) plus Band-Map, Re-Appl
 dem #829-Anker und beide Türen. Alle Claims in Python transkribiert: grün. Chirurgie-
 Leitern (#854) re-transkribiert: PASS. Gerät offen: klingt +6 dB nach Präsenz oder Härte;
 klingt der Bandpass nach Telefon.
+
+## 2026-08-28 — Ultraplan/Aufräum-Modus: Vision-Gate (3 Fragmente) + Doctor-Lauf
+
+Founder: „Raumfahrtmedizin psychonauten und tsmom Einfalt Strategie ultraplan ultraechoel
+aufräum Modus". Alle drei Fragmente durch vision-gate, Ledger + CSV nachgeführt
+(memory/inspiration_intake.md, inspiration.csv):
+
+- **Raumfahrtmedizin → WATCH (Review 2026-11-26).** HRV/Autonomie-Forschung aus der
+  Raumfahrt ist zitierfähige Wissenschaft (passt zur BioScienceInfo-Linie: Fakten +
+  Selbstbeobachtung, KEIN Gesundheitsversprechen). Adoption nur als belegte Learn-Karte
+  mit Peer-Review-Zitaten — erst Evidenz-Report, dann Copy.
+- **Psychonauten → REJECT für Copy.** Esoterik-nahe Framing-Falle; die Brand-Red-Line
+  (kein Wellness/Healing/Esoterik) gilt hart. Kein Code-Anteil identifizierbar.
+- **TSMOM + Einfalt-Strategie → WATCH, konditioniert auf #813-Geräte-Verify (Review
+  2026-10-15).** Time-Series-Momentum als Vorbild für TREND-Quellen (HR-Trend,
+  Atem-Trend) im Mod-Fan-out — exakt die #813-Herleitung (CoherenceTrend). Erst wenn der
+  Founder den Kohärenz-Trend hörbar-nicht-störend bestätigt, lohnt der Fan-out;
+  „Einfalt" = die Ein-Signal-Disziplin, kein neues Feature.
+
+Aufräum-Teil: `python3 scripts/doctor.py --quiet` — Sektion A = bekannte founder-gated
+Workflow-Masken (berichten, nicht editieren; unverändert) · Sektion B WARN
+(TheFinishDialsReachTheShaderTests:72 „struct Uniforms declared nowhere") =
+Heuristik-Fehlalarm, die Nadel lebt absichtlich im Runtime-Shader-STRING und ist per
+XCTUnwrap verankert · Sektion C: alle 9 türlosen Views in CLAUDE.md dokumentiert ·
+Sektion D: CLAUDE.md 149.730 B unter der 150.000-B-Decke, Modifier-Zahl stimmt.
+Kein neuer Befund; nichts editiert außer den Ledgern.

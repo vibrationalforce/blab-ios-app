@@ -57,6 +57,33 @@ feature, it's PIPELINE. When unsure: WATCH with a review date beats premature ad
 
 ## Ledger (running; newest first)
 
+### 2026-08-28 — Founder-Dreiklang: Raumfahrtmedizin · Psychonauten · TSMOM/„Einfalt"-Strategie
+
+- **Raumfahrtmedizin → WATCH** (Learn-Content-Kandidat, Review 2026-11-26). Autonome/HRV-
+  Forschung in Raumfahrt & Extremumgebungen ist echte, zitierbare Wissenschaft — dieselbe
+  Klasse wie die bestehende Body-Science-Sektion (`BioScienceInfo`: Lehrer/Vaschillo,
+  Goessl 2017). Als ZITIERTE Learn-Karte („HRV unter Extrembedingungen") on-brand;
+  als POSITIONING („wie bei Astronauten") wäre es Overclaim → verboten. Gate-Bedingung
+  vor Adoption: echte Paper-Verifikation (eigener Evidence-Report wie
+  `REPORT_SOUND_PAIN_EVIDENCE`), aus der Sandbox nicht seriös leistbar. KEIN Health-Claim,
+  nur Fakten + Selbstbeobachtung.
+- **Psychonauten → REJECT (für Copy), Kern bereits ratifiziert.** Die legitime Hälfte —
+  kontemplative Selbstbeobachtung, Innenreise — IST der ratifizierte Produktsatz
+  („Create From Within", PRODUCT_DEFINITION). Das WORT trägt Esoterik-/Drogenkultur-
+  Konnotation und kollidiert mit der mandatierten Sicherheitswarnung („NOT under the
+  influence") und der FDA-General-Wellness-Linie → Brand-Rotlinie. Nie in nutzersichtbare
+  Kopie; nicht re-litigieren.
+- **TSMOM („time-series momentum", Moskowitz/Ooi/Pedersen 2012) + „Einfalt"-Strategie →
+  WATCH mit präziser Adoptions-Bedingung** (Review 2026-10-15). Die Übersetzung auf Echoel
+  ist bereits GEBAUT, einmal: #813 leitet aus der Kohärenz-HISTORIE eine vorzeichenbehaftete
+  Änderungsrate ab (Momentum des Körpers, nicht sein Pegel) → Spektral-Morph. TSMOM
+  generalisiert das: HR-Trend, Atemraten-Trend als weitere Modulationsquellen — „die
+  RICHTUNG des Körpers spielt mit". Bedingung: ERST die Founder-Geräteprobe des
+  #813-Trends (Hörbarkeit, `fullScaleRisePerSecond`-Skala = NEEDS-FOUNDER-VERIFY), DANN
+  fächern — ein unverifiziertes Muster vervielfältigen wäre die Breadth-first-Falle
+  (Prinzip 6). „Einfalt" gelesen als Strategie-Bestätigung: ein Instrument, eine
+  Grenze (Editor ≠ Workstation), keine neue Fläche — Validierung, kein To-do.
+
 ### 2026-06-19 — Corey Haines `marketingskills` (MIT, 45 skills) → ADOPT→PIPELINE
 - Founder: adopt the marketing pack "optimized" into the repo, keep CLAUDE.md tidy.
 - **Verdict: ADOPT→PIPELINE** — it markets the App Store app + `docs/` site; it is
