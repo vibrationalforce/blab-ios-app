@@ -1,5 +1,13 @@
 # FEATURE MATRIX — Echoelmusic v10 (the "second brain")
 
+> ⛔ **READ `docs/dev/PRODUCT_DEFINITION.md` FIRST (2026-08-28 banner).** This file claims
+> canonical authority and then LEADS with a retired end-state: every UPDATE block dated
+> before 2026-07-25 (including the 2026-07-13 "ONE tracks-centric, bio-reactive DAW …
+> `ArrangeTimelineView` (home)" block below) describes the dismantled workstation half —
+> `ArrangeTimelineView` is deleted (#121 Slice 4) and "DAW" is the retired framing
+> (decisions.csv row 302). Trust rows that carry a ⛔/corrected date ≥ 2026-07-27; treat
+> everything else as history until measured against `Sources/`.
+
 **Canonical map: marketing tool ↔ real code ↔ status ↔ TestFlight acceptance.**
 
 This is the single source of truth that ties the *website* (the 12 "Echoel\*"
@@ -215,7 +223,7 @@ acceptance line.
 - **Session clips + Arrange timeline — MODEL ONLY, NO SURFACE (corrected 2026-08-06, #438; this row has now flipped three times, so check the tree before trusting any version of it).** What still exists and compiles: `Sequencer/Clip.swift`, `Core/ClipStore.swift`, `Sequencer/Timeline.swift` (480-PPQ lanes/regions/snap), `Core/TimelineStore.swift` (persist + lossless legacy migration), `Sequencer/ArrangementPlayer.swift`.
   ⛔ **What the old line named as LIVE and is DELETED:** `Studio/ClipView.swift` (#121 Slice 4, `807dc0d`) and `Studio/ArrangeTimelineView.swift` (#121 Slice 4, `eb58e7a`). It also said they "since v10.79.144 form THE one main view (timeline over instrument, track-head doors: Piano Roll / audio editor / rename / delete / add)" — **every clause of that is now false**: the home is `EchoelStudioView`, and the piano-roll door went with #178. Verify with `git ls-files 'Sources/**/ClipView.swift' 'Sources/**/ArrangeTimelineView.swift'` → zero.
   This is the pure-instrument epic (#121) doing what it was asked to do; the models survive on purpose and #132 Slice 5 is the open decision about them. **Restoring the views means rebuilding them, not re-hanging them** — do not read this row as a door that can be switched back on.
-- **MIDI/MPE OUT — ⚠ NOT REACHABLE (corrected 2026-07-27):** `Audio/MIDIOutput.swift` builds a virtual "Echoelmusic" CoreMIDI source (`._1_0`) that mirrors played notes — but it is only created when a Patchbay MIDI route is enabled, and `mpeEnabled`/`expressionEnabled` have had **no writer** since the Tools-grid removal (2026-07-02) took their only toggle. So MPE out is unreachable and the plain source is route-gated. Was listed LIVE (2026-06-17) when the Tools menu still existed.
+- **MIDI/MPE OUT — ⛔ THE "NOT REACHABLE" BELOW IS STALE SINCE #713 (banner 2026-08-28; the honest rows further down at "MPE OUT is real and switchable" were right all along — this row contradicted them in the same file):** since #713 both flags are persisted and have two switches in the reachable routing surface ("MPE note layout" / "Per-note expression"), written by `MIDIOutput.applyOutputPreferences()`. Historical text follows: `Audio/MIDIOutput.swift` builds a virtual "Echoelmusic" CoreMIDI source (`._1_0`) that mirrors played notes — but it is only created when a Patchbay MIDI route is enabled, and `mpeEnabled`/`expressionEnabled` had **no writer** from the Tools-grid removal (2026-07-02) until #713 restored their toggles. So MPE out is unreachable and the plain source is route-gated. Was listed LIVE (2026-06-17) when the Tools menu still existed.
 - **Character params — LIVE (2026-06-17):** `MoodProfile` now 8 dims (… + **virtuosity, syncopation, humanize**), all consumed in the lead generator. **16 offered genres** (`MusicStyle.offered`; the enum holds 33 cases, so **17** are not offered — the curation is by ear and re-offering one is a listening decision. ⛔ This said "nine older ones": 33 − 16 = 17, and it was 17 at the 2026-07-24 curation too (25 declared, 8 offered). Nothing in the tree counts to nine).
 - **Sampler playback shaping — ENGINE ONLY, and only the PITCH third of it (corrected 2026-08-06, #438).** `Sequencer/SamplerVoice.swift` still offers `configurePlayback(start:end:reverse:pitchSemitones:)`, interpolated and lock-free. Its **one** production caller is `Sequencer/LaneVoiceRack.swift:318`, and that caller passes **only `pitchSemitones`** (derived from the MIDI note, root 60, plus the lane transpose) — so `start`, `end` and `reverse` take their defaults and have **no writer anywhere in `Sources/`**. Check with `git grep -n 'configurePlayback(' -- Sources`.
   ⛔ The old line said "**per-pad** start/end trim, reverse, pitch" as a `LIVE engine`. There are no pads — the drum apparatus was deleted (#166/#167) — and two of the three named capabilities are unreachable. Engine capability is not a feature; this row now says which third ships.
@@ -283,7 +291,7 @@ acceptance line.
 
 | Surface | Bundle | Status | Notes |
 |---|---|---|---|
-| **AUv3 plugin** | `…app.auv3` | `REMOVED` (2026-07-24) | Shipped in builds 1467/1469, then **deleted on purpose** by the pure-instrument epic #121 — Slice 1 dropped the target (`project.yml`, `Sources/EchoelmusicAUv3`, entitlements, CI scheme), Slice 2 dropped in-app AUv3 *hosting*. Echoel is a standalone instrument: neither plugin nor host, and not on the roadmap. Reaches a DAW via **WAV export** (`LoopExporter`) + live OSC/ADM-OSC/Art-Net. Also via **MIDI file export** — ⛔ this said "NOT via MIDI file export … no caller since the 2026-07-02 button removal", true until #188 restored the door (`EchoelStudioView.swift:6579`). `MIDIOutput`'s virtual source is `._1_0`, appears only when a Patchbay MIDI route is enabled, and its `mpeEnabled`/`expressionEnabled` flags have **no writer anywhere**. |
+| **AUv3 plugin** | `…app.auv3` | `REMOVED` (2026-07-24) | Shipped in builds 1467/1469, then **deleted on purpose** by the pure-instrument epic #121 — Slice 1 dropped the target (`project.yml`, `Sources/EchoelmusicAUv3`, entitlements, CI scheme), Slice 2 dropped in-app AUv3 *hosting*. Echoel is a standalone instrument: neither plugin nor host, and not on the roadmap. Reaches a DAW via **WAV export** (`LoopExporter`) + live OSC/ADM-OSC/Art-Net. Also via **MIDI file export** — ⛔ this said "NOT via MIDI file export … no caller since the 2026-07-02 button removal", true until #188 restored the door (`EchoelStudioView.swift:6579`). `MIDIOutput`'s virtual source is `._1_0` and appears only when a Patchbay MIDI route is enabled; ⛔ "its `mpeEnabled`/`expressionEnabled` flags have no writer anywhere" stood here past #713 — both are persisted switches in the routing surface since then (banner 2026-08-28). |
 | **Widgets** | `…app.widgets` | `LIVE` (shipped 1454→1469) | WidgetKit live bio glance, reads App Group via `BioFeedbackManager`. |
 | **watchOS** | `…app.watchkitapp` | `COMPILE-VERIFIED, not embedded` | Bio glance; embed export-blocked (needs `WKCompanionAppBundleIdentifier` + Embed-Watch-Content phase verified in local Xcode). |
 | **macOS (Catalyst)** | `com.echoelmusic.app` | `ROADMAP` (decided path) | Catalyst-first; native AppKit deferred. See `SPEC_ECOSYSTEM_TARGETS.md`. |
@@ -302,6 +310,11 @@ Companion plans: `SPEC_ECOSYSTEM_TARGETS.md` (surfaces), `SPEC_CAMERA_PIPELINE.m
 
 Ship only what is `LIVE` or the `LIVE` part of `PARTIAL`. Build #1 = a working
 **bio-reactive performance instrument** on iPhone / iOS 18:
+
+> ⛔ **THIS ACCEPTANCE LIST IS PRE-#121/#166 HISTORY (banner 2026-08-28)** — items 2
+> (drums/sampler, deleted #166/#167), 4 (MPE-in, never built #548), 6 (no Sync tab; the
+> matrix has no route, #541) and 7 (`BioVisualView` is gone) describe surfaces that no
+> longer exist. Do not test a build against it; the live gate is CLAUDE.md's ship gate.
 
 1. Synth is audible and bio-modulated (EchoelSynth) — silent until armed.
 2. Beat sequencer plays with velocity/accent + swing; pads load custom samples (EchoelSeq).

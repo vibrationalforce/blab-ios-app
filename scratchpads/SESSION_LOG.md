@@ -15586,3 +15586,32 @@ kürzeren Trust-Lücke.
   erlaubte (locale-asymmetrisches #364, Audit-F3) — entfernt, Rücknahme im Kommentar;
   `ContentPipelineClaimsTests` — Prosa von „drei tote" auf „zwei tote + einer wurde wahr",
   Nadeln unverändert (alle vier transkribiert grün, Store-Copy beider Sprachen sauber).
+
+## 2026-08-28 ~13:50 — Brand-Audit Slice 3: die Identitäts-Schicht spricht wieder EINE Sprache (#856)
+
+- **memory/ auf den ratifizierten One-Sentence synchronisiert** (vision.md, project_
+  knowledge.md, user.md): „sound, image, light, space" statt der Vor-Juli-Variante ohne
+  *image*; Vibration/Haptik = Output-Stage-Subscriber, nicht Satz-Bestandteil. Daten-Spine
+  ehrlich (MPE OUT, kein AUv3). Broadcast in vision.md Tier 2/3 + project_knowledge-Gap-
+  Liste + people.md-EchoelStage-Zeile + ROADMAP:131: überall als GESTRICHEN (2026-07-31)
+  markiert statt als offene Oszillation.
+- **PRODUCT_DEFINITION**: Creative-Zeile 133 „correct the notes" gestrichen (#178/#475,
+  stand einen Tag über seiner eigenen Zeile 77); KEEP-Export um MIDI/mp4 ergänzt.
+- **FEATURE_MATRIX**: Top-Banner (liest sich sonst als Kanon und führt mit dem 07-13-DAW-
+  Endzustand); MPE-OUT-„no writer"-Zeilen (2×) per Banner auf #713 korrigiert; Akzeptanz-
+  Liste (Drums/MPE-in/Sync-tab/BioVisualView) als Prä-#121-Historie gebannert.
+- **docs/CLAUDE.md §5**: „Never claim: MPE out" → „MPE **in**" (stand seit #713 falsch und
+  hätte eine Session wahre Kopie „reparieren" lassen). ROADMAP-Sound-Zeile: modal/cellular
+  raus (0 Instanziierer). BROADCAST_HAISHINKIT_FINISH: founder-gated-Banner (CUT-Scope,
+  aktiv aussehende Finish-Spec). decisions.csv 181/197 → superseded. 8 PLAN-Dateien
+  ⛔-gestempelt. robots.txt: `Disallow: /dev/` (interne Notizen raus aus Suche/Presse).
+- **Bus-Wahrheit**: „bioFrames/bioEvents undrained" war HALB falsch (bioEvents drained
+  seit dem OSC-Event-Pfad, einziger Verbraucher OSCSender.drainAndSendEvents) — korrigiert
+  in CLAUDE.md + beiden memory-Dateien; FEATURE_MATRIX §11 hatte es immer richtig.
+- ⛔ **DECKEN-FUND: CLAUDE.md riss seine 150.000-B-Decke seit #849** (`7616f04`: 149.738 →
+  150.072) — der blockierende Ceiling-Wächter war seither auf jedem Lauf rot-fähig,
+  unsichtbar hinter #396 + tail-200-Fenster. Repariert nach der Anweisung des Wächters:
+  die 415/198/344-Provenienz-Geschichte (#473) nach `LEDGER_COUNTS.md` **§I** verschoben
+  (Zeiger bleibt), Bus-Klausel kompakt → **149.730 B**, 270 B Luft. Lehre: wer die immer-
+  geladene Datei anfasst, misst `wc -c CLAUDE.md` VOR dem Push — ab jetzt Teil meiner
+  Pre-Push-Checks.

@@ -1,3 +1,5 @@
+> ⛔ **SUPERSEDED — do not execute (banner 2026-08-28).** This plan commands scope the Editor ≠ Workstation boundary (docs/dev/PRODUCT_DEFINITION.md, 2026-07-25) has CUT or that #121/#166/#167 dismantled. History only; ROADMAP.md + vision.md win over any PLAN file.
+
 # AUv3 Registration — Team deep-dive synthesis (workflow wf_25a17d9e-cf0, 2026-07-20)
 
 Founder confirmed **Inter-App Audio IS enabled** → entitlement theory dead (IAA is deprecated

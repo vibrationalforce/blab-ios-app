@@ -19,7 +19,10 @@ Disallow: /
 User-agent: ClaudeBot
 Disallow: /
 
+# /dev/ holds internal engineering notes (incl. superseded plans) — public by
+# GitHub-Pages necessity, but not for search/press (brand audit 2026-08-28).
 User-agent: *
+Disallow: /dev/
 Allow: /
 
 # Sitemap

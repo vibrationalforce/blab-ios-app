@@ -5964,3 +5964,10 @@ dieser Abschnitt beschreibt. **Nicht rekonstruiert, absichtlich.**
 **Kein Wächter, absichtlich (#491).** Ein negativer Scan auf `CLAUDE.md` („enthält keine
 Literal-Zahl für diesen Rückstand") träfe die Rücknahme, die die alte Zahl zitiert, um sie
 zurückzunehmen — dieselbe Falle, in die der #809-Wächter eine Stunde vorher lief.
+
+
+## I — Die #473-Zahlengeschichte der TimelineAutomationRow (verschoben aus CLAUDE.md, #856)
+
+Verschoben 2026-08-28, weil CLAUDE.md seine 150.000-B-Decke gerissen hatte (#849 war der Übertritts-Commit, gefunden vom Ceiling-Wächter-Nachmessen im Brand-Audit). Wortlaut:
+
+⛔ **UND DIE ERSTE FASSUNG DIESER ZEILE HAT DIE #475-LEHRE WÖRTLICH WIEDERHOLT, EINEN ZYKLUS SPÄTER: sie schrieb „415 Zeilen `struct TimelineAutomationRow`".** 415 ist die **DATEI** (`git show --stat`, 415 Löschungen). Der `struct` läuft von 217 bis 414, ist also **198** Zeilen; die ganze `#if canImport(SwiftUI)`-Hälfte mit allen DREI Typen sind **344** (72–415). Und der Widerspruch stand schon im Baum: `TimelineAutomationRowMath.swift` und dieselbe CLAUDE.md sagen seit #472 „344 Zeilen" über die Ansicht. **Dieselbe Zahl an das falsche OBJEKT geheftet — nicht veraltet, sondern von Anfang an dem falschen Ding zugeordnet**, und das ist der Grund, warum das Repo jetzt zwei Zahlen für eine Sache trug. Belastbar ist die GRÖSSE des Eingriffs (415 Löschungen), weil die sich nie wieder ändert; für die Ansicht nennt man die Ansicht.

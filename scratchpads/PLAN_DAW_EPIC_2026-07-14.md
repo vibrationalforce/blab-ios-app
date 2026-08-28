@@ -1,3 +1,5 @@
+> ⛔ **SUPERSEDED — do not execute (banner 2026-08-28).** This plan commands scope the Editor ≠ Workstation boundary (docs/dev/PRODUCT_DEFINITION.md, 2026-07-25) has CUT or that #121/#166/#167 dismantled. History only; ROADMAP.md + vision.md win over any PLAN file.
+
 # PLAN — DAW-Reifung (Founder 2026-07-14, "du entscheidest alles" + "arbeite 24h durch")
 
 Founder-Wunsch (verbatim): "Automationen im Clip und auf der Timeline. Clips schneiden und

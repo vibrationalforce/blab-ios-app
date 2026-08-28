@@ -12,21 +12,29 @@ have we learned" so the knowledge is never lost between sessions.
 - App Store: Apple ID 6757957358 · SKU Simsalabimbam · bundle `com.echoelmusic` · App Group `group.com.echoelmusic`.
 - **Echoel — Physical Computing · Biofeedback · Multimedial & Multidimensional.** iPhone-first,
   on-device, private, free. *Create From Within.*
-- **The one sentence:** the instrument where ONE body plays multiple real dimensions at once —
-  sound, space, light, vibration — over open standards, no SDK lock-in. The bio-reactive
-  object *source*, not a renderer.
+- **The one sentence (ratified, PRODUCT_DEFINITION.md):** Echoel is a bio-reactive
+  instrument — your body plays it, and its output is multidimensional (sound, image,
+  light, space). Over open standards, no SDK lock-in; the bio-reactive object *source*,
+  not a renderer. (⛔ The pre-2026-07-25 variant that stood here dropped *image* and
+  promoted *vibration* into the sentence — corrected by the 2026-08-28 brand audit;
+  haptics stay an output-stage subscriber.)
 
 ## The five dimensions (one instrument, never new tabs)
 
-Body (differentiator) → Sound → Space → Light → Vibration, with Data (OSC/MIDI 2.0/MPE/AUv3)
-as the connective layer. See `memory/vision.md` for the LIVE / ROADMAP / NORTH-STAR tiers.
+Body (differentiator) → Sound → Image → Light → Space (vibration/haptics ride the output
+stage), with Data (OSC · MIDI 2.0 · MPE **out** · Art-Net/sACN · ADM-OSC) as the connective
+layer — ⛔ "MPE/AUv3" stood here; AUv3 is removed and MPE-IN is not built (#548).
+See `memory/vision.md` for the LIVE / ROADMAP / NORTH-STAR tiers.
 
 ## Architecture (audited)
 
 - **EngineBus** = `@MainActor @Observable` control plane: snapshot `latestBio`/`latestBioEvent`
   (10 Hz poll) + lock-free `SPSCQueue`. Bio flows over the snapshot (correct for slow bio);
-  the SPSC queue is drained only for `controllerEvents` (MIDI). `bioFrames`/`bioEvents` queues
-  are reserved/undrained. New `freshBio(maxAge:5)` returns the latest frame only if recent.
+  the SPSC queue is drained for `controllerEvents` (MIDI) — and, since the OSC event path,
+  `bioEvents` is drained too, by exactly ONE consumer (`OSCSender.drainAndSendEvents`, OSC
+  egress only — no synth sink). `bioFrames` stays reserved/undrained. (⛔ "bioFrames/
+  bioEvents … reserved/undrained" stood here; half was stale — 2026-08-28 audit.)
+  `freshBio(maxAge:5)` returns the latest frame only if recent.
 - **Audio graph:** `AudioEngine` (`@MainActor @Observable`) master `AVAudioEngine`; source nodes
   attach BEFORE start (build-1363 hot-attach rule — hot-attach to a running engine crashed).
   PolySynthVoice (stereo, 8 voices, SPSC note/patch queues, WeakBox render), SubBassVoice (mono
@@ -50,9 +58,12 @@ as the connective layer. See `memory/vision.md` for the LIVE / ROADMAP / NORTH-S
 - **DSP:** EchoelDDSP (per-sample smoothed cutoff/harmonicity/noise/gain, denormal flush),
   EchoelCellular, EchoelModalBank, EchoelVDSPKit, FX chain (reverb/delay/EQ/dynamics/LUFS).
 - **Outputs (open standards, native, ~zero deps):** OSC (`/echoelmusic/bio/*`), ADM-OSC
-  (`/adm/obj/{n}/*`), Art-Net + sACN (light), MIDI 2.0/MPE in, RTP-MIDI, WAV/MIDI export.
-- **Root view:** `Studio/EchoelStudioView.swift` — ONE instrument, collapsible panels + always-on
-  BioStripView. UI: numbers-only scrubbable `EchoelValueField` (no sliders/knobs), pinch-to-zoom
+  (`/adm/obj/{n}/*`), Art-Net + sACN (light), MIDI in (mono voice) + MPE OUT (#713),
+  RTP-MIDI, WAV/MIDI export. (⛔ "MPE in" stood here — not built, #548.)
+- **Root view:** `Studio/EchoelStudioView.swift` — ONE instrument, collapsible panels;
+  BioStripView lives in the bio panel behind the pulse-pill tap (deliberately NOT always-on
+  since B3 — the 10 Hz read stays in a leaf). UI: numbers-only scrubbable `EchoelValueField`
+  (no sliders/knobs), pinch-to-zoom
   (Dynamic Type), website CI tokens via `EchoelTheme`.
 
 ## UI / brand rules (non-negotiable)
@@ -137,11 +148,11 @@ lives in scratchpads + SESSION_LOG. Phases:
 
 ## Standing vision↔code gaps (keep honest, review each cycle)
 
-1. "Live Broadcast" is a brand pillar with 0 code (HaishinKit authorized, unused; oscillated cut/re-list).
+1. ~~"Live Broadcast" brand pillar~~ — RESOLVED: struck 2026-07-31 (identity line + Built-for); CUT by Editor ≠ Workstation. HaishinKit stays unlinked; WATCH tier only.
 2. CLAUDE.md "v10 Target" diagram describes Beat/Record/Video/Share tabs never built (as-built = one
    EchoelStudioView); the file contradicts itself.
 3. FEATURE_MATRIX stale on the visual dimension (cites old deleted MetalBioView; a new live one exists).
-4. Bus `bioFrames`/`bioEvents` reserved but undrained; per-RR heartbeat events have no synth sink.
+4. Bus `bioFrames` reserved but undrained; `bioEvents` drained solely by OSCSender (OSC egress) — per-RR heartbeat events still have no synth sink.
 5. North-star concepts (installation worlds, auto-driving, dive-flying/Tauchfliegen, "revolutionise
    humanity via self-observation") are parked in `memory/vision.md` Tier-3 — never in product copy.
 

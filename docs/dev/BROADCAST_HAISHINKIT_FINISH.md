@@ -1,5 +1,11 @@
 # Broadcast (RTMP/SRT) — HaishinKit FINISH spec
 
+> ⛔ **FOUNDER-GATED — DO NOT EXECUTE (banner 2026-08-28).** Broadcast/RTMP is CUT by the
+> Editor ≠ Workstation boundary (`docs/dev/PRODUCT_DEFINITION.md`, 2026-07-25) and struck
+> from the identity line 2026-07-31. This spec is preserved as engineering knowledge for
+> the day a founder ask re-opens the scope — it is NOT an open task, and a session hunting
+> for "finish specs" must not run it.
+
 **Status:** destination config + routing + UI + the `#if canImport(HaishinKit)` seam all
 ship (`Stream/BroadcastPublisher.swift`, `Studio/BroadcastView.swift`, router sinks
 `rtmp.out`/`srt.out`). What remains is adding the dependency and the A/V capture path.

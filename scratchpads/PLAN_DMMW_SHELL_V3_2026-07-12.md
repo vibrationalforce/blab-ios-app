@@ -1,3 +1,5 @@
+> ⛔ **SUPERSEDED — do not execute (banner 2026-08-28).** This plan commands scope the Editor ≠ Workstation boundary (docs/dev/PRODUCT_DEFINITION.md, 2026-07-25) has CUT or that #121/#166/#167 dismantled. History only; ROADMAP.md + vision.md win over any PLAN file.
+
 # PLAN — DMMW-Shell v3 (Founder 2026-07-12, nach v175-Test)
 
 **Founder (verbatim):** "Master, Export, Live und Learn kommt oben in die Leiste

@@ -46,7 +46,7 @@ over time?**
 | ~~**Piano roll**~~ — REVERSED by the founder 2026-07-26 ("Pianoroll soll raus"); the note editor is CUT | Video capture, trim, edit |
 | Curated genres | AUv3 hosting and the AUv3 plugin target |
 | Output stage (below) | RTMP / broadcast |
-| Export: audio (WAV) · visual recording | Subscription commerce |
+| Export: audio (WAV) · MIDI (.mid) · visual recording (mp4) | Subscription commerce |
 | | Drums, step sequencer, sampler (#166/#167) |
 
 **Craft tools are instrument controls, not DAW surfaces.** A synth you cannot
@@ -130,7 +130,7 @@ boundary decides *whether something belongs to the product*; these four decide
 
 | Axis | What it means here | How it is checked |
 |---|---|---|
-| **Creative** | The player can make something and then *shape* it — generate, correct the notes, shape the timbre, keep it, export it. A capability the user cannot reach does not count. | Every capability has a reachable door. Doorless = broken. |
+| **Creative** | The player can make something and then *shape* it — generate, shape the timbre, keep it, export it (⛔ "correct the notes" stood here one day past its own line 77: note-editing is deliberately not offered, #178/#475 — this row must not be read as a defect to rebuild). A capability the user cannot reach does not count. | Every capability has a reachable door. Doorless = broken. |
 | **Immersive** | The output stage is the experience, not a readout: the visual is live and contemplative; light and space are real outputs, not demos. | On device: does it produce the "wow"? Founder's eye judges. |
 | **Accessible** | Legible numbers, VoiceOver labels, Dynamic Type, ≥44 pt tap targets, reduce-motion honoured, flash ≤ 3 Hz. Accessibility is a first-class axis, **not** a polish pass at the end. | HIG/WCAG are hard numbers — check them, don't estimate. |
 | **Health — no claims** | Physiology is a first-class, science-based *modulation source*. Cited research and self-observation are allowed; healing, therapy, diagnosis and wellness framing are never. | Any bio-adjacent copy passes the brand guardrails below. |

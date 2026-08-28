@@ -113,7 +113,9 @@ reopen a 2.3 rejection risk.
 The one list of what is true today is **`ContentPipeline/CLAIMS.md`**. Read it before writing any
 page copy, meta description, OG text or press line. Never claim: AUv3 (host or plugin) · RTMP /
 live streaming · video **editing** (capture and MP4 export are real; the cut went with #121
-Slice 3) · beat maker / drums · MPE out · multitrack recording · motion as a bio input.
+Slice 3) · beat maker / drums · MPE **in** (⛔ this list said "MPE out" past #713 — OUT is
+real and switchable since then; IN has no zone parser, #548 — a direction word decides the
+truth here) · multitrack recording · motion as a bio input.
 
 ## 6. `index.html` is the odd one out
 

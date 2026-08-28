@@ -7,7 +7,7 @@
 - **App:** Echoelmusic (Apple ID: 6757957358, Bundle: com.echoelmusic.*)
 
 ## Project Vision
-The multidimensional production instrument: ONE unified instrument (single EchoelStudioView — one button, then sliders) where the body plays sound, space (ADM-OSC), light (Art-Net/sACN) and vibration (sub-bass/haptics) in real time, over open standards. (The old "12 EchoelTools" is an internal taxonomy over real modules, not separate tools — see FEATURE_MATRIX.)
+**Echoel is a bio-reactive instrument — your body plays it, and its output is multidimensional (sound, image, light, space).** ONE unified instrument (single EchoelStudioView), over open standards; vibration/haptics ride the output stage (sub-bass/haptics). (⛔ 2026-08-28: the "multidimensional production instrument … sound, space, light and vibration" variant that stood here predated the ratified 2026-07-25 sentence — "production" is the retired framing, and *image* was missing. The old "12 EchoelTools" is an internal taxonomy over real modules, not separate tools — see FEATURE_MATRIX.)
 
 ## Technical Background
 - Swift/SwiftUI primary (85% of codebase)

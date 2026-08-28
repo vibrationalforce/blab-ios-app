@@ -27,7 +27,8 @@ Key contributors, collaborators, and contacts.
 - **Opportunity:** Echoel as a **bio-reactive object source** for immersive rigs — body
   (HR/HRV/breath) drives object position over ADM-OSC into FletcherMachine; gain follows
   the music's master level. (Motion was in this list and never had a sensor — #215.)
-  Anchors the "EchoelStage" roadmap (Installation/Event/Cinema/Theater/Live Broadcast).
+  Anchors the "EchoelStage" roadmap (Installation/Event/Cinema/Theater — "Live Broadcast"
+  stood in this list and was struck 2026-07-31 with the identity line; CUT, WATCH tier).
 - **Status:** Networking contact; integration is roadmap (ADM-OSC out is a small, additive
   layer on the already-live OSCSender). No commitment yet.
 - **Refs:** adamson.ai · adamson-fletcher-machine.com · github.com/immersive-audio-live/ADM-OSC

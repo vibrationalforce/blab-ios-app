@@ -33,7 +33,7 @@ Full LIVE/ROADMAP/NORTH-STAR detail in [`vision.md`](../../memory/vision.md) and
 | Dimension | Status | Where |
 |---|---|---|
 | **Body** (controller) | LIVE | HealthKit + BLE 0x180D + camera rPPG + Demo → 10 Hz bus |
-| **Sound** | LIVE | DDSP/modal/cellular, FX chain, presets+community, LUFS/MIDI export |
+| **Sound** | LIVE | DDSP, FX chain, presets+community, LUFS/MIDI export (⛔ "modal/cellular" stood in this Live row — both have zero production instantiators, #796/FEATURE_MATRIX) |
 | **Light** | LIVE | native Art-Net + sACN (zero-dep UDP) |
 | **Space** | LIVE | ADM-OSC object out `/adm/obj/{n}/*` |
 | **Vibration** | LIVE | sub-bass/LFE voice + Core Haptics infra |
@@ -128,7 +128,7 @@ Grouped by theme so nothing is lost. **Status legend:** 🟢 active input · �
 
 ## 5. Honesty ledger (review every session — from `vision.md` §gaps + Apple audit)
 
-- **Live Broadcast** = brand pillar, zero code, oscillates → gate, then build or stop claiming.
+- ~~Live Broadcast~~ — the gate ANSWERED (⛔ this line kept the oscillation alive past the verdict): CUT by Editor ≠ Workstation (2026-07-25) and struck from the identity line 2026-07-31. WATCH tier; re-entry needs a founder ask.
 - ✅ ~~CLAUDE.md "v10 Target" diagram drift~~ — RECONCILED 2026-06-19: relabeled as superseded
   + honest banner, "Studio sections" table now reflects the as-built single `EchoelStudioView`.
 - **Bus `bioFrames`/`bioEvents`** reserved but undrained (snapshot path is the live one).
