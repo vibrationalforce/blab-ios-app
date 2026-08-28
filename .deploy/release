@@ -1,4 +1,4 @@
-build: v10.79.427 — Deine drei Stimme-Wünsche von heute: Latenz gelöst, Presence-Regler, Telefon-Modus (verlustfrei)
+build: v10.79.428 — Dein 427er-Log hat den Absturz geknackt: der Umbau ist abgeschafft, der Autotune-Schalter ist jetzt nur noch ein Hebel
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,54 +6,51 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.426 (heute früh — Absturz-Leiter + Motor-Reset; die
-  Prüfbitten von dort gelten weiter und stehen unten nochmal kurz).
+  Der Vorgänger ist 10.79.427 (heute — Latenz-Fix, Presence, Telephone).
 
-  ── DEINE NACHRICHT VON HEUTE, PUNKT FÜR PUNKT ───────────────────────────
+  ── WAS DEIN 427er-LOG BEWIESEN HAT ──────────────────────────────────────
 
-  1. **„alle latenzprobleme lösen"** (#855): Dein 425er-Log zeigte buf=23 ms,
-     obwohl die App 10,7 ms wollte — der Kategorie-Wechsel beim Monitoring-
-     Start verhandelte den Puffer neu und verlor die Wahl. Jetzt wird die
-     GEWÄHLTE Stufe nach jedem Wechsel wiederholt.
-     **Erwartung im Log: die nächste `latency:`-Zeile zeigt buf≈10.7 statt 23**
-     auf der eingebauten Route; Ultra/Low im Input-Sheet drücken weiter darunter.
-  2. **„der Sound der Stimme muss präsenter"** (#856): Neuer Regler
-     **„Presence"** im Input-Sheet (0…+6 dB, Standard 0 = kein stiller
-     Klangwechsel). Ein breiter Glanz-Peak nur auf Deiner Monitor-Stimme —
-     die Musik bleibt unberührt. Der Rückkopplungs-Schutz rechnet den Boost
-     mit ein (Reviewer-Befund, gleich mitgefixt).
-  3. **„Telephonmodus optional"** (#857): Toggle **„Telephone"** im Input-Sheet
-     direkt unter Megaphone, Standard aus. Und zu Deiner Frage von heute:
-     **Telefon-CHARAKTER, volle Qualität — kein Codec, nur Filter.** Es klingt
-     nach Telefon (300–3400 Hz), aber die Stimme darunter bleibt verlustfrei
-     in voller 48-kHz-Auflösung; Schalter aus = alles bit-genau wieder da.
-     Live auf der Bühne: ja, ohne Extra-Latenz. Streamen kann Echoel weiter
-     nicht — der Weg ist Audio-Interface → Dein Streaming-Setup.
-  4. **„Vermeide Abhängigkeiten von big Playern"**: Alles hausintern — die
-     drei Punkte sitzen auf dem VORHANDENEN Monitor-EQ, null neue
-     Abhängigkeiten (Package.swift bleibt leer).
+  Zwei Siege: **buf=10.7 statt 23** (der Latenz-Fix greift — Deine Stimme
+  läuft mit dem gewollten kurzen Puffer) und **Telephone lief crashfrei**.
+
+  Und der Durchbruch: Die Schritt-Leiter hat nach fünf Logs zum ERSTEN Mal
+  den sterbenden Schritt benannt — `tune 3/4: restarting engine`, dann der
+  Crash. Der Absturz sitzt im Engine-NEUSTART nach dem Autotune-Umbau, als
+  Apple-interner Abbruch, den kein Fangnetz halten kann. Vier Versuche, den
+  Umbau vorsichtiger zu machen (gar nicht anhalten → pausieren → stoppen →
+  stoppen+zurücksetzen), sind alle am Gerät gescheitert.
+
+  ── WAS 428 ANDERS MACHT: ES GIBT KEINEN UMBAU MEHR ──────────────────────
+
+  Der Autotune-Baustein wird beim Monitoring-Start IMMER fest eingebaut.
+  Ist Autotune aus, wird er nur UMGANGEN (Bypass). Der Schalter legt ab
+  jetzt nur diesen Hebel um — kein Stoppen, kein Umverdrahten, kein
+  Neustart. Genau so funktioniert schon Dein Telefon-Schalter, und der
+  lief in Deinem Log Sekunden vor dem Crash einwandfrei. Die Stelle, an
+  der es fünfmal krachte, existiert im Code nicht mehr.
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  1. **Latenz:** Monitoring an → fühlt sich die Stimme direkter an? Im
-     Diagnose-Log: `latency:`-Zeile mit buf≈10.7 (statt 23).
-  2. **Presence:** Regler von 0 auf 4–6 dB — liest es sich als Präsenz oder
-     als Härte? (Das entscheidet Dein Ohr, kein Test kann es.)
-  3. **Telephone:** Toggle an — klingt es nach Telefon? Aus — exakt der
-     normale Monitor?
-  4. **Die 426er-Bitten gelten weiter:** Monitor-Folter (Megaphone an →
-     Monitoring aus, mehrfach) — kein Absturz ODER das Log nennt erstmals
-     den Schritt („off 3/5", „tune 3/4"). Danach Log per Save/Export →
-     Diagnostics → Share.
+  1. **Die Autotune-Folter:** Monitoring an → Autotune an/aus, mehrfach,
+     schnell, gern mit Telephone und Megaphone dazu. Erwartung: KEIN
+     Absturz, und im Log steht nur noch `tune on — bypass flip, no rewire`.
+  2. **Latenz bei Autotune AUS:** Die `latency:`-Zeile zeigt jetzt
+     `inserts[…tune=…]` auch, wenn Autotune aus ist. Dieser Wert (und Dein
+     Gefühl) sagt uns, ob der fest eingebaute, umgangene Baustein etwas
+     kostet. Fühlt sich der normale Monitor an wie vorher?
+  3. **Klingt Autotune AN wie vorher?** (Der Weg dahin ist neu, der Klang
+     soll gleich sein.)
+  4. Danach wie immer: Log per Save/Export → Diagnostics → Share.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
   Compile-verifiziert (Compile Check grün; CI/CD-Job-Schritte gelesen:
-  Test-Bundle baut, 135 Tests im Fenster bestanden), nicht geräteverifiziert.
-  Ob +6 dB nach Präsenz klingt und der Bandpass nach Telefon — Dein Ohr.
+  Bundle baut, 170 Tests im Fenster bestanden, 0 Fehlschläge), nicht
+  geräteverifiziert. Ob der umgangene Baustein hörbar Latenz kostet, kann
+  nur Dein Gerät messen — deshalb Prüfbitte 2.
 
-  ⚠ Apple-Tageskontingent: 426 lief heute schon hoch. Falls der Upload
-  abgelehnt wird, lande ich 427 morgen automatisch neu.
+  ⚠ Apple-Tageskontingent: 426 und 427 liefen heute schon hoch. Falls der
+  Upload abgelehnt wird, lande ich 428 morgen automatisch neu.
 
   ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
   bitte NICHT prüfen.

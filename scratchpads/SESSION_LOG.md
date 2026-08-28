@@ -15896,3 +15896,26 @@ wäre #367); TheVoiceTuneSnapsToTheSessionKey Zähler 2→1/2→1/3→2/2→0 + 
 Bypass-Pins; TheNotchIsSlewedAndMonitorOnly Direktverbindung 2→0. OFF-Leiter bleibt
 (diese Chirurgie existiert weiter). Transkription: 37/37 grün, dead-needles sauber.
 Gerät offen: Tune-Toggle-Folter crashfrei; tune=-Latenzwert im Log.
+
+## 2026-08-28 — #858b (Reviewer-Nacharbeit) + Deploy v10.79.428
+
+Audio-Reviewer auf #858: Kern bestätigt (Checkliste 1–4 sauber: MainActor-only, ein
+Aufbau-Ort, beide Teardowns korrekt, Rearm-Recycle funktioniert). EIN HIGH: der VIERTE
+Wächter `TheVocalChainStopsAtTheAutotuneTests` pinnte die gelöschte
+notchEQ→monitorMixer-Verbindung als Bool-`contains` — rot auf korrektem Baum für einen
+Commit (#655-Klasse; die zwei Count-Geschwister zogen mit #858 mit, der dritte nicht;
+dead-needles.py liest die contains-Form nicht). Neu verankert auf notchEQ→voiceTunePitch.
+Dazu M1/M2: `tune=`-Semantik umgeschrieben (heißt jetzt „Korrektur AKTIV", der Vocoder
+ist immer hinter floor=; `inserts[tune=…]` misst den Bypass-Preis) und der ganze
+Optional-Klammer-Prosa-Cluster bereinigt (Deklarations-Doc, voiceTuneEnabled-Doc,
+zwei Ketten-Zeichnungen in AudioEngine + FeedbackGuard, #832-Kommentar, CLAUDE.md-
+Identitätszeile [149.842 B < Decke, 158 B Luft], zwei Wächter-Messages). M3 ehrlich:
+AVAudioUnitTimePitch.bypass = AU-Property-Write, gleiche SICHERHEITS-Klasse wie der
+Telefon-Band-Bypass, kein bekanntes Crash-Muster — aber gerätunbewiesen; Glitch beim
+Flip möglich, durch pitch=0-Parken gemildert. Transkription 7/7.
+
+Gates e6da969 per §5: Compile grün; CI/CD build-for-testing Succeeded, 170 passed im
+Fenster, 0 Failures (#396-Muster). Deploy: v10.79.428 (Notes: Umbau abgeschafft,
+Autotune-Folter-Prüfbitte, tune=-Latenzmessung bei AUS, die zwei 427-Siege).
+v427-TestFlight-Verify: Lauf 33184619073 success + Founder-Log lief auf 2545 — doppelt
+bewiesen. Gerät offen für 428: Toggle-Folter crashfrei · Bypass-Latenz · Klang gleich.
