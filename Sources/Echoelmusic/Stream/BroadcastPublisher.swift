@@ -2,8 +2,10 @@
 //  BroadcastPublisher.swift
 //  Echoelmusic — Stream
 //
-//  The broadcast pillar (TIER-2): stream the live bio-AV instrument straight from
-//  the phone to YouTube / Twitch / TikTok / a custom server — no laptop, no OBS.
+//  The broadcast pillar — CUT from the roadmap (Editor ≠ Workstation, 2026-07-25;
+//  struck from the identity line 2026-07-31). WOULD stream the live bio-AV
+//  instrument from the phone; the engine (HaishinKit) is not linked, so nothing
+//  streams in this build. Config/UI are preserved for a founder re-open.
 //  This is the SINK side of the Signal Router (rtmp.out / srt.out).
 //
 //  Build-green first (founder principle #1): the real RTMP/SRT engine is HaishinKit

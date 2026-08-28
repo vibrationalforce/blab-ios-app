@@ -95,7 +95,7 @@ DAW while also playing Echoel.
 
 ---
 
-## 5. Broadcast — straight from the phone (no laptop, no OBS)
+## 5. Broadcast — CUT (engine not linked; kept for a founder re-open)
 
 Echoel's edge over OBS is **phone-native streaming**: Tools ▸ Broadcast → pick RTMP/SRT,
 paste the ingest URL + stream key, **Go Live**. (Engine integration: HaishinKit, in

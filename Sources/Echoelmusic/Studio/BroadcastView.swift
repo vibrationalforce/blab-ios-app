@@ -34,7 +34,7 @@ struct BroadcastView: View {
         @Bindable var broadcast = broadcast
         return ScrollView {
             VStack(alignment: .leading, spacing: 14) {
-                Text("Destination setup for live streaming (RTMP/SRT). The streaming engine is not linked in this build — settings are saved, nothing goes out yet.")
+                Text("Destination setup for live streaming (RTMP/SRT).")
                     .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
 

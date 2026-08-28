@@ -5617,7 +5617,7 @@ struct EchoelStudioView: View {
         .accessibilityAddTraits(selected ? [.isSelected] : [])
     }
 
-    // MARK: Panel — Entrainment (biofeedback-driven brainwave stimulus)
+    // MARK: Panel — Entrainment (biofeedback-driven isochronic pulsing)
 
     /// Flash-safe (≤3 Hz) visual pulse for the armed entrainment, else 0. Only MANUAL band
     /// mode couples the visual — a stable, LOW-frequency read (`entrainmentEnabled` +

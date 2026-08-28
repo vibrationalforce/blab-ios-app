@@ -144,7 +144,7 @@ struct BioSourceView: View {
             .strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
 
-    // MARK: - Entrainment (body-driven brainwave stimulus)
+    // MARK: - Entrainment (body-driven isochronic pulsing)
 
     private var entrainmentSection: some View {
         VStack(alignment: .leading, spacing: 10) {

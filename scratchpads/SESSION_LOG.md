@@ -15667,3 +15667,14 @@ auf allen vier Dateien; dead-needles.py OK. Reviewer-Lauf angestoßen; Befunde f
 als Nachtrag-Commit. Gate-Verdicts der Vorgänger-Pushes gelesen (gh-test-verdict.py):
 9cfeed9 + b5c2c29 beide build-for-testing Succeeded, 0 beobachtete Failures/Skips,
 TEST EXECUTE FAILED = #396 (erwartet).
+
+### Nachtrag Slice 5b (Reviewer-Befunde angewandt)
+
+Reviewer-Verdict auf 5a: kein HIGH, Diff sicher. Angewandt: (MEDIUM) BroadcastView-Intro
+trägt keine Build-Zustands-Behauptung mehr — der `engineAvailable`-gegatete Banner ist der
+EINE Besitzer des Satzes (sonst würde das Intro am Tag der Verlinkung falsch); (#456-Lehre)
+die zurückgezogene „no laptop, no OBS"/„brainwave stimulus"-Prosa ist aus ALLEN Heimaten
+gezogen: zwei MARK-Kommentare (BioSourceView, EchoelStudioView), BroadcastPublisher-Kopf
+(jetzt: CUT, Engine nicht verlinkt), SignalRouter-Portkommentar, docs/dev/VJ_BRIDGE.md §5.
+NICHT angefasst: die Band-Chips/„Beta·Alpha·Theta"-Copy in BioSourceView (Frequenz-Namen
+der Pulsraten, Zeile ist qualifiziert, Ansicht türlos — als Registereintrag belassen).
