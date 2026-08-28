@@ -27,7 +27,7 @@ What it does have, structurally, is **biofeedback as a first-class modulation so
 
 ## One screen, one bus
 
-The root view is `WorkspaceView` — brand header, transport bar, and one surface below it, `EchoelStudioView`. Not a TabView. The front plate carries the single **Create from Within** button: the bio-generative flow that writes in-key melody, harmony, rhythm and tempo from your body across curated genres. Everything else is a panel.
+The root view is `WorkspaceView` — brand header and one surface below it, `EchoelStudioView` (the transport controls live inside the instrument). Not a TabView. The front plate carries the single **Create from Within** button: the bio-generative flow that writes in-key melody, harmony, rhythm and tempo from your body across curated genres. Everything else is a panel.
 
 **Five chips render in the tab strip:**
 
@@ -39,7 +39,7 @@ The root view is `WorkspaceView` — brand header, transport bar, and one surfac
 | **Mood** | Production character |
 | **Field** | The immersive visual's look controls, plus the touch-playable surface below them — quantized with micro-timing, and able to play itself (self-play + arpeggiator) |
 
-**Six more panels open from the header or the transport overflow, not from a chip:** Bio (HR · HRV · Breath · Coherence with tap-to-learn), Video (recorded clips, inline playback, mp4 share), Export (WAV loop render and MIDI file export), Master, Tempo, Session. The bio *source* — camera, chest strap, Health, simulation — is chosen by touching and holding the pulse pill in the header, not inside the Bio panel.
+**Five more panels open from the header or the transport overflow, not from a chip:** Bio (HR · HRV · Breath · Coherence with tap-to-learn), Video (recorded clips, inline playback, mp4 share), Export (WAV loop render and MIDI file export), Master, Tempo. The bio *source* — camera, chest strap, Health, simulation — is chosen by touching and holding the pulse pill in the header, not inside the Bio panel.
 
 Network routing (OSC · ADM-OSC · Art-Net · sACN · MIDI out) is a patchbay reached from the Master panel, the Bio panel and the header lighting tile.
 
@@ -119,7 +119,7 @@ Sources/Echoelmusic/
                  TouchInstrumentView, FloatingVisualWindow, PatchbayView, EchoelTheme
   Views/         MetalBioView, OnboardingView
   EchoelAI/      BrainBackend, FoundationModelsBrain, ParameterToolCore — three files,
-                 flag-gated off by default; the parameter registry itself lives in Core/
+                 no production caller today (the echoelAI flag has zero readers); the parameter registry itself lives in Core/
   Stream/        BroadcastPublisher — a compile guard only; HaishinKit is not a dependency
   Resources/     bundled assets
   (plus the two loose files EchoelmusicApp.swift and MicrophoneManager.swift)

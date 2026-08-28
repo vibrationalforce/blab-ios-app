@@ -274,7 +274,7 @@
             <section id="ui">
                 <h2>Studio UI &amp; App Wiring <span class="tag">LIVE</span></h2>
                 <p><code>EchoelmusicApp</code> (<code>@main</code>) builds the graph in order — <code>MicrophoneManager → AudioEngine → EchoelStore → BeatPlayer → EngineBus</code>, then the bio publishers (HealthKit, Polar&nbsp;H10), the <code>BioReactiveSynthVoice</code>, the <code>BioEventPublisher</code>, MIDI (CoreMIDI), and the OSC sender — configures audio <em>before</em> the UI, then mounts the studio. SwiftUI observes EngineBus snapshots; nothing in the view layer touches the audio thread.</p>
-                <div class="data-row"><div class="k">BioStripView</div><div class="v">Always-on readout: <strong>HR · HRV · Br · Coh</strong>, applied synth-frame count, and activity dots (bio events, MIDI, OSC), plus a play/stop toggle and the active source tag.</div></div>
+                <div class="data-row"><div class="k">BioStripView</div><div class="v">Bio-panel readout (a tap on the pulse pill opens it): <strong>HR · HRV · Br · Coh</strong>, applied synth-frame count, and activity dots (bio events, MIDI, OSC), plus a play/stop toggle and the active source tag.</div></div>
                 <div class="data-row"><div class="k">Studio views</div><div class="v">One shell, <code>EchoelStudioView</code>: a chip bar where each chip opens exactly one panel, the transport, and a 60-second camera-pulse measurement. The old Perform / Mix / Export / Settings tabs no longer exist.</div></div>
             </section>
 
@@ -282,7 +282,7 @@
             <section id="osc">
                 <h2>EchoelSync &mdash; OSC API <span class="tag">LIVE</span></h2>
                 <p><code>OSCSender</code> mirrors the bio frame out over UDP (Network.framework), so any visual or audio tool on the network can react to the body. OSC 1.0, big-endian 32-bit floats, ~100&nbsp;ms cadence (sent only when the frame changes). Default target <code>localhost:8000</code>; target latency &lt;5&nbsp;ms on LAN. Works with Resolume, TouchDesigner, MadMapper, Sonic Pi and TidalCycles. Ableton&nbsp;Link sync is <span class="tag">ROADMAP</span>.</p>
-                <p>An opt-in <code>ADMOSCSender</code> additionally streams the body as an audio <strong>object</strong> over <strong>ADM-OSC</strong> (the open Audio-Definition-Model-over-OSC standard): breath&nbsp;&rarr;&nbsp;azimuth, coherence&nbsp;&rarr;&nbsp;distance, HRV&nbsp;&rarr;&nbsp;elevation on <code>/adm/obj/{n}/&hellip;</code>. This makes Echoel a bio-reactive object source for object-based renderers (Adamson&nbsp;FletcherMachine, L-ISA, d&amp;b&nbsp;Soundscape) &mdash; open standard, no vendor SDK. Configured from the Sync tab; off by default. <span class="tag">NEW</span></p>
+                <p>An opt-in <code>ADMOSCSender</code> additionally streams the body as an audio <strong>object</strong> over <strong>ADM-OSC</strong> (the open Audio-Definition-Model-over-OSC standard): breath&nbsp;&rarr;&nbsp;azimuth, coherence&nbsp;&rarr;&nbsp;distance, HRV&nbsp;&rarr;&nbsp;elevation on <code>/adm/obj/{n}/&hellip;</code>. This makes Echoel a bio-reactive object source for object-based renderers (Adamson&nbsp;FletcherMachine, L-ISA, d&amp;b&nbsp;Soundscape) &mdash; open standard, no vendor SDK. Configured from the Routing panel; off by default. <span class="tag">NEW</span></p>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/synthetic</code></div><div class="v">float 0 or 1 &mdash; whose body this is: 1 = the built-in demo generator, 0 = a real measured source. Sent first in every tick that carries at least one value and omitted from a silent tick, so it never arrives alone. UDP does not preserve order &mdash; latch it as state rather than reading it as a prefix. Absent while values arrive = an Echoel build that predates this address. The discrete <code>/echoelmusic/bio/event/*</code> addresses carry it too, on a different cadence: immediately before the event it describes and again only on a CHANGE of origin, latched across polls &mdash; events arrive in bursts, so repeating it per event would add traffic and no information. <span class="tag">NEW</span></div></div>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/heart/bpm</code></div><div class="v">float [40–200]</div></div>
                 <div class="data-row"><div class="k"><code>/echoelmusic/bio/heart/hrv</code></div><div class="v">float [0–1]</div></div>
@@ -375,7 +375,6 @@
                             <li>AudioEngine + 30s RetroCapture</li>
                             <li>Generative composition (any key/BPM)</li>
                             <li>WAV export</li>
-                            <li>MIDI file (.mid) export</li>
                             <li>MIDI file (.mid) export</li>
                             <li>OSC + ADM-OSC out (EchoelSync)</li>
                             <li>Virtual MIDI 1.0 out (behind a routing switch)</li>

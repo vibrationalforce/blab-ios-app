@@ -15615,3 +15615,35 @@ kürzeren Trust-Lücke.
   (Zeiger bleibt), Bus-Klausel kompakt → **149.730 B**, 270 B Luft. Lehre: wer die immer-
   geladene Datei anfasst, misst `wc -c CLAUDE.md` VOR dem Push — ab jetzt Teil meiner
   Pre-Push-Checks.
+
+## 2026-08-28 — Brand-Audit Slice 4: Website-MEDIUMs + README (docs-only)
+
+Founder-Mandat „Alles optimieren und aufs höchste Level bringen". 14 Ehrlichkeits-Fixes,
+alle exakt-String-verifiziert (Python-Batch, count==1 je Ersetzung):
+
+- index.html: Identitätszeile → kanonisch „Physical Computing · Biofeedback · Multimedial
+  & Multidimensional"; „four generative looks"→ten (×2); Tagline → „The First Bio-Reactive
+  Performance Instrument" (×3); „Full studio…"-Zeile ersetzt; „Apple Watch music"-Keyword raus.
+- faq.html: „four looks"→ten (×3); „video export not planned" → „video editing" (der mp4-Export
+  SHIPPT — die alte Zeile verneinte die falsche Hälfte).
+- architecture.html: „Sync tab" → „Routing panel" (die echte Tür ist PatchbayView hinter
+  showRouting); BioStripView „Always-on readout" → „Bio-panel readout (a tap on the pulse pill
+  opens it)" (B3: der Always-on-Strip ging 2026-07-12); doppelter „.mid export"-Bullet dedupliziert.
+- tools.html: „If anything is ever online, it stays free" → „v1.0 is completely free"
+  (Founder-Entscheid 2026-07-10: v1.1 = Abo — das alte Versprechen widersprach dem Plan);
+  Kammerton „432/440/442" → „freely settable 380.00–500.00 Hz" (gemessen WorkspaceView a4Hz
+  range: 380...500, decimals 2).
+- press.html: „A4 432–444 Hz" → „freely settable 380–500 Hz" (gleiche Messung).
+- brainstorming.html: Widgets-Idee → „Half shipped" (WidgetKit-Widget ist in der App).
+- version.json: HISTORY NOTE an den Changelog-Kopf (Changelog ist Claim-Fläche, docs/CLAUDE.md §4);
+  JSON re-validiert. Versionsnummern NICHT angefasst.
+- README.md: „transport bar" raus (#456), „Six panels…Session" → „Five" (Session-Panel #359),
+  EchoelAI „flag-gated off" → „no production caller (flag has zero readers)" (gemessen, CLAUDE.md).
+
+ZWEI Audit-Punkte VERWORFEN nach Messung statt ausgeführt: architecture-Toolkit-Zeile
+EchoelEntrainment (IST live: EchoelDDSP:428 konstruiert es, BioEntrainmentDirector wird aus
+EchoelStudioView getrieben) und overview-Sicherheitswarnung (mandatiert + Feature real).
+Ein Audit-Befund ist eine Frage, keine Diagnose.
+
+Guards: kein Needle berührt (grep über Tests/CISmoke: 2 Treffer, beide Kommentare);
+dead-needles.py OK (378 Dateien). Docs-only-Commit → Gates NOT TRIGGERED (nicht „grün").
