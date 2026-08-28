@@ -1,4 +1,4 @@
-build: v10.79.426 — Dein 425er-Crash-Log von heute ist eingebaut: der Umbau-Weg spricht jetzt bei jedem Schritt, und nach jedem Stop wird der Motor zusätzlich zurückgesetzt
+build: v10.79.427 — Deine drei Stimme-Wünsche von heute: Latenz gelöst, Presence-Regler, Telefon-Modus (verlustfrei)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,59 +6,54 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.425. Danke für das heutige Log — es war das vierte mit
-  demselben Absturz, und es hat endlich die entscheidende Lücke gezeigt.
+  Der Vorgänger ist 10.79.426 (heute früh — Absturz-Leiter + Motor-Reset; die
+  Prüfbitten von dort gelten weiter und stehen unten nochmal kurz).
 
-  ── WAS DEIN 425er-LOG BEWEIST ───────────────────────────────────────────
+  ── DEINE NACHRICHT VON HEUTE, PUNKT FÜR PUNKT ───────────────────────────
 
-  Der Absturz kam 6,5 Sekunden nach „Megaphone an", wieder aus einem Schalter.
-  Und: Die im 425er versprochene „restoring engine…"-Zeile stand NICHT im Log —
-  der Absturz passiert also VOR dem Neustart, mitten im Umbau. Vier Logs in
-  Folge konnten den sterbenden Schritt nie benennen, weil dort schlicht keine
-  Log-Zeilen standen.
-
-  ── WAS 426 ANDERS MACHT ─────────────────────────────────────────────────
-
-  1. **Schritt-Leiter:** Vor jedem riskanten Handgriff schreibt die App jetzt
-     eine Zeile — „off 1/5 … 4/5" beim Monitoring-Ausschalten, „tune 1/4 … 4/4"
-     beim Autotune-Umbau (auch der Neustart selbst hat seine eigene Zeile).
-     Selbst wenn es wieder kracht: Dein nächstes Log nennt zum ERSTEN Mal den
-     exakten Schritt.
-  2. **Die Reparatur-Hypothese:** Nach jedem Stop wird der Audio-Motor
-     zusätzlich zurückgesetzt (reset). Stop hält nur das Abspielen an — die
-     vorbereitete Konverter-Maschinerie lebt weiter, und genau die steht in
-     der Absturzmeldung. Der Reset gibt sie frei, BEVOR am Schaltplan operiert
-     wird. Der bewiesene Einschalt-Weg ist unangetastet.
-
-  ── AUSSERDEM NEU SEIT 425 ───────────────────────────────────────────────
-
-  · **Kein Piepsen von Anfang an** (#847/848): Der Rückkopplungs-Schutz hört
-    das Aufschaukeln, BEVOR es hörbar wird, und setzt vier schmale Kerben.
-  · **„Granular texture"** im Input-Sheet (#849): Grain-Wolke unter Deiner
-    Stimme, standardmäßig aus.
-  · **Drei neue Bild-Regler** im Visual-Panel unter „Fine tune":
-    **Texture** (Korn) · **Glitter** (Funkeln) · **Structure** (verbiegt die
-    Muster-Geometrie — 0 = exakt das bisherige Bild). Alle flash-sicher.
-  · Ehrliche In-App-Texte (u. a. verspricht der Broadcast-Screen kein
-    Streaming mehr, das es nicht gibt; „Herzschlag setzt das Tempo" gilt
-    ehrlich nur im Flow-Modus).
+  1. **„alle latenzprobleme lösen"** (#855): Dein 425er-Log zeigte buf=23 ms,
+     obwohl die App 10,7 ms wollte — der Kategorie-Wechsel beim Monitoring-
+     Start verhandelte den Puffer neu und verlor die Wahl. Jetzt wird die
+     GEWÄHLTE Stufe nach jedem Wechsel wiederholt.
+     **Erwartung im Log: die nächste `latency:`-Zeile zeigt buf≈10.7 statt 23**
+     auf der eingebauten Route; Ultra/Low im Input-Sheet drücken weiter darunter.
+  2. **„der Sound der Stimme muss präsenter"** (#856): Neuer Regler
+     **„Presence"** im Input-Sheet (0…+6 dB, Standard 0 = kein stiller
+     Klangwechsel). Ein breiter Glanz-Peak nur auf Deiner Monitor-Stimme —
+     die Musik bleibt unberührt. Der Rückkopplungs-Schutz rechnet den Boost
+     mit ein (Reviewer-Befund, gleich mitgefixt).
+  3. **„Telephonmodus optional"** (#857): Toggle **„Telephone"** im Input-Sheet
+     direkt unter Megaphone, Standard aus. Und zu Deiner Frage von heute:
+     **Telefon-CHARAKTER, volle Qualität — kein Codec, nur Filter.** Es klingt
+     nach Telefon (300–3400 Hz), aber die Stimme darunter bleibt verlustfrei
+     in voller 48-kHz-Auflösung; Schalter aus = alles bit-genau wieder da.
+     Live auf der Bühne: ja, ohne Extra-Latenz. Streamen kann Echoel weiter
+     nicht — der Weg ist Audio-Interface → Dein Streaming-Setup.
+  4. **„Vermeide Abhängigkeiten von big Playern"**: Alles hausintern — die
+     drei Punkte sitzen auf dem VORHANDENEN Monitor-EQ, null neue
+     Abhängigkeiten (Package.swift bleibt leer).
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  1. **Der tödliche Moment, wieder:** Mix-Chip → Monitoring an → Megaphone an →
-     Monitoring AUS. Mehrfach, gern schnell, gern mit Autotune-Toggle dazu.
-     Erwartung: kein Absturz — ODER das Log nennt erstmals den Schritt
-     („off 3/5", „tune 3/4", …). Beides bringt uns entscheidend weiter.
-  2. **Autotune an/aus** bei laufendem Monitoring (der zweite Umbau-Weg).
-  3. Die drei Bild-Regler: Structure von 0 auf 2 drehen — liest es sich als
-     Struktur oder als Störung? Und bei 0: exakt das gewohnte Bild?
-  4. Danach wie immer: Diagnose-Log per Save/Export → Diagnostics → Share.
+  1. **Latenz:** Monitoring an → fühlt sich die Stimme direkter an? Im
+     Diagnose-Log: `latency:`-Zeile mit buf≈10.7 (statt 23).
+  2. **Presence:** Regler von 0 auf 4–6 dB — liest es sich als Präsenz oder
+     als Härte? (Das entscheidet Dein Ohr, kein Test kann es.)
+  3. **Telephone:** Toggle an — klingt es nach Telefon? Aus — exakt der
+     normale Monitor?
+  4. **Die 426er-Bitten gelten weiter:** Monitor-Folter (Megaphone an →
+     Monitoring aus, mehrfach) — kein Absturz ODER das Log nennt erstmals
+     den Schritt („off 3/5", „tune 3/4"). Danach Log per Save/Export →
+     Diagnostics → Share.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Compile-verifiziert (beide Gates grün), nicht geräteverifiziert. Der Reset
-  ist Hypothese Nr. 4 auf diesen Absturz — aber anders als die drei davor ist
-  diese Runde so gebaut, dass Dein Log sie beweist ODER präzise widerlegt.
+  Compile-verifiziert (Compile Check grün; CI/CD-Job-Schritte gelesen:
+  Test-Bundle baut, 135 Tests im Fenster bestanden), nicht geräteverifiziert.
+  Ob +6 dB nach Präsenz klingt und der Bandpass nach Telefon — Dein Ohr.
+
+  ⚠ Apple-Tageskontingent: 426 lief heute schon hoch. Falls der Upload
+  abgelehnt wird, lande ich 427 morgen automatisch neu.
 
   ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
   bitte NICHT prüfen.

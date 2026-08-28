@@ -15845,3 +15845,26 @@ Heuristik-Fehlalarm, die Nadel lebt absichtlich im Runtime-Shader-STRING und ist
 XCTUnwrap verankert · Sektion C: alle 9 türlosen Views in CLAUDE.md dokumentiert ·
 Sektion D: CLAUDE.md 149.730 B unter der 150.000-B-Decke, Modifier-Zahl stimmt.
 Kein neuer Befund; nichts editiert außer den Ledgern.
+
+## 2026-08-28 — #856b (Reviewer-Fixes) + Deploy v10.79.427
+
+Audio-Thread-Reviewer auf #855–#857: kein HIGH, zwei MEDIUM, beide als #856b (41627f0)
+gefixt: (1) `voicePresenceDB.didSet` schrieb pro Drag-Schritt eine Breadcrumb-Zeile
+(MainActor-File-I/O in Drag-Rate, hätte die #854-Leiter im Diag-Log zugeschüttet) —
+Drag wendet jetzt still an wie `inputMonitorGain`, diskrete Toggles loggen weiter.
+(2) Die #829-Duck-Autorität kannte nur default+Megaphone, während Band 4 bis +6 dB im
+selben Spektralbereich stapelt — Herleitung trägt jetzt `+ voicePresenceDB`; Wächter-
+Claim 4 pinnt das dritte Glied. Clamp-Re-Entranz dokumentiert (LOW). Transkription:
+alle betroffenen Claims grün, dead-needles + needle-reachability sauber.
+
+Founder-Fragen beantwortet: Telefon-Modus live = ja (Monitorpfad, keine Extra-Latenz);
+Streamen kann Echoel nicht (RTMP nie verlinkt — Weg: Interface → Streaming-Setup).
+„Qualität wie lossless" = schon so gebaut: reines Filter-Paar, kein Codec, volle
+48-kHz-Float-Kette; Satz in die 427-Notes übernommen.
+
+Gates auf 41627f0 per §5: Compile Check grün; CI/CD-Conclusion failure = #396
+(build-for-testing Succeeded, 135 passed im Fenster, 0 Failures, 0 Skips — Fenster ist
+tail-200, mehr behauptet niemand). Deploy: .deploy/release → v10.79.427 (Notes: #855
+Latenz mit Geräteerwartung buf≈10.7 · #856 Presence · #857 Telephone inkl.
+Lossless-Zusicherung · Apple-Kontingent-Hinweis). v426-TestFlight-Verify davor: Lauf
+33176484386 = echter Upload-Erfolg.
