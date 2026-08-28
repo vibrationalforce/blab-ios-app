@@ -15705,3 +15705,24 @@ Labels 8→9 (+4 Prosa-Stellen) · VisualPresetValuesAreReachableTests calls.cou
 (+2 Prosa). GlitterCannotBecomeAFlash-Nadeln unberührt (geprüft). dead-needles +
 needle-reachability + balance.py OK. NEEDS-FOUNDER-VERIFY: liest sich „Structure" bei 2
 als Struktur statt Chaos, und bleibt 0 wirklich ununterscheidbar vom Vorher-Bild.
+
+## 2026-08-28 — Ultracode-Aufräumrunde: DMMW-Gegenwarts-Kommentare · Checklist-Phantom · Website-Versionen vereinheitlicht
+
+Founder-Mandat „Ultragreballtasks … vermeide alle Fehler und räume auf". Drei Aufräumer:
+
+1. **DMMW-Gegenwartsform in 6 Quell-Kommentaren** (MusicalFrame-Kopf, SignalRouting ×2,
+   SignalRouter-Kopf, Clip.swift ClipKind-Doc, EngineBus-MARK): alle sagten „DMMW ist/macht"
+   über ein 2026-07-25 stillgelegtes Produkt. Jetzt: Output-Stage-Sprache + Verweis auf
+   PRODUCT_DEFINITION.md (DMMW_ARCHITECTURE.md = superseded history). Clip.swift nannte
+   zusätzlich „(drums/melody)" — Drums gingen mit #166/#167, korrigiert. Kommentar-only,
+   balance.py grün. EchoelPanel:11 „DMMW shell" bleibt (zitiert wörtlich einen Founder-Satz
+   über die Menü-Form, nicht das Produkt).
+2. **APP_STORE_SUBMISSION_CHECKLIST:28**: behauptete eine „Wellness"-Caption in
+   Framefile.json — gemessen: null Treffer, die Captions sind brand-sauber („Your heartbeat
+   plays the instrument"). Zeile trägt jetzt die ⛔-Rücknahme mit Messdatum.
+3. **Website-Versionsdrift beendet** (docs/CLAUDE.md §4 nannte vier auseinanderlaufende
+   Nummern): version.json 10.21.0 · sw.js 10.21.0 · ?v=10.14 (32 Stellen, 16 Seiten) ·
+   index.html 10.11.2+10.21.0 → ALLE VIER auf **10.22.0** (Build 2026-08-28), Changelog-
+   Eintrag benennt den Truth-Pass und die Vereinheitlichung. index.html:2-Kommentar
+   behauptete dabei noch „12 Echoel* tools" — mitkorrigiert (retired framing).
+   sw.js-Cache-Name-Bump erzwingt bei Besuchern den Refresh auf die ehrlichen Seiten.

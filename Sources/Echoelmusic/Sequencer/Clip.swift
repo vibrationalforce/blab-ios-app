@@ -43,11 +43,12 @@ public struct MelodyClip: Codable, Sendable, Equatable {
     }
 }
 
-/// What a clip carries. The DMMW main view is a clip-typed timeline (audio · MIDI ·
-/// video · visual) — `ClipKind` is that type. `.midi` is the existing pattern clip
-/// (drums/melody) and the only kind that PLAYS today; audio/video/visual are the
-/// scaffolding for the typed arrangement and are surfaced honestly (`isPlayable`)
-/// until their engines ship. See docs/dev/DMMW_ARCHITECTURE.md.
+/// What a clip carries. The retired DMMW plan's main view WAS a clip-typed timeline
+/// (audio · MIDI · video · visual) — `ClipKind` is that type, kept because clips are
+/// persisted. `.midi` is the existing pattern clip (melody — the drums went with
+/// #166/#167) and the only kind that PLAYS today; audio/video/visual are scaffolding,
+/// surfaced honestly (`isPlayable`). DMMW_ARCHITECTURE.md is superseded history;
+/// the living boundary is docs/dev/PRODUCT_DEFINITION.md.
 public enum ClipKind: String, Codable, Sendable, CaseIterable {
     case midi, audio, video, visual
 

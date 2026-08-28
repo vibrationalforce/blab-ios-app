@@ -6,7 +6,8 @@
 //  real port INVENTORY (the app's actual in/out endpoints), persists user ROUTES,
 //  and exposes connect/disconnect/suggest for the Patchbay UI to bind to. The pure
 //  graph logic + converters live in `SignalRouting.swift`; this adds app lifetime,
-//  persistence, and the concrete endpoint list. See docs/dev/DMMW_ARCHITECTURE.md.
+//  persistence, and the concrete endpoint list. See docs/dev/PRODUCT_DEFINITION.md
+//  (DMMW_ARCHITECTURE.md is superseded history).
 //
 //  Honesty: the inventory reflects endpoints that exist today; each port carries its
 //  transport `status` (live/roadmap), and the UI shows it — no dead patch points.

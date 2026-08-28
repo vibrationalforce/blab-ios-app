@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- v10.11.2 — EchoelToolkit: 12 Echoel* tools (see CLAUDE.md for full list) -->
+<!-- v10.22.0 — Echoel: one bio-reactive instrument (the old '12 tools' framing is retired) -->
 <html lang="en-US">
 <head>
     <meta charset="UTF-8">
@@ -12,7 +12,7 @@
 
     <!-- Cache Guardian: breaks stale SW/CDN cache loops — runs BEFORE anything else -->
     <script>
-    (function(){var V='10.21.0',K='echoel-nuke';try{
+    (function(){var V='10.22.0',K='echoel-nuke';try{
     var t=sessionStorage.getItem(K);if(t&&Date.now()-parseInt(t)<60000)return;
     fetch('/version.json?_='+Date.now(),{cache:'no-store'}).then(function(r){return r.json()}).then(function(d){
     if(!d.version||d.version===V)return;sessionStorage.setItem(K,''+Date.now());var p=[];

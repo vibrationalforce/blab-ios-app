@@ -17,7 +17,7 @@
 //  "Intelligent" = type-aware connect (only compatible kinds connect, directly
 //  or through a registered converter) + auto-suggested default patches.
 //
-//  See docs/dev/DMMW_ARCHITECTURE.md.
+//  See docs/dev/PRODUCT_DEFINITION.md (DMMW_ARCHITECTURE.md is superseded history).
 //
 
 import Foundation
@@ -162,7 +162,8 @@ public struct ConverterCatalog: Codable, Sendable, Equatable {
     }
 
     /// Echoel's default conversions — the music/bio → multimedia mappings that make
-    /// the DMMW promise ("shape visuals/light/spatial by musical parameters") real.
+    /// the output-stage promise ("shape visuals/light/spatial by musical parameters")
+    /// real (the DMMW product framing is retired — PRODUCT_DEFINITION.md).
     public static let `default` = ConverterCatalog(converters: [
         SignalConverter(id: "bio→cc",       name: "Bio → MIDI CC",        from: .controlBio,     to: .controlChange),
         SignalConverter(id: "bio→light",    name: "Bio → Light",          from: .controlBio,     to: .light),

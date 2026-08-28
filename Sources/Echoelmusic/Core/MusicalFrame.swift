@@ -3,10 +3,11 @@
 //  Echoelmusic — Core
 //
 //  A snapshot of the live MUSICAL state, published on EngineBus alongside the bio
-//  snapshot. This is the DMMW backbone (docs/dev/DMMW_ARCHITECTURE.md): visuals,
-//  light, spatial and (later) video subscribe to it so every medium can be shaped BY
-//  musical parameters — the pitch/chord you play becomes colour, the tempo/section
-//  drives motion and cues, per-track transients punch the visual.
+//  snapshot. This is the OUTPUT-STAGE backbone (DMMW as a product is retired,
+//  2026-07-25 — docs/dev/PRODUCT_DEFINITION.md; its multidimensional half survives
+//  as exactly this spine): visuals, light, spatial and (later) video subscribe to it
+//  so every medium can be shaped BY musical parameters — the pitch/chord you play
+//  becomes colour, the tempo/section drives motion and cues.
 //
 //  Pure value type, Core-only (no Studio/DSP dependency, so layering stays clean —
 //  renderers map a MusicalFrame to their own domain, e.g. notes → SpectralColor).

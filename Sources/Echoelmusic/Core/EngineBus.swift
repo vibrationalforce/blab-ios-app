@@ -632,7 +632,7 @@ public final class EngineBus {
         instrumentRunning = running
     }
 
-    // MARK: - Latest MUSICAL snapshot (DMMW: media subscribe to musical parameters)
+    // MARK: - Latest MUSICAL snapshot (output stage: media subscribe to musical parameters)
 
     public private(set) var latestMusical: MusicalFrame?
 
