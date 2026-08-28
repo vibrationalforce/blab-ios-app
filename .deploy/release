@@ -1,4 +1,4 @@
-build: v10.79.425 — Deine drei Logs von heute Nacht zeigen EINE Stelle, und die ist jetzt repariert: das Ausschalten des Monitorings
+build: v10.79.426 — Dein 425er-Crash-Log von heute ist eingebaut: der Umbau-Weg spricht jetzt bei jedem Schritt, und nach jedem Stop wird der Motor zusätzlich zurückgesetzt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,51 +6,59 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.424. Danke für die drei Logs — zusammen haben sie die
-  Ursache endgültig festgenagelt.
+  Der Vorgänger ist 10.79.425. Danke für das heutige Log — es war das vierte mit
+  demselben Absturz, und es hat endlich die entscheidende Lücke gezeigt.
 
-  ── WAS DEINE DREI 424er-LOGS BEWEISEN ──────────────────────────────────
+  ── WAS DEIN 425er-LOG BEWEIST ───────────────────────────────────────────
 
-  Alle drei Abstürze sind DERSELBE Pfad (identische Absturz-Adressen), und er
-  feuert mal 2 Sekunden, mal 25, mal 74 Sekunden nach dem Einschalten — also
-  nicht das Megaphone (eines Deiner Logs crasht ganz ohne Megaphone), sondern
-  der Moment, in dem Du das **Monitoring AUSSCHALTEST**. Deshalb steht in
-  keinem einzigen Log je die Zeile „monitor: OFF" — das Ausschalten ist noch
-  nie durchgekommen.
+  Der Absturz kam 6,5 Sekunden nach „Megaphone an", wieder aus einem Schalter.
+  Und: Die im 425er versprochene „restoring engine…"-Zeile stand NICHT im Log —
+  der Absturz passiert also VOR dem Neustart, mitten im Umbau. Vier Logs in
+  Folge konnten den sterbenden Schritt nie benennen, weil dort schlicht keine
+  Log-Zeilen standen.
 
-  Warum: Beim Ausschalten baut die App den Mikrofon-Weg ab — aber ein einziges
-  „Kabel" blieb im Schaltplan stecken: die Verbindung vom Mikrofon-Eingang
-  selbst. Danach gibt die App den Aufnahme-Modus ans System zurück und startet
-  den Musik-Motor neu — und der Neustart stolpert über das vergessene Kabel:
-  ein Mikrofon-Anschluss im Plan, aber kein Mikrofon-Modus mehr. Jetzt wird
-  auch dieses letzte Kabel gezogen, BEVOR neu gestartet wird — der Neustart
-  sieht dann exakt den Zustand, mit dem die App bei jedem Start beweist, dass
-  sie läuft. Eine unabhängige Prüfung hat zusätzlich bestätigt: es gibt im
-  ganzen Code keine dritte Stelle mit diesem Muster. Und der Neustart schreibt
-  jetzt eine eigene Log-Zeile („restoring engine…"), damit Dein nächstes Log
-  den Ablauf Schritt für Schritt zeigt.
+  ── WAS 426 ANDERS MACHT ─────────────────────────────────────────────────
 
-  ⭐ Nebenbefund aus Deinen Logs: `insert in` — der Baustein für Deine
-  Stimm-Effekte (Harmonizer/Granular) lädt am Gerät und Monitoring läuft
-  darüber. Wenn es dabei unverändert geklungen hat, ist der Weg für die
-  Effekte frei.
+  1. **Schritt-Leiter:** Vor jedem riskanten Handgriff schreibt die App jetzt
+     eine Zeile — „off 1/5 … 4/5" beim Monitoring-Ausschalten, „tune 1/4 … 4/4"
+     beim Autotune-Umbau (auch der Neustart selbst hat seine eigene Zeile).
+     Selbst wenn es wieder kracht: Dein nächstes Log nennt zum ERSTEN Mal den
+     exakten Schritt.
+  2. **Die Reparatur-Hypothese:** Nach jedem Stop wird der Audio-Motor
+     zusätzlich zurückgesetzt (reset). Stop hält nur das Abspielen an — die
+     vorbereitete Konverter-Maschinerie lebt weiter, und genau die steht in
+     der Absturzmeldung. Der Reset gibt sie frei, BEVOR am Schaltplan operiert
+     wird. Der bewiesene Einschalt-Weg ist unangetastet.
+
+  ── AUSSERDEM NEU SEIT 425 ───────────────────────────────────────────────
+
+  · **Kein Piepsen von Anfang an** (#847/848): Der Rückkopplungs-Schutz hört
+    das Aufschaukeln, BEVOR es hörbar wird, und setzt vier schmale Kerben.
+  · **„Granular texture"** im Input-Sheet (#849): Grain-Wolke unter Deiner
+    Stimme, standardmäßig aus.
+  · **Drei neue Bild-Regler** im Visual-Panel unter „Fine tune":
+    **Texture** (Korn) · **Glitter** (Funkeln) · **Structure** (verbiegt die
+    Muster-Geometrie — 0 = exakt das bisherige Bild). Alle flash-sicher.
+  · Ehrliche In-App-Texte (u. a. verspricht der Broadcast-Screen kein
+    Streaming mehr, das es nicht gibt; „Herzschlag setzt das Tempo" gilt
+    ehrlich nur im Flow-Modus).
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  1. **Der bisher tödliche Moment:** **Mix**-Chip → Live monitoring an → kurz
-     warten → **Monitoring AUS**. Erwartung: kein Absturz, die Musik läuft
-     weiter, und im Log erscheint zum ersten Mal „monitor: OFF". Gern mehrfach
-     an/aus, Megaphone und Autotune dazu.
-  2. Danach: **Puls-Messung** (Finger auf Kamera, 1–2 min, gern mit Licht/
-     Schatten-Wechsel) und das Diagnose-Log: **Save/Export**-Chip →
-     „Diagnostics" → **Share**.
+  1. **Der tödliche Moment, wieder:** Mix-Chip → Monitoring an → Megaphone an →
+     Monitoring AUS. Mehrfach, gern schnell, gern mit Autotune-Toggle dazu.
+     Erwartung: kein Absturz — ODER das Log nennt erstmals den Schritt
+     („off 3/5", „tune 3/4", …). Beides bringt uns entscheidend weiter.
+  2. **Autotune an/aus** bei laufendem Monitoring (der zweite Umbau-Weg).
+  3. Die drei Bild-Regler: Structure von 0 auf 2 drehen — liest es sich als
+     Struktur oder als Störung? Und bei 0: exakt das gewohnte Bild?
+  4. Danach wie immer: Diagnose-Log per Save/Export → Diagnostics → Share.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Compile-verifiziert, nicht geräteverifiziert. Diese Erklärung ist die erste,
-  die ALLE drei Logs gleichzeitig erklärt (auch den Absturz ohne Megaphone und
-  das fehlende „monitor: OFF") — aber ob sie stimmt, entscheidet Dein Gerät.
-  Sollte es noch krachen, zeigt die neue „restoring"-Zeile exakt, wo.
+  Compile-verifiziert (beide Gates grün), nicht geräteverifiziert. Der Reset
+  ist Hypothese Nr. 4 auf diesen Absturz — aber anders als die drei davor ist
+  diese Runde so gebaut, dass Dein Log sie beweist ODER präzise widerlegt.
 
   ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
   bitte NICHT prüfen.

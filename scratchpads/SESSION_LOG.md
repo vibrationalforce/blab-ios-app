@@ -15768,3 +15768,19 @@ gebaut): reset() droppt AVAudioPlayerNode-Queues (pfad-still, da der Toggle-stop
 schweigt — vor einem „Audition-Dropout-Fix durch reset()-Entfernen" warnt der Review);
 Notch-Band-Parameter über reset() = Geräteannahme; „off 5/5" druckt nie (5/5 IST der
 Restore mit eigener Zeile — bei offWasRunning=false fehlt sie LEGITIM).
+
+## 2026-08-28 — DEPLOY v10.79.426 (tokenless, .deploy/release-Bump)
+
+Gates auf 567cfb5 VOR dem Bump gelesen: Xcode Compile Check = success · CI/CD „Build for
+Testing" = success (das Bundle mit den neuen Wächtern kompiliert) · „Run Tests" = failure
+mit ** TEST EXECUTE FAILED ** = #396 (bekannt), 0 beobachtete Failures/Skips, 169 passes
+im Fenster. Der 45e26e5-Lauf davor war der #478-SDK-Flake (4 Fehlerzeilen, alle nennen den
+SDK-Pfad, keine Repo-Datei) — superseded durch den sauberen 567cfb5-Lauf, kein Re-Run nötig.
+
+Inhalt v426 ggü. 425: #854/#854b (Schritt-Leiter + reset() — Hypothese Nr. 4 auf den
+vierten isInputConnToConverter-Crash; so gebaut, dass das nächste Founder-Log sie beweist
+oder präzise widerlegt) · #847/848 Howl-Prävention · #849 Granular-Tür · #850/851
+Frozen-Tap+YIN · #853/#853b Texture+Glitter · #853B Structure · #292 Slice 5 · Brand-Audit
+Slices 1–5b (Website/CLAIMS/Identität/In-App) · DMMW-Kommentar-Aufräumer · Site-Versionen
+10.22.0. Prüfbitten in den Notes: Monitor-Toggle-Torture (Leiter!), Autotune-Toggle, drei
+Bild-Regler, Diag-Log.
