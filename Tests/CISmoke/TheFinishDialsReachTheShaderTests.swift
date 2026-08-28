@@ -33,10 +33,11 @@
 //
 // ⚠️ HONEST GRADING (§3), transcribed in Python against the parent (`f63433e`) and this tree —
 // no local toolchain (§0). At #853: **12 checks: 10 assertions + claim 1's 2 `XCTUnwrap`
-// anchors.** #853B widened four of them (claim 1's contains, one clamp needle, one surface
-// key) and added one shader-read assert — **14 checks** now; the #853B additions were graded
-// the same way (Python transcription, both trees) and are FORWARD checks whose parent-redness
-// is the one shared absence of the structure field (#486). The
+// anchors**, graded against #853's parent `f63433e` (92 = 92 fields then). #853B widened four
+// of them (claim 1's contains, one clamp needle, one surface key) and added one shader-read
+// assert — **14 checks** now, graded against #853B's own parent `e5aea66` (94 = 94) and its
+// tree (95 = 95); the #853B additions are FORWARD checks whose parent-redness is the one
+// shared absence of the structure field (#486). The
 // file names no new Swift symbol, so it compiles against the parent and every check has a
 // verdict there (measured, not assumed — the parent run printed 92 = 92 fields):
 //   · **4 COUNTERWEIGHT** green on both trees: claim 1's two struct anchors, its size floor
@@ -100,7 +101,7 @@ final class TheFinishDialsReachTheShaderTests: XCTestCase {
     /// The Placebo law: a parameter is only offered if it moves real output. Each amount must
     /// appear as a factor in the fragment — a dial whose uniform is declared but never read
     /// would pass claim 1 and still do nothing.
-    func testBothAmountsAreReadInTheFragment() throws {
+    func testEveryAmountIsReadInTheFragment() throws {
         let src = try source(Self.viewPath)
         XCTAssertEqual(occurrences(of: "* u.textureAmt", in: src), 1, """
             `u.textureAmt` is not read exactly once in the shader. The Texture dial then \
@@ -121,15 +122,15 @@ final class TheFinishDialsReachTheShaderTests: XCTestCase {
 
     // MARK: - claim 3 — the update() clamps exist (the GPU never sees a wild value)
 
-    func testBothAmountsAreClampedInUpdate() throws {
+    func testEveryAmountIsClampedInUpdate() throws {
         let src = try source(Self.viewPath)
         for needle in ["target.textureAmt = min(max(textureAmt.isFinite",
                        "target.glitterAmt = min(max(glitterAmt.isFinite",
                        "target.structureAmt = min(max(structureAmt.isFinite"] {
             XCTAssertEqual(occurrences(of: needle, in: src), 1, """
                 `\(needle)` is gone. Every other look parameter sanitises non-finite input \
-                and clamps its range before the GPU sees it (`update()`); these two must not \
-                be the exception — a NaN here multiplies straight into the output colour.
+                and clamps its range before the GPU sees it (`update()`); the finish dials \
+                must not be the exception — a NaN here multiplies straight into the output colour.
                 """)
         }
     }
@@ -140,7 +141,7 @@ final class TheFinishDialsReachTheShaderTests: XCTestCase {
     /// in `MetalBioView.swift` are fallbacks a caller that omits the argument would see, and
     /// no such caller exists. What renders is the shared `@AppStorage` value — so a surface
     /// that stops binding it silently renders its own literal and the three surfaces drift.
-    func testEveryMountedSurfaceBindsBothFinishKeys() throws {
+    func testEveryMountedSurfaceBindsEveryFinishKey() throws {
         for path in ["Sources/Echoelmusic/Studio/EchoelStudioView.swift",
                      "Sources/Echoelmusic/Studio/FloatingVisualWindow.swift",
                      "Sources/Echoelmusic/Studio/ExternalDisplayScene.swift"] {

@@ -142,7 +142,10 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             XCTFail("The OFF branch's guard is gone — re-anchor this claim (§4).")
             return
         }
-        let offWindow = String(code[off.lowerBound...].prefix(1_400))
+        // #854 widened this window (1_400 -> 1_900): the OFF branch gained four
+        // step breadcrumbs and a reset() — the ladder that finally names the dying
+        // step in a device log. The ORDER claim below is unchanged.
+        let offWindow = String(code[off.lowerBound...].prefix(1_900))
         guard let edge = offWindow.range(of: "disconnectNodeOutput(masterEngine.inputNode)"),
               let release = offWindow.range(of: "releaseRecordRoute(.inputMonitoring)") else {
             XCTFail("""
@@ -157,5 +160,70 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             The input edge outlives the route release — the restore's start() then \
             wires an input node with no input scope, the v10.79.424 assert.
             """)
+    }
+
+    // MARK: - 4. Every surgery step breadcrumbs itself, and the stop is followed by a reset (#854)
+
+    /// The v10.79.425 log was the FOURTH device log of the isInputConnToConverter
+    /// SIGABRT, and like the three before it, it could not name the dying step —
+    /// the surgery paths ran several ObjC-asserting ops with no line between the
+    /// last breadcrumb and the exception. This claim pins the ladder (a log line
+    /// BEFORE each step) and the stop-then-reset pair (stop halts rendering;
+    /// reset releases the engine's prepared converter state — hypothesis #4 on
+    /// this assert, after #831's pause, #835's stop and #836's input edge).
+    /// ⚠️ The ladder TEXTS are pinned loosely (contains, in order) — renaming a
+    /// step label is free as long as a line still precedes each op.
+    func testTheSurgeryStepsBreadcrumbAndTheStopIsFollowedByAReset() {
+        let code = engineCode()
+        guard !code.isEmpty else { return }
+        // OFF branch: crumb -> stop -> reset -> crumb -> tap -> crumb -> edges.
+        guard let off = code.range(of: "guard isInputMonitoring else { return true }") else {
+            XCTFail("The OFF branch's guard is gone — re-anchor this claim (§4).")
+            return
+        }
+        let offWindow = String(code[off.lowerBound...].prefix(1_900))
+        var cursor = offWindow.startIndex
+        for step in ["logMonitorOutcome(\"off 1/5",
+                     "masterEngine.stop()",
+                     "masterEngine.reset()",
+                     "logMonitorOutcome(\"off 2/5",
+                     "removeTap(onBus: 0)",
+                     "logMonitorOutcome(\"off 3/5",
+                     "disconnectNodeOutput(masterEngine.inputNode)",
+                     "logMonitorOutcome(\"off 4/5",
+                     "releaseRecordRoute(.inputMonitoring)"] {
+            guard let r = offWindow.range(of: step, range: cursor..<offWindow.endIndex) else {
+                XCTFail("""
+                    OFF-teardown ladder broken at `\(step)` — either the step moved out \
+                    of order, or its breadcrumb was dropped. Four founder device logs \
+                    (v421/v422/v424/v425) could not name the dying step because these \
+                    lines did not exist; keep a line BEFORE every ObjC-asserting op.
+                    """)
+                return
+            }
+            cursor = r.upperBound
+        }
+        // setVoiceTune: crumb -> stop -> reset -> crumb -> surgery.
+        guard let fn = code.range(of: "func setVoiceTune") else {
+            XCTFail("setVoiceTune is gone — re-anchor this claim (§4).")
+            return
+        }
+        let tuneWindow = String(code[fn.lowerBound...].prefix(2_200))
+        var tCursor = tuneWindow.startIndex
+        for step in ["logMonitorOutcome(\"tune ",
+                     "masterEngine.stop()",
+                     "masterEngine.reset()",
+                     "logMonitorOutcome(\"tune 2/3",
+                     "disconnectNodeOutput(notchEQ)"] {
+            guard let r = tuneWindow.range(of: step, range: tCursor..<tuneWindow.endIndex) else {
+                XCTFail("""
+                    setVoiceTune ladder broken at `\(step)` — same crash family as the \
+                    OFF teardown (#835 was this method's surgery), same requirement: a \
+                    breadcrumb before every op, and reset() after the stop.
+                    """)
+                return
+            }
+            tCursor = r.upperBound
+        }
     }
 }

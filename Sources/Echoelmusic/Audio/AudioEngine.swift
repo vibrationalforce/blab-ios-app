@@ -2370,9 +2370,28 @@ public final class AudioEngine {
             // STOP, not a pause: a category change follows on this path, and #823
             // measured that a paused I/O unit keeps its built configuration across
             // category changes. `restoreEngineIfStranded` below restarts, as before.
+            // #854 (founder crash v10.79.425, 2543 — the FOURTH log of this assert,
+            // 6.5 s after "megaphone on", again out of a Binding set, and again with
+            // NO line between the last breadcrumb and the exception): the surgery
+            // paths ran several ObjC-asserting graph ops with not one breadcrumb
+            // between them, so four device logs in a row could not name the dying
+            // step. Every step below now logs BEFORE it runs — these are MainActor
+            // toggle paths, never the render thread, so the diag write is free.
+            // And HYPOTHESIS #4 on this assert (#831 pause → #835 stop → #836 input
+            // edge → now this): `stop()` halts rendering but KEEPS the engine's
+            // prepared state — #823's own measurement ("a paused I/O unit keeps its
+            // built configuration"; stop releases the unit, but the GRAPH's prepared
+            // converter chain survives until reset). `reset()` after the stop
+            // releases that prepared state, so the disconnects and the later
+            // playback-only restart operate on a cold graph — the launch-proven
+            // shape. If the next log still carries the assert, its step breadcrumb
+            // now names the exact op, which no previous build could.
+            logMonitorOutcome("off 1/5: stop + reset", level: .info)
             let offWasRunning = masterEngine.isRunning
             if offWasRunning { masterEngine.stop() }
+            masterEngine.reset()
             monitorMixer.outputVolume = 0
+            logMonitorOutcome("off 2/5: removing tap", level: .info)
             if monitorTapInstalled {
                 masterEngine.inputNode.removeTap(onBus: 0)
                 monitorTapInstalled = false
@@ -2390,6 +2409,7 @@ public final class AudioEngine {
             // every OFF: since we always stop, the restore always restarts. The
             // restart must see the LAUNCH-shape graph — playback-only, no input
             // edge — which is proven to start on every app launch.
+            logMonitorOutcome("off 3/5: disconnecting monitor edges", level: .info)
             masterEngine.disconnectNodeOutput(masterEngine.inputNode)
             masterEngine.disconnectNodeOutput(notchEQ)
             if voiceTuneAttached { masterEngine.disconnectNodeOutput(voiceTunePitch) }
@@ -2424,8 +2444,12 @@ public final class AudioEngine {
             // (#831: `offWasRunning` is now captured at the TOP of this branch, before
             // the engine is stopped for the graph surgery — reading it here would
             // always see `false` and the restore below would never fire.)
+            logMonitorOutcome("off 4/5: releasing record route", level: .info)
             do { try AudioConfiguration.releaseRecordRoute(.inputMonitoring) }
             catch { logMonitorOutcome("session downgrade failed (\(error))", level: .warning) }
+            // 5/5 is the restore itself — `restoreEngineIfStranded` breadcrumbs its
+            // own start ("restoring engine at exit", #836b), so the pair below keeps
+            // the step ladder complete without a duplicate line.
             restoreEngineIfStranded(offWasRunning, at: "input monitoring off")
             logMonitorOutcome("OFF", level: .info)
             return true
@@ -2492,8 +2516,15 @@ public final class AudioEngine {
         // chose pause here ("no category change happens here") and the founder's
         // v10.79.422 log falsified it: pause keeps the I/O unit's converter
         // machinery live and the rewire still SIGABRTs. Stop releases it (#823).
+        // #854: same step breadcrumbs + stop-then-RESET as the monitoring-OFF
+        // branch, same crash family (this path was #835's surgery site and is as
+        // silent-until-done as the OFF path was — a crash here and a crash there
+        // are indistinguishable in a diag log without these lines).
+        logMonitorOutcome("tune \(on ? "on" : "off") 1/3: stop + reset for rewire", level: .info)
         let wasRunning = masterEngine.isRunning
         if wasRunning { masterEngine.stop() }
+        masterEngine.reset()
+        logMonitorOutcome("tune 2/3: rewiring", level: .info)
         if on {
             if !voiceTuneAttached { masterEngine.attach(voiceTunePitch); voiceTuneAttached = true }
             masterEngine.disconnectNodeOutput(notchEQ)
@@ -2512,6 +2543,7 @@ public final class AudioEngine {
                 restartOrDegrade(after: "voice tune rewire")
             }
         }
+        logMonitorOutcome("tune 3/3: rewire done (\(on ? "on" : "off"))", level: .info)
         #endif
     }
 

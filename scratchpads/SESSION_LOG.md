@@ -15726,3 +15726,32 @@ Founder-Mandat „Ultragreballtasks … vermeide alle Fehler und räume auf". Dr
    Eintrag benennt den Truth-Pass und die Vereinheitlichung. index.html:2-Kommentar
    behauptete dabei noch „12 Echoel* tools" — mitkorrigiert (retired framing).
    sw.js-Cache-Name-Bump erzwingt bei Besuchern den Refresh auf die ehrlichen Seiten.
+
+## 2026-08-28 — #854: der VIERTE isInputConnToConverter-Crash (v425-Log) — Schritt-Leiter + reset()
+
+Founder-Log v10.79.425 (2543): SIGABRT `isInputConnToConverter`, 6,5 s nach „megaphone on",
+aus einem Binding-Set. ENTSCHEIDENDE Lektüre: `restoreEngineIfStranded` loggt „restoring
+engine…" VOR dem Start (#836b) — die Zeile fehlt, ebenso „monitor: OFF" → der Crash sitzt
+VOR dem Neustart, im Abbau selbst (oder im bis-zum-Erfolg stummen setVoiceTune). Vier
+Gerätelogs (v421/422/424/425) konnten den sterbenden Schritt nie benennen, weil zwischen
+letztem Breadcrumb und Exception keine Zeile lag.
+
+Fix, zwei Hälften, beide auf den UNGEPRÜFTEN Pfaden (der bewiesene ON-Pfad ist unberührt):
+1. **Schritt-Leiter**: `off 1/5…4/5` vor jeder ObjC-Assert-fähigen Operation im OFF-Abbau,
+   `tune 1/3…3/3` um die setVoiceTune-Chirurgie (MainActor-Toggle-Pfade, nie Render-Thread).
+   Das nächste Log NENNT den Schritt — was kein früherer Build konnte.
+2. **HYPOTHESE #4** (nach #831 pause→#835 stop→#836 input-edge): `masterEngine.reset()`
+   nach jedem Stop — stop() hält das Rendern an, lässt aber den VORBEREITETEN
+   Konverter-Zustand des Graphen leben; reset() gibt ihn frei, bevor am Graphen operiert
+   wird. Falls das nächste Log den Assert noch trägt, benennt die Leiter den Schritt und
+   falsifiziert die Hypothese präzise.
+
+Wächter: `TheMonitorSurgeryQuietsTheEngineTests` Claim 4 (beide Leitern, geordnete Nadeln;
+in Python transkribiert: PASS/PASS) · Claim-3-Fenster ehrlich 1400→1900 geweitet (die
+Leiter wuchs den Zweig; die ORDNUNGs-Behauptung unverändert; Fenster-Messung: edge@708 <
+release@1445). Claims 1/2 re-transkribiert (Fenster halten). Mitgefixt: die 3
+Reviewer-Befunde zu #853B (MEDIUM „Nine rows"-Prosa → Ten; Parent-Provenienz im
+Finish-Guard-Kopf jetzt beide Eltern mit GEMESSENEN Zahlen f63433e 92=92 · e5aea66 94=94 ·
+Baum 95=95; drei Both→Every-Testnamen, #374). Compile-verifiziert erst nach Gate-Lauf;
+GERÄTE-verifiziert erst durch Dein nächstes Log — Erwartung: Toggle überlebt, oder das Log
+nennt erstmals den Schritt.

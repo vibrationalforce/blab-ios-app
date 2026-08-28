@@ -96,7 +96,7 @@ final class VisualPresetValuesAreReachableTests: XCTestCase {
     func testEveryVisualRowSaysHowManyDecimalsItShows() throws {
         let calls = try valueFieldCalls()
 
-        // The scan must not be able to pass by finding nothing. Nine rows ship today
+        // The scan must not be able to pass by finding nothing. Ten rows ship today
         // (Energy · Intensity · Detail · Motion · Spread · Hue · Saturation · Texture ·
         // Glitter · Structure — Texture/Glitter since #853, Structure since #853B); if the
         // panel is rewritten with fewer, that is
