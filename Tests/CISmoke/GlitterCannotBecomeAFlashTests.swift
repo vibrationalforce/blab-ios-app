@@ -156,6 +156,12 @@ final class GlitterCannotBecomeAFlashTests: XCTestCase {
     /// they fail differently: without the per-speck PHASE every speck peaks on the same frame;
     /// without the per-speck FREQUENCY they drift apart at first and then beat back into
     /// alignment, which is worse than obvious.
+    ///
+    /// AMPLITUDE FACTORS ARE OUTSIDE THIS ARGUMENT, deliberately (#853): the user Glitter
+    /// dial (`u.glitterAmt`) multiplies the OUTPUT line only. Correlation lives in phase and
+    /// frequency, which stay per-speck at any gain — so a gain dial at any value in its
+    /// clamp cannot re-correlate the specks, and `TheFinishDialsReachTheShaderTests` may
+    /// point here for exactly that sentence.
     func testTheGlitterPhaseAndFrequencyAreBothPerSpeck() throws {
         let src = try source(Self.viewPath)
         let twinkle = "float tw = 0.5 + 0.5 * sin(u.time * (3.4 + gSeed * 2.2) + gSeed * 6.2831853);"

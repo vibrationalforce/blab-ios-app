@@ -96,11 +96,16 @@ final class VisualPresetValuesAreReachableTests: XCTestCase {
     func testEveryVisualRowSaysHowManyDecimalsItShows() throws {
         let calls = try valueFieldCalls()
 
-        // The scan must not be able to pass by finding nothing. Seven rows ship today
-        // (Energy · Intensity · Detail · Motion · Spread · Hue · Saturation); if the panel is
-        // rewritten with fewer, that is a decision someone makes with this line in front of them.
-        XCTAssertEqual(calls.count, 7, """
-            `visualAdjustFields` no longer holds seven `EchoelValueField` rows — it holds \
+        // The scan must not be able to pass by finding nothing. Nine rows ship today
+        // (Energy · Intensity · Detail · Motion · Spread · Hue · Saturation · Texture ·
+        // Glitter — the last two since #853); if the panel is rewritten with fewer, that is
+        // a decision someone makes with this line in front of them.
+        // ⛔ #853 itself shipped one commit with this line still saying 7 — the reviewer
+        // caught it, not §4's grep, because the needle here is `EchoelValueField(` and the
+        // grep was for the surface name. A COUNT pin over a member is a caller of that
+        // member in the §4 sense: grep for the count's needle too.
+        XCTAssertEqual(calls.count, 9, """
+            `visualAdjustFields` no longer holds nine `EchoelValueField` rows — it holds \
             \(calls.count). This guard is about the DEFAULT grid leaking into this panel, so a \
             changed row count means the premise moved and the expectation belongs in the same \
             commit as the change, not left to fail later.
@@ -238,8 +243,8 @@ final class VisualPresetValuesAreReachableTests: XCTestCase {
 
     /// Every `EchoelValueField(...)` call inside `visualAdjustFields`, whole call, parens matched.
     ///
-    /// Paren-matched rather than line-based on purpose: four of the seven rows wrap, and three of
-    /// those carry a trailing `onChange: { … }` closure — a line-based scan would read the first
+    /// Paren-matched rather than line-based on purpose: four of the nine rows wrap, and each of
+    /// those carries a trailing `onChange: { … }` closure — a line-based scan would read the first
     /// line of a wrapped call, find no `decimals:` on it, and report a defect that is not there.
     /// (The mirror of the #413 lesson: the unit of a source claim is the BINDING, not the line.)
     private func valueFieldCalls() throws -> [String] {

@@ -10,8 +10,12 @@
 // device: every value after the divergence point reads from the wrong offset, and the picture
 // breaks in ways no log names. #853 is the first slice since the ripple rebuild to APPEND to both
 // structs, and appending in only one of them is a one-edit mistake. Claim 1 compares the two
-// field-name sequences outright, so ANY future divergence — middle insertion included — goes red
-// with both lists printed.
+// field-name sequences outright, so a NAME-SEQUENCE divergence — middle insertion included —
+// goes red with both lists printed. HONEST LIMIT: the extractors read only `: Float` / `float `
+// members, so a future NON-Float field (`Int32`/`int`) inserted in one struct would shift real
+// GPU offsets while both extracted sequences stay equal — a false green. Today every member is
+// Float on both sides (asserted by the size floor); whoever adds a non-Float member widens the
+// extractors in the same commit.
 //
 // ⚠️ THE LIMIT, PER ASSERTION (§1): every claim here is a SOURCE-TEXT SCAN — the shader cannot be
 // rendered from this bundle and the `@AppStorage` members are `private` on `View`s it cannot

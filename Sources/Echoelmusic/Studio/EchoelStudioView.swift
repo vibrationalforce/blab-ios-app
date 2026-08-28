@@ -5127,7 +5127,9 @@ struct EchoelStudioView: View {
             // block circled in red). "Preset" sat between the look controls and the colour
             // row, and it does not set a look at ALL: `applyVisualPreset` writes intensity ·
             // detail · motion · spread · hue · saturation and never touches `visualStyle`.
-            // Those six are exactly Energy plus its "Fine tune" rows — and Energy's own
+            // Those six are Energy plus the preset-backed "Fine tune" rows (since #853 the
+            // fine-tune grid also holds Texture/Glitter, which the presets deliberately do
+            // NOT write — the exactly-identity broke there on purpose) — and Energy's own
             // caption says "across the same range the presets span" while pointing at a
             // strip the reader has already scrolled past. Two controls describing each
             // other, separated, with an unrelated row wedged between them.
@@ -6594,8 +6596,9 @@ struct EchoelStudioView: View {
     /// default 4 as well. They are image controls rather than composer parameters, so they were
     /// not swept in with this slice — but "only" was a superlative nobody had counted, in the doc
     /// block whose whole subject is a count. Registered as its own decision rather than quietly
-    /// widened here, and that decision SHIPPED as #427: all six visual rows (Energy · Intensity ·
-    /// Motion · Spread · Hue · Saturation) now pass `decimals: 2`, guarded by
+    /// widened here, and that decision SHIPPED as #427: the six visual rows of that day (Energy ·
+    /// Intensity · Motion · Spread · Hue · Saturation) pass `decimals: 2` — Texture and
+    /// Glitter, added by #853, do too — guarded by
     /// `Tests/CISmoke/VisualPresetValuesAreReachableTests`. Ten `EchoelValueField` call sites in
     /// `Sources/` still take the default — and two of them want it (A4 concert pitch and the
     /// locked tempo both say "editable to 0.0001" in their own comments), so this is deliberately

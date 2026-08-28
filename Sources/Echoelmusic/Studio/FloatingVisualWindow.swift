@@ -161,7 +161,8 @@ struct FloatingVisualWindow: View {
     // Visual DESIGN (founder: "Visual Design muss möglich sein" + "Feinschliff, alles
     // User-optimiert"). EVERY design control the Visual panel exposes is now SHARED
     // (@AppStorage), so each live tweak shows in this window immediately — Look/blend and
-    // the six energy/palette params. Single source of truth; no drift between panel + window.
+    // the eight energy/palette params (Texture + Glitter joined with #853). Single source
+    // of truth; no drift between panel + window.
     // Defaults: a rich look (Aurora, index 5) out of the box — "interessanter" than flat
     // Rings. ⛔ This line also RESTATED "saturation 0.82 (professional, not neon)" and #578
     // retracted both halves at the declaration (founder: "Bunter"). Restating a shared

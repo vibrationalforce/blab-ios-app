@@ -196,7 +196,7 @@ final class VisualFineTuneReflowsTests: XCTestCase {
     /// ⛔ Claim 3 — the COUNTERWEIGHT, and the likelier regression. Green before this slice and
     /// after it: it exists so the obvious tidy-up ("put everything in one grid") goes red.
     ///
-    /// Energy is separated from the six by a caption and the disclosure Button, so a grid around
+    /// Energy is separated from the eight by a caption and the disclosure Button, so a grid around
     /// it would order a SINGLE card — and a grid that orders one card orders nothing (#359 step 2
     /// deleted one for exactly that reason). The Detail caveat wraps and wants the full measure.
     func testEnergyTheDisclosureAndTheCaveatStayOutsideTheGrids() throws {

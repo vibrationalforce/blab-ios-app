@@ -15526,3 +15526,24 @@ kürzeren Trust-Lücke.
   (transkribiert). dead-needles 0, reachability 0, Balance 7/7 sauber.
 - NEEDS-FOUNDER-VERIFY: Texture/Glitter-Regler am Gerät — 0 = sauberes Feld, 1 =
   unverändert, 2 = doppelt; fühlt es sich live an (tau 0.2)?
+
+## 2026-08-28 ~12:05 — #853b: Review-Nachtrag (1 HIGH + 3 Prosa)
+
+- Pflicht-Review zu #853 fand den ZWEITEN Zähler, den §4 nicht sah: `VisualPreset...`
+  `ValuesAreReachableTests:102` pinnt `calls.count == 7` über visualAdjustFields — mit
+  #853 sind es NEUN, das blockierende Bundle war einen Commit lang rot (HIGH). Ursache:
+  mein §4-Grep suchte den FLÄCHEN-Namen, die Nadel dort ist `EchoelValueField(` —
+  Lehre in den Wächter-Kommentar geschrieben: ein COUNT-Pin ist ein Aufrufer im
+  §4-Sinn, auch nach der Nadel des Zählers greppen. Fix: 7→9, Zeilenliste, gemessen
+  (Python: 9 Calls, alle decimals, 4 umbrochene alle mit onChange).
+- MEDIUM: mein neuer Wächter zeigte für die Amplituden-Begründung auf
+  GlitterCannotBecomeAFlash, wo der Satz NICHT stand (#756-Klasse, Karte-statt-
+  Anrufer). Der Satz steht jetzt DORT an Claim 2; der Zeiger hält.
+- LOW ×4: vier „six"-Zählstellen nachgezogen (FloatingVisualWindow:164,
+  EchoelStudioView:5130 Identitäts-Satz + :6597 #427-Historie,
+  VisualFineTuneReflows Claim-3-Doc) — Register-Drift-Klasse. Plus: Float-only-Limit
+  des Struct-Zwilling-Scans jetzt ehrlich im Kopf benannt (Nicht-Float-Feld = false
+  green; wer eins einführt, weitet die Extraktoren im selben Commit).
+- Review bestätigte explizit: Freeze-Gesetz sauber · Memberwise-Order an allen drei
+  Stellen korrekt · MSL valide, 94=94 · Easing/Snap korrekt · Flash-Argument hält bei
+  2× · PresetSurvivesACancelledDrag bleibt grün.
