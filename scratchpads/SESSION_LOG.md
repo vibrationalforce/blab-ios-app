@@ -15547,3 +15547,27 @@ kürzeren Trust-Lücke.
 - Review bestätigte explizit: Freeze-Gesetz sauber · Memberwise-Order an allen drei
   Stellen korrekt · MSL valide, 94=94 · Easing/Snap korrekt · Flash-Argument hält bei
   2× · PresetSurvivesACancelledDrag bleibt grün.
+
+## 2026-08-28 ~12:45 — Deep Audit „Vision & Brand" (Founder-Ask, ultracode) + Slice 1
+
+- Vier Lese-Teams parallel (Website · Store/Pipeline · In-App · Identitäts-Docs), je mit
+  Wahrheitstabelle; vier tragendste Zitate von Hand nachgemessen (alle wörtlich bestätigt).
+  Gesamtverdikt im Chat-Bericht. Kern: Kanon stabil; Website hatte 10 HIGH-Falschclaims;
+  CLAIMS.md hängt hinter #813/#841/#849/#853 (Unter-Behauptung); memory/-Identitätsabsätze
+  sprechen Vor-Juli-Dialekt; In-App sauber (kein HIGH).
+- **Slice 1 (dieser Commit): die 10 Website-HIGHs repariert** — Apple-Watch-als-Echtzeit-
+  Sensor von 4 Seiten (index/overview/tools/brainstorming + support-Troubleshooting) auf
+  die ehrliche Health-mit-Verzögerung-Form; „and move" (Motion-Claim) aus dem Hero; FAQ
+  Modal-Resonatoren-Halbsatz raus (ModalBank test-only); FAQ „bidirectional OSC" → one-way
+  + Roadmap; index „Creative Suite ships today / Full 12-tool" → Instrument-Wahrheit;
+  architecture „lanes you paint" → Roadmap-Form; terms Plattformliste → iPhone.
+  §4 geprüft: KEIN Wächter pinnt eine der geänderten Phrasen; kein entferntes Fragment
+  ist eine Nadel; verbleibende Watch-Erwähnungen alle ehrlich (via Health/planned).
+- Queued als eigene Slices: (2) CLAIMS.md §12-Rewrite + 2 Test-Prosa/Nadel + Datum +
+  fehlende ✅-Zeilen · (3) memory/vision+project_knowledge+user Identitätsabsätze auf den
+  ratifizierten One-Sentence, PRODUCT_DEFINITION:133 „correct the notes" streichen,
+  FEATURE_MATRIX-Topbanner, MPE-Out-Zeilen 218/286 · (4) Website-MEDIUMs (Tagline-Drift,
+  „four looks"→ten, Sync-tab, BioStripView always-on, tools „stays free", version.json)
+  · (5) In-App-LOWs (BioSourceView brainwave-Zeile, BroadcastView-Tipp, BioMetricInfo:60
+  Konditional, Herzgurt-Portname) · Register: PLAN-Stempel (8 Dateien), decisions.csv
+  181/197 superseded, docs/dev-Robots-Frage (founder-adjacent).

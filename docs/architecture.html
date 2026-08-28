@@ -169,7 +169,7 @@
                                           <b>bioEvents</b> (SPSC) ◀──────────────────────────────┘
   CoreMIDI 1.0 / 2.0 ───────────▶ <b>controllerEvents</b> (SPSC) ─▶ synth notes (performer priority)</div>
                 <p class="note">The slow body signal flows over the <strong>@MainActor <code>latestBio</code> snapshot</strong>, polled at ~10&nbsp;Hz — so a slow sensor never stalls the audio thread. The lock-free SPSC queues carry the real-time streams: <strong>controllerEvents</strong> (MIDI/MPE) and <strong>bioEvents</strong> (discrete onsets). A <strong>bioFrames</strong> queue is defined for a future full-rate path but is currently reserved and undrained.</p>
-                <p class="note"><strong>Modulation, not control:</strong> bio signals are modulation sources for the parameter lanes you paint — not hard controllers. Tempo can optionally follow heart rate, but watch-HR latency (4–5&nbsp;s) makes that a loose adopt, never a beat-lock. The expressivity lives in continuous modulation of your own automation.</p>
+                <p class="note"><strong>Modulation, not control:</strong> bio signals are modulation sources around the patch you chose — not hard controllers (drawable automation lanes are on the roadmap). Tempo can optionally follow heart rate, but watch-HR latency (4–5&nbsp;s) makes that a loose adopt, never a beat-lock. The expressivity lives in continuous modulation of your own automation.</p>
             </section>
 
             <!-- ENGINEBUS -->
