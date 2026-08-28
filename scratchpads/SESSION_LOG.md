@@ -15496,3 +15496,33 @@ kürzeren Trust-Lücke.
   (C) updateVoiceTune-Doc + #599-Member-Block um den #851-Gate ergänzt (waren einen
   Commit hinterher). Registriert ohne Bau: der gutartige Stamp-vor-Copy-Race (eine
   redundante Re-Analyse, sichere Richtung).
+
+## 2026-08-28 ~11:30 — #853: Texture + Glitter Regler im Visual (Founder-Ask)
+
+- Founder (nach der GeoPix-Beratung): „In Echoel mehr Struktur/Textur Regler bauen."
+  Council: Schnitt A = Exposure der ZWEI existierenden #578-Finish-Stufen (Korn-Textur
+  0.045, Glitzer 0.55 — beide waren hart codiert); ein „Structure"-UV-Warp ist Schnitt B
+  (neue MSL-Mathematik, eigene Sorgfalt), NICHT hier.
+- Bau: `visual.texture`/`visual.glitter` als geteilte StudioDefaults (1.0 = exakt der
+  #578-Look, 0…2, Multiplikator). BEIDE Structs (Swift `BioUniforms` + MSL `Uniforms`)
+  am ENDE erweitert — das Layout ist ein Raw-Bytes-Zwilling, Anhängen erhält jeden
+  Offset. Kette: View-Params → setLook (pflicht-Argumente, #431) → update() mit
+  isFinite+[0,2]-Clamp → Easing tau 0.2 (VJ-Klasse) → Fragment (`* u.textureAmt` /
+  `* u.glitterAmt`). Drei Flächen binden die Keys (Studio-Vollbild, FloatingVisual,
+  ExternalDisplay — dasselbe Muster wie visualSaturation). UI: zwei EchoelValueFields im
+  zweiten Fine-tune-Grid; bewusst OHNE visualPresetDiverged (Palette-Klasse wie Hue/Sat).
+- Flash-Sicherheit: reine Amplituden-Faktoren — die Per-Speck-Dekorrelation (Phase +
+  Frequenz aus dem Positions-Hash) und das statische Korn sind wert-unabhängig; die
+  Clamp-vor-Screen-Blend-Ordnung bleibt (Nadel-verifiziert).
+- Wächter: NEU `TheFinishDialsReachTheShaderTests` — Kernbehauptung ist der
+  **Struct-Zwilling** (Feldnamen-SEQUENZ Swift == MSL; der Shader kompiliert zur
+  LAUFZEIT, kein Gate kann einen Versatz je sehen; Parent 92=92, Work 94=94 gemessen).
+  Dazu: Fragment-Reichweite (Placebo-Gesetz), Clamps, Drei-Flächen-Bindung.
+  `VisualFineTuneReflowsTests` Labels 6→8 im selben Commit (§4). Grading transkribiert
+  gegen beide Bäume: 4 Counterweights, 8 FORWARD = EINE Abwesenheit (#486); Stripper
+  GEMESSEN PROPHYLAKTISCH 0/12. Eigener Kopf-Fehler vor dem Push gefunden: „9
+  assertions" + Unwrap-Zuordnung an Claim 2 — beides korrigiert (Zählung 12, Unwraps
+  gehören Claim 1). GlitterCannotBecomeAFlash: alle 8 Nadeln + Ordnung + 1c überleben
+  (transkribiert). dead-needles 0, reachability 0, Balance 7/7 sauber.
+- NEEDS-FOUNDER-VERIFY: Texture/Glitter-Regler am Gerät — 0 = sauberes Feld, 1 =
+  unverändert, 2 = doppelt; fühlt es sich live an (tau 0.2)?

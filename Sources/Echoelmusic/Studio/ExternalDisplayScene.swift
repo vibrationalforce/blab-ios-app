@@ -143,6 +143,8 @@ private struct ExternalStageView: View {
     @AppStorage(StudioDefaultKeys.visualSpread.key) private var spread = StudioDefaultKeys.visualSpread.value
     @AppStorage(StudioDefaultKeys.visualHue.key) private var hue = StudioDefaultKeys.visualHue.value
     @AppStorage(StudioDefaultKeys.visualSaturation.key) private var saturation = StudioDefaultKeys.visualSaturation.value
+    @AppStorage(StudioDefaultKeys.visualTexture.key) private var texture = StudioDefaultKeys.visualTexture.value
+    @AppStorage(StudioDefaultKeys.visualGlitter.key) private var glitter = StudioDefaultKeys.visualGlitter.value
 
     var body: some View {
         // Read `.shared` INLINE, not via a stored `private let`. Observation registers on
@@ -172,6 +174,8 @@ private struct ExternalStageView: View {
                              spread: Float(spread),
                              hueShift: Float(hue),
                              saturation: Float(saturation),
+                             textureAmount: Float(texture),
+                             glitterAmount: Float(glitter),
                              style: style, styleB: styleB, blend: Float(blend))
                     .environment(bus)
                     .environment(governor)

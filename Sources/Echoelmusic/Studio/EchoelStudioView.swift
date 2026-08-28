@@ -951,6 +951,10 @@ struct EchoelStudioView: View {
     /// satisfied by construction — both read the same `StudioDefault`.
     @AppStorage(StudioDefaultKeys.visualHue.key) private var visualHue = StudioDefaultKeys.visualHue.value
     @AppStorage(StudioDefaultKeys.visualSaturation.key) private var visualSaturation = StudioDefaultKeys.visualSaturation.value
+    /// Texture (grain depth) + Glitter (twinkle amount) — the #578 finishing stages, made
+    /// user-dialable (#853). Shared keys, same three-surface pattern as hue/saturation.
+    @AppStorage(StudioDefaultKeys.visualTexture.key) private var visualTexture = StudioDefaultKeys.visualTexture.value
+    @AppStorage(StudioDefaultKeys.visualGlitter.key) private var visualGlitter = StudioDefaultKeys.visualGlitter.value
     /// The floating visual window's show/hide state — SHARED with WorkspaceView's header
     /// monitor button and the window's own close button, so the Visual panel can toggle it
     /// directly (founder: everything user-optimized; don't make the header the only way in).
@@ -1523,6 +1527,7 @@ struct EchoelStudioView: View {
                                  intensity: Float(visualIntensity), ringDensity: Float(visualDetail),
                                  motion: Float(visualMotion), spread: Float(visualSpread),
                                  hueShift: Float(visualHue), saturation: Float(visualSaturation),
+                                 textureAmount: Float(visualTexture), glitterAmount: Float(visualGlitter),
                                  style: visualStyle, styleB: visualStyleB,
                                  blend: Float(visualBlend),
                                  entrainmentPulseHz: entrainmentVisualPulseHz).ignoresSafeArea()
@@ -6315,6 +6320,12 @@ struct EchoelStudioView: View {
                                  decimals: 2, onChange: { visualPresetDiverged() })
                 EchoelValueField(label: "Hue", value: $visualHue, range: 0...1, decimals: 2)
                 EchoelValueField(label: "Saturation", value: $visualSaturation, range: 0...2, decimals: 2)
+                // Texture + Glitter (#853, founder "mehr Struktur/Textur Regler"): the two
+                // #578 finishing stages, now dialable. 1 = the shipped look, 0 = off, 2 =
+                // double. Like Hue/Saturation they are palette-class controls and NOT part
+                // of the visual presets — no `visualPresetDiverged()` on purpose.
+                EchoelValueField(label: "Texture", value: $visualTexture, range: 0...2, decimals: 2)
+                EchoelValueField(label: "Glitter", value: $visualGlitter, range: 0...2, decimals: 2)
             }
         }
     }

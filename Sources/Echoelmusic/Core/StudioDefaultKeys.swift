@@ -241,6 +241,16 @@ public enum StudioDefaultKeys {
     /// report it as "the grey is fixed". The shader-side warm-tint change in the same slice
     /// is unconditional and does reach every install.
     public static let visualSaturation = StudioDefault(key: "visual.saturation", value: 1.05)
+    /// Texture (film grain) and Glitter (per-speck twinkle) amounts — the two finishing
+    /// stages #578 added with FIXED gains, now user-dialable (founder 2026-08-28: "mehr
+    /// Struktur/Textur Regler"). 1.0 = exactly the #578 look; 0 removes the stage; up to
+    /// 2 doubles it. Multipliers on the existing shader terms, so the flash-safety
+    /// construction (per-speck phase+frequency, static grain) is untouched at any value —
+    /// amplitude scaling cannot re-correlate the specks. Same three-surface pass-through
+    /// pattern as `visualSaturation` above: these values reach the GPU, the struct
+    /// defaults in `MetalBioView.swift` are fallbacks for a caller that does not exist.
+    public static let visualTexture = StudioDefault(key: "visual.texture", value: 1.0)
+    public static let visualGlitter = StudioDefault(key: "visual.glitter", value: 1.0)
     /// TRUE — the living visual greets a fresh install ("wow von Sekunde 1",
     /// WorkspaceView header monitor). The studio panel's old `false` copy made
     /// its toggle button lie until the key was first written.

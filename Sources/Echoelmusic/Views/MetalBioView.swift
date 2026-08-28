@@ -145,6 +145,14 @@ private struct BioUniforms {
     var rp4r: Float = 0; var rp4g: Float = 0; var rp4b: Float = 0
     var rp5x: Float = 0; var rp5y: Float = 0; var rp5p: Float = 1; var rp5a: Float = 0
     var rp5r: Float = 0; var rp5g: Float = 0; var rp5b: Float = 0
+    /// User FINISH controls (#853): multipliers on the two #578 finishing stages.
+    /// APPENDED AT THE END on purpose — this struct is handed to the GPU as raw bytes
+    /// and must match the MSL `Uniforms` field-for-field; appending keeps every
+    /// existing offset. 1 = the exact #578 look, 0 = stage off, clamped to [0, 2] in
+    /// `update()`. Amplitude-only: the flash-safety construction (per-speck
+    /// phase+frequency; static grain) is independent of these gains.
+    var textureAmt: Float = 1
+    var glitterAmt: Float = 1
 }
 
 /// The touch surface's water-drop events for the Metal renderer (structural rebuild
@@ -373,6 +381,12 @@ struct MetalBioView: UIViewRepresentable {
     /// picture (the mistake #578 made first, recorded at that declaration).
     var hueShift: Float = 0
     var saturation: Float = 1.05
+    /// Texture/Glitter finish amounts (#853) — same fallback status as `saturation` above:
+    /// every mounted surface passes both explicitly from `StudioDefaultKeys.visualTexture`/
+    /// `.visualGlitter`, so these literals render only for a caller that omits them, which
+    /// today does not exist. Kept equal to the shared defaults so the two can never disagree.
+    var textureAmount: Float = 1
+    var glitterAmount: Float = 1
     /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (see `BioUniforms.style`).
     var style: Int = 0
     /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism.
@@ -459,6 +473,7 @@ struct MetalBioView: UIViewRepresentable {
         c.capturesVideo = capturesVideo
         c.setLook(toneFallbackHz: toneHz, intensity: intensity, ringDensity: ringDensity,
                   motion: motion, spread: spread, hueShift: hueShift, saturation: saturation,
+                  textureAmount: textureAmount, glitterAmount: glitterAmount,
                   style: style, styleB: styleB, blend: blend, reduceMotionAccessibility: reduceMotion,
                   autoAttuned: autoAttuned, entrainmentPulseHz: entrainmentPulseHz)
     }
@@ -529,6 +544,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var lookSpread: Float = 1
     private var lookHue: Float = 0
     private var lookSaturation: Float = 1
+    private var lookTexture: Float = 1
+    private var lookGlitter: Float = 1
     private var lookStyle: Int = 0
     private var lookStyleB: Int = 0
     private var lookBlend: Float = 0
@@ -598,7 +615,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// Store the user's static look params (called from `updateUIView`). No bio/governor
     /// reads here — those are pulled per-frame in `draw(in:)`.
     func setLook(toneFallbackHz: Double, intensity: Float, ringDensity: Float, motion: Float,
-                 spread: Float, hueShift: Float, saturation: Float, style: Int, styleB: Int,
+                 spread: Float, hueShift: Float, saturation: Float,
+                 textureAmount: Float, glitterAmount: Float, style: Int, styleB: Int,
                  blend: Float, reduceMotionAccessibility: Bool, autoAttuned: Bool,
                  entrainmentPulseHz: Double = 0) {
         lookToneFallbackHz = toneFallbackHz
@@ -608,6 +626,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         lookSpread = spread
         lookHue = hueShift
         lookSaturation = saturation
+        lookTexture = textureAmount
+        lookGlitter = glitterAmount
         lookStyle = style
         lookStyleB = styleB
         lookBlend = blend
@@ -633,6 +653,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
                 intensity: Float, ringDensity: Float, motion: Float, spread: Float,
                 pulseHz: Float, hueShift: Float, saturation: Float,
+                textureAmt: Float, glitterAmt: Float,
                 style: Int, styleB: Int, blend: Float, reduceMotion: Bool) {
         // Writes the TARGET; draw() eases the live uniforms toward it. Same clamps as
         // before (the GPU never sees an out-of-range / non-finite value).
@@ -676,6 +697,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         hs = hs - floor(hs)
         target.hueShift = hs
         target.saturation = min(max(saturation.isFinite ? saturation : 1, 0), 2)
+        // Texture/Glitter (#853): same clamp family as saturation — [0, 2], 1 = neutral.
+        target.textureAmt = min(max(textureAmt.isFinite ? textureAmt : 1, 0), 2)
+        target.glitterAmt = min(max(glitterAmt.isFinite ? glitterAmt : 1, 0), 2)
         self.reduceMotion = reduceMotion
         // First update: snap (no glide from defaults), so the opening frame is correct.
         if !hasTarget {
@@ -968,6 +992,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    // re-capped ≤3 Hz inside update()).
                    pulseHz: Float(lookEntrainmentPulseHz > 0 ? lookEntrainmentPulseHz : vp.pulseHz),
                    hueShift: lookHue + voiceHueBias, saturation: lookSaturation * voiceSatFactor,
+                   textureAmt: lookTexture, glitterAmt: lookGlitter,
                    style: lookStyle, styleB: lookStyleB, blend: lookBlend,
                    reduceMotion: effectiveReduceMotion)
             // Feed the render cadence back to the governor so a sustained FPS drop can
@@ -1164,6 +1189,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             uniforms.hueShift = (uniforms.hueShift + dHue * (dt > 0 ? (1 - exp(-dt / 0.15)) : 1))
             uniforms.hueShift -= floor(uniforms.hueShift)
             uniforms.saturation = Self.ease(uniforms.saturation, target.saturation, tau: 0.2, dt: dt)
+            // Texture/Glitter glide on the VJ-palette time constant — they are the same
+            // kind of live performance control, and a snap would step the finish visibly.
+            uniforms.textureAmt = Self.ease(uniforms.textureAmt, target.textureAmt, tau: 0.2, dt: dt)
+            uniforms.glitterAmt = Self.ease(uniforms.glitterAmt, target.glitterAmt, tau: 0.2, dt: dt)
             // The A↔B mix morphs smoothly (snappy — it's a live performance control).
             uniforms.blend = Self.ease(uniforms.blend, target.blend, tau: 0.3, dt: dt)
         }
@@ -1252,7 +1281,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                       float rp2x; float rp2y; float rp2p; float rp2a; float rp2r; float rp2g; float rp2b;
                       float rp3x; float rp3y; float rp3p; float rp3a; float rp3r; float rp3g; float rp3b;
                       float rp4x; float rp4y; float rp4p; float rp4a; float rp4r; float rp4g; float rp4b;
-                      float rp5x; float rp5y; float rp5p; float rp5a; float rp5r; float rp5g; float rp5b; };
+                      float rp5x; float rp5y; float rp5p; float rp5a; float rp5r; float rp5g; float rp5b;
+                      float textureAmt; float glitterAmt; };
 
     // TOUCH RIPPLES — the water feedback drawn IN the field's own pipeline
     // (structural rebuild 2026-07-09; the old CAShapeLayer sandwich over the Metal
@@ -1868,7 +1898,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float gSeed  = echoelHash(gcell + 17.0);
         float tw = 0.5 + 0.5 * sin(u.time * (3.4 + gSeed * 2.2) + gSeed * 6.2831853);
         float spark = gAlive * pow(tw, 6.0) * energy;           // pow → a sharp twinkle
-        outCol += spark * mix(float3(1.0), col + 0.30, 0.6) * 0.55;
+        // u.glitterAmt (#853): the user's Glitter field, [0,2], 1 = the #578 gain. A pure
+        // amplitude factor — per-speck decorrelation above is untouched at any value.
+        outCol += spark * mix(float3(1.0), col + 0.30, 0.6) * 0.55 * u.glitterAmt;
         // TEXTURE: two octaves of STATIC grain, modulated by the moving `energy`. Static on
         // purpose — a hash re-seeded by time is full-frame noise resampled every frame, and
         // while zero-mean noise is not a "flash", the honest version of the argument above is
@@ -1876,7 +1908,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // as alive anyway, because what modulates it is the field.
         float grain = (echoelHash(in.uv * 900.0) - 0.5) * 0.7
                     + (echoelHash(in.uv * 233.0) - 0.5) * 0.3;
-        outCol += grain * 0.045 * energy;
+        // u.textureAmt (#853): the user's Texture field, [0,2], 1 = the #578 gain. The
+        // grain stays STATIC (no temporal content) at every value — only its depth moves.
+        outCol += grain * 0.045 * u.textureAmt * energy;
         // ⛔ THIS CLAMP IS NOT TIDINESS — WITHOUT IT #578 WOULD HAVE REVIVED THE 2026-07-09
         // ARTIFACT the comment four lines below records. The ripple is a SCREEN blend,
         // `outCol += ripple * (1 - outCol)`, and that identity only holds while `outCol ≤ 1`.

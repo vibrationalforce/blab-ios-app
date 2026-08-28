@@ -179,6 +179,8 @@ struct FloatingVisualWindow: View {
     @AppStorage(StudioDefaultKeys.visualSpread.key) private var visualSpread = StudioDefaultKeys.visualSpread.value
     @AppStorage(StudioDefaultKeys.visualHue.key) private var visualHue = StudioDefaultKeys.visualHue.value
     @AppStorage(StudioDefaultKeys.visualSaturation.key) private var visualSaturation = StudioDefaultKeys.visualSaturation.value
+    @AppStorage(StudioDefaultKeys.visualTexture.key) private var visualTexture = StudioDefaultKeys.visualTexture.value
+    @AppStorage(StudioDefaultKeys.visualGlitter.key) private var visualGlitter = StudioDefaultKeys.visualGlitter.value
 
     // P5: the sky mixed into the IMAGE, per parameter (founder: "Klang und Bild
     // aber getrennte und mehrere Parameter"). Each visual influence crossfades the
@@ -759,6 +761,7 @@ struct FloatingVisualWindow: View {
                      intensity: Float(wv.intensity), ringDensity: Float(visualDetail),
                      motion: Float(wv.motion), spread: Float(visualSpread),
                      hueShift: Float(wv.hue), saturation: Float(wv.saturation),
+                     textureAmount: Float(visualTexture), glitterAmount: Float(visualGlitter),
                      style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend),
                      entrainmentPulseHz: entrainmentPulse)
     }

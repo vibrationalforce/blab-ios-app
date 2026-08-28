@@ -2,7 +2,8 @@
 // Echoel — #292 Slice 4. The visual fine-tune rows reflow to two columns, and BOTH surfaces that
 // render them keep their own portrait rhythm.
 //
-// WHAT WAS WRONG. `visualAdjustFields` renders seven `EchoelValueField` rows and was one column at
+// WHAT WAS WRONG. `visualAdjustFields` rendered seven `EchoelValueField` rows (nine since #853 —
+// Texture + Glitter joined the second grid) and was one column at
 // ANY width — the same defect `SoundPanelReflowsTests` and `MoodPanelReflowsTests` describe for
 // their panels: the field is `HStack { label; Spacer(minLength: 8); valueBox }`, so a wide row puts
 // a name against the far left edge and the number it names against the far right. (⛔ That sentence
@@ -38,7 +39,8 @@
 //
 // ⚠️ WHAT THIS FILE GUARDS, and what it deliberately does NOT.
 //   1. Two grids exist in `visualAdjustFields` and both pass the PARAMETER, not a number.
-//   2. All six fine-tune rows are INSIDE a grid. A surface where some rows reflow and others do
+//   2. All eight fine-tune rows are INSIDE a grid (six at #292 Slice 4; Texture + Glitter joined
+//      with #853). A surface where some rows reflow and others do
 //      not is worse than one that never reflows — the ragged half-width/full-width column
 //      `MoodPanelReflowsTests` condemns, and counting grids alone cannot see it.
 //   3. Energy, the disclosure Button and the Detail caveat caption stay OUTSIDE. This is the half
@@ -135,9 +137,9 @@ final class VisualFineTuneReflowsTests: XCTestCase {
 
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
 
-    /// The six rows behind "Fine tune", by their label literal.
+    /// The eight rows behind "Fine tune", by their label literal (Texture/Glitter since #853).
     private static let fineTuneLabels = ["Intensity", "Detail", "Motion", "Spread",
-                                         "Hue", "Saturation"]
+                                         "Hue", "Saturation", "Texture", "Glitter"]
 
     // MARK: - The reflow
 
@@ -149,7 +151,7 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         XCTAssertEqual(grids.count, 2, """
         `visualAdjustFields` has \(grids.count) `AdaptiveCardGrid` groups, expected exactly 2.
 
-        The six fine-tune rows are split across two grids so the Detail caveat caption can sit \
+        The eight fine-tune rows are split across two grids so the Detail caveat caption can sit \
         BETWEEN them at full width. Two cards fill exactly one two-column row, so the split costs \
         nothing to look at. If they were merged, the caption lands in a half-width cell — read \
         the doc block on `visualAdjustFields(spacing:)` before changing this number.
