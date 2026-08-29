@@ -819,19 +819,46 @@ public final class AudioEngine {
                 log.audio("Interruption ended but the engine was stopped deliberately — staying stopped")
                 return
             }
-            self?.logEngineLifecycle("interruption ended — restarting")
+            // #871: the rung says whether MONITORING was on, because this path is the one
+            // place an engine comes back WITHOUT `AudioEngine.start()`. That matters and is
+            // not yet decided — see the ⚠️ block below.
+            self?.logEngineLifecycle(
+                "interruption ended — restarting (monitoring: \(self?.isInputMonitoring == true))")
             do {
                 self?.armTimingInstrument()
                 try self?.masterEngine.start()
                 self?.isRunning = true
                 self?.wasInterrupted = false
-                self?.logEngineLifecycle("interruption restart OK")
+                // The SAME fact after the restart. Two readings one line apart are what turn
+                // "the monitor went quiet after a call" from a report into a measurement:
+                // equal means the engine came back with monitoring believed-on, and the next
+                // question is whether the SESSION agrees; a change means this path moved it.
+                self?.logEngineLifecycle(
+                    "interruption restart OK (monitoring: \(self?.isInputMonitoring == true))")
             } catch {
                 // Leave `wasInterrupted` SET: the resume failed, so the watchdog and the
                 // scene-phase resume must both still consider this engine rescuable.
                 self?.logEngineLifecycle("interruption restart FAILED (\(error))", level: .error)
             }
         }
+        // ⚠️ AN OPEN QUESTION THIS PATH DOES NOT ANSWER (#871, measured 2026-08-29 — NOT a
+        // claimed defect, and deliberately not "fixed" in the dark).
+        // This closure restarts `masterEngine` DIRECTLY. It is the only resume path that does
+        // not go through `AudioEngine.start()`, and `rearmInputMonitoring` has exactly two
+        // callers — `start()` and the config-change branch — so it is never reached from here.
+        // A phone call therefore returns the engine WITHOUT rebuilding the monitor chain or
+        // re-claiming the record route (`setInputMonitoring(false)` releases it; the paired
+        // `true` re-claims it). Whether a singer's monitor actually survives a call is
+        // UNKNOWN from source: `pause()` keeps the graph, so the nodes and connections are
+        // still there, and the answer turns on whether the SESSION is still `.playAndRecord`
+        // after the system deactivated it. That is a device question, which is why the two
+        // rungs above now carry `monitoring:` instead of a guess.
+        //
+        // ⛔ WHY NOT SIMPLY ROUTE THROUGH `recoverEngine` OR CALL `rearmInputMonitoring` HERE:
+        // `rearmInputMonitoring` is an OFF→ON cycle, i.e. graph surgery plus two category
+        // flips — the exact shape the `isInputConnToConverter` family lives in, seven device
+        // logs deep and still without a named trigger. Adding that to an interruption resume
+        // on suspicion could turn a possibly-silent monitor into a crash. Evidence first.
         AudioConfiguration.onMediaServicesReset = { [weak self] in
             // Route through the SAME de-bounced machinery route-loss uses, not through a
             // bare engine start. Three things that only `recoverEngine` → `start()` does

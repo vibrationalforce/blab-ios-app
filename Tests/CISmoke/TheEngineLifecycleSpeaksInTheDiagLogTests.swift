@@ -83,7 +83,17 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
     func testEveryLifecyclePathCarriesARung() throws {
         let code = try code(Self.enginePath)
         for needle in ["logEngineLifecycle(\"interrupted — pausing\")",
-                       "logEngineLifecycle(\"interruption ended — restarting\")",
+                       // ⚠️ #871: this needle used to read `…("interruption ended — restarting")`
+                       // and the rung now carries an interpolated `(monitoring: …)` suffix on
+                       // its own line, so both the closing paren AND the `logEngineLifecycle(`
+                       // prefix stopped adjoining it. The #655/#656 shape — caught by this test
+                       // before the commit instead of by a red run after it.
+                       // Anchored on the QUOTED STRING alone, deliberately: the first draft of
+                       // this repair spelled the line break and sixteen spaces into the needle,
+                       // which would have gone red on a reformat that changed nothing. That the
+                       // rung is written through `logEngineLifecycle` is claim 1's job, not
+                       // this one's; here the guarantee is only that the path still speaks.
+                       "\"interruption ended — restarting",
                        "logEngineLifecycle(\"interruption restart FAILED",
                        "logEngineLifecycle(\"media services reset — recovering\")",
                        "logEngineLifecycle(\"route lost — recovering",
