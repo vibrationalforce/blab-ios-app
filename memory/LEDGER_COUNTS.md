@@ -5823,6 +5823,43 @@ zusammen; verdichtet wird beim Kompaktieren zuerst das Gesetz. KEINE
 Zeile ist gelöscht. Wer eine Zahl nachführt, führt sie DORT nach.**
 Siehe KEY TESTS.
 
+### 2026-08-29 (#881) — die ZWEI letzten Literale sind aus `CLAUDE.md` verschwunden, und eins davon war DATIERT
+
+**Gemessen:** `git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l` → **313**.
+Zum Vergleich im selben Lauf: `Tests/CISmoke` = 381, `Sources/**/*.swift` = 370.
+Anlass war kein Verdacht, sondern `python3 scripts/doctor.py --quiet`, dessen Sektion D
+die gemessene 313 neben die `CLAUDE.md`-Zeilen druckt, die eine Behauptung aufstellen.
+
+**Was dort stand, an ZWEI Stellen:**
+
+| Ort | Text | Stand |
+|---|---|---|
+| REPO STRUCTURE | `` `git ls-files …` (2026-08-21: 314)`` | Literal gelöscht, Befehl bleibt |
+| Überschrift `## KEY TESTS` | „(314 files under `Tests/EchoelmusicTests/` — `git ls-files` re-run 2026-08-07 nach #469)" | zeigt jetzt auf den Befehl in REPO STRUCTURE, trägt keine Zahl |
+
+**⭐ DER LEHRSATZ IST NEU UND SCHÄRFER ALS DER VON §B.** §B (`Sources/`) handelt von einer
+Zahl, die als nackte Tatsache dastand. Hier war die Zahl **ausdrücklich als
+Momentaufnahme datiert** — `(2026-08-21: 314)` — und **genau das hat sie geschützt**: sie
+sah wie Buchführung aus, also hat niemand sie nachgemessen, und sie war trotzdem falsch,
+weil zwischen dem Datum und heute eine Datei verschwand. **Ein Datum neben einer Zahl
+macht sie nicht ehrlicher, es macht sie unangreifbar.** Wer sie liest, kann aus dem
+Datum nicht ableiten, ob sich seither etwas geändert hat — nur, dass sie irgendwann
+einmal gestimmt hat. Deshalb ist sie GELÖSCHT und nicht auf 313 nachgeführt.
+
+**⚠️ Und die zweite Stelle war die gefährlichere**, obwohl sie undatiert war: eine
+ÜBERSCHRIFT. Dieselbe Lehre wie bei der H1 ganz oben in `CLAUDE.md` (die „Broadcast" als
+Produktsäule behauptete, während der Absatz darunter erklärte, warum es das nicht gibt):
+**eine Überschrift ist Teil der Behauptung**, und ein `grep` nach dem gestrichenen
+Literal gehört zum Streichen dazu — nicht nur das Bearbeiten des Absatzes, an den man
+gerade denkt. Kontrolle nach dem Schnitt: `grep -c "314" CLAUDE.md` → 0.
+
+**In `CLAUDE.md` wurde NICHTS ergänzt.** Die Zeile sagte schon „MESSEN, nicht zitieren"
+und zeigte schon auf §C; ein ⛔-Absatz daneben hätte nur wiederholt, was dort steht. Der
+erste Entwurf tat genau das und schob die Datei auf **150 073 B** — also ÜBER die
+150 000-B-Decke, die `TheLawFileStaysUnderItsCeilingTests` erzwingt. Eine Provenienz-Notiz,
+die den Wächter rot macht, den sie erklären soll, ist der Fehler in Reinform. Netto ist
+der Schnitt jetzt **−21 B** (149 632 → 149 611).
+
 
 ---
 

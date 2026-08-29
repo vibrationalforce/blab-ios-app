@@ -328,6 +328,44 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
         try rawFile(relativePath).utf8.count
     }
 
+    /// #881 — THE SAME REPAIR, ONE SUITE OVER, and the number it removed was DATED. The
+    /// law file carried `(2026-08-21: 314)` beside the counting command for
+    /// `Tests/EchoelmusicTests/`, and the measured value on 2026-08-29 was 313.
+    ///
+    /// ⭐ The date is what protected it: a figure that presents itself as a snapshot LOOKS
+    /// like bookkeeping, so nobody re-measures it — and it was wrong anyway, because a file
+    /// disappeared after that date. A date beside a number does not make it honest, it makes
+    /// it unassailable. So the number is DELETED, like #818's, not refreshed.
+    ///
+    /// ⚠️ The second home was the more dangerous one even though it carried no date: the
+    /// `## KEY TESTS` HEADING. Same lesson as the H1 at the top of the law file — a heading
+    /// is part of the claim, and a `grep` for the struck literal belongs to the striking.
+    ///
+    /// POSITIVE on the command (the #818 shape, so this cannot become a #491 self-hit), and
+    /// on the heading it asserts only that no "N files" count came back — a bounded scan of
+    /// ONE line, not of the whole file.
+    func testTheTestCountLineRoutesInsteadOfAssertingANumber() throws {
+        let law: String = try rawFile("CLAUDE.md")
+        let command = "git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l"
+        XCTAssertTrue(law.contains(command), """
+            The law file no longer carries the counting command for the non-blocking suite. \
+            Whoever removed it has to put a literal in its place, and that literal is what \
+            #881 deleted — it was stale while wearing a date that made it look maintained.
+            """)
+
+        let headings = law.components(separatedBy: "\n").filter { $0.hasPrefix("## KEY TESTS") }
+        XCTAssertEqual(headings.count, 1, """
+            Expected exactly one `## KEY TESTS` heading, found \(headings.count) — re-anchor \
+            this claim rather than letting it match nothing (§4).
+            """)
+        let heading = headings.first ?? ""
+        XCTAssertFalse(heading.contains(" files"), """
+            The KEY TESTS heading asserts a file count again: \(heading)
+            A heading is part of the claim. Point at the `git ls-files` command in REPO \
+            STRUCTURE instead; the counting chain lives in `memory/LEDGER_COUNTS.md` §C.
+            """)
+    }
+
     private func rawFile(_ relativePath: String) throws -> String {
         let path = try repoRoot().appendingPathComponent(relativePath)
         guard FileManager.default.fileExists(atPath: path.path) else {

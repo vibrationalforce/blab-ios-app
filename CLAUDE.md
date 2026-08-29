@@ -298,7 +298,7 @@ Sources/Echoelmusic/
   Tools/               ← PolySynthVoice, SubBassVoice, breath/vocal tools
   Views/               ← MetalBioView + OnboardingView ONLY (the old deprecated-view list is deleted)
 Tests/EchoelmusicTests/ ← die NICHT-blockierende Suite. **MESSEN, nicht zitieren:**
-                          `git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l` (2026-08-21: 314).
+                          `git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l`.
                           Das BLOCKIERENDE Bundle ist eine ANDERE Suite — es baut aus
                           `Tests/CISmoke` (`git ls-files 'Tests/CISmoke/*.swift' | wc -l`); wie dort
                           ein Wächter geschrieben, benotet und gemeldet wird, steht in
@@ -545,7 +545,7 @@ Language-level notes that ARE still true and worth keeping:
 
 ---
 
-## KEY TESTS (314 files under `Tests/EchoelmusicTests/` — `git ls-files` re-run 2026-08-07 nach #469)
+## KEY TESTS (Anzahl: der `git ls-files`-Befehl in REPO STRUCTURE — hier steht bewusst keine Zahl)
 
 Run `swift test` (or rely on the CI gates) before ANY commit. Highest-value areas:
 DSP (`EchoelDDSPTests` · `DSPTests` · `VDSPTests`) · protected triad

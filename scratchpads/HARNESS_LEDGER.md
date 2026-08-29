@@ -2399,3 +2399,42 @@ Probe, die nichts entscheiden kann (#525, hier auf Dokument-Ebene).
 3. Den Wächter **nur auf die Ankreuz-Zeilen** setzen. Ein dateiweiter Negativ-Scan trifft die
    ⛔-Tabelle, die die gestrichenen Namen zitiert (#491 — derselbe Selbsttreffer wie #809).
 4. Jede Nadel **gegen den Elternbaum treiben**, bevor sie ausgeliefert wird (#808/#815).
+
+## REGISTER (2026-08-29, #881): zwei CI-Defekte, die `doctor.py` findet und die NIEMAND aufgeschrieben hatte
+
+Founder-gated (`.github/workflows/**` = berichten, nicht editieren). Sie stehen hier, weil
+sonst jeder Doctor-Lauf sie neu „findet" und die nächste Sitzung sie neu bewertet.
+Beide sind **CRITICAL** und beide sind **nicht** die schon bekannten #396 / #208 / Auto-Merge-Befunde.
+
+### 1. `ci.yml` — vier Build-Schritte, deren Fehlschlag nichts rot färben kann
+
+| Zeile | Mechanismus |
+|---|---|
+| `ci.yml:244` | JOB `performance-tests` ist ganz `continue-on-error` **und er baut** |
+| `ci.yml:293/294` | `Run Performance Tests`: Build in `\|\| true`, Pipe ohne `set -o pipefail`, toleriert BUILD-Fehler |
+| `ci.yml:304/305` | `Memory Leak Detection`: dasselbe Muster |
+| `ci.yml:381/382` | `Build Release Archive`: dasselbe Muster |
+| `benchmark.yml:67` | `Benchmark: Clean Build Time` pipet ohne `set -o pipefail` |
+
+**Die Reihenfolge der Reparatur ist nicht beliebig, und das ist der Teil, den man vergisst:**
+erst muss der EIGENE Exit-Status des Schritts ehrlich sein (`|| true` weg, Pipe abgesichert),
+DANN kann ein Wächter-Schritt auf `steps.<id>.outcome` prüfen — und der braucht ein `id:`.
+Ein Wächter über einem `|| true` liest für immer Erfolg. `.conclusion` ist die falsche
+Eigenschaft: `continue-on-error` zwingt sie auf `success`.
+
+### 2. `ci.yml:290/291` — ein `-only-testing:`-Filter nennt eine Suite, die es nicht gibt
+
+`ComprehensiveTestSuite` ist **keine** `XCTestCase`-Klasse in diesem Repo. Ein Lauf mit null
+getroffenen Tests meldet (angenommen, **nicht** verifiziert — kein Xcode hier) Erfolg statt
+Fehlschlag. Also testet dieser Schritt nichts und sagt „grün".
+
+⚠️ **Aber die Umbenennung allein bringt nichts:** derselbe Schritt sitzt im maskierten Job aus
+Befund 1. Erst die Maske, dann der Name — sonst repariert man den Namen eines Schrittes, dessen
+Ergebnis ohnehin niemand liest.
+
+### Warum das hier steht und nicht in `CLAUDE.md`
+
+Kopfraum. `CLAUDE.md` stand beim Eintragen bei 149 611 B unter einer 150 000-B-Decke; ein
+dritter CI-Absatz dort hätte den Wächter rot gemacht, den er beschreibt. Der CI-Abschnitt in
+`CLAUDE.md` nennt bereits #396, #208 und den Auto-Merge-Befund — das ist das GESETZ; dies hier
+ist der Rückstand.
