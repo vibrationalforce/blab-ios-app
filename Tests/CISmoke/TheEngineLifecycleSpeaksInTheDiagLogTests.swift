@@ -26,7 +26,7 @@
 //
 // ⭐ GRADING (§3): FORWARD in full — every needle names #859 text created in the same
 // commit; red at the parent by the one shared absence (#486). The ordering walks could
-// never have a verdict there. Counterweights: the claim-5 gate needles are the ones
+// never have a verdict there. Counterweights: the claim-4 gate needles are the ones
 // TheMonitoringSurvivesEngineRecoveryTests claim 3 already holds green on both trees.
 
 import Foundation
@@ -123,6 +123,26 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             """)
         XCTAssertEqual(occurrences(of: "inputNode.inputFormat(forBus: 0)", in: body), 1,
                        "a second inputNode read appeared in the watchdog — gate it too.")
+    }
+
+    // MARK: - 5: the voice-timbre chain speaks too (#859b — reviewer L3)
+
+    /// The last diag-dark input path: VoiceCaptureController → MicrophoneManager does
+    /// a category flip + own engine + inputNode tap while the master engine runs, and
+    /// wrote nothing. A silent NEXT crash log would have indicted it unseen.
+    func testTheVoiceCaptureChainCarriesRungs() throws {
+        let mic = try code("Sources/Echoelmusic/MicrophoneManager.swift")
+        for needle in ["EchoelCrashLog.breadcrumb(\"mic: start 1/3 — claiming record route\")",
+                       "EchoelCrashLog.breadcrumb(\"mic: start 2/3 — tapping input\")",
+                       "EchoelCrashLog.breadcrumb(\"mic: start 3/3 — starting capture engine\")",
+                       "EchoelCrashLog.breadcrumb(\"mic: start FAILED",
+                       "EchoelCrashLog.breadcrumb(\"mic: stop — releasing capture engine + route\")"] {
+            XCTAssertEqual(occurrences(of: needle, in: mic), 1,
+                           "`\(needle)` is gone — the mic capture chain falls diag-dark again (#859b).")
+        }
+        let voice = try code("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
+        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(\"voice: capture armed\")", in: voice), 1,
+                       "the voice-timbre take no longer announces itself in the exported log.")
     }
 
     // MARK: - helpers (the house shape: strip comments, skip on no tree)

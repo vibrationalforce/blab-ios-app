@@ -53,6 +53,9 @@ final class VoiceCaptureController {
     /// Arm a capture. `mic`/`synth` are borrowed for this one take.
     func begin(mic: MicrophoneManager, synth: PolySynthVoice) {
         guard phase != .capturing else { return }
+        // #859b: the voice-timbre take is a mic-lifecycle event — it must speak in the
+        // exported log like every other input path (see MicrophoneManager's rungs).
+        EchoelCrashLog.breadcrumb("voice: capture armed")
         self.mic = mic
         self.synth = synth
         engine.start()
@@ -68,6 +71,7 @@ final class VoiceCaptureController {
 
     /// Abort the take: nothing is applied, the mic is released if it was ours.
     func cancel() {
+        EchoelCrashLog.breadcrumb("voice: capture cancelled")
         engine.cancel()
         phase = .idle
         progress = 0
@@ -100,6 +104,7 @@ final class VoiceCaptureController {
             if let profile = engine.profile {
                 synth?.applyVoiceProfile(profile)
             }
+            EchoelCrashLog.breadcrumb("voice: capture done — profile applied")
             phase = .done
             releaseMic()
         }

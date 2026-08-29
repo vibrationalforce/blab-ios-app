@@ -15946,3 +15946,23 @@ Gates. Wächter: TheEngineLifecycleSpeaksInTheDiagLogTests (4 Claims, transkribi
 wörtlich). Ehrlich: ob (B) DIESEN Crash fixt, ist unbewiesen — aber das nächste Log
 NENNT den Pfad, statt 24 s zu schweigen. Gerät offen: Crash weg ODER Log mit
 `engine:`-Sprosse vor dem Sterben.
+
+## 2026-08-29 — #859b: Reviewer-Nachlese — der Voice-Timbre-Pfad spricht jetzt auch
+
+Reviewer auf #859: 17/17 bestätigt, kein Blocker. Zwei tragende Einsichten: (H1) der
+Config-Change-Watchdog war NIE diag-stumm (latencyBreadcrumb ist seine erste Zeile und
+fehlt im v428-Log) — der ungate-te inputNode-Read war also NICHT der v428-Auslöser;
+der Gate-Fix bleibt als Hazard-Klassen-Beseitigung richtig, aber die Sprossen sind der
+Diskriminator: ein sprossenloses nächstes Crash-Log klagt einen Pfad AUSSERHALB der 13
+Stellen an. (H2/L3) Der letzte diag-dunkle Input-Pfad ist die Voice-Timbre-Kette:
+VoiceCaptureController.begin → MicrophoneManager.startRecording = Kategorie-Flip auf
+.playAndRecord + EIGENE Engine + inputNode-Tap bei laufender Master-Engine, null
+Export-Zeilen — und der Release-seitige Rück-Flip postet einen Config-Change unter
+wieder-playback-only. Passt zusätzlich zum Stack (großer Modul-Offset ≈ EchoelStudioView).
+
+#859b: 6 mic-Sprossen (start 1/3 Route-Claim · 2/3 Input-Tap · 3/3 Engine-Start ·
+running · FAILED · stop) + 3 voice-Sprossen (armed/cancelled/done) + Guard-Claim 5 im
+neuen Wächter + L1-Prosa-Fix (claim-5→claim-4). Transkription 10/10 grün. Damit ist
+JEDER bekannte Input-/Lifecycle-Pfad im Export sichtbar; M3 (Interruption-Resume durch
+recoverEngine routen) bewusst NICHT gemacht — die drei Start-Todesarten sind jetzt an
+ihrer letzten Sprosse unterscheidbar, das nächste Log entscheidet empirisch.

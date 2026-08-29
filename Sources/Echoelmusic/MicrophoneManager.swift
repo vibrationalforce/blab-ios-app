@@ -184,6 +184,12 @@ final class MicrophoneManager: NSObject {
         }
 
         do {
+            // #859b: the voice-timbre chain (VoiceCaptureController → here) was the
+            // last diag-dark path that does INPUT work while the master engine runs —
+            // category flip + own engine + inputNode tap, zero exported lines. Every
+            // rung below lands in echoel_diag.log so a crash in this chain names its
+            // step (the #854/#859 discipline; discrete user events, never tick-rate).
+            EchoelCrashLog.breadcrumb("mic: start 1/3 — claiming record route")
             // The app's DEFAULT session is .playback (output only) so it never
             // drags other apps' Bluetooth audio down to HFP call quality. Recording
             // needs the mic, so upgrade to .playAndRecord HERE — the moment the user
@@ -208,6 +214,7 @@ final class MicrophoneManager: NSObject {
                 return
             }
 
+            EchoelCrashLog.breadcrumb("mic: start 2/3 — tapping input")
             inputNode = audioEngine.inputNode
 
             // Get the input format from the microphone
@@ -248,13 +255,16 @@ final class MicrophoneManager: NSObject {
 
             // Prepare and start the audio engine
             audioEngine.prepare()
+            EchoelCrashLog.breadcrumb("mic: start 3/3 — starting capture engine")
             try audioEngine.start()
 
             self.isRecording = true
 
+            EchoelCrashLog.breadcrumb("mic: capture running")
             log.audio("🎙️ Recording started with FFT enabled")
 
         } catch {
+            EchoelCrashLog.breadcrumb("mic: start FAILED (\(error.localizedDescription))")
             log.audio("❌ Failed to start recording: \(error.localizedDescription)", level: .error)
             self.isRecording = false
             // ⭐ #299 Nachlese — THE ONE REACHABLE EXIT THAT CLAIMED WITHOUT RELEASING, and the
@@ -275,6 +285,7 @@ final class MicrophoneManager: NSObject {
 
     /// Stop recording audio
     func stopRecording() {
+        EchoelCrashLog.breadcrumb("mic: stop — releasing capture engine + route")
         // Safely stop the audio engine
         if let engine = audioEngine, engine.isRunning {
             engine.stop()
