@@ -83,8 +83,17 @@ public enum EntrainmentEngine {
     /// the hoist that removed the 2.5 Hz literals.
     ///
     /// It is NOT folded into one symbol here, and the reason is layering, not oversight:
-    /// `FlashGuard` lives in `Studio/`, and `Bio/` references no `Studio/` type today
-    /// (`git grep -ln FlashGuard -- Sources` lists Core · Studio · Sync · Views, no Bio).
+    /// `FlashGuard` lives in `Studio/`, and `Bio/` references no `Studio/` type today.
+    /// ⛔ THE RECIPE THAT STOOD HERE MEASURED MENTIONS, NOT USES, AND HAS SINCE INVERTED
+    /// ITS OWN ANSWER (#864). It read: "`git grep -ln FlashGuard -- Sources` lists Core ·
+    /// Studio · Sync · Views, no Bio". Run today it lists **Bio and DSP too** — because
+    /// THIS comment, and its twin in `BioEntrainmentDirector`, name the symbol while
+    /// explaining why they cannot use it. A recipe that any comment about the subject can
+    /// falsify is the `EchoelModalBank` trap CLAUDE.md names. The CONCLUSION holds; measure
+    /// USE instead:
+    ///   git grep -n 'FlashGuard\.' -- Sources | grep -vE ':[[:space:]]*(//|///|\*)'
+    /// → Studio · Sync · Views. No Bio, no DSP, and no Core either — those were mentions
+    /// from the start, so the old expected output was never a use-list.
     /// `BioEntrainmentDirector` is worse off — `DSP/` is kept Foundation-only by hygiene
     /// (`project.yml`), so it may not reach `Studio/` at all. Moving `FlashGuard` to a layer
     /// all three can see is a real decision about where visual-safety law lives, not a tidy-up,

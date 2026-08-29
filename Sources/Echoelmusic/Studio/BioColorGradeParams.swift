@@ -1,11 +1,24 @@
 // BioColorGradeParams.swift
 // Echoelmusic — Studio
 //
-// PURE bio→colour-grade uniform mapping (science-first, flash-safe). Maps a bio
-// snapshot to a small set of grade uniforms consumed by the generative-visual grade
-// pass (MetalBioView compiles its shader inline at runtime). All Foundation math — no
-// Metal, no AVFoundation — so the mapping + its flash-rate clamp are unit-tested on
-// every platform. The struct layout must match the shader's uniform struct byte-for-byte.
+// PURE bio→colour-grade uniform mapping (science-first, flash-safe). All Foundation
+// math — no Metal, no AVFoundation.
+//
+// ⛔ THE HEADER THAT STOOD HERE MADE THREE CLAIMS AND ALL THREE WERE FALSE (#864,
+// measured 2026-08-29). It said these uniforms are "consumed by the generative-visual
+// grade pass (MetalBioView compiles its shader inline at runtime)", that the mapping
+// "+ its flash-rate clamp are unit-tested on every platform", and that "the struct
+// layout must match the shader's uniform struct byte-for-byte".
+//   git grep -n "BioColorGradeParams" -- Sources | grep -v Studio/BioColorGradeParams  → 0
+//   git grep -ln "BioColorGradeParams" -- Tests                                        → 0
+// No consumer, no test file. `MetalBioView` never names this type — its grade uniforms
+// are its own `BioUniforms`, so there is no shader struct to match either. The third
+// claim is the dangerous one: a prescriptive layout constraint on a type nothing reads
+// sends the next session hunting for a shader that does not exist.
+//
+// HONEST STATE: doorless, uncalled, untested. KEPT on purpose — `from(...)` is the
+// designed bio→grade mapping and `flashLimited` is a real slew limiter. Whoever wires
+// it writes the tests then; nothing here claims they exist now.
 
 import Foundation
 
@@ -70,12 +83,27 @@ public struct BioColorGradeParams: Sendable, Equatable {
             vignette: clampf(vignette, 0, 1))
     }
 
-    /// Flash-safety clamp (W3C WCAG epilepsy ≤ 3 Hz): limit how far any channel may
-    /// move from the previous frame given the frame interval, so no luminance-
-    /// affecting parameter oscillates faster than `maxHz`. Pure — the device pass
-    /// feeds `previous` + real `dt`; here it's deterministic and testable.
+    /// Flash-safety clamp (W3C WCAG 2.3.1, ≤ 3 flashes per second): limit how far any
+    /// channel may move from the previous frame given the frame interval, so no
+    /// luminance-affecting parameter oscillates faster than `maxHz`. Pure — a device pass
+    /// would feed `previous` + real `dt`; here it is deterministic.
+    ///
+    /// ⭐ `maxHz`'s default CHAINS to `FlashGuard.maxFlashHz` (#864). It used to be a bare
+    /// `3` — a FOURTH declaration of the epilepsy ceiling, while four places all said there
+    /// were three: `FlashGuard`'s own doc, `EntrainmentEngine`'s, `BioEntrainmentDirector`'s
+    /// and the header table of `Tests/CISmoke/TheFlashCeilingIsOneNumberTests`. It escaped
+    /// every one of those censuses because the three known copies are `static let` symbols
+    /// carrying "Flash" or "Visual" in the NAME, and this one is a default ARGUMENT called
+    /// `maxHz`.
+    ///
+    /// It is CHAINED rather than merely pinned because it can be: both types live in
+    /// `Studio/`. The other two copies cannot — `Bio/` references no `Studio/` type and
+    /// `DSP/` is kept Foundation-only by hygiene — which is why they stay policed by a test.
+    /// This is the goal state `FlashGuard`'s header describes, reached for the one copy
+    /// where layering allows it.
     public func flashLimited(from previous: BioColorGradeParams,
-                             dt: Float, maxHz: Float = 3) -> BioColorGradeParams {
+                             dt: Float,
+                             maxHz: Float = Float(FlashGuard.maxFlashHz)) -> BioColorGradeParams {
         guard dt > 0, maxHz > 0 else { return self }
         // One full swing takes ≥ 1/(2·maxHz) s, so cap |Δ| per frame accordingly.
         let maxDelta = dt * 2 * maxHz

@@ -30,6 +30,18 @@ public enum FlashGuard {
     /// (`project.yml`). Folding them means MOVING this type to a layer all three can see —
     /// a decision about where visual-safety law lives, deliberately not taken in passing.
     /// Until then `Tests/CISmoke/TheFlashCeilingIsOneNumberTests` makes any divergence red.
+    ///
+    /// ⛔ THIS DOC SAID "TWO MORE" AND THERE WAS A THIRD (#864, 2026-08-29).
+    /// `BioColorGradeParams.flashLimited(… maxHz: Float = 3)` declared the same ceiling as a
+    /// default ARGUMENT. Four homes agreed on "three" — this paragraph, both copies' own
+    /// docs, and the guard's header table — because each census looked for a `static let`
+    /// with `Flash` or `Visual` in the name, and that is the one shape the fourth did not
+    /// have. It now reads `Float(FlashGuard.maxFlashHz)`: chained, not counted, because it
+    /// sits in `Studio/` and layering permits there what it forbids for the other two.
+    /// LESSON, and it is an ENUMERATION lesson rather than a value one: a census of a
+    /// constant searches the VALUE and the default arguments, never the naming convention
+    /// the already-known copies happen to share. Nothing was wrong for a user — that file
+    /// has no caller — so this is a forward guard, not a fix.
     public static let maxFlashHz: Double = 3.0
 
     /// The app's OWN, stricter ceiling on the rate at which the bio pulse phase advances.

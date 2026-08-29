@@ -10,6 +10,18 @@
 //   Studio/FlashGuard.swift            maxFlashHz        = 3.0   ← canonical BY DESIGNATION
 //   Bio/EntrainmentEngine.swift        maxVisualFlashHz  = 3.0
 //   DSP/BioEntrainmentDirector.swift   maxVisualHz       = 3.0
+//   Studio/BioColorGradeParams.swift   maxHz: Float = 3         ← FOURTH, found #864
+//
+// ⛔ THE FOURTH ROW WAS ADDED 2026-08-29 (#864), AND HOW IT HID IS THE POINT. This file, the
+// canonical declaration's doc, and both copies' docs all said "three" for four months. The
+// fourth is not a `static let` and carries neither "Flash" nor "Visual" in its name — it is a
+// DEFAULT ARGUMENT called `maxHz` on `BioColorGradeParams.flashLimited`. Every census had
+// searched the naming convention the three known copies happened to share, so each one
+// confirmed the others. It now reads `Float(FlashGuard.maxFlashHz)`: CHAINED, not policed,
+// because both types live in `Studio/` and the layering objection that blocks the other two
+// does not apply. `testTheGradeClampsDefaultIsTheCanonicalCeiling` keeps it chained.
+//   Re-derive the census by VALUE, not by name:
+//   git grep -nE "maxHz|3\.0" -- Sources | grep -iE "flash|wcag|epilep"
 //
 // The irony is load-bearing and is why this file exists: `FlashGuard`'s own `maxPulseRateHz`
 // doc argues, in so many words, that "two symbols for one number is the drift surface this
@@ -18,9 +30,16 @@
 // very hoist that sentence describes.
 //
 // ⛔ WHY THEY ARE NOT MERGED, said plainly so the next session does not read this as laziness:
-// layering forbids it today. `FlashGuard` is in `Studio/`; `Bio/` references no `Studio/` type
-// (`git grep -ln FlashGuard -- Sources` → Core · Studio · Sync · Views, no Bio), and `DSP/` is
-// kept Foundation-only by hygiene (`project.yml`) so it may not reach `Studio/` at all.
+// layering forbids it today. `FlashGuard` is in `Studio/`; `Bio/` references no `Studio/` type,
+// and `DSP/` is kept Foundation-only by hygiene (`project.yml`) so it may not reach `Studio/`.
+// ⛔ THE RECIPE HERE MEASURED MENTIONS AND HAD INVERTED ITS OWN ANSWER (#864). It read
+// "`git grep -ln FlashGuard -- Sources` → Core · Studio · Sync · Views, no Bio"; run today that
+// lists Bio and DSP as well, because the two copies' docs NAME the symbol while explaining why
+// they cannot use it — the `EchoelModalBank` trap, where writing about a thing corrupts the
+// evidence about it. The conclusion is unchanged. Measure USE:
+//   git grep -n 'FlashGuard\.' -- Sources | grep -vE ':[[:space:]]*(//|///|\*)'
+// → Studio · Sync · Views. Corrected in both homes it had (here and `EntrainmentEngine`'s doc);
+// leaving one is the #456 shape, where prose is repaired only where the author happened to look.
 // Merging means MOVING `FlashGuard` to a layer all three can see — a decision about where
 // visual-safety law lives, not a tidy-up, and not this slice. If a later slice does move it,
 // these assertions stay green and become trivially true. That is the goal state, not a
@@ -76,6 +95,40 @@ final class TheFlashCeilingIsOneNumberTests: XCTestCase {
             The WCAG 2.3.1 general-flash limit is three flashes per second. This is a published \
             accessibility threshold, not a tuning parameter — CLAUDE.md lists it under SAFETY \
             WARNINGS. Raising it is a product-safety decision that belongs to the founder.
+            """)
+    }
+
+    /// The FOURTH home (#864). `BioColorGradeParams.flashLimited` declares the ceiling as a
+    /// default ARGUMENT, which no `static let` census above can see; it now chains to
+    /// `FlashGuard.maxFlashHz`. Swift offers no way to READ a default argument, so this check
+    /// is behavioural: call the method both ways and compare.
+    ///
+    /// ⛔ HONEST GRADING: NOT a regression. That file has zero callers (`git grep` outside it
+    /// → 0), and its literal already read 3, so nothing was ever wrong for a user. This is a
+    /// FORWARD guard — it makes a literal creeping back into that default go red.
+    func testTheGradeClampsDefaultIsTheCanonicalCeiling() {
+        let previous = BioColorGradeParams.neutral
+        var target = BioColorGradeParams.neutral
+        target.exposure = 1.5                 // a jump far larger than one frame may travel
+        let dt: Float = 1.0 / 60
+
+        let byDefault = target.flashLimited(from: previous, dt: dt)
+        let explicit = target.flashLimited(from: previous, dt: dt,
+                                           maxHz: Float(FlashGuard.maxFlashHz))
+
+        // Vacuity guard (#367): if the clamp did not bite, BOTH sides would equal `target`
+        // and the equality below would hold for any default whatsoever.
+        XCTAssertLessThan(byDefault.exposure, target.exposure, """
+            The grade clamp no longer limits a 0.5 exposure jump across a 1/60 s frame, so this \
+            test can no longer tell the canonical ceiling from any other number — it would pass \
+            vacuously. Re-tune the jump or the interval until the clamp bites; do not delete it.
+            """)
+        XCTAssertEqual(byDefault.exposure, explicit.exposure, accuracy: 1e-6, """
+            `BioColorGradeParams.flashLimited`'s default `maxHz` no longer equals \
+            `FlashGuard.maxFlashHz`. That default is the FOURTH declaration of the WCAG 2.3.1 \
+            epilepsy ceiling; it was a bare `3` until #864 chained it. Putting a literal back \
+            re-opens a drift surface no naming-based census can find, because it is a default \
+            argument and not a `static let`.
             """)
     }
 
