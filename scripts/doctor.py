@@ -879,6 +879,34 @@ def section_b() -> Section:
     guards = sorted(tracked("Tests/CISmoke/*.swift"))
     if guards:
         haystack = _declarations_only(sorted(tracked("Sources/*.swift")) + guards)
+        # ⛔ #874: A SECOND HAYSTACK, because the first one CANNOT SEE NON-SWIFT CODE and this
+        # check reported a false alarm for it. `TheFinishDialsReachTheShaderTests` needles
+        # `struct Uniforms {` — the METAL struct, which lives inside a Swift string literal in
+        # `MetalBioView.swift:1282` and is compiled at runtime on the GPU. It is real code, the
+        # guard genuinely protects it (a field-order divergence there breaks the picture on a
+        # device with no log line), and `_declarations_only` filed it as "declared nowhere".
+        #
+        # ⚠️ THE FALLBACK IS `_code_only`, NOT THE RAW TEXT, and that distinction is the whole
+        # design. Raw text would let a COMMENT that merely mentions a name rescue a genuinely
+        # dead needle — the exact false green `_declarations_only` exists to prevent, and the
+        # `EchoelModalBank` trap this repo has already paid for (writing about a thing corrupts
+        # the evidence about it). A string literal survives comment-stripping; a comment does
+        # not. So a needle now has to resolve against real code SOMEWHERE, in any language.
+        #
+        # ⚠️ IT NARROWS THE CHECK ON PURPOSE. Fewer findings is the point: a checker with false
+        # alarms is a checker nobody reads (#665), and this tool's whole claim is that its own
+        # instruments are honest. A needle that resolves in code is not a needle that "cannot
+        # fail for its named reason" — the headline of this finding — so reporting it was not a
+        # stricter check, it was a wrong one.
+        # ⛔ `Sources/` ONLY — NOT `+ guards`, and the first draft of this fix got that wrong
+        # in the most embarrassing possible way: it made the check VACUOUS. `_code_only` keeps
+        # string literals (that is the entire point), so a haystack containing the guard files
+        # lets every needle match ITSELF — the literal it is written as. Verified by injecting
+        # `struct ThisNameExistsNowhereAtAll {` into a tracked guard: caught before the fix,
+        # SILENT after it. Two minutes from shipping a checker that reports zero forever.
+        # The self-evidence family again: the thing being searched for was inside the thing
+        # being searched.
+        code_haystack = "\n".join(_code_only(read(f)) for f in sorted(tracked("Sources/*.swift")))
         phantoms = []
         for f in guards:
             for i, line in enumerate(_code_only(read(f)).split("\n")):
@@ -923,7 +951,8 @@ def section_b() -> Section:
                     pattern = re.escape(needle)
                     if needle[-1].isalnum() or needle[-1] == "_":
                         pattern += r"(?![A-Za-z0-9_])"
-                    if not re.search(pattern, haystack):
+                    if not re.search(pattern, haystack) \
+                            and not re.search(pattern, code_haystack):
                         phantoms.append(f"{rel(f)}:{i + 1}  {m.group(1)!r} — declared nowhere")
         if phantoms:
             sec.findings.append(Finding(
