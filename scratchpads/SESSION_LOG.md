@@ -16186,3 +16186,16 @@ BENOTUNG, unschmeichelhaft: Anspruch 10 ist FORWARD (2 rot am Elternbaum durch A
 Anspruch 11 und die drei neuen Zeilen in Anspruch 8 sind **auf BEIDEN Bäumen GRÜN** — reine
 Gegengewichte, weil die Sprossen schon existierten und #862 sie bloß nicht bewacht hat. Sie als
 Regressionen zu buchen hieße zu behaupten, dieser Commit repariere etwas, das er nur einzäunt.
+
+## 2026-08-29 — v430 Deploy: die Leiter steht richtig
+
+Gates per §5: Compile Check auf 43c8af8 success; CI/CD auf 70102ad (#862) und 43c8af8
+(#862b) beide sauber — build-for-testing Succeeded, 169 bzw. 171 Tests im Fenster, 0
+Fehlschläge, 0 Skips, #396 wie erwartet. Fünf Scheiben in dieser Version: #860, #860b,
+#861, #862, #862b.
+
+Release-Text trägt bewusst BEIDE Rücknahmen dieser Runde („gemessen" und „der einzige
+Start ohne Sprosse"). Begründung: der Founder verwendet seine Gerätezeit auf Basis dieser
+Notizen; eine Notiz, die vollständiger klingt als sie ist, kostet ihn eine Probe, die
+nichts entscheiden kann. Neue Prüfbitte ergänzt (Monitoring an/aus), weil der EIN-Weg zum
+ersten Mal spricht und genau dort der zweite rungless start sitzt.

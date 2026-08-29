@@ -1,4 +1,4 @@
-build: v10.79.429 — Dein 428er-Log zeigte einen NEUEN Weg zum selben Absturz. Jetzt spricht die ganze Engine im Log — der nächste Crash MUSS seinen Pfad nennen
+build: v10.79.430 — Dein 429er-Log hat bewiesen, dass die Leiter schreibt. Und genau deshalb war ihr Schweigen der Befund: die Sprossen standen an den falschen Stellen
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,54 +6,67 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.428 (gestern — Umbau abgeschafft, Autotune = Bypass-Hebel).
+  Der Vorgänger ist 10.79.429 (heute — die Lebenszyklus-Leiter).
 
-  ── WAS DEIN 428er-LOG GEZEIGT HAT ───────────────────────────────────────
+  ── WAS DEIN 429er-LOG BEWIESEN HAT ──────────────────────────────────────
 
-  Derselbe Absturz-Typ wie zuvor — aber auf einem ANDEREN Weg: diesmal war
-  Monitoring gar nicht an. 24 Sekunden nach dem gesunden Start krachte es
-  aus einer Hintergrund-Aufgabe heraus, und das Log war in diesen 24
-  Sekunden komplett stumm. Der Grund: alle automatischen Engine-Pfade
-  (Unterbrechung, Kopfhörer weg, Selbstheilung, Neustart) schrieben nur in
-  Apples internes Log — nicht in die Datei, die Du exportierst. Drei von
-  sechs Crash-Logs sind an genau dieser Unsichtbarkeit hängengeblieben.
+  Zwei Zeilen sind Gold wert: `engine: start 1/2` und `engine: start OK`
+  standen in Deiner exportierten Datei. **Die Leiter schreibt wirklich.**
 
-  ── WAS 429 MACHT ────────────────────────────────────────────────────────
+  Und deshalb ist die Stille danach kein Messfehler, sondern eine AUSSAGE:
+  Der Absturz kam über einen Weg, der an keiner einzigen Sprosse vorbeikam.
+  Das schließt acht Wege aus — Medien-Reset, Route-Verlust, Selbstheilung,
+  beide Engine-Starts, Mikrofon-Kette, Voice-Aufnahme, Hintergrundwechsel.
 
-  1. **Die ganze Engine spricht jetzt in Deinem Log.** 13 neue `engine:`-
-     Zeilen (Unterbrechung, Neustart, Selbstheilung, beide Start-Versuche),
-     6 `mic:`-Zeilen (die Mikrofon-Kette) und 3 `voice:`-Zeilen (die
-     Voice-Timbre-Aufnahme). Egal wo es kracht: die letzte Zeile im Log
-     nennt ab jetzt den sterbenden Pfad.
-  2. **Eine echte Gefahrenquelle ist entschärft:** der Wächter, der auf
-     Audio-Umstellungen reagiert, fasste bei JEDER Umstellung das Mikrofon-
-     Eingangsteil an — auch wenn gar kein Monitoring lief. Genau dieses
-     Eingangsteil ist die Stelle, an der der Absturz-Typ wohnt. Er fasst
-     es jetzt nur noch an, wenn Monitoring wirklich läuft.
+  ── DIE URSACHE LAG IN MEINEM MESSGERÄT, IN ZWEI SCHICHTEN ───────────────
+
+  1. **Drei Sprossen standen HINTER dem Schritt, den sie beschreiben.**
+     Ein Zeuge auf der falschen Seite der Tür sieht nichts: Stirbt der
+     Schritt, schweigt das Log — und es liest sich wie „dieser Weg wurde
+     nicht genommen" statt „dieser Weg ist mitten im Schritt gestorben".
+  2. **ZWEI Engine-Starts hatten überhaupt keine Sprosse.** Der zweite ist
+     der gefährlichere: Er startet die Engine, während der Mikrofon-Eingang
+     gerade frisch an den Filter gehängt wurde — das ist wörtlich der Name
+     des Absturzes. Sein Fangnetz ist genau die Form, von der wir schon
+     wissen, dass sie diesen Abbruch nicht melden kann.
+
+  ── WAS 430 ANDERS MACHT ─────────────────────────────────────────────────
+
+  · Jede Sprosse steht jetzt VOR ihrem Schritt.
+  · Acht bisher stumme Eingriffe in die Audio-Kette sprechen.
+  · Der Einschalt-Weg des Monitorings hat jetzt fünf Stufen — genau wie der
+    Ausschalt-Weg, der sie schon immer hatte. Dazwischen lagen ~15 Audio-
+    Aufrufe ohne ein einziges Wort.
+  · Der Schreiber schreibt zuerst in DEINE Datei und erst danach ins
+    langsame System-Log (das sich verklemmen kann).
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  1. **Der 428er-Fall, nachgestellt:** App starten, ~1 Minute normal
-     benutzen (gern Kopfhörer an/aus, Gerät sperren/entsperren, optional
-     einmal Voice timbre antippen). Erwartung: KEIN Absturz — ODER das
-     Log nennt zum ersten Mal den Pfad (letzte Zeile `engine:` / `mic:` /
-     `voice:` / `monitor:`).
-  2. Die 428er-Bitten gelten weiter: Autotune-Folter (Erwartung
-     `tune on — bypass flip, no rewire`, kein Crash) und die
-     `inserts[…tune=…]`-Latenz bei Autotune AUS.
-  3. Danach wie immer: Log per Save/Export → Diagnostics → Share.
+  1. **Der 428/429er-Fall:** App starten, ~1 Minute normal benutzen —
+     Kopfhörer an/aus, sperren/entsperren, gern einmal Voice timbre.
+  2. **NEU und wichtig: einmal Monitoring an und wieder aus.** Der
+     Einschalt-Weg spricht ab jetzt zum ersten Mal, und dort sitzt der
+     zweite Start ohne Sprosse. Erwartung im Log: `on 1/5` … `on 5/5`.
+  3. Die 428er-Bitten gelten weiter: Autotune-Folter (an/aus, schnell,
+     gern mit Telefon und Megaphon) und die `inserts[…tune=…]`-Latenz bei
+     Autotune AUS.
+  4. Danach wie immer: Log per Save/Export → Diagnostics → Share.
+
+  Erwartung bei allen: KEIN Absturz — ODER die letzte Zeile nennt endlich
+  den Schritt.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Ehrlich: 429 ist Instrumentierung + das Entschärfen einer Gefahren-
-  KLASSE. Den exakten Auslöser Deines 428er-Crashs kann ich noch nicht
-  benennen — genau dafür existiert die neue Leiter: der nächste Log
-  entscheidet, statt dass ich rate. Compile-verifiziert (Compile Check
-  grün; CI/CD-Job-Schritte gelesen: Bundle baut, 135 Tests im Fenster
-  bestanden, 0 Fehlschläge), nicht geräteverifiziert.
+  Der exakte Auslöser hat weiterhin keinen Namen. 430 repariert keinen
+  bekannten Absturz — es macht das nächste Log aussagefähig. Ich habe in
+  dieser Runde zweimal zu viel behauptet („gemessen", wo nur die Abwesenheit
+  von Sprossen gemessen war; und „der einzige Start ohne Sprosse", wo es
+  zwei waren). Beides ist im Code zurückgenommen; das gehört hierher, weil
+  Du auf diese Notizen Deine Zeit verwendest.
 
-  ⚠ Apple-Tageskontingent: heute ist ein frischer Tag — der Upload sollte
-  durchgehen. Falls nicht, lande ich 429 automatisch neu.
+  Compile-verifiziert (Compile Check grün; CI/CD-Job-Schritte gelesen:
+  Bundle baut, 171 Tests im Fenster bestanden, 0 Fehlschläge, 0 übersprungen),
+  nicht geräteverifiziert.
 
   ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
   bitte NICHT prüfen.
