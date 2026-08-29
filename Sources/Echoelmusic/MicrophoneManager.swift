@@ -288,10 +288,28 @@ final class MicrophoneManager: NSObject {
 
     /// Stop recording audio
     func stopRecording() {
-        EchoelCrashLog.breadcrumb("mic: stop — releasing capture engine + route")
+        // #876: this teardown carried ONE rung for a multi-step tear-down, so a death
+        // anywhere inside it wrote that same line and then silence — and the silence
+        // could not say WHICH step died. `engine.inputNode` is the node the recurring
+        // `isInputConnToConverter` abort is NAMED after, so it gets a rung of its own.
+        // Ladder law (#862b): a rung stands BEFORE its call, never after.
+        //
+        // ⚠️ THE LADDER IS NOT EXHAUSTIVE, and saying so is the point (the enumeration
+        // lesson): dropping `audioEngine` to nil deallocates an AVAudioEngine, and that
+        // deinit is AVFAudio work with no rung in front of it. Silence between rung 2
+        // and rung 3 therefore covers the deallocation as well as the nil-outs — read
+        // it as "somewhere in teardown", not as "in the route release".
+        let engine = audioEngine
+        // `running:` is IN the message because it is what explains a MISSING rung 2.
+        // Without it, the absence of the tap rung reads as a death in `stop()` when it
+        // may only mean the branch was skipped — the same ambiguity #862b removed from
+        // the master engine.
+        EchoelCrashLog.breadcrumb(
+            "mic: stop 1/3 — stopping capture engine (running: \(engine?.isRunning == true))")
         // Safely stop the audio engine
-        if let engine = audioEngine, engine.isRunning {
+        if let engine, engine.isRunning {
             engine.stop()
+            EchoelCrashLog.breadcrumb("mic: stop 2/3 — removing input tap")
             engine.inputNode.removeTap(onBus: 0)
         }
 
@@ -311,6 +329,10 @@ final class MicrophoneManager: NSObject {
         // the one place that DID return the route — and because it was unconditional it also
         // yanked it away from input monitoring running at the same time.
         #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+        // Rung 3 sits INSIDE the platform guard on purpose: on a platform without an
+        // AVAudioSession there is no route to release, and a rung that announces a step
+        // which never runs is the same lie as a rung that trails its call.
+        EchoelCrashLog.breadcrumb("mic: stop 3/3 — releasing record route")
         do {
             try AudioConfiguration.releaseRecordRoute(.microphoneManager)
         } catch {

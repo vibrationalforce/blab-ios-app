@@ -220,9 +220,36 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                        "EchoelCrashLog.breadcrumb(\"mic: start 2/3 — tapping input\")",
                        "EchoelCrashLog.breadcrumb(\"mic: start 3/3 — starting capture engine\")",
                        "EchoelCrashLog.breadcrumb(\"mic: start FAILED",
-                       "EchoelCrashLog.breadcrumb(\"mic: stop — releasing capture engine + route\")"] {
+                       // #876: the teardown side had ONE rung for a multi-step tear-down.
+                       // The wording of the old single rung ("mic: stop — releasing capture
+                       // engine + route") is deliberately RETIRED here in the same commit
+                       // that retires it in the source — a needle left behind for a string
+                       // that no longer exists is a red on a correct tree (#655/#656).
+                       // ⛔ Rung 1 is anchored on the QUOTED STRING alone, not on
+                       // `EchoelCrashLog.breadcrumb(` + the literal. My first draft spelled
+                       // the line break and twelve spaces of its wrapped call into the
+                       // needle — a pattern that pins a FORMATTING choice and goes red on a
+                       // reflow that changes nothing (the #871 mistake, made again here and
+                       // caught before shipping). Rungs 2 and 3 fit on one line, so they
+                       // keep the full call form.
+                       "\"mic: stop 1/3 — stopping capture engine",
+                       "EchoelCrashLog.breadcrumb(\"mic: stop 2/3 — removing input tap\")",
+                       "EchoelCrashLog.breadcrumb(\"mic: stop 3/3 — releasing record route\")"] {
             XCTAssertEqual(occurrences(of: needle, in: mic), 1,
                            "`\(needle)` is gone — the mic capture chain falls diag-dark again (#859b).")
+        }
+        // #876 — ORDER, not wording (#364): the tap rung must stand BEFORE the
+        // `inputNode` touch it describes. `inputNode` is the node the recurring
+        // `isInputConnToConverter` abort is named after, so a rung on the far side of
+        // it would read as "tap never removed" when the truth is "died removing it".
+        if let rung = mic.range(of: "\"mic: stop 2/3 — removing input tap\""),
+           let call = mic.range(of: "engine.inputNode.removeTap(onBus: 0)") {
+            XCTAssertTrue(rung.lowerBound < call.lowerBound, """
+                The mic teardown's tap rung sits AFTER `removeTap` again (#860/#876). \
+                A death inside it is then silence, and the log reads as a path not taken.
+                """)
+        } else {
+            XCTFail("the mic teardown's tap rung or its `removeTap` call is gone — re-anchor (§4).")
         }
         let voice = try code("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
         XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(\"voice: capture armed\")", in: voice), 1,
