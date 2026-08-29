@@ -15977,3 +15977,37 @@ der Watchdog-Hazard-Fix, Prüfbitten (428er-Fall nachstellen ~1 min; Autotune-Fo
 tune=-Latenz gelten weiter), ehrliche Abgrenzung (Instrumentierung + Hazard-Klasse, der
 exakte 428er-Auslöser ist unbenannt — dafür existiert die Leiter). Apple-Kontingent:
 frischer Tag. TestFlight-Verify-Wecker ~50 min nach Push gestellt.
+
+## 2026-08-29 — #860: die Sprosse stand hinter ihrem eigenen Schritt
+
+Founder-Gerätelog v10.79.429 (2547), siebter Crash derselben Familie
+(`isInputConnToConverter`, SIGABRT aus einer Main-Queue-Task-Continuation, +18,6 s nach
+gesundem Start, OHNE Monitoring/Mic/Voice, Szene durchgehend aktiv).
+
+ZWEI BEFUNDE. (1) POSITIV, geräteverifiziert: die #859-Leiter SCHREIBT — `engine: start 1/2`
+und `engine: start OK` stehen im exportierten Log. Der Mechanismus ist bewiesen.
+(2) Und trotzdem KEINE der 22 Sprossen vor dem Absturz. Das schließt neun Pfade aus
+(Unterbrechung began/ended, Medien-Reset, Route-Verlust jenseits seiner Sprosse,
+Selbstheilung, beide geleiterten `masterEngine.start()`, Mic-Kette, Voice-Capture,
+Szene-Wechsel) — ein starkes Negativ, kein Rauschen.
+
+URSACHE, per Code-Lesung gefunden: DREI Sprossen der #859-Leiter standen HINTER dem
+AVFAudio-Aufruf, den sie beschreiben — `masterEngine.pause()` in `onInterruptionBegan`
+(Zeile 760) und in `onRouteDeviceLost` (822), sowie `masterEngine.prepare()` in `start()`
+(vor der `start 1/2`-Sprosse). Ein Zeuge auf der falschen Seite des Aufrufs sieht nichts:
+stirbt der Aufruf, liest sich das Schweigen als "Pfad nicht genommen" statt "Pfad mitten
+im Schritt gestorben". Das ist ein Defekt MEINER Leiter, nicht der App.
+
+SCHEIBE: alle drei vor ihren Aufruf gestellt. Wortlaut von 1 und 2 UNVERÄNDERT — ein
+Wächter ankert auf `route lost — recovering`, und Umformulieren beim Verschieben wäre die
+#655/#656-Falle im selben Commit. `prepareGraph()` braucht keine Sprosse: einmal-gelatcht
+und schreibt auf dem einen arbeitenden Aufruf schon seine `latency:`-Zeile.
+
+WÄCHTER: `TheEngineLifecycleSpeaksInTheDiagLogTests` Anspruch 6, gegen BEIDE Bäume
+transkribiert — am Elternbaum ZWEI echte Regressionen (Reihenfolge, aus genau dem
+benannten Grund #367) plus EINE Forward-Nadel (die `prepare`-Sprosse entsteht in diesem
+Commit); Worktree dreimal grün. Anker-Eindeutigkeit vorab geprüft (#408, alle vier = 1).
+`dead-needles.py` 0 (380 Dateien), `needle-reachability.py` 0.
+
+OFFEN und ehrlich: der exakte Auslöser ist weiter unbenannt. #860 macht das nächste Log
+aussagefähig — es kann nicht mehr schweigen, wenn ein pause/prepare stirbt.

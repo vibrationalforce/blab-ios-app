@@ -757,6 +757,13 @@ public final class AudioEngine {
         // Interruption / route-change handlers are cheap closure storage with no
         // audio I/O — safe to wire at init.
         AudioConfiguration.onInterruptionBegan = { [weak self] in
+            // ⛔ #860 — THE RUNG MOVED UP, AND THE MOVE IS THE WHOLE POINT.
+            // #859 put it AFTER the call, so a pause that DIES logs nothing: the witness
+            // stood on the far side of the very call it was built to witness.
+            // `AVAudioEngine.pause()` is a graph operation and can raise the
+            // isInputConnToConverter ObjC assert that no Swift `catch` sees — measured
+            // as total silence in the v429 log (seventh crash, not one rung of 22).
+            self?.logEngineLifecycle("interrupted — pausing")
             self?.masterEngine.pause()
             self?.isRunning = false
             // Remember WHY we stopped. Without this the next line is a trap: the
@@ -765,7 +772,6 @@ public final class AudioEngine {
             // could have rescued an interruption whose `.ended` notification never
             // arrives (or arrives without `.shouldResume`). See `shouldSelfHeal`.
             self?.wasInterrupted = true
-            self?.logEngineLifecycle("interrupted — pausing")
         }
         AudioConfiguration.onInterruptionResume = { [weak self] in
             // The same law `shouldSelfHeal` states, applied to the OTHER resume path.
@@ -819,6 +825,16 @@ public final class AudioEngine {
         }
         AudioConfiguration.onRouteDeviceLost = { [weak self] in
             guard let self else { return }
+            // ⛔ #860 — THE RUNG MOVED UP, AND THE MOVE IS THE WHOLE POINT.
+            // #859 put it AFTER the call, so a pause that DIES logs nothing: the witness
+            // stood on the far side of the very call it was built to witness.
+            // `AVAudioEngine.pause()` is a graph operation and can raise the
+            // isInputConnToConverter ObjC assert that no Swift `catch` sees — measured
+            // as total silence in the v429 log (seventh crash, not one rung of 22).
+            // ⚠️ The wording is UNCHANGED on purpose: a guard anchors on the prefix
+            // `route lost — recovering`, and rephrasing it while moving it would be the
+            // #655/#656 defect — green needle, dead surface — in the same commit.
+            self.logEngineLifecycle("route lost — recovering on the new output")
             self.masterEngine.pause()
             self.isRunning = false
             // HIG: unplugging headphones must PAUSE playback, not continue on the
@@ -826,7 +842,6 @@ public final class AudioEngine {
             // new route (silent while the transport is stopped); the app layer stops
             // the transport via this hook — the Audio layer holds no Sequencer refs.
             self.onOutputDeviceLost?()
-            self.logEngineLifecycle("route lost — recovering on the new output")
             self.recoverEngine(reason: "route lost")
         }
 
@@ -1491,6 +1506,11 @@ public final class AudioEngine {
         // (startup task, scenePhase .active, or route-change recovery).
         prepareGraph()
         if !masterEngine.isRunning {
+            // #860: `prepare()` is an AVFAudio GRAPH call and it sat in front of the
+            // first rung — a death here read as silence. `prepareGraph()` above needs
+            // none: it is latched once-only and already writes its own `latency:` line
+            // on the one call that does work.
+            logEngineLifecycle("prepare — allocating graph resources")
             masterEngine.prepare()
             armTimingInstrument()
             // #859: rungs around BOTH start attempts — start() can die in an ObjC

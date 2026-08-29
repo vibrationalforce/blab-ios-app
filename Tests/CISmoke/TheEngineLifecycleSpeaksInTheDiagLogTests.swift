@@ -24,10 +24,16 @@
 // ⚠️ HONEST LIMIT (§1): source-text scans — no AVAudioEngine runs in a test host, and
 // whether the next crash log actually names its path is the founder's next device log.
 //
-// ⭐ GRADING (§3): FORWARD in full — every needle names #859 text created in the same
-// commit; red at the parent by the one shared absence (#486). The ordering walks could
-// never have a verdict there. Counterweights: the claim-4 gate needles are the ones
+// ⭐ GRADING (§3), claims 1–5: FORWARD in full — every needle names #859 text created in
+// the same commit; red at the parent by the one shared absence (#486). The ordering walks
+// could never have a verdict there. Counterweights: the claim-4 gate needles are the ones
 // TheMonitoringSurvivesEngineRecoveryTests claim 3 already holds green on both trees.
+//
+// ⭐ GRADING, claim 6 (#860) — the strongest in this file, and transcribed against BOTH
+// trees rather than reasoned: TWO REGRESSIONS (the interruption and route-lost rungs sit
+// AFTER `masterEngine.pause()` on the parent, red for exactly the reason the claim's name
+// gives — #367) and ONE FORWARD (the `prepare` rung is created by this commit, so it is
+// red there by absence, not by order). All three green on the worktree.
 
 import Foundation
 import XCTest
@@ -143,6 +149,57 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         let voice = try code("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
         XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(\"voice: capture armed\")", in: voice), 1,
                        "the voice-timbre take no longer announces itself in the exported log.")
+    }
+
+
+    // MARK: - 6: a rung stands BEFORE its AVFAudio call, never after (#860)
+
+    /// ⛔ THE DEFECT THIS PINS IS ONE #859 SHIPPED. Three rungs sat AFTER the graph call
+    /// they described — `pause()` twice and `prepare()` once — so a death inside that call
+    /// logged NOTHING: the witness stood on the far side of the event. Measured, not
+    /// reasoned: the v429 device log (seventh crash of the isInputConnToConverter family)
+    /// carried the launch rungs, proving the mechanism works, and then not ONE of the 22
+    /// rungs before a SIGABRT out of a main-queue Task continuation.
+    ///
+    /// A ladder whose rungs trail their steps is worse than none — it reads as "this path
+    /// was not taken" when the truth is "this path died mid-step".
+    ///
+    /// ⚠️ NOT PINNED (#364): the rung wording, beyond the prefix a sibling claim already
+    /// owns. Pinned is ORDER only, which is the part that carries the law.
+    func testEachRungStandsBeforeItsGraphCall() throws {
+        let code = try code(Self.enginePath)
+        // anchor, rung, graph call, window — each anchor verified to occur exactly once
+        let cases: [(String, String, String, Int)] = [
+            ("onInterruptionBegan = { [weak self] in",
+             "logEngineLifecycle(\"interrupted — pausing\")",
+             "masterEngine.pause()", 700),
+            ("onRouteDeviceLost = { [weak self] in",
+             "logEngineLifecycle(\"route lost — recovering",
+             "masterEngine.pause()", 900),
+            ("    func start() {",
+             "logEngineLifecycle(\"prepare — allocating graph resources\")",
+             "masterEngine.prepare()", 900),
+        ]
+        for (anchor, rung, call, window) in cases {
+            guard let a = code.range(of: anchor) else {
+                XCTFail("anchor `\(anchor)` is gone — re-anchor this claim (§4).")
+                return
+            }
+            let body = String(code[a.lowerBound...].prefix(window))
+            guard let r = body.range(of: rung), let c = body.range(of: call) else {
+                XCTFail("""
+                    `\(rung)` or `\(call)` left the window under `\(anchor)`. Re-measure \
+                    the window before widening it — and keep the rung: without it a death \
+                    inside `\(call)` is silence in the exported log (#860).
+                    """)
+                return
+            }
+            XCTAssertTrue(r.lowerBound < c.lowerBound, """
+                The rung for `\(call)` sits AFTER the call again (#860). A pause/prepare \
+                that raises the isInputConnToConverter ObjC assert then logs nothing, and \
+                the next crash log reads as "path not taken" instead of naming the step.
+                """)
+        }
     }
 
     // MARK: - helpers (the house shape: strip comments, skip on no tree)
