@@ -16199,3 +16199,35 @@ Start ohne Sprosse"). Begründung: der Founder verwendet seine Gerätezeit auf B
 Notizen; eine Notiz, die vollständiger klingt als sie ist, kostet ihn eine Probe, die
 nichts entscheiden kann. Neue Prüfbitte ergänzt (Monitoring an/aus), weil der EIN-Weg zum
 ersten Mal spricht und genau dort der zweite rungless start sitzt.
+
+## 2026-08-29 — #863: SequencerAccessibility gelöscht (die AUFRÄUM-Hälfte beginnt)
+
+Founder-Auftrag „Ultraechoel aufräumen und aufklaren debuggen": aufklaren = #861,
+debuggen = #860/#862, aufräumen = ab hier.
+
+SELBST NACHGEMESSEN (nicht vom Team-Bericht übernommen):
+`git grep -n "SequencerA11y" -- Sources Tests` → genau ZWEI Dateien, die eigene Deklaration
+und ihr Test (26 Treffer). Null Produktions-Referenzen. `git grep -ln … Tests/CISmoke` → 0.
+
+COUNCIL (Löschung = unumkehrbar, also Pflicht):
+· Vision-Keeper: Barrierefreiheit ist Marken-Pflicht — ABER diese Texte beschreiben die
+  Clip- und Arrange-Flächen, die #121 Slice 4 gestrichen hat, und `content(hasDrums:)`
+  benennt Drums, die #166/#167 entfernt haben. Totes A11y-Material ist keine A11y.
+· Skeptiker: bei einer Rückkehr der Arrange-Fläche wäre das fertige, getestete Arbeit.
+  Gegengewicht: die Produktdefinition hat Arrangement AUSDRÜCKLICH geschnitten
+  („Editor ≠ Workstation"), eine Rückkehr braucht ohnehin einen Founder-Ask, und der Inhalt
+  bleibt über den Eltern-Commit abrufbar.
+· Architect/Shipper: null Kopplung, null Wächter, zwei Dateien.
+→ proceed.
+
+DER AUSSCHLAG kam vom Datei-Kopf selbst: er sagt „the clips/arrange UI that consumes these
+is the NEXT REBUILD STEP" — für eine Fläche, die der Founder bewusst gestrichen hat. Exakt
+die Lüge, die #861 heute dreimal korrigieren musste: ein Kopf, der eine gestrichene Sache
+für bevorstehend erklärt, lässt die nächste Sitzung sie planen.
+
+⚠️ BEWUSST KEIN WÄCHTER auf die Abwesenheit (#364). Ein Test „diese Datei darf nicht
+existieren" verböte legitime Arbeit an dem Tag, an dem eine Arrange-Fläche zurückkommt —
+und nähme dann das Gesetz mit. #473 durfte einen Abwesenheits-Wächter setzen, weil dort ein
+KERN überlebte, den er mitzählen konnte; hier überlebt nichts.
+
+Sources-Dateien danach: `git ls-files 'Sources/**/*.swift' | wc -l` = 370.
