@@ -1079,6 +1079,10 @@ public final class AudioEngine {
                     // only ever USED under this gate; reading it unconditionally on
                     // every configuration change was pure hazard for zero information.
                     if self.isInputMonitoring {
+                        // #862b (reviewer E3): the comment above names this exact call as
+                        // the assert family's origin, and the nearest crumb was 53 lines
+                        // and three calls back — a death here read as a death there.
+                        self.logEngineLifecycle("reconfigure: reading input format")
                         let newFormat = self.masterEngine.inputNode.inputFormat(forBus: 0)
                         let newRate = newFormat.sampleRate
                         if newRate > 0, newFormat.channelCount > 0,
@@ -1567,10 +1571,16 @@ public final class AudioEngine {
         // ⛔ #862 — THE OTHER HALF OF `start()` WAS COMPLETELY SILENT. All three rungs
         // above live inside `if !masterEngine.isRunning`; entered with the engine
         // ALREADY running, execution skips them and lands here — where `installMeterTap`
-        // and `retroCapture.install` do TAP SURGERY on a live graph (removeTap ×3,
-        // installTap, and a `mainMixerNode` access whose first touch materialises and
-        // auto-connects the node). `AudioDegradedRow`'s retry button reaches exactly this
-        // branch with a stale `degraded` flag and emitted nothing at all.
+        // and `retroCapture.install` do TAP SURGERY on a live graph: `removeTap` ×2–3 and
+        // `installTap` ×2–3, depending on whether the auto-mix chain and the pre-chain
+        // meter are present.
+        // ⛔ #862b corrected two clauses here. (1) "a `mainMixerNode` access whose FIRST
+        // touch materialises the node" — it is never the first: `prepareGraph()` runs
+        // unconditionally above and `setupMasterEngine` touches it twice. The hazard
+        // survives only on that method's early `return` (no valid format), where
+        // `RetroCapture.install`'s own access would be the first. (2) `AudioDegradedRow`'s
+        // retry reaching this branch with a stale `degraded` flag is a HYPOTHESIS, stated
+        // in the indicative — it is the rung's motivation, not a finding.
         // ⚠️ The rung fires on BOTH paths, cold start included — by the time execution
         // reaches here the engine is running either way, so the wording holds, and one
         // extra line per start is the right price for a branch that had none.
@@ -2238,6 +2248,13 @@ public final class AudioEngine {
             // fires and monitoring runs, the mechanism is confirmed; if the
             // #628/#823 line still fires WITH a live session rate in it, the
             // placeholder survives even a rebuild and this fix is wrong.
+            // ⛔ #862b (reviewer E2) — THE ON PATH HAD NO STAGES WHILE ITS OFF TWIN HAD
+            // FIVE. Between entry and the terminal `monitor: ON` line this branch runs
+            // ~15 AVFAudio calls — stop, a record-route claim, the first `inputNode`
+            // touch, four attaches, five connects, a start and a tap install — and every
+            // breadcrumb in between was FAILURE-only. A death anywhere in there collapsed
+            // to one prior line. `off N/5` is the shape that already works; this mirrors it.
+            logMonitorOutcome("on 1/5: stopping engine + claiming record route", level: .info)
             if wasRunning { masterEngine.stop() }
             do { try AudioConfiguration.claimRecordRoute(.inputMonitoring) }
             catch {
@@ -2329,6 +2346,7 @@ public final class AudioEngine {
             // engine is STOPPED up there too (#628 paused it there; #823 turned the
             // pause into a stop) — do not move either back down here; the read being
             // late was #625's bug and the pause being late is #628's.
+            logMonitorOutcome("on 2/5: attaching monitor nodes", level: .info)
             if !monitorAttached { masterEngine.attach(monitorMixer); monitorAttached = true }
             // #595/#848: the notch bands are configured ONCE at attach; only frequency
             // and gain move at runtime (gain slewed by the guard tick, never stepped).
@@ -2364,6 +2382,8 @@ public final class AudioEngine {
             }
             monitorMixer.outputVolume = 0          // silent until connected, avoids a pop
             let outFmt = masterMixer.outputFormat(forBus: 0)
+            // The assert family is named after THIS edge: input → converter.
+            logMonitorOutcome("on 3/5: connecting input → notch", level: .info)
             masterEngine.connect(input, to: notchEQ, format: inFmt)
             // #858: the tune stage is ALWAYS in the chain, BYPASSED while off — the
             // fifth and structural answer to the isInputConnToConverter SIGABRT.
@@ -2401,6 +2421,15 @@ public final class AudioEngine {
             resetNotchDefence()
             if wasRunning {
                 armTimingInstrument()
+                // ⛔ #862b (reviewer E1) — THE SECOND RUNGLESS `masterEngine.start()`, and
+                // #862 CLAIMED IN THREE PLACES THAT `restartOrDegrade` WAS THE ONLY ONE.
+                // It was not. This one is the WORSE of the two: it starts the engine with
+                // the input node freshly connected into `notchEQ` under a just-claimed
+                // record route — literally an input connected to a converter, which is the
+                // assert's own name. Its `catch` is the shape #858 proved cannot report an
+                // ObjC abort. Without this line the next log could end at `monitor: OFF`
+                // with all eight #862 rungs silent, because the death sits one path over.
+                logMonitorOutcome("on 4/5: restarting engine with the monitor chain", level: .info)
                 do { try masterEngine.start() }
                 catch {
                     logMonitorOutcome("engine restart failed (\(error))")
@@ -2487,6 +2516,7 @@ public final class AudioEngine {
                 monitorTapSampleRate = inFmt.sampleRate
                 monitorTapChannelCount = inFmt.channelCount   // #826, the gate's other half
                 let window = monitorTapWindow
+                logMonitorOutcome("on 5/5: installing input tap", level: .info)
                 input.installTap(onBus: 0,
                                  bufferSize: AVAudioFrameCount(monitorTapWindow.size),
                                  format: inFmt) { @Sendable buffer, _ in
@@ -2868,9 +2898,16 @@ public final class AudioEngine {
     /// that already owns cause + retry (AudioDegradedRow's button calls `start()`,
     /// which also re-runs the session config). Never a log-only catch again.
     private func restartOrDegrade(after context: String) {
-        // ⛔ #862 — THIS WAS THE FIFTH `masterEngine.start()` IN THE FILE AND THE ONLY
-        // ONE WITHOUT A RUNG. Two independent audits of the v429 log reached it the same
-        // way. #858 established that the isInputConnToConverter assert fires INSIDE
+        // ⛔ #862 — THIS IS THE FIFTH `masterEngine.start()` IN THE FILE AND WAS ONE OF
+        // TWO WITHOUT A RUNG. Two independent audits of the v429 log reached it the same
+        // way.
+        //
+        // ⛔ #862b RETRACTS "THE ONLY ONE WITHOUT A RUNG", WHICH #862 ASSERTED HERE, IN
+        // ITS COMMIT MESSAGE AND IN ITS GUARD DOCSTRING. The count of five was right; the
+        // exclusivity was not. The other one is on the monitoring ON path (`on 4/5` now),
+        // and it is the more dangerous of the pair. Same defect class as #860b's
+        // "measured": a completeness claim, in the flattering direction, that makes a
+        // slice read as finished when it closed one of two identical holes. #858 established that the isInputConnToConverter assert fires INSIDE
         // `start()` as an ObjC exception no Swift `catch` sees — so this `do` block
         // cannot report its own death, and all five callers (every one of them a hot
         // graph edit) went silent with it. `context` is in the message because it is the

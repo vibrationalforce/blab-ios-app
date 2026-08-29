@@ -16127,7 +16127,11 @@ laufender Engine, überspringt man sie und landet bei `installMeterTap()` +
 dessen erste Berührung den Knoten materialisiert und auto-verbindet. `AudioDegradedRow`s
 Wiederholen-Knopf erreicht genau diesen Zweig und schrieb gar nichts.
 
-AUFRUFERSEITE: sauberes NEGATIV. 68 Task-Stellen in 31 Dateien geprüft; nichts in
+AUFRUFERSEITE: sauberes NEGATIV. (⛔ #862b: hier stand eine Zahl — 68 Task-Stellen in 31
+Dateien — OHNE Befehl daneben, also nicht nachvollziehbar; keine der drei naheliegenden
+Nadeln trifft sie (`git grep -c "Task {" -- Sources` = 113 in 49 Dateien). §2 verlangt den
+Befehl neben jeder notierten Zahl, und eine Zahl über ein NEGATIVES Ergebnis ist die am
+schwersten nachprüfbare Sorte. Gelöscht statt geraten.) Nichts in
 `Studio/`/`Views/`/`Sequencer/`/`Bio/`/`Video/`/`Tools/`/`EchoelmusicApp` erreicht eine
 Graph-Mutation 15–25 s nach Start ohne Nutzergeste. Ausgeschlossen mit Beleg u. a.:
 `MemoryPressureHandler` (null Registranten), `ResourceGovernor` (nur OSC-Rate),
@@ -16141,3 +16145,44 @@ WÄCHTER: Ansprüche 8 (jede Graph-Mutation hat eine Sprosse) und 9 (die Restart
 VOR ihrem start). Ehrlich benotet als FORWARD IN FULL — alle sechs Zusicherungen sind am
 Elternbaum durch ABWESENHEIT rot, keine durch Regression; sie als Regressionen zu buchen
 wäre der Schönfärbe-Defekt aus §3. Anker-Eindeutigkeit ist in Anspruch 8 mit-assertiert.
+
+## 2026-08-29 — #862b: der zweite Start ohne Sprosse (und meine zweite Vollständigkeits-Lüge)
+
+Pflicht-Reviewer auf #862: kein Blocker, VIER HIGH. Alle vier umgesetzt.
+
+⛔ **E1/F1 — ICH HABE ZUM ZWEITEN MAL IN EINER SITZUNG EINE VOLLSTÄNDIGKEIT BEHAUPTET, DIE
+NICHT STIMMT.** #862 schrieb an DREI Stellen (Quellkommentar, Commit-Text, Wächter-Docstring)
+`restartOrDegrade` sei „der EINZIGE `masterEngine.start()` ohne Sprosse". Die FÜNF war
+richtig, die Exklusivität nicht: `:2404` auf dem Monitoring-EIN-Pfad ist der zweite — und der
+GEFÄHRLICHERE. Er startet die Engine mit dem Eingangsknoten frisch an `notchEQ` verbunden,
+unter einer eben beanspruchten Aufnahme-Route: buchstäblich „Eingang an einen Konverter
+gehängt", also der Name des Asserts selbst. Sein `catch` ist genau die Form, von der #858
+bewiesen hat, dass sie einen ObjC-Abbruch nicht melden kann. Ohne diese Zeile hätte das
+nächste Log bei `monitor: OFF` enden können, mit allen ACHT #862-Sprossen stumm, weil der Tod
+einen Pfad daneben sitzt. **Gleiche Klasse wie #860bs „measured": eine Vollständigkeits-
+Behauptung in Schmeichel-Richtung, die eine Scheibe fertig aussehen lässt, obwohl sie eins von
+zwei identischen Löchern geschlossen hat.**
+
+⛔ **E2 — der EIN-Pfad hatte null Stufen, während sein AUS-Zwilling fünf hat.** Zwischen
+Eintritt und der Schlusszeile `monitor: ON` laufen ~15 AVFAudio-Aufrufe (stop, Routen-Anspruch,
+erste `inputNode`-Berührung, vier attach, fünf connect, ein start, ein Tap-Install) — und jeder
+Krümel dazwischen war NUR-BEI-FEHLER. Fünf `on N/5`-Sprossen nach dem bewährten `off N/5`-Muster.
+
+⛔ **G — der Wächter nagelte FÜNF von ACHT Sprossen fest, während sein Name „jede" sagt.** Die
+drei `attachPlayerNode`/`detachPlayerNode`-Überladungen und die `start:`-Sprosse hatten gar
+keinen Anspruch. Eine Aufräum-Scheibe hätte sie bei grünem Gate löschen können, unter einem
+Test, dessen Name volle Deckung verspricht — die #374-Lügen-Namen-Form.
+
+E3: die Datei nennt `masterEngine.inputNode.inputFormat` selbst als Ursprung der
+Assert-Familie, und der nächste Krümel lag 53 Zeilen und drei Aufrufe davor. Sprosse ergänzt.
+
+Wortlaut korrigiert (F2/F5/F6): „erste Berührung von `mainMixerNode`" war falsch —
+`prepareGraph()` läuft unbedingt darüber und `setupMasterEngine` fasst ihn zweimal an; die
+Gefahr überlebt nur auf dem frühen `return` ohne gültiges Format. Und das
+`AudioDegradedRow`-Szenario stand im Indikativ, obwohl es eine HYPOTHESE ist — es ist die
+Motivation der Sprosse, nicht ihr Befund. `installTap` ist 2–3, nicht 1.
+
+BENOTUNG, unschmeichelhaft: Anspruch 10 ist FORWARD (2 rot am Elternbaum durch Abwesenheit);
+Anspruch 11 und die drei neuen Zeilen in Anspruch 8 sind **auf BEIDEN Bäumen GRÜN** — reine
+Gegengewichte, weil die Sprossen schon existierten und #862 sie bloß nicht bewacht hat. Sie als
+Regressionen zu buchen hieße zu behaupten, dieser Commit repariere etwas, das er nur einzäunt.

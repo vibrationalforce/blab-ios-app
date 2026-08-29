@@ -29,6 +29,15 @@
 // could never have a verdict there. Counterweights: the claim-4 gate needles are the ones
 // TheMonitoringSurvivesEngineRecoveryTests claim 3 already holds green on both trees.
 //
+// ⭐ GRADING, claims 10 and 11 + claim 8s three new rows (#862b), and the honest split
+// here is UNFLATTERING, which is the point. Claim 10 is FORWARD (its five `on N/5`
+// stages are created by this commit; 2 assertions red at the parent by absence). Claim
+// 11 and the three overload rows added to claim 8 are COUNTERWEIGHTS — green on BOTH
+// trees — because the rungs they pin already existed and #862 simply failed to guard
+// them. Booking those four as regressions would say this commit fixed something it only
+// FENCED. What they buy is real all the same: a cleanup slice can no longer delete four
+// rungs on a green gate under a test whose name promises full coverage (#374).
+//
 // ⭐ GRADING, claims 8 and 9 (#862): FORWARD IN FULL, and saying so matters — every
 // needle names a rung this same commit creates, so all six assertions are red at the
 // parent by ABSENCE, none by regression. Booking them as regressions would be the
@@ -260,7 +269,8 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
     // MARK: - 8: every graph-mutating entry point carries a rung (#862)
 
     /// ⛔ TWO INDEPENDENT AUDITS OF THE v429 LOG LANDED HERE. `restartOrDegrade` held the
-    /// FIFTH `masterEngine.start()` in the file and the only one without a rung — and #858
+    /// FIFTH `masterEngine.start()` in the file and one of the TWO without a rung (#862b
+    /// retracts #862's "the only one" — the other is on the monitoring ON path, claim 10) — and #858
     /// established that the isInputConnToConverter assert fires INSIDE `start()` as an ObjC
     /// exception no Swift `catch` sees, so its own `do` block cannot report its death. Its
     /// five callers are all hot graph edits (pause → mutate → restart), and that whole
@@ -276,6 +286,16 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             ("func detachSourceNode", "logEngineLifecycle(\"graph: detach source node"),
             ("func detachPlayerNode(_ node: AVAudioPlayerNode) {", "logEngineLifecycle(\"graph: detach player node"),
             ("func stop(reason: StopReason)", "logEngineLifecycle(\"stop ("),
+            // ⛔ #862b (reviewer G) — THE THREE OVERLOADS #862 CREATED AND DID NOT PIN.
+            // The method name says EVERY; the table held five of eight. A cleanup slice
+            // could have deleted these three rungs on a green gate, under a test whose
+            // name still promised full coverage — the #374 lying-name shape.
+            ("func attachPlayerNode(_ node: AVAudioPlayerNode, format: AVAudioFormat) {",
+             "logEngineLifecycle(\"graph: attach player node"),
+            ("through timePitch: AVAudioUnitTimePitch,",
+             "logEngineLifecycle(\"graph: attach player node + time-pitch"),
+            ("func detachPlayerNode(_ node: AVAudioPlayerNode, timePitch: AVAudioUnitTimePitch) {",
+             "logEngineLifecycle(\"graph: detach player node + time-pitch"),
         ] {
             XCTAssertEqual(occurrences(of: fn, in: code), 1,
                            "`\(fn)` is no longer unique — re-anchor this claim (#408, §4).")
@@ -310,6 +330,50 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             The restart rung sits AFTER `try masterEngine.start()` — the #860 defect on the \
             one start() that had no witness at all. The assert this family raises is an ObjC \
             exception; the catch below never runs, so a rung behind the call writes nothing.
+            """)
+    }
+
+
+    // MARK: - 10: the ON path is staged like the OFF path (#862b — reviewer E1/E2)
+
+    /// ⛔ #862 CLAIMED `restartOrDegrade` HELD "THE ONLY" RUNGLESS `masterEngine.start()`.
+    /// It held one of TWO. The other starts the engine with the input node freshly connected
+    /// into `notchEQ` under a just-claimed record route — an input wired to a converter,
+    /// which is the assert's own name — and its `catch` is the shape #858 proved cannot
+    /// report an ObjC abort. Meanwhile the OFF branch already had five staged rungs and the
+    /// ON branch had failure-only crumbs across ~15 AVFAudio calls.
+    ///
+    /// ⚠️ Stage NAMES are pinned, not their prose (#364). What must not come back is an ON
+    /// path that collapses fifteen graph calls into one line.
+    func testTheMonitorOnPathIsStaged() throws {
+        let code = try code(Self.enginePath)
+        for stage in ["logMonitorOutcome(\"on 1/5", "logMonitorOutcome(\"on 2/5",
+                      "logMonitorOutcome(\"on 3/5", "logMonitorOutcome(\"on 4/5",
+                      "logMonitorOutcome(\"on 5/5"] {
+            XCTAssertEqual(occurrences(of: stage, in: code), 1, """
+                `\(stage)…` is gone. The monitoring ON path must stage like its OFF twin \
+                (#862b): a death among its ~15 AVFAudio calls otherwise collapses to the \
+                one line before the branch.
+                """)
+        }
+        // The `on 4/5` rung guards the SECOND rungless start() — it must precede it.
+        guard let a = code.range(of: "logMonitorOutcome(\"on 4/5"),
+              let b = code.range(of: "try masterEngine.start()", range: a.upperBound..<code.endIndex)
+        else {
+            XCTFail("the `on 4/5` rung or the start it guards is gone — re-anchor (§4).")
+            return
+        }
+        XCTAssertTrue(a.lowerBound < b.lowerBound,
+                      "the ON-path restart rung must precede its start() — the #860 rule.")
+    }
+
+    /// The eighth #862 rung — `start()`'s already-running half — had no claim at all.
+    func testTheLiveStartBranchSpeaks() throws {
+        let code = try code(Self.enginePath)
+        XCTAssertEqual(occurrences(of: "logEngineLifecycle(\"start: re-arming taps", in: code), 1, """
+            `start: re-arming taps…` is gone (#862b, reviewer G). Entering `start()` with the \
+            engine already running skips all three rungs inside `if !masterEngine.isRunning` \
+            and lands on live tap surgery — the branch was silent before this line.
             """)
     }
 
