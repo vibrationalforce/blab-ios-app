@@ -16234,8 +16234,10 @@ Sources-Dateien danach: `git ls-files 'Sources/**/*.swift' | wc -l` = 370.
 
 ## 2026-08-29 (cron, ULTRACODE 24h) — Aufräum-Runde #864–#868: fünf Schnitte, eine wiederkehrende Fehlerform
 
-**Auslöser:** Founder, wörtlich — „Ultraechoel aufräumen und aufklaren debuggen" und „Alles fable 5
-und Opus vorgänge in einem Zusammenhang vom versandt her ultraseniordeveloper". v430 war zu dem
+**Auslöser:** Founder, wörtlich — „Ultraechoel aufräumen und aufklaren debuggen", dazu die Bitte,
+die Vorgänge über den Modellwechsel hinweg in EINEN Versand-Zusammenhang zu bringen (das Zitat
+nannte Modellnamen und ist deshalb hier sinngemäß wiedergegeben — Modell-Bezeichner gehören nicht
+in ein Repo-Artefakt). v430 war zu dem
 Zeitpunkt frisch auf TestFlight (Lauf 33254493093 auf `4d509fb`, TestFlight-Workflow SELBST
 `success` — die v304-Lehre, nicht nur „CI grün").
 
