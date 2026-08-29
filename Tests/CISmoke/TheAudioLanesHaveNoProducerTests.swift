@@ -13,7 +13,15 @@
 //   · `TimelineStore.migrate(sections:)` seeds an empty `Audio 1` lane and puts EVERY
 //     region on the MIDI lane — driven end-to-end below, not scanned.
 //   · `ensureComposerRegion` / `ensureUserMidiRegion` build their clip `kind: .midi` by
-//     construction.
+//     construction — TRUE of both, and the only thing that is. ⛔ #865: this file used to
+//     call them "the two region creators a door can reach", and that is HALF false.
+//     Measured 2026-08-29: `.ensureComposerRegion(` has one production caller
+//     (`Studio/EchoelStudioView.swift:10129`); `.ensureUserMidiRegion(` has **ZERO** — its
+//     only callers are in the non-blocking `UserMidiRegionStoreTests`. It belongs with the
+//     `RecordController` chain below as BUILT-BUT-DOORLESS, not up here as reachable.
+//     The conclusion gets STRONGER, not weaker: one fewer reachable creator. That is why it
+//     survived — a wrong reason pointing at a right answer is invisible until someone reads
+//     the reason (#367), and the test name said "Reachable" too (#374).
 //   · `RecordController` and `AudioClipFactory` are the only two that could produce an
 //     audio-bearing region, and that chain is doorless: `AudioClipFactory` is called only
 //     from `TakeRecorder`, `TakeRecorder` is constructed only from `RecordController`, and
@@ -131,18 +139,51 @@ final class TheAudioLanesHaveNoProducerTests: XCTestCase {
             """)
     }
 
-    /// The two region creators a door can reach build MIDI clips, by construction.
-    func testTheReachableRegionCreatorsMakeMidiClips() throws {
+    /// BOTH MIDI region creators build MIDI clips, by construction. Renamed in #865: the old
+    /// name said "Reachable", and only one of the two is (#374 — a test name states a fact).
+    func testBothMidiRegionCreatorsMakeMidiClips() throws {
         let store = SourceText.codeOnly(try rawText("\(Self.sourcesRoot)/Core/TimelineStore.swift"))
         for creator in ["ensureComposerRegion", "ensureUserMidiRegion"] {
             let body = try body(of: creator, in: store)
             XCTAssertTrue(body.contains("kind: .midi"), """
                 `\(creator)` no longer builds its clip with `kind: .midi`. These two are the \
-                only region creators a reachable surface calls; if either can now make an \
-                audio clip, the audio lanes have a producer and the "no door" claim in \
-                `AudioLanePlayer.swift` plus CLAUDE.md's register are both stale.
+                only region creators OTHER than the doorless `RecordController` chain — one \
+                of them reachable, one not (see the header). If either can now make an audio \
+                clip, the audio lanes have a producer and the "no door" claim in \
+                `AudioLanePlayer.swift` plus CLAUDE.md's register are both stale. Note what \
+                CLAUDE.md actually says: it claims CONSTRUCTION (`kind: .midi`), never \
+                reachability, so it is NOT stale today and must not be "corrected" from here.
                 """)
         }
+    }
+
+    /// The asymmetry itself (#865). Pinned because the prose above is only as good as the
+    /// measurement behind it, and that measurement had been wrong for the life of the file.
+    ///
+    /// ⚠️ THIS FORBIDS NOTHING (#364). Dooring `ensureUserMidiRegion` — giving the user a way
+    /// to add their own MIDI clip to a lane — is legitimate, wanted work. This assertion goes
+    /// red on the day it lands, and its job is to say WHICH PROSE moves in that same commit,
+    /// not to argue against the change. Mitigate by updating; never by deleting.
+    func testOnlyOneOfTheTwoMidiCreatorsHasADoor() throws {
+        let composerCallers = try filesUnderSources(containing: ".ensureComposerRegion(")
+        XCTAssertEqual(composerCallers, ["Studio/EchoelStudioView.swift"], """
+            `ensureComposerRegion` is now called from \
+            \(composerCallers.isEmpty ? "nothing" : composerCallers.joined(separator: ", ")). \
+            If it lost its caller, the composer clip has no producer either and the header's \
+            five-site census needs re-reading. If it gained one, say where the second door is.
+            """)
+
+        let userCallers = try filesUnderSources(containing: ".ensureUserMidiRegion(")
+        XCTAssertTrue(userCallers.isEmpty, """
+            `ensureUserMidiRegion` now has a production caller: \
+            \(userCallers.joined(separator: ", ")). That is a NEW DOOR, and it is very likely \
+            correct work — this is not an objection. It is a checklist. Three places call this \
+            creator unreachable and must move in the same commit: (1) this file's header \
+            bullet, (2) the failure message of `testBothMidiRegionCreatorsMakeMidiClips`, \
+            (3) this test's own name and doc. Verify the new door creates `kind: .midi` only; \
+            an audio-bearing clip here would give the audio lanes their first producer and \
+            falsify the whole file.
+            """)
     }
 
     // MARK: - Counterweights (#343)
