@@ -531,6 +531,13 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         // (b) ORDER: a rung stands BEFORE the call it names, inside its OWN function window
         //     (the anchor is asserted unique first — #408).
         let ordered: [(fn: String, rung: String, call: String)] = [
+            // #879 (reviewer): rung 1/4 had EXISTENCE but no ORDER, because its named call
+            // is two-branched and no single needle fits both arms. Moving it below the
+            // branch would have kept all sixteen assertions green while the rung described
+            // a category that had already been set. The BRANCH KEYWORD is the stable
+            // anchor — the rung must precede the `if`, so it covers both arms.
+            ("static func configureAudioSession", "session: configure 1/4",
+             "if recordingRouteNeeded {"),
             ("static func configureAudioSession", "session: configure 2/4",
              "setPreferredSampleRate(preferredSampleRate)"),
             ("static func configureAudioSession", "session: configure 3/4",

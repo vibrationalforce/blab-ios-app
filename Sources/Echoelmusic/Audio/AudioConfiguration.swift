@@ -144,9 +144,34 @@ enum AudioConfiguration {
         // family lives in, and it was the one stretch the exported log could not name.
         // Ladder law (#862b): a rung stands BEFORE its call.
         //
-        // ⚠️ These are launch/route-transition events, NOT tick-rate: `configureAudioSession`
-        // runs at launch and on a reconfigure, the two transitions only when the LAST mic
-        // owner arrives or leaves. Do not add a rung to anything that repeats per buffer.
+        // ⛔ #879 — THE FREQUENCY CLAIM #878 WROTE HERE WAS TOO NARROW, and the reviewer
+        // measured the real shape. It said the two transitions run "only when the LAST mic
+        // owner arrives or leaves". True as owner-set bookkeeping, MISLEADING as a rate:
+        // `AudioEngine.rearmInputMonitoring` is an OFF→ON cycle, so it empties and refills
+        // the owner set and emits THREE rungs (`lower 1/1` + `raise 1/2` + `raise 2/2`)
+        // every time — and it runs at the tail of EVERY `start()`, not just user-initiated
+        // ones, plus on every route sample-rate/channel change while monitoring is on.
+        // `recoverEngine` re-enters itself up to three times, so a self-heal burst is
+        // ~21 rungs in about a second. That is still fine — it is hardware/human scale, and
+        // `logEngineLifecycle`/`logMonitorOutcome` were already writing tens of lines into
+        // the same burst — but somebody chasing log VOLUME would have read the old sentence
+        // and concluded a burst was impossible.
+        //
+        // THE HONEST RULE: discrete route-transition events — a start, a re-arm, a route
+        // format change, a self-heal attempt. NEVER per buffer, never tick-rate.
+        //
+        // ⚠️ AND ONE THING THIS LADDER CANNOT SHOW, so a log reader must know it: both
+        // writers of `recordingRouteNeeded` set the flag BEFORE their own no-op guard, so a
+        // guard-skipped transition moves the flag while emitting no rung at all. A later
+        // `configure 1/4 — setCategory(.playAndRecord)` can therefore appear with NO `raise`
+        // rung anywhere before it. That is not a missing rung — announcing the skipped raise
+        // would be the lie the placement below deliberately avoids.
+        //
+        // ⭐ Measured, not assumed: `EchoelCrashLog.begin()` is the FIRST statement of the
+        // app's `init()`, and `prepareGraph()` (the launch caller of this function) runs
+        // post-UI from the startup task — so the four launch rungs are always after the
+        // sink is open. `breadcrumb` is a silent no-op while the fd is closed, so an
+        // inverted order would delete them with nothing going red.
         EchoelCrashLog.breadcrumb(
             "session: configure 1/4 — setCategory("
             + (recordingRouteNeeded ? ".playAndRecord" : ".playback") + ")")
