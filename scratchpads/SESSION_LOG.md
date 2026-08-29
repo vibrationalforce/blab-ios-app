@@ -16395,3 +16395,86 @@ Seither eigener Befehl VOR dem Push; hält seit sieben Commits.
 - Deploy GEHALTEN — kein Gerätelog, keine Founder-Antwort, und ein Diagnose-Zugewinn allein auf
   ungelaufene Prüfbitten zu stapeln ist zu wenig.
 - `TimelineStore`-Entscheidung (42 Methoden) gehört dem Founder.
+
+## 2026-08-29 (cron, ULTRACODE 24h) — #876–#879: die Leiter bekommt ihre zwei fehlenden Hälften, und lügt dabei dreimal
+
+**Auftrag unverändert:** „Ultraechoel aufräumen und aufklaren debuggen". Kein Gerätelog, keine
+Founder-Antwort in diesem Fenster. Deploy weiterhin **gehalten**.
+
+### Was gebaut wurde
+
+| # | Commit | Sache |
+|---|---|---|
+| #876 | `dd1d6dd` | `MicrophoneManager.stopRecording` bekommt eine **3-Sprossen-Leiter** statt einer Sprosse für einen mehrstufigen Abbau. `engine.inputNode` — der Knoten, nach dem die Absturz-Familie HEISST — bekommt eine eigene Sprosse. |
+| #877 | `f109b25` | Zwei Selbstwidersprüche von #876s eigener Sprosse, beide vom Audio-Reviewer gefunden. |
+| #878 | `d9f755e` | **Die Sitzungs-Hälfte der Leiter.** `AudioConfiguration` hatte 15 AVAudioSession-Aufrufe und EINE Brotkrume (`latencyBreadcrumb`, eine Messung). Sieben Sprossen für die drei Kategorie-Übergänge. |
+| #879 | `f2985cf` | Drei Korrekturen aus dem Review von #878 — alle an der PROSA und an einer Wächter-Lücke, nicht am Code. |
+
+### Der Befund, der #878 ausgelöst hat
+
+Eine Zählung über **Framework-Berührung** statt über bekannte Namen: für jede Datei, die
+`AVAudioSession` importiert, `sessionCalls` gegen `rungs`. Ergebnis:
+`AudioConfiguration.swift  sessionCalls=19 rungs=1`. Jede Sprosse der Motor-Seite, die an einen
+Kategoriewechsel übergibt (`mic: stop 3/3`, `on N/5`, `off N/5`), endete an dieser Grenze.
+
+**Das ist die Gegenprobe zur selbstbestätigenden Aufzählung** (der wiederkehrende Fehler dieser
+Sitzung): hätte ich nach den mir bekannten Sprossen-Namen gesucht, hätte ich die Lücke nie
+gefunden — ich hätte gefunden, was ich schon kannte.
+
+### VIER Selbstkorrekturen, und wieder ist die Form dieselbe
+
+1. **„nur wenn der LETZTE Mikro-Besitzer kommt oder geht"** (#879 gegen #878) — als Buchführung
+   wahr, als RATE falsch. `rearmInputMonitoring` ist ein AUS→AN-Zyklus (drei Sprossen), läuft am
+   Ende JEDES `start()` und bei jedem Routen-Formatwechsel; `recoverEngine` bis zu 3×. Schub ≈ 21
+   Sprossen in einer Sekunde. **Gefährliche Richtung:** wer der Log-Menge nachgeht, hätte aus
+   meinem Satz geschlossen, ein Schub sei unmöglich.
+2. **Der gehisste `let engine = audioEngine`** (#877 gegen #876) — verschiebt die FREIGABE des
+   `AVAudioEngine` hinter Sprosse 3, während der Kommentar drei Zeilen darüber den Leser anwies,
+   Stille dort der Routen-Freigabe zuzuschreiben. Code und Prosa widersprachen sich in genau der
+   Frage, für die die Leiter existiert.
+3. **`running: false` für zwei verschiedene Zustände** (#877 gegen #876) — „gar kein Motor" und
+   „Motor gestoppt". Der häufigste Aufrufer räumt bei JEDEM Haupt-Stopp ab, und dort ist meist
+   gar kein Motor da: der Normalfall sah aus wie der interessante Fall.
+4. **Wächter-Nadel dateiweit statt verankert** (in #877 vor dem Ausliefern gefangen) — die erste
+   Fassung zählte `if let engine = audioEngine, engine.isRunning {` über die ganze Datei und
+   verlangte EINS; `deinit` trägt dieselbe Zeile. **Auf einem korrekten Baum wäre das rot
+   geworden.** Nur das Durchspielen vor dem Commit hat es gefangen.
+
+⭐ **Drei von vier sind PROSA, die neben korrektem Code falsch wurde.** Das ist ein anderes Muster
+als die letzte Runde (dort war es viermal das falsche MESSGERÄT). Gemeinsam ist beiden: der Code
+war nie das Problem.
+
+### Was NICHT gebaut wurde, obwohl es naheliegt
+
+- **Der `isRunning`-gekoppelte Tap-Abbau** in `MicrophoneManager` — dies ist die EINZIGE Stelle im
+  Repo, die das Entfernen des Abgriffs an „läuft gerade" koppelt (`MultiTrackRecorder` und
+  `RetroCapture` entfernen bedingungslos und idempotent). Ein `start()`, das WIRFT, lässt einen
+  getappten, nicht laufenden Motor zurück. Heute harmlos. **Die Falle steht am Code:** wer das
+  symmetrisch macht, darf `engine.inputNode` NICHT aus dem Guard ziehen — ein nie gestarteter
+  Eingang, angefasst bei nicht mehr passender Sitzungskategorie, IST die Absturz-Familie.
+- **Die restlichen 8 Session-Aufrufe** (`setLatencyMode`, `measureLatency`, der Interruption-
+  Handler). Die Leiter ist bewusst KEIN Zensus, und der Wächter sagt das selbst.
+
+### Gemessen statt als Sorge stehen gelassen
+
+`EchoelCrashLog.begin()` ist die **erste** Anweisung im `init()` der App; `prepareGraph()` läuft
+post-UI aus der Startup-Task. Die vier Start-Sprossen landen also immer in einer offenen Datei.
+Wäre die Reihenfolge umgekehrt, verschwänden sie **lautlos** — `breadcrumb` ist bei geschlossenem
+Deskriptor ein stiller Leerlauf, und kein Test würde rot.
+
+### Gates
+
+`Xcode Compile Check` = **success** auf `f109b25`, `d9f755e`, `f2985cf`. Die CI/CD-Conclusion ist
+wegen #396 immer `failure`; im Log stand `TEST EXECUTE FAILED` **ohne** `TEST BUILD FAILED` —
+Ursache wörtlich „Clone 2 des iPhone-17-Simulators konnte die App nicht starten", während auf
+Clone 1 hunderte Tests bestanden. **Der belastbare Beleg, dass mein Testcode kompiliert, ist
+nicht eine Log-Zeile, sondern dass CISmoke-Tests AUSGEFÜHRT haben.**
+
+### Offen (Founder, Gerät)
+
+1. v430 ~1 min fahren wie im 428/429-Fall.
+2. **Monitoring an/aus** — erwartet `on 1/5` … `on 5/5`; schließt allein 10 Rückstands-Bitten.
+3. Autotune-Dauerbelastung · 4. `inserts[…tune=…]`-Latenz bei Autotune AUS.
+5. Anruf während laufendem Monitoring → die zwei `monitoring:`-Zeilen vergleichen.
+6. **NEU:** im nächsten Log stehen jetzt `session: configure|raise|lower` — wenn der Absturz in
+   einem Kategoriewechsel liegt, nennt das Log ab jetzt den Schritt.
