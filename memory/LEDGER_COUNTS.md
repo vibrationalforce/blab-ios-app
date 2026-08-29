@@ -5971,3 +5971,31 @@ zurückzunehmen — dieselbe Falle, in die der #809-Wächter eine Stunde vorher 
 Verschoben 2026-08-28, weil CLAUDE.md seine 150.000-B-Decke gerissen hatte (#849 war der Übertritts-Commit, gefunden vom Ceiling-Wächter-Nachmessen im Brand-Audit). Wortlaut:
 
 ⛔ **UND DIE ERSTE FASSUNG DIESER ZEILE HAT DIE #475-LEHRE WÖRTLICH WIEDERHOLT, EINEN ZYKLUS SPÄTER: sie schrieb „415 Zeilen `struct TimelineAutomationRow`".** 415 ist die **DATEI** (`git show --stat`, 415 Löschungen). Der `struct` läuft von 217 bis 414, ist also **198** Zeilen; die ganze `#if canImport(SwiftUI)`-Hälfte mit allen DREI Typen sind **344** (72–415). Und der Widerspruch stand schon im Baum: `TimelineAutomationRowMath.swift` und dieselbe CLAUDE.md sagen seit #472 „344 Zeilen" über die Ansicht. **Dieselbe Zahl an das falsche OBJEKT geheftet — nicht veraltet, sondern von Anfang an dem falschen Ding zugeordnet**, und das ist der Grund, warum das Repo jetzt zwei Zahlen für eine Sache trug. Belastbar ist die GRÖSSE des Eingriffs (415 Löschungen), weil die sich nie wieder ändert; für die Ansicht nennt man die Ansicht.
+
+## J — Die Bio-Mapping-Tabelle: über- und unter-behauptet in derselben Zeile (#496/#498, verschoben aus CLAUDE.md #867)
+
+**Verschoben, nicht gekürzt.** In `CLAUDE.md` blieb der eine Satz, der GESETZ ist („eine
+Aufzählung wird gegen den CODE geprüft, nicht gegen ihre eigene Symmetrie"); die Herleitung
+steht hier, weil sie in der immer geladenen Datei 1.111 B kostete und jede Sitzung bezahlte.
+Der Platz wurde für einen Register-Eintrag gebraucht, den es noch gar nicht gab (#867).
+
+⭐ **Das Gesetz hat seit dem Umzug einen ZWEITEN Beleg, und der ist eine andere Gattung.**
+#864 fand eine VIERTE Deklaration der 3-Hz-Epilepsie-Grenze, während vier Stellen „drei"
+sagten. Dort war die Aufzählung nicht gegen ihre SYMMETRIE geprüft, sondern gegen ihre
+NAMENSFORM: jede Zählung suchte ein `static let` mit „Flash"/„Visual" im Namen, und die
+vierte war ein Standard-Argument namens `maxHz`. Zwei Instanzen, eine Regel — eine
+Aufzählung bestätigt sich selbst, wenn das Suchmuster aus den bereits bekannten Einträgen
+abgeleitet wird.
+
+⛔ **UND DIESE ZEILE WAR EINEN ZYKLUS LANG EINS-ZU-EINS, WÄHREND DIE ENGINE ES NICHT IST** (gemessen 2026-08-08 bei #498, an `EchoelDDSP.applyBioReactive` auf dem verankerten Patch-Pfad, also dem ausgelieferten). Sie sagte „Coherence → Harmonicity | HRV → Brightness | Heart rate → Vibrato | Breath phase → Envelope" — **ein Ziel je Kanal, und Kohärenz allein bewegt VIER.** Das ist keine veraltete Zahl, sondern eine Form, die von Anfang an zu ordentlich war: eine Tabelle mit vier Zeilen und vier Pfeilen liest sich vollständig. **#496 hat die ÜBER-Behauptung dieser Tabelle korrigiert (sieben Kanäle, drei ohne Erzeuger) und ihre UNTER-Behauptung dabei stehen lassen** — beide Fehler saßen in derselben Zeile, und nur einer fiel auf, weil nur einer sich als Zahl zählen ließ. Wer eine Bio-Fläche AUS dieser Tabelle baut, hätte damit eine frische Untertreibung auf genau den Bildschirm geliefert, den #496 gerade für eine Übertreibung repariert hat. **Lehre, verschieden von der Stale-Zahl-Lehre: eine Aufzählung wird gegen den CODE geprüft, nicht gegen ihre eigene Symmetrie.**
+
+## K — Die vier Analyse-Ansichten: eine Register-Zeile, die ihren Nachbarn mit-behauptete (#347/#680, verschoben aus CLAUDE.md #867)
+
+**Verschoben, nicht gekürzt.** In `CLAUDE.md` bleibt der ZUSTAND (alle vier türlos, absichtlich,
+Founder-Screenshot 2026-08-02) und das GESETZ; die Rücknahme-Geschichte steht hier, weil sie
+1.685 B in der immer geladenen Datei kostete. Das Gesetz — **wer eine Register-Zeile über einen
+Nachbarn MIT-behauptet, misst den Nachbarn mit** — ist dieselbe Familie wie §J: eine Aufzählung
+bestätigt sich selbst, wenn ein Teil von ihr gemessen und der Rest aus dem Gedächtnis
+mitgeschrieben wird.
+
+· **`AnalysisScopeView`** (#347 Slice 1) und **`AnalysisPoincareView`** (#347 Slice 3b): `git grep -n "AnalysisScopeView(\|AnalysisPoincareView(" -- Sources` außerhalb der eigenen Dateien = **0**. ⛔ **Hier stand „Ihre zwei Geschwister derselben Epic sind sehr wohl montiert (`AnalysisSpectrumView` und `AnalysisWavefrontView`, beide in `EchoelStudioView`)" — gemessen 2026-08-21 (#680) ist das falsch, und zwar für ALLE VIER:** `git grep -n "AnalysisSpectrumView(\|AnalysisWavefrontView(" -- Sources` = **0**; der einzige Treffer in `EchoelStudioView` ist ein KOMMENTAR an der ehemaligen Montagestelle, der es selbst sagt („All four analysis views are now in that state; the Field panel shows no meters at all"). Das zweite Paar ist NACH dem 2026-08-02 geparkt worden, mit derselben Begründung und derselben Zusage („Restoring any of them is one line here plus its caption"). **Der Quelltext war die ganze Zeit ehrlich; falsch war das Register — also genau die Liste, die eine Sitzung liest, BEVOR sie in den Quelltext schaut.** Lehre, verschieden von der Stale-Zahl-Lehre: die eine Hälfte dieses Satzes war gemessen („= 0"), die andere aus dem Gedächtnis mitgeschrieben — **wer eine Register-Zeile über einen Nachbarn mit-behauptet, misst den Nachbarn mit.** **Das ist KEIN Defekt und muss so dastehen:** die Entscheidung ist am 2026-08-02 per Founder-Screenshot mit rotem X gefallen und im Quelltext an der Montagestelle festgehalten. Also türlos ABSICHTLICH, wie `ImmersiveStageView` und `BroadcastView` — nur stand es nirgends im Register, und genau das ist der Zustand, den der Doctor-Sektion-C-Text „unerreichbar UND nirgends aufgeschrieben" nennt.
