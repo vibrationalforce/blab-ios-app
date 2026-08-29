@@ -16231,3 +16231,90 @@ und nähme dann das Gesetz mit. #473 durfte einen Abwesenheits-Wächter setzen, 
 KERN überlebte, den er mitzählen konnte; hier überlebt nichts.
 
 Sources-Dateien danach: `git ls-files 'Sources/**/*.swift' | wc -l` = 370.
+
+## 2026-08-29 (cron, ULTRACODE 24h) — Aufräum-Runde #864–#868: fünf Schnitte, eine wiederkehrende Fehlerform
+
+**Auslöser:** Founder, wörtlich — „Ultraechoel aufräumen und aufklaren debuggen" und „Alles fable 5
+und Opus vorgänge in einem Zusammenhang vom versandt her ultraseniordeveloper". v430 war zu dem
+Zeitpunkt frisch auf TestFlight (Lauf 33254493093 auf `4d509fb`, TestFlight-Workflow SELBST
+`success` — die v304-Lehre, nicht nur „CI grün").
+
+### Die Schnitte
+
+- **#864 (`27ce8d7`) — eine VIERTE Deklaration der 3-Hz-Epilepsie-Grenze.**
+  `BioColorGradeParams.flashLimited(… maxHz: Float = 3)`, während VIER Stellen „drei" sagten
+  (`FlashGuard`s Doc, `EntrainmentEngine`s, `BioEntrainmentDirector`s, die Kopftabelle von
+  `TheFlashCeilingIsOneNumberTests`). Jetzt **gekettet** statt bewacht:
+  `Float(FlashGuard.maxFlashHz)` — möglich, weil beide Typen in `Studio/` liegen; bei den anderen
+  zwei verbietet es die Schichtung. Dazu drei falsche Kopf-Behauptungen der Datei zurückgenommen
+  (behaupteter Verbraucher, behauptete Tests, behauptete Shader-Struktur — `git grep` je 0).
+  **Zweitfund:** das Rezept `git grep -ln FlashGuard -- Sources`, in ZWEI Zuhausen zitiert als
+  „Core · Studio · Sync · Views, kein Bio", listet heute Bio und DSP mit — die Kommentare, die
+  erklären warum sie es nicht benutzen dürfen, NENNEN den Namen. Die `EchoelModalBank`-Falle.
+  Rezept misst jetzt BENUTZUNG (`git grep -n 'FlashGuard\.' -- Sources | grep -vE ':[[:space:]]*(//|///|\*)'`),
+  in beiden Zuhausen korrigiert (#456).
+- **#865 (`3a6c410`) — „die zwei Erzeuger, die eine Tür erreichen" war zur Hälfte falsch.**
+  Gemessen: `.ensureComposerRegion(` → ein Aufrufer (`Studio/EchoelStudioView.swift`),
+  `.ensureUserMidiRegion(` → **null**. Test umbenannt (der Name behauptete „Reachable" mit, #374)
+  und die Asymmetrie selbst gepinnt. Verbietet nichts (#364) — die Fehlermeldung ist die
+  Checkliste der drei Prosa-Stellen für den Tag, an dem die Tür gebaut wird.
+  ⚠️ CLAUDE.md und `AudioLanePlayer` behaupten nur KONSTRUKTION, nie Erreichbarkeit: beide
+  korrekt, NICHT angefasst — meine eigene Notiz, sie hätten die Formulierung geerbt, war falsch.
+- **#866 (`12094cb`) — `AudioEngine.inputMonitoringEnabled` gelöscht.** Null Schreiber, nicht
+  persistiert, `final`, einziger Leser eine tote Zeile in `start()`. Gelöscht statt annotiert,
+  weil der LEBENDE Schalter ein Fast-Namensvetter ist (`setInputMonitoring(_:)` → `isInputMonitoring`)
+  der sie nie anfasst: die naheliegende „Reparatur" (Setter schreibt die Flagge) startet still ein
+  ZWEITES `AVAudioEngine`-Mikrofon bei jedem Master-Start — die Familie, die diese Datei selbst
+  als `isInputConnToConverter` benennt. Kein Verhaltensunterschied: `stop(reason:)` stoppte das
+  Mikrofon immer schon bedingungslos. Drei Prosa-Zuhausen zogen im selben Commit mit
+  (`scripts/doorless-state.py`-CONTROL, `HARNESS_LEDGER`, `VoiceCaptureController`).
+- **#867 (`1d2275f`) — die Lebenszyklus-Leiter ins immer geladene Register**, bezahlt durch zwei
+  Provenienz-Umzüge nach `memory/LEDGER_COUNTS.md` (§J Bio-Mapping-Tabelle, §K die vier
+  Analyse-Ansichten). Gesetz bleibt, Herleitung zieht um. **Zahlen mit Befehl:**
+  `wc -c CLAUDE.md` → 149.842 vor, 149.358 nach; Decke 150.000
+  (`TheLawFileStaysUnderItsCeilingTests`). `grep -c '^## [A-Z] — ' memory/LEDGER_COUNTS.md` → 11.
+- **#868 (`811f70c`) — ich habe in #866 einen Fehler ERFUNDEN und ihn zurückgenommen.**
+  Siehe unten; das ist der wichtigste Eintrag dieser Runde.
+
+### Die Fehlerform, die sich dreimal wiederholt hat
+
+| behauptet | wahr war |
+|---|---|
+| „gemessen" (#860) | gemessen war nur die ABWESENHEIT von Sprossen |
+| „der einzige Start ohne Sprosse" (#862) | es waren zwei |
+| „Hintergrundwechsel strandet den Controller" (#866) | eine Ebene höher abgefangen |
+
+**Immer dieselbe Form: eine richtige Beobachtung über EINE Ebene, formuliert als
+Schlussfolgerung über die ganze Kette.** Der dritte Fall ist der teuerste, weil ein Kommentar,
+der einen Fehler ERFINDET, schlimmer ist als einer, der einen übersieht — er schickt die nächste
+Sitzung auf eine Jagd nach nichts, in einer Datei auf dem Absturzpfad, und nichts kann Prosa
+widerlegen. **Gegenmittel, das gegriffen hat: nach jeder Aussage über einen Aufrufpfad die
+AUFRUFER des Aufrufers zählen, bevor man sie aufschreibt.**
+
+⚠️ **DIE `stop(reason:)`-GEFAHR IST NICHT OFFEN — der Wächter-Auftrag, der sie als offenen Posten
+führte, war schon veraltet, als er feuerte.** `stop(reason:)` hat genau zwei Produktions-Aufrufer,
+beide `.idleBackground`, beide auf `audioNeeded` gegated, das `microphoneManager.isRecording`
+enthält — was eine Voice-Aufnahme setzt. Und der Schutz ist gepinnt
+(`TheBodyVoiceCountsAsAudibleTests`, beide Ketten). Kein neuer Wächter gebaut: drittes Zuhause
+für eine Regel = #416. Nebenfund im selben Zug repariert: zwei Prüfungen dort waren nackte
+`XCTAssertTrue` ohne Meldung (#367), in dem Wächter, der ein 2.5.4-Ablehnungsrisiko absichert.
+
+### Was die Gates beweisen und was nicht
+
+`Xcode Compile Check` = success auf **allen** Code-Commits (#864 · #865 · #866 · #868).
+CI/CD meldet wegen #396 immer `failure`; die Job-Schritte sagen `build-for-testing: Succeeded`,
+`TEST BUILD FAILED: False`, 135 bestanden, 0 Fehlschläge, 0 übersprungen.
+⚠️ **ERKENNTNIS, die Zeit spart: das tail-200-Fenster zeigt bei JEDEM Lauf dieselben ~135 Tests.**
+Kein neuer Anspruch dieser Runde taucht darin je auf. Belastbar ist deshalb nur
+`build-for-testing: Succeeded` (= die neuen Wächter KOMPILIEREN). Formulierung bleibt
+**„compile-bewiesen, laufzeit-unbewiesen"** (#445/#807) — nicht erneut Läufe dafür durchsuchen.
+⚠️ #867 hat GAR KEINE eigenen Läufe: ein Commit nur auf `CLAUDE.md`/`memory/`/`scratchpads/`
+trifft keinen Pfad-Filter. Sein Baum wird erst von #868s Lauf mitgeprüft — auch die Byte-Decke.
+
+### Offen
+
+- **Founder-Prüfbitten v430** stehen (die wichtigste NEU: einmal Monitoring an/aus, weil der
+  Einschalt-Weg zum ersten Mal spricht und dort der zweite Start ohne Sprosse saß). Erst wieder
+  bumpen, wenn ein Gerätelog da ist ODER genug Substanz für 431 zusammenkommt.
+- `TimelineStore`s aufruferlose Methoden — gemeldet, nicht gemessen.
+- Reviewer-M3-Urteil (Interruption-Resume: direktes `start()` vs. Routing über `recoverEngine`).
