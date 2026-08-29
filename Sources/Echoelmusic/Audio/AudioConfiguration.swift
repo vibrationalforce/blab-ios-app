@@ -136,6 +136,20 @@ enum AudioConfiguration {
         #else
         let audioSession = AVAudioSession.sharedInstance()
 
+        // #878 — THE SESSION HALF OF THE LADDER. `AudioConfiguration` held NINETEEN
+        // AVAudioSession calls and exactly ONE breadcrumb (`latencyBreadcrumb`, a
+        // different thing), so every rung on the engine side that hands off to a
+        // category flip — `mic: stop 3/3`, `on N/5`, `off N/5` — pointed straight into
+        // the dark. A category move is the neighbourhood the `isInputConnToConverter`
+        // family lives in, and it was the one stretch the exported log could not name.
+        // Ladder law (#862b): a rung stands BEFORE its call.
+        //
+        // ⚠️ These are launch/route-transition events, NOT tick-rate: `configureAudioSession`
+        // runs at launch and on a reconfigure, the two transitions only when the LAST mic
+        // owner arrives or leaves. Do not add a rung to anything that repeats per buffer.
+        EchoelCrashLog.breadcrumb(
+            "session: configure 1/4 — setCategory("
+            + (recordingRouteNeeded ? ".playAndRecord" : ".playback") + ")")
         if recordingRouteNeeded {
             // A recording/monitoring session is active — a reconfigure must keep the
             // record route, not revert to .playback and cut the mic.
@@ -150,13 +164,16 @@ enum AudioConfiguration {
         }
 
         // Set preferred sample rate
+        EchoelCrashLog.breadcrumb("session: configure 2/4 — setPreferredSampleRate")
         try audioSession.setPreferredSampleRate(preferredSampleRate)
 
         // Set preferred IO buffer duration (target latency)
         let bufferDuration = ioBufferDuration(for: preferredSampleRate)
+        EchoelCrashLog.breadcrumb("session: configure 3/4 — setPreferredIOBufferDuration")
         try audioSession.setPreferredIOBufferDuration(bufferDuration)
 
         // Activate session
+        EchoelCrashLog.breadcrumb("session: configure 4/4 — setActive")
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
         isSessionConfigured = true
@@ -304,6 +321,10 @@ enum AudioConfiguration {
         let audioSession = AVAudioSession.sharedInstance()
         guard audioSession.category != .playAndRecord else { return }
 
+        // #878: the rungs sit AFTER the no-op guard on purpose. Announcing a raise that
+        // the guard then skips would put a step in the log that never happened — the
+        // mirror image of the trailing-rung defect, and just as misleading.
+        EchoelCrashLog.breadcrumb("session: raise 1/2 — setCategory(.playAndRecord)")
         try audioSession.setCategory(.playAndRecord, mode: .default, options: recordOptions)
         // #855 (founder v425 log: `buf=23.0` ms GRANTED on the built-in route against
         // the 512-frame/10.7 ms default): a category change renegotiates the IO
@@ -315,6 +336,7 @@ enum AudioConfiguration {
         do { try audioSession.setPreferredIOBufferDuration(
                  Double(currentBufferSize) / preferredSampleRate) }
         catch { log.audio("IO-buffer re-assert refused on upgrade (\(error))") }
+        EchoelCrashLog.breadcrumb("session: raise 2/2 — setActive")
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
         log.audio("Audio session upgraded to .playAndRecord")
         #endif
@@ -340,6 +362,9 @@ enum AudioConfiguration {
         guard isSessionConfigured else { return }
         let audioSession = AVAudioSession.sharedInstance()
         guard audioSession.category != .playback else { return }
+        // #878: ONE rung, not two — this path deliberately has no `setActive`, and a
+        // "2/2" here would promise a step the code does not take (see the ⚠️ below).
+        EchoelCrashLog.breadcrumb("session: lower 1/1 — setCategory(.playback)")
         try audioSession.setCategory(.playback, mode: .default,
                                      options: [.allowBluetoothA2DP, .mixWithOthers])
         // #855: same re-assert on the way DOWN — the playback route renegotiates too.

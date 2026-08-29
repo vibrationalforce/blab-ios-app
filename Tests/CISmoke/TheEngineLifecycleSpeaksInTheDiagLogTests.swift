@@ -499,6 +499,105 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
 
     // MARK: - helpers (the house shape: strip comments, skip on no tree)
 
+    // MARK: - 13: the SESSION half of the ladder speaks too (#878)
+
+    /// ⛔ THE HOLE THIS CLOSES. `AudioConfiguration` carried FIFTEEN AVAudioSession calls
+    /// (comment-stripped count) and exactly ONE breadcrumb — `latencyBreadcrumb`, which is a
+    /// measurement, not a rung. So every rung on the engine side that hands off to a category
+    /// flip (`mic: stop 3/3 — releasing record route`, `on N/5`, `off N/5`) ended at the
+    /// boundary and the next stretch was dark. A category move is the neighbourhood the
+    /// `isInputConnToConverter` family lives in.
+    ///
+    /// ⚠️ THE LADDER IS DELIBERATELY NOT A CENSUS OF ALL FIFTEEN, and this claim does not
+    /// pretend otherwise. It covers the THREE category-transition functions. The rest
+    /// (`setLatencyMode`, `measureLatency`, the interruption handler) either repeat on a
+    /// path the engine side already narrates or are measurements. A future session that
+    /// wants full coverage is adding work, not fixing a defect — this forbids nothing (#364).
+    func testTheSessionTransitionsCarryRungs() throws {
+        let config = try code("Sources/Echoelmusic/Audio/AudioConfiguration.swift")
+
+        // (a) Every rung exists exactly once.
+        for rung in ["session: configure 1/4 — setCategory(",
+                     "session: configure 2/4 — setPreferredSampleRate",
+                     "session: configure 3/4 — setPreferredIOBufferDuration",
+                     "session: configure 4/4 — setActive",
+                     "session: raise 1/2 — setCategory(.playAndRecord)",
+                     "session: raise 2/2 — setActive",
+                     "session: lower 1/1 — setCategory(.playback)"] {
+            XCTAssertEqual(occurrences(of: rung, in: config), 1,
+                           "`\(rung)` is gone — the session half falls diag-dark again (#878).")
+        }
+
+        // (b) ORDER: a rung stands BEFORE the call it names, inside its OWN function window
+        //     (the anchor is asserted unique first — #408).
+        let ordered: [(fn: String, rung: String, call: String)] = [
+            ("static func configureAudioSession", "session: configure 2/4",
+             "setPreferredSampleRate(preferredSampleRate)"),
+            ("static func configureAudioSession", "session: configure 3/4",
+             "setPreferredIOBufferDuration(bufferDuration)"),
+            ("static func configureAudioSession", "session: configure 4/4",
+             "setActive(true, options: .notifyOthersOnDeactivation)"),
+            ("static func upgradeToPlayAndRecord", "session: raise 1/2",
+             "setCategory(.playAndRecord, mode: .default, options: recordOptions)"),
+            ("static func upgradeToPlayAndRecord", "session: raise 2/2",
+             "setActive(true, options: .notifyOthersOnDeactivation)"),
+            ("static func downgradeToPlaybackAfterRecording", "session: lower 1/1",
+             "setCategory(.playback, mode: .default,"),
+        ]
+        for (fn, rung, call) in ordered {
+            XCTAssertEqual(occurrences(of: fn, in: config), 1,
+                           "`\(fn)` is no longer unique — the window would open elsewhere (#408).")
+            guard let a = config.range(of: fn) else {
+                XCTFail("`\(fn)` is gone — re-anchor this claim (§4).")
+                return
+            }
+            let body = String(config[a.lowerBound...].prefix(1_800))
+            guard let r = body.range(of: rung), let c = body.range(of: call) else {
+                XCTFail("`\(rung)` or `\(call)` left the window under `\(fn)` — re-measure "
+                        + "before widening it.")
+                return
+            }
+            XCTAssertTrue(r.lowerBound < c.lowerBound, """
+                The rung for `\(call)` sits AFTER the call again (#860/#878). A session move \
+                that raises the ObjC assert then logs nothing, and the next crash log reads \
+                as "path not taken" instead of naming the step.
+                """)
+        }
+
+        // (c) AND THE MIRROR IMAGE, which is the part that is easy to get wrong: both
+        //     transitions have a no-op guard, so the rung must sit AFTER it. Announcing a
+        //     raise the guard then skips writes a step into the log that never happened —
+        //     just as misleading as a trailing rung, and in the opposite direction.
+        for (fn, noOpGuard, rung) in [
+            ("static func upgradeToPlayAndRecord",
+             "guard audioSession.category != .playAndRecord", "session: raise 1/2"),
+            ("static func downgradeToPlaybackAfterRecording",
+             "guard audioSession.category != .playback", "session: lower 1/1"),
+        ] {
+            guard let a = config.range(of: fn) else { return }
+            let body = String(config[a.lowerBound...].prefix(1_800))
+            guard let g = body.range(of: noOpGuard), let r = body.range(of: rung) else {
+                XCTFail("the no-op guard or its rung left `\(fn)` — re-anchor (§4).")
+                return
+            }
+            XCTAssertTrue(g.lowerBound < r.lowerBound, """
+                `\(fn)` announces its session move BEFORE the guard that may skip it (#878). \
+                The log then names a step the code did not take.
+                """)
+        }
+
+        // (d) The rung count is pinned so a rung added to a REPEATING path is visible. It is
+        //     a checklist, not an objection: seven transition rungs plus `latencyBreadcrumb`,
+        //     which is a measurement and not part of the ladder. If this number moved, check
+        //     the new site is a discrete lifecycle event and not something that runs per
+        //     buffer — `breadcrumb` allocates and does an unbuffered `write(2)`.
+        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 8, """
+            The breadcrumb count in AudioConfiguration changed. Confirm the new site is a \
+            discrete event (launch, route transition), never a per-buffer or tick-rate path, \
+            then update this number and say why in the same commit.
+            """)
+    }
+
     private func occurrences(of needle: String, in text: String) -> Int {
         text.components(separatedBy: needle).count - 1
     }
