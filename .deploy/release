@@ -1,4 +1,4 @@
-build: v10.79.428 — Dein 427er-Log hat den Absturz geknackt: der Umbau ist abgeschafft, der Autotune-Schalter ist jetzt nur noch ein Hebel
+build: v10.79.429 — Dein 428er-Log zeigte einen NEUEN Weg zum selben Absturz. Jetzt spricht die ganze Engine im Log — der nächste Crash MUSS seinen Pfad nennen
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,51 +6,54 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.427 (heute — Latenz-Fix, Presence, Telephone).
+  Der Vorgänger ist 10.79.428 (gestern — Umbau abgeschafft, Autotune = Bypass-Hebel).
 
-  ── WAS DEIN 427er-LOG BEWIESEN HAT ──────────────────────────────────────
+  ── WAS DEIN 428er-LOG GEZEIGT HAT ───────────────────────────────────────
 
-  Zwei Siege: **buf=10.7 statt 23** (der Latenz-Fix greift — Deine Stimme
-  läuft mit dem gewollten kurzen Puffer) und **Telephone lief crashfrei**.
+  Derselbe Absturz-Typ wie zuvor — aber auf einem ANDEREN Weg: diesmal war
+  Monitoring gar nicht an. 24 Sekunden nach dem gesunden Start krachte es
+  aus einer Hintergrund-Aufgabe heraus, und das Log war in diesen 24
+  Sekunden komplett stumm. Der Grund: alle automatischen Engine-Pfade
+  (Unterbrechung, Kopfhörer weg, Selbstheilung, Neustart) schrieben nur in
+  Apples internes Log — nicht in die Datei, die Du exportierst. Drei von
+  sechs Crash-Logs sind an genau dieser Unsichtbarkeit hängengeblieben.
 
-  Und der Durchbruch: Die Schritt-Leiter hat nach fünf Logs zum ERSTEN Mal
-  den sterbenden Schritt benannt — `tune 3/4: restarting engine`, dann der
-  Crash. Der Absturz sitzt im Engine-NEUSTART nach dem Autotune-Umbau, als
-  Apple-interner Abbruch, den kein Fangnetz halten kann. Vier Versuche, den
-  Umbau vorsichtiger zu machen (gar nicht anhalten → pausieren → stoppen →
-  stoppen+zurücksetzen), sind alle am Gerät gescheitert.
+  ── WAS 429 MACHT ────────────────────────────────────────────────────────
 
-  ── WAS 428 ANDERS MACHT: ES GIBT KEINEN UMBAU MEHR ──────────────────────
-
-  Der Autotune-Baustein wird beim Monitoring-Start IMMER fest eingebaut.
-  Ist Autotune aus, wird er nur UMGANGEN (Bypass). Der Schalter legt ab
-  jetzt nur diesen Hebel um — kein Stoppen, kein Umverdrahten, kein
-  Neustart. Genau so funktioniert schon Dein Telefon-Schalter, und der
-  lief in Deinem Log Sekunden vor dem Crash einwandfrei. Die Stelle, an
-  der es fünfmal krachte, existiert im Code nicht mehr.
+  1. **Die ganze Engine spricht jetzt in Deinem Log.** 13 neue `engine:`-
+     Zeilen (Unterbrechung, Neustart, Selbstheilung, beide Start-Versuche),
+     6 `mic:`-Zeilen (die Mikrofon-Kette) und 3 `voice:`-Zeilen (die
+     Voice-Timbre-Aufnahme). Egal wo es kracht: die letzte Zeile im Log
+     nennt ab jetzt den sterbenden Pfad.
+  2. **Eine echte Gefahrenquelle ist entschärft:** der Wächter, der auf
+     Audio-Umstellungen reagiert, fasste bei JEDER Umstellung das Mikrofon-
+     Eingangsteil an — auch wenn gar kein Monitoring lief. Genau dieses
+     Eingangsteil ist die Stelle, an der der Absturz-Typ wohnt. Er fasst
+     es jetzt nur noch an, wenn Monitoring wirklich läuft.
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  1. **Die Autotune-Folter:** Monitoring an → Autotune an/aus, mehrfach,
-     schnell, gern mit Telephone und Megaphone dazu. Erwartung: KEIN
-     Absturz, und im Log steht nur noch `tune on — bypass flip, no rewire`.
-  2. **Latenz bei Autotune AUS:** Die `latency:`-Zeile zeigt jetzt
-     `inserts[…tune=…]` auch, wenn Autotune aus ist. Dieser Wert (und Dein
-     Gefühl) sagt uns, ob der fest eingebaute, umgangene Baustein etwas
-     kostet. Fühlt sich der normale Monitor an wie vorher?
-  3. **Klingt Autotune AN wie vorher?** (Der Weg dahin ist neu, der Klang
-     soll gleich sein.)
-  4. Danach wie immer: Log per Save/Export → Diagnostics → Share.
+  1. **Der 428er-Fall, nachgestellt:** App starten, ~1 Minute normal
+     benutzen (gern Kopfhörer an/aus, Gerät sperren/entsperren, optional
+     einmal Voice timbre antippen). Erwartung: KEIN Absturz — ODER das
+     Log nennt zum ersten Mal den Pfad (letzte Zeile `engine:` / `mic:` /
+     `voice:` / `monitor:`).
+  2. Die 428er-Bitten gelten weiter: Autotune-Folter (Erwartung
+     `tune on — bypass flip, no rewire`, kein Crash) und die
+     `inserts[…tune=…]`-Latenz bei Autotune AUS.
+  3. Danach wie immer: Log per Save/Export → Diagnostics → Share.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Compile-verifiziert (Compile Check grün; CI/CD-Job-Schritte gelesen:
-  Bundle baut, 170 Tests im Fenster bestanden, 0 Fehlschläge), nicht
-  geräteverifiziert. Ob der umgangene Baustein hörbar Latenz kostet, kann
-  nur Dein Gerät messen — deshalb Prüfbitte 2.
+  Ehrlich: 429 ist Instrumentierung + das Entschärfen einer Gefahren-
+  KLASSE. Den exakten Auslöser Deines 428er-Crashs kann ich noch nicht
+  benennen — genau dafür existiert die neue Leiter: der nächste Log
+  entscheidet, statt dass ich rate. Compile-verifiziert (Compile Check
+  grün; CI/CD-Job-Schritte gelesen: Bundle baut, 135 Tests im Fenster
+  bestanden, 0 Fehlschläge), nicht geräteverifiziert.
 
-  ⚠ Apple-Tageskontingent: 426 und 427 liefen heute schon hoch. Falls der
-  Upload abgelehnt wird, lande ich 428 morgen automatisch neu.
+  ⚠ Apple-Tageskontingent: heute ist ein frischer Tag — der Upload sollte
+  durchgehen. Falls nicht, lande ich 429 automatisch neu.
 
   ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
   bitte NICHT prüfen.

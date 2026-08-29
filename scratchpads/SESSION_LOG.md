@@ -15966,3 +15966,14 @@ neuen Wächter + L1-Prosa-Fix (claim-5→claim-4). Transkription 10/10 grün. Da
 JEDER bekannte Input-/Lifecycle-Pfad im Export sichtbar; M3 (Interruption-Resume durch
 recoverEngine routen) bewusst NICHT gemacht — die drei Start-Todesarten sind jetzt an
 ihrer letzten Sprosse unterscheidbar, das nächste Log entscheidet empirisch.
+
+## 2026-08-29 — v429 Deploy: die Lebenszyklus-Leiter geht aufs Gerät
+
+Gates auf d3aad5b (#859b) per §5 gelesen: Compile Check success, CI/CD build-for-testing
+Succeeded, 135 Tests im Fenster, 0 Fehlschläge, 0 Skips (#396 erwartet, #807-Fenster
+benannt). `.deploy/release` auf v10.79.429 gebumpt — Inhalt: 428er-Befund (neuer Pfad,
+kein Monitoring, 24 s Diag-Stille), die 13 `engine:`- + 6 `mic:`- + 3 `voice:`-Sprossen,
+der Watchdog-Hazard-Fix, Prüfbitten (428er-Fall nachstellen ~1 min; Autotune-Folter +
+tune=-Latenz gelten weiter), ehrliche Abgrenzung (Instrumentierung + Hazard-Klasse, der
+exakte 428er-Auslöser ist unbenannt — dafür existiert die Leiter). Apple-Kontingent:
+frischer Tag. TestFlight-Verify-Wecker ~50 min nach Push gestellt.
