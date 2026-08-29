@@ -8,6 +8,58 @@
 // ArrangementStore song (ordered sections, integer bars) into regions on one
 // MIDI lane — losslessly (bar-aligned sections become bar-aligned regions), so
 // nobody's song disappears in the restructure. Pure static func → Linux-CI-tested.
+//
+// ⭐ WHAT THIS STORE IS TODAY, measured 2026-08-29 (#870), because the header above
+// describes an "Arrange" surface that #121 Slice 4 DELETED. The document, the migration
+// and the save path are all live; most of the EDITING API is not, and the honest split
+// matters before anyone deletes or rebuilds anything here.
+//
+//   58 distinct method NAMES in 59 declarations — `moveRegion` is overloaded, and the two
+//   counts are named apart on purpose: a scan that counts `func ` gets 59, one that collects
+//   names gets 58, and a reader who meets only one of them calls the other a drift
+//   · 10 called from another file — addRegion · ensureComposerRegion · flushPendingSave ·
+//        healRollSlotAudibility · healRollSlotNamingCause · persist (9 files) · undo · redo ·
+//        snapshotForUndo · unsilenceRollSlot. THIS is the live surface.
+//   ·  6 used only inside this file (automationLaneIndex, canCombineRegions, migrate,
+//        resolveOverlaps, restoreRegions, syncUndoFlags).
+//   · 42 with NO caller anywhere in `Sources/` — and they are one coherent set, not
+//        scattered rot: add/remove/move/resize/split/merge region, mute/solo/arm, the
+//        per-lane dials (level · pan · patch · transpose · octave · detune · mood · genre ·
+//        sample · seed) and the whole automation API. That is the API of the arrangement
+//        surface, still standing after its UI was cut.
+//
+// ⚠️ TWO NUMBERS, TWO QUESTIONS — and conflating them is how this got mis-recorded once
+// already this session (as "9 caller-less methods"). **42** have no CALLER. **9** have
+// neither a caller nor a TEST (bootstrapIfNeeded · renameLane · resizeRegion ·
+// setAudioRegionWindow · setBuiltinInstrument · setLaneOctave · setLaneSample · toggleMute ·
+// toggleSolo). The other 33 are exercised by the non-blocking suite. A count belongs to
+// exactly ONE operation; "9" was right about a different question than the one being asked.
+// Re-derive both rather than trusting these: they are dates, not facts.
+//
+// ⛔ THIS IS NOT A DELETION LIST, and the reasoning is not the #527 one. #527 says do not
+// unwire what a PERSISTED document can still reach — that protects `AudioLanePlayer`, which
+// PLAYS a stored region. It does not apply to mutators: no stored document calls
+// `setLanePan`. The real arguments are different and they point the other way:
+//   · the 33 tested ones carry a SPEC. Their tests are the surviving description of how
+//     lane and region editing is supposed to behave; deleting the methods deletes the tests,
+//     and rebuilding a lane surface later would then start from nothing.
+//   · the founder asked for the multi-lane shape ("mehrere") explicitly, and the per-lane
+//     dials are exactly what such a surface drives.
+//   · against both: `docs/dev/PRODUCT_DEFINITION.md` CUTS arrangement over time. So the
+//     honest state is a genuine open decision, not an oversight.
+// It therefore stays, measured and written down, until the founder decides. Do not delete
+// in passing; do not "restore the Arrange surface" either (#121 Slice 4 was deliberate).
+// Guard: `Tests/CISmoke/TheTimelineStoresLiveSurfaceTests.swift` pins the TEN — it forbids
+// nothing (#364) and goes red when one loses its last caller, which is the regression that
+// would otherwise be invisible.
+//
+//   Re-derive (comments stripped, dot-independent so internal callers count):
+//   python3 - <<'EOF'
+//   import re,pathlib
+//   t=pathlib.Path("Sources/Echoelmusic/Core/TimelineStore.swift").read_text()
+//   names=sorted(set(re.findall(r"^\s*(?:public |private |internal )?(?:static )?func (\w+)\s*[(<]",t,re.M)))
+//   print(len(names))
+//   EOF
 
 import Foundation
 import Observation
