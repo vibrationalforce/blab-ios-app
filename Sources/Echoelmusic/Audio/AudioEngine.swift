@@ -765,7 +765,7 @@ public final class AudioEngine {
             // could have rescued an interruption whose `.ended` notification never
             // arrives (or arrives without `.shouldResume`). See `shouldSelfHeal`.
             self?.wasInterrupted = true
-            log.audio("Audio interrupted — pausing engine")
+            self?.logEngineLifecycle("interrupted — pausing")
         }
         AudioConfiguration.onInterruptionResume = { [weak self] in
             // The same law `shouldSelfHeal` states, applied to the OTHER resume path.
@@ -776,16 +776,17 @@ public final class AudioEngine {
                 log.audio("Interruption ended but the engine was stopped deliberately — staying stopped")
                 return
             }
-            log.audio("Audio interruption ended — resuming engine")
+            self?.logEngineLifecycle("interruption ended — restarting")
             do {
                 self?.armTimingInstrument()
                 try self?.masterEngine.start()
                 self?.isRunning = true
                 self?.wasInterrupted = false
+                self?.logEngineLifecycle("interruption restart OK")
             } catch {
                 // Leave `wasInterrupted` SET: the resume failed, so the watchdog and the
                 // scene-phase resume must both still consider this engine rescuable.
-                log.audio("Failed to resume master engine: \(error)", level: .error)
+                self?.logEngineLifecycle("interruption restart FAILED (\(error))", level: .error)
             }
         }
         AudioConfiguration.onMediaServicesReset = { [weak self] in
@@ -813,6 +814,7 @@ public final class AudioEngine {
             // would otherwise make `recoverEngine` refuse this outright — surfacing
             // `degraded` without ever attempting a start.
             self?.recoveryAttempts = 0
+            self?.logEngineLifecycle("media services reset — recovering")
             self?.recoverEngine(reason: "media services reset")
         }
         AudioConfiguration.onRouteDeviceLost = { [weak self] in
@@ -824,7 +826,7 @@ public final class AudioEngine {
             // new route (silent while the transport is stopped); the app layer stops
             // the transport via this hook — the Audio layer holds no Sequencer refs.
             self.onOutputDeviceLost?()
-            log.audio("Audio route lost — restarting on new output...")
+            self.logEngineLifecycle("route lost — recovering on the new output")
             self.recoverEngine(reason: "route lost")
         }
 
@@ -1044,14 +1046,23 @@ public final class AudioEngine {
                     // USB interface at the same 48 kHz changed nothing this gate read,
                     // so the chain stayed connected at the old count. Same guard shape
                     // (`> 0` keeps the transient input-less moment from tearing down).
-                    let newFormat = self.masterEngine.inputNode.inputFormat(forBus: 0)
-                    let newRate = newFormat.sampleRate
-                    if self.isInputMonitoring, newRate > 0, newFormat.channelCount > 0,
-                       newRate != self.monitorTapSampleRate
-                        || newFormat.channelCount != self.monitorTapChannelCount {
-                        self.rearmInputMonitoring(reason: newRate != self.monitorTapSampleRate
-                            ? "route sample-rate change"
-                            : "route channel-count change")
+                    // #859: the `inputNode` read moved INSIDE the monitoring gate.
+                    // The first access to `inputNode` on a RUNNING engine makes the
+                    // I/O unit grow an input bus — converter machinery the session
+                    // cannot back while it is playback-only (monitoring off), the
+                    // exact `isInputConnToConverter` assert family. The value was
+                    // only ever USED under this gate; reading it unconditionally on
+                    // every configuration change was pure hazard for zero information.
+                    if self.isInputMonitoring {
+                        let newFormat = self.masterEngine.inputNode.inputFormat(forBus: 0)
+                        let newRate = newFormat.sampleRate
+                        if newRate > 0, newFormat.channelCount > 0,
+                           newRate != self.monitorTapSampleRate
+                            || newFormat.channelCount != self.monitorTapChannelCount {
+                            self.rearmInputMonitoring(reason: newRate != self.monitorTapSampleRate
+                                ? "route sample-rate change"
+                                : "route channel-count change")
+                        }
                     }
                     return
                 }
@@ -1078,13 +1089,14 @@ public final class AudioEngine {
         guard recoveryAttempts < Self.maxRecoveryAttempts else {
             degraded = true
             lastAudioError = "Audio stopped (\(reason)) and auto-recovery gave up."
-            log.audio("Self-heal: giving up after \(recoveryAttempts) attempts (\(reason))", level: .error)
+            logEngineLifecycle("self-heal gave up after \(recoveryAttempts) attempts (\(reason))",
+                               level: .error)
             return
         }
         isRecovering = true
         recoveryAttempts += 1
         let attempt = recoveryAttempts
-        log.audio("Self-heal: recovery attempt \(attempt) (\(reason))")
+        logEngineLifecycle("self-heal attempt \(attempt) (\(reason))")
         // Small settle delay lets the OS finish the route/format transition before
         // we restart, avoiding a restart onto a half-built graph. MainActor Task so
         // the restart stays on the control plane (never the render thread).
@@ -1101,7 +1113,7 @@ public final class AudioEngine {
                 self.recoveryAttempts = 0
                 self.degraded = false
                 self.lastAudioError = nil
-                log.audio("Self-heal: engine recovered (\(reason))")
+                self.logEngineLifecycle("self-heal recovered (\(reason))")
             } else {
                 // start() failed (it sets degraded/lastAudioError); try again until cap.
                 self.recoverEngine(reason: reason)
@@ -1481,15 +1493,22 @@ public final class AudioEngine {
         if !masterEngine.isRunning {
             masterEngine.prepare()
             armTimingInstrument()
+            // #859: rungs around BOTH start attempts — start() can die in an ObjC
+            // assert (the isInputConnToConverter family) that never reaches the
+            // catch, and this method is the terminus of every async lifecycle
+            // restart. Without these lines a start-shaped death is 24 s of silence
+            // in the founder's log (v428, the sixth crash log).
+            logEngineLifecycle("start 1/2: starting master engine")
             do {
                 try masterEngine.start()
-                log.audio("Master AVAudioEngine started — audio output active")
+                logEngineLifecycle("start OK — audio output active")
             } catch {
                 log.audio("CRITICAL: Failed to start master engine: \(error)", level: .error)
                 do {
                     try AudioConfiguration.configureAudioSession()
+                    logEngineLifecycle("start 2/2: retry after session reconfigure")
                     try masterEngine.start()
-                    log.audio("Master AVAudioEngine started after session reconfiguration")
+                    logEngineLifecycle("start OK after session reconfigure")
                 } catch {
                     log.audio("CRITICAL: Master engine start failed after retry: \(error)", level: .error)
                     // Surface to the UI rather than silently showing "stopped".
@@ -2048,6 +2067,20 @@ public final class AudioEngine {
     private func logMonitorOutcome(_ message: String, level: LogLevel = .error) {
         log.audio("Input monitoring: \(message)", level: level)
         EchoelCrashLog.breadcrumb("monitor: \(message)")
+    }
+
+    /// #859 — the engine-lifecycle twin of `logMonitorOutcome`. Six device crash
+    /// logs in, and the sixth (v10.79.428) died 24 s after launch with NOTHING in
+    /// the exported diag file: the async lifecycle paths (interruption, route
+    /// loss, media reset, self-heal restart) spoke only os_log, which the export
+    /// never carries. Every one of them now leaves a line, so the NEXT log names
+    /// the path even when the crash is an ObjC assert no Swift catch sees — the
+    /// same discipline #854 gave the monitoring surgery. These are rare, discrete
+    /// events (an interruption, a capped recovery), never drag- or tick-rate
+    /// (#856b M1 does not apply).
+    private func logEngineLifecycle(_ message: String, level: LogLevel = .info) {
+        log.audio("Engine lifecycle: \(message)", level: level)
+        EchoelCrashLog.breadcrumb("engine: \(message)")
     }
 
     /// Start/stop monitoring the mic through the main output with FeedbackGuard.

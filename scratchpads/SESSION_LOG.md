@@ -15919,3 +15919,30 @@ Fenster, 0 Failures (#396-Muster). Deploy: v10.79.428 (Notes: Umbau abgeschafft,
 Autotune-Folter-Prüfbitte, tune=-Latenzmessung bei AUS, die zwei 427-Siege).
 v427-TestFlight-Verify: Lauf 33184619073 success + Founder-Log lief auf 2545 — doppelt
 bewiesen. Gerät offen für 428: Toggle-Folter crashfrei · Bypass-Latenz · Klang gleich.
+
+## 2026-08-29 — #859: Der sechste Crash-Log — Engine-Lebenszyklus spricht jetzt im Diag-Log
+
+Founder-Log v10.79.428 (2546), „Vermeide Abstürze": derselbe isInputConnToConverter-
+SIGABRT, aber ein NEUER Befund — KEINE Monitoring-Zeile im Log (Monitoring lief nie),
+Crash 24 s nach gesundem Launch, Stack aus einer Task-Continuation auf der Main-Queue
+(libswift_Concurrency + libdispatch statt SwiftUI-Binding). #858 ist damit ENTLASTET
+(sein Code läuft nur bei Monitoring ON) und der Crash sitzt in einem der ASYNC
+Lebenszyklus-Pfade: Interruption-Resume (direkter start() im Closure), Route-Lost /
+Media-Reset → recoverEngine → Task{300ms; start()} — Letzteres passt exakt zum Stack.
+
+Gemessen: ALLE diese Pfade sprachen nur os_log — der Diag-Export trägt das nicht,
+daher die 24 s Stille. Drei von sechs Crash-Logs sind an genau dieser Unsichtbarkeit
+ins Leere gelaufen. #859 = (A) `logEngineLifecycle` (Zwilling von logMonitorOutcome,
+schreibt `engine: …` in DIESELBE Export-Datei): 13 Sprossen — Interruption began/
+ended/OK/FAILED, media reset, route lost, self-heal attempt/recovered/gave-up, und
+Sprossen um BEIDE ObjC-assert-fähigen start()-Versuche (start 1/2 · start 2/2). Alles
+seltene diskrete Ereignisse, keine Drag-Rate (#856b-M1 geprüft). (B) Der EINE messbare
+Hazard auf so einem Pfad: der Config-Change-Watchdog las `masterEngine.inputNode` bei
+JEDEM Change auf laufender Engine — der erste Zugriff lässt die I/O-Unit einen
+Input-Bus wachsen, Converter-Maschinerie, die eine Playback-only-Session nicht trägt —
+obwohl der Wert nur unter `isInputMonitoring` benutzt wird. Read jetzt INNERHALB des
+Gates. Wächter: TheEngineLifecycleSpeaksInTheDiagLogTests (4 Claims, transkribiert
+17/17 grün; Nachbar-Nadeln von TheMonitoringSurvivesEngineRecovery Claim 3 überleben
+wörtlich). Ehrlich: ob (B) DIESEN Crash fixt, ist unbewiesen — aber das nächste Log
+NENNT den Pfad, statt 24 s zu schweigen. Gerät offen: Crash weg ODER Log mit
+`engine:`-Sprosse vor dem Sterben.
