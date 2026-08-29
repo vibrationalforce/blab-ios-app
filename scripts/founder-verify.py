@@ -162,6 +162,15 @@ SETUP = [
     ("network", ("OSC", "Art-Net", "ArtNet", "sACN", "DMX", "Pult", "console", "LAN")),
     ("background", ("lock screen", "sperren", "Anruf", "phone call", "Hintergrund",
                     "background", "Interruption", "interruption")),
+    # ⭐ ADDED #873 AFTER READING THE "no setup named" PILE, which is what that pile is FOR.
+    # Six asks in the first screenful were Dynamic-Type probes — the same iOS Settings change
+    # answers all of them in one pass — and the first version of this table had no needle for
+    # any of them, so they read as "no equipment" when they need the most deliberate setup on
+    # the list. A bucket nobody thought of looks exactly like an ask that needs nothing.
+    ("larger-text", ("Larger Text", "Text Size", "accessibility step", "AX3", "AX5",
+                     "Dynamic Type", "dynamicType")),
+    ("rotation", ("rotate", "Rotate", "landscape", "Landscape", "Querformat", "Hochformat",
+                  "portrait", "Portrait")),
 ]
 
 
@@ -290,6 +299,12 @@ def selftest() -> int:
         ("hold a finger on the lens until the pulse locks on device", {"camera"}, {"background"}),
         ("send to a DMX console over Art-Net and watch the fixture", {"network"}, set()),
         ("tap the tempo field and listen to the ease", set(), set()),
+        # #873: the two buckets the first table forgot. The rotation case ALSO checks that a
+        # landscape probe is not swept into `larger-text` merely for saying "text".
+        ("iOS Settings → Display → Text Size at an accessibility step, Bio panel open",
+         {"larger-text"}, {"rotation"}),
+        ("open the visual fullscreen, rotate to landscape, check the text still fits",
+         {"rotation"}, set()),
     ]:
         got = set(setups_of(body))
         if not want <= got:
