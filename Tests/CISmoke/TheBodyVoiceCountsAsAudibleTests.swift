@@ -104,11 +104,23 @@ final class TheBodyVoiceCountsAsAudibleTests: XCTestCase {
         }
     }
 
+    /// The transport-stop subscriber has its own, SHORTER chain than the scene chain above,
+    /// and it needs its own assertion for that reason. Given a message in #868: both of these
+    /// were bare `XCTAssertTrue(src.contains(disjunct))`, so a maintainer who deleted a
+    /// disjunct got a red with no name and no reason — the #367 shape, in the guard that
+    /// protects a 2.5.4 gate.
     func testTheStopSubscriberStillNamesItsOwnSources() throws {
         let src = try source(Self.app)
         for disjunct in ["|| microphoneManager?.isRecording == true",
                          "|| (polyVoice?.activeVoiceCount ?? 0) > 0"] {
-            XCTAssertTrue(src.contains(disjunct))
+            XCTAssertTrue(src.contains(disjunct), """
+            The transport-stop subscriber's background gate lost `\(disjunct)`. Widening this \
+            chain is the 2.5.4 rejection signature; NARROWING it strands whatever the lost \
+            disjunct represented. The mic one in particular is what keeps the engine alive \
+            through a voice-timbre take — `VoiceCaptureController` names this test as the \
+            reason its own cross-owner hazard is unreachable, so its header comment goes \
+            stale in the same commit that removes this.
+            """)
         }
     }
 

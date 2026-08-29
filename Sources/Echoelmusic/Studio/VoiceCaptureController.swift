@@ -28,12 +28,26 @@
 // PHASE MACHINE, not because some other caller happens to be dormant. The discipline
 // stays so a future mic owner cannot be stopped out from under.
 //
-// ⚠️ ONE CROSS-OWNER INTERACTION IS REAL AND PRE-DATES ALL OF THIS, recorded so it is not
-// later misattributed to the deletion: `AudioEngine.stop(reason:)` stops the mic
-// unconditionally, so backgrounding mid-take kills a mic this controller started while
-// `phase` stays `.capturing` and `micStartedByUs` stays `true`. The later
-// `releaseMic()` is harmless (`stopRecording` is idempotent), but the controller is left
-// armed behind its own guard. Unfixed, deliberately out of this slice.
+// ⛔ #866 RECORDED A CROSS-OWNER HAZARD HERE AS LIVE, AND IT IS NOT — retracted the same
+// day (#868), because a note that invents a bug costs the next session a hunt.
+// The SHAPE is real: `AudioEngine.stop(reason:)` stops the mic unconditionally, and if it
+// ran mid-take the controller would sit on `.capturing` with a dead mic. What #866 did not
+// check is the level above. `stop(reason:)` has exactly TWO production callers, both
+// `.idleBackground` in `EchoelmusicApp`, and BOTH are gated on an `audioNeeded` chain whose
+// disjuncts include `microphoneManager.isRecording` — which a take sets, because `begin()`
+// starts the mic. Backgrounding mid-capture therefore keeps the engine up; the branch that
+// would strand this controller is not reachable.
+//
+// ⭐ AND THE PROTECTION IS DELIBERATE, not luck: both chains are pinned by
+// `TheBodyVoiceCountsAsAudibleTests` (`…SceneChainStillNamesEveryOtherSourceOfSound` and
+// `…StopSubscriberStillNamesItsOwnSources`), whose failure text calls widening that chain
+// "the 2.5.4 rejection signature". No guard is added here — a third home for one rule is
+// the #416 defect, and the rule already has two.
+//
+// ⚠️ WHAT WOULD MAKE IT REACHABLE, stated so it is not rediscovered from scratch: dropping
+// `microphoneManager.isRecording` from either chain, or starting a take WITHOUT starting
+// the mic (`micStartedByUs == false`, i.e. some future second mic owner). Both go red in
+// that test first, which is where the trail should start.
 //
 // Observable writes are change-gated (the sink fires up to ~47×/s — `installTap`'s
 // 1024 bufferSize is advisory, real buffers can be larger; `progress` moves only when
