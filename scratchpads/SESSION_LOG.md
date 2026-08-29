@@ -16011,3 +16011,47 @@ Commit); Worktree dreimal grün. Anker-Eindeutigkeit vorab geprüft (#408, alle 
 
 OFFEN und ehrlich: der exakte Auslöser ist weiter unbenannt. #860 macht das nächste Log
 aussagefähig — es kann nicht mehr schweigen, wenn ein pause/prepare stirbt.
+
+## 2026-08-29 — #860b: der Zeuge hatte den Fehler, den er bewachen sollte
+
+Pflicht-Reviewer auf #860: KEIN Blocker, aber sieben Nachbesserungen. Die vier
+umgesetzten, plus eine Rücknahme meiner eigenen Beweisführung.
+
+1. **DURABLE SINK FIRST (der wertvollste Fund).** `logEngineLifecycle` und
+   `logMonitorOutcome` riefen `os_log` VOR `EchoelCrashLog.breadcrumb`. `os_log` nimmt ein
+   Lock im Unified-Logging und kann gedrosselt werden — stirbt der Prozess zwischen den
+   zwei Zeilen, ist die Sprosse WEG und der Pfad liest sich als nicht-genommen. Also
+   exakt der #860-Defekt eine Ebene tiefer, IM Zeugen. Getauscht.
+2. **ÜBER-BEHAUPTUNG ZURÜCKGENOMMEN.** Mein #860-Kommentar schrieb, `pause()` könne den
+   isInputConnToConverter-Assert auslösen — „MEASURED". Gemessen war die ABWESENHEIT DER
+   SPROSSEN. Dass `pause()` genau diesen Assert wirft, ist eine Hypothese, und nicht die
+   stärkste (v427 nannte einen RESTART; `pause()` verändert keine Verbindungen). Das
+   Argument braucht sie nicht: ein Zeuge darf nie hinter dem Aufruf stehen. Genau die
+   Defektklasse, die CLAUDE.md „ein Kommentar mit falscher Begründung ist schlimmer als
+   keiner" nennt.
+3. **`prepareGraph()`-Prämisse korrigiert.** Ich schrieb, es brauche keine Sprosse, weil es
+   seine `latency:`-Zeile schon schreibt. Die Zeile sitzt INNERHALB des `do`-Blocks; wirft
+   `configureAudioSession()`, schreibt der `catch` nur os_log UND `setupMasterEngine()`
+   läuft trotzdem — zwei `attach`, ein `connect`, zwei `mainMixerNode`-Zugriffe, ohne jede
+   Sprosse. Selten, aber erreichbar: UNGEDECKT, nicht gedeckt.
+4. **`MicrophoneManager:257`** hatte denselben #860-Defekt (`prepare()` vor der Sprosse).
+   Wortlaut unverändert verschoben (ein Wächter ankert darauf).
+5. **Wächter:** Anspruch 7 (durable-first) neu; Anker-Eindeutigkeit ist jetzt ASSERTIERT
+   statt im Kommentar behauptet — der Reviewer fand genau diese Lüge im Kopf. Case-3-Nadel
+   mit der Umbenennung mitgezogen (`engine.prepare() — …`, weil zwei verschieden
+   skopierte Dinge hier „prepare" heißen).
+
+⛔ **EINE MEINER AUSSCHLUSS-BEHAUPTUNGEN IST FALSIFIZIERT.** Ich führte „Unterbrechung
+began" als AUSGESCHLOSSEN und „Route-Verlust" nur als „jenseits seiner Sprosse". Auf dem
+v429-Build standen BEIDE Sprossen hinter `pause()` — das ist die Prämisse von #860. Ein
+SIGABRT in `onInterruptionBegan`s `pause()` erzeugt exakt die beobachtete Signatur. Die
+zwei Pfade waren symmetrisch; die Schlussfolgerung muss es auch sein. Korrekt ist
+**„unwahrscheinlich, nicht ausgeschlossen"** (schwaches Gegenindiz: eine Siri/Wecker-
+Unterbrechung treibt `scenePhase` normalerweise auf `.inactive`, und keine `scene:`-Zeile
+erschien). Der Ausschluss zählt also NEUN minus EINS = acht Pfade.
+
+NOCH OFFEN (Reviewer 3+4, nächste Scheibe): `start()` auf bereits LAUFENDER Engine ist
+komplett stumm und macht dabei Tap-Chirurgie (`installMeterTap`, `retroCapture.install`);
+und die Familie `attachSourceNode`/`attachPlayerNode`/`restartOrDegrade` hat null Sprossen
+— laut Reviewer der einzige unbekrümelte Cluster, dessen Stack-Tiefe zu den sechs
+Echoelmusic-Frames passt. Das ist die stärkste verbleibende Spur.

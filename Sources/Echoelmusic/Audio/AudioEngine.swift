@@ -760,9 +760,16 @@ public final class AudioEngine {
             // ⛔ #860 — THE RUNG MOVED UP, AND THE MOVE IS THE WHOLE POINT.
             // #859 put it AFTER the call, so a pause that DIES logs nothing: the witness
             // stood on the far side of the very call it was built to witness.
-            // `AVAudioEngine.pause()` is a graph operation and can raise the
-            // isInputConnToConverter ObjC assert that no Swift `catch` sees — measured
-            // as total silence in the v429 log (seventh crash, not one rung of 22).
+            //
+            // ⛔ #860b SOFTENED WHAT THIS BLOCK CLAIMED, and the retraction is why it is
+            // kept. It said `pause()` "can raise the isInputConnToConverter ObjC assert
+            // — MEASURED as total silence in the v429 log". What was measured is the
+            // ABSENCE OF RUNGS. That `pause()` raises THAT assert is a hypothesis, and
+            // not the strongest one: this repo's own evidence puts it on `start()` and
+            // on connect/attach with an input edge (v427 named a RESTART), and `pause()`
+            // mutates no connections. The argument needs none of it — `pause()` is a
+            // graph call that can abort inside AVFAudio uncatchably, and a witness must
+            // never stand behind the call it witnesses. That is enough, and unfalsifiable.
             self?.logEngineLifecycle("interrupted — pausing")
             self?.masterEngine.pause()
             self?.isRunning = false
@@ -825,12 +832,15 @@ public final class AudioEngine {
         }
         AudioConfiguration.onRouteDeviceLost = { [weak self] in
             guard let self else { return }
-            // ⛔ #860 — THE RUNG MOVED UP, AND THE MOVE IS THE WHOLE POINT.
-            // #859 put it AFTER the call, so a pause that DIES logs nothing: the witness
-            // stood on the far side of the very call it was built to witness.
-            // `AVAudioEngine.pause()` is a graph operation and can raise the
-            // isInputConnToConverter ObjC assert that no Swift `catch` sees — measured
-            // as total silence in the v429 log (seventh crash, not one rung of 22).
+            // ⛔ #860 — the rung moved AHEAD of the call. The law and its #860b retraction
+            // are written ONCE, at `onInterruptionBegan` above (#416), not repeated here.
+            //
+            // ⚠️ #860b, reviewer: this line says "recovering", and `recoverEngine` below
+            // can decline SILENTLY on two of its three gates (`intentionallyStopped`,
+            // `isRecovering`). A log can therefore carry "recovering" with no recovery
+            // and no further line. PRE-EXISTING — the rung was already ahead of
+            // `recoverEngine` at its old position — so the repair belongs in those two
+            // guards, not in a reword of a string a guard anchors on.
             // ⚠️ The wording is UNCHANGED on purpose: a guard anchors on the prefix
             // `route lost — recovering`, and rephrasing it while moving it would be the
             // #655/#656 defect — green needle, dead surface — in the same commit.
@@ -1506,11 +1516,21 @@ public final class AudioEngine {
         // (startup task, scenePhase .active, or route-change recovery).
         prepareGraph()
         if !masterEngine.isRunning {
-            // #860: `prepare()` is an AVFAudio GRAPH call and it sat in front of the
-            // first rung — a death here read as silence. `prepareGraph()` above needs
-            // none: it is latched once-only and already writes its own `latency:` line
-            // on the one call that does work.
-            logEngineLifecycle("prepare — allocating graph resources")
+            // #860: `masterEngine.prepare()` is an AVFAudio GRAPH call and it sat in
+            // front of the first rung — a death here read as silence.
+            //
+            // ⛔ #860b CORRECTED THE PREMISE THIS COMMENT ADDED ABOUT ITS NEIGHBOUR. It
+            // said `prepareGraph()` "needs none: latched once-only and already writes its
+            // own `latency:` line on the one call that does work". That line sits INSIDE
+            // that method's `do` block: if `configureAudioSession()` throws, the `catch`
+            // writes os_log only AND `setupMasterEngine()` still runs — two `attach`es, an
+            // `outputNode` format read, a `connect`, two `mainMixerNode` accesses, none of
+            // them crumbed. Rare (the latch) but reachable, so "needs none" was too strong:
+            // that path is UNCOVERED, not covered.
+            //
+            // ⚠️ The rung names `engine.prepare()` explicitly: two differently scoped
+            // things here are called "prepare", and only one of them is logged.
+            logEngineLifecycle("engine.prepare() — allocating graph resources")
             masterEngine.prepare()
             armTimingInstrument()
             // #859: rungs around BOTH start attempts — start() can die in an ObjC
@@ -2084,9 +2104,15 @@ public final class AudioEngine {
     ///
     /// ⚠️ ONE MESSAGE, TWO SINKS (#416). The prefixes differ because the sinks do: `os_log`
     /// carries a category, the breadcrumb file is flat and needs a greppable stem.
+    /// ⛔ #860b — THE DURABLE SINK GOES FIRST, and the reason is #860 one level down.
+    /// `os_log` takes a lock in the unified-logging subsystem and can stall or be
+    /// throttled; if the process dies between the two lines the rung is LOST and the
+    /// path reads as never-taken — the exact failure the ladder exists to prevent,
+    /// reproduced inside the witness itself. `write(2)` is unbuffered and reaches the
+    /// kernel synchronously, so it must not queue behind the slow sink.
     private func logMonitorOutcome(_ message: String, level: LogLevel = .error) {
-        log.audio("Input monitoring: \(message)", level: level)
         EchoelCrashLog.breadcrumb("monitor: \(message)")
+        log.audio("Input monitoring: \(message)", level: level)
     }
 
     /// #859 — the engine-lifecycle twin of `logMonitorOutcome`. Six device crash
@@ -2098,9 +2124,10 @@ public final class AudioEngine {
     /// same discipline #854 gave the monitoring surgery. These are rare, discrete
     /// events (an interruption, a capped recovery), never drag- or tick-rate
     /// (#856b M1 does not apply).
+    /// ⛔ #860b — durable sink FIRST, same reason as `logMonitorOutcome` above (#416).
     private func logEngineLifecycle(_ message: String, level: LogLevel = .info) {
-        log.audio("Engine lifecycle: \(message)", level: level)
         EchoelCrashLog.breadcrumb("engine: \(message)")
+        log.audio("Engine lifecycle: \(message)", level: level)
     }
 
     /// Start/stop monitoring the mic through the main output with FeedbackGuard.

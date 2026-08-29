@@ -29,6 +29,14 @@
 // could never have a verdict there. Counterweights: the claim-4 gate needles are the ones
 // TheMonitoringSurvivesEngineRecoveryTests claim 3 already holds green on both trees.
 //
+// ⭐ GRADING, claim 7 (#860b): TWO REGRESSIONS — both helpers put `os_log` before the
+// breadcrumb on the parent, red for exactly the reason the claim names. Claim 6's third
+// case is red there by needle absence (the rung was renamed to say `engine.prepare()` in
+// the same commit that added this line, so the old spelling is gone from BOTH trees —
+// `dead-needles.py` confirms no guard still hunts it). The anchor-uniqueness assertion is
+// a COUNTERWEIGHT: green on both trees today, and it exists because the header used to
+// claim a check that the code did not perform.
+//
 // ⭐ GRADING, claim 6 (#860) — the strongest in this file, and transcribed against BOTH
 // trees rather than reasoned: TWO REGRESSIONS (the interruption and route-lost rungs sit
 // AFTER `masterEngine.pause()` on the parent, red for exactly the reason the claim's name
@@ -168,7 +176,8 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
     /// owns. Pinned is ORDER only, which is the part that carries the law.
     func testEachRungStandsBeforeItsGraphCall() throws {
         let code = try code(Self.enginePath)
-        // anchor, rung, graph call, window — each anchor verified to occur exactly once
+        // anchor, rung, graph call, window — uniqueness is ASSERTED below, not asserted
+        // in prose: #860b, reviewer, found this comment claiming a check it did not do.
         let cases: [(String, String, String, Int)] = [
             ("onInterruptionBegan = { [weak self] in",
              "logEngineLifecycle(\"interrupted — pausing\")",
@@ -177,10 +186,15 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
              "logEngineLifecycle(\"route lost — recovering",
              "masterEngine.pause()", 900),
             ("    func start() {",
-             "logEngineLifecycle(\"prepare — allocating graph resources\")",
+             "logEngineLifecycle(\"engine.prepare() — allocating graph resources\")",
              "masterEngine.prepare()", 900),
         ]
         for (anchor, rung, call, window) in cases {
+            XCTAssertEqual(occurrences(of: anchor, in: code), 1, """
+                `\(anchor)` is no longer unique in the file (#408). `range(of:)` takes the \
+                FIRST match, so the window below would open on the wrong site and could \
+                hand back a green for a function this claim never meant to inspect.
+                """)
             guard let a = code.range(of: anchor) else {
                 XCTFail("anchor `\(anchor)` is gone — re-anchor this claim (§4).")
                 return
@@ -198,6 +212,39 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 The rung for `\(call)` sits AFTER the call again (#860). A pause/prepare \
                 that raises the isInputConnToConverter ObjC assert then logs nothing, and \
                 the next crash log reads as "path not taken" instead of naming the step.
+                """)
+        }
+    }
+
+
+    // MARK: - 7: the witness writes the DURABLE sink first (#860b)
+
+    /// ⛔ THE LADDER HAD ITS OWN #860 DEFECT, one level down. Both helpers called the
+    /// slow shared sink (`os_log`, which locks and can be throttled) BEFORE the durable
+    /// unbuffered `write(2)`. A process dying between those two statements loses the rung
+    /// and the path reads as never-taken — precisely what the ladder exists to prevent.
+    ///
+    /// ⚠️ Order only (#364): the message text, the prefixes and the level default are
+    /// free to change.
+    func testTheDurableSinkIsWrittenFirst() throws {
+        let code = try code(Self.enginePath)
+        for (fn, crumb, oslog) in [
+            ("private func logEngineLifecycle", "EchoelCrashLog.breadcrumb(\"engine: ", "log.audio(\"Engine lifecycle: "),
+            ("private func logMonitorOutcome", "EchoelCrashLog.breadcrumb(\"monitor: ", "log.audio(\"Input monitoring: "),
+        ] {
+            guard let a = code.range(of: fn) else {
+                XCTFail("`\(fn)` is gone — re-anchor this claim (§4).")
+                return
+            }
+            let body = String(code[a.lowerBound...].prefix(400))
+            guard let c = body.range(of: crumb), let o = body.range(of: oslog) else {
+                XCTFail("both sinks must stay in `\(fn)` — the exported log is the only one the founder sends.")
+                return
+            }
+            XCTAssertTrue(c.lowerBound < o.lowerBound, """
+                `\(fn)` writes os_log before the breadcrumb again (#860b). os_log locks in \
+                the unified-logging subsystem; a death between the two statements loses the \
+                rung, and a lost rung reads as a path never taken.
                 """)
         }
     }

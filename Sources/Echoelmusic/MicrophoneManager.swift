@@ -253,9 +253,12 @@ final class MicrophoneManager: NSObject {
                 }
             }
 
-            // Prepare and start the audio engine
-            audioEngine.prepare()
+            // #860b — the #860 rule reaches here too (reviewer C): `prepare()` is an
+            // AVFAudio graph call and it sat AHEAD of the rung, so a death inside it
+            // logged `mic: start 2/3` and read as "never reached the start". Wording
+            // UNCHANGED while moving — a guard anchors on this exact literal (#655/#656).
             EchoelCrashLog.breadcrumb("mic: start 3/3 — starting capture engine")
+            audioEngine.prepare()
             try audioEngine.start()
 
             self.isRecording = true
