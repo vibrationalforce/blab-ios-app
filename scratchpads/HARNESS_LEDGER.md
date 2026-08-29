@@ -97,10 +97,15 @@ Bedienelement (#724 `breathPlayEnabled`, #727 `isAutomatic`, #730 `ArtNetSender.
 dazu das schon notierte `inputMonitoringEnabled`). Jeder Fund war ein Zufall und kostete einen
 Zyklus. Seit #734 gibt es dafür einen Befehl:
 
-    python3 scripts/doorless-state.py     # ~1,7 s · 320 Deklarationen / 254 Namen · 35 ohne Schreiber
+    python3 scripts/doorless-state.py     # ⛔ die drei Zahlen, die hier standen (320/254/35), sind
+                                          # GELÖSCHT statt nachgeführt — das Skript druckt sie selbst
 
-Er trägt seine eigene **Bekannt-Positiv-Kontrolle** (`isAutomatic` + `inputMonitoringEnabled`
-müssen auftauchen, sonst Exit 2) — das Gesetz „ein Detektor, der seinen eigenen bekannten
+Er trägt seine eigene **Bekannt-Positiv-Kontrolle** (heute `isAutomatic` +
+`useConvolutionReverb` müssen auftauchen, sonst Exit 2 — ⛔ hier stand
+`inputMonitoringEnabled`, und die Kontrolle hatte längst DREI Namen, nicht zwei; die Flagge
+ist mit #866 gelöscht, weil genau dieser Detektor sie immer wieder fand. Eine Kontrolle, die
+nie in Rente gehen kann, beschreibt das Repo nicht mehr — die Namen sind im Skript zu lesen,
+nicht hier) — das Gesetz „ein Detektor, der seinen eigenen bekannten
 Positivfall nie gefunden hat, ist keine Messung", ausführbar gemacht.
 ⚠️ Ein Treffer ist eine **FRAGE**, kein Defekt. Eine DSP-Stellschraube ohne Schreiber ist in
 Ordnung; der Defekt ist ein Knopf, dessen Doc einen Benutzer nennt, der ihn nicht drehen kann.

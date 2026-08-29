@@ -34,7 +34,37 @@ public final class AudioEngine {
     // forbid someone genuinely building in-engine spatial audio one day — which is legitimate
     // work. This comment is the record; if the property comes back it should come back with a
     // reader, a writer and a door, and this block should go with it.
-    var inputMonitoringEnabled: Bool = false
+    //
+    // ⛔ AND `var inputMonitoringEnabled: Bool = false` STOOD ON THE VERY NEXT LINE AND IS
+    // ALSO DELETED (#866) — a second tombstone in the same block on purpose, because until
+    // this commit the paragraph above ENDED one line above a live property and read as a
+    // description of it. It said a returning property needs "a reader, a writer and a door";
+    // the line below it had a reader, NO writer and NO door. A tombstone that touches the
+    // next declaration is a mislabel waiting to happen.
+    //
+    // WHAT IT WAS: a stored `Bool`, zero writers in `Sources/` AND `Tests/` (verified against
+    // SwiftUI bindings, `@Bindable`, KVO — the class is `@Observable`, not `NSObject` — and
+    // reflection, of which this repo has none), not persisted, `final` so no subclass could
+    // set it. Its single reader was `if inputMonitoringEnabled { microphoneManager
+    // .startRecording() }` in `start()`, deleted with it: dead in every configuration.
+    //
+    // ⚠️ WHY IT WAS WORSE THAN MERELY DEAD, which is why it went rather than getting a note.
+    // The LIVE input-monitoring mechanism is a near-namesake that never touched it:
+    // `setInputMonitoring(_:)` / `engageInputMonitoring()` drive `isInputMonitoring` (~:390).
+    // Two names one prefix apart, one live and one inert, on the same class. The obvious
+    // "fix the flag that nothing writes" is to have the live setter write it — and THAT
+    // silently starts a SECOND `AVAudioEngine`'s mic (`MicrophoneManager` owns its own engine
+    // and taps its own `inputNode`) on every master-engine start. Two engines contending for
+    // the one HAL input is the family this file already names at ~:1076 as growing an input
+    // bus "the session cannot back while it is playback-only" — the `isInputConnToConverter`
+    // assert, seven device logs deep. Deleting is a strict REDUCTION in that exposure.
+    //
+    // ⚠️ NOT a regression, and not a behaviour change: `stop(reason:)` has always called
+    // `microphoneManager.stopRecording()` UNCONDITIONALLY (~:1993) and still does. So
+    // `start()` never started the mic and `stop()` still stops it — byte for byte the runtime
+    // behaviour of every build that shipped. Same commit, because they go stale together:
+    // `scripts/doorless-state.py` listed this name in its known-positive CONTROL, and
+    // `VoiceCaptureController`'s header used its dormancy as a premise (#456).
     var masterLevel: Float = 0.0
     var masterLevelR: Float = 0.0
 
@@ -1563,7 +1593,6 @@ public final class AudioEngine {
                 }
             }
         }
-        if inputMonitoringEnabled { microphoneManager.startRecording() }
         startMeterPollTimer()
         // Both taps are re-installed on EVERY start, not once at graph build, and both
         // remove any previous tap first. A media-services reset orphans them; the graph

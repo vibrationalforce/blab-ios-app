@@ -30,10 +30,18 @@ version claimed. Widening it is a real option for a later slice, and it needs th
 matcher first.
 
 KNOWN-POSITIVE CONTROL (this repo's own law: a detector that has never found its own known
-positive is not a measurement). Two properties are recorded IN THE SOURCE as doorless:
-`ResourceGovernor.isAutomatic` (#727, with a guard) and `AudioEngine.inputMonitoringEnabled`
-(recorded at `VoiceCaptureController.swift`). If either stops appearing, this script is
-broken OR someone built the door — either way it is not a silent pass: exit code 2.
+positive is not a measurement). TWO properties are recorded IN THE SOURCE as doorless:
+`ResourceGovernor.isAutomatic` (#727, with a guard) and `EchoelDDSP.useConvolutionReverb`
+(#735/#546). If either stops appearing, this script is broken OR someone built the door —
+either way it is not a silent pass: exit code 2.
+
+⛔ `AudioEngine.inputMonitoringEnabled` WAS THE THIRD AND IS GONE (#866) — cause 1 of the
+three the failure message lists, in its rarest form: not "someone built the door" but
+"someone removed the property". It was deleted precisely BECAUSE this detector kept finding
+it, which is the outcome a known-positive control is supposed to produce; a control that can
+never retire has stopped describing the repo. Note the count above said "Two" while the tuple
+already held three — the #735 addition never updated the sentence, so this correction is two
+facts, not one.
 
 THREE SECTIONS, BECAUSE THE FIRST VERSION DROPPED TWO KINDS OF HIT IN SILENCE (#735):
   · the main list — one declaration of the name, no writer;
@@ -107,7 +115,7 @@ WORD = re.compile(r"\b([a-z]\w*)\b")
 
 # The control is what makes this a measurement rather than a guess. `useConvolutionReverb` is
 # added by #735 precisely BECAUSE the first version could not see it (see MODIFIER above).
-CONTROL = ("isAutomatic", "inputMonitoringEnabled", "useConvolutionReverb")
+CONTROL = ("isAutomatic", "useConvolutionReverb")
 
 
 def class_members(text):

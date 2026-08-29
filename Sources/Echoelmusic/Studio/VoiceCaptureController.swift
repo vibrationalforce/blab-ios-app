@@ -8,11 +8,32 @@
 // state for the ONE leaf row that renders it, and on completion hands the measured
 // profile to `PolySynthVoice.applyVoiceProfile` — the #591a pathway that survives patch
 // recalls. Mic lifecycle is borrowed, not owned: only a mic THIS controller started is
-// stopped. (The `micStartedByUs` check is DEFENSIVE, not a live interaction — measured
-// at review #592b: the one production caller of `microphoneManager.startRecording()`
-// sits behind `inputMonitoringEnabled`, which has zero writers in `Sources/`, so
-// `mic.isRecording` is false at every reachable `begin()` today. The discipline stays
-// so a future mic owner cannot be stopped out from under.)
+// stopped. The `micStartedByUs` check is DEFENSIVE, not a live interaction — but its
+// stated reason was wrong twice over, so here is the measured one (#866).
+//
+// ⛔ WHAT #592b WROTE: "the one production caller of `microphoneManager.startRecording()`
+// sits behind `inputMonitoringEnabled`, which has zero writers". BOTH halves failed. The
+// zero-writer half was TRUE and is now moot — that flag and its dead branch are deleted
+// (see the tombstone in `AudioEngine`). The "one caller" half was FALSE the day it was
+// written: there were two, and the second is line ~69 of THIS file. The sentence looked
+// past the only caller that can actually make `mic.isRecording` true — its own.
+//
+// ⭐ THE CONCLUSION SURVIVES ON A STRONGER INVARIANT, which is why the check stays.
+// `begin()` opens `guard phase != .capturing`, so re-entry is only possible from `.idle`
+// or `.done`; and EVERY exit from `.capturing` releases the mic (completion and
+// `cancel()` both call `releaseMic()`). `clearApplied(synth:)` returns to `.idle` without
+// releasing, and that is safe because it is reachable only from `.done`, where the mic is
+// already released. So the controller can never re-enter `begin()` with a mic it started
+// still running — `mic.isRecording` is false at every reachable `begin()` because of the
+// PHASE MACHINE, not because some other caller happens to be dormant. The discipline
+// stays so a future mic owner cannot be stopped out from under.
+//
+// ⚠️ ONE CROSS-OWNER INTERACTION IS REAL AND PRE-DATES ALL OF THIS, recorded so it is not
+// later misattributed to the deletion: `AudioEngine.stop(reason:)` stops the mic
+// unconditionally, so backgrounding mid-take kills a mic this controller started while
+// `phase` stays `.capturing` and `micStartedByUs` stays `true`. The later
+// `releaseMic()` is harmless (`stopRecording` is idempotent), but the controller is left
+// armed behind its own guard. Unfixed, deliberately out of this slice.
 //
 // Observable writes are change-gated (the sink fires up to ~47×/s — `installTap`'s
 // 1024 bufferSize is advisory, real buffers can be larger; `progress` moves only when
