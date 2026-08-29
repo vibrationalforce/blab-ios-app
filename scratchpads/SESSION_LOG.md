@@ -16320,3 +16320,78 @@ trifft keinen Pfad-Filter. Sein Baum wird erst von #868s Lauf mitgeprüft — au
   bumpen, wenn ein Gerätelog da ist ODER genug Substanz für 431 zusammenkommt.
 - `TimelineStore`s aufruferlose Methoden — gemeldet, nicht gemessen.
 - Reviewer-M3-Urteil (Interruption-Resume: direktes `start()` vs. Routing über `recoverEngine`).
+
+## 2026-08-29 (Fortsetzung) — #870–#875: vom Register zum Ausschluss einer Absturz-Hypothese
+
+- **#870 (`ff60469`) — `TimelineStore`: 10 von 58 Namen haben einen Aufrufer.** 59 Deklarationen
+  unter 58 Namen (`moveRegion` überladen); 10 extern gerufen, 6 nur intern, **42 ohne jeden
+  Aufrufer** — und die 42 sind EIN kohärenter Satz: die API der Arrangement-Fläche, die #121
+  Slice 4 entfernt hat. **Keine Löschung**, und der Grund ist NICHT #527 (kein gespeichertes
+  Dokument ruft `setLanePan`): 33 der 42 tragen TESTS, also die überlebende Spezifikation, die
+  eine künftige Spur-Fläche bräuchte; der Founder hat „mehrere" ausdrücklich verlangt; dagegen
+  schneidet PRODUCT_DEFINITION Arrangement ab. Echte offene Founder-Entscheidung.
+  ⚠️ **Zwei Zahlen, zwei Fragen**: 42 ohne AUFRUFER, 9 ohne Aufrufer UND ohne TEST. Ich hatte
+  „9 caller-less methods" notiert — richtig über die andere Frage. Der Wächter pinnt die
+  LEBENDEN 10 (`persist` als FLOOR ≥2, nie die gemessenen 9 — eine Aufruferzahl ist ein Datum).
+- **#871 (`5f73f90`) — der Interruption-Resume sagt, ob das Monitoring wiederkam.** Gemessen:
+  `onInterruptionResume` startet `masterEngine` DIREKT, als einziger Resume-Weg nicht über
+  `AudioEngine.start()`, und `rearmInputMonitoring` hat nur zwei Aufrufer (`start()` + der
+  Config-Change-Zweig). Ob ein Anruf den Monitor tötet, ist aus dem Quelltext NICHT
+  entscheidbar (`pause()` behält den Graphen; es hängt an der Session-Kategorie) ⇒ beide
+  Sprossen tragen jetzt `monitoring:`. **M3-Urteil: NICHT über `recoverEngine` routen** —
+  `rearmInputMonitoring` ist ein AUS→EIN-Zyklus, also Graph-Chirurgie plus zwei
+  Kategorie-Flips, exakt die Form der `isInputConnToConverter`-Familie. Erst Beweis.
+- **#872/#873 (`3ac553c`, `04b2d0d`) — `founder-verify.py --setup`.** Gruppiert nach der
+  AUSRÜSTUNG statt nach dem Thema, weil eine Geräte-Sitzung durch das Setup begrenzt ist.
+  Heute: monitoring 10 · larger-text 7 · camera 6 · speaker 3 · network 2 · rotation 2 ·
+  strap 2 · headphones 1 · background 1; **37 ohne genanntes Setup** (nicht „braucht nichts").
+  ⛔ #873 ist die Selbstkorrektur von #872: sechs Dynamic-Type-Proben hatten in meiner ersten
+  Tabelle KEIN Wort — **ein Eimer, an den niemand gedacht hat, sieht aus wie eine Bitte, die
+  nichts braucht.** Gerettet nur durch den „kein Setup genannt"-Eimer; ein ratender
+  Klassifizierer hätte sie für immer versteckt. Bare `lock` fehlt absichtlich in `background`
+  (dieses Repo sagt „pulse lock" über rPPG) und der Selbsttest pinnt genau diese Auslassung.
+- **#874 (`b9df831`) — `doctor.py` meldete einen Fehlalarm, im Werkzeug für Werkzeug-Ehrlichkeit.**
+  `struct Uniforms {` existiert — im **Metal-Shader-Text** (`MetalBioView.swift:1282`), also in
+  einer Zeichenkette, die `_declarations_only` nie enthalten kann. Zweiter Heuhaufen aus
+  `_code_only` (NICHT Rohtext: ein Kommentar dürfte keinen toten Suchbegriff retten — der
+  `EchoelModalBank`-Trap). ⛔ **Erster Entwurf machte den Prüfer VAKUUM**: der Fallback enthielt
+  die Wächter-Dateien, und `_code_only` behält Zeichenketten ⇒ jeder Suchbegriff fand SICH
+  SELBST. Bewiesen durch Einschleusen eines erfundenen Namens: vorher gefangen, nachher still.
+- **#875 (`947b651`) — eine ganze Absturz-Hypothese AUSGESCHLOSSEN.** Alle fünf
+  `masterEngine.inputNode`-Stellen gelesen: jede hinter beanspruchter Aufnahme-Route oder dem
+  Monitoring-Gate (OFF-Pfad trennt bei 2/5 und 3/5, gibt die Route erst bei 4/5 frei — richtige
+  Reihenfolge). ⚠️ Ich hätte fast den Config-Change-Wächter als Fehler gemeldet (er feuert bei
+  Routenwechseln = die Founder-Repro) — #859 hatte ihn längst gegated. ⛔ Der „kluge" Wächter
+  (Rückwärtssuche nach dem Routen-Anspruch, 260-Zeichen-Fenster) meldete **4 von 5 falsch**;
+  gebaut wurde stattdessen eine ZÄHLUNG, die ihre Blindheit zugibt.
+
+### Was diese Runde über MICH gelernt hat (fünf Selbstkorrekturen, eine Form)
+
+„gemessen" (#860) · „der einzige Start ohne Sprosse" (#862) · „Hintergrundwechsel strandet den
+Controller" (#866) · Simulation auf ROHTEXT statt kommentar-gestrippt (#871) · Vorher-Messung
+mit einer Kopie aus `/tmp`, die den Repo-Pfad aus ihrem eigenen Ort ableitet (#874).
+**Vier davon sind nicht falscher Code, sondern das FALSCHE MESSGERÄT** — und die fünfte ist
+eine richtige Beobachtung über eine Ebene, formuliert als Schluss über die ganze Kette.
+Gegenmittel, das gegriffen hat: (a) nach jeder Aussage über einen Aufrufpfad die Aufrufer des
+Aufrufers zählen; (b) jede Kontrolle absichtlich kaputtmachen und ROT sehen, bevor man ihr glaubt.
+
+### Prozess
+
+⛔ **#869: Modellnamen ins Repo gepusht.** Ein wörtliches Founder-Zitat trug sie. Der
+Prüfbefehl LIEF und meldete „2" — aber in derselben Befehlskette wie der Push, das Ergebnis
+konnte also nicht mehr eingreifen. **Ein Messgerät, dessen Ergebnis zu spät kommt, ist keins.**
+Seither eigener Befehl VOR dem Push; hält seit sieben Commits.
+
+⚠️ **Gate-Erkenntnis, die Zeit spart:** das tail-200-Fenster zeigt bei JEDEM Lauf dieselben
+~135 Tests; kein neuer Anspruch taucht je darin auf. Belastbar ist nur
+`build-for-testing: Succeeded`. Formulierung bleibt „compile-bewiesen, laufzeit-unbewiesen".
+⚠️ Commits nur auf `scripts/`, `CLAUDE.md`, `memory/`, `scratchpads/` lösen GAR KEINE Läufe aus.
+
+### Offen
+
+- v430-Prüfbitten unverändert; **die Monitoring-Probe erledigt jetzt nachweislich 10 Bitten**
+  (`founder-verify.py --setup`). NEU dazu: einmal während laufendem Monitoring anrufen lassen,
+  dann die zwei `monitoring:`-Zeilen im Log vergleichen (#871).
+- Deploy GEHALTEN — kein Gerätelog, keine Founder-Antwort, und ein Diagnose-Zugewinn allein auf
+  ungelaufene Prüfbitten zu stapeln ist zu wenig.
+- `TimelineStore`-Entscheidung (42 Methoden) gehört dem Founder.
