@@ -29,6 +29,15 @@
 // could never have a verdict there. Counterweights: the claim-4 gate needles are the ones
 // TheMonitoringSurvivesEngineRecoveryTests claim 3 already holds green on both trees.
 //
+// ⭐ GRADING, claim 12 (#875): a COUNTERWEIGHT, green on both trees, and the flattering
+// reading is available so it is refused here. It fixes nothing and instruments nothing —
+// all five sites were ALREADY route-guarded when I read them, which is the finding. Its
+// value is that the audit stops being a thing one session did once: a SIXTH site now goes
+// red instead of joining four crash-adjacent hazards unreviewed. Note what it deliberately
+// is NOT: a check of WHY each site is safe. The smarter version — look back N characters
+// for the route claim — called 4 of 5 unguarded at a 260-character window, all four false.
+// A count that admits its own blindness beats a scan that cries wolf (#665, #874).
+//
 // ⭐ GRADING, claims 10 and 11 + claim 8s three new rows (#862b), and the honest split
 // here is UNFLATTERING, which is the point. Claim 10 is FORWARD (its five `on N/5`
 // stages are created by this commit; 2 assertions red at the parent by absence). Claim
@@ -163,6 +172,41 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             """)
         XCTAssertEqual(occurrences(of: "inputNode.inputFormat(forBus: 0)", in: body), 1,
                        "a second inputNode read appeared in the watchdog — gate it too.")
+    }
+
+    /// EVERY hazard site is counted, because claim 4 only covers ONE of them (#875).
+    ///
+    /// ⭐ THE AUDIT THIS PINS, done by reading all five on 2026-08-29, is the useful half —
+    /// it eliminates a whole hypothesis for the `isInputConnToConverter` family rather than
+    /// adding another instrument. `masterEngine.inputNode` appears FIVE times in code, and
+    /// every one is behind a claimed record route or the monitoring gate:
+    ///   · the config-change watchdog — inside `if self.isInputMonitoring` since #859, and
+    ///     that specific ordering is claim 4's job, not this one's.
+    ///   · the monitoring ON path — after `claimRecordRoute`, reading the format the claim
+    ///     just made valid.
+    ///   · the OFF path's `removeTap` and `disconnectNodeOutput` — both at `off 2/5` and
+    ///     `off 3/5`, i.e. BEFORE `off 4/5: releasing record route`. Tearing the edges down
+    ///     while the route is still held is the correct order; the reverse would be the
+    ///     hazard.
+    /// The two touches OUTSIDE this file are route-guarded too and are not counted here:
+    /// `MicrophoneManager` claims at :207 and reads at :218, `MultiTrackRecorder` claims
+    /// before its read (and is doorless anyway, #204).
+    ///
+    /// ⛔ WHY A COUNT AND NOT A "ROUTE CONTEXT" SCAN. I tried the smarter check first: for
+    /// each site, look back N characters for `isInputMonitoring` or `claimRecordRoute`. At
+    /// 260 characters it reported 4 of the 5 as unguarded — all four false, because the gate
+    /// simply sits further back. A guard built on that window would cry wolf on correct code,
+    /// which is the #665 defect and exactly what #874 had just removed from `doctor.py`. A
+    /// count cannot say WHY a site is safe; it can say a SIXTH appeared, and that a human
+    /// must then do what I did by hand.
+    ///
+    /// ⚠️ THIS FORBIDS NOTHING (#364). Extending the vocal chain may well need another input
+    /// touch, and that is legitimate work — the red is a checklist, not an objection.
+    func testEveryInputNodeSiteIsAccountedFor() throws {
+        let code = try code(Self.enginePath)
+        XCTAssertEqual(occurrences(of: "masterEngine.inputNode", in: code), 5, """
+            The number of `masterEngine.inputNode` sites changed. Each one is a place where             the I/O unit can grow an input bus the session may not be able to back — the             `isInputConnToConverter` family, seven device logs deep and still without a named             trigger. If a site was ADDED: check it claims the record route (or sits under the             monitoring gate) BEFORE the touch, and add it to the audit list in this test's             doc. If one was REMOVED: drop it from that list in the same commit. Do not simply             change this number — the number is not the point, the audit behind it is.
+            """)
     }
 
     // MARK: - 5: the voice-timbre chain speaks too (#859b — reviewer L3)
