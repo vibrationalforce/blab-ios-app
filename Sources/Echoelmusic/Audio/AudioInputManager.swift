@@ -158,28 +158,76 @@ public final class AudioInputManager {
     public func select(_ id: String) {
         #if canImport(AVFoundation) && !os(macOS)
         let session = AVAudioSession.sharedInstance()
+        // #880 — THE EXPORTED LOG HAD NO RECORD THAT THE USER CHANGED INPUT AT ALL.
+        // Every line in this file went to `log.audio` (os_log), and os_log is invisible
+        // in `echoel_diag.log` — the whole point of the #859 ladder. So a founder who
+        // switched to a headset mic and then hit the `isInputConnToConverter` abort
+        // handed over a log in which the switch simply did not happen. `setPreferredInput`
+        // moves the hardware input under a possibly-running graph; it is exactly the kind
+        // of discrete user event the ladder exists for.
+        //
+        // ⚠️ PRIVACY, measured rather than assumed: port NAMES already reach the exported
+        // file — `latencyBreadcrumb` writes `route:` built from `routeLabel(portName:
+        // portType:)` and then `sanitisedRoute`. Borrowing that path is therefore consistent
+        // with the established discipline (and gets the Bluetooth marker for free) rather
+        // than a new exposure. The raw UID is NOT written: it is opaque to a reader and can
+        // be MAC-derived for a Bluetooth device, so it would add risk and no information.
+        //
+        // ⛔ AND THE FIRST DRAFT BORROWED ONLY HALF OF IT — the reviewer caught a REOPENED
+        // #654. `latencyLine` does not write `route`, it writes `sanitisedRoute(route)`,
+        // because a port name is the first EXTERNALLY CONTROLLED string this repo puts in the
+        // diagnostics file. Skipping it loses three things, and the first is a live defect:
+        //   1. `EchoelCrashLog.looksLikeUnseenCrash` is a bare `contains(crashMarker)`, so a
+        //      paired device whose name contains that marker would make EVERY later launch
+        //      open the crash sheet on a session that never crashed.
+        //   2. A newline in a port name splits one rung into two, and `lastScenePhase`
+        //      parses this file line by line.
+        //   3. No length bound, while `currentLog()` reads the whole file into one String.
+        // The existing guard for (1) only covers the `sanitisedRoute` path, so it would have
+        // stayed GREEN while this new writer walked around it. Same treatment for the error
+        // strings below: `localizedDescription` is OS-supplied and can carry a device name.
         guard let port = (session.availableInputs ?? []).first(where: { $0.uid == id }) else {
+            EchoelCrashLog.breadcrumb("input: select IGNORED — uid no longer available")
             log.audio("Input \(id) no longer available", level: .warning)
             return
         }
+        EchoelCrashLog.breadcrumb(
+            "input: select → "
+            + AudioConfiguration.sanitisedRoute(
+                AudioConfiguration.routeLabel(portName: port.portName,
+                                              portType: port.portType.rawValue)))
         do {
             try session.setPreferredInput(port)
             selectedID = id
             log.audio("Preferred input → \(port.portName) [\(port.portType.rawValue)]")
         } catch {
+            EchoelCrashLog.breadcrumb("input: select FAILED ("
+                + AudioConfiguration.sanitisedRoute(error.localizedDescription) + ")")
             log.audio("setPreferredInput failed: \(error.localizedDescription)", level: .error)
         }
         #endif
     }
 
     /// Clear the preferred input (let the system pick the default route).
+    ///
+    /// ⚠️ DOORLESS — measured 2026-08-29 (#880): `git grep -n "useSystemDefault()" -- Sources`
+    /// returns this declaration and nothing else. The picker offers no "system default" row,
+    /// so the two rungs below CANNOT fire today. They are kept rather than dropped because
+    /// they are the symmetric inverse of `select(_:)` and cost nothing while dormant — the
+    /// #527 shape: do not unwire a mechanism a future door would need. But do not read their
+    /// absence from a diag log as evidence about the route; read it as "no door".
     public func useSystemDefault() {
         #if canImport(AVFoundation) && !os(macOS)
         let session = AVAudioSession.sharedInstance()
+        // #880: same event, other direction — handing the choice back to the system is a
+        // route move too, and it was equally absent from the exported file.
+        EchoelCrashLog.breadcrumb("input: select → system default")
         do {
             try session.setPreferredInput(nil)
             refresh()
         } catch {
+            EchoelCrashLog.breadcrumb("input: system default FAILED ("
+                + AudioConfiguration.sanitisedRoute(error.localizedDescription) + ")")
             log.audio("clearing preferred input failed: \(error.localizedDescription)", level: .error)
         }
         #endif

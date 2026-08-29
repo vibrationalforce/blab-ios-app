@@ -605,6 +605,109 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             """)
     }
 
+    // MARK: - 14: the INPUT SWITCH reaches the exported log (#880)
+
+    /// ⛔ THE GAP THIS CLOSES IS NOT A TRAILING RUNG — IT IS A MISSING EVENT. Every line in
+    /// `AudioInputManager` went to `log.audio` (os_log), and os_log does not appear in the
+    /// exported `echoel_diag.log`. A founder who switched to a headset mic and then hit the
+    /// `isInputConnToConverter` abort handed over a log in which the switch never happened.
+    /// `setPreferredInput` moves the hardware input under a possibly-running graph.
+    func testTheInputSwitchIsInTheDiagLog() throws {
+        let inputs = try code("Sources/Echoelmusic/Audio/AudioInputManager.swift")
+
+        for rung in ["EchoelCrashLog.breadcrumb(\"input: select IGNORED — uid no longer available\")",
+                     "EchoelCrashLog.breadcrumb(\"input: select FAILED ("] {
+            XCTAssertEqual(occurrences(of: rung, in: inputs), 1,
+                           "`\(rung)` is gone — an input switch stops reaching the exported log (#880).")
+        }
+
+        // ⚠️ THE OTHER TWO RUNGS ARE IN A DOORLESS FUNCTION, and they get their own message
+        // because the one above would be FALSE for them (#367: fail for the reason stated).
+        // `useSystemDefault()` has no caller in `Sources/`, so these can never fire today.
+        // They are pinned anyway — the strings are the contract for the day it gets a door,
+        // and dropping them would quietly make the two directions asymmetric.
+        for dormant in ["EchoelCrashLog.breadcrumb(\"input: select → system default\")",
+                        "EchoelCrashLog.breadcrumb(\"input: system default FAILED ("] {
+            XCTAssertEqual(occurrences(of: dormant, in: inputs), 1,
+                           "`\(dormant)` is gone. It could not fire anyway — `useSystemDefault()` "
+                           + "is doorless — but it is the symmetric inverse of the select rung "
+                           + "and the contract for the day that function gets a door (#880).")
+        }
+
+        // ⛔ The select rung is a WRAPPED concatenation, so it is anchored on the string
+        // LITERAL alone — never on the call spelling plus its line break and indentation.
+        // That mistake has now been made twice in this file's history (#871, #877): such a
+        // needle pins a FORMATTING choice and goes red on a reflow that changes nothing.
+        XCTAssertEqual(occurrences(of: "\"input: select → \"", in: inputs), 1,
+                       "the select rung's literal is gone — an input switch stops naming "
+                       + "the device it switched to (#880).")
+
+        // ORDER: the rung stands BEFORE the call it names (#860).
+        guard let rung = inputs.range(of: "\"input: select → \""),
+              let call = inputs.range(of: "try session.setPreferredInput(port)") else {
+            XCTFail("the select rung or its `setPreferredInput` call is gone — re-anchor (§4).")
+            return
+        }
+        XCTAssertTrue(rung.lowerBound < call.lowerBound, """
+            The select rung sits AFTER `setPreferredInput` (#860/#880). A death inside the \
+            route move is then silence, and the log reads as "the user never switched".
+            """)
+        try assertNoUIDInAnyBreadcrumb(inputs)
+    }
+
+    /// ⚠️ PRIVACY, and it is a PREMISE this claim depends on rather than one it invents.
+    /// Port NAMES already reach the exported file: `AudioConfiguration.latencyBreadcrumb`
+    /// writes a `route:` field built from `routeLabel(portName:portType:)`. So #880 reusing
+    /// that helper is consistent with the established discipline, not a new exposure. If
+    /// those call sites ever go away, the argument for writing a port name into an input
+    /// rung goes with them — hence the pin.
+    ///
+    /// The raw UID is a different matter and must NOT be written: it is opaque to a reader
+    /// and can be MAC-derived for a Bluetooth device, so it adds risk and no information.
+    func testTheInputRungsBorrowTheExistingRouteLabelAndNeverTheUID() throws {
+        // ⛔ A PIN ON `routeLabel`'s TWO MAP SITES STOOD HERE AND IS DELETED, NOT KEPT:
+        // `TheBluetoothCodecReachesTheScreenTests` already pins exactly that (#416). Two
+        // homes for one decision means a later edit has two messages to reconcile, and this
+        // was the newer and weaker of the pair. The premise it guarded — that port names
+        // already reach the exported file — is verified in that test's home, not here.
+        let inputs = try code("Sources/Echoelmusic/Audio/AudioInputManager.swift")
+        XCTAssertEqual(occurrences(of: "AudioConfiguration.routeLabel(portName: port.portName,",
+                                   in: inputs), 1, """
+            The input rung no longer borrows `routeLabel` — a second spelling of the device \
+            label is a second place to keep honest (#416), and it loses the Bluetooth marker.
+            """)
+
+        // ⛔ AND THIS IS THE HALF THE FIRST DRAFT DROPPED — a REOPENED #654, caught in
+        // review. `latencyLine` writes `sanitisedRoute(route)`, never the raw label, because
+        // a port name is externally controlled: `looksLikeUnseenCrash` is a bare
+        // `contains(crashMarker)`, so an unmasked device name carrying that marker makes
+        // every later launch open the crash sheet on a session that never crashed. The
+        // existing guard for that hole only inspects the `sanitisedRoute` path — it would
+        // have stayed GREEN while this new writer walked around it. THAT is why the pin is
+        // here and not there: it guards the BYPASS, which the other test cannot see.
+        XCTAssertEqual(occurrences(of: "AudioConfiguration.sanitisedRoute(", in: inputs), 3, """
+            An input rung writes an externally controlled string without `sanitisedRoute` \
+            (#654/#880) — the device label, or an OS `localizedDescription` that can carry \
+            one. Unmasked, a device named after the crash marker forges a crash on every \
+            later launch; a newline in it splits a rung across two lines, and `lastScenePhase` \
+            parses this file line by line.
+            """)
+        try assertNoUIDInAnyBreadcrumb(inputs)
+    }
+
+    /// No `breadcrumb` line in the given source may interpolate the input UID.
+    private func assertNoUIDInAnyBreadcrumb(_ source: String) throws {
+        for line in source.split(separator: "\n", omittingEmptySubsequences: false)
+        where line.contains("EchoelCrashLog.breadcrumb") {
+            XCTAssertFalse(line.contains("\\(id)"), """
+                A breadcrumb writes the raw input UID: \(line.trimmingCharacters(in: .whitespaces)). \
+                A UID is opaque to a reader and can be MAC-derived on Bluetooth — it adds risk \
+                and no information. Write the device label through \
+                `AudioConfiguration.routeLabel` instead (#880).
+                """)
+        }
+    }
+
     private func occurrences(of needle: String, in text: String) -> Int {
         text.components(separatedBy: needle).count - 1
     }
