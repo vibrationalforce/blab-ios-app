@@ -1564,6 +1564,17 @@ public final class AudioEngine {
         // Both taps are re-installed on EVERY start, not once at graph build, and both
         // remove any previous tap first. A media-services reset orphans them; the graph
         // build is behind a one-shot latch and cannot redo it (#212).
+        // ⛔ #862 — THE OTHER HALF OF `start()` WAS COMPLETELY SILENT. All three rungs
+        // above live inside `if !masterEngine.isRunning`; entered with the engine
+        // ALREADY running, execution skips them and lands here — where `installMeterTap`
+        // and `retroCapture.install` do TAP SURGERY on a live graph (removeTap ×3,
+        // installTap, and a `mainMixerNode` access whose first touch materialises and
+        // auto-connects the node). `AudioDegradedRow`'s retry button reaches exactly this
+        // branch with a stale `degraded` flag and emitted nothing at all.
+        // ⚠️ The rung fires on BOTH paths, cold start included — by the time execution
+        // reaches here the engine is running either way, so the wording holds, and one
+        // extra line per start is the right price for a branch that had none.
+        logEngineLifecycle("start: re-arming taps on a live engine")
         installMeterTap()
         retroCapture.install(on: masterEngine)
         multiTrackRecorder.prepareForRecording(engine: masterEngine)
@@ -1970,6 +1981,9 @@ public final class AudioEngine {
         meterPollTimer?.invalidate()
         meterPollTimer = nil
         microphoneManager.stopRecording()
+        // #862: `stop` pauses the graph AND deactivates the session — two AVFAudio
+        // calls that the exported log was never told about.
+        logEngineLifecycle("stop (\(reason)) — pausing graph, releasing session")
         masterPlayerNode.stop()
         masterEngine.pause()
         #if canImport(AVFoundation) && !os(macOS)
@@ -2854,6 +2868,14 @@ public final class AudioEngine {
     /// that already owns cause + retry (AudioDegradedRow's button calls `start()`,
     /// which also re-runs the session config). Never a log-only catch again.
     private func restartOrDegrade(after context: String) {
+        // ⛔ #862 — THIS WAS THE FIFTH `masterEngine.start()` IN THE FILE AND THE ONLY
+        // ONE WITHOUT A RUNG. Two independent audits of the v429 log reached it the same
+        // way. #858 established that the isInputConnToConverter assert fires INSIDE
+        // `start()` as an ObjC exception no Swift `catch` sees — so this `do` block
+        // cannot report its own death, and all five callers (every one of them a hot
+        // graph edit) went silent with it. `context` is in the message because it is the
+        // only thing that tells the five apart.
+        logEngineLifecycle("restart after \(context) — starting master engine")
         do { try masterEngine.start() }
         catch {
             log.audio("Engine restart after \(context) failed (\(error)) — handing over to AudioDegradedRow", level: .error)
@@ -2928,6 +2950,11 @@ public final class AudioEngine {
     }
 
     func attachSourceNode(_ sourceNode: AVAudioSourceNode) {
+        // #862: pause → mutate → restart on a LIVE engine is the shape this crash
+        // family lives in, and the whole family spoke only os_log, which the exported
+        // diag file does not carry. `isRunning` is IN the message because it is the
+        // risk itself: the identical call on a stopped engine is safe.
+        logEngineLifecycle("graph: attach source node (engine running: \(masterEngine.isRunning))")
         // The master graph (masterMixer attached + connected) must exist before
         // we connect a source node into it. Idempotent — no-op once prepared.
         prepareGraph()
@@ -2955,6 +2982,7 @@ public final class AudioEngine {
     }
 
     func detachSourceNode(_ sourceNode: AVAudioSourceNode) {
+        logEngineLifecycle("graph: detach source node (engine running: \(masterEngine.isRunning))")
         masterEngine.disconnectNodeOutput(sourceNode)
         masterEngine.detach(sourceNode)
         log.audio("Source node detached from master engine")
@@ -2965,6 +2993,7 @@ public final class AudioEngine {
     /// — a clip plays into `masterMixer` like any voice, never touching the master
     /// OUTPUT path. `format` is the player's buffer format (file's processing format).
     func attachPlayerNode(_ node: AVAudioPlayerNode, format: AVAudioFormat) {
+        logEngineLifecycle("graph: attach player node (engine running: \(masterEngine.isRunning))")
         prepareGraph()
         let wasRunning = masterEngine.isRunning
         if wasRunning { masterEngine.pause() }
@@ -2988,6 +3017,7 @@ public final class AudioEngine {
     }
 
     func detachPlayerNode(_ node: AVAudioPlayerNode) {
+        logEngineLifecycle("graph: detach player node (engine running: \(masterEngine.isRunning))")
         if node.isPlaying { node.stop() }
         masterEngine.disconnectNodeOutput(node)
         masterEngine.detach(node)
@@ -3004,6 +3034,7 @@ public final class AudioEngine {
     func attachPlayerNode(_ node: AVAudioPlayerNode,
                           through timePitch: AVAudioUnitTimePitch,
                           format: AVAudioFormat) {
+        logEngineLifecycle("graph: attach player node + time-pitch (engine running: \(masterEngine.isRunning))")
         prepareGraph()
         let wasRunning = masterEngine.isRunning
         if wasRunning { masterEngine.pause() }
@@ -3030,6 +3061,7 @@ public final class AudioEngine {
 
     /// Detach a warpable clip player and its time-pitch node.
     func detachPlayerNode(_ node: AVAudioPlayerNode, timePitch: AVAudioUnitTimePitch) {
+        logEngineLifecycle("graph: detach player node + time-pitch (engine running: \(masterEngine.isRunning))")
         if node.isPlaying { node.stop() }
         masterEngine.disconnectNodeOutput(node)
         masterEngine.disconnectNodeOutput(timePitch)

@@ -29,6 +29,13 @@
 // could never have a verdict there. Counterweights: the claim-4 gate needles are the ones
 // TheMonitoringSurvivesEngineRecoveryTests claim 3 already holds green on both trees.
 //
+// ⭐ GRADING, claims 8 and 9 (#862): FORWARD IN FULL, and saying so matters — every
+// needle names a rung this same commit creates, so all six assertions are red at the
+// parent by ABSENCE, none by regression. Booking them as regressions would be the
+// flattering-direction defect §3 names. What they are NOT is padding: the absence they
+// describe was real and shipped, and two independent audits of one device log found it.
+// The anchor-uniqueness assertions inside claim 8 ARE counterweights — green on both.
+//
 // ⭐ GRADING, claim 7 (#860b): TWO REGRESSIONS — both helpers put `os_log` before the
 // breadcrumb on the parent, red for exactly the reason the claim names. Claim 6's third
 // case is red there by needle absence (the rung was renamed to say `engine.prepare()` in
@@ -247,6 +254,63 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 rung, and a lost rung reads as a path never taken.
                 """)
         }
+    }
+
+
+    // MARK: - 8: every graph-mutating entry point carries a rung (#862)
+
+    /// ⛔ TWO INDEPENDENT AUDITS OF THE v429 LOG LANDED HERE. `restartOrDegrade` held the
+    /// FIFTH `masterEngine.start()` in the file and the only one without a rung — and #858
+    /// established that the isInputConnToConverter assert fires INSIDE `start()` as an ObjC
+    /// exception no Swift `catch` sees, so its own `do` block cannot report its death. Its
+    /// five callers are all hot graph edits (pause → mutate → restart), and that whole
+    /// family spoke only `log.audio`, which the exported diag file does not carry.
+    ///
+    /// ⚠️ PRESENCE only, not wording or argument (#364). What must not come back is a
+    /// graph mutation the founder's log cannot see.
+    func testEveryGraphMutationLeavesARung() throws {
+        let code = try code(Self.enginePath)
+        for (fn, rung) in [
+            ("private func restartOrDegrade", "logEngineLifecycle(\"restart after "),
+            ("func attachSourceNode", "logEngineLifecycle(\"graph: attach source node"),
+            ("func detachSourceNode", "logEngineLifecycle(\"graph: detach source node"),
+            ("func detachPlayerNode(_ node: AVAudioPlayerNode) {", "logEngineLifecycle(\"graph: detach player node"),
+            ("func stop(reason: StopReason)", "logEngineLifecycle(\"stop ("),
+        ] {
+            XCTAssertEqual(occurrences(of: fn, in: code), 1,
+                           "`\(fn)` is no longer unique — re-anchor this claim (#408, §4).")
+            guard let a = code.range(of: fn) else {
+                XCTFail("`\(fn)` is gone — re-anchor this claim (§4).")
+                return
+            }
+            let body = String(code[a.lowerBound...].prefix(700))
+            XCTAssertTrue(body.contains(rung), """
+                `\(fn)` mutates the AVFAudio graph and no longer announces itself in the \
+                exported diag file (#862). os_log does not reach that file — a death here \
+                is 14 seconds of silence and a SIGABRT, which is the v429 log exactly.
+                """)
+        }
+    }
+
+    /// The rung must PRECEDE the start it describes — the #860 rule, applied to the
+    /// fifth start().
+    func testTheRestartRungPrecedesItsStart() throws {
+        let code = try code(Self.enginePath)
+        guard let a = code.range(of: "private func restartOrDegrade") else {
+            XCTFail("`restartOrDegrade` is gone — re-anchor this claim (§4).")
+            return
+        }
+        let body = String(code[a.lowerBound...].prefix(700))
+        guard let r = body.range(of: "logEngineLifecycle(\"restart after "),
+              let c = body.range(of: "try masterEngine.start()") else {
+            XCTFail("the restart rung or its start() left the window — re-measure before widening it.")
+            return
+        }
+        XCTAssertTrue(r.lowerBound < c.lowerBound, """
+            The restart rung sits AFTER `try masterEngine.start()` — the #860 defect on the \
+            one start() that had no witness at all. The assert this family raises is an ObjC \
+            exception; the catch below never runs, so a rung behind the call writes nothing.
+            """)
     }
 
     // MARK: - helpers (the house shape: strip comments, skip on no tree)

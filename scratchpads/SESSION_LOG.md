@@ -16101,3 +16101,43 @@ angehängt). Beide Male HANDGEZÄHLT entstanden — die Neuzählung ist skriptet
 
 Keine Nadel betroffen (Prosa ist Kommentar, `codeOnly` entfernt sie); `dead-needles.py` 0,
 `needle-reachability.py` 0. `CLAUDE.md` unberührt — 158 B Kopfraum bleiben unangetastet.
+
+## 2026-08-29 — #862: die sieben stummen Graph-Eingriffe
+
+ZWEI UNABHÄNGIGE PRÜFUNGEN des v429-Logs kamen auf dieselbe Stelle — der Audio-Reviewer
+(Punkt C) und das Aufruferseiten-Team (Q5). Konvergenz aus verschiedenen Richtungen ist das
+stärkste Signal, das dieses Repo ohne Gerät bekommen kann.
+
+BEFUND: `restartOrDegrade` hielt den **FÜNFTEN** `masterEngine.start()` der Datei und den
+EINZIGEN ohne Sprosse. #858 hat festgestellt, dass der Assert INNERHALB von `start()` als
+ObjC-Ausnahme feuert, die kein Swift-`catch` sieht — sein eigener `do`-Block kann seinen Tod
+also gar nicht melden. Seine fünf Aufrufer sind allesamt heiße Graph-Eingriffe
+(pause → mutieren → neustarten), und die ganze Familie sprach nur `log.audio`, das die
+exportierte Datei NICHT trägt. Ein Tod dort erzeugt exakt die Signatur des Founder-Logs:
+gesunder Start, Stille, SIGABRT.
+
+SIEBEN Sprossen ergänzt: `restartOrDegrade` (vor dem start, #860-Regel) · die fünf
+attach/detach-Eingänge, jeweils MIT `isRunning` in der Zeile (das IST das Risiko — derselbe
+Aufruf auf gestoppter Engine ist harmlos) · `stop(reason:)`.
+
+ACHTE Stelle, vom Reviewer separat gefunden: die **andere Hälfte von `start()`** war komplett
+stumm. Alle drei Sprossen liegen in `if !masterEngine.isRunning`; betritt man `start()` mit
+laufender Engine, überspringt man sie und landet bei `installMeterTap()` +
+`retroCapture.install` — Tap-Chirurgie am lebenden Graphen, plus ein `mainMixerNode`-Zugriff,
+dessen erste Berührung den Knoten materialisiert und auto-verbindet. `AudioDegradedRow`s
+Wiederholen-Knopf erreicht genau diesen Zweig und schrieb gar nichts.
+
+AUFRUFERSEITE: sauberes NEGATIV. 68 Task-Stellen in 31 Dateien geprüft; nichts in
+`Studio/`/`Views/`/`Sequencer/`/`Bio/`/`Video/`/`Tools/`/`EchoelmusicApp` erreicht eine
+Graph-Mutation 15–25 s nach Start ohne Nutzergeste. Ausgeschlossen mit Beleg u. a.:
+`MemoryPressureHandler` (null Registranten), `ResourceGovernor` (nur OSC-Rate),
+`AudioClipPlayer` (null Konstruktionsstellen), das Visual-Verstecken (einziger Seiteneffekt
+ist `isIdleTimerDisabled`), alle Bio-Publisher, `RoutePlugInWatcher` (liest nur).
+⭐ Und ein starkes NEGATIV obendrein: die fehlende `latency:`-Zeile beweist, dass in den 14 s
+KEINE Konfigurationsänderung stattfand — Route-Wechsel, BT-Verbindung, Hardware-Ratenwechsel
+und Medien-Reset sind damit alle raus.
+
+WÄCHTER: Ansprüche 8 (jede Graph-Mutation hat eine Sprosse) und 9 (die Restart-Sprosse steht
+VOR ihrem start). Ehrlich benotet als FORWARD IN FULL — alle sechs Zusicherungen sind am
+Elternbaum durch ABWESENHEIT rot, keine durch Regression; sie als Regressionen zu buchen
+wäre der Schönfärbe-Defekt aus §3. Anker-Eindeutigkeit ist in Anspruch 8 mit-assertiert.
