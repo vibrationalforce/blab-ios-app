@@ -251,6 +251,45 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         } else {
             XCTFail("the mic teardown's tap rung or its `removeTap` call is gone — re-anchor (§4).")
         }
+        // #877 — the two ways rung 1 lied, both pinned so they cannot come back quietly.
+        //
+        // (a) THREE STATES, not a Bool. `engine?.isRunning == true` printed `false` for
+        //     "no engine" AND for "engine stopped"; the first is the common case (the
+        //     master stop tears the mic down every time, usually with no mic engine at
+        //     all), so the no-op looked exactly like the interesting case.
+        for token in ["\"engine: none\"", "\"engine: running\"", "\"engine: stopped\""] {
+            XCTAssertEqual(occurrences(of: token, in: mic), 1,
+                           "rung 1 no longer distinguishes \(token) — the teardown log stops "
+                           + "telling a no-op apart from a real tear-down (#877).")
+        }
+        // (b) NO STRONG REFERENCE HELD ACROSS THE RUNG. #876 hoisted
+        //     `let engine = audioEngine` to function scope so the rung could read the
+        //     state; that extra reference moves the AVAudioEngine's DEALLOCATION past
+        //     rung 3, while the prose above rung 1 tells the reader to attribute silence
+        //     there to the route release. Reading the state INLINE keeps the release at
+        //     `audioEngine = nil`, where the prose says it is.
+        //
+        //     ⚠️ This FORBIDS NOTHING about how the state is formatted (#364) — it pins
+        //     that the branch still binds from the property, which is what fixes the
+        //     lifetime. A future rewrite may change the wording freely.
+        //     ⛔ AND THIS ASSERTION'S FIRST DRAFT WAS ITSELF THE #408 TRAP the sibling
+        //     claim warns about: it counted the binding file-wide and demanded ONE, while
+        //     `deinit` carries the SAME line. A green tree would have gone red. Simulated
+        //     before shipping, which is the only reason it is anchored instead.
+        XCTAssertEqual(occurrences(of: "    func stopRecording() {", in: mic), 1,
+                       "`stopRecording()` is no longer unique in the file — the window below "
+                       + "would open on the wrong function (#408).")
+        guard let stopFn = mic.range(of: "    func stopRecording() {") else {
+            XCTFail("`stopRecording()` is gone — re-anchor this claim (§4).")
+            return
+        }
+        let teardown = String(mic[stopFn.lowerBound...].prefix(400))
+        XCTAssertTrue(teardown.contains("if let engine = audioEngine, engine.isRunning {"), """
+            The mic teardown no longer binds its engine from the property at the branch. \
+            If a local was hoisted above rung 1 again, the engine's deallocation moves past \
+            rung 3 and the ladder's own prose becomes wrong about what the silence after \
+            3/3 means (#877).
+            """)
         let voice = try code("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
         XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(\"voice: capture armed\")", in: voice), 1,
                        "the voice-timbre take no longer announces itself in the exported log.")

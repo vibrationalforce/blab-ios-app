@@ -286,6 +286,18 @@ final class MicrophoneManager: NSObject {
         }
     }
 
+    /// #877: the three states rung 1 must distinguish. `engine?.isRunning == true`
+    /// collapsed the first two, and the first is by far the most common — see the
+    /// ⛔ block inside `stopRecording()` for why that mattered.
+    ///
+    /// ⚠️ Reading `isRunning` costs an ObjC dispatch into AVFAudio (which takes the
+    /// engine's own lock), so this is main-actor teardown code ONLY. It must never be
+    /// called from a tap block or a render path.
+    private static func engineState(_ engine: AVAudioEngine?) -> String {
+        guard let engine else { return "engine: none" }
+        return engine.isRunning ? "engine: running" : "engine: stopped"
+    }
+
     /// Stop recording audio
     func stopRecording() {
         // #876: this teardown carried ONE rung for a multi-step tear-down, so a death
@@ -299,15 +311,42 @@ final class MicrophoneManager: NSObject {
         // deinit is AVFAudio work with no rung in front of it. Silence between rung 2
         // and rung 3 therefore covers the deallocation as well as the nil-outs — read
         // it as "somewhere in teardown", not as "in the route release".
-        let engine = audioEngine
-        // `running:` is IN the message because it is what explains a MISSING rung 2.
-        // Without it, the absence of the tap rung reads as a death in `stop()` when it
-        // may only mean the branch was skipped — the same ambiguity #862b removed from
-        // the master engine.
+        // ⛔ #877 — TWO SELF-CONTRADICTIONS OF #876's OWN RUNG, both found by the
+        // audio-thread reviewer, both about the LADDER lying rather than the audio.
+        //
+        // (1) #876 hoisted `let engine = audioEngine` to FUNCTION scope so the rung could
+        //     report the state. That extra strong reference moves the AVAudioEngine's
+        //     DEALLOCATION past rung 3 (under -Onone certainly; under -O the optimizer
+        //     MAY sink the release to last use, so the point becomes build-dependent) —
+        //     while the comment three lines above told the reader to attribute silence
+        //     there to the route release. A ladder whose prose mis-attributes silence is
+        //     worse than no ladder. The state is read INLINE now; the strong reference
+        //     dies exactly where it always did, at `audioEngine = nil` below, which makes
+        //     the "not exhaustive" note above true again instead of inverted.
+        //
+        // (2) `running: \(engine?.isRunning == true)` printed `false` for BOTH "no engine
+        //     at all" and "engine present but stopped" — the two cases a reader must tell
+        //     apart. The dominant caller is `AudioEngine.stop(reason:)`, which tears the
+        //     mic down on EVERY master stop, and there the mic engine is usually nil and
+        //     no teardown happens at all. Collapsing those made the common no-op look
+        //     identical to the interesting case. Three states, three words.
         EchoelCrashLog.breadcrumb(
-            "mic: stop 1/3 — stopping capture engine (running: \(engine?.isRunning == true))")
-        // Safely stop the audio engine
-        if let engine, engine.isRunning {
+            "mic: stop 1/3 — stopping capture engine (\(Self.engineState(audioEngine)))")
+        // Safely stop the audio engine.
+        //
+        // ⚠️ TRAP FOR THE NEXT SESSION (#877, audio-thread reviewer) — this repo removes
+        // taps UNCONDITIONALLY everywhere else (`MultiTrackRecorder`, `RetroCapture`,
+        // which documents its removal as idempotent); this is the one site that gates
+        // removal on `isRunning`, so a `start()` that THREW leaves a tapped, non-running
+        // engine whose tap is never removed. Harmless today — the tap dies with the
+        // engine, and `startRecording` always builds a FRESH engine, so no stale tap can
+        // collide with a new one. But if you ever make it symmetric, do NOT hoist
+        // `engine.inputNode.removeTap(onBus: 0)` out of this guard: touching `inputNode`
+        // on an engine that never started, while the session may no longer be
+        // `.playAndRecord`, IS the `isInputConnToConverter` family. Use the already-stored
+        // `inputNode?` property instead — it is non-nil only when a tap was installed.
+        // Separate slice, and device-unproven either way.
+        if let engine = audioEngine, engine.isRunning {
             engine.stop()
             EchoelCrashLog.breadcrumb("mic: stop 2/3 — removing input tap")
             engine.inputNode.removeTap(onBus: 0)
