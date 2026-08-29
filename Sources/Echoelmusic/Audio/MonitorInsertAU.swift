@@ -12,16 +12,30 @@
 // `processStereo` returns its input bit-exactly (one `if` per stage, no unconditional
 // math on the samples), so any audible difference or CPU cost in the next device log
 // is attributable to the CHAIN's presence, not to a stage. Making a stage AUDIBLE
-// (the founder's harmonizer/granular ask) is V1b-2, a deliberate separate slice with
-// its own door and preset.
+// (the founder's harmonizer/granular ask) was V1b-2 and V1b-3.
+//
+// ⛔ #861 — THAT SENTENCE SAID "IS … a deliberate separate slice", FUTURE TENSE, WHILE
+// THE SLICES IT DEFERS TO SHIPPED — and their door and preset live 180 lines BELOW it,
+// in this very file (`MonitorVoicePreset`, `applyVoicePreset`). #841 gave the harmonizer
+// its toggle, #849 the granular one; both default OFF, both in `AudioInputPickerView`.
+// A file that hosts the refutation of its own header is the cheapest kind of lie to
+// catch and the most expensive to leave: the next session plans work that exists.
 //
 // OWNERSHIP: `voiceChain` is created HERE and configured HERE. It is never the synth
 // voices' instance and never reads their presets — two owners of one preset object is
 // the #416/BLE-3 shape this file exists to avoid.
 //
-// LATENCY: the chain buffers nothing (in-place, sample by sample) — the insert still
-// adds no algorithmic delay, and `AudioEngine.monitorInsertLatencyMilliseconds` logs
-// what the node reports so the next device log can confirm the 0.
+// LATENCY: with EVERY STAGE OFF the chain buffers nothing (in-place, sample by sample)
+// and the insert adds no algorithmic delay; `AudioEngine.monitorInsertLatencyMilliseconds`
+// logs what the node reports so a device log can confirm the 0.
+//
+// ⛔ #861 — THE CONDITION WAS MISSING AND THE ASK MAKES IT MATTER. The sentence was
+// written for the neutral chain and then two stages got doors: `EchoelHarmonizer` runs
+// pre-allocated DELAY LINES (#841) and `EchoelGranular` a ONE-SECOND ring (#849). The
+// DRY signal is still passed through undelayed — both stages add wet under a full-level
+// dry, so "latenzfrei" survives for what the singer monitors — but stated without its
+// condition, against an explicit founder ask for latency-free monitoring, the claim
+// reads as "a switched-on stage costs nothing", which is not what the code does.
 //
 // AUDIO THREAD (render block): no allocation, no locks, no ObjC messaging, no self
 // capture — only the pre-allocated scratch, the captured `voiceChain` (a pure Swift

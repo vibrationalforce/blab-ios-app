@@ -176,8 +176,8 @@ final class TheNotchIsSlewedAndMonitorOnlyTests: XCTestCase {
                        + "count; the two must move together")
         XCTAssertEqual(codeOccurrences(of: "connect(input, to: monitorMixer", in: engine), 0,
                        "a surviving direct input→monitorMixer connect would bypass the notch "
-                       + "— the mic reaches monitorMixer only through notchEQ (since #599 "
-                       + "optionally via the voice-tune stage BEHIND the notch)")
+                       + "— the mic reaches monitorMixer only through notchEQ, then the "
+                       + "voice-tune stage BEHIND it (permanent since #858, bypassed when off)")
         XCTAssertEqual(codeOccurrences(of: "connect(notchEQ, to: masterMixer", in: engine), 0,
                        "the notch must NEVER touch the master path — monitor only, "
                        + "like the duck (the music does not pass through it)")

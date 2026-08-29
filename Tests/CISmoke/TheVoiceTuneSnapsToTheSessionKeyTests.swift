@@ -14,8 +14,9 @@
 // `SessionContext.a4StorageKey`) — the Echoel edge the corrector's header
 // states: the key is KNOWN, never guessed from the signal.
 //
-// ⚠️ HONEST LIMITS. 8 tests, 28 `XCTAssert*` statements (hand-counted per test,
-// 4+3+2+3+5+5+3+3; one `XCTUnwrap` in test 2, outside the count — the first draft
+// ⚠️ HONEST LIMITS. 8 tests, 30 `XCTAssert*` statements (re-counted in Python at #861,
+// 4+3+2+3+7+5+3+3 — #858 added two needles to test 5 and the total stayed 28;
+// hand-counting is what produced BOTH errors, so the recount was scripted this time; one `XCTUnwrap` in test 2, outside the count — the first draft
 // wrote 24 with "4" for test 6 from memory; the recount found 5. #851 appended
 // test 8 and owns this census). Tests 1–4 are
 // END-TO-END BEHAVIOUR on the shipped pure types (real corrector state machine,

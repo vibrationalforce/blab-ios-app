@@ -16055,3 +16055,49 @@ komplett stumm und macht dabei Tap-Chirurgie (`installMeterTap`, `retroCapture.i
 und die Familie `attachSourceNode`/`attachPlayerNode`/`restartOrDegrade` hat null Sprossen
 — laut Reviewer der einzige unbekrümelte Cluster, dessen Stack-Tiefe zu den sechs
 Echoelmusic-Frames passt. Das ist die stärkste verbleibende Spur.
+
+## 2026-08-29 — #861: der #841/#849/#858-Prosa-Sweep, der nie gemacht wurde
+
+Founder: „Ultraechoel aufräumen und aufklaren debuggen." Drei Lese-Teams parallel
+(Aufklaren / Aufräumen / Debug-Aufruferseite). Diese Scheibe ist die AUFKLAREN-Hälfte.
+
+⭐ **`CLAUDE.md` ist SAUBER** — jede konkrete Behauptung der Vokal-Ketten-Zeile nachgemessen
+und wahr (Kettenreihenfolge, #858-Bypass, beide Türen, fünf `EchoelFXChain(`-Stellen, die
+15 explizit ausgeschalteten Stufen, `monitor: harmony on/off`). Die Drift lag EINE Ebene
+tiefer: in Datei-Köpfen, unter denen #841/#849/#858 den Code geändert haben, ohne die Prosa
+mitzuziehen. Genau die #456-Form.
+
+SECHS bestätigt falsche Aussagen korrigiert, plus zwei abgelaufene Zahlen:
+
+1. `VoicePitchCorrector.swift` sagte „reverb/delay/**granular** … still have no door" —
+   seit #849 falsch; „Granular texture" sitzt in derselben Tür. Und der Kopf ACHT Zeilen
+   darüber warnt wörtlich davor: ein Kopf, der Gebautes für abwesend erklärt, lässt die
+   nächste Sitzung es NOCHMAL BAUEN. `EchoelGranular`s Kopf hatte diese Datei sogar
+   namentlich als nachzuziehendes Zuhause genannt — der Zug erreichte eines von zwei.
+2. `MonitorInsertAU.swift` sagte, ein hörbarer Stufen-Zugang „IST V1b-2, eine eigene
+   Scheibe" — Futur, während Tür UND Preset 180 Zeilen TIEFER in derselben Datei liegen.
+3. `TheVocalChainStopsAtTheAutotuneTests` sagte „V1b-2 ist die offene Hälfte" und
+   widersprach damit der eigenen Tabelle 50 Zeilen höher. Diesen Wächter nennt CLAUDE.md
+   als Vokal-Ketten-Autorität — eine Sitzung landet per Verweis auf dem Satz.
+4. `tune=on|off` „sagt, ob die STUFE IN DER KETTE ist" — seit #858 falsch, in ZWEI Zuhausen
+   (`AudioConfiguration` + `TheMeasuredLatencyReachesTheDiagLog`). Die Stufe ist IMMER drin,
+   `tune=` sagt, ob die KORREKTUR AKTIV ist. Gefährlich, weil eine „Reparatur" dieses
+   Mismatches die Stufe wieder bedingt machen würde — der stop-rewire-start-Zyklus hinter
+   fünf SIGABRT-Logs (v421–v427).
+5. `MonitorInsertAU` LATENCY-Zeile behauptete unbedingt „kein algorithmischer Verzug" —
+   geschrieben für die NEUTRALE Kette, dann bekamen zwei Stufen Türen (`EchoelHarmonizer`
+   = Delay-Lines, `EchoelGranular` = 1-s-Ring). Trocken bleibt unverzögert, nass nicht.
+   Gegen einen ausdrücklichen „latenzfrei"-Founder-Wunsch zählt die Bedingung.
+6. `[voiceTunePitch]` in Klammern = „optional vorhanden", seit #858 falsch (2 Zuhause).
+   `[insert]` BEHÄLT seine Klammern — `monitorInsertUnit` kann wirklich nil sein.
+
+SIEBTES ZUHAUSE derselben Aussage aus 2. gefunden, weil der §4-Grep über `Tests/CISmoke`
+lief: `TheMonitorInsertCarriesTheNeutralChainTests:173`. Genau der Grund für diesen Grep.
+
+ZAHLEN, selbst nachgezählt (nicht vom Bericht abgeschrieben, Python über Zeilen mit
+XCTAssert als erstem Token): Vokal-Wächter **10** statt 9 (2+2+2+1+**3**; Anspruch 5 hatte
+eine dritte Nadel bekommen), Tune-Wächter **30** statt 28 (…+**7**+…; #858 hatte zwei
+angehängt). Beide Male HANDGEZÄHLT entstanden — die Neuzählung ist skriptet.
+
+Keine Nadel betroffen (Prosa ist Kommentar, `codeOnly` entfernt sie); `dead-needles.py` 0,
+`needle-reachability.py` 0. `CLAUDE.md` unberührt — 158 B Kopfraum bleiben unangetastet.

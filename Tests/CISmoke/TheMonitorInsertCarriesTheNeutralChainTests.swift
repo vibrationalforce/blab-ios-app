@@ -170,8 +170,12 @@ final class TheMonitorInsertCarriesTheNeutralChainTests: XCTestCase {
             // Exactness, not tolerance (#442): with every stage flag off,
             // `processStereo` returns its input — one `if` per stage, no unconditional
             // sample math. Any difference here means a stage turned ON in the neutral
-            // configuration (that is V1b-2, a deliberate separate slice) or the buffer
-            // plumbing broke.
+            // configuration or the buffer plumbing broke.
+            // ⛔ #861: this said "(that is V1b-2, a deliberate separate slice)" — the
+            // SEVENTH home of one stale sentence, and this file's own header already
+            // said #841 landed. Both stage doors shipped (#841 harmonizer, #849
+            // granular), default OFF — which is exactly why this claim still passes:
+            // it pins the NEUTRAL chain, and neutral is still the shipped default.
             XCTAssertEqual(output[channel], input[channel], """
                 Channel \(channel) is not bit-identical through the insert. Since #839 \
                 the chain runs INSIDE this block — bit-exactness is the proof it is \

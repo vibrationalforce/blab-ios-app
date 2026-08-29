@@ -43,7 +43,12 @@
 //   2. It omitted the PITCH STAGE while being addressed to `monitor on`.
 //      `AudioInputPickerView` already warns "The pitch stage adds a little latency to the
 //      monitor only" — so the number contradicted the app's own UI on the same feature, and
-//      a number wins that argument. `tune=on|off` now states whether the stage is in chain.
+//      a number wins that argument.
+//      ⛔ #861: this line said "`tune=on|off` now states whether the STAGE IS IN CHAIN" —
+//      false since #858, which attached the stage permanently and bypasses it when off.
+//      `tune=` states whether the CORRECTION IS ACTIVE; `inserts[tune=…]` reports the
+//      node's cost either way. This file's own assertion message was already corrected;
+//      only the header lagged, so the guard contradicted its own failure text.
 //   3. The session CATEGORY was missing, in a line whose stated purpose is comparability.
 //      `start` is `.playback` + A2DP; `monitor on` is `.playAndRecord` + `.defaultToSpeaker`
 //      (A2DP-only since #827 — HFP is banned outright; #824's opt-in lasted one cycle).

@@ -41,10 +41,23 @@
 //  studio publishes) on the SYNTH bus. Since #839 (V1b-1) a mic-owned `EchoelFXChain`
 //  IS mounted on the monitor insert (`MonitorInsertAU`) — but NEUTRAL, every stage
 //  off, output bit-identical. The monitor path is `input → notchEQ →
-//  [voiceTunePitch] → monitorMixer → [insert] → masterMixer`. Since #841 (V1b-2)
+//  voiceTunePitch → monitorMixer → [insert] → masterMixer`. Since #841 (V1b-2)
 //  the HARMONIZER on that insert is switchable — "Harmony voices" in the input
 //  sheet, default OFF — so the singer hears harmony voices only after he flips the
-//  toggle; reverb/delay/granular on his voice still have no door.
+//  toggle.
+//
+//  ⛔ #861 — THIS LINE SAID "reverb/delay/GRANULAR … still have no door" AND THE
+//  GRANULAR HALF WAS FALSE FROM THE DAY #849 SHIPPED (V1b-3): "Granular texture"
+//  sits in the SAME input sheet, default OFF, carried by the same `pushVoicePreset()`.
+//  `EchoelGranular`'s own header already said the "no audible path to his voice" prose
+//  was retired and named this file as a home to pull; the pull reached one of the two.
+//  This is the failure the header eight lines above warns about IN ITS OWN WORDS — a
+//  header that calls a built thing absent makes the next session BUILD IT AGAIN.
+//  TRUE today: reverb and delay on his voice have no door; granular and harmony do.
+//
+//  ⛔ #861 also unbracketed `voiceTunePitch` above: brackets mean OPTIONAL PRESENCE,
+//  and since #858 the stage is permanently in the chain (bypassed when off). `[insert]`
+//  KEEPS its brackets — `monitorInsertUnit` really can be nil.
 //  `AudioEngine.swift` itself stays chain-free by design (the engine wires nodes,
 //  the insert hosts the DSP; guard: TheVocalChainStopsAtTheAutotuneTests claim 2).
 //

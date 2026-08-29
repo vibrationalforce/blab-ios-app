@@ -1030,12 +1030,20 @@ enum AudioConfiguration {
     ///    runs, one to drain the output buffer it fills), and the monitor chain's own nodes
     ///    are on top of that. Renamed `floor=`, which is what it always was.
     /// 2. **It said nothing about the PITCH STAGE, while being addressed to `monitor on`.**
-    ///    The monitor chain is `input → notchEQ → [voiceTunePitch] → monitorMixer`, and
+    ///    The monitor chain is `input → notchEQ → voiceTunePitch → monitorMixer`, and
     ///    `AVAudioUnitTimePitch` is a phase vocoder with real algorithmic delay.
     ///    `AudioInputPickerView` already warns in prose — "The pitch stage adds a little
     ///    latency to the monitor only" — so a number that omits it CONTRADICTS the app's own
-    ///    UI on the same feature, and the number wins. `tune=on|off` now states whether the
-    ///    stage is in the chain. ⚠️ A MEASURED figure for it is deliberately NOT printed:
+    ///    UI on the same feature, and the number wins.
+    ///
+    ///    ⛔ #861 — "`tune=on|off` now states whether the STAGE IS IN THE CHAIN" HAS BEEN
+    ///    FALSE SINCE #858, in this home and in the guard's header. The stage is ALWAYS in
+    ///    the chain now (attached once, `bypass = !enabled`), so `tune=` states whether the
+    ///    CORRECTION IS ACTIVE, and `inserts[tune=…]` reports the node's cost either way.
+    ///    The code was corrected by #858; both doc homes were not. The danger is specific:
+    ///    a reader of `tune=off` concludes the phase vocoder left the graph and costs zero,
+    ///    and a session "repairing" that mismatch would make the stage conditional again —
+    ///    the stop-rewire-start cycle behind five SIGABRT device logs (v421–v427). ⚠️ A MEASURED figure for it is deliberately NOT printed:
     ///    `auAudioUnit.latency` has zero precedent in this repo and returns 0 for a node
     ///    that is attached but not initialised — and this whole retraction exists because a
     ///    fabricated 0 is worse than an honest absence. Reading it is its own slice, gated

@@ -77,7 +77,13 @@
 // promised. What claim 2 pins NOW is the narrower surviving fact: ONE host file in the
 // Audio layer, and `AudioEngine.swift` itself still chain-free. `decisions.csv:398`
 // still records the mechanism decision (#669, AUAudioUnit subclass over a source-node
-// ring, measured latency); V1b-2 (an audible stage + door) is the open half. (⛔ The
+// ring, measured latency).
+//
+// ⛔ #861 — "V1b-2 (an audible stage + door) is the open half" CONTRADICTED THIS FILE'S
+// OWN TABLE 50 LINES UP, which already said the harmonizer is switchable since #841 and
+// the granular since #849. Both landed; the open half is V0, the founder's HEARING probe.
+// This guard is the one CLAUDE.md names as the vocal-chain authority, so a session sent
+// here by the law file landed on a sentence the same file disproves. (⛔ The
 // first version of this block, and of the CLAUDE.md line beside it, called the
 // chain-on-the-path "V1a" and appended "⇒ Council" — two spellings of one slice label,
 // the new one in the ALWAYS-LOADED file, which is #416 on the exact identifier a later
@@ -101,8 +107,10 @@
 // (2) The root helper had `let root` inside `func root()`. Rewritten as `repoRoot()`/`base`.
 // Neither would have failed a review of the LOGIC; both would have failed the build.
 //
-// ⚠️ HONEST LIMITS. 5 tests, 9 assertion statements (2+2+2+1+2; counted in Python over lines
-// whose first token is XCTAssert).
+// ⚠️ HONEST LIMITS. 5 tests, 10 assertion statements (2+2+2+1+3; counted in Python over
+// lines whose first token is XCTAssert, re-run at #861 — claim 5 had grown a third needle
+// and the total still read 9. A count in a header is a DATE, not a fact: it is only true
+// until the next needle lands, and nothing goes red when it ages).
 //
 // ⭐ GRADING (§3, re-graded for the #839 slice; the #700/#701 grading is history in git).
 // Driven in Python against parent and worktree. Claims 1 and 3 are COUNTERWEIGHTS (green
