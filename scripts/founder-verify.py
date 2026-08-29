@@ -54,6 +54,7 @@ feature ships with ANSWERED at 0 and fills up as he walks the list.
     python3 scripts/founder-verify.py             # counts per area + one line each
     python3 scripts/founder-verify.py --all       # the full instruction for every ask
     python3 scripts/founder-verify.py --area bio  # one area, full instructions
+    python3 scripts/founder-verify.py --setup     # grouped by the EQUIPMENT a session needs
 
 Read-only, no dependencies, no network, no build — the doctor.py house rules.
 """
@@ -120,6 +121,53 @@ DETERMINERS = {"the", "a", "this", "der", "dem", "den", "die", "das",
 # prefix is how the convention is written ABOUT, including three times in this file, so a
 # prefix-only needle would retire asks by reading documentation (#753, one layer over).
 VERIFIED = re.compile(r"VERIFIED-(\d{4}-\d{2}-\d{2})")
+
+
+# ── SETUP buckets: what you must physically HAVE IN HAND, not what the ask is about.
+#
+# ⭐ WHY THIS EXISTS ALONGSIDE `AREAS`. A device session is bounded by SETUP, not by topic.
+# The founder plugs in headphones once and can then answer every headphone ask in one pass;
+# grouped by area those same asks sit in three different buckets and read as three trips.
+# `--area` answers "what is this about", `--setup` answers "what do I need to have with me".
+#
+# ⛔ THIS DELIBERATELY BREAKS THE RULE STATED ABOVE FOR `AREAS`, and the exception has to be
+# argued rather than assumed. That rule says: classify from the FILE NAME, because a keyword
+# classifier on prose this dense mislabels constantly. It is right — about TOPIC, which the
+# basename genuinely carries. It cannot apply here: no filename can say "you need a
+# Bluetooth headset". The setup exists ONLY in the prose, so prose is the only place to read
+# it, and the mitigation is not accuracy but SHAPE — see the next paragraph.
+#
+# ⚠️ IT FAILS TOWARD NOISE, which is this file's standing principle: an ask matching nothing
+# lands in "none named" rather than a guessed bucket, and an ask may appear in SEVERAL
+# buckets (headphones AND monitoring is a real combination). So the bucket totals add up to
+# MORE than the number of asks, and the header prints both numbers for that reason. A
+# duplicate costs a glance; a wrong bucket costs a trip with the wrong equipment.
+#
+# ⚠️ ORDER DOES NOT MATTER HERE — unlike `AREAS`, which returns one bucket and needs a
+# tie-break. This returns a set.
+#
+# ⛔ BARE "lock" IS DELIBERATELY ABSENT from `background`, and the selftest pins it. This
+# repo says "pulse lock" and "locks on device" constantly about rPPG; a `lock` needle would
+# sweep half the bio queue into "lock the screen". The needles are lock SCREEN, sperren,
+# Anruf, call, Hintergrund, background — the physical act, never the shared word.
+SETUP = [
+    ("headphones", ("Kopfhörer", "headphone", "Bluetooth", "A2DP", "in-ear")),
+    ("speaker", ("Lautsprecher", "speaker", "Megaphon", "megaphone", "Howl", "howl",
+                 "Rückkopplung", "feedback")),
+    ("monitoring", ("Monitoring", "monitoring", "Choose input", "Mikrofon", "microphone",
+                    "mic ", "Autotune", "autotune", "Tune to key")),
+    ("strap", ("Gurt", "strap", "Polar", "H10", "BLE", "0x180D")),
+    ("camera", ("Finger", "finger", "Kamera", "camera", "rPPG", "Linse", "lens", "Torch",
+                "torch")),
+    ("network", ("OSC", "Art-Net", "ArtNet", "sACN", "DMX", "Pult", "console", "LAN")),
+    ("background", ("lock screen", "sperren", "Anruf", "phone call", "Hintergrund",
+                    "background", "Interruption", "interruption")),
+]
+
+
+def setups_of(body: str) -> list:
+    """Every setup bucket this ask's own words call for. Empty means none named."""
+    return [name for name, needles in SETUP if any(k in body for k in needles)]
 
 
 def verified_on(line: str):
@@ -232,6 +280,23 @@ def selftest() -> int:
     if "second ask" in comment_body(lines, 0):
         bad.append("comment_body merged two separate asks into one entry")
 
+    # 3b. `setups_of` must read the PROSE for physical equipment, and must NOT sweep the
+    #     shared vocabulary. The pulse-lock case is the one that matters: this repo says
+    #     "lock" about rPPG constantly, so a bare `lock` needle would file half the bio queue
+    #     under "lock the screen". Driven with a known-wrong expectation first, per the rule
+    #     at the top of this function.
+    for body, want, forbid in [
+        ("plug in Bluetooth-Kopfhörer, play, monitoring on", {"headphones", "monitoring"}, set()),
+        ("hold a finger on the lens until the pulse locks on device", {"camera"}, {"background"}),
+        ("send to a DMX console over Art-Net and watch the fixture", {"network"}, set()),
+        ("tap the tempo field and listen to the ease", set(), set()),
+    ]:
+        got = set(setups_of(body))
+        if not want <= got:
+            bad.append(f"setups_of missed {want - got} in {body!r} (got {sorted(got)})")
+        if got & forbid:
+            bad.append(f"setups_of wrongly bucketed {sorted(got & forbid)} for {body!r}")
+
     # 3. The classifier must not put a named topic in `other` — the defect the first
     #    version shipped, where a directory rule left 32 of 53 unclassified.
     for path, want in [("Tests/CISmoke/TheHarmonizerMixTests.swift", "audio"),
@@ -329,6 +394,7 @@ def main() -> int:
     if "--selftest" in args:
         return selftest()
     show_all = "--all" in args
+    show_setup = "--setup" in args
     only = None
     if "--area" in args:
         try:
@@ -362,6 +428,33 @@ def main() -> int:
             print(f"   {short}:{n}")
             print(f"      {body[:width]}{'…' if len(body) > width else ''}")
         print()
+
+    if show_setup:
+        by_setup, none_named = {}, []
+        for _area, p, n, body in found:
+            buckets = setups_of(body)
+            if not buckets:
+                none_named.append((p, n, body))
+            for b in buckets:
+                by_setup.setdefault(b, []).append((p, n, body))
+        grouped = sum(len(v) for v in by_setup.values())
+        print(f"── BY SETUP — {grouped} bucket entries across {len(found)} asks "
+              f"(an ask needing two things is listed twice, on purpose)\n")
+        for name in sorted(by_setup, key=lambda b: -len(by_setup[b])):
+            items = by_setup[name]
+            print(f"── {name.upper()}  ({len(items)}) — one setup, {len(items)} asks answered")
+            for p, n, body in items:
+                short = p.replace("Sources/Echoelmusic/", "").replace("Tests/CISmoke/", "CISmoke/")
+                print(f"   {short}:{n}")
+                print(f"      {body[:150]}{'…' if len(body) > 150 else ''}")
+            print()
+        print(f"── NO SETUP NAMED ({len(none_named)}) — not \"needs nothing\": their own words "
+              f"do not say.\n   Read them before planning a session; the tool refuses to guess.")
+        for p, n, body in none_named:
+            short = p.replace("Sources/Echoelmusic/", "").replace("Tests/CISmoke/", "CISmoke/")
+            print(f"   {short}:{n}   {body[:100]}{'…' if len(body) > 100 else ''}")
+        print()
+        return 0
 
     if refs:
         print(f"── NOT ASKS ({len(refs)}) — the marker used as a noun, nobody can perform these")
