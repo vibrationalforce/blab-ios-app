@@ -2513,6 +2513,13 @@ public final class AudioEngine {
                     restartOrDegrade(after: "input monitoring rollback")
                     return false
                 }
+            } else {
+                // #882: THE LADDER PROMISED FIVE AND THREE OF ITS RUNGS ARE CONDITIONAL,
+                // so a healthy ON could log 1/5, 2/5, 3/5 and stop — and by this ladder's
+                // own law ("silence between two rungs is a FINDING") that reads as a death
+                // at step 3. It is not; the engine simply was not running, so there was
+                // nothing to restart. A SKIPPED step must say so, or the numbering lies.
+                logMonitorOutcome("on 4/5 SKIPPED: engine was not running", level: .info)
             }
             // The spectrum tap is installed LAST, after every failure path above, so no
             // exit below `return false` can leave a live tap behind. One tap per bus —
@@ -2582,6 +2589,10 @@ public final class AudioEngine {
                     window.push(ch[0], count: Int(buffer.frameLength))
                 }
                 monitorTapInstalled = true
+            } else {
+                // #882: same reason as 4/5 — a tap that is already installed is not a
+                // failure, and a missing 5/5 must not read like one.
+                logMonitorOutcome("on 5/5 SKIPPED: tap already installed", level: .info)
             }
             isInputMonitoring = true
             monitorMixer.outputVolume = min(max(inputMonitorGain, 0), 1)
@@ -2718,9 +2729,29 @@ public final class AudioEngine {
             logMonitorOutcome("off 4/5: releasing record route", level: .info)
             do { try AudioConfiguration.releaseRecordRoute(.inputMonitoring) }
             catch { logMonitorOutcome("session downgrade failed (\(error))", level: .warning) }
-            // 5/5 is the restore itself — `restoreEngineIfStranded` breadcrumbs its
-            // own start ("restoring engine at exit", #836b), so the pair below keeps
-            // the step ladder complete without a duplicate line.
+            // ⛔ #882 — THE COMMENT THAT STOOD HERE SAID 5/5 WAS "THE RESTORE ITSELF" AND
+            // THAT THE PAIR KEPT "THE STEP LADDER COMPLETE WITHOUT A DUPLICATE LINE". Both
+            // halves fail in the exported file, which is the only place this matters:
+            //   · `restoreEngineIfStranded` writes NOTHING when it returns early (not
+            //     stranded), so a normal OFF logged `off 4/5` and then jumped to `OFF` —
+            //     four rungs out of an announced five, which by this ladder's own law reads
+            //     as a death at step 5.
+            //   · Its line is written INSIDE the call, i.e. after entering. A death in the
+            //     restart before that write is indistinguishable from a death in the route
+            //     release above it. The law is: a rung stands BEFORE its call (#862b).
+            // A rung that names the STEP and a line that names the OUTCOME are not
+            // duplicates — that pairing IS the ladder. `wasRunning:` is in the message for
+            // the #877 reason: it is what explains whether a restore line follows.
+            // ⚠️ The reason names BOTH early-return conditions of `restoreEngineIfStranded`
+            // (`guard wasRunning, !masterEngine.isRunning`), not just the first — the same
+            // rigour #877 applied on the mic side, where reporting one of two states made a
+            // no-op look like the interesting case. Without the second, a reader seeing
+            // `wasRunning: true` and no following restore line has to GUESS that the engine
+            // was already running.
+            logMonitorOutcome(
+                "off 5/5: restoring engine if stranded "
+                + "(wasRunning: \(offWasRunning), alreadyRunning: \(masterEngine.isRunning))",
+                level: .info)
             restoreEngineIfStranded(offWasRunning, at: "input monitoring off")
             logMonitorOutcome("OFF", level: .info)
             return true

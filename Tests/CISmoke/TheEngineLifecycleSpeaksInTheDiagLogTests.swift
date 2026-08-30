@@ -467,9 +467,19 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
     /// path that collapses fifteen graph calls into one line.
     func testTheMonitorOnPathIsStaged() throws {
         let code = try code(Self.enginePath)
+        // ⛔ #882 — THE FIRST TWO NEEDLES OF STEPS 4 AND 5 WERE PREFIXES, and that made this
+        // claim collide with claim 16 in THIS FILE: #882 gave those two gated steps a second
+        // emitter each (`on 4/5 SKIPPED` / `on 5/5 SKIPPED`, because a step that is skipped
+        // must say so or the numbering lies), so `"on 4/5` now counts 2 while this claim
+        // demanded 1. Two claims, one file, incompatible numbers — the suite could not go
+        // green either way. Fixed by naming the TAKEN rung, which is what this claim was
+        // always about: it exists to stop the ON path collapsing its ~15 AVFAudio calls into
+        // one line. Loosening it to `GreaterThanOrEqual` would have stopped detecting exactly
+        // that collapse, so it stays an equality on a sharper needle.
         for stage in ["logMonitorOutcome(\"on 1/5", "logMonitorOutcome(\"on 2/5",
-                      "logMonitorOutcome(\"on 3/5", "logMonitorOutcome(\"on 4/5",
-                      "logMonitorOutcome(\"on 5/5"] {
+                      "logMonitorOutcome(\"on 3/5",
+                      "logMonitorOutcome(\"on 4/5: restarting",
+                      "logMonitorOutcome(\"on 5/5: installing"] {
             XCTAssertEqual(occurrences(of: stage, in: code), 1, """
                 `\(stage)…` is gone. The monitoring ON path must stage like its OFF twin \
                 (#862b): a death among its ~15 AVFAudio calls otherwise collapses to the \
@@ -693,6 +703,64 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             parses this file line by line.
             """)
         try assertNoUIDInAnyBreadcrumb(inputs)
+    }
+
+    // MARK: - 16: a numbered step ALWAYS emits — taken or skipped (#882)
+
+    /// ⛔ THE LADDER ITSELF WAS LYING ABOUT ITS OWN LENGTH, in the one path the founder was
+    /// asked to exercise. Three of the monitoring ladder's rungs were CONDITIONAL:
+    ///   · `on 4/5` ran only `if wasRunning`
+    ///   · `on 5/5` ran only `if !monitorTapInstalled`
+    ///   · `off 5/5` did not exist at all — a source comment said the restore "is" step 5,
+    ///     but `restoreEngineIfStranded` writes NOTHING when it returns early, and its line
+    ///     is written INSIDE the call rather than before it.
+    /// So a perfectly healthy ON could log 1/5, 2/5, 3/5 and stop, and a normal OFF logged
+    /// four rungs out of an announced five. By THIS LADDER'S OWN LAW — "silence between two
+    /// rungs is a FINDING" — both read as a death. The numbering has to be honest or the law
+    /// on top of it is worse than no ladder: it manufactures findings.
+    ///
+    /// ⚠️ The repair is NOT to make the rungs unconditional. Announcing a step the code then
+    /// skips is the #878 mistake in the other direction. A skipped step says it was skipped.
+    func testEveryNumberedMonitoringStepEmitsEitherWay() throws {
+        let code = try code(Self.enginePath)
+
+        // Every number 1…5 exists on both sides. Silence at N then means death at N.
+        for n in 1...5 {
+            XCTAssertTrue(code.contains("\"on \(n)/5"), """
+                The monitoring ON ladder has no emitter for step \(n) of 5 (#882). A reader \
+                counting rungs treats the gap as a death; make the step say it was skipped \
+                rather than dropping its number.
+                """)
+            XCTAssertTrue(code.contains("\"off \(n)/5"), """
+                The monitoring OFF ladder has no emitter for step \(n) of 5 (#882). This is \
+                exactly how `off 5/5` went missing: a comment claimed a differently-named \
+                line covered it, and that line is conditional AND written after its own call.
+                """)
+        }
+
+        // The two conditional ON steps must carry BOTH an emitter for taken and for skipped.
+        for step in ["on 4/5", "on 5/5"] {
+            XCTAssertEqual(occurrences(of: "\"\(step)", in: code), 2, """
+                `\(step)` no longer has both a taken and a SKIPPED emitter (#882). It is \
+                gated (`wasRunning` / `!monitorTapInstalled`), so without the skip line a \
+                healthy run looks like it died there.
+                """)
+        }
+        for skip in ["on 4/5 SKIPPED", "on 5/5 SKIPPED"] {
+            XCTAssertEqual(occurrences(of: skip, in: code), 1,
+                           "the `\(skip)` line is gone — the gated step falls silent again (#882).")
+        }
+
+        // ORDER on the new OFF rung: it stands BEFORE the call it names (#862b).
+        guard let rung = code.range(of: "\"off 5/5: restoring engine if stranded"),
+              let call = code.range(of: "restoreEngineIfStranded(offWasRunning,") else {
+            XCTFail("the `off 5/5` rung or its restore call is gone — re-anchor (§4).")
+            return
+        }
+        XCTAssertTrue(rung.lowerBound < call.lowerBound, """
+            The `off 5/5` rung sits AFTER the restore it names (#862b/#882). A death inside \
+            the restart is then indistinguishable from a death in the route release above it.
+            """)
     }
 
     /// No `breadcrumb` line in the given source may interpolate the input UID.
