@@ -17801,3 +17801,56 @@ Begriff, den es nicht hat: **eine Zeile, die eine Leiter BEENDET, ohne sie WEITE
 Damit wird jede Schreibweise legal, der falsche Tod in `mic: start` verschwindet, und (c3)
 plus der Gesetzes-Absatz in `Tests/CISmoke/CLAUDE.md` §4 können zurückgezogen werden. Das ist
 eine eigene Scheibe mit eigener Selbstprobe — Council-Frage, nicht Anhängsel.
+
+### #908 — dem Werkzeug den fehlenden Begriff beigebracht, und dabei fast eine echte Todesmeldung wegdefiniert
+
+**Was gebaut wurde.** `scripts/diag-ladder.py` kennt jetzt einen **TERMINATOR**: eine
+Zeile, die eine Leiter BEENDET, ohne sie WEITERZUZÄHLEN. Damit liest `mic: start REFUSED`
+— das zwischen `2/3` und `3/3` sitzt — als `⏹ ended` statt als falscher Tod. Das war die
+in #907 benannte nächste Scheibe, und es ist der Fall, den KEINE Quell-Schreibweise
+reparieren konnte.
+
+⛔ **UND DER ERSTE ENTWURF HAT DABEI EINEN ECHTEN TOD ZU EINEM ORDENTLICHEN ENDE ERKLÄRT.**
+Er rettete auch NUMMERIERTE Sprünge. `AudioEngine`s `on 4/5 SKIPPED:` LÄUFT ABER WEITER
+(`on 5/5: installing input tap` folgt) — ein Log, das dort endet, ist ein Tod **in
+`installTap`**, also genau in der `isInputConnToConverter`-Gegend, für die die Leiter
+existiert. Der Entwurf druckte `⏹ ended`, Exit 0, und sagte dem Leser, dort nicht zu
+suchen. **Und meine eigene Selbstprobe hat das als richtig festgenagelt** (#367 in
+Reinform). Gefunden vom Pflicht-Reviewer, von mir auf einem synthetischen Log reproduziert.
+
+⭐ **Die Lehre, und sie ist neu:** ich hatte den Wächter (c3) zurückgezogen mit der
+Begründung „das Werkzeug ist jetzt klüger". Im LOG sind „Sprung, der weiterläuft" und
+„Sprung, der zurückkehrt" **dieselbe Zeichenkette**. Eine Mehrdeutigkeit, die im
+Datenformat steckt, kann kein Werkzeug auflösen — die Regel muss an der QUELLE bleiben.
+(c3) ist wiederhergestellt; das Werkzeug rettet nur noch **UNNUMMERIERTE** Terminatoren,
+die keinen Schritt behaupten und deshalb nicht mehrdeutig sein können. Werkzeug und
+Wächter teilen sich die Arbeit; keiner ersetzt den anderen.
+
+**Weitere Reviewer-Funde, alle nachgefahren und repariert.**
+- **(c4) war in BEIDE Richtungen kaputt** (Mutationsproben): falsch-rot bei einem
+  UMGEBROCHENEN Breadcrumb — die Form steht in genau der Datei, die er scannt —, bei einem
+  erweiterten `#if os(macOS) || os(watchOS)` und bei einem `return` in einer inneren
+  Closure; und grün bei `if x { return }`, `else{return}`, `return // Kommentar` und einem
+  stillen `throw`. Letzteres war eine **Regression**: die ersetzte Behauptung deckte `throw`
+  ausdrücklich ab. Jetzt: Whitespace-normalisierte Ein-Zeilen-Prüfung, Ausstiegs-Erkennung
+  nach Abschneiden des Zeilenkommentars, und die Breadcrumb-Suche läuft über den GANZEN
+  Block bis zur öffnenden Klammer statt über eine Zeile.
+- **Der Interpolations-Bann wäre still mitgelöscht worden** — er hing an (c3) und ist eine
+  eigene Sache: `"session: raise \(n)/2"` matcht `RUNG` gar nicht, die Sprosse verschwindet
+  aus `--source`, und die Leiter meldet stillschweigend einen Emitter weniger.
+- **Zwei Zähl-Angaben im Werkzeug waren falsch** (SKIPPED/REFUSED/FAILED), hundert Zeilen
+  neben einer zweiten Zählung, die stimmte. Gelöscht statt nachgeführt — `--source` druckt
+  sie live mit `datei:zeile`.
+- **Ein unbekanntes Terminal-Wort meldete „❌ 1 incomplete ladder(s)"**, während jede Leiter
+  ✅ war — eine Zusammenfassung, die eine Reparatur nennt, die es nicht gibt. Eigener Zähler.
+- **`FAILED` ist kein ordentliches Ende.** Es bekommt ein eigenes Ergebnis (⚠️) und bleibt
+  ein Befund; sonst druckt ein echter Fehlschlag als „bewusster Ausstieg".
+- **Der Längster-Präfix-Filter warf einen echten Treffer weg** (`start 1/2` auf einer Zeile,
+  die auch `mic: start REFUSED` trägt). Jetzt Span-basiert; die erste Reparatur suchte den
+  nackten Präfix und fand die Kopie IM längeren.
+- **Ein Log ganz ohne Sprosse war grün geworden** — es ist wieder ein Befund.
+- **„250-Zeilen-Skript"** in der Gesetzes-Datei: die Datei hatte 300 am Tag des Schreibens.
+  Zahl gelöscht, nicht nachgeführt.
+- **Drei Prosa-Stellen** beschrieben das Werkzeug im Präsens als „hat keinen Begriff von
+  einem Sprung" (selbst vorgefunden, vor dem Review) und die ⭐-GESETZ-Zeile in `Sources/`
+  stand nach dem Rückzug von (c3) verwaist da — beide Richtungen korrigiert.

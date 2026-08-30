@@ -203,36 +203,46 @@ python3 scripts/diag-ladder.py <echoel_diag.log> # where a ladder stopped in a r
 things and disagree: `--source` walks the emitters in `Sources/`, the log mode walks the
 lines a device actually wrote. #906 added a breadcrumb for a skipped step and wrote it
 NUMBERED (`session: raise 1/2 SKIPPED: …`). `--source` stayed green — the emitter exists.
-The LOG mode keeps the LAST `n/N` per ladder and has no notion of a skip, so a perfectly
+The LOG mode kept the LAST `n/N` per ladder and had no notion of a skip (it has one since
+#908 — see below), so a perfectly
 healthy TWO-OWNER run ended its ladder at `1/2` and the tool printed **"stopped before their
 last step … a DEATH AT THAT STEP"** — on exactly the path the ladder exists to illuminate.
 Reproduced on a synthetic log both ways before and after the repair.
 
-⭐ **The law that came out of it, now pinned by `TheEngineLifecycleSpeaksInTheDiagLogTests`
-claim (c3): a skipped step may be NUMBERED only when the ladder WALKS ON past it.**
-`AudioEngine`'s `on 4/5 SKIPPED:` is legal because `on 5/5` still follows. A skip that
-RETURNS ends its ladder, so a number turns a no-op into a truncation; unnumbered, it is a
-STATE line and the tool ignores it.
+⛔ **THE LAW #907 WROTE HERE LASTED ONE COMMIT, and that is the right outcome, not a
+wobble.** It said: *a skipped step may be NUMBERED only when the ladder WALKS ON past it*,
+pinned by claim (c3). Two things were wrong with it as a LAW — it is position-dependent
+(unnumbered is correct only where the skip precedes every rung; mid-ladder no wording works
+at all), and it obliged every future ladder author to remember which side of the first rung
+their skip sits on, for a tool we own and can teach. It is kept here as history because the
+next reader will otherwise re-derive it.
 
-⚠️ **THE LAW IS POSITION-DEPENDENT, AND THE BAN IS NOT "NUMBER IT INSTEAD" (#907 review).**
-Unnumbered is the RIGHT answer only where the skip stands BEFORE EVERY RUNG of its ladder —
-all three `session:` skips do. **Mid-ladder, no source wording is honest**, measured on a
-synthetic log rather than reasoned: `MicrophoneManager`'s `mic: start REFUSED` sits between
-`2/3` and `3/3` and prints `❌ 'mic: start' 2/3`, a FALSE DEATH; `2/3 SKIPPED` prints the
-same, and `3/3 SKIPPED` prints ✅ for a step that never ran. **That repair belongs in
-`scripts/diag-ladder.py`** — it lacks exactly one concept, *a line that TERMINATES a ladder
-without ADVANCING it*. Teaching it that makes every wording legal and retires this
-paragraph together with claim (c3). Until then, do not "fix" a mid-ladder skip by numbering
-it, and do not read (c3) as forbidding the correct repair (#364) — there is none in source.
+⭐ **#908 TAUGHT THE TOOL HALF OF IT — the half no wording could do.** `diag-ladder.py`
+knows a **TERMINATOR**: an **UNNUMBERED** `SKIPPED` / `REFUSED` / `FAILED` line for a known
+ladder. A ladder that stops short with one of those after it reads **`⏹ ended`**, not
+`❌ died`. `FAILED` gets its own outcome and stays a finding — a failure is the thing the
+reader is hunting, not a tidy exit. That fixes `mic: start REFUSED`, which sits between
+`2/3` and `3/3` and printed a FALSE DEATH that no source wording could repair (measured:
+`2/3 SKIPPED` printed the same, `3/3 SKIPPED` printed ✅ for a step that never ran).
 
-⚠️ **(c3)'s `AudioEngine` half is a TRIPWIRE, not a counterweight.** Measured: it selects
-**3** lines in `AudioConfiguration.swift` and **0** in `AudioEngine.swift` — both `SKIPPED`
-lines there are followed by `}`, and `setInputMonitoring` returns `Bool`, so its exits are
-`return false`, which the check does not select. The first draft of that comment claimed a
-live counterweight and was a #367 grading error; what actually protects the two legal lines
-is claim 12, which pins them PRESENT.
+⛔ **AND #908's FIRST DRAFT RETIRED (c3) ON THAT BASIS, WHICH WAS WRONG — the review
+disproved it with a log.** `AudioEngine`'s `on 4/5 SKIPPED:` WALKS ON (`on 5/5: installing
+input tap` follows), so a log ending on that line is a death **inside `installTap`**, the
+`isInputConnToConverter` region the ladder exists for — and the draft printed `⏹ ended`,
+exit 0, telling the reader not to look there. **In a log, a numbered skip that walks on and
+one that returns are the same shape**, so the tool must read both as deaths and (c3) is what
+keeps the returning kind out of `Sources/`. Tool and guard split the job; neither replaces
+the other.
 
-It checks the two shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))` and
+⭐ **(c4) was added ALONGSIDE, not instead:** every exit from the two session moves must
+ANNOUNCE itself — the class behind #906 AND #907 both (the #907 review: *"nothing detects a
+NEW silent return added to either function"*). No number to go stale, graded across three
+trees. ⚠️ Its first draft false-reddened a WRAPPED breadcrumb — the form written in the very
+file it scans — and stayed green on `if x { return }`, `else{return}`, a trailing-comment
+`return` and a silent `throw`. Mutation-drive a scanner like this before believing it.
+
+Back to `dead-needles.py` (its command block is well above now): it checks the two
+shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))` and
 `codeOccurrences(of: "…") >= N` — against comment-stripped `Sources/`. Its limits are in its
 own header and are real: it does not read negative assertions, interpolated needles, or
 whether a guard ran. It was validated against the commit that carried the known defect (finds

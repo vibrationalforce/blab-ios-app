@@ -489,11 +489,12 @@ enum AudioConfiguration {
             // between two rungs is a DEATH. A no-op looked like a crash.
             //
             // ⛔ #907 — AND #906 WROTE IT AS `raise 1/2 SKIPPED`, WHICH MADE THE TOOL LIE IN
-            // THE OTHER DIRECTION. `diag-ladder.py`'s LOG mode keeps the LAST `raise n/2` it
-            // sees and has no notion of a skip, so a healthy second claim ended the ladder at
-            // 1/2 and the tool printed "stopped before their last step … a DEATH AT THAT
-            // STEP" — on exactly the two-owner path #888 exists to illuminate. Reproduced on
-            // a synthetic log before and after. #906 drove `--source` and stopped at the
+            // THE OTHER DIRECTION. `diag-ladder.py`'s LOG mode kept the LAST `raise n/2` it
+            // saw and had NO NOTION OF A SKIP (it does since #908), so a healthy second
+            // claim ended the ladder at 1/2 and the tool printed "stopped before their last
+            // step … a DEATH AT THAT STEP" — on exactly the two-owner path #888 exists to
+            // illuminate. Reproduced on a synthetic log before and after. #906 drove
+            // `--source` and stopped at the
             // bundle's edge; the defect sat one step past it.
             //
             // ⭐ THE LAW, sharper than #906's version and the reason `on 4/5 SKIPPED:` in
@@ -509,11 +510,20 @@ enum AudioConfiguration {
             // different animal — `MicrophoneManager`'s `mic: start REFUSED` sits between
             // `2/3` and `3/3`, and driven on a synthetic log it makes the tool print
             // `❌ 'mic: start' 2/3`, a FALSE DEATH. Numbering it does not rescue it: `2/3
-            // SKIPPED` reads identically (the tool keeps the LAST n/N), and `3/3 SKIPPED`
+            // SKIPPED` read identically (the tool kept the LAST n/N), and `3/3 SKIPPED`
             // reads ✅ for a step that never ran. **Mid-ladder, NO source wording is honest.**
-            // That repair belongs in `scripts/diag-ladder.py` — it needs one concept it lacks,
-            // a line that TERMINATES a ladder without ADVANCING it — not in a third wording
-            // rule. Do not "fix" `mic: start REFUSED` by numbering it.
+            // ⭐ #908 MADE HALF OF THAT REPAIR — the half no wording could do. The tool now
+            // knows a TERMINATOR (a line that ends a ladder without advancing it), so
+            // `mic: start REFUSED` mid-ladder reads `⏹ ended` instead of a false death.
+            //
+            // ⛔ BUT THE OTHER HALF CANNOT BE FIXED IN THE TOOL, and #908's first draft
+            // learned that the expensive way: it also rescued NUMBERED skips, and then a log
+            // ending on `on 4/5 SKIPPED` — which WALKS ON to `on 5/5` — printed `⏹ ended`,
+            // exit 0. That log is a death inside `installTap`, and the tool told the reader
+            // not to look there. In a LOG the two numbered forms are the SAME SHAPE. So only
+            // an UNNUMBERED terminator rescues a ladder, the LAW above stands unchanged, and
+            // the guard-side ban on numbering a skip that RETURNS is load-bearing after all.
+            // (c4) was added ALONGSIDE it, not instead of it: it forbids a SILENT exit.
             EchoelCrashLog.breadcrumb("session: raise SKIPPED — category already .playAndRecord")
             return
         }

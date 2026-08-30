@@ -49,6 +49,13 @@ WHAT THIS CANNOT SAY — stated because a diagnosis without limits is itself a l
     exported mid-session, or a device that ran out of disk.
   · It reads only what the breadcrumb sink wrote. `os_log` lines are invisible in
     the exported file by construction, so their absence means nothing.
+  · LAST WINS, PER LADDER. Only the newest rung and the newest terminator of each ladder
+    are kept, so a log with TWO attempts hides the first one's outcome behind the second's:
+    attempt 1 dies at 2/3, attempt 2 completes → `done`. That predates #908 (the original
+    loop overwrote the same way); #908 adds a second such path, since a later terminator
+    rescues an earlier death. A per-attempt reading needs a run marker in the log, which
+    does not exist. Read the raw lines when a log shows more than one attempt.
+  · A NUMBERED skip is ambiguous and is NOT a terminator — see `ladder_verdicts`.
 """
 
 from __future__ import annotations
@@ -140,6 +147,51 @@ def ladders_in_source(root: str) -> dict[tuple[str, int], dict[int, list[str]]]:
     return found
 
 
+def terminators_in_source(root: str,
+                          ladders: dict[tuple[str, int], dict]) -> list[tuple[str, str, str]]:
+    """Every `<ladder prefix> …<ALL-CAPS WORD>` written in `Sources/`, as (where, prefix, word).
+
+    ⭐ IT SCANS FOR *ANY* ALL-CAPS TOKEN, NOT FOR `TERMINAL_WORDS`. Searching for the words
+    already known would be the self-confirming enumeration this file's own header warns
+    about: the census would agree with the list by construction and a fourth word added in
+    `Sources/` would never show up — it would just silently go back to reading as a death.
+    Scanning the shape instead means the selftest can assert `found ⊆ TERMINAL_WORDS` and
+    actually fail. Measured today: exactly SKIPPED (3), REFUSED (1), FAILED (1), zero noise.
+
+    ⚠️ THIS SCANS RAW LINES, NOT `STRING_LITERAL` MATCHES, and that is deliberate: the one
+    terminator that matters most — `mic: start REFUSED — input format not ready` — lives
+    inside a `\"\"\"` block, where a quote-pair scanner finds nothing. Under-reporting a
+    census that exists to prove the vocabulary is complete would defeat its purpose, so it
+    over-collects in the safe direction, exactly as `ladders_in_source` does.
+
+    ⚠️ IT CANNOT SEE A 1/1 LADDER'S TERMINATOR (#908 review, LOW-6): `ladders_in_source`
+    drops `total < 2`, so `session: lower` is not in `names` and its two `SKIPPED` lines do
+    not appear here. Harmless — a 1/1 ladder is not tracked in log mode either, so its
+    terminator could not change a verdict — and self-correcting the day `lower` grows a
+    second step. But "the vocabulary is complete" is a claim about the ladders it can see.
+    """
+    names = sorted({p for (p, _t) in ladders}, key=len, reverse=True)
+    if not names:
+        return []
+    pat = re.compile(r"(?:^|[^A-Za-z:])(" + "|".join(re.escape(n) for n in names)
+                     + r")\s+(?:\d{1,2}/\d{1,2}\s+)?([A-Z]{3,})\b")
+    out: list[tuple[str, str, str]] = []
+    for path in tracked_swift(root):
+        try:
+            text = open(path, encoding="utf-8").read()
+        except (OSError, UnicodeDecodeError):
+            continue
+        if not any(s in text for s in SINKS):
+            continue
+        rel = os.path.relpath(path, root)
+        for lineno, line in enumerate(text.split("\n"), 1):
+            if line.lstrip().startswith("//"):
+                continue
+            for m in pat.finditer(line):
+                out.append((f"{rel}:{lineno}", m.group(1), m.group(2)))
+    return sorted(set(out))
+
+
 def audit_source(root: str) -> int:
     ladders = ladders_in_source(root)
     if not ladders:
@@ -161,6 +213,22 @@ def audit_source(root: str) -> int:
             print( "       the step an emitter — a SKIPPED line counts — or stop announcing it.")
             for n in sorted(steps):
                 print(f"         {n}/{total}: {', '.join(steps[n])}")
+    terms = terminators_in_source(root, ladders)
+    unknown = 0
+    print("\n  terminator lines (end a ladder without advancing it, #908):")
+    if terms:
+        unknown = 0
+        for where, prefix, word in terms:
+            known_word = "" if word in TERMINAL_WORDS else "   ⚠️ NOT IN TERMINAL_WORDS"
+            unknown += 1 if known_word else 0
+            print(f"    · {where}  {prefix} … {word}{known_word}")
+        print("    A ladder whose last rung is short of `total` reads as ENDED, not DEAD,")
+        print("    when one of these follows it in the log — UNNUMBERED only, see the ⛔ in")
+        print("    `ladder_verdicts`. A word flagged above is NOT in the tool's vocabulary,")
+        print("    so its ladder still reads as a death — add it.")
+    else:
+        print("    · none — every short ladder in a log will read as a DEATH.")
+
     if REFUSED:
         print("\n  not read as rungs (numeric shape, no `:` / ` —` / ` SKIPPED` separator):")
         for line in REFUSED:
@@ -168,12 +236,135 @@ def audit_source(root: str) -> int:
         print("    If one of these IS a rung, the separator rule above needs widening —")
         print("    they are printed precisely so the rule cannot drop a rung in silence.")
     print()
+    # ⚠️ TWO COUNTERS, NOT ONE (#908 review, MEDIUM-4): folding an unknown terminal word into
+    # `findings` printed "❌ 1 incomplete ladder(s)" while every ladder was ✅ — a summary
+    # naming a repair (find the missing rung) that did not exist.
     if findings:
         print(f"❌ {findings} incomplete ladder(s).")
+    elif unknown:
+        print(f"⚠️ {unknown} terminal word(s) in Sources/ are unknown to this tool.")
+        print("   Every ladder is complete; add the word(s) to TERMINAL_WORDS or their")
+        print("   ladders will keep reading as deaths in a log.")
     else:
         print("✅ Every announced step has an emitter.")
     print("\n⚠️ This checks that a step CAN speak, never that it does at run time.")
     return 1 if findings else 0
+
+
+# ⭐ #908 — THE CONCEPT THE TOOL LACKED: A LINE THAT *ENDS* A LADDER WITHOUT *ADVANCING* IT.
+# Before this, `read_log` knew only rungs, so ANY ladder whose last rung was < total read as
+# "stopped before its last step … a DEATH AT THAT STEP". That is wrong for every path where
+# the code took a documented exit and SAID SO. Two measured cases, both in today's tree:
+#   · `session: raise SKIPPED` on a second owner — a healthy two-owner run reported as a death
+#     (#906 wrote it NUMBERED, which made it worse; #907 unnumbered it, which only hid it).
+#   · `mic: start REFUSED — input format not ready` (`MicrophoneManager`) sits between `2/3`
+#     and `3/3`: driven on a synthetic log it prints `❌ 'mic: start' 2/3`, a FALSE DEATH that
+#     has been possible since #890 and that NO wording could fix — measured, `2/3 SKIPPED`
+#     reads the same and `3/3 SKIPPED` reads ✅ for a step that never ran.
+# So the repair belongs here, not in a third rule about how to word a breadcrumb (#907 named
+# this as the next slice for exactly that reason).
+#
+# ⚠️ VOCABULARY IS MEASURED FROM `Sources/`, NOT INVENTED — and the counts that stood here
+# were WRONG on all three words while a second census a hundred lines below printed the right
+# ones (#908 review). Deleted rather than refreshed: `--source` prints the live census with
+# file:line, so no number belongs in a comment (`.claude/rules/context.md` §2). A fourth word
+# added in source and not here would silently go back to reading as a death, which is why
+# `--selftest` asserts the list against an INDEPENDENT scan.
+#
+# ⚠️ FAILED IS NOT LIKE THE OTHER TWO. A skip or a refusal is a deliberate exit; a FAILURE is
+# the thing the reader is hunting. It ends the ladder just as truly, so it belongs here — but
+# it gets its own outcome and stays a FINDING, or a real failure would print as a tidy end.
+TERMINAL_WORDS = ("SKIPPED", "REFUSED", "FAILED")
+BENIGN_TERMINALS = ("SKIPPED", "REFUSED")
+
+
+def ladder_verdicts(lines: list[str],
+                    known: set[tuple[str, int]]) -> dict[tuple[str, int], dict]:
+    """Walk a log ONCE and decide each ladder's outcome. Pure, so the selftest can drive
+    the real thing rather than a re-implementation of it (#416: one definition per rule).
+
+    Three outcomes, and the middle one is what #908 adds:
+      · `done`  — the last rung reached `total`.
+      · `ended` — the last rung is short of `total` AND a terminator for that ladder stands
+                  at or after it. The code stopped ON PURPOSE and named the reason; the line
+                  itself is the diagnosis. NOT a finding.
+      · `died`  — short, with no terminator after it. Silence between two rungs, i.e. the
+                  original finding this tool exists for.
+
+    ⛔ A NUMBERED SKIP IS **NOT** A TERMINATOR, AND THE FIRST VERSION OF #908 GOT THIS WRONG
+    IN THE EXPENSIVE DIRECTION. It recorded `on 4/5 SKIPPED` as a terminator too, so a log
+    whose LAST line is that rung printed `⏹ ended`, exit 0 — while in `AudioEngine` control
+    falls straight out of that `else` into `on 5/5: installing input tap`, i.e. that log is a
+    DEATH INSIDE `installTap`, the exact `isInputConnToConverter` region the ladder exists
+    for. The tool told the reader not to look there. Driven and reproduced before the fix.
+
+    ⭐ THE REASON IT CANNOT BE RESCUED BY A CLEVERER RULE: in the LOG, `on 4/5 SKIPPED` (walks
+    on) and `raise 1/2 SKIPPED` (returns) are the SAME SHAPE. Nothing in the line says which.
+    So a numbered skip is AMBIGUOUS by construction and must keep reading as a death, and the
+    Swift-side ban on numbering a skip that RETURNS (guard claim (c3)) is load-bearing after
+    all — #908's first draft retired it and that was the mistake. An UNNUMBERED terminator is
+    unambiguous: it claims no step, so it can only mean "this ladder stops here".
+    """
+    progress: dict[tuple[str, int], tuple[int, int, str]] = {}
+    terminal: dict[tuple[str, int], tuple[int, str, str]] = {}
+    words = "|".join(TERMINAL_WORDS)
+    for idx, line in enumerate(lines):
+        rungs: dict[tuple[str, int], tuple[int, int, int]] = {}    # key -> (step, lo, hi)
+        terms: dict[tuple[str, int], tuple[str, int, int]] = {}    # key -> (word, lo, hi)
+        for (prefix, total) in known:
+            pat = re.escape(prefix)
+            m = re.search(rf"\b{pat}\s+(\d{{1,2}})/{total}\b", line)
+            if m:
+                rungs[(prefix, total)] = (int(m.group(1)), m.start(), m.end())
+            # UNNUMBERED only — see the ⛔ above. A numbered skip stays a rung and nothing else.
+            tm = re.search(rf"\b{pat}\s+({words})\b", line)
+            if tm:
+                terms[(prefix, total)] = (tm.group(1), tm.start(), tm.end())
+
+        # ⛔ #908 — LONGEST PREFIX WINS, AND THIS IS NOT THEORETICAL: the FIRST version of
+        # the terminator scan minted a phantom `⏹ 'start' 0/2` out of the line
+        # `mic: start REFUSED — …`, because `\bstart` matches happily after `mic: `. Caught by
+        # driving the tool, not by reading it. The rung scan had the SAME latent collision and
+        # was safe only by accident — `start` is 1..2 and `mic: start` is 1..3, so the totals
+        # never agreed. A future ladder with matching totals would have made it real, so the
+        # filter covers both scans.
+        spans: list[tuple[str, int, int]] = (
+            [(k[0], lo, hi) for k, (_s, lo, hi) in rungs.items()]
+            + [(k[0], lo, hi) for k, (_w, lo, hi) in terms.items()])
+
+        def shadowed(prefix: str, lo: int) -> bool:
+            """True when a LONGER prefix matched a span CONTAINING this one.
+
+            ⚠️ The span test is not decoration (#908 review, LOW-1): a whole-line rule drops a
+            genuine `start 1/2` rung from a line that also carries `mic: start REFUSED`, and
+            the first repair still did, because it searched the line for the bare prefix and
+            found the copy inside the longer one. Only a containing MATCH is a collision; two
+            ladders mentioned on one line are two ladders.
+            """
+            return any(other != prefix and other.endswith(prefix)
+                       and o_lo <= lo < o_hi for other, o_lo, o_hi in spans)
+
+        for key, (step, lo, _hi) in rungs.items():
+            if not shadowed(key[0], lo):
+                progress[key] = (step, idx, line)
+        for key, (word, lo, _hi) in terms.items():
+            if not shadowed(key[0], lo):
+                terminal[key] = (idx, line, word)
+
+    out: dict[tuple[str, int], dict] = {}
+    for key in set(progress) | set(terminal):
+        step, idx, line = progress.get(key, (0, -1, ""))
+        term = terminal.get(key)
+        if step >= key[1]:
+            verdict = "done"
+        elif term is not None and term[0] >= idx:
+            verdict = "ended" if term[2] in BENIGN_TERMINALS else "failed"
+            line = term[1]
+            idx = term[0]
+        else:
+            verdict = "died"
+        out[key] = {"step": step, "idx": idx, "line": line, "verdict": verdict}
+    return out
 
 
 def read_log(path: str, root: str) -> int:
@@ -195,36 +386,43 @@ def read_log(path: str, root: str) -> int:
         print(f"  header │ {head[:110]}")
     print(f"  last   │ {lines[-1][:110]}\n")
 
-    # Walk the log, tracking the newest step seen per ladder and where it sat.
-    progress: dict[tuple[str, int], tuple[int, int, str]] = {}
-    for idx, line in enumerate(lines):
-        for (prefix, total) in known:
-            m = re.search(rf"\b{re.escape(prefix)}\s+(\d{{1,2}})/{total}\b", line)
-            if m:
-                progress[(prefix, total)] = (int(m.group(1)), idx, line)
+    verdicts = ladder_verdicts(lines, known)
 
-    if not progress:
+    if not any(v["step"] > 0 for v in verdicts.values()):
         print("  No ladder rung appears in this log.")
         print("  That is a FINDING about the log, not about the code: either it predates the")
         print("  ladder, or the breadcrumb sink never opened (`EchoelCrashLog.begin()`).")
         return 1
 
     findings = 0
+    ended = 0
+    failed = 0
     print("  Ladder                      last step    where")
-    for (prefix, total) in sorted(progress):
-        step, idx, line = progress[(prefix, total)]
+    for (prefix, total) in sorted(verdicts):
+        v = verdicts[(prefix, total)]
+        step, idx = v["step"], v["idx"]
         tail = " ← LAST LINE OF LOG" if idx == len(lines) - 1 else ""
-        flag = "  ❌" if step < total else "  ✅"
-        findings += 1 if step < total else 0
+        flag = {"done": "  ✅", "ended": "  ⏹", "failed": "  ⚠️", "died": "  ❌"}[v["verdict"]]
+        findings += 1 if v["verdict"] in ("died", "failed") else 0
+        ended += 1 if v["verdict"] == "ended" else 0
+        failed += 1 if v["verdict"] == "failed" else 0
         print(f"  {flag} {prefix!r:<26} {step}/{total}      line {idx + 1}{tail}")
     print()
+    if ended:
+        print(f"⏹ {ended} ladder(s) ended DELIBERATELY short and said why (#908).")
+        print("   That is not a death: the code took a documented exit and named it. READ THAT")
+        print("   LINE — it is the diagnosis, e.g. `mic: start REFUSED — input format not ready`")
+        print("   or a second owner meeting a route that was already raised.")
+    if failed:
+        print(f"⚠️ {failed} ladder(s) ended on a FAILED line — a finding, not a tidy exit.")
+        print("   The line names the error the code caught. The steps after it did not run.")
     if findings:
-        print(f"❌ {findings} ladder(s) stopped before their last step.")
+        print(f"❌ {findings} ladder(s) did not reach their last step.")
         print("   Since #882 every numbered step emits even when skipped, so a gap in a ladder")
         print("   written after that is a DEATH AT THAT STEP — the rung stands before its call.")
         print("   ⚠️ Check the ladder is one of the post-#882 ones before concluding that;")
         print("   `--source` lists which ladders are complete in today's tree.")
-    else:
+    elif not ended:
         print("✅ Every ladder that appears reached its last step.")
     print("\n⚠️ A completed ladder does not mean the run was healthy — it means no rung was")
     print("   the last thing written. The crash may be anywhere the ladder does not reach.")
@@ -273,6 +471,59 @@ def selftest(root: str) -> int:
         steps = ladders.get((prefix, total), {})
         check(f"source ladder {prefix!r} 1..{total} is complete",
               all(n in steps for n in range(1, total + 1)))
+
+    # ⭐ #908 — THE VERDICT LOGIC, DRIVEN END TO END rather than reasoned about. Each case
+    # below is a log this repo actually produced or would produce; the first two are the
+    # measured defects that motivated the change. Driving `ladder_verdicts` itself (not a
+    # copy of its rules) is the point — #416.
+    mic = ["mic: start 1/3 — claiming record route", "mic: start 2/3 — tapping input"]
+    raise2 = ["session: raise 1/2 — setCategory(.playAndRecord)",
+              "session: raise 2/2 — setActive"]
+    for name, lines, key, want in [
+        ("a mid-ladder REFUSED is an END, not a death (#890 path)",
+         mic + ["mic: start REFUSED — input format not ready"], ("mic: start", 3), "ended"),
+        # #906's wording stays a DEATH on purpose: in a log it cannot be told apart from a
+        # skip that walks on. The repair for it is the guard-side ban (c3), not this tool.
+        ("#906's numbered wording is ambiguous and stays a DEATH",
+         ["session: raise 1/2 SKIPPED: category already .playAndRecord"],
+         ("session: raise", 2), "died"),
+        ("an unnumbered skip after a complete run is still DONE (#907 wording)",
+         raise2 + ["session: raise SKIPPED — category already .playAndRecord"],
+         ("session: raise", 2), "done"),
+        ("silence after a rung is still a DEATH — the finding this tool exists for",
+         mic, ("mic: start", 3), "died"),
+        # ⛔ THE ONE #908's FIRST DRAFT GOT BACKWARDS, and its own selftest blessed it (#367).
+        # `on 4/5 SKIPPED` WALKS ON — `on 5/5: installing input tap` follows it in
+        # `AudioEngine` — so a log ending there is a death INSIDE `installTap`, the
+        # `isInputConnToConverter` region this ladder exists for. In the LOG that line is
+        # indistinguishable from a numbered skip that RETURNS, so it must stay a death.
+        ("a NUMBERED skip is ambiguous in a log and stays a DEATH",
+         ["on 1/5: a", "on 4/5 SKIPPED: engine was not running"], ("on", 5), "died"),
+        ("a FAILED terminator is its own outcome, never a tidy end",
+         ["mic: start 1/3 — a", "mic: start FAILED (route lost)"], ("mic: start", 3), "failed"),
+    ]:
+        got = ladder_verdicts(lines, {key}).get(key, {}).get("verdict")
+        check(f"{name} → {want}", got == want)
+
+    # ⛔ THE PHANTOM LADDER THIS CAUGHT ON ITS FIRST RUN: `\bstart` matches inside
+    # `mic: start REFUSED`, so the first version minted `⏹ 'start' 0/2` out of thin air.
+    # Longest prefix wins now; this pins it, because the rung scan had the same latent
+    # collision and was safe only because the two totals happened to differ.
+    both = {("mic: start", 3), ("start", 2)}
+    check("a longer prefix shadows a shorter one on the same SPAN",
+          ("start", 2) not in ladder_verdicts(
+              ["mic: start REFUSED — input format not ready"], both))
+    # …and does NOT shadow a genuine hit elsewhere on the line (#908 review, LOW-1).
+    mixed = ladder_verdicts(
+        ["mic: start REFUSED — retrying; start 1/2: starting master engine"], both)
+    check("a second ladder on the same line survives the shadow filter",
+          mixed.get(("start", 2), {}).get("step") == 1)
+
+    # The vocabulary is asserted against an INDEPENDENT scan (any ALL-CAPS token after a
+    # ladder prefix), never against the word list itself — see terminators_in_source.
+    used = {w for (_where, _p, w) in terminators_in_source(root, ladders)}
+    check(f"every terminal word in Sources/ is known: {sorted(used)}",
+          used.issubset(set(TERMINAL_WORDS)))
 
     print("\n" + ("selftest OK" if ok else "selftest FAILED"))
     return 0 if ok else 1

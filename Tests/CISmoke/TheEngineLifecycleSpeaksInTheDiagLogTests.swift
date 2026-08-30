@@ -79,6 +79,20 @@
 // GREEN — the false red M2 would otherwise have caused), and an interpolated rung (fires the
 // interpolation claim). ⚠️ (c3)'s `AudioEngine` half is a TRIPWIRE, not a counterweight:
 // measured 3 selected lines in `AudioConfiguration` and ZERO in `AudioEngine`.
+//
+// ⛔ GRADING, claims (c3) + (c4) (#908) — AND THE FIRST DRAFT OF THIS BLOCK SAID (c3) WAS
+// RETIRED. It is not. #908 taught `scripts/diag-ladder.py` a terminator, and I concluded the
+// numbered spelling was safe; the review disproved it with a log: `on 4/5 SKIPPED` WALKS ON,
+// so a log ending there is a death inside `installTap`, and the draft printed `⏹ ended`,
+// exit 0. In a LOG the walks-on and the returning form are the same shape, so the tool
+// rescues only UNNUMBERED terminators and (c3) is what keeps the ambiguous spelling out of
+// `Sources/`. (c3) is graded: red on `da06482` (both numbered lines), green on the worktree;
+// its `AudioEngine` half selects ZERO lines and is a TRIPWIRE, not a counterweight. Its
+// interpolation half is a separate assertion and was nearly lost with it.
+// (c4) is graded across THREE trees: `b0d6480` → BOTH session functions red, `da06482` →
+// `downgradeToPlaybackAfterRecording` red, worktree → green; plus four mutants on the
+// worktree (wrapped breadcrumb GREEN, trailing comment GREEN, `if … { return }` RED, silent
+// `throw` RED) — its own first draft failed all four.
 
 import Foundation
 import XCTest
@@ -635,18 +649,21 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         //      carried `on 4/5 SKIPPED:` since #862b — it simply had not reached this file.
         //
         // ⛔ #907 — #906 WROTE THEM NUMBERED (`raise 1/2 SKIPPED`) AND THAT LIED IN THE OTHER
-        //    DIRECTION. `diag-ladder.py`'s LOG mode keeps the LAST `raise n/2` it sees and
-        //    has no notion of a skip, so a healthy SECOND claim ended its ladder at 1/2 and
-        //    the tool called a two-owner run a DEATH — on exactly the path #888 exists to
-        //    illuminate. Reproduced on a synthetic log both ways. The literals below are
-        //    unnumbered now, and (c3) forbids the numbered form generally.
+        //    DIRECTION. `diag-ladder.py`'s LOG mode kept the LAST `raise n/2` it saw and had
+        //    NO NOTION OF A SKIP — it has one for UNNUMBERED lines since #908 — so a healthy
+        //    SECOND claim ended its ladder at 1/2 and the tool called a two-owner run a
+        //    DEATH — on exactly the path #888 exists to illuminate. Reproduced on a
+        //    synthetic log both ways. The literals below are unnumbered now, and (c3) below
+        //    keeps the numbered form out. (⛔ #908's first draft retired (c3), believing the
+        //    tool had made it safe; the review disproved that with a walks-on log. Restored.)
         //
         // ⭐ THE THIRD TUPLE IS NEW IN #907 — AND IT IS NOT A NO-OP GUARD, which is why the
         //    wording around it says "a guard" rather than "the no-op guard" (#907 review, M1).
         //    The two category comparisons really do find nothing to do; this one can return
-        //    while the category IS raised, so its message carries "category left as-is". `guard isSessionConfigured` was left silent by
-        //    #906 on two reasons that were both measurably wrong: it fires after a THROWN
-        //    configure too, and only one of the three claim sites configures first — so the
+        //    while the category IS raised, so its message carries "category left as-is".
+        //    It was left silent by #906 on two reasons that were both measurably wrong: it
+        //    fires after a THROWN configure too, and only one of the three claim sites
+        //    configures first — so the
         //    session can sit on `.playAndRecord` with nobody holding it while the log says
         //    "holders none, lowering".
         //
@@ -699,7 +716,7 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             guard let a = config.range(of: fn) else {
                 XCTFail("`\(fn)` is gone — re-anchor (§4). A bare `return` here would have "
                         + "exited the whole test method, taking the remaining tuples, the "
-                        + "(c3) ban and the (d) count pin with it, and reported GREEN.")
+                        + "(c4) claims and the (d) count pin with it, and reported GREEN.")
                 return
             }
             let body = String(config[a.lowerBound...].prefix(1_800))
@@ -717,29 +734,28 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 """)
         }
 
-        // (c3) #907 — THE LAW IN EXECUTABLE FORM, AND IT IS POSITION-DEPENDENT. A skipped
-        //      step may be NUMBERED only when the ladder WALKS ON past it (`AudioEngine`'s
-        //      `on 4/5 SKIPPED:` is legal because `on 5/5` still follows). A skip that
-        //      RETURNS ends its ladder, so a number turns a no-op into a truncation.
+        // (c3) #907, RESTORED BY THE #908 REVIEW — a SKIPPED step that EXITS must not carry
+        //      a rung number. #908's first draft retired this, on the reasoning that the tool
+        //      had been taught to read the numbered form. That was wrong, and the review
+        //      proved it with a log: `on 4/5 SKIPPED` in `AudioEngine` WALKS ON (`on 5/5:
+        //      installing input tap` follows), so a log ending on that line is a death INSIDE
+        //      `installTap` — the `isInputConnToConverter` region the ladder exists for — and
+        //      the draft printed `⏹ ended`, exit 0, telling the reader not to look there.
         //
-        // ⚠️ UNNUMBERED IS THE RIGHT ANSWER *HERE* ONLY BECAUSE ALL THREE SKIPS STAND BEFORE
-        //    EVERY RUNG OF THEIR LADDER. Mid-ladder, NO source wording is honest, and this
-        //    was measured on a synthetic log rather than reasoned: `MicrophoneManager`'s
-        //    `mic: start REFUSED` sits between `2/3` and `3/3` and yields `❌ 'mic: start'
-        //    2/3` — a FALSE DEATH. Numbering does not rescue it (`2/3 SKIPPED` prints the
-        //    same, `3/3 SKIPPED` prints ✅ for a step that never ran). That repair belongs in
-        //    `scripts/diag-ladder.py`, which lacks one concept: a line that TERMINATES a
-        //    ladder without ADVANCING it. So this ban must NOT be read as "number it
-        //    instead" for a mid-ladder skip (#364) — there is no correct source wording there.
+        // ⭐ THE REASON IT CANNOT BE FIXED IN THE TOOL: in a LOG, a numbered skip that WALKS ON
+        //    and a numbered skip that RETURNS are the SAME SHAPE. Nothing in the line tells
+        //    them apart, so the tool must read both as deaths — and this guard is what keeps
+        //    the returning kind out of the source. `scripts/diag-ladder.py` now rescues only
+        //    an UNNUMBERED terminator, which claims no step and therefore cannot be ambiguous.
+        //    So the division of labour is: the TOOL learned `mic: start REFUSED` (mid-ladder,
+        //    unnumbered — the case no wording could fix); this CLAIM keeps the ambiguous
+        //    spelling out. Neither replaces the other.
         //
-        // ⛔ AND THE GRADING OF THIS CLAIM, HONESTLY (#367, the #907 review's H3): the first
-        //    draft said scanning `AudioEngine` "keeps the legal form a live counterweight".
-        //    IT DOES NOT. Measured: `AudioConfiguration` contributes 3 lines to the assertion
-        //    and `AudioEngine` contributes ZERO — both its `SKIPPED` lines are followed by
-        //    `}`, and `setInputMonitoring` returns `Bool`, so its exits are `return false` /
-        //    `return true`, not the bare `return` this selects. It is a TRIPWIRE for a future
-        //    skip in that file, not evidence that the legal form survives the ban. The two
-        //    legal lines are pinned as PRESENT by claim 12 — that is what protects them.
+        // ⛔ GRADED: red on `da06482` (#906) — it selects both numbered lines — and green on
+        //    the worktree. `AudioEngine`'s two legal `on 4/5 SKIPPED:` lines are NOT selected
+        //    (their next line is `}`, and `setInputMonitoring` returns `Bool`), so that half
+        //    is a TRIPWIRE for a future bare-exit skip, not a live counterweight. What
+        //    protects those two lines is claim 12, which pins them PRESENT.
         for (path, text) in [("Audio/AudioConfiguration.swift", config),
                              ("Audio/AudioEngine.swift",
                               try code("Sources/Echoelmusic/Audio/AudioEngine.swift"))] {
@@ -749,14 +765,11 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 let next = lines.dropFirst(i + 1)
                     .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }?
                     .trimmingCharacters(in: .whitespaces) ?? ""
-                // #907 review (M3): a ladder is truncated by every exit spelling, not just a
-                // bare `return`. `return false` is the dominant one next door.
                 guard next.hasPrefix("return") || next.hasPrefix("throw") else { continue }
 
-                // #907 review (M2): read the MESSAGE, never the line. The stripper only drops
-                // lines that BEGIN with `//`, so a trailing `// #907: was 1/2` survives and a
-                // raw-line scan would go RED on a line carrying no number at all — a false red
-                // on a correct tree, telling its author to remove something that is not there.
+                // Read the MESSAGE, never the line: the stripper only drops lines that BEGIN
+                // with `//`, so a trailing `// #907: was 1/2` survives and a raw-line scan
+                // would redden a line carrying no number at all.
                 guard let open = line.firstIndex(of: "\""),
                       let close = line.lastIndex(of: "\""), open < close else { continue }
                 let message = String(line[line.index(after: open)..<close])
@@ -764,19 +777,94 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                     a SKIPPED breadcrumb in `\(path)` builds its rung number by interpolation:
                     \(line.trimmingCharacters(in: .whitespaces))
                     Neither this claim nor `scripts/diag-ladder.py` can read that — the tool's \
-                    rung regex needs a literal. Write the message as a literal so both can.
+                    rung regex allows no interpolation in a prefix, so the rung vanishes from \
+                    `--source` entirely and the ladder silently reports one emitter fewer.
                     """)
                 XCTAssertFalse(carriesRungNumber(message), """
-                    a SKIPPED step in `\(path)` is NUMBERED and then exits (#907):
+                    a SKIPPED step in `\(path)` is NUMBERED and then exits (#907/#908):
                     \(line.trimmingCharacters(in: .whitespaces))
-                    `scripts/diag-ladder.py` keeps the LAST `n/N` per ladder and has no notion \
-                    of a skip, so on a ladder of two or more steps this ends it early and a \
-                    healthy run is reported as a death at that step. Drop the number — an \
-                    unnumbered skip is a STATE line the tool ignores.
-                    ⚠️ On a ONE-step ladder the tool never tracks the prefix at all (it drops \
-                    `total < 2`), so a number there is harmless TODAY by accident, not by \
-                    design — it would start lying the day that ladder grows a second step. \
-                    The ban is deliberately blind to that difference.
+                    In a LOG this is indistinguishable from a skip that WALKS ON, so \
+                    `scripts/diag-ladder.py` must read it as a death — and it will, on a run \
+                    that was healthy. Drop the number: an UNNUMBERED skip is a state line the \
+                    tool rescues correctly. Numbering stays honest only where the ladder walks \
+                    on past it (`on 4/5 SKIPPED`, with `on 5/5` following).
+                    """)
+            }
+        }
+
+        // (c4) #908 — AND THE CLASS BEHIND #906 AND #907 BOTH: a SILENT exit on a route
+        //      transition. The #907 review named it — "nothing in the file detects a NEW
+        //      silent return added to either function" — which is exactly how the
+        //      `isSessionConfigured` gap survived a whole cycle. Every exit from the two
+        //      session moves must ANNOUNCE itself. No number to go stale (#903).
+        //
+        // ⛔ ITS FIRST DRAFT WAS WRONG IN BOTH DIRECTIONS, mutation-driven by the #908 review:
+        //    it FALSE-REDDENED a wrapped breadcrumb (the form written in the very file it
+        //    scans, `route: release … FAILED (`), a widened `#if os(macOS) || os(watchOS)`,
+        //    and a `return` inside a nested closure; and it stayed GREEN on `if x { return }`,
+        //    on `else{return}` without inner spaces, on a trailing-comment `return`, and on a
+        //    silent `throw` — the last a straight regression, since the claim it replaced
+        //    covered `throw` explicitly. Both halves are rewritten below.
+        //
+        // ⭐ GRADED ACROSS THREE TREES: `b0d6480` → BOTH functions red, `da06482` (#906) →
+        //    `downgradeToPlaybackAfterRecording` red, worktree → green. Plus four mutants
+        //    driven on the worktree: wrapped breadcrumb GREEN, trailing comment GREEN,
+        //    `if … { return }` RED, silent `throw` RED.
+        for fn in ["static func upgradeToPlayAndRecord",
+                   "static func downgradeToPlaybackAfterRecording"] {
+            guard let a = config.range(of: fn) else {
+                XCTFail("`\(fn)` is gone — re-anchor (§4). This `return` exits the whole test "
+                        + "method, so the claims below it do not run either (#907 review).")
+                return
+            }
+            // Bounded by the NEXT declaration, never by a character budget: a window that
+            // overruns into the next function counted five exits where there are two.
+            let rest = config[a.upperBound...]
+            let end = rest.range(of: "\n    static func")?.lowerBound ?? rest.endIndex
+            let body = String(rest[..<end])
+
+            // Whitespace-squashed, so `else { return }`, `else{return}` and `if x { return }`
+            // are one shape. `{throw` is here because both functions are `throws`.
+            let squashed = body.split(whereSeparator: { $0.isWhitespace }).joined()
+            for silent in ["{return", "{throw"] {
+                XCTAssertFalse(squashed.contains(silent), """
+                    `\(fn)` has a one-line silent exit (`\(silent)…`) — an exit on a route
+                    transition that writes nothing (#908). Its caller has already written
+                    `route: …`, so by this ladder's own law (#859–#862b) the silence that
+                    follows reads as a death inside the step. Put a breadcrumb in the block
+                    before the exit, unnumbered.
+                    """)
+            }
+
+            let lines = body.split(separator: "\n", omittingEmptySubsequences: false)
+                .map(String.init)
+            for (i, line) in lines.enumerated() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                let statement = trimmed.components(separatedBy: "//")[0]
+                    .trimmingCharacters(in: .whitespaces)
+                guard statement == "return" || statement.hasPrefix("return ")
+                        || statement.hasPrefix("throw ") else { continue }
+
+                // Walk back to the line that OPENS the enclosing block and look at the whole
+                // block, not at one line: the announcing breadcrumb is often wrapped over two.
+                var block: [String] = []
+                var compileTimeOnly = false
+                for previous in lines[..<i].reversed() {
+                    let p = previous.trimmingCharacters(in: .whitespaces)
+                    if p.isEmpty { continue }
+                    if p.hasPrefix("#if os(macOS)") { compileTimeOnly = true; break }
+                    if p.hasSuffix("{") { break }
+                    block.append(p)
+                }
+                if compileTimeOnly { continue }
+
+                XCTAssertTrue(block.contains { $0.contains("EchoelCrashLog.breadcrumb(") }, """
+                    an exit in `\(fn)` is not announced (#908):
+                    \(trimmed)
+                    Nothing in its block writes a breadcrumb, so the log shows `route: …`
+                    followed by silence and the next reader calls that a death. The
+                    `#if os(macOS)` return is exempt — it is compile-time, so no iOS log can
+                    ever show it.
                     """)
             }
         }
@@ -1113,7 +1201,7 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         }
     }
 
-    /// True when the line carries a ladder rung NUMBER (`n/N`) — the shape
+    /// True when the message carries a ladder rung NUMBER (`n/N`) — the shape
     /// `scripts/diag-ladder.py` walks. Digit-slash-digit, no regex: a spaced division
     /// (`a / b`) is deliberately not a match, and neither is a bare `/` in prose.
     private func carriesRungNumber(_ line: String) -> Bool {
