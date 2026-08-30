@@ -67,12 +67,14 @@
 // by itself ONLY WHEN THE STATE IS UNDETERMINED — ⛔ #891 wrote "RESOLVES by itself" flat,
 // and for a user who has DENIED the microphone iOS shows no prompt and returns immediately,
 // so `hasPermission` stays false forever and the take keeps the exact 0 % hang this slice
-// exists to remove. ⭐ #895 CLOSED THAT CASE: `begin()` now checks `mic.permissionDenied`
-// FIRST, and `MicrophoneManager.checkPermission()` derives that flag from the system on
-// every start instead of only inside the request callback — it used to read "not denied"
-// at launch for a user who had denied earlier, which is why the flag could not simply be
-// read as it stood. UNDETERMINED is still a wait and still correct: aborting there would
-// break the first capture every new user ever tries · the "already recording" `return` cannot
+// exists to remove. ⭐ #895 CLOSED THE DENIED CASE: `begin()` checks `mic.permissionDenied`,
+// and `MicrophoneManager.checkPermission()` derives that flag from the system on every start
+// instead of only inside the request callback — it used to read "not denied" at launch for a
+// user who had denied earlier, which is why the flag could not simply be read as it stood.
+// ⛔ #896 CLOSED THE LAST ONE, AND HAD TO RETRACT THIS PARAGRAPH TO DO IT: "UNDETERMINED is
+// still a wait and still correct" was FALSE. The grant restarts nothing — see the measurement
+// at the abort itself — so that path was the hang, for the first capture of every new user.
+// All three states now end the take · the "already recording" `return` cannot
 // be reached from here at all, because `micStartedByUs = !mic.isRecording` means this
 // caller only starts a mic that is stopped · the two #889 guards are documented
 // unreachable in their own comments · what remains, and what this abort exists for, is the
@@ -124,13 +126,22 @@ final class VoiceCaptureController {
     /// The system says microphone access is DENIED for this app, so no take can start until
     /// the user changes it in Settings.
     ///
-    /// ⚠️ #895 — A STATE FACT, NOT A STREAK, and that is why it IS reset at the top of
-    /// `begin()` while `micRefusals` deliberately is not. This one is re-derived from the
+    /// ⚠️ #895 — A STATE FACT, NOT A STREAK, and that is why it is reset when a take is
+    /// ARMED while `micRefusals` is not (⛔ #896: this said "at the top of `begin()` while
+    /// `micRefusals` deliberately is not", and since #895b `micRefusals` IS reset inside
+    /// `begin()` too — in an abort branch, which is a real end of a run. The distinction is
+    /// ARM-TIME versus anywhere, and the sentence survived only on three words). This one is re-derived from the
     /// system on every tap (`startRecording()` refreshes first), so carrying a stale `true`
     /// across a tap would be the lie; a count of refusals in a row is the opposite — it only
     /// means anything if it survives the next arm. Two properties, two lifetimes, one
     /// sentence each so the contrast is not read as an inconsistency and "fixed".
     private(set) var micAccessDenied = false
+    /// The system permission alert is open, so this take cannot start — and answering the
+    /// alert will NOT restart it (#896: nothing observes the grant). The player taps again.
+    ///
+    /// ⚠️ A STATE FACT like `micAccessDenied`, so it is reset at arm time for the same
+    /// reason; `micRefusals` is the odd one out and its own doc says why.
+    private(set) var micAwaitingPermission = false
 
     @ObservationIgnored private var engine = VoiceCaptureEngine()
     @ObservationIgnored private weak var mic: MicrophoneManager?
@@ -152,79 +163,65 @@ final class VoiceCaptureController {
         progress = 0
         hearingYou = false
         micAccessDenied = false
+        micAwaitingPermission = false
         micStartedByUs = !mic.isRecording
         mic.captureSampleSink = { [weak self] samples, sampleRate in
             self?.ingest(samples, sampleRate: sampleRate)
         }
         if micStartedByUs {
             mic.startRecording()
-            // #891: it can REFUSE, and from here that refusal is SILENT — see the header
-            // for which exits are live (#890's placeholder guard and the `catch`). No tap,
-            // no sample, no way out but Cancel.
+            // ⛔ #896 — ALL THREE PERMISSION STATES END THE TAKE, and the reason the first
+            // three slices of this arc did not is a sentence that was never measured.
+            // #891 wrote that the undetermined `return` "RESOLVES by itself"; #892 retracted
+            // it for DENIED; #895 re-inspected the state space and signed the rest off with
+            // "the system prompt is open, the wait is correct". Measured 2026-08-30, and it
+            // is false: `requestPermission()`'s continuation writes `hasPermission = true`
+            // and NOTHING ELSE — since #825 it deliberately starts nothing — and
+            // `startRecording()` has exactly ONE production caller in `Sources/`, this line,
+            // which has already returned. No timer, no observer of `hasPermission` anywhere.
+            // So the user taps Allow and the row sits on `.capturing` 0 % forever, under a
+            // caption claiming a live capture: THE FIRST CAPTURE OF EVERY NEW USER, the most
+            // common instance of the very class this arc exists to remove.
             //
-            // ⭐ This covers the whole surface, not just one door: measured 2026-08-30,
-            // `MicrophoneManager.startRecording()` has exactly ONE production caller in
-            // `Sources/`, and it is this line.
+            // ⭐ AND "ABORTING WOULD BREAK THE PERMISSION FLOW" WAS THE INVERSE OF THE TRUTH.
+            // The system alert is already on screen — `startRecording()` asked for it before
+            // returning. Aborting costs the user ONE extra tap after they answer it, against
+            // a hang they can only escape by finding Cancel. There is a better end state
+            // still (resume the take automatically on the grant), and it needs a callback
+            // this manager does not have; that is a later slice, not a reason to keep a hang.
             //
-            // ⚠️ `hasPermission` IS THE DISCRIMINATOR AND MUST STAY. The no-permission exit
-            // also leaves `isRecording` false, but the mic manager has just opened the system
-            // prompt: that wait RESOLVES, and the header documents it as intended. Aborting
-            // there would break the permission flow on the very first capture a user ever
-            // tries. Only a refusal WITH permission already granted is a dead end.
-            // ⭐ #895 — THE DENIED CASE, which #891 named as deliberately open and #892 had
-            // to retract a flat "the permission return RESOLVES by itself" for. It does not:
-            // for a user who has denied the microphone, iOS shows NO prompt and returns
-            // immediately, so `hasPermission` stays false forever, the refusal branch below
-            // never fires, and the take sat on `.capturing` 0 % — the exact hang this whole
-            // arc exists to remove, surviving three slices because the discriminator only
-            // asked "granted?" and never "denied?".
-            //
-            // ⚠️ THE THIRD STATE IS THE REASON THIS IS TWO CHECKS AND NOT ONE. Undetermined
-            // is neither granted nor denied: the system prompt is open, the wait is correct,
-            // and aborting there would break the first capture every new user ever tries.
-            // Only `denied` is a dead end.
-            if !mic.isRecording, mic.permissionDenied {
-                micAccessDenied = true
-                // #895b (found by re-tracing my own slice, not by a reviewer): a denied abort
-                // ENDS a refusal streak. Without this, revoking permission between two
-                // placeholder refusals let the caption later claim "2x in a row" for two
-                // failures with a different outcome sitting between them — an OVER-report,
-                // and over-reporting is the unsafe direction (#893's accepted asymmetry
-                // under-reports, which only ever hides a failure that did happen).
-                //
-                // ⚠️ This is NOT the arm-time reset that claim 7 forbids. That counterweight
-                // means "the streak must survive re-arming"; a reset here is a genuine end of
-                // the run. Its window was widened to all of `begin()` and is now bounded to
-                // the ARM block, so it asserts what its message says (the #894 lesson, one
-                // slice later, in the file that learned it).
-                micRefusals = 0
-                EchoelCrashLog.breadcrumb("voice: capture aborted — microphone access denied")
+            // ⚠️ ONE TEARDOWN, THREE REASONS. The branches diverge only in what they RECORD;
+            // #895 had two near-identical copies of the exit and a third would have made
+            // divergence a matter of time. `releaseMic()` is still not used here (#882): no
+            // mic ever started, so its stop ladder would announce a teardown that did not
+            // happen. The three state facts are mutually exclusive by construction — each
+            // arm resets both flags and every branch below writes at most one.
+            if !mic.isRecording {
+                if mic.permissionDenied {
+                    micAccessDenied = true
+                    // #895b: a denied abort ENDS a refusal streak. Without this, revoking
+                    // permission between two placeholder refusals let the caption claim
+                    // "2x in a row" for two failures with a different outcome between them —
+                    // an OVER-report, and over-reporting is the unsafe direction.
+                    micRefusals = 0
+                    EchoelCrashLog.breadcrumb("voice: capture aborted — microphone access denied")
+                } else if mic.hasPermission {
+                    micRefusals += 1
+                    // #893: the count rides the breadcrumb too, so the exported log answers
+                    // the probe's "twice in a row" even when nobody watched the screen.
+                    EchoelCrashLog.breadcrumb(
+                        "voice: capture aborted — mic did not start (\(micRefusals)x in a row)")
+                } else {
+                    // Undetermined: the system alert is up, this take cannot receive a
+                    // sample, and answering the alert will not restart it. Say so and let
+                    // the player tap again.
+                    micAwaitingPermission = true
+                    micRefusals = 0
+                    EchoelCrashLog.breadcrumb("voice: capture aborted — awaiting microphone permission")
+                }
                 engine.cancel()
                 phase = .idle
                 progress = 0
-                // Same teardown as the refusal path below, and NOT `releaseMic()`, for the
-                // same reason (#882): no mic ever started, so its stop ladder would announce
-                // a teardown that did not happen.
-                mic.captureSampleSink = nil
-                micStartedByUs = false
-                hearingYou = false
-                return
-            }
-            if !mic.isRecording, mic.hasPermission {
-                micRefusals += 1
-                // #893: the count rides the breadcrumb too, so the exported log answers the
-                // probe's "twice in a row" even when nobody was watching the screen.
-                EchoelCrashLog.breadcrumb(
-                    "voice: capture aborted — mic did not start (\(micRefusals)x in a row)")
-                engine.cancel()
-                phase = .idle
-                progress = 0
-                // ⛔ NOT `releaseMic()`, deliberately. That calls `mic.stopRecording()`, which
-                // walks its own three-rung stop ladder and releases the record route a SECOND
-                // time — the start side already released it on every refusing exit
-                // (#889/#890). The double set-removal is harmless, but the rungs would
-                // announce a teardown of a mic that never started, and a rung for a step that
-                // did not happen is the lie the ladder law exists to forbid (#882).
                 mic.captureSampleSink = nil
                 micStartedByUs = false
                 hearingYou = false
@@ -276,7 +273,17 @@ final class VoiceCaptureController {
         // a refusal, then a recalled patch carrying a voice profile, then Clear — and
         // without this line the microphone-failure sentence would come back as the caption
         // for a successful, unrelated action.
+        //
+        // ⛔ #896 — #895 ADDED A SECOND FLAG AND DID NOT ADD IT HERE, which is the #892
+        // defect reintroduced for the new state on the same reachable path: denied abort →
+        // recall a patch carrying a voice profile (the row now shows Clear) → tap Clear, and
+        // "Microphone access is off" returned as the caption for a successful, unrelated
+        // action. Every flag this row can render is cleared here, and a future one belongs
+        // in the same place. (`cancel()` needs only the streak: both state facts imply
+        // `.idle`, and Cancel renders only during `.capturing`.)
         micRefusals = 0
+        micAccessDenied = false
+        micAwaitingPermission = false
     }
 
     private func ingest(_ samples: [Float], sampleRate: Double) {

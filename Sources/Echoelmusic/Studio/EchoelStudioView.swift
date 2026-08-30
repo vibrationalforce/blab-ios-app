@@ -11541,6 +11541,12 @@ private struct VoiceCaptureRow: View {
             // is a current-state fact re-derived on every tap, so it cannot go stale behind
             // a refusal count. No Settings PATH is spelled out — it moves between iOS
             // versions, and naming a wrong one is worse than naming none.
+            // #896: the system alert is up. Answering it does NOT restart this take —
+            // nothing observes the grant — so the honest instruction is the extra tap, not
+            // "wait". First of the three because it is the most transient.
+            if controller.micAwaitingPermission {
+                return "Allow microphone access in the dialog, then tap Capture."
+            }
             if controller.micAccessDenied {
                 return "Microphone access is off for Echoel — turn it on in Settings, then tap Capture."
             }

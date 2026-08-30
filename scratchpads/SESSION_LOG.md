@@ -17114,3 +17114,53 @@ dem Arbeitsbaum wäre sie ROT geworden — also hätte sie korrekte Arbeit verbo
 **Ehrliche Grenze:** Der Pflicht-Reviewer für #895 lief noch, als #895b geschrieben wurde;
 sein Bericht deckt den Baum VOR diesem Nachtrag ab. Das wird beim Eintreffen ausdrücklich
 gegen den aktuellen Stand geprüft. Alles Text-Ebene, CI ist der einzige Compiler.
+
+## 2026-08-30 — #896: der Hänger überlebte VIER Scheiben, weil ein Satz nie gemessen wurde
+
+**Der häufigste Fall war die ganze Zeit offen: „noch nie gefragt".** #891 schrieb, der
+Berechtigungs-`return` „LÖST SICH VON SELBST AUF"; #892 nahm das nur für VERWEIGERT zurück;
+#895 hat den Zustandsraum neu geprüft und den Rest abgezeichnet. **Gemessen (2026-08-30, vom
+Pflicht-Reviewer gefunden und von mir unabhängig nachgeprüft):** die Fortsetzung von
+`requestPermission()` schreibt `hasPermission = true` **und sonst nichts** — seit #825 startet
+sie bewusst nichts —, `startRecording()` hat GENAU EINEN Produktions-Aufrufer, nämlich die
+Zeile in `begin()`, die längst zurückgekehrt ist, und **nichts in `Sources/` beobachtet
+`hasPermission`**. Kein Timer, kein Observer. Also: der Nutzer tippt „Erlauben", und die Zeile
+steht für immer auf 0 % — unter einer Beschriftung, die eine laufende Aufnahme behauptet.
+**Das ist die allererste Aufnahme jedes neuen Nutzers.**
+
+**Und „ein Abbruch würde den Berechtigungs-Fluss brechen" war die Umkehrung der Wahrheit.**
+Der Systemdialog steht bereits auf dem Schirm — `startRecording()` hat ihn angefordert, bevor
+es zurückkam. Ein Abbruch kostet EINEN zusätzlichen Tipp nach dem Beantworten, gegen einen
+Hänger, aus dem man nur über „Abbrechen" herauskommt. Das bessere Endziel (nach dem Erlauben
+automatisch fortsetzen) braucht einen Rückruf, den dieser Manager nicht hat — eine spätere
+Scheibe, kein Grund, einen Hänger zu behalten.
+
+**Struktur: EIN Tor, EIN Abbau, DREI aufgezeichnete Gründe.** #895 trug zwei fast identische
+Ausgänge; ein dritter hätte Divergenz zur Frage der Zeit gemacht.
+
+**Der Wächter hat es schlimmer gemacht — in beide Richtungen gleichzeitig.** Die Zusicherung,
+die #895 „die wertvollste" nannte, verbot `if !mic.isRecording {`. (a) Auf derselben falschen
+Prämisse, hätte also jetzt KORREKTE Arbeit verboten (#364). (b) Und sie konnte für den
+Fehlerfall, den sie benannte, nie feuern: ein Zusammenziehen der Zweige löscht zwangsläufig
+einen Anker, der eine Zeile darüber per `XCTUnwrap` geholt wird — die Methode wirft, die Zeile
+wird nie erreicht. **Auf JEDEM Baum wirkungslos, nicht nur auf dem Eltern-Baum.**
+⭐ **Übertragbare Lehre: eine Zusicherung, die NACH dem Auspacken des Gegenstands steht, den
+sie beschreibt, ist genau für die Änderung unerreichbar, gegen die sie schützen soll.** Das
+Negative gehört nach VORN — oder auf etwas, das die Änderung nicht löschen kann.
+
+**Zweiter Reviewer-Befund, mitrepariert:** `clearApplied` löschte den neuen Zustand nicht —
+der #892-Defekt, für die neue Flagge wiedereingeführt, auf demselben erreichbaren Weg
+(Abbruch → Patch mit Stimmprofil laden → „Clear" → „Microphone access is off" als
+Beschriftung einer erfolgreichen, unbeteiligten Handlung). Jetzt löscht sie jede Flagge, die
+die Zeile rendern kann, und der Wächter zählt sie einzeln auf.
+
+**Dritter, kleiner:** das Fenster von Anspruch 7 endete eine Zeile zu früh — ein Reset als
+erste Anweisung INNERHALB des Arm-Blocks wäre durchgegangen. Endet jetzt am Start-Aufruf.
+
+**Zwei Dinge, die ich selbst vor der Simulation gefunden habe:** Anspruch 5 zeigte auf eine
+Bedingung, die die Umstrukturierung aufgelöst hat (wäre rot auf korrektem Code geworden,
+#364), und der Testname von Anspruch 8 behauptete ein „Warten", das es nicht mehr gibt (#374).
+
+**Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. Nichts gerätverifiziert. Der
+Reviewer hat ausdrücklich bestätigt: Route-Eigentum sauber (der Weg verlässt `startRecording()`
+OBERHALB des Claims), nichts auf dem Audio-Thread, Freeze-Gesetz hält.
