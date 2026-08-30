@@ -63,8 +63,14 @@
 // `isRecording = true`, and it is the last statement of the `do`. Every other way back —
 // five `return`s and the `catch` — leaves it false with no tap installed, so NO sample
 // can ever arrive and the take sits on `.capturing` 0 % forever, escapable only by Cancel.
-// Which of those are LIVE, so nobody hunts the wrong one: the permission `return`
-// RESOLVES by itself (the system prompt is open) · the "already recording" `return` cannot
+// Which of those are LIVE, so nobody hunts the wrong one: the permission `return` resolves
+// by itself ONLY WHEN THE STATE IS UNDETERMINED — ⛔ #891 wrote "RESOLVES by itself" flat,
+// and for a user who has DENIED the microphone iOS shows no prompt and returns immediately,
+// so `hasPermission` stays false forever and the take keeps the exact 0 % hang this slice
+// exists to remove. That case is deliberately still open, not overlooked: closing it needs
+// `MicrophoneManager.permissionDenied` to reach a surface, and it has no reader anywhere in
+// the voice path today. Naming it here is what stops the next session from reading the
+// discriminator as complete · the "already recording" `return` cannot
 // be reached from here at all, because `micStartedByUs = !mic.isRecording` means this
 // caller only starts a mic that is stopped · the two #889 guards are documented
 // unreachable in their own comments · what remains, and what this abort exists for, is the
@@ -166,6 +172,12 @@ final class VoiceCaptureController {
         engine.cancel()
         phase = .idle
         progress = 0
+        // #892: today this is always already false — Cancel only renders during
+        // `.capturing`, and `begin()` clears the flag on the way in. It is written anyway
+        // so the invariant is UNCONDITIONAL rather than "benign because of where the
+        // button happens to be": that second form is a claim about the view, and the view
+        // is exactly what changed underneath #891's own rationale one commit ago.
+        micUnavailable = false
         releaseMic()
     }
 
@@ -182,6 +194,11 @@ final class VoiceCaptureController {
         synth.clearVoiceProfile()
         phase = .idle
         progress = 0
+        // #892: THIS one is not theoretical. Clear is reachable with the flag still true —
+        // a refusal, then a recalled patch carrying a voice profile, then Clear — and
+        // without this line the microphone-failure sentence would come back as the caption
+        // for a successful, unrelated action.
+        micUnavailable = false
     }
 
     private func ingest(_ samples: [Float], sampleRate: Double) {

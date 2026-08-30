@@ -11506,20 +11506,23 @@ private struct VoiceCaptureRow: View {
                 ? "Keep the tone going — vowels and hums both work."
                 : "Hold a steady tone near the microphone. Analyzed live — no audio is recorded."
         default:
-            // #891 FIRST, because it is the only branch that reports a FAILED tap rather
-            // than describing a state. It can only be true with no profile applied (Capture
-            // is the only button that reaches `begin()`, and it is shown only when
-            // `appliedVoiceProfile == nil`), so the order changes nothing today — it is
-            // written first so a future second entry point cannot bury the message.
+            // ⛔ #892 — #891 PUT THE REFUSAL BRANCH FIRST ON A FALSE PREMISE, and two
+            // independent reviewers found it the same hour. The premise was: "it can only
+            // be true with no profile applied, because Capture is the only button that
+            // reaches `begin()`". That argues about the moment the flag is SET and says
+            // nothing about the moment it is READ. `begin()` is not the only producer of
+            // `appliedVoiceProfile` — `PolySynthVoice.apply(_:)` installs one from any
+            // recalled patch that carries `voiceProfileTaps`, which is the #593c pathway,
+            // and the preset bar that does it sits directly ABOVE this row. So: capture
+            // refuses → load a sound that carries a voice profile → the button is now
+            // "Clear" and the caption said "Tap Capture again", naming a control that is
+            // not on screen. A row that displays one state and holds another.
             //
-            // ⚠️ NO REMEDY IS PROMISED beyond the one action the user actually has. The
-            // #890 cause is a placeholder input format in the window right after the record
-            // route is claimed, and whether a second tap lands outside that window is
-            // device behaviour nobody here has measured. "Tap Capture again" is true;
-            // "wait a moment and it will work" would not be.
-            if controller.micUnavailable {
-                return "The microphone did not start — nothing was captured. Tap Capture again."
-            }
+            // ⭐ THE ORDER IS THE FIX: what the instrument is DOING NOW outranks a report
+            // about a take that did not happen. The flag is additionally cleared by
+            // `cancel()` and `clearApplied(synth:)` so it cannot outlive the situation it
+            // describes — the branch order alone would still have shown the stale sentence
+            // after a Clear.
             if synth.appliedVoiceProfile != nil {
                 // #597a — measured before written: the FX door drives `synth.fxChain`,
                 // the SAME voice this profile shapes, and the harmonizer is a stage of
@@ -11527,6 +11530,14 @@ private struct VoiceCaptureRow: View {
                 // no wiring — only this sentence, so a player can FIND it. The join is
                 // pinned by TheVoiceTimbreReachesTheHarmonizerTests.
                 return "The instrument plays with your voice's colour — FX → Harmonizer stacks it into harmonies. Clear returns the patch's own sound."
+            }
+            // ⚠️ NO REMEDY IS PROMISED beyond the one action the user actually has. The
+            // #890 cause is a placeholder input format in the window right after the record
+            // route is claimed, and whether a second tap lands outside that window is
+            // device behaviour nobody here has measured. "Tap Capture again" is true;
+            // "wait a moment and it will work" would not be.
+            if controller.micUnavailable {
+                return "The microphone did not start — nothing was captured. Tap Capture again."
             }
             return "Hold a tone for a few seconds; its colour becomes the instrument's. Analyzed live — no audio is recorded."
         }

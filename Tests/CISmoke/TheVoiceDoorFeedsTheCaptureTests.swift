@@ -9,10 +9,18 @@
 // the panel closing mid-take. Every claim here is a JOIN between two files — the class
 // of defect where renaming one side leaves a door pointing at nothing (#351).
 //
-// ⚠️ HONEST LIMITS. 5 tests, 16 `XCTAssert*` statements (hand-counted per test,
-// 3+3+3+2+5 — re-counted after the first hand-count said 12; the two `XCTUnwrap`s also
-// fail their tests and are deliberately outside this count, which counts assertions,
-// not failure points). ALL
+// ⚠️ HONEST LIMITS. 6 tests, 18 `XCTAssert*` STATEMENTS — 3+3+3+2+5+2, measured with
+// `awk` per `func test`, not by eye. ⛔ Three hand-counts in this header have now been
+// wrong (12, then 16, then 20 with a bogus 3+3+3+2+5+4 split); the command that settles it
+// is in the SESSION_LOG for #892, and a fourth hand-count is not the fix — reading the
+// number as a DATE is. Two nuances the raw number hides: claim 6 runs one of its two
+// statements twice through a `for` loop, so a green run makes 19 assertion EVALUATIONS;
+// and a whole-file `grep -c` on the assertion name is NOT the measurement — this header
+// quotes assertion names in prose, so writing ABOUT the count changes it. That is not
+// hypothetical: the sentence that first stated a grep figure here was made wrong by its own
+// words before the commit (#753, the marker is also a noun). Count inside `func test`
+// bodies only. The `XCTUnwrap`s also fail their tests and stay deliberately outside this
+// count, which counts assertions, not failure points. ALL
 // are SOURCE-TEXT JOINS: the controller's begin/cancel/apply flow drives a real
 // `MicrophoneManager` + mic permission machinery that a test host cannot exercise
 // honestly (its `startRecording` requests permission), and the engine underneath is
@@ -41,6 +49,24 @@
 // `hasPermission` discriminator, whose removal would abort the legitimate permission wait
 // instead, and the deliberate absence of `releaseMic()` on that path, which would write a
 // three-rung stop ladder for a mic that never started (#882).
+//
+// ⛔ #892 ADDED A SIXTH CLAIM BECAUSE #891'S FIFTH DID NOT COVER WHAT IT ASSUMED. The
+// caption put the refusal message FIRST on the premise that the flag "can only be true
+// with no profile applied". That argues about the moment the flag is SET, not the moment
+// it is READ — `PolySynthVoice.apply(_:)` installs a voice profile from any recalled patch
+// (#593c), and the preset bar that does it sits directly above the row. Two independent
+// reviewers found it the same hour. The sixth claim pins the REPAIR: the applied-profile
+// branch outranks the refusal message, and both non-`begin()` exits clear the flag so it
+// cannot outlive the situation it describes. ⭐ The lesson is not "order your branches":
+// it is that a rationale about WHERE A BUTTON IS RENDERED is a claim about the view, and
+// the view is the thing most likely to change underneath it.
+//
+// ⭐ GRADING OF THE SIXTH CLAIM (§3): all three of its assertion EVALUATIONS are red on
+// the parent (`d29c68f`) and green here — the branch order was literally inverted there,
+// and neither exit wrote the flag. Measured, not assumed. Stripper: 0 of 3 needle verdicts
+// flip raw-vs-stripped, so for THIS claim the stripper is prophylactic — unlike the fifth
+// one below, where it is load-bearing. Two claims in one file, two different answers: that
+// is why §3 asks per claim rather than per file.
 //
 // ⭐ GRADING OF THAT FIFTH CLAIM (§3), separately because it does NOT match the eight
 // needles below. FOUR of its five assertions are red on the parent by absence, honestly
@@ -187,6 +213,43 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
         XCTAssertTrue(studio.contains("if controller.micUnavailable {"),
                       "the flag needs its reader: without the caption branch the abort is "
                       + "silent and a refused capture still looks like a dead button (#891)")
+    }
+
+    /// #892 — the refusal message cannot outlive the situation it describes. Four
+    /// assertions: the branch ORDER inside `caption`, and a clearing write in each of the
+    /// two phase exits that `begin()` does not cover.
+    func testTheRefusalMessageCannotOutliveItsSituation() throws {
+        let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        let capStart = try XCTUnwrap(studio.range(of: "private var caption: String {"),
+                                     "VoiceCaptureRow's caption was renamed — re-anchor (#454)")
+        let caption = String(studio[capStart.upperBound...].prefix(2000))
+        let profileAt = try XCTUnwrap(caption.range(of: "if synth.appliedVoiceProfile != nil {"),
+                                      "the applied-profile branch left the caption")
+        let refusalAt = try XCTUnwrap(caption.range(of: "if controller.micUnavailable {"),
+                                      "the #891 refusal branch left the caption")
+        XCTAssertTrue(profileAt.lowerBound < refusalAt.lowerBound,
+                      "what the instrument is DOING NOW must outrank a report about a take "
+                      + "that did not happen: a recalled patch can install a voice profile "
+                      + "without ever entering begin() (#593c), and with the refusal branch "
+                      + "first the row showed \"Tap Capture again\" beside a Clear button "
+                      + "— a control that is not on screen (#892)")
+
+        let controller = try source("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
+        for (fn, why) in [("func cancel()",
+                           "Cancel: false today only because of where the button renders — "
+                           + "an invariant that leans on the view is what #891 got wrong"),
+                          ("func clearApplied(synth: PolySynthVoice)",
+                           "Clear: reachable with the flag still true (refusal → recalled "
+                           + "patch with a profile → Clear), and without the write the "
+                           + "microphone-failure sentence returns as the caption for a "
+                           + "successful, unrelated action")] {
+            let at = try XCTUnwrap(controller.range(of: fn),
+                                   "\(fn) was renamed — re-anchor this window (#454)")
+            let end = try XCTUnwrap(controller.range(of: "\n    }", range: at.upperBound..<controller.endIndex),
+                                    "\(fn) has no closing brace at method indentation")
+            let body = String(controller[at.upperBound..<end.lowerBound])
+            XCTAssertTrue(body.contains("micUnavailable = false"), why)
+        }
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)

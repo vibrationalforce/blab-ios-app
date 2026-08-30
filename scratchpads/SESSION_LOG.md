@@ -16910,3 +16910,62 @@ Fläche ab, nicht eine von mehreren Türen.
 einzige Compiler — die #890-Lehre). Die zwei angeforderten Reviewer (Audio-Lifecycle,
 UI-State) liefen beim Commit noch; ihre Funde landen als Nachtrag, nicht in diesem Commit.
 Geräteverifiziert ist nichts davon.
+
+## 2026-08-30 — #892: die Absage-Meldung darf ihre Lage nicht überleben (Reviewer-Nachtrag zu #891)
+
+**Beide Reviewer fanden in derselben Stunde denselben Hauptbefund, unabhängig voneinander** —
+und es war MEINE Begründung aus #891, nicht der Code. Der Caption-Kommentar sagte, die Flagge
+„kann nur wahr sein, wenn kein Profil angewandt ist, weil Capture der einzige Knopf ist, der
+`begin()` erreicht". **Das argumentiert über den Moment des SETZENS und sagt nichts über den
+Moment des LESENS.** `PolySynthVoice.apply(_:)` installiert ein Stimmprofil aus JEDEM
+zurückgerufenen Patch mit `voiceProfileTaps` (der #593c-Pfad) — und die Preset-Leiste, die das
+tut, sitzt direkt ÜBER dieser Zeile. Erreichbare Folge: Aufnahme wird abgelehnt → Sound mit
+Stimmprofil laden → der Knopf heißt jetzt „Clear", die Zeile sagt weiter „Tap Capture again"
+und benennt damit ein Bedienelement, das nicht auf dem Schirm ist.
+
+**Reparatur, zwei Hälften — die Reihenfolge allein hätte nicht gereicht:**
+- Der Profil-Zweig kommt zuerst: **was das Instrument JETZT tut, schlägt einen Bericht über
+  eine Aufnahme, die nicht stattfand.**
+- `cancel()` und `clearApplied(synth:)` löschen die Flagge. Ohne die zweite Hälfte käme der
+  Mikrofon-Fehlersatz nach einem Clear als Beschriftung für eine erfolgreiche, unbeteiligte
+  Handlung zurück. Bei `cancel()` ist sie heute ohnehin false — die Zeile steht trotzdem, weil
+  „false, weil der Knopf nur dort gerendert wird" wieder eine Behauptung über die ANSICHT wäre,
+  und genau die ist eine Woche… nein: EINEN Commit alt geworden.
+
+**Zweite Rücknahme im selben Commit (ui-state-Reviewer, Befund 2).** Mein #891-Dateikopf schrieb
+flach „der Berechtigungs-`return` LÖST SICH AUF". Das gilt nur für *unbestimmt*. Bei
+VERWEIGERTER Berechtigung zeigt iOS keinen Dialog, `hasPermission` bleibt für immer false, der
+Abbruch feuert nie — und der 0-%-Hänger, den #891 beseitigen sollte, bleibt genau dort bestehen.
+Der Fall ist jetzt als bewusst offen benannt statt stillschweigend übergangen (er braucht
+`MicrophoneManager.permissionDenied` an einer Fläche; die Property hat im Sprachpfad **null
+Leser**). Board O13.
+
+**Ich habe den zweitschwersten Befund NICHT ungeprüft übernommen.** Der audio-thread-Reviewer
+stufte den werfenden `startRecording()`-Ausgang hoch („eine AVAudioEngine mit lebendem Tap wird
+INNERHALB eines späteren Starts dealloziert"). Nachgelesen: der #877-TRAP-Vermerk in
+`stopRecording()` analysiert exakt diesen Zustand und nennt ihn *harmless today* mit Begründung
+(der Tap stirbt mit der Engine; `startRecording` baut immer eine FRISCHE). Was #891 wirklich
+ändert, ist schwächer: der unvermeidliche Cancel des Nutzers räumte vorher über
+`stopRecording()` auf, jetzt nicht mehr — `complexDFT` hält Speicher bis zum nächsten Start.
+Board O14, mit der korrigierten Schwere. **Ein Reviewer-Befund ist ein Fund, kein Urteil.**
+
+**Wächter.** Sechster Anspruch, zwei Aussagen, drei Auswertungen (eine Schleife über beide
+Ausgänge). §3: **alle drei rot auf dem Elternbaum `d29c68f`** (die Reihenfolge war dort
+buchstäblich invertiert, keiner der Ausgänge schrieb die Flagge), grün hier. Stripper:
+**0 von 3 Verdikten kippen → prophylaktisch** — anders als beim fünften Anspruch, wo er tragend
+ist. Zwei Ansprüche in einer Datei, zwei Antworten: deshalb fragt §3 pro ANSPRUCH.
+
+**Und der Zähl-Satz im Kopf hat sich beim Schreiben selbst falsch gemacht.** Ich schrieb „20
+Aussagen, 3+3+3+2+5+4"; gemessen sind es **18** (3+3+3+2+5+2). Dann schrieb ich als Korrektur
+„ein `grep -c` liefert 19" — und dieser Satz enthält den Assertion-Namen selbst, war also
+falsch, bevor der Commit stand (#753: der Marker ist auch ein Substantiv). Die selbstbezügliche
+Zahl ist GESTRICHEN, nicht nachgeführt; im Kopf steht der Befehl, der nur INNERHALB der
+`func test`-Rümpfe zählt:
+```
+awk '/    func test/{n=$0} /XCTAssert(True|False|Equal|NotNil|Nil)\(/{if(n!="")c[n]++} END{t=0; for(k in c) t+=c[k]; print t}' Tests/CISmoke/TheVoiceDoorFeedsTheCaptureTests.swift
+```
+Drei Hand-Zählungen in diesem Kopf waren nun falsch (12 → 16 → 20). Eine vierte ist nicht die
+Reparatur — die Zahl als DATUM zu lesen ist es.
+
+**Ehrliche Grenze:** wieder alles Text-Ebene, CI ist der einzige Compiler. Nichts davon ist
+gerätverifiziert.
