@@ -196,8 +196,35 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             XCTFail("The OFF branch's guard is gone — re-anchor this claim (§4).")
             return
         }
-        let offWindow = String(code[off.lowerBound...].prefix(1_900))
+        // ⛔ #884 — THIS WINDOW WAS A HAND-SET `prefix(1_900)` AND THAT IS A DATE, NOT A
+        // BOUNDARY. The #882 reviewer measured 419 characters of headroom left in it; the
+        // OFF branch is prose-heavy (every rung carries the device-log history that earned
+        // it), so the next paragraph added here would have turned a CORRECT tree red for a
+        // reason having nothing to do with the law. That is the same defect class as a stale
+        // count: a literal that describes the file at one moment and is never re-derived.
+        //
+        // The branch has a real terminator — its own closing rung — so the window is bounded
+        // SEMANTICALLY now. It grows with the branch, cannot overflow from comments, and it
+        // gained a property the length never had: a step that MOVED PAST the end of the
+        // branch now fails instead of silently sitting outside a window that happened to be
+        // short. Measured at the time of the change: anchor→terminator = 1884 chars, so the
+        // old literal was 16 characters from being wrong.
+        let terminator = "logMonitorOutcome(\"OFF\""
+        guard let offEnd = code.range(of: terminator, range: off.upperBound..<code.endIndex) else {
+            XCTFail("""
+                The OFF branch's closing rung `\(terminator)` is gone, so this claim has no \
+                end boundary. Fail rather than fall back to a length (§4): a window that \
+                silently becomes "the rest of the file" would pass on a ladder that had \
+                moved out of the branch entirely.
+                """)
+            return
+        }
+        let offWindow = String(code[off.lowerBound..<offEnd.lowerBound])
         var cursor = offWindow.startIndex
+        // #884: the walk now includes the FIFTH step. #882 added `off 5/5` — the restore rung
+        // the branch never had — and left this walk ending at step 4, so the newest rung had
+        // no positional guard at all. A ladder claim that stops one step short of the ladder
+        // is exactly the gap it exists to catch.
         for step in ["logMonitorOutcome(\"off 1/5",
                      "masterEngine.stop()",
                      "masterEngine.reset()",
@@ -206,7 +233,9 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
                      "logMonitorOutcome(\"off 3/5",
                      "disconnectNodeOutput(masterEngine.inputNode)",
                      "logMonitorOutcome(\"off 4/5",
-                     "releaseRecordRoute(.inputMonitoring)"] {
+                     "releaseRecordRoute(.inputMonitoring)",
+                     "off 5/5: restoring engine if stranded",
+                     "restoreEngineIfStranded(offWasRunning,"] {
             guard let r = offWindow.range(of: step, range: cursor..<offWindow.endIndex) else {
                 XCTFail("""
                     OFF-teardown ladder broken at `\(step)` — either the step moved out \
