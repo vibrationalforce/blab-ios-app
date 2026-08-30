@@ -136,7 +136,10 @@ final class TheMegaphoneGuardOutgunsTheBoostTests: XCTestCase {
                     + "depth against a boosted signal, breaking the authority law.")
             return
         }
-        let window = String(engine[duckSite.lowerBound...].prefix(600))
+        // ⛔ #898: was `.prefix(600)` with a MEASURED margin of 176 characters. Same fault
+        // line as the MIDI re-arm guard and the same repair: count CODE lines, not characters
+        // that a blanked comment's indentation also pays for. Needles land at 6 code lines.
+        let window = SourceText.codeWindow(engine, from: duckSite.lowerBound, lines: 12)
         XCTAssertTrue(window.contains("FeedbackGuard.defaultMaxReductionDB")
                       && window.contains("+ Self.megaphoneBoostDB")
                       && window.contains("+ voicePresenceDB"), """

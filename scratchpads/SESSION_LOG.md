@@ -17206,3 +17206,42 @@ kommentarreichen Bereich legt, hat dieselbe Bruchlinie; grün hält ihn nur sein
 oder abgeschalteter Mikrofon-Erlaubnis — wird der Grund GESPROCHEN? Ein grünes Bundle beweist,
 dass der Aufruf dasteht, nie dass das System ihn spricht; eine Ansage während eines
 Fokuswechsels kann verworfen werden.
+
+## 2026-08-30 — #898: der #897-Fund war kein Einzelfall, sondern eine Bruchlinie unter 37 Wächtern
+
+**Mechanismus.** `SourceText.codeOnly` leert den TEXT eines Kommentars, **behält aber die
+Einrückung** — es muss, weil mehrere Wächter auf die relative REIHENFOLGE zweier Treffer
+prüfen, Zeilen also erhalten bleiben statt gelöscht zu werden. Eine geleerte Doc-Zeile kostet
+damit weiter 8–28 Zeichen. **Jedes `prefix(N)`-Fenster über Quelltext wird also zum Teil in
+Leerzeichen bezahlt**, und wer Prosa ÜBER die geprüfte Stelle schreibt, schiebt die Nadel
+hinaus. Die Fehlerform ist die schlechteste verfügbare: rot auf KORREKTEM Code, bei
+UNBETEILIGTER Arbeit, mit dem Finger auf dem falschen Schuldigen.
+
+**Gemessen statt geschätzt** (`scripts/window-margins.py`, neu): **37 Fundstellen** mit
+N ≥ 100. Zwei mit Reserven von **140** und **176** Zeichen — fünf bis zehn Kommentarzeilen bis
+rot. Beide umgestellt auf `SourceText.codeWindow(_:from:lines:)`, das CODE-Zeilen zählt.
+Nadeln liegen dort bei 4 bzw. 6 Zeilen, Budget 12.
+
+**Die übrigen 35 sind eine MIGRATION, keine Scheibe (#460)** — genau deshalb ist das Skript
+der Kern dieses Zyklus und nicht die zwei Reparaturen: es macht daraus eine Liste statt einer
+Jagd.
+
+**Reihenfolge der Reparatur, aufgeschrieben, damit sie nicht neu erfunden wird:** (1) ein
+echter ANKER ist am besten — schließende Klammer, nächster Zweig, nächster Modifier;
+(2) sonst ein ZEILEN-Budget, weil es eine Schätzung über die richtige GRÖSSE ist und Prosa die
+Nadel nicht mehr hinausschieben kann; (3) nie eine neue Zeichenzahl raten.
+
+⛔ **Eine Erweiterung probiert und ZURÜCKGENOMMEN, im Ledger als Sackgasse:** die
+Nadel-Erkennung von `contains(` auf `(?:contains|range\(of:)` zu weiten machte das Werkzeug
+SCHLECHTER — 5 gemessen runter auf 4 —, weil `range(of:)` genau die Form ist, in der ein
+SPÄTERES Fenster seinen eigenen Anker nennt. **Ein Messwerkzeug, das weiter greift und weniger
+meldet, ist nicht gründlicher.**
+
+⚠️ **Die Grenzen stehen im Docstring des Werkzeugs, nicht nur hier:** es löst heute 5 von 35
+auf; „unresolved" heißt, das WERKZEUG konnte die Stelle nicht lesen — kein Urteil über den
+Wächter. Eine gedruckte Reserve ist eine OBERGRENZE der Sicherheit, nie ein Beweis.
+
+**Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. `SourceText` ist eine
+gemeinsam genutzte Datei des blockierenden Bundles; die Ergänzung ist additiv, aber ein
+Compile-Fehler dort würde den ganzen Bundle rot machen — der Gate-Lauf ist die einzige
+Bestätigung.

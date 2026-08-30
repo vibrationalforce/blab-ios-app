@@ -55,7 +55,13 @@ final class TheMIDIOutRearmsOnForegroundTests: XCTestCase {
                 If the retry moved, re-anchor this claim in the same commit (#456).
                 """)
         }
-        let body = String(midi[fn.lowerBound...].prefix(300))
+        // ⛔ #898: this was `.prefix(300)` and it had a MEASURED margin of 140 characters —
+        // five to ten comment lines from red on correct code, because `codeOnly` keeps a
+        // blanked comment's indentation. A line budget counts CODE, so prose above the
+        // assertions cannot walk them out of the window. Needles land at 4 code lines; 12 is
+        // the budget. (An end ANCHOR would be better still, but this function has no stable
+        // one to name — see `SourceText.codeWindow`.)
+        let body = SourceText.codeWindow(midi, from: fn.lowerBound, lines: 12)
         XCTAssertTrue(body.contains("guard enabled, !isReady else { return }"), """
             The re-arm lost its healthy-state guard. Without BOTH conjuncts it either \
             opens a port the routing said not to (route off) or re-runs client \

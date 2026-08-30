@@ -89,6 +89,47 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 | v10.79.195 | Immersive Stage — Touch room-map, each track a draggable spatial object (SpatialSceneStore + ImmersiveStageMath + ImmersiveStageView) | green |
 | v10.79.194 | Multi-Roll (tracks play simultaneously) + per-track Record (arm→play→capture MIDI/bio→Clip+region) | green |
 
+## PLAYBOOK (2026-08-30, #897/#898): ein `prefix(N)`-Fenster über Quelltext ist ein LATENTES ROT
+
+**Der Mechanismus, und er gilt für den ganzen blockierenden Bundle.** `SourceText.codeOnly`
+leert den TEXT eines Kommentars, **behält aber dessen Einrückung** — es MUSS das, weil mehrere
+Wächter auf die relative REIHENFOLGE zweier Treffer prüfen, Zeilen also erhalten bleiben statt
+gelöscht zu werden. Eine geleerte Doc-Zeile kostet damit weiter 8–28 Zeichen. **Jedes
+zeichengezählte Fenster wird also zum Teil in Leerzeichen bezahlt**, und wer Prosa ÜBER die
+geprüfte Stelle schreibt, schiebt die Nadel aus dem Fenster.
+
+**Die Fehlerform ist die schlechteste verfügbare:** der Wächter wird rot auf KORREKTEM Code,
+bei UNBETEILIGTER Arbeit, und zeigt auf den falschen Schuldigen. Genau so gefunden — #897s
+neuer Anspruch war rot auf seinem eigenen korrekten Code.
+
+**Gemessen, nicht geschätzt:** `python3 scripts/window-margins.py`. Beim Anlegen: **37 Fundstellen**
+mit N ≥ 100, davon zwei mit Reserven von **140** und **176** Zeichen — fünf bis zehn
+Kommentarzeilen bis rot. Beide sind mit #898 umgestellt.
+
+**Reparatur, in dieser Reihenfolge:**
+1. **Ein echter ANKER ist am besten** — eine schließende Klammer, der nächste Zweig, der
+   nächste Modifier. `range(of:)` auf ihn und bis dorthin schneiden.
+2. **Sonst `SourceText.codeWindow(_:from:lines:)`** — zählt CODE-Zeilen und überspringt
+   geleerte. Ein Zeilen-Budget ist immer noch eine Schätzung, aber eine über die richtige
+   GRÖSSE; Prosa kann die Nadel nicht mehr hinausschieben.
+3. **Nie eine neue Zeichenzahl raten.**
+
+**Die 35 übrigen sind eine MIGRATION, keine Scheibe (#460)** — das Skript macht daraus eine
+Liste statt einer Jagd.
+
+⚠️ **Die Grenzen des Werkzeugs stehen in seinem eigenen Docstring und sind echt:** es löst
+Zieldatei/Anker/Nadeln per Rückwärtssuche auf und schafft heute **5 von 35**; „unresolved"
+heißt, das WERKZEUG konnte die Stelle nicht lesen — es ist kein Urteil über den Wächter. Und
+eine gedruckte Reserve ist eine OBERGRENZE der Sicherheit, nie ein Beweis: eine interpolierte
+Nadel sieht es nicht.
+
+⛔ **Eine Erweiterung, die ich probiert und zurückgenommen habe** (damit sie niemand
+wiederholt): die Nadel-Erkennung von `contains(` auf `(?:contains|range\(of:)` zu weiten
+machte es SCHLECHTER — 5 gemessen runter auf 4 —, weil `range(of:)` genau die Form ist, in der
+ein SPÄTERES Fenster seinen eigenen Anker nennt; die Zusatz-Literale landen außerhalb und
+verwandeln lesbare Fundstellen in „Nadel außerhalb des Fensters". **Ein Messwerkzeug, das
+weiter greift und weniger meldet, ist nicht gründlicher.**
+
 ## PLAYBOOK + DEAD-END (2026-08-22, #734): „settable state ohne Schreiber" ist mechanisierbar — aber NUR auf Klassen
 
 **PLAYBOOK.** Vier Zyklen in Folge fanden dieselbe Form von Hand: ein nicht-privates `var` mit

@@ -184,4 +184,36 @@ enum SourceText {
 
         return (out, block)
     }
+
+    /// The next `lines` lines that actually carry CODE, starting at `start`.
+    ///
+    /// ⛔ #898 — WHY THIS EXISTS, and it is a fault line under 37 windows in this bundle.
+    /// `codeOnly` blanks a comment's TEXT but KEEPS its leading whitespace (it has to: several
+    /// guards assert on the relative ORDER of two matches, so lines are preserved, not
+    /// deleted). A stripped doc line therefore still costs its indentation — 8 to 28 characters
+    /// here. Every `…[anchor...].prefix(N)` window in this bundle is consequently measured in
+    /// WHITESPACE as much as in code, and adding prose above the thing being asserted walks the
+    /// needle out of the window. The failure is the worst shape available: a guard goes RED ON
+    /// CORRECT CODE, during unrelated work, pointing at the wrong culprit.
+    ///
+    /// ⭐ Found the hard way in #897, where a new claim was red on its own correct code, and
+    /// then MEASURED across the bundle with `scripts/window-margins.py`: 37 sites, two of them
+    /// with margins of 140 and 176 characters — five to ten comment lines from red. Those two
+    /// are converted here. The other 35 are a MIGRATION, not a slice (#460), and the script is
+    /// what makes that migration a list rather than a hunt.
+    ///
+    /// ⚠️ A LINE BUDGET IS STILL A GUESS — it is just a guess about the right QUANTITY. Where a
+    /// real boundary exists (a closing brace, the next branch), anchor on it instead; that is
+    /// strictly better and is what `TheVoiceDoorFeedsTheCaptureTests` does. This is for windows
+    /// whose end has no stable anchor to name.
+    static func codeWindow(_ text: String, from start: String.Index, lines: Int) -> String {
+        var kept: [Substring] = []
+        for line in text[start...].split(separator: "\n", omittingEmptySubsequences: false) {
+            if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+                kept.append(line)
+                if kept.count >= lines { break }
+            }
+        }
+        return kept.joined(separator: "\n")
+    }
 }
