@@ -176,4 +176,37 @@ final class TheDeviceChecklistOnlyAsksWhatExistsTests: XCTestCase {
             + "checklist's framing ('the tool cannot see this file') is now false and must be "
             + "corrected in the same commit.")
     }
+
+    // 5 — the tool does not count THIS FILE's own assertion as a job for the founder.
+    //
+    // WHY THIS CLAIM SITS HERE AND NOT IN A NEW FILE (#416): the defect is about the
+    // relationship between this guard and the tool, and this guard is one of its two halves.
+    // Claim 3 above asserts the checklist NAMES the marker convention — it does so by
+    // asserting a bare `"NEEDS-FOUNDER-VERIFY"` literal, and until #887 `founder-verify.py`
+    // read that literal as a 62nd device probe. The guard that polices the checklist was
+    // sitting IN the checklist, addressed to a founder who cannot perform it. That is #753
+    // one layer further out, and it is invisible from either side alone.
+    //
+    // ⚠️ THE ASSERTION IS ON THE RULE, NOT ON THE COUNT. A count ("61 open asks") goes stale
+    // the first time anyone writes or retires an ask, and this repo has paid for that class
+    // of pin repeatedly. The rule is the durable fact; `--selftest` covers its behaviour,
+    // and no XCTest here can run Python, so this scan is what a push actually gates on.
+    func testTheToolDoesNotCountThisGuardsOwnAssertion() throws {
+        let tool = try text("scripts/founder-verify.py")
+        XCTAssertTrue(tool.contains("BARE_LITERAL"), """
+            founder-verify.py lost its bare-string-literal rule. Claim 3 in THIS file asserts a \
+            naked "NEEDS-FOUNDER-VERIFY" literal, and without that rule the tool files this very \
+            line as a device probe — a job nobody can perform, in the queue the founder works \
+            from. If the rule was deliberately replaced, point this claim at whatever replaced \
+            it in the same commit; do not delete it.
+            """)
+        XCTAssertTrue(tool.contains("before.endswith") && tool.contains("after.startswith"), """
+            founder-verify.py still names BARE_LITERAL but no longer decides it by what sits \
+            immediately either side of the marker. The narrowness IS the safety property: a \
+            looser rule ("the marker anywhere inside a string") hides real asks written into \
+            assertion messages, and hiding one costs a device session while over-counting costs \
+            a glance. Re-derive with `python3 scripts/founder-verify.py --selftest`, whose case \
+            5b drives exactly that rejected variant.
+            """)
+    }
 }

@@ -323,7 +323,24 @@ public enum FieldAutoPlay {
         /// `TouchInstrumentUIView.scheduleSelfRelease`'s token guard exists to survive). A crisp
         /// detached arp is the musical intent of "treibend" and the reason the character exists —
         /// but it is a real change to the shipped instrument with no UI involved, so it is
-        /// **NEEDS-FOUNDER-VERIFY**, not a silent default.
+        /// flagged rather than shipped as a silent default.
+        ///
+        /// ⛔ THE MARKER USED TO SIT AT THE END OF THAT SENTENCE, and `founder-verify.py`
+        /// prints the text AFTER it — so this ask reached the founder's checklist rendered as
+        /// the bare marker followed by ", not a silent default.": a fragment naming no job
+        /// (#887). The reasoning was all above the marker, where the printer cannot see it.
+        /// **A marker must LEAD its instruction**, not close the paragraph that argues for it.
+        ///
+        /// ⚠️ And this retraction deliberately does NOT spell the marker out. Quoting the old
+        /// rendering verbatim put a SECOND entry in the founder's queue — a phantom ask made of
+        /// the note explaining a phantom ask. The tool's determiner rule cannot catch that
+        /// shape, and widening it would risk hiding real jobs; describing the token instead of
+        /// typing it costs nothing and is the cheaper half of #491.
+        ///
+        /// NEEDS-FOUNDER-VERIFY: play the Field with the "treibend"/driving character. The arp
+        /// must read as crisp and DETACHED — consecutive notes no longer overlap. If it sounds
+        /// thin or clipped instead of driving, the dial is `gate`/`gateScale` (note length),
+        /// not the tempo; the old fixed 180 ms is deliberately unreachable here.
         public var arpRhythm: RoleRhythm.Params
 
         /// Format stamp (#189), same shape as `MoodPreset`: the ENCODER writes it; a future

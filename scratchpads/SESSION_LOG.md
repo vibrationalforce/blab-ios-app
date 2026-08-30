@@ -16630,3 +16630,45 @@ eine Ansicht kann die Engine anders binden, und eine Nadel, die ihr Ziel nicht t
 ist der Defekt, den dieses Bündel verhindern soll.
 
 `needle-reachability.py`: 0 Befunde. `Sources/` unverändert — kein Audio-Thread-Review nötig.
+
+## 2026-08-30 (cron, dritter Zyklus) — #887: die Liste, die der Founder abarbeitet, zählte ihre eigene Polizei mit
+
+**Kontext: die stündliche REIHENFOLGE ist durch** (alle fünf Punkte geschlossen oder auf
+gelöschten Flächen, #885/#886), und der Rest des Boards ist geräte- oder ohr-gegated. Die
+Warteschlange, die dann wirklich zählt, ist `python3 scripts/founder-verify.py` — die Liste, die
+der Founder abarbeitet, wenn er ein Gerät in der Hand hat. Sie hatte zwei Defekte.
+
+**1. Sie zählte den Wächter mit, der SIE bewacht (#753, eine Ebene weiter).**
+`TheDeviceChecklistOnlyAsksWhatExistsTests` behauptet in Anspruch 3, die Checkliste müsse die
+Marker-Konvention NENNEN — und tut das mit einem nackten String-Literal. Das Werkzeug las dieses
+Literal als 62. Geräteprobe. Die bestehende Determiner-Regel kann das nicht sehen: vor dem Marker
+steht ein Anführungszeichen, kein Artikel.
+**Neue Regel, bewusst die ENGSTE, die trennt:** der Marker muss der GANZE Inhalt des Literals
+sein. Eine Bitte braucht Wörter, also kann ein nacktes Literal nie eine sein — die Regel kann
+keine echte Bitte verstecken, egal wie formuliert. Gemessen über `Sources/` + `Tests/`: **genau
+EINE** Zeile traf, und es war die falsche. Die lockere Variante („Marker irgendwo in einem
+String") ist ABGELEHNT und wird vom Selbsttest widerlegt: als Mutant eingesetzt versteckt sie
+**drei** echte Bitten und wird rot. 62 → **61 offene Bitten**, NOT ASKS 5 → 8.
+
+**2. Eine echte Bitte war unlesbar gerendert.** `FieldAutoPlay.swift` schloss einen Absatz mit
+dem Marker AM ENDE; das Werkzeug druckt den Text DANACH, also erreichte den Founder ein Fragment,
+das keinen Auftrag nannte — die ganze Begründung stand oberhalb, wo der Drucker nicht hinsieht.
+**Gesetz: ein Marker FÜHRT seine Anweisung an**, er schließt nicht den Absatz ab, der für sie
+argumentiert. Neu formuliert (nur Doc-Kommentar, keine Codezeile — kein Audio-Review nötig): Feld
+mit „treibend"-Charakter spielen, der Arp muss knackig und ABGESETZT klingen; klingt er dünn
+statt treibend, ist `gate`/`gateScale` der Regler, nicht das Tempo.
+
+⛔ **Und beim Reparieren habe ich den Defekt einmal selbst gebaut:** meine Rücknahme ZITIERTE das
+kaputte Rendering wörtlich — und stand damit als Phantom-Bitte in der Warteschlange, eine Notiz
+über eine Phantom-Bitte, die selbst eine wurde. Behoben, indem die Rücknahme den Marker
+BESCHREIBT statt ihn zu tippen. Das ist die billige Hälfte von #491.
+
+**Wächter:** Anspruch 5 in der bestehenden Datei (#416, keine neue): er pinnt die REGEL, nicht die
+ZAHL — eine Zahl veraltet, sobald jemand eine Bitte schreibt oder abhakt. Zweiter Teil-Anspruch
+pinnt, dass die Regel weiterhin an dem entscheidet, was UNMITTELBAR beidseits des Markers steht;
+die Enge IST die Sicherheitseigenschaft. Kein XCTest hier kann Python ausführen, also ist dieser
+Text-Scan das, worauf ein Push tatsächlich prüft.
+
+`--selftest`: ok (0 Probleme), Mutant rot mit 3 Befunden. `needle-reachability.py`: 0 Befunde.
+`CLAUDE.md` unverändert (die Zeile dort nennt bewusst den BEFEHL statt einer Zahl, #818 — sie
+brauchte deshalb nichts).

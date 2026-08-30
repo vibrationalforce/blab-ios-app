@@ -117,6 +117,10 @@ AREAS = [
 DETERMINERS = {"the", "a", "this", "der", "dem", "den", "die", "das",
                "jeden", "jede", "jedes", "einen", "eine", "einem"}
 
+# The reason token for the string-literal shape (see is_reference). It is a sentinel, not a
+# word, so the renderer can tell the two kinds of non-ask apart without re-deriving them.
+BARE_LITERAL = "<bare string literal>"
+
 # See the ANSWERED paragraph in the module docstring. The date is REQUIRED: the bare
 # prefix is how the convention is written ABOUT, including three times in this file, so a
 # prefix-only needle would retire asks by reading documentation (#753, one layer over).
@@ -195,6 +199,24 @@ def is_reference(line: str, at: int):
     `at` is the index the marker starts at. Markup characters immediately before it
     (backtick, asterisk, underscore) are not words and are stripped.
     """
+    # ⛔ A SECOND SHAPE THE DETERMINER RULE CANNOT SEE (#887, measured 2026-08-30). The
+    # marker can sit inside a Swift STRING LITERAL, where the word in front of it is a
+    # quote and a paren — no determiner, so the rule above lets it through and the founder
+    # is handed a job that is really a guard asserting the convention still exists:
+    #     XCTAssertTrue(doc.contains("NEEDS-FOUNDER-VERIFY"), …)
+    # That is #753 one layer further out: the tool counted the test that polices its own
+    # checklist. The needle is deliberately the NARROWEST one that separates them — the
+    # marker must be the ENTIRE content of the literal. An ask needs words, so a bare
+    # literal can never be one, and this cannot hide a real ask no matter how it is
+    # phrased. Measured across Sources/ + Tests/: exactly ONE line matches, and it is the
+    # offending one. A looser rule ("marker anywhere inside a string") was rejected — real
+    # asks do live in assertion messages, and hiding one costs a device session while
+    # over-counting costs a glance (this file's standing direction).
+    before = line[:at].rstrip()
+    after = line[at + len(MARKER):].lstrip()
+    if before.endswith('"') and after.startswith('"'):
+        return BARE_LITERAL
+
     words = line[:at].replace("`", " ").replace("*", " ").replace("_", " ").split()
     if not words:
         return None
@@ -351,6 +373,24 @@ def selftest() -> int:
         if got is not None:
             bad.append(f"is_reference hid a real ask as {got!r}: {line[:50]!r}")
 
+    # 5b. THE STRING-LITERAL SHAPE (#887). The first line is transcribed verbatim from
+    #     `TheDeviceChecklistOnlyAsksWhatExistsTests.swift` — the guard that polices the
+    #     founder checklist, which this tool was counting as a 62nd job for the founder.
+    #     The three lines under it are the ones the rule must NOT touch: a real ask that
+    #     merely CONTAINS a quoted phrase, a real ask inside an assertion message, and a
+    #     literal that carries words beside the marker. Driven with the known-wrong
+    #     expectation first (all four as references) — that version "passed" the first line
+    #     and hid two real asks, which is exactly the direction this file forbids.
+    for line, want in [
+        ('        XCTAssertTrue(doc.contains("NEEDS-FOUNDER-VERIFY"),', BARE_LITERAL),
+        ('// NEEDS-FOUNDER-VERIFY: the row must read "Non-standard tuning"', None),
+        ('            "NEEDS-FOUNDER-VERIFY: play a take and listen for the ease")', None),
+        ('        XCTAssertTrue(doc.contains("NEEDS-FOUNDER-VERIFY: tap it"),', None),
+    ]:
+        got = is_reference(line, line.index(MARKER))
+        if got != want:
+            bad.append(f"the literal rule answered {got!r}, expected {want!r}: {line[:52]!r}")
+
     # 6. THE WIRING, not just the rule. Checks 4–5 exercise is_reference() directly and
     #    stay green even if collect() ignores it entirely — a mutant that drops the split
     #    passed all five while the header went back to counting 54. This walks the real
@@ -475,7 +515,11 @@ def main() -> int:
         print(f"── NOT ASKS ({len(refs)}) — the marker used as a noun, nobody can perform these")
         for p_, n_, det in refs:
             short = p_.replace("Sources/Echoelmusic/", "").replace("Tests/CISmoke/", "CISmoke/")
-            print(f"   {short}:{n_}   (\"{det}\" in front of it — prose about the backlog)")
+            if det == BARE_LITERAL:
+                why = "the marker IS the whole string literal — a guard asserting the convention"
+            else:
+                why = f"\"{det}\" in front of it — prose about the backlog"
+            print(f"   {short}:{n_}   ({why})")
         print()
 
     if done:
