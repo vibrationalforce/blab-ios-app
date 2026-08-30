@@ -273,19 +273,22 @@ final class MicrophoneManager: NSObject {
             // whether the hardware was absent or merely late, which is what decides the
             // follow-up slice (a retry after `prepare()`, or nothing).
             guard format.sampleRate > 0, format.channelCount > 0 else {
-                // ⚠️ THE SESSION READ IS PLATFORM-GUARDED, like every other `AVAudioSession`
-                // use in this file (there are four, all inside an `#if`). The first draft of
-                // this block read it unguarded and would have broken the macOS build —
-                // `AVAudioSession` does not exist there, and `#if canImport(AVFoundation)` at
-                // the top of the file does NOT cover that, because AVFoundation imports fine
-                // on macOS. Same shape as CLAUDE.md's "UIKit refs on non-iOS" row.
-                var sessionDetail = "session unavailable on this platform"
+                // ⚠️ `let` IN BOTH ARMS, not a `var` declared outside the `#if`. On macOS the
+                // iOS arm is removed at parse time, so an outer `var` is initialised once,
+                // read twice and never written — `variable was never mutated`, and
+                // `Package.swift` compiles with `-warnings-as-errors`. Neither CI gate would
+                // have caught it (both build for the iOS simulator only); the command that
+                // would is `swift build`, which CLAUDE.md's SESSION START ritual prescribes.
+                // This is also the only place in `Sources/` that wanted that shape — no
+                // precedent to lean on, so it takes the plain one.
                 #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
                 let session = AVAudioSession.sharedInstance()
-                sessionDetail = """
+                let sessionDetail = """
                     session \(session.sampleRate) Hz/\(session.inputNumberOfChannels) ch, \
                     inputAvailable \(session.isInputAvailable)
                     """
+                #else
+                let sessionDetail = "session unavailable on this platform"
                 #endif
                 EchoelCrashLog.breadcrumb("""
                     mic: start REFUSED — input format not ready \
@@ -296,6 +299,18 @@ final class MicrophoneManager: NSObject {
                     MicrophoneManager: input node reported a placeholder format \
                     (\(format.sampleRate) Hz, \(format.channelCount) ch) — refusing to tap
                     """, category: .audio)
+                // ⚠️ NIL BOTH REFS BEFORE RETURNING, and this is not tidiness. `stopRecording`'s
+                // ⚠️ TRAP note below states an invariant this exit would otherwise falsify:
+                // "the already-stored `inputNode?` property … is non-nil only when a tap was
+                // installed". `inputNode` is assigned well ABOVE this guard, so a refusal would
+                // leave it non-nil with NO tap — and that note exists precisely to license a
+                // future symmetry fix that uses `inputNode?` as the "was a tap installed"
+                // proxy. Following it against this state would call `removeTap` on a
+                // never-started engine, which the same note names as the
+                // `isInputConnToConverter` family. A comment with a false premise is worse
+                // than none (#167's lesson), so the state is corrected rather than the note.
+                audioEngine = nil
+                inputNode = nil
                 #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
                 try? AudioConfiguration.releaseRecordRoute(.microphoneManager)
                 #endif

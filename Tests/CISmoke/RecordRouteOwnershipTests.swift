@@ -108,21 +108,29 @@ final class RecordRouteOwnershipTests: XCTestCase {
             .contains("claimRecordRoute(.microphoneManager)"), """
         `MicrophoneManager.startRecording` no longer claims the route as an owner.
         """)
-        // FOUR paths follow the claim: the two `guard … else { return }` exits inside the
-        // `do`, the start `catch`, and `stopRecording`.
-        XCTAssertEqual(file.components(separatedBy: "releaseRecordRoute(.microphoneManager)").count - 1, 4, """
-        `MicrophoneManager` no longer releases the route on ALL FOUR paths that follow its \
+        // FIVE paths follow the claim: the two `guard … else { return }` exits inside the
+        // `do` (#889), the placeholder-format refusal (#890), the start `catch`, and
+        // `stopRecording`.
+        XCTAssertEqual(file.components(separatedBy: "releaseRecordRoute(.microphoneManager)").count - 1, 5, """
+        `MicrophoneManager` no longer releases the route on ALL FIVE paths that follow its \
         claim. Dropping the `catch` one is how a failed start leaves a stale owner that blocks \
         every later downgrade; dropping the `stopRecording` one restores the bare unconditional \
         `downgradeToPlaybackAfterRecording`, which cuts the input monitor's mic mid-performance \
-        — the two halves of #299. The other two are the early `return`s inside the `do` (#889): \
-        a `return` from a `do` never reaches its `catch`, so those exits leak the claim outright.
+        — the two halves of #299. Two more are the early `return`s inside the `do` (#889): a \
+        `return` from a `do` never reaches its `catch`. The fifth is the placeholder-format \
+        refusal (#890), and it is the only one of the five that is REACHABLE today.
 
         ⚠️ WHY A COUNT AND NOT A SHAPE. This is a blunt pin and it is chosen deliberately: the \
         alternative is parsing control flow out of source text, which this bundle has no \
         business doing. The count is allowed to CHANGE — if you add or remove an exit, change \
         it here and say which path in this message. What it forbids is changing the code and \
         NOT the message (#364/#655).
+
+        ⛔ AND IT DID ITS JOB ONE COMMIT AFTER IT WAS WRITTEN. #889 raised this pin from 2 to \
+        4 and wrote that very sentence; #890 then added a fifth release and did NOT come back \
+        here, so this assertion was red on the pushed tree until the mandatory review caught \
+        it. The lesson is not "remember the pin" — it is that a pin whose message names the \
+        repair is what makes the miss a five-minute fix instead of a hunt.
 
         ⚠️ THE COUNT IS OF CALLS, NOT MENTIONS. `code(_:)` strips `//` lines first, so the \
         prose above and in `MicrophoneManager` does not inflate it.

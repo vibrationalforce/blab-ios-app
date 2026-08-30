@@ -16782,3 +16782,39 @@ Absturz herum gebaut und die Ursache nicht gefunden. Gefunden hat sie der PFLICH
 unverwandten Klassen-Reparatur, weil er die Frage „was noch in dieser Funktion?" gestellt
 bekam. **Der Reviewer ist nicht die Endabnahme — er ist ein zweiter Sucher, und die Frage nach
 dem Nachbarn ist die, die sich auszahlt.**
+
+## 2026-08-30 (Nachtrag zu #890) — der Wächter, den ich EINEN Commit vorher geschärft hatte, wurde von mir rot gemacht
+
+**#890 hätte das blockierende Bündel rot gemacht, und der Pflicht-Reviewer hat es gefangen, nicht
+ich.** `RecordRouteOwnershipTests` pinnt die Zahl der `releaseRecordRoute(.microphoneManager)`-
+Aufrufe. #889 hob sie von 2 auf 4 **und schrieb in dieselbe Meldung den Satz „the count is
+allowed to CHANGE — if you add or remove an exit, change it here"**. #890 fügte einen fünften
+hinzu und kam nicht zurück. Gemessen auf dem gepushten Baum: **5 Aufrufe, Pin auf 4.**
+
+⭐ **Die Lehre ist NICHT „an den Pin denken".** Sie ist: **ein Pin, dessen Fehlermeldung die
+Reparatur benennt, macht aus dem Fehlgriff eine Fünf-Minuten-Korrektur statt einer Suche.** Der
+Wächter hat genau das getan, wofür er geschrieben wurde — er hat nur einen Zyklus zu spät
+gesprochen, weil kein Compiler hier läuft. Deshalb steht die Rücknahme jetzt IN seiner
+Meldung: der nächste Leser sieht, dass diese Falle schon zweimal zugeschnappt ist.
+
+**Zwei weitere Reviewer-Befunde, beide korrigiert:**
+· **`var sessionDetail` außerhalb des `#if`** → auf macOS nie geschrieben ⇒
+  „variable was never mutated", und `Package.swift` baut mit `-warnings-as-errors`. **Kein
+  CI-Gate hätte das gefangen** (beide bauen nur für den iOS-Simulator) — rot geworden wäre
+  `swift build`, also genau der Befehl, den CLAUDE.mds SESSION-START-Ritual vorschreibt.
+  Jetzt `let` in beiden `#if`-Armen.
+· **`audioEngine`/`inputNode` blieben nach der Ablehnung nicht-nil** — und 150 Zeilen tiefer
+  steht eine ⚠️-TRAP-Notiz, die als Invariante behauptet: „`inputNode?` ist nur dann nicht-nil,
+  wenn ein Tap installiert wurde". Der neue Ausgang ist der **erste erreichbare**, der das
+  falsifiziert, und diese Notiz existiert, um eine künftige Symmetrie-Reparatur zu erlauben, die
+  `inputNode?` als „war ein Tap da?"-Stellvertreter nimmt. Ihr zu folgen hieße `removeTap` auf
+  einer nie gestarteten Engine — genau die Familie, vor der dieselbe Notiz warnt. Also der
+  ZUSTAND korrigiert, nicht die Notiz (#167s Lehre: eine Notiz mit falscher Prämisse ist
+  schlimmer als keine).
+
+**REGISTRIERT, NICHT GEBAUT (eigene Scheibe):** `VoiceCaptureController.begin()` prüft nach
+`mic.startRecording()` nie `mic.isRecording`. Auf der Ablehnung bleibt `phase == .capturing` und
+`progress` bei 0, bis der Nutzer abbricht. **Keine Regression** — der bestehende `catch`-Pfad
+verhält sich identisch —, aber #890 wandelt einen Absturz in ein stilles Hängen der Fläche um.
+Wer die Ablehnung sichtbar machen will, braucht ein `guard mic.isRecording else { phase = .idle;
+releaseMic(); return }`. Erst nach dem Gerätelog: ob der Pfad überhaupt feuert, weiß man dann.
