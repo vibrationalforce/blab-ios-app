@@ -17571,3 +17571,62 @@ nur die ARITHMETIK beweist — nicht, dass ein Pin am richtigen Token hängt (#3
 **Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. 25 Pins bleiben für das
 Werkzeug unlesbar; „unresolved" heißt, das WERKZEUG kam nicht heran — kein Urteil über den
 Wächter.
+
+---
+
+## 2026-08-30 — #905: die Reviewer-Runde auf #904 — das Werkzeug las die KLEINERE Hälfte
+
+Drei HOHE Befunde, alle selbst nachgemessen, alle echt.
+
+**(1) Es sah die kleinere Hälfte und druckte eine Gesamtzahl.** `SHAPE_A` verlangte den
+blanken Namen `occurrences` — die Sammlung schreibt es aber ZWEIMAL, und `codeOccurrences`
+ist mit **73 zu 51** die GRÖSSERE Hälfte (und die, die `dead-needles.py` längst liest). Dazu
+lehnten die Bindungs-Regexe ein BENANNTES Argument ab (`code(at: Self.view)`), was zehn der
+fünfundzwanzig „unresolved" erzeugte. Zwei Regex-Zeichen später: **55 → 136 geprüfte Pins,
+weiterhin 0 rot.** Ein Werkzeug, das still die kleinere Hälfte liest und eine Summe druckt,
+ist schlimmer als eines, das nichts liest. Die Summenzeile nennt jetzt einen Nenner und sagt
+ausdrücklich, dass er NICHT das Universum ist.
+
+**(2) `--root` stand auf `.` — ein Lauf aus dem falschen Verzeichnis war ein STILLES GRÜN:**
+`0 pin(s) checked, 0 RED`, Exit 0. Genau die #738-Form. Das Schwester-Skript verankert seinen
+Root am Skript; dieses hatte es nicht übernommen. Jetzt verankert, plus Exit **2**, wenn
+nichts gesehen wurde.
+
+**(3) #904 hat fünf Sätze „vier" stehen lassen — und den METHODENNAMEN.**
+`testTheFourPauseSitesSurvive()` behauptete vier und prüfte drei; die WHY-Zeile oben sagte,
+alle vier Stellen „pausieren", während die Rollback-Stelle seit #823 STOPPT. Das ist §4
+wörtlich: ein Wächter grün, während jeder Satz um ihn herum die alte Rechnung beschreibt.
+Umbenannt (#374) und alle fünf Sätze korrigiert.
+
+**Und eine Korrektur meiner eigenen Korrektur:** #904 nahm die Kopplung der zwei Zahlen ganz
+heraus („nimm NICHT an, dass claim 3 mitzieht"). Gemessen sind sie um **zwei versetzt** — die
+drei Pause-Stellen sind eine echte TEILMENGE der fünf Aufrufer. Für die wahrscheinlichste
+künftige Änderung (eine neue Pause-vor-Mutation-Stelle) ziehen **beide** mit, und wer meine
+Fassung wörtlich befolgt, hebt eine Zahl, lässt die andere und liefert ein Rot aus.
+**Entkoppeln war so falsch wie Gleichsetzen.**
+
+**Provenienz korrigiert:** #904 schrieb „#631/#836b" als Urheber des fünften Aufrufers.
+`git log -S 'func restoreEngineIfStranded'` liefert genau **einen** Commit — `bae1672`
+(#625b, 2026-08-19) — und die Grenzprobe bestätigt 4→5 dort. #631 und #836b haben später nur
+das Logging dieses Helfers bearbeitet.
+
+**Kleineres, alles latent und jetzt geschlossen:** `unescape` ließ unbekannte Escapes als
+Text durch (`\\u{2014}` hätte ein FALSCH-ROT erzeugt) → harte Ausschlussregel wie bei
+Interpolation · die Bindungs-Rückwärtssuche war nicht auf die umgebende `func` begrenzt
+(dieselbe #899-Lehre eine Datei weiter) · `SIGPIPE` fehlte, `| head` warf einen Traceback ·
+der `importlib`-Ladevorgang war ungeschützt · LIMIT 3 nannte die SELTENSTE der drei
+Divergenz-Klassen als einzige.
+
+⛔ **Und mein eigener Selbsttest-Umbau hat den Fehler reproduziert, den er behob:** die alte
+Fassung druckte ein literales „8 checks" neben sechs bis neun Prüfungen; meine neue Fassung
+druckte zuerst ein literales **„13"**. Jetzt wird gezählt (`len(total)`), und der Selbsttest
+fährt endlich den RESOLVER selbst — den Teil, in dem jede der #905-Lücken saß.
+
+**Registriert**, weil ein Prüfer, den niemand kennt, ein Prüfer ist, den niemand fährt:
+`Tests/CISmoke/CLAUDE.md` §4, neben `dead-needles.py`, mit den drei gemessenen Fällen und
+ihren Daten.
+
+⚠️ **Gemeldet, nicht editiert (founder-gated):** `scripts/**` steht in KEINEM Pfad-Filter von
+`auto-merge-claude.yml`. Diese Scheibe erreicht `main` nur, weil sie auch `Tests/**` anfasst.
+Ein Folge-Commit, der NUR das Skript ändert, bliebe unbegrenzt liegen — und würde nach der
+#699-Notiz zusätzlich den docs-Merge blockieren.

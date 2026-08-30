@@ -175,6 +175,25 @@ a genuinely red guard is indistinguishable from the host dying.
 python3 scripts/dead-needles.py        # 0 = clean · 1 = a guard fails on a correct tree
 ```
 
+```
+python3 scripts/count-pins.py            # 0 = every COUNT PIN it can read still matches
+python3 scripts/count-pins.py --all      # also list the pins it could not resolve
+python3 scripts/count-pins.py --selftest # after touching it
+```
+
+**A count pin is the other shape that rots silently, and it rots the same way (#903/#904).**
+`XCTAssertEqual(occurrences(of: "…", in: code), N)` goes stale when the CODE changes
+CORRECTLY and the number does not follow. Three measured cases, none of them noticed by CI:
+a breadcrumb pin red for thirteen commits (#903, #888 added three sites), a helper-call pin
+red since `bae1672`/2026-08-19 (a fifth caller doing exactly what the pin's own message asked
+for), and a pause pin red since `d0564d7`/#823 (a pause that became a stop). §5 is why none
+of them surfaced: the pipeline reports `failure` on every push, so a genuinely red guard is
+indistinguishable from the host dying. **Run it in the same breath as `dead-needles.py`.**
+⚠️ Its output prints a denominator on purpose (`N of M pins it can SEE`) — M is NOT the
+bundle's universe of count pins, and a clean run proves the ARITHMETIC only, never that a
+pin is anchored on the right token (#367/#408). Five limits in its docstring; it is
+validated against the tree that carried the #903 defect, per §4's known-positive rule.
+
 It checks the two shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))` and
 `codeOccurrences(of: "…") >= N` — against comment-stripped `Sources/`. Its limits are in its
 own header and are real: it does not read negative assertions, interpolated needles, or
