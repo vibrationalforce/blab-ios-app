@@ -17936,3 +17936,55 @@ schreibt er jetzt `mic: start REFUSED — no input format from the node`.
 **Lehre:** eine „das kann nicht passieren"-Zusage im Kopf eines Wächters ist eine BEHAUPTUNG
 und muss wie jede andere gefahren werden — hier ging der Fall, den der Kopf ausschloss,
 glatt durch.
+
+---
+
+## #911 — Die Deploy-Notiz sagte „fünf Commits". Es waren 54.
+
+**Ausgeliefert: v10.79.431** (`.deploy/release` gebumpt und gepusht → TestFlight).
+
+⛔ **Die Notiz, die ich fast abgeschickt hätte, war in genau einer Zahl falsch — und diese
+Zahl entscheidet, wie lange der Founder prüft.** Sie schloss mit „Compile-verifiziert
+(Compile Check grün auf allen **fünf** Commits seit 430)". Gemessen, unmittelbar danach:
+
+```
+git log -S "v10.79.430" --oneline -- .deploy/release   → 4d509fb
+git log --oneline 4d509fb..HEAD | wc -l                → 54
+git log --oneline 4d509fb..HEAD -- Sources/ | wc -l    → 33
+```
+
+Der 430er-Bau entstand, BEVOR der grösste Teil dieser Arbeit geschrieben war. 431 ist also
+die erste Auslieferung von #863 bis #910 — nicht der Diagnose-Nachschlag, als den die Notiz
+sich beschrieb.
+
+**Warum das kein Buchhaltungsfehler ist:** die Notiz ist das einzige Dokument, aus dem der
+Founder seine Geräteprobe priorisiert. Eine Notiz, die nur von neuen Logzeilen spricht, lädt
+zum Fünf-Minuten-Blick ein. In dieser Version stecken aber vier VERHALTENS-Reparaturen am
+Mikrofon-Weg, die er zum ersten Mal in der Hand hat und die er **ohne Nennung gar nicht
+prüfen würde**:
+
+| # | Was der Nutzer merkt |
+|---|---|
+| #891–#897 | verweigerte/nie gefragte Mikrofon-Erlaubnis beendet die Aufnahme, statt bei 0 % zu hängen (der `undetermined`-Fall WAR das Hängen) |
+| #889/#902 | zwei frühe Ausstiege belegten den Aufnahme-Weg und gaben ihn nie frei — Tonquelle bis zum Neustart blockiert |
+| #890 | ein Platzhalter-Eingangsformat (0 Hz) verweigert nur diesen Schritt, statt den Prozess abzubrechen |
+| #900 | ein fehlgeschlagener Start lässt keinen halben Audiograph stehen |
+
+Deshalb ist **Prüfbitte 2 neu**: Mikrofon in den Einstellungen aus, Aufnahme starten,
+sauberer Abbruch erwartet.
+
+⭐ **Die Rücknahme steht in der NOTIZ, nicht nur in der Commit-Nachricht.** Der „fünf
+Commits"-Satz ist als dritter Eintrag in den vorhandenen `WAS ICH NICHT BEHAUPTE`-Block
+gewandert, zu den zwei #910-Übertreibungen. Die #456-Form: eine Rücknahme gehört in jedes
+Zuhause, und das Zuhause, das der Founder liest, ist die Notiz — die Commit-Nachricht liest
+er nie.
+
+**Lehre, und sie ist NICHT „Zahl nachführen":** die Zahl kam aus dem Gedächtnis („in diesem
+Fenster habe ich fünf Slices gefahren"), und sie war für MEIN Fenster sogar richtig. Falsch
+war der NENNER — die Version verhält sich nicht zu meiner Sitzung, sondern zum letzten
+Bump. **Wer eine Deploy-Notiz schreibt, misst gegen den Bump-Commit, nie gegen das eigene
+Fenster** (`git log -S "v<vorgänger>" -- .deploy/release` liefert ihn in einer Zeile).
+
+⚠️ Die #635-Regel ist erneut geprüft: `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die ganze
+Datei liefert `v10.79.431`, der Vorgänger steht als `10.79.430` ohne `v`, und im ganzen File
+existiert nur EIN `vX.Y.Z`.

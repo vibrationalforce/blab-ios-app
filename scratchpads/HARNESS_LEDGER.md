@@ -2639,3 +2639,41 @@ Ansprüche dazukamen. Abruf mit `tail_lines: 30`–`34` statt 200.
 
 **Regel: den billigen Indikator für „lief das Bündel überhaupt", das teure Fenster erst, wenn
 er STAGNIERT oder ein Anspruch neu ist und man sein Ergebnis wissen muss.**
+
+---
+
+## PLAYBOOK (2026-08-30, #911): eine Deploy-Notiz misst gegen den BUMP-Commit, nie gegen das eigene Fenster
+
+**Der Fehler.** Ich schrieb in `.deploy/release` für v10.79.431: „Compile Check grün auf allen
+**fünf** Commits seit 430". Fünf war die Anzahl der Slices, die ich in DIESEM Kontextfenster
+gefahren hatte — für mein Fenster also korrekt. Der Nenner war falsch: eine Version verhält
+sich zum letzten Bump, nicht zu einer Sitzung.
+
+**Die Messung, eine Zeile:**
+```
+git log -S "v<vorgänger>" --oneline -- .deploy/release   # → der Bump-Commit
+git log --oneline <bump>..HEAD | wc -l                   # → 54, nicht 5
+git log --oneline <bump>..HEAD -- Sources/ | wc -l       # → 33 im Auslieferungscode
+```
+
+**Warum das teuer ist und nicht Buchhaltung.** Die Notiz ist das einzige Dokument, aus dem der
+Founder seine Geräteprobe priorisiert. „Fünf Diagnose-Commits" lädt zum Fünf-Minuten-Blick
+ein; in Wahrheit lagen vier VERHALTENS-Reparaturen am Mikrofon-Weg (#889/#890/#891–#897/#900)
+zum ersten Mal in seiner Hand — und was in der Notiz nicht steht, prüft er nicht. Der Schaden
+ist nicht die falsche Zahl, sondern **eine ungeprüfte Auslieferung**.
+
+**Warum kein Wächter das fangen kann.** Die Zahl steht in Prosa, in einer Datei, die absichtlich
+frei formuliert ist. `TheShippedVersionComesFromTheReleaseFileTests` (#635) prüft die
+VERSIONS-Extraktion — die war die ganze Zeit korrekt. Das Loch ist die Behauptung DANEBEN.
+Deshalb ist das hier ein Playbook und kein Test.
+
+**Regel für die nächste Notiz — drei Zeilen, bevor der erste Satz geschrieben wird:**
+1. Bump-Commit des Vorgängers holen (`git log -S`).
+2. `<bump>..HEAD -- Sources/` durchsehen und JEDE verhaltensändernde Reparatur namentlich in
+   den Nutzer-Abschnitt heben. Diagnose-Commits gehören in den Log-Abschnitt, nicht nach oben.
+3. Für jede genannte Reparatur eine PRÜFBITTE formulieren — sonst steht sie da und wird nicht
+   gefahren.
+
+⭐ **Und die Rücknahme gehört in die NOTIZ.** Ich habe den „fünf Commits"-Satz als dritten
+Eintrag in den vorhandenen `WAS ICH NICHT BEHAUPTE`-Block der Notiz gesetzt, nicht nur in die
+Commit-Nachricht — die liest der Founder nie. Die #456-Form gilt auch für Rücknahmen.
