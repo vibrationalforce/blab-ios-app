@@ -309,8 +309,16 @@ final class MicrophoneManager: NSObject {
                 // never-started engine, which the same note names as the
                 // `isInputConnToConverter` family. A comment with a false premise is worse
                 // than none (#167's lesson), so the state is corrected rather than the note.
-                audioEngine = nil
-                inputNode = nil
+                // ⚠️ `self.` IS REQUIRED HERE AND IS NOT STYLE. The guard 60 lines up is
+                // `guard let audioEngine = audioEngine`, which binds a LOCAL `let` that
+                // shadows the property for the rest of this scope — a bare `audioEngine = nil`
+                // assigns to that constant and does not compile ("cannot assign to value:
+                // 'audioEngine' is a 'let' constant"). It cost a red `Xcode Compile Check`,
+                // because none of the text-level checks available here can see a type error;
+                // CI is the only compiler in this repo. `inputNode` is not shadowed, but it
+                // takes the same prefix so the pair reads as one intent.
+                self.audioEngine = nil
+                self.inputNode = nil
                 #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
                 try? AudioConfiguration.releaseRecordRoute(.microphoneManager)
                 #endif

@@ -16818,3 +16818,30 @@ Meldung: der nächste Leser sieht, dass diese Falle schon zweimal zugeschnappt i
 verhält sich identisch —, aber #890 wandelt einen Absturz in ein stilles Hängen der Fläche um.
 Wer die Ablehnung sichtbar machen will, braucht ein `guard mic.isRecording else { phase = .idle;
 releaseMic(); return }`. Erst nach dem Gerätelog: ob der Pfad überhaupt feuert, weiß man dann.
+
+## 2026-08-30 (Nachtrag 2 zu #890) — ROTES GATE, von mir verursacht: `guard let x = x` schattet die Property
+
+**`Xcode Compile Check` auf `7a66190` = failure.** Zwei Fehler, eine Ursache:
+`MicrophoneManager.swift:312: cannot assign to value: 'audioEngine' is a 'let' constant`.
+
+Die Funktion enthält 60 Zeilen höher `guard let audioEngine = audioEngine`. Das bindet eine
+LOKALE Konstante, die die Property für den Rest des Gültigkeitsbereichs **überschattet** — mein
+`audioEngine = nil` traf also die Konstante, nicht die Property. Behoben mit `self.`, und das
+`self.` steht jetzt mit Begründung im Code, damit es niemand als Stil wegräumt.
+
+⛔ **Die ehrliche Lehre, und sie korrigiert meine eigene vorige Commit-Zeile.** Ich schrieb dort
+„VERIFIED BEFORE COMMITTING" und zählte fünf Simulationen auf. Die waren alle richtig — und
+**alle text-basiert**. Ein Typfehler ist für sie unsichtbar. In diesem Repo ist **CI der einzige
+Compiler**; „verifiziert" darf hier nie ohne das Wort **text-level** stehen, sonst liest die
+nächste Sitzung eine Deckung, die es nicht gibt. Genau die Sorte Über-Behauptung, die diese
+Datei sonst bei anderen streicht.
+
+⚠️ **Und der Reviewer hat es auch nicht gefangen** — er hat die drei Befunde geliefert, die ich
+umgesetzt habe, aber die UMSETZUNG lief nach seinem Lauf. Ein Review deckt den Baum ab, den er
+gesehen hat; jede Zeile danach ist ungeprüft. Bei einer Reviewer-Reparatur mit mehr als einer
+Zeile ist das ein zweiter Lauf wert — oder eine Sichtprüfung genau auf Namensbindung.
+
+**Nach der Reparatur nachgerechnet:** 5 Freigaben ↔ Pin 5, beide #889-Fenster grün, alle
+Mikrofon-Nadeln je 1×, `var sessionDetail` weg, 8/8 Leitern vollständig. Ein Skript-Sweep über
+die Funktion sucht jetzt zusätzlich nach `guard let X = X` und blanken `X =`-Zuweisungen —
+gefunden wird nur die legitime vor dem Guard.
