@@ -194,8 +194,9 @@ final class TheShareDoorReportsWhatItCannotSendTests: XCTestCase {
             The ENCODE failure needs its own sentence, and it must name the SESSION rather than \
             the network: re-tapping re-encodes the same project and fails identically, so \
             wording that invites a retry sends the user into a loop. It must also NOT point at \
-            "Diagnostics" — `log.log` goes to os_log, NOT to `EchoelCrashLog.currentLog()`, \
-            which is what that row renders (the overclaim #484 had to withdraw).
+            "Diagnostics" — `log.log` goes to os_log, NOT to the diag log that row renders \
+            (`EchoelCrashLog.diagnosticsExport()` since #916, `currentLog()` before it; the \
+            overclaim #484 had to withdraw).
             """)
     }
 

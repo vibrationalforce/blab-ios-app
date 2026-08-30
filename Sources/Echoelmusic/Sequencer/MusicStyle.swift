@@ -437,7 +437,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// rules put esoteric vocabulary on a hard reject list. An identifier is read by every
     /// session that plans from this file, and it leaked into one surface a user can reach: the
     /// launch breadcrumb writes `genre=\(style.rawValue)` and the Diagnostics row renders
-    /// `EchoelCrashLog.currentLog()`.
+    /// `EchoelCrashLog.diagnosticsExport()` (it was `currentLog()` until #916 — same file,
+    /// now with any retained crash appended).
     ///
     /// ⛔ THE RAW VALUE DELIBERATELY DOES **NOT** MOVE, and that is the whole decision. This
     /// enum's rawValue is PERSISTED in three places — `@AppStorage(StudioDefaultKeys.genre.key)`,

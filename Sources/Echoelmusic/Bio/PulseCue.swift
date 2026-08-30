@@ -44,7 +44,8 @@ public enum PulseCue: Equatable, Sendable {
     ///   · the "exposure locked on finger" line is an `EchoelCrashLog.breadcrumb`, so it is
     ///     not on the measurement surface at all. ⛔ The first version of this line said
     ///     "log file only, NEVER RENDERED", which is false: `EchoelStudioView`'s reachable
-    ///     "Diagnostics" row renders `EchoelCrashLog.currentLog()`, and `SafeModeView`
+    ///     "Diagnostics" row renders the diag log — `EchoelCrashLog.diagnosticsExport()`
+    ///     since #916, `currentLog()` before it — and `SafeModeView`
     ///     renders the previous session's. The sharper reading is that the opt-in
     ///     Diagnostics sheet is plausibly HOW that line reached a human and misled one.
     ///   · `signalQuality` has zero UI consumers — its one consumer is the 2 s breadcrumb.

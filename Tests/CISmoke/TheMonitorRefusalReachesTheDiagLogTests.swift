@@ -141,7 +141,10 @@ final class TheMonitorRefusalReachesTheDiagLogTests: XCTestCase {
             `EchoelCrashLog.breadcrumb` no longer writes the file descriptor. #650's entire \
             argument is that this function IS `echoel_diag.log`; if the file gains another \
             writer, or this one stops writing, re-derive which sink a founder's export actually \
-            carries before trusting any monitoring line to reach it.
+            carries before trusting any monitoring line to reach it. ⚠️ #916 changed what \
+            the EXPORT carries — the Diagnostics row now appends a retained crash from an \
+            earlier run — WITHOUT adding a writer to this file, so this claim stays true; \
+            "the export" and "this file" are no longer the same set of bytes.
             """)
         let rppg = try Self.codeText("Echoelmusic/Bio/CameraRPPGBioPublisher.swift")
         XCTAssertTrue(rppg.contains("EchoelCrashLog.breadcrumb"), """

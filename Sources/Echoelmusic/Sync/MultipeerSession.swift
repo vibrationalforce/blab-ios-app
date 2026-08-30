@@ -183,8 +183,8 @@ public final class MultipeerSession: NSObject {
     /// the same project and fails identically, so it names the SESSION, not the network.
     ///
     /// ⚠️ AND THE LOG LINE IS NOT THE SCREEN. `log.log` goes to `os_log`, NOT to
-    /// `EchoelCrashLog.currentLog()` — which is what the reachable "Diagnostics" row
-    /// renders. So the status text deliberately does not send anyone to Diagnostics;
+    /// the diag log, which is what the reachable "Diagnostics" row renders
+    /// (`EchoelCrashLog.diagnosticsExport()` since #916; it was `currentLog()` before). So the status text deliberately does not send anyone to Diagnostics;
     /// the log is a telemetry floor for a sysdiagnose, exactly as in #514.
     public func share(project: Project) {
         let payload = ColabPayload(kind: "session", senderName: myPeerID.displayName, project: project)

@@ -629,7 +629,8 @@ laufendes Register nicht. Ein Wächter darüber bleibt bewusst aus (#364).
                           Abhilfen, und `try?` faltet beide auf `nil`.
                           ⚠️ **DIE PROTOKOLLZEILE IST HIER NICHT DER SCHIRM — anders als bei #514/#515, und
                           das entscheidet den Wortlaut.** `log.log` geht an os_log; die erreichbare
-                          „Diagnostics"-Zeile rendert `EchoelCrashLog.currentLog()`, also etwas anderes. Der
+                          „Diagnostics"-Zeile rendert die Diag-Datei (seit #916
+                          `EchoelCrashLog.diagnosticsExport()`, davor `currentLog()`), also etwas anderes. Der
                           Satz auf dem Schirm darf niemanden nach Diagnostics schicken — er ist die
                           Statuszeile selbst, und die IST hier die Fläche.
                           ⚠️ EHRLICHE BENOTUNG (#433), gegen den Elternbaum TRANSKRIBIERT statt behauptet
@@ -2586,7 +2587,8 @@ laufendes Register nicht. Ein Wächter darüber bleibt bewusst aus (#364).
                           gleichzeitig (hier, Dateikopf des Wächters, Quellkommentar).** Sie zählte VIER
                           unabhängige Prüfungen auf; es sind **DREI**. (1) „nur Logdatei, **nie gerendert**"
                           ist falsch: die erreichbare „Diagnostics"-Zeile in `EchoelStudioView` rendert
-                          `EchoelCrashLog.currentLog()`, `SafeModeView` die Vorsitzung — die schärfere Lesung
+                          die Diag-Datei (seit #916 `EchoelCrashLog.diagnosticsExport()`, davor
+                          `currentLog()`), `SafeModeView` die Vorsitzung — die schärfere Lesung
                           ist, dass das opt-in-Diagnose-Blatt plausibel der WEG war, auf dem diese Zeile einen
                           Menschen erreicht und in die Irre geführt hat. (2) „`signalQuality` hat null
                           Verbraucher": zu stark — null **UI**-Verbraucher, einen Breadcrumb-Verbraucher.
