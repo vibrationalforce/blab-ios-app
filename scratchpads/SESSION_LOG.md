@@ -17012,3 +17012,50 @@ Lesestellen, beide in `VoiceCaptureRow` (Blatt) — Freeze-Gesetz eingehalten. L
 **Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. Der ui-state-Reviewer lief zum
 Zeitpunkt dieses Eintrags noch — Befunde werden als Folge-Commit behandelt, so wie #892 die
 Folge von #891 war.
+
+## 2026-08-30 — #894: eine Umbenennung muss die BEGRÜNDUNGEN greppen, nicht nur den Code
+
+**#893 hat vier Wächter-NADELN korrekt mitgezogen und zwei BEGRÜNDUNGEN stehen lassen** — und
+die beschrieben die Zeile, die #893 gerade gelöscht hatte. Der Kommentar an `cancel()` sagte
+weiter „ist heute ohnehin immer false, weil `begin()` die Flagge beim Betreten löscht". Genau
+diese Zeile hat #893 ENTFERNT (ein Reset beim Scharfstellen macht „in a row" unmöglich), und
+der Property-Doc siebzig Zeilen darüber sagt in derselben Datei das Gegenteil. Der Wächter
+wiederholte die tote Begründung in seiner Fehlermeldung.
+
+**Und die Zeile ist inzwischen TRAGEND, nicht defensiv.** Erreichbar, auf dem Weg der offenen
+#890-Geräteprobe: Ablehnung (Streak 1) → Capture erneut → das Mikrofon startet DIESMAL
+(`.capturing`, Streak weiter 1) → Abbrechen. Ohne diese Zeile meldet die Beschriftung danach
+„The microphone did not start" nach einer Aufnahme, die SEHR WOHL gestartet ist — genau die
+lügende Bedienfläche, die #891 und #892 beide beseitigen sollten. **Ein Kommentar, der sagt
+„das ist nur vorsorglich", ist eine Einladung, die Zeile zu löschen** — und er altert in dem
+Moment, in dem der Code, auf den er sich stützt, umzieht. #893 war sorgfältig genug, die
+ABWESENHEIT eines Resets in `begin()` zu pinnen, und ließ den Satz stehen, der das gelöschte
+Reset beschrieb.
+
+**Dritter Befund: die abgeleitete Zahl im Kopf.** „19 assertion EVALUATIONS" wurde nicht
+mitgezogen, als die Aussagenzahl 18 → 22 ging — die FÜNFTE falsche Hand-Zählung in genau dem
+Kopf, der selbst sagt „eine vierte Hand-Zählung ist nicht die Reparatur". **Gelöscht statt
+korrigiert**, und der Grund ist der Unterschied zur Aussagenzahl: hinter der steht ein Befehl,
+hinter der Auswertungszahl keiner — niemand kann sie ohne Hand-Ausrollen jeder Schleife
+nachrechnen. (Nebenbei mitkorrigiert: Anspruch 6 nannte sich selbst „Four assertions", es sind
+zwei Aussagen.)
+
+**Vierter Befund, und er ist eine VERSTÄRKUNG, keine Vorwärts-rot-Behauptung.** Anspruch 7 las
+`ingest` bis DATEIENDE, also hätte ein `micRefusals = 0` ganz OBEN in `ingest` — Streak-Reset
+beim ersten Sample jeder Aufnahme, die bloß STARTET — identisch bestanden. Das Fenster endet
+jetzt an der Methode und die Prüfung verlangt die Position INNERHALB des Abschluss-Zweigs.
+**Mit Negativ-Kontrolle belegt statt behauptet:** in einem simulierten Baum mit hochgezogenem
+Reset wird die neue Aussage rot, die alte blieb grün. Sie ist auf dem Elternbaum `b502a02`
+ebenfalls grün — deshalb steht sie als Verstärkung da und nicht als vorwärts-rot; eine
+beidseitig grüne Aussage „forward-red" zu nennen ist die Über-Behauptung, die diese Datei schon
+zweimal zurücknehmen musste.
+
+**Was der Reviewer AUSDRÜCKLICH nicht fand** (und das gehört dazu, sonst liest sich der Eintrag
+schlimmer als der Zustand): keine Laufzeit-Lüge. Der angezeigte Zähler ist an jeder
+erreichbaren Stelle wahr, `.done` mit Streak > 0 ist unerreichbar, ein Tipp erhöht höchstens
+einmal, das Freeze-Gesetz hält (zwei Lesestellen, beide im Blatt), und die Umbenennung ist
+vollständig. Eine bewusste Asymmetrie bleibt: `clearApplied` beendet den Streak, also
+unterzählt die Anzeige in einer exotischen Folge — die sichere Richtung, und #892 verlangt den
+Reset dort.
+
+**Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. Nichts gerätverifiziert.

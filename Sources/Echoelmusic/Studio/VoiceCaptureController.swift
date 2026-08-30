@@ -187,11 +187,22 @@ final class VoiceCaptureController {
         engine.cancel()
         phase = .idle
         progress = 0
-        // #892: today this is always already false — Cancel only renders during
-        // `.capturing`, and `begin()` clears the flag on the way in. It is written anyway
-        // so the invariant is UNCONDITIONAL rather than "benign because of where the
-        // button happens to be": that second form is a claim about the view, and the view
-        // is exactly what changed underneath #891's own rationale one commit ago.
+        // ⛔ #894 — THIS WRITE STOPPED BEING DEFENSIVE ONE COMMIT AGO AND THE COMMENT DID
+        // NOT NOTICE. #892 justified it with "always already false — `begin()` clears the
+        // flag on the way in". #893 DELETED that clearing line, because a reset at arm time
+        // makes "in a row" impossible — so this sentence contradicted the property's own
+        // doc seventy lines up in the SAME FILE, which says the reset is deliberately absent.
+        //
+        // ⭐ IT IS NOW LOAD-BEARING, and the founder's own #890 probe walks the path:
+        // refusal (streak 1) → tap Capture again → the mic starts THIS time (`.capturing`,
+        // streak still 1) → Cancel. Without this line the caption then reads "The microphone
+        // did not start" after a take that DID start and that the user cancelled — the
+        // lying-control shape #891 and #892 both exist to remove.
+        //
+        // ⚠️ THE LESSON IS THE ONE THIS FILE KEEPS PAYING FOR: a comment that says "this is
+        // only defensive" is an invitation to delete the line, and it ages the moment the
+        // code it leans on moves. #893 was careful to PIN the absence of a reset in
+        // `begin()` — and left the sentence that described the deleted reset standing.
         micRefusals = 0
         releaseMic()
     }

@@ -14,8 +14,13 @@
 // wrong (12, then 16, then 20 with a bogus 3+3+3+2+5+4 split); the command that settles it
 // is in the SESSION_LOG for #892, and a fourth hand-count is not the fix — reading the
 // number as a DATE is. Two nuances the raw number hides: claim 6 runs one of its two
-// statements twice through a `for` loop, so a green run makes 19 assertion EVALUATIONS;
-// and a whole-file `grep -c` on the assertion name is NOT the measurement — this header
+// statements more than once through a `for` loop, so a green run makes MORE evaluations
+// than statements — ⛔ #894: the exact number stood here as "19", was not updated when the
+// statement count went 18 → 22, and became the FIFTH wrong hand-count in this header. It is
+// DELETED rather than corrected, because unlike the statement count it has no command behind
+// it: nothing can re-derive it without hand-expanding every loop. The statement count is the
+// measurement; the evaluation count was decoration that rotted.
+// A whole-file `grep -c` on the assertion name is likewise NOT the measurement — this header
 // quotes assertion names in prose, so writing ABOUT the count changes it. That is not
 // hypothetical: the sentence that first stated a grep figure here was made wrong by its own
 // words before the commit (#753, the marker is also a noun). Count inside `func test`
@@ -49,6 +54,25 @@
 // `hasPermission` discriminator, whose removal would abort the legitimate permission wait
 // instead, and the deliberate absence of `releaseMic()` on that path, which would write a
 // three-rung stop ladder for a mic that never started (#882).
+//
+// ⛔ #894 — REVIEWER PASS ON #893, AND THREE OF ITS FOUR FINDINGS WERE PROSE THAT THE
+// RENAME FALSIFIED. #893 moved four NEEDLES and missed the RATIONALES: `cancel()`'s comment
+// still said the write was "always already false because begin() clears the flag" — the line
+// #893 had just deleted — and this file's `why` for the same write repeated it. That write is
+// now LOAD-BEARING (refusal → tap again → the mic starts → Cancel), so both texts invited
+// deleting the one line standing between the player and a caption that reports a failed
+// microphone after a take that DID start. ⭐ THE LESSON: a rename sweep must grep the
+// ARGUMENTS FOR the code, not only the code.
+//
+// ⭐ #894 ALSO TIGHTENED CLAIM 7's `ingest` WINDOW, and this one is a STRENGTHENING, not a
+// forward-red claim — it is green on the parent `b502a02` too, because the reset was already
+// in the right place. What changed is that it can now FAIL for a reason that exists (#367):
+// the old window ran to END OF FILE, so a `micRefusals = 0` hoisted to the top of `ingest`
+// (clearing the streak on the first sample of any take that merely STARTS) passed
+// identically. Proven with a negative control rather than asserted: hoisting the reset in a
+// simulated tree flips the new assertion red and left the old one green. Reported as a
+// strengthening BECAUSE calling a both-trees-green assertion "forward-red" is the over-claim
+// this file has already had to retract twice.
 //
 // ⭐ #893 ADDED A SEVENTH CLAIM AND RENAMED FOUR NEEDLES IN THE SAME COMMIT (#655/#656).
 // `micUnavailable: Bool` became `micRefusals: Int`, because a Bool answered the wrong
@@ -229,9 +253,9 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
                       + "silent and a refused capture still looks like a dead button (#891)")
     }
 
-    /// #892 — the refusal message cannot outlive the situation it describes. Four
-    /// assertions: the branch ORDER inside `caption`, and a clearing write in each of the
-    /// two phase exits that `begin()` does not cover.
+    /// #892 — the refusal message cannot outlive the situation it describes. TWO assertion
+    /// statements (⛔ #894: this said "Four"): the branch ORDER inside `caption`, and one
+    /// clearing-write check run once per phase exit that `begin()` does not cover.
     func testTheRefusalMessageCannotOutliveItsSituation() throws {
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
         let capStart = try XCTUnwrap(studio.range(of: "private var caption: String {"),
@@ -250,8 +274,12 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
 
         let controller = try source("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
         for (fn, why) in [("func cancel()",
-                           "Cancel: false today only because of where the button renders — "
-                           + "an invariant that leans on the view is what #891 got wrong"),
+                           "Cancel: LOAD-BEARING since #893, not defensive — #892's "
+                           + "\"always already false\" died when begin() stopped clearing "
+                           + "the streak. Reachable: refusal (streak 1), tap Capture again, "
+                           + "the mic starts this time, Cancel. Without this write the "
+                           + "caption then reports a failed microphone after a take that "
+                           + "DID start (#894)"),
                           ("func clearApplied(synth: PolySynthVoice)",
                            "Clear: reachable with the flag still true (refusal → recalled "
                            + "patch with a profile → Clear), and without the write the "
@@ -286,13 +314,26 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
                       "the breadcrumb must carry the count, so the exported log answers the "
                       + "#890 probe's \"twice in a row\" even when nobody watched the screen")
 
+        // ⛔ #894: this window used to run to END OF FILE, so a `micRefusals = 0` placed at
+        // the TOP of ingest — clearing the streak on the first sample of any take rather
+        // than on completion — passed identically while breaking the property the message
+        // names. Claim 6 three tests above bounds its windows for exactly this reason.
         let ingestAt = try XCTUnwrap(controller.range(of: "private func ingest("),
                                      "ingest() was renamed — re-anchor (#454)")
-        let ingest = String(controller[ingestAt.upperBound...])
-        XCTAssertTrue(ingest.contains("micRefusals = 0"),
-                      "a completed take is the strongest end of a refusal streak; without "
-                      + "this the next failure would report a count carried over from before "
-                      + "a success, which is not \"in a row\"")
+        let ingestEnd = try XCTUnwrap(controller.range(of: "\n    }", range: ingestAt.upperBound..<controller.endIndex),
+                                      "ingest() has no closing brace at method indentation")
+        let ingest = String(controller[ingestAt.upperBound..<ingestEnd.lowerBound])
+        let doneAt = try XCTUnwrap(ingest.range(of: "if engine.state == .done {"),
+                                   "the completion branch was renamed — re-anchor (#454)")
+        let resetAt = try XCTUnwrap(ingest.range(of: "micRefusals = 0"),
+                                    "a completed take is the strongest end of a refusal "
+                                    + "streak; without this the next failure would report a "
+                                    + "count carried over from before a success")
+        XCTAssertTrue(resetAt.lowerBound > doneAt.upperBound,
+                      "the reset must sit INSIDE the completion branch. Above it, the streak "
+                      + "would clear on the first sample of any take that merely STARTS — "
+                      + "which is not what \"a completed take ends the streak\" means, and no "
+                      + "other assertion would notice (#894)")
 
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
         XCTAssertTrue(studio.contains("controller.micRefusals == 1 ? \"\""),
