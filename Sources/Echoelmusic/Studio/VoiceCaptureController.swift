@@ -57,6 +57,24 @@
 // Permission edge, honest: `begin` with no mic permission leaves `MicrophoneManager` to
 // request it (its `startRecording` does) and the capture sits armed at 0 % until sound
 // arrives; the user cancels or re-arms after granting. No second permission flow here.
+//
+// ⚠️ #891 — THAT WAIT IS FINE; THE OTHER WAY TO REACH 0 % IS NOT. Measured rather than
+// counted, because a count here would rot: EXACTLY ONE line in `startRecording()` sets
+// `isRecording = true`, and it is the last statement of the `do`. Every other way back —
+// five `return`s and the `catch` — leaves it false with no tap installed, so NO sample
+// can ever arrive and the take sits on `.capturing` 0 % forever, escapable only by Cancel.
+// Which of those are LIVE, so nobody hunts the wrong one: the permission `return`
+// RESOLVES by itself (the system prompt is open) · the "already recording" `return` cannot
+// be reached from here at all, because `micStartedByUs = !mic.isRecording` means this
+// caller only starts a mic that is stopped · the two #889 guards are documented
+// unreachable in their own comments · what remains, and what this abort exists for, is the
+// #890 placeholder-format refusal and the `catch` around `audioEngine.start()`.
+// On a phone a silent 0 % is indistinguishable from a hang,
+// and it is exactly the state the founder's #890 device probe would land in: the probe
+// asks "capture straight after launch, twice in a row", which is the placeholder's own
+// window. A probe whose failure mode looks like a hang cannot answer the question it was
+// filed for. `begin()` therefore re-reads `mic.isRecording` after starting it and, when
+// the mic did NOT come up WITH permission granted, aborts the take instead of pretending.
 
 import Foundation
 
@@ -77,6 +95,11 @@ final class VoiceCaptureController {
     private(set) var progress: Double = 0
     /// The live "we hear you" dot — true while the last window read as voiced.
     private(set) var hearingYou = false
+    /// #891: the last `begin()` could not get the microphone running, so no take started.
+    /// Set only on the abort path below, cleared by the next `begin()`. Read by exactly one
+    /// leaf (`VoiceCaptureRow`'s caption) — it changes at most once per button tap, so it
+    /// is nowhere near the 10.76.41/50 churn class.
+    private(set) var micUnavailable = false
 
     @ObservationIgnored private var engine = VoiceCaptureEngine()
     @ObservationIgnored private weak var mic: MicrophoneManager?
@@ -97,11 +120,44 @@ final class VoiceCaptureController {
         phase = .capturing
         progress = 0
         hearingYou = false
+        micUnavailable = false
         micStartedByUs = !mic.isRecording
         mic.captureSampleSink = { [weak self] samples, sampleRate in
             self?.ingest(samples, sampleRate: sampleRate)
         }
-        if micStartedByUs { mic.startRecording() }
+        if micStartedByUs {
+            mic.startRecording()
+            // #891: it can REFUSE, and from here that refusal is SILENT — see the header
+            // for which exits are live (#890's placeholder guard and the `catch`). No tap,
+            // no sample, no way out but Cancel.
+            //
+            // ⭐ This covers the whole surface, not just one door: measured 2026-08-30,
+            // `MicrophoneManager.startRecording()` has exactly ONE production caller in
+            // `Sources/`, and it is this line.
+            //
+            // ⚠️ `hasPermission` IS THE DISCRIMINATOR AND MUST STAY. The no-permission exit
+            // also leaves `isRecording` false, but the mic manager has just opened the system
+            // prompt: that wait RESOLVES, and the header documents it as intended. Aborting
+            // there would break the permission flow on the very first capture a user ever
+            // tries. Only a refusal WITH permission already granted is a dead end.
+            if !mic.isRecording, mic.hasPermission {
+                EchoelCrashLog.breadcrumb("voice: capture aborted — mic did not start")
+                engine.cancel()
+                phase = .idle
+                progress = 0
+                micUnavailable = true
+                // ⛔ NOT `releaseMic()`, deliberately. That calls `mic.stopRecording()`, which
+                // walks its own three-rung stop ladder and releases the record route a SECOND
+                // time — the start side already released it on every refusing exit
+                // (#889/#890). The double set-removal is harmless, but the rungs would
+                // announce a teardown of a mic that never started, and a rung for a step that
+                // did not happen is the lie the ladder law exists to forbid (#882).
+                mic.captureSampleSink = nil
+                micStartedByUs = false
+                hearingYou = false
+                return
+            }
+        }
     }
 
     /// Abort the take: nothing is applied, the mic is released if it was ours.

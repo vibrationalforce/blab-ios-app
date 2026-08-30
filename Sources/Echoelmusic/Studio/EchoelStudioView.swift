@@ -11506,6 +11506,20 @@ private struct VoiceCaptureRow: View {
                 ? "Keep the tone going — vowels and hums both work."
                 : "Hold a steady tone near the microphone. Analyzed live — no audio is recorded."
         default:
+            // #891 FIRST, because it is the only branch that reports a FAILED tap rather
+            // than describing a state. It can only be true with no profile applied (Capture
+            // is the only button that reaches `begin()`, and it is shown only when
+            // `appliedVoiceProfile == nil`), so the order changes nothing today — it is
+            // written first so a future second entry point cannot bury the message.
+            //
+            // ⚠️ NO REMEDY IS PROMISED beyond the one action the user actually has. The
+            // #890 cause is a placeholder input format in the window right after the record
+            // route is claimed, and whether a second tap lands outside that window is
+            // device behaviour nobody here has measured. "Tap Capture again" is true;
+            // "wait a moment and it will work" would not be.
+            if controller.micUnavailable {
+                return "The microphone did not start — nothing was captured. Tap Capture again."
+            }
             if synth.appliedVoiceProfile != nil {
                 // #597a — measured before written: the FX door drives `synth.fxChain`,
                 // the SAME voice this profile shapes, and the harmonizer is a stage of

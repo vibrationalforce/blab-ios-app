@@ -16845,3 +16845,68 @@ Zeile ist das ein zweiter Lauf wert — oder eine Sichtprüfung genau auf Namens
 Mikrofon-Nadeln je 1×, `var sessionDetail` weg, 8/8 Leitern vollständig. Ein Skript-Sweep über
 die Funktion sucht jetzt zusätzlich nach `guard let X = X` und blanken `X =`-Zuweisungen —
 gefunden wird nur die legitime vor dem Guard.
+
+## 2026-08-30 — #891: eine abgelehnte Aufnahme hängt nicht mehr bei 0 %
+
+**Vorlauf (Protokoll-Schritt 2).** `Xcode Compile Check` auf `7836a5d` = **success** — der
+rote Gate aus dem `guard let audioEngine = audioEngine`-Shadow ist repariert. CI/CD:
+`Build for Testing` = success (die Conclusion des Laufs sagt wegen #396 nichts, also die
+Job-Schritte gelesen). Damit war der Weg für eine neue Scheibe frei.
+
+**Der Befund.** `MicrophoneManager.startRecording()` hat GENAU EINE Zeile, die
+`isRecording = true` setzt (gemessen, nicht gezählt: fünf `return`s + ein `catch` führen
+zurück ohne sie). `VoiceCaptureController.begin()` rief die Funktion und prüfte nichts.
+Bei einer Weigerung — seit #890 der Platzhalter-Format-Fall, dazu der `catch` um
+`audioEngine.start()` — ist kein Tap installiert, also kann NIE ein Sample ankommen: die
+Aufnahme saß für immer auf `.capturing` bei 0 %, entkommbar nur über Cancel. Auf dem
+Telefon ist das von einem Hänger nicht zu unterscheiden — und es ist exakt der Zustand,
+in dem die #890-Geräteprobe des Founders gelandet wäre („capture straight after launch,
+twice in a row" IST das Platzhalter-Fenster). **Eine Probe, deren Fehlerbild wie ein
+Absturz aussieht, kann die Frage nicht beantworten, für die sie gestellt wurde.**
+
+**Die Scheibe.** `begin()` liest `mic.isRecording` nach dem Start erneut und bricht ab,
+wenn der Mic nicht hochkam UND die Berechtigung erteilt ist. Die Zeile im Sound-Panel sagt
+dann „The microphone did not start — nothing was captured. Tap Capture again."
+
+Drei Entscheidungen, die im Code begründet stehen:
+- **`hasPermission` ist der Diskriminator und muss bleiben.** Der Berechtigungs-Ausgang
+  lässt `isRecording` ebenfalls false — aber dieses Warten LÖST SICH AUF (der System-Dialog
+  ist offen), und der Dateikopf beschreibt es seit #592b als gewollt. Ohne diese Hälfte
+  würde der Abbruch bei der allerersten Aufnahme jedes neuen Nutzers feuern.
+- **KEIN `releaseMic()` auf dem Abbruchpfad.** Das ruft `stopRecording()`, das seine
+  eigene Drei-Sprossen-Leiter schreibt und die Record-Route ein zweites Mal freigibt (die
+  Startseite gibt sie auf jedem ablehnenden Ausgang schon frei, #889/#890). Die doppelte
+  Set-Entfernung wäre harmlos — die Sprossen wären die Lüge, die das Leiter-Gesetz
+  verbietet (#882).
+- **Keine neue Founder-Bitte** (#790: eine Frage, ein Ort). Der bestehende #890-Marker ist
+  ergänzt: der Bericht ist jetzt einer von DREI Ausgängen statt zwei. `founder-verify.py`
+  vor und nach der Scheibe: 62.
+
+**Wächter.** Fünfter Anspruch in `TheVoiceDoorFeedsTheCaptureTests` (der Datei, die genau
+diese Verbindungen besitzt — kein neuer Wächter, #416). Ehrliche §3-Benotung, getrennt
+aufgeschrieben, weil sie NICHT zu den acht bestehenden Nadeln passt:
+- **4 von 5 Behauptungen rot auf dem Elternbaum** (Abwesenheit, vorwärts-ehrlich).
+- **Die fünfte ist GRÜN auf dem Elternbaum, und zwar leer** — `XCTAssertFalse(releaseMic())`
+  hält dort trivial. Sie bleibt als REGRESSIONS-Wächter (#367: sie kann aus einem Grund
+  scheitern, den es gibt — ein späteres „Aufräumen" in den geteilten Teardown), aber sie
+  vorwärts-rot zu nennen wäre die Über-Behauptung.
+- **Der Stripper ist hier TRAGEND, nicht prophylaktisch — gemessen, 1 von 5 Verdikten
+  kippt.** Der ⛔-Kommentar am Abbruch NENNT `releaseMic()`, um seine Abwesenheit zu
+  erklären. Roh liegt er im Fenster, die negative Behauptung wäre auf einem KORREKTEN Baum
+  rot; gestrippt ist sie grün. Das ist der #404/#453-Defekt in Miniatur — gefunden nur,
+  weil §3 die Roh-gegen-Gestrippt-Messung VERLANGT, statt sie anzunehmen.
+
+**Eigene Rücknahme im selben Commit.** Meine erste Fassung des Dateikopfes schrieb „VIER
+stille Ausgänge" und zählte zwei #889-Wächter mit, die ihre eigenen Kommentare als
+unerreichbar ausweisen. Beides ersetzt durch die selbst nachrechenbare Form („genau EINE
+Zeile setzt `isRecording = true`") plus einer Aufzählung, welche Ausgänge LEBEN — damit
+niemand den falschen jagt.
+
+**Reichweite, gemessen:** `MicrophoneManager.startRecording()` hat genau EINEN
+Produktions-Aufrufer in `Sources/`, und das ist diese Zeile. Die Scheibe deckt die ganze
+Fläche ab, nicht eine von mehreren Türen.
+
+**Ehrliche Grenze.** Alle Prüfungen oben sind TEXT-EBENE (kein lokaler Compiler; CI ist der
+einzige Compiler — die #890-Lehre). Die zwei angeforderten Reviewer (Audio-Lifecycle,
+UI-State) liefen beim Commit noch; ihre Funde landen als Nachtrag, nicht in diesem Commit.
+Geräteverifiziert ist nichts davon.

@@ -272,6 +272,11 @@ final class MicrophoneManager: NSObject {
             // log now says so instead of the app dying — and the numbers on that line say
             // whether the hardware was absent or merely late, which is what decides the
             // follow-up slice (a retry after `prepare()`, or nothing).
+            // ⭐ #891 made this probe ANSWERABLE WITHOUT THE LOG: the caller used to sit on
+            // "0 %" forever after a refusal, which on a phone is indistinguishable from a
+            // hang. The row now returns to Capture and says "The microphone did not start".
+            // So the founder's report is one of three, not two: it worked · it refused
+            // visibly (that sentence appeared) · something else. Same ask, one place (#790).
             guard format.sampleRate > 0, format.channelCount > 0 else {
                 // ⚠️ `let` IN BOTH ARMS, not a `var` declared outside the `#if`. On macOS the
                 // iOS arm is removed at parse time, so an outer `var` is initialised once,
