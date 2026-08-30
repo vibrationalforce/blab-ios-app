@@ -2,7 +2,7 @@
 // Echoel — #579. A log that answers "is the picture on?" only by staying silent is not an answer.
 //
 // THE DEVICE EVIDENCE, founder log 10.79.389/2506: **seventeen minutes**, a clean launch,
-// `LaunchGuard: launch confirmed healthy`, `body=1` on every single generate line — and
+// `LaunchGuard: confirming healthy (studio)`, `body=1` on every single generate line — and
 // **not one `visual:` line**. That breadcrumb fires every ~5 s from `MetalBioView`'s draw
 // loop (`MetalBioView.swift`, the `nowGov - lastDiagLog > 5` block), so its absence means the
 // renderer never ran, which means `isPresented` was false for the whole session.

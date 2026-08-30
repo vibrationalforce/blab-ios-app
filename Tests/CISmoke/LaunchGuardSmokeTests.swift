@@ -14,14 +14,22 @@
 // recovery screen. "The user cannot reach the product" is the same class the bundle
 // exists for. It is also pure `UserDefaults` arithmetic — fast, deterministic, no device.
 //
-// WHAT THESE TESTS DO NOT COVER, stated plainly because the previous cycle shipped a
+// WHAT THESE TESTS DO NOT COVER, stated plainly because an earlier cycle shipped a
 // test file that overclaimed and review caught it: they exercise `LaunchGuard` in
 // isolation. They do NOT prove that `OnboardingView`'s `.onAppear` calls
 // `confirmHealthy()` — that wiring lives in `EchoelmusicApp`'s scene body, which no unit
-// test here can render. If someone deletes that one line, every test below stays green.
-// What they pin is that `confirmHealthy()` is a real reset and that two unconfirmed
-// launches are what trips Safe Mode — the mechanism the fix leans on.
+// test here can render. What they pin is that `confirmHealthy()` is a real reset and that
+// two unconfirmed launches are what trips Safe Mode — the mechanism the fix leans on.
+//
+// ⭐ #915 NARROWED THAT CAVEAT BY EXACTLY ONE STEP, and no further. The last claim below
+// READS `EchoelmusicApp.swift` and pins that EVERY `LaunchGuard` call site is still there
+// and still announced in the exported diag log. (⛔ The first draft wrote "the five call
+// sites". There are six — it had missed the Safe-Mode `.onAppear` reset, which was also the
+// site with no line of its own. A count in prose is a date, not a fact.) So "delete that one line and
+// every test stays green" is no longer true for the CALL ITSELF. It is still true for the
+// BEHAVIOUR: nothing here renders a scene, so no test proves `.onAppear` ever fires.
 
+import Foundation
 import XCTest
 @testable import Echoelmusic
 
@@ -118,5 +126,125 @@ final class LaunchGuardSmokeTests: XCTestCase {
         LaunchGuard.confirmHealthy()
         XCTAssertTrue(LaunchGuard.isSafeMode,
                       "the counter is cleared for NEXT launch; this one keeps its verdict")
+    }
+
+    // MARK: - #915: the self-healing net leaves a trail
+
+    /// `unconfirmedCount` exists for the diag log and must stay a WITNESS, never a second
+    /// verdict. Two properties, both driven: it follows the live counter (so it can say
+    /// what `isSafeMode` cannot — how long the streak is), and it is decoupled from the
+    /// frozen verdict in BOTH directions.
+    func testTheStreakCountIsAWitnessAndNotASecondVerdict() {
+        LaunchGuard.beginLaunch()
+        XCTAssertEqual(LaunchGuard.unconfirmedCount, 1, """
+            Read right after the first beginLaunch the streak must be 1 — which is exactly \
+            what the log line means: the PREVIOUS run confirmed healthy.
+            """)
+        LaunchGuard.beginLaunch()
+        XCTAssertEqual(LaunchGuard.unconfirmedCount, 2)
+        XCTAssertTrue(LaunchGuard.isSafeMode)
+        LaunchGuard.confirmHealthy()
+        XCTAssertEqual(LaunchGuard.unconfirmedCount, 0, """
+            It tracks the LIVE counter, so it drops to 0 the moment the launch is confirmed.
+            """)
+        XCTAssertTrue(LaunchGuard.isSafeMode, """
+            …and the frozen verdict is untouched by it. If this ever flips, the Safe-Mode \
+            screen would vanish under a user who is mid-read.
+            """)
+    }
+
+    /// ⭐ THE ONE CLAIM HERE THAT READS THE APP. Every `LaunchGuard` state change must be
+    /// legible in the exported `echoel_diag.log`, or a founder crash log cannot say which
+    /// launch path the run took — and a Safe-Mode run executes a DIFFERENT tree, so a
+    /// conclusion drawn from one about the normal path is simply wrong.
+    ///
+    /// ⛔ **THIS IS THE THIRD ATTEMPT AT THIS SHAPE IN THIS REPO, AND THE FIRST TWO ARE A
+    /// RECORDED DEAD-END** (`HARNESS_LEDGER.md`: *"einen FENSTER-Scan bauen … ZWEIMAL
+    /// versucht, zweimal verworfen"*). The two rejections failed in OPPOSITE directions and
+    /// the difference is the whole design here:
+    ///   · **#875** was rejected for FALSE REDS — a 260-character window called 4 of 5
+    ///     correct sites unprotected, the #665 cry-wolf trap.
+    ///   · **#909** was rejected for being BLIND — it passed on a driven `deinit` mutant.
+    /// ⛔ The first draft of THIS claim cited #875 for the blindness, which is backwards, and
+    /// then reproduced #909's failure anyway: it used a ±8-line window, and the Safe-Mode
+    /// `.onAppear` reset — which had no `LaunchGuard:` line at all — passed because the
+    /// walk-back reached over a closure brace into the NEIGHBOURING site's line. The review
+    /// drove that mutant; the ledger had predicted it.
+    ///
+    /// ⭐ SO THERE IS NO WINDOW AND NO BOUND AT ALL — the rule is OWNERSHIP. A breadcrumb
+    /// belongs to the call site it is CLOSEST to, and every site must own at least one, on
+    /// its own side. Draft 2 tried "the territory between neighbouring calls" and TWO driven
+    /// mutants still passed: these sites are hundreds of lines apart, so a neighbour's line
+    /// falls inside the gap as easily as inside a window. Ownership has no constant to widen
+    /// and no gap to fall through; one deleted line reds exactly one site.
+    ///
+    /// ⚠️ WHAT THIS STILL DOES NOT PROVE: that the line is ever WRITTEN at run time. No test
+    /// here renders a scene.
+    func testEveryLaunchGuardStateChangeIsAnnouncedInTheDiagLog() throws {
+        // `SourceText.codeOnly` BLANKS comments and preserves the line count, so the numbers
+        // in the messages below are the real ones. The first draft used a private stripper
+        // that DELETED comment lines — every reported line number was 172–726 off, and a
+        // trailing `// LaunchGuard:` comment satisfied the scan (#460's blind spot).
+        let lines = SourceText.codeOnly(try appSource())
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+
+        let mutators = ["LaunchGuard.reset()",
+                        "LaunchGuard.confirmHealthy()",
+                        "LaunchGuard.armForRiskyStartup()"]
+        let calls = lines.indices.filter { i in
+            (mutators + ["LaunchGuard.beginLaunch()"]).contains { lines[i].contains($0) }
+        }
+        XCTAssertGreaterThanOrEqual(calls.count, 4, """
+            Only \(calls.count) `LaunchGuard` call sites found in EchoelmusicApp.swift. \
+            Below four this claim has stopped selecting the thing it names and reports GREEN \
+            on less (#454) — re-anchor it, or record in this file's header why the \
+            self-healing net no longer takes those steps. A COUNT is deliberately not pinned \
+            here: it would go stale on ordinary work, which is how count pins rot (#903).
+            """)
+
+        // ⭐ NO WINDOW AND NO TERRITORY — OWNERSHIP. A breadcrumb belongs to the call site
+        // it is CLOSEST to, and every site must own at least one, on its own side. The
+        // territory form (the gap between neighbouring calls) was the second draft and two
+        // driven mutants still passed on it: the sites here are hundreds of lines apart, so a
+        // neighbour's line falls inside the gap just as easily as inside a window. Ownership
+        // has no constant to widen and no gap to fall through.
+        let crumbs = lines.indices.filter { lines[$0].contains("\"LaunchGuard:") }
+        func owner(of crumb: Int) -> Int {
+            calls.min(by: { (abs($0 - crumb), $0) < (abs($1 - crumb), $1) }) ?? -1
+        }
+        for at in calls {
+            // `beginLaunch` is the ONE site whose line must come AFTER the call, and that is
+            // the rung law's own boundary rather than an exception to it: the fact being
+            // logged (the verdict and the streak) DOES NOT EXIST until the call returns.
+            let isBegin = lines[at].contains("LaunchGuard.beginLaunch()")
+            let mine = crumbs.filter { owner(of: $0) == at && (isBegin ? $0 >= at : $0 <= at) }
+            XCTAssertFalse(mine.isEmpty, """
+                The `LaunchGuard` call at line \(at + 1) owns no `LaunchGuard:` breadcrumb \
+                \(isBegin ? "after" : "before") it. Every state change the self-healing net \
+                makes has to be readable back out of the exported log; a silent one leaves \
+                the reader inferring it from an ABSENCE (#445/#579).
+
+                \(isBegin
+                  ? "beginLaunch announces AFTER: the verdict does not exist before the call."
+                  : "A mutator announces BEFORE it acts (#859): a line written after a step is lost exactly when that step is the one that dies.")
+
+                ⚠️ DO NOT WIDEN ANYTHING TO MAKE THIS PASS — there is deliberately no bound \
+                to widen. Give the site its OWN line. Two earlier drafts (a ±8-line window, \
+                then a between-neighbours territory) each let a site with no line of its own \
+                pass on a neighbour's, which is the failure `HARNESS_LEDGER` predicts for \
+                this whole family of scans.
+                """)
+        }
+    }
+
+    private func appSource() throws -> String {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
+        else { throw XCTSkip("source tree not present under \(root.path)") }
+        let text = try String(contentsOf: root
+            .appendingPathComponent("Sources/Echoelmusic/EchoelmusicApp.swift"), encoding: .utf8)
+        return text
     }
 }

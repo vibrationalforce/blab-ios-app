@@ -285,8 +285,27 @@ struct EchoelmusicApp: App {
         // crashed before becoming healthy, `body` boots into Safe Mode instead of
         // re-rendering the view tree that crashed (no more black screen at launch).
         LaunchGuard.beginLaunch()
+        // #915 — BOTH BRANCHES SPEAK, and the normal one is the addition. Until now only the
+        // Safe-Mode branch left a line, so a log carried either "SAFE MODE" or NOTHING — and
+        // nothing is ambiguous between "this was a normal launch" and "this build predates
+        // the marker". An ABSENCE is not a fact — #445/#579, the canonical home for that
+        // rule; #860b is the rung-before-call and durable-sink-first slice, cited correctly
+        // a few lines down and mis-cited here in the first draft.
+        //
+        // The count is the part no other line carries: read immediately after `beginLaunch()`,
+        // 1 means the PREVIOUS run confirmed healthy, ≥ 2 means it did not. That is the whole
+        // input to the Safe-Mode decision, and a founder log could not state it.
+        //
+        // ⚠️ NOT a new decision — `isSafeMode` is still the only thing branched on. This is a
+        // witness, and it is written to the durable sink FIRST (#860b) because the very next
+        // statements are the ones a launch crash lands in.
         if LaunchGuard.isSafeMode {
-            EchoelCrashLog.breadcrumb("LaunchGuard: SAFE MODE (prior launch did not confirm healthy)")
+            EchoelCrashLog.breadcrumb(
+                "LaunchGuard: SAFE MODE (prior launch did not confirm healthy) "
+                + "— unconfirmed streak \(LaunchGuard.unconfirmedCount)")
+        } else {
+            EchoelCrashLog.breadcrumb(
+                "LaunchGuard: normal launch — unconfirmed streak \(LaunchGuard.unconfirmedCount)")
         }
         log.log(.info, category: .system, "APP INIT [start] — constructing engines (no audio I/O here)")
         // ⭐ #580 — REGISTERED FLAG DEFAULTS MUST EXIST BEFORE ANY VIEW CAN READ THEM, AND
@@ -398,6 +417,13 @@ struct EchoelmusicApp: App {
                 // healthy. Show a legible recovery screen (never a black one). The
                 // user can read/share the diagnostics and relaunch the full app.
                 SafeModeView {
+                    // #915 — the ONE user decision the self-healing net takes orders from,
+                    // and it was silent. It changes what happens next in THIS process (the
+                    // full studio starts) and clears the counter for the next launch, so a
+                    // log that ends after this point is a different story from one that ends
+                    // on the recovery screen. Before the call (#859).
+                    EchoelCrashLog.breadcrumb(
+                        "LaunchGuard: user left SAFE MODE — starting the full app")
                     LaunchGuard.reset()
                     forceNormalMode = true
                 }
@@ -411,6 +437,15 @@ struct EchoelmusicApp: App {
                 // reappears after the next failure — protection without the trap.
                 .onAppear {
                     EchoelCrashLog.breadcrumb("ui branch: SAFE MODE recovery screen (counter cleared)")
+                    // #915 review, HIGH-1 — THIS RESET HAD NO `LaunchGuard:` LINE. The line
+                    // above says the SCREEN appeared; it does not name the state change, so a
+                    // reader grepping `LaunchGuard:` saw the counter cleared nowhere on this
+                    // path. It also made the new guard pass for the wrong reason: its
+                    // walk-back reached over the closure brace and found the OTHER reset's
+                    // line. Both halves fixed — this site speaks, and the guard now demands
+                    // one line per site.
+                    EchoelCrashLog.breadcrumb(
+                        "LaunchGuard: counter cleared on the recovery screen (one-shot)")
                     LaunchGuard.reset()
                 }
             } else if hasCompletedOnboarding {
@@ -447,6 +482,22 @@ struct EchoelmusicApp: App {
                         // and neither exists during onboarding, so such a crash comes from
                         // `init()`, which runs in Safe Mode too. It would have shown a
                         // recovery screen and still not let the user in.
+                        // #915 — the STUDIO half of this has left a line since the ladder
+                        // went in; the ONBOARDING half never did. That is the fresh-install
+                        // path, i.e. exactly the launch profile the #214 note below calls the
+                        // one least able to lose the guard.
+                        // ⛔ #915 review, MEDIUM-4 + LOW-7. Two defects in one string.
+                        // (a) PAST TENSE IN FRONT OF THE ACT: `confirmHealthy()` declines
+                        // silently when the counter is already 0, so "confirmed healthy"
+                        // could stand in the log with nothing confirmed — the same shape the
+                        // #860b reviewer found on "recovering". The rung law puts the line
+                        // FIRST, so the line must be progressive and carry the input.
+                        // (b) The onboarding string was a strict SUPERSTRING of the studio
+                        // one, so a grep for the studio line matched a fresh-install run that
+                        // never built `mainContent`. The two are now disjoint.
+                        EchoelCrashLog.breadcrumb(
+                            "LaunchGuard: confirming healthy (onboarding) — streak "
+                            + "\(LaunchGuard.unconfirmedCount)")
                         LaunchGuard.confirmHealthy()
                     }
             }
@@ -605,6 +656,26 @@ struct EchoelmusicApp: App {
                 // running its first-ever startup in the same process — see
                 // `LaunchGuard.armForRiskyStartup` for why that is the launch least able
                 // to afford losing the guard (#214, found by review).
+                // #915 — announce the OUTCOME, not the call. `armForRiskyStartup()` is a
+                // no-op whenever the counter is already ≥ 1 (every normal launch), so an
+                // unconditional "re-armed" line would be false on almost every run — the
+                // #167 defect: a comment whose premise is wrong is worse than none. Reading
+                // the counter first costs one `UserDefaults.integer` and says which of the
+                // two things actually happened.
+                if LaunchGuard.unconfirmedCount == 0 {
+                    // ⛔ #915 review, LOW-8: this said "the risky FIRST startup (#214)".
+                    // The branch tests `streak == 0`, which has three producers — the #214
+                    // onboarding confirm, the Safe-Mode Continue button and the recovery
+                    // screen's own reset. On the Continue path (the likeliest context in
+                    // which this log is being read) the line asserted "first" about a run
+                    // that is neither first nor #214. Say the CONDITION, not the cause.
+                    EchoelCrashLog.breadcrumb(
+                        "LaunchGuard: re-arming — streak was 0 before the risky startup")
+                } else {
+                    EchoelCrashLog.breadcrumb(
+                        "LaunchGuard: re-arm not needed — streak already "
+                        + "\(LaunchGuard.unconfirmedCount)")
+                }
                 LaunchGuard.armForRiskyStartup()
                 #if canImport(UIKit)
                 // THE EXTERNAL STAGE HAND-OFF (#206 slice 2), first thing and with no
@@ -1227,8 +1298,17 @@ struct EchoelmusicApp: App {
                 // sleep) shrinks the false-escalation window to the sub-second startup
                 // duration — so quitting the app fast (e.g. to read the diagnostics log)
                 // no longer risks a spurious Safe Mode on the next launch.
+                // #915 — MOVED IN FRONT OF ITS STEP. The line stood AFTER the call since
+                // the ladder went in, and the rung law (#859) is not decoration here: a line
+                // written after a step is lost exactly when that step is the one that dies.
+                // `confirmHealthy()` is a synchronous `UserDefaults` write, so the odds are
+                // small — but the whole point of the ladder is that "small" is not a reason
+                // to leave a witness behind the thing it witnesses. Found by the guard added
+                // in the same commit, which is what a guard is for.
+                EchoelCrashLog.breadcrumb(
+                    "LaunchGuard: confirming healthy (studio) — streak "
+                    + "\(LaunchGuard.unconfirmedCount)")
                 LaunchGuard.confirmHealthy()
-                EchoelCrashLog.breadcrumb("LaunchGuard: launch confirmed healthy")
 
                 // ── BEST-EFFORT, NON-BLOCKING ────────────────────────────────
                 // These await (HealthKit permission dialog, StoreKit network) and

@@ -56,6 +56,17 @@ enum LaunchGuard {
     /// Whether this launch should boot into Safe Mode (frozen at `beginLaunch()`).
     static var isSafeMode: Bool { cachedSafeMode }
 
+    /// This launch's position in the unconfirmed-launch streak, for the diag log ONLY.
+    /// Read right after `beginLaunch()`, **1 means the previous run confirmed healthy** and
+    /// ≥ 2 means it did not — the single fact that decides Safe Mode, and the one a founder
+    /// log could not state.
+    ///
+    /// ⚠️ READ-ONLY AND NOT A SECOND VERDICT. `isSafeMode` is frozen once per process on
+    /// purpose (a screen must not change under the user mid-session); this reads the LIVE
+    /// counter, so after `confirmHealthy()` it is 0 while `isSafeMode` may still be true.
+    /// Never branch on it — log it. Nothing in the guard's decision path consults it.
+    static var unconfirmedCount: Int { UserDefaults.standard.integer(forKey: countKey) }
+
     /// Mark the app healthy: the main UI rendered and survived. Resets the counter
     /// so the *next* launch starts clean. Call a few seconds after the root view
     /// appears (a crash during initial render fires before this, leaving the count

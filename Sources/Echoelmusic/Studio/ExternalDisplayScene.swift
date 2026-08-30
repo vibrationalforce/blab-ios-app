@@ -14,7 +14,7 @@
 //  keeps the instrument and stays playable.
 //
 //  ✅ SLICE 1'S QUESTION IS ANSWERED — device log v10.79.356 (build 2473): `init a`–`f`,
-//  `startup 1/4`–`4/4`, `LaunchGuard: launch confirmed healthy`, `inactive → active`,
+//  `startup 1/4`–`4/4`, `LaunchGuard: confirming healthy (studio)`, `inactive → active`,
 //  with nothing attached. The scene manifest did not harm the launch path, so slice 2
 //  (the actual visual, below) was allowed to proceed. That gate was real, not ceremony.
 //
