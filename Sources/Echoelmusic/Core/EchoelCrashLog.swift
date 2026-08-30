@@ -86,6 +86,47 @@ enum EchoelCrashLog {
         let v = info?["CFBundleShortVersionString"] as? String ?? "?"
         let b = info?["CFBundleVersion"] as? String ?? "?"
         breadcrumb("launch v\(v) (\(b))")
+        // #916: KEEP the run that just ended, if it ended badly. `previousSession` is the
+        // only copy of a crashed run and it lives for exactly ONE launch — the `O_TRUNC`
+        // above has already thrown the file away, and the next launch throws this copy away
+        // too. Seven device logs into the `isInputConnToConverter` family, a user who
+        // dismisses the auto-surfaced sheet (or a background kill, which
+        // `looksLikeUnseenCrash` deliberately does not surface) loses the evidence for good.
+        //
+        // ⚠️ THE PLACE IS PART OF THE DECISION, exactly like a ladder rung (#862b): this runs
+        // AFTER `installHandlers()`, so a fault inside the write is itself caught, and AFTER
+        // the version line, so the log already names the build even if this is where it dies.
+        if let keep = crashToRetain(from: previousSession) {
+            // ⛔ THE FIRST DRAFT OF #916 BROKE THE LAW THE COMMENT ABOVE CITES, twice in two
+            // lines. It wrote ONE line, AFTER the write, stating an outcome it had not
+            // observed. (a) A witness behind the step sees nothing: if the launch dies inside
+            // this write — jetsam while up to the whole budget is serialised and renamed —
+            // the log carries no trace that retention was even attempted, i.e. a silent death
+            // inside the code whose entire subject is preserving deaths. (b) `try?` discards
+            // the result, so "retained … N chars" would have been printed for a full disk or
+            // a file-protection refusal too, and triage would have gone looking for a sibling
+            // file that does not exist. A rung before the step, and an outcome only when it
+            // was actually seen.
+            //
+            // The one file read this costs happens only on a launch that follows a bad run,
+            // and only up to the budget. Deliberately NOT short-circuited into an `||` chain:
+            // the decision is worth being a named, testable function, and a sub-millisecond
+            // read on a rare launch is not worth hiding it (see `shouldReplaceRetained`).
+            if shouldReplaceRetained(candidate: keep, existing: lastCrashLog()) {
+                breadcrumb("retaining the previous run's crash log (\(keep.count) chars)")
+                // `atomically: true` is what makes "a failure leaves the previously retained
+                // file in place" true — it writes a temporary and renames. Without that flag a
+                // failed write could truncate the only copy: the opposite of this slice.
+                let wrote: Void? = try? keep.write(to: lastCrashURL,
+                                                   atomically: true,
+                                                   encoding: .utf8)
+                breadcrumb(wrote == nil
+                           ? "retain failed - the previous run's log could not be kept"
+                           : "retain ok")
+            } else {
+                breadcrumb("retain declined - the kept log carries a signal marker, this one does not")
+            }
+        }
     }
 
     /// Append a timestamped step marker. Best-effort, any thread, no throw.
@@ -99,6 +140,139 @@ enum EchoelCrashLog {
     /// The current run's log so far (for the manual "Diagnostics" button).
     static func currentLog() -> String {
         (try? String(contentsOf: fileURL, encoding: .utf8)) ?? ""
+    }
+
+    // MARK: - Keeping the last crash across launches (#916)
+
+    /// ⭐ WHY ANY OF THIS EXISTS. `begin()` opens the log with `O_TRUNC`, so the file on disk
+    /// holds exactly ONE run. A crashed run survives only in `previousSession`, in memory,
+    /// for the length of the launch that follows it. Share it then or it is gone.
+    ///
+    /// ⚠️ NEWEST crash wins, not first — a retained file is overwritten by the next crash that
+    /// is captured. Keeping the oldest would preserve the least useful one: the founder
+    /// iterates on builds, and the crash worth reading is the one from the build in hand.
+    /// ⚠️ "Newest wins" is the rule AMONG CRASHES ONLY. `shouldReplaceRetained` is the whole
+    /// policy, and it also refuses to let an unmarked run evict a marked one — do not read
+    /// this line as the complete rule.
+    ///
+    /// ⭐ One spelling, in Core, for the same reason as the marker constants above: the WRITER
+    /// (`diagnosticsExport`) and any READER of a pasted log are far apart, and a header only
+    /// one of them spells right fails silently (#416).
+    static let retainedCrashHeader = "=== RETAINED CRASH (an earlier run that ended badly) ==="
+
+    /// ⚠️ CHARACTERS, NOT BYTES — and the name says so on purpose. `String.suffix(_:)` counts
+    /// `Character`s, while `wc -c` counts bytes; this repo treats those as different
+    /// measurements (`.claude/rules/context.md` §2). A log carrying German or a marker glyph
+    /// costs more bytes than characters, so the retained FILE can be larger than this number.
+    static let retainedCrashCharacterBudget = 64_000
+
+    /// ⭐ WHY A TRIMMED LOG STILL CARRIES ITS FIRST LINE. The tail is where the crash is, so
+    /// the tail is what a budget must keep — but the FIRST line of a run is the build banner,
+    /// and triage step 1 is "is the fix you are verifying IN this build?". A retained crash is
+    /// read days or weeks later, on a different build; a pure tail slice would hand over a
+    /// crash that cannot be dated to a version. So an oversized log keeps its launch line, this
+    /// marker to say the middle is gone, and then the tail.
+    ///
+    /// ⛔ The first draft of #916 was a plain `suffix(budget)`. It was self-contradicting: this
+    /// file's own guard argues the export must name the build in its first line, and for
+    /// exactly the logs big enough to be trimmed that head line was the first thing cut.
+    static let retainedCrashTrimMarker =
+        "...  [earlier lines trimmed - launch line above, end of the run below]"
+
+    /// What, if anything, `begin()` should keep from the run that just ended.
+    ///
+    /// Pure on purpose: the blocking bundle can drive this, while the file write wrapped
+    /// around it at the call site is the part no test can reach.
+    ///
+    /// ⚠️ WHAT AN OVERSIZED LOG KEEPS: its FIRST LINE, a trim marker, then the TAIL. The crash
+    /// marker, the signal handler's backtrace and the last rungs of whichever ladder was
+    /// climbing all sit at the END, so the tail is the part worth saving; the first line is
+    /// kept on top of it because it is the build banner (see `retainedCrashTrimMarker`). Under
+    /// the budget nothing is cut at all.
+    ///
+    /// The decision of WHAT counts as "ended badly" is not re-made here — it is
+    /// `looksLikeUnseenCrash`, whose semantics `ACleanExitIsNotACrashTests` already pins.
+    static func crashToRetain(from previous: String) -> String? {
+        guard looksLikeUnseenCrash(previous) else { return nil }
+        guard previous.count > retainedCrashCharacterBudget else { return previous }
+        let head = String(previous.prefix(while: { $0 != "\n" })) + "\n"
+            + retainedCrashTrimMarker + "\n"
+        let room = retainedCrashCharacterBudget - head.count
+        // A launch line longer than the whole budget is not a real log; fall back to the
+        // plain tail rather than return a "head" that is nothing but the banner.
+        guard room > 0 else { return String(previous.suffix(retainedCrashCharacterBudget)) }
+        return head + String(previous.suffix(room))
+    }
+
+    /// May the newly captured `candidate` overwrite what is already retained?
+    ///
+    /// ⛔ THE FIRST DRAFT OF #916 HAD NO SUCH QUESTION, and its retained slot could be
+    /// destroyed by an ordinary session. `looksLikeUnseenCrash` has TWO arms, and only the
+    /// first requires a marker: arm 2 is "reached Start and did not end in `background`",
+    /// which is also true of a device reboot, a battery death, or a run stopped from Xcode.
+    /// So: launch A takes a SIGSEGV and is retained WITH its backtrace and named signal;
+    /// launch B taps Start and ends without a background transition; launch C overwrites the
+    /// gold copy with a log that has no marker, no backtrace and nothing to triage. The slot
+    /// holds one file, and "newest wins" alone is the wrong rule across two different
+    /// strengths of evidence.
+    ///
+    /// The rule: a marked candidate always wins (newest crash, as documented). An UNMARKED
+    /// candidate wins only when what is already kept is unmarked too.
+    static func shouldReplaceRetained(candidate: String, existing: String) -> Bool {
+        if candidate.contains(crashMarker) { return true }
+        return !existing.contains(crashMarker)
+    }
+
+    /// The text the reachable "Diagnostics" row shows: this run, then the retained crash.
+    ///
+    /// ⚠️ WITH NO RETAINED CRASH THE RESULT IS BYTE-IDENTICAL TO `current`, header included —
+    /// i.e. absent. The ordinary case must not grow a heading for a section that is not there.
+    ///
+    /// ⚠️ `current` comes FIRST and the result always starts with it exactly. That order is not
+    /// cosmetic: the first line of a run names the build, and triage step 1 is "is the fix you
+    /// are verifying IN this build?". A pasted export must answer that in its first line.
+    static func diagnosticsExport(current: String, retainedCrash: String) -> String {
+        guard !retainedCrash.isEmpty else { return current }
+        return current + "\n\n" + retainedCrashHeader + "\n" + retainedCrash
+    }
+
+    /// Sibling of the live log, in the same directory — one definition of WHERE (`fileURL`).
+    ///
+    /// ⚠️ THAT GUARANTEES "the same directory at the same instant", NOT "never different".
+    /// `fileURL` is COMPUTED: it re-asks `FileManager` for the Documents container on every
+    /// access and falls back to `temporaryDirectory` when that fails. A transient failure
+    /// between two accesses can therefore put the live log in one place and this one in the
+    /// other. Hoisting the directory into a single resolved `static let` would close it; that
+    /// is a separate change to a launch-critical path, so the limit is stated instead of
+    /// being claimed away.
+    private static var lastCrashURL: URL {
+        fileURL.deletingLastPathComponent()
+            .appendingPathComponent("echoel_diag_last_crash.log")
+    }
+
+    /// The retained crash log, or "" when none was ever kept.
+    ///
+    /// ⚠️ NOTHING CLEARS THIS FILE, and there is no in-app way to. Once a crash is retained
+    /// every later Diagnostics export carries it, indefinitely. That is defensible — the
+    /// retained text keeps its own launch line, so a stale crash is always dateable and
+    /// attributable to the build it happened on, and `retainedCrashHeader` labels it as an
+    /// earlier run — but it is a consequence, not an accident, so it is written down rather
+    /// than discovered later by someone wondering why an old crash keeps appearing.
+    ///
+    /// ⚠️ AND IT ENLARGES THE SHARE SHEET. Two files (`AudioConfiguration.sanitisedRoute`,
+    /// `AudioInputManager`) bound a route name to 80 characters precisely because
+    /// `currentLog()` reads a whole log into one String for that sheet. #916 appends up to
+    /// the budget again on top of it. Those bounds are not weakened — the reason for them is
+    /// unchanged — but the combined export is now bigger than the file either of them was
+    /// reasoning about, and pretending otherwise beside their own argument would be the shape
+    /// this repo calls a claim standing next to its own refutation.
+    static func lastCrashLog() -> String {
+        (try? String(contentsOf: lastCrashURL, encoding: .utf8)) ?? ""
+    }
+
+    /// This run plus the retained crash — what the reachable Diagnostics row renders.
+    static func diagnosticsExport() -> String {
+        diagnosticsExport(current: currentLog(), retainedCrash: lastCrashLog())
     }
 
     // MARK: - Reading the previous session (#582)

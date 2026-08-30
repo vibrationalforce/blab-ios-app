@@ -8233,7 +8233,12 @@ struct EchoelStudioView: View {
 
             soundResetRow
 
-            Button { diagnostics = DiagReport(text: EchoelCrashLog.currentLog()) } label: {
+            // #916: `diagnosticsExport()`, not `currentLog()`. This run PLUS the retained
+            // crash, if one was kept — a crashed run used to live for exactly one launch,
+            // and this is the always-reachable door that can still hand it over days later.
+            // The export still STARTS with this run byte-for-byte, so nothing that reads the
+            // first line for the build number changes.
+            Button { diagnostics = DiagReport(text: EchoelCrashLog.diagnosticsExport()) } label: {
                 Text("Diagnostics").font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
             }
             .buttonStyle(.plain)
