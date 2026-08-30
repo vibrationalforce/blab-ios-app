@@ -8,7 +8,11 @@
 // one mechanism with two symptoms: (a) a media-services reset orphans the monitor tap
 // and chain, but `isInputMonitoring` survives as true — both door toggles rendered ON
 // over a dead mic, the feedback guard read a frozen window, and a naive re-engage was a
-// no-op behind `guard !isInputMonitoring else { return true }`; only a manual OFF→ON
+// no-op behind the `guard !isInputMonitoring` early return; only a manual OFF→ON
+// (⛔ #913 reshaped that guard into a block so the no-op could announce itself in the
+// diag log; this header used to quote the whole one-liner and was falsified by the same
+// commit that re-anchored the pin below — the #655/#656 pattern this file lectures about
+// four lines down. The PREMISE is unchanged: a re-engage while monitoring is a no-op.)
 // healed it. (b) `monitorTapSampleRate` is captured ONCE at tap install; after a
 // 44.1↔48 kHz route switch the notch maths sat up to ~9 % off and YIN (#599) divided by
 // the stale rate — Tune-to-key then snapped to WRONG notes. ⛔ #625b: this cited the
@@ -139,12 +143,29 @@ final class TheMonitoringSurvivesEngineRecoveryTests: XCTestCase {
 
     func testTheTwoPremisesSurvive() throws {
         let code = try source(Self.engine)
-        XCTAssertEqual(occurrences(of: "guard !isInputMonitoring else { return true }", in: code), 1, """
+        // ⛔ #913 — THIS NEEDLE USED TO PIN THE WHOLE ONE-LINER, body included
+        // (`guard !isInputMonitoring else { return true }`), and #913 reddened it by adding
+        // a breadcrumb INSIDE the block. The premise did not change; only its shape did.
+        // `scripts/count-pins.py` caught it before the push, which is the whole reason that
+        // tool exists (#903/#904: CI cannot show a stale count pin, because the pipeline
+        // reports `failure` on every push under #396).
+        // The needle now pins the CONDITION plus, separately, that the block still returns
+        // early. That is the actual premise — "a re-engage while already monitoring is a
+        // no-op" — and it survives adding a line to the block without weakening.
+        XCTAssertEqual(occurrences(of: "guard !isInputMonitoring else {", in: code), 1, """
             The already-monitoring no-op guard in setInputMonitoring(true) changed. It \
             is WHY a full recycle exists at all — if a plain re-engage now heals an \
             orphaned chain, re-judge whether rearmInputMonitoring should simplify, and \
             update this guard in the same commit.
             """)
+        if let g = code.range(of: "guard !isInputMonitoring else {") {
+            let after = code[g.upperBound...].prefix(400)
+            XCTAssertTrue(after.contains("return true"), """
+                The already-monitoring guard no longer RETURNS — pinning its condition \
+                alone would then pass while the no-op became a fall-through, which is the \
+                opposite of the premise this claim carries.
+                """)
+        }
         XCTAssertEqual(occurrences(of: "setVoiceTune(false)", in: code), 1, """
             The OFF path's tune disarm (#599 M1) changed. It is why the recycle saves \
             and restores the tune choice — if the disarm is gone, the restore in \

@@ -2224,7 +2224,32 @@ public final class AudioEngine {
         #if os(iOS)
         prepareGraph()
         if on {
-            guard !isInputMonitoring else { return true }
+            // #913 — THE LADDER'S OWN PRE-RUNG EXIT WAS SILENT, and that is the same defect
+            // #906 closed for the two session moves in `AudioConfiguration` (a CALLEE of this
+            // file, not a layer above it). Monitoring is already engaged (a second caller, or
+            // a toggle that raced the front door), so this returns success WITHOUT running a
+            // single rung: the exported log shows the toggle and then no `monitor:` ladder at
+            // all, which the ladder's own law (#859) reads as a death before rung 1.
+            //
+            // ⛔ THE FIRST DRAFT OF THIS COMMENT SAID the log would show "the caller's
+            // `route: claim …` followed by NOTHING from this method", and read exactly like a
+            // crash inside `claimRecordRoute`. BOTH halves are false and the review measured
+            // it: `route: claim` is written INSIDE `claimRecordRoute`, which this method
+            // reaches only AFTER rung `on 1/5`, so it cannot precede an exit that returns
+            // before rung 1. The sentence was transplanted from `AudioConfiguration`, where
+            // it is true. A false justification in a shipped comment is the expensive kind —
+            // the next session cannot refute it (CLAUDE.md's own NICHT-loeschen rule).
+            //
+            // UNNUMBERED on purpose, and the rule is narrow (#907): a numbered skip is
+            // ambiguous in a LOG, because `on 4/5 SKIPPED` (walks on to 5/5) and a skip that
+            // RETURNS are the same string. Unnumbered is correct HERE only because this
+            // exit precedes EVERY rung of this ladder — `scripts/diag-ladder.py` may then
+            // read it as `⏹ ended` rather than a death. Do not copy the form to a skip that
+            // sits mid-ladder; there it would turn a real death into a tidy ending.
+            guard !isInputMonitoring else {
+                logMonitorOutcome("on SKIPPED — monitoring already engaged", level: .info)
+                return true
+            }
             // Default session is .playback (output only) so we never drag other
             // apps' Bluetooth audio to HFP call quality. Monitoring reads the mic,
             // so upgrade to .playAndRecord first — otherwise inputNode reports
@@ -2684,7 +2709,23 @@ public final class AudioEngine {
                                                  insertMilliseconds: monitorInsertLatencyMilliseconds)
             return true
         } else {
-            guard isInputMonitoring else { return true }
+            // #913 — the OFF twin of the guard above, and it is NOT redundant bookkeeping:
+            // "nothing was torn down because nothing was up" is precisely the reading a
+            // silent return denies the next log, and the teardown path is where the ObjC
+            // assert has been hunted for several builds (see the #831/#835/#836 block below,
+            // which carries the measured per-log detail).
+            //
+            // ⛔ THE FIRST DRAFT SAID "the teardown ladder is where four device logs died
+            // (#876/#831/#835/#836)" and the review found four errors in that one clause:
+            // #876 is a `mic: stop` slice in another file, not a device log; the `monitor:
+            // off` rungs date from #854 and did not exist for any of those logs; #836's crash
+            // was in a START-shaped stack (the block below says so); and the count disagrees
+            // with the "FIVE device logs" written 130 lines further down. The ARGUMENT above
+            // needs none of it.
+            guard isInputMonitoring else {
+                logMonitorOutcome("off SKIPPED — monitoring was not engaged", level: .info)
+                return true
+            }
             // #831 (founder crash v10.79.421, 2539: `required condition is false:
             // false == isInputConnToConverter`, SIGABRT thrown synchronously out of a
             // toggle's Binding set): graph surgery on the monitor chain must not race

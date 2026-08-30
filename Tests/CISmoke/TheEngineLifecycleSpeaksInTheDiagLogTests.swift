@@ -77,8 +77,12 @@
 // emitter lifted out of its `else {}` (adjacency RED while the ordering claim stays GREEN —
 // that is the hole (c2)'s new pin exists for), a trailing `// #907: was 1/2` comment (stays
 // GREEN — the false red M2 would otherwise have caused), and an interpolated rung (fires the
-// interpolation claim). ⚠️ (c3)'s `AudioEngine` half is a TRIPWIRE, not a counterweight:
+// interpolation claim). ⚠️ (c3)'s `AudioEngine` half WAS a TRIPWIRE, not a counterweight:
 // measured 3 selected lines in `AudioConfiguration` and ZERO in `AudioEngine`.
+// ⭐ #913 CHANGED THAT — the tripwire fired as designed, in the good direction. The two new
+// pre-rung exits are unnumbered `monitor:` skips, so (c3)'s `AudioEngine` half now selects
+// TWO lines and both pass: it is a LIVE counterweight, not a tripwire. Do not re-quote the
+// ZERO — the number was a measurement of a tree that no longer exists.
 //
 // ⛔ GRADING, claims (c3) + (c4) (#908) — AND THE FIRST DRAFT OF THIS BLOCK SAID (c3) WAS
 // RETIRED. It is not. #908 taught `scripts/diag-ladder.py` a terminator, and I concluded the
@@ -87,7 +91,8 @@
 // exit 0. In a LOG the walks-on and the returning form are the same shape, so the tool
 // rescues only UNNUMBERED terminators and (c3) is what keeps the ambiguous spelling out of
 // `Sources/`. (c3) is graded: red on `da06482` (both numbered lines), green on the worktree;
-// its `AudioEngine` half selects ZERO lines and is a TRIPWIRE, not a counterweight. Its
+// its `AudioEngine` half selected ZERO lines at the time and was a TRIPWIRE (see the ⭐
+// above: #913 made it a live counterweight with two selected lines). Its
 // interpolation half is a separate assertion and was nearly lost with it.
 // (c4) is graded across THREE trees: `b0d6480` → BOTH session functions red, `da06482` →
 // `downgradeToPlaybackAfterRecording` red, worktree → green; plus four mutants on the
@@ -907,9 +912,12 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         //
         // ⛔ GRADED: red on `da06482` (#906) — it selects both numbered lines — and green on
         //    the worktree. `AudioEngine`'s two legal `on 4/5 SKIPPED:` lines are NOT selected
-        //    (their next line is `}`, and `setInputMonitoring` returns `Bool`), so that half
-        //    is a TRIPWIRE for a future bare-exit skip, not a live counterweight. What
+        //    (their next line is `}`, and `setInputMonitoring` returns `Bool`). What
         //    protects those two lines is claim 12, which pins them PRESENT.
+        // ⭐ #913: this half is no longer a tripwire — the two new unnumbered pre-rung skips
+        //    (`on SKIPPED`, `off SKIPPED`) ARE selected here and pass, so `AudioEngine` is a
+        //    live counterweight. The tripwire caught its first case, which is the outcome a
+        //    tripwire is written for.
         for (path, text) in [("Audio/AudioConfiguration.swift", config),
                              ("Audio/AudioEngine.swift",
                               try code("Sources/Echoelmusic/Audio/AudioEngine.swift"))] {
@@ -1351,6 +1359,100 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 ladder that cannot be walked. If a real route LADDER is ever wanted, give it \
                 its own prefix and update this claim in the same commit — this forbids the \
                 numbering, not the work (#364).
+                """)
+        }
+    }
+
+    // MARK: - 18: the two PRE-RUNG exits of setInputMonitoring announce themselves (#913)
+
+    /// ⭐ #906 gave the two SESSION moves a SKIPPED line and #907 unnumbered it. The MONITORING
+    /// ladder still had two silent ones, and they are the more visible half: they sit at the
+    /// very top of `setInputMonitoring`, so a call that finds monitoring already in the
+    /// requested state returns success having written NOTHING. In a founder log that is
+    /// indistinguishable from a death before rung 1 — this ladder's own law (#859) reads
+    /// silence between rungs as a death, and what a reader sees is a toggle followed by no
+    /// `monitor:` ladder at all.
+    /// ⛔ #913 REVIEW, HIGH-2: the first draft said the ON path's neighbour is `route: claim …`
+    /// "which is exactly where four device logs stopped". BOTH halves were false. `route:
+    /// claim` is written inside `claimRecordRoute`, which this method reaches only AFTER rung
+    /// `on 1/5` — so it cannot precede an exit that returns before rung 1. And it was
+    /// introduced by #888, AFTER the last device log in hand (v10.79.429), so no log the
+    /// founder has sent can contain it. The sentence was transplanted from
+    /// `AudioConfiguration`, where it is true. The argument needs neither half.
+    ///
+    /// ⚠️ UNNUMBERED IS LOAD-BEARING, AND CORRECT ONLY HERE (#907/#908). `on 4/5 SKIPPED`
+    /// walks on to `on 5/5`; a skip that RETURNS ends the ladder. Once a number is present
+    /// those two are the SAME STRING in a log, so `scripts/diag-ladder.py` may treat only an
+    /// UNNUMBERED terminal word as `⏹ ended`. These two exits precede EVERY rung of their
+    /// ladder, so unnumbered is right. Do not relax this into "skips are unnumbered".
+    ///
+    /// ⚠️ WHAT THIS CLAIM DOES **NOT** SAY: nothing here proves the lines reach the exported
+    /// file. That is claim 7's job (`logMonitorOutcome` writes the durable sink FIRST); this
+    /// one only proves the two exits emit at all, unnumbered, before returning.
+    func testTheMonitoringPreRungExitsSpeak() throws {
+        let engine = try code(Self.enginePath)
+        let exits: [(needle: String, what: String)] = [
+            ("logMonitorOutcome(\"on SKIPPED", "the ON path's already-engaged no-op"),
+            ("logMonitorOutcome(\"off SKIPPED", "the OFF path's never-engaged no-op")
+        ]
+        for site in exits {
+            XCTAssertTrue(engine.contains(site.needle), """
+                \(site.what) is silent again. It returns before rung 1, so the exported log \
+                shows the caller's line and then nothing from this method — which the ladder \
+                law reads as a DEATH. Emit an UNNUMBERED SKIPPED through \
+                `logMonitorOutcome` before the `return`.
+                """)
+            let line = lineContaining(site.needle, in: engine)
+            XCTAssertFalse(carriesRungNumber(line), """
+                \(site.what) now carries a rung NUMBER: \(line)
+
+                A numbered skip is ambiguous in a LOG — `on 4/5 SKIPPED` walks on, a skip \
+                that returns ends the ladder, and both print the same string. \
+                `scripts/diag-ladder.py` therefore keeps reading numbered skips as deaths. \
+                Drop the number, or this exit turns a real death into `⏹ ended`.
+                """)
+        }
+        // ⭐ ADJACENCY, not mere presence (#907 M2): a breadcrumb that drifted out of the
+        // guard block would still satisfy the two assertions above while the exit went
+        // silent again. `code(_:)` deletes whole-line comments, so the emitter really is
+        // the next line after the `guard` in the stripped text.
+        for (opener, needle) in [("guard !isInputMonitoring else {", "on SKIPPED"),
+                                 ("guard isInputMonitoring else {", "off SKIPPED")] {
+            // ⚠️ The block-opening form is unique only by ACCIDENT: `guard isInputMonitoring
+            // else {` appears six times in this file, five of them one-liners. Converting any
+            // of those five to a block would give `range(of:)` a second candidate and this
+            // claim would silently start checking the WRONG guard. So the count is asserted
+            // BEFORE the anchor is used — a re-target must be loud.
+            let opens = occurrences(of: opener + "\n", in: engine)
+            XCTAssertEqual(opens, 1, """
+                `\(opener)` opens \(opens) blocks in AudioEngine.swift, expected exactly 1. \
+                At 0 the anchor is gone and this claim proves nothing while reporting GREEN \
+                (#454). Above 1 it silently targets whichever comes first, which may not be \
+                the pre-rung exit at all. Re-anchor in the same commit.
+                """)
+            guard opens == 1, let g = engine.range(of: opener + "\n") else { continue }
+            let next = String(engine[g.upperBound...].prefix(while: { $0 != "\n" }))
+                .trimmingCharacters(in: .whitespaces)
+            // ⛔ #913 REVIEW, HIGH-1: the first draft asserted `next.contains(needle)`, and an
+            // `if masterEngine.isRunning { logMonitorOutcome("on SKIPPED …") }` INSIDE the
+            // guard passed it while the exit stayed silent on the path that matters. That is
+            // #631/#910 verbatim, and the repair already stood 1100 lines above in claim 6.
+            // The line must BEGIN with the sink call — a condition in front of it is exactly
+            // the failure this claim exists to catch, not a stylistic variation.
+            XCTAssertTrue(next.hasPrefix("logMonitorOutcome("), """
+                The line inside \(opener) does not BEGIN with `logMonitorOutcome(` — it is: \
+                \(next)
+
+                A conditional emitter is the failure mode here, not an edge case: wrapped in \
+                an `if`, the breadcrumb is present in the file and absent from the log on \
+                whichever path actually returns.
+                """)
+            XCTAssertTrue(next.contains(needle), """
+                The `\(needle)` breadcrumb no longer stands immediately inside \(opener); \
+                the next line is: \(next)
+
+                A rung stands BEFORE its step and INSIDE the block it describes (#859). \
+                Anything between the guard and its announcement can return first.
                 """)
         }
     }

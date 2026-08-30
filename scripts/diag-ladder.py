@@ -156,7 +156,11 @@ def terminators_in_source(root: str,
     about: the census would agree with the list by construction and a fourth word added in
     `Sources/` would never show up — it would just silently go back to reading as a death.
     Scanning the shape instead means the selftest can assert `found ⊆ TERMINAL_WORDS` and
-    actually fail. Measured today: exactly SKIPPED (3), REFUSED (1), FAILED (1), zero noise.
+    actually fail. ⛔ A LITERAL CENSUS STOOD HERE ("SKIPPED (3), REFUSED (1), FAILED (1)")
+    and went stale TWICE unnoticed — REFUSED at #910, SKIPPED at #913 — in the docstring of
+    the very function whose job is to distrust a hard-coded vocabulary. Deleted, not
+    refreshed: `python3 scripts/diag-ladder.py --source` prints the live census, and the
+    selftest asserts the property that actually matters (`found ⊆ TERMINAL_WORDS`).
 
     ⚠️ THIS SCANS RAW LINES, NOT `STRING_LITERAL` MATCHES, and that is deliberate: the one
     terminator that matters most — `mic: start REFUSED — input format not ready` — lives
