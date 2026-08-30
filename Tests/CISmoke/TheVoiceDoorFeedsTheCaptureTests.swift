@@ -9,7 +9,7 @@
 // the panel closing mid-take. Every claim here is a JOIN between two files — the class
 // of defect where renaming one side leaves a door pointing at nothing (#351).
 //
-// ⚠️ HONEST LIMITS. 6 tests, 18 `XCTAssert*` STATEMENTS — 3+3+3+2+5+2, measured with
+// ⚠️ HONEST LIMITS. 7 tests, 22 `XCTAssert*` STATEMENTS — 3+3+3+2+5+2+4, measured with
 // `awk` per `func test`, not by eye. ⛔ Three hand-counts in this header have now been
 // wrong (12, then 16, then 20 with a bogus 3+3+3+2+5+4 split); the command that settles it
 // is in the SESSION_LOG for #892, and a fourth hand-count is not the fix — reading the
@@ -49,6 +49,20 @@
 // `hasPermission` discriminator, whose removal would abort the legitimate permission wait
 // instead, and the deliberate absence of `releaseMic()` on that path, which would write a
 // three-rung stop ladder for a mic that never started (#882).
+//
+// ⭐ #893 ADDED A SEVENTH CLAIM AND RENAMED FOUR NEEDLES IN THE SAME COMMIT (#655/#656).
+// `micUnavailable: Bool` became `micRefusals: Int`, because a Bool answered the wrong
+// question: a second refusal rendered BYTE-IDENTICAL to the first — same sentence, same
+// button, same phase — and the founder's open #890 probe asks for a capture "twice in a
+// row". A count is the smallest thing that changes on a repeat. §3 GRADING: 3 of the
+// seventh claim's 4 assertions are red on the parent `9a99c3c` (the breadcrumb count, the
+// completion reset, the caption's suppress-at-1). The fourth — `begin()` must NOT reset the
+// streak — is GREEN on the parent and VACUOUSLY so, because the property did not exist
+// there; on the parent `begin()` in fact DID reset the old Bool. It is a counterweight for
+// the future, not evidence for this slice, and it is the highest-value assertion in the
+// file: a tidy-up that "restores" the reset would delete the whole feature while looking
+// like hygiene. Same shape as the fifth claim's `releaseMic()` counterweight — two of them
+// now, both named rather than counted as forward-red.
 //
 // ⛔ #892 ADDED A SIXTH CLAIM BECAUSE #891'S FIFTH DID NOT COVER WHAT IT ASSUMED. The
 // caption put the refusal message FIRST on the premise that the flag "can only be true
@@ -200,7 +214,7 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
                       + "the no-permission exit also leaves isRecording false, but that wait "
                       + "RESOLVES once the system prompt is answered. Without this half the "
                       + "abort would fire on the first capture every new user ever tries")
-        XCTAssertTrue(afterStart.contains("micUnavailable = true"),
+        XCTAssertTrue(afterStart.contains("micRefusals += 1"),
                       "the abort must record WHY nothing happened — the row's caption is the "
                       + "only thing standing between the user and a button that looks dead")
         XCTAssertFalse(afterStart.contains("releaseMic()"),
@@ -210,7 +224,7 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
                        + "are exactly the lie the ladder law forbids (#882)")
 
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        XCTAssertTrue(studio.contains("if controller.micUnavailable {"),
+        XCTAssertTrue(studio.contains("if controller.micRefusals > 0 {"),
                       "the flag needs its reader: without the caption branch the abort is "
                       + "silent and a refused capture still looks like a dead button (#891)")
     }
@@ -225,7 +239,7 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
         let caption = String(studio[capStart.upperBound...].prefix(2000))
         let profileAt = try XCTUnwrap(caption.range(of: "if synth.appliedVoiceProfile != nil {"),
                                       "the applied-profile branch left the caption")
-        let refusalAt = try XCTUnwrap(caption.range(of: "if controller.micUnavailable {"),
+        let refusalAt = try XCTUnwrap(caption.range(of: "if controller.micRefusals > 0 {"),
                                       "the #891 refusal branch left the caption")
         XCTAssertTrue(profileAt.lowerBound < refusalAt.lowerBound,
                       "what the instrument is DOING NOW must outrank a report about a take "
@@ -248,8 +262,42 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
             let end = try XCTUnwrap(controller.range(of: "\n    }", range: at.upperBound..<controller.endIndex),
                                     "\(fn) has no closing brace at method indentation")
             let body = String(controller[at.upperBound..<end.lowerBound])
-            XCTAssertTrue(body.contains("micUnavailable = false"), why)
+            XCTAssertTrue(body.contains("micRefusals = 0"), why)
         }
+    }
+
+    /// #893 — a REPEATED refusal is visible. Four assertions: `begin()` must not reset the
+    /// streak (the counterweight — a tidy-up there silently deletes the whole feature), the
+    /// caption suppresses the count at 1, a completed take ends the streak, and the
+    /// breadcrumb carries the count so the exported log answers the probe on its own.
+    func testASecondRefusalInARowLooksDifferent() throws {
+        let controller = try source("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
+        let beginAt = try XCTUnwrap(controller.range(of: "func begin(mic: MicrophoneManager, synth: PolySynthVoice) {"),
+                                    "begin() was renamed — re-anchor (#454)")
+        let cancelAt = try XCTUnwrap(controller.range(of: "func cancel()", range: beginAt.upperBound..<controller.endIndex),
+                                     "cancel() moved above begin() — re-anchor this window (#454)")
+        let begin = String(controller[beginAt.upperBound..<cancelAt.lowerBound])
+        XCTAssertFalse(begin.contains("micRefusals = 0"),
+                       "begin() must NOT clear the streak: arming is not where a run of "
+                       + "refusals ends, and a reset here makes \"in a row\" impossible while "
+                       + "looking like ordinary hygiene. Nothing renders the count during "
+                       + ".capturing anyway — the caption's switch takes its own branch (#893)")
+        XCTAssertTrue(begin.contains("(\\(micRefusals)x in a row)"),
+                      "the breadcrumb must carry the count, so the exported log answers the "
+                      + "#890 probe's \"twice in a row\" even when nobody watched the screen")
+
+        let ingestAt = try XCTUnwrap(controller.range(of: "private func ingest("),
+                                     "ingest() was renamed — re-anchor (#454)")
+        let ingest = String(controller[ingestAt.upperBound...])
+        XCTAssertTrue(ingest.contains("micRefusals = 0"),
+                      "a completed take is the strongest end of a refusal streak; without "
+                      + "this the next failure would report a count carried over from before "
+                      + "a success, which is not \"in a row\"")
+
+        let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        XCTAssertTrue(studio.contains("controller.micRefusals == 1 ? \"\""),
+                      "the count is suppressed at 1 — a single ordinary failure must not read "
+                      + "like a tally; the number is new information only when it repeats")
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)

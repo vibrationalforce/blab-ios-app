@@ -101,11 +101,24 @@ final class VoiceCaptureController {
     private(set) var progress: Double = 0
     /// The live "we hear you" dot — true while the last window read as voiced.
     private(set) var hearingYou = false
-    /// #891: the last `begin()` could not get the microphone running, so no take started.
-    /// Set only on the abort path below, cleared by the next `begin()`. Read by exactly one
-    /// leaf (`VoiceCaptureRow`'s caption) — it changes at most once per button tap, so it
-    /// is nowhere near the 10.76.41/50 churn class.
-    private(set) var micUnavailable = false
+    /// How many times IN A ROW `begin()` could not get the microphone running. 0 = the last
+    /// interaction was not a refusal.
+    ///
+    /// ⛔ #893 — #891 MADE THIS A `Bool` AND THAT ANSWERED THE WRONG QUESTION. A second
+    /// refusal rendered byte-identical to the first: same sentence, same button, same
+    /// phase, all inside one synchronous tap. The founder's #890 probe asks for a capture
+    /// "immediately after launch, TWICE IN A ROW" — with a Bool the second tap gives the
+    /// player no evidence it did anything, so the probe could not distinguish "refused
+    /// again" from "the button is dead", which is the very confusion #891 set out to end.
+    /// A count is the smallest thing that changes on screen when the state repeats.
+    ///
+    /// ⚠️ DELIBERATELY NOT RESET IN `begin()` — that would make "in a row" impossible, and
+    /// nothing renders it during `.capturing` anyway (the caption's `switch` takes its own
+    /// branch there). It is cleared where the streak genuinely ENDS: a completed take,
+    /// `cancel()`, `clearApplied()`. Read by exactly one leaf (`VoiceCaptureRow`'s
+    /// caption); it moves at most once per button tap, nowhere near the 10.76.41/50 churn
+    /// class.
+    private(set) var micRefusals = 0
 
     @ObservationIgnored private var engine = VoiceCaptureEngine()
     @ObservationIgnored private weak var mic: MicrophoneManager?
@@ -126,7 +139,6 @@ final class VoiceCaptureController {
         phase = .capturing
         progress = 0
         hearingYou = false
-        micUnavailable = false
         micStartedByUs = !mic.isRecording
         mic.captureSampleSink = { [weak self] samples, sampleRate in
             self?.ingest(samples, sampleRate: sampleRate)
@@ -147,11 +159,14 @@ final class VoiceCaptureController {
             // there would break the permission flow on the very first capture a user ever
             // tries. Only a refusal WITH permission already granted is a dead end.
             if !mic.isRecording, mic.hasPermission {
-                EchoelCrashLog.breadcrumb("voice: capture aborted — mic did not start")
+                micRefusals += 1
+                // #893: the count rides the breadcrumb too, so the exported log answers the
+                // probe's "twice in a row" even when nobody was watching the screen.
+                EchoelCrashLog.breadcrumb(
+                    "voice: capture aborted — mic did not start (\(micRefusals)x in a row)")
                 engine.cancel()
                 phase = .idle
                 progress = 0
-                micUnavailable = true
                 // ⛔ NOT `releaseMic()`, deliberately. That calls `mic.stopRecording()`, which
                 // walks its own three-rung stop ladder and releases the record route a SECOND
                 // time — the start side already released it on every refusing exit
@@ -177,7 +192,7 @@ final class VoiceCaptureController {
         // so the invariant is UNCONDITIONAL rather than "benign because of where the
         // button happens to be": that second form is a claim about the view, and the view
         // is exactly what changed underneath #891's own rationale one commit ago.
-        micUnavailable = false
+        micRefusals = 0
         releaseMic()
     }
 
@@ -198,7 +213,7 @@ final class VoiceCaptureController {
         // a refusal, then a recalled patch carrying a voice profile, then Clear — and
         // without this line the microphone-failure sentence would come back as the caption
         // for a successful, unrelated action.
-        micUnavailable = false
+        micRefusals = 0
     }
 
     private func ingest(_ samples: [Float], sampleRate: Double) {
@@ -214,6 +229,8 @@ final class VoiceCaptureController {
             }
             EchoelCrashLog.breadcrumb("voice: capture done — profile applied")
             phase = .done
+            // #893: a take that finished is the strongest possible end of a refusal streak.
+            micRefusals = 0
             releaseMic()
         }
     }

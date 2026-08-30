@@ -11536,8 +11536,14 @@ private struct VoiceCaptureRow: View {
             // route is claimed, and whether a second tap lands outside that window is
             // device behaviour nobody here has measured. "Tap Capture again" is true;
             // "wait a moment and it will work" would not be.
-            if controller.micUnavailable {
-                return "The microphone did not start — nothing was captured. Tap Capture again."
+            if controller.micRefusals > 0 {
+                // #893: the COUNT is the only thing that changes on a repeat, so it carries
+                // the whole answer to the probe's "twice in a row". Suppressed at 1 so the
+                // ordinary single failure does not read like a tally. The advice does not
+                // escalate with the count — after two refusals "tap again" is still the only
+                // action the player has, and any stronger suggestion would be invented.
+                let streak = controller.micRefusals == 1 ? "" : " (\(controller.micRefusals)× in a row)"
+                return "The microphone did not start\(streak) — nothing was captured. Tap Capture again."
             }
             return "Hold a tone for a few seconds; its colour becomes the instrument's. Analyzed live — no audio is recorded."
         }

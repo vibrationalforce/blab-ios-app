@@ -16969,3 +16969,46 @@ Reparatur — die Zahl als DATUM zu lesen ist es.
 
 **Ehrliche Grenze:** wieder alles Text-Ebene, CI ist der einzige Compiler. Nichts davon ist
 gerätverifiziert.
+
+## 2026-08-30 — #893: aus dem Merker wird ein Zähler (die Geräteprobe konnte sich selbst nicht beantworten)
+
+**Der Befund kam aus dem eigenen Board (O13b), nicht aus einem neuen Audit.** #891 hat den
+0-%-Hänger beseitigt und dafür einen `Bool` benutzt. Die **zweite** Ablehnung in Folge rendert
+damit BYTE-GLEICH zur ersten — gleicher Satz, gleicher Knopf, gleiche Phase, alles in EINEM
+synchronen Tipp. Die offene #890-Geräteprobe lautet aber wörtlich „capture immediately after
+launch, **twice in a row**". Mit einem `Bool` kann genau diese Probe nicht zwischen „hat wieder
+abgelehnt" und „der Knopf ist tot" unterscheiden — also exakt die Verwechslung, die #891
+beenden sollte. **Eine Diagnose, die ihre eigene Frage nicht beantworten kann, ist keine.**
+
+**Reparatur:** `micUnavailable: Bool` → `micRefusals: Int`. Ein Zähler ist das Kleinste, das
+sich ändert, wenn sich der Zustand WIEDERHOLT. Bei 1 wird die Zahl unterdrückt (ein
+gewöhnlicher Einzelfehler soll nicht wie eine Strichliste lesen), ab 2 steht „(2× in a row)".
+Die **Breadcrumb trägt die Zahl mit**, damit das exportierte Log die Probe auch dann
+beantwortet, wenn niemand auf den Schirm gesehen hat.
+
+**Wo der Streak endet — und wo bewusst NICHT.** Zurückgesetzt wird er dort, wo eine Serie
+wirklich aufhört: abgeschlossene Aufnahme (`ingest`), `cancel()`, `clearApplied()`.
+**`begin()` setzt NICHT zurück** — das würde „in a row" unmöglich machen und dabei wie
+gewöhnliche Hygiene aussehen. Genau deshalb ist diese ABWESENHEIT als Gegengewicht gepinnt
+(#343): der wertvollste Anspruch der Datei, weil eine spätere „Aufräum"-Zeile das ganze Merkmal
+löschen würde, ohne dass irgendetwas anderes rot wird. Nichts rendert den Zähler während
+`.capturing`, der `switch` der Beschriftung nimmt dort seinen eigenen Zweig.
+
+**Vier Nadeln im selben Commit mitgezogen (#655/#656).** Die Umbenennung hätte vier
+Wächter-Nadeln ins Leere zeigen lassen; sie sind mit umgezogen, statt still grün zu bleiben.
+
+**§3-Benotung, ehrlich getrennt:** 3 von 4 Aussagen des siebten Anspruchs sind auf dem
+Elternbaum `9a99c3c` rot (Breadcrumb-Zahl, Reset bei Abschluss, Unterdrückung bei 1). Die
+vierte — `begin()` darf NICHT zurücksetzen — ist auf dem Elternbaum **grün, und zwar
+LEERLAUFEND**: die Property gab es dort nicht, und `begin()` setzte den alten `Bool` sehr wohl
+zurück. Sie ist ein Gegengewicht für die Zukunft, kein Beleg für diese Scheibe. Zweites
+Gegengewicht dieser Art in derselben Datei (das erste ist `releaseMic()` in Anspruch 5) —
+beide sind BENANNT statt als vorwärts-rot mitgezählt.
+
+**Selbst gemessen, nicht geraten:** `micRefusals` hat außerhalb seines Besitzers genau ZWEI
+Lesestellen, beide in `VoiceCaptureRow` (Blatt) — Freeze-Gesetz eingehalten. Ladder unverändert
+8/8; die Abbruch-Zeile trägt kein `n/N` und wird korrekt als Zustandszeile gelesen.
+
+**Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. Der ui-state-Reviewer lief zum
+Zeitpunkt dieses Eintrags noch — Befunde werden als Folge-Commit behandelt, so wie #892 die
+Folge von #891 war.
