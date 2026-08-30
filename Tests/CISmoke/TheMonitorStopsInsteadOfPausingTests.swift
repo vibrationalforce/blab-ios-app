@@ -116,4 +116,56 @@ final class TheMonitorStopsInsteadOfPausingTests: XCTestCase {
                       "The bail line lost its #628/#823 tag — a device log line without "
                       + "its issue tag cannot be routed by the next triage.")
     }
+    // MARK: - #890: the SECOND site that reads the input format in the same window
+    //
+    // WHY IT LIVES IN THIS FILE AND NOT A NEW ONE (#416). This is the same law, applied to the
+    // other reader. #823 found that right after the record route is claimed the input node can
+    // hand back its PLACEHOLDER format — `0 Hz / 0 ch`, which is NOT nil — because the I/O unit
+    // rebuilds lazily on `start()`. `AudioEngine.setInputMonitoring` handles it (claims 2 and 3
+    // above). `MicrophoneManager.startRecording` reads the same thing about 28 lines after its
+    // own claim and, until #890, checked ONLY for nil: a placeholder walked past `guard let`,
+    // was stored as `sampleRate`, was baked into the tap closure, and was handed to
+    // `installTap(format:)`. That raises an ObjC exception no Swift `catch` sees — the
+    // `isInputConnToConverter` signature, seven device logs deep.
+    //
+    // ⚠️ THE TWO SITES DELIBERATELY DIFFER, and this claim must not be "fixed" into demanding
+    // symmetry. `AudioEngine` SUBSTITUTES a session-derived format because its consumer is
+    // `connect(...)`, where any format matching the hardware is acceptable.
+    // `MicrophoneManager`'s consumer is `installTap(onBus:format:)`, whose contract is that the
+    // format matches the BUS's own format — handing it a format the node never reported is not
+    // the proven fix reused, it is that fix extended untested. So this site REFUSES instead:
+    // an uncatchable abort becomes a logged, recoverable no-start that never claims to have
+    // captured anything.
+    //
+    // GRADING (§3): both assertions are REGRESSIONS — red on HEAD for the reason their names
+    // give (the guard and its breadcrumb do not exist there). Transcribed against
+    // `git show HEAD:…` and the worktree before shipping.
+    func testTheMicCaptureRefusesAPlaceholderFormat() throws {
+        let url = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
+            .appendingPathComponent("Sources/Echoelmusic/MicrophoneManager.swift")
+        guard let source = try? String(contentsOf: url, encoding: .utf8) else {
+            XCTFail("ANCHOR MISSING: MicrophoneManager.swift could not be read — fail, not skip (§4)")
+            return
+        }
+
+        XCTAssertTrue(source.contains("guard format.sampleRate > 0, format.channelCount > 0"), """
+            `MicrophoneManager.startRecording` no longer refuses a placeholder input format \
+            (#890). A `0 Hz / 0 ch` format is NOT nil, so the `guard let` above it does not \
+            catch this; the format then reaches `installTap(format:)` and raises an ObjC \
+            exception that no Swift `catch` can see — the process aborts.
+
+            If the node's format became trustworthy (a retry after `prepare()`, say), retire \
+            this claim in the SAME commit and say where the new protection lives. This forbids \
+            removing the protection silently, not replacing it (#364).
+            """)
+
+        XCTAssertTrue(source.contains("mic: start REFUSED"), """
+            the refusal no longer writes a breadcrumb (#890). Without it the exported log shows \
+            a capture that simply never produced sound, which reads exactly like a dead tap. \
+            The line carries the node's numbers AND the session's, so the next device log \
+            distinguishes "no input hardware at all" from "input exists but the node was late" \
+            — the difference that decides whether a retry slice is worth building.
+            """)
+    }
 }

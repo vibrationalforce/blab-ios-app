@@ -16720,3 +16720,65 @@ schafft. Das einzige echte Gegengewicht ist die unnummerierte Hälfte von (d).
 
 ⚠️ **Was das NICHT ist: eine Absturz-Reparatur.** Es macht das nächste Gerätelog aussagefähig.
 Ob die zwei Besitzer die Ursache SIND, entscheidet das Log — nicht dieser Commit.
+
+## 2026-08-30 (cron, fünfter Zyklus) — #889/#890: der Reviewer hat den wahrscheinlichsten ABSTURZ gefunden, nicht ich
+
+**#889 (gepusht, Review CLEAN):** `MicrophoneManager.startRecording()` holt sich die
+Aufnahme-Route und passiert danach zwei `guard … else { return }` INNERHALB desselben `do`.
+Ein `return` aus einem `do` erreicht seinen `catch` nie — beide Ausgänge holten die Route und
+gaben sie nie zurück. Folge, wenn genommen: die Besitzer-Menge wird nie leer, jedes spätere
+„Monitoring aus" findet eine nicht-leere Menge und stellt die Sitzung nie auf `.playback`
+zurück (A2DP→HFP, und der Eingangs-Bus bleibt oben). **Ehrlich: beide sind heute
+unerreichbar** — Klassen-Reparatur, keine Bug-Reparatur.
+⛔ **Sichtbar wurde es durch einen SUPERLATIV.** #299s Notiz im `catch` nannte sich „THE ONE
+REACHABLE EXIT THAT CLAIMED WITHOUT RELEASING". #299 hat den lebenden Defekt richtig repariert
+— es war der WERFENDE Ausgang —, aber „der eine X" ist eine Behauptung über die GANZE Funktion
+und veraltet, sobald jemand einen Ausgang hinzufügt. Korrigiert zu „der werfende", was für
+immer wahr bleibt. Wächter mitgezogen: er pinnte „genau 2 Freigaben", jetzt 4.
+
+## ⭐ #890 — DER EIGENTLICHE FUND, und er kam aus dem Pflicht-Review, nicht aus meiner Suche
+
+Der Reviewer meldete meine Änderung als sauber und nannte daneben einen **vorbestehenden
+Defekt**, der genau auf der Absturz-Familie sitzt. Selbst nachgeprüft, beide Seiten gelesen:
+
+**#823 hat für die SCHWESTER-Stelle gemessen und aufgeschrieben:** unmittelbar nach dem
+Routen-Claim gibt der Eingangsknoten noch seine **PLATZHALTER**-Formatangabe zurück
+(`0 Hz / 0 Kanäle`), weil die I/O-Einheit erst bei `start()` neu gebaut wird. `AudioEngine`
+fängt das ab. Der Kommentar dort sagt wörtlich, was ein ungültiges Format auslöst: **„raises an
+ObjC exception no Swift `catch` sees."** Das IST die Signatur der
+`isInputConnToConverter`-Familie.
+
+**`MicrophoneManager` liest dasselbe im selben Fenster — 28 Zeilen nach seinem Claim — und
+prüfte NUR auf `nil`.** Ein Platzhalter ist nicht `nil`. Er lief also durch `guard let`, wurde
+als `sampleRate` gespeichert, als `capturedSampleRate` in den Tap-Closure gebacken und an
+`installTap(format:)` gereicht. **Erreichbar:** Sound-Panel → Voice timbre → Aufnahme.
+
+**Reparatur: HARTE ABLEHNUNG, bewusst NICHT #823s Fallback.** Der Unterschied ist das ganze
+Urteil: #823 ERSETZT das Format für `connect(...)`, wo jedes hardware-passende Format zulässig
+ist. `installTap(onBus:format:)` hat einen ANDEREN Vertrag — das Format muss dem des Busses
+entsprechen. Ein Format zu übergeben, das der Knoten nie gemeldet hat, wäre nicht die bewährte
+Reparatur wiederverwendet, sondern dieselbe Reparatur ins Ungetestete verlängert. Ablehnen ist
+strikt sicher: aus einem unfangbaren Abbruch wird ein protokollierter, erholbarer Nicht-Start,
+der nie behauptet, etwas aufgenommen zu haben.
+
+⚠️ **Beim Schreiben selbst einen Baufehler gefangen:** der erste Entwurf las
+`AVAudioSession.sharedInstance()` UNGESCHÜTZT — jede der vier anderen Verwendungen in dieser
+Datei steht in einem Plattform-`#if`, und `#if canImport(AVFoundation)` am Dateikopf deckt
+macOS NICHT ab (AVFoundation importiert dort, `AVAudioSession` existiert nicht). Das wäre ein
+roter Bau gewesen, und ohne lokalen Compiler kostet das einen ganzen Zyklus. Jetzt geschützt,
+per Skript nachgezählt: null ungeschützte Verwendungen.
+
+**Wächter:** neuer Anspruch in `TheMonitorStopsInsteadOfPausingTests` — der Datei, die das
+#823-Gesetz schon besitzt (#416, keine zweite Heimat). Beide Behauptungen sind **echte
+Regressionen**, auf HEAD rot aus genau dem Grund, den ihr Name nennt.
+
+**NEEDS-FOUNDER-VERIFY (neu):** Sound-Panel → Voice timbre → Aufnahme direkt nach dem Start,
+zweimal hintereinander. Verweigert eine Aufnahme je mit „input format not ready", sagt das Log
+es jetzt, statt dass die App stirbt — und die Zahlen auf der Zeile sagen, ob die Hardware fehlte
+oder nur zu spät war. Genau das entscheidet, ob eine Wiederhol-Scheibe sich lohnt.
+
+⭐ **Die Lehre über den LOOP, nicht über Audio:** ich habe vier Zyklen lang Diagnose um diesen
+Absturz herum gebaut und die Ursache nicht gefunden. Gefunden hat sie der PFLICHT-REVIEWER einer
+unverwandten Klassen-Reparatur, weil er die Frage „was noch in dieser Funktion?" gestellt
+bekam. **Der Reviewer ist nicht die Endabnahme — er ist ein zweiter Sucher, und die Frage nach
+dem Nachbarn ist die, die sich auszahlt.**

@@ -243,6 +243,65 @@ final class MicrophoneManager: NSObject {
                 return
             }
 
+            // ⛔ #890 — THE NIL CHECK ABOVE IS NOT THE FAILURE THIS READ ACTUALLY HAS, and the
+            // sibling path has known that since #823. Right after the record route is claimed
+            // the input node can still hand back its PLACEHOLDER format — the I/O unit rebuilds
+            // lazily on `start()` — and a placeholder is `0 Hz / 0 ch`, which is NOT nil. So it
+            // walks past `guard let`, gets stored as `sampleRate`, is baked into the tap
+            // closure as `capturedSampleRate`, and is handed to `installTap(format:)`.
+            //
+            // That last step is the one that kills the process: an invalid format raises an
+            // ObjC exception, which no Swift `catch` sees — `AudioEngine.setInputMonitoring`
+            // says exactly this at its own #823 fallback, and it is the signature of the
+            // `isInputConnToConverter` family the diag ladder was built for. This chain is
+            // reachable: Sound panel → Voice timbre → capture claims the route and reads the
+            // format 28 lines later, inside that window.
+            //
+            // ⚠️ WHY THIS IS A HARD GUARD AND NOT #823's SESSION FALLBACK — the distinction is
+            // the whole judgement here, so it is written down rather than left implicit. #823
+            // substitutes a session-derived format for `connect(...)`, where a format that
+            // matches the hardware is by definition acceptable. `installTap(onBus:format:)` is
+            // a DIFFERENT contract: the format must match the BUS's own format, so handing it a
+            // format the node did not report is not the proven fix being reused — it is that
+            // fix extended into territory nobody here can test. Refusing to start is strictly
+            // safe: it turns an uncatchable abort into a logged, recoverable no-start, and it
+            // never lies about having captured anything.
+            //
+            // NEEDS-FOUNDER-VERIFY: open Sound panel → Voice timbre → capture immediately after
+            // launch, twice in a row. If a take ever refuses with "input format not ready", the
+            // log now says so instead of the app dying — and the numbers on that line say
+            // whether the hardware was absent or merely late, which is what decides the
+            // follow-up slice (a retry after `prepare()`, or nothing).
+            guard format.sampleRate > 0, format.channelCount > 0 else {
+                // ⚠️ THE SESSION READ IS PLATFORM-GUARDED, like every other `AVAudioSession`
+                // use in this file (there are four, all inside an `#if`). The first draft of
+                // this block read it unguarded and would have broken the macOS build —
+                // `AVAudioSession` does not exist there, and `#if canImport(AVFoundation)` at
+                // the top of the file does NOT cover that, because AVFoundation imports fine
+                // on macOS. Same shape as CLAUDE.md's "UIKit refs on non-iOS" row.
+                var sessionDetail = "session unavailable on this platform"
+                #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+                let session = AVAudioSession.sharedInstance()
+                sessionDetail = """
+                    session \(session.sampleRate) Hz/\(session.inputNumberOfChannels) ch, \
+                    inputAvailable \(session.isInputAvailable)
+                    """
+                #endif
+                EchoelCrashLog.breadcrumb("""
+                    mic: start REFUSED — input format not ready \
+                    (node \(format.sampleRate) Hz/\(format.channelCount) ch, \
+                    \(sessionDetail)) — #890
+                    """)
+                log.error("""
+                    MicrophoneManager: input node reported a placeholder format \
+                    (\(format.sampleRate) Hz, \(format.channelCount) ch) — refusing to tap
+                    """, category: .audio)
+                #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+                try? AudioConfiguration.releaseRecordRoute(.microphoneManager)
+                #endif
+                return
+            }
+
             // Store sample rate for frequency calculation
             sampleRate = format.sampleRate
 
