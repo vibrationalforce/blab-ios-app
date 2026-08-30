@@ -100,8 +100,12 @@ enum AudioConfiguration {
     nonisolated(unsafe) private(set) static var isSessionConfigured = false
 
     /// True once a mic-input feature (record / input monitoring) has upgraded the
-    /// session to `.playAndRecord`. `configureAudioSession()` re-runs on a latency
-    /// change and after a media-services reset; without this flag those re-runs
+    /// session to `.playAndRecord`. ⛔ #903 — THIS SAID `configureAudioSession()` "re-runs
+    /// on a latency change and after a media-services reset", and the latency half has been
+    /// false since #675 removed that call as a session-killer (the retraction is ~460 lines
+    /// below, at `setLatencyMode`). It re-runs on a media-services reset, on the retry after
+    /// `masterEngine.start()` threw, and at launch — all latched or fault paths, never a
+    /// routine transition. Without this flag those re-runs
     /// would silently drop an ACTIVE recording back to `.playback`. When set, a
     /// reconfigure re-applies the record route instead.
     nonisolated(unsafe) private(set) static var recordingRouteNeeded = false
@@ -371,22 +375,48 @@ enum AudioConfiguration {
             return false
         }
         EchoelCrashLog.breadcrumb("route: release \(owner.rawValue) → holders none, lowering")
-        // #902 — THE THIRD OUTCOME. #888 gave this method two lines for two exits; a THROWN
-        // downgrade was a third outcome sharing the "lowering" line with the successful one.
-        // Eight of the thirteen release call sites are `try?` (every #299 failure path), so the
-        // error was swallowed and the log showed "lowering" followed by whatever came next —
-        // indistinguishable from a lowering that worked.
+        // #902 — THE THROWN OUTCOME. #888 gave this method two lines for two exits; a THROWN
+        // downgrade shared the "lowering" line with the successful one, and **nine of the twelve
+        // release call sites are `try?`** (every #299 failure path), so the error was swallowed
+        // and the log showed "lowering" followed by whatever came next — indistinguishable from
+        // a lowering that worked.
         //
-        // ⚠️ WHAT THIS DOES *NOT* DO, deliberately, and both are measured rather than assumed:
+        // ⛔ #903 — "EIGHT OF THIRTEEN" STOOD HERE AND BOTH NUMBERS WERE INVENTED. Measured:
+        // `git grep -c "releaseRecordRoute(" -- Sources` gives 14 HITS = 12 call sites + this
+        // declaration + one doc mention; of the 12, NINE are `try?` and three are `do`/`catch`.
+        // Neither 13 nor 8 matches any counting convention. The argument only got stronger, and
+        // that is exactly why it went unchecked.
+        //
+        // ⚠️ WHAT THIS DOES *NOT* DO, deliberately:
         // · It does NOT re-insert the owner. The owner is genuinely gone (its engine is torn
         //   down by the time it releases); putting it back would create a phantom holder that
         //   blocks every future downgrade forever — the #838b stale-ref trap in another skin.
-        // · It does NOT retry. It does not need to: `downgradeToPlaybackAfterRecording()` clears
-        //   `recordingRouteNeeded` BEFORE its throwing `setCategory`, so the next
-        //   `configureAudioSession()` reads the flag as false and lowers the category itself.
-        //   The state self-heals on the next session transition; what was missing was only the
-        //   ability to SEE the failed attempt. A speculative `setCategory` retry here would be
-        //   device-unproven AVAudioSession work on a failure path.
+        // · It does NOT retry, and it does NOT set `recordingRouteNeeded` back to true. The flag
+        //   stays false because its ONLY reader is the branch that RE-APPLIES `.playAndRecord`
+        //   (see `configureAudioSession`): setting it true would turn the two surviving
+        //   reconfigure callers from repair into cement — they would re-raise the category with
+        //   an EMPTY owner set, and nothing clears the flag except a downgrade, which needs a
+        //   release, which needs a claim. Stuck-forever instead of stuck-until-next-use.
+        //
+        // ⛔ #903 — AND THE REASON GIVEN HERE FOR "no retry" WAS FALSE, in the same shape #901
+        // had just retracted one commit earlier. It said the state "self-heals on the next
+        // session transition". Measured: `configureAudioSession()` has FOUR callers and NONE is
+        // a routine transition — `prepareGraph` is latched by `graphPrepared`, the
+        // `MicrophoneManager` one is gated on `!isSessionConfigured`, and the two that survive
+        // are FAULT paths (a media-services reset, and the retry after `masterEngine.start()`
+        // threw). The route transitions deliberately do not call it (#675 removed that as a
+        // session-killer). HONEST VERSION: after a thrown downgrade the session can sit on
+        // `.playAndRecord` with an EMPTY owner set for the rest of the process. What may repair
+        // it: either of those two fault callers firing, or the next claim/release cycle, whose
+        // release re-attempts the identical `setCategory`. Neither is guaranteed. The decision
+        // not to retry HERE still stands — speculative `AVAudioSession` work on a failure path
+        // is device-unproven — but the line must not promise a heal it cannot deliver (#167).
+        //
+        // ⚠️ AND "three outcomes" is the count of what THIS method distinguishes, not of what
+        // the log can mean. `downgradeToPlaybackAfterRecording()` has three SILENT no-op returns
+        // before its own rung (macOS, unconfigured session, already `.playback`), so "lowering"
+        // + no `session: lower 1/1` + no failure line is a fourth reading: "reported lowered,
+        // did nothing". Pre-existing and out of this slice; do not read the three as exhaustive.
         //
         // This line is deliberately UNNUMBERED: it is a state outcome, not a ladder rung, and a
         // `n/N` here would announce a ladder `scripts/diag-ladder.py` cannot walk (#888).
@@ -400,7 +430,8 @@ enum AudioConfiguration {
             try downgradeToPlaybackAfterRecording()
         } catch {
             EchoelCrashLog.breadcrumb(
-                "route: release \(owner.rawValue) → lowering FAILED (\(error.localizedDescription)),"
+                "route: release \(owner.rawValue) → lowering FAILED ("
+                + sanitisedRoute(error.localizedDescription) + "),"
                 + " category still raised, nobody holds it")
             throw error
         }
@@ -460,8 +491,10 @@ enum AudioConfiguration {
     /// quality) WITHOUT deactivating it. The master playback engine OWNS the
     /// process-wide session — a full `setActive(false)` on mic-stop cut its output
     /// route, the "alles still" class (#22, AU4). This keeps the session live on the
-    /// default category and clears `recordingRouteNeeded` so a later latency
-    /// reconfigure stays on `.playback`. No-op on macOS / unconfigured / already
+    /// default category and clears `recordingRouteNeeded` so a later reconfigure stays
+    /// on `.playback` (⛔ #903: this said "a later LATENCY reconfigure" and `setLatencyMode`
+    /// has not called `configureAudioSession()` since #675 — the surviving callers are a
+    /// media-services reset and the failed-engine-start retry). No-op on macOS / unconfigured / already
     /// `.playback`. The playback options mirror `configureAudioSession` exactly.
     ///
     /// ⚠️ PREFER `releaseRecordRoute(_:)`. This method is unconditional — it lowers the route

@@ -17462,3 +17462,66 @@ zwei No-op-Wächter-Paare, zwei `setCategory`-vor-`setPreferredIOBufferDuration`
 
 **Ehrliche Grenze:** Text- und Logik-Ebene. Ob ein geworfenes Herunterstufen am Gerät je
 auftritt, ist unbewiesen — die Zeile existiert genau dafür, es beim nächsten Mal zu zeigen.
+
+---
+
+## 2026-08-30 — #903: die Reviewer-Runde auf #902 — ein Wächter war seit DREIZEHN Commits rot
+
+Zwei HOHE Befunde, beide selbst nachgemessen, beide echt.
+
+**(1) Ein ZWÖLFTER Wächter über dieselbe Datei — rot auf BEIDEN Bäumen.**
+`TheEngineLifecycleSpeaksInTheDiagLogTests` pinnt `occurrences("EchoelCrashLog.breadcrumb(")`
+in `AudioConfiguration.swift` auf **8**. Gemessen: `bd38cc3~1` = 8 (damals richtig), seit #888
+= **11**, seit #902 = **12**. #888 hat drei `route:`-Zeilen ergänzt und diesen Pin nicht
+angefasst — seine Commit-Meldung sagt „the tool still derives exactly 8 ladders", und das ist
+die LADDER-Zahl von `diag-ladder.py`, eine ANDERE Größe, die zufällig dieselbe Ziffer trägt.
+Niemand hat es gemerkt, weil §5 gilt: die Pipeline meldet auf jedem Push `failure`, ein echt
+roter Wächter ist vom Host-Tod nicht zu unterscheiden (#655/#656).
+
+⚠️ **Und #902 ist ein zweites Mal daran vorbeigelaufen.** Seine Commit-Meldung behauptet „alle
+elf Nachbar-Ansprüche über diese Datei sind auf beiden Bäumen grün". Das hier ist der ZWÖLFTE,
+er steht über dieser Datei, und er zählt genau die Zeile, die #902 hinzugefügt hat. Das ist die
+#453→#477-Regel wortwörtlich reproduziert: **eine Handzählung sagte elf, ein Wächter im selben
+Commit wählte einen zwölften aus.** Jetzt auf 12 gehoben, mit ausgeschriebener Arithmetik.
+
+**(2) Die Selbstheilungs-Behauptung war FALSCH — dieselbe Form, die #901 einen Commit vorher
+zurückgenommen hatte.** #902 begründete „kein Retry" damit, der Zustand heile sich „bei der
+nächsten Sitzungs-Umstellung". Gemessen: `configureAudioSession()` hat VIER Aufrufer und
+KEINER ist eine Umstellung — `prepareGraph` ist durch `graphPrepared` verriegelt, der
+`MicrophoneManager`-Aufruf hängt an `!isSessionConfigured`, und die zwei überlebenden sind
+FEHLERPFADE (Media-Services-Reset; Retry nachdem `masterEngine.start()` geworfen hat). Die
+Routen-Umstellungen rufen es absichtlich NICHT (#675 hat das als Sitzungs-Killer entfernt).
+**Ehrlich: nach einem geworfenen Herunterstufen kann die Sitzung für den Rest des Prozesses auf
+`.playAndRecord` stehen, mit LEERER Besitzer-Menge.** Die Entscheidung, an dieser Stelle nicht
+zu wiederholen, bleibt richtig — spekulative AVAudioSession-Arbeit auf einem Fehlerpfad ist
+gerät-unbewiesen —, aber die Zeile darf keine Heilung versprechen, die sie nicht liefert (#167).
+
+**(3) „Acht von dreizehn" war ERFUNDEN, in fünf Zuhausen.** Gemessen:
+`git grep -c "releaseRecordRoute(" -- Sources` = **14 Treffer** = 12 Aufrufstellen + Deklaration
++ eine Prosa-Erwähnung; davon **9 `try?`** und 3 `do`/`catch`. Weder 13 noch 8 entspricht
+irgendeiner Zählweise. Das Argument wurde dadurch nur STÄRKER — und genau deshalb hat es
+niemand nachgerechnet. Korrigiert in Quelle, Wächter, hier und in `decisions.csv`; die
+Commit-Meldung von #902 ist unveränderlich und trägt die falsche Zahl weiter.
+
+**(4) Die neue Zeile umging den eigenen Sanitizer der Datei.** `AudioInputManager` wickelt jedes
+`error.localizedDescription` in `sanitisedRoute(…)` (#654/#880) und ist dafür gepinnt; #902
+schrieb den OS-Text roh — 890 Zeilen ÜBER der Deklaration des Sanitizers. Drei Gefahren, alle
+schon dort aufgezählt: der Teilstring `CRASH` lässt jeden späteren Start die Absturz-Ansicht
+öffnen, ein Zeilenumbruch zerlegt eine Zeile in zwei, und es gibt keine Längengrenze. Jetzt
+gewickelt, mit eigenem Anspruch.
+
+**(5) Zwei veraltete Doc-Sätze, und sie sind vermutlich die QUELLE von (2).** Zweimal stand,
+`configureAudioSession()` laufe „bei einer Latenz-Änderung" erneut — seit #675 falsch, dessen
+Rücknahme 460 Zeilen tiefer steht. Beide korrigiert.
+
+**Nicht geändert, mit Begründung:** `recordingRouteNeeded` bleibt bei einem geworfenen
+Herunterstufen **false**. Der einzige Leser der Flagge ist der Zweig, der `.playAndRecord`
+WIEDER ANLEGT — sie auf true zu setzen verwandelte die zwei überlebenden Reconfigure-Aufrufer
+von Reparatur in Zement: sie würden die Kategorie mit LEERER Besitzer-Menge neu anheben, und
+nichts löscht die Flagge außer einem Herunterstufen, das eine Freigabe braucht, die einen
+Anspruch braucht. „Stecken bis zur nächsten Nutzung" würde zu „stecken für immer".
+
+**Benotung (§3):** der Sanitizer-Anspruch ist eine echte REGRESSION (auf #902s Baum rot). Der
+Breadcrumb-Anspruch ist KEINE — er war auf BEIDEN Bäumen rot und ist eine REPARATUR; genau der
+Fall, für den §3 sagt, dass Delta-Benotung blind ist. Alle zwölf Nachbar-Ansprüche auf drei
+Bäumen gefahren (#901, #902, Arbeitsbaum).

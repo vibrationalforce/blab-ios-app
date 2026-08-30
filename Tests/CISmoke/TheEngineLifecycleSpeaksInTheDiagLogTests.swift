@@ -613,14 +613,31 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         }
 
         // (d) The rung count is pinned so a rung added to a REPEATING path is visible. It is
-        //     a checklist, not an objection: seven transition rungs plus `latencyBreadcrumb`,
-        //     which is a measurement and not part of the ladder. If this number moved, check
-        //     the new site is a discrete lifecycle event and not something that runs per
-        //     buffer — `breadcrumb` allocates and does an unbuffered `write(2)`.
-        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 8, """
+        //     a checklist, not an objection. If this number moved, check the new site is a
+        //     discrete lifecycle event and not something that runs per buffer — `breadcrumb`
+        //     allocates and does an unbuffered `write(2)`.
+        //
+        // ⛔ #903 — THIS PIN WAS RED ON A CORRECT TREE FOR THIRTEEN COMMITS, and that is the
+        // whole reason it exists. It said 8: seven transition rungs plus `latencyBreadcrumb`.
+        // #888 then added THREE `route:` lines (one claim, two release) and did not come back
+        // here — its commit message says "the tool still derives exactly 8 ladders", which is
+        // `diag-ladder.py`'s ladder count, a DIFFERENT quantity that happens to share the
+        // number. Measured: `bd38cc3~1` = 8, `bd38cc3`…#902's parent = 11, today = 12. Nothing
+        // caught it because §5 holds — the pipeline reports `failure` on every push, so a
+        // genuinely red guard is indistinguishable from the host dying (#655/#656).
+        //
+        // ⚠️ AND #902 WALKED PAST IT AGAIN. Its commit message claims "all eleven neighbouring
+        // claims over this file drive GREEN on both trees". This is the TWELFTH, it is over
+        // this file, and it counts the very line #902 added — the #453→#477 rule reproduced
+        // exactly: a hand survey said eleven, and a guard selected a twelfth.
+        //
+        // TODAY'S ARITHMETIC: seven transition rungs + `latencyBreadcrumb` + one `route: claim`
+        // + THREE `route: release` outcomes = 12.
+        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 12, """
             The breadcrumb count in AudioConfiguration changed. Confirm the new site is a \
             discrete event (launch, route transition), never a per-buffer or tick-rate path, \
-            then update this number and say why in the same commit.
+            then update this number and say why in the same commit. Today: seven transition \
+            rungs + latencyBreadcrumb + one route claim + three route-release outcomes.
             """)
     }
 
@@ -828,8 +845,11 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         //     release look identical to one that died inside the downgrade.
         // ⛔ #902 RAISED THIS FROM 2 TO 3, and the old count was RIGHT about exits and WRONG
         // about outcomes. There are two EXITS but three OUTCOMES: other owners remain · the
-        // lowering worked · the lowering THREW. Eight of the thirteen release call sites are
-        // `try?`, so the third was swallowed and shared the second's line — "lowering" followed
+        // lowering worked · the lowering THREW. NINE of the TWELVE release call sites are
+        // `try?` (⛔ #903: #902 wrote "eight of thirteen" here and in the source; measured,
+        // `git grep -c "releaseRecordRoute(" -- Sources` = 14 hits = 12 sites + declaration +
+        // one doc mention, of which 9 are `try?` and 3 are `do`/`catch`), so the third was
+        // swallowed and shared the second's line — "lowering" followed
         // by silence, which is exactly the #882 defect this claim was written to prevent, one
         // level further in. If you add or remove an outcome, change this number AND name the
         // outcome in this message (#364/#655).
@@ -837,6 +857,20 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             `releaseRecordRoute` no longer emits on all THREE outcomes (#888/#882/#902): the \
             early return when other owners remain, the successful lowering, and the lowering \
             that threw. One line for two outcomes is how a taken branch goes dark.
+            """)
+        // ⛔ #903 — THE NEW LINE WALKED AROUND THIS FILE'S OWN SANITISER. `AudioInputManager`
+        // wraps every `error.localizedDescription` it writes to a breadcrumb in
+        // `sanitisedRoute(…)` (#654/#880) and is guarded for it here; #902 wrote an OS-supplied
+        // string raw, 890 lines ABOVE the sanitiser's own declaration. The three hazards are
+        // the same ones that policy enumerates: the substring `CRASH` makes every later launch
+        // auto-open the crash sheet (`looksLikeUnseenCrash` is a `contains`), a newline splits
+        // one line into two for every line-by-line parser of this log, and there is no length
+        // bound while `currentLog()` reads the whole file into one `String`.
+        XCTAssertTrue(config.contains("sanitisedRoute(error.localizedDescription)"), """
+            the failed-lowering line writes an OS-supplied error string RAW (#903). Wrap it in \
+            `sanitisedRoute(…)` like every other externally sourced breadcrumb: it masks the \
+            crash marker, flattens newlines and bounds the length. A guard covering exactly \
+            this hole exists for `AudioInputManager` and did not cover this file.
             """)
         XCTAssertTrue(config.contains("category still raised, nobody holds it"), """
             the failed-lowering line lost the half that makes it actionable (#902). The owner \
