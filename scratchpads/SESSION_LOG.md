@@ -18170,3 +18170,55 @@ geprüft · LOG-Modus unverändert (nummerierter Übersprung → ❌ Tod, unnumm
 `, #908` fehlte innerhalb der Anführungszeichen — in einem Repo, das zitierte Phrasen als
 `git grep`-Anker benutzt, ist das der dokumentierte Ausfallmodus), und „fünf Zeilen darunter"
 war eine Distanz, die niemand nachrechnen kann (je nach Eintrag 5, 6 oder 7). Beide ersetzt.
+
+
+---
+
+## #915 — das Selbstheilungs-Netz war halb stumm, und mein Wächter dafür war grün an der falschen Stelle
+
+`LaunchGuard` entscheidet, ob der Nutzer das Instrument sieht oder den Wiederherstellungs-
+Bildschirm. Ein Safe-Mode-Lauf führt einen ANDEREN View-Baum aus — ein Log, das nicht sagt,
+welchen Weg der Lauf nahm, lädt zu Schlüssen über einen Pfad ein, der nie lief.
+
+⭐ **Die Hälfte meiner Vermutung war falsch, BEVOR ich schrieb** (gemessen statt geraten):
+Safe Mode ist längst angekündigt, das `confirmHealthy` des Studios auch. Der Slice wurde
+dadurch kleiner und ehrlicher. Die echten Lücken: der NORMALE Start (sagte gar nichts), der
+Nutzer der Safe Mode verlässt, das Onboarding-`confirmHealthy`, `armForRiskyStartup` — und
+eine fünfte, die erst der Reviewer fand.
+
+⛔ **DER SCHWERSTE FUND WAR MEIN EIGENER WÄCHTER: er war GRÜN für eine Stelle, die GAR KEINE
+Zeile hatte.** Der `reset()` auf dem Wiederherstellungs-Bildschirm trug keinen
+`LaunchGuard:`-Breadcrumb; mein ±8-Zeilen-Fenster griff über eine Closure-Klammer und fand
+die Zeile des NACHBARN. **`HARNESS_LEDGER` sagt diesen Ausfall für genau diese Form vorher**
+(„FENSTER-Scan … ZWEIMAL versucht, zweimal verworfen") — ich habe die Form ein drittes Mal
+gebaut, ohne im Ledger nachzusehen, obwohl #909 wörtlich die Lehre hinterlassen hat, vorher
+nachzusehen.
+
+⛔ **Und meine Begründung zitierte die falsche Rücknahme.** Ich schrieb, ein weites Fenster
+sei „als unfalsifizierbar verworfen (#875)". #875 wurde wegen **FALSCH-ROT** verworfen (vier
+von fünf korrekten Stellen als ungeschützt gemeldet); **blind** war **#909**. Zwei
+Rücknahmen, entgegengesetzte Richtungen — und ich habe die eine für die andere zitiert und
+damit meine eigene Form falsch verteidigt.
+
+⭐ **DER WÄCHTER IST JETZT DIE DRITTE FASSUNG, und die Kette ist die Lehre:**
+1. **Fenster** (±8 Zeilen) → eine Stelle ohne eigene Zeile bestand auf der des Nachbarn.
+2. **Territorium** (die Lücke zwischen Nachbar-Aufrufen) → **zwei gefahrene Mutanten kamen
+   immer noch durch**, weil die Stellen hunderte Zeilen auseinanderliegen; die Lücke ist
+   genauso durchlässig wie ein Fenster.
+3. **BESITZ** — ein Breadcrumb gehört der Aufrufstelle, der er am NÄCHSTEN ist; jede Stelle
+   muss mindestens einen besitzen, auf ihrer eigenen Seite. **Keine Konstante, keine Grenze,
+   die man vergrössern kann.** Sieben Mutanten rot, echter Baum grün.
+
+⚠️ Fünf weitere Funde mitgezogen: „launch confirmed healthy" stand als VERGANGENHEIT vor dem
+Aufruf, obwohl `confirmHealthy()` still ablehnen kann (das Log hätte „bestätigt" tragen können,
+ohne dass etwas bestätigt wurde) · die Onboarding-Zeile war ein echter SUPERSTRING der
+Studio-Zeile, zwei Prosa-Stellen greppen die kurze · mein eigener Kommentar-Stripper statt
+`SourceText.codeOnly` (alle Zeilennummern meiner Fehlermeldungen lagen 172–726 daneben, und
+ein nachgestelltes `// LaunchGuard:` hätte den Scan befriedigt) · „die riskante ERSTE
+Startup (#214)" benannte eine Ursache, die die Verzweigung nicht kennen kann (drei Erzeuger) ·
+#860b für die falsche Lehre zitiert.
+
+**GESETZ, und es ist nicht „Fenster sind schlecht":** wer eine Wächter-FORM baut, sucht sie
+zuerst im Ledger. Steht sie dort als DEAD-END, ist die Frage nicht „wie mache ich sie
+besser", sondern „welche der dokumentierten Rücknahmen beantworte ich, und womit" — und die
+Antwort muss im Kopf des Wächters stehen, samt der Richtung, in der die Vorgänger scheiterten.
