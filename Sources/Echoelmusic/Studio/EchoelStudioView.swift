@@ -11536,6 +11536,14 @@ private struct VoiceCaptureRow: View {
             // route is claimed, and whether a second tap lands outside that window is
             // device behaviour nobody here has measured. "Tap Capture again" is true;
             // "wait a moment and it will work" would not be.
+            // #895 FIRST among the two failure reports, because it is the only one whose
+            // remedy is NOT "tap again": no number of taps changes a denied permission. It
+            // is a current-state fact re-derived on every tap, so it cannot go stale behind
+            // a refusal count. No Settings PATH is spelled out — it moves between iOS
+            // versions, and naming a wrong one is worse than naming none.
+            if controller.micAccessDenied {
+                return "Microphone access is off for Echoel — turn it on in Settings, then tap Capture."
+            }
             if controller.micRefusals > 0 {
                 // #893: the COUNT is the only thing that changes on a repeat, so it carries
                 // the whole answer to the probe's "twice in a row". Suppressed at 1 so the

@@ -17059,3 +17059,58 @@ unterzählt die Anzeige in einer exotischen Folge — die sichere Richtung, und 
 Reset dort.
 
 **Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. Nichts gerätverifiziert.
+
+## 2026-08-30 — #895: der Hänger bei VERWEIGERTER Erlaubnis, und die Flagge, die seit dem Start log
+
+**Drei Scheiben hintereinander haben einen 0-%-Hänger beseitigt, und keine hat ihn für den
+Nutzer beseitigt, der das Mikrofon VERWEIGERT hat.** Für den zeigt iOS keinen Dialog,
+`startRecording()` kehrt sofort zurück, `hasPermission` bleibt false — und mein Abbruch fragt
+„granted?", also feuert er nie. Der Hänger hat #891, #892 und #893 überlebt, weil der
+Diskriminator eine Frage stellte, die diesen Fall nicht trifft.
+
+**Die Flagge, die es hätte sagen können, log seit dem Start.** `permissionDenied` wurde
+AUSSCHLIESSLICH im Rückruf der Berechtigungsanfrage geschrieben — beim Start las sie also
+„nicht verweigert", während das System „verweigert" sagte. ⭐ **Warum das niemandem auffiel:
+die Flagge hatte repo-weit NULL Leser.** Eine ungelesene Flagge kann man nicht beim Lügen
+beobachten — deshalb müssen ihre Reparatur und ihr erster Leser zusammen kommen.
+
+**Die Form ist GELIEHEN, nicht erfunden:** `CameraRPPGBioPublisher` leitet sein eigenes
+`permissionDenied` direkt aus dem Autorisierungsstatus ab. Die Kamera hat zusätzlich
+`.restricted`; `AVAudioApplication.recordPermission` kennt den Fall nicht, also ist `.denied`
+hier alles.
+
+**Zwei Zusätze, beide klein:** `startRecording()` liest den Status jetzt VOR seiner
+Berechtigungs-Guard neu (`checkPermission()` lief sonst einmal in `init`, also wurde ein
+Nutzer, der die Erlaubnis in den Einstellungen repariert hatte, beim nächsten Tipp noch
+abgewiesen und kam erst beim übernächsten durch — selbstheilend und deshalb unsichtbar). Und
+die Beschriftung nennt den verweigerten Zugriff VOR dem Ablehnungs-Zähler, weil er der
+einzige der beiden ist, dessen Abhilfe NICHT „nochmal tippen" heißt. **Kein Einstellungs-Pfad
+ausgeschrieben** — der wandert zwischen iOS-Versionen, und einen falschen zu nennen ist
+schlimmer als keinen.
+
+**Die wertvollste Zusicherung ist die NEGATIVE.** „Unbestimmt" ist ein DRITTER Zustand: der
+Systemdialog steht offen, das Warten ist richtig. Die zwei Prüfungen zu einem nackten
+`if !mic.isRecording {` zusammenzuziehen liest sich wie sauberes Entdoppeln und würde die
+allererste Aufnahme jedes neuen Nutzers abbrechen. Der Wächter verbietet genau diese Form.
+
+## 2026-08-30 — #895b: mein eigener Nachtrag, und er hat einen Wächter rot gemacht, der recht hatte
+
+**Beim Nachzeichnen der eigenen Scheibe gefunden, nicht von einem Reviewer:** eine Ablehnung
+(Zähler 1) → Erlaubnis mitten in der Sitzung entzogen → Abbruch „Zugriff aus" (Zähler bleibt
+1) → Erlaubnis zurückgegeben → nächster Versuch wird abgelehnt → Zähler 2 → „(2× in a row)".
+Es waren NICHT zwei hintereinander; dazwischen lag ein Abbruch anderer Art. Das ÜBER-zählt,
+und Über-Zählen ist die unsichere Richtung (die von #893 akzeptierte Asymmetrie unter-zählt
+und verbirgt dabei nur ein Scheitern, das wirklich passiert ist).
+
+**Die Ein-Zeilen-Reparatur ist an meinem eigenen Wächter hängengeblieben — und der Wächter
+hatte in der Sache recht und im Fenster unrecht.** Anspruch 7 verbot `micRefusals = 0`
+IRGENDWO in `begin()`, während seine Fehlermeldung nur über das SCHARFSTELLEN sprach. Ein
+Reset im Abbruch-Zweig ist ein echtes Ende des Laufs. Fenster auf den Scharfstell-Block
+eingegrenzt — **dieselbe Lehre wie #894 Befund 4, einen Commit später, in der Datei, die sie
+gelernt hat.** Belegt statt behauptet: auf dem Elternbaum war die ALTE Zusicherung grün, auf
+dem Arbeitsbaum wäre sie ROT geworden — also hätte sie korrekte Arbeit verboten, der
+#364-Defekt.
+
+**Ehrliche Grenze:** Der Pflicht-Reviewer für #895 lief noch, als #895b geschrieben wurde;
+sein Bericht deckt den Baum VOR diesem Nachtrag ab. Das wird beim Eintreffen ausdrücklich
+gegen den aktuellen Stand geprüft. Alles Text-Ebene, CI ist der einzige Compiler.

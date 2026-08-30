@@ -9,7 +9,7 @@
 // the panel closing mid-take. Every claim here is a JOIN between two files — the class
 // of defect where renaming one side leaves a door pointing at nothing (#351).
 //
-// ⚠️ HONEST LIMITS. 7 tests, 22 `XCTAssert*` STATEMENTS — 3+3+3+2+5+2+4, measured with
+// ⚠️ HONEST LIMITS. 8 tests, 27 `XCTAssert*` STATEMENTS — 3+3+3+2+5+2+4+5, measured with
 // `awk` per `func test`, not by eye. ⛔ Three hand-counts in this header have now been
 // wrong (12, then 16, then 20 with a bogus 3+3+3+2+5+4 split); the command that settles it
 // is in the SESSION_LOG for #892, and a fourth hand-count is not the fix — reading the
@@ -54,6 +54,28 @@
 // `hasPermission` discriminator, whose removal would abort the legitimate permission wait
 // instead, and the deliberate absence of `releaseMic()` on that path, which would write a
 // three-rung stop ladder for a mic that never started (#882).
+//
+// ⭐ #895 ADDED AN EIGHTH CLAIM AND CLOSED THE CASE #891 LEFT OPEN. Three slices in a row
+// removed a 0 % hang and none of them removed it for a user who has DENIED the microphone:
+// iOS shows no prompt for that user and returns immediately, so `hasPermission` stayed false
+// and the refusal branch — which asks "granted?" — never fired. The flag that could have
+// told the truth, `MicrophoneManager.permissionDenied`, was written ONLY inside the request
+// callback, so at launch it read "not denied" while the system said denied. ⭐ THE REASON
+// NOBODY CAUGHT IT: the flag had ZERO readers repo-wide. An unread flag cannot be observed
+// to lie, which is why its first reader and its repair have to ship together.
+//
+// ⭐ §3 GRADING OF THE EIGHTH CLAIM: 4 of its 5 assertions do not hold on the parent
+// `e55cfcb` — two are plainly red (the derived flag, the refresh before the guard) and two
+// fail through `XCTUnwrap` on an anchor that does not exist there yet (the denied branch in
+// `begin()`, the denied branch in `caption`), which is a failure POINT rather than an
+// assertion and is named as such. The fifth is the negative one below: GREEN on the parent
+// and vacuously so, because the bare test it forbids was never written. That is the THIRD
+// vacuous counterweight in this file — they are listed, never counted as forward-red.
+//
+// ⚠️ THE HIGHEST-VALUE ASSERTION OF THAT CLAIM IS THE NEGATIVE ONE: `begin()` must NOT hold
+// a bare `if !mic.isRecording {`. Undetermined is a THIRD state — neither granted nor denied
+// — and the system prompt is open in it. Collapsing the two checks into one reads like tidy
+// deduplication and aborts the very first capture every new user ever tries.
 //
 // ⛔ #894 — REVIEWER PASS ON #893, AND THREE OF ITS FOUR FINDINGS WERE PROSE THAT THE
 // RENAME FALSIFIED. #893 moved four NEEDLES and missed the RATIONALES: `cancel()`'s comment
@@ -305,11 +327,18 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
         let cancelAt = try XCTUnwrap(controller.range(of: "func cancel()", range: beginAt.upperBound..<controller.endIndex),
                                      "cancel() moved above begin() — re-anchor this window (#454)")
         let begin = String(controller[beginAt.upperBound..<cancelAt.lowerBound])
-        XCTAssertFalse(begin.contains("micRefusals = 0"),
-                       "begin() must NOT clear the streak: arming is not where a run of "
-                       + "refusals ends, and a reset here makes \"in a row\" impossible while "
-                       + "looking like ordinary hygiene. Nothing renders the count during "
-                       + ".capturing anyway — the caption's switch takes its own branch (#893)")
+        // ⛔ #895b: this window used to be ALL of `begin()`, and the message only ever spoke
+        // about ARM TIME. When the denied branch legitimately ended a streak, the assertion
+        // would have gone red on correct code — a guard that forbids correct work is the
+        // #364 defect. Bounded to the arm block, it now asserts exactly what it says.
+        let armEnd = try XCTUnwrap(begin.range(of: "if micStartedByUs {"),
+                                   "the arm block's boundary moved — re-anchor (#454)")
+        XCTAssertFalse(String(begin[..<armEnd.lowerBound]).contains("micRefusals = 0"),
+                       "ARMING must NOT clear the streak: it is not where a run of refusals "
+                       + "ends, and a reset here makes \"in a row\" impossible while looking "
+                       + "like ordinary hygiene. Nothing renders the count during .capturing "
+                       + "anyway — the caption's switch takes its own branch (#893). A reset "
+                       + "inside an ABORT branch is a real end of the run and is allowed")
         XCTAssertTrue(begin.contains("(\\(micRefusals)x in a row)"),
                       "the breadcrumb must carry the count, so the exported log answers the "
                       + "#890 probe's \"twice in a row\" even when nobody watched the screen")
@@ -339,6 +368,58 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
         XCTAssertTrue(studio.contains("controller.micRefusals == 1 ? \"\""),
                       "the count is suppressed at 1 — a single ordinary failure must not read "
                       + "like a tally; the number is new information only when it repeats")
+    }
+
+    /// #895 — a DENIED microphone ends the take instead of hanging it, and the third
+    /// permission state is not swept up with it. Five assertions.
+    func testADeniedMicrophoneEndsTheTakeAndUndeterminedStillWaits() throws {
+        let mic = try source("Sources/Echoelmusic/MicrophoneManager.swift")
+        XCTAssertTrue(mic.contains("permissionDenied = status == .denied"),
+                      "permissionDenied must be DERIVED from the system status, not written "
+                      + "only inside the request callback — as a callback-only flag it read "
+                      + "\"not denied\" at launch for a user who had denied earlier, and "
+                      + "nothing noticed because it had zero readers repo-wide (#895)")
+        let startAt = try XCTUnwrap(mic.range(of: "func startRecording() {"),
+                                    "startRecording() was renamed — re-anchor (#454)")
+        let guardAt = try XCTUnwrap(mic.range(of: "guard hasPermission else {", range: startAt.upperBound..<mic.endIndex),
+                                    "the permission guard moved — re-anchor (#454)")
+        XCTAssertTrue(String(mic[startAt.upperBound..<guardAt.lowerBound]).contains("checkPermission()"),
+                      "the permission state must be re-read from the system BEFORE the guard: "
+                      + "checkPermission() otherwise runs once in init, so a user who fixed "
+                      + "the permission in Settings was refused on the next tap (#895)")
+
+        let controller = try source("Sources/Echoelmusic/Studio/VoiceCaptureController.swift")
+        let beginAt = try XCTUnwrap(controller.range(of: "func begin(mic: MicrophoneManager, synth: PolySynthVoice) {"),
+                                    "begin() was renamed — re-anchor (#454)")
+        let cancelAt = try XCTUnwrap(controller.range(of: "func cancel()", range: beginAt.upperBound..<controller.endIndex),
+                                     "cancel() moved above begin() — re-anchor (#454)")
+        let begin = String(controller[beginAt.upperBound..<cancelAt.lowerBound])
+        let deniedAt = try XCTUnwrap(begin.range(of: "if !mic.isRecording, mic.permissionDenied {"),
+                                     "begin() stopped checking for a denied microphone (#895)")
+        let grantedAt = try XCTUnwrap(begin.range(of: "if !mic.isRecording, mic.hasPermission {"),
+                                      "begin() stopped checking for the placeholder refusal")
+        XCTAssertTrue(deniedAt.lowerBound < grantedAt.lowerBound,
+                      "denied must be tested BEFORE granted: a denied user never satisfies "
+                      + "hasPermission, so with the granted check first the take hangs at 0 % "
+                      + "exactly as it did before #891")
+        XCTAssertFalse(begin.contains("if !mic.isRecording {"),
+                       "THE COUNTERWEIGHT: undetermined is a THIRD state, neither granted nor "
+                       + "denied, and the system prompt is open in it. Collapsing the two "
+                       + "checks into one bare isRecording test reads like tidy deduplication "
+                       + "and aborts the first capture every new user ever tries (#895)")
+
+        let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        let capAt = try XCTUnwrap(studio.range(of: "private var caption: String {"),
+                                  "VoiceCaptureRow's caption was renamed — re-anchor (#454)")
+        let caption = String(studio[capAt.upperBound...].prefix(2600))
+        let capDenied = try XCTUnwrap(caption.range(of: "if controller.micAccessDenied {"),
+                                      "the denied message left the caption")
+        let capRefusal = try XCTUnwrap(caption.range(of: "if controller.micRefusals > 0 {"),
+                                       "the refusal message left the caption")
+        XCTAssertTrue(capDenied.lowerBound < capRefusal.lowerBound,
+                      "the denied message must outrank the refusal count: it is the only one "
+                      + "of the two whose remedy is NOT \"tap again\", and no number of taps "
+                      + "changes a denied permission")
     }
 
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)

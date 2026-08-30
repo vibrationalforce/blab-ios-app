@@ -95,23 +95,50 @@ final class MicrophoneManager: NSObject {
 
     // MARK: - Permission Handling
 
-    /// Check if we already have microphone permission
+    /// Read the CURRENT system permission state into both flags.
+    ///
+    /// ⛔ #895 — `permissionDenied` USED TO BE WRITTEN ONLY BY THE REQUEST CALLBACK, so at
+    /// launch it read `false` for a user who had denied the microphone in an earlier
+    /// session: a flag that says "not denied" while the system says denied. Nothing caught
+    /// it because the flag had ZERO readers repo-wide (the other `permissionDenied` hits are
+    /// `CameraRPPGBioPublisher`'s, a different type). An unread flag cannot be observed to
+    /// lie — which is why its first reader has to arrive together with its repair.
+    ///
+    /// ⭐ The shape is BORROWED, not invented: `CameraRPPGBioPublisher` derives its own
+    /// `permissionDenied` straight from the authorization status. The camera adds
+    /// `.restricted`; `AVAudioApplication.recordPermission` has no such case, so `.denied`
+    /// is the whole of it here.
+    ///
+    /// ⚠️ On macOS/watchOS/tvOS `hasPermission` is hard-coded false and the state is simply
+    /// UNKNOWN — `permissionDenied` stays false there on purpose. "Unknown" and "denied"
+    /// are different, and a surface that says "access is off" on a platform that never asked
+    /// would be inventing a fact.
     private func checkPermission() {
         #if os(macOS)
         hasPermission = false // macOS handles mic permission via system dialog on first use
+        permissionDenied = false
         #elseif os(watchOS) || os(tvOS)
         hasPermission = false
+        permissionDenied = false
         #else
         if #available(iOS 17.0, *) {
-            hasPermission = AVAudioApplication.shared.recordPermission == .granted
+            let status = AVAudioApplication.shared.recordPermission
+            hasPermission = status == .granted
+            permissionDenied = status == .denied
         } else {
             switch AVAudioSession.sharedInstance().recordPermission {
             case .granted:
                 hasPermission = true
-            case .denied, .undetermined:
+                permissionDenied = false
+            case .denied:
                 hasPermission = false
+                permissionDenied = true
+            case .undetermined:
+                hasPermission = false
+                permissionDenied = false
             @unknown default:
                 hasPermission = false
+                permissionDenied = false
             }
         }
         #endif
@@ -169,6 +196,12 @@ final class MicrophoneManager: NSObject {
 
     /// Start recording audio from the microphone
     func startRecording() {
+        // #895: re-read the SYSTEM before deciding. `checkPermission()` otherwise runs once,
+        // in `init`, so a user who fixed the permission in Settings and came back was still
+        // refused on the next tap and only got through on the one after — the request call
+        // below happens to return the granted status immediately, which made the staleness
+        // self-healing and therefore invisible. One property read, on a user gesture.
+        checkPermission()
         guard hasPermission else {
             log.audio("⚠️ Cannot start recording: No microphone permission", level: .warning)
             requestPermission()
