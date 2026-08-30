@@ -18222,3 +18222,59 @@ Startup (#214)" benannte eine Ursache, die die Verzweigung nicht kennen kann (dr
 zuerst im Ledger. Steht sie dort als DEAD-END, ist die Frage nicht „wie mache ich sie
 besser", sondern „welche der dokumentierten Rücknahmen beantworte ich, und womit" — und die
 Antwort muss im Kopf des Wächters stehen, samt der Richtung, in der die Vorgänger scheiterten.
+
+
+---
+
+## #916 / #916b — der Absturzbeweis lebte genau EINEN Start
+
+`EchoelCrashLog.begin()` öffnet die Diag-Datei mit `O_TRUNC`. Auf der Platte liegt immer
+genau ein Lauf; der abgestürzte überlebt nur in `previousSession`, im Arbeitsspeicher, für
+die Dauer des nächsten Starts. Start C überschreibt ihn. Sieben Gerätelogs tief in der
+`isInputConnToConverter`-Familie und ohne benannten Auslöser ist das die teuerste
+Voreinstellung, die dieses Repo hat.
+
+**Jetzt:** endet ein Lauf schlecht, legt `begin()` eine Kopie in eine Schwesterdatei, und
+die immer erreichbare „Diagnostics"-Zeile exportiert diesen Lauf PLUS den aufbewahrten
+Absturz. Die Tür ist der tragende Teil (#454) — eine aufbewahrte Datei, die nichts rendert,
+ist kein Feature, sondern eine Datei.
+
+⛔ **DREI EIGENE FEHLER, jeder in der schmeichelnden Richtung, zwei davon selbst gefunden:**
+
+1. **Das Trimmen schnitt die Build-Zeile ab.** Ein blankes `suffix(budget)` — und der eigene
+   Wächter argumentiert eine Zeile weiter, ein Export müsse den Build in seiner ERSTEN Zeile
+   nennen. Genau bei den Logs, die groß genug zum Trimmen sind, fiel sie weg. Selbst
+   gefunden. Jetzt Startzeile + Trennmarke + Ende, zusammen exakt das Budget.
+2. **Die Sprosse stand HINTER ihrem Schritt, und die Ergebniszeile behauptete, was sie nie
+   gesehen hatte** — während der Kommentar direkt darüber das Leitergesetz (#859/#862b)
+   zitierte, das beide Hälften bricht. `try?` verwirft das Ergebnis; „retained … N chars"
+   wäre auch bei voller Platte gedruckt worden. Vom Reviewer gefunden.
+3. **Der Zähl-Absatz sagte SIEBEN Prosa-Stellen und alle harmlos — es sind ZWÖLF Dateien /
+   VIERZEHN Nennungen**, und unter den sechs übersehenen war die stärkste Gegenprobe: eine
+   Fehlermeldung im BLOCKIERENDEN Bündel, die wörtlich „which is what that row renders"
+   sagt. Der Absatz wies sich selbst als „gelesen, nicht geraten" aus. Vom Reviewer gefunden.
+
+⭐ **UND EIN ECHTER LOGIKFEHLER, den nur der Reviewer sehen konnte:** `looksLikeUnseenCrash`
+hat ZWEI Arme, und nur der erste verlangt eine Marke. Arm 2 („erreichte Start, endete nicht
+im Hintergrund") trifft auch auf Geräteneustart, leeren Akku oder einen aus Xcode gestoppten
+Lauf zu. Der Aufbewahrungsplatz hält EINE Datei — ohne Regel hätte so ein Lauf zwei Starts
+später einen SIGSEGV samt Backtrace zerstört. `shouldReplaceRetained`: markiert schlägt
+unmarkiert, unmarkiert ersetzt nur unmarkiert. **„Das Neueste gewinnt" ist die falsche Regel,
+sobald der Platz zwei verschiedene BEWEISSTÄRKEN aufnehmen kann.**
+
+⚠️ **Der Tür-Wächter wäre bei KORREKTER Arbeit rot geworden** (#364): er pinnte
+`count == 1` auf `DiagReport(text: EchoelCrashLog.` — das Auto-Blatt reicht eine lokale
+Variable, und sie einzusetzen (eine gewöhnliche, richtige Vereinfachung) hätte die Zahl auf 2
+gebracht, während die Tür weiter stimmt. Jetzt Vorhandensein plus gezielte Abwesenheit, ohne
+Zählung; die legitime Vereinfachung bleibt nachweislich grün, vier Mutanten rot.
+
+⚠️ **Drei eingestandene Grenzen stehen im Code statt in niemandes Kopf:** „gleiches
+Verzeichnis" gilt nur ZUM SELBEN ZEITPUNKT (`fileURL` ist computed und fällt auf
+`temporaryDirectory` zurück) · die Datei wird NIE geleert, es gibt keinen In-App-Weg dazu ·
+der KOMBINIERTE Export wird größer als die Datei, über die zwei andere Dateien ihre
+80-Zeichen-Schranke begründen.
+
+**GESETZ:** eine Zählung, die sich selbst als gemessen ausweist, muss den BEFEHL neben sich
+haben. Sonst liest die nächste Sitzung ein URTEIL („keine wurde falsch"), das über eine Menge
+gefällt wurde, die die stärkste Gegenprobe gar nicht enthielt — und ein Urteil ist teurer als
+eine Zahl, weil es sich nicht nachrechnen lässt.
