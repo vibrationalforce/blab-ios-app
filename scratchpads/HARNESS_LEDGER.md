@@ -2496,3 +2496,30 @@ Broadcast, ImmersiveStage, ProUnlock, Session). Türlos ist hier kein Defekt; t�
 nirgends aufgeschrieben** wäre einer. Der Lauf hat also KEINEN neuen Register-Befund erzeugt —
 was einen eigenen Eintrag wert ist, weil sonst der nächste Doctor-Lauf dieselben neun Zeilen neu
 bewertet.
+
+## PLAYBOOK (2026-08-30, #886): ein Eigenschafts-NAME gehört nicht einem Typ — prüfe den EMPFÄNGER, bevor du eine Nadel daraus baust
+
+Ein Wächter sollte alle Leser von `AudioEngine.masterLevel` einsammeln. Die naheliegende Nadel
+`.masterLevel` (Kommentare gestrippt) wählt **sieben** Dateien — und **fünf davon lesen eine
+ANDERE Eigenschaft gleichen Namens**: `MusicalFrame.masterLevel` (`HeaderMonitors`,
+`MusicMediaMapping`, `MetalBioView`) plus einen `AutomationPlayer`-Enum-Case, der ebenfalls
+`.masterLevel` heißt. Der Wächter wäre auf einem KORREKTEN Baum rot gewesen — die #408-Falle,
+diesmal nicht durch eine mehrdeutige STELLE, sondern durch einen mehrdeutigen NAMEN.
+
+**Rezept:** vor jeder Member-Nadel `git grep -n "\.<name>\b" -- Sources` laufen lassen und die
+TREFFER lesen, nicht ihre Anzahl. Findet man zwei Typen, gibt es drei Auswege, in dieser
+Reihenfolge: (1) ein Geschwister-Member, das nur EINEM Typ gehört (hier `.masterLevelR`, die
+Stereo-Hälfte — `MusicalFrame` hat sie nicht), (2) den Empfänger mit ins Muster nehmen
+(`audioEngine.` — **abgelehnt**, weil eine Ansicht die Engine anders binden kann und die Nadel
+dann still nichts trifft), (3) den Namen ändern. Wer (1) nimmt, schreibt die KOSTEN dazu: ein
+künftiger Nur-Mono-Leser ist unsichtbar, und ein Gegengewicht muss pinnen, dass der
+Diskriminator noch diskriminiert.
+
+⭐ **Und der Anlass ist die #756-Form in ihrer teuersten Ausprägung:** die AU5-Notiz im
+`BAUSTELLEN_BOARD` hat einen 60-Hz-Freeze-Posten mit der Prämisse „die Props liest NUR
+`MasterLoudnessGrid`" abgeräumt. Der SCHLUSS („heute kein Live-Freeze") stimmt weiter — aber aus
+einem Grund, den die Notiz nie nannte (Geschwister im `ZStack`, nicht Vorfahre). Der ZEUGE ist
+mit **#747** falsch geworden: `SpectralDonutView` liest dieselben Meter und bekam damals eine
+Tür. **Niemand hat die Notiz angefasst; die Welt hat sich unter ihr geändert.** Genau dafür ist
+Anspruch 1 des neuen Wächters da — er leitet die Leser-Menge zur Laufzeit aus `Sources/` ab
+statt sie abzutippen (#883-Muster).

@@ -141,9 +141,9 @@ laufenden b1a38b9/0bc1a9d/etc.-Stand.
 | AU1 | **Arrangement additive Codable** (kein stiller Song-Verlust) | Sequencer/Arrangement.swift | #39/#40/#11 | ✅ 66f94dc GRÜN (beide Gates) |
 | AU2 | Bio löst zu neutral — **Ursache gefunden: fehlende Range-Expansion** (depth/curve/invert skalieren runter/formen, aber nichts weitet ein enges Bio-Fenster [z.B. Kohärenz ~0.3–0.6] auf Vollskala) | Core/ModulationMatrix.swift | #60, halb #61 | ✅ **PRIMITIV GEBAUT f486c5c:** `ModRoute.inputLow/inputHigh` Sensitivity-Window (Identity-Default = golden-gate), 10 Tests, code-reviewer CLEAN. UI-Knopf + Founder-Feel-Tuning = device-gated Folge |
 | AU3 | DDSP-Header-Invariante korrigieren (Doc-Fix) | DSP/EchoelDDSP.swift:44 | #59, schützt jeden DSP-Edit | ✅ 277a543 (+Präzisierung), concurrency-reviewer verifiziert. Deckte NEUEN Ticket-Befund auf → AU6 |
-| AU6 | **Bio-Pfad Cross-Thread-COW-Hazard:** `applyBioReactive→updateSpectralEnvelope` schreibt `harmonicAmplitudes`-Array um (nicht-atomar) auf PolySynthVoice/AUv3-Direktpfad | DSP/EchoelDDSP.swift:1287 + PolySynthVoice/AUv3 | #23-Klasse Audio-Stabilität | offen — audio-review+device Pflicht, eigener Zyklus (Bio via SPSC ODER Array-Write render-seitig) |
+| AU6 | **Bio-Pfad Cross-Thread-COW-Hazard:** `applyBioReactive→updateSpectralEnvelope` schreibt `harmonicAmplitudes`-Array um (nicht-atomar) auf PolySynthVoice/AUv3-Direktpfad | DSP/EchoelDDSP.swift + PolySynthVoice | #23-Klasse Audio-Stabilität | ✅ **GESCHLOSSEN (nachgemessen 2026-08-30, #886).** Der Dateikopf von `EchoelDDSP.swift` sagt es selbst: BEIDE Besitzer rufen `applyBioReactive` im RENDER-Block (`BioReactiveSynthVoice` und `PolySynthVoice` reihen auf dem Poll in eine SPSC-Queue ein und drainen im Render). Der DRITTE Besitzer — der AUv3-KVO-Poll mit den `BioMirror`-Floats — ist mit #121 Slice 1 verschwunden; `git grep -n BioMirror -- Sources` liefert heute GENAU EINEN Treffer, und der ist der Grabstein-Kommentar. Folge, wörtlich im Kopf: der In-Place-Rewrite passiert „on the ONE render thread that also reads it, so there is no longer a cross-thread array race / COW hazard on any path". ⚠️ Die Spaltenangabe `:1287` ist bewusst entfernt — eine Zeilennummer in einer lebenden Datei ist ein Datum, kein Ort |
 | AU4 | MicrophoneManager `guard !isRecording` + Session-Teardown (#22-Klasse) | MicrophoneManager.swift:194/269 | #13 | ✅ 0077a59 grün, audio-thread-reviewer APPROVED (re-entry-guard + downgradeToPlaybackAfterRecording statt setActive(false)). PRÄVENTIV (Pfad dormant), reitet nächsten Feature-Deploy — kein eigener Hörtest. Follow-ups geloggt: recordingRouteNeeded→Refcount vor Mic-Entkopplung; wahrscheinlicherer Live-Pfad = AudioEngine.stop():632 (unberührt, #22 gilt gefixt) |
-| AU5 | AudioEngine Meter-Props `@ObservationIgnored` (60-Hz-Freeze-Landmine) | Audio/AudioEngine.swift:59-67 | #11 | offen — mechanisch, launchGeneration-Muster |
+| AU5 | AudioEngine Meter-Props `@ObservationIgnored` (60-Hz-Freeze-Landmine) | Audio/AudioEngine.swift (`masterLevel`/`masterLevelR`) | #11 | offen — **aber NICHT „mechanisch"**, siehe die korrigierte Notiz unter dieser Tabelle (#886). Die zwei Wörter widersprachen der Notiz zwölf Zeilen tiefer, die denselben Posten „riskanter Live-Meter-Self-Poll-Refactor" nennt: ein Slogan, der Arbeit KLEINER macht als sie ist, ist gefährlicher als eine falsche Zahl |
 
 > HIGH-Befunde außerhalb der Top-5 (eigene Zyklen): AUv3 Cross-Thread-Race + malloc im Render
 > (EchoelmusicAudioUnit.swift:226/391 — deferred Target, #50), ~~Colab umgeht Egress-Gate
@@ -155,6 +155,23 @@ laufenden b1a38b9/0bc1a9d/etc.-Stand.
 > von `MasterLoudnessGrid` (Leaf-Meter, sichtbarkeits-gegatet) gelesen — EchoelStudioView liest sie NICHT,
 > also KEIN Live-Freeze heute; das Shield bräuchte einen riskanten Live-Meter-Self-Poll-Refactor (unter
 > No-Compiler nicht blind). Präventiv-only → eigener Gerät-/Compiler-Takt.
+> ⛔ **DAS WORT „NUR" IST SEIT #747 FALSCH — der SCHLUSS hält, der ZEUGE nicht (nachgemessen 2026-08-30, #886).**
+> `git grep -n "masterLevelR" -- Sources` findet einen ZWEITEN echten Leser: `SpectralDonutView`
+> (zweimal, `max(masterLevel, masterLevelR)` als Hüllkurve für Ringdicke und Sway). Der war
+> **türlos**, als diese Notiz geschrieben wurde, und ist mit #747 (Knopf „Full screen" im
+> `visualPanel`) **erreichbar** geworden — die Prämisse hat sich also geändert, ohne dass jemand
+> die Notiz anfasste, und ein Text-Wächter hätte das nie rot gemacht.
+> ⭐ **Warum „KEIN Live-Freeze" trotzdem STIMMT, und zwar aus einem Grund, den die alte Notiz gar
+> nicht nannte:** `SpectralDonutView` ist ein eigener `View`-`struct` (also eine echte
+> Beobachtungsgrenze) und liegt im `.fullScreenCover` als **GESCHWISTER** von `visualVJOverlay`
+> in EINEM `ZStack` — nicht als dessen Vorfahre. Es zeichnet ohnehin mit 60 Hz
+> (`TimelineView(.animation)`), das ist seine Aufgabe. Die Deckel-Closure selbst liest nichts
+> Schnelles: `currentToneHz` = `session.a4Hz` + `rootIndex`, `autoMode`/`spectralDonuts` sind
+> `@AppStorage`. **Das Freeze-Gesetz redet über VORFAHREN eines Menü-Wirts** — Geschwister-Churn
+> ist harmlos.
+> ⚠️ Die Lehre ist die #756-Form: **eine richtige Schlussfolgerung mit falsch gewordenem Beleg ist
+> schlimmer als ein offener Posten** — wer sie später als Prämisse benutzt („nichts sonst liest die
+> Meter"), leitet daraus eine Freigabe ab, die der Beleg nicht mehr trägt.
 > PLAUSIBLE/Gerät-Verify: SPSCQueue OSAtomic-Race (:153) — höchstes latentes Risiko, kein Ralph-Quick-Win.
 > #66 (tote Türen) = eigener Closeout-Loop.
 

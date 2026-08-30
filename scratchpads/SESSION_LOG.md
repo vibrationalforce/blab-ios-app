@@ -16590,3 +16590,43 @@ Jeder Zyklus korrigiert sie beim Lesen.
 **Gates:** letzter Code-Commit `1267966` = `Xcode Compile Check` **success**. Dieser Commit fasst
 nur `scratchpads/` + `decisions.csv` an. `CLAUDE.md` unverändert bei 149 611 B (Decke 150 000).
 **Deploy weiter gehalten** — kein Gerätelog, keine Founder-Antwort.
+
+## 2026-08-30 (cron, Fortsetzung) — #886: zwei Audit-Zeilen waren abgelaufen, eine davon in die teure Richtung
+
+**Der ganze Zyklus in einem Satz: der Architektur-Audit-Tabelle im `BAUSTELLEN_BOARD` standen
+zwei Posten offen, die es nicht mehr sind — und der eine räumte sich mit einer Prämisse ab, die
+seit #747 falsch ist.**
+
+**AU6 (Bio-Pfad Cross-Thread-COW-Hazard) = GESCHLOSSEN, nachgemessen.** Der Kopf von
+`EchoelDDSP.swift` sagt es selbst: beide verbliebenen Besitzer rufen `applyBioReactive` im
+RENDER-Block (SPSC-Einreihung auf dem Poll, Drain im Render). Der dritte Besitzer — der
+AUv3-KVO-Poll mit den `BioMirror`-Floats — ging mit #121 Slice 1; `BioMirror` hat in `Sources/`
+heute **null** Vorkommen im CODE (nur den Grabstein-Kommentar). Die Zeile queute also eine
+HIGH-Audio-Thread-Untersuchung, die fertig ist.
+
+**AU5 (Meter-Props als 60-Hz-Freeze-Landmine) = Schluss hält, Zeuge nicht.** Die Notiz sagte
+„die Props liest NUR `MasterLoudnessGrid`". Gemessen: `SpectralDonutView` liest sie auch
+(zweimal, `max(masterLevel, masterLevelR)`), und es war **türlos**, als die Notiz entstand —
+**#747** gab ihm die Tür. Warum „kein Live-Freeze" trotzdem STIMMT, stand nirgends: der Donut ist
+ein eigener `View`-`struct` und liegt im `.fullScreenCover` als **GESCHWISTER** von
+`visualVJOverlay` in EINEM `ZStack`, nicht als dessen Vorfahre. Das Freeze-Gesetz redet über
+VORFAHREN. Zusätzlich korrigiert: die Tabelle nannte den Posten „mechanisch", die Notiz zwölf
+Zeilen tiefer „riskanter Refactor" — ein Slogan, der Arbeit kleiner macht, als sie ist.
+
+**Neuer Wächter** `Tests/CISmoke/TheMeterReadersAreNamedWhereTheyAreClearedTests.swift`
+(4 Ansprüche). Er leitet die Leser-Menge zur LAUFZEIT aus `Sources/` ab, statt sie abzutippen.
+Benotung per Python-Transkription gegen HEAD **und** Arbeitsbaum:
+· Anspruch 1 (jeder Leser ist in der Notiz genannt) — **REGRESSION**, rot auf HEAD
+· Anspruch 3 (die Notiz trägt ihren GRUND, nicht nur die Liste) — rot auf HEAD, dieselbe
+  Abwesenheit (#486: eine Abwesenheit, zweimal gemeldet, ist EIN Befund)
+· Ansprüche 2 + 4 — **GEGENGEWICHTE**, grün auf beiden Bäumen, und genau das ist ihr Zweck
+
+**Die Nadel-Lehre, weil sie teuer war:** `.masterLevel` als Nadel wählt **sieben** Dateien, und
+**fünf lesen eine andere Eigenschaft gleichen Namens** (`MusicalFrame.masterLevel`) — der Wächter
+wäre auf korrektem Baum rot gewesen. Genommen wurde die Stereo-Hälfte `.masterLevelR`, die nur
+der Engine gehört; die KOSTEN (ein Nur-Mono-Leser bleibt unsichtbar) stehen im Kopf statt
+verschwiegen zu werden. Der Empfänger (`audioEngine.`) wurde bewusst NICHT Teil der Nadel —
+eine Ansicht kann die Engine anders binden, und eine Nadel, die ihr Ziel nicht treffen kann,
+ist der Defekt, den dieses Bündel verhindern soll.
+
+`needle-reachability.py`: 0 Befunde. `Sources/` unverändert — kein Audio-Thread-Review nötig.
