@@ -2523,3 +2523,28 @@ mit **#747** falsch geworden: `SpectralDonutView` liest dieselben Meter und beka
 Tür. **Niemand hat die Notiz angefasst; die Welt hat sich unter ihr geändert.** Genau dafür ist
 Anspruch 1 des neuen Wächters da — er leitet die Leser-Menge zur Laufzeit aus `Sources/` ab
 statt sie abzutippen (#883-Muster).
+
+## PLAYBOOK (2026-08-30, #888/#889): der BILLIGE Weg, das Test-Bündel-Bauen zu prüfen
+
+`Xcode Compile Check` baut **nur `Sources/`** — ein grünes Häkchen dort sagt über eine
+TESTDATEI nichts (`Tests/CISmoke/CLAUDE.md` §5). Der übliche Nachweis ist der Job-Log der
+CI/CD-Pipeline: `** TEST EXECUTE FAILED **` OHNE `** TEST BUILD FAILED **` ⇒ das Bündel hat
+gebaut. Der kostet mit `tail_lines: 200` rund **20 000 Token pro Zyklus**.
+
+**Billiger Indikator, gemessen über vier Zyklen:** die letzten ~30 Zeilen desselben Logs tragen
+den Artefakt-Upload, und dort steht `there will be N files uploaded` bzw. `Uploaded bytes`.
+`TestResults` entsteht nur, wenn Tests LAUFEN; ein Bündel, das nicht baut, bricht davor ab.
+Beobachtet: 5155 → 5157 → 5161 → 5173 → 5175 Dateien, jeweils in dem Zyklus gewachsen, in dem
+Ansprüche dazukamen. Abruf mit `tail_lines: 30`–`34` statt 200.
+
+⚠️ **GRENZEN, und sie gehören dazu, sonst wird der Indikator als Beweis gelesen:**
+1. Es ist ein **Indikator, keine Sichtung des Verdikts.** Es zeigt „Tests liefen", nicht
+   „das Bündel baute fehlerfrei" — die Richtung stimmt (kein Bau ⇒ keine Ergebnisse), die
+   Umkehrung ist nicht bewiesen.
+2. **Kein Verhältnis pro Anspruch.** 4 neue Ansprüche brachten +12 Dateien, 1 Anspruch +2. Wer
+   daraus „3 Dateien je Test" ableitet, rechnet mit Rauschen.
+3. Es sagt **nichts über FEHLGESCHLAGENE Tests.** Dafür bleibt `gh-test-verdict.py` auf dem
+   200er-Fenster — und dessen `WINDOW`-Zeile lesen, bevor man ein Grün zitiert (#807).
+
+**Regel: den billigen Indikator für „lief das Bündel überhaupt", das teure Fenster erst, wenn
+er STAGNIERT oder ein Anspruch neu ist und man sein Ergebnis wissen muss.**

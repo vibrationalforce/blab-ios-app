@@ -95,20 +95,66 @@ final class RecordRouteOwnershipTests: XCTestCase {
     /// reachable exit — so a failed engine start (or a failed session upgrade, which throws into
     /// the same catch) stranded `.microphoneManager` in the owner set forever. `contains` was
     /// satisfied by the `stopRecording` release and reported the file as balanced.
+    /// GRADING AGAINST THE PARENT (§3), transcribed in Python against `git show HEAD:…` and
+    /// the worktree, with `//` lines stripped exactly as `code(_:)` does:
+    /// · the two per-guard assertions are **REGRESSIONS** — red on HEAD for precisely the
+    ///   reason their names give: both exits really do `return` without releasing.
+    /// · the count assertion is **NOT** a regression. It is red on HEAD only because this
+    ///   commit raised the expected number from 2 to 4. Booking a pin update as a caught
+    ///   defect is the flattering direction (#433) — it is a pin, and it is blunt on purpose.
     func testTheMicRecorderClaimsAndReleasesTheRoute() throws {
         let file = try code("Sources/Echoelmusic/MicrophoneManager.swift")
         XCTAssertTrue(slice(of: file, from: "func startRecording()", to: "\n    }\n")
             .contains("claimRecordRoute(.microphoneManager)"), """
         `MicrophoneManager.startRecording` no longer claims the route as an owner.
         """)
-        // The start `catch` plus `stopRecording`.
-        XCTAssertEqual(file.components(separatedBy: "releaseRecordRoute(.microphoneManager)").count - 1, 2, """
-        `MicrophoneManager` no longer releases the route on BOTH paths that follow its claim \
-        (the `startRecording` catch, and `stopRecording`). Dropping the catch is how a failed \
-        start leaves a stale owner that blocks every later downgrade; dropping the stop one \
-        restores the bare unconditional `downgradeToPlaybackAfterRecording`, which cuts the \
-        input monitor's mic mid-performance — the two halves of #299, one on each side.
+        // FOUR paths follow the claim: the two `guard … else { return }` exits inside the
+        // `do`, the start `catch`, and `stopRecording`.
+        XCTAssertEqual(file.components(separatedBy: "releaseRecordRoute(.microphoneManager)").count - 1, 4, """
+        `MicrophoneManager` no longer releases the route on ALL FOUR paths that follow its \
+        claim. Dropping the `catch` one is how a failed start leaves a stale owner that blocks \
+        every later downgrade; dropping the `stopRecording` one restores the bare unconditional \
+        `downgradeToPlaybackAfterRecording`, which cuts the input monitor's mic mid-performance \
+        — the two halves of #299. The other two are the early `return`s inside the `do` (#889): \
+        a `return` from a `do` never reaches its `catch`, so those exits leak the claim outright.
+
+        ⚠️ WHY A COUNT AND NOT A SHAPE. This is a blunt pin and it is chosen deliberately: the \
+        alternative is parsing control flow out of source text, which this bundle has no \
+        business doing. The count is allowed to CHANGE — if you add or remove an exit, change \
+        it here and say which path in this message. What it forbids is changing the code and \
+        NOT the message (#364/#655).
+
+        ⚠️ THE COUNT IS OF CALLS, NOT MENTIONS. `code(_:)` strips `//` lines first, so the \
+        prose above and in `MicrophoneManager` does not inflate it.
         """)
+
+        // #889: each early exit inside the `do` releases BEFORE it returns. Anchored on the two
+        // log literals, which are the stable part of those blocks — a line window is unsound
+        // here (this repo writes long comment blocks inside guard bodies).
+        //
+        // ⚠️ HIDDEN COUPLING, found by the audio-thread review of #889 and written down rather
+        // than left to be rediscovered: `slice(…, to: "return")` is safe ONLY because `code(_:)`
+        // strips full-line `//` comments first. The comment this commit added inside the first
+        // guard contains the word "returns" ("never returns the session to `.playback`") ABOVE
+        // the release call — on RAW text the window would close early and this assertion would
+        // fail on a correct tree, the #408 trap. It passes on stripped text. If anyone ever puts
+        // a non-comment string containing `return` into either guard body, re-anchor this on a
+        // token that cannot appear in prose.
+        for (anchor, what) in [("failed to create AVAudioEngine", "the engine-creation guard"),
+                               ("failed to get microphone input format", "the input-format guard")] {
+            let body = slice(of: file, from: anchor, to: "return")
+            XCTAssertTrue(body.contains("releaseRecordRoute(.microphoneManager)"), """
+            \(what) in `MicrophoneManager.startRecording` returns without releasing the record \
+            route (#889). It sits INSIDE the `do`, so the `catch` below it never runs for this \
+            path, and the owner set then never empties: every later monitoring-off finds a \
+            non-empty set and never returns the session to `.playback`.
+
+            Both guards are UNREACHABLE today — that is why this is a class fix and not a bug \
+            fix, and why #299 was right about the live defect while its wording ("the one \
+            reachable exit") was too strong. If you make either guard reachable, this claim is \
+            the thing that stops the leak coming back silently.
+            """)
+        }
     }
 
     func testTheMultiTrackRecorderClaimsAndReleasesTheRoute() throws {

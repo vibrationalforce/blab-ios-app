@@ -211,6 +211,20 @@ final class MicrophoneManager: NSObject {
             audioEngine = AVAudioEngine()
             guard let audioEngine = audioEngine else {
                 log.error("MicrophoneManager: failed to create AVAudioEngine", category: .audio)
+                // #889: RELEASE BEFORE RETURNING. This exit and the one below `return` from
+                // inside the `do`, so the `catch` at the bottom — the one #299 added — never
+                // runs for them. Both are UNREACHABLE today and are fixed anyway, because the
+                // hazard is a CLASS: `AVAudioEngine()` is non-failable, so this optional
+                // cannot be nil, and the format guard below reads an input node assigned one
+                // line earlier from a non-optional property. What makes them worth closing is
+                // that a leak here is SILENT and STICKY — the owner set never empties, so
+                // switching monitoring off afterwards finds a non-empty set and never returns
+                // the session to `.playback`. That is the founder-visible A2DP-to-HFP
+                // degradation, and it keeps the input bus up in the neighbourhood of the
+                // `isInputConnToConverter` family.
+                #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+                try? AudioConfiguration.releaseRecordRoute(.microphoneManager)
+                #endif
                 return
             }
 
@@ -221,6 +235,11 @@ final class MicrophoneManager: NSObject {
             let recordingFormat = inputNode?.outputFormat(forBus: 0)
             guard let format = recordingFormat else {
                 log.error("MicrophoneManager: failed to get microphone input format", category: .audio)
+                // #889, same reasoning as the guard above — see it for why an unreachable
+                // exit is still closed.
+                #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
+                try? AudioConfiguration.releaseRecordRoute(.microphoneManager)
+                #endif
                 return
             }
 
@@ -270,7 +289,7 @@ final class MicrophoneManager: NSObject {
             EchoelCrashLog.breadcrumb("mic: start FAILED (\(error.localizedDescription))")
             log.audio("❌ Failed to start recording: \(error.localizedDescription)", level: .error)
             self.isRecording = false
-            // ⭐ #299 Nachlese — THE ONE REACHABLE EXIT THAT CLAIMED WITHOUT RELEASING, and the
+            // ⭐ #299 Nachlese — THE THROWING EXIT THAT CLAIMED WITHOUT RELEASING, and the
             // sentence that let it through was in the design note: "a Set is idempotent in both
             // directions, which makes the failure paths safe to write as a plain release". A Set
             // makes a DUPLICATE release safe. It does nothing about a MISSING one — that leaks
@@ -280,6 +299,16 @@ final class MicrophoneManager: NSObject {
             // the owner set: monitoring off afterwards would then find a non-empty set and never
             // return the route to `.playback`. The other two owners avoid this by catching their
             // claim locally; this one propagates, which is why it needs the release here.
+            //
+            // ⛔ #299 WROTE "THE ONE REACHABLE EXIT" AND THAT WAS TOO STRONG (#889). It was the
+            // only THROWING one. Two further exits claim and leave without releasing — the two
+            // `guard … else { return }` blocks above — and a `return` from inside a `do` never
+            // reaches this `catch`. Both are unreachable today (their optionals were just
+            // assigned from non-failable sources), so #299 fixed the live bug correctly; the
+            // superlative is what would have stopped the next reader from looking. Both are
+            // closed as of #889. THE LESSON, and it is why the wording is corrected rather than
+            // the count bumped: "the one X" is a claim about the WHOLE function, and it ages the
+            // moment anyone adds an exit — while "the throwing one" stays true forever.
             #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
             try? AudioConfiguration.releaseRecordRoute(.microphoneManager)
             #endif
