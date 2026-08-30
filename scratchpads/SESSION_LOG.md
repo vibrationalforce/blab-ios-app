@@ -17677,3 +17677,127 @@ No-op-Wächter-Reihenfolgen, zwei Puffer-Reihenfolgen, die `route: claim`-Reihen
 `route: release`-Ergebnisse, der Zähl-Pin und der neue (c2)-Block — alle grün im Arbeitsbaum,
 die vier neuen rot auf HEAD. `count-pins` 136/154 → 0 rot · `dead-needles` 382 Dateien sauber ·
 `diag-ladder --source` 8/8.
+
+## 2026-08-30 (cron, ULTRACODE 24h) — #907: eine Nummer auf einem übersprungenen Schritt lässt das Werkzeug einen gesunden Lauf für tot erklären
+
+**Der Befund kam vom Pflicht-Reviewer über #906 und ich habe ihn selbst auf einem synthetischen
+Log reproduziert — in beide Richtungen.** #906 gab den beiden No-op-Wächtern der Kategorie-Züge
+eine Sprosse und schrieb sie NUMMERIERT (`session: raise 1/2 SKIPPED: …`). `diag-ladder.py`
+merkt sich im LOG-Modus die LETZTE `raise n/2` je Leiter und kennt kein Überspringen — ein
+gesunder ZWEI-Besitzer-Lauf endete damit auf `1/2`, und das Werkzeug druckte „stopped before
+their last step … a DEATH AT THAT STEP" auf genau dem Pfad, den #888 beleuchten soll.
+
+```
+mit #906-Wortlaut   ❌ 'session: raise'  1/2   line 5
+mit #907-Wortlaut   ✅ 'session: raise'  2/2   line 3
+```
+
+**Warum es durchkam: ich habe nur `--source` gefahren.** Die zwei Modi lesen VERSCHIEDENE
+Dinge — `--source` läuft über die Emitter in `Sources/` (grün, der Emitter existiert ja), der
+Log-Modus über die Zeilen, die ein Gerät wirklich geschrieben hat. Der Defekt saß einen Schritt
+hinter der Kante, an der ich aufgehört habe. In `Tests/CISmoke/CLAUDE.md` §4 steht jetzt
+**„DRIVE BOTH MODES, ALWAYS"** samt dieser Herleitung; in einer GESETZES-Datei war das
+Werkzeug bis heute nicht registriert.
+
+⛔ **Und die erste Fassung genau dieses Satzes war die `EchoelModalBank`-Falle, wortwörtlich**
+(#907-Review, M6): sie schrieb „überhaupt nicht registriert (`grep -rn "diag-ladder"
+--include=*.md .` = nichts)". Der zitierte Befehl liefert **nicht** nichts — ich hatte ihn
+beim Messen durch `| grep -v SESSION_LOG` gefiltert und dann die UNGEFILTERTE Form
+aufgeschrieben. Gemessen: `git grep -c "diag-ladder" HEAD -- '*.md'` = **7 Treffer in
+`scratchpads/SESSION_LOG.md`**, zurück bis zur `#883`-Zeile. Die Behauptung war nicht
+gealtert, sie war beim Schreiben falsch — und wer den Befehl ausführt, liest keinen
+Ungenauigkeitsfehler, sondern einen Widerspruch. **Ein Vermerk, der ein `grep` ZITIERT,
+altert schneller als einer, der eine Tatsache behauptet — und er ist sofort falsch, wenn man
+die Pipe beim Abschreiben verliert.**
+
+**DAS GESETZ, schärfer als #906s Fassung:** ein übersprungener Schritt darf NUMMERIERT werden
+NUR, wenn die Leiter danach WEITERLÄUFT. `AudioEngine`s `on 4/5 SKIPPED:` ist legal, weil
+`on 5/5` folgt. Ein Sprung, der ZURÜCKKEHRT, beendet seine Leiter — die Nummer macht aus einem
+No-op eine Abbruchstelle. Unnummeriert ist es eine ZUSTANDS-Zeile, die das Werkzeug ignoriert.
+Anspruch (c3) in `TheEngineLifecycleSpeaksInTheDiagLogTests` führt das aus: jede Zeile mit
+`SKIPPED`, deren nächste nicht-leere Zeile `return` ist, darf keine `n/N` tragen — gescannt
+über `AudioConfiguration.swift` UND `AudioEngine.swift`, damit die LEGALE Form ein lebendes
+Gegengewicht bleibt und keine Geschichte in einem Kommentar (#343/#364).
+
+**Die dritte stille Rückkehr hat jetzt auch eine Zeile.** #906 ließ `guard isSessionConfigured`
+stumm und gab zwei Gründe; beide sind messbar falsch: der Wächter feuert auch nach einem
+GEWORFENEN `configureAudioSession()`, und nur EINE der drei Claim-Stellen konfiguriert vorher
+(`MicrophoneManager`; `AudioEngine.setInputMonitoring` und `MultiTrackRecorder` nicht, und
+`upgradeToPlayAndRecord` liest die Flagge gar nicht). Folge ohne Zeile: configure wirft → ein
+späterer Claim hebt die Kategorie trotzdem → `release` schreibt „holders none, lowering" →
+diese Rückkehr schweigt → die Sitzung bleibt auf `.playAndRecord`, ohne dass jemand sie hält.
+Das ist die founder-sichtbare A2DP→HFP-Verschlechterung plus die Stille. Der zweite #906-Grund
+(„der Log-Sink ist hier moot") war schlicht unverwandt — `EchoelCrashLog.begin()` läuft im
+`init()` der App.
+
+**Und der Reviewer-Punkt, der die REIHENFOLGE-Behauptung entwertet hätte:** `g < s < r` ist
+erfüllbar, indem man die Zeile AUS dem `else { }` auf die Anweisung direkt hinter dem Wächter
+hebt — dann feuert sie bei JEDEM erfolgreichen Zug, also die Lüge in die Gegenrichtung.
+Deshalb wird jetzt ADJAZENZ gepinnt: zwischen Emitter und `return` darf nur Weißraum stehen.
+Gefahren, beides gemessen: auf dem hochgezogenen Baum geht Adjazenz ROT, während die
+Reihenfolge-Behauptung GRÜN bliebe. **Die Einrückung ist absichtlich NICHT Teil der Nadel** —
+ein hartes `"\n            "` ginge falsch-rot, sobald der Wächter eine Ebene tiefer wandert
+(#665).
+
+**Zahlen:** Breadcrumb-Pin in `AudioConfiguration` 14 → **15** (sieben Übergangs-Sprossen +
+DREI `SKIPPED`-Zustandszeilen + `latencyBreadcrumb` + ein `route: claim` + drei
+`route: release`-Ausgänge). `count-pins.py` hat das wieder VOR dem Commit gedruckt
+(`pinned 14, actual 15`) — zweiter Live-Beweis des #904-Werkzeugs in zwei Zyklen.
+
+**Gefahren (kein lokaler Compiler — CI ist der einzige Übersetzer):** alle Ansprüche in Python
+auf BEIDEN Bäumen nachgestellt (neu = 0 Fehler; HEAD/#906 = drei fehlende Literale, Zählung 14
+gegen Pin 15, und (c3) feuert auf BEIDE alten nummerierten Zeilen — kein Anspruch ist
+tautologisch). `diag-ladder.py --source` 8 Leitern vollständig, `session: raise` zurück auf
+2/2 mit 2 Emittern. `diag-ladder.py <log>` beide Wortlaute. `count-pins.py` 0 rot,
+`dead-needles.py` OK. Xcode Compile Check auf den letzten acht Commits grün; CI/CD meldet wie
+immer `failure` (#396 — Clone 2 startet die App nicht, `Build for Testing` = success, im
+sichtbaren Fenster keine fehlgeschlagene Behauptung; WINDOW-Vorbehalt #807 gilt).
+
+### #907, zweite Hälfte — der Reviewer fand ZWÖLF Punkte, und die drei teuersten waren wieder meine eigenen ungemessenen Behauptungen
+
+- **H1 (Gesetz war zu allgemein).** Meine Fassung sagte „unnummeriert ist eine Zustandszeile"
+  — richtig NUR, wenn der Sprung VOR jeder Sprosse seiner Leiter steht. `MicrophoneManager`s
+  `mic: start REFUSED` (`:332`) sitzt zwischen `2/3` und `3/3` und erzeugt einen FALSCHEN TOD.
+  ⭐ **Meine Nachmessung geht über den Review hinaus und in die andere Richtung:** er nannte
+  `mic: start 2/3 SKIPPED` „die einzige Schreibweise, die den falschen Tod stoppt" — sie
+  stoppt ihn NICHT (das Werkzeug behält die letzte `n/N`, also wieder `2/3`), und `3/3
+  SKIPPED` meldet ✅ für einen Schritt, der nie lief. **Mitten in der Leiter ist KEINE
+  Quell-Schreibweise ehrlich.** Damit verbietet der Bann keine korrekte Reparatur (#364) —
+  es gibt in der Quelle keine. Die echte liegt im Werkzeug (siehe „nächster Schritt").
+- **H2 (stiller Testabbruch).** `guard let a = config.range(of: fn) else { return }` — nacktes
+  `return` OHNE `XCTFail`, in zwei Blöcken. Es verlässt die METHODE, nicht die Schleife: eine
+  Umbenennung hätte die zwei restlichen Tupel, den ganzen neuen (c3)-Block und den
+  Zähl-Pin übersprungen und **grün** gemeldet. Beide haben jetzt ein `XCTFail`.
+- **H3 (#367 in meiner eigenen Benotung).** Ich schrieb, der (c3)-Scan über `AudioEngine`
+  halte „die legale Form als lebendes Gegengewicht". Gemessen: `AudioConfiguration` liefert
+  **3** Zeilen an die Behauptung, `AudioEngine` **0** — dessen zwei `SKIPPED`-Zeilen folgt ein
+  `}`, und `setInputMonitoring` gibt `Bool` zurück, also `return false`. Es ist ein
+  STOLPERDRAHT, kein Gegengewicht; die zwei legalen Zeilen schützt Anspruch 12.
+- **M1:** die dritte Zeile ist KEIN No-op — sie kann zurückkehren, während die Kategorie
+  angehoben IST. Wortlaut jetzt `session: lower SKIPPED — never configured; category left
+  as-is`, und drei Prosa-Stellen, die alle drei „no-op guard" nannten, sind mitgezogen.
+- **M2 (falsch-rot auf korrektem Baum):** `carriesRungNumber` las die ROHZEILE; der Stripper
+  entfernt nur Zeilen, die MIT `//` beginnen, ein nachgestelltes `// #907: was 1/2` überlebt.
+  Der Bann hätte jemandem gesagt, eine Nummer zu entfernen, die gar nicht da ist. Er liest
+  jetzt das STRING-LITERAL, und eine interpolierte Sprosse (`\(step)/2`) feuert laut, statt
+  still durchzurutschen.
+- **M3/M4:** der Filter nimmt jetzt auch `return <expr>` und `throw`; die Fehlermeldung sagt
+  ehrlich, dass eine EIN-Schritt-Leiter vom Werkzeug gar nicht verfolgt wird (`total < 2`),
+  eine Nummer dort also nur ZUFÄLLIG harmlos ist.
+- **M5:** §3-Benotungsblock für #907 im Wächter-Kopf ergänzt (drei FORWARDs, zwei
+  REGRESSIONs, vier Negativ-Proben), inklusive des Hinweises, dass die GANZE Methode
+  gefahren wurde, weil (c2) umgeschrieben ist.
+- **L1 (kein Befund, aber gemessen):** die neue Zeile liegt auf keinem Render- oder Tick-Pfad
+  — `downgradeToPlaybackAfterRecording` hat genau einen Aufrufer, dessen 12 Aufrufstellen alle
+  in `@MainActor`-Typen auf Gesten-/Abbau-Pfaden liegen, und `isSessionConfigured` ist ein
+  Einweg-Riegel.
+- **L2:** der Adjazenz-Pin überspringt jetzt `$0.isWhitespace` statt nur Leerzeichen/Newline
+  (Tabs, CRLF).
+
+**⭐ NÄCHSTER SCHRITT, ausdrücklich benannt statt still gelassen (Reviewer-Punkt G):** zwei
+Zyklen in Folge hat eine Änderung am WORTLAUT einen blinden Fleck von `scripts/diag-ladder.py`
+kompensiert. Das Werkzeug ist 250 Zeilen, hat einen `--selftest` und braucht genau EINEN
+Begriff, den es nicht hat: **eine Zeile, die eine Leiter BEENDET, ohne sie WEITERZUZÄHLEN.**
+Damit wird jede Schreibweise legal, der falsche Tod in `mic: start` verschwindet, und (c3)
+plus der Gesetzes-Absatz in `Tests/CISmoke/CLAUDE.md` §4 können zurückgezogen werden. Das ist
+eine eigene Scheibe mit eigener Selbstprobe — Council-Frage, nicht Anhängsel.

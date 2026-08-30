@@ -164,12 +164,21 @@ enum AudioConfiguration {
         // THE HONEST RULE: discrete route-transition events — a start, a re-arm, a route
         // format change, a self-heal attempt. NEVER per buffer, never tick-rate.
         //
-        // ⚠️ AND ONE THING THIS LADDER CANNOT SHOW, so a log reader must know it: both
-        // writers of `recordingRouteNeeded` set the flag BEFORE their own no-op guard, so a
-        // guard-skipped transition moves the flag while emitting no rung at all. A later
-        // `configure 1/4 — setCategory(.playAndRecord)` can therefore appear with NO `raise`
-        // rung anywhere before it. That is not a missing rung — announcing the skipped raise
-        // would be the lie the placement below deliberately avoids.
+        // ⛔ #907 — THIS NOTE WAS BOTH STALE AND PRESCRIPTIVE, WHICH IS THE EXPENSIVE
+        // COMBINATION. It read: "both writers of `recordingRouteNeeded` set the flag BEFORE
+        // their own no-op guard, so a guard-skipped transition moves the flag while emitting
+        // NO RUNG AT ALL … announcing the skipped raise would be the LIE the placement below
+        // deliberately avoids." #906 made the factual half false (both guards now speak) and
+        // the instruction half would tell the next session to DELETE that. Nothing pinned it,
+        // so nothing would have caught it — the #456 shape, and worse than a stale number
+        // because a reader obeys an instruction.
+        //
+        // WHAT SURVIVES, and it is the useful half: a guard-skipped transition still moves
+        // `recordingRouteNeeded` while taking no session step, so a later
+        // `configure 1/4 — setCategory(.playAndRecord)` can appear with no `raise 1/2`
+        // anywhere before it. That is not a missing rung. The skip now says so in its own
+        // UNNUMBERED line, which is the honest half of the same law: announcing a step that
+        // did not happen is a lie; announcing that it was skipped is not.
         //
         // ⭐ Measured, not assumed: `EchoelCrashLog.begin()` is the FIRST statement of the
         // app's `init()`, and `prepareGraph()` (the launch caller of this function) runs
@@ -412,11 +421,21 @@ enum AudioConfiguration {
         // not to retry HERE still stands — speculative `AVAudioSession` work on a failure path
         // is device-unproven — but the line must not promise a heal it cannot deliver (#167).
         //
-        // ⚠️ AND "three outcomes" is the count of what THIS method distinguishes, not of what
-        // the log can mean. `downgradeToPlaybackAfterRecording()` has three SILENT no-op returns
-        // before its own rung (macOS, unconfigured session, already `.playback`), so "lowering"
-        // + no `session: lower 1/1` + no failure line is a fourth reading: "reported lowered,
-        // did nothing". Pre-existing and out of this slice; do not read the three as exhaustive.
+        // ⭐ #907 — THE FOURTH READING IS CLOSED. #906 said `downgradeToPlaybackAfterRecording()`
+        // had THREE silent no-op returns (macOS, unconfigured, already `.playback`), so
+        // "lowering" + no `session: lower` + no failure line meant "reported lowered, did
+        // nothing" and was indistinguishable from a death. Both reachable ones now speak
+        // (#906 took `already .playback`, #907 took `unconfigured`); only the `#if os(macOS)`
+        // return stays silent, and it is compile-time — no iOS log can show it. So the three
+        // outcomes of THIS method are now the three readings of its line.
+        //
+        // ⚠️ THAT IS TRUE OF THE LINE COUNT AND NOT YET OF THE STATE (#907 review, M1). A
+        // FOURTH state exists that no line separates: configure threw, a later claim raised
+        // the category anyway, and the release finds no holder. The log then reads "holders
+        // none, lowering" → "never configured; category left as-is", and the session sits on
+        // `.playAndRecord` unheld — the founder-visible A2DP→HFP degradation. The trailing
+        // clause on that breadcrumb is what stops it reading as a clean no-op; distinguishing
+        // it in the RETURN VALUE (this method still returns `true`) is a separate slice.
         //
         // This line is deliberately UNNUMBERED: it is a state outcome, not a ladder rung, and a
         // `n/N` here would announce a ladder `scripts/diag-ladder.py` cannot walk (#888).
@@ -464,12 +483,38 @@ enum AudioConfiguration {
         recordingRouteNeeded = true      // so a reconfigure re-applies the record route
         let audioSession = AVAudioSession.sharedInstance()
         guard audioSession.category != .playAndRecord else {
-            // #906 — A SKIPPED STEP MUST SAY SO, OR THE NUMBERING LIES. That law is already
-            // written in this repo, at `AudioEngine.swift`'s `on 4/5 SKIPPED:` line; this
-            // guard returned in silence. The caller writes `route: claim … ` immediately
-            // before, so the log read "claim, then nothing" — and by the ladder's OWN law
-            // (#859–#862b) silence between two rungs is a DEATH. A no-op looked like a crash.
-            EchoelCrashLog.breadcrumb("session: raise 1/2 SKIPPED: category already .playAndRecord")
+            // #906 — A SKIPPED STEP MUST SAY SO, OR THE NUMBERING LIES. The caller writes
+            // `route: claim … ` immediately before, so this silent return made the log read
+            // "claim, then nothing" — and by the ladder's OWN law (#859–#862b) silence
+            // between two rungs is a DEATH. A no-op looked like a crash.
+            //
+            // ⛔ #907 — AND #906 WROTE IT AS `raise 1/2 SKIPPED`, WHICH MADE THE TOOL LIE IN
+            // THE OTHER DIRECTION. `diag-ladder.py`'s LOG mode keeps the LAST `raise n/2` it
+            // sees and has no notion of a skip, so a healthy second claim ended the ladder at
+            // 1/2 and the tool printed "stopped before their last step … a DEATH AT THAT
+            // STEP" — on exactly the two-owner path #888 exists to illuminate. Reproduced on
+            // a synthetic log before and after. #906 drove `--source` and stopped at the
+            // bundle's edge; the defect sat one step past it.
+            //
+            // ⭐ THE LAW, sharper than #906's version and the reason `on 4/5 SKIPPED:` in
+            // `AudioEngine` is still right: a skipped step may be NUMBERED only when the
+            // ladder WALKS ON past it (there, `on 5/5` still follows). A skip that RETURNS
+            // ends its ladder, so a number turns a no-op into a truncation. Unnumbered, it is
+            // a state line — the same conclusion this file already reached for `route:`.
+            //
+            // ⚠️ AND THE LAW IS POSITION-DEPENDENT — the #907 REVIEW CAUGHT THAT, and the
+            // measurement sharpens it further than the review did. Unnumbered is CORRECT here
+            // only because this skip stands BEFORE EVERY RUNG of its ladder: nothing was
+            // written, so nothing is left dangling. A skip in the MIDDLE of a ladder is a
+            // different animal — `MicrophoneManager`'s `mic: start REFUSED` sits between
+            // `2/3` and `3/3`, and driven on a synthetic log it makes the tool print
+            // `❌ 'mic: start' 2/3`, a FALSE DEATH. Numbering it does not rescue it: `2/3
+            // SKIPPED` reads identically (the tool keeps the LAST n/N), and `3/3 SKIPPED`
+            // reads ✅ for a step that never ran. **Mid-ladder, NO source wording is honest.**
+            // That repair belongs in `scripts/diag-ladder.py` — it needs one concept it lacks,
+            // a line that TERMINATES a ladder without ADVANCING it — not in a third wording
+            // rule. Do not "fix" `mic: start REFUSED` by numbering it.
+            EchoelCrashLog.breadcrumb("session: raise SKIPPED — category already .playAndRecord")
             return
         }
 
@@ -513,14 +558,36 @@ enum AudioConfiguration {
         return
         #else
         recordingRouteNeeded = false
-        guard isSessionConfigured else { return }
+        // ⛔ #907 — #906 LEFT THIS ONE SILENT AND GAVE TWO REASONS, BOTH MEASURABLY WRONG.
+        // It said this can fire "only BEFORE `configureAudioSession()`" — it also fires after
+        // a THROWN configure, and only one of the three claim sites configures first
+        // (`MicrophoneManager`; `AudioEngine.setInputMonitoring` and `MultiTrackRecorder` do
+        // not, and `upgradeToPlayAndRecord` does not check this flag at all). So: configure
+        // throws → a later claim raises the category anyway → release writes "holders none,
+        // lowering" → this returns in silence → the session stays on `.playAndRecord` with
+        // NOBODY holding it. That is the founder-visible A2DP→HFP degradation plus the
+        // silence — the same defect one guard below. And it said the log sink was "moot"
+        // here, which is simply unrelated: the sink is opened by `EchoelCrashLog.begin()` in
+        // the app's `init()`, long before any of this.
+        guard isSessionConfigured else {
+            // ⚠️ #907 REVIEW — THE WORDING SAYS "left as-is" BECAUSE THIS ONE IS NOT A NO-OP.
+            // The two category guards below/above really do find nothing to do. This one can
+            // return while the category IS raised (see the retraction above), so a bare
+            // "SKIPPED" would read as "nothing needed lowering" — the exact misreading that
+            // keeps the A2DP→HFP degradation invisible. The clause is the difference.
+            EchoelCrashLog.breadcrumb("session: lower SKIPPED — never configured; category left as-is")
+            return
+        }
         let audioSession = AVAudioSession.sharedInstance()
         guard audioSession.category != .playback else {
             // #906 — the mirror of the raise guard above, and the one a reader actually
             // meets: `releaseRecordRoute` prints "holders none, lowering" and returns TRUE,
             // so a run that lowered NOTHING was indistinguishable from one that died inside
             // `setCategory`. Reported by the #902 review as a fourth reading of that line.
-            EchoelCrashLog.breadcrumb("session: lower 1/1 SKIPPED: category already .playback")
+            // #907: unnumbered for the same reason as the raise. It was harmless as
+            // `lower 1/1 SKIPPED` only because `diag-ladder.py` drops single-step ladders —
+            // an accident that would end the day `lower` grows a second step.
+            EchoelCrashLog.breadcrumb("session: lower SKIPPED — category already .playback")
             return
         }
         // #878: ONE rung, not two — this path deliberately has no `setActive`, and a

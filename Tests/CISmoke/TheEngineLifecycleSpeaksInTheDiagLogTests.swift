@@ -67,6 +67,18 @@
 // AFTER `masterEngine.pause()` on the parent, red for exactly the reason the claim's name
 // gives — #367) and ONE FORWARD (the `prepare` rung is created by this commit, so it is
 // red there by absence, not by order). All three green on the worktree.
+//
+// ⭐ GRADING, claims (c2)/(c3) + (d) (#907) — this slice REWRITES (c2), so the WHOLE method
+// was driven on both trees, not just the changed lines (§3's delta-blindness warning).
+// Against the parent (#906): THREE FORWARDS (the three unnumbered literals do not exist
+// there, so (c2) is red by absence) and TWO REGRESSIONS — (c3) selects both of #906's
+// numbered `… n/N SKIPPED` lines and fails, and (d)'s pin of 15 meets an actual 14. On the
+// worktree all are green. Four negative drives were transcribed rather than reasoned: the
+// emitter lifted out of its `else {}` (adjacency RED while the ordering claim stays GREEN —
+// that is the hole (c2)'s new pin exists for), a trailing `// #907: was 1/2` comment (stays
+// GREEN — the false red M2 would otherwise have caused), and an interpolated rung (fires the
+// interpolation claim). ⚠️ (c3)'s `AudioEngine` half is a TRIPWIRE, not a counterweight:
+// measured 3 selected lines in `AudioConfiguration` and ZERO in `AudioEngine`.
 
 import Foundation
 import XCTest
@@ -600,7 +612,11 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             ("static func downgradeToPlaybackAfterRecording",
              "guard audioSession.category != .playback", "session: lower 1/1 — setCategory"),
         ] {
-            guard let a = config.range(of: fn) else { return }
+            guard let a = config.range(of: fn) else {
+                XCTFail("`\(fn)` is gone — re-anchor (§4). A bare `return` here would have "
+                        + "exited the whole test method and reported GREEN (#907 review).")
+                return
+            }
             let body = String(config[a.lowerBound...].prefix(1_800))
             guard let g = body.range(of: noOpGuard), let r = body.range(of: rung) else {
                 XCTFail("the no-op guard or its rung left `\(fn)` — re-anchor (§4).")
@@ -612,33 +628,80 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 """)
         }
 
-        // (c2) #906 — A SKIPPED STEP SAYS SO. Both category moves have a no-op guard that
+        // (c2) #906 — A SKIPPED STEP SAYS SO. Both category moves had a guard that
         //      returned in SILENCE, and the ladder's own law reads silence between two rungs
         //      as a DEATH: `releaseRecordRoute` printed "holders none, lowering" and returned
         //      TRUE while nothing had been lowered. The law is not new — `AudioEngine` has
         //      carried `on 4/5 SKIPPED:` since #862b — it simply had not reached this file.
         //
+        // ⛔ #907 — #906 WROTE THEM NUMBERED (`raise 1/2 SKIPPED`) AND THAT LIED IN THE OTHER
+        //    DIRECTION. `diag-ladder.py`'s LOG mode keeps the LAST `raise n/2` it sees and
+        //    has no notion of a skip, so a healthy SECOND claim ended its ladder at 1/2 and
+        //    the tool called a two-owner run a DEATH — on exactly the path #888 exists to
+        //    illuminate. Reproduced on a synthetic log both ways. The literals below are
+        //    unnumbered now, and (c3) forbids the numbered form generally.
+        //
+        // ⭐ THE THIRD TUPLE IS NEW IN #907 — AND IT IS NOT A NO-OP GUARD, which is why the
+        //    wording around it says "a guard" rather than "the no-op guard" (#907 review, M1).
+        //    The two category comparisons really do find nothing to do; this one can return
+        //    while the category IS raised, so its message carries "category left as-is". `guard isSessionConfigured` was left silent by
+        //    #906 on two reasons that were both measurably wrong: it fires after a THROWN
+        //    configure too, and only one of the three claim sites configures first — so the
+        //    session can sit on `.playAndRecord` with nobody holding it while the log says
+        //    "holders none, lowering".
+        //
         // ⚠️ THE ORDERING HERE IS THE OPPOSITE OF (b)'s, and that is the point: a SKIPPED
         //    line stands INSIDE the guard, i.e. AFTER the guard text and BEFORE the real
         //    rung. #878 forbids announcing a step the guard then skips; announcing that it
         //    WAS skipped is the honest half of the same law.
+        //
+        // ⚠️ ORDER ALONE IS NOT ENOUGH — the #907 review named the hole: lift the emitter OUT
+        //    of the `else { }` onto the statement right after the guard and `g < s < r` still
+        //    holds, while the line now fires on EVERY successful move. So ADJACENCY is pinned
+        //    too: the emitter must be followed immediately by the guard's own `return`, which
+        //    is exactly what it cannot be outside the block.
         for (fn, noOpGuard, skipped, rung) in [
             ("static func upgradeToPlayAndRecord",
              "guard audioSession.category != .playAndRecord",
-             "session: raise 1/2 SKIPPED: category already .playAndRecord",
+             "session: raise SKIPPED — category already .playAndRecord",
              "session: raise 1/2 — setCategory"),
             ("static func downgradeToPlaybackAfterRecording",
+             "guard isSessionConfigured else",
+             "session: lower SKIPPED — never configured; category left as-is",
+             "session: lower 1/1 — setCategory"),
+            ("static func downgradeToPlaybackAfterRecording",
              "guard audioSession.category != .playback",
-             "session: lower 1/1 SKIPPED: category already .playback",
+             "session: lower SKIPPED — category already .playback",
              "session: lower 1/1 — setCategory"),
         ] {
             XCTAssertEqual(occurrences(of: skipped, in: config), 1, """
-                `\(fn)`'s no-op guard no longer says it skipped (#906). It then returns in \
-                silence while its caller has already written a line implying the move \
+                a guard in `\(fn)` no longer says it skipped (#906/#907). It then returns \
+                in silence while its caller has already written a line implying the move \
                 happened — and by this ladder's own law (#859–#862b) the silence that \
                 follows reads as a death inside the step, not as a step that never ran.
                 """)
-            guard let a = config.range(of: fn) else { return }
+            let emitter = "EchoelCrashLog.breadcrumb(\"\(skipped)\")"
+            guard let e = config.range(of: emitter) else {
+                XCTFail("the SKIPPED emitter for `\(fn)` is gone — re-anchor (§4).")
+                return
+            }
+            // ⚠️ INDENTATION IS DELIBERATELY NOT PART OF THE NEEDLE. A hard `"\n            "`
+            //    would go RED the day the guard is nested one level deeper — a false red on a
+            //    correct tree, which is the defect class this bundle exists to avoid (#665).
+            //    Only "nothing but whitespace between the emitter and a `return`" is asserted.
+            let afterEmitter = config[e.upperBound...].drop { $0.isWhitespace }
+            XCTAssertTrue(afterEmitter.hasPrefix("return"), """
+                the SKIPPED emitter in `\(fn)` is no longer the last statement before its \
+                guard's `return` (#907 review). Outside the `else { }` block the same line \
+                fires on every SUCCESSFUL move, so the log then claims a skip that did not \
+                happen — the ordering claim below cannot see that, which is why this exists.
+                """)
+            guard let a = config.range(of: fn) else {
+                XCTFail("`\(fn)` is gone — re-anchor (§4). A bare `return` here would have "
+                        + "exited the whole test method, taking the remaining tuples, the "
+                        + "(c3) ban and the (d) count pin with it, and reported GREEN.")
+                return
+            }
             let body = String(config[a.lowerBound...].prefix(1_800))
             guard let g = body.range(of: noOpGuard), let s = body.range(of: skipped),
                   let r = body.range(of: rung) else {
@@ -647,10 +710,75 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 return
             }
             XCTAssertTrue(g.lowerBound < s.lowerBound && s.lowerBound < r.lowerBound, """
-                the SKIPPED line in `\(fn)` is no longer INSIDE its no-op guard. It must sit \
-                after the guard and before the real rung: ahead of the guard it announces a \
-                skip that may not happen, and after the rung it describes a step that did.
+                the SKIPPED line in `\(fn)` is no longer INSIDE the guard it belongs to. It \
+                must sit after the guard and before the real rung: ahead of the guard it \
+                announces a skip that may not happen, and after the rung it describes a step \
+                that did.
                 """)
+        }
+
+        // (c3) #907 — THE LAW IN EXECUTABLE FORM, AND IT IS POSITION-DEPENDENT. A skipped
+        //      step may be NUMBERED only when the ladder WALKS ON past it (`AudioEngine`'s
+        //      `on 4/5 SKIPPED:` is legal because `on 5/5` still follows). A skip that
+        //      RETURNS ends its ladder, so a number turns a no-op into a truncation.
+        //
+        // ⚠️ UNNUMBERED IS THE RIGHT ANSWER *HERE* ONLY BECAUSE ALL THREE SKIPS STAND BEFORE
+        //    EVERY RUNG OF THEIR LADDER. Mid-ladder, NO source wording is honest, and this
+        //    was measured on a synthetic log rather than reasoned: `MicrophoneManager`'s
+        //    `mic: start REFUSED` sits between `2/3` and `3/3` and yields `❌ 'mic: start'
+        //    2/3` — a FALSE DEATH. Numbering does not rescue it (`2/3 SKIPPED` prints the
+        //    same, `3/3 SKIPPED` prints ✅ for a step that never ran). That repair belongs in
+        //    `scripts/diag-ladder.py`, which lacks one concept: a line that TERMINATES a
+        //    ladder without ADVANCING it. So this ban must NOT be read as "number it
+        //    instead" for a mid-ladder skip (#364) — there is no correct source wording there.
+        //
+        // ⛔ AND THE GRADING OF THIS CLAIM, HONESTLY (#367, the #907 review's H3): the first
+        //    draft said scanning `AudioEngine` "keeps the legal form a live counterweight".
+        //    IT DOES NOT. Measured: `AudioConfiguration` contributes 3 lines to the assertion
+        //    and `AudioEngine` contributes ZERO — both its `SKIPPED` lines are followed by
+        //    `}`, and `setInputMonitoring` returns `Bool`, so its exits are `return false` /
+        //    `return true`, not the bare `return` this selects. It is a TRIPWIRE for a future
+        //    skip in that file, not evidence that the legal form survives the ban. The two
+        //    legal lines are pinned as PRESENT by claim 12 — that is what protects them.
+        for (path, text) in [("Audio/AudioConfiguration.swift", config),
+                             ("Audio/AudioEngine.swift",
+                              try code("Sources/Echoelmusic/Audio/AudioEngine.swift"))] {
+            let lines = text.split(separator: "\n", omittingEmptySubsequences: false)
+                .map(String.init)
+            for (i, line) in lines.enumerated() where line.contains("SKIPPED") {
+                let next = lines.dropFirst(i + 1)
+                    .first { !$0.trimmingCharacters(in: .whitespaces).isEmpty }?
+                    .trimmingCharacters(in: .whitespaces) ?? ""
+                // #907 review (M3): a ladder is truncated by every exit spelling, not just a
+                // bare `return`. `return false` is the dominant one next door.
+                guard next.hasPrefix("return") || next.hasPrefix("throw") else { continue }
+
+                // #907 review (M2): read the MESSAGE, never the line. The stripper only drops
+                // lines that BEGIN with `//`, so a trailing `// #907: was 1/2` survives and a
+                // raw-line scan would go RED on a line carrying no number at all — a false red
+                // on a correct tree, telling its author to remove something that is not there.
+                guard let open = line.firstIndex(of: "\""),
+                      let close = line.lastIndex(of: "\""), open < close else { continue }
+                let message = String(line[line.index(after: open)..<close])
+                XCTAssertFalse(message.contains("\\("), """
+                    a SKIPPED breadcrumb in `\(path)` builds its rung number by interpolation:
+                    \(line.trimmingCharacters(in: .whitespaces))
+                    Neither this claim nor `scripts/diag-ladder.py` can read that — the tool's \
+                    rung regex needs a literal. Write the message as a literal so both can.
+                    """)
+                XCTAssertFalse(carriesRungNumber(message), """
+                    a SKIPPED step in `\(path)` is NUMBERED and then exits (#907):
+                    \(line.trimmingCharacters(in: .whitespaces))
+                    `scripts/diag-ladder.py` keeps the LAST `n/N` per ladder and has no notion \
+                    of a skip, so on a ladder of two or more steps this ends it early and a \
+                    healthy run is reported as a death at that step. Drop the number — an \
+                    unnumbered skip is a STATE line the tool ignores.
+                    ⚠️ On a ONE-step ladder the tool never tracks the prefix at all (it drops \
+                    `total < 2`), so a number there is harmless TODAY by accident, not by \
+                    design — it would start lying the day that ladder grows a second step. \
+                    The ban is deliberately blind to that difference.
+                    """)
+            }
         }
 
         // (d) The rung count is pinned so a rung added to a REPEATING path is visible. It is
@@ -678,13 +806,17 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         // thirteen commits when only CI was watching (#903). That is the whole argument for
         // the checker, in one line of output.
         //
-        // TODAY'S ARITHMETIC: seven transition rungs + TWO `SKIPPED` state lines +
-        // `latencyBreadcrumb` + one `route: claim` + THREE `route: release` outcomes = 14.
-        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 14, """
+        // ⭐ #907 — AND IT CAUGHT ITS OWN NEXT MOVE AGAIN, WHICH IS THE POINT OF A CHECKER
+        // THAT RUNS LOCALLY: #907 gave the third silent return (`guard isSessionConfigured`)
+        // a line, so the tool printed `pinned 14, actual 15` before the commit existed.
+        //
+        // TODAY'S ARITHMETIC: seven transition rungs + THREE `SKIPPED` state lines +
+        // `latencyBreadcrumb` + one `route: claim` + THREE `route: release` outcomes = 15.
+        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 15, """
             The breadcrumb count in AudioConfiguration changed. Confirm the new site is a \
             discrete event (launch, route transition), never a per-buffer or tick-rate path, \
             then update this number and say why in the same commit. Today: seven transition \
-            rungs + two SKIPPED state lines + latencyBreadcrumb + one route claim + three \
+            rungs + three SKIPPED state lines + latencyBreadcrumb + one route claim + three \
             route-release outcomes.
             """)
     }
@@ -979,6 +1111,18 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 numbering, not the work (#364).
                 """)
         }
+    }
+
+    /// True when the line carries a ladder rung NUMBER (`n/N`) — the shape
+    /// `scripts/diag-ladder.py` walks. Digit-slash-digit, no regex: a spaced division
+    /// (`a / b`) is deliberately not a match, and neither is a bare `/` in prose.
+    private func carriesRungNumber(_ line: String) -> Bool {
+        let c = Array(line)
+        guard c.count > 2 else { return false }
+        for i in 1..<(c.count - 1) where c[i] == "/" {
+            if c[i - 1].isNumber && c[i + 1].isNumber { return true }
+        }
+        return false
     }
 
     private func occurrences(of needle: String, in text: String) -> Int {

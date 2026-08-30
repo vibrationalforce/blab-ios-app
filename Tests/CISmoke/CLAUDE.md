@@ -194,6 +194,44 @@ bundle's universe of count pins, and a clean run proves the ARITHMETIC only, nev
 pin is anchored on the right token (#367/#408). Five limits in its docstring; it is
 validated against the tree that carried the #903 defect, per §4's known-positive rule.
 
+```
+python3 scripts/diag-ladder.py --source          # every announced rung has an emitter
+python3 scripts/diag-ladder.py <echoel_diag.log> # where a ladder stopped in a real run
+```
+
+**DRIVE BOTH MODES, ALWAYS — #907 is the whole argument.** The two modes read DIFFERENT
+things and disagree: `--source` walks the emitters in `Sources/`, the log mode walks the
+lines a device actually wrote. #906 added a breadcrumb for a skipped step and wrote it
+NUMBERED (`session: raise 1/2 SKIPPED: …`). `--source` stayed green — the emitter exists.
+The LOG mode keeps the LAST `n/N` per ladder and has no notion of a skip, so a perfectly
+healthy TWO-OWNER run ended its ladder at `1/2` and the tool printed **"stopped before their
+last step … a DEATH AT THAT STEP"** — on exactly the path the ladder exists to illuminate.
+Reproduced on a synthetic log both ways before and after the repair.
+
+⭐ **The law that came out of it, now pinned by `TheEngineLifecycleSpeaksInTheDiagLogTests`
+claim (c3): a skipped step may be NUMBERED only when the ladder WALKS ON past it.**
+`AudioEngine`'s `on 4/5 SKIPPED:` is legal because `on 5/5` still follows. A skip that
+RETURNS ends its ladder, so a number turns a no-op into a truncation; unnumbered, it is a
+STATE line and the tool ignores it.
+
+⚠️ **THE LAW IS POSITION-DEPENDENT, AND THE BAN IS NOT "NUMBER IT INSTEAD" (#907 review).**
+Unnumbered is the RIGHT answer only where the skip stands BEFORE EVERY RUNG of its ladder —
+all three `session:` skips do. **Mid-ladder, no source wording is honest**, measured on a
+synthetic log rather than reasoned: `MicrophoneManager`'s `mic: start REFUSED` sits between
+`2/3` and `3/3` and prints `❌ 'mic: start' 2/3`, a FALSE DEATH; `2/3 SKIPPED` prints the
+same, and `3/3 SKIPPED` prints ✅ for a step that never ran. **That repair belongs in
+`scripts/diag-ladder.py`** — it lacks exactly one concept, *a line that TERMINATES a ladder
+without ADVANCING it*. Teaching it that makes every wording legal and retires this
+paragraph together with claim (c3). Until then, do not "fix" a mid-ladder skip by numbering
+it, and do not read (c3) as forbidding the correct repair (#364) — there is none in source.
+
+⚠️ **(c3)'s `AudioEngine` half is a TRIPWIRE, not a counterweight.** Measured: it selects
+**3** lines in `AudioConfiguration.swift` and **0** in `AudioEngine.swift` — both `SKIPPED`
+lines there are followed by `}`, and `setInputMonitoring` returns `Bool`, so its exits are
+`return false`, which the check does not select. The first draft of that comment claimed a
+live counterweight and was a #367 grading error; what actually protects the two legal lines
+is claim 12, which pins them PRESENT.
+
 It checks the two shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))` and
 `codeOccurrences(of: "…") >= N` — against comment-stripped `Sources/`. Its limits are in its
 own header and are real: it does not read negative assertions, interpolated needles, or
