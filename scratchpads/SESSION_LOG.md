@@ -16478,3 +16478,76 @@ nicht eine Log-Zeile, sondern dass CISmoke-Tests AUSGEFÜHRT haben.**
 5. Anruf während laufendem Monitoring → die zwei `monitoring:`-Zeilen vergleichen.
 6. **NEU:** im nächsten Log stehen jetzt `session: configure|raise|lower` — wenn der Absturz in
    einem Kategoriewechsel liegt, nennt das Log ab jetzt den Schritt.
+
+## 2026-08-30 (cron, ULTRACODE 24h) — #880–#884: die Leiter wird ehrlich, bekommt ein Ablesegerät, und ihr Wächter eine Grenze statt einer Länge
+
+Kein Gerätelog, keine Founder-Antwort in diesem Fenster. Deploy **gehalten**.
+
+| # | Commit | Sache |
+|---|---|---|
+| #880 | `8c8f079` | Der **Eingangswechsel** erreicht das exportierte Log. Vier Sprossen in `AudioInputManager`. |
+| #881 | `f0f3e94` | Zwei veraltete Datei-Zahlen aus `CLAUDE.md` **gelöscht**, eine davon DATIERT. |
+| #882 | `a79873b` | **Die Monitoring-Leiter log über ihre eigene Länge.** Drei Stufen konnten stumm bleiben. |
+| #883 | `1b2512e` | `scripts/diag-ladder.py` — ein **Ablesegerät**, das sein Vokabular aus `Sources/` ableitet. |
+| #884 | `1267966` | Der Wächter des OFF-Zweigs bekommt eine **inhaltliche** Fenstergrenze statt einer Länge. |
+
+### Der schwerste Fund: eine Leiter, die Befunde ERFINDET (#882)
+
+Das Gesetz lautet „Stille zwischen zwei Sprossen ist ein BEFUND". Das gilt nur, wenn jede
+angekündigte Stufe auch schreibt. **Drei taten das nicht:** `on 4/5` nur bei laufendem Motor,
+`on 5/5` nur bei nicht installiertem Abgriff, und `off 5/5` **existierte nicht** — ein
+Quellkommentar behauptete, die Wiederherstellung *sei* Stufe 5, aber die schreibt bei frühem
+Rücksprung **nichts**, und ihre Zeile steht **innerhalb** des Aufrufs.
+
+Folge: ein gesundes Einschalten schrieb 1/5, 2/5, 3/5 und hörte auf. **Und ich hatte dem
+Founder gesagt, er solle alle fünf erwarten.** Reparatur: eine übersprungene Stufe sagt, dass
+sie übersprungen wurde — NICHT die Sprossen bedingungslos machen (das wäre der #878-Fehler
+andersherum).
+
+### VIER Selbstkorrekturen, und die Form hat wieder gewechselt
+
+1. **Wiedereröffnetes #654 (#880).** Ich lieh `routeLabel` (Beschriftung) und ließ
+   `sanitisedRoute` (Säuberung) weg. Ein Gerätename ist die erste FREMDGESTEUERTE Zeichenkette
+   in der Diagnosedatei; ungesäubert macht ein Gerät, dessen Name die Absturz-Marke trägt, aus
+   **jedem** späteren Start einen falschen Absturz. ⚠️ **Der bestehende Wächter dafür prüft nur
+   den `sanitisedRoute`-Weg — mein neuer Schreiber lief außen herum und der Test wäre GRÜN
+   geblieben.**
+2. **Selbstwiderspruch im selben Wächter (#882).** Anspruch 10 pinnt `"on 4/5` auf EINS,
+   mein neuer Anspruch 16 braucht ZWEI. **Die Suite hätte in keiner Richtung grün werden
+   können, und kein Kompilier-Gate hätte es gezeigt.**
+3. **Über-Behauptung im eigenen Werkzeug (#883).** Ich schrieb, `--source` „hätte #882
+   gefangen". Gemessen gegen den Vorgänger-Baum: es fängt **eines von drei** — die zwei
+   BEDINGTEN Sprossen existierten ja, das Werkzeug sieht keine Erreichbarkeit.
+4. **Eine Lücke, die ich am Vortag selbst gerissen hatte (#884).** #882 fügte `off 5/5` hinzu
+   und ließ den Positions-Wächter bei Stufe 4 enden.
+
+⭐ **Die Form dieser Runde: dreimal war der DEFEKT in etwas, das ich in derselben Sitzung
+gebaut hatte.** Die vorige Runde war „falsches Messgerät", die davor „Prosa neben korrektem
+Code". Gemeinsam: **der Pflicht-Reviewer hat jedes Mal geliefert, und zweimal etwas gefunden,
+das kein Gate je gezeigt hätte** (ein umgangener Wächter, ein unmöglicher Suite-Zustand).
+
+### Ein Datum schützt eine Zahl, es macht sie nicht ehrlich (#881)
+
+`(2026-08-21: 314)` stand neben dem Zähl-Befehl; gemessen sind es **313**. Die Zahl war
+ausdrücklich als Momentaufnahme datiert — **und genau das hat sie geschützt**: sie sah wie
+Buchführung aus, also hat niemand nachgemessen. Gelöscht statt nachgeführt. Die zweite Stelle
+war eine **Überschrift** — dieselbe Lehre wie bei der H1 ganz oben.
+⛔ Mein erster Entwurf schrieb dazu einen Erklär-Absatz in `CLAUDE.md` und schob die Datei auf
+**150 073 B**, also ÜBER die Decke, die ihr eigener Wächter erzwingt. Netto jetzt **−21 B**.
+
+### Registriert, nicht gebaut
+
+- **Zwei CRITICAL-CI-Defekte** (founder-gated, `HARNESS_LEDGER`): vier Build-Schritte in
+  `ci.yml`, deren Fehlschlag nichts rot färben kann, und ein Test-Filter auf eine Suite, die es
+  nicht gibt. **Reparatur-Reihenfolge ist nicht beliebig** — erst der ehrliche Exit-Status,
+  dann ein Wächter darauf.
+- **Der `isRunning`-gekoppelte Tap-Abbau** in `MicrophoneManager` — die Falle steht am Code.
+
+### Offen (Founder, Gerät) — eine Erwartung ist KORRIGIERT
+
+1. v430 ~1 min fahren · 2. **Monitoring an/aus** — ⚠️ **korrigiert:** es kommen **immer fünf**
+nummerierte Zeilen je Richtung; manche sagen jetzt `SKIPPED` mit Grund. **Eine fehlende Nummer
+ist ab jetzt wirklich ein Absturzpunkt** · 3. Autotune-Dauerbelastung · 4. Latenz bei Autotune
+AUS · 5. Anruf während Monitoring · 6. **Neu:** `session: configure|raise|lower` und
+`input: select →` stehen jetzt im Log · 7. **Neu:** einfach das Log schicken —
+`python3 scripts/diag-ladder.py <datei>` nennt den Schritt statt einer Vermutung.
