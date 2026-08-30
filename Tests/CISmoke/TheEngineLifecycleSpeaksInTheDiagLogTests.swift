@@ -563,11 +563,11 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
              "setPreferredIOBufferDuration(bufferDuration)"),
             ("static func configureAudioSession", "session: configure 4/4",
              "setActive(true, options: .notifyOthersOnDeactivation)"),
-            ("static func upgradeToPlayAndRecord", "session: raise 1/2",
+            ("static func upgradeToPlayAndRecord", "session: raise 1/2 — setCategory",
              "setCategory(.playAndRecord, mode: .default, options: recordOptions)"),
-            ("static func upgradeToPlayAndRecord", "session: raise 2/2",
+            ("static func upgradeToPlayAndRecord", "session: raise 2/2 — setActive",
              "setActive(true, options: .notifyOthersOnDeactivation)"),
-            ("static func downgradeToPlaybackAfterRecording", "session: lower 1/1",
+            ("static func downgradeToPlaybackAfterRecording", "session: lower 1/1 — setCategory",
              "setCategory(.playback, mode: .default,"),
         ]
         for (fn, rung, call) in ordered {
@@ -596,9 +596,9 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         //     just as misleading as a trailing rung, and in the opposite direction.
         for (fn, noOpGuard, rung) in [
             ("static func upgradeToPlayAndRecord",
-             "guard audioSession.category != .playAndRecord", "session: raise 1/2"),
+             "guard audioSession.category != .playAndRecord", "session: raise 1/2 — setCategory"),
             ("static func downgradeToPlaybackAfterRecording",
-             "guard audioSession.category != .playback", "session: lower 1/1"),
+             "guard audioSession.category != .playback", "session: lower 1/1 — setCategory"),
         ] {
             guard let a = config.range(of: fn) else { return }
             let body = String(config[a.lowerBound...].prefix(1_800))
@@ -609,6 +609,47 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             XCTAssertTrue(g.lowerBound < r.lowerBound, """
                 `\(fn)` announces its session move BEFORE the guard that may skip it (#878). \
                 The log then names a step the code did not take.
+                """)
+        }
+
+        // (c2) #906 — A SKIPPED STEP SAYS SO. Both category moves have a no-op guard that
+        //      returned in SILENCE, and the ladder's own law reads silence between two rungs
+        //      as a DEATH: `releaseRecordRoute` printed "holders none, lowering" and returned
+        //      TRUE while nothing had been lowered. The law is not new — `AudioEngine` has
+        //      carried `on 4/5 SKIPPED:` since #862b — it simply had not reached this file.
+        //
+        // ⚠️ THE ORDERING HERE IS THE OPPOSITE OF (b)'s, and that is the point: a SKIPPED
+        //    line stands INSIDE the guard, i.e. AFTER the guard text and BEFORE the real
+        //    rung. #878 forbids announcing a step the guard then skips; announcing that it
+        //    WAS skipped is the honest half of the same law.
+        for (fn, noOpGuard, skipped, rung) in [
+            ("static func upgradeToPlayAndRecord",
+             "guard audioSession.category != .playAndRecord",
+             "session: raise 1/2 SKIPPED: category already .playAndRecord",
+             "session: raise 1/2 — setCategory"),
+            ("static func downgradeToPlaybackAfterRecording",
+             "guard audioSession.category != .playback",
+             "session: lower 1/1 SKIPPED: category already .playback",
+             "session: lower 1/1 — setCategory"),
+        ] {
+            XCTAssertEqual(occurrences(of: skipped, in: config), 1, """
+                `\(fn)`'s no-op guard no longer says it skipped (#906). It then returns in \
+                silence while its caller has already written a line implying the move \
+                happened — and by this ladder's own law (#859–#862b) the silence that \
+                follows reads as a death inside the step, not as a step that never ran.
+                """)
+            guard let a = config.range(of: fn) else { return }
+            let body = String(config[a.lowerBound...].prefix(1_800))
+            guard let g = body.range(of: noOpGuard), let s = body.range(of: skipped),
+                  let r = body.range(of: rung) else {
+                XCTFail("the guard, its SKIPPED line or the real rung left `\(fn)` — "
+                        + "re-anchor (§4).")
+                return
+            }
+            XCTAssertTrue(g.lowerBound < s.lowerBound && s.lowerBound < r.lowerBound, """
+                the SKIPPED line in `\(fn)` is no longer INSIDE its no-op guard. It must sit \
+                after the guard and before the real rung: ahead of the guard it announces a \
+                skip that may not happen, and after the rung it describes a step that did.
                 """)
         }
 
@@ -631,13 +672,20 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         // this file, and it counts the very line #902 added — the #453→#477 rule reproduced
         // exactly: a hand survey said eleven, and a guard selected a twelfth.
         //
-        // TODAY'S ARITHMETIC: seven transition rungs + `latencyBreadcrumb` + one `route: claim`
-        // + THREE `route: release` outcomes = 12.
-        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 12, """
+        // ⭐ #906 — AND THE TOOL WRITTEN FOR THIS PIN CAUGHT ITS NEXT MOVE, ONE CYCLE LATER.
+        // #906 added two SKIPPED lines; `python3 scripts/count-pins.py` printed
+        // `pinned 12, actual 14` before the commit existed. The same drift went unseen for
+        // thirteen commits when only CI was watching (#903). That is the whole argument for
+        // the checker, in one line of output.
+        //
+        // TODAY'S ARITHMETIC: seven transition rungs + TWO `SKIPPED` state lines +
+        // `latencyBreadcrumb` + one `route: claim` + THREE `route: release` outcomes = 14.
+        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 14, """
             The breadcrumb count in AudioConfiguration changed. Confirm the new site is a \
             discrete event (launch, route transition), never a per-buffer or tick-rate path, \
             then update this number and say why in the same commit. Today: seven transition \
-            rungs + latencyBreadcrumb + one route claim + three route-release outcomes.
+            rungs + two SKIPPED state lines + latencyBreadcrumb + one route claim + three \
+            route-release outcomes.
             """)
     }
 

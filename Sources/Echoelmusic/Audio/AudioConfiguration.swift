@@ -463,7 +463,15 @@ enum AudioConfiguration {
         #else
         recordingRouteNeeded = true      // so a reconfigure re-applies the record route
         let audioSession = AVAudioSession.sharedInstance()
-        guard audioSession.category != .playAndRecord else { return }
+        guard audioSession.category != .playAndRecord else {
+            // #906 — A SKIPPED STEP MUST SAY SO, OR THE NUMBERING LIES. That law is already
+            // written in this repo, at `AudioEngine.swift`'s `on 4/5 SKIPPED:` line; this
+            // guard returned in silence. The caller writes `route: claim … ` immediately
+            // before, so the log read "claim, then nothing" — and by the ladder's OWN law
+            // (#859–#862b) silence between two rungs is a DEATH. A no-op looked like a crash.
+            EchoelCrashLog.breadcrumb("session: raise 1/2 SKIPPED: category already .playAndRecord")
+            return
+        }
 
         // #878: the rungs sit AFTER the no-op guard on purpose. Announcing a raise that
         // the guard then skips would put a step in the log that never happened — the
@@ -507,7 +515,14 @@ enum AudioConfiguration {
         recordingRouteNeeded = false
         guard isSessionConfigured else { return }
         let audioSession = AVAudioSession.sharedInstance()
-        guard audioSession.category != .playback else { return }
+        guard audioSession.category != .playback else {
+            // #906 — the mirror of the raise guard above, and the one a reader actually
+            // meets: `releaseRecordRoute` prints "holders none, lowering" and returns TRUE,
+            // so a run that lowered NOTHING was indistinguishable from one that died inside
+            // `setCategory`. Reported by the #902 review as a fourth reading of that line.
+            EchoelCrashLog.breadcrumb("session: lower 1/1 SKIPPED: category already .playback")
+            return
+        }
         // #878: ONE rung, not two — this path deliberately has no `setActive`, and a
         // "2/2" here would promise a step the code does not take (see the ⚠️ below).
         EchoelCrashLog.breadcrumb("session: lower 1/1 — setCategory(.playback)")

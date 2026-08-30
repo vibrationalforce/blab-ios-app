@@ -17630,3 +17630,50 @@ ihren Daten.
 `auto-merge-claude.yml`. Diese Scheibe erreicht `main` nur, weil sie auch `Tests/**` anfasst.
 Ein Folge-Commit, der NUR das Skript ändert, bliebe unbegrenzt liegen — und würde nach der
 #699-Notiz zusätzlich den docs-Merge blockieren.
+
+---
+
+## 2026-08-30 — #906: ein übersprungener Schritt sagt es jetzt — und der Prüfer aus #904 fing meine eigene Änderung
+
+**Der Befund kam aus dem #902-Review und war dort bewusst zurückgestellt.** `releaseRecordRoute`
+schreibt „holders none, lowering" und gibt **true** zurück; danach kann
+`downgradeToPlaybackAfterRecording` an seinem No-op-Wächter (`category` ist schon `.playback`)
+**still** zurückkehren. Nach dem eigenen Gesetz der Leiter (#859–#862b) ist Stille zwischen
+zwei Sprossen ein TOD — ein Nichtstun las sich also wie ein Absturz im `setCategory`. Das ist
+kein neues Gesetz: `AudioEngine` trägt seit #862b `on 4/5 SKIPPED:` und daneben den Satz
+„A SKIPPED step must say so, or the numbering lies"; es hatte diese Datei nur nie erreicht.
+
+Beide Kategorie-Wechsel sagen es jetzt — der Abstieg (der Fall, den ein Leser wirklich trifft)
+und sein Spiegelbild, der Aufstieg.
+
+⛔ **UND ICH HABE MIR DABEI SELBST EIN #367-LOCH AUFGERISSEN, im selben Diff.** Die
+Reihenfolge-Ansprüche suchen `"session: raise 1/2"` bzw. `"session: lower 1/1"` — die neue
+SKIPPED-Zeile enthält beide Teilzeichenketten und steht FRÜHER. Damit wäre „die Sprosse steht
+vor dem Aufruf, den sie benennt" ab sofort von der SKIPPED-Zeile erfüllt worden, **auch wenn
+die echte Sprosse hinter den Aufruf gerutscht wäre**: grün aus einem anderen Grund als dem,
+den die Meldung nennt. Drei Nadeln auf den vollen Sprossentext verengt (`… — setCategory`,
+`… — setActive`), im selben Commit. **Lehre: eine neue Log-Zeile ist auch eine neue NADEL —
+wer eine Zeile hinzufügt, die eine bestehende Nadel als Präfix enthält, verändert jeden
+Wächter, der sie sucht.**
+
+⭐ **DER PRÜFER AUS #904/#905 HAT MEINE EIGENE ÄNDERUNG GEFANGEN, EINEN ZYKLUS NACH SEINER
+ENTSTEHUNG.** `python3 scripts/count-pins.py` druckte `pinned 12, actual 14`, bevor der Commit
+existierte. Dieselbe Drift blieb dreizehn Commits unbemerkt, als nur CI zusah (#903). Das ist
+das ganze Argument für das Werkzeug, in einer Zeile Ausgabe — und der erste Fall, in dem es
+nicht Vergangenheit aufräumt, sondern Gegenwart verhindert.
+
+**Bewusst NICHT gemacht:** die dritte stille Rückkehr des Abstiegs (`guard isSessionConfigured`)
+bekommt keine Zeile. Sie kann nur vor `configureAudioSession()` greifen — in einem Zustand, in
+dem die App noch gar keine Audio-Sitzung hat und die Frage nach dem Log-Ziel gegenstandslos
+ist. Eine Zeile dort wäre Lärm auf einem Pfad, den kein Absturz-Log je zeigt.
+
+**Benotung (§3):** vier Zusicherungen rot auf dem Elternteil, aber es ist EINE Abwesenheit,
+viermal gemeldet (#486) — die zwei SKIPPED-Zeilen existieren dort nicht. Der Zähl-Pin (12→14)
+ist eine REPARATUR im selben Commit, keine Regression. Alles übrige ist Gegengewicht und auf
+beiden Bäumen grün.
+
+**Nachgefahren:** sieben Sprossen/Aufruf-Reihenfolgen mit den VERENGTEN Nadeln, zwei
+No-op-Wächter-Reihenfolgen, zwei Puffer-Reihenfolgen, die `route: claim`-Reihenfolge, drei
+`route: release`-Ergebnisse, der Zähl-Pin und der neue (c2)-Block — alle grün im Arbeitsbaum,
+die vier neuen rot auf HEAD. `count-pins` 136/154 → 0 rot · `dead-needles` 382 Dateien sauber ·
+`diag-ladder --source` 8/8.
