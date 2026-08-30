@@ -11485,6 +11485,35 @@ private struct VoiceCaptureRow: View {
                         Button("Capture") {
                             controller.begin(mic: audioEngine.microphoneManager,
                                              synth: synth)
+                            // ⛔ #897 — FIVE SLICES MADE THIS FAILURE VISIBLE AND NONE OF THEM
+                            // MADE IT PERCEIVABLE. On every abort the take returns to `.idle`,
+                            // so this button keeps its label, its hint and its value: for a
+                            // VoiceOver user the tap changes NOTHING on the focused control and
+                            // the new sentence is an unfocused sibling `Text` that focus never
+                            // visits. They were left with exactly the dead button the whole arc
+                            // set out to remove — the one class of user for whom it was never
+                            // fixed.
+                            //
+                            // ⭐ THE ANNOUNCED TEXT IS `caption` ITSELF, not a second string.
+                            // A hand-written copy would drift from the visible one the first
+                            // time either is reworded, and the two would then disagree about
+                            // what just happened. Same mechanism as the library's undo offer
+                            // (`VideoLibraryPanel`), which exists for the same reason: the
+                            // thing worth saying is not where focus is.
+                            //
+                            // ⚠️ `begin()` is synchronous, so the outcome is already decided on
+                            // this line. `.idle` here means it aborted — a take that started
+                            // sits on `.capturing`, and there the button is REPLACED by Cancel,
+                            // which moves focus and speaks for itself.
+                            //
+                            // NEEDS-FOUNDER-VERIFY: VoiceOver on, Sound panel → Voice timbre →
+                            // Capture with the microphone permission still unanswered or
+                            // switched off. Does the reason get SPOKEN? A green test bundle
+                            // proves the call is written, never that the system speaks it —
+                            // an announcement posted while focus is moving can be dropped.
+                            if controller.phase == .idle {
+                                AccessibilityNotification.Announcement(caption).post()
+                            }
                         }
                         .font(EchoelTheme.font(11, .semibold))
                         .frame(minHeight: 44)

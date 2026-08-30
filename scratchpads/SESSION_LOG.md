@@ -17164,3 +17164,45 @@ Bedingung, die die Umstrukturierung aufgelöst hat (wäre rot auf korrektem Code
 **Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. Nichts gerätverifiziert. Der
 Reviewer hat ausdrücklich bestätigt: Route-Eigentum sauber (der Weg verlässt `startRecording()`
 OBERHALB des Claims), nichts auf dem Audio-Thread, Freeze-Gesetz hält.
+
+## 2026-08-30 — #897: für Blinde hatte der ganze Bogen nichts repariert
+
+**Fünf Scheiben haben den Fehlschlag SICHTBAR gemacht und keine hat ihn WAHRNEHMBAR gemacht.**
+Jeder Abbruch setzt die Aufnahme auf `.idle` zurück — der Capture-Knopf behält also Beschriftung,
+Hinweis und Wert. Für VoiceOver ändert der Tipp am fokussierten Bedienelement **nichts**, und der
+Satz, an dem fünf Scheiben gearbeitet haben, ist ein unfokussiertes Geschwister-`Text`, das der
+Fokus nie besucht. Genau die tote Taste, die der Bogen beseitigen sollte — für die eine
+Nutzergruppe, für die er sie nie beseitigt hat.
+
+**Der angesagte Text ist `caption` SELBST**, keine zweite Zeichenkette. Eine handgeschriebene
+Kopie liefe beim ersten Umformulieren auseinander, und dann widersprächen sich Schirm und
+Ansage darüber, was gerade passiert ist. Ein Gegengewicht im Wächter verbietet ein
+String-Literal an dieser Stelle — und es steht diesmal so, dass es feuern KANN (die #896-Lehre:
+`XCTAssertTrue` bricht die Methode nicht ab, `XCTUnwrap` schon).
+
+**Mechanismus aus dem Repo geliehen, nicht erfunden:** `AccessibilityNotification.Announcement`,
+wie in `VideoLibraryPanel` für das Rückgängig-Angebot — dort aus demselben Grund: das, was zu
+sagen ist, steht nicht dort, wo der Fokus ist.
+
+## ⭐ ENTDECKUNG, die den ganzen blockierenden Bundle betrifft: `prefix(N)`-Fenster sind Leerzeichen
+
+**Der neue Anspruch war auf seinem EIGENEN korrekten Code rot.** Ursache: `SourceText.codeOnly`
+leert den TEXT eines Kommentars, **behält aber die Einrückung**. Auf dieser Verschachtelungstiefe
+kostet eine geleerte Doc-Zeile weiter ~29 Zeichen. Mein eigener Erklärblock über der Ansage hat
+ein 700-Zeichen-Fenster allein aufgebraucht.
+
+**Nachgemessen, bevor ich es repariert habe:** die zwei Geschwister-Fenster derselben Datei
+hatten **703** und **1303** Zeichen Luft — etwa **24** und **45** Kommentarzeilen. In einem Repo,
+das ⛔-Blöcke dutzendweise schreibt, ist das keine Reserve, sondern ein Countdown. Alle drei sind
+jetzt an ANKER gebunden statt an geratene Zahlen.
+
+⭐ **Die allgemeine Form der #894-Lehre: ein Fenster wird von der Sache begrenzt, die es
+beschreibt, nie von einer Zahl, die jemand geschätzt hat.** Eine geschätzte Grenze scheitert
+nicht, wenn sie falsch ist — sie scheitert SPÄTER, bei unbeteiligter Arbeit, und zeigt auf den
+falschen Schuldigen. **Jeder Wächter im blockierenden Bundle, der `prefix(N)` über einen
+kommentarreichen Bereich legt, hat dieselbe Bruchlinie; grün hält ihn nur seine Marge.**
+
+**Geräteprobe eingereicht (Warteschlange 62 → 63):** VoiceOver an, Aufnahme mit unbeantworteter
+oder abgeschalteter Mikrofon-Erlaubnis — wird der Grund GESPROCHEN? Ein grünes Bundle beweist,
+dass der Aufruf dasteht, nie dass das System ihn spricht; eine Ansage während eines
+Fokuswechsels kann verworfen werden.

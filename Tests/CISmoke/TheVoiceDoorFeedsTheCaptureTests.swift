@@ -9,7 +9,7 @@
 // the panel closing mid-take. Every claim here is a JOIN between two files — the class
 // of defect where renaming one side leaves a door pointing at nothing (#351).
 //
-// ⚠️ HONEST LIMITS. 8 tests, 29 `XCTAssert*` STATEMENTS — 3+3+3+2+5+2+4+7, measured with
+// ⚠️ HONEST LIMITS. 9 tests, 32 `XCTAssert*` STATEMENTS — 3+3+3+2+5+2+4+7+3, measured with
 // `awk` per `func test`, not by eye. ⛔ Three hand-counts in this header have now been
 // wrong (12, then 16, then 20 with a bogus 3+3+3+2+5+4 split); the command that settles it
 // is in the SESSION_LOG for #892, and a fourth hand-count is not the fix — reading the
@@ -54,6 +54,15 @@
 // `hasPermission` discriminator, whose removal would abort the legitimate permission wait
 // instead, and the deliberate absence of `releaseMic()` on that path, which would write a
 // three-rung stop ladder for a mic that never started (#882).
+//
+// ⛔ #897 — AND FOR ONE CLASS OF USER THE ARC HAD FIXED NOTHING AT ALL. Every abort returns
+// the take to `.idle`, so the Capture button keeps its label, hint and value: to VoiceOver the
+// tap changes nothing on the focused control, and the sentence five slices worked on is an
+// unfocused sibling `Text`. Blind users still had the dead button the arc set out to remove.
+// The ninth claim pins the announcement AND that its text is `caption` itself — a hand-written
+// second copy would drift the first time either is reworded, and the two would then disagree
+// about what just happened. ⚠️ WHAT NO TEST HERE CAN PROVE: that VoiceOver actually SPEAKS it.
+// That is a device probe and it is filed as one, not implied by a green bundle.
 //
 // ⛔ #896 — THE HANG SURVIVED FOUR SLICES BECAUSE ONE SENTENCE WAS NEVER MEASURED. #891
 // wrote that the undetermined permission `return` "RESOLVES by itself"; #892 retracted it
@@ -312,7 +321,7 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
         let capStart = try XCTUnwrap(studio.range(of: "private var caption: String {"),
                                      "VoiceCaptureRow's caption was renamed — re-anchor (#454)")
-        let caption = String(studio[capStart.upperBound...].prefix(2000))
+        let caption = try captionBody(of: studio, from: capStart)
         let profileAt = try XCTUnwrap(caption.range(of: "if synth.appliedVoiceProfile != nil {"),
                                       "the applied-profile branch left the caption")
         let refusalAt = try XCTUnwrap(caption.range(of: "if controller.micRefusals > 0 {"),
@@ -475,7 +484,7 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
         let capAt = try XCTUnwrap(studio.range(of: "private var caption: String {"),
                                   "VoiceCaptureRow's caption was renamed — re-anchor (#454)")
-        let caption = String(studio[capAt.upperBound...].prefix(2600))
+        let caption = try captionBody(of: studio, from: capAt)
         let capAwaiting = try XCTUnwrap(caption.range(of: "if controller.micAwaitingPermission {"),
                                         "the awaiting-permission message left the caption")
         let capDenied = try XCTUnwrap(caption.range(of: "if controller.micAccessDenied {"),
@@ -490,7 +499,65 @@ final class TheVoiceDoorFeedsTheCaptureTests: XCTestCase {
                       + "denied permission (#896)")
     }
 
+    /// #897 — the abort reaches VoiceOver, and it says the same thing the screen says.
+    /// Three assertions: the announcement exists, it is gated on the aborted phase, and it
+    /// carries `caption` rather than a second string that could drift from it.
+    func testTheAbortIsAnnouncedAndSaysWhatTheScreenSays() throws {
+        let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        let capAt = try XCTUnwrap(studio.range(of: "Button(\"Capture\") {"),
+                                  "the Capture button was renamed — re-anchor (#454)")
+        // ⛔ NOT `prefix(N)`. `SourceText.codeOnly` blanks a comment's TEXT but KEEPS its
+        // leading whitespace, so a stripped comment line still costs its indentation — at 28
+        // spaces a doc block of two dozen lines eats a 700-character window on its own, and
+        // this claim was red on its own correct code until the window was bounded by an
+        // anchor instead of a constant. The general form of the #894 lesson: a window must be
+        // bounded by the thing it describes, never by a number someone guessed. Any guard in
+        // this bundle still using `prefix(N)` over a comment-heavy region has the same fault
+        // line, and only its MARGIN is keeping it green.
+        let actionEnd = try XCTUnwrap(
+            studio.range(of: ".accessibilityHint(\"Hold a tone;", range: capAt.upperBound..<studio.endIndex),
+            "the Capture button's hint moved — re-anchor this window (#454)")
+        let action = String(studio[capAt.upperBound..<actionEnd.lowerBound])
+        XCTAssertTrue(action.contains("AccessibilityNotification.Announcement(caption).post()"),
+                      "the abort must be ANNOUNCED, and with `caption` itself: on every abort "
+                      + "the button keeps its label, hint and value, so a VoiceOver user gets "
+                      + "no change on the focused control and the new sentence is an unfocused "
+                      + "sibling Text. A hand-written second string would drift from the "
+                      + "visible one the first time either is reworded (#897)")
+        XCTAssertTrue(action.contains("if controller.phase == .idle {"),
+                      "gated on the ABORTED phase. begin() is synchronous, so .idle on this "
+                      + "line means it aborted; a take that started sits on .capturing, where "
+                      + "the button is REPLACED by Cancel — focus moves and speaks for itself, "
+                      + "and announcing there would talk over it")
+        XCTAssertFalse(action.contains("Announcement(\""),
+                       "THE COUNTERWEIGHT, and it is placed BEFORE nothing it depends on so it "
+                       + "can actually fire (#896's lesson): a STRING LITERAL inside the "
+                       + "announcement is the drift this claim exists to prevent — it would "
+                       + "still pass a naive \"is it announced\" check while saying something "
+                       + "the screen does not")
+    }
+
     // MARK: - helpers (§0/§2 — one stripper, skip on no tree, FAIL on a moved anchor)
+
+    /// The caption's body, bounded by its LAST branch rather than by a character count.
+    ///
+    /// ⛔ #897 — BOTH CALLERS USED `prefix(N)` AND BOTH WERE ONE PROSE BLOCK FROM RED ON
+    /// CORRECT CODE. `SourceText.codeOnly` blanks a comment's TEXT but keeps its leading
+    /// whitespace, so at this nesting a stripped doc line still costs ~29 characters. Measured
+    /// when this helper was written: 703 characters of headroom on the 2000 window and 1303 on
+    /// the 2600 one — about 24 and 45 comment lines. In a repo that writes ⛔ blocks by the
+    /// dozen that is not headroom, it is a countdown. The ninth claim did go red on its own
+    /// correct code for exactly this, which is how the pattern was found.
+    ///
+    /// ⭐ THE GENERAL FORM OF THE #894 LESSON: bound a window by the thing it describes, never
+    /// by a number someone guessed. A guessed bound does not fail when it is wrong — it fails
+    /// later, on unrelated work, pointing at the wrong culprit.
+    private func captionBody(of studio: String, from start: Range<String.Index>) throws -> String {
+        let end = try XCTUnwrap(
+            studio.range(of: "return \"Hold a tone for a few seconds;", range: start.upperBound..<studio.endIndex),
+            "the caption's last branch moved — re-anchor this window (#454)")
+        return String(studio[start.upperBound..<end.lowerBound])
+    }
 
     private struct DoorAnchorMissing: Error { let reason: String }
 
