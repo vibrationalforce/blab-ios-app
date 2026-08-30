@@ -409,6 +409,26 @@ final class MicrophoneManager: NSObject {
             EchoelCrashLog.breadcrumb("mic: start FAILED (\(error.localizedDescription))")
             log.audio("❌ Failed to start recording: \(error.localizedDescription)", level: .error)
             self.isRecording = false
+
+            // #900 — THE THROWING EXIT LEFT ITS HALF-BUILT GRAPH BEHIND, and the honest
+            // severity is smaller than it sounds. The `stopRecording()` TRAP note (#877)
+            // already weighed this exact state and calls it harmless: the tap dies with the
+            // engine, and `startRecording()` always builds a FRESH `AVAudioEngine`. What
+            // #891 CHANGED is who cleans up. Before it, the user's unavoidable cancel ran
+            // `stopRecording()` and that nilled all three; since #891 the abort path returns
+            // without one, so `complexDFT` (an FFT scratch allocation) and a stopped engine
+            // live on until the next start. Lifetime, not a crash path.
+            //
+            // ⚠️ THE TAP IS DELIBERATELY NOT REMOVED, and that is the whole discipline of
+            // this block. Only `audioEngine.start()` can throw after the tap is installed,
+            // so the engine here is NEVER running — and `stopRecording()` removes the tap
+            // ONLY under `engine.isRunning` for exactly that reason: touching `inputNode`
+            // on a dead engine is the `isInputConnToConverter` family, seven device logs
+            // deep and still without a named trigger. Dropping the reference is safe;
+            // reaching into the node is not.
+            self.audioEngine = nil
+            self.inputNode = nil
+            self.complexDFT = nil
             // ⭐ #299 Nachlese — THE THROWING EXIT THAT CLAIMED WITHOUT RELEASING, and the
             // sentence that let it through was in the design note: "a Set is idempotent in both
             // directions, which makes the failure paths safe to write as a plain release". A Set

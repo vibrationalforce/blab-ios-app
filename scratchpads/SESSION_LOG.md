@@ -17296,3 +17296,49 @@ die es allein sieht.
 
 **Ehrliche Grenze:** alles Text-Ebene; CI ist der einzige Compiler. Die Simulationen sind
 Python-Transkriptionen (§0), keine Testläufe.
+
+---
+
+## 2026-08-30 — #900: der werfende Start-Ausgang gab seine ROUTE frei und behielt seinen GRAPHEN
+
+**Board O14, der letzte offene Reviewer-Rückstand des Mikrofon-Bogens.** Der `catch` am Ende
+von `MicrophoneManager.startRecording()` machte seit #299 genau eine Aufräumarbeit — die
+Record-Route freigeben — und ließ `audioEngine`, `inputNode` und `complexDFT` stehen.
+
+**Was #891 daran geändert hat, und nur deshalb ist es überhaupt eine Scheibe:** vorher räumte
+der unvermeidliche Abbruch des Nutzers über `stopRecording()` auf, das alle drei nilt. Seit
+#891 kehrt der Abbruchpfad ohne diesen Umweg zurück — also lebt die FFT-Kratzfläche
+(`complexDFT`) plus eine gestoppte Engine bis zum nächsten Start weiter.
+
+⚠️ **Schwere selbst nachgeprüft und NIEDRIGER als gemeldet, und das steht so im Quelltext:**
+der #877-TRAP-Vermerk in `stopRecording()` wägt genau diesen Zustand ab und nennt ihn harmlos
+— der Tap stirbt mit der Engine, und `startRecording()` baut immer eine FRISCHE. Es ist ein
+LEBENSDAUER-Defekt, kein Absturzpfad. Deshalb sind es drei Zeilen und kein Umbau.
+
+⭐ **Der Tap wird ABSICHTLICH nicht entfernt, und das ist die ganze Disziplin des Blocks.**
+Nur `audioEngine.start()` kann werfen, NACHDEM der Tap installiert ist — die Engine läuft im
+`catch` also nie. `stopRecording()` entfernt den Tap aus genau demselben Grund nur unter
+`engine.isRunning`: in einen `inputNode` einer toten Engine zu greifen ist die
+`isInputConnToConverter`-Familie, sieben Gerätelogs tief und weiter ohne benannten Auslöser.
+**Die Referenz fallen zu lassen ist sicher; in den Knoten zu greifen nicht.**
+
+**Wächter** (`RecordRouteOwnershipTests.testTheThrowingStartExitDropsItsHalfBuiltGraph`),
+Benotung nach §3, in Python gegen Elternteil und Arbeitsbaum gefahren: drei Nil-Zusicherungen
+rot auf dem Elternteil als EINE Abwesenheit, dreimal gemeldet (#486); die vierte ist ein
+GEGENGEWICHT, grün auf beiden Bäumen — sie pinnt, was der Block NICHT tun darf.
+
+⛔ **Und ich hätte in diesem Zyklus fast einen Nachbar-Wächter fälschlich als rot gemeldet.**
+Meine erste Simulation von `TheEngineLifecycleSpeaksInTheDiagLogTests` (Fenster
+`prefix(400)` ab `func stopRecording()`) sagte ROT bei Abstand 556. Sie benutzte den
+LEERENDEN Streicher — diese Datei hat aber einen eigenen, ZEILENLÖSCHENDEN. Richtig
+gerechnet: Abstand 160, Reserve 194 Zeichen, grün auf beiden Bäumen. **Exakt der Fehler, den
+#899 eine Stunde vorher im Megaphon-Wächter korrigiert hat** — der Mechanismus hängt am
+Streicher, nicht an der Fensterform. Eine Fehlmeldung wäre teurer gewesen als die Scheibe.
+
+**Gate-Stand beim Schreiben:** #898 (`c91c652`) `Build for Testing: Succeeded` — die
+gemeinsame Datei `SourceText.swift` kompiliert, der ganze blockierende Bundle baut;
+`TEST EXECUTE FAILED` = #396, 0 Fehlschläge im Log-Fenster (#807: das Fenster ist ein
+`tail -200`, kein Suite-Beweis). #899 (`873e545`) baute noch.
+
+**Ehrliche Grenze:** compile-verifiziert erst mit dem Gate, nie am Gerät. Ob der Speicher
+wirklich zurückgeht, ist eine Instruments-Frage und wird hier nicht behauptet.

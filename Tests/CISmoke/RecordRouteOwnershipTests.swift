@@ -165,6 +165,47 @@ final class RecordRouteOwnershipTests: XCTestCase {
         }
     }
 
+    /// #900 — the throwing exit RELEASED its route (#299) and kept its GRAPH.
+    ///
+    /// GRADING (§3), driven in Python against parent and worktree before pushing: the three
+    /// nil assertions are red on the parent as ONE absence reported three times (#486) — the
+    /// cleanup block does not exist there. The fourth is a COUNTERWEIGHT, green on both trees
+    /// and the point of the file: it pins what the block must NOT do.
+    ///
+    /// KIND (§1): SOURCE-TEXT SCAN. Whether the memory is actually returned is an
+    /// instruments-on-device question and is not claimed here.
+    func testTheThrowingStartExitDropsItsHalfBuiltGraph() throws {
+        let file = try code("Sources/Echoelmusic/MicrophoneManager.swift")
+        let body = slice(of: file, from: "mic: start FAILED", to: "#if os(")
+        XCTAssertFalse(body.isEmpty, """
+        The `catch` in `MicrophoneManager.startRecording` no longer runs from the FAILED \
+        breadcrumb to the platform-gated route release — re-anchor this claim in the same \
+        commit (§4).
+        """)
+        for ref in ["self.audioEngine = nil", "self.inputNode = nil", "self.complexDFT = nil"] {
+            XCTAssertTrue(body.contains(ref), """
+            The throwing start exit no longer drops `\(ref)`. #891 took the abort path away \
+            from `stopRecording()`, which used to be the thing that cleaned up after a failed \
+            start; without these three the FFT scratch buffer and a stopped engine live on \
+            until the next start. This is a LIFETIME defect, not a crash path — the #877 TRAP \
+            note in `stopRecording()` weighed this same state and calls it otherwise harmless, \
+            and that honest severity is why the repair is three lines and not a redesign.
+            """)
+        }
+        // COUNTERWEIGHT — green on both trees, and the reason the fix is three lines.
+        // ⚠️ #364: this forbids a tap removal HERE, not everywhere. If a future change makes
+        // the engine reachable in a RUNNING state at this point, the removal becomes correct
+        // and this claim must move with it — say so in the message you replace this one with.
+        XCTAssertFalse(body.contains("removeTap"), """
+        The throwing start exit now reaches into `inputNode` to remove the tap. Only \
+        `audioEngine.start()` can throw after the tap is installed, so the engine here is \
+        never running — and `stopRecording()` removes the tap ONLY under `engine.isRunning` \
+        for exactly that reason: touching `inputNode` on a dead engine is the \
+        `isInputConnToConverter` family, seven device logs deep and still without a named \
+        trigger. Dropping the reference is safe; reaching into the node is not.
+        """)
+    }
+
     func testTheMultiTrackRecorderClaimsAndReleasesTheRoute() throws {
         let file = try code("Sources/Echoelmusic/Audio/MultiTrackRecorder.swift")
         XCTAssertTrue(file.contains("claimRecordRoute(.multiTrackRecorder)"), """
