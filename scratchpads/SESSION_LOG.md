@@ -17245,3 +17245,54 @@ Wächter. Eine gedruckte Reserve ist eine OBERGRENZE der Sicherheit, nie ein Bew
 gemeinsam genutzte Datei des blockierenden Bundles; die Ergänzung ist additiv, aber ein
 Compile-Fehler dort würde den ganzen Bundle rot machen — der Gate-Lauf ist die einzige
 Bestätigung.
+
+---
+
+## 2026-08-30 — #899: die Reviewer-Runde auf #898, und der teuerste Fund war das GEGENTEIL der Diagnose
+
+**Zwölf Befunde, einer davon HIGH — und der HIGH sagt, dass #898 einen Wächter SCHWÄCHER
+gemacht hat, indem es sein Fenster enger machte.** Ein Fenster versagt in zwei Richtungen:
+zu klein = rot auf korrektem Code (das war der #897-Fund), zu groß = grün auf kaputtem Code.
+#898 hat nur über die erste nachgedacht.
+
+**Gemessen, nicht geschätzt** (Simulation gegen beide Bäume, in Python transkribiert):
+`TheMIDIOutRearmsOnForegroundTests` sucht `startIfNeeded()` im Rumpf von `rearmIfDead()`.
+Diese Nadel trifft auch die eigene DEKLARATION `private func startIfNeeded()`, elf Code-Zeilen
+tiefer. Das alte 300-ZEICHEN-Fenster hielt zu ihr Abstand, indem es ~272 Zeichen geleerte
+Kommentare bezahlte. Code-Zeilen zu zählen übersprang genau dieses Polster:
+
+```
+Regression simuliert (Aufruf gelöscht) — findet das Fenster die Nadel trotzdem?
+  Budget  6: False (gewollt False)   Budget 12: False   Budget 13: TRUE  ← Falsch-GRÜN
+mit EINDEUTIGER Nadel ("\n        startIfNeeded()"):
+  Budget 12: False … Budget 40: False
+```
+
+Der Falsch-GRÜN-Abstand fiel also von ~9 Code-Zeilen auf **EINE**. **Reparatur ist nicht
+„Budget senken", sondern eine eindeutige Nadel** — die hält bei jedem Budget. Gegenprobe auf
+dem korrekten Baum: beide Nadeln bei Budget 12 grün.
+
+**Vier Zahlen aus #898 waren falsch, alle in der schmeichelnden Richtung:**
+· „Bruchlinie unter **37** Wächtern" — die SHAPE kommt 35-mal vor, aber der Mechanismus hängt
+  an `SourceText.codeOnly`; nur **16** Stellen stehen in Dateien, die den benutzen. ~2× zu weit.
+· „eine geleerte Zeile kostet **8 bis 28** Zeichen" — gemessen an den zwei betroffenen Dateien
+  ist die häufigste Breite **4**, die Spanne **0 bis 30**. Mit 4 statt 8 als Modus ist jede
+  Umrechnung „Reserve in Kommentarzeilen" doppelt so optimistisch wie behauptet.
+· „fünf bis zehn Kommentarzeilen bis rot" — folgte aus der geratenen Breite, gestrichen.
+· die Begründung der ZWEITEN Umstellung (`TheMegaphoneGuardOutgunsTheBoostTests`) war schlicht
+  falsch: diese Datei hat einen EIGENEN, zeilenlöschenden Streicher, dort kostet ein Kommentar
+  null Zeichen und der Mechanismus kann gar nicht greifen. Die Umstellung bleibt (ein
+  Zeilen-Budget ist ohnehin die ehrlichere Grenze), der GRUND ist im Quelltext korrigiert —
+  #167: ein Vermerk, dessen Begründung die nächste Sitzung widerlegen kann, ist teurer als
+  gar keiner.
+
+**Am Werkzeug repariert:** `codeWindow(_:from:lines:)` gab bei `lines: 0` EINE Zeile zurück
+(die Prüfung stand nach dem Anhängen) und benutzte `.whitespaces` statt
+`.whitespacesAndNewlines` — Ersteres schließt das Wagenrücklauf-Zeichen AUS, unter CRLF wäre
+eine geleerte Kommentarzeile also als Code gezählt worden. `scripts/window-margins.py`:
+Selftest von 4 auf **9** Fälle (darunter der `/* */`-Zweig, den kein Fall traf), `--thin`
+sagt jetzt ausdrücklich, dass Stille kein Freispruch ist, und der Docstring nennt die Shape,
+die es allein sieht.
+
+**Ehrliche Grenze:** alles Text-Ebene; CI ist der einzige Compiler. Die Simulationen sind
+Python-Transkriptionen (§0), keine Testläufe.

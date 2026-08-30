@@ -67,7 +67,16 @@ final class TheMIDIOutRearmsOnForegroundTests: XCTestCase {
             opens a port the routing said not to (route off) or re-runs client \
             creation on a live port (already ready) on every foreground return.
             """)
-        XCTAssertTrue(body.contains("startIfNeeded()"), """
+        // ⛔ #899 — THE NEEDLE, NOT THE BUDGET, WAS THE HOLE, and #898 dug it. `startIfNeeded()`
+        // also matches its own DECLARATION eleven code lines below, which the old 300-CHARACTER
+        // window paid ~272 characters to stay clear of — characters that were mostly blanked
+        // comments. Counting code lines skipped exactly that padding, so the false-GREEN
+        // headroom fell from ~9 code lines to ONE: at budget 13 this claim goes green with the
+        // call DELETED. Simulated both ways before and after. ⭐ Raising the budget would have
+        // been the wrong repair; an unambiguous needle removes the hazard at ANY budget (holds
+        // to 40+, measured). LESSON: making a window tighter can weaken a guard, because a
+        // window has two failure directions and #898 only reasoned about one of them.
+        XCTAssertTrue(body.contains("\n        startIfNeeded()"), """
             The re-arm no longer routes through startIfNeeded() — the one port-open \
             path that reads the persisted MPE/expression prefs first (#713/#714). A \
             second creation path would fork the lifecycle this file spent #713–#716 \

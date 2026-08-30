@@ -20,7 +20,12 @@ line for the nearest `"Sources/….swift"` and the nearest `range(of: "…")`. W
 builds either indirectly, the site prints `unresolved` — that is the tool failing, never a
 verdict about the guard. (2) It collects needles from `contains("…")` on the following few
 lines only; a needle built by interpolation or held in a variable is invisible, so a printed
-margin is an UPPER BOUND on safety, never a proof. (3) It never runs a test.
+margin is an UPPER BOUND on safety, never a proof. (3) It never runs a test. (4) #899: it sees ONE syntactic shape, `[ident...].prefix(N)`.
+BACKWARD windows of the same class — `index(x, offsetBy: -N)` — are outside the census; three
+exist today (the thinnest measured 314 characters, none thinner than the two that were
+converted), so the conclusion held, but the census does not cover them. (5) #899: the MECHANISM
+needs the site's file to use `SourceText.codeOnly`; a file whose local stripper DELETES comment
+lines is immune, so a site appearing here is not by itself evidence of exposure.
 
     python3 scripts/window-margins.py            # all sites, worst margin first
     python3 scripts/window-margins.py --thin 250 # only sites at or under that margin
@@ -95,10 +100,16 @@ def sites(root):
             # is nearer): a guard commonly loads its source once at the start of the method
             # and windows much further down, so a fixed lookback resolved barely a sixth of
             # the sites on the first run.
+            # #899: "whichever is NEARER" now actually holds. The first version assigned the
+            # `func test` bound unconditionally, discarding the fixed one even when the method
+            # header was farther away — which for a site outside any `func test` left the scan
+            # unbounded and able to bind an anchor from an unrelated earlier test. Latent only
+            # (max measured distance to an enclosing test: 69), but a comment that describes a
+            # bound the code does not take is the defect this repo pays for most often.
             stop = max(-1, i - LOOKBACK)
             for j in range(i, -1, -1):
                 if lines[j].lstrip().startswith("func test"):
-                    stop = j - 1
+                    stop = max(stop, j - 1)
                     break
             target = anchor = None
             for j in range(i, stop, -1):
@@ -147,11 +158,20 @@ def measure(root, thin):
     print(f"{len(rows)} measured, {len(unresolved)} unresolved "
           f"(unresolved = the TOOL could not read the site, not a verdict)\n")
     print(f"{'margin':>7}  {'window':>6}  {'furthest needle':>15}  site")
+    shown = 0
     for margin, label, size, off in rows:
         if thin is not None and margin > thin:
             continue
+        shown += 1
         flag = "  <-- THIN" if margin <= 250 else ""
         print(f"{margin:>7}  {size:>6}  {off:>15}  {label}{flag}")
+    if thin is not None:
+        # #899: an empty table under --thin read as "all clear". It is not: the filter only
+        # ever sees the MEASURED rows, and most sites are not among them.
+        if shown == 0:
+            print(f"  (no MEASURED site at or under a margin of {thin})")
+        print(f"\n  {len(unresolved)} site(s) were never measured — run without --thin to list "
+              f"them. A quiet --thin is not an all-clear.")
     if unresolved and thin is None:
         print("\nunresolved:")
         for label, size, why in unresolved:
@@ -160,19 +180,33 @@ def measure(root, thin):
 
 
 def selftest():
+    # (line, incoming block state) -> (expected code, expected outgoing block state)
     cases = [
-        ('let x = "a // b"', 'let x = "a // b"', "a // inside a string is not a comment"),
-        ("code() // why", "code() ", "a trailing comment is cut"),
-        ("        // all prose", "        ", "a comment line KEEPS its indentation — the whole point"),
-        ('let s = "\\"" // t', 'let s = "\\"" ', "an escaped quote does not close the literal"),
+        ('let x = "a // b"', False, 'let x = "a // b"', False, "a // inside a string is not a comment"),
+        ("code() // why", False, "code() ", False, "a trailing comment is cut"),
+        ("        // all prose", False, "        ", False,
+         "a comment line KEEPS its indentation — the whole point of this tool"),
+        ('let s = "\\"" // t', False, 'let s = "\\"" ', False, "an escaped quote does not close the literal"),
+        # #899: the /* branch was untested, and SourceText's own header calls it "the DANGEROUS
+        # one". Its state CROSSES lines, which is the only part of this port that is not a pure
+        # function of one line — so the outgoing flag is asserted too, not just the text.
+        ("a /* b */ c", False, "a  c", False, "an inline block comment is removed, both sides kept"),
+        ("a /* b", False, "a ", True, "an unclosed block opens and reports it"),
+        ("still inside", True, "", True, "a line inside a block yields nothing and stays open"),
+        ("b */ tail", True, " tail", False, "the block closes mid-line and the tail survives"),
+        ('let u = "/* not a block"', False, 'let u = "/* not a block"', False,
+         "a /* inside a string does not open a block"),
     ]
     bad = 0
-    for src, want, why in cases:
-        got, _ = strip_line(src, False)
-        if got != want:
-            print(f"FAIL {why}\n  in={src!r}\n  want={want!r}\n  got ={got!r}")
+    for src, blk_in, want, blk_out, why in cases:
+        got, got_blk = strip_line(src, blk_in)
+        if got != want or got_blk != blk_out:
+            print(f"FAIL {why}\n  in={src!r} block={blk_in}\n  want={want!r} block={blk_out}"
+                  f"\n  got ={got!r} block={got_blk}")
             bad += 1
-    print("selftest: " + ("OK, 4 cases" if not bad else f"{bad} FAILED"))
+    # #899: `len(cases)`, not a literal — the first version printed "4 cases" beside a list
+    # whose length it did not read, which is this repo's most-repeated defect in miniature.
+    print("selftest: " + (f"OK, {len(cases)} cases" if not bad else f"{bad} of {len(cases)} FAILED"))
     return 1 if bad else 0
 
 

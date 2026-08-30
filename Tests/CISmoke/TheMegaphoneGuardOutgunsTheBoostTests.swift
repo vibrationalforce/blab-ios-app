@@ -136,9 +136,18 @@ final class TheMegaphoneGuardOutgunsTheBoostTests: XCTestCase {
                     + "depth against a boosted signal, breaking the authority law.")
             return
         }
-        // ⛔ #898: was `.prefix(600)` with a MEASURED margin of 176 characters. Same fault
-        // line as the MIDI re-arm guard and the same repair: count CODE lines, not characters
-        // that a blanked comment's indentation also pays for. Needles land at 6 code lines.
+        // ⛔ #899 — #898 SAID "same fault line as the MIDI re-arm guard" AND THAT IS FALSE
+        // FOR THIS FILE. The whitespace mechanism belongs to `SourceText.codeOnly`, which
+        // BLANKS a comment and keeps its indentation. This file's own helper (see `code(_:)`
+        // below) DELETES the whole comment line, newline included — a comment here costs zero
+        // characters, so prose above an assertion cannot walk a needle out of a character
+        // window. The 176 figure was identical under both strippers only because no comment
+        // happens to sit between this anchor and the last needle.
+        //
+        // ⭐ The conversion STAYS: a line budget is the more honest bound either way, and the
+        // needles land at 6 code lines with no later occurrence of any of them in the file.
+        // What was wrong is the RECORDED REASON — and a note whose justification the next
+        // session cannot refute is the most expensive kind this repo knows (#167).
         let window = SourceText.codeWindow(engine, from: duckSite.lowerBound, lines: 12)
         XCTAssertTrue(window.contains("FeedbackGuard.defaultMaxReductionDB")
                       && window.contains("+ Self.megaphoneBoostDB")

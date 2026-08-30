@@ -187,29 +187,70 @@ enum SourceText {
 
     /// The next `lines` lines that actually carry CODE, starting at `start`.
     ///
-    /// ⛔ #898 — WHY THIS EXISTS, and it is a fault line under 37 windows in this bundle.
-    /// `codeOnly` blanks a comment's TEXT but KEEPS its leading whitespace (it has to: several
-    /// guards assert on the relative ORDER of two matches, so lines are preserved, not
-    /// deleted). A stripped doc line therefore still costs its indentation — 8 to 28 characters
-    /// here. Every `…[anchor...].prefix(N)` window in this bundle is consequently measured in
-    /// WHITESPACE as much as in code, and adding prose above the thing being asserted walks the
-    /// needle out of the window. The failure is the worst shape available: a guard goes RED ON
-    /// CORRECT CODE, during unrelated work, pointing at the wrong culprit.
+    /// ⛔ #898 — WHY THIS EXISTS. `codeOnly` blanks a comment's TEXT but KEEPS its leading
+    /// whitespace (it has to: several guards assert on the relative ORDER of two matches, so
+    /// lines are preserved, not deleted). A stripped doc line therefore still costs its
+    /// indentation, so a `…[anchor...].prefix(N)` window is measured in WHITESPACE as much as
+    /// in code, and adding prose above the thing being asserted walks the needle out of the
+    /// window. The failure is the worst shape available: RED ON CORRECT CODE, during unrelated
+    /// work, pointing at the wrong culprit. Found in #897, where a new claim was red on its own
+    /// correct code.
     ///
-    /// ⭐ Found the hard way in #897, where a new claim was red on its own correct code, and
-    /// then MEASURED across the bundle with `scripts/window-margins.py`: 37 sites, two of them
-    /// with margins of 140 and 176 characters — five to ten comment lines from red. Those two
-    /// are converted here. The other 35 are a MIGRATION, not a slice (#460), and the script is
-    /// what makes that migration a list rather than a hunt.
+    /// ⛔ #899 CORRECTED THREE THINGS #898 CLAIMED, all in the direction of overstating. They
+    /// are corrected rather than trimmed because each is the sentence a next session quotes.
+    ///
+    /// · **"a fault line under 37 windows in this bundle" was ~2× too wide.** The census of 37
+    ///   is right as a count of the SHAPE; the MECHANISM needs the file to use `codeOnly`.
+    ///   Classified: **16** of the 35 unconverted sites do, plus the converted MIDI one. The
+    ///   rest sit over a local stripper that DELETES whole comment lines (a comment costs zero
+    ///   there) or over unstripped text. ⚠️ Only the 16 is firm — it is the same under two
+    ///   independent classifications; the split of the remainder is heuristic and the two
+    ///   disagreed on it, so no number is quoted for it here.
+    /// · **"8 to 28 characters" was wrong.** Measured over every blanked line of the two files
+    ///   this slice touched: the MODAL width is **4**, and the range is 0–30. Re-derive with
+    ///   the width histogram rather than trusting this line.
+    /// · **"five to ten comment lines from red" was derived from that wrong width** and
+    ///   under-counted by several times. No comment-line figure is quoted any more: it depends
+    ///   on the indent at the site, so it is not a property of the defect at all.
+    ///
+    /// ⚠️ AND THE MEASUREMENT IS PARTIAL, which #898 did not say here: the script resolves
+    /// **5 of 35** sites. "Unresolved" means the TOOL could not read the site — never that the
+    /// site is safe. Any unresolved window may be thinner than the two that were converted.
+    ///
+    /// ⭐ The two converted here had margins of 140 and 176 characters. The rest are a
+    /// MIGRATION, not a slice (#460); `scripts/window-margins.py` is what makes that migration
+    /// a list rather than a hunt.
     ///
     /// ⚠️ A LINE BUDGET IS STILL A GUESS — it is just a guess about the right QUANTITY. Where a
     /// real boundary exists (a closing brace, the next branch), anchor on it instead; that is
     /// strictly better and is what `TheVoiceDoorFeedsTheCaptureTests` does. This is for windows
     /// whose end has no stable anchor to name.
+    ///
+    /// ⛔ #899 — AND A TIGHTER WINDOW CAN WEAKEN A GUARD. A window has TWO failure directions
+    /// and #898 reasoned about one. Skipping the blanked padding also removes the distance that
+    /// kept an AMBIGUOUS needle away from a second occurrence: converting the MIDI re-arm guard
+    /// cut its false-GREEN headroom from ~9 code lines to ONE, because `startIfNeeded()` also
+    /// matches its own declaration below. The repair there was the NEEDLE, not the budget.
+    /// Before converting a site, check what else in reach can satisfy its needles.
+    ///
+    /// ⚠️ TWO PROPERTIES THIS DELIBERATELY DOES NOT KEEP, and `codeOnly` does: it JOINS
+    /// non-adjacent code lines, so a multi-line needle that today fails BECAUSE something sits
+    /// between its halves would pass here; and it preserves neither line count nor offsets, so
+    /// a guard doing index arithmetic on the window gets different numbers. Both matter only
+    /// on migration — the two current callers do `contains` on adjacent code.
     static func codeWindow(_ text: String, from start: String.Index, lines: Int) -> String {
+        // #899: `>= lines` is checked AFTER the append, so without this a budget of 0 returned
+        // ONE line. Unreachable from today's callers; a silent off-by-one in a helper the doc
+        // nominates for 35 more sites is not worth leaving for someone to trip over.
+        guard lines > 0 else { return "" }
         var kept: [Substring] = []
         for line in text[start...].split(separator: "\n", omittingEmptySubsequences: false) {
-            if !line.trimmingCharacters(in: .whitespaces).isEmpty {
+            // #899: `.whitespacesAndNewlines`, not `.whitespaces` — the latter is Zs plus TAB
+            // and EXCLUDES carriage return, so under CRLF a comment-only line trims to "\r",
+            // counts as code, and the helper quietly reverts to burning its budget on exactly
+            // the whitespace it exists to skip. No CRLF in the tree today and no `.gitattributes`
+            // keeping it that way, which is the whole reason to close it now.
+            if !line.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 kept.append(line)
                 if kept.count >= lines { break }
             }

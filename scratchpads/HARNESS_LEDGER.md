@@ -91,20 +91,59 @@ won, and what is a known dead-end**, so the loop climbs instead of circling.
 
 ## PLAYBOOK (2026-08-30, #897/#898): ein `prefix(N)`-Fenster über Quelltext ist ein LATENTES ROT
 
-**Der Mechanismus, und er gilt für den ganzen blockierenden Bundle.** `SourceText.codeOnly`
-leert den TEXT eines Kommentars, **behält aber dessen Einrückung** — es MUSS das, weil mehrere
-Wächter auf die relative REIHENFOLGE zweier Treffer prüfen, Zeilen also erhalten bleiben statt
-gelöscht zu werden. Eine geleerte Doc-Zeile kostet damit weiter 8–28 Zeichen. **Jedes
-zeichengezählte Fenster wird also zum Teil in Leerzeichen bezahlt**, und wer Prosa ÜBER die
-geprüfte Stelle schreibt, schiebt die Nadel aus dem Fenster.
+**Der Mechanismus — und ⛔ er gilt NICHT für den ganzen Bundle, wie die erste Fassung hier
+behauptete (mit #899 zurückgenommen).** Er hängt an `SourceText.codeOnly`: das leert den TEXT
+eines Kommentars, **behält aber dessen Einrückung** — es MUSS das, weil mehrere Wächter auf die
+relative REIHENFOLGE zweier Treffer prüfen, Zeilen also erhalten bleiben statt gelöscht zu
+werden. **Jedes zeichengezählte Fenster wird damit zum Teil in Leerzeichen bezahlt**, und wer
+Prosa ÜBER die geprüfte Stelle schreibt, schiebt die Nadel aus dem Fenster. Wer dagegen einen
+EIGENEN Streicher benutzt, der die Kommentarzeile ganz löscht (§2 in
+`Tests/CISmoke/CLAUDE.md`; wie viele Dateien das heute tun, sagt der Befehl dort — die dort
+gedruckte 69 war beim Nachmessen am 2026-08-30 schon **76**), zahlt für einen Kommentar null
+Zeichen — dort existiert dieser Defekt nicht.
+
+⛔ **Und die Breite war geraten: hier stand „8–28 Zeichen".** Gemessen an den zwei betroffenen
+Dateien (`MIDIOutput.swift` 326 Zeilen, `AudioEngine.swift` 1784): die häufigste Breite einer
+geleerten Zeile ist **4**, die Spanne **0 bis 30**. Der Befund überlebt, die Zahl war erfunden —
+und mit 4 statt 8 als Modus ist die Umrechnung „Reserve in Kommentarzeilen" doppelt so
+optimistisch wie behauptet. Nachmessen heißt: den Streicher über die Zieldatei laufen lassen
+und die Einrückungsbreiten der geleert zurückbleibenden Zeilen zählen — der Python-Port des
+Streichers liegt in `scripts/window-margins.py`.
 
 **Die Fehlerform ist die schlechteste verfügbare:** der Wächter wird rot auf KORREKTEM Code,
 bei UNBETEILIGTER Arbeit, und zeigt auf den falschen Schuldigen. Genau so gefunden — #897s
 neuer Anspruch war rot auf seinem eigenen korrekten Code.
 
-**Gemessen, nicht geschätzt:** `python3 scripts/window-margins.py`. Beim Anlegen: **37 Fundstellen**
-mit N ≥ 100, davon zwei mit Reserven von **140** und **176** Zeichen — fünf bis zehn
-Kommentarzeilen bis rot. Beide sind mit #898 umgestellt.
+**Gemessen, nicht geschätzt:** `python3 scripts/window-margins.py`. ⛔ Hier stand **37** als
+Größe der Fehlerfläche und das ist ~2× zu weit — es zählte die SHAPE statt des MECHANISMUS.
+Am 2026-08-30 gemessen: die Shape kommt **35**-mal vor, aber nur **16** dieser Stellen stehen
+in Dateien, die `SourceText.codeOnly` benutzen, und nur dort greift der Defekt. Beide Zahlen
+sind ein DATUM — sie stehen nur, weil der Befehl daneben steht:
+
+```
+python3 -c "import re,glob;W=re.compile(r'\[[\w.]+\.\.\.\]\s*\.prefix\((\d[\d_]*)\)');print(sum(1 for p in glob.glob('Tests/CISmoke/*.swift') for m in W.finditer(open(p).read()) if int(m.group(1).replace('_',''))>=100))"
+```
+
+⚠️ **Die Ziffern-Gruppierung ist eine Falle, und sie kostet in der schmeichelnden Richtung:**
+Swift erlaubt `prefix(1_400)`, also unterzählt ein naives `(\d+)` — es liest „1", verwirft die
+Stelle als < 100 und meldete hier **27** statt 35. Deshalb steht `(\d[\d_]*)` im Rezept.
+
+Die zwei mit #898 umgestellten Fundstellen hatten Reserven von **140** und **176** Zeichen.
+⛔ „fünf bis zehn Kommentarzeilen bis rot" stand hier und ist gestrichen: die Umrechnung
+brauchte die geratene 8–28er-Breite. ⛔ Und die zweite Umstellung (`TheMegaphoneGuard…`) war
+mit der FALSCHEN Begründung gebucht — diese Datei hat einen eigenen, zeilenlöschenden
+Streicher, der Mechanismus konnte dort gar nicht greifen. Die Umstellung bleibt (ein
+Zeilen-Budget ist ohnehin die ehrlichere Grenze), der GRUND ist korrigiert (#167: ein Vermerk
+mit widerlegbarer Begründung ist teurer als keiner).
+
+⛔ **UND EIN ENGERES FENSTER KANN EINEN WÄCHTER SCHWÄCHEN — das ist die teuerste Lehre dieser
+Reihe und #898 hat sie nicht gesehen.** Ein Fenster versagt in ZWEI Richtungen: zu klein
+(rot auf korrektem Code) und zu groß (grün auf kaputtem Code). Bei der MIDI-Umstellung fraßen
+die ~272 geleerten Zeichen des alten 300er-Fensters genau den Abstand zu einer ZWEITEN
+Fundstelle derselben Nadel (`startIfNeeded()` steht auch in seiner eigenen Deklaration, elf
+Code-Zeilen tiefer). Code-Zeilen zu zählen übersprang dieses Polster: der Falsch-GRÜN-Abstand
+fiel von ~9 Code-Zeilen auf **EINE**. Reparatur ist nicht „Budget senken", sondern eine
+EINDEUTIGE Nadel — dann hält der Anspruch bei jedem Budget (bis 40+ simuliert).
 
 **Reparatur, in dieser Reihenfolge:**
 1. **Ein echter ANKER ist am besten** — eine schließende Klammer, der nächste Zweig, der
