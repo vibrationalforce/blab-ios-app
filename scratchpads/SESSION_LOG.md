@@ -17409,3 +17409,56 @@ Arbeitsbaum, 274 auf dem Elternteil, drei Nils dort abwesend, `removeTap` auf be
 **Weiter offen** (Board O14, bewusst nicht mitgenommen): die Startseite gibt die Record-Route
 mit `try?` frei — ein stiller Versuch —, also lässt ein werfendes
 `downgradeToPlaybackAfterRecording()` die Session auf `.playAndRecord`.
+
+---
+
+## 2026-08-30 — #902: zwei AUSGÄNGE, drei ERGEBNISSE — und acht `try?` haben das dritte verschluckt
+
+Die zweite Hälfte von Board O14, die der #900-Reviewer ausdrücklich als „zu Recht nicht
+mitgenommen" markiert hatte.
+
+**Der Befund.** `AudioConfiguration.releaseRecordRoute` bekam mit #888 zwei Diag-Zeilen für
+zwei AUSGÄNGE. Es hat aber drei ERGEBNISSE: andere Besitzer bleiben · das Herunterstufen
+gelingt · das Herunterstufen WIRFT. Das dritte teilte sich die Zeile mit dem zweiten, und
+**acht der dreizehn Aufrufstellen sind `try?`** (jeder #299-Fehlerpfad), also wurde der Fehler
+verschluckt. Im Log stand „holders none, lowering" und danach das Nächste — nicht
+unterscheidbar von einem geglückten Herunterstufen. Genau der #882-Defekt, für den derselbe
+Anspruch geschrieben wurde, eine Ebene tiefer.
+
+**Die Reparatur** ist eine `do`/`catch` um den einen Aufruf, eine eigene Zeile, und der Fehler
+wird DURCHGEREICHT — kein Aufrufer ändert sein Verhalten.
+
+**Was sie bewusst NICHT tut, beides gemessen statt vermutet:**
+· **Kein Wiedereinfügen des Besitzers.** Der Besitzer ist wirklich weg (seine Engine ist beim
+  Freigeben abgebaut); ihn zurückzulegen erzeugt einen Phantom-Halter, der JEDES künftige
+  Herunterstufen blockiert — die #838b-Falle in anderer Haut.
+· **Kein Retry.** `downgradeToPlaybackAfterRecording()` setzt `recordingRouteNeeded = false`
+  VOR dem werfenden `setCategory`, also liest die nächste `configureAudioSession()` die Flagge
+  als falsch und stuft selbst herunter. Der Zustand heilt sich bei der nächsten
+  Sitzungs-Umstellung; es fehlte nur die SICHTBARKEIT. Ein spekulativer `setCategory`-Retry auf
+  einem Fehlerpfad wäre gerät-unbewiesene AVAudioSession-Arbeit.
+
+**Die Zeile ist unnummeriert** — sie ist ein Zustands-Ergebnis, keine Leiter-Sprosse; ein `n/N`
+kündigte eine Leiter an, die `scripts/diag-ladder.py` nicht gehen kann (#888).
+
+⛔ **Und ich habe mir dabei selbst eine #367-Falle gebaut, vor dem Commit gefangen.** Der erste
+Entwurf endete auf „route stays up with no owner" — und **„route stays up" ist das
+Erkennungsmerkmal der EARLY-RETURN-Zeile und separat gepinnt**. Eine zweite Zeile mit dieser
+Phrase hätte jenen Anspruch grün gehalten, während die Originalzeile ihre Worte verloren hätte:
+grün aus einem anderen Grund als dem, den die Meldung nennt. Umformuliert zu „category still
+raised, nobody holds it", und der Grund steht jetzt an BEIDEN Stellen, damit niemand die zwei
+Formulierungen später „harmonisiert".
+
+**Der Wächter hat seine Arbeit gemacht:** `TheEngineLifecycleSpeaksInTheDiagLogTests` pinnte
+`occurrences("route: release") == 2` und wäre auf korrektem Code rot geworden. Im selben Commit
+auf 3 gehoben (#655/#656), mit den drei ERGEBNISSEN in der Meldung statt der zwei AUSGÄNGE.
+
+**Benotung (§3), in Python gegen beide Bäume gefahren:** zwei REGRESSIONEN (Zahl und
+Formulierung, auf dem Elternteil rot aus dem Grund, den ihre Namen nennen) — EIN Defekt,
+zweimal genannt. Alle elf Nachbar-Ansprüche über dieselbe Datei — sieben Sprossen/Aufruf-Paare,
+zwei No-op-Wächter-Paare, zwei `setCategory`-vor-`setPreferredIOBufferDuration`-Paare und das
+`route: claim`-vor-`upgradeToPlayAndRecord`-Paar — sind auf BEIDEN Bäumen grün.
+`diag-ladder.py` 8/8, `dead-needles.py` sauber über 382 Wächterdateien.
+
+**Ehrliche Grenze:** Text- und Logik-Ebene. Ob ein geworfenes Herunterstufen am Gerät je
+auftritt, ist unbewiesen — die Zeile existiert genau dafür, es beim nächsten Mal zu zeigen.

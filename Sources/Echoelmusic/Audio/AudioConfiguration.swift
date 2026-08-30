@@ -371,7 +371,39 @@ enum AudioConfiguration {
             return false
         }
         EchoelCrashLog.breadcrumb("route: release \(owner.rawValue) → holders none, lowering")
-        try downgradeToPlaybackAfterRecording()
+        // #902 — THE THIRD OUTCOME. #888 gave this method two lines for two exits; a THROWN
+        // downgrade was a third outcome sharing the "lowering" line with the successful one.
+        // Eight of the thirteen release call sites are `try?` (every #299 failure path), so the
+        // error was swallowed and the log showed "lowering" followed by whatever came next —
+        // indistinguishable from a lowering that worked.
+        //
+        // ⚠️ WHAT THIS DOES *NOT* DO, deliberately, and both are measured rather than assumed:
+        // · It does NOT re-insert the owner. The owner is genuinely gone (its engine is torn
+        //   down by the time it releases); putting it back would create a phantom holder that
+        //   blocks every future downgrade forever — the #838b stale-ref trap in another skin.
+        // · It does NOT retry. It does not need to: `downgradeToPlaybackAfterRecording()` clears
+        //   `recordingRouteNeeded` BEFORE its throwing `setCategory`, so the next
+        //   `configureAudioSession()` reads the flag as false and lowers the category itself.
+        //   The state self-heals on the next session transition; what was missing was only the
+        //   ability to SEE the failed attempt. A speculative `setCategory` retry here would be
+        //   device-unproven AVAudioSession work on a failure path.
+        //
+        // This line is deliberately UNNUMBERED: it is a state outcome, not a ladder rung, and a
+        // `n/N` here would announce a ladder `scripts/diag-ladder.py` cannot walk (#888).
+        //
+        // ⚠️ AND ITS WORDING AVOIDS "route stays up" ON PURPOSE — the first draft used exactly
+        // that phrase, which is the EARLY-RETURN line's distinguishing wording and is pinned as
+        // such. A second line containing it would let that claim pass while the early-return
+        // line had lost its own words: green for a reason other than the one its message states,
+        // the #367 defect. Caught before shipping; do not "harmonise" these two phrasings.
+        do {
+            try downgradeToPlaybackAfterRecording()
+        } catch {
+            EchoelCrashLog.breadcrumb(
+                "route: release \(owner.rawValue) → lowering FAILED (\(error.localizedDescription)),"
+                + " category still raised, nobody holds it")
+            throw error
+        }
         return true
     }
 

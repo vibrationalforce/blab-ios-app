@@ -826,10 +826,26 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         // (b) BOTH release exits emit — the #882 law. The early return ("someone else still
         //     holds it") is the one that was silent, and a silent taken path makes a healthy
         //     release look identical to one that died inside the downgrade.
-        XCTAssertEqual(occurrences(of: "\"route: release", in: config), 2, """
-            `releaseRecordRoute` no longer has an emitter on BOTH exits (#888/#882). It has \
-            two: the early return when other owners remain, and the lowering path. One line \
-            for two outcomes is how a taken branch goes dark.
+        // ⛔ #902 RAISED THIS FROM 2 TO 3, and the old count was RIGHT about exits and WRONG
+        // about outcomes. There are two EXITS but three OUTCOMES: other owners remain · the
+        // lowering worked · the lowering THREW. Eight of the thirteen release call sites are
+        // `try?`, so the third was swallowed and shared the second's line — "lowering" followed
+        // by silence, which is exactly the #882 defect this claim was written to prevent, one
+        // level further in. If you add or remove an outcome, change this number AND name the
+        // outcome in this message (#364/#655).
+        XCTAssertEqual(occurrences(of: "\"route: release", in: config), 3, """
+            `releaseRecordRoute` no longer emits on all THREE outcomes (#888/#882/#902): the \
+            early return when other owners remain, the successful lowering, and the lowering \
+            that threw. One line for two outcomes is how a taken branch goes dark.
+            """)
+        XCTAssertTrue(config.contains("category still raised, nobody holds it"), """
+            the failed-lowering line lost the half that makes it actionable (#902). The owner \
+            set is already empty at that point, so nothing will retry until the next session \
+            transition — a reader has to be told the category is up with NOBODY holding it, or \
+            the line reads like an ordinary error. ⚠️ Its wording deliberately avoids "route \
+            stays up": that phrase belongs to the early-return line and is pinned above, and a \
+            second line carrying it would satisfy that claim while the early-return line had \
+            lost its own words (#367).
             """)
         XCTAssertTrue(config.contains("route stays up"), """
             the early-return release line lost its outcome wording. "route stays up" is what \
