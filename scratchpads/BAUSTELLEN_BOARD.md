@@ -30,6 +30,14 @@ trägt jetzt ein ⛔-VOID mit ihrer Messung — **gelöscht wird nichts** (Board
   (`git grep -n 'orderedOutputs' -- Sources` findet nur die Deklaration), und die Matrix hat
   **null Routen** (#541). Ein Messgerät darüber zeigte immer eine leere Liste — eine lügende
   Fläche. Blockiert ist es durch die fehlende ROUTE, nicht durch ein Gerät.
+  ⭐ **UND DIESE DIAGNOSE IST IMMER NOCH DIE HALBE (#885, 2026-08-30).** Sie misst die MATRIX,
+  und darin stimmt jedes Wort. Punkt 2 fragt aber „welche Parameter bewegt das Biofeedback" —
+  und was es HEUTE bewegt, sind die IMMER-AN-Kanäle (`AlwaysOnBioChannel`), nicht die leere
+  Matrix. Die haben zwei Türen (Puls-Pille → `bioPanel` → `AlwaysOnBioPanelStrip`; Effekte →
+  `showAllFX` → `AlwaysOnBioView`), lesen Bio in ihrem EIGENEN Leaf und tragen 29 Wächter.
+  **Punkt 2 ist damit geschlossen — nicht blockiert.** Herleitung + die vier Befehle:
+  `HARNESS_LEDGER.md`, Eintrag #885. Diese Zeile war die dritte Heimat derselben halben
+  Antwort; die anderen zwei stehen im Ledger und sind im selben Commit mitgezogen (#456).
 · **A5 BodyVibe Kamera** lebt unverändert (`FaceExpressionBioPublisher`, `cameraExpression` in
   5 Dateien) und bleibt korrekt founder-gegated (Info.plist-Datenschutztext).
 

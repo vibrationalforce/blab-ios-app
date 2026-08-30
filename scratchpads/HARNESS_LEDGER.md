@@ -251,6 +251,7 @@ Erst wenn 1–3 nichts erklären, ist es einen Zyklus wert.
 - **PLAYBOOK: additive golden-gate-Primitiv auf einem Codable-Value-Type (ModRoute-Muster).** Neues Feld (`inputLow/inputHigh` Sensitivity-Window) mit Identity-Default (0/1) → byte-identisch für alle bestehenden Routen + persistierte Docs. Rezept, exakt wie `curve`/`smoothingTau` es vormachen: (1) Feld + Default im custom init, (2) `clamp` im init UND im decode, (3) CodingKeys-Case, (4) `decodeIfPresent ?? default` im custom `init(from:)` (encode bleibt synthetisiert), (5) Test der pre-Feature-JSON via Dict-Key-Strippen dekodiert auf Identity. Golden-gate-Test = Identity-Window liefert output byte-identisch (base ist schon [0,1], also `clamp01((v-0)/(1-0))==v`).
 - **PLAYBOOK: BioEgressPolicy = Call-Site-Gate am `else if let frame = bus.latestBio`-Zweig, keine neue Abstraktion.** Art-Net/sACN waren die letzten 2 ungegateten Netz-Bio-Konsumenten; Gate = `, BioEgressPolicy.allowsEgress(frame.source)` an der bestehenden Branch-Condition (spiegelt OSCSender:133/ADMOSCSender:178). Nebenwirkung fürs Licht: der Egress-Filter VERBREITERT die No-Source-Menge → eine L1-Blackout-Kante (früher `return` überspringt master/slew). Fix = letzte ROH-Farbe halten (`lastChannels`/`lastTarget`, pre-master) + master/slew weiterlaufen lassen; gehaltene Kanäle stammen immer aus erlaubter Quelle (gegateter Frame erreicht den Store nie) → kein Rest-Egress. Bounded: held-Branch nutzt unveränderten Timestamp → sendet nur bei masterMoved (one-shot) ODER slewSettling (endet).
 - **DEAD-END-BESTÄTIGUNG (verstärkt 2026-07-18): kein Default-Modulations-Route/Window blind seeden UND kein Item-2-Readout-Leaf ohne Gerät.** ModulationEngine hat per Default KEINE aktiven Routen (Tempo läuft über den Compose-Pfad, s. Dead-End 2026-07-17) → ein `lastOutputs`-Readout ist leer bis der User im Route-Editor Routen anlegt. Also: (a) AU2-Sensitivity-Window ist korrekt ein EDITOR-Primitiv (kein Auto-Seed), (b) der Item-2-Leaf-View ist erst wertvoll NACH dem Route-Editor + zeigt sonst "nichts aktiv" → nicht blind bei voller Device-Queue bauen. Leaf-Pattern existiert (PulseMonitorMiniLive/BioStripView, eigener Body liest 10 Hz) — der Bau ist trivial, aber Platzierung/Wert sind gerät-gated.
+  ⭐ **NACHTRAG 2026-08-30 (#885): dieser Eintrag und der PLAYBOOK zwei Zeilen darüber messen die MODULATIONS-MATRIX (`lastOutputs`) — und sind darin unverändert richtig. Punkt 2 der REIHENFOLGE meint aber AUCH die IMMER-AN-Kanäle (`AlwaysOnBioChannel`), und die sind seit #553/#634/#643 gebaut, zweifach betürt und von 29 Wächtern gehalten. Nicht aus diesen zwei Zeilen schließen, Punkt 2 sei offen — siehe den #885-Eintrag am Ende dieser Datei.**
 - **PLAYBOOK: bei voller Founder-Device-Queue + reiner CI-Umgebung — Spine/Pure zuerst, Blind-UI NICHT stapeln.** Muster dieser Session: pures Editier-Gehirn (`ClipAutomationEdit`) + Store-Mutation (`setClipAutomation`) + Observable-Snapshot (`lastOutputs`) + math-Primitiv (`inputLow/High`) sind alle CI-verifizierbar + reviewer-fest; die dünnen SwiftUI-Schalen (Canvas, Readout, Knopf) sind der gerät-verifizierte Rest. Wenn ALLE nächsten Slices UI/feel-gated sind und die Queue voll ist: ehrlich HALTEN + Ledger/Log pflegen statt eine 6. unverifizierbare Fläche zu stapeln (Founder-Direktive "verify-first, nicht Blind-UI stapeln").
 
 ## PLAYBOOK (2026-07-18 Per-Track-Automation-Seam L2/L4)
@@ -2438,3 +2439,60 @@ Kopfraum. `CLAUDE.md` stand beim Eintragen bei 149 611 B unter einer 150 000-B-D
 dritter CI-Absatz dort hätte den Wächter rot gemacht, den er beschreibt. Der CI-Abschnitt in
 `CLAUDE.md` nennt bereits #396, #208 und den Auto-Merge-Befund — das ist das GESETZ; dies hier
 ist der Rückstand.
+
+## DEAD-END (2026-08-30, #885): „Bio-Modulation live sichtbar" hat ZWEI Lesarten — die eine ist gebaut, die andere sinnlos
+
+Der stündliche Cron liefert eine REIHENFOLGE, die drei gelöschte Features nennt (Piano Roll
+#475, Clips/Arrangement #121 Slice 4, AUv3 #121 Slice 2) und einen toten Branch-Namen. Punkt 2 —
+„welche Parameter das Biofeedback bewegt, sichtbar, Leaf-Views, kein Root-Read" — sieht als
+einziger noch offen aus. Er ist es nicht, **aber der Grund ist nicht der, den die Formulierung
+nahelegt: der Satz benennt zwei verschiedene Subsysteme, und dieses Ledger trug schon eine
+Antwort auf das ANDERE.**
+
+| Lesart | Was zeigt sie | Stand |
+|---|---|---|
+| **A — die IMMER-AN-Kanäle** (`AlwaysOnBioChannel`: Kohärenz · HRV · Puls · Atemphase → Filter/Brightness/Vibrato/Amplitude) | was der Körper HEUTE am Klang bewegt | **GEBAUT, zwei Türen, 29 Wächter** |
+| **B — die MODULATIONS-MATRIX** (`ModulationEngine.lastOutputs`) | was eine vom Nutzer gelegte Route bewegt | **sinnlos ohne Route-Editor** — Default-Matrix leer, null `ModRoute(`-Konstruktionsstellen (#541); ein Readout zeigte „nichts aktiv" |
+
+⭐ **Lesart B stand seit 2026-07-18 zweimal in diesem Ledger** (der PLAYBOOK „grep die ECHTEN
+Consumer" und die DEAD-END-BESTÄTIGUNG „kein Item-2-Readout-Leaf ohne Gerät"), und beide sind
+unverändert richtig. Sie beantworten Punkt 2 aber nur zur Hälfte — und die Hälfte, die sie
+beantworten, ist die, die man ohnehin nicht bauen soll. **Wer nur sie liest, schließt „Item 2 ist
+offen und wartet auf den Route-Editor" und übersieht, dass die Frage, die ein Spieler wirklich
+stellt, längst eine Fläche hat.**
+
+Lesart A, gemessen — nicht erinnert:
+
+| Frage | Befehl | Befund |
+|---|---|---|
+| Wird die Zeile gebaut? | `git grep -n "AlwaysOnBioRow(" -- Sources` | 2 Stellen: `AlwaysOnBioRow.swift:236`, `EchoelFXView.swift:1333` |
+| Hat Wirt 1 eine Tür? | `git grep -n "AlwaysOnBioPanelStrip(" -- Sources` | `EchoelStudioView.swift:3205`, im `bioPanel` (nächstes vorangehendes `private var … some View` = `bioPanel:3089`) → Puls-Pillen-Tap (#706) |
+| Hat Wirt 2 eine Tür? | `git grep -n "showAllFX" -- Sources` | Setzer `EchoelStudioView.swift:7665` (`Button { showAllFX = true }` im `effectsPanel`) → `.sheet:1480` → `EchoelFXView:1488` → `AlwaysOnBioView():507` |
+| Freeze-Gesetz eingehalten? | `grep -n "latestBio" …/EchoelStudioView.swift` | **3 Treffer, ALLE DREI KOMMENTARE** — null Live-Bio-Lesevorgänge im Wurzel-Rumpf; gelesen wird in `AlwaysOnBioPanelStrip`s eigenem Rumpf (ein `View`-`struct` IST die Beobachtungsgrenze, `AnyView` nicht) |
+| Abgesichert? | `git grep -l "AlwaysOnBio" -- Tests/CISmoke \| wc -l` | **29 Wächter-Dateien** |
+
+⭐ **Die Lehre ist nicht „der Cron ist alt" — das war bekannt. Sie ist doppelt:**
+1. **Eine abgelaufene Aufgabenliste altert PUNKTWEISE.** Drei Punkte als tot zu erkennen erzeugt
+   kein Misstrauen gegen den vierten; im Gegenteil, er wirkt dann als der Rest, der „noch offen"
+   ist. Der billige Test bleibt: Konstruktionsstelle suchen, der Kette bis zum RENDERNDEN
+   Elternteil folgen. Vier `grep`s gegen eine ganze Bau-Runde.
+2. **Ein Aufgaben-Satz kann zwei Subsysteme meinen, und ein Ledger-Eintrag beantwortet immer nur
+   das, das der Schreiber gerade im Kopf hatte.** Die zwei Einträge von 2026-07-18 sind wahr und
+   lasen sich beim Wiederfinden wie eine vollständige Antwort. Wer einen „Item N"-Eintrag
+   schreibt, schreibt dazu, WELCHE Maschine er gemessen hat — sonst deckt der Eintrag später
+   eine Lücke zu, statt sie zu schließen.
+
+⚠️ Der Cron-Text bleibt **unverändert**: er trägt das Mandat des Founders, und eine Sitzung, die
+die Anweisung ihres Auftraggebers umschreibt, weil sie sie für veraltet hält, ist ein größerer
+Defekt als eine veraltete Anweisung. Jeder Zyklus korrigiert sie beim Lesen — das kostet drei
+Zeilen und ist die richtige Richtung.
+
+### Nebenbefund im selben Lauf: `doctor.py` Sektion C ist SAUBER, gemessen statt erinnert
+
+Sektion C nennt neun türlose `View`-Typen und sagt selbst, der Test pro Eintrag sei „steht das
+Parken in `CLAUDE.md`?". Beantwortet mit
+`for v in …; do grep -c "$v" CLAUDE.md; done` → **9 von 9 dokumentiert** (Analysis×4, BioSource,
+Broadcast, ImmersiveStage, ProUnlock, Session). Türlos ist hier kein Defekt; türlos **und
+nirgends aufgeschrieben** wäre einer. Der Lauf hat also KEINEN neuen Register-Befund erzeugt —
+was einen eigenen Eintrag wert ist, weil sonst der nächste Doctor-Lauf dieselben neun Zeilen neu
+bewertet.

@@ -16551,3 +16551,42 @@ ist ab jetzt wirklich ein Absturzpunkt** · 3. Autotune-Dauerbelastung · 4. Lat
 AUS · 5. Anruf während Monitoring · 6. **Neu:** `session: configure|raise|lower` und
 `input: select →` stehen jetzt im Log · 7. **Neu:** einfach das Log schicken —
 `python3 scripts/diag-ladder.py <datei>` nennt den Schritt statt einer Vermutung.
+
+## 2026-08-30 (cron, ULTRACODE 24h) — #885: ein MESS-Zyklus, kein Bau-Zyklus
+
+**Ergebnis in einem Satz: REIHENFOLGE-Punkt 2 („Bio-Modulation live sichtbar") ist GEBAUT —
+seit Monaten, mit zwei Türen und 29 Wächtern — und drei Stellen im Repo behaupteten
+zusammengenommen etwas anderes.**
+
+**Was gemessen wurde** (kein Code angefasst, `Sources/` unverändert):
+
+| Frage | Befund |
+|---|---|
+| `AlwaysOnBioRow(` in `Sources` | 2 Stellen: `AlwaysOnBioRow.swift:236`, `EchoelFXView.swift:1333` |
+| Tür 1 | `AlwaysOnBioPanelStrip():3205` im `bioPanel` (`:3089`) → Puls-Pillen-Tap (#706) |
+| Tür 2 | `Button { showAllFX = true }:7665` im `effectsPanel` → `.sheet:1480` → `EchoelFXView:1488` → `AlwaysOnBioView():507` |
+| Freeze-Gesetz | `latestBio` im Wurzelrumpf: **3 Treffer, alle drei KOMMENTARE** — der Lesevorgang sitzt im eigenen Leaf |
+| Absicherung | `git grep -l AlwaysOnBio -- Tests/CISmoke` → **29 Dateien** |
+| `doctor.py` Sektion C | neun türlose Views, **9/9 in `CLAUDE.md` dokumentiert** — kein neuer Register-Befund |
+
+**Der eigentliche Befund ist aber nicht „schon gebaut", sondern WARUM es niemand merkte.** Der
+Satz „Bio-Modulation live sichtbar" benennt ZWEI Maschinen: die MODULATIONS-MATRIX
+(`ModulationEngine.lastOutputs`, leer und routenlos, #541 — ein Readout darüber wäre eine lügende
+Fläche) und die IMMER-AN-KANÄLE (`AlwaysOnBioChannel`, das, was der Körper HEUTE am Klang
+bewegt). Drei Notizen — zwei im `HARNESS_LEDGER` (2026-07-18), eine im `BAUSTELLEN_BOARD` — haben
+die MATRIX gemessen, jede korrekt, und lasen sich beim Wiederfinden wie eine vollständige
+Antwort auf Punkt 2. **Alle drei sind im selben Commit mitgezogen (#456).**
+
+**Zwei Lehren, im Ledger als #885:**
+1. Eine abgelaufene Aufgabenliste altert **punktweise**. Drei tote Punkte zu erkennen macht den
+   vierten nicht verdächtig — er wirkt dann als der Rest, der noch offen ist.
+2. Ein „Item N"-Eintrag muss sagen, **WELCHE Maschine** er gemessen hat. Sonst deckt er später
+   eine Lücke zu, statt sie zu schließen.
+
+**Nicht geändert: der Cron-Text.** Er trägt das Mandat des Founders. Eine Sitzung, die die
+Anweisung ihres Auftraggebers umschreibt, weil sie sie für veraltet hält, ist der größere Defekt.
+Jeder Zyklus korrigiert sie beim Lesen.
+
+**Gates:** letzter Code-Commit `1267966` = `Xcode Compile Check` **success**. Dieser Commit fasst
+nur `scratchpads/` + `decisions.csv` an. `CLAUDE.md` unverändert bei 149 611 B (Decke 150 000).
+**Deploy weiter gehalten** — kein Gerätelog, keine Founder-Antwort.
