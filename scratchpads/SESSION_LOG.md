@@ -18053,3 +18053,68 @@ echten Dateien simuliert (7/7 grün), Mutation M1 (Nadel zurück in `CLAUDE.md`)
 aus dem Ledger gelöscht) beide rot, Sektions-Anker A–G vorhanden, `^## [A-Z] — ` = 11 (`###
 F.4` ist unsichtbar für den Zähler in `.claude/rules/context.md`), Zitat-Union 41 ≥ Boden 20
 und alle 41 auflösbar, `"""`-Zähler gerade, `doctor.py --section D` = 0 CRITICAL.
+
+
+---
+
+## #913 — die Leiter selbst hatte zwei stumme Ausstiege
+
+`setInputMonitoring` kehrte an ZWEI Stellen zurück, bevor eine einzige Sprosse lief, und
+schrieb dabei nichts: `guard !isInputMonitoring` (AN, läuft schon) und `guard
+isInputMonitoring` (AUS, lief nie). Nach dem Leiter-Gesetz (#859) ist Stille zwischen
+Sprossen ein TOD — ein legitimes Nichts-Tun war im Log also nicht von einem Absturz vor
+Sprosse 1 zu unterscheiden. #906 hat diese Klasse für die zwei SITZUNGS-Züge geschlossen;
+die Leiter selbst hatte sie noch. Beide melden jetzt UNNUMMERIERT.
+
+⭐ **Der Reviewer hat die Unnummeriert-Entscheidung STÄRKER belegt als ich:** nicht über die
+Position, sondern über den Zustand. `on SKIPPED` verlangt `isInputMonitoring == true`, und
+das wird erst NACH `on 5/5` gesetzt — ein vorangehender AN-Lauf im selben Log hat Schritt 5
+also bereits erreicht und liest `done`, nie `died`. Das `⏹ ended` kann hier keinen echten Tod
+verdecken. Mein Argument war „es steht vor jeder Sprosse"; seines ist unabhängig von der
+Zeilenreihenfolge.
+
+⛔ **HIGH-1 — die Nachbarschafts-Zusicherung prüfte `contains` statt des ZEILENKOPFS.**
+Ein `if masterEngine.isRunning { logMonitorOutcome(…) }` INNERHALB des Guards kam grün
+durch, während der Ausstieg auf dem Pfad, der zählt, stumm blieb. **Das ist #631/#910
+wortgleich — und die Reparatur stand 1100 Zeilen weiter oben in derselben Datei, seit einem
+Zyklus.** Jetzt `hasPrefix("logMonitorOutcome(")`. **Lehre: eine bekannte Mutation gehört in
+die Mutations-Liste JEDES neuen Anspruchs derselben Familie, nicht nur des Anspruchs, der
+sie damals gefangen hat.**
+
+⛔ **HIGH-2 — BEIDE Quell-Kommentare, die ich neu geschrieben habe, behaupteten
+Geräte-Log-Geschichte, die das Repo als falsch misst.**
+(a) „der Nachbar der AN-Seite ist `route: claim …`" — das steht INNERHALB von
+`claimRecordRoute`, das dieser Weg erst NACH Sprosse `on 1/5` erreicht; es kann einem
+Ausstieg VOR Sprosse 1 nicht vorausgehen. Dazu kam die Zeile mit #888, also NACH dem letzten
+Log in der Hand (v10.79.429). Der Satz war aus `AudioConfiguration` VERPFLANZT, wo er stimmt.
+(b) „die Abbau-Leiter ist, wo vier Geräte-Logs starben (#876/#831/#835/#836)" — vier
+Fehler in einer Klausel: #876 ist eine `mic: stop`-Scheibe in einer ANDEREN Datei, die
+`monitor: off`-Sprossen stammen erst aus #854 (existierten für keines dieser Logs), #836
+starb in einem START-förmigen Stack, und die Zahl widerspricht dem „FÜNF Geräte-Logs" 130
+Zeilen tiefer in derselben Datei.
+**Lehre: ein verpflanzter Satz erbt seine Wahrheit NICHT.** Beide Sätze sind am Ort
+zurückgenommen; das Argument braucht keinen davon, und ein falscher Beleg in einem
+ausgelieferten Kommentar ist die teure Sorte — die nächste Sitzung kann ihn nicht widerlegen.
+
+⚠️ Vier weitere Funde: `diag-ladder.py`s Docstring trug eine Literal-Zählung der
+Schlusswörter, die ZWEIMAL unbemerkt veraltete (gelöscht statt nachgeführt, #818) · drei
+Prosa-Stellen erklärten (c3)s `AudioEngine`-Hälfte für einen Tripwire mit NULL Treffern — sie
+wählt jetzt ZWEI und beide bestehen, der Draht hat also ausgelöst · der Kopf von
+`TheMonitoringSurvivesEngineRecoveryTests` zitierte den gelöschten Einzeiler · und **mein
+Lauf-Bericht sagte „alle 7 Leitern", das Werkzeug sagt 8** (ich hatte einen abgeschnittenen
+`tail` gelesen).
+
+⭐ **`scripts/count-pins.py` hat vor dem Push eine ROTE Pin gefangen** — die Umformung des
+Einzeilers in einen Block. Genau wofür das Werkzeug existiert: CI kann das nicht zeigen, weil
+die Pipeline unter #396 auf jedem Push `failure` meldet. Neu verankert auf die BEDINGUNG plus
+eine eigene Zusicherung, dass der Block früh zurückkehrt.
+
+**Gefahren:** `count-pins.py` 1 ROT → 0 ROT · `diag-ladder.py --selftest` OK, 8/8 Leitern
+vollständig, beide neuen Schlusszeilen gelistet · `dead-needles.py` 0/382 · Anspruch 18 gegen
+die echte Datei grün und gegen FÜNF Mutationen rot (gelöscht · nummeriert · abgedriftet ·
+zweiter block-öffnender Guard · `if`-umwickelt).
+
+⚠️ **Beobachtet, NICHT repariert (kein Scope-Kriechen):** die Zählung von `diag-ladder.py`
+überschreibt ihre Terminator-Liste mit „end a ladder without advancing it" und listet dabei
+auch die NUMMERIERTEN Übersprünge, die eine Leiter sehr wohl weiterlaufen lassen. Die Notiz
+direkt darunter korrigiert es; die Überschrift tut es nicht.
