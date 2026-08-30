@@ -17854,3 +17854,42 @@ Wächter teilen sich die Arbeit; keiner ersetzt den anderen.
 - **Drei Prosa-Stellen** beschrieben das Werkzeug im Präsens als „hat keinen Begriff von
   einem Sprung" (selbst vorgefunden, vor dem Review) und die ⭐-GESETZ-Zeile in `Sources/`
   stand nach dem Rückzug von (c3) verwaist da — beide Richtungen korrigiert.
+
+### #909 — die Scheibe, die ich WEGGEWORFEN habe, und die 15 Zeilen, die davon übrig bleiben
+
+**Der Plan war gut, die Ausführung dominiert.** Nach der Leiter-Arbeit (#859–#908) wollte ich
+die andere Hälfte absichern: eine neue `inputNode`-Berührung auf einem Pfad, der NICHTS ins
+Log schreibt, macht das Log genau dort dunkel, wo der `isInputConnToConverter`-Absturz sitzt.
+Gebaut: ein neuer Wächter, der für jede Berührung prüft, ob ihre FUNKTION vorher gesprochen
+hat. Alle Ansprüche gefahren, zwei Mutanten, historischer Baum rot — sah sauber aus.
+
+⛔ **Der Reviewer hat ihn auf vier Wegen zerlegt, und zwei davon sind vernichtend.**
+- **Mitgliedsart-blind:** das Fenster öffnet nur bei `func`. `init`, `deinit`, eine berechnete
+  Eigenschaft und `subscript` öffnen keins — sie ERBEN das „hat schon gesprochen" der
+  vorhergehenden Funktion. Gefahrener Mutant: `deinit { masterEngine.inputNode.removeTap(onBus: 0) }`
+  → **grün**. Ein `removeTap` aus einem `deinit`, auf einem Graphen im Abbau — das ist die
+  Absturzfamilie wörtlich.
+- **Zweig-blind:** ein `logMonitorOutcome` in einem `catch`, das `return false` macht,
+  markiert die Funktion als gesprochen. Gefahrener Mutant: die EINZIGE Zeile löschen, die auf
+  dem erreichenden Pfad läuft (`on 1/5`) → **grün**.
+- **Und die Form war in DIESEM Repo schon einmal verworfen worden**, im Doc des Wächters, den
+  ich erweitern wollte: #875 hatte einen 260-Zeichen-Fensterscan probiert, der 4 von 5
+  korrekten Stellen als ungeschützt meldete — die #665-Falle. Ich habe eine Variante davon
+  gebaut, ohne den Absatz zu lesen, der sie ablehnt.
+- **Und der Vorzeige-Mutant war ohnehin schon rot** unter `testEveryInputNodeSiteIsAccountedFor`
+  (Zähl-Pin auf `masterEngine.inputNode`, einen Tag alt) — meine Benotung buchte einen Fund
+  als Beleg für den Wert der neuen Datei, den sie gar nicht allein erzeugt (§3, generöse
+  Richtung).
+
+⭐ **Was bleibt, und es ist besser als das Verworfene:** die Lücke war real und stand
+wörtlich im vorhandenen Doc — „die zwei Berührungen AUSSERHALB dieser Datei sind hier nicht
+mitgezählt". `MicrophoneManager` ist die ZWEITE Maschine, die den Eingang antippt (eigene
+`AVAudioEngine`, eigener Kategoriewechsel, läuft während die Master-Engine läuft), und
+niemand zählte sie. Neuer Anspruch: **neun `inputNode`-Nennungen, mit dem Audit aller acht
+Nutzungen im Doc.** Eine ZAHL kennt weder Mitgliedsart noch Zweig — genau die zwei
+Schwächen, an denen die verworfene Fassung starb. `count-pins.py` liest sie (137 von 155).
+
+**Lehre, und sie ist die teuerste dieser Sitzung:** *bevor man einen Wächter baut, prüfen, ob
+ein vorhandener die Sache schon stärker abdeckt — und ob die eigene Form in diesem Repo schon
+einmal verworfen wurde.* Der Ablehnungsgrund stand im Doc der Datei, die ich erweitern wollte,
+30 Zeilen über der Stelle, an der ich schließlich gelandet bin.

@@ -244,6 +244,49 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             """)
     }
 
+    /// AND THE SECOND FILE, added #909 — because "not counted here" was the whole gap.
+    ///
+    /// ⛔ THIS CLAIM IS THE SALVAGE OF A SLICE I THREW AWAY, and the reason is written above
+    /// in this file already: the ⛔ paragraph on the previous claim records that a "look back
+    /// N for `claimRecordRoute`" scan was TRIED and REJECTED as the #665 cry-wolf shape. #909
+    /// built a variant of exactly that — a function-sized window asserting every `inputNode`
+    /// touch sits after a breadcrumb — and the review killed it on four counts, of which two
+    /// are worth remembering here: it was **member-kind-blind** (`init`, `deinit`, a computed
+    /// property and a `subscript` open no window, so a `deinit { inputNode.removeTap(…) }`
+    /// inherited the previous function's "already spoke" and passed — the
+    /// `isInputConnToConverter` shape verbatim), and it was **branch-blind** (a
+    /// `logMonitorOutcome` inside a `catch` that returns marked the function spoken, so
+    /// deleting the only line on the reaching path left it GREEN). A COUNT has neither
+    /// weakness: it cannot be fooled by where a member sits or by which branch runs.
+    ///
+    /// ⭐ THE AUDIT, done by reading all EIGHT uses on 2026-08-30 (nine occurrences — line
+    /// `inputNode = audioEngine.inputNode` carries two):
+    ///   · the stored property itself.
+    ///   · `inputNode = audioEngine.inputNode` and the `outputFormat` read — both AFTER
+    ///     `claimRecordRoute(.microphoneManager)` and after the `mic: start 2/3` rung.
+    ///   · `installTap` — between rungs `2/3` and `3/3`, so a death there is localised.
+    ///   · three `= nil` clears — Swift property writes, no AVFAudio call.
+    ///   · `engine.inputNode.removeTap(onBus: 0)` — under `mic: stop 2/3`, and deliberately
+    ///     guarded by `engine.isRunning`: touching `inputNode` on a stopped engine is the
+    ///     hazard this file exists for.
+    ///
+    /// ⚠️ THIS FORBIDS NOTHING (#364), same as its sibling: the vocal chain may legitimately
+    /// need another touch. The red is a checklist — audit the new site, extend the list above,
+    /// then move the number.
+    func testEveryMicrophoneInputSiteIsAccountedFor() throws {
+        let mic = try code("Sources/Echoelmusic/MicrophoneManager.swift")
+        XCTAssertEqual(occurrences(of: "inputNode", in: mic), 9, """
+            The number of `inputNode` mentions in MicrophoneManager changed. This is the OTHER \
+            engine that taps the input — its own `AVAudioEngine`, with its own category flip, \
+            running while the master engine runs. A new site here is a new place the \
+            `isInputConnToConverter` family can fire, seven device logs deep and still \
+            without a named trigger. Audit the new site (is it after the record-route claim? \
+            is it under a rung, so a death there is localised? is it guarded by \
+            `engine.isRunning` if it touches a stopped graph?), add it to the list in this \
+            test's doc, and only then change the number.
+            """)
+    }
+
     // MARK: - 5: the voice-timbre chain speaks too (#859b — reviewer L3)
 
     /// The last diag-dark input path: VoiceCaptureController → MicrophoneManager does
