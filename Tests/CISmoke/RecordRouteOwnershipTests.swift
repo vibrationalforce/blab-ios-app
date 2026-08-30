@@ -167,20 +167,41 @@ final class RecordRouteOwnershipTests: XCTestCase {
 
     /// #900 — the throwing exit RELEASED its route (#299) and kept its GRAPH.
     ///
-    /// GRADING (§3), driven in Python against parent and worktree before pushing: the three
-    /// nil assertions are red on the parent as ONE absence reported three times (#486) — the
-    /// cleanup block does not exist there. The fourth is a COUNTERWEIGHT, green on both trees
-    /// and the point of the file: it pins what the block must NOT do.
+    /// GRADING (§3), driven in Python against parent and worktree before pushing: three
+    /// REGRESSIONS, all three restating ONE absent repair. ⛔ #901 corrected the BUCKET: #900
+    /// filed them as "ANCHOR ABSENCE, reported three times (#486)", and §3 defines anchor
+    /// absence as *the extraction found nothing*. On the parent both anchors exist and the
+    /// slice is 274 characters — the extraction SUCCEEDS, only the fix is missing. #486's
+    /// spirit (one defect, not three findings) is right; the bucket was not, and §3 says
+    /// getting your own grading wrong in the HARSH direction is the same defect as the
+    /// generous one. The fourth claim is a COUNTERWEIGHT, green on both trees and the point of
+    /// the file: it pins what the block must NOT do.
     ///
     /// KIND (§1): SOURCE-TEXT SCAN. Whether the memory is actually returned is an
     /// instruments-on-device question and is not claimed here.
     func testTheThrowingStartExitDropsItsHalfBuiltGraph() throws {
         let file = try code("Sources/Echoelmusic/MicrophoneManager.swift")
-        let body = slice(of: file, from: "mic: start FAILED", to: "#if os(")
+        // ⛔ #901 — THE `to:` ANCHOR WAS `"#if os("` AND THAT WAS A LATENT FALSE RED. A later
+        // `#if os(...)` or `#if DEBUG` inserted between the breadcrumb and the nils closes the
+        // window early: `body` is non-empty, so the isEmpty claim below stays green, and all
+        // three nil claims go red saying the code dropped a line it still has — a red pointing
+        // at the wrong repair (the #408/#898 window trap). The release call cannot be inserted
+        // by accident and IS the end of the block.
+        //
+        // ⭐ AND THE ANCHOR CARRIES AN ORDERING GUARANTEE, which the old one held only by luck
+        // and nobody had written down: ending here pins the three nils BEFORE
+        // `releaseRecordRoute`. That order is load-bearing — the engine (with a realized input
+        // node) is deallocated while the session is still `.playAndRecord`. The reverse order
+        // takes the edges down after the route is gone, which is the neighbourhood of the
+        // `isInputConnToConverter` family (#889). Whoever re-anchors this next must carry that
+        // sentence with them.
+        let body = slice(of: file, from: "mic: start FAILED",
+                         to: "releaseRecordRoute(.microphoneManager)")
         XCTAssertFalse(body.isEmpty, """
         The `catch` in `MicrophoneManager.startRecording` no longer runs from the FAILED \
-        breadcrumb to the platform-gated route release — re-anchor this claim in the same \
-        commit (§4).
+        breadcrumb to its record-route release — either the breadcrumb was reworded or the \
+        release moved. Re-anchor this claim in the same commit (§4), and keep the window \
+        ending AT the release so the nil-before-release order stays pinned.
         """)
         for ref in ["self.audioEngine = nil", "self.inputNode = nil", "self.complexDFT = nil"] {
             XCTAssertTrue(body.contains(ref), """

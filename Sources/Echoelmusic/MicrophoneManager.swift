@@ -416,8 +416,23 @@ final class MicrophoneManager: NSObject {
             // engine, and `startRecording()` always builds a FRESH `AVAudioEngine`. What
             // #891 CHANGED is who cleans up. Before it, the user's unavoidable cancel ran
             // `stopRecording()` and that nilled all three; since #891 the abort path returns
-            // without one, so `complexDFT` (an FFT scratch allocation) and a stopped engine
-            // live on until the next start. Lifetime, not a crash path.
+            // without one. Lifetime, not a crash path.
+            //
+            // ⛔ #901 — "an FFT scratch allocation … until the next start" stood here and BOTH
+            // halves were wrong, in the direction that under-sells the repair. `EchoelComplexDFT`
+            // wraps a `vDSP_DFT_zop_CreateSetup` HANDLE, destroyed by `vDSP_DFT_DestroySetup` in
+            // its own `deinit` — this returns a vDSP setup, not just memory. And the two
+            // lifetimes differ: the ENGINE is replaced by the next attempt (`AVAudioEngine()`
+            // near the top of this `do`), while `complexDFT` is assigned only PAST the
+            // placeholder-format guard (#890), so a run of format refusals would have kept the
+            // old setup alive indefinitely.
+            //
+            // ⚠️ AND THIS IS AN UNRUNGED AVFAudio DEALLOCATION, exactly the kind `stopRecording()`
+            // warns about above its own `audioEngine = nil`: dropping the last strong reference
+            // runs `AVAudioEngine.deinit` — here on an engine that still has a tap installed —
+            // and no rung stands in front of it. So in a diag log, silence AFTER
+            // `mic: start FAILED` is NOT automatically the route release two blocks below; it can
+            // be this line. Attribute it to the deallocation first.
             //
             // ⚠️ THE TAP IS DELIBERATELY NOT REMOVED, and that is the whole discipline of
             // this block. Only `audioEngine.start()` can throw after the tap is installed,
@@ -506,10 +521,20 @@ final class MicrophoneManager: NSObject {
         // ⚠️ TRAP FOR THE NEXT SESSION (#877, audio-thread reviewer) — this repo removes
         // taps UNCONDITIONALLY everywhere else (`MultiTrackRecorder`, `RetroCapture`,
         // which documents its removal as idempotent); this is the one site that gates
-        // removal on `isRunning`, so a `start()` that THREW leaves a tapped, non-running
-        // engine whose tap is never removed. Harmless today — the tap dies with the
-        // engine, and `startRecording` always builds a FRESH engine, so no stale tap can
-        // collide with a new one. But if you ever make it symmetric, do NOT hoist
+        // removal on `isRunning`.
+        //
+        // ⛔ #901 — THE SCENARIO THIS NOTE NAMED IS UNREACHABLE AT THIS SITE SINCE #900, and a
+        // "do not touch" note with a false premise is worse than none (#167): the next session
+        // cannot disprove it. It read "a `start()` that THREW leaves a tapped, non-running
+        // engine whose tap is never removed" — true until #900, which made that `catch` drop
+        // the engine itself, so `stopRecording()` never meets it any more. The GUIDANCE below
+        // survives untouched, and one half of it got STRONGER: `inputNode?` is now an even more
+        // reliable "was a tap installed" signal, because a thrown start nils it too. What still
+        // reaches the `isRunning` branch is an engine stopped by an INTERRUPTION or a
+        // media-services reset while `isRecording` is still true — which is why the three-state
+        // rung above keeps "engine: stopped".
+        //
+        // If you ever make the removal unconditional, do NOT hoist
         // `engine.inputNode.removeTap(onBus: 0)` out of this guard: touching `inputNode`
         // on an engine that never started, while the session may no longer be
         // `.playAndRecord`, IS the `isInputConnToConverter` family. Use the already-stored

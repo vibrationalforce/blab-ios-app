@@ -190,8 +190,16 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
     ///     while the route is still held is the correct order; the reverse would be the
     ///     hazard.
     /// The two touches OUTSIDE this file are route-guarded too and are not counted here:
-    /// `MicrophoneManager` claims at :207 and reads at :218, `MultiTrackRecorder` claims
-    /// before its read (and is doorless anyway, #204).
+    /// `MicrophoneManager` calls `claimRecordRoute(.microphoneManager)` before its
+    /// `inputNode = audioEngine.inputNode`, and `MultiTrackRecorder` claims before its read
+    /// (and is doorless anyway, #204).
+    ///
+    /// ⛔ #901 — THOSE TWO WERE LINE NUMBERS (`:207`, `:218`) AND BOTH HAD DRIFTED, to 240
+    /// and 265. Measured, not guessed: they were already wrong one commit before #900, so
+    /// nothing recent moved them — they simply aged, silently, because nothing re-derives a
+    /// line number. This repo's own rule covers it and is restated here because this is
+    /// where it was broken: **a quoted PHRASE survives an insertion above it, a line number
+    /// does not.** The ORDER claim itself was and stays correct.
     ///
     /// ⛔ WHY A COUNT AND NOT A "ROUTE CONTEXT" SCAN. I tried the smarter check first: for
     /// each site, look back N characters for `isInputMonitoring` or `claimRecordRoute`. At

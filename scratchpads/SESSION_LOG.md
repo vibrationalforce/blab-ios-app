@@ -17342,3 +17342,70 @@ gemeinsame Datei `SourceText.swift` kompiliert, der ganze blockierende Bundle ba
 
 **Ehrliche Grenze:** compile-verifiziert erst mit dem Gate, nie am Gerät. Ob der Speicher
 wirklich zurückgeht, ist eine Instruments-Frage und wird hier nicht behauptet.
+
+---
+
+## 2026-08-30 — #901: die Reviewer-Runde auf #900 — fünf Befunde, keiner HOCH, drei davon Prosa
+
+**Alle drei Behauptungen von #900 haben gehalten** (unabhängig nachgeprüft: `installTap` ist
+nicht werfend, `prepare()` auch nicht, also ist `audioEngine.start()` wirklich die EINZIGE
+Wurfstelle nach dem Tap). Was der Reviewer fand, sind fünf Nachbesserungen — und drei davon
+sind genau die Klasse Fehler, die diese Datei am teuersten bezahlt.
+
+**(1) Der `#877`-TRAP-Vermerk beschrieb seit #900 einen unerreichbaren Zustand.** Er lautete:
+„ein `start()`, das GEWORFEN hat, hinterlässt eine getappte, nicht laufende Engine, deren Tap
+nie entfernt wird" — bis #900 wahr, seither nicht mehr, weil der `catch` die Engine selbst
+fallen lässt. **Und es ist derselbe Vermerk, den #900s neuer Kommentar als Autorität zitiert.**
+#167: ein „nicht anfassen"-Hinweis mit falscher Prämisse ist schlimmer als keiner, weil die
+nächste Sitzung ihn nicht widerlegen kann. Die ANLEITUNG bleibt unverändert; eine Hälfte wird
+sogar STÄRKER (`inputNode?` ist jetzt ein noch verlässlicheres „war ein Tap installiert").
+Was den `isRunning`-Zweig weiterhin erreicht: eine Interruption oder ein Media-Services-Reset
+— deshalb behält die Sprosse „engine: stopped".
+
+**(2) Eine unbesprossene AVFAudio-Deallokation ist auf den Fehlerpfad GEWANDERT.**
+`stopRecording()` sagt über sein eigenes `audioEngine = nil` ausdrücklich, dass dort
+`AVAudioEngine.deinit` ohne Sprosse davor läuft, und weist den Leser an, Stille dort
+zuzuordnen. #900 macht genau diese Deallokation — an einer Engine, die noch einen Tap trägt —
+und hatte diesen Satz nicht. Daneben stand nur der `#299`-Block über die Route-Freigabe, also
+hätte ein Leser die Stille dort verortet. Genau die Fehlzuordnung, die #877 „schlimmer als
+gar keine Leiter" nennt. Repariert mit Prosa, nicht mit einer Sprosse — wie #877 denselben
+Fall gelöst hat.
+
+**(3) Meine eigene §3-Benotung war falsch, in der HARTEN Richtung.** #900 buchte die drei
+Nil-Zusicherungen als „ANKER-ABWESENHEIT, dreimal gemeldet (#486)". §3 definiert
+Anker-Abwesenheit als *die Extraktion fand nichts*. Auf dem Elternteil existieren BEIDE Anker,
+die Scheibe ist 274 Zeichen lang — die Extraktion GELINGT, es fehlt nur die Reparatur. Es sind
+**REGRESSIONEN**. #486s Geist (ein Defekt, nicht drei Funde) stimmt, der Eimer nicht. §3 sagt
+selbst, dass eine zu harte Selbstbenotung derselbe Defekt ist wie eine zu schmeichelnde.
+
+**(4) Der `to:`-Anker `"#if os("` war ein latentes FALSCH-ROT.** Ein später eingefügtes
+`#if os(...)` oder `#if DEBUG` zwischen Sprosse und Nils schließt das Fenster früh: `body`
+bleibt nicht-leer, die isEmpty-Zusicherung bleibt grün, und alle drei Nil-Ansprüche werden rot
+über Zeilen, die es noch gibt — ein Rot, das auf die falsche Reparatur zeigt. Umgestellt auf
+`releaseRecordRoute(.microphoneManager)`. ⭐ **Und der Anker trägt eine ORDNUNGS-Garantie, die
+der alte nur zufällig hielt und die niemand aufgeschrieben hatte:** das Fenster dort zu
+beenden pinnt die drei Nils VOR die Route-Freigabe — die Engine wird deallokiert, solange die
+Session noch `.playAndRecord` ist. Die Gegenrichtung nimmt die Kanten herunter, NACHDEM die
+Route weg ist, und das ist die `isInputConnToConverter`-Nachbarschaft (#889). Der Satz steht
+jetzt am Anker, damit die nächste Umstellung ihn mitnimmt.
+
+**(5) `complexDFT` ist kein „FFT-Kratzspeicher".** `EchoelComplexDFT` umschließt einen
+`vDSP_DFT_zop_CreateSetup`-HANDLE, den sein `deinit` mit `vDSP_DFT_DestroySetup` zerstört —
+#900 hat seine eigene Reparatur unter-verkauft. Und die zwei Lebensdauern sind verschieden:
+die Engine ersetzt der nächste Versuch, `complexDFT` wird erst HINTER dem #890-Formatwächter
+zugewiesen — eine Serie Format-Weigerungen hätte den alten Setup unbegrenzt gehalten.
+
+**Dazu ein Vor-Befund des Reviewers, nicht aus dieser Scheibe:** zwei Zeilennummern in
+`TheEngineLifecycleSpeaksInTheDiagLogTests` (`:207`/`:218`) waren auf 240/265 gedriftet —
+schon einen Commit VOR #900, also nichts Frisches, sondern stilles Altern. Durch die zitierten
+Phrasen ersetzt; die Ordnungs-Aussage selbst war und bleibt richtig.
+
+**Nachgeprüft nach den Änderungen** (Python gegen beide Bäume): neue Scheibe 377 Zeichen im
+Arbeitsbaum, 274 auf dem Elternteil, drei Nils dort abwesend, `removeTap` auf beiden abwesend;
+`releaseRecordRoute(.microphoneManager)` weiter genau 5; die drei Zustands-Literale je 1; das
+`prefix(400)`-Leiterfenster über `stopRecording()` weiter grün; `dead-needles.py` sauber
+(382 Wächterdateien).
+
+**Weiter offen** (Board O14, bewusst nicht mitgenommen): die Startseite gibt die Record-Route
+mit `try?` frei — ein stiller Versuch —, also lässt ein werfendes
+`downgradeToPlaybackAfterRecording()` die Session auf `.playAndRecord`.
