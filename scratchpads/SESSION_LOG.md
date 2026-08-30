@@ -17893,3 +17893,46 @@ Schwächen, an denen die verworfene Fassung starb. `count-pins.py` liest sie (13
 ein vorhandener die Sache schon stärker abdeckt — und ob die eigene Form in diesem Repo schon
 einmal verworfen wurde.* Der Ablehnungsgrund stand im Doc der Datei, die ich erweitern wollte,
 30 Zeilen über der Stelle, an der ich schließlich gelandet bin.
+
+### #910 — die dunkle Strecke halbiert, an genau der Stelle, an der der Absturz vermutet wird
+
+**Gemessen bei der #909-Prüfung:** in BEIDEN verdächtigen Dateien deckt die letzte Sprosse vor
+der ersten Eingangs-Berührung DREI AVFAudio-Aufrufe auf einmal ab. Zwei unnummerierte
+POSITIONS-Marker halbieren das:
+- `AudioEngine`: `on: touching the input node + reading its format` vor
+  `let input = masterEngine.inputNode`.
+- `MicrophoneManager`: `mic: start — installing the tap now` vor `installTap`. Das ist die
+  STÄRKERE Hälfte — `installTap(format:)` ist der eine Aufruf, dessen Vertragsbruch eine
+  nicht abfangbare ObjC-Ausnahme wirft, und #890 nennt ihn längst als wahrscheinlichsten Abbruch.
+
+**Dazu geschlossen:** der `guard let format` in `MicrophoneManager` stieg STILL aus (nur
+`log.error`, das die exportierte Datei nie erreicht). Solange `2/3`-zuletzt „eines von drei
+Dingen" hieß, war das erträglich; jetzt heißt es „im Node-/Format-Lesen gestorben" — also
+schreibt er jetzt `mic: start REFUSED — no input format from the node`.
+
+⛔ **Der Reviewer fand ZWEI Ansprüche, die nicht prüften, was ihr eigener Kopf versprach.**
+- **Ein `if` UM den Marker herum ging durch.** Die Spanne wurde nur NACH dem Marker geprüft;
+  `if wasRunning { breadcrumb(…) }` erfüllte alle vier Teilansprüche — und das ist #631
+  wörtlich, an genau der Stelle, deren neuer Kommentar #631 als Grund zitiert. Jetzt muss die
+  ZEILE des Markers mit dem Sink-Aufruf BEGINNEN.
+- **Die Nummern-Prüfung war eine Tautologie.** Sie lief auf das Literal, das die Testdatei
+  SELBST geschrieben hat — sie konnte auf keinem Baum und unter keiner Mutation fehlschlagen.
+  Der Schwester-Anspruch (c3) macht es seit #907 richtig: das Literal aus der QUELLZEILE
+  ziehen. Gefahren: die Nummer ANGEHÄNGT statt eingebettet → vorher grün, jetzt rot.
+- Und ein **Falsch-Rot**: das Verbot `"if "` trifft `#if `. `MicrophoneManager` hat fünf
+  Plattform-Guards; ein künftiges `#if os(iOS)` zwischen Marker und Aufruf hätte einen
+  korrekten Baum rot gemacht.
+
+⛔ **ZWEI ÜBERTREIBUNGEN, beide in schmeichelnder Richtung, beide gestrichen.**
+- „Der stehende Verdächtige" für das Node-/Format-Lesen — das ist eine HYPOTHESE, keine
+  Messung: kein Founder-Log endete je in dieser Strecke (v425/427/428 starben 1–6,5 s NACH
+  `megaphone on`, v429 ganz ohne Monitoring). Genau der #860b-Fehler, nur andersherum.
+- „Jedes Log, das der Founder schon geschickt hat, würde neu gelesen" — **messbar falsch**:
+  kein Log in der Hand trägt überhaupt eine `on N/5`-Zeile, und die `mic: start`-Leiter kam
+  zwar mit v429, aber jenes Log hatte keine einzige `mic:`-Zeile. Der ECHTE Grund ist
+  prospektiv und trägt allein: `total` ist ein Vollständigkeits-Vertrag, den das Werkzeug
+  prüft, und ein Positions-Marker ist kein Schritt einer festen Folge.
+
+**Lehre:** eine „das kann nicht passieren"-Zusage im Kopf eines Wächters ist eine BEHAUPTUNG
+und muss wie jede andere gefahren werden — hier ging der Fall, den der Kopf ausschloss,
+glatt durch.

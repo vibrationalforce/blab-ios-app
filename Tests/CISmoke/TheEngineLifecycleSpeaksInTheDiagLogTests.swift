@@ -244,6 +244,117 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             """)
     }
 
+    /// THE TWO POSITIONAL MARKERS (#910) — the gap-splitters on the suspect path.
+    ///
+    /// ⭐ WHY THEY EXIST, measured while auditing the crash path for #909: in BOTH files the
+    /// last rung before the first input touch covers THREE candidates at once.
+    ///   · `AudioEngine`: after `on 1/5` the only breadcrumb writer is `claimRecordRoute`. On
+    ///     the FIRST-owner path its last line is `session: raise 2/2 — setActive`, which by
+    ///     the ladder's law stands BEFORE `setActive` — so `2/2` last means `setActive`, the
+    ///     `inputNode` access, or `inputFormat`. On the SECOND-owner path (route already up)
+    ///     `raise 1/2` and `2/2` never run and `session: raise SKIPPED` is last instead; the
+    ///     marker still splits, and `SKIPPED` last would itself be a finding.
+    ///   · `MicrophoneManager`: after `mic: start 2/3` come the node access, the
+    ///     `outputFormat` read and `installTap`. That is the stronger half —
+    ///     `installTap(format:)` raises an uncatchable ObjC exception on a format mismatch.
+    ///
+    /// ⚠️ THIS IS INSTRUMENTATION OF A HYPOTHESIS, NOT A MEASUREMENT OF THE CRASH. No founder
+    /// log has ever ended in either stretch. Saying otherwise would repeat #860b, which read
+    /// the ABSENCE of rungs as evidence.
+    ///
+    /// ⚠️ UNNUMBERED IS THE POINT. ⛔ But NOT for the reason the first draft gave ("every log
+    /// already in the founder's hands would be re-read") — measurably false: no log in hand
+    /// carries an `on N/5` line, and the `mic: start` ladder shipped in v429 into a log with no
+    /// `mic:` lines. The real reason is that `total` is a completeness contract
+    /// `scripts/diag-ladder.py` audits, and a positional marker is not a step of a
+    /// fixed-length sequence. Driven: `--source` still reports `on` 1..5 and `mic: start` 1..3.
+    ///
+    /// ⚠️ THEY ARE POSITIONAL, NOT CONDITIONAL — #631's deletion at the `AudioEngine` site is
+    /// the reason. That breadcrumb tested a hypothesis, #628 moved a `pause()` above it, and it
+    /// then fired on every healthy toggle and read as confirmation of what it was built to
+    /// falsify.
+    ///
+    /// ⭐ GRADING (§3), and writing it is what exposed the dead assertion below. Against the
+    /// parent `cc4df74`: TWO FORWARDS (both markers absent, so existence fails). On the
+    /// worktree: green. Mutants driven on the worktree: marker deleted RED · marker moved
+    /// after the call RED · an `if` inserted BETWEEN marker and call RED · the marker's line
+    /// wrapped in `if wasRunning { … }` RED (this one was GREEN in the first draft — the
+    /// between-span sees only what follows the marker, so a branch AROUND it was invisible,
+    /// which is #631 verbatim under a claim promising it could not happen) · the rung number
+    /// APPENDED to the message RED (also GREEN in the first draft: it applied
+    /// `carriesRungNumber` to the test's OWN literal, an assertion that could not fail on any
+    /// tree — the sibling (c3) already does this correctly by extracting from the source line).
+    func testTheSuspectPathIsSplitByTwoUnnumberedMarkers() throws {
+        for (label, text, marker, rung, call) in [
+            ("AudioEngine", try code(Self.enginePath),
+             "on: touching the input node + reading its format",
+             "on 1/5: stopping engine + claiming record route",
+             "let input = masterEngine.inputNode"),
+            ("MicrophoneManager", try code("Sources/Echoelmusic/MicrophoneManager.swift"),
+             "mic: start — installing the tap now",
+             "mic: start 2/3 — tapping input",
+             "inputNode?.installTap(onBus: 0"),
+        ] {
+            XCTAssertEqual(occurrences(of: marker, in: text), 1, """
+                the #910 marker `\(marker)` left `\(label)`. Without it the last rung before \
+                the first input touch covers three AVFAudio calls at once, and a device log \
+                localises the `isInputConnToConverter` crash to a stretch instead of a call.
+                """)
+            guard let r = text.range(of: rung), let m = text.range(of: marker),
+                  let c = text.range(of: call) else {
+                XCTFail("the rung, the marker or the call left `\(label)` — re-anchor (§4). "
+                        + "The other file is still checked (#910 review, L8).")
+                continue
+            }
+            XCTAssertTrue(r.lowerBound < m.lowerBound && m.lowerBound < c.lowerBound, """
+                the #910 marker in `\(label)` no longer sits BETWEEN its rung and the call it \
+                splits. Before the rung it says nothing new; after the call it describes a \
+                step that already happened — the trailing-rung defect (#860/#878).
+                """)
+
+            // THE MARKER'S OWN LINE must BE the emitter — not a statement inside a branch that
+            // happens to contain it. Without this, `if wasRunning { breadcrumb(…) }` passes
+            // every other assertion here (#910 review, HIGH-1).
+            let line = lineContaining(marker, in: text)
+            XCTAssertTrue(line.hasPrefix("logMonitorOutcome(")
+                          || line.hasPrefix("EchoelCrashLog.breadcrumb("), """
+                the #910 marker in `\(label)` is no longer the whole statement on its line:
+                \(line)
+                A marker wrapped in a condition stops meaning "control reached here" — which \
+                is exactly how #631's breadcrumb came to read as confirmation of its opposite.
+                """)
+
+            // Read the NUMBER off the source line, never off this file's own literal: applied
+            // to `marker` the check is a tautology that no tree can fail (#910 review, M3).
+            XCTAssertFalse(carriesRungNumber(line), """
+                the #910 marker in `\(label)` was NUMBERED:
+                \(line)
+                That turns it into a rung, so `scripts/diag-ladder.py` grows the ladder by one \
+                step and `total` stops describing the sequence it audits. If a real step is \
+                wanted, renumber the WHOLE ladder deliberately and say so where logs are triaged.
+                """)
+
+            // POSITIONAL, NOT CONDITIONAL: nothing between the marker and the call may open a
+            // branch. `#if` is NOT one — it is a platform guard, and `MicrophoneManager` wraps
+            // route work in five of them, so a literal `"if "` scan would false-red on ordinary
+            // work (#910 review, M5).
+            for between in String(text[m.upperBound..<c.lowerBound])
+                .split(separator: "\n", omittingEmptySubsequences: false)
+                .map({ $0.trimmingCharacters(in: .whitespaces) })
+            where !between.hasPrefix("#") {
+                for branch in ["if ", "guard ", "while "] where between.hasPrefix(branch)
+                    || between.contains(" " + branch) {
+                    XCTFail("""
+                        a `\(branch.trimmingCharacters(in: .whitespaces))` appeared between \
+                        the #910 marker in `\(label)` and the call it splits:
+                        \(between)
+                        The marker then no longer proves control reached the call.
+                        """)
+                }
+            }
+        }
+    }
+
     /// AND THE SECOND FILE, added #909 — because "not counted here" was the whole gap.
     ///
     /// ⛔ THIS CLAIM IS THE SALVAGE OF A SLICE I THREW AWAY, and the reason is written above
@@ -1247,6 +1358,16 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
     /// True when the message carries a ladder rung NUMBER (`n/N`) — the shape
     /// `scripts/diag-ladder.py` walks. Digit-slash-digit, no regex: a spaced division
     /// (`a / b`) is deliberately not a match, and neither is a bare `/` in prose.
+    /// The single trimmed source line that carries `needle` — so a claim can read what the
+    /// code actually emits instead of the literal this test file wrote (#910 review, M3).
+    private func lineContaining(_ needle: String, in text: String) -> String {
+        for line in text.split(separator: "\n", omittingEmptySubsequences: false)
+        where line.contains(needle) {
+            return line.trimmingCharacters(in: .whitespaces)
+        }
+        return ""
+    }
+
     private func carriesRungNumber(_ line: String) -> Bool {
         let c = Array(line)
         guard c.count > 2 else { return false }

@@ -267,6 +267,15 @@ final class MicrophoneManager: NSObject {
             // Get the input format from the microphone
             let recordingFormat = inputNode?.outputFormat(forBus: 0)
             guard let format = recordingFormat else {
+                // ⭐ #910 — THIS EXIT WAS SILENT, AND THE MARKER BELOW MADE THAT EXPENSIVE.
+                // `log.error` is os_log, which never reaches the exported `echoel_diag.log`,
+                // so this returned writing NOTHING while `mic: start 2/3` stood as the last
+                // line. That was tolerable while `2/3`-last meant "one of three things"; it
+                // is not now that the marker below makes `2/3`-last mean "died in the node or
+                // format read". Its sibling one guard down has written `mic: start REFUSED`
+                // since #890; this one now does too. Unnumbered, like every skip that ends
+                // its ladder before any further rung (#907).
+                EchoelCrashLog.breadcrumb("mic: start REFUSED — no input format from the node")
                 log.error("MicrophoneManager: failed to get microphone input format", category: .audio)
                 // #889, same reasoning as the guard above — see it for why an unreachable
                 // exit is still closed.
@@ -375,6 +384,28 @@ final class MicrophoneManager: NSObject {
             // Tap runs on audio thread — do NOT access @MainActor self in outer closure.
             // nonisolated(unsafe) avoids Swift 6 actor isolation check on audio thread.
             nonisolated(unsafe) weak var weakSelf = self
+            // ⭐ #910 — the same split as `AudioEngine`'s, and the STRONGER half of the two.
+            // `mic: start 2/3` is the last line before THREE things: the `inputNode` access,
+            // the `outputFormat` read, and this `installTap`. `installTap(format:)` is the one
+            // call in either file whose contract mismatch raises an ObjC exception nothing can
+            // catch, and #890's comment already names it as the likeliest abort —
+            // `isInputConnToConverter` is an assertion about connecting the input bus to a
+            // CONVERTER, which is what installing a tap WITH A FORMAT does. With this line,
+            // `2/3` last ⇒ the two reads; this line last ⇒ the tap install.
+            //
+            // ⚠️ THE OTHER SIDE OF THE SPLIT IS NOT CLEAN, and #910 raises the cost of that:
+            // the `guard let format = recordingFormat else` exit above writes NOTHING to the
+            // exported log (only `log.error`, which never reaches `echoel_diag.log`). It is
+            // documented unreachable (#889) — but `2/3` last is now being read as "died in the
+            // node/format read", so a silent exit there would be read as a crash. Its sibling
+            // one guard down writes `mic: start REFUSED`; this one should too, and does not.
+            //
+            // ⚠️ Unnumbered, so the `mic: start` ladder stays 1..3. ⛔ NOT because "older logs
+            // still read" — the first draft said that and it is false in the other direction:
+            // this ladder DID ship in v429, and that log carried no `mic:` line at all. The
+            // reason is that `total` is a completeness contract, and a positional marker is
+            // not a step of a fixed-length sequence.
+            EchoelCrashLog.breadcrumb("mic: start — installing the tap now")
             inputNode?.installTap(onBus: 0, bufferSize: UInt32(fftSize), format: format) { @Sendable buffer, _ in
                 // Extract all buffer data synchronously while memory is valid
                 // AVAudioPCMBuffer is non-Sendable — its memory is reused after this closure returns

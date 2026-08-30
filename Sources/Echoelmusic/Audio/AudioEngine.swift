@@ -2343,6 +2343,49 @@ public final class AudioEngine {
             // warning on every healthy toggle, and the next session reading that log would
             // have counted it as evidence FOR the mechanism it was built to falsify.
             // What survives as evidence is `restoreEngineIfStranded`'s own line at each exit.
+            // ⭐ #910 — AN UNNUMBERED MARKER, BECAUSE `on 1/5` COVERS THREE SUSPECTS AT ONCE.
+            // Measured while auditing the crash path: between the rung and `on 2/5` the ONLY
+            // breadcrumb writer is `claimRecordRoute` (`masterEngine.stop()` is bare AVFAudio,
+            // and the session/route observers hop through `Task { @MainActor }`, so they
+            // cannot interleave inside this synchronous stretch). Reading, per path:
+            //   · FIRST owner — `claimRecordRoute`'s last line is `session: raise 2/2 —
+            //     setActive`, which by the ladder's law stands BEFORE `setActive`. So
+            //     `2/2` last ⇒ the death was in `setActive`, in the `inputNode` access, or in
+            //     `inputFormat`; THIS line last ⇒ it was in the node access or the format read.
+            //   · SECOND owner (route already raised) — `raise 1/2` and `2/2` never run;
+            //     `session: raise SKIPPED` is the last line instead. ⛔ #910's first draft gave
+            //     only the first rule, on the very path #888/#907/#908 were built for
+            //     (`claimRecordRoute`'s own doc calls it reachable today: voice capture can
+            //     run while monitoring holds the route). `SKIPPED` last is near-impossible —
+            //     two frame returns separate it from this line — so it would itself be a
+            //     strong finding, not a shrug.
+            //
+            // ⚠️ WHAT THIS IS *NOT*: a measurement that the node access is where the crash is.
+            // No founder log has ever ended in this stretch — v425/427/428 died 1–6.5 s after
+            // `megaphone on`, and `megaphoneMode.didSet` returns unless monitoring is already
+            // on, so this path had completed; v429 died with no monitoring at all. This is a
+            // HYPOTHESIS being instrumented. #860b was burned by exactly the opposite mistake
+            // (reading the absence of rungs as evidence), so it is named as one.
+            //
+            // ⚠️ IT IS UNCONDITIONAL ON PURPOSE, and #631 two paragraphs up is why: the
+            // breadcrumb that used to stand here was a CONDITIONAL claim, #628 moved a
+            // `pause()` above it, and from then on it fired on every healthy toggle and read
+            // as confirmation of the very thing it was built to falsify. A positional marker
+            // makes no claim that can invert — it says only "control reached here".
+            //
+            // ⚠️ AND IT IS UNNUMBERED, so it is not a rung: `scripts/diag-ladder.py` neither
+            // counts it nor treats it as a terminator (no SKIPPED/REFUSED/FAILED), and the
+            // `on` ladder stays 1..5. ⛔ The first draft justified that with "renumbering would
+            // re-read every log the founder has already sent" — measurably FALSE: no log in
+            // hand carries an `on N/5` line at all (the ladder ships first in v10.79.430, the
+            // build now deployed and unverified). The real reason is prospective and enough on
+            // its own: `total` is a contract the tool audits for completeness, and a positional
+            // marker is not a step of a fixed-length sequence.
+            //
+            // ⚠️ COST, named because #654 already retracted an over-estimate of it: each
+            // `rearmInputMonitoring` adds ONE line to the reconnect burst that #654 measured at
+            // 3–6 lines per physical connect. Bounded, and it converges.
+            logMonitorOutcome("on: touching the input node + reading its format", level: .info)
             let input = masterEngine.inputNode
             var inFmt = input.inputFormat(forBus: 0)
             if inFmt.sampleRate <= 0 || inFmt.channelCount == 0 {
