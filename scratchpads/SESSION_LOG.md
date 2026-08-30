@@ -18118,3 +18118,55 @@ zweiter block-öffnender Guard · `if`-umwickelt).
 überschreibt ihre Terminator-Liste mit „end a ladder without advancing it" und listet dabei
 auch die NUMMERIERTEN Übersprünge, die eine Leiter sehr wohl weiterlaufen lassen. Die Notiz
 direkt darunter korrigiert es; die Überschrift tut es nicht.
+
+
+---
+
+## #914 — das Lese-Werkzeug reproduzierte in seiner AUSGABE die Zweideutigkeit, gegen die es gebaut wurde
+
+`diag-ladder.py --source` listete unter der Überschrift „terminator lines (end a ladder
+without advancing it)" echte Schluss-Zeilen UND nummerierte Übersprünge (`on 4/5 SKIPPED`),
+die eine Leiter gerade weiterlaufen lassen. Der Unterschied stand in der Fußnote darunter.
+Jetzt sagt jeder Eintrag seine Wirkung selbst, über die reine `census_effect`.
+
+**Nicht gefiltert, und das ist der Punkt:** die Zählung sammelt absichtlich zu viel (JEDES
+ALL-CAPS-Token hinter einem Präfix), damit ein NEUES Wort auftaucht statt still als Tod
+gelesen zu werden. Filtern hätte genau diese Eigenschaft zerstört.
+
+⛔ **MEIN ERSTES LABEL WAR DREIMAL FALSCH — alle drei in der beruhigenden Richtung, alle drei
+vom Reviewer gemessen.** (a) Ein UNBEKANNTES Wort druckte „ENDS the ladder"; `ladder_verdicts`
+baut seine Nadel aus `TERMINAL_WORDS`, ein unbekanntes Wort beendet also nichts — und das
+Label widersprach der Fußnote vier Zeilen tiefer, **in dem EINEN Fall, für den die
+über-sammelnde Zählung überhaupt existiert**. (b) Ein nummerierter Eintrag druckte „walks
+on" — eine Aussage über Swift-KONTROLLFLUSS, die ein Zeilen-Scanner nicht treffen kann; ein
+nummerierter Übersprung mit `return` ist schreibbar, und das Label hätte den Leser von einem
+echten Tod weggeschickt (#908s erster Entwurf noch einmal). (c) „ENDS" stand unbedingt da,
+obwohl eine Rettung verlangt, dass die Zeile der letzten Sprosse FOLGT und die Leiter kurz ist.
+
+⛔ **UND DIE SELBSTPRÜFUNG HAT ZWEIMAL VERSAGT, BEVOR SIE BISS — das ist die eigentliche
+Lehre dieses Zyklus.**
+· Entwurf 1: `any(numbered) and any(not numbered)` über den echten Baum. Überlebte eine
+  VOLLSTÄNDIGE Invertierung der Flagge und wurde rot für einen legitimen künftigen Baum ohne
+  nummerierten Übersprung — er pinnte `Sources/`, nicht den Code.
+· Entwurf 2: `census_pattern` und `census_effect` auf LITERALEN gefahren. Richtig — und die
+  Invertierung ging **trotzdem** durch, weil sie dort sitzt, wo das Tupel gebaut wird.
+  Derselbe Defekt, einen Schritt versetzt. Ich habe das selbst gefahren und rot gesehen,
+  nachdem ich es für erledigt hielt.
+· Was beißt: die KOMPOSITION. Jeder Zählungs-Eintrag muss mit dem übereinstimmen, was der
+  Matcher über SEINE EIGENE Quellzeile sagt. Diese Mutation ist rot; ein Baum ohne
+  nummerierte Übersprünge bleibt grün.
+
+**GESETZ: eine Prüfung, die an der Mutation, für die sie geschrieben wurde, nicht scheitern
+kann, ist keine Prüfung — fahren, nicht überlegen.** Und: **wer eine Zusicherung auf einen
+extrahierten reinen Helfer richtet, prüft den Helfer, nicht den Weg**; der Fehler wandert
+dann an die Fuge.
+
+**Gefahren, beide Modi:** `--selftest` OK mit acht neuen Zusicherungen · drei Mutationen rot
+(Flagge invertiert · Unbekannt-Zweig auf „rescues" · Nummeriert-Zweig aus) · `--source`
+geprüft · LOG-Modus unverändert (nummerierter Übersprung → ❌ Tod, unnummeriertes REFUSED →
+⏹ ended) · `count-pins` 0 ROT · `dead-needles` 0/382 · Wurzel-`CLAUDE.md` unverändert.
+
+⭐ Zwei kleinere Reviewer-Funde mitgezogen: das Zitat der alten Überschrift war UNGENAU (die
+`, #908` fehlte innerhalb der Anführungszeichen — in einem Repo, das zitierte Phrasen als
+`git grep`-Anker benutzt, ist das der dokumentierte Ausfallmodus), und „fünf Zeilen darunter"
+war eine Distanz, die niemand nachrechnen kann (je nach Eintrag 5, 6 oder 7). Beide ersetzt.
