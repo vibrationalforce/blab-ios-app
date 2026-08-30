@@ -147,9 +147,34 @@ def ladders_in_source(root: str) -> dict[tuple[str, int], dict[int, list[str]]]:
     return found
 
 
+def census_pattern(names: list[str]) -> "re.Pattern[str]":
+    """The census matcher, lifted out so the selftest can drive REAL literals through it
+    (#914 review, MEDIUM-4). Longest prefix first, so `mic: start` wins over `start`.
+
+    Group 1 = ladder prefix · group 2 = the rung number, present or None · group 3 = the word.
+    ⚠️ Group 2 only says a number is TEXTUALLY there. It does not check the number is a rung
+    of the matched ladder — `on 2/3 SKIPPED` (wrong total) matches with group 2 set, while
+    `ladder_verdicts` sees neither a rung nor a terminator on that line. That is why
+    `census_effect` says "does NOT rescue" for a numbered line rather than "walks on": the
+    weaker claim is the one this pattern can actually support.
+    """
+    return re.compile(r"(?:^|[^A-Za-z:])(" + "|".join(re.escape(n) for n in names)
+                      + r")\s+(\d{1,2}/\d{1,2}\s+)?([A-Z]{3,})\b")
+
+
 def terminators_in_source(root: str,
-                          ladders: dict[tuple[str, int], dict]) -> list[tuple[str, str, str]]:
-    """Every `<ladder prefix> …<ALL-CAPS WORD>` written in `Sources/`, as (where, prefix, word).
+                          ladders: dict[tuple[str, int], dict]
+                          ) -> list[tuple[str, str, str, bool]]:
+    """Every `<ladder prefix> …<ALL-CAPS WORD>` in `Sources/`, as (where, prefix, word, numbered).
+
+    ⭐ #914 — `numbered` IS THE POINT OF THE FOURTH FIELD. This census deliberately
+    over-collects (see below), so it also picks up NUMBERED skips like `on 4/5 SKIPPED`,
+    which do NOT end their ladder: they walk on to `on 5/5`. Until #914 the printed section
+    was headed "terminator lines (end a ladder without advancing it, #908):" and listed them
+    side by side with the real terminators, with the distinction demoted to the footnote below
+    the list. A tool written to remove exactly that ambiguity must not reproduce it in its own
+    output, so each line now says for itself whether it rescues a short ladder — see
+    `census_effect`, whose docstring carries the three ways the first draft got that wrong.
 
     ⭐ IT SCANS FOR *ANY* ALL-CAPS TOKEN, NOT FOR `TERMINAL_WORDS`. Searching for the words
     already known would be the self-confirming enumeration this file's own header warns
@@ -177,9 +202,8 @@ def terminators_in_source(root: str,
     names = sorted({p for (p, _t) in ladders}, key=len, reverse=True)
     if not names:
         return []
-    pat = re.compile(r"(?:^|[^A-Za-z:])(" + "|".join(re.escape(n) for n in names)
-                     + r")\s+(?:\d{1,2}/\d{1,2}\s+)?([A-Z]{3,})\b")
-    out: list[tuple[str, str, str]] = []
+    pat = census_pattern(names)
+    out: list[tuple[str, str, str, bool]] = []
     for path in tracked_swift(root):
         try:
             text = open(path, encoding="utf-8").read()
@@ -192,8 +216,41 @@ def terminators_in_source(root: str,
             if line.lstrip().startswith("//"):
                 continue
             for m in pat.finditer(line):
-                out.append((f"{rel}:{lineno}", m.group(1), m.group(2)))
+                out.append((f"{rel}:{lineno}", m.group(1), m.group(3),
+                            m.group(2) is not None))
     return sorted(set(out))
+
+
+def census_effect(word: str, numbered: bool) -> str:
+    """What a census line does to a LOG verdict. Pure, so the selftest drives THIS and not a
+    re-implementation of it (#416), and so an inverted flag cannot pass unnoticed (#914
+    review, MEDIUM-4: the first check was `any(numbered) and any(not numbered)` over the real
+    tree, which survived a full label inversion).
+
+    ⛔ #914's FIRST DRAFT HAD THREE DEFECTS HERE, all in the reassuring direction, and all of
+    them the very ambiguity this section was rewritten to remove:
+
+    · An UNKNOWN word printed "ENDS the ladder". `ladder_verdicts` builds its needle from
+      `TERMINAL_WORDS`, so a word outside that tuple ends NOTHING — its ladder still reads as
+      a death. The per-line label said the opposite of the footer four lines below it, in the
+      ONE case the over-collecting census exists for: a word nobody has taught the tool yet.
+    · A numbered line printed "walks on", which is a claim about SWIFT CONTROL FLOW that a
+      line scanner cannot make. A numbered skip that RETURNS is writable — guard (c3) exists
+      because of it — and the label would then point the reader away from a real death, which
+      is #908's first draft all over again. The tool-truth is narrower and checkable: it does
+      not RESCUE.
+    · "ENDS the ladder" was unconditional, but `ladder_verdicts` rescues only when the
+      terminator FOLLOWS the last rung AND the ladder is short. `["mic: start REFUSED",
+      "mic: start 1/3", "mic: start 2/3"]` is a DEATH, and a terminator after a COMPLETE
+      ladder leaves `done`. Both measured.
+    """
+    if word not in TERMINAL_WORDS:
+        return "ends NOTHING (word unknown to the tool) — its ladder still reads as ❌ died"
+    if numbered:
+        return "does NOT rescue — a ladder ending here still reads as ❌ died"
+    if word in BENIGN_TERMINALS:
+        return "rescues a SHORT ladder it FOLLOWS  → ⏹ ended"
+    return "rescues a SHORT ladder it FOLLOWS  → ⚠️ failed (still a finding)"
 
 
 def audit_source(root: str) -> int:
@@ -219,17 +276,22 @@ def audit_source(root: str) -> int:
                 print(f"         {n}/{total}: {', '.join(steps[n])}")
     terms = terminators_in_source(root, ladders)
     unknown = 0
-    print("\n  terminator lines (end a ladder without advancing it, #908):")
+    print("\n  ALL-CAPS outcome words after a ladder prefix (#908/#914):")
     if terms:
         unknown = 0
-        for where, prefix, word in terms:
+        for where, prefix, word, numbered in terms:
             known_word = "" if word in TERMINAL_WORDS else "   ⚠️ NOT IN TERMINAL_WORDS"
             unknown += 1 if known_word else 0
             print(f"    · {where}  {prefix} … {word}{known_word}")
-        print("    A ladder whose last rung is short of `total` reads as ENDED, not DEAD,")
-        print("    when one of these follows it in the log — UNNUMBERED only, see the ⛔ in")
-        print("    `ladder_verdicts`. A word flagged above is NOT in the tool's vocabulary,")
-        print("    so its ladder still reads as a death — add it.")
+            print(f"        {census_effect(word, numbered)}")
+        print("    ⭐ The list is a census of WORDS, not of rescues — it over-collects on")
+        print("    purpose so a NEW word shows up instead of silently reading as a death.")
+        print("    RESCUE IS CONDITIONAL and the line above says only what the WORD allows:")
+        print("    `ladder_verdicts` rescues a ladder only when the terminator FOLLOWS its")
+        print("    last rung and that rung is short of `total`. A terminator before the rungs")
+        print("    leaves a death; one after a COMPLETE ladder leaves `done`.")
+        print("    A numbered skip is not rescued at all: once a number is present, the form")
+        print("    that walks on and the form that returns are the SAME STRING in a log.")
     else:
         print("    · none — every short ladder in a log will read as a DEATH.")
 
@@ -525,9 +587,67 @@ def selftest(root: str) -> int:
 
     # The vocabulary is asserted against an INDEPENDENT scan (any ALL-CAPS token after a
     # ladder prefix), never against the word list itself — see terminators_in_source.
-    used = {w for (_where, _p, w) in terminators_in_source(root, ladders)}
+    census = terminators_in_source(root, ladders)
+    used = {w for (_where, _p, w, _n) in census}
     check(f"every terminal word in Sources/ is known: {sorted(used)}",
           used.issubset(set(TERMINAL_WORDS)))
+
+    # #914 — drive the REAL matcher and the REAL labeller on LITERALS.
+    # ⛔ The first version of this check was `any(numbered) and any(not numbered)` over the
+    # tree. It survived a full inversion of the flag (every unnumbered terminator would have
+    # printed "does not rescue" and vice versa) and went RED for a legitimate future tree with
+    # no numbered skip left — i.e. it pinned `Sources/`, not the code under review.
+    cpat = census_pattern(["mic: start", "on"])
+
+    def numbered_of(line: str):
+        m = cpat.search(line)
+        return None if m is None else (m.group(1), m.group(3), m.group(2) is not None)
+
+    check("a numbered skip is read as numbered",
+          numbered_of("monitor: on 4/5 SKIPPED: engine was not running")
+          == ("on", "SKIPPED", True))
+    check("an unnumbered skip is read as unnumbered",
+          numbered_of("monitor: on SKIPPED — monitoring already engaged")
+          == ("on", "SKIPPED", False))
+    check("the longer ladder prefix wins in the census too",
+          (numbered_of("mic: start REFUSED — input format not ready") or (None,))[0]
+          == "mic: start")
+    # The labels themselves, including the two the first draft got backwards.
+    check("an unknown word is NOT sold as ending a ladder",
+          "ends NOTHING" in census_effect("ABORTED", False)
+          and "died" in census_effect("ABORTED", False))
+    check("a numbered terminator does not claim a rescue",
+          "does NOT rescue" in census_effect("SKIPPED", True))
+    check("an unnumbered benign terminator rescues, and says it must FOLLOW the rung",
+          "ended" in census_effect("SKIPPED", False)
+          and "FOLLOWS" in census_effect("SKIPPED", False))
+    check("FAILED keeps its own outcome and stays a finding",
+          "failed" in census_effect("FAILED", False)
+          and "finding" in census_effect("FAILED", False))
+
+    # ⛔ AND THE CHECKS ABOVE ARE STILL NOT ENOUGH ON THEIR OWN — measured, not reasoned.
+    # They drive `census_pattern` and `census_effect` directly, so inverting the flag WHERE THE
+    # TUPLE IS BUILT (`m.group(2) is not None` in `terminators_in_source`) left the selftest
+    # green. That is the #914 review's MEDIUM-4 defect moved one step, not fixed: the composed
+    # path had no witness. This closes it WITHOUT pinning which shapes the tree happens to
+    # contain — every census entry must agree with what the matcher says about its own source
+    # line, so an inversion disagrees on the first numbered entry and a legitimate tree change
+    # cannot redden it.
+    mismatched = []
+    for where, prefix, word, numbered in census:
+        rel, _, lineno = where.rpartition(":")
+        try:
+            line = open(os.path.join(root, rel), encoding="utf-8").read().split("\n")[int(lineno) - 1]
+        except (OSError, ValueError, IndexError):
+            continue
+        for m in census_pattern(sorted({p for (p, _t) in ladders}, key=len, reverse=True)) \
+                .finditer(line):
+            if m.group(1) == prefix and m.group(3) == word:
+                if (m.group(2) is not None) != numbered:
+                    mismatched.append(where)
+                break
+    check(f"every census entry agrees with its own source line about the number "
+          f"({len(census)} entries)", not mismatched and bool(census))
 
     print("\n" + ("selftest OK" if ok else "selftest FAILED"))
     return 0 if ok else 1

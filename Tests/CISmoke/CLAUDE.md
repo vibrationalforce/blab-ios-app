@@ -234,6 +234,36 @@ one that returns are the same shape**, so the tool must read both as deaths and 
 keeps the returning kind out of `Sources/`. Tool and guard split the job; neither replaces
 the other.
 
+⭐ **#914 MADE THE `--source` CENSUS SAY IT PER LINE.** That section used to be headed
+*"terminator lines (end a ladder without advancing it, #908):"* and listed the two NUMBERED
+`on … SKIPPED` lines right next to the real terminators, with the distinction demoted to the
+footnote below the list. The census over-collects **on purpose** (it scans for ANY ALL-CAPS
+token after a ladder prefix, so a NEW word shows up instead of silently reading as a death),
+so the fix is not to filter it: each entry now states its own effect through the pure
+`census_effect`.
+
+⛔ **AND THE FIRST DRAFT OF THAT LABEL WAS WRONG THREE TIMES, ALL IN THE REASSURING
+DIRECTION** — the review measured every one. (a) An UNKNOWN word printed *"ENDS the ladder"*,
+which is false — `ladder_verdicts` builds its needle from `TERMINAL_WORDS`, so an unknown word
+ends nothing — and it contradicted the footer four lines below, **in the one case the
+over-collecting census exists for**. (b) A numbered line printed *"walks on"*, a claim about
+Swift control flow that a line scanner cannot make: a numbered skip that RETURNS is writable
+(that is why guard (c3) exists), and the label would then point the reader away from a real
+death — #908's first draft again. The checkable claim is narrower: it does not RESCUE. (c)
+*"ENDS the ladder"* was unconditional, but rescue requires the terminator to FOLLOW the last
+rung of a SHORT ladder; a terminator before the rungs leaves a death, one after a complete
+ladder leaves `done`.
+
+⛔ **THE SELFTEST BEHIND IT ALSO FAILED TWICE BEFORE IT BIT.** Draft 1 was
+`any(numbered) and any(not numbered)` over the real tree: it survived a FULL inversion of the
+flag, and went red for a legitimate future tree with no numbered skip left — it pinned
+`Sources/`, not the code. Draft 2 drove `census_pattern` and `census_effect` on literals,
+which is right but still let the inversion through **where the tuple is built**, one step
+away. What bites is the composition: every census entry must agree with what the matcher says
+about its OWN source line. Measured — that mutation is red, and a tree without numbered skips
+stays green. **A checker that cannot fail on the mutation it was written for is not a
+checker; drive it, do not reason about it.**
+
 ⭐ **(c4) was added ALONGSIDE, not instead:** every exit from the two session moves must
 ANNOUNCE itself — the class behind #906 AND #907 both (the #907 review: *"nothing detects a
 NEW silent return added to either function"*). No number to go stale, graded across three
