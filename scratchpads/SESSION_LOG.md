@@ -17525,3 +17525,49 @@ Anspruch braucht. „Stecken bis zur nächsten Nutzung" würde zu „stecken fü
 Breadcrumb-Anspruch ist KEINE — er war auf BEIDEN Bäumen rot und ist eine REPARATUR; genau der
 Fall, für den §3 sagt, dass Delta-Benotung blind ist. Alle zwölf Nachbar-Ansprüche auf drei
 Bäumen gefahren (#901, #902, Arbeitsbaum).
+
+---
+
+## 2026-08-30 — #904: der #903-Fund war eine GATTUNG, kein Einzelfall — ein Werkzeug dafür
+
+#903 fand einen Zähl-Pin, der **dreizehn Commits lang rot auf korrektem Code** stand. Die
+Frage danach ist nicht „welche Zahl noch", sondern **„wie viele solcher Pins gibt es und
+sind sie alle wahr"** — und das kann kein Mensch verlässlich von Hand.
+
+**`scripts/count-pins.py`** liest zwei Schreibweisen (`occurrences(of:in:)` und
+`components(separatedBy:).count - 1`), löst die Zielquelle über die `let x = code("…")`-
+Bindung auf, streicht Kommentare mit dem GETEILTEN Streicher-Port aus `window-margins.py`
+(importiert, nicht kopiert — #416) und rechnet nach.
+
+**Erster Lauf über den lebenden Baum: 55 Pins geprüft, ZWEI rot** — beide in
+`TheFailedRestartHandsOverToDegradedTests`, und **in entgegengesetzte Richtungen**:
+· `restartOrDegrade(after:` pinnte **4**, tatsächlich **5**. Der fünfte Aufrufer ist
+  `restoreEngineIfStranded` (#631/#836b) — er tut GENAU das, was die Wächter-Meldung von
+  einer neuen Stelle verlangt: durch den Helfer gehen. Der Code hat die Anweisung befolgt,
+  die Zahl ist nicht mitgezogen.
+· `if wasRunning { masterEngine.pause() }` pinnte **4**, tatsächlich **3**. Die
+  Monitor-Rollback-Stelle passt seit #823 nicht mehr auf diese Nadel — der Quelltext sagt es
+  an der Aufrufstelle selbst: „the pause (a stop since #823) above was OURS".
+
+⭐ **Die wichtigere Reparatur ist die ANWEISUNG, nicht die Zahl.** Beide Meldungen sagten
+„bewege claim 3 und claim 4 im selben Commit". Das war wahr, solange jeder Helfer-Aufruf
+hinter einer Pause saß. Heute: fünf Aufrufer, drei davon hinter dieser Pause-Zeile. Eine
+künftige Sitzung hätte den einen Pin gebrochen, um den anderen zu bedienen. **Ein Pin mit
+falscher Anweisung ist schlimmer als einer mit falscher Zahl** — die Zahl merkt der nächste
+Lauf, die Anweisung befolgt jemand.
+
+**Bekannter Positiv-Test, weil §4 ihn verlangt:** die zwei Dateien des Baums, der den
+#903-Defekt TRUG, in ein Scratch-Verzeichnis extrahiert und `--root` daraufgerichtet — genau
+EIN Treffer, `pinned 8, actual 11`, sonst nichts; auf dem reparierten Baum sauber. Ein
+Detektor, der seinen eigenen bekannten Fall nie gefunden hat, ist keine Messung.
+
+⛔ **Und der erste Entwurf hatte einen Fehlalarm im ERSTEN Lauf**, was die #665-Regel („ein
+Prüfer mit Fehlalarmen ist ein Prüfer, den niemand liest") sofort scharf gemacht hat: eine
+INTERPOLIERTE Nadel (`"\\"\\(step)"`) wurde als Literal gezählt und ein grüner Pin als rot
+gemeldet. Jetzt harte Ausschluss-Regel: interpolierte Nadeln sind `unresolved`, nie ein
+Befund. Die Grenzen stehen im Docstring, alle fünf, samt der Warnung, dass ein sauberer Lauf
+nur die ARITHMETIK beweist — nicht, dass ein Pin am richtigen Token hängt (#367/#408).
+
+**Ehrliche Grenze:** Text-Ebene, CI ist der einzige Compiler. 25 Pins bleiben für das
+Werkzeug unlesbar; „unresolved" heißt, das WERKZEUG kam nicht heran — kein Urteil über den
+Wächter.

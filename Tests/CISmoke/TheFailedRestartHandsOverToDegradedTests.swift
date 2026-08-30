@@ -88,12 +88,21 @@ final class TheFailedRestartHandsOverToDegradedTests: XCTestCase {
 
     func testEveryPauseSiteRoutesThroughTheHelper() throws {
         let code = try source(Self.engine)
-        XCTAssertEqual(occurrences(of: "restartOrDegrade(after:", in: code), 4, """
-            The helper's call-site count changed (expected 4: monitor rollback, source-\
-            node attach, clip-player attach, warpable-player attach). If you ADDED a \
-            pause/mutate/restart site, route it through `restartOrDegrade` and raise this \
-            count together with claim 4's in the same commit. If you REMOVED one, lower \
-            both. A site that restarts on its own re-opens the #611 silence.
+        // ⛔ #904 — RAISED 4 → 5, AND THIS PIN HAD BEEN RED ON A CORRECT TREE. The fifth
+        // caller is `restoreEngineIfStranded` (#631/#836b), which is precisely what the
+        // message below asks a new site to do: route through the helper. The code obeyed the
+        // instruction; nobody raised the number. Found by `scripts/count-pins.py`, written
+        // after #903 hit the identical shape in `AudioConfiguration.swift` — and NOT by CI,
+        // because the pipeline reports `failure` on every push (#396), so a genuinely red
+        // guard is indistinguishable from the host dying (§5).
+        XCTAssertEqual(occurrences(of: "restartOrDegrade(after:", in: code), 5, """
+            The helper's call-site count changed (expected 5: monitor rollback, source-\
+            node attach, clip-player attach, warpable-player attach, and the stranded-\
+            engine restore). If you ADDED a pause/mutate/restart site, route it through \
+            `restartOrDegrade` and raise this count in the same commit. If you REMOVED one, \
+            lower it. A site that restarts on its own re-opens the #611 silence.
+
+            ⚠️ Claim 4's pause count is NO LONGER this number's twin — see its own note.
             """)
         XCTAssertEqual(occurrences(of: "Failed to restart engine after", in: code), 0, """
             A log-only restart catch is back. That pattern IS the #611 defect: it leaves \
@@ -106,11 +115,23 @@ final class TheFailedRestartHandsOverToDegradedTests: XCTestCase {
 
     func testTheFourPauseSitesSurvive() throws {
         let code = try source(Self.engine)
-        XCTAssertEqual(occurrences(of: "if wasRunning { masterEngine.pause() }", in: code), 4, """
-            The pause-before-mutate site count changed (expected 4). This is the premise \
-            that makes `restartOrDegrade` load-bearing — if a site was added or removed, \
-            update claim 3's count and this one in the same commit, and make sure any NEW \
-            site's restart goes through the helper.
+        // ⛔ #904 — LOWERED 4 → 3, red on a correct tree for the same reason as claim 3 and
+        // in the OPPOSITE direction. The monitor-rollback site stopped matching this needle
+        // when #823 turned its pause into a STOP — the source says so itself, at the rollback
+        // call: "the pause (a stop since #823) above was OURS".
+        //
+        // ⚠️ AND THE TWO NUMBERS ARE NO LONGER THE SAME NUMBER. The original message told the
+        // reader to move both together, which was true while every helper call sat behind a
+        // `pause()`. It is not any more: five callers, three of them behind this exact pause
+        // line. Telling a future session to keep them equal would make it break one to satisfy
+        // the other — a pin whose instruction is wrong is worse than a pin whose number is.
+        XCTAssertEqual(occurrences(of: "if wasRunning { masterEngine.pause() }", in: code), 3, """
+            The pause-before-mutate site count changed (expected 3: source-node attach, \
+            clip-player attach, warpable-player attach). This is the premise that makes \
+            `restartOrDegrade` load-bearing. If a site was added or removed, update this \
+            count and make sure any NEW site's restart goes through the helper — but do NOT \
+            assume claim 3's count moves with it: the monitor rollback and the stranded-\
+            engine restore both call the helper WITHOUT this pause line.
             """)
     }
 
