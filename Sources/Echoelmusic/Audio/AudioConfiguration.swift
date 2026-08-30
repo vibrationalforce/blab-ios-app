@@ -298,23 +298,79 @@ enum AudioConfiguration {
     /// isolating only the newest of the three would split the file's discipline for no gain.
     nonisolated(unsafe) private static var recordRouteOwners: Set<RecordRouteOwner> = []
 
+    /// The owner set as one stable, sorted token for the diag log.
+    ///
+    /// ⚠️ SORTED IS NOT COSMETIC. `Set` has no order, so an unsorted join prints the SAME
+    /// state two different ways between runs — and a reader comparing two logs would read a
+    /// reordering as a state change. A log that lies by permutation is worse than no log.
+    /// ⚠️ IT TAKES THE SET, IT DOES NOT READ THE SHARED ONE. Two reasons, both from the
+    /// audio-thread review of #888. (1) The caller must be able to pass a SNAPSHOT, so the
+    /// branch it took and the holders it prints cannot disagree. (2) This traverses the
+    /// storage, where the guard it sits beside reads only `isEmpty` — an O(1) scalar. Under a
+    /// future non-isolated caller a traversal is the access that would actually crash on a
+    /// COW reallocation, while `isEmpty` would merely read a stale count. Both risks are
+    /// latent and bounded by the MainActor invariant documented above; neither is introduced
+    /// here, and taking the set as a parameter is what keeps them from becoming reachable by
+    /// accident. Cardinality is ≤ 3, so the traversal itself costs nothing.
+    private static func list(_ owners: Set<RecordRouteOwner>) -> String {
+        owners.isEmpty
+            ? "none"
+            : owners.map(\.rawValue).sorted().joined(separator: "+")
+    }
+
     /// Register `owner` as needing the mic and raise the shared session to `.playAndRecord`.
     ///
     /// The registration happens BEFORE the upgrade can throw, deliberately: over-holding the
     /// route costs other apps their A2DP codec, while under-holding it cuts a live recording.
     /// Of the two, the first is the recoverable one.
+    ///
+    /// #888: the breadcrumb names WHO holds the mic after this call. Until now the exported
+    /// log could not tell ONE mic owner from TWO — the first claim raises the route and prints
+    /// `session: raise`, a second claim raises nothing and printed NOTHING. Two owners on the
+    /// one HAL input is exactly the shape `AudioEngine` names for the `isInputConnToConverter`
+    /// family (seven device logs deep, still unnamed), and it is reachable today: voice capture
+    /// (`microphoneManager`) can run while input monitoring holds the route.
+    ///
+    /// ⚠️ THESE LINES ARE DELIBERATELY NOT NUMBERED `n/N`. The rungs elsewhere in this file
+    /// (`session: configure 1/4` …) are a LADDER — a fixed sequence whose silence localises a
+    /// death. These are STATE TRANSITIONS: they have no length, they interleave with other
+    /// owners, and `scripts/diag-ladder.py` only treats `n/N` as a rung. Numbering them would
+    /// invent a ladder the reader would then try to walk.
     static func claimRecordRoute(_ owner: RecordRouteOwner) throws {
         recordRouteOwners.insert(owner)
+        // The rung stands BEFORE the risky call, not before the Set insert: the insert cannot
+        // fail, `upgradeToPlayAndRecord()` can (and does AVAudioSession work). Placing it here
+        // also lets the line name the RESULTING owner set, which is the whole diagnostic value.
+        EchoelCrashLog.breadcrumb("route: claim \(owner.rawValue) → holders \(list(recordRouteOwners))")
         try upgradeToPlayAndRecord()
     }
 
     /// Drop `owner`'s claim and, only when NOBODY is left holding the mic, return the shared
     /// session to `.playback`. Safe to call when `owner` never claimed.
     /// - Returns: `true` when this call actually lowered the route.
+    ///
+    /// #888: BOTH exits speak. The early return — "someone else still holds the mic" — was the
+    /// silent one, and silence on a path that is taken is the defect #882 was written for: a
+    /// healthy release then looks identical to a release that died inside the downgrade.
     @discardableResult
     static func releaseRecordRoute(_ owner: RecordRouteOwner) throws -> Bool {
         recordRouteOwners.remove(owner)
-        guard recordRouteOwners.isEmpty else { return false }
+        // ONE read, used by BOTH the branch and the message (audio-thread review of #888,
+        // finding 3). The first draft read `recordRouteOwners.isEmpty` for the guard and then
+        // re-read the set inside the breadcrumb — two reads of `nonisolated(unsafe)` storage.
+        // Unreachable today (every one of the seven claim/release sites is on a `@MainActor`
+        // type), but the failure mode is the one this file least tolerates: under a future
+        // non-isolated caller the printed holders could DISAGREE with the branch actually
+        // taken, so the log would LIE rather than crash. `Set` is a value type, so this
+        // snapshot makes "the line describes the branch" structural instead of argued —
+        // the same standard as the sorting note above.
+        let remaining = recordRouteOwners
+        guard remaining.isEmpty else {
+            EchoelCrashLog.breadcrumb(
+                "route: release \(owner.rawValue) → holders \(list(remaining)), route stays up")
+            return false
+        }
+        EchoelCrashLog.breadcrumb("route: release \(owner.rawValue) → holders none, lowering")
         try downgradeToPlaybackAfterRecording()
         return true
     }

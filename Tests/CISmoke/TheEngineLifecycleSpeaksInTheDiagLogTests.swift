@@ -75,6 +75,7 @@ import XCTest
 final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
 
     private static let enginePath = "Sources/Echoelmusic/Audio/AudioEngine.swift"
+    private static let configPath = "Sources/Echoelmusic/Audio/AudioConfiguration.swift"
 
     // MARK: - 1: the helper writes the EXPORTED file, not only os_log
 
@@ -772,6 +773,104 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
                 A UID is opaque to a reader and can be MAC-derived on Bluetooth — it adds risk \
                 and no information. Write the device label through \
                 `AudioConfiguration.routeLabel` instead (#880).
+                """)
+        }
+    }
+
+    // MARK: - 17: the record route says WHO holds the mic, and both release exits speak
+    //
+    // WHY THIS IS NOT COVERED BY CLAIM 13. Claim 13 pins the session-CATEGORY ladder
+    // (`session: configure|raise|lower`), which speaks only when the category actually
+    // moves. The first claim on the record route raises it and prints `session: raise`;
+    // a SECOND claim raises nothing and, before #888, printed nothing at all. So the
+    // exported log could not tell ONE mic owner from TWO — and two owners on the one HAL
+    // input is exactly the shape `AudioEngine` names for the `isInputConnToConverter`
+    // family. It is reachable today: voice capture (`microphoneManager`) can run while
+    // `inputMonitoring` holds the route.
+    //
+    // ⚠️ STATE LINES, NOT A LADDER, and the distinction is load-bearing. `n/N` rungs are a
+    // fixed sequence whose silence localises a death; these transitions have no length and
+    // interleave between owners. `scripts/diag-ladder.py` only treats `n/N` as a rung, so
+    // numbering these would invent a ladder a reader would then try to walk. Claim (d)
+    // pins that they stay unnumbered.
+    //
+    // GRADING AGAINST THE PARENT (§3), transcribed in Python and driven against
+    // `git show HEAD:…` and the worktree — booked in the HARSH direction on purpose:
+    // (a), (b) and the sorted half of (d) are red on HEAD, and (c) fails there by ANCHOR
+    // ABSENCE. That is ONE finding reported four times (#486), not four regressions: the
+    // breadcrumbs do not exist on the parent, so no assertion there is red "for the reason
+    // its name gives". Honestly, this is a FORWARD guard for a mechanism this same commit
+    // creates. The single genuine COUNTERWEIGHT is the unnumbered half of (d) — green on
+    // both trees, and the one assertion that constrains a future edit rather than this one.
+    func testTheRecordRouteNamesItsHolders() throws {
+        let config = try code(Self.configPath)
+
+        // (a) Both transitions speak, and the owner is named on each.
+        for needle in ["\"route: claim \\(owner.rawValue)",
+                       "\"route: release \\(owner.rawValue)"] {
+            XCTAssertTrue(config.contains(needle), """
+                the record route no longer names \(needle.contains("claim") ? "claims" : "releases") \
+                in the diag log (#888). Without the owner the line cannot answer the one question \
+                it exists for: how many owners held the mic when it died.
+                """)
+        }
+
+        // (b) BOTH release exits emit — the #882 law. The early return ("someone else still
+        //     holds it") is the one that was silent, and a silent taken path makes a healthy
+        //     release look identical to one that died inside the downgrade.
+        XCTAssertEqual(occurrences(of: "\"route: release", in: config), 2, """
+            `releaseRecordRoute` no longer has an emitter on BOTH exits (#888/#882). It has \
+            two: the early return when other owners remain, and the lowering path. One line \
+            for two outcomes is how a taken branch goes dark.
+            """)
+        XCTAssertTrue(config.contains("route stays up"), """
+            the early-return release line lost its outcome wording. "route stays up" is what \
+            distinguishes it from the lowering line in a log read months later.
+            """)
+
+        // (c) ORDER (#862b): the claim rung stands BEFORE the call that can throw. The Set
+        //     insert cannot fail; `upgradeToPlayAndRecord()` does AVAudioSession work.
+        guard let rung = config.range(of: "\"route: claim"),
+              let call = config.range(of: "try upgradeToPlayAndRecord()") else {
+            XCTFail("""
+                the claim rung or its upgrade call is gone — re-anchor this scan rather than \
+                letting it pass (§4).
+                """)
+            return
+        }
+        XCTAssertTrue(rung.lowerBound < call.lowerBound, """
+            the `route: claim` line now sits AFTER `upgradeToPlayAndRecord()`. A witness \
+            behind the step it names sees nothing when that step dies, and the log then reads \
+            as "route never claimed" instead of "claim died mid-upgrade" (#862b).
+            """)
+
+        // (d) The owner list is SORTED, and the lines stay unnumbered.
+        XCTAssertTrue(config.contains(".sorted().joined(separator: \"+\")"), """
+            the route owner list is no longer sorted (#888). `Set` has no order, so an \
+            unsorted join prints the SAME state two different ways between runs and a reader \
+            comparing logs sees a permutation as a state change.
+            """)
+        // (e) The release path reads the owner set ONCE and both the branch and the message
+        //     derive from that snapshot (audio-thread review of #888, finding 3). Two reads
+        //     of `nonisolated(unsafe)` storage would let the printed holders disagree with
+        //     the branch actually taken — the log would LIE rather than crash. Unreachable
+        //     today; pinned because "the line describes the branch" is the whole point.
+        XCTAssertTrue(config.contains("let remaining = recordRouteOwners")
+                      && config.contains("guard remaining.isEmpty else"), """
+            `releaseRecordRoute` no longer takes ONE snapshot of the owner set for both its \
+            branch and its breadcrumb (#888). Re-reading the shared static twice is how the \
+            printed holders and the branch taken can drift apart. If the storage was made \
+            properly isolated instead, that is a better fix — retire this claim in the same \
+            commit rather than working around it (#364).
+            """)
+
+        for numbered in ["route: claim 1/", "route: release 1/"] {
+            XCTAssertFalse(config.contains(numbered), """
+                a `route:` line was numbered like a ladder rung (#888). These are state \
+                transitions with no length; `scripts/diag-ladder.py` would then announce a \
+                ladder that cannot be walked. If a real route LADDER is ever wanted, give it \
+                its own prefix and update this claim in the same commit — this forbids the \
+                numbering, not the work (#364).
                 """)
         }
     }

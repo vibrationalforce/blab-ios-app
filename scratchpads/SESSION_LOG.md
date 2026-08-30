@@ -16672,3 +16672,51 @@ Text-Scan das, worauf ein Push tatsächlich prüft.
 `--selftest`: ok (0 Probleme), Mutant rot mit 3 Befunden. `needle-reachability.py`: 0 Befunde.
 `CLAUDE.md` unverändert (die Zeile dort nennt bewusst den BEFEHL statt einer Zahl, #818 — sie
 brauchte deshalb nichts).
+
+## 2026-08-30 (cron, vierter Zyklus) — #888: das Log konnte EINEN Mikrofon-Besitzer nicht von ZWEI unterscheiden
+
+**Der Befund liegt auf der Absturz-Familie selbst.** `AudioEngine.swift` benennt als Form des
+`isInputConnToConverter`-Absturzes (sieben Gerätelogs, bis heute ohne Namen): **zwei
+`AVAudioEngine` am EINEN HAL-Eingang**. Die App hat wirklich zwei — die Master-Engine und die
+eigene von `MicrophoneManager` —, und der Aufnahme-Weg hat einen **Refcount mit drei Besitzern**
+(`inputMonitoring` · `microphoneManager` · `multiTrackRecorder`). Erreichbar ist der Doppelgriff
+heute: Stimmaufnahme (Sound-Panel → Voice timbre) läuft, während Monitoring die Route hält.
+
+**Was fehlte:** `claimRecordRoute`/`releaseRecordRoute` schrieben **keinen** Breadcrumb. Der
+ERSTE Zugriff hebt die Sitzung an und druckt `session: raise 1/2`; ein ZWEITER hebt nichts und
+druckte **gar nichts**. Ein exportiertes Log konnte also „ein Besitzer" nicht von „zwei
+Besitzern" unterscheiden — genau die Frage, an der die Absturz-Suche hängt.
+
+**Jetzt:** jede Zeile nennt den Besitzer und die RESTMENGE (`route: claim microphoneManager →
+holders inputMonitoring+microphoneManager`). Beide Ausgänge des Loslassens sprechen — der frühe
+Rücksprung („jemand hält noch") war der stille, und Stille auf einem GENOMMENEN Pfad ist der
+#882-Defekt. Der Zeuge steht VOR dem Aufruf, der werfen kann (#862b).
+
+**Bewusst NICHT nummeriert (`n/N`).** Die anderen Zeilen dieser Datei sind eine LEITER — feste
+Folge, deren Stille eine Todesstelle einkreist. Diese sind ZUSTANDS-Übergänge: keine Länge, sie
+verschränken sich zwischen Besitzern. `diag-ladder.py` liest nur `n/N` als Sprosse; eine Nummer
+hier hätte eine Leiter erfunden, die niemand ablaufen kann. Nachgeprüft: das Werkzeug findet
+weiter genau 8 Leitern.
+
+**Audio-Thread-Review: CLEAN** (Pflicht-Reviewer, `Sources/Audio`). Alle sieben Aufrufstellen
+liegen in `@MainActor @Observable`-Typen, keine in einem Tap- oder Render-Closure; die
+Notification-Pfade sind explizit `queue: .main`. Verhalten unverändert (Reihenfolge
+insert-vor-upgrade, Guard-Bedingung, `Bool`-Vertrag byte-identisch).
+
+⭐ **Und ein Reviewer-Befund wurde nicht wegargumentiert, sondern STRUKTURELL entfernt:** der
+Freigabe-Pfad las die geteilte Menge ZWEIMAL (einmal `isEmpty` für den Zweig, einmal im
+Breadcrumb). Heute unerreichbar — aber die Fehlerform ist die, die diese Datei am wenigsten
+verträgt: die gedruckten Halter könnten dem tatsächlich genommenen Zweig WIDERSPRECHEN, das Log
+würde also LÜGEN statt abzustürzen. `Set` ist ein Werttyp, also nimmt der Pfad jetzt EINEN
+Schnappschuss, aus dem Zweig UND Meldung stammen. Denselben Maßstab hatte mein eigener Kommentar
+schon für die Sortierung gesetzt (unsortiert druckt derselbe Zustand zweimal verschieden) — der
+Reviewer fand die zweite Art zu lügen.
+
+**Wächter:** Anspruch 17 in der bestehenden Leiter-Datei (#416), fünf Teile (a–e).
+**Ehrliche Benotung (§3):** (a), (b), (d-sortiert), (e) sind auf HEAD rot und (c) fällt dort
+durch ANKER-ABWESENHEIT — das ist **EIN Befund, fünfmal gemeldet** (#486), **keine fünf
+Regressionen**. Ehrlich ist: ein VORWÄRTS-Wächter für einen Mechanismus, den derselbe Commit
+schafft. Das einzige echte Gegengewicht ist die unnummerierte Hälfte von (d).
+
+⚠️ **Was das NICHT ist: eine Absturz-Reparatur.** Es macht das nächste Gerätelog aussagefähig.
+Ob die zwei Besitzer die Ursache SIND, entscheidet das Log — nicht dieser Commit.
