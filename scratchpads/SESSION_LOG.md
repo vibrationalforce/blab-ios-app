@@ -17988,3 +17988,68 @@ Fenster** (`git log -S "v<vorgänger>" -- .deploy/release` liefert ihn in einer 
 ⚠️ Die #635-Regel ist erneut geprüft: `grep -m1 -oE 'v[0-9]+\.[0-9]+\.[0-9]+'` über die ganze
 Datei liefert `v10.79.431`, der Vorgänger steht als `10.79.430` ohne `v`, und im ganzen File
 existiert nur EIN `vX.Y.Z`.
+
+
+---
+
+## #912 — #746 hat den ZEIGER gesetzt und den Text stehen lassen
+
+**Ausgangslage, gemessen von `doctor.py --section D`:** `CLAUDE.md` = 149.611 B. Der Wächter
+`TheLawFileStaysUnderItsCeilingTests` verlangt < 150.000 B — und er liegt im **blockierenden**
+Bundle. **389 B Kopfraum.** Der nächste Absatz, den irgendjemand schreibt, macht ein Gate rot.
+
+⛔ **Der Befund ist nicht „die Datei ist zu groß", sondern: der Wächter beschreibt seit #746 einen
+Zustand, den die Datei nie hatte.** Anspruch 3 sagt wörtlich, der Adaptivitäts-Absatz behalte
+„nur die Zahl, die Herleitungs-Befehle und den EINEN Satz, den man zum Benutzen braucht".
+Gemessen trug er danach weiter ~1,8 KB reine Provenienz: die `visualVJOverlay`-Tür-Geschichte
+(#505 türlos → #747 Tür), die Asymmetrie-Begründung, eine zurückgezogene Founder-Bitte, den
+alten Nenner elf. **#746 hat den ZEIGER geschrieben und den TEXT gelassen** — und nichts konnte
+das sehen, weil Anspruch 3 nur fragt, ob die ZIEL-Sektion existiert, nie ob die QUELLE kürzer
+wurde.
+
+**Gesetz daraus:** eine Verschiebung ist erst eine, wenn BEIDE Seiten gemessen sind.
+Hier 4.306 B → 2.784 B; `CLAUDE.md` 149.611 → 148.089 B (Kopfraum jetzt 1.911 B).
+
+**Was gemacht wurde:** der Absatz behält Zahl · `grep -c` für den Nenner · dessen zwei
+bekannte Abweichungen · die Abgrenzung zum Nachbar-Befehl · die zwei Benutzungs-Regeln.
+Alles andere steht wörtlich in `memory/LEDGER_COUNTS.md` §F.4. Claim 5 bekommt eine
+Zeugen-Zeile.
+
+⛔ **DER REVIEWER HAT DEN SLICE HALB ZERLEGT, und der schwerste Fund war die Wiederholung
+genau des Fehlers, den der Slice schließen sollte — eine Nummer kleiner.** Mein erster Entwurf
+schnitt den `grep -c` MIT heraus und zeigte auf den ⛔-Nachbarblock. Dessen Befehl ODERt aber
+`weatherRow` hinein und liefert **11**, während die Prosa daneben „Die Zehn stimmt" sagt.
+Gemessen, beide: 10 und 11. **Ein Zeiger auf einen ANDEREN Befehl ist schlimmer als kein
+Zeiger** — der #472/#473-Fehler, reingebaut von der Scheibe, die ihn abstellen wollte.
+Repariert: der `-c`-Befehl steht wieder im Absatz, und die 11 ist als ANDERE Frage benannt.
+
+⛔ **Zweiter Fund, gleiche Familie:** die von mir NEU geschriebene Wächter-Meldung behauptete,
+der Absatz behalte „die Herleitungs-Befehle" — während mein eigener Schnitt sie gerade
+entfernt hatte. Die Meldung, die eine falsche Zustandsbeschreibung zurücknimmt, ersetzte sie
+durch eine kleinere Fassung derselben. Dasselbe in der §F-Einleitung des Ledgers.
+**Lehre: jede Beschreibung dessen, was ÜBERLEBT hat, gehört gegen den GEKÜRZTEN Text gelesen,
+nicht gegen die Absicht.**
+
+⚠️ **Dritter Fund, ein #364-Fast-Unfall:** meine erste Zeugen-Nadel war `tote Zweitkopie` —
+und `CLAUDE.md` Zeile 24 trägt `TOTE Zweitkopie` in Großbuchstaben. Swifts `contains` ist
+case-sensitiv, der Wächter war also grün — **einen Tastendruck von einem Falsch-Rot entfernt**,
+das eine völlig unbeteiligte Zeile bestraft hätte. Dazu ankerte die Nadel den beiläufigsten
+Satz des Blocks (einen Satz ÜBER Wortwahl); eine Wieder-Anreicherung ohne genau diesen Satz
+wäre still durchgegangen. Neue Nadel: `wortgrenzen-genau zwei Schreiber` — sie nennt die
+MESSUNG, und die überlebt Umformulierung.
+
+⚠️ Vier weitere Funde des Reviewers mitgezogen: das „wörtlich"-Zitat des Wächters war eine
+Übersetzung (entfernt), der stille Anführungszeichen-Wechsel `"` → `"` ist zurückgenommen
+(die Datei benutzt 180× `„…"` mit geradem Schlusszeichen), die §F.4-Behauptung über das
+Absent-Register nennt jetzt den richtigen Beleg, und die Founder-Bitte ist „zurückgezogen UND
+seit #747 wieder erfüllbar", nicht nur zurückgezogen.
+
+⭐ **Und einen Fehler habe ich beim Einarbeiten selbst gefangen:** ich schrieb „die DREI
+bekannten Abweichungen dieses Befehls". Es sind ZWEI — der dritte Punkt betrifft einen
+ANDEREN Befehl. Genau die Verwechslung, die der Absatz jetzt ausdrücklich benennt.
+
+**Nachweislich gefahren (kein Compiler im Container):** die Zeugen-Tabelle in Python gegen die
+echten Dateien simuliert (7/7 grün), Mutation M1 (Nadel zurück in `CLAUDE.md`) und M2 (Nadel
+aus dem Ledger gelöscht) beide rot, Sektions-Anker A–G vorhanden, `^## [A-Z] — ` = 11 (`###
+F.4` ist unsichtbar für den Zähler in `.claude/rules/context.md`), Zitat-Union 41 ≥ Boden 20
+und alle 41 auflösbar, `"""`-Zähler gerade, `doctor.py --section D` = 0 CRITICAL.

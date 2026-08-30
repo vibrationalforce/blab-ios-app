@@ -5912,9 +5912,15 @@ tot erklärt, ist die teuerste Sorte) plus ein Zeiger hierher. Nichts ist gekür
 ## F — `AdaptiveCardGrid` / reflowende Panels: die vier Fassungen einer Zahl
 
 **Verschoben aus `CLAUDE.md` am 2026-08-22 (#746), wörtlich** (vier Absätze, in ihrer
-ursprünglichen Reihenfolge). In der immer-geladenen Datei bleiben die Zahl selbst (4 von 10),
-das Mess-Rezept und der eine Satz, den man beim Messen braucht: ein Gitter kann in einem
-`private var` liegen, das kein Panel ist — dem AUFRUFER folgen, nicht der Dateireihenfolge.
+ursprünglichen Reihenfolge). In der immer-geladenen Datei bleibt nur, was eine Sitzung beim MESSEN
+braucht: die Zahl (beim Verschieben 4 von 10, seit #292 Slice 5 fünf — MESSEN, nicht von hier
+abschreiben), das `grep -c` für ihren Nenner, dessen ZWEI bekannte Abweichungen und die
+Abgrenzung zum Nachbar-Befehl (der ODERt `weatherRow` hinein und liefert 11, nicht 10)
+und die zwei Regeln zum Benutzen: ein Gitter kann in einem `private var` liegen, das kein
+Panel ist (dem AUFRUFER folgen, nicht der Dateireihenfolge), und `spacing` ist ein
+ARGUMENT, weil ein einspaltiges Gitter den Abstand seines Wirts ERSETZT.
+⛔ Diese Beschreibung war von #746 bis #912 falsch — sie beschrieb die ABSICHT, während der
+Absatz die Provenienz weiter mittrug; siehe F.4.
 
 ⚠️ Der Nenner-Hinweis dazu steht weiterhin in `CLAUDE.md` an der Zahl: der Befehl misst die
 NAMENSFORM, zählt also `menuPanelHost` mit (Wirt, kein Panel) und übersieht `utilityRow` (ein
@@ -5934,6 +5940,34 @@ Panel, das nicht reflowt). Die Zehn stimmt, die MENGE ist um je einen daneben.
 
 ⚠️ **Und die vierte Fassung derselben Zeile war „2 von 11 bedingungslos + `moodPanel` bedingt" — genauer als ihre Vorgänger und trotzdem nur Stunden haltbar.** #359 Schritt 2 hat die Bild-Regler aus `weatherRow` in `visualPanel` gezogen; ein Gitter, das nur noch EINE Karte anordnet, ordnet nichts an, also ist es mitgegangen. Damit ist `mixerPanel` der einzige nackte `AdaptiveCardGrid`-Aufrufer und die „bedingt"-Hälfte ersatzlos weg. **Das ist keine fünfte Falschmeldung, sondern ihr Gegenteil:** die Zeile war zum Zeitpunkt des Schreibens korrekt und ist durch eine echte Codeänderung ungültig geworden. Der Unterschied gehört hierher, weil dieser Absatz sonst wie eine Serie desselben Fehlers gelesen wird — und weil er zeigt, dass die Zahl auch dann nachzuführen ist, wenn niemand sie falsch aufgeschrieben hat.
 
+
+### F.4 — die Tür-Geschichte des `visualVJOverlay`, und warum #746s Verschiebung keine war (#912)
+
+⛔ **#746 hat den ZEIGER auf diese Sektion gesetzt und den Text in `CLAUDE.md` stehen lassen.**
+Anspruch 3 von `TheLawFileStaysUnderItsCeilingTests` beschreibt seit #746 wörtlich, was dort
+bleiben soll: „nur die Zahl, die Herleitungs-Befehle und den EINEN Satz, den man zum Benutzen
+braucht“. Tatsächlich trug der Absatz danach weitere ~1,8 KB Provenienz — die ganze
+#505-/#747-Tür-Kette. **Der Wächter konnte das nicht sehen: er prüft, ob die Ziel-Sektion
+EXISTIERT, nie ob die QUELLE danach kürzer ist.** Das ist die allgemeine Form und der Grund,
+warum dieser Eintrag hier steht und nicht nur im SESSION_LOG: **eine Verschiebung ist erst
+eine, wenn beide Seiten gemessen sind.** Gemessen bei der Nachholung: **4.306 B → 2.784 B** (die erste Fassung kam auf 2.543 B und
+war um 241 B zu kurz — sie hatte den `grep -c` für den Nenner mit hinausgeschnitten und
+zeigte statt seiner auf den NACHBAR-Block, dessen anderer Befehl 11 liefert, wo die Prosa
+10 sagt. Der Reviewer hat das gefangen. **Lehre: beim Kürzen ist die Frage nicht nur „ist das
+Provenienz", sondern „steht das, was hier BLEIBT, danach noch für sich".**)
+
+⚠️ Zur Einordnung des Befundes: die #505-Hälfte ist SACHLICH überholt (die Tür existiert seit
+#747, offene Aufgabe #270 ist geschlossen), und die Fläche selbst steht weiter im
+Absent-Register von `CLAUDE.md` — dort allerdings unter dem deutschen Namen „VJ-Overlay" im
+#747-/`SpectralDonutView`-Satz, NICHT als eigene `visualVJOverlay`-Zeile. (Erste Fassung dieses
+Absatzes behauptete letzteres; gemessen kommt `visualVJOverlay` in `CLAUDE.md` genau EINMAL
+vor, nämlich im Absatz selbst. Der Schluss hält, der Beleg war falsch benannt — dieselbe
+#756-Form.) Es ging hier also nicht um verlorene Wahrheit,
+sondern um doppelt bezahlte Bytes in der Datei, die JEDE Sitzung lädt.
+
+**Der verschobene Absatz, wörtlich, in seiner letzten Fassung vor der Kürzung:**
+
+> **Kein „nie".** Die großen Flächen sind die Zukunft als **AUSGABE** — externer Bildschirm/Beamer (#206), ADM-OSC-Raum —, nicht als zweite App-Oberfläche. Kommt iPad als Instrumenten-Fläche zurück, braucht es eine dort funktionierende Bio-Quelle (der BLE-Gurt ist gebaut und verdrahtet) plus den Adaptivitäts-Durchgang #292. **Der Durchgang passiert ohnehin:** iPhone allein spannt 375–440 pt, erlaubt Querformat und läuft mit ungedeckeltem Dynamic Type — heute reflowen **5 von 10** Panels: `mixerPanel`, `soundPanel` (mit sieben Gittern), seit #292 Slice 3 `moodPanel` (mit zwei), seit #292 Slice 4 `visualPanel` (mit zwei) und seit #292 Slice 5 `masterPanel` (mit EINEM Gitter für das Target/Tone-Paar — bewusst nur die zwei gleich hohen Parameter-Zeilen; die Leaf-Views und Vollbreiten-Zeilen des Panels bleiben absichtlich draußen, Wächter `Tests/CISmoke/MasterPanelReflowsTests.swift`). Die anderen fünf — `menuPanelHost`, `bioPanel`, `videoPanel`, `tempoToolsPanel`, `effectsPanel` — stapeln weiter starr. ⚠️ **`visualPanel` ist der erste Eintrag dieser Liste, der seine Gitter NICHT im eigenen Rumpf hat**, und das ist genau die Falle, vor der der ⛔-Absatz unter diesem warnt: sie sitzen in `visualAdjustFields(spacing:)`, das der Rumpf aufruft. Wer die Liste per `grep` über Panel-Rümpfe nachführt, findet `visualPanel` nicht — man folgt dem AUFRUFER, sonst zählt man es beim nächsten Mal wieder als starr. ⭐ Und Slice 4 hat als erste eine Fläche mitgenommen, die gar kein Panel ist: `visualVJOverlay` rendert dieselbe Definition und reflowt seither ebenfalls — es steht bewusst nicht im Zähler, weil der Nenner Panels zählt, aber es ist der Grund, warum `spacing` dort ein ARGUMENT ist (14 im Panel, 8 im Overlay; in einer Spalte ERSETZT das Gitter den Abstand des Wirts, ein Literal hätte also eine der beiden Flächen im Hochformat still umgesetzt). Wächter: `Tests/CISmoke/VisualFineTuneReflowsTests.swift`. ⛔ **UND DIESE ZWEITE FLÄCHE HAT KEINE TÜR — der Satz oben liest sich, als hätte sie eine, und das ist die Sorte Lücke, die keine Zahl anzeigt** (gemessen 2026-08-08, #505): `visualVJOverlay` ist an genau EINER Stelle montiert, im `.fullScreenCover(isPresented: $showVisual)`, und `showVisual` hatte in `Sources/` KEINEN Schreiber von `true` — wortgrenzen-genau zwei Schreiber im Code, der eigene `@State`-Initialisierer und der Schließen-Knopf, beide `false`. ⭐ **#747 hat die Tür gebaut** („Full screen" im `visualPanel`), offene Aufgabe #270 ist geschlossen, und damit ist die ASYMMETRIE weg: `spacing` verteidigt jetzt ZWEI erreichbare Flächen. Beide Sätze — „reflowt ebenfalls" und „tote Zweitkopie" — sind wörtlich WAHR, und nebeneinandergelegt widersprechen sie sich nur scheinbar; das REGISTER war irreführend, weil nur einer von beiden hier stand. ⭐ Die Folge ist eine ASYMMETRIE, keine Abschwächung: ein hartes **8** würde das ERREICHBARE Panel umsetzen (lebende Kosten, heute), ein hartes **14** nur eine Fläche, die niemand öffnen kann. Das Argument verteidigt also in genau EINER Richtung etwas Lebendes und ist in der anderen Buchführung für den Tag, an dem die Tür zurückkommt. ⛔ Und der teuerste Einzelbefund saß im Wächter selbst: seine Grenzen-Notiz BAT den Founder um eine Querformat-Geräteprobe „des VJ-Overlays" — eine Bitte, die niemand erfüllen kann, in dem Register, aus dem der NEEDS-FOUNDER-VERIFY-Rückstand triagiert wird. Zurückgezogen statt umformuliert; Claim 6 desselben Wächters wird rot, sobald die Tür zurückkommt, und nennt die neun Dateien, deren „türlos"-Prosa dann im selben Commit mitzuziehen ist. (Der Nenner war bis #359 Schritt 3 elf; `sessionPanel` ist mit diesem Schritt gelöscht, sein einziger Inhalt `placeRow` sitzt jetzt in „Save & Export". Zähl mit `grep -c "private var \w*Panel\w*: some View"`, nicht aus dem Kopf — genau diese Zeile trägt vier Absätze über ihre eigenen Zählfehler. ⚠️ Und der Befehl misst die NAMENSFORM, nicht die Sache: er zählt `menuPanelHost` mit, das der Wirt ist und kein Panel, und übersieht `utilityRow`, das eines der Dropdown-Panels IST und nicht reflowt. Die zehn stimmen als Zahl, die MENGE ist um je einen daneben — wer die Panels einzeln durchgeht, muss beide Abweichungen kennen.)
 
 ## G — Die „Donuts"-Pille und der tote Tools-Katalog (#227 → #747 → #751)
 

@@ -195,9 +195,23 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
             """)
         XCTAssertTrue(ledger.contains("## F — `AdaptiveCardGrid` / reflowende Panels"), """
             §F (the four versions of the reflowing-panel count, moved by #746) is gone. The \
-            adaptivity paragraph in CLAUDE.md POINTS here and keeps only the number, the \
-            re-derivation commands and the one sentence needed to USE them (a grid can live \
-            in a `private var` that is not a panel — follow the CALLER).
+            adaptivity paragraph in CLAUDE.md POINTS here and keeps only what a session \
+            needs while MEASURING: the number, the `grep -c` that yields its denominator, \
+            that command's TWO known deviations, the note that the neighbouring block runs a \
+            DIFFERENT command yielding 11, and the two rules for using it (a \
+            grid can live in a `private var` that is not a panel — follow the CALLER; \
+            `spacing` is an ARGUMENT because a one-column grid REPLACES its host's spacing).
+            ⛔ THIS MESSAGE DESCRIBED AN END STATE THE FILE DID NOT HAVE, FROM #746 UNTIL \
+            #912: the pointer was written and the ~1.8 kB door history stayed in the \
+            always-loaded file. NOTHING here could see that — claim 3 only asks whether the \
+            DESTINATION exists. Claim 5's `wortgrenzen-genau zwei Schreiber` witness is the \
+            half that was missing. ⚠️ #912's own first draft then repeated the defect one \
+            size smaller: it cut the `grep -c` OUT of the paragraph while this message still \
+            promised commands, leaving a pointer to a NEIGHBOURING block whose different \
+            command yields 11 where the prose says 10. The law is therefore two-sided — a \
+            move is only a move when the SOURCE got shorter (measure both sides, put the \
+            figures in the commit), and every description of what SURVIVED has to be \
+            re-read against the shortened text, not against the intention.
             """)
     }
 
@@ -255,6 +269,18 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
              "the #818 move — the source-file COUNT and its whole chain (983 B) left the law "
              + "file; the literal was deleted rather than nursed, because #813 added one file "
              + "and made the number wrong with nothing going red"),
+            ("wortgrenzen-genau zwei Schreiber", "memory/LEDGER_COUNTS.md", "§F.4",
+             "the `visualVJOverlay` door history (#505 doorless -> #747 doored) — the ~1.8 kB "
+             + "that #746 pointed away from and then LEFT IN PLACE; #912 measured both sides "
+             + "and finished the move. ⛔ THE FIRST NEEDLE HERE WAS `tote Zweitkopie` AND IT "
+             + "WAS TWO DEFECTS AT ONCE. (a) #364: CLAUDE.md line 24 carries `TOTE "
+             + "Zweitkopie` in caps, so ordinary de-shouting of an UNRELATED sentence would "
+             + "have reddened this row with the message 'the block is re-accreting'. Swift "
+             + "`contains` is case-sensitive, so it was green — one keystroke from a false "
+             + "red. (b) It anchored the block's most incidental clause, a sentence ABOUT "
+             + "wording; a re-accretion that dropped that one clause would have passed "
+             + "silently. This needle names the MEASUREMENT instead (`showVisual` had two "
+             + "writers, both `false`), which paraphrase does not survive"),
             ("RUN_DESTINATION_DEVICE_NAME", "Tests/CISmoke/CLAUDE.md", "§5b",
              "the Clone-2 evidence from the #763 gate-discriminator move — the log line that "
              + "settled which simulator clone dies under #396")
