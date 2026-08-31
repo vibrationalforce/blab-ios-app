@@ -4620,6 +4620,20 @@ struct EchoelStudioView: View {
                     get: { Double(metronome.level) },
                     set: { metronome.level = Float($0) }),
                     range: 0...1, unit: "", decimals: 2)
+                // The accent is what makes "Beats per bar" AUDIBLE — the render block's test is
+                // `(beatIndex == 0) && audioAccent`, so with the accent off every click is
+                // identical and the bar length above becomes a setting with no consequence.
+                // The two rows therefore belong together; shipping the number without the switch
+                // was the asymmetry #924 closed (found by `scripts/doorless-state.py`: this was
+                // the only one of MetronomeVoice's four options with no writer anywhere).
+                // A Bool is a `Toggle`, not an `EchoelValueField` — CLAUDE.md's parameter rule
+                // covers NUMERIC parameters and says to read that word; the `enabled` row above
+                // is the sibling this matches.
+                Toggle(isOn: $metronome.accentDownbeat) {
+                    Text("Accent downbeat").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                }
+                .tint(EchoelTheme.accent)
+                .accessibilityHint("Sound the first beat of each bar higher and louder")
             }
         }
     }
