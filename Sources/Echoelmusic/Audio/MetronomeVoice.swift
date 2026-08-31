@@ -207,9 +207,25 @@ public final class MetronomeVoice {
         // once. Measured: fold fires 0 times in the first 480 frames for every alignment,
         // rescale fires once where the position calls for it.
         //
+        // ⭐ AND IT FIXES THE ORDINARY PATH, WHICH IS THE REAL FINDING (#934b, reviewer).
+        // #933's framing — "a glide is unaffected, only a JUMP reaches this" — understated the
+        // damage, because a glide is MANY tiny jumps and the fold's error accumulates in one
+        // direction. Simulated over a 60 s glide 120 → 160 BPM stepping at 20 Hz: the fold
+        // fires 140 clicks and drifts up to 2 559 frames = 53.3 ms EARLY (it plays an
+        // accelerando the transport never asked for); the rescale fires 139 clicks and deviates
+        // from the ideal beat grid by 0 frames on every single one. The fold was quietly wrong
+        // on the path the metronome actually takes, not only on the rare one.
+        //
         // This is the phase-accumulator idiom — changing an oscillator's frequency keeps its
-        // phase and changes its increment; it never restarts or jumps the phase. Two compares
-        // and one multiply per BUFFER (not per frame), all audio-thread legal.
+        // phase and changes its increment; it never restarts or jumps the phase. Two compares,
+        // one divide and one multiply per BUFFER (not per frame), all audio-thread legal.
+        //
+        // NEEDS-FOUNDER-VERIFY: a THIRD policy is defensible and only an ear can choose it —
+        // finish the current beat at the OLD duration and apply the new tempo from the next
+        // beat down (the DAW tempo-map convention). It is not obviously worse: it never moves a
+        // click a player is already waiting for, at the price of one beat of lag after a jump.
+        // Device probe: set a tempo mid-beat with the click running and say whether the FIRST
+        // click after the change feels early, right, or late.
         if perBeat != lastPerBeat {
             // Guard the division rather than trusting the 20…400 clamp two types away: a zero
             // or negative `lastPerBeat` would produce inf/NaN and latch the counter dead, the

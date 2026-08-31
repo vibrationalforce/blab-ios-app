@@ -3,6 +3,51 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #934b: die sechs Reviewer-Befunde an #934
+
+Der `audio-thread-reviewer` hat alle 32 Kopfzeilen-Zellen von #934 nachgerechnet (jede
+reproduziert), Audio-Thread-Legalität, numerische Sicherheit und Compile-Korrektheit für
+sauber erklärt — und **sechs** Defekte gefunden, alle in der PROSA:
+
+1. **Anspruch 5's Meldung war unwahr geworden.** Sie sagte „ein einzelnes
+   `sampleCounter -= perBeat` kann keinen Tempo-Sprung auffangen: siehe Anspruch 1". Nach
+   #934 bleiben bei komplettem Löschen des Folds **alle sechs** Verhaltensansprüche grün.
+   Der Fold ist keine Reparatur mehr, sondern ein **unerreichbarer FLOOR** — und ein Floor,
+   den kein Verhaltenstest fühlt, braucht seine Begründung im Wächter, sonst entfernt ihn
+   das nächste Aufräumen nach jedem Test korrekt und der Absicht nach falsch. Umbenannt zu
+   `testTheOverflowFloorIsStillInTheRenderBlock`, Begründung: er begrenzt JEDEN künftigen
+   zweiten Schreiber von `sampleCounter` (Seek, Loop-Wrap, mittiger Resync) auf EINEN
+   Retrigger statt eine Salve.
+2. **Anspruch 6's Titel und Doc beschrieben weiter den Fold** als die ausgelieferte
+   Reparatur. Neuer Titel: „die Alignment nebenan"; die 2,0/6,3 %-Zahlen sind jetzt
+   ausdrücklich die **Historie des Folds**, nicht das Verhalten dieses Baums.
+3. **Zeile 34 widersprach Anspruch 3 elf Zeilen weiter unten** („identisch unter beiden
+   Implementierungen" — #934 verschiebt den ersten Klick nach JEDEM Glide-Schritt, was der
+   Punkt ist).
+4. **Die Nullungs-Zeile in Anspruch 7's Tabelle druckte 48 000**, gemessen ist **47 999**;
+   die Fold-Zeile „~32 160" ist exakt **32 159**.
+5. **`SourceText.codeOnly` liest die GANZE Datei**, nie eine Funktion — zwei Meldungen
+   sagten „gone from `MetronomeVoice.renderOnAudioThread`" und behaupteten damit etwas,
+   das der Scan nicht prüft. Jetzt „`MetronomeVoice.swift`".
+6. **`MetronomeVoice.swift`: „Zwei Vergleiche und eine Multiplikation pro BUFFER"** ließ
+   die **Division** weg.
+
+⭐ **Und Befund (d) war stärker als alles in meinem Kopf-Kommentar, selbst nachgemessen:**
+über 60 s Glide 120 → 160 BPM in 20-Hz-Schritten driftet der Fold um bis zu **2 559 Frames
+= 53,3 ms nach VORN** (140 Klicks) — er spielt ein Accelerando, das der Transport nie
+verlangt hat —, während der Rescale auf **jedem** der 139 Klicks um **0 Frames** abweicht.
+#933 rahmte den Fehler als „nur ein Sprung erreicht das, ein Glide ist unberührt". Ein
+Glide IST viele kleine Sprünge, und der Fehler summiert sich in EINE Richtung. **Der Fold
+war auf dem GEWÖHNLICHEN Pfad falsch, nicht nur auf dem seltenen.**
+
+⚠️ **NEEDS-FOUNDER-VERIFY, neu:** eine DRITTE Politik ist vertretbar und nur ein Ohr kann
+sie wählen — den laufenden Schlag in der ALTEN Dauer zu Ende spielen und das neue Tempo ab
+dem nächsten Schlag anwenden (DAW-Tempomap-Konvention). Sie verschiebt nie einen Klick, auf
+den ein Spieler schon wartet, und kostet dafür einen Schlag Verzögerung nach einem Sprung.
+
+Instrumente grün: dead-needles 390 Dateien, count-pins 137/158 gesehen 0 ROT,
+needle-reachability sauber. Kein lokaler Compiler — CI ist der Compiler.
+
 ## 2026-08-31 — #933c–#933e: was ein grünes Gate mitdruckt
 
 **Commits:** `cf04809` (#933c) · `6b8053f` (#933d) · `801dac3` (#933e).

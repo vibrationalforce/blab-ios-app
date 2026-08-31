@@ -31,7 +31,8 @@
 // ⭐ WHY IT WENT UNHEARD, which is also why claim 3 exists: a GLIDE shrinks `perBeat` by a
 // sliver per step, and a glide is how the tempo usually moves here (`Transport
 // .onTempoChange(id: "metronome")` fires up to ~20 Hz during one). Measured 120 → 124: one
-// click, correct spacing, identical under both implementations. Only a JUMP — a field edit,
+// click, correct spacing, identical under the parent and #933's fold; #934 moves the first
+// click after every glide step, which is the point — see claim 3. Only a JUMP — a field edit,
 // a loaded project, the flow servo's 40…160 clamp — reaches it. And it is not rare when it
 // is reached: the spurious count is `floor(sampleCounter / perBeat) − 1` with the counter
 // uniform over the old beat, so a 3× jump misfires on ONE THIRD of jumps — swept over all
@@ -244,15 +245,20 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             """)
     }
 
-    // MARK: - 6: the honest limit — the fold bounds the damage, it does not remove it
+    // MARK: - 6: the alignment next door — the repair is not an artefact of one lucky offset
 
-    /// ⚠️ ONE SAMPLE OVER FROM CLAIM 1 AND THE REPAIR STOPS BEING PERFECT. At `48 000 - 2`
-    /// the folded remainder is 15 999, one short of the new beat, so the very next frame fires
-    /// again: the fold leaves ONE extra click where the parent left two. Swept exhaustively
-    /// over every alignment, the share of jumps with two fires inside 10 ms falls from
-    /// 34.3 % to 2.0 % (60 -> 180), 50.7 % to 2.0 % (40 -> 160) and 90.3 % to 6.3 %
-    /// (20 -> 400); the worst case falls from three, four and TWENTY fires to two in every
-    /// case — never worse than the parent anywhere, but not zero. (⛔ #933c: 34.4 % here
+    /// ⚠️ CLAIM 1 SITS ON THE LUCKIEST ALIGNMENT THERE IS, so on its own it proves very little.
+    /// 48 000 is an exact multiple of 16 000, the one offset where #933's fold happened to
+    /// leave no residue at all. One sample over, at `48 000 - 2`, the fold's remainder is
+    /// 15 999 — one short of the new beat — and the very next frame fires again. This claim
+    /// re-asks claim 1's question at that offset, where a fold-shaped repair is measurably
+    /// imperfect and #934's rescale is not.
+    ///
+    /// ⭐ THE PERCENTAGES BELOW ARE THE FOLD'S HISTORY, not this tree's behaviour (#934 made
+    /// the fold unreachable — see claim 5). Swept exhaustively over every alignment, the fold
+    /// moved the share of jumps with two fires inside 10 ms from 34.3 % to 2.0 % (60 -> 180),
+    /// 50.7 % to 2.0 % (40 -> 160) and 90.3 % to 6.3 % (20 -> 400), worst case three, four and
+    /// TWENTY fires down to two. The rescale takes all three to zero. (⛔ #933c: 34.4 % here
     /// came from a sweep of every seventh alignment under a sentence that said "every";
     /// the grid belongs to the number, #448.)
     ///
@@ -284,8 +290,8 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
     /// thirds of a second, because 15 840 samples is only a third of the way into the new
     /// beat. Simulated through the real envelope, counter at 99 %:
     ///
-    ///     fold      no click in the first 3 000 frames  (it arrives at ~32 160)
-    ///     zero      no click in the first 3 000 frames  (it arrives at 48 000)
+    ///     fold      no click in the first 3 000 frames  (it arrives at 32 159)
+    ///     zero      no click in the first 3 000 frames  (it arrives at 47 999)
     ///     rescale   click at frame 479                  (10 ms — where the player expects it)
     ///
     /// ⚠️ This is the claim that makes #934 a REPAIR rather than a refinement: #933 measured
@@ -324,7 +330,7 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
     func testTheProportionalRescaleIsStillInTheRenderBlock() throws {
         let code = SourceText.codeOnly(try source("Sources/Echoelmusic/Audio/MetronomeVoice.swift"))
         XCTAssertTrue(code.contains("sampleCounter *= perBeat / lastPerBeat"), """
-            The proportional rescale is gone from `MetronomeVoice.renderOnAudioThread`. Without \
+            The proportional rescale is gone from `MetronomeVoice.swift`. Without \
             it a tempo change strands the beat counter at an absolute sample count that means \
             something different at the new tempo — see claims 3 and 7 for what that sounds like \
             in each direction. If a different mechanism now keeps the counter's POSITION across \
@@ -340,20 +346,30 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             """)
     }
 
-    // MARK: - 5: the repair is named where it lives
+    // MARK: - 5: the floor under the repair, kept deliberately unreachable
 
-    /// ⚠️ SOURCE-TEXT SCAN, labelled as such (§1). The behaviour claims above cannot say WHY
-    /// the tree is correct, and the fold is one line that reads like a redundant safety check
-    /// — exactly the shape a later tidy-up removes. This pins the mechanism so its removal is
-    /// a red with an explanation attached.
-    func testTheFoldIsStillInTheRenderBlock() throws {
+    /// ⚠️ SOURCE-TEXT SCAN, labelled as such (§1). ⛔ THIS CLAIM'S MESSAGE USED TO SAY "a single
+    /// `sampleCounter -= perBeat` cannot absorb a tempo jump: see claim 1", and #934 made that
+    /// false: with the rescale in place the counter never enters the beat branch more than one
+    /// beat over, so deleting the fold entirely leaves claims 1, 2, 3, 4, 6 and 7 ALL green. The
+    /// fold is no longer the repair — it is an unreachable FLOOR, and a floor that no behaviour
+    /// claim can feel needs its reason written down or the next tidy-up removes it correctly by
+    /// every test and wrongly by intent.
+    ///
+    /// ⭐ WHY KEEP IT: `sampleCounter` is the one piece of state that survives across buffers on
+    /// the audio thread. If a future edit adds a second writer — a seek, a loop wrap, a resync
+    /// that lands mid-beat — the rescale only normalises what a TEMPO change did, and the fold
+    /// is what stops an arbitrary overshoot from firing a burst of retriggers. It costs one
+    /// compare per beat and cannot change behaviour while the rescale is correct.
+    func testTheOverflowFloorIsStillInTheRenderBlock() throws {
         let code = SourceText.codeOnly(try source("Sources/Echoelmusic/Audio/MetronomeVoice.swift"))
         XCTAssertTrue(code.contains("truncatingRemainder(dividingBy: perBeat)"), """
-            The leftover fold is gone from `MetronomeVoice.renderOnAudioThread`. A single \
-            `sampleCounter -= perBeat` cannot absorb a tempo jump: see claim 1. If it was \
-            replaced by a different mechanism that keeps the beat counter honest, re-anchor \
-            this claim on that instead of deleting it — the behaviour claims above stay the \
-            real proof.
+            The overflow floor is gone from `MetronomeVoice.swift`. It is unreachable while the \
+            proportional rescale (claim 8) is in place, so no behaviour claim in this file goes \
+            red without it — that is exactly why it is pinned here and not left to the tests. It \
+            bounds ANY future writer of `sampleCounter` to one retrigger instead of a burst. If \
+            the counter has genuinely gained a single owner that cannot overshoot, delete both \
+            this claim and the line together, in one commit, with that argument written down.
             """)
     }
 
