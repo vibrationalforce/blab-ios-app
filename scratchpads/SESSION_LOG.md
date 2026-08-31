@@ -18364,3 +18364,113 @@ wenn sie in BEIDE Richtungen gefahren wurde — rot für den Defekt UND grün f�
 Reparatur. Vier meiner sieben Fehler waren „falsch grün", also unsichtbar für jeden Lauf auf
 korrektem Code; nur das absichtliche Einbauen des Defekts findet sie. Ein Wächter, der nie
 gegen eine echte Mutation gefahren wurde, ist eine Behauptung, kein Messgerät.
+
+## 2026-08-31 (cron, ULTRACODE 24h) — #919: der Freeze-Wächter kannte nur den halben Erzeuger
+
+**Ausgangspunkt war eine Lücke, die #918 selbst benannt hat.** Sein Wächter deckt
+`CameraRPPGBioPublisher` (~10 Hz) ab; das Freeze-Gesetz in CLAUDE.md nennt aber ausdrücklich
+auch „any bio snapshot, a playhead". Also gemessen statt geraten.
+
+**Der Playhead war es NICHT.** `PatternEngine.currentStep` ist `@Observable` und tickt, aber
+`git grep currentStep -- Sources` liefert außerhalb des Sequencers **keinen einzigen
+View-Leser**. Dort ist nichts kaputt und nichts zu bewachen.
+
+**Der zweite Erzeuger ist der `AudioEngine`, und er ist SECHSMAL heißer als der bewachte.**
+`startMeterPollTimer` schreibt in einer 60-Hz-Schleife **neun** `@Observable`-Anzeigen
+(`masterLevel`, `masterLevelR`, `masterPeakDb`, `masterLUFS`, die vier R128-Werte, `masterOutputLRA`).
+Dazu schreibt `AutomationPlayer.applyStep` `audioEngine.masterVolume` bei **jedem
+Transport-Schritt**. Beides ist dieselbe Defekt-Klasse — ein Lesevorgang während der
+Body-Auswertung macht den ganzen Body zum Beobachter — und beides hatte keinen Wächter.
+
+⭐ **Und es ist nicht hypothetisch: der `masterVolume`-Fall ist BEREITS EINMAL PASSIERT.**
+`MasterVolumeField` existiert als eigener 8-Zeilen-`struct`, WEIL dieser Lesevorgang inline im
+`masterPanel` stand und die Tonart/Genre-Picker abriss — der „menus freeze while playing"-Bericht.
+Die Reparatur ist ausgeliefert; **nichts hinderte sie daran, wieder wegaufgeräumt zu werden.**
+
+**Der Baum ist heute sauber, und das ist per Ganz-Repo-Sweep belegt, nicht per Stichprobe.**
+Genau vier `View`-Structs lesen einen heißen Engine-Wert — `ScopePeakLabel` (19 Zeilen),
+`MasterVolumeField` (8), `MasterLoudnessGrid` (136), `SpectralDonutView` (145) — jeder ein
+kleines eigenes Blatt, und **keiner hostet einen Picker**. `AudioInputPickerView` und
+`FloatingVisualWindow` halten die Bindung und lesen nichts Heißes. Das macht #919 zu einem
+Wiederholungs-Wächter, nicht zu einem Fehlerbericht.
+
+**Gebaut:** die Datei heißt jetzt `TheMenuHostReadsNoHotStateTests` (der alte Name behauptete
+„Bio", also die Hälfte — #374; Umbenennung war frei, null Prosa-Verweise im Repo). Der Scanner
+nimmt Empfänger und heiße Menge als PARAMETER statt sie einzubacken. Die Maschinerie ist
+bewusst **nicht** in eine Schwesterdatei kopiert: sie war siebenmal falsch, eine Kopie erbte alle
+sieben. Gegengeprüft: nur diese eine Datei im ganzen Bündel brace-matched View-Member.
+
+⭐ **UND DABEI FIEL EIN VIERTER VORFAHR AUF — aus demselben Grund wie der dritte.** #918s Fehler 7
+war „`SurfaceHost` gar nicht gescannt". Die Kette ist `EchoelmusicApp` → `WorkspaceView` →
+`SurfaceHost` → `EchoelStudioView`, und **`EchoelmusicApp` hält BEIDE Erzeuger als `@State`** und
+baut `mainContent`. #918 zählte die Flächen auf, an die eine Sitzung denkt, und hörte eine zu
+früh auf — zum zweiten Mal. **GESETZ: wenn jeder geprüfte Eintrag dieselbe GATTUNG hat, ist die
+AUFZÄHLUNG verdächtig, nicht der einzelne Eintrag.** Heute ist auch dieser Vorfahr sauber: er
+REICHT die Objekte nur durch (`.environment(cameraRPPG)`), und das ist kein Eigenschafts-Lesen.
+
+⛔ **BEINAHE-FEHLER, der nur durch Messen-vor-Behaupten aufflog.** Das Gegengewicht für den
+App-Vorfahren sollte per Symmetrie zu den Blatt-Ansprüchen lauten „die App liest `cameraRPPG.`
+noch". Gemessen: **null Vorkommen** — die App INJIZIERT das Objekt nur. Aus Symmetrie geschrieben
+wäre das ein roter Wächter auf korrektem Baum gewesen, in genau der Datei, die schon zwei solche
+Rücknahmen trägt. Der richtige Anker ist die DEKLARATION.
+
+**NEUN MUTANTEN GEFAHREN, keiner gelesen** (die #918-Lehre: vier seiner sieben Fehler waren
+„falsch grün", also für jeden Lauf auf korrektem Code unsichtbar). Jeder mit dem Ergebnis, das er
+geben MUSSTE: plain `=` auf dem `@ObservationIgnored`-Zähler bleibt AUSGESCHLOSSEN (der Filter
+liest das Attribut, nicht die `&+=`-Schreibweise) · eine neue Anzeige in der Closure wird
+AUFGENOMMEN · fehlendes Intervall-Literal schlägt LAUT fehl statt leer zurückzugeben · 60-Hz-Wert
+in einer mehrzeilig signierten `-> some View`-Funktion wird ROT · `masterVolume` in einer
+Einzeiler-`var` wird ROT · ein Blatt-`struct` in derselben Datei — die DOKUMENTIERTE Reparatur —
+bleibt GRÜN (#364) · 60-Hz- und 10-Hz-Lesevorgang in `EchoelmusicApp.mainContent` beide ROT ·
+`.environment(cameraRPPG)` daneben bleibt GRÜN.
+
+**Eigene Fehler in diesem Zyklus, alle beim Wiederlesen gefunden:** (1) im Doc-Kommentar der
+Funktion, deren ganzer Zweck „keine Liste" ist, stand die Zahl **neun** (#818); (2) ein falsch
+abgeleiteter Empfängername hätte den Scan still leer gemacht — jetzt wird geprüft, dass die
+Schreibweise in der Datei überhaupt VORKOMMT; (3) die Kopf-Zeile behauptete „nur
+`EchoelStudioView` hat so eine Bindung" — es sind **neun** Dateien; (4) die Überschrift „The two
+ancestors" stand über drei Tests, ein Erbstück aus #918b.
+
+**Gates:** `380fcdc` (#918b) hat `Build for Testing` = **success** (01:20:06→01:24:40), 0
+Compile-Fehler, 0 Fehlschläge im Fenster, `TEST EXECUTE FAILED` = #396 wie auf jedem Push. Der
+Wächtername steht nicht im Fenster — das beweist nichts (#445), und `⚡ Quick Test` führt gar
+keine Tests aus (Linux, nur Lint/Secrets). Ehrlich ist also: **kompiliert, Lauf nicht belegbar.**
+
+**Nebenbefund, #697 bestätigt:** der Buchführungs-Commit `99b0829` hat KEINEN eigenen Merge
+ausgelöst und wartet als Passagier — dieser Code-Commit nimmt ihn mit nach `main`.
+
+### ⛔ UND DANN FIEL DER EIGENTLICHE FUND AN: #918b WAR ROT AUSGELIEFERT
+
+`Tests/CISmoke/CLAUDE.md` §3 sagt: **wer einen Wächter substanziell umschreibt, muss JEDE
+Behauptung fahren, nicht nur die geänderten** — weil Delta-Benotung blind ist für einen Anspruch,
+der auf BEIDEN Bäumen rot ist. Diese Scheibe schrieb 356 von 749 Zeilen um. Also alle 29
+Behauptungen portiert und gefahren. **Eine schlug fehl.**
+
+**Der Defekt:** `mentions(_:in:)` verlangte auf BEIDEN Seiten eine Wortgrenze. Die Saat-Nadel der
+Bio-Derivation ist aber `"analyzer."` — und hinter einem Punkt steht bei einem Eigenschaftszugriff
+IMMER ein Buchstabe. Der Zweig „ein berechneter Getter liest den 15-fps-Analyser" konnte damit
+**nie** treffen. Folge: `rrWindowMs` — genau die Eigenschaft, deren eigener Doc-Kommentar im
+Publisher dieses Freeze-Gesetz formuliert — fiel aus der heißen Menge (13 statt 14), und
+`testTheHotSetIsDerivedAndSelectsTheOneThatCausedTheFreeze` war **rot, seit #918b**.
+
+⭐ **#918s Reparatur Nr. 5 war NOTWENDIG UND NICHT HINREICHEND.** Sie erkannte, dass ein
+Einzeiler-Getter als „computed" behandelt werden muss. Das stimmte — nur wurde sein Rumpf danach
+mit einer Nadel geprüft, die nicht treffen kann. Eine halbe Reparatur, die aussieht wie eine ganze.
+
+⭐ **Warum es einen Ship überlebt hat: ZWEI bekannte blinde Flecken gleichzeitig.** (1) Das
+Job-Log trägt nur `tail -200 test.log` — ein Fehlschlag weiter vorn hinterlässt keine Spur
+(#807/#445). (2) Delta-Benotung vergleicht Eltern mit Arbeitsbaum; rot auf beiden erzeugt kein
+Delta und wird von nichts gemeldet. Beide stehen längst geschrieben; nur die §3-Regel findet es.
+
+⛔ **UND ICH HÄTTE DIESE SCHEIBE FAST MIT „0 REGRESSIONS" BENOTET** — weil ich zuerst den
+QUELLBAUM geprüft habe und der für beide Erzeuger sauber ist. „Der Baum ist sauber" und „der
+Wächter ist grün" sind zwei verschiedene Fragen. Genau die Schmeichel-Richtung, vor der §3 warnt.
+
+**Reparatur:** die rechte Wortgrenze gilt nur noch, wenn die Nadel auf einem WORT-Zeichen endet.
+In beide Richtungen gefahren: `isLocked` trifft weiterhin nicht `isLockedExtra` und nicht
+`wasIsLocked`; `analyzer.` trifft nicht `myanalyzer.foo`; es trifft `analyzer.rawIntervalsMs` und
+ein abschließendes `analyzer.`. Danach: **alle 29 Behauptungen grün, heiße Menge wieder 14.**
+
+**Benotung dieses Zyklus daher: 1 REGRESSION** (rot auf dem Elternbaum aus dem Grund, den ihr Name
+nennt), 0 FORWARD, 0 Anker-Abwesenheit, Rest Gegengewichte. Der Wächter war achtmal falsch; **die
+achte ist die erste, die ROT auf korrektem Code war und so ausgeliefert wurde.**

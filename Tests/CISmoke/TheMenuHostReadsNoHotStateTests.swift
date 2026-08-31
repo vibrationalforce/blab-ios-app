@@ -1,0 +1,793 @@
+// TheMenuHostReadsNoHotStateTests.swift
+// Echoel — #918 (bio producer) · #919 (meter + automation producer).
+// The freeze that cost five device builds, and the SECOND producer that can cause it.
+//
+// THE DEFECT CLASS, in the founder's words each time: "Sobald Biofeedback läuft kann ich nicht
+// mehr auswählen." An open `.menu` Picker popover is torn down whenever its host's body
+// rebuilds, and a `@Observable` property read DURING BODY EVALUATION registers that whole body
+// as an observer. `CameraRPPGBioPublisher` writes its readouts on a ~10 Hz tick, so ONE such
+// read anywhere in an ancestor rebuilds the entire subtree ten times a second.
+//
+// It was diagnosed and fixed FIVE times — 10.76.41, .43, .47, .48, .50 — and the last of those
+// is the reason this file exists: every previous audit scoped itself to `EchoelStudioView`,
+// found it genuinely clean, and the read was one level UP, in `WorkspaceView.topBar` feeding
+// the header pulse tile. A law that is only written in prose gets re-broken by the next person
+// who audits the obvious view.
+//
+// ⛔ THIS GUARD HAS BEEN WRONG EIGHT TIMES, and every single one was found by DRIVING it as a
+// mutation — never by reading it. The eighth (#919) is the first that was RED on a correct
+// tree and SHIPPED that way, invisible behind two known blind spots at once. Recorded in
+// full because the pattern is the finding:
+//   RED ON A CORRECT TREE (would have shipped a broken gate):
+//     1. The "is this computed?" step handed a STORED property to a brace matcher, which then
+//        ran to the end of the class; every stored property "contained" every hot name,
+//        `isRunning` was swept in, and the SHIPPED 10.76.50 repair was reported as the
+//        violation. A guard that reddens correct work gets deleted and takes the law with it.
+//     2. A multi-line signature puts `) -> some View {` on a CONTINUATION line, indented
+//        deeper than its `func`; matching from there overran the member and produced seven
+//        false offences. The scan now walks back to the declaration line.
+//   FALSELY GREEN (would have been a guard that guards nothing):
+//     3. A ONE-LINE member keeps its whole body on the declaration line, which the extraction
+//        started after.
+//     4. `-> some View` FUNCTIONS were not scanned at all — 19 in `EchoelStudioView`, 1 in
+//        `WorkspaceView`. A mutant put a hot read in `menuChip` and the guard stayed green.
+//     5. A ONE-LINE computed property in the PUBLISHER was not treated as computed, so
+//        `rrWindowMs` and `coachingHint` never entered the derivation.
+//     6. The computed pass was ONE HOP through PUBLIC members only. `acquisitionCue` reaches
+//        its hot inputs through a private `placementCue`; `coachingHint` needs three hops.
+//     7. `SurfaceHost` — a third ancestor between the root and the Picker host — was not
+//        scanned at all.
+//     ⛔ #919 FOUND THAT THIS REPAIR WAS INCOMPLETE AND SHIPPED RED — see `mentions`. Treating
+//        the one-liner as computed was necessary and not sufficient: its body was then tested
+//        with a needle that could not match, so `rrWindowMs` still never entered the set.
+//   Plus two shape defects with no visible symptom yet: the derivation walked a `Dictionary`
+//   (per-process iteration order, so a future two-hop chain would have made the result flake),
+//   and it read declarations file-wide instead of class-wide.
+//
+// ⛔ AND THE HEADER ITSELF CARRIED A FALSE LAW. It said a read inside "a `private func` or a
+// `.task {}` closure is NOT body evaluation and is correctly out of scope". That is false for
+// any `private func … -> some View`, and for a `private func … -> Bool` CALLED from a body. It
+// was true only of the three call sites that happen to exist here today. The rule is about
+// WHERE the value is read, not what kind of member holds it.
+//
+// WHAT THIS IS: a SOURCE-TEXT SCAN (§1). It proves where text sits — never that the app does
+// not churn. The limits, stated before the claim:
+//   · It scans view-BUILDING members (`: some View {`, `-> some View {`) of the named ancestor
+//     types, in their `struct` and in any `extension`. A read inside a plain helper called
+//     FROM a body is still a real defect and is not seen; the two that exist today are reached
+//     from action paths, which is checked, not assumed.
+//   · An ACTION closure written inside such a member (`Button { … }`, `.onAppear { … }`,
+//     `.task { … }`) is not body evaluation, and a hot read there would be reported although
+//     it is safe. None exists today. Note the neighbouring case is the OPPOSITE: the value
+//     argument of `.onChange(of:)` IS evaluated during body, so flagging that is correct.
+//   · It anchors on a RECEIVER SPELLING. An alias (`let cam = cameraRPPG`), a hot value passed
+//     down as a function argument, or a renamed binding is invisible to it. The `AudioEngine`
+//     half derives its spelling from the file's own `@Environment` binding, so a rename moves
+//     the guard with it; the bio half still has the name written down and a counterweight
+//     proving it still matches.
+//
+// ⭐ #919 — THERE ARE TWO PRODUCERS, and the second is SIX TIMES HOTTER. `AudioEngine` runs a
+// 60 Hz meter poll timer over nine `@Observable` readouts, and `AutomationPlayer.applyStep`
+// rewrites `masterVolume` on every transport step. Same defect class, same repair, no guard
+// until now — and the automation half is not hypothetical: `MasterVolumeField` exists as its
+// own struct BECAUSE that read once sat inline in `masterPanel` and tore down the Tonart/Genre
+// Picker. The scan is shared rather than copied into a sibling file: it has been wrong seven
+// times, and a copy would inherit all seven.
+//
+// ⚠️ THE TWO SCANS COVER DIFFERENT NUMBERS OF ANCESTORS — say it exactly. The chain is
+// `EchoelmusicApp` → `WorkspaceView` → `SurfaceHost` → `EchoelStudioView`. The BIO scan runs on
+// all four. The ENGINE scan runs on two: `EchoelStudioView`, which declares an
+// `@Environment(AudioEngine.self)` binding, and `EchoelmusicApp`, which owns the engine as
+// `@State`. `WorkspaceView` and `SurfaceHost` hold no engine reference at all, so pointing the
+// engine scan at them would be a claim that cannot fail (#367). Nine files under `Sources/`
+// declare an `@Environment(AudioEngine.self)` binding, so "only `EchoelStudioView` has one"
+// would be false — that was the over-broad first draft of this very line. The day one of the
+// other two gains a reference, point the same call at it; nothing else has to change.
+//
+// ⛔ AND THE FOURTH ANCESTOR WAS FOUND THE SAME WAY THE THIRD WAS — by asking whether the LIST
+// was complete rather than whether each entry was right. `EchoelmusicApp` sits above
+// `WorkspaceView`, owns BOTH publishers, and builds `mainContent`; #918 enumerated the
+// surfaces a session thinks about and stopped one short, exactly as its own defect 7 did with
+// `SurfaceHost`. Twice now. The rule to carry forward: when every checked item is the same
+// KIND, suspect the enumeration, not the entries.
+//
+// ⭐ MEASURED BEFORE THE CLAIM WAS WRITTEN, over the whole repo and not just the ancestors:
+// exactly four `View` structs read a hot engine readout today — `ScopePeakLabel`,
+// `MasterVolumeField`, `MasterLoudnessGrid`, `SpectralDonutView` — every one a small dedicated
+// leaf, and NONE of them hosts a `Picker`. `AudioInputPickerView` and `FloatingVisualWindow`
+// hold the binding and read nothing hot. So the tree is clean by construction as well as by
+// this scan, which is what makes this a recurrence guard rather than a bug report.
+//
+// ⭐ THE HOT SET IS DERIVED, NOT LISTED — a hard-coded list names today's properties and
+// silently misses tomorrow's. Three sources: stored properties the ~10 Hz publish task
+// assigns; computed properties whose getter reads `analyzer.` (fed at 15 fps — `rrWindowMs` is
+// exactly that and mentions no hot name at all); and the transitive closure over computed
+// properties with PRIVATE nodes kept as waypoints. The count is deliberately not written here
+// (#818): re-derive it from `testTheHotSetIsDerivedAndSelectsTheOneThatCausedTheFreeze`, whose
+// failure message prints the selected set. It correctly does NOT select `isRunning`, which
+// changes on start/stop only and is exactly what the 10.76.50 repair left the root reading.
+//
+// ⚠️ HONEST GRADING (#433/#464) — the parent is `99b0829`, measured against it by DRIVING every
+// assertion, not from memory.
+//
+// **1 REGRESSION, and it was already shipped RED.** On the parent,
+// `testTheHotSetIsDerivedAndSelectsTheOneThatCausedTheFreeze` FAILS its `rrWindowMs` claim: the
+// `mentions` boundary bug below made the `analyzer.` seed branch dead, so the hot set was 13
+// where it should be 14. Red on the parent for exactly the reason its name gives, green here.
+// Calling this slice "0 regressions, pure prevention" would have been the flattering-direction
+// error §3 warns about — and I nearly did, because the SOURCE tree is clean for both producers
+// and that is what I checked first. The tree being clean and the GUARD being green are two
+// different questions.
+//
+// 0 FORWARD guards. 0 red by ANCHOR ABSENCE. Everything else is a
+// COUNTERWEIGHT, and per §343 that is the content. The counterweights exist so no negative
+// claim can pass by finding nothing (#367): each derivation must SELECT a named property
+// (`waveform`, `rrWindowMs`, `coachingHint`, `masterLevel`, `masterVolume`) and must EXCLUDE
+// one (`isRunning`, `monitorPollTick`); the leaves must still read what the scans look for;
+// each scan asserts it found view-building members; and every receiver spelling is proved real
+// before it is used — unwrapped where it is derived, and asserted against its DECLARATION where
+// it is written down. ANCHOR ABSENCE: 0 — every anchor is asserted, including the 60 Hz
+// interval literal, which XCTFails by name rather than returning an empty set.
+//
+// ⛔ ONE OF THOSE ANCHORS WAS NEARLY A CLAIM THAT COULD NEVER HOLD. The app-level counterweight
+// was going to be "the app still reads `cameraRPPG.`" — by symmetry with the leaf claims. It
+// occurs ZERO times there: the app only INJECTS the object. Measuring the anchor before
+// writing it is what turned it into a DECLARATION check; by symmetry alone it would have been
+// a red guard on a correct tree, in the same file that already carries two of those (#367).
+//
+// ⛔ AND THE BOUNDARY REPAIR WAS DRIVEN IN BOTH DIRECTIONS, because a looser needle is how a
+// guard starts matching things it should not: an identifier needle must still refuse
+// `isLockedExtra` and `wasIsLocked` (it does), a receiver needle must still refuse
+// `myanalyzer.foo` (it does), and it must match `analyzer.rawIntervalsMs` and a trailing
+// `analyzer.` (it does). Only the RIGHT boundary was relaxed, and only for a needle that ends
+// in a non-word character.
+//
+// ⛔ THE #919 LOGIC WAS DRIVEN AS NINE MUTATIONS BEFORE IT WAS BELIEVED, because #918
+// proved that reading a guard finds nothing (four of its seven defects were FALSELY GREEN and
+// invisible to any run on correct code). Driven, with the result each had to give: a plain `=`
+// on the `@ObservationIgnored` counter must stay EXCLUDED (it does — the filter reads the
+// attribute, not the `&+=` spelling); a new observable readout added to the closure must be
+// PICKED UP (it is); removing the interval literal must FAIL LOUDLY (it does); a 60 Hz read in
+// a multi-line-signature `-> some View` func must go RED (it does); `masterVolume` in a
+// one-line computed var must go RED (it does); a leaf `View` struct declared in the same file
+// — the DOCUMENTED repair — must stay GREEN (it does, #364); a 60 Hz read and a ~10 Hz read
+// placed in `EchoelmusicApp.mainContent` must both go RED (they do); and injecting the
+// publisher object with `.environment(cameraRPPG)` — the CORRECT pattern, one line away from
+// the mutation — must stay GREEN (it does).
+//
+// ⚠️ NOT COMPILE-VERIFIED by the cheap gate: `Xcode Compile Check` builds `Sources/` alone.
+// This file builds only in the CI/CD `Build for Testing` step.
+
+import Foundation
+import XCTest
+@testable import Echoelmusic
+
+final class TheMenuHostReadsNoHotStateTests: XCTestCase {
+
+    private static let publisher = "Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift"
+    private static let root = "Sources/Echoelmusic/Studio/WorkspaceView.swift"
+    private static let host = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+    /// ⛔ THE THIRD ANCESTOR, missed by the first version. The chain is
+    /// `EchoelmusicApp.mainContent` → `WorkspaceView` → `SurfaceHost` → `EchoelStudioView`,
+    /// and `SurfaceHost` wraps the Picker host DIRECTLY. It is clean today, so leaving it out
+    /// made the guard green partly by luck — and "a hot read one level above the level the
+    /// last fix reached" is the 10.76.50 finding word for word.
+    private static let wrapper = "Sources/Echoelmusic/Studio/SurfaceSwitcher.swift"
+    /// The spelling the bio scan anchors on. It is a NEEDLE, not a fact about the code: an
+    /// alias or a renamed binding makes it miss, which is why
+    /// `testTheRootStillReadsTheStartStopFlag` exists to prove it still matches something.
+    private static let bioReceiver = "cameraRPPG"
+
+    // ⭐ #919 — THE SECOND PRODUCER, and it is SIX TIMES HOTTER than the first.
+    // `AudioEngine` runs a 60 Hz meter poll timer that rewrites nine `@Observable` readouts on
+    // every tick, and `AutomationPlayer.applyStep` rewrites `masterVolume` on every transport
+    // step. Both are the same defect class as the ~10 Hz camera, and neither had a guard.
+    // This is NOT a hypothetical: `MasterVolumeField` exists as its OWN struct precisely
+    // because `masterVolume` was once read inline in `masterPanel` and tore down the
+    // Tonart/Genre Picker — the founder's "menus freeze while playing". The repair shipped;
+    // nothing stopped it coming back.
+    private static let audioEngine = "Sources/Echoelmusic/Audio/AudioEngine.swift"
+    private static let automation = "Sources/Echoelmusic/Core/AutomationPlayer.swift"
+    /// The leaf where these reads BELONG — the needle-reachability fixture for the meter half.
+    private static let loudnessLeaf = "Sources/Echoelmusic/Studio/MasterLoudnessGrid.swift"
+
+    // ⛔ THE FOURTH ANCESTOR, and it was missed for the SAME reason `SurfaceHost` was (#918
+    // defect 7): the chain was enumerated from the surfaces a session thinks about, and the one
+    // ABOVE all of them holds BOTH producers. `EchoelmusicApp` stores `cameraRPPG` and
+    // `audioEngine` as `@State` and builds `mainContent`. It is clean today — it INJECTS the
+    // objects (`.environment(cameraRPPG)`) and reads no property off them, which is exactly
+    // right and must stay green. But a single `Text("\(audioEngine.masterLevel)")` there would
+    // churn every surface in the app, and nothing was watching the topmost one.
+    private static let app = "Sources/Echoelmusic/EchoelmusicApp.swift"
+    /// The engine spelling, hard-written for the same reason `bioReceiver` is: `EchoelmusicApp`
+    /// holds it as `@State`, not `@Environment`, so the `@Environment`-shaped derivation used
+    /// for `EchoelStudioView` does not apply. Each scan below asserts the DECLARATION first, so
+    /// a rename fails loudly here instead of quietly emptying the needle.
+    private static let engineReceiver = "audioEngine"
+    private static let leaves = [
+        "Sources/Echoelmusic/Studio/HeaderMonitors.swift",
+        "Sources/Echoelmusic/Studio/PulseMeasurementView.swift",
+        "Sources/Echoelmusic/Studio/BioStripView.swift",
+    ]
+
+    // MARK: - 1. The derivation itself
+
+    func testTheHotSetIsDerivedAndSelectsTheOneThatCausedTheFreeze() throws {
+        let hot = try hotProperties()
+        XCTAssertTrue(hot.contains("waveform"), """
+            `waveform` is THE property of the 10.76.50 finding — `WorkspaceView.topBar` read it \
+            to feed the header pulse tile, and it updates ~10 Hz while biofeedback runs. If the \
+            derivation stops selecting it, the two scans below go green by selecting nothing, \
+            which is the #367 failure mode this claim exists to block. Selected: \
+            \(hot.sorted().joined(separator: ", "))
+            """)
+        XCTAssertTrue(hot.contains("rrWindowMs"), """
+            `rrWindowMs` is the property whose OWN doc comment in the publisher states this \
+            law — "must only ever be read inside a LEAF view … would tear down any open \
+            `.menu` Picker on every heartbeat". Its getter is `{ analyzer.rawIntervalsMs }`: \
+            it mentions no hot NAME, so a name-graph alone never finds it. If this fails, the \
+            "reads the 15 fps analyzer" rule was lost and the derivation has a hole the \
+            source itself warns about.
+            """)
+        XCTAssertTrue(hot.contains("coachingHint"), """
+            Three hops — `coachingHint` → `acquisitionCue` → a PRIVATE `placementCue` → \
+            `fingerDetected`/`isLocked`. A single hop through public members only, which is \
+            what the first version did, found none of the three. If this fails, either the \
+            transitive closure stopped iterating or private waypoints were dropped again.
+            """)
+        XCTAssertGreaterThanOrEqual(hot.count, 5, """
+            The derivation collapsed to \(hot.count) propert(ies). It reads the publisher's own \
+            declarations and its publish task; if either anchor moved, re-derive it rather than \
+            lowering this floor — a scan over an empty set proves nothing at all.
+            """)
+    }
+
+    func testTheStartStopFlagIsNotTreatedAsHot() throws {
+        let hot = try hotProperties()
+        XCTAssertFalse(hot.contains("isRunning"), """
+            COUNTERWEIGHT, and it is the one that keeps this guard from forbidding correct work \
+            (#364). `isRunning` changes on start and on stop — not on a tick — and reading it in \
+            an ancestor is exactly what the 10.76.50 repair LEFT in place. A derivation that \
+            swept it up would redden the shipped fix.
+            """)
+    }
+
+    // MARK: - 2. The three ancestors
+    // ⛔ THIS HEADING SAID "the two ancestors" until #919, with three tests under it. It was
+    // left over from before `SurfaceHost` was added — the #918 review found the missing
+    // ancestor and nobody moved the label with it. A heading that miscounts what follows is
+    // small, but it is the same defect as a name describing a procedure the code stopped
+    // taking (#374): a reader trusts it instead of counting.
+
+    func testTheWrapperBuildsNoViewFromAHotReadout() throws {
+        let members = try assertNoHotRead(in: Self.wrapper, of: "SurfaceHost",
+                                          receiver: Self.bioReceiver, hot: try hotProperties(), why: """
+            `SurfaceHost` sits BETWEEN the root and the Picker host. It is clean today; the \
+            claim exists because the defect's whole history is that each fix reached one level \
+            and the next read appeared one level above it.
+            """)
+        XCTAssertGreaterThan(members, 0, "no view-building member found in SurfaceHost — the needle stopped matching")
+    }
+
+    func testTheRootBuildsNoViewFromAHotReadout() throws {
+        let members = try assertNoHotRead(in: Self.root, of: "WorkspaceView",
+                                          receiver: Self.bioReceiver, hot: try hotProperties(), why: """
+            `WorkspaceView` is the ROOT. A ~10 Hz read in any of its view-building members \
+            rebuilds every surface below it ten times a second and tears down whatever Picker \
+            popover the player has open — the founder's "kann ich nicht mehr auswählen", \
+            reported five times. The repair is never to throttle: confine the read to its own \
+            small leaf `View` struct (`PulseMonitorMiniLive` is the worked example) so only that \
+            leaf churns.
+            """)
+        XCTAssertGreaterThan(members, 0, """
+            ANCHOR ASSERTION, and the first version did not have one: the member needles \
+            (`: some View {`, `-> some View {`) are what the negative claim iterates over. If \
+            they stop matching — a reformat, a move into an extension — the loop runs zero \
+            times and the claim passes by finding nothing. #367, and it is the exact mode the \
+            counterweights below exist to block.
+            """)
+    }
+
+    func testTheMenuHostBuildsNoViewFromAHotReadout() throws {
+        let members = try assertNoHotRead(in: Self.host, of: "EchoelStudioView",
+                                          receiver: Self.bioReceiver, hot: try hotProperties(), why: """
+            `EchoelStudioView` hosts the Picker menus themselves. `AnyView(...)` is NOT an \
+            observation boundary, so a read in ANY member this body evaluates — including a \
+            dropdown panel — registers the whole body as a 10 Hz observer. Reads inside \
+            `private func` bodies and `.task {}` closures are deliberately out of scope: they \
+            are not body evaluation, and three of them exist here on purpose.
+            """)
+        XCTAssertGreaterThan(members, 20, """
+            ANCHOR ASSERTION. `EchoelStudioView` had \(members) view-building members when \
+            this was written (66). A collapse to a handful means a needle stopped matching, \
+            not that the view shrank — and the negative claim above would then be green for \
+            having looked at almost nothing.
+            """)
+    }
+
+    // MARK: - 3. The needle must be able to match
+
+    func testTheLeavesStillReadTheHotReadouts() throws {
+        let hot = try hotProperties()
+        var found: [String] = []
+        for path in Self.leaves {
+            let text = SourceText.codeOnly(try read(path))
+            for name in hot where text.contains("cameraRPPG.\(name)") {
+                found.append("\(path.split(separator: "/").last ?? ""):\(name)")
+            }
+        }
+        XCTAssertFalse(found.isEmpty, """
+            COUNTERWEIGHT AND SELF-TEST IN ONE. The two scans above are NEGATIVE claims, and a \
+            negative claim with a needle that cannot match is green forever while proving \
+            nothing (#367). The leaves are where these reads BELONG — the law is "in a leaf", \
+            not "nowhere" — so at least one of them must still contain one. If this is empty, \
+            either the leaves were emptied or the `cameraRPPG.` spelling changed, and the two \
+            scans above are worthless until it is fixed.
+            """)
+    }
+
+    func testTheRootStillReadsTheStartStopFlag() throws {
+        let text = SourceText.codeOnly(try read(Self.root))
+        XCTAssertTrue(text.contains("cameraRPPG.isRunning"), """
+            COUNTERWEIGHT: proves the root scan is reading the right file with the right \
+            spelling. `WorkspaceView` reads the publisher — just not a ticking property. \
+            Without this, `testTheRootBuildsNoViewFromAHotReadout` would also pass on a file \
+            that mentions the publisher nowhere at all.
+            """)
+    }
+
+    // MARK: - 4. The second producer (#919) — meter poll + automation lane
+
+    func testTheMeterHotSetIsDerivedFromTheSixtyHertzTimer() throws {
+        let meter = try meterProperties()
+        XCTAssertTrue(meter.contains("masterLevel"), """
+            DERIVATION CLAIM. `masterLevel` is the stereo mix level the 60 Hz poll timer \
+            rewrites; if the derivation cannot find it, every negative claim below is green \
+            for having an empty needle set (#367). Selected: \(meter.sorted()).
+            """)
+        XCTAssertFalse(meter.contains("monitorPollTick"), """
+            EXCLUSION CLAIM, and it must hold for the RIGHT reason. `monitorPollTick` is \
+            written inside the very same closure but is `@ObservationIgnored`, so it cannot \
+            invalidate any body. The derivation filters on that attribute — NOT on the `&+=` \
+            spelling that happens to keep it out of the assignment regex today. A future \
+            `self.monitorPollTick = 0` in that closure must stay excluded.
+            """)
+    }
+
+    func testTheAutomationRewriteIsTreatedAsHot() throws {
+        let hot = try audioEngineHotProperties()
+        XCTAssertTrue(hot.contains("masterVolume"), """
+            THE DOCUMENTED HISTORICAL BUG, in guard form. `AutomationPlayer.applyStep` writes \
+            `audioEngine.masterVolume` on EVERY transport step. Read inline in `masterPanel` it \
+            invalidated the whole studio body and tore down the open Tonart/Genre Picker — the \
+            "menus freeze while playing" report. The repair was `MasterVolumeField`, a struct \
+            whose only job is to hold that one read. This claim is what keeps the repair from \
+            being tidied away. Selected: \(hot.sorted()).
+            """)
+    }
+
+    func testTheMenuHostBuildsNoViewFromAHotEngineReadout() throws {
+        let receiver = try XCTUnwrap(environmentReceiver(for: "AudioEngine", in: Self.host), """
+            `EchoelStudioView` no longer declares `@Environment(AudioEngine.self)`. The scan \
+            below anchors on that binding's NAME, so without it the claim would pass by having \
+            nothing to look for. Either the binding moved and this guard follows it, or the \
+            host genuinely stopped holding the engine — say which in the commit.
+            """)
+        // ⛔ THE UNWRAP ALONE IS NOT ENOUGH. `environmentReceiver` takes the first `var ` after
+        // the `@Environment(...)` marker; a layout it does not expect would hand back a name
+        // that appears nowhere, and the scan below would then look for a spelling that cannot
+        // match — green while proving nothing (#367). This asserts the derived name is a name
+        // the file actually USES, which is the cheap half of the same question.
+        XCTAssertTrue(SourceText.codeOnly(try read(Self.host)).contains("\(receiver)."), """
+            `environmentReceiver` derived "\(receiver)" from \(Self.host), and that spelling \
+            occurs nowhere in the file. The derivation read the wrong `var`. The scan below \
+            anchors on it, so it would pass by looking for something that does not exist.
+            """)
+        let members = try assertNoHotRead(in: Self.host, of: "EchoelStudioView",
+                                          receiver: receiver,
+                                          hot: try audioEngineHotProperties(), why: """
+            `EchoelStudioView` hosts the Picker menus. A 60 Hz meter read in any member this \
+            body evaluates rebuilds the whole subtree sixty times a second — six times worse \
+            than the biofeedback freeze, and it happens whenever audio is RUNNING rather than \
+            only when the camera is on. The repair is the same and is already written down \
+            twice in `MasterLoudnessGrid.swift`: give the read its own small leaf `View`.
+            """)
+        XCTAssertGreaterThan(members, 20, """
+            ANCHOR ASSERTION — same mode as the bio scan: if the member needles stop matching, \
+            the loop runs zero times and the negative claim is green for looking at nothing.
+            """)
+    }
+
+    func testTheLoudnessLeafStillReadsTheMeter() throws {
+        let receiver = try XCTUnwrap(environmentReceiver(for: "AudioEngine", in: Self.loudnessLeaf))
+        let hot = try audioEngineHotProperties()
+        let text = SourceText.codeOnly(try read(Self.loudnessLeaf))
+        let found = hot.sorted().filter { text.contains("\(receiver).\($0)") }
+        XCTAssertFalse(found.isEmpty, """
+            COUNTERWEIGHT AND SELF-TEST. `testTheMenuHostBuildsNoViewFromAHotEngineReadout` is \
+            a NEGATIVE claim, and a negative claim whose needle cannot match is green forever \
+            (#367). `MasterLoudnessGrid` is where these reads BELONG — the law is "in a leaf", \
+            not "nowhere" — so it must still contain at least one, spelled exactly the way the \
+            scan looks for it. Empty here means the scan above proves nothing.
+            """)
+    }
+
+    // MARK: - 5. The topmost ancestor (#919)
+
+    func testTheAppLevelAncestorBuildsNoViewFromHotBio() throws {
+        let app = SourceText.codeOnly(try read(Self.app))
+        XCTAssertTrue(app.contains("var \(Self.bioReceiver) = CameraRPPGBioPublisher()"), """
+            ANCHOR FIRST, and it is NOT the one you would reach for: `\(Self.bioReceiver).` \
+            occurs ZERO times in \(Self.app) — the app only INJECTS the object — so a \
+            "still reads it" counterweight would be a claim that can never hold (#367). The \
+            DECLARATION is the thing that proves the spelling is real, and it is what a rename \
+            has to carry with it.
+            """)
+        let members = try assertNoHotRead(in: Self.app, of: "EchoelmusicApp",
+                                          receiver: Self.bioReceiver, hot: try hotProperties(), why: """
+            `EchoelmusicApp` is ABOVE `WorkspaceView`, which was itself the surprise of 10.76.50 \
+            ("the read was one level up"). It owns the publisher. A ~10 Hz read in `mainContent` \
+            would rebuild literally every surface. Passing the object on with `.environment(...)` \
+            is NOT such a read and stays green — that is the correct pattern, not a violation.
+            """)
+        XCTAssertGreaterThan(members, 0, """
+            ANCHOR ASSERTION: `EchoelmusicApp` had one view-building member (`mainContent`) when \
+            this was written. Zero means the needle stopped matching and the claim above looked \
+            at nothing.
+            """)
+    }
+
+    func testTheAppLevelAncestorBuildsNoViewFromHotEngineState() throws {
+        let app = SourceText.codeOnly(try read(Self.app))
+        XCTAssertTrue(app.contains("var \(Self.engineReceiver): AudioEngine"), """
+            ANCHOR FIRST: the `@State` declaration is what makes "\(Self.engineReceiver)" the \
+            right spelling to scan for. If it is renamed or the app stops owning the engine, \
+            this fails by name rather than the scan below going quietly green.
+            """)
+        let members = try assertNoHotRead(in: Self.app, of: "EchoelmusicApp",
+                                          receiver: Self.engineReceiver,
+                                          hot: try audioEngineHotProperties(), why: """
+            Same ancestor, the 60 Hz producer. `EchoelmusicApp` calls `\(Self.engineReceiver).` \
+            a dozen times — all of it lifecycle and action code, none of it body evaluation, \
+            which is why this is a real risk rather than a theoretical one: the name is already \
+            in scope and in habitual use one line away from a view builder.
+            """)
+        XCTAssertGreaterThan(members, 0, "no view-building member found in EchoelmusicApp")
+    }
+
+    // MARK: - Derivation
+
+    /// Externally readable, observation-TRACKED properties that a body evaluating them
+    /// registers on at ~10 Hz.
+    ///
+    /// Three sources, and the second and third were both added after a review drove mutants
+    /// through the first: (a) stored properties the publish task assigns; (b) a computed
+    /// property whose getter reads `analyzer.` — `CameraAnalyzer` is fed at 15 fps, and
+    /// `rrWindowMs` is exactly that shape while mentioning no hot NAME at all; (c) the
+    /// transitive closure over computed properties, PRIVATE nodes included as waypoints.
+    /// `acquisitionCue` reaches its hot inputs only through a private `placementCue`, and
+    /// `coachingHint` only through `acquisitionCue` — a public-only single hop found neither.
+    private func hotProperties() throws -> Set<String> {
+        let all = SourceText.codeOnly(try read(Self.publisher))
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        // Scoped to the class, like the scan half — otherwise the loop ingests declarations
+        // from other types in the file and every function-local `var`.
+        guard let (lo, hi) = span(of: "class CameraRPPGBioPublisher", in: all) else {
+            XCTFail("`class CameraRPPGBioPublisher` is gone — re-derive this scan")
+            return []
+        }
+        let lines = Array(all[lo..<hi])
+        let text = lines.joined(separator: "\n")
+        guard let taskStart = text.range(of: "publishTask = Task") else {
+            XCTFail("the publish-task anchor `publishTask = Task` is gone — re-derive the scan")
+            return []
+        }
+        let tick = String(text[taskStart.lowerBound...])
+
+        struct Decl { let tracked: Bool; let privateGetter: Bool; let computed: Bool; let body: String }
+        var decls: [String: Decl] = [:]
+        for (index, line) in lines.enumerated() {
+            guard let name = declaredVarName(in: line) else { continue }
+            // `private(set)` is NOT a private getter — it is this publisher's normal shape
+            // (`public private(set) var waveform`), and treating it as private returned an
+            // empty set on the first attempt.
+            let privateGetter = line.contains("private var ") || line.contains("fileprivate var ")
+            let head = line.split(separator: "{", maxSplits: 1).first.map(String.init) ?? line
+            let computed = line.contains("{") && !head.contains("=")
+            let after = line.range(of: "{").map { String(line[$0.upperBound...]) } ?? ""
+            let oneLiner = computed && after.contains("}")
+            decls[name] = Decl(tracked: !line.contains("@ObservationIgnored"),
+                               privateGetter: privateGetter,
+                               computed: computed,
+                               body: computed ? (oneLiner ? line : memberBody(in: lines, from: index)) : "")
+        }
+
+        var hot = Set<String>()
+        for (name, d) in decls where d.tracked {
+            if !d.computed && tick.contains("self.\(name) = ") { hot.insert(name) }
+            if d.computed && mentions("analyzer.", in: d.body) { hot.insert(name) }
+        }
+        // Fixed point over SORTED names. ⛔ The first version walked a `Dictionary`, whose
+        // iteration order is per-process seeded: with any two-hop chain present the derived
+        // set would have differed between runs and the negative scans would have been
+        // intermittently green — a flake in the guard sold as "derived, so it catches
+        // tomorrow's properties".
+        var grew = true
+        while grew {
+            grew = false
+            for name in decls.keys.sorted() {
+                guard let d = decls[name], d.tracked, d.computed, !hot.contains(name) else { continue }
+                if hot.sorted().contains(where: { mentions($0, in: d.body) }) {
+                    hot.insert(name)
+                    grew = true
+                }
+            }
+        }
+        // A private getter cannot be read by a view; it is only a waypoint above.
+        return hot.filter { decls[$0]?.privateGetter == false }
+    }
+
+    private func declaredVarName(in line: String) -> String? {
+        guard let r = line.range(of: "var ") else { return nil }
+        let rest = line[r.upperBound...]
+        let name = rest.prefix { $0.isLetter || $0.isNumber || $0 == "_" }
+        guard !name.isEmpty else { return nil }
+        let after = rest.dropFirst(name.count).first
+        guard after == ":" || after == " " || after == "=" else { return nil }
+        return String(name)
+    }
+
+    /// `body.contains(name)` with word edges, so `isLocked` is not found inside `isLockedRaw`.
+    /// Whole-word containment — with the RIGHT boundary applied only when the needle ends in a
+    /// word character.
+    ///
+    /// ⛔ THIS WAS BROKEN IN `380fcdc` AND NOTHING SAW IT — the eighth defect of this guard, and
+    /// the first one that was RED rather than merely wrong. The right-hand boundary was
+    /// unconditional, so the seed needle `analyzer.` could match only where a dot is followed by
+    /// a NON-word character. In a property access it never is. The entire "computed getter reads
+    /// the 15 fps analyzer" branch was therefore DEAD, and `rrWindowMs` — the property whose own
+    /// doc comment in the publisher states this very freeze law — silently left the hot set.
+    /// `testTheHotSetIsDerivedAndSelectsTheOneThatCausedTheFreeze` was red on the parent tree,
+    /// exactly as its name promises (#367 held; the derivation was what lied).
+    ///
+    /// ⭐ IT SURVIVED A SHIP BECAUSE OF TWO BLIND SPOTS AT ONCE, and both are written down
+    /// elsewhere in this repo: the CI job log carries only `tail -200 test.log`, so a failure
+    /// earlier in the run leaves no trace (#807/#445), and delta grading compares parent with
+    /// worktree, so an assertion red on BOTH produces no delta and is reported by nothing. The
+    /// only thing that finds it is `Tests/CISmoke/CLAUDE.md` §3's rule — when a slice rewrites a
+    /// guard substantially, DRIVE EVERY ASSERTION IN IT, not only the ones it changed. #919 did
+    /// that and this is what it caught.
+    private func mentions(_ name: String, in body: String) -> Bool {
+        // A needle ending in `.` is a RECEIVER prefix, not an identifier: `analyzer.` is meant
+        // to match `analyzer.rawIntervalsMs`. Demanding a boundary after the dot asks for the
+        // one thing a property access can never provide.
+        let needsRightBoundary = name.last.map(isWordChar) ?? false
+        var searchFrom = body.startIndex
+        while let r = body.range(of: name, range: searchFrom..<body.endIndex) {
+            let beforeOK = r.lowerBound == body.startIndex
+                || !isWordChar(body[body.index(before: r.lowerBound)])
+            let afterOK = !needsRightBoundary
+                || r.upperBound == body.endIndex || !isWordChar(body[r.upperBound])
+            if beforeOK && afterOK { return true }
+            searchFrom = r.upperBound
+        }
+        return false
+    }
+
+    private func isWordChar(_ c: Character) -> Bool { c.isLetter || c.isNumber || c == "_" }
+
+    // MARK: - Derivation, second producer (#919)
+
+    /// The readouts the 60 Hz meter poll timer rewrites, DERIVED from the timer closure rather
+    /// than listed — a list names today's set and misses tomorrow's addition in silence (#818).
+    /// ⛔ THE FIRST DRAFT OF THIS LINE WROTE THE COUNT ("the nine readouts"), in the doc of the
+    /// function whose entire purpose is not to have a list. The count is printed by
+    /// `testTheMeterHotSetIsDerivedFromTheSixtyHertzTimer`'s failure message; it is not a fact
+    /// to keep here.
+    ///
+    /// The closure is located by its interval literal and extracted by BRACE MATCHING, never by
+    /// a fixed line window: this repo writes 30-line comment blocks inside closures, so any
+    /// window is unsound by construction (#408).
+    ///
+    /// ⭐ THE `@ObservationIgnored` FILTER IS NOT COSMETIC. `monitorPollTick` is written in this
+    /// closure and is observation-ignored, so a body reading it does NOT churn. Filtering on the
+    /// ATTRIBUTE and not on the `&+=` spelling is the difference between an exclusion that holds
+    /// and one that holds by accident until someone writes `= 0`.
+    private func meterProperties() throws -> Set<String> {
+        let lines = SourceText.codeOnly(try read(Self.audioEngine))
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let anchor = "Timer.scheduledTimer(withTimeInterval: 1.0 / 60.0"
+        guard let start = lines.firstIndex(where: { $0.contains(anchor) }),
+              let (lo, hi) = span(of: lines[start], in: lines, from: start) else {
+            XCTFail("""
+                the 60 Hz meter poll timer is gone from \(Self.audioEngine), or its interval is \
+                no longer spelled `1.0 / 60.0`. This derivation anchors on that literal. Do not \
+                replace it with a hard-coded property list — move the anchor.
+                """)
+            return []
+        }
+        var names: Set<String> = []
+        for line in lines[lo..<hi] {
+            guard let range = line.range(of: "self.") else { continue }
+            let rest = line[range.upperBound...]
+            let name = String(rest.prefix { isWordChar($0) })
+            guard !name.isEmpty else { continue }
+            // Only an ASSIGNMENT makes the property a producer; a read inside the closure does
+            // not. `&+=`, `+=` and `==` are deliberately not assignments for this purpose.
+            let after = rest.dropFirst(name.count).drop { $0 == " " }
+            guard after.first == "=", after.dropFirst().first != "=" else { continue }
+            guard isObservationTracked(name, in: lines) else { continue }
+            names.insert(name)
+        }
+        return names
+    }
+
+    /// Whether a stored property of the scanned type can invalidate a body that reads it.
+    /// `@ObservationIgnored` — on the declaration line or the line above it — means it cannot.
+    ///
+    /// ⚠️ LIMIT, stated rather than engineered around: it takes the FIRST `var <name>` in the
+    /// file that looks like a declaration. A local variable of the same name declared earlier
+    /// would be read instead. It cannot happen for a name the closure assigns through `self.`
+    /// unless someone shadows a master readout inside a function above line 68 — and the
+    /// failure direction is EXCLUSION, so that one property would quietly leave the hot set
+    /// while the others still guard. Do not "fix" it with an indentation rule: a property that
+    /// moves into a nested type would then be dropped for the same reason, silently.
+    private func isObservationTracked(_ name: String, in lines: [String]) -> Bool {
+        for (index, line) in lines.enumerated() where line.contains("var \(name)") {
+            let declared = line.contains("var \(name):") || line.contains("var \(name) =")
+            guard declared else { continue }
+            if line.contains("@ObservationIgnored") { return false }
+            if index > 0, lines[index - 1].contains("@ObservationIgnored") { return false }
+            return true
+        }
+        return false
+    }
+
+    /// `AudioEngine` properties an automation lane rewrites on every transport step.
+    /// Derived from the write sites, so a second automatable engine parameter joins the hot set
+    /// the day it is wired — which is exactly when a session is most likely to read it inline.
+    private func automationRewrittenProperties() throws -> Set<String> {
+        let text = SourceText.codeOnly(try read(Self.automation))
+        var names: Set<String> = []
+        var rest = text[...]
+        let needle = "audioEngine?."
+        while let range = rest.range(of: needle) {
+            let tail = rest[range.upperBound...]
+            let name = String(tail.prefix { isWordChar($0) })
+            let after = tail.dropFirst(name.count).drop { $0 == " " }
+            if !name.isEmpty, after.first == "=", after.dropFirst().first != "=" {
+                names.insert(name)
+            }
+            rest = tail
+        }
+        return names
+    }
+
+    /// Both `AudioEngine` producers as one set. They are unioned rather than checked
+    /// separately because a body does not care WHICH tick invalidated it — one hot read is one
+    /// freeze. The two derivations stay apart so a failure message names the real source.
+    private func audioEngineHotProperties() throws -> Set<String> {
+        let meter = try meterProperties()
+        let automated = try automationRewrittenProperties()
+        return meter.union(automated)
+    }
+
+    /// The local name a view gives an `@Environment(<Type>.self)` binding — the spelling the
+    /// scan anchors on. Derived from the file itself, so a rename moves the guard with it
+    /// instead of silently emptying its needle.
+    private func environmentReceiver(for type: String, in path: String) throws -> String? {
+        let text = SourceText.codeOnly(try read(path))
+        guard let range = text.range(of: "@Environment(\(type).self)") else { return nil }
+        var rest = text[range.upperBound...]
+        guard let varRange = rest.range(of: "var ") else { return nil }
+        rest = rest[varRange.upperBound...]
+        let name = String(rest.prefix { isWordChar($0) })
+        return name.isEmpty ? nil : name
+    }
+
+    // MARK: - The scan
+
+    /// Every member of `type` that BUILDS A VIEW, in its `struct` and in any `extension`.
+    ///
+    /// ⛔ TWO NEEDLES, NOT ONE. The first version matched only `: some View {`, so all 19
+    /// `-> some View` FUNCTIONS in `EchoelStudioView` and the 1 in `WorkspaceView` were
+    /// invisible — and a driven mutant put a hot read in `menuChip` and stayed green. A
+    /// `@ViewBuilder private func` is body evaluation just as much as a computed `var`.
+    ///
+    /// ⭐ #919 MADE THE RECEIVER AND THE HOT SET PARAMETERS. They were baked in as
+    /// `cameraRPPG` + `hotProperties()`, which read as "this is the freeze producer" when it is
+    /// only the FIRST one found. A second producer exists and is six times hotter; see
+    /// `audioEngineHotProperties()`. The algorithm is deliberately NOT duplicated into a
+    /// sibling file — it has been wrong seven times, and a copy would inherit every one.
+    @discardableResult
+    private func assertNoHotRead(in path: String, of type: String,
+                                 receiver: String, hot: Set<String>,
+                                 why: String) throws -> Int {
+        let lines = SourceText.codeOnly(try read(path))
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+
+        // ⛔ SCOPED TO THE TYPE, NOT TO THE FILE — a driven mutant forced this. A file-wide
+        // scan flags a small leaf `View` struct declared in the same file, and declaring one is
+        // the DOCUMENTED REPAIR for this very defect. Forbidding the fix in the guard that
+        // teaches it is #364 in its purest form. Extensions of the type count as the type.
+        var spans: [(Int, Int)] = []
+        if let s = span(of: "struct \(type):", in: lines) { spans.append(s) }
+        for (index, line) in lines.enumerated() where line.hasPrefix("extension \(type)") {
+            if let s = span(of: line, in: lines, from: index) { spans.append(s) }
+        }
+        guard !spans.isEmpty else {
+            XCTFail("`struct \(type):` is gone from \(path) — move this guard with it")
+            return 0
+        }
+
+        var offences: [String] = []
+        var members = 0
+        for (lo, hi) in spans {
+            for index in lo..<hi where lines[index].contains(": some View {")
+                                       || lines[index].contains("-> some View {") {
+                members += 1
+                // ⛔ WALK BACK TO THE DECLARATION LINE. A multi-line signature puts
+                // `) -> some View {` on a CONTINUATION line, indented deeper than its `func`;
+                // brace-matching from there ran past the member's end and swallowed unrelated
+                // code — seven false offences on a correct tree, found by driving it.
+                var start = index
+                var steps = 0
+                while start > lo, steps < 12,
+                      !lines[start].contains("func "), !lines[start].contains("var ") {
+                    start -= 1
+                    steps += 1
+                }
+                // The declaration line is part of the member: a one-line
+                // `var x: some View { Text("\(cameraRPPG.waveform.count)") }` keeps its whole
+                // body there, and an extraction that starts AFTER it was a second false green.
+                let member = lines[start] + "\n" + memberBody(in: lines, from: start)
+                for name in hot.sorted() where member.contains("\(receiver).\(name)") {
+                    offences.append("line \(index + 1): \(lines[index].trimmingCharacters(in: .whitespaces)) reads \(receiver).\(name)")
+                }
+            }
+        }
+        XCTAssertTrue(offences.isEmpty, """
+            \(path) builds a view from a hot `\(receiver)` readout:
+            \(offences.joined(separator: "\n"))
+
+            \(why)
+            """)
+        return members
+    }
+
+    // MARK: - Helpers
+
+    /// The half-open line range of a declaration: from the line containing `opener` to the
+    /// closing `}` at that line's OWN indentation. Structural, not a line count — this repo
+    /// writes 30-line comment blocks, so any fixed window is unsound by construction (#408).
+    private func span(of opener: String, in lines: [String], from: Int? = nil) -> (Int, Int)? {
+        guard let start = from ?? lines.firstIndex(where: { $0.contains(opener) }) else { return nil }
+        let indent = lines[start].prefix { $0 == " " }.count
+        let close = lines[(start + 1)...].firstIndex {
+            $0.trimmingCharacters(in: .whitespaces) == "}"
+                && $0.prefix { c in c == " " }.count == indent
+        } ?? lines.endIndex
+        return (start, close)
+    }
+
+    private func memberBody(in lines: [String], from index: Int) -> String {
+        guard let (start, close) = span(of: lines[index], in: lines, from: index) else { return "" }
+        return lines[(start + 1)..<close].joined(separator: "\n")
+    }
+
+    private func read(_ relative: String) throws -> String {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let sources = root.appendingPathComponent("Sources/Echoelmusic")
+        guard FileManager.default.fileExists(atPath: sources.path) else {
+            throw XCTSkip("""
+                Sources/ is not reachable from this file's path — the checkout layout changed. \
+                Skipping rather than failing: this guard reads source text, and an unreadable \
+                tree is not evidence that the code is wrong.
+                """)
+        }
+        return try String(contentsOf: root.appendingPathComponent(relative), encoding: .utf8)
+    }
+}
