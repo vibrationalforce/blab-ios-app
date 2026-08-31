@@ -60,6 +60,7 @@ Read-only, no dependencies, no network, no build — the doctor.py house rules.
 """
 import os
 import re
+import subprocess
 import sys
 
 MARKER = "NEEDS-FOUNDER-VERIFY"
@@ -280,6 +281,56 @@ def collect():
     return found, refs, done
 
 
+
+# ── --since: which asks the build in the founder's hand made newly answerable ──────────
+#
+# ⭐ WHY THIS EXISTS (#931). The list is grouped by AREA, which is the right shape for
+# "walk the whole backlog" and the wrong one for the question the founder actually has
+# after a TestFlight build lands: *what did THIS build change that I can test right now?*
+# Sixty-odd asks are a project; the handful a new build touched are an evening. His device
+# time is the scarcest resource in this repo — every check that reads "you already answered
+# that" or "that is not wired yet" is spent for nothing.
+#
+# ⚠️ IT COMPARES THE REF TO THE **WORKING TREE**, not to `HEAD`, and that is not a detail.
+# `collect()` reads the working tree, so a `<ref>..HEAD` diff would hand back line numbers
+# from a different text the moment anything is uncommitted — the asks would be filtered by
+# positions that no longer mean what they meant. `git diff <ref>` (no second endpoint) is
+# exactly the comparison whose post-image IS the text being walked.
+#
+# ⚠️ AN ASK THAT MERELY MOVED IS CORRECTLY NOT "NEW". Editing lines above a marker shifts
+# its number without touching it; git reports no addition, and the ask stays out of the
+# filtered view. That is the intent: the founder is asking what CHANGED, not what slid.
+def added_lines_since(ref: str):
+    """Post-image line numbers added or reworded since `ref`, per path. None = cannot tell."""
+    try:
+        out = subprocess.run(
+            ["git", "diff", "-M", "--unified=0", ref, "--"] + list(ROOTS),
+            capture_output=True, text=True, cwd=os.path.dirname(os.path.dirname(
+                os.path.abspath(__file__))) or ".")
+    except OSError:
+        return None
+    if out.returncode != 0:
+        return None
+    added, path = {}, None
+    for line in out.stdout.split("\n"):
+        if line.startswith("+++ b/"):
+            path = line[6:]
+        elif line.startswith("@@") and path:
+            # `@@ -a,b +c,d @@` — `d` may be absent (means 1) or 0 (a pure deletion).
+            try:
+                plus = line.split("+", 1)[1].split(" ", 1)[0]
+            except IndexError:
+                continue
+            start, _, count = plus.partition(",")
+            try:
+                start_no, span = int(start), int(count) if count else 1
+            except ValueError:
+                continue
+            for n in range(start_no, start_no + span):
+                added.setdefault(path, set()).add(n)
+    return added
+
+
 def selftest() -> int:
     """Drive the two parsing rules over fixtures whose answers are known.
 
@@ -438,6 +489,47 @@ def selftest() -> int:
         if not when:
             bad.append(f"an ask reached ANSWERED with no date: {path}:{line_no}")
 
+    # 9. `--since` HUNK PARSING (#931). Driven over the three shapes git actually emits.
+    #    `+c` with no count means ONE line; `+c,0` is a pure deletion and adds nothing. A
+    #    parser that reads the missing count as 0 loses every single-line change — i.e. most
+    #    of them — and one that reads `,0` as 1 invents an ask at a deleted position.
+    class _Fake:
+        returncode = 0
+        stdout = "\n".join([
+            "diff --git a/Sources/A.swift b/Sources/A.swift",
+            "+++ b/Sources/A.swift",
+            "@@ -10 +10 @@",
+            "@@ -20,0 +21,2 @@",
+            "@@ -30,2 +33,0 @@",
+            "+++ b/Tests/B.swift",
+            "@@ -1,0 +2 @@",
+        ])
+    real_run = subprocess.run
+    try:
+        subprocess.run = lambda *a, **k: _Fake()
+        got = added_lines_since("whatever")
+    finally:
+        subprocess.run = real_run
+    want = {"Sources/A.swift": {10, 21, 22}, "Tests/B.swift": {2}}
+    if got != want:
+        bad.append(f"--since hunk parsing: got {got}, want {want}")
+
+    # 10. THE FAILURE MODE THAT MATTERS MORE THAN THE PARSING. An unresolvable ref must come
+    #     back as None, never as an empty dict: `{}` filters every ask away and prints
+    #     "nothing changed since <ref>", which is a confident WRONG answer that sends the
+    #     founder to bed. `None` is what makes `main` exit 2 and say it could not look.
+    class _Failed:
+        returncode = 128
+        stdout = ""
+    try:
+        subprocess.run = lambda *a, **k: _Failed()
+        got_bad = added_lines_since("no-such-ref")
+    finally:
+        subprocess.run = real_run
+    if got_bad is not None:
+        bad.append(f"an unresolvable ref returned {got_bad!r} instead of None — "
+                   "that prints 'nothing changed' for a question nobody answered")
+
     for line in bad:
         print("FAIL:", line)
     print(f"selftest: {'FAILED' if bad else 'ok'} ({len(bad)} problem(s))")
@@ -450,6 +542,13 @@ def main() -> int:
         return selftest()
     show_all = "--all" in args
     show_setup = "--setup" in args
+    since = None
+    if "--since" in args:
+        try:
+            since = args[args.index("--since") + 1]
+        except IndexError:
+            print("--since needs a git ref (e.g. the previous deploy's bump commit)")
+            return 2
     only = None
     if "--area" in args:
         try:
@@ -464,13 +563,45 @@ def main() -> int:
               "or a broken walk. Check that Sources/ and Tests/ are present.")
         return 2                      # INSTRUMENT UNAVAILABLE, never a silent green
 
+    total_open = len(found)
+    if since is not None:
+        added = added_lines_since(since)
+        # ⛔ NO SILENT FALLBACK TO THE FULL LIST. If git could not answer — no repo, a ref
+        # that does not resolve, git missing — printing all 60-odd asks under a header that
+        # says "since <ref>" would send the founder to re-test things this build never
+        # touched, and look like a deliberate answer. Exit 2 is this file's own word for
+        # "the instrument could not look", and `doctor` uses the same code for the same
+        # reason. Never a silent green, and never a silent WRONG list either.
+        if added is None:
+            print(f"Cannot resolve `{since}` — no answer given rather than the whole list.\n"
+                  f"   `git diff -M --unified=0 {since} -- {' '.join(ROOTS)}` is what this "
+                  f"needs; run it by hand to see why it failed.")
+            return 2
+        found = [(a, p, n, b) for (a, p, n, b) in found if n in added.get(p, ())]
+
     by_area = {}
     for area, p, n, body in found:
         by_area.setdefault(area, []).append((p, n, body))
 
     answered_note = f", {len(done)} answered" if done else ", none answered yet"
-    print(f"Founder device-session checklist — {len(found)} OPEN asks in "
-          f"{len({p for _, p, _, _ in found})} files{answered_note}\n")
+    if since is None:
+        print(f"Founder device-session checklist — {len(found)} OPEN asks in "
+              f"{len({p for _, p, _, _ in found})} files{answered_note}\n")
+    else:
+        # ⚠️ THE FILTERED COUNT MUST NEVER READ AS THE BACKLOG. Printing "12 OPEN asks"
+        # under a `--since` run would understate the queue by a factor of five and look
+        # identical to a shrinking backlog. Both numbers, and the word NEW, every time.
+        print(f"Founder device-session checklist — {len(found)} NEW or REWORDED since "
+              f"`{since}`, of {total_open} open{answered_note}")
+        print("   'New' means the marker LINE was added or changed. An ask that only moved "
+              "(lines edited above it) is deliberately NOT here — it did not change.")
+        print("   ⚠️ It sees TEXT, not capability: a REWORDED ask is an old ask whose sentence "
+              "was polished, not one that became newly answerable. Read the sentence.")
+        if not found:
+            print(f"\n   Nothing changed since `{since}`. The full list is the same command "
+                  f"without --since.")
+            return 0
+        print()
     for area in sorted(by_area, key=lambda a: -len(by_area[a])):
         items = by_area[area]
         if only and area != only:

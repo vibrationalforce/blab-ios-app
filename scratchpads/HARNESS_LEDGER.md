@@ -3152,3 +3152,55 @@ liest, der einen weiteren Parameter hinzufügt.
 Deklaration IST ein API-Vertrag.** Sie an die Stelle zu setzen, an der das Thema „hingehört"
 (hier: neben `unit`, weil beide die Anzeige betreffen), erzeugt an jeder Aufrufstelle einen
 Compile-Fehler, der nichts mit dem Thema zu tun hat.
+
+---
+
+## PLAYBOOK #931 (2026-08-31) — die Geräte-Liste nach dem sortieren, was der Bau IN SEINER HAND geändert hat
+
+**Das Problem war nicht die Liste, sondern ihre FRAGE.** `founder-verify.py` gruppiert 63
+offene Bitten nach Bereich. Das ist die richtige Form für „geh den ganzen Rückstand durch" und
+die falsche für die Frage, die der Founder nach einem TestFlight-Bau wirklich hat: **was hat
+DIESER Bau geändert, das ich jetzt prüfen kann?** Sechzig Bitten sind ein Projekt, die Handvoll
+eines neuen Baus ist ein Abend. Seine Gerätezeit ist die knappste Ressource dieses Repos — jede
+Prüfung, die „das hast du schon beantwortet" oder „das ist noch gar nicht verdrahtet" ergibt,
+ist umsonst ausgegeben.
+
+**`--since <ref>`** filtert auf Bitten, deren Marker-ZEILE seit `<ref>` hinzugekommen oder
+umformuliert wurde. Für v432 gegen den v431-Bump: **2 von 63** — und die eine, die zählt, ist
+die Kohärenz-Klangfarbe, also genau die, mit der die Deploy-Notiz aufmacht. **Zwei unabhängige
+Wege, dieselbe Bitte zu benennen, und sie stimmen überein** — das ist der eigentliche Wert
+dieser Kreuzprobe.
+
+⚠️ **ES VERGLEICHT DEN REF MIT DEM ARBEITSBAUM, nicht mit `HEAD`, und das ist kein Detail.**
+`collect()` liest den Arbeitsbaum; ein `<ref>..HEAD`-Diff lieferte Zeilennummern aus einem
+ANDEREN Text, sobald irgendetwas nicht eingecheckt ist — die Bitten würden nach Positionen
+gefiltert, die nicht mehr bedeuten, was sie bedeuteten. `git diff <ref>` (ohne zweiten
+Endpunkt) ist genau der Vergleich, dessen Nachbild der gelesene Text IST.
+
+⛔ **KEIN STILLER RÜCKFALL AUF DIE VOLLE LISTE.** Wenn git nicht antworten kann — kein Repo,
+ein Ref, der nicht auflöst —, wäre das Drucken aller 63 Bitten unter einer Überschrift „seit
+`<ref>`" eine SELBSTBEWUSSTE FALSCHE ANTWORT: sie schickt den Founder auf Prüfungen, die dieser
+Bau nie berührt hat, und sieht aus wie ein Ergebnis. Exit **2** ist das Wort dieses Skripts
+(und von `doctor`) für „das Instrument konnte nicht schauen". ⭐ **Und der teurere Zwilling
+davon ist `{}` statt `None`:** ein leeres Dict filtert JEDE Bitte weg und druckt „nichts hat
+sich geändert" — dieselbe Lüge, nur beruhigend statt geschwätzig. Selbsttest 10 fährt genau
+diesen Mutanten.
+
+⚠️ **DER FILTER SIEHT TEXT, NICHT FÄHIGKEIT**, und die Kopfzeile sagt es jetzt selbst: eine
+UMFORMULIERTE Bitte ist eine alte Bitte mit poliertem Satz, keine neu beantwortbare. Genau das
+ist bei v432 passiert — eine der zwei Zeilen ist die BLE-Gurt-Bitte, die nur neu formuliert
+wurde. Ohne diesen Satz läse der Founder beide als „neu prüfbar".
+
+**Gefahren:** M15 fehlende Hunk-Zahl als 0 gelesen → Selbsttest 9 rot (verliert JEDE
+einzeilige Änderung, also die meisten) · M16 `None` → `{}` → Selbsttest 10 rot. Basis grün,
+Exit 2 bei unauflösbarem Ref, volle Liste unverändert 63.
+
+⚠️ **EHRLICHE GRENZE: nichts in CI ruft `--selftest`.** Die zwei neuen Ansprüche laufen, wenn
+eine Sitzung sie fährt — nicht auf jedem Push. Das ist dieselbe Klasse wie die maskierten Gates
+in Sektion A von `doctor`: ein Werkzeug, dessen Kontrolle niemand automatisch ausführt. Nicht
+repariert (Workflows sind founder-gated), sondern benannt.
+
+⭐ **Auszahlung für die Deploy-Notiz-Disziplin (#911):** die Notiz misst gegen den BUMP-Commit;
+jetzt kann sie ihre Prüf-Bitten auch **daraus ableiten** statt sie aus dem Gedächtnis zu
+schreiben — `python3 scripts/founder-verify.py --since <voriger Bump>` gehört ab dem nächsten
+Bump neben die Messbefehle.
