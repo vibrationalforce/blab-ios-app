@@ -1,4 +1,4 @@
-build: v10.79.431 — der grosse Nachzieher: 54 Commits, die 430 nie ausgeliefert hat. Darin echte Reparaturen am Mikrofon-Weg, die Sprossen-Leiter komplett, und zwei neue Meldungen in der dunkelsten Strecke
+build: v10.79.432 — der Körper formt zum ersten Mal die Klangfarbe, der Klick bekommt seinen Akzent, und ein Absturz überlebt mehr als einen Start
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,102 +6,92 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.430.
+  Der Vorgänger ist 10.79.431.
 
-  ── ZUERST: WIE GROSS DIESE VERSION WIRKLICH IST ─────────────────────────
+  ── ZUERST: WIE GROSS DIESE VERSION IST ──────────────────────────────────
 
-  ⚠ Eine frühere Fassung dieser Notiz schrieb „grün auf allen fünf Commits seit 430".
-  Nachgemessen: es sind **54 Commits**, davon **33 im ausgelieferten Code**. Der
-  430er-Bau wurde gemacht, bevor der grösste Teil dieser Arbeit überhaupt geschrieben
-  war — 431 ist also kein Diagnose-Nachschlag, sondern die erste Auslieferung von
-  fünf Wochen Reparatur. Befehl zum Nachrechnen:
-  `git log --oneline 4d509fb..HEAD -- Sources/ | wc -l`
+  Gemessen gegen den BUMP-Commit `ed85674`, nicht gegen mein Arbeitsfenster (#911 —
+  genau diese Verwechslung hat 431 als „fünf Commits" verkauft, wo 54 lagen):
+
+      git log --oneline ed85674..HEAD            | wc -l   →  37
+      git log --oneline ed85674..HEAD -- Sources/| wc -l   →  15
+
+  Von den 15 ändern **neun** wirklich Verhalten. Die anderen sechs sind Kommentare,
+  Prosa-Korrekturen und ein gelöschtes totes Feld — die nenne ich unten beim Namen,
+  damit Du sie NICHT prüfst.
 
   ── WAS DU ALS NUTZER MERKEN SOLLTEST ────────────────────────────────────
 
-  Das sind die Änderungen, die Verhalten ändern — nicht nur Logzeilen:
+  1. **Deine Kohärenz formt zum ersten Mal die Klangfarbe.** (#920/#920b/#920c)
+     Im Klang-Kern gibt es seit langem einen Zweig, der die Spektralform verschiebt,
+     wenn die Kohärenz STEIGT oder FÄLLT. Er war nie erreichbar: jede Stelle, die die
+     Bio-Werte an den Klang übergab, schrieb dort eine harte 0. Jetzt rechnet
+     `CoherenceTrend` aus der Kohärenz-HISTORIE eine vorzeichenbehaftete Änderungsrate
+     (−1 fallend … +1 steigend), und der Zweig läuft.
+     ⚠ Der eigentliche Defekt sass eine Ebene tiefer und ist mit-repariert: der Zähler
+     war GETEILT, während die Uhr-Quelle nebenher alle 4–5 s eine ehrliche „Kohärenz 0"
+     schickt. Jede dieser Meldungen hat die ganze Historie gelöscht — auf einem
+     ~1-Hz-Kamerapuls also praktisch dauernd. Jetzt hat **jede Quelle ihre eigene
+     Historie**, und eine Meldung ohne Messwert HÄLT den Wert, statt ihn zu nullen.
 
-  1. **Aufnahme hängt nicht mehr bei 0 %, wenn das Mikrofon verweigert wird.**
-     Vorher: Du sagst „nicht erlauben" (oder iOS hat es nie gefragt), die Aufnahme
-     startet trotzdem und steht ewig bei null. Jetzt bricht sie sauber ab und sagt
-     warum. Der Fall „noch nie gefragt" war genau das Hängen (#891–#897).
-     VoiceOver liest den Abbruch jetzt mit vor.
+  2. **Der Klick hat einen Akzent-Schalter.** (#924)
+     „Accent downbeat" im Tempo-Panel, direkt unter „Beats per bar". Alles darunter war
+     schon gebaut — der Render-Block prüft `(beatIndex == 0) && audioAccent` —, nur
+     konnte ihn niemand bedienen. Und es ist der Schalter, der „Beats per bar"
+     überhaupt HÖRBAR macht: ohne Akzent klingt jeder Klick gleich und die Takt-Länge
+     ist folgenlos. Default unverändert AN.
+     ⚠ Ehrlich dazu, gemessen nach dem Bau (#927b): „Beats per bar" ist KLICK-lokal.
+     Der Takt, den der Sequenzer benutzt, ist ein fester Vierer (`Transport.beatsPerBar`)
+     und ändert sich nicht mit. Stellst Du den Klick auf 3, laufen Klick und Sequenzer
+     nach dem ersten gemeinsamen Schlag auseinander. Das ist heute so gebaut, nicht
+     kaputt — aber die Beschriftung liest sich breiter als die Sache ist.
 
-  2. **Der Aufnahmeweg gibt das Mikrofon wieder frei, wenn er unterwegs abbricht.**
-     Zwei frühe Ausstiege haben den Weg belegt und nie losgelassen — danach war die
-     Tonquelle bis zum Neustart blockiert (#889, #902).
+  3. **Ein Absturz überlebt mehr als einen Start, und Safe Mode zeigt ihn.**
+     (#916/#917/#917b) Bisher war der letzte Absturz nach dem nächsten Start weg —
+     also genau dann, wenn Du ihn hättest zeigen wollen. Jetzt bleibt er stehen, und
+     der Safe-Mode-Schirm nennt den Lauf, der es wert ist, statt irgendeinen.
 
-  3. **Ein kaputtes Eingangsformat bricht nicht mehr die ganze App ab.**
-     Wenn iOS ein Platzhalter-Format liefert (0 Hz), hat die App vorher einen harten
-     Abbruch ausgelöst. Jetzt verweigert sie nur diesen einen Schritt (#890).
+  ── WAS IM LOG NEU IST (nicht auf dem Schirm) ────────────────────────────
 
-  4. **Ein fehlgeschlagener Start lässt keinen halben Audiograph stehen** (#900).
-
-  ── WAS IM LOG NEU IST ───────────────────────────────────────────────────
-
-  Grundsatz der Leiter: **Stille zwischen zwei Sprossen ist ein Befund.** Dazu:
-
-  · Der ganze Mikrofon-Abbau und die Sitzungs-Umschaltung haben jetzt Sprossen
-    (#876–#880). Rung 1 hat zweimal gelogen und tut es nicht mehr (#877).
-  · Das Log sagt jetzt, WER das Mikrofon hält, nicht nur dass es angefordert wurde (#888).
-  · **Ein Wechsel der Audio-Kategorie, der gar nichts zu tun hat, sagt es jetzt.**
-    Fall: eine zweite Funktion will das Mikrofon, während die erste es schon hält.
-    Vorher schrieb die App „gebe frei … senke ab" und danach NICHTS. Jetzt steht dort
-    `session: raise SKIPPED` bzw. `session: lower SKIPPED`.
-  · **Ein dritter stummer Ausstieg spricht — und er ist KEIN Nichts-Tun.**
-    Wenn die Sitzung nie eingerichtet wurde, konnte die Kategorie trotzdem angehoben
-    sein und danach von NIEMANDEM gehalten werden. Das ist genau die
-    A2DP→HFP-Verschlechterung (Bluetooth klingt plötzlich telefonig). Die Zeile sagt
-    das jetzt wörtlich: `never configured; category left as-is`.
-  · **Zwei neue Zwischenmeldungen halbieren die dunkelste Strecke.**
-    Bisher hiess die letzte Sprosse vor dem ersten Eingriff am Mikrofon-Eingang:
-    „einer von DREI Audio-Aufrufen". Jetzt sind es zwei Hälften:
-    · `on: touching the input node + reading its format`
-    · `mic: start — installing the tap now`
-    Die zweite ist die wichtigere: das Installieren des Abgriffs MIT einem Format ist
-    der einzige Aufruf in dieser Gegend, dessen Format-Konflikt eine Ausnahme wirft,
-    die die App nicht abfangen kann — und der Name des Absturzes handelt genau davon.
-  · **Ein weiterer stummer Ausstieg im Mikrofon-Weg spricht.** Er schrieb bisher nur
-    ins Konsolen-Log, und das landet NIE in Deiner Exportdatei.
-
-  Dazu, ohne Wirkung auf dem Gerät, aber auf meine Auswertung: mein Lesegerät
-  unterscheidet ab jetzt „hier ist die Leiter absichtlich zu Ende" von „hier ist sie
-  gestorben". Vorher hätte es Dir einen gesunden Lauf als Absturz gemeldet — und
-  einmal, in einem Zwischenstand, sogar umgekehrt einen echten Tod als ordentliches
-  Ende. Beides ist gefahren und behoben.
+  · **Das Selbstheilungs-Netz hinterlässt eine Spur** (#915). Wenn der Start-Wächter
+    eingreift, stand das bisher nirgends in Deiner Exportdatei.
+  · **Zwei stumme Ausstiege der Monitoring-Leiter sprechen** (#913). Grundsatz bleibt:
+    Stille zwischen zwei Sprossen ist ein Befund.
 
   ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
 
-  1. **Der 428/429er-Fall:** App starten, ~1 Minute normal benutzen —
-     Kopfhörer an/aus, sperren/entsperren, gern einmal Voice timbre.
-  2. **Aufnahme mit verweigertem Mikrofon.** Einstellungen → Echoel → Mikrofon AUS,
-     dann eine Aufnahme starten. Erwartung: sauberer Abbruch mit Meldung, KEIN
-     Stehenbleiben bei 0 %. Danach wieder AN.
-  3. **Einmal Monitoring an und wieder aus.** Erwartung im Log: `on 1/5` … `on 5/5`.
-  4. **Zwei Mikrofon-Nutzer gleichzeitig.** Monitoring anlassen und dann Voice timbre
-     starten. Erwartung: `route: claim …` gefolgt von `session: raise SKIPPED` — und
-     eben NICHT von Stille.
-  5. Autotune-Folter (an/aus, schnell, gern mit Telefon und Megaphon) und die
-     `inserts[…tune=…]`-Latenz bei Autotune AUS.
-  6. Danach wie immer: Log per Save/Export → Diagnostics → Share.
-
-  Erwartung bei allen: KEIN Absturz — ODER die letzte Zeile nennt endlich den Schritt.
+  1. **Die Klangfarbe am Körper** — die einzige Bitte, die nur Dein Ohr beantworten
+     kann. Sitzung fahren, Kohärenz steigen und fallen lassen. Frage: ist die
+     Verschiebung HÖRBAR, aber nicht störend? Die Skala dahinter
+     (`fullScaleRisePerSecond = 0.05/s`) ist eine SCHÄTZUNG und das Einzige an dieser
+     Arbeit, das kein Test entscheiden kann. Zu stark oder zu schwach → sag es, die
+     Zahl steht als benannte Konstante genau dafür da.
+  2. **Der Akzent.** Tempo-Panel → Metronom an → „Accent downbeat" aus: jeder Klick
+     gleich. Wieder an: der erste Schlag des Taktes höher und lauter. Danach „Beats per
+     bar" verstellen und hören, ob die Taktlänge jetzt wirklich zu hören ist.
+  3. **Sauberer Start.** App starten, ~1 Minute normal benutzen — der Start-Pfad ist
+     angefasst (#915). Erwartung: kein Schwarzbild, kein Safe Mode.
+  4. **Safe Mode**, falls er kommt: nennt der Schirm einen Lauf, und steht der Absturz
+     nach einem WEITEREN Start immer noch da?
+  5. Danach wie immer: Log per Save/Export → Diagnostics → Share.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  Der exakte Auslöser des `isInputConnToConverter`-Absturzes hat weiterhin keinen
-  Namen. 431 repariert ihn nicht; es macht die Strecke lesbar und repariert vier
-  ANDERE, gemessene Defekte am selben Weg.
-
-  Und drei Sätze, die ich in dieser Runde geschrieben und wieder gestrichen habe,
-  weil Du auf diese Notizen Deine Zeit verwendest:
-  · Ich nannte den Eingangs-Zugriff „den stehenden Verdächtigen". Das ist eine
-    VERMUTUNG, keine Messung: kein einziges Deiner Logs endete je in dieser Strecke.
-    Die neuen Meldungen instrumentieren eine Hypothese.
-  · Ich begründete die fehlenden Nummern damit, dass sonst „jedes Log, das Du schon
-    geschickt hast, neu gelesen würde". Nachgemessen: keines Deiner Logs enthält
-    überhaupt eine solche Zeile. Der Grund ist ein anderer und trägt allein.
-  · Ich schrieb „fünf Commits seit 430". Es sind 54. Siehe ganz oben.
+  · Der exakte Auslöser des `isInputConnToConverter`-Absturzes hat weiterhin keinen
+    Namen. Auch 432 repariert ihn nicht.
+  · **Sechs der 15 Sources-Commits ändern NICHTS, was Du merken kannst** — und ich
+    schreibe sie hin, damit Du keine Zeit darauf verwendest: #916b, #919b, #927 und
+    #927b sind reine Kommentare, #923 sind zwei ehrliche Notizen an Bio-Dateien, #925
+    löscht ein Feld in `CameraAnalyzer`, das nie berechnet wurde und niemand las.
+    ⚠ Der Zähler in diesem Absatz stand bis zuletzt auf „Fünf der 14" — #927b kam nach
+    dem Schreiben dieser Notiz dazu. Genau die Verwechslung, vor der #911 warnt: eine
+    Notiz misst gegen den Bump-Commit, nicht gegen den Moment, in dem ich sie tippe.
+  · Die neuen Wächter dieser Runde sind **compile-verifiziert, ihre Ausführung ist
+    unbelegt**: das Job-Log ist nur ein festes Endstück, und ein fehlender Testname
+    beweist dort nichts (#445/#807). „Build for Testing = success" ist die Aussage, die
+    ich habe.
+  · Ich habe die Kohärenz-Kette am Gerät NICHT gehört. Punkt 1 oben ist genau deshalb
+    eine Bitte und keine Meldung.
 
   Compile-verifiziert (Xcode Compile Check grün auf den letzten Commits dieses
   Zweiges), nicht geräteverifiziert.
