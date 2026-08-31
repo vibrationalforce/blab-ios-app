@@ -175,6 +175,35 @@ SLOW_TYPECHECK = re.compile(
     r"([^\s:]+\.swift):(\d+):\d+: [^\n]{0,120}?took (\d+)ms to type-check")
 
 
+# ⭐ #935 — `TEST EXECUTE FAILED` HAS BEEN PRINTED WITH THE SAME SENTENCE FOR MONTHS, AND THE
+# SENTENCE IS "expected on every push". True for the shape this repo keeps hitting, and a
+# dangerous HABIT: a test host that crashes at launch prints the same marker, and this repo has
+# paid for that class more than once (the sheet-chain SIGSEGV, the black screen). So the report
+# now names what it can SEE, positively, instead of restating the habit.
+#
+# ⛔ MY FIRST VERSION OF THIS BLOCK WAS THE #778 MISTAKE IT QUOTED. I built the needle from ONE
+# log (run 33420005558, `d0f64c7`: `Failed to launch app with identifier: com.echoelmusic.app`
+# + `NSMachErrorDomain Code=-308 "(ipc/mig) server died"`) and had the no-match branch say "do
+# NOT read this as #396". `Tests/CISmoke/CLAUDE.md` §5 had already measured that wrong TWICE:
+#   · `bea1a83` (job 97331641102) — a SECOND spelling, `Simulator device failed to launch
+#     com.echoelmusic.app`, with FBSOpenApplicationServiceErrorDomain/FBProcessExit Code=64.
+#     My needle would have missed it entirely.
+#   · `5584ffd` — `TEST EXECUTE FAILED` with ZERO `Code=` and ZERO `server died` anywhere, and
+#     benign. My loud branch would have cried wolf on a routine push.
+# The evidence was in the repo before I wrote the needle. Hence: the needle anchors on the part
+# BOTH spellings share (`failed to launch`), and the no-match branch is NEUTRAL and cites
+# `5584ffd` by name so the next reader does not re-derive the alarm.
+#
+# ⚠️ THE DISCRIMINATOR IS STILL `TEST EXECUTE FAILED` vs `TEST BUILD FAILED` (§5). These lines
+# are a BONUS, not a criterion, and this must not change the exit code — making a run red for a
+# condition that predates the reader is the #364 trap.
+LAUNCH_FAILURE = re.compile(r"[Ff]ailed to launch (?:app with identifier: )?(\S+)")
+LAUNCH_ERROR = re.compile(r"Error Domain=(\S+) Code=(-?\d+)")
+# Measured present in BOTH observed spellings (§5): the environment dump of the failed launch
+# names the clone that died, while the survivor keeps printing `passed` lines.
+DEAD_CLONE = re.compile(r'RUN_DESTINATION_DEVICE_NAME" = "([^"]+)"')
+
+
 def find_failures(text):
     return FAIL_LINE.findall(text)
 
@@ -313,6 +342,37 @@ def selftest():
         bad += 0 if good else 1
         print(f"  {'ok ' if good else 'BAD'}  slow-typecheck {name:28}  -> {got}")
 
+    # The execute-failed launch needles (#935). BOTH observed spellings must match — the first
+    # version of this needle knew only one and would have missed `bea1a83` — and the negatives
+    # are what keep the neutral branch honest.
+    cause_cases = {
+        "spelling 1 (d0f64c7)": (LAUNCH_FAILURE,
+                                 "iOSSimulator: ABC: Failed to launch app with identifier: "
+                                 "com.echoelmusic.app and options: {", "com.echoelmusic.app"),
+        "spelling 2 (bea1a83)": (LAUNCH_FAILURE,
+                                 "Simulator device failed to launch com.echoelmusic.app",
+                                 "com.echoelmusic.app"),
+        "mach domain":          (LAUNCH_ERROR,
+                                 '(error = Error Domain=NSMachErrorDomain Code=-308 '
+                                 '"(ipc/mig) server died")', "NSMachErrorDomain"),
+        "fbs domain":           (LAUNCH_ERROR,
+                                 "Error Domain=FBSOpenApplicationServiceErrorDomain Code=1",
+                                 "FBSOpenApplicationServiceErrorDomain"),
+        "dead clone name":      (DEAD_CLONE,
+                                 '"RUN_DESTINATION_DEVICE_NAME" = "Clone 2 of iPhone 17";',
+                                 "Clone 2 of iPhone 17"),
+        "marker alone":         (LAUNCH_FAILURE, "** TEST EXECUTE FAILED **", None),
+        "a plain failure":      (LAUNCH_FAILURE,
+                                 "Test case 'A.testTwo()' failed on 'Clone 1' (0.2 seconds)", None),
+        "domain, no code":      (LAUNCH_ERROR, "Error Domain=NSMachErrorDomain", None),
+    }
+    for name, (needle, line, expected) in cause_cases.items():
+        hit = needle.search(line)
+        got = hit.group(1) if hit else None
+        good = got == expected
+        bad += 0 if good else 1
+        print(f"  {'ok ' if good else 'BAD'}  execute-launch {name:28}  -> {got}")
+
     print("selftest: OK" if not bad else f"selftest: {bad} check(s) MISREAD")
     return 0 if not bad else 1
 
@@ -356,6 +416,24 @@ def main():
     print(f"build-for-testing : {'Succeeded' if build else 'NOT SEEN'}")
     print(f"TEST BUILD FAILED : {build_failed}")
     print(f"TEST EXECUTE FAILED: {execute_failed}   (#396 — expected on every push)")
+    if execute_failed:
+        # Advisory, never fatal (#935). Positive evidence only — see the block above for why
+        # the no-match branch does NOT raise an alarm.
+        launched = LAUNCH_FAILURE.search(text)
+        why = LAUNCH_ERROR.search(text)
+        clone = DEAD_CLONE.search(text)
+        if launched:
+            bits = [f"the runner could not launch {launched.group(1)}"]
+            if why:
+                bits.append(f"{why.group(1)} {why.group(2)}")
+            if clone:
+                bits.append(f"on '{clone.group(1)}'")
+            print("  launch failure  : " + " — ".join(bits))
+            print("                    that is the #396 family; the survivor's passes are below")
+        else:
+            print("  launch failure  : no `failed to launch` line in the window — NOT a finding.")
+            print("                    §5 measured `5584ffd` with this exact shape and benign.")
+            print("                    The discriminator stays TEST BUILD FAILED (#935).")
     print(f"tests observed passing: {ran}")
     print(f"compile-error lines   : {len(compile_errors)}")
     for line in compile_errors[:10]:

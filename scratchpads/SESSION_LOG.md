@@ -3,6 +3,39 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #935: der roten Gate-Zeile das Denken beibringen
+
+**Der Befund:** `TEST EXECUTE FAILED: True (#396 — expected on every push)` steht seit Monaten
+unverändert da und wird jeden Zyklus durchgewunken. **Ein Test-Host, der beim START abstürzt,
+druckt denselben Marker** — genau die Klasse, für die dieses Repo mehrfach bezahlt hat
+(Schwarzbild, Sheet-Ketten-SIGSEGV). Das einzige Signal, das sie in CI zeigen würde, liest
+niemand mehr.
+
+`scripts/gh-test-verdict.py` druckt jetzt daneben, was der Log hergibt: die Startfehler-Zeile in
+**beiden** gemessenen Schreibweisen, die Fehlerdomäne und den Namen des toten Clones aus dem
+Umgebungs-Dump. Rein informativ — **Exit-Code unverändert** (#364).
+
+⛔ **Meine erste Fassung war der #778-Fehler, den ihr eigener Kommentar zitierte.** Sie kannte
+nur die `-308`-Schreibweise und ihr Kein-Treffer-Zweig rief „das ist NICHT #396". Beide
+Gegenbelege standen **schon in `Tests/CISmoke/CLAUDE.md` §5**, geschrieben bevor ich die Nadel
+baute: `bea1a83` benutzt eine zweite Schreibweise (`Simulator device failed to launch`), und
+`5584ffd` hat den Marker ganz ohne `Code=`-Zeile und ist harmlos. Die Nadel greift jetzt auf den
+Teil, den beide Schreibweisen teilen; der Kein-Treffer-Zweig ist **neutral** und nennt `5584ffd`
+beim Namen. **Lehre: die Gegenprobe zu einer Nadel steht oft schon im Repo — vor dem Bauen §5
+lesen, nicht danach.**
+
+⛔ **Nadel-Kollision selbst gefangen, sechster Fall der #932-Klasse:** `5584ffd` steht DREIMAL im
+Skript — zweimal in der Prosa, einmal im echten `print`. Die Nadel auf die bloße ID hätte ein
+Aufräumen den DRUCK löschen lassen und wäre auf der Prosa grün geblieben. Sie greift jetzt auf
+den gedruckten Satz (genau ein Vorkommen, #408).
+
+Wächter: eine neue Behauptung in `TheVerdictParserReadsBothLogShapesTests` (jetzt 9), nicht eine
+neue Datei — #416, erweitern statt fast-kopieren. Instrumente grün: `--selftest` (beide
+Schreibweisen, beide Domänen, Clone-Name, drei Negative) · dead-needles 390 · count-pins 0 ROT ·
+needle-reachability sauber. `CLAUDE.md` unverändert 148 856 B.
+
+⚠️ Der Pflicht-Reviewer lief zum Commit-Zeitpunkt noch; seine Befunde werden #935b.
+
 ## 2026-08-31 — Deploy v10.79.433: die Metronom-Version
 
 Gemessen gegen den Bump-Commit `d540d08` (#911): **19 Commits, 8 in `Sources/`**,

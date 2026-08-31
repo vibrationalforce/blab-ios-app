@@ -526,6 +526,21 @@ Nothing above this line was rewritten; where it disagrees with §5, §5 is newer
   `** TEST … FAILED **`-Marker, nicht die Mach-Zeile, und hat diesen Lauf korrekt als
   `TEST EXECUTE FAILED: True / TEST FAILURES: 0` gemeldet. Das ist der Grund, warum
   `.claude/rules/context.md` §4 „hand-roll keine Nadeln" sagt.
+- ⭐ **SEIT #935 DRUCKT DER VERDIKT-LESER DIE STARTFEHLER-ZEILE MIT, und zwar in BEIDEN
+  Schreibweisen** (`Failed to launch app with identifier:` und `Simulator device failed to
+  launch`, plus die Fehlerdomäne und den Namen des toten Clones aus dem Umgebungs-Dump). Der
+  Grund ist nicht Bequemlichkeit: die Zeile `TEST EXECUTE FAILED: True (#396 — expected on
+  every push)` stand monatelang unverändert da, und **ein Test-Host, der beim START abstürzt,
+  druckt denselben Marker** — genau die Klasse, für die dieses Repo schon mehrfach bezahlt hat
+  (Sheet-Ketten-SIGSEGV, Schwarzbild). Jetzt steht daneben, WAS der Leser sehen kann.
+  ⛔ **Die erste Fassung von #935 war der #778-Fehler, den sie zitierte**, und die Gegenbelege
+  standen bereits in DIESEM Abschnitt: sie kannte nur die `-308`-Schreibweise (hätte `bea1a83`
+  verfehlt) und ihr Kein-Treffer-Zweig rief „das ist NICHT #396" — was auf `5584ffd` (Marker
+  ohne jede `Code=`-Zeile, harmlos) Fehlalarm gewesen wäre. Deshalb ist der Kein-Treffer-Zweig
+  heute **neutral** und nennt `5584ffd` beim Namen. **Der Diskriminator bleibt unverändert
+  `TEST EXECUTE FAILED` gegen `TEST BUILD FAILED`; die Startfehler-Zeile ist Bonus, kein
+  Kriterium**, und #935 ändert den Exit-Code nicht (#364). Selbsttest: `--selftest` fährt beide
+  Schreibweisen, beide Domänen, den Clone-Namen und drei Negative.
 - Konsequenz für die Sprache in jedem Status-Delta: „beide echten Gates grün" ist als Kurzform für „das blockierende Bundle lief" nur deshalb richtig, **weil CI/CD dabei ist**. Für eine reine Testdatei ist CI/CD allein maßgeblich; Compile-Check-grün allein heißt nur `Sources/`-grün.
 
 ---

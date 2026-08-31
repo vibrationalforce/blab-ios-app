@@ -420,6 +420,52 @@ final class TheVerdictParserReadsBothLogShapesTests: XCTestCase {
             """)
     }
 
+    // MARK: - 4b · both #396 spellings, and the branch that must stay quiet
+
+    /// ⭐ #935 — `TEST EXECUTE FAILED: True (#396 — expected on every push)` is the one red this
+    /// repo waves through every cycle, and a test host that CRASHES AT LAUNCH prints the same
+    /// marker. The parser now names the launch-failure line it can see. This claim pins the two
+    /// halves that a later tidy-up would get wrong, and NOT the report wording (#364).
+    ///
+    /// ⛔ THE FIRST VERSION OF #935 MADE THE MISTAKE ITS OWN COMMENT QUOTED. It knew only the
+    /// `-308` spelling — `bea1a83` says `Simulator device failed to launch`, which it would have
+    /// missed — and its no-match branch shouted "NOT #396", which on `5584ffd` (the marker with
+    /// no `Code=` line at all, benign) is a false alarm on an ordinary push. Both counter-samples
+    /// were already written down in `Tests/CISmoke/CLAUDE.md` §5 before the needle was written.
+    ///
+    /// GRADING (#464): REGRESSION for claim 1 — the parent parser has no launch needle at all.
+    /// For claim 2 it is a REGRESSION against my own first draft, which is the version a
+    /// "simplify this" pass would recreate: the alarming branch reads as the more useful one.
+    func testTheLaunchFailureNeedleKnowsBothSpellingsAndStaysQuietOtherwise() throws {
+        let code = try text(Self.parser)
+        XCTAssertTrue(code.contains(#"r"[Ff]ailed to launch (?:app with identifier: )?(\S+)""#), """
+            The launch-failure needle is gone or has been narrowed to one spelling.
+
+            TWO are measured (§5): `Failed to launch app with identifier: <bundle>` on `d0f64c7`
+            and `Simulator device failed to launch <bundle>` on `bea1a83`. The needle anchors on
+            the part BOTH share. Narrowing it to the wording of whichever run is most recent is
+            #778 exactly — a needle for the last incident — and it fails SILENTLY, by taking the
+            neutral branch on a log that shows the situation perfectly.
+            """)
+        // ⛔ NEEDLE COLLISION, CAUGHT BEFORE SHIPPING (#932's class, sixth instance). The bare
+        // string `5584ffd` occurs THREE times in the parser — twice in the comment block that
+        // explains the branch, once in the branch's own `print`. Needling the bare id would have
+        // let a tidy-up delete the PRINT and stay green on the prose that describes it. The
+        // needle is the printed sentence, which occurs exactly once (#408).
+        XCTAssertTrue(code.contains("§5 measured `5584ffd` with this exact shape and benign."), """
+            The no-match branch no longer PRINTS the `5584ffd` counter-sample, so nothing stops it
+            becoming an alarm again.
+
+            `5584ffd` is a measured run with `** TEST EXECUTE FAILED **` and ZERO `Code=` lines
+            anywhere — and benign. A branch that reads "no launch line, therefore something is
+            wrong" cries wolf on that shape, and a tool that cries wolf on an ordinary push gets
+            ignored, which is the failure mode this whole directory exists to prevent.
+
+            If a later measurement shows the missing line really does discriminate, say so with
+            the run that proves it — do not restore the alarm from intuition.
+            """)
+    }
+
     // MARK: - 5 · COUNTERWEIGHT: the directory law still points sessions at this tool
 
     func testTheDirectoryLawStillNamesTheScript() throws {
