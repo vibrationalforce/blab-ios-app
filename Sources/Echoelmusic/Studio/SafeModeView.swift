@@ -24,8 +24,16 @@ struct SafeModeView: View {
     let onContinue: () -> Void
 
     /// The previous run's diagnostic log (breadcrumbs + any crash marker), captured
-    /// at launch by `EchoelCrashLog.begin()`. Read once; plain string.
-    private let priorLog = EchoelCrashLog.previousSession
+    /// at launch by `EchoelCrashLog.begin()` — plus, since #917, a retained crash from an
+    /// EARLIER run when the previous one carries no marker of its own. Both values are read
+    /// from memory, never from disk: this screen renders when nothing else can, and it must
+    /// not gain a dependency on the file system to do it.
+    ///
+    /// ⭐ WHY IT NEEDS THE OLDER RUN AT ALL. Once the self-healing net catches every other
+    /// launch the device alternates "Safe Mode or black screen" — and on those launches the
+    /// run immediately before this one IS the recovery launch: short, markerless, useless.
+    /// The screen that says "share this with the developer" was handing over that run.
+    private let priorLog = EchoelCrashLog.recoveryExport()
 
     var body: some View {
         NavigationStack {

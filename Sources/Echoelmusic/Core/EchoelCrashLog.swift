@@ -63,6 +63,11 @@ enum EchoelCrashLog {
     /// to offer a one-tap share when the last run ended in a crash.
     nonisolated(unsafe) static var previousSession: String = ""
 
+    /// The retained crash AS IT STOOD AT LAUNCH, before this launch's own retention could
+    /// overwrite it. Captured once by `begin()` so `SafeModeView` — the screen whose whole
+    /// job is to render when nothing else can — reads memory and never a file (#917).
+    nonisolated(unsafe) static var retainedCrashAtLaunch: String = ""
+
     nonisolated(unsafe) private static var fd: Int32 = -1
 
     private static var fileURL: URL {
@@ -96,6 +101,10 @@ enum EchoelCrashLog {
         // ⚠️ THE PLACE IS PART OF THE DECISION, exactly like a ladder rung (#862b): this runs
         // AFTER `installHandlers()`, so a fault inside the write is itself caught, and AFTER
         // the version line, so the log already names the build even if this is where it dies.
+        // #917: BEFORE the block below can overwrite it. A recovery screen that shows the
+        // post-write value would, after an ordinary crash, offer the very run it is already
+        // showing.
+        retainedCrashAtLaunch = lastCrashLog()
         if let keep = crashToRetain(from: previousSession) {
             // ⛔ THE FIRST DRAFT OF #916 BROKE THE LAW THE COMMENT ABOVE CITES, twice in two
             // lines. It wrote ONE line, AFTER the write, stating an outcome it had not
@@ -234,6 +243,34 @@ enum EchoelCrashLog {
     static func diagnosticsExport(current: String, retainedCrash: String) -> String {
         guard !retainedCrash.isEmpty else { return current }
         return current + "\n\n" + retainedCrashHeader + "\n" + retainedCrash
+    }
+
+    /// What the SAFE MODE recovery screen shows (#917).
+    ///
+    /// ⭐ THE HOLE THIS CLOSES IS DOCUMENTED AND FOUNDER-OBSERVED: once the self-healing net
+    /// catches every other launch, the device alternates "Safe Mode or black screen". On the
+    /// safe-mode launch the run immediately before it is the RECOVERY launch — short,
+    /// markerless, and useless — while the real abort sits in the retained file. The screen
+    /// whose entire purpose is "share this with the developer" was showing the wrong run.
+    ///
+    /// ⚠️ THE GATE IS "previous has no marker AND the retained one does", and it is chosen so
+    /// the block can never DUPLICATE. A retained log is a slice of some earlier run, so a
+    /// marker in the slice means that run carried one; if `previous` has no marker it cannot
+    /// be the run that was retained. The obvious simpler gate — `!looksLikeUnseenCrash
+    /// (previous)` — would have hidden the retained abort in exactly the case worth showing
+    /// it: a markerless arm-2 run (reboot, battery, Xcode stop) sitting in front of a real
+    /// SIGABRT.
+    static func recoveryExport(previous: String, retainedCrash: String) -> String {
+        guard !previous.contains(crashMarker), retainedCrash.contains(crashMarker) else {
+            return previous
+        }
+        return diagnosticsExport(current: previous, retainedCrash: retainedCrash)
+    }
+
+    /// The recovery screen's text, from values captured at launch — no file I/O, so the one
+    /// screen that must always render never depends on the disk.
+    static func recoveryExport() -> String {
+        recoveryExport(previous: previousSession, retainedCrash: retainedCrashAtLaunch)
     }
 
     /// Sibling of the live log, in the same directory — one definition of WHERE (`fileURL`).
