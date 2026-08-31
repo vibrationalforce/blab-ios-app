@@ -262,6 +262,16 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
     /// for `EchoelStudioView` does not apply. Each scan below asserts the DECLARATION first, so
     /// a rename fails loudly here instead of quietly emptying the needle.
     private static let engineReceiver = "audioEngine"
+    // ⭐ #928 — THE THIRD PRODUCER, and it was invisible to both derivations above because it
+    // is neither the camera nor the engine: it is a THIRD object. `Transport.onTempoChange`
+    // pushes `metronome?.bpm` on every tempo change, and during a glide that is up to ~20 Hz.
+    // `EchoelmusicApp` says so at the registration site in its own words. Nothing scanned it.
+    // ⚠️ WHY THIS ONE IS EASY TO WALK INTO, unlike the two above: `EchoelStudioView.body`
+    // ALREADY reads four `metronome.` properties (the Tempo panel's rows) and they are all
+    // legitimately COLD — user-set, human rate. So the receiver is in habitual use inside the
+    // very body that must not read the hot one, and the two spellings differ by one word.
+    private static let metronomeVoice = "Sources/Echoelmusic/Audio/MetronomeVoice.swift"
+    private static let metronomeReceiver = "metronome"
     private static let leaves = [
         "Sources/Echoelmusic/Studio/HeaderMonitors.swift",
         "Sources/Echoelmusic/Studio/PulseMeasurementView.swift",
@@ -532,6 +542,82 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
                       "EchoelmusicApp.body is no longer among the scanned members: \(members)")
     }
 
+    // MARK: - 6. The third producer (#928) — the click's tempo relay
+
+    func testTheClickHotSetIsDerivedFromTheTempoRelay() throws {
+        let hot = try metronomeHotProperties()
+        XCTAssertTrue(hot.contains("bpm"), """
+            DERIVATION CLAIM, and every negative claim below is worthless without it (#367). \
+            `bpm` is the one `MetronomeVoice` property the transport relay writes; if the \
+            derivation cannot find it the scans go green over an EMPTY needle set, which looks \
+            identical to a clean tree. Selected: \(hot.sorted()).
+            If the relay legitimately moved, move the anchor — do not hard-code a list.
+            """)
+        XCTAssertGreaterThanOrEqual(hot.count, 1, """
+            FLOOR. The derivation collapsed to nothing: either the `onTempoChange(id: \
+            "\(Self.metronomeReceiver)")` registration is gone from \(Self.app), or \
+            `isObservationTracked` can no longer resolve declarations in \
+            \(Self.metronomeVoice) — moving them into an extension in another file does \
+            exactly that, silently.
+            """)
+    }
+
+    func testTheClicksUserSetRowsAreNotTreatedAsHot() throws {
+        let hot = try metronomeHotProperties()
+        // ⛔ THIS IS THE #364 HALF, and it is the reason the claim exists at all. These four
+        // ARE read in `EchoelStudioView.body` today (the Tempo panel's rows and the mix
+        // board's Click strip) and that is CORRECT: a human turns them, at human rate. If one
+        // of them ever lands in the hot set, the red below is not "revert the row" — it is
+        // "a machine now writes this, so its read must move into its own leaf `View`".
+        for cold in ["enabled", "beatsPerBar", "level", "accentDownbeat"] {
+            XCTAssertFalse(hot.contains(cold), """
+                `\(cold)` entered the hot set: something other than the user now writes it at \
+                machine rate. The four `metronome.` reads in `EchoelStudioView.body` become a \
+                Picker-tearing churn the moment that is true. Move that ONE read into its own \
+                leaf struct (the `MasterVolumeField` shape), then delete `\(cold)` from this \
+                list in the same commit. Hot set: \(hot.sorted()).
+                """)
+        }
+    }
+
+    func testTheMenuHostBuildsNoViewFromTheClicksTempo() throws {
+        let host = SourceText.codeOnly(try read(Self.host))
+        XCTAssertTrue(host.contains("var \(Self.metronomeReceiver)"), """
+            ANCHOR FIRST: the `@Environment(MetronomeVoice.self)` declaration is what makes \
+            "\(Self.metronomeReceiver)" the right spelling. Renamed, the scan below goes \
+            quietly green over a needle that cannot match — the #921b/#924/#926 failure, three \
+            times in three slices.
+            """)
+        let members = try assertNoHotRead(in: Self.host, of: "EchoelStudioView",
+                                          receiver: Self.metronomeReceiver,
+                                          hot: try metronomeHotProperties(), why: """
+            The menu host reads `\(Self.metronomeReceiver).` four times already, all cold. \
+            A fifth read spelled `.bpm` — a "current tempo" caption next to the click rows is \
+            the obvious one to write — churns the whole studio body at up to ~20 Hz during a \
+            tempo glide and tears down any open Tonart/Genre Picker. That is the founder's \
+            "menus freeze while playing", from a third producer.
+            """)
+        XCTAssertFalse(members.isEmpty, """
+            THE NEEDLE MUST BE ABLE TO MATCH. No `some View` member was scanned in \
+            `EchoelStudioView`, so the negative claim above proved nothing.
+            """)
+    }
+
+    func testTheTopmostAncestorBuildsNoViewFromTheClicksTempo() throws {
+        let app = SourceText.codeOnly(try read(Self.app))
+        XCTAssertTrue(app.contains("var \(Self.metronomeReceiver) = MetronomeVoice()"), """
+            ANCHOR FIRST: `EchoelmusicApp` OWNS the click as `@State`, which is why it is also \
+            the file the relay is registered in. If it stops owning it, this fails by name.
+            """)
+        _ = try assertNoHotRead(in: Self.app, of: "EchoelmusicApp",
+                                receiver: Self.metronomeReceiver,
+                                hot: try metronomeHotProperties(), why: """
+            The topmost ancestor, same law as the engine half: a read here churns EVERY \
+            surface in the app. And here the risk is sharpest, because the relay that MAKES \
+            `bpm` hot is written a few lines from `mainContent` in this same file.
+            """)
+    }
+
     // MARK: - Derivation
 
     /// Externally readable, observation-TRACKED properties that a body evaluating them
@@ -776,6 +862,58 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
         rest = rest[varRange.upperBound...]
         let name = String(rest.prefix { isWordChar($0) })
         return name.isEmpty ? nil : name
+    }
+
+    // MARK: - Derivation, third producer (#928)
+
+    /// `MetronomeVoice` properties the TRANSPORT writes — i.e. the ones a body evaluating them
+    /// registers on at machine rate rather than at the rate a finger turns a row.
+    ///
+    /// Anchored on the relay's own registration, not on a property list: the whole point is
+    /// that a future second relay (a step subscriber writing `beatsPerBar`, say) must ENTER
+    /// this set by itself and turn `testTheClicksUserSetRowsAreNotTreatedAsHot` red, instead
+    /// of a hand-written list going stale in the direction that looks clean.
+    private func metronomeHotProperties() throws -> Set<String> {
+        let lines = SourceText.codeOnly(try read(Self.app))
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        let declarations = SourceText.codeOnly(try read(Self.metronomeVoice))
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        var names: Set<String> = []
+        var found = false
+        // EVERY registration, not the first: a second relay is exactly the change this claim
+        // has to notice, and `firstIndex` would read one closure and call the set complete.
+        for (index, line) in lines.enumerated()
+        where line.contains("onTempoChange(id: \"\(Self.metronomeReceiver)\")")
+              || line.contains("addStepSubscriber(\"\(Self.metronomeReceiver)\"") {
+            guard let (lo, hi) = span(of: line, in: lines, from: index) else { continue }
+            found = true
+            for body in lines[lo..<hi] {
+                // Both spellings: the relay captures `[weak metronome]`, so it writes
+                // `metronome?.bpm`; a non-optional caller elsewhere writes `metronome.bpm`.
+                for prefix in ["\(Self.metronomeReceiver)?.", "\(Self.metronomeReceiver)."] {
+                    guard let range = body.range(of: prefix) else { continue }
+                    let rest = body[range.upperBound...]
+                    let name = String(rest.prefix { isWordChar($0) })
+                    guard !name.isEmpty else { continue }
+                    // An assignment makes it a producer; a read inside the closure does not.
+                    let after = rest.dropFirst(name.count).drop { $0 == " " }
+                    guard after.first == "=", after.dropFirst().first != "=" else { continue }
+                    // `@ObservationIgnored` mirrors (`audioSamplesPerBeat` and friends) cannot
+                    // invalidate a body, so writing one is not a churn risk. Filtered on the
+                    // ATTRIBUTE, never on a naming convention.
+                    guard isObservationTracked(name, in: declarations) else { continue }
+                    names.insert(name)
+                    break
+                }
+            }
+        }
+        XCTAssertTrue(found, """
+            no transport relay onto `\(Self.metronomeReceiver)` was found in \(Self.app). \
+            Either it is gone — then delete this whole section, the click no longer has a \
+            machine writer — or it was re-spelled and this anchor has to move. Do NOT leave it: \
+            an anchor that matches nothing makes three negative claims green for free.
+            """)
+        return names
     }
 
     // MARK: - The scan

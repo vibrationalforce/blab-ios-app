@@ -2896,3 +2896,51 @@ BESCHRIFTUNG, die zwei fremde Zeilen mit demselben Wort traf · #926 ein Scanner
 eigenes Literal las. **Jedes Mal war die Nadel danach gewählt, wie die Sache HEISST, statt
 danach, wo sie nur VORKOMMEN kann.** Und jedes Mal hat nur das FAHREN es gefunden, nie das
 Lesen.
+
+---
+
+## REGISTER #928 (2026-08-31) — ein VIERTER heißer `@Observable`-Schreiber, und der Wächter kannte nur zwei
+
+**Der Befund.** `CLAUDE.md` sagte drei Wochen lang „es sind DREI" Erzeuger, die einen
+`@Observable`-Wert schneller schreiben, als ein Finger es könnte (Kamera ~10 Hz ·
+`AudioEngine.startMeterPollTimer` 60 Hz · `AutomationPlayer.applyStep` pro Transport-Schritt).
+Der vierte ist `metronome.bpm`: `Transport.onTempoChange(id: "metronome")` in
+`EchoelmusicApp` schiebt ihn bei jeder Tempoänderung, während eines Glides bis ~20 Hz.
+
+⭐ **Das Unangenehme daran ist nicht, dass niemand es wusste — der Quelltext sagt es selbst.**
+Direkt über der Registrierung steht seit ihrer Entstehung: „this callback WRITES an
+@Observable at up to ~20 Hz … which is only harmless because no view body reads
+`metronome.bpm`. If one ever does, it must be a leaf." Ein perfekt formulierter Vermerk, den
+kein Wächter las — die #496-Form: ein ⛔ am Erzeuger erreicht die Zeile nicht, die eine
+Sitzung ZUERST liest, und hält niemanden davon ab, morgen genau das zu tun, wovor er warnt.
+
+⚠️ **Warum ausgerechnet diese Fläche die gefährlichste der vier ist.** Bei Kamera und Engine
+ist der Empfänger im Menü-Wirt gar nicht in Gebrauch. Hier liest `EchoelStudioView.body`
+`metronome.` bereits VIERMAL — die Tempo-Zeilen und die Click-Leiste des Mix-Bretts, alle zu
+Recht KALT, weil ein Mensch sie dreht. Empfänger und Gewohnheit sitzen also schon im Rumpf,
+und die heiße Schreibweise unterscheidet sich von den kalten um EIN WORT. Eine
+„aktuelles Tempo"-Beschriftung neben den Klick-Zeilen ist die naheliegendste Ergänzung der
+Welt und wäre sofort der Founder-Befund „Menüs frieren beim Spielen ein".
+
+**Die Form, die das abfängt** (vier Ansprüche, alle vier GRÜN auf beiden Bäumen —
+**PROPHYLAKTISCH (0 of 4)**, ein Vorwärts-Wächter, kein Fund, #433/#486):
+1. Ableitung: die heiße Menge kommt aus der REGISTRIERUNG des Relais, nie aus einer Liste.
+2. Die vier kalten Zeilen sind NICHT heiß — und die Fehlermeldung sagt, dass ein Rot dort
+   „verschiebe diesen einen Read in ein eigenes Blatt" heißt, nicht „nimm die Zeile zurück"
+   (#364).
+3./4. Menü-Wirt und oberster Vorfahre bauen keinen View aus der heißen Menge.
+
+⭐ **Die Ableitung ist bewusst über ALLE Registrierungen geschrieben, nicht über die erste.**
+`firstIndex` hätte eine Schleife gelesen und die Menge für vollständig erklärt — genau der
+Fehler, den ein zweites Relais eines Tages ausnutzt. Mutant M3 (ein Step-Subscriber, der
+`beatsPerBar` schreibt) macht Anspruch 2 UND 3 rot: die kalte Zeile wird heiß, und der
+bestehende Rumpf-Read wird im selben Moment zum echten Defekt. Genau die zwei Rots, die man
+sehen will.
+
+**Gefahren, vier Mutanten:** M1 `.bpm` im Menü-Wirt → 3 rot mit Zeilennummer · M2 Relais
+umbenannt → 1 rot (und der `found`-Anspruch feuert; 3/4 gingen sonst über einer LEEREN Nadel
+grün, #367) · M3 zweites Relais → 2 + 3 rot · M4 `bpm` als `@ObservationIgnored` → 1 rot.
+
+⚠️ **Kopfraum-Warnung, gemessen im selben Commit:** `CLAUDE.md` steht nach dieser Ergänzung
+bei 148 497 B von 150 000. Der nächste Register-Eintrag dort muss etwas anderes verdrängen —
+`python3 scripts/doctor.py --section D` und `TheLawFileStaysUnderItsCeilingTests` sagen es.
