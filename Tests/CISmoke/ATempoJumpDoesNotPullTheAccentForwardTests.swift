@@ -22,7 +22,9 @@
 //     buggy: clicks at +0 (idx 1), +1 (idx 2), +2 (idx 3), then +16000 → idx 0 = ACCENT
 //     fixed: clicks at +0 (idx 1), +16000 (idx 2), +32000 (idx 3), +48000 → idx 0 = ACCENT
 //
-// So the accent arrives THREE BEATS EARLY and the bar is permanently out of phase with the
+// So the accent arrives TWO BEATS EARLY — 16 000 against 48 000, a 32 000-frame gap, which
+// is two new beats. (⛔ #933b: this read "three", contradicted by the trace three lines above
+// it — a claim and its own refutation in one block, §2 #425.) The bar is permanently out of phase with the
 // player's count. That is the assertion below, and it is directly readable in the samples:
 // the accent is rendered at 1568 Hz with envelope 1.0, a plain beat at 1046 Hz with 0.7.
 //
@@ -31,8 +33,13 @@
 // .onTempoChange(id: "metronome")` fires up to ~20 Hz during one). Measured 120 → 124: one
 // click, correct spacing, identical under both implementations. Only a JUMP — a field edit,
 // a loaded project, the flow servo's 40…160 clamp — reaches it. And it is not rare when it
-// is reached: the spurious count is `floor(sampleCounter / perBeat)` with the counter
-// uniform over the old beat, so a 3× jump misfires on TWO THIRDS of jumps.
+// is reached: the spurious count is `floor(sampleCounter / perBeat) − 1` with the counter
+// uniform over the old beat, so a 3× jump misfires on ONE THIRD of jumps — swept over all
+// 48 000 alignments of a 60 → 180 jump on the parent tree: 33.4 %.
+//
+// ⛔ THAT MINUS ONE IS A CORRECTION (#933b). `floor(…)` is the TOTAL fire count, one of which
+// is the legitimate beat; I published its `P(≥1) = 66.7 %` as the misfire rate — twice the
+// true figure, in the alarming direction, with the arithmetic sitting in the sentence itself.
 //
 // ⚠️ WHY NOT THE EXISTING `clickOnsets` DETECTOR from the non-blocking suite: it requires 64
 // consecutive exact zeros between clicks, and a burst has NO zeros between its retriggers —
@@ -48,24 +55,40 @@
 // slice deliberately resyncs the bar on every tempo change, claim 1 goes red and its message
 // says so; that is then a decision to record, not a bug to hide.
 //
-// ⭐ GRADING (§3), transcribed in Python against BOTH trees, driving the scheduler and the
-// envelope rather than reasoning about them — and the transcription corrected my own first
-// grading, in the flattering direction §3 names:
+// ⚠️ HONEST LIMITS. 6 tests. They prove the SCHEDULER and the rendered samples; they cannot
+// prove it sounds right in a room. Whether a tempo jump during a live take now keeps the
+// accent where the player counts it is a DEVICE PROBE (§1) and stays open —
+// NEEDS-FOUNDER-VERIFY: run the click, jump the tempo by a field edit rather than a glide,
+// listen for whether the accent stays on the one.
 //
-//   claim 1        red at parent (peak@+16000 = 0.5951, the accent), green here (0.4158)
-//   claim 2, 1st   red at parent (peak@+48000 = 0.4158, a plain beat), green here (0.5951)
-//   claim 2, 2nd   green on both (0.4158)
-//   claim 3        green on both (onsets [0, 22452, 45678, 68904] on each)
-//   claim 4        green on both (0.5951)
-//   claim 5        forward — it names a line this commit creates
+// ⭐ GRADING (§3), transcribed in Python against THREE implementations — the parent (`-=`
+// only), this tree's fold, and an unconditional zeroing — driving the scheduler AND the
+// envelope AND this file's own onset detector rather than reasoning about them. The third
+// tree is not decoration: it is the "obvious simplification" a later reader will try, and
+// until #933b nothing here could tell it apart from the fold.
 //
-// So the honest count is ONE FINDING reported by TWO assertions (#486), not two findings:
-// claim 1 sees the accent arrive early and claim 2's first assertion sees it MISSING where it
-// belongs — the same displacement from both ends. I had written claim 2 down as a pure
-// counterweight because that is what I intended it to be; it is one only in its second half.
-// Claims 3 and 4 are the real counterweights, and they are the content: without 4 a tree that
-// stopped clicking entirely would satisfy claim 1, and without 3 a "fix" that zeroed the
-// counter on every beat would too.
+//                          parent      fold (here)   zeroing
+//   claim 1                RED 0.5951  green 0.4158  green      the accent, pulled forward
+//   claim 2, 1st           RED 0.4158  green 0.5951  green      the accent, missing
+//   claim 2, 2nd           green       green         green
+//   claim 3, first gap     green 22452 green 22452   RED 23226  folding vs zeroing
+//   claim 3, later gaps    green       green         green
+//   claim 4                green 0.5951 green 0.4158 green      (parent's number is the
+//                                                               pulled accent in-window)
+//   claim 6                RED 0.5951  green 0.4158  green      the neighbouring alignment
+//   claim 5                forward — it names a line this commit creates
+//
+// So the honest count is ONE FINDING reported by THREE assertions — claims 1, 2's first half
+// and 6 all see the same displacement, from three angles (#486), not three findings. Claim 3's
+// first gap is a COUNTERWEIGHT against a different tree entirely. Claims 2's second half, 3's
+// later gaps and 4 are green everywhere and are the content: without 4 a voice that stopped
+// clicking would satisfy claim 1.
+//
+// ⛔ THREE OF THESE ROWS ARE #933b CORRECTIONS OF MY OWN FIRST GRADING, all in the flattering
+// direction §3 names. I had claim 2 down as a pure counterweight (its first half is a
+// regression); I printed the parent's 0.5951 for claim 4 on BOTH trees; and I claimed claim 3
+// guarded against zeroing while it discarded the only spacing that shows it — on a zeroing
+// tree the whole behavioural half of this file was green.
 
 #if canImport(AVFoundation)
 import AVFoundation
@@ -86,10 +109,14 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
 
     // MARK: - 1: THE FINDING — a tempo jump must not advance the beat counter
 
-    func testAJumpFromSixtyToOneEightyDoesNotBringTheAccentThreeBeatsEarly() {
+    func testAJumpFromSixtyToOneEightyDoesNotBringTheAccentTwoBeatsEarly() {
         let m = armed(bpm: 60)
-        // Sit one sample short of the next beat at 60 BPM, so the stale counter is at its
-        // maximum — the worst case, and the one the arithmetic above is written for.
+        // Sit one sample short of the next beat at 60 BPM: the stale counter is then at its
+        // maximum, the worst case FOR THE PARENT (three fires). ⛔ #933b: it is also the
+        // LUCKIEST alignment for the repair — 48 000 is an exact multiple of 16 000, so `fmod`
+        // returns exactly 0 and no residue survives. Claim 6 drives the neighbouring
+        // alignment, where one extra fire does survive, so this file cannot report the repair
+        // as cleaner than it is.
         _ = render(m, frames: Self.framesPerBeatAt60 - 1)
         m.bpm = 180
         let after = render(m, frames: Self.framesPerBeatAt180 + 400)
@@ -102,7 +129,7 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             The beat counter was advanced by the tempo change itself: `sampleCounter` still \
             held its count toward the OLD 48 000-frame beat, one `-= perBeat` left it two \
             whole new beats ahead, and the scheduler fired on the next two FRAMES — pulling \
-            the accent three beats early and leaving the bar permanently out of phase.
+            the accent two beats early and leaving the bar permanently out of phase.
 
             The repair is in `MetronomeVoice.renderOnAudioThread`: fold the leftover with \
             `truncatingRemainder` when it is still >= `perBeat` after the subtraction (`fmod`, \
@@ -169,6 +196,23 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             """)
         guard onsets.count >= 3 else { return }
         let spacings = (1..<onsets.count).map { onsets[$0] - onsets[$0 - 1] }
+
+        // ⭐ THE FIRST GAP IS WHAT DISTINGUISHES FOLDING FROM ZEROING, and until #933b this
+        // claim threw it away. The counter had already passed the shorter new beat, so the
+        // first click fires early and leaves a residue; the second click then lands 22 452
+        // frames later, not a full 23 226. Zeroing discards that residue and produces an exact
+        // `perBeat` here. Both numbers measured through the real envelope and this file's own
+        // onset detector, on all three implementations.
+        XCTAssertLessThanOrEqual(abs(spacings[0] - 22_452), 2, """
+            The first gap after a 120 -> 124 glide step is \(spacings[0]), not the 22 452 \
+            that phase-preserving folding produces (all spacings: \(spacings)).
+
+            A value near 23 226 means the leftover is being ZEROED rather than folded: that \
+            throws the sub-beat phase away and silently re-times the grid. Every OTHER \
+            behavioural claim in this file stays green on a zeroing tree — this assertion is \
+            the only one that sees it, so do not relax it.
+            """)
+
         for spacing in spacings.dropFirst() {
             // ⚠️ NOT `XCTAssertEqual(_:_:accuracy:)`. Both sides are `Int`, and that overload
             // is declared over `FloatingPoint`/`Numeric` — nothing in this bundle uses it with
@@ -176,11 +220,11 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             // red gate. An explicit difference compiles under any overload set.
             XCTAssertLessThanOrEqual(abs(spacing - perBeat), 2, """
                 Beat spacing after a glide step is \(spacing), not \(perBeat) (all spacings: \
-                \(spacings)). The FIRST gap is legitimately shorter — the first click fires \
-                early because the counter had already passed the shorter new beat — so only \
-                the later ones are checked. A wrong spacing here means the leftover was \
-                ZEROED rather than folded: zeroing throws away the sub-beat phase and pushes \
-                the grid out by up to a full beat. Fold, do not zero.
+                \(spacings)). The FIRST gap is legitimately shorter and is checked separately \
+                above; from the second click on the grid must be exact, because the glide is \
+                the ordinary path and the jump repair must not touch it. If ONLY this is red \
+                while the first-gap assertion is green, the beat PERIOD is wrong — look at \
+                `samplesPerBeat`, not at the fold.
                 """)
         }
     }
@@ -198,6 +242,34 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             The whole buffer after the tempo jump peaks at \(loudest) — effectively silence. \
             Claim 1 would be green for the wrong reason (#367). The metronome must keep \
             sounding across a tempo change.
+            """)
+    }
+
+    // MARK: - 6: the honest limit — the fold bounds the damage, it does not remove it
+
+    /// ⚠️ ONE SAMPLE OVER FROM CLAIM 1 AND THE REPAIR STOPS BEING PERFECT. At `48 000 - 2`
+    /// the folded remainder is 15 999, one short of the new beat, so the very next frame fires
+    /// again: the fold leaves ONE extra click where the parent left two. Swept over every
+    /// alignment, the share of jumps with two fires inside 10 ms falls from 34.4 % to 2.0 %
+    /// (60 -> 180) and 50.7 % to 2.0 % (40 -> 160), worst case three and four fires down to
+    /// two — never worse than the parent anywhere tested, but not zero.
+    ///
+    /// ⛔ IT PINS THE BOUND, NOT THE RESIDUE (#364). Asserting "the accent lands one beat
+    /// early here" would make a future COMPLETE repair go red — the trap this bundle keeps
+    /// paying for. The claim is the weaker statement that survives such a repair: the accent
+    /// is never on the FIRST new beat. Parent 0.5951 there, this tree 0.4158.
+    func testTheNeighbouringAlignmentKeepsTheAccentOffTheFirstNewBeat() {
+        let m = armed(bpm: 60)
+        _ = render(m, frames: Self.framesPerBeatAt60 - 2)
+        m.bpm = 180
+        let after = render(m, frames: Self.framesPerBeatAt180 + 400)
+
+        let click = peak(in: after, around: Self.framesPerBeatAt180, width: 400)
+        XCTAssertLessThan(click, Self.accentThreshold, """
+            One sample away from claim 1's alignment the accent is back on the first new beat \
+            (peak \(click)). Claim 1 alone would still be green there — 48 000 is an exact \
+            multiple of 16 000, the one alignment where the fold leaves no residue at all. A \
+            repair that only works on that alignment is not a repair.
             """)
     }
 

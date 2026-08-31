@@ -200,20 +200,39 @@ public final class MetronomeVoice {
                 // Each spurious click also advances `beatIndex`, which is how the accent
                 // ends up on the wrong beat afterwards.
                 //
+                // ⚠️ THIS BOUNDS THE DAMAGE, IT DOES NOT ELIMINATE IT (#933b, found in
+                // review). The folded remainder can land within one buffer of the next beat,
+                // so ONE extra fire survives: swept over every alignment, the share of jumps
+                // with two fires inside 10 ms falls from 34.4 % to 2.0 % (60 → 180), and from
+                // 50.7 % to 2.0 % (40 → 160), and the worst case falls from three and four
+                // fires to two. Never worse than before on any alignment tested — but a
+                // mitigation, not a cure, and the guard pins that bound rather than pretending
+                // otherwise.
+                //
                 // It is not rare, which is why it deserves the fold rather than a note:
-                // the spurious count is `floor(sampleCounter / perBeat)` with the counter
-                // uniform over the old beat, so a 3× tempo jump misfires on TWO THIRDS of
-                // jumps. It stayed unheard because a GLIDE shrinks `perBeat` by a sliver
+                // the spurious count is `floor(sampleCounter / perBeat) − 1` — the total fire
+                // count less the legitimate beat — with the counter uniform over the old beat,
+                // so a 3× tempo jump misfires on ONE THIRD of jumps (swept over all 48 000
+                // alignments of 60 → 180: 33.4 %). ⛔ #933b: the `− 1` was missing here and the
+                // figure read TWO THIRDS, which is `P(the beat fires at all)`.
+                //
+                // It stayed unheard because a GLIDE shrinks `perBeat` by a sliver
                 // per step (120 → 124 measured: exactly one click, correct spacing), and a
                 // glide is how the tempo usually moves here.
                 //
                 // `truncatingRemainder` is `fmod` — a C math call, so audio-thread legal
                 // (no lock, no allocation, no ObjC). It folds instead of zeroing on
                 // purpose: zeroing would discard the sub-beat phase and put the next click
-                // a full new beat away, turning one artefact into a different one. Guarded
-                // by the `>=` above, so `perBeat` is finite and positive whenever it runs —
-                // a NaN `perBeat` makes the comparison false and skips it, which is the
-                // same NaN-safe direction `samplesPerBeat` already documents.
+                // a full new beat away, turning one artefact into a different one.
+                //
+                // `perBeat` is POSITIVE because `samplesPerBeat` clamps bpm to 20…400, so it
+                // lies in [7 200, 144 000] — NOT because of the `>=` above. ⛔ #933b: that is
+                // what this comment claimed, and it is checkable and false: `perBeat == 0`
+                // SATISFIES `sampleCounter >= perBeat`, and `fmod(x, 0)` is NaN, which would
+                // latch the counter NaN and kill the click forever — exactly the silent-death
+                // mode `samplesPerBeat`'s own doc describes. What the `>=` does add is NaN
+                // exclusion: a NaN `perBeat` makes the comparison false and skips the fold.
+                // A "not dangerous" note with a false reason is worse than none.
                 if sampleCounter >= perBeat {
                     sampleCounter = sampleCounter.truncatingRemainder(dividingBy: perBeat)
                 }
