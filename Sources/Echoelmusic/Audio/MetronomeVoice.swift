@@ -48,7 +48,14 @@ public final class MetronomeVoice {
         didSet { recomputeTiming() }
     }
 
-    /// Beats per bar (time-signature numerator) — the first beat is accented.
+    /// How many beats before the click accents again — the accent lands on index 0.
+    ///
+    /// ⛔ NOT the project's time signature, and this doc said "(time-signature numerator)"
+    /// until #930. `Transport.beatsPerBar` is a hard `static let 4`; nothing here reaches it.
+    /// Set this to 3 and the click accents every third beat while sequencer, automation and
+    /// clip grid stay in 4 — the two bars coincide once at start, then diverge. The UI row is
+    /// named "Accent every" for that reason. It also has NO effect while `accentDownbeat` is
+    /// off: the render test is `(beatIndex == 0) && audioAccent`.
     public var beatsPerBar: Int = 4 {
         didSet { audioBeatsPerBar = max(1, min(beatsPerBar, 16)) }
     }

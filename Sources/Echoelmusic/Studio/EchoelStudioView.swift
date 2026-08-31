@@ -3429,7 +3429,7 @@ struct EchoelStudioView: View {
                 // `MetronomeVoice` instance, so this is a second DOOR, never a second copy —
                 // the Tempo panel's two matching rows stay in step by construction.
                 // ⚠️ TWO OF FOUR, not all of them, and the split is deliberate (#927). The Tempo
-                // panel also carries "Beats per bar" and "Accent downbeat".
+                // panel also carries "Accent every" and "Accent downbeat".
                 //   ⛔ THE FIRST TWO REASONS GIVEN HERE WERE BOTH WRONG (#927b). (a) "On/off and
                 //   level are what a mix board is for" is refuted 88 lines up by this panel's
                 //   own charter — each strip co-locates a part's level with its BUS FX, and the
@@ -3443,14 +3443,17 @@ struct EchoelStudioView: View {
                 //   level + that part's OWN BUS FX, and the click has no bus FX, so on/off +
                 //   level IS its complete mix-side surface. Bar length and accent are
                 //   transport-time structure, not per-part processing.
-                //   ⭐ AND THERE IS A HARDER ONE THE REVIEWER MEASURED: "Beats per bar" is
+                //   ⭐ AND THERE IS A HARDER ONE THE REVIEWER MEASURED: the bar-length row is
                 //   CLICK-LOCAL. `Transport.beatsPerBar` is a hard `static let 4`; the row's
                 //   1…12 feeds only the render block's `beatIndex` wrap, so a click at 3 accents
                 //   every third beat while sequencer, automation and clip grid stay in 4 — the
                 //   two bars coincide once at start, then diverge. Putting that on a board of
                 //   GLOBAL part levels would invite exactly the misreading "this is where I set
-                //   the project's time signature". (The label being narrower than it reads is a
-                //   pre-existing defect, older than #924; registered here, not fixed here.)
+                //   the project's time signature". ⭐ FIXED IN #930: the row was called
+                //   "Beats per bar" — the phrase a musician reads as the time signature — and
+                //   is now "Accent every … beats", which is exactly what the render block does.
+                //   This paragraph registered it as "not fixed here" for three slices; the
+                //   register was right and the fix was one label wide.
                 // (This line said
                 // "identical rows" until #924 added the accent one panel over and did not come
                 // back here — the same one-home-missed defect as the note in `metronomeRow`.)
@@ -4642,17 +4645,35 @@ struct EchoelStudioView: View {
             .accessibilityHint("A steady click at the current tempo to play in time")
 
             if metronome.enabled {
-                EchoelValueField(label: "Beats per bar", value: Binding(
+                // ⛔ THIS ROW WAS LABELLED "Beats per bar" AND THAT WAS A CLAIM ABOUT THE
+                // PROJECT (#930). Measured: `Transport.beatsPerBar` is a hard `static let 4`,
+                // and this 1…12 feeds ONLY the render block's `beatIndex` wrap. Set the click
+                // to 3 and sequencer, automation and clip grid all stay in 4 — the two bars
+                // coincide once at start and then diverge, with nothing on screen saying so.
+                // "Beats per bar" is the phrase a musician reads as the time signature, so the
+                // label promised a setting the app does not have.
+                // The honest name is what the render block actually does: `isDownbeat` is
+                // `(beatIndex == 0) && audioAccent`, i.e. this number decides HOW OFTEN THE
+                // ACCENT LANDS and nothing else. With the accent off it has no effect at all,
+                // which the toggle two rows down now sits next to as a visible dependency.
+                // ⚠️ NOT disabled while the accent is off, deliberately: presetting the bar
+                // before switching the accent on is normal use, and greying a settable value
+                // teaches less than letting the user hear the pair interact.
+                EchoelValueField(label: "Accent every", value: Binding(
                     get: { Double(metronome.beatsPerBar) },
                     set: { metronome.beatsPerBar = Int($0.rounded()) }),
-                    range: 1...12, unit: "", decimals: 0)
+                    range: 1...12, unit: "beats", decimals: 0)
+                    .accessibilityHint("How often the click accents. This is the click's own "
+                                       + "bar only — it does not change the project's meter")
                 EchoelValueField(label: "Click level", value: Binding(
                     get: { Double(metronome.level) },
                     set: { metronome.level = Float($0) }),
                     range: 0...1, unit: "", decimals: 2)
-                // The accent is what makes "Beats per bar" AUDIBLE — the render block's test is
+                // The accent is what makes "Accent every" AUDIBLE — the render block's test is
                 // `(beatIndex == 0) && audioAccent`, so with the accent off every click is
-                // identical and the bar length above becomes a setting with no consequence.
+                // identical and the number above becomes a setting with no consequence.
+                // (The row was called "Beats per bar" until #930 measured that it is
+                // click-local and renamed it to what it does.)
                 // The two rows therefore belong together; shipping the number without the switch
                 // was the asymmetry #924 closed (found by `scripts/doorless-state.py`: this was
                 // the only one of MetronomeVoice's FIVE settable observed properties with no

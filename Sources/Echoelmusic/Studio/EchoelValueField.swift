@@ -65,7 +65,8 @@ enum ScrubPrecision {
     /// this path to the engine at all). `EchoelValueField.apply(_:)` snaps to the `10^decimals`
     /// grid, so a step smaller than half that grid rounds back to where it started — the value
     /// never moves and the swipe does nothing. Every `decimals: 0` field with a span under 25
-    /// was in that state, which is not an edge case: "Beats per bar" (1…12), the Field's
+    /// was in that state, which is not an edge case: the click's bar row (1…12, labelled
+    /// "Beats per bar" then and "Accent every" since #930), the Field's
     /// "Voices" (1…8), the FX "Bits" (1…16) and both Harmonizer intervals (−12…12) could not be
     /// changed by VoiceOver at all, while the field's own hint promised "Swipe up or down to
     /// adjust". Wiring the callback without this would have fixed the silence and left the

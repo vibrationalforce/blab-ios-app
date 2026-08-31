@@ -35,7 +35,8 @@
 // ⚠️ A SECOND DEFECT ON THE SAME PATH, found in review of the fix above and shipped with it: the
 // step was `span / 50` regardless of `decimals`. `apply` snaps to the `10^decimals` grid, so any
 // `decimals: 0` field with a span under 25 rounded straight back and could not be adjusted AT
-// ALL — "Beats per bar" (1…12), the Field's "Voices" (1…8), FX "Bits" (1…16), both Harmonizer
+// ALL — the click's bar row (1…12; "Beats per bar" then, "Accent every" since #930), the
+// Field's "Voices" (1…8), FX "Bits" (1…16), both Harmonizer
 // intervals (−12…12). Wiring the callback alone would have cured the silence and left the
 // paralysis, on a control whose hint says "Swipe up or down to adjust".
 //
@@ -152,7 +153,7 @@ final class ValueFieldNotifiesEveryPathTests: XCTestCase {
     func testEverySwipeCanActuallyMoveAWholeNumberField() {
         // label, range width, decimals
         let frozenBefore: [(String, Double, Int)] = [
-            ("Beats per bar 1…12", 11, 0),
+            ("Beats per bar 1…12 (relabelled \"Accent every\" by #930; same range)", 11, 0),
             ("Field Voices 1…8", 7, 0),
             ("FX Bits 1…16", 15, 0),
             ("Harmonizer interval −12…12 (since replaced by a named-interval picker)", 24, 0),

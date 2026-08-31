@@ -36,9 +36,11 @@
 //
 // ⭐ AND IT IS THE ONE THAT MAKES A SIBLING AUDIBLE. `beatsPerBar` only means something because
 // beat 0 sounds different; the render block's test is
-// `let isDownbeat = (beatIndex == 0) && audioAccent`. With the accent off, "Beats per bar"
+// `let isDownbeat = (beatIndex == 0) && audioAccent`. With the accent off, the bar-length row
 // becomes an invisible setting — so the two rows belong together, and shipping the number
-// without the switch was the asymmetry.
+// without the switch was the asymmetry. (That row was labelled "Beats per bar" until #930
+// measured it CLICK-local — `Transport.beatsPerBar` is a hard `static let 4` — and renamed it
+// to "Accent every", which is what the render test above actually decides.)
 //
 // ⚠️ NOT A NEW FEATURE. Every layer already existed and was already reachable-by-default: the
 // property, its `didSet` mirror to the `nonisolated(unsafe)` audio value, and the render-block
@@ -231,6 +233,64 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
     }
 
     // MARK: - helpers
+
+    // MARK: - The label is not a claim about the project (#930)
+
+    func testTheClicksBarRowIsNamedForWhatItDoes() throws {
+        let studio = SourceText.codeOnly(try rawText(Self.studio))
+        // ⛔ PLAIN ESCAPED STRINGS, NOT `"""` LITERALS. The first draft of this claim wrote
+        // both needles as multi-line literals — and `"""` followed by content on the SAME line
+        // does not compile in Swift. Caught by reading before CI did; noted because the needle
+        // itself carries quotes and reaching for `"""` is the natural reflex.
+        XCTAssertTrue(studio.contains("EchoelValueField(label: \"Accent every\", value: Binding("), """
+            The click's bar row is no longer labelled "Accent every".
+            It was called "Beats per bar" until #930, and that was a claim about the PROJECT: \
+            it is the phrase a musician reads as the time signature. Measured, the row is \
+            CLICK-LOCAL — see the next claim — so the old label promised a setting the app \
+            does not have. If you are renaming it again, rename it to something that describes \
+            the render block (`isDownbeat = (beatIndex == 0) && audioAccent`), not the score, \
+            and pull the SIX prose homes named in the #930 commit with it (#456).
+            """)
+        XCTAssertTrue(studio.contains("range: 1...12, unit: \"beats\", decimals: 0"), """
+            The unit is what carries the honesty: "Accent every … 4" is ambiguous, \
+            "Accent every … 4 beats" is not. `EchoelValueField`'s VoiceOver path reads \
+            `"\\(n) \\(unit)"` for any unit it does not special-case, so this is also what a \
+            non-sighted performer hears.
+            """)
+    }
+
+    func testTheProjectsMeterIsAHardFourTheClickCannotReach() throws {
+        // ⛔ THE LAW BEHIND THE RENAME, and it is stronger than the one sentence that started
+        // it. The reviewer measured ONE constant (`Transport.beatsPerBar`); measured again for
+        // #930 there are THREE independent hard fours — `Transport`, `AutomationPlayer` and
+        // `TimelineTime` each declare their own. The click's 1…12 reaches none of them.
+        // Each is a `static let`, so the compiler already forbids assignment; what this claim
+        // adds is that they stay `let` and stay 4, and that the click has no bridge to them.
+        let owners = [
+            ("Sources/Echoelmusic/Core/Transport.swift", "public nonisolated static let beatsPerBar = 4"),
+            ("Sources/Echoelmusic/Core/AutomationPlayer.swift", "public static let beatsPerBar = 4"),
+            ("Sources/Echoelmusic/Sequencer/Timeline.swift", "public static let beatsPerBar = 4"),
+        ]
+        for (path, declaration) in owners {
+            XCTAssertTrue(SourceText.codeOnly(try rawText(path)).contains(declaration), """
+                `\(path)` no longer declares `\(declaration)`.
+                ⚠️ THIS IS NOT A REQUEST TO PUT IT BACK (#364). A settable project meter is a \
+                real feature and someone may be building it. But the moment the project's bar \
+                becomes settable AND the click follows it, "Accent every" is the WRONG name — \
+                "Beats per bar" becomes true — so rename the row back and pull the prose in the \
+                SAME commit. Until then the two bars diverge silently and the label must say so.
+                """)
+        }
+        let voice = SourceText.codeOnly(try rawText(Self.voice))
+        for owner in ["Transport", "TimelineTime", "AutomationPlayer"] {
+            XCTAssertFalse(voice.contains(owner), """
+                `\(Self.voice)` now references `\(owner)`. The click has grown a bridge to the \
+                project's clock structure. That may be the feature above — if so, see its \
+                message. If it is not, it is a coupling the click does not need: the render \
+                block only wraps `beatIndex` and owes nothing to the arrangement.
+                """)
+        }
+    }
 
     /// Every Swift file under `Sources/`, repo-relative.
     ///

@@ -3030,3 +3030,52 @@ NEBENSATZ („could take one"), und Nebensätze werden zu Registereinträgen, di
 liest. Der billige Test ist, den Halbsatz sofort zu MESSEN statt ihn zu notieren — hier
 kosteten zwei `grep` eine Minute und verwandelten eine Anmerkung in einen zweiten, älteren
 Riss. **Ein Prüferfund ohne Grad ist trotzdem ein Fund.**
+
+---
+
+## PLAYBOOK #930 (2026-08-31) — eine Beschriftung, die eine Behauptung über das PROJEKT war
+
+**Der Defekt.** Die Klick-Zeile hieß **„Beats per bar"**. Das ist die Formulierung, die ein
+Musiker als **Taktart** liest — also als Projekt-Einstellung. Gemessen ist sie
+**klick-lokal**: `isDownbeat = (beatIndex == 0) && audioAccent`, und `beatIndex` wrappt allein
+in der Render-Schleife der Klick-Stimme. Stellt jemand 3 ein, akzentuiert der Klick jeden
+dritten Schlag, während Sequenzer, Automation und Clip-Raster in 4 bleiben: **die beiden Takte
+fallen einmal beim Start zusammen und driften dann auseinander**, ohne dass irgendetwas auf dem
+Schirm es sagt.
+
+⭐ **Das Gesetz dahinter ist STÄRKER als der Satz, der es ausgelöst hat.** Der #927-Prüfer
+maß EINE Konstante (`Transport.beatsPerBar`). Für #930 nachgemessen sind es **DREI unabhängige
+harte Vieren** — `Transport`, `AutomationPlayer` und `TimelineTime` deklarieren jede ihre
+eigene —, und die 1…12 des Klicks erreicht keine davon. Jede ist ein `static let`, also verbietet
+der Compiler die Zuweisung ohnehin; der Wächter pinnt, dass sie **`let` bleiben, 4 bleiben**,
+und dass die Klick-Datei **keine Brücke** zu ihnen wächst.
+
+**Der ehrliche Name ist der, den der Render-Block hergibt: „Accent every … beats".** Nicht
+„Klick-Takt", nicht „Bar length" — beide behaupten weiterhin einen Takt. Die Zahl entscheidet
+ausschließlich, **wie oft der Akzent landet**, und bei ausgeschaltetem Akzent gar nichts. Die
+Einheit trägt die halbe Ehrlichkeit: „Accent every 4" ist mehrdeutig, „Accent every 4 beats"
+nicht — und `EchoelValueField`s VoiceOver-Pfad liest `"\(n) \(unit)"`, also hört ein
+nicht-sehender Spieler dasselbe.
+
+⚠️ **NICHT deaktiviert, solange der Akzent aus ist** — bewusst. Den Takt voreinzustellen und
+danach den Akzent zuzuschalten ist normale Benutzung; ein ausgegrautes Feld lehrt weniger als
+ein Paar, das man interagieren hört.
+
+⛔ **SECHS PROSA-ZUHAUSE für EINE Beschriftung**, alle im selben Commit gezogen (#456): die
+Zeile selbst · ihr Nachbarkommentar · zwei Stellen in `mixStripCard("Click")` · der Doc-Kommentar
+an `MetronomeVoice.beatsPerBar` (der „(time-signature numerator)" sagte — **die Quelle des
+Irrtums**) · `EchoelValueField`s Doc · zwei Wächter-Köpfe. In den Wächtern bleibt der alte Name
+als HISTORIE stehen („‚Beats per bar' damals, ‚Accent every' seit #930"), weil beide ihn als
+Beispiel einer eingefrorenen Spanne brauchen.
+
+⭐ **Benotung, und sie ist diesmal NICHT prophylaktisch:** Anspruch 7 ist auf dem Elternbaum
+`e327172` **ROT** — er fängt die Beschriftung, die dort steht. **TRAGEND (1 of 3).** Die zwei
+Meter-Ansprüche sind PROPHYLAKTISCH. Mutanten: Label zurück → 7 rot · Einheit weg → 7 rot ·
+`static let` → `static var` → 8a rot · Klick referenziert `Transport` → 8b rot.
+
+⛔ **Und zwei meiner eigenen Nadeln waren nicht kompilierbar:** ich schrieb sie als
+`"""`-Literale, weil die Nadel selbst Anführungszeichen trägt — aber in Swift muss auf `"""`
+ein Zeilenumbruch folgen. **Beim LESEN gefunden, nicht von CI.** Das ist die #928b-Lehre in
+kleiner Form: der Reflex, für eine Nadel mit Anführungszeichen zum mehrzeiligen Literal zu
+greifen, produziert einen Compile-Fehler, den kein Mutantenlauf zeigt, weil ein nicht
+kompilierender Wächter gar nicht erst läuft.
