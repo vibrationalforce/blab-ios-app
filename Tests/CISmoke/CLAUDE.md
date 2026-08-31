@@ -448,17 +448,25 @@ its own known positive is not a measurement.
   but the REASON given for it at the time was wrong, and that is recorded rather than quietly
   dropped.
 
-- ⚠️ **#933d — A GREEN `Build for Testing` STILL PRINTS WARNINGS, AND ONE CLASS OF THEM IS
-  YOURS TO CLEAN UP.** The step succeeds while xcbeautify renders `⚠️` lines for expressions
-  the type-checker spent too long on (`expression took NNNms to type-check (limit: 200ms)`).
-  Measured in one window on `af7b6a6`: **15** such warnings across five files, worst 1 494 ms
-  (`TheComposerWritesPerNoteVelocityTests`), and two of them came from the guard added in that
-  same commit. They are not correctness defects and this is NOT a call to sweep the bundle —
-  the repo-wide state is recorded here so the next reader knows the 15 predate their slice.
-  **The rule is narrow: do not LEAVE a new one.** The usual cause is an anonymous `$0` closure
-  over a `Range<Int>.map` with arithmetic inside; annotating the result (`let x: [Int] = …`)
-  and naming the parameter closes the inference and removes it. Re-derive from any job log:
-      python3 -c "…"   # or simply grep the decoded log for 'to type-check'
+- ⚠️ **#933d/#933e — A GREEN `Build for Testing` STILL PRINTS WARNINGS, AND NOTHING READ THEM.**
+  The step succeeds while xcbeautify renders `⚠️` lines for expressions the type-checker spent
+  too long on. Since #933e **`gh-test-verdict.py` reports them** — count, the worst eight by
+  `file:line`, and a sentence saying whose problem they are. It does **not** change the exit
+  code: the build succeeded, and reddening a run for a condition that predates the reader's
+  slice is the #364 trap.
+
+      python3 scripts/gh-test-verdict.py <overflow-file>   # `slow type-check warns` line
+      python3 scripts/gh-test-verdict.py --selftest        # after touching the needle
+
+  Measured on `af7b6a6` (job 99542758467): **15 raw lines → 10 distinct `file:line` sites**
+  across five files, worst 1 504 ms (`TheComposerWritesPerNoteVelocityTests`). ⚠️ The two
+  numbers are the same fact counted twice — the same warning is emitted once per compilation
+  of the file, so the raw count double-counts; the tool prints the deduplicated one. This is
+  **NOT a sweep order**: eight of the ten predate any current slice, and the record exists so
+  the next reader knows that. **The rule is narrow: do not LEAVE A NEW ONE.** Two of the ten
+  came from the guard added in that very commit; the usual cause is an anonymous `$0` closure
+  over a `Range<Int>.map` with arithmetic inside, and annotating the result (`let x: [Int] = …`)
+  plus naming the parameter removes it.
 
 ⛔ **A `.md` file in THIS directory triggers both gates.** Their `paths:` filters list
 `Tests/**` — the filter matches a PATH, not a source extension — so editing this very file

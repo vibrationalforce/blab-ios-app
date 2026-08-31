@@ -151,6 +151,29 @@ SKIP_LINE = re.compile(r"Test [Cc]ase '([^']+)' skipped", re.MULTILINE)
 # new reality instead of a remembered one.
 TAIL_STEP = re.compile(r"tail -(\d+) (\S*test\.log)")
 
+# ⭐ #933e — A GREEN `Build for Testing` STILL PRINTS WARNINGS, AND NOTHING READ THEM.
+# `Tests/CISmoke/CLAUDE.md` §5 tells every session to read THIS script's verdict instead of
+# hand-rolling needles, so a warning class nobody parses is a warning class nobody sees. The
+# occasion: #933b's own new guard shipped two `took NNNms to type-check` lines and the step
+# still said `success`; I only noticed by grepping the log by hand for the file name.
+#
+# ⚠️ OBSERVED, NOT DERIVED — the distinction `SKIP_LINE` above is careful about. Measured on
+# `af7b6a6`, job 99542758467: 15 lines in the window, in four spellings that share one tail:
+#     ⚠️  /…/X.swift:198:24: expression took 522ms to type-check (limit: 200ms)
+#     ⚠️  /…/X.swift:183:10: instance method 'testFoo()' took 556ms to type-check (limit: 200ms)
+#     ⚠️  /…/Y.swift:87:14: local function 'velocities(forPitch:)' took 981ms to type-check …
+#     ⚠️  /…/Z.swift:85:18: instance method 'sourceName(in:)' took 310ms to type-check …
+# So the needle anchors on the part all four share (`took <N>ms to type-check`) and takes the
+# file:line from the front, rather than enumerating the four kinds — the #778 lesson: a needle
+# built from the wording of the last incident is a needle for the last incident.
+#
+# ⛔ IT MUST NOT CHANGE THE EXIT CODE. These are not failures; the build succeeded. Making a
+# green run red for a condition that predates the reader's slice is the #364 trap, and it would
+# also make this script unusable on the 13 pre-existing warnings. Advisory count, named files,
+# and a sentence saying whose problem it is.
+SLOW_TYPECHECK = re.compile(
+    r"([^\s:]+\.swift):(\d+):\d+: [^\n]{0,120}?took (\d+)ms to type-check")
+
 
 def find_failures(text):
     return FAIL_LINE.findall(text)
@@ -266,6 +289,30 @@ def selftest():
         bad += 0 if good else 1
         print(f"  {'ok ' if good else 'BAD'}  window {name:33}  -> {got}")
 
+    # The slow-type-check needle (#933e). All four OBSERVED spellings must match, a plain
+    # `error:` line must NOT, and — the mutation that matters — a line that says "took 5s"
+    # rather than milliseconds must not match either, because the capture group is what the
+    # report prints. Driven on literals rather than on the tree: a fixture of the real log
+    # would pass forever against a needle that mishandles a spelling the log does not contain.
+    slow_cases = {
+        "expression":      ("/a/X.swift:198:24: expression took 522ms to type-check "
+                            "(limit: 200ms)", "522"),
+        "instance method": ("/a/X.swift:183:10: instance method 'testFoo()' took 556ms to "
+                            "type-check (limit: 200ms)", "556"),
+        "local function":  ("/a/Y.swift:87:14: local function 'velocities(forPitch:)' took "
+                            "981ms to type-check (limit: 200ms)", "981"),
+        "method with args": ("/a/Z.swift:85:18: instance method 'sourceName(in:)' took 310ms "
+                             "to type-check (limit: 200ms)", "310"),
+        "a compile error":  ("/a/X.swift:12:3: error: cannot find 'Bar' in scope", None),
+        "seconds not ms":   ("/a/X.swift:1:1: expression took 5s to type-check", None),
+    }
+    for name, (line, expected) in slow_cases.items():
+        hit = SLOW_TYPECHECK.findall(line)
+        got = hit[0][2] if hit else None
+        good = got == expected
+        bad += 0 if good else 1
+        print(f"  {'ok ' if good else 'BAD'}  slow-typecheck {name:28}  -> {got}")
+
     print("selftest: OK" if not bad else f"selftest: {bad} check(s) MISREAD")
     return 0 if not bad else 1
 
@@ -299,6 +346,7 @@ def main():
     skips = find_skips(text)
     window = TAIL_STEP.search(text)
     ran = len(FAILED_OR_PASSED_PASS.findall(text))
+    slow = SLOW_TYPECHECK.findall(text)
 
     if window:
         print(f"WINDOW            : job log carries only `tail -{window.group(1)} "
@@ -318,6 +366,21 @@ def main():
     print(f"TESTS SKIPPED         : {len(skips)}")
     for line in skips:
         print("   ", line[:200])
+    # Advisory only — see SLOW_TYPECHECK. Deduplicated by file:line because the same warning
+    # is emitted once per compilation of the file and the window can hold it twice.
+    if slow:
+        seen = {}
+        for path, line, ms in slow:
+            seen[(path.split("/")[-1], line)] = max(int(ms), seen.get((path.split("/")[-1], line), 0))
+        worst = sorted(seen.items(), key=lambda kv: -kv[1])
+        print(f"slow type-check warns : {len(seen)} (advisory — the build SUCCEEDED, "
+              f"exit code is unaffected)")
+        for (name, line), ms in worst[:8]:
+            print(f"    {ms:>5} ms  {name}:{line}")
+        print("    Rule (#933e): these do not fail anything and are NOT a sweep order — most "
+              "predate your slice. Do not LEAVE A NEW ONE: an anonymous `$0` closure over a "
+              "`Range<Int>.map` with arithmetic is the usual cause; annotate the result type "
+              "and name the parameter.")
     if skips:
         # Non-zero exit on a skip is deliberate, and it is NOT the #665 false-alarm trap:
         # this bundle has no legitimately-skippable test — every `XCTSkip` here guards an
