@@ -89,6 +89,19 @@ public final class MetronomeVoice {
     // MARK: - Audio-thread-only click state
 
     @ObservationIgnored nonisolated(unsafe) private var sampleCounter: Double = 0
+    /// The beat length the counter was last measured against, so a tempo change can rescale
+    /// `sampleCounter` proportionally instead of leaving it stranded (#934). Audio-thread-only,
+    /// like `sampleCounter` itself.
+    ///
+    /// ⚠️ SEEDED WITH 0, WHICH MEANS "NOT MEASURED YET" AND IS NOT A PLACEHOLDER. The first
+    /// draft seeded it with `48_000 * 60 / 120`, copying `audioSamplesPerBeat`'s default — a
+    /// second spelling of one number, which is the duplicate-threshold defect this repo names
+    /// in its own rules (#416): the two would agree today and diverge the day someone changes
+    /// the default tempo in one place. Zero costs nothing and reads correctly: the rescale is
+    /// guarded on `lastPerBeat > 0`, so the FIRST armed buffer skips it and simply records the
+    /// beat length. There is nothing to rescale at that point — the counter is either 0 or
+    /// about to be overwritten by the resync two lines below.
+    @ObservationIgnored nonisolated(unsafe) private var lastPerBeat: Double = 0
     @ObservationIgnored nonisolated(unsafe) private var beatIndex: Int = 0
     @ObservationIgnored nonisolated(unsafe) private var clickEnv: Float = 0   // 0…1 decaying amplitude
     @ObservationIgnored nonisolated(unsafe) private var clickPhase: Float = 0
@@ -172,16 +185,48 @@ public final class MetronomeVoice {
             return
         }
 
+        // Snapshotted once per buffer, ABOVE the resync branch since #934 needs it there.
+        // One buffer stays internally consistent; a mid-buffer tempo change lands on the next
+        // one, which is 5–21 ms away and inaudible.
+        let perBeat = audioSamplesPerBeat
+
+        // ⭐ #934 — THE TEMPO CHANGE RESCALES THE COUNTER INSTEAD OF STRANDING IT, and this
+        // is the COMPLETE repair of what #933 could only bound.
+        //
+        // A beat in progress has a POSITION IN THE BEAT, not a number of samples: "40 % of the
+        // way through" survives a tempo change, "20 000 samples in" does not. #933 kept the
+        // absolute count and folded away the overflow, which stopped the click BURST but left
+        // the in-progress beat landing at an arbitrary point of the new one. Measured over
+        // every alignment, the share of jumps that still fired twice inside 10 ms: fold 2.0 %
+        // (60 → 180), 2.0 % (40 → 160), 6.3 % (20 → 400) — with the proportional rescale,
+        // 0.0 % in all three, worst case exactly one fire.
+        //
+        // ⭐ IT ALSO FIXES A DIRECTION #933 NEVER TOUCHED. On a tempo DROP (180 → 60) the fold
+        // never runs at all, so a musician 99 % through a beat had to wait a FULL new beat for
+        // the click. Proportionally they are still 99 % through, and the click lands almost at
+        // once. Measured: fold fires 0 times in the first 480 frames for every alignment,
+        // rescale fires once where the position calls for it.
+        //
+        // This is the phase-accumulator idiom — changing an oscillator's frequency keeps its
+        // phase and changes its increment; it never restarts or jumps the phase. Two compares
+        // and one multiply per BUFFER (not per frame), all audio-thread legal.
+        if perBeat != lastPerBeat {
+            // Guard the division rather than trusting the 20…400 clamp two types away: a zero
+            // or negative `lastPerBeat` would produce inf/NaN and latch the counter dead, the
+            // silent-death mode `samplesPerBeat` documents. Cheaper to check than to reason.
+            if lastPerBeat > 0 { sampleCounter *= perBeat / lastPerBeat }
+            lastPerBeat = perBeat
+        }
+
         if pendingResync {
             pendingResync = false
-            sampleCounter = audioSamplesPerBeat   // fire on the very next frame
+            sampleCounter = perBeat               // fire on the very next frame
             beatIndex = audioBeatsPerBar - 1      // → next beat becomes index 0 (downbeat)
         }
 
         let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
         let sr = Float(Self.sampleRate)
         let twoPi: Float = 2 * .pi
-        let perBeat = audioSamplesPerBeat
         let bars = max(1, audioBeatsPerBar)
 
         for frame in 0..<frameCount {
@@ -199,6 +244,14 @@ public final class MetronomeVoice {
                 // servo's own 40 → 160 clamp gives 4, and the 20 → 400 extreme gives 20.
                 // Each spurious click also advances `beatIndex`, which is how the accent
                 // ends up on the wrong beat afterwards.
+                //
+                // ⭐ #934 MADE THIS A BACKSTOP RATHER THAN THE REPAIR. The proportional
+                // rescale above keeps `sampleCounter` inside [0, perBeat) across every tempo
+                // change, so this branch should now never be taken on a tempo path at all. It
+                // is KEPT because it costs one predicted-false compare and it is the only
+                // thing standing between a future writer of `sampleCounter` and the burst —
+                // a guard that is cheap and currently unreachable is not dead code, it is a
+                // floor. The paragraph below is the measurement of what it alone achieved.
                 //
                 // ⚠️ THIS BOUNDS THE DAMAGE, IT DOES NOT ELIMINATE IT (#933b, found in
                 // review). The folded remainder can land within one buffer of the next beat,

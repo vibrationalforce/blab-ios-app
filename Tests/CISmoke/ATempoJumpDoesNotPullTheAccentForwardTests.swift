@@ -55,40 +55,44 @@
 // slice deliberately resyncs the bar on every tempo change, claim 1 goes red and its message
 // says so; that is then a decision to record, not a bug to hide.
 //
-// ⚠️ HONEST LIMITS. 6 tests. They prove the SCHEDULER and the rendered samples; they cannot
-// prove it sounds right in a room. Whether a tempo jump during a live take now keeps the
+// ⚠️ HONEST LIMITS. 8 tests. They prove the SCHEDULER and the rendered samples; they cannot
+// prove it sounds right in a room. Whether a tempo change during a live take now keeps the
 // accent where the player counts it is a DEVICE PROBE (§1) and stays open —
-// NEEDS-FOUNDER-VERIFY: run the click, jump the tempo by a field edit rather than a glide,
-// listen for whether the accent stays on the one.
+// NEEDS-FOUNDER-VERIFY: run the click, change the tempo by a field edit rather than a glide,
+// in BOTH directions, and listen for whether the beat in progress stays where it belongs.
 //
-// ⭐ GRADING (§3), transcribed in Python against THREE implementations — the parent (`-=`
-// only), this tree's fold, and an unconditional zeroing — driving the scheduler AND the
-// envelope AND this file's own onset detector rather than reasoning about them. The third
-// tree is not decoration: it is the "obvious simplification" a later reader will try, and
-// until #933b nothing here could tell it apart from the fold.
+// ⭐ GRADING (§3), transcribed in Python against FOUR implementations, driving the scheduler,
+// the envelope and this file's own onset detector rather than reasoning about them. The four
+// are the parent (`-=` only), #933's fold, #934's proportional rescale (this tree), and an
+// unconditional zeroing — the "obvious simplification" a later reader will try.
 //
-//                          parent      fold (here)   zeroing
-//   claim 1                RED 0.5951  green 0.4158  green      the accent, pulled forward
-//   claim 2, 1st           RED 0.4158  green 0.5951  green      the accent, missing
-//   claim 2, 2nd           green       green         green
-//   claim 3, first gap     green 22452 green 22452   RED 23226  folding vs zeroing
-//   claim 3, later gaps    green       green         green
-//   claim 4                green 0.5951 green 0.4158 green      (parent's number is the
-//                                                               pulled accent in-window)
-//   claim 6                RED 0.5951  green 0.4158  green      the neighbouring alignment
-//   claim 5                forward — it names a line this commit creates
+//                       parent      fold        rescale (here)  zeroing
+//   claim 1             RED 0.5951  green       green           green
+//   claim 2, 1st        RED 0.4158  green       green           RED 0.4158
+//   claim 2, 2nd        green       green       green           green
+//   claim 3 first click RED 11 225  RED 11 225  green 11 612    RED 23 225
+//   claim 3 spacings    green       green       green           green
+//   claim 4             green       green       green           green
+//   claim 6             RED 0.5951  green       green           green
+//   claim 7 tempo DROP  RED none    RED none    green 479       RED none
+//   claims 5, 8         forward — they name lines this commit and #933 create
 //
-// So the honest count is ONE FINDING reported by THREE assertions — claims 1, 2's first half
-// and 6 all see the same displacement, from three angles (#486), not three findings. Claim 3's
-// first gap is a COUNTERWEIGHT against a different tree entirely. Claims 2's second half, 3's
-// later gaps and 4 are green everywhere and are the content: without 4 a voice that stopped
-// clicking would satisfy claim 1.
+// **Only this tree is green on every claim**, and that is the property worth having: each of
+// the three alternatives is a real strategy someone could write, and the file says which one a
+// tree is running rather than only that something is wrong.
 //
-// ⛔ THREE OF THESE ROWS ARE #933b CORRECTIONS OF MY OWN FIRST GRADING, all in the flattering
-// direction §3 names. I had claim 2 down as a pure counterweight (its first half is a
-// regression); I printed the parent's 0.5951 for claim 4 on BOTH trees; and I claimed claim 3
-// guarded against zeroing while it discarded the only spacing that shows it — on a zeroing
-// tree the whole behavioural half of this file was green.
+// ⛔ CLAIM 3 HAD TO BE REWRITTEN FOR #934 AND THAT IS THE MOST INSTRUCTIVE ROW HERE. Its #933b
+// form pinned a first gap of 22 452 at the one-sample-short alignment — where rescaling and
+// zeroing BOTH produce exactly `perBeat`, so the discriminator collapsed the moment the repair
+// improved, and it would have gone RED on correct code. Mid-beat separates all three by
+// construction. **A guard written against two implementations can be blind to a third, and a
+// guard written against the CURRENT one can go red when the code gets better** — both happened
+// to this single claim, one cycle apart.
+//
+// ⛔ THREE ROWS ARE #933b CORRECTIONS OF MY FIRST GRADING, all in the flattering direction §3
+// names: claim 2 was booked as a pure counterweight (its first half is a regression); claim 4
+// printed the parent's 0.5951 for both trees; and claim 3 was described as the guard against
+// zeroing while discarding the only spacing that shows it.
 
 #if canImport(AVFoundation)
 import AVFoundation
@@ -165,75 +169,61 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             """)
     }
 
-    // MARK: - 3: counterweight — the common path is untouched
+    // MARK: - 3: the three-way discriminator — folding vs rescaling vs zeroing
 
-    /// ⭐ A GLIDE STEP IS THE ORDINARY CASE and must behave exactly as before: `perBeat`
-    /// shrinks by a sliver, one subtraction is enough, the fold never runs. This is also the
-    /// claim that goes red if someone "simplifies" the fold into an unconditional reset —
-    /// zeroing the counter would discard the sub-beat phase, which shows up here as a wrong
-    /// spacing between the first two clicks.
+    /// ⭐ ONE ASSERTION THAT TELLS ALL THREE IMPLEMENTATIONS APART, which is what this claim
+    /// had to become once #934 replaced the fold with a proportional rescale. Drive a glide
+    /// step with the counter HALFWAY through the old beat (12 000 of a 24 000-frame beat at
+    /// 120 BPM), then step to 124 BPM and find the first click. Simulated through the real
+    /// envelope and this file's own onset detector:
     ///
-    /// ⛔ MY FIRST DRAFT ASSERTED A PEAK AT `perBeat` FRAMES AND WOULD HAVE BEEN RED ON A
-    /// CORRECT TREE — the #367 failure in its own right. After a 120 → 124 step the first
-    /// click fires EARLY (the counter had already passed the shorter new beat), leaving a
-    /// residue, so the next click lands 22 452 frames later, not 23 226. The grid is only
-    /// exact from the SECOND click on. Simulated through the real envelope, both trees:
-    /// onsets [0, 22452, 45678, 68904], spacings [22452, 23226, 23226]. The assertion is
-    /// written from that arithmetic, not from a guess (#442).
-    func testAGlideSizedStepStillProducesTheOrdinaryBeatGrid() {
+    ///     fold      first onset 11 225   (absolute count kept — the beat is cut short)
+    ///     rescale   first onset 11 612   (the FRACTION is kept — this tree)
+    ///     zero      first onset 23 225   (the position is thrown away — a whole new beat)
+    ///
+    /// ⛔ THE PREVIOUS VERSION PINNED 22 452 AND WOULD HAVE GONE RED ON #934's CORRECT TREE.
+    /// It used the one-sample-short alignment, where rescaling and zeroing BOTH produce a first
+    /// gap of exactly `perBeat` — the discriminator collapsed the moment the repair improved.
+    /// Mid-beat separates them by construction, because that is where "kept the fraction",
+    /// "kept the count" and "kept nothing" are three different numbers.
+    func testTheFirstClickAfterAGlideStepTellsTheThreeStrategiesApart() {
         let m = armed(bpm: 120)
-        _ = render(m, frames: 24_000 - 1)          // one sample short of the 120 BPM beat
+        _ = render(m, frames: 12_000)              // ~halfway through the 120 BPM beat
         let perBeat = Int(MetronomeVoice.samplesPerBeat(bpm: 124).rounded())
         m.bpm = 124
         let after = render(m, frames: 3 * perBeat + 600)
         let onsets = clickOnsets(in: after)
 
-        XCTAssertGreaterThanOrEqual(onsets.count, 3, """
-            A 120 → 124 BPM glide step produced \(onsets.count) clicks in three beats' worth \
-            of frames (onsets \(onsets)). The ordinary path — the one the tempo actually takes \
-            here, since a glide fires this setter up to ~20 times a second — must be unchanged \
-            by the jump repair.
+        XCTAssertFalse(onsets.isEmpty, """
+            A 120 -> 124 BPM glide step produced no click at all in three beats of frames. \
+            The ordinary path — the one the tempo actually takes here, since a glide fires \
+            this setter up to ~20 times a second — must keep sounding.
             """)
-        guard onsets.count >= 3 else { return }
-        // ⚠️ #933d — TYPED AND NAMED, because the anonymous `$0` form made the compiler
-        // spend 522 ms type-checking this one expression and 556 ms on the whole method
-        // (limit 200 ms), which `Build for Testing` reported as a warning on the very
-        // commit that added the file. `Range<Int>.map` with two subscripts and a
-        // subtraction leaves the element type open until the end; stating `[Int]` and
-        // naming the index closes it up front. Not a correctness fix — a warning I
-        // introduced and can remove in one line.
+        guard let first = onsets.first else { return }
+        XCTAssertLessThanOrEqual(abs(first - 11_612), 2, """
+            The first click after a mid-beat glide step lands at frame \(first) (onsets \
+            \(onsets.prefix(4))). The three known strategies put it in three different places:
+
+              11 225  the leftover was FOLDED — the absolute sample count was kept, so the \
+            beat in progress is cut short.
+              11 612  the counter was RESCALED — the fraction of the beat is kept. This is \
+            what #934 ships and what this claim expects.
+              23 225  the counter was ZEROED — the position was thrown away and the player \
+            waits a whole new beat.
+
+            Read the number before changing anything: it says which of the three the tree is \
+            doing, and only one of them is a defect.
+            """)
         let spacings: [Int] = (1..<onsets.count).map { index -> Int in
             onsets[index] - onsets[index - 1]
         }
-
-        // ⭐ THE FIRST GAP IS WHAT DISTINGUISHES FOLDING FROM ZEROING, and until #933b this
-        // claim threw it away. The counter had already passed the shorter new beat, so the
-        // first click fires early and leaves a residue; the second click then lands 22 452
-        // frames later, not a full 23 226. Zeroing discards that residue and produces an exact
-        // `perBeat` here. Both numbers measured through the real envelope and this file's own
-        // onset detector, on all three implementations.
-        XCTAssertLessThanOrEqual(abs(spacings[0] - 22_452), 2, """
-            The first gap after a 120 -> 124 glide step is \(spacings[0]), not the 22 452 \
-            that phase-preserving folding produces (all spacings: \(spacings)).
-
-            A value near 23 226 means the leftover is being ZEROED rather than folded: that \
-            throws the sub-beat phase away and silently re-times the grid. Every OTHER \
-            behavioural claim in this file stays green on a zeroing tree — this assertion is \
-            the only one that sees it, so do not relax it.
-            """)
-
-        for spacing in spacings.dropFirst() {
-            // ⚠️ NOT `XCTAssertEqual(_:_:accuracy:)`. Both sides are `Int`, and that overload
-            // is declared over `FloatingPoint`/`Numeric` — nothing in this bundle uses it with
-            // an integer, so it is exactly the unverifiable-by-eye construct that cost #930c a
-            // red gate. An explicit difference compiles under any overload set.
+        for spacing in spacings {
             XCTAssertLessThanOrEqual(abs(spacing - perBeat), 2, """
                 Beat spacing after a glide step is \(spacing), not \(perBeat) (all spacings: \
-                \(spacings)). The FIRST gap is legitimately shorter and is checked separately \
-                above; from the second click on the grid must be exact, because the glide is \
-                the ordinary path and the jump repair must not touch it. If ONLY this is red \
-                while the first-gap assertion is green, the beat PERIOD is wrong — look at \
-                `samplesPerBeat`, not at the fold.
+                \(spacings)). Once the first click has landed the grid must be exact, whatever \
+                strategy placed that first one. If ONLY this is red while the first-click \
+                assertion is green, the beat PERIOD is wrong — look at `samplesPerBeat`, not \
+                at the rescale.
                 """)
         }
     }
@@ -282,6 +272,71 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             (peak \(click)). Claim 1 alone would still be green there — 48 000 is an exact \
             multiple of 16 000, the one alignment where the fold leaves no residue at all. A \
             repair that only works on that alignment is not a repair.
+            """)
+    }
+
+    // MARK: - 7: the direction #933 never touched — a tempo DROP
+
+    /// ⭐ THE FOLD ONLY EVER RAN WHEN THE BEAT GOT SHORTER, so nothing in this file described
+    /// what happens when it gets LONGER — and there the old behaviour was arguably worse. A
+    /// player 99 % of the way through a beat at 180 BPM who drops to 60 BPM should hear the
+    /// click almost at once; keeping the absolute count makes them wait 32 160 frames, two
+    /// thirds of a second, because 15 840 samples is only a third of the way into the new
+    /// beat. Simulated through the real envelope, counter at 99 %:
+    ///
+    ///     fold      no click in the first 3 000 frames  (it arrives at ~32 160)
+    ///     zero      no click in the first 3 000 frames  (it arrives at 48 000)
+    ///     rescale   click at frame 479                  (10 ms — where the player expects it)
+    ///
+    /// ⚠️ This is the claim that makes #934 a REPAIR rather than a refinement: #933 measured
+    /// only the shortening direction and reported itself as "never worse than the parent
+    /// anywhere tested" — true, and it had not tested this direction at all.
+    func testATempoDropLandsTheClickWhereThePlayerIsInTheBeat() {
+        let m = armed(bpm: 180)
+        _ = render(m, frames: 15_840)              // 99 % through the 16 000-frame beat
+        m.bpm = 60
+        let after = render(m, frames: 3_000)
+        let onsets = clickOnsets(in: after)
+
+        // ⚠️ NOT `XCTAssertEqual(_:_:accuracy:)` — both sides are `Int` and no test in this
+        // bundle uses that overload with integers (#930c cost a red gate to exactly this class
+        // of "looks fine by eye"). An explicit difference compiles under any overload set.
+        let firstOnset = onsets.first ?? -1
+        XCTAssertLessThanOrEqual(abs(firstOnset - 479), 4, """
+            After dropping 180 -> 60 BPM at 99 % of a beat the first click is at frame \
+            \(firstOnset) (-1 = nowhere in 3 000 frames; onsets \(onsets)).
+
+            NOWHERE means the counter kept its absolute sample count (or was zeroed): 15 840 \
+            samples is only a third of the way into a 48 000-frame beat, so the player waits \
+            two thirds of a second for a beat they were about to finish. Expected ~479 — the \
+            proportional position, 1 % of the new beat.
+
+            Do not relax this into "a click eventually arrives". The number IS the behaviour: \
+            it says the beat in progress kept its POSITION and not its sample count.
+            """)
+    }
+
+    // MARK: - 8: the mechanism is named where it lives
+
+    /// ⚠️ SOURCE-TEXT SCAN, labelled as such (§1). Claim 7 proves the behaviour; this pins the
+    /// one line that produces it, because a rescale reads like a redundant safety check next to
+    /// the fold it made unreachable — exactly the shape a later tidy-up removes.
+    func testTheProportionalRescaleIsStillInTheRenderBlock() throws {
+        let code = SourceText.codeOnly(try source("Sources/Echoelmusic/Audio/MetronomeVoice.swift"))
+        XCTAssertTrue(code.contains("sampleCounter *= perBeat / lastPerBeat"), """
+            The proportional rescale is gone from `MetronomeVoice.renderOnAudioThread`. Without \
+            it a tempo change strands the beat counter at an absolute sample count that means \
+            something different at the new tempo — see claims 3 and 7 for what that sounds like \
+            in each direction. If a different mechanism now keeps the counter's POSITION across \
+            a tempo change, re-anchor here rather than deleting; the behaviour claims stay the \
+            real proof.
+            """)
+        XCTAssertTrue(code.contains("if lastPerBeat > 0"), """
+            The division guard on `lastPerBeat` is gone. A zero or negative divisor makes the \
+            counter inf or NaN, and a NaN counter can never satisfy `sampleCounter >= perBeat` \
+            again — the click stops forever while every sample stays a perfectly finite 0, the \
+            silent-death mode `samplesPerBeat`'s own doc describes. Guard the division; do not \
+            argue from the clamp two types away.
             """)
     }
 
