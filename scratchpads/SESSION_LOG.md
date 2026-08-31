@@ -18328,3 +18328,39 @@ eine BEGRÜNDUNG fahre ich nicht, weil sie keine Ausführung hat. Der billige Er
 FALLUNTERSCHEIDUNG: zähle die erreichbaren Zustände auf und frage bei jedem, ob die
 behauptete Ursache das Ergebnis überhaupt ändert. Genau das hat der Reviewer getan, in vier
 Zeilen, an einem Code, den ich geschrieben hatte.
+
+
+---
+
+## #918 / #918b — die Menü-Freeze-Klasse hatte fünf Geräte-Builds gekostet und KEINEN Wächter
+
+Der Defekt: ein `@Observable`-Wert, der WÄHREND DER BODY-AUSWERTUNG gelesen wird, macht diesen
+ganzen Body zum Beobachter. `CameraRPPGBioPublisher` schreibt mit ~10 Hz, also reisst EINE
+solche Lesung in einem Vorfahren jede offene Picker-Auswahl zehnmal pro Sekunde ab. Fünfmal
+diagnostiziert (10.76.41/.43/.47/.48/.50), fünfmal repariert, **null Tests** — nur Prosa. Beim
+letzten Mal schauten alle Prüfungen auf `EchoelStudioView`, fanden es zu Recht sauber, und die
+Lesung stand eine Ebene HÖHER.
+
+**Die heisse Menge wird ABGELEITET, nicht aufgezählt** — aus dem Publisher selbst, in drei
+Quellen: gespeicherte Werte, die der 10-Hz-Task schreibt · berechnete, deren Getter den
+15-fps-Analyser liest · der transitive Abschluss darüber, private Knoten als Wegpunkte.
+
+⛔ **DER WÄCHTER WAR SIEBENMAL FALSCH, und JEDES Mal hat es das FAHREN gefunden, nie das
+Lesen.** Zwei Fassungen wären ROT AUF KORREKTEM CODE gewesen (eine gespeicherte Eigenschaft an
+den Klammer-Zähler; eine mehrzeilige Signatur, deren `) -> some View {` auf einer
+Fortsetzungszeile steht). Fünf wären FALSCH GRÜN gewesen — darunter: **`-> some View`-Funktionen
+wurden gar nicht gescannt** (19 in einer Datei; ein Mutant in `menuChip` blieb grün), ein
+DRITTER Vorfahre (`SurfaceHost`) fehlte ganz, und die Ableitung übersah `rrWindowMs` — die
+Eigenschaft, deren EIGENER Doc-Kommentar genau dieses Gesetz aufschreibt.
+
+⛔ **UND DER KOPF TRUG EIN FALSCHES GESETZ.** Er sagte, eine Lesung in einer `private func` sei
+„keine Body-Auswertung und zu Recht draussen". Falsch für jede `private func … -> some View`
+und für jede aus einem Body gerufene Hilfsfunktion. Wahr war es nur für die drei Aufrufstellen,
+die es heute ZUFÄLLIG gibt — **eine Verallgemeinerung eines Zufalls zum Gesetz, in der Datei,
+deren Aufgabe genau das Gegenteil ist.**
+
+**GESETZ, und es ist die Verschärfung dessen aus #917b:** eine Wächter-FORM ist erst geprüft,
+wenn sie in BEIDE Richtungen gefahren wurde — rot für den Defekt UND grün für die dokumentierte
+Reparatur. Vier meiner sieben Fehler waren „falsch grün", also unsichtbar für jeden Lauf auf
+korrektem Code; nur das absichtliche Einbauen des Defekts findet sie. Ein Wächter, der nie
+gegen eine echte Mutation gefahren wurde, ist eine Behauptung, kein Messgerät.
