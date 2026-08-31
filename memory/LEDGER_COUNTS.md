@@ -6178,3 +6178,33 @@ Kamera-Anstieg, die 2-Sekunden-Übergabe und die Vierer-Kadenz des Handgelenk-Fr
 plausibel gewählt, nicht gemessen; belegt ist die Kadenz nur als Größenordnung (500-ms-Poll
 hinter einem 4–5-s-Sensor). Der Befund ist damit ein ERREICHBARER Fall, kein protokollierter
 Vorfall.
+
+## M — `Core/VisualModulation`: ein Kern ohne Aufrufer, den das Register nie nannte (#921)
+
+**Stand 2026-08-31, code-only gemessen.** `git grep "VisualModRoute(" -- Sources` → **0** ·
+`git grep "VisualModulation.apply" -- Sources` → **0**. Die einzigen zwei Erwähnungen unter
+`Sources/` sind KOMMENTARE in `Core/EngineBus.swift`, und einer sagt es wörtlich: *„that core
+has no caller yet — it is a guard for when the visual path is wired, not a fix anyone has
+seen."*
+
+**Der Defekt war das REGISTER, nicht der Code.** CLAUDE.mds Liste der „genuinely app-unwired
+pure cores remaining" nannte BioModulation, CloudSync und `Core/BioSpaceMap` — diesen nicht.
+Das ist die #867-Familie: eine Register-Zeile ist die Liste, die eine Sitzung liest, BEVOR sie
+in den Quelltext schaut; eine Lücke darin wird nie zur Frage.
+
+⚠️ **Und hier ist sie besonders teuer, weil eine WAHRE Nachbarzeile sie tarnt.** Das Register
+sagt korrekt **`BioVisualParams` ist verdrahtet**. Wer nach „ist bio→visual lebendig?" sucht,
+liest also „ja" — und hält plausibel DIESEN Kern für den Mechanismus. Zwei Mechanismen, einer
+verdrahtet, einer nicht, und nur einer benannt.
+
+**Nicht löschen.** Der Kern trägt (a) das `isMeasured`-Tor in genau der Form, die der
+Visual-Pfad brauchen wird, und (b) eine dokumentierte Überraschung, die sonst neu entdeckt
+werden müsste: *skipping is not QUITE identity* — `touched` bleibt false, und `combine` ist bei
+Offset 0 kein No-op (`.hue` wickelt, der Rest klemmt).
+
+⭐ **Was eine Verdrahtungs-Scheibe zusätzlich entscheiden muss, und es ist die #920c-Lehre auf
+diesem Pfad:** `bus.latestBio` VERSCHRÄNKT (HealthKit wird von `stopBioSource()` nie gestoppt
+und veröffentlicht `coherence: 0`). Ein Per-Frame-Skip schnappt das Ziel also alle paar Sekunden
+auf `base` zurück. `Tools/FXBioModulator` hat dafür ein Halten-und-Faden (`FXRouteFade`); dieser
+Kern hat keins. Eine Verdrahtung ohne Halten liefert ein sichtbares Flackern.
+⚠️ Ob das Flackern auf einer Fläche wirklich auffiele, ist NICHT gemessen — es gibt keine Fläche.

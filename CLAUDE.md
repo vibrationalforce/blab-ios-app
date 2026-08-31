@@ -130,7 +130,7 @@ Deprecated from main flow: the old SoundscapeEngine, ClipEngine, MomentCaptureVi
   BioSourceManager, Oura/EEG bridges, WeatherProvider, CircadianClock files have all
   been REMOVED in cleanup (2026-06-19 audit) — they no longer exist. (HealthKit + rPPG
   are now LIVE, not deprecated.) The genuinely app-unwired pure cores remaining are
-  BioModulation, CloudSync und — nachgetragen 2026-08-23 (#757) — **`Core/BioSpaceMap`**
+  BioModulation, CloudSync, — nachgetragen 2026-08-23 (#757) — **`Core/BioSpaceMap`** und — nachgetragen 2026-08-31 (#921) — **`Core/VisualModulation`** (nicht mit dem verdrahteten `BioVisualParams` verwechseln; Wächter `TheVisualModulationCoreHasNoCallerTests`)
   (null Produktions-Aufrufer; die bio→Objekt-Abbildung, die WIRKLICH sendet, steht in
   `Sync/ADMOSCSender` selbst). ⛔ #756 nannte `BioSpaceMap` als BELEG dafür, dass die
   Website-Zeile „breath→azimuth, coherence→distance, HRV→elevation" stimmt. Der SCHLUSS
