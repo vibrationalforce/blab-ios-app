@@ -3,6 +3,44 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #936/#936b: ein `body` mit 21 Kindern, und ein Wächter, der sein eigenes Gesetz nicht sah
+
+**#936** hat die fünfzehn `effectSection`-Aufrufe aus `EchoelFXView.body` in drei
+`@ViewBuilder`-Eigenschaften gezogen. Anlass war das Werkzeug aus #933e/#935: CI-Lauf
+33430039440 druckte neun Typprüfungs-Warnungen, acht in Testdateien, die EINE in `Sources/`
+war `var body` mit **1827 ms** gegen 200 ms. Ursache: 21 direkte Kinder, `ViewBuilder`s feste
+Überladungen enden bei zehn. Nachgewiesen content-rein (keine Zeile verschwindet).
+
+**Der `ui-state-reviewer` gab 0 BLOCKER, 7 SHOULD-FIX, 4 NIT.** Die drei, die zählen:
+
+1. ⭐ **MUT-A: der Wächter konnte den Defekt nicht sehen, für den er gebaut wurde.** Alle
+   fünfzehn Reihen in EINE Gruppe schieben und die anderen zwei zu `EmptyView()`-Stummeln
+   machen lässt **beide** Ansprüche grün — die >10-Lage rekonstruiert, während die Klasse nach
+   genau diesem Gesetz BENANNT ist. Der ORT war gepinnt, die BREITE nicht. Dritter Anspruch
+   ergänzt: keine Gruppe über zehn Reihen.
+2. ⛔ **Eine SwiftLint-Regression.** Zwei Leerzeilen vor schließender Klammer; `pr-check.yml`
+   fährt `swiftlint lint --strict`. Gemessen: diese Datei hatte am Elternbaum NULL solche
+   Stellen, im ganzen `Sources/` gibt es nur sechs — zwei davon wären mit meinem Commit
+   gekommen.
+3. ⛔ **`bodyText` nahm das erste SCHLÜSSELWORT der Liste statt des frühesten TREFFERS**, und —
+   die eigentliche Lehre — **meine lokale Prüfung nahm das Minimum, testete also nicht die
+   ausgelieferte Logik**. Genau deshalb fand der Reviewer es und ich nicht.
+
+Dazu: der `///`-Doc-Kommentar von `morphTargets` und `// MARK: - Macro morph` waren durch die
+Einfügung verwaist (der Kommentar hing an meiner ersten Gruppe) — beides zurückgesetzt, denn
+mein eigener Commit sagte „NICHTS ELSE MOVED", und zwei Dinge sind sehr wohl gewandert. Die
+Gruppennamen heißen jetzt **A · B · C**: ein semantischer Name behauptet eine Taxonomie, die
+#692 zwanzig Zeilen tiefer bestreitet, und **Granular** saß in einer Gruppe über Stimme und
+Raum — eine stehende Einladung, die Panel-Reihenfolge zu ändern, die derselbe Kopf verbietet.
+
+⛔ **Und ein toter Nadel-Eintrag im eigenen Wächter:** ein `"\n    // MARK:"`-Terminator konnte
+nie treffen, weil die Aufrufer `SourceText.codeOnly` hineingeben, das Kommentare ausbleicht.
+`dead-needles.py` sieht das nicht — die Nadel steht in einem Swift-Array-Literal, nicht an einer
+Aufrufstelle. Entfernt statt als Dekoration gelassen.
+
+Wertung gegen die AUSGELIEFERTE Logik nachgefahren: Elternbaum Anspruch 1 rot (15), 2 rot,
+3 rot; Arbeitsbaum 0 / 3 Gruppen / Breiten 4·5·6.
+
 ## 2026-08-31 — #935b: der Reviewer fand denselben Fehler in ALLEN DREI Nadeln
 
 Der Pflicht-Reviewer bestätigte Exit-Code-Neutralität und Nadel-Eindeutigkeit und lieferte **zwei

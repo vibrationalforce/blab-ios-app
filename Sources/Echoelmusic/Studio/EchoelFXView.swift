@@ -545,9 +545,9 @@ struct EchoelFXView: View {
                 }
                 .listRowBackground(EchoelTheme.fill)
 
-                colourEffects
-                voiceAndSpaceEffects
-                modulationAndDynamicsEffects
+                effectRowsA
+                effectRowsB
+                effectRowsC
             }
             .navigationTitle("EchoelFX")
             .searchable(text: $presetQuery, prompt: "Search presets & tags")
@@ -607,25 +607,44 @@ struct EchoelFXView: View {
         }
     }
 
-    // MARK: - Macro morph
+    // MARK: - Effect rows
 
-    /// All presets that can be a morph target (your own + curated community).
-    // ⭐ #936 — THE FIFTEEN `effectSection` CALLS MOVED OUT OF `body`, AND NOTHING ELSE MOVED.
-    // The order is byte-identical and every call is unchanged; this is a COMPILE-TIME split,
-    // not a new taxonomy — do not reorder a row to make a group name fit better.
+    // ⭐ #936 — THE FIFTEEN `effectSection` CALLS MOVED OUT OF `body`. The order is unchanged
+    // and every call is unchanged; the whole block was re-indented one level and nothing else.
+    //   A: Filter · Saturation · Tape/VHS · Bitcrush
+    //   B: Harmonizer · Granular · Reverb · Stereo Width · Delay
+    //   C: Chorus · Flanger · Phaser · Tremolo · Compressor · Limiter
     //
-    // WHY: `Form` held 21 direct children. `ViewBuilder`'s fixed overloads stop at 10, so 21
-    // resolves through the variadic-generic pack, and the compiler reported `var body` at
-    // **1827 ms to type-check** against a 200 ms limit (CI run 33430039440, the only Sources/
-    // file in that run's nine warnings). Aggregate generic pressure in a SwiftUI body is the
+    // ⛔ THE NAMES ARE A · B · C ON PURPOSE (#936b renamed them from three semantic ones), and
+    // the reason is worth keeping: a semantic name ASSERTS a taxonomy, and a disclaimer saying
+    // "this is not a taxonomy" does not survive contact with it. #692, twenty lines below,
+    // already says this panel is ordered by FAMILIARITY and not by the signal chain. Group B
+    // held Granular under a name about voice and space — Granular is neither; it sits there
+    // because the ORDER IS FROZEN. The honest reading of that name was "someone should move
+    // Granular", i.e. an invitation to reorder the panel the header forbids. A · B · C invites
+    // nothing. Do not re-christen them without moving #692 too.
+    //
+    // WHY THE SPLIT: `Form` held 21 direct children. `ViewBuilder`'s fixed overloads stop at 10,
+    // so 21 resolves through the variadic generic pack, and the compiler reported `var body` at
+    // **1827 ms to type-check** against a 200 ms limit (CI run 33430039440, the only `Sources/`
+    // file among that run's nine warnings). Aggregate generic pressure in a SwiftUI body is the
     // mechanism behind this repo's black-screen SIGSEGV (CLAUDE.md, 10.76.34) — different
     // surface, same cause — so a body this wide is a hazard and not only a slow build.
     // `body` now has NINE children and no group holds more than six.
     //
+    // ⚠️ WHAT IS MEASURED AND WHAT IS NOT (#936b). Measured: the 1827 ms and the 21 children.
+    // INFERRED: that the pack is the cause. NOT MEASURED AT ALL: that the warning goes away —
+    // there is no local compiler. The next CI run closes it, and it is one command, not a guess:
+    // `python3 scripts/gh-test-verdict.py` prints the warning list (#933e).
+    //
+    // ⚠️ THIS IS NOT AN OBSERVATION BOUNDARY. `vm.delayMode`, `harmonyFollower.enabled` and the
+    // rest are still read while `body` evaluates — a computed property is no more a boundary
+    // than `AnyView` is (CLAUDE.md 10.76.41/50). Nothing here changes what this view observes.
+    //
     // ⚠️ NOT a fix for the presentation-modifier ceiling: that budget belongs to
     // `EchoelStudioView`'s `.sheet` chain, in another file. This changes nothing there.
     @ViewBuilder
-    private var colourEffects: some View {
+    private var effectRowsA: some View {
         effectSection("Filter", isOn: $vm.filterEnabled) {
             Picker("Type", selection: $vm.filterMode) {
                 Text("Low-pass").tag(EchoelSVFilter.Mode.lowpass)
@@ -654,10 +673,10 @@ struct EchoelFXView: View {
             field("Downsample", $vm.bitcrushDownsample, 1...64, unit: "×", decimals: 0)
             field("Mix", $vm.bitcrushMix, 0...1, decimals: 2)
         }
-
     }
+
     @ViewBuilder
-    private var voiceAndSpaceEffects: some View {
+    private var effectRowsB: some View {
         effectSection("Harmonizer", isOn: $vm.harmonizerEnabled) {
             // #599b — "Follow the key": the two voices become the diatonic
             // third + fifth over the sounding lead (VoiceHarmony maths; the
@@ -747,10 +766,10 @@ struct EchoelFXView: View {
                 field("Drive", $vm.delayDrive, 0...1, decimals: 2)
             }
         }
-
     }
+
     @ViewBuilder
-    private var modulationAndDynamicsEffects: some View {
+    private var effectRowsC: some View {
         effectSection("Chorus", isOn: $vm.chorusEnabled) {
             field("Rate", $vm.chorusRate, 0.05...8, unit: "Hz", decimals: 2)
             syncMenu($vm.chorusRate, .hertz(0.05...8))
@@ -811,6 +830,9 @@ struct EchoelFXView: View {
         }
     }
 
+    // MARK: - Macro morph
+
+    /// All presets that can be a morph target (your own + curated community).
     private var morphTargets: [FXPreset] { presetStore.sortedPresets + FXPreset.curatedCommunity }
 
     /// One fader that continuously morphs the CURRENT sound toward a chosen preset —
