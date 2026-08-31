@@ -2838,3 +2838,61 @@ ohne dass etwas rot wird.
 Fassung („jede `@Observable`-Ausgabe in `Sources/` hat einen Erzeuger") ist NICHT erzwingbar —
 viel legitimer Zustand wird dateiübergreifend geschrieben, weshalb `doorless-state.py` seinen
 MASKED-Abschnitt hat und ausdrücklich nicht anklagt.
+
+---
+
+## REGISTER #926 (2026-08-31) — zehn private `slice`-Helfer, EIN Name, ZWEI Bedeutungen
+
+**Gemessen** (Kommentare gestrippt, Körper klammer-gematcht, alle `Tests/CISmoke/*.swift`):
+zehn Dateien deklarieren je ein privates `slice(…, from:, to:)`, um einen Member-Rumpf aus
+Quelltext zu schneiden. Sie zerfallen in **zwei Familien, die verschiedene Dinge tun**:
+
+| Familie | Dateien | Rückgabe |
+|---|---|---|
+| **EXCLUDES-marker** | 4 (`AudioInputDoorTests`, `MIDIClockTests`, `RecordRouteOwnershipTests`, `TheMarkIsTheSameMarkTests`) | Text NACH dem `from`-Marker |
+| **INCLUDES-marker** | 6 (`AutoModeStartsOffAndOwnsNoTempoTests`, `TheBioSourceChooserHasOneDefinitionTests`, `TheChipStripAdmitsItOverflowsTests`, `TheHintRetiresOnLessonLearnedTests`, `TheLogoHoldsItsPlaceTests`, `TheMonitorToggleAsksForTheMicTests`) | Text BEGINNEND MIT dem Marker |
+
+Beide enden vor dem `to`-Marker, die Familien unterscheiden sich also um **genau den
+Öffnungs-Marker**. An einer Vorlage gefahren, nicht argumentiert: für dieselbe Eingabe liefern
+sie verschiedene Zeichenketten, und eine Nadel, die irgendetwas zählt, was im Marker-Text
+vorkommt (ein Funktionsname, `private func`, ein Label), liest in der INCLUDES-Familie **um eins
+höher**. Beide liefern bei verfehltem Anker `""` — eine `count == 0`-Zusicherung über einen
+fehl-verankerten Schnitt besteht also LEER.
+
+⚠️ **LATENT, NICHT LIVE — und das gehört zum Befund.** Jede `slice(`-Bindung in den sechs
+INCLUDES-Dateien wurde daraufhin gescannt, ob eine ihrer Nadeln im eigenen `from`-Marker
+vorkommt: **heute null.** Es ist also gerade nichts kaputt. Die Falle schnappt in dem Moment zu,
+in dem jemand eine Zusicherung zwischen zwei Wächter-Dateien VERSCHIEBT — was dieses Repo
+laufend tut (§4 der Test-Direktive handelt von nichts anderem als Prosa und Wächtern, die das
+Zuhause wechseln). Zwei Schreibweisen einer Operation ist der #416-Defekt „ob sie heute
+übereinstimmen oder nicht"; hier stimmen sie nicht einmal heute überein.
+
+⛔ **KEINE MIGRATION, UND DAS IST ABSICHT.** Zehn Helfer in eine geteilte Definition zu falten
+ist das richtige Endbild — es ist, was `SourceText.codeOnly` für den Stripper ist —, aber es
+fasst zehn Dateien an und ÄNDERT DIE BEDEUTUNG VON VIEREN. Das ist eine Migration mit
+Founder-Sprengweite, keine Ralph-Scheibe. Der Wächter ist deshalb so geschrieben, dass die
+Migration GRÜN bleibt: er verlangt, dass jede Deklaration KLASSIFIZIERBAR ist — nie eine
+bestimmte Familie, Zahl oder Dateiliste. Null Deklarationen besteht. Eine neue Datei mit einer
+der beiden Familien besteht. Nur eine DRITTE, anders arbeitende Schreibweise wird rot.
+
+⭐ **DER KLASSIFIKATOR MUSS AUF DER ARITHMETIK ANKERN, NICHT AUF DEM TEXT — gemessen.** Der
+normalisierte Körper-TEXT liefert DREI verschiedene Körper, nicht zwei: `TheMarkIsTheSameMarkTests`
+schreibt die EXCLUDES-Familie mit `open`/`after`/`close` statt `start`/`rest`/`end`. Text zu
+pinnen würde also (a) die Familien falsch zählen und (b) am Tag einer Umbenennung rot werden —
+ein Wert, den ein Leser vernünftigerweise ändern darf, und genau das verbietet #364. Der
+Klassifikator fragt stattdessen die RANGE-Arithmetik: `.lowerBound..<` = Marker bleibt,
+`.upperBound...` = Marker fällt. Sortiert alle zehn, die umbenannte eingeschlossen, in 4 + 6.
+
+⛔ **UND DIE ERSTE FASSUNG DES SCANS LAS SICH SELBST — die dritte Nadel-Kollision in drei
+Scheiben.** Der Anker `func slice(` traf das eigene Nadel-LITERAL im Scanner, weil
+`SourceText.codeOnly` String-Literale absichtlich stehen lässt: elf Deklarationen, eine davon
+unklassifizierbar, **rot auf korrektem Baum**. Reparatur ist ein STRUKTURELLER Diskriminator
+(die Zeile davor darf nur Modifikatoren enthalten), keine Ausnahmeliste für die eigene Datei —
+eine Ausnahme hätte den Scan für genau die Datei blind gemacht, die ihn ändert.
+
+⭐ **DIE GEMEINSAME URSACHE DER DREI KOLLISIONEN, und das ist der übertragbare Teil:**
+#921b ein nackter Typname, der die eigene Deklaration traf · #924 eine Nadel aus einer
+BESCHRIFTUNG, die zwei fremde Zeilen mit demselben Wort traf · #926 ein Scanner, der sein
+eigenes Literal las. **Jedes Mal war die Nadel danach gewählt, wie die Sache HEISST, statt
+danach, wo sie nur VORKOMMEN kann.** Und jedes Mal hat nur das FAHREN es gefunden, nie das
+Lesen.
