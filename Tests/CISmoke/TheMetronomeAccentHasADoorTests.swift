@@ -1,20 +1,36 @@
 // TheMetronomeAccentHasADoorTests.swift
 // Echoel — the one metronome option whose three siblings all had a row. #924.
 //
-// WHAT WAS WRONG. `MetronomeVoice` exposes four settable options. Three have controls in
-// `metronomeRow` (the Tempo panel): `enabled`, `beatsPerBar`, `level`. The fourth,
-// `accentDownbeat`, had **no writer anywhere under `Sources/`** — found by
-// `scripts/doorless-state.py`, which flags settable class state with no door.
+// WHAT WAS WRONG. `MetronomeVoice` exposes FIVE settable observed properties, and four of them
+// have a writer: `enabled`, `beatsPerBar` and `level` from `metronomeRow` (the Tempo panel), and
+// `bpm` from the transport relay in `EchoelmusicApp`. The fifth, `accentDownbeat`, had **no
+// writer anywhere under `Sources/`** — found by `scripts/doorless-state.py`, which flags settable
+// class state with no door. ⛔ The first draft of this line said "four settable options"; `bpm`
+// is the one it forgot, and it is the one that matters most for the freeze law below.
 //
-// ⭐ WHY THIS ONE IS DIFFERENT FROM THE OTHER 22 UNGUARDED ENTRIES ON THAT LIST, and the
-// distinction is the whole reason it was worth a slice. Measured 2026-08-31: of the 33 hits, 10
-// already carry a guard and the rest are DSP tuning constants (`inharmonicity`, `fmRatio`,
-// `onsetNoiseDecay` …) in files like `EchoelCellular` and `EchoelModalBank`, which are
-// TEST-ONLY and have no production path at all. The tool's own rule sorts them: *a tuning
-// constant with no writer is fine, a knob whose doc names a user who cannot turn it is the
-// defect.* `accentDownbeat` is neither of those exactly — its doc names no user — but it is a
-// third thing the rule implies: **an option sitting beside three siblings that all have rows,
-// in a panel the player can open.** Absence there reads as a decision nobody made.
+// ⭐ WHY THIS ONE IS DIFFERENT FROM THE OTHER ENTRIES ON THAT LIST. The tool's own rule sorts
+// them: *a tuning constant with no writer is fine, a knob whose doc names a user who cannot turn
+// it is the defect.* `accentDownbeat` is neither exactly — its doc names no user — but it is a
+// third thing the rule implies: **an option sitting beside siblings that all have rows, in a
+// panel the player can open.** Absence there reads as a decision nobody made.
+//
+// ⛔ THE SURVEY THAT STOOD HERE WAS ASSERTED, NOT RUN, and the mandatory review measured it
+// false. It said the non-guarded remainder were "DSP tuning constants … in files like
+// `EchoelCellular` and `EchoelModalBank`, which are TEST-ONLY", and named `inharmonicity` and
+// `onsetNoiseDecay` as examples — both of which live in `EchoelDDSP`, the LIVE synth. Measured
+// 2026-08-31 on the tool's own output (32 entries after this slice doored one):
+//   · **11 are not in `DSP/` at all** — `MemoryPressureHandler` · `ResourceGovernor` ×2 ·
+//     `CrashSafeStatePersistence` ×2 · `TimelineStore` · `ADMOSCSender` · `Transport` ·
+//     `PolarH10BioPublisher` · `CameraAnalyzer` · `BioReactiveSynthVoice`.
+//   · **9 are in `EchoelDDSP`**, which 30 other files under `Sources/` consume.
+//   · Only **9** are in the two test-only files (`EchoelCellular` 7, `EchoelModalBank` 2), and
+//     even there the label means "no INSTANTIATION site", not "unmentioned" — CLAUDE.md makes
+//     that exact distinction after a `grep` recipe aged badly.
+// So the list still holds real production knobs and is NOT triaged. Writing an untested survey
+// into a guard header is the failure this bundle exists to prevent: **the check is the
+// measurement, the survey is a memory of one.** Kept as a ⛔ rather than deleted because the same
+// false sentence went out in the commit message and in `decisions.csv`, and this is the copy a
+// later session will actually read.
 //
 // ⭐ AND IT IS THE ONE THAT MAKES A SIBLING AUDIBLE. `beatsPerBar` only means something because
 // beat 0 sounds different; the render block's test is
@@ -57,9 +73,10 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
     func testTheAccentRowExistsAndBindsTheVoice() throws {
         let code = SourceText.codeOnly(try rawText(Self.studio))
         XCTAssertTrue(code.contains("Toggle(isOn: $metronome.accentDownbeat"), """
-            No control writes `accentDownbeat`. It is the only one of MetronomeVoice's four \
-            settable options without a row, while `enabled`, `beatsPerBar` and `level` all have \
-            one in the same panel — and it is the option that makes `beatsPerBar` audible at all.
+            No control writes `accentDownbeat`. It is the only one of MetronomeVoice's five \
+            settable observed properties without a writer: `enabled`, `beatsPerBar` and `level` \
+            all have a row in this same panel, and `bpm` is written by the transport relay — and \
+            it is the option that makes `beatsPerBar` audible at all.
             """)
     }
 
@@ -80,10 +97,21 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
             body.append(ch)
             index = after.index(after: index)
         }
+        // ⚠️ REFUSE TO ANSWER RATHER THAN ANSWER FROM THE REST OF THE FILE. If the braces never
+        // balance the loop reaches `endIndex` with `depth > 0`, and `body` is then everything
+        // after the `if` — a match found anywhere later in this 10k-line file would read as a
+        // green this walk did not earn (#454). Also honest about the walker's one blind spot:
+        // `SourceText.codeOnly` strips comments but deliberately leaves STRING LITERALS, so a
+        // future row whose label contains a brace would miscount. No such label exists today.
+        guard depth == 0 else {
+            throw XCTSkip("unbalanced braces after `if metronome.enabled` — refusing to guess the block")
+        }
         XCTAssertTrue(body.contains("$metronome.accentDownbeat"), """
-            The accent control is outside the `if metronome.enabled` block, so it is offered \
-            while the click is silent. That is the "adjustable but inaudible" control this repo \
-            keeps removing (#135/#164/#227) — the sibling rows are inside for exactly that reason.
+            The accent control is ABSENT FROM, or sits outside, the `if metronome.enabled` \
+            block. (On the parent tree it is absent — that is this claim's #367 reason there, and \
+            the first draft of this message named only the misplacement.) Outside the block it \
+            would be offered while the click is silent: the "adjustable but inaudible" control \
+            this repo keeps removing (#135/#164/#227), which is why the sibling rows are inside.
             """)
     }
 
@@ -107,21 +135,34 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
             """)
     }
 
-    /// ⛔ THE FIRST DRAFT OF THIS CLAIM WAS RED ON A CORRECT TREE, and only driving it showed
-    /// that. Its needle was `EchoelValueField(label: "Accent"` — and `EchoelStudioView` already
-    /// has TWO of those, for the field-arp accent and the pad accent, both genuinely numeric
-    /// (0…1) and both unrelated to the click. **A needle taken from a LABEL collides with every
-    /// other row that happens to use the same word**; the needle has to name the BINDING, which
-    /// is unique. Same class as #921b's bare type-name needle, one window apart — the second
-    /// time in this session, so it is written down as a pattern rather than an accident.
+    /// ⛔ THIS CLAIM'S NEEDLE WAS WRONG TWICE, IN OPPOSITE DIRECTIONS, AND BOTH WERE MINE.
+    ///
+    /// FIRST it was `EchoelValueField(label: "Accent"` — RED ON A CORRECT TREE, because
+    /// `EchoelStudioView` already has TWO of those (field-arp accent, pad accent), both genuinely
+    /// numeric and both unrelated to the click. **A needle taken from a LABEL collides with every
+    /// other row using that word.** Caught by driving the claim before the fix.
+    ///
+    /// THEN it became `value: $metronome.accentDownbeat` — UNFALSIFIABLE, which the mandatory
+    /// review caught and driving could not. `EchoelValueField` is generic over
+    /// `V: BinaryFloatingPoint`, so a `Bool` binding cannot be passed to it at all: that needle
+    /// only matches a tree the COMPILER already rejects. Worse, the violation the message
+    /// describes — a 0/1 bridge — would be written `Binding(get: { … ? 1.0 : 0.0 }, set: …)` and
+    /// match nothing here. A green earned by a needle that cannot fail is the shape #679/#738
+    /// are both about.
+    ///
+    /// ⚠️ WHAT IT PINS NOW, STATED WITH ITS LIMIT: the label THIS row would carry if someone
+    /// rebuilt it as a number field. That is reachable by compiling code and specific enough not
+    /// to collide (the two existing rows are labelled "Accent", not "Accent downbeat"). It does
+    /// NOT catch a bridge under a different label — no negative needle would. The real pin is the
+    /// POSITIVE one in `testTheAccentRowExistsAndBindsTheVoice`, which requires the `Toggle`
+    /// form; this claim is the cheap second opinion, not the guarantee.
     func testTheSwitchIsAToggleAndNotANumberField() throws {
         let code = SourceText.codeOnly(try rawText(Self.studio))
-        XCTAssertFalse(code.contains("value: $metronome.accentDownbeat"), """
-            The accent was wired through a value field rather than a switch. CLAUDE.md's
-            parameter rule covers adjustable NUMERIC parameters and says in the same breath to \
-            read that word: a named choice is a Picker, and an on/off is a Toggle — its sibling \
-            `enabled` row is one. A 0/1 number field here would obey the rule's letter against \
-            its purpose.
+        XCTAssertFalse(code.contains("EchoelValueField(label: \"Accent downbeat\""), """
+            The accent was rebuilt as a value field rather than a switch. CLAUDE.md's parameter \
+            rule covers adjustable NUMERIC parameters and says in the same breath to read that \
+            word: a named choice is a Picker, and an on/off is a Toggle — its sibling `enabled` \
+            row is one. A 0/1 number field here would obey the rule's letter against its purpose.
             """)
     }
 
