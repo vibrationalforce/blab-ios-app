@@ -3,6 +3,47 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #933/#933b: ein echter Fehler im Metronom, und ein blinder Wächter
+
+**Commits:** `7fe80ee` (#933) · `af7b6a6` (#933b).
+
+**Der Fehler.** Springt das Tempo (statt zu gleiten), zählt `sampleCounter` noch auf den
+alten, längeren Schlag. Ein `-= perBeat` holt das nicht ein → der Schlag-Test feuert im
+nächsten **Frame** wieder. Nicht die Salve ist hörbar (drei Auslösungen in drei Samples),
+sondern dass jede `beatIndex` schiebt: **der Akzent kam zwei Schläge zu früh** und der Takt
+blieb dauerhaft verschoben. Trifft nur SPRÜNGE (Feld-Eingabe, geladenes Projekt,
+Flow-Klammer), dann aber **ein Drittel** aller Sprünge — ein Glide ist unauffällig, und
+darum hat es nie jemand gehört. Fix: `fmod`-Faltung, eine Zeile, audio-thread-legal.
+
+**Was der Audio-Reviewer fand — sechs Befunde, einer davon teuer.**
+Er hat den Render-Block gegen **drei** Fassungen gefahren: Elternteil, mein Fold, und ein
+bedingungsloses **Nullen**. Auf der Null-Fassung waren die Ansprüche 1, 2, 3 **und** 4 alle
+grün — die ganze Verhaltens-Hälfte war blind, weil Anspruch 3 per `dropFirst()` genau den
+Abstand wegwarf, der es zeigt (22 452 gefaltet gegen 23 226 genullt), und seine
+Fehlermeldung das Gegenteil behauptete.
+
+Dazu: **meine Test-Ausrichtung war die günstigste**, nicht die schlimmste — 48 000 ist ein
+Vielfaches von 16 000, `fmod` gibt glatt 0. Ein Sample daneben feuert der Fold immer noch
+zweimal. Der Fold ist also eine **Begrenzung**, keine Beseitigung (34,4 % → 2,0 %), und das
+steht jetzt so da.
+
+**Drei Zahlen im Kopf waren falsch:** „zwei Drittel" war ein Drittel (`floor(…)` ist die
+GESAMTzahl, die überzähligen sind `floor(…)−1`), „drei Schläge" waren zwei (die Spur drei
+Zeilen darüber sagte es bereits — §2 #425, und der Dreher steckte im Test-NAMEN), und die
+Benotungstabelle druckte die Zahl des Elternteils für beide Bäume.
+
+**Zwei Gesetze zum Mitnehmen:**
+1. Eine dritte, plausible Fassung mitzufahren ist kein Luxus — sie ist die, die ein späterer
+   Leser als „Vereinfachung" hinschreibt.
+2. Eine Ausrichtung, die für den ALTEN Code der schlimmste Fall ist, kann für den NEUEN der
+   **günstigste** sein.
+
+**Gates vorher:** `9802824` — Compile Check `success`, CI/CD `build-for-testing: Succeeded`.
+
+**Offen am Gerät (NEEDS-FOUNDER-VERIFY, im Wächter-Kopf notiert):** Klick laufen lassen,
+Tempo per Feld-Eingabe springen lassen, hören ob der Akzent auf der Eins bleibt.
+
+
 ## 2026-08-31 — #932/#932b: ein Befund, den das Register schon hielt
 
 **Commits:** `166b43a` (#932) · `9802824` (#932b) — beide auf
