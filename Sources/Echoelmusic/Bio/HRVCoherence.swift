@@ -161,6 +161,22 @@ public enum HRVCoherence {
     /// Lomb–Scargle (`blend` 1). Both spectra are estimated; the scalar
     /// outputs are linearly blended. The peak frequency follows the dominant
     /// method (blend ≥ 0.5 → Lomb–Scargle).
+    ///
+    /// ⛔ THE SHIPPED BLEND IS PERMANENTLY 1.0 ON BOTH BIO PATHS (#923): the camera passes the
+    /// literal, and the strap passes `PolarH10BioPublisher.coherenceBlend`, which nothing under
+    /// `Sources/` writes. So `mix` returns the Lomb–Scargle term alone on every shipped window.
+    ///
+    /// ⚠️ AND WELCH IS STILL NOT INERT, which is the half a reader skips. The `guard` below
+    /// returns the WHOLE Welch reading when Lomb–Scargle is invalid and Welch is not — reachable
+    /// by construction, because both go through `reading(from:)`, whose `total > 0` test is
+    /// evaluated on DIFFERENT spectra of the same tachogram. Not demonstrated by any test here;
+    /// "possible" is not "happens", and building a divergent RR series is its own slice.
+    ///
+    /// ⚠️ SO DO NOT SKIP THE WELCH ESTIMATE WHEN `b == 1` AS FREE PERFORMANCE. It is real work
+    /// on the bio path and it is real waste on almost every window — but removing it also
+    /// removes the rescue, which turns an occasional Welch answer into no answer. What an
+    /// invalid Lomb–Scargle should produce is a DSP decision, not a tidy-up.
+    /// Guard: `Tests/CISmoke/TheCoherenceBlendHasNoFaderTests`.
     public static func compute(rrMs: [Double], blend: Double = 1.0) -> CoherenceReading {
         let b = min(1.0, max(0.0, blend))
         let welch = compute(rrMs: rrMs, method: .welch)

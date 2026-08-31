@@ -55,7 +55,24 @@ public final class PolarH10BioPublisher: NSObject {
     /// Cross-fade for the published HRV coherence: 0 = Welch (resampled,
     /// Hann-windowed periodogram), 1 = Lomb–Scargle (direct estimate from the
     /// irregular RR series). Lomb–Scargle is the rigorous default for short
-    /// beat-to-beat windows; a UI fader can bind this end-to-end.
+    /// beat-to-beat windows.
+    ///
+    /// ⛔ NOTHING UNDER `Sources/` WRITES THIS (#923, found by `scripts/doorless-state.py`), so
+    /// it is permanently 1.0 and the shipped coherence is pure Lomb–Scargle on BOTH bio paths —
+    /// `CameraRPPGBioPublisher` passes the literal `blend: 1.0`. This doc used to close by
+    /// inviting a UI fader to bind the property end-to-end, which reads as an AVAILABLE control
+    /// rather than a possible one; that is the doorless-state rule verbatim — a tuning constant
+    /// with no writer is fine, a knob whose doc names a user who cannot turn it is the defect.
+    ///
+    /// ⛔ THE RETRACTED SENTENCE IS DESCRIBED HERE, NOT QUOTED, AND THAT IS DELIBERATE. Quoting
+    /// it verbatim is what #491 warns about one level up: the guard for this note scans for the
+    /// phrase's ABSENCE, so a faithful quotation inside the retraction makes the retraction
+    /// itself the match. Caught by driving the claim rather than by reading it — the first draft
+    /// of this comment quoted the line and turned its own guard red.
+    ///
+    /// ⚠️ THIS IS NOT "WELCH IS DEAD" — see the ⛔ note on `HRVCoherence.compute(rrMs:blend:)`.
+    /// At blend 1.0 Welch contributes nothing to the MIX and is still the reading returned when
+    /// Lomb–Scargle comes back invalid. Guard: `Tests/CISmoke/TheCoherenceBlendHasNoFaderTests`.
     public var coherenceBlend: Double = 1.0
 
     @ObservationIgnored
