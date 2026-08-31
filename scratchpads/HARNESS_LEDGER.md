@@ -2944,3 +2944,52 @@ grün, #367) · M3 zweites Relais → 2 + 3 rot · M4 `bpm` als `@ObservationIgn
 ⚠️ **Kopfraum-Warnung, gemessen im selben Commit:** `CLAUDE.md` steht nach dieser Ergänzung
 bei 148 497 B von 150 000. Der nächste Register-Eintrag dort muss etwas anderes verdrängen —
 `python3 scripts/doctor.py --section D` und `TheLawFileStaysUnderItsCeilingTests` sagen es.
+
+⛔ **NACHLESE #928b — DIE VIERTE NADEL-KOLLISION, und die erste, die das FAHREN NICHT gefunden
+hat.** #928 ankerte Anspruch 3 auf `contains("var metronome")`. Dieselbe Zeichenkette trifft in
+`EchoelStudioView.swift` **drei** Stellen: die gemeinte `@Environment`-Deklaration (`:166`),
+`private var metronomeRow: some View {` (`:4635`) und `@Bindable var metronome = metronome`
+(`:4636`). Wer die Bindung in `click` umbenennt, lässt `metronomeRow` unberührt — **der Anker
+bleibt grün, während die Nadel tot ist**, also genau der Fehler, den seine eigene
+Fehlermeldung zu verhindern behauptet.
+
+⭐ **Und das ist der Grund, warum „ich habe vier Mutanten gefahren" nicht derselbe Satz ist wie
+„das ist in Ordnung".** Die drei Vorgänger-Kollisionen (#921b/#924/#926) fand jedes Mal das
+FAHREN. Diese nicht — sie ist unsichtbar, solange man den Baum von heute mutiert, weil sie
+erst bei einer UMBENENNUNG auftritt, und eine Umbenennung ist kein Mutant, den man sich
+ausdenkt, wenn man gerade die Sache selbst geschrieben hat. Gefunden hat sie ein Prüfer beim
+LESEN. **Fahren prüft, ob der Anspruch heute misst; Lesen prüft, ob er morgen noch dieselbe
+Sache misst.** Beide Fragen brauchen ihre eigene Runde.
+
+**Reparatur, und sie ist keine längere Zeichenkette:** den Namen ABLEITEN
+(`environmentReceiver(for:of:in:)`, zwölf Zeilen weiter oben, von der Engine-Hälfte längst
+benutzt), damit eine Umbenennung den Wächter MITNIMMT statt ihn zu blenden. Mutant M5 belegt
+es: Bindung → `click` ergibt `recv=click`, und ein heißer Read über den neuen Namen macht
+Anspruch 3 rot mit Zeilennummer.
+
+⚠️ **Zweiter Prüferfund, andere Klasse: Anspruch 4 ist grün wegen EINES Zeichens.** Das Relais
+selbst steht in `mainContent` — einem Element, das dieser Scan betritt — und schreibt
+`metronome?.bpm`. Die Nadel hat kein `?`. Wer die Capture-Liste auf ein starkes `[metronome]`
+ändert, macht den Anspruch **rot auf völlig korrektem Code**: ein Schreibvorgang in `.task {}`
+ist keine Body-Auswertung. Nicht repariert, sondern AUFGESCHRIEBEN — samt der Anweisung, dann
+die Relais-Spanne auszunehmen und nicht die Capture-Änderung zurückzunehmen (#364). Nebenbei
+verjährt damit die Kopfzeile „None exists today" über Aktions-Closures: eines existiert jetzt,
+ein Zeichen daneben.
+
+⭐ **Dritter Fund, der die Abdeckung wirklich vergrößert:** die Bio-Menge wird über VIER
+Vorfahren gescannt, die Metronom-Menge über ZWEI. Zwei Zeilen in `WorkspaceView` (Bindung +
+`Text("…bpm…")` in `topBar`) lassen alle vier Ansprüche grün und reproduzieren den
+10.76.50-Fehler in genau dem Element, das ihn verursacht hat. Die Scans dorthin zu zeigen wäre
+heute ein Anspruch, der nicht scheitern kann (#367) — stattdessen wird die PRÄMISSE gepinnt:
+`MetronomeVoice` kommt in beiden mittleren Vorfahren null Mal vor. Mutant M6 macht das rot,
+und die Meldung nennt den Scan, der dann zu erweitern ist. **Die Engine-Hälfte hat diesen
+Anspruch nicht und könnte ihn gebrauchen.**
+
+Dazu vier kleinere Rücknahmen an derselben Scheibe: die `CLAUDE.md`-Zeile sagte „`body` liest
+`metronome.` VIERMAL" und war dreifach daneben (VIER sind die EIGENSCHAFTEN, die Reads sind
+elf; die Click-Leiste des Mix-Bretts fehlte ganz; keiner der Reads steht in `body` selbst) ·
+der Anker von Anspruch 4 pinnte die ARITÄT des Initialisierers (`MetronomeVoice()`) und wäre
+an einem hinzugefügten Argument rot geworden — Klammern weg (M7 belegt es) · „verschiebe
+diesen EINEN Read" ist falsch, drei der vier kalten Eigenschaften werden an ZWEI Stellen
+gelesen · und die Ableitung behauptete, ein zweites Relais „müsse von selbst eintreten" —
+das gilt nur unter drei Bedingungen, die jetzt danebenstehen.

@@ -97,7 +97,10 @@
 //     the guard with it; the bio half still has the name written down and a counterweight
 //     proving it still matches.
 //
-// ⭐ #919 — THERE ARE TWO PRODUCERS, and the second is SIX TIMES HOTTER. `AudioEngine` runs a
+// ⭐ #919/#928 — THERE ARE THREE PRODUCERS, and the second is SIX TIMES HOTTER. (#919 found
+// two and this line said "TWO" for three weeks; #928 found the third, `metronome.bpm`, at
+// the bottom of section 6. A count of producers is an ENUMERATION of what someone thought
+// of, never a measured set — the same law the MPE surfaces taught.) `AudioEngine` runs a
 // 60 Hz meter poll timer over a set of `@Observable` readouts, and `AutomationPlayer.applyStep`
 // rewrites `masterVolume` on every transport step. Same defect class, same repair, no guard
 // until now — and the automation half is not hypothetical: `MasterVolumeField` exists as its
@@ -105,7 +108,7 @@
 // Picker. The scan is shared rather than copied into a sibling file: it has been wrong seven
 // times, and a copy would inherit all seven.
 //
-// ⚠️ THE TWO SCANS COVER DIFFERENT NUMBERS OF ANCESTORS — say it exactly. The chain is
+// ⚠️ THE THREE SCANS COVER DIFFERENT NUMBERS OF ANCESTORS — say it exactly. The chain is
 // `EchoelmusicApp` → `WorkspaceView` → `SurfaceHost` → `EchoelStudioView`. The BIO scan runs on
 // all four. The ENGINE scan runs on two: `EchoelStudioView`, which declares an
 // `@Environment(AudioEngine.self)` binding, and `EchoelmusicApp`, which owns the engine as
@@ -114,6 +117,11 @@
 // declare an `@Environment(AudioEngine.self)` binding, so "only `EchoelStudioView` has one"
 // would be false — that was the over-broad first draft of this very line. The day one of the
 // other two gains a reference, point the same call at it; nothing else has to change.
+// The METRONOME scan (#928) covers the same two, for the same reason and with one addition:
+// `testTheTwoMiddleAncestorsStillHoldNoClick` asserts the PREMISE — that `WorkspaceView` and
+// `SurfaceHost` reference `MetronomeVoice` nowhere — so the day one of them gains the binding
+// the guard goes red and names the scan that has to be extended, instead of the gap sitting
+// there silently. The engine half has no such claim and could take one.
 //
 // ⛔ AND THE FOURTH ANCESTOR WAS FOUND THE SAME WAY THE THIRD WAS — by asking whether the LIST
 // was complete rather than whether each entry was right. `EchoelmusicApp` sits above
@@ -150,7 +158,19 @@
 // and that is what I checked first. The tree being clean and the GUARD being green are two
 // different questions.
 //
-// 0 FORWARD guards. 0 red by ANCHOR ABSENCE. Everything else is a
+// **#928 ADDED FIVE FORWARD GUARDS (section 6) — PROPHYLAKTISCH (0 of 5).** All five are green
+// on their parent `d540d08` and green here: a forward guard, not a regression found. Driven,
+// not read: four mutants (a `.bpm` read in the host → claim 3 red with the line; the relay
+// renamed → claim 1 red plus the `found` assertion; a second relay writing `beatsPerBar` →
+// claims 2 AND 3 red; `bpm` marked `@ObservationIgnored` → claim 1 red).
+// ⛔ AND #928's OWN FIRST DRAFT SHIPPED TWO DEFECTS A REVIEWER FOUND BY READING, WHICH IS WHY
+// "I drove four mutants" is not the same sentence as "this is sound": claim 3's anchor
+// `contains("var metronome")` also matched `private var metronomeRow` one file-section away —
+// a FOURTH needle collision after #921b/#924/#926, and the first not caught by driving — and
+// claim 4 is green only because the relay writes `metronome?.bpm` with a `?`. Both are
+// repaired in #928b and both are written down at the claims themselves.
+//
+// The three older sections: 0 FORWARD guards. 0 red by ANCHOR ABSENCE. Everything else is a
 // COUNTERWEIGHT, and per §343 that is the content. The counterweights exist so no negative
 // claim can pass by finding nothing (#367): each derivation must SELECT a named property
 // (`waveform`, `rrWindowMs`, `coachingHint`, `masterLevel`, `masterVolume`) and must EXCLUDE
@@ -166,6 +186,13 @@
 // match. Kept anyway, because the point of that scan is the day someone adds the first such
 // read to the topmost body — but it is the one negative claim here without a matching
 // counterweight, and it is named rather than counted as covered.
+// ⚠️ #928 MADE IT THREE, and the file's rule is that they be NAMED, not counted as covered.
+// After `SourceText.codeOnly`, `metronome.bpm` occurs ZERO times in BOTH `EchoelStudioView`
+// and `EchoelmusicApp` — its only two occurrences in the latter are comments, and the relay's
+// own write carries a `?`. So both metronome scans are forward guards over a needle that
+// cannot match today, exactly like the bio app-level one. There is also no reachability
+// counterweight for the metronome half (no `…StillReadsTheClicksTempo` leaf test), because
+// there is no leaf reading it — the day one is written, that test is the counterweight to add.
 //
 // ANCHOR ABSENCE: 0 — every anchor is asserted, including the 60 Hz
 // interval literal, which XCTFails by name rather than returning an empty set.
@@ -573,29 +600,46 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
             XCTAssertFalse(hot.contains(cold), """
                 `\(cold)` entered the hot set: something other than the user now writes it at \
                 machine rate. The four `metronome.` reads in `EchoelStudioView.body` become a \
-                Picker-tearing churn the moment that is true. Move that ONE read into its own \
-                leaf struct (the `MasterVolumeField` shape), then delete `\(cold)` from this \
-                list in the same commit. Hot set: \(hot.sorted()).
+                Picker-tearing churn the moment that is true. Move EVERY read of it into a \
+                leaf struct (the `MasterVolumeField` shape) — measured, three of these four are \
+                read in TWO different members, so moving one row leaves this red — then delete \
+                `\(cold)` from this list in the same commit. Hot set: \(hot.sorted()).
                 """)
         }
     }
 
     func testTheMenuHostBuildsNoViewFromTheClicksTempo() throws {
-        let host = SourceText.codeOnly(try read(Self.host))
-        XCTAssertTrue(host.contains("var \(Self.metronomeReceiver)"), """
-            ANCHOR FIRST: the `@Environment(MetronomeVoice.self)` declaration is what makes \
-            "\(Self.metronomeReceiver)" the right spelling. Renamed, the scan below goes \
-            quietly green over a needle that cannot match — the #921b/#924/#926 failure, three \
-            times in three slices.
+        // ⛔ THE FIRST DRAFT ANCHORED ON `contains("var metronome")` AND THAT ANCHOR COULD NOT
+        // FAIL FOR ITS OWN STATED REASON (#408, caught by review). The needle it protects is
+        // the `@Environment` binding at one line — but the same substring also matches
+        // `private var metronomeRow: some View {` and `@Bindable var metronome = metronome`
+        // further down the SAME file. Rename the binding to `click` and `metronomeRow`
+        // survives untouched: the anchor stays green while the needle is dead, which is the
+        // exact #921b/#924/#926 failure its own message claimed to prevent — a FOURTH
+        // instance, and the first one found by reading rather than by driving.
+        // The repair is not a longer string: it is to DERIVE the name, so a rename MOVES the
+        // guard instead of blinding it. `environmentReceiver` was written for this and the
+        // engine half already calls it.
+        let receiver = try XCTUnwrap(
+            environmentReceiver(for: "MetronomeVoice", of: "EchoelStudioView", in: Self.host), """
+            `EchoelStudioView` no longer declares `@Environment(MetronomeVoice.self)`. The scan \
+            below anchors on that binding's NAME, so without it the claim would pass by having \
+            nothing to look for. Either the binding moved and this guard follows it, or the \
+            host genuinely stopped holding the click — say which in the commit.
             """)
         let members = try assertNoHotRead(in: Self.host, of: "EchoelStudioView",
-                                          receiver: Self.metronomeReceiver,
+                                          receiver: receiver,
                                           hot: try metronomeHotProperties(), why: """
-            The menu host reads `\(Self.metronomeReceiver).` four times already, all cold. \
-            A fifth read spelled `.bpm` — a "current tempo" caption next to the click rows is \
-            the obvious one to write — churns the whole studio body at up to ~20 Hz during a \
-            tempo glide and tears down any open Tonart/Genre Picker. That is the founder's \
-            "menus freeze while playing", from a third producer.
+            The menu host already reads FOUR `\(receiver).` properties across TWO members \
+            `body` evaluates — `mixerPanel`'s Click strip and `metronomeRow` — and every one \
+            of them is legitimately cold. A fifth read spelled `.bpm` churns the whole studio \
+            body at up to ~20 Hz during a tempo glide and tears down any open Tonart/Genre \
+            Picker: the founder's "menus freeze while playing", from a third producer.
+            ⚠️ THE OBVIOUS NEXT EDIT HAS A SPELLING THIS SCAN CANNOT SEE. A "current tempo" \
+            caption written as `private var tempoCaption: String { "\\(metronome.bpm)" }` and \
+            read from a body is invisible here — the scan only enters `some View`/`some Scene` \
+            members (the general limit is stated in this file's header). It churns just the \
+            same. Put the read in a leaf `View`, never in a `String` helper a body calls.
             """)
         XCTAssertFalse(members.isEmpty, """
             THE NEEDLE MUST BE ABLE TO MATCH. No `some View` member was scanned in \
@@ -605,7 +649,11 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
 
     func testTheTopmostAncestorBuildsNoViewFromTheClicksTempo() throws {
         let app = SourceText.codeOnly(try read(Self.app))
-        XCTAssertTrue(app.contains("var \(Self.metronomeReceiver) = MetronomeVoice()"), """
+        // The parens were in the first draft and pinned the initializer's ARITY: `= .init()`,
+        // an added `MetronomeVoice(sampleRate:)` argument or an explicit type annotation would
+        // all turn this red on correct work (#364). The sibling engine anchor uses the
+        // annotation form for the same reason.
+        XCTAssertTrue(app.contains("var \(Self.metronomeReceiver) = MetronomeVoice"), """
             ANCHOR FIRST: `EchoelmusicApp` OWNS the click as `@State`, which is why it is also \
             the file the relay is registered in. If it stops owning it, this fails by name.
             """)
@@ -613,9 +661,38 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
                                 receiver: Self.metronomeReceiver,
                                 hot: try metronomeHotProperties(), why: """
             The topmost ancestor, same law as the engine half: a read here churns EVERY \
-            surface in the app. And here the risk is sharpest, because the relay that MAKES \
-            `bpm` hot is written a few lines from `mainContent` in this same file.
+            surface in the app.
+            ⚠️ AND THIS SCAN IS GREEN BY ONE CHARACTER — say it rather than discover it. The \
+            relay itself lives INSIDE `mainContent`, a member this scan enters, and writes \
+            `\(Self.metronomeReceiver)?.bpm`. The needle has no `?`, so it misses. Change the \
+            capture to a strong `[\(Self.metronomeReceiver)]` or add a `guard let` and this \
+            claim goes RED ON ENTIRELY CORRECT CODE — a write inside `.task {}` is not body \
+            evaluation. If that happens the repair is to exclude the relay's own span here, \
+            NOT to undo the capture change (#364). This retires the header's "None exists \
+            today" line about action-closure occurrences: one now exists, one character away.
             """)
+    }
+
+    func testTheTwoMiddleAncestorsStillHoldNoClick() throws {
+        // ⛔ THE COVERAGE GAP THIS CLOSES, and it took a reviewer to see it: the bio scan runs
+        // on all FOUR ancestors, this one on TWO. Two lines in `WorkspaceView` — the
+        // `@Environment` binding plus `Text("\(metronome.bpm)")` in `topBar` — leave all four
+        // claims above GREEN while reproducing the 10.76.50 shipped bug in the exact member
+        // that caused it. `.environment(metronome)` in `EchoelmusicApp` makes the binding
+        // available to every descendant, so it really is one line away.
+        // Pointing the scan at those files today would be a claim that cannot fail (#367);
+        // this asserts the PREMISE instead, so the day it stops holding the guard says which
+        // scan has to be extended.
+        for path in [Self.root, Self.wrapper] {
+            let text = SourceText.codeOnly(try read(path))
+            XCTAssertFalse(text.contains("MetronomeVoice"), """
+                \(path) now references `MetronomeVoice`. That is not forbidden — but the \
+                metronome scan currently runs only on `EchoelStudioView` and `EchoelmusicApp`, \
+                so this ancestor is now UNGUARDED for the ~20 Hz `bpm` write. Add a \
+                `testTheMiddleAncestorBuildsNoViewFromTheClicksTempo` pointing \
+                `assertNoHotRead` at this file in the SAME commit, and update this list.
+                """)
+        }
     }
 
     // MARK: - Derivation
@@ -873,6 +950,27 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
     /// that a future second relay (a step subscriber writing `beatsPerBar`, say) must ENTER
     /// this set by itself and turn `testTheClicksUserSetRowsAreNotTreatedAsHot` red, instead
     /// of a hand-written list going stale in the direction that looks clean.
+    ///
+    /// ⚠️ STATE THE LIMIT BEFORE THE CLAIM (§1), because "must enter by itself" is only true
+    /// under THREE conditions, and a writer that breaks any one of them is invisible while
+    /// this set still looks complete:
+    ///   1. it is registered in `EchoelmusicApp.swift` — the file this scans;
+    ///   2. under the id literal `"metronome"` (or an `addStepSubscriber` of that name);
+    ///   3. writing through a receiver spelled `metronome` / `metronome?`.
+    /// A machine writer elsewhere, under another id, or through another binding name would
+    /// leave `level` cold in this set while `metronome.level` is read in two host members —
+    /// claims 2 and 3 both green over a real churn. Measured today: the only writers of the
+    /// five tracked properties are this relay and four user `Binding` setters in the host,
+    /// and `MetronomeVoice` itself has no internal writer (its five audio mirrors are all
+    /// `@ObservationIgnored`, so the `didSet` chain and the render closure cannot invalidate
+    /// a body).
+    ///
+    /// ⚠️ TWO MORE LIMITS, both in the safe direction. (a) ONE write per line: the loop
+    /// `break`s after the first matching prefix, so `metronome?.bpm = b; metronome?.level = c`
+    /// drops the second — `meterProperties()` carries the same limit for the same reason.
+    /// (b) RATE IS NOT CHECKED: any assignment inside a machine-rate relay is ASSUMED
+    /// machine-rate, so a one-shot write added there would over-collect. That fails toward a
+    /// false red, not a false green.
     private func metronomeHotProperties() throws -> Set<String> {
         let lines = SourceText.codeOnly(try read(Self.app))
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -885,6 +983,11 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
         for (index, line) in lines.enumerated()
         where line.contains("onTempoChange(id: \"\(Self.metronomeReceiver)\")")
               || line.contains("addStepSubscriber(\"\(Self.metronomeReceiver)\"") {
+            // ⚠️ A ONE-LINE relay (`{ [weak metronome] bpm in metronome?.bpm = bpm }`) has no
+            // closing `}` at the opener's indent, so `span` falls back to `endIndex` and this
+            // reads the rest of the file for `metronome.X =`. Harmless today — there is no
+            // later write site in that file — and it over-collects rather than under-collects,
+            // i.e. it fails toward a false red.
             guard let (lo, hi) = span(of: line, in: lines, from: index) else { continue }
             found = true
             for body in lines[lo..<hi] {
