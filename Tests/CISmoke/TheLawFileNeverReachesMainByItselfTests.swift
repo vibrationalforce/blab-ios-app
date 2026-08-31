@@ -69,16 +69,47 @@
 // than duplicating the three needles onto the second workflow (#416): two scans of one decision
 // is the defect, and claim 3 already owns that side.
 //
-// ⚠️ HONEST LIMITS. 5 tests. This proves what the workflows SAY, never what GitHub does:
+// ⚠️ HONEST LIMITS. 7 tests. This proves what the workflows SAY, never what GitHub does:
 // branch-protection and required-checks live in repository settings, not in the tree. It also
 // cannot prove that `main` IS currently stale — that is a live `git` fact, not a source fact,
 // and pinning it would make the guard red the moment the founder merges by hand, which is the
 // #364 trap. What is proven is the mechanism that ALLOWS the drift.
 //
+// ⛔ #932 — I CLAIMED A REGISTER GAP THAT THE REGISTER ALREADY HELD, AND THE SENTENCE I WAS
+// ABOUT TO WRITE WAS THE EXACT OVER-CLAIM IT HAD ALREADY PRE-EMPTED. Last cycle I measured
+// that `scripts/**` appears in no `paths:` filter of the three gate/merge workflows and called
+// it "ein echter Registerbefund". Both halves were wrong. `ContentPipeline/README.md` records
+// it under #720 — surfaced by three of my own scripts-only commits (#717–#719) — and its own
+// text says, verbatim, that "`scripts/**` steht in keinem Filter" would have been the next
+// over-claim, because `xcode-compile-check.yml` lists ONE file from that directory by name:
+// `scripts/check-infoplist.sh`. My grep looked for the GLOB and a per-file entry does not
+// contain it. ⭐ THE LESSON IS NOT "grep better" — it is that a register entry lives where the
+// decision lives, and I searched the always-loaded file plus this bundle and stopped. The
+// cheap check that would have settled it is the one this repo already prescribes: grep the
+// FINDING, not the file you expect to hold it.
+//
+// ⭐ SO WHAT #932 ACTUALLY ADDS, once the duplicate is subtracted: the #720 finding had NO
+// GUARD. Its only home is prose that dates itself ("gemessen am 2026-08-22") and warns in its
+// own margin that the list ages. Measured today: 19 tracked paths under `scripts/`, exactly
+// ONE of them named in any `paths:` filter, and 11 Python measuring instruments (`doctor.py`,
+// `dead-needles.py`, `count-pins.py`, `founder-verify.py`, `gh-run-status.py`,
+// `gh-test-verdict.py`, `needle-reachability.py`, and four more) among the unwatched. Claim 6
+// pins the single precedent — the fact that makes the over-claim tempting and the one that can
+// change silently — and claim 7 pins the prose that holds the inversion.
+//
+// ⚠️ THE PROPORTION, again stated so this reads as a record: no CI job runs a Python script
+// here, so a gate run on a scripts-only commit would prove nothing about it. The cost is the
+// same documentation cost as the law file's — an instrument repaired on the branch reaches
+// `main` only as a passenger, and never at all if the branch ends on such a commit.
+//
 // ⭐ GRADING (§3). Claims 1–4 are COUNTERWEIGHTS: the workflow files are untouched by this
 // commit, so they are green at the parent too, and that is the point — they record a standing
 // state rather than create it. Claim 5 is FORWARD: the CLAUDE.md sentence is new here, so it
-// is red at the parent by one absence (#486).
+// is red at the parent by one absence (#486). Claims 6 and 7 (#932) are COUNTERWEIGHTS in the
+// same sense as 1–4 — the workflow and the register both predate this commit, so both are green
+// at the parent, and that is exactly the point: they pin a standing state that had no guard at
+// all. Claim 2's fourth needle is green at the parent too. Nothing here is TRAGEND — this slice
+// adds no behaviour, it stops a measured fact from ageing unwitnessed.
 
 import Foundation
 import XCTest
@@ -88,6 +119,7 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
 
     private static let claudeMerge = ".github/workflows/auto-merge-claude.yml"
     private static let docsMerge = ".github/workflows/auto-merge-docs.yml"
+    private static let compileCheck = ".github/workflows/xcode-compile-check.yml"
 
     // MARK: - 1: the anchor — both doors exist and both filter by path
 
@@ -123,9 +155,16 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
 
     /// ⭐ `CLAUDE.md`, `memory/` and `scratchpads/` are where this repo keeps its law, its
     /// count provenance and its session history. None of the three can reach `main` on its own.
-    func testTheClaudeMergeIgnoresTheLawAndTheLedger() throws {
+    ///
+    /// ⭐ #932 ADDED `scripts/` TO THE SAME LOOP RATHER THAN STANDING A NEAR-COPY BESIDE IT
+    /// (#416): it is one decision — what this merge filter does not watch — so it gets one
+    /// scan. The CATEGORY differs and the rename says so: `scripts/` is not law, it is the
+    /// measuring instruments, and an unmerged repair there leaves a future session running a
+    /// tool this branch already fixed. The needle is the DIRECTORY, not the `scripts/**` glob,
+    /// precisely because a filter can name a single file from it — see claim 6.
+    func testTheClaudeMergeIgnoresTheLawTheLedgerAndTheInstruments() throws {
         let filter = try Self.pathFilter(in: rawFile(Self.claudeMerge))
-        for needle in ["CLAUDE.md", "memory/", "scratchpads/"] {
+        for needle in ["CLAUDE.md", "memory/", "scratchpads/", "scripts/"] {
             let hits = filter.filter { $0.contains(needle) }
             XCTAssertTrue(hits.isEmpty, """
                 `auto-merge-claude.yml` now watches "\(needle)" (\(hits.joined(separator: ", "))).
@@ -200,6 +239,71 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
             restoring the old wording, re-read the workflow's merge step first.) If the founder widened a path filter, claim 2 above is red too \
             and THAT is the correct order of repair; if claim 2 is green, the prose has drifted \
             from the workflow and the prose is what is wrong.
+            """)
+    }
+
+    // MARK: - 6: the precedent that stops the over-claim
+
+    /// ⚠️ THE COUNTERWEIGHT TO CLAIM 2's NEWEST NEEDLE, and the reason #932 exists at all.
+    /// `scripts/` is not blanket-unwatched: `xcode-compile-check.yml` names ONE file from it,
+    /// `scripts/check-infoplist.sh`, so a commit to THAT script does pull a gate while one to
+    /// `scripts/doctor.py` does not. Pinning the set at exactly that one entry keeps both
+    /// failure directions loud — if it is removed, the last watched script is gone and the
+    /// register sentence is wrong; if a second appears, the founder has begun widening and
+    /// the prose must follow in the same commit (#456).
+    func testExactlyOneScriptIsNamedInACompileGateFilter() throws {
+        let filter = try Self.pathFilter(in: rawFile(Self.compileCheck))
+        let scripts = filter.filter { $0.contains("scripts/") }
+        XCTAssertEqual(scripts, ["scripts/check-infoplist.sh"], """
+            `xcode-compile-check.yml`'s path filter now names \(scripts.count) entries under \
+            `scripts/` (\(scripts.joined(separator: ", "))), not the single \
+            `scripts/check-infoplist.sh` this claim was written against.
+
+            MORE than one: the founder is widening the watch. Move the #720 register entry \
+            in `ContentPipeline/README.md` in the SAME commit (#456) — it states the \
+            single-file precedent as the reason a blanket "no script is watched" is wrong.
+
+            NONE: the last watched script is gone, and the blanket sentence would now be \
+            TRUE. Correct the register before quoting it either way.
+            """)
+    }
+
+    // MARK: - 7: the register holds the inversion, not a partial list
+
+    /// ⭐ THE PROSE HOME IS `ContentPipeline/README.md`, NOT `CLAUDE.md` (#416: the filters are
+    /// enumerated once, and the always-loaded file points at that enumeration instead of
+    /// copying it). What must survive there is the INVERSION #720 corrected to: the filter is
+    /// a short allow-list, so the hole belongs to every other tracked path — not to a namable
+    /// handful. A partial list in a register reads as complete, and answers "am I affected?"
+    /// with No for everything absent from it.
+    ///
+    /// ⛔ THE FIRST NEEDLE HERE WAS `Erlaubnis-Liste` AND THIS COMMIT ITSELF BROKE IT — the
+    /// FIFTH instance of the collision law (#921b, #924, #926, #928b) and the first where the
+    /// guard and its collision arrive together. #932 also added a pointer paragraph to
+    /// `ContentPipeline/README.md` saying the register now HAS a guard, and that paragraph
+    /// names the framing word, so the needle went from 1 occurrence to 2. Deleting the #720
+    /// sentence would then have left this claim GREEN on the pointer to itself — #926 exactly,
+    /// a scanner reading its own literal. The repair is not a longer needle: it is a needle on
+    /// the INVERSION (`jeder andere getrackte Pfad`), which is what the claim's name says it
+    /// pins and which the pointer paragraph has no reason to repeat.
+    ///
+    /// ⚠️ Caught by counting occurrences after writing the paragraph, not by review. The cheap
+    /// habit that finds this class every time: after ANY commit that adds prose about a guard,
+    /// re-count that guard's needles in the file it reads.
+    func testTheFilterRegisterKeepsTheInversionAndThePreEmptedOverClaim() throws {
+        let readme = try rawFile("ContentPipeline/README.md")
+        XCTAssertTrue(readme.contains("jeder andere getrackte Pfad"), """
+            The #720 register no longer states the INVERSION — that the hole belongs to every \
+            other tracked path, not to a namable handful of siblings. That inversion IS the \
+            finding; a partial list would be the defect it was written to replace. Re-anchor \
+            here only after re-reading the workflows.
+            """)
+        XCTAssertTrue(readme.contains("wäre die nächste Über-Behauptung gewesen"), """
+            The sentence pre-empting the blanket claim is gone from \
+            `ContentPipeline/README.md`. It is the only place recording WHY the blanket \
+            wording is wrong; without it the next session measures the glob, finds nothing, \
+            and writes the over-claim again — which is exactly what #932 did before reading \
+            that file. If claim 6 is red too, fix the workflow reading first; prose follows.
             """)
     }
 

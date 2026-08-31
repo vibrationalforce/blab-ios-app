@@ -76,6 +76,17 @@ geht über einen Menschen. Die Pipeline erzeugt Entwürfe, keine Posts.
   Tests/**/*.swift · Package.swift` · `benchmark.yml` = `Sources/** · Package.swift · project.yml` ·
   `testflight.yml` = **nur** `.deploy/release` · `pages.yml` = `docs/**`.
 
+  ⭐ **#932: DIESE PROSA HAT SEIT HEUTE EINEN WÄCHTER** —
+  `Tests/CISmoke/TheLawFileNeverReachesMainByItselfTests.swift`, Ansprüche 6 und 7. Er pinnt
+  die zwei Sätze, die von selbst altern: dass `xcode-compile-check.yml` **genau EINE** Datei
+  aus `scripts/` beim Namen nennt (die Tatsache, ohne die „`scripts/**` steht in keinem
+  Filter" unwiderstehlich klingt), und dass dieser Eintrag die Sache weiterhin als
+  **Erlaubnis-Liste** rahmt statt als Geschwister-Aufzählung. **Anlass war ein Rückfall:**
+  eine Sitzung hat genau diese Über-Behauptung ein zweites Mal gemessen und als neuen Befund
+  angekündigt, weil sie den Glob gegrept hat und diese Datei nicht kannte. Wer die zwei Sätze
+  ändert, zieht den Wächter im selben Commit mit (#456) — und umgekehrt: wird der Filter
+  breiter, ist er zuerst rot und nennt diese Stelle.
+
   ⚠️ **Und „kein eigener Merge" heißt nicht „erreicht `main` nie"** — das ist die
   #699-Rücknahme, die eine Zeile höher schon steht: der Merge nimmt `${{ github.sha }}`
   samt Vorgeschichte, ein solcher Commit fährt als **Passagier** auf dem nächsten
