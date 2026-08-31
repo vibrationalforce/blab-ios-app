@@ -113,10 +113,17 @@ public struct CoherenceTrend: Sendable, Equatable {
         // ⛔ A SENSOR CHANGE IS NOT A BODY CHANGE, and until #920 nothing said so. Measured on
         // the real constants: a hand-over from a camera reading 0.20 to a strap reading 0.75 two
         // seconds later mints a trend of **0.393** — nearly four times the consumer's 0.10
-        // deadband, and LARGER than a genuine strong rise (0.221 for a real 0.05/s climb). The
-        // player would hear the spectral morph swing because they changed sensor, not because
-        // their body did. Treated exactly like the first frame of a new run: take the baseline,
-        // report nothing.
+        // deadband, and INDISTINGUISHABLE from the fastest genuine rise this mapping can express
+        // (a real saturating climb over the same 2 s is 0.3935 too: the raw slope was 5.5× full
+        // scale, and the clamp erases the difference). The player would hear the spectral morph
+        // swing because they changed sensor, not because their body did. Treated exactly like the
+        // first frame of a new run: take the baseline, report nothing.
+        //
+        // ⛔ THE FIRST DRAFT OF THIS COMMENT COMPARED TWO DIFFERENT INTERVALS. It said 0.393 was
+        // "LARGER than a genuine strong rise (0.221)" — but 0.393 is driven at dt = 2 s and 0.221
+        // is the single-frame bound at dt = 1 s. At equal dt the two are equal, so the comparison
+        // measured the smoothing constant, not the hand-over. The defect is real either way; the
+        // rhetoric was not commensurable, which is the #808 lesson one level up from a needle.
         //
         // ⚠️ THE GAP GUARD BELOW DOES NOT COVER THIS. It fires only after `newRunAfterSeconds`;
         // a hand-over INSIDE that window — the simulator, HealthKit, a strap already connected —
@@ -144,7 +151,14 @@ public struct CoherenceTrend: Sendable, Equatable {
         // relies on its caller's deduplication is the shape this repo keeps paying for. Each
         // path now stores explicitly, and the hold path stores nothing.
         guard let previous = lastCoherence, let previousStamp = lastTimestamp else {
-            // First measured reading of a run: a single point has no slope.
+            // ⚠️ UNREACHABLE BY CONSTRUCTION SINCE #920, and kept deliberately. Reaching this line
+            // needs `lastSource == source` and therefore non-nil, and the only writer of
+            // `lastSource` (the switch guard above) stores all three fields in the same breath,
+            // while `reset()` nils all three. So the else-branch cannot run today. It is NOT dead
+            // code to delete: `previous`/`previousStamp` have to be unwrapped somehow, and this
+            // is the unwrap. Its old comment said "first measured reading of a run" — that work
+            // moved to the switch guard, and a note describing a role it no longer owns is the
+            // shape this repo keeps paying for.
             lastCoherence = coherence
             lastTimestamp = timestamp
             smoothed = 0

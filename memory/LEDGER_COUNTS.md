@@ -6086,12 +6086,31 @@ ABWESENDEN Schutz und verschwieg einen ANWESENDEN — beide Fehler in einer Klam
 
 | Vorgang | dt | roher Anstieg/s | normiert | α | Trend |
 |---|---|---|---|---|---|
-| Kamera 0,20 → Gurt 0,75 | 2 s | 0,275 | 1,0 (geklammert) | 0,3935 | **0,393** |
-| echter starker Anstieg, ein Frame | 1 s | gesättigt | 1,0 | 0,2212 | 0,221 |
+| Kamera 0,20 → Gurt 0,75 | 2 s | 0,275 (= 5,5× Vollausschlag) | 1,0 (geklammert) | 0,3935 | **0,393** |
+| echter sättigender Anstieg | 2 s | ≥ 0,05 | 1,0 | 0,3935 | 0,3935 |
 
 Der Deadband des Verbrauchers ist 0,10. Ein **Sensorwechsel** erzeugte damit fast das
-Vierfache der Schwelle — und **mehr als ein echter starker Anstieg**. Der Spieler hörte den
-Spektralmorph schwingen, weil er die Quelle wechselte, nicht weil sein Körper sich änderte.
+Vierfache der Schwelle und war vom SCHNELLSTEN Anstieg, den diese Abbildung überhaupt
+ausdrücken kann, **nicht unterscheidbar** — die Klammer löscht, dass der rohe Anstieg das
+5,5-Fache war. Der Spieler hörte den Spektralmorph schwingen, weil er die Quelle wechselte,
+nicht weil sein Körper sich änderte.
+
+⛔ **Die erste Fassung dieses Abschnitts verglich zwei VERSCHIEDENE Intervalle** und schrieb
+„mehr als ein echter starker Anstieg (0,221)". 0,393 ist bei dt = 2 s gefahren, 0,221 bei
+dt = 1 s; bei gleichem dt sind beide gleich. Der Vergleich maß also die Glättungskonstante,
+nicht die Übergabe. Der Defekt bleibt echt, die Rhetorik war nicht kommensurabel — dieselbe
+Klasse wie #808, eine Ebene über der Nadel. Gefunden vom Pflicht-Reviewer, nicht vom Fahren:
+**Fahren prüft, ob sich das Modell verhält, nicht ob der Vergleich zulässig ist.**
+
+⭐ **Ein zweiter Reviewer-Befund wurde durch die richtige Gegenprobe WIDERLEGT und ist als
+Anspruch festgenagelt** (`testAReorderedFrameAcrossAHandOverStillMatchesTheInOrderRun`). Die
+Lesart: die Wechsel-Wache schreibt `lastTimestamp` ohne Monotonie-Prüfung, ein SPÄT
+eintreffender Frame mit neuer Quelle werde also zur Basislinie. Gefahren ergibt die
+Umsortierung 0,3518 — und die richtige Gegenprobe ist nicht „der späte Frame existierte nie"
+(trivial 0), sondern „dieselben zwei Messwerte der neuen Quelle, in Reihenfolge": ebenfalls
+**0,3518**. Der Tracker antwortet gleich, ob umsortiert oder nicht, also genau die
+Eigenschaft, die der Out-of-Order-Anspruch verlangt. **Lehre: eine Out-of-Order-Behauptung
+lässt sich nur gegen den geordneten Lauf DERSELBEN Messwerte entscheiden.**
 
 **Warum die Lücken-Wache das nicht abdeckt:** `newRunAfterSeconds = 6`. Eine Übergabe INNERHALB
 dieses Fensters (Simulator, HealthKit, ein bereits verbundener Gurt) erreicht sie nie — genau
@@ -6102,9 +6121,14 @@ richtig gewollt und nur zu früh geschrieben. `update` nimmt jetzt `source: BioS
 Default** (#431/#440/#443), und ein Wechsel wird wie der erste Frame eines neuen Laufs
 behandelt: Basislinie nehmen, nichts melden.
 
-**Nebenbefund im Wächter selbst.** `TheCoherenceTrendHasAProducerTests` hatte eine Überschrift
+**Nebenbefund im Wächter selbst, und er ist zweimal passiert.** Die Überschrift sagte
 „5–7 die drei Übergänge" über **vier** Methoden — der Out-of-Order-Regressionstest war ohne
-Neunummerierung angehängt worden. Sie nennt jetzt die MENGE statt einer Zahl (#818).
+Neunummerierung angehängt worden. Die Reparatur schrieb „5–9", und die Reviewer-Nachlese
+desselben Commits fügte zwei Ansprüche hinzu, womit die frische Zahl im selben Commit wieder
+abgelaufen war. **Jetzt trägt KEINE Überschrift und keine Kopfzeile mehr eine Zahl oder eine
+Spanne**; die Größe der Suite wird mit
+`grep -c "    func test" Tests/CISmoke/TheCoherenceTrendHasAProducerTests.swift` gemessen.
+Verweise auf einzelne Ansprüche nennen jetzt den METHODENNAMEN, nicht die Nummer.
 
 **Gegenprobe:** alle neun geerbten Ansprüche liefern mit dem neuen `source:`-Parameter
 identische Werte (eine Quelle durchgehend, `Self.oneSensor`); nur der neue zehnte Anspruch

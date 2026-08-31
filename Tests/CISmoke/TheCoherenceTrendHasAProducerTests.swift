@@ -24,11 +24,11 @@
 //
 // KIND (§1): **FORWARD, behavioural.** Every claim drives the pure `CoherenceTrend` this commit
 // creates, so none has a verdict on the parent tree (§3 — stated rather than left to read as a
-// regression). Claims 5–9 are the SAFETY half: the transitions that would otherwise mint a
-// full-scale trend out of nothing, or divide by a zero interval. ⛔ This line said "5–7 …
-// three transitions" while four methods stood under that heading; #920 adds the fifth (a
-// sensor hand-over) and re-derives the range from the method order rather than nursing the
-// old count.
+// regression). The SAFETY half is everything under the SAFETY heading: the situations that
+// would otherwise mint a full-scale trend out of nothing, or divide by a zero interval.
+// ⛔ This line carried a claim RANGE ("5–7", then "5–9") and it went stale twice, the second
+// time inside the very commit that had just repaired it. The headings name SETS now; no
+// number here describes how many claims this file holds.
 //
 // ⚠️ WHAT NO TEST HERE CAN SAY: whether the resulting timbre shift is audible-but-not-
 // distracting. `fullScaleRisePerSecond` is an estimate. NEEDS-FOUNDER-VERIFY: run a session,
@@ -47,6 +47,20 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
     /// parameter was added: old and new logic produce identical output for all nine).
     private static let oneSensor: BioSource = .cameraPPG
 
+    /// The sensor the hand-over claims switch TO. Named rather than spelled at the call site so
+    /// it cannot silently become equal to `oneSensor` — a hand-over claim whose two sources are
+    /// the same value still passes, for the wrong reason.
+    private static let otherSensor: BioSource = .ble
+
+    // MARK: - THE FIXTURES THEMSELVES
+
+    func testTheTwoNamedSensorsAreActuallyDifferent() {
+        XCTAssertNotEqual(Self.oneSensor, Self.otherSensor, """
+            The hand-over claims switch between two values that are equal, so they no longer test \
+            a hand-over at all — they would pass as a same-sensor run for the wrong reason.
+            """)
+    }
+
     /// One frame per second, the app's measured apply rate (the poll is 10 Hz; every consumer
     /// deduplicates on `frame.timestamp` and every wired publisher sends at ~1 Hz).
     private func drive(_ readings: [(Float, Bool)], startAt t0: TimeInterval = 0) -> [Float] {
@@ -56,7 +70,7 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
         }
     }
 
-    // MARK: - 1–2  a slope produces a signed trend, and the sign follows the direction
+    // MARK: - SLOPE  a slope produces a signed trend, and the sign follows the direction
 
     func testASlowRiseProducesAPositiveTrendPastTheDeadband() {
         let out = drive((0..<9).map { (0.40 + 0.02 * Float($0), true) })
@@ -87,7 +101,7 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
         }
     }
 
-    // MARK: - 3–4  a flat body stays inside the deadband, and one wild frame does not slam it
+    // MARK: - RESTRAINT  a flat body stays inside the deadband, and one wild frame does not slam it
 
     func testFlatCoherenceProducesExactlyZero() {
         XCTAssertTrue(drive((0..<6).map { _ in (Float(0.55), true) }).allSatisfy { $0 == 0 }, """
@@ -111,12 +125,14 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
             """)
     }
 
-    // MARK: - 5–9  the transitions that would otherwise mint a trend out of nothing
+    // MARK: - SAFETY  the situations that would otherwise mint a trend out of nothing
     //
-    // ⛔ THIS HEADING SAID "5–7 the three transitions" OVER FOUR METHODS. The out-of-order
-    // regression was appended without renumbering, so the count was one short before #920 added
-    // a fifth. A heading that names a count is a date, not a fact (#818) — it now names the
-    // SET instead, and the numbering below is re-derived from the method order.
+    // ⛔ THIS HEADING SAID "5–7 the three transitions" OVER FOUR METHODS, then "5–9" over six.
+    // The out-of-order regression was appended without renumbering; #920 added two more and the
+    // range went stale again in the same commit that had just corrected it. **A heading that
+    // names a count or a range is a date, not a fact (#818)** — every number is gone from the
+    // headings now, and the size of this suite is re-derived by
+    // `grep -c "    func test" Tests/CISmoke/TheCoherenceTrendHasAProducerTests.swift`.
 
     func testAnUnmeasuredRunCannotSpikeWhenTheBodyArrives() {
         let out = drive([(0.0, false), (0.0, false), (0.62, true), (0.63, true)])
@@ -193,25 +209,62 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
     /// six-second freshness window never reaches it.
     func testASensorHandOverDoesNotReadAsABodyChange() {
         var trend = CoherenceTrend()
-        _ = trend.update(coherence: 0.20, measured: true, source: .cameraPPG, at: 0)
-        let across = trend.update(coherence: 0.75, measured: true, source: .ble, at: 2)
+        _ = trend.update(coherence: 0.20, measured: true, source: Self.oneSensor, at: 0)
+        let across = trend.update(coherence: 0.75, measured: true, source: Self.otherSensor, at: 2)
         XCTAssertEqual(across, 0, """
             A sensor hand-over produced a trend. Driven on the real constants, camera 0.20 → \
             strap 0.75 two seconds later mints 0.393 — nearly four times the consumer's 0.10 \
-            deadband, and LARGER than a genuine strong rise (0.221, the saturated single-frame \
-            bound claim 4 pins). The player would hear the spectral morph swing because they \
-            changed sensor, not because their body did. A trend is a statement about ONE \
-            sensor's readings.
+            deadband, and INDISTINGUISHABLE from the fastest genuine rise this mapping can \
+            express (a saturating climb over the same 2 s is 0.3935 too). The player would hear \
+            the spectral morph swing because they changed sensor, not because their body did. \
+            A trend is a statement about ONE sensor's readings.
             """)
 
-        let next = trend.update(coherence: 0.76, measured: true, source: .ble, at: 3)
+        let next = trend.update(coherence: 0.76, measured: true, source: Self.otherSensor, at: 3)
         XCTAssertTrue(abs(next) < 0.10, """
             The first reading AFTER the hand-over already cleared the deadband off a 0.01 change. \
             The switch has to start a genuinely new run, not merely suppress one frame.
             """)
     }
 
-    // MARK: - 10  non-finite input
+    /// ⛔ THE MANDATORY REVIEW CALLED THIS A DEFECT AND THE COUNTERFACTUAL REFUTED IT — pinned so
+    /// the same doubt is not re-litigated. The reading was: the switch guard writes
+    /// `lastTimestamp` with no monotonicity check, so a LATE frame carrying a new source becomes
+    /// the baseline, defeating `testAnOutOfOrderFrameDoesNotBecomeTheBaseline`. Driven, the trend after the reordering is 0.3518 — and
+    /// the RIGHT counterfactual is not "the late frame never existed" (which trivially gives 0)
+    /// but "the same two readings of the new sensor, in order", which gives 0.3518 as well. The
+    /// tracker returns the same answer whether or not the frame was reordered, which is exactly
+    /// the property that claim demands. The 0.3518 is a genuine 0.20 → 0.30 over 3 s of real strap
+    /// data; nothing is minted.
+    ///
+    /// ⚠️ THE LESSON IS ABOUT THE COUNTERFACTUAL, not about this guard: an out-of-order claim can
+    /// only be settled against the in-order run of the SAME readings. Comparing against a run
+    /// that is missing one of them measures the missing frame, not the reordering.
+    func testAReorderedFrameAcrossAHandOverStillMatchesTheInOrderRun() {
+        var reordered = CoherenceTrend()
+        _ = reordered.update(coherence: 0.40, measured: true, source: Self.oneSensor, at: 10)
+        _ = reordered.update(coherence: 0.44, measured: true, source: Self.oneSensor, at: 11)
+        _ = reordered.update(coherence: 0.20, measured: true, source: Self.otherSensor, at: 9)  // late, older stamp, NEW source
+        let afterReorder = reordered.update(coherence: 0.30, measured: true, source: Self.otherSensor, at: 12)
+
+        var inOrder = CoherenceTrend()
+        _ = inOrder.update(coherence: 0.20, measured: true, source: Self.otherSensor, at: 9)
+        let withoutReorder = inOrder.update(coherence: 0.30, measured: true, source: Self.otherSensor, at: 12)
+
+        XCTAssertEqual(afterReorder, withoutReorder, accuracy: 1e-6, """
+            A frame that arrived late AND carried a new source produced a different answer than \
+            the same two readings of that source in order. The switch guard seeds a new run from \
+            whatever frame announces the new sensor; if that seed is not equivalent to the \
+            in-order seed, the hand-over guard has reintroduced exactly the baseline poisoning \
+            `testAnOutOfOrderFrameDoesNotBecomeTheBaseline` forbids.
+            """)
+        XCTAssertTrue(afterReorder > 0.10, """
+            The control for this test is broken: the in-order run must produce a REAL slope past \
+            the deadband, or the equality above would hold trivially at zero and prove nothing.
+            """)
+    }
+
+    // MARK: - NON-FINITE INPUT
 
     func testANonFiniteReadingResetsAndNeverPropagates() {
         let out = drive([(0.4, true), (Float.nan, true), (0.5, true)])
