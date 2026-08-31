@@ -1423,6 +1423,35 @@ genannten Typ.** (2) `isMeasured`-false ist derselbe Mechanismus wie ein Reset: 
 geteilte Zustand hinter einem „gemessen?"-Tor wird von der stillsten Quelle regiert, auch
 ohne dass irgendwo `reset()` steht. Herleitung und Messtabelle: `memory/LEDGER_COUNTS.md` §L.2.
 
+### PLAYBOOK: geteilter Zustand hinter einem „gemessen?"-Tor — HALTEN, nicht nullen
+
+**Das Gesetz, zweimal unabhängig hergeleitet (#920c 2026-08-31).** Auf `bus.latestBio`
+INTERLEAVEN die Quellen (`stopBioSource()` stoppt HealthKit nicht). HealthKit veröffentlicht ein
+ehrliches `coherence: 0`, also ist `isMeasured` für jeden Handgelenk-Frame falsch. Jeder
+Verbraucher, der daraufhin **zurücksetzt oder auf 0 springt**, wird damit von der STILLSTEN
+Quelle regiert — auch wenn nirgends `reset()` steht.
+
+**Die Reparatur hat zwei Hälften, und beide werden gebraucht:**
+1. **Zustand PRO QUELLE** (`[BioSource: …]`), damit die Historie einer Quelle nicht von einer
+   anderen gelöscht wird. Siehe die DEAD-END-Zeile darüber.
+2. **Ein Frame ohne diesen Kanal HÄLT den zuletzt gemeldeten Wert**, er nullt ihn nicht. Sonst
+   flackert die Ausgabe alle paar Sekunden auf neutral — dieselbe Taubheit eine Ebene tiefer.
+
+⭐ **`Tools/FXBioModulator` hatte Hälfte 2 schon richtig, unabhängig und aus einem anderen
+Anlass**: `FXRouteFade` „hold[s] the last real offset and fade[s] it, rather than snapping to
+zero the tick a sensor drops out", und der Kommentar nennt HealthKit namentlich. `CoherenceTrend`
+kam #920c über den Interleave-Befund zur selben Regel. **Zwei unabhängige Herleitungen desselben
+Gesetzes sind der Grund, warum es hier als PLAYBOOK steht und nicht als Notiz an einer Datei.**
+
+**Sweep-Ergebnis 2026-08-31, damit es niemand wiederholt.** Alle `isMeasured`-Aufrufer in
+`Sources/` durchgesehen: `FXModulation.contributions` ist eine REINE Anzeigefunktion (eine
+ungemessene Zeile rendert „—", kein Zustand) · `VisualModulation` überspringt per `continue` und
+analysiert die Folgen im eigenen Kommentar ehrlich · `FXBioModulator` hält und faded (siehe oben)
+· `AlwaysOnBioChannel` ist zustandslos je Frame. **Kein weiterer Defekt dieser Klasse gefunden.**
+⚠️ EINE Frage bleibt offen und ist NICHT gemessen: ob der Ein-Frame-Abfall der reinen Pfade auf
+einer Fläche sichtbar zuckt, wenn ein Handgelenk-Frame dazwischenfällt. Das braucht ein Gerät,
+kein `grep`.
+
 ### DEAD-END: eine Oberfläche entfernen und ihre Autorität stehen lassen
 
 Slice 4 löschte die Arrangement-UI. Das persistierte Dokument blieb — und blieb der ERSTE
