@@ -91,21 +91,35 @@
 // ⭐ SO WHAT #932 ACTUALLY ADDS, once the duplicate is subtracted: the #720 finding had NO
 // GUARD. Its only home is prose that dates itself ("gemessen am 2026-08-22") and warns in its
 // own margin that the list ages. Measured today: 19 tracked paths under `scripts/`, exactly
-// ONE of them named in any `paths:` filter, and 11 Python measuring instruments (`doctor.py`,
+// ONE of them named in any `paths:` filter, and 11 Python scripts — 10 of them measuring
+// instruments (`doctor.py`,
 // `dead-needles.py`, `count-pins.py`, `founder-verify.py`, `gh-run-status.py`,
-// `gh-test-verdict.py`, `needle-reachability.py`, and four more) among the unwatched. Claim 6
+// `gh-test-verdict.py`, `needle-reachability.py`, and three more), the eleventh being
+// `analyze-youtube.py`, which its own docstring calls PIPELINE-ONLY dev tooling rather than
+// an instrument that measures this repo (#932b) — all unwatched. Claim 6
 // pins the single precedent — the fact that makes the over-claim tempting and the one that can
 // change silently — and claim 7 pins the prose that holds the inversion.
 //
-// ⚠️ THE PROPORTION, again stated so this reads as a record: no CI job runs a Python script
-// here, so a gate run on a scripts-only commit would prove nothing about it. The cost is the
+// ⚠️ THE PROPORTION, again stated so this reads as a record: no CI job runs any of
+// `scripts/*.py`, so a gate run on such a commit would prove nothing about it. ⛔ #932b
+// narrowed that sentence — it said "no CI job runs a Python script here", refutable in one
+// grep: `community-triage.yml` runs `.github/scripts/community_triage.py` and
+// `fetch-samples.yml` runs `scratchpads/tools/sample_processor.py`. The only `scripts/`
+// files any workflow executes are `build-guard.sh` and `check-infoplist.sh`, both shell.
+// A claim one directory too wide is still a wrong claim. The cost is the
 // same documentation cost as the law file's — an instrument repaired on the branch reaches
 // `main` only as a passenger, and never at all if the branch ends on such a commit.
 //
 // ⭐ GRADING (§3). Claims 1–4 are COUNTERWEIGHTS: the workflow files are untouched by this
 // commit, so they are green at the parent too, and that is the point — they record a standing
 // state rather than create it. Claim 5 is FORWARD: the CLAUDE.md sentence is new here, so it
-// is red at the parent by one absence (#486). Claims 6 and 7 (#932) are COUNTERWEIGHTS in the
+// is red at the parent by one absence (#486) — ⛔ #932b: TRUE FOR #697, AND CARRIED FORWARD
+// UNCHANGED INTO A PARAGRAPH THIS DIFF REWRITES, which is the generous-direction error §3
+// forbids. Measured against #932's own parent: both of claim 5's needles are present in
+// `CLAUDE.md` there, so for THIS commit claim 5 is a COUNTERWEIGHT, not forward. The line is
+// kept with its origin named rather than silently re-graded, because the #697 grading was
+// correct then and a reader comparing the two commits needs to see which tree each describes.
+// Claims 6 and 7 (#932) are COUNTERWEIGHTS in the
 // same sense as 1–4 — the workflow and the register both predate this commit, so both are green
 // at the parent, and that is exactly the point: they pin a standing state that had no guard at
 // all. Claim 2's fourth needle is green at the parent too. Nothing here is TRAGEND — this slice
@@ -165,14 +179,21 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
     func testTheClaudeMergeIgnoresTheLawTheLedgerAndTheInstruments() throws {
         let filter = try Self.pathFilter(in: rawFile(Self.claudeMerge))
         for needle in ["CLAUDE.md", "memory/", "scratchpads/", "scripts/"] {
-            let hits = filter.filter { $0.contains(needle) }
+            // #932b: `hasPrefix`, not `contains` — see claim 6. `ci_scripts/**` is a
+            // tracked sibling of `scripts/`, and `docs/CLAUDE.md` is a different file from
+            // the root law file. Both would be false reds under `contains`.
+            let hits = filter.filter { $0.hasPrefix(needle) }
             XCTAssertTrue(hits.isEmpty, """
                 `auto-merge-claude.yml` now watches "\(needle)" (\(hits.joined(separator: ", "))).
 
                 If the founder widened the filter, this claim has done its job: delete it and \
-                correct CLAUDE.md's CI section in the SAME commit (#456) — it currently states \
-                that a commit touching only the law file triggers no merge of its own, and \
-                reaches `main` only as a passenger on a later code commit.
+                correct the prose in the SAME commit (#456) — but check WHICH prose. For \
+                `CLAUDE.md`, `memory/` and `scratchpads/` it is CLAUDE.md's CI section, which \
+                states that a commit touching only the law file triggers no merge of its own \
+                and reaches `main` only as a passenger on a later code commit. For `scripts/` \
+                it is the #720 register in `ContentPipeline/README.md` — the CLAUDE.md \
+                sentence stays TRUE when the scripts filter widens, so following it there \
+                would move the wrong paragraph (#932b, found in review).
                 """)
         }
     }
@@ -253,7 +274,14 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
     /// the prose must follow in the same commit (#456).
     func testExactlyOneScriptIsNamedInACompileGateFilter() throws {
         let filter = try Self.pathFilter(in: rawFile(Self.compileCheck))
-        let scripts = filter.filter { $0.contains("scripts/") }
+        // ⛔ #932b — `contains` HERE WAS THE SIXTH COLLISION OF THE SAME LAW, and the
+        // reviewer caught it in the one direction that matters: `ci_scripts/**` and
+        // `.github/scripts/**` are BOTH real tracked directories in this repo, and
+        // `ContentPipeline/README.md` names `ci_scripts/**` as ship-relevant and therefore
+        // among the likeliest paths to be added to a filter. `contains` would then have gone
+        // red and blamed `scripts/`. `hasPrefix` is the whole repair: an entry under another
+        // directory is a different decision, and this claim owns only one of them.
+        let scripts = filter.filter { $0.hasPrefix("scripts/") }
         XCTAssertEqual(scripts, ["scripts/check-infoplist.sh"], """
             `xcode-compile-check.yml`'s path filter now names \(scripts.count) entries under \
             `scripts/` (\(scripts.joined(separator: ", "))), not the single \
@@ -314,8 +342,10 @@ final class TheLawFileNeverReachesMainByItselfTests: XCTestCase {
     ///
     /// ⚠️ Deliberately plain rather than a regex over the whole file: see the file header for
     /// why a whole-file scan cannot distinguish a branch pattern from a path pattern here.
-    /// Not `throws`: it reads a `String` already in hand. The three call sites below still
-    /// write `try` — that covers `rawFile`, which does throw. Line-for-line honesty about which
+    /// Not `throws`: it reads a `String` already in hand. The four call sites below still
+    /// write `try` — that covers `rawFile`, which does throw. (⛔ #932b: "three" until
+    /// claim 6 added the fourth in the same commit that left the number behind — a count
+    /// in prose is a date, and this one aged inside a single diff.) Line-for-line honesty about which
     /// call the keyword belongs to, in a bundle that has paid for the opposite twice.
     private static func pathFilter(in yml: String) -> [String] {
         let lines = yml.components(separatedBy: .newlines)
