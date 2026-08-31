@@ -3,6 +3,33 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — Deploy v10.79.433: die Metronom-Version
+
+Gemessen gegen den Bump-Commit `d540d08` (#911): **19 Commits, 8 in `Sources/`**,
+`founder-verify --since d540d08` = **2 neue Bitten von 65**. Inhaltlich EINE Sache — das
+Metronom.
+
+**Was hörbar ist:** die Klick-Zeile heißt jetzt „Accent every … beats" statt „Beats per
+bar" (#930 — die Zahl ist klick-lokal, drei unabhängige harte Vieren im Rest der App
+erreicht sie nicht), und ein Tempowechsel behält die POSITION im Schlag statt der
+Sample-Zahl (#933 → #934). Drei Richtungen, alle repariert: rauf zwei Schläge zu früh +
+Doppel-Klacken auf einem Drittel der Ausrichtungen · runter zwei Drittel Sekunde Stille ·
+**Glide 53 ms zu früh über 60 s**, ein Accelerando das niemand verlangt hat.
+
+**Die Notiz benennt drei stale Stellen der 432er ausdrücklich als KORREKTUREN**, statt sie
+still zu ersetzen: das Label dreimal, ein falsch gestellter Prüfpunkt („hörst Du jetzt die
+Taktlänge?" — es gibt keine einstellbare Taktlänge, das WAR der Defekt) und ein ⚠-Register,
+das #930 erledigt hat. Grund: der Founder hat die 432er vielleicht noch offen; eine stille
+Ersetzung lässt ihn einen umbenannten Schalter suchen.
+
+**Neu in der Notiz, erledigt aus dem Rückstand:** `python3 scripts/founder-verify.py --since
+<Bump-Commit>` steht jetzt neben den zwei `git log`-Messbefehlen — der Founder sieht, welche
+Bitten NEU sind, statt die ganze 65er-Liste zu lesen.
+
+Gates vor dem Bump: `Xcode Compile Check` grün auf `ab2d0e2` und `d0f64c7`; CI/CD-Failure ist
+die bekannte #396-Signatur (Simulator-Clone stirbt, `TEST EXECUTE FAILED`, kein
+`TEST BUILD FAILED`, jeder sichtbare Test bestanden). Nicht geräteverifiziert.
+
 ## 2026-08-31 — #934b: die sechs Reviewer-Befunde an #934
 
 Der `audio-thread-reviewer` hat alle 32 Kopfzeilen-Zellen von #934 nachgerechnet (jede
