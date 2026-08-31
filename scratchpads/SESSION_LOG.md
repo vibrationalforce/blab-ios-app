@@ -18278,3 +18278,53 @@ der KOMBINIERTE Export wird größer als die Datei, über die zwei andere Dateie
 haben. Sonst liest die nächste Sitzung ein URTEIL („keine wurde falsch"), das über eine Menge
 gefällt wurde, die die stärkste Gegenprobe gar nicht enthielt — und ein Urteil ist teurer als
 eine Zahl, weil es sich nicht nachrechnen lässt.
+
+
+---
+
+## #917 / #917b — Safe Mode zeigte den falschen Lauf, und meine Begründung dafür war falsch
+
+**Der Befund:** sobald das Selbstheilungs-Netz jeden zweiten Start abfängt, kann der Lauf
+UNMITTELBAR vor einem Safe-Mode-Start der Wiederherstellungs-Start selbst sein — kurz, ohne
+Marke, nutzlos. Genau den gab der Bildschirm aus, dessen einziger Satz „gib das dem
+Entwickler" lautet. Seit #916 liegt der echte Abbruch daneben, in der aufbewahrten Datei.
+`recoveryExport()` hängt ihn an, aber nur wenn der vorige Lauf selbst keine Marke trägt.
+
+⛔ **DER SCHWERSTE FUND WAR DIE BEGRÜNDUNG, NICHT DER CODE — und der Reviewer hat sie durch
+FALLUNTERSCHEIDUNG widerlegt, nicht durch Meinung.** Ich schrieb (im Quellkommentar, in der
+Testmeldung UND im Commit), die Nicht-Dopplung ruhe darauf, dass der Schnappschuss VOR der
+Aufbewahrung genommen wird. Sie ruht nicht darauf: ein aufbewahrtes Log ist ein Ausschnitt
+irgendeines Laufs, eine Marke im Ausschnitt heißt also, jener Lauf trug eine — und dann lehnt
+das Tor schon an seiner ERSTEN Klausel ab. **In jedem erreichbaren Zustand ist das Ergebnis
+byte-identisch, egal auf welcher Seite der Schnappschuss steht.** Der Wächter dafür konnte
+für seinen genannten Grund nicht scheitern (#367-Spiegelfall) und wäre bei korrekter Arbeit
+rot geworden (#364). **Gelöscht statt repariert.**
+
+⛔ **UND DIE SCHEIBE HAT DIE DATEI-E/A NICHT ENTFERNT, SONDERN AUF JEDEN START GELEGT.**
+Dreizehn Zeilen unter der neuen UNBEDINGTEN Lesung stand weiter „die eine Lesung kostet nur
+einen Start nach einem schlechten Lauf" — beide Hälften falsch, und ein Schlecht-Lauf-Start
+las sogar zweimal. Der Commit-Text warb dabei mit „KEINE DATEI-E/A auf dem
+Wiederherstellungs-Bildschirm" und verschwieg, dass die E/A nicht weg, sondern verschoben war.
+
+⛔ **DIE EHRLICHE BENOTUNG WAR GEGEN DEN FALSCHEN BAUM GEMESSEN.** Ich habe den Block aus
+#916 übernommen und gegen den VOR-#916-Baum benotet, während er „gegen den Elternteil" sagt.
+Der Elternteil ist `fdca482` und trägt #916 bereits. Folge: 2 der 4 behaupteten Regressionen
+sind dort Gegengewichte, „die ganze Datei fehlt beim Elternteil" ist falsch, fünf der „sieben
+neuen Symbole" gehören dem Elternteil — und die Kategorien summierten auf 38 bei angegebenen
+37. **Jeder einzelne Fehler in der schmeichelnden Richtung.**
+
+⚠️ **Vier weitere Prosa-Stellen waren überdehnt:** ein SIGSEGV/SIGABRT SCHREIBT eine Marke,
+also zeigte der Bildschirm direkt nach einem echten Absturz längst den richtigen Lauf. #917
+greift nur, wenn der WIEDERHERSTELLUNGS-Lauf selbst ohne Marke endet. Ich hatte den
+Ausnahmefall als Regel formuliert — in der Zeile, aus der die nächste Sitzung plant.
+
+⭐ **Ein Fund war eine echte Lücke, kein Fehler:** die automatisch aufgehende Fläche ist die
+HÄUFIGER erreichte der beiden Absturz-Flächen, und #917s eigenes Argument galt dort wörtlich.
+Sie bekommt jetzt dieselbe Zusammensetzung.
+
+**GESETZ, und es ist neu neben allen bisherigen dieser Sitzung:** eine Wächter-Form fahre ich
+inzwischen (drei Mutanten-Läufe haben in dieser Sitzung drei Begründungen widerlegt) — aber
+eine BEGRÜNDUNG fahre ich nicht, weil sie keine Ausführung hat. Der billige Ersatz ist die
+FALLUNTERSCHEIDUNG: zähle die erreichbaren Zustände auf und frage bei jedem, ob die
+behauptete Ursache das Ergebnis überhaupt ändert. Genau das hat der Reviewer getan, in vier
+Zeilen, an einem Code, den ich geschrieben hatte.
