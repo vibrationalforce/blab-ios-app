@@ -99,6 +99,47 @@ final class MIDIEventParseTests: XCTestCase {
         XCTAssertEqual(value, 1.0, accuracy: 1e-6)
     }
 
+    // MARK: - Channel Pressure (#939) — MPE's PRESS dimension
+
+    /// ⭐ Before #939 this fell to `default: return nil` in BOTH protocols: the parser decoded
+    /// four things and `MIDIInEvent` had no case to carry a fifth, so a player leaning into a
+    /// key sent bytes that were discarded one layer below any wiring.
+    func testMIDI1_channelPressure_normalizes() {
+        let e = MIDIEventParse.event(word0: midi1(0xD0, ch: 5, d1: 64, d2: 0), word1: nil)
+        XCTAssertEqual(e, .channelPressure(value: 64.0 / 127.0, channel: 5))
+    }
+
+    /// ⚠️ THE TRAP THIS SLICE WAS MOST LIKELY TO FALL INTO, so it gets its own claim.
+    /// Channel Pressure is a TWO-byte message — status plus ONE data byte — while every
+    /// neighbouring case reads its level out of `d2`, the SECOND data byte. Copying that shape
+    /// reads the filler instead of the pressure: always 0, never an error, and indistinguishable
+    /// from a player who is simply not pressing. `d1` is full scale here and `d2` is deliberately
+    /// non-zero and DIFFERENT, so a `d2` implementation cannot pass by coincidence.
+    func testMIDI1_channelPressure_readsTheFirstDataByteNotTheSecond() {
+        let e = MIDIEventParse.event(word0: midi1(0xD0, ch: 0, d1: 127, d2: 40), word1: nil)
+        XCTAssertEqual(e, .channelPressure(value: 1.0, channel: 0),
+                       "pressure must come from data byte 1; reading data byte 2 gives 40/127")
+    }
+
+    func testMIDI2_channelPressure_32Bit() {
+        let e = MIDIEventParse.event(word0: midi2w0(0xD, ch: 2, note: 0), word1: UInt32.max)
+        XCTAssertEqual(e, .channelPressure(value: 1.0, channel: 2))
+    }
+
+    func testMIDI2_channelPressure_missingWord1_isDropped() {
+        XCTAssertNil(MIDIEventParse.event(word0: midi2w0(0xD, ch: 2, note: 0), word1: nil))
+    }
+
+    /// COUNTERWEIGHT: adding a fifth case must not have moved the other four. A status byte
+    /// that is still unknown has to stay dropped, or "parses more" quietly became "parses
+    /// anything".
+    func testAnUnknownStatusIsStillDropped() {
+        XCTAssertNil(MIDIEventParse.event(word0: midi1(0xA0, ch: 0, d1: 60, d2: 64), word1: nil),
+                     "0xA0 (poly aftertouch) is NOT channel pressure and is still unsupported")
+        XCTAssertNil(MIDIEventParse.event(word0: midi2w0(0xA, ch: 0, note: 60), word1: 1),
+                     "MIDI 2.0 0xA likewise")
+    }
+
     func testMIDI2_missingWord1_isDropped() {
         XCTAssertNil(MIDIEventParse.event(word0: midi2w0(0x9, ch: 0, note: 60), word1: nil))
     }

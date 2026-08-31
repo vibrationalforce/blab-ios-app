@@ -146,8 +146,10 @@ public final class SignalRouter {
             // player reads while patching, so it kept the claim for two months. Measured:
             // `MIDIBusPublisher` parses MPE traffic but disambiguates no zones (its own header
             // says so), and `BioReactiveSynthVoice.apply(controller:)` runs into a single
-            // `break` for `.slide`, `.airCC` and `.channelPressure` — the three dimensions that
-            // MAKE it MPE — and never reads `event.channel`. MPE **out** is real and switchable
+            // `break` for `.slide` and `.airCC` — two of the three dimensions that MAKE it MPE
+            // — and never reads `event.channel`. ⭐ #939 gave the THIRD, channel pressure, a
+            // real path to the sound (`synth.expressionGain`); one dimension of three is not
+            // MPE, so this refusal stands unchanged. MPE **out** is real and switchable
             // (#713), which is why the sink below keeps its name. Guard:
             // `Tests/CISmoke/TheMPEDimensionsReachNoVoiceTests`.
             SignalPort(id: "midi.in",     name: "MIDI In", kind: .note,                 direction: .source, transport: .coreMIDI),

@@ -18892,3 +18892,110 @@ schaut, und die nur die Kamera kannte) und am Board-Posten AU5.
 **Gefahren:** die vier Reparaturen als Mutanten — Wirt-Bindung entfernen ⇒ jetzt `nil` statt des
 Blatt-Namens · heißer Lesevorgang in `EchoelmusicApp.body` ⇒ jetzt rot · Member umbenennen /
 extrahieren ⇒ Anker bleibt grün. Danach alle **30** Behauptungen grün.
+
+## 2026-08-31 — #939: die PRESS-Dimension bekommt einen echten Pfad (MPE-IN S1+S2)
+
+**Was jetzt wirklich passiert:** wer sich in eine Taste eines MPE-Controllers lehnt, hört die
+Note anschwellen. Vorher wurde das Byte eine Schicht UNTER jeder Verdrahtung weggeworfen.
+
+Die Kette, in Reihenfolge — S1 und S2 in EINEM Commit, weil der Council (#938) einen Parser
+ohne Verbraucher ausdrücklich verboten hat:
+
+1. `MIDIEventParse` — neuer Fall `channelPressure(value:channel:)`, MIDI 1.0 (`0xD0`) und
+   MIDI 2.0 (`0xD`).
+2. `MIDIInput` — `onChannelPressure`, aus dem vorhandenen Batch-Drain.
+3. `MIDIBusPublisher` — `ControllerEvent(kind: .channelPressure, …)` auf den Bus. Bewusst
+   NICHT thru-echot und NICHT in die Aufnahme geteet: `MIDIOutput` hat kein Pressure-Send und
+   das Take-Format trägt Noten — beides wären zweite, ungemessene Behauptungen.
+4. `BioReactiveSynthVoice` — `synth.expressionGain = 1 + press * 0.5`.
+5. `EchoelDDSP` — neues `expressionGain` (Default 1.0, `didSet` sanitisiert) im Render-Block:
+   `gainTarget = amplitude * patchOutputLevel * expressionGain`.
+
+**Die Messung VOR dem Schreiben, und sie hat den naheliegenden Ort verworfen:** `velocityGain`
+sah aus wie die Heimat für Druck und wird nur in `applyBioReactive` gelesen — das läuft mit der
+Bio-Rate ~1 Hz. Ein Ausdrucksregler, der einmal pro Sekunde nachzieht, fühlt sich kaputt an.
+(Und `velocityGain` existiert auf ZWEI Typen — `EchoelDDSP` mono, `EchoelPolyDDSP` pro Stimme:
+dasselbe #938-Gesetz, dem TYP folgen, nicht dem Wort.)
+
+**⭐ EINE von drei Dimensionen ist NICHT MPE.** Zonen (RPN 6,6) und Member-Kanäle fehlen weiter,
+`event.channel` liest niemand, der Pfad bleibt monophon. Store-Text, `CLAIMS.md` und die
+Website-Behauptung „kein MPE-Eingang" bleiben unverändert richtig.
+
+**Der Wächter wurde UMGESCHRIEBEN, nicht gelöscht (#364).** `TheMPEDimensionsReachNoVoiceTests`
+Anspruch 6 hieß „wird nie geparst" und seine eigene Fehlermeldung sagte, was am Tag des Baus zu
+tun ist. Er kippt jetzt auf die SHAPE: der Fall existiert · MIDI 1.0 liest **`data1`**, nicht
+`data2` · MIDI 2.0 hat `case 0xD:` · und nichts Zonen-förmiges kam mit. Der `data1`-Anspruch ist
+der teuerste: Channel Pressure ist eine ZWEI-Byte-Nachricht, jeder Nachbarfall im selben
+`switch` liest das ZWEITE Datenbyte, und die kopierte Form kompiliert, meldet immer 0 und sieht
+aus wie ein Spieler, der nicht drückt. Kein Gate kann das sehen.
+
+**⛔ DAS DURCHTREIBEN DER GANZEN WÄCHTER-DATEI FAND DREI ROTE ZUSICHERUNGEN AUF EINEM KORREKTEN
+BAUM** — keine davon von dieser Scheibe verursacht. Zweites Mal, dass §3s Delta-Blindheit sich
+bezahlt macht (#937 war das erste):
+
+1. **Nadelkollision (~10. Instanz).** Anspruch 7s Nadel `"timbre"` traf `architecture.html`s
+   *Voice timbre*-Zeile — das Vokal-Analyse-Feature, nichts mit MIDI zu tun —, weil
+   `claimsItPlaysAVoice` „play" in „**play**er" findet und danach „voice" steht. Die Nadel kaufte
+   nie etwas: jede echte MPE-Nennung der Seite ist „Slide / timbre (CC 74)", und `"slide"`/
+   `"cc 74"` fangen die schon. Entfernt.
+2. **Ein ECHTER Fang, und zwar in der Prosa.** `faq.html` stellte „bidirectional OSC is on the
+   roadmap" und „MPE output" in EINEN Satz — eine ausgelieferte Fähigkeit las sich als Roadmap.
+   Die Fehlermeldung des Wächters sagt selbst, was zu tun ist: getrennte Sätze. Erledigt.
+3. **Anspruch 12s Zitat-Regel war pro ZEILE.** `APP_STORE_LISTING_v1.md` umbricht seinen
+   Blockquote zwischen „MPE **in** stays" und „unclaimable (#548/#770)." — ein ehrlicher Satz,
+   von einem Reflow geteilt. Fenster jetzt ±1 Zeile; eine Regel „Prosa darf hier nicht
+   umbrechen" wäre unhaltbar und vom nächsten Editor wieder gebrochen worden.
+
+Zwei Nadel-Defekte, ein echter Prosa-Defekt. **#396 ist der Grund, warum keiner auffiel:** ein
+wirklich rotes Gate ist von einem sterbenden Host nicht zu unterscheiden. **Regel: wer eine
+Wächter-Datei anfasst, treibt sie GANZ durch, nicht nur den Diff.**
+
+**Prosa in JEDEM Zuhause mitgezogen (#456):** `CLAUDE.md` (zwei MPE-Stellen, +174 B → 149 030,
+970 B Kopfraum unter der Decke) · `MIDIBusPublisher`s Kopf · `MIDIInput`s Klassen-Doc ·
+`SignalRouter` · `docs/dev/FEATURE_MATRIX.md` · `docs/architecture.html` (die „Next"-Zeile wird
+zu einer LIVE-Zeile für Press plus einer ROADMAP-Zeile für Zonen).
+
+**⚠️ GEFUNDEN, NICHT REPARIERT (nächste Scheibe):** `faq.html`s JSON-LD-Block verkauft
+„OSC … for bidirectional communication" als ausgeliefert, während der sichtbare Text derselben
+Antwort „one-way OSC … bidirectional is on the roadmap" sagt. Zwei Behauptungen in EINER Datei,
+die einander widersprechen; der JSON-LD ist der, den Suchmaschinen zitieren. Eigenes Thema
+(OSC, nicht MPE) — nicht in diese Scheibe gebündelt.
+
+**Instrumente grün:** `dead-needles` 391 Dateien · `count-pins` 137/158, 0 RED ·
+`needle-reachability` sauber. **Alle 8 Zusicherungen der Wächter-Datei transkribiert:** sechs
+FORWARD-Guards (sie nennen Symbole, die dieser Commit erst anlegt), zwei COUNTERWEIGHTS grün auf
+beiden Bäumen, **null Regressionen**. `SourceText.codeOnly` ist für Anspruch 6 jetzt **TRAGEND**
+(1 von 8 Verdikten kippt): die ehrliche Erklärzeile „Zone detection (RPN 6,6)" im Parser hätte
+den Wächter rot gemacht, der sie pinnt.
+
+**Pflicht-Reviewer (`audio-thread-reviewer`) — 0 BLOCKER, 2 SHOULD-FIX, 3 NOTES, alle
+angewandt.** Die DSP-Hälfte war sauber (Isolation stimmt — `EchoelDDSP` ist
+`@unchecked Sendable`, also ist der Spiegel-Pfad von `SubBassVoice` hier gar nicht anwendbar;
+der Multiply gleitet durch den vorhandenen Ein-Pol; Default 1.0 ist bitgenau, weil `x * 1.0f`
+in IEEE-754 exakt ist). Die zwei echten Defekte lagen im AUFRÄUMEN, nicht im Klang:
+
+1. **`expressionGain` wurde nie zurückgesetzt.** Ein Druck ohne Loslassen — Controller mitten
+   im Ton abgezogen, oder das Ereignis unter Flut aus der SPSC-Queue gefallen — hätte die
+   Stimme für den Rest der Sitzung +3,5 dB über Nennwert gelassen, **die Atem-Stimme erbt den
+   Boost** (dieselbe `EchoelDDSP`), und **kein Bedienelement hätte ihn löschen können**. Genau
+   die Form, für die `panic()` gebaut ist. Jetzt in `panic()` UND `EchoelDDSP.reset()`, neben
+   dem `velocityGain = 1`, dessen Kommentar seit #174 dasselbe Argument führt.
+2. **`MIDIBusPublisher.stop()` löste den neuen Callback nicht.** Nach `stop()` wären die vier
+   alten Dimensionen still gewesen und **Druck hätte weiter auf den Bus veröffentlicht**, bei
+   `isPublishing == false`. Von dieser Scheibe eingeführte Asymmetrie.
+
+NOTES: `lastEventTimestamp` ist jetzt `@ObservationIgnored` — Noten feuern es ein paar Mal pro
+Sekunde, MPE-Kanaldruck strömt mit Hunderten pro Sekunde, also wäre es ein fünfter heißer
+`@Observable`-Erzeuger der #919/#928-Klasse geworden (heute null Leser, das ist Versicherung,
+keine Reparatur) · der `min(max(…))` ist auf das hauseigene NaN-sichere `clamped(to:)` gewechselt
+· der Doc-Satz „wirkt auf den nächsten BLOCK" war stärker als der Code (`gainTarget` wird pro
+SAMPLE gerechnet) und ist zurückgenommen · vorbestehend und NUR notiert: `ControllerEvent.channel`
+wird 0-basiert veröffentlicht, während das Feld 1-basiert dokumentiert ist (alle drei Pfade tun
+das, niemand liest es — beißt beim ersten Zonen-Bau).
+
+**Und die Reviewer-Reparatur hatte selbst einen Anker-Fehler, gefangen beim Transkribieren:**
+der neue Reset-Anspruch ankerte auf `public func reset()`, das in `EchoelDDSP.swift` **zweimal**
+vorkommt (mono + `EchoelPolyDDSP`) — `memberBody` verlangt genau eins (#408). Anker ist jetzt
+das eindeutige `velocityGain = 1`, und die Suche ist auf dessen Block begrenzt: die nackte Nadel
+`expressionGain = 1` kommt ebenfalls **zweimal** vor, weil der Default im eigenen `didSet`
+`expressionGain = 1.0` heißt.

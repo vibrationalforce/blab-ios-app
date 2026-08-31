@@ -14,10 +14,19 @@
 //    other CCs             → dropped for now; extend ControllerEvent
 //                            Kind enum when a consumer needs them
 //    pitch bend            → .pitchBend (range already normalized to [-1..1])
+//    channel pressure      → .channelPressure (MPE's PRESS dimension, #939)
 //
-//  MPE master vs. member channel disambiguation, RPN 6,6 zone detection,
-//  and channelPressure are NOT available here — tracked as the
-//  MPE-completeness follow-up.
+//  MPE master vs. member channel disambiguation and RPN 6,6 zone detection
+//  are still NOT available here — tracked as the MPE-completeness follow-up.
+//
+//  ⭐ #939 STRUCK "and channelPressure" FROM THE LINE ABOVE. The dimension is
+//  parsed (`MIDIEventParse`, both protocols), carried (`MIDIInput
+//  .onChannelPressure`) and consumed (`BioReactiveSynthVoice` →
+//  `EchoelDDSP.expressionGain`, a master-gain multiply in the render block).
+//  ⚠️ ONE dimension of three is NOT MPE input: no zone is detected, no member
+//  channel is distinguished, `channel` is carried here and read by nobody, and
+//  `.slide`/`.airCC` still land in one `break`. Store text, website and
+//  `ContentPipeline/CLAIMS.md` stay untouched.
 //
 //  ⛔ THIS BLOCK SAID "intentionally NOT wired in this first cycle", AND THAT
 //  IS THE WRONG LAYER (#770). It reads as a gap in THIS file, so a session
@@ -53,6 +62,15 @@ public final class MIDIBusPublisher {
 
     public private(set) var isPublishing = false
 
+    /// ⚠️ `@ObservationIgnored` SINCE #939, and the reason is a rate change this slice caused.
+    /// Notes fire this a few times a second; MPE channel pressure streams at hundreds of
+    /// messages per second per channel, so a tracked write here becomes a fifth hot producer of
+    /// the class `CLAUDE.md` catalogues under #919/#928 — a 10 Hz+ `@Observable` write that
+    /// tears down an open `.menu` Picker in any ancestor that reads it. It has ZERO readers
+    /// today (`git grep lastEventTimestamp -- Sources`), so nothing changes now; this is
+    /// insurance against the future header tile that shows "last MIDI event" and freezes the
+    /// app while a keyboard is being pressed.
+    @ObservationIgnored
     public private(set) var lastEventTimestamp: TimeInterval = 0
 
     @ObservationIgnored
@@ -91,6 +109,7 @@ public final class MIDIBusPublisher {
         midi.onNoteOff = nil
         midi.onCC = nil
         midi.onPitchBend = nil
+        midi.onChannelPressure = nil   // #939 — or press keeps publishing after stop()
         isPublishing = false
     }
 
@@ -129,6 +148,19 @@ public final class MIDIBusPublisher {
         }
         midi.onCC = { [weak self] cc, value, channel in
             self?.publishCC(cc: cc, value: value, channel: channel)
+        }
+        // #939 — Press reaches the bus. NOT thru-echoed and NOT record-teed, unlike notes:
+        // `MIDIOutput` has no channel-pressure send, and the take format carries notes, so
+        // adding either would be a second, unmeasured claim in the same slice.
+        midi.onChannelPressure = { [weak self] pressure, channel in
+            self?.publish(ControllerEvent(
+                timestamp: CFAbsoluteTimeGetCurrent(),
+                kind: .channelPressure,
+                channel: UInt8(clamping: channel),
+                note: 0,
+                value: pressure,
+                auxCC: 0
+            ))
         }
         midi.onPitchBend = { [weak self] bend, channel in
             self?.publish(ControllerEvent(

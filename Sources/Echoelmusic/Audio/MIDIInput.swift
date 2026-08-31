@@ -16,14 +16,21 @@ import CoreMIDI
 /// surfaces as somebody enumerates**, and when every checked surface shares one
 /// GATTUNG the enumeration is the thing that was incomplete.
 ///
-/// MEASURED, not inferred: `MIDIEventParse.event(word0:word1:)` decodes exactly
-/// four things in either protocol — Note On (0x90 / 0x9), Note Off (0x80 / 0x8),
-/// CC (0xB0 / 0xB) and Pitch Bend (0xE0 / 0xE). **Channel Pressure (0xD0 / 0xD)
-/// has no case and falls to `default: return nil`**, and `MIDIInEvent` has no
-/// case to carry it. Channel pressure is MPE's Press dimension, so this receiver
-/// cannot deliver it — not "not wired yet", but structurally absent one layer
-/// below any wiring. Zone detection (RPN 6,6) and master-vs-member channel
-/// disambiguation are likewise nowhere in this file.
+/// MEASURED, not inferred: `MIDIEventParse.event(word0:word1:)` decodes FIVE things
+/// in either protocol — Note On (0x90 / 0x9), Note Off (0x80 / 0x8), CC (0xB0 /
+/// 0xB), Pitch Bend (0xE0 / 0xE) and, since #939, Channel Pressure (0xD0 / 0xD).
+///
+/// ⭐ #939 — THE PARAGRAPH THAT STOOD HERE WAS TRUE WHEN IT WAS WRITTEN AND IS THE
+/// REASON THE WORK GOT DONE, so its finding is kept rather than deleted: channel
+/// pressure "has no case and falls to `default: return nil`", MPE's Press dimension
+/// discarded one layer BELOW any wiring — not "not wired yet" but structurally
+/// absent. That is what #939 repaired: a case here, a callback below, a bus event,
+/// and `synth.expressionGain` on the master-gain target so it is actually heard.
+///
+/// ⚠️ THE RETRACTION IT SUPPORTS STANDS. Zone detection (RPN 6,6) and master-vs-
+/// member channel disambiguation are still nowhere in this file, `.slide` and
+/// `.airCC` still reach no voice, and `event.channel` is still read by nobody.
+/// ONE dimension of three is not MPE input, and no user-facing copy may say it is.
 ///
 /// What IS true and must not be over-corrected away: MPE traffic on the wire
 /// still ARRIVES here as ordinary per-channel notes, bend and CC 74 — that is
@@ -52,6 +59,8 @@ final class MIDIInput {
     var onCC: ((Int, Float, Int) -> Void)?
     /// Pitch bend: (value -1 to +1, channel 0-15)
     var onPitchBend: ((Float, Int) -> Void)?
+    /// Channel Pressure (0xD0 / 0xD) — value 0…1, 0-based channel (#939).
+    var onChannelPressure: ((Float, Int) -> Void)?
 
     // MARK: - CoreMIDI
 
@@ -238,6 +247,8 @@ final class MIDIInput {
                 onCC?(number, value, channel)
             case .pitchBend(let value, let channel):
                 onPitchBend?(value, channel)
+            case .channelPressure(let value, let channel):
+                onChannelPressure?(value, channel)
             }
         }
     }

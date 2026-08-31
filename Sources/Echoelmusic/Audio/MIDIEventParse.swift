@@ -24,6 +24,17 @@ public enum MIDIInEvent: Equatable, Sendable {
     case noteOff(note: Int, channel: Int)
     case cc(number: Int, value: Float, channel: Int)
     case pitchBend(value: Float, channel: Int)
+    /// ⭐ #939 — Channel Pressure (0xD0 / 0xD). MPE's PRESS dimension, and until now this
+    /// receiver had no case for it: `MIDIEventParse` decoded four things in either protocol and
+    /// 0xD0 fell to `default: return nil`, so a player leaning into a key sent bytes that were
+    /// discarded one layer BELOW any wiring (`MIDIInput`'s header measured exactly that).
+    ///
+    /// ⚠️ THIS IS NOT "MPE SUPPORT" AND MUST NOT BE DESCRIBED AS SUCH. Zone detection (RPN 6,6)
+    /// and master-vs-member channel disambiguation remain absent; `channel` is carried here and
+    /// read by nobody. One dimension of three now reaches a voice — the other two (`.slide`,
+    /// `.airCC`) still land in a single `break`, which `TheMPEDimensionsReachNoVoiceTests`
+    /// pins. Store text, website and `ContentPipeline/CLAIMS.md` stay untouched.
+    case channelPressure(value: Float, channel: Int)
 }
 
 /// Pure UMP word(s) → event mapping. Behavior-identical to the pre-H10 inline
@@ -55,6 +66,13 @@ public enum MIDIEventParse {
                 return .noteOff(note: data1, channel: channel)
             case 0xB0:
                 return .cc(number: data1, value: data2, channel: channel)
+            case 0xD0:
+                // ⚠️ CHANNEL PRESSURE IS A TWO-BYTE MESSAGE — status plus ONE data byte — so
+                // the value is `data1`, NOT `data2`. Every other case here reads its level out
+                // of `data2` (the SECOND data byte), and copying that shape would have read the
+                // running-status filler as pressure: silent, always-0, and indistinguishable
+                // from a player who is not pressing.
+                return .channelPressure(value: Float(data1) / 127.0, channel: channel)
             case 0xE0:
                 let bendValue = Float(data1 | (Int(word0 & 0x7F) << 7) - 8192) / 8192.0
                 return .pitchBend(value: bendValue, channel: channel)
@@ -77,6 +95,9 @@ public enum MIDIEventParse {
                 return .cc(number: Int((word0 >> 8) & 0x7F),
                            value: Float(word1) / Float(UInt32.max),
                            channel: channel)
+            case 0xD: // Channel Pressure (32-bit value, like CC above)
+                return .channelPressure(value: Float(word1) / Float(UInt32.max),
+                                        channel: channel)
             case 0xE: // Pitch Bend (signed 32-bit)
                 return .pitchBend(value: Float(Int32(bitPattern: word1)) / Float(Int32.max),
                                   channel: channel)

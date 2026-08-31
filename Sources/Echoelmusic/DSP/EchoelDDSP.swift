@@ -179,6 +179,39 @@ public final class EchoelDDSP: @unchecked Sendable {
         }
     }
 
+    /// ⭐ #939 — MPE PRESS, and it is a THIRD factor of the master-gain target on purpose.
+    /// 1.0 = untouched = bit-identical to every build before it.
+    ///
+    /// WHY NOT `velocityGain`, WHICH LOOKS LIKE THE OBVIOUS HOME. `velocityGain` is read in
+    /// exactly ONE place — the `amplitude = …` line inside `applyBioReactive` — and that line
+    /// runs at the BIO rate. The poll is 10 Hz but every consumer dedupes on `frame.timestamp`
+    /// and every wired publisher sends at ~1 Hz (CLAUDE.md's rate law), so a press routed
+    /// through it would move the level about once a SECOND. That is not an expression control;
+    /// it is a control that feels broken. Measured before writing this, not assumed.
+    ///
+    /// This factor sits on `gainTarget` in the render block instead, where `amplitude` and
+    /// `patchOutputLevel` already meet. ⛔ THAT LINE SAID "takes effect on the next BLOCK" and
+    /// the reviewer measured otherwise: `gainTarget` is recomputed per SAMPLE inside the loop, so
+    /// a MainActor write lands mid-block. Harmless — it glides through the existing one-pole
+    /// (0.01/sample ⇒ τ ≈ 2 ms) — but the sentence was stronger than the code.
+    /// It is the same shape and the same threading discipline as `patchOutputLevel`.
+    ///
+    /// ⚠️ SANITISED AT THE DOOR, for the reason the neighbouring comment spells out: the
+    /// smoother's accumulator clamp cannot heal a non-finite TARGET, only a non-finite
+    /// accumulator. An unguarded factor here would leave `smoothedGain` stuck at 0 — silent,
+    /// and reading perfectly healthy from every control. Clamped to 0…2 as well as finite: the
+    /// value arrives from an external controller over the wire, so "audited finite by its
+    /// writers" (the argument that lets `amplitude` through undoored) does not apply.
+    ///
+    /// ⛔ NOT A CLAIM OF MPE SUPPORT. One dimension of three; no zones, no member channels.
+    public var expressionGain: Float = 1.0 {
+        didSet {
+            if !expressionGain.isFinite { expressionGain = 1.0 }
+            else if expressionGain < 0 { expressionGain = 0 }
+            else if expressionGain > 2 { expressionGain = 2 }
+        }
+    }
+
     /// Analog-warmth drive (0 = clean, bit-identical). A gentle pre-filter soft-
     /// saturation that gives the pure additive SINE stack some harmonic body, so it
     /// stops reading as cold/"plastic" (founder 2026-07-11 sound north-star: warm ·
@@ -1427,7 +1460,7 @@ public final class EchoelDDSP: @unchecked Sendable {
             // other factor, gets no door because both its writers are audited finite; if that
             // ever changes, a non-finite `amplitude` lands this accumulator on 0 and HOLDS it —
             // bounded, silent, and reading perfectly healthy from every control.
-            let gainTarget = amplitude * patchOutputLevel
+            let gainTarget = amplitude * patchOutputLevel * expressionGain   // #939
             if smoothedGain < 0 { smoothedGain = gainTarget }
             smoothedGain = (smoothedGain + 0.01 * (gainTarget - smoothedGain) + antiDenormal)
                 .clamped(to: Self.masterGainRange)
@@ -2503,6 +2536,11 @@ public final class EchoelDDSP: @unchecked Sendable {
         // stale gain into whatever plays next — and since #174 a stale gain of 0 would
         // read as a muted fader that nobody set.
         velocityGain = 1
+        // #939, same argument one line up, and the reviewer's finding: a press that was never
+        // released — controller unplugged mid-note, or the event dropped because the SPSC queue
+        // flooded — would otherwise keep this voice +3.5 dB above nominal for the rest of the
+        // session, with the BREATH voice inheriting the boost and no control able to clear it.
+        expressionGain = 1
     }
 }
 

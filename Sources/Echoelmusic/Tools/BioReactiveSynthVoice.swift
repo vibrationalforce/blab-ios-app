@@ -253,6 +253,10 @@ public final class BioReactiveSynthVoice {
     /// with — recorded here so it is not rediscovered as a bug.
     public func panic() {
         heldByController = false
+        // #939 — the press latch is exactly as sticky as the note latch above, and for the same
+        // two reasons this doc block already names (controller unplugged mid-note, event dropped
+        // under queue flood). Without this line a stuck press survives every Stop.
+        synth.expressionGain = 1
         releaseNote()
     }
 
@@ -441,8 +445,9 @@ public final class BioReactiveSynthVoice {
     ///   .noteOn      → playNote(frequency: midiNote→Hz)
     ///   .noteOff     → releaseNote()
     ///   .pitchBend   → instantaneous frequency offset (±2 semitones)
-    /// .slide, .airCC, .channelPressure are reserved for later cycles
-    /// when modulation matrix consumes them.
+    ///   .channelPressure → `synth.expressionGain` (MPE PRESS, #939) — additive from
+    ///                       nominal, so a controller at rest changes nothing
+    /// .slide and .airCC are still reserved; nothing consumes them.
     private func drainControllerEvents(from bus: EngineBus) {
         while let event = bus.controllerEvents.dequeue() {
             apply(controller: event)
@@ -456,6 +461,11 @@ public final class BioReactiveSynthVoice {
     internal func applyControllerForTests(_ event: ControllerEvent) { apply(controller: event) }
     internal var heldByControllerForTests: Bool { heldByController }
     #endif
+
+    /// How much louder full press is than no press (#939). +50 % ≈ +3.5 dB — a swell a player
+    /// can lean into, well short of slamming the master limiter. Named rather than inlined so
+    /// the founder's ear can move ONE number: NEEDS-FOUNDER-VERIFY.
+    private static let pressDepth: Float = 0.5
 
     private func apply(controller event: ControllerEvent) {
         switch event.kind {
@@ -480,7 +490,24 @@ public final class BioReactiveSynthVoice {
             // `heartRateForSound` / `breathPhaseForSound`). Ignore a bend that isn't a
             // finite pitch rather than poison the voice.
             if bent.isFinite { synth.frequency = bent }
-        case .slide, .airCC, .channelPressure:
+        case .channelPressure:
+            // ⭐ #939 — MPE's PRESS dimension reaches a voice for the first time. It ADDS to
+            // the nominal level rather than replacing it: a controller at rest sends 0, so a
+            // replacing map would mute the instrument the moment a keyboard is plugged in,
+            // and every existing recording/test would change. At 0 this is exactly 1.0 —
+            // bit-identical to every build before it — and full press lifts the note by
+            // `pressDepth`.
+            //
+            // ⚠️ NaN/inf is ignored rather than clamped, the shape one case above: a poisoned
+            // gain would leave the master-gain smoother stuck at 0, i.e. silent while every
+            // control reads healthy. `expressionGain`'s own `didSet` is a second net, not the
+            // first one — a door at each end, because this value comes off the wire.
+            // `clamped(to:)` is the house NaN-safe form (`min(max(v, 0), 1)` passes NaN
+            // through — CLAUDE.md's shipped-silence rule). NaN maps to the lower bound, i.e.
+            // "not pressing", which is also the right musical answer to a garbage byte.
+            let press = event.value.clamped(to: 0...1)
+            synth.expressionGain = 1 + press * Self.pressDepth
+        case .slide, .airCC:
             break
         }
     }
