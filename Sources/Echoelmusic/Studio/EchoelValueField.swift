@@ -356,6 +356,8 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     @Binding var value: V
     let range: ClosedRange<V>
     var unit: String = ""
+    /// Decimals shown and the snap grid (default 4 → exact to 0.0001).
+    var decimals: Int = 4
     /// Extra VoiceOver context, composed IN FRONT of the standing swipe instruction.
     ///
     /// ⛔ THIS PARAMETER EXISTS BECAUSE CHAINING `.accessibilityHint(…)` ON A CALL SITE DOES
@@ -365,9 +367,14 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     /// is never spoken — an over-claim) or wins and REPLACES "Swipe up or down to adjust",
     /// the promise `ValueFieldNotifiesEveryPathTests` builds its case around. Neither branch
     /// is acceptable, and which one fires is not decidable by reading. Composing is.
+    ///
+    /// ⛔ AND IT IS DECLARED **AFTER** `decimals`, WHICH IS NOT COSMETIC. A `struct`'s
+    /// memberwise initialiser demands DECLARATION order, so with `hint` above `decimals`
+    /// the natural call `…, decimals: 0, hint: "…")` is a hard compile error
+    /// (`argument 'hint' must precede argument 'decimals'`). That is exactly what #930b's
+    /// first push hit — the one red gate of this chain. `hint` is prose and belongs last
+    /// at the call site, so it belongs last here.
     var hint: String = ""
-    /// Decimals shown and the snap grid (default 4 → exact to 0.0001).
-    var decimals: Int = 4
     var onChange: () -> Void = {}
     var onCommit: () -> Void = {}
 

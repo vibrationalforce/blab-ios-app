@@ -3124,3 +3124,31 @@ teilnimmt.
 **Gefahren:** M12 Label zurück → 7 rot · M13 Voice-Datei leergefegt → **8-Boden rot** (vorher
 wäre alles grün durchgelaufen — genau der #367-Fund) · M14 Klick referenziert `Transport` →
 8-Brücke rot. Alle acht Ansprüche grün auf Worktree und `297e923`.
+
+⛔ **NACHLESE #930c — DER EINZIGE ROTE GATE-LAUF DIESER KETTE, und er war für Python UND für
+den Prüfer unsichtbar.** `#930b` fügte `EchoelValueField` einen `hint:`-Parameter hinzu und
+deklarierte ihn ZWISCHEN `unit` und `decimals`. Die Aufrufstelle schreibt ihn — richtig, weil
+er Prosa ist — als LETZTES: `…, decimals: 0, hint: "…")`. Der memberwise-Initialisierer eines
+`struct` verlangt aber **Deklarationsreihenfolge**, also:
+
+    error: argument 'hint' must precede argument 'decimals'
+
+⭐ **Warum das lehrreich ist und nicht nur peinlich: kein Werkzeug dieser Sitzung konnte es
+sehen.** Meine transkribierten Ansprüche prüfen TEXT — sie fanden `hint:` und waren zufrieden.
+Der Prüfer LAS den Diff und schlug den Parameter sogar selbst vor, ohne die Reihenfolge zu
+prüfen. **Es gibt keine lokale Toolchain**, also ist „compile-verifiziert erst durch CI" kein
+Höflichkeitssatz, sondern die exakte Grenze: Textprüfung und aufmerksames Lesen decken die
+Typprüfung NICHT ab, und ein Parameter, der einer bestehenden Struktur hinzugefügt wird, ist
+genau die Sorte Änderung, die dort durchfällt.
+
+**Reparatur: die DEKLARATION verschoben, nicht die Aufrufstelle.** `hint` steht jetzt hinter
+`decimals` und vor `onChange`. Damit ist die natürliche Aufrufreihenfolge legal, alle 76
+bestehenden Aufrufstellen bleiben gültig (sie lassen `hint` weg, und eine ausgelassene
+Vorgabe darf an jeder Stelle fehlen), und die nächste Aufrufstelle tappt nicht in dieselbe
+Falle. Die Begründung steht als `⛔` an der Deklaration selbst — der einzige Ort, den jemand
+liest, der einen weiteren Parameter hinzufügt.
+
+⚠️ **Regel für jeden künftigen Parameter an einem viel benutzten `struct`: die Position in der
+Deklaration IST ein API-Vertrag.** Sie an die Stelle zu setzen, an der das Thema „hingehört"
+(hier: neben `unit`, weil beide die Anzeige betreffen), erzeugt an jeder Aufrufstelle einen
+Compile-Fehler, der nichts mit dem Thema zu tun hat.
