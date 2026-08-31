@@ -3427,7 +3427,17 @@ struct EchoelStudioView: View {
                 // for a click that is off would be the "adjustable but inaudible" control
                 // this repo keeps removing (#135/#164/#227). Both rows read and write the one
                 // `MetronomeVoice` instance, so this is a second DOOR, never a second copy —
-                // the Tempo panel's identical rows stay in step by construction.
+                // the Tempo panel's two matching rows stay in step by construction.
+                // ⚠️ TWO OF FOUR, not all of them, and the split is deliberate (#927). The Tempo
+                // panel also carries "Beats per bar" and "Accent downbeat"; those are FEEL, not
+                // MIX, and a board that repeated every control would be the second full editor
+                // #290 refused. On/off and level are what a mix board is for. (This line said
+                // "identical rows" until #924 added the accent one panel over and did not come
+                // back here — the same one-home-missed defect as the note in `metronomeRow`.)
+                // The single-instance premise is pinned by
+                // `TheMetronomeAccentHasADoorTests.testExactlyOneMetronomeVoiceIsEverBuilt`:
+                // a second construction site would make this a second CLICK, drifting out of
+                // step with the first, and nothing on screen would say so.
                 mixStripCard("Click") {
                     Toggle("Click", isOn: Binding(get: { metronome.enabled },
                                                   set: { metronome.enabled = $0 }))
@@ -4625,7 +4635,14 @@ struct EchoelStudioView: View {
                 // identical and the bar length above becomes a setting with no consequence.
                 // The two rows therefore belong together; shipping the number without the switch
                 // was the asymmetry #924 closed (found by `scripts/doorless-state.py`: this was
-                // the only one of MetronomeVoice's four options with no writer anywhere).
+                // the only one of MetronomeVoice's FIVE settable observed properties with no
+                // writer anywhere — `enabled`, `beatsPerBar` and `level` are written here, and
+                // `bpm` by the transport relay in `EchoelmusicApp`).
+                // ⛔ This line said "four options" for two commits after #924b had corrected the
+                // same sentence in the guard's header and in the commit message. Three homes
+                // fixed, a fourth left standing — the #456 defect committed while writing about
+                // it. When a count in prose changes, `git grep` the CLAIM, not the file you
+                // happen to have open (#927).
                 // A Bool is a `Toggle`, not an `EchoelValueField` — CLAUDE.md's parameter rule
                 // covers NUMERIC parameters and says to read that word; the `enabled` row above
                 // is the sibling this matches.

@@ -50,8 +50,16 @@
 // `Toggle`; this matches it rather than inventing a 0/1 number field.
 //
 // ⚠️ HONEST GRADING (#433/#464/#486). This file COMPILES against the parent tree, so every
-// claim has a verdict there. **Two are red on the parent** — the row and its placement, which
-// is the finding. **Three are counterweights** (#343), green on both: they catch a tree that
+// claim has a verdict there.
+//
+// ⭐ A SIXTH CLAIM ARRIVED WITH #927 and it is graded against ITS OWN parent, not #924's:
+// `testExactlyOneMetronomeVoiceIsEverBuilt` is a COUNTERWEIGHT, green on both trees. Booking it
+// as a finding would be the flattering direction (#433). It pins the premise the Mix board's
+// Click strip asserts in a comment and nothing checked — that exactly one `MetronomeVoice` is
+// ever built, so that strip is a second DOOR and not a second CLICK.
+//
+// Against the #924 parent: **Two are red** — the row and its placement, which is the finding.
+// **Three are counterweights** (#343), green on both: they catch a tree that
 // adds the row but breaks the chain that makes it audible, or that converts the Bool into a
 // number field, or that moves the row outside the `enabled` block where it would be the
 // "adjustable but inaudible" control this repo keeps removing (#135/#164/#227).
@@ -166,7 +174,60 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
             """)
     }
 
+    // MARK: - the premise the second door rests on
+
+    /// ⭐ THE MIX BOARD IS A SECOND DOOR, NOT A SECOND CLICK — and until #927 nothing checked
+    /// it. `mixStripCard("Click")` carries its own on/off and level rows and asserts in a
+    /// comment that they "read and write the one `MetronomeVoice` instance". That is true only
+    /// while exactly one is ever built. A second construction site would give the board its own
+    /// voice: two clicks, started at different moments, drifting apart — and **nothing on
+    /// screen would say so**, because both doors would keep looking right while editing
+    /// different objects. That is the worst shape a UI defect can take here.
+    ///
+    /// ⚠️ PINNED AS ONE, DELIBERATELY, AND THAT IS NOT A ROTTING COUNT (#903). The number is a
+    /// LAW, not a date: a second metronome is a product decision, never an incidental edit, so
+    /// the day this goes red is the day someone should have to say out loud that they meant it.
+    /// The message says what to do if they did.
+    func testExactlyOneMetronomeVoiceIsEverBuilt() throws {
+        var sites: [String] = []
+        for file in try swiftFilesUnderSources() {
+            let code = SourceText.codeOnly(try rawText(file))
+            let count = code.components(separatedBy: "MetronomeVoice(").count - 1
+            for _ in 0..<count { sites.append(file) }
+        }
+        XCTAssertEqual(sites.count, 1, """
+            `MetronomeVoice(` is constructed \(sites.count) time(s) under `Sources/`: \
+            \(sites.joined(separator: ", ")). Exactly one instance is what makes the Mix \
+            board's Click strip a second DOOR onto the Tempo panel's click rather than a \
+            second click. Two instances would sound twice and drift apart, with both surfaces \
+            still looking correct. If a second metronome is genuinely wanted, say so here and \
+            in the two comments that assert the single-instance premise \
+            (`metronomeRow` and the `mixStripCard(\"Click\")` strip in `EchoelStudioView`).
+            """)
+    }
+
     // MARK: - helpers
+
+    /// Every Swift file under `Sources/`, recursively.
+    private func swiftFilesUnderSources() throws -> [String] {
+        let root = try repoRoot().appendingPathComponent("Sources")
+        guard let walker = FileManager.default.enumerator(atPath: root.path) else {
+            XCTFail("Sources/ could not be enumerated; this claim cannot be answered.")
+            return []
+        }
+        var files: [String] = []
+        for case let name as String in walker where name.hasSuffix(".swift") {
+            files.append("Sources/" + name)
+        }
+        // #367: an enumeration that finds nothing would make the count claim above pass by
+        // finding zero construction sites — which is NOT one, so it would go red for the wrong
+        // reason. The floor makes the real cause legible instead.
+        XCTAssertGreaterThan(files.count, 100, """
+            Only \(files.count) Swift file(s) found under Sources/ — the enumeration is \
+            looking at the wrong tree, so any verdict below is about nothing.
+            """)
+        return files.sorted()
+    }
 
     private func rawText(_ relativePath: String) throws -> String {
         let path = try repoRoot().appendingPathComponent(relativePath)
