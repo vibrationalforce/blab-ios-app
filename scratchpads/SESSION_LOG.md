@@ -3,6 +3,46 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #932/#932b: ein Befund, den das Register schon hielt
+
+**Commits:** `166b43a` (#932) · `9802824` (#932b) — beide auf
+`claude/echoelmusic-neustart-auv3-6ri2ek`.
+
+**Zuerst eine Ruecknahme.** Letzten Zyklus habe ich gemessen, dass `scripts/**` in keinem
+`paths:`-Filter steht, und das als neuen Registerbefund angekuendigt. Beide Haelften falsch:
+`xcode-compile-check.yml` listet `scripts/check-infoplist.sh` beim Namen (ich habe nach dem
+GLOB gegrept), und `ContentPipeline/README.md` haelt den Befund seit #720 — samt dem Satz,
+dass genau meine Formulierung die naechste Ueber-Behauptung waere. **Gesetz: greppe den
+BEFUND, nicht die Datei, in der du ihn vermutest.**
+
+**Was echt blieb:** #720 hatte keinen Waechter. `TheLawFileNeverReachesMainByItselfTests`
+5 -> 7 Ansprueche (Erweiterung statt Beinahe-Kopie, #416). Gemessen: 19 Pfade unter
+`scripts/`, **einer** beobachtet, 11 Python-Skripte / 10 Instrumente ungesehen.
+
+**Zwei Kollisionen in einem Zyklus, aus zwei Richtungen:**
+- Die **fuenfte** habe ich mir selbst gebaut — mein Zeiger-Absatz nannte das Wort
+  `Erlaubnis-Liste`, die Nadel ging von 1 auf 2 Treffer, ein Loeschen des #720-Satzes
+  haette den Anspruch gruen auf dem Zeiger zu sich selbst gelassen. Gefunden durch
+  **Nachzaehlen nach dem Schreiben**, repariert durch eine Nadel auf die Umkehrung.
+- Die **sechste** fand der Pflicht-Reviewer: `contains("scripts/")` trifft auch
+  `ci_scripts/**` und `.github/scripts/**` — beide getrackt, und `ci_scripts/**` ist im
+  Register ausdruecklich als ship-relevant genannt, also der wahrscheinlichste kuenftige
+  Filter-Eintrag. Der Anspruch waere rot geworden und haette den falschen Absatz beschuldigt.
+  `hasPrefix` ist die ganze Reparatur.
+
+**Sieben Reviewer-Befunde, alle selbst nachgemessen und alle behoben.** Zwei davon (die
+Benotung von Anspruch 5, die Zahl der `try`-Aufrufstellen) waren **innerhalb desselben
+Diffs** veraltet, der sie schrieb — der teuerste Ort, weil kein Delta-Vergleich sie zeigt.
+
+**Gates vorher:** `e70b82c` bestaetigt (Compile Check `success`, Full Suite `success`,
+CI/CD `failure` = #396; Job-Schritte zeigen Tests bis zum Ende).
+
+**Offen:** die Deploy-Notiz-Nachfuehrung beim naechsten Bump; `metronome.bpm` resynct die
+Akzent-Phase nicht (#930b F6d, vorbestehend); founder-gated: CI-Maskierung, das
+`-only-testing:`-Filter auf eine nicht existierende Suite, nichts in CI faehrt
+`founder-verify.py --selftest`.
+
+
 ## 2026-07-23 (cron, ULTRACODE 24h) — v10.79.341 ERFOLGREICH auf TestFlight (AUv3-Härtung)
 
 - **Ausgeliefert:** v10.79.341 archivierte + lud erfolgreich hoch — TestFlight-Lauf 29975639149 (commit 33f81f6) = **success**. Konsolidiert zwei AUv3-Korrektheits-Fixes:
