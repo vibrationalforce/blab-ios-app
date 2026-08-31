@@ -3441,8 +3441,10 @@ struct EchoelStudioView: View {
                 //   against the strip itself.
                 //   ⭐ THE REASON THAT HOLDS is narrower and stronger: the board's charter is
                 //   level + that part's OWN BUS FX, and the click has no bus FX, so on/off +
-                //   level IS its complete mix-side surface. Bar length and accent are
-                //   transport-time structure, not per-part processing.
+                //   level IS its complete mix-side surface. The accent interval and the accent
+                //   switch are transport-time structure, not per-part processing. (This line said
+//   "Bar length" until #930b — the very name #930's own commit body rejects,
+//   surviving two lines above the paragraph that rejects it.)
                 //   ⭐ AND THERE IS A HARDER ONE THE REVIEWER MEASURED: the bar-length row is
                 //   CLICK-LOCAL. `Transport.beatsPerBar` is a hard `static let 4`; the row's
                 //   1…12 feeds only the render block's `beatIndex` wrap, so a click at 3 accents
@@ -4655,20 +4657,23 @@ struct EchoelStudioView: View {
                 // The honest name is what the render block actually does: `isDownbeat` is
                 // `(beatIndex == 0) && audioAccent`, i.e. this number decides HOW OFTEN THE
                 // ACCENT LANDS and nothing else. With the accent off it has no effect at all,
-                // which the toggle two rows down now sits next to as a visible dependency.
+                // which is why #930b moved its switch to sit DIRECTLY BELOW it.
+                // ⛔ THIS COMMENT SAID "the toggle two rows down now sits next to" — two claims
+                // that cannot both be true, and neither was: `Click level` stood between them,
+                // and #930 moved nothing. A sentence asserting a change that did not happen is
+                // worse than none, because the next reader trusts it instead of looking.
                 // ⚠️ NOT disabled while the accent is off, deliberately: presetting the bar
                 // before switching the accent on is normal use, and greying a settable value
                 // teaches less than letting the user hear the pair interact.
                 EchoelValueField(label: "Accent every", value: Binding(
                     get: { Double(metronome.beatsPerBar) },
                     set: { metronome.beatsPerBar = Int($0.rounded()) }),
-                    range: 1...12, unit: "beats", decimals: 0)
-                    .accessibilityHint("How often the click accents. This is the click's own "
-                                       + "bar only — it does not change the project's meter")
-                EchoelValueField(label: "Click level", value: Binding(
-                    get: { Double(metronome.level) },
-                    set: { metronome.level = Float($0) }),
-                    range: 0...1, unit: "", decimals: 2)
+                    range: 1...12, unit: "beats", decimals: 0,
+                    // ⛔ `hint:`, NOT a chained `.accessibilityHint` (#930b). The field collapses
+                    // to ONE accessibility element, so an outer hint either goes unspoken or
+                    // eats "Swipe up or down to adjust". The parameter composes both.
+                    hint: "How often the click accents. This is the click's own bar only — "
+                        + "it does not change the project's meter")
                 // The accent is what makes "Accent every" AUDIBLE — the render block's test is
                 // `(beatIndex == 0) && audioAccent`, so with the accent off every click is
                 // identical and the number above becomes a setting with no consequence.
@@ -4702,7 +4707,26 @@ struct EchoelStudioView: View {
                     Text("Accent downbeat").font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
                 }
                 .tint(EchoelTheme.accent)
-                .accessibilityHint("Sound the first beat of each bar higher and louder")
+                // ⛔ THIS HINT MADE THE EXACT CLAIM #930 DELETED ONE ROW UP (#930b). It said
+                // "the first beat of each bar" — and *bar* is the meter word whose reading by a
+                // musician is the whole reason "Beats per bar" had to go. A player reading both
+                // rows was told there is a project bar after all, and the row above then had to
+                // spend its hint un-saying it. The standard applies to both rows or to neither.
+                .accessibilityHint("Sounds the first of every N beats higher and louder — the "
+                                   + "click's own accent, not the project's meter")
+                // ⛔ `Click level` USED TO SIT BETWEEN THE TWO ROWS ABOVE, which is why the
+                // comment up there claimed a neighbour it did not have (#930b). It is a MIX
+                // value and belongs after the pair it does not participate in; the number and
+                // its on/off switch now read as one control, which is also what makes leaving
+                // the number live while the accent is off defensible: the remedy is the very
+                // next row, not three rows away. (The pair is deliberately NOT disabled —
+                // #135/#164/#227 removes controls that are adjustable and INAUDIBLE, and this
+                // one is audible the moment the switch below it is on. Presetting the interval
+                // before switching the accent on is ordinary use.)
+                EchoelValueField(label: "Click level", value: Binding(
+                    get: { Double(metronome.level) },
+                    set: { metronome.level = Float($0) }),
+                    range: 0...1, unit: "", decimals: 2)
             }
         }
     }

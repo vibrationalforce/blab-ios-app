@@ -356,6 +356,16 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
     @Binding var value: V
     let range: ClosedRange<V>
     var unit: String = ""
+    /// Extra VoiceOver context, composed IN FRONT of the standing swipe instruction.
+    ///
+    /// ⛔ THIS PARAMETER EXISTS BECAUSE CHAINING `.accessibilityHint(…)` ON A CALL SITE DOES
+    /// NOT WORK HERE (#930b, found in review). The body below sets
+    /// `.accessibilityElement(children: .ignore)`, so the whole row is ONE element with ONE
+    /// hint attribute. A second `.accessibilityHint` outside either loses (the caller's text
+    /// is never spoken — an over-claim) or wins and REPLACES "Swipe up or down to adjust",
+    /// the promise `ValueFieldNotifiesEveryPathTests` builds its case around. Neither branch
+    /// is acceptable, and which one fires is not decidable by reading. Composing is.
+    var hint: String = ""
     /// Decimals shown and the snap grid (default 4 → exact to 0.0001).
     var decimals: Int = 4
     var onChange: () -> Void = {}
@@ -612,7 +622,9 @@ struct EchoelValueField<V: BinaryFloatingPoint>: View where V.Stride: BinaryFloa
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(label)
         .accessibilityValue(accessibleValue)
-        .accessibilityHint("Swipe up or down to adjust, or double-tap to type")
+        .accessibilityHint(hint.isEmpty
+                           ? "Swipe up or down to adjust, or double-tap to type"
+                           : hint + ". Swipe up or down to adjust, or double-tap to type")
         // ⛔ BOTH CALLBACKS, and `onChange` is the one that was missing (found 2026-07-29).
         // `apply(_:)` writes the binding and reports whether it moved — the WORK lives in the
         // caller's closures, and the two are not interchangeable: `onChange` is live-apply

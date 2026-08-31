@@ -242,14 +242,23 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
         // both needles as multi-line literals — and `"""` followed by content on the SAME line
         // does not compile in Swift. Caught by reading before CI did; noted because the needle
         // itself carries quotes and reaching for `"""` is the natural reflex.
-        XCTAssertTrue(studio.contains("EchoelValueField(label: \"Accent every\", value: Binding("), """
+        // ⛔ THE NEEDLE IS THE LABEL ALONE, not the whole call (#930b). The first draft
+        // included `value: Binding(`, so extracting the binding into a computed property — the
+        // pattern this same file already uses for `unisonVoicesBinding` — would have gone RED
+        // with a message saying the row is "no longer labelled Accent every", which would be
+        // FALSE. A needle must fail only for the reason its message gives (#367). Measured:
+        // `label: "Accent every"` occurs exactly once in code-only `Sources/`.
+        XCTAssertTrue(studio.contains("label: \"Accent every\""), """
             The click's bar row is no longer labelled "Accent every".
             It was called "Beats per bar" until #930, and that was a claim about the PROJECT: \
             it is the phrase a musician reads as the time signature. Measured, the row is \
             CLICK-LOCAL — see the next claim — so the old label promised a setting the app \
             does not have. If you are renaming it again, rename it to something that describes \
             the render block (`isDownbeat = (beatIndex == 0) && audioAccent`), not the score, \
-            and pull the SIX prose homes named in the #930 commit with it (#456).
+            and pull EVERY prose home with it (#456). Do not trust a number here: #930 said \
+            "six" and enumerated eight, missed a ninth, and left a tenth in `.deploy/release` \
+            — the count is in `HARNESS_LEDGER`'s #930/#930b sections, the METHOD is \
+            `git grep` on the label, on "bar length", and on "time signature"/"Takt".
             """)
         XCTAssertTrue(studio.contains("range: 1...12, unit: \"beats\", decimals: 0"), """
             The unit is what carries the honesty: "Accent every … 4" is ambiguous, \
@@ -266,6 +275,11 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
         // `TimelineTime` each declare their own. The click's 1…12 reaches none of them.
         // Each is a `static let`, so the compiler already forbids assignment; what this claim
         // adds is that they stay `let` and stay 4, and that the click has no bridge to them.
+        // ⚠️ SAY IT PLAINLY: the DECLARATION half pins a PREMISE, not the label. The honesty of
+        // "Accent every" depends only on the click not following the project grid — which is
+        // the BRIDGE half below. Do not over-weight the three declarations: they could all
+        // become `var` tomorrow and the label would still be honest until something wires the
+        // click to them.
         let owners = [
             ("Sources/Echoelmusic/Core/Transport.swift", "public nonisolated static let beatsPerBar = 4"),
             ("Sources/Echoelmusic/Core/AutomationPlayer.swift", "public static let beatsPerBar = 4"),
@@ -274,7 +288,10 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
         for (path, declaration) in owners {
             XCTAssertTrue(SourceText.codeOnly(try rawText(path)).contains(declaration), """
                 `\(path)` no longer declares `\(declaration)`.
-                ⚠️ THIS IS NOT A REQUEST TO PUT IT BACK (#364). A settable project meter is a \
+                FIRST, the boring case: if only the DECLARATION changed — an added `: Int`, \
+                `public` → `internal`, a move to another file — none of that makes "Beats per \
+                bar" true. Re-anchor this needle and stop reading.
+                ⚠️ THE REST IS NOT A REQUEST TO PUT IT BACK (#364). A settable project meter is a \
                 real feature and someone may be building it. But the moment the project's bar \
                 becomes settable AND the click follows it, "Accent every" is the WRONG name — \
                 "Beats per bar" becomes true — so rename the row back and pull the prose in the \
@@ -282,6 +299,16 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
                 """)
         }
         let voice = SourceText.codeOnly(try rawText(Self.voice))
+        // ⛔ A FLOOR BEFORE THE THREE ABSENCE CHECKS (#930b, #367). Without it, ANY path that
+        // yields an empty or truncated string — a stub left by a file move, an encoding
+        // failure, `codeOnly` mis-parsing — makes all three `XCTAssertFalse` pass. This was
+        // the only new assertion whose failure mode on a broken read is a GREEN, one method
+        // away from the file's own `sourcePathsRelativeToRepo` floor written for that reason.
+        XCTAssertTrue(voice.contains("let isDownbeat = (beatIndex == 0) && audioAccent"), """
+            `\(Self.voice)` does not contain the click's render test, so the three absence \
+            checks below would pass on a file that was never really read. Either the render \
+            block moved — follow it — or this scan is looking at the wrong text.
+            """)
         for owner in ["Transport", "TimelineTime", "AutomationPlayer"] {
             XCTAssertFalse(voice.contains(owner), """
                 `\(Self.voice)` now references `\(owner)`. The click has grown a bridge to the \

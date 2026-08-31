@@ -3079,3 +3079,48 @@ ein Zeilenumbruch folgen. **Beim LESEN gefunden, nicht von CI.** Das ist die #92
 kleiner Form: der Reflex, für eine Nadel mit Anführungszeichen zum mehrzeiligen Literal zu
 greifen, produziert einen Compile-Fehler, den kein Mutantenlauf zeigt, weil ein nicht
 kompilierender Wächter gar nicht erst läuft.
+
+⛔ **NACHLESE #930b — die Scheibe über Prosa-ZUHAUSE hat ihre eigenen falsch gezählt, und zwar
+in BEIDE Richtungen.** #930 schrieb „SECHS Prosa-Zuhause, alle in diesem Commit" und zählte im
+selben Satz **acht** Posten auf; tatsächlich bearbeitet waren **zehn**
+(`ValueFieldNotifiesEveryPathTests` an zwei Stellen), und **drei weitere** standen noch:
+· „Bar length" zwei Zeilen ÜBER dem Absatz, der genau diesen Namen verwirft — **innerhalb
+desselben Diff-Hunks** · der Hint des Nachbar-Schalters („the first beat of each **bar**") —
+also die Behauptung, die die Scheibe eine Zeile höher gelöscht hatte · `.deploy/release`.
+**Das ist der #927-Defekt wörtlich wiederholt, in einer Scheibe, deren Thema er ist.**
+⭐ Konsequenz im Wächter: die Fehlermeldung nennt **keine Zahl mehr**, sondern die METHODE —
+`git grep` auf das Label, auf „bar length" und auf „time signature"/„Takt". Eine Zahl in einer
+Fehlermeldung ist ein Datum; ein Befehl ist eine Anweisung.
+
+⚠️ **`.deploy/release` bleibt ABSICHTLICH stehen, und das ist kein Versäumnis.** Die Notiz
+beschreibt den Bau, den der Founder **in der Hand hält** (v10.79.432), und dort heißt die Zeile
+wirklich „Beats per bar". Sie jetzt zu korrigieren machte sie für das ausgelieferte Binary
+FALSCH. **Deploy-Notizen hinken dem Baum per Konstruktion hinterher** — daraus folgt auch, dass
+ein Wächter, der Zeilenbeschriftungen der Notiz gegen `Sources/` prüft, #364 verletzen würde:
+er würde eine korrekte Notiz rot färben. Fällig ist die Korrektur beim NÄCHSTEN Bump; sie steht
+als eigene `decisions.csv`-Zeile, weil die Datei append-only ist.
+
+⭐ **DER TEUERSTE EINZELFUND: ein zweites `.accessibilityHint` auf EINEM Element.**
+`EchoelValueField` setzt `.accessibilityElement(children: .ignore)` und danach seinen eigenen
+Hint („Swipe up or down to adjust, or double-tap to type"). Ein an der Aufrufstelle
+angehängtes zweites Hint hat deshalb **nur zwei mögliche Ausgänge, und beide sind Defekte**:
+entweder es wird nie gesprochen (dann war „ein Hint, der die Grenze ausspricht" eine
+Über-Behauptung in Commit, Ledger UND CSV), oder es **ersetzt** die Wisch-Anweisung — genau
+die Zusage, um die `ValueFieldNotifiesEveryPathTests` seinen ganzen Fall baut. **Welcher Zweig
+feuert, ist durch Lesen nicht entscheidbar**; Komponieren schon. Reparatur ist ein
+`hint:`-Parameter, der VOR die stehende Anweisung gesetzt wird — und damit hat die nächste
+Aufrufstelle einen unterstützten Weg. Es war die EINZIGE der 57 Aufrufstellen, die das
+versucht hat: kein Präzedenzfall, also auch kein Beleg, dass es je funktioniert hat.
+
+⭐ **Und die Umsortierung war der Fund, der die Begründung repariert hat, nicht nur den Text.**
+Der #930-Kommentar behauptete, der Akzent-Schalter sitze „zwei Zeilen tiefer" UND „direkt
+daneben" — zwei Aussagen, die nicht beide stimmen können, und keine stimmte: `Click level`
+stand dazwischen, und #930 hatte gar nichts verschoben. Nach der echten Umsortierung
+(**an/aus → Accent every → Accent downbeat → Click level**) ist die Aussage wahr, und erst
+damit trägt auch das „nicht ausgrauen"-Argument: die Abhilfe ist die NÄCHSTE Zeile, nicht drei
+Zeilen entfernt. `Click level` ist ein MIX-Wert und gehört hinter das Paar, an dem es nicht
+teilnimmt.
+
+**Gefahren:** M12 Label zurück → 7 rot · M13 Voice-Datei leergefegt → **8-Boden rot** (vorher
+wäre alles grün durchgelaufen — genau der #367-Fund) · M14 Klick referenziert `Transport` →
+8-Brücke rot. Alle acht Ansprüche grün auf Worktree und `297e923`.
