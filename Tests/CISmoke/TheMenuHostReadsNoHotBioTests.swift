@@ -13,51 +13,69 @@
 // the header pulse tile. A law that is only written in prose gets re-broken by the next person
 // who audits the obvious view.
 //
-// ⛔ THIS GUARD WAS WRONG THREE TIMES BEFORE IT WAS RIGHT, and every one was found by DRIVING
-// it as a mutation, not by reading it — the discipline this session has had to learn four
-// times. (1) It was RED ON A CORRECT TREE: the "is this computed?" step gave a STORED property
-// to a brace matcher, which then ran to the end of the class, so every stored property
-// "contained" every hot name — `isRunning` was swept in and the shipped 10.76.50 repair was
-// reported as the violation. (2) It was falsely GREEN for a ONE-LINE member, whose whole body
-// sits on the declaration line the extraction starts after. (3) It was file-scoped, so it
-// flagged a small leaf `View` struct declared in the same file — which is the DOCUMENTED
-// REPAIR for this defect, i.e. the guard forbade the fix it exists to teach (#364).
-// Seven mutants are driven now: a hot read added to the root, to a multi-line member and to a
-// one-line member all go red; a new leaf struct in the same file, a read inside a `private
-// func`, and the untouched tree all stay green; a renamed type fails loudly instead of
-// scanning nothing.
+// ⛔ THIS GUARD HAS BEEN WRONG SEVEN TIMES, and every single one was found by DRIVING it as a
+// mutation — never by reading it. Recorded in full because the pattern is the finding:
+//   RED ON A CORRECT TREE (would have shipped a broken gate):
+//     1. The "is this computed?" step handed a STORED property to a brace matcher, which then
+//        ran to the end of the class; every stored property "contained" every hot name,
+//        `isRunning` was swept in, and the SHIPPED 10.76.50 repair was reported as the
+//        violation. A guard that reddens correct work gets deleted and takes the law with it.
+//     2. A multi-line signature puts `) -> some View {` on a CONTINUATION line, indented
+//        deeper than its `func`; matching from there overran the member and produced seven
+//        false offences. The scan now walks back to the declaration line.
+//   FALSELY GREEN (would have been a guard that guards nothing):
+//     3. A ONE-LINE member keeps its whole body on the declaration line, which the extraction
+//        started after.
+//     4. `-> some View` FUNCTIONS were not scanned at all — 19 in `EchoelStudioView`, 1 in
+//        `WorkspaceView`. A mutant put a hot read in `menuChip` and the guard stayed green.
+//     5. A ONE-LINE computed property in the PUBLISHER was not treated as computed, so
+//        `rrWindowMs` and `coachingHint` never entered the derivation.
+//     6. The computed pass was ONE HOP through PUBLIC members only. `acquisitionCue` reaches
+//        its hot inputs through a private `placementCue`; `coachingHint` needs three hops.
+//     7. `SurfaceHost` — a third ancestor between the root and the Picker host — was not
+//        scanned at all.
+//   Plus two shape defects with no visible symptom yet: the derivation walked a `Dictionary`
+//   (per-process iteration order, so a future two-hop chain would have made the result flake),
+//   and it read declarations file-wide instead of class-wide.
+//
+// ⛔ AND THE HEADER ITSELF CARRIED A FALSE LAW. It said a read inside "a `private func` or a
+// `.task {}` closure is NOT body evaluation and is correctly out of scope". That is false for
+// any `private func … -> some View`, and for a `private func … -> Bool` CALLED from a body. It
+// was true only of the three call sites that happen to exist here today. The rule is about
+// WHERE the value is read, not what kind of member holds it.
 //
 // WHAT THIS IS: a SOURCE-TEXT SCAN (§1). It proves where text sits — never that the app does
-// not churn. Three limits, stated before the claim rather than after:
-//   · It reads `some View` members only. A read inside a `private func` or a `.task {}` closure
-//     is NOT body evaluation and is correctly out of scope — `EchoelStudioView` has three such
-//     reads today (`bodyTempoTrustworthy`, the settle-wait, the start/stop breadcrumbs) and
-//     they are fine.
-//   · A `.task {}` or `.onAppear {}` closure written INSIDE a `some View` member would be
-//     scanned and would read as a violation although it is safe. None exists today; if one
-//     appears, narrow the extraction rather than deleting the claim.
-//   · It anchors on the spelling `cameraRPPG.`. A view reaching the publisher under another
-//     binding is invisible to it.
+// not churn. The limits, stated before the claim:
+//   · It scans view-BUILDING members (`: some View {`, `-> some View {`) of the three named
+//     types, in their `struct` and in any `extension`. A read inside a plain helper called
+//     FROM a body is still a real defect and is not seen; the two that exist today are reached
+//     from action paths, which is checked, not assumed.
+//   · An ACTION closure written inside such a member (`Button { … }`, `.onAppear { … }`,
+//     `.task { … }`) is not body evaluation, and a hot read there would be reported although
+//     it is safe. None exists today. Note the neighbouring case is the OPPOSITE: the value
+//     argument of `.onChange(of:)` IS evaluated during body, so flagging that is correct.
+//   · It anchors on the spelling `cameraRPPG.`. An alias (`let cam = cameraRPPG`), a hot value
+//     passed down as a function argument, or a renamed binding is invisible to it.
 //
-// ⭐ THE HOT SET IS DERIVED, NOT LISTED. A hard-coded list would name today's properties and
-// silently miss tomorrow's — the shape this repo calls a stale number. It is computed here from
-// the publisher itself: every externally readable, OBSERVATION-TRACKED property that the ~10 Hz
-// publish task assigns, plus every computed property that exposes one. Measured at the time of
-// writing it selects nine (`waveform`, `confidence`, `detectedBPM`, `displayBPM`,
-// `fingerDetected`, `isSettled`, `signalQuality`, `recoveryState`, `brightHintLatched`), and
-// correctly does NOT select `isRunning` — which changes on start/stop only and is exactly what
-// #50's repair left `WorkspaceView` reading.
+// ⭐ THE HOT SET IS DERIVED, NOT LISTED — a hard-coded list names today's properties and
+// silently misses tomorrow's. Three sources: stored properties the ~10 Hz publish task
+// assigns; computed properties whose getter reads `analyzer.` (fed at 15 fps — `rrWindowMs` is
+// exactly that and mentions no hot name at all); and the transitive closure over computed
+// properties with PRIVATE nodes kept as waypoints. The count is deliberately not written here
+// (#818): re-derive it from `testTheHotSetIsDerivedAndSelectsTheOneThatCausedTheFreeze`, whose
+// failure message prints the selected set. It correctly does NOT select `isRunning`, which
+// changes on start/stop only and is exactly what the 10.76.50 repair left the root reading.
 //
-// ⚠️ HONEST GRADING (#433/#464) — the parent is `eaffc74`. This file is NEW there, so no
-// assertion has a verdict on it; hand-transcribed over its checks:
-//   · REGRESSIONS: 0. The tree is CLEAN today — that is the point. This is a recurrence guard
-//     for a class that has recurred five times, not a bug report.
-//   · FORWARD guards: 0. It names no symbol this commit creates.
-//   · COUNTERWEIGHTS: all of them. Per §343 that is the content, and three of them exist
-//     specifically so the two negative claims cannot pass by finding nothing (#367): the
-//     derivation must select `waveform`, the leaves must still read hot properties, and
-//     `WorkspaceView` must still read `isRunning`.
-//   · ANCHOR ABSENCE: 0 — every anchor is asserted present before it is used.
+// ⚠️ HONEST GRADING (#433/#464) — the parent is `99c595f`, which carries the first version of
+// this file. This rewrite does not compile against it (nothing new is named, but the members
+// differ), so grade it as: 0 REGRESSIONS — the tree is CLEAN today and that is the point; this
+// is a recurrence guard for a class that has recurred five times, not a bug report. 0 FORWARD
+// guards. Everything else is a COUNTERWEIGHT, and per §343 that is the content. Four of them
+// exist specifically so the three negative claims cannot pass by finding nothing (#367): the
+// derivation must select `waveform`, `rrWindowMs` and `coachingHint`; the leaves must still
+// read hot properties; the root must still read `isRunning`; and each scan asserts it actually
+// found view-building members. ANCHOR ABSENCE: 0 — every anchor is asserted before use, which
+// was NOT true of the first version and is the repair for its unguarded member needle.
 //
 // ⚠️ NOT COMPILE-VERIFIED by the cheap gate: `Xcode Compile Check` builds `Sources/` alone.
 // This file builds only in the CI/CD `Build for Testing` step.
@@ -71,6 +89,12 @@ final class TheMenuHostReadsNoHotBioTests: XCTestCase {
     private static let publisher = "Sources/Echoelmusic/Bio/CameraRPPGBioPublisher.swift"
     private static let root = "Sources/Echoelmusic/Studio/WorkspaceView.swift"
     private static let host = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+    /// ⛔ THE THIRD ANCESTOR, missed by the first version. The chain is
+    /// `EchoelmusicApp.mainContent` → `WorkspaceView` → `SurfaceHost` → `EchoelStudioView`,
+    /// and `SurfaceHost` wraps the Picker host DIRECTLY. It is clean today, so leaving it out
+    /// made the guard green partly by luck — and "a hot read one level above the level the
+    /// last fix reached" is the 10.76.50 finding word for word.
+    private static let wrapper = "Sources/Echoelmusic/Studio/SurfaceSwitcher.swift"
     private static let leaves = [
         "Sources/Echoelmusic/Studio/HeaderMonitors.swift",
         "Sources/Echoelmusic/Studio/PulseMeasurementView.swift",
@@ -87,6 +111,20 @@ final class TheMenuHostReadsNoHotBioTests: XCTestCase {
             derivation stops selecting it, the two scans below go green by selecting nothing, \
             which is the #367 failure mode this claim exists to block. Selected: \
             \(hot.sorted().joined(separator: ", "))
+            """)
+        XCTAssertTrue(hot.contains("rrWindowMs"), """
+            `rrWindowMs` is the property whose OWN doc comment in the publisher states this \
+            law — "must only ever be read inside a LEAF view … would tear down any open \
+            `.menu` Picker on every heartbeat". Its getter is `{ analyzer.rawIntervalsMs }`: \
+            it mentions no hot NAME, so a name-graph alone never finds it. If this fails, the \
+            "reads the 15 fps analyzer" rule was lost and the derivation has a hole the \
+            source itself warns about.
+            """)
+        XCTAssertTrue(hot.contains("coachingHint"), """
+            Three hops — `coachingHint` → `acquisitionCue` → a PRIVATE `placementCue` → \
+            `fingerDetected`/`isLocked`. A single hop through public members only, which is \
+            what the first version did, found none of the three. If this fails, either the \
+            transitive closure stopped iterating or private waypoints were dropped again.
             """)
         XCTAssertGreaterThanOrEqual(hot.count, 5, """
             The derivation collapsed to \(hot.count) propert(ies). It reads the publisher's own \
@@ -107,8 +145,17 @@ final class TheMenuHostReadsNoHotBioTests: XCTestCase {
 
     // MARK: - 2. The two ancestors
 
+    func testTheWrapperBuildsNoViewFromAHotReadout() throws {
+        let members = try assertNoHotRead(in: Self.wrapper, of: "SurfaceHost", why: """
+            `SurfaceHost` sits BETWEEN the root and the Picker host. It is clean today; the \
+            claim exists because the defect's whole history is that each fix reached one level \
+            and the next read appeared one level above it.
+            """)
+        XCTAssertGreaterThan(members, 0, "no view-building member found in SurfaceHost — the needle stopped matching")
+    }
+
     func testTheRootBuildsNoViewFromAHotReadout() throws {
-        try assertNoHotRead(in: Self.root, of: "WorkspaceView", why: """
+        let members = try assertNoHotRead(in: Self.root, of: "WorkspaceView", why: """
             `WorkspaceView` is the ROOT. A ~10 Hz read in any of its view-building members \
             rebuilds every surface below it ten times a second and tears down whatever Picker \
             popover the player has open — the founder's "kann ich nicht mehr auswählen", \
@@ -116,15 +163,28 @@ final class TheMenuHostReadsNoHotBioTests: XCTestCase {
             small leaf `View` struct (`PulseMonitorMiniLive` is the worked example) so only that \
             leaf churns.
             """)
+        XCTAssertGreaterThan(members, 0, """
+            ANCHOR ASSERTION, and the first version did not have one: the member needles \
+            (`: some View {`, `-> some View {`) are what the negative claim iterates over. If \
+            they stop matching — a reformat, a move into an extension — the loop runs zero \
+            times and the claim passes by finding nothing. #367, and it is the exact mode the \
+            counterweights below exist to block.
+            """)
     }
 
     func testTheMenuHostBuildsNoViewFromAHotReadout() throws {
-        try assertNoHotRead(in: Self.host, of: "EchoelStudioView", why: """
+        let members = try assertNoHotRead(in: Self.host, of: "EchoelStudioView", why: """
             `EchoelStudioView` hosts the Picker menus themselves. `AnyView(...)` is NOT an \
             observation boundary, so a read in ANY member this body evaluates — including a \
             dropdown panel — registers the whole body as a 10 Hz observer. Reads inside \
             `private func` bodies and `.task {}` closures are deliberately out of scope: they \
             are not body evaluation, and three of them exist here on purpose.
+            """)
+        XCTAssertGreaterThan(members, 20, """
+            ANCHOR ASSERTION. `EchoelStudioView` had \(members) view-building members when \
+            this was written (66). A collapse to a handful means a needle stopped matching, \
+            not that the view shrank — and the negative claim above would then be green for \
+            having looked at almost nothing.
             """)
     }
 
@@ -161,51 +221,74 @@ final class TheMenuHostReadsNoHotBioTests: XCTestCase {
 
     // MARK: - Derivation
 
-    /// Externally readable, observation-TRACKED properties the ~10 Hz publish task writes,
-    /// plus computed properties that expose one.
+    /// Externally readable, observation-TRACKED properties that a body evaluating them
+    /// registers on at ~10 Hz.
+    ///
+    /// Three sources, and the second and third were both added after a review drove mutants
+    /// through the first: (a) stored properties the publish task assigns; (b) a computed
+    /// property whose getter reads `analyzer.` — `CameraAnalyzer` is fed at 15 fps, and
+    /// `rrWindowMs` is exactly that shape while mentioning no hot NAME at all; (c) the
+    /// transitive closure over computed properties, PRIVATE nodes included as waypoints.
+    /// `acquisitionCue` reaches its hot inputs only through a private `placementCue`, and
+    /// `coachingHint` only through `acquisitionCue` — a public-only single hop found neither.
     private func hotProperties() throws -> Set<String> {
-        let code = SourceText.codeOnly(try read(Self.publisher))
-        let lines = code.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-
-        var readable: [String: Bool] = [:]     // name -> is tracked (not @ObservationIgnored)
-        for line in lines {
-            guard let name = declaredVarName(in: line) else { continue }
-            // A `private` GETTER hides it from every view. `private(set)` does not — it is the
-            // publisher's normal shape (`public private(set) var waveform`), and treating it as
-            // private is the mistake that made the first derivation return an empty set.
-            let privateGetter = line.contains("private var ") || line.contains("fileprivate var ")
-            guard !privateGetter else { continue }
-            readable[name] = !line.contains("@ObservationIgnored")
+        let all = SourceText.codeOnly(try read(Self.publisher))
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        // Scoped to the class, like the scan half — otherwise the loop ingests declarations
+        // from other types in the file and every function-local `var`.
+        guard let (lo, hi) = span(of: "class CameraRPPGBioPublisher", in: all) else {
+            XCTFail("`class CameraRPPGBioPublisher` is gone — re-derive this scan")
+            return []
         }
-
-        guard let taskStart = code.range(of: "publishTask = Task") else {
+        let lines = Array(all[lo..<hi])
+        let text = lines.joined(separator: "\n")
+        guard let taskStart = text.range(of: "publishTask = Task") else {
             XCTFail("the publish-task anchor `publishTask = Task` is gone — re-derive the scan")
             return []
         }
-        let tick = String(code[taskStart.lowerBound...])
+        let tick = String(text[taskStart.lowerBound...])
+
+        struct Decl { let tracked: Bool; let privateGetter: Bool; let computed: Bool; let body: String }
+        var decls: [String: Decl] = [:]
+        for (index, line) in lines.enumerated() {
+            guard let name = declaredVarName(in: line) else { continue }
+            // `private(set)` is NOT a private getter — it is this publisher's normal shape
+            // (`public private(set) var waveform`), and treating it as private returned an
+            // empty set on the first attempt.
+            let privateGetter = line.contains("private var ") || line.contains("fileprivate var ")
+            let head = line.split(separator: "{", maxSplits: 1).first.map(String.init) ?? line
+            let computed = line.contains("{") && !head.contains("=")
+            let after = line.range(of: "{").map { String(line[$0.upperBound...]) } ?? ""
+            let oneLiner = computed && after.contains("}")
+            decls[name] = Decl(tracked: !line.contains("@ObservationIgnored"),
+                               privateGetter: privateGetter,
+                               computed: computed,
+                               body: computed ? (oneLiner ? line : memberBody(in: lines, from: index)) : "")
+        }
 
         var hot = Set<String>()
-        for (name, tracked) in readable where tracked {
-            if tick.contains("self.\(name) = ") { hot.insert(name) }
+        for (name, d) in decls where d.tracked {
+            if !d.computed && tick.contains("self.\(name) = ") { hot.insert(name) }
+            if d.computed && mentions("analyzer.", in: d.body) { hot.insert(name) }
         }
-        // A COMPUTED property that exposes a hot one is just as hot to read: the body
-        // evaluating it registers on whatever the getter touches.
-        //
-        // ⛔ THE FIRST DRAFT ASKED EVERY DECLARATION FOR A BODY AND WAS RED ON A CORRECT TREE —
-        // caught by driving it, not by reading it. A STORED property has no braces, so the
-        // brace matcher ran from its line to the next `}` at that indentation, i.e. to the end
-        // of the class, and every stored property "contained" every hot name. It swept up
-        // `isRunning`, `tick`, `tickSeconds` and `rrWindowMs`, and the root scan then reported
-        // `WorkspaceView.topBar` — the SHIPPED 10.76.50 repair — as a violation. A guard that
-        // reddens correct work gets deleted and takes the law with it (#364). The gate is that
-        // the declaration line must actually OPEN a body.
-        for (name, tracked) in readable where tracked && !hot.contains(name) {
-            guard let line = lines.first(where: { declaredVarName(in: $0) == name }),
-                  line.trimmingCharacters(in: .whitespaces).hasSuffix("{") else { continue }
-            let body = memberBody(startingWith: "var \(name)", in: lines)
-            if hot.contains(where: { body.contains("\($0)") }) { hot.insert(name) }
+        // Fixed point over SORTED names. ⛔ The first version walked a `Dictionary`, whose
+        // iteration order is per-process seeded: with any two-hop chain present the derived
+        // set would have differed between runs and the negative scans would have been
+        // intermittently green — a flake in the guard sold as "derived, so it catches
+        // tomorrow's properties".
+        var grew = true
+        while grew {
+            grew = false
+            for name in decls.keys.sorted() {
+                guard let d = decls[name], d.tracked, d.computed, !hot.contains(name) else { continue }
+                if hot.sorted().contains(where: { mentions($0, in: d.body) }) {
+                    hot.insert(name)
+                    grew = true
+                }
+            }
         }
-        return hot
+        // A private getter cannot be read by a view; it is only a waypoint above.
+        return hot.filter { decls[$0]?.privateGetter == false }
     }
 
     private func declaredVarName(in line: String) -> String? {
@@ -218,9 +301,31 @@ final class TheMenuHostReadsNoHotBioTests: XCTestCase {
         return String(name)
     }
 
+    /// `body.contains(name)` with word edges, so `isLocked` is not found inside `isLockedRaw`.
+    private func mentions(_ name: String, in body: String) -> Bool {
+        var searchFrom = body.startIndex
+        while let r = body.range(of: name, range: searchFrom..<body.endIndex) {
+            let beforeOK = r.lowerBound == body.startIndex
+                || !isWordChar(body[body.index(before: r.lowerBound)])
+            let afterOK = r.upperBound == body.endIndex || !isWordChar(body[r.upperBound])
+            if beforeOK && afterOK { return true }
+            searchFrom = r.upperBound
+        }
+        return false
+    }
+
+    private func isWordChar(_ c: Character) -> Bool { c.isLetter || c.isNumber || c == "_" }
+
     // MARK: - The scan
 
-    private func assertNoHotRead(in path: String, of type: String, why: String) throws {
+    /// Every member of `type` that BUILDS A VIEW, in its `struct` and in any `extension`.
+    ///
+    /// ⛔ TWO NEEDLES, NOT ONE. The first version matched only `: some View {`, so all 19
+    /// `-> some View` FUNCTIONS in `EchoelStudioView` and the 1 in `WorkspaceView` were
+    /// invisible — and a driven mutant put a hot read in `menuChip` and stayed green. A
+    /// `@ViewBuilder private func` is body evaluation just as much as a computed `var`.
+    @discardableResult
+    private func assertNoHotRead(in path: String, of type: String, why: String) throws -> Int {
         let hot = try hotProperties()
         let lines = SourceText.codeOnly(try read(path))
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
@@ -228,30 +333,41 @@ final class TheMenuHostReadsNoHotBioTests: XCTestCase {
         // ⛔ SCOPED TO THE TYPE, NOT TO THE FILE — a driven mutant forced this. A file-wide
         // scan flags a small leaf `View` struct declared in the same file, and declaring one is
         // the DOCUMENTED REPAIR for this very defect. Forbidding the fix in the guard that
-        // teaches it is #364 in its purest form.
-        // ⛔ The colon is not cosmetic: without it `struct EchoelStudioView` also matches
-        // `struct EchoelStudioView2`, so a RENAME would leave the guard silently scanning a
-        // different type instead of failing. A driven mutant caught that too.
-        guard let open = lines.firstIndex(where: { $0.contains("struct \(type):") && $0.contains(": View {") }) else {
-            XCTFail("`struct \(type): View` is gone from \(path) — move this guard with it")
-            return
+        // teaches it is #364 in its purest form. Extensions of the type count as the type.
+        var spans: [(Int, Int)] = []
+        if let s = span(of: "struct \(type):", in: lines) { spans.append(s) }
+        for (index, line) in lines.enumerated() where line.hasPrefix("extension \(type)") {
+            if let s = span(of: line, in: lines, from: index) { spans.append(s) }
         }
-        let outer = lines[open].prefix { $0 == " " }.count
-        let end = lines[(open + 1)...].firstIndex {
-            $0.trimmingCharacters(in: .whitespaces) == "}"
-                && $0.prefix { c in c == " " }.count == outer
-        } ?? lines.endIndex
+        guard !spans.isEmpty else {
+            XCTFail("`struct \(type):` is gone from \(path) — move this guard with it")
+            return 0
+        }
 
         var offences: [String] = []
-        for index in open..<end where lines[index].contains(": some View {") {
-            // ⛔ THE DECLARATION LINE IS PART OF THE MEMBER, and leaving it out was a second
-            // false GREEN the same mutant run exposed: a one-line member
-            // `var x: some View { Text("\(cameraRPPG.waveform.count)") }` keeps its whole body
-            // on the declaration line, which `memberBody` starts AFTER.
-            let member = lines[index] + "\n"
-                + memberBody(startingWith: lines[index], in: lines, from: index)
-            for name in hot where member.contains("cameraRPPG.\(name)") {
-                offences.append("line \(index + 1): \(lines[index].trimmingCharacters(in: .whitespaces)) reads cameraRPPG.\(name)")
+        var members = 0
+        for (lo, hi) in spans {
+            for index in lo..<hi where lines[index].contains(": some View {")
+                                       || lines[index].contains("-> some View {") {
+                members += 1
+                // ⛔ WALK BACK TO THE DECLARATION LINE. A multi-line signature puts
+                // `) -> some View {` on a CONTINUATION line, indented deeper than its `func`;
+                // brace-matching from there ran past the member's end and swallowed unrelated
+                // code — seven false offences on a correct tree, found by driving it.
+                var start = index
+                var steps = 0
+                while start > lo, steps < 12,
+                      !lines[start].contains("func "), !lines[start].contains("var ") {
+                    start -= 1
+                    steps += 1
+                }
+                // The declaration line is part of the member: a one-line
+                // `var x: some View { Text("\(cameraRPPG.waveform.count)") }` keeps its whole
+                // body there, and an extraction that starts AFTER it was a second false green.
+                let member = lines[start] + "\n" + memberBody(in: lines, from: start)
+                for name in hot.sorted() where member.contains("cameraRPPG.\(name)") {
+                    offences.append("line \(index + 1): \(lines[index].trimmingCharacters(in: .whitespaces)) reads cameraRPPG.\(name)")
+                }
             }
         }
         XCTAssertTrue(offences.isEmpty, """
@@ -260,20 +376,26 @@ final class TheMenuHostReadsNoHotBioTests: XCTestCase {
 
             \(why)
             """)
+        return members
     }
 
     // MARK: - Helpers
 
-    /// Lines of a member, from the line containing `prefix` to the closing `}` at that line's
-    /// OWN indentation. Structural, not a line count — this repo writes 30-line comment blocks,
-    /// so any fixed window is unsound by construction (§2, #408).
-    private func memberBody(startingWith prefix: String, in lines: [String], from: Int? = nil) -> String {
-        guard let start = from ?? lines.firstIndex(where: { $0.contains(prefix) }) else { return "" }
+    /// The half-open line range of a declaration: from the line containing `opener` to the
+    /// closing `}` at that line's OWN indentation. Structural, not a line count — this repo
+    /// writes 30-line comment blocks, so any fixed window is unsound by construction (#408).
+    private func span(of opener: String, in lines: [String], from: Int? = nil) -> (Int, Int)? {
+        guard let start = from ?? lines.firstIndex(where: { $0.contains(opener) }) else { return nil }
         let indent = lines[start].prefix { $0 == " " }.count
         let close = lines[(start + 1)...].firstIndex {
             $0.trimmingCharacters(in: .whitespaces) == "}"
                 && $0.prefix { c in c == " " }.count == indent
         } ?? lines.endIndex
+        return (start, close)
+    }
+
+    private func memberBody(in lines: [String], from index: Int) -> String {
+        guard let (start, close) = span(of: lines[index], in: lines, from: index) else { return "" }
         return lines[(start + 1)..<close].joined(separator: "\n")
     }
 
