@@ -2762,3 +2762,53 @@ und eine ganz fehlende Nadel (`: some Scene {` — die ÄUSSERSTE Body der App).
    nur nach Compile-Risiko.
 4. Prüfen, ob ein Anker eine GRÖSSE misst. Eine Größe ist fast immer rot auf korrekter Arbeit;
    ein NAME (`var body`) überlebt Refactorings, die eine Zahl bewegen.
+
+---
+
+## PLAYBOOK #925 (2026-08-31) — ein Feld unter „Published Output" ohne Erzeuger ist eine FALLE, kein toter Code
+
+**Fundstelle.** `CameraAnalyzer.dominantHue` (`Video/CameraAnalyzer.swift`), deklariert unter
+`// MARK: - Published Output`, dokumentiert als „Average hue (0–360)". Gemessen über das GANZE
+Repo (`Sources`, `Tests`, `docs`, `ContentPipeline`, `scripts`, `project.yml`): **genau EIN
+Vorkommen — die eigene Deklaration.** Kein Schreiber, kein Leser. Der Wert war dauerhaft 180,
+also Cyan, und nichts konnte ihn je bewegen. Gefunden von `scripts/doorless-state.py`, aber
+NICHT durch dessen Regel erklärt: seine Sortierung sagt „eine Tuning-Konstante ohne Schreiber
+ist in Ordnung" — und genau darunter hätte diese Zeile für immer weitergelebt.
+
+**Warum das schlimmer ist als ein unbenutztes Feld — die eigentliche Lehre.** Der Block ist eine
+ECHTE Ausgabefläche: `CameraRPPGBioPublisher` liest `brightness` und `redChannel` daraus. Eine
+spätere Sitzung, die die Visual-Palette an die Kamerafarbe hängen will, öffnet diese Klasse,
+findet `dominantHue` ZWISCHEN zwei Werten, die leben, bindet es — und liefert ein dauerhaft
+cyanfarbenes Feature aus, das von jeder Seite verdrahtet AUSSIEHT: Erzeuger da, Verbraucher da,
+Doc da, Konstante auf der Leitung. Das ist die `.eegBurst`-Form (eine OSC-Adresse ohne
+Produzenten, auf die laut `CLAUDE.md` kein Integrator warten darf) eine Nummer kleiner, INNEN
+in der Klasse statt auf einem Draht, wo niemand hinsah.
+
+⛔ **NICHT BERECHNEN — die Richtung ist der Punkt.** `avgR`/`avgG`/`avgB` liegen an der Stelle
+schon vor, wo `brightness` geschrieben wird; den Farbton zu rechnen wäre vier Zeilen. Das wäre
+ein ERZEUGER für einen Wert, den nichts verbraucht — die Spiegelung von #496 (drei Bio-Kanäle
+mit Verbraucher und ohne Erzeuger). Beide Richtungen kosten dasselbe: eine Fähigkeitsbehauptung,
+die nirgends ankommt. Entfernt, mit einem ⛔-Vermerk an der Stelle, damit die Absicht nicht
+still verlorengeht.
+
+⭐ **DIE WÄCHTER-FORM, und sie ist der übertragbare Teil.** Eine Nadel auf die ABWESENHEIT von
+`dominantHue` wäre #364 in Reinform: Kamera-Farbton als Palettenquelle ist ein legitimes
+Feature, und am Tag, an dem jemand es mit Erzeuger UND Leser baut, wäre der Wächter rot auf
+korrektem Baum. `EveryPublishedOutputHasAProducerTests` fragt stattdessen JEDE im Block
+deklarierte Ausgabe nach einer ZUWEISUNG in derselben Datei. Mutant gefahren: ein echter
+`dominantHue = 42`-Erzeuger lässt den Wächter GRÜN. Er hat keine Meinung darüber, welche
+Ausgaben existieren — nur darüber, dass eine angekündigte Ausgabe berechnet wird.
+
+⚠️ **Zwei Textsichten in EINEM Scan, und beide sind nötig.** Die Blockgrenze
+(`// MARK: - Published Output`) ist ein KOMMENTAR und überlebt `SourceText.codeOnly` nicht — wer
+nach dem Strippen darauf ankert, findet nichts und die ganze Datei besteht LEER. Die
+Deklarationen müssen umgekehrt aus dem GESTRIPPTEN Text kommen, sonst zählt der ⛔-Vermerk, der
+die entfernte Deklaration absichtlich wörtlich zitiert, als lebende Ausgabe mit — der Wächter
+meldete dann genau das Feld, das er gerade beerdigt hat. Grenzen aus dem ROHTEXT, Inhalt aus dem
+GESTRIPPTEN; `codeOnly` erhält die Zeilenzahl, und genau das macht die zwei Sichten indexierbar.
+
+**Wo man diese Klasse noch sucht:** überall, wo ein Typ seine Ausgaben unter einer eigenen
+Überschrift SELBST deklariert. Das ist ein Vertrag, den ein Textscan halten kann. Die allgemeine
+Fassung („jede `@Observable`-Ausgabe in `Sources/` hat einen Erzeuger") ist NICHT erzwingbar —
+viel legitimer Zustand wird dateiübergreifend geschrieben, weshalb `doorless-state.py` seinen
+MASKED-Abschnitt hat und ausdrücklich nicht anklagt.

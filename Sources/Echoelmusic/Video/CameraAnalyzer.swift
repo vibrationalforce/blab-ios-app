@@ -28,8 +28,25 @@ final class CameraAnalyzer {
     var brightness: Float = 0.5
     /// Average red channel (0–1), used for pulse detection
     var redChannel: Float = 0.5
-    /// Average hue (0–360)
-    var dominantHue: Float = 180
+    // ⛔ `var dominantHue: Float = 180` STOOD HERE AND WAS NEVER COMPUTED (#925). It sat in
+    // this block, under the heading "Published Output", with the doc "Average hue (0–360)" —
+    // and it occurred EXACTLY ONCE in the whole repository: that declaration. No assignment,
+    // no reader, in `Sources/` or `Tests/`. Every other property in this block has at least
+    // one assignment in this file; it was the only one that did not.
+    //
+    // ⚠️ REMOVED RATHER THAN COMPUTED, and the direction matters. Computing it is four lines —
+    // `avgR`/`avgG`/`avgB` are already in hand where `brightness` is written — but that would
+    // add a producer for a value nothing consumes, which is the mirror of the defect this repo
+    // keeps paying for (#496: three bio channels with a consumer and no producer). A published
+    // output whose doc names a measurement the code does not take is worse than an absent one:
+    // the next session wiring the visual palette would read this block, bind the hue, and ship
+    // a permanently-cyan feature that looks wired from every angle.
+    //
+    // ⭐ NOT A REFUSAL OF THE IDEA. Camera hue driving the visual palette is a reasonable
+    // feature; it is a FEATURE, with a founder ask and a consumer, not a leftover field. When
+    // it is built, the producer and the reader arrive together — and
+    // `EveryPublishedOutputHasAProducerTests` stays green on that day, because it asks for an
+    // assignment, never for this name's absence (#364).
     /// Estimated BPM from pulse detection (0 = not detected)
     var estimatedBPM: Double = 0
     /// Confidence of BPM estimate (0–1)
