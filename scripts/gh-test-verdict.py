@@ -197,11 +197,26 @@ SLOW_TYPECHECK = re.compile(
 # ⚠️ THE DISCRIMINATOR IS STILL `TEST EXECUTE FAILED` vs `TEST BUILD FAILED` (§5). These lines
 # are a BONUS, not a criterion, and this must not change the exit code — making a run red for a
 # condition that predates the reader is the #364 trap.
-LAUNCH_FAILURE = re.compile(r"[Ff]ailed to launch (?:app with identifier: )?(\S+)")
-LAUNCH_ERROR = re.compile(r"Error Domain=(\S+) Code=(-?\d+)")
-# Measured present in BOTH observed spellings (§5): the environment dump of the failed launch
-# names the clone that died, while the survivor keeps printing `passed` lines.
-DEAD_CLONE = re.compile(r'RUN_DESTINATION_DEVICE_NAME" = "([^"]+)"')
+# ⛔ #935b — THE REVIEWER FOUND THE SAME #778 MISTAKE AGAIN, FOUR LINES UNDER THE COMMENT
+# RENOUNCING IT, and in all three needles. Each was built from ONE transcription:
+#   · `\S+` after "failed to launch" swallows any word, so `the process failed to launch and
+#     was restarted` captured `and` — free-form prose reported as a bundle id. Now the subject
+#     must LOOK like a bundle id, and the verb is word-anchored so `RestartAttemptFailed` misses.
+#   · `Error Domain=` was mandatory. `Tests/CISmoke/CLAUDE.md` §5 writes the FBS spelling BARE
+#     (`FBSOpenApplicationServiceErrorDomain Code=1`), and `git grep "Error Domain="` returns
+#     exactly ONE genuine log quote in the whole tree. The prefix is now optional.
+#   · The `"` around the plist KEY was mandatory. `scratchpads/HARNESS_LEDGER.md` (runs
+#     `916f2e8`/`74bb42d`) and `SESSION_LOG` (`ac3be58`) all carry it UNQUOTED — OpenStep plists
+#     print bare identifier keys without quotes. I saw the QUOTED form myself in run 33420005558,
+#     so both are real; the quote is now optional rather than a coin-flip.
+# ⚠️ WORDINGS THAT STILL MISS, said out loud so the next reader does not assume the family is
+# closed: `Could not launch <id>`, `Unable to launch <id>`, and the quoted-identifier variant
+# `Failed to launch app with identifier "<id>"`. All three are UNMEASURED here — adding an
+# unobserved needle is the other half of #778, so they stay out until a log shows one.
+LAUNCH_FAILURE = re.compile(
+    r"(?<![A-Za-z])[Ff]ailed to launch (?:app with identifier: )?([\w.-]*\.[\w.-]+)")
+LAUNCH_ERROR = re.compile(r"(?:Error Domain=)?(\w+ErrorDomain) Code=(-?\d+)")
+DEAD_CLONE = re.compile(r'RUN_DESTINATION_DEVICE_NAME"? = "([^"]+)"')
 
 
 def find_failures(text):
@@ -352,15 +367,25 @@ def selftest():
         "spelling 2 (bea1a83)": (LAUNCH_FAILURE,
                                  "Simulator device failed to launch com.echoelmusic.app",
                                  "com.echoelmusic.app"),
-        "mach domain":          (LAUNCH_ERROR,
+        "mach domain (OBSERVED)": (LAUNCH_ERROR,
                                  '(error = Error Domain=NSMachErrorDomain Code=-308 '
                                  '"(ipc/mig) server died")', "NSMachErrorDomain"),
-        "fbs domain":           (LAUNCH_ERROR,
-                                 "Error Domain=FBSOpenApplicationServiceErrorDomain Code=1",
+        # ⚠️ BARE, because that is how every record in this tree writes it. `git grep
+        # "Error Domain="` returns ONE genuine log quote and it is the Mach one; the prefixed
+        # FBS form was my reconstruction (#935b).
+        "fbs domain, bare (OBSERVED)": (LAUNCH_ERROR,
+                                 "FBSOpenApplicationServiceErrorDomain Code=1", 
                                  "FBSOpenApplicationServiceErrorDomain"),
-        "dead clone name":      (DEAD_CLONE,
+        "dead clone, quoted key": (DEAD_CLONE,
                                  '"RUN_DESTINATION_DEVICE_NAME" = "Clone 2 of iPhone 17";',
                                  "Clone 2 of iPhone 17"),
+        "dead clone, bare key":  (DEAD_CLONE,
+                                 'RUN_DESTINATION_DEVICE_NAME = "Clone 2 of iPhone 17";',
+                                 "Clone 2 of iPhone 17"),
+        "prose, not a bundle id": (LAUNCH_FAILURE,
+                                 "note: the process failed to launch and was restarted", None),
+        "verb inside a word":    (LAUNCH_FAILURE,
+                                 "RestartAttemptFailed to launch com.echoelmusic.app", None),
         "marker alone":         (LAUNCH_FAILURE, "** TEST EXECUTE FAILED **", None),
         "a plain failure":      (LAUNCH_FAILURE,
                                  "Test case 'A.testTwo()' failed on 'Clone 1' (0.2 seconds)", None),
@@ -417,21 +442,43 @@ def main():
     print(f"TEST BUILD FAILED : {build_failed}")
     print(f"TEST EXECUTE FAILED: {execute_failed}   (#396 — expected on every push)")
     if execute_failed:
-        # Advisory, never fatal (#935). Positive evidence only — see the block above for why
-        # the no-match branch does NOT raise an alarm.
+        # Advisory, never fatal (#935). ⛔ #935b — THE FIRST VERSION PRINTED "that is the #396
+        # family" UNCONDITIONALLY, i.e. it asserted the exact conclusion this block exists to
+        # stop a session reaching by habit, and more confidently than the line above it. It also
+        # said "the survivor's passes are below" with zero passes below. The real discriminator
+        # is already computed and already written down (`scratchpads/HARNESS_LEDGER.md`): a
+        # launch-breaking defect in the BINARY cannot be clone-specific, so a surviving clone
+        # exonerates the binary. That is `ran > 0`, and nothing else here.
         launched = LAUNCH_FAILURE.search(text)
-        why = LAUNCH_ERROR.search(text)
-        clone = DEAD_CLONE.search(text)
         if launched:
+            # ⛔ #935b — `why` and `clone` used to be whole-text first-matches joined into one
+            # causal sentence. §5 records the evidence as POSITIONAL ("direkt über dem Code"),
+            # the domain arrives as a CHAIN of three, and a parallel run prints the SURVIVOR's
+            # destination dump too — so the tool could name Clone 1 as the clone that could not
+            # launch, in a file whose §5 already carries one retraction about that very digit.
+            near = text[max(0, launched.start() - 2000):launched.end() + 2000]
+            why = LAUNCH_ERROR.search(near)
+            clone = DEAD_CLONE.search(near)
             bits = [f"the runner could not launch {launched.group(1)}"]
             if why:
-                bits.append(f"{why.group(1)} {why.group(2)}")
+                bits.append(f"nearest domain: {why.group(1)} {why.group(2)}")
             if clone:
-                bits.append(f"on '{clone.group(1)}'")
+                bits.append(f"destination named nearby: '{clone.group(1)}'")
             print("  launch failure  : " + " — ".join(bits))
-            print("                    that is the #396 family; the survivor's passes are below")
+            if ran:
+                plural = "pass" if ran == 1 else "passes"
+                print(f"                    another clone still reported {ran} {plural}, so the "
+                      "binary is")
+                print("                    exonerated by the log alone — that clone asymmetry IS "
+                      "#396.")
+            else:
+                print("                    NO clone reported a pass here, so clone asymmetry is "
+                      "NOT")
+                print("                    established. This shape ALSO fits YOUR binary crashing "
+                      "at")
+                print("                    launch. Read the domain above before calling it #396.")
         else:
-            print("  launch failure  : no `failed to launch` line in the window — NOT a finding.")
+            print("  launch failure  : no `failed to launch` line in this log — NOT a finding.")
             print("                    §5 measured `5584ffd` with this exact shape and benign.")
             print("                    The discriminator stays TEST BUILD FAILED (#935).")
     print(f"tests observed passing: {ran}")

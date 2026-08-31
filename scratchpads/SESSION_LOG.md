@@ -3,6 +3,44 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #935b: der Reviewer fand denselben Fehler in ALLEN DREI Nadeln
+
+Der Pflicht-Reviewer bestätigte Exit-Code-Neutralität und Nadel-Eindeutigkeit und lieferte **zwei
+BLOCKER, drei SHOULD-FIX, drei NIT**. Alle acht sind abgearbeitet; die zwei BLOCKER habe ich vor
+dem Handeln selbst nachgemessen.
+
+**BLOCKER 1 — der Treffer-Zweig zog genau den Schluss, gegen den er gebaut wurde.** Er druckte
+„that is the #396 family" BEDINGUNGSLOS, also selbstbewusster als die Zeile darüber, die er
+qualifizieren sollte. Und „the survivor's passes are below" stand da mit null Pässen darunter.
+**Der Diskriminator stand längst im `HARNESS_LEDGER`:** ein startbrechender Defekt im BINARY kann
+nicht clone-spezifisch sein, also entlastet ein überlebender Clone das Binary — das ist `ran > 0`,
+und der Wert war ein Dutzend Zeilen weiter oben schon berechnet. Gegenprobe gefahren: Startfehler
++ `IDETestOperationsObserverErrorDomain Code=6 (EXC_BAD_ACCESS)` + null Pässe wurde als harmlose
+Familie gemeldet — genau die Schwarzbild-Klasse, für die der Block existiert.
+
+**BLOCKER 2 — Domäne und Clone-Name waren Erst-Treffer über den GANZEN Text**, kausal
+zusammengesetzt. §5 sagt selbst, dass der Beleg POSITIONELL ist, und ein Parallel-Lauf druckt auch
+den Dump des ÜBERLEBENDEN: das Werkzeug hätte **Clone 1** als den benennen können, der nicht
+starten konnte — in dem Abschnitt, der über genau diese Ziffer schon eine Rücknahme trägt. Jetzt
+±2000 Zeichen um den Treffer.
+
+**SHOULD-FIX 3/4 — derselbe #778-Fehler noch zweimal, vier Zeilen unter dem Kommentar, der ihn
+abschwört.** `\S+` fing „the process failed to launch **and** was restarted" und meldete `and` als
+Bundle-ID. Die `Error Domain=`-Vorsilbe war Pflicht, obwohl `git grep "Error Domain="` im ganzen
+Baum **genau EIN** echtes Log-Zitat liefert (das Mach-eine) — die FBS-Vorsilbe war meine
+Rekonstruktion, und §5 verkaufte sie als „beide Domänen". Die Anführungszeichen um den
+Plist-SCHLÜSSEL waren ebenfalls Pflicht, obwohl `HARNESS_LEDGER` und `SESSION_LOG` ihn dreimal
+ohne führen.
+
+⭐ **Die Lehre über #778 hinaus: eine Nadel-Runde prüft ALLE Nadeln, nicht die eine, an die man
+gerade denkt.** Ich hatte die Startfehler-Nadel gegen §5 korrigiert und dabei zwei Nachbarn im
+selben Commit ungeprüft gelassen — dieselbe „alle geprüft heißt alle, die mir eingefallen
+sind"-Form wie bei den MPE-Flächen.
+
+Wächter: dritte Behauptung in 4b (`clone asymmetry is`), Kopfzähler 14 → **16** mit Umfang, Nadel
+auf die neue Schreibweise nachgezogen. Selbsttest 11 Fälle grün (zwei Schreibweisen, zwei
+Plist-Formen, vier Negative). Instrumente grün. `CLAUDE.md` unverändert 148 856 B.
+
 ## 2026-08-31 — #935: der roten Gate-Zeile das Denken beibringen
 
 **Der Befund:** `TEST EXECUTE FAILED: True (#396 — expected on every push)` steht seit Monaten

@@ -75,7 +75,10 @@
 // label in a row (#728/#731/#732/#736).
 //
 // ⭐ SO THE MEASUREMENT WAS DONE THE OTHER WAY, WITH A PYTHON-AWARE STRIPPER, AND IT CHANGED
-// THE GUARD. Fourteen needles, counted raw against `#`-and-docstring-stripped:
+// THE GUARD. Sixteen needles, counted raw against `#`-and-docstring-stripped
+// (⛔ #935b: this said "Fourteen" while claim 4b added two, in the file whose own closing
+// lesson is "measure the needles even when no stripper is in play". Both new ones are 2/2 —
+// each occurs once in code and zero times in a Python comment):
 //   · 12 identical — no comment occurrence at all. ⚠️ EACH COUNTED IN ITS OWN SCAN SCOPE,
 //     which the first draft did not say: whole-file counts for claim 3's three body needles
 //     are 4/2, 5/3 and 9/7, i.e. NOT identical. Scoped to the `selftest` body — which is
@@ -438,12 +441,12 @@ final class TheVerdictParserReadsBothLogShapesTests: XCTestCase {
     /// "simplify this" pass would recreate: the alarming branch reads as the more useful one.
     func testTheLaunchFailureNeedleKnowsBothSpellingsAndStaysQuietOtherwise() throws {
         let code = try text(Self.parser)
-        XCTAssertTrue(code.contains(#"r"[Ff]ailed to launch (?:app with identifier: )?(\S+)""#), """
+        XCTAssertTrue(code.contains(#"(?<![A-Za-z])[Ff]ailed to launch (?:app with identifier: )?"#), """
             The launch-failure needle is gone or has been narrowed to one spelling.
 
             TWO are measured (§5): `Failed to launch app with identifier: <bundle>` on `d0f64c7`
             and `Simulator device failed to launch <bundle>` on `bea1a83`. The needle anchors on
-            the part BOTH share. Narrowing it to the wording of whichever run is most recent is
+            the part BOTH share, word-anchored so `RestartAttemptFailed` cannot match (#935b). Narrowing it to the wording of whichever run is most recent is
             #778 exactly — a needle for the last incident — and it fails SILENTLY, by taking the
             neutral branch on a log that shows the situation perfectly.
             """)
@@ -463,6 +466,23 @@ final class TheVerdictParserReadsBothLogShapesTests: XCTestCase {
 
             If a later measurement shows the missing line really does discriminate, say so with
             the run that proves it — do not restore the alarm from intuition.
+            """)
+        // ⛔ #935b — THE REVIEWER'S BLOCKER, AND IT IS THE ONE THIS WHOLE CLAIM EXISTS FOR.
+        // My first version printed "that is the #396 family" UNCONDITIONALLY on any launch
+        // failure — i.e. the branch written to stop a habitual conclusion reached that exact
+        // conclusion, more confidently than the line above it. The discriminator was already
+        // computed (`ran`) and already written down in `scratchpads/HARNESS_LEDGER.md`: a
+        // launch-breaking defect in the BINARY cannot be clone-specific, so a surviving clone
+        // exonerates the binary — and no survivor means it is NOT established.
+        XCTAssertTrue(code.contains("clone asymmetry is "), """
+            The launch-failure branch no longer distinguishes "another clone kept passing"
+            (#396) from "nothing passed at all".
+
+            Without it the tool prints the benign verdict over the shape that is NOT benign: a
+            test host crashing at launch. That is the sheet-chain-SIGSEGV / black-screen class
+            this repo has paid for more than once, and this file's own comment names it as the
+            reason the block exists. `ran` is computed a dozen lines above the branch — the
+            evidence is free; only the sentence was missing.
             """)
     }
 

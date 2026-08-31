@@ -539,8 +539,29 @@ Nothing above this line was rewritten; where it disagrees with §5, §5 is newer
   ohne jede `Code=`-Zeile, harmlos) Fehlalarm gewesen wäre. Deshalb ist der Kein-Treffer-Zweig
   heute **neutral** und nennt `5584ffd` beim Namen. **Der Diskriminator bleibt unverändert
   `TEST EXECUTE FAILED` gegen `TEST BUILD FAILED`; die Startfehler-Zeile ist Bonus, kein
-  Kriterium**, und #935 ändert den Exit-Code nicht (#364). Selbsttest: `--selftest` fährt beide
-  Schreibweisen, beide Domänen, den Clone-Namen und drei Negative.
+  Kriterium**, und #935 ändert den Exit-Code nicht (#364).
+  ⛔ **UND DIE ERSTE FASSUNG MACHTE DENSELBEN FEHLER NOCH DREIMAL — der Pflicht-Reviewer fand
+  ihn in JEDER der drei Nadeln** (#935b). (a) Der Treffer-Zweig druckte „that is the #396
+  family" BEDINGUNGSLOS, zog also genau den Schluss, gegen dessen Gewohnheit der Block gebaut
+  wurde, und selbstbewusster als die Zeile darüber. **Der Diskriminator stand längst im
+  `HARNESS_LEDGER`: ein startbrechender Defekt im BINARY kann nicht clone-spezifisch sein, also
+  entlastet ein überlebender Clone das Binary** — das ist `ran > 0`, und der Wert war ein Dutzend
+  Zeilen weiter oben schon berechnet. Ohne Überlebenden steht jetzt ausdrücklich, dass die
+  Asymmetrie NICHT belegt ist. (b) Domäne und Clone-Name waren Erst-Treffer über den GANZEN Text,
+  kausal zusammengesetzt — dieser Absatz sagt selbst, dass der Beleg POSITIONELL ist („direkt über
+  dem `Code=-308`"), und ein Parallel-Lauf druckt auch den Dump des ÜBERLEBENDEN: das Werkzeug
+  hätte Clone 1 als den benennen können, der nicht starten konnte, in dem Abschnitt, der über
+  genau diese Ziffer schon eine Rücknahme trägt. Jetzt wird in ±2000 Zeichen um den Treffer
+  gesucht. (c) Die `Error Domain=`-Vorsilbe war Pflicht und die Anführungszeichen um den
+  Plist-SCHLÜSSEL auch — beide jetzt optional, weil dieser Baum die FBS-Domäne ausnahmslos BLOSS
+  schreibt und `RUN_DESTINATION_DEVICE_NAME` im `HARNESS_LEDGER` und im `SESSION_LOG` ohne
+  Anführungszeichen steht (die Quoted-Form habe ich selbst in Lauf 33420005558 gesehen — beide
+  sind echt).
+  ⚠️ **Selbsttest, ehrlich beschriftet:** zwei Schreibweisen des Startfehlers, **eine gemessene
+  Domäne (Mach) und eine, die dieser Baum nur BLOSS führt (FBS)**, beide Plist-Schreibweisen und
+  vier Negative — darunter die zwei Prosa-Zeilen, auf die die alte Nadel hereinfiel. ⛔ Hier stand
+  „beide Domänen", was zwei gemessene Formen behauptet; `git grep "Error Domain="` liefert im
+  ganzen Baum **genau EIN** echtes Log-Zitat, und das ist das Mach-eine.
 - Konsequenz für die Sprache in jedem Status-Delta: „beide echten Gates grün" ist als Kurzform für „das blockierende Bundle lief" nur deshalb richtig, **weil CI/CD dabei ist**. Für eine reine Testdatei ist CI/CD allein maßgeblich; Compile-Check-grün allein heißt nur `Sources/`-grün.
 
 ---
