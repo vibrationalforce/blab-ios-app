@@ -14,10 +14,32 @@
 // the header pulse tile. A law that is only written in prose gets re-broken by the next person
 // who audits the obvious view.
 //
-// ⛔ THIS GUARD HAS BEEN WRONG EIGHT TIMES, and every single one was found by DRIVING it as a
-// mutation — never by reading it. The eighth (#919) is the first that was RED on a correct
-// tree and SHIPPED that way, invisible behind two known blind spots at once. Recorded in
-// full because the pattern is the finding:
+// ⛔ THIS GUARD HAS BEEN WRONG TWELVE TIMES. Defects 1–8 were found by DRIVING it as a
+// mutation — never by reading it — and the eighth (#919) is the first that was RED on a correct
+// tree and SHIPPED that way, invisible behind two known blind spots at once.
+//
+// ⭐ DEFECTS 9–12 CAME FROM A SECOND READER, NOT FROM MORE DRIVING, and that is the finding of
+// #919b. I drove nine mutants, transcribed all 29 assertions, and swept the whole repo — and
+// still missed a false green, a missing floor, a #364 false red, and a whole needle. Driving
+// answers "does my model of the guard behave?"; it cannot ask "is my model of the guard the
+// right one?". Both were needed, and the reviewer independently reproduced defect 8 from its
+// own transcription, which is the only reason I trust either of us on it:
+//     9.  FALSE GREEN — `environmentReceiver` searched the WHOLE FILE.
+//         `EchoelStudioView.swift` declares that binding twice; delete the HOST's and the leaf's
+//         is returned, the unwrap succeeds, and the "still used in this file" check passes too.
+//         The scan then ran with a receiver the scanned type no longer had. Now type-scoped.
+//     10. FALSELY GREEN — the meter derivation had NO floor while the bio half had one. Move
+//         those declarations elsewhere and the set silently collapses to one name, with both
+//         engine scans green over a needle set that looks for almost nothing.
+//     11. RED ON CORRECT WORK (#364) — every anchor asserted a MAGNITUDE (`> 20`, `> 0`).
+//         Extracting reads into their own leaf structs — the repair THIS FILE TEACHES — removes
+//         members from the scanned type. `EchoelmusicApp` had exactly one, so inlining it went
+//         red. The anchor is now "the scan still found `body`".
+//     12. COVERAGE GAP — `: some Scene {` was not a needle, so `EchoelmusicApp.body`, the
+//         OUTERMOST body in the app, was skipped while its child `mainContent` was scanned. The
+//         file whose thesis is "the read was one level up" was missing the top level.
+//
+// Recorded in full because the pattern is the finding:
 //   RED ON A CORRECT TREE (would have shipped a broken gate):
 //     1. The "is this computed?" step handed a STORED property to a brace matcher, which then
 //        ran to the end of the class; every stored property "contained" every hot name,
@@ -29,8 +51,12 @@
 //   FALSELY GREEN (would have been a guard that guards nothing):
 //     3. A ONE-LINE member keeps its whole body on the declaration line, which the extraction
 //        started after.
-//     4. `-> some View` FUNCTIONS were not scanned at all — 19 in `EchoelStudioView`, 1 in
-//        `WorkspaceView`. A mutant put a hot read in `menuChip` and the guard stayed green.
+//     4. `-> some View` FUNCTIONS were not scanned at all. A mutant put a hot read in
+//        `menuChip` and the guard stayed green. ⛔ The counts that stood here ("19 in
+//        `EchoelStudioView`, 1 in `WorkspaceView`") were FILE-wide under a TYPE-scoped scan —
+//        inside the scanned spans it is 18 and 0, and `WorkspaceView`'s single one belongs to
+//        another struct the scan never enters. A retraction that motivates a needle with a
+//        number the needle cannot reach.
 //     5. A ONE-LINE computed property in the PUBLISHER was not treated as computed, so
 //        `rrWindowMs` and `coachingHint` never entered the derivation.
 //     6. The computed pass was ONE HOP through PUBLIC members only. `acquisitionCue` reaches
@@ -54,8 +80,13 @@
 // not churn. The limits, stated before the claim:
 //   · It scans view-BUILDING members (`: some View {`, `-> some View {`) of the named ancestor
 //     types, in their `struct` and in any `extension`. A read inside a plain helper called
-//     FROM a body is still a real defect and is not seen; the two that exist today are reached
-//     from action paths, which is checked, not assumed.
+//     FROM a body is still a real defect and is not seen. ⛔ THIS SAID "the two that exist
+//     today … which is CHECKED, not assumed" and both halves were wrong. It is THREE
+//     (`snapToLockWhenReady`, `startBioSource`, `bodyTempoTrustworthy`) — and the `why:` message
+//     of the host scan said three in the same file, 200-odd lines away, so one fact carried two
+//     numbers. And nothing checks it: `git grep bodyTempoTrustworthy -- Tests/CISmoke` finds
+//     nothing, and no assertion here touches a call site. The CONCLUSION survives a hand read —
+//     all three are reached from action paths — but "checked" was the claim, and it was assumed.
 //   · An ACTION closure written inside such a member (`Button { … }`, `.onAppear { … }`,
 //     `.task { … }`) is not body evaluation, and a hot read there would be reported although
 //     it is safe. None exists today. Note the neighbouring case is the OPPOSITE: the value
@@ -67,7 +98,7 @@
 //     proving it still matches.
 //
 // ⭐ #919 — THERE ARE TWO PRODUCERS, and the second is SIX TIMES HOTTER. `AudioEngine` runs a
-// 60 Hz meter poll timer over nine `@Observable` readouts, and `AutomationPlayer.applyStep`
+// 60 Hz meter poll timer over a set of `@Observable` readouts, and `AutomationPlayer.applyStep`
 // rewrites `masterVolume` on every transport step. Same defect class, same repair, no guard
 // until now — and the automation half is not hypothetical: `MasterVolumeField` exists as its
 // own struct BECAUSE that read once sat inline in `masterPanel` and tore down the Tonart/Genre
@@ -126,14 +157,36 @@
 // one (`isRunning`, `monitorPollTick`); the leaves must still read what the scans look for;
 // each scan asserts it found view-building members; and every receiver spelling is proved real
 // before it is used — unwrapped where it is derived, and asserted against its DECLARATION where
-// it is written down. ANCHOR ABSENCE: 0 — every anchor is asserted, including the 60 Hz
+// it is written down.
+//
+// ⚠️ ONE CLAIM CARRIES A NEEDLE THAT IS MEASURED UNMATCHABLE, and "every anchor is asserted"
+// must not paper over it: `testTheAppLevelAncestorBuildsNoViewFromHotBio` scans a file where
+// `cameraRPPG.` occurs ZERO times — the app only INJECTS the object. Its DECLARATION anchor
+// proves the object exists and the spelling is real; it does NOT prove the needle could ever
+// match. Kept anyway, because the point of that scan is the day someone adds the first such
+// read to the topmost body — but it is the one negative claim here without a matching
+// counterweight, and it is named rather than counted as covered.
+//
+// ANCHOR ABSENCE: 0 — every anchor is asserted, including the 60 Hz
 // interval literal, which XCTFails by name rather than returning an empty set.
+//
+// ⚠️ THAT SENTENCE IS TRUE OF THE START ANCHOR ONLY, and the first draft let it stand for both
+// ends. `span` falls back to `lines.endIndex` when it finds no closing brace at the opener's
+// indentation — SILENTLY. A reformatted closer therefore over-collects rather than failing, and
+// the floor on the derived set is what catches the consequence. Do not read "every anchor
+// XCTFails" as covering the closing brace; it does not.
 //
 // ⛔ ONE OF THOSE ANCHORS WAS NEARLY A CLAIM THAT COULD NEVER HOLD. The app-level counterweight
 // was going to be "the app still reads `cameraRPPG.`" — by symmetry with the leaf claims. It
 // occurs ZERO times there: the app only INJECTS the object. Measuring the anchor before
 // writing it is what turned it into a DECLARATION check; by symmetry alone it would have been
 // a red guard on a correct tree, in the same file that already carries two of those (#367).
+//
+// ⛔ THE FOUR #919b REPAIRS WERE DRIVEN TOO, not just reasoned: removing the HOST's own
+// `@Environment` binding must now yield nil (it does — the old file-wide lookup returned the
+// leaf's name, the exact false green); a hot read placed in `EchoelmusicApp.body` must go RED
+// (it does — it was invisible before); and renaming or extracting a member must leave the
+// anchor GREEN (it does — that is the whole point of dropping the magnitude).
 //
 // ⛔ AND THE BOUNDARY REPAIR WAS DRIVEN IN BOTH DIRECTIONS, because a looser needle is how a
 // guard starts matching things it should not: an identifier needle must still refuse
@@ -179,7 +232,12 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
     private static let bioReceiver = "cameraRPPG"
 
     // ⭐ #919 — THE SECOND PRODUCER, and it is SIX TIMES HOTTER than the first.
-    // `AudioEngine` runs a 60 Hz meter poll timer that rewrites nine `@Observable` readouts on
+    // ⛔ AND THE COUNT IS DELIBERATELY NOT WRITTEN HERE OR IN THE HEADER. `meterProperties`
+    // retracts it in its own doc — "it is not a fact to keep here" (#818) — and the first draft
+    // of #919 then wrote "nine" twice more, in this block and in the header, i.e. argued the
+    // count is a date and kept it anyway. The number is printed by
+    // `testTheMeterHotSetIsDerivedFromTheSixtyHertzTimer`'s failure message.
+    // `AudioEngine` runs a 60 Hz meter poll timer that rewrites `@Observable` readouts on
     // every tick, and `AutomationPlayer.applyStep` rewrites `masterVolume` on every transport
     // step. Both are the same defect class as the ~10 Hz camera, and neither had a guard.
     // This is NOT a hypothetical: `MasterVolumeField` exists as its OWN struct precisely
@@ -266,7 +324,10 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
             claim exists because the defect's whole history is that each fix reached one level \
             and the next read appeared one level above it.
             """)
-        XCTAssertGreaterThan(members, 0, "no view-building member found in SurfaceHost — the needle stopped matching")
+        XCTAssertTrue(members.contains { $0.contains("var body") }, """
+            ANCHOR ASSERTION: `SurfaceHost.body` must still be among the members the scan
+            walked. Scanned: \(members).
+            """)
     }
 
     func testTheRootBuildsNoViewFromAHotReadout() throws {
@@ -279,12 +340,13 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
             small leaf `View` struct (`PulseMonitorMiniLive` is the worked example) so only that \
             leaf churns.
             """)
-        XCTAssertGreaterThan(members, 0, """
-            ANCHOR ASSERTION, and the first version did not have one: the member needles \
-            (`: some View {`, `-> some View {`) are what the negative claim iterates over. If \
-            they stop matching — a reformat, a move into an extension — the loop runs zero \
-            times and the claim passes by finding nothing. #367, and it is the exact mode the \
-            counterweights below exist to block.
+        XCTAssertTrue(members.contains { $0.contains("var body") }, """
+            ANCHOR ASSERTION, and #919b made it a NAME rather than a MAGNITUDE. The member \
+            needles (`: some View {`, `-> some View {`, `: some Scene {`) are what the negative \
+            claim iterates over; if they stop matching, the loop runs zero times and the claim \
+            passes by finding nothing (#367). But a COUNT floor is red on the documented repair \
+            — extracting reads into their own leaf structs removes members from this type — so \
+            the guard would have punished the fix it teaches (#364). `body` survives both.
             """)
     }
 
@@ -293,15 +355,20 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
                                           receiver: Self.bioReceiver, hot: try hotProperties(), why: """
             `EchoelStudioView` hosts the Picker menus themselves. `AnyView(...)` is NOT an \
             observation boundary, so a read in ANY member this body evaluates — including a \
-            dropdown panel — registers the whole body as a 10 Hz observer. Reads inside \
-            `private func` bodies and `.task {}` closures are deliberately out of scope: they \
-            are not body evaluation, and three of them exist here on purpose.
+            dropdown panel — registers the whole body as a 10 Hz observer. ⛔ THIS MESSAGE USED \
+            TO END WITH THE LAW THE HEADER RETRACTS — "reads inside `private func` bodies and \
+            `.task {}` closures are not body evaluation" — word for word, in the text a session \
+            reads WHEN THE GUARD FIRES. The truth: only members that do not BUILD A VIEW are out \
+            of scope, and a `private func … -> some View` is body evaluation like any other. \
+            Three plain helpers do read hot state here; they are reached from ACTION paths, and \
+            that is ASSUMED from a hand read of their call sites, not asserted by anything in \
+            this file.
             """)
-        XCTAssertGreaterThan(members, 20, """
-            ANCHOR ASSERTION. `EchoelStudioView` had \(members) view-building members when \
-            this was written (66). A collapse to a handful means a needle stopped matching, \
-            not that the view shrank — and the negative claim above would then be green for \
-            having looked at almost nothing.
+        XCTAssertTrue(members.contains { $0.contains("var body") }, """
+            ANCHOR ASSERTION: `EchoelStudioView.body` must still be among the members the
+            scan walked. A count floor stood here and was red on the documented repair
+            (extracting reads into leaf structs removes members) — #364 in the guard that
+            teaches it. Scanned \(members.count) members.
             """)
     }
 
@@ -352,6 +419,14 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
             spelling that happens to keep it out of the assignment regex today. A future \
             `self.monitorPollTick = 0` in that closure must stay excluded.
             """)
+        XCTAssertGreaterThanOrEqual(meter.count, 5, """
+            FLOOR, and the bio half had one while this half did not. `isObservationTracked` \
+            returns false for any name whose DECLARATION it cannot resolve, and it resolves only \
+            by scanning `AudioEngine.swift` for `var <name>`. Move those declarations into an \
+            extension in another file and the set silently collapses to one, while both engine \
+            scans stay green over a one-element needle set — a scan that looks for almost \
+            nothing. Selected \(meter.count): \(meter.sorted()).
+            """)
     }
 
     func testTheAutomationRewriteIsTreatedAsHot() throws {
@@ -367,7 +442,7 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
     }
 
     func testTheMenuHostBuildsNoViewFromAHotEngineReadout() throws {
-        let receiver = try XCTUnwrap(environmentReceiver(for: "AudioEngine", in: Self.host), """
+        let receiver = try XCTUnwrap(environmentReceiver(for: "AudioEngine", of: "EchoelStudioView", in: Self.host), """
             `EchoelStudioView` no longer declares `@Environment(AudioEngine.self)`. The scan \
             below anchors on that binding's NAME, so without it the claim would pass by having \
             nothing to look for. Either the binding moved and this guard follows it, or the \
@@ -392,14 +467,16 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
             only when the camera is on. The repair is the same and is already written down \
             twice in `MasterLoudnessGrid.swift`: give the read its own small leaf `View`.
             """)
-        XCTAssertGreaterThan(members, 20, """
-            ANCHOR ASSERTION — same mode as the bio scan: if the member needles stop matching, \
-            the loop runs zero times and the negative claim is green for looking at nothing.
+        XCTAssertTrue(members.contains { $0.contains("var body") }, """
+            ANCHOR ASSERTION: `EchoelStudioView.body` must still be among the members the
+            scan walked. A count floor stood here and was red on the documented repair
+            (extracting reads into leaf structs removes members) — #364 in the guard that
+            teaches it. Scanned \(members.count) members.
             """)
     }
 
     func testTheLoudnessLeafStillReadsTheMeter() throws {
-        let receiver = try XCTUnwrap(environmentReceiver(for: "AudioEngine", in: Self.loudnessLeaf))
+        let receiver = try XCTUnwrap(environmentReceiver(for: "AudioEngine", of: "MasterLoudnessGrid", in: Self.loudnessLeaf))
         let hot = try audioEngineHotProperties()
         let text = SourceText.codeOnly(try read(Self.loudnessLeaf))
         let found = hot.sorted().filter { text.contains("\(receiver).\($0)") }
@@ -430,10 +507,9 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
             would rebuild literally every surface. Passing the object on with `.environment(...)` \
             is NOT such a read and stays green — that is the correct pattern, not a violation.
             """)
-        XCTAssertGreaterThan(members, 0, """
-            ANCHOR ASSERTION: `EchoelmusicApp` had one view-building member (`mainContent`) when \
-            this was written. Zero means the needle stopped matching and the claim above looked \
-            at nothing.
+        XCTAssertTrue(members.contains { $0.contains("var body") }, """
+            ANCHOR ASSERTION: `EchoelmusicApp.body` (a `some Scene`) must still be among
+            the scanned members. It is the OUTERMOST body in the app. Scanned: \(members).
             """)
     }
 
@@ -452,7 +528,8 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
             which is why this is a real risk rather than a theoretical one: the name is already \
             in scope and in habitual use one line away from a view builder.
             """)
-        XCTAssertGreaterThan(members, 0, "no view-building member found in EchoelmusicApp")
+        XCTAssertTrue(members.contains { $0.contains("var body") },
+                      "EchoelmusicApp.body is no longer among the scanned members: \(members)")
     }
 
     // MARK: - Derivation
@@ -608,6 +685,10 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
         }
         var names: Set<String> = []
         for line in lines[lo..<hi] {
+            // ⚠️ LIMIT: the FIRST `self.` on the line only. `if self.x { self.hot = v }`, or
+            // two assignments separated by `;`, drops a producer silently. No such line
+            // exists in this closure today; stated because the failure direction is a
+            // quiet omission from the hot set, not a loud one.
             guard let range = line.range(of: "self.") else { continue }
             let rest = line[range.upperBound...]
             let name = String(rest.prefix { isWordChar($0) })
@@ -673,10 +754,22 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
     }
 
     /// The local name a view gives an `@Environment(<Type>.self)` binding — the spelling the
-    /// scan anchors on. Derived from the file itself, so a rename moves the guard with it
-    /// instead of silently emptying its needle.
-    private func environmentReceiver(for type: String, in path: String) throws -> String? {
-        let text = SourceText.codeOnly(try read(path))
+    /// scan anchors on. Derived from the source, so a rename moves the guard with it instead of
+    /// silently emptying its needle.
+    ///
+    /// ⛔ SCOPED TO `owner`'s SPAN, AND THE FIRST VERSION WAS NOT — a review drove the hole.
+    /// `EchoelStudioView.swift` declares this binding TWICE: once in the host at line 71 and
+    /// once in a small leaf lower down. A file-wide search meant that deleting the HOST's
+    /// binding still returned "audioEngine", from the leaf — the unwrap succeeded, the
+    /// "still used in this file" check succeeded too (the name is used elsewhere in the file),
+    /// and the scan then ran with a receiver the scanned type no longer has. Green for a
+    /// reason other than the one its message states: #367 in its named form.
+    private func environmentReceiver(for type: String, of owner: String,
+                                     in path: String) throws -> String? {
+        let lines = SourceText.codeOnly(try read(path))
+            .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+        guard let (lo, hi) = span(of: "struct \(owner):", in: lines) else { return nil }
+        let text = lines[lo..<hi].joined(separator: "\n")
         guard let range = text.range(of: "@Environment(\(type).self)") else { return nil }
         var rest = text[range.upperBound...]
         guard let varRange = rest.range(of: "var ") else { return nil }
@@ -699,10 +792,22 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
     /// only the FIRST one found. A second producer exists and is six times hotter; see
     /// `audioEngineHotProperties()`. The algorithm is deliberately NOT duplicated into a
     /// sibling file — it has been wrong seven times, and a copy would inherit every one.
-    @discardableResult
+    ///
+    /// ⛔ #919b MADE IT RETURN THE MEMBER DECLARATIONS, NOT A COUNT. Every caller then asserted a
+    /// MAGNITUDE (`> 20`, `> 0`), and a magnitude is red on the DOCUMENTED REPAIR: extracting
+    /// reads into their own small leaf `View` structs — the very fix this file teaches — removes
+    /// members from the scanned type. `EchoelmusicApp` was worse: one member, so `> 0` reddened
+    /// if `mainContent` were inlined. #364 in the guard that teaches the repair. The anchor is
+    /// now "the scan still found `body`", which survives both refactors and still fails loudly
+    /// if the needles stop matching.
+    ///
+    /// ⛔ AND `: some Scene {` WAS NOT A NEEDLE. `EchoelmusicApp.body` is a Scene, and it is the
+    /// OUTERMOST body in the app — the file whose whole thesis is "the read was one level up"
+    /// scanned the child and skipped the parent that wraps it. Measured clean today; it was a
+    /// gap, not a defect, and it is one needle.
     private func assertNoHotRead(in path: String, of type: String,
                                  receiver: String, hot: Set<String>,
-                                 why: String) throws -> Int {
+                                 why: String) throws -> [String] {
         let lines = SourceText.codeOnly(try read(path))
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
 
@@ -717,15 +822,15 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
         }
         guard !spans.isEmpty else {
             XCTFail("`struct \(type):` is gone from \(path) — move this guard with it")
-            return 0
+            return []
         }
 
         var offences: [String] = []
-        var members = 0
+        var members: [String] = []
         for (lo, hi) in spans {
             for index in lo..<hi where lines[index].contains(": some View {")
-                                       || lines[index].contains("-> some View {") {
-                members += 1
+                                       || lines[index].contains("-> some View {")
+                                       || lines[index].contains(": some Scene {") {
                 // ⛔ WALK BACK TO THE DECLARATION LINE. A multi-line signature puts
                 // `) -> some View {` on a CONTINUATION line, indented deeper than its `func`;
                 // brace-matching from there ran past the member's end and swallowed unrelated
@@ -740,6 +845,7 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
                 // The declaration line is part of the member: a one-line
                 // `var x: some View { Text("\(cameraRPPG.waveform.count)") }` keeps its whole
                 // body there, and an extraction that starts AFTER it was a second false green.
+                members.append(lines[start].trimmingCharacters(in: .whitespaces))
                 let member = lines[start] + "\n" + memberBody(in: lines, from: start)
                 for name in hot.sorted() where member.contains("\(receiver).\(name)") {
                     offences.append("line \(index + 1): \(lines[index].trimmingCharacters(in: .whitespaces)) reads \(receiver).\(name)")

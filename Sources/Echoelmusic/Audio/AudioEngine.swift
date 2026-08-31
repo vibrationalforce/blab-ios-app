@@ -65,6 +65,15 @@ public final class AudioEngine {
     // behaviour of every build that shipped. Same commit, because they go stale together:
     // `scripts/doorless-state.py` listed this name in its known-positive CONTROL, and
     // `VoiceCaptureController`'s header used its dormancy as a premise (#456).
+    // ⚠️ 60 Hz CHURN — READ THESE ONLY INSIDE A SMALL LEAF `View`. `startMeterPollTimer`
+    // rewrites this and every `masterOutput*` readout below sixty times a second. A read during
+    // BODY EVALUATION registers that whole body as an observer, and the next tick tears down any
+    // open `.menu` Picker — the "menus freeze while playing" report. `AnyView` is not an
+    // observation boundary. The worked examples are `MasterLoudnessGrid` and `MasterVolumeField`;
+    // the latter exists as its own 8-line struct for exactly this reason.
+    // The law was written only at the CONSUMERS, which never reaches the session that adds a
+    // NEW reader (#496). Guard: `Tests/CISmoke/TheMenuHostReadsNoHotStateTests.swift`, which
+    // DERIVES this set from the timer closure — so a readout added here joins it automatically.
     var masterLevel: Float = 0.0
     var masterLevelR: Float = 0.0
 

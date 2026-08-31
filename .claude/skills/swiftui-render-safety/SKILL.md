@@ -34,6 +34,17 @@ This skill exists so a fresh session gets the exact rule instead of re-breaking 
       `.menu` Picker popover (the freeze; worse while playing). Confine the read to
       its OWN small leaf `View` struct (`BioStripView`, `PulseMonitorMiniLive`,
       `PulseMeasurementView`) so only that leaf churns.
+- [ ] **The camera is NOT the only hot producer — there are three.** (1) `CameraRPPGBioPublisher`
+      at ~10 Hz. (2) **`AudioEngine`'s 60 Hz meter poll timer** (`masterLevel`, `masterLevelR`,
+      `masterPeakDb`, `masterLUFS`, the R128 readouts, `masterOutputLRA`) — SIX TIMES hotter, and
+      it churns whenever AUDIO is running, not only when the camera is on. (3) **`masterVolume`**,
+      rewritten by `AutomationPlayer.applyStep` on every transport step. The `masterVolume` case
+      already happened once: read inline in `masterPanel`, it tore down the Tonart/Genre Picker,
+      and `MasterVolumeField` exists as its own 8-line struct as the repair. Same law for all
+      three: read them in a leaf, never in an ancestor body.
+      Guard: `Tests/CISmoke/TheMenuHostReadsNoHotStateTests.swift` (it DERIVES the hot sets, so a
+      new readout joins them automatically) — it scans four ancestors: `EchoelmusicApp`,
+      `WorkspaceView`, `SurfaceHost`, `EchoelStudioView`.
 - [ ] **Never `Task { @MainActor }` per frame from a 30 fps source** → the flood of
       tiny main-actor task submissions starves the SwiftUI executor and freezes open
       menus while bio runs. Batch into the EXISTING low-rate (10 Hz) main-actor poll
@@ -44,6 +55,8 @@ This skill exists so a fresh session gets the exact rule instead of re-breaking 
 
 - **Black screen / alternating Safe-Mode**, nothing renders → metadata limit →
   consolidate the `.sheet` chain (do NOT add more).
+- **Picker/menu freezes while PLAYING but not while biofeedback runs** → it is the other
+  producer: a 60 Hz meter readout or `masterVolume` read in an ancestor body, not the camera.
 - **Picker/menu freezes ONLY while biofeedback runs** (not a crash) → a 10 Hz read
   leaked into an ancestor body → AUDIT THE PARENT/ROOT (`WorkspaceView`, any header
   reading live bio), not just the obvious view. Every prior audit that scoped only

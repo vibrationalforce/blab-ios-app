@@ -18474,3 +18474,50 @@ ein abschließendes `analyzer.`. Danach: **alle 29 Behauptungen grün, heiße Me
 **Benotung dieses Zyklus daher: 1 REGRESSION** (rot auf dem Elternbaum aus dem Grund, den ihr Name
 nennt), 0 FORWARD, 0 Anker-Abwesenheit, Rest Gegengewichte. Der Wächter war achtmal falsch; **die
 achte ist die erste, die ROT auf korrektem Code war und so ausgeliefert wurde.**
+
+### #919b — vier weitere Defekte, und alle vier kamen vom ZWEITEN LESER
+
+Der `ui-state-reviewer` hat Befund 8 (den roten Wächter) **unabhängig aus eigener
+Transkription reproduziert** — das ist der einzige Grund, warum ich einem von uns beiden dabei
+traue. Dazu fand er vier Dinge, die ich nicht hatte:
+
+- **9. FALSCHES GRÜN:** `environmentReceiver` durchsuchte die GANZE Datei.
+  `EchoelStudioView.swift` deklariert die Bindung ZWEIMAL (Wirt Zeile 71, ein Blatt weiter
+  unten). Löscht man die des WIRTS, liefert die Suche den Namen des BLATTS, das `XCTUnwrap`
+  gelingt, und mein frisch eingebauter „wird im File überhaupt benutzt"-Anker geht ebenfalls
+  durch. Der Scan lief dann mit einem Empfänger, den der Typ nicht mehr hat. Jetzt typ-gescopt.
+- **10. FALSCHES GRÜN:** die Meter-Derivation hatte KEINEN Boden, die Bio-Hälfte schon.
+  Deklarationen woanders hin, und die Menge fällt still auf einen Namen zusammen.
+- **11. ROT AUF KORREKTER ARBEIT (#364):** alle Anker prüften eine GRÖSSE (`> 20`, `> 0`).
+  Genau die Reparatur, die diese Datei LEHRT — Lesevorgänge in eigene Blatt-Structs ziehen —
+  entfernt Member aus dem gescannten Typ. `EchoelmusicApp` hatte exakt einen. Anker ist jetzt
+  „der Scan hat `body` noch gefunden".
+- **12. LÜCKE:** `: some Scene {` war keine Nadel. `EchoelmusicApp.body` ist eine Scene und die
+  ÄUSSERSTE Body der App — die Datei, deren These „der Lesevorgang saß eine Ebene höher" ist,
+  scannte das Kind und übersprang den Elternteil.
+
+⭐ **DAS IST DIE LEHRE DES ZYKLUS, und sie korrigiert die von #918b.** Die lautete: „eine
+Wächter-FORM ist erst geprüft, wenn sie in BEIDE Richtungen gefahren wurde." Das stimmt und
+reicht nicht. Ich habe neun Mutanten gefahren, alle 29 Behauptungen transkribiert und das ganze
+Repo gefegt — und trotzdem ein falsches Grün, einen fehlenden Boden, ein #364-Rot und eine ganze
+Nadel übersehen. **Fahren beantwortet „verhält sich mein MODELL des Wächters?"; es kann nicht
+fragen „ist mein Modell das RICHTIGE?".** Dafür braucht es einen zweiten Leser. Beides, nicht
+eines statt des anderen.
+
+Ehrlichkeits-Befunde desselben Berichts, alle übernommen: die LIVE-`why:`-Nachricht wiederholte
+wörtlich das Gesetz, das der Kopf zurücknimmt (die Stelle, die eine Sitzung liest, WENN der
+Wächter feuert) · „die zwei … was GEPRÜFT ist, nicht angenommen" war in beiden Hälften falsch
+(es sind drei, und nichts prüft es) · die Zahlen „19 / 1" waren dateiweit unter einem
+typ-gescopten Scan (in der Spanne: 18 / 0) · „neun" stand noch zweimal, während dieselbe Datei
+die Zahl an dritter Stelle zurücknimmt · und die eine Nadel, die MESSBAR nicht treffen kann
+(`cameraRPPG.` in der App-Datei), ist jetzt in der Benotung benannt statt unter „jeder Anker ist
+gesichert" mitgezählt.
+
+**#456 vollzogen:** das Gesetz steht jetzt auch an den DEKLARATIONEN in `AudioEngine.swift`
+(vorher nur bei den Verbrauchern — die #496-Form, die den nächsten NEUEN Leser nie erreicht), in
+`.claude/skills/swiftui-render-safety/SKILL.md` (die Datei, in die eine Sitzung VOR dem Editieren
+schaut, und die nur die Kamera kannte) und am Board-Posten AU5.
+
+**Gefahren:** die vier Reparaturen als Mutanten — Wirt-Bindung entfernen ⇒ jetzt `nil` statt des
+Blatt-Namens · heißer Lesevorgang in `EchoelmusicApp.body` ⇒ jetzt rot · Member umbenennen /
+extrahieren ⇒ Anker bleibt grün. Danach alle **30** Behauptungen grün.
