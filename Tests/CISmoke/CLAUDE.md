@@ -448,6 +448,18 @@ its own known positive is not a measurement.
   but the REASON given for it at the time was wrong, and that is recorded rather than quietly
   dropped.
 
+- ⚠️ **#933d — A GREEN `Build for Testing` STILL PRINTS WARNINGS, AND ONE CLASS OF THEM IS
+  YOURS TO CLEAN UP.** The step succeeds while xcbeautify renders `⚠️` lines for expressions
+  the type-checker spent too long on (`expression took NNNms to type-check (limit: 200ms)`).
+  Measured in one window on `af7b6a6`: **15** such warnings across five files, worst 1 494 ms
+  (`TheComposerWritesPerNoteVelocityTests`), and two of them came from the guard added in that
+  same commit. They are not correctness defects and this is NOT a call to sweep the bundle —
+  the repo-wide state is recorded here so the next reader knows the 15 predate their slice.
+  **The rule is narrow: do not LEAVE a new one.** The usual cause is an anonymous `$0` closure
+  over a `Range<Int>.map` with arithmetic inside; annotating the result (`let x: [Int] = …`)
+  and naming the parameter closes the inference and removes it. Re-derive from any job log:
+      python3 -c "…"   # or simply grep the decoded log for 'to type-check'
+
 ⛔ **A `.md` file in THIS directory triggers both gates.** Their `paths:` filters list
 `Tests/**` — the filter matches a PATH, not a source extension — so editing this very file
 starts a full `build-for-testing` on a macOS runner. #538's commit message claimed "neither

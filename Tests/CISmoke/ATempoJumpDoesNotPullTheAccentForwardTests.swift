@@ -195,7 +195,16 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
             by the jump repair.
             """)
         guard onsets.count >= 3 else { return }
-        let spacings = (1..<onsets.count).map { onsets[$0] - onsets[$0 - 1] }
+        // ⚠️ #933d — TYPED AND NAMED, because the anonymous `$0` form made the compiler
+        // spend 522 ms type-checking this one expression and 556 ms on the whole method
+        // (limit 200 ms), which `Build for Testing` reported as a warning on the very
+        // commit that added the file. `Range<Int>.map` with two subscripts and a
+        // subtraction leaves the element type open until the end; stating `[Int]` and
+        // naming the index closes it up front. Not a correctness fix — a warning I
+        // introduced and can remove in one line.
+        let spacings: [Int] = (1..<onsets.count).map { index -> Int in
+            onsets[index] - onsets[index - 1]
+        }
 
         // ⭐ THE FIRST GAP IS WHAT DISTINGUISHES FOLDING FROM ZEROING, and until #933b this
         // claim threw it away. The counter had already passed the shorter new beat, so the
