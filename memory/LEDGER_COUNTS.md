@@ -6181,11 +6181,20 @@ Vorfall.
 
 ## M — `Core/VisualModulation`: ein Kern ohne Aufrufer, den das Register nie nannte (#921)
 
-**Stand 2026-08-31, code-only gemessen.** `git grep "VisualModRoute(" -- Sources` → **0** ·
+**Stand 2026-08-31.** `git grep "VisualModRoute(" -- Sources` → **0** ·
 `git grep "VisualModulation.apply" -- Sources` → **0**. Die einzigen zwei Erwähnungen unter
-`Sources/` sind KOMMENTARE in `Core/EngineBus.swift`, und einer sagt es wörtlich: *„that core
-has no caller yet — it is a guard for when the visual path is wired, not a fix anyone has
-seen."*
+`Sources/` **außerhalb der eigenen Datei** sind KOMMENTARE in `Core/EngineBus.swift`, und einer
+sagt es wörtlich: *„that core has no caller yet — it is a guard for when the visual path is
+wired, not a fix anyone has seen."*
+
+⚠️ **Zwei Präzisierungen, beide vom Pflicht-Reviewer, beide in der Familie #856/#867.**
+(a) „außerhalb der eigenen Datei" ist keine Füllung: ohne sie ist der Satz FALSCH, denn
+`git grep VisualModulation -- Sources` liefert VIER Zeilen und eine davon ist die Deklaration
+`public enum VisualModulation`. (b) Die erste Fassung nannte das Rezept oben „code-only
+gemessen" — `git grep` zählt aber Kommentare mit; der WÄCHTER benutzt `SourceText.codeOnly`.
+Heute stimmen beide überein, und sie hören in dem Moment auf übereinzustimmen, in dem jemand
+`VisualModRoute(` in Prosa schreibt: das Rezept druckt dann 1, der Wächter bleibt grün, und ein
+Leser liest einen Widerspruch. Das ist die `EchoelModalBank`-Alterung wörtlich.
 
 **Der Defekt war das REGISTER, nicht der Code.** CLAUDE.mds Liste der „genuinely app-unwired
 pure cores remaining" nannte BioModulation, CloudSync und `Core/BioSpaceMap` — diesen nicht.
@@ -6197,14 +6206,22 @@ sagt korrekt **`BioVisualParams` ist verdrahtet**. Wer nach „ist bio→visual 
 liest also „ja" — und hält plausibel DIESEN Kern für den Mechanismus. Zwei Mechanismen, einer
 verdrahtet, einer nicht, und nur einer benannt.
 
-**Nicht löschen.** Der Kern trägt (a) das `isMeasured`-Tor in genau der Form, die der
-Visual-Pfad brauchen wird, und (b) eine dokumentierte Überraschung, die sonst neu entdeckt
-werden müsste: *skipping is not QUITE identity* — `touched` bleibt false, und `combine` ist bei
-Offset 0 kein No-op (`.hue` wickelt, der Rest klemmt).
+**Nicht löschen, und die Begründung steht EINMAL** — im Wächter
+(`TheVisualModulationCoreHasNoCallerTests`), nicht hier: das `isMeasured`-Tor in der Form, die
+der Visual-Pfad brauchen wird, die dokumentierte Nicht-Identität eines übersprungenen Routes,
+und die #920c-Interleaving-Auflage für eine spätere Verdrahtung. ⛔ Die erste Fassung dieses
+Abschnitts schrieb alle drei Absätze aus, wortgleich zum Wächter-Kopf plus eine dritte
+Kurzfassung in `decisions.csv` — #416, begangen von der Scheibe, deren Thema Register-Hygiene
+ist. Die Hausregel ist: **Provenienz hierher, GESETZ in den Wächter.**
 
-⭐ **Was eine Verdrahtungs-Scheibe zusätzlich entscheiden muss, und es ist die #920c-Lehre auf
-diesem Pfad:** `bus.latestBio` VERSCHRÄNKT (HealthKit wird von `stopBioSource()` nie gestoppt
-und veröffentlicht `coherence: 0`). Ein Per-Frame-Skip schnappt das Ziel also alle paar Sekunden
-auf `base` zurück. `Tools/FXBioModulator` hat dafür ein Halten-und-Faden (`FXRouteFade`); dieser
-Kern hat keins. Eine Verdrahtung ohne Halten liefert ein sichtbares Flackern.
-⚠️ Ob das Flackern auf einer Fläche wirklich auffiele, ist NICHT gemessen — es gibt keine Fläche.
+⛔ **Was der Pflicht-Reviewer AUSSERDEM fand, und es betraf die Reparatur selbst.** (1) Der
+Lösch-Gegengewicht des Wächters ging nicht rot, sondern SKIPPTE: `rawText` wirft `XCTSkip`, wenn
+die Datei fehlt, also passierte ein Baum, der den Kern löscht, die ganze Suite — während der
+Kopf Löschung als einen der drei gefangenen Fälle nannte. „Ein Skip ist kein Pass" (#806) stand
+längst in `.claude/rules/context.md` §4. Jetzt prüft eine ASSERTION die Existenz, bevor der
+Skip-Pfad sie schlucken kann; als Mutant gefahren. (2) Die Fehlermeldung des ersten Anspruchs
+beschrieb den Baum VOR dem eigenen Commit („derzeit nicht in der unverdrahteten Liste") —
+#818 in seiner direktesten Form. (3) Die Register-Zeile in `CLAUDE.md` war selbst UNGEWACHT;
+ein POSITIVER Pin ist jetzt drin (negativ wäre #491, positiv nicht). (4) Und die Einfügung hatte
+den Klammerzusatz von `BioSpaceMap` an `VisualModulation` umgehängt, wo er falsch ist — §K
+wörtlich, in der Scheibe, die §K zitiert.
