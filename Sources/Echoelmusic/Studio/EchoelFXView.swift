@@ -632,10 +632,14 @@ struct EchoelFXView: View {
     // surface, same cause — so a body this wide is a hazard and not only a slow build.
     // `body` now has NINE children and no group holds more than six.
     //
-    // ⚠️ WHAT IS MEASURED AND WHAT IS NOT (#936b). Measured: the 1827 ms and the 21 children.
-    // INFERRED: that the pack is the cause. NOT MEASURED AT ALL: that the warning goes away —
-    // there is no local compiler. The next CI run closes it, and it is one command, not a guess:
-    // `python3 scripts/gh-test-verdict.py` prints the warning list (#933e).
+    // ⭐ AND IT IS NOW MEASURED (#937, one cycle later, with the command that stood here):
+    // run 33435871548 reports this body at **376 ms**, down from 1827 ms — a 79 % fall, and the
+    // file drops from worst offender to sixth in the same list. The inference held.
+    // ⚠️ WHAT WAS MEASURED AND WHAT WAS NOT, kept because the shape of the claim matters more
+    // than the outcome: measured were the 1827 ms and the 21 children; INFERRED was that the
+    // variadic pack causes it; and the fall above is a CORRELATION on one run, not a controlled
+    // experiment. Re-check with `python3 scripts/gh-test-verdict.py`, which prints the warning
+    // list (#933e) — that is one command, not a guess.
     //
     // ⚠️ THIS IS NOT AN OBSERVATION BOUNDARY. `vm.delayMode`, `harmonyFollower.enabled` and the
     // rest are still read while `body` evaluates — a computed property is no more a boundary

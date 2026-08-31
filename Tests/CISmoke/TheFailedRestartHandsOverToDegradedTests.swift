@@ -77,7 +77,27 @@ final class TheFailedRestartHandsOverToDegradedTests: XCTestCase {
 
     func testTheMonitorRollbackRestartsOrDegrades() throws {
         let code = try source(Self.engine)
-        let anchor = "Input monitoring: engine restart failed"
+        // ⛔ #937 — THIS ANCHOR WAS DEAD FOR ELEVEN DAYS AND THIS TEST WAS RED ON A CORRECT
+        // TREE THE WHOLE TIME. It read `"Input monitoring: engine restart failed"`. #650
+        // (`3a54a08`, 2026-08-20) routed every monitoring outcome through `logMonitorOutcome`,
+        // which OWNS the `"Input monitoring: "` prefix and prepends it, so the call site now
+        // reads `logMonitorOutcome("engine restart failed (\(error))")` and the old literal
+        // matches nothing. The BEHAVIOUR was never touched: `restartOrDegrade(after: "input
+        // monitoring rollback")` still sits after the disconnects and before `return false`,
+        // and claim 3's count of five call sites still holds.
+        //
+        // ⛔ AND THIS IS THE SECOND INSTANCE OF ONE EVENT. #655/#656 found the identical break
+        // in `TheNotchIsSlewedAndMonitorOnlyTests`, re-anchored it, wrote the lesson into
+        // `Tests/CISmoke/CLAUDE.md` and built `scripts/dead-needles.py` to catch the next one.
+        // The fix went into ONE home; the same #650 broke TWO guards, and nobody grepped for
+        // the second (#456 — prose and repairs move in EVERY home, not the one you are looking
+        // at). ⚠️ `dead-needles.py` could not see this one either: its `XCTUnwrap` shape wants
+        // an INLINE literal, and this needle was bound to a local `let` first. #937 taught it
+        // to follow that binding — the instrument's blind spot is why eleven days passed.
+        //
+        // Anchored on the part that survived BOTH wordings, with uniqueness asserted rather
+        // than assumed (#408): `grep -c "engine restart failed" AudioEngine.swift` = 1.
+        let anchor = "engine restart failed"
         let start = try XCTUnwrap(code.range(of: anchor), "the monitor rollback catch lost its log anchor — re-anchor this scan").lowerBound
         let rest = String(code[start...])
         let ret = try XCTUnwrap(rest.range(of: "return false"), "the monitor rollback no longer returns false — re-judge this scan")

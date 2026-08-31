@@ -132,6 +132,27 @@ import re
 import sys
 
 UNWRAP = re.compile(r'XCTUnwrap\([^)]*?range\(of:\s*"((?:[^"\\]|\\.)+)"')
+
+# ⭐ #937 — SHAPE 1 WANTED AN INLINE LITERAL, AND THE SECOND INSTANCE OF THE VERY DEFECT THIS
+# SCRIPT WAS WRITTEN FOR HID BEHIND THAT. #650 renamed a logged string; #655/#656 found ONE
+# guard broken by it, re-anchored that guard, wrote the lesson into `Tests/CISmoke/CLAUDE.md`
+# and built this file. The SAME rename had broken a SECOND guard,
+# `TheFailedRestartHandsOverToDegradedTests`, which spelled its needle as
+#     let anchor = "Input monitoring: engine restart failed"
+#     let start = try XCTUnwrap(code.range(of: anchor), …)
+# One `let` of indirection, and this scan saw nothing. It stayed red on a correct tree for
+# ELEVEN DAYS, invisible because #396 makes CI/CD report `failure` on every push.
+#
+# ⚠️ RESOLUTION IS PER FUNCTION, NOT PER FILE — the #666 lesson, which this file already paid
+# for once in shape 3: file scope let one binding vouch for a same-named binding in a sibling
+# test and produced seven false alarms on the next commit.
+#
+# ⚠️ AN UNRESOLVABLE NAME IS SKIPPED, NOT REPORTED. `let anchor = someHelper()` is ordinary and
+# not a defect, and a checker with false alarms is a checker nobody reads (#665's own argument).
+# So this closes the literal-behind-a-`let` hole and nothing wider; a needle assembled by
+# interpolation or returned by a call is still invisible here, deliberately.
+UNWRAP_VAR = re.compile(r'XCTUnwrap\([^)]*?range\(of:\s*([A-Za-z_]\w*)\s*[,)]')
+LOCAL_BIND = re.compile(r'\blet\s+(\w+)\s*=\s*"((?:[^"\\]|\\.)+)"\s*$', re.MULTILINE)
 POSITIVE_COUNT = re.compile(
     r'XCTAssert(?:Equal|GreaterThanOrEqual|GreaterThan)\(\s*(?:Self\.)?'
     r'(?:codeOccurrences|count)\(of:\s*"((?:[^"\\]|\\.)+)"[^)]*\)[^,]*,\s*([1-9]\d*)')
@@ -149,6 +170,28 @@ POSITIVE_CONTAINS = re.compile(
     r'XCTAssertTrue\(\s*(?:try )?([A-Za-z_]\w*)\.contains\(\s*"((?:[^"\\]|\\.)+)"\s*\)')
 
 MIN_NEEDLE = 8   # shorter literals are punctuation or fragments, not anchors
+
+
+def decode_needle(literal):
+    """The Swift literal's VALUE, or None when it carries an escape this scan cannot decode.
+
+    ⛔ #937 — WRITTEN AFTER MY OWN NEW SHAPE PRODUCED A FALSE ALARM ON ITS FIRST RUN.
+    `CopyNamesTheLiveControlTests` binds `let door = "\n            quickDoorRow\n"`; the old
+    two-`replace` decode left the backslash-n as two characters, which of course is not in
+    `Sources/`, and the tool reported a correct guard as dead. That is the exact failure #665
+    argued against — a checker with false alarms is a checker nobody reads.
+
+    Returning None (skip) rather than decoding `\n` is deliberate and coarse in the SAFE
+    direction, the #666 rule this file already follows: a needle with real newlines would have
+    to match the source's exact indentation, so a decoded comparison is as likely to be wrong as
+    right, and being silently wrong is worse than being silently absent.
+
+    Shape 1 shares this decode on purpose. It had the identical latent hazard and had simply
+    never met such a needle; leaving one path fixed and its twin broken is how #937 happened in
+    the first place (#456 — the repair goes in EVERY home).
+    """
+    value = literal.replace('\\"', '"').replace("\\\\", "\\")
+    return None if "\\" in value else value
 
 # Shape 4 (#776). The capture keeps the backslash run so an ESCAPED interpolation — a needle
 # searching production text for the literal `\(Self.x)` — can be told from a real one.
@@ -284,8 +327,8 @@ def main(root="."):
         with open(guard, encoding="utf-8") as handle:
             src = handle.read()
         for match in list(UNWRAP.finditer(src)) + list(POSITIVE_COUNT.finditer(src)):
-            needle = match.group(1).replace('\\"', '"').replace("\\\\", "\\")
-            if len(needle) < MIN_NEEDLE:
+            needle = decode_needle(match.group(1))
+            if needle is None or len(needle) < MIN_NEEDLE:
                 continue
             if needle not in corpus:
                 line = src[:match.start()].count("\n") + 1
@@ -328,6 +371,26 @@ def main(root="."):
             entry = (os.path.relpath(guard, root), line, name)
             if entry not in uncompilable:
                 uncompilable.append(entry)
+
+        # Shape 1b (#937): the needle is bound to a local `let` and handed to `range(of:)` by
+        # name. Same per-function scope as shape 3, same comment-stripping — a ⛔ block quoting
+        # a retracted needle must not be read as a live binding (#753).
+        for chunk in re.split(r"\n    (?=(?:private |public |internal )?(?:static )?func )",
+                              strip_comments(src)):
+            bindings = {m.group(1): m.group(2) for m in LOCAL_BIND.finditer(chunk)}
+            if not bindings:
+                continue
+            for match in UNWRAP_VAR.finditer(chunk):
+                needle = bindings.get(match.group(1))
+                if needle is None:
+                    continue                      # computed or out of scope — see the note above
+                needle = decode_needle(needle)
+                if needle is None or len(needle) < MIN_NEEDLE:
+                    continue
+                if needle not in corpus:
+                    offset = strip_comments(src).find(chunk)
+                    line = strip_comments(src)[:offset + match.start()].count("\n") + 1
+                    dead.append((os.path.relpath(guard, root), line, needle))
 
         # Shape 3 (#665). Comments are stripped FIRST here: this repo's guards quote their own
         # retracted needles in ⛔ blocks, and a scan that read those would report a finding

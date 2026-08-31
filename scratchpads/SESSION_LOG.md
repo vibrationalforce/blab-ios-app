@@ -3,6 +3,42 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #937: ein ECHTES rotes Gate, elf Tage alt, hinter dem Blindfleck des eigenen Werkzeugs
+
+**Das neue Werkzeug hat sofort geliefert.** Der Verdikt-Leser meldete auf `cf03a69` nicht nur
+den erwarteten #396-Marker, sondern **`TEST FAILURES: 1`** —
+`TheFailedRestartHandsOverToDegradedTests.testTheMonitorRollbackRestartsOrDegrades()`.
+
+**Befund:** #650 (`3a54a08`, **2026-08-20**) hat jede Monitoring-Meldung durch
+`logMonitorOutcome` geleitet, das den Präfix `"Input monitoring: "` selbst besitzt. Das
+Volltext-Literal des Wächters traf seither nichts; `XCTUnwrap` auf nil ist ein FEHLER.
+**Das Verhalten war nie angetastet** — `restartOrDegrade(after: "input monitoring rollback")`
+sitzt weiter nach den Trennungen und vor `return false`.
+
+⛔ **Und es ist die ZWEITE Instanz EINES Ereignisses.** #655/#656 fanden denselben Bruch in
+`TheNotchIsSlewedAndMonitorOnlyTests`, reparierten ihn, schrieben die Lehre in
+`Tests/CISmoke/CLAUDE.md` und bauten `scripts/dead-needles.py` gegen den nächsten Fall. Die
+Reparatur ging in EIN Zuhause; dieselbe Umbenennung hatte ZWEI Wächter gebrochen.
+
+⚠️ **Und das Werkzeug konnte den zweiten nicht sehen.** Seine `XCTUnwrap`-Form verlangte ein
+INLINE-Literal — der zweite Wächter band die Nadel vorher an ein lokales `let`. **Ein Prüfer,
+der die zweite Instanz genau des Defekts verfehlt, für den er geschrieben wurde, ist die
+teuerste Sorte**, weil sein grüner Lauf danach als Beleg gilt. Form nachgezogen (Auflösung PRO
+FUNKTION nach #666; ein berechneter Name wird übersprungen, nicht gemeldet, nach #665).
+
+⛔ **Die eigene erste Fassung erzeugte prompt einen Fehlalarm**: `CopyNamesTheLiveControlTests`
+bindet `let door = "\n            quickDoorRow\n"`, und die alte Zwei-Replace-Dekodierung ließ
+`\n` als zwei Zeichen stehen. Beide Formen teilen jetzt EINEN Dekoder, der bei nicht
+dekodierbaren Escapes überspringt — „eine Form repariert, ihre Zwillingsform kaputt" ist genau
+der Weg, auf dem #937 entstand.
+
+**End-to-end bewiesen** an einem Miniatur-Baum im Scratchpad: toter `let`-Anker gemeldet (Exit
+1, richtige Zeile), lebender nicht gemeldet, berechneter übersprungen.
+
+⭐ **Nebenbei geschlossen: #936 ist gemessen.** `EchoelFXView.swift:500` fiel von **1827 ms auf
+376 ms** (−79 %). Der Kommentar dort sagte „NICHT gemessen: dass die Warnung verschwindet" — sie
+ist jetzt gemessen, mit demselben Befehl, der danebenstand.
+
 ## 2026-08-31 — #936/#936b: ein `body` mit 21 Kindern, und ein Wächter, der sein eigenes Gesetz nicht sah
 
 **#936** hat die fünfzehn `effectSection`-Aufrufe aus `EchoelFXView.body` in drei

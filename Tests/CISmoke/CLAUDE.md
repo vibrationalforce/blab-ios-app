@@ -184,6 +184,23 @@ anchored on the old full literal then matched nothing, `XCTUnwrap` on nil failed
 mine". Nothing caught it because §5 is true: the pipeline reports `failure` on every push, so
 a genuinely red guard is indistinguishable from the host dying.
 
+⛔ **UND #650 HATTE ZWEI WÄCHTER GEBROCHEN, NICHT EINEN — der zweite lag noch ELF TAGE rot
+(#937).** #655/#656 fanden `TheNotchIsSlewedAndMonitorOnlyTests`, reparierten ihn, schrieben
+diesen Absatz und bauten `dead-needles.py`. `TheFailedRestartHandsOverToDegradedTests` war
+DIESELBE Umbenennung und blieb liegen. **Die Lehre ist nicht „umankern" — sie steht schon oben.
+Sie ist: eine Reparatur geht in JEDES Zuhause (#456), also grept man nach dem alten Literal
+über das GANZE blockierende Bundle, nicht nur über die Datei, die gerade rot war.**
+
+⚠️ **Und das Werkzeug konnte den zweiten nicht sehen.** Seine `XCTUnwrap`-Form verlangte ein
+INLINE-Literal, der zweite Wächter band seine Nadel vorher an ein lokales `let` — ein einziger
+Zwischenschritt. **Ein Prüfer, der die zweite Instanz genau des Defekts verfehlt, für den er
+geschrieben wurde, ist die teuerste Sorte**, weil sein grüner Lauf danach als Beleg gilt. #937
+hat die Form nachgezogen (Auflösung PRO FUNKTION, #666; ein berechneter Name wird
+übersprungen, nicht gemeldet, #665) und dabei einen Fehlalarm der eigenen ersten Fassung
+gefangen: `\n` blieb undekodiert, also meldete sie einen korrekten Wächter als tot. Nadeln mit
+nicht dekodierbaren Escapes werden jetzt übersprungen — beide Formen teilen denselben Dekoder,
+weil „eine Form repariert, ihre Zwillingsform kaputt" genau der Weg ist, auf dem #937 entstand.
+
 ```
 python3 scripts/dead-needles.py        # 0 = clean · 1 = a guard fails on a correct tree
 ```
