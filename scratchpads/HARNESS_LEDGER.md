@@ -2993,3 +2993,40 @@ an einem hinzugefügten Argument rot geworden — Klammern weg (M7 belegt es) ·
 diesen EINEN Read" ist falsch, drei der vier kalten Eigenschaften werden an ZWEI Stellen
 gelesen · und die Ableitung behauptete, ein zweites Relais „müsse von selbst eintreten" —
 das gilt nur unter drei Bedingungen, die jetzt danebenstehen.
+
+---
+
+## REGISTER #929 (2026-08-31) — derselbe Abdeckungs-Riss stand im ÄLTEREN Scan, und er stand als Nebensatz da
+
+**Der Befund.** #928bs Prüfer schrieb einen Halbsatz: *„The engine half has no such claim and
+could take one."* Nachgemessen ist das kein Nachtrag, sondern **dasselbe Loch in einem Scan,
+der es LÄNGER hatte**. Die Bio-Menge wird über alle VIER Vorfahren gescannt; Engine- und
+Metronom-Menge über ZWEI. Für beide ruhte das auf einer PRÄMISSE — dass `WorkspaceView` und
+`SurfaceHost` den Typ gar nicht referenzieren —, die im Kopf der Datei zwar sauber
+aufgeschrieben, aber von nichts geprüft war. Gemessen stimmt sie: null `AudioEngine`-Treffer in
+beiden, während **neun** andere Dateien unter `Sources/` die Bindung deklarieren. Die Prämisse
+ist also wahr und zugleich jederzeit still verlierbar.
+
+⭐ **EINEN Anspruch verallgemeinern schlägt eine Beinahe-Kopie danebenstellen (#416).** Der
+naheliegende Griff war ein zweiter Test mit anderem Typnamen. Zwei fast identische Wächter sind
+die Stelle, an der zwei Wahrheiten auseinanderdriften: eine Änderung zieht in dem einen mit und
+im anderen nicht — genau der #456-Defekt, nur in Testform. Der Anspruch trägt jetzt eine
+TABELLE `(Typ, Erzeuger, Scan-Suffix)`, und die Fehlermeldung nennt pro Zeile den Erzeuger, für
+den dieser Vorfahre ungeschützt wäre, plus den Test, der dann zu schreiben ist.
+
+⚠️ **WAS NICHT IN DER TABELLE STEHT, ist der tragende Teil: `CameraRPPGBioPublisher`.**
+`WorkspaceView` MUSS ihn halten — es liest `isRunning` für Start/Stop, und
+`testTheRootStillReadsTheStartStopFlag` verlangt genau das zwanzig Zeilen weiter oben. Ihn
+mit aufzunehmen hätte erforderliche Arbeit verboten (#364) und einem Nachbar-Anspruch
+widersprochen. Die Bio-Menge braucht die Prämisse ohnehin nicht: ihr Scan deckt alle vier ab.
+Mutant M6d belegt es — der Publisher im Root bleibt GRÜN.
+
+**Gefahren:** M6a Metronom im Root → rot · M6b Engine im Root → rot (**das ist die neue
+Abdeckung**) · M6c Engine im Wrapper → rot · M6d Bio im Root → **grün**, wie es sein muss.
+Grün auf Worktree und auf `77d44cd`: PROPHYLAKTISCH (0 of 1).
+
+⭐ **DIE ÜBERTRAGBARE LEHRE, und sie ist nicht „prüf die Prämisse":** ein Prüferbefund kam als
+NEBENSATZ („could take one"), und Nebensätze werden zu Registereinträgen, die niemand mehr
+liest. Der billige Test ist, den Halbsatz sofort zu MESSEN statt ihn zu notieren — hier
+kosteten zwei `grep` eine Minute und verwandelten eine Anmerkung in einen zweiten, älteren
+Riss. **Ein Prüferfund ohne Grad ist trotzdem ein Fund.**

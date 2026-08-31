@@ -118,10 +118,15 @@
 // would be false — that was the over-broad first draft of this very line. The day one of the
 // other two gains a reference, point the same call at it; nothing else has to change.
 // The METRONOME scan (#928) covers the same two, for the same reason and with one addition:
-// `testTheTwoMiddleAncestorsStillHoldNoClick` asserts the PREMISE — that `WorkspaceView` and
-// `SurfaceHost` reference `MetronomeVoice` nowhere — so the day one of them gains the binding
-// the guard goes red and names the scan that has to be extended, instead of the gap sitting
-// there silently. The engine half has no such claim and could take one.
+// `testTheTwoMiddleAncestorsHoldNeitherNarrowProducer` asserts that PREMISE — that neither
+// middle ancestor references the type at all — so the day one of them gains the binding the
+// guard goes red and NAMES the scan that has to be extended, instead of the gap sitting there
+// silently. ⚠️ So "the day one gains a reference, point the call at it" is no longer a hope
+// you have to remember: it is a failing test that tells you.
+// ⭐ #929 GENERALISED IT: the same claim now covers `AudioEngine`, because measured, the engine
+// scan had the identical hole and had had it longer. `CameraRPPGBioPublisher` is deliberately
+// absent from that table — `WorkspaceView` must hold it (`isRunning`), and listing it would
+// forbid required work (#364). The bio scan needs no premise: it already covers all four.
 //
 // ⛔ AND THE FOURTH ANCESTOR WAS FOUND THE SAME WAY THE THIRD WAS — by asking whether the LIST
 // was complete rather than whether each entry was right. `EchoelmusicApp` sits above
@@ -673,25 +678,47 @@ final class TheMenuHostReadsNoHotStateTests: XCTestCase {
             """)
     }
 
-    func testTheTwoMiddleAncestorsStillHoldNoClick() throws {
-        // ⛔ THE COVERAGE GAP THIS CLOSES, and it took a reviewer to see it: the bio scan runs
-        // on all FOUR ancestors, this one on TWO. Two lines in `WorkspaceView` — the
-        // `@Environment` binding plus `Text("\(metronome.bpm)")` in `topBar` — leave all four
-        // claims above GREEN while reproducing the 10.76.50 shipped bug in the exact member
-        // that caused it. `.environment(metronome)` in `EchoelmusicApp` makes the binding
-        // available to every descendant, so it really is one line away.
-        // Pointing the scan at those files today would be a claim that cannot fail (#367);
-        // this asserts the PREMISE instead, so the day it stops holding the guard says which
-        // scan has to be extended.
+    func testTheTwoMiddleAncestorsHoldNeitherNarrowProducer() throws {
+        // ⛔ THE COVERAGE GAP THIS CLOSES, and it took a reviewer to see it for the click:
+        // the BIO scan runs on all FOUR ancestors, the ENGINE and METRONOME scans on TWO.
+        // Two lines in `WorkspaceView` — an `@Environment` binding plus a readout in `topBar`
+        // — leave every claim above GREEN while reproducing the 10.76.50 shipped bug in the
+        // exact member that caused it. `EchoelmusicApp` injects both objects with
+        // `.environment(…)`, so every descendant can bind one: it really is one line away.
+        //
+        // ⭐ THE ENGINE HALF WAS THE SAME GAP AND HAD STOOD LONGER (#929). #928's reviewer
+        // wrote "the engine half has no such claim and could take one" as an aside; measured,
+        // it is the identical hole in an older scan. Generalising the ONE claim beats adding a
+        // near-copy beside it (#416) — a second almost-identical test is where two truths
+        // start to drift.
+        //
+        // Pointing the scans at those files today would be a claim that cannot fail (#367);
+        // this asserts their PREMISE instead, so the day it stops holding, the guard names the
+        // scan that has to be extended rather than going quietly green over an absent needle.
+        //
+        // ⚠️ `CameraRPPGBioPublisher` IS DELIBERATELY NOT IN THIS TABLE, and leaving it out is
+        // the load-bearing part: `WorkspaceView` legitimately holds the publisher — it reads
+        // `isRunning` for start/stop, which `testTheRootStillReadsTheStartStopFlag` requires.
+        // Listing it here would forbid correct, REQUIRED work (#364) and contradict a claim
+        // twenty lines up. The bio scan needs no premise because it already covers all four.
+        let narrowlyScanned = [
+            ("MetronomeVoice", "the ~20 Hz `bpm` write", "TheClicksTempo"),
+            ("AudioEngine", "the 60 Hz meter poll and the per-step `masterVolume` write",
+             "AHotEngineReadout"),
+        ]
         for path in [Self.root, Self.wrapper] {
             let text = SourceText.codeOnly(try read(path))
-            XCTAssertFalse(text.contains("MetronomeVoice"), """
-                \(path) now references `MetronomeVoice`. That is not forbidden — but the \
-                metronome scan currently runs only on `EchoelStudioView` and `EchoelmusicApp`, \
-                so this ancestor is now UNGUARDED for the ~20 Hz `bpm` write. Add a \
-                `testTheMiddleAncestorBuildsNoViewFromTheClicksTempo` pointing \
-                `assertNoHotRead` at this file in the SAME commit, and update this list.
-                """)
+            for (type, producer, scanSuffix) in narrowlyScanned {
+                XCTAssertFalse(text.contains(type), """
+                    \(path) now references `\(type)`. That is NOT forbidden and this is not a \
+                    request to undo it — but the `\(type)` scan runs only on \
+                    `EchoelStudioView` and `EchoelmusicApp`, so this ancestor is now UNGUARDED \
+                    for \(producer), and a read here churns every surface below it.
+                    In the SAME commit: add a `testTheMiddleAncestorBuildsNoViewFrom\
+                    \(scanSuffix)` pointing `assertNoHotRead` at this file, and take this \
+                    entry out of the table.
+                    """)
+            }
         }
     }
 
