@@ -249,10 +249,13 @@ final class ATempoJumpDoesNotPullTheAccentForwardTests: XCTestCase {
 
     /// ⚠️ ONE SAMPLE OVER FROM CLAIM 1 AND THE REPAIR STOPS BEING PERFECT. At `48 000 - 2`
     /// the folded remainder is 15 999, one short of the new beat, so the very next frame fires
-    /// again: the fold leaves ONE extra click where the parent left two. Swept over every
-    /// alignment, the share of jumps with two fires inside 10 ms falls from 34.4 % to 2.0 %
-    /// (60 -> 180) and 50.7 % to 2.0 % (40 -> 160), worst case three and four fires down to
-    /// two — never worse than the parent anywhere tested, but not zero.
+    /// again: the fold leaves ONE extra click where the parent left two. Swept exhaustively
+    /// over every alignment, the share of jumps with two fires inside 10 ms falls from
+    /// 34.3 % to 2.0 % (60 -> 180), 50.7 % to 2.0 % (40 -> 160) and 90.3 % to 6.3 %
+    /// (20 -> 400); the worst case falls from three, four and TWENTY fires to two in every
+    /// case — never worse than the parent anywhere, but not zero. (⛔ #933c: 34.4 % here
+    /// came from a sweep of every seventh alignment under a sentence that said "every";
+    /// the grid belongs to the number, #448.)
     ///
     /// ⛔ IT PINS THE BOUND, NOT THE RESIDUE (#364). Asserting "the accent lands one beat
     /// early here" would make a future COMPLETE repair go red — the trap this bundle keeps

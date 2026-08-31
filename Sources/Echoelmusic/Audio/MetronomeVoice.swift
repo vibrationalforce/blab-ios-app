@@ -203,11 +203,18 @@ public final class MetronomeVoice {
                 // ⚠️ THIS BOUNDS THE DAMAGE, IT DOES NOT ELIMINATE IT (#933b, found in
                 // review). The folded remainder can land within one buffer of the next beat,
                 // so ONE extra fire survives: swept over every alignment, the share of jumps
-                // with two fires inside 10 ms falls from 34.4 % to 2.0 % (60 → 180), and from
-                // 50.7 % to 2.0 % (40 → 160), and the worst case falls from three and four
-                // fires to two. Never worse than before on any alignment tested — but a
-                // mitigation, not a cure, and the guard pins that bound rather than pretending
-                // otherwise.
+                // with two fires inside 10 ms falls from 34.3 % to 2.0 % (60 → 180), 50.7 % to
+                // 2.0 % (40 → 160) and 90.3 % to 6.3 % (20 → 400), while the worst case falls
+                // from three, four and TWENTY fires to two in every case. Never worse than
+                // before on any alignment — but a mitigation, not a cure, and the guard pins
+                // that bound rather than pretending otherwise.
+                //
+                // ⛔ #933c: the first figure read 34.4 %, taken from a sweep of every SEVENTH
+                // alignment while the sentence said "swept over every alignment". The
+                // exhaustive run says 34.3 %. One tenth of a point is not the point — the
+                // sampling grid belongs to the number (#448), and the 20 → 400 row is here
+                // because that same run produced it and it is the strongest evidence in the
+                // set: the case this repair helps most was the one left out.
                 //
                 // It is not rare, which is why it deserves the fold rather than a note:
                 // the spurious count is `floor(sampleCounter / perBeat) − 1` — the total fire
