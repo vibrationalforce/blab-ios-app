@@ -1,6 +1,9 @@
 // DiagnosticsTextScalesTests.swift
 // Echoel — the crash log the app asks you to read must obey Larger Text. #353d.
 //
+// ⛔ "the same diagnostic log" — #917 made that literally false and the pairing argument
+// survives anyway; see `testBothSitesAgreeOnTheSize`. Read "a diagnostic log" below.
+//
 // WHAT THIS GUARDS. Echoel renders the same diagnostic log in two places: `SafeModeView`, the
 // recovery screen shown when `LaunchGuard` decides the previous launch died before the studio
 // finished loading, and `EchoelStudioView.diagnosticsSheet`, reachable from "Diagnostics" in
@@ -73,7 +76,15 @@ final class DiagnosticsTextScalesTests: XCTestCase {
         assertScalingMonospace(Array(sheet), where: "EchoelStudioView.diagnosticsSheet")
     }
 
-    /// Both sites render the SAME log, so they must not disagree about its size.
+    /// Both sites render A diagnostic log, so they must not disagree about its size.
+    ///
+    /// ⛔ THIS SAID "the SAME log" AND #917 MADE IT FALSE. The recovery screen now composes
+    /// `recoveryExport()` — the previous run, plus a retained crash when that run carries no
+    /// marker — while the sheet gets `diagnosticsExport()` or the auto-surfaced text. The
+    /// ASSERTION is untouched and still right: it compares font SPELLINGS, and a user meeting
+    /// the same kind of text through two doors should not meet it at two sizes. Only the
+    /// identity claim had to go. This is the §4 shape — a guard that stays green while the
+    /// reason printed beside it stops being true.
     ///
     /// ⛔ THE POINT OF THIS TEST IS THE PAIRING, NOT EITHER SITE. Each of the two above passes on
     /// its own with any scaling monospaced style, so a future edit could leave the recovery screen
@@ -91,8 +102,9 @@ final class DiagnosticsTextScalesTests: XCTestCase {
             The recovery screen and the Diagnostics sheet render the same crash log at two \
             different sizes: \(recovery) versus \(sheet). Whichever is right, both should say it. \
             A user who reaches the log through Save & Export and a user whose app fell into Safe \
-            Mode are reading the identical string, and a size that depends on which door they came \
-            through is a bug in exactly the place the app is already apologising for one.
+            Mode are reading the same KIND of text (not, since #917, the identical string), and a \
+            size that depends on which door they came through is a bug in exactly the place the \
+            app is already apologising for one.
             """)
     }
 

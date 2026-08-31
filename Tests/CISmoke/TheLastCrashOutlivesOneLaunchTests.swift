@@ -51,27 +51,35 @@
 //     them is an acknowledgement that the COMBINED export got bigger, and that is written
 //     down at `EchoelCrashLog.lastCrashLog()`.
 //
-// ⚠️ HONEST GRADING (#433/#464) — THIS FILE DOES NOT COMPILE AGAINST THE PARENT, so NO
-// assertion here has a verdict there. That is not "green there". It names seven symbols this
-// work creates (`crashToRetain`, `shouldReplaceRetained`, `recoveryExport`,
-// `retainedCrashAtLaunch`, `retainedCrashHeader`, `retainedCrashCharacterBudget`,
-// `retainedCrashTrimMarker`) plus the two-argument `diagnosticsExport`. Hand-transcribed over
-// all 37 checks (30 `XCTAssert*` call sites + 7 `try XCTUnwrap(`, counted with
-// `grep -cE "^ +XCTAssert"` and `grep -cE "try XCTUnwrap\("`, not estimated):
-//   · REGRESSIONS: 4 — red on the parent for exactly the reason their names give. Two in
-//     `testTheRetainedCrashHasAReachableDoor` (the row called `currentLog()` there) and two in
-//     `testTheRecoveryScreenUsesTheComposedText` (the recovery screen read `previousSession`
-//     there). ⛔ An earlier draft booked one of these as a COUNTERWEIGHT; it is not — the
-//     parent contains the exact string the absence check forbids, so it fails there. Booking
-//     a regression as a counterweight is the flattering-direction defect §3 names.
-//   · ANCHOR ABSENCE: 0 as a category — the whole file is absent from the parent, which is
-//     the line above and must not be counted twice.
-//   · FORWARD guards: 32 — every pure-function check drives a symbol created here.
-//   · COUNTERWEIGHTS: 1 in principle (`capture < install` in
-//     `testTheRetentionRunsAfterTheCrashHandlersAreInstalled`, true on either tree) — but
-//     unreachable on the parent, because the `XCTUnwrap` above it throws first. Stated as it
-//     is rather than booked as a clean counterweight.
+// ⚠️ HONEST GRADING (#433/#464) — against the REAL parent, `fdca482`, which already carries
+// #916 and #916b. ⛔ THE FIRST DRAFT OF THIS BLOCK WAS GRADED AGAINST THE PRE-#916 TREE while
+// calling it "the parent", and every error ran in the flattering direction: it claimed 4
+// regressions where 2 were counterweights (the parent's Diagnostics row ALREADY calls
+// `diagnosticsExport()`), claimed "the whole file is absent from the parent" when the file
+// exists there, listed seven new symbols when five of them are the parent's, and its four
+// categories summed to 38 against a stated total of 37. §0 defines the parent as
+// `git show <parent>:<path>` — measured that way this time.
+//
+// The file still does not compile against `fdca482`: it names `recoveryExport` in code, which
+// #917 creates. So NO assertion has a verdict there. That is not "green there".
+// Hand-transcribed over all 38 checks — 33 `XCTAssert*` + 5 `XCTUnwrap` bindings, counted with
+//   grep -cE '^ +XCTAssert' <file>                     → 33
+//   grep -cE '^ +let .* = try XCTUnwrap\(' <file>       → 5
+// (both anchored at line start so they cannot match this header quoting them — ⛔ the previous
+// recipe, a bare `grep -cE "try XCTUnwrap\("`, returned 8 against a prose number of 7, i.e. an
+// executable command contradicting the sentence beside it):
+//   · REGRESSIONS: 4 — `testTheRecoveryScreenUsesTheComposedText` (2: the parent's SafeModeView
+//     reads `previousSession` raw) and `testTheAutoSurfacedSheetUsesTheSameComposition` (2: the
+//     parent's auto-surface passes `prev`). Each is red there for the reason its name gives.
+//   · ANCHOR ABSENCE: 0. The one assertion that would have been an absence — an ordering pin on
+//     `retainedCrashAtLaunch` — was DELETED in #917b, see the retraction further down.
+//   · FORWARD guards: 6 — the four `recoveryExport` behaviour methods. They drive a symbol #917
+//     creates and could never have been red.
+//   · COUNTERWEIGHTS: 27 — every `crashToRetain` / `shouldReplaceRetained` /
+//     `diagnosticsExport(current:retainedCrash:)` check, the retention-ordering method, and the
+//     two Diagnostics-row door checks. Green on both trees, and per §343 that is the content.
 //   · Plus 1 fixture sanity check (`oversized.count > budget`), about the fixture, not the code.
+//   4 + 6 + 27 + 1 = 38.
 //
 // ⚠️ AND IT IS NOT COMPILE-VERIFIED BY THE CHEAP GATE. `Xcode Compile Check` builds `Sources/`
 // alone, and `Package.swift` declares only `EchoelmusicTests`; `Tests/CISmoke` is compiled by
@@ -300,9 +308,13 @@ final class TheLastCrashOutlivesOneLaunchTests: XCTestCase {
         let crashedRun = banner + started + crashed
         XCTAssertEqual(EchoelCrashLog.recoveryExport(previous: crashedRun, retainedCrash: crashedRun),
                        crashedRun, """
-            After an ordinary crash, `begin()` has just retained the very run this screen is \
-            showing. Appending it would print one run twice under a heading claiming it is an \
-            EARLIER one — worse than omitting it, because it invents a second occurrence.
+            A marked run must come back untouched. Appending anything under a heading that \
+            calls it an EARLIER run would invent a second occurrence of one crash. \
+            ⛔ This message used to say "`begin()` has just retained the very run this screen \
+            is showing" — a state the shipped code cannot produce, and flatly contradicted by \
+            the deleted ordering claim twenty lines above it (#425, inside one file). What the \
+            assertion really drives is the gate's FIRST clause, and that is worth driving: it \
+            is the whole reason duplication is impossible.
             """)
     }
 
@@ -318,19 +330,18 @@ final class TheLastCrashOutlivesOneLaunchTests: XCTestCase {
             """)
     }
 
-    func testTheLaunchSnapshotIsTakenBeforeThisLaunchCanOverwriteIt() throws {
-        let src = SourceText.codeOnly(try read("Sources/Echoelmusic/Core/EchoelCrashLog.swift"))
-        let snapshot = try XCTUnwrap(src.range(of: "retainedCrashAtLaunch = lastCrashLog()"),
-                                     "the launch snapshot moved or was renamed")
-        let retain = try XCTUnwrap(src.range(of: "crashToRetain(from: previousSession)"),
-                                   "the retention call in `begin()` moved or was renamed")
-        XCTAssertTrue(snapshot.lowerBound < retain.lowerBound, """
-            THE SNAPSHOT MUST PRECEDE THE WRITE. Taken afterwards it would hold the run this \
-            launch just retained, and the recovery screen would offer the very run it is \
-            already displaying. The non-duplication argument above rests on this order, so \
-            reversing it makes a comment true and the code wrong.
-            """)
-    }
+    // ⛔ A CLAIM STOOD HERE AND WAS DELETED, NOT REPAIRED (#917b).
+    // `testTheLaunchSnapshotIsTakenBeforeThisLaunchCanOverwriteIt` pinned that
+    // `retainedCrashAtLaunch = lastCrashLog()` precedes the retention block, and its message
+    // said the non-duplication property rested on that order. A review disproved it by case
+    // analysis: a retained log is a textual slice of some run, so a marker in the slice
+    // implies the marker was in that run, and `recoveryExport`'s gate then declines on its
+    // FIRST clause. In every reachable state the composed text is byte-identical whichever
+    // side of the block the snapshot is taken. The assertion therefore could not fail for the
+    // reason its name gave (#367's mirror case) — and it WOULD have failed for a correct edit:
+    // binding the read to a local and reusing it reddens a needle anchored on the call
+    // spelling (#364). Non-duplication is pinned where it actually lives, by
+    // `testTheRecoveryScreenDoesNotPrintTheSameRunTwice` below.
 
     func testTheRecoveryScreenUsesTheComposedText() throws {
         let view = SourceText.codeOnly(try read("Sources/Echoelmusic/Studio/SafeModeView.swift"))
@@ -339,14 +350,47 @@ final class TheLastCrashOutlivesOneLaunchTests: XCTestCase {
             directly puts it back to showing whatever ran last — which, on the alternating \
             safe-mode launches this exists for, is the recovery screen itself.
             """)
-        XCTAssertFalse(view.contains("priorLog = EchoelCrashLog.previousSession"), """
+        XCTAssertFalse(view.contains("priorLog = EchoelCrashLog.previousSession\n"), """
             And it must not go back to the raw value. ⛔ TWO DRAFTS OF THIS NEEDLE WERE TOO \
             WIDE AND A DRIVEN MUTANT PROVED IT: anchored on `= EchoelCrashLog.previousSession` \
             it also matched an unrelated new line such as \
             `let raw = EchoelCrashLog.previousSession.count`, i.e. it reddened on an ordinary \
             correct edit — #364, and the draft's own message claimed the opposite. The needle \
-            names THIS PROPERTY's assignment, so it forbids exactly the revert and nothing \
-            else. Comments cannot trip it either way — the scan runs on `SourceText.codeOnly`.
+            names THIS PROPERTY's assignment AND ends at the line break, so a correct future \
+            line such as `= EchoelCrashLog.previousSessionDigest` cannot trip it either — a \
+            third narrowing, after a review pointed out that the second was still a PREFIX \
+            while its message claimed exactness. Comments cannot trip it: the scan runs on \
+            `SourceText.codeOnly`.
+            """)
+    }
+
+    func testAnUnreadablePreviousSessionStillLeadsWithText() {
+        let older = "1785000000.000  " + EchoelCrashLog.crashMarker + " SIGABRT (abort)\n"
+        let out = EchoelCrashLog.recoveryExport(previous: "", retainedCrash: older)
+        XCTAssertTrue(out.hasPrefix(EchoelCrashLog.retainedCrashHeader), """
+            `previousSession` can be empty — file protection, or the COMPUTED `fileURL` \
+            resolving to a different container between two launches. Composed naively the \
+            text then OPENS with two blank lines and no build banner, on the screen that \
+            insists elsewhere the first line must name the build. Lead with the heading; the \
+            retained run carries its own launch line directly beneath it.
+            """)
+        XCTAssertFalse(out.hasPrefix("\n"), "an export must not begin with blank lines")
+    }
+
+    func testTheAutoSurfacedSheetUsesTheSameComposition() throws {
+        let view = SourceText.codeOnly(try read("Sources/Echoelmusic/Studio/EchoelStudioView.swift"))
+        XCTAssertFalse(view.contains("DiagReport(text: prev)"), """
+            The AUTO-SURFACED sheet is the more commonly reached of the two crash surfaces, \
+            and #917's argument applies to it word for word: a markerless arm-2 death \
+            (reboot, battery, watchdog) surfaced a run with nothing to triage while a real \
+            abort sat retained one manual tap away. Fixing only the Safe Mode screen would \
+            have left the slice's own reasoning half-applied, with nothing saying why.
+            """)
+        XCTAssertTrue(view.contains("DiagReport(text: EchoelCrashLog.recoveryExport())"), """
+            COUNTERWEIGHT to the line above: it must use the SAME composition, not some \
+            second spelling of "previous run plus retained crash" (#416). `recoveryExport` \
+            returns `previous` untouched whenever it carries its own marker, so the ordinary \
+            crash path through this sheet is unchanged.
             """)
     }
 

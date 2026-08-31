@@ -29,10 +29,22 @@ struct SafeModeView: View {
     /// from memory, never from disk: this screen renders when nothing else can, and it must
     /// not gain a dependency on the file system to do it.
     ///
-    /// ⭐ WHY IT NEEDS THE OLDER RUN AT ALL. Once the self-healing net catches every other
-    /// launch the device alternates "Safe Mode or black screen" — and on those launches the
-    /// run immediately before this one IS the recovery launch: short, markerless, useless.
-    /// The screen that says "share this with the developer" was handing over that run.
+    /// ⭐ WHY IT NEEDS THE OLDER RUN AT ALL. The run immediately before this one CAN be a
+    /// previous recovery launch — short, markerless, useless — and the screen that says
+    /// "share this with the developer" was then handing over exactly that.
+    ///
+    /// ⚠️ NARROWER THAN THE FIRST DRAFT SAID, which claimed the run before a safe-mode launch
+    /// simply IS the recovery launch. A SIGSEGV/SIGABRT writes a marker, so straight after one
+    /// the composition declines and the screen already showed the right run. What #917 catches
+    /// is a recovery launch that ends WITHOUT a marker — force-quit from this screen instead
+    /// of tapping Continue (so `LaunchGuard.reset()` never runs and the streak holds), or a
+    /// watchdog/jetsam kill. The exception, not the rule; stated so nobody plans from the rule.
+    ///
+    /// ⚠️ AND IT MAKES THIS SCREEN LONGER. The `Text` below has no `lineLimit`, and
+    /// `ShareLink` carries the same string; a composed text can now add up to
+    /// `EchoelCrashLog.retainedCrashCharacterBudget` characters on top of the previous run.
+    /// The view tree is unchanged — still no `Menu`, no `ForEach`, no environment — but the
+    /// growth is real and is recorded here as well as at `EchoelCrashLog.lastCrashLog()`.
     private let priorLog = EchoelCrashLog.recoveryExport()
 
     var body: some View {

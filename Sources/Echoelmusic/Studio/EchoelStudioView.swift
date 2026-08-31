@@ -8482,15 +8482,25 @@ struct EchoelStudioView: View {
         guard diagnostics == nil else { return }
         let prev = EchoelCrashLog.previousSession
         guard EchoelCrashLog.looksLikeUnseenCrash(prev) else { return }
-        diagnostics = DiagReport(text: prev)
+        // #917b: the SAME composition the recovery screen uses. This path is the more commonly
+        // reached of the two, and #917's own argument applies to it verbatim — a markerless
+        // arm-2 death (reboot, battery, watchdog) surfaces a run with nothing to triage while
+        // a real abort sits retained one manual tap away. `recoveryExport` returns `prev`
+        // unchanged whenever `prev` carries its own marker, so the ordinary crash is untouched.
+        diagnostics = DiagReport(text: EchoelCrashLog.recoveryExport())
     }
 
     private func diagnosticsSheet(_ text: String) -> some View {
         NavigationStack {
             ScrollView {
                 // ⭐ Scales with Dynamic Type, stays monospaced — #353d. See the long rationale
-                // at the identical line in `SafeModeView`: this sheet and that screen render the
-                // SAME diagnostic log, so they must not disagree about how big it is. The text
+                // at the identical line in `SafeModeView`: this sheet and that screen render A
+                // diagnostic log each, so they must not disagree about how big it is.
+                // ⛔ "the SAME diagnostic log" stood here and #917 made it false: the recovery
+                // screen composes `recoveryExport()` (the previous run, plus a retained crash
+                // when that run carries no marker) while this sheet gets `diagnosticsExport()`
+                // or the auto-surfaced text. Same KIND of text, not the same string — the
+                // pairing argument for one size survives, the identity claim does not. The text
                 // style `.caption2` is 11 pt at the default setting, so nobody who has changed
                 // nothing sees a difference. Do NOT "finish the job" by moving this to
                 // `EchoelTheme.font` — the brand face is proportional and a log needs its columns.

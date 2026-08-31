@@ -101,9 +101,18 @@ enum EchoelCrashLog {
         // ⚠️ THE PLACE IS PART OF THE DECISION, exactly like a ladder rung (#862b): this runs
         // AFTER `installHandlers()`, so a fault inside the write is itself caught, and AFTER
         // the version line, so the log already names the build even if this is where it dies.
-        // #917: BEFORE the block below can overwrite it. A recovery screen that shows the
-        // post-write value would, after an ordinary crash, offer the very run it is already
-        // showing.
+        // #917: the retained file as it stands right now, read ONCE and reused by the block
+        // below as its `existing`.
+        //
+        // ⛔ THE REASON FIRST GIVEN FOR TAKING IT HERE WAS FALSE, and a review disproved it by
+        // case analysis rather than by argument. It claimed a post-write snapshot "would,
+        // after an ordinary crash, offer the very run it is already showing". It would not:
+        // a retained log is a textual slice of some run, so a marker in the slice implies the
+        // marker was in that run, and `recoveryExport`'s gate then declines on its FIRST
+        // clause. In every reachable state the composed text is byte-identical either way.
+        // The non-duplication property comes entirely from that gate — nothing here.
+        // What this position DOES buy is one file read instead of two, and a name that means
+        // what it says.
         retainedCrashAtLaunch = lastCrashLog()
         if let keep = crashToRetain(from: previousSession) {
             // ⛔ THE FIRST DRAFT OF #916 BROKE THE LAW THE COMMENT ABOVE CITES, twice in two
@@ -117,11 +126,12 @@ enum EchoelCrashLog {
             // file that does not exist. A rung before the step, and an outcome only when it
             // was actually seen.
             //
-            // The one file read this costs happens only on a launch that follows a bad run,
-            // and only up to the budget. Deliberately NOT short-circuited into an `||` chain:
-            // the decision is worth being a named, testable function, and a sub-millisecond
-            // read on a rare launch is not worth hiding it (see `shouldReplaceRetained`).
-            if shouldReplaceRetained(candidate: keep, existing: lastCrashLog()) {
+            // Reuses the snapshot above rather than reading the file a second time.
+            // ⛔ THE FIRST DRAFT CALLED `lastCrashLog()` AGAIN HERE and, thirteen lines below
+            // an unconditional read, described the cost as "only on a launch that follows a
+            // bad run". Both halves were false the moment #917 landed: the read happens on
+            // EVERY launch, and on a bad-run launch it happened twice.
+            if shouldReplaceRetained(candidate: keep, existing: retainedCrashAtLaunch) {
                 breadcrumb("retaining the previous run's crash log (\(keep.count) chars)")
                 // `atomically: true` is what makes "a failure leaves the previously retained
                 // file in place" true — it writes a temporary and renames. Without that flag a
@@ -247,11 +257,19 @@ enum EchoelCrashLog {
 
     /// What the SAFE MODE recovery screen shows (#917).
     ///
-    /// ⭐ THE HOLE THIS CLOSES IS DOCUMENTED AND FOUNDER-OBSERVED: once the self-healing net
-    /// catches every other launch, the device alternates "Safe Mode or black screen". On the
-    /// safe-mode launch the run immediately before it is the RECOVERY launch — short,
-    /// markerless, and useless — while the real abort sits in the retained file. The screen
-    /// whose entire purpose is "share this with the developer" was showing the wrong run.
+    /// ⭐ THE HOLE THIS CLOSES: on a safe-mode launch the run immediately before it can be the
+    /// RECOVERY launch — short, markerless, useless — while the real abort sits in the
+    /// retained file. The screen whose entire purpose is "share this with the developer" then
+    /// shows the wrong run.
+    ///
+    /// ⚠️ NARROWER THAN THE FIRST DRAFT CLAIMED, and the difference decides how often this
+    /// fires. A SIGSEGV/SIGABRT writes a marker, so on the launch straight after one the gate
+    /// declines and the screen was already showing the right run — #917 changes nothing there.
+    /// It applies when the RECOVERY launch itself ends without a marker: the user force-quits
+    /// from this screen instead of tapping Continue (so `LaunchGuard.reset()` never runs and
+    /// the streak keeps the next launch in safe mode), or a watchdog/jetsam kill beats the
+    /// signal handler. The first draft said flatly "the run before it IS the recovery launch",
+    /// which would have had the next reader plan from a case that is the exception.
     ///
     /// ⚠️ THE GATE IS "previous has no marker AND the retained one does", and it is chosen so
     /// the block can never DUPLICATE. A retained log is a slice of some earlier run, so a
@@ -264,6 +282,12 @@ enum EchoelCrashLog {
         guard !previous.contains(crashMarker), retainedCrash.contains(crashMarker) else {
             return previous
         }
+        // An unreadable previous session (file protection, or the computed `fileURL` landing
+        // in a different container between two launches) would otherwise compose a text that
+        // OPENS with two blank lines and no build banner — while `diagnosticsExport`'s own doc
+        // insists the first line must name the build. Lead with the heading instead; the
+        // retained run carries its own launch line directly under it.
+        guard !previous.isEmpty else { return retainedCrashHeader + "\n" + retainedCrash }
         return diagnosticsExport(current: previous, retainedCrash: retainedCrash)
     }
 
@@ -296,7 +320,8 @@ enum EchoelCrashLog {
     /// earlier run — but it is a consequence, not an accident, so it is written down rather
     /// than discovered later by someone wondering why an old crash keeps appearing.
     ///
-    /// ⚠️ AND IT ENLARGES THE SHARE SHEET. Two files (`AudioConfiguration.sanitisedRoute`,
+    /// ⚠️ AND IT ENLARGES THE SHARE SHEET — and, since #917, the SAFE MODE screen too, whose
+    /// single `Text` has no `lineLimit` and whose `ShareLink` carries the same string. Two files (`AudioConfiguration.sanitisedRoute`,
     /// `AudioInputManager`) bound a route name to 80 characters precisely because
     /// `currentLog()` reads a whole log into one String for that sheet. #916 appends up to
     /// the budget again on top of it. Those bounds are not weakened — the reason for them is
