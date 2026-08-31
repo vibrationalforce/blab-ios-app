@@ -188,6 +188,35 @@ public final class MetronomeVoice {
             sampleCounter += 1
             if sampleCounter >= perBeat {
                 sampleCounter -= perBeat
+                // ⛔ #933 — ONE SUBTRACTION IS NOT ENOUGH AFTER A TEMPO JUMP, and the
+                // symptom is a click BURST plus a scrambled accent, not a drift.
+                // `perBeat` is re-derived on the MainActor (`bpm` didSet) and lands
+                // BETWEEN buffers, while `sampleCounter` still carries the count it had
+                // accumulated toward the OLD, longer beat. Subtracting once then leaves it
+                // a whole beat or more ahead, so this test fires again on the very next
+                // frame — and again, and again. Simulated against this exact loop:
+                // 60 → 180 BPM gives up to 3 clicks in 3 consecutive SAMPLES, the flow
+                // servo's own 40 → 160 clamp gives 4, and the 20 → 400 extreme gives 20.
+                // Each spurious click also advances `beatIndex`, which is how the accent
+                // ends up on the wrong beat afterwards.
+                //
+                // It is not rare, which is why it deserves the fold rather than a note:
+                // the spurious count is `floor(sampleCounter / perBeat)` with the counter
+                // uniform over the old beat, so a 3× tempo jump misfires on TWO THIRDS of
+                // jumps. It stayed unheard because a GLIDE shrinks `perBeat` by a sliver
+                // per step (120 → 124 measured: exactly one click, correct spacing), and a
+                // glide is how the tempo usually moves here.
+                //
+                // `truncatingRemainder` is `fmod` — a C math call, so audio-thread legal
+                // (no lock, no allocation, no ObjC). It folds instead of zeroing on
+                // purpose: zeroing would discard the sub-beat phase and put the next click
+                // a full new beat away, turning one artefact into a different one. Guarded
+                // by the `>=` above, so `perBeat` is finite and positive whenever it runs —
+                // a NaN `perBeat` makes the comparison false and skips it, which is the
+                // same NaN-safe direction `samplesPerBeat` already documents.
+                if sampleCounter >= perBeat {
+                    sampleCounter = sampleCounter.truncatingRemainder(dividingBy: perBeat)
+                }
                 beatIndex = (beatIndex + 1) % bars
                 let isDownbeat = (beatIndex == 0) && audioAccent
                 clickFreq = isDownbeat ? Self.accentHz : Self.beatHz
