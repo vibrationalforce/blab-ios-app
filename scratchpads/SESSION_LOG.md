@@ -3,6 +3,44 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #933c–#933e: was ein grünes Gate mitdruckt
+
+**Commits:** `cf04809` (#933c) · `6b8053f` (#933d) · `801dac3` (#933e).
+
+**Gate-Stand von #933b, gelesen statt geraten:** `Build for Testing` = **success**, also
+kompiliert der neue Metronom-Wächter nachweislich. Seine Testnamen stehen NICHT im
+Log-Fenster — das ist `tail -200 test.log` (#807), und Abwesenheit beweist nichts (#445).
+Ehrlich: **kompiliert nachweislich, Ausführung unbelegt.**
+
+**#933c — meine eigene Zahl korrigiert.** Der erschöpfende Hintergrund-Durchlauf wurde fertig
+und sagt 34,3 % statt der 34,4 %, die ich aus jeder SIEBTEN Ausrichtung genommen hatte,
+während der Satz daneben „über jede" behauptete (#448: eine Zahl trägt ihr Abtastraster).
+Wichtiger war die fehlende Zeile: derselbe Lauf hat **20 → 400** vermessen — 90,3 % → 6,3 %,
+schlimmster Fall zwanzig Auslösungen → zwei. Der Fall, dem die Reparatur am meisten hilft,
+war der einzige nicht zitierte.
+
+**#933d — mein neuer Wächter brachte zwei Compiler-Warnungen mit.** `Build for Testing` war
+grün und druckte trotzdem `took 522ms/556ms to type-check` (Grenze 200 ms) für die neue Datei.
+Ursache: ein anonymes `$0` über `Range<Int>.map` mit zwei Subskripten. `let spacings: [Int]`
+plus benannter Index schließt die Inferenz vorne.
+
+**#933e — und das ist der eigentliche Fund.** Aufgefallen war es nur, weil ich den Log von
+Hand nach dem Dateinamen gegrept habe — während §5 jeder Sitzung sagt, sie solle statt eigener
+Nadeln das Verdikt von `gh-test-verdict.py` lesen. **Eine Warnungsklasse, die dieses Skript
+nicht parst, ist eine, die niemand sieht.** Jetzt liest es sie: Anzahl, schlimmste acht,
+und wessen Problem sie sind. **Ohne Exit-Code-Änderung** — ein grüner Lauf darf nicht rot
+werden für einen Zustand, der älter ist als die Scheibe des Lesers (#364).
+
+**Zwei Gesetze:**
+1. **Registrieren statt fegen**, wenn ein Befund älter ist als die eigene Scheibe — 8 der 10
+   Stellen sind es. Die Regel ist eng: *hinterlasse keine NEUE.*
+2. **Nadel beobachtet, nicht hergeleitet.** Vier Schreibweisen im echten Log, Anker auf dem
+   gemeinsamen Schwanz statt Aufzählung (#778). Der Mutant ohne `ms`-Anker wurde gefahren.
+
+⚠️ Und `801dac3` ist der #932-Befund in Aktion: er fasst `scripts/` **und** eine Datei unter
+`Tests/` an, also fährt die Skript-Änderung als Passagier mit und ein Gate läuft.
+
+
 ## 2026-08-31 — #933/#933b: ein echter Fehler im Metronom, und ein blinder Wächter
 
 **Commits:** `7fe80ee` (#933) · `af7b6a6` (#933b).
