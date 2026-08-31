@@ -2799,13 +2799,39 @@ deklarierte Ausgabe nach einer ZUWEISUNG in derselben Datei. Mutant gefahren: ei
 `dominantHue = 42`-Erzeuger lässt den Wächter GRÜN. Er hat keine Meinung darüber, welche
 Ausgaben existieren — nur darüber, dass eine angekündigte Ausgabe berechnet wird.
 
-⚠️ **Zwei Textsichten in EINEM Scan, und beide sind nötig.** Die Blockgrenze
-(`// MARK: - Published Output`) ist ein KOMMENTAR und überlebt `SourceText.codeOnly` nicht — wer
-nach dem Strippen darauf ankert, findet nichts und die ganze Datei besteht LEER. Die
-Deklarationen müssen umgekehrt aus dem GESTRIPPTEN Text kommen, sonst zählt der ⛔-Vermerk, der
-die entfernte Deklaration absichtlich wörtlich zitiert, als lebende Ausgabe mit — der Wächter
-meldete dann genau das Feld, das er gerade beerdigt hat. Grenzen aus dem ROHTEXT, Inhalt aus dem
-GESTRIPPTEN; `codeOnly` erhält die Zeilenzahl, und genau das macht die zwei Sichten indexierbar.
+⚠️ **Zwei Textsichten in EINEM Scan — aber nur EINE Hälfte ist tragend, und die erste Fassung
+hat die falsche dafür erklärt (#925b).** Die Blockgrenze (`// MARK: - Published Output`) ist ein
+KOMMENTAR und überlebt `SourceText.codeOnly` nicht — wer nach dem Strippen darauf ankert, findet
+nichts und die ganze Datei besteht LEER. **Das ist die tragende Hälfte.**
+
+⛔ **Die STRIPP-Hälfte ist PROPHYLAKTISCH (0 von 4 Verdikten kippen), und ihre Begründung war
+schlicht falsch.** Sie lautete: sonst zählte der ⛔-Vermerk, der die entfernte Deklaration
+wörtlich zitiert, als lebende Ausgabe mit. Tut er nicht — getrimmt beginnt diese Zeile mit `//`,
+also verfehlt der `var `-Präfixtest sie auch im ROHTEXT. Auf beiden Bäumen gefahren, Roh- gegen
+Gestrippt-Deklarationen: identische Verdikte. ⭐ Die Form, die WIRKLICH nur das Strippen fängt,
+ist ein `/* … */`-Block, dessen Innenzeile `var foo = 1` lautet — roh beginnt sie mit `var `,
+gestrippt ist sie leer (an einer Vorlage nachgewiesen). Der Entwurf steht, nur seine Begründung
+war die #367-Spiegelung eine Ebene höher: grün aus einem anderen Grund als dem genannten.
+**Lehre für JEDEN Stripper-Einsatz: §2 dieser Test-Direktive verlangt das Zählen roh gegen
+gestrippt auf BEIDEN Bäumen und das Etikett TRAGEND/PROPHYLAKTISCH. Wer die Begründung
+plausibel findet statt sie zu fahren, schreibt eine Falschbehauptung in einen Wächter-Kopf.**
+
+⛔ **UND DIE ZWEITE FASSUNG HATTE EIN LOCH IM SCAN SELBST, nicht nur in der Prosa.** Der
+Präfixtest lief gegen die getrimmte Zeile, also war jede Deklaration mit ATTRIBUT unsichtbar —
+und der bewachte Block enthält davon schon zwei (`@ObservationIgnored var beatTimes`,
+`@ObservationIgnored private(set) var rrSegments`). Der Block hat also DREIZEHN `var`s, nicht
+elf; die erste Fassung berichtete die Teilmenge ihres eigenen Scans als Inhalt der Datei.
+Mutant gefahren: ein unberechnetes `@ObservationIgnored var ghostHue` ließ alle drei Ansprüche
+GRÜN — der Wächter stumm bei genau dem Defekt, den sein Name beschreibt. `withoutLeadingAttributes`
+schließt es. **Lehre: wenn ein Scan eine MENGE zählt, ist die erste Frage nicht „stimmt die
+Zahl", sondern „welche Form sieht er nicht" — und die Antwort steht meistens schon im Ziel.**
+
+Grenzen aus dem ROHTEXT, Inhalt aus dem GESTRIPPTEN; `codeOnly` erhält die Zeilenzahl, und genau
+das macht die zwei Sichten indexierbar. ⚠️ Die Endgrenze prüft `hasPrefix("// MARK:")` auf der
+getrimmten Zeile, nicht `contains("MARK:")` — heute identisch (alle zwölf Vorkommen der Zieldatei
+sind echte Überschriften), aber die Fehlerart ist STILL: eine Kommentarzeile, die eine
+Überschrift nur ERWÄHNT, schnitte den Block ab und nähme jede Ausgabe darunter aus der Deckung,
+ohne dass etwas rot wird.
 
 **Wo man diese Klasse noch sucht:** überall, wo ein Typ seine Ausgaben unter einer eigenen
 Überschrift SELBST deklariert. Das ist ein Vertrag, den ein Textscan halten kann. Die allgemeine

@@ -2,49 +2,78 @@
 // Echoel — a value announced as an OUTPUT must be computed somewhere. #925.
 //
 // WHAT WAS WRONG. `CameraAnalyzer` heads a block `// MARK: - Published Output` and declares
-// eleven values under it. Ten of them are written somewhere in that same file. The eleventh,
-// `var dominantHue: Float = 180`, documented as "Average hue (0–360)", occurred **exactly once
-// in the whole repository** — that declaration. No assignment, no reader, in `Sources/` or in
-// `Tests/`. It was permanently 180, i.e. cyan, and nothing could ever move it.
+// thirteen values under it. Twelve of them are written somewhere in that same file. The
+// thirteenth, `var dominantHue: Float = 180`, documented as "Average hue (0–360)", occurred
+// **exactly once in the whole repository** — that declaration. No assignment, no reader, in
+// `Sources/` or in `Tests/`. It was permanently 180, i.e. cyan, and nothing could ever move it.
 //
-// ⭐ WHY THAT IS WORSE THAN AN ABSENT FIELD, which is the whole reason this guard exists. The
-// block is a real surface: `CameraRPPGBioPublisher` reads `brightness` and `redChannel` from it
-// on the wash-out path. So a session wiring the visual palette to camera colour would open this
-// class, find `dominantHue` sitting between two values that ARE live, bind it, and ship a
-// permanently-cyan feature that looks wired from every angle — producer present, consumer
-// present, doc present, and a constant on the wire. That is the `.eegBurst` shape (an OSC
-// address with no producer, which CLAUDE.md says no integrator may wait on) one size smaller,
-// and it is inside the class rather than on a wire, where nothing was watching.
+// ⛔ THE FIRST DRAFT SAID "eleven values … ten of them are written" AND THAT WAS THE SCAN'S
+// SUBSET REPORTED AS THE FILE'S CONTENT (#925b). The block holds thirteen `var`s; two of them —
+// `@ObservationIgnored var beatTimes` and `@ObservationIgnored private(set) var rrSegments` —
+// carry an attribute, and the first draft's prefix test ran against the trimmed line, so an
+// attributed declaration was invisible to it. **That was not only a wrong number in prose: it
+// was a coverage hole in the guard itself**, and the shape was already present in the very block
+// being guarded, so `@ObservationIgnored var` is the natural next declaration here. Driven: an
+// uncomputed `@ObservationIgnored var ghostHue` left all three claims GREEN — the guard silent
+// on exactly the defect its name describes. `withoutLeadingAttributes` closes it; the parent
+// tree now reports 13 declarations and the one orphan, and the worktree 12 and none.
+//
+// ⭐ WHY AN UNCOMPUTED OUTPUT IS WORSE THAN AN ABSENT FIELD, which is the whole reason this
+// guard exists. The block is a real surface: `CameraRPPGBioPublisher` reads `brightness` and
+// `redChannel` from it on the wash-out path. So a session wiring the visual palette to camera
+// colour would open this class, find `dominantHue` sitting between two values that ARE live,
+// bind it, and ship a permanently-cyan feature that looks wired from every angle — producer
+// present, consumer present, doc present, and a constant on the wire. That is the `.eegBurst`
+// shape (an OSC address with no producer, which CLAUDE.md says no integrator may wait on) one
+// size smaller, and it is inside the class rather than on a wire, where nothing was watching.
 //
 // ⚠️ THE LAW IS "HAS A PRODUCER", NOT "THIS NAME IS ABSENT" (#364). A needle on the absence of
 // `dominantHue` would forbid correct work: camera hue driving the palette is a reasonable
 // FEATURE, and the day someone builds it — producer and reader arriving together — an absence
 // needle goes red on a correct tree. This guard asks each declared output for an assignment, so
-// that day it stays green. It has no opinion about which outputs exist.
+// that day it stays green. It has no opinion about which outputs exist. Measured, not asserted:
+// re-adding the declaration TOGETHER with a real `dominantHue = 42` leaves claim 1 green.
 //
 // ⚠️ WHAT THE SCAN CAN AND CANNOT SEE, stated before the claim (§1 of this directory's law).
-// This is a SOURCE-TEXT SCAN. It reads assignment SHAPES — `name = `, `self.name = `,
-// `name.append(`, `name.removeAll` at the start of a stripped line. A property written only
-// through some other path (a `withMutation`, a `KeyPath`-based setter, an `inout` hand-off)
-// would read as unassigned and this guard would be wrong about it. No output in this file is
-// written that way today; if one ever is, widen the shapes rather than exempting the name.
+// This is a SOURCE-TEXT SCAN, and it has two blind spots, both narrow and both named here
+// rather than discovered later:
+//   · ASSIGNMENT shapes. It reads `name = `, `self.name = `, `name.append(`, `name.removeAll`
+//     at the start of a stripped line. A property written only through some other path (a
+//     `withMutation`, a `KeyPath`-based setter, an `inout` hand-off) would read as unassigned.
+//     No output in this file is written that way today; if one ever is, widen the shapes rather
+//     than exempting the name.
+//   · DECLARATION shapes. `var`, `private(set) var`, `public var`, each optionally preceded by
+//     attributes, which `withoutLeadingAttributes` removes. A declaration in some other form
+//     (a computed property, a `let`) is out of scope by design — neither can be the defect this
+//     guard is about, because neither is a mutable value waiting for a producer.
 // It also cannot say whether the value is CORRECT, or whether anyone reads it — only that
 // something computes it.
 //
-// ⚠️ THE BLOCK BOUNDARY IS READ FROM RAW TEXT, THE DECLARATIONS FROM STRIPPED TEXT, and both
-// halves are necessary. `// MARK: - Published Output` is a COMMENT, so it does not survive
-// `SourceText.codeOnly` — anchoring on it after stripping would find nothing and the whole file
-// would pass vacuously. Conversely the declarations must come from stripped text, or the ⛔ note
-// that now stands where `dominantHue` was — it quotes the removed declaration verbatim, on
-// purpose, so the next reader knows what was there — would be counted as a live output and this
-// guard would report the very field it just retired. `codeOnly` preserves line count, which is
-// what lets the two views be indexed against each other.
+// ⚠️ THE BLOCK BOUNDARY IS READ FROM RAW TEXT, THE DECLARATIONS FROM STRIPPED TEXT.
+// `// MARK: - Published Output` is a COMMENT, so it does not survive `SourceText.codeOnly` —
+// anchoring on it after stripping would find nothing and the whole file would pass vacuously.
+// That half is load-bearing and is the reason for the split.
+//   ⛔ THE STRIPPING HALF IS **PROPHYLAKTISCH (0 of 4 verdicts flip)**, and the first draft
+//   claimed otherwise with an example that does not work (#925b). It said the ⛔ note now
+//   standing where `dominantHue` was — which quotes the removed declaration verbatim, on
+//   purpose — would otherwise be counted as a live output. It would not: trimmed, that line
+//   starts with `//`, so the `var ` prefix test misses it in RAW text too. Driven on both
+//   trees, raw-declarations and stripped-declarations give identical verdicts.
+//   ⭐ The shape that IS caught only by stripping is a `/* … */` block whose inner line reads
+//   `var foo = 1` — raw, that line begins with `var `; stripped, `codeOnly` blanks it. Verified
+//   on a fixture. So the design stands and only its stated reason was wrong, which is the
+//   #367 mirror one level up: an assertion green for a reason other than the one it gives.
+// `codeOnly` preserves line count, and that is what lets the two views be indexed against each
+// other — asserted below rather than assumed.
 //
-// ⚠️ SCOPE IS ONE FILE, DELIBERATELY. "Every `@Observable` output in `Sources/` has a producer"
-// is the general law and it is not enforceable here without false alarms: plenty of legitimate
-// state is written by a cross-file setter (`doorless-state.py` calls that its MASKED section and
-// refuses to accuse). `CameraAnalyzer` earns a guard because it declares its outputs under an
-// explicit heading — a self-declared contract this scan can hold it to.
+// ⚠️ SCOPE IS ONE FILE, DELIBERATELY, AND A SCRIPT ALREADY COVERS THE GENERAL LAW.
+// `scripts/doorless-state.py` scans all of `Sources/` for settable class state with no writer
+// and would have listed `dominantHue`; do not build a third instrument for that (#416). What it
+// cannot do is BLOCK — it is a script nobody runs on a push. This guard puts the one block that
+// declares its outputs under an explicit heading into the blocking bundle. The general form
+// ("every `@Observable` output in `Sources/` has a producer") stays unenforceable here without
+// false alarms: much legitimate state is written by a cross-file setter, which is why
+// `doorless-state.py` has a MASKED section and explicitly refuses to accuse.
 //
 // ⚠️ HONEST GRADING (#433/#464/#486). This file compiles against the parent tree, so every claim
 // has a verdict there. **ONE is a regression** — claim 1, red on the parent naming `dominantHue`,
@@ -100,12 +129,12 @@ final class EveryPublishedOutputHasAProducerTests: XCTestCase {
     func testTheOutputBlockStillExistsAndStillDeclaresOutputs() throws {
         let (outputs, _) = try publishedOutputs()
         // A floor, not a pin: the exact count is a date, and a count pin that nobody updates
-        // rots silently (#903). Ten stand today; eight is comfortably below any tree that
+        // rots silently (#903). Twelve stand today; eight is comfortably below any tree that
         // still has this surface, and well above the zero that a vacuous claim 1 would need.
         XCTAssertGreaterThanOrEqual(outputs.count, 8, """
             The "\(Self.heading)" block now declares only \(outputs.count) value(s). Claim 1 \
-            asks every declared output for a producer, so a block that has been emptied or \
-            renamed makes it pass while proving nothing.
+            asks every declared output for a producer, so a block that has been emptied, \
+            renamed, or truncated by a stray heading makes it pass while proving nothing.
             """)
     }
 
@@ -125,22 +154,29 @@ final class EveryPublishedOutputHasAProducerTests: XCTestCase {
 
     // MARK: - helpers
 
-    /// The outputs declared between the heading and the next `MARK:`, plus the whole file's
+    /// The outputs declared between the heading and the next MARK, plus the whole file's
     /// comment-stripped lines (trimmed) so the caller can scan for assignments.
     ///
     /// Boundaries come from RAW text because the heading is a comment; declarations come from
-    /// STRIPPED text so a commented-out declaration is not counted. See the file header.
+    /// STRIPPED text. See the file header for which half is load-bearing and which is not.
     private func publishedOutputs() throws -> ([Output], [String]) {
         let raw = try rawText(Self.analyzer)
         let rawLines = raw.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         let codeLines = SourceText.codeOnly(raw)
             .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
         // `SourceText.codeOnly` preserves line count. If that ever stops being true the two
-        // views cannot be indexed against each other and every verdict below is meaningless,
-        // so it is asserted rather than assumed.
-        XCTAssertEqual(rawLines.count, codeLines.count,
-                       "SourceText.codeOnly no longer preserves line count; this scan indexes "
-                       + "raw boundaries against stripped content and cannot work without it.")
+        // views cannot be indexed against each other and every verdict below is meaningless.
+        // ⚠️ A `guard`, not an `XCTAssertEqual`: an assertion RECORDS and CONTINUES, and the
+        // next loop then indexes `codeLines` with a bound taken from `rawLines` — an
+        // out-of-range crash in the runner instead of the clean red this message promises.
+        guard rawLines.count == codeLines.count else {
+            XCTFail("""
+                SourceText.codeOnly no longer preserves line count (\(rawLines.count) raw vs \
+                \(codeLines.count) stripped); this scan indexes raw boundaries against stripped \
+                content and cannot work without it.
+                """)
+            return ([], [])
+        }
 
         guard let start = rawLines.firstIndex(where: { $0.contains(Self.heading) }) else {
             XCTFail("""
@@ -149,12 +185,21 @@ final class EveryPublishedOutputHasAProducerTests: XCTestCase {
                 """)
             return ([], [])
         }
-        let end = rawLines[(start + 1)...].firstIndex(where: { $0.contains("MARK:") })
+        // ⚠️ `hasPrefix("// MARK:")` on the TRIMMED line, never `contains("MARK:")` (#925b).
+        // PROPHYLAKTISCH, and labelled as such: all twelve "MARK:" occurrences in the scanned
+        // file are real headings today, so the two forms pick the same boundary and no verdict
+        // flips. It is tightened anyway because the failure mode is SILENT — a comment inside
+        // the block that merely MENTIONS a heading would truncate it, and every output below
+        // the mention would leave coverage with nothing going red. This repo writes 30–40-line
+        // comment blocks that discuss their own structure; that mention is a matter of time.
+        let end = rawLines[(start + 1)...]
+            .firstIndex(where: { $0.trimmingCharacters(in: .whitespaces).hasPrefix("// MARK:") })
             ?? rawLines.endIndex
 
         var outputs: [Output] = []
         for index in (start + 1)..<end {
-            let line = codeLines[index].trimmingCharacters(in: .whitespaces)
+            let line = withoutLeadingAttributes(
+                codeLines[index].trimmingCharacters(in: .whitespaces))
             for prefix in ["var ", "private(set) var ", "public var "] where line.hasPrefix(prefix) {
                 let rest = line.dropFirst(prefix.count)
                 let name = rest.prefix { $0.isLetter || $0.isNumber || $0 == "_" }
@@ -165,6 +210,29 @@ final class EveryPublishedOutputHasAProducerTests: XCTestCase {
             }
         }
         return (outputs, codeLines.map { $0.trimmingCharacters(in: .whitespaces) })
+    }
+
+    /// Drop any leading `@Attribute` / `@Attribute(args)` run from a trimmed declaration line.
+    ///
+    /// Two of this block's declarations carry `@ObservationIgnored`, so without this the prefix
+    /// test misses them entirely — the coverage hole #925b closed. The paren depth is tracked so
+    /// an attribute whose argument list contains spaces (`@available(iOS 17, *)`) is consumed as
+    /// one token rather than cutting at the first space inside it.
+    private func withoutLeadingAttributes(_ line: String) -> String {
+        var rest = Substring(line)
+        while rest.hasPrefix("@") {
+            var index = rest.index(after: rest.startIndex)
+            var depth = 0
+            while index < rest.endIndex {
+                let character = rest[index]
+                if character == "(" { depth += 1 }
+                if character == ")" { depth -= 1 }
+                if character == " ", depth == 0 { break }
+                index = rest.index(after: index)
+            }
+            rest = rest[index...].drop(while: { $0 == " " })
+        }
+        return String(rest)
     }
 
     /// Whether any line other than the declaration writes this output.
