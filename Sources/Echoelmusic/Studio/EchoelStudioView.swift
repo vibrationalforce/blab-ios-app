@@ -3429,9 +3429,29 @@ struct EchoelStudioView: View {
                 // `MetronomeVoice` instance, so this is a second DOOR, never a second copy —
                 // the Tempo panel's two matching rows stay in step by construction.
                 // ⚠️ TWO OF FOUR, not all of them, and the split is deliberate (#927). The Tempo
-                // panel also carries "Beats per bar" and "Accent downbeat"; those are FEEL, not
-                // MIX, and a board that repeated every control would be the second full editor
-                // #290 refused. On/off and level are what a mix board is for. (This line said
+                // panel also carries "Beats per bar" and "Accent downbeat".
+                //   ⛔ THE FIRST TWO REASONS GIVEN HERE WERE BOTH WRONG (#927b). (a) "On/off and
+                //   level are what a mix board is for" is refuted 88 lines up by this panel's
+                //   own charter — each strip co-locates a part's level with its BUS FX, and the
+                //   Bass and Melodic strips each ship a Filter and a Drive field. The board does
+                //   carry tone shaping. A claim and its refutation inside one computed property
+                //   is the #425 shape. (b) #290 was mis-cited: it refused a second DOOR onto one
+                //   state — which is exactly what this strip already is, defended on other
+                //   grounds (#330, every audible layer on one board). Cited that way it argues
+                //   against the strip itself.
+                //   ⭐ THE REASON THAT HOLDS is narrower and stronger: the board's charter is
+                //   level + that part's OWN BUS FX, and the click has no bus FX, so on/off +
+                //   level IS its complete mix-side surface. Bar length and accent are
+                //   transport-time structure, not per-part processing.
+                //   ⭐ AND THERE IS A HARDER ONE THE REVIEWER MEASURED: "Beats per bar" is
+                //   CLICK-LOCAL. `Transport.beatsPerBar` is a hard `static let 4`; the row's
+                //   1…12 feeds only the render block's `beatIndex` wrap, so a click at 3 accents
+                //   every third beat while sequencer, automation and clip grid stay in 4 — the
+                //   two bars coincide once at start, then diverge. Putting that on a board of
+                //   GLOBAL part levels would invite exactly the misreading "this is where I set
+                //   the project's time signature". (The label being narrower than it reads is a
+                //   pre-existing defect, older than #924; registered here, not fixed here.)
+                // (This line said
                 // "identical rows" until #924 added the accent one panel over and did not come
                 // back here — the same one-home-missed defect as the note in `metronomeRow`.)
                 // The single-instance premise is pinned by
@@ -4638,11 +4658,22 @@ struct EchoelStudioView: View {
                 // the only one of MetronomeVoice's FIVE settable observed properties with no
                 // writer anywhere — `enabled`, `beatsPerBar` and `level` are written here, and
                 // `bpm` by the transport relay in `EchoelmusicApp`).
-                // ⛔ This line said "four options" for two commits after #924b had corrected the
-                // same sentence in the guard's header and in the commit message. Three homes
-                // fixed, a fourth left standing — the #456 defect committed while writing about
-                // it. When a count in prose changes, `git grep` the CLAIM, not the file you
-                // happen to have open (#927).
+                // ⛔ This line said "four options" for two commits after #924b had corrected
+                // the same sentence in the guard's header and in the commit message. TWO homes
+                // fixed, TWO left standing — the #456 defect committed while writing about it.
+                //   ⛔ AND #927'S OWN ACCOUNTING OF THAT WAS WRONG IN THE FLATTERING DIRECTION
+                //   (#927b, found by the reviewer). It said "three homes fixed, a fourth left"
+                //   and named `decisions.csv` among the fixed. It was not: #924b appended three
+                //   rows and none of them mentions four-versus-five, so `decisions.csv:532`
+                //   still reads "vier setzbaren Optionen" today. The true tally is
+                //   guard header ✅ (#924b) · commit message ✅ (#924b) · this comment ✅ (#927)
+                //   · `decisions.csv:532` ✗ — corrected only by an APPENDED row (#927b), because
+                //   that file is append-only and a stale row there cannot be edited away.
+                //   A slice whose whole subject is "the correction missed a home" miscounted its
+                //   own homes, in the direction that made it look finished.
+                // When a count in prose changes, `git grep` the CLAIM, not the file you happen
+                // to have open — one command (`git grep "vier setzbare"`) would have found the
+                // fifth home before the commit, and did find it after (#927/#927b).
                 // A Bool is a `Toggle`, not an `EchoelValueField` — CLAUDE.md's parameter rule
                 // covers NUMERIC parameters and says to read that word; the `enabled` row above
                 // is the sibling this matches.

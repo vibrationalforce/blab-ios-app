@@ -18,7 +18,9 @@
 // false. It said the non-guarded remainder were "DSP tuning constants … in files like
 // `EchoelCellular` and `EchoelModalBank`, which are TEST-ONLY", and named `inharmonicity` and
 // `onsetNoiseDecay` as examples — both of which live in `EchoelDDSP`, the LIVE synth. Measured
-// 2026-08-31 on the tool's own output (32 entries after this slice doored one):
+// 2026-08-31 on the tool's own output (32 entries after this slice doored one; the tool
+// reports 31 since #925 removed `CameraAnalyzer.dominantHue` — the breakdown below is the
+// measurement of that day and is left as it was taken, with the delta named):
 //   · **11 are not in `DSP/` at all** — `MemoryPressureHandler` · `ResourceGovernor` ×2 ·
 //     `CrashSafeStatePersistence` ×2 · `TimelineStore` · `ADMOSCSender` · `Transport` ·
 //     `PolarH10BioPublisher` · `CameraAnalyzer` · `BioReactiveSynthVoice`.
@@ -188,9 +190,31 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
     /// LAW, not a date: a second metronome is a product decision, never an incidental edit, so
     /// the day this goes red is the day someone should have to say out loud that they meant it.
     /// The message says what to do if they did.
+    ///
+    /// ⚠️ `SourceText.codeOnly` HERE IS **PROPHYLAKTISCH (0 of 370 files flip)** — §2 requires
+    /// this label and #927 shipped without it, one commit after #926b was told the same thing.
+    /// Measured: raw and stripped both find exactly one site; no string literal in `Sources/`
+    /// contains the type name. The stripper stays because it costs nothing and is the one
+    /// stripper (#453), not because it is doing work here.
+    ///
+    /// ⚠️ WHAT THE NEEDLE DOES NOT SEE, stated because a coverage limit no one wrote is how a
+    /// guard reads as protection it does not give (#927b, all three found by the reviewer):
+    ///   · `let x: MetronomeVoice = .init()` scores ZERO. That idiom is LIVE in this repo twice
+    ///     (`MultiTrackRecorder.swift:42`, `LaneLaunchLatch.swift:247`), so it is the realistic
+    ///     way a second instance would actually be written. Not covered.
+    ///   · A suffix collision (`SilentMetronomeVoice(`) would count as a site and red this
+    ///     claim on a tree that is fine.
+    ///   · A construction in `EchoelmusicWatch` or `EchoelmusicWidgets` — separate targets,
+    ///     separate PROCESSES — would red it with a message about "two clicks drifting apart"
+    ///     that does not describe that case at all. Only `Sources/` is scanned; that is right
+    ///     for the hazard and wrong for the wording, so the wording says `Sources/`.
+    ///
+    /// ⚠️ AND `count-pins.py` CANNOT SEE THIS PIN. It reads two syntactic shapes and
+    /// `XCTAssertEqual(sites.count, 1, …)` is neither, so "count-pins 0 RED" in any status
+    /// delta is true and says nothing about this claim. Drive it by hand or by mutation.
     func testExactlyOneMetronomeVoiceIsEverBuilt() throws {
         var sites: [String] = []
-        for file in try swiftFilesUnderSources() {
+        for file in try sourcePathsRelativeToRepo() {
             let code = SourceText.codeOnly(try rawText(file))
             let count = code.components(separatedBy: "MetronomeVoice(").count - 1
             for _ in 0..<count { sites.append(file) }
@@ -208,21 +232,37 @@ final class TheMetronomeAccentHasADoorTests: XCTestCase {
 
     // MARK: - helpers
 
-    /// Every Swift file under `Sources/`, recursively.
-    private func swiftFilesUnderSources() throws -> [String] {
+    /// Every Swift file under `Sources/`, repo-relative.
+    ///
+    /// ⛔ NAMED `sourcePathsRelativeToRepo`, NOT the name the first draft used (#927b), because
+    /// `EveryIconOnlyControlSpeaksTests` already declares a helper of THAT name with DIFFERENT
+    /// semantics: `[URL]` absolute, rooted at `Sources/Echoelmusic` rather than `Sources`,
+    /// throwing `XCTSkip` rather than failing. One name, two meanings — the defect
+    /// `03e335f`/#926 registered for `slice(…)` and wrote into `Tests/CISmoke/CLAUDE.md` §2
+    /// **one commit earlier**, reintroduced by the session that wrote it. No CI catches it:
+    /// `TheSliceHelperHasTwoSemanticsTests` scans `func slice` only. The rule that file states
+    /// — *read the neighbour's BODY, not its name* — is the whole lesson, and the cheapest way
+    /// to obey it is to give a different thing a different name.
+    private func sourcePathsRelativeToRepo() throws -> [String] {
         let root = try repoRoot().appendingPathComponent("Sources")
+        // ⛔ THE FLOOR USED TO SIT AFTER THIS GUARD AND THEREFORE COULD NOT DO ITS JOB (#927b).
+        // On the enumerator-nil path the old code returned `[]` BEFORE the floor ran, so
+        // claim 6 went red reading "constructed 0 time(s) under Sources/: ." — the wrong
+        // reason, plus a dangling separator from joining an empty array. That is exactly the
+        // #367 shape the floor was written to prevent. Throwing ends the test at the real
+        // cause, the way both cited precedents do.
         guard let walker = FileManager.default.enumerator(atPath: root.path) else {
-            XCTFail("Sources/ could not be enumerated; this claim cannot be answered.")
-            return []
+            throw XCTSkip("Sources/ could not be enumerated — this claim cannot be answered, "
+                          + "and answering it from an empty list would blame the wrong thing.")
         }
         var files: [String] = []
         for case let name as String in walker where name.hasSuffix(".swift") {
             files.append("Sources/" + name)
         }
-        // #367: an enumeration that finds nothing would make the count claim above pass by
-        // finding zero construction sites — which is NOT one, so it would go red for the wrong
-        // reason. The floor makes the real cause legible instead.
-        XCTAssertGreaterThan(files.count, 100, """
+        // #367: an enumeration that finds too little would make claim 6 red for a reason its
+        // message does not state. 200 follows the neighbour's floor rather than a rounder
+        // number — the tree holds well over three hundred.
+        XCTAssertGreaterThan(files.count, 200, """
             Only \(files.count) Swift file(s) found under Sources/ — the enumeration is \
             looking at the wrong tree, so any verdict below is about nothing.
             """)
