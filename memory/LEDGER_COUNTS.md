@@ -6072,3 +6072,40 @@ bestätigt sich selbst, wenn ein Teil von ihr gemessen und der Rest aus dem Ged�
 mitgeschrieben wird.
 
 · **`AnalysisScopeView`** (#347 Slice 1) und **`AnalysisPoincareView`** (#347 Slice 3b): `git grep -n "AnalysisScopeView(\|AnalysisPoincareView(" -- Sources` außerhalb der eigenen Dateien = **0**. ⛔ **Hier stand „Ihre zwei Geschwister derselben Epic sind sehr wohl montiert (`AnalysisSpectrumView` und `AnalysisWavefrontView`, beide in `EchoelStudioView`)" — gemessen 2026-08-21 (#680) ist das falsch, und zwar für ALLE VIER:** `git grep -n "AnalysisSpectrumView(\|AnalysisWavefrontView(" -- Sources` = **0**; der einzige Treffer in `EchoelStudioView` ist ein KOMMENTAR an der ehemaligen Montagestelle, der es selbst sagt („All four analysis views are now in that state; the Field panel shows no meters at all"). Das zweite Paar ist NACH dem 2026-08-02 geparkt worden, mit derselben Begründung und derselben Zusage („Restoring any of them is one line here plus its caption"). **Der Quelltext war die ganze Zeit ehrlich; falsch war das Register — also genau die Liste, die eine Sitzung liest, BEVOR sie in den Quelltext schaut.** Lehre, verschieden von der Stale-Zahl-Lehre: die eine Hälfte dieses Satzes war gemessen („= 0"), die andere aus dem Gedächtnis mitgeschrieben — **wer eine Register-Zeile über einen Nachbarn mit-behauptet, misst den Nachbarn mit.** **Das ist KEIN Defekt und muss so dastehen:** die Entscheidung ist am 2026-08-02 per Founder-Screenshot mit rotem X gefallen und im Quelltext an der Montagestelle festgehalten. Also türlos ABSICHTLICH, wie `ImmersiveStageView` und `BroadcastView` — nur stand es nirgends im Register, und genau das ist der Zustand, den der Doctor-Sektion-C-Text „unerreichbar UND nirgends aufgeschrieben" nennt.
+
+## L — `CoherenceTrend`: eine Schutzstelle, die CLAUDE.md nannte, bevor es sie gab (#920)
+
+**Stand 2026-08-31.** Die Bio-Tabelle sagte seit #813: *„Drei Übergänge setzen ihn zurück
+(ungemessen→gemessen, Quellenwechsel, langes Loch)."* Gemessen an `Core/CoherenceTrend.swift`
+gab es den **Quellenwechsel nicht**. Die dritte tatsächlich gebaute Schutzstelle war das
+Halten bei `dt <= 0` (doppelter oder verdrehter Zeitstempel). Die Zeile nannte also einen
+ABWESENDEN Schutz und verschwieg einen ANWESENDEN — beide Fehler in einer Klammer.
+
+**Das Artefakt, das der fehlende Schutz zuließ (getrieben, nicht geschätzt).** Konstanten:
+`fullScaleRisePerSecond = 0.05`, `smoothingSeconds = 4`.
+
+| Vorgang | dt | roher Anstieg/s | normiert | α | Trend |
+|---|---|---|---|---|---|
+| Kamera 0,20 → Gurt 0,75 | 2 s | 0,275 | 1,0 (geklammert) | 0,3935 | **0,393** |
+| echter starker Anstieg, ein Frame | 1 s | gesättigt | 1,0 | 0,2212 | 0,221 |
+
+Der Deadband des Verbrauchers ist 0,10. Ein **Sensorwechsel** erzeugte damit fast das
+Vierfache der Schwelle — und **mehr als ein echter starker Anstieg**. Der Spieler hörte den
+Spektralmorph schwingen, weil er die Quelle wechselte, nicht weil sein Körper sich änderte.
+
+**Warum die Lücken-Wache das nicht abdeckt:** `newRunAfterSeconds = 6`. Eine Übergabe INNERHALB
+dieses Fensters (Simulator, HealthKit, ein bereits verbundener Gurt) erreicht sie nie — genau
+der Fall, der 0,393 erzeugt.
+
+**Entscheidung.** GEBAUT statt zurückgenommen: das Artefakt ist echt, also war die Prosa
+richtig gewollt und nur zu früh geschrieben. `update` nimmt jetzt `source: BioSource` **ohne
+Default** (#431/#440/#443), und ein Wechsel wird wie der erste Frame eines neuen Laufs
+behandelt: Basislinie nehmen, nichts melden.
+
+**Nebenbefund im Wächter selbst.** `TheCoherenceTrendHasAProducerTests` hatte eine Überschrift
+„5–7 die drei Übergänge" über **vier** Methoden — der Out-of-Order-Regressionstest war ohne
+Neunummerierung angehängt worden. Sie nennt jetzt die MENGE statt einer Zahl (#818).
+
+**Gegenprobe:** alle neun geerbten Ansprüche liefern mit dem neuen `source:`-Parameter
+identische Werte (eine Quelle durchgehend, `Self.oneSensor`); nur der neue zehnte Anspruch
+ändert etwas — 0,393 → 0,0.

@@ -24,8 +24,11 @@
 //
 // KIND (§1): **FORWARD, behavioural.** Every claim drives the pure `CoherenceTrend` this commit
 // creates, so none has a verdict on the parent tree (§3 — stated rather than left to read as a
-// regression). Claims 5–7 are the SAFETY half: three transitions that would otherwise mint a
-// full-scale trend out of nothing.
+// regression). Claims 5–9 are the SAFETY half: the transitions that would otherwise mint a
+// full-scale trend out of nothing, or divide by a zero interval. ⛔ This line said "5–7 …
+// three transitions" while four methods stood under that heading; #920 adds the fifth (a
+// sensor hand-over) and re-derives the range from the method order rather than nursing the
+// old count.
 //
 // ⚠️ WHAT NO TEST HERE CAN SAY: whether the resulting timbre shift is audible-but-not-
 // distracting. `fullScaleRisePerSecond` is an estimate. NEEDS-FOUNDER-VERIFY: run a session,
@@ -37,12 +40,19 @@ import XCTest
 
 final class TheCoherenceTrendHasAProducerTests: XCTestCase {
 
+    /// The sensor every claim EXCEPT the source-switch one uses, deliberately the same value
+    /// throughout. A trend is a statement about one sensor's readings; holding the source fixed
+    /// is what makes the nine inherited claims measure slope and nothing else, and it is why
+    /// threading `source:` through them changed not one driven number (verified before the
+    /// parameter was added: old and new logic produce identical output for all nine).
+    private static let oneSensor: BioSource = .cameraPPG
+
     /// One frame per second, the app's measured apply rate (the poll is 10 Hz; every consumer
     /// deduplicates on `frame.timestamp` and every wired publisher sends at ~1 Hz).
     private func drive(_ readings: [(Float, Bool)], startAt t0: TimeInterval = 0) -> [Float] {
         var trend = CoherenceTrend()
         return readings.enumerated().map { index, r in
-            trend.update(coherence: r.0, measured: r.1, at: t0 + TimeInterval(index))
+            trend.update(coherence: r.0, measured: r.1, source: Self.oneSensor, at: t0 + TimeInterval(index))
         }
     }
 
@@ -101,7 +111,12 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
             """)
     }
 
-    // MARK: - 5–7  the three transitions that would otherwise mint a trend out of nothing
+    // MARK: - 5–9  the transitions that would otherwise mint a trend out of nothing
+    //
+    // ⛔ THIS HEADING SAID "5–7 the three transitions" OVER FOUR METHODS. The out-of-order
+    // regression was appended without renumbering, so the count was one short before #920 added
+    // a fifth. A heading that names a count is a date, not a fact (#818) — it now names the
+    // SET instead, and the numbering below is re-derived from the method order.
 
     func testAnUnmeasuredRunCannotSpikeWhenTheBodyArrives() {
         let out = drive([(0.0, false), (0.0, false), (0.62, true), (0.63, true)])
@@ -120,10 +135,10 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
 
     func testALongGapStartsANewRunInsteadOfASlope() {
         var trend = CoherenceTrend()
-        _ = trend.update(coherence: 0.40, measured: true, at: 0)
-        let before = trend.update(coherence: 0.42, measured: true, at: 1)
+        _ = trend.update(coherence: 0.40, measured: true, source: Self.oneSensor, at: 0)
+        let before = trend.update(coherence: 0.42, measured: true, source: Self.oneSensor, at: 1)
         XCTAssertTrue(before > 0, "A real 1 s slope produced nothing; the control for this test is broken.")
-        let across = trend.update(coherence: 0.90, measured: true, at: 30)
+        let across = trend.update(coherence: 0.90, measured: true, source: Self.oneSensor, at: 30)
         XCTAssertEqual(across, 0, """
             A 29-second gap was read as a slope. A paused or backgrounded session resumes with a
             completely different body state; dividing that difference by the gap is arithmetic
@@ -133,9 +148,9 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
 
     func testADuplicateStampHoldsRatherThanDividingByZero() {
         var trend = CoherenceTrend()
-        _ = trend.update(coherence: 0.40, measured: true, at: 0)
-        let first = trend.update(coherence: 0.44, measured: true, at: 1)
-        let repeated = trend.update(coherence: 0.44, measured: true, at: 1)
+        _ = trend.update(coherence: 0.40, measured: true, source: Self.oneSensor, at: 0)
+        let first = trend.update(coherence: 0.44, measured: true, source: Self.oneSensor, at: 1)
+        let repeated = trend.update(coherence: 0.44, measured: true, source: Self.oneSensor, at: 1)
         XCTAssertEqual(repeated, first, """
             A repeated timestamp changed the trend. dt = 0 has no slope to compute and the
             division would be by zero; holding the last value is the only honest answer.
@@ -151,15 +166,15 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
     /// the shape this repo keeps paying for.
     func testAnOutOfOrderFrameDoesNotBecomeTheBaseline() {
         var poisoned = CoherenceTrend()
-        _ = poisoned.update(coherence: 0.40, measured: true, at: 10)
-        _ = poisoned.update(coherence: 0.44, measured: true, at: 11)
-        _ = poisoned.update(coherence: 0.20, measured: true, at: 4)   // arrives late, older stamp
-        let afterReorder = poisoned.update(coherence: 0.48, measured: true, at: 12)
+        _ = poisoned.update(coherence: 0.40, measured: true, source: Self.oneSensor, at: 10)
+        _ = poisoned.update(coherence: 0.44, measured: true, source: Self.oneSensor, at: 11)
+        _ = poisoned.update(coherence: 0.20, measured: true, source: Self.oneSensor, at: 4)   // arrives late, older stamp
+        let afterReorder = poisoned.update(coherence: 0.48, measured: true, source: Self.oneSensor, at: 12)
 
         var clean = CoherenceTrend()
-        _ = clean.update(coherence: 0.40, measured: true, at: 10)
-        _ = clean.update(coherence: 0.44, measured: true, at: 11)
-        let withoutReorder = clean.update(coherence: 0.48, measured: true, at: 12)
+        _ = clean.update(coherence: 0.40, measured: true, source: Self.oneSensor, at: 10)
+        _ = clean.update(coherence: 0.44, measured: true, source: Self.oneSensor, at: 11)
+        let withoutReorder = clean.update(coherence: 0.48, measured: true, source: Self.oneSensor, at: 12)
 
         XCTAssertEqual(afterReorder, withoutReorder, accuracy: 1e-6, """
             An out-of-order frame changed what the NEXT frame computed. Dropping a late frame
@@ -168,7 +183,35 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
             """)
     }
 
-    // MARK: - 8  non-finite input
+    /// ⛔ THE RESET CLAUDE.md PROMISED BEFORE IT EXISTED. The bio table listed the three resets
+    /// as "ungemessen→gemessen, Quellenwechsel, langes Loch"; the built third safeguard was the
+    /// duplicate/out-of-order stamp hold, so the doc named an absent guard and omitted a present
+    /// one. #920 built the missing one because the artefact is real and measured, not because a
+    /// sentence asked for it.
+    ///
+    /// ⚠️ THE GAP GUARD DOES NOT COVER THIS and that is the whole point: a hand-over inside the
+    /// six-second freshness window never reaches it.
+    func testASensorHandOverDoesNotReadAsABodyChange() {
+        var trend = CoherenceTrend()
+        _ = trend.update(coherence: 0.20, measured: true, source: .cameraPPG, at: 0)
+        let across = trend.update(coherence: 0.75, measured: true, source: .ble, at: 2)
+        XCTAssertEqual(across, 0, """
+            A sensor hand-over produced a trend. Driven on the real constants, camera 0.20 → \
+            strap 0.75 two seconds later mints 0.393 — nearly four times the consumer's 0.10 \
+            deadband, and LARGER than a genuine strong rise (0.221, the saturated single-frame \
+            bound claim 4 pins). The player would hear the spectral morph swing because they \
+            changed sensor, not because their body did. A trend is a statement about ONE \
+            sensor's readings.
+            """)
+
+        let next = trend.update(coherence: 0.76, measured: true, source: .ble, at: 3)
+        XCTAssertTrue(abs(next) < 0.10, """
+            The first reading AFTER the hand-over already cleared the deadband off a 0.01 change. \
+            The switch has to start a genuinely new run, not merely suppress one frame.
+            """)
+    }
+
+    // MARK: - 10  non-finite input
 
     func testANonFiniteReadingResetsAndNeverPropagates() {
         let out = drive([(0.4, true), (Float.nan, true), (0.5, true)])

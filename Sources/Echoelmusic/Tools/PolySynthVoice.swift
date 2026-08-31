@@ -942,6 +942,7 @@ public final class PolySynthVoice {
         // same reason the rest of this value is — only the drain is on the audio thread.
         let trend = coherenceTrend.update(coherence: frame.coherence,
                                           measured: BioModulationMap.isMeasured(.coherence, in: frame),
+                                          source: frame.source,
                                           at: frame.timestamp)
 
         _ = bioCommands.tryEnqueue(PolyBioParams(

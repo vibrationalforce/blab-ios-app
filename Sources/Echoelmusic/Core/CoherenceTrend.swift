@@ -33,10 +33,18 @@
 //  say whether the timbre shift is audible-but-not-distracting. The number is the one thing
 //  here that cannot be settled in the repo.
 //
-//  ⚠️ RESET IS THE SAFETY PROPERTY, not a convenience. Three transitions would otherwise mint a
-//  spurious full-scale trend out of nothing: unmeasured→measured (the neutral 0.5 placeholder
-//  jumping to a real reading), a source switch (demo→body), and a long gap (a paused session
-//  resuming). Each is handled below, and each has a test.
+//  ⚠️ RESET IS THE SAFETY PROPERTY, not a convenience. FOUR situations would otherwise mint a
+//  spurious trend: unmeasured→measured (the neutral 0.5 placeholder jumping to a real reading),
+//  a SOURCE SWITCH (any sensor hand-over, not only demo→body), a long gap (a paused session
+//  resuming), and a non-positive interval (a duplicate or out-of-order stamp — held, not reset,
+//  so a late frame cannot become the baseline). Each is handled below and each has a claim.
+//
+//  ⛔ THIS PARAGRAPH LISTED THE SOURCE SWITCH BEFORE THE CODE HAD IT, and so did CLAUDE.md — for
+//  the whole of #813. Both named three safeguards, counted the absent switch among them and left
+//  the present dt ≤ 0 hold out. #920 built the missing one instead of retracting the sentence,
+//  because the artefact is real and measured (see the guard at the switch below). The lesson is
+//  not "keep the doc in sync": it is that a safety list is the one kind of prose whose items must
+//  each be pointed at a line of code when written, because a wrong entry there reads as coverage.
 
 import Foundation
 
@@ -60,6 +68,9 @@ public struct CoherenceTrend: Sendable, Equatable {
 
     private var lastCoherence: Float?
     private var lastTimestamp: TimeInterval?
+    /// The source the history belongs to. A trend is a statement about ONE sensor's readings;
+    /// see the sensor-change guard in `update` for why crossing sensors is not one.
+    private var lastSource: BioSource?
     private var smoothed: Float = 0
 
     /// The current trend, −1…1. Zero until two measured readings have arrived.
@@ -71,6 +82,7 @@ public struct CoherenceTrend: Sendable, Equatable {
     public mutating func reset() {
         lastCoherence = nil
         lastTimestamp = nil
+        lastSource = nil
         smoothed = 0
         value = 0
     }
@@ -84,14 +96,43 @@ public struct CoherenceTrend: Sendable, Equatable {
     ///   - measured: whether this frame measured coherence at all. The house test is
     ///     `frame.coherence > 0` (`BioModulationMap.isMeasured(.coherence, in:)`); it is passed
     ///     in rather than re-derived so a caller with a better answer can give one.
+    ///   - source: which sensor produced this reading. It has NO default on purpose
+    ///     (#431/#440/#443: a defaulted argument no call site writes appears in no diff, and
+    ///     this one exists precisely so every caller has to answer the question).
     ///   - timestamp: the frame's own stamp, in the bus's `CFAbsoluteTime` seconds.
     /// - Returns: the updated trend, the same value as `value`.
     @discardableResult
     public mutating func update(coherence: Float,
                                 measured: Bool,
+                                source: BioSource,
                                 at timestamp: TimeInterval) -> Float {
         guard measured, coherence.isFinite, timestamp.isFinite else {
             reset()
+            return 0
+        }
+        // ⛔ A SENSOR CHANGE IS NOT A BODY CHANGE, and until #920 nothing said so. Measured on
+        // the real constants: a hand-over from a camera reading 0.20 to a strap reading 0.75 two
+        // seconds later mints a trend of **0.393** — nearly four times the consumer's 0.10
+        // deadband, and LARGER than a genuine strong rise (0.221 for a real 0.05/s climb). The
+        // player would hear the spectral morph swing because they changed sensor, not because
+        // their body did. Treated exactly like the first frame of a new run: take the baseline,
+        // report nothing.
+        //
+        // ⚠️ THE GAP GUARD BELOW DOES NOT COVER THIS. It fires only after `newRunAfterSeconds`;
+        // a hand-over INSIDE that window — the simulator, HealthKit, a strap already connected —
+        // is well under it, and that is exactly the case that produced 0.393.
+        //
+        // ⛔ CLAUDE.md CLAIMED THIS RESET EXISTED BEFORE IT DID. Its bio table listed the three
+        // resets as "ungemessen→gemessen, Quellenwechsel, langes Loch" while the built third one
+        // was the duplicate/out-of-order stamp hold. The doc named a safeguard that was absent
+        // and omitted one that was present — #920 built the missing one rather than retracting
+        // it, because the artefact it prevents is real and measured.
+        guard source == lastSource else {
+            lastSource = source
+            lastCoherence = coherence
+            lastTimestamp = timestamp
+            smoothed = 0
+            value = 0
             return 0
         }
         // ⛔ THIS WAS A `defer` FOR ONE REVIEW PASS AND THAT WAS A REAL BUG. A `defer` here
