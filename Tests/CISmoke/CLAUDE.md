@@ -75,6 +75,19 @@ lines up explains why the general statement cannot hold, the general statement i
 (`BioSource.freshnessWindow`, `BioEgressPolicy`, `SynthPatch.Bounds`, `RespirationEstimator
 .reportableRange`). Two spellings of one threshold is the defect, whether or not they agree today.
 
+⚠️ **#926 — AND THERE IS ALREADY A LIVE ONE IN THIS DIRECTORY: `slice(…, from:, to:)`.** Ten
+files declare it privately, in **two families that mean different things**. Four return the text
+AFTER the `from` marker (`text[start.upperBound...]`); six return it STARTING WITH the marker
+(`String(code[start.lowerBound..<end.lowerBound])`). Both stop before `to`, so they differ by
+exactly the opening marker: **a needle counting anything that occurs in that marker — a function
+name, `private func`, a label — reads one higher in the second family.** Both also return `""` on
+a missed anchor, so `XCTAssertEqual(count, 0)` over a mis-anchored slice is a vacuous green;
+anchor-check before expecting zero. **When you copy a `slice` from a neighbour, read its body,
+not its name** — that choice is made while AUTHORING, which is why it is written here and not
+only in the guard (`TheSliceHelperHasTwoSemanticsTests`, which can only fire at CI time and only
+on a THIRD spelling). No live case today; the migration to one shared helper is deliberately
+still open, because folding them changes the meaning of four files.
+
 **#453 / #460 / #477 — one stripper.** `SourceText.codeOnly` is the definition of "code, not
 prose": it blanks comments, is string-literal aware, and **preserves line count** (several
 guards assert on `lines[i - 1]` relations). Do not declare a private one.

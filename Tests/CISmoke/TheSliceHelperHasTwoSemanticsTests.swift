@@ -27,9 +27,14 @@
 // stripper — but that touches ten files and changes the meaning of four of them, so it is a
 // migration with a founder-sized blast radius, not a Ralph slice. This guard is deliberately
 // written so the migration stays GREEN: it asks each declaration to be CLASSIFIABLE, never for
-// a particular family, a particular count, or a particular file list. Zero declarations (all
-// callers moved to a shared helper) passes. A new file adopting either family passes. Only a
-// THIRD, differently-behaving spelling goes red.
+// a particular family, a particular count, or a particular file list. A new file adopting
+// either family passes. Only a THIRD, differently-behaving spelling goes red.
+//   ⚠️ ONE PRECISION ON THAT PROMISE (#926b): zero declarations passes only while the shared
+//   helper still lives INSIDE `Tests/CISmoke`, which is where `SourceText` already is, so the
+//   natural migration is green. Move it somewhere this enumeration cannot reach and claim 4
+//   sees `declarations = 0` with call sites remaining, and goes red on a completed, correct
+//   migration. The first draft's header said "zero declarations passes" flat, which
+//   contradicted claim 4's own message a few lines further down (#425).
 //
 // ⚠️ THE CLASSIFIER IS RENAME-PROOF ON PURPOSE, and that decided its shape. Comparing the
 // normalized body TEXT reports three distinct bodies, not two: `TheMarkIsTheSameMarkTests`
@@ -47,6 +52,22 @@
 // they are slices of a FIXTURE string declared three lines above each assertion. A source pin
 // rots when the code changes underneath it (#903/#904); a fixture pin cannot, because its input
 // is in the same method. The tool refusing to guess is it working, not it failing.
+//
+// ⚠️ THE STRIPPER IS **PROPHYLAKTISCH (0 of 4 verdicts flip)** — §2 requires this label and the
+// first draft did not carry it. Measured raw vs stripped with the shipped discriminator in
+// place: both give 10 declarations, 6 INCLUDES + 4 EXCLUDES, none unclassified. Raw text offers
+// three extra matches (this file's own doc comments) and the quote check rejects them anyway.
+// So the credit belongs where the work is: **the line-level quote discriminator is load-bearing
+// here, `SourceText.codeOnly` is redundant for claim 1's verdict.** It is kept because it costs
+// nothing, is the one stripper (§2, #453), and a future `/* … */`-commented declaration needs it.
+//
+// ⚠️ AND THIS FILE ITSELF ADDS TWO MORE SPELLINGS OF THE OPERATION — twelve, not ten. The two
+// local reimplementations below are deliberately invisible to this file's own scan (different
+// names), and NOTHING pins them against any shipped body. If a shipped EXCLUDES helper is
+// rewritten while keeping `.upperBound...`, claim 1 stays green and claims 2/3 go on testing a
+// copy that no longer describes anything in the tree. That is the honest ceiling of a
+// source-text guard over `private` members no test can call, and it is why claim 1 (the text)
+// and claims 2/3 (the behaviour) are both here: neither is sufficient alone.
 //
 // ⚠️ WHAT THE BEHAVIOURAL CLAIMS DO AND DO NOT PROVE — state the limit before the claim (§1).
 // Claims 2 and 3 drive LOCAL reimplementations of the two families, because the shipped helpers
@@ -75,6 +96,11 @@ import XCTest
 @testable import Echoelmusic
 
 final class TheSliceHelperHasTwoSemanticsTests: XCTestCase {
+
+    /// The declaration anchor. Stops at the NAME, not at `(`, so `func slice (` and
+    /// `func slice<T>(` are read too; the character after it is checked for a word boundary so
+    /// `func sliceDeclarations` is not mistaken for one.
+    private static let needle = "func slice"
 
     private enum Family: String {
         /// Returns the text AFTER the `from` marker.
@@ -160,7 +186,9 @@ final class TheSliceHelperHasTwoSemanticsTests: XCTestCase {
         // Any guard whose expectation is zero must anchor-check first.
         let missed = excludesMarkerSlice(text, from: "no such marker", to: "\n    }")
         XCTAssertEqual(missed.components(separatedBy: "knob").count - 1, 0, """
-            A count over a MISSED slice is no longer 0 — if that ever changes, the vacuous-green             hazard this claim records has changed shape and the wording above must follow.
+            A count over a MISSED slice is no longer 0 — if that ever changes, the \
+            vacuous-green hazard this claim records has changed shape and the wording above \
+            must follow.
             """)
     }
 
@@ -174,15 +202,32 @@ final class TheSliceHelperHasTwoSemanticsTests: XCTestCase {
     /// `sliceDeclarations`). No number is pinned, so nothing here can rot (#903).
     func testTheScanFindsTheDeclarationsThatTheCallSitesNeed() throws {
         let declarations = try sliceDeclarations()
+        // ⛔ THE FIRST DRAFT COULD PASS VACUOUSLY AND CLAIM 4 IS THE CLAIM WRITTEN TO
+        // PREVENT THAT (#926b). Both sides of the disjunction below are fed by the SAME
+        // enumeration, so an enumeration that finds nothing — wrong directory, moved tree
+        // — zeroes both and satisfies it: an empty list `.isEmpty` is true AND
+        // `callSites == 0` is true. The peer that scans this directory the same way
+        // guards it with a floor (`OneDefinitionOfCodeNotProseTests`); so does this now.
+        let files = try filesUnderCISmoke()
+        XCTAssertGreaterThan(files.count, 100, """
+            Only \(files.count) files found in Tests/CISmoke — the enumeration is looking \
+            at the wrong directory, so every green below proves nothing.
+            """)
+
         var callSites = 0
-        for file in try filesUnderCISmoke() {
+        for file in files {
             let code = SourceText.codeOnly(try rawText(file))
             callSites += code.components(separatedBy: "slice(").count - 1
         }
+
+        let census = Dictionary(grouping: declarations.compactMap { $0.family }, by: { $0 })
+            .map { "\($0.key.rawValue): \($0.value.count)" }
+            .sorted()
+            .joined(separator: ", ")
         XCTAssertTrue(!declarations.isEmpty || callSites == 0, """
             This bundle contains \(callSites) `slice(` call site(s) and \
-            \(declarations.count) declaration(s) the scan could read. Claim 1 inspects \
-            declarations, so zero of them with calls still present means the extractor stopped \
+            \(declarations.count) declaration(s) the scan could read (\(census)). \
+            Claim 1 inspects declarations, so zero of them with calls still present means the extractor stopped \
             matching how the helper is written — claim 1 would then be green having read \
             nothing. Zero declarations AND zero calls is the migrated tree and is fine.
             """)
@@ -228,14 +273,20 @@ final class TheSliceHelperHasTwoSemanticsTests: XCTestCase {
         for file in try filesUnderCISmoke() {
             let code = SourceText.codeOnly(try rawText(file))
             var searchStart = code.startIndex
-            while let match = code.range(of: "func slice(",
-                                         range: searchStart..<code.endIndex) {
+            while let match = code.range(of: Self.needle, range: searchStart..<code.endIndex) {
                 searchStart = match.upperBound
-                // Everything between the start of this LINE and the match must be modifiers
-                // only. That is what separates a declaration from the needle literal.
+                // `func sliceDeclarations` is not a declaration of `slice`. The needle stops at
+                // the NAME rather than at `(` so that `func slice (` and `func slice<T>(` — both
+                // legal, both invisible to a `func slice(` needle — are still read.
+                if match.upperBound < code.endIndex {
+                    let next = code[match.upperBound]
+                    if next.isLetter || next.isNumber || next == "_" { continue }
+                }
                 let lineStart = code[..<match.lowerBound].lastIndex(of: "\n")
                     .map { code.index(after: $0) } ?? code.startIndex
-                guard isOnlyModifiers(String(code[lineStart..<match.lowerBound])) else { continue }
+                guard !isInsideStringLiteral(String(code[lineStart..<match.lowerBound])) else {
+                    continue
+                }
                 guard let body = bracedBody(of: code, startingAt: match.upperBound) else {
                     found.append(Declaration(file: file, family: nil))
                     continue
@@ -246,12 +297,30 @@ final class TheSliceHelperHasTwoSemanticsTests: XCTestCase {
         return found
     }
 
-    /// Whether the text in front of `func slice(` on its own line is modifiers and nothing else.
-    private func isOnlyModifiers(_ head: String) -> Bool {
-        let known: Set<String> = ["private", "fileprivate", "internal", "public",
-                                  "static", "final", "class"]
-        let words = head.split(whereSeparator: { $0 == " " || $0 == "\t" }).map(String.init)
-        return words.allSatisfy { known.contains($0) }
+    /// Whether the match sits inside a string literal — i.e. an ODD number of unescaped quotes
+    /// stands between the start of its line and it.
+    ///
+    /// ⛔ THE FIRST REPAIR ASKED THE OPPOSITE QUESTION AND THAT WAS A BLOCKER (#926b). It kept a
+    /// list of known modifiers and skipped anything else — which conflates "this is my own
+    /// needle literal" with "this is a declaration written with a modifier I do not know".
+    /// Driven on the real tree: prefixing one shipped declaration with `@MainActor`,
+    /// `nonisolated` or `open` dropped it from the scan silently, and **a helper with a genuine
+    /// THIRD arithmetic disappeared entirely if it also carried an unknown modifier** — claim 1
+    /// green on exactly the tree it is named for. `open` is the sharpest tell: the list read as
+    /// "the access modifiers" and simply omitted one, and `@MainActor` is ordinary in a Swift 6
+    /// repo. Asking about the QUOTE instead needs no list, so no future modifier, attribute or
+    /// macro can widen the hole. Measured after the repair: all three prefixes keep the
+    /// declaration, and the modifier-plus-third-arithmetic tree is RED.
+    /// **A skip list has to be complete to be safe; a positive discriminator does not.**
+    private func isInsideStringLiteral(_ head: String) -> Bool {
+        var quotes = 0
+        var escaped = false
+        for character in head {
+            if escaped { escaped = false; continue }
+            if character == "\\" { escaped = true; continue }
+            if character == "\"" { quotes += 1 }
+        }
+        return quotes % 2 == 1
     }
 
     /// The range arithmetic IS the semantics; see the header for why the body text is not.
@@ -295,7 +364,10 @@ final class TheSliceHelperHasTwoSemanticsTests: XCTestCase {
 
     private func rawText(_ relativePath: String) throws -> String {
         let path = try repoRoot().appendingPathComponent(relativePath)
-        // ⚠️ ASSERT, DO NOT SKIP — a skip is not a pass (#454/#806).
+        // ⚠️ ASSERT, DO NOT SKIP — a skip is not a pass (#454/#806). Honest about its reach
+        // (#926b): every caller passes a name `filesUnderCISmoke()` has just enumerated, so on
+        // the shipped path this cannot fire. It guards a FUTURE caller that hard-codes a path;
+        // it is not a live protection, and is said plainly rather than left to read as one.
         XCTAssertTrue(FileManager.default.fileExists(atPath: path.path),
                       "\(relativePath) is not present; a missing subject is a broken guard.")
         return try String(contentsOf: path, encoding: .utf8)
