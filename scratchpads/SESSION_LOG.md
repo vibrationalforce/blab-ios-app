@@ -3,6 +3,41 @@
 > drum + piano-roll removals (#166/#167/#178). Reading the head of this file gives you
 > a picture of the app that is a week out of date — scroll to the end first.
 
+## 2026-08-31 — #938: die REIHENFOLGE gemessen, und MPE IN geplant
+
+**#937 bestätigt:** `TEST FAILURES: 0` auf `9699cbf`, ein Test mehr beobachtet (167 statt 166).
+Der umgeankerte Wächter läuft wieder.
+
+**Diese Runde hat KEINEN Code geändert** — sie ist der Plan, den der Cron für Arbeit dieser
+Klasse ausdrücklich verlangt.
+
+⭐ **Die REIHENFOLGE (v10.79.183) ist gemessen, nicht befolgt und nicht umgeschrieben** (#885):
+
+| # | Stand, gemessen |
+|---|---|
+| 5 Visuals grau | ausgeliefert, wartet auf das Founder-Auge |
+| 1 Automation in der Spur | **gegen die ratifizierte Produktdefinition** — Timeline/Clips sind CUT, die Ansichten gelöscht |
+| 2 Bio-Modulation sichtbar | **FERTIG UND ERREICHBAR** — `BioModLiveView` + `AlwaysOnBioView` in `EchoelFXView`s Form, `showAllFX` hat einen echten Knopf |
+| 3 Externe AUv3 | Target am 2026-07-24 entfernt |
+| 4 Leisten in Spuren | starb mit der Timeline |
+
+**Gewählt: MPE IN.** MPE OUT ist real (#713), MPE IN nicht: `MIDIEventParse` dekodiert in
+BEIDEN Protokollen genau vier Dinge, Channel Pressure (0xD0/0xD) hat keinen Fall.
+**Council-Gate: PROCEED, aber S1 (Parse) und S2 (Verbrauch) in EINEM Zyklus** — der Skeptiker
+steuert die Reihenfolge, ein Parser ohne Verbraucher ist genau die Kategorie, die dieses Repo
+an sechs Stellen als Defekt führt.
+
+⛔ **Eine Falschbehauptung in der ersten Fassung, VOR dem Commit selbst gefangen — sechste
+Namenskollision dieser Sitzung.** Der Plan schrieb „`PolySynthVoice` verbraucht `.slide` sehr
+wohl". Das ist ein gleichnamiger Fall auf einer EIGENEN internen Warteschlange.
+`ControllerEvent` erreicht gemessen genau zwei Dateien: `MIDIBusPublisher` (Erzeuger) und
+`BioReactiveSynthVoice` (**einziger** Verbraucher). **Der wahre Befund ist schärfer als der
+falsche.** Gesetz: dem TYP folgen, nicht dem Wort.
+
+⚠️ Nebenbei gemessen: `./review.sh` = **242 überfällige Entscheidungen**, älteste 2026-04-10.
+Nicht bearbeitet — das ist Founder-Arbeit, keine Sitzungsarbeit. Aufgeschrieben, damit die Zahl
+nicht wieder nur als Behauptung existiert.
+
 ## 2026-08-31 — #937: ein ECHTES rotes Gate, elf Tage alt, hinter dem Blindfleck des eigenen Werkzeugs
 
 **Das neue Werkzeug hat sofort geliefert.** Der Verdikt-Leser meldete auf `cf03a69` nicht nur
