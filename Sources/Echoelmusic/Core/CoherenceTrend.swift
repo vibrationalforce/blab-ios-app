@@ -33,18 +33,37 @@
 //  say whether the timbre shift is audible-but-not-distracting. The number is the one thing
 //  here that cannot be settled in the repo.
 //
-//  ⚠️ RESET IS THE SAFETY PROPERTY, not a convenience. FOUR situations would otherwise mint a
-//  spurious trend: unmeasured→measured (the neutral 0.5 placeholder jumping to a real reading),
-//  a SOURCE SWITCH (any sensor hand-over, not only demo→body), a long gap (a paused session
-//  resuming), and a non-positive interval (a duplicate or out-of-order stamp — held, not reset,
-//  so a late frame cannot become the baseline). Each is handled below and each has a claim.
+//  ⭐ ONE RUN PER SOURCE — and this is the ledger's prescribed shape, not a new idea.
+//  `scratchpads/HARNESS_LEDGER.md` records "DEAD-END: einen geteilten Detektor „bei
+//  Quellenwechsel zurücksetzen"", and `Bio/BioEventPublisher.swift` carries the long version:
+//  **sources do not take turns.** `stopBioSource()` stops camera/strap/demo but NOT
+//  `HealthKitBioPublisher`, which `EchoelmusicApp` starts at first bio use and which keeps
+//  publishing alongside whatever the player picked. So `bus.latestBio` INTERLEAVES.
 //
-//  ⛔ THIS PARAGRAPH LISTED THE SOURCE SWITCH BEFORE THE CODE HAD IT, and so did CLAUDE.md — for
-//  the whole of #813. Both named three safeguards, counted the absent switch among them and left
-//  the present dt ≤ 0 hold out. #920 built the missing one instead of retracting the sentence,
-//  because the artefact is real and measured (see the guard at the switch below). The lesson is
-//  not "keep the doc in sync": it is that a safety list is the one kind of prose whose items must
-//  each be pointed at a line of code when written, because a wrong entry there reads as coverage.
+//  ⛔ #813 AND #920 BOTH BUILT THE SHARED SHAPE THE LEDGER HAD ALREADY BURIED, and the cost was
+//  live, not hypothetical: `HealthKitBioPublisher` publishes an honest `coherence: 0`, so
+//  `isMeasured(.coherence,…)` is false for every wrist frame, so the single shared tracker
+//  called `reset()` roughly every 4–5 s — on a ~1 Hz camera feed that is the whole history,
+//  repeatedly, and the morph could rarely reach the consumer's 0.10 deadband at all. #920's
+//  source-switch guard sat ON TOP of that and could not see it. Per-source state removes the
+//  class instead of trading one artefact for another: each sensor's trajectory stays
+//  continuous, an unmeasured wrist frame forgets only the WRIST, and a hand-over reports the
+//  new sensor's own run, which has no history and is therefore silent — the #920 property,
+//  obtained without a cross-source reset.
+//
+//  ⚠️ AN UNMEASURED OR CORRUPT FRAME HOLDS, IT DOES NOT ZERO. Returning 0 for a wrist frame
+//  would make the morph flicker to neutral every few seconds even with per-source runs — the
+//  same deafening one layer down. A frame that carries no coherence says nothing about the
+//  trend, so the last reported value stands. Only that source's history is dropped.
+//
+//  ⚠️ RESET/HOLD IS THE SAFETY PROPERTY, not a convenience. The situations that would otherwise
+//  mint a spurious trend, each handled below and each with a claim: an unmeasured stretch (the
+//  neutral 0.5 placeholder jumping to a real reading), a NON-FINITE reading (`clamped(to:)`
+//  maps NaN to the LOWER bound, so in a signed range a NaN becomes −1 — a full-scale FALLING
+//  trend, the most extreme spurious value this type can produce), a long gap (a paused session
+//  resuming), a non-positive interval (a duplicate or out-of-order stamp), and a sensor
+//  hand-over. **No count is written here on purpose** (#818): the list grew twice in two days
+//  and every number attached to it went stale, once inside the very commit that repaired it.
 
 import Foundation
 
@@ -66,24 +85,30 @@ public struct CoherenceTrend: Sendable, Equatable {
     /// freshness window the bio surfaces already use for "this reading is stale".
     public static let newRunAfterSeconds: TimeInterval = 6
 
-    private var lastCoherence: Float?
-    private var lastTimestamp: TimeInterval?
-    /// The source the history belongs to. A trend is a statement about ONE sensor's readings;
-    /// see the sensor-change guard in `update` for why crossing sensors is not one.
-    private var lastSource: BioSource?
-    private var smoothed: Float = 0
+    /// One sensor's history. Never shared — see the header for the ledger entry that buried
+    /// the shared shape twice.
+    private struct Run: Sendable, Equatable {
+        var lastCoherence: Float
+        var lastTimestamp: TimeInterval
+        var smoothed: Float
+    }
 
-    /// The current trend, −1…1. Zero until two measured readings have arrived.
+    /// One `Run` per `BioSource`. A dictionary rather than an array because that is the shape
+    /// `BioEventPublisher` already uses for exactly this problem (`[BioSource: BioEventGraph]`),
+    /// and because it needs no assumption about which enum case is last. Bounded by
+    /// `BioSource`'s case count; this type lives on the MAIN ACTOR, never the audio thread, so
+    /// the allocation is not an audio-thread concern (see the header).
+    private var runs: [BioSource: Run] = [:]
+
+    /// The trend last REPORTED, −1…1 — the value of whichever source spoke most recently.
+    /// Zero until some source has two measured readings.
     public private(set) var value: Float = 0
 
     public init() {}
 
-    /// Forget the history. The next measured reading starts a new run and produces 0.
+    /// Forget every source's history. The next measured reading starts a new run and reports 0.
     public mutating func reset() {
-        lastCoherence = nil
-        lastTimestamp = nil
-        lastSource = nil
-        smoothed = 0
+        runs.removeAll()
         value = 0
     }
 
@@ -98,103 +123,67 @@ public struct CoherenceTrend: Sendable, Equatable {
     ///     in rather than re-derived so a caller with a better answer can give one.
     ///   - source: which sensor produced this reading. It has NO default on purpose
     ///     (#431/#440/#443: a defaulted argument no call site writes appears in no diff, and
-    ///     this one exists precisely so every caller has to answer the question).
+    ///     this one exists precisely so every caller has to answer the question). It selects
+    ///     the run; it is never compared against a previous frame's source.
     ///   - timestamp: the frame's own stamp, in the bus's `CFAbsoluteTime` seconds.
-    /// - Returns: the updated trend, the same value as `value`.
+    /// - Returns: the trend now being reported, the same value as `value`.
     @discardableResult
     public mutating func update(coherence: Float,
                                 measured: Bool,
                                 source: BioSource,
                                 at timestamp: TimeInterval) -> Float {
         guard measured, coherence.isFinite, timestamp.isFinite else {
-            reset()
-            return 0
+            // Drop only THIS sensor's history — a wrist frame carrying no coherence says
+            // nothing about the camera's trajectory — and HOLD the reported value. Returning 0
+            // here is what made the interleaved wrist feed deafen the whole tracker.
+            runs[source] = nil
+            return value
         }
-        // ⛔ A SENSOR CHANGE IS NOT A BODY CHANGE, and until #920 nothing said so. Measured on
-        // the real constants: a hand-over from a camera reading 0.20 to a strap reading 0.75 two
-        // seconds later mints a trend of **0.393** — nearly four times the consumer's 0.10
-        // deadband, and INDISTINGUISHABLE from the fastest genuine rise this mapping can express
-        // (a real saturating climb over the same 2 s is 0.3935 too: the raw slope was 5.5× full
-        // scale, and the clamp erases the difference). The player would hear the spectral morph
-        // swing because they changed sensor, not because their body did. Treated exactly like the
-        // first frame of a new run: take the baseline, report nothing.
-        //
-        // ⛔ THE FIRST DRAFT OF THIS COMMENT COMPARED TWO DIFFERENT INTERVALS. It said 0.393 was
-        // "LARGER than a genuine strong rise (0.221)" — but 0.393 is driven at dt = 2 s and 0.221
-        // is the single-frame bound at dt = 1 s. At equal dt the two are equal, so the comparison
-        // measured the smoothing constant, not the hand-over. The defect is real either way; the
-        // rhetoric was not commensurable, which is the #808 lesson one level up from a needle.
-        //
-        // ⚠️ THE GAP GUARD BELOW DOES NOT COVER THIS. It fires only after `newRunAfterSeconds`;
-        // a hand-over INSIDE that window — the simulator, HealthKit, a strap already connected —
-        // is well under it, and that is exactly the case that produced 0.393.
-        //
-        // ⛔ CLAUDE.md CLAIMED THIS RESET EXISTED BEFORE IT DID. Its bio table listed the three
-        // resets as "ungemessen→gemessen, Quellenwechsel, langes Loch" while the built third one
-        // was the duplicate/out-of-order stamp hold. The doc named a safeguard that was absent
-        // and omitted one that was present — #920 built the missing one rather than retracting
-        // it, because the artefact it prevents is real and measured.
-        guard source == lastSource else {
-            lastSource = source
-            lastCoherence = coherence
-            lastTimestamp = timestamp
-            smoothed = 0
+        guard var run = runs[source] else {
+            // First measured reading this sensor has produced: one point has no slope. A
+            // hand-over lands here, which is why no cross-source reset is needed.
+            runs[source] = Run(lastCoherence: coherence, lastTimestamp: timestamp, smoothed: 0)
             value = 0
             return 0
         }
-        // ⛔ THIS WAS A `defer` FOR ONE REVIEW PASS AND THAT WAS A REAL BUG. A `defer` here
-        // stores the new reading on EVERY return path below — including the `dt <= 0` one. An
-        // OUT-OF-ORDER frame (an older stamp) would then become the new baseline, and the next
-        // frame's dt would be measured from that older moment: an inflated interval, so a real
-        // slope reads as a slower one. Exact duplicates are excluded upstream by the voices'
+        let dt = timestamp - run.lastTimestamp
+        // ⛔ THIS WAS A `defer` FOR ONE REVIEW PASS AND THAT WAS A REAL BUG. A `defer` stores the
+        // new reading on EVERY return path — including the `dt <= 0` one. An OUT-OF-ORDER frame
+        // (an older stamp) would then become this run's baseline, and the next frame's dt would
+        // be measured from that older moment: an inflated interval, so a real slope reads as a
+        // slower one. Exact duplicates are excluded upstream by the voices'
         // `frame.timestamp != lastTimestamp` check, but out-of-order is not, and a producer that
         // relies on its caller's deduplication is the shape this repo keeps paying for. Each
-        // path now stores explicitly, and the hold path stores nothing.
-        guard let previous = lastCoherence, let previousStamp = lastTimestamp else {
-            // ⚠️ UNREACHABLE BY CONSTRUCTION SINCE #920, and kept deliberately. Reaching this line
-            // needs `lastSource == source` and therefore non-nil, and the only writer of
-            // `lastSource` (the switch guard above) stores all three fields in the same breath,
-            // while `reset()` nils all three. So the else-branch cannot run today. It is NOT dead
-            // code to delete: `previous`/`previousStamp` have to be unwrapped somehow, and this
-            // is the unwrap. Its old comment said "first measured reading of a run" — that work
-            // moved to the switch guard, and a note describing a role it no longer owns is the
-            // shape this repo keeps paying for.
-            lastCoherence = coherence
-            lastTimestamp = timestamp
-            smoothed = 0
-            value = 0
-            return 0
-        }
-        let dt = timestamp - previousStamp
+        // path stores explicitly, and the hold path stores nothing.
         guard dt > 0 else {
-            // A duplicate or out-of-order frame. Hold the current value AND the baseline: the
-            // older reading must not become the anchor the next real frame is measured from.
+            // A duplicate or out-of-order frame. Hold the reported value AND this run's
+            // baseline: the older reading must not become the anchor the next real frame is
+            // measured from.
             return value
         }
         guard dt <= Self.newRunAfterSeconds else {
-            // The session paused. The difference across the gap is not a slope.
-            lastCoherence = coherence
-            lastTimestamp = timestamp
-            smoothed = 0
+            // This sensor paused. The difference across the gap is not a slope.
+            runs[source] = Run(lastCoherence: coherence, lastTimestamp: timestamp, smoothed: 0)
             value = 0
             return 0
         }
-        let perSecond = (coherence - previous) / Float(dt)
+        let perSecond = (coherence - run.lastCoherence) / Float(dt)
         // ⚠️ `clamped(to:)` MAPS NaN TO THE LOWER BOUND, which in a SIGNED range means a NaN
         // becomes −1 — a full-scale FALLING trend, not a neutral 0. That is right for the unit
         // ranges the helper was written for and a landmine here. It cannot fire today: the
-        // `isFinite` guard at the top rejects a bad reading, `previous` is only ever stored from
-        // a finite one, and `dt` is bounded above by `newRunAfterSeconds` and below by the
+        // `isFinite` guard at the top rejects a bad reading, `lastCoherence` is only ever stored
+        // from a finite one, and `dt` is bounded above by `newRunAfterSeconds` and below by the
         // `dt > 0` guard, so this division is finite by construction. It is written down because
         // the day someone relaxes the entry guard, the failure is silent and points the wrong way.
         let normalized = (perSecond / Self.fullScaleRisePerSecond).clamped(to: -1...1)
         // One-pole smoothing, RATE-BASED so an irregular frame interval does not change the
         // effective time constant (the house rule for slews).
         let alpha = 1 - exp(-Float(dt) / Self.smoothingSeconds)
-        smoothed += alpha * (normalized - smoothed)
-        value = smoothed.clamped(to: -1...1)
-        lastCoherence = coherence
-        lastTimestamp = timestamp
+        run.smoothed += alpha * (normalized - run.smoothed)
+        run.lastCoherence = coherence
+        run.lastTimestamp = timestamp
+        runs[source] = run
+        value = run.smoothed.clamped(to: -1...1)
         return value
     }
 }

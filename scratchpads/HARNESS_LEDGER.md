@@ -1406,6 +1406,23 @@ aller Produzenten nachlesen (wer startet sie, wer stoppt sie — hier: `stopBioS
 ist Exklusivität die Ausnahme, nicht die Regel. Zweite Lehre: ein Reset ist nicht
 automatisch harmlos-unterdrückend — `MotionPeakDetector` wird davon *scharfgestellt*.
 
+⛔ **DIESER EINTRAG WURDE ZWEIMAL WIEDER UMGESETZT, VON MIR, IN DERSELBEN BUS-SCHICHT
+(#813 und #920, korrigiert in #920c 2026-08-31).** `Core/CoherenceTrend` war ein GETEILTER
+Zähler über `bus.latestBio`; #920 hängte obendrauf genau den hier begrabenen
+Quellenwechsel-Reset. Die Kosten waren dieselben und lebend: HealthKit veröffentlicht ein
+ehrliches `coherence: 0`, also war `isMeasured` für jeden Handgelenk-Frame falsch, also
+leerte der Zähler alle ~4–5 s seine ganze Historie — auf einem ~1-Hz-Kamera-Feed sägte der
+Trend zwischen 0 und 0,2111, statt auf 0,3459 zu steigen; der Spektralmorph wurde alle vier
+Frames auf die Patch-Form entlassen. Reparatur: `[BioSource: Run]`, exakt die oben
+verschriebene Form.
+
+**Zwei Zusätze zur Regel, die dieser Rückfall gekostet hat.** (1) Der Eintrag nennt
+`BioEventGraph` namentlich, und beide Rückfälle betrafen einen ANDEREN Typ auf demselben Bus
+— **wer eine DEAD-END-Zeile liest, liest sie als Aussage über die SCHICHT, nicht über den
+genannten Typ.** (2) `isMeasured`-false ist derselbe Mechanismus wie ein Reset: jeder
+geteilte Zustand hinter einem „gemessen?"-Tor wird von der stillsten Quelle regiert, auch
+ohne dass irgendwo `reset()` steht. Herleitung und Messtabelle: `memory/LEDGER_COUNTS.md` §L.2.
+
 ### DEAD-END: eine Oberfläche entfernen und ihre Autorität stehen lassen
 
 Slice 4 löschte die Arrangement-UI. Das persistierte Dokument blieb — und blieb der ERSTE

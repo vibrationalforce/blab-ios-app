@@ -2280,8 +2280,17 @@ public final class EchoelDDSP: @unchecked Sendable {
         //    is a real slice — this branch is what it will drive" — and that is what #813 did:
         //    `Core/CoherenceTrend`, a pure struct each voice owns, fed on the MAIN ACTOR from
         //    the RAW `frame.coherence` (never `coherenceForSound`, whose neutral substitution
-        //    would read as movement to a derivative) and reset across an unmeasured stretch, a
-        //    source switch or a long gap so no transition mints a full-scale trend.
+        //    would read as movement to a derivative), with ONE RUN PER SOURCE so an interleaved
+        //    feed cannot deafen the measured one, and reset or held across an unmeasured
+        //    stretch, a non-finite reading, a long gap and a non-positive interval so no
+        //    transition mints a full-scale trend.
+        //    ⛔ THIS WAS THE THIRD HOME OF A SAFETY LIST THAT NAMED AN ABSENT SAFEGUARD. It said
+        //    "reset across an unmeasured stretch, a SOURCE SWITCH or a long gap" — the switch was
+        //    not built (#920 built it, #920c replaced it with per-source state), and the `dt <= 0`
+        //    hold that WAS built went unmentioned. #920's own retraction named two homes, this
+        //    file and `CLAUDE.md`, and missed this one: the #766 pattern verbatim — when every
+        //    home you checked is the same KIND (always-loaded prose), the ENUMERATION is what is
+        //    incomplete, not the care per entry.
         //    ⚠️ ITS TWO NEIGHBOURS ARE STILL DEAD: `breathDepth` and `lfHfRatio` remain pinned
         //    literals, and the FX panel's always-on note still deliberately names FOUR channels.
         //    Naming the trend in panel copy is now ALLOWED and not required — a copy decision,

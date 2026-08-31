@@ -6133,3 +6133,48 @@ Verweise auf einzelne Ansprüche nennen jetzt den METHODENNAMEN, nicht die Numme
 **Gegenprobe:** alle neun geerbten Ansprüche liefern mit dem neuen `source:`-Parameter
 identische Werte (eine Quelle durchgehend, `Self.oneSensor`); nur der neue zehnte Anspruch
 ändert etwas — 0,393 → 0,0.
+
+### L.2 — #920c: der geteilte Zähler war der eigentliche Defekt, und der Rückstand stand seit #813 im Ledger
+
+**Stand 2026-08-31.** Der Bio-Reviewer fand zwei BLOCKER, die beide älter sind als #920.
+
+**(a) Die Sicherheits-Liste hatte DREI Zuhause, nicht zwei.** #920 nannte in seiner Rücknahme
+`CLAUDE.md` und den eigenen Dateikopf. Das dritte war
+`Sources/Echoelmusic/DSP/EchoelDDSP.swift` — die Verbraucher-Notiz, die #920 als Ursprung des
+ganzen Entwurfs ZITIERT, mit derselben Dreier-Liste, demselben abwesenden Quellenwechsel,
+derselben verschwiegenen `dt ≤ 0`-Haltestelle. **#766 wörtlich: wenn alle geprüften Zuhause
+dieselbe GATTUNG haben (immer geladene Prosa), ist die AUFZÄHLUNG unvollständig, nicht die
+Sorgfalt je Eintrag.**
+
+**(b) `HARNESS_LEDGER.md` hatte die Form schon begraben — zweimal umgesetzt, nie gelesen.**
+Der Eintrag heißt *„DEAD-END: einen geteilten Detektor ‚bei Quellenwechsel zurücksetzen'"*,
+die Langfassung steht in `Bio/BioEventPublisher.swift`: **Quellen wechseln sich nicht ab.**
+`stopBioSource()` stoppt Kamera/Gurt/Demo, aber NICHT `HealthKitBioPublisher`, den
+`EchoelmusicApp:1352` beim ersten Bio-Gebrauch startet.
+
+Und der Preis war LEBEND, nicht hypothetisch: HealthKit veröffentlicht ein ehrliches
+`coherence: 0` (`HealthKitBioPublisher.swift:138`), also ist `isMeasured(.coherence, in:)` für
+jeden Handgelenk-Frame falsch, also rief der EINE geteilte Zähler alle ~4–5 s `reset()`. Auf
+einem ~1-Hz-Kamera-Feed ist das die ganze Historie, wiederholt. Gefahren, Kamera-Anstieg 1 Hz,
+ein ungemessener Handgelenk-Frame je vierter Sekunde:
+
+| | Verlauf | Höchstwert | Frames über dem 0,10-Deadband |
+|---|---|---|---|
+| geteilt (#813/#920) | 0 · 0,0885 · 0,1574 · 0,2111 · **0** · … | 0,2111 | 4 von 9, nie stabil |
+| pro Quelle (#920c) | ununterbrochener Anstieg auf 0,3459 | 0,3459 | ab Frame 3 durchgehend |
+
+**Konsequenz für die Prosa:** CLAUDE.md sagte seit #813 „zum ersten Mal seit seiner Entstehung
+erreichbar". Das war ÜBER-behauptet, solange der Zähler geteilt war — der Morph wurde alle vier
+Frames auf die Patch-Form entlassen. Seit #920c stimmt der Satz.
+
+**Was #920 rückblickend war:** eine Wache OBEN AUF dem Defekt. Der Quellenwechsel-Reset war
+richtig gedacht und die falsche Ebene; per-Quelle-Zustand liefert dieselbe Eigenschaft (eine
+Übergabe meldet den Lauf der NEUEN Quelle, der keine Historie hat, also 0) und beseitigt
+zusätzlich das Interleaving. **Lehre: eine Wache, die eine Eigenschaft herstellt, kann eine
+tiefere Ursache VERDECKEN — sie sah für #920 wie die Reparatur aus und war eine Schicht zu hoch.**
+
+⚠️ **Die Zahlen dieses Abschnitts sind GEFAHREN, das SZENARIO ist KONSTRUIERT.** Der
+Kamera-Anstieg, die 2-Sekunden-Übergabe und die Vierer-Kadenz des Handgelenk-Frames sind
+plausibel gewählt, nicht gemessen; belegt ist die Kadenz nur als Größenordnung (500-ms-Poll
+hinter einem 4–5-s-Sensor). Der Befund ist damit ein ERREICHBARER Fall, kein protokollierter
+Vorfall.

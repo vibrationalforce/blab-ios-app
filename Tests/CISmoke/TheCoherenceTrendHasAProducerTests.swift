@@ -22,9 +22,12 @@
 // slam a spectral rebuild — so the claim below pins the MEASURED bound and says so. #808 is the
 // standing lesson: a needle written from a prediction is not verified by being plausible.
 //
-// KIND (§1): **FORWARD, behavioural.** Every claim drives the pure `CoherenceTrend` this commit
-// creates, so none has a verdict on the parent tree (§3 — stated rather than left to read as a
-// regression). The SAFETY half is everything under the SAFETY heading: the situations that
+// KIND (§1): **FORWARD, behavioural.** §3, stated exactly rather than left to read as a
+// regression: **this file does not COMPILE against the parent tree** — every call passes
+// `source:`, which the parent's `update` does not accept — so no assertion has a verdict there.
+// ⛔ This sentence said "the pure `CoherenceTrend` this commit creates", which was #813's reason
+// and false for #920: the type already existed on the parent. A §3 statement that gives the
+// wrong REASON is how #488 shipped a red gate for a cycle. The SAFETY half is everything under the SAFETY heading: the situations that
 // would otherwise mint a full-scale trend out of nothing, or divide by a zero interval.
 // ⛔ This line carried a claim RANGE ("5–7", then "5–9") and it went stale twice, the second
 // time inside the very commit that had just repaired it. The headings name SETS now; no
@@ -52,12 +55,18 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
     /// the same value still passes, for the wrong reason.
     private static let otherSensor: BioSource = .ble
 
+    /// The source that publishes an honest `coherence: 0` forever and is never stopped by
+    /// `stopBioSource()`. Named because it is the reason per-source runs exist, not a stand-in.
+    private static let unmeasuredSource: BioSource = .healthKit
+
     // MARK: - THE FIXTURES THEMSELVES
 
-    func testTheTwoNamedSensorsAreActuallyDifferent() {
-        XCTAssertNotEqual(Self.oneSensor, Self.otherSensor, """
-            The hand-over claims switch between two values that are equal, so they no longer test \
-            a hand-over at all — they would pass as a same-sensor run for the wrong reason.
+    func testTheNamedSensorsAreActuallyDifferent() {
+        let named = [Self.oneSensor, Self.otherSensor, Self.unmeasuredSource]
+        XCTAssertEqual(Set(named).count, named.count, """
+            Two of this file's named sensor fixtures hold the same value, so every claim that \
+            distinguishes sources silently became a same-sensor run — still passing, for the \
+            wrong reason. The hand-over and interleaving claims are exactly the ones this hides.
             """)
     }
 
@@ -132,7 +141,10 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
     // range went stale again in the same commit that had just corrected it. **A heading that
     // names a count or a range is a date, not a fact (#818)** — every number is gone from the
     // headings now, and the size of this suite is re-derived by
-    // `grep -c "    func test" Tests/CISmoke/TheCoherenceTrendHasAProducerTests.swift`.
+    // `grep -c "^    func test" Tests/CISmoke/TheCoherenceTrendHasAProducerTests.swift`.
+    // ⚠️ THE ANCHOR IS NOT DECORATION: the first version of this recipe was written without `^`
+    // and counted ITSELF — the needle it quotes is indented four spaces inside this very
+    // comment, so the tool read its own documentation as a claim (#753, one level down).
 
     func testAnUnmeasuredRunCannotSpikeWhenTheBodyArrives() {
         let out = drive([(0.0, false), (0.0, false), (0.62, true), (0.63, true)])
@@ -207,6 +219,12 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
     ///
     /// ⚠️ THE GAP GUARD DOES NOT COVER THIS and that is the whole point: a hand-over inside the
     /// six-second freshness window never reaches it.
+    ///
+    /// ⚠️ #364 — THIS DOES NOT FORBID A DUAL-SENSOR DESIGN. If a later slice deliberately carries
+    /// one trend ACROSS two concurrent coherence sources, this claim goes red on purpose, and the
+    /// prose that comes with it in the same commit is: this file's header, the producer's header,
+    /// `CLAUDE.md`'s bio-mapping paragraph, `Sources/Echoelmusic/DSP/EchoelDDSP.swift`'s
+    /// always-on note, and `memory/LEDGER_COUNTS.md` §L.
     func testASensorHandOverDoesNotReadAsABodyChange() {
         var trend = CoherenceTrend()
         _ = trend.update(coherence: 0.20, measured: true, source: Self.oneSensor, at: 0)
@@ -264,16 +282,59 @@ final class TheCoherenceTrendHasAProducerTests: XCTestCase {
             """)
     }
 
+    /// ⛔ THE DEFECT #813 AND #920 BOTH SAT ON TOP OF, and neither could see because both used a
+    /// SHARED tracker. `scratchpads/HARNESS_LEDGER.md` records "DEAD-END: einen geteilten
+    /// Detektor „bei Quellenwechsel zurücksetzen"" and `Bio/BioEventPublisher.swift` gives the
+    /// reason: **sources do not take turns.** `stopBioSource()` stops camera/strap/demo but NOT
+    /// `HealthKitBioPublisher`, which `EchoelmusicApp` starts at first bio use and which
+    /// publishes an honest `coherence: 0` alongside whatever the player picked.
+    ///
+    /// Driven on a 1 Hz camera climb with one unmeasured wrist frame every fourth second, the
+    /// SHARED tracker sawtoothed — 0, 0.0885, 0.1574, 0.2111, **0**, … — never reaching the
+    /// 0.3459 the same climb produces undisturbed, and releasing the morph to the patch shape
+    /// every fourth frame. Per-source runs make the two feeds independent, so this claim demands
+    /// EQUALITY with the undisturbed run, not merely "something non-zero".
+    func testAnInterleavedUnmeasuredSourceDoesNotDeafenTheMeasuredOne() {
+        var interleaved = CoherenceTrend()
+        var undisturbed = CoherenceTrend()
+        var withWrist: [Float] = []
+        var without: [Float] = []
+        for step in 0..<9 {
+            let coherence = 0.40 + 0.02 * Float(step)
+            if step > 0, step % 4 == 0 {
+                // A wrist frame carrying no coherence, landing between two camera frames.
+                _ = interleaved.update(coherence: 0, measured: false,
+                                       source: Self.unmeasuredSource, at: TimeInterval(step) - 0.5)
+            }
+            withWrist.append(interleaved.update(coherence: coherence, measured: true,
+                                                source: Self.oneSensor, at: TimeInterval(step)))
+            without.append(undisturbed.update(coherence: coherence, measured: true,
+                                              source: Self.oneSensor, at: TimeInterval(step)))
+        }
+        for (a, b) in zip(withWrist, without) {
+            XCTAssertEqual(a, b, accuracy: 1e-6, """
+                An interleaved frame from a DIFFERENT source changed what the measured source \
+                reported. That is the shared-tracker defect: HealthKit publishes coherence 0 \
+                forever, so on a shared run every wrist frame wiped the camera's whole history \
+                and the morph could rarely reach the consumer's 0.10 deadband at all.
+                """)
+        }
+        XCTAssertTrue(withWrist.last! > 0.30, """
+            The control is broken: the undisturbed climb must itself reach past 0.30, or the \
+            equality above would hold trivially at zero and prove nothing.
+            """)
+    }
+
     // MARK: - NON-FINITE INPUT
 
-    func testANonFiniteReadingResetsAndNeverPropagates() {
+    func testANonFiniteReadingDropsTheRunAndNeverPropagates() {
         let out = drive([(0.4, true), (Float.nan, true), (0.5, true)])
         XCTAssertTrue(out.allSatisfy { $0.isFinite }, """
             A NaN reached the trend output. It would travel to `applyBioReactive`, whose own
             sanitizer would catch it — but a producer that relies on its consumer's sanitizer is
             the pattern this repo has paid for in shipped permanent silence.
             """)
-        XCTAssertEqual(out[1], 0, "A NaN reading did not reset the run.")
+        XCTAssertEqual(out[1], 0, "A NaN reading did not drop the run.")
         XCTAssertEqual(out[2], 0, """
             The reading after a NaN produced a slope. The NaN reset the history, so the next
             value is a first point again.
