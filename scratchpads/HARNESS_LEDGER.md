@@ -2677,3 +2677,42 @@ Deshalb ist das hier ein Playbook und kein Test.
 ⭐ **Und die Rücknahme gehört in die NOTIZ.** Ich habe den „fünf Commits"-Satz als dritten
 Eintrag in den vorhandenen `WAS ICH NICHT BEHAUPTE`-Block der Notiz gesetzt, nicht nur in die
 Commit-Nachricht — die liest der Founder nie. Die #456-Form gilt auch für Rücknahmen.
+
+---
+
+## PLAYBOOK #919b (2026-08-31) — Mutanten fahren und ein zweiter Leser prüfen VERSCHIEDENE Dinge
+
+**Der Anlass.** #918b hat den Wächter `TheMenuHostReadsNoHotStateTests` (damals `…NoHotBio`)
+in beide Richtungen gefahren — sieben Fehler gefunden — und trotzdem **rot ausgeliefert**. Die
+Nadel `"analyzer."` verlangte hinter dem Treffer ein Nicht-Wort-Zeichen; hinter einem Punkt steht
+bei einem Eigenschaftszugriff immer ein Buchstabe. Der ganze Saat-Zweig war tot.
+
+**Wie es entdeckt wurde — und das ist der übertragbare Teil.** NICHT durch mehr Mutanten.
+Durch die Regel in `Tests/CISmoke/CLAUDE.md` §3: *wer einen Wächter substanziell umschreibt,
+fährt JEDE Behauptung, nicht nur die geänderten.* Von 29 schlug genau eine fehl.
+
+**Warum es zwei Zyklen überlebt hat — zwei bekannte blinde Flecken gleichzeitig:**
+1. Das CI-Job-Log trägt nur `tail -200 test.log` (#807/#445) — ein Fehlschlag weiter vorn ist
+   unsichtbar, und die Abwesenheit eines Testnamens beweist nichts.
+2. Delta-Benotung vergleicht Eltern mit Arbeitsbaum. Rot auf BEIDEN erzeugt kein Delta und wird
+   von nichts gemeldet.
+
+**Und dann fand ein zweiter Leser VIER weitere Defekte, die kein Mutant gefunden hatte** —
+nachdem ich neun Mutanten gefahren, alle Behauptungen transkribiert und das Repo gefegt hatte:
+ein falsches Grün (dateiweite Empfänger-Suche bei zwei Bindungen in einer Datei), ein fehlender
+Boden auf einer Derivation, Größen-Anker die genau die dokumentierte Reparatur rot färben (#364),
+und eine ganz fehlende Nadel (`: some Scene {` — die ÄUSSERSTE Body der App).
+
+⭐ **DIE REGEL:**
+> **Fahren** beantwortet: *verhält sich mein MODELL des Wächters wie gedacht?*
+> Es kann nicht fragen: *ist mein Modell das RICHTIGE?*
+> Dafür braucht es einen zweiten Leser. **Beides ist Pflicht, nicht eines statt des anderen.**
+
+**Checkliste für den nächsten substanziell umgeschriebenen Wächter — vier Zeilen:**
+1. Jede Behauptung portieren und gegen den ECHTEN Baum fahren, auch die unveränderten.
+2. Jede neue Logik als Mutant in BEIDE Richtungen fahren (rot für den Defekt, grün für die
+   dokumentierte Reparatur).
+3. Reviewer konvenieren — und ihn ausdrücklich nach FALSCHEM GRÜN und nach #364 fragen, nicht
+   nur nach Compile-Risiko.
+4. Prüfen, ob ein Anker eine GRÖSSE misst. Eine Größe ist fast immer rot auf korrekter Arbeit;
+   ein NAME (`var body`) überlebt Refactorings, die eine Zahl bewegen.
