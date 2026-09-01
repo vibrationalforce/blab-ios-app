@@ -20862,3 +20862,67 @@ der Sprosse konsumiert werden.
 Form-Zusicherung —, **0 rot heute**. Alle drei echte Regressionen, keine Forward-Guards.
 Die Datei hat jetzt einen dritten EPOCHEN-Block, weil sie in vier Commits ausliefert und ein
 veralteter Grading-Block schlimmer ist als keiner (#707).
+
+## 2026-09-01 — #959b: der Reviewer fand DREI Wächter, die seit 99 Commits rot sind
+
+**Der teuerste Fund dieses Zyklus gehört nicht zu meiner Scheibe.**
+`TheMonitorSurgeryQuietsTheEngineTests` verankert DREI Ansprüche auf dem Literal
+`guard isInputMonitoring else { return true }`. **#913 (`860e400`) hat es vor 99 Commits
+entfernt**, als es diesem Ausstieg seine eigene `off SKIPPED`-Brotkrume gab. Halbiert und
+gemessen: vorhanden an `HEAD~100`, ab `HEAD~99` weg. Seither laufen alle drei in ihr
+`XCTFail` und kehren zurück — **auf einem KORREKTEN Baum, im blockierenden Bundle**.
+
+⚠️ **Warum es niemand sah:** CI/CD meldet wegen #396 auf JEDEM Push `failure`, ein echt roter
+Wächter ist also nicht vom sterbenden Host zu unterscheiden.
+
+⚠️ **Und `dead-needles.py` KONNTE es nicht sehen — eine VIERTE Nadelform.** Das Werkzeug liest
+`XCTUnwrap(… .range(of: "…"))`; hier steht `guard let x = code.range(of: "…") else { XCTFail;
+return }`. Derselbe Defekt, andere Schreibweise. **Registriert als eigene Scheibe, mit genau
+dieser Datei als bekanntem Positiv** — #944s Regel: ein Detektor, der sein eigenes bekanntes
+Positiv nie gefunden hat, ist keine Messung.
+
+⭐ **Und ein blosses Um-Ankern hätte Anspruch 2 rot GELASSEN.** Gemessen vom neuen Anker:
+stop +592, removeTap +853, `disconnectNodeOutput` +1262, `releaseRecordRoute` **+2237**,
+Zweig-Ende +2923 — das alte `prefix(1_900)` erreicht seine eigene Nadel nicht mehr. Beide
+festen Fenster sind weg; **Anspruch 3 derselben Datei hatte die Lösung schon (#884: eine
+SEMANTISCHE Grenze), die anderen zwei teilen sie jetzt**, und Anker wie Terminator stehen
+EINMAL auf dem Typ statt dreimal im Rumpf (#416).
+
+**Transkribiert:** mit dem neuen Anker sind alle drei Ansprüche auf `1ae5c5f` GRÜN — sie führen
+ihr Gesetz wieder aus, statt am Anker zu scheitern.
+
+### Und mein eigenes #959 trug eine falsche Leseregel
+
+⛔ Ich schrieb: *„weicht `node now` von `connected` ab, ist das Async-Fenster die Ursache."*
+**Falsch auf genau dem Pfad, den die Zeile adressiert.** #823/#954 (Session-Ersetzung) und
+#958b (Raten-Neubau) bewegen `connected` ABSICHTLICH weg von dem, was der Knoten meldet — und
+der Knoten hält seinen Vor-Anfrage-Wert bis `start()`. Auf der v435-Form erzeugt der reparierte
+Code `connected 44100, node now 48000` **konstruktionsbedingt**. Eine von drei Ursachen als DIE
+Ursache zu benennen hätte die nächste Scheibe per Münzwurf zu HYPOTHESE #5 geschickt — oder
+davon weg.
+
+**Das Log entwirrt sich selbst, und DAS ist zuerst zu lesen:** ist `rate: session granted …`
+oder `input format from session fallback …` da, ist eine Abweichung ERWARTET und sagt nichts.
+Nur bei Abwesenheit BEIDER Zeilen ist sie neue Information. **ÜBEREINSTIMMUNG ist die
+aussagekräftige Richtung**, und zwar auf genau eine Weise.
+
+⚠️ **Eine ANNAHME steht jetzt ausdrücklich da**, damit das nächste Log gegen eine genannte statt
+eine unterstellte Prämisse gelesen wird: dass `outputFormat(forBus: 0)` den eigenen Bus meldet
+und NICHT das Format zurückwirft, das der vorangehende `connect` bekam. Das Repo bezieht dazu
+schon Stellung — #956 liest genau diesen Accessor, WEIL `installTap` das getragene `inFmt`
+ablehnt; gälte die Echo-Lesart, wäre #956 wirkungslos. Beides kann nicht stimmen.
+
+### Und meine Form-Zusicherung prüfte ihre eigene Form nicht
+
+⛔ Sie nahm `prefix(400)` nach der Bindung und fragte nur, ob `logMonitorOutcome("on 4/5`
+danach auftaucht — **ohne `nodeBusNow` je wieder zu erwähnen**. Das hier kommt durch:
+`let nodeBusNow = …` → `connect(input, to: notchEQ, format: nodeBusNow)` → `logMonitorOutcome(…)`.
+Zähler bleibt 2, Fenster erfüllt, und die „zweite ENTSCHEIDUNG im Diagnose-Kostüm" spaziert
+durch genau den Anspruch, der sie aufhalten sollte. Grün aus einem anderen Grund als dem, den
+der Name nennt (§2, die #367-Spiegelform). Ersetzt durch einen **fensterfreien** Gebrauchszähler
+(`nodeBusNow` == 3) plus eine Beschriftungs-Zusicherung. Gemessen: 3/1/2 heute, 0/0/1 auf
+`46b9013`.
+
+⛔ Und „3 RED auf dem Elternteil" war **3 ANSPRÜCHE, aber 2 gemeldete Fehlschläge** — das
+`guard` kehrt zurück, die Zusicherungen danach laufen dort nie. Genau die Verwechslung, gegen
+die §3 existiert.

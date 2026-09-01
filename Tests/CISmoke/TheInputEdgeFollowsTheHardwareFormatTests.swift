@@ -91,9 +91,12 @@
 // never a law to route around (#364).
 //
 // **#959 (parent `46b9013`), driven by transcription (§0):**
-//   · **THREE assertions RED on the parent, all genuine regressions**: the output-scope count
-//     (1 vs. the pinned 2), the `nodeBusNow` binding (absent), and the shape check that it is
-//     consumed by the rung's own log line (vacuously absent with it).
+//   · **THREE claims fail on the parent, all genuine regressions**: the output-scope count
+//     (1 vs. the pinned 2), the `nodeBusNow` binding (absent), and the use-count that pins
+//     what consumes it. ⚠️ THREE CLAIMS, but XCTest reports **2 failures in 1 method** — the
+//     `guard` around the binding `return`s, so the assertions after it never execute on the
+//     parent. #959 wrote "3 RED" for both, and claims-versus-reported-failures is exactly the
+//     kind of conflation §3 exists to stop (#486 one absence reported N times).
 //   · **0 red on the worktree.**
 //   · The count claim alone would have been a WEAK guard, and saying why is the point: a bare
 //     `== 2` cannot tell a DIAGNOSTIC read from a second DECISION, so the extra count could be
@@ -376,12 +379,36 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
                 """)
             return
         }
-        let afterDiag = String(code[diag.upperBound...].prefix(400))
-        XCTAssertTrue(afterDiag.contains("logMonitorOutcome(\"on 4/5"), """
-            The rung-4/5 output-scope read is no longer consumed by the rung's own log line. \
-            It exists to be PRINTED; a read whose value reaches `connect` or `installTap` \
-            instead is a second format DECISION wearing a diagnostic's name, and the count \
-            above would wave it through.
+        // ⛔ #959b — THE FIRST DRAFT DID NOT ASSERT THE SHAPE ITS OWN MESSAGE CLAIMED, and
+        // it did so through a window this bundle bans. It took `prefix(400)` after the
+        // binding and asked only that `logMonitorOutcome("on 4/5` appear downstream — never
+        // mentioning `nodeBusNow` again. So this passes it:
+        //     let nodeBusNow = input.outputFormat(forBus: 0)
+        //     masterEngine.connect(input, to: notchEQ, format: nodeBusNow)   // a DECISION
+        //     logMonitorOutcome("on 4/5: …")
+        // — the count stays 2, the window is satisfied, and the "second DECISION wearing a
+        // diagnostic's name" walks straight through the claim written to stop it. Green for
+        // a reason other than the one its name gives (§2, the #367 mirror case). The 400 was
+        // separately the #408 shape: 269 chars used of 400, and this file writes 20-line
+        // comment blocks per slice.
+        // The replacement is window-free and counts the USES: binding + the two reads inside
+        // `startSummary`. A third use is a consumer that is not the log line, and it reds.
+        XCTAssertEqual(occurrences(of: "nodeBusNow", in: code), 3, """
+            Rung 4/5's diagnostic value is used \
+            \(occurrences(of: "nodeBusNow", in: code)) times, not three. THREE are expected: \
+            the binding, and its rate and channel count inside the rung's summary string. \
+            MORE means the value reached a consumer other than the log line — and the only \
+            consumers on this path are `connect` and `installTap`, which would make it a \
+            second format DECISION rather than a diagnostic, exactly what the count pin \
+            above cannot see. FEWER means the rung stopped printing the node's real bus, \
+            and the next founder log again says only THAT the engine was restarted.
+            """)
+        XCTAssertTrue(code.contains("node now \\(nodeBusNow.sampleRate)"), """
+            The rung-4/5 summary no longer prints the node's bus under the label the triage \
+            note names (`node now`). The label is load-bearing: the reading rule at the site \
+            tells a triager to compare `node now` against `connected` only when neither the \
+            `rate: session granted` nor the `input format from session fallback` line is \
+            present. A renamed field breaks the rule silently.
             """)
     }
 

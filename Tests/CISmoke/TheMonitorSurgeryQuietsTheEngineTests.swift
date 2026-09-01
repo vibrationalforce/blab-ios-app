@@ -57,6 +57,12 @@ import XCTest
 
 final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
 
+    /// The OFF branch's own bounds, named ONCE (#416). All three claims read the same
+    /// stretch of `setInputMonitoring`, so they share its start and its end rather than
+    /// each carrying a hand-set length that goes stale on the next paragraph (#408/#884).
+    private let offAnchor = "logMonitorOutcome(\"off SKIPPED — monitoring was not engaged\""
+    private let offTerminator = "logMonitorOutcome(\"OFF\""
+
     private func engineCode() -> String {
         let url = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
@@ -76,14 +82,43 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
     func testTheOffTeardownStopsBeforeTheFirstGraphTouch() {
         let code = engineCode()
         guard !code.isEmpty else { return }
-        // The OFF branch's guard is unique in the file (driven before shipping).
-        guard let off = code.range(of: "guard isInputMonitoring else { return true }") else {
-            XCTFail("The OFF branch's guard is gone — re-anchor this claim (§4).")
+        // ⛔ #959b — RE-ANCHORED. This read `guard isInputMonitoring else { return true }`,
+        // a literal #913 (`860e400`) removed 99 commits ago when it gave that exit its own
+        // `off SKIPPED` breadcrumb. Bisected: present at HEAD~100, absent from HEAD~99 on.
+        // So THREE claims in this file hit their `XCTFail` and returned, on a CORRECT tree,
+        // for 99 commits — invisible because CI/CD reports `failure` on every push (#396),
+        // making a genuinely red guard indistinguishable from the host dying (§5).
+        // ⚠️ `guard isInputMonitoring else {` alone is NOT unique — six sites. The new anchor
+        // is the breadcrumb literal, which occurs exactly once and, unlike a `guard` line,
+        // cannot be duplicated by an unrelated early-exit elsewhere in the file.
+        // ⚠️ AND `dead-needles.py` COULD NOT SEE THIS. It reads
+        // `XCTUnwrap(… .range(of: "…"))`; this is `guard let x = code.range(of: "…") else
+        // { XCTFail; return }` — the same defect in a fourth shape. Registered as its own
+        // slice with this file as the known positive (#944's rule: a detector that has never
+        // found its own known positive is not a measurement).
+        guard let off = code.range(of: offAnchor) else {
+            XCTFail("The OFF branch's SKIPPED breadcrumb is gone — re-anchor this claim (§4).")
             return
         }
-        let window = String(code[off.lowerBound...].prefix(900))
-        guard let stop = window.range(of: "if offWasRunning { masterEngine.stop() }"),
-              let tap = window.range(of: "removeTap(onBus: 0)") else {
+        // ⛔ #959b — AND THE FIXED WINDOW WENT WITH THE ANCHOR, because re-anchoring alone
+        // would have left this claim RED. Measured on the worktree, from the new anchor:
+        // stop +592, removeTap +853, inputNode disconnect +1262, releaseRecordRoute +2237,
+        // branch terminator +2923. So the old `prefix(900)`/`prefix(1_900)` literals no
+        // longer reach their own needles — a length that describes the file at one moment
+        // and is never re-derived (#408; §2 bans the shape outright). Claim 3 in this file
+        // already solved it at #884 with a SEMANTIC bound; claims 1 and 2 now share it.
+        guard let offEnd = code.range(of: offTerminator, range: off.upperBound..<code.endIndex) else {
+            XCTFail("""
+                The OFF branch's closing rung `\(offTerminator)` is gone, so this claim has \
+                no end boundary. Fail rather than fall back to a length (§4): a window that \
+                silently becomes "the rest of the file" would pass on a step that had moved \
+                out of the branch entirely.
+                """)
+            return
+        }
+        let offBody = String(code[off.lowerBound..<offEnd.lowerBound])
+        guard let stop = offBody.range(of: "if offWasRunning { masterEngine.stop() }"),
+              let tap = offBody.range(of: "removeTap(onBus: 0)") else {
             XCTFail("""
                 The OFF teardown lost its stop (or its removeTap moved out of the \
                 window). Tearing the monitor chain down under a running render is the \
@@ -153,16 +188,33 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
             restart-preceding site needs its own disconnect; a removed one restores \
             the v10.79.424 start-shaped SIGABRT (#836).
             """)
-        guard let off = code.range(of: "guard isInputMonitoring else { return true }") else {
-            XCTFail("The OFF branch's guard is gone — re-anchor this claim (§4).")
+        guard let off = code.range(of: offAnchor) else {
+            XCTFail("The OFF branch's SKIPPED breadcrumb is gone — re-anchor this claim (§4).")
             return
         }
-        // #854 widened this window (1_400 -> 1_900): the OFF branch gained four
-        // step breadcrumbs and a reset() — the ladder that finally names the dying
-        // step in a device log. The ORDER claim below is unchanged.
-        let offWindow = String(code[off.lowerBound...].prefix(1_900))
-        guard let edge = offWindow.range(of: "disconnectNodeOutput(masterEngine.inputNode)"),
-              let release = offWindow.range(of: "releaseRecordRoute(.inputMonitoring)") else {
+        // ⛔ #959b: #854 widened a LENGTH here (1_400 -> 1_900) when the OFF branch grew.
+        // That is the treadmill #884 stepped off one claim below; this one joins it.
+        // `releaseRecordRoute` now sits at +2237 from the anchor, so the 1_900 would have
+        // been red on a correct tree the moment the re-anchor landed.
+        // ⛔ #959b — AND THE FIXED WINDOW WENT WITH THE ANCHOR, because re-anchoring alone
+        // would have left this claim RED. Measured on the worktree, from the new anchor:
+        // stop +592, removeTap +853, inputNode disconnect +1262, releaseRecordRoute +2237,
+        // branch terminator +2923. So the old `prefix(900)`/`prefix(1_900)` literals no
+        // longer reach their own needles — a length that describes the file at one moment
+        // and is never re-derived (#408; §2 bans the shape outright). Claim 3 in this file
+        // already solved it at #884 with a SEMANTIC bound; claims 1 and 2 now share it.
+        guard let offEnd = code.range(of: offTerminator, range: off.upperBound..<code.endIndex) else {
+            XCTFail("""
+                The OFF branch's closing rung `\(offTerminator)` is gone, so this claim has \
+                no end boundary. Fail rather than fall back to a length (§4): a window that \
+                silently becomes "the rest of the file" would pass on a step that had moved \
+                out of the branch entirely.
+                """)
+            return
+        }
+        let offBody = String(code[off.lowerBound..<offEnd.lowerBound])
+        guard let edge = offBody.range(of: "disconnectNodeOutput(masterEngine.inputNode)"),
+              let release = offBody.range(of: "releaseRecordRoute(.inputMonitoring)") else {
             XCTFail("""
                 The OFF teardown lost the input-edge disconnect or its route release \
                 moved out of the window. The restart after the release must see the \
@@ -192,8 +244,8 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
         let code = engineCode()
         guard !code.isEmpty else { return }
         // OFF branch: crumb -> stop -> reset -> crumb -> tap -> crumb -> edges.
-        guard let off = code.range(of: "guard isInputMonitoring else { return true }") else {
-            XCTFail("The OFF branch's guard is gone — re-anchor this claim (§4).")
+        guard let off = code.range(of: offAnchor) else {
+            XCTFail("The OFF branch's SKIPPED breadcrumb is gone — re-anchor this claim (§4).")
             return
         }
         // ⛔ #884 — THIS WINDOW WAS A HAND-SET `prefix(1_900)` AND THAT IS A DATE, NOT A
@@ -209,7 +261,11 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
         // branch now fails instead of silently sitting outside a window that happened to be
         // short. Measured at the time of the change: anchor→terminator = 1884 chars, so the
         // old literal was 16 characters from being wrong.
-        let terminator = "logMonitorOutcome(\"OFF\""
+        // ⛔ #959b: this was a LOCAL `let terminator`, and claims 1 and 2 now need the same
+        // boundary — two spellings of one decision is the defect whether or not they agree
+        // today (#416). Hoisted to `offTerminator` on the type; the argument below is #884's
+        // and is unchanged.
+        let terminator = offTerminator
         guard let offEnd = code.range(of: terminator, range: off.upperBound..<code.endIndex) else {
             XCTFail("""
                 The OFF branch's closing rung `\(terminator)` is gone, so this claim has no \

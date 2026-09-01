@@ -2849,10 +2849,34 @@ public final class AudioEngine {
                 //     the OUTPUT scope, which is what a tap validates against and the closest
                 //     readable proxy for what the engine is about to compare;
                 //   · `session` — the granted hardware rate, the number #958b acts on.
-                // If those three agree and it STILL aborts, #958b's repair is not the answer
-                // and HYPOTHESIS #5 (`prepare()` then re-read) is next. If `node now` differs
-                // from `connected`, the async-renegotiation window named in the rate block is
-                // the cause and the log says so without a fourth round of inference.
+                // ⛔ #959b — HOW TO READ IT, because #959's own rule was WRONG on exactly the
+                // path this line targets. It said: "if `node now` differs from `connected`,
+                // the async-renegotiation window is the cause". It is not — a disagreement is
+                // the DESIGNED outcome whenever #823/#954 substituted a session format or
+                // #958b rebuilt `inFmt` from the granted rate, because both deliberately move
+                // `connected` AWAY from what the node reports, and the node then holds its
+                // pre-request value until `start()` (#823). On the founder's v435 shape the
+                // repaired code produces `connected 44100, node now 48000` BY CONSTRUCTION.
+                // Naming one of three causes as THE cause would have sent the next slice to
+                // HYPOTHESIS #5, or away from it, on a coin flip.
+                //
+                // The log already disambiguates itself, and that is what to read FIRST:
+                //   · `rate: session granted … continuing` present  → the rate block ran;
+                //   · `input format from session fallback …` present → #823/#954 substituted.
+                // If EITHER line is there, a `node now` ≠ `connected` is expected and says
+                // nothing. Only with NEITHER line present is a disagreement new information.
+                // AGREEMENT is the informative direction, in one way only: the node has
+                // caught up, so the mismatch is not on the input side — and if it aborts
+                // anyway, #958b's repair is not the answer and HYPOTHESIS #5 is next.
+                //
+                // ⚠️ ONE ASSUMPTION, STATED SO THE NEXT LOG IS READ AGAINST IT RATHER THAN AN
+                // IMPLIED ONE: that `outputFormat(forBus: 0)` reports the node's own bus and
+                // does NOT echo back the format the preceding `connect` was handed. The repo
+                // stakes that position already — #956 reads this same accessor precisely
+                // BECAUSE `installTap` rejects the carried `inFmt` — so if the echo reading
+                // were right, #956's fix would be a no-op. Both cannot hold; a device run
+                // settles it, and `node now` == `connected` FOREVER is what the echo case
+                // looks like.
                 //
                 // ⚠️ BUILT AS A PRECOMPUTED SUMMARY, exactly like `edgeSummary` at rung 3/5,
                 // because `TheInputEdgeFollowsTheHardwareFormatTests` says why: a multi-line
