@@ -23,9 +23,11 @@ WHAT IT CHECKS. Three assertion shapes whose needle must exist in production cod
     XCTUnwrap(<x>.range(of: "NEEDLE") ...)
     XCTAssertEqual/GreaterThan[OrEqual](codeOccurrences(of: "NEEDLE" ...), N)   with N >= 1
     XCTAssertTrue(<recv>.contains("NEEDLE"))          — #665, and only where <recv> is
-        PROVABLY source text: bound in the same file from `Self.codeText/read/body/
-        rawSource/source`, in a file that names ONLY `Sources/` paths, and the needle
-        carries no surviving escape. ⛔ THAT LAST CLAUSE SAID "no interpolation"
+        PROVABLY source text, by EITHER route (#944): the `Self.`-qualified bind
+        (`Self.codeText/read/body/rawSource/source`) in a file that names ONLY `Sources/`
+        paths, OR the plain bind through a helper of those names that this same file defines
+        and that provably returns `SourceText.codeOnly(…)`, whose ARGUMENT resolves to a
+        `Sources/` path. Either way the needle must carry no surviving escape. ⛔ THAT LAST CLAUSE SAID "no interpolation"
         until #941/#941b: the live rule is broader — shape 3 shares `decode_needle`
         now, so ANY needle with an undecodable backslash escape (newline, tab, unicode) is
         skipped, not just an interpolation (a unicode escape included — spelling one
@@ -40,10 +42,15 @@ commit body cited THIS SCRIPT as independent confirmation while it extracted zer
 from the file in question. The obvious widening — every `XCTAssertTrue(x.contains("N"))` —
 was measured before it was written: 785 such needles in the bundle, 86 flagged on a CORRECT
 tree. The receiver of a `.contains` may be source text, a produced string, a doc file, or a
-file under `Tests/`; polarity alone does not say which. The provenance test above cuts 785
-to 26. THAT IS 3 % REACH and it is stated rather than hidden: the alternative was 86 false
-alarms, which is how a checker gets ignored — the same mechanism that made
-`continue-on-error` invisible.
+file under `Tests/`; polarity alone does not say which. The provenance test cut 785 to 26 —
+3 % reach, stated rather than hidden, because the alternative was 86 false alarms, which is
+how a checker gets ignored (the mechanism that made `continue-on-error` invisible).
+⭐ #944 RAISED THAT REACH BY ANSWERING THE PROVENANCE QUESTION BETTER, NOT BY RELAXING IT:
+**248 of 1 071 needles today, 23 %**, with 0 findings on two correct trees and exactly 1 on the
+tree carrying the known defect. Widening the REGEX would have bought reach at the cost of false
+alarms; widening the PROOF buys it at no cost, and the two new gates (`stripping_helpers`,
+`names_a_source`) are what does the proving. Both numbers here are dates — re-derive rather
+than quote (`Tests/CISmoke/CLAUDE.md` §0).
 
 SHAPE 4 (#776) — A GUARD THAT CANNOT COMPILE. `TheMPEInputHasNoZonesTests` dropped
 `private static let architecture` when its claim became a directory sweep, and one reference
@@ -216,6 +223,110 @@ SOURCE_BIND = re.compile(
 POSITIVE_CONTAINS = re.compile(
     r'XCTAssertTrue\(\s*(?:try )?([A-Za-z_]\w*)\.contains\(\s*"((?:[^"\\]|\\.)+)"\s*\)')
 
+# ⭐ #944 — THE WIDENING #941 MEASURED AND DECLINED, SHIPPED, BECAUSE THE EVIDENCE CHANGED AND
+# THE GATE CHANGED WITH IT. #941's argument stands as written: widening `SOURCE_BIND` to the
+# plain instance form is one line, surfaced nine candidates on a correct tree, and every one was
+# a false alarm. What it did NOT have was a true positive, so the trade was all cost.
+# #943 supplied one. `TheMPEInputHasNoZonesTests` asserted the literal
+# `private var heldByController = false` while the same slice deleted that declaration —
+# `grep -c` on `BioReactiveSynthVoice.swift` gives 1 at `febecdb`, 0 at `25d34dc`, so the guard
+# was certainly red on the tree that shipped — and the CI/CD run for it reported 0 failures
+# (`Tests/CISmoke/CLAUDE.md` §5, the second known-bad control). This shape is exactly the shape
+# that missed it: the bind is `let code = try source(Self.voice)`, plain, not `Self.source`.
+#
+# ⚠️ WHAT MAKES IT SAFE IS NOT THE WIDER REGEX BUT THE TWO GATES BESIDE IT, each aimed at one
+# of #941's measured false-alarm kinds:
+#   · `stripping_helpers` — accept a helper NAME only when that helper, defined in this same
+#     guard file, provably returns `SourceText.codeOnly(…)`. Kind 1 (raw vs stripped: a needle
+#     that lives in a COMMENT, asserted through `rawSource`) and kind 3 (transformed text: a
+#     `squashed` receiver with whitespace removed) cannot enter, by construction.
+#   · `names_a_source` — the bind's ARGUMENT must provably name a `Sources/` path: a literal, or
+#     a `static let` in this file that is one. Kind 2 (the receiver is a `Tests/` file or
+#     `CLAUDE.md`) cannot enter. A loop variable resolves to nothing and is SKIPPED, never
+#     guessed (#665: quiet when unsure).
+#
+# ⛔ AND THE FIRST DRAFT HAD ONLY THE FIRST GATE, WHICH MEASURED GREEN FOR A REASON THAT WAS
+# LUCK. `OneDefinitionOfCodeNotProseTests` binds `let code = try read(name)` over `Tests/`
+# files and asserts `code.contains("SourceText.codeOnly")`; that literal happens to occur ONCE
+# in `Sources/`, in `Video/CameraAnalyzer.swift`, so the corpus check passed by accident. Delete
+# that one incidental line and the tool reports a perfectly correct guard as dead. A green whose
+# cause you have not read is not a measurement.
+#
+# MEASURED BY RUNNING THIS SCRIPT — not by a transcription of it — over three checked-out trees:
+# **0** findings on the worktree, **0** on `febecdb`, and **exactly 1** on `25d34dc`, at
+# `TheMPEInputHasNoZonesTests.swift:578`, the line the reviewer named. A detector that has never
+# found its own known positive is not a measurement; one validated only against its known
+# NEGATIVES is not either.
+# ⛔ The transcription said the same thing one gate too early and was wrong: see the third gate,
+# `allow_legacy`, in `source_receivers` — the file-level `SOURCE_PATH` proxy was still SKIPPING
+# the whole guard, so the shipped tool said OK on the tree the probe called red.
+# The union with `SOURCE_BIND` is deliberate: for a file that passes the legacy proxy this is
+# strictly ADDITIVE, so no finding the old form produced can disappear behind the new gates.
+HELPER_DEF = re.compile(
+    r'(?:private |public |internal )?func\s+(codeText|read|body|rawSource|source)\s*\(')
+PATH_CONST = re.compile(r'static\s+let\s+(\w+)\s*=\s*"([^"]*)"')
+
+
+def stripping_helpers(code):
+    """Names of source-reading helpers in THIS file whose body calls `SourceText.codeOnly(`.
+
+    Brace-matched rather than line-windowed (`Tests/CISmoke/CLAUDE.md` §2, #408): this repo
+    writes 30-40-line doc blocks, so any fixed window is unsound by construction.
+    """
+    found = set()
+    for match in HELPER_DEF.finditer(code):
+        opening = code.find("{", match.end())
+        if opening < 0:
+            continue
+        depth, i = 0, opening
+        while i < len(code):
+            if code[i] == "{":
+                depth += 1
+            elif code[i] == "}":
+                depth -= 1
+                if depth == 0:
+                    break
+            i += 1
+        if "SourceText.codeOnly(" in code[opening:i]:
+            found.add(match.group(1))
+    return found
+
+
+def source_receivers(chunk, helpers, consts, allow_legacy):
+    """Local names in `chunk` that hold comment-stripped text of a `Sources/` file.
+
+    The union of the `Self.`-qualified form recognised since #665 and the #944 plain form.
+
+    `allow_legacy` is the FILE gate, and it applies only to the `Self.`-qualified half. That
+    half never looks at its argument, so #665 approximated the question "is this receiver a
+    `Sources/` file?" with the file-wide one "does this guard name ONLY `Sources/` paths?".
+    The #944 half answers the real question per receiver, so it does not need the proxy — and
+    must not be subject to it.
+
+    ⛔ THAT PROXY IS WHY THE FIRST #944 DRAFT STILL MISSED ITS OWN KNOWN POSITIVE, and only
+    running the real tool showed it. `TheMPEInputHasNoZonesTests` reads `docs/*.html` for the
+    website claims, so `SOURCE_PATH` sees a non-`Sources/` path and `main()` skipped the WHOLE
+    file — including the `Sources/`-bound receiver carrying the dead needle. My probe had
+    reimplemented shape 3 without that gate and reported "1 finding on `25d34dc`"; the shipped
+    tool on the same tree said OK. **A transcription that omits a gate is not a measurement of
+    the tool** — the same defect class as grading a guard against a tree you did not build.
+    """
+    names = {m.group(1) for m in SOURCE_BIND.finditer(chunk)} if allow_legacy else set()
+    if not helpers:
+        return names
+    binder = re.compile(
+        r'\blet\s+([A-Za-z_]\w*)\s*=\s*(?:try\s+)?(?:XCTUnwrap\()?\s*'
+        r'(?:Self\.)?(?:%s)\(\s*(?:Self\.)?([A-Za-z_"][^),]*)' % "|".join(sorted(helpers)))
+    for match in binder.finditer(chunk):
+        argument = match.group(2).strip()
+        if argument.startswith('"'):
+            resolved = argument[1:]
+        else:
+            resolved = consts.get(argument, "")
+        if resolved.startswith("Sources/"):
+            names.add(match.group(1))
+    return names
+
 MIN_NEEDLE = 8   # shorter literals are punctuation or fragments, not anchors
 
 
@@ -365,9 +476,14 @@ def function_chunks(code):
     return FUNC_SPLIT.split(code)
 
 
-def shape3_findings(chunk, corpus):
+def shape3_findings(chunk, corpus, helpers, consts, allow_legacy):
     """Shape 3 for ONE function chunk: yield `(match, needle)` for each needle asserted
     present that the corpus does not contain.
+
+    `helpers` / `consts` are the file's #944 widening context and are REQUIRED, not defaulted:
+    a defaulted argument that no call site writes appears in no diff (#431/#440/#443), and both
+    call sites here — `main()` and `selftest()` — must state which one they are driving. Pass
+    `set()`/`{}` for the pre-#944 behaviour exactly.
 
     ⭐ #941 EXTRACTED THIS SO THE SELFTEST CAN DRIVE THE COMPOSITION, not the parts. The first
     draft of that selftest checked `decode_needle` on literals — which was already correct — and
@@ -376,7 +492,7 @@ def shape3_findings(chunk, corpus):
     bites is the composition, and a checker that cannot fail on its own mutation is not a
     checker.
     """
-    receivers = {m.group(1) for m in SOURCE_BIND.finditer(chunk)}
+    receivers = source_receivers(chunk, helpers, consts, allow_legacy)
     if not receivers:
         return
     for match in POSITIVE_CONTAINS.finditer(chunk):
@@ -499,8 +615,9 @@ def main(root="."):
         # against a file's own history.
         guard_code = strip_comments(src)
         paths = set(SOURCE_PATH.findall(guard_code))
-        if not paths or any(not p.startswith("Sources/") for p in paths):
-            continue
+        # #944: this gate no longer SKIPS the file — it decides whether the argument-blind
+        # `Self.`-qualified half may speak. The gated half proves its own receiver.
+        allow_legacy = bool(paths) and all(p.startswith("Sources/") for p in paths)
         # ⛔ #666 — THE RECEIVER SET IS PER FUNCTION, NOT PER FILE, AND #665 GOT THAT WRONG.
         # Shipped with file scope, this produced SEVEN false positives on the very next
         # commit. The cause is ordinary Swift style: one test binds
@@ -514,8 +631,11 @@ def main(root="."):
         # them. Splitting on `func ` is coarse — a nested closure re-binding the same name
         # would still confuse it — and coarse in the SAFE direction, because a name unknown to
         # the enclosing function is simply skipped.
+        helpers = stripping_helpers(src)          # RAW: a helper is a declaration, not prose
+        consts = {m.group(1): m.group(2) for m in PATH_CONST.finditer(guard_code)}
         for chunk in function_chunks(guard_code):
-            for match, needle in shape3_findings(chunk, corpus):
+            for match, needle in shape3_findings(chunk, corpus, helpers, consts,
+                                                 allow_legacy):
                 offset = guard_code.find(chunk)
                 line = guard_code[:offset + match.start()].count("\n") + 1
                 dead.append((os.path.relpath(guard, root), line, needle))
@@ -564,13 +684,14 @@ def selftest():
              '        XCTAssertTrue(code.contains("var voiceTuneStrength: Float = 1"))\n'
              '    }\n')
     corpus = "var voiceTuneStrength: Float = 1\n"
-    reported = [needle for _, needle in shape3_findings(chunk, corpus)]
+    reported = [needle for _, needle in shape3_findings(chunk, corpus, set(), {}, True)]
     if reported:
         print(f"selftest: shape 3 reported {reported} — an escaped needle must be skipped, "
               "and the unescaped one is present in the corpus")
         ok = False
     # …and it must still FIND a genuinely absent needle, or the skip above proves nothing.
-    absent = [needle for _, needle in shape3_findings(chunk, "something else entirely")]
+    absent = [needle for _, needle in
+              shape3_findings(chunk, "something else entirely", set(), {}, True)]
     if absent != ["var voiceTuneStrength: Float = 1"]:
         print(f"selftest: shape 3 found {absent} — it must report the one plain needle that is "
               "absent from the corpus, or the test above is vacuous")
@@ -594,7 +715,7 @@ def selftest():
            '        let line = AudioConfiguration.latencyLine(sampleRate: 48000)\n'
            '        XCTAssertTrue(line.contains("a needle that is a produced string"))\n'
            '    }\n')
-    scoped = [n for c in function_chunks(two) for _, n in shape3_findings(c, "")]
+    scoped = [n for c in function_chunks(two) for _, n in shape3_findings(c, "", set(), {}, True)]
     # ⛔ THE MESSAGE SAID "leaked across functions" UNCONDITIONALLY (#941b) — it also printed
     # when NOTHING was found, i.e. it named a leak while reporting a vacuum. Two questions, two
     # sentences (#367: an assertion must fail for the reason it states).
@@ -604,6 +725,78 @@ def selftest():
         ok = False
     elif scoped != ["a needle that is source text"]:
         print(f"selftest: receiver scope leaked across functions — checked {scoped}")
+        ok = False
+
+    # 3. #944 — THE PLAIN BIND, driven as a COMPOSITION through the two gates and the real
+    #    `function_chunks`. This fixture IS the shape that missed the #943 defect: the helper
+    #    call is unqualified (`source(Self.voice)`), while the pre-#944 `SOURCE_BIND` only ever
+    #    recognised `Self.source(...)`. It goes RED under the mutation it exists for — revert
+    #    `source_receivers` to `SOURCE_BIND` alone and the needle stops being reported.
+    #
+    #    ⚠️ Re-derive the numbers in the block comment above rather than trusting them; the
+    #    probe is this selftest with `Tests/CISmoke/*.swift` in place of the fixture.
+    guard_file = (
+        "    private func source(_ p: String) throws -> String {" + chr(10) +
+        "        return SourceText.codeOnly(try String(contentsOf: url))" + chr(10) +
+        "    }" + chr(10) +
+        "    func a() throws {" + chr(10) +
+        "        let code = try source(Self.voice)" + chr(10) +
+        "        XCTAssertTrue(code.contains(" + chr(34) + "private var heldByController = false" + chr(34) + "))" + chr(10) +
+        "    }" + chr(10))
+    helpers = stripping_helpers(guard_file)
+    consts = {"voice": "Sources/Echoelmusic/Tools/BioReactiveSynthVoice.swift"}
+    widened = [n for c in function_chunks(guard_file)
+               for _, n in shape3_findings(c, "a corpus without it", helpers, consts, False)]
+    if widened != ["private var heldByController = false"]:
+        print("selftest: the #944 plain bind was not recognised — shape 3 reported "
+              f"{widened}. This is the exact shape that missed #943; without it the widening "
+              "buys nothing.")
+        ok = False
+
+    # 4. …and each gate must REFUSE for its own reason, or case 3 is just a wider regex with
+    #    #941's nine false alarms behind it. Two mutations, two refusals:
+    #    (a) the helper does not strip — #941 kind 1/3 (a needle that lives in a comment, or
+    #        text transformed before the assert). (b) the argument names no `Sources/` path —
+    #        #941 kind 2, the one whose first draft measured green Ochr(10)Y by coincidence.
+    unstripped = guard_file.replace("SourceText.codeOnly(try String(contentsOf: url))",
+                                    "try String(contentsOf: url)")
+    leaked = [n for c in function_chunks(unstripped)
+              for _, n in shape3_findings(c, "a corpus without it",
+                                          stripping_helpers(unstripped), consts, False)]
+    if leaked:
+        print(f"selftest: gate 1 leaked — a helper that does NOT call SourceText.codeOnly "
+              f"still vouched for {leaked}. Raw text may hold the needle in a comment.")
+        ok = False
+    off_tree = [n for c in function_chunks(guard_file)
+                for _, n in shape3_findings(c, "a corpus without it", helpers,
+                                            {"voice": "Tests/CISmoke/Whatever.swift"}, False)]
+    if off_tree:
+        print(f"selftest: gate 2 leaked — a receiver bound from a non-Sources path was still "
+              f"checked against the Sources corpus, reporting {off_tree}.")
+        ok = False
+
+    # 5. #944 — THE FILE GATE MUST GATE ONLY THE LEGACY HALF, in both directions. Cases 3 and
+    #    4 already run with `allow_legacy=False` and still find the needle, which pins that the
+    #    argument-proving half is NOT suppressed by the proxy. This is the other half: an
+    #    argument-BLIND `Self.` receiver must fall silent when the proxy says no. Without it,
+    #    "relaxed the gate" could quietly mean "removed it".
+    legacy_chunk = (
+        "    func a() throws {" + chr(10) +
+        "        let code = Self.source(of: " + chr(34) + "Sources/X.swift" + chr(34) + ")" + chr(10) +
+        "        XCTAssertTrue(code.contains(" + chr(34) + "a needle that is absent here" + chr(34) + "))" + chr(10) +
+        "    }" + chr(10))
+    allowed = [n for c in function_chunks(legacy_chunk)
+               for _, n in shape3_findings(c, "", set(), {}, True)]
+    refused = [n for c in function_chunks(legacy_chunk)
+               for _, n in shape3_findings(c, "", set(), {}, False)]
+    if allowed != ["a needle that is absent here"]:
+        print(f"selftest: the legacy `Self.` bind stopped being recognised at all — {allowed}. "
+              "The refusal check below would then prove nothing (#367).")
+        ok = False
+    elif refused:
+        print(f"selftest: the file gate no longer restrains the argument-blind legacy half — "
+              f"it still reported {refused}. #665 chose that proxy because that half never "
+              "looks at its argument; #944 relaxed it for the gated half only.")
         ok = False
 
     print("dead-needles --selftest: OK" if ok else "dead-needles --selftest: FAILED")

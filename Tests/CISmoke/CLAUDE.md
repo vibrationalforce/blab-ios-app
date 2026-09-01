@@ -326,9 +326,24 @@ re-derives them by hand). ⛔ This sentence read **392/103** for one commit and 
 reproducible (#941b) — a looser hand-grep, summed wrong, in TWO homes at once (#456). The
 derived share survived the correction, which is why a share is safer to quote than a count.
 
-Back to `dead-needles.py` (its command block is well above now): it checks the two
-shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))` and
-`codeOccurrences(of: "…") >= N` — against comment-stripped `Sources/`. Its limits are in its
+Back to `dead-needles.py` (its command block is well above now): it checks the assertion
+shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))`,
+`codeOccurrences(of: "…") >= N`, and `XCTAssertTrue(<recv>.contains("…"))` where the receiver
+is PROVABLY source text — against comment-stripped `Sources/`.
+⭐ **#944 widened that third shape, and it is the widening #941 measured and declined — the
+evidence changed, so the answer did.** #941's argument was sound and stands: widening the
+BINDER regex to the plain `source(…)` form surfaced nine candidates on a correct tree and every
+one was a false alarm, against zero true positives. #943 supplied the true positive (see the
+#943b block in §5). What ships is not the wider regex but a better PROOF: the helper must
+provably return `SourceText.codeOnly(…)`, and the bind's argument must resolve to a `Sources/`
+path — which kills #941's false-alarm kinds 1, 2 and 3 by construction. Reach 3 % → 23 %,
+0 findings on two correct trees, exactly 1 on the tree that carried the defect.
+⚠️ **The third gate is the one a transcription cannot see, and mine did not.** `SOURCE_PATH`
+was a FILE-level proxy that SKIPPED any guard naming a `docs/` or `Tests/` path — and
+`TheMPEInputHasNoZonesTests` reads `docs/*.html`, so the whole file was skipped. A Python
+re-implementation of shape 3 said "1 finding"; the shipped tool on the same tree said OK.
+**A transcription that omits a gate is not a measurement of the tool** — run the tool. The proxy
+now gates only the argument-blind `Self.` half, which is the half that needed it. Its limits are in its
 own header and are real: it does not read negative assertions, interpolated needles, or
 whether a guard ran. It was validated against the commit that carried the known defect (finds
 exactly one) and the commit that repaired it (finds none) — a detector that has never found
@@ -485,9 +500,13 @@ its own known positive is not a measurement.
   What actually caught it was the mandatory reviewer, again. Two things follow:
   · §4 is the cheap prevention and it is one command — when you delete or rename a
     DECLARATION, `git grep` the old spelling across `Tests/CISmoke`, not only `Sources/`.
-    Neither gate can see this: `Xcode Compile Check` builds `Sources/` alone, and
-    `dead-needles.py` asks whether a needle can match SOME file, never whether it still
-    matches the file its claim points at.
+    Neither gate could see this AT THE TIME: `Xcode Compile Check` builds `Sources/` alone,
+    and `dead-needles.py` recognised only the `Self.source(…)` bind — while this guard binds
+    `try source(Self.voice)`, plain — and its file-level path proxy skipped the whole file
+    anyway, because claim 10 reads `docs/*.html`. **#944 closed both, with THIS defect as its
+    known positive** (§4). The durable half of the sentence survives: the tool asks whether a
+    needle occurs anywhere under `Sources/`, never whether it still occurs in the file the
+    claim points at — so a needle that moved to another file still reads as alive.
   · Prefer an anchor on an INVARIANT over one on a spelling. The repaired claim asks that the
     flag be Bool-valued and DERIVED, and that `apply(controller:)` hold exactly one
     `playNote(` and one `releaseNote()` — facts no note-priority rewrite can quietly remove.

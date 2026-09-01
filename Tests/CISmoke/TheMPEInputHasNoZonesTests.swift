@@ -585,9 +585,17 @@ final class TheMPEInputHasNoZonesTests: XCTestCase {
     /// **when you delete or rename a declaration, grep the BLOCKING BUNDLE for it, not only
     /// `Sources/`.** #776 made that reflex for `Self.<name>` after deleting a member; this is
     /// the same reflex for a source-text needle, and #942b had just paid for the sibling
-    /// version (an argument label). Neither `Xcode Compile Check` nor `dead-needles.py` can
-    /// see it: the first builds `Sources/` alone, and the second checks that a needle CAN
-    /// match some file, not that it still matches the file this claim points at.
+    /// version (an argument label). Neither `Xcode Compile Check` nor `dead-needles.py` could
+    /// see it AT THE TIME: the first builds `Sources/` alone, and the second only recognised a
+    /// receiver bound as `Self.source(…)` — while this file binds `try source(Self.voice)`,
+    /// plain — and skipped the whole file anyway, because it reads `docs/*.html` for claim 10
+    /// and the tool's file-level path proxy refused any guard naming a non-`Sources/` path.
+    ///
+    /// ⭐ #944 CLOSED BOTH, USING THIS EXACT DEFECT AS ITS KNOWN POSITIVE. Run over `25d34dc`
+    /// the tool now reports one finding, at this file, on the line the reviewer named. The
+    /// sentence above is kept in the past tense rather than deleted: it is the reason the
+    /// widening #941 had measured and declined became worth shipping (`Tests/CISmoke/CLAUDE.md`
+    /// §4). Do not read it as a standing property of the tool.
     ///
     /// ⚠️ MEASURED, not inferred — `grep -c "private var heldByController = false"` on
     /// `BioReactiveSynthVoice.swift`: **1** at `febecdb`, **0** at `25d34dc` (the tree #943

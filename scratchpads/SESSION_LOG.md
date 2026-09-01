@@ -19383,3 +19383,61 @@ Geschichtsdateien, sie sollen sagen, was damals galt.
 `needle-reachability` sauber · `doctor --section D` 0 CRITICAL · `CLAUDE.md` 149 012 B
 (988 B unter der Decke). **Kompiliert nachweislich erst mit dem nächsten CI/CD-Lauf — hier
 gibt es keinen Compiler.**
+
+## 2026-09-01 — #944: das Werkzeug sieht jetzt den Defekt, für den #943b bezahlt hat
+
+**Ausgangslage.** #943b musste von Hand repariert werden, weil `dead-needles.py` — genau das
+Werkzeug, das dieses Repo bei einem verrotteten Wächter aufruft — die Form nicht las. #941
+hatte die naheliegende Erweiterung **gemessen und abgelehnt**: den Binder auf die einfache
+`source(...)`-Form auszuweiten liefert neun Kandidaten auf einem korrekten Baum, alle
+Fehlalarme, **null** echte Treffer. Reine Kosten. **#943 lieferte den fehlenden echten
+Treffer**, und damit ändert sich die Rechnung — nicht die Argumentation von #941.
+
+**Was ausgeliefert wird, ist NICHT der breitere Regex, sondern der bessere BEWEIS.** Zwei
+Tore, jedes gegen eine gemessene Fehlalarm-Art von #941:
+
+| Tor | Verlangt | Tötet |
+|---|---|---|
+| `stripping_helpers` | der Helfer ist in DIESER Wächter-Datei definiert und gibt nachweislich `SourceText.codeOnly(…)` zurück | Art 1 (roh statt gestrippt — Nadel lebt in einem Kommentar) und Art 3 (transformierter Text) |
+| `names_a_source` | das ARGUMENT des Binds löst auf einen `Sources/`-Pfad auf (Literal oder `static let` derselben Datei) | Art 2 (Empfänger ist `Tests/` oder `CLAUDE.md`) |
+
+Eine Schleifenvariable löst auf nichts auf und wird **übersprungen, nie geraten** (#665: bei
+Unsicherheit still).
+
+**⛔ UND MEINE ERSTE FASSUNG HATTE NUR DAS ERSTE TOR — sie maß grün aus Zufall.**
+`OneDefinitionOfCodeNotProseTests` bindet `let code = try read(name)` über `Tests/`-Dateien und
+prüft `code.contains("SourceText.codeOnly")`. Dieses Literal steht **genau einmal** in
+`Sources/`, in `Video/CameraAnalyzer.swift` — also ging die Korpus-Prüfung durch Zufall durch.
+Fällt diese eine beiläufige Zeile weg, meldet das Werkzeug einen völlig korrekten Wächter als
+tot. **Ein Grün, dessen Ursache man nicht gelesen hat, ist keine Messung.**
+
+**⛔ UND DAS DRITTE TOR HAT MEINE TRANSKRIPTION GAR NICHT GESEHEN — der wichtigste Befund
+dieses Zyklus.** Der Python-Nachbau von Form 3 sagte „1 Fund auf `25d34dc`"; das
+AUSGELIEFERTE Werkzeug sagte auf demselben Baum „OK". Der Unterschied: der datei-weite
+`SOURCE_PATH`-Proxy übersprang die GANZE Datei, weil `TheMPEInputHasNoZonesTests` für Anspruch
+10 `docs/*.html` liest. **Eine Transkription, die ein Tor auslässt, ist keine Messung des
+WERKZEUGS.** Transkription bleibt richtig für einen Wächter, den man nicht kompilieren kann
+(§0) — für ein Werkzeug fährt man das Werkzeug. Der Proxy bremst jetzt nur noch die
+argument-blinde `Self.`-Hälfte, also genau die Hälfte, für die #665 ihn erfunden hat.
+
+**Messung, mit dem echten Werkzeug über drei ausgecheckte Bäume:**
+`.` → **0** · `febecdb` → **0** · `25d34dc` → **genau 1**, in
+`TheMPEInputHasNoZonesTests.swift:578`, der Zeile, die der Reviewer genannt hatte.
+Reichweite der Form 3: **248 von 1 071 Nadeln = 23 %** (vorher 26 von 785 = 3 %).
+
+**Vier Entscheidungen per MUTATION rot getrieben** (#914/#941b — was beißt, ist die
+Komposition, nicht das Einzelteil), jede mit eigener Fehlermeldung (#367):
+M1 Binder zurück auf `SOURCE_BIND` · M2 Strip-Tor weg · M3 `Sources/`-Tor weg ·
+M4 Datei-Proxy ignoriert. Alle vier landen (#776) und alle vier färben den Selbsttest rot.
+
+**Prosa mitgezogen (#456):** zwei Stellen behaupteten „`dead-needles.py` kann das nicht sehen"
+— im Doc-Block des Wächters und in §5 von `Tests/CISmoke/CLAUDE.md`. Beide stehen jetzt im
+**Präteritum** mit dem Zeiger auf #944, statt gelöscht zu werden: sie sind der Grund, warum
+die abgelehnte Erweiterung liefernswert wurde. Die haltbare Hälfte überlebt unverändert — das
+Werkzeug fragt, ob eine Nadel *irgendwo* unter `Sources/` vorkommt, nie ob sie noch in der
+Datei vorkommt, auf die der Anspruch zeigt.
+
+**Instrumente:** `dead-needles` 392 Dateien + Selbsttest OK · `count-pins` 137/160, 0 rot ·
+`needle-reachability` sauber + 5/5 Selbsttest · `diag-ladder --source` grün ·
+`doctor` 2 CRITICAL = die zwei bekannten founder-gated CI-Masken.
+**Kein Compiler hier — dies ist ein Python-Werkzeug, es läuft lokal und ist lokal belegt.**
