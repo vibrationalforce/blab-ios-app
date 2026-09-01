@@ -19604,3 +19604,64 @@ Baum.** Fehlt eines der drei, liest sich die Zahl größer als sie ist.
 ausgeglichen · beide zitierten Funktionsnamen (`applyTuning`, `applyConcertPitch`) per `grep`
 belegt (#474: ein Name ist so viel Messung wert wie eine Zahl).
 **Kompiliert ist noch nichts** — das liest der nächste Zyklus.
+
+## 2026-09-01 — #947: der Doctor fand zum ersten Mal eine türlose Fläche, die keine Sitzung gefunden hatte
+
+**Wie ich hierher kam.** Die REIHENFOLGE des Cron ist zu drei Vierteln tot (Timeline/Clips
+gelöscht, AUv3-Hosting gelöscht), und Punkt 2 — „Bio-Modulation live sichtbar" — ist **schon
+gebaut und betürt**: `AlwaysOnBioPanelStrip` hängt im `bioPanel` (erreichbar über die
+Puls-Pille) und dieselben Zeilen ein zweites Mal im FX-Blatt. Ebenso ist der
+Stimmungs-Fächer aus #946 auf **beiden** Achsen bereits bewacht
+(`EveryPitchedVoiceFollowsTheToneSystemTests`). Also habe ich das Register selbst gemessen.
+
+**Alle neun Einträge aus `doctor --section C` stehen in `CLAUDE.md`** — kein Loch. Aber die
+Datei kennt einen zehnten, den das Werkzeug **nicht sehen kann**: `PulseMeasurementView`,
+am 2026-08-12 von HAND eingetragen (#525). C1 fragt „wird diese View überhaupt gebaut", und
+ihre einzige Konstruktionsstelle liegt in `BioSourceView` — das C1 sehr wohl als türlos
+listet. **Ein Aufruf in totem Code ist für C1 ein Aufruf.**
+
+⛔ **Das ist die teure Sorte Blindfleck: der eigene Ratschlag-Absatz des Werkzeugs warnt
+wörtlich vor genau diesem Sprung** („der Aufrufer kann selbst tot sein") — in Prosa, während
+der Code ihn nicht prüfen konnte. Der grüne Lauf danach gilt dann als Beleg.
+
+**Der Einbau ist ein Fixpunkt, bewusst konservativ (#665):** eine konstruierende DATEI
+disqualifiziert den Kandidaten, **außer** alle Views, die sie deklariert, sind bereits
+unerreichbar. Eine Datei mit einer toten und einer lebenden View wird also ganz übersprungen —
+eine Konstruktionsstelle ihrer *umschließenden* Deklaration zuzuordnen bräuchte
+Klammer-Matching, das dieser Scan nicht macht, und Raten erzeugt genau die Fehlalarme, die
+einen Prüfer stumm schalten. **Gesagt statt versteckt: findet die klaren Fälle, verfehlt andere.**
+
+**Messung: 9 in Tiefe 1 → 11 transitiv, zwei Runden, NULL Fehlalarme.** Neu:
+· `PulseMeasurementView` — der **bekannte Positiv-Fall**, den die Datei von Hand hatte. Ein
+  Prüfer, der seinen eigenen bekannten Positiv-Fall findet, ist eine Messung; einer der ihn nie
+  gefunden hat, ist es nicht.
+· **`BreathGuideView` — neu, und es stand NULL Mal in `CLAUDE.md`.** Genau die Klasse
+  „unerreichbar UND nicht aufgeschrieben", die die Datei selbst als den Defekt benennt.
+
+**Warum das kein Löschkandidat ist:** die Datei trägt geprüfte Sicherheitsarbeit — Resonanz als
+Default, Bewegung ≤0,2 Hz (weit unter dem 3-Hz-WCAG-Limit) und unter Reduce Motion ganz
+abgeschaltet, plus die Kontraindikations-Bestätigung vor den Hold-Mustern. Eine türlose View zu
+löschen, deren Datei ein Sicherheitsgesetz hält, ist die Falle, die `CLAUDE.md` schon zweimal
+protokolliert. **Wer sie aufmacht, betürt den ELTERNTEIL** — der Eintrag selbst ist montiert.
+
+**Deckel-Disziplin.** Die Register-Zeile hätte `CLAUDE.md` auf **125 B** Restkopfraum gedrückt.
+Statt fremde Gesetzes-Blöcke zu verschieben (dort hat sich dieses Repo wiederholt geschnitten)
+habe ich **meinen eigenen Eintrag gekürzt** und die Herleitung in den Wächter-Kopf gelegt, wo
+sie ohnehin hingehört: **149 527 B, 473 B Kopfraum.**
+
+**Wächter:** `TheBreathGuideHasNoDoorTests` — **6 Zusicherungen, 0 Regressionsfänge,
+6 Gegengewichte**, grün auf beiden Bäumen. Das ist richtig und der Punkt: die Scheibe hat ein
+WERKZEUG und ein REGISTER geändert, nicht den Code, den diese Ansprüche lesen. Sie als Fänge zu
+buchen wäre die schmeichelnde Richtung (#433/#464). ⚠️ Eine der sechs steckt in einer Schleife
+über zwei Nadeln — **eine Schleife verbirgt ihre Anzahl**, deshalb steht sie ausgeschrieben da;
+genau der Zählfehler, den diese Woche schon dreimal eine Benotung getroffen hat.
+
+⚠️ **Ein eigener Fehlalarm, notiert weil er lehrreich ist:** mein grober Klammer-Zähler meldete
+`+2` im neuen Wächter. Die zwei stecken in den String-Literalen `"BreathGuideView("` und
+`"BioSourceView("` — korrektes Swift; der Zähler kann nicht in Strings sehen. Ein
+Prüf-Ergebnis gehört gelesen, nicht befolgt.
+
+**Instrumente:** `dead-needles` 394 + Selbsttest OK · `count-pins` 137/160, 0 rot ·
+`needle-reachability` sauber · `doctor` unverändert die zwei bekannten founder-gated CI-Masken ·
+jede Nadel des neuen Wächters vorher per `grep` belegt.
+**Kompiliert ist noch nichts** — das liest der nächste Zyklus.

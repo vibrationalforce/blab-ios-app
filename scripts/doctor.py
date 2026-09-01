@@ -1088,6 +1088,9 @@ def section_c() -> Section:
     # SwiftUI composition, and burying five real findings under thirty-six non-findings is how a
     # check gets ignored. The question is not "is it used elsewhere" but "is it built AT ALL".
     doorless: list[str] = []
+    orphan_names: set[str] = set()          # C1: constructed NOWHERE
+    declared_at: dict[str, tuple[str, int]] = {}
+    all_views: dict[str, list[str]] = {}    # file -> views it declares
     for f, src in bodies.items():
         for m in VIEW_DECL.finditer(src):
             name = m.group(1)
@@ -1103,9 +1106,63 @@ def section_c() -> Section:
             # root surface, of being unreachable. Exclude them at the match instead.
             uses = sum(len(re.findall(rf"(?<!struct )(?<!extension )\b{name}\s*[\(\{{]", other))
                        for other in bodies.values())
+            line = src[:m.start()].count("\n") + 1
+            declared_at[name] = (f, line)
+            all_views.setdefault(f, []).append(name)
             if uses == 0:
-                line = src[:m.start()].count("\n") + 1
                 doorless.append(f"{rel(f)}:{line}  struct {name}: View — never constructed anywhere in Sources/")
+                orphan_names.add(name)
+    # C1b (#947). A view constructed ONLY by views that are themselves doorless is unreachable
+    # too, and C1 alone cannot see it: it asks "is it built AT ALL", and a call inside dead code
+    # is still a call. That blind spot is measured, not theoretical — `CLAUDE.md` registered
+    # `PulseMeasurementView` as doorless by HAND at #525 while this section reported it clean,
+    # because its one construction site sits inside `BioSourceView`, which C1 does list.
+    # A tool that misses the case its own advice paragraph warns about ("the caller may itself
+    # be dead") is the expensive kind: the clean run afterwards reads as evidence.
+    #
+    # ⚠️ THE RULE IS DELIBERATELY CONSERVATIVE, in the #665 direction — under-report rather than
+    # false-alarm. A constructing FILE disqualifies the candidate unless EVERY view that file
+    # declares is already known unreachable. A file holding one dead view and one live one is
+    # therefore skipped entirely, even though the live one may not be the caller: attributing a
+    # construction site to its ENCLOSING declaration needs brace-matching this scan does not do,
+    # and guessing would produce exactly the false alarms that get a checker ignored.
+    # Consequence to state plainly: this finds the clear cases and will miss others.
+    reachable_orphans = set(orphan_names)
+    while True:
+        grown = set()
+        for owner, names in all_views.items():
+            for name in names:
+                if name in reachable_orphans:
+                    continue
+                pat = re.compile(rf"(?<!struct )(?<!extension )\b{name}\s*[\(\{{]")
+                sites = {g for g, other in bodies.items() if pat.search(other)}
+                if not sites:
+                    continue
+                if all(all_views.get(g) and all(v in reachable_orphans for v in all_views[g])
+                       for g in sites):
+                    grown.add(name)
+        if not grown:
+            break
+        reachable_orphans |= grown
+    transitive = sorted(reachable_orphans - orphan_names)
+    if transitive:
+        rows = []
+        for name in transitive:
+            f, line = declared_at[name]
+            rows.append(f"{rel(f)}:{line}  struct {name}: View — built only by views that are "
+                        f"themselves unreachable")
+        sec.findings.append(Finding(
+            WARN,
+            "View types reachable only through a doorless view (transitive, #947)",
+            rows,
+            "C1 above asks whether a view is built AT ALL; these ARE built, by code nobody can "
+            "reach. Same verdict, one hop further, and it is the hop this tool used to hand to a "
+            "human: CLAUDE.md registered PulseMeasurementView by hand at #525 while this section "
+            "reported clean. Treat each exactly like a C1 entry — unreachable is not itself a "
+            "defect, unreachable AND unwritten-down is. Re-dooring one of these means dooring "
+            "its PARENT, not the entry itself.",
+        ))
+
     if doorless:
         sec.findings.append(Finding(
             WARN,
