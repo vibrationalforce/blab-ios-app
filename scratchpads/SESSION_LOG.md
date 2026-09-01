@@ -19490,3 +19490,65 @@ Hand-`grep` hätte 38 gesagt — deshalb ist das Werkzeug die Messung).
 Container flüchtig ist und unversionierte Arbeit verloren geht; Befunde kommen als #945b —
 dieselbe Form wie #942→#942b und #943→#943b. **Kompiliert ist noch nichts: das entscheidet
 der nächste CI/CD-Lauf.**
+
+## 2026-09-01 — #945b: der Pflicht-Reviewer fand ZWEI Blocker, beide bestätigt
+
+**B1 — die Größenordnung des Defekts war um zwei Ordnungen zu klein, und der Wächter trieb
+eine Gestalt, die es in der Produktion nicht gibt.** Ich schrieb „bis zu zwei Halbtöne", weil
+ich `event.value * 2.0` gelesen habe, als würde der Bend auf die gespielte Note wirken. Der
+EINZIGE Produzent von `.pitchBend` ist `MIDIBusPublisher.onPitchBend`, und der schreibt
+**`note: 0`** ohne Bedingung (`docs/architecture.html` sagt dasselbe). Also greift der Fallback
+`event.note > 0 ? event.note : 69` bei **jedem echten Bend**, die Basis ist A4, und gemessen
+sind es:
+
+| Bend-Wert | Frequenz | über der Grundstimmung |
+|---|---|---|
+| −1,0 | 392,00 Hz | **+22 Halbtöne** |
+| **0,0** | **440,00 Hz** | **+24 Halbtöne** |
+| +1,0 | 493,88 Hz | **+26 Halbtöne** |
+
+Also **rund zwei Oktaven**, nicht zwei Halbtöne. Und der **Mittelwert ist nicht ausgenommen**:
+ein Rad, das zurückschnappt, sendet 0 und strandet die Stimme genauso bei A4. Der Auslöser ist
+damit „irgendeine Bend-Nachricht", nicht „am Rad drehen". Mein Wächter trieb `note: 60` —
+eine Gestalt, die der ausgelieferte Pfad nie erzeugt, also maß er nichts über ihn (#367).
+Repariert: Helfer auf `note: 0`, **Anspruch 1b** treibt den Mittelwert-Fall, drei Prosastellen
+korrigiert.
+
+**B2 — „ONLY PANIC DOES THIS" war falsch, und der Widerspruch stand sieben Zeilen weiter oben
+in derselben Methode** (#425). Kette, gemessen: `PanicFanOut` ruft für diese Stimme
+`releaseAllNotes()` → `panic()`; `panicAllNotesOff()` fächert das auf; erreicht wird es vom
+Panik-**Knopf**, von `stopEverything(reason:)` **und von `pausePlaybackKeepingSession()`**.
+Die Tonhöhe setzt sich also bei **jedem Stop und jeder Pause** zurück, nicht nur am Knopf —
+und `pausePlaybackKeepingSession` lässt die Bio-Sitzung ausdrücklich weiterlaufen. Das
+vergiftete auch die Founder-Frage, die auf der Prämisse stand, während des Spielens ändere
+sich nichts. Neu gestellt: **springt der Atemton nach jedem Stop auf A2 zurück, obwohl die
+Komposition in einer anderen Tonart läuft — richtig so?** Unverändert wahr bleibt: innerhalb
+EINER Aufnahme folgt der Atem weiter der zuletzt gespielten Note.
+
+**Vier SHOULD-FIX, alle übernommen.** S1 der Kopf behauptete „plus ONE source-text claim" —
+es gibt keinen · S2 Anspruch 3 verbot genau die Arbeit, die diese Scheibe selbst zur
+Founder-Frage macht (#364), Meldung erweitert · S3 der Restore steht jetzt **nach**
+`releaseNote()`: `frequency` hat kein `didSet`, der Render gleitet mit `glideCoeff = 0.01`,
+440→110 ist ein ~10-ms-Abwärts-Chirp — davor gespielt läge er unter voller Hüllkurve, danach
+unter einer abklingenden · S4 die zweifelsfreie `init`-Form (lokales `let` zuerst), weil hier
+kein Compiler steht und die letzten zwei Zyklen je einen Zyklus an CI-Compile-Fehler verloren.
+
+**N2 — drei Nachbar-Kommentare beschrieben `panic()` unter.** Die Einzeiler in `PanicFanOut`
+(zweimal), in der Fan-Out-Liste in `EchoelStudioView` und die Zusammenfassung über `panic()`
+selbst sagten „a stuck controller-held latch", **Einzahl**, obwohl seit #939/#942/#943 drei
+weitere dazugekommen sind. Alle vier tragen jetzt die vollständige Liste plus den Hinweis, dass
+sie ein LEBENDES Inventar sind und beim nächsten Riegel mitziehen (#456).
+
+**Neu benotet, mit der korrigierten Gestalt: 10 Zusicherungen · 2 Regressionsfänge ·
+8 Gegengewichte · 0 rot.**
+⛔ **Diese Benotung war zweimal falsch, und die zweite Fassung aus einem lehrreicheren Grund
+als die erste.** Entwurf 1 riet die Zahlen (7/2 statt 8/1) — der übliche Fehler, in der
+schmeichelnden Richtung. Entwurf 2 zählte ehrlich und war **für die Datei, wie sie dastand,
+richtig** — nur trieb die Datei eine Bend-Gestalt, die es nicht gibt. **Arithmetik richtig,
+Szenario falsch.** Die Lehre ist deshalb nicht „zählen", sondern: **prüfe vor dem Benoten, ob
+die getriebene Gestalt die ist, die der EINZIGE Produzent erzeugt** — ein `git grep` auf den
+Produzenten, Sekunden, und beide Male der fehlende Schritt.
+
+**Instrumente:** `dead-needles` 393 + Selbsttest OK · `count-pins` 137/160, 0 rot ·
+`needle-reachability` sauber · Klammern in allen vier berührten Dateien ausgeglichen.
+**Kompiliert ist noch nichts** — das entscheidet der nächste CI/CD-Lauf.

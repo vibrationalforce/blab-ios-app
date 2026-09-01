@@ -27,7 +27,8 @@ import Foundation
 ///
 /// Deliberately a NEW name rather than reusing `allNotesOff()`: the eight targets do not
 /// share one spelling — `BioReactiveSynthVoice` releases via `panic()`, which also clears
-/// a stuck controller-held latch. Mapping each type onto this one requirement is exactly
+/// every latch a controller can strand: the held-key stack (#943), the press gain (#939), the
+/// slide scale (#942) and — since #945 — the PITCH. Mapping each type onto this one requirement is exactly
 /// the part worth pinning, because getting that mapping wrong is silent (the call
 /// compiles, the note keeps sounding).
 @MainActor
@@ -90,8 +91,15 @@ extension SubBassVoice: NoteReleasable {
 
 extension BioReactiveSynthVoice: NoteReleasable {
     /// NOT `allNotesOff()` — this voice is monophonic and driven by incoming MIDI
-    /// note-on/off, so its release also has to clear a stuck controller-held latch. That
-    /// is what `panic()` does and what a plain note release would miss.
+    /// note-on/off, so its release also has to clear everything a controller can strand: the
+    /// held-key stack (#943), the press gain (#939), the slide scale (#942) and the PITCH
+    /// (#945). That is what `panic()` does and what a plain note release would miss.
+    ///
+    /// ⚠️ #945b — READ THAT LIST AS A LIVE INVENTORY, not as history. This is the line a
+    /// reader consults to learn what `releaseAllNotes()` MEANS for this voice, and it has
+    /// silently under-described the method once already: it said "a stuck controller-held
+    /// latch", singular, after three more had been added to `panic()`. When a latch joins or
+    /// leaves that method, this sentence moves in the same commit (#456).
     public func releaseAllNotes() { panic() }
 }
 

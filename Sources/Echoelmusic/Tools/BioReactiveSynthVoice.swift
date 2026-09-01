@@ -248,8 +248,13 @@ public final class BioReactiveSynthVoice {
     private let nominalFrequency: Float
 
     public init() {
-        self.synth = EchoelDDSP(sampleRate: Float(Self.sampleRate))
-        self.nominalFrequency = self.synth.frequency
+        // #945b — bound to a local first. Reading `self.synth` one line after assigning it is
+        // legal Swift (definite initialisation), but there is no compiler in this sandbox and
+        // the last two cycles each lost time to a CI-only compile error; the zero-doubt form
+        // costs nothing.
+        let synth = EchoelDDSP(sampleRate: Float(Self.sampleRate))
+        self.synth = synth
+        self.nominalFrequency = synth.frequency
         self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
         self.scratchBuffer = Array(repeating: 0, count: Self.maxBlockFrames)
     }
@@ -302,7 +307,11 @@ public final class BioReactiveSynthVoice {
         isPlayingNote = false
     }
 
-    /// PERFORMANCE PANIC — release the note AND clear the controller-held latch.
+    /// PERFORMANCE PANIC — release the note AND clear everything a controller can strand:
+    /// the held-key stack (#943), the press gain (#939), the slide scale (#942) and the
+    /// pitch (#945). ⚠️ #945b — this one-line summary said "the controller-held latch",
+    /// singular, after three more had joined the method; it is the first line a reader
+    /// sees, so it moves whenever the method does (#456).
     ///
     /// `releaseNote()` alone is not enough for a panic. `heldByController` is true while any
     /// key is down, and a key leaves the stack only on a note-off FOR THAT NOTE. If that
@@ -350,18 +359,44 @@ public final class BioReactiveSynthVoice {
         // nothing was putting it back. The release below silences the voice, so the bend
         // LOOKS gone — but the BREATH path calls `playNote()` with no frequency argument
         // (`consumeBioEventsIfFresh`, and `arm()` likewise), and `playNote` opens the envelope
-        // at whatever pitch the synth currently holds. So after a bend every breath note
-        // stayed up to two semitones off for the rest of the session, and no control could
-        // clear it — the exact "stuck value with no way back" this method exists for.
+        // at whatever pitch the synth currently holds. Nothing restores the NOMINAL: a later
+        // note-on or legato note-off overwrites it with an in-tune value, but with the
+        // controller unplugged — the case this method exists for — there is no such event.
         //
-        // ⚠️ ONLY PANIC DOES THIS. That the breath voice follows the last PLAYED note during
-        // ordinary performance is left exactly as it was: it is arguably the point (play a
-        // note, then let the body swell it) and it is a founder's-ear question, not a
-        // cleanup. A note-off must NOT unbend — `APanicUnbendsTheVoiceTests` claim 3 pins that.
-        // NEEDS-FOUNDER-VERIFY: SOLL der Atemton der zuletzt gespielten Note folgen, oder
-        // immer auf seiner eigenen Grundstimmung bleiben?
-        synth.frequency = nominalFrequency
+        // ⛔ #945b — AND THE FIRST VERSION OF THIS COMMENT UNDERSTATED THE DAMAGE BY TWO
+        // ORDERS, in the direction that makes a defect look ignorable. It said "up to two
+        // semitones off", reading `event.value * 2.0` as if the bend were applied to the note
+        // being played. The one production producer is `MIDIBusPublisher`'s `onPitchBend`, and
+        // it writes `note: 0` unconditionally (`docs/architecture.html` states the same fact),
+        // so the `event.note > 0 ? event.note : 69` fallback in `case .pitchBend` fires on
+        // EVERY REAL BEND and the base is A4. Measured: value −1 → 392 Hz, value 0 → 440 Hz,
+        // value +1 → 493.88 Hz — that is +22 to +26 semitones above this voice's nominal,
+        // roughly TWO OCTAVES. Worse, the centre value is not exempt: a wheel springing back
+        // to 0 strands the voice at A4 just the same, so the trigger is "any bend message at
+        // all", not "nudge the wheel". Found by the mandatory reviewer, not by a guard.
+        //
+        // ⚠️ WHAT THE SCOPE REALLY IS — the first version said "ONLY PANIC DOES THIS" and that
+        // was false, in a comment sitting seven lines under a doc block that already knew
+        // better (#425: a slice must not carry a claim and its own refutation). `panic()` is
+        // what `PanicFanOut` calls for this voice (`releaseAllNotes()`), which
+        // `panicAllNotesOff()` fans out, which is reached from the panic BUTTON, from
+        // `stopEverything(reason:)` AND from `pausePlaybackKeepingSession()`. So the pitch
+        // resets on every Stop and on the playback-only pause, not only on the button. What is
+        // genuinely unchanged is the NOTE-OFF path: inside one continuous take the breath
+        // still follows the last played note, and `APanicUnbendsTheVoiceTests` claim 3 pins it.
+        // NEEDS-FOUNDER-VERIFY: nach jedem Stop und jeder Pause springt der Atemton auf die
+        // Grundstimmung (A2) zurück — auch wenn die Komposition in einer anderen Tonart läuft,
+        // denn diese Stimme kennt die Tonart nicht. Ist das richtig, oder soll der Atemton die
+        // zuletzt gespielte Note über einen Stop hinweg behalten?
+        //
+        // #945b — RESTORE AFTER THE RELEASE, not before. `frequency` has no `didSet`; the
+        // render glides toward it through `smoothedFreq` at `glideCoeff = 0.01`, so 440 → 110
+        // is a ~10 ms descending chirp rather than a click. Written BEFORE the release, a
+        // render block landing between the two statements plays that chirp at full envelope;
+        // written after, it happens under an already-decaying release. `releaseNote()` guards
+        // on `isPlayingNote` and never touches `frequency`, so the order is otherwise neutral.
         releaseNote()
+        synth.frequency = nominalFrequency
     }
 
     /// Arm the bio-reactive voice and give immediate audible feedback. Once

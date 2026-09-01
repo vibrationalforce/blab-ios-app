@@ -5117,7 +5117,8 @@ struct EchoelStudioView: View {
             subBass,
             leadSynth,
             touchSynth,
-            bioVoice,         // mono release + clears a stuck controller-held latch
+            bioVoice,         // mono release + clears EVERY stranded controller latch:
+                              // held keys (#943), press (#939), slide (#942), pitch (#945)
             laneVoiceRack,
             midiOut
         ]).releaseAll()
