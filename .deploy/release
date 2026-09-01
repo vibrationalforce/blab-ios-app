@@ -1,4 +1,4 @@
-build: v10.79.433 — der Klick bleibt stehen, wenn das Tempo sich bewegt, und die Klick-Zeile heißt, was sie tut
+build: v10.79.434 — der Absturz beim Mikrofon-Monitor hat zum ersten Mal ein Messgerät, und MIDI-Ausdruck erreicht die Stimme
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,105 +6,152 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.432.
+  Der Vorgänger ist 10.79.433.
 
   ── ZUERST: WIE GROSS DIESE VERSION IST ──────────────────────────────────
 
-  Gemessen gegen den BUMP-Commit `d540d08`, nicht gegen mein Arbeitsfenster (#911 —
-  genau diese Verwechslung hat 431 als „fünf Commits" verkauft, wo 54 lagen):
+  Gemessen gegen den BUMP-Commit `90eab4c`, nicht gegen mein Arbeitsfenster (#911):
 
-      git log --oneline d540d08..HEAD             | wc -l   →  19
-      git log --oneline d540d08..HEAD -- Sources/ | wc -l   →   8
-      python3 scripts/founder-verify.py --since d540d08     →   2 neue Bitten von 65
+      git log --oneline 90eab4c..HEAD             | wc -l   →  31
+      git log --oneline 90eab4c..HEAD -- Sources/ | wc -l   →  17
+      python3 scripts/founder-verify.py --since 90eab4c     →  11 neue/umformulierte von 75
 
-  Es ist eine SCHMALE Version, und sie betrifft genau eine Sache: das Metronom. Von den
-  8 Sources-Commits ändern **vier** etwas, das Du merken kannst; die anderen vier nenne
-  ich unten beim Namen, damit Du sie NICHT prüfst.
+  Das ist eine BREITE Version — 433 war schmal, diese ist es nicht. Sie hat zwei
+  Schwerpunkte: **Dein Absturz** und **MIDI-Ausdruck**. Sechs der 17 Sources-Commits
+  ändern nichts, was Du merken kannst; die nenne ich unten beim Namen.
 
-  ── WAS DU ALS NUTZER MERKEN SOLLTEST ────────────────────────────────────
+  ── 1. DEIN ABSTURZ — was ich WEISS und was ich NICHT weiss ──────────────
 
-  1. **Die Klick-Zeile heißt jetzt „Accent every … beats".** (#930)
-     Sie hieß „Beats per bar" — die Formulierung, die ein Musiker als TAKTART liest,
-     also als Projekt-Einstellung. Gemessen ist sie klick-lokal: die Zahl entscheidet
-     ausschließlich, WIE OFT DER AKZENT LANDET, und bei ausgeschaltetem Akzent gar
-     nichts. Sequenzer, Automation und Clip-Raster haben je ihre EIGENE harte Vier, und
-     die 1…12 des Klicks erreicht keine davon. Der neue Name ist der, den der
-     Render-Block hergibt. Die Einheit trägt die halbe Ehrlichkeit: „Accent every 4" ist
-     mehrdeutig, „Accent every 4 beats" nicht — und VoiceOver liest dasselbe.
+  Du hast mir das Log von 433 geschickt: Absturz beim Einschalten des Mikrofon-Monitors,
+  `required condition is false: false == isInputConnToConverter`.
 
-  2. **Ein Tempo-Wechsel verschiebt den Klick nicht mehr.** (#933 → #934)
-     Der laufende Schlag hatte eine SAMPLE-ZAHL gespeichert, keine POSITION. Änderte
-     sich das Tempo, bedeutete dieselbe Zahl plötzlich etwas anderes:
-     · Tempo RAUF (60 → 180 per Feld-Edit): der Akzent kam **zwei Schläge zu früh**, der
-       Takt lief danach dauerhaft phasenverschoben mit. Auf einem Drittel aller
-       Ausrichtungen feuerte der Klick zusätzlich zweimal innerhalb von 10 ms — ein
-       hörbares Doppel-Klacken.
-     · Tempo RUNTER (180 → 60): wer 99 % durch den Schlag war, musste einen GANZEN neuen
-       Schlag warten, zwei Drittel einer Sekunde Stille.
-     · Und — der Fund, den ich zuerst übersehen hatte — auf einem GLIDE, also dem Weg,
-       den das Tempo hier normalerweise nimmt: über 60 s von 120 auf 160 BPM summierte
-       sich der Fehler in EINE Richtung auf **53 ms zu früh**. Das Metronom spielte ein
-       leises Accelerando, das der Transport nie verlangt hat.
-     Jetzt wird die Position im Schlag beim Tempowechsel proportional mitskaliert —
-     „40 % durch den Schlag" bleibt „40 % durch den Schlag". Gemessen: 0 Frames
-     Abweichung auf jedem Klick des Glides, kein Doppel-Klacken in keiner Richtung.
+  **Die Leiter aus 429/430 hat geliefert, wofür sie gebaut wurde: sie hat den sterbenden
+  Schritt benannt.** Der Abbruch sitzt im `start()` an Sprosse `on 4/5`, nicht irgendwo
+  in fünfzehn unbeschrifteten Aufrufen.
 
-  ── KORREKTUREN AN DER 432er NOTIZ ───────────────────────────────────────
+  Was das Log durch ABWESENHEIT beweist: **keine** der beiden „Format kaputt"-Zeilen steht
+  drin. Die Absicherung aus 420 fing nur den Fall „Knoten meldet 0 Hz". Hier kam ein
+  **plausibles, aber veraltetes** Format zurück — der stille Zwilling. Zeitstempel:
+  `setActive` und der Format-Read tragen **dieselbe Millisekunde**, und `start()` läuft
+  7 ms später und baut die Hardware neu auf. Passen die beiden nicht zusammen, schiebt iOS
+  einen Umrechner in den Eingang — und genau den verbietet die Zusicherung, deren Name im
+  Absturz steht.
 
-  Drei Stellen der letzten Notiz beschreiben eine App, die es nicht mehr gibt. Ich
-  schreibe sie hin, statt sie still zu ersetzen — Du hast die 432er vielleicht noch:
+  **Der Eingriff (#954):** die Absicherung greift jetzt nicht nur bei „Knoten meldet 0",
+  sondern auch bei **„Knoten widerspricht der Hardware"** (Toleranz 1 Hz, oder abweichende
+  Kanalzahl). Stimmen beide überein — der Normalfall — ändert sich **gar nichts**.
 
-  · Sie nannte die Zeile dreimal **„Beats per bar"**. Der Schalter heißt so nicht mehr
-    (Punkt 1 oben). Der Nachbar-Schalter **„Accent downbeat"** heißt unverändert so.
-  · Ihr Prüfpunkt 2 bat Dich zu hören, „ob die Taktlänge jetzt wirklich zu hören ist".
-    **Diese Bitte war falsch gestellt** — es gibt keine einstellbare Taktlänge, das war
-    genau der Defekt. Richtig gestellt steht sie unten als Punkt 1.
-  · Ihr ⚠-Vermerk „die Beschriftung liest sich breiter als die Sache ist" ist
-    **zurückgezogen, weil repariert**, nicht weil er falsch war.
+  ⚠ **Und jetzt die Ehrlichkeit, die zählt: ich behaupte NICHT, dass der Absturz weg ist.**
+  Was `start()` wirklich benutzt, ist das Format der Route zum Startzeitpunkt. Die Session
+  ist ein **frischerer Stellvertreter** als der veraltete Wert vom Knoten, **nicht die
+  Autorität** — auf einer noch verhandelnden Bluetooth-Route kann auch sie unterwegs sein.
+  **Das Zeitfenster wird schmaler, es wird nicht geschlossen.** (Die erste Fassung meines
+  eigenen Kommentars nannte das „strukturell"; der Pflicht-Reviewer hat mich korrigiert,
+  und die Rücknahme steht im Code.)
 
-  ── WAS ICH DICH ZU PRÜFEN BITTE ─────────────────────────────────────────
+  **Deshalb ist der zweite Teil des Eingriffs ein MESSGERÄT.** Sprosse `on 3/5` schreibt
+  ab jetzt drei Formate nebeneinander ins Log:
 
-  1. **Der Akzent-Abstand.** Tempo-Panel → Metronom an → „Accent every" auf 3 stellen.
-     Erwartung: jeder DRITTE Klick ist höher und lauter. Mit „Accent downbeat" aus:
-     jeder Klick gleich, die Zahl folgenlos.
-  2. **Der Tempo-Wechsel — die eigentliche Bitte dieser Version.** Klick laufen lassen,
-     dann das Tempo per FELD-EDIT ändern (nicht per Glide), in BEIDE Richtungen, mitten
-     im Schlag. Erwartung: kein Doppel-Klacken, keine hörbare Lücke, der Puls läuft
-     einfach im neuen Tempo weiter.
-  3. **Und die eine Frage, die nur Dein Ohr entscheiden kann** (sie steht als
-     `NEEDS-FOUNDER-VERIFY` in `MetronomeVoice.swift`): eine DRITTE Regel wäre genauso
-     vertretbar — den laufenden Schlag in der ALTEN Dauer zu Ende spielen und das neue
-     Tempo erst ab dem nächsten Schlag anwenden. So machen es DAWs. Sie verschiebt nie
-     einen Klick, auf den Du schon wartest, kostet dafür aber einen Schlag Verzögerung.
-     Frage beim Prüfen von Punkt 2: fühlt sich der ERSTE Klick nach der Änderung **früh,
-     richtig oder spät** an? Sagst Du „früh", baue ich die DAW-Regel.
-  4. **Sauberer Start**, wie immer: App starten, ~1 Minute normal benutzen. Kein
-     Schwarzbild, kein Safe Mode.
-  5. Danach wie immer: Log per Save/Export → Diagnostics → Share.
+      on 3/5: connecting input → notch (edge … , session … , out … )
 
-  ⚠ Die Bitten aus 432 bleiben offen und sind NICHT wiederholt: die Klangfarbe am
-  Körper (#920) und der Safe-Mode-Absturz (#916/#917). `python3
-  scripts/founder-verify.py` druckt die vollständige Liste, heute 65 in 58 Dateien.
+  · `edge` und `session` GLEICH und es stürzt trotzdem ab → meine Hypothese ist falsch.
+    Die nächsten zwei Verdächtigen stehen bereits im Quelltext notiert (Hypothese #5 und
+    #6), ich baue dann die richtige statt zu raten.
+  · Sie weichen AB und es läuft durch → Mechanismus bestätigt.
+  · `out` weicht ab → die zweite Verdächtige, die ich sonst gar nicht hätte sehen können.
+
+  **So oder so entscheidet EINE Sitzung die Sache.** Ich habe bewusst nur EINE Hypothese
+  ausgeliefert; zwei gleichzeitig hätten Dein nächstes Log unlesbar gemacht.
+
+  ── 2. MIDI-AUSDRUCK — vier Dinge, drei davon ohne MPE-Controller ────────
+
+  **a) Der Pitch-Bend beugt jetzt die klingende Note.** (#948) Vorher beugte das Rad
+  **immer A4**, egal was Du gerade hieltest — spielst Du ein tiefes A und drehst, sprang
+  der Ton nach oben statt sich zu biegen. Trifft **jedes** Keyboard mit Rad.
+
+  **b) Die gehaltene Taste bleibt gehalten.** (#943) Ein Loslassen löschte vorher einen
+  einzigen Schalter, ohne zu fragen WELCHE Taste losgelassen wurde. Zwei Tasten drücken,
+  eine loslassen — und die andere ging mit aus. Trifft **jedes** Keyboard.
+
+  **c) Der Panik-Knopf räumt jetzt auch die Tonhöhe auf.** (#945) Er räumte drei von vier
+  Dingen; ein hängengebliebener Bend blieb liegen und verstimmte danach die Atem-Drohne.
+
+  **d) Nur mit MPE-Controller: alle drei Ausdrucks-Achsen klingen.** Druck (#939 — in die
+  Taste lehnen lässt die Note anschwellen; das Byte wurde vorher eine Schicht unter jeder
+  Verdrahtung weggeworfen) und Slide/CC 74 (#942 — bewegt den Filter). ⚠ **Das ist
+  trotzdem KEIN MPE-Eingang** und ich nenne es nirgends so: Zonen und Member-Kanäle fehlen.
+
+  ── 3. DIE ATEM-DROHNE WAR DIE EINZIGE UNGESTIMMTE STIMME ────────────────
+
+  (#946) Die App fächert **beide** Stimmungs-Achsen in diese Stimme — Tonsystem-Tabelle
+  und Konzertstimmung — und ihre eigene **Ruhe-Tonhöhe** umging beide, weil sie ein roher
+  110-Hz-Vorgabewert war. Mit einer Maqam- oder reinen Tabelle, oder A4 auf 432, wurde
+  jede gespielte Note umgestimmt **und allein die Drohne nicht**. Hörbar nur, wenn Du vom
+  gleichstufigen 440 abweichst — was Du tust: Dein Startzustand ist pythagoräisch/432.
+
+  ── 4. MIDI-SCHWÄLLE FLUTEN DEN HAUPT-THREAD NICHT MEHR ──────────────────
+
+  (#951) Eine Faderbank oder ein Windcontroller schickt Tausende Nachrichten pro Sekunde,
+  und jede startete bisher **einen eigenen Haupt-Thread-Job** — genau die Form, die in
+  diesem Projekt schon einmal Menüs eingefroren hat. Jetzt: **ein Weckruf pro Schwung.**
+  ⚠ Das ist VORBEUGEND. Du hast das nicht gemeldet, und ohne dichten MIDI-Verkehr merkst
+  Du keinen Unterschied.
+
+  ── KORREKTUR AN DER 433er NOTIZ ─────────────────────────────────────────
+
+  · Sie schrieb: „Der exakte Auslöser des `isInputConnToConverter`-Absturzes hat weiterhin
+    keinen Namen. Auch 433 repariert ihn nicht." **Der erste Satz gilt weiter** — einen
+    NAMEN hat der Auslöser immer noch nicht. Der zweite ist überholt: 434 greift ihn an,
+    als Hypothese mit Messgerät, siehe Punkt 1.
+
+  ── WAS ICH DICH ZU PRÜFEN BITTE (in dieser Reihenfolge) ─────────────────
+
+  1. **Der Mikrofon-Monitor — die eigentliche Bitte dieser Version.** Genau das tun, was
+     433 zum Absturz gebracht hat: Monitor einschalten, gern wieder mit laufendem
+     Biofeedback. **Beide Ausgänge sind wertvoll** — stürzt es ab, schickt das Log trotzdem;
+     die neue Sprossen-Zeile steht dann drin und beantwortet die Frage.
+  2. **Pitch-Bend auf einer tiefen Note.** Tiefe Taste halten, Rad drehen. Erwartung: der
+     Ton BIEGT sich von dieser Note weg — er springt nicht auf A.
+  3. **Zwei Tasten halten, eine loslassen.** Erwartung: die andere klingt weiter.
+  4. **Die Atem-Drohne bei 432/pythagoräisch.** Erwartung: sie sitzt jetzt im selben
+     Tonsystem wie die gespielten Noten, nicht daneben.
+  5. **Sauberer Start**, wie immer: App starten, ~1 Minute normal benutzen. Kein
+     Schwarzbild, kein Safe Mode. ⚠ Dein 433er Log zeigte **Safe Mode beim Start, Streak 3**
+     — das ist der offene Posten aus #916/#917 und in 434 NICHT angefasst.
+  6. Danach wie immer: Log per Save/Export → Diagnostics → Share.
+
+  ⚠ Ältere Bitten bleiben offen und sind NICHT wiederholt: die Klangfarbe am Körper (#920)
+  und der Safe-Mode-Absturz (#916/#917). `python3 scripts/founder-verify.py` druckt die
+  vollständige Liste, heute 75 in 64 Dateien.
 
   ── WAS ICH NICHT BEHAUPTE ───────────────────────────────────────────────
 
-  · **Vier der 8 Sources-Commits ändern NICHTS, was Du merken kannst** — und ich
-    schreibe sie hin, damit Du keine Zeit darauf verwendest: #930c repariert einen
-    Compile-Fehler meiner eigenen Umbenennung, #933b/#933c/#934b sind Wächter-Prosa und
-    zurückgezogene Zahlen. Ausnahme in der Grauzone: #930b entfernt einen zweiten
-    VoiceOver-Hinweis, der entweder nie gesprochen worden wäre oder den ersten verdrängt
-    hätte — merkbar nur mit VoiceOver.
-  · Der exakte Auslöser des `isInputConnToConverter`-Absturzes hat weiterhin keinen
-    Namen. Auch 433 repariert ihn nicht.
-  · **Ich habe das Metronom am Gerät NICHT gehört.** Jede Zahl oben stammt aus einer
-    Simulation durch den echten Render-Block, nicht aus einem Lautsprecher. Punkt 2 und
-    3 sind genau deshalb Bitten und keine Meldungen.
+  · **Der Absturz ist nicht als behoben gemeldet.** Punkt 1 ist eine Hypothese plus ein
+    Messgerät. Wer diese Notiz später liest: nicht zu „behoben" verkürzen.
+  · **NEUN der 17 Sources-Commits ändern nichts, was Du merken kannst** — damit Du keine
+    Zeit darauf verwendest: **#936** (`EchoelFXView` von 21 auf neun Rumpf-Kinder gezogen;
+    das ist COMPILE-Zeit, die Fläche öffnet **nicht** schneller) · **#936b** (der Wächter
+    dazu konnte das Gesetz nicht sehen, nach dem er benannt ist) · **#937** (ein echtes
+    rotes Gate, elf Tage alt, hinter dem Blindfleck des eigenen Werkzeugs) · **#942b,
+    #943b, #945b, #951b, #954b** (Reviewer-Blocker, Compile-Fehler meiner eigenen
+    Umbenennungen, zurückgezogene Behauptungen) · **#950** (ein gemessener, GEBAUTER und
+    wieder ZURÜCKGENOMMENER Fix — ein CC-Strom, den nichts verbraucht; die Frage dazu
+    gehört Dir und steht im Code).
+    ⛔ Die erste Fassung dieses Punktes schrieb **„Sechs"** und zählte dann mehr als sechs
+    auf — darunter #952/#953/#953b, die gar keine Sources-Commits sind, und #948b, das
+    kein eigener Commit ist (es steckt in `d6b8dfa`). Nachgezählt: neun. Ich schreibe die
+    Rücknahme hin statt sie still zu ersetzen, weil genau diese Fehlerklasse — eine Zahl,
+    die zu ihrer eigenen Liste nicht passt — diese Runde schon zwei Reparaturen gekostet
+    hat.
+  · **Ich habe nichts davon am Gerät gehört oder gesehen.** Kein Ton, kein Absturz, kein
+    Monitor. Jede Zahl oben stammt aus Quelltext, aus Deinem Log oder aus einer Simulation.
   · Die Wächter dieser Runde sind **compile-verifiziert, ihre Ausführung ist unbelegt**:
-    das Job-Log ist nur ein festes Endstück, und ein fehlender Testname beweist dort
-    nichts (#445/#807). „Build for Testing = success" ist die Aussage, die ich habe.
+    das Job-Log ist nur ein festes Endstück, und ein fehlender Testname beweist dort nichts
+    (#445/#807). „Build for Testing = success" ist die Aussage, die ich habe — und sie gilt
+    für `ad6b2a9`, einschließlich der brandneuen Wächter-Datei.
 
-  Compile-verifiziert (Xcode Compile Check grün auf `ab2d0e2` und `d0f64c7`), nicht
-  geräteverifiziert.
+  Compile-verifiziert (Xcode Compile Check grün auf `68b301e` und `ad6b2a9`,
+  `Build for Testing` grün auf `ad6b2a9`), nicht geräteverifiziert.
 
   ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
   bitte NICHT prüfen.

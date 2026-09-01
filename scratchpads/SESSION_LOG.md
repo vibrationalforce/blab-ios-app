@@ -20272,3 +20272,34 @@ stehen im Kopf**, weil die Datei jetzt in zwei Commits ausgeliefert wird und ein
 Benotungsblock schlimmer ist als keiner.
 
 **Instrumente:** `diag-ladder --source` sauber · `dead-needles` 397 OK · `count-pins` 0 ROT.
+
+## 2026-09-01 — v10.79.434 deployed: der Absturz bekommt ein Messgerät
+
+**Gates vor dem Bump gelesen, alle grün, was ein Gate belegen kann:** `Xcode Compile Check`
+success auf `68b301e` UND `ad6b2a9` · **`Build for Testing` success auf `ad6b2a9`** — das ist
+die Aussage, die zählt, denn `TheInputEdgeFollowsTheHardwareFormatTests.swift` ist eine
+brandneue Datei, die nie ein Compiler gesehen hatte · SwiftLint grün (keine Zeilenlänge).
+
+**Größe der Version, gemessen gegen den BUMP-Commit `90eab4c`** (nicht gegen mein
+Arbeitsfenster — die #911-Lehre): **31 Commits, 17 in `Sources/`, 11 neue/umformulierte
+Founder-Bitten von 75 offenen.** Breit, nicht schmal wie 433.
+
+**Zwei Schwerpunkte:** der Absturz-Eingriff samt Sprossen-Instrument (#954/#954b) und
+MIDI-Ausdruck (#939/#942/#943/#945/#948). Dazu die Atem-Drohne, die als einzige Stimme beide
+Stimmungs-Achsen umging (#946) — hörbar genau bei dem Startzustand, den das Founder-Log zeigt
+(`tuning=pythagorean, a4=432.0`).
+
+⛔ **Ein eigener Zählfehler VOR dem Push gefangen, und es ist die Klasse, die diese Runde schon
+zwei Reparaturen gekostet hat.** Der Abschnitt „WAS ICH NICHT BEHAUPTE" schrieb **„Sechs der 17
+Sources-Commits"** und zählte dann mehr als sechs auf — darunter #952/#953/#953b, die gar keine
+Sources-Commits sind, und #948b, das kein eigener Commit ist (es steckt in `d6b8dfa`).
+Nachgezählt per `git log … -- Sources/ | grep -c`: **neun**. Rücknahme steht in der Notiz statt
+einer stillen Ersetzung.
+
+⭐ **Die Notiz meldet den Absturz ausdrücklich NICHT als behoben.** Sie sagt: Hypothese plus
+Messgerät, und nennt beide Ausgänge des nächsten Logs als wertvoll — auch den Absturz. Der Satz
+„Wer diese Notiz später liest: nicht zu ‚behoben' verkürzen" steht bewusst drin.
+
+⚠️ Im 433er Log stand außerdem `LaunchGuard: SAFE MODE … unconfirmed streak 3`. Das ist der
+offene Posten #916/#917, in 434 **nicht angefasst** — und in der Notiz als solcher benannt,
+damit er nicht als miterledigt gelesen wird.
