@@ -45,9 +45,12 @@
 //     voice, and the arrow's MPE claim is STILL false, for the reason that never depended on
 //     the count: no zone is announced to us (RPN 6,6), no member channel is told apart, and
 //     the voice is monophonic. **Dimensions without zones is expressive MIDI, not MPE.**
-//   · notes, plural — `heldByController` is a single `Bool` and `playNote` sets one
-//     `synth.frequency`. It is ONE monophonic voice, so per-note anything is unreachable by
-//     construction, not merely unwired.
+//   · notes, plural — `apply(controller:)` calls `playNote(` exactly once and `releaseNote()`
+//     exactly once, onto ONE `synth`. It is ONE monophonic voice, so per-note anything is
+//     unreachable by construction, not merely unwired. (⛔ #943b: this read "`heldByController`
+//     is a single `Bool`". #943 turned that into a computed `Bool` over a held-key STACK, so
+//     the sentence read as if the stack were the polyphony it denies. The monophony was never
+//     in the latch — it is in the single `synth` and the single `playNote` call.)
 // What survives, and the corrected line keeps it: notes, pitch bend and performer priority
 // over the breath envelope really do reach the voice.
 //
@@ -573,11 +576,47 @@ final class TheMPEInputHasNoZonesTests: XCTestCase {
 
     // MARK: - claim 3 — one voice, so "notes" plural was never reachable here
 
+    /// ⛔ #943b — THIS CLAIM WENT RED ON A CORRECT TREE AND THE COMMIT SHIPPED ANYWAY. Its
+    /// needle was the LITERAL `private var heldByController = false`, and #943 replaced that
+    /// stored `Bool` with a bounded held-note stack plus a derived flag. The monophony it pins
+    /// never stopped being true; the WITNESS was deleted under it.
+    ///
+    /// ⭐ THE LESSON IS THE ONE `Tests/CISmoke/CLAUDE.md` §4 ALREADY WRITES DOWN, unlearned:
+    /// **when you delete or rename a declaration, grep the BLOCKING BUNDLE for it, not only
+    /// `Sources/`.** #776 made that reflex for `Self.<name>` after deleting a member; this is
+    /// the same reflex for a source-text needle, and #942b had just paid for the sibling
+    /// version (an argument label). Neither `Xcode Compile Check` nor `dead-needles.py` can
+    /// see it: the first builds `Sources/` alone, and the second checks that a needle CAN
+    /// match some file, not that it still matches the file this claim points at.
+    ///
+    /// ⚠️ MEASURED, not inferred — `grep -c "private var heldByController = false"` on
+    /// `BioReactiveSynthVoice.swift`: **1** at `febecdb`, **0** at `25d34dc` (the tree #943
+    /// actually shipped), **0** here. So the guard really was red on a correct tree for one
+    /// commit, and the re-anchored form below is green on all three trees that HAVE the
+    /// declaration. Recorded because "it would have gone red" is a guess and this is not.
+    ///
+    /// ⚠️ RE-ANCHORED ON WHAT #943 LEAVES INVARIANT, not on a spelling. Monophony is now two
+    /// facts that no note-priority rewrite can quietly take away: the flag is Bool-valued and
+    /// DERIVED from the stack (a derived flag cannot disagree with the keys — that was the
+    /// point of #943), and the switch still starts exactly ONE note and releases exactly ONE.
+    /// A second `playNote(` in that member is what polyphony would actually look like here.
     func testThePerformerPathIsMonophonic() throws {
         let code = try source(Self.voice)
-        XCTAssertTrue(code.contains("private var heldByController = false"), """
-            `heldByController` is no longer a single `Bool`. If the performer path became \
-            polyphonic, "synth notes" is finally true of it and \(Self.prose)
+        XCTAssertTrue(code.contains("private var heldByController: Bool"), """
+            `heldByController` is no longer a Bool-valued single flag on this voice. If the \
+            performer path became polyphonic, "synth notes" is finally true of it and \
+            \(Self.prose)
+            """)
+        let body = try memberBody("private func apply(controller event: ControllerEvent)",
+                                  in: Self.voice)
+        XCTAssertEqual(body.components(separatedBy: "playNote(").count - 1, 1, """
+            `apply(controller:)` starts more than one note. ONE monophonic voice is the whole \
+            claim — a second `playNote(` in this member is what polyphony would look like, and \
+            \(Self.prose)
+            """)
+        XCTAssertEqual(body.components(separatedBy: "releaseNote()").count - 1, 1, """
+            `apply(controller:)` releases more than one note. Same claim from the other side: \
+            one voice has exactly one release.
             """)
     }
 
@@ -828,8 +867,8 @@ final class TheMPEInputHasNoZonesTests: XCTestCase {
     ///     is therefore GONE for slide and press;
     ///   · "voices", PLURAL — false then and false now, and nothing on the roadmap changes it.
     ///     `git grep -c ControllerEvent` over `PolySynthVoice.swift` and `SubBassVoice.swift`
-    ///     is 0/0; `heldByController` is a single `Bool` (claim 3). ONE monophonic voice
-    ///     consumes the bus. That is the same plural `CLAUDE.md` retracted about its own line
+    ///     is 0/0; `apply(controller:)` holds exactly one `playNote(` onto one `synth`
+    ///     (claim 3). ONE monophonic voice consumes the bus. That is the same plural `CLAUDE.md` retracted about its own line
     ///     at #770 and `CLAIMS.md` at #774.
     /// **The durable claim was always the plural, not the dimension.** #939 had already split
     /// the pressure case out on exactly this reasoning; #942 finishes the split by making the
@@ -856,8 +895,8 @@ final class TheMPEInputHasNoZonesTests: XCTestCase {
                     calls a channel-wide message per-note: "\(sentence)"
 
                     Pitch bend, press (#939) and slide (#942) DO reach the built-in performer \
-                    voice — singular. `heldByController` is a single `Bool` and `playNote` sets \
-                    one `synth.frequency`; claim 3 pins that. Channel pressure and channel \
+                    voice — singular. `apply(controller:)` calls `playNote(` exactly once, \
+                    onto one `synth`; claim 3 pins that. Channel pressure and channel \
                     pitch bend are channel-wide by definition. Say "the built-in performer \
                     voice", and do not call a channel message per-note.
 
@@ -989,8 +1028,8 @@ final class TheMPEInputHasNoZonesTests: XCTestCase {
             "\(row.trimmingCharacters(in: .whitespaces))".
 
             Measured, and claim 3 above pins it: `BioReactiveSynthVoice` is the only consumer \
-            of `controllerEvents`, `heldByController` is a single `Bool`, and `playNote` sets \
-            one `synth.frequency`. If the performer path really became polyphonic, this whole \
+            of `controllerEvents`, and `apply(controller:)` calls `playNote(` exactly once, \
+            onto one `synth`. If the performer path really became polyphonic, this whole \
             file goes red together and \(Self.prose)
             """)
     }

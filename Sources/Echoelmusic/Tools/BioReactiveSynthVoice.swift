@@ -112,21 +112,61 @@ public final class BioReactiveSynthVoice {
     /// arrive indistinguishable; a second entry would become a ghost that no single note-off
     /// can clear, and the voice would sound with nothing under a finger.
     ///
-    /// ⚠️ BOUNDED, and the bound is the point rather than tidiness: a note-off that never
-    /// arrives (cable pulled mid-note, event dropped under SPSC flood) leaves an entry behind.
-    /// Unbounded, those accumulate into a voice that can never be released — a WORSE failure
-    /// than the one this fixes. The OLDEST is dropped, because it is the one least likely to
-    /// still be under a finger, and `panic()` throws the whole stack away.
+    /// ⛔ AND THE FIRST VERSION OF THIS DOC CLAIMED THE CAP SOLVED A PROBLEM IT DOES NOT —
+    /// caught by #943's mandatory review, and the review was right. It said an unbounded list
+    /// of stranded entries "accumulate into a voice that can never be released". **ONE**
+    /// stranded entry already does that; the cap only bounds MEMORY. Worse, #943 as first
+    /// written REMOVED a recovery path that the old single `Bool` had for free: back then any
+    /// later note-off cleared the latch, so unplugging mid-note and then playing ANY key
+    /// restored silence. With a stack, playing D and releasing it falls back LEGATO to the
+    /// stranded C — forever, and every later note-off re-lands on the phantom.
+    ///
+    /// ⭐ SO THE ENTRIES CARRY THEIR ARRIVAL TIME AND SUPERSEDED ONES ARE PRUNED. Two things
+    /// are exempt, and stating them precisely matters more than the rule itself:
+    ///   · the NEWEST entry — the one that is sounding — is never dropped, at any age;
+    ///   · a stack of ONE is never pruned at all (the guard needs more than one entry), so a
+    ///     single key held for an hour is untouched no matter how long it stays down.
+    /// What gets dropped is a key that has been SUPERSEDED for over a minute — the exact shape
+    /// of a lost note-off. ⚠️ The accepted trade, said plainly: a chord voicing genuinely held
+    /// under newer notes for more than a minute is dropped too, so releasing the newer key
+    /// falls back one step less far than the fingers would suggest. That is rare enough to
+    /// pay for a recovery path that is otherwise only reachable through `panic()`.
+    /// ⛔ An earlier draft of this paragraph said "a deliberate drone held for an hour is
+    /// untouched" without the ONE-entry qualifier — false as written, because playing a
+    /// second key over the drone is exactly what makes the drone prunable. Caught by
+    /// arithmetic while writing its counterweight test, not by the test.
+    /// The cap survives as the second net, for a burst that arrives faster than the window.
     @ObservationIgnored
-    private var heldNotes: [UInt8] = []
+    private var heldNotes: [(note: UInt8, at: TimeInterval)] = []
 
     /// Capacity of `heldNotes`. Ten fingers plus headroom for a sustained roll; the exact
     /// number is not musical, only the existence of a ceiling is.
     private static let maxHeldNotes = 16
 
+    /// How long a NON-SOUNDING key may claim to be down while other keys are played over it
+    /// before it is treated as a lost note-off. A minute is far past any real chord voicing
+    /// and far short of punishing a slow player; the sounding note is exempt at any age.
+    private static let staleHoldSeconds: TimeInterval = 60
+
     /// Unchanged in meaning: is a controller key down? It is now DERIVED rather than latched,
     /// which is the whole repair — a derived flag cannot disagree with the keys.
     private var heldByController: Bool { !heldNotes.isEmpty }
+
+    /// Drop keys that claim to be down while the player has moved on. Called on every note
+    /// event, AFTER the new entry is appended, so the freshest key is always the survivor.
+    /// Non-monotonic or non-finite stamps prune nothing — a bad clock must not silence a note.
+    /// ⛔ THE FIRST DRAFT WROTE THIS AS `enumerated().filter { … }.map(\\.element)` AND WOULD NOT
+    /// HAVE COMPILED: `EnumeratedSequence.Element` is a TUPLE, and Swift key paths need a
+    /// nominal type — there is no `\\.element` on `(offset:element:)`. Caught by reading, because
+    /// this repo has no local Swift toolchain and the blocking bundle is the only compiler.
+    /// Lifting the sounding entry out and putting it back says the same thing in a form that
+    /// is obviously correct and allocates one array instead of three.
+    private func pruneStaleHolds(now: TimeInterval) {
+        guard now.isFinite, heldNotes.count > 1 else { return }
+        let sounding = heldNotes.removeLast()
+        heldNotes.removeAll { now - $0.at > Self.staleHoldSeconds }
+        heldNotes.append(sounding)
+    }
 
     @ObservationIgnored
     private var lastBioEventTimestamp: TimeInterval = -1
@@ -257,15 +297,26 @@ public final class BioReactiveSynthVoice {
 
     /// PERFORMANCE PANIC — release the note AND clear the controller-held latch.
     ///
-    /// `releaseNote()` alone is not enough for a panic. `heldByController` is set on an
-    /// external `.noteOn` and cleared by any later `.noteOff` (unmatched — the first key
-    /// release of a chord already clears it). But if that note-off never arrives at all —
-    /// controller unplugged mid-note, or an event dropped because `bus.controllerEvents` is a
-    /// bounded SPSC queue under flood — the latch stays true and `consumeBioEventsIfFresh`
-    /// refuses every breath onset. Breath play is then dead for the rest of the session and
-    /// no UI control can clear it (`disarm()` does not touch it); only a later controller
-    /// `.noteOff`, which by construction is exactly what is missing. Panic is the natural
-    /// place to break the latch, so this exists and is what the panic button calls.
+    /// `releaseNote()` alone is not enough for a panic. `heldByController` is true while any
+    /// key is down, and a key leaves the stack only on a note-off FOR THAT NOTE. If that
+    /// note-off never arrives — controller unplugged mid-note, or an event dropped because
+    /// `bus.controllerEvents` is a bounded SPSC queue under flood — the flag stays true and
+    /// `consumeBioEventsIfFresh` refuses every breath onset. Breath play is then dead and no
+    /// UI control can clear it (`disarm()` does not touch it). Panic is the natural place to
+    /// break it, so this exists and is what the panic button calls.
+    ///
+    /// ⛔ #943b — THIS PARAGRAPH DESCRIBED A MECHANISM #943 HAD ALREADY REMOVED, and it is the
+    /// paragraph a session opens to understand what `panic()` is for. It said the latch is
+    /// "cleared by any later `.noteOff` (unmatched — the first key release of a chord already
+    /// clears it)" — which WAS true of the old single `Bool` and was exactly the bug #943
+    /// cured. Left standing, it is the `EchoelModalBank` shape: a stated mechanism the reader
+    /// can disprove in one grep. Found by the mandatory review, not by a guard.
+    ///
+    /// ⚠️ AND #943 COST SOMETHING HERE THAT THE OLD BOOL GAVE FOR FREE, which is why
+    /// `pruneStaleHolds` exists: back then, playing and releasing ANY key after the cable came
+    /// back restored silence. With a stack, a released key falls back LEGATO to the stranded
+    /// one instead. The prune wins that recovery back automatically; `panic()` remains the
+    /// immediate, deliberate one and the only one that works within the stale window.
     ///
     /// `isArmed` is deliberately NOT cleared: this is a RELEASE, not a mute. The bio arm
     /// re-opens on the next inhale — just as every sequenced voice re-attacks on its next
@@ -495,6 +546,10 @@ public final class BioReactiveSynthVoice {
     internal var heldByControllerForTests: Bool { heldByController }
     /// #943 — the stack's SIZE, so the bound can be asserted without exposing the keys.
     internal var heldNoteCountForTests: Int { heldNotes.count }
+    /// #943b — the CAP itself, so a guard asserts against the shipped number instead of
+    /// carrying a second copy of it (`Tests/CISmoke/CLAUDE.md` §6). Raising the cap is a
+    /// legitimate edit the doc invites; it must not redden a correct commit (#364).
+    internal var maxHeldNotesForTests: Int { Self.maxHeldNotes }
     #endif
 
     /// How much louder full press is than no press (#939). +50 % ≈ +3.5 dB — a swell a player
@@ -517,22 +572,26 @@ public final class BioReactiveSynthVoice {
         case .noteOn:
             // Re-pressing a pitch that is already down moves it to the top rather than adding
             // a second entry — see the dedupe note on `heldNotes`.
-            heldNotes.removeAll { $0 == event.note }
-            heldNotes.append(event.note)
+            heldNotes.removeAll { $0.note == event.note }
+            heldNotes.append((note: event.note, at: event.timestamp))
+            pruneStaleHolds(now: event.timestamp)
             if heldNotes.count > Self.maxHeldNotes { heldNotes.removeFirst() }
             // Note-ON priority is UNCHANGED by #943: a new key re-attacks, which is what
             // shipped and what a player expects from pressing a key.
             playNote(frequency: soundingFrequency(forMIDINote: event.note))
         case .noteOff:
-            let wasTop = heldNotes.last == event.note
-            heldNotes.removeAll { $0 == event.note }
-            if let top = heldNotes.last {
+            let wasTop = heldNotes.last?.note == event.note
+            heldNotes.removeAll { $0.note == event.note }
+            pruneStaleHolds(now: event.timestamp)
+            if let top = heldNotes.last?.note {
                 // A key is still down. If the one lifted was not the sounding one, nothing
                 // audible changes at all; if it was, fall back LEGATO — write the frequency
                 // directly instead of `playNote`, because `playNote` runs `synth.noteOn`, which
                 // re-arms the attack, the filter envelope, the onset chiff and the drift
                 // counters. Hearing a fresh transient because you LIFTED a finger is its own
-                // wrong answer; the render's `smoothedFreq` one-pole (~2 ms) glides the pitch.
+                // wrong answer; the render's `smoothedFreq` one-pole carries the pitch across
+                // without a click (tau ~ 2.1 ms at 48 kHz — a DE-CLICK, not a portamento; nothing
+                // writes `glideCoeff` on this instance, only the poly engine's per-voice fan-out).
                 if wasTop { synth.frequency = soundingFrequency(forMIDINote: top) }
             } else {
                 releaseNote()

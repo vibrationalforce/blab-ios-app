@@ -54,7 +54,7 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 | **Immersiver Raum: ADM-OSC** Objekt-Ausgabe (`/adm/obj/{n}/*`) | `ADMOSCSender` |
 | **OSC-Ausgabe** des Bio-Signals an jede Software im Netz | `OSCSender`, Adressliste in `CLAUDE.md` |
 | **MIDI-Export** der erzeugten Musik als `.mid` | `MIDIFileExporter`, Tür im Export-Schacht |
-| **MIDI-Eingang**: ein externer Controller spielt EINE monophone Stimme — Noten, Pitch-Bend, Press (Channel Pressure, #939) und Slide (CC 74, #942) | `BioReactiveSynthVoice` ist der EINZIGE Verbraucher von `controllerEvents`; `heldByController` ist ein einzelner `Bool`, `playNote` setzt eine `synth.frequency`. Wächter: `TheMPEInputHasNoZonesTests` |
+| **MIDI-Eingang**: ein externer Controller spielt EINE monophone Stimme — Noten, Pitch-Bend, Press (Channel Pressure, #939) und Slide (CC 74, #942) | `BioReactiveSynthVoice` ist der EINZIGE Verbraucher von `controllerEvents`; `apply(controller:)` ruft `playNote(` genau EINMAL, auf EIN `synth`. (⛔ #943b: hier stand «`heldByController` ist ein einzelner `Bool`» — mit #943 ist das ein BERECHNETER `Bool` über einen Tasten-STAPEL, der Beleg nannte also genau das, was aufgehört hatte, einzeln zu sein. Die Monophonie sitzt im einen `synth`, nicht im Riegel.) Wächter: `TheMPEInputHasNoZonesTests` |
 | **MIDI-Ausgang live**: gespielte NOTEN an dein Rig (MIDI 1.0) | `MIDIOutput`, Schalter in der Routing-Fläche (`midi.out`), Default AUS |
 | **MPE-AUSGANG an Dein Rig**: Zone angekündigt, Noten über Member-Kanäle 2–16, jede mit Glide (Pitch-Bend), Slide (CC 74) und Press (Channel Pressure) | `MIDIOutput.sendMPEConfiguration()` plus die drei Sendepfade; zwei Schalter in der erreichbaren Routing-Fläche (»MPE note layout«, »Per-note expression«), beide Default AUS. **Nur MIT Richtungswort schreiben** — warum, steht in §6 |
 | **Dein Rig erfährt, ob ein Körper sendet oder der Demo-Generator**: auf OSC als eigene Adresse `/echoelmusic/bio/synthetic` (1 = Demo, 0 = echter Körper), auf sACN als Quellname »Echoelmusic (DEMO)« in der Quellenliste des Pults | #639 (Batch, der Flagge geht jedem Tick voran der mindestens einen Messwert sendet) · #785 (Ereignisse, Flagge unmittelbar VOR dem Ereignis, erneut nur bei Wechsel) · #789 (sACN, das 64-Byte-Source-Name-Feld von E1.31 — das eigene Feld des Standards, nichts erfunden). Wächter: `TheWireSaysWhoseBodyTests`, `TheLightRigSeesTheSimulatorTests`. ⛔ **NIE »alle Ausgänge« schreiben**: ADM-OSC und Art-Net tragen sie NICHT, und die Gründe sind verschieden (fremder Adressraum, dessen Erweiterungsregeln hinter einer AES-Paywall liegen · `ArtDMX` hat gar kein Namensfeld, `ArtPollReply` ist ungebaut). Die sACN-Hälfte: **Geräte-Verify offen — so kennzeichnen** (ob ein Pult den Namen mitten in der Sitzung neu zeichnet, ist im Repo nicht messbar) |
@@ -142,7 +142,7 @@ Session dazu einlädt, etwas neu zu bauen, das schon da ist.
 Die Zeile im Wahr-Register hieß **„externer Controller spielt die Stimmen"**. Gemessen:
 `git grep -n controllerEvents -- Sources` (kommentar-bereinigt) liefert außerhalb von
 `EngineBus` **genau einen** Verbraucher — `BioReactiveSynthVoice`, und der ist monophon
-(`heldByController` ein einzelner `Bool`, `playNote` setzt eine `synth.frequency`).
+(`apply(controller:)` ruft `playNote(` genau einmal, auf ein `synth` — #943b, siehe die Zeile in der Tabelle oben).
 `PolySynthVoice` abonniert den Bus zwar, aber nicht diese Topic; die Stimme im
 `LaneVoiceRack` ist laut eigenem Kommentar „NEVER subscribed to the bus".
 

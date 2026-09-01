@@ -19327,3 +19327,59 @@ Pfad die Stimme stumm schaltete, und Anspruch 6 hatte keinen Stapel zu begrenzen
 gemacht worden — von 69 Bitten druckte genau EINE keine Handlung, und das war meine eigene):
 MIDI-Keyboard anschließen, zwei Tasten halten, die UNTERE loslassen (nichts darf sich ändern),
 dann die OBERE loslassen (die Note muss zur unteren GLEITEN, ohne neuen Anschlag).
+
+## 2026-09-01 — #943b: der Pflicht-Reviewer fand einen roten Wächter auf korrektem Baum
+
+**Drei Befunde, alle vom Pflicht-Reviewer auf #943, alle abgearbeitet.**
+
+**(1) BLOCKER — `TheMPEInputHasNoZonesTests` Anspruch 3 war ROT auf dem Baum, den #943
+ausgeliefert hat.** Seine Nadel war das Literal `private var heldByController = false`, und
+#943 hat genau diese Deklaration durch einen berechneten `Bool` über einem Tasten-Stapel
+ersetzt. **Gemessen, nicht geschlossen:** `grep -c` auf die Nadel liefert **1** an `febecdb`,
+**0** an `25d34dc`, **0** heute. Das ist §4 von `Tests/CISmoke/CLAUDE.md`, wörtlich, und ich
+habe ihn nicht ausgeführt — beim Löschen einer Deklaration grept man das BLOCKIERENDE Bundle,
+nicht nur `Sources/`. Kein Instrument konnte es sehen: `Xcode Compile Check` baut `Sources/`
+allein, und `dead-needles.py` prüft, ob eine Nadel IRGENDEINE Datei trifft, nicht ob sie die
+Datei trifft, auf die ihr Anspruch zeigt.
+**Re-verankert auf Invarianten statt auf einer Schreibweise:** der Riegel ist Bool-wertig und
+ABGELEITET (ein abgeleiteter Riegel kann den Tasten nicht widersprechen — das war der Zweck
+von #943), und `apply(controller:)` enthält **genau ein** `playNote(` und **genau ein**
+`releaseNote()`. Eine zweite `playNote(`-Stelle ist, wie Polyphonie hier wirklich aussähe.
+
+**(2) EINE ECHTE REGRESSION, die ich selbst eingebaut hatte.** Der alte einzelne `Bool` hatte
+eine Rettung gratis: JEDES spätere note-off löschte ihn. Mit dem Stapel fällt eine losgelassene
+Taste **legato auf die Phantom-Taste zurück — für immer**, und jedes weitere note-off landet
+wieder dort. Die Deckelung aus #943 beantwortet das NICHT; sie begrenzt Speicher, während
+EINE gestrandete Taste bereits „eine Stimme, die nie wieder losgelassen werden kann" ist.
+Repariert mit `pruneStaleHolds`: Einträge tragen ihre Ankunftszeit, ein **überholter** Eintrag
+älter als 60 s wird beim nächsten Notenereignis vergessen, ein Stapel von **einem** nie — der
+Drone-Spieler bleibt unangetastet. Drei Netze in der Reihenfolge, in der sie greifen:
+Prune → `panic()` → Deckel.
+
+**(3) Die Founder-Bitte verlangte etwas, das der Code nicht kann.** Sie sagte „die Note muss
+zur unteren GLEITEN" — ein Portamento. Gemessen: `glideCoeff = 0.01`, τ ≈ 2,1 ms bei 48 kHz,
+und der einzige Schreiber von `glideCoeff` ist der Fan-out der POLY-Engine, nicht diese
+Instanz. Das ist ein Ent-Klicker, kein Glide. Die Bitte fragt jetzt nach dem, was der Code
+liefert — sonst hätte der Founder eine Gerätesitzung damit verbracht, einen korrekten Build
+als kaputt zu melden (§6 von `.claude/rules/context.md`).
+
+**Benotung, ehrlich, über DREI Bäume** (kein lokaler Compiler → transkribiert):
+`alt` (einzelner `Bool`) · `#943` (Stapel, kein Prune) · `jetzt`. **27 Zusicherungen:
+8 Regressionsfänge, 19 Gegengewichte, 0 rot im Arbeitsbaum, 0 durch diese Scheibe zerbrochen.**
+**Zwei der 19 sind rot auf dem MITTLEREN Baum** — genau die zurückgewonnene Rettung. Eine
+Benotung nur gegen `alt` hätte sie als gewöhnliche Gegengewichte gebucht und **nichts**
+gezeigt: die Regression lebte vollständig zwischen zwei meiner eigenen Commits. Vier der 19
+sind auf `alt` VAKUUM-grün und stehen so da, statt als Gewinne gezählt zu werden.
+
+**Prosa mitgezogen (#456):** „`heldByController` ist ein einzelner `Bool`" war der BELEG für
+die Monophonie an sieben Stellen (vier im Wächter, `docs/dev/FEATURE_MATRIX.md`, zwei in
+`ContentPipeline/CLAIMS.md`). Nach #943 nannte der Beleg genau das, was aufgehört hatte,
+einzeln zu sein — während die BEHAUPTUNG wahr blieb. Überall ersetzt durch
+„`apply(controller:)` ruft `playNote(` genau einmal, auf EIN `synth`". Die Treffer in
+`memory/LEDGER_COUNTS.md` und weiter oben in dieser Datei bleiben unverändert: das sind
+Geschichtsdateien, sie sollen sagen, was damals galt.
+
+**Instrumente:** `dead-needles` 392 Dateien + `--selftest` OK · `count-pins` 137/160, 0 RED ·
+`needle-reachability` sauber · `doctor --section D` 0 CRITICAL · `CLAUDE.md` 149 012 B
+(988 B unter der Decke). **Kompiliert nachweislich erst mit dem nächsten CI/CD-Lauf — hier
+gibt es keinen Compiler.**
