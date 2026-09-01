@@ -20821,3 +20821,44 @@ den ich selbst verursacht habe: `TheMonitoringSurvivesEngineRecoveryTests` (`set
   Prozess, auch für `MicrophoneManager` und die Aufnahmepfade. Der AUS-Zweig setzt sie nie
   zurück. Das ist die Absicht der Scheibe („die Hardware folgt dem Graphen"), aber es stand
   nirgends, und nur der FEHLER-Pfad hatte eine Wiederherstellung bekommen.
+
+## 2026-09-01 — #959: die Sprosse, die stirbt, druckt jetzt den Vergleich, an dem sie stirbt
+
+**Gates vorher gelesen:** `54fea65` und `46b9013` — Xcode Compile Check `success`, CI/CD
+`TEST EXECUTE FAILED` ohne `TEST BUILD FAILED`, ohne `error:`, ohne `❌`, mit benannten
+bestandenen Tests auf BEIDEN Clones. Das ist der stehende #396. Nichts rot.
+
+**Der Befund, der diese Scheibe wert war:** jedes Founder-Log dieser Familie endet an
+`monitor: on 4/5`, und diese Zeile sagte bis heute nur, DASS die Engine neu gestartet wird.
+Der Assert (`false == isInputConnToConverter`) feuert, wenn das Format, mit dem die
+Eingangskante VERBUNDEN wurde, vom ECHTEN Bus des Knotens abweicht — **genau die zwei Zahlen,
+die die Zeile nicht trug.** Drei Scheiben in Folge mussten das aus Abwesenheiten erschließen.
+
+Die Sprosse trägt jetzt drei Werte:
+- `connected` — was `connect(input, to: notchEQ, format:)` wirklich bekam, nach #954s
+  Ersetzung und #958bs Raten-Neubau;
+- `node now` — der EIGENE Bus des Knotens im Augenblick vor dem Aufruf (Output-Scope, das,
+  wogegen ein Tap validiert);
+- `session` — die gewährte Hardware-Rate, die Zahl, auf die #958b handelt.
+
+**Was das nächste Gerätelog dadurch OHNE Erschließung beantwortet:** stimmen alle drei überein
+und es stürzt TROTZDEM ab, ist #958bs Reparatur nicht die Antwort und HYPOTHESE #5 ist dran.
+Weicht `node now` von `connected` ab, ist das Async-Neuverhandlungs-Fenster die Ursache.
+
+⚠️ **Als vorberechnete Zusammenfassung gebaut, wie `edgeSummary` an Sprosse 3/5** — ein
+mehrzeiliges Literal VERSTECKT die Sprosse vor `diag-ladder.py --source`, das einen gesunden
+Lauf dann als Tod bei Schritt 3 liest. Der Wächter dieser Datei sagt genau das, und die eigene
+erste Fassung von #954 ist darüber gestolpert.
+
+**FÜNFTER Nachbar-Zähler dieser Kette**, `input.outputFormat(forBus: 0)` 1 → 2. Diesmal mit
+einer Unterscheidung statt nur einer neuen Zahl: ein Read, der `connect` oder `installTap`
+speist, ist eine ENTSCHEIDUNG; dieser ist eine DIAGNOSE, sein einziger Verbraucher ist ein
+Log-String. **Eine blosse Zahl kann die zwei nicht trennen** — der zusätzliche Zähler liesse
+sich für ein stilles `connect(…, format: input.outputFormat(forBus: 0))` ausgeben und der Pin
+winkte es durch. Deshalb kommt eine FORM-Zusicherung dazu: `nodeBusNow` muss von der Log-Zeile
+der Sprosse konsumiert werden.
+
+**Benotung** (Transkription, §0): **3 rot auf `46b9013`** — der Zähler, die Bindung, die
+Form-Zusicherung —, **0 rot heute**. Alle drei echte Regressionen, keine Forward-Guards.
+Die Datei hat jetzt einen dritten EPOCHEN-Block, weil sie in vier Commits ausliefert und ein
+veralteter Grading-Block schlimmer ist als keiner (#707).

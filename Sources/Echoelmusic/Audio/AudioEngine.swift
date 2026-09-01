@@ -2837,7 +2837,33 @@ public final class AudioEngine {
                 // assert's own name. Its `catch` is the shape #858 proved cannot report an
                 // ObjC abort. Without this line the next log could end at `monitor: OFF`
                 // with all eight #862 rungs silent, because the death sits one path over.
-                logMonitorOutcome("on 4/5: restarting engine with the monitor chain", level: .info)
+                // ⭐ #959 — THE RUNG THAT DIES NOW PRINTS THE COMPARISON IT DIES ON. Every
+                // founder log in this family ends exactly here, and until now the line said
+                // only THAT the engine was being restarted. The assert
+                // (`false == isInputConnToConverter`) fires when the format the input edge was
+                // CONNECTED with disagrees with the node's REAL bus, so a log that carries
+                // both numbers answers in one run what three slices have had to infer:
+                //   · `connected` — what `masterEngine.connect(input, to: notchEQ, format:)`
+                //     was actually handed, after #954's substitution and #958b's rate rebuild;
+                //   · `node now` — the node's OWN bus at the instant before the call. This is
+                //     the OUTPUT scope, which is what a tap validates against and the closest
+                //     readable proxy for what the engine is about to compare;
+                //   · `session` — the granted hardware rate, the number #958b acts on.
+                // If those three agree and it STILL aborts, #958b's repair is not the answer
+                // and HYPOTHESIS #5 (`prepare()` then re-read) is next. If `node now` differs
+                // from `connected`, the async-renegotiation window named in the rate block is
+                // the cause and the log says so without a fourth round of inference.
+                //
+                // ⚠️ BUILT AS A PRECOMPUTED SUMMARY, exactly like `edgeSummary` at rung 3/5,
+                // because `TheInputEdgeFollowsTheHardwareFormatTests` says why: a multi-line
+                // literal HIDES the rung from `scripts/diag-ladder.py --source`, which then
+                // reads a healthy run as a death at step 3. The rung line stays single.
+                let startSession = AVAudioSession.sharedInstance()
+                let nodeBusNow = input.outputFormat(forBus: 0)
+                let startSummary = "connected \(inFmt.sampleRate) Hz/\(inFmt.channelCount) ch, "
+                    + "node now \(nodeBusNow.sampleRate) Hz/\(nodeBusNow.channelCount) ch, "
+                    + "session \(startSession.sampleRate) Hz"
+                logMonitorOutcome("on 4/5: restarting engine with the monitor chain (\(startSummary))", level: .info)
                 do { try masterEngine.start() }
                 catch {
                     logMonitorOutcome("engine restart failed (\(error))")

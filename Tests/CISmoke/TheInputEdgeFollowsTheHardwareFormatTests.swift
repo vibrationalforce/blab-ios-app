@@ -77,8 +77,34 @@
 // an appended `|| inFmt.channelCount != …` would have satisfied. Both were green then and are
 // green now — the difference is what they would do on a tree that broke them.
 //
+// ⚠️ EPOCH THREE — #958b/#959, and the file now ships in FOUR commits, so this block grades
+// its OWN parents rather than letting the paragraphs above read as current. **16 assertion
+// SITES** today, not the 11 the #954 block counts (Python, first token `XCTAssert`/`XCTFail`;
+// written out, not looped, because a loop hides its arithmetic and has cost a grading here).
+//
+// **#958b (parent `9fac52f`):** the raw-`inputFormat` pin went 1 → 2 at #958 and BACK to 1,
+// because the ARGUMENT for two was itself the defect — #958 called its post-grant node re-read
+// "the only place a fresh number can legitimately appear", and it is the one place a fresh
+// number CANNOT appear (#823: the node holds its placeholder until `start()`). That claim is
+// RED on `9fac52f` and green on both sides of it. Its doc now names the ONE sanctioned second
+// read — after `masterEngine.prepare()`, HYPOTHESIS #5 — so building that is a COUNT to raise,
+// never a law to route around (#364).
+//
+// **#959 (parent `46b9013`), driven by transcription (§0):**
+//   · **THREE assertions RED on the parent, all genuine regressions**: the output-scope count
+//     (1 vs. the pinned 2), the `nodeBusNow` binding (absent), and the shape check that it is
+//     consumed by the rung's own log line (vacuously absent with it).
+//   · **0 red on the worktree.**
+//   · The count claim alone would have been a WEAK guard, and saying why is the point: a bare
+//     `== 2` cannot tell a DIAGNOSTIC read from a second DECISION, so the extra count could be
+//     spent on a silent `connect(…, format: input.outputFormat(forBus: 0))` and the pin would
+//     wave it through. The shape claim is what makes the number mean the law.
+//
 // ⚠️ STRIPPER (§2): `SourceText.codeOnly` is **PROPHYLACTIC — 0 of 9 verdicts flip.** Measured
-// raw vs. stripped on both trees.
+// raw vs. stripped on both trees. ⚠️ That "9" is the #954-epoch denominator and is left as
+// written: re-measuring 16 needles raw-vs-stripped is a claim I have not made, and quietly
+// widening a measured figure to cover assertions it never covered is the defect this file
+// keeps recording. The stripper's role has not changed.
 // ⛔ #954b — THE REASON THE FIRST DRAFT GAVE FOR KEEPING IT WAS FALSE. It said the doc block
 // "quotes `nodeDisagreesWithHardware` … in prose". Measured: that identifier occurs exactly
 // TWICE in `AudioEngine.swift` and both are CODE. `#954` does occur in prose, but it is not a
@@ -318,12 +344,44 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
         // is still made exactly once. ⚠️ The scopes agreeing is not the point — writing the
         // tap's read in the same accessor as the decision's would silently merge two rules
         // that exist for different reasons.
-        XCTAssertEqual(occurrences(of: "input.outputFormat(forBus: 0)", in: code), 1, """
-            The tap's own format read is gone, or there is now more than one. Exactly one \
-            `input.outputFormat(forBus: 0)` belongs in this file: the read at rung 5/5 that \
-            `installTap` is then handed (#956). Zero means the tap is back on a carried \
-            format — the abort this pins against; more than one means a second tap or a \
-            second decision, and this file's whole subject is that the input edge decides once.
+        // ⭐ #959 RAISED THIS FROM ONE TO TWO, and the distinction is the reason the pin is
+        // still worth having. The law is "the input edge DECIDES its format once" — a read
+        // that feeds `connect` or `installTap` is a DECISION. The second read is a pure
+        // DIAGNOSTIC: rung 4/5 prints the node's real bus beside the format the edge was
+        // connected with, immediately before the `start()` that carries the abort. It cannot
+        // change graph state, because its only consumer is a log string. A bare count cannot
+        // tell those apart, so the claim below adds the shape: the diagnostic read must sit
+        // inside a `logMonitorOutcome` summary. Without that, this count could be spent on a
+        // silent THIRD decision and the pin would wave it through.
+        XCTAssertEqual(occurrences(of: "input.outputFormat(forBus: 0)", in: code), 2, """
+            The output-scope reads changed. TWO belong in this file: the DECISION at rung \
+            5/5 that `installTap` is handed (#956), and the DIAGNOSTIC at rung 4/5 that \
+            prints the node's real bus beside the connected format (#959) — the comparison \
+            the `isInputConnToConverter` assert actually makes, on the line every founder \
+            log in this family ends at. Fewer means one of those is gone: without the first \
+            the tap is back on a carried format (the abort this pins against); without the \
+            second the next crash log again says only THAT the engine was restarted. MORE \
+            means a third read, and a third read is a second DECISION unless it is inside a \
+            log summary — see the claim below.
+            """)
+        // ⚠️ The shape check that makes the count above mean something. `nodeBusNow` is bound
+        // and used ONLY to build the rung's summary string; if a future edit binds it to a
+        // `connect` or `installTap` argument, the count stays 2 and the law is gone.
+        guard let diag = code.range(of: "let nodeBusNow = input.outputFormat(forBus: 0)") else {
+            XCTFail("""
+                Rung 4/5's diagnostic read is gone or renamed (#959). That line is what makes \
+                the next founder log say WHETHER the connected format and the node's real bus \
+                agreed at the moment of the aborting `start()` — the question three slices \
+                have had to infer instead of read.
+                """)
+            return
+        }
+        let afterDiag = String(code[diag.upperBound...].prefix(400))
+        XCTAssertTrue(afterDiag.contains("logMonitorOutcome(\"on 4/5"), """
+            The rung-4/5 output-scope read is no longer consumed by the rung's own log line. \
+            It exists to be PRINTED; a read whose value reaches `connect` or `installTap` \
+            instead is a second format DECISION wearing a diagnostic's name, and the count \
+            above would wave it through.
             """)
     }
 
@@ -339,6 +397,12 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
     /// second one wins. Said here rather than moved into the rung, because folding a
     /// conditional value into the rung would either make it lie on the common path or make it
     /// a multi-line literal, which hides the rung from `scripts/diag-ladder.py --source`.
+    ///
+    /// ⭐ #959 CLOSED THE OTHER HALF OF THAT GAP, at the rung where it matters. Rung 4/5 now
+    /// prints the format the edge was ACTUALLY connected with, beside the node's real bus and
+    /// the session's granted rate — so a log no longer needs 3/5 to be the whole story. 3/5
+    /// says what was DECIDED; 4/5 says what was CONNECTED and what the hardware says at the
+    /// instant before the aborting `start()`. Read 4/5 first when triaging this crash family.
     func testTheConnectRungNamesTheFormatItForces() throws {
         let code = try engineCode()
         let rung = code.split(separator: "\n", omittingEmptySubsequences: false)
