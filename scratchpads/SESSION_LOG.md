@@ -20391,3 +20391,22 @@ Ablehnungen, und die Ansprüche 2 und 4 tragen den Vorbehalt, den #955 als unbed
 **Instrumente:** `dead-needles` 398 OK · `count-pins` 137/164, 0 RED · `needle-reachability`
 sauber · `diag-ladder --source` sauber. Kompiliert ist NICHTS davon lokal — es gibt keine
 Toolchain; die Gates entscheiden.
+
+**Gates zu #955b (`d702c55`), gelesen:** `Xcode Compile Check` ✅ · CI/CD `build-for-testing:
+Succeeded`, `TEST BUILD FAILED: False`, 0 Compile-Fehler, 0 Failures, 0 Skips, 134 beobachtete
+Tests. Das blockierende Bundle KOMPILIERT also mit `counterEndedSettled`, `rearmMarker` und den
+zwei neuen Ansprüchen. Die beiden Wächter selbst stehen NICHT im `tail -200`-Fenster —
+**kompiliert nachweislich, Ausführung unbelegt** (#445/#807).
+
+**REIHENFOLGE-Punkt 2 („Bio-Modulation live sichtbar") ist GEBAUT und ERREICHBAR — gemessen,
+nicht geschätzt.** Der Cron führt ihn weiter als offen; er ist es nicht:
+`AlwaysOnBioPanelStrip()` wird in `EchoelStudioView.swift:3205` montiert, und 3205 liegt im
+Rumpf von `bioPanel` (3089 bis zur nächsten Property `videoPanel`, 3285) — also hinter der
+Puls-Pillen-Tür. Jede `AlwaysOnBioRow` zeigt den Kanal-NAMEN, `channel.shapes` (WELCHE
+Parameter er bewegt), den Live-WERT auf zwei Stellen und die Herkunft (`Demo`) plus `held`.
+Das Freeze-Gesetz ist eingehalten: der Live-Read sitzt im Blatt (`TimelineView` 1 Hz), nicht im
+Wurzel-Rumpf. Gepinnt von mindestens `TheAlwaysOnRowsReachTheBioPanelTests`,
+`TheAlwaysOnBioPathIsNamedTests`, `TheAlwaysOnRowsSayWhoseBodyTests`.
+**Konsequenz: hier ist NICHTS zu bauen** — eine zweite Fläche wäre die #290-Ablehnung („a
+second door to the same panel"). Wer den Punkt aus der Cron-Liste erneut aufgreift, misst
+zuerst diese drei Zeilen nach.
