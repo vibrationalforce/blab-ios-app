@@ -19783,3 +19783,55 @@ weiterhin draußen, `soundingFrequency(forMIDINote:` weiterhin drin) und die Kla
 **Instrumente:** unverändert grün (`dead-needles` 394 + Selbsttest · `count-pins` 137/160, 0 rot
 · `needle-reachability` sauber · `doctor` die zwei bekannten founder-gated CI-Masken).
 **Kompiliert ist noch nichts** — das liest der nächste Zyklus.
+
+---
+
+## #949 — MPE-Zonen: der Plan sagt NICHT JETZT, und der Grund ist gemessen (2026-09-01)
+
+**Gates von #947 gelesen:** `Xcode Compile Check` grün · `Build for Testing` grün · Tests auf
+Clone 1 durchgelaufen · `** TEST EXECUTE FAILED **` = der bekannte #396 (Clone 2 stirbt), NICHT
+`TEST BUILD FAILED`. #948 hatte den Compile-Check schon grün, CI/CD lief noch.
+
+**Vorher geprüft, ob die Reihenfolge-Punkte des Auftrags noch offen sind.** Punkt 2
+(„Bio-Modulation live sichtbar") ist gebaut: `AlwaysOnBioRow` rendert die vier Kanäle mit
+Messwert UND Herkunft, in `bioPanel` und in `EchoelFXView` (#498/#503/#542/#546). Und die
+CLAUDE.md-Behauptung „alle drei MPE-Dimensionen klingen" hält: alle drei Erzeuger existieren
+wirklich (`MIDIBusPublisher` — `.channelPressure` :162, `.pitchBend` :172, `.slide` über
+`publishCC` :184).
+
+**Der Befund, und er dreht die Reihenfolge um.** CLAUDE.md sagte: „wer weiterbaut (Zonen),
+fängt in `MIDIEventParse`/`MIDIInput` an". Wahr über den PARSER — und still über die DECKE:
+
+| Frage | Ergebnis |
+|---|---|
+| Verbraucher von `controllerEvents` | **genau EINER** (`BioReactiveSynthVoice.drainControllerEvents`) |
+| Absicht? | ja — SPSC, im Typ begründet (`SPSCQueue.swift:167,178`, `EngineBus.swift:669`) |
+| Gepinnt? | ja, `ControllerEventDrainIsPushedTests:68` |
+| Verbraucher polyphon? | **nein** |
+| Sieht `PolySynthVoice` die Queue? | **nein** (5 Dateien nennen `ControllerEvent`, keine davon) |
+
+⭐ **Eine Zone existiert, damit jeder Member-Kanal eine EIGENE Note trägt. Ein Verbraucher mit
+EINER Stimme kann diese Information nicht ausgeben.** Zonen ohne zweiten Verbraucher wären
+„gebaut, verdrahtet, ohne Wirkung" — das Muster, das diese Datei an sechs Stellen beklagt. Und
+ein zweiter Verbraucher ist kein zweites `dequeue()`, sondern ein Bruch des SPSC-Vertrags:
+Fan-out oder zweite Queue, also eine **EngineBus-Entscheidung**, keine Parser-Aufgabe.
+
+**Council: Dissens benannt statt gemittelt.** Der Aesthetic Maximalist will die Tiefe und sagt
+zugleich, dass sie hier nicht durch Zonen entsteht — sie entsteht mit einer polyphonen
+Performer-Stimme. Der Skeptiker nennt die teuerste Folge nicht den Code, sondern die KOPIE:
+„Zonen werden erkannt" liest sich sofort als „MPE-Eingang", und das bliebe falsch. **Verdikt:
+nicht jetzt bauen — nicht weil es falsch wäre, sondern weil die Reihenfolge falsch wäre.**
+
+⚠️ **Und der hörbare Gewinn ist beziffert, nicht angenommen** (§2 des Plans): auf einer
+monophonen Stimme bleiben genau zwei echte Gewinne (Master- gegen Member-Kanal; die aktive Note
+in `note:` stempeln). **Der GROSSE Fehler — Bend-Basis A4 statt der klingenden Note — ist mit
+#948 schon ohne Zonen behoben.** Ohne diese Bezifferung liest eine spätere Sitzung „Zonen
+fehlen" als „Bend klingt falsch" und baut aus dem falschen Grund.
+
+**Kein neuer Wächter (#416):** `ControllerEventDrainIsPushedTests` pinnt den
+Single-Consumer-Vertrag bereits. Eine zweite Fassung wäre genau die Doppel-Definition, die
+diese Datei sonst zurücknimmt.
+
+**CLAUDE.md +125 B** (Einzeiler zeigt jetzt auf den Plan statt auf den Parser) — **348 B
+Kopfraum**. Bewusst so knapp gehalten: die Herleitung gehört in den Plan, nicht in die immer
+geladene Datei.
