@@ -247,6 +247,13 @@
 // `clampExpressionScale2`, which the needle `func clampExpressionScale(` correctly does not
 // match. Both were re-done to land before their result was believed.
 //
+// ⚠️ AND THE NEIGHBOURING PAGE GUARDS WERE MEASURED, NOT ASSUMED (#942). Seven other CISmoke
+// files read `docs/*.html`. Every string literal in them (comments stripped) was tested
+// against the ADDED and REMOVED text of the three pages this slice reworded: **0 literals
+// newly present** (which could trip a ban) and **0 literals lost** (which could break a
+// positive needle). The review that found this slice's compile error explicitly left this
+// unmeasured; "low risk" and "measured" are different words (§2).
+//
 // ⛔ AND DRIVING **EVERY** ASSERTION IN THE FILE — not the changed ones — FOUND **THREE LIVE
 // REDS ON A CORRECT TREE**, none of them caused by this slice. That is §3's delta-blindness
 // rule paying for itself a second time (#937 was the first), and it is the reason the sweep was
@@ -503,7 +510,20 @@ final class TheMPEInputHasNoZonesTests: XCTestCase {
     /// precisely what this asserts against.
     ///
     /// ⚠️ IT DOES NOT ASSERT THE BOUNDS. Those are a DSP judgement the founder's ear may move;
-    /// what must not drift is that there is one helper and that both writers call it.
+    /// what must not drift is that there is one helper and that every writer calls it.
+    ///
+    /// ⛔ AND THE FIRST VERSION OF THIS CLAIM COULD NOT SEE THE COPY THAT ALREADY EXISTED —
+    /// found by #942's mandatory audio-thread review, not by the guard. It counted
+    /// occurrences of `func clampExpressionScale(` and asserted ONE, so a HAND-INLINED copy
+    /// was invisible to it by construction. `EchoelPolyDDSP.setCutoffScale` carried
+    /// `min(max(scale.isFinite ? scale : 1, 0.1), 8)` — the helper's body character for
+    /// character — while the helper's own doc pointed at it ("Bounds match `setCutoffScale`").
+    /// The two govern ONE product: `cutoffScale` and the per-note scale are multiplied at the
+    /// fan-out and re-clamped through the helper. #942 routed the setter through the helper
+    /// AND added the body scan below.
+    /// **The law: a "one definition" claim needs a needle on the BODY, because an inlined copy
+    /// has no name to count.** A guard that can only see declarations checks the vocabulary,
+    /// not the decision.
     func testOneClampGuardsTheExpressionScale() throws {
         let dsp = SourceText.codeOnly(try source(Self.dsp))
         let declarations = dsp.components(separatedBy: "func clampExpressionScale(").count - 1
@@ -524,6 +544,18 @@ final class TheMPEInputHasNoZonesTests: XCTestCase {
             The poly writer no longer clamps its per-voice cutoff scale. Both writers of \
             `renderCutoffScale` must pass through the one helper — if the poly path moved to \
             another shape, re-anchor here on it rather than dropping the claim.
+            """)
+        // The half the declaration count cannot see: an INLINED copy of the helper's body.
+        // The needle is the tail of that body, which is specific enough that nothing else in
+        // this file spells it and short enough to survive a reformat of the head.
+        let inlined = dsp.components(separatedBy: "0.1), 8)").count - 1
+        XCTAssertEqual(inlined, 1, """
+            The expression-scale clamp's body appears \(inlined) times in \(Self.dsp), not once. \
+            A hand-inlined copy is exactly what the declaration count above cannot see, and it \
+            is how `setCutoffScale` carried a second copy of this law for months while the \
+            helper's doc pointed at it. Route the new writer through `clampExpressionScale`; \
+            if the BOUNDS themselves changed, change them in the helper and this needle with \
+            them, in the same commit.
             """)
     }
 
@@ -907,7 +939,7 @@ final class TheMPEInputHasNoZonesTests: XCTestCase {
         let denials = ["no voice consumes", "nothing sounds", "reaches no voice",
                        "not wired", "no voice reads", "consumed by no voice"]
         for (name, html) in try websitePages() {
-            for sentence in sentences(html) {
+            for sentence in sentences(in: html) {
                 let lower = sentence.lowercased().replacingOccurrences(of: "\u{00A0}", with: " ")
                 guard denials.contains(where: { lower.contains($0) }) else { continue }
                 for (label, needles, property) in sounding

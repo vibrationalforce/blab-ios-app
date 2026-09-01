@@ -476,8 +476,11 @@ public final class EchoelDDSP: @unchecked Sendable {
         Swift.min(Swift.max(x.isFinite ? x : 1, 0.1), 8)
     }
 
-    /// External cutoff multiplier (1 = no change), e.g. driven by parameter
-    /// automation. Applied on top of the base cutoff + LFO in the render. A plain
+    /// External cutoff multiplier (1 = no change). Applied on top of the base cutoff + LFO in
+    /// the render. (⛔ "e.g. driven by parameter automation" stood here and describes the POLY
+    /// fan-out, where `AutomationPlayer` reaches `EchoelPolyDDSP.setCutoffScale`; that player's
+    /// `voice` is a `PolySynthVoice?`, so no automation writer exists on the mono instance —
+    /// there `.slide` is the only writer. #942, found by review.) A plain
     /// Float written from the control side and read on the audio thread (aligned-word
     /// atomic, same discipline as other render params); off (1.0) is bit-identical.
     ///
@@ -2593,8 +2596,14 @@ public final class EchoelDDSP: @unchecked Sendable {
         // stale gain into whatever plays next — and since #174 a stale gain of 0 would
         // read as a muted fader that nobody set.
         velocityGain = 1
-        // #942, the #939 argument again for the second expression dimension: a slide that was
+        // #942, the #939 argument again for the other expression dimension: a slide that was
         // never released would otherwise hold the filter wide open for the rest of the session.
+        // ⚠️ ON THE MONO PERFORMER VOICE THIS LINE IS INSURANCE, NOT THE RESCUE — measured by
+        // #942's mandatory review: `reset()` has exactly ONE caller in `Sources/`, the
+        // `voices[i].reset()` inside `EchoelPolyDDSP.reset()`. Nothing calls it on the mono
+        // instance that MPE Slide and Press write, so `panic()` is the only clearing point
+        // that path actually reaches today. Both lines stay: a reset voice must not carry a
+        // stale factor into whatever plays next, and a caller may appear.
         renderCutoffScale = 1
         // #939, same argument one line up, and the reviewer's finding: a press that was never
         // released — controller unplugged mid-note, or the event dropped because the SPSC queue
@@ -2948,9 +2957,19 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
 
     /// Global filter-cutoff multiplier (1 = no change), fanned to every voice in the
     /// render. Driven by parameter automation; clamped to a musical range.
+    ///
+    /// ⛔ #942 — THIS SETTER HAND-INLINED `EchoelDDSP.clampExpressionScale`,
+    /// character for character, while the helper's own doc pointed AT it ("Bounds match
+    /// `setCutoffScale`"). Found by the mandatory reviewer, not by me: #942's whole
+    /// justification for MOVING that helper was "exactly ONE definition of the decision
+    /// (#416)" — and a second copy was already sitting here. The two are not independent:
+    /// `cutoffScale` and the per-note scale are MULTIPLIED at the fan-out and re-clamped
+    /// through the helper, so they govern one product; moving the bounds in one would have
+    /// let the other drift silently. **Lesson: before claiming ONE definition, grep for the
+    /// BODY, not for the name** — an inlined copy has no name to find.
     public var cutoffScale: Float = 1.0
     public func setCutoffScale(_ scale: Float) {
-        cutoffScale = min(max(scale.isFinite ? scale : 1, 0.1), 8)
+        cutoffScale = EchoelDDSP.clampExpressionScale(scale)
     }
 
     /// Slide-expression amounts (touch gesture), fanned to every voice in the render

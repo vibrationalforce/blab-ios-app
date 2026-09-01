@@ -19228,3 +19228,45 @@ geglaubt wurde (#776).
 `TheComposerWritesPerNoteVelocityTests`, der MPE-Plan und drei Website-Seiten plus zwei
 `docs/dev`-Dateien. `SESSION_LOG.md`, `decisions.csv` und `memory/LEDGER_COUNTS.md` behalten
 den alten Namen — sie beschreiben einen Tag, keine Gegenwart.
+
+### #942b — was der pflichtmäßige Audio-Thread-Reviewer fand (und ich nicht)
+
+⛔ **EIN BLOCKER, und es war ein echter COMPILE-Fehler in meinem eigenen neuen Anspruch.**
+`for sentence in sentences(html)` statt `sentences(in: html)` — der Helfer hat genau eine
+Deklaration mit Label, die anderen zwei Aufrufstellen derselben Datei schreiben es richtig.
+`Xcode Compile Check` kann das NICHT sehen (er baut `Sources/` allein), es wäre als
+`TEST BUILD FAILED` im blockierenden Bundle gelandet — **exakt SHAPE 4 aus dem Kopf von
+`scripts/dead-needles.py`, einer Datei, die derselbe Commit anfasst.** `dead-needles.py` meldet
+korrekt OK: es prüft Nadeln und `Self.`-Verweise, keine Argument-Labels. Meine
+Klammer-Bilanz-Prüfung ebenso wenig. **Ohne lokalen Compiler ist ein zweites Augenpaar kein
+Luxus, sondern der Compiler.**
+
+⛔ **UND MEINE ZENTRALE BEGRÜNDUNG WAR FALSCH GESCHRIEBEN.** „Es bleibt genau EINE Definition
+(#416)" stand an vier Stellen — und `EchoelPolyDDSP.setCutoffScale` trug
+`min(max(scale.isFinite ? scale : 1, 0.1), 8)`, den Rumpf des Helfers **Zeichen für Zeichen**,
+während der Doc des Helfers auf genau diese Methode zeigte („Bounds match `setCutoffScale`").
+Die beiden sind nicht unabhängig: `cutoffScale` und die Pro-Noten-Skala werden am Fan-out
+MULTIPLIZIERT und erneut durch den Helfer geklammert. Repariert: der Setter geht jetzt durch
+den Helfer, die Behauptung ist damit wahr statt zurückgenommen.
+
+⭐ **GESETZ: eine „eine Definition"-Behauptung braucht eine Nadel auf den RUMPF, nicht auf den
+NAMEN.** Anspruch 1d zählte `func clampExpressionScale(` und war blind für eine eingelinkte
+Kopie — genau die Form, die er zu fangen behauptete. Er hat jetzt zusätzlich eine Rumpf-Nadel.
+
+⚠️ Drei kleinere Korrekturen aus derselben Runde: `EchoelDDSP.reset()` hat **einen einzigen**
+Aufrufer in `Sources/` (`voices[i].reset()` im Poly-Reset) — auf der MONO-Stimme ist die neue
+Zeile Versicherung, nicht Rettung, und `panic()` ist dort der einzige erreichbare Räumpunkt ·
+„driven by parameter automation" im Doc von `renderCutoffScale` beschreibt den POLY-Fan-out
+(`AutomationPlayer.voice` ist ein `PolySynthVoice?`), auf der Mono-Instanz ist `.slide` der
+einzige Schreiber · `README.md` hatte ein „that voice" ohne Bezugswort.
+
+⭐ **Und die eine Lücke, die der Reviewer selbst offen ließ, ist jetzt GEMESSEN statt
+eingeschätzt** („low risk, but unmeasured"): jedes String-Literal der sieben anderen
+CISmoke-Dateien, die `docs/*.html` lesen, gegen den HINZUGEFÜGTEN und den ENTFERNTEN Text der
+drei umformulierten Seiten geprüft — **0 neu vorhanden, 0 verloren.**
+
+⚠️ **Ehrlich zur Reihenfolge:** #942 wurde committet, während der Reviewer noch lief (der
+Stop-Hook mahnte unbeschriebene Arbeit in einem Container an, der eingezogen werden kann). Der
+BLOCKER stand also für einen Commit lang im Baum. Das ist die Abwägung Arbeitsverlust gegen
+Gate-Disziplin, nicht ein übersprungenes Gate — der Fund kam eine Minute später und ist in
+#942b repariert, bevor irgendein Lauf ihn sehen konnte.
