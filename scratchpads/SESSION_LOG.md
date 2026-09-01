@@ -20458,3 +20458,52 @@ Eigenschaft ist eine Vermutung.
 **Instrumente:** `dead-needles` 398 OK · `count-pins` 137/165, 0 RED · `needle-reachability`
 sauber · `diag-ladder --source` sauber. Ownership-Scan transkribiert: 0 FAIL, beide
 Lösch-Mutanten rot an der richtigen Stelle. Geschwisterzeile byte-identisch nachgewiesen.
+
+## 2026-09-01 — #956: der zweite Absturz-Pfad auf demselben Schalter, geschlossen bevor er auftritt
+
+**Gates zu #955c (`c6a6787`):** `build-for-testing: Succeeded`, 0 Compile-Fehler, 0 Failures,
+0 Skips, 167 beobachtete Tests. Die #955-Kette ist zu.
+
+**Der Befund.** `installTap` prüft sein `format:`-Argument gegen das EIGENE Bus-Format des
+Knotens. Seit #954 kann `inFmt` ein SESSION-Ersatz sein, den der Knoten nie gemeldet hat — das
+ist #954s Reparatur für die CONNECT-Kante und bleibt. Nur das an den TAP zu reichen war falsch:
+dieselbe `required condition is false`-Familie wie `isInputConnToConverter`, eine Sprosse
+später, und aus Swift genauso wenig fangbar. Der #954b-Reviewer hatte den Pfad registriert
+(S4); #956 baut ihn.
+
+**Und zwei STILLE Defekte ritten mit, auch ohne Abbruch** — beide aufgezeichneten Felder
+speisen Rechnungen: `monitorTapSampleRate` geht an `PitchTracker.detect(_:sampleRate:)` (ein
+44,1↔48-Ersatz verschiebt jede erkannte Tonhöhe um ~147 Cent, „Tune to key" trifft also FALSCHE
+Noten, ohne dass irgendwas piept), und beide Felder gehen an das #612/#826-Konfigurations-Tor,
+das ein LIVE-Knotenformat gegen sie vergleicht — ein Format aufzuzeichnen, das der Knoten nie
+hatte, heißt bei jeder Änderung neu zu armen. Von drei Ausgängen war nur einer laut.
+
+**Gebaut:** der Tap liest den Knoten an seiner eigenen Sprosse neu (`tapFmt`), installiert
+damit, zeichnet beide Felder daraus auf, und ein unbrauchbares Format ÜBERSPRINGT den Tap mit
+eigener Sprossen-Zeile statt das laufende Monitoring abzureißen (die Kette hängt und läuft
+bereits; ein `return false` nähme ein funktionierendes Monitoring für ein Analyse-Feature weg).
+Verlust benannt statt angedeutet: Notch-Abwehr und Tune-Hälfte lesen dieses Fenster.
+
+⛔ **Mein eigener Anspruch 1 war ein #364-Verstoß, und die Transkription hat ihn gefangen.** Er
+verlangte `format: inFmt`-Vorkommen == 0 über die ganze Datei — und `inFmt` ist das RICHTIGE
+Argument für die drei `connect(…, format: inFmt)`-Aufrufe, also genau #954. Die breite Form
+blieb rot auf korrektem Arbeitsbaum. Jetzt schaut der Scan nur auf das, was einem `installTap(`
+folgt. **Ein Handlesen hätte das nicht gezeigt.**
+
+⛔ **Und `dead-needles.py` fing einen NACHBAR-Wächter, den ich rot gemacht hatte:**
+`TheMonitoringSurvivesEngineRecoveryTests` ankerte auf `monitorTapChannelCount =
+inFmt.channelCount`. Die EIGENSCHAFT stimmt weiter (die Erfassung passiert am Tap-Install), nur
+die Schreibweise wanderte — die #650/#937-Form. Im selben Commit umgeankert, und der Anker ist
+dabei STÄRKER geworden: das #826-Tor vergleicht gegen ein LIVE-Knotenformat, also ist `tapFmt`
+die einzige Schreibweise, unter der dieser Vergleich gegen etwas läuft, das der Knoten je hatte.
+
+**Benotung, transkribiert:** 6 rot auf `c6a6787`, 0 auf dem Arbeitsbaum; 11 Zusicherungsstellen
+(⛔ erster Kopf sagte 8 — eine Schleife verbirgt ihre eigene Rechnung, viertes Mal in diesem
+Bundle). Gegengewichte: #954s Connect-Format überlebt, die Sprosse bleibt einzeilig, die
+Installations-Flagge bleibt EINE Stelle. Instrumente: `dead-needles` 399 OK · `count-pins`
+137/166, 0 RED · `needle-reachability` sauber · `diag-ladder --source` sauber.
+
+⚠️ **Was das NICHT beweist:** dass dieser Abbruch je erreicht wurde. Das v10.79.433-Log starb an
+der CONNECT-Kante, und v10.79.434 hat die repariert. Dies ist ein strukturell erreichbarer
+zweiter Pfad auf demselben Schalter, geschlossen bevor er beobachtet wird. Zu sagen, es
+repariere den Absturz des Founders, wäre eine Behauptung ohne Beleg im Repo.

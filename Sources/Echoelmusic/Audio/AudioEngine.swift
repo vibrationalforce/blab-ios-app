@@ -2483,15 +2483,20 @@ public final class AudioEngine {
             //     API and is a DIFFERENT operation from the stop-rewire-start that #858
             //     indicted, so #858 does not rule it out.
             //
-            // ⚠️ AND THERE IS A SECOND UNCATCHABLE ABORT ON THIS PATH THAT NO COMMENT NAMED
-            // (#954b, reviewer S4): the tap at rung 5/5 is installed with `format: inFmt`.
-            // Apple requires an input node's tap format to be nil or to match the node's own
-            // output format, so a SUBSTITUTED `inFmt` that turns out wrong aborts there with a
-            // different message. The exposure predates this slice (#823 opened it by
-            // substituting at all), but #954 widens the population of runs that can reach it.
-            // `format: nil` on that tap is the candidate — it only reads `ch[0]` into a
-            // window, so it does not need the connect format — and it is deliberately NOT
-            // taken here for the same one-hypothesis-per-log reason as #5 and #6.
+            // ⭐ THE SECOND UNCATCHABLE ABORT THIS BLOCK REGISTERED (#954b, reviewer S4) IS
+            // CLOSED — #956. It read: "the tap at rung 5/5 is installed with `format: inFmt`",
+            // and that was true and is no longer. Apple requires an input node's tap format to
+            // be nil or to match the node's OWN output format, so a substituted `inFmt` aborted
+            // there with a different message. The tap now re-reads
+            // `input.inputFormat(forBus: 0)` at its own rung; the fix is written out at that
+            // site, together with the two SILENT defects the substituted rate also caused
+            // (a wrongly-tuned YIN and a re-arm loop in the #612/#826 gate).
+            //
+            // ⚠️ THE SUBSTITUTION ITSELF STAYS, and this comment is the place that could be
+            // misread into removing it: #954 substitutes for the CONNECT edge, which is the
+            // crash the founder actually hit. Only the TAP argument was wrong. The three
+            // `connect(…, format: inFmt)` calls below are correct and `TheInputTapAsksTheNode
+            // ForItsFormatTests` claim 3 pins that they stay.
             let hwSession = AVAudioSession.sharedInstance()
             let hwRate = hwSession.sampleRate
             // Only the RAW count is kept: it is diagnostic (it goes on the 3/5 rung), while a
@@ -2775,19 +2780,61 @@ public final class AudioEngine {
                 // so a route switch that never posts one leaves both consumers stale —
                 // that, and nothing above, is what a device report would have to
                 // distinguish.
-                monitorTapSampleRate = inFmt.sampleRate
-                monitorTapChannelCount = inFmt.channelCount   // #826, the gate's other half
-                let window = monitorTapWindow
-                logMonitorOutcome("on 5/5: installing input tap", level: .info)
-                input.installTap(onBus: 0,
-                                 bufferSize: AVAudioFrameCount(monitorTapWindow.size),
-                                 format: inFmt) { @Sendable buffer, _ in
-                    // TAP THREAD (not the render thread — MicrophoneManager's tap states
-                    // the same law). Push into the lock window and return; no FFT here.
-                    guard let ch = buffer.floatChannelData else { return }
-                    window.push(ch[0], count: Int(buffer.frameLength))
+                // ⛔ #956 — THIS PASSED `inFmt` AND THAT IS A SECOND ABORT ON THE SAME
+                // TOGGLE. `installTap` validates its `format:` against the NODE's own bus
+                // format, while since #954 `inFmt` may be a SESSION substitute the node
+                // never reported — that substitution is #954's fix for the CONNECT edge and
+                // it stays; only handing it to the TAP was wrong. A deliberate mismatch here
+                // is the same `required condition is false` family as
+                // `isInputConnToConverter`, one rung later, and equally uncatchable from
+                // Swift (#858 proved the `catch` cannot see an ObjC abort).
+                //
+                // ⚠️ AND TWO SILENT DEFECTS RODE ALONG EVEN WHEN IT DID NOT ABORT, because
+                // both fields recorded here feed arithmetic:
+                //   · `monitorTapSampleRate` → `PitchTracker.detect(_:sampleRate:)`. A
+                //     44.1↔48 substitution shifts every detected pitch ~147 cents, so
+                //     "Tune to key" snaps the voice to WRONG notes with nothing logged;
+                //   · both fields → the #612/#826 configuration-change gate, which compares
+                //     a LIVE node format against them. Recording a format the node never
+                //     had makes that comparison mismatch on every change — a re-arm loop.
+                // The node is the only authority for its own bus, so ask it again here.
+                let tapFmt = input.inputFormat(forBus: 0)
+                if tapFmt.sampleRate > 0, tapFmt.channelCount > 0 {
+                    monitorTapSampleRate = tapFmt.sampleRate
+                    monitorTapChannelCount = tapFmt.channelCount   // #826, the gate's other half
+                    let window = monitorTapWindow
+                    logMonitorOutcome("on 5/5: installing input tap (" + "\(tapFmt.sampleRate) Hz/\(tapFmt.channelCount) ch)", level: .info)
+                    input.installTap(onBus: 0,
+                                     bufferSize: AVAudioFrameCount(monitorTapWindow.size),
+                                     format: tapFmt) { @Sendable buffer, _ in
+                        // TAP THREAD (not the render thread — MicrophoneManager's tap states
+                        // the same law). Push into the lock window and return; no FFT here.
+                        guard let ch = buffer.floatChannelData else { return }
+                        window.push(ch[0], count: Int(buffer.frameLength))
+                    }
+                    monitorTapInstalled = true
+                } else {
+                    // NOT a teardown. By this rung the chain is connected and the engine is
+                    // running; `return false` here would take a WORKING monitor away over an
+                    // analysis feature. What is lost is named rather than implied: the notch
+                    // defence and the tune half both read this window, and #882's law is that
+                    // a step which does not run must SAY so or the numbering lies.
+                    // ⚠️ NO `level:` HERE, deliberately: `logMonitorOutcome` defaults to
+                    // `.error`, and unlike the "tap already installed" skip two branches up
+                    // (which is benign and passes `.info`) this one means the howl defence is
+                    // OFF while a live mic is monitoring. Relying on a default is normally the
+                    // #431 trap; it is named here so the silence is a choice, not an omission.
+                    // Split with `+` and NOT written as a `"""` block: `diag-ladder.py
+                    // --source` finds emitters by scanning source text, and a multi-line
+                    // literal made it report the step as MISSING during #954 — a healthy run
+                    // would then read as a death. The MARKER stays on one line; only the
+                    // detail is concatenated. (212 chars on one line also passed the lint
+                    // error threshold of 200.)
+                    logMonitorOutcome("on 5/5 SKIPPED: node reports no usable tap format ("
+                                      + "\(tapFmt.sampleRate) Hz/\(tapFmt.channelCount) ch)"
+                                      + " — monitoring continues WITHOUT notch defence"
+                                      + " or pitch tracking")
                 }
-                monitorTapInstalled = true
             } else {
                 // #882: same reason as 4/5 — a tap that is already installed is not a
                 // failure, and a missing 5/5 must not read like one.

@@ -126,10 +126,24 @@ final class TheMonitoringSurvivesEngineRecoveryTests: XCTestCase {
             a BT-mic → USB-interface switch at the same sample rate re-arms nothing \
             and the monitor chain stays connected at the old channel count.
             """)
-        XCTAssertTrue(code.contains("monitorTapChannelCount = inFmt.channelCount"), """
+        // ⛔ RE-ANCHORED IN #956, and the needle was RIGHT ABOUT THE PROPERTY AND WRONG ABOUT
+        // THE SPELLING — the #650/#937 shape. It read `monitorTapChannelCount = inFmt.channel
+        // Count`; #956 changed the tap to install with a format re-read from the node
+        // (`tapFmt`) because `inFmt` may be a session substitute and `installTap` validates
+        // against the node's own bus format. The capture still happens at tap install, so this
+        // claim's PROPERTY is untouched; only its literal moved, and `dead-needles.py` caught
+        // it in the same commit rather than letting it sit red on a correct tree.
+        //
+        // ⭐ AND THE RE-ANCHOR MAKES THIS CLAIM STRONGER, not merely current: the #826 gate
+        // compares a LIVE node format against this field, so capturing it from `tapFmt` is the
+        // only spelling under which that comparison is against a format the node ever had.
+        XCTAssertTrue(code.contains("monitorTapChannelCount = tapFmt.channelCount"), """
             The channel count is no longer captured at tap install — the #826 gate \
             then compares against a permanent 0 and re-arms on EVERY configuration \
-            change (the exact needless-recycle failure the rate gate exists to avoid).
+            change (the exact needless-recycle failure the rate gate exists to avoid). \
+            ⚠️ Since #956 the capture must come from `tapFmt`, the format the tap is \
+            ACTUALLY installed with; capturing `inFmt` there would compare the live node \
+            against a session substitute it never reported.
             """)
         XCTAssertEqual(occurrences(of: "rearmInputMonitoring(reason:", in: code), 3, """
             The re-arm call-site count changed (expected 3: the declaration, start(), \

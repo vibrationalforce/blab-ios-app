@@ -258,8 +258,10 @@ reader is hunting, not a tidy exit. That fixes `mic: start REFUSED`, which sits 
 
 ⛔ **AND #908's FIRST DRAFT RETIRED (c3) ON THAT BASIS, WHICH WAS WRONG — the review
 disproved it with a log.** `AudioEngine`'s `on 4/5 SKIPPED:` WALKS ON (`on 5/5: installing
-input tap` follows), so a log ending on that line is a death **inside `installTap`**, the
-`isInputConnToConverter` region the ladder exists for — and the draft printed `⏹ ended`,
+input tap` follows), so a log ending on that line is a death **in the tap region**, the
+`isInputConnToConverter` family the ladder exists for (⚠️ #956 widened that region by one
+call: the tap now re-reads `input.inputFormat(forBus: 0)` first, and it can also end in
+`on 5/5 SKIPPED: node reports no usable tap format`, which is a REPORT and not a death) — and the draft printed `⏹ ended`,
 exit 0, telling the reader not to look there. **In a log, a numbered skip that walks on and
 one that returns are the same shape**, so the tool must read both as deaths and (c3) is what
 keeps the returning kind out of `Sources/`. Tool and guard split the job; neither replaces
