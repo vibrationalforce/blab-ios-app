@@ -2694,15 +2694,22 @@ public final class AudioEngine {
                 // DETAIL inside step 3; the rung above already announced the step. (⛔ #958b:
                 // this said "THESE THREE LINES" and the block is longer than three — a count
                 // in a comment is a date, and it went stale inside two commits.)
+                // ⛔ #958c — `level: .info` IS NOT COSMETIC. `logMonitorOutcome` defaults to
+                // `.error` (#431 names relying on that default as a trap), so a HEALTHY
+                // reconciliation used to emit two `.error` lines before its `.info` success —
+                // a working founder log that reads as a failure, on the exact path a founder
+                // reports. Only the REFUSAL is an error here.
                 logMonitorOutcome("rate mismatch — asking the session for the graph's "
-                                  + "\(outFmt.sampleRate) Hz (input is \(inFmt.sampleRate) Hz)")
+                                  + "\(outFmt.sampleRate) Hz (input is \(inFmt.sampleRate) Hz)",
+                                  level: .info)
                 let session = AVAudioSession.sharedInstance()
                 do {
                     try session.setPreferredSampleRate(outFmt.sampleRate)
                     try session.setActive(true, options: .notifyOthersOnDeactivation)
                 } catch {
                     // A refusal here is not fatal by itself — the check below decides.
-                    logMonitorOutcome("rate: the session refused the graph's rate (\(error))")
+                    logMonitorOutcome("rate: the session refused the graph's rate (\(error))",
+                                      level: .info)
                 }
                 // ⚠️ HONEST LIMIT, stated because the next reader will otherwise assume more
                 // than this call gives: `setActive(true)` on a session that is ALREADY active
@@ -2726,6 +2733,19 @@ public final class AudioEngine {
                 // exactly the device this slice targets. The SESSION is the party that grants;
                 // `session.sampleRate` is the granted value, and it is the same source #823
                 // and #954 already trust for the substitute format.
+                //
+                // ⚠️ AND THIS NARROWS THE WINDOW, IT DOES NOT CLOSE IT — the same retraction
+                // #954b already made two hundred lines up, repeated here because a reader who
+                // starts at this block would otherwise take "the session is the party that
+                // grants" as the whole truth. Three outcomes, not two: iOS keeps the old rate
+                // (we see it and refuse — safe); iOS grants synchronously (the intended path);
+                // or iOS renegotiates ASYNCHRONOUSLY, in which case `session.sampleRate` can
+                // already report the new number while the HAL has not settled, and `start()`
+                // at rung 4/5 runs ~7 ms later against a node whose real bus is still the old
+                // rate. That third case is the original abort, surviving in a smaller window.
+                // HYPOTHESIS #5 above (`masterEngine.prepare()`, then re-read the NODE) is the
+                // candidate that would REMOVE the proxy instead of freshening it; it is not
+                // taken here because it is its own slice with its own device evidence.
                 let grantedRate = session.sampleRate
                 // Rebuild the connect format from the granted rate, KEEPING the node's channel
                 // count (#954: the node is the only party that has looked at the input scope;
@@ -2754,11 +2774,16 @@ public final class AudioEngine {
                                       + "connecting anyway would put a converter on the input "
                                       + "edge and abort (isInputConnToConverter). "
                                       + "Monitoring stays OFF.")
-                    // The preference is PROCESS-WIDE and outlives this method. Leaving it at a
-                    // rate the hardware just declined would make the next activation — ours or
-                    // a route change — negotiate against a number nobody wants. 0 means "no
-                    // preference" and is the documented way to hand it back.
-                    try? session.setPreferredSampleRate(0)
+                    // ⛔ #958c — THE FIRST DRAFT PUT A 0 HERE AND CALLED IT "handing it back".
+                    // It was not: this app HOLDS a standing preference of
+                    // `AudioConfiguration.preferredSampleRate` (48 kHz), set once at launch
+                    // (`AudioConfiguration.configureAudioSession`), and every buffer-duration
+                    // calculation in that file assumes it. Writing 0 CLEARS that preference —
+                    // so every later activation (a route change, another feature claiming the
+                    // record route) would negotiate against no preference at all, and the
+                    // latency maths would silently drift. Restoring is putting back the value
+                    // the app actually held, not zeroing.
+                    try? session.setPreferredSampleRate(AudioConfiguration.preferredSampleRate)
                     try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)
                     restoreEngineIfStranded(wasRunning, at: "input monitoring rate guard")
                     return false
@@ -3476,10 +3501,31 @@ public final class AudioEngine {
         // was not" — invisible. It also brackets the OFF/ON pair below, which now breadcrumb
         // themselves, so a re-arm reads as three lines instead of a silent gap.
         logMonitorOutcome("re-arm (\(reason))", level: .info)
+        // ⭐ #958c — THE ORDER IS UNCHANGED ON PURPOSE, AND MY FIRST REPAIR CHANGED IT.
+        // #958's rate refusal opened a NEW way for the ON half to fail — not permission, not
+        // a bad format, but "the session cannot meet the master graph's rate". Because the
+        // tune is restored BEFORE that attempt, a refusal ended the take with
+        // `voiceTuneEnabled == true` and monitoring OFF: exactly the state the #599 sweep-M1
+        // law forbids ("the Monitor door could silently re-arm a tune nobody can see"), and
+        // unrecoverable, because this method guards on `isInputMonitoring` and can never fire
+        // again. The obvious repair — move the restore AFTER the ON and gate it on success —
+        // is the WRONG MECHANISM, and `TheMonitoringSurvivesEngineRecoveryTests` claim 1 says
+        // so in as many words: since #858 the tune stage is always in the chain, so a restore
+        // after the ON bypass-flips a LIVE chain instead of storing a choice on a dead one.
+        // The order stays OFF → tune → ON; the REFUSAL is what gets handled, by undoing the
+        // restore the same way the OFF path itself would.
         let tuneWasOn = voiceTuneEnabled
         _ = setInputMonitoring(false)
         if tuneWasOn { setVoiceTune(true) }
-        _ = setInputMonitoring(true)
+        let backOn = setInputMonitoring(true)
+        if !backOn {
+            // Losing the CHOICE is the lesser evil and is not a new behaviour: the OFF path
+            // disarms the tune for the same reason. An armed tune with no monitor is a
+            // control the performer cannot see, hear or switch off.
+            if tuneWasOn { setVoiceTune(false) }
+            logMonitorOutcome("re-arm could not restore monitoring — it stays off"
+                              + (tuneWasOn ? "; the tune is disarmed with it (#599 M1)" : ""))
+        }
     }
 
     func attachSourceNode(_ sourceNode: AVAudioSourceNode) {

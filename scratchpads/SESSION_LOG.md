@@ -20730,3 +20730,94 @@ also eine Handlung, die nichts bewirkt (#613-Klasse). Er ist nicht schlicht fals
 Routenwechsel KANN `setActive(true)` neu verhandeln. Eine ehrliche Fassung müsste die zwei
 Fälle unterscheiden, und das ist eine eigene Scheibe mit eigener Kopie-Prüfung, keine Zeile,
 die man in einem Absturz-Fix mitnimmt.
+
+## 2026-09-01 — #958c: der Reviewer fand einen Defekt, den ich beim Reparieren gebaut habe
+
+**#958b hat einen Blocker behoben und dabei einen neuen gelegt — und mein eigener Wächter hat
+ihn festgenagelt, statt ihn zu fangen.** Das ist der Befund, der diesen Zyklus wert war.
+
+### Der Kern: eine „Wiederherstellung", die etwas anderes zurückschreibt als das, was da war
+
+`#958b` gab die prozessweite Rate-Präferenz auf dem Verweigerungspfad mit
+`setPreferredSampleRate(0)` zurück und nannte das im Kommentar „handing it back". **Ist es
+nicht.** Diese App HÄLT eine stehende Präferenz von `AudioConfiguration.preferredSampleRate`
+(48 kHz), einmal beim Start gesetzt (`AudioConfiguration.swift:206`), und **jede**
+Puffer-Dauer-Rechnung in dieser Datei rechnet mit ihr (`:67`, `:209`, `:717`, `:740`, `:792`).
+Die 0 LÖSCHT sie — jede spätere Aktivierung (Routenwechsel, ein anderes Feature, das die
+Aufnahmeroute beansprucht) hätte danach gegen gar keine Präferenz verhandelt.
+
+⭐ **GESETZ, und es ist neu in dieser Kette: eine „Wiederherstellung", die einen ANDEREN Wert
+schreibt als den gehaltenen, ist keine.** „Zurückgeben" klang richtig, „0 = keine Präferenz"
+ist sogar die dokumentierte Apple-Semantik — und beides zusammen war trotzdem falsch, weil die
+Frage nicht lautet „was heißt 0", sondern „was stand vorher da". Es steht heute in
+`AudioConfiguration` und war einen `grep` entfernt.
+
+⚠️ **Warum meine eigene Benotung das nicht fand:** ich habe im selben Commit einen Wächter
+geschrieben, der `setPreferredSampleRate(0)` PINNT. Die Transkription lief grün — sie prüfte
+Code gegen einen Wächter, die BEIDE denselben Denkfehler trugen. **Ein Wächter, der im selben
+Commit wie der Code entsteht, kann dessen Prämisse nicht widerlegen; er kann sie nur
+festschreiben.** Deshalb ist der Pflicht-Reviewer keine Zeremonie.
+
+### Zweiter echter Fund: ein Wächter, der die richtige Weiterarbeit verbot (#364)
+
+Meine zwei Nadeln (`XCTAssertFalse(after.contains("input.inputFormat(forBus: 0)"))` plus der
+Nachbar-Zähler `== 1`) verboten zusammen **HYPOTHESE #5**, die in `AudioEngine.swift` selbst
+steht: `masterEngine.prepare()` baut die I/O-Unit neu OHNE zu starten, und DANACH ist ein
+Knoten-Lesen nicht mehr veraltet, sondern der einzige AUTORITATIVE Beleg, dass die Hardware
+sich wirklich bewegt hat. Genau das, was `session.sampleRate` als Stellvertreter nicht kann.
+
+**Das Veraltungs-Argument hat eine PRÄMISSE** („zwischen Anfrage und Lesen startet oder
+präpariert nichts die Engine") — **die Zusicherung hatte keine.** Sie ist jetzt gefenstert: das
+Verbot endet, wo die Prämisse endet (`masterEngine.prepare()`/`start()`). Beide Fehlermeldungen
+nennen die erlaubte Form beim Namen und sagen, welcher Zähler dann mitzuziehen ist.
+
+### Dritter Fund: ein neuer Weg in einen Zustand, den ein Gesetz verbietet
+
+`rearmInputMonitoring` stellt den Tune-Schalter WIEDER HER, bevor es das Monitoring einschaltet.
+Seit #958 kann dieses Einschalten aus einem neuen Grund VERWEIGERN — und dann endete die Aufnahme
+mit `voiceTuneEnabled == true` bei ausgeschaltetem Monitoring: genau der Zustand, den das
+#599-M1-Gesetz verbietet, **unwiederbringlich**, weil die Methode auf `isInputMonitoring` guardet
+und nie wieder feuern kann.
+
+⛔ **Meine erste Reparatur war die falsche Form, und ein bestehender Wächter sagte das wörtlich.**
+Ich hatte die Reihenfolge auf AUS → EIN → Tune gedreht. `TheMonitoringSurvivesEngineRecoveryTests`
+Anspruch 1 pinnt AUS → Tune → EIN **mit Begründung**: seit #858 ist die Tune-Stufe immer in der
+Kette, ein Wiederherstellen NACH dem EIN kippt also einen LIVE-Bypass statt eine Wahl auf einer
+toten Kette zu speichern. Die richtige Reparatur lässt die Reihenfolge stehen und behandelt die
+VERWEIGERUNG: sie macht die Wiederherstellung rückgängig, so wie es der AUS-Pfad ohnehin tut.
+**Ein Wächter, der eine Begründung mitliefert, hat mir hier eine falsche Reparatur erspart — das
+ist der Zweck von #343, in Aktion.**
+
+### Vierter Fund: eine gesunde Meldung sprach im Fehler-Ton
+
+`logMonitorOutcome` hat den Default `.error` (der #431-Fallstrick, den die Datei selbst benennt).
+Eine ERFOLGREICHE Ratenversöhnung schrieb dadurch zwei `.error`-Zeilen vor ihrer `.info`-Erfolgs-
+zeile — ein funktionierendes Founder-Log, das sich wie ein Fehler liest, auf genau dem Pfad, den
+der Founder meldet. Beide auf `.info`; nur die Verweigerung bleibt ein Fehler.
+
+### Zähler
+
+**Vierter** Nachbar-Zähler dieser Kette, rot im Commit, der ihn falsch machte — und der zweite,
+den ich selbst verursacht habe: `TheMonitoringSurvivesEngineRecoveryTests` (`setVoiceTune(false)`
+1 → 2, das UNDO der Wiederherstellung). Benotung über VIER Bäume neu getrieben: **6 rot auf
+`ca5ddec`, 4 auf `9fac52f`, 1 auf `54fea65`, 0 heute**, von 7 Methoden; 15 Assertion-Stellen.
+
+### Offen, registriert, nicht gebaut
+
+- **Der Abbruch ist NICHT weg, nur das Fenster ist kleiner.** Verhandelt iOS asynchron, kann
+  `session.sampleRate` schon die neue Zahl melden, während die HAL noch nicht steht — dieselbe
+  Rücknahme, die #954b über denselben Read schon gemacht hat. Steht jetzt im Code, im
+  Wächter-Kopf und hier. HYPOTHESE #5 schließt es; sie ist eine eigene Scheibe mit eigenem
+  Gerätebeleg.
+- `outFmt` wird VOR der Ratenänderung gelesen (`:2637`) und danach für drei Connects benutzt.
+  Eine Hardware-Ratenänderung kann `AVAudioEngineConfigurationChange` posten. Geringe
+  Wahrscheinlichkeit (die Änderung bewegt die Hardware ZUM Graphen hin), aber es ist dieselbe
+  Veraltungs-Klasse, die #954b für `outFmt` schon markiert hat — jetzt mit einer echten
+  Mutation zwischen Lesen und Benutzen.
+- `AudioConfiguration.swift:209` rechnet die IO-Pufferdauer für 48 kHz. Nach einer erfolgreichen
+  Gewährung auf 44,1 kHz rechnet das niemand neu; die Latenz verschiebt sich um ~9 %. Kosmetisch,
+  aber es ist eine ZWEITE Stelle, die von der Präferenz abhängt.
+- Auf dem ERFOLGS-Pfad bleibt die Präferenz dauerhaft auf der Graphen-Rate — für den ganzen
+  Prozess, auch für `MicrophoneManager` und die Aufnahmepfade. Der AUS-Zweig setzt sie nie
+  zurück. Das ist die Absicht der Scheibe („die Hardware folgt dem Graphen"), aber es stand
+  nirgends, und nur der FEHLER-Pfad hatte eine Wiederherstellung bekommen.

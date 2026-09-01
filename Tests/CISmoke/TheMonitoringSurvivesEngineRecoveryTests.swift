@@ -180,10 +180,20 @@ final class TheMonitoringSurvivesEngineRecoveryTests: XCTestCase {
                 opposite of the premise this claim carries.
                 """)
         }
-        XCTAssertEqual(occurrences(of: "setVoiceTune(false)", in: code), 1, """
-            The OFF path's tune disarm (#599 M1) changed. It is why the recycle saves \
-            and restores the tune choice — if the disarm is gone, the restore in \
-            rearmInputMonitoring becomes dead ballast; re-judge both in the same commit.
+        // ⛔ #958c: this said ONE and the tree has TWO — the FOURTH count pin in this family
+        // to go red inside the commit that made it wrong, and the second one I caused myself
+        // in two cycles. The new site is `rearmInputMonitoring`'s own UNDO: since #958 the ON
+        // half can REFUSE (the session cannot meet the master graph's rate), and the recycle
+        // restores the tune BEFORE that attempt, so a refusal used to end the take with the
+        // tune armed and monitoring off — the very state this file's #599 M1 law forbids.
+        XCTAssertEqual(occurrences(of: "setVoiceTune(false)", in: code), 2, """
+            The tune disarm (#599 M1) changed. TWO sites are expected: the OFF path's own \
+            disarm — which is WHY the recycle saves and restores the tune choice, so if it \
+            is gone the restore in `rearmInputMonitoring` becomes dead ballast — and the \
+            recycle's UNDO when its ON half is REFUSED (#958c). Losing the second one \
+            re-opens an armed tune with no monitor: a control the performer can neither \
+            hear nor switch off, and unrecoverable because the recycle guards on \
+            `isInputMonitoring` and can never fire again. Re-judge both in the same commit.
             """)
     }
 

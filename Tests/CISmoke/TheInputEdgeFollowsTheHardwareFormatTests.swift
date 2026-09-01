@@ -287,14 +287,27 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
         // written against, and the one candidate anybody would add — a post-grant refresh —
         // has now been tried and measured to be stale. The single sanctioned site:
         //   · `var inFmt = input.inputFormat(forBus: 0)` — the DECISION, before the connect.
+        //
+        // ⚠️ ONE LEGITIMATE SECOND READ EXISTS AND THIS PIN MUST NOT BE READ AS BANNING IT
+        // (#364, added #958c after a reviewer found the flat form). `AudioEngine.swift`'s
+        // HYPOTHESIS #5 calls `masterEngine.prepare()` to rebuild the I/O unit WITHOUT
+        // starting it; after that the node is no longer stale and re-reading it is the
+        // authoritative confirmation the hardware moved — which `session.sampleRate`, a
+        // fresher proxy, cannot give. That is a COUNT to raise to 2 in the same commit, not
+        // a law to route around. The failure message says so.
         XCTAssertEqual(occurrences(of: "input.inputFormat(forBus: 0)", in: code), 1, """
             The input node's raw format is read \
             \(occurrences(of: "input.inputFormat(forBus: 0)", in: code)) times, not once. \
             Exactly ONE read is sanctioned: the DECISION at the top of the ON path. A SECOND \
             read is almost always a "refresh after asking the session for a rate" — that is \
             #958's defect, and it reads a node this file has measured to be STALE until \
-            `start()` (#823/#958b). Read `session.sampleRate` for a granted rate. ZERO means \
-            the decision itself is gone and the connect format comes from nowhere.
+            `start()` (#823/#958b). Read `session.sampleRate` for a granted rate. ⚠️ BUT a \
+            second read AFTER a `masterEngine.prepare()` is CORRECT — that is HYPOTHESIS #5 \
+            in `AudioEngine.swift`, and it is the only thing that closes the \
+            async-renegotiation window a proxy leaves open. If you build it, raise this count \
+            to 2 HERE and widen the sibling window in \
+            `TheMonitorRefusesARateItCannotMeetTests` in the SAME commit. ZERO means the \
+            decision itself is gone and the connect format comes from nowhere.
             """)
         // ⭐ #956 AMENDED THIS LAW AND THE AMENDMENT IS PINNED HERE, not left implicit. The
         // TAP deliberately asks the node again at its own rung, because `installTap` validates

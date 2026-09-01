@@ -57,38 +57,52 @@
 //
 //   | tree                  | RED test methods | of |
 //   |-----------------------|------------------|----|
-//   | ca5ddec (grandparent) | 6                | 7  |
+//   | ca5ddec (great-gp)    | 6                | 7  |
 //   | 9fac52f (#958)        | 4                | 7  |
-//   | worktree (#958b)      | 0                | 7  |
+//   | 54fea65 (#958b)       | 1                | 7  |
+//   | worktree (#958c)      | 0                | 7  |
 //
 // 15 assertion SITES (Python, lines whose first token is `XCTAssert`/`XCTFail`; one sits
 // inside a loop, so executed assertions are more — sites are what is countable). This file
-// names no symbol the commit creates, so it COMPILES against both older trees and every claim
-// has a real verdict there.
+// names no symbol any of these commits creates, so it COMPILES against every older tree and
+// each claim has a real verdict there.
 //
-// ⭐ THE FOUR STILL RED ON #958 ARE THE WHOLE POINT OF THIS SECOND ROUND. #958 shipped the
-// right IDEA — make the hardware follow the graph, then refuse — with a read-back off the
-// input NODE, the one source this very method has already MEASURED to be stale (#823). On the
-// founder's device that read returns the cached pre-request value, so the refusal fires
-// whether or not iOS granted the rate: monitoring would simply never turn on again. Claims 2
-// and 2b are the guards that hold that out, and they are RED on #958 by construction.
+// ⭐ THE FOUR STILL RED ON #958 ARE THE POINT OF ROUND TWO. #958 shipped the right IDEA —
+// make the hardware follow the graph, then refuse — with a read-back off the input NODE, the
+// one source this very method has already MEASURED to be stale (#823). On the founder's
+// device that read returns the cached pre-request value, so the refusal fires whether or not
+// iOS granted the rate: monitoring would simply never turn on again. Claims 2 and 2b hold
+// that out, and they are RED on #958 by construction.
 //
-// GREEN on ALL THREE trees, and therefore a COUNTERWEIGHT in the strict #343 sense:
+// ⭐ THE ONE STILL RED ON #958b IS THE POINT OF ROUND THREE, and it is a defect I introduced
+// while fixing one. #958b's refusal path called `setPreferredSampleRate(0)` and the comment
+// called that "handing the preference back". It is not: this app HOLDS a standing preference
+// of `AudioConfiguration.preferredSampleRate` (48 kHz) from launch, and every buffer-duration
+// calculation in `AudioConfiguration` assumes it. Zero CLEARS it, so a refusal would have left
+// every later activation negotiating against no preference at all. Claim 6's first assertion
+// is that regression guard. **A "restore" that writes a different value than the one that was
+// held is not a restore** — and it was pinned by a guard I wrote in the same commit, which is
+// how it survived my own grading and needed a reviewer.
+//
+// GREEN on ALL FOUR trees, and therefore a COUNTERWEIGHT in the strict #343 sense:
 // `testStepThreeStillHasExactlyOneRung`. It pins what this slice must NOT do — add a fourth
 // `on 3/5` rung, which would both redden `TheEngineLifecycleSpeaksInTheDiagLogTests` (its
 // equality there detects the ON path collapsing its ~15 AVFAudio calls into one line) and put
 // phantom steps into a five-step ladder. Claim 4's second half (no NUMBERED `REFUSED`) is a
 // counterweight too, but its METHOD is red on the older trees because its first half is.
 //
-// ⛔ TWO NEIGHBOUR PINS WERE RED ON #958 AND ARE AMENDED IN THIS COMMIT, NOT BY THIS FILE:
-// `RecordRouteOwnershipTests` (releases 4 → 5) and
-// `MonitoringCannotStrandTheEngineStoppedTests` (restore sites 4 → 5). #958 added the rate
-// exit and moved neither — the SAME pair, for the SAME reason, one cycle after #631's note in
-// those very files wrote the rule down. Both failure messages already said "a new exit … needs
-// its own call and this count updated in the same commit".
+// ⛔ THREE NEIGHBOUR PINS WENT RED ACROSS THESE ROUNDS, EACH INSIDE THE COMMIT THAT MADE IT
+// WRONG, AND TWO OF THEM I CAUSED MYSELF: `RecordRouteOwnershipTests` (releases 4 → 5) and
+// `MonitoringCannotStrandTheEngineStoppedTests` (restore sites 4 → 5) from #958's new rate
+// exit; `TheMonitoringSurvivesEngineRecoveryTests` (tune disarms 1 → 2) from #958c's recycle
+// undo. Also amended: `TheInputEdgeFollowsTheHardwareFormatTests` went 1 → 2 at #958 and back
+// to 1 at #958b, because the ARGUMENT for two was itself the defect. **The rule those four
+// keep re-teaching: a new exit costs a count somewhere, and the failure messages already say
+// so** — #631 wrote it down in two of these very files, one cycle before it happened again.
 //
-// ⛔ THE GRADING CAUGHT TWO VACUOUS ASSERTIONS OF MY OWN, one per round. #958: claim 2's
-// read-back was `contains("inFmt = input.inputFormat(forBus: 0)")`, a SUBSTRING of the
+// ⛔ THE GRADING CAUGHT TWO VACUOUS ASSERTIONS OF MY OWN, one each in rounds one and two
+// (round three's defect was not vacuity but a wrong VALUE — see the #958b block above).
+// #958: claim 2's read-back was `contains("inFmt = input.inputFormat(forBus: 0)")`, a SUBSTRING of the
 // declaration `var inFmt = …`, so it was green on a tree with no re-read at all (#367). #958b:
 // the positional replacement compared `readBack.lowerBound > ask.upperBound` on a range that
 // had ALREADY been searched from `ask.upperBound` — it could not fail. Claim 2 is now a
@@ -96,7 +110,14 @@
 // between the trees.
 //
 // ⚠️ WHAT THIS DOES NOT PROVE. That the rate reconciliation SUCCEEDS on his device. iOS may
-// decline the graph's rate, in which case the monitor refuses and the log says so. It also does
+// decline the graph's rate, in which case the monitor refuses and the log says so. AND — the
+// sharper half, added #958c — that the abort is GONE. `session.sampleRate` is a fresher proxy,
+// not the authority: if iOS renegotiates ASYNCHRONOUSLY it can report the new rate while the
+// HAL has not settled, and `start()` at rung 4/5 runs ~7 ms later against a node whose real
+// bus is still the old one. This NARROWS the window; it does not close it — the same
+// retraction `#954b` already made about the same read. HYPOTHESIS #5 (`masterEngine.prepare()`
+// then re-read the NODE) is what would close it, and claims 2 and the sibling count pin are
+// deliberately written so that building it is a COUNT to raise, never a law to route around. It also does
 // not prove why `setCategory(.playback)` threw at launch — claim 5 only makes the next log say
 // it. Both are device questions, and this file is a source scan.
 
@@ -168,8 +189,33 @@ final class TheMonitorRefusesARateItCannotMeetTests: XCTestCase {
         // introduces a new failure (#364), and only a NEGATIVE claim can hold it out.
         // ⚠️ Scoped to AFTER the request on purpose: the declaration `var inFmt =
         // input.inputFormat(forBus: 0)` at the top of the ON path is CORRECT and must stay.
-        XCTAssertFalse(after.contains("input.inputFormat(forBus: 0)"), """
-            The granted rate is read back from the input NODE after the request. This file             measures that node to be STALE until `start()` rebuilds the I/O unit (#823), and             nothing between the request and here starts the engine — so the comparison runs             on the pre-request value and the monitor refuses even when iOS granted the rate.             Read `session.sampleRate`: the session is the party that grants.
+        //
+        // ⛔⛔ AND THE BAN IS CONDITIONAL, BECAUSE THE FLAT VERSION FORBADE CORRECT WORK
+        // (#364, found by the #958b reviewer). The staleness argument has a PREMISE —
+        // "nothing between the request and the read starts or prepares the engine".
+        // `AudioEngine.swift`'s own HYPOTHESIS #5 is to call `masterEngine.prepare()` there,
+        // which rebuilds the I/O unit WITHOUT starting it; after that the node is no longer
+        // stale, and re-reading it becomes the AUTHORITATIVE confirmation that the hardware
+        // really moved — the one thing `session.sampleRate` cannot give (it is a fresher
+        // proxy, not the authority, which is why the async-renegotiation window survives).
+        // A flat `XCTAssertFalse` would have gone red on that correct tree and taught the
+        // next session to read around this file. The forbidden WINDOW ends where the
+        // premise ends.
+        let rebuildNeedles = ["masterEngine.prepare()", "masterEngine.start()",
+                              "try masterEngine.start"]
+        let windowEnd = rebuildNeedles
+            .compactMap { after.range(of: $0)?.lowerBound }
+            .min() ?? after.endIndex
+        XCTAssertFalse(after[..<windowEnd].contains("input.inputFormat(forBus: 0)"), """
+            The granted rate is read back from the input NODE after the request and BEFORE \
+            anything rebuilds the I/O unit. This file measures that node to be STALE until \
+            `start()` rebuilds it (#823), so the comparison runs on the pre-request value \
+            and the monitor refuses even when iOS granted the rate — monitoring off forever \
+            on the device this slice targets (#958 -> #958b). Either read \
+            `session.sampleRate` (the party that grants), or call `masterEngine.prepare()` \
+            FIRST and then re-read the node — that second form is SANCTIONED, and it is \
+            HYPOTHESIS #5 in `AudioEngine.swift`. If you take it, the sibling count pin in \
+            `TheInputEdgeFollowsTheHardwareFormatTests` goes from 1 to 2 in the same commit.
             """)
     }
 
@@ -178,8 +224,22 @@ final class TheMonitorRefusesARateItCannotMeetTests: XCTestCase {
     /// straight into `connect` and aborted — a new crash path opened by the crash fix.
     func testTheRebuiltFormatIsValidatedOnChannelsToo() throws {
         let code = try source()
+        // ⚠️ #958c — HONEST ABOUT WHAT THIS CHECK IS: it is BELT-AND-BRACES, not the only
+        // thing standing between a 0-channel edge and the abort. `AVAudioFormat(
+        // standardFormatWithSampleRate:channels: 0)` returns nil, so the `guard let` would
+        // fire anyway. The first version of this message claimed the explicit test PREVENTS
+        // the crash; it does not — it makes the requirement legible at the site instead of
+        // resting on a failable initialiser's documented behaviour, which is the house style
+        // ("prefer explicit, readable code"). The pin still earns its place: it is what stops
+        // a later refactor from swapping in a NON-failable construction and losing the check
+        // silently. Overstating a guard's power is the expensive kind of comment here.
         XCTAssertTrue(code.contains("&& inFmt.channelCount > 0"), """
-            The format rebuilt from the granted rate is not checked for a usable CHANNEL             count. `AVAudioFormat(standardFormatWithSampleRate:channels:)` with 0 channels             returns nil, and a 0-channel edge reaching `masterEngine.connect` is the same             uncatchable ObjC abort this slice exists to prevent — reintroduced by the             prevention (#364).
+            The format rebuilt from the granted rate no longer states a usable CHANNEL count \
+            as a condition. Today the failable initialiser also catches 0 channels, so this \
+            is redundancy on purpose — it keeps the requirement legible at the site and \
+            survives a swap to a construction that does NOT return nil. A 0-channel edge \
+            reaching `masterEngine.connect` is the same uncatchable ObjC abort this slice \
+            exists to prevent (#958's rate-only check was the hole; #958b closed it).
             """)
         XCTAssertTrue(code.contains("channels: inFmt.channelCount"), """
             The rebuilt format no longer keeps the NODE's channel count.             `session.inputNumberOfChannels` is clamped 1...2 elsewhere in this method, so             substituting it can force a stereo edge onto a mono input — manufacturing the             very converter this slice removes, on hardware that was healthy (#954).
@@ -249,11 +309,17 @@ final class TheMonitorRefusesARateItCannotMeetTests: XCTestCase {
         let rest = code[refusal.lowerBound...]
         let tail = rest.range(of: "return false").map { String(rest[..<$0.upperBound]) }
             ?? String(rest.prefix(1200))
-        XCTAssertTrue(tail.contains("setPreferredSampleRate(0)"), """
-            The rate refusal returns without handing the PROCESS-WIDE sample-rate preference \
-            back. `setPreferredSampleRate` outlives this method, so a rate the hardware just \
-            declined would still be the number the next activation — ours or a route change — \
-            negotiates against. 0 means "no preference".
+        // ⛔ #958c: this pinned `setPreferredSampleRate(0)` and the ZERO WAS THE BUG. This app
+        // HOLDS a standing preference of `AudioConfiguration.preferredSampleRate` (48 kHz),
+        // set once at launch, and every buffer-duration calculation in that file assumes it.
+        // Writing 0 CLEARS it — so the "restore" destroyed a value the app deliberately owns,
+        // and the guard pinned the destruction. Restoring means putting back what was held.
+        XCTAssertTrue(tail.contains("setPreferredSampleRate(AudioConfiguration.preferredSampleRate)"), """
+            The rate refusal returns without RESTORING the process-wide sample-rate \
+            preference. `setPreferredSampleRate` outlives this method: the app holds \
+            `AudioConfiguration.preferredSampleRate` from launch and its latency maths assume \
+            it, so leaving the declined rate in place — or clearing it to 0 — makes every \
+            later activation negotiate against a number nobody owns.
             """)
         XCTAssertTrue(tail.contains("releaseRecordRoute(.inputMonitoring)"), """
             The rate refusal returns without handing the record route back. The claim is \
