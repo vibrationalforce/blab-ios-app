@@ -20598,14 +20598,25 @@ widerlegt.** Die `on 3/5`-Sprosse, die #954 genau dafür gebaut hat, druckte:
 
     edge 48000.0 Hz/1 ch, session 48000.0 Hz/1 ch, out 44100.0 Hz/2 ch
 
-Die Eingangsseite stimmt mit der Hardware ÜBEREIN — #954s Ersetzung hat nie gefeuert — und
-die App bricht eine Sprosse später trotzdem ab. **Die Abweichung liegt zwischen der
+Die Eingangsseite stimmt mit der Hardware ÜBEREIN und die App bricht eine Sprosse später
+trotzdem ab. **Die Abweichung liegt zwischen der
 Eingangskante und dem MASTER-GRAPHEN**, den `setupMasterEngine` EINMAL beim Start aus
 `outputNode.outputFormat` verdrahtet und nie neu verdrahtet. Eine 48-kHz-Eingangskette in
 einen 44,1-kHz-Graphen zu hängen zwingt AVAudioEngine, einen Wandler auf die EIGENE Kante des
 Eingangsknotens zu setzen — und `false == isInputConnToConverter` ist genau dieser Assert.
 **#954b hatte das als lebende ALTERNATIV-Hypothese aufgeschrieben und die Sprosse gebeten,
-`outFmt` mitzudrucken. Ein Gerätelauf hat entschieden.**
+`outFmt` mitzudrucken. Ein Gerätelauf hat die Alternativ-Hypothese BEGÜNSTIGT.**
+
+⛔ **#958b — zwei Rücknahmen an genau diesem Absatz, und beide waren in die stärkere Richtung
+falsch.** (1) „Ein Gerätelauf hat ENTSCHIEDEN" ist mehr, als ein Lauf tragen kann: ein Gerät,
+eine Route, ein Start. Er macht die Master-Graph-Hypothese mit allem Beobachteten vereinbar —
+er schließt keine andere aus. (2) „#954s Ersetzung hat nie gefeuert" wurde aus `edge ==
+session` GESCHLOSSEN, und der Schluss läuft rückwärts: eine Ersetzung, die FEUERT, BAUT `inFmt`
+aus der Session — hinterher stimmen die beiden also ZWANGSLÄUFIG überein. Übereinstimmung ist
+das Bild einer gefeuerten Ersetzung, nicht ihr Gegenbeweis. Was sie ausschließt, ist die
+ABWESENHEIT der Zeile `input format from session fallback`, die dieser Pfad unbedingt loggt,
+bevor er zuweist — und die im Log des Founders fehlt. Gleiche Schlussfolgerung, aber aus einer
+Tatsache statt aus einem Zufall.
 
 ⭐ **Und dasselbe Log nennt, WARUM der Graph auf 44,1 kHz stand — durch SCHWEIGEN.** Es liest
 `session: configure 1/4 — setCategory(.playback)` und dann nichts mehr aus dieser
@@ -20649,3 +20660,73 @@ Arbeitsbaum**. Instrumente: `dead-needles` 400 OK · `count-pins` 137/167, 0 RED
 ⚠️ **Was das NICHT beweist:** dass iOS die Rate des Graphen gewährt. Tut es das nicht,
 verweigert der Monitor — kein Absturz, aber auch kein Ton, und das Log sagt es. Ebenso offen:
 WARUM `setCategory(.playback)` beim Start geworfen hat. Beides sind Gerätefragen.
+
+## 2026-09-01 — #958b: der Reviewer hatte in fünf von sechs Punkten recht, und einer war ein neuer Absturzpfad
+
+**Der Reviewer auf #958 hat die Instrumentierungs-Hälfte bestätigt und die REPARATUR-Hälfte
+zerlegt.** Sechs Blocker, alle selbst nachgemessen, bevor sie repariert wurden:
+
+**1. Zwei Nachbar-Zähler waren rot, im Commit, der sie falsch gemacht hat.**
+`releaseRecordRoute(.inputMonitoring)` = 5 (Pin sagte 4), `restoreEngineIfStranded(` = 5 (Pin
+sagte 4). Der Raten-Ausgang aus #958 ist ein neuer Ausgang und beide Meldungen sagten wörtlich
+schon *"a new exit … needs its own call and this count updated in the same commit"*. **Ein
+Zyklus nach #631**, das dieselbe Paarung aus demselben Grund reparieren musste.
+
+**2+3. Die Rückmeldung las die eine Quelle, die diese Methode selbst als VERALTET gemessen
+hat.** #958 schrieb `inFmt = input.inputFormat(forBus: 0)` nach der `setPreferredSampleRate`-
+Bitte. 150 Zeilen höher steht der #823-Kommentar: *"the node can still hand back its
+placeholder right after the claim (the I/O unit rebuilds lazily on `start()`)"*. Zwischen
+Anfrage und Lesen startet oder präpariert **nichts** die Engine — der Knoten liefert also
+seinen zwischengespeicherten Vor-Anfrage-Wert, und die Verweigerung feuert unabhängig davon,
+ob iOS gewährt hat. **Wirkung auf genau dem Gerät, das die Scheibe adressiert: das Monitoring
+geht nie wieder an.** Repariert: `let grantedRate = session.sampleRate` — die Session ist die
+Partei, die gewährt, und es ist dieselbe Quelle, der #823 und #954 schon vertrauen.
+
+Dazu die zweite Hälfte desselben Blockers: #958 prüfte nach dem Neulesen **nur die Rate**. Ein
+Knoten, der bei passender Rate 0 Kanäle meldet, wäre in `connect` gelaufen und abgestürzt —
+**ein neuer Absturzpfad, geöffnet von der Absturz-Reparatur** (#364). Das Verbindungsformat
+wird jetzt aus der gewährten Rate NEU GEBAUT, mit der Kanalzahl des Knotens (#954: der Knoten
+ist die einzige Partei, die in den Input-Scope geschaut hat), und auf Rate UND Kanäle geprüft.
+Ein Ausgang, nicht zwei — die Zähler bleiben deshalb bei 5.
+
+**Zusätzlich, ungefragt:** `setPreferredSampleRate` ist PROZESSWEIT und überlebt die Methode.
+Auf dem Verweigerungspfad wird sie mit `setPreferredSampleRate(0)` zurückgegeben, sonst
+verhandelt die nächste Aktivierung gegen eine Rate, die die Hardware gerade abgelehnt hat.
+
+**4. Der Wächter-Kopf überlebte keine Neuherleitung.** Er sagte *"8 RED on the parent"* und
+*"seven of this file's claims"* — die Datei hatte SECHS Methoden, und ein Nachbar-Pin war in
+eine Zahl eingerechnet, deren Satz „this file" sagte. Die EINHEIT stand nirgends, also konnte
+„8" Methoden, Ansprüche oder Assertion-Stellen meinen. Jetzt getrieben und als Tabelle:
+**6 rot auf `ca5ddec`, 4 rot auf `9fac52f`, 0 rot heute, von 7 Methoden**; 15 Assertion-Stellen.
+Und Anspruch 2b war **tautologisch**: `readBack.lowerBound > ask.upperBound` auf einem Bereich,
+der bereits ab `ask.upperBound` gesucht wurde. Ersetzt durch einen POSITIVEN Check auf das
+Session-Lesen plus einen NEGATIVEN auf das Knoten-Lesen — beide kippen zwischen den Bäumen.
+
+Und Anspruch 6 hing an `.prefix(700)`; die Reparatur schob den letzten Aufruf auf 720. **Ein
+Byte-Fenster ist ein Datum.** Jetzt strukturell begrenzt: von der Verweigerungszeile bis zum
+`return false`, das sie beendet.
+
+**5. Zwei Über-Behauptungen, in derselben Beweisführung.** „Ein Gerätelauf hat ENTSCHIEDEN" →
+**BEGÜNSTIGT**: ein Gerät, eine Route, ein Start. Und „`edge == session`, also hat #954s
+Ersetzung nie gefeuert" läuft **rückwärts** — eine Ersetzung, die FEUERT, baut `inFmt` aus der
+Session, hinterher stimmen beide zwangsläufig überein. Übereinstimmung ist das Bild einer
+gefeuerten Ersetzung, nicht ihr Gegenbeweis. Der gültige Beleg ist die **ABWESENHEIT** der
+Zeile `input format from session fallback`, die dieser Pfad unbedingt vor dem Zuweisen loggt
+und die im v435-Log fehlt. Gleiche Schlussfolgerung, aus einer Tatsache statt aus einem Zufall.
+Beide Rücknahmen stehen in allen drei Prosa-Heimaten.
+
+**Offen und registriert, nicht gebaut:** `setActive(true)` auf einer bereits aktiven Session
+ist nicht dokumentiert dafür, eine Neuverhandlung zu erzwingen — wenn iOS die alte Rate behält,
+sehen wir sie und verweigern (sichere Richtung), aber ob die Gewährung je gelingt, kann nur ein
+Gerät sagen (NEEDS-FOUNDER-VERIFY am Code). Ebenfalls registriert: die `on 4/5`-Sprosse sollte
+`input.outputFormat(forBus: 0)` und `session.sampleRate` mitdrucken (billiger Diskriminator);
+Lücke A (`monitorMixer.outputVolume`) und Lücke B (`voiceTuneEnabled` bleibt true bei
+ausgeschaltetem Monitoring — der Raten-Ausgang ist der dritte solche Ausstieg).
+
+**Und eine Kopie-Frage, bewusst NICHT halb repariert:** `AudioInputPickerView:216` sagt
+„Monitoring could not start — try again." Für eine RATEN-Verweigerung ist erneutes Tippen
+deterministisch dieselbe Antwort, solange sich die Route nicht ändert — der Satz verspricht
+also eine Handlung, die nichts bewirkt (#613-Klasse). Er ist nicht schlicht falsch: nach einem
+Routenwechsel KANN `setActive(true)` neu verhandeln. Eine ehrliche Fassung müsste die zwei
+Fälle unterscheiden, und das ist eine eigene Scheibe mit eigener Kopie-Prüfung, keine Zeile,
+die man in einem Absturz-Fix mitnimmt.

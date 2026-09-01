@@ -272,20 +272,29 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
         // granted number can be trusted against the assert. That second read is the opposite
         // of stale; forbidding it would have kept a law that blocks its own purpose (#364).
         //
-        // ⚠️ TWO, NOT "AT LEAST TWO". A third raw read is exactly the drift the original law
-        // was written against, so the equality stays — with both sites named here, which is
-        // what a bare count could never say:
-        //   · `var inFmt = input.inputFormat(forBus: 0)` — the DECISION, before the connect;
-        //   · the re-read inside the #958 rate block, after `setPreferredSampleRate` +
-        //     `setActive`, which is the only place a fresh number can legitimately appear.
-        XCTAssertEqual(occurrences(of: "input.inputFormat(forBus: 0)", in: code), 2, """
+        // ⛔ #958 RAISED THIS TO TWO AND #958b PUT IT BACK TO ONE — the round trip is kept
+        // because the ARGUMENT for two was the defect, not just the number. #958 added a
+        // re-read after `setPreferredSampleRate` and called it "the only place a fresh number
+        // can legitimately appear". It is the one place a fresh number CANNOT appear: this
+        // very file's #823 note measures the input node to hold its placeholder until
+        // `start()` rebuilds the I/O unit, and nothing between the request and that read
+        // starts the engine. The read returned the CACHED pre-request value, so #958's
+        // refusal would have fired whether or not iOS granted the rate — monitoring off
+        // forever on the device the slice targeted. #958b reads `session.sampleRate` instead,
+        // which is the party that grants and is the same source #823/#954 already trust.
+        //
+        // ⚠️ ONE, NOT "AT LEAST ONE". A second raw read is exactly the drift this law was
+        // written against, and the one candidate anybody would add — a post-grant refresh —
+        // has now been tried and measured to be stale. The single sanctioned site:
+        //   · `var inFmt = input.inputFormat(forBus: 0)` — the DECISION, before the connect.
+        XCTAssertEqual(occurrences(of: "input.inputFormat(forBus: 0)", in: code), 1, """
             The input node's raw format is read \
-            \(occurrences(of: "input.inputFormat(forBus: 0)", in: code)) times, not twice. \
-            Exactly two reads are sanctioned: the DECISION at the top of the ON path, and the \
-            re-read inside #958's rate block that collects what the session actually granted. \
-            A THIRD read re-introduces the stale value the founder log ended on; ZERO or ONE \
-            means either the decision or the post-grant refresh is gone, and without the \
-            refresh the code trusts a PREFERENCE instead of a grant.
+            \(occurrences(of: "input.inputFormat(forBus: 0)", in: code)) times, not once. \
+            Exactly ONE read is sanctioned: the DECISION at the top of the ON path. A SECOND \
+            read is almost always a "refresh after asking the session for a rate" — that is \
+            #958's defect, and it reads a node this file has measured to be STALE until \
+            `start()` (#823/#958b). Read `session.sampleRate` for a granted rate. ZERO means \
+            the decision itself is gone and the connect format comes from nowhere.
             """)
         // ⭐ #956 AMENDED THIS LAW AND THE AMENDMENT IS PINNED HERE, not left implicit. The
         // TAP deliberately asks the node again at its own rung, because `installTap` validates
@@ -309,6 +318,14 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
     /// the ON path printed a format only on its failure exits, so a log that CRASHED at 4/5
     /// carried no way to tell a matching edge from a mismatched one — precisely the question
     /// the abort asks. This is what makes the next device run decisive either way.
+    ///
+    /// ⚠️ #958b — THE RUNG NAMES THE EDGE AS DECIDED, WHICH IS NOT ALWAYS THE EDGE CONNECTED.
+    /// Since #958 the rate block below may REPLACE `inFmt` with a format rebuilt from the rate
+    /// the session granted. A log therefore carries the rung's `edgeSummary` AND, when the
+    /// block ran, a `rate: session granted … Hz — edge and graph agree, continuing` line; the
+    /// second one wins. Said here rather than moved into the rung, because folding a
+    /// conditional value into the rung would either make it lie on the common path or make it
+    /// a multi-line literal, which hides the rung from `scripts/diag-ladder.py --source`.
     func testTheConnectRungNamesTheFormatItForces() throws {
         let code = try engineCode()
         let rung = code.split(separator: "\n", omittingEmptySubsequences: false)

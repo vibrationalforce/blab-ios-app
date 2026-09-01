@@ -74,17 +74,23 @@ final class RecordRouteOwnershipTests: XCTestCase {
         owns nothing, so the next release by any other feature lowers the route out from under \
         a live monitor.
         """)
-        // FOUR exits after the claim: the failed claim itself, the format guard, the
-        // engine-restart failure, and OFF.
+        // FIVE exits after the claim: the failed claim itself, the format guard, the RATE
+        // guard (#958 — the session cannot meet the master graph's rate, so the monitor
+        // refuses instead of connecting a converter onto the input edge), the engine-restart
+        // failure, and OFF.
+        // ⛔ #958b: #958 ADDED the rate exit and left this at FOUR — the third time this pin
+        // went red inside the commit that made it wrong, and the second time by the same
+        // author reading the same failure message. That message already says "a new exit …
+        // needs its own call and this count updated in the same commit".
         // ⛔ #631: this said THREE and had been RED since #628 added the failed-claim exit —
         // unnoticed because the bundle's per-test verdicts do not reliably reach the job log
         // (#445), so a red assertion here rides along looking exactly like the standing #396
         // failure. Its twin in `MonitoringCannotStrandTheEngineStoppedTests` was red for the
         // same commit and the same reason.
-        XCTAssertEqual(body.components(separatedBy: "releaseRecordRoute(.inputMonitoring)").count - 1, 4, """
-        input monitoring no longer releases the route on all FOUR paths that follow its claim \
-        (the claim itself failing, no valid input format, engine restart failed, monitoring \
-        switched off). A missing one \
+        XCTAssertEqual(body.components(separatedBy: "releaseRecordRoute(.inputMonitoring)").count - 1, 5, """
+        input monitoring no longer releases the route on all FIVE paths that follow its claim \
+        (the claim itself failing, no valid input format, the session refusing the graph's \
+        sample rate, engine restart failed, monitoring switched off). A missing one \
         leaves every other app's Bluetooth headset on the HFP mono call codec until Echoel is \
         force-quit — silently, because nothing in Echoel sounds wrong.
         """)

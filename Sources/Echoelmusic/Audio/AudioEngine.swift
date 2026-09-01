@@ -2662,14 +2662,20 @@ public final class AudioEngine {
 
             // ⭐ #958 — THE FOUNDER'S v10.79.435 LOG NAMED THE ACTUAL MISMATCH, and it is NOT
             // the one #954 fixed. That rung printed `edge 48000 Hz/1 ch, session 48000 Hz/1 ch,
-            // out 44100 Hz/2 ch`: the input side AGREED with the hardware — no substitution
-            // happened — and the app still aborted one rung later. The disagreement is between
+            // out 44100 Hz/2 ch`: the input side AGREED with the hardware and the app still
+            // aborted one rung later. (⛔ #958b: the first draft read that agreement as proof
+            // that #954's substitution never fired. Backwards — a FIRED substitution BUILDS
+            // `inFmt` from the session, so agreement is exactly what it produces. What rules
+            // it out is the ABSENCE of the `input format from session fallback` line, which
+            // that path logs unconditionally before assigning.) The disagreement is between
             // the input edge and the MASTER GRAPH, which `setupMasterEngine` wires ONCE at
             // launch from `outputNode.outputFormat` and never re-wires. Connecting a 48 kHz
             // input chain into a 44.1 kHz graph forces AVAudioEngine to put a converter on the
             // INPUT node's own edge, and `false == isInputConnToConverter` is that assert by
             // name. #954b registered this as the live ALTERNATIVE hypothesis and asked the rung
-            // to print `outFmt` precisely so one device run could settle it. It did.
+            // to print `outFmt` precisely so a device run could weigh it. That run FAVOURS
+            // this hypothesis — it is consistent with every line in the log — but one device,
+            // one route and one launch cannot DECIDE it, and #958's prose said "entschieden".
             //
             // ⚠️ THE REPAIR ORDER IS "MAKE THE HARDWARE FOLLOW THE GRAPH, THEN REFUSE" — never
             // "rebuild the graph". The master chain carries the whole instrument; re-wiring it
@@ -2680,12 +2686,14 @@ public final class AudioEngine {
             // refusal instead of an uncatchable abort, which is exactly what the founder asked
             // for ("Absturz beim Audio Input Monitor einschalten vermeiden").
             if outFmt.sampleRate > 0, abs(inFmt.sampleRate - outFmt.sampleRate) > 1 {
-                // ⚠️ THESE THREE LINES ARE NOT RUNGS AND MUST NOT LOOK LIKE ONE. A fourth
-                // `logMonitorOutcome("on 3/5` would (a) redden
+                // ⚠️ THE `rate:` LINES IN THIS BLOCK ARE NOT RUNGS AND MUST NOT LOOK LIKE
+                // ONE. A fourth `logMonitorOutcome("on 3/5` would (a) redden
                 // `TheEngineLifecycleSpeaksInTheDiagLogTests`, whose equality on that needle
                 // is deliberate — it detects the ON path collapsing its ~15 AVFAudio calls
-                // into one line — and (b) put three extra "steps" into a five-step ladder.
-                // They are DETAIL inside step 3; the rung above already announced the step.
+                // into one line — and (b) put extra "steps" into a five-step ladder. They are
+                // DETAIL inside step 3; the rung above already announced the step. (⛔ #958b:
+                // this said "THESE THREE LINES" and the block is longer than three — a count
+                // in a comment is a date, and it went stale inside two commits.)
                 logMonitorOutcome("rate mismatch — asking the session for the graph's "
                                   + "\(outFmt.sampleRate) Hz (input is \(inFmt.sampleRate) Hz)")
                 let session = AVAudioSession.sharedInstance()
@@ -2696,10 +2704,43 @@ public final class AudioEngine {
                     // A refusal here is not fatal by itself — the check below decides.
                     logMonitorOutcome("rate: the session refused the graph's rate (\(error))")
                 }
-                // RE-READ, because a preference is a request: the granted rate is whatever the
-                // node reports now, and only that number can be trusted against the assert.
-                inFmt = input.inputFormat(forBus: 0)
-                if abs(inFmt.sampleRate - outFmt.sampleRate) > 1 {
+                // ⚠️ HONEST LIMIT, stated because the next reader will otherwise assume more
+                // than this call gives: `setActive(true)` on a session that is ALREADY active
+                // is not documented to force a re-negotiation. If iOS keeps the old rate, the
+                // read below sees it and we REFUSE — a reported no-op instead of an abort,
+                // which is the safe direction. What this block cannot promise is that the
+                // grant will ever succeed on a device whose graph and hardware disagree; only
+                // a device run can say. NEEDS-FOUNDER-VERIFY: mic monitor ON while the master
+                // graph runs at 44.1 kHz on 48 kHz hardware — does the diag log say
+                // "session granted 44100.0 Hz … continuing", or "on REFUSED"?
+                // ⭐ #958b — READ THE **SESSION**, NOT THE NODE, AND THE FIRST DRAFT READ THE
+                // NODE. A preference is a request, so the granted number has to be read back;
+                // the draft read it from `input.inputFormat(forBus: 0)` — which is the ONE
+                // source this same method has already MEASURED to be stale. The #823 comment
+                // 150 lines up says it in as many words: "the node can still hand back its
+                // placeholder right after the claim (the I/O unit rebuilds lazily on
+                // `start()`)". Nothing between the request and here starts or prepares the
+                // engine, so the node would have returned its cached pre-request value with
+                // very high probability — and the refusal below would then fire whether or not
+                // the grant actually happened, i.e. monitoring would never turn on again on
+                // exactly the device this slice targets. The SESSION is the party that grants;
+                // `session.sampleRate` is the granted value, and it is the same source #823
+                // and #954 already trust for the substitute format.
+                let grantedRate = session.sampleRate
+                // Rebuild the connect format from the granted rate, KEEPING the node's channel
+                // count (#954: the node is the only party that has looked at the input scope;
+                // `session.inputNumberOfChannels` is clamped 1...2 and would force a stereo
+                // edge onto a mono input). Rate AND channels are validated here, because the
+                // draft validated only the rate: a node reporting 0 channels at a matching
+                // rate would have walked straight into `connect` and aborted — a new crash
+                // path introduced by the crash fix (#364).
+                let granted: AVAudioFormat? = (grantedRate > 0
+                    && abs(grantedRate - outFmt.sampleRate) <= 1
+                    && inFmt.channelCount > 0)
+                    ? AVAudioFormat(standardFormatWithSampleRate: grantedRate,
+                                    channels: inFmt.channelCount)
+                    : nil
+                guard let granted else {
                     // ⚠️ `on REFUSED`, UNNUMBERED, and both halves are load-bearing. The
                     // ladder prefix `on` is what makes `diag-ladder` recognise this as a
                     // TERMINATOR at all — without it a log ending here would read as a DEATH
@@ -2707,15 +2748,23 @@ public final class AudioEngine {
                     // NUMBER must be absent because guard (c3) forbids numbering a skip that
                     // RETURNS: in a log the walks-on form and the returns form are the same
                     // string, so only an unnumbered terminator may rescue a short ladder.
-                    logMonitorOutcome("on REFUSED — input \(inFmt.sampleRate) Hz cannot meet "
-                                      + "the graph's \(outFmt.sampleRate) Hz; connecting anyway "
-                                      + "would put a converter on the input edge and abort "
-                                      + "(isInputConnToConverter). Monitoring stays OFF.")
+                    logMonitorOutcome("on REFUSED — the session granted \(grantedRate) Hz "
+                                      + "against the graph's \(outFmt.sampleRate) Hz "
+                                      + "(input node reports \(inFmt.channelCount) ch); "
+                                      + "connecting anyway would put a converter on the input "
+                                      + "edge and abort (isInputConnToConverter). "
+                                      + "Monitoring stays OFF.")
+                    // The preference is PROCESS-WIDE and outlives this method. Leaving it at a
+                    // rate the hardware just declined would make the next activation — ours or
+                    // a route change — negotiate against a number nobody wants. 0 means "no
+                    // preference" and is the documented way to hand it back.
+                    try? session.setPreferredSampleRate(0)
                     try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)
                     restoreEngineIfStranded(wasRunning, at: "input monitoring rate guard")
                     return false
                 }
-                logMonitorOutcome("rate: session granted \(inFmt.sampleRate) Hz — edge and "
+                inFmt = granted
+                logMonitorOutcome("rate: session granted \(grantedRate) Hz — edge and "
                                   + "graph agree, continuing", level: .info)
             }
             masterEngine.connect(input, to: notchEQ, format: inFmt)

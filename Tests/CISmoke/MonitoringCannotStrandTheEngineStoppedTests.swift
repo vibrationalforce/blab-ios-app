@@ -221,13 +221,19 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
         // this count updated in the same commit" — so this is not a missing rule, it is a
         // rule the author of the new exit did not read. That is the argument for the count
         // being here at all.
-        XCTAssertEqual(lines.filter { $0.contains("restoreEngineIfStranded(") }.count, 4, """
-            the exit-guarantee call sites changed. FOUR occurrences are expected in \
-            STRIPPED source: the declaration plus THREE callers — the ON path's failed \
+        // ⛔ #958b: FOUR again, red inside the commit that made it wrong — #958 added the
+        // rate-guard exit and moved neither this count nor `RecordRouteOwnershipTests`'. Same
+        // pair, same mechanism, one cycle after the #631 note above wrote the rule down.
+        XCTAssertEqual(lines.filter { $0.contains("restoreEngineIfStranded(") }.count, 5, """
+            the exit-guarantee call sites changed. FIVE occurrences are expected in \
+            STRIPPED source: the declaration plus FOUR callers — the ON path's failed \
             session claim (#628: the claim used to only log and fall through into a format \
             read that cannot succeed), the ON path's format-guard exit (review 2a: that exit \
             does no graph work, so it returned with the music dead while the only visible \
-            line blamed microphone permission) and the OFF path (review 2b: \
+            line blamed microphone permission), the ON path's RATE guard (#958: the \
+            session cannot meet the master graph's rate, so the monitor refuses rather \
+            than connecting a converter onto the input edge and aborting) and the OFF \
+            path (review 2b: \
             `releaseRecordRoute` lowers the category the same way, and it sits on the \
             recovery hot path `start()` → `rearmInputMonitoring` → OFF). A new exit that \
             mutates the session category needs its own call and this count updated in the \
