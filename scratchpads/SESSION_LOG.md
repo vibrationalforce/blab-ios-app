@@ -19835,3 +19835,68 @@ diese Datei sonst zurücknimmt.
 **CLAUDE.md +125 B** (Einzeiler zeigt jetzt auf den Plan statt auf den Parser) — **348 B
 Kopfraum**. Bewusst so knapp gehalten: die Herleitung gehört in den Plan, nicht in die immer
 geladene Datei.
+
+---
+
+## #950 — ein Fix gebaut, benotet und VOR dem Commit zurückgenommen (2026-09-01)
+
+**Gates von #948 gelesen:** `Build for Testing: Succeeded` · `TEST BUILD FAILED: False` ·
+0 Compile-Fehler · 0 Fehlschläge · 0 Skips · 167 Tests beim Bestehen beobachtet. Das rote CI/CD
+ist wieder #396. ⚠️ Die Namen der zwei neuen Wächter stehen NICHT im Fenster — das Job-Log ist
+`tail -200`, Abwesenheit beweist nichts (#445/#807). Was bewiesen ist: sie KOMPILIEREN.
+**#949 hat gar keine Läufe** — es fasste nur `CLAUDE.md`/`decisions.csv`/`scratchpads/**` an,
+das bekannte Pfadfilter-Loch (#697/#699), kein Defekt.
+
+**Der Befund, gemessen.** `MIDIBusPublisher.publishCC` mintet für CC 21–31 ein `.airCC`, und
+`.airCC` erreicht genau EINEN Verbraucher: `case .airCC: break`. Jede solche Nachricht reist
+also über den ganzen Bus, um weggeworfen zu werden. Zwei Kosten, beide anderswo im Repo schon
+aufgeschrieben:
+
+1. `bus.controllerEvents` ist ein **128 tiefer DROP-NEWEST-Ring**, und `SPSCQueue`s eigener
+   Doc-Kommentar nennt die Folge wörtlich: *„a rejected `.noteOff` strands its `.noteOn` and
+   the note drones."* Der Verbraucher leert mit 10 Hz, das Fenster ist ~100 ms.
+2. ⭐ **Und das ist die größere Hälfte, beim Schreiben des Kommentars gefunden:**
+   `EngineBus.publish(controller:)` startet **pro Ereignis** einen `Task { @MainActor }` — der
+   eigene Doc-Kommentar sagt das und nennt das Koaleszieren einen FOLLOW-UP. Das ist exakt die
+   10.76.48-Form (ein hochfrequenter Erzeuger, ein Main-Actor-Job pro Nachricht → der
+   SwiftUI-Executor hungert, Symptom: ein offener Picker reagiert nicht mehr). **Diese Hälfte
+   kostet bei JEDER Nachricht, nicht erst bei Überlauf.**
+
+**Der Fix war fertig:** eine Zeile (`case 21...31: return`), Prosa-Nachzug im Dateikopf, plus
+`NothingIsPublishedThatNothingConsumesTests` — ein BIKONDITIONAL statt eines Verbots („publiziert"
+muss „wird verbraucht" GLEICHEN, damit beide Hälften nur gemeinsam wandern können, #364), 6
+Zusicherungen, 1 Fang, 5 Gegengewichte, gegen beide Bäume transkribiert, 0 rot auf dem Baum.
+
+⛔ **UND ER IST ZURÜCKGENOMMEN, wegen RADIUS, nicht wegen Korrektheit.** Air-CC-Eingang ist in
+**sieben** Prosastellen als ankommend dokumentiert (`README.md:22`, `docs/architecture.html`
+:180/:194/:301/:352, `docs/overview.html:241`, und die Fehlermeldung von
+`TheMPEInputHasNoZonesTests` Anspruch 10b). Der Ein-Zeilen-Fix schleppt also einen
+Kopie-Nachzug über sieben Dateien und **verengt eine dokumentierte Leitung** — für einen Nutzen,
+dessen Überlauf-Hälfte ~1280 Nachrichten/s braucht (über USB-MIDI erreichbar, am Gerät
+ungemessen). Das ist eine **Wertfrage, keine Ingenieursfrage.**
+
+⭐ **DIE LEHRE IST ÜBER MICH, NICHT ÜBER MIDI: ich habe die Bau-Entscheidung einmal umgedreht,
+und die Council-Skill sagt selbst, dass genau das das Signal ist** — *„if seats cannot converge,
+that itself is the signal to hold-for-founder, not to loop."* Ein bereits getippter Fix ist kein
+Argument für sich selbst; ihn zu shippen, weil er schon dasteht, ist Sunk-Cost. **Regel ab
+jetzt: sobald ich eine Bau-Entscheidung einmal umdrehe, hört das Abwägen auf und der Befund
+wird aufgeschrieben statt gebaut.**
+
+**Was stattdessen im Baum liegt:**
+· eine **DEAD-ENDS-Zeile** im `HARNESS_LEDGER` mit der Messung, den sieben Prosa-Stellen und der
+  RICHTIGEN Alternative — den Pro-Ereignis-Task koaleszieren, den `EngineBus` selbst als
+  Follow-up benennt. ⚠️ Samt der Falle: `publish(controller:)` ist `nonisolated`, es gibt keine
+  Atomics (null Abhängigkeiten), und die naheliegende Variante („nur starten, wenn die Queue
+  leer war") hat eine **echte Race** — ein bereits laufender Drain kann den eigenen Slot
+  passieren, dann bleibt das Ereignis bis zum 10-Hz-Poll liegen. Braucht den
+  concurrency-reviewer, nicht einen Zyklus-Patch.
+· ein **NEEDS-FOUNDER-VERIFY an der Messstelle** statt einer blockierenden Rückfrage: soll
+  Echoel Wind-/Breath-Controller weiter entgegennehmen, obwohl nichts sie hört — später eine
+  Stimme bewegen — oder gar nicht mehr ankommen? Der Einkaufszettel misst sich selbst:
+  **74 offene Bitten in 63 Dateien** (`python3 scripts/founder-verify.py`).
+
+**Kein Wächter für diesen Zyklus, und das ist die richtige Antwort (#364):** ein Wächter, der
+den Air-CC-Strom festnagelt, würde genau die Founder-Antwort verbieten, auf die er wartet.
+
+**Instrumente:** `dead-needles` 394 + Selbsttest OK · `count-pins` 137/160, 0 rot ·
+`needle-reachability` sauber · `doctor` die zwei bekannten founder-gated CI-Masken.

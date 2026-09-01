@@ -182,6 +182,28 @@ public final class MIDIBusPublisher {
         let kind: ControllerEvent.Kind
         switch cc {
         case 74:        kind = .slide
+        // ⚠️ #950 — THIS STREAM IS PUBLISHED AND NOTHING CONSUMES IT, measured: `.airCC`
+        // reaches exactly one consumer, `BioReactiveSynthVoice.apply(controller:)`, where it
+        // is `case .airCC: break`. Two costs, both written down elsewhere in this repo:
+        // `bus.controllerEvents` is a 128-deep DROP-NEWEST ring whose own doc says "a rejected
+        // `.noteOff` strands its `.noteOn`", and `EngineBus.publish(controller:)` spawns a
+        // `Task { @MainActor }` PER EVENT — the 10.76.48 executor-starvation shape, and that
+        // half costs on every message, not only at overflow.
+        //
+        // NOT changed here, deliberately. Dropping the stream is one line, but air-CC input is
+        // documented as ARRIVING in seven prose sites (README, `docs/architecture.html` ×4,
+        // `docs/overview.html`, and `TheMPEInputHasNoZonesTests` claim 10b), so it narrows a
+        // documented wire — a value call, not an engineering one. The deeper fix costs nothing
+        // documented and helps every message type: coalesce the per-event Task, which
+        // `EngineBus.publish(controller:)`'s own doc already names as the follow-up. See the
+        // DEAD-ENDS row in `scratchpads/HARNESS_LEDGER.md` for the measurement and the race
+        // the obvious coalescing gate has.
+        //
+        // NEEDS-FOUNDER-VERIFY: Wind-/Breath-Controller anschließen (CC 21–31). Soll Echoel
+        // diese Nachrichten weiter ENTGEGENNEHMEN, obwohl heute nichts sie hört — oder sollen
+        // sie später eine Stimme bewegen (dann bleibt die Leitung und bekommt einen
+        // Verbraucher), oder gar nicht mehr ankommen (dann fällt diese Zeile und sieben
+        // Prosa-Stellen mit ihr)?
         case 21...31:   kind = .airCC
         default:        return  // unmapped CCs dropped this cycle
         }
