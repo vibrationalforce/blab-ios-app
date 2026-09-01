@@ -1134,4 +1134,144 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
             claim the subset.
             """)
     }
+
+    // MARK: - The copy nobody reads: JSON-LD
+
+    /// #940. **A page has TWO copies of some of its answers, and only one is read by a human.**
+    /// (Some, not all: the visible page carries 31 questions and the structured data 17 — a
+    /// subset, not a mirror. A later reader should not go hunting for 31 structured answers.)
+    /// `faq.html` carries a `FAQPage` JSON-LD block whose `acceptedAnswer.text` is what a search
+    /// engine quotes — and on 2026-09-01 it had drifted from the visible answer for 13 of its 17
+    /// questions (method, so the figure is re-derivable rather than remembered: parse each
+    /// `Question`, tag-strip both texts, and call a `difflib` ratio below 0.97 a drift; the two
+    /// "no visible twin" hits were quote marks and a will/does, not missing answers).
+    /// Most of that drift is legitimate condensation. ONE was a capability claim the visible
+    /// text on the same page explicitly denies: the block said EchoelNet provides OSC *"for
+    /// bidirectional communication"* while the answer a visitor reads says *"one-way OSC …
+    /// bidirectional OSC … on the roadmap"*.
+    ///
+    /// ⭐ THE PREMISE IS ALREADY PINNED ELSEWHERE AND IS NOT RESTATED HERE (#416).
+    /// `TheWireSaysWhoseBodyTests.testTheArtNetHalfIsAnUnverifiableBuildAndNotJustAnUnwrittenOne`
+    /// walks `Sources/` and asserts **zero** `NWListener` — the app
+    /// has no inbound socket of any kind, so it cannot receive an OSC message. The day someone
+    /// builds one, THAT guard reds first and its message calls the step Council-sized; this one
+    /// then becomes a sentence that may be written again. Duplicating the walk here would be
+    /// two spellings of one fact.
+    /// ⚠️ THE METHOD IS NAMED ON PURPOSE, not just the class: that method's NAME advertises
+    /// Art-Net, so a future slice trimming its Art-Net claim could take the `NWListener` pin
+    /// with it and leave this guard citing a premise nothing pins — the #472 shape, a pointer
+    /// outliving its target. Named here so it is greppable from both ends.
+    ///
+    /// ⚠️ SCOPED TO THE JSON-LD, AND DELIBERATELY NOT A PAGE-WIDE BAN (#364). The visible copy
+    /// says "bidirectional OSC … on the roadmap" and `overview.html` says
+    /// "Planned: … bidirectional OSC" — both honest, both would trip a page-wide needle. The scan reads only
+    /// what is between `<script type="application/ld+json">` and its close, and only complains
+    /// when the enclosing SENTENCE — split on `". "`, not a character count — carries neither a
+    /// roadmap marker nor one of the negations this site writes its honesty in.
+    ///
+    /// ⚠️ WHAT THIS DOES **NOT** DO, said rather than implied: it does not compare the two copies
+    /// in general. A structural claim ("every JSON-LD answer matches its visible twin") would be
+    /// red on all 13 drifts today, twelve of which are fine — the #665 shape, a checker nobody
+    /// reads. The drift is recorded in the session log instead; this claim owns exactly the
+    /// class that made it worth finding, a capability the code cannot perform.
+    ///
+    /// ⚠️ HONEST GRADING (§3), TRANSCRIBED in Python against parent `c95a027` and the worktree:
+    /// the offender assertion is a **REGRESSION CATCH** — one offender on the parent (the exact
+    /// sentence this slice rewrites), zero here, and it is red there for the reason its name
+    /// gives. The block-count assertion is a **COUNTERWEIGHT**, green on both (16 pages, 18
+    /// blocks). No FORWARD guards: this claim names no symbol the commit creates. `> 10` is a
+    /// floor, not a pin — adding or removing a page must not redden it (#364/#448). Every
+    /// needle here is an HTML literal verified by `grep`, so this is a SCAN claim, not the
+    /// #808 runtime-needle shape that is unverifiable until CI runs it.
+    func testTheStructuredDataDoesNotSellAnInboundOSC() throws {
+        var offenders: [String] = []
+        var blocks = 0
+        var faqBlocks = 0
+        for page in try pages() {
+            var rest = page.html[...]
+            while let open = rest.range(of: "<script type=\"application/ld+json\">"),
+                  let close = rest.range(of: "</script>", range: open.upperBound..<rest.endIndex) {
+                blocks += 1
+                let block = String(rest[open.upperBound..<close.lowerBound]).lowercased()
+                if block.contains("\"@type\":\"faqpage\"") { faqBlocks += 1 }
+                for needle in ["bidirectional", "bi-directional", "two-way"] {
+                    var from = block.startIndex
+                    while let hit = block.range(of: needle, range: from..<block.endIndex) {
+                        // ⛔ THE ENCLOSING SENTENCE, NOT A CHARACTER WINDOW — and the first
+                        // draft used ±120 characters, which the mandatory review measured as a
+                        // 108-character margin. A JSON-LD block is 17 answers concatenated on
+                        // ONE line, so a character count borrows its exemption from whatever
+                        // answer happens to sit nearby: one extra clause and an honest sentence
+                        // stops being exempt, one clause the other way and a false claim goes
+                        // green off a neighbour's "roadmap".
+                        //
+                        // ⚠️ AND IT MUST NOT BE WIDENED TO THE WHOLE ANSWER, which is the
+                        // obvious "more robust" move. Measured on the parent tree: the very
+                        // answer that carried the false claim ENDS with the legitimate sentence
+                        // "Ableton Link tempo sync is on the roadmap." — an answer-wide window
+                        // would have been GREEN on the exact defect this guard exists to catch.
+                        // The narrowness is load-bearing.
+                        let lo = block.range(of: ". ", options: .backwards,
+                                             range: block.startIndex..<hit.lowerBound)?.upperBound
+                            ?? block.startIndex
+                        let hi = block.range(of: ". ",
+                                             range: hit.upperBound..<block.endIndex)?.lowerBound
+                            ?? block.endIndex
+                        let around = String(block[lo..<hi])
+                        // ⚠️ THE NEGATIONS ARE NOT PADDING. This file's own header records the
+                        // measurement that shaped it: a keyword scan over `docs/` returned 27
+                        // hits and EVERY ONE was a negation ("it is not an Audio Unit (AUv3)
+                        // plugin", "no esoteric claims"). This site writes its honesty as
+                        // negations, so a bare keyword scan reds on strictly-more-honest copy —
+                        // "no bidirectional OSC today" would have failed here (#364). None of
+                        // these three exempts the sentence this slice removed: measured, the
+                        // parent block contains no "one-way" at all.
+                        //
+                        // ⚠️ AND THE RESIDUAL IS REAL, said rather than papered over: three
+                        // phrasings are not "negation detection". Driven as a control, "Echoel
+                        // does not accept inbound OSC, so bidirectional OSC is not available."
+                        // STILL trips — the negation sits on a different word. That red would
+                        // be a false alarm, and the repair is to add the phrasing to this list
+                        // in the same commit, never to delete the claim: a keyword scan on a
+                        // keyword cannot do better, and the alternative (exempt any sentence
+                        // containing "not") would exempt the over-claims too.
+                        if around.contains("osc"), !around.contains("roadmap"),
+                           !around.contains("planned"), !around.contains("one-way"),
+                           !around.contains("no bidirectional"),
+                           !around.contains("not bidirectional") {
+                            offenders.append("docs/\(page.name): …\(around)…")
+                        }
+                        from = hit.upperBound
+                    }
+                }
+                rest = rest[close.upperBound...]
+            }
+        }
+        XCTAssertGreaterThan(blocks, 10, """
+            Found only \(blocks) JSON-LD block(s) under `docs/`. Sixteen pages carried one when \
+            this was written, so the extraction is broken and the absence it reports means \
+            nothing (#454: a lost anchor fails, it does not pass).
+            """)
+        // ⛔ THE FLOOR ABOVE CANNOT SEE THE LOSS OF THE ONE BLOCK THIS SCAN IS ABOUT — with 18
+        // blocks live, EIGHT may vanish under `> 10`, the `FAQPage` one included. A renamed
+        // page, an added `id=` on the `<script>` tag or a pretty-printer would then leave this
+        // claim reporting an absence that means nothing, which is the #454 shape its own
+        // message invokes. Found by the mandatory review, not by the floor.
+        XCTAssertGreaterThan(faqBlocks, 0, """
+            No `FAQPage` JSON-LD block was extracted from `docs/`. The subject of this scan is \
+            gone, or its `<script>` tag changed shape — either way this guard checked nothing.
+            """)
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) JSON-LD passage(s) sell OSC as bidirectional or two-way \
+            without a roadmap marker:
+            \(offenders.joined(separator: "\n"))
+
+            The app has no inbound socket at all — `TheWireSaysWhoseBodyTests` walks `Sources/` and pins \
+            zero `NWListener`. This is the copy a search engine quotes, so a false capability here \
+            reaches more people than the page itself. The visible answer on the same page already has \
+            the honest wording: one-way output today, bidirectional on the roadmap. If OSC INPUT was \
+            actually built, the other guard is red too — read that failure first, then this sentence is \
+            true again.
+            """)
+    }
 }

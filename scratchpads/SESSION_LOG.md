@@ -18999,3 +18999,67 @@ vorkommt (mono + `EchoelPolyDDSP`) — `memberBody` verlangt genau eins (#408). 
 das eindeutige `velocityGain = 1`, und die Suche ist auf dessen Block begrenzt: die nackte Nadel
 `expressionGain = 1` kommt ebenfalls **zweimal** vor, weil der Default im eigenen `didSet`
 `expressionGain = 1.0` heißt.
+
+## 2026-09-01 — #940: die Kopie, die niemand liest, verkaufte eine Fähigkeit, die es nicht gibt
+
+**#939 bestätigt:** `c95a027` — Compile Check grün, `Build for Testing` Succeeded, 0
+Compile-Fehler, 0 Fehlschläge, 0 Skips, 167 beobachtet bestanden. CI/CD `failure` = #396,
+und der Verdikt-Leser meldet ausdrücklich KEINE Startfehler-Zeile.
+
+**Der Befund.** `docs/faq.html` trägt **zwei** Kopien seiner Antworten: die sichtbare und einen
+`FAQPage`-JSON-LD-Block — und **den zitiert die Suchmaschine**. Gemessen am 2026-09-01: **13 von
+17** JSON-LD-Antworten sind von ihrer sichtbaren Zwillingsantwort abgedriftet (Methode, damit die
+Zahl nachrechenbar bleibt: jede `Question` parsen, beide Texte tag-strippen, ein
+`difflib`-Verhältnis unter 0,97 als Drift zählen). Zwölf davon sind legitime Kürzungen.
+
+**Eine war eine Fähigkeits-Behauptung, die der sichtbare Text derselben Seite verneint:** der
+Block verkaufte OSC „for bidirectional communication", während der Besucher „one-way OSC …
+bidirectional OSC … on the roadmap" liest. Gemessen: **null `NWListener`** in `Sources/`, kein
+`.receive(` in `Sync/` — die App hat gar keinen Eingangs-Socket, kann also keine OSC-Nachricht
+empfangen. Der JSON-LD ist die falsche Hälfte, nicht die sichtbare.
+
+**Der Wächter** (`testTheStructuredDataDoesNotSellAnInboundOSC`, im vorhandenen
+`WebsitePagesAreFindableAndHonestTests` statt in einer neuen Datei — #416, ein Zuhause) ist
+bewusst eng:
+· liest NUR zwischen `<script type="application/ld+json">` und dessen Ende — eine seitenweite
+  Nadel wäre auf der ehrlichen Roadmap-Zeile und auf `overview.html` rot (#364);
+· **wiederholt die Code-Prämisse nicht**: `NWListener = 0` pinnt schon
+  `TheWireSaysWhoseBodyTests` — und zwar mit METHODENNAMEN zitiert, weil dessen Name Art-Net
+  bewirbt und eine spätere Art-Net-Kürzung den Pin sonst mitnähme (#472);
+· vergleicht NICHT alle 17 Antworten — das wäre auf zwölf harmlosen Kürzungen rot, der
+  #665-Prüfer-den-niemand-liest. Die Drift steht hier statt in einer Zusicherung.
+
+**Pflicht-Reviewer (`code-reviewer`): 0 BLOCKER — er hat alle fünf Compile-Sorgen einzeln
+widerlegt und mit Präzedenzfällen aus demselben Bundle belegt** (negatives `offsetBy` mit
+`limitedBy` gibt es viermal im Verzeichnis; `var rest = text[...]` ebenso). Drei Befunde, alle
+über das ALTERN des Wächters, alle angewandt:
+
+1. **Das ±120-Zeichen-Fenster war eine Näherung mit 108 Zeichen Luft** — ein JSON-LD-Block ist
+   17 Antworten auf EINER Zeile, ein Zeichenfenster leiht sich seine Ausnahme also von der
+   Nachbarantwort. Jetzt der umschließende SATZ (`". "`). ⚠️ **Und NICHT auf die ganze Antwort
+   erweitern:** die Antwort mit der Falschbehauptung ENDET mit dem legitimen Satz „Ableton Link
+   tempo sync is on the roadmap." — ein antwortweites Fenster wäre GRÜN auf genau dem Defekt
+   gewesen, für den der Wächter existiert. Die Enge ist tragend.
+2. **Negationen.** Der Kopf derselben Datei hält die Messung fest, die sie geformt hat: ein
+   Stichwort-Scan über `docs/` lieferte **27 Treffer und jeder war eine Verneinung**. Diese
+   Seite schreibt ihre Ehrlichkeit als Negation, also wäre „no bidirectional OSC today" rot
+   geworden — auf strikt ehrlicherer Kopie. Drei Ausnahmen ergänzt. ⚠️ Der Rest ist ehrlich
+   benannt: als Kontrolle getrieben, „does not accept inbound OSC, so bidirectional OSC is not
+   available" trippt WEITER; das wäre ein Fehlalarm, und die Reparatur ist ein Eintrag in der
+   Liste, nie das Löschen des Anspruchs.
+3. **Der Boden `> 10` konnte den Verlust genau des Blocks nicht sehen, um den es geht** — bei
+   18 lebenden Blöcken dürfen ACHT verschwinden, der `FAQPage` eingeschlossen. Jetzt zusätzlich
+   `faqBlocks > 0`.
+
+**Benotung (§3):** die Offender-Zusicherung ist ein **REGRESSIONS-FANG** (Elternbaum 1, hier 0,
+rot dort aus dem Grund, den ihr Name nennt), die zwei Zählungen sind **COUNTERWEIGHTS** (grün auf
+beiden Bäumen). **Null Vorwärts-Wächter, null Regressionen.** Alles in Python gegen beide Bäume
+transkribiert, samt drei #364-Kontrollproben.
+
+**Nebenbei gemessen (für REIHENFOLGE-Punkt 2, „Bio-Modulation live sichtbar"):** das ist zum
+großen Teil schon da. `AlwaysOnBioPanelStrip` hängt in `EchoelStudioView` (Bio-Panel, Tür =
+Puls-Pille), listet alle vier Always-on-Kanäle mit den Parametern, die sie formen, und liest die
+Live-Werte im eigenen Blatt — Freeze-Gesetz eingehalten. Wer den Punkt plant, plant eine
+ERWEITERUNG, keinen Neubau.
+
+**Founder-Rückstand:** 67 offene Geräte-Bitten in 60 Dateien · 246 überfällige Entscheidungen.
