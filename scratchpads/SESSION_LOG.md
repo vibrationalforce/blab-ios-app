@@ -21115,3 +21115,51 @@ Nadeln in 25 Dateien unsichtbar · fatal-durch-`throw`: 58 Stellen, und ein `thr
 gemessen NULL zusätzliche Funde** — reine Reichweite.
 
 ⚠️ **Kein Produktionscode berührt.** Werkzeug + Wächter-Prosa + Gesetzesdatei.
+
+## 2026-09-01 — #963: der Klammer-Zähler las durch String-Literale, und der naheliegende Fix wäre ein stiller Index-Fehler gewesen
+
+**Der #962 registrierte Befund ist gebaut.** `guard_else_fails` klammerte über einen Chunk mit
+gestrippten KOMMENTAREN, aber intakten STRINGS — und Wächter in diesem Repo zitieren einander
+ständig Swift. Beide Fehlerrichtungen, jetzt im Selbsttest festgenagelt:
+
+· ein unbalanciertes `{` in einer NICHT-fatalen `else`-Meldung ließ das Fenster bis zum
+Funktionsende laufen und lieh sich das `XCTFail` des NÄCHSTEN Wächters — ein legitimer
+`else { return }`-Übersprung als tote Nadel gemeldet, die Fehlalarm-Klasse, von der #665 sagt,
+sie tötet einen Checker · ein unbalanciertes `}` VOR dem `XCTFail` in einer FATALEN Meldung
+schloss das Fenster zu früh, der Fund ging verloren.
+
+Nicht theoretisch: `ASwiftUIBodyStaysUnderTheBuilderOverloadsTests` zitiert
+`struct EchoelFXView: View {` und `var body: some View {` in EINER Meldung — zwei
+unbalancierte `{` — und die Antwort stimmte dort ZUFÄLLIG, weil dieses `else` wirklich fatal
+ist.
+
+⛔ **UND DER REPARATURVORSCHLAG, DEN ICH IN #962 SELBST AUFGESCHRIEBEN HABE, WÄRE FALSCH
+GEWESEN.** Er lautete „über `strip_strings(chunk)` matchen und Offsets auf dem Original
+melden". `guard_else_fails` bekommt `after` als Offset ins ORIGINAL, und **`strip_strings` ist
+NICHT längenerhaltend**: über 418 Dateien gemessen ändern **21** die Länge (`SourceText.swift`
+16518 → 16364, `AudioEngine.swift` 253654 → 253630), weil der Triple-Quote-Kopf die Zeile
+umschreibt. Der Walk hätte auf das falsche Zeichen gezeigt — **in genau den Dateien mit den
+dreifach gequoteten Meldungen, die diese Form lesen muss** — und **nichts wäre rot geworden**,
+weil sich die Baum-Verdikte nicht ändern. Lehre: ein benannter Reparaturweg in einem
+registrierten Befund verdient dieselbe Messung wie der Befund; ich hatte den Satz aus der FORM
+der Funktion geschrieben, nicht aus einem Lauf.
+
+Gebaut ist stattdessen `code_positions(chunk, start)` — ein Generator, der Positionen INNERHALB
+von String-Literalen überspringt, an Ort und Stelle, ohne zweite Kopie und damit ohne
+Offset-Abbildung.
+
+**Vier Mutationen gefahren, alle vier rot** — und **zwei davon überlebten meine ERSTE
+Selbsttest-Fassung**, was die #962-Lehre einen Zyklus später wiederholt: nur den OPENER-Lookup
+zurückdrehen (m14) und nur den `XCTFail`-Mitgliedschaftstest auf Rohtext zurückdrehen (m15)
+blieben grün, weil meine zwei Fixtures die Klammer-ZÄHLUNG pinnten und nicht die zwei anderen
+Stellen desselben Walks. Zwei Fixtures nachgelegt: ein VERBUND-`guard`, dessen zweite Klausel
+`else {` zitiert, und ein höflicher Übersprung, dessen Meldung das Wort `XCTFail` nur NENNT.
+Danach: m13 (naiver Walk) · m14 · m15 · m16 (`code_positions` blind) alle rot.
+
+**Kein Rückschritt:** voller Scan über 401 Wächterdateien unverändert sauber, bekannter Positiv
+gegen den aus `1ae5c5f` archivierten Baum unverändert 3 Funde (Zeilen 80/156/195).
+
+⚠️ **Ehrlicher Rest:** eine wirklich unbalancierte Klammer im CODE (abgeschnittener Chunk)
+läuft weiter bis zum Chunk-Ende. Die Funktion kennt Strings, keine Syntaxfehler.
+
+⚠️ **Kein Produktionscode berührt.**

@@ -572,17 +572,21 @@ def shape3_findings(chunk, corpus, helpers, consts, allow_legacy):
 #     `RMSSDReadsOnlyAdjacentBeatsTests`). The gate's stated purpose — "exclude a legitimate
 #     skip" — does not describe those: a `throw` is not a `return`.
 #
-# ⛔ AND ONE REAL DEFECT, BOTH DIRECTIONS DEMONSTRATED (#962 review), REGISTERED AS ITS OWN
-# SLICE BECAUSE IT CHANGES BEHAVIOUR: `guard_else_fails` brace-matches over the chunk with
-# COMMENTS stripped but STRINGS intact, so a brace inside a failure message miscounts. An
-# unbalanced `{` in a non-fatal else runs the window to the end of the function and picks up an
-# unrelated `XCTFail` — a legitimate skip reported as a dead needle, the false-alarm class #665
-# says kills a checker. An unbalanced `}` in a fatal else closes the window early and the
-# finding is lost. This is not hypothetical: `ASwiftUIBodyStaysUnderTheBuilderOverloadsTests`
-# already quotes `struct EchoelFXView: View {` and `var body: some View {` in one message, two
-# unbalanced `{` in one string, and today's answer is right BY ACCIDENT (that else really is
-# fatal). The repair is cheap and already in this file — match over `strip_strings(chunk)` while
-# reporting offsets on the original.
+# ⭐ #963 — THE BRACE-IN-STRING DEFECT #962 REGISTERED IS FIXED. `guard_else_fails` used to
+# brace-match over a chunk with COMMENTS stripped but STRINGS intact, so a brace inside a
+# failure message miscounted in both directions (see its own docstring). It now walks
+# `code_positions`, which skips string literals in place.
+#
+# ⛔ AND THE REPAIR #962 WROTE DOWN HERE — "match over `strip_strings(chunk)` while reporting
+# offsets on the original" — WOULD HAVE BEEN A SILENT MIS-INDEX. `guard_else_fails` receives
+# `after` as an offset into the ORIGINAL chunk, and `strip_strings` is NOT length-preserving:
+# measured across 418 files, 21 change length (`SourceText.swift` 16518 → 16364,
+# `AudioEngine.swift` 253654 → 253630), because its triple-quote head case rewrites the line.
+# It would have pointed the walk at the wrong character in exactly the files that carry the
+# triple-quoted messages this shape must read — and nothing would have gone red, because the
+# tree's verdicts do not change. A named repair in a registered defect deserves the same
+# measurement as the defect: I wrote that sentence from the shape of the function, not from
+# running it.
 #
 # ⚠️ THE VAR-BOUND FORM IS COVERED TOO, AND NOT COVERING IT WOULD HAVE LOST THE KNOWN POSITIVE
 # THE MOMENT IT WAS REPAIRED: #959b's fix hoists the anchor to a type-level
@@ -609,25 +613,90 @@ GUARD_VAR = re.compile(
     r'\bguard\s+let\s+\w+\s*=\s*[A-Za-z_][\w.]*\.range\(of:\s*([A-Za-z_]\w*)\s*[,)]')
 
 
+def code_positions(chunk, start=0):
+    """Yield every index from `start` that is OUTSIDE a Swift string literal.
+
+    ⭐ #963 — WHY THIS EXISTS INSTEAD OF `strip_strings(chunk)`, which is the obvious repair and
+    which SILENTLY MIS-INDEXES. `guard_else_fails` receives `after` as an offset into the
+    ORIGINAL chunk (`match.end()`), so any blanking pass it walks over must preserve length
+    exactly. `strip_strings` does not: measured across 418 files, **21 change length** (e.g.
+    `SourceText.swift` 16518 → 16364, `AudioEngine.swift` 253654 → 253630), because its
+    triple-quote head case rewrites `raw[:index] + '\"\"\"'`. Handing it a caller's offset
+    would point the brace walk at the wrong character in exactly the files that contain the
+    triple-quoted messages this shape has to read. Skipping in place needs no offset map.
+
+    ⚠️ Comments are already gone by the time shape 6 runs (`main` calls `strip_comments` before
+    `function_chunks`), so strings are the only remaining hazard here.
+    """
+    i, n = start, len(chunk)
+    in_str = in_ml = False
+    while i < n:
+        if in_ml:
+            if chunk.startswith('\"\"\"', i):
+                in_ml = False
+                i += 3
+            else:
+                i += 1
+            continue
+        if in_str:
+            if chunk[i] == "\\" and i + 1 < n:
+                i += 2
+                continue
+            if chunk[i] == '"':
+                in_str = False
+            i += 1
+            continue
+        if chunk.startswith('\"\"\"', i):
+            in_ml = True
+            i += 3
+            continue
+        if chunk[i] == '"':
+            in_str = True
+            i += 1
+            continue
+        yield i
+        i += 1
+
+
 def guard_else_fails(chunk, after):
     """True when the `guard`'s else block, brace-matched from `after`, contains `XCTFail`.
 
     Brace-matched rather than line-windowed (§2, #408): this repo writes 30-40-line doc blocks
     and the else body of these guards routinely carries a multi-line failure message.
+
+    ⛔ #963 — IT COUNTED BRACES INSIDE STRING LITERALS, BOTH ERROR DIRECTIONS DEMONSTRATED.
+    An unbalanced `{` in a NON-fatal else ran the window to the end of the function and picked
+    up an unrelated `XCTFail` later in it — a legitimate `else { return }` skip reported as a
+    dead needle, the false-alarm class #665 says kills a checker. An unbalanced `}` in a FATAL
+    else closed the window early and lost the finding. Not hypothetical:
+    `ASwiftUIBodyStaysUnderTheBuilderOverloadsTests` quotes `struct EchoelFXView: View {` and
+    `var body: some View {` in ONE message — two unbalanced `{` — and the verdict there was
+    right BY ACCIDENT, because that else really is fatal. Guards in this repo quote Swift at
+    each other constantly, so this was going to bite.
+
+    ⚠️ A genuinely unbalanced brace in CODE (a truncated chunk) still runs to the end of the
+    chunk. That is the honest remainder: this function knows strings, not syntax errors.
     """
-    opening = chunk.find("else {", after)
+    opening = -1
+    for i in code_positions(chunk, after):
+        if chunk.startswith("else {", i):
+            opening = i
+            break
     if opening < 0:
         return False
-    depth, i = 0, opening + len("else ")
-    while i < len(chunk):
+    depth, end = 0, len(chunk)
+    for i in code_positions(chunk, opening + len("else ")):
         if chunk[i] == "{":
             depth += 1
         elif chunk[i] == "}":
             depth -= 1
             if depth == 0:
+                end = i
                 break
-        i += 1
-    return "XCTFail" in chunk[opening:i]
+    # `XCTFail` is read on CODE positions too: a failure message that quotes the word
+    # `XCTFail` at another guard is prose, and reading it would make a skip look fatal.
+    body = "".join(chunk[i] for i in code_positions(chunk, opening) if i < end)
+    return "XCTFail" in body
 
 
 def shape6_findings(chunk, corpus, class_binds):
@@ -897,6 +966,77 @@ def selftest():
     if ALIVE in found6:
         print("selftest: shape 6 reported a needle that IS in the corpus — the membership "
               "test is inverted or the corpus is not being read.", file=sys.stderr)
+        ok = False
+
+    # ⛔ #963 — BRACES INSIDE STRING LITERALS, BOTH ERROR DIRECTIONS. Guards in this repo quote
+    # Swift at each other constantly, so an unbalanced brace in a failure message is ordinary,
+    # not exotic (`ASwiftUIBodyStaysUnderTheBuilderOverloadsTests` has two `{` in one message).
+    GONE3 = "let braceOpenerThing = 3"
+    GONE4 = "let braceCloserThing = 4"
+    s6_braces = (
+        '    func b() {\n'
+        '        let code = engineCode()\n'
+        # (a) NON-fatal skip whose message quotes an OPENING brace. Counting it ran the window
+        #     past the end of this else and swallowed the NEXT guard's XCTFail — a legitimate
+        #     `else { return }` reported as a dead needle.
+        '        guard let a = code.range(of: "' + GONE3 + '") else {\n'
+        '            print("this quotes struct X: View {")\n'
+        '            return\n'
+        '        }\n'
+        # (b) FATAL else whose message quotes a CLOSING brace BEFORE the XCTFail. Counting it
+        #     closed the window early, so the XCTFail fell outside and the finding was lost.
+        '        guard let b = code.range(of: "' + GONE4 + '") else {\n'
+        '            let hint = "closing brace } in prose"\n'
+        '            XCTFail("gone: \\(hint)")\n'
+        '            return\n'
+        '        }\n'
+        '    }\n')
+    found_braces = {n for _, n in shape6_findings(s6_braces, ALIVE, {})}
+    if GONE3 in found_braces:
+        print("selftest: shape 6 reported a non-fatal `else { return }` whose message merely "
+              "QUOTES an opening brace. The brace walk is counting inside string literals "
+              "again, so the window ran on and borrowed a neighbour's XCTFail (#963).",
+              file=sys.stderr)
+        ok = False
+    if GONE4 not in found_braces:
+        print("selftest: shape 6 MISSED a fatal guard whose failure message quotes a closing "
+              "brace before the XCTFail. The brace walk closed the window inside a string "
+              "literal, so the XCTFail fell outside it (#963).", file=sys.stderr)
+        ok = False
+
+    # ⛔ AND TWO MORE, FOUND BY MUTATING MY OWN FIX — the #962 lesson arriving one cycle later.
+    # The two cases above pin the brace COUNTING but not the two other places the same walk
+    # reads raw text: reverting only the OPENER lookup, or only the `XCTFail` membership test,
+    # both left the selftest GREEN. What bites is the composition, not the part (#914/#941b).
+    GONE5 = "let compoundThing = 5"
+    GONE6 = "let politeSkipThing = 6"
+    s6_raw = (
+        '    func c() {\n'
+        '        let code = engineCode()\n'
+        # (c) A COMPOUND guard whose second clause QUOTES `else {`. A raw `find("else {")` from
+        #     the needle latches onto that string and starts the brace walk inside a literal.
+        '        guard let c = code.range(of: "' + GONE5 + '"),\n'
+        '              code.contains("} else { fallthrough }") else {\n'
+        '            XCTFail("gone")\n'
+        '            return\n'
+        '        }\n'
+        # (d) A NON-fatal skip whose message merely NAMES `XCTFail`. Read on raw text, the word
+        #     inside the string makes a polite skip look fatal and the needle gets reported.
+        '        guard let d = code.range(of: "' + GONE6 + '") else {\n'
+        '            print("re-anchor this rather than XCTFail here")\n'
+        '            return\n'
+        '        }\n'
+        '    }\n')
+    found_raw = {n for _, n in shape6_findings(s6_raw, ALIVE, {})}
+    if GONE5 not in found_raw:
+        print("selftest: shape 6 MISSED a fatal compound guard whose second clause quotes "
+              "`else {`. The opener lookup is reading raw text again, so the brace walk "
+              "started inside a string literal (#963).", file=sys.stderr)
+        ok = False
+    if GONE6 in found_raw:
+        print("selftest: shape 6 reported a polite `else { return }` whose message merely "
+              "NAMES `XCTFail`. The fatality test is reading raw text, so prose about another "
+              "guard makes a skip look fatal (#963).", file=sys.stderr)
         ok = False
 
     # The VACUOUS-GATE mutation (#926), driven through `legacy_allowed` — the function `main`
