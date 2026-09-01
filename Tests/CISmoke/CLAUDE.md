@@ -202,7 +202,8 @@ nicht dekodierbaren Escapes werden jetzt übersprungen — beide Formen teilen d
 weil „eine Form repariert, ihre Zwillingsform kaputt" genau der Weg ist, auf dem #937 entstand.
 
 ```
-python3 scripts/dead-needles.py        # 0 = clean · 1 = a guard fails on a correct tree
+python3 scripts/dead-needles.py            # 0 = clean · 1 = a guard fails on a correct tree
+python3 scripts/dead-needles.py --selftest # after touching it (#941)
 ```
 
 ```
@@ -300,6 +301,21 @@ NEW silent return added to either function"*). No number to go stale, graded acr
 trees. ⚠️ Its first draft false-reddened a WRAPPED breadcrumb — the form written in the very
 file it scans — and stayed green on `if x { return }`, `else{return}`, a trailing-comment
 `return` and a silent `throw`. Mutation-drive a scanner like this before believing it.
+
+⛔ **AND IT HAD NO SELFTEST UNTIL #941, in a script whose own comments argue twice that a
+checker must be DRIVEN against a known positive rather than reasoned about.** Two decisions it
+gets wrong quietly are now pinned on literals — the escape skip and the per-function receiver
+scope — and both were verified by applying the mutation each was written for and watching it go
+red. ⚠️ **The first draft of that selftest would not have bitten:** it drove `decode_needle` on
+literals, which was already correct, while the defect was that shape 3 never CALLED it. That is
+the #914 lesson one section up, in a different file — **what bites is the composition**, so the
+shape-3 body was extracted into `shape3_findings(chunk, corpus)` and the selftest drives THAT.
+⛔ The defect itself is the #937 pattern once more: `decode_needle`'s docstring says *"Shape 1
+shares this decode on purpose"* and shape 3 decoded escapes inline — a claim of coverage the
+code did not have, latent because shape 3 finds nothing on today's tree. It surfaced only from
+a **binder-widening experiment that was measured and deliberately NOT shipped** (392 unrecognised
+bindings across 103 files, 11 candidates, every inspected one a false alarm in four distinct
+kinds — the reasons are written at `SOURCE_BIND` so nobody re-derives them).
 
 Back to `dead-needles.py` (its command block is well above now): it checks the two
 shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))` and

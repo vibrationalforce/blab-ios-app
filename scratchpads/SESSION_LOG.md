@@ -19063,3 +19063,58 @@ Live-Werte im eigenen Blatt — Freeze-Gesetz eingehalten. Wer den Punkt plant, 
 ERWEITERUNG, keinen Neubau.
 
 **Founder-Rückstand:** 67 offene Geräte-Bitten in 60 Dateien · 246 überfällige Entscheidungen.
+
+## 2026-09-01 — #941: das Messgerät hatte den Defekt, den es sucht
+
+**#940 bestätigt:** `2e69e0e` — Compile Check grün, `Build for Testing` Succeeded (der neue
+Wächter kompiliert), 0 Compile-Fehler, 0 Fehlschläge, 0 Skips, 134 beobachtet bestanden. Die
+`failure` ist #396, und der Verdikt-Leser sagt es diesmal in der Form, für die #935b gebaut
+wurde: ein Klon konnte nicht starten, **ein anderer meldete 134 Bestandene — das Log entlastet
+das Binary selbst.**
+
+**Die REIHENFOLGE des Crons zuerst GEMESSEN, statt sie zu bauen.** Vier der fünf Punkte gehen
+ins Leere, und das ist keine Meinung: 1 (Automation in der Spur) — Clips/Arrangement mit #121
+gelöscht · 3 (externe AUv3) — Ziel am 2026-07-24 entfernt · 4 (Leisten in der Timeline) —
+Timeline-UI gelöscht · 5 (Visuals grau) — **erledigt und überholt**: #578 hat auf ausdrücklichen
+Founder-Wunsch die Sättigung angehoben (Default 1.05) und die DREI gestapelten Entsättiger
+aufgelöst, deren Netto-Chroma ~0,68 war; offen ist nur die Geräteprobe. Punkt 2
+(Bio-Modulation sichtbar) ist **weitgehend gebaut**: `AlwaysOnBioPanelStrip` hängt im Bio-Panel,
+zeigt alle vier Kanäle mit den Parametern, die sie formen, Demo-/held-Marker und den Live-Wert,
+alles aus EINER Quelle abgeleitet (`AlwaysOnBioChannel` → `BioShapedParameter`). Wer den Punkt
+plant, plant eine Erweiterung.
+
+**Also die Selbstheilung am Werkzeug.** `dead-needles.py` findet Wächter, deren Suchtext es in
+`Sources/` nicht mehr gibt — also Wächter, die auf korrektem Baum rot sind. Drei Befunde:
+
+1. **Form 3 dekodierte Escapes INLINE, statt den gemeinsamen `decode_needle` zu rufen** — zum
+   dritten Mal das #937-Muster „eine Form repariert, ihre Zwillingsform kaputt", und diesmal
+   behauptete der Doc-Kommentar des Dekoders die Deckung, die der Code nicht hatte („Shape 1
+   shares this decode on purpose"). LATENT, nicht live: Form 3 findet auf dem heutigen Baum
+   nichts. Sichtbar wurde es erst durch das Experiment unten.
+2. **Es gab keinen Selbsttest** — in einem Skript, dessen eigene Kommentare zweimal sagen, ein
+   Prüfer müsse gegen einen bekannten Positivfall GETRIEBEN werden. ⚠️ **Und meine erste Fassung
+   hätte nicht gebissen:** sie prüfte `decode_needle` auf Literalen, und der war schon richtig —
+   der Defekt war, dass Form 3 ihn nie RIEF. Das ist die #914-Lehre eine Datei weiter: was
+   beißt, ist die ZUSAMMENSETZUNG. Der Rumpf von Form 3 ist deshalb als
+   `shape3_findings(chunk, corpus)` herausgehoben, und der Test treibt DEN. Beide Fälle
+   (Escape-Überspringen, Empfänger-Sichtbarkeit pro Funktion) wurden gegen ihre Mutation
+   gefahren: **rot am Mutanten, grün am echten Skript.**
+3. **Die naheliegende Erweiterung ist gemessen und BEWUSST NICHT ausgeliefert.** `SOURCE_BIND`
+   erkennt nur die `Self.`-qualifizierten Schreibweisen; das Bundle bindet Quelltext **392 Mal
+   in 103 Dateien** in der schlichten Form (`let code = try source("Sources/…")`) — **~87 % der
+   Bindungsstellen sind für Form 3 unsichtbar.** Die Erweiterung ist eine Zeile und liefert
+   **elf** neue Kandidaten; jeder geprüfte ist ein **Fehlalarm**, in vier Sorten: roh gegen
+   kommentarfrei (`rawSource`, und ein `source()`, das gar nicht strippt — der Wächter behauptet
+   dort ABSICHTLICH über einen Kommentar) · der Empfänger ist gar keine `Sources/`-Datei
+   (`CLAUDE.md`, Dateien unter `Tests/`) · umgeformter Text (`squashed`, Quelltext ohne
+   Leerzeichen) · Escapes. **Der gemeinsame Grund, und deshalb hilft keine Regex: ein
+   Empfänger-NAME sagt nicht, was der Text IST.** Nach #665 ist der ehrliche Ausgang der Absatz
+   im Skript, nicht die Erweiterung — dieselbe Entscheidung, die `Tests/CISmoke/CLAUDE.md` §5
+   schon einmal für einen Aufrufer-Prüfer getroffen hat.
+
+**Verifikation:** beide Mutationen getrieben (Kopien im Scratchpad, nie im Repo), Instrumente
+grün (dead-needles 391 Dateien · `--selftest` OK · count-pins 137/158 0 RED ·
+needle-reachability sauber). ⚠️ **Der Pflicht-Reviewer lief bei diesem Commit noch** — er misst
+gerade, ob die Herausnahme das VERHALTEN geändert hat; seine Befunde kommen als #941b. Der
+Commit ist trotzdem gesetzt, weil der Container flüchtig ist und ein Python-Skript kein Swift-
+Gate brechen kann.

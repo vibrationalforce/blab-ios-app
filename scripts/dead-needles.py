@@ -161,6 +161,30 @@ POSITIVE_COUNT = re.compile(
 # names a `Tests/`, `docs/` or `scripts/` path may be asserting about something other than
 # production code, and this script only knows about `Sources/`. `SOURCE_BIND` then decides
 # which local names hold source text.
+#
+# ⛔ #941 — THE OBVIOUS WIDENING WAS PROTOTYPED, MEASURED, AND DELIBERATELY NOT SHIPPED, and
+# the measurement is written down so nobody re-derives it. `SOURCE_BIND` recognises only the
+# `Self.`-qualified spellings; the bundle binds source text 392 times across 103 files in the
+# plain instance form (`let code = try source("Sources/…")`), so ~87 % of the binding sites are
+# invisible to this shape. Widening the regex to accept the plain form is one line, and it
+# surfaced ELEVEN new candidates — every inspected one a FALSE ALARM, in four distinct kinds:
+#
+#   · RAW vs STRIPPED. `AGrainCannotClickOrRunAwayTests` binds `rawSource` and asserts a needle
+#     that lives in a COMMENT in `EchoelFXChain.swift`. This script's corpus is comment-blanked,
+#     so it cannot see it. Same for `EveryReachableRowStatesItsGridTests`, whose own `source()`
+#     helper does not strip at all — the guard asserts on a comment ON PURPOSE.
+#   · THE RECEIVER IS NOT A `Sources/` FILE. `BioApplyRateIsTheDedupedRateTests` binds
+#     `CLAUDE.md`; `OneDefinitionOfCodeNotProseTests` reads files under `Tests/`. The FILE gate
+#     above passes them because their string literals name only `Sources/` paths.
+#   · TRANSFORMED TEXT. `UnmeasuredPulseIsNotZeroTests` binds `squashed` — source with all
+#     whitespace removed — and asserts `"guardletv,v.isFiniteelse{returnd}"`.
+#   · ESCAPES. The `\n` needles that exposed the decoder gap repaired above.
+#
+# The common cause, and it is why no regex fixes this: **a receiver NAME does not say what the
+# text IS.** Raw or stripped, whole file or squashed, `Sources/` or a Markdown ledger — the
+# script would have to resolve the helper, and the helpers differ per file by design. Per #665's
+# own rule (a checker with false alarms is a checker nobody reads), the honest output is this
+# paragraph rather than a widening that is wrong eleven ways on a correct tree.
 SOURCE_PATH = re.compile(
     r'"((?:Sources|Tests|docs|scripts|fastlane|memory|scratchpads|ContentPipeline)/[^"]*)"')
 SOURCE_BIND = re.compile(
@@ -303,6 +327,43 @@ def strip_strings(text):
     return "\n".join(out)
 
 
+def shape3_findings(chunk, corpus):
+    """Shape 3 for ONE function chunk: yield `(match, needle)` for each needle asserted
+    present that the corpus does not contain.
+
+    ⭐ #941 EXTRACTED THIS SO THE SELFTEST CAN DRIVE THE COMPOSITION, not the parts. The first
+    draft of that selftest checked `decode_needle` on literals — which was already correct — and
+    would therefore have stayed GREEN through the exact mutation it was written for (shape 3
+    decoding escapes inline instead of calling it). That is the #914 lesson one file over: what
+    bites is the composition, and a checker that cannot fail on its own mutation is not a
+    checker.
+    """
+    receivers = {m.group(1) for m in SOURCE_BIND.finditer(chunk)}
+    if not receivers:
+        return
+    for match in POSITIVE_CONTAINS.finditer(chunk):
+        if match.group(1) not in receivers:
+            continue
+        # ⛔ #941 — THIS DECODED ESCAPES INLINE INSTEAD OF CALLING `decode_needle`, which is the
+        # #937 pattern the decoder was written to end: one form repaired, its twin left broken.
+        # `decode_needle`'s own docstring says "Shape 1 shares this decode on purpose" and shape
+        # 3 did not — a claim of coverage the code did not have, in the tool this repo reaches
+        # for when a guard rots.
+        #
+        # It was LATENT, not live: shape 3 finds nothing on today's tree. The demonstration came
+        # from the binder-widening experiment recorded above —
+        # `TheAutotuneCharacterIsDerivedNotStoredTests` asserts
+        # `engine.contains("var voiceTuneStrength: Float = 1\n")`, whose `\n` the old
+        # two-`replace` decode left as two characters. That can never be in `Sources/`, so the
+        # moment a RECOGNISED binding met such a needle the tool would have reported a correct
+        # guard as dead — the #665 false alarm this file argues against in its own comments.
+        needle = decode_needle(match.group(2))
+        if needle is None or len(needle) < MIN_NEEDLE or "\\(" in needle:
+            continue
+        if needle not in corpus:
+            yield match, needle
+
+
 def main(root="."):
     guards = sorted(glob.glob(os.path.join(root, "Tests/CISmoke/*.swift")))
     if not guards:
@@ -414,18 +475,10 @@ def main(root="."):
         # the enclosing function is simply skipped.
         for chunk in re.split(r"\n    (?=(?:private |public |internal )?(?:static )?func )",
                               guard_code):
-            receivers = {m.group(1) for m in SOURCE_BIND.finditer(chunk)}
-            if not receivers:
-                continue
-            for match in POSITIVE_CONTAINS.finditer(chunk):
-                receiver = match.group(1)
-                needle = match.group(2).replace('\\"', '"').replace("\\\\", "\\")
-                if len(needle) < MIN_NEEDLE or "\\(" in needle or receiver not in receivers:
-                    continue
-                if needle not in corpus:
-                    offset = guard_code.find(chunk)
-                    line = guard_code[:offset + match.start()].count("\n") + 1
-                    dead.append((os.path.relpath(guard, root), line, needle))
+            for match, needle in shape3_findings(chunk, corpus):
+                offset = guard_code.find(chunk)
+                line = guard_code[:offset + match.start()].count("\n") + 1
+                dead.append((os.path.relpath(guard, root), line, needle))
 
     if not dead and not uncompilable:
         print(f"dead-needles: OK — {len(guards)} guard file(s), no dead needle, "
@@ -449,5 +502,62 @@ def main(root="."):
     return 1
 
 
+def selftest():
+    """Drive the two decisions this script gets wrong quietly — on literals, not on the tree.
+
+    ⛔ #941 — THERE WAS NO SELFTEST, in a script whose own comments argue twice that a checker
+    must be driven against a known positive rather than reasoned about. Both cases below go RED
+    under the mutation they were written for and green after; a fixture over the real tree could
+    not have shown either, because shape 3 finds nothing there in both directions.
+    """
+    ok = True
+    ESC = chr(92) + "n"           # the two characters a Swift `\n` is before decoding
+
+    # 1. THE COMPOSITION, not the parts (#914). A needle carrying an undecodable escape must be
+    #    SKIPPED by shape 3, never compared: decoded naively it becomes characters that can never
+    #    be in `Sources/`, so the tool would report a correct guard as dead (#665/#937). Driving
+    #    `decode_needle` alone here would stay green through exactly that mutation — it is the
+    #    CALL SITE that was wrong, not the decoder.
+    chunk = ('    func a() throws {\n'
+             '        let code = Self.source(of: "Sources/X.swift")\n'
+             '        XCTAssertTrue(code.contains("var voiceTuneStrength: Float = 1' + ESC + '"))\n'
+             '        XCTAssertTrue(code.contains("var voiceTuneStrength: Float = 1"))\n'
+             '    }\n')
+    corpus = "var voiceTuneStrength: Float = 1\n"
+    reported = [needle for _, needle in shape3_findings(chunk, corpus)]
+    if reported:
+        print(f"selftest: shape 3 reported {reported} — an escaped needle must be skipped, "
+              "and the unescaped one is present in the corpus")
+        ok = False
+    # …and it must still FIND a genuinely absent needle, or the skip above proves nothing.
+    absent = [needle for _, needle in shape3_findings(chunk, "something else entirely")]
+    if absent != ["var voiceTuneStrength: Float = 1"]:
+        print(f"selftest: shape 3 found {absent} — it must report the one plain needle that is "
+              "absent from the corpus, or the test above is vacuous")
+        ok = False
+
+    # 2. The receiver scope, which #666 had to narrow from per-FILE to per-FUNCTION after seven
+    #    false positives. A name bound to source text in one function must not vouch for the
+    #    same name in the next.
+    two = ('    func a() throws {\n'
+           '        let line = Self.body(of: "x", in: "Sources/Y.swift")\n'
+           '        XCTAssertTrue(line.contains("a needle that is source text"))\n'
+           '    }\n'
+           '    func b() throws {\n'
+           '        let line = AudioConfiguration.latencyLine(sampleRate: 48000)\n'
+           '        XCTAssertTrue(line.contains("a needle that is a produced string"))\n'
+           '    }\n')
+    chunks = re.split(r"\n    (?=(?:private |public |internal )?(?:static )?func )", two)
+    scoped = [n for c in chunks for _, n in shape3_findings(c, "")]
+    if scoped != ["a needle that is source text"]:
+        print(f"selftest: receiver scope leaked across functions — checked {scoped}")
+        ok = False
+
+    print("dead-needles --selftest: OK" if ok else "dead-needles --selftest: FAILED")
+    return 0 if ok else 1
+
+
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--selftest":
+        sys.exit(selftest())
     sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "."))
