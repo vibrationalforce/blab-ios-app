@@ -282,7 +282,17 @@ ends nothing — and it contradicted the footer four lines below, **in the one c
 over-collecting census exists for**. (b) A numbered line printed *"walks on"*, a claim about
 Swift control flow that a line scanner cannot make: a numbered skip that RETURNS is writable
 (that is why guard (c3) exists), and the label would then point the reader away from a real
-death — #908's first draft again. The checkable claim is narrower: it does not RESCUE. (c)
+death — #908's first draft again. The checkable claim is narrower: it does not RESCUE.
+⭐ **AND A FOURTH, FOUND IN #957 AND OF A DIFFERENT KIND: the narrower claim was still too
+wide.** "does NOT rescue" is right, but the label went on to say *"a ladder ending here still
+reads as ❌ died"* for EVERY numbered line — and a skip on the ladder's **last** rung leaves a
+COMPLETE ladder, which this same tool's log mode prints as `✅ done`. So the instrument
+contradicted its own verdict on the exact line a triager reads while holding a crash log. The
+census now carries the rung TEXT (a fifth field) and `completes_ladder` decides, conservatively:
+`False` unless the number parses, its total matches the ladder's own, and it is the last rung.
+⚠️ The pattern of all four is the same and worth naming: each was a label claiming MORE than the
+scanner could support, and each was caught by driving the pure function rather than reading it.
+(c)
 *"ENDS the ladder"* was unconditional, but rescue requires the terminator to FOLLOW the last
 rung of a SHORT ladder; a terminator before the rungs leaves a death, one after a complete
 ladder leaves `done`.

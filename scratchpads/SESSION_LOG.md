@@ -20555,3 +20555,38 @@ geweitet UND verlangt, dass `format:` darin VORKOMMT — sonst geht er leer-grü
 **Benotung:** 13 Zusicherungsstellen, 7 rot auf `c6a6787`, 0 auf dem Arbeitsbaum; zusätzlich die
 Pins der ZWEI Nachbar-Wächter über beide Bäume gefahren, weil diese Scheibe drei davon rot
 gemacht hatte — alle jetzt grün.
+
+## 2026-09-01 — #957: das Leiter-Werkzeug widersprach seinem eigenen Urteil
+
+**Gates zu #956/#956b:** beide `build-for-testing: Succeeded`, 0 Compile-Fehler, 0 Failures,
+0 Skips, 167 Tests. ⚠️ **Die Vorhersage des Reviewers ist damit NICHT bestätigt und nicht
+widerlegt:** keiner der vier betroffenen Wächter steht im `tail -200`-Fenster (#807/#445). Was
+sie stützt, ist meine eigene Nachmessung (`input.inputFormat` = 2 bei Pin 1; `"on 5/5"` = 3 bei
+Pin 2), nicht das Log.
+
+**Der Befund.** `census_effect` in `scripts/diag-ladder.py` druckte für JEDE nummerierte
+Zeile „does NOT rescue — a ladder ending here still reads as ❌ died". Für einen Übersprung auf
+der LETZTEN Sprosse ist das **das Gegenteil dessen, was dasselbe Werkzeug im Log-Modus sagt**:
+eine Leiter, deren letzte Sprosse `N/N` ist, ist VOLLSTÄNDIG, also `✅ done`. Ein Triagierer mit
+einem Absturz-Log wurde auf einen Tod hingewiesen, den das Werkzeug selbst nicht sieht — die
+#937-Lehre eine Schicht weiter innen, im Instrument.
+
+**Gebaut:** der Zensus trägt jetzt den Sprossen-TEXT als fünftes Feld, und `completes_ladder`
+entscheidet konservativ — `False`, außer die Zahl parst, ihr Nenner stimmt mit dem EIGENEN
+Nenner der Leiter überein, und sie ist die letzte Sprosse. Zwei der vier `on … SKIPPED`-Zeilen
+sagen jetzt korrekt „COMPLETES the ladder → ✅ done", die mittlere behält die vorsichtige
+Formulierung.
+
+**Selftest:** fünf neue Prüfungen, alle über die REINEN Funktionen gefahren statt über eine
+Nachbildung (#416) — inklusive einer, die das Log-Urteil selbst misst (`ladder_verdicts` auf
+einem Log, das auf einem Letzte-Sprosse-Übersprung endet, liefert `done`). `selftest OK`.
+
+⭐ **Das Muster aller VIER Defekte dieses Labels ist dasselbe** (drei fand #914, den vierten
+#957): jedes Mal behauptete die Beschriftung MEHR, als der Scanner tragen kann. Und jedes Mal
+wurde es gefunden, indem man die reine Funktion FUHR statt sie zu lesen. Im Gesetzes-Text
+(`Tests/CISmoke/CLAUDE.md`) steht der vierte jetzt neben den drei anderen.
+
+**Zwei Selbstfänge beim Bauen:** ein `//` statt `#` in einer Python-Zeile (Parse-Fehler, sofort
+sichtbar) und ZWEI Entpack-Stellen des Tupels, die der Selftest nacheinander rot machte — genau
+wofür ein Selftest da ist. Vor der Signatur-Änderung wurde nach fremden Aufrufern gegrept
+(#666): nur Prosa, kein Code.

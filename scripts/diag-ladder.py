@@ -193,6 +193,12 @@ def terminators_in_source(root: str,
     census that exists to prove the vocabulary is complete would defeat its purpose, so it
     over-collects in the safe direction, exactly as `ladders_in_source` does.
 
+    ⭐ #957 — THE FIFTH FIELD IS THE RUNG TEXT, and it exists because the fourth was not
+    enough. `census_effect` knew a line was NUMBERED but not WHICH number, so it printed
+    "still reads as ❌ died" for every numbered skip — including one at the LAST rung, where
+    the ladder is COMPLETE and this same tool prints `✅ done` in log mode. A tool that tells a
+    triager the opposite of what it itself does is the #937 defect inside the instrument.
+
     ⚠️ IT CANNOT SEE A 1/1 LADDER'S TERMINATOR (#908 review, LOW-6): `ladders_in_source`
     drops `total < 2`, so `session: lower` is not in `names` and its two `SKIPPED` lines do
     not appear here. Harmless — a 1/1 ladder is not tracked in log mode either, so its
@@ -202,6 +208,11 @@ def terminators_in_source(root: str,
     names = sorted({p for (p, _t) in ladders}, key=len, reverse=True)
     if not names:
         return []
+    # The ladder's OWN total, per prefix — `None` when a prefix carries two, which is
+    # ambiguous and must fall back to the conservative wording rather than guess.
+    totals: dict[str, "int | None"] = {}
+    for (pfx, tot) in ladders:
+        totals[pfx] = None if (pfx in totals and totals[pfx] != tot) else tot
     pat = census_pattern(names)
     out: list[tuple[str, str, str, bool]] = []
     for path in tracked_swift(root):
@@ -217,11 +228,29 @@ def terminators_in_source(root: str,
                 continue
             for m in pat.finditer(line):
                 out.append((f"{rel}:{lineno}", m.group(1), m.group(3),
-                            m.group(2) is not None))
+                            m.group(2) is not None,
+                            completes_ladder(m.group(2), totals.get(m.group(1)))))
     return sorted(set(out))
 
 
-def census_effect(word: str, numbered: bool) -> str:
+def completes_ladder(rung_text: "str | None", total: "int | None") -> bool:
+    """Does this numbered census line sit on the ladder's LAST rung? (#957)
+
+    Conservative by construction: `False` unless the text parses as `n/t`, `t` equals the
+    ladder's own total, and `n == t`. `census_pattern`'s group 2 only proves a number is
+    TEXTUALLY present — `on 2/3 SKIPPED` under a 1..5 ladder matches with the group set — so
+    anything that does not line up returns `False` and the caller keeps the cautious wording.
+    """
+    if not rung_text or total is None:
+        return False
+    m = re.fullmatch(r"(\d{1,2})/(\d{1,2})\s*", rung_text)
+    if not m:
+        return False
+    n, t = int(m.group(1)), int(m.group(2))
+    return t == total and n == t
+
+
+def census_effect(word: str, numbered: bool, completes: bool = False) -> str:
     """What a census line does to a LOG verdict. Pure, so the selftest drives THIS and not a
     re-implementation of it (#416), and so an inverted flag cannot pass unnoticed (#914
     review, MEDIUM-4: the first check was `any(numbered) and any(not numbered)` over the real
@@ -247,6 +276,16 @@ def census_effect(word: str, numbered: bool) -> str:
     if word not in TERMINAL_WORDS:
         return "ends NOTHING (word unknown to the tool) — its ladder still reads as ❌ died"
     if numbered:
+        # ⛔ #957 — THIS PRINTED "still reads as ❌ died" FOR EVERY NUMBERED LINE, and for one
+        # at the ladder's LAST rung that is the opposite of what this same tool prints in log
+        # mode: a ladder whose last rung is `N/N` is COMPLETE, so the verdict is `✅ done`.
+        # A triager holding a crash log was being told to look for a death that the tool
+        # itself does not see — the #937 defect one layer in, inside the instrument. The
+        # claim stays as weak as the scanner allows everywhere else (`completes` is False
+        # unless the number parses AND matches the ladder's own total AND is its last rung).
+        if completes:
+            return ("does NOT rescue — but this rung COMPLETES the ladder, "
+                    "so a log ending here reads ✅ done")
         return "does NOT rescue — a ladder ending here still reads as ❌ died"
     if word in BENIGN_TERMINALS:
         return "rescues a SHORT ladder it FOLLOWS  → ⏹ ended"
@@ -279,19 +318,23 @@ def audit_source(root: str) -> int:
     print("\n  ALL-CAPS outcome words after a ladder prefix (#908/#914):")
     if terms:
         unknown = 0
-        for where, prefix, word, numbered in terms:
+        for where, prefix, word, numbered, completes in terms:
             known_word = "" if word in TERMINAL_WORDS else "   ⚠️ NOT IN TERMINAL_WORDS"
             unknown += 1 if known_word else 0
             print(f"    · {where}  {prefix} … {word}{known_word}")
-            print(f"        {census_effect(word, numbered)}")
+            print(f"        {census_effect(word, numbered, completes)}")
         print("    ⭐ The list is a census of WORDS, not of rescues — it over-collects on")
         print("    purpose so a NEW word shows up instead of silently reading as a death.")
         print("    RESCUE IS CONDITIONAL and the line above says only what the WORD allows:")
         print("    `ladder_verdicts` rescues a ladder only when the terminator FOLLOWS its")
         print("    last rung and that rung is short of `total`. A terminator before the rungs")
         print("    leaves a death; one after a COMPLETE ladder leaves `done`.")
-        print("    A numbered skip is not rescued at all: once a number is present, the form")
+        print("    A numbered skip is not RESCUED at all: once a number is present, the form")
         print("    that walks on and the form that returns are the SAME STRING in a log.")
+        print("    #957: not rescued is not the same as read as a death. A skip on the LAST")
+        print("    rung leaves a COMPLETE ladder, so its log reads done — the line above says")
+        print("    which of the two it is, because saying died there contradicted this very")
+        print("    tool's own log-mode verdict.")
     else:
         print("    · none — every short ladder in a log will read as a DEATH.")
 
@@ -588,7 +631,7 @@ def selftest(root: str) -> int:
     # The vocabulary is asserted against an INDEPENDENT scan (any ALL-CAPS token after a
     # ladder prefix), never against the word list itself — see terminators_in_source.
     census = terminators_in_source(root, ladders)
-    used = {w for (_where, _p, w, _n) in census}
+    used = {w for (_where, _p, w, _n, _c) in census}
     check(f"every terminal word in Sources/ is known: {sorted(used)}",
           used.issubset(set(TERMINAL_WORDS)))
 
@@ -602,6 +645,25 @@ def selftest(root: str) -> int:
     def numbered_of(line: str):
         m = cpat.search(line)
         return None if m is None else (m.group(1), m.group(3), m.group(2) is not None)
+
+    # #957 — the LAST-RUNG case, driven through the two pure functions rather than through a
+    # re-implementation. ⛔ Before this, `census_effect` printed "still reads as ❌ died" for a
+    # numbered skip at `N/N`, while `ladder_verdicts` on the same log prints `done` — the tool
+    # contradicting itself, which is exactly what a triager acts on.
+    check("a skip on the LAST rung is labelled as completing, not as a death",
+          "✅ done" in census_effect("SKIPPED", True, completes_ladder("5/5 ", 5))
+          and "❌ died" not in census_effect("SKIPPED", True, completes_ladder("5/5 ", 5)))
+    check("a skip on a MIDDLE rung keeps the cautious wording",
+          "❌ died" in census_effect("SKIPPED", True, completes_ladder("4/5 ", 5)))
+    check("a rung whose total disagrees with the ladder cannot claim completion",
+          completes_ladder("3/3 ", 5) is False)
+    check("an unparsable or absent rung cannot claim completion",
+          completes_ladder(None, 5) is False and completes_ladder("x/y ", 5) is False)
+    # And the verdict this label now agrees with, measured rather than asserted from memory.
+    check("a log ending on a LAST-rung skip really does read as done",
+          ladder_verdicts(["on 1/5: a", "on 2/5: b", "on 3/5: c", "on 4/5: d",
+                           "on 5/5 SKIPPED: tap already installed"],
+                          {("on", 5)}).get(("on", 5), {}).get("verdict") == "done")
 
     check("a numbered skip is read as numbered",
           numbered_of("monitor: on 4/5 SKIPPED: engine was not running")
@@ -634,7 +696,7 @@ def selftest(root: str) -> int:
     # line, so an inversion disagrees on the first numbered entry and a legitimate tree change
     # cannot redden it.
     mismatched = []
-    for where, prefix, word, numbered in census:
+    for where, prefix, word, numbered, _completes in census:
         rel, _, lineno = where.rpartition(":")
         try:
             line = open(os.path.join(root, rel), encoding="utf-8").read().split("\n")[int(lineno) - 1]
