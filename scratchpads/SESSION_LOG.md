@@ -19968,3 +19968,32 @@ ERSTE Ereignis eines Schwungs, und das gehört dorthin, wo ein Leser zuerst hins
 **Instrumente:** `dead-needles` 395 + Selbsttest OK · `count-pins` 137/160, 0 rot ·
 `needle-reachability` sauber · `doctor` die zwei bekannten founder-gated CI-Masken.
 **Kompiliert ist noch nichts** — das liest der nächste Zyklus.
+
+---
+
+## #951b — `NSLock` darf nicht in einen `Task`-Rumpf (2026-09-01)
+
+**Gates von #951 gelesen: `Xcode Compile Check` ROT.** Genau ZWEI Fehler, beide dieselbe
+Ursache: *„instance method 'lock' is unavailable from asynchronous contexts."* `lock()` und
+`unlock()` sind `@available(*, noasync)`, und meine Freigabe des Gates stand im
+`Task { @MainActor }`-Rumpf.
+
+⭐ **DIE LEHRE IST ÜBER DIE PRÜFUNG, NICHT ÜBER SPERREN.** Der Pflicht-Reviewer hat die
+Isolation gründlich geprüft — fünf Präzedenzfälle im Baum, die genaue Modifier-Reihenfolge, die
+`Sendable`-Frage, sogar dass `-warnings-as-errors` die beiden Gates gar nicht erreicht — und
+kam zu „LOW RISK, alle vier Konstrukte sind präzedenziert". Das war RICHTIG und trotzdem
+unvollständig: **ob ein `nonisolated`-Member aus einem Kontext ERREICHBAR ist, ist eine andere
+Frage als ob seine API dort ERLAUBT ist**, und nur die zweite stellt eine `async`-Closure.
+Keiner von uns hat `noasync` geprüft.
+
+**Fix, eine Zeile:** der kritische Abschnitt liegt jetzt in `nonisolated private func
+clearNotifyScheduled()`, das die Closure ruft. ⚠️ **Kein Schlupfloch:** `noasync` existiert,
+damit eine Sperre nicht über einen Suspension-Point gehalten wird — und eine synchrone Funktion
+kann kein `await` enthalten, die Eigenschaft ist also strukturell garantiert statt umgangen.
+`withLock` wäre der Vorschlag der Diagnose selbst, hat aber **null Präzedenz** in diesem Baum;
+ohne lokalen Compiler führe ich keine API ein, die das SDK vielleicht nicht zeigt.
+
+**DEAD-ENDS-Zeile gesetzt**, weil das jede künftige Sperre in einem `Task` trifft.
+
+⚠️ Die Gate-Disziplin hat funktioniert, wie sie soll: der Fehler war in einem Zyklus gefunden
+und in einem behoben, und `Xcode Compile Check` — nicht die CI/CD-Conclusion — war der Zeuge.

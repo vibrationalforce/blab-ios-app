@@ -735,6 +735,27 @@ public final class EngineBus {
     @ObservationIgnored
     nonisolated(unsafe) private var notifyScheduled = false
 
+    /// Release the gate. ⛔ #951b — THIS EXISTS BECAUSE THE FIRST VERSION PUT THESE THREE
+    /// LINES INSIDE THE `Task { @MainActor }` BODY AND THE Xcode GATE REJECTED IT:
+    /// *"instance method 'lock' is unavailable from asynchronous contexts; Use async-safe
+    /// scoped locking instead."* `NSLock.lock()`/`unlock()` are `@available(*, noasync)`.
+    /// The mandatory concurrency review and I both checked ISOLATION — which was fine, and
+    /// the reviewer proved it against five precedents in this tree — and neither of us
+    /// checked `noasync`. **A `nonisolated` member being reachable from a context is not the
+    /// same question as its API being ALLOWED in that context**, and only the second one is
+    /// what an `async` closure asks.
+    ///
+    /// ⚠️ AND THE WRAPPER IS NOT A LOOPHOLE, WHICH IS WHY IT IS THE FIX RATHER THAN A
+    /// `withLock` this repo has no precedent for. `noasync` exists to stop a lock being held
+    /// ACROSS A SUSPENSION POINT; a synchronous function cannot contain an `await`, so the
+    /// critical section is structurally guaranteed not to span one. The rule is honoured
+    /// here, not dodged.
+    nonisolated private func clearNotifyScheduled() {
+        notifyLock.lock()
+        notifyScheduled = false
+        notifyLock.unlock()
+    }
+
     // MARK: - Init
 
     public init(
@@ -797,9 +818,7 @@ public final class EngineBus {
 
         Task { @MainActor [weak self] in
             guard let self else { return }
-            self.notifyLock.lock()
-            self.notifyScheduled = false
-            self.notifyLock.unlock()
+            self.clearNotifyScheduled()
             // ⚠️ #951 — THIS SNAPSHOT IS NOW THE FIRST EVENT OF A BATCH RATHER THAN EACH ONE
             // IN TURN, and that is a change nothing can observe: `latestControllerEvent` has
             // no production reader (the declaration, this write, and two tests), and the
