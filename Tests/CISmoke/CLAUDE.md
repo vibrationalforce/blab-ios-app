@@ -310,12 +310,21 @@ red. ⚠️ **The first draft of that selftest would not have bitten:** it drove
 literals, which was already correct, while the defect was that shape 3 never CALLED it. That is
 the #914 lesson one section up, in a different file — **what bites is the composition**, so the
 shape-3 body was extracted into `shape3_findings(chunk, corpus)` and the selftest drives THAT.
+⛔ **AND CASE 2 SHIPPED WITH THE SAME DEFECT ANYWAY (#941b), one case away from the fix.** It
+did its OWN `re.split`, while the per-function split lives in `main()` — so the #666 file-scope
+mutation it names left it GREEN, measured by the mandatory review. The split is now ONE helper
+(`function_chunks`) at all three call sites, the fixture is handed over UNSPLIT, and both cases
+were re-driven against their mutations with the mutation confirmed landed first (#776).
 ⛔ The defect itself is the #937 pattern once more: `decode_needle`'s docstring says *"Shape 1
 shares this decode on purpose"* and shape 3 decoded escapes inline — a claim of coverage the
 code did not have, latent because shape 3 finds nothing on today's tree. It surfaced only from
-a **binder-widening experiment that was measured and deliberately NOT shipped** (392 unrecognised
-bindings across 103 files, 11 candidates, every inspected one a false alarm in four distinct
-kinds — the reasons are written at `SOURCE_BIND` so nobody re-derives them).
+a **binder-widening experiment that was measured and deliberately NOT shipped** (**377**
+unrecognised bindings across **99** files against 60 recognised, ~86 %; eleven candidates before
+the escape repair and nine after, every inspected one a false alarm in four distinct kinds — the
+reasons AND the command that re-derives the count are written at `SOURCE_BIND`, so nobody
+re-derives them by hand). ⛔ This sentence read **392/103** for one commit and neither number was
+reproducible (#941b) — a looser hand-grep, summed wrong, in TWO homes at once (#456). The
+derived share survived the correction, which is why a share is safer to quote than a count.
 
 Back to `dead-needles.py` (its command block is well above now): it checks the two
 shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))` and

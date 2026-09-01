@@ -24,8 +24,13 @@ WHAT IT CHECKS. Three assertion shapes whose needle must exist in production cod
     XCTAssertEqual/GreaterThan[OrEqual](codeOccurrences(of: "NEEDLE" ...), N)   with N >= 1
     XCTAssertTrue(<recv>.contains("NEEDLE"))          — #665, and only where <recv> is
         PROVABLY source text: bound in the same file from `Self.codeText/read/body/
-        rawSource/source`, in a file that names ONLY `Sources/` paths, with no `\(`
-        interpolation in the needle.
+        rawSource/source`, in a file that names ONLY `Sources/` paths, and the needle
+        carries no surviving escape. ⛔ THAT LAST CLAUSE SAID "no interpolation"
+        until #941/#941b: the live rule is broader — shape 3 shares `decode_needle`
+        now, so ANY needle with an undecodable backslash escape (newline, tab, unicode) is
+        skipped, not just an interpolation (a unicode escape included — spelling one
+        out here would break this very docstring, which is not raw). Quieter, never
+        louder.
 Comments in Sources/ are stripped first, so a needle that survives only inside prose about
 itself does NOT count as present — that is the `EchoelModalBank` trap in executable form.
 
@@ -164,12 +169,30 @@ POSITIVE_COUNT = re.compile(
 #
 # ⛔ #941 — THE OBVIOUS WIDENING WAS PROTOTYPED, MEASURED, AND DELIBERATELY NOT SHIPPED, and
 # the measurement is written down so nobody re-derives it. `SOURCE_BIND` recognises only the
-# `Self.`-qualified spellings; the bundle binds source text 392 times across 103 files in the
-# plain instance form (`let code = try source("Sources/…")`), so ~87 % of the binding sites are
-# invisible to this shape. Widening the regex to accept the plain form is one line, and it
-# surfaced ELEVEN new candidates — every inspected one a FALSE ALARM, in four distinct kinds:
+# `Self.`-qualified spellings; the bundle binds source text **377 times across 99 files** in the
+# plain instance form (`let code = try source("Sources/…")`) against 60 in the recognised form,
+# so ~86 % of the binding sites are invisible to this shape. ⛔ THOSE TWO NUMBERS READ 392/103
+# FOR ONE COMMIT AND WERE NOT REPRODUCIBLE (#941b) — a looser hand-grep over several spellings,
+# summed wrong. The derived share survived (86.3 % vs 86.7 %), which is exactly why a share is
+# safer to quote than a count. Re-derive rather than trust:
 #
-#   · RAW vs STRIPPED. `AGrainCannotClickOrRunAwayTests` binds `rawSource` and asserts a needle
+#     python3 - <<'EOF'
+#     import re, glob
+#     P = re.compile(r'\b(?:let|var)\s+[A-Za-z_]\w*\s*=\s*(?:try\s+)?(?:XCTUnwrap\()?\s*'
+#                    r'(?:codeText|read|body|rawSource|source)\(')
+#     n = sum(len(P.findall(open(f, encoding="utf-8").read()))
+#             for f in glob.glob("Tests/CISmoke/*.swift"))
+#     print(n)
+#     EOF
+#
+# Widening the regex to accept the plain form is one line, and it surfaced ELEVEN candidates
+# BEFORE the escape repair below and NINE after it — a reader re-running the widening on the
+# shipped tree gets 9, and a recipe that answers 9 where the prose promises 11 reads as a
+# contradiction (the `EchoelModalBank` shape the root law file warns about). Every inspected one
+# is a FALSE ALARM, in four distinct kinds:
+#
+#   · RAW vs STRIPPED. `AGrainCannotClickOrRunAwayTests` binds `chainRaw` from `rawSource` and
+#     asserts a needle
 #     that lives in a COMMENT in `EchoelFXChain.swift`. This script's corpus is comment-blanked,
 #     so it cannot see it. Same for `EveryReachableRowStatesItsGridTests`, whose own `source()`
 #     helper does not strip at all — the guard asserts on a comment ON PURPOSE.
@@ -327,6 +350,21 @@ def strip_strings(text):
     return "\n".join(out)
 
 
+# ⛔ #941b — THE SPLIT WAS SPELLED THREE TIMES, byte-identical today and silently divergent
+# tomorrow (#416). Worse, the selftest performed its OWN split, so the mutation it claimed to
+# pin — `main()` reverting shape 3 to FILE scope, the #666 defect — left it GREEN. One helper,
+# three call sites, and the selftest now hands it the UNSPLIT text so the composition is what
+# gets driven (#914, the same lesson this slice applied to case 1 and missed in case 2).
+FUNC_SPLIT = re.compile(r"\n    (?=(?:private |public |internal )?(?:static )?func )")
+
+
+def function_chunks(code):
+    """The guard file's text, split at each top-level `func`. Coarse on purpose (#666): a
+    nested closure re-binding a name still confuses it, and it is coarse in the SAFE
+    direction, because a name unknown to the enclosing function is simply skipped."""
+    return FUNC_SPLIT.split(code)
+
+
 def shape3_findings(chunk, corpus):
     """Shape 3 for ONE function chunk: yield `(match, needle)` for each needle asserted
     present that the corpus does not contain.
@@ -358,7 +396,11 @@ def shape3_findings(chunk, corpus):
         # moment a RECOGNISED binding met such a needle the tool would have reported a correct
         # guard as dead — the #665 false alarm this file argues against in its own comments.
         needle = decode_needle(match.group(2))
-        if needle is None or len(needle) < MIN_NEEDLE or "\\(" in needle:
+        # ⛔ `or "\\(" in needle` STOOD HERE AND IS DEAD (#941b): `decode_needle` already
+        # returns None for anything with a surviving backslash, and `\\(` is one. Removed
+        # rather than kept as documentation — a live-looking condition that can never fire is
+        # the kind of line a later reader trusts.
+        if needle is None or len(needle) < MIN_NEEDLE:
             continue
         if needle not in corpus:
             yield match, needle
@@ -436,8 +478,7 @@ def main(root="."):
         # Shape 1b (#937): the needle is bound to a local `let` and handed to `range(of:)` by
         # name. Same per-function scope as shape 3, same comment-stripping — a ⛔ block quoting
         # a retracted needle must not be read as a live binding (#753).
-        for chunk in re.split(r"\n    (?=(?:private |public |internal )?(?:static )?func )",
-                              strip_comments(src)):
+        for chunk in function_chunks(strip_comments(src)):
             bindings = {m.group(1): m.group(2) for m in LOCAL_BIND.finditer(chunk)}
             if not bindings:
                 continue
@@ -473,8 +514,7 @@ def main(root="."):
         # them. Splitting on `func ` is coarse — a nested closure re-binding the same name
         # would still confuse it — and coarse in the SAFE direction, because a name unknown to
         # the enclosing function is simply skipped.
-        for chunk in re.split(r"\n    (?=(?:private |public |internal )?(?:static )?func )",
-                              guard_code):
+        for chunk in function_chunks(guard_code):
             for match, needle in shape3_findings(chunk, corpus):
                 offset = guard_code.find(chunk)
                 line = guard_code[:offset + match.start()].count("\n") + 1
@@ -539,6 +579,13 @@ def selftest():
     # 2. The receiver scope, which #666 had to narrow from per-FILE to per-FUNCTION after seven
     #    false positives. A name bound to source text in one function must not vouch for the
     #    same name in the next.
+    #
+    # ⛔ #941b — THIS CASE DID ITS OWN `re.split` AND THEREFORE DID NOT BITE. The per-function
+    # split lives in `main()`, not in `shape3_findings`; a selftest that splits the fixture
+    # itself stays GREEN through the exact #666 mutation it names (measured by the mandatory
+    # review: revert `main()` to file scope → still green). It is the #914 defect a second time
+    # in one file — case 1 was fixed for it and case 2 shipped with it. The fixture is now
+    # handed UNSPLIT to the shared `function_chunks`, so the composition is what runs.
     two = ('    func a() throws {\n'
            '        let line = Self.body(of: "x", in: "Sources/Y.swift")\n'
            '        XCTAssertTrue(line.contains("a needle that is source text"))\n'
@@ -547,9 +594,15 @@ def selftest():
            '        let line = AudioConfiguration.latencyLine(sampleRate: 48000)\n'
            '        XCTAssertTrue(line.contains("a needle that is a produced string"))\n'
            '    }\n')
-    chunks = re.split(r"\n    (?=(?:private |public |internal )?(?:static )?func )", two)
-    scoped = [n for c in chunks for _, n in shape3_findings(c, "")]
-    if scoped != ["a needle that is source text"]:
+    scoped = [n for c in function_chunks(two) for _, n in shape3_findings(c, "")]
+    # ⛔ THE MESSAGE SAID "leaked across functions" UNCONDITIONALLY (#941b) — it also printed
+    # when NOTHING was found, i.e. it named a leak while reporting a vacuum. Two questions, two
+    # sentences (#367: an assertion must fail for the reason it states).
+    if "a needle that is source text" not in scoped:
+        print("selftest: the source-text needle was not found at all — the anchor is gone, so "
+              f"the leak check below proves nothing (checked {scoped})")
+        ok = False
+    elif scoped != ["a needle that is source text"]:
         print(f"selftest: receiver scope leaked across functions — checked {scoped}")
         ok = False
 
@@ -558,6 +611,9 @@ def selftest():
 
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1 and sys.argv[1] == "--selftest":
+    # #941b — anywhere in argv, not just position 1: `dead-needles.py . --selftest` used to
+    # run the normal scan silently, which is the worst kind of no-op (it prints a green).
+    if "--selftest" in sys.argv[1:]:
         sys.exit(selftest())
-    sys.exit(main(sys.argv[1] if len(sys.argv) > 1 else "."))
+    roots = [a for a in sys.argv[1:] if not a.startswith("-")]
+    sys.exit(main(roots[0] if roots else "."))

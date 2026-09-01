@@ -19118,3 +19118,41 @@ needle-reachability sauber). ⚠️ **Der Pflicht-Reviewer lief bei diesem Commi
 gerade, ob die Herausnahme das VERHALTEN geändert hat; seine Befunde kommen als #941b. Der
 Commit ist trotzdem gesetzt, weil der Container flüchtig ist und ein Python-Skript kein Swift-
 Gate brechen kann.
+
+### #941b — der Reviewer fand genau den Defekt, den die Scheibe eine Zeile weiter repariert hatte
+
+**0 BLOCKER.** Die Herausnahme ist verhaltensgleich: er hat die alte Inline-Schleife
+nachgebaut und beide über alle 391 Wächterdateien gefahren — identische Treffermengen
+(0 gegen 0 mit dem ausgelieferten Binder; 11 → 9 mit dem Experiment-Binder, und die zwei
+Verschwundenen sind exakt die beiden `\n`-Nadeln). Damit ist auch die Zeilennummer-Arithmetik
+belegt, nicht behauptet.
+
+**Der teuerste Befund: Fall 2 des Selbsttests biss NICHT.** Er behauptete, die
+#666-Sichtbarkeit pro Funktion zu pinnen — machte aber seinen EIGENEN `re.split`, während die
+Aufteilung in `main()` liegt. Der Reviewer hat `main()` auf Datei-Sichtbarkeit zurückmutiert:
+**grün geblieben.** Das ist die #914-Lehre ein zweites Mal in DERSELBEN Datei — Fall 1 wurde
+genau dafür repariert und Fall 2 ging mit dem Defekt raus. Die Aufteilung war außerdem
+DREIMAL buchstabiert (#416). Jetzt ein Helfer `function_chunks` an allen drei Stellen, der Test
+bekommt die Vorlage UNGETEILT, und beide Mutationen sind nachgefahren — **mit vorheriger
+Bestätigung, dass die Mutation überhaupt gelandet ist** (#776: mein erster Mutationsversuch traf
+einen Kommentar und meldete fälschlich „grün").
+
+**Zwei Zahlen waren nicht reproduzierbar.** „392 Bindungen in 103 Dateien" ist selbst gemessen
+**377 in 99** (gegen 60 erkannte). Ursache: ein loser Hand-Grep über mehrere Schreibweisen,
+falsch summiert — und die Zahl stand in ZWEI Zuhausen (#456). Der abgeleitete ANTEIL überlebte
+die Korrektur (86,3 % statt 86,7 %), und genau das ist die Lehre: **ein Anteil ist sicherer zu
+zitieren als eine Zählung.** Der Befehl steht jetzt daneben.
+
+**Weitere angewandte Befunde:** „ELEVEN Kandidaten" gilt VOR der Escape-Reparatur, nach ihr sind
+es NEUN — ein Rezept, das 9 antwortet, wo die Prosa 11 verspricht, liest sich als Widerspruch
+(die `EchoelModalBank`-Form) · die Fehlermeldung von Fall 2 sagte „leaked", auch wenn GAR NICHTS
+gefunden wurde, also ein Leck bei einem Vakuum — jetzt zwei Sätze für zwei Fragen (#367) ·
+`or "\(" in needle` war tot, weil `decode_needle` jeden überlebenden Backslash schon abfängt —
+gelöscht statt als Doku behalten · der Datei-Kopf beschrieb die Nadelregel noch als „kein `\(`",
+während sie inzwischen „kein überlebender Escape" lautet · `--selftest` wurde nur an Position 1
+erkannt, `dead-needles.py . --selftest` fuhr still den normalen Scan und druckte ein Grün.
+
+⚠️ **Und meine eigene Kopf-Korrektur hat das Skript kurz unbrauchbar gemacht:** ein `\u{…}` im
+nicht-rohen Modul-Docstring ist ein echter Python-`SyntaxError`. Gefangen hat ihn nur der Lauf —
+**kein Workflow führt dieses Skript aus**, es wäre also bis zum nächsten Handaufruf unsichtbar
+geblieben. Lehre: ein Docstring, der ÜBER Escapes schreibt, darf sie nicht schreiben.
