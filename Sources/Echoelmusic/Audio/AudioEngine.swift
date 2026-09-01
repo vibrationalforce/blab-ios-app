@@ -2422,7 +2422,66 @@ public final class AudioEngine {
             logMonitorOutcome("on: touching the input node + reading its format", level: .info)
             let input = masterEngine.inputNode
             var inFmt = input.inputFormat(forBus: 0)
-            if inFmt.sampleRate <= 0 || inFmt.channelCount == 0 {
+            // ⭐ #954 — THE FOUNDER LOG (v10.79.433) ANSWERED #823's HYPOTHESIS AND POSED THE
+            // NEXT ONE. The crash is `required condition is false: false ==
+            // isInputConnToConverter`, thrown inside the `start()` at rung `on 4/5`, and the
+            // ladder is what named it: 1/5 · claim · `session: raise 1/2` · `2/2` · this line ·
+            // 2/5 · 3/5 · 4/5 · SIGABRT. The two #823 lines are BOTH ABSENT from that log —
+            // no "session fallback", no "format unusable" — so the node handed back a
+            // PLAUSIBLE, NON-ZERO format and the guard below had nothing to catch. #823 fixed
+            // the placeholder; what is left is the placeholder's quieter sibling.
+            //
+            // The timing is the evidence: `setActive` and this read carry the SAME
+            // millisecond stamp (…251.430), after a `setCategory` that took 138 ms. The node
+            // is read at the instant the route flips, and `start()` runs 7 ms later — by
+            // which time the I/O unit has been REBUILT against the record route. If the two
+            // disagree, the engine inserts a converter on the input edge, and that edge is
+            // exactly what the assert is named after.
+            //
+            // ⭐ WHY THE SESSION IS THE AUTHORITY HERE, and this is what makes the fix
+            // structural rather than another guess: `start()` rebuilds the I/O unit from the
+            // SESSION, not from the node's cached format. So the session's numbers are not a
+            // second opinion — they are what `start()` will use. #823 already trusted them
+            // for the zero case; this only widens the same trust to DISAGREEMENT. When node
+            // and session agree (the ordinary path) nothing changes at all.
+            //
+            // ⚠️ HYPOTHESIS #4 on this method (#625, #628, #823 came first) — labelled so the
+            // NEXT device log discriminates. The `on 3/5` line below now prints the format
+            // actually connected beside the session's view: if they differ there and
+            // monitoring survives, the mechanism is confirmed; if they are IDENTICAL and it
+            // still aborts, the mismatch is not in this format and the next suspect is the
+            // stop-rewire-start cycle itself, not its arithmetic.
+            //
+            // ⛔ AND THE OBVIOUS "REAL" FIX IS BLOCKED — written down so it is not re-proposed.
+            // #858 killed the tune-toggle rewire by making that stage PERMANENT and flipping
+            // `bypass`. The same answer for the whole monitor chain would need the input edge
+            // to be permanent too, and it cannot be: an input node wired under a
+            // playback-only session is the v424 assert. A permanent input edge means
+            // `.playAndRecord` at all times, which is a battery/route/Bluetooth decision and
+            // belongs to the founder, not to a fix cycle.
+            let hwRate = AVAudioSession.sharedInstance().sampleRate
+            // Only the RAW count is kept: it is diagnostic (it goes on the 3/5 rung), while a
+            // CLAMPED one would be a decision input, and #954 deliberately makes no decision
+            // on channels. An unused clamped local would also be a warning, and this build is
+            // `-warnings-as-errors`.
+            let hwChannelsRaw = AVAudioSession.sharedInstance().inputNumberOfChannels
+            let nodeFormatUnusable = inFmt.sampleRate <= 0 || inFmt.channelCount == 0
+            // A tolerance of 1 Hz, not equality: the two are reported as `Double` and a
+            // hardware rate can round (44100.000000000007). Anything a converter would care
+            // about is orders of magnitude larger than this.
+            // ⚠️ RATE ONLY, AND THE CHANNEL COUNT IS DELIBERATELY LEFT OUT — this is the half
+            // of #954 that could make things WORSE, so it is not taken. The sample rate is ONE
+            // session-wide hardware property and `start()` rebuilds the I/O unit at
+            // `session.sampleRate`, so a node/session rate disagreement is unambiguous. The
+            // CHANNEL count is not: `session.inputNumberOfChannels` is clamped to 1...2 four
+            // lines down, and a route can legitimately have the node reporting mono while the
+            // session offers two. Substituting there would force a stereo edge onto a mono
+            // input — manufacturing the very converter this slice removes, on hardware that
+            // was healthy. A fix that can introduce the crash it prevents is not a fix (#364),
+            // and there is no device here to tell the two apart.
+            let nodeDisagreesWithHardware = !nodeFormatUnusable && hwRate > 0
+                && abs(inFmt.sampleRate - hwRate) > 1
+            if nodeFormatUnusable || nodeDisagreesWithHardware {
                 // #823: the node can still hand back its placeholder right after the
                 // claim (the I/O unit rebuilds lazily on `start()`). The SESSION knows
                 // the real hardware format by now — build the connect format from ITS
@@ -2433,13 +2492,18 @@ public final class AudioEngine {
                 let session = AVAudioSession.sharedInstance()
                 let sessionRate = session.sampleRate
                 let sessionChannels = AVAudioChannelCount(min(max(session.inputNumberOfChannels, 1), 2))
+                // #954: on the RATE path the node's own channel count is kept — it is the
+                // only party that has actually looked at the input scope, and the session's
+                // number is clamped. Only the unusable path has no node value to keep.
+                let substituteChannels = nodeFormatUnusable ? sessionChannels : inFmt.channelCount
                 if sessionRate > 0, session.isInputAvailable,
                    let fallback = AVAudioFormat(standardFormatWithSampleRate: sessionRate,
-                                                channels: sessionChannels) {
+                                                channels: substituteChannels) {
                     logMonitorOutcome("""
                         input format from session fallback \
-                        (node \(inFmt.sampleRate) Hz/\(inFmt.channelCount) ch, \
-                        session \(sessionRate) Hz/\(session.inputNumberOfChannels) ch) — #823
+                        (\(nodeFormatUnusable ? "node unusable — #823" : "node disagrees with hardware — #954"): \
+                        node \(inFmt.sampleRate) Hz/\(inFmt.channelCount) ch, \
+                        session \(sessionRate) Hz/\(session.inputNumberOfChannels) ch)
                         """, level: .info)
                     inFmt = fallback
                 }
@@ -2516,7 +2580,20 @@ public final class AudioEngine {
             monitorMixer.outputVolume = 0          // silent until connected, avoids a pop
             let outFmt = masterMixer.outputFormat(forBus: 0)
             // The assert family is named after THIS edge: input → converter.
-            logMonitorOutcome("on 3/5: connecting input → notch", level: .info)
+            // #954: the rung names the format it is about to force onto the input edge,
+            // beside the session's view of the hardware. Until now the ON path printed a
+            // format ONLY on its failure exits, so a log that CRASHED at 4/5 carried no way
+            // to tell a matching edge from a mismatched one — the question the abort asks.
+            // ⛔ #954 — THE FIRST DRAFT OF THIS LINE WAS A `"""` BLOCK AND IT BROKE THE
+            // LADDER TOOL. `scripts/diag-ladder.py --source` went from clean to
+            // "'on' 1..5 — 4/5 steps, MISSING STEP(S): [3]", i.e. a HEALTHY run would have
+            // read as a death at exactly this rung — the #882 defect the numbering exists to
+            // prevent, introduced by the commit that was making the rung more useful. The
+            // rung line stays ONE LINE and starts with its number; the detail goes in a local
+            // built above it. Caught only by DRIVING the tool (#941), never by reading it.
+            let edgeSummary = "edge \(inFmt.sampleRate) Hz/\(inFmt.channelCount) ch, "
+                + "session \(hwRate) Hz/\(hwChannelsRaw) ch"
+            logMonitorOutcome("on 3/5: connecting input → notch (\(edgeSummary))", level: .info)
             masterEngine.connect(input, to: notchEQ, format: inFmt)
             // #858: the tune stage is ALWAYS in the chain, BYPASSED while off — the
             // fifth and structural answer to the isInputConnToConverter SIGABRT.

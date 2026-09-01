@@ -20149,3 +20149,65 @@ Leser widerlegt den Beleg und verwirft das Gesetz mit.
 Reviewer hat gemessen, wo die nächsten Kilobyte wirklich liegen: **`CLAUDE.md` Zeile 52 = 9.038 B**
 („Absent (not wired…)"), Zeile 40 = 6.754 B. Wer den nächsten Decken-Zyklus fährt, fängt dort an,
 nicht bei einem weiteren 750-B-Block.
+
+## 2026-09-01 — #954: der Founder-Absturz, und die Leiter hat ihn benannt
+
+**Founder-Geräte-Log v10.79.433**, SIGABRT beim Einschalten des Mikrofon-Monitors:
+
+```
+monitor: on 1/5 · route: claim · session: raise 1/2 · 2/2 · touching the input node
+monitor: on 2/5 · on 3/5 · on 4/5: restarting engine with the monitor chain
+CRASH: required condition is false: false == isInputConnToConverter
+```
+
+⭐ **Die Lebenszyklus-Leiter (#859–#862b) hat zum ersten Mal den STERBENDEN SCHRITT benannt.**
+Genau dafür wurde sie gebaut; `isInputConnToConverter` stand in CLAUDE.md als der Auslöser, der
+„weiterhin KEINEN Namen" hat. Jetzt hat er einen: der `start()` an Sprosse 4/5.
+
+⭐ **Der entscheidende Befund ist eine ABWESENHEIT.** Im Log steht **keine** der beiden
+#823-Zeilen — kein „session fallback", kein „format unusable". Der Knoten lieferte also ein
+**plausibles, nicht-null** Format, das die alte Null-Absicherung nicht fangen konnte. #823 hat den
+Platzhalter geschlossen; das hier ist sein leiserer Zwilling.
+
+**Die Zeitstempel sind der Beleg:** `setActive` und der Format-Read tragen **dieselbe
+Millisekunde** (…251.430) nach einem `setCategory` von 138 ms; `start()` läuft 7 ms später und
+baut die I/O-Unit gegen die neue Aufnahme-Route **neu**. Passt das erzwungene Format nicht, schiebt
+die Engine einen Konverter in die Eingangskante — der Name der Zusicherung.
+
+**Fix, zwei Hälften:**
+1. Die #823-Ersetzung greift jetzt auch bei **„Knoten widerspricht der Session-RATE"** (Toleranz
+   1 Hz — zwei `Double` runden). Strukturell statt raterisch, weil **`start()` die I/O-Unit AUS
+   DER SESSION baut**: ihre Rate ist keine zweite Meinung, sondern das, was `start()` benutzen wird.
+2. Sprosse `on 3/5` druckt ab jetzt **das Format, das sie erzwingt**, neben der Session-Sicht.
+   Bis heute stand ein Format NUR in den Fehler-Ausgängen — ein bei 4/5 abstürzendes Log konnte
+   die Frage also gar nicht beantworten.
+
+⚠️ **Die KANALZAHL ist bewusst NICHT dabei — das ist die Hälfte, die hätte schaden können.**
+`inputNumberOfChannels` ist auf 1…2 geklemmt, und eine Route darf mono am Knoten und zwei in der
+Session haben. Dort zu ersetzen würde eine Stereo-Kante auf einen Mono-Eingang zwingen und genau
+den Konverter **erzeugen**, den die Scheibe entfernt. Auf dem Raten-Pfad behält die Ersetzung die
+Kanalzahl des Knotens. **Ein Fix, der den Absturz erzeugen kann, den er verhindert, ist keiner.**
+
+⚠️ **HYPOTHESE #4 an dieser Methode** (#625, #628, #823 waren die ersten), ausdrücklich so
+beschriftet. Ohne Gerät ist sie nicht beweisbar — deshalb ist das Instrument Teil des Fixes:
+das nächste Log entscheidet in **beide** Richtungen. **NEEDS-FOUNDER-VERIFY.**
+
+⛔ **Der „richtige" Fix ist blockiert, und das steht jetzt im Code, damit ihn niemand neu
+vorschlägt.** #858 hat die Tune-Stufe dauerhaft verdrahtet und schaltet nur `bypass`. Für die
+ganze Monitor-Kette bräuchte das eine **dauerhafte Eingangskante**, und die geht nicht: ein
+Eingangsknoten unter einer reinen Playback-Session ist der v424-Absturz. Dauerhaft hieße
+`.playAndRecord` immer — eine Akku-/Route-/Bluetooth-Entscheidung, die dem Founder gehört.
+
+⛔ **Selbst erzeugt und vom Werkzeug gefangen:** meine erste Fassung schrieb Sprosse `on 3/5` als
+`"""`-Block, damit das Format hineinpasst. `diag-ladder.py --source` sprang auf
+`'on' 1..5 — 4/5 steps, MISSING STEP(S): [3]` — ein **gesunder** Lauf hätte ab da wie ein Tod an
+genau dieser Sprosse gelesen. Gefangen **nur durch Ausführen** des Werkzeugs. (Der blockierende
+Wächter hätte es ebenfalls rot gemacht; deshalb kein zweiter Anspruch dafür — #416.)
+
+**Wächter:** `Tests/CISmoke/TheInputEdgeFollowsTheHardwareFormatTests.swift` — **9 Zusicherungen**,
+gegen `7e33d36` **4 rot als EINE Abwesenheit** (#486), alle **VORWÄRTS** (sie treiben Text, den
+derselbe Commit erst anlegt), **5 Gegengewichte** grün auf beiden Bäumen, 0 rot auf dem
+Arbeitsbaum. Stripper **PROPHYLAKTISCH** (0 von 9 Verdikten kippen). Transkribiert, nicht geraten.
+
+**Instrumente:** `diag-ladder --source` sauber (`'on' 5/5`) · `dead-needles` 397 OK ·
+`count-pins` 137/162, 0 ROT · `needle-reachability` sauber.
