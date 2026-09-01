@@ -20043,3 +20043,59 @@ etwas wert ist, und sie war in keiner der drei Falschstellen betroffen.
 **Instrumente:** `dead-needles` 396 Dateien OK + `--selftest` OK · `count-pins` 137/160, **0
 ROT** · `needle-reachability` sauber · `doctor` unverändert bei den zwei bekannten
 founder-gated CI-Maskierungen.
+
+## 2026-09-01 — #953: Luft unter der Gesetzes-Decke, gemessen auf beiden Seiten
+
+**Gates von #952 gelesen: grün.** `Xcode Compile Check` success · CI/CD `failure` (#396) mit
+`build-for-testing: Succeeded`, **0 Compile-Fehler, 0 Fehlschläge, 0 Skips**, 134 Tests
+beobachtet. `doctor` unverändert bei den zwei bekannten founder-gated CI-Maskierungen.
+
+**Der Anlass ist ein Zahlenstand, kein Gefühl:** `CLAUDE.md` stand bei **149.652 B** unter einer
+harten Decke von **150.000 B** — **348 B Luft**. Der Wächter dafür liegt im blockierenden Bundle,
+und seine Fehlermeldung schreibt die Reparatur selbst vor: **PROVENIENZ in den Ledger, GESETZ in
+`CLAUDE.md`**. Der nächste Wahrheits-Fix wäre daran rot geworden.
+
+**Verschoben: der #919/#928-Block** über die heißen `@Observable`-Erzeuger des Menü-Wirts. Er ist
+zu drei Vierteln Zähl-Geschichte (DREI, dann VIER, dazu eine Korrektur, die selbst dreifach
+daneben lag) und zu einem Viertel Gesetz.
+
+| | vorher | nachher |
+|---|---|---|
+| `CLAUDE.md` | 149.652 B | **148.900 B** (−752) |
+| `memory/LEDGER_COUNTS.md` | 654.945 B | 658.208 B (neue §O) |
+
+⚠️ **BEIDE Seiten gemessen — das ist der ganze Punkt.** #912 musste genau das nachholen: #746
+hatte den Zeiger gesetzt und den Text stehen lassen, und der Decken-Wächter kann das nicht sehen
+(er prüft, ob die ZIEL-Sektion existiert, nie ob die QUELLE danach kürzer ist).
+
+**Was in `CLAUDE.md` bleibt** — alles, was eine Sitzung dort BRAUCHT, ohne den Ledger zu öffnen:
+welche **VIER** Erzeuger heiß sind, jeder mit Mechanik und Rate · warum die Metronom-Fläche die
+gefährlichste ist (der Wirt liest `metronome.`-Eigenschaften schon an zwei Stellen, die `body`
+auswertet — zu Recht kalt, aber eine heiße Schreibweise ist ein Wort entfernt) · der Wächter · der
+Skill-Zeiger.
+
+**Zeuge:** `die Reads sind elf` — 1 Vorkommen im Baum, jetzt im Ledger, **0 in `CLAUDE.md`**.
+Gewählt nach den drei #912-Regeln, die der Wächter selbst aufschreibt: keine Nebenbemerkung über
+Wortwahl, keine Großschreibung, die ein Ent-Schreien treffen könnte (Swift `contains` ist
+case-sensitiv), und eine MESSUNG, die keine Umformulierung überlebt.
+
+⛔ **Nebenbefund beim Ergänzen der Zeile: der Doc-Block über der Zeugen-Tabelle zählte VIER auf,
+während die Tabelle SECHS hielt.** §B (#818) und §F.4 (#912) waren der Tabelle hinzugefügt worden
+und der Prosa darüber nicht. Das ist §N's eigenes Gesetz eine Etage tiefer — **eine Aufzählung ist
+so vollständig wie das, was demjenigen einfiel, der sie schrieb**, und das Erkennungszeichen ist,
+dass alle genannten Einträge dieselbe Gattung haben (hier: die Verschiebungen, die es beim
+Schreiben schon gab). Ein Doc-Block, der die Datenstruktur unter sich aufzählt, veraltet lautlos,
+weil nichts die beiden vergleicht. Ersetzt durch die AUSWAHLREGEL; die Mitgliedschaft steht ab
+jetzt an genau einer Stelle.
+
+**Benotung, ehrlich** (`Tests/CISmoke/CLAUDE.md` §3): der Anspruch hat **16 Zusicherungen**. Auf
+`ca4902a` sind **2 rot** — meine neue Zeile, EINE Abwesenheit zweimal gemeldet (#486) — und das
+ist ein **VORWÄRTS-Wächter**, kein Regressions-Fang: er treibt einen Zustand, den derselbe Commit
+erst herstellt. **14 Gegengewichte**, 0 rot auf dem Arbeitsbaum.
+
+**Compile-Risiko selbst geprüft** (keine lokale Toolchain): jedes Konstrukt der neuen Zeile hat
+einen Präzedenzfall in DERSELBEN Datei — Gedankenstrich im String-Literal (Zeile 161), Apostroph
+(2×), `§` im String (9×); Anführungszeichen zeilenweise paarig, Klammern 17/17, 2/2.
+
+**Instrumente:** `dead-needles` 396 OK · `count-pins` 137/160, **0 ROT** · `needle-reachability`
+sauber.

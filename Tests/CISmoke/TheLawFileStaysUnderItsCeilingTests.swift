@@ -238,9 +238,18 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
     // MARK: - 5: the moves actually happened, in both directions
 
     /// #472: grep AFTER moving. ONE witness stands for each moved block, chosen so it cannot
-    /// be re-derived by accident: a filename that never existed (#702 → §C), a struck line
-    /// count (#746 → §E), a sentence naming the panel that never had a grid (#746 → §F), and a
-    /// simulator log key that appears exactly once in the tree (#763 → `Tests/CISmoke` §5b).
+    /// be re-derived by accident — a filename that never existed, a struck line count, a
+    /// sentence naming a panel that never had a grid, a simulator log key that occurs once in
+    /// the tree. **The witnesses are the TABLE below, not this paragraph.**
+    ///
+    /// ⛔ THIS PARAGRAPH USED TO LIST THEM, AND THE LIST WAS ALREADY TWO SHORT (#953). It
+    /// named four while the table held six — §B (#818) and §F.4 (#912) were added to the table
+    /// and not to the prose above it. That is §N's own law one floor down: an enumeration is
+    /// only as complete as what occurred to whoever wrote it, and the tell is that every entry
+    /// listed shares a GENRE (all four were the moves that existed when the paragraph was
+    /// written). A doc block that enumerates the data structure beneath it goes stale in
+    /// silence, because nothing compares the two. The SELECTION RULE is the durable half and
+    /// is what survives here; the membership lives in one place only.
     ///
     /// ⚠️ A witness is NOT a summary of its block — it is a tripwire. Its absence from the
     /// destination means a paid-for lesson was DELETED rather than moved; its presence in
@@ -281,6 +290,15 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
              + "wording; a re-accretion that dropped that one clause would have passed "
              + "silently. This needle names the MEASUREMENT instead (`showVisual` had two "
              + "writers, both `false`), which paraphrase does not survive"),
+            ("die Reads sind elf", "memory/LEDGER_COUNTS.md", "§O",
+             "the #919 -> #928 count chain for the menu host's HOT producers — #919 counted "
+             + "THREE and read as an inventory, #928 found the fourth, and the correction was "
+             + "itself wrong three ways. This needle is the measurement from that third "
+             + "retraction (FOUR is the number of PROPERTIES; the reads are eleven), chosen "
+             + "because no paraphrase of the block preserves it and it carries no caps that "
+             + "ordinary de-shouting could touch (#912). The LAW — which four producers are "
+             + "hot, why the metronome surface is the most dangerous, the guard — stays in "
+             + "CLAUDE.md; only the chain moved"),
             ("RUN_DESTINATION_DEVICE_NAME", "Tests/CISmoke/CLAUDE.md", "§5b",
              "the Clone-2 evidence from the #763 gate-discriminator move — the log line that "
              + "settled which simulator clone dies under #396")
