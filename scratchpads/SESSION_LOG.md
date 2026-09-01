@@ -20590,3 +20590,62 @@ wurde es gefunden, indem man die reine Funktion FUHR statt sie zu lesen. Im Gese
 sichtbar) und ZWEI Entpack-Stellen des Tupels, die der Selftest nacheinander rot machte — genau
 wofür ein Selftest da ist. Vor der Signatur-Änderung wurde nach fremden Aufrufern gegrept
 (#666): nur Prosa, kein Code.
+
+## 2026-09-01 — #958: das Founder-Log widerlegt #954 und benennt die echte Ursache
+
+**Das v10.79.435-Log ist der wertvollste Beleg dieser Woche, weil es MEINE Reparatur
+widerlegt.** Die `on 3/5`-Sprosse, die #954 genau dafür gebaut hat, druckte:
+
+    edge 48000.0 Hz/1 ch, session 48000.0 Hz/1 ch, out 44100.0 Hz/2 ch
+
+Die Eingangsseite stimmt mit der Hardware ÜBEREIN — #954s Ersetzung hat nie gefeuert — und
+die App bricht eine Sprosse später trotzdem ab. **Die Abweichung liegt zwischen der
+Eingangskante und dem MASTER-GRAPHEN**, den `setupMasterEngine` EINMAL beim Start aus
+`outputNode.outputFormat` verdrahtet und nie neu verdrahtet. Eine 48-kHz-Eingangskette in
+einen 44,1-kHz-Graphen zu hängen zwingt AVAudioEngine, einen Wandler auf die EIGENE Kante des
+Eingangsknotens zu setzen — und `false == isInputConnToConverter` ist genau dieser Assert.
+**#954b hatte das als lebende ALTERNATIV-Hypothese aufgeschrieben und die Sprosse gebeten,
+`outFmt` mitzudrucken. Ein Gerätelauf hat entschieden.**
+
+⭐ **Und dasselbe Log nennt, WARUM der Graph auf 44,1 kHz stand — durch SCHWEIGEN.** Es liest
+`session: configure 1/4 — setCategory(.playback)` und dann nichts mehr aus dieser
+Vier-Schritt-Leiter. Zwischen Sprosse 1/4 und 2/4 steht genau ein `try`, also hat
+`setCategory` geworfen; der `catch` in `prepareGraph` schrieb nur nach `os_log`, das
+`echoel_diag.log` nicht trägt. Folge: `setPreferredSampleRate(48000)` an Sprosse 2/4 lief nie,
+der Graph wurde auf den unangetasteten 44,1 kHz gebaut, und die 48-kHz-Aufnahmeroute kollidierte
+später damit. **Das Sprossengesetz hat seinen eigenen Zweck erfüllt: Stille zwischen zwei
+Sprossen IST ein Befund.**
+
+**Gebaut, in dieser Reihenfolge — „Hardware folgt dem Graphen, dann verweigern":**
+1. Weichen die Raten ab, wird die Session um die Rate des GRAPHEN gebeten und das GEWÄHRTE
+   Ergebnis zurückgelesen (eine Präferenz ist eine Bitte).
+2. Reicht das nicht, wird das Monitoring **verweigert** statt abzustürzen — Route zurück,
+   Engine entstrandet, `on REFUSED`-Terminator. Ein gemeldeter Verzicht statt eines toten Apps.
+3. Der Start-`catch` schreibt eine Brotkrume, damit die nächste Stille einen Namen hat.
+**NICHT gebaut: den Master-Graphen neu verdrahten.** Das liefe auf dem Pfad, der das ganze
+Instrument trägt, für einen Defekt, den die Belege mit EINEM Session-Aufruf schließen.
+
+**Drei Selbstfänge, alle durch Messen:**
+· Drei zusätzliche `on 3/5`-Zeilen hätten einen Nachbar-Pin rot gemacht (dessen Gleichheit
+  absichtlich streng ist) und drei Phantom-Schritte in eine Fünf-Schritt-Leiter gesetzt →
+  sie sind jetzt DETAIL ohne Sprossennummer.
+· Die Ausstiegszeile hätte sich als **Tod an Schritt 3** gelesen, weil sie den Leiter-Präfix
+  nicht trug → jetzt `on REFUSED`, unnummeriert (nummeriert verbietet Wächter (c3)).
+· Mein eigener Anspruch 2b war **leer-grün**: `contains("inFmt = input.inputFormat(forBus: 0)")`
+  ist ein Teilstring der DEKLARATION `var inFmt = …` und war auf dem Elternbaum grün, wo es gar
+  keine Neulesung gibt (#367). Jetzt positionell.
+
+⛔ **Und die Nachbar-Zusicherung „die rohe Eingangsformat-Lesung passiert EINMAL" ist von eins
+auf ZWEI geändert — als Änderung des Gesetzes, nicht als Nachgeben.** Die zweite Lesung ist das
+Gegenteil von veraltet: sie holt, was die Session GEWÄHRT hat. Ein Gesetz, das diese Lesung
+verbietet, blockiert seinen eigenen Zweck (#364). Gleichheit bleibt — beide Stellen sind jetzt
+namentlich genannt.
+
+**Benotet:** 9 Zusicherungsstellen (⛔ ein Entwurf schrieb 10 und einer 7 rot — zweimal eine
+Zahl vor dem Messen geschrieben, in derselben Datei), **8 rot auf `ca5ddec`, 0 auf dem
+Arbeitsbaum**. Instrumente: `dead-needles` 400 OK · `count-pins` 137/167, 0 RED ·
+`needle-reachability` sauber · `diag-ladder --source` + `--selftest` sauber.
+
+⚠️ **Was das NICHT beweist:** dass iOS die Rate des Graphen gewährt. Tut es das nicht,
+verweigert der Monitor — kein Absturz, aber auch kein Ton, und das Log sagt es. Ebenso offen:
+WARUM `setCategory(.playback)` beim Start geworfen hat. Beides sind Gerätefragen.

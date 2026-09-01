@@ -952,6 +952,16 @@ public final class AudioEngine {
             AudioConfiguration.latencyBreadcrumb(reason: "start", tuneStage: nil,
                                                  insertMilliseconds: [])
         } catch {
+            // ⭐ #958 — THIS CATCH WAS INVISIBLE IN THE FILE THE FOUNDER SHARES, and that is
+            // how the v10.79.435 crash stayed unexplained for two builds. `log.audio` writes to
+            // `os_log`, which `echoel_diag.log` does not carry (#859 states the law: breadcrumb
+            // FIRST, os_log second). His log shows `session: configure 1/4` and then NOTHING
+            // from this ladder — the rung law's own signal for "died inside step 1" — and the
+            // consequence was silent and expensive: `setPreferredSampleRate(48000)` at rung 2/4
+            // never ran, so the master graph was built at the untouched 44.1 kHz, and the
+            // 48 kHz record route later collided with it (see the #958 block in
+            // `engageInputMonitoring`). One breadcrumb turns that silence into a named cause.
+            EchoelCrashLog.breadcrumb("session: configure FAILED — \(error)")
             log.audio("Failed to configure audio session: \(error)", level: .warning)
         }
         AudioConfiguration.setAudioThreadPriority()
@@ -2649,6 +2659,65 @@ public final class AudioEngine {
                 + "session \(hwRate) Hz/\(hwChannelsRaw) ch, "
                 + "out \(outFmt.sampleRate) Hz/\(outFmt.channelCount) ch"
             logMonitorOutcome("on 3/5: connecting input → notch (\(edgeSummary))", level: .info)
+
+            // ⭐ #958 — THE FOUNDER'S v10.79.435 LOG NAMED THE ACTUAL MISMATCH, and it is NOT
+            // the one #954 fixed. That rung printed `edge 48000 Hz/1 ch, session 48000 Hz/1 ch,
+            // out 44100 Hz/2 ch`: the input side AGREED with the hardware — no substitution
+            // happened — and the app still aborted one rung later. The disagreement is between
+            // the input edge and the MASTER GRAPH, which `setupMasterEngine` wires ONCE at
+            // launch from `outputNode.outputFormat` and never re-wires. Connecting a 48 kHz
+            // input chain into a 44.1 kHz graph forces AVAudioEngine to put a converter on the
+            // INPUT node's own edge, and `false == isInputConnToConverter` is that assert by
+            // name. #954b registered this as the live ALTERNATIVE hypothesis and asked the rung
+            // to print `outFmt` precisely so one device run could settle it. It did.
+            //
+            // ⚠️ THE REPAIR ORDER IS "MAKE THE HARDWARE FOLLOW THE GRAPH, THEN REFUSE" — never
+            // "rebuild the graph". The master chain carries the whole instrument; re-wiring it
+            // under a live session is a far bigger change than the one the evidence asks for,
+            // and it would run on the path that must never fail. Asking the session for the
+            // rate the graph already runs at is one call, is reversible, and is what the
+            // session API is for. If iOS declines, the monitor does NOT turn on — a reported
+            // refusal instead of an uncatchable abort, which is exactly what the founder asked
+            // for ("Absturz beim Audio Input Monitor einschalten vermeiden").
+            if outFmt.sampleRate > 0, abs(inFmt.sampleRate - outFmt.sampleRate) > 1 {
+                // ⚠️ THESE THREE LINES ARE NOT RUNGS AND MUST NOT LOOK LIKE ONE. A fourth
+                // `logMonitorOutcome("on 3/5` would (a) redden
+                // `TheEngineLifecycleSpeaksInTheDiagLogTests`, whose equality on that needle
+                // is deliberate — it detects the ON path collapsing its ~15 AVFAudio calls
+                // into one line — and (b) put three extra "steps" into a five-step ladder.
+                // They are DETAIL inside step 3; the rung above already announced the step.
+                logMonitorOutcome("rate mismatch — asking the session for the graph's "
+                                  + "\(outFmt.sampleRate) Hz (input is \(inFmt.sampleRate) Hz)")
+                let session = AVAudioSession.sharedInstance()
+                do {
+                    try session.setPreferredSampleRate(outFmt.sampleRate)
+                    try session.setActive(true, options: .notifyOthersOnDeactivation)
+                } catch {
+                    // A refusal here is not fatal by itself — the check below decides.
+                    logMonitorOutcome("rate: the session refused the graph's rate (\(error))")
+                }
+                // RE-READ, because a preference is a request: the granted rate is whatever the
+                // node reports now, and only that number can be trusted against the assert.
+                inFmt = input.inputFormat(forBus: 0)
+                if abs(inFmt.sampleRate - outFmt.sampleRate) > 1 {
+                    // ⚠️ `on REFUSED`, UNNUMBERED, and both halves are load-bearing. The
+                    // ladder prefix `on` is what makes `diag-ladder` recognise this as a
+                    // TERMINATOR at all — without it a log ending here would read as a DEATH
+                    // at step 3, sending a triager after a crash that did not happen. And the
+                    // NUMBER must be absent because guard (c3) forbids numbering a skip that
+                    // RETURNS: in a log the walks-on form and the returns form are the same
+                    // string, so only an unnumbered terminator may rescue a short ladder.
+                    logMonitorOutcome("on REFUSED — input \(inFmt.sampleRate) Hz cannot meet "
+                                      + "the graph's \(outFmt.sampleRate) Hz; connecting anyway "
+                                      + "would put a converter on the input edge and abort "
+                                      + "(isInputConnToConverter). Monitoring stays OFF.")
+                    try? AudioConfiguration.releaseRecordRoute(.inputMonitoring)
+                    restoreEngineIfStranded(wasRunning, at: "input monitoring rate guard")
+                    return false
+                }
+                logMonitorOutcome("rate: session granted \(inFmt.sampleRate) Hz — edge and "
+                                  + "graph agree, continuing", level: .info)
+            }
             masterEngine.connect(input, to: notchEQ, format: inFmt)
             // #858: the tune stage is ALWAYS in the chain, BYPASSED while off — the
             // fifth and structural answer to the isInputConnToConverter SIGABRT.

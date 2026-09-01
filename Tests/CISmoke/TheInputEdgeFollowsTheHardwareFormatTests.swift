@@ -262,11 +262,30 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
             cycle on the input-fed chain is a fresh chance at the #858 abort — or the connect \
             now uses something other than `inFmt`, which discards the decision above it.
             """)
-        XCTAssertEqual(occurrences(of: "input.inputFormat(forBus: 0)", in: code), 1, """
-            The input node's raw format is read more than once in this FILE (the scan is \
-            file-wide, not path-scoped — a second read anywhere reddens this). The decision \
-            must happen ONCE and be carried in `inFmt`; a second raw read re-introduces \
-            exactly the stale value the founder log ended on.
+        // ⛔ #958 AMENDED THIS FROM ONE TO TWO, and the amendment is the point rather than a
+        // concession. The law was "the decision must happen ONCE and be carried in `inFmt`;
+        // a second raw read re-introduces exactly the stale value the founder log ended on."
+        // His v10.79.435 log then showed the opposite failure: the input side AGREED with the
+        // hardware (`edge 48000/1, session 48000/1`) and the app still aborted, because the
+        // MASTER GRAPH was at `out 44100/2`. The repair asks the session for the graph's rate
+        // and must then RE-READ what was granted — a preference is a request, and only the
+        // granted number can be trusted against the assert. That second read is the opposite
+        // of stale; forbidding it would have kept a law that blocks its own purpose (#364).
+        //
+        // ⚠️ TWO, NOT "AT LEAST TWO". A third raw read is exactly the drift the original law
+        // was written against, so the equality stays — with both sites named here, which is
+        // what a bare count could never say:
+        //   · `var inFmt = input.inputFormat(forBus: 0)` — the DECISION, before the connect;
+        //   · the re-read inside the #958 rate block, after `setPreferredSampleRate` +
+        //     `setActive`, which is the only place a fresh number can legitimately appear.
+        XCTAssertEqual(occurrences(of: "input.inputFormat(forBus: 0)", in: code), 2, """
+            The input node's raw format is read \
+            \(occurrences(of: "input.inputFormat(forBus: 0)", in: code)) times, not twice. \
+            Exactly two reads are sanctioned: the DECISION at the top of the ON path, and the \
+            re-read inside #958's rate block that collects what the session actually granted. \
+            A THIRD read re-introduces the stale value the founder log ended on; ZERO or ONE \
+            means either the decision or the post-grant refresh is gone, and without the \
+            refresh the code trusts a PREFERENCE instead of a grant.
             """)
         // ⭐ #956 AMENDED THIS LAW AND THE AMENDMENT IS PINNED HERE, not left implicit. The
         // TAP deliberately asks the node again at its own rung, because `installTap` validates
