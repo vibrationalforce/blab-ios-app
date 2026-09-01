@@ -445,7 +445,7 @@ struct EchoelmusicApp: App {
                     // line. Both halves fixed — this site speaks, and the guard now demands
                     // one line per site.
                     EchoelCrashLog.breadcrumb(
-                        "LaunchGuard: counter cleared on the recovery screen (one-shot)")
+                        EchoelCrashLog.recoveryScreenClearedMarker + " (one-shot)")
                     LaunchGuard.reset()
                 }
             } else if hasCompletedOnboarding {
@@ -496,7 +496,7 @@ struct EchoelmusicApp: App {
                         // one, so a grep for the studio line matched a fresh-install run that
                         // never built `mainContent`. The two are now disjoint.
                         EchoelCrashLog.breadcrumb(
-                            "LaunchGuard: confirming healthy (onboarding) — streak "
+                            EchoelCrashLog.confirmedHealthyMarker + " (onboarding) — streak "
                             + "\(LaunchGuard.unconfirmedCount)")
                         LaunchGuard.confirmHealthy()
                     }
@@ -1306,7 +1306,7 @@ struct EchoelmusicApp: App {
                 // to leave a witness behind the thing it witnesses. Found by the guard added
                 // in the same commit, which is what a guard is for.
                 EchoelCrashLog.breadcrumb(
-                    "LaunchGuard: confirming healthy (studio) — streak "
+                    EchoelCrashLog.confirmedHealthyMarker + " (studio) — streak "
                     + "\(LaunchGuard.unconfirmedCount)")
                 LaunchGuard.confirmHealthy()
 

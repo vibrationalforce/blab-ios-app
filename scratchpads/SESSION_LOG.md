@@ -20303,3 +20303,55 @@ Messgerät, und nennt beide Ausgänge des nächsten Logs als wertvoll — auch d
 ⚠️ Im 433er Log stand außerdem `LaunchGuard: SAFE MODE … unconfirmed streak 3`. Das ist der
 offene Posten #916/#917, in 434 **nicht angefasst** — und in der Notiz als solcher benannt,
 damit er nicht als miterledigt gelesen wird.
+
+## 2026-09-01 — #955: der Lauf, der Safe Mode auslöste, erreicht den Export
+
+**v10.79.434 ist wirklich auf TestFlight** — `Archive` ✅ → `Export & Upload` ✅ →
+**`Verify build landed in App Store Connect` ✅**. Der letzte Schritt ist der, der „CI grün" von
+„wirklich hochgeladen" trennt (die v304-Lehre). Verdikt auf `ad6b2a9`: `Build for Testing`
+Succeeded, **0 Compile-Fehler, 0 Fehlschläge, 0 Skips**, 168 Tests beobachtet; meine neuen
+Wächter stehen nicht im `tail -200`-Fenster — ehrlich ist „kompiliert nachweislich, Ausführung
+unbelegt" (#445/#807).
+
+⭐ **Der Befund kommt aus DEMSELBEN Founder-Log wie der Absturz, und niemand hatte ihn gelesen.**
+Es öffnet mit `SAFE MODE … unconfirmed streak 3` — zwei Starts davor haben nie gesund gemeldet —
+und trägt von **keinem** davon eine Zeile.
+
+**Gemessen, warum, und das Komplement ist exakt statt geschätzt:** `looksLikeUnseenCrash` hat
+zwei Arme — ein `CRASH`-Marker, oder „`Start tapped` erreicht und nicht im Hintergrund geendet".
+**Ein Start, der VOR `startup 4/4` stirbt, kann den zweiten Arm nicht erfüllen** (der Nutzer hat
+nichts gedrückt, die App ist noch am Hochfahren) und den ersten nur, wenn ein Handler den Marker
+noch schreiben konnte. **Also sind genau die Läufe, die Safe Mode VERURSACHEN, die Läufe, die
+nichts aufhebt.**
+
+**Der Eingriff:** `unconfirmedRunToAttach(from:)`, rein, mit **fünf Toren** — Startbanner
+vorhanden · nicht schon von der Aufbewahrung gehalten · kein Gesund-Marker · kein
+Recovery-Schirm-Marker (ein Safe-Mode-Lauf löscht den Zähler selbst, trägt also zu keinem Streak
+bei) · nicht im Hintergrund geendet. Dazu `withUnconfirmedRun` als Komposer und `trimToBudget`
+als **eine** Definition der Kürzungsregel für beide Aufrufer (#416).
+
+⚠️ **AUSDRÜCKLICH NICHT gemacht: `looksLikeUnseenCrash` verbreitern.** Es hat einen **zweiten**
+Verbraucher — das selbst-öffnende Absturz-Sheet in `EchoelStudioView`. Eine Verbreiterung hätte
+zwei Funktionen auf einmal geändert, eine davon ungefragt im Gesicht des Founders. Das Tor ist
+ein **Lesen** dieses Prädikats, nie eine Änderung — und Anspruch 6 des Wächters nagelt genau das
+fest, damit eine spätere „Vereinfachung" es nicht doch tut.
+
+**Drei Marker bekommen EINE Schreibweise.** Schreiber (`EchoelmusicApp`) und Leser
+(`EchoelCrashLog`) liegen zwei Dateien auseinander, und der Ausfall wäre **still**: der Leser
+trifft nichts mehr, das Anhängen passiert einfach nicht, kein Test wird rot — #650 ist der
+bezahlte Präzedenzfall. `confirmedHealthyMarker` ist bewusst der **gemeinsame Präfix** beider
+Bestätigungszeilen: #915 hat Studio und Onboarding absichtlich disjunkt gemacht, und ein Marker
+mit `(studio)` darin hätte jeden Fresh-Install-Lauf still angehängt. **Emittierter Text
+byte-identisch** — nachgeprüft, also matcht jeder bestehende Log-Wächter und `diag-ladder.py`
+unverändert.
+
+**Benotung, ehrlich:** **23 Zusicherungen**, END-TO-END (die Funktionen sind rein und aufrufbar —
+die starke Sorte, nicht bloß ein Textscan). Die Datei nennt sieben Symbole, die dieser Commit
+erst anlegt, **kompiliert also am Elternteil nicht — kein Anspruch hat dort ein Verdikt** (#488).
+Stattdessen handtranskribiert über **neun Logs**: genau **zwei** werden angehängt (der gestorbene
+Start und seine übergroße Variante), **sieben** abgelehnt. ⛔ Mein Kopf behauptete erst **17**
+Zusicherungen; gezählt sind **23** — selbst gefunden, dieselbe Klasse wie die drei Rücknahmen
+davor in dieser Runde.
+
+⚠️ Commit geht VOR dem Reviewer-Urteil raus (Stop-Hook), Blocker kommen als #955b — dasselbe
+Muster wie #953/#953b und #954/#954b, das in dieser Runde zweimal funktioniert hat.

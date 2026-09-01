@@ -90,7 +90,7 @@ enum EchoelCrashLog {
         let info = Bundle.main.infoDictionary
         let v = info?["CFBundleShortVersionString"] as? String ?? "?"
         let b = info?["CFBundleVersion"] as? String ?? "?"
-        breadcrumb("launch v\(v) (\(b))")
+        breadcrumb(launchLinePrefix + "\(v) (\(b))")
         // #916: KEEP the run that just ended, if it ended badly. `previousSession` is the
         // only copy of a crashed run and it lives for exactly ONE launch — the `O_TRUNC`
         // above has already thrown the file away, and the next launch throws this copy away
@@ -213,14 +213,23 @@ enum EchoelCrashLog {
     /// `looksLikeUnseenCrash`, whose semantics `ACleanExitIsNotACrashTests` already pins.
     static func crashToRetain(from previous: String) -> String? {
         guard looksLikeUnseenCrash(previous) else { return nil }
-        guard previous.count > retainedCrashCharacterBudget else { return previous }
-        let head = String(previous.prefix(while: { $0 != "\n" })) + "\n"
+        return trimToBudget(previous)
+    }
+
+    /// The budget rule, in ONE place. #955 gave it a second caller
+    /// (`unconfirmedRunToAttach`), and a second copy of "keep the launch line, mark the cut,
+    /// keep the tail" would be two spellings of one decision (#416) — the exact shape whose
+    /// first draft this file already retracted once (a plain `suffix` that cut the build
+    /// banner off precisely the logs big enough to need it).
+    static func trimToBudget(_ log: String) -> String {
+        guard log.count > retainedCrashCharacterBudget else { return log }
+        let head = String(log.prefix(while: { $0 != "\n" })) + "\n"
             + retainedCrashTrimMarker + "\n"
         let room = retainedCrashCharacterBudget - head.count
         // A launch line longer than the whole budget is not a real log; fall back to the
         // plain tail rather than return a "head" that is nothing but the banner.
-        guard room > 0 else { return String(previous.suffix(retainedCrashCharacterBudget)) }
-        return head + String(previous.suffix(room))
+        guard room > 0 else { return String(log.suffix(retainedCrashCharacterBudget)) }
+        return head + String(log.suffix(room))
     }
 
     /// May the newly captured `candidate` overwrite what is already retained?
@@ -332,9 +341,67 @@ enum EchoelCrashLog {
         (try? String(contentsOf: lastCrashURL, encoding: .utf8)) ?? ""
     }
 
-    /// This run plus the retained crash — what the reachable Diagnostics row renders.
+    /// #955 — the header for a previous run that never confirmed healthy. Says WHY it is
+    /// attached, because that is the question the reader has: a Safe-Mode screen is the
+    /// visible symptom and this is the run that caused it.
+    static let unconfirmedRunHeader =
+        "=== PREVIOUS RUN THAT NEVER CONFIRMED HEALTHY (this is what raised the Safe-Mode counter) ==="
+
+    /// The previous run, when it is the kind of run that raises `LaunchGuard`'s counter and
+    /// that retention does NOT already keep. `nil` otherwise.
+    ///
+    /// ⭐ WHY THIS EXISTS, and it is a founder-log finding rather than a theory. The
+    /// v10.79.433 export opens with `LaunchGuard: SAFE MODE … unconfirmed streak 3` — two
+    /// earlier launches never confirmed healthy — and carries NO evidence of either. That is
+    /// not an oversight in the export; it is the precise complement of what retention keeps.
+    /// `looksLikeUnseenCrash` has two arms: an explicit `CRASH` marker, or "reached Start and
+    /// did not end backgrounded". **A launch that dies BEFORE `startup 4/4` cannot satisfy
+    /// the second arm** — the user has not tapped Start, the app has not finished starting —
+    /// and it satisfies the first only if a handler got a marker written. So exactly the runs
+    /// that CAUSE Safe Mode are the runs nothing keeps.
+    ///
+    /// ⚠️ IT DELIBERATELY DOES NOT WIDEN `looksLikeUnseenCrash`, and that is the whole design
+    /// decision. That predicate has a SECOND consumer — `EchoelStudioView`'s auto-surfacing
+    /// crash sheet — so widening it would change two features at once, one of them a sheet
+    /// that opens in the founder's face. This adds evidence to an export he chooses to share;
+    /// it opens nothing. The `!looksLikeUnseenCrash` gate below is a READ of that predicate,
+    /// never a change to it, and it is what stops the same run appearing twice.
+    ///
+    /// ⚠️ THE FOUR REFUSALS ARE THE CONTENT, not defensive padding — each one is a run that
+    /// raised no counter and would be noise:
+    ///   · already retained  → it is in the export under its own header already;
+    ///   · confirmed healthy → the launch reached a UI and survived; the counter was reset;
+    ///   · cleared on the recovery screen → a Safe-Mode run clears the counter itself, so it
+    ///     never contributes to a streak, and attaching it would explain nothing;
+    ///   · ended backgrounded → a clean exit, the same subtraction `looksLikeUnseenCrash`
+    ///     already makes for its own second arm (`ACleanExitIsNotACrashTests` pins it).
+    /// The launch-line test is separate and blunt: without it an empty or unreadable previous
+    /// file passes every negative check above by vacuity and gets attached as nothing.
+    static func unconfirmedRunToAttach(from previous: String) -> String? {
+        guard previous.contains(launchLinePrefix) else { return nil }
+        guard !looksLikeUnseenCrash(previous) else { return nil }
+        guard !previous.contains(confirmedHealthyMarker) else { return nil }
+        guard !previous.contains(recoveryScreenClearedMarker) else { return nil }
+        guard lastScenePhase(in: previous) != backgroundPhase else { return nil }
+        return trimToBudget(previous)
+    }
+
+    /// Append the unconfirmed run to an already-composed export. A separate function rather
+    /// than a third parameter on `diagnosticsExport(current:retainedCrash:)`: that signature
+    /// has call sites in `Tests/CISmoke`, and §5 of this repo's test law is explicit that
+    /// changing a signature without grepping the blocking bundle for its callers is how a
+    /// cycle is lost to `TEST BUILD FAILED` (#666). Composition costs nothing here.
+    static func withUnconfirmedRun(_ export: String, unconfirmedRun: String?) -> String {
+        guard let run = unconfirmedRun, !run.isEmpty else { return export }
+        return export + "\n\n" + unconfirmedRunHeader + "\n" + run
+    }
+
+    /// This run, the retained crash, and — since #955 — the previous run when it never
+    /// confirmed healthy. What the reachable Diagnostics row renders.
     static func diagnosticsExport() -> String {
-        diagnosticsExport(current: currentLog(), retainedCrash: lastCrashLog())
+        withUnconfirmedRun(
+            diagnosticsExport(current: currentLog(), retainedCrash: lastCrashLog()),
+            unconfirmedRun: unconfirmedRunToAttach(from: previousSession))
     }
 
     // MARK: - Reading the previous session (#582)
@@ -348,6 +415,23 @@ enum EchoelCrashLog {
     static let startTappedMarker = "Start tapped"
     static let crashMarker = "CRASH"
     static let backgroundPhase = "background"
+
+    /// #955 — the three spellings the UNCONFIRMED-RUN test reads back. Same argument as the
+    /// three above and the same failure mode if they drift: the writers live in
+    /// `EchoelmusicApp`, the reader is `unconfirmedRunToAttach` here, and a marker only one
+    /// side spells right fails SILENTLY — the attach simply never happens and no test goes
+    /// red. #650 is this repo's paid-for instance (a helper took ownership of a prefix and
+    /// two guards anchored on the old full literal stayed red on a correct tree for weeks).
+    ///
+    /// ⚠️ `confirmedHealthyMarker` is deliberately the COMMON PREFIX of both confirm lines.
+    /// #915 made the studio and onboarding spellings disjoint on purpose — one used to be a
+    /// strict superstring of the other, so a grep for the studio line matched a fresh-install
+    /// run that never built `mainContent`. The suffixes stay disjoint; this prefix is what
+    /// "a UI was reached and survived" looks like in EITHER of them, which is the fact the
+    /// launch counter measures.
+    static let confirmedHealthyMarker = "LaunchGuard: confirming healthy"
+    static let recoveryScreenClearedMarker = "LaunchGuard: counter cleared on the recovery screen"
+    static let launchLinePrefix = "launch v"
 
     /// The one spelling of a scene-phase transition line. `EchoelmusicApp`'s
     /// `.onChange(of: scenePhase)` emits it; `lastScenePhase(in:)` is its exact inverse.
