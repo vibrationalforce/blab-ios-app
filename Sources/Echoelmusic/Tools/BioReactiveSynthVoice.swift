@@ -241,20 +241,43 @@ public final class BioReactiveSynthVoice {
     /// Observable mirror of `fxEnabled` for SwiftUI binding.
     public private(set) var isFXEnabled = false
 
-    /// #945 — the pitch this voice carries with NO controller attached, captured once at
-    /// construction so `panic()` can restore it. Read from the synth rather than written as a
-    /// number: `EchoelDDSP.frequency`'s default belongs to that type, and a second copy of it
-    /// here would be the #416 defect AND would redden a legitimate voicing change (#364).
-    private let nominalFrequency: Float
+    /// The MIDI note this voice rests on with no controller attached — A2, the note
+    /// `EchoelDDSP.frequency`'s shipped default (110 Hz) sounds. Named rather than inlined so
+    /// the guard can pin the PAIR: `soundingFrequency(forMIDINote:)` of this note must equal
+    /// that default under 12-TET/A440, and it does exactly (440 * 2^(-24/12) = 110.0).
+    private static let nominalMIDINote: UInt8 = 45
+
+    /// #946 — the resting pitch, DERIVED rather than stored, so both tuning axes reach it.
+    ///
+    /// ⛔ #945 CAPTURED THIS ONCE IN `init()` AND THAT WAS WRONG, in a way no reviewer question
+    /// asked about and only a look at the fan-out sites revealed. `EchoelStudioView` pushes
+    /// BOTH axes into this very voice — `setTuningCents` (the tone system's per-pitch-class
+    /// table, relative to the key root) and `setTuning(a4Hz:)` (concert pitch) — and a value
+    /// frozen at construction ignores every later push. So with a maqām or just-intonation
+    /// table selected, or A4 moved to 432, every played note was retuned and the breath drone
+    /// alone stayed at 110 Hz. Same defect family as #114's concert-pitch gap and #312's felt
+    /// sub, one voice further along; the comments at those two fan-out sites say so themselves.
+    ///
+    /// ⚠️ BIT-IDENTICAL UNDER THE DEFAULTS — this is a correctness fix, not a voicing change.
+    /// It differs only where the user has already asked for a different tuning.
+    ///
+    /// ⚠️ WHAT IT STILL DOES NOT DO: follow the composition's KEY. This voice has no notion of
+    /// one — `git grep` finds no `MusicalKey` in this file — so an armed breath drone sounds A
+    /// under a piece in any key, while `VoicePitchCorrector` snaps the SINGER into the session
+    /// key. That is a musical decision (tonic? nearest in-key note? deliberate pedal point?),
+    /// not a tidy-up, and it is not made here.
+    /// NEEDS-FOUNDER-VERIFY: Musik in einer Tonart ohne A laufen lassen, "Body voice"
+    /// einschalten und atmen — klingt die Atem-Drohne auf A falsch, oder trägt sie als
+    /// Orgelpunkt? Wenn falsch: Grundton der Tonart, oder nächstgelegener Ton in der Skala?
+    private var nominalFrequency: Float { soundingFrequency(forMIDINote: Self.nominalMIDINote) }
 
     public init() {
-        // #945b — bound to a local first. Reading `self.synth` one line after assigning it is
-        // legal Swift (definite initialisation), but there is no compiler in this sandbox and
-        // the last two cycles each lost time to a CI-only compile error; the zero-doubt form
-        // costs nothing.
-        let synth = EchoelDDSP(sampleRate: Float(Self.sampleRate))
-        self.synth = synth
-        self.nominalFrequency = synth.frequency
+        // ⛔ #946 — #945b's local-binding dance is gone with the stored property it served. It
+        // was a correct answer (definite initialisation) to a question that should not have
+        // been asked: the value belongs at the READ, not at construction, because both tuning
+        // axes arrive later. A compile-safety refinement on a design that was wrong one level
+        // up is the cheapest kind of wasted care — worth recording, because it looked diligent.
+        self.synth = EchoelDDSP(sampleRate: Float(Self.sampleRate))
         self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
         self.scratchBuffer = Array(repeating: 0, count: Self.maxBlockFrames)
     }

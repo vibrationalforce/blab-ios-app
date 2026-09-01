@@ -48,31 +48,30 @@
 // anderen Tonart läuft (diese Stimme kennt die Tonart nicht) — richtig so, oder soll er die
 // zuletzt gespielte Note über einen Stop hinweg behalten?
 //
-// ⚠️ HONEST GRADING. There is no local Swift toolchain (§0), so both implementations were
-// transcribed into Python and every assertion in this file driven against each, with the
-// expectations derived from the algebra rather than read off a printed value (#442).
-// **10 assertions. 2 are REGRESSION CATCHES** — the two "panic restores the nominal", one
-// after a full bend and one after a CENTRED one, red on the parent and green here.
-// **8 are COUNTERWEIGHTS (#343)**, green on both, and they are the point of the file: without
-// them "panic unbends" is satisfied by a panic that also resets the pitch DURING play
-// (claim 3), by a `playNote()` that stopped inheriting the pitch at all (claim 2, which is
-// what makes this a user-visible defect rather than a tidy-up), or by a panic that drops one
-// of the three latches it already cleared (claim 4).
-// **0 broken, 0 red on this worktree.**
+// ⚠️ HONEST GRADING, AND IT NAMES ITS BASELINE, because this file now spans three commits and
+// "the parent" means a different tree for different claims. No local Swift toolchain (§0), so
+// each implementation was transcribed into Python and every assertion driven against it, with
+// the expectations derived from the algebra (#442).
 //
-// ⛔ THE FIRST TWO DRAFTS OF THIS BLOCK WERE BOTH WRONG, and the second one only because the
-// first repair did not go far enough. Draft 1 said "7 assertions, 2 REGRESSION CATCHES" —
-// both numbers guessed from the shape of the file rather than counted, and both in the
-// FLATTERING direction (#433/#464). Draft 2 counted honestly and got 8 / 1 / 7 — correct FOR
-// THE FILE AS IT THEN STOOD, and that file drove a bend shape production cannot emit (see the
-// `bend(_:)` helper). Fixing the shape and adding claim 1b changes the arithmetic again.
-// **The lesson is not "count" — it is that a grading is only as good as the SCENARIO it
-// grades**, and this file's scenario was wrong while its arithmetic was right.
+// **13 assertions.** Against the tree #946 was cut from (#945b): **2 REGRESSION CATCHES** —
+// claim 1c's concert-pitch and tone-system assertions — and **11 COUNTERWEIGHTS (#343)**.
+// Against the tree the file was BORN on (pre-#945, no pitch restore at all): the four
+// panic-restore assertions of claims 1 and 1b are the catches instead. Both readings are
+// stated because quoting only the second would inflate what THIS commit proves, and quoting
+// only the first would hide what the file as a whole pins. **0 broken, 0 red on the worktree.**
 //
-// ⚠️ THE FILE DOES NOT COMPILE AGAINST THE PARENT: `nominalFrequencyForTests` is new in this
-// commit. Every assertion still HAS a meaning there — the accessor reads a value the parent's
-// voice also carries — which is why the grading above is a real verdict rather than "not
-// gradable". Said plainly so it cannot read as "green there" (#488).
+// ⛔ THE GRADING OF THIS FILE HAS NOW BEEN WRONG THREE TIMES, each for a different reason, and
+// the sequence is worth more than any of the numbers. Draft 1 GUESSED (7/2 instead of 8/1), in
+// the flattering direction (#433/#464). Draft 2 counted honestly and was right for the file as
+// it then stood — but that file drove a bend shape production cannot emit, so the ARITHMETIC
+// was right and the SCENARIO was wrong. Draft 3 was right for both and named no baseline,
+// which stops meaning anything the moment a file outlives one commit.
+// **A grading is a verdict about a SCENARIO measured against a NAMED tree.** Miss any of the
+// three and the number reads as more than it is.
+//
+// ⚠️ THE FILE DOES NOT COMPILE AGAINST THE PRE-#945 TREE: `nominalFrequencyForTests` is new
+// there. Every assertion still HAS a meaning — said plainly so it cannot read as "green
+// there" (#488).
 //
 // ⚠️ NO Hz LITERAL IS PINNED. `EchoelDDSP.frequency`'s default and `tuningA4Hz` both belong to
 // shipped types; restating either here would be the #416 defect, and pinning 110.0 would redden
@@ -156,6 +155,55 @@ final class APanicUnbendsTheVoiceTests: XCTestCase {
             `panic()` did not restore the nominal after a CENTRED bend. This is the common \
             case, not the edge one: releasing the wheel sends it, so an ordinary keyboard \
             leaves the breath voice two octaves high with no control able to fix it.
+            """)
+    }
+
+    /// claim 1c (#946) — THE NOMINAL MUST GO THROUGH THE VOICE'S OWN TUNING, and until #946 it
+    /// did not. `EchoelStudioView` fans BOTH tuning axes into this voice — `setTuningCents`
+    /// (the tone system's per-pitch-class table, relative to the key root) at `:4448` and
+    /// `setTuning(a4Hz:)` (concert pitch) at `:4480` — and then the voice's own resting pitch
+    /// bypassed both, because it was `EchoelDDSP.frequency`'s raw struct default. With a maqām
+    /// or just-intonation table selected, or A4 moved to 432, every played note was retuned and
+    /// the breath drone alone was not. Same defect family as #114's concert-pitch gap and
+    /// #312's felt sub, one voice further along, and the comments around those two fan-out
+    /// sites say so themselves.
+    ///
+    /// ⚠️ BIT-IDENTICAL UNDER THE DEFAULTS, which is why this is a correctness fix and not a
+    /// voicing change: `soundingFrequency(forMIDINote: 45)` at 12-TET/A440 is
+    /// `440 * 2^(-24/12)` = **exactly** 110.0, the shipped default. It only differs where the
+    /// user has already asked for a different tuning.
+    func testTheRestingPitchFollowsBothTuningAxes() {
+        let plain = BioReactiveSynthVoice()
+        let shipped = EchoelDDSP().frequency   // every parameter defaults; nothing to mistype
+
+        // 1c-i — the pair this derivation rests on: note 45 IS the note the shipped default
+        // sounds. If `EchoelDDSP.frequency`'s default moves, this goes red rather than the
+        // drone silently drifting a semitone from every other voice.
+        XCTAssertEqual(plain.nominalFrequencyForTests, shipped, accuracy: 1e-3, """
+            The voice's resting pitch is no longer the pitch `EchoelDDSP` ships. Either the \
+            struct default moved or `nominalMIDINote` did; they are one pair and must move \
+            together, or the breath drone lands a step away from every played note.
+            """)
+
+        // 1c-ii — concert pitch reaches it. THE REGRESSION.
+        let retuned = BioReactiveSynthVoice()
+        retuned.setTuning(a4Hz: 432)
+        XCTAssertLessThan(retuned.nominalFrequencyForTests, shipped - 1, """
+            Moving concert pitch to 432 Hz left the breath drone at the 440-based pitch. \
+            `EchoelStudioView.applyConcertPitch` fans `setTuning(a4Hz:)` into THIS voice on \
+            purpose; a resting pitch that ignores it is the #114 gap one voice further along.
+            """)
+
+        // 1c-iii — and the tone system reaches it. Also THE REGRESSION. A table that lowers
+        // pitch class A (note 45 % 12 == 9) must move the drone with it.
+        var cents = [Float](repeating: 0, count: 12)
+        cents[9] = -50
+        let bent = BioReactiveSynthVoice()
+        bent.setTuningCents(cents)
+        XCTAssertLessThan(bent.nominalFrequencyForTests, shipped - 1, """
+            A tone-system table that retunes pitch class A left the breath drone at 12-TET. \
+            `applyTuning()` fans `setTuningCents` into this voice; with a maqām or just table \
+            selected every played note moved and the drone alone did not.
             """)
     }
 

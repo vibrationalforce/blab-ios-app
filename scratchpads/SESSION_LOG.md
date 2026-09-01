@@ -19552,3 +19552,55 @@ Produzenten, Sekunden, und beide Male der fehlende Schritt.
 **Instrumente:** `dead-needles` 393 + Selbsttest OK · `count-pins` 137/160, 0 rot ·
 `needle-reachability` sauber · Klammern in allen vier berührten Dateien ausgeglichen.
 **Kompiliert ist noch nichts** — das entscheidet der nächste CI/CD-Lauf.
+
+## 2026-09-01 — #946: die App stimmte diese Stimme sorgfältig und ihre eigene Ruhe-Tonhöhe umging beides
+
+**Der Befund, und er ist schärfer als der, mit dem ich losgelaufen bin.** Ich wollte messen, ob
+die Bio-Stimme die Tonart kennt (sie kennt sie nicht). Beim Nachsehen, wer ihr überhaupt etwas
+schickt, kam heraus: `EchoelStudioView` fächert **beide** Stimmungs-Achsen in genau diese
+Stimme — `setTuningCents` (Tonsystem-Tabelle pro Tonklasse, relativ zum Tonart-Grundton,
+`:4448`) und `setTuning(a4Hz:)` (Konzertstimmung, `:4480`) — **und ihre eigene Ruhe-Tonhöhe
+umging beide**, weil sie `EchoelDDSP`s roher Struct-Default 110 Hz war.
+
+Konsequenz: mit einer Maqām- oder Just-Tabelle, oder A4 auf 432, wurde **jede gespielte Note
+umgestimmt und allein die Atem-Drohne nicht.** Dieselbe Defekt-Familie wie #114
+(Konzertstimmung) und #312 (gefühlter Bass) — und die Kommentare an genau diesen zwei
+Fächer-Stellen sagen das über ihre eigenen Fälle selbst.
+
+**Der Fix ist eine Zeile und bit-identisch unter den Vorgaben.** `nominalFrequency` ist jetzt
+**abgeleitet** statt gespeichert: `soundingFrequency(forMIDINote: 45)`. Bei 12-TET/A440 ist
+das `440 * 2^(-24/12)` = **exakt** 110,0, also kein Klangunterschied; anders wird es nur dort,
+wo der Nutzer ohnehin eine andere Stimmung verlangt hat.
+
+⛔ **#945 hatte den Wert bei der Konstruktion eingefroren, und das war falsch — keine
+Reviewer-Frage hat danach gefragt, nur ein Blick auf die Fächer-Stellen.** Schlimmer: #945b
+hat die `init`-Form dann noch *sorgfältiger* gemacht (lokales `let` zuerst, „zweifelsfrei"),
+also eine Compile-Absicherung auf einem Entwurf, der eine Ebene höher falsch war. **Das ist die
+billigste Sorte verschwendeter Sorgfalt, weil sie fleißig aussieht** — im Quelltext vermerkt,
+damit sie nicht als Vorbild gelesen wird.
+
+**Der Wächter nagelt das PAAR fest:** Note 45 IST die Note, die der Struct-Default klingt.
+Ändert jemand `EchoelDDSP.frequency`s Default, wird der Test rot, statt die Drohne still einen
+Schritt neben jede andere Stimme driften zu lassen.
+
+**Was #946 bewusst NICHT anfasst: die Tonart.** `git grep` findet kein `MusicalKey` in dieser
+Datei. Eine scharfgeschaltete Atem-Drohne klingt auf A, egal in welcher Tonart die Komposition
+läuft — während `VoicePitchCorrector` den SÄNGER in die Session-Tonart schnappt. Ob das falsch
+ist, ist eine musikalische Entscheidung (Grundton? nächstgelegener Skalenton? bewusster
+Orgelpunkt?) und gehört dem Ohr des Founders. Als Geräte-Bitte notiert, Code unangetastet.
+
+**Benotung, mit BENANNTER Grundlinie: 13 Zusicherungen · gegen #945b 2 Regressionsfänge ·
+11 Gegengewichte · 0 rot.** Gegen den Baum, auf dem die Datei GEBOREN wurde (vor #945, ohne
+jeden Restore), sind stattdessen die vier Panik-Zusicherungen die Fänge.
+⛔ **Die Benotung dieser Datei war jetzt dreimal falsch, jedes Mal anders**, und die Reihe ist
+mehr wert als jede Zahl: Entwurf 1 **riet** (7/2 statt 8/1, schmeichelnde Richtung) · Entwurf 2
+**zählte ehrlich und war für die Datei richtig**, aber die Datei trieb eine Gestalt, die es in
+der Produktion nicht gibt — Arithmetik richtig, **Szenario** falsch · Entwurf 3 war für beides
+richtig und nannte **keine Grundlinie**, was aufhört zu bedeuten, sobald eine Datei mehr als
+einen Commit überlebt. **Eine Benotung ist ein Urteil über ein SZENARIO gegen einen BENANNTEN
+Baum.** Fehlt eines der drei, liest sich die Zahl größer als sie ist.
+
+**Instrumente:** `dead-needles` 393 + Selbsttest OK · `count-pins` 137/160, 0 rot · Klammern
+ausgeglichen · beide zitierten Funktionsnamen (`applyTuning`, `applyConcertPitch`) per `grep`
+belegt (#474: ein Name ist so viel Messung wert wie eine Zahl).
+**Kompiliert ist noch nichts** — das liest der nächste Zyklus.
