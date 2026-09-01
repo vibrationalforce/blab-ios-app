@@ -19997,3 +19997,49 @@ ohne lokalen Compiler führe ich keine API ein, die das SDK vielleicht nicht zei
 
 ⚠️ Die Gate-Disziplin hat funktioniert, wie sie soll: der Fehler war in einem Zyklus gefunden
 und in einem behoben, und `Xcode Compile Check` — nicht die CI/CD-Conclusion — war der Zeuge.
+
+## 2026-09-01 — #952: warum das Coalescing-Gate nur an EINER Stelle stehen darf
+
+**Gates von #951b gelesen: grün.** `Xcode Compile Check` success, CI/CD wie immer `failure`
+(#396) mit `TEST EXECUTE FAILED` und **0 Compile-Fehlern, 0 Fehlschlägen** — der `noasync`-Fix
+kompiliert.
+
+**Die Scheibe.** #951 hat `publish(controller:)` auf FIRST-WINS umgestellt: das erste Ereignis
+eines Schwungs gewinnt, `latestControllerEvent` trägt es, die späteren aktualisieren den
+Schnappschuss nicht mehr. Das ist **nur deshalb harmlos, weil diese eine Eigenschaft null
+Produktions-Leser hat** — und nichts im Baum sagte das. Die nächste Sitzung, die eine
+Publish-Methode optimieren will, findet vier gleich aussehende Pfade.
+
+**Gemessen** (kommentar-gestrippt, bezeichner-exakt, wie der Wächter selbst misst):
+
+| Schnappschuss | Leser in `Sources/` |
+|---|---|
+| `latestControllerEvent` | **0** |
+| `latestBioEvent` | 1 |
+| `latestMusical` | 1 |
+| `latestBio` | **11** |
+
+Vier Ansprüche, **11 Zusicherungen, NULL Regressions-Fänge**. Das ist ein
+**Invarianten-Wächter**, kein Defekt-Fänger, und der Kopf sagt es ausdrücklich: die
+schmeichelnde Richtung wäre, die 11 als Fänge zu buchen (#433).
+
+⛔ **Drei Ehrlichkeits-Blocker, alle dieselbe Klasse — eine Zahl im Kopf, die das Werkzeug
+daneben widerlegt.**
+· **Selbst gefunden:** mein Kopf zitierte **rohe** `git grep`-Treffer (0/2/3/25), während der
+  Wächter kommentar-gestrippt und bezeichner-exakt misst (0/1/1/11). Genau die
+  `EchoelModalBank`-Lehre: ein zitiertes Rezept, das man ausführt und das der Prosa
+  widerspricht, wird als Widerspruch gelesen.
+· **Reviewer B2:** die illustrative Leser-Liste zählte **Prosa als Leser** — `ModulationEngine`
+  und `CoherenceTrend` nennen `latestBio` nur im Kommentar; nur 2 von 9 Bio-Flächen
+  qualifizieren. Ersetzt durch die 11 namentlich.
+· **Reviewer B3:** die §2-Stripper-Messung fehlte, und *„ein plain `contains` würde hier
+  lügen"* ist heute **falsch** (der einzige gestrippte `latestBioEvent`-Leser liest `latestBio`
+  ohnehin eigenständig). Jetzt beschriftet: `SourceText.codeOnly` **PROPHYLAKTISCH für die
+  VERDIKTE (0 von 11 kippen)**, tragend nur für die ZAHLEN.
+
+⭐ **Die 11-gegen-0-Asymmetrie überlebt jede Messweise** — sie ist der Grund, warum der Wächter
+etwas wert ist, und sie war in keiner der drei Falschstellen betroffen.
+
+**Instrumente:** `dead-needles` 396 Dateien OK + `--selftest` OK · `count-pins` 137/160, **0
+ROT** · `needle-reachability` sauber · `doctor` unverändert bei den zwei bekannten
+founder-gated CI-Maskierungen.
