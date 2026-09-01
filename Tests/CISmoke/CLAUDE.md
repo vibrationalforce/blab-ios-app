@@ -470,6 +470,27 @@ its own known positive is not a measurement.
     that the gate then demonstrably did not.
   ⚠️ Do not read this as "#396 is worse than we thought" and go quiet about it — the fix is
   founder-gated and already recorded. Read it as: **the gate is a floor, not a verdict.**
+- **#943b — THE SECOND KNOWN-BAD CONTROL, and it is a SOURCE-TEXT scan rather than
+  arithmetic, so the two instances now bracket the shape.** #686's failing test needed a
+  simulated DSP algorithm to prove it could not pass. This one needs `grep -c`.
+  `25d34dc` (#943) replaced `private var heldByController = false` with a computed flag over
+  a held-key stack. `TheMPEInputHasNoZonesTests.testThePerformerPathIsMonophonic` asserted
+  that exact literal was present. Measured on the three trees:
+  **1** occurrence at `febecdb`, **0** at `25d34dc`, **0** after the repair — so the guard was
+  certainly red on the tree that shipped. The CI/CD run for `25d34dc` reported
+  `build-for-testing: Succeeded`, **0 compile errors, 0 failures, 167 tests observed passing,
+  and not one result line from that suite.** Same outcome as #686, different mechanism:
+  whether it ran outside the `tail -200` window (#807) or was never flushed (#445) does not
+  matter — **the blocking bundle did not block a guard that could not pass.**
+  What actually caught it was the mandatory reviewer, again. Two things follow:
+  · §4 is the cheap prevention and it is one command — when you delete or rename a
+    DECLARATION, `git grep` the old spelling across `Tests/CISmoke`, not only `Sources/`.
+    Neither gate can see this: `Xcode Compile Check` builds `Sources/` alone, and
+    `dead-needles.py` asks whether a needle can match SOME file, never whether it still
+    matches the file its claim points at.
+  · Prefer an anchor on an INVARIANT over one on a spelling. The repaired claim asks that the
+    flag be Bool-valued and DERIVED, and that `apply(controller:)` hold exactly one
+    `playNote(` and one `releaseNote()` — facts no note-priority rewrite can quietly remove.
 - **#689 — COUNT THE ROOT CAUSES, NOT THE ERROR LINES, and this one nearly became a false
   law in the always-loaded file.** `6eb172b` produced four `error:` lines naming a repo file:
   three `cannot find 'source' in scope` and one `type 'Any' cannot conform to 'Equatable'`.
