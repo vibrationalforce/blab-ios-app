@@ -20410,3 +20410,51 @@ Wurzel-Rumpf. Gepinnt von mindestens `TheAlwaysOnRowsReachTheBioPanelTests`,
 **Konsequenz: hier ist NICHTS zu bauen** — eine zweite Fläche wäre die #290-Ablehnung („a
 second door to the same panel"). Wer den Punkt aus der Cron-Liste erneut aufgreift, misst
 zuerst diese drei Zeilen nach.
+
+## 2026-09-01 — #955c: vier Ehrlichkeits-Blocker am eigenen Wächter, kein Logik-Defekt
+
+Der Pflicht-Reviewer fand an #955b **vier Blocker, alle Ehrlichkeit** — die Gate-Logik selbst
+hielt jede Prüfung (er ist neun Log-Formen durchgegangen, inklusive der drei, die ich nicht
+bedacht hatte). Alle vier vor dem Reparieren selbst nachgemessen.
+
+1. **Die umgeschriebene Dach-Zeile war für zwei ihrer drei Aufzählungspunkte falsch — und zwar
+   in dem Commit, der sie umgeschrieben hat.** Sie sagte, alle drei Ablehnungen beschreiben
+   Läufe, die „keine Strähne hinterlassen". Nur EINE tut das. Ein abgestürzter Lauf und ein
+   im-Hintergrund-getöteter haben den Zähler sehr wohl gehoben; sie werden aus einem ANDEREN
+   Grund abgelehnt (anderswo schon getragen / nicht von einem sauberen Beenden unterscheidbar —
+   `looksLikeUnseenCrash` sagt das 150 Zeilen tiefer selbst, in derselben Datei). **Zwei Gründe
+   zu einem zu verflachen ist genau das, was #955s Reihenfolge-Blindheit eine Scheibe lang
+   unsichtbar gemacht hat.** Jetzt zwei benannte Gruppen.
+2. **Zwei ZAHLEN in Prosa sind innerhalb des Commits veraltet, der sie schrieb** („beide
+   Konstanten", während die Schleife drei abdeckte; „diese drei Zeilen", während vier emittiert
+   werden — 2+1+1). Beide tragen jetzt keine Zahl mehr: die Schleife und die Tabelle SIND die
+   Liste. Die Kommentarzeile daneben hatte die identische Rücknahme über ihren Nachbarn stehen
+   und wurde trotzdem nicht mitgezogen.
+3. **Anspruch 12 tippte die Geschwisterzeile von Hand ab** — genau die #650-Form, um die diese
+   Scheibe geht. `"LaunchGuard: re-arm not needed …"` stand als rohes Literal in
+   `EchoelmusicApp` und als Kopie im Wächter. Umformulieren zu `re-arming not needed` hätte den
+   Wächter grün gelassen, während `rearmMarker` plötzlich in der echten Logzeile steckt und
+   `counterEndedSettled` jeden No-op als Anhebung liest. `rearmNotNeededMarker` ist jetzt EINE
+   Schreibweise mit Schreiber-Pin.
+4. **„`public`-reachable" war falsch** (`enum EchoelCrashLog` ist internal, erreichbar nur über
+   `@testable`), ebenso der Stripper-Nenner „0 von 3" und die Angabe „zehn Logs / acht
+   Gegengewichte", für die es kein Rezept gab. Das Rezept steht jetzt daneben — **verankert**,
+   weil die unverankerte Form SICH SELBST mitzählt (#753).
+
+**Nicht gebaut, an ihrer Stelle aufgeschrieben:** die Lücke der erweiterten Krumen-Nadel (ein
+nackter Bezeichner ist keine geschriebene Zeile — Mutant gefahren), `recoveryExport`, das den
+Anhang nicht komponiert, die zwei Rand-Fälle von `counterEndedSettled` (beide irren Richtung
+ANHÄNGEN, also sicher) und die unausgesprochene Prämisse „keine Anhebung vor der ersten
+Glättung".
+
+⛔ **Korrektur an meinem eigenen Eintrag von heute Morgen:** dort stand „eine gelöschte Krume
+fällt weiter aus dem genannten Grund (#367)" als allgemeine Aussage. Das gilt für die zwei
+Krumen, die ich als Mutant gefahren habe (Studio-Bestätigung → rot bei 1311, Recovery-Löschung
+→ rot bei 449), **nicht für die `re-arming`-Krume**: Aufrufstelle 679 besitzt ZWEI Zeilen (673
+und 676), das Löschen einer davon lässt die andere stehen. Geschützt ist sie trotzdem — aber
+vom Zähl-Pin in Anspruch 10, nicht vom Ownership-Scan. Eine aus EINEM Mutanten verallgemeinerte
+Eigenschaft ist eine Vermutung.
+
+**Instrumente:** `dead-needles` 398 OK · `count-pins` 137/165, 0 RED · `needle-reachability`
+sauber · `diag-ladder --source` sauber. Ownership-Scan transkribiert: 0 FAIL, beide
+Lösch-Mutanten rot an der richtigen Stelle. Geschwisterzeile byte-identisch nachgewiesen.

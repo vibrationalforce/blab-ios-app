@@ -673,7 +673,7 @@ struct EchoelmusicApp: App {
                         EchoelCrashLog.rearmMarker + " — streak was 0 before the risky startup")
                 } else {
                     EchoelCrashLog.breadcrumb(
-                        "LaunchGuard: re-arm not needed — streak already "
+                        EchoelCrashLog.rearmNotNeededMarker + " — streak already "
                         + "\(LaunchGuard.unconfirmedCount)")
                 }
                 LaunchGuard.armForRiskyStartup()

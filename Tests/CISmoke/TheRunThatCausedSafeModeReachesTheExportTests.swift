@@ -1,7 +1,9 @@
 // TheRunThatCausedSafeModeReachesTheExportTests.swift
 // Echoel — #955/#955b. Blocking bundle. **END-TO-END BEHAVIOUR** for claims 1–9 and 11–12
 // (`Tests/CISmoke/CLAUDE.md` §1): every one drives the real `EchoelCrashLog` statics, which are pure,
-// `public`-reachable and Foundation-only, over logs built from the SHIPPED marker constants
+// reachable from this bundle through `@testable import` (⛔ #955b's header said
+// `public`-reachable; `enum EchoelCrashLog` is INTERNAL — #955c) and Foundation-only, over
+// logs built from the SHIPPED marker constants
 // rather than hand-typed strings. Claim 10 is the one SOURCE-TEXT SCAN and says so.
 //
 // ⭐ THE DEFECT IS A FOUNDER-LOG FINDING, not a theory. The v10.79.433 export opens with
@@ -35,7 +37,7 @@
 // parent, which has no attach path at all and therefore answers "nothing attached" to all
 // nine. **0 red on the worktree.**
 //   · That makes claims 1 and 9 the FIX (the run is attached, under a header), and claims
-//     2–8 and 10 COUNTERWEIGHTS in the strict #343 sense: they pin the four refusals and the
+//     2–8 and 10 COUNTERWEIGHTS in the strict #343 sense: they pin the refusals and the
 //     budget rule that make the attach mean something rather than fill every export.
 //   · Booking "nine logs newly answered" as nine catches would be the flattering direction —
 //     it is ONE capability that did not exist, reported many times (#486).
@@ -48,15 +50,41 @@
 // `counterEndedSettled(in:)` replaces the two checks, and claims 2 and 4 carry the qualifier
 // #955 stated as unconditional fact.
 //   · **30 assertion sites** (Python, lines whose first token is `XCTAssert`; was 23).
-//   · Transcribed both gates over ten logs: the two re-armed runs flip **nil → ATTACH**
-//     (2 red on #955's logic, and they are the blocker); the eight counterweights answer
-//     identically on both, including the `re-arm not needed` sibling that claim 12 exists for.
+//   · Transcribed both gates over the fixtures below — re-derive the split with
+//     `grep -cE '^ +(XCTAssert(Nil|NotNil)\(|let [a-z]+ = )EchoelCrashLog\.unconfirmedRunToAttach'`
+//     on this file rather than trusting a number here. ⚠️ The ANCHOR at line start is not
+//     cosmetic: the unanchored form counts THIS SENTENCE as a fixture (#753 — a tool that reads
+//     its own description as an item), which I hit while writing it. The two RE-ARMED runs flip **nil → ATTACH** (they are the blocker); every
+//     other fixture answers identically on both gates, including the `re-arm not needed`
+//     sibling that claim 12 exists for. (⛔ #955b wrote "ten logs … eight counterweights";
+//     neither half was reproducible from the repo — no command, no fixture list, and the two
+//     numbers did not decompose into each other.)
 //   · `counterEndedSettled` and `rearmMarker` are created by this commit, so once again the
 //     file does not compile against its parent and #488 applies unchanged.
 //
-// ⚠️ STRIPPER (§2): `SourceText.codeOnly` runs in claim 10 only. **PROPHYLACTIC — 0 of 3
-// verdicts flip**, measured raw vs. stripped: no doc block in `EchoelmusicApp.swift` quotes
-// the three constant NAMES today. It stays because these files document what they forbid,
+// ⚠️ EPOCH 3 — #955c, the mandatory reviewer on #955b. FOUR honesty blockers, no logic defect:
+//   · the rewritten umbrella in `EchoelCrashLog` said all three refusals describe runs that
+//     "left no streak behind". Only ONE does. A crashed run and a backgrounded-then-jetsammed
+//     run BOTH raised the counter and are refused for a different reason (carried elsewhere /
+//     indistinguishable from a clean exit — `looksLikeUnseenCrash`'s own HONEST LIMIT says so
+//     150 lines away, in the same file). Flattening two reasons into one is precisely what hid
+//     #955's order-blindness for a slice;
+//   · two COUNTS in prose went stale inside the commit that wrote them ("both constants" while
+//     the loop covered three; "those three lines" while four are emitted). Both are now
+//     countless — the loop and the table ARE the list;
+//   · claim 12 HAND-TYPED the sibling line while `EchoelmusicApp` held a raw literal — the #650
+//     shape this whole slice is about. `rearmNotNeededMarker` now has one spelling, read by
+//     both sides, with a writer pin in claim 10.
+//   · **31 assertion sites** (same Python count). Sources re-measured, not recalled.
+//   Recorded and NOT built, each at its own site: the crumb-needle gap (a bare identifier is
+//   not a logged line), `recoveryExport` not composing the attach, the two interleave/old-build
+//   edges, and the unstated "no raise before the first settle" premise.
+//
+// ⚠️ STRIPPER (§2): `SourceText.codeOnly` runs in claim 10 only. **PROPHYLACTIC — NOT ONE
+// verdict flips**, re-measured raw vs. stripped at #955c over every `contains` and every
+// count pin in that claim: no doc block in `EchoelmusicApp.swift` quotes the constant NAMES
+// today. (⛔ This said "0 of 3" while the claim had grown past three verdicts — the fact was
+// safe, the denominator was a date.) It stays because these files document what they forbid,
 // and that is exactly where a raw scan starts reading an explanation as the code.
 
 import Foundation
@@ -254,7 +282,7 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
 
     /// claim 10 (SOURCE-TEXT SCAN, 5 assertions — written out, because the loop below hides
     /// three of them) — the WRITERS use the constants. This is the
-    /// #650 protection and the only reason the reader can be trusted: those three lines are
+    /// #650 protection and the only reason the reader can be trusted: these marker lines are
     /// emitted in `EchoelmusicApp` and read here, two files apart, and a marker only one side
     /// spells right fails SILENTLY — the attach simply never happens and nothing goes red.
     func testTheWritersSpellTheMarkersOnce() throws {
@@ -270,7 +298,8 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
         for (needle, what) in [
             ("EchoelCrashLog.confirmedHealthyMarker", "the two confirm lines"),
             ("EchoelCrashLog.recoveryScreenClearedMarker", "the recovery-screen clear line"),
-            ("EchoelCrashLog.rearmMarker", "the re-arm line (#955b)")
+            ("EchoelCrashLog.rearmMarker", "the re-arm line (#955b)"),
+            ("EchoelCrashLog.rearmNotNeededMarker", "the re-arm-NOT-needed line (#955c)")
         ] {
             XCTAssertTrue(app.contains(needle), """
                 \(what) no longer use `\(needle)`. A raw literal there and the constant here \
@@ -286,6 +315,17 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
             a path that reaches a UI and never resets, and every later export attaches a run \
             that was fine.
             """)
+        XCTAssertEqual(app.components(separatedBy: "EchoelCrashLog.rearmNotNeededMarker").count - 1,
+                       1, """
+            There is no longer exactly ONE writer of the re-arm-NOT-needed line. It is the \
+            sibling `counterEndedSettled` must NOT match (claim 12); with the constant gone the \
+            app can drift back to a raw literal and the guard would keep checking its own copy.
+            """)
+        // ⚠️ `rearmMarker` is a PREFIX of nothing here, but `components(separatedBy:)` on the
+        // NAME would count `rearmNotNeededMarker` too if the names ever shared a prefix. They
+        // do not (`rearmMarker` vs `rearmNotNeededMarker` diverge at character 6), so this
+        // subtraction is exact — stated because the identical trap cost #915 a cycle on the two
+        // confirm lines.
         XCTAssertEqual(app.components(separatedBy: "EchoelCrashLog.rearmMarker").count - 1, 1, """
             There is no longer exactly ONE re-arm writer. That line is what `counterEndedSettled` \
             reads to tell "Safe Mode → Continue → died" apart from "Safe Mode → Continue → fine"; \
@@ -336,7 +376,14 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
     /// is a run whose counter was never settled in the first place. The `-ing` is load-bearing;
     /// this is #915's disjointness lesson applied to a second pair of lines.
     func testTheReArmMarkerDoesNotMatchTheReArmNotNeededLine() {
-        let notNeeded = "LaunchGuard: re-arm not needed — streak already 2"
+        // ⛔ #955b HAND-TYPED THIS LINE and #955c stopped. The sibling was a raw literal in
+        // `EchoelmusicApp.swift` while this guard checked its own copy — two spellings of one
+        // decision, and the failure mode is the #650 one this whole slice is about: reword the
+        // app's line to `"LaunchGuard: re-arming not needed …"` and THIS assertion stays green
+        // while the real log line now contains `rearmMarker` verbatim, so `counterEndedSettled`
+        // reads every no-op re-arm as a raise. Both sides now read `rearmNotNeededMarker`, and
+        // claim 10 pins that the app has exactly one writer of it.
+        let notNeeded = EchoelCrashLog.rearmNotNeededMarker + " — streak already 2"
         XCTAssertFalse(notNeeded.contains(EchoelCrashLog.rearmMarker), """
             `rearmMarker` now matches the "re-arm not needed" line too. Both spellings live in \
             one `if/else` in `EchoelmusicApp`; a marker matching both cannot tell a raise from \

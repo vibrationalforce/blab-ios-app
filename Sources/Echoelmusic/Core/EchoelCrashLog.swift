@@ -367,15 +367,27 @@ enum EchoelCrashLog {
     /// it opens nothing. The `!looksLikeUnseenCrash` gate below is a READ of that predicate,
     /// never a change to it, and it is what stops the same run appearing twice.
     ///
-    /// ⚠️ THE THREE REFUSALS ARE THE CONTENT, not defensive padding — each one is a run that
-    /// left no streak behind and would be noise:
-    ///   · already retained  → it is in the export under its own header already;
+    /// ⚠️ THE THREE REFUSALS ARE THE CONTENT, not defensive padding — but they do NOT share one
+    /// reason, and saying they did is what hid #955's order-blindness for a whole slice. TWO
+    /// reasons, named separately:
+    ///
+    /// **A run that left no streak behind** — only this one:
     ///   · counter ended settled → the run's LAST counter line reset it (a confirm, or the
     ///     recovery screen's own clear) and nothing re-raised it afterwards. See
     ///     `counterEndedSettled(in:)`: this used to be two order-blind `contains` checks and
-    ///     that refused the founder's actual Safe-Mode run, which is the #955b blocker;
-    ///   · ended backgrounded → a clean exit, the same subtraction `looksLikeUnseenCrash`
-    ///     already makes for its own second arm (`ACleanExitIsNotACrashTests` pins it).
+    ///     that refused the founder's actual Safe-Mode run, which is the #955b blocker.
+    ///
+    /// **A run this export should not carry TWICE, or cannot tell apart from a clean exit** —
+    /// both of these DID raise the counter, and the earlier umbrella claimed the opposite:
+    ///   · already retained → it crashed, so it is (usually) in the export under its own
+    ///     header already. It raised the streak; it is refused to avoid printing it twice.
+    ///     ⚠️ "usually": `shouldReplaceRetained` can decline an unmarked candidate when the
+    ///     kept log is marked, so this is not a guarantee that the run is anywhere;
+    ///   · ended backgrounded → indistinguishable from an ordinary exit from the outside, which
+    ///     is `looksLikeUnseenCrash`'s own stated HONEST LIMIT 150 lines below. An app
+    ///     backgrounded at `startup 2/4` and then jetsammed never confirmed either — it is
+    ///     refused because nothing here can tell it from the user simply leaving, not because
+    ///     it left no streak (`ACleanExitIsNotACrashTests` pins the subtraction).
     /// The launch-line test is separate and blunt: without it an empty or unreadable previous
     /// file passes every negative check above by vacuity and gets attached as nothing.
     ///
@@ -420,6 +432,21 @@ enum EchoelCrashLog {
         return lastSettle >= 0 && lastRaise < lastSettle
     }
 
+    /// ⚠️ TWO EDGES, both recorded rather than coded around, because each errs toward ATTACHING
+    /// and an attach is a paragraph in a file the founder chose to share:
+    ///   · `breadcrumb` is an unbuffered `write(2)`, so two threads can interleave onto one
+    ///     physical line. A settle and a raise on the SAME line give `lastSettle == lastRaise`
+    ///     and the run is attached — the safe direction;
+    ///   · a `previousSession` written by a build older than these markers reads as "never
+    ///     settled" and is attached once even if that run was healthy. It self-clears on the
+    ///     next launch.
+    ///
+    /// ⚠️ AND AN UNSTATED PREMISE THIS HELPER LEANS ON: a `re-arming` line cannot precede the
+    /// first settle in a real run. `armForRiskyStartup`'s branch only writes it when the count
+    /// is already 0, which within one run requires a confirm or a clear earlier. If that `if`
+    /// ever loses its condition, "raise before settle" becomes reachable and this comparison
+    /// starts refusing runs it should attach.
+
     /// Append the unconfirmed run to an already-composed export. A separate function rather
     /// than a third parameter on `diagnosticsExport(current:retainedCrash:)`: that signature
     /// has call sites in `Tests/CISmoke`, and §5 of this repo's test law is explicit that
@@ -432,6 +459,12 @@ enum EchoelCrashLog {
 
     /// This run, the retained crash, and — since #955 — the previous run when it never
     /// confirmed healthy. What the reachable Diagnostics row renders.
+    ///
+    /// ⚠️ NOT `recoveryExport()`, and that asymmetry is recorded rather than fixed (#955c). The
+    /// Safe-Mode screen's own share does not compose `withUnconfirmedRun`, so the run that
+    /// caused that very screen is labelled `unconfirmedRunHeader` here and appears unlabelled
+    /// there (that path already renders `previous` verbatim). Defensible, but two exports now
+    /// describe one run differently, and the founder is MORE likely to hit the Safe-Mode share.
     static func diagnosticsExport() -> String {
         withUnconfirmedRun(
             diagnosticsExport(current: currentLog(), retainedCrash: lastCrashLog()),
@@ -474,6 +507,14 @@ enum EchoelCrashLog {
     /// counter is NOT 0. `"LaunchGuard: re-arm"` would match BOTH and would read a run whose
     /// counter was never settled as one that got re-raised. The `-ing` is load-bearing.
     static let rearmMarker = "LaunchGuard: re-arming"
+
+    /// #955c — the OTHER branch of that same `if/else`, given a constant for the reason the
+    /// three above have one: `counterEndedSettled` depends on `rearmMarker` NOT matching this
+    /// line, and until now the guard asserted that against a HAND-TYPED copy while the app held
+    /// a raw literal. Two spellings of one decision, with the #650 failure mode: reword the
+    /// app's line to `"LaunchGuard: re-arming not needed …"` and the guard stays green while the
+    /// gate starts reading every no-op re-arm as a raise. Now both sides read this.
+    static let rearmNotNeededMarker = "LaunchGuard: re-arm not needed"
     static let launchLinePrefix = "launch v"
 
     /// The one spelling of a scene-phase transition line. `EchoelmusicApp`'s

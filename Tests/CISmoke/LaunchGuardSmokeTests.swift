@@ -222,25 +222,40 @@ final class LaunchGuardSmokeTests: XCTestCase {
         // `EchoelmusicApp.swift` with `EchoelCrashLog.confirmedHealthyMarker` /
         // `.recoveryScreenClearedMarker`, three call sites owned no crumb and this claim went
         // RED on CORRECT code (#364). What is widened is the VOCABULARY, not a bound: a named
-        // constant IS a breadcrumb. The widening is anchored one block below — both constants
-        // must still carry the `LaunchGuard:` shape, so this cannot quietly stop selecting the
-        // property it exists for (#650: a renamed logged string leaves scans green for a dead
-        // reason).
+        // constant IS a breadcrumb. The widening is anchored one block below — EVERY constant in
+        // that loop must still carry the `LaunchGuard:` shape, so this cannot quietly stop
+        // selecting the property it exists for (#650: a renamed logged string leaves scans
+        // green for a dead reason). ⛔ This sentence said "both constants" while the loop
+        // already covered three — #955c; a count in prose is a date, and the retraction three
+        // lines below said exactly that about its own neighbour without fixing it.
         let crumbNeedles = ["\"LaunchGuard:",
                             "EchoelCrashLog.confirmedHealthyMarker",
                             "EchoelCrashLog.recoveryScreenClearedMarker",
-                            "EchoelCrashLog.rearmMarker"]
+                            "EchoelCrashLog.rearmMarker",
+                            "EchoelCrashLog.rearmNotNeededMarker"]
         let crumbs = lines.indices.filter { i in crumbNeedles.contains { lines[i].contains($0) } }
+        // ⚠️ KNOWN GAP IN THIS WIDENING, driven as a mutant and left open on purpose (#955c):
+        // the old literal needle required a STRING; a bare identifier does not. Replacing a
+        // breadcrumb call with `_ = EchoelCrashLog.confirmedHealthyMarker + " …"` keeps this
+        // scan green while nothing reaches the log. Closing it means also requiring
+        // `EchoelCrashLog.breadcrumb(` on the crumb line or the line above — cheap, but it
+        // would encode the CALL SHAPE into a claim that is deliberately about the WORD. The
+        // property this claim actually names (delete a site's line and it reds) is intact;
+        // both deletion mutants still fail at the right site.
 
         // THE ANCHOR for the constant needles. Without it the scan would pass on the NAME
         // while the exported log had lost the marker entirely — green for a dead reason.
-        // (⛔ The first draft of this line said "the two". #955b added the third in the same
-        // commit; a count in prose is a date, not a fact — this file's own header carries the
-        // identical retraction about "the five call sites".)
+        // (⛔ This comment has now carried a COUNT twice and been wrong both times — "the two"
+        // in #955b's first draft, then again when #955c added a fourth constant. It carries
+        // none any more: the loop below IS the list. This file's header holds the identical
+        // retraction about "the five call sites", which is why a third repetition is a defect
+        // and not bad luck.)
         for (name, marker) in [("confirmedHealthyMarker", EchoelCrashLog.confirmedHealthyMarker),
                                ("recoveryScreenClearedMarker",
                                 EchoelCrashLog.recoveryScreenClearedMarker),
-                               ("rearmMarker", EchoelCrashLog.rearmMarker)] {
+                               ("rearmMarker", EchoelCrashLog.rearmMarker),
+                               ("rearmNotNeededMarker",
+                                EchoelCrashLog.rearmNotNeededMarker)] {
             XCTAssertTrue(marker.hasPrefix("LaunchGuard:"), """
                 `EchoelCrashLog.\(name)` is "\(marker)", which no longer starts with \
                 `LaunchGuard:`. The scan above accepts that constant as a breadcrumb PRECISELY \
