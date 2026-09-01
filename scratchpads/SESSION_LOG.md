@@ -20926,3 +20926,54 @@ der Name nennt (§2, die #367-Spiegelform). Ersetzt durch einen **fensterfreien*
 ⛔ Und „3 RED auf dem Elternteil" war **3 ANSPRÜCHE, aber 2 gemeldete Fehlschläge** — das
 `guard` kehrt zurück, die Zusicherungen danach laufen dort nie. Genau die Verwechslung, gegen
 die §3 existiert.
+
+## 2026-09-01 — #960: das Werkzeug kannte seine eigene Defektklasse nicht — vierte Nadelform
+
+**Gates vorher:** `1ae5c5f` und `da2bb3e` — Compile Check grün, CI/CD der stehende #396
+(im gelesenen Fenster kein `TEST BUILD FAILED`, kein Compile-Fehler, Tests bestanden auf
+beiden Clones).
+
+**Die Scheibe:** `dead-needles.py` liest `XCTUnwrap(… .range(of: "…"))`. Die drei Wächter, die
+#959b nach 99 Commits repariert hat, schrieben **dieselbe Tödlichkeit als `guard`** —
+`guard let x = code.range(of: "…") else { XCTFail; return }`. Das Werkzeug sah sie nie.
+**Dritte Aufzeichnung von „ein Rename, zwei Wächter, der Zwilling bleibt rot"** in dieser
+Datei, und das **zweite Mal, dass der Prüfer seine eigene Defektklasse nicht sah** (#937).
+
+### Beweisstandard nach #944 erfüllt, mit dem AUSGELIEFERTEN Werkzeug
+
+| Baum | Befund |
+|---|---|
+| `1ae5c5f` (trug den Defekt) | **3**, mit korrekten Zeilennummern |
+| Arbeitsbaum (repariert) | **0** |
+| Fehlalarme über 76/77 Stellen | **0** |
+
+Nicht transkribiert, sondern das echte Skript gegen einen aus `git show` gebauten Baum
+gefahren — die #944-Lehre („eine Transkription, die ein Gate auslässt, ist keine Messung").
+
+### Zwei Lehren, die NICHT „füg eine Form hinzu" lauten
+
+**1. Das `XCTFail`-Erfordernis ist das TÖDLICHKEITS-Argument und heute PROPHYLAKTISCH.**
+Gemessen: 116 Stellen ohne das Gate, 76 mit — **identische Verdikte**. Es bleibt, weil es das
+ARGUMENT ist (`else { return }` ohne XCTFail ist ein legitimer Skip, kein Fehlschlag), nicht
+weil es die heutige Antwort ändert. Ein Gate, das ohne Messung als tragend behauptet wird, ist
+genau das, was §2 dauernd zurücknehmen muss.
+
+**2. Die NICHT-LEER-Hälfte des Pfad-Gates ist keine Dekoration — der Prototyp hat es bewiesen.**
+`TheDecisionLogIsMachineReadableTests` liest `review.sh`; seine Nadel `SKIP_STATUS = {` fehlt in
+`Sources/` **zu Recht**. Diese Datei nennt **gar keinen** qualifizierenden Pfad, also ist ein
+blosses `all(p.startswith("Sources/"))` **VAKUUM-WAHR** und lässt sie durch — **#926 in einer
+neuen Datei**. `bool(paths) and all(…)` ist die ganze Reparatur: 1 Fehlalarm → 0.
+
+⚠️ **Und die var-gebundene Form musste MIT der Inline-Form ausliefern, sonst wäre die Form auf
+ihrem eigenen bekannten Positiv verstummt, sobald es repariert ist:** #959b hebt den Anker auf
+ein `private let offAnchor`. Eine Form, die nur Inline-Literale liest, wäre danach für immer
+grün gewesen — aus einem anderen Grund als dem, den ihr Name nennt (§2, #367-Spiegelform).
+
+### Der Selbsttest BEISST — vier Mutationen gefahren, alle rot
+
+`guard_else_fails` entfernt · Klassen-Bindungs-Rückfall entfernt · Mitgliedschaftstest
+invertiert · Pfad-Gate vakuum gemacht. Jede landet nachweislich und färbt rot. **Ein Prüfer,
+der bei der Mutation, für die er geschrieben wurde, nicht fehlschlagen kann, ist keiner.**
+Die Fixture ist EINE Funktion mit vier Fällen, weil die drei Dinge, die diese Form still falsch
+machen kann, alle Entscheidungen ÜBER einen Treffer sind, nicht der Treffer selbst — die
+Komposition ist das, was beisst (#914/#941b, in dieser Datei zweimal bezahlt).

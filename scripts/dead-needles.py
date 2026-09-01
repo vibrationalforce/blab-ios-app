@@ -4,6 +4,7 @@
   A. a needle asserted PRESENT in Sources/ that is not there  (shapes 1-3, #656/#665)
   B. a `\(Self.member)` reference the file cannot compile     (shape 4, #776)
   B2. a plain `Self.member` reference, same fatality           (shape 5, #781)
+  A2. the same fatality written as a `guard`, not `XCTUnwrap`  (shape 6, #960)
 
 Both are "the guard is wrong, not the code", and both are invisible to a reading of the diff.
 
@@ -19,8 +20,13 @@ log proves nothing about whether it ran. A guard that reddens inside that fog lo
 like the simulator host dying. No gate can tell the difference; this script can, for one
 specific and recurring shape.
 
-WHAT IT CHECKS. Three assertion shapes whose needle must exist in production code:
+WHAT IT CHECKS. Four assertion shapes whose needle must exist in production code:
     XCTUnwrap(<x>.range(of: "NEEDLE") ...)
+    guard let <x> = <recv>.range(of: "NEEDLE") else { ... XCTFail ... }   — #960, and only
+        in a guard file that names at least one path and ONLY `Sources/` ones. The `XCTFail`
+        is what makes the miss FATAL; `else { return }` is a legitimate skip and is not
+        reported. The needle may be inline or bound to a `let`, per-function first and then
+        class-level — the repaired form of its own known positive uses the class-level one.
     XCTAssertEqual/GreaterThan[OrEqual](codeOccurrences(of: "NEEDLE" ...), N)   with N >= 1
     XCTAssertTrue(<recv>.contains("NEEDLE"))          — #665, and only where <recv> is
         PROVABLY source text, by EITHER route (#944): the `Self.`-qualified bind
@@ -522,6 +528,101 @@ def shape3_findings(chunk, corpus, helpers, consts, allow_legacy):
             yield match, needle
 
 
+# ⭐ #960 — SHAPE 6: `guard let x = <recv>.range(of: "NEEDLE") else { XCTFail(…); return }`.
+#
+# THE KNOWN POSITIVE THIS WAS BUILT AGAINST, and it is this script's own blind spot rather
+# than a hypothetical. `TheMonitorSurgeryQuietsTheEngineTests` anchored THREE claims on
+# `guard isInputMonitoring else { return true }`. #913 (`860e400`) removed that literal when it
+# gave the OFF exit its own `off SKIPPED` breadcrumb. Bisected: present at HEAD~100, absent
+# from HEAD~99 on. All three claims then hit their `XCTFail` and returned, on a CORRECT tree,
+# in the BLOCKING bundle, for 99 commits — invisible because #396 makes CI/CD report `failure`
+# on every push, so a genuinely red guard looks exactly like the host dying.
+#
+# Shapes 1 and 2 could not see it: they read `XCTUnwrap(… .range(of: …))`. This is the same
+# fatality written as a `guard`. That is the #937 pattern for the THIRD time in this file — a
+# rename breaks one guard, the fix lands, and a sibling in a different SPELLING stays red.
+#
+# ⚠️ TWO GATES, AND THE MEASUREMENT FOR EACH, because a checker that overstates its reach is
+# the thing this file guards against:
+#   · **`XCTFail` inside the else block** — the FATALITY argument. `guard let … else { return }`
+#     without it is a legitimate skip, not a failure, and reporting it would be a false alarm.
+#     Measured on today's tree: PROPHYLACTIC, not load-bearing — 116 sites without the gate vs
+#     76 with it, and the verdicts are identical (3 dead on `1ae5c5f`, 0 on the repair). It is
+#     kept because it is the ARGUMENT, not because it changes today's answer. Said plainly
+#     rather than implied, per this file's own rule about measuring a gate before claiming it.
+#   · **the file names ONLY `Sources/` paths, and names at least one** — `allow_legacy`,
+#     reused, not re-spelled (#416). ⛔ THE NON-EMPTY HALF IS NOT DECORATION AND THE PROTOTYPE
+#     PROVED IT: `TheDecisionLogIsMachineReadableTests` reads `review.sh` and its needle
+#     `SKIP_STATUS = {` is absent from `Sources/` — a false alarm. That file yields an EMPTY
+#     `SOURCE_PATH` set, so a bare `all(...)` would be VACUOUSLY TRUE and let it through
+#     (#926, the same trap in a different file). With both halves: 1 false alarm becomes 0.
+#
+# ⚠️ THE VAR-BOUND FORM IS COVERED TOO, AND NOT COVERING IT WOULD HAVE LOST THE KNOWN POSITIVE
+# THE MOMENT IT WAS REPAIRED: #959b's fix hoists the anchor to a type-level
+# `private let offAnchor = "…"`, so the repaired file uses `range(of: offAnchor)`. A shape that
+# only read inline literals would go quiet on exactly the file it was written for — passing
+# forever for the wrong reason (§2, the #367 mirror case). Class-level `let`s are therefore
+# consulted after the per-function ones, per-function winning (#666).
+GUARD_LIT = re.compile(
+    r'\bguard\s+let\s+\w+\s*=\s*[A-Za-z_][\w.]*\.range\(of:\s*"((?:[^"\\]|\\.)+)"')
+GUARD_VAR = re.compile(
+    r'\bguard\s+let\s+\w+\s*=\s*[A-Za-z_][\w.]*\.range\(of:\s*([A-Za-z_]\w*)\s*[,)]')
+
+
+def guard_else_fails(chunk, after):
+    """True when the `guard`'s else block, brace-matched from `after`, contains `XCTFail`.
+
+    Brace-matched rather than line-windowed (§2, #408): this repo writes 30-40-line doc blocks
+    and the else body of these guards routinely carries a multi-line failure message.
+    """
+    opening = chunk.find("else {", after)
+    if opening < 0:
+        return False
+    depth, i = 0, opening + len("else ")
+    while i < len(chunk):
+        if chunk[i] == "{":
+            depth += 1
+        elif chunk[i] == "}":
+            depth -= 1
+            if depth == 0:
+                break
+        i += 1
+    return "XCTFail" in chunk[opening:i]
+
+
+def shape6_findings(chunk, corpus, class_binds):
+    """(match, needle) for every fatal `guard let … range(of: …) else { XCTFail }` gone dead.
+
+    Pure, and driven by the selftest as a COMPOSITION rather than piecewise — the #914/#941
+    lesson this file has now paid for twice: a selftest that exercises the regexes and the
+    decoder separately passes while the code that JOINS them is the broken part.
+    """
+    binds = {m.group(1): m.group(2) for m in LOCAL_BIND.finditer(chunk)}
+    out = []
+    for match in GUARD_LIT.finditer(chunk):
+        if not guard_else_fails(chunk, match.end()):
+            continue
+        needle = decode_needle(match.group(1))
+        if needle is None or len(needle) < MIN_NEEDLE:
+            continue
+        if needle not in corpus:
+            out.append((match, needle))
+    for match in GUARD_VAR.finditer(chunk):
+        if not guard_else_fails(chunk, match.end()):
+            continue
+        raw = binds.get(match.group(1))
+        if raw is None:
+            raw = class_binds.get(match.group(1))
+        if raw is None:
+            continue                      # computed or out of scope — skipped, not reported
+        needle = decode_needle(raw)
+        if needle is None or len(needle) < MIN_NEEDLE:
+            continue
+        if needle not in corpus:
+            out.append((match, needle))
+    return out
+
+
 def main(root="."):
     guards = sorted(glob.glob(os.path.join(root, "Tests/CISmoke/*.swift")))
     if not guards:
@@ -618,6 +719,16 @@ def main(root="."):
         # #944: this gate no longer SKIPS the file — it decides whether the argument-blind
         # `Self.`-qualified half may speak. The gated half proves its own receiver.
         allow_legacy = bool(paths) and all(p.startswith("Sources/") for p in paths)
+        # Shape 6 (#960) shares that gate verbatim rather than re-spelling it (#416). Both
+        # halves matter: without `bool(paths)` the `all(...)` is vacuously true for a guard
+        # that names no path at all, which is how the one measured false alarm got in.
+        if allow_legacy:
+            class_binds = {m.group(1): m.group(2) for m in LOCAL_BIND.finditer(guard_code)}
+            for chunk in function_chunks(guard_code):
+                for match, needle in shape6_findings(chunk, corpus, class_binds):
+                    offset = guard_code.find(chunk)
+                    line = guard_code[:offset + match.start()].count("\n") + 1
+                    dead.append((os.path.relpath(guard, root), line, needle))
         # ⛔ #666 — THE RECEIVER SET IS PER FUNCTION, NOT PER FILE, AND #665 GOT THAT WRONG.
         # Shipped with file scope, this produced SEVEN false positives on the very next
         # commit. The cause is ordinary Swift style: one test binds
@@ -672,6 +783,70 @@ def selftest():
     """
     ok = True
     ESC = chr(92) + "n"           # the two characters a Swift `\n` is before decoding
+
+    # 0. SHAPE 6 (#960), driven as a COMPOSITION. Four cases in one fixture, because the three
+    #    things this shape can get wrong quietly are all decisions ABOUT a match rather than
+    #    the match itself: whether the else block is fatal, whether a class-level binding is
+    #    consulted, and whether a present needle stays silent. A selftest that drove
+    #    `GUARD_LIT` and `decode_needle` separately would pass through every one of them —
+    #    the lesson #941/#941b paid for twice in this same file.
+    ALIVE = "let liveThing = 42"
+    GONE = "let deletedThing = 7"
+    GONE2 = "let alsoDeletedThing = 9"
+    s6_class = 'private let anchorName = "' + GONE2 + '"\n'
+    s6_chunk = (
+        '    func a() {\n'
+        '        let code = engineCode()\n'
+        '        guard let x = code.range(of: "' + GONE + '") else {\n'
+        '            XCTFail("gone")\n'
+        '            return\n'
+        '        }\n'
+        '        guard let y = code.range(of: "' + GONE + ' NOFAIL") else {\n'
+        '            return\n'
+        '        }\n'
+        '        guard let z = code.range(of: anchorName) else {\n'
+        '            XCTFail("gone too")\n'
+        '            return\n'
+        '        }\n'
+        '        guard let w = code.range(of: "' + ALIVE + '") else {\n'
+        '            XCTFail("present")\n'
+        '            return\n'
+        '        }\n'
+        '    }\n')
+    s6_binds = {m.group(1): m.group(2) for m in LOCAL_BIND.finditer(s6_class)}
+    found6 = {n for _, n in shape6_findings(s6_chunk, ALIVE, s6_binds)}
+    if GONE not in found6:
+        print("selftest: shape 6 missed a dead inline needle in a fatal guard — the shape "
+              "does not see the form it was written for.", file=sys.stderr)
+        ok = False
+    if GONE2 not in found6:
+        print("selftest: shape 6 missed a dead CLASS-BOUND needle. #959b hoisted exactly such "
+              "an anchor to a `private let`, so dropping this loses the known positive.",
+              file=sys.stderr)
+        ok = False
+    if any(n.endswith("NOFAIL") for n in found6):
+        print("selftest: shape 6 reported a `guard let … else { return }` with no XCTFail — "
+              "that is a legitimate skip, not a failure, and reporting it is a false alarm.",
+              file=sys.stderr)
+        ok = False
+    if ALIVE in found6:
+        print("selftest: shape 6 reported a needle that IS in the corpus — the membership "
+              "test is inverted or the corpus is not being read.", file=sys.stderr)
+        ok = False
+
+    # The VACUOUS-GATE mutation (#926), driven where it actually lives: `main()` decides with
+    # `bool(paths) and all(...)`. A guard naming NO path yields an empty set, and a bare
+    # `all(...)` is then TRUE — which is how the one measured false alarm
+    # (`TheDecisionLogIsMachineReadableTests` reading `review.sh`) would have got in.
+    for label, paths, expected in (("no path at all", set(), False),
+                                   ("Sources only", {"Sources/A.swift"}, True),
+                                   ("mixed", {"Sources/A.swift", "scripts/x.py"}, False)):
+        got = bool(paths) and all(q.startswith("Sources/") for q in paths)
+        if got is not expected:
+            print(f"selftest: the Sources-only gate said {got} for '{label}' — a vacuous "
+                  "TRUE here lets a guard about a non-Swift file be judged against Sources/.",
+                  file=sys.stderr)
+            ok = False
 
     # 1. THE COMPOSITION, not the parts (#914). A needle carrying an undecodable escape must be
     #    SKIPPED by shape 3, never compared: decoded naively it becomes characters that can never

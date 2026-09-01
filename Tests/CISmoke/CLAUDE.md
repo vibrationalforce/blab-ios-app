@@ -340,8 +340,37 @@ derived share survived the correction, which is why a share is safer to quote th
 
 Back to `dead-needles.py` (its command block is well above now): it checks the assertion
 shapes whose needle MUST exist — `XCTUnwrap(… .range(of: "…"))`,
+`guard let x = <recv>.range(of: "…") else { … XCTFail … }`,
 `codeOccurrences(of: "…") >= N`, and `XCTAssertTrue(<recv>.contains("…"))` where the receiver
 is PROVABLY source text — against comment-stripped `Sources/`.
+
+⛔ **#960 — THE THIRD TIME THIS FILE HAS RECORDED "ONE RENAME, TWO GUARDS, THE SIBLING STAYS
+RED", AND THE SECOND TIME THE CHECKER COULD NOT SEE ITS OWN DEFECT CLASS.** #913 (`860e400`)
+gave the monitoring OFF exit its own `off SKIPPED` breadcrumb and removed the literal
+`guard isInputMonitoring else { return true }`. `TheMonitorSurgeryQuietsTheEngineTests`
+anchored **three** claims on it; all three then hit their `XCTFail` and returned, on a CORRECT
+tree, in the BLOCKING bundle, for **99 commits** (bisected: present at HEAD~100, absent from
+HEAD~99 on). Invisible for the reason §5 gives — CI/CD reports `failure` on every push, so a
+genuinely red guard is indistinguishable from the host dying.
+
+**Shapes 1 and 2 read `XCTUnwrap(… .range(of: …))`. This is the identical fatality written as
+a `guard`.** Shape 6 closes it, with the #944 evidence standard: the shipped tool reports
+exactly **3** on the tree that carried the defect (`1ae5c5f`) and **0** after the repair, and
+the one false alarm the prototype produced is gated out.
+
+⚠️ **TWO LESSONS THAT ARE NOT "ADD A SHAPE":**
+1. **The `XCTFail` requirement is the FATALITY argument, and it is PROPHYLACTIC today** —
+   measured, 116 sites without it vs 76 with, identical verdicts. Say which one a gate is; a
+   gate claimed load-bearing without measuring is the thing §2 keeps retracting.
+2. **The non-empty half of the path gate is not decoration.** `TheDecisionLogIsMachineReadableTests`
+   reads `review.sh`, whose needle is legitimately absent from `Sources/`. That file names NO
+   qualifying path, so a bare `all(p.startswith("Sources/"))` is **vacuously TRUE** and lets it
+   through — #926 in a new file. `bool(paths) and all(…)` is the whole fix, and the selftest
+   drives all three cases (no path / Sources-only / mixed).
+⚠️ **And the var-bound form had to ship WITH the inline one, or the shape would have gone
+quiet on its own known positive the moment it was repaired**: #959b hoists the anchor to a
+type-level `private let offAnchor = "…"`. A shape that read only inline literals would pass
+forever for the wrong reason (§2, the #367 mirror case).
 ⭐ **#944 widened that third shape, and it is the widening #941 measured and declined — the
 evidence changed, so the answer did.** #941's argument was sound and stands: widening the
 BINDER regex to the plain `source(…)` form surfaced nine candidates on a correct tree and every
