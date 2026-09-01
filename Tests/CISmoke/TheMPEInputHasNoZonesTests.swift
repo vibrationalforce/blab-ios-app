@@ -1,4 +1,21 @@
-// TheMPEDimensionsReachNoVoiceTests.swift
+// TheMPEInputHasNoZonesTests.swift
+//
+// ⛔ RENAMED BY #942, FROM `TheMPEDimensionsReachNoVoiceTests`, BECAUSE THE OLD NAME BECAME
+// FALSE. A file name is a claim, and it is the first claim a session reads. #939 gave Press a
+// path and #942 gave Slide one; together with pitch bend, ALL THREE of MPE's continuous
+// dimensions now reach the built-in voice, so "the MPE dimensions reach no voice" is simply
+// wrong. What the file has really guarded from the start — and what no roadmap item threatens
+// — is the ZONE half: no RPN 6,6 zone is announced to us, no member channel is told apart
+// (`event.channel` is read nowhere), and it is ONE monophonic voice. That is the durable
+// claim, so that is the name.
+//
+// ⚠️ THE HISTORICAL RECORDS KEEP THE OLD NAME ON PURPOSE. `scratchpads/SESSION_LOG.md`,
+// `decisions.csv` and `memory/LEDGER_COUNTS.md` describe what happened on a given day and are
+// not rewritten (#456 moves LIVE prose, not the log of the past). Live pointers — the four
+// `Sources/` headers, `CLAUDE.md`, `ContentPipeline/CLAIMS.md`, `scripts/dead-needles.py`,
+// `PLAN_MPE_IN_2026-08-31.md` and `TheComposerWritesPerNoteVelocityTests` — moved in this
+// same commit.
+//
 // Echoel — #548. `CLAUDE.md` line 39 promised per-note expression to a voice that discards it.
 //
 // WHAT THIS GUARDS. The always-loaded file's pipeline line read
@@ -10,16 +27,24 @@
 //     NOT wired in this first cycle" and #770 struck those words — see claim 6. The quotation
 //     is trimmed to the half that still exists verbatim; a citation of a live file that no
 //     longer contains the quoted words is the stale-witness defect, #472.)
-//   · → synth — the consumer `BioReactiveSynthVoice.apply(controller:)` handles `.noteOn`,
-//     `.noteOff` and `.pitchBend`, and `break`s on `.slide` (CC 74 timbre), `.airCC` and
-//     `.channelPressure`: exactly the three dimensions that MAKE it MPE rather than MIDI 1.0.
-//     It also never reads `event.channel`, which is where a member channel would arrive.
-//     ⭐ #939 MOVED ONE OF THE THREE. Channel Pressure is now parsed (`MIDIEventParse`),
-//     carried (`MIDIInput.onChannelPressure`), published (`MIDIBusPublisher`) and CONSUMED
-//     (`BioReactiveSynthVoice` → `EchoelDDSP.expressionGain`, a master-gain multiply in the
-//     render block). `.slide` and `.airCC` still share one `break`, `event.channel` is still
-//     never read, and the voice is still monophonic — so the arrow's MPE claim stays false
-//     and this file keeps guarding it. One dimension of three is not MPE.
+//   · → synth — the consumer `BioReactiveSynthVoice.apply(controller:)` handled `.noteOn`,
+//     `.noteOff` and `.pitchBend` and `break`d on everything else, never reading
+//     `event.channel`, which is where a member channel would arrive.
+//     ⭐ #939 AND #942 MOVED TWO DIMENSIONS OUT OF THAT `break`. Channel Pressure is parsed
+//     (`MIDIEventParse`), carried (`MIDIInput.onChannelPressure`), published
+//     (`MIDIBusPublisher`) and CONSUMED (→ `EchoelDDSP.expressionGain`, a master-gain
+//     multiply in the render block); CC 74 Slide is consumed the same way
+//     (→ `EchoelDDSP.renderCutoffScale`, a per-sample multiply on the filter cutoff).
+//     ⛔ AND THE SENTENCE THIS REPLACES MISCOUNTED IN BOTH DIRECTIONS. It called slide,
+//     air-CC and pressure "exactly the three dimensions that MAKE it MPE" — but MPE's three
+//     continuous dimensions are pitch bend (X), CC 74 slide (Y) and channel pressure (Z).
+//     PITCH BEND was left out although this voice has always handled it, and `.airCC`
+//     (CC 21–31, `EngineBus`: "air dimensions") was counted in although no MPE document
+//     defines it. That off-by-one is why "one of three" and "two of three" appeared in this
+//     file's history as if a third dimension were still owed. Today ALL THREE reach the
+//     voice, and the arrow's MPE claim is STILL false, for the reason that never depended on
+//     the count: no zone is announced to us (RPN 6,6), no member channel is told apart, and
+//     the voice is monophonic. **Dimensions without zones is expressive MIDI, not MPE.**
 //   · notes, plural — `heldByController` is a single `Bool` and `playNote` sets one
 //     `synth.frequency`. It is ONE monophonic voice, so per-note anything is unreachable by
 //     construction, not merely unwired.
@@ -36,12 +61,13 @@
 //
 // ⚠️ THE LIMIT. SOURCE-TEXT SCAN. `apply(controller:)` is `private`; the file exposes
 // `applyControllerForTests` under `#if DEBUG`, so a behavioural version of claim 1 is
-// possible in principle — but it would prove "a slide event changes no audible parameter",
-// and this bundle cannot hear. What the text can carry is that the REMAINING cases still fall
-// into one `break` and that no member channel is read; that is the claim, stated as such.
-// (⛔ This sentence said "the three cases" and #939 made it two — the number was baked into
-// prose that a later slice was always going to move. The claim is about the cases the voice
-// DISCARDS, not about how many there happen to be.)
+// possible in principle — but it would prove "an air-CC event changes no audible parameter",
+// and this bundle cannot hear. What the text can carry is which cases WRITE which parameter,
+// which case still falls into a bare `break`, and that no member channel is read; that is the
+// claim, stated as such.
+// (⛔ This sentence said "the three cases" and #939 made it two, #942 one — the number was
+// baked into prose that later slices were always going to move. It is now written without a
+// count at all: the claim is about WHICH cases the voice discards, never how many.)
 //
 // ⚠️ THE OTHER PROSE SURFACES ARE ALREADY HONEST — `docs/faq.html` ("Full MPE zone handling
 // (per-note channels, pressure) … on the roadmap, not in the app today"),
@@ -186,6 +212,41 @@
 // both trees (no `event.channel` read; no RPN/zone token in the parser). Booking the six as
 // regressions would be the flattering-direction defect #433 names.
 //
+// ⚠️ HONEST GRADING FOR #942 (parent `6cdc529`), TRANSCRIBED in Python against both trees,
+// ALL 43 assertions driven — not only the changed ones (§3's delta-blindness rule, which has
+// now paid for itself three times in this file):
+// **ZERO REGRESSIONS.** FIVE are FORWARD guards — they name symbols this same commit creates
+// (`case .airCC:` standing alone, `synth.renderCutoffScale =`, its clear in `panic()`, its
+// clear in `reset()`, and the mono writer going through `clampExpressionScale`) and could
+// never have been red on the parent for their named reason. The remaining 37 are
+// COUNTERWEIGHTS, green on both. Claim 1's "the first statement is `break`" could not RUN on
+// the parent at all, because `case .airCC:` does not exist there as its own case — an ANCHOR
+// failure, which is the #454 shape and is deliberately NOT booked as a catch (#433).
+//
+// ⭐ CLAIM 10c NEEDED A THIRD TREE TO GRADE, and that is the point of its shape. It is green
+// on the parent — correctly, because it is CONDITIONAL on the consumer, and the parent's
+// consumer did not sound slide, so the parent's prose was honest. What it buys was measured
+// by running the WORKTREE's two source files against the PARENT's prose: 43 checks, ONE fail,
+// naming all three pages that had to be edited by hand this slice (`faq.html`, `tools.html`,
+// `architecture.html`). A guard whose truth depends on the code it guards cannot be graded by
+// two trees alone.
+//
+// ⭐ #367 DRIVEN, ELEVEN MUTATIONS, each moving exactly ONE assertion and no other:
+// giving `.airCC` a statement reds claim 1's `break` check · renaming the case reds its
+// existence check · removing the render multiply, the `panic()` line, the `reset()` line and
+// the writer's clamp each red their own claim · declaring a second `clampExpressionScale`
+// overload reds the one-definition check · dropping the POLY writer's clamp reds the other
+// half of 1d · pluralising a site sentence reds 10a · saying air-CC reaches a voice reds 10b.
+// TWO CONTROLS confirm the #364 property rather than assuming it: moving the slide write into
+// a COMMENT still reds (the #762 comment-as-code trap, checked), and REWORDING an honest
+// sentence ("the one voice" → "the single built-in performer voice") stays GREEN.
+//
+// ⛔ AND TWO OF THE FIRST ELEVEN MUTATIONS DID NOT LAND, which is recorded because a mutation
+// that changes nothing reads exactly like a guard that does not fire (#776). One renamed
+// `case .slide:` while leaving `case .airCC:` intact — it tested nothing. The other added a
+// `clampExpressionScale2`, which the needle `func clampExpressionScale(` correctly does not
+// match. Both were re-done to land before their result was believed.
+//
 // ⛔ AND DRIVING **EVERY** ASSERTION IN THE FILE — not the changed ones — FOUND **THREE LIVE
 // REDS ON A CORRECT TREE**, none of them caused by this slice. That is §3's delta-blindness
 // rule paying for itself a second time (#937 was the first), and it is the reason the sweep was
@@ -223,7 +284,7 @@ import Foundation
 import XCTest
 @testable import Echoelmusic
 
-final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
+final class TheMPEInputHasNoZonesTests: XCTestCase {
 
     private static let voice = "Sources/Echoelmusic/Tools/BioReactiveSynthVoice.swift"
     private static let bus = "Sources/Echoelmusic/Core/EngineBus.swift"
@@ -236,37 +297,60 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
     private static let readme = "README.md"
 
     /// The correction this guard protects, quoted so a failure can point at it precisely.
+    ///
+    /// ⛔ #942 REWROTE THE QUOTED HALF, and the reason is worth keeping: this string named the
+    /// FAQ's wording "notes, pitch bend and CC 74 slide are PARSED" as the already-vetted
+    /// phrasing to copy. #939 and #942 sounded pressure and slide, so the sentence a failure
+    /// message told the next session to copy had become the false one — a guard handing out
+    /// stale copy is worse than a guard saying nothing, because it is prescriptive. What
+    /// survives untouched is the DURABLE half: no zones, no member channels, one voice.
     private static let prose = """
         CLAUDE.md's pipeline line (search for `controllerEvents → `). It must not promise MPE, \
-        per-note expression or polyphony from this path. The already-vetted wording lives in \
-        `docs/faq.html`: notes, pitch bend and CC 74 slide are PARSED; full MPE zone handling \
-        (per-note channels, pressure) is roadmap, not in the app today.
+        per-note expression or polyphony from this path. Three continuous dimensions do reach \
+        the built-in voice — pitch bend, press (#939) and slide (#942) — but no MPE zone is \
+        announced to us (RPN 6,6), no member channel is told apart, and it is ONE monophonic \
+        voice. Dimensions without zones is expressive MIDI, not MPE input.
         """
 
-    // MARK: - claim 1 — TWO dimensions land in one `break`, and press no longer does
+    // MARK: - claim 1 — the one dimension that is NOT MPE is the one still discarded
 
-    /// ⭐ #939 — THIS CLAIM WENT FROM THREE TO TWO, and that is the whole point of #364: a
-    /// guard must not forbid correct work. Channel pressure — MPE's PRESS dimension — now
-    /// reaches the voice through `synth.expressionGain`, so pinning "all three are discarded"
-    /// would have made the guard red on the tree that finally did the work.
+    /// ⭐ #939 TOOK THIS CLAIM FROM THREE TO TWO AND #942 TOOK IT TO ONE, and each step is
+    /// #364 in action: a guard must not forbid correct work. Channel pressure reaches the
+    /// voice since #939 (`expressionGain`, claim 1b); CC 74 slide reaches it since #942
+    /// (`renderCutoffScale`, claim 1c). Pinning "the expression dimensions are discarded"
+    /// would have reddened this file on each tree that did the work.
     ///
-    /// ⚠️ WHAT DID **NOT** CHANGE, which is why this file survives rather than being deleted:
-    /// `.slide` and `.airCC` still land in one bare `break`, `event.channel` is still read
-    /// nowhere (claim 2), the performer path is still monophonic (claim 3), and the routing
-    /// screen still offers no MPE input (claim 5). One dimension of three is not MPE, and the
-    /// retraction this file carries stands unchanged.
-    func testTheRemainingExpressionDimensionsAreDiscarded() throws {
+    /// ⚠️ AND WHAT IS LEFT IS NOT AN MPE DIMENSION AT ALL, which is the honest thing to say
+    /// rather than dressing the remainder up as a surviving gap. MPE's three continuous
+    /// dimensions are pitch bend (X), CC 74 slide (Y) and channel pressure (Z) — all three now
+    /// reach this voice. `.airCC` is CC 21–31 (`EngineBus`: "air dimensions"), a breath /
+    /// wind-controller convention that no MPE document defines. Its `break` therefore says
+    /// nothing about MPE either way; it is kept because a page claiming air-CC sounds a voice
+    /// would still be false (claim 10b).
+    ///
+    /// ⛔ THE FILE'S OWN HEADER USED TO CALL SLIDE, AIR-CC AND PRESSURE "exactly the three
+    /// dimensions that MAKE it MPE" — off by one in both directions. It counted `.airCC` in
+    /// and left PITCH BEND out, and pitch bend is the dimension this voice has always handled.
+    /// Corrected in the header for #942; recorded here because the miscount is what made
+    /// "one of three", "two of three" and this claim's own name read as bookkeeping.
+    ///
+    /// ⚠️ WHAT DID **NOT** CHANGE, which is why this file survives rather than being deleted,
+    /// and what its NAME now says: `event.channel` is read nowhere (claim 2), the performer
+    /// path is still monophonic (claim 3), no RPN 6,6 zone is detected (claim 6), and the
+    /// routing screen still offers no MPE input (claim 5). Three dimensions without zones and
+    /// without member channels is expressive MIDI, not MPE input.
+    func testTheAirDimensionIsStillDiscarded() throws {
         let body = try memberBody("private func apply(controller event: ControllerEvent)",
                                   in: Self.voice)
-        XCTAssertTrue(body.contains("case .slide, .airCC:"), """
-            `BioReactiveSynthVoice.apply(controller:)` no longer discards slide and air CC in \
-            one case. If you gave either an effect, this voice has started to honour more of \
-            per-note expression and \(Self.prose)
+        XCTAssertTrue(body.contains("case .airCC:"), """
+            `BioReactiveSynthVoice.apply(controller:)` no longer discards air-CC in a case of \
+            its own. If you gave it an effect, say so on the pages claim 10 guards — but note \
+            that air-CC is NOT an MPE dimension, so it changes nothing about \(Self.prose)
             """)
         // The `break` must be the WHOLE handling. A body that grew statements under that case
         // would keep the needle above green while the behaviour changed — the "green for a
         // reason that no longer exists" failure this bundle exists to prevent (#456).
-        guard let caseRange = body.range(of: "case .slide, .airCC:") else {
+        guard let caseRange = body.range(of: "case .airCC:") else {
             return   // already failed above with a message that says what to do
         }
         let rest = body[caseRange.upperBound...]
@@ -274,8 +358,9 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         XCTAssertEqual(rest.first, "break", """
-            The slide/air case is no longer a bare `break` — its first statement is \
-            "\(rest.first ?? "")". Something now happens for those events, so \(Self.prose)
+            The air-CC case is no longer a bare `break` — its first statement is \
+            "\(rest.first ?? "")". Something now happens for those events, so the pages that \
+            say nothing consumes air-CC need the same edit (claim 10b), and \(Self.prose)
             """)
     }
 
@@ -339,6 +424,109 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             """)
     }
 
+    // MARK: - claim 1c — and SLIDE really does reach the sound, on a per-SAMPLE parameter
+
+    /// ⭐ #942, the same shape as claim 1b one step down (#343). Claim 1 is satisfied by
+    /// deleting `.slide` from the switch, which would take the dimension back out while
+    /// reading greener than before. This claim is the other half, and it pins the DESTINATION
+    /// as well as the write, because the destination is the whole design decision:
+    ///
+    /// · the switch must write `synth.renderCutoffScale`. The obvious alternative,
+    ///   `brightness`, is wrong twice — `applyBioReactive` rewrites it from the bio frame
+    ///   (~1 Hz, so a slide is erased within a second) and its `didSet` recomputes the whole
+    ///   spectral envelope, which a CC 74 stream would trigger hundreds of times a second;
+    /// · `renderCutoffScale` must still MULTIPLY the cutoff in the render. A property nobody
+    ///   multiplies is the "wired, doorless, ineffective" category this repo carries at six
+    ///   other places, and every other claim here would stay green while slide went silent;
+    /// · both latches must clear it, for the #939 reviewer's reason: a slide that never got
+    ///   its release — controller unplugged mid-note, or the event dropped under SPSC flood —
+    ///   would otherwise hold the filter open for the rest of the session, and the BREATH
+    ///   voice would inherit it with no control able to restore it.
+    ///
+    /// ⚠️ IT PINS THE PATH, NOT THE DEPTH. `slideDepth` is a founder-ear number
+    /// (NEEDS-FOUNDER-VERIFY); asserting its value would redden the day the founder asks for a
+    /// narrower or wider sweep, which is exactly the change this guard should welcome.
+    func testSlideReachesTheFilterCutoff() throws {
+        let body = try memberBody("private func apply(controller event: ControllerEvent)",
+                                  in: Self.voice)
+        XCTAssertTrue(body.contains("synth.renderCutoffScale ="), """
+            CC 74 slide no longer writes `synth.renderCutoffScale`. Either the dimension was \
+            taken back out — then claim 1 above must go back to naming it, and the prose in \
+            `CLAUDE.md`, `MIDIInput.swift`, `SignalRouter.swift`, `ContentPipeline/CLAIMS.md` \
+            and `docs/{faq,tools,architecture}.html` with it (#456) — or it found another \
+            route, in which case re-anchor here on that route.
+            """)
+        let dsp = try source(Self.dsp)
+        XCTAssertTrue(SourceText.codeOnly(dsp)
+            .contains("filterCutoff * renderCutoffScale"), """
+            `renderCutoffScale` no longer multiplies the cutoff in `EchoelDDSP`'s render block. \
+            The property would still exist and the switch would still write it, so every other \
+            claim here stays green while SLIDE becomes inaudible — a control that moves a \
+            number nobody reads.
+            """)
+
+        let panicBody = try memberBody("public func panic()", in: Self.voice)
+        XCTAssertTrue(panicBody.contains("synth.renderCutoffScale = 1"), """
+            `panic()` no longer clears the slide scale. A slide that never got its release \
+            leaves this voice with the filter held open and no control able to restore it — \
+            the exact shape `panic()` exists to break for the note and press latches beside it.
+            """)
+        // Same anchoring as claim 1b, and for the same #408 reason: `public func reset()`
+        // occurs TWICE in `EchoelDDSP.swift` (mono and `EchoelPolyDDSP`), so the unique token
+        // is the neighbouring `velocityGain = 1` and the scan asks only that block. Scoping is
+        // load-bearing here too: the bare needle `renderCutoffScale = 1` also appears as the
+        // property's own default declaration.
+        let resetTail = try XCTUnwrap(dsp.range(of: "velocityGain = 1")).upperBound
+        let block = dsp[resetTail...]
+        let close = block.range(of: "}")?.lowerBound ?? block.endIndex
+        XCTAssertTrue(block[..<close].contains("renderCutoffScale = 1"), """
+            `EchoelDDSP.reset()` no longer clears the slide scale beside `velocityGain`. It \
+            clears `velocityGain` for the reason its own comment gives; the slide factor \
+            multiplies the same filter and needs the same line.
+            """)
+    }
+
+    // MARK: - claim 1d — ONE clamp guards the scale, and both writers go through it
+
+    /// ⭐ #942. `renderCutoffScale` had two writers as of this slice and only one of them was
+    /// sanitised: `EchoelPolyDDSP` clamped through `clampExpressionScale`, the mono performer
+    /// voice had no door at all. The failure that opens is QUIET rather than loud — the render
+    /// clamps the product with the NaN-safe `clamped(to: Self.cutoffRange)`, which maps a
+    /// non-finite value to the LOWER bound, i.e. a 20 Hz filter that sounds silent while every
+    /// control still reads healthy (the #29/#92 permanent-silence class).
+    ///
+    /// ⚠️ THE FIX WAS A MOVE, NOT A SECOND CLAMP, and that is what this claim pins. The helper
+    /// was `private` to `EchoelPolyDDSP` while its own first sentence called itself "One clamp
+    /// for every writer of a per-note expression scale"; #942 moved it onto `EchoelDDSP` — the
+    /// type that owns the property — so there stays exactly ONE definition (#416). A second,
+    /// differently-bounded clamp (the first draft used 0.05…8 against the helper's 0.1…8) is
+    /// precisely what this asserts against.
+    ///
+    /// ⚠️ IT DOES NOT ASSERT THE BOUNDS. Those are a DSP judgement the founder's ear may move;
+    /// what must not drift is that there is one helper and that both writers call it.
+    func testOneClampGuardsTheExpressionScale() throws {
+        let dsp = SourceText.codeOnly(try source(Self.dsp))
+        let declarations = dsp.components(separatedBy: "func clampExpressionScale(").count - 1
+        XCTAssertEqual(declarations, 1, """
+            `clampExpressionScale` is declared \(declarations) times in \(Self.dsp), not once. \
+            Two clamps for one property is how the mono and poly writers drift apart: the \
+            render's own NaN handling maps a bad value to a 20 Hz filter, which sounds like \
+            silence while every control reads healthy. Keep ONE definition (#416).
+            """)
+        let voiceBody = try memberBody("private func apply(controller event: ControllerEvent)",
+                                       in: Self.voice)
+        XCTAssertTrue(voiceBody.contains("clampExpressionScale("), """
+            The mono performer voice writes `renderCutoffScale` without going through \
+            `clampExpressionScale`. The poly writer has clamped since it was written; this one \
+            takes its value straight off the MIDI wire.
+            """)
+        XCTAssertTrue(dsp.contains("clampExpressionScale(cutoffScale * voiceCutoffScale["), """
+            The poly writer no longer clamps its per-voice cutoff scale. Both writers of \
+            `renderCutoffScale` must pass through the one helper — if the poly path moved to \
+            another shape, re-anchor here on it rather than dropping the claim.
+            """)
+    }
+
     // MARK: - claim 2 — no member channel is read, so no zone can exist
 
     func testTheVoiceReadsNoMemberChannel() throws {
@@ -366,15 +554,21 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
     /// #343. A file that only asserts "MPE does not arrive" stays green on a tree that deleted
     /// external MIDI input altogether, leaving a corrected sentence that is now wrong the other
     /// way. So pin what the corrected line still promises: the dimensions exist on the event
-    /// type (they are IGNORED, not absent), and notes and bend still reach the voice.
+    /// type, and notes and bend still reach the voice.
+    ///
+    /// ⛔ THIS DOC SAID THE DIMENSIONS ARE "IGNORED, not absent" — true when #343 wrote it,
+    /// false since #942. Press (#939) and Slide (#942) are consumed; only `.airCC` is ignored.
+    /// The ASSERTION never depended on that word — it asks whether the cases exist on
+    /// `ControllerEvent.Kind` — which is why it stayed green and silently stale.
     func testNotesAndBendStillReachTheVoice() throws {
         let busCode = try source(Self.bus)
         for dimension in ["case channelPressure", "case slide", "case airCC"] {
             XCTAssertTrue(busCode.contains(dimension), """
                 `ControllerEvent.Kind` no longer carries `\(dimension)`. The point of the \
-                corrected prose is that these dimensions are PARSED and then ignored by the \
-                voice; if the event type stopped carrying them, the honest sentence changes \
-                again — \(Self.prose)
+                corrected prose is that the wire carries these dimensions at all — two of them \
+                now sound (press #939, slide #942) and air-CC is carried and ignored. If the \
+                event type stopped carrying one, the honest sentence changes again — \
+                \(Self.prose)
                 """)
         }
         XCTAssertTrue(busCode.contains("public let channel: UInt8"), """
@@ -426,9 +620,11 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
         XCTAssertFalse(String(line).contains("MPE"), """
             The MIDI INPUT port is called "\(line.trimmingCharacters(in: .whitespaces))" again.
 
-            The app cannot receive MPE: `MIDIBusPublisher` disambiguates no zones, and \
-            `apply(controller:)` `break`s on `.slide`, `.airCC` and `.channelPressure` while \
-            never reading `event.channel` — the three claims the tests above pin. MPE **out** \
+            The app cannot receive MPE: `MIDIBusPublisher` disambiguates no zones and \
+            `apply(controller:)` never reads `event.channel`, so no member channel exists to \
+            tell apart — the claims the tests above pin. The three continuous dimensions DO \
+            reach the voice (bend, press #939, slide #942); dimensions without zones is \
+            expressive MIDI, not MPE input. MPE **out** \
             is real, so the sink port keeps its name; only the SOURCE must not promise it. \
             If a real MPE receiver is built, this whole file goes red together and the \
             corrected prose goes back — \(Self.prose)
@@ -585,68 +781,152 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             """)
     }
 
-    // MARK: - claim 10 — the site does not say a per-note dimension plays a voice
+    // MARK: - claim 10 — the site does not pluralise what a dimension reaches
 
     /// #778. THE NEEDLE WAS THE WORD "MPE", AND THE CLAIM WAS MADE WITHOUT IT. Claim 9 swept
     /// every `docs/*.html` sentence one cycle earlier and passed over three sentences that
     /// said, in plain words, that CC 74 slide *plays* / *reaches* "the built-in voices":
     /// `tools.html`, and twice in `faq.html`. They never used the token the sweep looked for.
     ///
-    /// Both halves of those sentences were false, measured at the single consumer:
-    ///   · `.slide` (and `.airCC`) hit `break` in `apply(controller:)` — `.channelPressure` did
-    ///     too until #939 gave it `expressionGain`
-    ///     — claim 1 above pins exactly that, so this claim does NOT restate the code premise
-    ///     (#416); if someone wires the dimension, claim 1 reds first and names the prose.
-    ///   · "voices", plural — `git grep -c ControllerEvent` over `PolySynthVoice.swift` and
-    ///     `SubBassVoice.swift` is 0/0. ONE monophonic voice consumes the bus. That is the
-    ///     same plural `CLAUDE.md` retracted about its own line at #770 and `CLAIMS.md` at
-    ///     #774 — the website was the ninth surface, and it held the claim two months longer.
+    /// ⛔ #942 TURNED THE FIRST HALF OF THAT DEFECT TRUE, AND THE GUARD HAD TO FOLLOW (#364).
+    /// Those sentences were false in two independent ways, and only one of them has expired:
+    ///   · "slide plays a voice" — FALSE when #778 wrote it (`.slide` hit `break`), TRUE since
+    ///     #942 gave it `renderCutoffScale`. A needle that still banned it would redden this
+    ///     file on the sentence that finally tells the truth. The dimension half of the needle
+    ///     is therefore GONE for slide and press;
+    ///   · "voices", PLURAL — false then and false now, and nothing on the roadmap changes it.
+    ///     `git grep -c ControllerEvent` over `PolySynthVoice.swift` and `SubBassVoice.swift`
+    ///     is 0/0; `heldByController` is a single `Bool` (claim 3). ONE monophonic voice
+    ///     consumes the bus. That is the same plural `CLAUDE.md` retracted about its own line
+    ///     at #770 and `CLAIMS.md` at #774.
+    /// **The durable claim was always the plural, not the dimension.** #939 had already split
+    /// the pressure case out on exactly this reasoning; #942 finishes the split by making the
+    /// plural law the ONE rule for every dimension, instead of a general ban plus a pressure
+    /// exception that would need a slide exception next.
     ///
-    /// ⚠️ THE NEEDLE IS DELIBERATELY TWO-PART, because MPE **out** legitimately sends all
-    /// three dimensions and must stay sayable (#364). A dimension word alone is fine
-    /// ("Slide (CC 74) and Press" on the output path); a sounding verb alone is fine
-    /// ("notes and pitch bend play the built-in performer voice"). Only a dimension word in a
-    /// sentence that then claims it plays or reaches a VOICE is the defect — sending to an
-    /// external rig does not involve one of our voices.
-    func testTheSiteDoesNotSayAPerNoteDimensionPlaysAVoice() throws {
+    /// ⚠️ THE NEEDLE STAYS TWO-PART, because MPE **out** legitimately sends all three
+    /// dimensions and must stay sayable. A dimension word alone is fine ("Slide (CC 74) and
+    /// Press" on the output path); a sounding verb alone is fine ("notes and pitch bend play
+    /// the built-in performer voice"). Only a dimension word in a sentence that claims it
+    /// plays or reaches a VOICE is asked the plural question — sending to an external rig does
+    /// not involve one of our voices.
+    func testTheSiteDoesNotPluraliseWhatADimensionReaches() throws {
         for (name, html) in try websitePages() {
             for sentence in sentences(in: html) where namesAPerNoteInputDimension(sentence) {
-                XCTAssertFalse(claimsItPlaysAVoice(sentence), """
-                    `docs/\(name)` says a per-note expression dimension plays or reaches one \
-                    of our voices: "\(sentence)"
+                guard claimsItPlaysAVoice(sentence) else { continue }
+                let lower = sentence.lowercased()
+
+                // 10a — the durable law. Three continuous dimensions reach the built-in voice
+                // (bend, press #939, slide #942), but it is ONE monophonic voice, and press and
+                // bend are CHANNEL-wide messages, never per-note.
+                XCTAssertFalse(lower.contains("voices") || lower.contains("per-note"), """
+                    `docs/\(name)` pluralises what a per-note expression dimension reaches, or \
+                    calls a channel-wide message per-note: "\(sentence)"
+
+                    Pitch bend, press (#939) and slide (#942) DO reach the built-in performer \
+                    voice — singular. `heldByController` is a single `Bool` and `playNote` sets \
+                    one `synth.frequency`; claim 3 pins that. Channel pressure and channel \
+                    pitch bend are channel-wide by definition. Say "the built-in performer \
+                    voice", and do not call a channel message per-note.
+
+                    Zones (RPN 6,6) and member channels are still absent (claims 2 and 6), \
+                    which is why this is still not MPE input — dimensions without zones is \
+                    expressive MIDI.
+                    """)
+
+                // 10b — the ONE dimension that still reaches nothing. Not an MPE dimension
+                // (CC 21–31), so this is not an MPE claim; it is simply false.
+                XCTAssertFalse(namesAirCC(sentence), """
+                    `docs/\(name)` says air-CC plays or reaches a voice: "\(sentence)"
 
                     IT DOES NOT. `BioReactiveSynthVoice.apply(controller:)` — the only \
-                    `ControllerEvent` consumer in `Sources/` — handles `.noteOn`, `.noteOff` \
-                    and `.pitchBend`, and runs `.slide` and `.airCC` into \
-                    a single `break` (Press reaches it since #939). The dimension is parsed and carried on the bus; nothing \
-                    sounds it. And the voice it reaches is ONE monophonic voice, not "voices".
+                    `ControllerEvent` consumer in `Sources/` — runs `.airCC` into a bare \
+                    `break`; claim 1 pins exactly that, so this claim does not restate the code \
+                    premise (#416). Air-CC is parsed and carried on the bus; nothing sounds it.
 
-                    Say the true thing in two sentences, the way the repaired pages do: what \
-                    plays the voice (notes, pitch bend), then what only arrives on the bus.
-
-                    If a voice now really consumes the dimension, claim 1 \
-                    (`testTheRemainingExpressionDimensionsAreDiscarded`) is red too — read that \
-                    failure first, then this sentence is correct again and this guard, \
-                    `CLAIMS.md` §6b, `README.md` and `CLAUDE.md`'s MPE paragraph all move in \
-                    the same commit (#456).
+                    If a voice now really consumes it, claim 1 \
+                    (`testTheAirDimensionIsStillDiscarded`) is red too — read that failure \
+                    first, then this sentence is correct again and this guard, `CLAIMS.md` \
+                    §6b, `README.md` and `CLAUDE.md`'s MPE paragraph all move in the same \
+                    commit (#456).
                     """)
             }
+        }
+    }
 
-            // #939. Press is the one dimension a page MAY now say reaches the voice — but only
-            // ONE voice. `heldByController` is a single `Bool` (claim 3) and channel pressure
-            // is channel-wide by definition, so "voices" or "per-note" next to it is the same
-            // plural falsehood #774 removed from `CLAIMS.md`.
-            for sentence in sentences(in: html) where namesChannelPressure(sentence) {
-                let lower = sentence.lowercased()
-                XCTAssertFalse(lower.contains("voices") || lower.contains("per-note pressure"), """
-                    `docs/\(name)` pluralises what channel pressure reaches, or calls it \
-                    per-note: "\(sentence)"
+    // MARK: - claim 10c — and the site does not DENY a dimension that really sounds
 
-                    #939 gave Press a real path — to ONE monophonic voice, over a CHANNEL-wide \
-                    message. Say "the built-in performer voice", singular, and do not call a \
-                    channel message per-note. Zones (RPN 6,6) and member channels are still \
-                    absent, which is why this is not MPE input.
-                    """)
+    /// ⭐ #942, and it is the #775 lesson turned into a check instead of a habit. Every needle
+    /// in this file until now looked for an OVER-claim; #775 found that `architecture.html`
+    /// had done the opposite with MPE **out** and cost a rig owner the truth for two months.
+    /// #942 found the same shape FIVE more times, all by hand, none by a guard. This claim
+    /// covers THREE of the five, MEASURED by running the worktree's code against the parent's
+    /// prose (43 checks, this one the single FAIL, naming all three):
+    ///   · `faq.html` and `tools.html` — "CC 74 slide and air-CC are parsed and carried on the
+    ///     control bus, but no voice consumes them yet";
+    ///   · `architecture.html`'s Next row — "Slide and air-CC are parsed and carried on the
+    ///     bus; nothing sounds them yet".
+    /// All three were true when written and false the moment slide got `renderCutoffScale`.
+    ///
+    /// ⚠️ AND IT WOULD **NOT** HAVE CAUGHT THE OTHER TWO — said plainly rather than left for
+    /// the next session to discover, because both had already survived a whole slice unnoticed
+    /// (they are stale since **#939**, not #942). `README.md` listed "channel pressure" among
+    /// what is *not* wired, and README is not in this claim's corpus — it reads `docs/*.html`.
+    /// `architecture.html`'s stack row said "MPE zone/**pressure** handling ROADMAP", and
+    /// "roadmap" is deliberately NOT a denial phrase here: it is the honest word for the zone
+    /// half on the very same pages, so banning it beside a dimension name would forbid correct
+    /// sentences. Widening either half is a later slice with its own measurement, not a
+    /// one-line addition to the needle list.
+    ///
+    /// ⭐ THE SHAPE THAT MAKES IT #364-SAFE: the claim is CONDITIONAL ON THE CODE, not on a
+    /// date. It reads `apply(controller:)` first; a page may only be forbidden from denying
+    /// what the consumer is measured to do in the SAME run. Take slide's write back out and
+    /// this claim stops applying by itself, so restoring the honest "no voice consumes it"
+    /// sentence is never red — the failure mode that would have made a fixed-date version of
+    /// this guard forbid correct work.
+    ///
+    /// ⚠️ AIR-CC IS DELIBERATELY OUT OF SCOPE and must stay sayable: nothing consumes it
+    /// (claim 1), so "no voice consumes it" is the TRUE sentence about it. A sentence that
+    /// names only air-CC is never asked.
+    func testTheSiteDoesNotDenyADimensionThatSounds() throws {
+        let consumer = try memberBody("private func apply(controller event: ControllerEvent)",
+                                      in: Self.voice)
+        // (label, the words a page uses for it, the property the consumer writes)
+        var sounding: [(String, [String], String)] = []
+        if consumer.contains("synth.renderCutoffScale =") {
+            sounding.append(("CC 74 slide", ["slide", "cc 74", "cc74"], "renderCutoffScale"))
+        }
+        if consumer.contains("synth.expressionGain =") {
+            sounding.append(("channel pressure", ["channel pressure"], "expressionGain"))
+        }
+        guard !sounding.isEmpty else {
+            // Both dimensions were taken back out. Claim 1b/1c already say so loudly; this
+            // claim simply has nothing to assert, and saying so beats a silent green.
+            return
+        }
+        let denials = ["no voice consumes", "nothing sounds", "reaches no voice",
+                       "not wired", "no voice reads", "consumed by no voice"]
+        for (name, html) in try websitePages() {
+            for sentence in sentences(html) {
+                let lower = sentence.lowercased().replacingOccurrences(of: "\u{00A0}", with: " ")
+                guard denials.contains(where: { lower.contains($0) }) else { continue }
+                for (label, needles, property) in sounding
+                where needles.contains(where: { lower.contains($0) }) {
+                    XCTFail("""
+                        `docs/\(name)` says \(label) does not reach a voice, and the consumer \
+                        measured in this same run says it does: "\(sentence)"
+
+                        `BioReactiveSynthVoice.apply(controller:)` writes `synth.\(property)` \
+                        for it (claims 1b/1c pin the whole path through to the render block and \
+                        both latches). An UNDER-claim costs differently from an over-claim but \
+                        it does cost: this is the page a controller owner reads before deciding \
+                        whether Echoel can use their keyboard, and it tells them no.
+
+                        Air-CC is a different case and stays sayable — nothing consumes it. If \
+                        you really removed the dimension's path, claim 1c is red too and this \
+                        claim switches itself off; read that failure first.
+                        """)
+                }
             }
         }
     }
@@ -869,10 +1149,10 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             \(offenders.count) line(s) under docs/dev claim MPE INPUT without citing the \
             retraction that governs it:
             \(offenders.joined(separator: "\n"))
-            Measured: `MIDIBusPublisher` tells no MPE zones apart, no member channel is \
-            distinguished, and `BioReactiveSynthVoice.apply(controller:)` runs into ONE \
-            `break` for slide and air-CC. Channel pressure got a real path at #939 — that is \
-            ONE of the three dimensions that make MPE MPE, and one is not a zone. MPE **out** is real \
+            Measured: `MIDIBusPublisher` tells no MPE zones apart and no member channel is \
+            distinguished. All three continuous dimensions now sound — pitch bend, press \
+            (#939) and slide (#942) — and that is still not MPE INPUT: a zone is what MPE \
+            adds, and RPN 6,6 has no producer here. MPE **out** is real \
             and switchable (#713); the direction word is the whole claim. If real MPE input was \
             just built, this red is correct and the prose in CLAUDE.md, README.md and \
             ContentPipeline/CLAIMS.md §6 moves in the SAME commit (#456).
@@ -939,18 +1219,20 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
             .filter { !$0.isEmpty }
     }
 
-    /// #778. The per-note expression dimensions that arrive on the bus and reach no voice.
-    /// ⛔ #939 REMOVED `"channel pressure"` FROM THIS LIST, and that removal is the #364 law
-    /// in action rather than a weakening. Press now really does reach the built-in voice
-    /// (`expressionGain`, claim 1b), so a page saying so is TRUE — and this needle would have
-    /// reddened the guard on the sentence that finally tells the truth. What stays banned is a
-    /// SOUNDING claim about the dimensions that still hit `break`: slide, CC 74, air-CC.
-    /// The pressure-specific falsehood that survives is the PLURAL, and it is checked separately
-    /// below — one monophonic voice, and channel pressure is channel-wide, never per-note.
+    /// #778. The per-note expression dimensions a page can name. It is HALF a needle: the
+    /// sentence is only asked the plural question once `claimsItPlaysAVoice` also holds.
     ///
-    /// ⛔ AND `"timbre"` CAME OUT IN THE SAME SWEEP, BECAUSE IT WAS RED ON A CORRECT TREE —
-    /// the needle-collision law again, and this is the second live instance found by driving
-    /// the guard rather than reading it. `docs/architecture.html`'s **Voice timbre** row (the
+    /// ⛔ #939 REMOVED `"channel pressure"` FROM THIS LIST AND #942 PUT IT BACK — read the two
+    /// together, because the second move is not a reversal of the first. #939 removed it
+    /// because the list was then a BAN LIST ("this dimension may not be said to play a voice"),
+    /// and press had just started doing exactly that, so keeping it would have reddened the
+    /// guard on the truthful sentence (#364). #942 rebuilt the claim around the PLURAL instead
+    /// — the half that is false for every dimension, now and after zones ship — so the list is
+    /// no longer a ban list but a SELECTOR, and pressure belongs in a selector.
+    ///
+    /// ⛔ AND `"timbre"` CAME OUT IN THE #939 SWEEP, BECAUSE IT WAS RED ON A CORRECT TREE —
+    /// the needle-collision law, and the second live instance found by driving the guard
+    /// rather than reading it. `docs/architecture.html`'s **Voice timbre** row (the
     /// vocal-analysis feature, nothing to do with MIDI) reads "A player holds a tone … Voice
     /// timbre row": `claimsItPlaysAVoice` finds "play" inside "**play**er" and then "voice"
     /// after it, so the pair matched a sentence about a completely different subsystem. The
@@ -958,21 +1240,30 @@ final class TheMPEDimensionsReachNoVoiceTests: XCTestCase {
     /// the timbre". It never bought anything either: every genuine MPE use on the site is
     /// "Slide / timbre (CC 74)" or "slide/timbre CC74", which `"slide"` and `"cc 74"` already
     /// catch. An over-broad needle that catches nothing new and cries wolf four ways is the
-    /// #665 shape — a checker with false alarms is a checker nobody reads.
+    /// #665 shape — a checker with false alarms is a checker nobody reads. It stays out.
     ///
-    /// ⚠️ HOW LONG IT WAS RED IS NOT MEASURED HERE, and #396 is why nobody saw it: the
-    /// pipeline reports `failure` on every push, so a genuinely red guard looks exactly like
-    /// the host dying. Same discovery route as #937 — transcribe the WHOLE file, not the diff.
+    /// ⚠️ `"press"` IS DELIBERATELY NOT A NEEDLE, only `"channel pressure"`. It is a substring
+    /// of "expression", "impression" and "pressure" itself — the same collision class as
+    /// "timbre" above, and the site says "Press (channel pressure)" everywhere it means the
+    /// dimension, so the longer form loses nothing.
+    ///
+    /// ⚠️ HOW LONG THE `"timbre"` NEEDLE WAS RED IS NOT MEASURED, and #396 is why nobody saw
+    /// it: the pipeline reports `failure` on every push, so a genuinely red guard looks exactly
+    /// like the host dying. Same discovery route as #937 — transcribe the WHOLE file, not the
+    /// diff.
     private func namesAPerNoteInputDimension(_ sentence: String) -> Bool {
         let lower = sentence.lowercased().replacingOccurrences(of: "\u{00A0}", with: " ")
         return lower.contains("slide")
             || lower.contains("cc 74") || lower.contains("cc74")
-            || lower.contains("air-cc")
+            || lower.contains("channel pressure")
+            || namesAirCC(sentence)
     }
 
-    private func namesChannelPressure(_ sentence: String) -> Bool {
+    /// CC 21–31. NOT an MPE dimension — `EngineBus` calls them "air dimensions" and no MPE
+    /// document defines them — and the only one of the four that still reaches no voice.
+    private func namesAirCC(_ sentence: String) -> Bool {
         let lower = sentence.lowercased().replacingOccurrences(of: "\u{00A0}", with: " ")
-        return lower.contains("channel pressure")
+        return lower.contains("air-cc") || lower.contains("air cc")
     }
 
     /// The second half of the two-part needle: does the sentence claim it PLAYS or REACHES one

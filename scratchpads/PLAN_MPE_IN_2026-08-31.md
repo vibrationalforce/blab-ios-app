@@ -96,7 +96,7 @@ MPE-Controller (Seaboard, LinnStrument, Osmose) drückt heute fester und nichts 
   vorhandene `applyControllerForTests`-Naht.
 - **Pflicht-Reviewer: `audio-thread-reviewer`** (die Stimme wird angefasst).
 - ⚠️ **Wächter mitziehen, und er ist BREITER als sein Name:**
-  `TheMPEDimensionsReachNoVoiceTests` pinnt nicht nur „die drei Dimensionen landen in EINEM
+  `TheMPEInputHasNoZonesTests` pinnt nicht nur „die drei Dimensionen landen in EINEM
   `break`" (`testTheThreeExpressionDimensionsAreDiscarded`), sondern auch
   `testTheVoiceReadsNoMemberChannel`, `testThePerformerPathIsMonophonic` und
   `testTheRoutingScreenOffersNoMPEInput` — und seine Prosa nennt die Zahl DREI an mindestens
@@ -106,12 +106,31 @@ MPE-Controller (Seaboard, LinnStrument, Osmose) drückt heute fester und nichts 
   selbst der Defekt (#364)** — aber die drei Ansprüche, die NACH S1+S2 weiterhin wahr sind,
   bleiben stehen und werden nicht mit abgeräumt.
 
-### S3 — die zweite Dimension: Slide / CC 74 bewegt die Klangfarbe
-`MIDIBusPublisher` bildet CC 74 bereits auf `.slide` ab — der Erzeuger steht also, nur der
-einzige Verbraucher verwirft es. Eigener Council, weil „Timbre" beim Bio-Synth eine
-Design-Entscheidung ist (Cutoff? Harmonizität?) und keine Verdrahtung.
+### S3 — die zweite Dimension: Slide / CC 74 bewegt die Klangfarbe · ✅ AUSGELIEFERT (#942)
+`MIDIBusPublisher` bildete CC 74 schon auf `.slide` ab — der Erzeuger stand, nur der einzige
+Verbraucher verwarf es. Council gehalten, weil „Timbre" beim Bio-Synth eine
+Design-Entscheidung ist und keine Verdrahtung. **Ergebnis: `EchoelDDSP.renderCutoffScale`,
+nicht `brightness`.** Die Messung, die es entschieden hat, und warum sie nicht offensichtlich
+war:
+- `brightness` ist ZWEIMAL falsch. `applyBioReactive` schreibt es aus `bioBaseBrightness` plus
+  Kohärenz/HR/HRV-Abweichungen bei JEDEM Bio-Frame neu — ein Slide wäre in ~1 s gelöscht (die
+  Bio-Rate ist ~1 Hz, nicht 10). Und `brightness` trägt `didSet { updateSpectralEnvelope() }`,
+  eine Schleife über alle Harmonischen: ein CC-74-Strom liefe die Neuberechnung hunderte Male
+  pro Sekunde. Dieselbe Falle, die #939 für Press vermieden hat.
+- `renderCutoffScale` ist ein öffentlicher Pro-SAMPLE-Multiplikator auf den Cutoff, Default
+  1.0 (bit-identisch), gelesen im Render innerhalb des Ein-Pol-Glides (0,01/Sample ≈ 2 ms),
+  ohne `didSet` und damit ohne Neuberechnungskosten.
+- Tiefe: `slideDepth = 3.0` (×4 = zwei Oktaven Cutoff), benannte Konstante,
+  **NEEDS-FOUNDER-VERIFY** — Handgriff: MPE-Controller anschließen, auf einer gehaltenen Note
+  den Finger senkrecht bewegen; klingt der Sweep musikalisch oder zu weit/zu eng?
+- Nebenbefund, im selben Commit repariert: `renderCutoffScale` hatte ZWEI Schreiber und nur
+  einer war saniert. `clampExpressionScale` war `private` in `EchoelPolyDDSP`, während sein
+  eigener Doc-Satz „One clamp for every writer" behauptete; es ist auf `EchoelDDSP` gezogen
+  (EINE Definition, #416), nicht kopiert.
+- Der Wächter heißt seit diesem Commit `TheMPEInputHasNoZonesTests` — der alte Name
+  (`TheMPEDimensionsReachNoVoiceTests`) wurde durch S2+S3 unwahr.
 
-### S4 — die eigentliche MPE-Hälfte: Zonen
+### S4 — die eigentliche MPE-Hälfte: Zonen · OFFEN, und jetzt die EINZIGE offene Hälfte
 RPN 6,6, Master- gegen Member-Kanal, Per-Note-Bend-Bereich. **Erst danach** darf irgendeine
 nutzersichtbare Fläche das Wort MPE für die EINGABE benutzen.
 

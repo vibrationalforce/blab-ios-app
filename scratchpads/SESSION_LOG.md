@@ -19156,3 +19156,75 @@ erkannt, `dead-needles.py . --selftest` fuhr still den normalen Scan und druckte
 nicht-rohen Modul-Docstring ist ein echter Python-`SyntaxError`. Gefangen hat ihn nur der Lauf —
 **kein Workflow führt dieses Skript aus**, es wäre also bis zum nächsten Handaufruf unsichtbar
 geblieben. Lehre: ein Docstring, der ÜBER Escapes schreibt, darf sie nicht schreiben.
+
+## 2026-09-01 — #942: die SLIDE-Dimension erreicht die Stimme, und der Wächter heißt anders
+
+**Was jetzt klingt:** ein MPE-Controller, der auf einer gehaltenen Note den Finger senkrecht
+bewegt (CC 74), öffnet und schließt den Filter der eingebauten Performer-Stimme. Zusammen mit
+#939 (Press) und dem Pitch-Bend, den sie immer schon hatte, klingen damit **alle drei**
+kontinuierlichen MPE-Dimensionen.
+
+⭐ **Und genau deshalb ist die wichtigste Zeile dieses Commits eine UMBENENNUNG.** Der Wächter
+hieß `TheMPEDimensionsReachNoVoiceTests` — nach dieser Scheibe schlicht falsch. Ein Dateiname
+ist eine Behauptung, und er ist die erste, die eine Sitzung liest. Er heißt jetzt
+`TheMPEInputHasNoZonesTests`, weil das die Hälfte ist, die keine Dimension ersetzen kann:
+**kein RPN-6,6-Zonen-Signal, kein Member-Kanal, EINE monophone Stimme.**
+
+⛔ **Ein Off-by-one in BEIDE Richtungen, das die Datei seit #548 trug.** Ihr Kopf nannte Slide,
+Air-CC und Pressure „exactly the three dimensions that MAKE it MPE". MPEs drei sind Pitch-Bend
+(X), CC 74 (Y) und Channel Pressure (Z): **Pitch-Bend fehlte, obwohl diese Stimme es immer
+verarbeitet hat, und `.airCC` (CC 21–31) war mitgezählt, obwohl kein MPE-Dokument es
+definiert.** Daraus wurde „eine von drei", dann „zwei von drei" — eine Buchführung, die dreimal
+ablief, während die Zonen-Hälfte nie wackelte.
+
+⭐ **Die Design-Messung, die S3 entschieden hat.** `brightness` ist das Naheliegende und
+zweimal falsch: `applyBioReactive` schreibt es bei JEDEM Bio-Frame aus `bioBaseBrightness` neu
+(~1 Hz — ein Slide wäre in einer Sekunde weg, dieselbe Falle, die #939 für Press vermied), und
+sein `didSet` ruft `updateSpectralEnvelope()` über alle Harmonischen, was ein CC-74-Strom
+hunderte Male pro Sekunde auslösen würde. `renderCutoffScale` ist ein Pro-SAMPLE-Multiplikator
+ohne `didSet`, Default 1.0 (bit-identisch), gelesen im Render innerhalb des Ein-Pol-Glides
+(≈ 2 ms). `slideDepth = 3.0` = zwei Oktaven, benannt, **NEEDS-FOUNDER-VERIFY**.
+
+⛔ **Ein Entwurfsfehler, vor dem Commit selbst gefangen, und er wäre ein COMPILE-Fehler
+gewesen.** Der erste Entwurf gab `renderCutoffScale` ein sanierendes `didSet` — das
+widersprach ihrem eigenen Doc („a plain Float … aligned-word atomic"), machte den
+Pro-Stimme-pro-Block-Schreibvorgang des Poly-Pfads zu einem Read-Modify-Write **auf dem
+Audio-Thread**, und benutzte Grenzen (0,05…8), die der schon vorhandenen Klammer (0,1…8)
+widersprachen. Repariert am SCHREIBER: `clampExpressionScale` war `private` in
+`EchoelPolyDDSP`, während sein eigener erster Satz „One clamp for every writer" behauptete —
+es ist auf `EchoelDDSP` **gezogen**, nicht kopiert (#416). **Und die erste Fassung dieser
+Umzugs-Notiz behauptete, die vier Aufrufstellen liefen unverändert weiter: `Self.` löst in
+`EchoelPolyDDSP` NICHT auf eine fremde Klasse auf.** Swift vererbt keine Statics zwischen
+unverwandten Typen. Ohne lokalen Compiler war das ein LESE-Fund; der `Self.<name>`-Audit aus
+#776 gilt beim VERSCHIEBEN genauso wie beim Löschen.
+
+⭐ **Neuer Anspruch 10c — der erste UNTER-Behauptungs-Wächter dieser Datei.** Jede Nadel hier
+suchte bisher Über-Behauptungen. #775 fand die Gegenrichtung einmal; #942 fand sie **fünfmal
+von Hand und keinmal durch einen Wächter**: `faq.html`, `tools.html` und die „Next"-Zeile von
+`architecture.html` sagten weiter „no voice consumes them yet", und `README.md` plus eine
+Architektur-Zeile waren schon **seit #939** abgelaufen. 10c ist an den CODE gekoppelt, nicht an
+ein Datum: er liest zuerst `apply(controller:)` und verbietet einer Seite nur zu leugnen, was
+der Verbraucher im SELBEN Lauf nachweislich tut — nimmt jemand Slide zurück, schaltet der
+Anspruch sich selbst ab (#364). Er fängt drei der fünf; dass er die anderen zwei NICHT fängt
+(README ist nicht im Korpus, „roadmap" ist absichtlich kein Leugnungswort), steht in seinem
+Doc statt als Versprechen.
+
+⚠️ **Grading, transkribiert gegen BEIDE Bäume, alle 43 Ansprüche — nicht nur die geänderten.**
+**NULL Regressionen.** Fünf sind Vorwärts-Wächter (sie nennen Symbole, die dieser Commit
+anlegt), 37 sind Gegengewichte, grün auf beiden. Claim 1s „erste Anweisung ist `break`" konnte
+auf dem Elternbaum gar nicht LAUFEN — Anker-Fehler, #454-Form, und deshalb bewusst nicht als
+Fang gebucht (#433). **10c brauchte einen DRITTEN Baum:** Worktree-Code gegen Eltern-Prosa,
+43 Prüfungen, genau ein Fehlschlag, der alle drei von Hand reparierten Seiten nennt.
+
+⭐ **#367: elf Mutationen, jede bewegt genau EINEN Anspruch, zwei Kontrollen grün** (der Write
+in einem KOMMENTAR bleibt rot = #762 geprüft; eine ehrliche Umformulierung bleibt grün = #364
+geprüft). ⛔ **Zwei der ersten elf landeten nicht** — eine benannte `case .slide:` um und ließ
+`case .airCC:` stehen, die andere fügte `clampExpressionScale2` hinzu, was die Nadel
+`func clampExpressionScale(` korrekt nicht trifft. Beide neu gefahren, bevor ihr Ergebnis
+geglaubt wurde (#776).
+
+**Elf Prosa-Zeiger in neun Dateien mitgezogen** (#456): `CLAUDE.md` (11 B kleiner, Deckel hält),
+`ContentPipeline/CLAIMS.md`, `README.md`, vier `Sources/`-Köpfe, `scripts/dead-needles.py`,
+`TheComposerWritesPerNoteVelocityTests`, der MPE-Plan und drei Website-Seiten plus zwei
+`docs/dev`-Dateien. `SESSION_LOG.md`, `decisions.csv` und `memory/LEDGER_COUNTS.md` behalten
+den alten Namen — sie beschreiben einen Tag, keine Gegenwart.

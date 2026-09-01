@@ -28,9 +28,16 @@ import CoreMIDI
 /// and `synth.expressionGain` on the master-gain target so it is actually heard.
 ///
 /// ⚠️ THE RETRACTION IT SUPPORTS STANDS. Zone detection (RPN 6,6) and master-vs-
-/// member channel disambiguation are still nowhere in this file, `.slide` and
-/// `.airCC` still reach no voice, and `event.channel` is still read by nobody.
-/// ONE dimension of three is not MPE input, and no user-facing copy may say it is.
+/// member channel disambiguation are still nowhere in this file, and `event.channel`
+/// is still read by nobody.
+///
+/// ⛔ BUT THE HALF-SENTENCE THAT USED TO SIT HERE — "`.slide` and `.airCC` still
+/// reach no voice, ONE dimension of three is not MPE input" — EXPIRED AT #942, which
+/// gave Slide `EchoelDDSP.renderCutoffScale`. All three of MPE's continuous
+/// dimensions (pitch bend, CC 74 slide, channel pressure) now reach the voice; `.airCC`
+/// is CC 21–31 and was never one of them. The retraction does not weaken, because it
+/// never rested on the count: **dimensions without zones is expressive MIDI, not MPE
+/// input**, and no user-facing copy may say otherwise.
 ///
 /// What IS true and must not be over-corrected away: MPE traffic on the wire
 /// still ARRIVES here as ordinary per-channel notes, bend and CC 74 — that is
@@ -38,7 +45,7 @@ import CoreMIDI
 /// executor, and why `MIDIBusPublisher` can map CC 74 to `.slide`. Parsing the
 /// bytes an MPE controller happens to send is not supporting MPE. MPE **out** is
 /// real and shipped (#713); only the input half is the claim being retracted.
-/// Guard: `Tests/CISmoke/TheMPEDimensionsReachNoVoiceTests.swift`.
+/// Guard: `Tests/CISmoke/TheMPEInputHasNoZonesTests.swift`.
 @MainActor @Observable
 final class MIDIInput {
 

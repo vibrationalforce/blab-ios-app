@@ -23,10 +23,12 @@
 //  parsed (`MIDIEventParse`, both protocols), carried (`MIDIInput
 //  .onChannelPressure`) and consumed (`BioReactiveSynthVoice` →
 //  `EchoelDDSP.expressionGain`, a master-gain multiply in the render block).
-//  ⚠️ ONE dimension of three is NOT MPE input: no zone is detected, no member
-//  channel is distinguished, `channel` is carried here and read by nobody, and
-//  `.slide`/`.airCC` still land in one `break`. Store text, website and
-//  `ContentPipeline/CLAIMS.md` stay untouched.
+//  ⚠️ THREE DIMENSIONS ARE NOT MPE INPUT EITHER: no zone is detected, no member
+//  channel is distinguished, and `channel` is carried here and read by nobody.
+//  (This said "ONE dimension of three … `.slide`/`.airCC` still land in one
+//  `break`" until #942 sounded Slide. The count moved three times; the two
+//  clauses above never did, which is why they are the claim.) Store text,
+//  website and `ContentPipeline/CLAIMS.md` stay untouched.
 //
 //  ⛔ THIS BLOCK SAID "intentionally NOT wired in this first cycle", AND THAT
 //  IS THE WRONG LAYER (#770). It reads as a gap in THIS file, so a session
@@ -42,10 +44,12 @@
 //
 //  ⛔ AND THE LINE ABOVE SAID "MIDIInput already parses … + MPE wire format".
 //  Parsing the bytes an MPE controller happens to send — per-channel notes,
-//  bend, CC 74 — is not parsing MPE: no zone is detected, no member channel is
-//  distinguished, and the Press dimension never arrives at all. The consumer
+//  bend, CC 74 — is not parsing MPE: no zone is detected and no member channel
+//  is distinguished. ("and the Press dimension never arrives at all" stood here
+//  until #939 parsed it and #942 sounded Slide beside it; the two clauses that
+//  remain are the ones no dimension can retire.) The consumer
 //  half of the same claim is pinned by
-//  `Tests/CISmoke/TheMPEDimensionsReachNoVoiceTests.swift`; #770 added the
+//  `Tests/CISmoke/TheMPEInputHasNoZonesTests.swift`; #770 added the
 //  producer half. MPE **out** is real and shipped (#713) and is a different
 //  code path (`MPEExpression` / `UMPEncoder`) — do not "correct" that one.
 //

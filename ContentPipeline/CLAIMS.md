@@ -54,7 +54,7 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 | **Immersiver Raum: ADM-OSC** Objekt-Ausgabe (`/adm/obj/{n}/*`) | `ADMOSCSender` |
 | **OSC-Ausgabe** des Bio-Signals an jede Software im Netz | `OSCSender`, Adressliste in `CLAUDE.md` |
 | **MIDI-Export** der erzeugten Musik als `.mid` | `MIDIFileExporter`, Tür im Export-Schacht |
-| **MIDI-Eingang**: ein externer Controller spielt EINE monophone Stimme — Noten + Pitch-Bend | `BioReactiveSynthVoice` ist der EINZIGE Verbraucher von `controllerEvents`; `heldByController` ist ein einzelner `Bool`, `playNote` setzt eine `synth.frequency`. Wächter: `TheMPEDimensionsReachNoVoiceTests` |
+| **MIDI-Eingang**: ein externer Controller spielt EINE monophone Stimme — Noten, Pitch-Bend, Press (Channel Pressure, #939) und Slide (CC 74, #942) | `BioReactiveSynthVoice` ist der EINZIGE Verbraucher von `controllerEvents`; `heldByController` ist ein einzelner `Bool`, `playNote` setzt eine `synth.frequency`. Wächter: `TheMPEInputHasNoZonesTests` |
 | **MIDI-Ausgang live**: gespielte NOTEN an dein Rig (MIDI 1.0) | `MIDIOutput`, Schalter in der Routing-Fläche (`midi.out`), Default AUS |
 | **MPE-AUSGANG an Dein Rig**: Zone angekündigt, Noten über Member-Kanäle 2–16, jede mit Glide (Pitch-Bend), Slide (CC 74) und Press (Channel Pressure) | `MIDIOutput.sendMPEConfiguration()` plus die drei Sendepfade; zwei Schalter in der erreichbaren Routing-Fläche (»MPE note layout«, »Per-note expression«), beide Default AUS. **Nur MIT Richtungswort schreiben** — warum, steht in §6 |
 | **Dein Rig erfährt, ob ein Körper sendet oder der Demo-Generator**: auf OSC als eigene Adresse `/echoelmusic/bio/synthetic` (1 = Demo, 0 = echter Körper), auf sACN als Quellname »Echoelmusic (DEMO)« in der Quellenliste des Pults | #639 (Batch, der Flagge geht jedem Tick voran der mindestens einen Messwert sendet) · #785 (Ereignisse, Flagge unmittelbar VOR dem Ereignis, erneut nur bei Wechsel) · #789 (sACN, das 64-Byte-Source-Name-Feld von E1.31 — das eigene Feld des Standards, nichts erfunden). Wächter: `TheWireSaysWhoseBodyTests`, `TheLightRigSeesTheSimulatorTests`. ⛔ **NIE »alle Ausgänge« schreiben**: ADM-OSC und Art-Net tragen sie NICHT, und die Gründe sind verschieden (fremder Adressraum, dessen Erweiterungsregeln hinter einer AES-Paywall liegen · `ArtDMX` hat gar kein Namensfeld, `ArtPollReply` ist ungebaut). Die sACN-Hälfte: **Geräte-Verify offen — so kennzeichnen** (ob ein Pult den Namen mitten in der Sitzung neu zeichnet, ist im Repo nicht messbar) |
@@ -165,10 +165,18 @@ Aus dem I/O-Satz gestrichen. ⛔ **Die BEGRÜNDUNG, die hier stand, ist seit #71
 und „Per-note expression" sind persistiert und haben zwei Schalter in der erreichbaren
 Routing-Fläche. Der Schluss hält aus einem ANDEREN Grund: **MPE OUT ist real und
 schaltbar, MPE IN nicht** (#548). `MIDIBusPublisher` parst MPE-Verkehr, unterscheidet
-aber keine Zonen, und `BioReactiveSynthVoice.apply(controller:)` läuft für Slide (CC 74),
-Air und Channel Pressure in ein einziges `break` — genau die drei Dimensionen, die MPE
-erst zu MPE machen. Ein „MPE"-Wort in einer Caption verspricht also die Hälfte, die
-fehlt.
+aber keine Zonen, und `BioReactiveSynthVoice.apply(controller:)` liest `event.channel`
+nirgends — es gibt also keinen Member-Kanal zu unterscheiden.
+
+⛔ **Die BEGRÜNDUNG, die hier stand, ist mit #942 abgelaufen — der SCHLUSS nicht.** Sie
+lautete: der Verbraucher laufe „für Slide (CC 74), Air und Channel Pressure in ein einziges
+`break` — genau die drei Dimensionen, die MPE erst zu MPE machen". Zwei Fehler in einem Satz.
+Erstens ist `.airCC` (CC 21–31) gar keine MPE-Dimension; MPE hat Pitch-Bend, CC 74 und Channel
+Pressure — und Pitch-Bend klang schon immer. Zweitens klingen seit #939 (Press) und #942
+(Slide) **alle drei**. Trotzdem bleibt „MPE-Eingang" verboten, weil die fehlende Hälfte nie
+die Anzahl war: **eine Zone ist das, was MPE hinzufügt**, und RPN 6,6 hat auf dem Eingang
+keinen Erzeuger. Ein richtungsloses „MPE"-Wort in einer Caption verspricht also weiter die
+Hälfte, die fehlt.
 
 ⛔ **UND DIE REGELZEILE, DIE HIER STAND, WAR SEIT #713 ZU BREIT — gestrichen 2026-08-24
 (#780).** Sie lautete *»Nicht erlaubt: MPE, per-note expression, spielt Deinen

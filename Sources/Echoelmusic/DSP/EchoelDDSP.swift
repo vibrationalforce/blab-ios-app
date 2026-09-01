@@ -451,10 +451,67 @@ public final class EchoelDDSP: @unchecked Sendable {
     /// Base filter cutoff (before modulation), in Hz — kept inside `cutoffRange`.
     public var filterCutoff: Float = 220.0     // Warm, dark start — opens with coherence
 
+    /// One clamp for every writer of a per-note expression scale. NaN → 1 (resting), never
+    /// 0 — this file's law is "fail to resting, never to silence", and a NaN reaching the
+    /// filter cutoff is the permanent-silence class (#29/#92). Bounds match `setCutoffScale`.
+    ///
+    /// ⭐ #942 MOVED IT HERE FROM `EchoelPolyDDSP`, where it was `private`, for one reason: the
+    /// property it guards lives on THIS type, and #942 gave it a second writer on the mono
+    /// performer voice (`BioReactiveSynthVoice`, MPE Slide). Its own first sentence already
+    /// claimed to be the clamp for EVERY such writer; being private to one of them made that
+    /// false the moment a second appeared. Not duplicated, not re-derived — moved, so there
+    /// stays exactly ONE definition of the decision (#416).
+    ///
+    /// ⛔ AND THE MOVE'S FIRST DRAFT SAID "all four poly call sites keep working unchanged,
+    /// `Self.` resolves through to this one". IT DOES NOT, and it would have been a compile
+    /// error, not a subtlety: `EchoelPolyDDSP` is a separate class, not a subclass, so `Self.`
+    /// there means `EchoelPolyDDSP.` and finds nothing once the member leaves that type. Swift
+    /// does not inherit statics between unrelated types. The four call sites are spelled
+    /// `EchoelDDSP.clampExpressionScale` for exactly that reason. There is no local Swift
+    /// toolchain in this repo, so this was caught by reading rather than by a build — the same
+    /// `Self.<name>` audit #776 made reflexive after deleting a member, run here after MOVING
+    /// one:  git grep -n "Self\.clampExpressionScale" -- Sources
+    @inline(__always)
+    static func clampExpressionScale(_ x: Float) -> Float {
+        Swift.min(Swift.max(x.isFinite ? x : 1, 0.1), 8)
+    }
+
     /// External cutoff multiplier (1 = no change), e.g. driven by parameter
     /// automation. Applied on top of the base cutoff + LFO in the render. A plain
     /// Float written from the control side and read on the audio thread (aligned-word
     /// atomic, same discipline as other render params); off (1.0) is bit-identical.
+    ///
+    /// ⭐ #942 — MPE SLIDE (CC 74) NOW WRITES THIS ON THE MONO PERFORMER VOICE, and the choice
+    /// of destination is the whole design. The obvious one, `brightness`, is WRONG twice over:
+    /// `applyBioReactive` rewrites it from `bioBaseBrightness` plus coherence/HR/HRV deviations
+    /// on every bio frame, so a slide would be erased within ~1 s (the bio rate, ~1 Hz — the
+    /// same trap #939 avoided for Press); and `brightness` carries
+    /// `didSet { updateSpectralEnvelope() }`, a loop over every harmonic, so a CC 74 stream at
+    /// hundreds of messages per second would run that recompute per message. This property has
+    /// NO `didSet` and is read once per sample in the render, already inside the one-pole that
+    /// glides the cutoff (0.01/sample ≈ 2 ms) — no zipper, no new cost, one multiply that the
+    /// render's `modulatedCutoff` expression already performs.
+    ///
+    /// ⚠️ TWO WRITERS, PROVABLY DISJOINT INSTANCES. `EchoelPolyDDSP` writes
+    /// `voices[i].renderCutoffScale` on the voices IT constructs; `BioReactiveSynthVoice` owns
+    /// its own `EchoelDDSP(sampleRate:)` and is never in that array. If those ever share an
+    /// instance, the two writers fight and the last one wins — measure before assuming they
+    /// cannot.
+    ///
+    /// ⛔ AND #942's FIRST DRAFT GAVE THIS PROPERTY A SANITISING `didSet`, WHICH CONTRADICTED
+    /// THE LINE FOUR ABOVE IT. The doc says "a plain Float … aligned-word atomic"; a `didSet`
+    /// makes every write a read-modify-write, and the poly path writes this ONCE PER VOICE PER
+    /// BLOCK from inside the render loop. The draft also used bounds (0.05…8) that disagreed
+    /// with the clamp the poly writer already applies (0.1…8) — two laws for one property, the
+    /// #416 shape. **The sanitising belongs at the WRITERS, and there is already exactly one
+    /// clamp for them**: `clampExpressionScale`, declared just above, whose own doc says so. It moved from
+    /// `EchoelPolyDDSP` to this type in #942 for no other reason than that the mono writer
+    /// needs it too.
+    ///
+    /// ⚠️ WHY IT IS WORTH CLAMPING AT ALL, since the failure is quiet rather than loud: the
+    /// render clamps the PRODUCT with the NaN-safe `clamped(to: Self.cutoffRange)`, which maps
+    /// a non-finite value to the LOWER bound — a 20 Hz filter, i.e. effectively silent, while
+    /// every control still reads healthy.
     public var renderCutoffScale: Float = 1.0
 
     /// Isochronic brainwave entrainment
@@ -2536,6 +2593,9 @@ public final class EchoelDDSP: @unchecked Sendable {
         // stale gain into whatever plays next — and since #174 a stale gain of 0 would
         // read as a muted fader that nobody set.
         velocityGain = 1
+        // #942, the #939 argument again for the second expression dimension: a slide that was
+        // never released would otherwise hold the filter wide open for the rest of the session.
+        renderCutoffScale = 1
         // #939, same argument one line up, and the reviewer's finding: a press that was never
         // released — controller unplugged mid-note, or the event dropped because the SPSC queue
         // flooded — would otherwise keep this voice +3.5 dB above nominal for the rest of the
@@ -2936,7 +2996,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         // keeps the level it was struck at (same reasoning that already left `amplitude`
         // alone). This path is the touch surface, not the generated take, so no Mix fader is
         // waiting on it.
-        let slideScale = Self.clampExpressionScale(cutoffScale)
+        let slideScale = EchoelDDSP.clampExpressionScale(cutoffScale)
         // A glide keeps its struck level (see above) — but the trim is not level, it is the
         // correction for WHERE the note now sits. The pitch moves, so the trim must move with
         // it, or a glide up an octave arrives 1.5 dB louder than the same note struck.
@@ -3041,7 +3101,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         let voiceIdx = allocateVoice()
 
         voiceNotes[voiceIdx] = note
-        let spawnScale = Self.clampExpressionScale(cutoffScale)
+        let spawnScale = EchoelDDSP.clampExpressionScale(cutoffScale)
         voiceCutoffScale[voiceIdx] = spawnScale
         let spawnTrim = Self.expressionTrim(pitch: soundingPitch, cutoffScale: spawnScale,
                                             reference: trimReference)
@@ -3117,7 +3177,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
     /// that is no longer held simply matches nothing, so a stale update is a no-op rather
     /// than a wrong-voice write. Pure arithmetic on the audio thread: no allocation, no lock.
     public func setNoteCutoffScale(note: Int, scale: Float) {
-        let s = Self.clampExpressionScale(scale)
+        let s = EchoelDDSP.clampExpressionScale(scale)
         // THE HALF #230 EXISTS FOR: this is the drag, and until now it wrote only the filter.
         // The trim is recomputed from the CLAMPED scale — the filter the voice actually gets —
         // so a corrected preset and the sounding timbre can never disagree.
@@ -3158,14 +3218,6 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
         guard reference >= 0 else { return 1 }
         return ExpressionLevelTrim.gain(cutoffScale: cutoffScale, pitch: pitch,
                                         referencePitch: reference)
-    }
-
-    /// One clamp for every writer of a per-note expression scale. NaN → 1 (resting), never
-    /// 0 — this file's law is "fail to resting, never to silence", and a NaN reaching the
-    /// filter cutoff is the permanent-silence class (#29/#92). Bounds match `setCutoffScale`.
-    @inline(__always)
-    private static func clampExpressionScale(_ x: Float) -> Float {
-        Swift.min(Swift.max(x.isFinite ? x : 1, 0.1), 8)
     }
 
     /// All notes off
@@ -3446,7 +3498,7 @@ public final class EchoelPolyDDSP: @unchecked Sendable {
             // PER-NOTE expression (where its finger is). Product clamped to the same bounds
             // either factor obeys, so two legal values can never compound past the range the
             // filter is designed for. Both default to 1 ⇒ bit-identical to before.
-            voices[i].renderCutoffScale = Self.clampExpressionScale(cutoffScale * voiceCutoffScale[i])
+            voices[i].renderCutoffScale = EchoelDDSP.clampExpressionScale(cutoffScale * voiceCutoffScale[i])
             voices[i].expressVibrato = expressVibrato
             voices[i].expressChorus = expressChorus
             voices[i].glideCoeff = portamentoCoeff

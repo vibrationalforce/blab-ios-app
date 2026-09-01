@@ -45,7 +45,7 @@ to 26. THAT IS 3 % REACH and it is stated rather than hidden: the alternative wa
 alarms, which is how a checker gets ignored — the same mechanism that made
 `continue-on-error` invisible.
 
-SHAPE 4 (#776) — A GUARD THAT CANNOT COMPILE. `TheMPEDimensionsReachNoVoiceTests` dropped
+SHAPE 4 (#776) — A GUARD THAT CANNOT COMPILE. `TheMPEInputHasNoZonesTests` dropped
 `private static let architecture` when its claim became a directory sweep, and one reference
 survived inside a failure message's string INTERPOLATION. The push answered `TEST BUILD FAILED`
 and cost a cycle. `Xcode Compile Check` cannot see this — it builds `Sources/` alone — so the

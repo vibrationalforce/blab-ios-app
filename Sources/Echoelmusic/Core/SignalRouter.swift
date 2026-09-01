@@ -145,13 +145,16 @@ public final class SignalRouter {
             // all of them PROSE. The routing screen was a sixth surface and the only one a
             // player reads while patching, so it kept the claim for two months. Measured:
             // `MIDIBusPublisher` parses MPE traffic but disambiguates no zones (its own header
-            // says so), and `BioReactiveSynthVoice.apply(controller:)` runs into a single
-            // `break` for `.slide` and `.airCC` — two of the three dimensions that MAKE it MPE
-            // — and never reads `event.channel`. ⭐ #939 gave the THIRD, channel pressure, a
-            // real path to the sound (`synth.expressionGain`); one dimension of three is not
-            // MPE, so this refusal stands unchanged. MPE **out** is real and switchable
+            // says so), and `BioReactiveSynthVoice.apply(controller:)` never reads
+            // `event.channel`, so no member channel exists to tell apart.
+            // ⛔ THE COUNTING HALF OF THIS NOTE EXPIRED TWICE AND IS GONE. It said two of three
+            // dimensions run into a `break`, then #939 made it one, then #942 made it none:
+            // pitch bend has always sounded, press reaches `synth.expressionGain` (#939) and
+            // CC 74 slide reaches `synth.renderCutoffScale` (#942). The refusal below stands
+            // UNCHANGED, because it never rested on the count — **a zone is what MPE adds**,
+            // and RPN 6,6 has no producer on the way in. MPE **out** is real and switchable
             // (#713), which is why the sink below keeps its name. Guard:
-            // `Tests/CISmoke/TheMPEDimensionsReachNoVoiceTests`.
+            // `Tests/CISmoke/TheMPEInputHasNoZonesTests`.
             SignalPort(id: "midi.in",     name: "MIDI In", kind: .note,                 direction: .source, transport: .coreMIDI),
             // Universal BLE heart-rate strap (0x180D — Polar/Garmin/Wahoo/…).
             // DATA-FLOW PORT ONLY — it does NOT drive the strap's lifecycle. B4

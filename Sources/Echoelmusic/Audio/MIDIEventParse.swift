@@ -31,9 +31,16 @@ public enum MIDIInEvent: Equatable, Sendable {
     ///
     /// ⚠️ THIS IS NOT "MPE SUPPORT" AND MUST NOT BE DESCRIBED AS SUCH. Zone detection (RPN 6,6)
     /// and master-vs-member channel disambiguation remain absent; `channel` is carried here and
-    /// read by nobody. One dimension of three now reaches a voice — the other two (`.slide`,
-    /// `.airCC`) still land in a single `break`, which `TheMPEDimensionsReachNoVoiceTests`
-    /// pins. Store text, website and `ContentPipeline/CLAIMS.md` stay untouched.
+    /// read by nobody.
+    ///
+    /// ⛔ AND THE SENTENCE THAT FOLLOWED THIS ONE EXPIRED AT #942. It said "one dimension of
+    /// three now reaches a voice — the other two (`.slide`, `.airCC`) still land in a single
+    /// `break`". Slide got its own path at #942 (`EchoelDDSP.renderCutoffScale`), and `.airCC`
+    /// was never an MPE dimension in the first place (CC 21–31; MPE's three are pitch bend,
+    /// CC 74 and channel pressure). So ALL THREE reach the voice today and the retraction is
+    /// UNCHANGED, because it never rested on the count: **a zone is what MPE adds, and RPN 6,6
+    /// has no producer here.** Guard `TheMPEInputHasNoZonesTests` pins that half. Store text,
+    /// website and `ContentPipeline/CLAIMS.md` say the same and stay honest.
     case channelPressure(value: Float, channel: Int)
 }
 

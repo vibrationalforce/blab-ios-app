@@ -168,7 +168,7 @@ final class TheComposerWritesPerNoteVelocityTests: XCTestCase {
     /// Tag-stripped sentences. The boundary skips a run of closing marks after the terminator,
     /// because `.)` glues two sentences together otherwise and a checker with false alarms is a
     /// checker nobody reads (#665). Same shape as the sweep in
-    /// `TheMPEDimensionsReachNoVoiceTests`; it is duplicated rather than shared because these
+    /// `TheMPEInputHasNoZonesTests`; it is duplicated rather than shared because these
     /// two guards must be independently deletable, and the helper is nine lines.
     private func sentences(in html: String) -> [String] {
         var text = ""

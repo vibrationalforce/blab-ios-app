@@ -257,6 +257,7 @@ public final class BioReactiveSynthVoice {
         // two reasons this doc block already names (controller unplugged mid-note, event dropped
         // under queue flood). Without this line a stuck press survives every Stop.
         synth.expressionGain = 1
+        synth.renderCutoffScale = 1   // #942 — the slide latch is as sticky as the press latch
         releaseNote()
     }
 
@@ -447,7 +448,10 @@ public final class BioReactiveSynthVoice {
     ///   .pitchBend   → instantaneous frequency offset (±2 semitones)
     ///   .channelPressure → `synth.expressionGain` (MPE PRESS, #939) — additive from
     ///                       nominal, so a controller at rest changes nothing
-    /// .slide and .airCC are still reserved; nothing consumes them.
+    ///   .slide           → `synth.renderCutoffScale` (MPE SLIDE / CC 74, #942) — same shape,
+    ///                       a per-sample multiplier on the filter cutoff
+    /// .airCC is still reserved; nothing consumes it. It is NOT an MPE dimension (CC 21–31),
+    /// so its absence says nothing about MPE either way.
     private func drainControllerEvents(from bus: EngineBus) {
         while let event = bus.controllerEvents.dequeue() {
             apply(controller: event)
@@ -466,6 +470,12 @@ public final class BioReactiveSynthVoice {
     /// can lean into, well short of slamming the master limiter. Named rather than inlined so
     /// the founder's ear can move ONE number: NEEDS-FOUNDER-VERIFY.
     private static let pressDepth: Float = 0.5
+
+    /// How far full slide opens the filter (#942). ×4 is two octaves of cutoff — the sweep an
+    /// MPE player expects from the Y axis, and small enough that the existing 2 ms glide keeps
+    /// it smooth. Named rather than inlined so the founder's ear can move ONE number:
+    /// NEEDS-FOUNDER-VERIFY.
+    private static let slideDepth: Float = 3.0
 
     private func apply(controller event: ControllerEvent) {
         switch event.kind {
@@ -507,7 +517,29 @@ public final class BioReactiveSynthVoice {
             // "not pressing", which is also the right musical answer to a garbage byte.
             let press = event.value.clamped(to: 0...1)
             synth.expressionGain = 1 + press * Self.pressDepth
-        case .slide, .airCC:
+        case .slide:
+            // ⭐ #942 — MPE's SLIDE (Y / timbre) dimension, the LAST of the three continuous
+            // ones to reach the sound (bend has always played, press arrived at #939).
+            // It multiplies the filter cutoff rather than writing `brightness`: the bio
+            // path owns `brightness` and rewrites it every frame (~1 Hz), and writing it also
+            // triggers a full harmonic recompute through its `didSet` — a CC 74 stream would
+            // run that hundreds of times a second. `renderCutoffScale` is read per SAMPLE and
+            // already sits inside the cutoff's one-pole, so this glides in ~2 ms.
+            //
+            // Neutral at 0 for the same reason as press: a controller at rest sends 0, so a
+            // replacing map would clamp the filter shut the moment a keyboard is plugged in.
+            // At 0 this is exactly 1.0 — bit-identical to every build before it.
+            //
+            // Sanitised AT THE WRITER, through the one clamp `EchoelPolyDDSP` has always used
+            // for this property and which #942 moved onto `EchoelDDSP` so both writers can
+            // share it (#416). The property itself stays a plain Float: a `didSet` there would
+            // turn the poly path's per-voice-per-block store into a read-modify-write on the
+            // audio thread, and would contradict the "aligned-word atomic" discipline its own
+            // doc states. Belt and braces here — `clamped(to: 0...1)` is already NaN-safe
+            // (NaN → 0 → a scale of exactly 1), so the outer clamp is for the NEXT writer.
+            synth.renderCutoffScale = EchoelDDSP.clampExpressionScale(
+                1 + event.value.clamped(to: 0...1) * Self.slideDepth)
+        case .airCC:
             break
         }
     }
