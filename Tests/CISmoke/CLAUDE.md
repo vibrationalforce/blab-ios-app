@@ -360,8 +360,18 @@ the one false alarm the prototype produced is gated out.
 
 ⚠️ **TWO LESSONS THAT ARE NOT "ADD A SHAPE":**
 1. **The `XCTFail` requirement is the FATALITY argument, and it is PROPHYLACTIC today** —
-   measured, 116 sites without it vs 76 with, identical verdicts. Say which one a gate is; a
-   gate claimed load-bearing without measuring is the thing §2 keeps retracting.
+   verified three independent ways: forcing `guard_else_fails` to `True` leaves the verdicts on
+   both trees identical (0 and 3), and mutation `m11` in the selftest pins that. Say which one a
+   gate is; a gate claimed load-bearing without measuring is the thing §2 keeps retracting.
+   ⛔ **A "116 vs 76 sites" PAIR STOOD HERE AND IS DELETED, NOT REFRESHED (#962).** Three
+   attempts to reproduce it landed on three different pairs — 76/116 (mine, #960), 77/106 (the
+   reviewer's, applying `MIN_NEEDLE` and needle-decodability), 105/204 (mine again, counting
+   every regex match in gate-allowed files). None is wrong; **"a shape-6 site" is not one
+   thing**, and a count whose predicate is not written beside it is not reproducible — the
+   `wc -c`-versus-characters lesson of `.claude/rules/context.md` §2 in a new costume. The
+   CONCLUSION survives and is what the bullet is for; the number was decoration that three
+   readers could not agree on. If a count is ever needed, ship the predicate as a flag on the
+   tool rather than a figure in prose (#818: delete, do not refresh).
 2. **The non-empty half of the path gate is not decoration.** `TheDecisionLogIsMachineReadableTests`
    reads `review.sh`, whose needle is legitimately absent from `Sources/`. That file names NO
    qualifying path, so a bare `all(p.startswith("Sources/"))` is **vacuously TRUE** and lets it

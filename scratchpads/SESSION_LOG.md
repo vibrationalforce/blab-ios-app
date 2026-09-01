@@ -21056,3 +21056,62 @@ gerechnet.
 Latenz-SCHÄTZUNGEN, die Berichte sind und kein Erbitten). Eine Ralph-Scheibe, ein Pfad.
 Anspruch 4 pinnt, dass die Vor-Aktivierungs-Bitte BLEIBT: dieser Wächter verbietet die
 Konstante nicht (#364).
+
+## 2026-09-01 — #962: der Selbsttest prüfte seine eigene Abschrift, und zwei meiner Zahlen sind zurückgezogen
+
+**Der Reviewer zu #960 hat zwei veröffentlichte Behauptungen widerlegt. Beide selbst
+nachgefahren, beide bestätigt, beide zurückgenommen.**
+
+**(1) Die vierte Mutation färbte NICHT rot.** #960s Commit-Text sagte „Vier Mutationen … jede
+färbt rot". Gefahren: `bool(paths) and all(…)` → `all(…)` landet in `main()` und der Selbsttest
+druckt weiter `OK`. Grund, im Quelltext gelesen: der Selbsttest **schrieb den Ausdruck ab**
+statt ihn zu **rufen** — dieselbe Zeile ein zweites Mal buchstabiert. Genau der #941b-Defekt,
+den diese Datei über ihren eigenen Split-Helfer bereits dokumentiert, eine Form später vom
+Commit reproduziert, der die Form erweitert hat.
+
+Reparatur: `def legacy_allowed(paths)` — EIN Zuhause (#416), `main` und Selbsttest rufen es.
+
+**(2) Die Lücke war größer als die eine Mutation.** Der Reviewer löschte die GANZE
+Shape-6-Aufrufstelle aus `main()` — Selbsttest weiter `OK`. `function_chunks`,
+`strip_comments`, der `class_binds`-Bau, die Zeilen-Arithmetik und die Aufrufstelle selbst
+wurden von ihm nie ausgeführt; er trieb nur handgebaute Stücke. Das wiegt hier schwerer als bei
+einem CI-Werkzeug: `dead-needles.py` ist ein manuelles Vor-Push-Playbook, der Selbsttest ist
+also das EINZIGE Automatische, das ein Verstummen der Form bemerken könnte.
+
+Reparatur: der Selbsttest baut jetzt einen Temp-Baum (`Sources/A.swift` +
+`Tests/CISmoke/FixtureTests.swift`) und ruft **`main(root)`**, fängt stdout ab und prüft
+Fundname, **Fund-ZEILE** und Exit-Code. Fünf Mutationen gefahren, **alle fünf rot**:
+Gate vakuum · Aufrufstelle gelöscht · Zeilen-Arithmetik auf `1` · Fallback-Dict geleert ·
+`guard_else_fails` immer wahr. Die letzten zwei waren vor diesem Commit unsichtbar; die
+Fixture trägt deshalb auch eine KLASSEN-gebundene Nadel.
+
+Kein Rückschritt: der bekannte Positive reproduziert unverändert — Werkzeug gegen einen aus
+`1ae5c5f` archivierten Baum = 3 Funde, Zeilen 80/156/195.
+
+**(3) ZWEI ZAHLEN ZURÜCKGEZOGEN, nicht nachgeführt (#818).** „116 Stellen ohne das Gate gegen
+76 mit" stand in `Tests/CISmoke/CLAUDE.md` §4, im Commit-Text und in `decisions.csv`. Drei
+Versuche, sie zu reproduzieren, landen auf **drei verschiedenen Paaren**: 76/116 (meins, #960),
+77/106 (der Reviewer, mit `MIN_NEEDLE` und Nadel-Dekodierbarkeit), 105/204 (meins, jeder
+Regex-Treffer in gate-erlaubten Dateien). Keines ist falsch — **„eine Shape-6-Stelle" ist keine
+EINE Sache**, und eine Zahl ohne ihr Prädikat daneben ist nicht reproduzierbar. Die
+SCHLUSSFOLGERUNG (Gate heute prophylaktisch) überlebt und ist dreifach belegt; die Zahl war
+Dekoration, über die sich drei Leser nicht einigen konnten.
+
+**(4) Drei falsche Prosa-Stellen korrigiert.** `class_binds` heißt zweimal „class-level" und ist
+**datei-weit** (`LOCAL_BIND` matcht jeden Einzug, letzter gewinnt) — der #666-Defekt eine Ebene
+höher; beißt heute nicht (alle fünf lebenden Auflösungen sind echte `private let`s), aber elf
+Namen im Bündel tragen in EINER Datei mehrere Werte (`anchor` vier, `message` 25). Und
+`TheMonitorSurgeryQuietsTheEngineTests` sagte im Präsens weiter „`dead-needles.py` COULD NOT SEE
+THIS" — #456: die Reparatur gehört in JEDES Zuhause, und das eines Lesers des bekannten
+Positiven ist genau diese Datei.
+
+**Drei Befunde REGISTRIERT statt gehetzt** (alle in HONEST LIMITS, mit Messung):
+· `guard_else_fails` zählt Klammern **durch String-Literale** — beide Fehlerrichtungen
+demonstriert, mit einem lebenden Beinahe-Treffer (`ASwiftUIBodyStaysUnderTheBuilderOverloads`
+zitiert zwei unbalancierte `{` in einer Meldung; die Antwort stimmt heute ZUFÄLLIG). Reparatur
+ist `strip_strings`, existiert schon in der Datei · Verbund-`guard`s ab der 2. Klausel: 45
+Nadeln in 25 Dateien unsichtbar · fatal-durch-`throw`: 58 Stellen, und ein `throw` ist kein
+`return`, also beschreibt der erklärte Gate-Zweck sie nicht. **Beide Erweiterungen kosten
+gemessen NULL zusätzliche Funde** — reine Reichweite.
+
+⚠️ **Kein Produktionscode berührt.** Werkzeug + Wächter-Prosa + Gesetzesdatei.

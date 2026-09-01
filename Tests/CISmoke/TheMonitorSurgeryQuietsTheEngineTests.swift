@@ -91,11 +91,15 @@ final class TheMonitorSurgeryQuietsTheEngineTests: XCTestCase {
         // ⚠️ `guard isInputMonitoring else {` alone is NOT unique — six sites. The new anchor
         // is the breadcrumb literal, which occurs exactly once and, unlike a `guard` line,
         // cannot be duplicated by an unrelated early-exit elsewhere in the file.
-        // ⚠️ AND `dead-needles.py` COULD NOT SEE THIS. It reads
-        // `XCTUnwrap(… .range(of: "…"))`; this is `guard let x = code.range(of: "…") else
-        // { XCTFail; return }` — the same defect in a fourth shape. Registered as its own
-        // slice with this file as the known positive (#944's rule: a detector that has never
-        // found its own known positive is not a measurement).
+        // ⭐ AND `dead-needles.py` NOW SEES THIS — it did not, for the 99 commits these
+        // three guards were red. It read `XCTUnwrap(… .range(of: "…"))`; this is
+        // `guard let x = code.range(of: "…") else { XCTFail; return }`, the same defect in a
+        // fourth shape. #960 added it as shape 6 and proved it on THIS file as the known
+        // positive: 3 findings at lines 80/156/195 on `1ae5c5f`, 0 after the repair (#944's
+        // rule — a detector that has never found its own known positive is not a measurement).
+        // ⛔ This paragraph said "COULD NOT SEE" in the present tense for one commit after the
+        // slice that fixed it. #456: a repair goes into EVERY home, and the home a reader of
+        // the known positive actually stands in is this one.
         guard let off = code.range(of: offAnchor) else {
             XCTFail("The OFF branch's SKIPPED breadcrumb is gone — re-anchor this claim (§4).")
             return

@@ -144,10 +144,13 @@ renamed a suffix (`range(of:)` matches a prefix).
 Usage:  python3 scripts/dead-needles.py [repo-root]
 Exit:   0 = no dead needles · 1 = at least one · 2 = could not look (no Tests/CISmoke)
 """
+import contextlib
 import glob
+import io
 import os
 import re
 import sys
+import tempfile
 
 UNWRAP = re.compile(r'XCTUnwrap\([^)]*?range\(of:\s*"((?:[^"\\]|\\.)+)"')
 
@@ -557,12 +560,49 @@ def shape3_findings(chunk, corpus, helpers, consts, allow_legacy):
 #     `SOURCE_PATH` set, so a bare `all(...)` would be VACUOUSLY TRUE and let it through
 #     (#926, the same trap in a different file). With both halves: 1 false alarm becomes 0.
 #
+# ⚠️ TWO REACH GAPS OF SHAPE 6, MEASURED (#962 review) AND NAMED HERE RATHER THAN LEFT TO BE
+# REDISCOVERED. Both are misses, never false alarms, and widening either adds ZERO findings on
+# today's tree — pure reach at no cost, which is why they are registered and not rushed:
+#   · COMPOUND GUARDS, 2nd clause onward — 45 needles across 25 files. Both regexes anchor at
+#     `\bguard`, so one statement yields at most one needle; `guard let a = …, let b = …` hides
+#     everything after the first (live: `TheWayOutSurvivesRotationTests`,
+#     `ASwiftUIBodyStaysUnderTheBuilderOverloadsTests`, `AutoModeStartsOffAndOwnsNoTempoTests`).
+#   · FATAL-BY-`throw` — 58 sites. `guard_else_fails` requires `XCTFail`, but in a `throws` test
+#     `throw AnchorMissing` is just as fatal (live: `ALaneSurvivesAFieldItDoesNotKnowTests`,
+#     `RMSSDReadsOnlyAdjacentBeatsTests`). The gate's stated purpose — "exclude a legitimate
+#     skip" — does not describe those: a `throw` is not a `return`.
+#
+# ⛔ AND ONE REAL DEFECT, BOTH DIRECTIONS DEMONSTRATED (#962 review), REGISTERED AS ITS OWN
+# SLICE BECAUSE IT CHANGES BEHAVIOUR: `guard_else_fails` brace-matches over the chunk with
+# COMMENTS stripped but STRINGS intact, so a brace inside a failure message miscounts. An
+# unbalanced `{` in a non-fatal else runs the window to the end of the function and picks up an
+# unrelated `XCTFail` — a legitimate skip reported as a dead needle, the false-alarm class #665
+# says kills a checker. An unbalanced `}` in a fatal else closes the window early and the
+# finding is lost. This is not hypothetical: `ASwiftUIBodyStaysUnderTheBuilderOverloadsTests`
+# already quotes `struct EchoelFXView: View {` and `var body: some View {` in one message, two
+# unbalanced `{` in one string, and today's answer is right BY ACCIDENT (that else really is
+# fatal). The repair is cheap and already in this file — match over `strip_strings(chunk)` while
+# reporting offsets on the original.
+#
 # ⚠️ THE VAR-BOUND FORM IS COVERED TOO, AND NOT COVERING IT WOULD HAVE LOST THE KNOWN POSITIVE
 # THE MOMENT IT WAS REPAIRED: #959b's fix hoists the anchor to a type-level
 # `private let offAnchor = "…"`, so the repaired file uses `range(of: offAnchor)`. A shape that
 # only read inline literals would go quiet on exactly the file it was written for — passing
-# forever for the wrong reason (§2, the #367 mirror case). Class-level `let`s are therefore
+# forever for the wrong reason (§2, the #367 mirror case). The fallback dict is therefore
 # consulted after the per-function ones, per-function winning (#666).
+#
+# ⛔ #962 — IT IS A FILE-SCOPE FALLBACK, NOT A CLASS-LEVEL ONE, and #960 wrote "class-level" in
+# two places. `LOCAL_BIND` matches `let name = "literal"` at ANY indent, so `main`'s dict holds
+# every function-local binding in the file as well, last write winning — the exact scope defect
+# that cost seven false alarms at #666, one level up. It does not bite today (all five live
+# fallback resolutions are the genuine type-level `private let offAnchor`/`offTerminator` in
+# `TheMonitorSurgeryQuietsTheEngineTests`), but the collision material is there: eleven names in
+# the bundle are bound to more than one distinct literal inside a single file — `anchor` has
+# four values in `TapTargetFloorTests`, `message` twenty-five in
+# `SignatureIsThePersonNotTheMomentTests`. A `guard let r = code.range(of: anchor)` in a
+# function of such a file that does not bind `anchor` locally resolves against an arbitrary
+# sibling. Restricting the fallback to type-level declarations is the repair; until then the
+# comment says what the code does.
 GUARD_LIT = re.compile(
     r'\bguard\s+let\s+\w+\s*=\s*[A-Za-z_][\w.]*\.range\(of:\s*"((?:[^"\\]|\\.)+)"')
 GUARD_VAR = re.compile(
@@ -621,6 +661,36 @@ def shape6_findings(chunk, corpus, class_binds):
         if needle not in corpus:
             out.append((match, needle))
     return out
+
+
+def legacy_allowed(paths):
+    """Whether a guard file's argument-blind halves may speak, from the paths it NAMES.
+
+    #944: this gate no longer SKIPS the file — it decides whether the `Self.`-qualified half of
+    shape 3 (which cannot prove its receiver) is allowed to report. Shape 6 (#960) shares it.
+
+    ⭐ BOTH HALVES MATTER. Without `bool(paths)` the `all(...)` is vacuously TRUE for a guard
+    that names no path at all (#926), which is exactly how the one measured false alarm
+    (`TheDecisionLogIsMachineReadableTests`, which names `review.sh` with no directory prefix,
+    so `SOURCE_PATH` yields nothing) would have got in.
+
+    ⛔ #962 — THIS FUNCTION EXISTS BECAUSE THE SELFTEST TRANSCRIBED THE EXPRESSION INSTEAD OF
+    CALLING IT, and #960's commit body then claimed a mutation of it "drives red" when it does
+    not. Spelled twice, the vacuous-gate mutation lands in `main` and leaves the selftest GREEN
+    — the #941b defect this file already documents about its own split helper, reproduced one
+    shape later by the commit that widened it. One definition, both callers (#416).
+
+    ⚠️ IT FAILS OPEN for any path spelling `SOURCE_PATH` does not recognise (`CLAUDE.md`,
+    `project.yml`, `Package.swift`, `.github/workflows/*`): those yield no match, so a file that
+    reads ONLY such a path looks like "names no path" and is denied — but a file that reads a
+    `Sources/` path AND one of those looks like "Sources only" and is allowed. Shape 3 stopped
+    relying on this at #944 by proving its own receiver; shape 6 has no such proof yet. Two
+    files are live today where shape 6 speaks and the file also reads non-`Sources/` text
+    (`BioApplyRateIsTheDedupedRateTests` reads `CLAUDE.md`, `TheWayOutSurvivesRotationTests`
+    reads `Info.plist`); both happen to hand Swift source to their guarded receivers, so there
+    is no false alarm today. The next one that does not gets one.
+    """
+    return bool(paths) and all(p.startswith("Sources/") for p in paths)
 
 
 def main(root="."):
@@ -716,12 +786,7 @@ def main(root="."):
         # against a file's own history.
         guard_code = strip_comments(src)
         paths = set(SOURCE_PATH.findall(guard_code))
-        # #944: this gate no longer SKIPS the file — it decides whether the argument-blind
-        # `Self.`-qualified half may speak. The gated half proves its own receiver.
-        allow_legacy = bool(paths) and all(p.startswith("Sources/") for p in paths)
-        # Shape 6 (#960) shares that gate verbatim rather than re-spelling it (#416). Both
-        # halves matter: without `bool(paths)` the `all(...)` is vacuously true for a guard
-        # that names no path at all, which is how the one measured false alarm got in.
+        allow_legacy = legacy_allowed(paths)
         if allow_legacy:
             class_binds = {m.group(1): m.group(2) for m in LOCAL_BIND.finditer(guard_code)}
             for chunk in function_chunks(guard_code):
@@ -834,14 +899,14 @@ def selftest():
               "test is inverted or the corpus is not being read.", file=sys.stderr)
         ok = False
 
-    # The VACUOUS-GATE mutation (#926), driven where it actually lives: `main()` decides with
-    # `bool(paths) and all(...)`. A guard naming NO path yields an empty set, and a bare
-    # `all(...)` is then TRUE — which is how the one measured false alarm
-    # (`TheDecisionLogIsMachineReadableTests` reading `review.sh`) would have got in.
+    # The VACUOUS-GATE mutation (#926), driven through `legacy_allowed` — the function `main`
+    # actually calls. ⛔ #962: this loop used to re-spell the expression, so mutating the real
+    # gate left the selftest GREEN and #960's commit body claimed otherwise. A selftest that
+    # transcribes what it pins pins its own transcription.
     for label, paths, expected in (("no path at all", set(), False),
                                    ("Sources only", {"Sources/A.swift"}, True),
                                    ("mixed", {"Sources/A.swift", "scripts/x.py"}, False)):
-        got = bool(paths) and all(q.startswith("Sources/") for q in paths)
+        got = legacy_allowed(paths)
         if got is not expected:
             print(f"selftest: the Sources-only gate said {got} for '{label}' — a vacuous "
                   "TRUE here lets a guard about a non-Swift file be judged against Sources/.",
@@ -973,6 +1038,77 @@ def selftest():
               f"it still reported {refused}. #665 chose that proxy because that half never "
               "looks at its argument; #944 relaxed it for the gated half only.")
         ok = False
+
+    # ⭐ #962 — THE COMPOSITION, DRIVEN THROUGH `main()` ITSELF. Every check above hands
+    # `shape6_findings` a chunk and a dict it built by hand, so it pins the PART. The reviewer
+    # of #960 deleted the ENTIRE shape-6 call site from `main` and this selftest still printed
+    # OK: `function_chunks`, `strip_comments`, the `class_binds` construction, the line
+    # arithmetic and the call site itself were never executed by it. That matters more here
+    # than in a CI-gated tool — `dead-needles.py` is a manual pre-push playbook, so this
+    # selftest is the only automated thing that could notice the shape going silent (#914/#941b:
+    # what bites is the composition, not the parts).
+    with tempfile.TemporaryDirectory(prefix="dead-needles-selftest-") as tmp:
+        os.makedirs(os.path.join(tmp, "Sources"))
+        os.makedirs(os.path.join(tmp, "Tests/CISmoke"))
+        with open(os.path.join(tmp, "Sources", "A.swift"), "w", encoding="utf-8") as h:
+            h.write("func a() {\n    // " + ALIVE + "\n    let s = \"" + ALIVE + "\"\n}\n")
+        # The fixture NAMES a Sources path so `legacy_allowed` opens the gate — the same
+        # condition the real corpus satisfies. Without it this would prove only that a denied
+        # file stays quiet.
+        with open(os.path.join(tmp, "Tests/CISmoke", "FixtureTests.swift"), "w",
+                  encoding="utf-8") as h:
+            h.write('final class FixtureTests: XCTestCase {\n'
+                    # A CLASS-BOUND anchor too: `main` builds the fallback dict, and without
+                    # this the fixture cannot tell a working fallback from `class_binds = {}`.
+                    '    private let anchorName = "' + GONE2 + '"\n'
+                    '    func testA() throws {\n'
+                    '        let code = try text("Sources/A.swift")\n'
+                    '        guard let x = code.range(of: "' + GONE + '") else {\n'
+                    '            XCTFail("gone")\n'
+                    '            return\n'
+                    '        }\n'
+                    '        guard let z = code.range(of: anchorName) else {\n'
+                    '            XCTFail("gone via the class binding")\n'
+                    '            return\n'
+                    '        }\n'
+                    '        guard let y = code.range(of: "' + ALIVE + '") else {\n'
+                    '            XCTFail("present")\n'
+                    '            return\n'
+                    '        }\n'
+                    '    }\n'
+                    '}\n')
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf), contextlib.redirect_stderr(io.StringIO()):
+            rc = main(tmp)
+        out = buf.getvalue()
+        # The LINE, not just the name: `line = 1` for every finding leaves every other check
+        # here green while a triager is sent to the top of the file. Driven — the fixture's
+        # first fatal guard is on line 5 (class · private let · func · let code · guard).
+        if "Tests/CISmoke/FixtureTests.swift:5" not in out:
+            print("selftest: the end-to-end run did not anchor the fixture's dead needle at "
+                  f"line 5. Got:\n{out}", file=sys.stderr)
+            ok = False
+        if GONE2 not in out:
+            print("selftest: the end-to-end run missed the CLASS-BOUND dead needle. `main` "
+                  "builds that fallback dict itself, so emptying it there leaves every "
+                  "hand-built check above green — the dict they use is passed in (#962).",
+                  file=sys.stderr)
+            ok = False
+        if GONE not in out:
+            print("selftest: the END-TO-END run through `main()` did not report the fixture's "
+                  "dead needle. Shape 6 is wired out of the scan, or the corpus/gate/line "
+                  "arithmetic around it broke — every hand-built check above can still pass "
+                  "while the tool reports nothing on a real tree (#962).", file=sys.stderr)
+            ok = False
+        if ALIVE in out:
+            print("selftest: the end-to-end run reported a needle that IS in the fixture's "
+                  "Sources/ — the corpus is not reaching the comparison.", file=sys.stderr)
+            ok = False
+        if rc != 1:
+            print(f"selftest: `main()` returned {rc} on a tree with one dead needle; 1 is the "
+                  "exit code a caller checks. A finding printed under a 0 is a silent green.",
+                  file=sys.stderr)
+            ok = False
 
     print("dead-needles --selftest: OK" if ok else "dead-needles --selftest: FAILED")
     return 0 if ok else 1
