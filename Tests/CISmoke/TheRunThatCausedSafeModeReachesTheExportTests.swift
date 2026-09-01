@@ -1,6 +1,6 @@
 // TheRunThatCausedSafeModeReachesTheExportTests.swift
-// Echoel — #955. Blocking bundle. **END-TO-END BEHAVIOUR** for claims 1–9 (`Tests/CISmoke/
-// CLAUDE.md` §1): every one drives the real `EchoelCrashLog` statics, which are pure,
+// Echoel — #955/#955b. Blocking bundle. **END-TO-END BEHAVIOUR** for claims 1–9 and 11–12
+// (`Tests/CISmoke/CLAUDE.md` §1): every one drives the real `EchoelCrashLog` statics, which are pure,
 // `public`-reachable and Foundation-only, over logs built from the SHIPPED marker constants
 // rather than hand-typed strings. Claim 10 is the one SOURCE-TEXT SCAN and says so.
 //
@@ -23,7 +23,7 @@
 // widening it changes two features at once, one of them a sheet that opens in the founder's
 // face unasked. #955 adds evidence to an export he chooses to share and opens nothing.
 //
-// ⚠️ HONEST GRADING (§3). **23 assertions** (counted in Python over lines whose first
+// ⚠️ HONEST GRADING (§3), EPOCH 1 — #955. **23 assertions at the time** (counted in Python over lines whose first
 // token is `XCTAssert`, written out rather than looped — a loop hides its own arithmetic
 // and has cost a grading in this bundle three times; my own first draft of this header
 // said 17). This file names `unconfirmedRunToAttach`,
@@ -39,6 +39,20 @@
 //     budget rule that make the attach mean something rather than fill every export.
 //   · Booking "nine logs newly answered" as nine catches would be the flattering direction —
 //     it is ONE capability that did not exist, reported many times (#486).
+//
+// ⚠️ EPOCH 2 — #955b, the same day. The mandatory reviewer found the gate REFUSING the
+// founder's own Safe-Mode run: `armForRiskyStartup()` re-raises the counter AFTER a confirm
+// or a clear, so #955's two order-blind `contains` checks refused "Safe Mode → Continue →
+// died in the risky startup" — the exact sequence in his v10.79.433 export
+// (`counter cleared` → `user left SAFE MODE` → `re-arming`). Claims 11 and 12 are new,
+// `counterEndedSettled(in:)` replaces the two checks, and claims 2 and 4 carry the qualifier
+// #955 stated as unconditional fact.
+//   · **30 assertion sites** (Python, lines whose first token is `XCTAssert`; was 23).
+//   · Transcribed both gates over ten logs: the two re-armed runs flip **nil → ATTACH**
+//     (2 red on #955's logic, and they are the blocker); the eight counterweights answer
+//     identically on both, including the `re-arm not needed` sibling that claim 12 exists for.
+//   · `counterEndedSettled` and `rearmMarker` are created by this commit, so once again the
+//     file does not compile against its parent and #488 applies unchanged.
 //
 // ⚠️ STRIPPER (§2): `SourceText.codeOnly` runs in claim 10 only. **PROPHYLACTIC — 0 of 3
 // verdicts flip**, measured raw vs. stripped: no doc block in `EchoelmusicApp.swift` quotes
@@ -89,6 +103,10 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
 
     /// claim 2 (COUNTERWEIGHT) — a run that reached the studio UI and survived is NOT
     /// attached. It reset the counter; attaching it would put a healthy run in every export.
+    ///
+    /// ⚠️ THE REFUSAL IS CONDITIONAL, and #955 stated it here as unconditional. A confirm only
+    /// settles the counter when nothing RE-RAISES it afterwards — see claim 11. This fixture
+    /// carries no re-arm line, which is why it still reads as settled.
     func testAHealthyStudioRunIsNotAttached() {
         XCTAssertNil(EchoelCrashLog.unconfirmedRunToAttach(
             from: run("startup 4/4: core ready — instrument live", confirmedStudio)), """
@@ -122,9 +140,13 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
             """)
     }
 
-    /// claim 4 (COUNTERWEIGHT) — a Safe-Mode run CLEARS the counter itself, so it never
+    /// claim 4 (COUNTERWEIGHT) — a Safe-Mode run that CLEARS the counter and stops there never
     /// contributes to a streak. Attaching it would explain nothing and would nest the
     /// recovery screen's own log inside the next export.
+    ///
+    /// ⚠️ "AND STOPS THERE" IS THE WHOLE QUALIFIER, and #955 did not have it: tapping Continue
+    /// re-arms the counter on the SAME run, which is the founder's own sequence and is claim
+    /// 11's subject. This fixture ends at the clear line.
     func testASafeModeRecoveryRunIsNotAttached() {
         XCTAssertNil(EchoelCrashLog.unconfirmedRunToAttach(
             from: run(EchoelCrashLog.recoveryScreenClearedMarker + " (one-shot)")), """
@@ -230,7 +252,8 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
             """)
     }
 
-    /// claim 10 (SOURCE-TEXT SCAN, 3 assertions) — the WRITERS use the constants. This is the
+    /// claim 10 (SOURCE-TEXT SCAN, 5 assertions — written out, because the loop below hides
+    /// three of them) — the WRITERS use the constants. This is the
     /// #650 protection and the only reason the reader can be trusted: those three lines are
     /// emitted in `EchoelmusicApp` and read here, two files apart, and a marker only one side
     /// spells right fails SILENTLY — the attach simply never happens and nothing goes red.
@@ -246,7 +269,8 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
 
         for (needle, what) in [
             ("EchoelCrashLog.confirmedHealthyMarker", "the two confirm lines"),
-            ("EchoelCrashLog.recoveryScreenClearedMarker", "the recovery-screen clear line")
+            ("EchoelCrashLog.recoveryScreenClearedMarker", "the recovery-screen clear line"),
+            ("EchoelCrashLog.rearmMarker", "the re-arm line (#955b)")
         ] {
             XCTAssertTrue(app.contains(needle), """
                 \(what) no longer use `\(needle)`. A raw literal there and the constant here \
@@ -261,6 +285,67 @@ final class TheRunThatCausedSafeModeReachesTheExportTests: XCTestCase {
             (studio and onboarding, disjoint); if one was deleted the launch counter now has \
             a path that reaches a UI and never resets, and every later export attaches a run \
             that was fine.
+            """)
+        XCTAssertEqual(app.components(separatedBy: "EchoelCrashLog.rearmMarker").count - 1, 1, """
+            There is no longer exactly ONE re-arm writer. That line is what `counterEndedSettled` \
+            reads to tell "Safe Mode → Continue → died" apart from "Safe Mode → Continue → fine"; \
+            without it in the log the gate falls back to refusing the founder's own sequence, \
+            which is the #955b blocker returning by the back door.
+            """)
+    }
+
+    /// claim 11 (THE #955b FIX, END-TO-END) — **a confirm or a clear does not settle the
+    /// counter if something RE-RAISES it afterwards.** This is the founder's own v10.79.433
+    /// sequence: the recovery screen clears the counter, he taps Continue, `armForRiskyStartup()`
+    /// puts it back to 1 — and if that startup then dies, the run DID leave a streak behind.
+    /// #955 asked `previous.contains(confirmedHealthyMarker)` and refused exactly this run, so
+    /// the founder would have met a Safe-Mode screen and an export that stayed silent about it.
+    func testAReArmedRunIsAttachedEvenThoughItSettledTheCounterEarlier() {
+        let continuedFromSafeMode = run(
+            EchoelCrashLog.recoveryScreenClearedMarker + " (one-shot)",
+            "user left SAFE MODE",
+            EchoelCrashLog.rearmMarker + " — streak was 0 before the risky startup",
+            "startup 2/4: attaching voices")
+        XCTAssertNotNil(EchoelCrashLog.unconfirmedRunToAttach(from: continuedFromSafeMode), """
+            The Safe-Mode → Continue → died run is not attached. `armForRiskyStartup()` raised \
+            the counter AFTER the clear line, so this run is precisely what the NEXT Safe-Mode \
+            screen will be complaining about — and it is the sequence in the founder's own log.
+            """)
+        let confirmedThenReArmed = run(
+            confirmedOnboarding,
+            EchoelCrashLog.rearmMarker + " — streak was 0 before the risky startup",
+            "startup 1/4: audio session + graph")
+        XCTAssertNotNil(EchoelCrashLog.unconfirmedRunToAttach(from: confirmedThenReArmed), """
+            A run that confirmed healthy on onboarding and was then RE-ARMED is not attached. \
+            The confirm reset the counter; the re-arm put it back. Only the LAST counter line \
+            decides whether the run left a streak (`counterEndedSettled`).
+            """)
+        XCTAssertFalse(EchoelCrashLog.counterEndedSettled(in: continuedFromSafeMode), """
+            `counterEndedSettled` says this run ended settled. It ends with a re-arm, so the \
+            helper has gone order-blind again — the exact shape of the #955b blocker.
+            """)
+        XCTAssertTrue(EchoelCrashLog.counterEndedSettled(in: run(confirmedStudio)), """
+            A run whose last counter line is a confirm no longer reads as settled, so every \
+            healthy launch would now be attached to every export.
+            """)
+    }
+
+    /// claim 12 (COUNTERWEIGHT, and the reason the marker is spelled `re-arming`) — the SAME
+    /// branch writes `"LaunchGuard: re-arm not needed — streak already N"` when the counter is
+    /// NOT 0. A marker of `"LaunchGuard: re-arm"` would match BOTH, and the "not needed" case
+    /// is a run whose counter was never settled in the first place. The `-ing` is load-bearing;
+    /// this is #915's disjointness lesson applied to a second pair of lines.
+    func testTheReArmMarkerDoesNotMatchTheReArmNotNeededLine() {
+        let notNeeded = "LaunchGuard: re-arm not needed — streak already 2"
+        XCTAssertFalse(notNeeded.contains(EchoelCrashLog.rearmMarker), """
+            `rearmMarker` now matches the "re-arm not needed" line too. Both spellings live in \
+            one `if/else` in `EchoelmusicApp`; a marker matching both cannot tell a raise from \
+            a no-op, and `counterEndedSettled` would read a settled run as re-raised.
+            """)
+        XCTAssertTrue(EchoelCrashLog.rearmMarker.hasPrefix("LaunchGuard:"), """
+            `rearmMarker` lost the `LaunchGuard:` shape. `LaunchGuardSmokeTests` accepts this \
+            constant as a breadcrumb precisely because it writes that shape into the exported \
+            log; without it a reader can no longer find the state change by the same word.
             """)
     }
 }

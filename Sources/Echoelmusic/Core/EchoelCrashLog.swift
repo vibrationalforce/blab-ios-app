@@ -367,23 +367,57 @@ enum EchoelCrashLog {
     /// it opens nothing. The `!looksLikeUnseenCrash` gate below is a READ of that predicate,
     /// never a change to it, and it is what stops the same run appearing twice.
     ///
-    /// ⚠️ THE FOUR REFUSALS ARE THE CONTENT, not defensive padding — each one is a run that
-    /// raised no counter and would be noise:
+    /// ⚠️ THE THREE REFUSALS ARE THE CONTENT, not defensive padding — each one is a run that
+    /// left no streak behind and would be noise:
     ///   · already retained  → it is in the export under its own header already;
-    ///   · confirmed healthy → the launch reached a UI and survived; the counter was reset;
-    ///   · cleared on the recovery screen → a Safe-Mode run clears the counter itself, so it
-    ///     never contributes to a streak, and attaching it would explain nothing;
+    ///   · counter ended settled → the run's LAST counter line reset it (a confirm, or the
+    ///     recovery screen's own clear) and nothing re-raised it afterwards. See
+    ///     `counterEndedSettled(in:)`: this used to be two order-blind `contains` checks and
+    ///     that refused the founder's actual Safe-Mode run, which is the #955b blocker;
     ///   · ended backgrounded → a clean exit, the same subtraction `looksLikeUnseenCrash`
     ///     already makes for its own second arm (`ACleanExitIsNotACrashTests` pins it).
     /// The launch-line test is separate and blunt: without it an empty or unreadable previous
     /// file passes every negative check above by vacuity and gets attached as nothing.
+    ///
+    /// ⚠️ NOT BUILT, recorded so it is not re-derived: this reads ONE previous run, so a streak
+    /// of three still shows evidence for one of them. #916 already persists a retained crash
+    /// across launches; the same shape would keep the last N unconfirmed runs. It is a second
+    /// slice with its own budget question (the export is capped), not a widening of this one.
     static func unconfirmedRunToAttach(from previous: String) -> String? {
         guard previous.contains(launchLinePrefix) else { return nil }
         guard !looksLikeUnseenCrash(previous) else { return nil }
-        guard !previous.contains(confirmedHealthyMarker) else { return nil }
-        guard !previous.contains(recoveryScreenClearedMarker) else { return nil }
+        guard !counterEndedSettled(in: previous) else { return nil }
         guard lastScenePhase(in: previous) != backgroundPhase else { return nil }
         return trimToBudget(previous)
+    }
+
+    /// `true` when the run's LAST counter-moving line SETTLES the counter (a confirm, or a
+    /// clear on the recovery screen) instead of raising it again.
+    ///
+    /// ⛔ #955 ASKED `contains` AND THAT WAS ORDER-BLIND — the blocker this replaces, and the
+    /// founder's own v10.79.433 export is the counter-example: it reads `counter cleared on
+    /// the recovery screen` → `user left SAFE MODE` → `re-arming`. `armForRiskyStartup()`
+    /// re-raises the counter AFTER both settling lines, so "Safe Mode → Continue → died in
+    /// the risky startup" is a run that DID raise the streak — and the `contains` form
+    /// refused exactly it. The same shape follows the onboarding confirm. A gate that refuses
+    /// the run the founder is looking at is worse than no gate: he sees a Safe-Mode screen
+    /// and an export that stays silent about it (#445 — the reader is left inferring from an
+    /// absence).
+    ///
+    /// Line ORDER is the whole mechanism, so this walks lines rather than asking `contains`
+    /// twice. Everything else the run may say is irrelevant: only which of the two kinds of
+    /// counter line came LAST decides whether that run left a streak behind.
+    static func counterEndedSettled(in log: String) -> Bool {
+        var lastSettle = -1
+        var lastRaise = -1
+        for (i, line) in log.split(separator: "\n", omittingEmptySubsequences: false)
+            .enumerated() {
+            if line.contains(confirmedHealthyMarker) || line.contains(recoveryScreenClearedMarker) {
+                lastSettle = i
+            }
+            if line.contains(rearmMarker) { lastRaise = i }
+        }
+        return lastSettle >= 0 && lastRaise < lastSettle
     }
 
     /// Append the unconfirmed run to an already-composed export. A separate function rather
@@ -431,6 +465,15 @@ enum EchoelCrashLog {
     /// launch counter measures.
     static let confirmedHealthyMarker = "LaunchGuard: confirming healthy"
     static let recoveryScreenClearedMarker = "LaunchGuard: counter cleared on the recovery screen"
+
+    /// #955b — the line `EchoelmusicApp` writes immediately BEFORE `armForRiskyStartup()`,
+    /// which RE-RAISES the counter after a confirm or a recovery-screen clear has settled it.
+    ///
+    /// ⚠️ DISJOINT FROM ITS SIBLING ON PURPOSE, the #915 lesson applied a second time. The
+    /// same branch writes `"LaunchGuard: re-arm not needed — streak already N"` when the
+    /// counter is NOT 0. `"LaunchGuard: re-arm"` would match BOTH and would read a run whose
+    /// counter was never settled as one that got re-raised. The `-ing` is load-bearing.
+    static let rearmMarker = "LaunchGuard: re-arming"
     static let launchLinePrefix = "launch v"
 
     /// The one spelling of a scene-phase transition line. `EchoelmusicApp`'s

@@ -28,6 +28,14 @@
 // site with no line of its own. A count in prose is a date, not a fact.) So "delete that one line and
 // every test stays green" is no longer true for the CALL ITSELF. It is still true for the
 // BEHAVIOUR: nothing here renders a scene, so no test proves `.onAppear` ever fires.
+//
+// ⛔ #955 TURNED THAT LAST CLAIM RED ON CORRECT CODE, and #955b repaired it in the claim
+// itself. The crumb needle was the literal SHAPE `"LaunchGuard:`; #955 replaced three of
+// those literals in `EchoelmusicApp.swift` with named constants, so three call sites owned
+// no breadcrumb and the scan failed for a reason that had nothing to do with the property it
+// guards (#364). The needle set now also accepts the constants BY NAME — and anchors them,
+// by asserting each still carries the `LaunchGuard:` shape, so the widening cannot quietly
+// become a scan for a variable name (#650).
 
 import Foundation
 import XCTest
@@ -208,7 +216,40 @@ final class LaunchGuardSmokeTests: XCTestCase {
         // driven mutants still passed on it: the sites here are hundreds of lines apart, so a
         // neighbour's line falls inside the gap just as easily as inside a window. Ownership
         // has no constant to widen and no gap to fall through.
-        let crumbs = lines.indices.filter { lines[$0].contains("\"LaunchGuard:") }
+        // ⛔ #955 BROKE THIS CLAIM AND #955b REPAIRED IT — the mirror of the failure this
+        // file is otherwise about. The needle was the literal SHAPE `"LaunchGuard:` (the
+        // opening quote is part of it), so when #955 replaced three breadcrumb literals in
+        // `EchoelmusicApp.swift` with `EchoelCrashLog.confirmedHealthyMarker` /
+        // `.recoveryScreenClearedMarker`, three call sites owned no crumb and this claim went
+        // RED on CORRECT code (#364). What is widened is the VOCABULARY, not a bound: a named
+        // constant IS a breadcrumb. The widening is anchored one block below — both constants
+        // must still carry the `LaunchGuard:` shape, so this cannot quietly stop selecting the
+        // property it exists for (#650: a renamed logged string leaves scans green for a dead
+        // reason).
+        let crumbNeedles = ["\"LaunchGuard:",
+                            "EchoelCrashLog.confirmedHealthyMarker",
+                            "EchoelCrashLog.recoveryScreenClearedMarker",
+                            "EchoelCrashLog.rearmMarker"]
+        let crumbs = lines.indices.filter { i in crumbNeedles.contains { lines[i].contains($0) } }
+
+        // THE ANCHOR for the constant needles. Without it the scan would pass on the NAME
+        // while the exported log had lost the marker entirely — green for a dead reason.
+        // (⛔ The first draft of this line said "the two". #955b added the third in the same
+        // commit; a count in prose is a date, not a fact — this file's own header carries the
+        // identical retraction about "the five call sites".)
+        for (name, marker) in [("confirmedHealthyMarker", EchoelCrashLog.confirmedHealthyMarker),
+                               ("recoveryScreenClearedMarker",
+                                EchoelCrashLog.recoveryScreenClearedMarker),
+                               ("rearmMarker", EchoelCrashLog.rearmMarker)] {
+            XCTAssertTrue(marker.hasPrefix("LaunchGuard:"), """
+                `EchoelCrashLog.\(name)` is "\(marker)", which no longer starts with \
+                `LaunchGuard:`. The scan above accepts that constant as a breadcrumb PRECISELY \
+                because it writes a `LaunchGuard:` line into the exported log; once the shape \
+                is gone, a reader of `echoel_diag.log` can no longer find the state change by \
+                the same word, and this claim would be selecting a variable name instead of a \
+                logged fact. Fix the constant, not this assertion.
+                """)
+        }
         func owner(of crumb: Int) -> Int {
             calls.min(by: { (abs($0 - crumb), $0) < (abs($1 - crumb), $1) }) ?? -1
         }

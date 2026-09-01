@@ -20355,3 +20355,39 @@ davor in dieser Runde.
 
 ⚠️ Commit geht VOR dem Reviewer-Urteil raus (Stop-Hook), Blocker kommen als #955b — dasselbe
 Muster wie #953/#953b und #954/#954b, das in dieser Runde zweimal funktioniert hat.
+
+## 2026-09-01 — #955b: zwei Blocker am eigenen Wächter, beide selbst nachgemessen
+
+Der Pflicht-Reviewer fand an #955 zwei echte Blocker. Beide vor dem Reparieren nachgerechnet
+(Transkription in Python, Eltern-Baum gegen Arbeitsbaum), beide bestätigt.
+
+**B1 — ich hatte ein Gate rot gemacht, auf korrektem Code (#364).**
+`LaunchGuardSmokeTests`' Ownership-Scan sucht die SCHREIBWEISE `"LaunchGuard:` (das öffnende
+Anführungszeichen ist Teil der Nadel). #955 ersetzte drei Literale in `EchoelmusicApp.swift`
+durch benannte Konstanten — damit besaßen `LaunchGuard.reset()` (449), `confirmHealthy()` (501)
+und `confirmHealthy()` (1311) keine Brotkrume mehr. Transkribiert: Eltern-Krumen
+`[304,308,426,673,676]` → FAIL `[449,501,1311]`; nach der Reparatur Krumen
+`[304,308,426,448,499,673,676,1309]` → FAIL `[]`. Mutant (Studio-Krume gelöscht) → FAIL `[1311]`,
+also fällt der Wächter weiter aus seinem GENANNTEN Grund (#367).
+Repariert wurde die VOKABULAR-Seite, nicht eine Schranke: benannte Konstanten zählen als
+Brotkrume, **verankert** durch eine Zusicherung, dass jede davon weiter mit `LaunchGuard:`
+beginnt — sonst wäre der Scan still zu einer Suche nach einem Variablennamen geworden (#650).
+
+**B2 — mein Tor lehnte genau den Lauf des Founders ab.**
+`armForRiskyStartup()` hebt den Zähler NACH einem confirm/clear wieder an. Im v10.79.433-Log
+steht die Folge wörtlich: `counter cleared` → `user left SAFE MODE` → `re-arming`. #955 fragte
+zweimal `contains` und war damit reihenfolge-blind: „Safe Mode → Continue → im riskanten Start
+gestorben" ist ein Lauf, der sehr wohl eine Strähne hinterlässt, und er wurde verworfen.
+Ersetzt durch `counterEndedSettled(in:)` — nur welche Zählerzeile ZULETZT kam, entscheidet.
+Transkribiert über zehn Logs: die zwei re-armed-Läufe kippen `nil → ATTACH`, die acht
+Gegengewichte antworten auf beiden Seiten gleich, inklusive der Geschwisterzeile
+`re-arm not needed` (dafür ist Anspruch 12 da — `rearmMarker` ist absichtlich `re-arming`, das
+`-ing` trägt).
+
+**Prosa mitgezogen, weil sie als Tatsache dastand:** der Doc-Block sagte „DIE VIER ABLEHNUNGEN …
+jede ein Lauf, der keinen Zähler gehoben hat". Zwei davon taten das Gegenteil. Jetzt drei
+Ablehnungen, und die Ansprüche 2 und 4 tragen den Vorbehalt, den #955 als unbedingt schrieb.
+
+**Instrumente:** `dead-needles` 398 OK · `count-pins` 137/164, 0 RED · `needle-reachability`
+sauber · `diag-ladder --source` sauber. Kompiliert ist NICHTS davon lokal — es gibt keine
+Toolchain; die Gates entscheiden.

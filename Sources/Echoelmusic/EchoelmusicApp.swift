@@ -670,7 +670,7 @@ struct EchoelmusicApp: App {
                     // which this log is being read) the line asserted "first" about a run
                     // that is neither first nor #214. Say the CONDITION, not the cause.
                     EchoelCrashLog.breadcrumb(
-                        "LaunchGuard: re-arming — streak was 0 before the risky startup")
+                        EchoelCrashLog.rearmMarker + " — streak was 0 before the risky startup")
                 } else {
                     EchoelCrashLog.breadcrumb(
                         "LaunchGuard: re-arm not needed — streak already "
