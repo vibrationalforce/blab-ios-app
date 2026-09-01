@@ -241,8 +241,15 @@ public final class BioReactiveSynthVoice {
     /// Observable mirror of `fxEnabled` for SwiftUI binding.
     public private(set) var isFXEnabled = false
 
+    /// #945 — the pitch this voice carries with NO controller attached, captured once at
+    /// construction so `panic()` can restore it. Read from the synth rather than written as a
+    /// number: `EchoelDDSP.frequency`'s default belongs to that type, and a second copy of it
+    /// here would be the #416 defect AND would redden a legitimate voicing change (#364).
+    private let nominalFrequency: Float
+
     public init() {
         self.synth = EchoelDDSP(sampleRate: Float(Self.sampleRate))
+        self.nominalFrequency = self.synth.frequency
         self.fxChain = EchoelFXChain(sampleRate: Float(Self.sampleRate))
         self.scratchBuffer = Array(repeating: 0, count: Self.maxBlockFrames)
     }
@@ -338,6 +345,22 @@ public final class BioReactiveSynthVoice {
         // under queue flood). Without this line a stuck press survives every Stop.
         synth.expressionGain = 1
         synth.renderCutoffScale = 1   // #942 — the slide latch is as sticky as the press latch
+        // #945 — THE FOURTH THING A CONTROLLER LEAVES BEHIND, and the three lines above are
+        // the argument for it: `case .pitchBend` writes `synth.frequency` directly, and
+        // nothing was putting it back. The release below silences the voice, so the bend
+        // LOOKS gone — but the BREATH path calls `playNote()` with no frequency argument
+        // (`consumeBioEventsIfFresh`, and `arm()` likewise), and `playNote` opens the envelope
+        // at whatever pitch the synth currently holds. So after a bend every breath note
+        // stayed up to two semitones off for the rest of the session, and no control could
+        // clear it — the exact "stuck value with no way back" this method exists for.
+        //
+        // ⚠️ ONLY PANIC DOES THIS. That the breath voice follows the last PLAYED note during
+        // ordinary performance is left exactly as it was: it is arguably the point (play a
+        // note, then let the body swell it) and it is a founder's-ear question, not a
+        // cleanup. A note-off must NOT unbend — `APanicUnbendsTheVoiceTests` claim 3 pins that.
+        // NEEDS-FOUNDER-VERIFY: SOLL der Atemton der zuletzt gespielten Note folgen, oder
+        // immer auf seiner eigenen Grundstimmung bleiben?
+        synth.frequency = nominalFrequency
         releaseNote()
     }
 
@@ -544,6 +567,9 @@ public final class BioReactiveSynthVoice {
     /// The production path is `drainControllerEvents(from:)` above; this is the same call.
     internal func applyControllerForTests(_ event: ControllerEvent) { apply(controller: event) }
     internal var heldByControllerForTests: Bool { heldByController }
+    /// #945 — the construction-time pitch, so a guard compares against the value the voice
+    /// actually holds instead of restating `EchoelDDSP.frequency`'s default (#416/#364).
+    internal var nominalFrequencyForTests: Float { nominalFrequency }
     /// #943 — the stack's SIZE, so the bound can be asserted without exposing the keys.
     internal var heldNoteCountForTests: Int { heldNotes.count }
     /// #943b — the CAP itself, so a guard asserts against the shipped number instead of

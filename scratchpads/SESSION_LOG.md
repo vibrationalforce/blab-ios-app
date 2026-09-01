@@ -19441,3 +19441,52 @@ Datei vorkommt, auf die der Anspruch zeigt.
 `needle-reachability` sauber + 5/5 Selbsttest · `diag-ladder --source` grün ·
 `doctor` 2 CRITICAL = die zwei bekannten founder-gated CI-Masken.
 **Kein Compiler hier — dies ist ein Python-Werkzeug, es läuft lokal und ist lokal belegt.**
+
+## 2026-09-01 — #945: der Panik-Knopf räumte drei von vier Dingen auf
+
+**Der Befund.** `panic()` existiert, um Zustand zu brechen, den ein Controller hängen lässt,
+wenn kein Bedienelement ihn löschen kann — der eigene Doc-Block sagt das. Er räumte drei
+solche Dinge auf: den Tasten-Stapel (#943), `expressionGain` (#939), `renderCutoffScale`
+(#942). Das **vierte** fehlte: die **Tonhöhe**.
+
+`case .pitchBend` schreibt `synth.frequency` direkt. Der `releaseNote()` danach macht still,
+also SIEHT der Bend erledigt aus. Ist er nicht: der **Atem-Pfad ruft `playNote()` ohne
+Frequenz-Argument** (`consumeBioEventsIfFresh`, und `arm()` genauso), und `playNote` öffnet die
+Hüllkurve laut eigenem Doc „at the synth's current frequency". Also klang nach einem Bend
+**jeder Atemton bis zu zwei Halbtöne daneben, für den Rest der Sitzung** — Controller
+anstecken, Rad antippen, abziehen, auf „Body voice" umschalten, und das Instrument ist
+verstimmt, während der Panik-Knopf nicht hilft.
+
+**Der Fix ist bewusst schmal.** `nominalFrequency` wird **einmal bei der Konstruktion aus dem
+Synth gelesen** — nicht als Zahl hingeschrieben: `EchoelDDSP.frequency`s Default gehört jenem
+Typ, eine zweite Kopie wäre #416, und ein gepinntes 110.0 würde jede legitime Stimmungsänderung
+rot machen (#364). Wiederhergestellt wird sie **nur von `panic()`**.
+
+**Was diese Scheibe ABSICHTLICH NICHT entscheidet:** dass der Atem-Ton während des normalen
+Spielens der zuletzt gespielten Note folgt, bleibt exakt wie es war. Das kann genau der Reiz
+sein — Note spielen, dann vom Körper anschwellen lassen — und ist eine Ohren-Frage. Sie liegt
+jetzt als NEEDS-FOUNDER-VERIFY an der Stelle selbst, nicht als stille Änderung.
+Ein gewöhnliches note-off entbiegt NICHT; Anspruch 3 des Wächters nagelt das fest.
+
+**Benotung, transkribiert (kein Compiler hier), Erwartungen aus der Algebra (#442):**
+**8 Zusicherungen · 1 Regressionsfang · 7 Gegengewichte · 0 rot · 0 zerbrochen.**
+⛔ Mein erster Entwurf des Kopfes schrieb „7 Zusicherungen, 2 Regressionsfänge" — **beide Zahlen
+geraten statt gezählt, und beide in der schmeichelnden Richtung** (#433/#464): die
+VORBEDINGUNG von Anspruch 1 (der Bend hebt die Tonhöhe) besteht auf beiden Bäumen, das ist
+ja der Sinn einer Vorbedingung. Korrigiert durch Ausführen der Transkription, nicht durch
+Nachlesen.
+
+**§4-Durchgang:** die zwei bestehenden `panicBody`-Zusicherungen in `TheMPEInputHasNoZonesTests`
+sind `contains`-Prüfungen ohne Zähl-Pin — eine vierte Zeile in `panic()` bricht sie nicht.
+Der Panik-Knopf beschriftet sich „Release all notes" und verspricht in der VoiceOver-Zeile
+nur Freigabe, behauptet also nichts, was jetzt falsch würde.
+
+**Instrumente:** `dead-needles` 393 Dateien + Selbsttest OK · `count-pins` 137/160, 0 rot ·
+`needle-reachability` sauber · `diag-ladder --source` ohne Befund ·
+`founder-verify` **72 offene Geräte-Bitten in 62 Dateien** (das Werkzeug sagt die Zahl; ein
+Hand-`grep` hätte 38 gesagt — deshalb ist das Werkzeug die Messung).
+
+⚠️ **Der Pflicht-Reviewer lief beim Commit noch.** Committet wird trotzdem, weil dieser
+Container flüchtig ist und unversionierte Arbeit verloren geht; Befunde kommen als #945b —
+dieselbe Form wie #942→#942b und #943→#943b. **Kompiliert ist noch nichts: das entscheidet
+der nächste CI/CD-Lauf.**
