@@ -34,14 +34,26 @@ This skill exists so a fresh session gets the exact rule instead of re-breaking 
       `.menu` Picker popover (the freeze; worse while playing). Confine the read to
       its OWN small leaf `View` struct (`BioStripView`, `PulseMonitorMiniLive`,
       `PulseMeasurementView`) so only that leaf churns.
-- [ ] **The camera is NOT the only hot producer — there are three.** (1) `CameraRPPGBioPublisher`
+- [ ] **The camera is NOT the only hot producer — there are FOUR.** (1) `CameraRPPGBioPublisher`
       at ~10 Hz. (2) **`AudioEngine`'s 60 Hz meter poll timer** (`masterLevel`, `masterLevelR`,
       `masterPeakDb`, `masterLUFS`, the R128 readouts, `masterOutputLRA`) — SIX TIMES hotter, and
       it churns whenever AUDIO is running, not only when the camera is on. (3) **`masterVolume`**,
       rewritten by `AutomationPlayer.applyStep` on every transport step. The `masterVolume` case
       already happened once: read inline in `masterPanel`, it tore down the Tonart/Genre Picker,
-      and `MasterVolumeField` exists as its own 8-line struct as the repair. Same law for all
-      three: read them in a leaf, never in an ancestor body.
+      and `MasterVolumeField` exists as its own 8-line struct as the repair. (4) **`metronome.bpm`**,
+      pushed by `Transport.onTempoChange(id: "metronome")` on every tempo change — up to ~20 Hz
+      during a glide. Same law for all four: read them in a leaf, never in an ancestor body.
+
+      ⛔ **THIS LIST SAID "THREE" FOR THREE WEEKS AFTER #928 MEASURED THE FOURTH, and the way it
+      survived is the point.** #928 added `metronome.bpm` in `CLAUDE.md` and to the guard; this
+      file — the one a session opens when `CLAUDE.md` says "Details in the skill" — kept teaching
+      three, so following the pointer for detail got the SHORTER list. A repair moves in EVERY
+      home (#456), and "three" is exactly the kind of number that nothing re-derives.
+
+      ⚠️ **`metronome.bpm` is the most dangerous of the four**, because the host already reads
+      four `metronome.` properties at TWO sites that `body` evaluates (`mixerPanel`'s click row
+      and `metronomeRow`). Those are rightly COLD — a finger turns them — so the receiver and the
+      habit are already in the body, and the hot spelling differs by one word.
       Guard: `Tests/CISmoke/TheMenuHostReadsNoHotStateTests.swift` (it DERIVES the hot sets, so a
       new readout joins them automatically) — it scans four ancestors: `EchoelmusicApp`,
       `WorkspaceView`, `SurfaceHost`, `EchoelStudioView`.

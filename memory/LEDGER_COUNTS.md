@@ -6242,11 +6242,23 @@ vierten**, und die erste Fassung dieser Korrektur war ihrerseits dreifach danebe
 Zahl der EIGENSCHAFTEN, nicht der Reads; die Click-Leiste fehlte in der Aufzählung; und keiner der
 Reads steht in `body` selbst).
 
-⭐ **Das GESETZ dahinter steht schon zweimal in dieser Datei und einmal in CLAUDE.md — es ist das
-MPE-Gesetz aus §N, nur an einer anderen Fläche:** eine Aufzählung ist so vollständig, wie jemandem
-eingefallen ist, und „alle geprüft" heißt „alle, die mir eingefallen sind". Das Erkennungszeichen
-ist, dass alle bisher geprüften Kandidaten dieselbe GATTUNG haben — bei #919 waren es drei, die
-alle beim Messen von PEGELN entstehen, und der vierte kommt vom TEMPO.
+⭐ **Das GESETZ dahinter steht schon in §N, nur an einer anderen Fläche:** eine Aufzählung ist so
+vollständig, wie jemandem eingefallen ist, und „alle geprüft" heißt „alle, die mir eingefallen
+sind".
+
+⛔ **Die erste Fassung dieses Absatzes hängte daran ein Erkennungszeichen, das hier nicht trägt
+(#953b, gefunden vom Pflicht-Reviewer).** Sie schrieb, die drei #919-Kandidaten hätten „dieselbe
+GATTUNG — alle beim Messen von PEGELN". Das stimmt für den 60-Hz-Meter-Poll, ist für
+`masterVolume` schon strittig (eine Automations-SCHREIBUNG, keine Messung) und ist für
+`CameraRPPGBioPublisher` schlicht falsch: das ist das Bio-Signal, kein Pegel. **Ein Gesetz mit
+einem erfundenen Beleg ist schwächer als eines ohne** — und der Beleg war ausgerechnet die
+Hälfte, die die Aufzählung tragen sollte. Was ohne Beleg trägt: die Aufzählung war unvollständig,
+und niemand hat sie nachgerechnet, bis jemand einen fünften Kandidaten suchte.
+
+⛔ **Und „steht schon ZWEIMAL in dieser Datei" war eine frische Zahl in einem Abschnitt über
+verzählte Aufzählungen.** `grep -c "alle, die mir eingefallen sind" memory/LEDGER_COUNTS.md` auf
+`ca4902a` → **1** (§N). Zwei wird daraus nur, wenn man das wörtliche Zitat mitzählt, das dieser
+Abschnitt gerade erst eingefügt hat.
 
 Der Wortlaut des ausgelagerten Blocks, unverändert:
 

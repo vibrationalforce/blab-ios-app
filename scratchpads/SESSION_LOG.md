@@ -20099,3 +20099,53 @@ einen Präzedenzfall in DERSELBEN Datei — Gedankenstrich im String-Literal (Ze
 
 **Instrumente:** `dead-needles` 396 OK · `count-pins` 137/160, **0 ROT** · `needle-reachability`
 sauber.
+
+## 2026-09-01 — #953b: die Rücknahme war selbst eine verzählte Aufzählung
+
+Pflicht-Reviewer zu #953, **drei Blocker — alle Ehrlichkeit, keiner Compile** (Compile-Risiko
+CLEAR, jedes Konstrukt mit Präzedenz in derselben Datei; Byte-Messungen bestätigt).
+
+**B1 — mein ⛔-Block hatte beide Zahlen falsch.** Er schrieb „zwei zu kurz, die Tabelle hielt
+sechs". Gemessen: die Prosa nannte **vier**, die Tabelle hielt **SIEBEN**, ausgelassen sind
+**DREI** (§G/#751, §B/#818, §F.4/#912).
+
+⭐ **Und der Zusatz, den ich frei erfunden hatte, war die stärkste Evidenz — falsch herum.** Ich
+schrieb, die vier genannten seien „die Verschiebungen, die es beim Schreiben gab". `git show
+ed828cf` — der Commit, der die **§G-Zeile anlegte** — zeigt die Prosa eine Zeile darüber weiter
+bei drei. **§G wurde vom eigenen Commit ausgelassen.** Der Absatz war nie eine Momentaufnahme,
+die veraltete; er war unvollständig, sobald die Tabelle das erste Mal über ihn hinauswuchs — ein
+schärferer Beleg als zwei spätere Nachträge.
+
+**GESETZ: eine Rücknahme ist eine Behauptung und braucht dieselbe Messung wie das, was sie
+zurücknimmt.** Das ist die Clone-2-Lehre, eine Datei weiter.
+
+**B2 — drei Zeilen tiefer, im SELBEN Doc-Kommentar, stand die identische stale Aufzählung**
+(„vier Blöcke … der fünfte ist kein Zähl-Block"). #953 hat genau die Defektklasse benannt, die es
+repariert, und ist an ihrer zweiten Instanz vorbeigelaufen. De-enumeriert.
+
+**B3 — der Zeiger führte zur KÜRZEREN Liste.** `CLAUDE.md` sagt seit #928 VIER heiße Erzeuger und
+endet mit „Details in `.claude/skills/swiftui-render-safety/SKILL.md`" — und diese Datei lehrte
+weiter **drei**. `metronome.bpm` war dort nie nachgetragen. Drei Wochen lang bekam also, wer dem
+Zeiger für Details folgte, die unvollständige Liste. **Eine Reparatur geht in JEDES Zuhause
+(#456)** — jetzt vier, mit der Begründung warum die Drei so lange überlebte.
+
+**S1/S2 — meine Benotung war zweifach falsch, und die Datei hatte die Rücknahme schon.** Ich
+nannte die neue Zeugen-Zeile „VORWÄRTS-Wächter, kein Regressions-Fang" und „EINE Abwesenheit
+zweimal gemeldet (#486)". Beide falsch: die `law.contains`-Hälfte war auf `ca4902a` **rot, genau
+aus dem Grund ihrer Meldung** (die Nadel stand noch in `CLAUDE.md`) — das ist ein Regressions-Fang;
+und zwei Rots in **gegensätzliche** Richtungen (Abwesenheit hier, Anwesenheit dort) sind zwei
+Tatsachen, nicht #486. **EPOCH 6 derselben Datei trägt exakt diese Rücknahme, eine Epoche früher.**
+Eine aus dem Gedächtnis an eine Nachbar-Epoche geschriebene Benotung reproduziert deren
+zurückgezogenen Fehler. EPOCH-7-Block ergänzt (21 Zusicherungen unverändert, Zeugen-Tabelle 7→8,
+Anspruch 5 läuft 16 Prüfungen).
+
+**S3 — zwei Belege in Ledger §O waren erfunden bzw. frisch verzählt.** „Alle drei entstehen beim
+Messen von PEGELN" ist für `CameraRPPGBioPublisher` schlicht falsch (Bio-Signal, kein Pegel) und
+für `masterVolume` strittig. Und „steht schon ZWEIMAL in dieser Datei" misst **eins**. Beide
+zurückgenommen. **Ein Gesetz mit erfundenem Beleg ist schwächer als eines ohne** — der nächste
+Leser widerlegt den Beleg und verwirft das Gesetz mit.
+
+⚠️ **Offen und aufgeschrieben (S6):** die Decke bleibt eng. Nach #953 sind es 1.100 B Luft. Der
+Reviewer hat gemessen, wo die nächsten Kilobyte wirklich liegen: **`CLAUDE.md` Zeile 52 = 9.038 B**
+(„Absent (not wired…)"), Zeile 40 = 6.754 B. Wer den nächsten Decken-Zyklus fährt, fängt dort an,
+nicht bei einem weiteren 750-B-Block.

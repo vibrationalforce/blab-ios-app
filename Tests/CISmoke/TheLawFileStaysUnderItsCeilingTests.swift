@@ -50,6 +50,22 @@
 // repeated defect in its smallest possible form — a measured number quoted one edit later.
 // Re-derive: `for f in CLAUDE.md .claude/rules/*.md; do wc -c "$f"; done`.
 //
+// ⭐ GRADING FOR #953/#953b (parent `ca4902a`) — EPOCH 7. Statement count unchanged at 21
+// (`XCTAssert*`/`XCTFail` lines, counted in Python over both trees); claim 5's witness table
+// went 7 rows → 8, so that claim RUNS 16 checks instead of 14. Claims 1-4 and the seven older
+// witnesses are COUNTERWEIGHTS, green on both trees. **The new §O row is MIXED**, and both
+// halves were measured: its `home.contains` half is red at the parent by ANCHOR ABSENCE (§O
+// did not exist in the ledger); its `law.contains` half is a REGRESSION CATCH — the needle was
+// still in `CLAUDE.md`, which is exactly the state #953 repairs.
+// ⛔ #953's own commit body called the pair "ein VORWAERTS-Waechter, kein Regressions-Fang" and
+// "EINE Abwesenheit zweimal gemeldet (#486)". BOTH labels are wrong, and EPOCH 6 nine lines
+// below already retracted the first of them for the SAME row shape one epoch earlier: a forward
+// guard cannot go red on the parent, and this one does. The second is wrong in a different way —
+// one red is an ABSENCE (§O missing), the other a PRESENCE (the needle still in the law file).
+// #486 covers one missing symbol reddening N assertions; opposite directions are two facts, not
+// one. Found by the mandatory reviewer. The lesson is not "grade harder": it is that a retraction
+// written from memory of a neighbouring epoch reproduces that epoch's retracted error.
+//
 // ⭐ GRADING FOR #763 (this tree, parent `99155dc`) — EPOCH 6. Claims 1-4 are COUNTERWEIGHTS
 // (green on the parent too). Claim 5 is MIXED, and the split is not the usual one: its four
 // LEDGER witnesses are counterweights, its fifth witness (`RUN_DESTINATION_DEVICE_NAME`,
@@ -242,14 +258,26 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
     /// sentence naming a panel that never had a grid, a simulator log key that occurs once in
     /// the tree. **The witnesses are the TABLE below, not this paragraph.**
     ///
-    /// ⛔ THIS PARAGRAPH USED TO LIST THEM, AND THE LIST WAS ALREADY TWO SHORT (#953). It
-    /// named four while the table held six — §B (#818) and §F.4 (#912) were added to the table
-    /// and not to the prose above it. That is §N's own law one floor down: an enumeration is
-    /// only as complete as what occurred to whoever wrote it, and the tell is that every entry
-    /// listed shares a GENRE (all four were the moves that existed when the paragraph was
-    /// written). A doc block that enumerates the data structure beneath it goes stale in
-    /// silence, because nothing compares the two. The SELECTION RULE is the durable half and
-    /// is what survives here; the membership lives in one place only.
+    /// ⛔ THIS PARAGRAPH USED TO LIST THEM, AND THE LIST WAS THREE SHORT. It named four while
+    /// the table held SEVEN: §G (#751), §B (#818) and §F.4 (#912) never reached the prose.
+    /// A doc block that enumerates the data structure beneath it goes stale in silence,
+    /// because nothing compares the two. The SELECTION RULE is the durable half and is what
+    /// survives here; the membership lives in one place only.
+    ///
+    /// ⛔⛔ AND #953's FIRST FIX OF IT WAS ITSELF A MIS-COUNTED ENUMERATION — "two short",
+    /// "the table held six" — in a retraction whose entire subject is enumerations that go
+    /// stale. Both numbers were off by one and the third omission was missed. Measured
+    /// afterwards by the mandatory reviewer and re-measured here:
+    /// `git show ca4902a:… | awk '/let witnesses:/,/^        \]$/' | grep -cE '^            \("'`
+    /// → **7**, against four named in the prose. **A retraction is a claim and needs the same
+    /// measurement as the thing it retracts** — the §5b/Clone-2 lesson, one file over.
+    ///
+    /// ⛔⛔⛔ AND THE DISCARDED GUESS WAS THE STRONGEST EVIDENCE AVAILABLE. #953 wrote that the
+    /// four named entries "were the moves that existed when the paragraph was written". They
+    /// were not: `git show ed828cf:…` — #751, the commit that CREATED the §G row — shows the
+    /// prose one line above still listing three. **§G was omitted by its own commit.** The
+    /// paragraph was never a snapshot that aged; it was incomplete the first time the table
+    /// outgrew it, which is a sharper illustration of the law than two later additions.
     ///
     /// ⚠️ A witness is NOT a summary of its block — it is a tripwire. Its absence from the
     /// destination means a paid-for lesson was DELETED rather than moved; its presence in
@@ -257,8 +285,12 @@ final class TheLawFileStaysUnderItsCeilingTests: XCTestCase {
     /// the surface refilled in the nine days after #538.
     ///
     /// ⭐ THE DESTINATION IS PER-WITNESS SINCE #763, and that generalisation is the point
-    /// rather than tidiness. Four blocks went to `memory/LEDGER_COUNTS.md` because they are
-    /// COUNT provenance and that ledger is where count chains live. The fifth is not a count:
+    /// rather than tidiness. Blocks go to `memory/LEDGER_COUNTS.md` when they are COUNT
+    /// provenance, because that ledger is where count chains live. (⛔ This sentence used to
+    /// say "four blocks … the fifth is not a count", i.e. the SAME stale enumeration as the
+    /// paragraph above — three lines away, in the same doc comment, and #953b is the second
+    /// slice to walk past it. Membership is the table's job, here as there.) The exception is
+    /// the one destination that is NOT a count:
     /// it is the CI-gate discriminator, whose one home `.claude/rules/context.md` §3 already
     /// named as `Tests/CISmoke/CLAUDE.md` §5 — so sending it to the counts ledger to satisfy
     /// a hard-coded path would have created a FOURTH copy of the very decision it was moved
