@@ -2438,12 +2438,18 @@ public final class AudioEngine {
             // disagree, the engine inserts a converter on the input edge, and that edge is
             // exactly what the assert is named after.
             //
-            // ⭐ WHY THE SESSION IS THE AUTHORITY HERE, and this is what makes the fix
-            // structural rather than another guess: `start()` rebuilds the I/O unit from the
-            // SESSION, not from the node's cached format. So the session's numbers are not a
-            // second opinion — they are what `start()` will use. #823 already trusted them
-            // for the zero case; this only widens the same trust to DISAGREEMENT. When node
-            // and session agree (the ordinary path) nothing changes at all.
+            // ⭐ WHY THE SESSION IS THE BETTER SOURCE — and note the word, because the first
+            // draft of this comment said "AUTHORITY" and called the fix "structural rather
+            // than another guess". ⛔ BOTH RETRACTED (#954b, mandatory reviewer): what
+            // `start()` actually uses is the ROUTE's HAL format at start time. A
+            // `session.sampleRate` read 7 ms earlier is a FRESHER PROXY than the node's
+            // cached value, not the authority — on a Bluetooth route still negotiating, the
+            // session read can itself be mid-flight. This NARROWS the window; it does not
+            // close it. The paragraph below already called itself a hypothesis, so the two
+            // sat six lines apart contradicting each other (#425 — a slice must not contain
+            // a claim and its own refutation). #823 trusted the session for the zero case;
+            // this widens the same trust to DISAGREEMENT, and when node and session agree
+            // (the ordinary path) nothing changes at all.
             //
             // ⚠️ HYPOTHESIS #4 on this method (#625, #628, #823 came first) — labelled so the
             // NEXT device log discriminates. The `on 3/5` line below now prints the format
@@ -2452,23 +2458,54 @@ public final class AudioEngine {
             // still aborts, the mismatch is not in this format and the next suspect is the
             // stop-rewire-start cycle itself, not its arithmetic.
             //
-            // ⛔ AND THE OBVIOUS "REAL" FIX IS BLOCKED — written down so it is not re-proposed.
+            // ⛔ THE OBVIOUS "REAL" FIX IS BLOCKED — written down so it is not re-proposed.
             // #858 killed the tune-toggle rewire by making that stage PERMANENT and flipping
             // `bypass`. The same answer for the whole monitor chain would need the input edge
             // to be permanent too, and it cannot be: an input node wired under a
             // playback-only session is the v424 assert. A permanent input edge means
             // `.playAndRecord` at all times, which is a battery/route/Bluetooth decision and
             // belongs to the founder, not to a fix cycle.
-            let hwRate = AVAudioSession.sharedInstance().sampleRate
+            //
+            // ⭐ BUT "BLOCKED" WAS THE WRONG LAST WORD, and #954b's reviewer supplied two more
+            // candidates that cost nothing in route or battery terms. Recorded here rather
+            // than built, because this cycle already ships one unverified hypothesis and
+            // stacking a second would make the next device log undecidable:
+            //   · HYPOTHESIS #5 — `masterEngine.prepare()` between the claim and the format
+            //     read. It allocates render resources and builds the I/O unit against the
+            //     now-active `.playAndRecord` session WITHOUT starting it, so the format read
+            //     afterwards is the post-rebuild one. That REMOVES the guess rather than
+            //     replacing it with a fresher proxy. It does not throw and adds no stop/start
+            //     cycle. Unverified: that `prepare()` rebuilds the INPUT scope is itself a
+            //     hypothesis, but a cheaper and more direct one than this slice's.
+            //   · HYPOTHESIS #6 — connect the monitor chain on the RUNNING engine (start
+            //     first, then attach/connect), where `inputNode.outputFormat(forBus: 0)` is
+            //     definitively authoritative. Connecting nodes on a running engine is legal
+            //     API and is a DIFFERENT operation from the stop-rewire-start that #858
+            //     indicted, so #858 does not rule it out.
+            //
+            // ⚠️ AND THERE IS A SECOND UNCATCHABLE ABORT ON THIS PATH THAT NO COMMENT NAMED
+            // (#954b, reviewer S4): the tap at rung 5/5 is installed with `format: inFmt`.
+            // Apple requires an input node's tap format to be nil or to match the node's own
+            // output format, so a SUBSTITUTED `inFmt` that turns out wrong aborts there with a
+            // different message. The exposure predates this slice (#823 opened it by
+            // substituting at all), but #954 widens the population of runs that can reach it.
+            // `format: nil` on that tap is the candidate — it only reads `ch[0]` into a
+            // window, so it does not need the connect format — and it is deliberately NOT
+            // taken here for the same one-hypothesis-per-log reason as #5 and #6.
+            let hwSession = AVAudioSession.sharedInstance()
+            let hwRate = hwSession.sampleRate
             // Only the RAW count is kept: it is diagnostic (it goes on the 3/5 rung), while a
             // CLAMPED one would be a decision input, and #954 deliberately makes no decision
             // on channels. An unused clamped local would also be a warning, and this build is
             // `-warnings-as-errors`.
-            let hwChannelsRaw = AVAudioSession.sharedInstance().inputNumberOfChannels
+            let hwChannelsRaw = hwSession.inputNumberOfChannels
             let nodeFormatUnusable = inFmt.sampleRate <= 0 || inFmt.channelCount == 0
-            // A tolerance of 1 Hz, not equality: the two are reported as `Double` and a
-            // hardware rate can round (44100.000000000007). Anything a converter would care
-            // about is orders of magnitude larger than this.
+            // A tolerance of 1 Hz, not equality — DEFENSIVE, not a measured phenomenon
+            // (#954b: the first draft asserted hardware rates round to 44100.000000000007;
+            // HAL rates come back exact, so that was a rationale nobody had measured). Two
+            // `Double`s crossing a framework boundary are compared with a tolerance because
+            // equality on them is a latent trap, and anything a converter would care about
+            // is orders of magnitude larger than 1 Hz.
             // ⚠️ RATE ONLY, AND THE CHANNEL COUNT IS DELIBERATELY LEFT OUT — this is the half
             // of #954 that could make things WORSE, so it is not taken. The sample rate is ONE
             // session-wide hardware property and `start()` rebuilds the I/O unit at
@@ -2591,8 +2628,16 @@ public final class AudioEngine {
             // prevent, introduced by the commit that was making the rung more useful. The
             // rung line stays ONE LINE and starts with its number; the detail goes in a local
             // built above it. Caught only by DRIVING the tool (#941), never by reading it.
+            // #954b (reviewer S1): `outFmt` is read from the SAME stopped engine across the
+            // SAME category raise, and it feeds three downstream connects — it has exactly
+            // the staleness exposure this slice diagnosed for `inFmt`. It is the less likely
+            // culprit (a mixer is the sanctioned rate-conversion point, so a mismatch there
+            // normally converts instead of asserting), but it is a live ALTERNATIVE
+            // hypothesis, and a rung that prints only the input side cannot discriminate the
+            // two. One interpolation buys the founder a device run that settles both.
             let edgeSummary = "edge \(inFmt.sampleRate) Hz/\(inFmt.channelCount) ch, "
-                + "session \(hwRate) Hz/\(hwChannelsRaw) ch"
+                + "session \(hwRate) Hz/\(hwChannelsRaw) ch, "
+                + "out \(outFmt.sampleRate) Hz/\(outFmt.channelCount) ch"
             logMonitorOutcome("on 3/5: connecting input → notch (\(edgeSummary))", level: .info)
             masterEngine.connect(input, to: notchEQ, format: inFmt)
             // #858: the tune stage is ALWAYS in the chain, BYPASSED while off — the

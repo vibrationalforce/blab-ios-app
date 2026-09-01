@@ -20211,3 +20211,64 @@ Arbeitsbaum. Stripper **PROPHYLAKTISCH** (0 von 9 Verdikten kippen). Transkribie
 
 **Instrumente:** `diag-ladder --source` sauber (`'on' 5/5`) · `dead-needles` 397 OK ·
 `count-pins` 137/162, 0 ROT · `needle-reachability` sauber.
+
+## 2026-09-01 — #954b: vier Ehrlichkeits-Blocker am eigenen Wächter
+
+Pflicht-Reviewer (audio-thread) zu #954. **Compile CLEAR · Graph-Sicherheit CLEAR · Leiter
+CLEAR**, und er hat meine neun Verdikte **unabhängig nachtranskribiert und exakt bestätigt**
+(4 rot am Elternteil, 5 Gegengewichte, 0 Stripper-Kipp). Vier Blocker, alle Ehrlichkeit.
+
+⛔ **B1 — meine Stripper-Begründung war ERFUNDEN.** Ich schrieb, der Doc-Block „zitiert
+`nodeDisagreesWithHardware` in Prosa". Gemessen: **zweimal, beide CODE.** Das Verdikt
+(PROPHYLAKTISCH) war richtig, die Begründung falsch — **und das ist die schlimmere Hälfte**,
+weil dieses Repo als Gesetz führt, dass ein Vermerk mit falscher Begründung schlimmer ist als
+keiner: die nächste Sitzung kann ihn nicht widerlegen.
+
+⛔ **B2 — Anspruch 4(b) war grün aus einem ANDEREN Grund als seine Meldung nannte.** Das führende
+`&&` im Nadel-Text sollte pinnen, dass der Raten-Test die GANZE Bedingung ist. Tut es nicht:
+`&& abs(…) > 1` matcht weiter, nachdem jemand `|| inFmt.channelCount != …` anhängt. Der
+#367-Spiegelfall — ausgerechnet in dem Anspruch, der die gefährliche Hälfte draußen halten soll.
+Jetzt eine **echte** Klammer: der Ausdruck wird extrahiert (anker-geprüft gegen den
+#926-Leergrün-Fall) und auf `channelCount` geprüft.
+
+⛔ **B3 — Anspruch 2a konnte mit gelöschter Absicherung grün bleiben.** `session.isInputAvailable`
+kommt **zweimal** vor: in der Absicherung und in einer Fehler-MELDUNG, die der Stripper als
+String-Literal erhält. Neu auf der ganzen Bedingung geankert.
+
+⛔ **B4 — mein Kopf nannte die Session die AUTORITÄT und den Fix STRUKTURELL**, zwanzig Zeilen
+über dem Quelltext, der sich selbst **Hypothese #4** nennt. Beides kann nicht stimmen (#425).
+**Was `start()` benutzt, ist das HAL-Format der Route zur Startzeit** — eine 7 ms früher gelesene
+`session.sampleRate` ist ein **frischerer Stellvertreter**, keine Autorität; auf einer noch
+verhandelnden Bluetooth-Route kann der Session-Read selbst unterwegs sein. **Das Fenster wird
+schmaler, nicht geschlossen.** Beide Wörter zurückgenommen.
+
+⭐ **S1 gebaut (eine Interpolation, hoher Wert):** `outFmt` steht jetzt mit auf der Sprosse. Es
+wird aus **derselben** gestoppten Engine über **dieselbe** Kategorie-Anhebung gelesen und speist
+drei Verbindungen — also eine lebende Alternativ-Hypothese, die die Sprosse sonst nicht
+unterscheiden kann. Eine Geräte-Sitzung beantwortet jetzt **zwei** Fragen statt einer.
+
+⭐ **„Blockiert" war das falsche letzte Wort.** Zwei billigere Kandidaten sind jetzt an der
+Entscheidungsstelle notiert — **nicht gebaut**: **#5** `masterEngine.prepare()` zwischen Anspruch
+und Format-Read (baut die I/O-Unit gegen die aktive Session, ohne zu starten — das **entfernt**
+die Schätzung, statt sie durch einen frischeren Stellvertreter zu ersetzen); **#6** die Kette auf
+der **laufenden** Engine verbinden, wo `outputFormat` definitiv maßgeblich ist (legale API, eine
+ANDERE Operation als das von #858 angeklagte Stop-Rewire-Start). **Grund fürs Nicht-Bauen steht
+dabei: dieser Zyklus liefert bereits EINE unbewiesene Hypothese aus; eine zweite daneben macht
+das nächste Gerätelog unentscheidbar.**
+
+⚠️ **S4 — ein ZWEITER unfangbarer Abbruch auf diesem Pfad, den kein Kommentar benannte:** der Tap
+an Sprosse 5/5 wird mit `format: inFmt` installiert, und Apple verlangt dort `nil` oder das
+Ausgangsformat des Knotens. Ein falsch ersetztes `inFmt` bricht dort mit einer **anderen** Meldung
+ab. Die Gefahr ist älter als diese Scheibe (#823 hat das Ersetzen eingeführt), #954 vergrößert nur
+die Menge der Läufe, die sie erreichen. Aufgeschrieben, nicht gefixt — gleicher Grund.
+
+**Benotung, ehrlich und unschmeichelhaft:** der Wächter hat jetzt **11 Zusicherungen**
+(ausgeschrieben, nicht geschleift — eine Schleife versteckt ihre eigene Arithmetik und hat in
+diesem Bündel schon dreimal eine Benotung gekostet). Gegen **#954**s Elternteil `7e33d36`:
+**6 rot** (c1a, c1b, c4a, c4b, c4c, c6), alle VORWÄRTS. Gegen **#954b**s Elternteil `68b301e`:
+**0 rot, 11 Gegengewichte** — #954b ändert kein Verhalten, das der Wächter sehen kann. Was es
+kauft: drei Zusicherungen können nicht mehr aus dem falschen Grund bestehen. **Beide Epochen
+stehen im Kopf**, weil die Datei jetzt in zwei Commits ausgeliefert wird und ein veralteter
+Benotungsblock schlimmer ist als keiner.
+
+**Instrumente:** `diag-ladder --source` sauber · `dead-needles` 397 OK · `count-pins` 0 ROT.

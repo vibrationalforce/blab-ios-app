@@ -26,11 +26,17 @@
 // …251.430) and forced onto the input edge 7 ms before `start()` rebuilt the I/O unit
 // against the record route.
 //
-// ⭐ WHY THE SESSION IS THE AUTHORITY FOR THE RATE: `start()` rebuilds the I/O unit from the
-// SESSION, so its sample rate is not a second opinion about the hardware — it is what
-// `start()` will use. #823 already trusted it for the zero case; #954 widens the SAME trust
-// to disagreement. When node and session agree (the ordinary path) the connect format is
-// bit-identical to before.
+// ⭐ WHY THE SESSION IS THE BETTER SOURCE FOR THE RATE — a FRESHER PROXY, not an authority.
+// ⛔ #954b: the first draft of this paragraph said "WHY THE SESSION IS THE AUTHORITY … which
+// makes this structural rather than a fourth guess", and it sat twenty lines above the source
+// comment labelling itself HYPOTHESIS #4. Both cannot be right and the source one is correct
+// (#425 — a slice must not carry a claim and its own refutation). What `start()` uses is the
+// ROUTE's HAL format at start time; a `session.sampleRate` read 7 ms earlier is merely closer
+// to it than the node's cached value, and on a Bluetooth route still negotiating it can be
+// mid-flight itself. **This is a cheap, well-instrumented, low-regression GUESS**, and the
+// whole rhetorical weight of the old wording rested on a word the code never claimed. What is
+// true: the window narrows, the ordinary path is bit-identical, and the rung below makes the
+// next device log decisive either way.
 //
 // ⚠️ AND THE CHANNEL COUNT IS DELIBERATELY NOT PART OF IT — the half of this slice that could
 // have made things WORSE, named here because a later reader will otherwise "complete" it.
@@ -43,23 +49,44 @@
 // (#364), and there is no device here to tell the two cases apart. Claim 4 pins this by
 // anchoring on the leading `&&`, so a channel term cannot quietly come back.
 //
-// ⚠️ HONEST GRADING (§3). **9 assertions.** Against `7e33d36`, where the file COMPILES (it
-// names no new symbol — every needle is a string):
-//   · **ONE FINDING, reported by FOUR assertions (#486)** — claims 1 (×2), 4 and 6 all go
-//     red there for the single absence of the #954 decision. They are **FORWARD** guards:
-//     they pin text this same commit creates, so none of them could ever have caught a
-//     pre-existing defect, and booking four of them as regression catches would be the
-//     flattering-direction defect §3 names.
+// ⚠️ HONEST GRADING (§3). **11 assertions** (#954b added two to claim 4; the count was 9 and
+// is written out rather than looped over, because a loop hides its own arithmetic and has
+// cost a grading in this bundle three times). Against `68b301e`, where the file COMPILES —
+// it names no new symbol, every needle is a string:
+//   · **SIX assertions RED there, for ONE decision that is absent** — claims 1 (×2), 4 (×3)
+//     and 6. They are **FORWARD** guards: they pin text the #954/#954b commits create, so
+//     none could ever have caught a pre-existing defect, and booking them as regression
+//     catches would be the flattering-direction defect §3 names. (#486 says one absence
+//     reported N times is ONE finding; calling it one here is the conservative reading —
+//     three distinct identifiers at three sites are arguably three absences.)
 //   · **FIVE COUNTERWEIGHTS** — claims 2 (×2), 3 and 5 (×2) are green on BOTH trees, and
 //     they are the content (#343): they pin that the widened branch still cannot invent a
 //     format, that #823's zero case survived the edit, and that the input edge is still
 //     connected exactly once with the DECIDED format rather than a fresh node read.
 //   · 0 red on the worktree, driven by transcription (§0 — there is no local toolchain).
 //
+// ⚠️ AND THAT PARAGRAPH GRADES #954, WHOSE PARENT IS `7e33d36`. **This file now ships in TWO
+// commits, so #954b needs its OWN block or it is the stale-epoch defect** that
+// `TheLawFileStaysUnderItsCeilingTests` records twice (#707: "the block is required to
+// describe THE parent of the commit that ships it, and a stale one is worse than none").
+// **Against #954b's parent `68b301e`: 0 red, 11 COUNTERWEIGHTS.** That is the honest and
+// unflattering reading — #954b changes no behaviour the guard can see. What it buys is that
+// three assertions stop being able to pass for the wrong reason: claim 2a was anchored on a
+// bare `session.isInputAvailable`, which also occurs inside a failure-exit MESSAGE string
+// that the stripper preserves; claim 4's channel property was pinned by a leading `&&` that
+// an appended `|| inFmt.channelCount != …` would have satisfied. Both were green then and are
+// green now — the difference is what they would do on a tree that broke them.
+//
 // ⚠️ STRIPPER (§2): `SourceText.codeOnly` is **PROPHYLACTIC — 0 of 9 verdicts flip.** Measured
-// raw vs. stripped on both trees. It is not decorative all the same: the doc block around the
-// patched region quotes `nodeDisagreesWithHardware` and `#954` in prose, so a future comment
-// edit is exactly how a raw scan would start reading its own explanation as the code.
+// raw vs. stripped on both trees.
+// ⛔ #954b — THE REASON THE FIRST DRAFT GAVE FOR KEEPING IT WAS FALSE. It said the doc block
+// "quotes `nodeDisagreesWithHardware` … in prose". Measured: that identifier occurs exactly
+// TWICE in `AudioEngine.swift` and both are CODE. `#954` does occur in prose, but it is not a
+// needle in any of the nine assertions. The VERDICT was right and the JUSTIFICATION invented —
+// the worse half of the pair, because this repo's own law is that a note with a false
+// justification is worse than none: the next session cannot refute it. What is actually true:
+// no needle here occurs in prose today, and the stripper is insurance against a future comment
+// that quotes one — which is exactly what these doc blocks keep doing.
 //
 // ⚠️ WHAT THIS GUARD DOES NOT CLAIM. It cannot prove the crash is fixed — that needs a device
 // run, and the fix is labelled HYPOTHESIS #4 at its site for that reason. What it pins is
@@ -125,7 +152,14 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
     /// the substitution happens must not widen WHAT it may substitute.
     func testTheSubstitutionStillOnlyUsesWhatTheSessionReports() throws {
         let code = try engineCode()
-        XCTAssertGreaterThan(occurrences(of: "session.isInputAvailable", in: code), 0, """
+        // ⛔ #954b — THE FIRST NEEDLE HERE WAS THE BARE `session.isInputAvailable` AND IT WAS
+        // THE #367 MIRROR: that identifier occurs TWICE in `AudioEngine.swift`, once in this
+        // guard and once inside the #628/#823 failure-exit MESSAGE, which `SourceText.codeOnly`
+        // preserves because it is a string literal. Delete the guard and the assertion stays
+        // green at count 1 while its message says the check is gone. Anchored on the whole
+        // condition instead, which occurs once and fails for the reason it names.
+        XCTAssertGreaterThan(
+            occurrences(of: "sessionRate > 0, session.isInputAvailable,", in: code), 0, """
             The session-fallback no longer checks that an input exists at all. With the \
             branch widened to disagreement, an unavailable input would now substitute a \
             format for a device that is not there — strictly worse than the node's own read.
@@ -150,23 +184,70 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
             """)
     }
 
-    /// claim 4 (FORWARD) — the disagreement test is a RATE TOLERANCE, and nothing else.
-    /// Two properties in one claim, both about not making things worse. (a) A tolerance, not
-    /// equality: a hardware rate arrives as a `Double` and can round (44100.000000000007), so
-    /// equality would substitute a format on healthy hardware (#364). (b) The needle carries
-    /// the leading `&&`, which pins that the rate test is the WHOLE condition — a channel-count
-    /// term must not come back. `session.inputNumberOfChannels` is clamped to 1...2 and a route
-    /// can legitimately have a mono node under a two-channel session; substituting there would
-    /// force a stereo edge onto a mono input and MANUFACTURE the converter this slice removes,
-    /// on hardware that was fine. A fix that can introduce the crash it prevents is not a fix,
-    /// and there is no device here to tell the two cases apart.
-    func testTheRateComparisonHasATolerance() throws {
+    /// claim 4 (FORWARD, 3 assertions) — the disagreement test is a RATE TOLERANCE, and
+    /// **nothing else**. Two properties, both about not making things worse.
+    ///
+    /// (a) A TOLERANCE, not equality. Comparing two `Double`s that crossed a framework
+    /// boundary with `==` is a latent trap, and anything a converter would care about is
+    /// orders of magnitude larger than 1 Hz. (⛔ #954b: the first draft justified this with
+    /// "a hardware rate can round (44100.000000000007)" — speculative; HAL rates come back
+    /// exact. The tolerance is right anyway, so it is stated as DEFENSIVE rather than as a
+    /// measured phenomenon.)
+    ///
+    /// (b) The rate test is the WHOLE condition — no channel-count term may come back.
+    /// `session.inputNumberOfChannels` is clamped to 1...2 at the substitution site, and a
+    /// route can legitimately have a mono node under a two-channel session; substituting
+    /// there would force a stereo edge onto a mono input and MANUFACTURE the converter this
+    /// slice removes, on hardware that was fine. A fix that can introduce the crash it
+    /// prevents is not a fix (#364), and there is no device here to tell the two apart.
+    ///
+    /// ⛔ #954b — (b) WAS ORIGINALLY PINNED BY A LEADING `&&` IN THE NEEDLE, AND THAT PINNED
+    /// NOTHING. `&& abs(inFmt.sampleRate - hwRate) > 1` still matches after someone appends
+    /// `|| inFmt.channelCount != hwChannels`, so the assertion would have been green for a
+    /// reason other than the one its message gave — the mirror case `Tests/CISmoke/CLAUDE.md`
+    /// §2 calls the worse one, in the very claim written to keep the dangerous half out. It
+    /// now EXTRACTS the expression and asserts what it must not contain. Found by the
+    /// mandatory reviewer.
+    ///
+    /// ⚠️ The extraction is anchor-checked before it is asserted on (#926): both anchors occur
+    /// exactly once, and a missed anchor would make `!contains` vacuously true — a green that
+    /// means nothing.
+    func testTheDisagreementTestIsARateToleranceAndNothingElse() throws {
         let code = try engineCode()
-        XCTAssertGreaterThan(occurrences(of: "&& abs(inFmt.sampleRate - hwRate) > 1", in: code), 0, """
+        XCTAssertGreaterThan(occurrences(of: "abs(inFmt.sampleRate - hwRate) > 1", in: code), 0, """
             The node/session rate comparison is no longer a tolerance. Exact equality on two \
-            `Double` sample rates fires on rounding alone, so the healthy path would start \
-            substituting a format it did not need to — the failure direction #364 names, in \
-            the one method this repo has already crashed in five times.
+            `Double` sample rates crossing a framework boundary is a latent trap, so the \
+            healthy path could start substituting a format it did not need to — the failure \
+            direction #364 names, in the one method this repo has already crashed in five \
+            times.
+            """)
+        let openAnchor = "let nodeDisagreesWithHardware"
+        let closeAnchor = "if nodeFormatUnusable"
+        guard let a = code.range(of: openAnchor), let b = code.range(of: closeAnchor, range: a.upperBound..<code.endIndex)
+        else {
+            XCTFail("""
+                the disagreement expression could not be extracted — `\(openAnchor)` … `\(closeAnchor)` \
+                no longer both occur in order. Re-anchor (§4); do NOT relax this into a \
+                whole-file scan, which is how (b) became vacuous the first time.
+                """)
+            return
+        }
+        XCTAssertEqual(occurrences(of: openAnchor, in: code), 1, """
+            `\(openAnchor)` occurs more than once, so the extraction below is anchored on whichever \
+            came first and proves nothing about the other (#408).
+            """)
+        let expression = String(code[a.lowerBound..<b.lowerBound])
+        XCTAssertFalse(expression.contains("channelCount"), """
+            A channel-count term is back in the disagreement test:
+
+            \(expression.trimmingCharacters(in: .whitespacesAndNewlines))
+
+            That is the half #954 deliberately did NOT take. `inputNumberOfChannels` is \
+            clamped to 1...2 and a route may legitimately report mono at the node under a \
+            two-channel session; substituting there forces a stereo edge onto a mono input \
+            and MANUFACTURES the converter this slice exists to remove — on hardware that \
+            was healthy. If a device log ever justifies the channel half, it needs its own \
+            slice, its own evidence, and this claim rewritten rather than deleted.
             """)
     }
 
@@ -182,7 +263,8 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
             now uses something other than `inFmt`, which discards the decision above it.
             """)
         XCTAssertEqual(occurrences(of: "input.inputFormat(forBus: 0)", in: code), 1, """
-            The input node's raw format is read more than once on this path. The decision \
+            The input node's raw format is read more than once in this FILE (the scan is \
+            file-wide, not path-scoped — a second read anywhere reddens this). The decision \
             must happen ONCE and be carried in `inFmt`; a second raw read re-introduces \
             exactly the stale value the founder log ended on.
             """)
