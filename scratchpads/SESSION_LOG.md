@@ -20977,3 +20977,82 @@ der bei der Mutation, für die er geschrieben wurde, nicht fehlschlagen kann, is
 Die Fixture ist EINE Funktion mit vier Fällen, weil die drei Dinge, die diese Form still falsch
 machen kann, alle Entscheidungen ÜBER einen Treffer sind, nicht der Treffer selbst — die
 Komposition ist das, was beisst (#914/#941b, in dieser Datei zweimal bezahlt).
+
+## 2026-09-01 — #961: der Puffer wird jetzt bei der Rate gerechnet, die das Gerät WIRKLICH gab
+
+**Gates von #960 (`7c0595b`) gelesen:** `Xcode Compile Check = success`, CI/CD = das stehende
+`TEST EXECUTE FAILED` (#396) ohne `TEST BUILD FAILED`, beide Clones grün im sichtbaren Fenster
+(⚠️ `tail -200`, #807 — die Ausführung des NEUEN Wächters ist damit nicht belegt, nur der Bau).
+
+**Der Befund.** `setPreferredIOBufferDuration` nimmt SEKUNDEN, und iOS rechnet die Sekunden am
+Ende bei der Rate, die die Hardware wirklich fährt, in FRAMES zurück. `ioBufferDuration(for:)`
+existiert genau für diese Umrechnung und nimmt die Rate als Parameter — und **alle fünf
+Aufrufstellen der Datei übergaben `preferredSampleRate`**, also die WUNSCH-Rate, die sechs
+Zeilen vorher an `setPreferredSampleRate` gereicht und **nie zurückgelesen** wurde. Ein
+Parameter, den es gibt und den niemand variiert: die Doctor-§C-Form eine Ebene unter einer
+Ansicht.
+
+Die Folge ist eine Zahl, keine Sorge: 512 Frames bei erbetenen 48000 Hz sind 10,67 ms; auf
+einem Gerät, das 44100 Hz gewährt, macht iOS aus 10,67 ms **470 Frames**. Wer 512 gewählt hat,
+bekommt 470 — und die Zeile `IO Buffer Duration` darunter druckt den gewährten Wert, während
+jede Latenz-Schätzung derselben Datei weiter durch die erbetene teilt. #855 hielt den Founder
+fest mit „23 ms gegen eine 10,7-ms-Wahl"; das ist dieselbe Divergenz von der Berichts-Seite.
+
+**Die Scheibe.** Nach `setActive(true)` wird `audioSession.sampleRate` zurückgelesen (VORHER ist
+es die Rate, auf der die Session zufällig steht, nicht die, die DIESES configure bekommt), eine
+unnumerierte `session: rate asked … granted …`-Zeile geschrieben — **auf JEDEM Start, nicht nur
+bei Abweichung**, weil eine Zeile, die nur im Fehlerfall erscheint, „Rate passte" nicht von
+„Code lief nie" unterscheiden kann — und der Puffer nur bei echter Abweichung (`> 1` Hz) mit
+der GEWÄHRTEN Rate neu erbeten. Ein abgelehnter Neu-Versuch schreibt eine eigene Krümel-Zeile
+statt zu werfen: die Session ist da schon konfiguriert und benutzbar.
+
+⚠️ **Bewusst KEIN Rung.** Die Leiter hier ist 1/4…4/4; ein fünfter Schritt renumeriert eine
+Folge, die ein Nachbar-Wächter per Gleichheit pinnt, und #954 hat schon bewiesen, dass genau
+das „einen Rung nützlicher machen" einen GESUNDEN Lauf als Tod lesen lässt. Die Zeile trägt
+kein Großbuchstaben-Wort ≥3, also liest auch `diag-ladder`s Terminator-Zensus sie nicht als
+Ladder-Ende. `python3 scripts/diag-ladder.py --source` treibt das nach: exit 0.
+
+**Mitgezogen, weil mein eigener Wächter es rot machte:** `ioBufferDuration(for:)` hatte
+`guard sampleRate > 0` — und **`+infinity > 0` ist wahr**, die Division liefert dann 0, also
+eine Dauer 0 als Session-Präferenz. Harmlos, solange der einzige Aufrufer eine Compile-Zeit-
+Konstante übergab; die Rück-Lesung ist der ERSTE Aufrufer mit einem Argument von außen.
+Jetzt `guard sampleRate.isFinite, sampleRate > 0`.
+
+**Der Zähl-Pin ging rot, und das Werkzeug fing ihn vor dem Commit:**
+`python3 scripts/count-pins.py` druckte `pinned 15, actual 17` — dritte Mal, dass dieser
+Checker seinen eigenen nächsten Zug fängt (#906, #907, jetzt). Auf 17 nachgeführt mit der
+Arithmetik daneben.
+
+**Wächter:** `Tests/CISmoke/TheBufferFollowsTheGrantedRateTests.swift` — 7 Methoden, 16
+Behauptungen; sechs Quell-Scans plus eine AUSGEFÜHRTE auf dem reinen Helfer (als VERHÄLTNIS
+geprüft, nicht absolut, weil `currentBufferSize` ein prozessglobales `var` ist, das andere
+Tests im Bündel verschoben haben können).
+
+**Transkribiert und GEFAHREN, nicht erinnert** (`SourceText.codeOnly` in Python nachgebaut,
+gegen `git show <rev>:…` gefahren): `da2bb3e` 5 RED von 6 · `7c0595b` 5 RED von 6 ·
+Worktree 0 RED. ⛔ **Ich hatte 4 in die Kopf-Tabelle geschrieben und der Lauf sagte 5** —
+Anspruch 6 ist auf den Eltern-Bäumen auch rot, weil dort gar kein `catch` in
+`configureAudioSession` steht (es gibt keinen Neu-Versuch, der scheitern könnte). Richtig und
+richtig benannt, aber die Zahl war geraten. Anspruch 4 (Gegengewicht) ist auf ALLEN drei Bäumen
+grün — genau das, was ein Gegengewicht sein soll; er war zuerst mit den Form-Prüfungen in EINER
+Methode und ging auf dem Eltern-Baum rot, **aber aus dem falschen Grund** (#367), deshalb
+getrennt.
+
+**Sechs Mutationen gefahren**, jede färbt ihren benannten Anspruch rot: Rück-Lesung vor
+`setActive` → c1 · Neu-Versuch teilt wieder durch die Wunsch-Rate → c2 (+c4, der die Nadel
+per Anzahl pinnt) · Toleranz-Gate raus → c3 · Vor-Aktivierungs-Bitte gelöscht → c4 · Zeile als
+`configure 5/4` numeriert → c5 · abgelehnter Neu-Versuch nach `log.audio` → c5+c6.
+
+⚠️ **NICHT geräteverifiziert.** Ob iOS eine Puffer-Bitte auf einer bereits aktiven Session
+honoriert und was es gewährt, ist eine Gerätetatsache. Bewiesen ist: die App fragt jetzt mit
+der Rate, die sie bekommen hat, statt mit der, die sie wollte. **NEEDS-FOUNDER-VERIFY:** das
+nächste `echoel_diag.log` trägt eine `session: rate asked … granted …`-Zeile pro configure —
+stehen dort zwei verschiedene Zahlen, war jede Latenz-Angabe dieses Logs bei der falschen
+gerechnet.
+
+⚠️ **Bewusst NICHT mitgemacht:** die vier anderen Stellen teilen weiter durch
+`preferredSampleRate` (zwei Inline-Neu-Bekräftigungen in den Kategorie-Übergängen — das ist
+#855s eigene Reparatur und eine zweite Verhaltensänderung auf einem zweiten Pfad —, zwei
+Latenz-SCHÄTZUNGEN, die Berichte sind und kein Erbitten). Eine Ralph-Scheibe, ein Pfad.
+Anspruch 4 pinnt, dass die Vor-Aktivierungs-Bitte BLEIBT: dieser Wächter verbietet die
+Konstante nicht (#364).

@@ -1064,14 +1064,22 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         // THAT RUNS LOCALLY: #907 gave the third silent return (`guard isSessionConfigured`)
         // a line, so the tool printed `pinned 14, actual 15` before the commit existed.
         //
+        // ⭐ #961 — AND IT CAUGHT ITS OWN NEXT MOVE A THIRD TIME. #961 added the granted-rate
+        // read-back after `setActive` (one unconditional line reporting asked-vs-granted, one
+        // inside the `catch` of the buffer re-ask); `python3 scripts/count-pins.py` printed
+        // `pinned 15, actual 17` before the commit existed. Both are discrete: they run once
+        // per `configureAudioSession`, the same lifecycle event the four numbered rungs above
+        // them already narrate — not a per-buffer or tick-rate path.
+        //
         // TODAY'S ARITHMETIC: seven transition rungs + THREE `SKIPPED` state lines +
-        // `latencyBreadcrumb` + one `route: claim` + THREE `route: release` outcomes = 15.
-        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 15, """
+        // `latencyBreadcrumb` + one `route: claim` + THREE `route: release` outcomes +
+        // the granted-rate line + the refused-re-ask outcome = 17.
+        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 17, """
             The breadcrumb count in AudioConfiguration changed. Confirm the new site is a \
             discrete event (launch, route transition), never a per-buffer or tick-rate path, \
             then update this number and say why in the same commit. Today: seven transition \
             rungs + three SKIPPED state lines + latencyBreadcrumb + one route claim + three \
-            route-release outcomes.
+            route-release outcomes + the granted-rate read-back + its refused-re-ask outcome.
             """)
     }
 

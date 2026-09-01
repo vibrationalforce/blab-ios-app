@@ -64,7 +64,13 @@ enum AudioConfiguration {
 
     /// Calculate IO buffer duration for AVAudioSession
     static func ioBufferDuration(for sampleRate: Double) -> TimeInterval {
-        guard sampleRate > 0 else { return Double(currentBufferSize) / preferredSampleRate }
+        // #961: `.isFinite` first. `sampleRate > 0` is TRUE for `+infinity`, and the
+        // division below then returns 0 — a duration that reaches `setPreferredIOBufferDuration`
+        // as a preference. Harmless while the only caller passed a compile-time constant;
+        // the granted-rate read-back is the first caller whose argument comes from outside.
+        guard sampleRate.isFinite, sampleRate > 0 else {
+            return Double(currentBufferSize) / preferredSampleRate
+        }
         return Double(currentBufferSize) / sampleRate
     }
 
@@ -215,6 +221,45 @@ enum AudioConfiguration {
         try audioSession.setActive(true, options: .notifyOthersOnDeactivation)
 
         isSessionConfigured = true
+
+        // ⭐ #961 — THE BUFFER IS ASKED FOR IN SECONDS, COMPUTED AT A RATE THE HARDWARE MAY
+        // NOT HAVE GRANTED. `ioBufferDuration(for:)` turns a frame COUNT into a DURATION, and
+        // iOS turns that duration back into frames at the rate it actually runs. All five
+        // sites in this file divide by `preferredSampleRate` — the ASPIRATION, asked for six
+        // lines above and never read back — so on a device that grants 44100 against a 48000
+        // ask, a player who chose 512 frames silently receives ~470, and the `IO Buffer
+        // Duration` line printed just below reports the granted number while every latency
+        // estimate in this file still divides by the asked one. #855's founder-measured
+        // "23 ms against a 10.7 ms choice" is the same divergence seen from the report end.
+        //
+        // ⚠️ THE READ-BACK SITS AFTER `setActive` ON PURPOSE. Before activation
+        // `audioSession.sampleRate` is whatever rate the session happens to be at, not the one
+        // THIS configure will get; after it, it is the hardware's answer. Re-asking the buffer
+        // on an already-active session is one call that changes no route and needs no
+        // reconfigure — `setLatencyMode` says exactly that at its own call (#674), which is why
+        // this is a re-ask and not a second `configureAudioSession`.
+        //
+        // ⚠️ THIS IS NOT A RUNG AND MUST NOT BECOME ONE. The ladder here is 1/4…4/4; a fifth
+        // step renumbers a sequence a guard pins by equality, and #954 already proved that
+        // making a rung "more useful" is how a HEALTHY run starts reading as a death. The line
+        // is unnumbered and carries no all-caps word, so `diag-ladder`'s terminator census does
+        // not read it as one either. It is printed on EVERY launch, not only on divergence: a
+        // line that appears only when something is wrong cannot distinguish "rate matched" from
+        // "this code never ran" — the same silence-is-a-finding law the ladder is built on.
+        let grantedRate = audioSession.sampleRate
+        EchoelCrashLog.breadcrumb("session: rate asked \(preferredSampleRate) Hz, granted "
+                                  + "\(grantedRate) Hz, buffer \(currentBufferSize) frames")
+        if grantedRate > 0, abs(grantedRate - preferredSampleRate) > 1 {
+            let regranted = ioBufferDuration(for: grantedRate)
+            do {
+                try audioSession.setPreferredIOBufferDuration(regranted)
+            } catch {
+                // Not fatal and not a throw: the session is already configured and usable — the
+                // buffer simply stays at the duration computed from the asked rate, which is
+                // the behaviour every build before this one shipped.
+                EchoelCrashLog.breadcrumb("session: the buffer re-ask was refused (\(error))")
+            }
+        }
 
         log.audio("🎵 Audio Session Configured:")
         log.audio("   Category: \(audioSession.category.rawValue)")
