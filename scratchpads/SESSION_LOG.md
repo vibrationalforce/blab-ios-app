@@ -19270,3 +19270,60 @@ Stop-Hook mahnte unbeschriebene Arbeit in einem Container an, der eingezogen wer
 BLOCKER stand also für einen Commit lang im Baum. Das ist die Abwägung Arbeitsverlust gegen
 Gate-Disziplin, nicht ein übersprungenes Gate — der Fund kam eine Minute später und ist in
 #942b repariert, bevor irgendein Lauf ihn sehen konnte.
+
+## 2026-09-01 — #943: die Stimme hält jetzt die Taste, die noch gedrückt ist
+
+**Gates von #942/#942b zuerst gelesen** (Zyklus-Pflicht): `Xcode Compile Check` grün,
+**`build-for-testing: Succeeded`** — der von #942b reparierte Compile-Fehler ist damit
+beweisbar weg —, 0 Compile-Fehler, 0 Fehlschläge, 0 Skips, 167 Tests beobachtet.
+`TEST EXECUTE FAILED` ist die bekannte #396-Form. ⚠️ Das Job-Log ist ein `tail -200`, ein
+früherer Fehlschlag hinterließe darin keine Spur (#807) — „grün" heißt hier genau das und
+nicht mehr.
+
+⭐ **Der Fehler, den ich gefunden habe, braucht gar kein MPE — jedes Keyboard trifft ihn.**
+`apply(controller:)` löschte bei `.noteOff` ein einzelnes `Bool`, **ohne zu fragen, WELCHE
+Taste losgelassen wurde**:
+
+    case .noteOff:
+        heldByController = false
+        releaseNote()
+
+C halten, E halten, C loslassen → **Stille**, obwohl ein Finger auf E liegt.
+
+⚠️ **Und die zweite Hälfte ist schlimmer als die erste.** Genau dieses Flag ist auch das Tor,
+das die Stimme an die ATEM-Hüllkurve zurückgibt (`guard isArmed, breathPlayEnabled,
+!heldByController`). Ein falsch gelöschter Latch stoppt also nicht nur die Note — der Körper
+fängt an, die Stimme **unter einer physisch gedrückten Taste** zu spielen. Ein Spieler liest
+das als „das Instrument kämpft gegen mich".
+
+**Reparatur:** ein begrenzter `heldNotes`-Stapel; `heldByController` ist jetzt **abgeleitet**
+(`!heldNotes.isEmpty`) statt gelatcht — und genau das ist die Heilung, denn ein abgeleitetes
+Flag kann den Tasten nicht mehr widersprechen.
+
+⭐ **Warum Legato und kein Neu-Anschlag.** Wird die KLINGENDE Taste gehoben und eine andere
+liegt noch, schreibt der Code `synth.frequency` direkt statt `playNote` zu rufen. `playNote`
+läuft durch `synth.noteOn`, das Attack, Filter-Hüllkurve, Onset-Chiff und die Drift-Zähler
+neu armt. Einen frischen Anschlag zu hören, **weil man einen Finger HEBT**, ist die nächste
+falsche Antwort. Der Ein-Pol `smoothedFreq` (~2 ms) im Render lässt die Tonhöhe gleiten.
+Note-ON-Priorität bleibt unverändert: eine neue Taste schlägt an, wie ausgeliefert.
+
+⚠️ **Der Council-Einwand ist eingebaut, nicht weggeredet.** Der Skeptiker: ein `noteOff`, das
+nie ankommt, lässt einen Eintrag zurück; unbegrenzt sammeln sich Phantom-Tasten und die Stimme
+klänge **für immer ohne Finger** — eine schlimmere Störung als die geheilte Stille. Deshalb:
+Deckel 16, der ÄLTESTE fällt heraus, `panic()` wirft den ganzen Stapel weg, und ein spätes
+`noteOff` nach `panic()` darf nichts wiederbeleben. Gleiche Notennummer wird dedupliziert —
+diese Stimme liest `event.channel` gar nicht und kann zwei MPE-Finger auf einer Tonhöhe nicht
+unterscheiden; ein zweiter Eintrag wäre ein Geist, den kein einzelnes `noteOff` löscht.
+
+⭐ **ROT-vor-GRÜN ohne Compiler, belegt statt behauptet.** Der Ralph-Takt verlangt test-first,
+die Umgebung hat keine Swift-Toolchain. Also wurden **beide** Notenprioritäts-Fassungen — das
+ausgelieferte `Bool` und der Stapel — nachgefahren und alle **18 Behauptungen** der sechs
+Ansprüche gegen jede getrieben: **FÜNF Regressions-Fänge**, 13 Gegengewichte. ⚠️ **Zwei
+Gegengewichte sind auf dem alten Code VAKUUM-grün und stehen so im Kopf, statt als Erfolg
+gezählt zu werden** (#433): Anspruch 1s „Tonhöhe unverändert" blieb nur stehen, weil der alte
+Pfad die Stimme stumm schaltete, und Anspruch 6 hatte keinen Stapel zu begrenzen.
+
+⚠️ **NEEDS-FOUNDER-VERIFY** (und die zwei #939/#942-Bitten sind im selben Zug ausführbar
+gemacht worden — von 69 Bitten druckte genau EINE keine Handlung, und das war meine eigene):
+MIDI-Keyboard anschließen, zwei Tasten halten, die UNTERE loslassen (nichts darf sich ändern),
+dann die OBERE loslassen (die Note muss zur unteren GLEITEN, ohne neuen Anschlag).

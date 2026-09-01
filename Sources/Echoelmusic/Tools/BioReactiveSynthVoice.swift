@@ -98,8 +98,35 @@ public final class BioReactiveSynthVoice {
 
     public private(set) var isSubscribed = false
 
+    /// The MIDI notes physically under a finger, oldest first — the LAST one is what sounds.
+    ///
+    /// ⭐ #943 — THIS REPLACED A SINGLE `Bool`, AND THE BOOL HAD A BUG ANY KEYBOARD HITS.
+    /// `.noteOff` cleared it without asking WHICH key was lifted, so holding C and E and then
+    /// lifting C went silent while a finger was still on E. Worse than the silence: this same
+    /// flag is the gate that hands the voice back to the BREATH envelope
+    /// (`guard isArmed, breathPlayEnabled, !heldByController`), so a mis-cleared latch let the
+    /// body start playing the voice UNDERNEATH a key that is physically down.
+    ///
+    /// ⚠️ ONE ENTRY PER NOTE NUMBER, deliberately. This voice never reads `event.channel`
+    /// (`TheMPEInputHasNoZonesTests` claim 2 pins that), so two MPE fingers on the same pitch
+    /// arrive indistinguishable; a second entry would become a ghost that no single note-off
+    /// can clear, and the voice would sound with nothing under a finger.
+    ///
+    /// ⚠️ BOUNDED, and the bound is the point rather than tidiness: a note-off that never
+    /// arrives (cable pulled mid-note, event dropped under SPSC flood) leaves an entry behind.
+    /// Unbounded, those accumulate into a voice that can never be released — a WORSE failure
+    /// than the one this fixes. The OLDEST is dropped, because it is the one least likely to
+    /// still be under a finger, and `panic()` throws the whole stack away.
     @ObservationIgnored
-    private var heldByController = false
+    private var heldNotes: [UInt8] = []
+
+    /// Capacity of `heldNotes`. Ten fingers plus headroom for a sustained roll; the exact
+    /// number is not musical, only the existence of a ceiling is.
+    private static let maxHeldNotes = 16
+
+    /// Unchanged in meaning: is a controller key down? It is now DERIVED rather than latched,
+    /// which is the whole repair — a derived flag cannot disagree with the keys.
+    private var heldByController: Bool { !heldNotes.isEmpty }
 
     @ObservationIgnored
     private var lastBioEventTimestamp: TimeInterval = -1
@@ -252,7 +279,9 @@ public final class BioReactiveSynthVoice {
     /// eventual real `.noteOff` then cuts that breath note mid-phrase. Narrow enough to live
     /// with — recorded here so it is not rediscovered as a bug.
     public func panic() {
-        heldByController = false
+        // #943 — the whole stack, not one entry. Panic means "forget every key"; a straggling
+        // note-off afterwards then finds nothing to release rather than re-opening the voice.
+        heldNotes.removeAll(keepingCapacity: true)
         // #939 — the press latch is exactly as sticky as the note latch above, and for the same
         // two reasons this doc block already names (controller unplugged mid-note, event dropped
         // under queue flood). Without this line a stuck press survives every Stop.
@@ -464,27 +493,50 @@ public final class BioReactiveSynthVoice {
     /// The production path is `drainControllerEvents(from:)` above; this is the same call.
     internal func applyControllerForTests(_ event: ControllerEvent) { apply(controller: event) }
     internal var heldByControllerForTests: Bool { heldByController }
+    /// #943 — the stack's SIZE, so the bound can be asserted without exposing the keys.
+    internal var heldNoteCountForTests: Int { heldNotes.count }
     #endif
 
     /// How much louder full press is than no press (#939). +50 % ≈ +3.5 dB — a swell a player
     /// can lean into, well short of slamming the master limiter. Named rather than inlined so
-    /// the founder's ear can move ONE number: NEEDS-FOUNDER-VERIFY.
+    /// the founder's ear can move ONE number.
+    /// NEEDS-FOUNDER-VERIFY: MPE-Controller anschließen, eine Note halten und in die Taste
+    /// LEHNEN — schwillt sie musikalisch an, oder zu wenig / zu viel? Eine Zahl, `pressDepth`.
     private static let pressDepth: Float = 0.5
 
     /// How far full slide opens the filter (#942). ×4 is two octaves of cutoff — the sweep an
     /// MPE player expects from the Y axis, and small enough that the existing 2 ms glide keeps
-    /// it smooth. Named rather than inlined so the founder's ear can move ONE number:
-    /// NEEDS-FOUNDER-VERIFY.
+    /// it smooth. Named rather than inlined so the founder's ear can move ONE number.
+    /// NEEDS-FOUNDER-VERIFY: MPE-Controller anschließen, eine Note halten und den Finger
+    /// SENKRECHT bewegen — ist der Klangfarben-Sweep musikalisch, oder zu weit / zu eng?
+    /// Eine Zahl, `slideDepth`.
     private static let slideDepth: Float = 3.0
 
     private func apply(controller event: ControllerEvent) {
         switch event.kind {
         case .noteOn:
-            heldByController = true
+            // Re-pressing a pitch that is already down moves it to the top rather than adding
+            // a second entry — see the dedupe note on `heldNotes`.
+            heldNotes.removeAll { $0 == event.note }
+            heldNotes.append(event.note)
+            if heldNotes.count > Self.maxHeldNotes { heldNotes.removeFirst() }
+            // Note-ON priority is UNCHANGED by #943: a new key re-attacks, which is what
+            // shipped and what a player expects from pressing a key.
             playNote(frequency: soundingFrequency(forMIDINote: event.note))
         case .noteOff:
-            heldByController = false
-            releaseNote()
+            let wasTop = heldNotes.last == event.note
+            heldNotes.removeAll { $0 == event.note }
+            if let top = heldNotes.last {
+                // A key is still down. If the one lifted was not the sounding one, nothing
+                // audible changes at all; if it was, fall back LEGATO — write the frequency
+                // directly instead of `playNote`, because `playNote` runs `synth.noteOn`, which
+                // re-arms the attack, the filter envelope, the onset chiff and the drift
+                // counters. Hearing a fresh transient because you LIFTED a finger is its own
+                // wrong answer; the render's `smoothedFreq` one-pole (~2 ms) glides the pitch.
+                if wasTop { synth.frequency = soundingFrequency(forMIDINote: top) }
+            } else {
+                releaseNote()
+            }
         case .pitchBend:
             let semis = event.value * 2.0
             // ⚠️ PRE-EXISTING SHAPE, newly consequential since #338: note 0 falls back to 69,
