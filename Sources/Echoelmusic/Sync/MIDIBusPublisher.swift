@@ -186,18 +186,20 @@ public final class MIDIBusPublisher {
         // reaches exactly one consumer, `BioReactiveSynthVoice.apply(controller:)`, where it
         // is `case .airCC: break`. Two costs, both written down elsewhere in this repo:
         // `bus.controllerEvents` is a 128-deep DROP-NEWEST ring whose own doc says "a rejected
-        // `.noteOff` strands its `.noteOn`", and `EngineBus.publish(controller:)` spawns a
-        // `Task { @MainActor }` PER EVENT — the 10.76.48 executor-starvation shape, and that
-        // half costs on every message, not only at overflow.
+        // `.noteOff` strands its `.noteOn`". ⭐ #951 REMOVED THE SECOND, LARGER HALF: this note
+        // used to add that `EngineBus.publish(controller:)` spawns a `Task { @MainActor }` PER
+        // EVENT (the 10.76.48 shape, costing on every message and not only at overflow) — that
+        // is now coalesced to one wake-up per batch. The QUEUE-SLOT half stands, and it is the
+        // weaker of the two: it needs a real overflow, ~1280 messages/s.
         //
         // NOT changed here, deliberately. Dropping the stream is one line, but air-CC input is
         // documented as ARRIVING in seven prose sites (README, `docs/architecture.html` ×4,
         // `docs/overview.html`, and `TheMPEInputHasNoZonesTests` claim 10b), so it narrows a
-        // documented wire — a value call, not an engineering one. The deeper fix costs nothing
-        // documented and helps every message type: coalesce the per-event Task, which
-        // `EngineBus.publish(controller:)`'s own doc already names as the follow-up. See the
-        // DEAD-ENDS row in `scratchpads/HARNESS_LEDGER.md` for the measurement and the race
-        // the obvious coalescing gate has.
+        // documented wire — a value call, not an engineering one. ⭐ The deeper fix that #950
+        // pointed at here IS SHIPPED (#951): the per-event Task is coalesced, which cost no
+        // documented capability and helps every message type. What is left of #950's finding
+        // is only the queue-slot half. See the DEAD-ENDS row in
+        // `scratchpads/HARNESS_LEDGER.md`.
         //
         // NEEDS-FOUNDER-VERIFY: Wind-/Breath-Controller anschließen (CC 21–31). Soll Echoel
         // diese Nachrichten weiter ENTGEGENNEHMEN, obwohl heute nichts sie hört — oder sollen

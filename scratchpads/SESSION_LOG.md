@@ -19900,3 +19900,71 @@ den Air-CC-Strom festnagelt, würde genau die Founder-Antwort verbieten, auf die
 
 **Instrumente:** `dead-needles` 394 + Selbsttest OK · `count-pins` 137/160, 0 rot ·
 `needle-reachability` sauber · `doctor` die zwei bekannten founder-gated CI-Masken.
+
+---
+
+## #951 — ein Weckruf pro Schwung statt pro MIDI-Nachricht (2026-09-01)
+
+**Gates von #950 gelesen:** `Build for Testing: Succeeded` · `TEST BUILD FAILED: False` ·
+0 Compile-Fehler · 0 Fehlschläge · 0 Skips · 167 Tests bestanden. Rotes CI/CD = #396.
+
+**Erst die Reihenfolge des Auftrags nachgemessen, statt sie zu glauben.** **Punkt 5 (Visuals
+grau) ist GEBAUT**: alle drei gestapelten Entsättiger sind gelöst — warm-Tint `0.80 → 0.92`
+(B9) → `0.97` (#578), warm-Lift `0.10 → 0.05`, Sättigung `0.82 → 1.05`, und das `colourOn`-Gate
+steht auf `2.4`. Netto-Chroma ~0,68 → ~0,97. Es wartet auf Founder-Augen, nicht auf Code.
+Punkt 2 war schon letzten Zyklus als gebaut gemessen; 1/3/4 zeigen auf entfernte Flächen. Also
+den Punkt gebaut, der auf dem Ship-Gate **Stabilität** liegt.
+
+**Der Defekt, und `EngineBus` hatte ihn selbst aufgeschrieben.** `publish(controller:)` startete
+**pro Ereignis** einen `Task { @MainActor }`. Das ist exakt die 10.76.48-Form, die in diesem
+Repo schon einmal Geräte-Builds gekostet hat: ein hochfrequenter Erzeuger, ein Main-Actor-Job
+pro Element, der SwiftUI-Executor hungert, Symptom ein offener Picker, der nicht mehr reagiert.
+CLAUDE.md verbietet die Form für eine 30-fps-Kamera — **MIDI ist dieselbe Form von einer
+Quelle, die SCHNELLER sein kann.** Der Doc-Kommentar der Methode nannte die Reparatur seit jeher
+selbst einen FOLLOW-UP und wartete dort; **#950 ist von der anderen Seite in dieselbe Stelle
+gelaufen.**
+
+**Der Fix:** ein Pending-Flag unter `NSLock` (`nonisolated`, weil `publish` es ist — dieselbe
+Disziplin wie `RGBSampleQueue`), **gelöscht VOR dem Hook**. Sicher, weil der Drain die QUEUE
+leert, deren Reihenfolge der Einzel-Erzeuger hält.
+
+⭐ **Der Reviewer hat die Korrektheit BEWIESEN, nicht nur geprüft:** das `enqueue` steht VOR dem
+Flag-Abschnitt, also liegt das Element jedes Publishers, der das Flag gesetzt sieht, schon im
+Ring, bevor der anstehende Drain läuft — keine Verschränkung verliert einen Weckruf. Und er hat
+gemessen, dass die Ring-TIEFE unverändert bleibt: vorher konnten die N Tasks während des Bursts
+auch nicht laufen (kein `await` in `drainIncoming`s Schleife), also kein neues Überlauf-Risiko.
+
+⛔ **BLOCKER, und es ist die Sorte, die dieses Repo als Gesetz führt: Anspruch 4 konnte nicht
+aus dem Grund scheitern, den seine Meldung nannte.** Er fuhr einen ZWEITEN Schwung NACH
+`await settle()` und behauptete, damit die ORDNUNG zu prüfen (Flag vor oder nach dem Hook
+gelöscht). Nach `settle()` hat auch eine clear-**after**-Implementierung das Flag gelöscht — der
+Anspruch war dort ebenfalls grün und erkannte nur „Flag wird nie gelöscht". Genau §2/#367 —
+**und dieselbe Über-Behauptung, die `ControllerEventDrainIsPushedTests` in genau diesem Bereich
+schon einmal zurückgenommen hat** („a message must not claim more than its assertion"). Zwei
+Zyklen hintereinander hat der Pflicht-Reviewer eine Wächter-Meldung gefangen, die mehr behauptet
+als ihre Zusicherung sieht.
+
+Anspruch 4 publiziert jetzt **aus dem Drain heraus** — die einzige Verschränkung, die die zwei
+Ordnungen trennt (clear-before → 2 Weckrufe; clear-after → 1, rot). Grün auf beiden echten
+Bäumen, also weiterhin Gegengewicht.
+
+⚠️ **Und die Gefahr ist DEFENSIV, nicht live** — an drei Stellen klargestellt, weil der Absatz
+sonst wie ein behobener Bug liest: heute kann nichts mitten im Drain publizieren (der einzige
+Erzeuger ist main-actor, der Hook selbst publiziert nicht). Die Ordnung kostet nichts und
+überlebt einen künftigen Verbraucher, der zurückschickt — sie ist eine WAHL, keine Reparatur.
+
+**Wächter:** `TheControllerNotifyIsCoalescedTests` — 5 Zusicherungen, **1 Regressionsfang**
+(Anspruch 1: 50 Ereignisse → vorher 50 Weckrufe, jetzt 1), 4 Gegengewichte. `settle()` nimmt
+jetzt eine Bedingung statt einer festen Zahl; bewusst **ohne** eigenes `XCTFail` (#416 — die
+Zusicherung des Aufrufers IST die benannte Meldung).
+
+**Prosa-Nachzug (#456), alles vom Reviewer benannt:** der FOLLOW-UP-Absatz in `EngineBus` (er
+beschrieb den jetzt gelieferten Fix als offen), #950s Notiz in `MIDIBusPublisher` (sie hätte die
+nächste Sitzung #951 nochmal bauen lassen), die DEAD-ENDS-Zeile im Ledger (ihr „do this
+instead" ist erledigt, und ihre Race-Warnung galt einer ANDEREN Gate-Variante als der
+gelieferten), und eine Zeile an der Deklaration von `latestControllerEvent` — es trägt jetzt das
+ERSTE Ereignis eines Schwungs, und das gehört dorthin, wo ein Leser zuerst hinschaut.
+
+**Instrumente:** `dead-needles` 395 + Selbsttest OK · `count-pins` 137/160, 0 rot ·
+`needle-reachability` sauber · `doctor` die zwei bekannten founder-gated CI-Masken.
+**Kompiliert ist noch nichts** — das liest der nächste Zyklus.

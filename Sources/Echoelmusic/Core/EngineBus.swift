@@ -615,6 +615,12 @@ public final class EngineBus {
         return f
     }
 
+    /// ⚠️ #951 — THE FIRST EVENT OF A BATCH, not the latest of one. The notification that
+    /// carries this is coalesced (see `notifyScheduled`), so a burst of N updates it once,
+    /// with e₁. Nothing in `Sources/` reads it — the declaration, the one write and two tests
+    /// are its whole surface — and a burst always drained against e₁ anyway, so this is a
+    /// clarification rather than a change. Do not build a "latest value" on it without
+    /// removing the coalescing first.
     public private(set) var latestControllerEvent: ControllerEvent?
 
     public private(set) var latestBioEvent: BioEvent?
@@ -694,6 +700,41 @@ public final class EngineBus {
     @ObservationIgnored
     public var onControllerEventEnqueued: (@MainActor () -> Void)?
 
+    /// ⭐ #951 — THE COALESCING GATE, and this file asked for it itself: `publish(controller:)`
+    /// used to spawn a `Task { @MainActor }` PER EVENT, and its own doc named the repair a
+    /// FOLLOW-UP ("coalesce the notification to once per batch — a pending flag here").
+    ///
+    /// It is the 10.76.48 shape: a high-rate source submitting one main-actor job per message
+    /// starves the SwiftUI executor, and the symptom that cost device builds was an open
+    /// `.menu` Picker that stopped responding. CLAUDE.md states the rule for a 30 fps camera;
+    /// MIDI is the same shape from a source that can be faster — a fader bank or a wind
+    /// controller on USB-MIDI, and #950 measured eleven CC streams whose events nothing even
+    /// consumes feeding straight into it.
+    ///
+    /// ⚠️ THE LOCK IS NOT DECORATION AND IT IS NOT ON THE AUDIO THREAD. `publish(controller:)`
+    /// is `nonisolated`, so this flag cannot live on the actor; the lock is the same
+    /// `@unchecked`-style discipline `CameraRPPGBioPublisher.RGBSampleQueue` uses for exactly
+    /// the same reason (a producer that must not hop per item). It is uncontended in practice
+    /// — `MIDIInput` batches a packet burst into ONE main-actor turn (#30), so the production
+    /// producer is already on the main actor — and it never runs inside a render block.
+    ///
+    /// ⚠️ CLEARED BEFORE THE HOOK, NEVER AFTER. Clearing after the drain would lose a wake-up:
+    /// an event enqueued mid-drain finds the flag still set, schedules nothing, and waits for
+    /// the 10 Hz backstop poll — the latency #317 removed. Clearing first can at worst schedule
+    /// one redundant task, the harmless direction.
+    ///
+    /// ⚠️ AND THAT HAZARD IS DEFENSIVE, NOT LIVE — said plainly because the paragraph above
+    /// reads like a bug being fixed. Nothing can publish mid-drain today: the sole production
+    /// producer is `MIDIBusPublisher` on the main actor, and the hook
+    /// (`BioReactiveSynthVoice.drainControllerEvents`) does not publish. The ordering costs
+    /// nothing and survives a future consumer that echoes; it is a CHOICE, not a repair.
+    /// Guard: `Tests/CISmoke/TheControllerNotifyIsCoalescedTests.swift` claim 4, which drives
+    /// the mid-drain publish itself — the one interleaving that separates the two orderings.
+    @ObservationIgnored
+    nonisolated private let notifyLock = NSLock()
+    @ObservationIgnored
+    nonisolated(unsafe) private var notifyScheduled = false
+
     // MARK: - Init
 
     public init(
@@ -726,19 +767,44 @@ public final class EngineBus {
     /// defect of this repo's own (#30, and again in `CameraRPPGBioPublisher`), so the rule is
     /// to reuse an existing hop, never to open one.
     ///
-    /// ⚠️ AND THE HOP THIS ONE REUSES IS ITSELF THE #30 SHAPE — INHERITED, NOT VETTED. Say it
-    /// here, because the rule one paragraph up will otherwise read as if this Task had been
-    /// examined and approved. It is a Task PER EVENT. It is much less dangerous than #30 was
-    /// (`MIDIInput` already batches a packet burst into ONE main-actor turn, and this enqueue
-    /// therefore already runs ON the main actor, so it is a main→main hop rather than
-    /// cross-actor contention), and its residual cost is one job turn against the 0–100 ms
-    /// #317 removes. FOLLOW-UP, cheaper than #317 was: coalesce the notification to once per
-    /// batch — a pending flag here, or let `MIDIInput.drainIncoming` trigger the drain once
-    /// after its loop. That collapses N tasks to one AND makes the hook non-redundant.
+    /// ⭐ #951 — THAT FOLLOW-UP IS DONE, AND THIS PARAGRAPH IS THE REASON IT GOT FOUND. It
+    /// used to end: "It is a Task PER EVENT … FOLLOW-UP, cheaper than #317 was: coalesce the
+    /// notification to once per batch — a pending flag here". The paragraph was honest about
+    /// being INHERITED, NOT VETTED, and it named its own repair; what it could not do was make
+    /// anyone act on it. #950 walked into the same shape from the other end (eleven CC streams
+    /// that nothing consumes, feeding one main-actor job each) and this was already written
+    /// down waiting.
+    ///
+    /// The gate is `notifyScheduled` above: one wake-up per BATCH, cleared BEFORE the hook.
+    /// The residual cost is now one job turn per batch instead of per event; the "much less
+    /// dangerous than #30" reasoning (`MIDIInput` batches a packet burst into ONE main-actor
+    /// turn, so this is a main→main hop rather than cross-actor contention) is unchanged and
+    /// is why this was a follow-up rather than a fire.
+    ///
+    /// ⚠️ The rule one paragraph up still stands and is not weakened by this: REUSE an
+    /// existing hop, never open one. #951 did not open a hop — it stopped opening N of them.
     nonisolated public func publish(controller event: ControllerEvent) {
         controllerEvents.enqueue(event)
+
+        // #951 — one wake-up per BATCH, not per event. See `notifyScheduled` above for why
+        // this is safe (the drain consumes the whole queue in order) and why the flag is
+        // cleared before the hook rather than after (lost wake-ups).
+        notifyLock.lock()
+        let alreadyScheduled = notifyScheduled
+        notifyScheduled = true
+        notifyLock.unlock()
+        guard !alreadyScheduled else { return }
+
         Task { @MainActor [weak self] in
             guard let self else { return }
+            self.notifyLock.lock()
+            self.notifyScheduled = false
+            self.notifyLock.unlock()
+            // ⚠️ #951 — THIS SNAPSHOT IS NOW THE FIRST EVENT OF A BATCH RATHER THAN EACH ONE
+            // IN TURN, and that is a change nothing can observe: `latestControllerEvent` has
+            // no production reader (the declaration, this write, and two tests), and the
+            // paragraph below already recorded that a burst drains entirely against e₁
+            // anyway. Said plainly so it is not rediscovered as a regression.
             self.latestControllerEvent = event
             // ⛔ THIS LINE'S ORIGINAL COMMENT CLAIMED AN ORDERING GUARANTEE THAT DOES NOT
             // EXIST, and it is corrected rather than deleted because it is the kind of
