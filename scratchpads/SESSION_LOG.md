@@ -20507,3 +20507,51 @@ Installations-Flagge bleibt EINE Stelle. Instrumente: `dead-needles` 399 OK · `
 der CONNECT-Kante, und v10.79.434 hat die repariert. Dies ist ein strukturell erreichbarer
 zweiter Pfad auf demselben Schalter, geschlossen bevor er beobachtet wird. Zu sagen, es
 repariere den Absturz des Founders, wäre eine Behauptung ohne Beleg im Repo.
+
+## 2026-09-01 — #956b: der Reviewer fand drei ROTE Zusicherungen, die #956 verursacht hat
+
+**Und die vier Instrumente waren für alle drei STRUKTURELL BLIND** — zwei sagen es in ihrer
+eigenen `--all`-Ausgabe („interpolated needle", „`code` not bound to a path"). `dead-needles`
+findet nur Nadeln, die auf GAR NICHTS passen; eine Nadel, deren ZAHL sich änderte, passt weiter.
+⛔ **Mein Eintrag zu #956 führte „Instrumente grün" als Beleg — das ist die #937-Lehre eine
+Werkzeug-Ebene höher: wahr wie gedruckt, wertlos als Abdeckung.** Ein grüner Lauf von
+`count-pins` sagt nichts über Pins, die das Werkzeug nach eigener Auskunft nicht lesen konnte.
+
+**Was rot war, und wie es repariert ist:**
+1. `TheInputEdgeFollowsTheHardwareFormatTests` nagelt `input.inputFormat(forBus: 0)` auf EINS;
+   #956 machte zwei daraus. Das ist keine Schreibweisen-Drift — der Fehlertext dieser Zusicherung
+   formuliert das GESETZ („die Entscheidung passiert EINMAL und wird in `inFmt` getragen").
+   **Repariert durch einen besseren Zugriff:** der Tap liest jetzt `outputFormat`. Ein Tap sitzt
+   auf einem AUSGANGS-Bus, `installTap` prüft gegen genau diesen Bereich, und jeder andere Tap in
+   diesem Repo liest ihn ohnehin. Damit bleibt das Gesetz **wörtlich** wahr, und ein
+   Geschwister-Pin dort hält den einen Tap-Read fest.
+2. `TheEngineLifecycleSpeaksInTheDiagLogTests` nagelte `on 5/5` auf genau 2 und den SKIPPED auf
+   genau 1. #956 hat einen ZWEITEN legitimen Skip-Grund hinzugefügt — genau die Arbeit, die
+   #882s Gesetz will. Eine GLEICHHEIT dort verbietet den nächsten ehrlichen Grund (#364); die
+   Eigenschaft ist „mindestens ein genommener UND mindestens ein übersprungener Emitter".
+3. Zwei Prosa-Zwillinge („a death INSIDE installTap") standen in einer dritten Datei still da.
+   #456: eine Reparatur zieht in JEDES Zuhause, nicht nur in das, das man gerade editiert.
+
+⛔ **Und eine ÜBER-BEHAUPTUNG von mir, in vier Zuhausen:** „drei Ausgänge, nur einer war laut".
+Beide Mechanismen sind echt und an ihren Aufrufstellen belegt (`PitchTracker.detect` bekommt
+`monitorTapSampleRate`; ~147 Cent stimmt: 1200·log₂(48000/44100) = 146,7). Ihre GEMEINSAME
+Erreichbarkeit nicht: `inFmt` weicht nur auf dem Ersatz-Zweig ab, und dort gilt entweder „der
+Knoten widerspricht weiter → Abbruch, nichts Stilles wird je beobachtet" oder „der Knoten hat
+nach dem Neustart aufgeholt → die Formate stimmen überein, es gibt keine falsche Rate". Unter
+der EIGENEN Abbruch-Prämisse ist das stille Paar **unerreichbar, nicht leise**. Die Reparatur
+bleibt richtig als **Verteidigung in der Tiefe** — falls `installTap` manche Abweichungsformen
+toleriert, landen genau die dort. Ein schwächerer Grund, und der wahre.
+
+⛔ Ebenfalls falsch und korrigiert: mein Klammer-Satz über den Lint („212 Zeichen … bestand die
+Fehlerschwelle 200") war zweifach falsch — die Zeile maß 205, und 205 ÜBERSCHREITET 200; egal
+ist beides, weil `line_length` in `.swiftlint.yml` unter `disabled_rules` steht. Und ein Zeiger
+nannte den falschen Wächter für die drei `connect`-Aufrufe.
+
+**Mein eigener Anspruch 5 war zu schwach:** er nagelte die MELDUNG, nicht die Eigenschaft — ein
+`return false` in der nächsten Zeile hätte ihn grün gelassen und das Monitoring trotzdem
+abgerissen. Jetzt wird der Zweig gepinnt. Und Anspruch 1s 200-Zeichen-Fenster ist auf 400
+geweitet UND verlangt, dass `format:` darin VORKOMMT — sonst geht er leer-grün durch (#926).
+
+**Benotung:** 13 Zusicherungsstellen, 7 rot auf `c6a6787`, 0 auf dem Arbeitsbaum; zusätzlich die
+Pins der ZWEI Nachbar-Wächter über beide Bäume gefahren, weil diese Scheibe drei davon rot
+gemacht hatte — alle jetzt grün.

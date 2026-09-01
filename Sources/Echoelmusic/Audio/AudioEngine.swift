@@ -2495,8 +2495,13 @@ public final class AudioEngine {
             // ⚠️ THE SUBSTITUTION ITSELF STAYS, and this comment is the place that could be
             // misread into removing it: #954 substitutes for the CONNECT edge, which is the
             // crash the founder actually hit. Only the TAP argument was wrong. The three
-            // `connect(…, format: inFmt)` calls below are correct and `TheInputTapAsksTheNode
-            // ForItsFormatTests` claim 3 pins that they stay.
+            // `connect(…, format: inFmt)` calls below are correct. ⛔ This pointer named the
+            // wrong guard: `TheInputTapAsksTheNodeForItsFormatTests` claim 3 pins the
+            // hardware-agreement CHECK and the substitution, not the connects. The connects
+            // themselves are pinned by `TheInputEdgeFollowsTheHardwareFormatTests`,
+            // `TheVoiceTuneSnapsToTheSessionKeyTests` and `TheNotchIsSlewedAndMonitorOnly
+            // Tests` — a session following the old pointer to check a removal would have read
+            // the wrong claim and concluded the connects were unguarded.
             let hwSession = AVAudioSession.sharedInstance()
             let hwRate = hwSession.sampleRate
             // Only the RAW count is kept: it is diagnostic (it goes on the 3/5 rung), while a
@@ -2789,8 +2794,19 @@ public final class AudioEngine {
                 // `isInputConnToConverter`, one rung later, and equally uncatchable from
                 // Swift (#858 proved the `catch` cannot see an ObjC abort).
                 //
-                // ⚠️ AND TWO SILENT DEFECTS RODE ALONG EVEN WHEN IT DID NOT ABORT, because
-                // both fields recorded here feed arithmetic:
+                // ⛔ #956 CLAIMED "THREE OUTCOMES AND ONLY ONE WAS LOUD" AND THAT IS
+                // OVER-CLAIMED (#956b, reviewer). `inFmt` differs from the node's format ONLY
+                // on the substitution branch, and there the two cases are: the node still
+                // disagrees at tap time, so `installTap` ABORTS and no silent defect is ever
+                // observed — the process is gone; or the node has caught up after the restart,
+                // so the two formats agree numerically and there was no wrong rate to record.
+                // Under this fix's OWN abort premise the silent pair is unreachable, not
+                // merely quiet. They stay written out below because the premise may be only
+                // partly right — if `installTap` tolerates some mismatch shapes (a channel
+                // count but not a rate, or a difference by iOS version), the tolerated ones
+                // land exactly here. That is DEFENCE IN DEPTH, which is a weaker and true
+                // reason, and it is the one this comment now gives. Both mechanisms are real
+                // and were verified; only their JOINT reachability was the story:
                 //   · `monitorTapSampleRate` → `PitchTracker.detect(_:sampleRate:)`. A
                 //     44.1↔48 substitution shifts every detected pitch ~147 cents, so
                 //     "Tune to key" snaps the voice to WRONG notes with nothing logged;
@@ -2798,7 +2814,17 @@ public final class AudioEngine {
                 //     a LIVE node format against them. Recording a format the node never
                 //     had makes that comparison mismatch on every change — a re-arm loop.
                 // The node is the only authority for its own bus, so ask it again here.
-                let tapFmt = input.inputFormat(forBus: 0)
+                // ⚠️ `outputFormat`, NOT `inputFormat`, and the difference is the whole point
+                // of this line: a tap installs on an OUTPUT bus and `installTap` validates
+                // against THAT scope. Every other tap in this repo already reads it
+                // (`MicrophoneManager`, `RetroCapture`, the meter and master taps); the one
+                // sibling that reads `inputFormat` is `MultiTrackRecorder`, which is doorless
+                // and flag-gated off (#204) and writes a file rather than satisfying a
+                // validated contract. On today's tree the two scopes agree — `setVoice
+                // ProcessingEnabled` appears nowhere in `Sources/` — so this is alignment, not
+                // a bug fix. It also keeps `TheInputEdgeFollowsTheHardwareFormatTests`' law
+                // literally true: the raw `inputFormat` DECISION is still read exactly once.
+                let tapFmt = input.outputFormat(forBus: 0)
                 if tapFmt.sampleRate > 0, tapFmt.channelCount > 0 {
                     monitorTapSampleRate = tapFmt.sampleRate
                     monitorTapChannelCount = tapFmt.channelCount   // #826, the gate's other half
@@ -2828,8 +2854,11 @@ public final class AudioEngine {
                     // --source` finds emitters by scanning source text, and a multi-line
                     // literal made it report the step as MISSING during #954 — a healthy run
                     // would then read as a death. The MARKER stays on one line; only the
-                    // detail is concatenated. (212 chars on one line also passed the lint
-                    // error threshold of 200.)
+                    // detail is concatenated. ⛔ A parenthetical here claimed the one-line
+                    // form "passed the lint error threshold of 200" at 212 chars. Wrong twice:
+                    // it measured 205, which EXCEEDS 200 — and `line_length` is in
+                    // `.swiftlint.yml`'s `disabled_rules`, so that threshold is inert. The
+                    // ladder is the only reason this split exists.
                     logMonitorOutcome("on 5/5 SKIPPED: node reports no usable tap format ("
                                       + "\(tapFmt.sampleRate) Hz/\(tapFmt.channelCount) ch)"
                                       + " — monitoring continues WITHOUT notch defence"

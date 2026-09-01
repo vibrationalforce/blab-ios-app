@@ -268,6 +268,22 @@ final class TheInputEdgeFollowsTheHardwareFormatTests: XCTestCase {
             must happen ONCE and be carried in `inFmt`; a second raw read re-introduces \
             exactly the stale value the founder log ended on.
             """)
+        // ⭐ #956 AMENDED THIS LAW AND THE AMENDMENT IS PINNED HERE, not left implicit. The
+        // TAP deliberately asks the node again at its own rung, because `installTap` validates
+        // its format against the node's OWN bus and `inFmt` may be a session substitute the
+        // node never reported — a second uncatchable abort, one rung later. That read uses the
+        // OUTPUT scope (what a tap validates against, and what every other tap in this repo
+        // reads), so the assertion above stays literally true: the raw `inputFormat` DECISION
+        // is still made exactly once. ⚠️ The scopes agreeing is not the point — writing the
+        // tap's read in the same accessor as the decision's would silently merge two rules
+        // that exist for different reasons.
+        XCTAssertEqual(occurrences(of: "input.outputFormat(forBus: 0)", in: code), 1, """
+            The tap's own format read is gone, or there is now more than one. Exactly one \
+            `input.outputFormat(forBus: 0)` belongs in this file: the read at rung 5/5 that \
+            `installTap` is then handed (#956). Zero means the tap is back on a carried \
+            format — the abort this pins against; more than one means a second tap or a \
+            second decision, and this file's whole subject is that the input edge decides once.
+            """)
     }
 
     /// claim 6 (FORWARD) — rung 3/5 must NAME the format it forces onto the edge. Until #954

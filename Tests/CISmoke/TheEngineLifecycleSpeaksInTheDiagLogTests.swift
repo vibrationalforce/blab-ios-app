@@ -87,7 +87,7 @@
 // ⛔ GRADING, claims (c3) + (c4) (#908) — AND THE FIRST DRAFT OF THIS BLOCK SAID (c3) WAS
 // RETIRED. It is not. #908 taught `scripts/diag-ladder.py` a terminator, and I concluded the
 // numbered spelling was safe; the review disproved it with a log: `on 4/5 SKIPPED` WALKS ON,
-// so a log ending there is a death inside `installTap`, and the draft printed `⏹ ended`,
+// so a log ending there is a death in the TAP REGION (⚠️ #956 widened it: the rung now re-reads the node's output format first, and it can end in `on 5/5 SKIPPED: node reports no usable tap format`, which is a REPORT and not a death), and the draft printed `⏹ ended`,
 // exit 0. In a LOG the walks-on and the returning form are the same shape, so the tool
 // rescues only UNNUMBERED terminators and (c3) is what keeps the ambiguous spelling out of
 // `Sources/`. (c3) is graded: red on `da06482` (both numbered lines), green on the worktree;
@@ -897,8 +897,12 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         //      a rung number. #908's first draft retired this, on the reasoning that the tool
         //      had been taught to read the numbered form. That was wrong, and the review
         //      proved it with a log: `on 4/5 SKIPPED` in `AudioEngine` WALKS ON (`on 5/5:
-        //      installing input tap` follows), so a log ending on that line is a death INSIDE
-        //      `installTap` — the `isInputConnToConverter` region the ladder exists for — and
+        //      installing input tap` follows), so a log ending on that line is a death in the
+        //      TAP REGION — the `isInputConnToConverter` family the ladder exists for — and
+        //      (⚠️ #956: that region gained a node-format read and a SECOND skip reason, so an
+        //      end there can also be a REPORT; the twin note in this file's header says the
+        //      same, and #456's law is that a repair goes into every home, not the one you
+        //      happened to be editing)
         //      the draft printed `⏹ ended`, exit 0, telling the reader not to look there.
         //
         // ⭐ THE REASON IT CANNOT BE FIXED IN THE TOOL: in a LOG, a numbered skip that WALKS ON
@@ -1195,16 +1199,26 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         }
 
         // The two conditional ON steps must carry BOTH an emitter for taken and for skipped.
+        //
+        // ⛔ THIS PINNED EXACT COUNTS (2 and 1) AND #956 MADE BOTH RED ON A CORRECT TREE — the
+        // #364 shape, and the reason is instructive: a step can gain a SECOND legitimate skip
+        // reason. `on 5/5` now skips either because a tap is already installed or because the
+        // node reports no usable tap format, and adding the second reason is exactly the kind
+        // of work #882's law wants (a gated step that does not run must SAY so). The PROPERTY
+        // is "at least one taken and at least one skipped", never "exactly one of each" — an
+        // equality here forbids the next honest reason. Counts also rot silently (#903).
         for step in ["on 4/5", "on 5/5"] {
-            XCTAssertEqual(occurrences(of: "\"\(step)", in: code), 2, """
-                `\(step)` no longer has both a taken and a SKIPPED emitter (#882). It is \
-                gated (`wasRunning` / `!monitorTapInstalled`), so without the skip line a \
-                healthy run looks like it died there.
+            let all = occurrences(of: "\"\(step)", in: code)
+            let skipped = occurrences(of: "\(step) SKIPPED", in: code)
+            XCTAssertGreaterThanOrEqual(all - skipped, 1, """
+                `\(step)` has no TAKEN emitter (\(all) literal(s), \(skipped) of them SKIPPED). \
+                It is gated (`wasRunning` / `!monitorTapInstalled`), so without the taken line \
+                a healthy run cannot be told from a death at the previous rung.
                 """)
-        }
-        for skip in ["on 4/5 SKIPPED", "on 5/5 SKIPPED"] {
-            XCTAssertEqual(occurrences(of: skip, in: code), 1,
-                           "the `\(skip)` line is gone — the gated step falls silent again (#882).")
+            XCTAssertGreaterThanOrEqual(skipped, 1, """
+                `\(step)` has no SKIPPED emitter (#882). The step is gated, so a healthy run \
+                that simply did not need it looks like a death there.
+                """)
         }
 
         // ORDER on the new OFF rung: it stands BEFORE the call it names (#862b).
