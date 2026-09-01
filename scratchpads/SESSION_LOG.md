@@ -19665,3 +19665,121 @@ Prüf-Ergebnis gehört gelesen, nicht befolgt.
 `needle-reachability` sauber · `doctor` unverändert die zwei bekannten founder-gated CI-Masken ·
 jede Nadel des neuen Wächters vorher per `grep` belegt.
 **Kompiliert ist noch nichts** — das liest der nächste Zyklus.
+
+---
+
+## #948 — Pitch-Bend beugt die klingende Note, nicht mehr A4 (2026-09-01)
+
+**Gates von #947 gelesen:** `Xcode Compile Check` grün, `Quick Test` grün, CI/CD lief noch
+(Prüfung des `build-for-testing`-Schritts steht für den nächsten Zyklus aus).
+
+**Der Defekt, und er stand als aufgeschobene Entscheidung im Code.** `case .pitchBend` nahm
+`soundingFrequency(forMIDINote: event.note > 0 ? event.note : 69)`. Der EINZIGE Produzent,
+`MIDIBusPublisher.onPitchBend`, schreibt `note: 0` bedingungslos — also feuerte der `: 69`-Zweig
+auf **jedem echten Bend** und die Basis war A4 (440 Hz) gegen das ~110-Hz-Nominal dieser Stimme.
+Gemessen: −1 → 392 Hz, 0 → 440 Hz, +1 → 493,88 Hz, also +22 bis +26 Halbtöne. Ein Rad, das in
+die **Mitte** zurückfedert, war nicht ausgenommen: Wert 0 schrieb ebenfalls 440 Hz.
+
+**Warum es liegenblieb, und warum es jetzt geht.** Der Vermerk sagte „choosing the right
+fallback … is a decision, not a tidy-up" — am Tag seiner Entstehung korrekt: `heldNotes` gab es
+noch nicht, die Stimme konnte gar nicht sagen, was sie spielt. **#943 hat den Stapel gebracht**,
+und damit ist aus der Entscheidung die Antwort geworden, die jeder Synthesizer gibt: ein Rad
+beugt die Note unter dem Finger.
+
+Drei Zweige, in dieser Reihenfolge: `event.note` wenn > 0 (heute tot, aber ein zonenfähiger
+Parser wird ihn füllen — der Bend eines Member-Kanals gehört SEINER Note; explizite Information
+schlägt Ableitung) · die oberste gehaltene Taste · `nominalFrequency`, wenn nichts gehalten wird
+(dann ist die Drone das einzige Klingende, und ihr Zuhause ist die Ruhestimmung, die #946 an
+beide Stimmachsen gehängt hat). Mittiges Rad ist damit wieder ein No-Op — was „mittig" heißt. **(⛔ Die erste Fassung dieses Satzes
+galt nur mit GEDRÜCKTER Taste und war ohne falsch — siehe #948b unten.)**
+
+⭐ **Der BEND-ANTEIL des Rest-Fehlers ist zurück bei ±2 Halbtönen — genau der
+⛔ **Der GESAMT-Rest ist es nicht** — siehe #948b unten; die erste Fassung dieses Absatzes
+hat beides verwechselt.
+Größe, die #945s erste Fassung GERATEN hatte.** Sie war falsch, als sie geschrieben wurde;
+richtig wird sie jetzt nicht durch Nachmessen, sondern dadurch, dass der Code repariert ist. Die
+⛔-Rücknahme in der Datei sagt das ausdrücklich so, damit niemand daraus liest, #945b hätte sich
+geirrt.
+
+**Wächter:** `APanicUnbendsTheVoiceTests` — **18 Zusicherungen, 3 Regressionsfänge (Ansprüche 5,
+6, 7), 15 Gegengewichte** gegen den #946-Baum. Beide Bäume nach Python transkribiert und alle 18
+getrieben (`scratchpad/e948_sim.py`): 0 rot auf dem neuen, exakt {5, 6, 7} rot auf dem alten.
+Die Datei **kompiliert gegen den Vor-#948-Baum** — sie benutzt keine neue API —, die drei Fänge
+sind dort also echte Rote und keine Build-Fehler.
+
+⚠️ **Anspruch 1b wurde ERSETZT, nicht nachgezogen, und das ist die Lehre dieser Scheibe.** Er
+fuhr einen MITTIGEN Bend, weil der auf dem alten Baum A4 schrieb. #948 macht genau das zum
+No-Op — der Anspruch wäre **grün geblieben und hätte nichts mehr gemessen** (#488), und zwar
+unter der Überschrift „the case that makes this a real defect". Ein leerer Anspruch mit starker
+Überschrift ist schlimmer als keiner. 1b fährt jetzt gewöhnliches Spielen (Note an, Note aus,
+Stop) und pinnt, dass der Atemton nach einem Take heimkommt.
+
+⚠️ **Auch Anspruch 1 hatte eine Vorbedingung, die nichts fragte:** sie verglich nur gegen das
+Nominal — das erfüllt schon die NOTE-ON allein, der Anspruch wäre grün geblieben, wenn der Bend
+zum No-Op geworden wäre. Jetzt stehen dort zwei Vorbedingungen, und die erste fragt, ob der
+BEND etwas bewegt hat.
+
+**Prosa-Nachzug (#456):** der `panic()`-Kommentar in `BioReactiveSynthVoice` (die
+Zwei-Oktaven-Rechnung ist jetzt datiert statt behauptet), der Kopf des Wächters, die
+`bend(_:)`-Hilfsfunktion und die NEEDS-FOUNDER-VERIFY-Bitte. `git grep` über `Sources`, `Tests`,
+`docs`, `ContentPipeline`, `CLAUDE.md` fand keine weitere Stelle, die den A4-Rückfall als
+Gegenwart behauptet.
+
+**Instrumente:** `dead-needles` 394 + Selbsttest OK · `count-pins` 137/160, 0 rot ·
+`needle-reachability` sauber · `doctor` unverändert die zwei bekannten founder-gated CI-Masken.
+**Kompiliert ist noch nichts** — das liest der nächste Zyklus.
+
+---
+
+## #948b — der Reviewer fand zwei Blocker, und einer war ein NEUER Fehler meiner eigenen Reparatur (2026-09-01)
+
+**B1, und er ist die Lehre der Scheibe.** #948 ließ einen Bend OHNE gedrückte Taste auf
+`nominalFrequency` zurückfallen, und ich schrieb dazu „ein mittiges Rad ist wieder ein No-Op".
+Das war **mit gehaltener Taste wahr und ohne falsch** — und ohne ist genau der Zustand, in dem
+der Atemton lebt: `releaseNote()` fasst `frequency` nicht an, damit der Körper die Note
+übernimmt (die Geste, die Anspruch 3 schützt). Ein zurückfederndes Rad riss sie ihm dann weg.
+
+⭐ **Der Fehler, den #948 beseitigen sollte, lautet „eine Bend-Nachricht tut etwas, das sie
+nichts angeht" — und meine Reparatur hat ihn einen Fall weiter NEU erzeugt.** Nicht als
+Flüchtigkeit: ich hatte drei Zweige durchdacht und den vierten Zustand nicht gesehen. Ein
+Wächter hätte ihn gefangen, wenn ich ihn geschrieben hätte; Anspruch 6 fuhr nur den einfachen
+Fall. **Gefunden hat ihn der Pflicht-Reviewer, nicht das Werkzeug** — dasselbe Muster wie bei
+#945 B1/B2, dreimal in Folge in derselben Datei.
+
+Reparatur: `lastSoundingNote` als **dritter** Zweig — die Note, die die Stimme noch klingen
+lässt, nachdem der letzte Finger gegangen ist. Nur eine Stimme, die nie etwas gespielt hat,
+fällt auf die Ruhestimmung durch. `panic()` löscht die Merkstelle mit, denn sie ist
+Controller-Zustand wie die drei Verriegelungen davor.
+
+**B2 — die Zahl, die in die schmeichelnde Richtung log.** Ich schrieb „der Rest, den `panic()`
+wegräumen muss, ist zurück bei ±2 Halbtönen". Der BEND-Anteil ist es; der GESAMT-Rest nicht: C4
+gehalten, Rad daneben, Kabel raus → ~17 Halbtöne über der Ruhestimmung. **Und gewöhnliches
+Spielen allein strandet die Tonhöhe schon** — genau deshalb fährt Anspruch 1b das. So gelesen
+sieht die Restore-Zeile fast überflüssig aus, und das ist dieselbe Untertreibung, die derselbe
+Absatz #945 vorwirft.
+
+**Wächter jetzt: 20 Zusicherungen, 5 Regressionsfänge gegen den #946-Baum, 15 Gegengewichte.**
+Zwei neue Ansprüche: **6b** (mittiger Bend NACH dem Loslassen — rot auf beiden früheren Bäumen,
+also auch auf meinem eigenen ersten Entwurf) und **9** (panic löscht die Merkstelle).
+
+⚠️ **S1 mitgenommen, und es ist ein Gesetz:** mein Kopf zitierte `scratchpad/e948_sim.py` als
+Beleg der Benotung. Ein Scratch-Skript darf gar nicht committet werden (`context.md` §5) — die
+Benotung hätte für immer auf einer Quelle geruht, die kein späterer Leser öffnen kann. Statt des
+Pfades steht jetzt die **Algebra** im Kopf: 110 · 261,63 · 1,1225 · 1,888 · 4,490, jede Zahl von
+Hand nachrechenbar.
+
+Ebenfalls nachgezogen: die #364-Klausel an Anspruch 7 (er hängt an genau der offenen
+Founder-Frage dieser Datei), Anspruch 8 nennt jetzt den HANDEL statt eine Anweisung, das
+veraltete „440 → 110"-Beispiel im Chirp-Kommentar, und der Sentinel-Hinweis (`event.note > 0`
+kann „keine Note" nicht von MIDI-Note 0 unterscheiden — heute harmlos, für den Zonen-Parser
+notiert).
+
+**Nachbar-Wächter geprüft, nicht angenommen:** der 900-Zeichen-Fensterschnitt in
+`EveryPitchedVoiceFollowsTheToneSystemTests` (die neue Zuweisung verschiebt ihn — `isArmed`
+weiterhin draußen, `soundingFrequency(forMIDINote:` weiterhin drin) und die Klammerung des
+`.noteOff`-Zweigs in `TheMonoVoiceKeepsTheKeyStillDownTests` (`synth.frequency =` drin,
+`playNote(` draußen).
+
+**Instrumente:** unverändert grün (`dead-needles` 394 + Selbsttest · `count-pins` 137/160, 0 rot
+· `needle-reachability` sauber · `doctor` die zwei bekannten founder-gated CI-Masken).
+**Kompiliert ist noch nichts** — das liest der nächste Zyklus.

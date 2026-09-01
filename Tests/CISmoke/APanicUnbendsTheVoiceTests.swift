@@ -1,5 +1,5 @@
 // APanicUnbendsTheVoiceTests.swift
-// Echoel — #945 / #945b. Blocking bundle. END-TO-END BEHAVIOUR throughout, on a shipped,
+// Echoel — #945 / #945b / #946 / #948 / #948b. Blocking bundle. END-TO-END BEHAVIOUR throughout, on a shipped,
 // constructible type (`Tests/CISmoke/CLAUDE.md` §1). There is NO source-text claim in this
 // file. ⛔ #945b: the first version of this line said "plus ONE source-text claim that is
 // labelled as such" — there was none, and in a header whose whole job is honest labelling
@@ -20,19 +20,42 @@
 // in-tune value — but with the controller unplugged, the case this exists for, no such event
 // arrives).
 //
-// ⛔ #945b — AND HOW FAR OFF WAS UNDERSTATED BY TWO ORDERS, in the direction that makes a
-// defect look ignorable. The first version said "up to two semitones", reading
-// `event.value * 2.0` as if the bend applied to the note being played. The ONE production
-// producer is `MIDIBusPublisher`'s `onPitchBend`, and it writes `note: 0` unconditionally
-// (`docs/architecture.html` states the same fact), so `case .pitchBend`'s
-// `event.note > 0 ? event.note : 69` fallback fires on EVERY REAL BEND and the base is A4.
-// Measured: −1 → 392 Hz, 0 → 440 Hz, +1 → 493.88 Hz, i.e. **+22 to +26 semitones above this
-// voice's nominal — roughly two octaves**. And the centre value is not exempt: a wheel
-// springing back to 0 strands the voice at A4 exactly the same, so the trigger is "any bend
-// message at all", not "nudge the wheel". Claim 1b drives that centre case for that reason.
-// ⚠️ The first version's helper also took a `note:` and both call sites passed 60 — a shape
-// production can never emit. A guard that drives an impossible configuration measures nothing
-// about the shipped path (#367).
+// ⛔ HOW FAR OFF — THE ANSWER CHANGED TWICE, AND THE SECOND TIME BY FIXING THE CODE. #945
+// first said "up to two semitones", reading `event.value * 2.0` as if the bend applied to the
+// note being played. #945b measured the tree instead and found TWO OCTAVES: `case .pitchBend`
+// fell back to note 69 (A4 = 440 Hz) on every production bend, because the ONE producer,
+// `MIDIBusPublisher.onPitchBend`, writes `note: 0` unconditionally. Measured on that tree:
+// −1 → 392 Hz, 0 → 440 Hz, +1 → 493.88 Hz. A centred wheel was not exempt either — value 0
+// still wrote 440 Hz — so the trigger was "any bend message at all".
+//
+// ⭐ **#948 REMOVED THAT FALLBACK.** The base is the note the voice is SOUNDING — the wire's
+// note if a future zone parser supplies one, else the top of #943's held stack, else
+// `lastSoundingNote` (the note the breath took over when the last finger lifted), and only a
+// voice that has played nothing at all falls through to its nominal.
+//
+// ⛔ #948b — THE THIRD BRANCH IS THERE BECAUSE #948's FIRST DRAFT STOPPED AT THE NOMINAL, and
+// this header said "a centred wheel is a NO-OP again" while that was TRUE only with a key
+// held. Lift the key and `releaseNote()` leaves the pitch alone so the body can take the note
+// over (claim 3); a centred bend then snapped the drone home. The bug #948 exists to remove is
+// "a bend message does something it has no business doing", and the first fix reproduced it one
+// case along. Found by the mandatory reviewer. Claim 6b is that case, and it is red on BOTH
+// earlier trees.
+//
+// ⚠️ WHAT SHRANK AND WHAT DID NOT. The BEND's own contribution is back to ±2 semitones. The
+// residual `panic()` has to clear is NOT: it is the last played note plus that bend — hold C4
+// with the wheel off centre and pull the cable and the voice sits ~17 semitones high. Ordinary
+// playing alone already strands it, which is exactly why claim 1b drives that. Reading
+// "±2 semitones" as "how far panic travels" makes the restore look nearly unnecessary, which
+// is the same flattering direction this header scolds #945's first draft for.
+//
+// Claim 1b, which used to drive the centre case, now drives ORDINARY PLAYING: a centred bend
+// no longer moves anything, so as written it would have measured nothing ABOUT CENTRED BENDS
+// while staying green — a vacuous green (#488) under the file's strongest heading.
+//
+// ⚠️ #945b's helper took a `note:` and both call sites passed 60 — a shape production can
+// never emit. A guard that drives an impossible configuration measures nothing about the
+// shipped path (#367). The helper still sends `note: 0` for that reason; claim 8 is the only
+// one that sets a note, and it exists to pin the branch that a zone parser will use.
 //
 // ⚠️ WHAT THE SCOPE ACTUALLY IS. ⛔ #945b: the first version of this paragraph said "only
 // `panic()` changes" and that was false. `panic()` is what `PanicFanOut` calls for this voice
@@ -41,9 +64,11 @@
 // pitch resets on every Stop and on the playback-only pause too. What is genuinely unchanged
 // is the NOTE-OFF path: inside one continuous take the breath still follows the last played
 // note, and claim 3 pins exactly that.
-// NEEDS-FOUNDER-VERIFY: MIDI-Keyboard anschließen, eine Note spielen, Pitch-Bend-Rad bewegen
-// und LOSLASSEN (Mitte genügt); dann "Body voice" einschalten und atmen — der Atemton muss
-// auf der Grundstimmung liegen, nicht zwei Oktaven darüber. Und die offene Frage: nach jedem
+// NEEDS-FOUNDER-VERIFY: MIDI-Keyboard anschließen, eine Note halten und das Pitch-Bend-Rad
+// bewegen — die GEHALTENE Note muss sich um bis zu zwei Halbtöne biegen (vor #948 sprang sie
+// auf A4, egal was gespielt wurde). Rad zurück in die Mitte: die Note muss exakt wieder da
+// sein, wo sie war. Dann Stop drücken, "Body voice" einschalten und atmen — der Atemton muss
+// auf der Grundstimmung liegen. Und die offene Frage bleibt: nach jedem
 // Stop und jeder Pause springt der Atemton auf A2 zurück, auch wenn die Komposition in einer
 // anderen Tonart läuft (diese Stimme kennt die Tonart nicht) — richtig so, oder soll er die
 // zuletzt gespielte Note über einen Stop hinweg behalten?
@@ -53,12 +78,24 @@
 // each implementation was transcribed into Python and every assertion driven against it, with
 // the expectations derived from the algebra (#442).
 //
-// **13 assertions.** Against the tree #946 was cut from (#945b): **2 REGRESSION CATCHES** —
-// claim 1c's concert-pitch and tone-system assertions — and **11 COUNTERWEIGHTS (#343)**.
-// Against the tree the file was BORN on (pre-#945, no pitch restore at all): the four
-// panic-restore assertions of claims 1 and 1b are the catches instead. Both readings are
-// stated because quoting only the second would inflate what THIS commit proves, and quoting
-// only the first would hide what the file as a whole pins. **0 broken, 0 red on the worktree.**
+// **20 assertions.** Against the tree #948 was cut from (#946): **5 REGRESSION CATCHES** —
+// claims 5, 6, 6b, 7 and 9, all of them the bend base — and **15 COUNTERWEIGHTS (#343)**.
+// Against #948's own first draft, ONE catch: claim 6b. Against #945b's tree: claim 1c's two
+// tuning assertions. Against the tree the file was BORN on (pre-#945, no pitch restore at
+// all): the panic-restore assertions of claims 1 and 1b. Every reading is stated because
+// quoting only the newest inflates what THIS commit proves, and quoting only the oldest hides
+// what the file as a whole pins. **0 broken, 0 red on the worktree.**
+//
+// No local Swift toolchain, so all three implementations were transcribed into Python and
+// every assertion driven against each. The witness is the ALGEBRA, not a file — a scratch
+// script cannot be committed (`.claude/rules/context.md` §5), so citing its path would leave
+// this grading resting on something no later reader can open. Re-derive by hand: nominal is
+// `soundingFrequency(45)` = 110 Hz at 12-TET/A440; C4 is 261.63; a full bend is ×2^(2/12) =
+// 1.1225. Pre-#948 every bend based on A4, so claim 5 read 493.88/261.63 = 1.888 (expected
+// 1.1225) → red; claim 6 read 440 against 261.63 → red; claim 7 read 493.88/110 = 4.490 → red;
+// claims 6b and 9 read 440 against 261.63 and against 110 → red. On #948's first draft claim
+// 6b read 110 against 261.63 → red, and that one alone. Everything else is green on every
+// tree that compiles the file.
 //
 // ⛔ THE GRADING OF THIS FILE HAS NOW BEEN WRONG THREE TIMES, each for a different reason, and
 // the sequence is worth more than any of the numbers. Draft 1 GUESSED (7/2 instead of 8/1), in
@@ -69,9 +106,10 @@
 // **A grading is a verdict about a SCENARIO measured against a NAMED tree.** Miss any of the
 // three and the number reads as more than it is.
 //
-// ⚠️ THE FILE DOES NOT COMPILE AGAINST THE PRE-#945 TREE: `nominalFrequencyForTests` is new
-// there. Every assertion still HAS a meaning — said plainly so it cannot read as "green
-// there" (#488).
+// ⚠️ THE FILE COMPILES AGAINST BOTH THE PRE-#948 TREE AND #948's FIRST DRAFT — it uses no API
+// either of them lacked — so all five catches are real reds there, not build errors. It does NOT compile against the pre-#945
+// tree (`nominalFrequencyForTests` is new there); every assertion still HAS a meaning, said
+// plainly so it cannot read as "green there" (#488).
 //
 // ⚠️ NO Hz LITERAL IS PINNED. `EchoelDDSP.frequency`'s default and `tuningA4Hz` both belong to
 // shipped types; restating either here would be the #416 defect, and pinning 110.0 would redden
@@ -93,9 +131,9 @@ final class APanicUnbendsTheVoiceTests: XCTestCase {
     /// #945b — `note: 0`, because that is what the ONE production producer emits:
     /// `MIDIBusPublisher.onPitchBend` writes it unconditionally. The first version took a
     /// `note:` and both call sites passed 60 — a shape the shipped path can never produce, so
-    /// it measured nothing about it (#367). With 0, `case .pitchBend`'s
-    /// `event.note > 0 ? event.note : 69` fallback fires and the base is A4, which is the whole
-    /// reason the residual is two octaves rather than two semitones.
+    /// it measured nothing about it (#367). Since #948 a `note: 0` bend takes its base from
+    /// the top of the held stack, or from the voice's nominal when nothing is held; claim 8 is
+    /// the only place that sets a note, to pin the branch a zone parser will use.
     private func bend(_ value: Float) -> ControllerEvent {
         ControllerEvent(timestamp: 3, kind: .pitchBend, channel: 1, note: 0, value: value, auxCC: 0)
     }
@@ -106,16 +144,22 @@ final class APanicUnbendsTheVoiceTests: XCTestCase {
         let v = BioReactiveSynthVoice()
         let nominal = v.nominalFrequencyForTests
         v.applyControllerForTests(note(60, on: true))
+        let played = v.synth.frequency
         v.applyControllerForTests(bend(1.0))
         let bent = v.synth.frequency
 
-        // precondition, or claim 1 is vacuous: the bend really moved the pitch (#367). It is
-        // compared against the NOMINAL, not against C4 — with `note: 0` the bend does not
-        // build on the key being held at all, it lands near A4 regardless (#945b).
-        XCTAssertGreaterThan(bent, nominal * 2, """
-            The bend left the voice within an octave of its nominal, so the restore below \
-            proves little. Re-derive: the producer sends `note: 0`, `case .pitchBend` falls \
-            back to note 69, so the base is A4 and value 1.0 lands at 440 * 2^(2/12).
+        // TWO preconditions, or claim 1 is vacuous (#367). ⛔ #948: the single precondition
+        // that stood here compared only against the NOMINAL, which the NOTE-ON alone already
+        // satisfies — it would have stayed green even if the bend had become a no-op. The
+        // first line below is the one that actually asks whether the BEND moved anything.
+        XCTAssertGreaterThan(bent, played * 1.05, """
+            The bend did not move the pitch off the note being played, so the restore below \
+            proves nothing about bends. Re-derive: `case .pitchBend` maps value 1.0 to +2 \
+            semitones, a ratio of ~1.122 against the sounding note (#948).
+            """)
+        XCTAssertGreaterThan(bent, nominal * 1.5, """
+            The bent pitch is close to the nominal, so `panic()` restoring the nominal below \
+            would be nearly indistinguishable from doing nothing.
             """)
 
         v.panic()
@@ -130,31 +174,39 @@ final class APanicUnbendsTheVoiceTests: XCTestCase {
             """)
     }
 
-    /// claim 1b (#945b) — THE CASE THAT MAKES THIS A REAL DEFECT RATHER THAN AN EDGE ONE, and
-    /// the one the first version could not express because its helper took a `note:`. A bend
-    /// value of ZERO is what a wheel sends when it springs back to centre — every keyboard, on
-    /// every release. Because the producer sends `note: 0`, that centre message still strands
-    /// the voice at A4, two octaves above nominal. So the trigger is not "nudge the wheel"; it
-    /// is "any pitch-bend message at all".
-    func testEvenABendReturnedToCentreStrandsTheVoiceUntilPanic() {
+    /// claim 1b — ORDINARY PLAYING, NO CONTROLLER MISCHIEF AT ALL: play a note, lift it,
+    /// Stop. The breath tone must come home to the nominal.
+    ///
+    /// ⛔ #948 REPLACED THIS CLAIM'S SCENARIO, and the reason is the point. #945b drove a
+    /// CENTRED bend here, because on that tree a wheel springing back to centre still wrote
+    /// A4 — so "any bend message at all" was the trigger. #948 made a centred bend a no-op,
+    /// which is what "centred" means; the old scenario therefore measured nothing ABOUT
+    /// CENTRED BENDS — its assertions would still have been green and still meaningful about
+    /// panic restoring the nominal, which is precisely the shape of half-empty precondition
+    /// the ⛔ inside claim 1 diagnoses. A vacuous green (#488) under the file's strongest
+    /// heading is worse than no claim. What is left
+    /// worth pinning is the plainer half: after a take, a Stop puts the drone back on its own
+    /// pitch, so the next breath is in tune with the composition rather than with whatever
+    /// key was pressed last.
+    func testPanicRestoresTheNominalAfterOrdinaryPlayingToo() {
         let v = BioReactiveSynthVoice()
         let nominal = v.nominalFrequencyForTests
         v.applyControllerForTests(note(60, on: true))
-        v.applyControllerForTests(bend(0))                 // wheel back at centre
 
-        XCTAssertGreaterThan(v.synth.frequency, nominal * 2, """
-            A centred bend left the voice near its nominal. If `case .pitchBend` learned to \
-            ignore a centred value, or the producer stopped sending `note: 0`, this claim and \
-            the two-octave arithmetic in this file's header must be rewritten together — the \
-            header argues from exactly this fallback.
+        XCTAssertGreaterThan(v.synth.frequency, nominal * 1.5, """
+            precondition: the note played is far enough from the nominal that restoring it \
+            below is distinguishable from doing nothing (#367).
             """)
 
+        v.applyControllerForTests(note(60, on: false))
         v.panic()
 
         XCTAssertEqual(v.synth.frequency, nominal, accuracy: 1e-3, """
-            `panic()` did not restore the nominal after a CENTRED bend. This is the common \
-            case, not the edge one: releasing the wheel sends it, so an ordinary keyboard \
-            leaves the breath voice two octaves high with no control able to fix it.
+            `panic()` did not restore the nominal after ordinary playing. No bend is involved \
+            here: `playNote(frequency:)` writes `synth.frequency` on every note-on, and the \
+            frequency-less breath `playNote()` inherits whatever is left there (claim 2). \
+            Without this line the drone follows the last key pressed for the rest of the \
+            session, across every Stop.
             """)
     }
 
@@ -268,5 +320,133 @@ final class APanicUnbendsTheVoiceTests: XCTestCase {
         XCTAssertEqual(v.synth.renderCutoffScale, 1, accuracy: 1e-6,
                        "#942's slide latch survived a panic")
         XCTAssertFalse(v.heldByControllerForTests, "#943's held-key stack survived a panic")
+    }
+
+    /// claim 5 (#948) — **THE FIX ITSELF.** A bend bends the note under your finger. Before
+    /// #948 the base was A4 on every production bend, so holding C4 and pushing the wheel
+    /// jumped the voice to 493.88 Hz — nearly two octaves up — instead of to a note a
+    /// semitone-and-a-bit above C4.
+    ///
+    /// The assertion is a RATIO against a frequency read back from the voice itself, so it
+    /// survives any tuning table and any concert pitch (#364) and pins no Hz literal (#416).
+    func testABendBendsTheNoteThatIsSounding() {
+        let v = BioReactiveSynthVoice()
+        let sounding = v.soundingFrequency(forMIDINote: 60)
+        v.applyControllerForTests(note(60, on: true))
+        v.applyControllerForTests(bend(1.0))
+
+        XCTAssertEqual(v.synth.frequency / sounding, powf(2, 2.0 / 12), accuracy: 1e-4, """
+            A full bend did not land two semitones above the note being held. On the pre-#948 \
+            tree this ratio was ~1.888 (440 Hz base against C4) rather than ~1.122, because \
+            `case .pitchBend` fell back to note 69 whenever the event carried no note — which \
+            the one production producer, `MIDIBusPublisher.onPitchBend`, always does.
+            """)
+    }
+
+    /// claim 6 (#948) — a CENTRED wheel changes nothing. This is the message every keyboard
+    /// sends when a finger leaves the wheel, so on the pre-#948 tree it was the single most
+    /// common way to detune the voice: value 0 wrote 440 Hz regardless of what was playing.
+    func testACentredBendIsANoOp() {
+        let v = BioReactiveSynthVoice()
+        v.applyControllerForTests(note(60, on: true))
+        let played = v.synth.frequency
+        v.applyControllerForTests(bend(0))
+
+        XCTAssertEqual(v.synth.frequency, played, accuracy: 1e-3, """
+            A bend at CENTRE moved the pitch. Releasing the wheel sends exactly this message, \
+            so an ordinary player would hear the held note jump for no reason. Re-derive: \
+            value 0 → 0 semitones → the base unchanged, and since #948 the base is the note \
+            being held. Claim 6b drives the harder half of this, after the key is lifted.
+            """)
+    }
+
+    /// claim 7 (#948) — with NO key down, the bend works from THIS VOICE'S nominal, not from
+    /// A4. Since #948b this is the LAST branch, reached only by a voice that has played
+    /// nothing at all; its home is the resting pitch claim 1c pinned to both tuning axes.
+    ///
+    /// ⚠️ THIS PINS TODAY'S ANSWER, NOT A LAW (#364), and it is the assertion most exposed to
+    /// this file's own open founder question. If the founder answers that the breath tone
+    /// should keep the last played note across a Stop, branch 4 changes and this claim is what
+    /// must change in the same commit — not an obstacle to it.
+    func testABendWithNoKeyDownWorksFromTheVoicesOwnNominal() {
+        let v = BioReactiveSynthVoice()
+        let nominal = v.nominalFrequencyForTests
+        v.applyControllerForTests(bend(1.0))
+
+        XCTAssertEqual(v.synth.frequency / nominal, powf(2, 2.0 / 12), accuracy: 1e-4, """
+            A bend with nothing held did not build on the voice's nominal. On the pre-#948 \
+            tree this ratio was ~4.49 — the A4 fallback against a nominal two octaves below \
+            it — which is the two-octave strand this file's header describes.
+            """)
+    }
+
+
+    /// claim 6b (#948b) — **THE CASE #948's FIRST DRAFT GOT WRONG, and the reviewer found it,
+    /// not a guard.** Lift the key, then let the wheel spring back. `releaseNote()` never
+    /// touches `frequency`, so the voice is still sounding the note the body just took over
+    /// (claim 3). A centred bend must leave it exactly there.
+    ///
+    /// #948's first version based a keyless bend on `nominalFrequency`, so this snapped the
+    /// drone home — a bend message doing something it has no business doing, which is the very
+    /// defect #948 exists to remove. RED on the pre-#948 tree (440 Hz) AND on #948's own first
+    /// draft (the nominal); green only with `lastSoundingNote` as branch 3.
+    func testACentredBendAfterTheKeyIsLiftedIsAlsoANoOp() {
+        let v = BioReactiveSynthVoice()
+        v.applyControllerForTests(note(60, on: true))
+        v.applyControllerForTests(note(60, on: false))
+        let takenOver = v.synth.frequency
+        v.applyControllerForTests(bend(0))
+
+        XCTAssertEqual(v.synth.frequency, takenOver, accuracy: 1e-3, """
+            A centred bend moved the pitch after the key was lifted. That is the state the \
+            breath tone lives in — the body has taken the note over — and releasing the wheel \
+            is not a gesture, it is what a finger leaving it sends. Re-derive: `case \
+            .pitchBend` branch 3 is `lastSoundingNote`; without it the base falls through to \
+            the nominal and the drone is yanked home.
+            """)
+    }
+
+    /// claim 9 (#948b) — and `panic()` clears that latch, so the memory of a played note does
+    /// not outlive the thing panic exists to end. Without the clear, a bend arriving after a
+    /// Stop would rebuild the pitch panic had just put back.
+    func testPanicClearsTheSoundingNoteMemoryToo() {
+        let v = BioReactiveSynthVoice()
+        let nominal = v.nominalFrequencyForTests
+        v.applyControllerForTests(note(60, on: true))
+        v.applyControllerForTests(note(60, on: false))
+        v.panic()
+        v.applyControllerForTests(bend(0))
+
+        XCTAssertEqual(v.synth.frequency, nominal, accuracy: 1e-3, """
+            A bend after a panic rebuilt the pre-panic pitch. `lastSoundingNote` is controller \
+            state exactly like the three latches claim 4 covers; panic's contract is that \
+            nothing a controller left behind survives it, and it restores the nominal on the \
+            same line.
+            """)
+    }
+
+    /// claim 8 (COUNTERWEIGHT, #948) — the wire still wins when it says something. Nothing
+    /// produces a bend with a note today, but a zone-aware parser (RPN 6,6, still absent) will:
+    /// an MPE member channel's bend belongs to ITS note, not to whatever the mono stack last
+    /// saw. Green on BOTH trees — this branch is the one shape #948 did not change, and it is
+    /// asserted so a later "simplify to the held stack" edit cannot quietly drop it.
+    func testAnExplicitNoteOnTheEventStillWinsOverTheHeldStack() {
+        let v = BioReactiveSynthVoice()
+        let e3 = v.soundingFrequency(forMIDINote: 52)
+        v.applyControllerForTests(note(60, on: true))
+        v.applyControllerForTests(
+            ControllerEvent(timestamp: 3, kind: .pitchBend, channel: 1,
+                            note: 52, value: 0, auxCC: 0))
+
+        XCTAssertEqual(v.synth.frequency, e3, accuracy: 1e-3, """
+            A bend that named its own note was based on the sounding note instead. Today's \
+            order puts the event's note first: explicit information from the wire outranks \
+            inference, and a member channel's bend belongs to ITS note.
+
+            ⚠️ THE TRADE, NOT AN INSTRUCTION (#364). On ONE monophonic voice this yanks the \
+            sounding pitch to a note that is not sounding — which is what this test drives. A \
+            zone-aware slice could reasonably decide a mono voice should IGNORE bends for \
+            non-sounding notes; if it does, this claim changes with it.
+            """)
     }
 }

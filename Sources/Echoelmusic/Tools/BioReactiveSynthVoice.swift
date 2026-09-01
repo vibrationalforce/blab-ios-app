@@ -139,6 +139,25 @@ public final class BioReactiveSynthVoice {
     @ObservationIgnored
     private var heldNotes: [(note: UInt8, at: TimeInterval)] = []
 
+    /// The note the voice is SOUNDING, which outlives the key that started it. #943's stack
+    /// above answers "what is held"; this answers "what is playing", and after the last finger
+    /// lifts those stop being the same thing — `releaseNote()` never touches `frequency`, so
+    /// the breath takes the note over at that pitch (the gesture
+    /// `APanicUnbendsTheVoiceTests` claim 3 protects).
+    ///
+    /// ⭐ #948b — WHY IT HAD TO EXIST. #948's first version based a keyless bend on
+    /// `nominalFrequency`, and the mandatory reviewer showed what that costs: a wheel springing
+    /// back to CENTRE — the message every keyboard sends when a finger leaves it — then snapped
+    /// the drone home and stole the note the body had just taken over. The bug #948 set out to
+    /// fix was "a bend message does something it has no business doing"; the first fix
+    /// reintroduced it one case further along. With this latch a centred wheel is a no-op
+    /// unconditionally, which is what "centred" means.
+    ///
+    /// Cleared by `panic()`, deliberately: panic's contract is that nothing a controller left
+    /// behind survives it, and it restores the nominal on the same line.
+    @ObservationIgnored
+    private var lastSoundingNote: UInt8?
+
     /// Capacity of `heldNotes`. Ten fingers plus headroom for a sustained roll; the exact
     /// number is not musical, only the existence of a ceiling is.
     private static let maxHeldNotes = 16
@@ -331,10 +350,11 @@ public final class BioReactiveSynthVoice {
     }
 
     /// PERFORMANCE PANIC — release the note AND clear everything a controller can strand:
-    /// the held-key stack (#943), the press gain (#939), the slide scale (#942) and the
-    /// pitch (#945). ⚠️ #945b — this one-line summary said "the controller-held latch",
-    /// singular, after three more had joined the method; it is the first line a reader
-    /// sees, so it moves whenever the method does (#456).
+    /// the held-key stack (#943), the press gain (#939), the slide scale (#942), the pitch
+    /// (#945) and the sounding-note memory a later bend would build on (#948b).
+    /// ⚠️ #945b — this one-line summary said "the controller-held latch", singular, after
+    /// three more had joined the method; it is the first line a reader sees, so it moves
+    /// whenever the method does (#456). It has now moved twice for that reason.
     ///
     /// `releaseNote()` alone is not enough for a panic. `heldByController` is true while any
     /// key is down, and a key leaves the stack only on a note-off FOR THAT NOTE. If that
@@ -386,17 +406,22 @@ public final class BioReactiveSynthVoice {
         // note-on or legato note-off overwrites it with an in-tune value, but with the
         // controller unplugged — the case this method exists for — there is no such event.
         //
-        // ⛔ #945b — AND THE FIRST VERSION OF THIS COMMENT UNDERSTATED THE DAMAGE BY TWO
-        // ORDERS, in the direction that makes a defect look ignorable. It said "up to two
-        // semitones off", reading `event.value * 2.0` as if the bend were applied to the note
-        // being played. The one production producer is `MIDIBusPublisher`'s `onPitchBend`, and
-        // it writes `note: 0` unconditionally (`docs/architecture.html` states the same fact),
-        // so the `event.note > 0 ? event.note : 69` fallback in `case .pitchBend` fires on
-        // EVERY REAL BEND and the base is A4. Measured: value −1 → 392 Hz, value 0 → 440 Hz,
-        // value +1 → 493.88 Hz — that is +22 to +26 semitones above this voice's nominal,
-        // roughly TWO OCTAVES. Worse, the centre value is not exempt: a wheel springing back
-        // to 0 strands the voice at A4 just the same, so the trigger is "any bend message at
-        // all", not "nudge the wheel". Found by the mandatory reviewer, not by a guard.
+        // ⛔ HOW FAR OFF — AND THE ANSWER CHANGED TWICE, so the number is dated on purpose.
+        // #945's first version said "up to two semitones", reading `event.value * 2.0` as if
+        // the bend applied to the note being played; #945b measured the tree and found TWO
+        // OCTAVES, because `case .pitchBend` fell back to note 69 (A4 = 440 Hz) on every
+        // production bend — the one producer, `MIDIBusPublisher.onPitchBend`, writes `note: 0`
+        // unconditionally. **#948 removed that fallback**: the base is the note the voice is
+        // sounding, and only this voice's own nominal when it has played nothing at all.
+        //
+        // ⚠️ WHAT THAT DID AND DID NOT SHRINK — the distinction the first version of this
+        // paragraph collapsed, in the flattering direction it scolds #945 for two lines up.
+        // The BEND's own contribution is back to ±2 semitones. The residual THIS LINE has to
+        // clear is not: it is the last played note plus that bend. Hold C4 with the wheel off
+        // centre and pull the cable and the voice sits ~17 semitones above its nominal — and
+        // ordinary playing ALONE, with no wheel at all, already strands it there, which is why
+        // `APanicUnbendsTheVoiceTests` claim 1b drives exactly that. Reading "±2 semitones" as
+        // "how far panic has to travel" makes this line look nearly unnecessary.
         //
         // ⚠️ WHAT THE SCOPE REALLY IS — the first version said "ONLY PANIC DOES THIS" and that
         // was false, in a comment sitting seven lines under a doc block that already knew
@@ -413,12 +438,17 @@ public final class BioReactiveSynthVoice {
         // zuletzt gespielte Note über einen Stop hinweg behalten?
         //
         // #945b — RESTORE AFTER THE RELEASE, not before. `frequency` has no `didSet`; the
-        // render glides toward it through `smoothedFreq` at `glideCoeff = 0.01`, so 440 → 110
-        // is a ~10 ms descending chirp rather than a click. Written BEFORE the release, a
-        // render block landing between the two statements plays that chirp at full envelope;
-        // written after, it happens under an already-decaying release. `releaseNote()` guards
-        // on `isPlayingNote` and never touches `frequency`, so the order is otherwise neutral.
+        // render glides toward it through `smoothedFreq` at `glideCoeff = 0.01`, so a played
+        // note falling to the nominal is a ~10 ms descending chirp rather than a click. Written
+        // BEFORE the release, a render block landing between the two statements plays that
+        // chirp at full envelope; written after, it happens under an already-decaying release.
+        // `releaseNote()` guards on `isPlayingNote` and never touches `frequency`, so the order
+        // is otherwise neutral.
+        // ⛔ #948b: the example above used to read "440 → 110", and 440 is precisely the number
+        // #948 deleted — eleven lines under a paragraph saying so, a reader maps it straight
+        // back to the fallback that no longer exists.
         releaseNote()
+        lastSoundingNote = nil   // #948b — the latch is controller state like the three above
         synth.frequency = nominalFrequency
     }
 
@@ -662,6 +692,7 @@ public final class BioReactiveSynthVoice {
             if heldNotes.count > Self.maxHeldNotes { heldNotes.removeFirst() }
             // Note-ON priority is UNCHANGED by #943: a new key re-attacks, which is what
             // shipped and what a player expects from pressing a key.
+            lastSoundingNote = event.note
             playNote(frequency: soundingFrequency(forMIDINote: event.note))
         case .noteOff:
             let wasTop = heldNotes.last?.note == event.note
@@ -676,18 +707,61 @@ public final class BioReactiveSynthVoice {
                 // wrong answer; the render's `smoothedFreq` one-pole carries the pitch across
                 // without a click (tau ~ 2.1 ms at 48 kHz — a DE-CLICK, not a portamento; nothing
                 // writes `glideCoeff` on this instance, only the poly engine's per-voice fan-out).
-                if wasTop { synth.frequency = soundingFrequency(forMIDINote: top) }
+                if wasTop {
+                    synth.frequency = soundingFrequency(forMIDINote: top)
+                    lastSoundingNote = top
+                }
             } else {
                 releaseNote()
             }
         case .pitchBend:
             let semis = event.value * 2.0
-            // ⚠️ PRE-EXISTING SHAPE, newly consequential since #338: note 0 falls back to 69,
-            // so a bend that arrives without a note now picks up pitch class A's deviation
-            // rather than none. Left alone deliberately — choosing the right fallback (last
-            // sounding note? no deviation?) is a decision, not a tidy-up, and this slice is
-            // about fanning the table, not about redefining the bend base.
-            let base = soundingFrequency(forMIDINote: event.note > 0 ? event.note : 69)
+            // ⭐ #948 — THE BASE IS THE NOTE THAT IS SOUNDING. The comment that stood here
+            // said choosing the fallback was "a decision, not a tidy-up" and deferred it. It
+            // was right on the day it was written: `heldNotes` did not exist yet (#943 added
+            // it), so there was no way to ask what the voice was playing. There is now, and
+            // the decision is the one every synth makes — a wheel bends the note under your
+            // finger.
+            //
+            // The three branches, in order, and why that order:
+            //   1. `event.note > 0` — the wire said which note. Nothing produces this today
+            //      (`MIDIBusPublisher.onPitchBend` writes `note: 0` unconditionally), but a
+            //      zone-aware parser would, and a member channel's bend belongs to ITS note.
+            //      Explicit information wins over inference.
+            //   2. the top held key — the real path whenever a key is down.
+            //   3. `lastSoundingNote` — the note the voice is still sounding after the last
+            //      finger lifted. `releaseNote()` does not touch `frequency`, so that pitch is
+            //      what the breath took over; the wheel must keep bending IT.
+            //   4. `nominalFrequency` — only when the voice has played nothing at all. The
+            //      drone is then the only thing sounding and its home is the resting pitch.
+            //
+            // ⛔ WHAT THIS REPLACES, because the number is the argument: the old `: 69`
+            // fallback fired on EVERY production bend (branch 1 is dead today), so the base
+            // was A4 — 440 Hz against this voice's 110 Hz nominal. A wheel springing back to
+            // CENTRE was not exempt: value 0 still wrote 440 Hz. Measured on that tree:
+            // −1 → 392 Hz, 0 → 440 Hz, +1 → 493.88 Hz, i.e. +22 to +26 semitones.
+            //
+            // ⛔ #948b — AND BRANCH 3 IS WHY THIS TOOK TWO GOES. #948's first version stopped
+            // at `nominalFrequency` for the keyless case, and wrote "a centred wheel is a
+            // no-op again" — TRUE while a key is held, FALSE the moment one is lifted, which
+            // is the state the breath tone lives in. `releaseNote()` leaves the pitch where it
+            // was so the body can take the note over (claim 3 pins that gesture); a centred
+            // bend then snapped it home to the nominal. The bug #948 exists to fix is "a bend
+            // message does something it has no business doing", and the first fix reproduced
+            // it one case along. `lastSoundingNote` is branch 3 for that reason, and only a
+            // voice that has played NOTHING falls through to branch 4. A centred wheel is now
+            // a no-op unconditionally, which is what "centred" means.
+            //
+            // ⚠️ `event.note > 0` cannot tell "no note" from MIDI note 0 (C-1). Harmless
+            // today — `MIDIBusPublisher.onPitchBend` writes 0 as a sentinel — but branch 1
+            // exists FOR the zone parser that will start filling it, and on that day a bend
+            // on C-1 falls silently to branch 2. Fix it there, with the parser.
+            //
+            // Bends stay ABSOLUTE, not cumulative: the base is re-derived per message, so a
+            // wheel held still and re-sent lands on the same pitch rather than walking away.
+            let bendBase: UInt8? = event.note > 0 ? event.note
+                                 : (heldNotes.last?.note ?? lastSoundingNote)
+            let base = bendBase.map { soundingFrequency(forMIDINote: $0) } ?? nominalFrequency
             let bent = base * powf(2, semis / 12)
             // A NaN/inf controller value would set synth.frequency to NaN, which the
             // audio thread reads in render() → a permanently stuck/silent oscillator
