@@ -29,17 +29,20 @@ What it does have, structurally, is **biofeedback as a first-class modulation so
 
 The root view is `WorkspaceView` — brand header and one surface below it, `EchoelStudioView` (the transport controls live inside the instrument). Not a TabView. The front plate carries the single **Create from Within** button: the bio-generative flow that writes in-key melody, harmony, rhythm and tempo from your body across curated genres. Everything else is a panel.
 
-**Five chips render in the tab strip:**
+**Eight chips render in the tab strip** (`EchoelStudioView.studioChips`, in strip order):
 
 | Chip | What it does |
 |---|---|
 | **Sound** | Patch editor — presets, tone/filter/envelope/space and vibrato, randomize, save-as |
-| **Mix** | Level per part |
 | **FX** | EchoelFX chain — stamp a character, then per-stage panels; presets with search and favorites |
+| **Mix** | Level per part |
+| **Master** | Master target and tone, the **Audio input** door (monitoring, tune-to-key, harmony voices, granular texture) and the routing patchbay door |
 | **Mood** | Production character |
+| **Tempo** | Tempo and variations — tap tempo, metronome, haptic beat, variation ideas |
 | **Field** | The immersive visual's look controls, plus the touch-playable surface below them — quantized with micro-timing, and able to play itself (self-play + arpeggiator) |
+| **Save/Export** | Save/open the project, loop length, WAV loop render, Standard MIDI File (.mid) export, reset sound, and the diagnostics log (share it after a device problem) |
 
-**Five more panels open from the header or the transport overflow, not from a chip:** Bio (HR · HRV · Breath · Coherence with tap-to-learn), Video (recorded clips, inline playback, mp4 share), Export (WAV loop render and MIDI file export), Master, Tempo. The bio *source* — camera, chest strap, Health, simulation — is chosen by touching and holding the pulse pill in the header, not inside the Bio panel.
+**Two more panels open without a chip:** Bio (HR · HRV · Breath · Coherence with tap-to-learn — tap the pulse pill in the header, or long-press it) and Video (recorded clips, inline playback, mp4 share — the header tile). The immersive visual itself is the floating window toggled from the header monitor, with a full-screen door inside the Field panel.
 
 Network routing (OSC · ADM-OSC · Art-Net · sACN · MIDI out) is a patchbay reached from the Master panel, the Bio panel and the header lighting tile.
 

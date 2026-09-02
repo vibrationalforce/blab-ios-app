@@ -97,10 +97,13 @@ DAW while also playing Echoel.
 
 ## 5. Broadcast — CUT (engine not linked; kept for a founder re-open)
 
-Echoel's edge over OBS is **phone-native streaming**: Tools ▸ Broadcast → pick RTMP/SRT,
-paste the ingest URL + stream key, **Go Live**. (Engine integration: HaishinKit, in
-progress — the destination config + routing ship now; see `BroadcastPublisher.swift`.)
-You can also arm it from the patchbay: connect a source → **Broadcast (RTMP/SRT)**.
+⛔ The paragraph that stood here sold broadcast in the present tense ("Tools ▸ Broadcast → …
+**Go Live** … ship now") under a heading that says CUT. None of it exists: `Package.swift`
+links no HaishinKit (`dependencies: []`), `BroadcastView` has 0 construction sites, and the
+Tools grid that hosted the door went 2026-07-02. What remains is `BroadcastPublisher.swift`, a
+`#if canImport(HaishinKit)` compile-guard scaffold. The idea it described — phone-native
+RTMP/SRT with the destination in the patchbay — is recorded in `BROADCAST_HAISHINKIT_FINISH.md`
+behind a founder gate (audit 2026-09-02).
 
 For hybrid setups, feed OBS/Resolume as a source via NDI (roadmap) or send OSC to
 control OBS through a bridge (obs-websocket).

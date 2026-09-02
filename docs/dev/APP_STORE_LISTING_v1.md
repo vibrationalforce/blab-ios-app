@@ -43,6 +43,11 @@ Your heartbeat makes music
 ```
 hrv,coherence,meditate,synth,ambient,midi,osc,artnet,generative,pulse,breath,instrument,dj,live,daw
 ```
+⛔ STALE — the LIVE keywords are `fastlane/metadata/en-US/keywords.txt`
+(`biofeedback,HRV,coherence,generative,synth,MIDI,OSC,artnet,sACN,DMX,immersive,visuals,rPPG`)
+and `de-DE/keywords.txt`; neither carries "daw" or "meditate", and the product definition
+(2026-07-25) cut the workstation. This block is the 2026-07-10 draft, kept as history; the
+"Source of truth" claim in line 3 is bounded to that date (audit 2026-09-02).
 (100/100 bytes — "daw" added 2026-07-16 to use the last 4 bytes; high-signal
 for the studio-handoff audience. No repeats of: echoelmusic, biofeedback,
 synth, your, heartbeat, makes, music.)

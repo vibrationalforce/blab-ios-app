@@ -141,6 +141,11 @@ DECISIONS.CSV LINE (append verbatim; adjust only the date if needed):
 ================================================================================
 SECTION 3 — DMMW GATE CHARTER (DOCTRINE)
 ================================================================================
+⛔ SUPERSEDED — never ratified (audit 2026-09-02). This section reads BREITE: it stages
+"DMMW is EARNED", lists an AUv3 GENERATOR revival and a Stage 4 that "IS the workstation".
+docs/dev/PRODUCT_DEFINITION.md (2026-07-25) retired the term permanently, and decisions.csv
+L388 (#590, 2026-08-14 — the day after this handover) decided "kein Plugin-System". No
+decisions.csv row ratifies any stage below. Kept as history; do not plan from it.
 DMMW is EARNED in stages, never declared. No cycle, session, or README edit may
 expand scope past the current stage. Scope oscillation is documented in this
 repo's own history (#68 cut video/RTMP/multitrack 2026-06-12; #153 re-expanded

@@ -1,4 +1,11 @@
-# Echoel — Execution Roadmap (canonical)
+# Echoel — Execution Roadmap (canonical for SEQUENCE — subordinate to the product definition)
+
+> ⛔ **SUBORDINATE to `docs/dev/PRODUCT_DEFINITION.md` (2026-07-25).** That file decides WHAT Echoel is
+> (a bio-reactive instrument; the workstation half is CUT; ship gate = the five checks of
+> "Instrument-Complete v1" in `CLAUDE.md`). This file only orders HOW the kept scope gets built.
+> Where a backlog item below names CUT scope (timeline, clips, multitrack, AUv3, broadcast), the
+> definition wins and the item is history. The rule two paragraphs down ("this file + vision.md
+> win") was written 2026-06-19, before the definition existed, and is bounded by it (audit 2026-09-02).
 
 > **This is the single source of truth for *how we get there*.**
 > The *vision* (north star, tiers, principles) lives in [`memory/vision.md`](../../memory/vision.md)
@@ -103,7 +110,7 @@ Each item: **[dimension]** description → *plan doc if any*. Pick from **Now** 
 
 ### LATER (roadmap — gate before building; don't claim until shipping)
 9. **[Space/Light]** Multi-device installation sync (multicast/AirPlay + a shared clock; today OSC is single-target, no PTP). → audit §11–12.
-10. **[Broadcast]** Live RTMP/SRT (HaishinKit authorized, 0 code). **Oscillating pillar — resolve via vision-gate before building.** → *PLAN_W3_STREAM*.
+10. ~~**[Broadcast]** Live RTMP/SRT~~ — CUT, see the answered gate at the line "~~Live Broadcast~~" below (2026-07-25/07-31); the spec sits founder-gated in `BROADCAST_HAISHINKIT_FINISH.md`. (⛔ this row kept "resolve via vision-gate" alive past the verdict and pointed at `PLAN_W3_STREAM`, which lives only in `scratchpads/archive/`; audit 2026-09-02.)
 11. **[Sound]** Higher-order ambisonics / in-app PHASE for headphone spatial preview (ADM-OSC stays the pro path). → audit §1,3.
 12. **[Platforms]** visionOS / macOS surfaces; keep Metal shaders portable. → *PLAN_WWDC26_ADOPTION*.
 13. **[Sound/AI]** CoreML / RAVE neural latent layer — gated on an on-device latency prototype.

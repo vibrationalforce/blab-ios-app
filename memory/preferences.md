@@ -54,9 +54,11 @@ User preferences for development workflow, communication, and tooling.
   neon/glow, ≤3 Hz flash). This is a standing bar for ALL surfaces going forward,
   not a one-off. Ties to the XR/cross-platform vision push — the shared SwiftUI
   layer must adapt, not be re-hardcoded per device.
-- Screenshot ref (v10.79.155 build 2261): the Timeline track mixer level fields
+- ~~Screenshot ref (v10.79.155 build 2261): the Timeline track mixer level fields
   (0.53 / 1.53) sit awkwardly overlapping the clip grid — a layout-adaptivity
-  smell to clean up when the timeline gets attention.
+  smell to clean up when the timeline gets attention.~~ ⛔ VOID: the timeline/clip grid
+  was deleted with #121 Slice 4 (2026-07-26); there is no surface to clean up. Kept as
+  a record that the adaptivity lesson was learned on it (audit 2026-09-02).
 
 ## SOUND AESTHETIC NORTH-STAR (REMEMBER — founder 2026-07-11, standing taste)
 - **Founder's taste (verbatim core):** "organische housige, dubbige, gut effektierte
@@ -83,6 +85,10 @@ User preferences for development workflow, communication, and tooling.
   nicht richtig einschätzen, weil es noch nie jemand vor uns gebaut hat." Nobody has
   built a body-driven unified DAW/video/mapping/light instrument before — that novelty
   is the reason to build it, not to doubt it.
+  ⛔ The STANCE survives; its OBJECT does not (same note as `vision.md`): DAW and video edit
+  were CUT by the product definition 2026-07-25 (Editor ≠ Workstation). "Everything in ONE
+  app" now means one instrument whose OUTPUT is multidimensional (sound · image · light ·
+  space) — not a workstation. Quote kept as founder history (audit 2026-09-02).
 - **Be genuinely enthusiastic. Frame problems as future situations with an intelligent
   solution, never as negatives.** ("Sei begeistert … betrachte Probleme nicht als
   negativ sondern als Situation für die Zukunft, für die es wunderbarerweise immer eine

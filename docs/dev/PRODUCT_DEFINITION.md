@@ -43,7 +43,7 @@ over time?**
 | Generative bio engine (the home) | Arrangement / clips timeline |
 | Flow + Loop modes | Multi-track recording & mixing desk |
 | **Patch editor** — shape and save the sound | Audio-file import as timeline regions |
-| ~~**Piano roll**~~ — REVERSED by the founder 2026-07-26 ("Pianoroll soll raus"); the note editor is CUT | Video capture, trim, edit |
+| ~~**Piano roll**~~ — REVERSED by the founder 2026-07-26 ("Pianoroll soll raus"); the note editor is CUT | Video trim & edit (capture of the visual STAYS — see the mp4 export in KEEP) |
 | Curated genres | AUv3 hosting and the AUv3 plugin target |
 | Output stage (below) | RTMP / broadcast |
 | Export: audio (WAV) · MIDI (.mid) · visual recording (mp4) | Subscription commerce |
