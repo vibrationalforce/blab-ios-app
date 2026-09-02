@@ -22103,3 +22103,78 @@ harmlos für den Compiler, aber sie hätte mein eigenes Netz für den Rest der S
 Nicht geräteverifiziert; kein lokaler Compiler. Anspruch 7 und 9 wurden gegen drei Bäume
 gefahren: rot auf `3eb0a9d`, grün auf `9d66e17` und im Arbeitsbaum; Anspruch 8 ist ein
 Gegengewicht und auf allen dreien grün.
+
+## 2026-09-02 — v10.79.436 deployt (`d1dd1f2`); Founder-Auftrag „Ultravisionaudit … merge und TestFlight deploy"
+
+**Founder-Nachricht (wörtlich):** „Ultravisionaudith Codebase and Architecture skill Management
+ultracode DMMW entfalt Echoelmusic Vision merge und TestFlight deploy".
+
+**Merge:** `origin/main` == `a82942a` vor dem Bump — der Auto-Merge hatte #982 schon getragen;
+es gab nichts zu mergen. **Deploy:** Bump auf `d1dd1f2`, TestFlight-Lauf 33617257066 gestartet.
+Gates auf `a82942a`: Xcode Compile Check grün; CI/CD `Build for Testing` grün, Verdikt-Leser:
+0 Fehler, 0 Skips im Fenster, 133 beobachtet bestanden (auf `9d66e17`: 168). Umfang gegen
+`ca5ddec`: 28 Commits, 14 in `Sources/`, 5 neue NEEDS-FOUNDER-VERIFY von 80.
+
+**Council vor dem Deploy** (das RELEASE-Team des Audits war noch nicht durch): die zwei
+riskanten Verhaltensänderungen selbst gelesen — die #958-Verweigerung greift nur, wenn die
+Session die Graph-Rate NICHT gewährt (vorher: Absturz an genau dieser Stelle); der #975-Check
+konfiguriert nach und verweigert nur, wenn auch das wirft. Beide Verweigerungen geben die Route
+frei und stellen die Engine wieder her. Deploy also vertretbar; Audit-Befunde gehen in 437.
+
+⚠️ **„DMMW entfalt" ist NICHT ausgeführt und NICHT ignoriert, sondern dem Founder als Frage
+zurückgegeben** — siehe den Audit-Eintrag darunter. Die Produktdefinition (2026-07-25, Grand
+Council, `decisions.csv:302`) hat DMMW zurückgezogen; `ULTRAARCHITECTURE_DMMW_2026-07-31.md`
+zählt 18 Richtungswechsel und nennt den 20. als das eigentliche Risiko. Eine Sitzung, die auf
+zwei Wörter hin die DAW-Schicht wieder betürt, wäre Nr. 20 — und eine, die die Wörter still
+überliest, ignoriert den Auftraggeber. Die Ausgabe-Stufe (die überlebende Hälfte des
+„multidimensional") wird im Audit inventarisiert; das ist unter BEIDEN Lesarten nützlich.
+
+**Audit** läuft als Workflow `wf_dfb245b6-a41` (5 Teams × 3 Worker + Lead, dann 3 Refuter je
+major/critical, dann Vollständigkeits-Kritiker), alle Agenten read-only mit der
+Sicherheits-Klausel. Zwei parallel (4 Kerne) — Laufzeit Stunden, nicht Minuten.
+
+⛔ **Aus dem RELEASE-Team des Audits, selbst nachgemessen: `TheDeployNoteNamesRealDoorsTests`
+Anspruch 2 ist ROT auf `.deploy/release` — seit v434, also drei Deploys lang (434 · 435 · 436),
+und meiner ist der dritte.** Der Wächter (3144e04, #820, 2026-08-25) verlangt mindestens einen
+`X-Chip`/`X-Panel`-Pfad in der Notiz, damit der Founder mit dem Telefon in der Hand eine Tür
+findet; Transkription: `tokens: []` → Anspruch 2 rot. Unsichtbar aus dem §5-Grund — CI/CD ist auf
+jedem Push rot, ein echter roter Wächter sieht aus wie der sterbende Host. Dazu drei Einwände
+derselben Lesung, alle geprüft: (a) „alle 14 Code-Commits" — `ed4849e` ist kommentar-only, also
+13; (b) §4.4 sagt, ein stiller Start ende an `session: configure FAILED` — falsch für die
+Log-Form des Founders: `prepareGraph` fängt, schreibt die Sprosse und BAUT WEITER, die Zeile steht
+mitten im Log vor `engine: start OK`; ein stiller Start endet an `engine: start FAILED — <Schritt>`;
+(c) „verweigert statt abzustürzen" verspricht zu viel — der Code selbst nennt die ASYNCHRONE
+Neuverhandlung als den ursprünglichen Abbruch „in einem kleineren Fenster" (`AudioEngine.swift`
+~2847). **Reparatur = Notiz-Korrektur = neuer Bump (jede Änderung an `.deploy/release` lädt bei
+Apple hoch).** Entscheidung: NICHT sofort ein 437 nur für die Notiz, sondern die korrigierte Notiz
+(Chip-Pfad `**Master**-Chip → Audio input → Monitoring`, Diagnostics-Tür, „13 von 14", drei
+Log-Enden des Monitor-Schalters) fährt mit der NÄCHSTEN Code-Scheibe als 437. Der Wächter bleibt
+bis dahin rot — bewusst, benannt, mit Datum.
+
+## 2026-09-02 — Founder-Auftrag „Ultravisionaudit … DMMW entfalt … Vision merge und TestFlight deploy"
+
+**Drei Lieferungen, eine Frage.**
+
+1. **Deploy v10.79.436** (`d1dd1f2`, Bump gegen `ca5ddec`: 28 Commits, 14 Sources, 5 neue
+   Founder-Bitten von 80). TestFlight-Lauf 33617257066: Build 2554, App Store Connect `VALID`
+   10:10:41 UTC. Gates auf `a82942a`: Compile Check grün, Build for Testing grün, 0 Fehler im
+   Log-Fenster (`gh-test-verdict.py`, 133 bzw. 168 beobachtete Tests). Council vor dem Deploy: die
+   zwei riskanten Monitor-Stellen (#958-Verweigerung, #975-Session-Check) selbst gelesen — die
+   Verweigerung greift nur, wenn die Session die Graph-Rate nicht gewährt.
+2. **Merge:** `origin/main` == `a82942a`; der Bump fährt als Passagier mit (#697). Nichts wartet.
+3. **Audit:** `scratchpads/AUDIT_ULTRAVISION_2026-09-02.md` — 5 Teams × (3+1), 117 Agenten,
+   133 Minuten. 11 Befunde adversarial bestätigt, 6 widerlegt (darunter zwei echte Über-Behauptungen
+   der Leser: die Atem-Führung IST über eine dritte Fläche erreichbar; die Haptik-Frage ist #552),
+   **15 ungeprüft und der Kritiker nicht gelaufen — Sitzungslimit nach 71 von 117 Agenten.** Der
+   Container hat 4 Kerne → 2 Agenten gleichzeitig; ein Audit dieser Breite dauert hier >2 h, und
+   das Limit greift vorher. Lehre: die Widerleger-Stufe mit dem Budget dimensionieren (2 Linsen,
+   oder nur CRITICAL), nicht mit dem Ideal.
+
+⛔ **Was das Audit über MEINEN Deploy fand, steht oben (Wächter rot seit v434) und in §4 des Berichts.**
+
+⭐ **DMMW — gemessen, nicht entschieden:** alle zehn Modell-Typen der 07-31-Inventur leben mit gleich
+vielen oder mehr Referenzen (Timeline 61→75), `#132 Slice 5b–5d` weder ausgeführt noch auf HOLD,
+`decisions.csv` seit 07-31 **null** Richtungswechsel. „DMMW entfalt" im Auftrag ist die echte
+Ambiguität, für die der Cron `AskUserQuestion` vorsieht: Ausgabestufe (überlebende Hälfte) oder
+Workstation (Umkehr von 07-25, Flip Nr. 20). Gefragt, nicht geraten — die Analyse vom 07-31 sagt
+selbst, dass die Antwort dem Founder gehört.
