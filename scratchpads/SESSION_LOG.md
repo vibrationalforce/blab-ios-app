@@ -22206,3 +22206,32 @@ lebende Typen für tot; und drei Kommentar-Nennungen, die keine Aufrufer sind.
 
 **DMMW-Machbarkeit:** Workflow `wf_8d20bfce-a99` (2 Linsen, nach der 117-Agenten-Lehre
 dimensioniert) läuft; Bericht → `scratchpads/DMMW_FEASIBILITY_2026-09-02.md`, wenn er endet.
+
+## 2026-09-02 — v10.79.437 deployt (`779f093`): dieselbe App wie 436, die Notiz repariert, der Notiz-Wächter grün
+
+**TestFlight-Lauf 33649587784: Build 2555, „Verify build landed in App Store Connect" grün
+(15:42–15:47 UTC).** Gates vorher auf `c9955bf` (enthält die Verschiebung `0d2b4f9`): Xcode
+Compile Check grün, `Build for Testing` grün, `gh-test-verdict`: 0 Fehler, 0 Skips, 167 Tests
+beobachtet — im Fenster (#807).
+
+**Inhalt gegen `d1dd1f2`:** 9 Commits einschließlich Bump, EIN Sources-Commit (die
+Ordner-Verschiebung, `git mv`, keine Zeile geändert). Die Notiz sagt das in der ersten Zeile
+und sagt dem Founder, dass es gegenüber 436 nichts Neues zu prüfen gibt.
+
+**Was die Notiz repariert (Wächter `TheDeployNoteNamesRealDoorsTests`, rot seit v434):**
+Chip-Pfade `**Master**-Chip → Audio input` und `**Save/Export**-Chip → Diagnostics → Share`
+(Transkription: Tokens `Master`, `Save/Export`, beide in der gepinnten Liste; Anspruch 3
+erfüllt) · „14 Code-Commits" → 13 · stiller Start endet an `engine: start FAILED — <Schritt>`,
+nicht an `session: configure FAILED` · die Über-Behauptung „verweigert statt abzustürzen"
+ist auf das eingegrenzt, was der Code hält (gewährte Rate ≠ Graph-Rate; das asynchrone
+Neuverhandlungs-Fenster bleibt). Jede Log-Zeile der Notiz ist gegen `AudioEngine.swift`
+gegrept (`on REFUSED — the session was never configured`, `on REFUSED — the session granted`,
+`on 4/5`, `on 5/5`, `engine: ` als Präfix von `logEngineLifecycle`).
+
+⚠️ **Warum überhaupt ein Build für eine Notiz:** `testflight.yml` triggert auf JEDE Änderung
+an `.deploy/release` (`paths:`), nicht nur auf einen Versions-Bump. Eine ehrliche Notiz ohne
+Upload gibt es auf diesem Weg nicht — deshalb wartete die Reparatur auf die erste
+Code-Scheibe (Entscheidung vom Vormittag), statt sofort ein reines Notiz-437 zu fahren.
+
+**Offen an den Founder (unverändert):** 434–437 in EINER Geräte-Session nach der Liste der
+437-Notiz prüfen; die neun Fragen in §5 des Audit-Berichts.
