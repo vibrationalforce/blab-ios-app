@@ -186,7 +186,7 @@
             <!-- MPE -->
             <section id="mpe">
                 <h2>Multidimensional Control <span class="tag">PARTIAL</span></h2>
-                <p class="note"><strong>The INPUT is not MPE — stated plainly.</strong> <code>MIDIBusPublisher</code> says so in its own header: MPE master/member channel disambiguation, RPN&nbsp;6,6 zone detection and channel pressure are <em>not available</em> on the way in. What is live inbound is multi-dimensional control on one channel — several continuous axes over a note stream, not per-note channels. <strong>Outbound is the other half and it is real:</strong> MPE <em>out</em> announces the zone and sends all three per-note dimensions, behind two switches in the routing panel. The asymmetry is the honest statement; &ldquo;MPE&rdquo; without a direction is not.</p>
+                <p class="note"><strong>The INPUT is not MPE — stated plainly.</strong> <code>MIDIBusPublisher</code> says so in its own header: MPE master/member channel disambiguation and RPN&nbsp;6,6 zone detection are <em>not available</em> on the way in (channel pressure <em>is</em> parsed and sounds &mdash; see Press below). What is live inbound is multi-dimensional control on one channel — several continuous axes over a note stream, not per-note channels. <strong>Outbound is the other half and it is real:</strong> MPE <em>out</em> announces the zone and sends all three per-note dimensions, behind two switches in the routing panel. The asymmetry is the honest statement; &ldquo;MPE&rdquo; without a direction is not.</p>
                 <p>Performer gestures arrive over <strong>CoreMIDI with the MIDI 2.0 protocol</strong> (<code>MIDIInputPortCreateWithProtocol(._2_0)</code>), parsing both MIDI 1.0 (16-bit) and MIDI 2.0 (32-bit) words and normalizing everything to clean float ranges. Each axis becomes a <code>ControllerEvent</code> on the bus — this is the <strong>multidimensional (MPE)</strong> layer: one note carries several continuous, independent dimensions of expression.</p>
                 <div class="data-row"><div class="k">Note + velocity</div><div class="v"><code>.noteOn</code> / <code>.noteOff</code> — note 0–127, velocity [0–1] (7-bit MIDI 1.0 or 16-bit MIDI 2.0).</div></div>
                 <div class="data-row"><div class="k">Pitch bend</div><div class="v"><code>.pitchBend</code> — [−1…+1]; 14-bit (MIDI 1.0) or 32-bit (MIDI 2.0). The X / glide dimension. <strong>Channel-wide, not per-note</strong>: MIDI&nbsp;2.0 per-note pitch bend (status <code>0x6</code>) is not parsed and the published event carries <code>note: 0</code>.</div></div>
@@ -250,7 +250,7 @@
             <section id="seq">
                 <h2>Generative Composition <span class="tag">LIVE</span></h2>
                 <p>Your biometrics compose harmonic and melodic material in any key and BPM — pads, chords, leads and a sub-bass voice — which you render to .wav — or export as a Standard MIDI File (.mid) — for your DAW. There is no drum engine and no sampler: percussion was built, then removed in July&nbsp;2026 (founder decision) so the instrument stays one thing.</p>
-                <div class="data-row"><div class="k">BioComposer</div><div class="v">Bio-driven harmonic/melodic loop generation, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s) for key/tempo locking. Per-note velocity is <span class="tag">LIVE</span> and reaches the .mid export: a metric hierarchy accents the downbeat over the offbeats, breath depth scales pad and bass level, and a small per-note jitter keeps repeated chops from reading as mechanical. Automation lanes and richer voice-leading are <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">BioComposer</div><div class="v">Bio-driven harmonic/melodic loop generation, 30–300&nbsp;BPM, 16th-note clock (step = (60/BPM)/4&nbsp;s) for key/tempo locking. Per-note velocity is <span class="tag">LIVE</span> and reaches the .mid export: a metric hierarchy accents the downbeat over the offbeats, coherence scales pad and bass level (the composer&rsquo;s breath-depth input is fed from coherence; the true breath-depth producer has no caller), and a small per-note jitter keeps repeated chops from reading as mechanical. Automation lanes and richer voice-leading are <span class="tag">ROADMAP</span>.</div></div>
                 <div class="data-row"><div class="k">Voice triggering</div><div class="v">Notes are fired lock-free via an atomic trigger counter (no allocation on the audio thread) into the bio-reactive synth voices. A drum/sampler track and a step sequencer are <strong>not planned</strong> — they existed and were removed.</div></div>
             </section>
 
@@ -276,7 +276,7 @@
                 <h2>Studio UI &amp; App Wiring <span class="tag">LIVE</span></h2>
                 <p><code>EchoelmusicApp</code> (<code>@main</code>) builds the graph in order — <code>MicrophoneManager → AudioEngine → EchoelStore → BeatPlayer → EngineBus</code>, then the bio publishers (HealthKit, Polar&nbsp;H10), the <code>BioReactiveSynthVoice</code>, the <code>BioEventPublisher</code>, MIDI (CoreMIDI), and the OSC sender — configures audio <em>before</em> the UI, then mounts the studio. SwiftUI observes EngineBus snapshots; nothing in the view layer touches the audio thread.</p>
                 <div class="data-row"><div class="k">BioStripView</div><div class="v">Bio-panel readout (a tap on the pulse pill opens it): <strong>HR · HRV · Br · Coh</strong>, applied synth-frame count, and activity dots (bio events, MIDI, OSC), plus a play/stop toggle and the active source tag.</div></div>
-                <div class="data-row"><div class="k">Studio views</div><div class="v">One shell, <code>EchoelStudioView</code>: a chip bar where each chip opens exactly one panel, the transport, and a 60-second camera-pulse measurement. The old Perform / Mix / Export / Settings tabs no longer exist.</div></div>
+                <div class="data-row"><div class="k">Studio views</div><div class="v">One shell, <code>EchoelStudioView</code>: a chip bar where each chip opens exactly one panel, the transport, and the pulse pill (a tap opens the bio panel). The old Perform / Mix / Export / Settings tabs no longer exist.</div></div>
             </section>
 
             <!-- OSC API -->
@@ -355,7 +355,8 @@
                 <div class="data-row"><div class="k">EchoelVid <span class="tag">CUT</span></div><div class="v">Video editing was built and removed in July&nbsp;2026; RTMP was never built. What remains is <code>VisualRecorder</code> — the immersive visual captured as a share-ready MP4.</div></div>
                 <div class="data-row"><div class="k">EchoelNet <span class="tag">LIVE</span></div><div class="v">OSCSender (EchoelSync) — Ableton Link roadmap</div></div>
                 <div class="data-row"><div class="k">EchoelLux <span class="tag">LIVE</span></div><div class="v">ArtNetSender · SACNSender — native Art-Net (UDP 6454) and sACN / E1.31 (unicast) lighting live today, flash-safe. DMX-512 · HomeKit · fixture profiles · cue lists <span class="tag">ROADMAP</span>.</div></div>
-                <div class="data-row"><div class="k">EchoelStage / EchoelAI <span class="tag">ROADMAP</span></div><div class="v">External displays / projection · on-device CoreML &amp; stems — designed, not yet implemented.</div></div>
+                <div class="data-row"><div class="k">EchoelStage <span class="tag">LIVE</span></div><div class="v">External displays: a connected screen (USB-C / HDMI cable or AirPlay) becomes the visual&rsquo;s own stage while the phone stays the playing surface (<code>ExternalDisplayScene</code>, a second scene, not mirroring). Projection mapping (warp, edge-blend) <span class="tag">ROADMAP</span>.</div></div>
+                <div class="data-row"><div class="k">EchoelAI <span class="tag">ROADMAP</span></div><div class="v">On-device CoreML &amp; stems — designed, not yet implemented.</div></div>
                 <div class="data-row"><div class="k">Bridge <span class="tag">LIVE</span></div><div class="v">EngineBus · SPSCQueue · BioReactiveSynthVoice (the bio→sound bridge)</div></div>
             </section>
 
@@ -387,7 +388,7 @@
                     <div>
                         <h3>On the roadmap</h3>
                         <ul>
-                            <li>MPE channel pressure + zone detection</li>
+                            <li>MPE zone detection (RPN 6,6) on input</li>
                             <li>Generative automation / Euclidean / polyrhythm</li>
                             <li>Modelled analog compressors (VCA / Opto / FET / VariMu)</li>
                             <li>Richer Metal visuals + chroma key</li>
