@@ -1,3 +1,23 @@
+> ⚠️ **READ THIS FIRST (audit 2026-09-02).** This file is NOT the complete decision record and is NOT in
+> date order. `decisions.csv` (repo root, append-only, machine-readable) is the complete register — measured:
+> of the rows dated ≥ 2026-08-28 this file mirrored 1, of the last 10 rows 0. Re-derive with
+> `python3 - <<'EOF'` … `csv.reader(open('decisions.csv'))` … count `#NNN` ids found here. What this file
+> holds is the NARRATIVE for the strategic subset. Newest-by-date entries are found with
+> `grep -nE '^### 20[0-9]{2}-' memory/decisions.md | tail -3`, not by reading the tail.
+
+### 2026-09-02 — Ultravision-Audit, Deploy 436, die DMMW-Frage (csv rows dated 2026-09-02)
+- **v10.79.436 deployt** (Build 2554, ASC VALID) auf ausdrücklichen Founder-Auftrag; 434/435 unabgenommen, in der
+  Notiz benannt. Die Notiz macht `TheDeployNoteNamesRealDoorsTests` Anspruch 2 rot (seit v434) — Korrektur fährt
+  als 437 mit der nächsten Code-Scheibe, kein eigener Apple-Upload für Prosa.
+- **Ultravision-Audit** als 5-Team-Workflow: `scratchpads/AUDIT_ULTRAVISION_2026-09-02.md` — 11 bestätigt, 6
+  widerlegt, 15 ungeprüft (Sitzungslimit, 4-Kern-Container = 2 Agenten gleichzeitig). Lehre: Widerleger-Stufe
+  nach Budget dimensionieren.
+- **„DMMW entfalt“ wird GEFRAGT, nicht geraten.** Founder-Antwort: „Greb all tasks und fertig machen. DMMW
+  vorhaben überprüfen ob es mit dem neuen Modell nun endlich machbar ist [Modellname ausgelassen — kein Modellbezeichner im Repo]“ → alle offenen Audit-Aufgaben werden
+  abgearbeitet; die DMMW-Frage bekommt eine MESSUNG (`scratchpads/DMMW_FEASIBILITY_2026-09-02.md`), keine Tür.
+- **#938 (2026-08-31)**: MPE-IN (Zonen) ist die nächste Produkt-Arbeit laut REIHENFOLGE-Messung;
+  `scratchpads/PLAN_MPE_ZONES_2026-09-01.md`. (Nachgetragen, weil der csv-Spiegel hier seit 08-28 fehlte.)
+
 ### 2026-07-23 v10.79.341 AUv3-Härtung geshippt + render-seitige Bio-NaN-Härtung
 - **v341 (geshippt, TestFlight grün auf 3. Versuch):** zwei AUv3-Korrektheits-Fixes zu EINEM
   Verify-Target konsolidiert — (a) Bio-Pfad-COW-Race geschlossen (`applyBioReactive` läuft

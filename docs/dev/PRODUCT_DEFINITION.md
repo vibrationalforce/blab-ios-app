@@ -104,8 +104,10 @@ checklist can copy.
 Replaces the dead criterion *"bis die gesamte DMMW auf Profi-Level ist"*, which
 became permanently unreachable once the workstation half was dismantled (#121).
 
-Five binary checks. All five true → lift the TestFlight freeze, ship, and let
-the founder test on device:
+Five binary checks. All five true → v1 is instrument-complete; the App-Store step
+is the founder's. (⛔ "lift the TestFlight freeze" stood here — that freeze was lifted
+2026-07-17/07-31 and every green round ships to TestFlight; audit 2026-09-02.) The
+founder tests each build on device:
 
 1. **Klang** — curated genres sound professional and keep their identity (no
    convergence bug, #81/#82). Founder's ear is the judge.

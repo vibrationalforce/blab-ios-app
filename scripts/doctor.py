@@ -713,7 +713,14 @@ def section_b() -> Section:
             lines = read(doc).splitlines()
             heads = [k for k, ln in enumerate(lines) if ln.startswith("###")]
             for i, line in enumerate(lines):
-                if not re.search(r"^\s*swift\s+(build|test)\b", line):
+                # ⛔ The first form was line-initial (`^\s*swift`) and missed the numbered-list
+                # spelling `1. `swift build` — zero errors` in workflow.md for weeks (audit
+                # 2026-09-02): a backtick or a list marker in front of the word hid it.
+                # ⛔ And the first widening (`(^|[`\s])swift`) over-matched: test.md:3 SAYS "faster
+                # than full `swift test`" in a description, not an instruction — #665, a checker
+                # with false alarms is a checker nobody reads. An INSTRUCTION is a list item or a
+                # bare line that STARTS with the command, backticked or not.
+                if not re.search(r"^\s*(?:\d+\.|[-*])?\s*`?swift\s+(build|test)\b", line):
                     continue
                 start = max([k for k in heads if k <= i], default=0)
                 end = min([k for k in heads if k > i], default=len(lines))
