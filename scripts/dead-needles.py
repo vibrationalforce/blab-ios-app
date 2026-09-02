@@ -146,6 +146,7 @@ Exit:   0 = no dead needles · 1 = at least one · 2 = could not look (no Tests/
 """
 import contextlib
 import glob
+import itertools
 import io
 import os
 import re
@@ -619,41 +620,73 @@ def code_positions(chunk, start=0):
     ⭐ #963 — WHY THIS EXISTS INSTEAD OF `strip_strings(chunk)`, which is the obvious repair and
     which SILENTLY MIS-INDEXES. `guard_else_fails` receives `after` as an offset into the
     ORIGINAL chunk (`match.end()`), so any blanking pass it walks over must preserve length
-    exactly. `strip_strings` does not: measured across 418 files, **21 change length** (e.g.
-    `SourceText.swift` 16518 → 16364, `AudioEngine.swift` 253654 → 253630), because its
-    triple-quote head case rewrites `raw[:index] + '\"\"\"'`. Handing it a caller's offset
-    would point the brace walk at the wrong character in exactly the files that contain the
-    triple-quoted messages this shape has to read. Skipping in place needs no offset map.
+    exactly. `strip_strings` does not, because its triple-quote head case rewrites the line.
+    Handing it a caller's offset would point the brace walk at the wrong character in exactly
+    the files that carry the triple-quoted messages this shape has to read. Skipping in place
+    needs no offset map. The MECHANISM reproduces exactly: `Tests/CISmoke/SourceText.swift`
+    16518 -> 16364, `Sources/Echoelmusic/Audio/AudioEngine.swift` 253654 -> 253630.
+
+    ⛔ #965 — #963 WROTE "418 files, 21 change length" HERE AND NEITHER NUMBER REPRODUCES.
+    Over the corpus `main()` actually builds — `Tests/CISmoke/*.swift` plus every
+    `Sources/**/*.swift` — it is 772 files, 22 length-changing; over `Tests/CISmoke` alone,
+    401 and 20. The 418/21 pair describes NO corpus in this repo: it was a scratch run over
+    `Tests/CISmoke` plus `Sources/Echoelmusic/Audio` only, written down as if it described the
+    tool's own input. A count is a date AND a corpus, and this one was load-bearing — it is the
+    justification for not using `strip_strings`. Re-derive rather than trust either pair:
+
+        python3 -c "import glob,os,importlib.util; \
+        s=importlib.util.spec_from_file_location('dn','scripts/dead-needles.py'); \
+        m=importlib.util.module_from_spec(s); s.loader.exec_module(m); \
+        f=sorted(glob.glob('Tests/CISmoke/*.swift')); \
+        [f.extend(b+'/'+n for n in sorted(ns) if n.endswith('.swift')) \
+         for b,_,ns in os.walk('Sources')]; \
+        print(len(f), sum(len(m.strip_strings(open(p).read()))!=len(open(p).read()) for p in f))"
 
     ⚠️ Comments are already gone by the time shape 6 runs (`main` calls `strip_comments` before
     `function_chunks`), so strings are the only remaining hazard here.
     """
     i, n = start, len(chunk)
     in_str = in_ml = False
+    hashes = 0            # `#` count of the RAW literal currently open; 0 for an ordinary one
     while i < n:
         if in_ml:
-            if chunk.startswith('\"\"\"', i):
+            if chunk.startswith('"""' + "#" * hashes, i):
                 in_ml = False
-                i += 3
+                i += 3 + hashes
+                hashes = 0
             else:
                 i += 1
             continue
         if in_str:
-            if chunk[i] == "\\" and i + 1 < n:
+            # A backslash escapes only in a NON-raw literal. In `#"a \" b"#` the `\"` is two
+            # ordinary characters and the literal runs on to `"#`; treating it as an escape is
+            # exactly how the pre-#965 version swallowed the rest of the chunk.
+            if hashes == 0 and chunk[i] == "\\" and i + 1 < n:
                 i += 2
                 continue
-            if chunk[i] == '"':
+            if chunk.startswith('"' + "#" * hashes, i):
                 in_str = False
+                i += 1 + hashes
+                hashes = 0
+                continue
             i += 1
             continue
-        if chunk.startswith('\"\"\"', i):
-            in_ml = True
-            i += 3
-            continue
-        if chunk[i] == '"':
-            in_str = True
-            i += 1
-            continue
+        if chunk[i] == "#" or chunk[i] == '"':
+            # A run of `#` opens a RAW string only when a quote follows it. Everything else that
+            # begins with `#` here — `#if`, `#filePath`, `#available` — is ordinary code and
+            # falls through to the `yield` below.
+            j = i
+            while j < n and chunk[j] == "#":
+                j += 1
+            if j < n and chunk[j] == '"':
+                hashes = j - i
+                if chunk.startswith('"""', j):
+                    in_ml = True
+                    i = j + 3
+                else:
+                    in_str = True
+                    i = j + 1
+                continue
         yield i
         i += 1
 
@@ -674,8 +707,18 @@ def guard_else_fails(chunk, after):
     right BY ACCIDENT, because that else really is fatal. Guards in this repo quote Swift at
     each other constantly, so this was going to bite.
 
-    ⚠️ A genuinely unbalanced brace in CODE (a truncated chunk) still runs to the end of the
-    chunk. That is the honest remainder: this function knows strings, not syntax errors.
+    ⚠️ HONEST REMAINDER, and #963's version of this note was INCOMPLETE — it named only the
+    first of these:
+      · a genuinely unbalanced brace in CODE (a truncated chunk) still runs to the end of the
+        chunk. This function knows strings, not syntax errors.
+      · 8 of the bundle's guard files leave `code_positions` mid-literal at end of file. It
+        cannot bite HERE, because `guard_else_fails` restarts the walk at `after` and
+        `function_chunks` splits per top-level `func`, so only a desync BETWEEN a needle and its
+        own `XCTFail` would matter — scanned for, 0 occurrences. Recorded because "measured
+        zero today" and "cannot happen" are different claims.
+    ⛔ Swift RAW strings were a THIRD remainder and are now handled (#965) — #963 shipped
+    "both directions, pinned" while `#"a " b"#` still swallowed the rest of the chunk and lost a
+    real finding. The selftest pins six literal shapes plus an end-to-end raw-string guard.
     """
     opening = -1
     for i in code_positions(chunk, after):
@@ -695,7 +738,8 @@ def guard_else_fails(chunk, after):
                 break
     # `XCTFail` is read on CODE positions too: a failure message that quotes the word
     # `XCTFail` at another guard is prose, and reading it would make a skip look fatal.
-    body = "".join(chunk[i] for i in code_positions(chunk, opening) if i < end)
+    body = "".join(chunk[i] for i in itertools.takewhile(lambda k: k < end,
+                                                        code_positions(chunk, opening)))
     return "XCTFail" in body
 
 
@@ -1038,6 +1082,46 @@ def selftest():
               "NAMES `XCTFail`. The fatality test is reading raw text, so prose about another "
               "guard makes a skip look fatal (#963).", file=sys.stderr)
         ok = False
+
+    # ⛔ #965 — SWIFT RAW STRINGS. `#"a " b"#` contains an ODD number of quotes and no escape,
+    # so a scanner that only knows `"…"` and `"""…"""` opens a literal at the inner quote and
+    # never closes it — the rest of the chunk is swallowed and a real dead needle is MISSED.
+    # Demonstrated end-to-end before the fix; ~20 files in this bundle use raw strings, and most
+    # balance by accident. The `#` run is only an opener when a quote follows it, so `#if`,
+    # `#filePath` and `#available` stay ordinary code (the last two cases below).
+    GONE7 = "let rawStringThing = 7"
+    s6_raw_string = (
+        '    func d() {\n'
+        '        let code = engineCode()\n'
+        '        guard let a = code.range(of: "' + GONE7 + '") else {\n'
+        '            let hint = #"an odd quote " and a brace { inside a raw string"#\n'
+        '            XCTFail("gone: \\(hint)")\n'
+        '            return\n'
+        '        }\n'
+        '    }\n')
+    if GONE7 not in {n for _, n in shape6_findings(s6_raw_string, ALIVE, {})}:
+        print("selftest: shape 6 MISSED a fatal guard whose failure message uses a Swift RAW "
+              "string. `#\"…\"#` needs no escapes, so an odd inner quote opens a literal that "
+              "never closes and the rest of the function is swallowed (#965).", file=sys.stderr)
+        ok = False
+    for label, snippet, expect in (
+            ("raw, odd inner quote", '#"a " b"# ; { }', " ; { }"),
+            ("multi-hash raw", '##"x " y"## ; { }', " ; { }"),
+            ("raw multiline", '#"""a " { b"""# ; { }', " ; { }"),
+            # A raw literal whose content ENDS in a backslash. `\` is not an escape inside
+            # `#"…"#`, so `\"#` closes the string; treating it as one eats the closer and
+            # swallows the rest of the chunk. Mutation m18 (dropping the `hashes == 0`
+            # guard on the escape branch) survived every other fixture here.
+            ("raw ending in a backslash", '#"a\\"# ; { }', " ; { }"),
+            ("plain multiline", '"""he said "hi" {""" ; { }', " ; { }"),
+            ("#if is code", "#if os(iOS) ; { }", "#if os(iOS) ; { }"),
+            ("#filePath is code", "let p = #filePath ; { }", "let p = #filePath ; { }")):
+        got = "".join(snippet[i] for i in code_positions(snippet))
+        if got != expect:
+            print(f"selftest: code_positions mis-parsed {label}: {got!r} != {expect!r}. A `#` run "
+                  "opens a raw literal ONLY when a quote follows it; everything else beginning "
+                  "with `#` is ordinary code (#965).", file=sys.stderr)
+            ok = False
 
     # The VACUOUS-GATE mutation (#926), driven through `legacy_allowed` — the function `main`
     # actually calls. ⛔ #962: this loop used to re-spell the expression, so mutating the real

@@ -21208,3 +21208,58 @@ Anspruch (m4 zusätzlich c3 — geteilte Nadel, kein Rauschen).
 ⚠️ **Nicht geräteverifiziert.** Belegt ist, dass die Gründe in die Krümel-Senke GESCHRIEBEN
 werden. **NEEDS-FOUNDER-VERIFY:** ein Log, das degradiert, endet jetzt auf
 `engine: start FAILED — <Schritt>` statt auf `engine: start 2/2` mit Stille danach.
+
+## 2026-09-02 — #965: der String-Überspringer kannte keine Swift-RAW-Strings, und meine eigene Rechtfertigungs-Zahl war unreproduzierbar
+
+**Pflicht-Reviewer zu #963/#964: KEIN BLOCKER.** Die #964-Produktionsänderung kompiliert
+(`failure == nil` ist für ein Tupel-Optional legal — die `_OptionalNilComparisonType`-Überladung
+ist UNBESCHRÄNKT —, `if let failure {` ist SE-0345, keine neue Aktor-Exposition), ist
+verhaltensgleich, und `logEngineLifecycle` kann weder werfen noch ein Schloss nehmen. Alle
+Aufrufer von `start()` sind MainActor-Kontrollebene. Vier SHOULD-FIX, drei davon meine Zahlen.
+
+**(1) RAW STRINGS — ein echter verlorener Fund, selbst nachgestellt.** `code_positions` kannte
+`"…"` und `"""…"""`, nicht aber `#"…"#`. In einem Raw-String ist `\` KEIN Escape, und ein
+ungerades inneres `"` öffnet damit ein Literal, das nie schließt — der Rest des Chunks wird
+verschluckt. Gemessen vor der Reparatur: eine fatale `guard`, deren Meldung
+`#"quote " inside a raw string"#` enthält, wurde **nicht gemeldet**. ~20 Dateien im Bündel
+benutzen Raw-Strings; die meisten balancieren zufällig.
+
+Gebaut: ein `#`-Lauf öffnet ein Raw-Literal **nur, wenn ein Quote folgt** (damit bleiben `#if`,
+`#filePath`, `#available` gewöhnlicher Code), der Schließer verlangt dieselbe `#`-Anzahl, und
+der Escape-Zweig gilt nur bei `hashes == 0`.
+
+⚠️ **Und meine erste Fixture-Runde hatte wieder eine Lücke — dieselbe Lehre, dritter Zyklus in
+Folge.** Vier Mutationen, eine überlebte: das Fallenlassen des `hashes == 0`-Schutzes am
+Escape-Zweig. Keiner meiner Fälle hatte ein Raw-Literal, dessen Inhalt auf `\` ENDET (`#"a\"#`),
+wo `\"#` schließt und ein aktives Escape genau den Schließer frisst. Fixture nachgelegt, danach
+**fünf von fünf rot** (Opener, Escape, Single-Line-Schließer, `#`-Lauf-ohne-Quote,
+Multiline-Schließer).
+
+**(2) „418 Dateien, 21 ändern die Länge" REPRODUZIERT NICHT — gelöscht, nicht nachgeführt.**
+Über den Korpus, den `main()` wirklich baut (`Tests/CISmoke/*.swift` + jede
+`Sources/**/*.swift`), sind es **772 und 22**; über `Tests/CISmoke` allein 401 und 20. Das
+418/21-Paar beschreibt **keinen** Korpus dieses Repos — es war ein Scratch-Lauf über
+`Tests/CISmoke` plus `Sources/Echoelmusic/Audio`, aufgeschrieben, als beschriebe es die Eingabe
+des Werkzeugs. **Eine Zahl ist ein Datum UND ein Korpus**, und diese war tragend: sie ist die
+Begründung, `strip_strings` NICHT zu benutzen. Jetzt steht der BEFEHL daneben, und er läuft (er
+druckt `772 22`). Der MECHANISMUS-Beleg reproduziert exakt und bleibt.
+
+**(3) Der „ehrliche Rest" in #963 war unvollständig** — er nannte nur die unbalancierte
+Code-Klammer. Ergänzt: die 8 Dateien, die den Automaten am Dateiende mitten im Literal lassen
+(kann hier nicht beißen, weil `guard_else_fails` bei `after` neu startet und `function_chunks`
+pro `func` schneidet — auf Desync zwischen Nadel und ihrem `XCTFail` geprüft: 0 Treffer;
+notiert, weil „heute null gemessen" und „kann nicht passieren" verschiedene Aussagen sind).
+
+**(4) Reviewer-NIT erledigt:** der `body`-Generator lief bis zum Chunk-Ende statt bis `end`
+(`itertools.takewhile`).
+
+**Kein Rückschritt:** Selbsttest grün, voller Scan über 402 Dateien sauber, bekannter Positiv
+gegen `1ae5c5f` unverändert 3 Funde.
+
+⚠️ **Offen aus dem Review, bewusst NICHT in dieser Scheibe:** die #964-Fenster-Zahlen
+(965/235/998→1875) sind mit dem FALSCHEN Leser gemessen — der Nachbar-Wächter liest über sein
+eigenes `code(_:)` (Ganzzeilen-`//`-Filter), nicht über `SourceText.codeOnly`; unter seinem Leser
+sind es 880/296/977→1685, und eine der falschen Zahlen steht in einem ausgelieferten Kommentar.
+Und `diag-ladder` gibt für einen `FAILED`-Terminator auf einer VOLLSTÄNDIGEN Leiter ein grünes
+Verdikt (der „Retry warf"-Pfad) — Reparatur gehört ins Werkzeug, nicht in #964. Beide als
+eigene Scheiben registriert.
