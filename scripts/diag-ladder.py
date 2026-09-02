@@ -61,10 +61,13 @@ WHAT THIS CANNOT SAY — stated because a diagnosis without limits is itself a l
 from __future__ import annotations
 
 import argparse
+import contextlib
+import io
 import os
 import re
 import subprocess
 import sys
+import tempfile
 from collections import defaultdict
 
 # A rung literal looks like "<prefix> <step>/<total><separator><prose>".
@@ -289,7 +292,10 @@ def census_effect(word: str, numbered: bool, completes: bool = False) -> str:
         return "does NOT rescue — a ladder ending here still reads as ❌ died"
     if word in BENIGN_TERMINALS:
         return "rescues a SHORT ladder it FOLLOWS  → ⏹ ended"
-    return "rescues a SHORT ladder it FOLLOWS  → ⚠️ failed (still a finding)"
+    # #967: NOT "a SHORT ladder" any more. A non-benign terminator that FOLLOWS the last rung
+    # is a finding whether the ladder is short or complete — the label said "SHORT" while the
+    # verdict silently blessed the complete case as `done`.
+    return "a finding wherever it FOLLOWS the rungs  → ⚠️ failed (short or complete)"
 
 
 def audit_source(root: str) -> int:
@@ -464,10 +470,24 @@ def ladder_verdicts(lines: list[str],
     for key in set(progress) | set(terminal):
         step, idx, line = progress.get(key, (0, -1, ""))
         term = terminal.get(key)
-        if step >= key[1]:
+        # ⛔ #967 — `step >= total` USED TO SHORT-CIRCUIT TO `done` BEFORE THE TERMINATOR WAS
+        # EVEN LOOKED AT, so a ladder that ran to its last rung and THEN reported a failure
+        # printed `✅ done` and, with no other finding in the log, `✅ Every ladder that appears
+        # reached its last step`. That is not a corner: it is the shape #964 had just shipped —
+        # `start 1/2` → `start 2/2` → `start FAILED — the retry threw` — i.e. a start that
+        # failed reading as a healthy one, in the instrument a triager opens FIRST. The #937
+        # defect inside the tool, exactly the class this file keeps finding elsewhere.
+        # A FAILED that FOLLOWS the last rung now wins; a BENIGN one still does not (a
+        # `SKIPPED` after a complete ladder is a documented tidy exit, #907).
+        if (term is not None and term[0] >= idx
+                and term[2] not in BENIGN_TERMINALS):
+            verdict = "failed"
+            line = term[1]
+            idx = term[0]
+        elif step >= key[1]:
             verdict = "done"
         elif term is not None and term[0] >= idx:
-            verdict = "ended" if term[2] in BENIGN_TERMINALS else "failed"
+            verdict = "ended"
             line = term[1]
             idx = term[0]
         else:
@@ -506,6 +526,7 @@ def read_log(path: str, root: str) -> int:
     findings = 0
     ended = 0
     failed = 0
+    incomplete = 0
     print("  Ladder                      last step    where")
     for (prefix, total) in sorted(verdicts):
         v = verdicts[(prefix, total)]
@@ -515,6 +536,10 @@ def read_log(path: str, root: str) -> int:
         findings += 1 if v["verdict"] in ("died", "failed") else 0
         ended += 1 if v["verdict"] == "ended" else 0
         failed += 1 if v["verdict"] == "failed" else 0
+        # #967: COMPLETENESS is its own question. A ladder can reach its last rung AND report a
+        # failure after it; saying "did not reach their last step" about that one is false, and
+        # printing nothing about it was how the failure went invisible in the first place.
+        incomplete += 1 if step < total else 0
         print(f"  {flag} {prefix!r:<26} {step}/{total}      line {idx + 1}{tail}")
     print()
     if ended:
@@ -524,14 +549,16 @@ def read_log(path: str, root: str) -> int:
         print("   or a second owner meeting a route that was already raised.")
     if failed:
         print(f"⚠️ {failed} ladder(s) ended on a FAILED line — a finding, not a tidy exit.")
-        print("   The line names the error the code caught. The steps after it did not run.")
-    if findings:
-        print(f"❌ {findings} ladder(s) did not reach their last step.")
+        print("   READ THAT LINE: it names the error the code caught. On a SHORT ladder the")
+        print("   steps after it did not run; on a COMPLETE one the run reached its last step")
+        print("   and failed anyway — #967, which is the shape a retry-then-degrade writes.")
+    if incomplete:
+        print(f"❌ {incomplete} ladder(s) did not reach their last step.")
         print("   Since #882 every numbered step emits even when skipped, so a gap in a ladder")
         print("   written after that is a DEATH AT THAT STEP — the rung stands before its call.")
         print("   ⚠️ Check the ladder is one of the post-#882 ones before concluding that;")
         print("   `--source` lists which ladders are complete in today's tree.")
-    elif not ended:
+    elif not ended and not failed:
         print("✅ Every ladder that appears reached its last step.")
     print("\n⚠️ A completed ladder does not mean the run was healthy — it means no rung was")
     print("   the last thing written. The crash may be anywhere the ladder does not reach.")
@@ -610,6 +637,18 @@ def selftest(root: str) -> int:
          ["on 1/5: a", "on 4/5 SKIPPED: engine was not running"], ("on", 5), "died"),
         ("a FAILED terminator is its own outcome, never a tidy end",
          ["mic: start 1/3 — a", "mic: start FAILED (route lost)"], ("mic: start", 3), "failed"),
+        # ⛔ #967 — THE CASE THAT READ GREEN. `step >= total` short-circuited to `done` before
+        # the terminator was looked at, so a ladder that reached its last rung and THEN failed
+        # printed `✅ done` and the summary said every ladder reached its last step. This is
+        # the exact log #964's retry-then-degrade path writes.
+        ("a FAILED after the LAST rung is still a failure, not a tidy done",
+         ["session: raise 1/2 — a", "session: raise 2/2 — b",
+          "session: raise FAILED (the retry threw)"], ("session: raise", 2), "failed"),
+        # …and the counterweight, so the repair does not swallow the #907 rule with it:
+        # a BENIGN terminator after a complete ladder is still a documented tidy exit.
+        ("a SKIPPED after the LAST rung stays done (#907 is not undone by #967)",
+         raise2 + ["session: raise SKIPPED — category already .playAndRecord"],
+         ("session: raise", 2), "done"),
     ]:
         got = ladder_verdicts(lines, {key}).get(key, {}).get("verdict")
         check(f"{name} → {want}", got == want)
@@ -686,6 +725,14 @@ def selftest(root: str) -> int:
     check("FAILED keeps its own outcome and stays a finding",
           "failed" in census_effect("FAILED", False)
           and "finding" in census_effect("FAILED", False))
+    # #967: the label used to say "rescues a SHORT ladder", which described only half of what
+    # the verdict now does — and the half it left out was the one that printed a false green.
+    check("the FAILED label no longer restricts itself to a SHORT ladder",
+          "SHORT" not in census_effect("FAILED", False)
+          and "complete" in census_effect("FAILED", False))
+    check("the BENIGN label still says it must FOLLOW and still ends tidily",
+          "FOLLOWS" in census_effect("SKIPPED", False)
+          and "ended" in census_effect("SKIPPED", False))
 
     # ⛔ AND THE CHECKS ABOVE ARE STILL NOT ENOUGH ON THEIR OWN — measured, not reasoned.
     # They drive `census_pattern` and `census_effect` directly, so inverting the flag WHERE THE
@@ -710,6 +757,42 @@ def selftest(root: str) -> int:
                 break
     check(f"every census entry agrees with its own source line about the number "
           f"({len(census)} entries)", not mismatched and bool(census))
+
+    # ⭐ #967 — THE PRINTER, DRIVEN END TO END THROUGH `read_log`. Every check above drives the
+    # two PURE functions; the false green was PRINTED, and mutating the printer (making
+    # `incomplete` count verdicts again, or restoring the unconditional `elif not ended:`) left
+    # this selftest GREEN. Same composition gap as #962/#963/#965 — what bites is the
+    # composition, not the part — and here it is the part a triager actually reads.
+    with tempfile.TemporaryDirectory(prefix="diag-ladder-selftest-") as tmp:
+        def verdict_text(name: str, body: str) -> tuple[int, str]:
+            path = os.path.join(tmp, name)
+            with open(path, "w", encoding="utf-8") as handle:
+                handle.write(body)
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                rc = read_log(path, root)
+            return rc, buf.getvalue()
+
+        GREEN = "Every ladder that appears reached its last step"
+        SHORT = "did not reach their last step"
+        rc, out = verdict_text("complete_then_failed.log",
+                               "engine: start 1/2: starting master engine\n"
+                               "engine: start 2/2: retry after session reconfigure\n"
+                               "engine: start FAILED — the retry threw (err)\n")
+        check("a COMPLETE ladder that then FAILED is not printed as a green run",
+              GREEN not in out and "ended on a FAILED line" in out and rc == 1)
+        check("...and it is not accused of stopping short either, because it did not",
+              SHORT not in out)
+        rc, out = verdict_text("short_and_failed.log",
+                               "engine: start 1/2: starting master engine\n"
+                               "engine: start FAILED — the session reconfigure threw (err)\n")
+        check("a SHORT ladder that FAILED is both a failure AND incomplete",
+              "ended on a FAILED line" in out and SHORT in out and rc == 1)
+        rc, out = verdict_text("healthy.log",
+                               "engine: start 1/2: starting master engine\n"
+                               "engine: start 2/2: retry after session reconfigure\n")
+        check("a genuinely complete ladder still prints the green line and exits 0",
+              GREEN in out and "ended on a FAILED line" not in out and rc == 0)
 
     print("\n" + ("selftest OK" if ok else "selftest FAILED"))
     return 0 if ok else 1

@@ -21268,3 +21268,49 @@ sind es 880/296/977→1685, und eine der falschen Zahlen steht in einem ausgelie
 Und `diag-ladder` gibt für einen `FAILED`-Terminator auf einer VOLLSTÄNDIGEN Leiter ein grünes
 Verdikt (der „Retry warf"-Pfad) — Reparatur gehört ins Werkzeug, nicht in #964. Beide als
 eigene Scheiben registriert.
+
+## 2026-09-02 — #966/#967: eine Messung hängt an ihrem LESER, und ein gescheiterter Start las sich grün
+
+**#966 — die #964-Fenster-Zahlen waren mit dem FALSCHEN LESER gemessen.** „Offset 965 von 1200 —
+235 Zeichen Rest" und „Fenster 998 → 1875" standen im Commit-Text, im SESSION_LOG und — die
+teuerste Stelle — in einem AUSGELIEFERTEN Kommentar. Alle drei sind `SourceText.codeOnly`-Werte
+und gehören zum `retryRegion` des NEUEN Wächters; `testTheStartAttemptsAreLaddered` liest aber
+über sein eigenes `code(_:)`, einen Ganzzeilen-`//`-Filter, der abschließende Kommentare und
+Leerzeilen BEHÄLT. Selbst nachgemessen unter SEINEM Leser: **492 → 880, 296 Zeichen Rest,
+Fenster 977 → 1685.**
+
+⭐ **Das ist dieselbe Fehlerklasse wie #965 einen Zyklus vorher, und deshalb steht sie jetzt als
+GESETZ im Kommentar: eine MESSUNG hängt an ihrem LESER, wie eine ZAHL an ihrem KORPUS.** Beide
+Male war die Schlussfolgerung richtig und die Zahl daneben; beide Male stand sie in
+ausgeliefertem Text als BEGRÜNDUNG. Drei Zuhause mitgezogen (#456): Kommentar korrigiert,
+SESSION_LOG **gestrichen statt umgeschrieben** (⛔-Konvention — der Fehler bleibt sichtbar),
+`decisions.csv` als Korrekturzeile, weil append-only.
+
+**#967 — EIN GESCHEITERTER START LAS SICH GRÜN, im Werkzeug, das ein Triager ZUERST öffnet.**
+`ladder_verdicts` hatte `if step >= total: verdict = "done"` **VOR** jedem Blick auf den
+Terminator. Eine Leiter, die ihre letzte Sprosse erreicht und DANN scheitert, druckte also
+`✅ 'start' 2/2` und, ohne anderen Befund, `✅ Every ladder that appears reached its last step` —
+während die `FAILED`-Zeile direkt darüber im Kopf stand. Kein Sonderfall: **das ist genau die
+Form, die #964 einen Commit vorher ausgeliefert hat** (`start 1/2` → `start 2/2` →
+`start FAILED — the retry threw`). Die #937-Klasse im Instrument selbst.
+
+Gebaut: ein NICHT-benigner Terminator, der den Sprossen FOLGT, gewinnt jetzt über `done`; ein
+benigner nicht (ein `SKIPPED` nach vollständiger Leiter bleibt der dokumentierte saubere
+Ausgang, #907). Dazu zwei Prosa-Reparaturen, die derselbe Fehler waren: der Zähler „did not
+reach their last step" zählte VERDIKTE statt VOLLSTÄNDIGKEIT (und hätte einer vollständigen
+Leiter vorgeworfen, kurz zu sein), und das Census-Etikett sagte „rescues a SHORT ladder",
+während das Verdikt den vollständigen Fall still segnete.
+
+⚠️ **UND ZWEI VON SECHS MUTATIONEN ÜBERLEBTEN MEINE ERSTE FASSUNG — beide im DRUCKER, also
+genau dort, wo das falsche Grün GEDRUCKT wurde.** Der Selbsttest trieb nur die zwei REINEN
+Funktionen. Vierter Zyklus in Folge mit derselben Lehre; jetzt fährt er `read_log` end-to-end
+über Temp-Logs und prüft Text UND Exit-Code. Danach: **sechs von sechs rot.**
+
+⚠️ **Und eine siebte Mutation überlebte aus einem anderen Grund, der eine eigene Lehre ist:**
+`s.replace(needle, x, 1)` auf `return 1 if findings else 0` traf die ERSTE von ZWEI Fundstellen
+— eine andere Funktion. Die Mutation landete, war aber wirkungslos, und das sieht identisch aus
+wie „der Wächter deckt es ab". **Eine Mutation braucht eine EINDEUTIGE Verankerung, genau wie
+ein Wächter (#408).** Per Zeilenindex neu gefahren → rot.
+
+Kein Rückschritt: `--source` exit 0, `--selftest` grün, beide Founder-Log-Formen von Hand
+nachgestellt und geprüft.
