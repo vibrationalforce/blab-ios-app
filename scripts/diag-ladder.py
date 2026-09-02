@@ -590,6 +590,68 @@ def read_log(path: str, root: str) -> int:
     known = {(p, t) for (p, t) in ladders}
 
     print(f"{path} — {len(lines)} non-empty lines\n")
+    segments = split_segments(lines)
+    if len(segments) > 1:
+        print(f"  ⚠️ This export holds {len(segments)} RUNS, not one (#972). "
+              "`EchoelCrashLog.diagnosticsExport`")
+        print("     appends an EARLIER run that ended badly AFTER the current one, so the file")
+        print("     is not chronological. Each run is read on its own below; reading them as")
+        print("     one made the older, crashed run win every `last wins, per ladder` verdict.")
+        print()
+    worst = 0
+    for label, offset, chunk in segments:
+        if len(segments) > 1:
+            print(f"  ═══ {label} — lines {offset + 1}..{offset + len(chunk)}")
+        worst = max(worst, report_segment(chunk, known, offset))
+        if len(segments) > 1:
+            print()
+    # #972: ONCE, after every segment. Printing it inside `report_segment` repeated the
+    # caveat per run, and a caveat that repeats is a caveat that stops being read.
+    print("⚠️ A completed ladder does not mean the run was healthy — it means no rung was")
+    print("   the last thing written. The crash may be anywhere the ladder does not reach.")
+    return worst
+
+
+def split_segments(lines: list[str]) -> list[tuple[str, int, list[str]]]:
+    """Split a pasted export into its RUNS, as (label, offset in `lines`, that run's lines).
+
+    ⛔ #972 — THE TOOL HAD NO IDEA THIS FILE COULD HOLD TWO PROCESSES, and the consequence was
+    not a missing feature but an INVERTED verdict. `EchoelCrashLog.diagnosticsExport` builds the
+    pasted artifact as `current + "\n\n" + retainedCrashHeader + "\n" + retainedCrash` — the
+    CURRENT run first, an EARLIER run that ended badly appended after it. So the file is not
+    chronological, and `ladder_verdicts`' "last wins, per ladder" handed every verdict to the
+    older, crashed process. Driven: a current run with a genuine `mic: stop FAILED` plus an
+    appended crash holding a complete `mic: stop 1..3` printed `✅ 'mic: stop' 3/3` and demoted
+    the real failure into #971's MASKED block — which then narrated "the run failed, was
+    retried, and the retry succeeded" about a run that ended in SIGABRT BEFORE it.
+
+    ⚠️ THE MARKER IS NOT SPELLED HERE TWICE. `EchoelCrashLog.retainedCrashHeader` is the one
+    definition (#416); this matches its stable, human-readable core rather than the whole line,
+    because the parenthetical after it is prose that may be reworded. If the header is renamed
+    outright, this returns one segment and the tool is back to its pre-#972 behaviour — which is
+    why the split is REPORTED in the output rather than done silently.
+    """
+    cut = None
+    for idx, line in enumerate(lines):
+        if "RETAINED CRASH" in line:
+            cut = idx
+            break
+    if cut is None:
+        return [("the run", 0, lines)]
+    current = lines[:cut]
+    retained = lines[cut + 1:]
+    out: list[tuple[str, int, list[str]]] = []
+    if current:
+        out.append(("THE CURRENT RUN (the one you just exported)", 0, current))
+    if retained:
+        out.append(("AN EARLIER RUN THAT ENDED BADLY (appended, not later in time)",
+                    cut + 1, retained))
+    return out or [("the run", 0, lines)]
+
+
+def report_segment(lines: list[str], known: set[tuple[str, int]], offset: int) -> int:
+    """Everything `read_log` used to do inline, for ONE run. `offset` keeps every printed line
+    number pointing at the ORIGINAL file, so a triager can still find the line by eye."""
     for head in lines[:2]:
         print(f"  header │ {head[:110]}")
     print(f"  last   │ {lines[-1][:110]}\n")
@@ -604,7 +666,7 @@ def read_log(path: str, root: str) -> int:
         # #970: this branch returns before the report below, so an orphan failure in a
         # rung-less log would be swallowed by the one exit that already knows it is a finding.
         for idx, line in orphans:
-            print(f"  ⚠️ line {idx + 1}: {line[:110]}")
+            print(f"  ⚠️ line {idx + 1 + offset}: {line[:110]}")
         return 1
 
     findings = 0
@@ -616,7 +678,9 @@ def read_log(path: str, root: str) -> int:
     for (prefix, total) in sorted(verdicts):
         v = verdicts[(prefix, total)]
         step, idx = v["step"], v["idx"]
-        tail = " ← LAST LINE OF LOG" if idx == len(lines) - 1 else ""
+        # #972: "OF THIS RUN", not "OF LOG" — an export can hold two runs, and the last line
+        # of the first one is not the last line of the file.
+        tail = " ← LAST LINE OF THIS RUN" if idx == len(lines) - 1 else ""
         flag = {"done": "  ✅", "ended": "  ⏹", "failed": "  ⚠️", "died": "  ❌"}[v["verdict"]]
         findings += 1 if v["verdict"] in ("died", "failed") else 0
         ended += 1 if v["verdict"] == "ended" else 0
@@ -633,7 +697,7 @@ def read_log(path: str, root: str) -> int:
         incomplete += 1 if step < total and v["verdict"] != "ended" else 0
         for i, ln in v["masked"]:
             masked.append((i, prefix, ln))
-        print(f"  {flag} {prefix!r:<26} {step}/{total}      line {idx + 1}{tail}")
+        print(f"  {flag} {prefix!r:<26} {step}/{total}      line {idx + 1 + offset}{tail}")
     print()
     if ended:
         print(f"⏹ {ended} ladder(s) stopped before their last rung AND SAID WHY (#908).")
@@ -656,7 +720,7 @@ def read_log(path: str, root: str) -> int:
         print("   lines happened and were never printed: the run failed, was retried, and the")
         print("   retry succeeded. That is worth knowing even when the retry worked.")
         for idx, prefix, line in sorted(masked):
-            print(f"     line {idx + 1} ({prefix}): {line[:92]}")
+            print(f"     line {idx + 1 + offset} ({prefix}): {line[:92]}")
     if orphans:
         print(f"⚠️ {len(orphans)} line(s) report a FAILURE that belongs to NO ladder (#970).")
         print("   The ladder model has no verdict for these — read them. They are the")
@@ -665,7 +729,7 @@ def read_log(path: str, root: str) -> int:
         print("   On those three AUDIO IS DEAD, and before #970 a log holding all of them")
         print("   still printed the green line below and exited 0.")
         for idx, line in orphans:
-            print(f"     line {idx + 1}: {line[:104]}")
+            print(f"     line {idx + 1 + offset}: {line[:104]}")
     if incomplete:
         print(f"❌ {incomplete} ladder(s) did not reach their last step.")
         print("   Since #882 every numbered step emits even when skipped, so a gap in a ladder")
@@ -674,8 +738,6 @@ def read_log(path: str, root: str) -> int:
         print("   `--source` lists which ladders are complete in today's tree.")
     elif not ended and not failed and not orphans and not masked:
         print("✅ Every ladder that appears reached its last step.")
-    print("\n⚠️ A completed ladder does not mean the run was healthy — it means no rung was")
-    print("   the last thing written. The crash may be anywhere the ladder does not reach.")
     return 1 if findings or orphans or masked else 0
 
 
@@ -900,6 +962,10 @@ def selftest(root: str) -> int:
             return rc, buf.getvalue()
 
         GREEN = "Every ladder that appears reached its last step"
+        # #972: the marker as `EchoelCrashLog.retainedCrashHeader` writes it. Spelled here so a
+        # rename of that Swift constant shows up as a RED fixture rather than as a silent
+        # return to reading two processes as one.
+        EchoelRetainedHeader = "=== RETAINED CRASH (an earlier run that ended badly) ==="
         SHORT = "did not reach their last step"
         rc, out = verdict_text("complete_then_failed.log",
                                "engine: start 1/2: starting master engine\n"
@@ -967,10 +1033,19 @@ def selftest(root: str) -> int:
         # repeatedly in one session, so "failed, retried, retry worked" is the ORDINARY shape.
         MASKED = "MASKED BY A LATER RUN"
         good_on = "".join(f"on {n}/5: step {n}\n" for n in range(1, 6))
+        # ⛔ #972 — THIS FIXTURE HELD ONE FAILURE AND #971'S WHOLE MECHANISM IS "COLLECT EVERY,
+        # NOT ONLY THE LAST". Replacing `hostile_seen.setdefault(key, []).append(...)` with
+        # `hostile_seen[key] = [(idx, line)]` — i.e. the pre-#971 semantics — left the selftest
+        # GREEN. With one failure the two are indistinguishable, so the check could not grade
+        # the line named in its own commit title. TWO failures, and both line numbers asserted.
+        # Same class as the numbered-skip fixture #971 already had to repair: a fixture must
+        # REACH the branch it names.
         rc, out = verdict_text("failure_masked_by_retry.log",
-                               good_on + "on FAILED — something died\n" + good_on)
-        check("a FAILURE hidden between two good runs is printed, not swallowed",
-              MASKED in out and GREEN not in out and "line 6" in out and rc == 1)
+                               good_on + "on FAILED — the first one died\n" + good_on
+                               + "on FAILED — and so did the second\n" + good_on)
+        check("EVERY hidden FAILURE is printed, not just the last one",
+              MASKED in out and GREEN not in out
+              and "line 6" in out and "line 12" in out and rc == 1)
         rc, out = verdict_text("single_failure_not_masked.log",
                                "mic: stop 1/3 — a\nmic: stop 2/3 — b\nmic: stop 3/3 — c\n"
                                "mic: stop FAILED — the record route was not released (e)\n")
@@ -985,6 +1060,24 @@ def selftest(root: str) -> int:
                                "on REFUSED — the route was already raised\n" + good_on)
         check("a BENIGN terminator earlier in the log is not reported as a masked failure",
               MASKED not in out and rc == 0)
+
+        # ⭐ #972 — THE TWO-RUN EXPORT. `EchoelCrashLog.diagnosticsExport` appends an EARLIER
+        # crashed run AFTER the current one, so the file is not chronological. Read as one, the
+        # older run won every `last wins` verdict and #971 then narrated "the retry succeeded"
+        # about a process that had already died.
+        TWO = "holds 2 RUNS"
+        rc, out = verdict_text("export_with_retained_crash.log",
+                               "mic: stop 1/3 — a\n"
+                               "mic: stop FAILED — the record route was not released (e)\n"
+                               "\n" + EchoelRetainedHeader + "\n"
+                               "mic: stop 1/3 — a\nmic: stop 2/3 — b\nmic: stop 3/3 — c\n")
+        check("a two-run export is split, and the CURRENT run's failure is not demoted",
+              TWO in out and "ended on a FAILED line" in out and MASKED not in out and rc == 1)
+        check("...and the appended run's line numbers still point at the whole file",
+              "line 6" in out)
+        rc, out = verdict_text("ordinary_single_run.log", good_on)
+        check("an ordinary one-run log is NOT announced as multi-run",
+              TWO not in out and GREEN in out and rc == 0)
 
     print("\n" + ("selftest OK" if ok else "selftest FAILED"))
     return 0 if ok else 1

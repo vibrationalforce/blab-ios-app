@@ -21499,3 +21499,47 @@ danach scheiterte) · #969 (gesunder Start als Tod, plus der sich selbst widersp
 Zähler) · #970 (`FAILED` ohne Leiter) · #971 (`FAILED` von einem späteren Lauf verdeckt).
 **Nächster Zyklus geht zurück ans Produkt** — das Werkzeug ist jetzt ehrlich genug, um dem
 nächsten Geräte-Log zu glauben.
+
+## 2026-09-02 — #972: das Werkzeug wusste nicht, dass EIN Export ZWEI Läufe enthält
+
+**Der Prüfer hat zwei CRITICALs gefunden. Beide selbst nachgefahren. Dieser ist der, der JEDE
+echte Founder-Einfügung betrifft.**
+
+⛔ `EchoelCrashLog.diagnosticsExport` baut die eingefügte Datei als
+`current + "\n\n" + retainedCrashHeader + "\n" + retainedCrash` — **der aktuelle Lauf zuerst,
+ein FRÜHERER, schlecht geendeter Lauf DAHINTER angehängt.** Die Datei ist also nicht
+chronologisch. `diag-ladder.py` hatte **null** Vorkommen von `RETAINED` und las alles als einen
+Lauf, wodurch „letzter gewinnt, pro Leiter" jedes Urteil an den **älteren, abgestürzten**
+Prozess vergab.
+
+Gefahren: ein aktueller Lauf mit echtem `mic: stop FAILED` plus angehängtem Absturz mit
+vollständiger `mic: stop 1..3`-Leiter druckte `✅ 'mic: stop' 3/3` — und **#971s frischer
+MASKED-Block erzählte dazu „der Lauf scheiterte, wurde wiederholt, die Wiederholung hat
+geklappt"** über einen Prozess, der VORHER in SIGABRT geendet war. Eine erfundene
+Kausalgeschichte über zwei verschiedene Prozesse.
+
+**Reparatur:** `split_segments` teilt am Marker; jeder Lauf wird einzeln gelesen und
+beschriftet, der Split wird im Bericht ANGEKÜNDIGT (nicht still gemacht), und jede gedruckte
+Zeilennummer trägt jetzt einen `offset`, zeigt also weiter auf die ganze Datei. Der Marker ist
+**nicht** zweimal buchstabiert — `EchoelCrashLog.retainedCrashHeader` ist die eine Definition
+(#416); gematcht wird nur sein stabiler Kern, weil die Klammer dahinter Prosa ist.
+Die Schluss-Warnung wandert aus dem Segment nach draußen: **eine Warnung, die sich wiederholt,
+ist eine Warnung, die nicht mehr gelesen wird.**
+
+**Sechs Mutationen, alle gefangen** (Split abgeschaltet · Markerzeile im zweiten Lauf behalten ·
+Offsets fallengelassen · Banner stumm · Segment-Exitcode verworfen · Split feuert immer).
+
+⛔ **Mitgezogen, weil es ein Defekt AUS #971 ist, den ich mitgeschleppt hätte:** die
+`failure_masked_by_retry`-Fixture hielt EINEN Fehlschlag — und #971s ganzer Mechanismus heißt
+„sammle JEDEN, nicht nur den letzten". Mit einem Fehlschlag sind beide Fassungen ununterscheidbar:
+`hostile_seen[key] = [...]` (die Semantik VOR #971) ließ den Selbsttest **grün**. Jetzt zwei
+Fehlschläge, beide Zeilennummern geprüft → gefangen. **Dieselbe Klasse wie die
+nummerierte-Skip-Fixture einen Commit vorher: eine Fixture muss den Zweig ERREICHEN, den ihr
+Name nennt.** Zweimal in Folge derselbe Fehler, beide Male vom Prüfer und nicht von mir gefunden.
+
+⚠️ **NÄCHSTE SCHEIBE, verifiziert und noch offen (C1):** ein Absturz IM Wiederholungs-`start()`
+liest sich grün. Letzte Zeile `start 2/2` → `✅ 'start' 2/2`, Exit 0 — obwohl die Sprosse VOR
+dem Aufruf steht und ein erholter Lauf immer `start OK after session reconfigure` schriebe.
+**Und es ist verkehrt herum:** ein Absturz im ERSTEN Versuch liest sich korrekt als `❌ 1/2`.
+Meine eigene `recovered_after_retry.log`-Fixture nagelt die falsche Antwort fest — genau der
+Grund, aus dem #969 die Vorgänger-Fixture umbenannt hat.
