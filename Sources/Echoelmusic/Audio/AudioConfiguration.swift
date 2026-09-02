@@ -653,7 +653,14 @@ enum AudioConfiguration {
         // #855: same re-assert on the way DOWN — the playback route renegotiates too.
         do { try audioSession.setPreferredIOBufferDuration(
                  Double(currentBufferSize) / preferredSampleRate) }
-        catch { log.audio("IO-buffer re-assert refused on downgrade (\(error))") }
+        catch {
+            // #968: the downgrade itself succeeded, so this is a detail, not a terminator. It
+            // still matters: #855 shipped this re-assert because a refused one leaves the next
+            // monitoring session on whatever the OS picks — the founder-measured 23 ms against
+            // a 10.7 ms choice.
+            EchoelCrashLog.breadcrumb("session: lower — the buffer re-assert was refused (\(error))")
+            log.audio("IO-buffer re-assert refused on downgrade (\(error))")
+        }
         // Deliberately NO setActive(false): the master output engine still needs the
         // session live — deactivating it here is exactly the silence bug this fixes.
         log.audio("Audio session downgraded to .playback (mic stopped)")
@@ -999,6 +1006,10 @@ enum AudioConfiguration {
                           + (options.contains(.shouldResume) ? "" : " (no shouldResume hint — foreground, resumed anyway)"))
                 onInterruptionResume?()
             } catch {
+                // ⭐ #968: audio is DEAD after this — a phone call ends and nothing comes back.
+                // The prefix is deliberately not one of the three tracked ladder names, so this
+                // ends no ladder; it is its own event.
+                EchoelCrashLog.breadcrumb("session: interruption FAILED — could not reactivate (\(error))")
                 log.audio("Failed to reactivate audio session: \(error)", level: .error)
                 // ⛔ #585 — THIS BRANCH USED TO END HERE, and ending here is a dead end. The
                 // session did not come back, `wasInterrupted` is still set, the graph is still
@@ -1054,6 +1065,9 @@ enum AudioConfiguration {
             // user 30 seconds of silence, with nothing anywhere reporting a problem.
             onMediaServicesReset?()
         } catch {
+            // ⭐ #968: same class as the interruption above — audio is dead and the exported log
+            // said nothing about why.
+            EchoelCrashLog.breadcrumb("session: media reset FAILED — could not reconfigure (\(error))")
             log.audio("Failed to reconfigure audio after media services reset: \(error)", level: .error)
         }
     }

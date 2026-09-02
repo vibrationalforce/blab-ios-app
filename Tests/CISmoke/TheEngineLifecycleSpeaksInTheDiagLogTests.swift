@@ -1104,15 +1104,26 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         // per `configureAudioSession`, the same lifecycle event the four numbered rungs above
         // them already narrate — not a per-buffer or tick-rate path.
         //
+        // ⭐ #968 — AND A FOURTH TIME, on the commit that made the rule systematic. #968 asked
+        // the opposite question to every predecessor: not "does a new line belong here" but
+        // "which lifecycle `catch` blocks in this file speak ONLY to os_log". Three did — the
+        // buffer re-assert on downgrade, the reactivate after an interruption, the reconfigure
+        // after a media-services reset — and the last two are the ones where audio is DEAD and
+        // the exported log said nothing. `python3 scripts/count-pins.py` printed
+        // `pinned 17, actual 20` before the commit existed. All three are discrete failure
+        // events on a path the numbered rungs already narrate; none is per-buffer or tick-rate.
+        //
         // TODAY'S ARITHMETIC: seven transition rungs + THREE `SKIPPED` state lines +
         // `latencyBreadcrumb` + one `route: claim` + THREE `route: release` outcomes +
-        // the granted-rate line + the refused-re-ask outcome = 17.
-        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 17, """
+        // the granted-rate line + the refused-re-ask outcome + THREE lifecycle-`catch`
+        // outcomes (lower re-assert, interruption reactivate, media reset) = 20.
+        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 20, """
             The breadcrumb count in AudioConfiguration changed. Confirm the new site is a \
-            discrete event (launch, route transition), never a per-buffer or tick-rate path, \
-            then update this number and say why in the same commit. Today: seven transition \
-            rungs + three SKIPPED state lines + latencyBreadcrumb + one route claim + three \
-            route-release outcomes + the granted-rate read-back + its refused-re-ask outcome.
+            discrete event (launch, route transition, a lifecycle failure), never a per-buffer \
+            or tick-rate path, then update this number and say why in the same commit. Today: \
+            seven transition rungs + three SKIPPED state lines + latencyBreadcrumb + one route \
+            claim + three route-release outcomes + the granted-rate read-back + its \
+            refused-re-ask outcome + three lifecycle-catch outcomes.
             """)
     }
 

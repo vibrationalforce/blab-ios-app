@@ -21314,3 +21314,55 @@ ein Wächter (#408).** Per Zeilenindex neu gefahren → rot.
 
 Kein Rückschritt: `--source` exit 0, `--selftest` grün, beide Founder-Log-Formen von Hand
 nachgestellt und geprüft.
+
+## 2026-09-02 — #968: sechs Lifecycle-`catch`-Blöcke schwiegen in der exportierten Datei
+
+**Die Frage war umgedreht, und das ist der ganze Unterschied zu #862b und #964.** Beide haben
+das #859-Gesetz EINMAL angewandt, an der Stelle, die gerade jemanden gebissen hatte. Diese
+Runde hat gefragt: *welche Lifecycle-`catch`-Blöcke auf dem Audio-Pfad sprechen NUR zu os_log?*
+Antwort: **sechs, in drei Dateien** — und `os_log` steht nicht in der Datei, die der Founder
+exportiert.
+
+| Datei | Stelle | Klasse |
+|---|---|---|
+| `AudioConfiguration` | Puffer-Neusetzung beim Herunterstufen | Audio LÄUFT weiter |
+| `AudioConfiguration` | Reaktivieren nach Unterbrechung | **Audio ist TOT** |
+| `AudioConfiguration` | Neukonfiguration nach Media-Reset | **Audio ist TOT** |
+| `AudioEngine` | Sitzung lässt sich beim Stop nicht deaktivieren | Stop LÄUFT weiter |
+| `AudioEngine` | Neustart nach Unterbrechung scheitert → degrade | **Audio ist TOT** |
+| `MicrophoneManager` | Aufnahme-Route wird nicht freigegeben | Mic ist aus, Route GEHALTEN |
+
+⭐ **Die Wortwahl ist gestuft, nicht einheitlich, und die Wächter erzwingen die Stufung.**
+Wo Audio TOT ist, steht `FAILED` in Großbuchstaben — `diag-ladder.py` liest genau dieses Wort
+als Befund. Wo es WEITERLÄUFT, steht ein kleingeschriebenes Detail. Beide Fälle gleich zu
+beschriften wäre die #937-Klasse: ein gesunder Lauf, den das Werkzeug als Befund meldet.
+
+⭐ **Eine der sechs wurde erst durch #967 lesbar.** `mic: stop FAILED` folgt einer VOLLSTÄNDIGEN
+`mic: stop` 1..3-Leiter. Vor #967 hat ein nicht-benigner Terminator NACH der letzten Sprosse
+immer noch `✅ done` gedruckt — die Zeile wäre also in ein Log gelaufen, das das Werkzeug als
+sauber meldet. Ein Zyklus Abstand zwischen „das Werkzeug kann es sehen" und „die Zeile
+existiert".
+
+**Wächter:** `Tests/CISmoke/TheLifecycleCatchesSpeakInTheExportedLogTests.swift`, 8 Ansprüche.
+Transkribiert und GEFAHREN: `dcde4ba` 6 rot von 8 · `7f7b303` 6 rot von 8 · Arbeitsbaum 0 rot.
+Die zwei Gegengewichte (kein AVFAudio-Aufruf bewegt · das Herunterstufen deaktiviert die
+Sitzung weiterhin NICHT — #855) sind auf ALLEN Bäumen grün, wie ein Gegengewicht sein soll.
+**Acht Mutationen, acht Einzeltreffer, NULL Übersprechen** — und alle per ZEILENINDEX gesetzt,
+weil #967 genau daran gescheitert war (`replace(…, 1)` gegen eine wiederholte Zeichenkette
+landet auf der falschen Stelle, sieht angewandt aus und benotet nichts).
+
+**Mitgezogen:** der Krümel-Zähler in `TheEngineLifecycleSpeaksInTheDiagLogTests` 17 → 20, mit
+der neuen Arithmetik und dem Grund in derselben Zeile. `scripts/count-pins.py` hat ihn wie
+schon bei #906/#907/#961 VOR dem Commit rot gemeldet (`pinned 17, actual 20`) — das ist
+mittlerweile der vierte Fang desselben Werkzeugs.
+
+⚠️ **Nebenbefund, NICHT repariert (Scope):** `engine: restart after <ctx> FAILED` ist für
+`diag-ladder.py` gar keine Leiter, also bekommt sie kein Urteil — ein Log, das auf dieser Zeile
+endet, druckt weiterhin „✅ Every ladder … reached its last step" und zeigt die Zeile nur als
+`last │`. Gemessen mit einem synthetischen Log, nicht vermutet. Das ist eine eigene Scheibe.
+
+⚠️ **Nicht gerätebestätigt, und von hier aus nicht bestätigbar.** Bewiesen ist, dass die sechs
+Gründe in die Krümel-Senke GESCHRIEBEN werden. NEEDS-FOUNDER-VERIFY: endet ein Log nach einem
+Anruf, der Echoel stumm zurücklässt, jetzt auf `session: interruption FAILED — could not
+reactivate (…)` bzw. `engine: restart after interruption FAILED — …` statt auf einer Sprosse
+mit nichts dahinter?

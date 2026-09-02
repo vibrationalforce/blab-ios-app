@@ -2120,6 +2120,11 @@ public final class AudioEngine {
         do {
             try AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
         } catch {
+            // #968: the stop CONTINUES, so this is a lowercase detail and not a terminator —
+            // but the app now believes it stopped while the session is still ACTIVE, and the
+            // next start inherits that divergence. `log.audio` alone leaves it out of the file
+            // the founder exports (#859).
+            logEngineLifecycle("stop — the session refused to deactivate (\(error))")
             log.audio("Failed to deactivate audio session: \(error.localizedDescription)")
         }
         #endif
@@ -3531,6 +3536,11 @@ public final class AudioEngine {
         logEngineLifecycle("restart after \(context) — starting master engine")
         do { try masterEngine.start() }
         catch {
+            // ⭐ #968 — THE MOST EXPENSIVE OF THE SIX. This is a DEGRADE with no exported line,
+            // on the interruption/reset path, i.e. the commonest real-device failure. The rung
+            // above says "restart after X — starting master engine"; without this the log shows
+            // that rung and then nothing, exactly the #964 shape one path over.
+            logEngineLifecycle("restart after \(context) FAILED — \(error)")
             log.audio("Engine restart after \(context) failed (\(error)) — handing over to AudioDegradedRow", level: .error)
             isRunning = false
             degraded = true

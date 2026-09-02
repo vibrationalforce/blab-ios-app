@@ -600,6 +600,12 @@ final class MicrophoneManager: NSObject {
         do {
             try AudioConfiguration.releaseRecordRoute(.microphoneManager)
         } catch {
+            // ⭐ #968 — AN UNNUMBERED TERMINATOR AFTER A COMPLETE LADDER, and it only became
+            // legible with #967. `mic: stop` reaches 3/3 and then this fails: the mic stopped
+            // while the RECORD ROUTE is still held, which is the state the
+            // `isInputConnToConverter` family lives in. Before #967 a `FAILED` after the last
+            // rung still printed `✅ done`; now it is a finding, which is what it is.
+            EchoelCrashLog.breadcrumb("mic: stop FAILED — the record route was not released (\(error))")
             log.audio("Failed to downgrade audio session after recording: \(error.localizedDescription)", level: .warning)
         }
         #endif
