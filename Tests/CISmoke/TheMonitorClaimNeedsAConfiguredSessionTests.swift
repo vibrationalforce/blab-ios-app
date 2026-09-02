@@ -9,8 +9,18 @@
 // configured first — `if !AudioConfiguration.isSessionConfigured { try configureAudioSession() }`,
 // two lines before making its claim. The input-monitoring path did not, and
 // `isSessionConfigured` occurred ZERO times anywhere in that method.
-// `MultiTrackRecorder.swift:132` is the third and is still unguarded; it is doorless (#204), so
-// it is NAMED here and not fixed.
+// `MultiTrackRecorder.swift:132` was the third and was still unguarded; it is doorless (#204),
+// so #975 NAMED it here and did not fix it.
+//
+// ⭐ #981 FIXED IT, and the thing that changed the call was measuring the RELEASE side instead
+// of the claim side. Doorlessness is a good reason not to fix a bug a user can hit; it is not a
+// reason to leave two of three siblings behaving one way and the third another, because the
+// person who re-doors it has no reason to look. What the third site actually inherited: the
+// claim raises the category regardless, but every release runs
+// `downgradeToPlaybackAfterRecording()`, whose first statement is
+// `guard isSessionConfigured else { … return }` — so a take on an unconfigured session raises
+// `.playAndRecord` and can never lower it, with nobody holding it. Claim 7 below now asserts all
+// THREE sites, so this sentence cannot go stale again without a red build.
 //
 // ⛔ #976 — AND #975 GAVE THE WRONG REASON FOR ITS OWN FIX, in every home it wrote one. It said
 // this closes the 48 kHz / 44.1 kHz divergence behind the founder's `isInputConnToConverter`
@@ -74,6 +84,7 @@ final class TheMonitorClaimNeedsAConfiguredSessionTests: XCTestCase {
     private static let engine = "Sources/Echoelmusic/Audio/AudioEngine.swift"
     private static let config = "Sources/Echoelmusic/Audio/AudioConfiguration.swift"
     private static let mic = "Sources/Echoelmusic/MicrophoneManager.swift"
+    private static let recorder = "Sources/Echoelmusic/Audio/MultiTrackRecorder.swift"
 
     private func source(_ relative: String) throws -> String {
         let here = URL(fileURLWithPath: #filePath)
@@ -242,5 +253,93 @@ final class TheMonitorClaimNeedsAConfiguredSessionTests: XCTestCase {
                 branch means something rode in on it.
                 """)
         }
+    }
+
+    // MARK: - 7. #981: the THIRD claim site, and the premise that makes its repair matter
+
+    /// ⭐ #981 CLOSED THE ASYMMETRY THIS FILE'S HEADER NAMED. `claimRecordRoute` has three call
+    /// sites; two guarded and `MultiTrackRecorder` did not. The header said so and left it —
+    /// correctly, at the time, because the recorder is doorless (#204). What changed the call is
+    /// measuring the RELEASE side rather than the claim side: the claim raises the category
+    /// through `upgradeToPlayAndRecord()` regardless, but every release runs
+    /// `downgradeToPlaybackAfterRecording()`, whose first statement is
+    /// `guard isSessionConfigured else { … return }`. A take started on an unconfigured session
+    /// therefore raises `.playAndRecord` and can NEVER lower it — the session sits there with
+    /// nobody holding it, the A2DP→HFP degradation `AudioConfiguration` names at that guard.
+    ///
+    /// ⚠️ It is still doorless, and that is stated rather than glossed: this fixes nothing a
+    /// user can reach today. It fixes what the next person to open that door would inherit.
+    ///
+    /// ⭐ AND THE THIRD SITE REFUSES WHERE THE OTHER TWO RECONFIGURE — the needle below is
+    /// deliberately the CHECK, not the repair. Both siblings may call `configureAudioSession()`
+    /// because no engine is running when they do (`MicrophoneManager` before it builds its
+    /// engine, `rearmInputMonitoring` after `masterEngine.stop()`). `MultiTrackRecorder` reaches
+    /// this point with a RUNNING engine, and `configureAudioSession()` does
+    /// `setPreferredSampleRate(48000)` and `setActive(true)` — changing the hardware rate under
+    /// a running engine is the class behind the founder's `isInputConnToConverter` abort. So the
+    /// third site sets its error and returns. Copying the sibling BODY here would have been
+    /// pattern-matching; what the three must share is the CHECK, which is what this asserts.
+    func testAllThreeClaimSitesCheckTheSessionFirst() throws {
+        let sites = [
+            (Self.mic, "AudioConfiguration.claimRecordRoute(.microphoneManager)"),
+            (Self.engine, "AudioConfiguration.claimRecordRoute(.inputMonitoring)"),
+            (Self.recorder, "AudioConfiguration.claimRecordRoute(.multiTrackRecorder)")
+        ]
+        for (path, claim) in sites {
+            let code = try source(path)
+            guard let claimAt = code.range(of: claim) else {
+                XCTFail("""
+                    \(path) no longer claims the record route with \(claim). If a site was \
+                    removed, drop it from this list in the same commit — a guard that cannot \
+                    find its anchor asserts nothing (#926).
+                    """)
+                continue
+            }
+            // The check must stand BEFORE the claim, and inside the same method — approximated
+            // by "the nearest preceding occurrence", which is what the other claims in this file
+            // use. A file-wide `contains` would pass on a check that lives in another method.
+            let before = code[code.startIndex..<claimAt.lowerBound]
+            guard let checkAt = before.range(of: "!AudioConfiguration.isSessionConfigured",
+                                             options: .backwards) else {
+                XCTFail("""
+                    \(path) claims the record route without first checking \
+                    `AudioConfiguration.isSessionConfigured`. The claim raises the category \
+                    either way, but `downgradeToPlaybackAfterRecording()` returns early when the \
+                    session was never configured — so the route goes UP and can never come back \
+                    DOWN, with nobody holding it. That is the founder-visible A2DP→HFP \
+                    degradation.
+                    """)
+                continue
+            }
+            XCTAssertTrue(checkAt.lowerBound < claimAt.lowerBound,
+                          "\(path): the session check no longer precedes its claim.")
+        }
+    }
+
+    /// COUNTERWEIGHT AND PREMISE for the claim above. The whole reason an unguarded claim is a
+    /// defect is that the DOWNGRADE refuses on an unconfigured session. The day that guard goes,
+    /// the argument above is stale and this file must be re-read rather than trusted (#631).
+    func testTheDowngradeStillRefusesAnUnconfiguredSession() throws {
+        let code = try source(Self.config)
+        XCTAssertTrue(code.contains("guard isSessionConfigured else"), """
+            `AudioConfiguration` no longer refuses to downgrade on an unconfigured session. \
+            That refusal is the ENTIRE premise of the claim above: without it, claiming on an \
+            unconfigured session would lower again normally and #981 would be unnecessary. \
+            Re-read this file before trusting it.
+            """)
+    }
+
+    /// #981's exit must be DISTINGUISHABLE. Reusing `engineNotReady` would have put a wrong
+    /// label on a user-visible failure — the engine check runs earlier and had already passed.
+    /// ⚠️ This asserts the case EXISTS and is USED, never that the recorder stays doorless
+    /// (#364): re-dooring it is exactly the work this repair is for.
+    func testTheRecorderNamesItsOwnSessionFailure() throws {
+        let code = try source(Self.recorder)
+        XCTAssertTrue(code.contains("case sessionNotConfigured"),
+                      "the recorder lost its own error case for a never-configured session; "
+                      + "`engineNotReady` is a different fact and its check runs earlier")
+        XCTAssertTrue(code.contains("lastError = .sessionNotConfigured"),
+                      "the case exists but nothing sets it — an error nobody can observe is "
+                      + "the same as no error at all")
     }
 }

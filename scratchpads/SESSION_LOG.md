@@ -21975,3 +21975,65 @@ der vier Wörter. `count-pins` 0 ROT · `dead-needles` grün über 404 Dateien �
 gegen den ELTERNBAUM verglichen statt absolut: drei Dateien zeigen dieselbe Ungleichheit auf HEAD
 wie im Arbeitsbaum (ein `(` in einem `"""`-Block, den mein grober Zähler nicht versteht) — von mir
 unverändert.
+
+## 2026-09-02 — #981: die DRITTE Anspruchsstelle, und warum sie NICHT dasselbe tun darf wie die zwei anderen
+
+**Gates zuvor:** #979 `ed4849e` und #980 `3eb0a9d` beide **Xcode Compile Check grün**, und —
+wichtiger für zwei Commits voller neuem Swift ohne lokalen Compiler — **das Testbündel hat gebaut
+und lief** (hunderte `passed`-Zeilen von zwei Klonen, Testergebnisse hochgeladen). ⚠️ Das
+Log-Fenster endete diesmal VOR der `TEST EXECUTE FAILED`-Zeile, der Diskriminator ist also nicht
+zitierbar (#807); die Aussage stützt sich auf die gebauten Artefakte, nicht auf eine Abwesenheit.
+
+**Der Befund.** `AudioConfiguration.claimRecordRoute` hat drei Aufrufer. `MicrophoneManager` und
+— seit #975 — `AudioEngine.rearmInputMonitoring` prüfen vorher `isSessionConfigured`;
+`MultiTrackRecorder:132` nicht. #975 hatte das ausdrücklich benannt und liegen gelassen, weil die
+Fläche türlos ist (#204).
+
+**Was die Entscheidung gedreht hat, war die FREIGABE-Seite, nicht die Anspruchs-Seite.** Der
+Anspruch hebt die Kategorie in jedem Fall an; jede Freigabe läuft aber durch
+`downgradeToPlaybackAfterRecording()`, dessen erste Anweisung `guard isSessionConfigured else {
+… return }` ist. Eine Aufnahme auf einer nie konfigurierten Sitzung hebt also `.playAndRecord` an
+und kann es **nie wieder senken** — die Sitzung bleibt dort **ohne Besitzer** stehen, exakt die
+A2DP→HFP-Degradierung, die `AudioConfiguration` an diesem Guard selbst benennt. Alle VIER
+Freigabestellen der Datei laufen in dieselbe Wand. Türlosigkeit ist ein guter Grund, einen Fehler
+nicht zu reparieren, den ein Nutzer erreichen kann; sie ist **kein** Grund, zwei von drei
+Geschwistern so und das dritte anders laufen zu lassen — wer die Tür wieder aufmacht, hat keinen
+Anlass hinzusehen.
+
+⭐ **UND DIE REPARATUR IST NICHT DIE KOPIE DES MUSTERS — das ist der Kern dieser Scheibe.** Meine
+erste Fassung übernahm den Rumpf der Geschwister (`if !isSessionConfigured { try
+configureAudioSession() }`). Gemessen, bevor der Reviewer antwortete: beide Geschwister dürfen das,
+weil bei ihnen **keine Engine läuft** — `MicrophoneManager` ruft es, BEVOR es seine `AVAudioEngine`
+baut, `rearmInputMonitoring` NACH `masterEngine.stop()`. `MultiTrackRecorder` erreicht die Stelle
+mit **laufender** Engine (`guard let engine, engine.isRunning` steht drei Anweisungen darüber), und
+`configureAudioSession()` macht an Sprosse 2/4 `setPreferredSampleRate(48000)` und an 4/4
+`setActive(true)`. **Die Hardware-Rate unter einer laufenden Engine zu ändern ist genau die Klasse
+hinter dem `isInputConnToConverter`-Abbruch des Founders (v10.79.435).** Das Muster hier zu kopieren
+wäre Muster-Abgleich gewesen, keine Ingenieursarbeit. Die dritte Stelle **verweigert** deshalb:
+`lastError` setzen, Log-Zeile, `return` — kein Anfassen der Sitzung. Kosten: null, denn die Stelle
+zu erreichen verlangt eine LAUFENDE Engine auf einer NIE konfigurierten Sitzung, und
+`AudioEngine.start()` konfiguriert sie; auf dem ausgelieferten Graphen ist der Zweig unerreichbar.
+
+**Neuer Fehlerfall statt falschem Etikett:** `MultiTrackRecorderError.sessionNotConfigured`.
+`engineNotReady` wiederzuverwenden hätte ein falsches Etikett auf einen nutzersichtbaren Fehler
+geklebt — die Defektklasse, deren Entfernung diese Woche zwei Zyklen gekostet hat. Gemessen: nichts
+schaltet erschöpfend über dieses `enum` (nur ein Test mustert `.engineNotReady`), ein neuer Fall ist
+also gefahrlos.
+
+**KEINE neue Wächterdatei (#416):** die Entscheidung gehört
+`TheMonitorClaimNeedsAConfiguredSessionTests`, also drei neue Ansprüche dort — plus die Korrektur
+seines Kopfes, der wörtlich sagte „is the third and is still unguarded". **Genau die Fundstelle,
+die ich letzten Zyklus übersehen hätte.**
+
+**Getrieben gegen beide Bäume** (Python-Transkription von `SourceText.codeOnly`): Anspruch 7 (alle
+drei Stellen prüfen zuerst) **rot am Elternbaum aus seinem genannten Grund**, grün bei mir ·
+Anspruch 9 (eigener Fehlerfall, und jemand setzt ihn) ebenso · Anspruch 8 ist die PRÄMISSE und grün
+auf beiden — er wird rot, sobald jemand den Downgrade-Guard entfernt und damit die ganze Begründung
+hinfällig macht. Zitierte Prämisse nachgemessen statt geglaubt: `register(defaults:)` bekommt genau
+drei Schlüssel, `audioLaneRecording` ist keiner davon, `isOn` ist `defaults.bool(forKey:)` → false.
+
+⚠️ **Der Pflicht-Reviewer lief noch beim Commit** (Sitzungs-Präzedenz #979 → #980): seine Befunde
+kommen als Folge-Commit. Die Frage, die ich ihm als größte Sorge mitgegeben habe — Konfiguration
+unter laufender Engine —, habe ich vor dem Commit selbst gemessen und die Reparatur daraufhin
+GEÄNDERT; seine Antwort trifft also bereits die Verweigerungs-Fassung nicht mehr.
+Nicht geräteverifiziert; kein lokaler Compiler.

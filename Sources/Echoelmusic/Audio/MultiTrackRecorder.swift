@@ -126,6 +126,49 @@ public final class MultiTrackRecorder {
         // audio to HFP). Recording needs the input hardware — upgrade to
         // .playAndRecord now, BEFORE reading inputNode's format (under .playback it
         // reports sampleRate 0 and the guard below would bail).
+        // #981 — THE THIRD CLAIM SITE, AND THE ONLY ONE THAT DID NOT CHECK FIRST.
+        // `AudioConfiguration.swift` already documented that there are three; two of them
+        // (`MicrophoneManager` and, since #975, `AudioEngine.rearmInputMonitoring`) guard with
+        // exactly this `if !isSessionConfigured` before claiming, and this one did not.
+        //
+        // WHAT THE ASYMMETRY COSTS, measured at the release side rather than guessed: the claim
+        // raises the category through `upgradeToPlayAndRecord()` whether or not the session was
+        // ever configured, but the matching release runs `downgradeToPlaybackAfterRecording()`,
+        // whose FIRST statement is `guard isSessionConfigured else { … return }`. So a take
+        // started on an unconfigured session raises `.playAndRecord` and can never lower it
+        // again — the session sits there with NOBODY holding it, which is the founder-visible
+        // A2DP→HFP degradation that file names at that guard. All four release sites in this
+        // file hit the same wall.
+        //
+        // ⚠️ HONEST SCOPE: this cannot bite a user TODAY. `startRecording()` is doorless —
+        // `FeatureFlags.audioLaneRecording` is never handed to `UserDefaults.register(defaults:)`
+        // so it resolves to false, and `RecordController.arm()` has no production caller (#204).
+        // The repair is for the day that door comes back, when the person opening it will have
+        // no reason to suspect the third site behaves differently from the other two.
+        // ⚠️ IT REFUSES — it does NOT reconfigure, and that is the one place this site must
+        // differ from its two siblings. Both of them may safely call `configureAudioSession()`
+        // because no engine is running when they do: `MicrophoneManager` calls it BEFORE it
+        // creates its `AVAudioEngine`, and `AudioEngine.rearmInputMonitoring` calls it AFTER
+        // `masterEngine.stop()`. Here the engine is RUNNING — `guard let engine, engine.isRunning`
+        // is the check three statements up — and `configureAudioSession()` does
+        // `setPreferredSampleRate(48000)` and `setActive(true)` at its rungs 2/4 and 4/4.
+        // Changing the hardware rate under a running engine is exactly the class behind the
+        // founder's `isInputConnToConverter` abort (v10.79.435). Copying the sibling pattern
+        // here would have been pattern-matching, not engineering.
+        //
+        // The refusal costs nothing real: reaching this line needs a RUNNING engine on a session
+        // that was NEVER configured, and `AudioEngine.start()` configures it — so on the shipped
+        // graph this branch is unreachable and the guard is a statement about an anomaly, not a
+        // behaviour change. When it does fire, a named error and a log line beat a risky repair
+        // on a graph that is already running.
+        if !AudioConfiguration.isSessionConfigured {
+            lastError = .sessionNotConfigured
+            log.log(.error, category: .audio,
+                    "MultiTrackRecorder: refusing to claim the record route — the audio session "
+                    + "was never configured, and reconfiguring it under a running engine is not "
+                    + "safe here")
+            return
+        }
         // #299: CLAIM. Nothing here ever lowered the route again — a single take left the
         // whole system on `.playAndRecord`, and with it every other app's Bluetooth headset on
         // the HFP mono call codec, for the rest of the app's life.
@@ -252,6 +295,12 @@ public enum MultiTrackRecorderError: Error, Sendable {
     case diskSpaceLow
     /// `AVAudioFile(forWriting:)` failed.
     case fileCreationFailed
+    /// The shared audio session had never been configured, so the record route was NOT claimed
+    /// (#981). Distinct from `engineNotReady` on purpose: the engine check runs earlier and had
+    /// already passed, so reusing that case would have put a wrong label on a user-visible
+    /// failure — the defect class this file's siblings spent two cycles removing. Nothing
+    /// switches exhaustively on this enum, so adding a case is safe.
+    case sessionNotConfigured
 }
 
 // MARK: - AudioTakeRecording (task #13, PLAN_AUDIO_LANE_RECORDING_2026-07-21.md)
