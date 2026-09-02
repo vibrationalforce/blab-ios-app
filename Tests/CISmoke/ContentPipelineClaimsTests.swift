@@ -160,10 +160,15 @@ final class ContentPipelineClaimsTests: XCTestCase {
         """)
     }
 
-    /// The claims list must name the three bio channels that drive nothing.
+    /// The claims list must name the bio channels that drive nothing.
+    ///
+    /// ⛔ #980: "three" and the roster below it are stale. `coherenceTrend` has driven the
+    /// spectral morph since #813 — `CLAIMS.md` itself says so (§12, "Kohärenz-Trend ist seit
+    /// #813 WAHR"), so this header disagreed with the very file it polices. The producerless
+    /// pair is `breathDepth` and `lfHf`.
     ///
     /// ⛔ WHY (#759). This was the FOURTH surface to carry the same false mapping, and the only
-    /// one whose whole job is to stop it. `breathDepth`, `lfHf` and `coherenceTrend` are pinned
+    /// one whose whole job is to stop it. Those two are pinned
     /// to literals at both `BioParams`/`PolyBioParams` construction sites, and `applyBioReactive`
     /// says at that line they "must not be claimed as live in any user-facing copy". #496 struck
     /// them from the app, #755 from `docs/overview.html`, #757 from the ENGLISH App Store text

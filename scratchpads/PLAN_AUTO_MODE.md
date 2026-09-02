@@ -24,9 +24,12 @@ steht — Kohärenz im doppelten Sinn (HRV-Kohärenz des Körpers, Stimmigkeit d
 3. **Sanft = langsam + Hysterese + Nutzer gewinnt immer.** Interventionen in
    Takt-/Zehn-Sekunden-Raten, nie pro Frame; eine explizite Nutzer-Geste an einem
    Parameter pausiert die Auto-Steuerung dieses Parameters.
-4. **Nur lebende Bio-Kanäle behaupten:** Kohärenz, HRV, HR, Atemphase. breathDepth /
-   LF-HF / coherenceTrend haben KEINE Produzenten (CLAUDE.md, #496) — ein Trend braucht
-   einen ECHTEN neuen Produzenten aus der Kohärenz-Historie, sonst wird er nicht benutzt.
+4. **Nur lebende Bio-Kanäle behaupten:** Kohärenz, HRV, HR, Atemphase. breathDepth und
+   LF-HF haben KEINE Produzenten (#496). ⛔ **#980: `coherenceTrend` stand hier mit und hat
+   seit #813 einen** — genau den, den dieser Punkt verlangte ("ein Trend braucht einen ECHTEN
+   neuen Produzenten aus der Kohärenz-Historie"): `Core/CoherenceTrend`. Er bleibt trotzdem aus
+   der Auto-Mode-Kopie, weil der Mood-Steer ihn nicht liest — und aus jeder anderen Kopie,
+   solange keine Fläche ihn LESEN kann.
 5. **Freeze-Gesetz + Sheet-Decke:** keine 10-Hz-Reads in Root/Ancestor-Bodies; kein
    neuer Präsentations-Modifier auf der EchoelStudioView-Kette (14/16 gepinnt).
 6. **Copy science-first:** kein Wellness-/Therapie-/Esoterik-Vokabular. „Kohärenz" ist

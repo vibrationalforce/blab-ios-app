@@ -1012,10 +1012,18 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
             """)
     }
 
-    /// The three bio channels that have NO producer must not be presented as mappings.
+    /// The bio channels that have NO producer must not be presented as mappings.
     ///
-    /// ⛔ WHY THIS EXISTS, AND WHY IT IS A WEBSITE TEST. #496 measured that `breathDepth`,
-    /// `lfHf` and `coherenceTrend` are pinned literals at BOTH `PolyBioParams`/`BioParams`
+    /// ⛔ #980 CORRECTED THE ROSTER: it is TWO, not three. `breathDepth` and `lfHf` are still
+    /// pinned literals at both construction sites; `coherenceTrend` got a real producer at #813
+    /// (`Core/CoherenceTrend`) and an ungated consumer (the spectral morph in
+    /// `applyBioReactive`), which is why the assertion below already stopped covering it while
+    /// this comment kept saying otherwise — one file, two answers. The trend stays off the
+    /// website for the OTHER reason: no surface can read it (see `EchoelFXView`'s always-on
+    /// note), so a mapping claim would promise something nothing can show.
+    ///
+    /// ⛔ WHY THIS EXISTS, AND WHY IT IS A WEBSITE TEST. #496 measured that the producerless
+    /// channels are pinned literals at BOTH `PolyBioParams`/`BioParams`
     /// construction sites, and three guards now forbid naming them in the app's own panel copy
     /// (`TheAlwaysOnBioPathIsNamedTests`, `ADropoutSaysWhichHalfLetGoTests`,
     /// `TheBioPanelRowsSayWhoseBodyTests`). All three scan **Swift**. The website was never in

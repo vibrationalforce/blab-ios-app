@@ -21900,3 +21900,78 @@ nachgefahren, weiterhin erfüllt · neuer Anspruch grün/rot wie oben getrieben 
 ausgeglichen. Kein Compiler lokal — Pflicht-Reviewer (`bio-safety-reviewer`) prüft parallel genau
 die zwei Fragen, an denen ich diese Woche schon danebenlag: stimmt der neue Grund, und gibt es eine
 sechste Fundstelle.
+
+## 2026-09-02 — #980: der Reviewer fand die SECHSTE Heimat und einen #364 in meinem eigenen neuen Wächter
+
+**Jeder Befund selbst nachgemessen, bevor gehandelt wurde. Alle halten.**
+
+⛔ **1. ES WAREN SECHS, NICHT FÜNF — und die sechste ist eine LEBENDE Sperre, kein Doc-Kommentar.**
+`ADropoutSaysWhichHalfLetGoTests.forbiddenChannels` verbot `"coherence trend"` mit der Begründung
+„the three channels no producer drives — both `…BioParams(` sites pin them to neutral literals".
+Dieselbe Gattung, dieselbe Fläche (`EchoelFXView.stopsArrivingNote`), dasselbe Bündel. **#979s
+eigene Commit-Nachricht nannte das #766/#456-Muster — und blieb dann eine Heimat davor stehen.**
+⭐ Und die Karte, die sie gefunden hätte, war schon geschrieben:
+`WebsitePagesAreFindableAndHonestTests` nennt **alle drei** Swift-Kopie-Wächter namentlich; ich
+habe zwei davon korrigiert und den mittleren übersehen. **Die Lehre wird dadurch schärfer, nicht
+schwächer: es genügt nicht, die Aufzählung für unvollständig zu HALTEN — man muss die Liste
+suchen, die jemand schon aufgeschrieben hat.** Die Sperre BLEIBT, jetzt in zwei Listen mit zwei
+Gründen (`producerlessChannels` = kein Produzent · `unreadableChannels` = Produzent, aber kein
+lesbarer Wert). Mitgezogen: derselbe Doc-Kommentar sagte „seven mappings and only four have
+producers" — die Zwei ist seit #813 falsch und ist **gelöscht statt nachgeführt** (#818).
+
+⛔ **2. MEIN NEUER WÄCHTER WAR SELBST EIN #364 — in der Scheibe, die einen entfernt.**
+`testBothAlwaysOnSentencesCountTheChannelsTheyList` verlangte, dass JEDER Satz ein Zahlwort trägt.
+Eine legitime spätere Kopie („Your body shapes the instrument's own timbre …") wäre rot geworden,
+mit einer Nachricht, die auf die falsche Reparatur zeigt. ⭐ **Und das Prinzip stand wörtlich im
+Nachbar-Wächter:** *„a phrase whose quantifier is genuinely absent is still deliberately IGNORED —
+this guard exists to catch a WRONG number, not to demand that every mention carry one."* Einen
+Wächter zu schreiben, der genau das tut, was ein Geschwister-Wächter als falsch dokumentiert, ist
+derselbe Defekt wie eine veraltete Zahl, eine Ebene höher. **Reparatur:** die Zahl-Prüfung ist
+jetzt BEDINGT; die Nicht-Leerheit kommt aus einer Eigenschaft, die ohne Zahlwort gilt — **jeder
+Fallname muss in jedem Satz vorkommen**. Das ist, was „der Satz listet die Kanäle" wirklich heißt,
+und es fängt den fünften-Fall-ohne-Kopie-Fall direkter als das Zahlwort.
+
+⛔ **3. DIE NEGATIV-NADEL HATTE EINEN FALSCH-NEGATIV-PFAD.** Sie prüfte `" \(wort) "`, während die
+Positiv-Nadel ein blanker Teilstring war. Ein Zahlwort am SATZANFANG („Four body channels …",
+Index 0) oder vor einem Satzzeichen entkam. Heute nur deshalb gefangen, weil derselbe Satz später
+noch einmal „four" sagt — löscht jemand diese Nebensatz-Klausel, wird der Wächter still. Jetzt mit
+Leerzeichen umklammert UND gegen `. , —` geprüft.
+
+⛔ **4. VALENZ-ROTE-LINIE: mein Grund war für zwei der fünf Wörter der FALSCHE.** Die Nachricht
+schloss mit „may name a channel only in the commit that makes the steer actually read it" — wörtlich
+gelesen also: `valence` und `emotion` werden sagbar, sobald der Steer eine Emotionsschätzung liest.
+`Sequencer/AutoAttune.swift` verbietet das **unbedingt** („CONTROL SIGNALS … never an emotion
+estimate, never a mood-of-the-person claim"). Beide Wächter haben jetzt ZWEI Schleifen mit zwei
+Nachrichten; für die Valenz-Hälfte steht ausdrücklich: **es gibt keinen Commit, der das sagbar
+macht.** (Die alte Nachricht hatte dieselbe Form — kein von mir eingeführter Rückschritt, aber ich
+habe genau diesen Satz umgeschrieben und die Gelegenheit zuerst verpasst.)
+
+⭐ **5. Der neue Grund wurde BESTÄTIGT, mit einem Beleg, den ich nicht hatte:** der Steer ist
+`AutoAttune` über `BioComposer.musicalState(coherence:hrvNormalized:heartRateBPM:)` — exakt drei
+Eingänge, keiner der fünf gesperrten. Der Beleg steht jetzt in beiden Nachrichten.
+
+**6. VIER veraltete Prosa-Heimaten mitgezogen** (keine gated etwas, aber jede ist Prosa, aus der
+eine Sitzung ableitet, was wahr ist): `WebsitePagesAreFindableAndHonestTests` (sagte „drei", während
+die Behauptung darunter längst zwei prüft — eine Datei, zwei Antworten) · `ContentPipelineClaimsTests`
+(widersprach `CLAIMS.md` §12, der Datei, die es polizeilich überwacht) · `TheStoreTextClaimsOnlyWhat\
+ShipsTests` (als Historie markiert statt korrigiert — es beschreibt, was #496 TAT) ·
+`scratchpads/PLAN_AUTO_MODE.md` (verlangte „einen ECHTEN neuen Produzenten aus der Kohärenz-Historie"
+— #813 hat genau den gebaut).
+
+**7. Beide umgeschriebenen Sperr-Scans sind jetzt case-insensitiv.** Vorbestehend, aber der Wächter,
+den ich im selben Änderungssatz schrieb, senkt die Groß-/Kleinschreibung — die Inkonsistenz saß
+sichtbar in einem Diff.
+
+⚠️ **8. EHRLICHE RÜCKNAHME zu #979s eigenem Log:** ich schrieb, der `allCases.count == 4`-Pin
+entfalle „nicht ersatzlos", weil `TheGuideTableMatchesTheAuditedWritesTests:85` ihn hält. Das ist
+ein **RELATIVER** Pin (`Self.join.count == allCases.count`); ein absolutes `== 4` existiert nirgends
+mehr. Das ist gewollt (#364), aber es ist ein bewusster Verlust und wird jetzt so genannt.
+
+**Verifikation:** neuer Anspruch in Python über VIER Fälle getrieben — heute grün · fünfter Fall
+ohne Kopie → rot in beiden Hälften · Zahlwort legitim weggelassen → **grün** (der #364 ist weg) ·
+nur ein führendes veraltetes „Four" bei n=5 → **rot** (der Falsch-Negativ-Pfad ist zu). Beide
+Sperrlisten nach dem Lowercasing nachgefahren, keine Verletzung. Die Dropout-Notiz enthält keines
+der vier Wörter. `count-pins` 0 ROT · `dead-needles` grün über 404 Dateien · Klammer-/Paren-Bilanz
+gegen den ELTERNBAUM verglichen statt absolut: drei Dateien zeigen dieselbe Ungleichheit auf HEAD
+wie im Arbeitsbaum (ein `(` in einem `"""`-Block, den mein grober Zähler nicht versteht) — von mir
+unverändert.

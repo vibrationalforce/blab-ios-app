@@ -333,17 +333,39 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
         // that only checks one of them covers a third of the renders. The nil state is the one
         // the Bio panel is in most often (before Play, before a source is chosen).
         let states: [BioSampleFrame?] = [Self.bodyFrame, Self.demoFrame, nil]
-        for dead in ["trend", "valence", "emotion", "breath depth", "LF/HF"] {
+        // ⛔ #980 SPLIT THIS LIST, because one reason cannot carry both halves and the merged
+        // message granted a permission the repo forbids outright. `valence` and `emotion` are
+        // not banned for coverage — they are the VALENCE RED LINE at `Sequencer/AutoAttune.swift`
+        // ("`calm` and `arousal` here are CONTROL SIGNALS … never an emotion estimate, never a
+        // mood-of-the-person claim, and no user-facing copy may present them as one"). The old
+        // message closed with "may name a channel only in the commit that makes the steer
+        // actually read it", which read literally says those two become sayable the day the
+        // steer reads an emotion estimate. It never does; that is the point of the red line.
+        for dead in ["trend", "breath depth", "LF/HF"] {
             for frame in states {
                 XCTAssertFalse(
-                    BioPanelRowCopy.autoModeCaption(for: frame).contains(dead), """
+                    BioPanelRowCopy.autoModeCaption(for: frame).lowercased()
+                        .contains(dead.lowercased()), """
                     The door's caption says "\(dead)" — NOTHING IN THE MOOD STEER READS IT. \
-                    The steer takes coherence, HRV and heart rate; this caption describes the \
-                    steer. ⛔ #979: this message used to say "NO producer today (#496 class)", \
-                    which stopped being true of "trend" at #813 — a false reason is a guard \
-                    that can only fail wrongly (#367) and that talks a later session out of \
-                    correct work (#364). It may name a channel only in the commit that makes \
-                    the steer actually read it.
+                    The steer takes coherence, HRV and heart rate (`BioComposer.musicalState`); \
+                    this caption describes the steer. ⛔ #979: this message used to say "NO \
+                    producer today (#496 class)", which stopped being true of "trend" at #813 \
+                    — a false reason is a guard that can only fail wrongly (#367) and that \
+                    talks a later session out of correct work (#364). One of these may be named \
+                    only in the commit that makes the steer actually read it.
+                    """)
+            }
+        }
+        for banned in ["valence", "emotion"] {
+            for frame in states {
+                XCTAssertFalse(
+                    BioPanelRowCopy.autoModeCaption(for: frame).lowercased()
+                        .contains(banned), """
+                    The door's caption says "\(banned)". This is the VALENCE RED LINE in \
+                    `Sequencer/AutoAttune.swift`, not a coverage question: `calm` and `arousal` \
+                    are CONTROL SIGNALS derived from HRV-coherence and cardiac drive — never an \
+                    emotion estimate, never a mood-of-the-person claim, and no user-facing copy \
+                    may present them as one. There is NO commit that makes this sayable.
                     """)
             }
         }

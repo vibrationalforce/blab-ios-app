@@ -79,10 +79,34 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
     /// `declarationBody(of:in:)` throwing on absence is the only reason this one could not do that.
     private static let rowFile = "Sources/Echoelmusic/Studio/AlwaysOnBioRow.swift"
 
-    /// The three channels no producer drives — both `…BioParams(` sites pin them to neutral
-    /// literals. The always-on note is already forbidden from naming them (#496); a NEW sentence
-    /// on the same surface must not smuggle them back in through the side door.
-    private static let forbiddenChannels = ["breath depth", "LF/HF", "LF-HF", "coherence trend"]
+    /// Channels this note may not name — and they are banned for TWO different reasons, which
+    /// #980 had to split apart.
+    ///
+    /// ⛔ #980 — THE ONE REASON THIS LIST GAVE WAS FALSE FOR ONE OF ITS FOUR ENTRIES. It read
+    /// "the three channels no producer drives — both `…BioParams(` sites pin them to neutral
+    /// literals". True of `breath depth` and `LF/HF`; FALSE of `coherence trend` since #813,
+    /// which added `Core/CoherenceTrend` and made both sites pass `coherenceTrend: trend`
+    /// instead of the literal 0. The consumer is reachable too — the spectral morph in
+    /// `EchoelDDSP.applyBioReactive` reads it behind nothing but its own 0.10 deadband.
+    /// So this was #367 (it could only fail for a reason that is not true) and #364 (it would
+    /// have argued a later session out of correct work), and its own failure message carried
+    /// the instruction nobody followed: *"If you gave it a real producer, update this list."*
+    ///
+    /// ⭐ IT WAS ALSO THE SIXTH HOME, FOUND BY THE REVIEWER AFTER #979 CLAIMED FIVE. #979's own
+    /// commit message named the #766/#456 pattern — when every home you checked is the same
+    /// KIND, the ENUMERATION is what is incomplete — and then stopped one short of a home that
+    /// is the same kind, on the same surface, in the same bundle. The map that would have found
+    /// it was already written: `WebsitePagesAreFindableAndHonestTests` names all three Swift
+    /// copy guards by file, and this is the middle one.
+    ///
+    /// ⚠️ The trend STAYS banned here, for the reason `EchoelFXView`'s always-on note gives:
+    /// it has no READING to render — `CoherenceTrend` is a `private var` inside each voice, not
+    /// a field on `BioSampleFrame`, so no surface can read it. That is STRUCTURAL, and this
+    /// note is about what a dropout releases or holds, which needs a reading by definition.
+    private static let producerlessChannels = ["breath depth", "LF/HF", "LF-HF"]
+    /// Banned for a different reason: real producer since #813, no readable value on any
+    /// surface. See the ⛔ note above.
+    private static let unreadableChannels = ["coherence trend"]
 
     // MARK: - the copy (ONE absence on the parent, reported four times — see the header)
 
@@ -210,17 +234,32 @@ final class ADropoutSaysWhichHalfLetGoTests: XCTestCase {
         }
     }
 
-    /// The same over-claim trap #496 closed, on the sentence added next to it. CLAUDE.md's DDSP
-    /// table lists seven mappings and only four have producers; a "completeness" edit reaching
-    /// for that table would put three unmeasured channels on the product's central surface.
+    /// The same over-claim trap #496 closed, on the sentence added next to it. A "completeness"
+    /// edit reaching for CLAUDE.md's DDSP table would put channels on the product's central
+    /// surface that this note cannot honestly describe.
+    ///
+    /// ⛔ #980: this said "that table lists seven mappings and only four have producers". The
+    /// second number moved at #813 — the trend has one — and a stale count inside the very
+    /// comment that justifies a ban is how the ban outlives its reason. The count is gone rather
+    /// than refreshed: it is a date, not a fact (#818), and the two lists below say what matters.
     func testTheNewNoteDoesNotClaimThePinnedChannels() throws {
         let note = try literalValue(of: "static let stopsArrivingNote =", in: Self.fxView)
-        for channel in Self.forbiddenChannels {
+        for channel in Self.producerlessChannels {
             XCTAssertFalse(note.contains(channel), """
                 the dropout note names \(channel), which no producer drives — both \
                 `…BioParams(` sites pin it to a neutral literal, so it can neither release nor \
                 be held. If you gave it a real producer, update this list, the always-on note \
                 and this sentence together.
+                """)
+        }
+        for channel in Self.unreadableChannels {
+            XCTAssertFalse(note.contains(channel), """
+                the dropout note names \(channel). It HAS a producer (#813) — the ban is not \
+                about that. It has no READING on any surface: `CoherenceTrend` is a `private \
+                var` inside each voice, never a field on `BioSampleFrame`, so nothing can show \
+                whether it released or was held, which is the only thing this note says. \
+                Publishing a readable trend is a real slice; naming it here before that is a \
+                promise no surface can keep.
                 """)
         }
     }

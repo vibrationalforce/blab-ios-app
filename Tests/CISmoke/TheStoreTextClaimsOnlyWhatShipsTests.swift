@@ -2,7 +2,9 @@
 //
 //  THE FOURTH SURFACE. A user-visible claim in this repo has four homes — the app's own copy
 //  (Swift), `docs/**`, `ContentPipeline/CLAIMS.md`, and `fastlane/metadata`. #496 struck three
-//  producerless bio channels (`breathDepth`, `lfHf`, `coherenceTrend`) and left three guards
+//  producerless bio channels (`breathDepth`, `lfHf`, `coherenceTrend` — ⛔ #980: that is what
+//  #496 DID, in 2026-08; since #813 the trend has a producer, so read this sentence as history,
+//  not as today's roster) and left three guards
 //  behind it; all three read Swift. #755 found the same claim still shipping on the WEBSITE and
 //  guarded that. This file is the fourth home, and it is the one where being wrong is not a
 //  stale sentence but an App Store 2.3 rejection — the failure #184 already paid for once by

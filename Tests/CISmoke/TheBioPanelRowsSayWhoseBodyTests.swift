@@ -254,14 +254,29 @@ final class TheBioPanelRowsSayWhoseBodyTests: XCTestCase {
         // replacement here silently dropped "valence" and "emotion". Both files now drive the
         // pure static, and both carry the full five. A superseding guard has to be a SUPERSET,
         // or the commit that adds coverage removes some.
-        for banned in ["breath depth", "LF/HF", "trend", "valence", "emotion"] {
+        // ⛔ #980 SPLIT THIS LIST for the reason its sibling guard carries in full: `valence`
+        // and `emotion` are the VALENCE RED LINE (`Sequencer/AutoAttune.swift`), not a coverage
+        // question, and a message that says "not read by the steer" implies they become sayable
+        // once something reads them. They do not.
+        for banned in ["breath depth", "LF/HF", "trend"] {
             for source in [Self.frame(.fallback), Self.frame(.cameraPPG)] {
                 XCTAssertFalse(BioPanelRowCopy.autoModeCaption(for: source)
-                                .contains(banned), """
+                                .lowercased().contains(banned.lowercased()), """
                     The Auto caption promises "\(banned)". NOTHING IN THE MOOD STEER READS IT \
-                    — the steer takes coherence, HRV and heart rate, and this caption describes \
-                    the steer. A sentence about "your measured state" is exactly where these \
-                    grow back.
+                    — the steer takes coherence, HRV and heart rate (`BioComposer.musicalState`), \
+                    and this caption describes the steer. A sentence about "your measured state" \
+                    is exactly where these grow back.
+                    """)
+            }
+        }
+        for banned in ["valence", "emotion"] {
+            for source in [Self.frame(.fallback), Self.frame(.cameraPPG)] {
+                XCTAssertFalse(BioPanelRowCopy.autoModeCaption(for: source)
+                                .lowercased().contains(banned), """
+                    The Auto caption promises "\(banned)" — the VALENCE RED LINE in \
+                    `Sequencer/AutoAttune.swift`. `calm` and `arousal` are CONTROL SIGNALS, \
+                    never an emotion estimate and never a mood-of-the-person claim. No commit \
+                    makes this sayable.
                     """)
             }
         }

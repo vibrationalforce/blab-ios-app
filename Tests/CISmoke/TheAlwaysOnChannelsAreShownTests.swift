@@ -208,21 +208,32 @@ final class TheAlwaysOnChannelsAreShownTests: XCTestCase {
     /// #979 — what replaces the trend ban: the ENUMERATION and the COPY may not drift apart.
     ///
     /// The old claim tried to keep one specific channel off the surface. The durable property is
-    /// weaker and more useful: both always-on sentences open by COUNTING the channels ("four body
-    /// channels shape …"), and that word is written by hand while the list comes from
-    /// `allCases`. Adding a fifth case — the trend, or anything else — without touching the copy
-    /// ships a sentence that undercounts what the body moves, on the one surface #496 had to
-    /// repair for the opposite mistake. This permits the fifth channel and forbids the half-step.
+    /// weaker and more useful: both always-on sentences LIST the channels, and that list is
+    /// written by hand while `allCases` is not. Adding a fifth case — the trend, or anything
+    /// else — without touching the copy ships a sentence that undercounts what the body moves,
+    /// on the one surface #496 had to repair for the opposite mistake.
     ///
-    /// ⚠️ It asserts the sentences AGREE with the count, never that the count is 4. A guard that
-    /// froze the number would be the #364 defect this file just removed one of.
+    /// ⛔ #980 — MY FIRST VERSION OF THIS TEST WAS ITSELF A #364, IN THE SLICE THAT REMOVED ONE.
+    /// It asserted `lower.contains(expected)` unconditionally: every sentence HAD to carry a
+    /// count word. A legitimate later edit — "Your body shapes the instrument's own timbre …:
+    /// coherence, HRV, heart rate and breath phase" — drops the numeral and would have gone red
+    /// with a message pointing at the wrong repair. The principle was already written down in
+    /// this bundle, in `WebsitePagesAreFindableAndHonestTests`: *"a phrase whose quantifier is
+    /// genuinely absent is still deliberately IGNORED — this guard exists to catch a WRONG
+    /// number, not to demand that every mention carry one."* Writing a guard that does the thing
+    /// a sibling guard documents as wrong is the same defect as a stale count, one level up.
+    ///
+    /// So the count check is now CONDITIONAL, and the non-vacuity it used to buy comes from a
+    /// property that is true whether or not a numeral is present: every case's NAME must appear
+    /// in every sentence. That is what "the sentence lists the channels" actually means, it
+    /// cannot be satisfied by an empty enum, and it catches the fifth-case-without-copy case
+    /// directly rather than through the numeral.
+    ///
+    /// ⚠️ It never asserts the count IS four. A guard that froze the number would be the #364
+    /// defect this file just removed one of.
     func testBothAlwaysOnSentencesCountTheChannelsTheyList() {
-        let words = [2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"]
+        let words = [1: "one", 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"]
         let n = AlwaysOnBioChannel.allCases.count
-        guard let expected = words[n] else {
-            return XCTFail("\(n) channels — extend the number-word table above before shipping "
-                           + "a count this file cannot spell")
-        }
         let sentences = [
             ("alwaysOnSentence", AlwaysOnBioChannel.alwaysOnSentence(synthetic: false)),
             ("alwaysOnSentence(demo)", AlwaysOnBioChannel.alwaysOnSentence(synthetic: true)),
@@ -230,16 +241,32 @@ final class TheAlwaysOnChannelsAreShownTests: XCTestCase {
             ("bioPanelSentence(demo)", AlwaysOnBioChannel.bioPanelSentence(synthetic: true))
         ]
         for (label, text) in sentences {
-            let lower = text.lowercased()
-            XCTAssertTrue(lower.contains(expected),
-                          "\(label) does not say '\(expected)' while `allCases` holds \(n) "
-                          + "channels. The count is written by hand and the list is not — update "
-                          + "the sentence in the same commit as the case.")
-            for (other, word) in words where other != n {
-                XCTAssertFalse(lower.contains(" \(word) "),
-                               "\(label) still says '\(word)' while `allCases` holds \(n). Two "
-                               + "counts in one sentence is worse than a stale one.")
+            let lower = " " + text.lowercased() + " "
+            // THE NON-VACUOUS HALF: the sentence must name every channel it claims to list.
+            for channel in AlwaysOnBioChannel.allCases {
+                XCTAssertTrue(lower.contains(channel.name.lowercased()),
+                              "\(label) does not name '\(channel.name)'. These sentences list "
+                              + "the always-on channels; a case added without touching the copy "
+                              + "ships a sentence that undercounts what the body moves.")
             }
+            // THE COUNT HALF, only if the sentence chose to carry a numeral at all.
+            // ⚠️ #980: bracketed with spaces above AND matched with punctuation, because the
+            // first version used `" \(word) "` on the raw text — so a count at the START of a
+            // sentence ("Four body channels …") or before a full stop never matched. It was
+            // caught today only by a SECOND "four" later in the same string; delete that clause
+            // and the guard would have gone quiet without failing.
+            let present = words.values.filter { w in
+                [" \(w) ", " \(w).", " \(w),", " \(w)—"].contains { lower.contains($0) }
+            }
+            guard !present.isEmpty else { continue }   // no numeral is a legitimate copy choice
+            guard let expected = words[n] else {
+                return XCTFail("\(n) channels — extend the number-word table above before "
+                               + "shipping a count this file cannot spell")
+            }
+            XCTAssertEqual(Set(present), [expected],
+                           "\(label) carries the count word(s) \(present.sorted()) while "
+                           + "`allCases` holds \(n). The count is written by hand and the list "
+                           + "is not — update the sentence in the same commit as the case.")
         }
     }
 
