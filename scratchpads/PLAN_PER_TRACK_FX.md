@@ -1,5 +1,12 @@
 # PLAN — Per-Track FX (Module 2 of the comprehensive interface)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 Founder 2026-07-11 ("Alles"): after the Mixer (Module 1), give each track its own FX,
 bio-modulatable — the step toward the one bio-modulated timeline that unifies the 8 tools.
 

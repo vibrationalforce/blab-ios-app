@@ -1,5 +1,12 @@
 # PLAN — MIDI/MPE Editing Station (Task #58, Founder 2026-07-16)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 > Founder: „Geht eine Integration in die Midi Instrumente? Die ganze MIDI (MIDI 2.0?/MPE)
 > Editing Station ist noch sehr rudimentär oder?" — Ja, sie ist rudimentär. Dieser Plan
 > baut die Piano Roll zur ernsthaften Station aus, in Wertreihenfolge:

@@ -1,5 +1,12 @@
 # PLAN — P3 Video + Import overhaul (founder 2026-07-15)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 Founder ask (verbatim intent):
 1. Video: request FULL photo-library access.
 2. Image import ("Bilder importieren soll auch gehen").

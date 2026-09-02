@@ -1,5 +1,12 @@
 # PLAN — wire real audio-lane recording (task #13, CLIP-2 follow-through)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 ## Befund (investigiert 2026-07-21, während DMMW-Ultraprogramm-Sichtung)
 
 `HEALING_DMMW_2026-07-15.md` listet CLIP-2 als CRITICAL: "Record-arm auf Audio/Video-Lane

@@ -1,5 +1,12 @@
 # PLAN — Dissolution S3 (Genre/Variation/Mood pro MIDI-Spur) + S5 (Session/Comp nach oben)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 Investigation date: 2026-07-16 @ dcf730b (read-only; canonical parent spec:
 `scratchpads/PLAN_MENUBAR_DISSOLUTION.md`). One slice per Ralph-Wiggum cycle,
 ≤3 code files each, consumer BEFORE UI (consumer-proof law).

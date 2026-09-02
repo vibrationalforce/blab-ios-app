@@ -1,5 +1,12 @@
 # PLAN S2-W2 — voiceKind-aware routing (bottom-bar dissolution, Spur = Instrument)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 **Date:** 2026-07-16 · **Branch (investigation):** claude/piano-roll-clip-view-wozlie-5kxnrl
 **Founder order / review finding:** 75e4899 REQUEST_CHANGES — `TimelineLane.builtinInstrument`
 does NOT steer the sound path. Every SECONDARY MIDI lane plays a generic rack

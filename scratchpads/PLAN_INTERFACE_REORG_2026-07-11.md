@@ -1,5 +1,12 @@
 # PLAN — Comprehensive Interface Reorganization + Functioning Timeline (2026-07-11)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 ## Founder directive (verbatim intent, 2026-07-11, full autonomy 12h, NO questions)
 > "Mix Level sollten auf dem Hackbrett landen und alles so reorganisieren, dass alles
 > möglichst an Ort und Stelle ist wo es auch wirklich stattfindet. Arbeite die nächsten 12

@@ -1,5 +1,12 @@
 # PLAN — Professionally complete ALL DMMW components (Arrangement → Live Colabo → zentrierte Meditation)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 Founder (2026-06-23): "Alle DMMW Komponenten professionell ausarbeiten von Arrangement über Live Colabo
 bis zentrierte Meditation." Priority context (prior msg): FIRST the program solid with optimized
 architecture + design; then visuals presets (done), in-app EchoelAI chat, cross-device/community.

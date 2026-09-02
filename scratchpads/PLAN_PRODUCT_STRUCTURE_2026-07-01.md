@@ -1,5 +1,12 @@
 # Echoel — Produktstruktur (Head of Product · Interface · Architecture)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 **Datum:** 2026-07-01 · **Branch:** claude/piano-roll-clip-view-wozlie
 **Autor-Rollen:** Head of Product / Interface Design / Architecture (eine Synthese)
 

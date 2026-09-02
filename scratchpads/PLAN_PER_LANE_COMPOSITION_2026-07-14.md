@@ -1,5 +1,12 @@
 # PLAN — Per-instrument composition (Genre · Mood · Variation per lane)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 Founder architecture (2026-07-14, "alles pro Instrument"): each MIDI lane optionally
 composes in its OWN genre / mood / variation, so several genres can sound at once —
 the per-lane twin of the per-instrument Transpose (v210) and per-lane patch/pan.

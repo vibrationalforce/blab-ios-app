@@ -1,5 +1,12 @@
 # PLAN — Video-Sound (Founder 2026-07-16: „Video Sound … mit den selben Algorithmen")
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 **Explore-Audit 2026-07-16 (a6b74edb).** Der Founder hat **nie Video-Ton gehört** — und das
 ist KEIN Bug im Player, sondern eine bewusst offene Design-Lücke: der Timeline-Video-Monitor
 läuft **`AVPlayer.isMuted = true`** (`FloatingVideoMonitor.swift:41`, „picture-only by design").

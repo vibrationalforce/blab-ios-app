@@ -1,5 +1,12 @@
 # Echoel — Pro-Level Repo Audit & Roadmap (2026-06-22)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 Founder directive: reach **highest-level** DAW · Video editing · Mapping · Visuals · Light ·
 Streaming for the multi-touch future (touch MacBook / iOS 27). Cover the **full efficacy
 spectrum of audiovisual "therapy"** — **NO CLAIMS** (experiment/research, partner with

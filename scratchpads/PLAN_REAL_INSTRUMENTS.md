@@ -1,5 +1,12 @@
 # PLAN — Echte Instrumente (Founder 2026-07-04: "klingt alles mega scheiße" → "Ja, bauen")
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 Diagnose (Founder-Antwort: "Alles zusammen"): (1) additive DDSP-Synthese hat eine
 Klang-Decke, (2) Komposition primitiv (B1–B3 offen), (3) generische Archetyp-Beats.
 Dieser Zyklus tauscht (1) — das Fundament: reale Instrumente als Standard-Klangquelle.

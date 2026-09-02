@@ -1,5 +1,12 @@
 # PLAN — Automation in die Timeline + Clip-Launch/Performance (Founder 2026-07-17)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 ## Founder-Direktive (verbatim-Kern, Screenshot = heutiges Automation-Sheet)
 "Automations Sektionen sollten in der Timeline direkt sein oder? Das man im
 Verlauf des Tracks automatisieren kann. Plus was ist mit den Clips und dem Play

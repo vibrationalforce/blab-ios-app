@@ -1,5 +1,12 @@
 # PLAN — Per-Track Automation Targeting (Item 1, L2/L4), 2026-07-18
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 > Founder-REIHENFOLGE Item 1 verlangt „alle Parameter … **in der Spur**". L1
 > (im Clip zeichnen: `ClipAutomationView`, S2b, grün) + Cross-Clip
 > (`TimelineAutomationRow`, T1) sind gebaut. Die verbleibende EHRLICHKEITS-

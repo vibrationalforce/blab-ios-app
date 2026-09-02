@@ -1,5 +1,12 @@
 # PLAN — All-fronts team results (Workflow wf_0631b0db-2be, 2026-07-20)
 
+> ⛔ **SCOPE NOTE (audit 2026-09-02): this plan predates the product definition of 2026-07-25**
+> (`docs/dev/PRODUCT_DEFINITION.md`, Editor ≠ Workstation). Where it names timeline / clips /
+> arrangement / multitrack / lanes-as-tracks / AUv3 / broadcast / drums / piano-roll surfaces, those
+> are CUT and that part is history — do not execute it. Nothing below was edited; check the
+> definition before building from any line here.
+
+
 Multi-team workflow (founder „mach alles richtig mit allen Teams"). 3/4 teams delivered;
 AUv3 team failed the schema and was re-run as a free-text agent (separate).
 
