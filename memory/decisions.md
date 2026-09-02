@@ -1,6 +1,6 @@
 > ⚠️ **READ THIS FIRST (audit 2026-09-02).** This file is NOT the complete decision record and is NOT in
 > date order. `decisions.csv` (repo root, append-only, machine-readable) is the complete register — measured:
-> of the rows dated ≥ 2026-08-28 this file mirrored 1, of the last 10 rows 0. Re-derive with
+> ⛔ two counts stood here ("mirrored 1 … of the last 10 rows 0") and were stale within a day (#818) — re-derive with
 > `python3 - <<'EOF'` … `csv.reader(open('decisions.csv'))` … count `#NNN` ids found here. What this file
 > holds is the NARRATIVE for the strategic subset. Newest-by-date entries are found with
 > `grep -nE '^### 20[0-9]{2}-' memory/decisions.md | tail -3`, not by reading the tail.
@@ -17,6 +17,37 @@
   abgearbeitet; die DMMW-Frage bekommt eine MESSUNG (`scratchpads/DMMW_FEASIBILITY_2026-09-02.md`), keine Tür.
 - **#938 (2026-08-31)**: MPE-IN (Zonen) ist die nächste Produkt-Arbeit laut REIHENFOLGE-Messung;
   `scratchpads/PLAN_MPE_ZONES_2026-09-01.md`. (Nachgetragen, weil der csv-Spiegel hier seit 08-28 fehlte.)
+- **Ordner-Verschiebung** (csv 686): FeedbackGuard · FlashGuard · LoudnessTarget · SpectralColor von `Studio/`
+  und BioEgressPolicy von `Sync/` nach `Core/` — reine `git mv`, keine Zeile geändert; `project.yml` braucht
+  keine Zeile (Quellen sind `type: group`). Vier Pfad-Literale in Wächtern und ein Agenten-Prompt mitgezogen.
+  Beide Gates grün auf `c9955bf`, 167 Tests im Fenster, 0 Fehler.
+- **Vier aufruferlose `Sync/`-Kerne registriert** (csv 687): `VBAPPanner`, `AmbisonicsEncode`, `LightFixtureGroup`
+  (+`LightFixture`), `BioPhaser` (+`BioPhaserSource`) — 0 Code-Refs außerhalb der eigenen Datei, nur Tests und
+  Kommentare. Nicht löschen (EchoelLux L2/L3, EchoelRender), nicht als leuchtend/klingend zitieren.
+  CLAUDE.md-Architekturzeile + `memory/LEDGER_COUNTS.md` §Q (mit dem Messbefehl; Dateiname ≠ Typname war die Falle).
+- **v10.79.437 deployt** (csv 688): = 436 + Verschiebung + korrigierte Notiz (`Master`-Chip → Audio input,
+  `Save/Export`-Chip → Diagnostics → Share; 13 von 14; drei Log-Enden des Monitor-Schalters). Build 2555,
+  ASC grün. `TheDeployNoteNamesRealDoorsTests` per Transkription grün — war rot seit v434. Grund für den Build:
+  `testflight.yml` triggert auf JEDE Änderung an `.deploy/release`, eine Notiz ohne Upload gibt es nicht.
+- **DMMW-Machbarkeit gemessen** (csv 689): **Nein — das Modell war nie die Grenze.**
+  `scratchpads/DMMW_FEASIBILITY_2026-09-02.md`: 0 Flips seit 07-31 (42 Tage gleiche Richtung, Zähler bleibt 18);
+  Maschine lebt, Türen 0 Aufrufer, löschende Commits vor dem Graft (Neubau, kein Revert); Grenze = Prüfschleife
+  (5 Wächter rot auf korrektem Baum, 54 Deploys / 13 Geräteartefakte / 0 Abnahmen, 80 Bitten / 0 beantwortet);
+  Anlauf #2 lief bereits unter der gefragten Modellfamilie. Synthese-Stufe des Workflows am Sitzungslimit
+  gestorben, Bericht aus vier Lead-Antworten. Founder entscheidet A0 + Sperrfrist als Zeilen; keine DAW-Tür.
+
+### 2026-09-02 — #979–#982: der Kohärenz-Trend in den Kopie-Wächtern, die dritte claimRecordRoute-Stelle (csv 678–681)
+- **#979/#980**: die Sperre gegen das Wort „trend“ in fünf, dann sechs Kopie-Heimaten war seit #813 FALSCH
+  begründet („has no producer“ — der Trend hat seit #813 Produzent und ungegateten Verbraucher). Sperren bleiben,
+  aber über die FLÄCHE begründet (der Mood-Steer liest Kohärenz/HRV/Puls), nicht über die Engine; die
+  Valenz-Rote-Linie ist aus dem Deckungs-Grund herausgelöst. Lehre: ein Wächter, der nur aus einem nicht
+  existenten Grund scheitern kann (#367), redet die nächste Sitzung aus korrekter Arbeit heraus (#364).
+- **#981/#982**: `MultiTrackRecorder.claimRecordRoute` prüft jetzt die Sitzung und VERWEIGERT (statt wie die zwei
+  Geschwister nachzukonfigurieren), weil jede Freigabe durch `downgradeToPlaybackAfterRecording` läuft, das auf
+  einer nie konfigurierten Sitzung früh zurückkehrt — Route hoch, nie wieder runter, ohne Besitzer. #982 zog vier
+  Falschstellen der Prosa (alle in der schmeichelnden Richtung) und einen tautologischen Wächter-Anspruch zurück.
+  Registriert, nicht repariert: die Plattform-Guard-Asymmetrie (`#if os(iOS)` an vier Stellen gegen die
+  Sechs-Plattform-Form in `MicrophoneManager`).
 
 ### 2026-07-23 v10.79.341 AUv3-Härtung geshippt + render-seitige Bio-NaN-Härtung
 - **v341 (geshippt, TestFlight grün auf 3. Versuch):** zwei AUv3-Korrektheits-Fixes zu EINEM
