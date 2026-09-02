@@ -21418,3 +21418,51 @@ after … FAILED` —, bekommt bis heute gar kein Urteil; ein Log mit allen drei
 `✅ Every ladder … reached its last step`, Exit 0 (gefahren). Der #968-Wächterkopf behauptet
 das Gegenteil und ist damit falsch — **das ist die nächste Scheibe**. (b) Letzter-gewinnt: ein
 Fehlschlag, dem ein erfolgreicher Neulauf folgt, liest sich grün.
+
+## 2026-09-02 — #970: ein `FAILED`, das zu KEINER Leiter gehört, bekam gar kein Urteil
+
+**Die im #969-Eintrag registrierte Scheibe, und sie korrigiert zwei falsche Sätze, die ich
+zwei Commits vorher selbst geschrieben habe.**
+
+⛔ `ladder_verdicts` baut seine Terminator-Nadel aus den ACHT Leiter-Präfixen (`mic: start` ·
+`mic: stop` · `off` · `on` · `session: configure` · `session: raise` · `start` · `startup`).
+Drei der vier `FAILED`-Zeilen, die #968 ausgeliefert hat, tragen keins davon —
+`session: interruption`, `session: media reset`, `restart after …`. Sie waren für das Werkzeug
+**unsichtbar**: ein Log mit einer vollständigen `session: configure`-Leiter plus allen dreien
+druckte `✅ Every ladder … reached its last step`, Exit 0. **Gefahren, nicht überlegt.** Genau
+das falsche Grün, das #967 beseitigt hatte — auf Zeilen, die einen Commit später entstanden.
+
+⛔ **Und der #968-Wächterkopf behauptete das Gegenteil**, mit allen vier Stellen namentlich.
+Der Quellkommentar in `AudioConfiguration.swift:1008` sagte die ganze Zeit das Ehrliche
+(„deliberately not one of the three tracked ladder names"), aber die immer-gelesene Datei sagte
+das Falsche. **Die #456-Form: eine Aussage muss in JEDER Heimat stimmen, und die
+immer-gelesene gewinnt.**
+
+⛔ **Zweiter falscher Satz im selben Absatz: das ETIKETT.** `mic: stop FAILED` lässt Audio NICHT
+sterben — die Master-Engine spielt weiter, das Mikro ist aus, hängen bleibt die
+AUFNAHME-ROUTE. Es steht trotzdem in Großbuchstaben, während `engine: stop — the session
+refused to deactivate` einen genauso falschen Zustand hinterlässt und kleingeschrieben ist.
+„Audio tot" war nie die Unterscheidung; **„der Lauf hat sich davon nicht erholt" ist es.**
+
+**Neu: `unowned_failures(lines, known)`** — Zeilen mit einem nicht-benignen Terminalwort, die
+KEINER bekannten Leiter zugeordnet sind. Eigener Block im Bericht, eigene Zeilenausgabe, und
+**Exit 1**. Bewusst eng gehalten: benigne Wörter werden nicht eingesammelt (ein herrenloses
+`SKIPPED` ist ein ordentlicher Ausstieg), eine Zeile, die ihre Leiter schon besitzt, wird
+ausgeschlossen (sonst doppelt gemeldet), und das Präfix wird NICHT geparst — das Werkzeug sagt
+„hier ist eine Fehlerzeile, für die das Leitermodell kein Urteil hat", nicht welcher Teil
+gescheitert ist. Eine Präfix-Rate wäre der `census_effect`-Fehler: eine Behauptung über
+Kontrollfluss, die ein Zeilen-Scanner nicht aufstellen kann.
+
+**Fünf Mutationen, fünf Einzeltreffer:** Besitz-Ausschluss weg · benigne Wörter mit
+eingesammelt · grüne Zeile ignoriert Waisen · Exit-Code ignoriert Waisen · Block wird nie
+gedruckt. Drei neue Fixtures fahren den DRUCKER, nicht die reine Funktion (#967).
+
+**Mitgezogen:** die Krümel-Nadel des #968-Wächters wird jetzt auf BEIDEN Seiten auf Eindeutigkeit
+geprüft. `range(of:)` liefert den ERSTEN Treffer — eine in einen früheren `catch` duplizierte
+Zeile hätte die Reihenfolgeprüfung auf dem falschen Paar grün bestehen lassen. Die Tabelle
+bewegt sich dadurch nicht (auf allen vier Bäumen nachgefahren): auf einem Elternbaum feuert sie
+als „kommt null mal vor", also derselbe Sachverhalt, den die Ansprüche ohnehin benennen (#367).
+
+⚠️ **Weiter registriert, nicht repariert:** letzter-gewinnt — ein Fehlschlag, dem ein
+erfolgreicher Neulauf folgt, liest sich grün (`on`/`off` werden in einer Sitzung mehrfach
+geschaltet, das ist nicht konstruiert).

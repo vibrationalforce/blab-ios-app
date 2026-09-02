@@ -519,6 +519,49 @@ def ladder_verdicts(lines: list[str],
     return out
 
 
+def unowned_failures(lines: list[str],
+                     known: set[tuple[str, int]]) -> list[tuple[int, str]]:
+    """Log lines that report a FAILURE which belongs to NO ladder, as (index, line).
+
+    ⛔ #970 — WITHOUT THIS, THE THREE MOST EXPENSIVE LINES #968 ADDED HAVE NO VERDICT AT ALL.
+    `ladder_verdicts` builds its terminator needle from the eight ladder PREFIXES, so a failure
+    line whose prefix is not one of them is invisible to it: `session: interruption FAILED`,
+    `session: media reset FAILED`, `engine: restart after <ctx> FAILED`. Driven — a log holding
+    a complete `session: configure` ladder plus all three printed
+    `✅ Every ladder that appears reached its last step`, exit 0. That is the same false green
+    #967 was written to remove, on lines shipped one commit later.
+
+    ⛔ AND #968's OWN GUARD HEADER CLAIMED THE OPPOSITE, naming all four ALL-CAPS sites as read
+    by this tool when only `mic: stop FAILED` was. The source comment at
+    `AudioConfiguration.swift:1008` said the honest thing the whole time. The header is
+    corrected in the same commit as this function (#456), because the two are one decision:
+    either the tool reads them or the prose must not say it does.
+
+    ⚠️ BENIGN WORDS ARE NOT COLLECTED. An unowned `SKIPPED` is a tidy exit nobody is waiting
+    on; only a non-benign word is a finding by itself. And a line already attributed to a
+    ladder is excluded, so a `mic: stop FAILED` is reported once, by the ladder that owns it.
+
+    ⚠️ THE PREFIX IS NOT PARSED. This deliberately does not try to name which subsystem failed
+    — it says "here is a failure line the ladder model has no verdict for, read it". Guessing
+    a prefix would be the `census_effect` mistake: a claim about control flow that a line
+    scanner cannot make.
+    """
+    hostile = [w for w in TERMINAL_WORDS if w not in BENIGN_TERMINALS]
+    if not hostile:
+        return []
+    word_pat = re.compile(r"(?:^|[^A-Za-z])(" + "|".join(re.escape(w) for w in hostile) + r")\b")
+    owned_pat = [re.compile(rf"\b{re.escape(prefix)}\s+(" + "|".join(TERMINAL_WORDS) + r")\b")
+                 for (prefix, _total) in known]
+    out: list[tuple[int, str]] = []
+    for idx, line in enumerate(lines):
+        if not word_pat.search(line):
+            continue
+        if any(pat.search(line) for pat in owned_pat):
+            continue
+        out.append((idx, line))
+    return out
+
+
 def read_log(path: str, root: str) -> int:
     try:
         text = open(path, encoding="utf-8", errors="replace").read()
@@ -539,11 +582,16 @@ def read_log(path: str, root: str) -> int:
     print(f"  last   │ {lines[-1][:110]}\n")
 
     verdicts = ladder_verdicts(lines, known)
+    orphans = unowned_failures(lines, known)
 
     if not any(v["step"] > 0 for v in verdicts.values()):
         print("  No ladder rung appears in this log.")
         print("  That is a FINDING about the log, not about the code: either it predates the")
         print("  ladder, or the breadcrumb sink never opened (`EchoelCrashLog.begin()`).")
+        # #970: this branch returns before the report below, so an orphan failure in a
+        # rung-less log would be swallowed by the one exit that already knows it is a finding.
+        for idx, line in orphans:
+            print(f"  ⚠️ line {idx + 1}: {line[:110]}")
         return 1
 
     findings = 0
@@ -584,17 +632,26 @@ def read_log(path: str, root: str) -> int:
         print("   READ THAT LINE: it names the error the code caught. On a SHORT ladder the")
         print("   steps after it did not run; on a COMPLETE one the run reached its last step")
         print("   and failed anyway — #967, which is the shape a retry-then-degrade writes.")
+    if orphans:
+        print(f"⚠️ {len(orphans)} line(s) report a FAILURE that belongs to NO ladder (#970).")
+        print("   The ladder model has no verdict for these — read them. They are the")
+        print("   lifecycle catches #968 gave a voice: a failed reactivate after an")
+        print("   interruption, a failed media-services reconfigure, a failed engine restart.")
+        print("   On those three AUDIO IS DEAD, and before #970 a log holding all of them")
+        print("   still printed the green line below and exited 0.")
+        for idx, line in orphans:
+            print(f"     line {idx + 1}: {line[:104]}")
     if incomplete:
         print(f"❌ {incomplete} ladder(s) did not reach their last step.")
         print("   Since #882 every numbered step emits even when skipped, so a gap in a ladder")
         print("   written after that is a DEATH AT THAT STEP — the rung stands before its call.")
         print("   ⚠️ Check the ladder is one of the post-#882 ones before concluding that;")
         print("   `--source` lists which ladders are complete in today's tree.")
-    elif not ended and not failed:
+    elif not ended and not failed and not orphans:
         print("✅ Every ladder that appears reached its last step.")
     print("\n⚠️ A completed ladder does not mean the run was healthy — it means no rung was")
     print("   the last thing written. The crash may be anywhere the ladder does not reach.")
-    return 1 if findings else 0
+    return 1 if findings or orphans else 0
 
 
 def selftest(root: str) -> int:
@@ -853,6 +910,33 @@ def selftest(root: str) -> int:
                                "mic: start REFUSED — input format not ready\n")
         check("a documented tidy exit is NOT also accused of stopping short",
               SHORT not in out and "SAID WHY" in out and rc == 0)
+
+        # ⭐ #970 — THE THREE CASES OF `unowned_failures`, DRIVEN THROUGH THE PRINTER. The
+        # middle one is the regression guard: a failure its ladder already owns must be
+        # reported ONCE, by that ladder, and never appear in the orphan block as well.
+        ORPHAN = "belongs to NO ladder"
+        rc, out = verdict_text("orphan_failures.log",
+                               "engine: session: configure 1/4: a\n"
+                               "engine: session: configure 2/4: b\n"
+                               "engine: session: configure 3/4: c\n"
+                               "engine: session: configure 4/4: d\n"
+                               "session: interruption FAILED — could not reactivate (e)\n"
+                               "engine: restart after interruption FAILED — e\n")
+        check("a FAILURE belonging to no ladder is a finding, not a green run",
+              ORPHAN in out and GREEN not in out and rc == 1)
+        rc, out = verdict_text("owned_failure.log",
+                               "mic: stop 1/3 — a\nmic: stop 2/3 — b\nmic: stop 3/3 — c\n"
+                               "mic: stop FAILED — the record route was not released (e)\n")
+        check("a failure its ladder OWNS is not double-reported as an orphan",
+              ORPHAN not in out and "ended on a FAILED line" in out and rc == 1)
+        rc, out = verdict_text("orphan_benign.log",
+                               "engine: session: configure 1/4: a\n"
+                               "engine: session: configure 2/4: b\n"
+                               "engine: session: configure 3/4: c\n"
+                               "engine: session: configure 4/4: d\n"
+                               "route: release SKIPPED — nobody held it\n")
+        check("an unowned BENIGN word is not dragged in as a failure",
+              ORPHAN not in out and GREEN in out and rc == 0)
 
     print("\n" + ("selftest OK" if ok else "selftest FAILED"))
     return 0 if ok else 1

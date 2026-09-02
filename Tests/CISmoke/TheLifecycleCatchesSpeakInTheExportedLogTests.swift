@@ -16,13 +16,29 @@
 //
 // ⚠️ THE SIX ARE NOT ONE KIND, and the wording is graded on purpose (claims 1-6 read the exact
 // literals, so the grading is enforced, not described):
-//   · audio DEAD  → ALL-CAPS `FAILED`, because `diag-ladder.py` reads that word as a finding:
-//     `session: interruption FAILED`, `session: media reset FAILED`, `engine: restart after …
-//     FAILED`, `mic: stop FAILED`.
-//   · audio CONTINUES → lowercase detail, never a terminator: `session: lower — the buffer
+//   · the run did NOT recover → ALL-CAPS `FAILED`: `session: interruption FAILED`,
+//     `session: media reset FAILED`, `engine: restart after … FAILED`, `mic: stop FAILED`.
+//   · the run CONTINUES → lowercase detail, never a terminator: `session: lower — the buffer
 //     re-assert was refused`, `engine: stop — the session refused to deactivate`. Writing
 //     `FAILED` on those two would mark a healthy run as a finding — the #937 class, an
 //     instrument telling a triager the opposite of what happened.
+//
+// ⛔ AND THIS PASSAGE SHIPPED WITH TWO FALSE SENTENCES, BOTH CORRECTED BY #970 IN THE COMMIT
+// THAT MADE THE FIRST ONE TRUE. It said ALL-CAPS was used *"because `diag-ladder.py` reads that
+// word as a finding"* and named all four sites. **`diag-ladder.py` reads a terminal word only
+// after a KNOWN LADDER PREFIX**, and its eight are `mic: start` · `mic: stop` · `off` · `on` ·
+// `session: configure` · `session: raise` · `start` · `startup`. Three of the four are none of
+// those, so only `mic: stop FAILED` was machine-read — measured, not argued: a log holding a
+// complete `session: configure` ladder plus the other three printed `✅ Every ladder that
+// appears reached its last step`, exit 0. The source comment at `AudioConfiguration.swift:1008`
+// said the honest thing the whole time; the always-read header said the opposite. #970 added
+// `unowned_failures`, so the sentence is true NOW — and it is rewritten anyway, because a claim
+// that happens to have become true is not the same as one that was checked.
+// ⛔ The SECOND false sentence was the label. `mic: stop FAILED` does not leave AUDIO DEAD — the
+// master engine plays on and the mic is off; what survives is a HELD RECORD ROUTE. It is
+// ALL-CAPS all the same, while `engine: stop — the session refused to deactivate` leaves an
+// equally wrong state and is lowercase. So "audio dead" was never the discriminator; "the run
+// did not recover from this" is, and that is what the two bullets now say.
 //
 // ⭐ AND ONE OF THE SIX ONLY BECAME LEGIBLE ONE COMMIT EARLIER. `mic: stop FAILED` follows a
 // COMPLETE `mic: stop` 1..3 ladder: the mic stopped while the RECORD ROUTE is still held, which
@@ -48,7 +64,12 @@
 //   |-------------------|-----|----|
 //   | dcde4ba (#964)    | 6   | 8  |
 //   | 7f7b303 (#967)    | 6   | 8  |
-//   | worktree (#968)   | 0   | 8  |
+//   | 2e4eacf (#968)    | 0   | 8  |
+//   | worktree (#970)   | 0   | 8  |
+//
+// ⚠️ #970's added crumb-uniqueness assertion does NOT move any count — re-driven on all four
+// trees. On a parent it fires as "occurs zero times", i.e. the same fact claims 1-6 already
+// name, so the guard still fails for its named reason (#367) rather than gaining a second one.
 //
 // Claims 7-8 (the counterweights) are GREEN on all three trees, which is what a counterweight
 // should be — #961's header records the day one was written as a composite and went red on the
@@ -114,6 +135,15 @@ final class TheLifecycleCatchesSpeakInTheExportedLogTests: XCTestCase {
             `\(osLog)…` is no longer the single os_log line of this catch, so this claim can no \
             longer anchor on it. Re-anchor before trusting the verdict (#408) — a needle that \
             cannot match makes a negative assertion vacuously true (#926).
+            """, file: file, line: line)
+        // ⛔ #970 — THE UNIQUENESS WAS ASSERTED ON ONE SIDE ONLY. `range(of:)` returns the FIRST
+        // hit, so a crumb literal duplicated into an earlier catch would let the order check
+        // below pass on the wrong pair — the guard would read as green while the catch it names
+        // is silent. All six are unique today; that is what makes this cheap to state and
+        // pointless to omit.
+        XCTAssertEqual(occurrences(of: crumb, in: code), 1, """
+            `\(crumb)…` no longer occurs exactly once. The order check below compares the FIRST
+            match, so a second copy makes it grade a pair this claim is not about (#408).
             """, file: file, line: line)
         guard let c = code.range(of: crumb), let o = code.range(of: osLog) else {
             XCTFail("""
