@@ -2406,6 +2406,45 @@ public final class AudioEngine {
             // to one prior line. `off N/5` is the shape that already works; this mirrors it.
             logMonitorOutcome("on 1/5: stopping engine + claiming record route", level: .info)
             if wasRunning { masterEngine.stop() }
+            // ⭐ #975 — THE ONE CALLER OF `claimRecordRoute` THAT DID NOT CHECK THE SESSION
+            // WAS CONFIGURED, AND IT IS THE PATH THE v10.79.435 ABORT RAN DOWN.
+            // `MicrophoneManager` guards its identical claim two lines before making it
+            // (`if !isSessionConfigured { try configureAudioSession() }`); this path did not,
+            // and nothing between here and the abort reads the flag — measured: `grep
+            // isSessionConfigured` over the whole `on` path returns NOTHING.
+            //
+            // Why that is the hole and not a tidiness point: `claimRecordRoute` →
+            // `upgradeToPlayAndRecord()` sets the CATEGORY and re-asserts the BUFFER, and
+            // NEVER sets a preferred SAMPLE RATE — it relies on `configureAudioSession()`
+            // having done that at its rung 2/4. So when the launch configure throws at rung
+            // 1/4 (`setCategory`), `setPreferredSampleRate` never runs, `setupMasterEngine()`
+            // builds the output at the untouched 44.1 kHz anyway, and this claim then moves
+            // the hardware to its record default of 48 kHz. That is the founder's own `on 3/5`
+            // line, verbatim: `edge 48000.0 Hz/1 ch, session 48000.0 Hz/1 ch, out 44100.0 Hz/
+            // 2 ch`. One rung later the engine restarts with the monitor chain and AVAudioEngine
+            // has to bridge 48k → 44.1k inside the input connection: `isInputConnToConverter`.
+            //
+            // ⚠️ THE CAUSAL HALF IS NOT PROVEN AND IS NOT CLAIMED. That the launch configure
+            // THREW on his device is an inference — his build predates #958, so its log could
+            // not say so, and `configure 1/4` followed by silence is equally the signature of a
+            // death inside `setCategory`. What IS proven from source is narrower and enough to
+            // act on: a claim on a session that was never configured runs at a rate nobody
+            // chose, whatever made it unconfigured. NEEDS-FOUNDER-VERIFY: the next log either
+            // carries `session: configure FAILED — …` (inference confirmed) or does not.
+            //
+            // ⚠️ A SECOND FAILURE MUST NOT FALL THROUGH INTO THE SAME HOLE ONE LEVEL DOWN.
+            // If the configure throws HERE too, monitoring refuses and says so — `REFUSED` is
+            // a benign terminator, so `diag-ladder.py` reads a log ending here as a documented
+            // exit (⏹) and not as a death, which is exactly what it is.
+            if !AudioConfiguration.isSessionConfigured {
+                do { try AudioConfiguration.configureAudioSession() }
+                catch {
+                    logMonitorOutcome("on REFUSED — the session was never configured and "
+                                      + "reconfiguring it failed (\(error))")
+                    restoreEngineIfStranded(wasRunning, at: "session never configured")
+                    return false
+                }
+            }
             do { try AudioConfiguration.claimRecordRoute(.inputMonitoring) }
             catch {
                 // #628: the claim used to only LOG and fall through — straight into a format

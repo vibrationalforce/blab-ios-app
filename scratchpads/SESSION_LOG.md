@@ -21620,3 +21620,54 @@ sagt der Absatz, was er weiß: diese Zeilen sind NICHT das Urteil oben, lies sie
 
 **Vier Heimaten in einem Commit** (Quellkommentar · Wächterkopf · zwei gedruckte Blöcke), weil
 genau das die Diagnose ist.
+
+## 2026-09-02 — #975: der Monitor-Pfad beanspruchte die Aufnahme-Route auf einer NIE konfigurierten Sitzung
+
+**Zurück am Produkt, und es ist der Absturz des Founders selbst** (`isInputConnToConverter`,
+v10.79.435 / 2553). Aus Quelltext + seinem Log abgeleitet, nicht geraten.
+
+**Die Kette, Glied für Glied:**
+
+1. `prepareGraph` ruft `configureAudioSession()`. Wirft es auf Sprosse 1/4 (`setCategory`),
+   bleibt `isSessionConfigured` **false** — und `setPreferredSampleRate(48000)` auf Sprosse 2/4
+   **läuft nie**.
+2. `setupMasterEngine()` läuft trotzdem → der Ausgang wird auf den unberührten **44,1 kHz**
+   gebaut.
+3. Später Monitoring an → `claimRecordRoute(.inputMonitoring)` → `upgradeToPlayAndRecord()`.
+   **Gemessen: das setzt die KATEGORIE und setzt die Puffer-Dauer neu — eine bevorzugte
+   ABTASTRATE setzt es NIE.** Es verlässt sich darauf, dass `configureAudioSession()` das auf
+   Sprosse 2/4 getan hat.
+4. `.playAndRecord` hebt die Hardware auf ihren Aufnahme-Standard **48 kHz**.
+5. Genau das steht in seinem `on 3/5` — wörtlich: `edge 48000.0 Hz/1 ch, session 48000.0 Hz/1 ch,
+   **out 44100.0 Hz/2 ch**`.
+6. `on 4/5` startet die Engine mit der Monitor-Kette; AVAudioEngine muss 48k→44,1k **in der
+   Eingangs-Verbindung** überbrücken → `isInputConnToConverter`.
+
+⭐ **Die Reparatur ist eine WIEDERVERWENDUNG, keine Erfindung.** `claimRecordRoute` hat zwei
+Aufrufer. `MicrophoneManager` schützt seinen Anspruch zwei Zeilen vorher
+(`if !isSessionConfigured { try configureAudioSession() }`). Der Monitor-Pfad tat es nicht — und
+**`grep isSessionConfigured` über den GANZEN `on`-Pfad lieferte NULL Treffer.** Genau dasselbe
+Muster steht jetzt beim Geschwister-Aufrufer.
+
+⚠️ **Ein zweiter Fehlschlag fällt NICHT ins selbe Loch eine Ebene tiefer:** wirft das Konfigurieren
+auch hier, verweigert das Monitoring benannt (`on REFUSED — …`). `REFUSED` ist ein benigner
+Terminator, `diag-ladder.py` liest ein dort endendes Log also als dokumentierten Ausstieg (⏹)
+und nicht als Tod — was es ist.
+
+⚠️ **Die KAUSALE Hälfte ist eine Schlussfolgerung und wird nirgends behauptet.** Dass das
+Konfigurieren auf seinem Gerät WARF, kann sein Log nicht sagen — Build 2553 ist älter als #958,
+die Zeile `session: configure FAILED` gab es noch nicht, und „`configure 1/4` dann Stille" ist
+genauso die Signatur eines Todes IM `setCategory`. Belegt und handlungsreif ist das Engere:
+**ein Anspruch auf eine nie konfigurierte Sitzung läuft auf einer Rate, die niemand gewählt
+hat — egal, was sie unkonfiguriert gemacht hat.** NEEDS-FOUNDER-VERIFY: trägt das nächste Log
+`session: configure FAILED — …`?
+
+**Wächter:** `TheMonitorClaimNeedsAConfiguredSessionTests`, 6 Ansprüche, gefahren `1e81876`
+3 rot von 6 · Arbeitsbaum 0 rot. **Anspruch 5 ist die PRÄMISSE, nicht ein Detail**: er nagelt
+fest, dass `upgradeToPlayAndRecord` weiterhin keine Abtastrate setzt. Setzt es je eine, schließt
+sich die Divergenz an der Quelle und jeder Absatz oben ist veraltet — ein rotes Build ist, wie
+das auffällt statt zu verrotten.
+
+⚠️ Sechs Mutationen; die erste trifft drei Ansprüche, **und das ist richtig**: c1/c2/c3
+beschreiben drei Eigenschaften EINES Blocks. Die vier, die je eine Eigenschaft ändern, landen
+je auf einem Anspruch.
