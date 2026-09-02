@@ -21671,3 +21671,56 @@ das auffällt statt zu verrotten.
 ⚠️ Sechs Mutationen; die erste trifft drei Ansprüche, **und das ist richtig**: c1/c2/c3
 beschreiben drei Eigenschaften EINES Blocks. Die vier, die je eine Eigenschaft ändern, landen
 je auf einem Anspruch.
+
+## 2026-09-02 — #976: #975 hat einen blockierenden Wächter rot gemacht und seine eigene Begründung war falsch
+
+**Der Prüfer hat vier echte Befunde geliefert; alle vier selbst nachgemessen, alle vier wahr.
+Dieser Eintrag ist zu großen Teilen eine Rücknahme.**
+
+⛔ **CRITICAL — #975 hat `MonitoringCannotStrandTheEngineStoppedTests` rot gemacht.** Der Pin
+zählt `restoreEngineIfStranded(`: Elternbaum **5**, mein Baum **6**. Der Kopf dieses Wächters
+trägt bereits ZWEI Rücknahmen für genau das (#631 drei→vier, #958b vier, rot innerhalb des
+Commits, der es falsch machte). **#975 ist das dritte Mal.** Auf 6 gesetzt, mit dem neuen
+Ausgang namentlich in der Fehlermeldung.
+
+⚠️ **Und `scripts/count-pins.py` hat 0 RED gedruckt — es SIEHT diesen Pin gar nicht**, auch
+nicht als „unresolved". Der Pin hat die Form `lines.filter { $0.contains(…) }.count`, das
+Werkzeug liest zwei Formen und das ist eine dritte; die Zählweise ist außerdem eine andere
+(Zeilen, nicht Vorkommen). **Sein eigener Fußtext sagt „a clean run is never a census" — ich
+habe die Zahl gelesen und den Fußtext nicht.** Das Werkzeug die dritte Form zu lehren ist die
+nächste Scheibe, nicht ein Anhängsel: es braucht ein neues Muster, einen neuen Zählmodus und
+eine neue Bindungsform.
+
+⛔ **Die BEGRÜNDUNG von #975 war falsch, in jeder Heimat, in der sie stand.** Sie sagte, der
+Block schließe die 48-kHz/44,1-kHz-Divergenz. **Kann er nicht:** Sprosse 2/4 von
+`configureAudioSession()` bittet um `preferredSampleRate`, und das ist `static let = 48000.0` —
+**die abweichende Rate**. Der Block verschiebt nur den Moment, in dem die Hardware angehoben
+wird, um eine Zeile. Was diesen Fall wirklich abweist, ist die schon vorhandene #958-Raten-Sperre
+weiter unten in derselben Methode. **Gefunden, weil jemand die Konstante nachgelesen hat.**
+
+⭐ **Was der Block WIRKLICH bringt, und das hatte niemand aufgeschrieben:**
+`downgradeToPlaybackAfterRecording` beginnt mit `recordingRouteNeeded = false` und dann
+`guard isSessionConfigured else { … return }`. Auf einem Gerät, dessen Start-Konfiguration warf,
+hebt Monitoring-AN die Kategorie an und Monitoring-AUS kann sie **nie wieder senken** — die
+Sitzung bleibt für den Rest des Prozesses auf `.playAndRecord`, mit null Haltern. Das ist die
+A2DP→HFP-Verschlechterung, die `AudioConfiguration.swift:451` schon beschreibt. **Ein echter Fix
+für einen Grund, den ich nicht kannte.**
+
+⛔ **„`claimRecordRoute` hat ZWEI Aufrufer" war falsch — es sind DREI**, und
+`MultiTrackRecorder.swift:132` ist weiterhin ungeschützt. **Und das Repo sagte es bereits**, 90
+Zeilen von der Funktion entfernt, die ich für die Prämisse gelesen habe
+(`AudioConfiguration.swift:452`: „only one of the three claim sites configures first"). Die
+meistbestrafte Gattung dieses Repos, von mir, in einem Commit über Sorgfalt. Korrigiert in drei
+Heimaten; der dritte Aufrufer ist türlos (#204) und wird GENANNT, nicht repariert.
+
+⛔ **ZWEITER roter Wächter, vorbestehend, im selben File:**
+`testTheEngineIsPausedBeforeTheSessionClaim` suchte
+`let inFmt = input.inputFormat(forBus: 0)` — **null Vorkommen dateiweit** (es heißt `var inFmt`)
+— und `masterEngine.pause()`, das #823 auf diesem Pfad zu `stop()` gemacht hat. Der `guard` fiel
+also auf jedem Lauf in `XCTFail`. **Ein Wächter, der nur aus einem Grund über sich selbst
+scheitern kann (#367).** Neu verankert; das GESETZ ist unverändert und gilt auf beiden Bäumen
+(gefahren: stop < claim < fmt).
+
+**Zwei Kosten sind jetzt benannt statt versteckt:** ein Wurf auf Sprosse 4/4 lässt die Sitzung
+INAKTIV zurück und `restoreEngineIfStranded` startet darauf; und nach einem AUS-Zyklus auf so
+einem Gerät macht das nächste AN zwei Kategoriewechsel statt einem.

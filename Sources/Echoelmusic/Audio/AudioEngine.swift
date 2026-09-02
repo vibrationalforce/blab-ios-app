@@ -2406,36 +2406,47 @@ public final class AudioEngine {
             // to one prior line. `off N/5` is the shape that already works; this mirrors it.
             logMonitorOutcome("on 1/5: stopping engine + claiming record route", level: .info)
             if wasRunning { masterEngine.stop() }
-            // ⭐ #975 — THE ONE CALLER OF `claimRecordRoute` THAT DID NOT CHECK THE SESSION
-            // WAS CONFIGURED, AND IT IS THE PATH THE v10.79.435 ABORT RAN DOWN.
-            // `MicrophoneManager` guards its identical claim two lines before making it
-            // (`if !isSessionConfigured { try configureAudioSession() }`); this path did not,
-            // and nothing between here and the abort reads the flag — measured: `grep
-            // isSessionConfigured` over the whole `on` path returns NOTHING.
+            // ⭐ #975/#976 — THE CLAIM WAS BEING MADE ON A SESSION THAT WAS NEVER ACTIVATED.
+            // `claimRecordRoute` has THREE call sites and only `MicrophoneManager` configured
+            // first; this was the second, and `MultiTrackRecorder.swift:132` is still the
+            // third (doorless, #204 — named here, not fixed).
             //
-            // Why that is the hole and not a tidiness point: `claimRecordRoute` →
-            // `upgradeToPlayAndRecord()` sets the CATEGORY and re-asserts the BUFFER, and
-            // NEVER sets a preferred SAMPLE RATE — it relies on `configureAudioSession()`
-            // having done that at its rung 2/4. So when the launch configure throws at rung
-            // 1/4 (`setCategory`), `setPreferredSampleRate` never runs, `setupMasterEngine()`
-            // builds the output at the untouched 44.1 kHz anyway, and this claim then moves
-            // the hardware to its record default of 48 kHz. That is the founder's own `on 3/5`
-            // line, verbatim: `edge 48000.0 Hz/1 ch, session 48000.0 Hz/1 ch, out 44100.0 Hz/
-            // 2 ch`. One rung later the engine restarts with the monitor chain and AVAudioEngine
-            // has to bridge 48k → 44.1k inside the input connection: `isInputConnToConverter`.
+            // WHAT IT COSTS, measured at the consumer and not guessed:
+            // `downgradeToPlaybackAfterRecording` opens with `recordingRouteNeeded = false`
+            // and then `guard isSessionConfigured else { … category left as-is; return }`
+            // (`AudioConfiguration.swift:625`). So on a device whose launch configure threw,
+            // monitoring ON raises the category and monitoring OFF can NEVER lower it: the
+            // session sits on `.playAndRecord` with zero holders for the rest of the process,
+            // which is the A2DP → HFP call-quality degradation `AudioConfiguration.swift:451`
+            // already describes. This block closes that permanently, on the first toggle.
             //
-            // ⚠️ THE CAUSAL HALF IS NOT PROVEN AND IS NOT CLAIMED. That the launch configure
-            // THREW on his device is an inference — his build predates #958, so its log could
-            // not say so, and `configure 1/4` followed by silence is equally the signature of a
-            // death inside `setCategory`. What IS proven from source is narrower and enough to
-            // act on: a claim on a session that was never configured runs at a rate nobody
-            // chose, whatever made it unconfigured. NEEDS-FOUNDER-VERIFY: the next log either
-            // carries `session: configure FAILED — …` (inference confirmed) or does not.
+            // ⛔ #976 — THE REASON #975 GAVE WAS A DIFFERENT ONE AND IT WAS WRONG. It said this
+            // closes the 48 kHz / 44.1 kHz divergence behind the founder's
+            // `isInputConnToConverter` abort. It cannot: `configureAudioSession()`'s rung 2/4
+            // asks for `preferredSampleRate`, which is `static let = 48000.0` — the DIVERGING
+            // rate. The block moves the moment the hardware is raised one line earlier and
+            // changes nothing about the mismatch. What actually refuses that case is the
+            // pre-existing #958 rate guard further down this method (`on REFUSED — the session
+            // granted … Hz`). The premise underneath was right and is worth keeping written
+            // down — `upgradeToPlayAndRecord` really does set the category and the buffer and
+            // never a sample rate — but it is #958's premise, not this block's.
             //
             // ⚠️ A SECOND FAILURE MUST NOT FALL THROUGH INTO THE SAME HOLE ONE LEVEL DOWN.
             // If the configure throws HERE too, monitoring refuses and says so — `REFUSED` is
             // a benign terminator, so `diag-ladder.py` reads a log ending here as a documented
             // exit (⏹) and not as a death, which is exactly what it is.
+            //
+            // ⚠️ TWO COSTS, NAMED RATHER THAN HIDDEN. (1) A throw at rung 4/4 (`setActive`)
+            // leaves the category and rate already moved and the session INACTIVE, and
+            // `restoreEngineIfStranded` then starts the master engine on it — so "returns
+            // before the claim, therefore nothing was touched" is not quite true. The sibling
+            // claim-failure exit below has the identical exposure, so this is not new.
+            // (2) `downgradeToPlaybackAfterRecording` clears `recordingRouteNeeded` ABOVE that
+            // same guard, so after one OFF cycle on such a device the flag is false while the
+            // category is still `.playAndRecord`; the next ON then does `.playback` (here) and
+            // `.playAndRecord` (the claim) — two category transitions where there was one, on
+            // a path `rearmInputMonitoring` runs after every `start()`. Owners are empty by
+            // construction there, so nothing is cut; the cost is route churn.
             if !AudioConfiguration.isSessionConfigured {
                 do { try AudioConfiguration.configureAudioSession() }
                 catch {

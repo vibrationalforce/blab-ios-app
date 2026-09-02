@@ -5,34 +5,35 @@
 // the failure this covers is an AVAudioSession throw at launch, which a bundle test cannot
 // stage honestly.
 //
-// ⭐ WHAT WAS WRONG, and it is the founder's own `isInputConnToConverter` abort (v10.79.435,
-// build 2553). `claimRecordRoute` has TWO callers. `MicrophoneManager` guards its claim —
-// `if !AudioConfiguration.isSessionConfigured { try configureAudioSession() }` — two lines
-// before making it. The input-monitoring path did not, and nothing between its entry and the
-// abort read the flag: measured, `isSessionConfigured` occurred ZERO times anywhere in that
-// method.
+// ⭐ WHAT WAS WRONG. `claimRecordRoute` has THREE call sites and only `MicrophoneManager`
+// configured first — `if !AudioConfiguration.isSessionConfigured { try configureAudioSession() }`,
+// two lines before making its claim. The input-monitoring path did not, and
+// `isSessionConfigured` occurred ZERO times anywhere in that method.
+// `MultiTrackRecorder.swift:132` is the third and is still unguarded; it is doorless (#204), so
+// it is NAMED here and not fixed.
 //
-// ⛔ WHY THAT IS A HOLE AND NOT A TIDINESS POINT. `claimRecordRoute` →
-// `upgradeToPlayAndRecord()` sets the CATEGORY and re-asserts the BUFFER, and never sets a
-// preferred SAMPLE RATE — it relies on `configureAudioSession()` having done that at its rung
-// 2/4. So when the launch configure throws at rung 1/4 (`setCategory`),
-// `setPreferredSampleRate` never runs, `setupMasterEngine()` builds the output at the untouched
-// 44.1 kHz anyway, and the claim then moves the hardware to its record default of 48 kHz. That
-// is the founder's `on 3/5` line verbatim — `edge 48000.0 Hz/1 ch, session 48000.0 Hz/1 ch,
-// out 44100.0 Hz/2 ch`. One rung later the engine restarts with the monitor chain, AVAudioEngine
-// has to bridge 48k → 44.1k inside the input connection, and the assert fires.
+// ⛔ #976 — AND #975 GAVE THE WRONG REASON FOR ITS OWN FIX, in every home it wrote one. It said
+// this closes the 48 kHz / 44.1 kHz divergence behind the founder's `isInputConnToConverter`
+// abort (v10.79.435). It cannot: `configureAudioSession()`'s rung 2/4 asks for
+// `preferredSampleRate`, and that is `static let = 48000.0` — the DIVERGING rate. The block
+// moves the moment the hardware is raised one line earlier and changes nothing about the
+// mismatch; a founder log would print the same `on 3/5` line after it. What actually refuses
+// that case is the pre-existing #958 rate guard further down the same method. Caught by a
+// reviewer reading the constant, not by any check here.
 //
-// ⚠️ THE CAUSAL HALF IS INFERRED AND IS NOT CLAIMED ANYWHERE THIS SHIPS. That the launch
-// configure THREW on his device cannot be read from his log: build 2553 predates #958, so the
-// `session: configure FAILED` line did not exist yet, and `configure 1/4` followed by silence
-// is equally the signature of a death INSIDE `setCategory`. What is proven from source is
-// narrower and enough to act on: a record-route claim on a session that was never configured
-// runs at a rate nobody chose, whatever made it unconfigured.
-// NEEDS-FOUNDER-VERIFY: does the next log carry `session: configure FAILED — …`?
+// ⭐ WHAT THE BLOCK REALLY BUYS, measured at the consumer.
+// `downgradeToPlaybackAfterRecording` opens with `recordingRouteNeeded = false` and then
+// `guard isSessionConfigured else { … category left as-is; return }`
+// (`AudioConfiguration.swift:625`). On a device whose launch configure threw, monitoring ON
+// raises the category and monitoring OFF can NEVER lower it — the session sits on
+// `.playAndRecord` with zero holders for the rest of the process, which is the A2DP → HFP
+// call-quality degradation `AudioConfiguration.swift:451` already describes. This closes that
+// permanently, on the first toggle. A real fix, for a reason nobody had written down.
 //
-// ⚠️ CLAIM 5 IS THE PREMISE, NOT A DETAIL. It pins that `upgradeToPlayAndRecord` still does not
-// set a preferred sample rate. The day it does, this fix's REASON evaporates and the paragraphs
-// above become false — the guard is what makes that a red build instead of a silent rot (#631).
+// ⚠️ CLAIM 5 IS STILL WORTH ITS PLACE, WITH A CORRECTED LABEL. It pins that
+// `upgradeToPlayAndRecord` sets the category and the buffer and never a sample rate. That is
+// true and load-bearing — but it is #958's premise, not this block's. The day the upgrade sets
+// a rate, #958's argument is what changes.
 //
 // ⚠️ NOT DEVICE-VERIFIED and cannot be from here. What is proven is that the claim is now
 // preceded by the configure, and that a second failure REFUSES instead of falling through.
@@ -158,9 +159,11 @@ final class TheMonitorClaimNeedsAConfiguredSessionTests: XCTestCase {
         // proves the line EXISTS; this proves the family is still four rungs plus terminators
         // with no NUMBERED refusal among them — `diag-ladder`'s c3 grammar is explicit that a
         // numbered terminator is indistinguishable from a rung in a log.
+        // #976: hoisted — the loop re-read and re-stripped a 3,800-line file five times.
+        let code = try source(Self.engine)
         for numbered in ["on 1/5 REFUSED", "on 2/5 REFUSED", "on 3/5 REFUSED",
                          "on 4/5 REFUSED", "on 5/5 REFUSED"] {
-            XCTAssertEqual(occurrences(of: numbered, in: try source(Self.engine)), 0, """
+            XCTAssertEqual(occurrences(of: numbered, in: code), 0, """
                 `\(numbered)` numbers a terminator. Once a number is present the form that \
                 walks on and the form that returns are the SAME STRING in a log, so the tool \
                 cannot tell a refusal from a rung (c3 of the `diag-ladder` grammar).
@@ -202,7 +205,18 @@ final class TheMonitorClaimNeedsAConfiguredSessionTests: XCTestCase {
             return
         }
         let rest = code[upgrade.upperBound...]
-        let end = rest.range(of: "\n    static func")?.lowerBound ?? rest.endIndex
+        // ⚠️ #976: the terminator is ASSERTED, not defaulted. `?? rest.endIndex` would silently
+        // turn the window into "rest of file" the day `upgradeToPlayAndRecord` becomes the last
+        // 4-space `static func` here — and this file has other `setPreferredSampleRate` sites,
+        // so the claim would go RED on correct code with a message about the wrong function.
+        guard let end = rest.range(of: "\n    static func")?.lowerBound else {
+            XCTFail("""
+                `upgradeToPlayAndRecord` is now the last `static func` in AudioConfiguration, \
+                so this window has no end and would swallow the rest of the file. Re-anchor \
+                on the next declaration by name (#408).
+                """)
+            return
+        }
         XCTAssertEqual(occurrences(of: "setPreferredSampleRate", in: String(rest[..<end])), 0, """
             `upgradeToPlayAndRecord` now sets a preferred sample rate. That is a GOOD change and \
             this claim is not forbidding it (#364) — but it closes the divergence at its source, \

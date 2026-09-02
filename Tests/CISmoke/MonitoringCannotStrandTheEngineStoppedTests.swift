@@ -90,12 +90,26 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
     }
 
     /// 5 — REGRESSION (#628, founder screenshot "Monitoring could not start — try again"):
-    /// the PAUSE happens before the session claim, and the format read after it.
+    /// the engine is stopped before the session claim, and the format read after it.
+    ///
+    /// ⛔ #976 — THIS CLAIM HAD BEEN FAILING ON A CORRECT TREE, and neither needle could ever
+    /// match again. It looked for `if wasRunning { masterEngine.pause() }` — #823 turned that
+    /// into `stop()` on this path, and said so in a comment right above the line — and for
+    /// `let inFmt = input.inputFormat(forBus: 0)`, which is **zero occurrences file-wide**;
+    /// the declaration is `var inFmt`. So the `guard` fell through to `XCTFail` on every run
+    /// that reached it. That is the #367 defect in the blocking bundle: a guard must be able
+    /// to fail for the reason it NAMES, and this one could only fail for a reason about
+    /// itself. Found by a reviewer looking at the neighbouring pin, not by the suite — which
+    /// is the #445 point: a per-test verdict does not reliably reach the job log.
+    ///
+    /// ⚠️ THE LAW IS UNCHANGED AND THAT IS WHY THIS IS A RE-ANCHOR AND NOT A DELETION: whatever
+    /// pauses-or-stops the engine must do so BEFORE the claim, and the input format must be
+    /// read AFTER it. Only the spellings moved.
     func testTheEngineIsPausedBeforeTheSessionClaim() throws {
         let w = Array(try monitorOnSpan(try engineLines()))
-        guard let pause = w.firstIndex(where: { $0.contains("if wasRunning { masterEngine.pause() }") }),
+        guard let pause = w.firstIndex(where: { $0.contains("if wasRunning { masterEngine.stop() }") }),
               let claim = w.firstIndex(where: { $0.contains("claimRecordRoute(.inputMonitoring)") }),
-              let fmt = w.firstIndex(where: { $0.contains("let inFmt = input.inputFormat(forBus: 0)") })
+              let fmt = w.firstIndex(where: { $0.contains("inFmt = input.inputFormat(forBus: 0)") })
         else {
             return XCTFail("""
                 the monitoring ON path lost one of: the pause line, the \
@@ -224,7 +238,15 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
         // ⛔ #958b: FOUR again, red inside the commit that made it wrong — #958 added the
         // rate-guard exit and moved neither this count nor `RecordRouteOwnershipTests`'. Same
         // pair, same mechanism, one cycle after the #631 note above wrote the rule down.
-        XCTAssertEqual(lines.filter { $0.contains("restoreEngineIfStranded(") }.count, 5, """
+        // ⛔ #976: FIVE, AND THE COMMIT THAT MADE IT SIX WAS #975 — the THIRD time in this
+        // file, after #631 (three→four) and #958b (four again). The new exit is the ON path's
+        // SESSION-CONFIGURE guard: `at: "session never configured"`. And this time the local
+        // checker did not help either — `scripts/count-pins.py` printed 0 RED across the whole
+        // commit, because it reads two syntactic shapes and this pin is a third
+        // (`lines.filter { $0.contains(…) }.count`, not `occurrences(of:)`). A tool that says
+        // "a clean run is never a census" in its own footer said exactly that, and I read the
+        // number instead of the footer.
+        XCTAssertEqual(lines.filter { $0.contains("restoreEngineIfStranded(") }.count, 6, """
             the exit-guarantee call sites changed. FIVE occurrences are expected in \
             STRIPPED source: the declaration plus FOUR callers — the ON path's failed \
             session claim (#628: the claim used to only log and fall through into a format \
@@ -232,7 +254,10 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
             does no graph work, so it returned with the music dead while the only visible \
             line blamed microphone permission), the ON path's RATE guard (#958: the \
             session cannot meet the master graph's rate, so the monitor refuses rather \
-            than connecting a converter onto the input edge and aborting) and the OFF \
+            than connecting a converter onto the input edge and aborting), the ON path's \
+            SESSION-CONFIGURE guard (#975: the claim was being made on a session that was \
+            never configured, whose lowering path is jammed by `guard isSessionConfigured`) \
+            and the OFF \
             path (review 2b: \
             `releaseRecordRoute` lowers the category the same way, and it sits on the \
             recovery hot path `start()` → `rearmInputMonitoring` → OFF). A new exit that \
