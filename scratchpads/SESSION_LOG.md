@@ -21785,3 +21785,49 @@ Helfer, der `String` statt `[String]` liefert. 64 von 221.
 ⚠️ **Kein Gate deckt das ab.** `scripts/**` steht in keinem Pfadfilter — Selbsttest (26
 Prüfungen), beide Bekannt-Positiv-Bäume und die vier Mutationen sind die Verifikation, und
 alle wurden AUSGEFÜHRT.
+
+## 2026-09-02 — #978: das Werkzeug, das JEDEN Zyklus die Gates liest, konnte einen Fehlschlag nicht als Fehlschlag melden
+
+**Ausgangspunkt:** `gh-run-status.py` war das EINZIGE Skript in `scripts/` ohne Selbsttest —
+und es ist genau das, mit dem Schritt 2 jedes Zyklus („CI-Gates der letzten Commits prüfen")
+beantwortet wird. Vor dem Schreiben eines Selbsttests wurde es **getrieben**, nicht gelesen.
+Vier Defekte, alle reproduziert:
+
+**D1 — die schlimmste: eine unbekannte Form wurde als EIN Lauf ausgegeben, Exit 0.**
+Alles, was `_rows` nicht erkannte, fiel auf `runs = [data]` durch. Gemessen: eine
+GitHub-**Fehlermeldung** (`{"error": "rate limited"}`) druckte `?  -  ?  ?` und Exit 0 — und
+eine Lauf-Liste unter einem anderen Schlüssel (`{"runs": [...]}`) ebenfalls, wobei sie die
+echten Läufe **still verwarf**. In einem Zyklus, dessen zweiter Schritt „sind die Gates grün"
+lautet, liest sich eine `?`-Zeile als „ein Lauf, Zustand unbekannt" — nie als „diese Datei ist
+gar keine Lauf-Liste". Jetzt: `⛔ NOT A RUN LISTING` auf stderr, **Exit 2** (dieselbe
+„Instrument konnte nicht schauen"-Bedeutung wie in `count-pins.py` und `doctor.py`).
+
+**D2 — leere Ausgabe bei Exit 0 war stumm.** Eine verstandene, aber leere Liste druckte
+NICHTS. Das ist die eine Ausgabe, die sich als „alles in Ordnung" liest. Jetzt sagt sie in
+Worten, dass sie verstanden UND leer ist, und rät, den Branch-Filter zu prüfen.
+
+**D3 — `--limit N` vor der Datei fraß den Pfad.** `gh-run-status.py --limit 5 f.json`
+versuchte, die Datei `5` zu öffnen: der alte Parser filterte nur Tokens mit `--`-Präfix, der
+WERT blieb also positional. Neuer Parser nimmt beide Schreibweisen an jeder Position.
+
+**D4 — `--limit=0` druckte ALLES.** `if limit:` — Null ist falsch. Ein Argument, das still das
+Gegenteil dessen tut, was es sagt (#431/#440/#443). Jetzt `if limit is not None`.
+
+⭐ **UND EIN FÜNFTER, den erst das Treiben zeigte: `| head` erzeugte einen `BrokenPipeError`.**
+Genau das Verhalten, das `count-pins.py` in seinem #905-Kommentar als „sieht kaputt aus und
+verliert das Vertrauen" beschreibt — der Wächter dagegen steht in `window-margins.py` und
+`count-pins.py`, und ausgerechnet in der Datei, die ich JEDEN Zyklus in `head` pipe, fehlte er.
+Deterministisch gemessen: **alter Baum 3 von 3 Läufen mit Traceback, neuer 0 von 3.**
+
+**SELBSTTEST: 26 Prüfungen, und jede fährt durch `main`/`_rows` statt den Quelltext zu lesen.**
+Fünf Mutationen, alle nachweislich gefangen: Rückfall auf `[data]` → 4 rote · `if limit:` →
+1 rote · alter `--limit`-Parser → 3 rote · Leer-Hinweis entfernt → 2 rote · SIGPIPE-Wächter
+entfernt → 1 rote. Der SIGPIPE-Test prüft den **installierten Handler**, nicht den Quelltext,
+und sagt in seinem Kommentar ausdrücklich, dass er das Pipe-Verhalten selbst nicht ohne
+Subprozess prüfen kann — er behauptet nicht mehr, als er misst.
+
+**Regression:** die echte Overflow-Datei dieses Zyklus liefert unverändert 30 Zeilen; die vier
+Nachbar-Selbsttests bleiben grün; `doctor --section B` 0 kritische Befunde.
+
+⚠️ Wieder ohne Gate (`scripts/**` in keinem Pfadfilter) — Selbsttest, die getriebenen
+Defekt-Eingaben und die fünf Mutationen sind die Verifikation.
