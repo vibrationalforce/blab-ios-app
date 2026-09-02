@@ -246,9 +246,17 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
         // (`lines.filter { $0.contains(…) }.count`, not `occurrences(of:)`). A tool that says
         // "a clean run is never a census" in its own footer said exactly that, and I read the
         // number instead of the footer.
+        // ⛔ #982: AND #976 RAISED THE NUMBER IN THE ASSERTION AND LEFT ITS OWN MESSAGE
+        // SAYING "FIVE occurrences … the declaration plus FOUR callers" — beside a pin of 6,
+        // ever since (no number here: a commit distance is a date, #818). The failure message
+        // is a THIRD home of the same count (#456), and
+        // it is the home a reader sees FIRST, because it only ever prints when the pin breaks:
+        // whoever next re-counts would have been told the wrong expectation by the guard that
+        // caught them. A repair goes into every home, and a message that states a number is a
+        // home. Both words corrected here; the enumeration below always listed five callers.
         XCTAssertEqual(lines.filter { $0.contains("restoreEngineIfStranded(") }.count, 6, """
-            the exit-guarantee call sites changed. FIVE occurrences are expected in \
-            STRIPPED source: the declaration plus FOUR callers — the ON path's failed \
+            the exit-guarantee call sites changed. SIX occurrences are expected in \
+            STRIPPED source: the declaration plus FIVE callers — the ON path's failed \
             session claim (#628: the claim used to only log and fall through into a format \
             read that cannot succeed), the ON path's format-guard exit (review 2a: that exit \
             does no graph work, so it returned with the music dead while the only visible \

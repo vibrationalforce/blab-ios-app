@@ -274,7 +274,10 @@ final class TheMonitorClaimNeedsAConfiguredSessionTests: XCTestCase {
     /// deliberately the CHECK, not the repair. Both siblings may call `configureAudioSession()`
     /// because no engine is running when they do (`MicrophoneManager` before it builds its
     /// engine, `rearmInputMonitoring` after `masterEngine.stop()`). `MultiTrackRecorder` reaches
-    /// this point with a RUNNING engine, and `configureAudioSession()` does
+    /// this point with a RUNNING engine — and that branch is REACHABLE, not theoretical:
+    /// `prepareGraph()` catches a thrown configure and builds the master graph anyway, which is
+    /// the founder's v10.79.435 state (#982 retracted #981's "unreachable" claim). And
+    /// `configureAudioSession()` does
     /// `setPreferredSampleRate(48000)` and `setActive(true)` — changing the hardware rate under
     /// a running engine is the class behind the founder's `isInputConnToConverter` abort. So the
     /// third site sets its error and returns. Copying the sibling BODY here would have been
@@ -295,19 +298,33 @@ final class TheMonitorClaimNeedsAConfiguredSessionTests: XCTestCase {
                     """)
                 continue
             }
-            // The check must stand BEFORE the claim, and inside the same method — approximated
-            // by "the nearest preceding occurrence", which is what the other claims in this file
-            // use. A file-wide `contains` would pass on a check that lives in another method.
-            let before = code[code.startIndex..<claimAt.lowerBound]
-            guard let checkAt = before.range(of: "!AudioConfiguration.isSessionConfigured",
-                                             options: .backwards) else {
+            // ⛔ #982 — THE FIRST VERSION OF THIS BLOCK ENDED IN A TAUTOLOGY, and the reviewer
+            // found it. It sliced `code[code.startIndex..<claimAt.lowerBound]`, searched THAT for
+            // the check, and then asserted the hit came before the claim — which the slice had
+            // already guaranteed. The `guard` was doing all the work and the `XCTAssertTrue` was
+            // decoration. Claim 4 above does it correctly: search the WHOLE file for both, then
+            // compare. That is the shape used here now.
+            //
+            // ⚠️ AND THE COMMENT LIED ABOUT ITS OWN PRECISION — it said the slice approximates
+            // "inside the same method". It does not; it is "anywhere earlier in the file". True
+            // by luck today because each needle occurs exactly once per file, which is why that
+            // uniqueness is now ASSERTED rather than relied on: without it, a check in an
+            // unrelated method three hundred lines up would satisfy this claim.
+            let checkNeedle = "!AudioConfiguration.isSessionConfigured"
+            XCTAssertEqual(occurrences(of: checkNeedle, in: code), 1, """
+                \(path) holds \(occurrences(of: checkNeedle, in: code)) session checks. The \
+                ordering assertion below only means "the check guards THIS claim" while there \
+                is exactly one of each; with more, anchor a real window instead (see \
+                `claimRegion` in this file).
+                """)
+            guard let checkAt = code.range(of: checkNeedle) else {
                 XCTFail("""
                     \(path) claims the record route without first checking \
                     `AudioConfiguration.isSessionConfigured`. The claim raises the category \
-                    either way, but `downgradeToPlaybackAfterRecording()` returns early when the \
-                    session was never configured — so the route goes UP and can never come back \
-                    DOWN, with nobody holding it. That is the founder-visible A2DP→HFP \
-                    degradation.
+                    either way, but `downgradeToPlaybackAfterRecording()` writes \
+                    `recordingRouteNeeded = false` and then returns early when the session was \
+                    never configured — so the route goes UP and can never come back DOWN, with \
+                    nobody holding it. That is the founder-visible A2DP→HFP degradation.
                     """)
                 continue
             }

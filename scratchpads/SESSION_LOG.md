@@ -21994,8 +21994,10 @@ Anspruch hebt die Kategorie in jedem Fall an; jede Freigabe läuft aber durch
 `downgradeToPlaybackAfterRecording()`, dessen erste Anweisung `guard isSessionConfigured else {
 … return }` ist. Eine Aufnahme auf einer nie konfigurierten Sitzung hebt also `.playAndRecord` an
 und kann es **nie wieder senken** — die Sitzung bleibt dort **ohne Besitzer** stehen, exakt die
-A2DP→HFP-Degradierung, die `AudioConfiguration` an diesem Guard selbst benennt. Alle VIER
-Freigabestellen der Datei laufen in dieselbe Wand. Türlosigkeit ist ein guter Grund, einen Fehler
+A2DP→HFP-Degradierung, die `AudioConfiguration` an diesem Guard selbst benennt. Alle DREI
+Freigabestellen der Datei laufen in dieselbe Wand (⛔ **#982: der #981-Eintrag schrieb hier VIER,
+und ein Wächter im blockierenden Bündel pinnt genau drei** — eine erfundene Zahl elf Zeilen neben
+dem Pin, der die richtige hält, im Eintrag, dessen These die unvollständige Aufzählung ist). Türlosigkeit ist ein guter Grund, einen Fehler
 nicht zu reparieren, den ein Nutzer erreichen kann; sie ist **kein** Grund, zwei von drei
 Geschwistern so und das dritte anders laufen zu lassen — wer die Tür wieder aufmacht, hat keinen
 Anlass hinzusehen.
@@ -22010,9 +22012,16 @@ mit **laufender** Engine (`guard let engine, engine.isRunning` steht drei Anweis
 `setActive(true)`. **Die Hardware-Rate unter einer laufenden Engine zu ändern ist genau die Klasse
 hinter dem `isInputConnToConverter`-Abbruch des Founders (v10.79.435).** Das Muster hier zu kopieren
 wäre Muster-Abgleich gewesen, keine Ingenieursarbeit. Die dritte Stelle **verweigert** deshalb:
-`lastError` setzen, Log-Zeile, `return` — kein Anfassen der Sitzung. Kosten: null, denn die Stelle
-zu erreichen verlangt eine LAUFENDE Engine auf einer NIE konfigurierten Sitzung, und
-`AudioEngine.start()` konfiguriert sie; auf dem ausgelieferten Graphen ist der Zweig unerreichbar.
+`lastError` setzen, Log-Zeile, `return` — kein Anfassen der Sitzung. ⛔ **#982: die Kosten sind NICHT null, und der Zweig ist NICHT
+unerreichbar.** `prepareGraph()` FÄNGT einen geworfenen `configureAudioSession()`, schreibt die
+`session: configure FAILED`-Sprosse und macht WEITER — `setupMasterEngine()` läuft trotzdem. Also
+`isSessionConfigured == false` bei gebauter, startbarer Engine: **genau der v10.79.435-Zustand des
+Founders**, den derselbe Catch-Block beschreibt. „Der ausgelieferte Graph konfiguriert sie, also
+kann das nicht passieren" ist die Begründung, die #860b für genau diese Methode schon
+zurückgenommen hat. Der ehrliche Preis: auf so einem Gerät kann der Recorder **gar nicht mehr
+aufnehmen**, und nur ein Fehlerpfad räumt den Zustand ab. Trotzdem der richtige Handel — die
+Alternative ist eine Hardware-Raten-Änderung unter laufendem Graphen, die die GANZE App trifft
+statt einer türlosen Fläche.
 
 **Neuer Fehlerfall statt falschem Etikett:** `MultiTrackRecorderError.sessionNotConfigured`.
 `engineNotReady` wiederzuverwenden hätte ein falsches Etikett auf einen nutzersichtbaren Fehler
@@ -22037,3 +22046,60 @@ kommen als Folge-Commit. Die Frage, die ich ihm als größte Sorge mitgegeben ha
 unter laufender Engine —, habe ich vor dem Commit selbst gemessen und die Reparatur daraufhin
 GEÄNDERT; seine Antwort trifft also bereits die Verweigerungs-Fassung nicht mehr.
 Nicht geräteverifiziert; kein lokaler Compiler.
+
+## 2026-09-02 — #982: der Reviewer zu #981; vier Falschstellen, alle in der schmeichelnden Richtung
+
+**Kein neues Verhalten.** Reine Korrektur der Prosa, die #981 mitgeliefert hat, plus ein
+Wächter-Anspruch, der grün war, ohne etwas zu beweisen. Acht Befunde des Pflicht-Reviewers,
+jeden vor dem Handeln selbst an der Quelle nachgemessen.
+
+**Die vier, die etwas kosten:**
+
+1. **„all FOUR release sites" — es sind DREI**, und `RecordRouteOwnershipTests.swift:238` pinnt
+   genau diese Drei im blockierenden Bundle, elf Zeilen neben der Stelle, die ich zitiert habe.
+   Erfundene Zahl in dem Commit, dessen These lautet, eine unvollständige Aufzählung sei der
+   aufgeschriebene Fehlermodus (#766).
+2. **„unerreichbar auf dem ausgelieferten Graphen" — widerlegt.** `prepareGraph()` fängt einen
+   Wurf von `configureAudioSession()` und läuft in `setupMasterEngine()` weiter: eine gebaute,
+   startbare Engine mit `isSessionConfigured == false` ist genau der v10.79.435-Zustand des
+   Founders. „Der ausgelieferte Graph konfiguriert sie, also kann das nicht passieren" ist die
+   Begründung, die #860b über dieselbe Methode schon einmal zurückgenommen hat. Die ehrliche
+   Fassung nennt jetzt den PREIS der Verweigerung (der Recorder kann dann dauerhaft nicht
+   aufnehmen; nur ein Fehlerpfad räumt das ab) statt ihn wegzudefinieren.
+3. **Anspruch 7 endete in einer Tautologie.** Er schnitt `code[startIndex..<claimAt.lowerBound]`
+   und behauptete danach die Reihenfolge, die dieser Schnitt garantiert. Ersetzt durch einen
+   Vergleich über die GANZE Datei plus eine Eindeutigkeits-Zusicherung auf die Nadel (#408).
+4. **„FIRST statement" der Absenkung ist der Guard — nein**, `recordingRouteNeeded = false`
+   steht davor, und genau dieser Schreibvorgang macht den gestrandeten Zustand klebrig.
+
+**Zwei Nachbarn, die dieselbe Falschstelle trugen (#456):** `AudioEngine.swift` sagte weiter,
+die dritte Stelle sei ungeschützt („named here, not fixed"), und `AudioConfiguration.swift`
+zählte VIER Aufrufer von `configureAudioSession()`, wo #975 den fünften angelegt hat.
+
+⛔ **Und beim Nachmessen fiel ein DRITTES Zuhause derselben Zahl auf, das keiner der acht Befunde
+nannte:** `MonitoringCannotStrandTheEngineStoppedTests.swift` pinnt `restoreEngineIfStranded(`
+auf **6**, und die FEHLERMELDUNG daneben sagte „FIVE occurrences … the declaration plus FOUR
+callers". #976 hat die Zahl in der Zusicherung angehoben und die zwei Zahlwörter in seiner
+eigenen Meldung stehen lassen. **Das ist das Zuhause, das ein Leser ZUERST sieht** — die Meldung
+druckt nur, wenn der Pin bricht, also hätte die nächste Nachzählung vom Wächter selbst die
+falsche Erwartung genannt bekommen. Beide Wörter korrigiert; die Aufzählung darunter listete
+immer schon fünf Aufrufer. Gemessen: `grep -c "restoreEngineIfStranded("` → 6 (Deklaration
+`:3646` plus `:2461`, `:2473`, `:2702`, `:2894`, `:3345`).
+
+⚠️ **Registriert, nicht repariert:** `MultiTrackRecorder` klammert seine vier Claim/Release-Aufrufe
+in ein blankes `#if os(iOS)`, `MicrophoneManager` seine sechs in
+`#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)`. Auf visionOS würde der Recorder nichts
+beanspruchen und nichts freigeben, während der Monitor die Kategorie weiter hebt und senkt —
+EIN Besitzer-Satz, zwei Schreibweisen von „Plattform mit AVAudioSession". Kostet heute nichts
+(`TARGETED_DEVICE_FAMILY "1"`, und der Typ ist hinter `FeatureFlags.audioLaneRecording` türlos,
+#204); das Verbreitern ist eine VERHALTENS-Änderung auf einer Plattform, die hier niemand bauen
+oder laufen lassen kann. Deshalb aufgeschrieben statt geraten.
+
+**Gefahren, gemessen:** `dead-needles` OK (404 Wächterdateien) · `count-pins` 157 von 221
+gesehen, 0 RED · Klammer-/Paren-Bilanz aller fünf bearbeiteten Dateien identisch mit HEAD
+(die erste Fassung der Registrier-Notiz hatte eine offene Klammer in einem `git grep`-Zitat —
+harmlos für den Compiler, aber sie hätte mein eigenes Netz für den Rest der Sitzung verstimmt).
+
+Nicht geräteverifiziert; kein lokaler Compiler. Anspruch 7 und 9 wurden gegen drei Bäume
+gefahren: rot auf `3eb0a9d`, grün auf `9d66e17` und im Arbeitsbaum; Anspruch 8 ist ein
+Gegengewicht und auf allen dreien grün.

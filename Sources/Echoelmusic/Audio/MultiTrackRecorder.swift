@@ -114,6 +114,19 @@ public final class MultiTrackRecorder {
             return
         }
 
+        // ⚠️ #982 REGISTERED, NOT FIXED — the platform guard here is NARROWER than the
+        // sibling's. `MicrophoneManager` wraps every one of its claim/release calls in
+        // `#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)`; this type wraps all four
+        // of its own in a bare `#if os(iOS)`. Re-derive both with
+        // `git grep -n RecordRoute -- Sources/Echoelmusic/MicrophoneManager.swift
+        // Sources/Echoelmusic/Audio/MultiTrackRecorder.swift` and read the enclosing `#if`.
+        // So on visionOS the recorder would claim NOTHING and release NOTHING while the
+        // monitor still raises and lowers the category — ONE owner set, two spellings of
+        // "a platform that has an AVAudioSession". It costs nothing TODAY: the ship target is
+        // `TARGETED_DEVICE_FAMILY "1"` and this type is doorless behind
+        // `FeatureFlags.audioLaneRecording` (#204). Widening it is a BEHAVIOUR change on a
+        // platform nobody here can build or run, so it is written down rather than guessed at.
+        // Whoever ships a visionOS target widens all four in one commit.
         #if os(iOS)
         guard AVAudioApplication.shared.recordPermission == .granted else {
             lastError = .permissionDenied
@@ -134,11 +147,23 @@ public final class MultiTrackRecorder {
         // WHAT THE ASYMMETRY COSTS, measured at the release side rather than guessed: the claim
         // raises the category through `upgradeToPlayAndRecord()` whether or not the session was
         // ever configured, but the matching release runs `downgradeToPlaybackAfterRecording()`,
-        // whose FIRST statement is `guard isSessionConfigured else { … return }`. So a take
-        // started on an unconfigured session raises `.playAndRecord` and can never lower it
-        // again — the session sits there with NOBODY holding it, which is the founder-visible
-        // A2DP→HFP degradation that file names at that guard. All four release sites in this
-        // file hit the same wall.
+        // which writes `recordingRouteNeeded = false` and THEN hits
+        // `guard isSessionConfigured else { … return }`. So a take started on an unconfigured
+        // session raises `.playAndRecord` and can never lower it again — the session sits there
+        // with NOBODY holding it, which is the founder-visible A2DP→HFP degradation that file
+        // names at that guard. All THREE release sites in this file hit the same wall.
+        //
+        // ⛔ #982 — TWO CORRECTIONS TO #981'S OWN COMMENT, BOTH FOUND BY THE REVIEWER.
+        // (a) It said "all FOUR release sites". There are THREE, and
+        //     `RecordRouteOwnershipTests.testTheMultiTrackRecorderClaimsAndReleasesTheRoute`
+        //     PINS exactly three in the blocking bundle — a fabricated count eleven lines from
+        //     a guard that holds the true one, inside the commit whose thesis is that an
+        //     incomplete enumeration is this repo's recorded failure mode.
+        // (b) It said the guard is the downgrade's FIRST statement. `recordingRouteNeeded = false`
+        //     precedes it, and that write is what makes the stranded state STICKY: afterwards the
+        //     flag says "no record route needed" while the category is still `.playAndRecord`, so
+        //     a later reconfigure will not re-raise anything. Being exact about that ordering is
+        //     the difference between "stuck until next use" and "stuck".
         //
         // ⚠️ HONEST SCOPE: this cannot bite a user TODAY. `startRecording()` is doorless —
         // `FeatureFlags.audioLaneRecording` is never handed to `UserDefaults.register(defaults:)`
@@ -156,11 +181,24 @@ public final class MultiTrackRecorder {
         // founder's `isInputConnToConverter` abort (v10.79.435). Copying the sibling pattern
         // here would have been pattern-matching, not engineering.
         //
-        // The refusal costs nothing real: reaching this line needs a RUNNING engine on a session
-        // that was NEVER configured, and `AudioEngine.start()` configures it — so on the shipped
-        // graph this branch is unreachable and the guard is a statement about an anomaly, not a
-        // behaviour change. When it does fire, a named error and a log line beat a risky repair
-        // on a graph that is already running.
+        // ⛔ #982 — #981 CLAIMED THIS BRANCH IS UNREACHABLE. IT IS NOT, AND THE STATE IT NEEDS
+        // IS THE EXACT DEVICE STATE THIS WHOLE LINE OF WORK EXISTS FOR. `prepareGraph()` CATCHES
+        // a thrown `configureAudioSession()`, writes the `session: configure FAILED` breadcrumb
+        // and CONTINUES — `graphPrepared` is already latched, `setupMasterEngine()` runs anyway.
+        // So `isSessionConfigured == false` with a built, startable master engine, and `start()`
+        // only reconfigures if `masterEngine.start()` THROWS. That is the founder's v10.79.435
+        // state, described by that same catch block in `AudioEngine`. "The shipped graph
+        // configures it, therefore this cannot happen" is the identical reasoning #860b already
+        // retracted about that very method.
+        //
+        // ⚠️ SO THE REFUSAL HAS A REAL COST, NAMED HERE INSTEAD OF DENIED: on such a device the
+        // recorder cannot record at all, and nothing routine clears the state — only a fault
+        // path (`start()` after a throw, or a media-services reset) calls
+        // `configureAudioSession()` again. It is still the right trade, because the alternative
+        // is a hardware-rate change under a LIVE graph, which is a worse failure than a refused
+        // take and hits the whole app rather than one doorless feature. Stopping and restarting
+        // the engine the way `rearmInputMonitoring` does would be a third option; this type does
+        // not own the engine it was handed, so that is a different decision and its own slice.
         if !AudioConfiguration.isSessionConfigured {
             lastError = .sessionNotConfigured
             log.log(.error, category: .audio,
@@ -292,6 +330,11 @@ public enum MultiTrackRecorderError: Error, Sendable {
     /// Audio engine reference is nil or not running.
     case engineNotReady
     /// Not enough free disk space to start a recording (<200 MB target).
+    /// ⛔ #982 (reviewer, adjacent finding): this case has ZERO writers — `git grep` finds the
+    /// declaration and nothing that assigns it. The doc promises a check that does not exist, so
+    /// a caller reading this enum learns about a safeguard the recorder does not have. NOT
+    /// deleted, because the check is the right thing to build and the case is where it lands;
+    /// named here so nobody plans around it. Pre-existing, older than this slice.
     case diskSpaceLow
     /// `AVAudioFile(forWriting:)` failed.
     case fileCreationFailed

@@ -454,11 +454,16 @@ enum AudioConfiguration {
         //
         // ⛔ #903 — AND THE REASON GIVEN HERE FOR "no retry" WAS FALSE, in the same shape #901
         // had just retracted one commit earlier. It said the state "self-heals on the next
-        // session transition". Measured: `configureAudioSession()` has FOUR callers and NONE is
+        // session transition". Measured: `configureAudioSession()` has FIVE callers and NONE is
         // a routine transition — `prepareGraph` is latched by `graphPrepared`, the
-        // `MicrophoneManager` one is gated on `!isSessionConfigured`, and the two that survive
-        // are FAULT paths (a media-services reset, and the retry after `masterEngine.start()`
-        // threw). The route transitions deliberately do not call it (#675 removed that as a
+        // `MicrophoneManager` one and `AudioEngine.rearmInputMonitoring` are both gated on
+        // `!isSessionConfigured`, and the two that survive are FAULT paths (a media-services
+        // reset, and the retry after `masterEngine.start()` threw).
+        // ⛔ #982: this said FOUR and listed four. #975 added the fifth
+        // (`AudioEngine.swift:2451`) and did not come back here — the same incomplete
+        // ENUMERATION this file keeps recording, in the paragraph that exists to enumerate.
+        // Re-derive rather than trust: `git grep -n "configureAudioSession()" -- Sources`
+        // minus the declaration. The route transitions deliberately do not call it (#675 removed that as a
         // session-killer). HONEST VERSION: after a thrown downgrade the session can sit on
         // `.playAndRecord` with an EMPTY owner set for the rest of the process. What may repair
         // it: either of those two fault callers firing, or the next claim/release cycle, whose
@@ -615,9 +620,14 @@ enum AudioConfiguration {
         recordingRouteNeeded = false
         // ⛔ #907 — #906 LEFT THIS ONE SILENT AND GAVE TWO REASONS, BOTH MEASURABLY WRONG.
         // It said this can fire "only BEFORE `configureAudioSession()`" — it also fires after
-        // a THROWN configure, and only one of the three claim sites configures first
-        // (`MicrophoneManager`; `AudioEngine.setInputMonitoring` and `MultiTrackRecorder` do
-        // not, and `upgradeToPlayAndRecord` does not check this flag at all). So: configure
+        // a THROWN configure.
+        // ⛔ #982 CORRECTED THE REST OF THIS SENTENCE TWICE OVER. It said "only one of the three
+        // claim sites configures first (`MicrophoneManager`; `AudioEngine.setInputMonitoring`
+        // and `MultiTrackRecorder` do not)". Since #975 the monitoring path DOES configure
+        // first, and since #981 `MultiTrackRecorder` CHECKS but deliberately does not configure
+        // — it is reached with a running engine, so it refuses. Today: all three CHECK, two
+        // configure, one refuses. `upgradeToPlayAndRecord` still does not read this flag at all,
+        // which is the part that made the stranding possible in the first place. So: configure
         // throws → a later claim raises the category anyway → release writes "holders none,
         // lowering" → this returns in silence → the session stays on `.playAndRecord` with
         // NOBODY holding it. That is the founder-visible A2DP→HFP degradation plus the

@@ -2408,8 +2408,14 @@ public final class AudioEngine {
             if wasRunning { masterEngine.stop() }
             // ⭐ #975/#976 — THE CLAIM WAS BEING MADE ON A SESSION THAT WAS NEVER ACTIVATED.
             // `claimRecordRoute` has THREE call sites and only `MicrophoneManager` configured
-            // first; this was the second, and `MultiTrackRecorder.swift:132` is still the
-            // third (doorless, #204 — named here, not fixed).
+            // first; this was the second.
+            // ⛔ #982: this said `MultiTrackRecorder.swift:132` "is still the third (doorless,
+            // #204 — named here, not fixed)". Both halves are stale — #981 gave it the check,
+            // and the line number moved with the comment it grew. It CHECKS but does not
+            // CONFIGURE: it is reached with a RUNNING engine, so it refuses instead. The three
+            // sites share the CHECK, not the repair, and claim 7 of
+            // `TheMonitorClaimNeedsAConfiguredSessionTests` now asserts all three, so this
+            // sentence cannot go stale again in silence.
             //
             // WHAT IT COSTS, measured at the consumer and not guessed:
             // `downgradeToPlaybackAfterRecording` opens with `recordingRouteNeeded = false`
