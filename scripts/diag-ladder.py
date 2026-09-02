@@ -445,6 +445,12 @@ def ladder_verdicts(lines: list[str],
     """
     progress: dict[tuple[str, int], tuple[int, int, str]] = {}
     terminal: dict[tuple[str, int], tuple[int, str, str]] = {}
+    # ⛔ #971 — `terminal` KEEPS ONLY THE LAST HIT, AND THAT HID FAILURES OUTRIGHT. Both dicts
+    # are unconditional overwrites, so `on 1..5` → `on FAILED` → `on 1..5` again reported
+    # `✅ 'on' 5/5` and `✅ Every ladder that appears reached its last step`, exit 0 — the
+    # FAILED line was not even PRINTED. Monitoring is toggled repeatedly in one session and
+    # `on`/`off` are real ladders, so this is the ordinary shape, not a corner. Driven.
+    hostile_seen: dict[tuple[str, int], list[tuple[int, str]]] = {}
     words = "|".join(TERMINAL_WORDS)
     for idx, line in enumerate(lines):
         rungs: dict[tuple[str, int], tuple[int, int, int]] = {}    # key -> (step, lo, hi)
@@ -488,6 +494,8 @@ def ladder_verdicts(lines: list[str],
         for key, (word, lo, _hi) in terms.items():
             if not shadowed(key[0], lo):
                 terminal[key] = (idx, line, word)
+                if word not in BENIGN_TERMINALS:
+                    hostile_seen.setdefault(key, []).append((idx, line))
 
     out: dict[tuple[str, int], dict] = {}
     for key in set(progress) | set(terminal):
@@ -515,7 +523,12 @@ def ladder_verdicts(lines: list[str],
             idx = term[0]
         else:
             verdict = "died"
-        out[key] = {"step": step, "idx": idx, "line": line, "verdict": verdict}
+        # #971: every non-benign terminator for this ladder EXCEPT the one that decided the
+        # verdict. On a `done`/`ended` ladder that list is the masked failure; on a `failed`
+        # one it is the earlier attempts, which are also real and were also never printed.
+        masked = [(i, ln) for (i, ln) in hostile_seen.get(key, []) if i != idx]
+        out[key] = {"step": step, "idx": idx, "line": line,
+                    "verdict": verdict, "masked": masked}
     return out
 
 
@@ -598,6 +611,7 @@ def read_log(path: str, root: str) -> int:
     ended = 0
     failed = 0
     incomplete = 0
+    masked: list[tuple[int, str, str]] = []
     print("  Ladder                      last step    where")
     for (prefix, total) in sorted(verdicts):
         v = verdicts[(prefix, total)]
@@ -617,6 +631,8 @@ def read_log(path: str, root: str) -> int:
         # `ended`; widening it to a pure completeness test lost that. The rule is the union of
         # both intents: short AND not a deliberate exit.
         incomplete += 1 if step < total and v["verdict"] != "ended" else 0
+        for i, ln in v["masked"]:
+            masked.append((i, prefix, ln))
         print(f"  {flag} {prefix!r:<26} {step}/{total}      line {idx + 1}{tail}")
     print()
     if ended:
@@ -632,6 +648,15 @@ def read_log(path: str, root: str) -> int:
         print("   READ THAT LINE: it names the error the code caught. On a SHORT ladder the")
         print("   steps after it did not run; on a COMPLETE one the run reached its last step")
         print("   and failed anyway — #967, which is the shape a retry-then-degrade writes.")
+    if masked:
+        print(f"⚠️ {len(masked)} FAILED line(s) are MASKED BY A LATER RUN of the same ladder"
+              " (#971).")
+        print("   The verdict above describes the LAST run only, because a ladder's progress")
+        print("   and its terminator are both overwritten each time it starts again. These")
+        print("   lines happened and were never printed: the run failed, was retried, and the")
+        print("   retry succeeded. That is worth knowing even when the retry worked.")
+        for idx, prefix, line in sorted(masked):
+            print(f"     line {idx + 1} ({prefix}): {line[:92]}")
     if orphans:
         print(f"⚠️ {len(orphans)} line(s) report a FAILURE that belongs to NO ladder (#970).")
         print("   The ladder model has no verdict for these — read them. They are the")
@@ -647,11 +672,11 @@ def read_log(path: str, root: str) -> int:
         print("   written after that is a DEATH AT THAT STEP — the rung stands before its call.")
         print("   ⚠️ Check the ladder is one of the post-#882 ones before concluding that;")
         print("   `--source` lists which ladders are complete in today's tree.")
-    elif not ended and not failed and not orphans:
+    elif not ended and not failed and not orphans and not masked:
         print("✅ Every ladder that appears reached its last step.")
     print("\n⚠️ A completed ladder does not mean the run was healthy — it means no rung was")
     print("   the last thing written. The crash may be anywhere the ladder does not reach.")
-    return 1 if findings or orphans else 0
+    return 1 if findings or orphans or masked else 0
 
 
 def selftest(root: str) -> int:
@@ -937,6 +962,29 @@ def selftest(root: str) -> int:
                                "route: release SKIPPED — nobody held it\n")
         check("an unowned BENIGN word is not dragged in as a failure",
               ORPHAN not in out and GREEN in out and rc == 0)
+
+        # ⭐ #971 — THE MASKING CASE AND ITS TWO REGRESSION GUARDS. `on`/`off` are toggled
+        # repeatedly in one session, so "failed, retried, retry worked" is the ORDINARY shape.
+        MASKED = "MASKED BY A LATER RUN"
+        good_on = "".join(f"on {n}/5: step {n}\n" for n in range(1, 6))
+        rc, out = verdict_text("failure_masked_by_retry.log",
+                               good_on + "on FAILED — something died\n" + good_on)
+        check("a FAILURE hidden between two good runs is printed, not swallowed",
+              MASKED in out and GREEN not in out and "line 6" in out and rc == 1)
+        rc, out = verdict_text("single_failure_not_masked.log",
+                               "mic: stop 1/3 — a\nmic: stop 2/3 — b\nmic: stop 3/3 — c\n"
+                               "mic: stop FAILED — the record route was not released (e)\n")
+        check("the failure that DECIDED the verdict is not also listed as masked",
+              MASKED not in out and "ended on a FAILED line" in out and rc == 1)
+        # ⛔ #971 — THIS FIXTURE'S FIRST DRAFT USED `on 4/5 SKIPPED`, A NUMBERED SKIP, AND THE
+        # MUTATION "collect benign words too" SURVIVED IT. A numbered line is never a
+        # terminator (the c3 rule), so the fixture could not exercise the benign filter at all
+        # — it graded nothing while looking like it graded the case in its own name. The
+        # terminator has to be UNNUMBERED to be one.
+        rc, out = verdict_text("benign_before_a_good_run.log",
+                               "on REFUSED — the route was already raised\n" + good_on)
+        check("a BENIGN terminator earlier in the log is not reported as a masked failure",
+              MASKED not in out and rc == 0)
 
     print("\n" + ("selftest OK" if ok else "selftest FAILED"))
     return 0 if ok else 1

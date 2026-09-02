@@ -21466,3 +21466,36 @@ als „kommt null mal vor", also derselbe Sachverhalt, den die Ansprüche ohnehi
 ⚠️ **Weiter registriert, nicht repariert:** letzter-gewinnt — ein Fehlschlag, dem ein
 erfolgreicher Neulauf folgt, liest sich grün (`on`/`off` werden in einer Sitzung mehrfach
 geschaltet, das ist nicht konstruiert).
+
+## 2026-09-02 — #971: ein Fehlschlag zwischen zwei guten Läufen verschwand SPURLOS
+
+**Der letzte registrierte Falsch-Grün in `diag-ladder.py`, und der stillste von allen.**
+
+`progress` und `terminal` sind unbedingte Überschreibungen — jeder neue Lauf einer Leiter
+überschreibt den vorigen. Ein Log der Form `on 1..5` → `on FAILED — something died` → `on 1..5`
+druckte deshalb `✅ 'on' 5/5` und `✅ Every ladder that appears reached its last step`, Exit 0.
+**Die FAILED-Zeile wurde nicht einmal ausgedruckt.** Gefahren, nicht überlegt.
+
+⚠️ **Das ist kein konstruierter Fall.** Das Monitoring wird in einer Sitzung mehrfach ein- und
+ausgeschaltet, und `on`/`off` sind echte Leitern. „Einmal gescheitert, Neuversuch hat geklappt"
+ist die GEWÖHNLICHE Form — und genau die, die man wissen will, wenn der Founder fragt, warum
+der Ton kurz weg war.
+
+**Reparatur:** jede nicht-benigne Terminator-Zeile pro Leiter wird gesammelt (`hostile_seen`),
+nicht nur die letzte. Alles außer der Zeile, die das Urteil ENTSCHIEDEN hat, kommt in einen
+eigenen `MASKED BY A LATER RUN`-Block mit Zeilennummern, und der Lauf endet mit Exit 1.
+
+**Sechs Mutationen. Eine überlebte zuerst, und der Grund ist die Lehre:** meine
+Benigne-Fixture benutzte `on 4/5 SKIPPED`, also einen NUMMERIERTEN Skip — und ein nummerierter
+ist nie ein Terminator (die c3-Regel dieses Werkzeugs). Die Fixture konnte den Benignen-Filter
+also gar nicht ausüben; **sie benotete nichts und sah dabei aus, als benote sie genau den Fall
+in ihrem eigenen Namen.** Auf einen unnummerierten `on REFUSED` umgestellt → gefangen.
+**Verallgemeinert: eine Fixture muss die Vorbedingung des Mechanismus ERFÜLLEN, den sie
+prüft — der Name der Prüfung sagt darüber nichts.**
+
+⭐ **Damit ist die Urteils-Schicht durch.** Vier Falsch-Grüns in vier Zyklen, alle in dem
+Werkzeug, durch das das `echoel_diag.log` des Founders läuft: #967 (vollständige Leiter, die
+danach scheiterte) · #969 (gesunder Start als Tod, plus der sich selbst widersprechende
+Zähler) · #970 (`FAILED` ohne Leiter) · #971 (`FAILED` von einem späteren Lauf verdeckt).
+**Nächster Zyklus geht zurück ans Produkt** — das Werkzeug ist jetzt ehrlich genug, um dem
+nächsten Geräte-Log zu glauben.
