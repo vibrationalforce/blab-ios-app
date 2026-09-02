@@ -46,8 +46,10 @@
   Geschwister nachzukonfigurieren), weil jede Freigabe durch `downgradeToPlaybackAfterRecording` läuft, das auf
   einer nie konfigurierten Sitzung früh zurückkehrt — Route hoch, nie wieder runter, ohne Besitzer. #982 zog vier
   Falschstellen der Prosa (alle in der schmeichelnden Richtung) und einen tautologischen Wächter-Anspruch zurück.
-  Registriert, nicht repariert: die Plattform-Guard-Asymmetrie (`#if os(iOS)` an vier Stellen gegen die
-  Sechs-Plattform-Form in `MicrophoneManager`).
+  Registriert, nicht repariert: die Plattform-Guard-Asymmetrie — ⛔ nachgemessen am Abend: DREI Schreibweisen,
+  nicht zwei. Besitzer `AudioConfiguration` = `!os(macOS)`; `MicrophoneManager` (6) = Vier-Plattform-Form;
+  `AudioEngine` (6, der Monitor) UND `MultiTrackRecorder` (4) = blankes `os(iOS)`. Der #982-Satz „der Monitor
+  hebt auf visionOS weiter" war falsch; nur `MicrophoneManager` würde dort noch beanspruchen.
 
 ### 2026-07-23 v10.79.341 AUv3-Härtung geshippt + render-seitige Bio-NaN-Härtung
 - **v341 (geshippt, TestFlight grün auf 3. Versuch):** zwei AUv3-Korrektheits-Fixes zu EINEM

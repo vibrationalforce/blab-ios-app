@@ -114,18 +114,24 @@ public final class MultiTrackRecorder {
             return
         }
 
-        // ⚠️ #982 REGISTERED, NOT FIXED — the platform guard here is NARROWER than the
-        // sibling's. `MicrophoneManager` wraps every one of its claim/release calls in
-        // `#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)`; this type wraps all four
-        // of its own in a bare `#if os(iOS)`. Re-derive both with
-        // `git grep -n RecordRoute -- Sources/Echoelmusic/MicrophoneManager.swift
-        // Sources/Echoelmusic/Audio/MultiTrackRecorder.swift` and read the enclosing `#if`.
-        // So on visionOS the recorder would claim NOTHING and release NOTHING while the
-        // monitor still raises and lowers the category — ONE owner set, two spellings of
-        // "a platform that has an AVAudioSession". It costs nothing TODAY: the ship target is
-        // `TARGETED_DEVICE_FAMILY "1"` and this type is doorless behind
-        // `FeatureFlags.audioLaneRecording` (#204). Widening it is a BEHAVIOUR change on a
-        // platform nobody here can build or run, so it is written down rather than guessed at.
+        // ⚠️ #982 REGISTERED, NOT FIXED — the platform guard here is NARROWER than ONE
+        // sibling's, and ⛔ the first version of this note (2026-09-02) named the wrong
+        // counterpart. Measured (audit 2026-09-02, evening): the record-route OWNER
+        // `AudioConfiguration.claimRecordRoute/releaseRecordRoute` sits inside `#if !os(macOS)`;
+        // `MicrophoneManager` wraps its six calls in
+        // `#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)`; `AudioEngine` wraps its SIX
+        // (`.inputMonitoring` — the monitor toggle, `#if os(iOS)` at the head of
+        // `setInputMonitoring`) and this type its four in a bare `#if os(iOS)`. Three owners,
+        // three spellings of "a platform that has an AVAudioSession". Re-derive with
+        // `git grep -n "RecordRoute(" -- Sources` and read each call's enclosing `#if`.
+        // ⛔ The retracted sentence said "on visionOS the recorder would claim nothing while
+        // the MONITOR still raises and lowers the category" — false: the monitor path is
+        // compiled out there exactly like this one. Only `MicrophoneManager` would still claim.
+        // It costs nothing TODAY: the ship target is `TARGETED_DEVICE_FAMILY "1"` and this type
+        // is doorless behind `FeatureFlags.audioLaneRecording` (#204). Widening ANY of the bare
+        // guards is a BEHAVIOUR change on a platform nobody here can build or run (the Xcode
+        // gate compiles the iOS device SDK only), so it is written down rather than guessed at —
+        // and if it is ever done, it is done for `AudioEngine` and this type TOGETHER.
         // Whoever ships a visionOS target widens all four in one commit.
         #if os(iOS)
         guard AVAudioApplication.shared.recordPermission == .granted else {

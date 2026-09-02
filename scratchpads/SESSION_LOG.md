@@ -22264,3 +22264,23 @@ Nebenbefund des Workflows: der Stunden-Cron wurde per `list_triggers` direkt gel
 der nicht ausgecheckt ist. Sitzungen lesen ihn richtig als Heartbeat und nicht als Auftrag (#885).
 
 Damit sind **alle acht Aufgaben** aus der Founder-Antwort („Greb all tasks und fertig machen") fertig.
+
+## 2026-09-02 — ⛔ Rücknahme zum #982-Vermerk: die Guard-Asymmetrie hat DREI Schreibweisen, und der Monitor ist auf visionOS genauso stumm wie der Recorder
+
+**Gemessen** (`git grep -n "RecordRoute(" -- Sources`, jede Aufrufstelle auf ihr umschließendes `#if`
+geprüft): der Besitzer `AudioConfiguration.claimRecordRoute/releaseRecordRoute` liegt in `#if !os(macOS)` ·
+`MicrophoneManager` klammert seine sechs Aufrufe in `#if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)` ·
+**`AudioEngine` klammert seine SECHS `.inputMonitoring`-Aufrufe in das blanke `#if os(iOS)` am Kopf von
+`setInputMonitoring` (Zeile 2293)** · `MultiTrackRecorder` seine vier ebenfalls in `#if os(iOS)`.
+
+⛔ **Der #982-Vermerk (Quelltext + SESSION_LOG + memory/decisions.md) sagte: „Auf visionOS würde der
+Recorder nichts beanspruchen, während der Monitor die Kategorie weiter hebt und senkt."** Die zweite Hälfte
+ist falsch — der Monitor-Pfad ist dort genauso auskompiliert. Wahr ist: nur `MicrophoneManager` würde dort
+noch beanspruchen. Die Rücknahme ist nicht kosmetisch: der alte Satz hätte eine Sitzung dazu gebracht, NUR
+`MultiTrackRecorder` auf die Vier-Plattform-Form zu weiten, „damit er zum Monitor passt" — und damit den
+Recorder vom Monitor WEG bewegt, der ja dieselbe enge Form trägt. Wer weitet, weitet beide zusammen, und
+kann es hier nicht bauen (Xcode Compile Check = iOS-Geräte-SDK). Alle drei Heimaten im selben Commit
+mitgezogen (#456). Verhalten unverändert, Kommentar-Commit.
+
+**Lehre (die #766-Form):** „X ist enger als Y" ist erst ein Befund, wenn man ALLE Geschwister gemessen hat —
+hier waren es vier Dateien, und die zwei ungemessenen (Besitzer + AudioEngine) haben je eine eigene Form.
