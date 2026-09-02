@@ -21163,3 +21163,48 @@ gegen den aus `1ae5c5f` archivierten Baum unverändert 3 Funde (Zeilen 80/156/19
 läuft weiter bis zum Chunk-Ende. Die Funktion kennt Strings, keine Syntaxfehler.
 
 ⚠️ **Kein Produktionscode berührt.**
+
+## 2026-09-02 — #964: der Neuversuch beim Engine-Start hatte seine Sprossen, aber nicht seine Gründe
+
+**Gates gelesen:** #961 (`91fe351`) und #962 (`80d3ff1`) beide `Xcode Compile Check` ✅, CI/CD =
+das stehende `TEST EXECUTE FAILED` (#396). ⭐ **Und für #961 zählt eine stärkere Tatsache als
+die Conclusion:** im Log laufen hunderte Tests auf BEIDEN Clones — ein Bündel, dessen Bau
+scheitert, führt keinen einzigen Test aus. **`TheBufferFollowsTheGrantedRateTests` kompiliert
+also nachweislich.** (Seine AUSFÜHRUNG bleibt unbelegt, `tail -200`, #807.)
+
+**Der Befund.** Der `catch` um den ersten `masterEngine.start()` schrieb seinen Grund nur nach
+`log.audio`, also `os_log` — und das trägt `echoel_diag.log` nicht (#859). Ein Founder-Log las
+`start 1/2` → `start 2/2` → `start OK`, ohne WARUM der erste Versuch scheiterte; ein Lauf, der
+degradierte, endete bei `start 2/2` **ohne jede Ursache**, während die App ein Degraded-Banner
+zeigt. Dieselbe Reparatur wie #862b, eine Aufrufstelle weiter.
+
+⛔ **Und die Schlussmeldung war in EINEM ihrer zwei Fälle FALSCH.** Ein `do` umschloss BEIDE
+Aufrufe, also wurde ein werfendes `configureAudioSession()` als „Master engine start failed
+after retry" gemeldet — obwohl der Neuversuch nie stattfand. Ein Triager wird zu `start()`
+geschickt für einen Fehler, der dort nie ankam: die #937-Klasse.
+
+**Gebaut:** eine Krümel-Zeile mit dem Grund VOR dem Reconfigure · die zwei Aufrufe in getrennte
+`do`-Blöcke, sodass ein `failure`-Paar benennt WELCHER Schritt starb · eine UNNUMERIERTE
+Terminator-Zeile `start FAILED — <Schritt> (<Fehler>)` vor `degraded = true`. **Die Aufrufe und
+ihre Reihenfolge sind unverändert** — Ansprüche 5 und 6 halten das fest.
+
+⛔ **Erster Entwurf hieß `start 1/2 did not start …` und das Werkzeug hat ihn gefangen:**
+`diag-ladder --source` legte ihn in den Eimer „numerische Form, keine Sprossen-Trennung" — eine
+Zeile, die wie eine Sprosse AUSSIEHT und keine ist. Es ist ein Fehler-DETAIL, trägt also gar
+keine Nummer. Wieder nur durchs FAHREN gefunden, nicht durchs Lesen (#941/#954).
+
+⚠️ **Ein Nachbar-Wächter geriet durch diese Scheibe unter Druck und ist mitgezogen:**
+`testTheStartAttemptsAreLaddered` lief über `prefix(1_200)`, und mein Zusatz schob den zweiten
+`try masterEngine.start()` auf Offset **965 von 1200** — 235 Zeichen Rest. Ein festes Fenster
+ist ein Datum (#408). Jetzt strukturell begrenzt (bis zum `startMeterPollTimer()`-AUFRUF, dessen
+Anzahl 2 zuerst geprüft wird); gefahren auf beiden Bäumen, Verdikt unverändert, Fenster
+998 → 1875 Zeichen.
+
+**Wächter:** `Tests/CISmoke/TheStartRetryNamesWhichStepFailedTests.swift` — 6 Methoden, 15
+Behauptungen. Gefahren: `91fe351` 4 RED/6 · `afd630a` 4 RED/6 · Worktree 0 RED/6; die zwei
+Gegengewichte auf allen drei Bäumen grün. Sechs Mutationen, jede färbt ihren benannten
+Anspruch (m4 zusätzlich c3 — geteilte Nadel, kein Rauschen).
+
+⚠️ **Nicht geräteverifiziert.** Belegt ist, dass die Gründe in die Krümel-Senke GESCHRIEBEN
+werden. **NEEDS-FOUNDER-VERIFY:** ein Log, das degradiert, endet jetzt auf
+`engine: start FAILED — <Schritt>` statt auf `engine: start 2/2` mit Stille danach.

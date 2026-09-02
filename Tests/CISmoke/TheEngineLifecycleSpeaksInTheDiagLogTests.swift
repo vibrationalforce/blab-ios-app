@@ -156,7 +156,23 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             XCTFail("the start 1/2 rung is gone — a start-shaped death reads as silence again (§4).")
             return
         }
-        let window = String(code[anchor.lowerBound...].prefix(1_200))
+        // ⛔ #964 — THIS WAS `prefix(1_200)` AND #964 LEFT IT 235 CHARACTERS OF SLACK.
+        // A fixed window is a date (#408): #964 added the failure-naming lines between the two
+        // start attempts and drove this claim to measure the second `try masterEngine.start()`
+        // at offset 965 of 1200. The next person to add two lines there reddens a ladder claim
+        // for a reason that has nothing to do with the ladder. The bound is structural instead:
+        // the rest of the `if !masterEngine.isRunning` block, which ends at the tap re-install.
+        // `startMeterPollTimer()` occurs twice in the file (call and declaration) and the CALL
+        // is the first — asserted, not assumed, because "the first hit is the one I mean" is
+        // how an anchor silently moves.
+        XCTAssertEqual(occurrences(of: "startMeterPollTimer()", in: code), 2, """
+            `startMeterPollTimer()` no longer occurs exactly twice (call + declaration). \
+            This claim uses the CALL as the end of its window; re-anchor before trusting it (#408).
+            """)
+        let afterAnchor = code[anchor.lowerBound...]
+        let windowEnd = afterAnchor.range(of: "startMeterPollTimer()")?.lowerBound
+            ?? afterAnchor.endIndex
+        let window = String(afterAnchor[..<windowEnd])
         var cursor = window.startIndex
         for step in ["try masterEngine.start()",
                      "logEngineLifecycle(\"start 2/2: retry after session reconfigure\")",

@@ -1618,22 +1618,67 @@ public final class AudioEngine {
             // catch, and this method is the terminus of every async lifecycle
             // restart. Without these lines a start-shaped death is 24 s of silence
             // in the founder's log (v428, the sixth crash log).
+            // ⛔ #964 — THE RUNGS WERE HERE AND THE REASONS WERE NOT, on the one path where
+            // the reason IS the finding. Both `log.audio` calls below write to `os_log`, which
+            // `echoel_diag.log` does not carry (#859 states the law; #862b's `session: configure
+            // FAILED` is the same repair one call-site over). A founder log therefore read
+            // `start 1/2` → `start 2/2` → `start OK` with WHY the first attempt failed missing
+            // entirely, and a run that degraded ended at `start 2/2` with no cause at all — the
+            // app shows a degraded banner and the exported log says nothing about it.
+            //
+            // ⛔ AND THE FINAL MESSAGE LIED IN ONE OF ITS TWO CASES. A single `do` wrapped BOTH
+            // `configureAudioSession()` and the retry `start()`, so a session reconfigure that
+            // threw was reported as "Master engine start failed after retry" — a triager sent to
+            // `start()` for a fault that never reached it, and the retry never attempted. That is
+            // the #937 class: an instrument telling a triager the opposite of what it did. The
+            // two calls are split so the log names WHICH step failed; the calls themselves, and
+            // their order, are unchanged.
+            //
+            // ⚠️ THE `start 2/2` RUNG KEEPS ITS EXACT WORDING AND ITS EXACT POSITION. A guard
+            // pins that literal and walks start → rung → start inside a fixed window from the
+            // 1/2 rung (#631/#650: a renamed logged string reddens silently), so the long
+            // explanation sits ABOVE the anchor rather than between the two starts — a comment
+            // in the window is charged to the window (#408).
             logEngineLifecycle("start 1/2: starting master engine")
             do {
                 try masterEngine.start()
                 logEngineLifecycle("start OK — audio output active")
             } catch {
+                // ⛔ NOT `start 1/2 did not start …`: `diag-ladder --source` put that first
+                // draft in its "numeric shape, no rung separator" bucket — a line that LOOKS
+                // like a rung and is not one, which the tool prints precisely so a human
+                // adjudicates instead of it guessing. It is a failure DETAIL, so it carries no
+                // number at all. Caught by driving the tool, not by reading it (#941/#954).
+                logEngineLifecycle("start: the first attempt failed (\(error)) — "
+                                   + "reconfiguring the session")
                 log.audio("CRITICAL: Failed to start master engine: \(error)", level: .error)
+                var failure: (step: String, error: Error)?
                 do {
                     try AudioConfiguration.configureAudioSession()
-                    logEngineLifecycle("start 2/2: retry after session reconfigure")
-                    try masterEngine.start()
-                    logEngineLifecycle("start OK after session reconfigure")
                 } catch {
-                    log.audio("CRITICAL: Master engine start failed after retry: \(error)", level: .error)
+                    failure = ("the session reconfigure threw", error)
+                }
+                if failure == nil {
+                    logEngineLifecycle("start 2/2: retry after session reconfigure")
+                    do {
+                        try masterEngine.start()
+                        logEngineLifecycle("start OK after session reconfigure")
+                    } catch {
+                        failure = ("the retry threw", error)
+                    }
+                }
+                if let failure {
+                    // UNNUMBERED terminator: it ends the `start` ladder, and only an unnumbered
+                    // one rescues a short ladder in `diag-ladder`'s grammar. A `start 2/2 FAILED`
+                    // here would be a numbered skip that RETURNS — the forbidden form, because a
+                    // log cannot tell it from the numbered skip that walks on.
+                    logEngineLifecycle("start FAILED — \(failure.step) (\(failure.error))")
+                    log.audio("CRITICAL: Master engine start failed — \(failure.step): "
+                              + "\(failure.error)", level: .error)
                     // Surface to the UI rather than silently showing "stopped".
                     degraded = true
-                    lastAudioError = "Audio engine could not start: \(error.localizedDescription)"
+                    lastAudioError = "Audio engine could not start: "
+                        + "\(failure.error.localizedDescription)"
                     isRunning = false
                     return
                 }
