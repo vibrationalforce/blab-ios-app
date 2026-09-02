@@ -580,6 +580,17 @@ def unowned_failures(lines: list[str],
     on; only a non-benign word is a finding by itself. And a line already attributed to a
     ladder is excluded, so a `mic: stop FAILED` is reported once, by the ladder that owns it.
 
+    ⛔ #974 — THE PRINTED BLOCK USED TO ENUMERATE THREE SITES AND SAY "ON THOSE THREE AUDIO IS
+    DEAD", AND BOTH HALVES WERE WRONG. Measured on this tree, an unowned `FAILED` has SIX
+    shapes, not three — and `input: select FAILED` / `input: system default FAILED`
+    (`AudioInputManager`) leave audio playing on the previous input, so the claim was false for
+    a third of what the block collects. Worse, the SAME COMMIT that wrote it (#970) had just
+    retracted "audio dead" as a false discriminator in the guard header one directory over. A
+    retraction only counts in every home (#456). The enumeration is deleted rather than
+    corrected to six: a count of call sites in a printed paragraph is a date, not a fact
+    (#818), and "the ladder model has no verdict for these — read them" was always the whole
+    honest content.
+
     ⚠️ THE PREFIX IS NOT PARSED. This deliberately does not try to name which subsystem failed
     — it says "here is a failure line the ladder model has no verdict for, read it". Guessing
     a prefix would be the `census_effect` mistake: a claim about control flow that a line
@@ -758,17 +769,15 @@ def report_segment(lines: list[str], known: set[tuple[str, int]], offset: int,
               " (#971).")
         print("   The verdict above describes the LAST run only, because a ladder's progress")
         print("   and its terminator are both overwritten each time it starts again. These")
-        print("   lines happened and were never printed: the run failed, was retried, and the")
-        print("   retry succeeded. That is worth knowing even when the retry worked.")
+        print("   lines happened and are NOT that verdict — read them. What came after each")
+        print("   one is whatever the verdict says: it may have been retried and worked, or")
+        print("   the ladder may have died or failed anyway. This block does not know which.")
         for idx, prefix, line in sorted(masked):
             print(f"     line {idx + 1 + offset} ({prefix}): {line[:92]}")
     if orphans:
         print(f"⚠️ {len(orphans)} line(s) report a FAILURE that belongs to NO ladder (#970).")
-        print("   The ladder model has no verdict for these — read them. They are the")
-        print("   lifecycle catches #968 gave a voice: a failed reactivate after an")
-        print("   interruption, a failed media-services reconfigure, a failed engine restart.")
-        print("   On those three AUDIO IS DEAD, and before #970 a log holding all of them")
-        print("   still printed the green line below and exited 0.")
+        print("   The ladder model has no verdict for these — read them. Before #970 a log")
+        print("   holding nothing but these still printed the green line and exited 0.")
         for idx, line in orphans:
             print(f"     line {idx + 1 + offset}: {line[:104]}")
     if incomplete:

@@ -21579,3 +21579,44 @@ letzten Sprosse". Keine Fixture hatte eine Ausgangszeile ÜBER den Sprossen — 
 in einer Sitzung starten, stoppen und wieder starten, dann steht ein früheres `start OK`
 oberhalb und sagt über den späteren Lauf nichts. Fixture ergänzt → gefangen. **Dritte
 vakuöse Fixture in Folge, dritte gefunden, weil ich mutiert habe statt gelesen.**
+
+## 2026-09-02 — #974: die dritte falsche Regel für dieselbe Frage, und diesmal keine vierte
+
+**Alle drei verbliebenen Prüfer-Befunde sind Prosa, die mehr behauptet, als der Code hergibt —
+und zwei davon habe ich in genau den Commits geschrieben, die die Vorgänger-Behauptung
+zurücknahmen.**
+
+⛔ **Die Kette in einem Satz:** #968 sagte, Großbuchstaben bedeuten „Audio ist tot". #970 nahm
+das zurück (`mic: stop FAILED` lässt die Master-Engine weiterspielen) und schrieb als Ersatz
+„der Lauf hat sich davon nicht erholt" — **und im selben Commit schrieb es „On those three
+AUDIO IS DEAD" in den gedruckten Waisen-Block des Werkzeugs.** Eine Rücknahme in einer Heimat,
+während dieselbe Behauptung in eine andere wandert (#456).
+
+⛔ **Und der Ersatz war die DRITTE falsche Regel.** Gemessen: `session: interruption FAILED`
+steht **fünfzehn Zeilen** über `onMediaServicesReset?()`, dem #585-Wiederholungs-Haken, dessen
+eigener Kommentar sagt, die Sitzung „is often refusing because the route is mid-change". **Der
+Lauf erholt sich von der ERSTEN Stelle, die der Satz nennt, häufig.** Und in die andere
+Richtung trennte er nichts: beide kleingeschriebenen Stellen lassen den Lauf laut ihren eigenen
+Kommentaren ebenfalls unerholt zurück.
+
+⭐ **Die Lehre ist NICHT „finde die richtige Regel".** Drei Versuche, drei falsche Regeln — weil
+es hier keine Eigenschaft zum Ableiten gibt: **welchen Fehlschlag ein Triager ZUERST jagen
+soll, ist ein Urteil über Folgen, keine Tatsache über den Code.** Der Wächterkopf listet jetzt
+die sechs Stellen einzeln mit je einer Zeile Begründung. **Eine Liste, die man Stelle für
+Stelle prüfen kann, schlägt eine Regel, die allgemein klingt und an ihrem ersten Beispiel
+scheitert.**
+
+⛔ **Und die Aufzählung im Waisen-Block war auch als ZAHL falsch:** gemessen hat ein
+herrenloses `FAILED` heute **sechs** Formen, nicht drei — und zwei davon
+(`input: select FAILED`, `input: system default FAILED`) lassen den Ton auf dem vorigen Eingang
+weiterlaufen. Die Aufzählung ist **gelöscht statt auf sechs korrigiert** (#818: eine Zahl in
+einem gedruckten Absatz ist ein Datum); „das Leitermodell hat für diese kein Urteil — lies sie"
+war immer der ganze ehrliche Inhalt.
+
+⛔ **Dritter Block: der MASKED-Absatz aus #971** behauptete „der Lauf scheiterte, wurde
+wiederholt, die Wiederholung hat geklappt" — wahr nur für `done`, falsch für `failed`, `died`
+und `ended`. Der Code-Kommentar zwei Zeilen darüber sagte es die ganze Zeit richtig. Jetzt
+sagt der Absatz, was er weiß: diese Zeilen sind NICHT das Urteil oben, lies sie.
+
+**Vier Heimaten in einem Commit** (Quellkommentar · Wächterkopf · zwei gedruckte Blöcke), weil
+genau das die Diagnose ist.

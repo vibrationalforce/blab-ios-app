@@ -15,13 +15,23 @@
 // at all about why. That is the v428 triage stall reproduced on two more paths.
 //
 // ⚠️ THE SIX ARE NOT ONE KIND, and the wording is graded on purpose (claims 1-6 read the exact
-// literals, so the grading is enforced, not described):
-//   · the run did NOT recover → ALL-CAPS `FAILED`: `session: interruption FAILED`,
-//     `session: media reset FAILED`, `engine: restart after … FAILED`, `mic: stop FAILED`.
-//   · the run CONTINUES → lowercase detail, never a terminator: `session: lower — the buffer
-//     re-assert was refused`, `engine: stop — the session refused to deactivate`. Writing
-//     `FAILED` on those two would mark a healthy run as a finding — the #937 class, an
-//     instrument telling a triager the opposite of what happened.
+// literals, so the grading is enforced, not described). ALL-CAPS is what `diag-ladder.py` reads
+// as a finding, so it is a TRIAGE-PRIORITY marker — **chosen by hand, per site, with the reason
+// written down**. It is not derived from a property, and the two attempts to claim it was are
+// retracted below. Chase these first:
+//   · `session: interruption FAILED` — the session would not come back after an interruption.
+//   · `session: media reset FAILED` — the media server restarted and the reconfigure threw.
+//   · `engine: restart after … FAILED` — the graph was rebuilt and would not start; the app
+//     raises its degraded banner off this path.
+//   · `mic: stop FAILED` — the mic stopped while the RECORD ROUTE is still held. Audio plays
+//     on; what is left behind is an OS resource that blocks the next graph operation, which is
+//     the state the `isInputConnToConverter` aborts live in.
+//   These are lowercase details — note them, do not chase them:
+//   · `session: lower — the buffer re-assert was refused` — the downgrade itself succeeded;
+//     only a preference did not stick.
+//   · `engine: stop — the session refused to deactivate` — the engine did stop; the session
+//     stayed active. The next start inherits that, which is why it is written down at all.
+//   Writing `FAILED` on the last two would mark a healthy run as a finding — the #937 class.
 //
 // ⛔ AND THIS PASSAGE SHIPPED WITH TWO FALSE SENTENCES, BOTH CORRECTED BY #970 IN THE COMMIT
 // THAT MADE THE FIRST ONE TRUE. It said ALL-CAPS was used *"because `diag-ladder.py` reads that
@@ -37,8 +47,22 @@
 // ⛔ The SECOND false sentence was the label. `mic: stop FAILED` does not leave AUDIO DEAD — the
 // master engine plays on and the mic is off; what survives is a HELD RECORD ROUTE. It is
 // ALL-CAPS all the same, while `engine: stop — the session refused to deactivate` leaves an
-// equally wrong state and is lowercase. So "audio dead" was never the discriminator; "the run
-// did not recover from this" is, and that is what the two bullets now say.
+// equally wrong state and is lowercase. So "audio dead" was never the discriminator.
+//
+// ⛔ AND THE REPLACEMENT — "the run did NOT recover from this" — WAS THE THIRD WRONG ANSWER, in
+// the commit that congratulated itself for fixing the second (#974). Measured: `session:
+// interruption FAILED` is followed FIFTEEN LINES LATER by `onMediaServicesReset?()`, the #585
+// capped-retry hook, whose own comment says the session "is often refusing because the route is
+// mid-change". The run frequently DOES recover from the first site the sentence named. And in
+// the other direction it separated nothing: both lowercase sites also leave the run
+// unrecovered by their own source comments — a wrong buffer preference, and a session left
+// ACTIVE that the next start inherits.
+//
+// ⭐ THE LESSON IS NOT "find the right rule". Three attempts produced three false rules because
+// there is no property here to derive from: which failure a triager should chase FIRST is a
+// judgement about consequence, not a fact about the code. So the bullets above name the six
+// sites and give the reason for each, one line, checkable one at a time. A list you can verify
+// site by site beats a rule that sounds general and is false on its first example.
 //
 // ⭐ AND ONE OF THE SIX ONLY BECAME LEGIBLE ONE COMMIT EARLIER. `mic: stop FAILED` follows a
 // COMPLETE `mic: stop` 1..3 ladder: the mic stopped while the RECORD ROUTE is still held, which

@@ -1006,9 +1006,17 @@ enum AudioConfiguration {
                           + (options.contains(.shouldResume) ? "" : " (no shouldResume hint — foreground, resumed anyway)"))
                 onInterruptionResume?()
             } catch {
-                // ⭐ #968: audio is DEAD after this — a phone call ends and nothing comes back.
-                // The prefix is deliberately not one of the three tracked ladder names, so this
-                // ends no ladder; it is its own event.
+                // ⭐ #968: the session did not come back, so the run cannot hear itself from
+                // here. The prefix is deliberately not one of the tracked ladder names, so this
+                // ends no ladder; it is its own event (`diag-ladder.py` reports it as a failure
+                // belonging to no ladder, #970).
+                // ⛔ #974 — THIS COMMENT SAID "audio is DEAD after this" AND THE BLOCK FIFTEEN
+                // LINES BELOW REFUTES IT IN THE SAME FILE: `onMediaServicesReset?()` is the
+                // #585 capped-retry hook, and its own comment says the session "is often
+                // refusing because the route is mid-change". The run frequently DOES recover.
+                // The over-claim then travelled: the #968 guard header and #970's printed
+                // orphan block both repeated it, and #970 retracted it in one home while
+                // writing it into another. Corrected in all three (#456).
                 EchoelCrashLog.breadcrumb("session: interruption FAILED — could not reactivate (\(error))")
                 log.audio("Failed to reactivate audio session: \(error)", level: .error)
                 // ⛔ #585 — THIS BRANCH USED TO END HERE, and ending here is a dead end. The
