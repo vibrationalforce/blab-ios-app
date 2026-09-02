@@ -398,6 +398,12 @@ def audit_source(root: str) -> int:
 # it gets its own outcome and stays a FINDING, or a real failure would print as a tidy end.
 TERMINAL_WORDS = ("SKIPPED", "REFUSED", "FAILED", "OK")
 BENIGN_TERMINALS = ("SKIPPED", "REFUSED", "OK")
+# ⭐ #973 — A SUCCESS WORD IS A PROMISE, and that is what makes the next verdict derivable.
+# `SKIPPED`/`REFUSED` say "we are not doing this"; `OK` says "we DID it, and it worked". A
+# ladder that bothers to announce success explicitly therefore announces it EVERY time it
+# succeeds — so on such a ladder, silence after the last rung is not completeness, it is a
+# process that died inside the call the last rung stands before.
+SUCCESS_TERMINALS = ("OK",)
 
 # ⛔ #969 — `OK` WAS MISSING AND THAT MADE THE TOOL CRY WOLF ON EVERY HEALTHY LAUNCH. The happy
 # path of `AudioEngine.start()` emits `start 1/2` and then `start OK — audio output active`;
@@ -417,7 +423,8 @@ BENIGN_TERMINALS = ("SKIPPED", "REFUSED", "OK")
 
 
 def ladder_verdicts(lines: list[str],
-                    known: set[tuple[str, int]]) -> dict[tuple[str, int], dict]:
+                    known: set[tuple[str, int]],
+                    announced: "set[str] | None" = None) -> dict[tuple[str, int], dict]:
     """Walk a log ONCE and decide each ladder's outcome. Pure, so the selftest can drive
     the real thing rather than a re-implementation of it (#416: one definition per rule).
 
@@ -516,7 +523,26 @@ def ladder_verdicts(lines: list[str],
             line = term[1]
             idx = term[0]
         elif step >= key[1]:
-            verdict = "done"
+            # ⛔ #973 — `done` USED TO BE THE END OF IT, AND FOR AN ANNOUNCING LADDER THAT WAS A
+            # FALSE GREEN ON THE EXACT CRASH THE LADDER EXISTS FOR. `start 2/2` stands BEFORE
+            # `try masterEngine.start()`; a run that recovered writes `start OK after session
+            # reconfigure` next, and a run that failed writes `start FAILED`. Neither present
+            # means the process died INSIDE the retry — the `isInputConnToConverter` region.
+            # Driven: that log printed `✅ 'start' 2/2` and `✅ Every ladder … reached its last
+            # step`, exit 0 — while the SAME crash one attempt earlier correctly read `❌ 1/2`.
+            # Backwards: the strictly worse run read greener.
+            # ⚠️ `announced` is DERIVED, never a hardcoded ladder name: it is the set of
+            # prefixes whose `Sources/` census carries a SUCCESS terminator. On today's tree
+            # that is exactly `start`; `on`/`off`/`mic:*`/`session:*` complete without one and
+            # are untouched. The day another ladder starts announcing success, it joins.
+            # ⚠️ NOT `term is None`: a terminator that stands BEFORE the rungs belongs to an
+            # EARLIER run of this ladder, so it announces nothing about this one. The test is
+            # the same "at or after the last rung" the two branches around it use.
+            if (announced and key[0] in announced
+                    and not (term is not None and term[0] >= idx)):
+                verdict = "unterminated"
+            else:
+                verdict = "done"
         elif term is not None and term[0] >= idx:
             verdict = "ended"
             line = term[1]
@@ -588,6 +614,10 @@ def read_log(path: str, root: str) -> int:
 
     ladders = ladders_in_source(root)
     known = {(p, t) for (p, t) in ladders}
+    # #973: prefixes whose Sources/ census carries a SUCCESS terminator — derived, never named.
+    announced = {prefix for (_where, prefix, word, numbered, _c)
+                 in terminators_in_source(root, ladders)
+                 if word in SUCCESS_TERMINALS and not numbered}
 
     print(f"{path} — {len(lines)} non-empty lines\n")
     segments = split_segments(lines)
@@ -602,7 +632,7 @@ def read_log(path: str, root: str) -> int:
     for label, offset, chunk in segments:
         if len(segments) > 1:
             print(f"  ═══ {label} — lines {offset + 1}..{offset + len(chunk)}")
-        worst = max(worst, report_segment(chunk, known, offset))
+        worst = max(worst, report_segment(chunk, known, offset, announced))
         if len(segments) > 1:
             print()
     # #972: ONCE, after every segment. Printing it inside `report_segment` repeated the
@@ -649,14 +679,15 @@ def split_segments(lines: list[str]) -> list[tuple[str, int, list[str]]]:
     return out or [("the run", 0, lines)]
 
 
-def report_segment(lines: list[str], known: set[tuple[str, int]], offset: int) -> int:
+def report_segment(lines: list[str], known: set[tuple[str, int]], offset: int,
+                   announced: "set[str] | None" = None) -> int:
     """Everything `read_log` used to do inline, for ONE run. `offset` keeps every printed line
     number pointing at the ORIGINAL file, so a triager can still find the line by eye."""
     for head in lines[:2]:
         print(f"  header │ {head[:110]}")
     print(f"  last   │ {lines[-1][:110]}\n")
 
-    verdicts = ladder_verdicts(lines, known)
+    verdicts = ladder_verdicts(lines, known, announced)
     orphans = unowned_failures(lines, known)
 
     if not any(v["step"] > 0 for v in verdicts.values()):
@@ -673,6 +704,7 @@ def report_segment(lines: list[str], known: set[tuple[str, int]], offset: int) -
     ended = 0
     failed = 0
     incomplete = 0
+    unterminated = 0
     masked: list[tuple[int, str, str]] = []
     print("  Ladder                      last step    where")
     for (prefix, total) in sorted(verdicts):
@@ -681,8 +713,10 @@ def report_segment(lines: list[str], known: set[tuple[str, int]], offset: int) -
         # #972: "OF THIS RUN", not "OF LOG" — an export can hold two runs, and the last line
         # of the first one is not the last line of the file.
         tail = " ← LAST LINE OF THIS RUN" if idx == len(lines) - 1 else ""
-        flag = {"done": "  ✅", "ended": "  ⏹", "failed": "  ⚠️", "died": "  ❌"}[v["verdict"]]
-        findings += 1 if v["verdict"] in ("died", "failed") else 0
+        flag = {"done": "  ✅", "ended": "  ⏹", "failed": "  ⚠️", "died": "  ❌",
+                "unterminated": "  ❌"}[v["verdict"]]
+        findings += 1 if v["verdict"] in ("died", "failed", "unterminated") else 0
+        unterminated += 1 if v["verdict"] == "unterminated" else 0
         ended += 1 if v["verdict"] == "ended" else 0
         failed += 1 if v["verdict"] == "failed" else 0
         # #967: COMPLETENESS is its own question. A ladder can reach its last rung AND report a
@@ -712,6 +746,13 @@ def report_segment(lines: list[str], known: set[tuple[str, int]], offset: int) -
         print("   READ THAT LINE: it names the error the code caught. On a SHORT ladder the")
         print("   steps after it did not run; on a COMPLETE one the run reached its last step")
         print("   and failed anyway — #967, which is the shape a retry-then-degrade writes.")
+    if unterminated:
+        print(f"❌ {unterminated} ladder(s) reached the last rung and NEVER SAID HOW IT WENT"
+              " (#973).")
+        print("   These ladders announce their own outcome — a success word, not just a rung.")
+        print("   The last rung stands BEFORE the call it describes, so a rung with no outcome")
+        print("   after it means the process died INSIDE that call. Completeness is not the")
+        print("   success signal here; the outcome line is, and it is missing.")
     if masked:
         print(f"⚠️ {len(masked)} FAILED line(s) are MASKED BY A LATER RUN of the same ladder"
               " (#971).")
@@ -736,7 +777,7 @@ def report_segment(lines: list[str], known: set[tuple[str, int]], offset: int) -
         print("   written after that is a DEATH AT THAT STEP — the rung stands before its call.")
         print("   ⚠️ Check the ladder is one of the post-#882 ones before concluding that;")
         print("   `--source` lists which ladders are complete in today's tree.")
-    elif not ended and not failed and not orphans and not masked:
+    elif not ended and not failed and not orphans and not masked and not unterminated:
         print("✅ Every ladder that appears reached its last step.")
     return 1 if findings or orphans or masked else 0
 
@@ -966,6 +1007,9 @@ def selftest(root: str) -> int:
         # rename of that Swift constant shows up as a RED fixture rather than as a silent
         # return to reading two processes as one.
         EchoelRetainedHeader = "=== RETAINED CRASH (an earlier run that ended badly) ==="
+        # A complete, NON-announcing ladder: `on` has no success terminator in Sources/, so it
+        # is the counterweight to every claim about the announcing kind (#973).
+        good_on = "".join(f"on {n}/5: step {n}\n" for n in range(1, 6))
         SHORT = "did not reach their last step"
         rc, out = verdict_text("complete_then_failed.log",
                                "engine: start 1/2: starting master engine\n"
@@ -980,16 +1024,38 @@ def selftest(root: str) -> int:
                                "engine: start FAILED — the session reconfigure threw (err)\n")
         check("a SHORT ladder that FAILED is both a failure AND incomplete",
               "ended on a FAILED line" in out and SHORT in out and rc == 1)
-        # ⛔ #969 — THIS FIXTURE USED TO BE CALLED `healthy.log` AND IT IS NOT A HEALTHY LOG.
-        # `start 2/2` is the RETRY rung: a log holding it is a first attempt that FAILED and
-        # recovered. The selftest's notion of "healthy" was the unhappy path, which is exactly
-        # why the real happy path (`start 1/2` + `start OK`) could read as a death for a whole
-        # cycle without a check going red. Renamed, and the genuine one added below it.
-        rc, out = verdict_text("recovered_after_retry.log",
+        # ⛔ #969 RENAMED THIS FIXTURE FROM `healthy.log` AND STILL GOT IT WRONG. #969 was
+        # right that `start 2/2` is the RETRY rung, and then called the two-rung log
+        # "recovered" — but a run that recovers writes `start OK after session reconfigure`
+        # NEXT. Two rungs and nothing after them is a death INSIDE the retry `start()`. So the
+        # fixture pinned a false green on the very crash class the ladder exists for, one
+        # commit after renaming its predecessor for the identical mistake. Both halves are
+        # here now: the death, and a genuinely recovered run.
+        rc, out = verdict_text("died_inside_the_retry.log",
                                "engine: start 1/2: starting master engine\n"
                                "engine: start 2/2: retry after session reconfigure\n")
-        check("a genuinely complete ladder still prints the green line and exits 0",
+        check("a complete ANNOUNCING ladder with no outcome line is a death, not a green run",
+              GREEN not in out and "NEVER SAID HOW IT WENT" in out and rc == 1)
+        rc, out = verdict_text("recovered_after_retry.log",
+                               "engine: start 1/2: starting master engine\n"
+                               "engine: start 2/2: retry after session reconfigure\n"
+                               "engine: start OK after session reconfigure\n")
+        check("a genuinely recovered run still prints the green line and exits 0",
               GREEN in out and "ended on a FAILED line" not in out and rc == 0)
+        rc, out = verdict_text("non_announcing_ladder_completes.log", good_on)
+        check("a ladder that does NOT announce success is untouched by the new verdict",
+              GREEN in out and "NEVER SAID HOW IT WENT" not in out and rc == 0)
+        # ⛔ #973 — WITHOUT THIS FIXTURE THE MUTATION `term is None` SURVIVED. An engine can
+        # start, stop and start again in one session, so an earlier `start OK` sits ABOVE the
+        # rungs of the later run — and it announces nothing about THAT run. The test has to be
+        # "at or after the last rung", the same one the two neighbouring branches use, and no
+        # other fixture reached that difference.
+        rc, out = verdict_text("outcome_belongs_to_an_earlier_run.log",
+                               "engine: start OK — audio output active\n"
+                               "engine: start 1/2: starting master engine\n"
+                               "engine: start 2/2: retry after session reconfigure\n")
+        check("an outcome line ABOVE the rungs does not vouch for the run below it",
+              GREEN not in out and "NEVER SAID HOW IT WENT" in out and rc == 1)
         # ⭐ #969 — THE TWO FIXTURES THE PRINTER WAS MISSING, and both were live defects.
         rc, out = verdict_text("healthy_first_attempt.log",
                                "engine: start 1/2: starting master engine\n"
@@ -1032,7 +1098,6 @@ def selftest(root: str) -> int:
         # ⭐ #971 — THE MASKING CASE AND ITS TWO REGRESSION GUARDS. `on`/`off` are toggled
         # repeatedly in one session, so "failed, retried, retry worked" is the ORDINARY shape.
         MASKED = "MASKED BY A LATER RUN"
-        good_on = "".join(f"on {n}/5: step {n}\n" for n in range(1, 6))
         # ⛔ #972 — THIS FIXTURE HELD ONE FAILURE AND #971'S WHOLE MECHANISM IS "COLLECT EVERY,
         # NOT ONLY THE LAST". Replacing `hostile_seen.setdefault(key, []).append(...)` with
         # `hostile_seen[key] = [(idx, line)]` — i.e. the pre-#971 semantics — left the selftest

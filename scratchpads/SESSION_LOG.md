@@ -21543,3 +21543,39 @@ dem Aufruf steht und ein erholter Lauf immer `start OK after session reconfigure
 **Und es ist verkehrt herum:** ein Absturz im ERSTEN Versuch liest sich korrekt als `❌ 1/2`.
 Meine eigene `recovered_after_retry.log`-Fixture nagelt die falsche Antwort fest — genau der
 Grund, aus dem #969 die Vorgänger-Fixture umbenannt hat.
+
+## 2026-09-02 — #973: ein Absturz IM Wiederholungs-`start()` las sich grün, der im ersten rot
+
+**Der zweite CRITICAL des Prüfers, selbst nachgefahren, und er ist VERKEHRT HERUM — der
+strikt schlechtere Lauf las sich grüner.**
+
+| Log | vorher | jetzt |
+|---|---|---|
+| `start 1/2` (Absturz im ERSTEN Versuch) | `❌ 1/2`, Exit 1 ✓ | unverändert ✓ |
+| `start 1/2` → `start 2/2` (Absturz im WIEDERHOLUNGS-Versuch) | **`✅ 2/2`, Exit 0** | `❌`, Exit 1 |
+
+Warum das falsch war: **`start 2/2` steht VOR `try masterEngine.start()`.** Ein Lauf, der sich
+erholt, schreibt danach `start OK after session reconfigure`; einer, der scheitert,
+`start FAILED`. Steht keines von beiden da, ist der Prozess **IM Aufruf** gestorben — genau die
+`isInputConnToConverter`-Region, für die die ganze Leiter gebaut wurde.
+
+⭐ **Die Regel ist ABGELEITET, nicht hartkodiert.** `SUCCESS_TERMINALS = ("OK",)`: ein
+Erfolgswort ist ein VERSPRECHEN — `SKIPPED`/`REFUSED` sagen „wir machen das nicht", `OK` sagt
+„wir HABEN es gemacht, und es ging". Eine Leiter, die Erfolg ausdrücklich ansagt, sagt ihn
+JEDES Mal an. Also gilt für genau diese Leitern: Vollständigkeit ist nicht das Erfolgssignal,
+die Ausgangszeile ist es. Der Satz `announced` kommt aus dem `Sources/`-Census und enthält
+heute **genau `start`** — `on`/`off`/`mic:*`/`session:*` werden nicht angefasst. Wird morgen
+eine zweite Leiter ansagend, kommt sie von selbst dazu.
+
+⛔ **Und meine eigene Fixture nagelte die falsche Antwort fest — zum ZWEITEN Mal in derselben
+Kette.** #969 hat `healthy.log` umbenannt, weil sie kein gesundes Log war, und nannte die
+Zwei-Sprossen-Fassung dann „recovered" — aber ein erholter Lauf schreibt `start OK after
+session reconfigure` DANACH. Zwei Sprossen und nichts dahinter sind ein Tod. Die Fixture ging
+beim Umbau von selbst rot, was genau richtig ist. Jetzt stehen beide Hälften da: der Tod UND
+ein echt erholter Lauf.
+
+**Sieben Mutationen. Eine überlebte:** `term is None` statt „Terminator AT ODER NACH der
+letzten Sprosse". Keine Fixture hatte eine Ausgangszeile ÜBER den Sprossen — eine Engine kann
+in einer Sitzung starten, stoppen und wieder starten, dann steht ein früheres `start OK`
+oberhalb und sagt über den späteren Lauf nichts. Fixture ergänzt → gefangen. **Dritte
+vakuöse Fixture in Folge, dritte gefunden, weil ich mutiert habe statt gelesen.**
