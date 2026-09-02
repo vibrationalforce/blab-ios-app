@@ -57,8 +57,8 @@ Ensure bio-reactive features are safe, compliant, and make NO unauthorized healt
 - `Sources/Echoelmusic/Bio/EchoelBioEngine.swift` — bio parameter flow
 - `Sources/Echoelmusic/Core/EngineBus.swift` — the one typed bus every consumer reads
 - `Sources/Echoelmusic/Bio/HealthWritePolicy.swift` — what may enter Apple Health
-- `Sources/Echoelmusic/Sync/BioEgressPolicy.swift` — App Store 5.1.3: what may leave the phone
-- `Sources/Echoelmusic/Studio/FlashGuard.swift` — the canonical 3 Hz ceiling
+- `Sources/Echoelmusic/Core/BioEgressPolicy.swift` — App Store 5.1.3: what may leave the phone
+- `Sources/Echoelmusic/Core/FlashGuard.swift` — the canonical 3 Hz ceiling
 - `Sources/Echoelmusic/Studio/BioScienceInfo.swift` — the cited-research copy
 - Any HealthKit integration files
 - Onboarding/permission request screens

@@ -35,7 +35,7 @@ import XCTest
 final class AudioInputDoorTests: XCTestCase {
 
     private static let picker = "Sources/Echoelmusic/Studio/AudioInputPickerView.swift"
-    private static let guardBrain = "Sources/Echoelmusic/Studio/FeedbackGuard.swift"
+    private static let guardBrain = "Sources/Echoelmusic/Core/FeedbackGuard.swift"
     private static let engine = "Sources/Echoelmusic/Audio/AudioEngine.swift"
 
     // MARK: - The list is current when the user looks at it

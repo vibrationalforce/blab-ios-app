@@ -7,7 +7,7 @@
 // while the other two keep asserting the old number, and nothing notices. That is the #416
 // class applied to the one constant where drift is not a cosmetic problem.
 //
-//   Studio/FlashGuard.swift            maxFlashHz        = 3.0   ← canonical BY DESIGNATION
+//   Core/FlashGuard.swift              maxFlashHz        = 3.0   ← canonical BY DESIGNATION
 //   Bio/EntrainmentEngine.swift        maxVisualFlashHz  = 3.0
 //   DSP/BioEntrainmentDirector.swift   maxVisualHz       = 3.0
 //   Studio/BioColorGradeParams.swift   maxHz: Float = 3         ← FOURTH, found #864

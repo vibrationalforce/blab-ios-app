@@ -131,7 +131,7 @@ final class FlashSlewIsPerSecondTests: XCTestCase {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent().deletingLastPathComponent()
             .deletingLastPathComponent()
-        let path = root.appendingPathComponent("Sources/Echoelmusic/Studio/FlashGuard.swift")
+        let path = root.appendingPathComponent("Sources/Echoelmusic/Core/FlashGuard.swift")
         guard let src = try? String(contentsOf: path, encoding: .utf8) else {
             throw XCTSkip("FlashGuard.swift not readable at \(path.path) — source scan skipped")
         }

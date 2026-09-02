@@ -66,7 +66,7 @@ final class LoudnessReadoutMeasurementPointTests: XCTestCase {
 
     private static let grid   = "Sources/Echoelmusic/Studio/MasterLoudnessGrid.swift"
     private static let engine = "Sources/Echoelmusic/Audio/AudioEngine.swift"
-    private static let target = "Sources/Echoelmusic/Studio/LoudnessTarget.swift"
+    private static let target = "Sources/Echoelmusic/Core/LoudnessTarget.swift"
 
     /// TRUE once `AudioEngine` publishes a loudness measured AFTER the master chain. Until
     /// then every number this grid shows is the chain's input, and no target verdict on it
