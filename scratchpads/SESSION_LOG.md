@@ -21831,3 +21831,72 @@ Nachbar-Selbsttests bleiben grün; `doctor --section B` 0 kritische Befunde.
 
 ⚠️ Wieder ohne Gate (`scripts/**` in keinem Pfadfilter) — Selbsttest, die getriebenen
 Defekt-Eingaben und die fünf Mutationen sind die Verifikation.
+
+## 2026-09-02 — #979: ein Wächter verbot korrekte Arbeit mit einer Begründung, die seit #813 falsch ist
+
+**Wie ich hier gelandet bin — durch MESSEN statt BAUEN.** Der Cron-Punkt 2 („Bio-Modulation live
+sichtbar: welche Parameter das Biofeedback bewegt") ist **bereits gebaut**: `EchoelFXView` rendert
+`AlwaysOnBioRow` je `AlwaysOnBioChannel`-Fall mit lebenden Frames, und die vier Fälle decken sich
+exakt mit der LIVE-Tabelle in CLAUDE.md. Eine Sitzung, die das nicht nachmisst, baut es neu.
+
+**Der Befund beim Nachmessen.** `TheAlwaysOnChannelsAreShownTests.testThePinnedChannelsAreStill\
+Absent` verbot das Wort `"trend"` mit der Begründung *„'trend' has no producer — listing it would
+re-open the #496 over-claim"*. Gemessen:
+· `Core/CoherenceTrend` existiert seit **#813**, beide `…BioParams(`-Stellen übergeben
+  `coherenceTrend: trend` statt der Literal-0 (`BioReactiveSynthVoice:913`, `PolySynthVoice:961`);
+· der Verbraucher ist erreichbar — der Auf-/Ab-Spektralmorph in `EchoelDDSP.applyBioReactive`
+  (~2393) liest ihn hinter nichts als seinem eigenen 0,10-Totband. **Keine tote Flagge davor**,
+  also nicht die #546-Lage (dort steht `useConvolutionReverb` als Schalter ohne Schreiber davor).
+
+**Zwei Defekte in EINER Behauptung.** #367 — sie konnte nur noch aus einem Grund scheitern, den es
+nicht gibt. #364, und das ist der teurere — **sie hätte die nächste Sitzung aus korrekter Arbeit
+herausgeredet**: am Tag, an dem jemand den Trend zu Recht benennt, wäre sie rot geworden mit einer
+Nachricht, die genau davon abrät.
+
+⭐ **UND ES WAR NICHT EINE HEIMAT, SONDERN FÜNF** — das #766/#456-Muster wörtlich. #813 hat die
+Erlaubnis wirklich verschoben: es hat die Bans in Website und Nachbar-Wächtern gezogen und den
+Schwester-Anspruch in `TheAlwaysOnBioPathIsNamedTests` mit einem ⛔-Vermerk umgebaut. Es kannte
+diese fünf nicht. **Wenn alle geprüften Heimaten dieselbe GATTUNG haben, ist die AUFZÄHLUNG
+unvollständig, nicht die Sorgfalt pro Eintrag.** Die fünf: `TheAlwaysOnChannelsAreShownTests` ·
+`TheBioPanelRowsSayWhoseBodyTests` · `AutoModeStartsOffAndOwnsNoTempoTests` (Nachricht UND Kopf) ·
+`AlwaysOnBioChannel.swift` (Doc) · `EchoelStudioView.swift` (Doc).
+
+⭐ **Eine SECHSTE Fundstelle ist bewusst UNANGETASTET, weil sie recht hat:** `EchoelFXView`~1232
+sagt nicht „kein Produzent", sondern „**kein READING zu rendern**" — `CoherenceTrend` ist ein
+`private var` je Stimme, kein Feld auf `BioSampleFrame`, „**No surface can read it. The reason is
+STRUCTURAL**". Sie nennt sogar die zwei echten Scheiben, die es bräuchte. Genau meine unabhängige
+Council-Schlussfolgerung, nur schon aufgeschrieben.
+
+**DER NEUE GRUND ROTTET NICHT.** Die Sperren bleiben, aber begründet über die **FLÄCHE** statt über
+die Engine: *der Mood-Steer liest Kohärenz, HRV und Puls, und diese Bildunterschrift beschreibt den
+Steer.* In Python nachgefahren: für alle fünf gesperrten Wörter wahr, für alle drei Render-Zustände
+der Bildunterschrift. Dieser Grund kann nicht falsch werden, wenn irgendwo ein Produzent entsteht —
+die alte Begründung konnte genau das, und tat es.
+
+**ERSATZ FÜR DIE GELÖSCHTE SPERRE** (eine Sperre ersatzlos zu streichen wäre Deckungsverlust):
+`testBothAlwaysOnSentencesCountTheChannelsTheyList` koppelt `AlwaysOnBioChannel.allCases.count` an
+das von Hand geschriebene ZAHLWORT in allen VIER Always-on-Sätzen. Getrieben: heute **grün**, bei
+einem fünften Fall ohne Kopie-Änderung **acht** Fehlschläge (je Satz „fehlt 'five'" + „sagt noch
+'four'"). ⚠️ Er friert die Zahl ausdrücklich **NICHT** auf vier ein — das wäre derselbe
+#364-Defekt, den diese Scheibe gerade entfernt. Der alte `allCases.count == 4`-Pin entfällt damit
+nicht ersatzlos: `TheGuideTableMatchesTheAuditedWritesTests:85` koppelt ihn weiterhin an seine
+Tabelle.
+
+**BEWUSST NICHT GETAN: den Trend auf die Oberfläche holen.** Zwei echte Hindernisse, beide gemessen.
+(1) Seine Skala `fullScaleRisePerSecond` ist eine SCHÄTZUNG mit offenem `NEEDS-FOUNDER-VERIFY` —
+niemand hat bestätigt, dass der Morph hörbar ist; einen ungehörten Effekt in Kopie zu benennen wäre
+die #496-Über-Behauptung von vorn. (2) Es gibt **keinen EINEN** Trend zu lesen: jede Stimme hält
+ihre eigene `CoherenceTrend`, und **nur `PolySynthVoice` gated ihren Zulauf** auf
+`bioModulationEnabled` (erste Zeile von `applyLatestIfFresh`) — die zwei laufen also auf
+verschiedenen Feeds und sind NICHT dieselbe Zahl. Eine fünfte Zeile braucht das erst gelöst; das
+ist eine eigene Scheibe mit einer Freeze-Gesetz-Frage (10-Hz-Read), kein Anhängsel.
+⚠️ Die Valenz-Regel bindet jede spätere Kopie unverändert: steigende Kohärenz ist eine
+INGENIEURS-Zuordnung, niemals „reiner" oder „ruhiger".
+
+**Verifikation:** Quelltext-Anteil ist **rein Kommentar** (jede geänderte Zeile in `Sources/`
+beginnt mit `///` — per Diff geprüft), null Verhaltensänderung · beide Sperrlisten in Python
+nachgefahren, weiterhin erfüllt · neuer Anspruch grün/rot wie oben getrieben · `count-pins` 0 ROT ·
+`dead-needles` grün über 404 Wächterdateien · Klammer- und Paren-Bilanz der bearbeiteten Testdatei
+ausgeglichen. Kein Compiler lokal — Pflicht-Reviewer (`bio-safety-reviewer`) prüft parallel genau
+die zwei Fragen, an denen ich diese Woche schon danebenlag: stimmt der neue Grund, und gibt es eine
+sechste Fundstelle.

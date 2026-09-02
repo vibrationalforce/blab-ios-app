@@ -669,8 +669,17 @@ public enum BioPanelRowCopy {
     /// picks the wrong one. The nil sentence also stops being stranded in the view, pinned only
     /// by a source scan while everything else is driven.
     ///
-    /// ⚠️ Names ONLY channels a producer actually feeds (coherence · HRV · heart rate). #496
+    /// ⚠️ Names ONLY what the mood steer ACTUALLY READS (coherence · HRV · heart rate). #496
     /// struck breath depth, LF/HF and any "trend"; this sentence must not grow them back.
+    ///
+    /// ⛔ #979 CORRECTED THE REASON. This said "channels a producer actually feeds", and that
+    /// stopped being true of one of the three struck words at #813: `coherenceTrend` has a real
+    /// producer (`Core/CoherenceTrend`, one run per source, both `…BioParams(` sites passing it)
+    /// and an ungated consumer (the rising/falling spectral morph in `applyBioReactive`). The
+    /// three stay struck, but for a reason that belongs to THIS SURFACE and cannot rot when a
+    /// producer appears: the steer reads coherence, HRV and heart rate, and this caption
+    /// describes the steer. Whether the trend may be named on the always-on surfaces is a
+    /// different question with a structural answer — see `EchoelFXView`'s always-on note.
     public static func autoModeCaption(for frame: BioSampleFrame?) -> String {
         guard let frame else {
             return "Needs a running bio source — choose one with the Bio source control above."

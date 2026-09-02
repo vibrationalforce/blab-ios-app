@@ -164,14 +164,82 @@ final class TheAlwaysOnChannelsAreShownTests: XCTestCase {
         }
     }
 
-    /// COUNTERWEIGHT. The three inputs `applyBioReactive` takes that are pinned to literals at both
+    /// COUNTERWEIGHT. The inputs `applyBioReactive` takes that are pinned to literals at both
     /// construction sites must stay OUT of this list — naming them is the over-claim #496 removed.
+    ///
+    /// ⛔ #979 — THIS CLAIM BANNED `"trend"` AND ITS STATED REASON HAS BEEN FALSE SINCE #813.
+    /// The message read *"'trend' has no producer — listing it would re-open the #496 over-claim"*.
+    /// `coherenceTrend` GOT a producer at #813: `Core/CoherenceTrend`, one run per source, and
+    /// BOTH `…BioParams(` sites now pass `coherenceTrend: trend` instead of the literal 0
+    /// (`TheAlwaysOnBioPathIsNamedTests.testBothProducersDeriveTheFourAndPinTheThree` pins exactly
+    /// that, so it is not restated here — #416). The consumer is reachable too: the rising/falling
+    /// spectral morph in `EchoelDDSP.applyBioReactive` reads it behind nothing but its own
+    /// deadband — no dead flag in front of it, which is the #546 test.
+    ///
+    /// So this was BOTH failure modes at once, in one assertion:
+    ///   · #367 — it could only ever fail for a reason that is not true any more.
+    ///   · #364 — worse, it FORBADE CORRECT WORK. The day someone rightly names the trend on the
+    ///     surface, this would go red with a message arguing them back out of it.
+    ///
+    /// ⭐ AND IT IS THE #766/#456 PATTERN, EXACTLY. #813 did move this permission — it rewrote the
+    /// bans in the three copy guards, `docs/overview.html` and `architecture.html`, and it edited
+    /// the sibling claim in `TheAlwaysOnBioPathIsNamedTests` with a ⛔ note explaining the move.
+    /// It simply did not know this fourth home existed. When every home you checked is the same
+    /// KIND, the ENUMERATION is what is incomplete, not the care per entry.
+    ///
+    /// ⚠️ WHAT IS **NOT** CLAIMED HERE, deliberately: that the trend SHOULD be on the surface.
+    /// Naming it is allowed, not required — a copy decision (`EchoelDDSP.applyBioReactive` says so
+    /// at the branch). Two things stand in the way today and neither is this test's business:
+    /// the trend's scale (`fullScaleRisePerSecond`) is an unverified estimate carrying a
+    /// NEEDS-FOUNDER-VERIFY, so nobody has confirmed the morph is audible; and there is no single
+    /// published trend to READ — each voice owns its own `CoherenceTrend`, and only
+    /// `PolySynthVoice` gates its feed on `bioModulationEnabled`, so the two are not the same
+    /// value. A fifth ROW needs that resolved first. The valence rule binds any such copy
+    /// whenever it comes: rising coherence is an ENGINEERING mapping, never "purer" or "calmer".
     func testThePinnedChannelsAreStillAbsent() {
-        XCTAssertEqual(AlwaysOnBioChannel.allCases.count, 4)
         let names = AlwaysOnBioChannel.allCases.map { $0.name.lowercased() }.joined(separator: " ")
-        for pinned in ["depth", "lf/hf", "trend"] {
+        for pinned in ["depth", "lf/hf"] {
             XCTAssertFalse(names.contains(pinned),
-                           "'\(pinned)' has no producer — listing it would re-open the #496 over-claim")
+                           "'\(pinned)' has no producer — both `…BioParams(` sites still pass it "
+                           + "as a literal, so listing it would re-open the #496 over-claim")
+        }
+    }
+
+    /// #979 — what replaces the trend ban: the ENUMERATION and the COPY may not drift apart.
+    ///
+    /// The old claim tried to keep one specific channel off the surface. The durable property is
+    /// weaker and more useful: both always-on sentences open by COUNTING the channels ("four body
+    /// channels shape …"), and that word is written by hand while the list comes from
+    /// `allCases`. Adding a fifth case — the trend, or anything else — without touching the copy
+    /// ships a sentence that undercounts what the body moves, on the one surface #496 had to
+    /// repair for the opposite mistake. This permits the fifth channel and forbids the half-step.
+    ///
+    /// ⚠️ It asserts the sentences AGREE with the count, never that the count is 4. A guard that
+    /// froze the number would be the #364 defect this file just removed one of.
+    func testBothAlwaysOnSentencesCountTheChannelsTheyList() {
+        let words = [2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven"]
+        let n = AlwaysOnBioChannel.allCases.count
+        guard let expected = words[n] else {
+            return XCTFail("\(n) channels — extend the number-word table above before shipping "
+                           + "a count this file cannot spell")
+        }
+        let sentences = [
+            ("alwaysOnSentence", AlwaysOnBioChannel.alwaysOnSentence(synthetic: false)),
+            ("alwaysOnSentence(demo)", AlwaysOnBioChannel.alwaysOnSentence(synthetic: true)),
+            ("bioPanelSentence", AlwaysOnBioChannel.bioPanelSentence(synthetic: false)),
+            ("bioPanelSentence(demo)", AlwaysOnBioChannel.bioPanelSentence(synthetic: true))
+        ]
+        for (label, text) in sentences {
+            let lower = text.lowercased()
+            XCTAssertTrue(lower.contains(expected),
+                          "\(label) does not say '\(expected)' while `allCases` holds \(n) "
+                          + "channels. The count is written by hand and the list is not — update "
+                          + "the sentence in the same commit as the case.")
+            for (other, word) in words where other != n {
+                XCTAssertFalse(lower.contains(" \(word) "),
+                               "\(label) still says '\(word)' while `allCases` holds \(n). Two "
+                               + "counts in one sentence is worse than a stale one.")
+            }
         }
     }
 

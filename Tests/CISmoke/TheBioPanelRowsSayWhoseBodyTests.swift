@@ -238,6 +238,16 @@ final class TheBioPanelRowsSayWhoseBodyTests: XCTestCase {
             three rows BELOW the visible "Bio source" row, so two captions in one panel \
             disagreed about how to start a source.
             """)
+        // ⛔ #979 CHANGED THE REASON, NOT THE LIST. Every message here said the banned word
+        // "has NO producer (#496)". That was true of all five when it was written and is FALSE
+        // of one of them since #813: `coherenceTrend` has a real producer (`Core/CoherenceTrend`,
+        // one run per source) and an ungated consumer (the spectral morph in `applyBioReactive`).
+        // A guard whose stated reason is false can only fail for a reason that is not true (#367),
+        // and this one would have argued a later session out of correct work (#364).
+        // The reason that covers all five and cannot rot when a producer appears is a property of
+        // THIS SURFACE: the mood steer reads coherence, HRV and heart rate, and this caption
+        // describes the steer. Whether the trend may be named on some OTHER surface is a separate
+        // copy decision — `EchoelFXView`'s always-on note holds the structural answer for that one.
         // ⛔ THIS LIST WAS THREE AND THE GUARD IT SUPERSEDES BANNED FIVE. #648 moved the caption
         // out of `AutoModeRow`, which made `AutoModeStartsOffAndOwnsNoTempoTests`' five-word ban
         // scan text it no longer sees — green for a reason that stopped existing (§4) — and the
@@ -248,10 +258,10 @@ final class TheBioPanelRowsSayWhoseBodyTests: XCTestCase {
             for source in [Self.frame(.fallback), Self.frame(.cameraPPG)] {
                 XCTAssertFalse(BioPanelRowCopy.autoModeCaption(for: source)
                                 .contains(banned), """
-                    The Auto caption promises "\(banned)". #496 measured that it has NO producer \
-                    — both `PolyBioParams` construction sites pin it to a literal — so naming it \
-                    is a claim about a channel nothing feeds. A sentence about "your measured \
-                    state" is exactly where these grow back.
+                    The Auto caption promises "\(banned)". NOTHING IN THE MOOD STEER READS IT \
+                    — the steer takes coherence, HRV and heart rate, and this caption describes \
+                    the steer. A sentence about "your measured state" is exactly where these \
+                    grow back.
                     """)
             }
         }

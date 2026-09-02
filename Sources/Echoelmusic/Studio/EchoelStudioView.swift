@@ -11486,8 +11486,12 @@ private struct BreathVoiceRow: View {
 /// ⚠️ NOT A LYING CONTROL (#135/#164/#227 class): with no running bio source the
 /// toggle is DISABLED and the caption says why — an enabled switch that audibly does
 /// nothing would be the exact defect this register documents. The caption names ONLY
-/// channels a producer actually feeds today (coherence · HRV · heart rate — #496:
-/// breath depth, LF/HF and any "trend" have no producer and may not be promised).
+/// what the mood steer ACTUALLY READS (coherence · HRV · heart rate — #496 struck breath
+/// depth, LF/HF and any "trend", and they may not be promised here).
+/// ⛔ #979: this said those three "have no producer", which stopped being true of the trend
+/// at #813 (`Core/CoherenceTrend` feeds both `…BioParams(` sites and an ungated spectral
+/// morph). They stay out for a reason that belongs to THIS SURFACE instead — the steer does
+/// not read them — which is what a caption should be judged against anyway.
 /// What it steers: the mood dials (darkness · liveliness · tension) through the same
 /// crossfade the weather influence uses, over bars. Tempo is NEVER steered (T1/T2 —
 /// the Flow-Servo remains the only bio→clock path).

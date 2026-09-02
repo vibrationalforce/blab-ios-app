@@ -7,8 +7,10 @@
 // "door without honesty". Its contract, each half pinned here: (1) it ships OFF —
 // steering the user's mood dials unasked is the one thing it must never do first;
 // (2) the door EXISTS in `bioPanel`, beside the other body-driven switch, and its
-// caption promises only channels a producer actually feeds (#496 — no "trend", no
-// breath depth, no LF/HF); (3) OFF/neutral/paused is byte-identical (the Golden law
+// caption promises only channels the STEER ACTUALLY READS — coherence, HRV, heart
+// rate (⛔ #979: this said "channels a producer actually feeds (#496 — no trend…)",
+// and `coherenceTrend` has had a producer since #813; the surface property is the one
+// that does not rot); (3) OFF/neutral/paused is byte-identical (the Golden law
 // `WeatherMood.blend` already earned — intensity 0 is the exact identity); (4) the
 // steering is hysteretic and slow — a single-window threshold crossing cannot flip
 // it, a fresh policy holds one full evolve tick before reversing; (5) Auto mode
@@ -335,11 +337,13 @@ final class AutoModeStartsOffAndOwnsNoTempoTests: XCTestCase {
             for frame in states {
                 XCTAssertFalse(
                     BioPanelRowCopy.autoModeCaption(for: frame).contains(dead), """
-                    The door's caption says "\(dead)" — a channel or estimate with NO \
-                    producer today (#496 class). TheAlwaysOnBioPathIsNamedTests covers \
-                    only the AlwaysOnBioChannel sentences, so this caption is the second \
-                    surface that could over-claim; it may name a new channel only in the \
-                    commit that ships its real producer.
+                    The door's caption says "\(dead)" — NOTHING IN THE MOOD STEER READS IT. \
+                    The steer takes coherence, HRV and heart rate; this caption describes the \
+                    steer. ⛔ #979: this message used to say "NO producer today (#496 class)", \
+                    which stopped being true of "trend" at #813 — a false reason is a guard \
+                    that can only fail wrongly (#367) and that talks a later session out of \
+                    correct work (#364). It may name a channel only in the commit that makes \
+                    the steer actually read it.
                     """)
             }
         }
