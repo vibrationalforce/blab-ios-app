@@ -22235,3 +22235,32 @@ Code-Scheibe (Entscheidung vom Vormittag), statt sofort ein reines Notiz-437 zu 
 
 **Offen an den Founder (unverändert):** 434–437 in EINER Geräte-Session nach der Liste der
 437-Notiz prüfen; die neun Fragen in §5 des Audit-Berichts.
+
+## 2026-09-02 — DMMW-Machbarkeit GEMESSEN: `scratchpads/DMMW_FEASIBILITY_2026-09-02.md`
+
+**Antwort auf die Founder-Frage („ob es mit dem neuen Modell nun endlich machbar ist"): Nein — das
+Modell war nie die Grenze.** Vier Teams (DIRECTION · REWIRE-COST · VERIFY-CAPACITY · WHAT-CHANGES),
+read-only, jede Behauptung mit Befehl. 17 Befunde adversarial bestätigt, 10 „widerlegt" (8 davon nur
+als „schon aufgeschrieben"), 9 ungeprüft. ⚠️ **Die Synthese-Stufe und 18 Widerleger starben am
+Sitzungslimit** (89 Agenten, 70 fertig, 19 Fehler; 2 h 2 min); der Bericht ist von der Sitzung aus den
+vier LEAD-Antworten geschrieben. Das ist das zweite Mal heute (Audit: 71 von 117) — **Lehre bestätigt:
+Widerleger-Stufe nach Budget dimensionieren, nicht nach Ideal; auf 4 Kernen laufen 2 Agenten.**
+
+**Kern, in vier Zeilen:** (1) Die 07-31-Diagnose hält — 0 Flips seit 07-31, 42 Tage gleiche Richtung
+(vorher max 29), Zähler bleibt 18; diese Frage ist NICHT Flip 20. (2) Die Maschine lebt und wuchs
+(alle zehn Typen ≥ 07-31), aber jede Tür = 0 Aufrufer und jeder löschende Commit liegt vor dem Graft —
+Rückkehr = Neubau, nicht Revert. (3) Grenze = Prüfschleife: fünf blockierende Wächter saßen rot auf
+korrektem Baum (7/178/100/390 Commits), zwei Kontrollen liefen mit grünem Gate durch; 54 Deploys,
+13 Geräteartefakte, 0 Abnahmen, **80 offene Geräte-Bitten, 0 beantwortet**. (4) DMMW-Anlauf #2
+(07-10→07-24) lief BEREITS unter der Modellfamilie, nach der gefragt wird, und endete am
+Founder-Verdikt, nicht an einer Fähigkeitsmauer.
+
+**Zu entscheiden, unabhängig von der Antwort:** A0-Zeile (Slice 5b–5d HOLD/verwerfen, seit 33 Tagen
+ohne Zeile) · Sperrfrist-Zeile · Cron-Text (Founder-Besitz) · optional EINE begrenzte Test-Scheibe mit
+Founder-bestätigtem Wächter und `VERIFIED`-Marke.
+
+Nebenbefund des Workflows: der Stunden-Cron wurde per `list_triggers` direkt gelesen —
+`created_at == updated_at == 2026-07-13`, nie umgeschrieben, nennt drei DAW-Punkte und einen Branch,
+der nicht ausgecheckt ist. Sitzungen lesen ihn richtig als Heartbeat und nicht als Auftrag (#885).
+
+Damit sind **alle acht Aufgaben** aus der Founder-Antwort („Greb all tasks und fertig machen") fertig.
