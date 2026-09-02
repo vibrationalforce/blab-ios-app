@@ -21366,3 +21366,55 @@ Gründe in die Krümel-Senke GESCHRIEBEN werden. NEEDS-FOUNDER-VERIFY: endet ein
 Anruf, der Echoel stumm zurücklässt, jetzt auf `session: interruption FAILED — could not
 reactivate (…)` bzw. `engine: restart after interruption FAILED — …` statt auf einer Sprosse
 mit nichts dahinter?
+
+## 2026-09-02 — #969: das Triage-Werkzeug meldete jeden GESUNDEN Start als Tod
+
+**Der Prüfer hat vier Befunde in `diag-ladder.py` gefunden, drei davon habe ich mit #967
+selbst gebaut oder nicht mitgezogen. Alle vier selbst nachgefahren, bevor ich etwas anfasste.**
+
+⛔ **Der teuerste ist das SPIEGELBILD von #967.** Der glückliche Pfad von `AudioEngine.start()`
+schreibt `start 1/2` und danach `start OK — audio output active`; **`start 2/2` ist die
+WIEDERHOLUNG**, also nur der Fehlerpfad. Ein völlig gesunder Start erreichte damit 1 von 2
+Sprossen ohne einen Terminator, den das Werkzeug kennt — und druckte
+`❌ … did not reach their last step`, Exit 1. Gemessen an einem Zwei-Zeilen-Log, nicht
+überlegt. **Ein Instrument, das jeden gesunden Lauf anzeigt, bringt seinem Leser bei, die
+Anzeige zu ignorieren** — und das ist schlimmer als das falsche Grün von #967, weil es
+niemandem auffällt.
+
+⛔ **Und #967s eigener Zähler widersprach sich selbst.** `incomplete += 1 if step < total`
+zählte auch die ABSICHTLICH kurzen Leitern mit, also druckte das Werkzeug für einen
+dokumentierten Ausstieg BEIDES, vier Zeilen auseinander: „⏹ … ended DELIBERATELY short …
+That is not a death" und „❌ … a DEATH AT THAT STEP". Vor #967 hing der ❌-Block an `findings`
+(tot + gescheitert), was `ended` ausschloss; die Verbreiterung auf eine reine
+Vollständigkeitsfrage hat das verloren. Regel jetzt: **kurz UND kein absichtlicher Ausstieg.**
+
+⛔ **#967 hat zwei Prosa-Heimaten mitgezogen und eine dritte übersehen** — vier Zeilen unter
+dem Rückgabewert, der die neue Regel richtig ausspricht. Die #456-Form in Reinform: die
+Heimat, die niemand wieder liest, ist der Docstring der Funktion, die es richtig macht.
+
+⚠️ **`OK` ist ZWEI Buchstaben, und der Entdeckungs-Census kann das nicht sehen.** Ihn auf
+`[A-Z]{2,}` zu lockern wurde GEMESSEN und verworfen: 18 zusätzliche Treffer, davon 15 Prosa
+(„unit-tested on CI", „off IS the level", „the hands-on VJ panel") — 5:1 Rauschen in genau der
+Liste, die gelesen werden soll. Bekannte kurze Wörter kommen deshalb per NAME dazu, und diese
+Hälfte ist selbstbestätigend; das steht als ehrliche Grenze dran.
+
+**Mutations-Benotung, fünf gefahren:** m1 `OK` aus BENIGN raus → gefangen · m2 `OK` aus
+TERMINAL_WORDS raus → gefangen · m3 Zähler zurück auf `step < total` → gefangen · m4
+Kurzwort-Arm des Census gelöscht → **ÜBERLEBTE ZUERST**, weil die Vokabel-Prüfung eine
+TEILMENGEN-Aussage ist (weniger finden erfüllt sie auch); eigener Anspruch nachgezogen, jetzt
+gefangen · m5 die Zwei-Arten-Formulierung → überlebt, **und das bleibt so**: einen eigenen
+Prosa-Satz wortwörtlich festzunageln wäre eine Nadel, die nur sich selbst trifft (#491). Die
+Überschrift des Absatzes IST gepinnt (`SAID WHY`), der Fließtext nicht.
+
+**Zwei Fixtures fehlten dem End-to-End-Selbsttest, und beide waren echte Defekte** — der
+gesunde Start und der absichtliche Kurzausstieg. Die alte Fixture hieß `healthy.log` und war
+KEIN gesundes Log (`start 2/2` = die Wiederholung); umbenannt in `recovered_after_retry.log`.
+**Genau deshalb konnte der echte glückliche Pfad einen ganzen Zyklus lang als Tod gelesen
+werden, ohne dass eine Prüfung rot wurde.**
+
+⚠️ **REGISTRIERT, NICHT REPARIERT (eigene Scheibe):** (a) ein `FAILED`, das zu KEINER Leiter
+gehört — `session: interruption FAILED`, `session: media reset FAILED`, `engine: restart
+after … FAILED` —, bekommt bis heute gar kein Urteil; ein Log mit allen dreien druckt
+`✅ Every ladder … reached its last step`, Exit 0 (gefahren). Der #968-Wächterkopf behauptet
+das Gegenteil und ist damit falsch — **das ist die nächste Scheibe**. (b) Letzter-gewinnt: ein
+Fehlschlag, dem ein erfolgreicher Neulauf folgt, liest sich grün.

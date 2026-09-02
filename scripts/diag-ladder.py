@@ -161,8 +161,10 @@ def census_pattern(names: list[str]) -> "re.Pattern[str]":
     `census_effect` says "does NOT rescue" for a numbered line rather than "walks on": the
     weaker claim is the one this pattern can actually support.
     """
+    short = [w for w in TERMINAL_WORDS if len(w) < 3]
+    word = "|".join(["[A-Z]{3,}"] + [re.escape(w) for w in short])
     return re.compile(r"(?:^|[^A-Za-z:])(" + "|".join(re.escape(n) for n in names)
-                      + r")\s+(\d{1,2}/\d{1,2}\s+)?([A-Z]{3,})\b")
+                      + r")\s+(\d{1,2}/\d{1,2}\s+)?(" + word + r")\b")
 
 
 def terminators_in_source(root: str,
@@ -273,8 +275,13 @@ def census_effect(word: str, numbered: bool, completes: bool = False) -> str:
       not RESCUE.
     · "ENDS the ladder" was unconditional, but `ladder_verdicts` rescues only when the
       terminator FOLLOWS the last rung AND the ladder is short. `["mic: start REFUSED",
-      "mic: start 1/3", "mic: start 2/3"]` is a DEATH, and a terminator after a COMPLETE
-      ladder leaves `done`. Both measured.
+      "mic: start 1/3", "mic: start 2/3"]` is a DEATH, and a BENIGN terminator after a
+      COMPLETE ladder leaves `done`. Both measured.
+      ⛔ #969 — THAT LAST CLAUSE SAID "a terminator", FULL STOP, AND #967 HAD ALREADY MADE IT
+      FALSE: a NON-benign terminator after a complete ladder is the `failed` verdict #967
+      exists for. #967 corrected two prose homes and missed this one, four lines below the
+      return value that states the new rule correctly. A rule needs correcting in EVERY home
+      (#456), and the home nobody re-reads is the docstring of the function that got it right.
     """
     if word not in TERMINAL_WORDS:
         return "ends NOTHING (word unknown to the tool) — its ladder still reads as ❌ died"
@@ -389,8 +396,24 @@ def audit_source(root: str) -> int:
 # ⚠️ FAILED IS NOT LIKE THE OTHER TWO. A skip or a refusal is a deliberate exit; a FAILURE is
 # the thing the reader is hunting. It ends the ladder just as truly, so it belongs here — but
 # it gets its own outcome and stays a FINDING, or a real failure would print as a tidy end.
-TERMINAL_WORDS = ("SKIPPED", "REFUSED", "FAILED")
-BENIGN_TERMINALS = ("SKIPPED", "REFUSED")
+TERMINAL_WORDS = ("SKIPPED", "REFUSED", "FAILED", "OK")
+BENIGN_TERMINALS = ("SKIPPED", "REFUSED", "OK")
+
+# ⛔ #969 — `OK` WAS MISSING AND THAT MADE THE TOOL CRY WOLF ON EVERY HEALTHY LAUNCH. The happy
+# path of `AudioEngine.start()` emits `start 1/2` and then `start OK — audio output active`;
+# `start 2/2` is written ONLY on the retry. So a perfectly good launch reached 1 of 2 rungs with
+# no terminator the tool knew, and printed `❌ … did not reach their last step`, exit 1. That is
+# the mirror of the false green #967 fixed, and the worse half: an instrument that flags every
+# healthy run teaches its reader to ignore the flag. Measured, not reasoned — driven on a
+# two-line log.
+#
+# ⚠️ AND `OK` IS TWO LETTERS, WHICH THE DISCOVERY CENSUS CANNOT SEE. `terminator_pattern` scans
+# for the SHAPE `[A-Z]{3,}` on purpose, so that a word nobody has taught the tool still shows up
+# instead of silently reading as a death. Loosening that to `{2,}` was measured and rejected: it
+# adds 18 hits of which 15 are prose ("unit-tested on CI", "off IS the level", "the hands-on VJ
+# panel"), a 5:1 noise ratio in the one listing that exists to be read. Known short words are
+# therefore added to the pattern BY NAME, and that half is self-confirming — see the ⚠️ in
+# `terminator_pattern`.
 
 
 def ladder_verdicts(lines: list[str],
@@ -539,14 +562,23 @@ def read_log(path: str, root: str) -> int:
         # #967: COMPLETENESS is its own question. A ladder can reach its last rung AND report a
         # failure after it; saying "did not reach their last step" about that one is false, and
         # printing nothing about it was how the failure went invisible in the first place.
-        incomplete += 1 if step < total else 0
+        # ⛔ #969 — AND THE FIRST FORM OF THIS LINE (`step < total`) COUNTED THE `ended` CASE
+        # TOO, so a documented tidy exit printed BOTH `⏹ … ended DELIBERATELY short … That is
+        # not a death` AND `❌ … a DEATH AT THAT STEP`, four lines apart, in the instrument a
+        # triager opens first. Before #967 the ❌ block was gated on `findings`, which excludes
+        # `ended`; widening it to a pure completeness test lost that. The rule is the union of
+        # both intents: short AND not a deliberate exit.
+        incomplete += 1 if step < total and v["verdict"] != "ended" else 0
         print(f"  {flag} {prefix!r:<26} {step}/{total}      line {idx + 1}{tail}")
     print()
     if ended:
-        print(f"⏹ {ended} ladder(s) ended DELIBERATELY short and said why (#908).")
-        print("   That is not a death: the code took a documented exit and named it. READ THAT")
-        print("   LINE — it is the diagnosis, e.g. `mic: start REFUSED — input format not ready`")
-        print("   or a second owner meeting a route that was already raised.")
+        print(f"⏹ {ended} ladder(s) stopped before their last rung AND SAID WHY (#908).")
+        print("   Not a death: the code left by a named exit. READ THAT LINE — it is the")
+        print("   diagnosis, and it is one of TWO kinds (#969). Either the run stopped early")
+        print("   on purpose (`mic: start REFUSED — input format not ready`, a second owner")
+        print("   meeting a route already raised), or it SUCCEEDED before an optional rung")
+        print("   (`start OK — audio output active`: `start 2/2` is the RETRY, so a healthy")
+        print("   launch is a one-rung ladder). The word tells you which.")
     if failed:
         print(f"⚠️ {failed} ladder(s) ended on a FAILED line — a finding, not a tidy exit.")
         print("   READ THAT LINE: it names the error the code caught. On a SHORT ladder the")
@@ -674,6 +706,18 @@ def selftest(root: str) -> int:
     check(f"every terminal word in Sources/ is known: {sorted(used)}",
           used.issubset(set(TERMINAL_WORDS)))
 
+    # ⛔ #969 — THE SHORT-WORD ARM OF THE CENSUS PATTERN SURVIVED ITS OWN MUTATION. Deleting it
+    # (`word = "[A-Z]{3,}"`) left the whole selftest GREEN, because the check above is a SUBSET
+    # assertion: finding fewer words still satisfies it. So the census would silently stop
+    # listing every `start OK` site while `ladder_verdicts` kept acting on them — a listing that
+    # is read as complete and is not. Driven on a LITERAL, not on the tree, so it does not go
+    # red the day that one call site is reworded (#914's lesson about pinning `Sources/`).
+    short_words = [w for w in TERMINAL_WORDS if len(w) < 3]
+    short_pat = census_pattern(["start"])
+    check(f"a known SHORT terminal word is still discoverable by the census {short_words}",
+          all(short_pat.search(f"engine: start {w} — audio output active") is not None
+              for w in short_words) and bool(short_words))
+
     # #914 — drive the REAL matcher and the REAL labeller on LITERALS.
     # ⛔ The first version of this check was `any(numbered) and any(not numbered)` over the
     # tree. It survived a full inversion of the flag (every unnumbered terminator would have
@@ -788,11 +832,27 @@ def selftest(root: str) -> int:
                                "engine: start FAILED — the session reconfigure threw (err)\n")
         check("a SHORT ladder that FAILED is both a failure AND incomplete",
               "ended on a FAILED line" in out and SHORT in out and rc == 1)
-        rc, out = verdict_text("healthy.log",
+        # ⛔ #969 — THIS FIXTURE USED TO BE CALLED `healthy.log` AND IT IS NOT A HEALTHY LOG.
+        # `start 2/2` is the RETRY rung: a log holding it is a first attempt that FAILED and
+        # recovered. The selftest's notion of "healthy" was the unhappy path, which is exactly
+        # why the real happy path (`start 1/2` + `start OK`) could read as a death for a whole
+        # cycle without a check going red. Renamed, and the genuine one added below it.
+        rc, out = verdict_text("recovered_after_retry.log",
                                "engine: start 1/2: starting master engine\n"
                                "engine: start 2/2: retry after session reconfigure\n")
         check("a genuinely complete ladder still prints the green line and exits 0",
               GREEN in out and "ended on a FAILED line" not in out and rc == 0)
+        # ⭐ #969 — THE TWO FIXTURES THE PRINTER WAS MISSING, and both were live defects.
+        rc, out = verdict_text("healthy_first_attempt.log",
+                               "engine: start 1/2: starting master engine\n"
+                               "engine: start OK — audio output active\n")
+        check("the REAL happy path (one rung, then OK) is not accused of dying",
+              SHORT not in out and "SAID WHY" in out and rc == 0)
+        rc, out = verdict_text("deliberate_short_exit.log",
+                               "mic: start 1/3 — configuring the capture engine\n"
+                               "mic: start REFUSED — input format not ready\n")
+        check("a documented tidy exit is NOT also accused of stopping short",
+              SHORT not in out and "SAID WHY" in out and rc == 0)
 
     print("\n" + ("selftest OK" if ok else "selftest FAILED"))
     return 0 if ok else 1
