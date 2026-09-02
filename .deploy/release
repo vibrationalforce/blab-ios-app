@@ -1,4 +1,4 @@
-build: v10.79.436 — der Mikrofon-Monitor verweigert statt abzustürzen, und das Log sagt jetzt an jeder Sprosse warum
+build: v10.79.437 — dieselbe App wie 436, mit einer Notiz, der Du folgen kannst
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,83 +6,74 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.435.
+  Der Vorgänger ist 10.79.436.
 
-  ── ZUERST: WIE GROSS DIESE VERSION IST ──────────────────────────────────
+  ── ZUERST: WAS DIESE VERSION IST ────────────────────────────────────────
 
-  Gemessen gegen den BUMP-Commit `ca5ddec`, nicht gegen mein Arbeitsfenster (#911):
+  Gemessen gegen den BUMP-Commit `d1dd1f2` (#911):
 
-      git log --oneline ca5ddec..HEAD             | wc -l   →  28
-      git log --oneline ca5ddec..HEAD -- Sources/ | wc -l   →  14
-      python3 scripts/founder-verify.py --since ca5ddec     →  5 neue von 80
+      git log --oneline d1dd1f2..HEAD             | wc -l   →  9   (einschließlich dieses Bumps)
+      git log --oneline d1dd1f2..HEAD -- Sources/ | wc -l   →  1
+      python3 scripts/founder-verify.py --since d1dd1f2     →  nichts Neues
 
-  **Das ist eine MITTLERE Version mit EINEM Thema:** der Mikrofon-Monitor auf Deinem
-  Gerät. Alle 14 Code-Commits hängen an Deinem Absturz-Log von 435 (isInputConnToConverter
-  beim Einschalten des Monitors). Sie enthält 434 und 435 vollständig — nichts davon ist
-  zurückgenommen.
+  **437 klingt und verhält sich wie 436.** Der einzige Code-Commit verschiebt fünf Dateien
+  in einen anderen Ordner (`Core/`), ohne eine Zeile darin zu ändern. Alles andere sind
+  Dokumente und Wächter.
 
-  ⚠ **434 und 435 hast Du beide noch nicht abgenommen.** Ich deploye trotzdem, aus dem
-  Grund von 435: die 436 enthält die Reparatur der Fehlerklasse, die Dein Log zeigt, UND
-  das Log der 436 sagt Dir bei JEDEM Ausgang, welcher Schritt gestorben ist. Wer 436
-  prüft, prüft alle drei mit.
+  **Warum trotzdem ein Build:** die Notizen zu 434, 435 und 436 haben einen Wächter im
+  blockierenden Bundle rot gemacht (`TheDeployNoteNamesRealDoorsTests`) — sie nannten
+  keinen Chip, dem Du mit dem Telefon in der Hand folgen kannst, und sie hatten drei
+  Fehler, die unten korrigiert sind. Die Notiz-Datei ist zugleich der Auslöser des
+  Builds; eine ehrliche Notiz ohne Build gibt es auf diesem Weg nicht.
 
-  ── 1. DER MONITOR VERWEIGERT, STATT EINEN KONVERTER AUF DIE EINGANGSKANTE ZU SETZEN ──
+  **Wenn Du 436 schon geprüft hast: für 437 gibt es nichts Neues zu prüfen.**
+  Wenn nicht: prüfe 437 nach der Liste unten, sie gilt für 434–437 zusammen.
 
-  Dein Absturz: Apple wirft, wenn auf der Eingangskante ein Format-Konverter nötig wäre.
-  434 hat die Kante selbst repariert. 436 schließt die KLASSE dahinter: läuft der Master-
-  Graph mit 44,1 kHz und die Hardware mit 48 kHz, fragt der Monitor jetzt die SESSION nach
-  der gewährten Rate (nicht den veralteten Knoten), vergleicht sie mit dem Graphen — und
-  wenn sie nicht passen, **schaltet er sich nicht ein** und schreibt warum. Vorher: Absturz.
+  ── WAS AN DER 436-NOTIZ FALSCH WAR ──────────────────────────────────────
 
-  Dazu: die Puffer-Bitte wird jetzt gegen die GEWÄHRTE Rate gerechnet, nicht die erbetene.
-  Vorher: 512 Frames bei erbetenen 48 kHz sind 10,67 ms — gewährt das Gerät 44,1 kHz,
-  wurden daraus 470 Frames, und jede Latenz-Schätzung teilte weiter durch die erbetene Rate.
+  1. „Alle 14 Code-Commits" — es waren **13**; einer (`ed4849e`) änderte nur Kommentare.
+  2. „Ein stiller Start endet an `session: configure FAILED`" — nein. Diese Zeile steht
+     MITTEN im Log, die Engine läuft danach weiter an. Ein stiller Start endet an
+     `engine: start FAILED — <Schritt>`.
+  3. „Verweigert statt abzustürzen" versprach mehr, als der Code hält: der Monitor
+     verweigert, wenn die GEWÄHRTE Rate nicht zum Graphen passt. Ob iOS die Rate nach
+     der Anfrage noch einmal ändert (das Fenster ist asynchron), fängt das nicht.
 
-  ── 2. EINE NIE KONFIGURIERTE SITZUNG STRANDET DIE ROUTE NICHT MEHR ─────────
+  ── DIE TÜREN, an denen Du stehst ────────────────────────────────────────
 
-  Wenn beim Start `configureAudioSession()` wirft, läuft die Engine trotzdem an (genau Dein
-  435-Zustand). Bis jetzt hob der Monitor-Schalter dann die Audio-Kategorie an — und der
-  Rückweg kehrte an `guard isSessionConfigured` sofort um: **Route für immer oben, ohne
-  Besitzer** — Bluetooth-Kopfhörer aller Apps im Telefon-Codec, bis zum App-Neustart.
-  Jetzt prüfen alle drei Stellen, die die Route anheben, ZUERST die Sitzung; zwei
-  konfigurieren nach, die dritte (der türlose Mehrspur-Recorder) verweigert.
+  · Mikrofon-Monitor: **Master**-Chip → „Audio input" → der Schalter oben im Blatt.
+  · Diagnose-Log: **Save/Export**-Chip → „Diagnostics" → Share.
 
-  ── 3. DAS LOG SPRICHT AN JEDER SPROSSE ──────────────────────────────────
+  ── WAS DU PRÜFEN KANNST, in dieser Reihenfolge ──────────────────────────
 
-  · `on 4/5` druckt den Vergleich, an dem es stirbt (Kanten-, Session-, Ausgangsformat).
-  · Ein Start-Neuversuch, der scheitert, endet an `engine: start FAILED — <Schritt>`.
-  · Sechs Lifecycle-catch-Blöcke (Unterbrechung, Routenverlust, Media-Reset …) schrieben
-    bisher nur nach os_log — jetzt stehen sie in der EXPORTIERTEN Datei.
-  · `session: configure FAILED` erscheint, wenn der Start-Configure wirft.
-
-  ── 4. WAS DU PRÜFEN KANNST, in dieser Reihenfolge ───────────────────────
-
-  1. **Mikrofon-Monitor einschalten** (mit und ohne Bluetooth-Kopfhörer). Stürzt es ab?
-     Wenn der Monitor NICHT angeht: Log teilen — es steht jetzt drin, warum.
+  1. **Monitor einschalten** (Master-Chip → „Audio input"), mit und ohne Bluetooth-
+     Kopfhörer. Danach das Diagnose-Log exportieren. Der Schalter endet an GENAU EINER
+     von drei Zeilen — welche, sagt Dir, was passiert ist:
+       · `on 4/5 …`  und danach `on 5/5`   → der Monitor läuft
+       · `on REFUSED — the session was never configured …`
+                                           → die Sitzung ist beim Start gescheitert;
+                                             der Monitor bleibt aus, die Route bleibt frei
+       · `on REFUSED — the session granted N Hz …`
+                                           → Hardware und Graph haben verschiedene Raten;
+                                             der Monitor bleibt aus, kein Absturz
+     Stürzt es trotzdem ab: Log teilen, die letzte Sprosse davor ist der Befund.
   2. **Monitor an, Kopfhörer ein-/ausstecken, wieder an.** Kommt der Ton zurück?
-  3. **Ein Anruf während der Session.** Danach Log exportieren: enthält es
-     Unterbrechungs-Zeilen (`interruption`)?
-  4. **Wenn Safe Mode oder ein stiller Start passiert:** Export teilen. Er sollte an
-     `engine: start FAILED — …` oder `session: configure FAILED` enden.
+  3. **Ein Anruf während der Session.** Danach Log: enthält es `interruption`-Zeilen?
+  4. **Safe Mode oder stiller Start:** Log teilen. Er endet an
+     `engine: start FAILED — <Schritt>`; `session: configure FAILED` weiter oben ist
+     dann eine Ursache, nicht das Ende.
 
-  ── 5. WAS ICH NICHT WEISS ───────────────────────────────────────────────
+  ── WAS ICH NICHT WEISS ──────────────────────────────────────────────────
 
-  · **Ich habe nichts davon am Gerät gehört oder gesehen.** Kein Ton, kein Absturz, kein
-    Monitor. Jede Aussage oben stammt aus Quelltext, aus Deinem Log oder aus einer
-    Transkription.
-  · Die Verweigerung in Punkt 1 ist eine ANNAHME über Deine Hardware-Rate. Es ist möglich,
-    dass der Monitor auf Deinem Gerät jetzt NICHT angeht, wo er vorher abstürzte. Das ist
-    Absicht — aber ob es die richtige ist, entscheidet Dein Log.
-  · Die Wächter dieser Runde sind **compile-verifiziert, ihre Ausführung ist unbelegt**
-    (`Build for Testing` grün auf `9d66e17` und `a82942a`, 0 Fehler im Log-Fenster; das
-    Fenster ist ein festes Endstück, #445/#807).
-  · Fünf der 14 Code-Commits reparieren **meine eigenen Fehler aus dieser Runde** (ein
-    Wächter, den ich rot gemacht hatte; drei Wächter, die seit 99 Commits rot waren;
-    falsche Sätze im Quelltext). Keine Funktion, die Du merkst — steht hier, damit „14
-    Commits" nicht nach mehr klingt, als drin ist.
+  · **Ich habe nichts davon am Gerät gehört oder gesehen.** Jede Aussage stammt aus
+    Quelltext, aus Deinem 435-Log oder aus einer Transkription.
+  · Ob der Monitor auf DEINEM Gerät jetzt läuft oder verweigert, entscheidet Dein Log.
+  · Die Wächter sind **compile-verifiziert, ihre Ausführung ist unbelegt** (`Build for
+    Testing` grün; das Log-Fenster ist ein festes Endstück, #445/#807).
 
-  Compile-verifiziert (Xcode Compile Check grün auf `a82942a`, `Build for Testing` grün),
-  nicht geräteverifiziert.
+  Compile-verifiziert (Xcode Compile Check grün, `Build for Testing` grün, 0 Fehler im
+  Log-Fenster — alles auf `c9955bf`, das die Verschiebung `0d2b4f9` enthält), nicht
+  geräteverifiziert.
 
   ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
   bitte NICHT prüfen.
