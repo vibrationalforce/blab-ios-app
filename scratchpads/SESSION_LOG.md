@@ -22178,3 +22178,31 @@ vielen oder mehr Referenzen (Timeline 61→75), `#132 Slice 5b–5d` weder ausge
 Ambiguität, für die der Cron `AskUserQuestion` vorsieht: Ausgabestufe (überlebende Hälfte) oder
 Workstation (Umkehr von 07-25, Flip Nr. 20). Gefragt, nicht geraten — die Analyse vom 07-31 sagt
 selbst, dass die Antwort dem Founder gehört.
+
+## 2026-09-02 — Founder-Antwort: „Greb all tasks und fertig machen. DMMW vorhaben überprüfen ob es … nun endlich machbar ist"
+
+**Zwei Aufträge, beide angenommen:** (a) ALLE offenen Audit-Aufgaben abarbeiten, (b) DMMW
+**prüfen** — eine Messung, keine Tür. Acht Aufgaben A–H aus §1–§5 des Audit-Berichts.
+
+| Aufgabe | Commit | Was |
+|---|---|---|
+| A Website | `5166485` | externer Bildschirm LIVE, keine 60-s-Messung, MPE-Press-Widerspruch, breath depth ist Kohärenz — `architecture/overview/faq.html` |
+| B Dokumente | `7b9e004` | README acht Chips, ROADMAP unter die Produktdefinition, VJ_BRIDGE §5, HANDOVER §3 SUPERSEDED, preferences/PD/Store-Listing |
+| C Pläne | `84336ca` | 29 `PLAN_*.md` tragen eine SCOPE NOTE (Vor-Cut-Scope = Historie, nicht ausführen); nichts darunter editiert |
+| D Gesetz | `c9955bf` | CLAUDE.md 148.900 → 147.115 B: 07-12-Batch-Absatz → Ledger §P; Ship-Gate-Zeile ohne totes Freeze-Ziel; Toolchain-Warnung an RALPH/SESSION START/4-Phase |
+| E Werkzeug | `c9955bf` | `workflow.md` Phase 3 ohne `swift test`; `doctor.py` §B fängt zeilenanfängige swift-Befehle (erste Weitung fing eine BESCHREIBUNG, #665, zurückgenommen); `memory/decisions.md` Spiegel |
+| F Code | `0d2b4f9` | `git mv` FeedbackGuard/FlashGuard/LoudnessTarget/SpectralColor Studio/→Core/, BioEgressPolicy Sync/→Core/; vier Pfad-Literale in Wächtern + `bio-safety-reviewer.md` mitgezogen; `project.yml` braucht keine Zeile (`type: group`) |
+| H Register | `72e50eb` | vier aufruferlose `Sync/`-Kerne (VBAPPanner, AmbisonicsEncode, LightFixtureGroup, BioPhaser) in der Unwired-Zeile, Zähl-Kette Ledger §Q; `diag-ladder.py` N1/N2-Shadowing: der Span-Filter EXISTIERT (#908 LOW-1) und der Selftest ist grün — nichts zu reparieren |
+| G Deploy 437 | s. u. | die korrigierte Notiz fährt mit F als Code-Scheibe (Entscheidung von heute Vormittag) |
+
+⛔ **Der Leak-Check hat vor dem Push gebissen:** `memory/decisions.md` zitierte den Founder
+wörtlich samt Modellname. Paraphrasiert, Commit amendiert, Check = 0. **Ein wörtliches
+Zitat ist kein Freibrief** — die Regel gilt für jedes gepushte Artefakt.
+
+⚠️ **Zwei Messfallen in H, beide gefunden, bevor sie in die Zeile kamen:** Dateiname ≠
+Typname (`MusicMediaMapping.swift` → `MusicMediaMap`, 5 Aufrufer, LEBEND; `SpatialSceneOSC.swift`
+→ `SpatialSceneOSCFormatter`/`SpatialOSCDialect`, lebend) — wer Dateinamen grept, erklärt zwei
+lebende Typen für tot; und drei Kommentar-Nennungen, die keine Aufrufer sind.
+
+**DMMW-Machbarkeit:** Workflow `wf_8d20bfce-a99` (2 Linsen, nach der 117-Agenten-Lehre
+dimensioniert) läuft; Bericht → `scratchpads/DMMW_FEASIBILITY_2026-09-02.md`, wenn er endet.
