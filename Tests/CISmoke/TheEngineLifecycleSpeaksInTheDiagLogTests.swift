@@ -156,11 +156,28 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
             XCTFail("the start 1/2 rung is gone — a start-shaped death reads as silence again (§4).")
             return
         }
-        // ⛔ #964 — THIS WAS `prefix(1_200)` AND #964 LEFT IT 235 CHARACTERS OF SLACK.
+        // ⛔ #964 — THIS WAS `prefix(1_200)` AND #964 LEFT IT 296 CHARACTERS OF SLACK.
         // A fixed window is a date (#408): #964 added the failure-naming lines between the two
-        // start attempts and drove this claim to measure the second `try masterEngine.start()`
-        // at offset 965 of 1200. The next person to add two lines there reddens a ladder claim
-        // for a reason that has nothing to do with the ladder. The bound is structural instead:
+        // start attempts, moving the second `try masterEngine.start()` from offset 492 to 880.
+        // The next person to add a few lines there reddens a ladder claim for a reason that has
+        // nothing to do with the ladder. The bound is structural instead:
+        //
+        // ⛔ #966 — #964 PRINTED 965 / 235 / 998→1875 HERE AND ALL THREE WERE MEASURED WITH THE
+        // WRONG READER. Those are `SourceText.codeOnly` figures — which is what the NEW guard's
+        // `retryRegion` uses — while THIS claim reads through `code(_:)` below, a whole-line
+        // `//` filter that keeps trailing comments and blank lines. Under its own reader:
+        // 880, 296 characters of slack, window 977 → 1685. Same defect class as #965's corpus
+        // error one cycle earlier: **a measurement is tied to its READER the way a count is tied
+        // to its corpus**, and quoting one beside the other claim is not a rounding error.
+        // Re-derive with the reader this claim actually uses:
+        //
+        //   python3 -c "import subprocess; \
+        //   t=subprocess.run(['git','show','HEAD:Sources/Echoelmusic/Audio/AudioEngine.swift'], \
+        //   capture_output=True,text=True).stdout; \
+        //   c='\n'.join(l for l in t.split('\n') if not l.strip().startswith('//')); \
+        //   a=c.find('logEngineLifecycle(\"start 1/2: starting master engine\")'); \
+        //   f=c.find('try masterEngine.start()',a); \
+        //   print(c.find('try masterEngine.start()',f+24)-a, c.find('startMeterPollTimer()',a)-a)"
         // the rest of the `if !masterEngine.isRunning` block, which ends at the tap re-install.
         // `startMeterPollTimer()` occurs twice in the file (call and declaration) and the CALL
         // is the first — asserted, not assumed, because "the first hit is the one I mean" is

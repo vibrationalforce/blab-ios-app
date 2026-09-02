@@ -21196,6 +21196,11 @@ keine Nummer. Wieder nur durchs FAHREN gefunden, nicht durchs Lesen (#941/#954).
 ⚠️ **Ein Nachbar-Wächter geriet durch diese Scheibe unter Druck und ist mitgezogen:**
 `testTheStartAttemptsAreLaddered` lief über `prefix(1_200)`, und mein Zusatz schob den zweiten
 `try masterEngine.start()` auf Offset **965 von 1200** — 235 Zeichen Rest. Ein festes Fenster
+(⛔ **Zahlen mit dem FALSCHEN LESER gemessen, korrigiert in #966**: 965/235/998→1875 sind
+`SourceText.codeOnly`-Werte; dieser Wächter liest über sein eigenes `code(_:)`, einen
+Ganzzeilen-`//`-Filter. Unter SEINEM Leser: **880, 296 Zeichen Rest, Fenster 977 → 1685**.
+Die Schlussfolgerung — das feste Fenster wurde eng, die strukturelle Grenze ist richtig —
+hält unter beiden Lesern.)
 ist ein Datum (#408). Jetzt strukturell begrenzt (bis zum `startMeterPollTimer()`-AUFRUF, dessen
 Anzahl 2 zuerst geprüft wird); gefahren auf beiden Bäumen, Verdikt unverändert, Fenster
 998 → 1875 Zeichen.
