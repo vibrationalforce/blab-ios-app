@@ -135,7 +135,12 @@ Deprecated from main flow: the old SoundscapeEngine, ClipEngine, MomentCaptureVi
   (null Produktions-Aufrufer; die bio→Objekt-Abbildung, die WIRKLICH sendet, steht in
   `Sync/ADMOSCSender` selbst). Dazu — nachgetragen 2026-08-31 (#921) —
   **`Core/VisualModulation`** (nicht mit dem verdrahteten `BioVisualParams` verwechseln;
-  Wächter `TheVisualModulationCoreHasNoCallerTests`). ⛔ #756 nannte `BioSpaceMap` als BELEG dafür, dass die
+  Wächter `TheVisualModulationCoreHasNoCallerTests`). Dazu — nachgetragen 2026-09-02 (Audit) —
+  **VIER `Sync/`-Kerne mit null Code-Aufrufern außerhalb der eigenen Datei:** `VBAPPanner`,
+  `AmbisonicsEncode`, `LightFixtureGroup` (+`LightFixture`), `BioPhaser` (+`BioPhaserSource`) —
+  je 1–2 Testdateien, sonst nur Kommentar-Nennungen. Befehl und Zähl-Kette:
+  `memory/LEDGER_COUNTS.md` §Q. Nicht löschen (EchoelLux L2/L3 und der EchoelRender-Pfad
+  brauchen genau sie), nicht als klingend/leuchtend zitieren. ⛔ #756 nannte `BioSpaceMap` als BELEG dafür, dass die
   Website-Zeile „breath→azimuth, coherence→distance, HRV→elevation" stimmt. Der SCHLUSS
   hält, der ZEUGE nicht — geprüft wurde der Inhalt der Karte, nicht ob jemand sie ruft. NOW WIRED — do NOT list these as unwired: BioVisualParams
   (read by `MetalBioView`; `EchoelBioEngine` names it only in a doc comment — audit 2026-09-02), FeedbackGuard (AudioEngine duck loop + the
