@@ -21724,3 +21724,64 @@ scheitern kann (#367).** Neu verankert; das GESETZ ist unverändert und gilt auf
 **Zwei Kosten sind jetzt benannt statt versteckt:** ein Wurf auf Sprosse 4/4 lässt die Sitzung
 INAKTIV zurück und `restoreEngineIfStranded` startet darauf; und nach einem AUS-Zyklus auf so
 einem Gerät macht das nächste AN zwei Kategoriewechsel statt einem.
+
+## 2026-09-02 — #977: dem Zähl-Pin-Werkzeug die DRITTE Pin-Form beigebracht
+
+**Warum diese Scheibe existiert und nicht warten durfte.** #976 hat einen Wächter repariert,
+den #975 rot gemacht hatte — und `scripts/count-pins.py`, das genau dafür gebaut ist, druckte
+dabei **`0 RED`**. Das ist die eine Ausgabe, die ein Messgerät nie liefern darf. Der Grund war
+kein Zahlendreher, sondern eine **Blindstelle**: der Pin ist in einer dritten Syntax
+geschrieben, die das Werkzeug gar nicht liest.
+
+**Es waren DREI Unterschiede auf einmal, nicht einer** — deshalb eine Scheibe und kein
+Einzeiler:
+1. **Syntax** — `<var>.filter { $0.contains("<lit>") }.count`
+2. **ZÄHLMODUS** — sie zählt **ZEILEN**, die die Nadel enthalten, nicht **Vorkommen** der
+   Nadel. Zwei Treffer auf EINER Zeile sind hier EINS und bei den Formen A/B ZWEI. Mit der
+   alten Arithmetik gemessen wäre das ein **falsches ROT** — genau der Fehlalarm, gegen den
+   der Dateikopf geschrieben ist (#665).
+3. **BINDUNG** — die Variable ist ein Zeilen-ARRAY, meist aus einem **argumentlosen** Helfer
+   (`try engineLines()`), nicht aus `<fn>("<pfad>")`. Ohne diese Auflösung bleibt der
+   #975-Pin unauflösbar und der neue Bekannt-Positiv-Test kann gar nicht feuern.
+
+**Reichweite, gemessen:** 139 → **157** geprüfte Pins von 178 → **221** sichtbaren, **0 ROT**.
+43 Gleichheits-Pins in 16 Dateien waren unlesbar, 18 lösen heute auf.
+
+**BEWUSST NICHT gelesen, je mit Grund (kein Versehen):** `XCTAssertGreaterThanOrEqual`
+(1 Stelle) ist **kein Pin** — Wachstum ist dort erlaubt, das als Pin zu lesen ERZEUGT ein
+falsches Rot · ein zusammengesetztes Prädikat (`contains("a") || contains("b")`, 1 Stelle)
+zählt Zeilen für BEIDE Nadeln, eine gelesen hieße unterzählen · ein nicht-literales Prädikat
+(`contains(guardLine)`) ist eine Variable, dieselbe Ausnahme wie Interpolation. Der reguläre
+Ausdruck verlangt sofort das schließende `") }.count,`, damit ein solcher Fall nicht seinen
+PRÄFIX trifft und still halb gelesen wird.
+
+**ZWEITER BEKANNT-POSITIV-TEST (§4 — ein Detektor, der seinen eigenen Defekt nie gefunden hat,
+ist keine Messung).** Der Baum, der #975 trug (Testdatei `1e81876`, Quelle `ad409d2`), meldet
+jetzt exakt `pinned 5, actual 6` und Exit 1. Der alte #903-Positiv (`pinned 8, actual 11`)
+feuert unverändert — die Formen A/B sind nicht beschädigt.
+
+**VIER MUTATIONEN, alle nachweislich gefangen** (getrieben, nicht gelesen — #941/#954):
+Modus fest auf „occurrences" → 2 rote Prüfungen · `BIND_HELPER`-Bindung entfernt → 2 rote ·
+`SHAPE_C` aufgeweicht, so dass `||` durchgeht → 1 rote · Stripper-Vorrang entfernt → 2 rote.
+
+⛔ **Die vierte Mutation ÜBERLEBTE zuerst, und das war vorhersehbar.** Meine erste Vorrichtung
+hatte im Testbaum einen Helfer, dessen Stripper mit der Datei-Heuristik ÜBEREINSTIMMTE — die
+Regel konnte also gar nicht ausgeübt werden. Das ist dieselbe Klasse wie die drei leeren
+Vorrichtungen der #969–#973-Kette: **eine Vorrichtung muss den Zweig, den sie benennt, auch
+ERREICHEN.** Reparatur ist ein zweiter Baum, in dem beide auseinanderlaufen.
+
+⭐ **Und dabei ist eine LEBENDE Fehlmessung aufgefallen, die LIMIT 3 bisher nur abstrakt
+beschrieb:** `ChromeDynamicTypeTests.swift` erwähnt `SourceText.codeOnly` genau EINMAL, in
+PROSA, während jeder Helfer darin `//`-Zeilen löscht. Die dateiweite Heuristik rät dort also
+schon heute falsch. Folgenlos, weil die Pins jener Datei aus anderen Gründen unauflösbar sind
+— aber jetzt gemessen und im Dateikopf benannt statt als Möglichkeit umschrieben.
+
+**Was unauflösbar BLEIBT, jetzt namentlich im Dateikopf** (damit die nächste Sitzung es nicht
+neu herleitet): ein FENSTER (`span(lines, …)`, `Array(lines[s...e])`, `monitorOnSpan(…)`) —
+ein Ausschnitt ist nicht die Datei, die ganze Datei dagegen zu zählen wäre ein falsches
+Urteil, keine Lücke · eine Konstante als blanker Bezeichner (`codeLines(row)`, 4 Pins) · ein
+Helfer, der `String` statt `[String]` liefert. 64 von 221.
+
+⚠️ **Kein Gate deckt das ab.** `scripts/**` steht in keinem Pfadfilter — Selbsttest (26
+Prüfungen), beide Bekannt-Positiv-Bäume und die vier Mutationen sind die Verifikation, und
+alle wurden AUSGEFÜHRT.
