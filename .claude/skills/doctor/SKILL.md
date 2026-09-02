@@ -30,10 +30,22 @@ Wenn die Frage „ist dieser Code richtig?" lautet, ist das hier das falsche Wer
 ## Ablauf
 
 ```bash
-python3 scripts/doctor.py              # alles, ~10 s
-python3 scripts/doctor.py --section A  # nur die Gates
-python3 scripts/doctor.py --quiet      # nur Befunde
+python3 scripts/doctor.py --section A  # nur die Gates (unter 1 s)
+python3 scripts/doctor.py --section C  # Türen — LANGSAM, siehe unten
+python3 scripts/doctor.py --quiet      # alles, nur Befunde — Timeout setzen, siehe unten
 ```
+
+⛔ **Hier stand „alles, ~10 s“, und das war 2026-09-02 eine abgelaufene Zahl, die den Lauf
+KILLTE:** der Gesamtlauf riss den 2-Minuten-Standard-Timeout der Bash-Werkzeuge, und ein
+Werkzeug, das im Timeout stirbt, druckt kein Häkchen und keinen Befund — es ist stumm, genau der
+Zustand, vor dem der Abschnitt „Wann laufen lassen“ warnt. Gemessen mit `time`, Sektion für
+Sektion, auf 370 Quelldateien: **A 0,2 s · B 8,5 s · C 81 s · D 0,1 s.** Sektion C ist die
+Erreichbarkeits-Suche (jede View-Deklaration gegen jeden Datei-Rumpf, dazu die transitive Runde
+aus #947) und wächst mit Views × Dateien. **Rezept:** Sektionen einzeln laufen lassen, oder den
+Gesamtlauf mit einem Timeout ≥ 300 s starten; die Zahl hier NICHT nachführen (#818), sondern
+`time` danebenschreiben. Eine Beschleunigung von C (ein Durchlauf über einen zusammengesetzten
+Korpus statt Views × Dateien Regex-Aufrufe) ist möglich, aber ein eigener Zyklus mit Vorher-
+Nachher-Diff der Befundliste — nicht nebenbei.
 
 **Drei Exit-Codes, und der dritte ist der wichtigste.** 0 = kein CRITICAL. 1 = mindestens
 einer. **2 = INSTRUMENT UNAVAILABLE** — das Skript konnte gar nicht schauen (git schlug fehl,
