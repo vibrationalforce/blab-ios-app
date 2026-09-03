@@ -22284,3 +22284,25 @@ mitgezogen (#456). Verhalten unverändert, Kommentar-Commit.
 
 **Lehre (die #766-Form):** „X ist enger als Y" ist erst ein Befund, wenn man ALLE Geschwister gemessen hat —
 hier waren es vier Dateien, und die zwei ungemessenen (Besitzer + AudioEngine) haben je eine eigene Form.
+
+## 2026-09-03 — Doctor: erst im Timeout gestorben, dann Sektion C von 72 s auf 4 s (Befundliste identisch)
+
+**Befund (Cron 22:58):** `python3 scripts/doctor.py --quiet` riss den 2-Minuten-Standard-Timeout des
+Bash-Werkzeugs — kein Häkchen, kein Befund, das Werkzeug war STUMM, genau der Zustand, den seine eigene
+Skill-Datei als Fehlermodus beschreibt. Die Skill-Datei versprach „alles, ~10 s“. Gemessen mit `time`:
+A 0,2 s · B 8,5 s · **C 72–81 s** · D 0,1 s. Zuerst die Prosa repariert (`583a6f1`: Zahl gelöscht,
+Rezept „einzeln oder Timeout ≥ 300 s“ daneben, Beschleunigung als eigener Zyklus notiert).
+
+**Umbau (Cron 23:58):** Sektion C lief EINE Regex pro deklarierter View über JEDEN Datei-Rumpf, und
+C1b (#947) wiederholte das pro Runde — Views × Dateien. Jetzt ein Index-Durchlauf: jeder Bezeichner vor
+`(`/`{` mit denselben Lookbehinds (`(?<!struct )(?<!extension )`) wird einmal pro Datei gezählt und
+seinen Dateien zugeordnet; C1 liest `uses_count[name]`, C1b `sites_of[name]`. Semantik unverändert:
+`Foo(` zählt nie für `FooBar`, weil das Muster den ganzen Bezeichner bis zur Klammer verlangt.
+**Beweis:** volle Sektion-C-Ausgabe vor und nach dem Umbau auf demselben Baum per `diff` — IDENTISCH
+(53 Zeilen); `--selftest` grün; **C 72 s → 4,3 s, Gesamtlauf 31 s** (die 2 CRITICAL sind die bekannten
+founder-gated Workflow-Masken, #208). Kein Wächter — das Werkzeug misst sich mit `time`, nicht mit
+einer Zahl in Prosa (#818).
+
+**Lehre:** ein Diagnosewerkzeug, das langsamer wächst als das, was es misst, wird nicht falsch, sondern
+STUMM — und stumm liest sich wie sauber. Die Skill-Datei nennt das selbst als Fehlermodus und hatte
+die Zahl, die ihn auslöste, im eigenen Kopf stehen.

@@ -39,13 +39,12 @@ python3 scripts/doctor.py --quiet      # alles, nur Befunde — Timeout setzen, 
 KILLTE:** der Gesamtlauf riss den 2-Minuten-Standard-Timeout der Bash-Werkzeuge, und ein
 Werkzeug, das im Timeout stirbt, druckt kein Häkchen und keinen Befund — es ist stumm, genau der
 Zustand, vor dem der Abschnitt „Wann laufen lassen“ warnt. Gemessen mit `time`, Sektion für
-Sektion, auf 370 Quelldateien: **A 0,2 s · B 8,5 s · C 81 s · D 0,1 s.** Sektion C ist die
-Erreichbarkeits-Suche (jede View-Deklaration gegen jeden Datei-Rumpf, dazu die transitive Runde
-aus #947) und wächst mit Views × Dateien. **Rezept:** Sektionen einzeln laufen lassen, oder den
-Gesamtlauf mit einem Timeout ≥ 300 s starten; die Zahl hier NICHT nachführen (#818), sondern
-`time` danebenschreiben. Eine Beschleunigung von C (ein Durchlauf über einen zusammengesetzten
-Korpus statt Views × Dateien Regex-Aufrufe) ist möglich, aber ein eigener Zyklus mit Vorher-
-Nachher-Diff der Befundliste — nicht nebenbei.
+Sektion, auf 370 Quelldateien: A 0,2 s · B 8,5 s · **C 72–81 s** · D 0,1 s. Sektion C war die
+Erreichbarkeits-Suche als Views × Dateien Regex-Aufrufe (dazu die transitive Runde aus #947).
+⭐ **Im nächsten Zyklus umgebaut:** ein Index-Durchlauf über alle Datei-Rümpfe (jeder Bezeichner
+vor `(`/`{`, mit denselben Lookbehinds), **C 72 s → 4 s, Befundliste vor/nach dem Umbau per
+`diff` identisch, Selbsttests grün.** Die Zahl hier NICHT nachführen (#818) — `time` danebenschreiben;
+wenn der Gesamtlauf wieder über den Timeout wächst, ist das ein Sektion-D-Befund über dieses Werkzeug.
 
 **Drei Exit-Codes, und der dritte ist der wichtigste.** 0 = kein CRITICAL. 1 = mindestens
 einer. **2 = INSTRUMENT UNAVAILABLE** — das Skript konnte gar nicht schauen (git schlug fehl,

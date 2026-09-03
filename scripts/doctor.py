@@ -1084,6 +1084,23 @@ def section_c() -> Section:
     # A view name inside a STRING literal followed by `(` still counts as a construction site.
     # No such string exists today; nothing pins that.
     bodies = {f: _code_only(read(f)) for f in swift}
+    # ⚠️ ONE PASS, NOT VIEWS × FILES. The first shape of C1/C1b ran one regex per declared view
+    # over every file body (and C1b repeated that per round): ~600 views × 370 files, measured
+    # 81 s on 2026-09-02 — past the 120 s default timeout of the Bash tool once A/B/D were
+    # added, so the whole doctor died silently, which is the exact failure this file exists
+    # to catch. The index below walks every body once and records, per identifier that is
+    # followed by `(` or `{`, how often and in which files it is constructed. Semantics are
+    # kept verbatim: same lookbehinds (a declaration and an `extension` are not construction),
+    # same `\b…\s*[({]` shape, so `Foo(` never counts for `FooBar` and vice versa. Verified by
+    # diffing the section's full output before and after on the same tree (identical).
+    _CONSTRUCTION = re.compile(r"(?<!struct )(?<!extension )\b([A-Za-z_]\w*)\s*[\(\{]")
+    uses_count: dict[str, int] = {}
+    sites_of: dict[str, set[str]] = {}
+    for f, src in bodies.items():
+        for m in _CONSTRUCTION.finditer(src):
+            ident = m.group(1)
+            uses_count[ident] = uses_count.get(ident, 0) + 1
+            sites_of.setdefault(ident, set()).add(f)
 
     # C1. A View struct that NOTHING anywhere constructs is a surface the user cannot reach —
     # the "doorless view" class CLAUDE.md keeps re-discovering by hand (PatchEditorView,
@@ -1111,8 +1128,7 @@ def section_c() -> Section:
             # and `extension Name { … }`. Subtracting a count afterwards (my first attempt) is
             # not equivalent — it over-corrects and accused `EchoelStudioView`, the app's own
             # root surface, of being unreachable. Exclude them at the match instead.
-            uses = sum(len(re.findall(rf"(?<!struct )(?<!extension )\b{name}\s*[\(\{{]", other))
-                       for other in bodies.values())
+            uses = uses_count.get(name, 0)
             line = src[:m.start()].count("\n") + 1
             declared_at[name] = (f, line)
             all_views.setdefault(f, []).append(name)
@@ -1141,8 +1157,7 @@ def section_c() -> Section:
             for name in names:
                 if name in reachable_orphans:
                     continue
-                pat = re.compile(rf"(?<!struct )(?<!extension )\b{name}\s*[\(\{{]")
-                sites = {g for g, other in bodies.items() if pat.search(other)}
+                sites = sites_of.get(name, set())
                 if not sites:
                     continue
                 if all(all_views.get(g) and all(v in reachable_orphans for v in all_views[g])
