@@ -57,6 +57,37 @@ feature, it's PIPELINE. When unsure: WATCH with a review date beats premature ad
 
 ## Ledger (running; newest first)
 
+### 2026-09-04 — Anthropic-Skill-Folie „Algorithmic Art" (FlowField), Founder-Frage: „was interessantes bei?"
+
+**Gemessen zuerst, dann bewertet.** Echoels Visual heute: `MetalBioView` mit DREI Mustern
+(Rings · Cymatics · Mandala), bio-getrieben über `BioVisualParams` (pulseHz · hue · complexity ·
+spread · intensity), im `visualPanel` von Hand nachstellbar mit GENAU DREI Feldern (Detail ·
+Energy · Intensity). Kein Seed, kein Standbild-Export, keine FPS-Anzeige.
+
+**ADOPT-PRODUCT (2):**
+· **Seed + Randomize fürs Visual.** Die Asymmetrie ist der Punkt: die MUSIK ist seed-reproduzierbar
+  (SplitMix64), das VISUAL nicht. Man bekommt denselben Take zurück, aber nicht denselben Look.
+  Kleinste Scheibe der drei, keine neue Fläche — ein Feld im vorhandenen Panel.
+· **Standbild-Export.** `VisualRecorder` liefert heute nur mp4. Ein einzelnes Bild ist das
+  billigste und meistgebrauchte Artefakt (Cover, Post) und die Metal-Textur liegt schon vor.
+
+**WATCH (1):** Info-Zeile (FPS + aktive Qualitätsstufe). `AdaptiveQuality` senkt bei Hitze/Akku
+die Detailstufe und der Nutzer erfährt nie warum — ehrliche Diagnose, keine Deko. ⚠️ Muss ein
+Leaf-View sein (10-Hz-Read-Gesetz, 10.76.50), sonst reißt es offene Menüs ab. Nach dem Ohr zu 438/439.
+
+**REJECT (1), zwei harte Gründe:** die Regler-WAND als Hauptoberfläche (Density · Turbulence ·
+Flow Strength · Scale · Complexity · Contrast · Brightness) ist das Gegenteil von „Dein Körper
+spielt es" und fällt unter das Uncodixfy-Verbot „control room cosplay" — das Tools-Grid wurde
+2026-07-02 aus genau diesem Grund entfernt. Und **NFT** (auf der Folie ausdrücklich als Zielgruppe
+genannt) ist Marken-Rote-Linie, nie in nutzersichtbarer Kopie.
+
+**Nicht übernommen, ohne dass es ein REJECT wäre:** die Flow-Field-Engine selbst. Ein VIERTES
+Muster wäre erlaubt (ein Muster ist ein Muster), eine zweite Visual-Engine wäre eine neue Fläche —
+und die Produktdefinition sagt: ein Medium dazunehmen heißt einen Abonnenten dazunehmen, nie eine
+neue Oberfläche. Die Auslieferung als einzelne HTML-Datei ist PIPELINE (Website-Demo), nie In-App.
+
+**Mirror:** `inspiration.csv` (vier Zeilen, 2026-09-04).
+
 ### 2026-08-28 — Founder-Dreiklang: Raumfahrtmedizin · Psychonauten · TSMOM/„Einfalt"-Strategie
 
 - **Raumfahrtmedizin → WATCH** (Learn-Content-Kandidat, Review 2026-11-26). Autonome/HRV-
