@@ -22510,3 +22510,32 @@ BGRA-`CVPixelBuffer` — ein Standbild ist derselbe Puffer, einmal.
 · **Wächter:** `Tests/CISmoke/AStillIsOneFrameNotASecondPathTests.swift` (5 Ansprüche).
   Transkription `scratchpad/s985_grade_still.py`: **Worktree grün, HEAD rot bei allen fünf.**
 · **Nicht bewiesen:** das Bild selbst (NEEDS-FOUNDER-VERIFY steht am Dateiende des Wächters).
+
+**Build 440 ausgeliefert — das Standbild geht an den Founder.** `.deploy/release` von 439 auf
+v10.79.440 gebumpt; die Notiz nennt EINE Tür (Field-Chip → „Full screen" → Kamera-Knopf), fünf
+Prüfschritte und sagt ausdrücklich, dass sie über die BILDQUALITÄT nichts behauptet.
+· **Gates auf `32b7419` gelesen, nicht geraten:** `Xcode Compile Check` Schritt 7 = `success`
+  (18:13) · CI/CD Schritt 9 „Build for Testing" = `success` (18:14) — damit baut auch die neue
+  Testdatei · CI/CD Schritt 11 „Run Tests" = `failure`, und **das ist #396**, nicht meine Scheibe:
+  `gh-test-verdict.py` liest `launch failure` für `com.echoelmusic.app` auf **Clone 2**, während
+  **Clone 1** 134 bestandene Tests meldet — genau die Clone-Asymmetrie, die §5 als #396 benennt.
+  **TEST FAILURES: 0 · TESTS SKIPPED: 0 · compile-error lines: 0.**
+· ⚠️ **Ehrlich zur Reichweite (#807):** das Job-Log ist `tail -200 test.log`. Der neue Wächter
+  `AStillIsOneFrameNotASecondPathTests` taucht darin NICHT auf — das ist kein Befund, aber auch
+  kein Beleg (#445: nur die ANWESENHEIT eines Namens beweist, dass er lief). Bewiesen ist heute:
+  er KOMPILIERT (Schritt 9) und er ist gegen beide Bäume transkribiert (Worktree grün, HEAD rot).
+· **Notiz vorab gegen ihre Wächter transkribiert:** `TheDeployNoteNamesRealDoorsTests` — Tokens
+  `Field` · `Save/Export` · `Video`, alle drei im ausgelieferten Chip-Satz; Diagnostics-Tür
+  benannt. `TheShippedVersionComesFromTheReleaseFileTests` — erster `vX.Y.Z`-Treffer der GANZEN
+  Datei steht auf Zeile 1, der Vorgänger unten ohne `v`.
+· ⛔ **BEFUND ZUM BERICHTEN, nicht zum Selbst-Reparieren:** `Resources/iOS/Info.plist` Zeile 93,
+  `NSPhotoLibraryAddUsageDescription`, lautet „**Finished visual recordings** are saved to your
+  photo library…". Seit #985 wird dort auch ein **Standbild** abgelegt. Der Schlüssel EXISTIERT,
+  also stürzt nichts ab (ohne ihn wäre `PHPhotoLibrary.requestAuthorization` ein harter Abbruch)
+  — aber der Zwecktext nennt nur Videos, und Apple 5.1.1 verlangt, dass er die Verwendung
+  beschreibt. `Resources/iOS/Info.plist` ist founder-gated: **berichtet, nicht editiert.**
+· ⛔ **Eigener Zwischenfehler in diesem Zyklus:** ich hatte die Notiz schon in `.deploy/release`
+  gelegt, bevor der dritte Gate gelesen war — ein Commit hätte TestFlight sofort gestartet. Der
+  Stop-Hook hat den unsauberen Baum gemeldet; ich habe die Datei auf `HEAD` zurückgesetzt und
+  erst nach dem Gate-Lesen wieder eingespielt. **Regel: ein Deploy-Bump gehört in denselben
+  Commit wie das Gate-Lesen, nicht davor in den Worktree.**

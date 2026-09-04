@@ -1,4 +1,4 @@
-build: v10.79.439 — drei neue Genres mit eigener Bass-Figur und eigener Bass-Stimme (Deep Tech · Dark Minimal · Psy Prog House)
+build: v10.79.440 — ein Standbild aus dem Visual, direkt in die Fotos
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,63 +6,49 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.438.
+  Der Vorgänger ist 10.79.439.
 
   ── ZUERST: WAS DIESE VERSION IST ────────────────────────────────────────
 
-  Dein Auftrag vom 2026-09-04: „richtig gute Bass und Pad etc Loops für Deep tech, dark
-  minimal, deep house, psy prog House". 438 hat dem Bass eine Genre-Achse gegeben (Figur +
-  eigene Stimme, Deep House · Tech House · Minimal Techno). 439 bringt die DREI Genres, die
-  Dein Satz nennt und die es nicht gab — in EINEM Build, damit Du sie einmal hörst statt dreimal.
+  Deine Frage vom 2026-09-04 zur Algorithmic-Art-Folie: „Für die visuals hier was
+  interessantes bei?" — Antwort: EINE Sache, und die ist gebaut. Das Visual konnte bisher
+  nur ein VIDEO erzeugen. Ein EINZELBILD — das Cover, der Post, das eine Bild, das man
+  behalten will — hatte keinen Weg nach draußen.
 
-  Gemessen gegen den BUMP-Commit `e49c7f5` (438):
+  **Neu: ein Kamera-Knopf im Vollbild-Visual. Ein Druck = ein Bild in Deiner Fotos-App.**
 
-      git log --oneline e49c7f5..HEAD             | wc -l   →  5   (einschließlich dieses Bumps)
-      git log --oneline e49c7f5..HEAD -- Sources/ | wc -l   →  3   (S3 `2b0b508`, S4 `edd2d58`, S5 `0a1ba7c`)
+  Kein zweiter Aufnahmeweg: das Bild ist genau der Bildpuffer, den die Videoaufnahme
+  ohnehin jedes Bild anlegt — einmal, als JPEG. Ohne laufende Aufnahme wird KEINE
+  mp4-Datei geöffnet. Beim ersten Mal fragt iOS nach der Foto-Erlaubnis („Nur
+  Hinzufügen"); danach nicht mehr.
 
-  **Was in 439 neu KLINGT — drei neue Genres im Genre-Menü; alle bisherigen sind bit-identisch zu 438:**
+  **Am KLANG hat sich nichts geändert.** Die 19 Genres aus 439 sind bit-identisch.
 
-  · **Deep Tech** (124–128, Standard 126): eine terzlose Moll-Sept-Shell (Grundton · Quinte · ♭7,
-    ohne Terz — Gewicht ohne Dur/Moll-Farbe), zwei Wurzeln i → VI, Stab auf dem Beat, Swing 0.08.
-    Bass: getriebene Achtel mit der Quinte auf dem letzten „&", Patch „Deep Bass". FX trocken,
-    gepunktete Achtel als Echo.
-  · **Dark Minimal** (126–131, Standard 129): phrygisch, ein WEITER Quint-Stapel (Grundton ·
-    Quinte · Quinte eine Oktave höher, keine Terz) eine Oktave tiefer als die anderen Stab-Genres;
-    die Dunkelheit sitzt im Wechsel i → ♭II. Maschinengerade. Bass: gehaltener Grundton über den
-    halben Takt, kurze Quinte auf „3&" (dieselbe Figur wie Minimal Techno), eigenes Patch
-    „Dark Sub". Pad „Dark Edge" schwillt an statt zu klicken.
-  · **Psy Prog House** (128–136, Standard 132): Moll-Triade, gestabbt, über dem absteigenden Vamp
-    i → VII → VI. Bass: rollende Sechzehntel (drei pro Beat, die 1 frei), Patch „Psy Bass" —
-    die Figur, die 438 schon gebaut hatte und auf ihr Genre wartete. Pluck mit langem Release,
-    Ping-Pong-16tel-Echo, mittlerer Raum, Chorus.
+  ── DIE TÜR ──────────────────────────────────────────────────────────────
 
-  Das Genre-Menü zeigt jetzt 19 Genres (vorher 16); die drei neuen stehen unter „Electronic & Beats".
+  · **Field**-Chip → „Full screen" → in der Bedienleiste unten der Kamera-Knopf
+    (rechts neben dem roten Aufnahmeknopf).
+  · Der Knopf sitzt bewusst NICHT im kleinen schwebenden Fenster: dessen Leiste ist auf
+    die Breite budgetiert, ein siebter Knopf hätte einen anderen verdrängt.
+  · Diagnose-Log, falls etwas klemmt: **Save/Export**-Chip → „Diagnostics" → Share.
 
-  ── DIE TÜREN, an denen Du stehst ────────────────────────────────────────
+  ── WAS DU PRÜFEN KANNST ─────────────────────────────────────────────────
 
-  · Genre: die Kopfzeile über dem Instrument („Genre"-Menü, Abschnitt „Electronic & Beats").
-  · Loop-Modus: das BPM-Schloss im Tempo-Feld der Transport-Zeile (fester BPM = Loop).
-  · Loop-Länge: **Save/Export**-Chip → „Loop length".
-  · Dein eigener Bass-Rhythmus (überstimmt die Genre-Figur): **Mood**-Chip → „Bass rhythm";
-    auf „Genre" spielt die Figur.
-  · Bass-Pegel und Bass-Filter/Drive: **Mix**-Chip (Bass-Fader) und der Bass-Bus-Insert.
-  · Diagnose-Log: **Save/Export**-Chip → „Diagnostics" → Share.
+  1. **Field-Chip → Full screen → Kamera-Knopf**, während das Feld läuft: kommt das Bild
+     in der Fotos-App an, und ist es DAS Bild, das Du gesehen hast (nicht das davor)?
+  2. **Zweimal kurz hintereinander drücken:** kommen zwei Bilder, nicht eines?
+  3. **Während einer laufenden Video-Aufnahme drücken:** läuft das Video ungestört weiter
+     und es kommt zusätzlich ein Bild?
+  4. **Ohne Aufnahme drücken, dann in die Video-Bibliothek schauen** (Video-Chip):
+     es darf KEINE neue mp4 entstanden sein.
+  5. **Ruckelt das Bild** im Moment des Drückens? Ein Bild braucht eine besonders
+     lesbare Zeichenfläche; das kostet etwa 16 ms. Wenn Du einen Hänger siehst, sag es.
 
-  ── WAS DU PRÜFEN KANNST, in dieser Reihenfolge ──────────────────────────
+  Was diese Notiz NICHT behauptet: dass das Bild gut aussieht oder dass die Auflösung
+  passt. Struktur und Tür sind in CI gepinnt (`AStillIsOneFrameNotASecondPathTests`),
+  das Bild selbst entscheidet Dein Auge.
 
-  1. **Deep Tech, Loop-Modus, ruhig sitzen:** liest sich die terzlose Shell als „deep", und
-     treiben die Achtel im Bass, statt wie ein Metronom zu ticken?
-  2. **Dark Minimal:** klingt der weite Quint-Stapel eine Oktave tiefer dunkel — ohne zu
-     matschen? Hörst Du den ♭II-Wechsel als Spannung?
-  3. **Psy Prog House:** rollt der 16tel-Bass als LINIE (nicht als Rasseln)? Hängt der Pluck
-     ins Echo, ohne dass die Triade verschwimmt?
-  4. **Gegenprobe:** Deep House, Tech House oder ein ruhiges Genre — klingt es wie in 438?
-     (Kein bestehendes Genre hat sich geändert.)
-  5. **Mood-Chip → „Bass rhythm"** in einem der drei neuen Genres: übernimmt Dein Picker?
-  6. Falls etwas knackt oder stumm bleibt: Diagnose-Log exportieren; die letzte Sprosse
-     vor der Stille ist der Befund.
-
-  Was diese Notiz NICHT behauptet: dass die drei „richtig gut" sind. Das entscheidet Dein
-  Ohr; Struktur, Figuren und Türen sind in CI gepinnt (`GenreDeepTechTests`,
-  `GenreDarkMinimalTests`, `GenrePsyProgHouseTests`), der Klang nicht. Drei Plan-Werte
-  wurden beim Bauen gegen bestehende Wächter korrigiert (Details im Plan, §2 S3–S5).
+  Mitgefahren, ohne hörbare oder sichtbare Wirkung: drei reine Test-/Doku-Scheiben zu
+  den 439er-Genres (ein Wächter für den weiten Quint-Stapel von Dark Minimal, eine
+  Korrektur seines Beispiel-Textes, und die Regel, dass eine Geräte-Bitte ihre Anleitung
+  direkt neben sich tragen muss).
