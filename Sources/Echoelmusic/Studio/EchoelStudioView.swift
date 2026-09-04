@@ -1585,6 +1585,25 @@ struct EchoelStudioView: View {
                                 .foregroundStyle(visualRecorder.isRecording ? EchoelTheme.recording : .white.opacity(0.85))
                         }
                         .accessibilityLabel(visualRecorder.isRecording ? "Stop recording" : "Record video")
+
+                        // #985 — ONE FRAME AS A PICTURE. The cheapest artefact of the output
+                        // stage: a cover, a post, the frame worth keeping. Deliberately here in
+                        // the FULLSCREEN row and not in the floating window's toolbar — that one
+                        // is width-budgeted (`FloatingVisualLayout.chromeFit`, never-shed floor
+                        // 140 pt against a ~147 pt small card), so a seventh button there would
+                        // mean a new shed rank and a change to `ChromeBudgetFitsTests`. This row
+                        // has no width budget, and fullscreen is where you are LOOKING at the
+                        // picture, which is when a still is a considered act rather than a miss.
+                        //
+                        // No share sheet: the still goes straight to Photos, exactly like the
+                        // video's `saveToPhotoLibrary`. A `.sheet` here would grow the
+                        // presentation chain, which is the 10.76.34 black-screen law.
+                        Button { visualRecorder.requestStill() } label: {
+                            Image(systemName: "camera.circle")
+                                .font(.title2)
+                                .foregroundStyle(.white.opacity(0.85))
+                        }
+                        .accessibilityLabel("Save this frame as a picture")
                     }
                     #endif
                     Button { showVisual = false } label: {

@@ -22484,3 +22484,29 @@ Grad 1, und `[0, 4, 11]` fasst Grad 1 nie an — beide Tonleitern liefern 48 · 
 **GESETZ: ein Rechenbeispiel muss die Eingabe nennen, die es wirklich benutzt hat; dass die
 Arithmetik stimmt, ist kein Beleg dafür, dass die Beschreibung stimmt.** Der `MusicStyle`-Doc
 sagt korrekt `scale: .phrygian` — der Fehler saß nur im neuen Wächter.
+
+**#985 gebaut — das Visual gibt EIN BILD her.** Founder-Frage zur Algorithmic-Art-Folie, ADOPT-Zeile
+aus dem Ledger, als eine Scheibe gebaut. Gemessen vorher: `VisualRecorder` hatte GENAU EINEN Ausgang
+(`stop()` → mp4), und `capture(from:in:device:)` blittet jeden Frame ohnehin schon in einen
+BGRA-`CVPixelBuffer` — ein Standbild ist derselbe Puffer, einmal.
+· **Motor:** `stillRequested` + `requestStill()` + `wantsFrameCapture` (= `isRecording ||
+  stillRequested`). Das Flag wird auf dem MAIN-Thread gelöscht, VOR dem GPU-Completion-Handler
+  (dort wäre es ein Main-Actor-Schreibzugriff vom Hintergrund-Thread und könnte einen zweiten Frame
+  scharf machen); `wantsStill` wird EINMAL oben gesampelt. Ein Standbild ohne laufende Aufnahme
+  füttert `ingest` NICHT — sonst öffnete es einen Writer für ein Take, das niemand gestartet hat.
+· **Tor:** `MetalBioView.draw` fragt jetzt `wantsFrameCapture` — EINE Frage statt zwei, damit
+  Standbild und Aufnahme sich nie darüber uneinig sind, ob der Drawable lesbar sein musste.
+  Es nutzt denselben Zwei-Frame-Tanz, den die Aufnahme schon dokumentiert (~16 ms).
+· **Tür:** Kamera-Knopf in der VOLLBILD-Leiste, nicht im schwebenden Fenster — dessen Toolbar ist
+  breiten-budgetiert (`chromeFit`, Boden 140 pt gegen ~147 pt Karte), ein siebter Knopf dort hätte
+  einen neuen Shed-Rang und eine Änderung an `ChromeBudgetFitsTests` bedeutet. Kein Share-Sheet:
+  direkt in die Fotos-App wie beim Video. **Präsentations-Zähler gemessen, HEAD vs Worktree
+  identisch** (sheet 14 · fullScreenCover 7 · alert 3 · fileImporter 4) — die Sheet-Kette wächst nicht.
+· ⛔ **Eigener Umweg im ersten Entwurf:** der Encoder baute den `CIContext` ZWEIMAL und ging
+  CIImage → CGImage → CIImage → JPEG. Der CGImage-Schritt bringt nichts. Vereinfacht auf einen
+  Kontext und eine Umwandlung — und der eigentliche Grund für die Reihenfolge steht jetzt daneben:
+  encodiert wird VOR dem Berechtigungs-Dialog, weil der gepoolte Puffer nur für die Dauer des
+  Aufrufs garantiert lebt.
+· **Wächter:** `Tests/CISmoke/AStillIsOneFrameNotASecondPathTests.swift` (5 Ansprüche).
+  Transkription `scratchpad/s985_grade_still.py`: **Worktree grün, HEAD rot bei allen fünf.**
+· **Nicht bewiesen:** das Bild selbst (NEEDS-FOUNDER-VERIFY steht am Dateiende des Wächters).

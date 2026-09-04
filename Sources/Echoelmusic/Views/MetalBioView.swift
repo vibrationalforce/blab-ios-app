@@ -746,7 +746,10 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // frame after record-start is skipped (~16 ms, imperceptible). Runs on the main-thread
         // draw loop, so the MTKView property write is main-actor-safe.
         let readyToCapture: Bool = MainActor.assumeIsolated {
-            let wantCapture = capturesVideo && (visualRecorder?.isRecording ?? false)
+            // #985: `wantsFrameCapture` is `isRecording || stillRequested` — this line must ask
+            // the ONE question, not two, so a still and a take can never disagree about whether
+            // the drawable has to be readable this frame.
+            let wantCapture = capturesVideo && (visualRecorder?.wantsFrameCapture ?? false)
             let ready = wantCapture && !view.framebufferOnly
             // Only touch the property when the desired state actually flips — writing it every
             // frame reconfigures the drawable and made the picture shimmer / glitch (zittert,

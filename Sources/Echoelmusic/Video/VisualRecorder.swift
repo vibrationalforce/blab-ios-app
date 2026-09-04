@@ -3,6 +3,9 @@ import AVFoundation
 import Metal
 import CoreVideo
 import CoreMedia
+#if canImport(CoreImage)
+import CoreImage
+#endif
 import QuartzCore
 #if canImport(Observation)
 import Observation
@@ -36,6 +39,25 @@ final class VisualRecorder {
     @ObservationIgnored private var poolHeight = 0
 
     var isRecording: Bool { video.recordState.isRecording }
+
+    /// #985 — ONE frame wanted as a still image. Set by `requestStill()`, cleared by the very
+    /// next `capture(...)` that actually blits, so a tap can never arm more than one frame.
+    ///
+    /// WHY A FLAG AND NOT A FUNCTION THAT GRABS: the drawable is only blit-readable on a frame
+    /// that came in with `framebufferOnly == false`, and `MetalBioView` keeps the FAST path
+    /// (`true`) unless something wants capture — flipping it mid-frame is the validation failure
+    /// that once forced the flag permanently false, and writing it every frame made the picture
+    /// shimmer. So a still uses the SAME two-frame dance the recorder already documents: this flag
+    /// makes the next frame readable, the frame after that is the one that gets copied
+    /// (~16 ms later, imperceptible). No new mechanism, no second code path into the drawable.
+    private(set) var stillRequested = false
+
+    /// True while either a video take or a pending still needs a blit-readable drawable.
+    /// `MetalBioView.draw` reads exactly this — it must not learn about stills separately.
+    var wantsFrameCapture: Bool { isRecording || stillRequested }
+
+    /// Ask for the next available frame as a still image. Idempotent while one is pending.
+    func requestStill() { stillRequested = true }
 
     @ObservationIgnored private weak var audioEngine: AudioEngine?
 
@@ -133,7 +155,11 @@ final class VisualRecorder {
     /// recording. Requires the source texture to be blit-readable — the renderer
     /// sets `framebufferOnly = false` while recording so the drawable qualifies.
     func capture(from source: MTLTexture, in commandBuffer: MTLCommandBuffer, device: MTLDevice) {
-        guard video.recordState.isRecording else { return }
+        // #985: a pending still is a second reason to copy this frame. Sampled ONCE here so the
+        // rest of the function sees one consistent answer even though `stillRequested` is cleared
+        // below — reading it twice would be the classic half-armed state.
+        let wantsStill = stillRequested
+        guard video.recordState.isRecording || wantsStill else { return }
         // H.264 requires even dimensions; drawables are normally even — guard anyway.
         let w = source.width & ~1
         let h = source.height & ~1
@@ -168,9 +194,61 @@ final class VisualRecorder {
         // to the box, which releases it after `ingest`.
         let box = FrameBox(sink: video, pb: pb,
                            pts: CMTime(seconds: CACurrentMediaTime(), preferredTimescale: 600))
+        // #985: the still is consumed HERE, not in the completion handler — the flag must fall on
+        // the frame that was actually blitted, and this line runs on the main-thread draw loop
+        // where the flag lives. Clearing it inside the @Sendable GPU closure would be a
+        // main-actor write from a background thread AND could arm a second frame in between.
+        let recording = video.recordState.isRecording
+        if wantsStill { stillRequested = false }
         commandBuffer.addCompletedHandler { _ in
-            box.sink.ingest(box.pb, at: box.pts)
+            if wantsStill { VisualRecorder.saveStillToPhotoLibrary(box.pb) }
+            // A still asked for on a NON-recording frame must not be fed to the file sink:
+            // `ingest` would open a writer for a take nobody started.
+            if recording { box.sink.ingest(box.pb, at: box.pts) }
         }
+    }
+
+    // MARK: - Still image (#985)
+
+    /// Convert one BGRA pixel buffer to a JPEG-backed asset in the photo library.
+    ///
+    /// Same permission posture as the video path: `.addOnly`, best-effort, a denial only logs.
+    /// Nothing is written to Documents — a still that cannot reach Photos leaves no orphan file.
+    ///
+    /// ⚠️ Runs on the GPU completion thread, NOT the main actor: `nonisolated static` on purpose,
+    /// and it touches only the buffer handed to it plus Photos, never `self`.
+    nonisolated static func saveStillToPhotoLibrary(_ pb: CVPixelBuffer) {
+        #if canImport(Photos) && canImport(CoreImage) && !os(macOS)
+        // ⛔ THE FIRST VERSION OF THIS FUNCTION BUILT THE CONTEXT TWICE and went
+        // CIImage → CGImage → CIImage → JPEG. The CGImage step buys nothing: `jpegRepresentation`
+        // takes the CIImage directly. One context, one conversion, and the encode happens BEFORE
+        // the permission prompt so a slow tap on the dialog cannot outlive the pooled buffer —
+        // which is the real reason the order matters, not tidiness. The buffer is only guaranteed
+        // alive for the duration of this call.
+        guard let data = CIContext(options: nil)
+            .jpegRepresentation(of: CIImage(cvPixelBuffer: pb),
+                                colorSpace: CGColorSpaceCreateDeviceRGB(),
+                                options: [:]) else {
+            log.log(.error, category: .video, "VisualRecorder: still could not be encoded")
+            return
+        }
+        PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
+            guard status == .authorized || status == .limited else {
+                log.log(.info, category: .video,
+                        "VisualRecorder: photo-library add not authorized — still discarded")
+                return
+            }
+            PHPhotoLibrary.shared().performChanges({
+                PHAssetCreationRequest.forAsset()
+                    .addResource(with: .photo, data: data, options: nil)
+            }) { success, error in
+                if !success {
+                    log.log(.error, category: .video,
+                            "VisualRecorder: still save failed: \(error?.localizedDescription ?? "unknown")")
+                }
+            }
+        }
+        #endif
     }
 
     // MARK: - Resources
