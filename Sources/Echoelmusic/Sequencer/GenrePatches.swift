@@ -144,6 +144,18 @@ public extension MusicStyle {
                 harm: 0.70, hl: 0.60, bright: 0.18, noise: 0.0, color: "Pink", shape: "Dark",
                 cutoff: 1400, res: 0.30, lfoAmt: 0.10, lfoRate: 0.3, lfoDepth: 0.18,
                 revMix: 0.10, revDecay: 1.4, vibRate: 0, vibDepth: 0)
+        case .psyProgHouse:
+            // #983 S5 — A PLUCK WITH A TAIL. Instant attack, a pluck decay, and the LONGEST release
+            // of the stabbing family (0.60 — the trance pluck is 0.55) so each stab hangs into the
+            // ping-pong echo instead of stopping dead. Brightness 0.44 sits between the house shell
+            // (0.34) and the trance pluck (0.52, roster maximum); a high cutoff with real resonance
+            // for the plucky front edge, and a slow filter LFO so a bar of stabs breathes.
+            // ⛔ "Psy Pluck" is psytrance's name (DB) — GenrePatchesTests pins name uniqueness.
+            return patch("FB", "Prog Pluck",
+                a: 0.002, d: 0.26, s: 0.18, r: 0.60,
+                harm: 0.74, hl: 0.54, bright: 0.44, noise: 0.0, color: "White", shape: "Natural",
+                cutoff: 3200, res: 0.36, lfoAmt: 0.12, lfoRate: 0.3, lfoDepth: 0.18,
+                revMix: 0.16, revDecay: 1.6, vibRate: 0, vibDepth: 0)
         case .detroitTechno:
             // #254 batch 4 — A WARM CHORD, not a stab: a slower attack than any other genre in this
             // family so the ninth chord SWELLS into the comp, a long-ish release so the syncopation
@@ -436,6 +448,18 @@ public extension MusicStyle {
                 a: 0.010, d: 0.50, s: 0.60, r: 0.14,
                 harm: 0.92, hl: 0.40, bright: 0.15, noise: 0.0, color: "Pink", shape: "Dark",
                 cutoff: 560, res: 0.18, lfoAmt: 0.0, lfoRate: 0.0, lfoDepth: 0.0,
+                revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
+                uni: 1, det: 0)
+        case .psyProgHouse:
+            // #983 S5 — the rolling-16th psy bass: the SHORTEST envelope of every bass patch here
+            // (three hits per beat at 132 must each be their own event), a mid-low cutoff with
+            // enough resonance to growl, brighter than the house/tech/deep subs because the roll
+            // is meant to be HEARD as a line, not felt as weight — still darker, shorter and
+            // lower-cut than its pad, dry and mono like the rest.
+            return patch("FC", "Psy Bass",
+                a: 0.002, d: 0.14, s: 0.10, r: 0.08,
+                harm: 0.86, hl: 0.50, bright: 0.30, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 1100, res: 0.32, lfoAmt: 0.0, lfoRate: 0.0, lfoDepth: 0.0,
                 revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
                 uni: 1, det: 0)
         default:

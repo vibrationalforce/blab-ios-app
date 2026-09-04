@@ -134,7 +134,7 @@ final class MoodKnobsSayWhatTheyDoTests: XCTestCase {
 
     /// ⭐ THE HALF THE REVIEW ADDED, AND THE REASON THE CAPTION IS WORDED THE WAY IT IS. Romance
     /// is not merely a switch; on a genre whose chord already carries the 7th it is INERT at
-    /// every setting — and that is 10 of the 18 offered genres, `.selfObservation` (the shipped
+    /// every setting — and that is 10 of the 19 offered genres, `.selfObservation` (the shipped
     /// default) among them. The first version of the caption promised "adds the 7th above 0.50"
     /// flat, which is false for the genre a first-time user hears.
     func testRomanceIsInertWhereTheChordAlreadyHasTheSeventh() {
@@ -153,16 +153,16 @@ final class MoodKnobsSayWhatTheyDoTests: XCTestCase {
         }
     }
 
-    /// The caption prints "8 of the 18 offered". This pins that number against the profiles
+    /// The caption prints "9 of the 19 offered". This pins that number against the profiles
     /// themselves, so adding a genre — or giving an existing one a 7th — makes the caption's
     /// arithmetic fail here rather than on a user's screen.
     func testTheCaptionsGenreCountIsTheRealOne() {
-        XCTAssertEqual(MusicStyle.offered.count, 18, """
-            The offered roster changed size. The `moodPanel` caption names it ("… of the 18 \
+        XCTAssertEqual(MusicStyle.offered.count, 19, """
+            The offered roster changed size. The `moodPanel` caption names it ("… of the 19 \
             offered") — update both in the same commit.
             """)
-        XCTAssertEqual(Self.genresWithoutTheSeventh.count, 8, """
-            \(Self.genresWithoutTheSeventh.count) offered genres lack the 7th, not 8. The \
+        XCTAssertEqual(Self.genresWithoutTheSeventh.count, 9, """
+            \(Self.genresWithoutTheSeventh.count) offered genres lack the 7th, not 9. The \
             `moodPanel` caption names that number too; a caption that counts wrong is the same \
             defect as a caption that promises a switch it does not have.
             """)
@@ -200,9 +200,9 @@ final class MoodKnobsSayWhatTheyDoTests: XCTestCase {
         XCTAssertTrue(code.contains("above 0.50 Romance adds the 7th"), """
             The caption no longer names romance's threshold — same two cases as darkness.
             """)
-        XCTAssertTrue(code.contains("does not already have one (8 of the 18 offered)"), """
+        XCTAssertTrue(code.contains("does not already have one (9 of the 19 offered)"), """
             The caption dropped romance's QUALIFIER. Without it the sentence promises the 7th on \
-            every genre, which is false for 10 of the 18 — including `.selfObservation`, the \
+            every genre, which is false for 10 of the 19 — including `.selfObservation`, the \
             shipped default. That is the exact overclaim this slice's review found.
             """)
     }

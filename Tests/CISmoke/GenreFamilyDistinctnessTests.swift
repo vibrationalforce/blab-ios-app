@@ -263,7 +263,7 @@ final class GenreFamilyDistinctnessTests: XCTestCase {
     /// A new genre is worthless if the picker never shows it. This is the doorless-feature guard:
     /// the founder ASKED for these two, so being merely categorised is not enough.
     func testTheNewGenresAreReachableInThePicker() {
-        for style in [MusicStyle.acidTechno, .deepHouse, .deepDrone, .ambientPulse, .deepTech, .darkMinimal] {
+        for style in [MusicStyle.acidTechno, .deepHouse, .deepDrone, .ambientPulse, .deepTech, .darkMinimal, .psyProgHouse] {
             XCTAssertTrue(MusicStyle.offered.contains(style),
                           "\(style.rawValue) is built but not offered — a doorless genre")
             XCTAssertTrue(style.category.offeredGenres.contains(style),

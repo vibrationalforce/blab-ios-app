@@ -373,8 +373,9 @@ public extension MusicStyle {
             // reaches the audio, so that is a source-level contract, not a sound.
             // The ROOM is a dry 0.42. ⛔ "second smallest of the offered roster … every other
             // offered genre sits at 0.78 and up" stood here and went stale twice: `minimalTechno`
-            // (0.36, #254 batch 4) and `deepTech` (0.40, #983 S3) both sit under it now, so it is
-            // the FOURTH smallest after acidTechno 0.34. Re-derive, do not quote. Its DAMPING is
+            // (0.36, #254 batch 4) and #983's `deepTech` (0.40) / `darkMinimal` (0.38) all sit
+            // under it now. ⛔ "FOURTH smallest" stood here for one commit and went stale the next
+            // — no rank is quoted any more; re-derive from the arms. Its DAMPING is
             // merely high, not extreme: 0.58 is SIXTH, behind deepDrone 0.68, acidTechno 0.64,
             // darkMinimal 0.62 (#983 S4 — it was fifth before that genre) and
             // stillMeditation/dubTechno 0.60. ⚠️ The first version of this line called it
@@ -425,6 +426,23 @@ public extension MusicStyle {
                 delayMix: 0.16, delayFeedback: 0.40, delayTone: 0.36, delaySpread: 0.35,
                 saturation: 0.16,
                 reverbEnabled: true, reverbMix: 0.12, reverbRoom: 0.38, reverbDamping: 0.62)
+        case .psyProgHouse:
+            // #983 S5 — THE FAMILY ECHO IN A ROOM. The ping-pong 16th is deliberately psytrance's
+            // division (that echo is what makes anything "psy"), at a LOWER mix (0.22 vs 0.30) and
+            // feedback (0.40 vs 0.46) so the chord stays legible under it. ⚠️ Division inert
+            // (#257); mix, feedback, tone, spread and mode are heard — and the MODE is the axis:
+            // `.pingPong` is otherwise psytrance/vaporwave-family territory, no offered four-on-floor
+            // genre used it before. A medium room (0.60 — between techHouse's 0.42 and Detroit's
+            // 0.66, no superlative) and a slow wide chorus, which psytrance's preset does not have
+            // (no chorus, no reverb there) — so this is not that preset with a different name.
+            // Saturation 0.30 = the initializer default, shared with dubTechno and trance.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .pingPong,
+                delaySync: TempoSyncOption(.sixteenth),
+                delayMix: 0.22, delayFeedback: 0.40, delayTone: 0.58, delaySpread: 0.55,
+                chorusEnabled: true, chorusRate: 0.25, chorusDepth: 0.35, chorusMix: 0.24,
+                saturation: 0.30,
+                reverbEnabled: true, reverbMix: 0.20, reverbRoom: 0.60, reverbDamping: 0.44)
         case .minimalTechno:
             // #254 batch 4 — THE CLEANEST CHAIN OF THE BEAT-DRIVEN OFFERED GENRES. `saturation:
             // 0.14` sits under `deepHouse`'s 0.22, which held that floor. ⚠️ SCOPED, and the scope

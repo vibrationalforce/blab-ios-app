@@ -22413,3 +22413,12 @@ gesetzt; techHouses Damping-Rang fünfter → sechster im selben Commit. Zähl-H
 ohne-Septime 7 → 8. Wächter `GenreDarkMinimalTests` (5). Transkription GREEN. Klang: Ohr.
 **Deploy-Entscheidung:** 439 kommt NACH S5, damit der Founder die drei neuen Genres in EINEM Build
 hört (dieselbe Logik wie 438 = S1+S2; Apples Upload-Kontingent).
+
+**S5 gebaut — Genre `psyProgHouse` („Psy Prog House"):** Moll-Triade auf `[0, 6, 5]` (i → VII → VI),
+padOctave 3, Stab, 128…136/132, swing 0, `rollingSixteenths` erstmals besessen (authoredAhead
+leer), „Prog Pluck" (FB) + „Psy Bass" (FC), Ping-Pong-16tel-Echo wie psytrance bei niedrigerem
+Mix/Feedback, Room 0.60, Chorus an. ⛔ Zwei Entwurfsfehler, beide von der Transkription VOR dem
+Commit gefangen: „Psy Pluck" kollidierte mit psytrances Patch-Namen; „kein anderer Arm hat
+`[0, 6, 5]`" war falsch (deepHouse, rock) — Wächter misst jetzt das Paar Triade+Abstieg. Zähl-Heime
+18 → 19, ohne-Septime 9. Wächter `GenrePsyProgHouseTests` (6). Klang: Ohr. Damit sind S3–S5
+gebaut; 439 folgt, sobald die Gates auf S5 grün sind.

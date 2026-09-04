@@ -157,6 +157,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         .deepTech,
         // #983 S4 (same founder sentence, "dark minimal"). Same reason.
         .darkMinimal,
+        // #983 S5 (same founder sentence, "psy prog House"). Same reason.
+        .psyProgHouse,
         // #254 batch 2 (same ask, "aber auch Ambient und meditations Musik"). Built SECOND on
         // purpose: batch 1 shifted the palette toward driving genres, and this is the half of the
         // founder's sentence that restores the contemplative centre rather than diluting it —
@@ -205,7 +207,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
                                       .deepDrone, .ambientPulse, .vaporwave, .sciFi]
             case .electronic: return [.dubTechno, .acidTechno, .deepHouse, .upliftingTrance,
                                       .techHouse, .minimalTechno, .detroitTechno, .deepTech,
-                                      .darkMinimal,
+                                      .darkMinimal, .psyProgHouse,
                                       .trap, .psytrance,
                                       .synthwave, .earlySynth, .eighties, .disco, .futuristic]
             case .rock:       return [.rock, .punk, .rocknroll, .heavyMetal, .doom]
@@ -229,7 +231,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              .deepDrone, .ambientPulse:
             return .meditative
         case .dubTechno, .acidTechno, .deepHouse, .upliftingTrance, .techHouse,
-             .minimalTechno, .detroitTechno, .deepTech, .darkMinimal,
+             .minimalTechno, .detroitTechno, .deepTech, .darkMinimal, .psyProgHouse,
              .trap, .psytrance, .synthwave, .earlySynth,
              .eighties, .disco, .futuristic:
             return .electronic
@@ -423,6 +425,31 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     ///     fifth); the bass PATCH is its own ("Dark Sub"). Sharing a figure is honest here: the
     ///     genre differs in what sits above the sub, not in how the sub moves.
     case darkMinimal
+    /// #983 S5 (same founder sentence: "psy prog House"). The roster has `psytrance` (un-offered,
+    /// ~145, phrygian, ARPEGGIATED, padOctave 2) and nothing between it and house. This is the
+    /// house-tempo, non-arpeggiated relative — progressive, not Goa — and it is separated from
+    /// psytrance on every axis a listener hears, not just on the name:
+    ///
+    ///   · **`chordTones: [0, 2, 4]`** — a plain minor triad, stabbed. The triad is the least
+    ///     exotic voicing in the file and that is the point: psy-prog lives on the ROLLING BASS
+    ///     and the delay, and the chord above it is a held colour, not a puzzle.
+    ///   · **`progression: [0, 6, 5]`** — i → VII → VI, the descending minor vamp progressive
+    ///     house is built on. ⛔ "no other arm has this shape" stood here for one draft and the
+    ///     transcription found TWO: `deepHouse` (offered — seventh chords on the offbeat) and
+    ///     `rock` (un-offered) share the descent. What is new is the PLAIN TRIAD stabbed on it;
+    ///     the guard measures the pair, not the progression. `contemplation` has the triad on
+    ///     two roots, sustained — different articulation, different length, different genre.
+    ///   · **`padOctave: 3`, NOT arpeggiated, NOT sustained** — the stab plays, the figure plays.
+    ///   · **128…136, default 132; `swing: 0.0`** — psy-prog is machine-straight; the roll is in
+    ///     the bass, not in the grid.
+    ///   · **`bassGrammar: .rollingSixteenths`** — the figure authored ahead in S1, owned for the
+    ///     first time here (three 16ths per beat, downbeats free for the kick that is not there),
+    ///     on its own "Psy Bass" patch. `GenreBassGrammarTests` moves it from authored-ahead to
+    ///     owned in the same commit.
+    ///   · **FX: a ping-pong 16th like psytrance** — the one thing deliberately SHARED, because
+    ///     that echo IS the family — at a lower mix, in a medium room (0.60) with chorus on;
+    ///     psytrance's preset is dry and unchorused, so the two presets are not the same preset.
+    case psyProgHouse
     /// #254 batch 2 (founder 2026-07-30 "aber auch Ambient und meditations Musik"): stillness
     /// taken FURTHER than any Fläche already offered, and separated from all six of them on four
     /// axes at once rather than on a different chord.
@@ -543,6 +570,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .detroitTechno:      return "Detroit Techno"
         case .deepTech:           return "Deep Tech"
         case .darkMinimal:        return "Dark Minimal"
+        case .psyProgHouse:       return "Psy Prog House"
         // ⚠️ "Still Drone", not "Deep Drone": `stillMeditation`'s PATCH is already named
         // "Deep Drone" (GenrePatches "DC"), and picking a genre writes its patch into the
         // visible patch field — so a picker entry "Deep Drone" next to a patch field reading
@@ -598,6 +626,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #983 S3. Describes what is voiced and how the bass moves; no product or artist names.
         case .deepTech:           return "Dark minor-seventh shell · driving eighth-note bass"
         case .darkMinimal:        return "Wide open-fifth stack · tonic to flat second · straight grid"
+        case .psyProgHouse:       return "Rolling sixteenth bass · descending minor vamp · ping-pong echo"
         case .deepDrone:          return "One low quartal drone · unmoving · very wide"
         // "hypnotic" removed: it is the closest thing in the roster to altered-state language,
         // and this repo keeps such words out of shipped strings. The word stays in the internal
@@ -668,7 +697,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              // NOT come here — see its case doc for why it takes `.backbeat`/`.comp` instead.
              // #983 S3: deep tech stabs its shell on the beat like tech house; its bass is the axis.
              // #983 S4: dark minimal stabs its wide fifth on the beat too.
-             .minimalTechno, .deepTech, .darkMinimal:           return .fourOnFloor
+             // #983 S5: psy-prog stabs its triad on the beat; the roll lives in the bass.
+             .minimalTechno, .deepTech, .darkMinimal, .psyProgHouse: return .fourOnFloor
         // #254: deepHouse is four-to-the-floor MUSICALLY, but the archetype's only audible
         // consequence since #166/#167 (no drum sounds) is `chordArticulation` — and a house
         // chord lands on the OFFBEAT, which is `.skank`. Picking `.fourOnFloor` here would give
@@ -905,6 +935,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #983 S4. 126…131 overlaps minimal (125…132), Detroit (126…134) and techHouse (124…130)
         // — a ~129 genre, separated on mode, register, voicing and FX, never on the window.
         case .darkMinimal:        return 126...131
+        // #983 S5. 128…136 meets minimal, Detroit, acid (130…139) and trance (136…144) at its
+        // edges — a ~132 genre; the un-offered `psytrance` sits at 140…150, well above it.
+        case .psyProgHouse:       return 128...136
         // #254 batch 2. deepDrone goes BELOW every offered genre (contemplation's 44 was the
         // floor).
         // ⚠️ The first version of this line justified the 40 with "at 40 BPM a whole-note tape
@@ -998,6 +1031,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .detroitTechno:      return 130
         case .deepTech:           return 126
         case .darkMinimal:        return 129
+        case .psyProgHouse:       return 132
         case .deepDrone:          return 48
         case .ambientPulse:       return 85
         case .trap:               return 140
@@ -1076,6 +1110,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #983 S4: straight, like acid. ⛔ The plan said 0.02 — that would have taken minimal's
         // "smallest non-zero swing" (a blocking guard) for a difference nobody can hear.
         case .darkMinimal:        return 0.0
+        case .psyProgHouse:       return 0.0    // #983 S5: straight — the roll is in the bass figure
         case .upliftingTrance:    return 0.0
         case .eighties:           return 0.06
         case .synthwave, .earlySynth, .futuristic, .sciFi, .psytrance,
@@ -1172,6 +1207,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #983 S4: 26th lead-bearing genre, ceiling still 5; "Soft Keys" was at 4. Lead density
         // is 0.0, so the name is a factory-resolution requirement, not a sound.
         case .darkMinimal:        return "Soft Keys"
+        // #983 S5: 27th lead-bearing genre, ceiling still 5; "Pluck" was at 4 and is the
+        // musical pick for a genre whose only lead-shaped sound is a pluck anyway.
+        case .psyProgHouse:       return "Pluck"
         case .trap:               return "Soft Keys"     // sustained — unused
         case .vaporwave:          return "Warm Strings"  // sustained — unused
         case .eighties:           return "Soft Keys"
@@ -1228,6 +1266,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .detroitTechno:                          return (1.04, 1.08, 0.88)
         case .deepTech:                               return (1.16, 0.90, 0.88)  // #983 S3: bass-led
         case .darkMinimal:                            return (1.18, 0.84, 0.88)  // #983 S4: thinnest pad after minimal's 0.86
+        case .psyProgHouse:                           return (1.12, 0.98, 0.90)  // #983 S5: bass-led, chord audible
         case .ska, .rocksteady, .disco:               return (1.10, 0.96, 0.90)
         case .synthwave, .eighties, .vaporwave, .earlySynth:
                                                       return (1.00, 0.94, 0.90)
@@ -1265,6 +1304,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #983 S4: phrygian — the ♭2 is the whole darkness (root motion i → ♭II). Shared with
         // acidTechno among the offered; that one arpeggiates, this one holds.
         case .darkMinimal:        return .phrygian
+        // #983 S5: plain natural minor — the descent i → VII → VI is the identity, not the mode.
+        case .psyProgHouse:       return .minor
         // #254 batch 2 — the only two pentatonic genres in the roster. No semitone anywhere,
         // so nothing in either can create tension; every other genre is a 7-note mode.
         case .deepDrone:          return .pentatonicMinor
@@ -1525,6 +1566,15 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // NOT arpeggiated (so `.stab` plays), NOT sustained (so the `sparseSub` figure plays).
             return HarmonicProfile(progression: [0, 1], chordTones: [0, 4, 11],
                                    padOctave: 3, leadOctave: 4, arpeggiated: false,
+                                   leadDensity: 0.0)
+        case .psyProgHouse:
+            // #983 S5 — THE TRIAD OVER THE DESCENT. `[0, 2, 4]` on natural minor is a plain minor
+            // triad; `[0, 6, 5]` = i → VII → VI is the descending vamp, shared with deepHouse (sevenths,
+            // offbeat) and rock — the triad ON it is the new pair. Stabbed (`.stab`, not arpeggiated) at padOctave 3;
+            // NOT sustained so the rolling-16th bass figure is reachable. Everything psytrance
+            // (un-offered) does differently — phrygian, arpeggiated, padOctave 2, ~145 — it keeps.
+            return HarmonicProfile(progression: [0, 6, 5], chordTones: [0, 2, 4],
+                                   padOctave: 3, leadOctave: 5, arpeggiated: false,
                                    leadDensity: 0.0)
         case .deepDrone:
             // #254 batch 2 — the quartal drone. `[0, 3, 6]` on the FIVE-note pentatonicMinor

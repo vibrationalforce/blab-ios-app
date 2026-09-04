@@ -79,11 +79,11 @@ final class GenreBassGrammarTests: XCTestCase {
     }
 
     /// Every figure is either owned by an OFFERED genre or authored ahead for a planned one.
-    /// Today `rollingSixteenths` waits for S5 (`psyProgHouse`); when that lands, move it into
-    /// the owned set here in the same commit. A figure nobody will ever own is dead code with a name.
+    /// `rollingSixteenths` waited for S5 (`psyProgHouse`) and is owned since that landed; the
+    /// authored-ahead set is EMPTY today. A figure nobody will ever own is dead code with a name.
     func testEveryGrammarIsOwnedOrAuthoredAhead() {
         let owned = Set(MusicStyle.offered.compactMap(\.bassGrammar))
-        let authoredAhead: Set<BassGrammar> = [.rollingSixteenths]
+        let authoredAhead: Set<BassGrammar> = []
         XCTAssertEqual(owned.union(authoredAhead), Set(BassGrammar.allCases),
                        "a figure is neither owned by an offered genre nor listed as authored ahead")
         XCTAssertTrue(owned.isDisjoint(with: authoredAhead),

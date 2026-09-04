@@ -172,12 +172,26 @@ Reihenfolge ist Handwerk.
 - **Ohr-Satz (NEEDS-FOUNDER-VERIFY):** Dark Minimal bei 129 — liest sich der weite Quint-Stapel
   in Oktave 3 mit dem ♭II-Wechsel als „dunkel", ohne zu matschen?
 
-### S5 — Genre `psyProgHouse` („Psy Prog House")
-- 128…136, default 132; minor; `chordTones [0, 2, 4]` Triade, Progression `[0, 6]` (i → VII),
-  padOctave 3, **arpeggiert: false**, `.fourOnFloor`→`.stab`; swing 0; bassGrammar
-  `rollingSixteenths`; FX: Ping-Pong 16tel wie psytrance, aber Room 0.60, Sat 0.30, Chorus an;
-  Patch: Pluck mit langem Release. Abgrenzung zu psytrance (nicht offered) bleibt hörbar: Tempo,
-  Register, nicht-arpeggiert.
+### S5 — Genre `psyProgHouse` („Psy Prog House") — ✅ GEBAUT (Folge-Commit; Gates ausstehend)
+- Gebaut wie geplant, mit zwei gemessenen Korrekturen: Progression **`[0, 6, 5]`** (i → VII → VI,
+  der absteigende Prog-Vamp) statt `[0, 6]` — und ⛔ der erste Entwurf behauptete „kein anderer
+  Arm hat diese Form"; die Transkription fand ZWEI (`deepHouse` offered, `rock`). Neu ist das
+  PAAR Triade-auf-Abstieg, und der Wächter misst das Paar. Patch-Name „Prog Pluck" (FB) — ⛔
+  „Psy Pluck" war psytrances Name (DB), `GenrePatchesTests` pinnt Eindeutigkeit; Bass „Psy Bass"
+  (FC, r 0.08 — kürzeste Hülle aller Bass-Patches, drei Hits pro Beat). Moll-Triade `[0, 2, 4]`,
+  padOctave 3, nicht arpeggiert, `.stab`, 128…136/132, swing 0, `rollingSixteenths` — erster
+  Besitzer der in S1 vorausgeschriebenen Figur (`GenreBassGrammarTests`: authoredAhead jetzt leer).
+  FX: Ping-Pong 16tel wie psytrance (die Familie), aber Mix 0.22 < 0.30, Feedback 0.40 < 0.46,
+  Room 0.60 (zwischen techHouse 0.42 und Detroit 0.66), Chorus an — psytrances Preset hat weder
+  Chorus noch Reverb, also nicht dasselbe Preset. Einziges offered Four-on-Floor-Genre mit
+  Ping-Pong (Wächter). Lead „Pluck" (27 lead-tragend, Decke 5). Mix (1.12, 0.98, 0.90).
+- Zähl-Heime 18 → 19, ohne-Septime 8 → 9, Swing-Null ZWÖLF; techHouses Room-Kommentar „vierter"
+  war nach S4 schon wieder falsch → kein Rang mehr zitiert.
+- Wächter: `Tests/CISmoke/GenrePsyProgHouseTests.swift` (6 Ansprüche, inkl. „ist nicht
+  psytrance im House-Tempo": Fenster berühren sich nicht, Modus/Register/Arp verschieden).
+  Transkription `scratchpad/s5_grade_psyprog.py`: Worktree GREEN.
+- **Ohr-Satz (NEEDS-FOUNDER-VERIFY):** Psy Prog House bei 132 — rollt der 16tel-Bass als Linie
+  (nicht als Rasseln), hängt der Pluck ins Ping-Pong, ohne die Triade zu verwischen?
 
 ### S6 — Pad-Bewegung (nach dem Ohr zu S1–S5)
 - Filter-LFO-Tiefe pro Genre ist im Patch schon da; offen ist die BAR-Bewegung über den Loop

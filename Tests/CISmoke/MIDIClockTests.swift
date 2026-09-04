@@ -369,7 +369,7 @@ final class MIDIClockTests: XCTestCase {
     /// what the MIDI clock's one-step Start delay rests on.
     ///
     /// ⛔ "EVERY SHIPPING PATH TODAY (#278)" STOOD HERE AND IS NO LONGER TRUE — #327 replaced
-    /// the hardwired `setSwing(0)` with `style.swing`, and seven of the eighteen offered genres
+    /// the hardwired `setSwing(0)` with `style.swing`, and seven of the nineteen offered genres
     /// are non-zero. The test itself is unaffected: it passes `swing: 0` explicitly, so it
     /// still pins the law it always pinned. What changed is that the law now has a REACHABLE
     /// other branch — under a swung genre, Start lands one nominal step after play while the

@@ -1523,7 +1523,7 @@ public enum BioComposer {
     /// Deterministic given the seed.
     ///
     /// ⭐ #983: a genre with a `BassGrammar` (`MusicStyle.bassGrammar`, today deepHouse /
-    /// techHouse / minimalTechno / deepTech / darkMinimal) takes NONE of the paths described above or below — it plays
+    /// techHouse / minimalTechno / deepTech / darkMinimal / psyProgHouse) takes NONE of the paths described above or below — it plays
     /// its authored figure and returns, unless the user's Bass-rhythm Picker is set. Under a
     /// grammar the downbeat is NOT always the chord root (house leaves it free). Everything in
     /// this doc from here on describes the `grammar == nil` genres, unchanged.
