@@ -68,7 +68,7 @@ Reihenfolge ist Handwerk.
 
 ## 2 · Scheiben (je EIN Ralph-Zyklus, je ein Wächter, je ein Ohr-Satz)
 
-### S1 — `BassGrammar`: eine autorisierte Bass-Figur pro Genre (Composer, pur)
+### S1 — `BassGrammar`: eine autorisierte Bass-Figur pro Genre (Composer, pur) — ✅ GEBAUT `cd48695` (Compile Check grün; CI/CD-Testbau starb am #478-Modulcache-Flake, kein Repo-Fehler; Re-Run per API = 403, also fährt der nächste Push)
 - **Neu:** `Sequencer/BassGrammar.swift` — `enum BassGrammar` mit benannten Figuren
   (16-Step-Phasen, Länge, Akzent; Körper skaliert Velocity/Dichte, nie die Figur):
   · `offbeatEighths` — House: Bass auf jedem „&" (Phasen 2/6/10/14), kurz; Downbeat frei
@@ -98,14 +98,20 @@ Reihenfolge ist Handwerk.
 - **Ohr (NEEDS-FOUNDER-VERIFY):** Loop-Modus, Deep House, ruhiger Körper: der Bass sitzt auf den
   „&"s und die 1 ist frei — und der Sub schweigt auf der 1 mit.
 
-### S2 — eigenes Bass-Timbre (zweite Stimme, Muster `lead`)
+### S2 — eigenes Bass-Timbre (zweite Stimme, Muster `lead`) — ✅ GEBAUT (Folge-Commit; Gates ausstehend)
 - `EchoelmusicApp`: `bassVoice = PolySynthVoice()` attach; `pianoRoll.start(… bass: bassVoice …)`;
   `outputVoice(for: .bass)` → `bass ?? voice`; `applyBassPatch(_:)`.
-- `GenrePatches.bassPatch` pro Genre (kurz, dunkel, Filter tief: „Deep Sub"-Familie —
-  vorhandenes Factory-Patch „Deep Sub" als Basis), `EchoelStudioView.generate()` wendet es an wie
-  `leadPatch`. Mixer-Bass-Fader erreicht die Stimme (`mixer.bass` → `bassVoice.mixLevel` wie
-  `subBass.mixLevel`), Per-Track-FX-Insert `trackFX.bass` → Bass-Stimme.
-- Wächter: `TheBassRoleHasItsOwnVoiceTests` (Routing, Patch-Anwendung, Fader-Fan-out, Insert).
+- `GenrePatches.bassPatch` pro Genre (House Sub · Tech Bass · Minimal Sub — dunkler, kürzer,
+  tiefer geschnitten als das Pad-Patch, trocken, mono), `EchoelStudioView.generate()` wendet es an
+  wie `leadPatch` und schaltet die Route NUR für Genres mit Patch (`setBassVoiceActive`) — alle
+  anderen Genres spielen den Bass bit-identisch weiter über die Pad-Stimme. ⛔ Hier stand
+  „`mixer.bass` → `bassVoice.mixLevel`": `PolySynthVoice` HAT kein `mixLevel`; der Mixer-Bass
+  skaliert schon die Velocity (`mixGlued`), also erreicht der Fader die Stimme ohne Fan-out.
+  Per-Track-FX-Insert `trackFX.bass` → Bass-Stimme ✓ (vorher lief der Poly-Bass über den
+  MELODIC-Insert), Tonsystem + Kammerton + Panic-Inventar ✓.
+- Wächter: `TheBassRoleHasItsOwnVoiceTests` — Patch ⇔ Grammatik (E2E), dunkler/kürzer/tiefer/
+  trocken/mono gegen das Pad-Patch (E2E), stabile IDs ohne Kollision (E2E), Routing + Fans +
+  Panic + App-Verdrahtung (SOURCE-TEXT).
 - Risiko: eine Stimme mehr am Engine (CPU ≈ +1 Poly-Stimme) — im Diag-Log `voices=` prüfen.
 - Ohr: derselbe Loop — der Bass ist jetzt ein Bass (kurz, dunkel), nicht das Pad tief.
 

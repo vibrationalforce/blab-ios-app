@@ -122,6 +122,13 @@ public final class PianoRollModel {
     /// so a take reads as separate instruments instead of one surface. nil → the lead
     /// falls back to `voice` (single-timbre behaviour, unchanged).
     @ObservationIgnored private weak var lead: PolySynthVoice?
+    /// #983 S2: optional dedicated BASS instrument voice. Notes tagged `.bass` play through it
+    /// ONLY while `bassVoiceActive` is set — the studio sets that together with the genre's
+    /// `bassPatch`, so a genre without one keeps today's path (the pad voice, an octave down)
+    /// bit-identically. nil → the bass always falls back to `voice`.
+    @ObservationIgnored private weak var bass: PolySynthVoice?
+    /// Whether `.bass` notes route to `bass` (see above). Flipped by `setBassVoiceActive`.
+    @ObservationIgnored private var bassVoiceActive = false
     /// Optional sub-bass voice — the lowest notes of each take also drive this an
     /// octave down so the bass can be FELT (sub/headphones/haptics). nil = no sub.
     @ObservationIgnored private weak var subVoice: SubBassVoice?
@@ -819,12 +826,14 @@ public final class PianoRollModel {
 
     public func start(pattern: PatternEngine, voice: PolySynthVoice,
                       lead: PolySynthVoice? = nil,
+                      bass: PolySynthVoice? = nil,
                       subVoice: SubBassVoice? = nil, midiOut: MIDIOutput? = nil,
                       arrangement: ArrangementPlayer? = nil, bus: EngineBus? = nil,
                       automation: AutomationPlayer? = nil,
                       timeline: TimelineRegionPlayer? = nil) {
         self.voice = voice
         self.lead = lead
+        self.bass = bass
         self.subVoice = subVoice
         self.midiOut = midiOut
         self.arrangement = arrangement
@@ -872,6 +881,7 @@ public final class PianoRollModel {
         currentSubPitch = nil
         voice?.allNotesOff()
         lead?.allNotesOff()
+        bass?.allNotesOff()
         subVoice?.allNotesOff()
         kindVoice?.allNotesOff()   // S2-W2-6: release the kind voice too
         midiOut?.allNotesOff()
@@ -886,8 +896,26 @@ public final class PianoRollModel {
         // active-tracking, wrap-tie and release-grouping logic flows through this
         // one router, so `sameVoice` stays correct (every role → the same voice).
         if let kindVoice { return kindVoice }
-        return (role == .lead) ? (lead ?? voice) : voice
+        switch role {
+        case .lead:    return lead ?? voice
+        case .bass:    return (bassVoiceActive ? bass : nil) ?? voice
+        case .harmony: return voice
+        }
     }
+
+    /// #983 S2: route `.bass` notes to the dedicated bass voice (true) or back to the pad
+    /// voice (false). Releases every sounding note FIRST, through the CURRENT router, so a
+    /// mid-take flip never strands a gate-held note on the voice that no longer receives its
+    /// note-off — the same discipline as `setKindVoice`. Idempotent for an unchanged value.
+    public func setBassVoiceActive(_ on: Bool) {
+        guard bassVoiceActive != on else { return }
+        allNotesOff()
+        bassVoiceActive = on
+    }
+
+    /// #983 S2: give the dedicated bass voice its genre timbre (`MusicStyle.bassPatch`).
+    /// No-op when there is no separate bass voice.
+    public func applyBassPatch(_ patch: SynthPatch) { bass?.apply(patch) }
 
     /// S2-W2-6: bind (or clear) the primary roll's kind voice. Releasing every
     /// sounding note first (offs route through the CURRENT `outputVoice`) so a
@@ -1015,8 +1043,12 @@ public final class PianoRollModel {
     /// only two voices exist (main, dedicated lead), so the key is 1 iff the role
     /// routes to a DISTINCT lead voice, else 0.
     private func voiceKey(_ role: NoteRole) -> Int {
-        guard let lead, lead !== voice else { return 0 }
-        return outputVoice(for: role) === lead ? 1 : 0
+        // One key per DISTINCT output object, so a wrap tie only pairs notes that ring on the
+        // same voice. 0 = the pad voice (and any nil fallback), 1 = lead, 2 = bass (#983 S2).
+        let out = outputVoice(for: role)
+        if let lead, lead !== voice, out === lead { return 1 }
+        if let bass, bass !== voice, out === bass { return 2 }
+        return 0
     }
 
     /// Each tick: release notes ending now, then start notes beginning now.

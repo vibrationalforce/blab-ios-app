@@ -22352,3 +22352,35 @@ verankert (#408-Form: Anker dort, wo das Token nur einmal gemeint ist).
 
 **Nicht bewiesen:** ob die Figuren GROOVEN — NEEDS-FOUNDER-VERIFY (Loop-Modus, Deep House, ruhiger
 Körper: Bass auf den „&"s, die 1 frei, der Sub schweigt auf der 1 mit). Gates stehen aus.
+
+## 2026-09-04 — #983 S2: der Bass hat eine eigene Stimme (S1-Gates: Compile grün, Testbau #478-Flake)
+
+**S1-Gates auf `cd48695`:** Xcode Compile Check ✅. CI/CD „Build for Testing" ❌ nach 20 s — vier
+`error:`-Zeilen, KEINE nennt eine Repo-Datei, alle vier das SDK-`module.modulemap` gegen ein
+`.pcm` im `ModuleCache.noindex` („mtime changed"): der #478-Cache-Schlüssel-Flake, exakt wie in
+`Tests/CISmoke/CLAUDE.md` §5 beschrieben. Antwort = erneuter Lauf, kein Code. ⛔ **Re-Run per
+API geht NICHT:** `rerun_failed_jobs` und `rerun_workflow_run` liefern beide `403 Resource not
+accessible by integration` — dieselbe Klasse wie der TestFlight-Dispatch (DEAD-ENDS-Zeile). Und
+`ci.yml` läuft nur auf `Sources/**`/`Tests/**`/`Package.swift`/`project.yml`, ein Docs-Commit
+löst ihn nicht aus. Also fährt der Re-Run als NÄCHSTE CODE-SCHEIBE — S2 — statt als leerer Commit.
+
+**S2 gebaut:** `EchoelmusicApp.bassVoice` (`PolySynthVoice(maxVoices: 2)`, attach + `start(subscribing:)`
+wie `leadVoice`, Environment-Key `\.bassSynth` in `TouchInstrumentView` neben `\.leadSynth`).
+`PianoRollModel`: `bass:`-Parameter an `start`, `outputVoice(for: .bass)` → Bass-Stimme NUR hinter
+`bassVoiceActive` (Umschalten löst erst alle Noten über den AKTUELLEN Router, wie `setKindVoice`),
+`applyBassPatch`, `voiceKey` mit drei Schlüsseln (Wrap-Ties bleiben stimmen-genau), `allNotesOff`
+erreicht die Stimme. `GenrePatches.bassPatch`: House Sub (F4) · Tech Bass (F5) · Minimal Sub (F6)
+— je dunkler, kürzer, tiefer geschnitten als das Pad-Patch, trocken, `uni: 1` (mono, explizit
+honoriert), Werte auf dem Sound-Panel-Raster. `EchoelStudioView.generate()`: Patch VOR Route,
+Route = `style.bassPatch != nil`; Fans: Bass-Bus-Insert (Start + `setBassFX`), `setTuningCents`,
+`setTuning(a4Hz:)`, Panic-Inventar. ⛔ Erste Fassung von „Minimal Sub" hatte `r: 0.24` — LÄNGER
+als „Minimal Stab" (0.14); die Transkription fand es vor dem Commit, jetzt 0.12.
+
+**Wächter:** `Tests/CISmoke/TheBassRoleHasItsOwnVoiceTests.swift` — Patch ⇔ Grammatik über alle
+Cases (E2E), dunkler/kürzer/tiefer/trocken/mono gegen das Pad (E2E), stabile IDs ohne Kollision
+mit den 33 Pad-Patches (E2E), Routing/Fans/Panic/App (SOURCE-TEXT, so beschriftet).
+Transkription `scratchpad/s2_grade_bassvoice.py`: Worktree GREEN, HEAD RED.
+
+**Nicht bewiesen:** Klang (NEEDS-FOUNDER-VERIFY: Deep House im Loop-Modus — der Bass ist jetzt ein
+kurzer dunkler Sub-Pluck auf den „&"s, nicht das Pad eine Oktave tiefer; Minimal: ein gehaltener
+dunkler Root). CPU: eine Poly-Stimme mehr am Engine (wie `leadVoice`) — im Diag-Log prüfen.

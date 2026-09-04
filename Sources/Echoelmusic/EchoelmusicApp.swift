@@ -64,6 +64,11 @@ struct EchoelmusicApp: App {
     /// through this with its own timbre so a take reads as separate instruments
     /// (bass · harmony · LEAD), not one surface. Small pool — the lead is few-note.
     @State private var leadVoice: PolySynthVoice
+    /// #983 S2 — the dedicated BASS instrument. Until this voice existed the `.bass` role played
+    /// through the pad's own voice and patch an octave down (`PianoRollModel.outputVoice`), so no
+    /// genre could have a bass TIMBRE. Only genres that carry a `MusicStyle.bassPatch` route to
+    /// it (`PianoRollModel.setBassVoiceActive`); every other genre keeps the pad voice, bit-identical.
+    @State private var bassVoice: PolySynthVoice
     /// Dedicated TOUCH-INSTRUMENT voice (founder 2026-07-08: the play surface's sound
     /// must be individually settable and must not glitch the bed). Its own pool means
     /// touch notes never steal a generative voice mid-sustain (the audible "glitch"),
@@ -386,6 +391,9 @@ struct EchoelmusicApp: App {
         _polyVoice = State(wrappedValue: PolySynthVoice(maxVoices: 12))
         // Lead voice: small pool (the melody is few-note) to keep the added CPU low.
         _leadVoice = State(wrappedValue: PolySynthVoice(maxVoices: 3))
+        // Two voices, not one: a bass figure's hits never overlap (`GenreBassGrammarTests`), but a
+        // release tail may still be ringing when the next hit lands, and a mono voice would cut it.
+        _bassVoice = State(wrappedValue: PolySynthVoice(maxVoices: 2))
         // Touch voice: 6 slots for max 4 fingers + release tails (steals only its own).
         _touchVoice = State(wrappedValue: PolySynthVoice(maxVoices: 6))
         _subBass = State(wrappedValue: SubBassVoice())
@@ -568,6 +576,7 @@ struct EchoelmusicApp: App {
             // would silently REPLACE polyVoice for every consumer (last-writer-wins per type).
             .environment(\.touchSynth, touchVoice)
             .environment(\.leadSynth, leadVoice)
+            .environment(\.bassSynth, bassVoice)
             .environment(subBass)
             .environment(laneVoiceRack)
             .environment(metronome)
@@ -768,6 +777,7 @@ struct EchoelmusicApp: App {
                 bioVoice.attach(to: audioEngine)
                 polyVoice.attach(to: audioEngine)
                 leadVoice.attach(to: audioEngine)
+                bassVoice.attach(to: audioEngine)
                 touchVoice.attach(to: audioEngine)
                 // Restore the persisted play-surface Level HERE, immediately after the
                 // node is attached and connected — NOT from a view's onAppear. The first
@@ -940,6 +950,7 @@ struct EchoelmusicApp: App {
                 bioVoice.start(subscribing: bus)
                 polyVoice.start(subscribing: bus)
                 leadVoice.start(subscribing: bus)
+                bassVoice.start(subscribing: bus)    // the bass breathes with the body like every voice
                 touchVoice.start(subscribing: bus)   // touch notes breathe with the body too
                 // Multi-Roll (B07/B08): subscribe the rack's slot voices AND route each
                 // SECONDARY lane's note events to its own voice (flag-ON only). The
@@ -1146,7 +1157,7 @@ struct EchoelmusicApp: App {
                                        bus: bus,
                                        a4Hz: { [weak sessionContext] in sessionContext?.a4Hz ?? SessionContext.defaultA4Hz })
                 automationPlayer.wire(pattern: beatPlayer.pattern, audioEngine: audioEngine, voice: polyVoice)
-                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, automation: automationPlayer, timeline: timelinePlayer)
+                pianoRoll.start(pattern: beatPlayer.pattern, voice: polyVoice, lead: leadVoice, bass: bassVoice, subVoice: subBass, midiOut: midiOut, arrangement: arrangementPlayer, bus: bus, automation: automationPlayer, timeline: timelinePlayer)
                 if let firstPatch = patchStore.patches.first { polyVoice.apply(firstPatch) }
                 // Field voice pre-generate default: the RESPONSIVE "Echoel Field" pad
                 // (quick attack + unison width) so the play surface answers a finger

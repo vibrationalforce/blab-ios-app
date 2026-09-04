@@ -188,6 +188,21 @@ extension EnvironmentValues {
         set { self[LeadSynthKey.self] = newValue }
     }
 }
+
+/// #983 S2 — the dedicated bass voice (`EchoelmusicApp.bassVoice`). Reached from
+/// `EchoelStudioView` for the three fans every pitched voice gets — the Bass-bus insert, the
+/// tone system and concert pitch — and for the panic inventory. Which notes it PLAYS is decided
+/// in `PianoRollModel`, not here: only a genre with a `MusicStyle.bassPatch` routes to it.
+private struct BassSynthKey: EnvironmentKey {
+    static var defaultValue: PolySynthVoice? { nil }
+}
+
+extension EnvironmentValues {
+    var bassSynth: PolySynthVoice? {
+        get { self[BassSynthKey.self] }
+        set { self[BassSynthKey.self] = newValue }
+    }
+}
 #endif
 
 #if canImport(UIKit) && canImport(SwiftUI)

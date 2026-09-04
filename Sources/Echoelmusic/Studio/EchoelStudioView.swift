@@ -81,6 +81,7 @@ struct EchoelStudioView: View {
     /// so its patch/morph never re-timbre the generative bed and vice versa.
     @Environment(\.touchSynth) private var touchSynth
     @Environment(\.leadSynth) private var leadSynth
+    @Environment(\.bassSynth) private var bassSynth
     /// Patch id for the play surface: "" = follow the take's sound (default).
     @AppStorage(StudioDefaultKeys.touchPatchID.key)
     private var touchPatchID = StudioDefaultKeys.touchPatchID.value
@@ -1284,6 +1285,7 @@ struct EchoelStudioView: View {
             // as of #167 `masterLevel` is not even a symbol any more, so do not grep for it.
             subBass.setInsert(trackFX.bass)
             laneVoiceRack.setBassInsert(trackFX.bass)  // S2-W2-5: lane subs too
+            bassSynth?.setInsert(trackFX.bass)         // #983 S2: the bass voice sits on the Bass bus
             // …and the persisted Mixer BASS LEVEL, which until now reached nothing audible:
             // the mixer applies levels as a compose-time velocity scale, and the felt sub
             // has no per-note velocity, so the one fader the founder reached for was the
@@ -3805,6 +3807,7 @@ struct EchoelStudioView: View {
         trackFX.set(fx, for: .bass)
         subBass.setInsert(fx)
         laneVoiceRack.setBassInsert(fx)   // S2-W2-5: bus insert → lane subs too
+        bassSynth?.setInsert(fx)          // #983 S2: the dedicated bass voice is on this bus
     }
 
     /// Melodic-bus filter cutoff. Full-open (max) disengages; lower engages a low-pass.
@@ -4413,6 +4416,7 @@ struct EchoelStudioView: View {
         // the generated melody played 12-TET against a retuned pad and touch surface — a
         // larger error than the 32 cents of the A4 gap for a maqām or just table.
         leadSynth?.setTuningCents(cents)
+        bassSynth?.setTuningCents(cents)   // #983 S2 — a pitched voice; #312/#338 apply to it too
         // ⛔ AND THE FELT SUB (#312, founder "Bass teilweise nicht in tune"). The line above
         // used to end with "`setTuningCents` exists on exactly three reachable objects (all
         // `PolySynthVoice` — `subBass`/`bioVoice`/`laneVoiceRack` have no such method, so
@@ -4479,6 +4483,7 @@ struct EchoelStudioView: View {
         touchSynth?.setTuning(a4Hz: a4Hz)
         bioVoice.setTuning(a4Hz: a4Hz)
         leadSynth?.setTuning(a4Hz: a4Hz)
+        bassSynth?.setTuning(a4Hz: a4Hz)   // #983 S2
     }
 
     /// ⭐ THE MUSICAL IDENTITY THIS INSTALL WOKE UP WITH — one line, once, at the end of the
@@ -5116,6 +5121,7 @@ struct EchoelStudioView: View {
             synth,
             subBass,
             leadSynth,
+            bassSynth,        // #983 S2 — the dedicated bass voice, absent until its surface exists
             touchSynth,
             bioVoice,         // mono release + clears EVERY stranded controller latch:
                               // held keys (#943), press (#939), slide (#942), pitch (#945)
@@ -9951,6 +9957,11 @@ struct EchoelStudioView: View {
         let leadPatch = SynthPatch.factory.first { $0.name == style.leadPatchName }
             ?? SynthPatch.factory.first { $0.name == "Bright Lead" }
         if let leadPatch { pianoRoll.applyLeadPatch(leadPatch) }
+        // #983 S2: the genre's BASS timbre, on its own voice. Patch first, then the route, so
+        // the first bass note after a genre switch already sounds through the new patch. A genre
+        // without a bass patch routes the role back to the pad voice — today's sound, unchanged.
+        if let bassPatch = style.bassPatch { pianoRoll.applyBassPatch(bassPatch) }
+        pianoRoll.setBassVoiceActive(style.bassPatch != nil)
         // #983: a take composed under a genre bass figure keeps its downbeat hole in the felt
         // sub as well (see `PianoRollModel.subFollowsBassOnly`). Set HERE, next to the other
         // per-genre voice decision, so the flag and the take it describes change together.

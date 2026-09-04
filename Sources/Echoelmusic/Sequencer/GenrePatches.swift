@@ -346,6 +346,56 @@ public extension MusicStyle {
     /// (EchoelDDSP.InstrumentTimbre rawValue; "" = pure synth). `uni`/`det` stack
     /// detuned unison voices for ensemble width (nil = single voice). All default
     /// to "off" so an un-enriched genre is byte-identical to before this cycle.
+    /// #983 S2 — the genre's BASS timbre, played by the dedicated bass voice
+    /// (`EchoelmusicApp.bassVoice` via `PianoRollModel.applyBassPatch`). `nil` = the genre has no
+    /// bass instrument of its own and its `.bass` notes keep playing through the pad voice an
+    /// octave down, exactly as before S2.
+    ///
+    /// THE INVARIANT, pinned by `TheBassRoleHasItsOwnVoiceTests`: a genre has a bass patch IF AND
+    /// ONLY IF it has a `bassGrammar`. A figure without a bass instrument is a pad playing a
+    /// bassline; an instrument without a figure is a new timbre on the old walk — either half
+    /// alone is the "richtig gute Bass-Loops" ask done by halves. Every bass patch is DARKER,
+    /// SHORTER and LOWER-CUT than its genre's pad patch, dry (the Bass bus insert and the sub carry
+    /// the space), and MONO (`uni: 1` is honoured verbatim by `PolySynthVoice.apply`; a detuned
+    /// unison on a bass smears the fundamental). Values sit on the Sound-panel grid
+    /// (`SoundRowsCanReachTheShippedPatchesTests`) so a founder edit never rounds them.
+    var bassPatch: SynthPatch? {
+        switch self {
+        case .deepHouse:
+            // A round, short sub-pluck under the offbeat chord: fast-but-not-clicky attack, a
+            // decay that lets the "&" bloom for an 8th, a low cutoff so it reads as weight not
+            // tone, and a tail short enough to leave the downbeat hole EMPTY (S1's whole point).
+            return patch("F4", "House Sub",
+                a: 0.006, d: 0.34, s: 0.30, r: 0.16,
+                harm: 0.90, hl: 0.40, bright: 0.18, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 640, res: 0.20, lfoAmt: 0.0, lfoRate: 0.0, lfoDepth: 0.0,
+                revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
+                uni: 1, det: 0)
+        case .techHouse:
+            // The rolling 8th-note tech bass: the shortest release of the three so every hit is
+            // its own event, a touch more resonance and a mid-low cutoff for the growl, plus a
+            // slow, shallow filter wobble so a bar of 8ths does not read as a metronome.
+            return patch("F5", "Tech Bass",
+                a: 0.003, d: 0.20, s: 0.18, r: 0.10,
+                harm: 0.84, hl: 0.52, bright: 0.26, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 900, res: 0.28, lfoAmt: 0.08, lfoRate: 0.5, lfoDepth: 0.10,
+                revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
+                uni: 1, det: 0)
+        case .minimalTechno:
+            // The held dark sub: a softer attack (the root is held half a bar, it does not need
+            // a click), high sustain, the lowest cutoff and the darkest patch in the file —
+            // minimal is defined by what is absent, on the bass most of all.
+            return patch("F6", "Minimal Sub",
+                a: 0.012, d: 0.60, s: 0.62, r: 0.12,
+                harm: 0.94, hl: 0.36, bright: 0.14, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 520, res: 0.16, lfoAmt: 0.0, lfoRate: 0.0, lfoDepth: 0.0,
+                revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
+                uni: 1, det: 0)
+        default:
+            return nil
+        }
+    }
+
     private func patch(_ suffix: String, _ name: String,
                        a: Float, d: Float, s: Float, r: Float,
                        harm: Float, hl: Float, bright: Float, noise: Float,
