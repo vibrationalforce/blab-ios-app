@@ -1,4 +1,4 @@
-build: v10.79.440 — ein Standbild aus dem Visual, direkt in die Fotos
+build: v10.79.441 — ein Standbild aus dem Visual, und es sagt Dir, ob es geklappt hat
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,49 +6,67 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.439.
+  Der Vorgänger ist 10.79.440.
 
-  ── ZUERST: WAS DIESE VERSION IST ────────────────────────────────────────
+  ── ZUERST: WARUM SO SCHNELL EINE NEUE ──────────────────────────────────
 
-  Deine Frage vom 2026-09-04 zur Algorithmic-Art-Folie: „Für die visuals hier was
-  interessantes bei?" — Antwort: EINE Sache, und die ist gebaut. Das Visual konnte bisher
-  nur ein VIDEO erzeugen. Ein EINZELBILD — das Cover, der Post, das eine Bild, das man
-  behalten will — hatte keinen Weg nach draußen.
+  440 ist eine halbe Stunde alt und Du hast sie vermutlich noch nicht auf dem Gerät.
+  **Installier diese statt 440.** Grund: in 440 sagt der neue Kamera-Knopf GAR NICHTS —
+  weder bei Erfolg noch wenn iOS die Foto-Erlaubnis verweigert. Du hättest getippt, nichts
+  gesehen und „der Knopf ist tot" gemeldet. Die Verweigerung ist dabei ausgerechnet der
+  wahrscheinlichste erste Fall, weil iOS genau dann fragt.
 
-  **Neu: ein Kamera-Knopf im Vollbild-Visual. Ein Druck = ein Bild in Deiner Fotos-App.**
+  ── WAS DIESE VERSION IST ────────────────────────────────────────────────
+
+  Antwort auf Deine Frage zur Algorithmic-Art-Folie („Für die visuals hier was
+  interessantes bei?"): EINE Sache war es wert, und die ist jetzt vollständig.
+
+  **Ein Kamera-Knopf im Vollbild-Visual. Ein Druck = ein Bild in Deiner Fotos-App —
+  und daneben steht, was passiert ist.**
+
+  Drei mögliche Antworten, jede rund zwei Sekunden lang sichtbar:
+
+  · „Saved to Photos" — das Bild ist in der Fotos-App.
+  · „Photos access is off — allow it in Settings" — iOS hat die Erlaubnis verweigert.
+    Der einzige Fall, wo Du etwas tun kannst: Einstellungen → Echoelmusic → Fotos.
+  · „Could not save this frame" — es ist schiefgegangen; das Diagnose-Log sagt mehr.
 
   Kein zweiter Aufnahmeweg: das Bild ist genau der Bildpuffer, den die Videoaufnahme
-  ohnehin jedes Bild anlegt — einmal, als JPEG. Ohne laufende Aufnahme wird KEINE
-  mp4-Datei geöffnet. Beim ersten Mal fragt iOS nach der Foto-Erlaubnis („Nur
-  Hinzufügen"); danach nicht mehr.
+  ohnehin jedes Bild anlegt — einmal, als JPEG. Ohne laufende Aufnahme entsteht KEINE
+  mp4-Datei.
 
   **Am KLANG hat sich nichts geändert.** Die 19 Genres aus 439 sind bit-identisch.
 
   ── DIE TÜR ──────────────────────────────────────────────────────────────
 
   · **Field**-Chip → „Full screen" → in der Bedienleiste unten der Kamera-Knopf
-    (rechts neben dem roten Aufnahmeknopf).
+    (rechts neben dem roten Aufnahmeknopf). Der Antwortsatz erscheint direkt daneben.
   · Der Knopf sitzt bewusst NICHT im kleinen schwebenden Fenster: dessen Leiste ist auf
     die Breite budgetiert, ein siebter Knopf hätte einen anderen verdrängt.
   · Diagnose-Log, falls etwas klemmt: **Save/Export**-Chip → „Diagnostics" → Share.
 
-  ── WAS DU PRÜFEN KANNST ─────────────────────────────────────────────────
+  ── WAS DU PRÜFEN KANNST, in dieser Reihenfolge ──────────────────────────
 
-  1. **Field-Chip → Full screen → Kamera-Knopf**, während das Feld läuft: kommt das Bild
-     in der Fotos-App an, und ist es DAS Bild, das Du gesehen hast (nicht das davor)?
-  2. **Zweimal kurz hintereinander drücken:** kommen zwei Bilder, nicht eines?
-  3. **Während einer laufenden Video-Aufnahme drücken:** läuft das Video ungestört weiter
+  1. **Erster Tipp überhaupt:** iOS fragt nach der Foto-Erlaubnis. Erlaubst Du sie, muss
+     „Saved to Photos" stehen; lehnst Du ab, muss der Settings-Satz stehen — **nicht**
+     Schweigen.
+  2. **Ist der Satz LESBAR** über dem bewegten Bild, und ist er wieder weg, bevor er stört?
+     Das ist die eine Frage, die kein Test beantworten kann.
+  3. **Zweimal hintereinander tippen:** kommen zwei Bilder, und erscheint der Satz beim
+     zweiten Mal erneut (nicht nur beim ersten)?
+  4. **Während einer laufenden Video-Aufnahme tippen:** läuft das Video ungestört weiter
      und es kommt zusätzlich ein Bild?
-  4. **Ohne Aufnahme drücken, dann in die Video-Bibliothek schauen** (Video-Chip):
+  5. **Ohne Aufnahme tippen, dann in die Video-Bibliothek schauen** (Video-Chip):
      es darf KEINE neue mp4 entstanden sein.
-  5. **Ruckelt das Bild** im Moment des Drückens? Ein Bild braucht eine besonders
+  6. **Ruckelt das Bild** im Moment des Tippens? Ein Standbild braucht eine besonders
      lesbare Zeichenfläche; das kostet etwa 16 ms. Wenn Du einen Hänger siehst, sag es.
 
-  Was diese Notiz NICHT behauptet: dass das Bild gut aussieht oder dass die Auflösung
-  passt. Struktur und Tür sind in CI gepinnt (`AStillIsOneFrameNotASecondPathTests`),
-  das Bild selbst entscheidet Dein Auge.
+  Was diese Notiz NICHT behauptet: dass das Bild gut aussieht, dass die Auflösung passt
+  oder dass der Satz an der richtigen Stelle sitzt. Struktur, Türen und die drei
+  Antwortsätze sind in CI gepinnt (`AStillIsOneFrameNotASecondPathTests`,
+  `TheStillSaysWhetherItWasSavedTests`); wie es AUSSIEHT, entscheidet Dein Auge.
 
-  Mitgefahren, ohne hörbare oder sichtbare Wirkung: drei reine Test-/Doku-Scheiben zu
-  den 439er-Genres (ein Wächter für den weiten Quint-Stapel von Dark Minimal, eine
-  Korrektur seines Beispiel-Textes, und die Regel, dass eine Geräte-Bitte ihre Anleitung
-  direkt neben sich tragen muss).
+  ⚠ Ein Punkt, den ich nicht selbst anfassen darf: der Erlaubnis-Text in `Info.plist` sagt
+  bisher nur „Finished visual recordings" — also Videos. Seit dem Standbild landet dort auch
+  ein Bild. Es stürzt nichts ab, aber Apple will, dass der Text die Verwendung beschreibt.
+  `Info.plist` gehört Dir; ein Wort würde reichen.

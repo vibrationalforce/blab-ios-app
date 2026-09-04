@@ -22576,3 +22576,20 @@ dort fragt.
   eine Bitte wird zur Bitte). Umformuliert mit Determiner („die NEEDS-FOUNDER-VERIFY am Fuß dieser
   Datei"), damit die NOT-ASKS-Regel greift. Rückstand danach **90 offene Bitten in 77 Dateien**
   — +1 gegenüber vorher, wie es sein soll.
+
+**Build 441 ausgeliefert — 440 überholt, bevor der Founder sie installiert.** Bewusste Ablösung
+nach 30 Minuten: in 440 sagt der Kamera-Knopf NICHTS, also hätte die erste Geräteprobe „der Knopf
+ist tot" ergeben, während das Bild womöglich längst in der Fotos-App lag. Die Notiz sagt genau das
+in ihrem ersten Absatz — sie bittet ausdrücklich, 441 statt 440 zu installieren.
+· **Gates auf `42ab33a` gelesen:** Compile Check Schritt 7 `success` (19:10) · CI/CD Schritt 9
+  „Build for Testing" `success` (19:14) — damit sind alle VIER Risikostellen der Scheibe erledigt
+  (`@Sendable`-Completion-Parameter, `[self]`-Capture im GPU-Handler, `.task(id:)` mit `Duration`,
+  `EchoelTheme.font(12)` im neuen Blatt) · Schritt 11 „Run Tests" `failure` = **#396**, gleiche
+  Signatur wie beim Vorgänger: Launch-Fehler auf einem Klon, **134 bestandene Tests auf dem
+  anderen**, `TEST FAILURES: 0 · TESTS SKIPPED: 0 · compile-error lines: 0`.
+· **Slow-type-check-Warnungen 60 → 62, aber KEINE in den neuen Dateien** — der Log nennt
+  `StillShutterButton.swift` an keiner Stelle (`grep` auf die Overflow-Datei: null Treffer). Die
+  #933e-Regel („keine neue hinterlassen") ist damit eingehalten, gemessen statt gehofft.
+· Notiz erneut gegen beide Wächter transkribiert: Tokens `Field` · `Save/Export` · `Video`,
+  Diagnostics-Tür benannt, erster `vX.Y.Z`-Treffer der ganzen Datei auf Zeile 1, Vorgänger
+  `10.79.440` ohne `v`.
