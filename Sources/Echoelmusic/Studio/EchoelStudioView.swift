@@ -1598,12 +1598,13 @@ struct EchoelStudioView: View {
                         // No share sheet: the still goes straight to Photos, exactly like the
                         // video's `saveToPhotoLibrary`. A `.sheet` here would grow the
                         // presentation chain, which is the 10.76.34 black-screen law.
-                        Button { visualRecorder.requestStill() } label: {
-                            Image(systemName: "camera.circle")
-                                .font(.title2)
-                                .foregroundStyle(.white.opacity(0.85))
-                        }
-                        .accessibilityLabel("Save this frame as a picture")
+                        //
+                        // #986: the tap AND its answer moved into `StillShutterButton`. #985
+                        // shipped a button that said nothing at all — a denied photo permission,
+                        // an encode failure and a success were one and the same silence, with the
+                        // only trace in a log the founder cannot see. The outcome read lives in
+                        // that leaf, never here: this body hosts the genre/key `.menu` Pickers.
+                        StillShutterButton(recorder: visualRecorder)
                     }
                     #endif
                     Button { showVisual = false } label: {

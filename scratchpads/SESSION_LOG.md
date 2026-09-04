@@ -22539,3 +22539,40 @@ Prüfschritte und sagt ausdrücklich, dass sie über die BILDQUALITÄT nichts be
   Stop-Hook hat den unsauberen Baum gemeldet; ich habe die Datei auf `HEAD` zurückgesetzt und
   erst nach dem Gate-Lesen wieder eingespielt. **Regel: ein Deploy-Bump gehört in denselben
   Commit wie das Gate-Lesen, nicht davor in den Worktree.**
+
+**#986 — der Standbild-Knopf ANTWORTET.** Direkt nach dem 440-Ship gemessen, was ich mit #985
+ausgeliefert hatte: den Knopf UND ein Schweigen. Erfolg, verweigerte Fotos-Berechtigung und
+Encode-Fehler waren voneinander und von einem TOTEN Knopf nicht zu unterscheiden; die einzige
+Spur war eine `os_log`-Zeile, die der Founder auf dem Gerät in der Hand nicht sieht. Damit standen
+**zwei Punkte der CLEAR-SOFTWARE-Liste offen** — „permission denials handled gracefully" und
+„buttons respond, states change" — auf einem Feature, das ich eine Stunde vorher fertig genannt
+hatte. Und die Verweigerung ist ausgerechnet der WAHRSCHEINLICHSTE erste Lauf, weil iOS genau
+dort fragt.
+· **Modell:** `VisualRecorder.StillOutcome` (`saved`/`denied`/`failed`) + `lastStillOutcome` +
+  `stillOutcomeToken`. **Der Token ist nicht Zierrat:** zwei Verweigerungen hintereinander sind
+  ZWEI Ereignisse, und ein `onChange` auf den Wert sieht beim zweiten Mal keine Änderung.
+· **Jeder Ausgang meldet** — Encode-Fehler, Verweigerung, `performChanges`-Ergebnis, und der
+  `#else`-Zweig für eine Plattform ohne Photos/CoreImage. Der leere `#else` war vorher ein
+  Callback, der nie kommen kann; von außen sieht das aus wie derselbe tote Knopf.
+· **EIN Actor-Hop pro STANDBILD, nie pro Frame.** `capture` hatte bewusst gar keinen (10.76.48:
+  ein `Task { @MainActor }` pro Frame verhungert den SwiftUI-Executor). Der Hop sitzt INNERHALB
+  des `if wantsStill`-Blocks, also hinter einem menschlichen Tipp — Anspruch 5 nagelt beides fest
+  (genau ein Hop in der Datei, und er steht hinter dem Gate).
+· **Blatt statt Zeile im Wirt:** `Studio/StillShutterButton.swift` besitzt Tipp UND Antwort.
+  `stillOutcomeToken` ist KALT — das ist nicht der heutige Freeze; der Punkt ist, dass der Read
+  eine Bearbeitung von einem heißen Nachbarn entfernt ist und das Blatt nichts kostet. Der
+  Record-Knopf daneben liest `isRecording` weiter inline: Historie, keine Lizenz, und in dieser
+  Scheibe nicht angefasst. **Präsentations-Zähler unverändert** (sheet 14 · fullScreenCover 7 ·
+  alert 3 · fileImporter 4).
+· **Der Wortlaut ist Teil der Sache:** „Photos access is off — allow it in Settings". Eine
+  Verweigerung, die nur „failed" sagt, schickt jemanden zurück auf denselben Knopf, der weiter
+  ablehnt — iOS fragt kein zweites Mal.
+· **Wächter:** `Tests/CISmoke/TheStillSaysWhetherItWasSavedTests.swift`, 5 Ansprüche, davon EINER
+  echt behavioural (drei unterschiedliche Sätze, Verweigerung nennt Settings — kein Text-Scan).
+  Transkription `scratchpad/s986_grade.py`: **Worktree grün, HEAD rot bei allen fünf.**
+· ⛔ **Eigener Fehler beim Schreiben des Wächters, im selben Zug repariert:** meine Kopfzeile sagte
+  „…ist NEEDS-FOUNDER-VERIFY: öffne das Vollbild…", also eine ZWEITE Bitte für denselben Job —
+  `founder-verify.py` zählte die Datei zweimal. Das ist exakt die #753/#984-Klasse (Prosa ÜBER
+  eine Bitte wird zur Bitte). Umformuliert mit Determiner („die NEEDS-FOUNDER-VERIFY am Fuß dieser
+  Datei"), damit die NOT-ASKS-Regel greift. Rückstand danach **90 offene Bitten in 77 Dateien**
+  — +1 gegenüber vorher, wie es sein soll.

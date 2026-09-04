@@ -59,6 +59,29 @@ final class VisualRecorder {
     /// Ask for the next available frame as a still image. Idempotent while one is pending.
     func requestStill() { stillRequested = true }
 
+    // MARK: - Still outcome (#986)
+
+    /// What became of the last still. #985 shipped the picture and told the user NOTHING:
+    /// success, a denied photo-library permission and an encode failure were all indistinguishable
+    /// from a dead button, and the only trace was an `os_log` line the founder cannot see. That is
+    /// the "permission denials handled gracefully" and "buttons respond, states change" items of
+    /// the CLEAR-SOFTWARE checklist, both open on a shipped feature.
+    enum StillOutcome: Equatable, Sendable { case saved, denied, failed }
+
+    /// The last outcome, or nil if no still has completed this session.
+    private(set) var lastStillOutcome: StillOutcome?
+
+    /// Bumped once per completed still. A view CANNOT watch `lastStillOutcome` alone: two stills in
+    /// a row with the SAME outcome produce no change, so the second one would flash nothing. The
+    /// token is the thing that always moves.
+    private(set) var stillOutcomeToken: UInt = 0
+
+    /// One writer for both. Called on the main actor from the GPU completion's hop.
+    private func publishStill(_ outcome: StillOutcome) {
+        lastStillOutcome = outcome
+        stillOutcomeToken &+= 1
+    }
+
     @ObservationIgnored private weak var audioEngine: AudioEngine?
 
     // MARK: - Control
@@ -200,8 +223,15 @@ final class VisualRecorder {
         // main-actor write from a background thread AND could arm a second frame in between.
         let recording = video.recordState.isRecording
         if wantsStill { stillRequested = false }
-        commandBuffer.addCompletedHandler { _ in
-            if wantsStill { VisualRecorder.saveStillToPhotoLibrary(box.pb) }
+        commandBuffer.addCompletedHandler { [self] _ in
+            // #986: ONE actor hop per STILL — not per frame. The 30 fps rule bans a hop per
+            // captured frame (it starves the SwiftUI executor); this closure only hops when a
+            // human has just tapped, which is at most a few times a minute.
+            if wantsStill {
+                VisualRecorder.saveStillToPhotoLibrary(box.pb) { outcome in
+                    Task { @MainActor in self.publishStill(outcome) }
+                }
+            }
             // A still asked for on a NON-recording frame must not be fed to the file sink:
             // `ingest` would open a writer for a take nobody started.
             if recording { box.sink.ingest(box.pb, at: box.pts) }
@@ -217,7 +247,10 @@ final class VisualRecorder {
     ///
     /// ⚠️ Runs on the GPU completion thread, NOT the main actor: `nonisolated static` on purpose,
     /// and it touches only the buffer handed to it plus Photos, never `self`.
-    nonisolated static func saveStillToPhotoLibrary(_ pb: CVPixelBuffer) {
+    nonisolated static func saveStillToPhotoLibrary(
+        _ pb: CVPixelBuffer,
+        completion: @escaping @Sendable (StillOutcome) -> Void
+    ) {
         #if canImport(Photos) && canImport(CoreImage) && !os(macOS)
         // ⛔ THE FIRST VERSION OF THIS FUNCTION BUILT THE CONTEXT TWICE and went
         // CIImage → CGImage → CIImage → JPEG. The CGImage step buys nothing: `jpegRepresentation`
@@ -230,12 +263,14 @@ final class VisualRecorder {
                                 colorSpace: CGColorSpaceCreateDeviceRGB(),
                                 options: [:]) else {
             log.log(.error, category: .video, "VisualRecorder: still could not be encoded")
+            completion(.failed)
             return
         }
         PHPhotoLibrary.requestAuthorization(for: .addOnly) { status in
             guard status == .authorized || status == .limited else {
                 log.log(.info, category: .video,
                         "VisualRecorder: photo-library add not authorized — still discarded")
+                completion(.denied)
                 return
             }
             PHPhotoLibrary.shared().performChanges({
@@ -246,8 +281,14 @@ final class VisualRecorder {
                     log.log(.error, category: .video,
                             "VisualRecorder: still save failed: \(error?.localizedDescription ?? "unknown")")
                 }
+                completion(success ? .saved : .failed)
             }
         }
+        #else
+        // No Photos/CoreImage on this platform. Report the failure rather than returning without
+        // ever calling back: a caller that waits forever for a callback that cannot come looks
+        // exactly like the dead button this slice exists to remove.
+        completion(.failed)
         #endif
     }
 
