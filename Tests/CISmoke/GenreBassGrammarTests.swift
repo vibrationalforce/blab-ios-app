@@ -173,6 +173,9 @@ final class GenreBassGrammarTests: XCTestCase {
 
     /// With `bassOnly` the sub ignores the pad, so a free downbeat is FELT free too; without it,
     /// the old lowest-of-everything rule is unchanged.
+    /// `@MainActor` because `feltSubPitch` is a `static func` on `@MainActor PianoRollModel` and
+    /// INHERITS that isolation (HARNESS_LEDGER dead-end; the first push of this file paid it).
+    @MainActor
     func testTheFeltSubFollowsOnlyTheBassRoleWhenAsked() {
         let pad = Note(pitch: 60, startStep: 0, lengthSteps: 4, velocity: 0.6, role: .harmony)
         let low = Note(pitch: 36, startStep: 2, lengthSteps: 2, velocity: 0.8, role: .bass)
