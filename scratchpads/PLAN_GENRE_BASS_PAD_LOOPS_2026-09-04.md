@@ -115,14 +115,36 @@ Reihenfolge ist Handwerk.
 - Risiko: eine Stimme mehr am Engine (CPU ≈ +1 Poly-Stimme) — im Diag-Log `voices=` prüfen.
 - Ohr: derselbe Loop — der Bass ist jetzt ein Bass (kurz, dunkel), nicht das Pad tief.
 
-### S3 — Genre `deepTech` („Deep Tech")
+### S3 — Genre `deepTech` („Deep Tech") — ✅ GEBAUT (Folge-Commit; Gates ausstehend)
 - 124…128, default 126; minor; `chordTones [0, 4, 6]` (Root-Quinte-♭7, ohne Terz — neu im
   Roster, vom Fingerabdruck messbar); Progression `[0, 5]`; padOctave 4; `.fourOnFloor`→`.stab`;
-  swing 0.08; bassGrammar `drivingEighths`; FX: trocken, Room 0.40, Sat 0.36, Delay 16tel
-  gepunktet; Patch: dunkle, kurze Shell (bright 0.28). Mix bass-led (1.16, 0.90, 0.88).
-- Alle 9 `MusicStyle`-Switches + `GenreFX` + `GenrePatches` + `offered` + `Category.electronic` +
-  Lineage-Text neutral (`TheGenreVocabularyStaysNeutralTests`).
-- Wächter: Erweiterung von `GenreFamilyDistinctnessTests.testTheNewGenresAreReachableInThePicker`.
+  swing 0.08; bassGrammar `drivingEighths`; FX: trocken, Room 0.40, Sat 0.36, Delay **8tel
+  gepunktet** (⛔ hier stand „16tel gepunktet" — das hätte `techHouse`s „kürzeste Delay-Teilung
+  der angebotenen Genres" zu einem Gleichstand gemacht; die gepunktete Achtel ist der dubbige
+  Schwanz, den Deep Tech ohnehin hat, geteilt mit dubTechno/minimal, keine Einzigartigkeit
+  behauptet); Damping 0.56 UNTER techHouse 0.58, damit dessen „fünfter"-Rang hält; Patch: dunkle
+  Shell „Deep Shell" F7 (bright 0.28, zwischen Minimal Stab 0.24 und House Shell 0.34); Bass
+  „Deep Bass" F8 (bright 0.20, r 0.11, cutoff 760, trocken, mono). Mix bass-led (1.16, 0.90, 0.88).
+- Gebaut: 13 `MusicStyle`-Stellen (offered · Category.genres · category · case · displayName ·
+  lineage · beatArchetype · tempoRange · defaultTempo · swing · leadPatchName „Deep Sub" [25.
+  lead-tragendes Genre → Decke 5] · mixLevels · scale · harmonicProfile) + `GenreFX` +
+  `GenrePatches` (Pad + Bass) + `BassGrammar`. ⛔ Der Plan sagte „9 Switches" — es sind 10
+  Switches plus drei Listen; gezählt beim Bauen, nicht geschätzt.
+- **Zähl-Heime, die mitgezogen sind (16 → 17):** `MoodKnobsSayWhatTheyDoTests` (Pin + Nadel),
+  `moodPanel`-Caption „7 of the 17 offered" (die 7 bleibt: die Shell trägt die 7 schon),
+  `MIDIClockTests`-Doc (sieben von siebzehn swingen), `EchoelStudioView`-Swing-Kommentar,
+  `docs/brainstorming.html` · `docs/tools.html` · `docs/press.html` · `FEATURE_MATRIX.md` ·
+  `APP_STORE_LISTING_v1.md` · **`fastlane/*/release_notes.txt`** — die Store-Notiz ist NICHT
+  freiwillig: `WebsitePagesAreFindableAndHonestTests.testPublishedGenreAndScaleCountsMatchTheApp`
+  liest sie gegen `MusicStyle.offered.count`. Geändert ist nur die ZAHL und der Name in der
+  Liste (eine Roster-Tatsache), kein Klang-Versprechen — das bleibt hinter dem Founder-Ohr.
+- Wächter: `Tests/CISmoke/GenreDeepTechTests.swift` (7 Ansprüche: Tür, Voicing neu, Stab/Tempo,
+  Figur+Patch zusammen, Helligkeits-Achse, FX-Nachbar-Superlative, Romance-7) + Erweiterung von
+  `GenreFamilyDistinctnessTests.testTheNewGenresAreReachableInThePicker`. Transkription
+  `scratchpad/s3_grade_deeptech.py`: Worktree GREEN (Fingerabdruck über 17 eindeutig, Decke 5,
+  ohne-7 = 7, Patch-Suffixe/-Namen ohne Kollision, Raster).
+- **Ohr-Satz (NEEDS-FOUNDER-VERIFY):** Deep Tech im Loop-Modus bei 126 — liest sich die terzlose
+  Shell als „deep" (Gewicht ohne Dur/Moll-Farbe) und der 8tel-Bass als Drive statt Metronom?
 
 ### S4 — Genre `darkMinimal` („Dark Minimal")
 - 126…132, default 129; **phrygian** (die ♭2 ist die Dunkelheit; unter den offered ist acid

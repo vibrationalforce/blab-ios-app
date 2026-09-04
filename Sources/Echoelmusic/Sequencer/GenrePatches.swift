@@ -120,6 +120,18 @@ public extension MusicStyle {
                 harm: 0.62, hl: 0.70, bright: 0.24, noise: 0.0, color: "Pink", shape: "Dark",
                 cutoff: 1900, res: 0.34, lfoAmt: 0.06, lfoRate: 0.8, lfoDepth: 0.10,
                 revMix: 0.06, revDecay: 0.7, vibRate: 0, vibDepth: 0)
+        case .deepTech:
+            // #983 S3 — A DARK SHELL. Brightness 0.28 sits between the house shell (0.34) and the
+            // minimal stab (0.24) — the three are tempo neighbours and all stab, so brightness is
+            // the axis that tells them apart. Short but not clicky: a hair more decay and release
+            // than tech house so the third-less shell has a body to read as "deep", a lower cutoff
+            // for the same reason, and a slow shallow filter movement so the stab breathes across
+            // a bar. Little patch reverb — the FX preset's dry 0.40 room is the space.
+            return patch("F7", "Deep Shell",
+                a: 0.004, d: 0.22, s: 0.16, r: 0.20,
+                harm: 0.78, hl: 0.56, bright: 0.28, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 2100, res: 0.28, lfoAmt: 0.12, lfoRate: 0.9, lfoDepth: 0.14,
+                revMix: 0.12, revDecay: 1.1, vibRate: 0, vibDepth: 0)
         case .detroitTechno:
             // #254 batch 4 — A WARM CHORD, not a stab: a slower attack than any other genre in this
             // family so the ninth chord SWELLS into the comp, a long-ish release so the syncopation
@@ -389,6 +401,17 @@ public extension MusicStyle {
                 a: 0.012, d: 0.60, s: 0.62, r: 0.12,
                 harm: 0.94, hl: 0.36, bright: 0.14, noise: 0.0, color: "Pink", shape: "Dark",
                 cutoff: 520, res: 0.16, lfoAmt: 0.0, lfoRate: 0.0, lfoDepth: 0.0,
+                revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
+                uni: 1, det: 0)
+        case .deepTech:
+            // #983 S3 — the driven 8th-note deep-tech bass: rounder than the tech bass (a touch
+            // more decay and sustain, a lower cutoff so it reads as weight under the third-less
+            // shell) with a slow shallow filter wobble so a bar of 8ths breathes; the release is
+            // the shortest thing in the patch so every hit stays its own event.
+            return patch("F8", "Deep Bass",
+                a: 0.003, d: 0.24, s: 0.24, r: 0.11,
+                harm: 0.88, hl: 0.46, bright: 0.20, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 760, res: 0.24, lfoAmt: 0.06, lfoRate: 0.4, lfoDepth: 0.08,
                 revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
                 uni: 1, det: 0)
         default:

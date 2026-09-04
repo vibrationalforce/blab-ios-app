@@ -6530,7 +6530,7 @@ struct EchoelStudioView: View {
             // it costs one clause; the alternative was leaving a control that reads continuous
             // and is not. `MoodKnobsSayWhatTheyDoTests` measures both cliffs and fails if either
             // moves, so this sentence cannot go stale silently.
-            Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · odd leaps (weird). Blends with your live signal. Darkness and Romance switch rather than fade: above 0.60 Darkness drops the voicing an octave, and above 0.50 Romance adds the 7th to genres whose chord does not already have one (7 of the 16 offered).")
+            Text("Friendly ↔ scary (tension) · sparse ↔ busy (liveliness) · odd leaps (weird). Blends with your live signal. Darkness and Romance switch rather than fade: above 0.60 Darkness drops the voicing an octave, and above 0.50 Romance adds the 7th to genres whose chord does not already have one (7 of the 17 offered).")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -6742,9 +6742,9 @@ struct EchoelStudioView: View {
     ///
     /// ⚠️ AND ROMANCE IS WEAKER STILL THAN "a switch": its one read is `if mood.romance > 0.5,
     /// !tones.contains(6)`, so on a genre whose chord ALREADY carries the 7th it does nothing at
-    /// any setting. That is 9 of the 16 offered genres — `.selfObservation`, THE SHIPPED DEFAULT,
+    /// any setting. That is 10 of the 17 offered genres — `.selfObservation`, THE SHIPPED DEFAULT,
     /// among them. The caption therefore says "to genres whose chord does not already have one
-    /// (7 of the 16 offered)" rather than promising the 7th outright; an unqualified promise would
+    /// (7 of the 17 offered)" rather than promising the 7th outright; an unqualified promise would
     /// have been false for the genre a first-time user hears. `MoodKnobsSayWhatTheyDoTests` pins
     /// the 7/16 split against `harmonicProfile` itself, so the number in the caption cannot rot.
     ///
@@ -9920,13 +9920,13 @@ struct EchoelStudioView: View {
         //    `PianoRollModel.start`, from the unconditional `pianoRoll.start(pattern:…)` at app
         //    start. Drums were never what carried the groove here — killing them (#166/#167)
         //    did not remove anything this line depended on.
-        //  · "Pure Flächen run straight" is already what the DATA says: of the 16 genres in
+        //  · "Pure Flächen run straight" is already what the DATA says: of the 17 genres in
         //    `MusicStyle.offered`, TEN return `swing == 0` — every meditative and ambient
-        //    one. The hardwire did not protect them; it silenced the other six.
+        //    one. The hardwire did not protect them; it silenced the other seven.
         //
-        // The six that change, re-derived (do not quote — re-run against `offered`):
+        // The seven that change, re-derived (do not quote — re-run against `offered`):
         // deepHouse 0.16 · vaporwave 0.15 · techHouse 0.12 · detroitTechno 0.10 ·
-        // dubTechno 0.08 · minimalTechno 0.04. Jazz (0.34) and the shuffle family are NOT
+        // dubTechno 0.08 · deepTech 0.08 · minimalTechno 0.04. Jazz (0.34) and the shuffle family are NOT
         // offered, so the reachable maximum is 0.16, not 0.34 — that matters for the
         // collateral, see below.
         //
@@ -10143,7 +10143,7 @@ struct EchoelStudioView: View {
         // written in — the fix that makes a value matter has to walk back to the diagnostic.**
         //
         // ⚠️ AND `live=` IS NOT A DRIVER ON EVERY GENRE — say so rather than let a log reader
-        // infer it. Both decisions it shifts sit behind `!sustained`, and 8 of the 16 offered
+        // infer it. Both decisions it shifts sit behind `!sustained`, and 8 of the 17 offered
         // genres are `sustained: true`, INCLUDING the default `.selfObservation`. On those the
         // number prints and changes nothing. Registered as #419 (the sustained half); until that
         // lands, read `live=` together with `genre=`.

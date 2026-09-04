@@ -22384,3 +22384,16 @@ Transkription `scratchpad/s2_grade_bassvoice.py`: Worktree GREEN, HEAD RED.
 **Nicht bewiesen:** Klang (NEEDS-FOUNDER-VERIFY: Deep House im Loop-Modus — der Bass ist jetzt ein
 kurzer dunkler Sub-Pluck auf den „&"s, nicht das Pad eine Oktave tiefer; Minimal: ein gehaltener
 dunkler Root). CPU: eine Poly-Stimme mehr am Engine (wie `leadVoice`) — im Diag-Log prüfen.
+
+**S3 gebaut — Genre `deepTech` („Deep Tech"):** 13 `MusicStyle`-Stellen + `GenreFX` + `GenrePatches`
+(Pad „Deep Shell" F7, Bass „Deep Bass" F8) + `BassGrammar` (`.drivingEighths`, Figur geteilt mit
+techHouse, Patch eigen). Fingerabdruck neu: minor, `[0, 4, 6]` (Root-Quinte-♭7, terzlos — kein
+anderer Arm trägt es), `[0, 5]`, padOctave 4, `.stab`; 124…128/126, swing 0.08. 25. lead-tragendes
+Genre → Pigeonhole-Decke 5, „Deep Sub" jetzt bei 5. Zähl-Heime 16 → 17 mitgezogen (MoodKnobs-Pin +
+Nadel, `moodPanel`-Caption, MIDIClock-Doc, Swing-Kommentar, drei `docs/*.html`, FEATURE_MATRIX,
+APP_STORE_LISTING, beide `release_notes.txt` — Letzteres, weil der Website-Wächter sie gegen
+`offered.count` liest). ⛔ Plan sagte „Delay 16tel gepunktet" — wäre Gleichstand mit techHouses
+„kürzeste Teilung"; gebaut 8tel gepunktet. ⛔ Plan sagte „9 Switches" — 10 plus drei Listen.
+techHouses FX-Kommentar „second smallest room" war seit batch 4 schon falsch — im selben Commit
+korrigiert. Wächter `Tests/CISmoke/GenreDeepTechTests.swift` (7) + Reachable-Liste. Transkription
+`scratchpad/s3_grade_deeptech.py` GREEN. Nicht bewiesen: Klang (NEEDS-FOUNDER-VERIFY).

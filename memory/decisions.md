@@ -1375,4 +1375,10 @@ beschränken (#292, `afcf3aa`).
   als Bass-Timbre, Sub folgt dem Pad). Ein neues Genre ohne Grammatik erbt denselben Walk.
 - **Council-Dissens:** Maximalist (Genres sofort) vs Shipper (Grammatik zuerst) — Shipper gewinnt.
 - **Mirror:** `decisions.csv:690`. Plan: `scratchpads/PLAN_GENRE_BASS_PAD_LOOPS_2026-09-04.md`.
+- **S3 (`deepTech`, 2026-09-04) — eine Teilentscheidung, die nicht im Plan stand:** die
+  Store-Notiz (`fastlane/*/release_notes.txt`) nennt jetzt „Seventeen/Siebzehn" und „Deep Tech",
+  VOR dem Founder-Ohr. Grund: `WebsitePagesAreFindableAndHonestTests` pinnt die Zahl gegen
+  `MusicStyle.offered.count` im blockierenden Bundle — die Zahl ist eine Roster-Tatsache, kein
+  Klang-Versprechen; das Versprechen („richtig gut") bleibt hinter dem Ohr. Delay-Teilung 8tel
+  gepunktet statt der geplanten 16tel (sonst Gleichstand mit techHouses Superlativ).
 - **Review:** 2026-10-04 — hat der Founder S1/S2 gehört? Sind S3–S5 gelandet?
