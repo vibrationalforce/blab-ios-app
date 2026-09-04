@@ -1,4 +1,4 @@
-build: v10.79.437 — dieselbe App wie 436, mit einer Notiz, der Du folgen kannst
+build: v10.79.438 — der Bass hat eine eigene Figur und eine eigene Stimme (Deep House · Tech House · Minimal Techno)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,74 +6,61 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.436.
+  Der Vorgänger ist 10.79.437.
 
   ── ZUERST: WAS DIESE VERSION IST ────────────────────────────────────────
 
-  Gemessen gegen den BUMP-Commit `d1dd1f2` (#911):
+  Dein Auftrag vom 2026-09-04: „richtig gute Bass und Pad etc Loops für Deep tech, dark
+  minimal, deep house, psy prog House". Gemessen (Plan
+  `scratchpads/PLAN_GENRE_BASS_PAD_LOOPS_2026-09-04.md`): das Pad war pro Genre fünffach
+  gebaut, der Bass hatte KEINE Genre-Achse — ein Walk für alle Genres, der bei ruhigem
+  Körper zu einem gehaltenen Grundton wurde, gespielt durch das Pad-Patch eine Oktave
+  tiefer, und der Sub folgte der tiefsten Note, also auch dem Pad.
 
-      git log --oneline d1dd1f2..HEAD             | wc -l   →  9   (einschließlich dieses Bumps)
-      git log --oneline d1dd1f2..HEAD -- Sources/ | wc -l   →  1
-      python3 scripts/founder-verify.py --since d1dd1f2     →  nichts Neues
+  Gemessen gegen den BUMP-Commit `779f093` (437):
 
-  **437 klingt und verhält sich wie 436.** Der einzige Code-Commit verschiebt fünf Dateien
-  in einen anderen Ordner (`Core/`), ohne eine Zeile darin zu ändern. Alles andere sind
-  Dokumente und Wächter.
+      git log --oneline 779f093..HEAD             | wc -l   →  12   (einschließlich dieses Bumps)
+      git log --oneline 779f093..HEAD -- Sources/ | wc -l   →  3    (zwei klingende: S1 `cd48695`, S2 `2bd97b1`; `35cc8e4` ist Kommentar-only)
 
-  **Warum trotzdem ein Build:** die Notizen zu 434, 435 und 436 haben einen Wächter im
-  blockierenden Bundle rot gemacht (`TheDeployNoteNamesRealDoorsTests`) — sie nannten
-  keinen Chip, dem Du mit dem Telefon in der Hand folgen kannst, und sie hatten drei
-  Fehler, die unten korrigiert sind. Die Notiz-Datei ist zugleich der Auslöser des
-  Builds; eine ehrliche Notiz ohne Build gibt es auf diesem Weg nicht.
+  **Was in 438 neu KLINGT — nur in drei Genres, alle anderen sind bit-identisch zu 437:**
 
-  **Wenn Du 436 schon geprüft hast: für 437 gibt es nichts Neues zu prüfen.**
-  Wenn nicht: prüfe 437 nach der Liste unten, sie gilt für 434–437 zusammen.
+  · **Deep House:** der Bass sitzt auf den „&"s (jedes Offbeat-Achtel), die 1 ist FREI —
+    auch bei ruhigem Körper (vorher: bei ruhigem Körper ein gehaltener Grundton). Er
+    klingt durch ein eigenes Patch „House Sub" (kurz, dunkel, mono), nicht mehr durch
+    das Pad. Der gefühlte Sub schweigt auf der 1 mit.
+  · **Tech House:** alle Achtel, die Quinte auf dem letzten „&" des Takts; Patch „Tech Bass".
+  · **Minimal Techno:** EIN dunkler Grundton über den halben Takt, dann eine kurze Quinte
+    auf „3&"; Patch „Minimal Sub".
 
-  ── WAS AN DER 436-NOTIZ FALSCH WAR ──────────────────────────────────────
-
-  1. „Alle 14 Code-Commits" — es waren **13**; einer (`ed4849e`) änderte nur Kommentare.
-  2. „Ein stiller Start endet an `session: configure FAILED`" — nein. Diese Zeile steht
-     MITTEN im Log, die Engine läuft danach weiter an. Ein stiller Start endet an
-     `engine: start FAILED — <Schritt>`.
-  3. „Verweigert statt abzustürzen" versprach mehr, als der Code hält: der Monitor
-     verweigert, wenn die GEWÄHRTE Rate nicht zum Graphen passt. Ob iOS die Rate nach
-     der Anfrage noch einmal ändert (das Fenster ist asynchron), fängt das nicht.
+  Deep Tech, Dark Minimal und Psy Prog House gibt es noch NICHT als Genres — das sind die
+  nächsten drei Scheiben (S3–S5), jede mit eigener Figur. Die Psy-Figur (rollende 16tel,
+  1 frei) ist schon gebaut und wartet auf ihr Genre.
 
   ── DIE TÜREN, an denen Du stehst ────────────────────────────────────────
 
-  · Mikrofon-Monitor: **Master**-Chip → „Audio input" → der Schalter oben im Blatt.
+  · Genre: die Kopfzeile über dem Instrument („Genre"-Menü, Abschnitt „Electronic & Beats").
+  · Loop-Modus: das BPM-Schloss im Tempo-Feld der Transport-Zeile (fester BPM = Loop).
+  · Loop-Länge: **Save/Export**-Chip → „Loop length".
+  · Dein eigener Bass-Rhythmus (überstimmt die Genre-Figur): **Mood**-Chip → „Bass rhythm";
+    auf „Genre" spielt die Figur.
+  · Bass-Pegel und Bass-Filter/Drive: **Mix**-Chip (Bass-Fader) und der Bass-Bus-Insert —
+    der neue Bass hängt an DIESEM Bus, nicht mehr am Melodic-Insert.
   · Diagnose-Log: **Save/Export**-Chip → „Diagnostics" → Share.
 
   ── WAS DU PRÜFEN KANNST, in dieser Reihenfolge ──────────────────────────
 
-  1. **Monitor einschalten** (Master-Chip → „Audio input"), mit und ohne Bluetooth-
-     Kopfhörer. Danach das Diagnose-Log exportieren. Der Schalter endet an GENAU EINER
-     von drei Zeilen — welche, sagt Dir, was passiert ist:
-       · `on 4/5 …`  und danach `on 5/5`   → der Monitor läuft
-       · `on REFUSED — the session was never configured …`
-                                           → die Sitzung ist beim Start gescheitert;
-                                             der Monitor bleibt aus, die Route bleibt frei
-       · `on REFUSED — the session granted N Hz …`
-                                           → Hardware und Graph haben verschiedene Raten;
-                                             der Monitor bleibt aus, kein Absturz
-     Stürzt es trotzdem ab: Log teilen, die letzte Sprosse davor ist der Befund.
-  2. **Monitor an, Kopfhörer ein-/ausstecken, wieder an.** Kommt der Ton zurück?
-  3. **Ein Anruf während der Session.** Danach Log: enthält es `interruption`-Zeilen?
-  4. **Safe Mode oder stiller Start:** Log teilen. Er endet an
-     `engine: start FAILED — <Schritt>`; `session: configure FAILED` weiter oben ist
-     dann eine Ursache, nicht das Ende.
+  1. **Deep House, Loop-Modus, ruhig sitzen** (Kohärenz hoch): liegt der Bass auf den „&"s
+     und ist die 1 frei? Ist der Bass ein kurzer dunkler Sub-Pluck und nicht das Pad tief?
+     Schweigt der gefühlte Sub auf der 1 mit?
+  2. **Dasselbe erregt** (nach Bewegung): dieselbe Figur, nur lauter?
+  3. **Tech House und Minimal Techno** nach der Liste oben.
+  4. **Gegenprobe:** Dub Techno, Trance, Detroit oder ein ruhiges Genre — klingt es wie in 437?
+     (Diese Genres haben keine Figur und keine Bass-Stimme; sie DÜRFEN sich nicht ändern.)
+  5. **Mood-Chip → „Bass rhythm" auf „driving"** in Deep House: übernimmt Dein Picker?
+  6. Falls etwas knackt oder stumm bleibt: Diagnose-Log exportieren; die letzte Sprosse
+     vor der Stille ist der Befund. Eine Poly-Stimme mehr hängt jetzt am Engine (wie die
+     Lead-Stimme) — wenn 438 wärmer läuft als 437, sag es.
 
-  ── WAS ICH NICHT WEISS ──────────────────────────────────────────────────
-
-  · **Ich habe nichts davon am Gerät gehört oder gesehen.** Jede Aussage stammt aus
-    Quelltext, aus Deinem 435-Log oder aus einer Transkription.
-  · Ob der Monitor auf DEINEM Gerät jetzt läuft oder verweigert, entscheidet Dein Log.
-  · Die Wächter sind **compile-verifiziert, ihre Ausführung ist unbelegt** (`Build for
-    Testing` grün; das Log-Fenster ist ein festes Endstück, #445/#807).
-
-  Compile-verifiziert (Xcode Compile Check grün, `Build for Testing` grün, 0 Fehler im
-  Log-Fenster — alles auf `c9955bf`, das die Verschiebung `0d2b4f9` enthält), nicht
-  geräteverifiziert.
-
-  ⚠ Die Uhr-App bleibt ausgenommen: nicht eingebettet, kein Übertragungsweg —
-  bitte NICHT prüfen.
+  Was diese Notiz NICHT behauptet: dass es GROOVT. Das entscheidet Dein Ohr; die Figuren
+  und die Verdrahtung sind in CI gepinnt (`GenreBassGrammarTests`,
+  `TheBassRoleHasItsOwnVoiceTests`), der Klang nicht.
