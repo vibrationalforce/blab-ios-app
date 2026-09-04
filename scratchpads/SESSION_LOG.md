@@ -22616,3 +22616,27 @@ Stunden vorher selbst erzeugt habe. Selbst nachgemessen, nicht übernommen:
   #986-Transkription trieb den NEUEN Wächter gegen beide Bäume und ließ den ALTEN ungeprüft — der
   Widerspruch war damit für genau die Prüfung unsichtbar, die ihn hätte fangen sollen (#456).
   Der Befehl kostet Sekunden: `git grep -n "<alte Schreibweise>" -- Tests`.
+
+**#988 — der erste der ACHT stillen Fehlschläge der vollen Suite ist repariert.** Audit-Punkt 25:
+`full-tests.yml` trägt `continue-on-error: true` auf BEIDEN xcodebuild-Schritten, also schreibt
+der Lauf `success`, während die Schritt-Zusammenfassung darunter acht namentliche Fehlschläge
+druckt. Sieben davon stehen in KEINEM Session-Log und in KEINEM Entscheidungs-Eintrag.
+· **Selbst nachgemessen, nicht übernommen:** `SynthPatchTests.swift:63` verlangte
+  `touch.name == "Echoel Synth"`; `DSP/SynthPatch.swift:547` heißt seit 2026-07-29 „Echoel Field",
+  und der Kommentar an der Deklaration begründet die Umbenennung ausdrücklich (das Wort „Synth"
+  war die letzte Stelle, die der Flächen-Umbenennung widersprach). Der Test ist also seit über
+  fünf Wochen ROT auf einem KORREKTEN Baum.
+· **Gelöscht statt nachgeführt.** Der Name ist ANZEIGE-TEXT, den der Founder umbenennt (bisher
+  zweimal); die Invariante, um die es dem Test wirklich geht, steht im Doc von `touchDefaultID`:
+  **die id überlebt jede Umbenennung, und der Patch bleibt SPIELBAR.** Den neuen String
+  einzusetzen hätte denselben Fehlschlag nur für die dritte Umbenennung terminiert. Geblieben ist
+  die Identitätsprüfung über `touchDefaultID` — genau das, was gespeicherte Auswahlen wirklich
+  ablegen — plus „Name nicht leer". Die vier Spielbarkeits-Ansprüche (Attack ≤ 0,1 · Release > 0,5
+  · 2 Unison-Stimmen · Detune gesetzt) sind unverändert und gegen die Quelle transkribiert grün
+  (0,03 · 1,3 · 2 · 8 ct).
+· ⭐ **GESETZ: ein Test, der ANZEIGE-TEXT festnagelt, terminiert seinen eigenen Fehlschlag.**
+  Pinne die ID, das Verhalten oder die Invariante — nie den Namen, den ein Mensch ändern darf.
+· ⚠️ **Sieben Fehlschläge bleiben offen** und sind NICHT trivial: Founder-Kanon-Defaults
+  (`StudioDefaultKeysTests`), Modulations-Glättung, zweimal Automations-Parameter-Bindung,
+  Projekt-Encode/Decode (Datenverlust-Klasse), `FeatureFlagsTests`, Genre-Distinktheit. Je ein
+  eigener Zyklus, weil jeder das Lesen der Testabsicht braucht — nicht bündeln.

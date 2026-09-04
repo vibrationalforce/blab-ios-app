@@ -56,11 +56,26 @@ final class SynthPatchTests: XCTestCase {
         XCTAssertEqual(Set(a).count, a.count, "factory ids are unique")
     }
 
+    /// ⛔ THIS TEST PINNED A DISPLAY NAME AND WENT STALE THE DAY THE NAME CHANGED (#988).
+    /// It asserted `touch.name == "Echoel Synth"`; the patch has been `"Echoel Field"` since
+    /// 2026-07-29, renamed on purpose because "Synth" was the one surviving string contradicting
+    /// the surface rename (`SynthPatch.swift` says so at the declaration). So this test has been
+    /// RED on a correct tree ever since — and nobody saw it, because the full suite's xcodebuild
+    /// steps carry `continue-on-error: true`, which rewrites the run's conclusion to `success`
+    /// while the step summary underneath prints the failures. A red test nobody reads is worse
+    /// than no test: it trains the next session to ignore the colour.
+    ///
+    /// The name assertion is DELETED, not updated. The name is DISPLAY COPY and the founder
+    /// renames it (twice so far); what this test is actually about — and what the doc comment on
+    /// `touchDefaultID` says is the invariant — is that the id survives every rename and the
+    /// patch stays PLAYABLE. Re-pinning the new string would just schedule the same failure for
+    /// the third rename. The identity is already pinned by the `touchDefaultID` lookup below,
+    /// which is the thing saved selections actually store.
     func testEchoelSynth_isTheResponsivePlaySurfaceDefault() {
         guard let touch = SynthPatch.factory.first(where: { $0.id == SynthPatch.touchDefaultID }) else {
-            return XCTFail("factory must contain the Echoel Synth play-surface default")
+            return XCTFail("factory must contain the play-surface default patch (touchDefaultID)")
         }
-        XCTAssertEqual(touch.name, "Echoel Synth")
+        XCTAssertFalse(touch.name.isEmpty, "the play-surface default needs a display name")
         // The point of this patch: PLAYABLE under a finger — a quick attack (not the
         // old 0.5 s Warm Pad mush) with unison width for an organic pad.
         XCTAssertLessThanOrEqual(touch.attack, 0.1, "touch default answers a finger immediately")
