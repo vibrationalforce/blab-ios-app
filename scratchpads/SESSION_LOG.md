@@ -22593,3 +22593,26 @@ in ihrem ersten Absatz — sie bittet ausdrücklich, 441 statt 440 zu installier
 · Notiz erneut gegen beide Wächter transkribiert: Tokens `Field` · `Save/Export` · `Video`,
   Diagnostics-Tür benannt, erster `vX.Y.Z`-Treffer der ganzen Datei auf Zeile 1, Vorgänger
   `10.79.440` ohne `v`.
+
+**#987 — ZWEI WÄCHTER VERLANGTEN GEGENTEILIGES, und der Fehler ist meiner (Deep-Audit-Cycle-0).**
+Der Audit (134 Agenten) hat als ALLERERSTEN Punkt einen roten Zustand gefunden, den ich drei
+Stunden vorher selbst erzeugt habe. Selbst nachgemessen, nicht übernommen:
+· `AStillIsOneFrameNotASecondPathTests` (#985) verlangte den Literal `visualRecorder.requestStill()`
+  in `EchoelStudioView.swift`. `TheStillSaysWhetherItWasSavedTests` (#986) VERBIETET den Teilstring
+  `requestStill(`. Der eine ist im anderen enthalten ⇒ **kein Baum konnte beide erfüllen.**
+  Gemessen am ausgelieferten Stand: `visualRecorder.requestStill()` = 0 · `requestStill(` = 0 ·
+  `StillShutterButton(recorder:` = 1. Der Quelltext gehorcht dem ZWEITEN, und das ist der richtige
+  (der Menü-Wirt darf den Tipp nicht besitzen — 10.76.41/50).
+· **Das blockierende Bundle trug seit #986 einen garantierten Fehlschlag — und er ist in 441 mit
+  ausgeliefert worden.** Warum ich ihn nicht sah: das Job-Log ist `tail -200 test.log`, der
+  Fehlschlag lag VOR dem Fenster. Ich habe #807 in genau dem Commit ZITIERT und dann nicht danach
+  gehandelt. „TEST FAILURES: 0" hieß nie „die Suite ist grün".
+· **Zurückgezogen, nicht umgebogen:** die Tür-Behauptung ist GELÖSCHT, nicht auf
+  `StillShutterButton(recorder:` umgezeigt — diese Nadel steht wörtlich schon im #986-Wächter, und
+  ein zweites Zuhause für eine Behauptung ist #416. Die `.sheet(`-Nichtwachstums-Prüfung bleibt.
+  Alle acht verbliebenen Ansprüche der Datei nachtranskribiert: **grün**.
+· ⭐ **GESETZ, und es ist nicht „Wächter nachführen": eine Scheibe, die einen AUFRUF VERSCHIEBT,
+  muss den TEST-Baum nach der alten Schreibweise grepen, nicht nur den Quell-Baum.** Meine
+  #986-Transkription trieb den NEUEN Wächter gegen beide Bäume und ließ den ALTEN ungeprüft — der
+  Widerspruch war damit für genau die Prüfung unsichtbar, die ihn hätte fangen sollen (#456).
+  Der Befehl kostet Sekunden: `git grep -n "<alte Schreibweise>" -- Tests`.

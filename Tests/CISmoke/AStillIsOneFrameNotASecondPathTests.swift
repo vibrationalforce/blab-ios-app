@@ -83,10 +83,23 @@ final class AStillIsOneFrameNotASecondPathTests: XCTestCase {
     /// video does; a share sheet here would grow the chain the 10.76.34 black-screen law caps.
     func testTheStillDoorAddsNoModal() throws {
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        XCTAssertTrue(studio.contains("visualRecorder.requestStill()"), """
-            The fullscreen visual row no longer has the still button — the capability would be \
-            built and doorless, which is the trap this repo keeps paying for.
-            """)
+        // ⛔ A DOOR ASSERTION STOOD HERE AND WENT RED ON A CORRECT TREE — retracted, not re-pointed.
+        // It required the literal `visualRecorder.requestStill()` in this file. #986 moved the tap
+        // into the `StillShutterButton` leaf ON PURPOSE (the menu-hosting body must not own it —
+        // 10.76.41/50), and the guard written that same hour FORBIDS the substring `requestStill(`.
+        // One string is contained in the other, so from #986 until this line no tree could satisfy
+        // both: the blocking bundle carried a guaranteed failure, and it shipped in 441 because the
+        // job log is `tail -200 test.log` and the failure sat before that window (#807 — quoted in
+        // that cycle's own commit message and then not acted on).
+        //
+        // It is DELETED rather than re-pointed at `StillShutterButton(recorder:`: that needle
+        // already exists verbatim in `TheStillSaysWhetherItWasSavedTests`, and a second home for
+        // one claim is #416. The door is still guarded — just once, over there.
+        //
+        // THE LESSON, and it is not "update the guard": a slice that MOVES a call must grep the
+        // TEST tree for the old spelling, not only the source tree. My #986 transcription drove
+        // the new guard against both trees and never re-ran the old one, so the contradiction was
+        // invisible to the very check meant to catch it (#456: fix every home in the same commit).
         // The counts this repo pins elsewhere; asserted here as a NON-GROWTH check only, so this
         // claim does not become a second home for the numbers (#416).
         XCTAssertEqual(studio.components(separatedBy: ".sheet(").count - 1, 14, """
