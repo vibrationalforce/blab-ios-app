@@ -9951,6 +9951,10 @@ struct EchoelStudioView: View {
         let leadPatch = SynthPatch.factory.first { $0.name == style.leadPatchName }
             ?? SynthPatch.factory.first { $0.name == "Bright Lead" }
         if let leadPatch { pianoRoll.applyLeadPatch(leadPatch) }
+        // #983: a take composed under a genre bass figure keeps its downbeat hole in the felt
+        // sub as well (see `PianoRollModel.subFollowsBassOnly`). Set HERE, next to the other
+        // per-genre voice decision, so the flag and the take it describes change together.
+        pianoRoll.subFollowsBassOnly = style.bassGrammar != nil
         session.adopt(key: key)
         hasComposed = true
         // Capture the body baseline for the evolve HOLD (founder "halten wenn

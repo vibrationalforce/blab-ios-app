@@ -156,6 +156,13 @@ public final class PianoRollModel {
     /// strand a wrong sub pitch (the old per-tick `bassCeiling` gate could skip a
     /// note-off when the bass register shifted, leaving a stuck wrong-pitch drone).
     @ObservationIgnored private var currentSubPitch: Int?
+    /// #983: when the take was composed under a `BassGrammar` (`MusicStyle.bassGrammar != nil`),
+    /// the felt sub follows the `.bass` ROLE only — a house "&"-bass needs its downbeat hole,
+    /// and the lowest-of-everything rule used to fill that hole with the pad's root an octave
+    /// down, which turned an authored offbeat into a drone. `false` (every genre without a
+    /// figure, and every take loaded before Generate set it) = the pre-#983 rule, unchanged.
+    /// Written by `EchoelStudioView.generate()` beside the lead patch; read on the tick.
+    @ObservationIgnored public var subFollowsBassOnly = false
     /// Staged next pattern, swapped in seamlessly at the loop boundary (step 0)
     /// so a live re-seed never cuts a sustaining note mid-bar (no click/gap).
     @ObservationIgnored private var pendingNotes: [Note]?
@@ -1166,7 +1173,8 @@ public final class PianoRollModel {
         let activeNotes = Array(active.values)
         let desiredSub = Self.feltSubPitch(forActive: activeNotes,
                                            laneAudible: laneAudible,
-                                           hasKindVoice: kindVoice != nil)
+                                           hasKindVoice: kindVoice != nil,
+                                           bassOnly: subFollowsBassOnly)
         if desiredSub != currentSubPitch {
             if let p = desiredSub { subVoice?.noteOn(pitch: p) }   // monophonic → retunes
             else { subVoice?.allNotesOff() }
@@ -1243,11 +1251,16 @@ public final class PianoRollModel {
     /// That is the better behaviour, but it is a change riding along: `Note.velocity`'s clamp
     /// still propagates NaN (task #176), so it is reachable rather than theoretical, and it is
     /// pinned by a test rather than left to be rediscovered.
+    /// `bassOnly` (#983): consider `.bass`-role notes only, so a section whose grammar leaves
+    /// the downbeat free leaves the sub silent there too. NOT defaulted — the tick passes the
+    /// model's flag and every test says which rule it drives (#431/#440/#443).
     public static func feltSubPitch(forActive notes: [Note],
                                     laneAudible: Bool,
-                                    hasKindVoice: Bool) -> Int? {
+                                    hasKindVoice: Bool,
+                                    bassOnly: Bool) -> Int? {
         guard laneAudible, !hasKindVoice else { return nil }
         return notes.lazy
+            .filter { !bassOnly || $0.role == .bass }
             .filter { $0.velocity > audibleVelocityFloor }
             .map(\.pitch)
             .min()

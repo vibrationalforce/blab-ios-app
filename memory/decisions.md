@@ -1366,3 +1366,13 @@ beschränken (#292, `afcf3aa`).
   mitgezogen, ein vierter (#858b, Reviewer-HIGH) nachverankert.
 - **Revisit:** nur wenn die Geräteprobe Bypass-Latenz zeigt (dann Plan B) oder der
   Toggle-Foltertest wider Erwarten crasht. (csv-Zeile 2026-08-28, review 2026-09-27.)
+
+### 2026-09-04 — #983: Founder-Ask „richtig gute Bass und Pad Loops“ — Bass-Grammatik VOR neuen Genres
+- **Entscheidung:** Reihenfolge S1 Genre-Bass-Grammatik (`BassGrammar`, genre-eigene 16-Step-Figur,
+  `nil` = alter Walk byte-identisch) → S2 eigenes Bass-Timbre (zweite Stimme, Muster `lead`) →
+  S3–S5 neue Genres `deepTech`/`darkMinimal`/`psyProgHouse` → S6 Pad-Bewegung.
+- **Begründung:** gemessen hatte die Bass-Seite KEINE Genre-Achse (ein Walk für alle, Pad-Patch
+  als Bass-Timbre, Sub folgt dem Pad). Ein neues Genre ohne Grammatik erbt denselben Walk.
+- **Council-Dissens:** Maximalist (Genres sofort) vs Shipper (Grammatik zuerst) — Shipper gewinnt.
+- **Mirror:** `decisions.csv:690`. Plan: `scratchpads/PLAN_GENRE_BASS_PAD_LOOPS_2026-09-04.md`.
+- **Review:** 2026-10-04 — hat der Founder S1/S2 gehört? Sind S3–S5 gelandet?

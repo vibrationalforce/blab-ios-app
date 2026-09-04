@@ -22306,3 +22306,49 @@ einer Zahl in Prosa (#818).
 **Lehre:** ein Diagnosewerkzeug, das langsamer wächst als das, was es misst, wird nicht falsch, sondern
 STUMM — und stumm liest sich wie sauber. Die Skill-Datei nennt das selbst als Fehlermodus und hatte
 die Zahl, die ihn auslöste, im eigenen Kopf stehen.
+
+## 2026-09-04 — Founder-Ask „richtig gute Bass und Pad Loops“ → #983 S1: Genre-Bass-Grammatik
+
+**Founder (live, 2026-09-04):** „Ich will richtig gute Bass und Pad etc Loops für Deep tech, dark
+minimal, deep house, psy prog House etc haben."
+
+**Gemessen zuerst** (Plan: `scratchpads/PLAN_GENRE_BASS_PAD_LOOPS_2026-09-04.md`, Council darin):
+die PAD-Seite ist pro Genre fünffach gebaut (Profil · Artikulation · Patch · FX · Mix), die
+BASS-Seite hatte KEINE Genre-Achse — `appendBass` ist ein genre-blinder Root/Quinte-Walk, der bei
+ruhigem Körper (`motion ≤ 0.32`) zu EINEM gehaltenen Root pro Section wird; die `.bass`-Rolle
+spielt durch DIESELBE Poly-Stimme wie das Pad (`outputVoice(for: .bass)` → `voice`); der Sub folgt
+der tiefsten hörbaren Note, also auch dem Pad. Von den vier genannten Stilen existieren Deep House
+(offered), Tech House und Minimal Techno (Nachbarn von „Deep Tech"/„Dark Minimal", nicht dieselben),
+Psy Prog House gar nicht (`psytrance` ist un-offered und ein anderes Genre).
+
+**Council-Dissens, benannt:** Maximalist wollte die Genres sofort; Shipper die Grammatik zuerst,
+weil ein neues Genre ohne Bass-Grammatik denselben Walk erbt und den Founder zweimal hören lässt.
+Grammatik gewinnt. Reihenfolge: S1 Grammatik → S2 eigenes Bass-Timbre (zweite Stimme, Muster
+`lead`) → S3–S5 `deepTech`/`darkMinimal`/`psyProgHouse` → S6 Pad-Bewegung. `decisions.csv:690`.
+
+**S1 gebaut (dieser Commit):** `Sequencer/BassGrammar.swift` — vier autorisierte 16-Step-Figuren
+(`offbeatEighths` House-„&"; `rollingSixteenths` Psy, Downbeat frei; `drivingEighths` Tech, Quinte
+auf 14; `sparseSub` Dark Minimal, Root 8 Steps + Quinte auf „3&") als Genre-Wert
+`MusicStyle.bassGrammar` (deepHouse / techHouse / minimalTechno; `rollingSixteenths` vorgebaut für
+S5, im Wächter als „authored ahead" gepinnt). `composeHarmonic`/`appendBass` bekommen den Parameter
+OHNE Default (#431/#440/#443), beide Aufrufstellen reichen `input.style.bassGrammar` durch. Die
+Figur greift VOR jeder Körper-Guard — wie `.skank` beim Pad ist sie das Genre auch in Ruhe; der
+Körper behält den PEGEL (`bassVelocity`, `hVel`). Präzedenz: gesetzter Bass-Rhythmus-Picker gewinnt
+(Walk-Pfad wie bisher); `nil`-Grammatik = byte-identisch (Golden-Gesetz #253 A3 unberührt, keine
+RNG-Berührung). **Sub-Kopplung:** `PianoRollModel.subFollowsBassOnly` (gesetzt in `generate()`
+neben dem Lead-Patch) → `feltSubPitch(… bassOnly:)` folgt nur `.bass`-Noten, damit das Loch auf der 1
+auch GEFÜHLT ein Loch ist (sonst füllte die Pad-Root eine Oktave tiefer die Offbeat-Figur zur Drone).
+Elf Test-Aufrufer der Signatur mitgezogen.
+
+**Wächter:** `Tests/CISmoke/GenreBassGrammarTests.swift` (END-TO-END auf dem puren Composer):
+Figuren legal/aufsteigend/überlappungsfrei · Psy-Roll lässt jeden Downbeat frei · jede Figur ist
+besessen oder vorgebaut · Deep House bei RUHIGEM Körper auf den „&"s (der Test, der zählt) · Tech
+House alle 8tel, Quinte auf 14 · Minimal Root 8 Steps + Quinte auf 10 · Körper setzt den Pegel ·
+Picker gewinnt · Disco-Negativkontrolle (alter Walk) · Sub-Filter. **Transkription** in Python
+(`scratchpad/s1_grade_bassgrammar.py`): Worktree GREEN 0 Fehler, HEAD RED (Datei fehlt) — die
+erste Fassung des Skripts matchte `case .deepHouse:` im displayName-Switch und lief bis zum
+HarmonicProfile eines ANDEREN Genres; die Progressionen sind jetzt IM `harmonicProfile`-Switch
+verankert (#408-Form: Anker dort, wo das Token nur einmal gemeint ist).
+
+**Nicht bewiesen:** ob die Figuren GROOVEN — NEEDS-FOUNDER-VERIFY (Loop-Modus, Deep House, ruhiger
+Körper: Bass auf den „&"s, die 1 frei, der Sub schweigt auf der 1 mit). Gates stehen aus.

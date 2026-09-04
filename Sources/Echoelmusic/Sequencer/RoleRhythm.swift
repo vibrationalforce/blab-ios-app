@@ -58,7 +58,9 @@
 //      `StudioDefaultKeys.fieldArpRhythm*` → `FloatingVisualWindow.fieldAutoPlay`).
 //    · BASS (#253 A3) — `BioComposer.appendBass` asks how the WALKING bass is SHAPED: which steps
 //      it lands on for two of the six characters, and how hard and how long for all of them
-//      (`Input.bassRhythm`, `nil` = the genre's own grid); the Mood panel's Bass rhythm Picker
+//      (`Input.bassRhythm`, `nil` = the genre's own grid — and since #983 that grid is an AUTHORED
+//      `BassGrammar` figure for the genres that own one, which the walk never reaches; a set
+//      character still wins over the grammar, see `BassGrammar.swift`); the Mood panel's Bass rhythm Picker
 //      writes `StudioDefaultKeys.bassRhythm`. That consumer passes `character` + `density` + all
 //      THREE remaining dials EXPLICITLY (`gate: 0.8, accent: 0.4, evolve: 0.2`, written out at its
 //      own call site) — so the "editing a default re-voices" warning further down covers the ARP

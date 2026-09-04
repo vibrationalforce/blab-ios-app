@@ -36,7 +36,7 @@ final class FeltSubFollowTests: XCTestCase {
     /// Bass fader down leaves a sub droning under silence.
     func testFeltSub_ignoresAMutedNote_andFollowsTheLowestAUDIBLEOneInstead() {
         let pitch = PianoRollModel.feltSubPitch(forActive: [note(36, 0), note(60, 0.6)],
-                                                laneAudible: true, hasKindVoice: false)
+                                                laneAudible: true, hasKindVoice: false, bassOnly: false)
         XCTAssertEqual(pitch, 48, "the muted 36 must be skipped; 60 − 12 = 48")
     }
 
@@ -44,14 +44,14 @@ final class FeltSubFollowTests: XCTestCase {
     /// must mean silence, not a bass drone.
     func testFeltSub_isSilentWhenEveryNoteIsMuted() {
         XCTAssertNil(PianoRollModel.feltSubPitch(forActive: [note(36, 0), note(43, 0)],
-                                                 laneAudible: true, hasKindVoice: false))
+                                                 laneAudible: true, hasKindVoice: false, bassOnly: false))
     }
 
     /// NEGATIVE CONTROL — the ordinary case is unchanged. If this ever goes red alongside
     /// the two above, the filter is too aggressive rather than the mute being honoured.
     func testFeltSub_followsTheLowestNoteAnOctaveDown_whenNothingIsMuted() {
         XCTAssertEqual(PianoRollModel.feltSubPitch(forActive: [note(48, 0.7), note(36, 0.5)],
-                                                   laneAudible: true, hasKindVoice: false),
+                                                   laneAudible: true, hasKindVoice: false, bassOnly: false),
                        24, "lowest of {48, 36} is 36 → 36 − 12 = 24")
     }
 
@@ -60,7 +60,7 @@ final class FeltSubFollowTests: XCTestCase {
     /// would silently lose their sub.
     func testFeltSub_stillFollowsAVeryQuietNote_becauseQuietIsNotMuted() {
         XCTAssertEqual(PianoRollModel.feltSubPitch(forActive: [note(36, 0.05)],
-                                                   laneAudible: true, hasKindVoice: false),
+                                                   laneAudible: true, hasKindVoice: false, bassOnly: false),
                        24, "0.05 is the composer's softest real note, not a mute")
     }
 
@@ -68,10 +68,10 @@ final class FeltSubFollowTests: XCTestCase {
     /// kind voice both mean no doubling sub, whatever the notes say.
     func testFeltSub_staysSuppressedForAMutedLaneAndForABoundKindVoice() {
         XCTAssertNil(PianoRollModel.feltSubPitch(forActive: [note(36, 0.9)],
-                                                 laneAudible: false, hasKindVoice: false),
+                                                 laneAudible: false, hasKindVoice: false, bassOnly: false),
                      "a muted lane fires no attacks, so it must not drive the sub either")
         XCTAssertNil(PianoRollModel.feltSubPitch(forActive: [note(36, 0.9)],
-                                                 laneAudible: true, hasKindVoice: true),
+                                                 laneAudible: true, hasKindVoice: true, bassOnly: false),
                      "a kit or sub-bass lane IS the instrument — no octave-doubled sub")
     }
 
@@ -79,7 +79,7 @@ final class FeltSubFollowTests: XCTestCase {
     /// so pin it rather than leaving it to the `min()` of an empty collection.
     func testFeltSub_isSilentOnAnEmptyChord() {
         XCTAssertNil(PianoRollModel.feltSubPitch(forActive: [],
-                                                 laneAudible: true, hasKindVoice: false))
+                                                 laneAudible: true, hasKindVoice: false, bassOnly: false))
     }
 
     /// THE BOUNDARY ITSELF. The comparison is strict, so a note sitting exactly ON the floor
@@ -87,10 +87,10 @@ final class FeltSubFollowTests: XCTestCase {
     /// lands on the grid value that produces it.
     func testFeltSub_treatsANoteExactlyOnTheFloorAsMuted() {
         XCTAssertNil(PianoRollModel.feltSubPitch(forActive: [note(36, 0.001)],
-                                                 laneAudible: true, hasKindVoice: false),
+                                                 laneAudible: true, hasKindVoice: false, bassOnly: false),
                      "the floor comparison is strict: 0.001 is muted, not the quietest audible")
         XCTAssertEqual(PianoRollModel.feltSubPitch(forActive: [note(36, 0.0011)],
-                                                   laneAudible: true, hasKindVoice: false),
+                                                   laneAudible: true, hasKindVoice: false, bassOnly: false),
                        24, "just above the floor is audible")
     }
 
@@ -102,7 +102,7 @@ final class FeltSubFollowTests: XCTestCase {
     func testFeltSub_excludesANaNVelocityRatherThanFollowingIt() {
         let nan = Note(pitch: 24, startStep: 0, lengthSteps: 4, velocity: .nan)
         XCTAssertEqual(PianoRollModel.feltSubPitch(forActive: [nan, note(60, 0.6)],
-                                                   laneAudible: true, hasKindVoice: false),
+                                                   laneAudible: true, hasKindVoice: false, bassOnly: false),
                        48, "a NaN-velocity note must not win the min() and drag the sub down")
     }
 }

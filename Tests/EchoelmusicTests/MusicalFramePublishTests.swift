@@ -109,7 +109,7 @@ final class MusicalFramePublishTests: XCTestCase {
                                         scaleName: "", tempoBPM: 120, beatPhase: 0)
         }
         func sub(_ v: Float) -> Int? {
-            PianoRollModel.feltSubPitch(forActive: note(v), laneAudible: true, hasKindVoice: false)
+            PianoRollModel.feltSubPitch(forActive: note(v), laneAudible: true, hasKindVoice: false, bassOnly: false)
         }
 
         XCTAssertEqual(frame(floor * 1.01).notes.count, 1)

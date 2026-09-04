@@ -207,6 +207,9 @@ public enum BioComposer {
         ///
         /// ⚠️ It only reaches the WALKING bass. A sustained profile's held root and trap's
         /// quarter-note 808 pedal are the genre's foundation, not a groove — see `appendBass`.
+        /// ⭐ #983: on a genre with a `BassGrammar` (`MusicStyle.bassGrammar`) a set character
+        /// REPLACES the genre's figure with the walking path, so the Picker keeps meaning "shape
+        /// the bass my way" there too; `nil` plays the genre's own figure.
         public var bassRhythm: RoleRhythm.Character?
 
         /// #253 A4 — the PAD's rhythm character, or `nil` for the genre's own articulation.
@@ -895,6 +898,7 @@ public enum BioComposer {
                                     suggest: suggest,
                                     bassRhythm: input.bassRhythm,
                                     padRhythm: input.padRhythm,
+                                    bassGrammar: input.style.bassGrammar,
                                     padGate: input.padGate, padAccent: input.padAccent,
                                     padEvolve: input.padEvolve,
                                     rng: &rng, structureRNG: &structureRNG)
@@ -929,6 +933,7 @@ public enum BioComposer {
                                     suggest: suggest,
                                     bassRhythm: input.bassRhythm,
                                     padRhythm: input.padRhythm,
+                                    bassGrammar: input.style.bassGrammar,
                                     padGate: input.padGate, padAccent: input.padAccent,
                                     padEvolve: input.padEvolve,
                                     rng: &rng, structureRNG: &structureRNG)
@@ -1517,6 +1522,12 @@ public enum BioComposer {
     /// `MusicalKey.degree` → always in key. `role: .bass` so the sub follows it.
     /// Deterministic given the seed.
     ///
+    /// ⭐ #983: a genre with a `BassGrammar` (`MusicStyle.bassGrammar`, today deepHouse /
+    /// techHouse / minimalTechno) takes NONE of the paths described above or below — it plays
+    /// its authored figure and returns, unless the user's Bass-rhythm Picker is set. Under a
+    /// grammar the downbeat is NOT always the chord root (house leaves it free). Everything in
+    /// this doc from here on describes the `grammar == nil` genres, unchanged.
+    ///
     /// ⚠️ THE WALKING PATH IS NOT REACHED BY MOST TAKES, and `rhythm:` only reaches it — so any
     /// claim about what a rhythm character does is conditional on all THREE parts of the guard
     /// below: `!sustained` (the genre is not a Fläche), `motion > 0.32` (`busy · 0.7 +
@@ -1536,6 +1547,9 @@ public enum BioComposer {
                                    // nothing in the diff to see. One caller — the cost is nil.
                                    sectionIndex: Int,
                                    rhythm: RoleRhythm.Character? = nil,
+                                   // #983: the genre's authored figure. NOT defaulted — see
+                                   // `composeHarmonic`'s parameter of the same name. One caller.
+                                   grammar: BassGrammar?,
                                    // #419: the trap 808 pedal shares `heartbeatActive` with the pad
                                    // — that sharing is the whole point of hoisting the gate, and the
                                    // doc there says "identical across the low end and the pad". If
@@ -1548,6 +1562,46 @@ public enum BioComposer {
             ChordSuggest.alteration(forToneOffset: tone,
                                     degreesPerOctave: key.degreesPerOctave,
                                     in: alterations)
+        }
+        // #983 GENRE BASS GRAMMAR — the genre's OWN figure, and it comes before every body gate
+        // below on purpose: like `.skank` on the pad, the house offbeat / tech 8ths / minimal
+        // held root ARE the genre at a resting body too. The body keeps the LEVEL (the section
+        // `velocity` already carries breath depth and the low-end tilt; `hVel` humanises), the
+        // genre keeps the PLACE. Precedence, stated in `BassGrammar.swift`: a user's Bass-rhythm
+        // Picker choice (`rhythm != nil`) wins and takes the walking path exactly as before —
+        // the person named a character, the genre only offered one. `grammar == nil` (every
+        // genre without a figure) falls through to the unchanged code below, byte-identical:
+        // no RNG is touched on this line for those genres, so the #253 A3 Golden law holds.
+        //
+        // The figure is authored on the 16-step BAR and cut by the section: a hit plays if its
+        // phase falls inside `[secStart, secStart + len)` — a 3-chord progression (5/5/6-step
+        // sections) simply gets the hits that land in each section. A section that catches no
+        // hit stays SILENT in the bass. That is deliberate and it is the first time this
+        // function lets a section start on air: the old "the section downbeat IS the chord
+        // root" contract does not hold under a grammar (the house "&" needs the 1 free), and the
+        // felt sub — which used to inherit the pad's lowest note in that hole — is coupled to
+        // the `.bass` role in the same slice so the hole is a hole (`PianoRollModel`).
+        if let grammar, rhythm == nil {
+            let secEndLocal = secStart + len
+            for hit in grammar.hits {
+                // Absolute step in this section with the hit's bar phase (the composer's take
+                // is one bar, so at most one step per section can match).
+                var step = secStart
+                while step < secEndLocal {
+                    if ((step % 16) + 16) % 16 == hit.phase { break }
+                    step += 1
+                }
+                guard step < secEndLocal else { continue }
+                let noteLen = max(1, min(hit.length, secEndLocal - step))
+                let degree = hit.fifth ? rootDegree + 4 : rootDegree
+                let alteration = hit.fifth ? alt(4) : alt(0)
+                notes.append(Note(id: nextUUID(&rng),
+                                  pitch: key.degree(degree, octave: octave) + alteration,
+                                  startStep: step, lengthSteps: noteLen,
+                                  velocity: hVel(clamp01(velocity * hit.level), &rng),
+                                  role: .bass))
+            }
+            return
         }
         // TRAP quarter-note 808 pedal (B8): a sustained trap profile whose body is aroused
         // drives the chord root on the quarter grid — one pitch class, downbeat accented —
@@ -2074,6 +2128,12 @@ public enum BioComposer {
                                         suggest: ChordSuggestControl? = nil,
                                         bassRhythm: RoleRhythm.Character? = nil,
                                         padRhythm: RoleRhythm.Character? = nil,
+                                        // #983 — the genre's own bass figure (`MusicStyle.bassGrammar`).
+                                        // NO DEFAULT, for the same reason the pad dials below have
+                                        // none (#431/#440/#443): a defaulted `nil` that no call site
+                                        // writes would let a future caller silently lose every
+                                        // house/tech/minimal bassline, with nothing in the diff.
+                                        bassGrammar: BassGrammar?,
                                         // #581 — the pad's chord shape, threaded through to
                                         // `roleRhythmOnsets`. NO DEFAULTS, same reason as there
                                         // (#431/#440/#443): both call sites below must be forced
@@ -2322,7 +2382,8 @@ public enum BioComposer {
                        busy: busy, calm: calm, velocity: bassVelocity,
                        sustained: profile.sustained, quarterAnchor: quarterAnchor,
                        alterations: secAlts, sectionIndex: idx,
-                       rhythm: bassRhythm, liveliness: mood.liveliness, rng: &rng)
+                       rhythm: bassRhythm, grammar: bassGrammar,
+                       liveliness: mood.liveliness, rng: &rng)
 
             // 2) Pad — the full chord (root/3rd/5th/7th as the profile defines),
             //    voice-led into the previous chord's register, then sustained for
