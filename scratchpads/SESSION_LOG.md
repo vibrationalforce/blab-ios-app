@@ -22434,3 +22434,9 @@ Succeeded, TEST EXECUTE FAILED = die #396-Startverweigerung EINES Klons, 134 Tes
 meldet 166 Tests beobachtet, 0 Fehler / 0 Skips im Fenster. Die drei neuen Wächter liegen
 außerhalb des tail-200-Fensters (#445: Abwesenheit beweist nichts, in beide Richtungen).
 Also: deployfähig nach §5.
+
+**439 gebumpt** (`d60a7ef`) — S3+S4+S5 in einem Build. Notiz nennt die drei Genres mit ihren
+Figuren, die Türen (Genre-Menü · BPM-Schloss · Save/Export → Loop length · Mood → Bass rhythm ·
+Mix-Fader · Save/Export → Diagnostics) und drei Ohr-Fragen; sie behauptet ausdrücklich NICHT,
+dass die drei „richtig gut" sind. `decisions.csv:691` + `memory/decisions.md` nachgezogen.
+Offen: S6 (Pad-Bewegung über den Loop) — wartet auf das Founder-Ohr zu S1–S5.
