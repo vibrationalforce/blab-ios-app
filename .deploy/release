@@ -1,4 +1,4 @@
-build: v10.79.438 — der Bass hat eine eigene Figur und eine eigene Stimme (Deep House · Tech House · Minimal Techno)
+build: v10.79.439 — drei neue Genres mit eigener Bass-Figur und eigener Bass-Stimme (Deep Tech · Dark Minimal · Psy Prog House)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,35 +6,37 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.437.
+  Der Vorgänger ist 10.79.438.
 
   ── ZUERST: WAS DIESE VERSION IST ────────────────────────────────────────
 
   Dein Auftrag vom 2026-09-04: „richtig gute Bass und Pad etc Loops für Deep tech, dark
-  minimal, deep house, psy prog House". Gemessen (Plan
-  `scratchpads/PLAN_GENRE_BASS_PAD_LOOPS_2026-09-04.md`): das Pad war pro Genre fünffach
-  gebaut, der Bass hatte KEINE Genre-Achse — ein Walk für alle Genres, der bei ruhigem
-  Körper zu einem gehaltenen Grundton wurde, gespielt durch das Pad-Patch eine Oktave
-  tiefer, und der Sub folgte der tiefsten Note, also auch dem Pad.
+  minimal, deep house, psy prog House". 438 hat dem Bass eine Genre-Achse gegeben (Figur +
+  eigene Stimme, Deep House · Tech House · Minimal Techno). 439 bringt die DREI Genres, die
+  Dein Satz nennt und die es nicht gab — in EINEM Build, damit Du sie einmal hörst statt dreimal.
 
-  Gemessen gegen den BUMP-Commit `779f093` (437):
+  Gemessen gegen den BUMP-Commit `e49c7f5` (438):
 
-      git log --oneline 779f093..HEAD             | wc -l   →  12   (einschließlich dieses Bumps)
-      git log --oneline 779f093..HEAD -- Sources/ | wc -l   →  3    (zwei klingende: S1 `cd48695`, S2 `2bd97b1`; `35cc8e4` ist Kommentar-only)
+      git log --oneline e49c7f5..HEAD             | wc -l   →  5   (einschließlich dieses Bumps)
+      git log --oneline e49c7f5..HEAD -- Sources/ | wc -l   →  3   (S3 `2b0b508`, S4 `edd2d58`, S5 `0a1ba7c`)
 
-  **Was in 438 neu KLINGT — nur in drei Genres, alle anderen sind bit-identisch zu 437:**
+  **Was in 439 neu KLINGT — drei neue Genres im Genre-Menü; alle bisherigen sind bit-identisch zu 438:**
 
-  · **Deep House:** der Bass sitzt auf den „&"s (jedes Offbeat-Achtel), die 1 ist FREI —
-    auch bei ruhigem Körper (vorher: bei ruhigem Körper ein gehaltener Grundton). Er
-    klingt durch ein eigenes Patch „House Sub" (kurz, dunkel, mono), nicht mehr durch
-    das Pad. Der gefühlte Sub schweigt auf der 1 mit.
-  · **Tech House:** alle Achtel, die Quinte auf dem letzten „&" des Takts; Patch „Tech Bass".
-  · **Minimal Techno:** EIN dunkler Grundton über den halben Takt, dann eine kurze Quinte
-    auf „3&"; Patch „Minimal Sub".
+  · **Deep Tech** (124–128, Standard 126): eine terzlose Moll-Sept-Shell (Grundton · Quinte · ♭7,
+    ohne Terz — Gewicht ohne Dur/Moll-Farbe), zwei Wurzeln i → VI, Stab auf dem Beat, Swing 0.08.
+    Bass: getriebene Achtel mit der Quinte auf dem letzten „&", Patch „Deep Bass". FX trocken,
+    gepunktete Achtel als Echo.
+  · **Dark Minimal** (126–131, Standard 129): phrygisch, ein WEITER Quint-Stapel (Grundton ·
+    Quinte · Quinte eine Oktave höher, keine Terz) eine Oktave tiefer als die anderen Stab-Genres;
+    die Dunkelheit sitzt im Wechsel i → ♭II. Maschinengerade. Bass: gehaltener Grundton über den
+    halben Takt, kurze Quinte auf „3&" (dieselbe Figur wie Minimal Techno), eigenes Patch
+    „Dark Sub". Pad „Dark Edge" schwillt an statt zu klicken.
+  · **Psy Prog House** (128–136, Standard 132): Moll-Triade, gestabbt, über dem absteigenden Vamp
+    i → VII → VI. Bass: rollende Sechzehntel (drei pro Beat, die 1 frei), Patch „Psy Bass" —
+    die Figur, die 438 schon gebaut hatte und auf ihr Genre wartete. Pluck mit langem Release,
+    Ping-Pong-16tel-Echo, mittlerer Raum, Chorus.
 
-  Deep Tech, Dark Minimal und Psy Prog House gibt es noch NICHT als Genres — das sind die
-  nächsten drei Scheiben (S3–S5), jede mit eigener Figur. Die Psy-Figur (rollende 16tel,
-  1 frei) ist schon gebaut und wartet auf ihr Genre.
+  Das Genre-Menü zeigt jetzt 19 Genres (vorher 16); die drei neuen stehen unter „Electronic & Beats".
 
   ── DIE TÜREN, an denen Du stehst ────────────────────────────────────────
 
@@ -43,24 +45,24 @@ notes: |
   · Loop-Länge: **Save/Export**-Chip → „Loop length".
   · Dein eigener Bass-Rhythmus (überstimmt die Genre-Figur): **Mood**-Chip → „Bass rhythm";
     auf „Genre" spielt die Figur.
-  · Bass-Pegel und Bass-Filter/Drive: **Mix**-Chip (Bass-Fader) und der Bass-Bus-Insert —
-    der neue Bass hängt an DIESEM Bus, nicht mehr am Melodic-Insert.
+  · Bass-Pegel und Bass-Filter/Drive: **Mix**-Chip (Bass-Fader) und der Bass-Bus-Insert.
   · Diagnose-Log: **Save/Export**-Chip → „Diagnostics" → Share.
 
   ── WAS DU PRÜFEN KANNST, in dieser Reihenfolge ──────────────────────────
 
-  1. **Deep House, Loop-Modus, ruhig sitzen** (Kohärenz hoch): liegt der Bass auf den „&"s
-     und ist die 1 frei? Ist der Bass ein kurzer dunkler Sub-Pluck und nicht das Pad tief?
-     Schweigt der gefühlte Sub auf der 1 mit?
-  2. **Dasselbe erregt** (nach Bewegung): dieselbe Figur, nur lauter?
-  3. **Tech House und Minimal Techno** nach der Liste oben.
-  4. **Gegenprobe:** Dub Techno, Trance, Detroit oder ein ruhiges Genre — klingt es wie in 437?
-     (Diese Genres haben keine Figur und keine Bass-Stimme; sie DÜRFEN sich nicht ändern.)
-  5. **Mood-Chip → „Bass rhythm" auf „driving"** in Deep House: übernimmt Dein Picker?
+  1. **Deep Tech, Loop-Modus, ruhig sitzen:** liest sich die terzlose Shell als „deep", und
+     treiben die Achtel im Bass, statt wie ein Metronom zu ticken?
+  2. **Dark Minimal:** klingt der weite Quint-Stapel eine Oktave tiefer dunkel — ohne zu
+     matschen? Hörst Du den ♭II-Wechsel als Spannung?
+  3. **Psy Prog House:** rollt der 16tel-Bass als LINIE (nicht als Rasseln)? Hängt der Pluck
+     ins Echo, ohne dass die Triade verschwimmt?
+  4. **Gegenprobe:** Deep House, Tech House oder ein ruhiges Genre — klingt es wie in 438?
+     (Kein bestehendes Genre hat sich geändert.)
+  5. **Mood-Chip → „Bass rhythm"** in einem der drei neuen Genres: übernimmt Dein Picker?
   6. Falls etwas knackt oder stumm bleibt: Diagnose-Log exportieren; die letzte Sprosse
-     vor der Stille ist der Befund. Eine Poly-Stimme mehr hängt jetzt am Engine (wie die
-     Lead-Stimme) — wenn 438 wärmer läuft als 437, sag es.
+     vor der Stille ist der Befund.
 
-  Was diese Notiz NICHT behauptet: dass es GROOVT. Das entscheidet Dein Ohr; die Figuren
-  und die Verdrahtung sind in CI gepinnt (`GenreBassGrammarTests`,
-  `TheBassRoleHasItsOwnVoiceTests`), der Klang nicht.
+  Was diese Notiz NICHT behauptet: dass die drei „richtig gut" sind. Das entscheidet Dein
+  Ohr; Struktur, Figuren und Türen sind in CI gepinnt (`GenreDeepTechTests`,
+  `GenreDarkMinimalTests`, `GenrePsyProgHouseTests`), der Klang nicht. Drei Plan-Werte
+  wurden beim Bauen gegen bestehende Wächter korrigiert (Details im Plan, §2 S3–S5).

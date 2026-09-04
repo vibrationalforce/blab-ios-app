@@ -22422,3 +22422,15 @@ Commit gefangen: „Psy Pluck" kollidierte mit psytrances Patch-Namen; „kein a
 `[0, 6, 5]`" war falsch (deepHouse, rock) — Wächter misst jetzt das Paar Triade+Abstieg. Zähl-Heime
 18 → 19, ohne-Septime 9. Wächter `GenrePsyProgHouseTests` (6). Klang: Ohr. Damit sind S3–S5
 gebaut; 439 folgt, sobald die Gates auf S5 grün sind.
+
+**S3-Verdict auf `2b0b508`:** CI/CD „Run Tests" meldet `failure` — `gh-test-verdict.py`: build-for-testing
+Succeeded, TEST EXECUTE FAILED = die #396-Startverweigerung EINES Klons, 134 Tests beobachtet,
+0 Fehler / 0 Skips im Fenster (#807/#445 gelten). Also grün im Sinn von §5. S4/S5-Läufe laufen.
+439-Notiz entworfen (`.deploy/release`, noch nicht committet): Wächter-Transkription grün
+(Tokens Save/Export · Mood · Mix; Diagnostics genannt; Version zuerst im File).
+
+**S4/S5-Gates:** Xcode Compile Check grün auf `edd2d58` (2339) und `0a1ba7c` (2340). CI/CD auf
+`0a1ba7c`: Build for Testing ✅, Run Tests = die #396-Startverweigerung, `gh-test-verdict.py`
+meldet 166 Tests beobachtet, 0 Fehler / 0 Skips im Fenster. Die drei neuen Wächter liegen
+außerhalb des tail-200-Fensters (#445: Abwesenheit beweist nichts, in beide Richtungen).
+Also: deployfähig nach §5.
