@@ -22457,3 +22457,17 @@ Anweisung an eine Datei delegieren, die das Werkzeug nicht liest). Nadel schmal 
 nur die ZEIGER-Form (`plan §…`, `scratchpads/`), nicht das Wort „plan"; die reparierten Köpfe
 zitieren ihre eigene Rücknahme. Transkription `scratchpad/s6_grade_askline.py`: Worktree GREEN,
 HEAD RED (genau ein Treffer, `GenreDeepTechTests:11`).
+
+**#984b — die weite Quint-Stapelung überlebt die Engine, jetzt gepinnt.** `[0, 4, 11]` ist die
+EINZIGE Stimmführung der Datei, deren oberster Index die Tonleiterlänge übersteigt — sie hängt
+also als einzige daran, dass `MusicalKey.degree` WICKELT statt zu klemmen. Nachgemessen: wickelt
+korrekt (C3 · G3 · G4, Spanne 19 Halbtöne), und `ChordSuggest.alteration` wickelt ebenfalls
+(`t = ((tone % n) + n) % n`), Grad 11 bekommt dieselbe Alteration wie Grad 4. Kein Fehler — aber
+genau die Eigenschaft, die ein „chordTones auf degreesPerOctave klemmen"-Aufräumen still
+kaputtmachen würde: das Genre generierte weiter, bestünde jeden anderen Anspruch und wäre einfach
+nicht mehr weit. ⛔ **Die erste Fassung der Alterations-Behauptung war WERTLOS:** mit der Tabelle
+`[1, 0, 0, 0]` sind beide Seiten 0, sie hätte bei kaputtem Wrap genauso bestanden. Tabelle auf
+`[0, 0, 1, 0]` gesetzt (Eintrag für Stapelposition 4) plus eine Nicht-Null-Behauptung, damit sie
+nicht wieder leer laufen kann; transkribiert gegen beide Varianten: gewickelt grün, ungewickelt rot.
+Anspruch lebt in `GenreDarkMinimalTests` (#416, kein neues File). Der Anspruch treibt die ZWEI
+reinen Funktionen, die die Pad-Schleife ruft — er fährt NICHT den Composer, und sagt das auch.

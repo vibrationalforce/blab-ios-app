@@ -73,4 +73,53 @@ final class GenreDarkMinimalTests: XCTestCase {
                              "techHouse's damping comment says it now ranks sixth, behind this genre")
         XCTAssertFalse(dark.chorusEnabled)
     }
+
+    /// #984b — THE WIDE STACK MUST SURVIVE THE ENGINE, not just the profile table.
+    ///
+    /// `[0, 4, 11]` is the only voicing in the file whose top index exceeds the scale length, so
+    /// it is the only one that depends on `MusicalKey.degree` WRAPPING rather than clamping. The
+    /// pad loop in `BioComposer.composeHarmonic` builds each pitch as
+    /// `key.degree(rootDegree + tone, octave:) + ChordSuggest.alteration(forToneOffset: tone, …)`,
+    /// and this claim drives exactly those two pure functions with this genre's tones. It does NOT
+    /// run the composer — say so rather than imply an end-to-end proof.
+    ///
+    /// WHAT IT PROTECTS: an "obvious simplification" that clamps a chord tone to
+    /// `degreesPerOctave`, or that indexes the alteration table without wrapping. Either would
+    /// silently collapse the octave-and-a-half stack into a plain fifth — the genre would still
+    /// generate, still pass every other claim here, and simply stop being wide. Measured on the
+    /// shipping arithmetic: root C, natural minor, padOctave 3 → C3 · G3 · G4.
+    func testTheWideStackSurvivesTheDegreeAndAlterationMathematics() {
+        let key = MusicalKey(root: 0, scale: MusicStyle.darkMinimal.scale)
+        let tones = MusicStyle.darkMinimal.harmonicProfile.chordTones
+        let octave = MusicStyle.darkMinimal.harmonicProfile.padOctave
+        let pitches = tones.map { key.degree($0, octave: octave) }
+
+        XCTAssertEqual(Set(pitches).count, 3, "the stack collapsed to \(pitches) — three distinct pitches are the genre")
+        XCTAssertEqual(pitches, pitches.sorted(), "the stack must ascend: \(pitches)")
+        XCTAssertGreaterThan((pitches.max() ?? 0) - (pitches.min() ?? 0), 12,
+                             "the stack spans \((pitches.max() ?? 0) - (pitches.min() ?? 0)) semitones, "
+                             + "not more than an octave — \"wide\" is what separates it from a plain fifth")
+        XCTAssertEqual(pitches, [48, 55, 67], "root C, natural minor, padOctave 3 → C3 · G3 · G4")
+
+        // Degree 11 is degree 4 an octave up, so it must take the SAME alteration; an unwrapped
+        // table lookup would hand it a different accidental and bend the top voice out of key.
+        //
+        // ⛔ THE ALTERATION TABLE HERE IS CHOSEN, NOT ARBITRARY, and the first draft got it wrong
+        // in the way that matters: it used `[1, 0, 0, 0]`, where the entry for stack position 4
+        // (index 4/2 = 2) is ZERO. Both sides of the comparison were 0, so the assertion held
+        // whether or not the wrap existed — a claim that cannot fail is not a guard. The table
+        // below puts the 1 at index 2, so an unwrapped lookup (tone 11 is odd → the `t % 2 == 0`
+        // guard rejects it → 0) reads 0 against the wrapped 1 and the claim goes red.
+        let alts = [0, 0, 1, 0]
+        let altAtEleven = ChordSuggest.alteration(
+            forToneOffset: 11, degreesPerOctave: key.degreesPerOctave, in: alts)
+        XCTAssertEqual(altAtEleven,
+                       ChordSuggest.alteration(forToneOffset: 4,
+                                               degreesPerOctave: key.degreesPerOctave, in: alts),
+                       "tone 11 and tone 4 are the same scale degree an octave apart and must be "
+                       + "altered alike")
+        XCTAssertEqual(altAtEleven, 1,
+                       "the table entry this claim rests on is 0, so the comparison above passes "
+                       + "vacuously. Pick a table whose stack-position-4 entry is non-zero.")
+    }
 }
