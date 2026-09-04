@@ -22471,3 +22471,16 @@ nicht mehr weit. ⛔ **Die erste Fassung der Alterations-Behauptung war WERTLOS:
 nicht wieder leer laufen kann; transkribiert gegen beide Varianten: gewickelt grün, ungewickelt rot.
 Anspruch lebt in `GenreDarkMinimalTests` (#416, kein neues File). Der Anspruch treibt die ZWEI
 reinen Funktionen, die die Pad-Schleife ruft — er fährt NICHT den Composer, und sagt das auch.
+
+**#984b-Gates grün** (`6d5a483`: Compile Check 2342 success, Build for Testing grün, 133 Tests,
+0 Fehler / 0 Skips im Fenster).
+
+⛔ **Und beim Nachlesen des eigenen Commits: ein Beschriftungsfehler IN dem Test, den ich gerade
+geschrieben habe.** Das Rechenbeispiel sagte zweimal „natural minor" — `darkMinimal` ist
+**phrygisch**. Der TEST war nie falsch (er liest `MusicStyle.darkMinimal.scale`), nur die
+Beschriftung, aus der eine spätere Sitzung plant. Warum es keine Behauptung fangen konnte:
+phrygisch `[0,1,3,5,7,8,10]` und natürliches Moll `[0,2,3,5,7,8,10]` unterscheiden sich NUR an
+Grad 1, und `[0, 4, 11]` fasst Grad 1 nie an — beide Tonleitern liefern 48 · 55 · 67.
+**GESETZ: ein Rechenbeispiel muss die Eingabe nennen, die es wirklich benutzt hat; dass die
+Arithmetik stimmt, ist kein Beleg dafür, dass die Beschreibung stimmt.** Der `MusicStyle`-Doc
+sagt korrekt `scale: .phrygian` — der Fehler saß nur im neuen Wächter.

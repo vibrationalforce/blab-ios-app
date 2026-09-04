@@ -87,7 +87,16 @@ final class GenreDarkMinimalTests: XCTestCase {
     /// `degreesPerOctave`, or that indexes the alteration table without wrapping. Either would
     /// silently collapse the octave-and-a-half stack into a plain fifth — the genre would still
     /// generate, still pass every other claim here, and simply stop being wide. Measured on the
-    /// shipping arithmetic: root C, natural minor, padOctave 3 → C3 · G3 · G4.
+    /// shipping arithmetic: root C, PHRYGIAN (this genre's scale), padOctave 3 → C3 · G3 · G4.
+    ///
+    /// ⛔ THE FIRST VERSION OF THIS COMMENT SAID "natural minor" — in BOTH the doc line and the
+    /// assertion message — and this genre is phrygian. The pitches were still right, and that is
+    /// exactly why it survived: phrygian [0,1,3,5,7,8,10] and natural minor [0,2,3,5,7,8,10]
+    /// DIFFER ONLY AT DEGREE 1, which `[0, 4, 11]` never touches, so both scales produce
+    /// 48 · 55 · 67 and no assertion could tell them apart. The code was never wrong (it reads
+    /// `MusicStyle.darkMinimal.scale`); only the label a future reader plans from was. GESETZ: a
+    /// worked example must name the input it actually used, because the arithmetic agreeing is
+    /// not evidence that the description does.
     func testTheWideStackSurvivesTheDegreeAndAlterationMathematics() {
         let key = MusicalKey(root: 0, scale: MusicStyle.darkMinimal.scale)
         let tones = MusicStyle.darkMinimal.harmonicProfile.chordTones
@@ -99,7 +108,7 @@ final class GenreDarkMinimalTests: XCTestCase {
         XCTAssertGreaterThan((pitches.max() ?? 0) - (pitches.min() ?? 0), 12,
                              "the stack spans \((pitches.max() ?? 0) - (pitches.min() ?? 0)) semitones, "
                              + "not more than an octave — \"wide\" is what separates it from a plain fifth")
-        XCTAssertEqual(pitches, [48, 55, 67], "root C, natural minor, padOctave 3 → C3 · G3 · G4")
+        XCTAssertEqual(pitches, [48, 55, 67], "root C, phrygian, padOctave 3 → C3 · G3 · G4")
 
         // Degree 11 is degree 4 an octave up, so it must take the SAME alteration; an unwrapped
         // table lookup would hand it a different accidental and bend the top voice out of key.
