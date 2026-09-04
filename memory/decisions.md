@@ -1381,4 +1381,5 @@ beschränken (#292, `afcf3aa`).
   `MusicStyle.offered.count` im blockierenden Bundle — die Zahl ist eine Roster-Tatsache, kein
   Klang-Versprechen; das Versprechen („richtig gut") bleibt hinter dem Ohr. Delay-Teilung 8tel
   gepunktet statt der geplanten 16tel (sonst Gleichstand mit techHouses Superlativ).
+- **Stand:** S1+S2 = TestFlight 438 (Lauf 2556, `success`, 2026-09-04 11:33 UTC). S3 gepusht `2b0b508`.
 - **Review:** 2026-10-04 — hat der Founder S1/S2 gehört? Sind S3–S5 gelandet?

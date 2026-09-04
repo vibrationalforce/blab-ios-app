@@ -22397,3 +22397,6 @@ APP_STORE_LISTING, beide `release_notes.txt` — Letzteres, weil der Website-Wä
 techHouses FX-Kommentar „second smallest room" war seit batch 4 schon falsch — im selben Commit
 korrigiert. Wächter `Tests/CISmoke/GenreDeepTechTests.swift` (7) + Reachable-Liste. Transkription
 `scratchpad/s3_grade_deeptech.py` GREEN. Nicht bewiesen: Klang (NEEDS-FOUNDER-VERIFY).
+
+**438 deployt:** `testflight.yml` Lauf 2556 (`33867867244`) auf `e49c7f5`, `success`, 11:25–11:33 UTC.
+Der Founder hört S1+S2 in EINEM Build. S3 (`deepTech`, `2b0b508`) ist gepusht; Gates laufen.
