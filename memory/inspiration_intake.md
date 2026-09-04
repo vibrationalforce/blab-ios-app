@@ -64,12 +64,23 @@ feature, it's PIPELINE. When unsure: WATCH with a review date beats premature ad
 spread · intensity), im `visualPanel` von Hand nachstellbar mit GENAU DREI Feldern (Detail ·
 Energy · Intensity). Kein Seed, kein Standbild-Export, keine FPS-Anzeige.
 
-**ADOPT-PRODUCT (2):**
-· **Seed + Randomize fürs Visual.** Die Asymmetrie ist der Punkt: die MUSIK ist seed-reproduzierbar
-  (SplitMix64), das VISUAL nicht. Man bekommt denselben Take zurück, aber nicht denselben Look.
-  Kleinste Scheibe der drei, keine neue Fläche — ein Feld im vorhandenen Panel.
+**ADOPT-PRODUCT (1, war 2 — siehe die Rücknahme darunter):**
 · **Standbild-Export.** `VisualRecorder` liefert heute nur mp4. Ein einzelnes Bild ist das
-  billigste und meistgebrauchte Artefakt (Cover, Post) und die Metal-Textur liegt schon vor.
+  billigste und meistgebrauchte Artefakt (Cover, Post). Größe gemessen, nicht geschätzt:
+  `capture(from source: MTLTexture, in commandBuffer:, device:)` blittet den Frame BEREITS in
+  einen BGRA-`CVPixelBuffer` — ein Standbild ist derselbe Puffer, einmal statt pro Frame.
+
+⛔ **RÜCKNAHME AM SELBEN TAG, EINE STUNDE SPÄTER: „Seed + Randomize fürs Visual" war
+ADOPT-PRODUCT und ist WATCH.** Die Begründung lautete „die MUSIK ist seed-reproduzierbar, das
+VISUAL nicht — man bekommt denselben Take zurück, aber nicht denselben Look". **Gemessen:** das
+Visual hat GAR KEINEN Zufall. `grep -cE "\.random\(|SystemRandomNumberGenerator|SplitMix|shuffled\("`
+liefert **0** für `MetalBioView.swift` UND `BioVisualParams.swift`, und `echoelHash` ist ein
+POSITIONS-Hash (Pixel bzw. Zelle rein, deterministisch raus) — kein Zufallsgenerator. Es gibt
+also nichts zu pinnen. Ein Seed wäre ein **Variations-Regler** (gleicher Körper, andere Textur —
+genau die „infinite variations" der Folie), nicht die Reparatur einer Lücke. Wert fällt damit von
+„schließt eine Asymmetrie" auf „nett". ⚠️ **Und das ist der #984c-Fehler in einer anderen Gattung:**
+dort stimmte die Rechnung und die Beschriftung log; hier klang die Begründung plausibel und war
+schlicht ungemessen. Beide Male hätte EIN `grep` es vor dem Aufschreiben entschieden.
 
 **WATCH (1):** Info-Zeile (FPS + aktive Qualitätsstufe). `AdaptiveQuality` senkt bei Hitze/Akku
 die Detailstufe und der Nutzer erfährt nie warum — ehrliche Diagnose, keine Deko. ⚠️ Muss ein
