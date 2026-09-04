@@ -77,7 +77,7 @@ PLAY WITH YOUR PULSE
 • No sensor around? Demo mode plays instantly.
 
 COMPOSE FROM YOUR BODY
-• One tap generates music in your key: seventeen curated genres, from deep
+• One tap generates music in your key: eighteen curated genres, from deep
   ambient and drift to classical and dub techno.
 • Choose key and scale (57 scales), concert pitch A4 from 432 to 444 Hz,
   tempo locked in the studio or flowing with your heart.
@@ -271,7 +271,7 @@ pulse locks → play → music + visual react → "Free. Private. No account."
 
 Every description claim re-checked against the repo — all grounded:
 camera rPPG / universal BLE 0x180D / HealthKit (LIVE) · real HRV coherence
-Lomb-Scargle+Welch (LIVE) · 17 offered genres, 57 scales, A4 432–444 (LIVE) ·
+Lomb-Scargle+Welch (LIVE) · 18 offered genres, 57 scales, A4 432–444 (LIVE) ·
 poly synth + patch editor + presets, sub-bass voice, loop cutter,
 FX chain (LIVE) · MIDI input (notes/bend/CC 74) (LIVE) · virtual MIDI 1.0 out,
 route-gated (LIVE) · OSC + ADM-OSC +

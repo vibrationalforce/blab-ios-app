@@ -132,6 +132,18 @@ public extension MusicStyle {
                 harm: 0.78, hl: 0.56, bright: 0.28, noise: 0.0, color: "Pink", shape: "Dark",
                 cutoff: 2100, res: 0.28, lfoAmt: 0.12, lfoRate: 0.9, lfoDepth: 0.14,
                 revMix: 0.12, revDecay: 1.1, vibRate: 0, vibDepth: 0)
+        case .darkMinimal:
+            // #983 S4 — A FLÄCHE WITH AN EDGE. The darkest PAD patch of the stabbing family
+            // (brightness 0.18, under minimal's 0.24), with a slower attack than any of its
+            // neighbours (0.030 — the wide fifth swells into the beat instead of clicking) and a
+            // long sustain so the stab is a held block, not a tick. Low cutoff with moderate
+            // resonance for the edge, a slow deep filter LFO so the block moves across the bar,
+            // and almost no patch reverb — the FX preset's 0.38 room is the space.
+            return patch("F9", "Dark Edge",
+                a: 0.030, d: 0.40, s: 0.55, r: 0.30,
+                harm: 0.70, hl: 0.60, bright: 0.18, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 1400, res: 0.30, lfoAmt: 0.10, lfoRate: 0.3, lfoDepth: 0.18,
+                revMix: 0.10, revDecay: 1.4, vibRate: 0, vibDepth: 0)
         case .detroitTechno:
             // #254 batch 4 — A WARM CHORD, not a stab: a slower attack than any other genre in this
             // family so the ninth chord SWELLS into the comp, a long-ish release so the syncopation
@@ -412,6 +424,18 @@ public extension MusicStyle {
                 a: 0.003, d: 0.24, s: 0.24, r: 0.11,
                 harm: 0.88, hl: 0.46, bright: 0.20, noise: 0.0, color: "Pink", shape: "Dark",
                 cutoff: 760, res: 0.24, lfoAmt: 0.06, lfoRate: 0.4, lfoDepth: 0.08,
+                revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
+                uni: 1, det: 0)
+        case .darkMinimal:
+            // #983 S4 — the held dark sub under the wide fifth: shares minimal's `sparseSub`
+            // figure, so the patch is where the two differ — a touch more harmonic content and a
+            // slightly higher cutoff than "Minimal Sub" (560 vs 520; that patch keeps its "lowest
+            // cutoff, darkest in the file" claim), a shorter release so the late fifth reads as an
+            // event, dry and mono like every bass patch here.
+            return patch("FA", "Dark Sub",
+                a: 0.010, d: 0.50, s: 0.60, r: 0.14,
+                harm: 0.92, hl: 0.40, bright: 0.15, noise: 0.0, color: "Pink", shape: "Dark",
+                cutoff: 560, res: 0.18, lfoAmt: 0.0, lfoRate: 0.0, lfoDepth: 0.0,
                 revMix: 0.0, revDecay: 0.5, vibRate: 0, vibDepth: 0,
                 uni: 1, det: 0)
         default:

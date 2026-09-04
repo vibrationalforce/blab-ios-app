@@ -72,8 +72,8 @@ final class GenreDeepTechTests: XCTestCase {
         XCTAssertFalse(deep.chorusEnabled, "no chorus — width would blur the bass")
     }
 
-    /// Romance's caption ("7 of the 17 offered") is pinned in `MoodKnobsSayWhatTheyDoTests`; this
-    /// states the half that makes 7 survive a 17th genre — the shell already has the seventh.
+    /// Romance's caption count is pinned in `MoodKnobsSayWhatTheyDoTests`; this states the half
+    /// that keeps deep tech OUT of that count — the shell already has the seventh.
     func testTheShellAlreadyCarriesTheSeventhSoTheRomanceCountIsUnchanged() {
         XCTAssertTrue(MusicStyle.deepTech.harmonicProfile.chordTones.contains(6))
     }

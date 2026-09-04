@@ -375,7 +375,8 @@ public extension MusicStyle {
             // offered genre sits at 0.78 and up" stood here and went stale twice: `minimalTechno`
             // (0.36, #254 batch 4) and `deepTech` (0.40, #983 S3) both sit under it now, so it is
             // the FOURTH smallest after acidTechno 0.34. Re-derive, do not quote. Its DAMPING is
-            // merely high, not extreme: 0.58 is fifth, behind deepDrone 0.68, acidTechno 0.64 and
+            // merely high, not extreme: 0.58 is SIXTH, behind deepDrone 0.68, acidTechno 0.64,
+            // darkMinimal 0.62 (#983 S4 — it was fifth before that genre) and
             // stillMeditation/dubTechno 0.60. ⚠️ The first version of this line called it
             // "second-most damped … only acidTechno is deader" — wrong on both halves, and room
             // size and damping are separate axes that must be claimed separately.
@@ -406,6 +407,24 @@ public extension MusicStyle {
                 delayMix: 0.18, delayFeedback: 0.36, delayTone: 0.48, delaySpread: 0.40,
                 saturation: 0.36,
                 reverbEnabled: true, reverbMix: 0.14, reverbRoom: 0.40, reverbDamping: 0.56)
+        case .darkMinimal:
+            // #983 S4 — DARK, NOT CLEAN. Every number here was placed against a neighbour's
+            // documented claim: saturation 0.16 sits ABOVE minimal's 0.14 (⛔ the plan said 0.12,
+            // which would have taken minimal's "cleanest beat-driven chain", a blocking guard —
+            // dark minimal is dirtier than minimal, and that is the honest reading anyway); delay
+            // feedback 0.40 under minimal's 0.44 (its "longest four-on-floor tail" holds); delay
+            // tone 0.36 above deepDrone's 0.14 ("darkest tone in the roster" holds — the darkness
+            // here is the mode and the register, not a muffled echo); room 0.38 between minimal's
+            // 0.36 and deepTech's 0.40; damping 0.62 between acidTechno 0.64 and the 0.60 pair,
+            // which moves techHouse's rank from fifth to sixth — corrected in that arm.
+            // ⚠️ The delay DIVISION is inert (#257); mix, feedback, tone and spread are heard.
+            // No chorus: width would fill exactly the space this genre leaves empty.
+            return GenreFXPreset(
+                delayEnabled: true, delayMode: .digital,
+                delaySync: TempoSyncOption(.eighth, .dotted),
+                delayMix: 0.16, delayFeedback: 0.40, delayTone: 0.36, delaySpread: 0.35,
+                saturation: 0.16,
+                reverbEnabled: true, reverbMix: 0.12, reverbRoom: 0.38, reverbDamping: 0.62)
         case .minimalTechno:
             // #254 batch 4 — THE CLEANEST CHAIN OF THE BEAT-DRIVEN OFFERED GENRES. `saturation:
             // 0.14` sits under `deepHouse`'s 0.22, which held that floor. ⚠️ SCOPED, and the scope

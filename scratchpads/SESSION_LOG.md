@@ -22400,3 +22400,16 @@ korrigiert. Wächter `Tests/CISmoke/GenreDeepTechTests.swift` (7) + Reachable-Li
 
 **438 deployt:** `testflight.yml` Lauf 2556 (`33867867244`) auf `e49c7f5`, `success`, 11:25–11:33 UTC.
 Der Founder hört S1+S2 in EINEM Build. S3 (`deepTech`, `2b0b508`) ist gepusht; Gates laufen.
+
+**S3-Gates auf `2b0b508`:** Xcode Compile Check ✅ (Lauf 2338), CI/CD „Build for Testing" ✅ (11:39–11:43),
+„Run Tests" läuft noch — Verdict folgt mit dem nächsten Check-in.
+
+**S4 gebaut — Genre `darkMinimal` („Dark Minimal"):** der Plan-Entwurf hätte drei blockierende
+Batch-4-Wächter gebrochen (Dyade, kleinster Swing > 0, sauberste Kette); gebaut ist stattdessen
+phrygisch `[0, 4, 11]` (weiter Quint-Stapel, terzlos, neu), i → ♭II, padOctave 3, swing 0.0,
+126…131/129, `sparseSub` auf eigenem „Dark Sub" (FA), Pad „Dark Edge" (F9, bright 0.18), FX Sat
+0.16/Feedback 0.40/Tone 0.36/Room 0.38/Damping 0.62 — jede Zahl gegen einen Nachbar-Kommentar
+gesetzt; techHouses Damping-Rang fünfter → sechster im selben Commit. Zähl-Heime 17 → 18,
+ohne-Septime 7 → 8. Wächter `GenreDarkMinimalTests` (5). Transkription GREEN. Klang: Ohr.
+**Deploy-Entscheidung:** 439 kommt NACH S5, damit der Founder die drei neuen Genres in EINEM Build
+hört (dieselbe Logik wie 438 = S1+S2; Apples Upload-Kontingent).

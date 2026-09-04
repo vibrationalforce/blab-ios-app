@@ -115,6 +115,7 @@ public extension MusicStyle {
         case .deepHouse:     return .offbeatEighths
         case .techHouse:     return .drivingEighths
         case .deepTech:      return .drivingEighths   // #983 S3: shares the figure, not the patch
+        case .darkMinimal:   return .sparseSub         // #983 S4: same — minimal's figure, its own sub
         case .minimalTechno: return .sparseSub
         default:             return nil
         }

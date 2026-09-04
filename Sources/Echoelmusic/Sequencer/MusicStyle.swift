@@ -155,6 +155,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // minimal, deep house, psy prog House"). Offered from the start for the reason every
         // batch above gives — a genre left only in the taxonomy is a doorless genre.
         .deepTech,
+        // #983 S4 (same founder sentence, "dark minimal"). Same reason.
+        .darkMinimal,
         // #254 batch 2 (same ask, "aber auch Ambient und meditations Musik"). Built SECOND on
         // purpose: batch 1 shifted the palette toward driving genres, and this is the half of the
         // founder's sentence that restores the contemplative centre rather than diluting it —
@@ -203,6 +205,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
                                       .deepDrone, .ambientPulse, .vaporwave, .sciFi]
             case .electronic: return [.dubTechno, .acidTechno, .deepHouse, .upliftingTrance,
                                       .techHouse, .minimalTechno, .detroitTechno, .deepTech,
+                                      .darkMinimal,
                                       .trap, .psytrance,
                                       .synthwave, .earlySynth, .eighties, .disco, .futuristic]
             case .rock:       return [.rock, .punk, .rocknroll, .heavyMetal, .doom]
@@ -226,7 +229,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              .deepDrone, .ambientPulse:
             return .meditative
         case .dubTechno, .acidTechno, .deepHouse, .upliftingTrance, .techHouse,
-             .minimalTechno, .detroitTechno, .deepTech,
+             .minimalTechno, .detroitTechno, .deepTech, .darkMinimal,
              .trap, .psytrance, .synthwave, .earlySynth,
              .eighties, .disco, .futuristic:
             return .electronic
@@ -400,6 +403,26 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     ///   · **`bassGrammar: .drivingEighths`** with its OWN bass patch (`GenrePatches.bassPatch`),
     ///     the half of the founder's ask the pad cannot carry.
     case deepTech
+    /// #983 S4 (same founder sentence: "dark minimal"). `minimalTechno` is the STATIC pole of the
+    /// techno family; this is its DARK sibling, and the plan's first draft would have made it a
+    /// copy — a `[0, 4]` dyad at swing 0.02 — which two blocking guards forbid on purpose
+    /// (`GenreBatchFourVoicingTests`: minimal is the only dyad, minimal has the smallest non-zero
+    /// swing). So every axis below was chosen to be DIFFERENT from minimal, not merely darker:
+    ///
+    ///   · **`chordTones: [0, 4, 11]`** — root, fifth (+7) and the fifth an octave up (+19, degree
+    ///     11 wraps through `MusicalKey.degree`): a WIDE open-fifth stack spanning an octave and a
+    ///     half, no third. New to the roster (no other arm has `[0, 4, 11]`); three notes, so
+    ///     minimal keeps its dyad claim. Hollow like minimal, but it fills the register.
+    ///   · **`scale: .phrygian`** — the darkness is in the ROOT MOTION: `progression: [0, 1]` is
+    ///     i → ♭II, the half-step above the tonic that phrygian owns. The only offered phrygian
+    ///     besides `acidTechno` (arpeggiated) — a held stab on that mode is a different thing.
+    ///   · **`padOctave: 3`** — an octave under `deepTech`/`techHouse`/`minimalTechno` (all 4).
+    ///   · **`swing: 0.0`** — machine-straight, like acid; minimal's 0.04 stays the smallest
+    ///     non-zero swing. A dark minimal grid does not shuffle.
+    ///   · **`bassGrammar: .sparseSub`** — the figure is SHARED with minimal (held root, one late
+    ///     fifth); the bass PATCH is its own ("Dark Sub"). Sharing a figure is honest here: the
+    ///     genre differs in what sits above the sub, not in how the sub moves.
+    case darkMinimal
     /// #254 batch 2 (founder 2026-07-30 "aber auch Ambient und meditations Musik"): stillness
     /// taken FURTHER than any Fläche already offered, and separated from all six of them on four
     /// axes at once rather than on a different chord.
@@ -519,6 +542,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .minimalTechno:      return "Minimal Techno"
         case .detroitTechno:      return "Detroit Techno"
         case .deepTech:           return "Deep Tech"
+        case .darkMinimal:        return "Dark Minimal"
         // ⚠️ "Still Drone", not "Deep Drone": `stillMeditation`'s PATCH is already named
         // "Deep Drone" (GenrePatches "DC"), and picking a genre writes its patch into the
         // visible patch field — so a picker entry "Deep Drone" next to a patch field reading
@@ -573,6 +597,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .detroitTechno:      return "Syncopated ninth-chord comp · bittersweet mode"
         // #983 S3. Describes what is voiced and how the bass moves; no product or artist names.
         case .deepTech:           return "Dark minor-seventh shell · driving eighth-note bass"
+        case .darkMinimal:        return "Wide open-fifth stack · tonic to flat second · straight grid"
         case .deepDrone:          return "One low quartal drone · unmoving · very wide"
         // "hypnotic" removed: it is the closest thing in the roster to altered-state language,
         // and this repo keeps such words out of shipped strings. The word stays in the internal
@@ -642,7 +667,8 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
              // #254 batch 4: minimal stabs its dyad on the beat. `detroitTechno` deliberately does
              // NOT come here — see its case doc for why it takes `.backbeat`/`.comp` instead.
              // #983 S3: deep tech stabs its shell on the beat like tech house; its bass is the axis.
-             .minimalTechno, .deepTech:                         return .fourOnFloor
+             // #983 S4: dark minimal stabs its wide fifth on the beat too.
+             .minimalTechno, .deepTech, .darkMinimal:           return .fourOnFloor
         // #254: deepHouse is four-to-the-floor MUSICALLY, but the archetype's only audible
         // consequence since #166/#167 (no drum sounds) is `chordArticulation` — and a house
         // chord lands on the OFFBEAT, which is `.skank`. Picking `.fourOnFloor` here would give
@@ -876,6 +902,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // `deepHouse` (120…126), as every window in this family does; this really is a ~126
         // genre. Separation is voicing (the third-less shell), the bass figure and FX.
         case .deepTech:           return 124...128
+        // #983 S4. 126…131 overlaps minimal (125…132), Detroit (126…134) and techHouse (124…130)
+        // — a ~129 genre, separated on mode, register, voicing and FX, never on the window.
+        case .darkMinimal:        return 126...131
         // #254 batch 2. deepDrone goes BELOW every offered genre (contemplation's 44 was the
         // floor).
         // ⚠️ The first version of this line justified the 40 with "at 40 BPM a whole-note tape
@@ -968,6 +997,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .minimalTechno:      return 128
         case .detroitTechno:      return 130
         case .deepTech:           return 126
+        case .darkMinimal:        return 129
         case .deepDrone:          return 48
         case .ambientPulse:       return 85
         case .trap:               return 140
@@ -1043,6 +1073,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #983 S3: shares `dubTechno`'s 0.08 — straighter than techHouse (0.12) because the
         // driven 8th-note bass wants a near-straight grid; no uniqueness claimed.
         case .deepTech:           return 0.08
+        // #983 S4: straight, like acid. ⛔ The plan said 0.02 — that would have taken minimal's
+        // "smallest non-zero swing" (a blocking guard) for a difference nobody can hear.
+        case .darkMinimal:        return 0.0
         case .upliftingTrance:    return 0.0
         case .eighties:           return 0.06
         case .synthwave, .earlySynth, .futuristic, .sciFi, .psytrance,
@@ -1136,6 +1169,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // (`ceil(25 / 6)`), so the name is free again — re-derive, do not quote. "Deep Sub"
         // is the musical pick for a shell whose lead density is 0.0 anyway.
         case .deepTech:           return "Deep Sub"
+        // #983 S4: 26th lead-bearing genre, ceiling still 5; "Soft Keys" was at 4. Lead density
+        // is 0.0, so the name is a factory-resolution requirement, not a sound.
+        case .darkMinimal:        return "Soft Keys"
         case .trap:               return "Soft Keys"     // sustained — unused
         case .vaporwave:          return "Warm Strings"  // sustained — unused
         case .eighties:           return "Soft Keys"
@@ -1191,6 +1227,7 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         case .minimalTechno:                          return (1.20, 0.86, 0.88)
         case .detroitTechno:                          return (1.04, 1.08, 0.88)
         case .deepTech:                               return (1.16, 0.90, 0.88)  // #983 S3: bass-led
+        case .darkMinimal:                            return (1.18, 0.84, 0.88)  // #983 S4: thinnest pad after minimal's 0.86
         case .ska, .rocksteady, .disco:               return (1.10, 0.96, 0.90)
         case .synthwave, .eighties, .vaporwave, .earlySynth:
                                                       return (1.00, 0.94, 0.90)
@@ -1225,6 +1262,9 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
         // #983 S3: plain natural minor (shared with deepHouse, trance, minimal, selfObservation);
         // the identity is the third-less shell, not the mode.
         case .deepTech:           return .minor
+        // #983 S4: phrygian — the ♭2 is the whole darkness (root motion i → ♭II). Shared with
+        // acidTechno among the offered; that one arpeggiates, this one holds.
+        case .darkMinimal:        return .phrygian
         // #254 batch 2 — the only two pentatonic genres in the roster. No semitone anywhere,
         // so nothing in either can create tension; every other genre is a 7-note mode.
         case .deepDrone:          return .pentatonicMinor
@@ -1474,6 +1514,17 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
             // bass figure (`BassGrammar.drivingEighths`) is reachable.
             return HarmonicProfile(progression: [0, 5], chordTones: [0, 4, 6],
                                    padOctave: 4, leadOctave: 5, arpeggiated: false,
+                                   leadDensity: 0.0)
+        case .darkMinimal:
+            // #983 S4 — THE WIDE OPEN FIFTH. `[0, 4, 11]` on phrygian ([0,1,3,5,7,8,10]) is root +
+            // fifth (+7) + fifth-an-octave-up (+19; degree 11 = degree 4 one octave higher, via
+            // `MusicalKey.degree`'s octave wrap). No third — hollow like `minimalTechno`'s dyad but
+            // THREE notes across an octave and a half, so minimal's "only dyad" guard stands.
+            // `[0, 1]` = i → ♭II: the phrygian half-step is where the dark comes from; at padOctave
+            // 3 it is a low stab, an octave under every other stabbing genre in the family.
+            // NOT arpeggiated (so `.stab` plays), NOT sustained (so the `sparseSub` figure plays).
+            return HarmonicProfile(progression: [0, 1], chordTones: [0, 4, 11],
+                                   padOctave: 3, leadOctave: 4, arpeggiated: false,
                                    leadDensity: 0.0)
         case .deepDrone:
             // #254 batch 2 — the quartal drone. `[0, 3, 6]` on the FIVE-note pentatonicMinor

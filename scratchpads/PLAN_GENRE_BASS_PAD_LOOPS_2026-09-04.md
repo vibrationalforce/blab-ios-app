@@ -146,12 +146,31 @@ Reihenfolge ist Handwerk.
 - **Ohr-Satz (NEEDS-FOUNDER-VERIFY):** Deep Tech im Loop-Modus bei 126 — liest sich die terzlose
   Shell als „deep" (Gewicht ohne Dur/Moll-Farbe) und der 8tel-Bass als Drive statt Metronom?
 
-### S4 — Genre `darkMinimal` („Dark Minimal")
-- 126…132, default 129; **phrygian** (die ♭2 ist die Dunkelheit; unter den offered ist acid
-  arpeggiert-phrygisch, dies ist gehalten-phrygisch ⇒ andere Artikulation); `chordTones [0, 4]`
-  Dyade wie minimal, aber **padOctave 3** und Progression `[0, 1]` (i → ♭II) ⇒ Fingerabdruck
-  eindeutig; swing 0.02; bassGrammar `sparseSub`; FX: Room 0.30, hohes Damping, Sat 0.12, kein
-  Chorus; Patch: sehr dunkel (bright 0.18), langsamer Attack als „Minimal Stab" (Fläche mit Kante).
+### S4 — Genre `darkMinimal` („Dark Minimal") — ✅ GEBAUT (Folge-Commit; Gates ausstehend)
+- ⛔ **Die Spezifikation, die hier stand, hätte DREI blockierende Wächter rot gemacht** —
+  `[0, 4]`-Dyade (minimal = „einzige Dyade", `testMinimalIsTheOnlyTwoNoteVoicingInTheRoster` +
+  `testNoOtherGenreCopiesEitherNewVoicing`), swing 0.02 (minimal = „kleinster Swing über null"),
+  Sat 0.12 (minimal = „sauberste beat-getriebene Kette"). Der Plan war gegen den Klang
+  geschrieben, nicht gegen die Wächter; gemessen VOR dem Bauen, nicht am Gate.
+- Gebaut: phrygisch; **`[0, 4, 11]`** (Root · Quinte · Quinte eine Oktave höher, +19 über
+  `MusicalKey.degree`-Oktav-Wrap — weiter Quint-Stapel, terzlos, DREI Töne, neu im Roster);
+  Progression `[0, 1]` (i → ♭II, die Dunkelheit sitzt in der Wurzelbewegung); padOctave 3;
+  `.fourOnFloor`→`.stab`; **swing 0.0** (maschinengerade wie Acid); 126…131, default 129;
+  bassGrammar `sparseSub` (Figur GETEILT mit minimal, Patch eigen: „Dark Sub" FA, cutoff 560 >
+  Minimal Sub 520 und bright 0.15 > 0.14, damit dessen „tiefster/dunkelster"-Kommentar wahr
+  bleibt); Pad „Dark Edge" F9 (bright 0.18 — dunkelstes PAD der Stab-Familie, Attack 0.030,
+  Sustain 0.55: Fläche mit Kante); FX: Sat **0.16** (über minimal 0.14), Feedback 0.40 (unter
+  minimal 0.44), Tone 0.36 (über deepDrone 0.14), Room 0.38, Damping 0.62 (zwischen Acid 0.64
+  und dem 0.60-Paar — techHouses „fünfter"-Rang wird SECHSTER, im selben Commit korrigiert).
+  Lead „Soft Keys" (26 lead-tragend, Decke 5). Mix (1.18, 0.84, 0.88).
+- Zähl-Heime 17 → 18, ohne-Septime 7 → **8** (der Stapel trägt keine 6): Caption „8 of the 18
+  offered", MoodKnobs-Pin + Nadel, Swing-Kommentar (ELF bei null), MIDIClock-Doc, drei
+  `docs/*.html`, FEATURE_MATRIX (35 Cases), APP_STORE_LISTING, beide `release_notes.txt`.
+- Wächter: `Tests/CISmoke/GenreDarkMinimalTests.swift` (5 Ansprüche, jeder Nachbar-Superlativ
+  von der Seite des Neulings re-assertiert) + Reachable-Liste. Transkription
+  `scratchpad/s4_grade_darkminimal.py`: Worktree GREEN.
+- **Ohr-Satz (NEEDS-FOUNDER-VERIFY):** Dark Minimal bei 129 — liest sich der weite Quint-Stapel
+  in Oktave 3 mit dem ♭II-Wechsel als „dunkel", ohne zu matschen?
 
 ### S5 — Genre `psyProgHouse` („Psy Prog House")
 - 128…136, default 132; minor; `chordTones [0, 2, 4]` Triade, Progression `[0, 6]` (i → VII),
