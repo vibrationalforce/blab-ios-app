@@ -6,7 +6,11 @@ import XCTest
 /// swing 0.02, saturation 0.12) would have gone red on three blocking claims that batch 4 pinned
 /// for minimal — the only dyad, the smallest non-zero swing, the cleanest beat-driven chain. Each
 /// of those neighbours' claims is re-asserted here from the newcomer's side, so the next genre
-/// cannot quietly take them either. Sound is the founder's ear (NEEDS-FOUNDER-VERIFY).
+/// cannot quietly take them either.
+///
+/// NEEDS-FOUNDER-VERIFY: Genre "Dark Minimal", Loop-Modus — klingt der weite Quint-Stapel eine
+/// Oktave tiefer DUNKEL, ohne zu matschen, und hörst Du den ♭II-Wechsel als Spannung?
+/// (Instruction on the line on purpose — see the note in `GenreDeepTechTests`.)
 final class GenreDarkMinimalTests: XCTestCase {
 
     func testDarkMinimalIsOfferedInTheElectronicSection() {

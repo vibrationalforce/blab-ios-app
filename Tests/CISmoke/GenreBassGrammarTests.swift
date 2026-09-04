@@ -3,8 +3,17 @@
 //
 // KIND: END-TO-END BEHAVIOUR on the pure composer (`BioComposer.compose` → `[Note]`) and on the
 // pure figure tables (`BassGrammar.hits`) — Foundation-only value types, no engine. The one thing
-// no assertion here can reach is whether the figure GROOVES on a device; that is the plan's
-// NEEDS-FOUNDER-VERIFY line, not this file's.
+// no assertion here can reach is whether the figure GROOVES on a device.
+//
+// NEEDS-FOUNDER-VERIFY: Deep House im Loop-Modus, ruhig sitzen (Kohärenz hoch) — liegt der Bass
+// auf den "&"s und ist die 1 FREI? Danach Tech House (alle Achtel) und Minimal Techno (gehaltener
+// Grundton, kurze Quinte auf "3&"). Gegenprobe an einem Genre ohne Figur: unverändert?
+//
+// ⛔ This line used to defer to the plan for the NEEDS-FOUNDER-VERIFY question, which is true
+// about WHERE it was written and wrong about where it can be READ: `scripts/founder-verify.py`
+// walks Sources/, Tests/ and CLAUDE.md and deliberately skips `scratchpads/`. The ask therefore
+// never reached the printed checklist at all. (This sentence names the marker after "the" on
+// purpose — that is what keeps prose ABOUT the backlog out of the backlog, #753.)
 //
 // ⭐ THE ONE TEST THAT MATTERS IS THE CALM-BODY ONE. Before #983 every non-sustained genre lost
 // its bass line the moment the body settled: `appendBass` guards the walk on `motion > 0.32`

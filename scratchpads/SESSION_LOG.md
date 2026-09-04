@@ -22440,3 +22440,20 @@ Figuren, die Türen (Genre-Menü · BPM-Schloss · Save/Export → Loop length �
 Mix-Fader · Save/Export → Diagnostics) und drei Ohr-Fragen; sie behauptet ausdrücklich NICHT,
 dass die drei „richtig gut" sind. `decisions.csv:691` + `memory/decisions.md` nachgezogen.
 Offen: S6 (Pad-Bewegung über den Loop) — wartet auf das Founder-Ohr zu S1–S5.
+
+**439 deployt:** `testflight.yml` Lauf 2557 (`33888253054`) auf `d60a7ef`, `success`, 15:13–15:23 UTC.
+Damit hört der Founder S1–S5 in zwei Builds (438 = Bass-Achse, 439 = die drei Genres).
+
+**Nächste Scheibe (#984, aus dem eigenen Rückstand dieses Zyklus):** die Ohr-Fragen zu S3–S5
+standen NUR im Plan — und `scripts/founder-verify.py` läuft über `Sources`, `Tests`, `CLAUDE.md`
+und lässt `scratchpads/` bewusst weg. Der Founder hätte vier Checklisten-Einträge OHNE Frage
+gedruckt bekommen, dazu einen Zeiger auf eine Datei, die das Werkzeug nicht liest. Die deutschen
+Ohr-Fragen stehen jetzt auf den Marker-Zeilen der vier Genre-Wächter. ⛔ Erste Fassung der
+Reparatur erzeugte ZWEI neue Rausch-Einträge: meine eigene Rücknahme-Prosa wurde als Auftrag
+gezählt (#753). Die NOT-ASKS-Regel greift nur bei einem DETERMINATIV direkt vor dem Marker —
+umformuliert, jetzt 86 offene Aufträge wie vorher, vier davon mit echter Frage.
+Wächter: Anspruch 6 in `TheDeviceChecklistOnlyAsksWhatExistsTests` (kein Auftrag darf seine
+Anweisung an eine Datei delegieren, die das Werkzeug nicht liest). Nadel schmal wegen #491 —
+nur die ZEIGER-Form (`plan §…`, `scratchpads/`), nicht das Wort „plan"; die reparierten Köpfe
+zitieren ihre eigene Rücknahme. Transkription `scratchpad/s6_grade_askline.py`: Worktree GREEN,
+HEAD RED (genau ein Treffer, `GenreDeepTechTests:11`).

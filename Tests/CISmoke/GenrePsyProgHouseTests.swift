@@ -3,8 +3,11 @@ import XCTest
 
 /// #983 S5 — `psyProgHouse`, the third genre of the founder's 2026-09-04 ask and the first owner
 /// of `BassGrammar.rollingSixteenths` (authored ahead in S1). Its case doc separates it from the
-/// un-offered `psytrance` axis by axis; each axis is measured here in the BLOCKING bundle. Sound
-/// is the founder's ear (NEEDS-FOUNDER-VERIFY).
+/// un-offered `psytrance` axis by axis; each axis is measured here in the BLOCKING bundle.
+///
+/// NEEDS-FOUNDER-VERIFY: Genre "Psy Prog House", Loop-Modus — rollt der 16tel-Bass als LINIE
+/// (nicht als Rasseln), und hängt der Pluck ins Ping-Pong-Echo, ohne dass die Triade verschwimmt?
+/// (Instruction on the line on purpose — see the note in `GenreDeepTechTests`.)
 final class GenrePsyProgHouseTests: XCTestCase {
 
     func testPsyProgHouseIsOfferedInTheElectronicSection() {

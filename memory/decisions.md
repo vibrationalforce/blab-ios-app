@@ -1381,8 +1381,8 @@ beschränken (#292, `afcf3aa`).
   `MusicStyle.offered.count` im blockierenden Bundle — die Zahl ist eine Roster-Tatsache, kein
   Klang-Versprechen; das Versprechen („richtig gut") bleibt hinter dem Ohr. Delay-Teilung 8tel
   gepunktet statt der geplanten 16tel (sonst Gleichstand mit techHouses Superlativ).
-- **Stand 2026-09-04 15:00 UTC:** S1+S2 = TestFlight 438 (Lauf 2556). **S3–S5 gebaut und als 439
-  gebumpt** (`d60a7ef`): `deepTech` (`2b0b508`), `darkMinimal` (`edd2d58`), `psyProgHouse`
+- **Stand 2026-09-04 15:23 UTC:** S1+S2 = TestFlight 438 (Lauf 2556). **S3–S5 = TestFlight 439
+  (Lauf 2557, `success`)** (`d60a7ef`): `deepTech` (`2b0b508`), `darkMinimal` (`edd2d58`), `psyProgHouse`
   (`0a1ba7c`). Roster 16 → 19. Compile Check auf allen dreien grün, Build for Testing grün,
   166 Tests / 0 Fehler / 0 Skips im Fenster.
 - **Drei Plan-Werte beim Bauen gegen bestehende Wächter korrigiert** (Mirror `decisions.csv:691`):

@@ -7,10 +7,24 @@ import XCTest
 /// because a genre doc is the line the next session plans from and this file has retracted
 /// genre-doc superlatives three times already (`GenreBatchFourVoicingTests`).
 ///
-/// Nothing here pins a SOUND — whether the shell reads as "deep" is the founder's ear
-/// (NEEDS-FOUNDER-VERIFY, plan §2 S3). What is pinned is the STRUCTURE the doc claims: the voicing
-/// is new, the figure and the bass patch come together, the picker reaches it, and the count homes
-/// that name the roster size moved with it.
+/// Nothing here pins a SOUND. What is pinned is the STRUCTURE the doc claims: the voicing is new,
+/// the figure and the bass patch come together, the picker reaches it, and the count homes that
+/// name the roster size moved with it.
+///
+/// NEEDS-FOUNDER-VERIFY: Genre "Deep Tech", Loop-Modus, ruhig sitzen — liest sich die terzlose
+/// Shell als "deep" (Gewicht ohne Dur/Moll-Farbe), und TREIBEN die Achtel im Bass, statt wie ein
+/// Metronom zu ticken?
+///
+/// ⚠️ THE INSTRUCTION BELONGS ON THIS LINE, not in the plan. `scripts/founder-verify.py` walks
+/// Sources/, Tests/ and CLAUDE.md — NOT `scratchpads/` ("session prose, not asks"). This header
+/// first shipped with the marker carrying no question at all, only a pointer to a plan file the
+/// tool cannot read, so the printed checklist gained an entry the founder could not act on. That
+/// is worse than no entry: it costs a glance on every walk and settles nothing.
+///
+/// ⚠️ AND THIS PARAGRAPH IS NOT ITSELF AN ASK — it is prose ABOUT the marker (#753). The tool's
+/// NOT-ASKS split keys on a DETERMINER immediately in front, so a sentence like this one must be
+/// phrased to end in "the" before naming the NEEDS-FOUNDER-VERIFY marker, or it is counted as a
+/// 54th job. Measured after writing: the first draft of this very paragraph was counted.
 final class GenreDeepTechTests: XCTestCase {
 
     func testDeepTechIsOfferedInTheElectronicSection() {

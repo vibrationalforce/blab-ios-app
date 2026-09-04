@@ -209,4 +209,54 @@ final class TheDeviceChecklistOnlyAsksWhatExistsTests: XCTestCase {
             5b drives exactly that rejected variant.
             """)
     }
+
+    // 6 — an ask may not DEFER its instruction to a file the tool cannot read (#983 S3).
+    //
+    // WHY THIS CLAIM SITS HERE (#416): claim 4 above pins that `founder-verify.py` skips
+    // `scratchpads/`. That exclusion has a second consequence nobody had written down — an ask
+    // whose instruction lives in a scratchpad reaches the printed checklist as an entry with no
+    // question in it. This file already owns the "an ask must be performable" law at document
+    // scale (#816); this is the same law at LINE scale, and it belongs beside the exclusion that
+    // causes it rather than in a file of its own.
+    //
+    // MEASURED, and the needle is load-bearing rather than decorative: on `2b0b508` exactly ONE
+    // line matched — `GenreDeepTechTests`' header, which shipped the marker as
+    // "the founder's ear (…, plan §2 S3)". Three sibling genre guards shipped the same shape
+    // without the pointer, so the founder's list gained four entries and three questions, none
+    // of them on the list. The repair put the German ear-question on each marker line.
+    //
+    // ⚠️ THE NEEDLE IS DELIBERATELY NARROW, for the #491 reason this file already carries: the
+    // repaired headers QUOTE what they retracted ("not in the plan", "a plan file the tool cannot
+    // read"), so a scan for the word "plan" near the marker would match its own withdrawal and go
+    // red on a correct tree. Only a POINTER SHAPE counts — a section reference ("plan §…") or a
+    // literal `scratchpads/` path on the marker's own line. Prose about the backlog reads neither.
+    //
+    // ⚠️ HONEST LIMIT, running toward false greens like claim 1's: this cannot tell a real
+    // question from a bare marker. An ask that simply says "NEEDS-FOUNDER-VERIFY: sounds right?"
+    // passes. It makes the KNOWN shape — deferring to an unreadable file — impossible to
+    // reintroduce; it does not make every ask useful.
+    func testNoAskDefersItsInstructionToAFileTheToolCannotRead() {
+        var offenders: [String] = []
+        for root in ["Sources", "Tests"] {
+            let base = self.root().appendingPathComponent(root)
+            guard let walker = FileManager.default.enumerator(atPath: base.path) else { continue }
+            for case let rel as String in walker where rel.hasSuffix(".swift") {
+                let path = base.appendingPathComponent(rel).path
+                guard let body = try? String(contentsOfFile: path, encoding: .utf8) else { continue }
+                for (n, line) in body.split(separator: "\n", omittingEmptySubsequences: false).enumerated()
+                where line.contains("NEEDS-FOUNDER-VERIFY")
+                    && (line.contains("plan §") || line.contains("scratchpads/")) {
+                    offenders.append("\(root)/\(rel):\(n + 1)")
+                }
+            }
+        }
+        XCTAssertTrue(offenders.isEmpty,
+            "These device asks point at a file `scripts/founder-verify.py` does not walk "
+            + "(claim 4 pins that it skips scratchpads/), so the founder's printed "
+            + "checklist shows an entry with no question in it: \(offenders.sorted()). "
+            + "Put the instruction ON the marker line — the tool prints that line, and a "
+            + "plan is not in front of the founder while they hold the phone. Keep the "
+            + "plan reference in the surrounding prose if it helps a future reader; just "
+            + "do not make it the ask.")
+    }
 }
