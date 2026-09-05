@@ -23615,3 +23615,49 @@ falsch.** Verschärfung der Regel: **die Farbe eines Anspruchs folgt seiner NADE
 des Commits.**
 
 **Transkribiert:** 1/2/3 grün auf beiden · 4 rot auf HEAD, grün auf dem Arbeitsbaum.
+
+## 2026-09-05 — #1016 · Audit-Punkt 13 (Breadcrumb-Hälfte): das stumme Helligkeitsband wird gezählt
+
+**Der Befund, und er ist die bindende Beschränkung des ganzen Produkts** — überhaupt einen Puls
+zu bekommen —, die still **in Richtung falscher Ratschlag** versagt: `canLockNow` verweigert ab
+Helligkeit 0,6, `isWashedOut` feuert erst über 0,72. Dazwischen hat die Maschine einen Lock
+ausgeschlossen, während `PulseCue.tooBright` („Press a little lighter") unerreichbar ist. Der Cue
+fällt auf `.finding` und latcht nach 45 s auf `.stalled` — dessen Text schickt den Nutzer, **einen
+anderen Finger zu nehmen oder die Hand zu wärmen.**
+
+**Zwei Messungen, die das Audit korrigieren:**
+· **Das Band ist an BEIDEN Enden GESCHLOSSEN.** `< 0.6` und `> 0.72` heißt: 0,6 und 0,72 liegen
+  beide DRIN. Das Audit schrieb `[0.60, 0.72)` und hätte das obere Ende ausgeschlossen.
+· **Die aktive Decke ist in den ersten ~6 s `strictLockBrightness` (0,28)**, nicht 0,6. Der
+  Zähler misst gegen die AKTIVE Decke — sonst hätte er ausgerechnet das Fenster
+  unter-berichtet, in dem ein Erstnutzer sitzt.
+
+**Was ausgeliefert wird:** `mute=now/peak` in der bestehenden rPPG-Diagnosezeile.
+· **Der Peak schließt ein Abtastloch:** die Zeile wird alle 20 Ticks gedruckt, eine kürzere
+  Episode fiele komplett zwischen zwei Zeilen und sähe aus, als hätte es sie nie gegeben.
+· **Zurückgesetzt nur in `stop()`, bewusst NICHT in `handleCameraSessionReset()`** — ein Stall
+  mitten in der Aufnahme darf keine Belege aus der noch laufenden Aufnahme löschen. Der
+  laufende Zähler braucht nirgends ein Reset, seine eigene Bedingung leert ihn im nächsten Tick.
+· **Keine Verhaltensänderung.** Die WORTWAHL ist founder-gated (#304/#410) und könnte einen
+  falschen Satz gegen einen anderen tauschen — dieselbe Datei schreibt 0,6–0,8 dem
+  Finger-Lockern zu, nicht dem Fluten. Erst das Log, dann die Frage.
+
+⭐ **Ein Wächter-Anspruch geht über diese Scheibe hinaus:** `String(format:)` mit mehr
+Platzhaltern als Argumenten liest über die Varargs-Liste hinaus — ein Absturz **in genau dem
+Codepfad, der Abstürze diagnostizieren soll**. Diese Zeile ist fünfmal gewachsen, und die
+Paarung war nie gepinnt. Jetzt schon (HEAD 14/14, Arbeitsbaum 16/16).
+⚠️ Beim Schreiben des Zählers habe ich den Ternär `a ? "yes" : "no"` als zwei Argumente
+gezählt — genau deshalb splittet der Wächter nur auf Kommas der obersten Ebene und außerhalb
+von Strings, und genau deshalb steht das im Code.
+
+⭐ **Die Transkription hat meine Benotung zum DRITTEN Mal in Folge korrigiert — und diesmal
+einen LEER bestehenden Anspruch gefunden.** Anspruch 4 („die Zähler entscheiden nichts") ist auf
+HEAD grün, weil es dort gar keine Zähler gibt: er besteht aus dem falschen Grund. Das ist die
+#808-Falle, hier ausgesprochen statt versteckt — real wird er in dem Moment, in dem die Zähler
+existieren, also jetzt. **Muster über drei Scheiben: die Farbe folgt der NADEL, nie dem Thema
+des Commits — und „Gegengewicht" beschreibt die AUFGABE, nicht die Farbe.**
+
+**NEEDS-FOUNDER-VERIFY:** normale Aufnahme mit Finger auf der Linse, Diagnose-Log teilen. Feld
+`mute=now/peak` lesen: `0/0` über die ganze Aufnahme = das Band feuert auf diesem Gerät nie und
+die geparkte Wortwahl-Frage hat nichts zu reparieren. Ein großer Peak neben `cue=Finding` ist der
+Defekt — dann lohnt die Frage.

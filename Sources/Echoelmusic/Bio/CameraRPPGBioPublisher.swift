@@ -732,6 +732,26 @@ public final class CameraRPPGBioPublisher {
     /// Ticks the finger has been CONTINUOUSLY present (regardless of brightness) —
     /// drives the strict→permissive lock-ceiling decay (prefer a dark lock).
     @ObservationIgnored private var fingerPresentTicks = 0
+    /// Consecutive pre-lock ticks in the MUTE BAND: a finger IS on the lens, the scene is too
+    /// bright for `canLockNow` at the currently-active ceiling, and `isWashedOut` is still
+    /// false — so the machine has ruled out a lock while no cue can say "press lighter".
+    /// MEASUREMENT ONLY (#1016); it decides nothing.
+    ///
+    /// ⚠️ THE BAND IS MEASURED HERE, NOT QUOTED, and both ends differ from the audit that asked
+    /// for it. `canLockNow` is `brightness < 0.6` and `isWashedOut` is `brightness > 0.72`, so
+    /// the band is CLOSED at both ends — 0.6 and 0.72 exactly are both inside it, where
+    /// "[0.60, 0.72)" would have excluded the upper one. And for the first ~6 s of finger
+    /// presence the ACTIVE ceiling is `strictLockBrightness` (0.28), which makes the band far
+    /// wider exactly during the window a first-run user is in. This counter uses the active
+    /// ceiling rather than the constant, so it cannot under-report that window.
+    ///
+    /// `@ObservationIgnored` because it moves every tick — an observed counter here would
+    /// register every reader as a 10 Hz observer (the 10.76.50 freeze law).
+    @ObservationIgnored private var muteBandTicks = 0
+    /// The LONGEST such run this take. The breadcrumb prints every 20 ticks, so a run shorter
+    /// than that can fall entirely between two lines — a sampling hole that would make a real
+    /// episode look like it never happened. The peak closes it.
+    @ObservationIgnored private var muteBandPeakTicks = 0
     /// Accumulated full-window weak-periodicity ticks while locked (bright-lock
     /// recovery) and the bounded number of weak re-locks used this placement.
     @ObservationIgnored private var weakAcfTicks = 0
@@ -1400,13 +1420,18 @@ public final class CameraRPPGBioPublisher {
                     // that `stalledAfterSeconds`' own doc had to answer by INFERENCE from
                     // amp/bright/finger. One argument; it makes the next log decisive.
                     EchoelCrashLog.breadcrumb(String(format:
-                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f auto=%.0f rate=%.1f in=%.1f win=%d bpm=%.0f conf=%.2f cue=%@",
+                        // `mute` = ticks in the no-lock/no-cue brightness band, now/peak
+                        // (#1016). `mute=0/0` for a whole take means the band never fired and
+                        // the parked wording change has nothing to fix; a large peak sitting
+                        // beside `cue=Finding` is the defect, in one line.
+                        "rPPG: finger=%@ R=%.2f bright=%.2f q=%.2f amp=%.4f pk=%d acf=%.2f auto=%.0f rate=%.1f in=%.1f win=%d bpm=%.0f conf=%.2f mute=%d/%d cue=%@",
                         self.fingerDetected ? "yes" : "no",
                         self.analyzer.redChannel, self.analyzer.brightness, self.signalQuality,
                         self.analyzer.lastFilteredAmplitude, self.analyzer.lastPeakCount,
                         self.analyzer.lastAutoStrength, self.analyzer.lastAutoBPM,
                         self.analyzer.lastActualRate, self.inboundRateEMA,
                         self.analyzer.lastWindowSize, self.detectedBPM, self.confidence,
+                        self.muteBandTicks, self.muteBandPeakTicks,
                         self.acquisitionCue.shortLabel))
                 }
                 // TRUTH GATE (2026-07-25). The stall ladder above detects a dead RGB pipe
@@ -1728,6 +1753,16 @@ public final class CameraRPPGBioPublisher {
             fingerStableTicks = (Self.canLockNow(fingerDetected: fingerDetected, brightness: bright)
                                  && bright < ceiling)
                 ? (fingerStableTicks + 1) : 0
+            // MEASUREMENT ONLY (#1016) — this changes no decision. A finger is on the lens, the
+            // scene is at or above the ceiling THIS tick is actually judged by, and
+            // `isWashedOut` is false, so `placementCue` cannot become `.tooBright`: the machine
+            // has ruled out a lock while the screen has no sentence for why. Whether that state
+            // is real on the founder's device, and for how long it holds, is what decides the
+            // parked wording change (#304/#410) — and inferring it from `bright=` printed once
+            // every two seconds is not measuring it.
+            let inMuteBand = fingerDetected && bright >= ceiling && !saturating
+            muteBandTicks = inMuteBand ? (muteBandTicks + 1) : 0
+            if muteBandTicks > muteBandPeakTicks { muteBandPeakTicks = muteBandTicks }
             // Phantom-lock backoff: consecutive quick-failed locks stretch the stable
             // time the next lock must earn (see requiredStableTicks) — so ambient
             // flicker can't re-arm the lock↔unlock oscillation.
@@ -2165,6 +2200,13 @@ public final class CameraRPPGBioPublisher {
         // recovery either. `start()` resets none of them, and the "fresh capture session"
         // path (handleCameraSessionReset) only runs on a STALL — never on a user stop.
         fingerPresentTicks = 0
+        // ⚠️ RESET HERE AND DELIBERATELY *NOT* IN `handleCameraSessionReset` (#1016), which is
+        // the only other place these counters are cleared together. The peak answers "during
+        // this TAKE, did the user sit in the mute band, and for how long" — a mid-take stall
+        // recovery must not erase evidence from the take that is still running. The current
+        // run needs no reset anywhere: its own condition clears it on the next tick.
+        muteBandTicks = 0
+        muteBandPeakTicks = 0
         weakAcfTicks = 0
         weakRelocksUsed = 0
         lockAgeTicks = 0
