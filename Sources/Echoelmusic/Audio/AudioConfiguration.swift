@@ -787,7 +787,52 @@ enum AudioConfiguration {
         // retracted.
         latencyBreadcrumb(reason: reason, tuneStage: nil, insertMilliseconds: [])
         #endif
+        // PERSIST LAST, and after the request for the same reason the write above is: a tier
+        // the session refused must not come back on the next launch as if it had worked. On
+        // iOS this line is unreachable when `setPreferredIOBufferDuration` throws; on macOS
+        // there is no request to refuse, so it stores what it set.
+        //
+        // ⚠️ Deliberately NOT a `SoundReset.entries` row. That list clears the musical
+        // identity and the user mix; a buffer tier is hardware comfort for THIS device, and
+        // wiping it on "reset sound" would hand a performer their latency problem back
+        // without ever naming it.
+        UserDefaults.standard.set(mode.rawValue, forKey: StudioDefaultKeys.audioLatencyMode.key)
         log.audio("🎵 Latency mode requested: \(mode.description)")
+    }
+
+    /// Re-apply the player's stored buffer tier once, at launch.
+    ///
+    /// ⭐ WHY IT GOES THROUGH `setLatencyMode` RATHER THAN WRITING `currentBufferSize`
+    /// DIRECTLY, which would have been one line and is the tempting version: that constant is
+    /// what `latencyStats()`, the breadcrumb and the on-screen floor all read, and the whole
+    /// #674/#675 repair was making it move only AFTER a request the session granted. Setting
+    /// it from a stored string before anyone asked the session would reinstate exactly the
+    /// defect those cycles removed, one launch earlier.
+    ///
+    /// Called after `configureAudioSession()` has succeeded, so this is the second buffer
+    /// request of the launch. That costs one `setPreferredIOBufferDuration` — no category
+    /// change, no deactivation, nothing that can stop a running engine (#675) — and it buys
+    /// the property that every LATER re-apply path (a route change, a media-services reset)
+    /// already derives from `currentBufferSize` and therefore keeps the player's choice too.
+    ///
+    /// Silent for a fresh install and for the stored default: `.normal` is where the session
+    /// already is, so there is nothing to request and nothing to log.
+    static func applyStoredLatencyMode() {
+        let stored = UserDefaults.standard.string(forKey: StudioDefaultKeys.audioLatencyMode.key)
+            ?? StudioDefaultKeys.audioLatencyMode.value
+        // An unrecognised string restores NOTHING rather than a nearest guess — the same
+        // reasoning `currentLatencyMode` gives for returning `nil` on an unnamed size.
+        guard let mode = LatencyMode(rawValue: stored), mode != .normal else { return }
+        do {
+            try setLatencyMode(mode)
+        } catch {
+            // The session refused the stored tier — the buffer stays at the shipped 512 and
+            // the preference stays on disk, so a later route that CAN grant it still will.
+            // Breadcrumb first, `os_log` second (#859): a refusal that only reaches `os_log`
+            // is invisible in the file the founder actually shares.
+            EchoelCrashLog.breadcrumb("session: stored buffer \(mode.shortName) refused")
+            log.audio("Stored buffer tier refused: \(error.localizedDescription)")
+        }
     }
 
 

@@ -938,6 +938,13 @@ public final class AudioEngine {
         graphPrepared = true
         do {
             try AudioConfiguration.configureAudioSession()
+            // #1004 — the player's buffer tier, back. BEFORE `latencyStats()` and the
+            // breadcrumb below on purpose: both report `currentBufferSize`, so restoring
+            // after them would print the shipped 512 for a session actually running at 128
+            // and make the founder's own log disagree with his ears. It cannot abort this
+            // ladder — it swallows and reports its own refusal, leaving 512 — so the rungs
+            // that follow are unaffected either way.
+            AudioConfiguration.applyStoredLatencyMode()
             AudioConfiguration.registerInterruptionHandlers()
             log.audio(AudioConfiguration.latencyStats())
             // #653 — the same numbers, in the sink the founder can actually export.

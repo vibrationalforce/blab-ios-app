@@ -459,4 +459,27 @@ public enum StudioDefaultKeys {
     // MARK: weather.*
 
     public static let weatherEnabled = StudioDefault(key: "weather.enabled", value: false)
+
+    // MARK: audio.* — hardware comfort (semantic owner: AudioConfiguration)
+
+    /// #1004 — the buffer tier the player chose, so it survives a relaunch.
+    ///
+    /// The only latency control in the app was `@State`: a performer who felt the play
+    /// surface lagging, found MASTER → "Audio input", set Ultra (128 / ~2.7 ms) and finally
+    /// got a responsive instrument, was handed 512 back on the next launch with the
+    /// segmented control cheerfully reading "Normal".
+    ///
+    /// ⚠️ THE DEFAULT IS DELIBERATELY UNCHANGED AND IS FOUNDER-GATED. 512 is ~10.7 ms, which
+    /// is already outside this repo's own <10 ms target — that is a real finding and it is
+    /// NOT fixed here, because a smaller default trades against "Aussetzer / Kratzen" on
+    /// weaker devices and that trade is a founder ear-call (`AudioConfiguration.LatencyMode`
+    /// argues it at length). This slice makes the player's own choice STICK; it does not
+    /// make the choice for them.
+    ///
+    /// Stored as the enum's `rawValue`, and an unknown string resolves to no restore at all
+    /// rather than to a guess — the same reasoning as `currentLatencyMode` returning `nil`
+    /// for an unnamed size. Read by exactly one owner (`AudioConfiguration`), so this entry
+    /// is here for the KEY-STRING discipline and the founder-gated default, not because two
+    /// views share it.
+    public static let audioLatencyMode = StudioDefault(key: "audio.latencyMode", value: "normal")
 }
