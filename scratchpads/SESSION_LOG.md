@@ -23298,3 +23298,35 @@ das ist Anspruch 5 von #1006 (`composeUniverse(` darf nicht auftauchen), und er 
 grüne auf beiden Bäumen.
 
 **Regel ab hier: die Benotungszeile im Kopf wird NACH der Transkription geschrieben, nie davor.**
+
+## 2026-09-05 — #1008 · Audit-Punkt 25b: der still rote Smoothing-Test
+
+**Befund (gemessen, nicht geraten).** `ModulationEngineTests.testApply_smoothing_rampsTowardTarget`
+rechnete in seinem Kommentar mit „tau 0.2 s, dt 0.1 s → alpha = 1/3". Das `dt` war eine Fiktion:
+**#336 hat die Poll-Konstante durch den GEMESSENEN Rahmen-Abstand ersetzt**
+(`ModulationEngine.smoothingGap(previous:current:)`), und die Frames des Tests sitzen auf
+`ts: 0, 1, 2` — eine SEKUNDE auseinander. `BioNormalizer.alpha(tau: 0.2, dt: 1.0)` = 1/1.2 ≈ 0.83,
+also fast ein Sprung. Die drei erwarteten Werte (1.0 / 0.666667 / 0.444444) waren damit
+unerreichbar; der Test war seit #336 rot und unsichtbar, weil `full-tests.yml`
+`continue-on-error` auf dem Build-Schritt trägt.
+
+**Reparatur.** Nur die Zeitkonstante: `tau: 0.2` → `tau: 2.0`. **Die Erwartungswerte bleiben
+unverändert, und das ist der Punkt** — sie waren immer die Werte für alpha = 1/3; falsch war die
+tau, die dieses alpha bei der ECHTEN Kadenz erzeugt. Nachgerechnet gegen den Quelltext:
+`value = alpha*raw + (1-alpha)*prev`, Seed beim ersten Wert ⇒ 1.0 → 2/3 → 4/9.
+
+**Kein neuer Wächter, absichtlich (#416).** Die Mechanik hat ihr einziges Zuhause im blockierenden
+Bundle: `Tests/CISmoke/SmoothingStepsTheFrameGapNotThePollRateTests` pinnt den gemessenen Abstand,
+seine Rückfälle, seinen Deckel und die Abwesenheit einer Poll-Konstante. Ein zweiter Wächter
+könnte von diesem nur abdriften. Was den Test rot stehen ließ, ist kein fehlender Wächter, sondern
+`continue-on-error` — **founder-gated: berichten, nicht editieren.**
+
+**Nachbarn geprüft, nicht angefasst:** `testApply_disablingRoute_prunesAndReseedsSmoothing` ist von
+dt unabhängig (der Pfad re-seedet); `testApply_smoothingZero_isInstant` und
+`testApply_smoothedRouteToZeroDecays_notInstant` werfen `XCTSkip` wegen einer founder-gated
+Designspannung (Skip-Null).
+
+**Rest von Punkt 25:** c./d. die zwei `PolySynthAutomationBindTests` · e.
+`ProjectCodableTests.testExplicitEncoder_writesEveryField` · f. `FeatureFlagsTests.testEveryFlagDefaultsOff` ·
+g. `BioComposerTests.testGenresSharingAnArchetypeRenderDistinctDrums` (⚠️ Drums sind mit #166/#167
+gelöscht — vor dem Anfassen messen, ob der TEST der Defekt ist).

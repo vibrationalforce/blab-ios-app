@@ -99,8 +99,30 @@ final class ModulationEngineTests: XCTestCase {
     }
 
     func testApply_smoothing_rampsTowardTarget() {
-        // tau 0.2 s, dt 0.1 s → alpha = 0.1/0.3 = 1/3.
-        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [smoothedRoute(.coherence, "x", tau: 0.2)]))
+        // ⛔ #1008 — THIS SAID "tau 0.2 s, dt 0.1 s → alpha = 0.1/0.3 = 1/3" AND THE `dt` WAS
+        // A FICTION. The engine stopped using a 0.1 s poll constant at #336: it now measures
+        // the gap from the two frames' own timestamps (`smoothingGap`), and the frames below
+        // are one SECOND apart. With the old tau that makes alpha 1/1.2 ≈ 0.83 — nearly a
+        // snap — so the three expected values were unreachable and this test had been red
+        // ever since, invisibly, behind `full-tests.yml`'s `continue-on-error`.
+        //
+        // ⭐ THE EXPECTED VALUES ARE UNCHANGED, AND THAT IS THE POINT. They were always the
+        // values for alpha = 1/3; what was wrong was the tau that produces it. At the rate
+        // this app actually publishes — ~1 Hz, pinned in CLAUDE.md and guarded by
+        // `BioApplyRateIsTheDedupedRateTests` — a third-per-step slew is tau 2 s, not 0.2 s.
+        // So the fix restates the same arithmetic against the real cadence, which is also the
+        // thing #336 was about: a rate MEASURED, never assumed.
+        //
+        // ⚠️ NO NEW BLOCKING GUARD SHIPS WITH THIS FIX, AND THAT IS DELIBERATE (#416). The
+        // mechanism already has exactly one home in the blocking bundle —
+        // `Tests/CISmoke/SmoothingStepsTheFrameGapNotThePollRateTests` pins the measured gap,
+        // its fallbacks, its cap and the absence of a poll constant. A second guard restating
+        // the same fact could only drift from the first. What let this sit red is not a missing
+        // guard but `full-tests.yml`'s `continue-on-error` on its build step, which is
+        // founder-gated: report, do not edit.
+        //
+        // tau 2.0 s, dt 1.0 s (the measured frame gap) → alpha = 1/(2+1) = 1/3.
+        let engine = ModulationEngine(matrix: ModulationMatrix(routes: [smoothedRoute(.coherence, "x", tau: 2.0)]))
         var got: Float = -1
         engine.register("x") { got = $0 }
         engine.apply(frame(coh: 1.0, ts: 0))          // seed at 1.0
