@@ -24,6 +24,24 @@ if [ ! -f "$PLIST" ]; then
 fi
 
 # 1) Required privacy usage strings must be present (missing = App Store rejection).
+#
+# ⛔ #1013 — THIS LIST GUARDED SIX OF THE NINE STRINGS THE PLIST ACTUALLY SHIPS, so three
+# could be deleted or renamed and nothing here would notice. Measured with
+# `grep -o 'NS[A-Za-z]*UsageDescription' Resources/iOS/Info.plist | sort -u` → nine; the
+# list held six. The three that were unguarded are exactly the ones whose feature was added
+# AFTER this guard was written, which is how a required-keys list rots: it is complete on
+# the day it is typed and never re-derived.
+#
+# ⭐ THE AUDIT NAMED ONE OF THE THREE; MEASURING FOUND THREE. That is the #766/#768 law in
+# a new place — "all of them" only ever means "all of them I enumerated". The cheap check is
+# the grep above, not a re-read of the list.
+#
+# Why each of the three is genuinely required, i.e. why this is not just tidying:
+#   · NSPhotoLibraryAdd — the still shutter and the finished visual take both write to
+#     Photos. Missing string = the write throws and the take vanishes with no message.
+#   · NSBluetoothAlways / NSBluetoothPeripheral — the universal BLE heart-rate belt (0x180D)
+#     is built AND wired; its door is the pulse pill's source dropdown. Missing string = iOS
+#     kills the app on the first scan.
 required_keys=(
   NSLocationWhenInUseUsageDescription
   NSCameraUsageDescription
@@ -31,6 +49,9 @@ required_keys=(
   NSHealthShareUsageDescription
   NSHealthUpdateUsageDescription
   NSLocalNetworkUsageDescription
+  NSPhotoLibraryAddUsageDescription
+  NSBluetoothAlwaysUsageDescription
+  NSBluetoothPeripheralUsageDescription
 )
 for key in "${required_keys[@]}"; do
   if grep -q "$key" "$PLIST"; then
@@ -39,6 +60,28 @@ for key in "${required_keys[@]}"; do
     echo "  FAIL: $key MISSING from $PLIST"
     fail=1
   fi
+done
+
+# 1b) The PAIRED check, and it goes the OTHER way (#1013). The loop above catches a key being
+#      DELETED from the plist; it cannot catch one being ADDED without being guarded — which is
+#      exactly how the list came to hold six of nine. So: every usage string the plist ships must
+#      also appear in required_keys.
+#
+#      ⚠️ THE LIST STAYS HAND-WRITTEN ON PURPOSE. Deriving required_keys FROM the plist would
+#      make this file agree with itself and never fail: deleting a key would delete it from the
+#      derived list too. The literal IS the second opinion; this check only makes the second
+#      opinion notice when the first one grows.
+plist_keys=$(grep -o 'NS[A-Za-z]*UsageDescription' "$PLIST" | sort -u)
+for key in $plist_keys; do
+  case " ${required_keys[*]} " in
+    *" $key "*) ;;
+    *)
+      echo "  FAIL: $PLIST ships $key but check-infoplist.sh does not guard it."
+      echo "        Add it to required_keys — an unguarded string can be dropped silently,"
+      echo "        and a dropped string is a launch crash or a silently-failing feature."
+      fail=1
+      ;;
+  esac
 done
 
 # 2) The FALSE health-write claim must never reappear (HealthKitWriter DOES write).

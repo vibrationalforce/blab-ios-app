@@ -23463,3 +23463,47 @@ der Zahl steht jetzt der Befehl, samt Warnung, dass ein einfacher `grep` daneben
 (#1007 · #1008 · #1009 · #1010 · #1011 · #1012 mit zwei Ansprüchen) sind repariert.
 ⚠️ Die URSACHE bleibt offen und founder-gated: `full-tests.yml` trägt `continue-on-error`
 auf dem Build-Schritt — berichten, nicht editieren.
+
+## 2026-09-05 — #1013 · Audit-Punkt 27 (die NICHT gegatete Hälfte): drei ungeschützte Privacy-Strings
+
+**Gemessen.** `grep -o 'NS[A-Za-z]*UsageDescription' Resources/iOS/Info.plist | sort -u` liefert
+**NEUN**; `required_keys` in `scripts/check-infoplist.sh` hielt **SECHS**. Drei Strings konnten
+also gelöscht oder umbenannt werden, ohne dass das blockierende Gate es merkt
+(`xcode-compile-check.yml:52` ruft das Skript).
+
+**Die drei, und warum es kein Aufräumen ist:**
+· `NSPhotoLibraryAdd` — Standbild-Auslöser und fertige Video-Aufnahme schreiben beide nach
+  Fotos. Fehlt der String, wirft der Schreibvorgang und die Aufnahme verschwindet wortlos.
+· `NSBluetoothAlways` / `NSBluetoothPeripheral` — der universelle BLE-Herzgurt (0x180D) ist
+  gebaut UND verdrahtet, seine Tür ist das Quellen-Dropdown der Puls-Pille. Fehlt der String,
+  killt iOS die App beim ersten Scan.
+
+⭐ **Das Audit nannte EINEN der drei. Messen fand drei** — dasselbe #766/#768-Gesetz an einer
+neuen Stelle: „alle" heißt immer nur „alle, die ich aufgezählt habe". Der billige Test ist der
+`grep`, nicht das Nachlesen der Liste.
+
+**Zweite Hälfte: eine GEPAARTE Prüfung (1b), in die andere Richtung.** Die alte Schleife fängt
+einen GELÖSCHTEN Schlüssel; sie kann einen HINZUGEFÜGTEN, ungeschützten nicht sehen — genau so
+kam die Liste auf sechs von neun. 1b verlangt jetzt: jeder String der plist steht auch in
+`required_keys`.
+
+⚠️ **Die Liste bleibt handgeschrieben** (die #1010-Lehre, hier zum zweiten Mal): sie aus der
+plist ABZULEITEN hieße, die Datei mit sich selbst zu vergleichen — ein gelöschter Schlüssel
+fiele aus beiden Mengen und niemand würde rot. Das Literal IST die Zweitmeinung; 1b sorgt nur
+dafür, dass sie mitwächst.
+
+**Negativ-Kontrolle gefahren, nicht transkribiert:** Kopie des Skripts mit einem Schlüssel
+weniger in `required_keys` → **Exit 1** mit der neuen Meldung; echtes Skript → **Exit 0**, alle
+neun `ok`. (Scratch-Kopie danach gelöscht.)
+
+**FOUNDER-GATED, unverändert gemeldet (`Resources/iOS/Info.plist` = berichten, nicht editieren)** —
+die drei Formulierungen, die WENIGER versprechen als der Code tut, sind alle 5.1.1(i)-Funde, die
+ein Prüfer durch BENUTZEN trifft:
+1. **:93 Fotos** — sagt „Finished visual recordings", aber der Standbild-Auslöser schreibt ein JPEG.
+2. **:87 Health** — nennt nur Herzfrequenz und HRV, während `.respiratoryRate` in `readTypes` steht;
+   iOS zeigt dann eine Atem-Zeile unter einem Satz, der Atmung nie erwähnt (und verkauft einen
+   echten Live-Kanal unter Wert).
+3. **:85 Mikrofon** — sagt „Audio is not recorded or sent anywhere unless you export it yourself",
+   aber das Beenden einer Video-Aufnahme backt das Monitor-Mikro in die .mp4 und legt sie in Fotos.
+   ⚠️ Wortlaut allein schließt Fall 3 NICHT: die Abfrage kommt beim EINSCHALTEN des Monitorings,
+   nicht beim Beenden der Aufnahme — es braucht zusätzlich einen Hinweis zur Aufnahmezeit.
