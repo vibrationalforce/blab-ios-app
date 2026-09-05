@@ -3209,3 +3209,55 @@ repariert (Workflows sind founder-gated), sondern benannt.
 jetzt kann sie ihre Prüf-Bitten auch **daraus ableiten** statt sie aus dem Gedächtnis zu
 schreiben — `python3 scripts/founder-verify.py --since <voriger Bump>` gehört ab dem nächsten
 Bump neben die Messbefehle.
+
+## PLAYBOOK #1008–#1012 (2026-09-05) — eine abgeschriebene Liste reparieren: ABLEITEN oder LITERAL BEHALTEN?
+
+**Der Anlass.** Sieben Full-Suite-Tests waren still rot (Audit-Punkt 25). **Fünf davon hatten
+DENSELBEN Defekt**: eine Liste oder Konstante, die im Test von Hand abgeschrieben stand,
+während der Code sich absichtlich weiterbewegt hat. Keiner war ein Code-Fehler. Alle fünf
+waren unsichtbar, weil `full-tests.yml` `continue-on-error` auf dem Build-Schritt trägt.
+
+**Die Versuchung ist, alle fünf gleich zu reparieren — und das wäre zweimal falsch gewesen.**
+Die Entscheidungsregel, die dabei herauskam:
+
+> **BESITZT DIE QUELLE DIE LISTE SCHON?**
+> · **Ja** → das Literal ist ein DUPLIKAT. Ableiten. Ein Duplikat kann nur driften, und es hat
+>   gedriftet, sonst stünde man nicht hier.
+> · **Nein** → das Literal IST die Zweitmeinung. Behalten, von Hand, damit es rot werden KANN.
+>   Aus dem Prüfling abzuleiten hieße, ihn gegen sich selbst zu prüfen — eine Zusicherung, die
+>   nie fehlschlagen kann, ist keine.
+
+Angewandt:
+
+| # | Fall | Besitzt die Quelle die Liste? | Reparatur |
+|---|---|---|---|
+| 1009 | 6 statt 11 automatisierbare Parameter | **Ja** (`PolySynthVoice.automatableBases`) | abgeleitet, in BEIDE Richtungen |
+| 1012 | „jedes Genre eines Archetyps" | **Ja** (`beatFlavor != .neutral`) | auf die geflavourten eingegrenzt |
+| 1010 | 16 statt 17 JSON-Schlüssel | **Nein** (`CodingKeys` ist `private`, nicht `CaseIterable`) | Literal BLEIBT; die FIXTURE wurde verstärkt |
+| 1011 | „jedes Flag ist aus" | **Nein** (Registrierung steht in `EchoelmusicApp`, nicht im Flag-Typ) | drei Ausnahmen als Literal, **weil ein blockierender Wächter die Quelle scannt und ZUERST rot wird** |
+| 1008 | tau gegen die falsche Kadenz | keine Liste — eine ZAHL aus einem veralteten Mechanismus | Zahl gegen den gemessenen Abstand neu gerechnet |
+
+**Die Zusatzregel, die #1011 liefert und die man sonst übersieht:** ein Literal ist auch dann
+sicher, wenn ein Wächter im BLOCKIERENDEN Bündel dieselbe Menge aus der Quelle scannt. Dann ist
+das Literal nicht die einzige Wahrheit, sondern die zweite Stimme eines Paares — und die erste
+wird zuerst rot. Vor dem Abschreiben also fragen: *gibt es diesen Wächter schon?* (Hier ja:
+`EveryFlagSaysWhatItGatesTests.testExactlyThreeFlagsAreRegisteredDefaultOn`.)
+
+**Zwei Fallen beim Umschreiben, beide reine Syntax — Transkribieren fängt sie NICHT:**
+· eine `\`-Zeilenfortsetzung ist nur in einem `"""`-Literal erlaubt, nicht in `"…"`.
+· `filter(Liste.contains)` als blanke Methodenreferenz ist mehrdeutig (`contains(_:)` vs.
+  `contains(where:)`) — schließen: `filter { Liste.contains($0) }`.
+
+**Und eine Fixture-Falle, die #1010 fast ein zweites Mal gekostet hätte:** ein Test über die
+VOLLSTÄNDIGKEIT einer Kodierung muss auf einer Fixture laufen, in der **jedes Optional besetzt
+ist**. Sonst schreibt `encodeIfPresent` für die `nil`-Felder gar keinen Schlüssel, ihr Fehlen in
+der Erwartungsmenge ist still „korrekt", und ein vergessenes neues optionales Feld bleibt genau
+für den Test unsichtbar, der dafür geschrieben wurde. Die Eigenschaft „alle Optionals besetzt"
+gehört als eigene Zusicherung daneben, sonst schwächt sie jemand später zurück.
+
+**DEAD-END im selben Atemzug:** nicht für jede dieser Reparaturen einen neuen Wächter ins
+blockierende Bündel legen. Vier der fünf Mechaniken hatten dort bereits GENAU EIN Zuhause
+(`SmoothingStepsTheFrameGapNotThePollRateTests`, `TheAutomatableSetHasOneWriterTests`,
+`EveryFlagSaysWhatItGatesTests`). Ein zweiter Wächter derselben Sache kann nur vom ersten
+abdriften (#416). Was diese sieben rot stehen ließ, war ohnehin kein fehlender Wächter, sondern
+`continue-on-error` — und das ist founder-gated: berichten, nicht editieren.
