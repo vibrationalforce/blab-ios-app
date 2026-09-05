@@ -86,7 +86,7 @@ struct BroadcastView: View {
                     Text(broadcast.isLive ? "Stop" : "Go Live")
                         .font(EchoelTheme.font(15, .semibold))
                         .foregroundStyle(broadcast.isLive ? EchoelTheme.onPrimary : .black)
-                        .frame(maxWidth: .infinity).frame(height: 48)
+                        .frame(maxWidth: .infinity).frame(minHeight: 48)
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                             .fill(broadcast.isLive ? EchoelTheme.danger : EchoelTheme.text))
                 }

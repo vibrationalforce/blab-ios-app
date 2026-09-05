@@ -238,7 +238,7 @@ struct BreathGuideView: View {
                 .font(EchoelTheme.font(16, .semibold))
                 .foregroundStyle(pacer.isRunning ? EchoelTheme.text : EchoelTheme.onPrimary)
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
+                .frame(minHeight: 50)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .fill(pacer.isRunning ? EchoelTheme.fill : EchoelTheme.text))
         }
@@ -287,7 +287,7 @@ struct BreathGuideView: View {
                         .font(EchoelTheme.font(16, .semibold))
                         .foregroundStyle(EchoelTheme.onPrimary)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        .frame(minHeight: 50)
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                             .fill(EchoelTheme.text))
                 }
@@ -296,7 +296,7 @@ struct BreathGuideView: View {
                         .font(EchoelTheme.font(15))
                         .foregroundStyle(EchoelTheme.dim)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 44)
+                        .frame(minHeight: 44)
                 }
             }
             .padding(20)

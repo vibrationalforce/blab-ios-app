@@ -133,7 +133,7 @@ struct MeditationView: View {
             Spacer(minLength: 4)
             Button { endSession() } label: {
                 Text("End").font(EchoelTheme.font(16, .semibold)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 50)
+                    .frame(maxWidth: .infinity).frame(minHeight: 50)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
             }
         }
@@ -170,7 +170,7 @@ struct MeditationView: View {
             primaryButton("Again") { phase = .setup }
             Button { dismiss() } label: {
                 Text("Done").font(EchoelTheme.font(15)).foregroundStyle(EchoelTheme.dim)
-                    .frame(maxWidth: .infinity).frame(height: 44)
+                    .frame(maxWidth: .infinity).frame(minHeight: 44)
             }
         }
     }
@@ -268,7 +268,7 @@ struct MeditationView: View {
     private func primaryButton(_ title: String, _ action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title).font(EchoelTheme.font(16, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
-                .frame(maxWidth: .infinity).frame(height: 50)
+                .frame(maxWidth: .infinity).frame(minHeight: 50)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
         }
     }
@@ -332,7 +332,7 @@ struct MeditationView: View {
                 }
                 Button { showHoldWarning = false } label: {
                     Text("Cancel").font(EchoelTheme.font(15)).foregroundStyle(EchoelTheme.dim)
-                        .frame(maxWidth: .infinity).frame(height: 44)
+                        .frame(maxWidth: .infinity).frame(minHeight: 44)
                 }
             }
             .padding(20)

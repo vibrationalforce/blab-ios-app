@@ -64,7 +64,7 @@ struct SafeModeView: View {
                         Text("Continue to Echoelmusic")
                             .font(EchoelTheme.font(15, .semibold))
                             .foregroundStyle(EchoelTheme.onPrimary)
-                            .frame(maxWidth: .infinity).frame(height: 48)
+                            .frame(maxWidth: .infinity).frame(minHeight: 48)
                             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
                     }
                     .buttonStyle(.plain)
@@ -83,7 +83,7 @@ struct SafeModeView: View {
                             Text("Share diagnostics")
                                 .font(EchoelTheme.font(13, .semibold))
                                 .foregroundStyle(EchoelTheme.text)
-                                .frame(maxWidth: .infinity).frame(height: 44)
+                                .frame(maxWidth: .infinity).frame(minHeight: 44)
                                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                         }
                         // ⭐ THE TEXT-STYLE OVERLOAD, NOT THE BRAND HELPER — #353d. Every other

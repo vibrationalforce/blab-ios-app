@@ -226,7 +226,7 @@ struct ProUnlockView: View {
                     .font(EchoelTheme.font(13))
                     .foregroundStyle(EchoelTheme.text)
                     .frame(maxWidth: .infinity)
-                    .frame(height: 40)
+                    .frame(minHeight: 40)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))

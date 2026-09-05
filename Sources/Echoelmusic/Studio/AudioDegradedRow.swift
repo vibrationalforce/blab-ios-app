@@ -76,7 +76,7 @@ struct AudioDegradedRow: View {
                         .font(EchoelTheme.font(11, .semibold))
                         .foregroundStyle(EchoelTheme.text)
                         .padding(.horizontal, 10)
-                        .frame(height: 28)
+                        .frame(minHeight: 28)
                         .background(
                             RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall)
                                 .stroke(EchoelTheme.borderStrong, lineWidth: 1))

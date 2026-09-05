@@ -334,7 +334,7 @@ struct PatchbayView: View {
             TextField("IP / host", text: host)
                 .textFieldStyle(.plain)
                 .font(EchoelTheme.font(13).monospacedDigit())
-                .padding(.horizontal, 10).frame(height: 34)
+                .padding(.horizontal, 10).frame(minHeight: 34)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.bg))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
                 #if os(iOS)
@@ -386,7 +386,7 @@ struct PatchbayView: View {
                     Text(artNet.blackout ? "Blackout ON" : "Blackout")
                         .font(EchoelTheme.font(13, .semibold))
                         .foregroundStyle(artNet.blackout ? EchoelTheme.onPrimary : EchoelTheme.text)
-                        .padding(.horizontal, 14).frame(height: 40)
+                        .padding(.horizontal, 14).frame(minHeight: 40)
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                             .fill(artNet.blackout ? EchoelTheme.danger : Color.clear))
                         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
@@ -498,7 +498,7 @@ struct PatchbayView: View {
             Button { router.applyAllSuggestions() } label: {
                 Label("Smart patch", systemImage: "wand.and.stars")
                     .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
-                    .padding(.horizontal, 12).frame(height: 34)
+                    .padding(.horizontal, 12).frame(minHeight: 34)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
             }
             .buttonStyle(.plain)
@@ -509,7 +509,7 @@ struct PatchbayView: View {
             .disabled(router.suggestions().isEmpty)
             Button { router.clearAll() } label: {
                 Text("Clear").font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
-                    .padding(.horizontal, 12).frame(height: 34)
+                    .padding(.horizontal, 12).frame(minHeight: 34)
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
             .buttonStyle(.plain)
@@ -558,7 +558,7 @@ struct PatchbayView: View {
                 Spacer(minLength: 0)
                 statusTag(dst)
             }
-            .frame(height: 32)
+            .frame(minHeight: 32)
         }
         .buttonStyle(.plain)
         .disabled(!compatible)
@@ -581,7 +581,7 @@ struct PatchbayView: View {
         if port.transport.status == .roadmap {
             Text("soon")
                 .font(EchoelTheme.font(9, .semibold)).foregroundStyle(EchoelTheme.dim)
-                .padding(.horizontal, 5).frame(height: 16)
+                .padding(.horizontal, 5).frame(minHeight: 16)
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall).strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
     }

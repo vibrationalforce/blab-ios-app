@@ -179,7 +179,7 @@ struct SessionView: View {
                 .font(EchoelTheme.font(16, .semibold))
                 .foregroundStyle(session.isRunning ? EchoelTheme.text : EchoelTheme.onPrimary)
                 .frame(maxWidth: .infinity)
-                .frame(height: 52)
+                .frame(minHeight: 52)
                 .background(
                     session.isRunning ? AnyShapeStyle(EchoelTheme.fill) : AnyShapeStyle(EchoelTheme.text),
                     in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge)

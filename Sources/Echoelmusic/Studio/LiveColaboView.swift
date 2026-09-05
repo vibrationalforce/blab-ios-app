@@ -136,7 +136,7 @@ struct LiveColaboView: View {
                   systemImage: colab.isLive ? "stop.fill" : "dot.radiowaves.left.and.right")
                 .font(EchoelTheme.font(15, .semibold))
                 .foregroundStyle(colab.isLive ? EchoelTheme.onPrimary : EchoelTheme.text)
-                .frame(maxWidth: .infinity).frame(height: 48)
+                .frame(maxWidth: .infinity).frame(minHeight: 48)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .fill(colab.isLive ? EchoelTheme.accent : EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
@@ -149,7 +149,7 @@ struct LiveColaboView: View {
         Button { colab.share(project: currentSession()) } label: {
             Label("Share current session", systemImage: "square.and.arrow.up.on.square")
                 .font(EchoelTheme.font(14, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
-                .frame(maxWidth: .infinity).frame(height: 44)
+                .frame(maxWidth: .infinity).frame(minHeight: 44)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
         }
         .buttonStyle(.plain)
@@ -185,7 +185,7 @@ struct LiveColaboView: View {
                     Spacer()
                     Button { colab.invite(peer.name) } label: {
                         Text("Invite").font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
-                            .padding(.horizontal, 12).frame(height: 30)
+                            .padding(.horizontal, 12).frame(minHeight: 30)
                             .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
                     }
                     .buttonStyle(.plain)
@@ -235,13 +235,13 @@ struct LiveColaboView: View {
             HStack(spacing: 8) {
                 Button { colab.respondToInvitation(accept: true) } label: {
                     Text("Accept").font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
-                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .frame(maxWidth: .infinity).frame(minHeight: 40)
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
                 }
                 .buttonStyle(.plain)
                 Button { colab.respondToInvitation(accept: false) } label: {
                     Text("Decline").font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
-                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .frame(maxWidth: .infinity).frame(minHeight: 40)
                         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)
@@ -264,13 +264,13 @@ struct LiveColaboView: View {
             HStack(spacing: 8) {
                 Button { onLoadShared(project); colab.clearIncoming() } label: {
                     Text("Load").font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.onPrimary)
-                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .frame(maxWidth: .infinity).frame(minHeight: 40)
                         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.text))
                 }
                 .buttonStyle(.plain)
                 Button { projects.save(project); colab.clearIncoming() } label: {
                     Text("Save").font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
-                        .frame(maxWidth: .infinity).frame(height: 40)
+                        .frame(maxWidth: .infinity).frame(minHeight: 40)
                         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
                 }
                 .buttonStyle(.plain)

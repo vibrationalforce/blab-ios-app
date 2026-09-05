@@ -3144,7 +3144,7 @@ struct EchoelStudioView: View {
                     Image(systemName: "chevron.down").font(.system(size: 10))
                 }
                 .foregroundStyle(EchoelTheme.text)
-                .padding(.horizontal, 12).frame(height: 34)
+                .padding(.horizontal, 12).frame(minHeight: 34)
                 // `borderStrong`, DIVERGING from the moodPresetBar Menu and the
                 // in-panel "Open Routing" button on purpose (#616b annotates what the
                 // review called accident-shaped): this control DECIDES what feeds the
@@ -3305,7 +3305,7 @@ struct EchoelStudioView: View {
             } label: {
                 Label("Open Routing", systemImage: "point.topleft.down.curvedto.point.bottomright.up")
                     .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.text)
-                    .padding(.horizontal, 12).frame(height: 34)
+                    .padding(.horizontal, 12).frame(minHeight: 34)
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
@@ -4897,7 +4897,7 @@ struct EchoelStudioView: View {
             } label: {
                 Label("Tap tempo", systemImage: "hand.tap")
                     .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 40)
+                    .frame(maxWidth: .infinity).frame(minHeight: 40)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
@@ -5049,7 +5049,7 @@ struct EchoelStudioView: View {
             Button { panicAllNotesOff() } label: {
                 Label("Release all notes", systemImage: "speaker.slash")
                     .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
-                    .frame(maxWidth: .infinity).frame(height: 40)
+                    .frame(maxWidth: .infinity).frame(minHeight: 40)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
@@ -5083,7 +5083,7 @@ struct EchoelStudioView: View {
         Button(action: action) {
             Label(title, systemImage: icon)
                 .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.text)
-                .frame(maxWidth: .infinity).frame(height: 34)
+                .frame(maxWidth: .infinity).frame(minHeight: 34)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.borderStrong, lineWidth: 1))
         }
@@ -5263,7 +5263,7 @@ struct EchoelStudioView: View {
                     Spacer(minLength: 0)
                 }
                 .foregroundStyle(EchoelTheme.text)
-                .padding(.horizontal, 12).frame(height: 36)
+                .padding(.horizontal, 12).frame(minHeight: 36)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
@@ -5854,7 +5854,7 @@ struct EchoelStudioView: View {
                             Text(preset.name)
                                 .font(EchoelTheme.font(12))
                                 .foregroundStyle(selected ? EchoelTheme.onPrimary : EchoelTheme.text)
-                                .padding(.horizontal, 12).frame(height: 32)
+                                .padding(.horizontal, 12).frame(minHeight: 32)
                                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                                     .fill(selected ? EchoelTheme.text : EchoelTheme.fill))
                                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
@@ -6916,7 +6916,7 @@ struct EchoelStudioView: View {
                     Image(systemName: "chevron.down").font(.system(size: 10))
                 }
                 .foregroundStyle(EchoelTheme.text)
-                .padding(.horizontal, 12).frame(height: 34)
+                .padding(.horizontal, 12).frame(minHeight: 34)
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
@@ -7520,7 +7520,7 @@ struct EchoelStudioView: View {
                         Image(systemName: "chevron.down").font(.system(size: 10))
                     }
                     .foregroundStyle(EchoelTheme.text)
-                    .padding(.horizontal, 12).frame(height: 34)
+                    .padding(.horizontal, 12).frame(minHeight: 34)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
@@ -7764,7 +7764,7 @@ struct EchoelStudioView: View {
         } label: {
             Label("Randomize timbre", systemImage: "dice")
                 .font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
-                .frame(maxWidth: .infinity).frame(height: 40)
+                .frame(maxWidth: .infinity).frame(minHeight: 40)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
         }
@@ -7869,7 +7869,7 @@ struct EchoelStudioView: View {
                 }
                 .foregroundStyle(EchoelTheme.text)
                 .padding(.horizontal, 12)
-                .frame(maxWidth: .infinity).frame(height: 40)
+                .frame(maxWidth: .infinity).frame(minHeight: 40)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
