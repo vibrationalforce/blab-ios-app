@@ -23399,3 +23399,32 @@ damit niemand die Prüfung durch stilles Zurück-Nilen schwächt. Literal jetzt 
 
 **Rest von Punkt 25:** f. `FeatureFlagsTests.testEveryFlagDefaultsOff` · g.
 `BioComposerTests.testGenresSharingAnArchetypeRenderDistinctDrums`.
+
+## 2026-09-05 — #1011 · Audit-Punkt 25f: „jedes Flag ist aus" war eine Über-Behauptung
+
+**Befund.** `FeatureFlagsTests.testEveryFlagDefaultsOff` behauptete, ALLE Flags seien aus.
+`EchoelmusicApp.init()` schaltet **drei** per `register(defaults:)` ein — `multiRoll`,
+`voiceKindRouting`, `instrumentHome`, die drei, die entscheiden, was die App IST. Der
+⛔-Block in `FeatureFlags.swift` sagt das selbst; der Test sagte das Gegenteil.
+
+**Warum eine frische Suite nicht half — der Teil, der bleibt.** Die Registrierungs-Domäne ist
+**prozess-flüchtig UND prozessWEIT**. `UserDefaults(suiteName:)` gibt eine eigene
+Persistenz-Domäne, **keine eigene Suchliste**: `NSRegistrationDomain` wird zuletzt trotzdem
+gelesen. Eine Fixture, die hermetisch AUSSIEHT, ist gegen `register(defaults:)` nicht
+hermetisch — und genau darum wurden die Flags mit #580 in `init()` verschoben.
+
+**Dieselbe Über-Behauptung war eine Ebene höher längst verboten.** Der blockierende Wächter
+`EveryFlagSaysWhatItGatesTests.testTheSummaryNoLongerClaimsEveryFlagIsOff` untersagt der
+PROSA von `FeatureFlags`, „alle aus" zu sagen. Nichts untersagte es dem TEST — also sagte er
+es in ausführbarer Form und wurde rot, wo niemand las.
+
+**Reparatur.** Umbenannt in `testEveryUnregisteredFlagDefaultsOff`, die drei registrierten
+ausgenommen. Die drei Namen stehen bewusst als Literal: der blockierende
+`testExactlyThreeFlagsAreRegisteredDefaultOn` scannt die QUELLE und wird bei einer vierten
+Registrierung ZUERST rot (gegen `expectedRegistered` = genau diese drei, nachgeprüft). Dazu
+eine lokale Anzahl-Zusicherung und ein neuer Anspruch: **ein explizites `false` schlägt die
+Registrierung** — die dokumentierte Ein-Zeilen-Rücknahme `set(.instrumentHome, false)` hängt
+genau daran, und nichts hat das bisher geprüft.
+
+**Rest von Punkt 25:** nur noch g. `BioComposerTests.testGenresSharingAnArchetypeRenderDistinctDrums`
+(⚠️ Drums mit #166/#167 gelöscht — erst messen, ob der TEST der Defekt ist).
