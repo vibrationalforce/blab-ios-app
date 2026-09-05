@@ -22737,3 +22737,42 @@ gewesen — deshalb zuerst.
 · ⚠️ Ehrlich in der Notiz: sie behauptet NICHT, dass die Sätze gut platziert oder gut lesbar sind
   und dass das Onboarding bei jeder Schriftgröße schön aussieht — nur, dass Struktur und Türen
   gepinnt sind.
+
+## #992 — the pulse lock cannot be green while the camera sends nothing (audit item 3)
+
+**Finding (deep audit 2026-09-04, item 3), re-measured before building — the plan was right.**
+`CameraRPPGBioPublisher.isLocked` asked three questions about the READING (bpm, confidence,
+autocorrelation strength) and none about whether a reading was still arriving. The display copies
+(`fingerDetected`/`signalQuality`/`confidence`/`detectedBPM`) are written every tick ABOVE the bus
+guard, so on an iOS interruption or a thermal trickle the analyzer's last values freeze — all three
+terms stay true — while the publish loop bails on `inboundRateEMA >= minMeasurableInboundHz` and
+nothing reaches the bus. Header pill green, `PulseCue` "Locked", instrument fed nothing. The file's
+own doc block above `isLocked` describes exactly this failure in its FIRST hiding place (the
+newly-rejected confidence band, 2026-07-27) and closed it there. This was the second.
+
+**Slice.** New observed `framesFlowing` (assigned only on change in the ~10 Hz tick, next to
+`recoveryState`), folded into `isLocked`. One owner, so the header pill, `placementCue`'s `.locked`
+branch and `PulseMeasurementView` all become honest at once — no copy of the condition in a view.
+
+**The trap I deliberately avoided, and it is pinned as claim 3.** `recoveryState == .healthy` looks
+like the obvious source of truth and is NOT: `.cooling` also fires on `ProcessInfo.thermalState`
+alone, while frames keep flowing fine. Gating the lock on the banner would blank a working readout
+on a warm phone — a new lie replacing the old one.
+
+**Why STORED and observed, not computed.** `inboundRateEMA` is `@ObservationIgnored` (it moves every
+tick; tracking it would register every reader as a 10 Hz observer — the 10.76.50 freeze law). A
+computed `var` reading it would notify nobody, and when frames stop `detectedBPM`/`confidence` stop
+changing too — so a header leaf would render its last frame forever and never learn the camera went
+quiet.
+
+**Guard:** `Tests/CISmoke/TheLockNeedsFramesTests.swift`, 5 claims, all transcribed GREEN on the
+worktree and RED on `HEAD` (load-bearing). Claim 5 first read RED on the worktree too — the
+declaration's own `= true` default counted as a third reset site; the needle is now newline +
+method-body indent. `TheMenuHostReadsNoHotStateTests` derives its hot set, so `framesFlowing` joins
+it automatically and no ancestor reads it — no test change needed.
+
+**Half NOT built, on purpose (one Ralph slice).** The pill now goes dark but says nothing specific;
+`RPPGRecoveryState.userHint` still never reaches the header. That needs a `PulseCue` case, which
+touches five files and their tests — item 3b, its own slice.
+
+**Backlog:** 92 → 93 open founder asks in 79 → 80 files (exactly the one at the foot of the guard).

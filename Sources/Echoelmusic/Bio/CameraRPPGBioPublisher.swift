@@ -132,6 +132,22 @@ public final class CameraRPPGBioPublisher {
     /// stall/recover/thermal transition — read it in a LEAF view (BioStripView) so the low-freq
     /// banner never registers the root body as a 10 Hz observer.
     public private(set) var recoveryState: RPPGRecoveryState = .healthy
+    /// True while camera frames are ACTUALLY arriving fast enough to measure a pulse —
+    /// the same two facts the bus-publish path checks one line before it publishes
+    /// (`!capture.isInterrupted` and `inboundRateEMA >= minMeasurableInboundHz`).
+    ///
+    /// ⭐ WHY THIS IS A STORED, OBSERVED PROPERTY AND NOT A COMPUTED ONE. `inboundRateEMA` is
+    /// `@ObservationIgnored` (it moves every tick; tracking it would register every reader as a
+    /// 10 Hz observer — the 10.76.50 freeze law). A computed `var` reading it would therefore
+    /// notify NOBODY: when frames stop, `detectedBPM`/`confidence` stop changing too, so a
+    /// header leaf would keep rendering its last frame forever and never learn that the camera
+    /// went quiet. Assigning here — and only on CHANGE, exactly like `recoveryState` — gives the
+    /// UI one low-frequency signal it can actually observe.
+    ///
+    /// It is NOT `recoveryState == .healthy`, and that distinction is the point: `.cooling` also
+    /// fires on `ProcessInfo.thermalState` alone, while frames keep flowing fine. Gating the lock
+    /// on the banner would blank a working readout on a warm phone.
+    public private(set) var framesFlowing = true
     /// Ticks remaining to keep showing "recovering" after a restart is triggered (~10 Hz).
     /// Decays so a brief hiccup's banner doesn't linger once frames return.
     @ObservationIgnored private var recoveringTicks = 0
@@ -342,9 +358,18 @@ public final class CameraRPPGBioPublisher {
     /// remove, moved one surface over. All three now clear one bar; the band falls through
     /// `acquisitionCue` to `.finding`, which is the honest message.
     public var isLocked: Bool {
-        Self.shouldPublish(bpm: detectedBPM,
-                           confidence: confidence,
-                           autoStrength: analyzer.lastAutoStrength)
+        // `framesFlowing` FIRST (#992). `shouldPublish` judges the READING; it cannot know
+        // whether a reading is still arriving. When iOS interrupts the session or a thermal
+        // throttle cuts the feed to a trickle, the analyzer's last values simply FREEZE — a
+        // confident bpm with a full confidence bar, byte-identical every tick — so all three
+        // terms above stay true while the publish loop bails on its own rate guard and nothing
+        // reaches the bus. That is the same lying control the paragraph above removed from the
+        // confidence band, in its second hiding place: the header light stayed green, the cue
+        // said "Locked", and the instrument was being fed nothing.
+        framesFlowing
+            && Self.shouldPublish(bpm: detectedBPM,
+                                  confidence: confidence,
+                                  autoStrength: analyzer.lastAutoStrength)
     }
 
     /// True once the pulse is confident AND FLAT — display-grade confidence with the calm
@@ -1019,6 +1044,7 @@ public final class CameraRPPGBioPublisher {
         coldCooldownTicks = 0
         recoveringTicks = 0
         recoveryState = .healthy
+        framesFlowing = true   // a fresh start is not a stall until a tick measures one
         // A new placement earns a fresh window (#573) — carrying a half-filled tally across a
         // stop/start would blend two takes into one line and make the first line of a session
         // arrive early and describe the previous one.
@@ -1180,6 +1206,11 @@ public final class CameraRPPGBioPublisher {
                     }
                 }
                 if newRecovery != self.recoveryState { self.recoveryState = newRecovery }
+                // The lock's truth term (#992). Same two facts as the publish guard below,
+                // assigned ONLY on change so this @Observable stays a low-frequency signal.
+                let flowing = !self.capture.isInterrupted
+                    && self.inboundRateEMA >= Self.minMeasurableInboundHz
+                if flowing != self.framesFlowing { self.framesFlowing = flowing }
 
                 // ── THE PERIOD FOR THE *NEXT* SLEEP (#577) ────────────────────────────────
                 // Placed HERE, and the position is the whole correctness argument: it is
@@ -2125,6 +2156,7 @@ public final class CameraRPPGBioPublisher {
         loopTicks = 0
         recoveringTicks = 0
         recoveryState = .healthy
+        framesFlowing = true   // a fresh start is not a stall until a tick measures one
     }
 
 }
