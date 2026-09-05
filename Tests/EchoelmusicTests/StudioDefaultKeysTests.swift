@@ -59,7 +59,17 @@ final class StudioDefaultKeysTests: XCTestCase {
         XCTAssertEqual(StudioDefaultKeys.visualMotion.value, 1.0)
         XCTAssertEqual(StudioDefaultKeys.visualSpread.value, 1.0)
         XCTAssertEqual(StudioDefaultKeys.visualHue.value, 0.0)
-        XCTAssertEqual(StudioDefaultKeys.visualSaturation.value, 0.82)
+        // ⛔ #1007 — THIS PINNED 0.82 AND THE SHIPPED VALUE HAS BEEN 1.05 SINCE 2026-08-13.
+        // The founder asked for "Bunter"; #578 raised it, and this assertion was not moved
+        // with it. So the test was RED for three weeks and nobody saw a red — which is the
+        // whole point of audit item 25: `full-tests.yml` carries `continue-on-error` on its
+        // build step, so this suite reported success with failures inside it.
+        //
+        // Corrected to the shipped value rather than the code to the test: 1.05 is a FOUNDER
+        // decision about how the picture looks, and a stale assertion is not a reason to
+        // undo one. If it ever needs to change again, it changes HERE and in the three other
+        // places #578's own note lists — the struct defaults, and the copy the GPU reads.
+        XCTAssertEqual(StudioDefaultKeys.visualSaturation.value, 1.05)
         XCTAssertEqual(StudioDefaultKeys.touchMorphDepth.value, 0.6)
         XCTAssertEqual(StudioDefaultKeys.touchSlideVibrato.value, 0.35)
         XCTAssertEqual(StudioDefaultKeys.touchSlideChorus.value, 0.30)
