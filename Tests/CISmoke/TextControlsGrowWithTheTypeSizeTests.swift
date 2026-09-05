@@ -122,6 +122,54 @@ final class TextControlsGrowWithTheTypeSizeTests: XCTestCase {
             """)
     }
 
+    /// #1023c — THE COMPILER CAUGHT WHAT THE TWO CLAIMS ABOVE COULD NOT, and in a session with
+    /// no local toolchain a text guard IS the substitute for it. The mechanical `width:` →
+    /// `minWidth:` edit of #1023b matched the PREFIX of `.frame(width: 76, height:
+    /// EchoelTheme.controlHeight)` and left the second argument alone, producing
+    /// `.frame(minWidth:height:)` — an overload SwiftUI does not have. `frame` comes in exactly
+    /// two shapes: the EXACT one (`width:height:alignment:`) and the FLEXIBLE one (min/ideal/max
+    /// per axis). You may not take one label from each.
+    ///
+    /// ⚠️ The claim is per CALL, not per file: `min`/`max` on one axis beside `min`/`max` on the
+    /// other is legal and common, so only the EXACT labels are what may not be mixed in.
+    func testNoFrameCallMixesAnExactDimensionWithAFlexibleOne() throws {
+        var offenders: [String] = []
+        for url in try sourceFiles() {
+            let lines = try String(contentsOf: url, encoding: .utf8)
+                .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            for (i, line) in lines.enumerated() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("//") { continue }
+                guard let open = line.range(of: ".frame(") else { continue }
+                // Only the arguments of THIS call — stop at its closing parenthesis so a later
+                // modifier on the same line cannot be read as part of it.
+                var depth = 0
+                var args = ""
+                for ch in line[open.upperBound...] {
+                    if ch == "(" { depth += 1 }
+                    if ch == ")" { if depth == 0 { break }; depth -= 1 }
+                    args.append(ch)
+                }
+                let exact = args.contains("width:") && !args.contains("minWidth:")
+                    && !args.contains("maxWidth:") && !args.contains("idealWidth:")
+                let exactH = args.contains("height:") && !args.contains("minHeight:")
+                    && !args.contains("maxHeight:") && !args.contains("idealHeight:")
+                let flexible = ["minWidth:", "maxWidth:", "idealWidth:",
+                                "minHeight:", "maxHeight:", "idealHeight:"]
+                    .contains { args.contains($0) }
+                if (exact || exactH) && flexible {
+                    offenders.append("\(url.lastPathComponent):\(i + 1)  \(trimmed.prefix(70))")
+                }
+            }
+        }
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) `.frame(...)` call(s) mix an EXACT dimension with a flexible one. \
+            SwiftUI has no such overload and this does not compile (#1023c):
+            \(offenders.joined(separator: "\n"))
+            Use either `width:`/`height:` throughout, or `min`/`ideal`/`max` throughout.
+            """)
+    }
+
     // MARK: - helper
 
     private func sourceFiles() throws -> [URL] {

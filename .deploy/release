@@ -100,12 +100,21 @@ notes: |
 
   Xcode Compile Check **grün** auf `41625ca` (2376) — der Sitzungs-Fix aus Teil 1.
 
-  ⚠ Ehrlich gesagt, was ich beim Schreiben dieser Zeile NICHT weiß: der Adaptiv-Fix
-  (`3109308`, Lauf 2378) stand noch in der Warteschlange des Runners. Lauf 2377 auf dem
-  Zwischenstand wurde vom nächsten Push abgebrochen — das ist normal, kein Fehler.
-  **Ist 2378 rot, siehst Du diesen Build gar nicht**: der TestFlight-Job scheitert dann
-  am selben Compiler, und ich schicke eine Korrektur hinterher. Ein Build, den Du in der
-  Hand hältst, hat den Compiler also in jedem Fall bestanden.
+  ⛔ **Und der Adaptiv-Fix war beim ersten Anlauf ROT — hier steht, was passiert ist, weil
+  die vorige Fassung dieser Zeile es vorhergesagt hat und Du das Ergebnis sehen sollst.**
+  Lauf 2378 scheiterte an **genau einer** Zeile von 43: im Tempo-Feld stand
+  `.frame(width: 76, height: …)`, also ein Aufruf mit ZWEI Maßen. Meine mechanische
+  Ersetzung hat nur den vorderen Teil gelesen und daraus `.frame(minWidth:height:)`
+  gemacht — eine Kombination, die SwiftUI nicht kennt. Die anderen 42 Stellen hatten je
+  nur EIN Maß und waren korrekt.
+
+  Repariert (#1023c), und dazu ein vierter Wächter, der genau diese Mischform ab jetzt
+  über alle Dateien verbietet — in einer Sitzung ohne Compiler ist ein Text-Wächter der
+  Ersatz für ihn. Lehre für mich: eine mechanische Ersetzung muss den GANZEN Aufruf lesen,
+  nicht den Teil, auf den ihr Muster zufällig passt.
+
+  Der Build, den Du in der Hand hältst, hat den Compiler also bestanden — der erste
+  Versuch ist gar nicht erst bei Dir angekommen.
 
   Alles hier ist compile-verifiziert. **Geräteverifiziert ist nichts.** Was ein Gerät
   entscheiden kann: der Monitoring-Schalter (oben) und ein Blick bei großer Schrift.

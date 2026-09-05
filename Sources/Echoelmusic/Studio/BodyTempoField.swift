@@ -347,7 +347,16 @@ struct BodyTempoField: View {
                     .font(EchoelTheme.font(14, .semibold).monospacedDigit())
                     .foregroundStyle(liveBodyBPM > 0 ? EchoelTheme.accent : EchoelTheme.text)
                     .lineLimit(1).minimumScaleFactor(0.7)
-                    .frame(minWidth: 76, height: EchoelTheme.controlHeight)
+                    // ⛔ #1023c — THE ONE SITE #1023b GOT WRONG, and the compiler is the only
+                    // thing that could have caught it. The mechanical `width:` → `minWidth:`
+                    // substitution matched the PREFIX of this call and ignored its second
+                    // argument, producing `.frame(minWidth:height:)` — an overload SwiftUI does
+                    // not have. There are exactly two shapes: `frame(width:height:alignment:)`
+                    // and the six-argument flexible one; you may not take one label from each.
+                    // LESSON: a mechanical edit must read the WHOLE call, not the part its
+                    // pattern happens to match. Everything else in that slice was a single
+                    // -argument frame, which is why 42 of 43 sites were fine.
+                    .frame(minWidth: 76, minHeight: EchoelTheme.controlHeight)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))
