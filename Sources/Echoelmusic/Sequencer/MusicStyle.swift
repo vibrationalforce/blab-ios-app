@@ -170,8 +170,26 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
 
     /// Logical genre groups the Genre picker sorts into (founder 2026-07-11: "Alles
     /// rein. Logisch sortiert. Gehe tief rein" — SUPERSEDES the 2026-07-08 six-calm
-    /// curation). Every genre is now offered, organised by sound-world so the calm
-    /// meditative identity stays first while rock/energetic/acoustic worlds open up.
+    /// curation), organised by sound-world so the calm meditative identity stays first.
+    ///
+    /// ⛔ THE CLAUSE "Every genre is now offered" STOOD HERE AND IS STRUCK (2026-09-05).
+    /// It has not been true for a long time, and it is the kind of untruth that costs a
+    /// whole cycle: a session that believes it adds a case to this enum, sees it land in a
+    /// category, and ships a genre no picker can reach. `Category` is the SORTING; the
+    /// ROSTER is `offered` — the picker builds from that array and from nothing else.
+    ///
+    /// Measured 2026-09-05, and the gap is not a rounding error: **36 cases, 19 offered.**
+    /// Per category — meditative 8 of 8, electronic 10 of 17, **rock 0 of 5** (the family
+    /// disappears from the picker entirely, header and all), acoustic 1 of 6 (only
+    /// `.classical` surfaces). Re-derive rather than trust this line:
+    ///
+    ///     grep -c '^        case \.' <this file>        # sorting, per category branch
+    ///     # …and read `offered` directly: it is one literal array, twenty lines up
+    ///
+    /// ⚠️ THE CURATION ITSELF IS NOT A DEFECT and must not be "fixed" from this note. It is
+    /// a founder ear-call: seventeen genres are finished, patched and distinct, and are dark
+    /// on purpose. Widening the roster is a founder decision, one array line — never a
+    /// side effect of somebody reading this comment and tidying it up.
     public enum Category: String, CaseIterable, Identifiable, Sendable {
         case meditative   // ambient Flächen — the relaxation core, listed first
         case electronic   // beats & synth grooves
