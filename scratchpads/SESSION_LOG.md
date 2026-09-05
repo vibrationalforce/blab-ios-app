@@ -23428,3 +23428,38 @@ genau daran, und nichts hat das bisher geprüft.
 
 **Rest von Punkt 25:** nur noch g. `BioComposerTests.testGenresSharingAnArchetypeRenderDistinctDrums`
 (⚠️ Drums mit #166/#167 gelöscht — erst messen, ob der TEST der Defekt ist).
+
+## 2026-09-05 — #1012 · Audit-Punkt 25g: der Test war der Defekt (wie die Warnung sagte)
+
+**Gemessen, bevor angefasst — genau die Anweisung des Check-ins.**
+`testGenresSharingAnArchetypeRenderDistinctDrums` verlangte ein EIGENES Raster von JEDEM
+Genre eines Archetyps. **NEUN Genres fallen absichtlich auf `.neutral` durch**, davon
+SIEBEN in `.fourOnFloor` (acidTechno · upliftingTrance · techHouse · minimalTechno ·
+deepTech · darkMinimal · psyProgHouse). Sieben identische Raster ⇒ der Fall fiel bei der
+ersten Kollision. Lange rot, unsichtbar hinter `continue-on-error`.
+
+**Und die Fehlermeldung des Tests verlangte genau das, was der Quelltext ABLEHNT.** Sie
+sagte „add a distinct GenreFlavor"; `MusicStyle.beatFlavor`s Doc sagt, das wäre „fiction
+dressed as design", weil seit #166/#167 die ganze `GenreFlavor`-Ausgabe **keine Stimme
+erreicht**: `drumSteps` liest nur `Project`-Persistenz und EINE `BioVariationMaze`-
+Dichte-Metrik. Ein Test, der Tuning-Daten für eine unhörbare Spur fordert, fordert das
+Placebo, das dieses Repo verbietet. Was die neun von ihren Geschwistern trennt, ist
+`chordArticulation`, Modus, Voicing, Register — nichts davon steht in `drumSteps`.
+
+**Eingegrenzt statt gelöscht.** Die Behauptung, die noch etwas bedeutet, ist die des
+Quelltexts selbst: **geflavourte** Geschwister eines Archetyps dürfen nicht kollidieren
+(ihre `percGhostStep`s sind per Konstruktion kollisionsfrei — nachgezählt: fourOnFloor
+3/5/9/11/13/1, backbeat 6/15/3/11/5/9, offbeat 3/11/5, halfTime 12/6/10, je paarweise
+verschieden). Umbenannt auf **„Grids"**, weil nichts Drums rendert.
+
+**Drei veraltete Zahlen im selben Commit mitgezogen (#456), alle drei vom #983-Loop
+verschoben und von niemandem neu abgeleitet:** „SECHS flavourlos" → **NEUN** · „15 der 33
+neutral" → **18 der 36** · „ZEHN `.fourOnFloor`" → **DREIZEHN**. Die Zeile über der letzten
+sagt selbst „Do not quote a count from here; derive it" — und war trotzdem falsch. Neben
+der Zahl steht jetzt der Befehl, samt Warnung, dass ein einfacher `grep` danebenzählt (der
+`.fourOnFloor`-Arm trägt vier Kommentarzeilen, die ebenfalls Genre-Namen nennen).
+
+**Punkt 25 ist damit ABGESCHLOSSEN** — alle sieben stillen Full-Suite-Fehlschläge
+(#1007 · #1008 · #1009 · #1010 · #1011 · #1012 mit zwei Ansprüchen) sind repariert.
+⚠️ Die URSACHE bleibt offen und founder-gated: `full-tests.yml` trägt `continue-on-error`
+auf dem Build-Schritt — berichten, nicht editieren.

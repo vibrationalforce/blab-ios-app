@@ -851,16 +851,29 @@ public enum MusicStyle: String, Codable, CaseIterable, Sendable, Identifiable {
     /// the `default` arm (no behaviour change). ⚠️ THIS LINE HAS BEEN WRONG THREE TIMES — it said
     /// "six of the SEVEN four-on-floor genres" before #254 batch 3, then "NINE … THREE of them have
     /// no flavor" before batch 4. **Do not quote a count from here; derive it.** As of batch 4:
-    /// TEN `.fourOnFloor` genres, six flavoured; SEVEN `.backbeat` genres, six flavoured.
+    /// ⛔ THIRTEEN `.fourOnFloor` genres, six flavoured; SEVEN `.backbeat` genres, six flavoured.
+    /// (This line said TEN. The #983 loop genres `deepTech`, `darkMinimal` and `psyProgHouse`
+    /// arrived unflavoured and nothing re-derived it. Command, so the next reader need not
+    /// trust the number: parse the `case … : return .fourOnFloor` arm of `beatArchetype`
+    /// below with comments stripped and count the `.name` tokens — a plain grep miscounts,
+    /// because that arm carries four comment lines that also mention genre names.)
     ///
-    /// ⚠️ SIX genres deliberately fall through to `.neutral` DESPITE SHARING AN ARCHETYPE WITH
-    /// FLAVOURED SIBLINGS: `acidTechno`, `upliftingTrance`, `techHouse`, `minimalTechno` (all
-    /// `.fourOnFloor`), `detroitTechno` (`.backbeat`), and `deepHouse` (`.offbeat`, whose siblings
+    /// ⚠️ NINE genres deliberately fall through to `.neutral` DESPITE SHARING AN ARCHETYPE WITH
+    /// FLAVOURED SIBLINGS: `acidTechno`, `upliftingTrance`, `techHouse`, `minimalTechno`,
+    /// `deepTech`, `darkMinimal`, `psyProgHouse` (all `.fourOnFloor`), `detroitTechno`
+    /// (`.backbeat`), and `deepHouse` (`.offbeat`, whose siblings
     /// `ska`, `rocksteady` and `klezmer` ARE flavoured — ⛔ my correction wrote "no flavoured
     /// sibling at all", which the inline comment 40 lines below flatly contradicts; I strengthened
     /// an inherited parenthetical instead of checking it). ⛔ THE SENTENCE ALSO SAID "FIVE" WHILE
-    /// LISTING SIX, and the
-    /// scope was missing too: 15 of the 33 genres return `.neutral` altogether. Those six are the
+    /// LISTING SIX, and then "SIX" while the #983 loop genres (`deepTech`, `darkMinimal`,
+    /// `psyProgHouse`) had joined the flavourless `.fourOnFloor` set — the fourth reading of one
+    /// number, and this time it cost a red test: `BioComposerTests` demanded a distinct grid from
+    /// EVERY genre in an archetype, so the seven flavourless four-on-floor genres collided and
+    /// the case failed where nobody was reading (#1012). It is narrowed to the FLAVOURED genres
+    /// now, which is what this paragraph always meant.
+    /// ⛔ The scope figure was stale too: it said "15 of the 33"; measured today 18 of the 36
+    /// return `.neutral` altogether (`grep -c "^    case " MusicStyle.swift` for the denominator,
+    /// the `GenreFlavor(` cases in this switch for the flavoured half). Those nine are the
     /// only ones where it MATTERS, because they are the ones a listener could A/B against a
     /// flavoured genre on the same grid. That is not an
     /// oversight and it costs nothing TODAY: the whole `GenreFlavor` output reaches no voice since

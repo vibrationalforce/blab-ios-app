@@ -509,22 +509,53 @@ final class BioComposerTests: XCTestCase {
     /// distinct GenreFlavor and collapses onto a sibling's loop, this fails. The two
     /// signature-beat genres (dubTechno/trap, bespoke builders) and the drum-free
     /// contemplative genres are correctly out of scope (they don't share a builder).
-    func testGenresSharingAnArchetypeRenderDistinctDrums() {
+    /// ⛔ #1012 — THIS DEMANDED A DISTINCT GRID FROM *EVERY* GENRE IN A SHARED ARCHETYPE, AND
+    /// NINE OF THEM DELIBERATELY HAVE NO FLAVOUR. `beatFlavor` falls through to `.neutral` for
+    /// `acidTechno`, `upliftingTrance`, `techHouse`, `minimalTechno`, `deepTech`, `darkMinimal`
+    /// and `psyProgHouse` (all `.fourOnFloor`), for `detroitTechno` (`.backbeat`) and for
+    /// `deepHouse` (`.offbeat`) — so seven four-on-floor genres produce the SAME grid and this
+    /// case failed on the first collision. Red for a long time, invisible behind
+    /// `full-tests.yml`'s `continue-on-error`.
+    ///
+    /// ⭐ AND THE TEST WAS THE DEFECT, NOT THE CODE — its own failure message asked for the fix
+    /// the source explicitly refuses. `MusicStyle.beatFlavor`'s doc says giving those genres a
+    /// hat texture and a ghost step would be "fiction dressed as design", because since
+    /// #166/#167 removed the drum voices the whole `GenreFlavor` output reaches NO voice:
+    /// `drumSteps` is read only by `Project` persistence and one `BioVariationMaze` density
+    /// metric. A test that demands tuning data for a track nobody can hear is asking for the
+    /// placebo this repo bans. What actually separates those nine from their siblings is
+    /// `chordArticulation`, mode, voicing and register — none of which live in `drumSteps`.
+    ///
+    /// ⚠️ SO THE GUARD IS NARROWED, NOT DELETED. The claim that still means something is the
+    /// one the source itself makes: within an archetype, the genres that DO carry a flavour
+    /// must not collide — their `percGhostStep`s are chosen to be collision-free by
+    /// construction, and that construction is worth pinning. Named "grids", not "drums",
+    /// because nothing renders drums.
+    func testFlavouredGenresSharingAnArchetypeRenderDistinctGrids() {
         let sharedArchetypes: [MusicStyle.BeatArchetype] = [.fourOnFloor, .backbeat, .offbeat, .halfTime]
         for archetype in sharedArchetypes {
-            let genres = MusicStyle.allCases.filter { $0.beatArchetype == archetype }
+            let genres = MusicStyle.allCases.filter {
+                $0.beatArchetype == archetype && $0.beatFlavor != .neutral
+            }
             guard genres.count > 1 else { continue }
             var seen: [String: MusicStyle] = [:]
             for style in genres {
                 let comp = BioComposer.compose(input(coherence: 0.4, hr: 100, seed: 0x1234, style: style))
                 let fingerprint = "\(comp.drumSteps)"
                 if let other = seen[fingerprint] {
-                    XCTFail("\(style) and \(other) (both \(archetype)) render identical drums — add a distinct GenreFlavor")
+                    XCTFail("""
+                    \(style) and \(other) (both \(archetype)) render an identical grid.
+
+                    Both carry a GenreFlavor, so their `percGhostStep`s were supposed to be \
+                    collision-free by construction — pick a free step for the newer one. \
+                    (An UNFLAVOURED genre colliding here is expected and out of scope; see \
+                    the ⛔ block above.)
+                    """)
                 }
                 seen[fingerprint] = style
             }
             XCTAssertEqual(seen.count, genres.count,
-                           "all \(genres.count) \(archetype) genres must render distinct drums")
+                           "all \(genres.count) flavoured \(archetype) genres must render distinct grids")
         }
     }
 
