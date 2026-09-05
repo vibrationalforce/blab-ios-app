@@ -182,6 +182,23 @@ public enum LearnLibrary {
     /// Contraindications come FIRST; the scope note follows.
     public static var safetyEntries: [LearnEntry] {
         [
+            // ⛔ THIS ENTRY SAID VISUALS "FREEZE ENTIRELY WITH REDUCE MOTION ON" UNTIL #994, AND
+            // THAT WAS FALSE ON EVERY SURFACE BUT ONE — on the single screen a photosensitive
+            // user is asked to tick "I understand" against. Measured on HEAD: the pulse tile
+            // holds only its per-beat term under Reduce Motion (`HeaderMonitors.tileColor`) and
+            // leaves `0.35 * masterLevel` live on an unpaused 20 Hz `TimelineView`; the lamp
+            // tile drops its timer but its OWN comment concedes the music-driven hue still
+            // re-renders on every published `MusicalFrame`; `git grep reduceMotion --
+            // Sources/Echoelmusic/Sync` returns NOTHING, so no fixture honours it at all; and
+            // `MetalBioView` keeps an eased music swell. What IS true stays stated: the 3 Hz
+            // cap holds everywhere (`FlashGuard`), and the fixtures are additionally slewed to
+            // ~1.2 Hz by `ArtNetSender.applySlewedColour`.
+            //
+            // The instruction that actually works on a rig is BLACKOUT (Routing → Licht,
+            // `PatchbayView`), so it is named. The behavioural repair — slewing the two
+            // `masterLevel` terms through `FlashGuard.limitedLuminance` — is registered as a
+            // follow-up at `HeaderMonitors` and needs a device look, so it is NOT done here:
+            // a copy fix ships today and stops the promise; the chrome change is its own slice.
             LearnEntry(
                 id: "safety.contraindications", section: .safety,
                 title: "When not to use Echoelmusic",
@@ -192,9 +209,12 @@ public enum LearnLibrary {
                     + "therapeutic programme, coordinate it — and any medication "
                     + "timing — with your own provider; Echoelmusic is not part of a "
                     + "treatment and replaces nothing. Visuals are capped at 3 flashes "
-                    + "per second (W3C WCAG) and freeze entirely with Reduce Motion on; "
-                    + "if you are photosensitive, turn Reduce Motion on before you "
-                    + "start. Stop if you feel unwell."
+                    + "per second (W3C WCAG). Reduce Motion stops the immersive picture's "
+                    + "motion; the small header monitors and any connected lamps keep "
+                    + "following the music, rate-limited rather than frozen. If you are "
+                    + "photosensitive, turn Reduce Motion on before you start, and use "
+                    + "Blackout in Routing to cut connected fixtures. Stop if you feel "
+                    + "unwell."
             ),
             LearnEntry(
                 id: "safety.scope", section: .safety,

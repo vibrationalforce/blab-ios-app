@@ -22817,3 +22817,49 @@ implemented unilaterally.
 **Gates read for the previous slice (#992, 30667ba):** Xcode Compile Check step 7 = success;
 CI/CD step 9 "Build for Testing" = success — which is what proves `TheLockNeedsFramesTests.swift`
 itself compiles, a claim the compile-only gate cannot support.
+
+## #994 — the safety card stops promising a freeze that does not happen (audit item 22)
+
+**Council (user-facing safety copy → brand rule).** Bio-safety: PROCEED, an unqualified promise
+on the one screen a photosensitive user consents against is the worst class of copy error.
+Vision-Keeper: PROCEED, no overclaim and no wellness language; Blackout is a control we ship.
+Skeptic: the 3 Hz number is TRUE (FlashGuard everywhere; fixtures additionally slewed to ~1.2 Hz
+by `applySlewedColour`) — narrow the claim, do not delete a real protection. User-Advocate: keep
+one concrete instruction. → Rewrite, keep 3 Hz, name where motion continues, name Blackout.
+
+**Measured on HEAD myself, not taken from the plan:**
+- `HeaderMonitors.tileColor` holds ONLY the per-beat term under Reduce Motion (`pulse = 0.5`);
+  `0.35 * level` stays live, and the `TimelineView(.animation(minimumInterval: 1/20))` at :448 is
+  not conditioned on Reduce Motion at all.
+- The lamp tile drops its timer but its own comment concedes the music-driven hue re-renders on
+  every published `MusicalFrame`.
+- `Sources/Echoelmusic/Sync`: 16 Swift files, **zero** mentions of `reduceMotion`. No fixture
+  honours it.
+- `MetalBioView` keeps an eased music swell.
+
+So "freeze entirely" was false on every surface but the immersive picture's motion.
+
+**Slice, copy only, ONE file.** `safety.contraindications` now states the 3 Hz cap, then says
+Reduce Motion stops the immersive picture's motion while the header monitors and connected lamps
+keep following the music **rate-limited rather than frozen**, and names **Blackout in Routing** —
+the only instruction in the app that actually stops a rig.
+
+**Deliberately NOT touched: the onboarding row.** "Visuals are capped at a safe 3 Hz flash rate"
+is TRUE, and it is one of the five MANDATED strings pinned across `Localizable.xcstrings`,
+`StringCatalogIsHonestTests.mandated` and CLAUDE.md's SAFETY WARNINGS list. Editing a true
+sentence would have rippled through four homes for no correctness gain.
+
+**Word-level requirements re-checked by reconstructing the concatenated literals** (the source
+text never contains a phrase straddling a `+`, so a plain grep reports a false MISS): all eight
+of `LearnLibraryTests`' required words survive — driving · machinery · alcohol · drugs · provider ·
+reduce motion · "3 flashes per second" · "not part of a treatment".
+
+**Guard:** `Tests/CISmoke/TheSafetyCopyDescribesWhatReduceMotionDoesTests.swift`, 5 claims —
+1, 2 and 3 load-bearing (green worktree / red HEAD); 4 and 5 counterweights that go red the day
+someone teaches the fixtures Reduce Motion or slews the two header terms, each naming the copy to
+move in the same commit (#364/#456). The word list is NOT restated (#416) — it is pinned once in
+`LearnLibraryTests.testContraindicationsEntryCarriesEveryMandatedWarning`, whose name was checked
+rather than remembered (#474).
+
+**Registered, not built:** slewing the two `masterLevel` terms through `FlashGuard.limitedLuminance`
+is a chrome-appearance change needing a device look — its own slice, founder-gated.
