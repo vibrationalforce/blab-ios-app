@@ -288,6 +288,38 @@ struct PulseMonitorMiniLive: View {
         // marking it: the camera owns the display here, and a coherence it did not measure
         // is not a footnote, it is a foreign reading.
         let coherenceFrame = (cameraLive && fresh?.source.isSynthetic == true) ? nil : fresh
+        // ⛔ #1014 — WHEN THE CAMERA STOPS FEEDING, THIS PILL GAVE ADVICE NO FINGER COULD ACT ON.
+        // #992 fixed the louder half at the source: `isLocked` now carries `framesFlowing`, so an
+        // iOS interruption or a thermal trickle correctly drops the green lock. What it did NOT
+        // fix is the sentence that replaces it. `acquisitionCue` is derived from the analyzer's
+        // LAST frame, and a frozen analyzer keeps answering with the last placement it saw — so
+        // the pill went amber with "Cover the rear camera + flash" while iOS was holding the
+        // session. A wrong remedy is worse than none: the performer fiddles with their finger
+        // mid-set for something no finger can fix.
+        //
+        // ⭐ THIS IS NOT A NEW LAW, IT IS THE SAME ONE ON A SECOND SURFACE. `BioStripView` already
+        // states the precedence in its own doc: the recovery hint wins over placement coaching
+        // whenever `recoveryState.userHint != nil`. The strip is behind the Bio panel; this pill
+        // is the only pulse surface visible WHILE PERFORMING, and it was the one without it.
+        //
+        // ⚠️ THE GATE IS `framesFlowing`, NOT `recoveryState != .healthy`, and that is deliberate.
+        // `.cooling` also fires on `ProcessInfo.thermalState` alone while frames arrive perfectly
+        // well; gating on the banner would replace a live, ACTIONABLE placement cue with "Cooling"
+        // on a merely warm phone. The two are measured in the same tick, so this costs nothing:
+        // `framesFlowing == false` means interrupted or below the measurable rate, which maps to
+        // `.interrupted`, `.recovering` or `.cooling` respectively.
+        //
+        // ⚠️ AND THE ONE WINDOW WHERE THEY DISAGREE IS WHY BOTH STRINGS ARE REQUIRED. In the
+        // first ~5 s (`loopTicks <= 50`) the rate can sit below the threshold while the state is
+        // still `.healthy` — warm-up. There `userHint` is nil, this whole term is nil, and the
+        // honest "finding your pulse…" cue shows through, which is exactly the right sentence.
+        // Nothing is invented to fill that gap.
+        let recoveryStatus: (short: String, full: String)? = {
+            guard cameraLive, !cameraRPPG.framesFlowing,
+                  let full = cameraRPPG.recoveryState.userHint,
+                  let short = cameraRPPG.recoveryState.shortLabel else { return nil }
+            return (short, full)
+        }()
         PulseMonitorMini(waveform: cameraRPPG.waveform,
                          bpm: cameraLive ? cameraRPPG.displayBPM : Double(fresh?.heartRateBPM ?? 0),
                          locked: cameraLive ? cameraRPPG.isLocked : (fresh != nil),
@@ -304,12 +336,19 @@ struct PulseMonitorMiniLive: View {
                          // but not while ANOTHER source delivers a live body (fresh frames).
                          // `permissionDenied` is a low-frequency start-attempt flag and this
                          // pill is already the 10 Hz leaf, so the freeze rule holds.
-                         cue: (cameraRPPG.permissionDenied && fresh == nil) ? .cameraDenied
-                             : (cameraLive ? cameraRPPG.acquisitionCue : nil),
+                         // `recoveryStatus` first: `showCue` outranks `showStatus` inside the
+                         // pill, so a stale cue would win the single line and the hint would
+                         // never be seen. Denied access is unaffected — it can only be reached
+                         // with the camera NOT running, and this term requires `cameraLive`.
+                         cue: recoveryStatus != nil ? nil
+                             : ((cameraRPPG.permissionDenied && fresh == nil) ? .cameraDenied
+                                : (cameraLive ? cameraRPPG.acquisitionCue : nil)),
                          // BLE-1: while the strap is the source, the scan/connect
                          // lifecycle is VISIBLE here instead of a dead flat trace.
-                         status: strapStatus(cameraLive: cameraLive,
-                                             hasLiveFrames: fresh != nil),
+                         // The strap branch is unchanged: `strapStatus` already returns nil
+                         // whenever the camera is live, so the two can never contend.
+                         status: recoveryStatus ?? strapStatus(cameraLive: cameraLive,
+                                                               hasLiveFrames: fresh != nil),
                          // #627. `cameraLive` first, deliberately: while the camera runs, the
                          // BPM and the lock above come from `cameraRPPG`, NOT from the bus, so
                          // a stale `.fallback` frame still sitting in the snapshot must not

@@ -23532,3 +23532,51 @@ Geräteprobe braucht.
 **Ehrlichkeit, die in die Notiz gehört und drinsteht:** „sieben" ist die Zahl vom letzten
 Ablesen. Ob inzwischen eine achte rot ist, sagt erst ein vollständiger Lauf — und den kann
 diese Sitzung nicht sichtbar machen, solange `continue-on-error` steht.
+
+## 2026-09-05 — #1014 · Audit-Punkt 3: die Pille wird dunkel und sagt jetzt WARUM
+
+**Erst gemessen — und die Messung hat den Punkt halbiert und die andere Hälfte geschärft.**
+Hälfte A („die Pille lügt beim Kamera-Stall") ist mit **#992 an der QUELLE** repariert:
+`isLocked` trägt seither `framesFlowing`, der grüne Lock fällt also korrekt weg. Das Audit
+schlug vor, das im Header zu gaten — an der Quelle ist besser, und es war schon dort.
+
+**Hälfte B war offen und ist schlimmer als „sagt nichts":** `acquisitionCue` leitet sich aus
+dem LETZTEN Frame ab. Ein eingefrorener Analyser antwortet weiter mit der zuletzt gesehenen
+Platzierung — die Pille ging also bernsteinfarben auf **„Cover the rear camera + flash",
+während iOS die Session hielt.** Ein falscher Rat kostet mehr als gar keiner: der Performer
+hört mitten im Set auf zu spielen und korrigiert einen Finger für etwas, das kein Finger lösen
+kann.
+
+**Reparatur = dieselbe Rangfolge, zweite Fläche.** `BioStripView` schreibt sie längst in sein
+eigenes Doc (Recovery-Hinweis schlägt Platzierungs-Coaching). Der Streifen sitzt hinter dem
+Bio-Panel; die Pille ist die EINZIGE Puls-Fläche, die man beim Spielen sieht — und sie war die
+ohne die Regel.
+
+**Zwei Entscheidungen, die nicht offensichtlich sind:**
+· **Gate ist `framesFlowing`, NICHT `recoveryState != .healthy`.** `.cooling` feuert auch auf
+  `ProcessInfo.thermalState` allein, während Frames einwandfrei ankommen — über den Banner zu
+  gaten hätte auf einem bloß warmen Telefon einen LEBENDEN, handlungsfähigen Platzierungs-Cue
+  gegen „Cooling" getauscht.
+· **Das Aufwärm-Fenster bleibt bewusst offen.** In den ersten ~5 s (`loopTicks <= 50`) kann die
+  Rate unter der Schwelle liegen, während der Zustand noch `.healthy` ist. Dort ist `userHint`
+  nil, der ganze Term ist nil, und der ehrliche „finding your pulse…"-Cue kommt durch — genau
+  der richtige Satz. **Nichts erfunden, um die Lücke zu füllen.**
+
+**`shortLabel` wohnt neben `userHint`** (#416): welche Worte ein Zustand bekommt, ist eine
+Tatsache über die STRINGS. Eine Ansicht, die den Satz selbst kürzt, wäre eine zweite Meinung,
+die abdriftet. Gleiche Form wie `PulseCue.fullHint`/`shortLabel` eine Datei weiter.
+
+⛔ **Wächter-Anspruch 4 war im ERSTEN Entwurf rot auf einem KORREKTEN Baum** — die verbotene
+Phrase steht wörtlich in dem Kommentar, der das Gate ERKLÄRT (#491, die Gewohnheit dieses
+Repos, das Zurückgenommene zu zitieren). `codeOnly` ist die Reparatur. **Genau deshalb wird die
+Benotungszeile NACH dem Transkribieren geschrieben** — geraten hätte ich „Gegengewicht, grün
+auf beiden" und wäre zum vierten Mal falsch gelegen.
+
+**Transkribiert, beide Bäume:** 1/2 rot auf HEAD · 3 kompiliert auf HEAD gar nicht
+(`shortLabel` existiert dort nicht) · 4 (Abwesenheit) und 5/6 (unveränderter Code) grün auf
+beiden.
+
+**NEEDS-FOUNDER-VERIFY:** Linse abdecken, dann App in den Hintergrund (oder Telefon warm werden
+lassen), während eine Aufnahme läuft. Pille muss den grünen Lock verlieren UND „Camera paused"
+bzw. „Cooling" zeigen statt eines bernsteinfarbenen Platzierungs-Cues. Urteilsfrage: liest sich
+das kurze Label ehrlich — oder liest es sich, als sei die App kaputt?

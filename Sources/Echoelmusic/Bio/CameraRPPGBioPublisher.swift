@@ -88,6 +88,25 @@ public enum RPPGRecoveryState: Equatable, Sendable {
         case .interrupted: return "Camera paused by iOS — waiting to resume"
         }
     }
+
+    /// The same fact at the width the HEADER PILL has (#1014). `userHint` is built for
+    /// `BioStripView`'s wrapping banner; the pill's slot is a `minWidth: 28` group at 11 pt,
+    /// so handing it a 40-character sentence prints nothing legible.
+    ///
+    /// ⭐ IT LIVES HERE, BESIDE `userHint`, FOR THE REASON `PulseCue` KEEPS ITS OWN PAIR
+    /// TOGETHER (#416): which words a state gets is a fact about the STRINGS. A view that
+    /// abbreviated the sentence itself would be a second opinion that drifts from this one.
+    ///
+    /// Same nil for `.healthy` as `userHint`, so a caller can require BOTH and get a
+    /// consistent answer — there is no state with a short form and no long one.
+    public var shortLabel: String? {
+        switch self {
+        case .healthy:     return nil
+        case .recovering:  return "Recovering"
+        case .cooling:     return "Cooling"
+        case .interrupted: return "Camera paused"
+        }
+    }
 }
 
 @MainActor
