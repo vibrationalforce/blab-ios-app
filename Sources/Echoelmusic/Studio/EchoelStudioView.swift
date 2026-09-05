@@ -9293,8 +9293,28 @@ struct EchoelStudioView: View {
         }
     }
 
-    /// Stop EVERY bio publisher (idempotent) so no source keeps feeding the bus after
-    /// Stop or a source switch.
+    /// Stop every bio publisher THIS PICKER OWNS (idempotent) — camera, strap, demo — so none
+    /// of them keeps feeding the bus after Stop or a source switch.
+    ///
+    /// ⛔ #1015 — THIS SAID "STOP EVERY BIO PUBLISHER … SO NO SOURCE KEEPS FEEDING THE BUS",
+    /// AND THERE IS A FOURTH THIS FUNCTION HAS NEVER TOUCHED. `HealthKitBioPublisher` is
+    /// constructed and started at APP level (`EchoelmusicApp`: `startIfAlreadyAuthorized` on
+    /// launch, `start` after the permission grant) and appears nowhere in `Studio/` outside a
+    /// doc comment. For a Health-authorised user it keeps writing wrist samples into
+    /// `EngineBus.latestBio` — a SINGLE slot — while the camera or strap the performer chose
+    /// is also writing it.
+    ///
+    /// ⭐ WHY THE COMMENT MATTERS MORE THAN IT LOOKS: three separate slices have each had to
+    /// rediscover this interleave from scratch, because the two sentences a session reads
+    /// first — this one and `selectBioSource`'s — both said it could not happen. A doc comment
+    /// that denies a real data path does not merely fail to help; it actively spends a cycle.
+    ///
+    /// ⚠️ THE INTERLEAVE IS NOT A BUG TO CLOSE HERE. It is deliberate and documented
+    /// (`BioEventPublisher`'s wrist window, plus a DEAD-END entry against source arbitration),
+    /// so do NOT stand the HealthKit publisher down from this function. What the audit asks for
+    /// is a HOLD at the two timbre consumers — the repo's own recorded playbook, "shared state
+    /// behind a measured? gate — HOLD, do not zero" — and that half is founder-gated because it
+    /// changes the sound. This slice corrects only what the comments claim.
     private func stopBioSource() {
         #if canImport(AVFoundation)
         cameraRPPG.stop()
@@ -9309,9 +9329,19 @@ struct EchoelStudioView: View {
     /// "camera light · Search for Bluetooth Device · Simulation"): the pill's long-press
     /// menu posts `.echoelSelectBioSource` into the receiver on `menuBar`; `bioPanel`'s
     /// "Bio source" row (#616) calls this directly.
-    /// Only ONE source feeds the bus at a time. If the instrument is already running we
-    /// hot-swap (drop the old publisher, bring up the new one, keeping the music going);
-    /// if it's idle, picking a source activates the instrument with it — same as a tap.
+    /// Only one of the THREE SOURCES THIS PICKER OWNS feeds the bus at a time. If the
+    /// instrument is already running we hot-swap (drop the old publisher, bring up the new one,
+    /// keeping the music going); if it's idle, picking a source activates the instrument with
+    /// it — same as a tap.
+    ///
+    /// ⛔ #1015 — THIS SAID "ONLY ONE SOURCE FEEDS THE BUS AT A TIME", FULL STOP, AND THAT IS
+    /// FALSE FOR ANY HEALTH-AUTHORISED USER. The app-level `HealthKitBioPublisher` writes the
+    /// same single `latestBio` slot on its own cadence and is not in this picker's reach — see
+    /// the ⛔ block on `stopBioSource` above for the measurement and for why the interleave is
+    /// deliberate rather than a defect to close here.
+    ///
+    /// The reason to state it at BOTH doors rather than once: a session reading either one
+    /// alone concluded the bus had a single writer, and three slices paid for that separately.
     private func selectBioSource(_ id: String?) {
         guard let id, let kind = BioSourceKind(rawValue: id) else { return }
         bioSourceRaw = kind.rawValue

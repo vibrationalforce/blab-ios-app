@@ -23580,3 +23580,38 @@ beiden.
 lassen), während eine Aufnahme läuft. Pille muss den grünen Lock verlieren UND „Camera paused"
 bzw. „Cooling" zeigen statt eines bernsteinfarbenen Platzierungs-Cues. Urteilsfrage: liest sich
 das kurze Label ehrlich — oder liest es sich, als sei die App kaputt?
+
+## 2026-09-05 — #1015 · Audit-Punkt 12 (billige Hälfte): zwei Türen, die den Bus-Besitz verneinten
+
+**Gemessen.** `EngineBus.latestBio` ist EIN Slot. `HealthKitBioPublisher` wird in
+`EchoelmusicApp` konstruiert und dort gestartet (`startIfAlreadyAuthorized` beim Start,
+`start` nach der Freigabe) und kommt in `Studio/` **außerhalb eines Doc-Kommentars nicht vor**.
+Für jeden Health-freigegebenen Nutzer überschreibt also jede Handgelenk-Probe die Kamera- oder
+Gurt-Frame, die der Performer gewählt hat.
+
+**Die zwei Sätze, die eine Sitzung ZUERST über Bus-Besitz liest, sagten beide das Gegenteil:**
+· `stopBioSource`: „Stop EVERY bio publisher … so no source keeps feeding the bus"
+· `selectBioSource`: „Only ONE source feeds the bus at a time"
+
+⭐ **Die Kosten sind Zyklen, nicht Millisekunden.** Drei Scheiben mussten diesen Interleave je
+NEU entdecken, weil beide Einstiegssätze sagten, er könne nicht existieren. Ein Doc-Kommentar,
+der einen echten Datenpfad verneint, hilft nicht bloß nicht — er kostet jedes Mal einen Zyklus.
+
+**Nur die Kommentare.** Die eigentliche Abhilfe ist HALTEN statt Neutralisieren an den zwei
+Klangfarben-Verbrauchern (das eigene Playbook des Repos) und ist founder-gated, weil sie den
+Klang ändert. Den Publisher abzuschalten ist ausdrücklich ein DEAD-END: der Interleave ist
+gewollt und dokumentiert.
+
+⛔ **Der Wächter scannt POSITIV auf die neue Qualifizierung, nicht negativ auf die alten Sätze**
+— die ⛔-Blöcke, die sie zurücknehmen, zitieren beide wörtlich, ein Negativ-Scan träfe also
+seine eigene Rücknahme (#491). Dieselbe Falle wie einen Commit vorher in #1014, hier vorher
+erkannt statt hinterher repariert.
+
+⭐ **Und die Transkription hat meine Benotung wieder korrigiert — diesmal in die ANDERE
+Richtung.** Ich hatte Anspruch 1 (die Empfänger-Menge von `stopBioSource`) als rot-auf-HEAD
+erwartet, weil er die Funktion betrifft, die diese Scheibe repariert. Er ist **grün auf beiden**,
+und genau das IST der Befund: **der CODE war auf HEAD schon richtig, nur die Prosa darüber war
+falsch.** Verschärfung der Regel: **die Farbe eines Anspruchs folgt seiner NADEL, nie dem Thema
+des Commits.**
+
+**Transkribiert:** 1/2/3 grün auf beiden · 4 rot auf HEAD, grün auf dem Arbeitsbaum.
