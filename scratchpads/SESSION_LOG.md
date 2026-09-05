@@ -23661,3 +23661,39 @@ des Commits — und „Gegengewicht" beschreibt die AUFGABE, nicht die Farbe.**
 `mute=now/peak` lesen: `0/0` über die ganze Aufnahme = das Band feuert auf diesem Gerät nie und
 die geparkte Wortwahl-Frage hat nichts zu reparieren. Ein großer Peak neben `cue=Finding` ist der
 Defekt — dann lohnt die Frage.
+
+## 2026-09-05 — #1017 · Audit-Punkt 18: der Vollbild-Wächter hört auf, Deckung zu versprechen
+
+**Gates für #1016 (`0bddd35`) gelesen:** Compile Check Lauf 2373 `success`; CI/CD Lauf
+33947565390 Schritt 9 „Build for Testing" `success` — `TheMuteBandIsMeasuredTests` kompiliert.
+
+**Punkt 18 zuerst GEMESSEN, wie es die Check-in-Anweisung verlangt.** Der Befund hält, die
+vom Audit vorgeschlagene Scheibe nicht: `XCTAssertTrue(fit.studioChip)` sitzt im BLOCKIERENDEN
+Bundle und wäre auf korrektem Baum rot — es „berichtet" nicht, es hält jeden Push an, bis eine
+Reparatur landet, die derselbe Absatz FOUNDER-GATED nennt.
+
+**Zahlen (transkribiert, 18.896 `chromeFit`-Auswertungen):** Vollbild, Transport an, nichts
+läuft — Chip ab **431 pt**, Slider ab **529 pt**; bei laufender WAV-Aufnahme 507 / 605. Breitestes
+Telefon in `devices`: 440 pt. Also auf 375/390/393/402/430 pt kein beschriftetes Wort zurück ins
+Instrument, nur zwei Glyphen mit VoiceOver-Text.
+
+**Geliefert:** (a) Umbenennung `testFullscreenFitsWithTheSliderAndTheStudioChip` →
+`testFullscreenFitsAtEveryShippedWidth` — der alte Name nannte zwei Elemente, die er nie prüft
+(#374), und genau deshalb sah niemand hin; (b) die Schwellen samt Founder-Frage (die 83 pt
+Textreserve des Chips, NICHT eine Umsortierung — die nähme jedem Telefon unter 440 pt die
+Loop-Position im Vollbild); (c) neuer Anspruch `testTheShedOrderIsAPrefixOfTheDocumentedRanking`
+— die Prosa von `chromeFit` bittet ausdrücklich darum, nicht still umsortiert zu werden, und
+nichts prüfte das. Präfix-Form ist die #364-sichere Gestalt: ein billigerer Chip verschiebt die
+SCHWELLE, nicht die Reihenfolge.
+
+**Und der Kopf dieser Datei war in BEIDE Richtungen falsch.** Ein ⛔-Block korrigierte die erste
+Fassung („Vollbild ist bei jedem Kaltstart das Zuhause") ins Gegenteil mit dem `.small`-Default —
+korrekt damals, **heute falsch**: der Instrument-Home-Seed schreibt seit #580 einmal pro Start
+Vollbild, hinter `FeatureFlags.instrumentHome`, einem der genau drei ON-registrierten Schlüssel.
+
+**Eine Audit-Prämisse zugunsten der App zurückgenommen:** „given no word" — es gibt eine
+Erst-Start-Einblendung mit zwei beschrifteten Zeilen. Echt bleibt der engere Satz: sie sagt
+„Start the music", und Play liegt hinter einem unbeschrifteten Glyph.
+
+**Grading:** neuer Anspruch GRÜN AUF BEIDEN Bäumen — `FloatingVisualLayout` ist unangetastet.
+Das ist ein Pin, keine Reparatur, und das gehört ausgesprochen (#808).
