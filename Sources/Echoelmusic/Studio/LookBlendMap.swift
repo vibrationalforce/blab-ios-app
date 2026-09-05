@@ -68,9 +68,24 @@ enum LookBlendMap {
     ///
     /// ⚠️ "the Metal field", not "the screen", and the narrower wording is a correction:
     /// `visual.detail` has a SECOND consumer, `SpectralDonutView(bandCount:)`, where it does
-    /// change the picture. That renderer is doorless today (its only mount sits behind a
-    /// cover with no setter), so nothing a player can reach contradicts the caption — but a
-    /// predicate that claims to cover "the screen" would be wrong the day it is re-doored.
+    /// change the picture.
+    ///
+    /// ⛔ AND THE SENTENCE THAT FOLLOWED IS RETRACTED (2026-09-05, #1003). It read: "That
+    /// renderer is doorless today (its only mount sits behind a cover with no setter), so
+    /// nothing a player can reach contradicts the caption — but a predicate that claims to
+    /// cover 'the screen' would be wrong the day it is re-doored." **#747 re-doored it** —
+    /// `visualPanel`'s "Full screen" button opens the cover, and the donut toggle lives
+    /// inside it. So the caveat came true and nothing moved with it: for a whole stretch the
+    /// VJ overlay told a player in donut mode that Detail "shapes the Rings look only", while
+    /// Detail was the one control on that overlay actually reaching the renderer in front of
+    /// them (`bandCount: max(8, Int(visualDetail))`).
+    ///
+    /// **This predicate itself is unchanged and still correct** — it answers "how much of the
+    /// METAL field can Detail shape", and that question has nothing to do with donut mode.
+    /// What was wrong is the CAPTION that consumed it, which is fixed at the caption. The
+    /// lesson is about the shape of the note, not the maths: a comment that predicts its own
+    /// expiry names no OWNER, so nothing goes red when the day arrives. The caption now reads
+    /// `spectralDonuts` and a guard pins that it does.
     ///
     /// It mirrors the renderer's arithmetic rather than approximating it: the B field is
     /// evaluated only above a 0.001 blend threshold (`float2 fb = (blend > 0.001) ? … : fa`)

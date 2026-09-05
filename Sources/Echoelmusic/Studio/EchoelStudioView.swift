@@ -6499,7 +6499,20 @@ struct EchoelStudioView: View {
                 // does not — so the caption would still be here, having promised otherwise.
                 // Naming a fix that does not work, inside the fix for a control that promises
                 // more than it does, is the defect eating its own tail.
-                Text("Detail shapes the Rings look only. Add Rings under Slider looks above, then drag the look slider onto it.")
+                // ⛔ #1003 — THIS CAPTION USED TO NAME THE ONE LIVE CONTROL AS THE INERT ONE.
+                // `detailReach` answers "how much of the METAL field can Detail shape", and
+                // that is the whole truth only while the Metal field is what is on screen.
+                // In donut mode the full-screen cover renders `SpectralDonutView(bandCount:
+                // max(8, Int(visualDetail)))` — so Detail is the ONE field on this overlay
+                // that reaches the picture in front of the player, and the caption called it
+                // inert while nine genuinely inert rows carried no caption at all.
+                //
+                // `LookBlendMap`'s own doc predicted this verbatim ("wrong the day it is
+                // re-doored"); #747 re-doored the cover and nothing moved with it. A note
+                // that predicts its own expiry names no owner — hence the guard.
+                Text(spectralDonuts
+                     ? "Detail sets how many bands the donuts draw. For the Rings look it also needs Rings under Slider looks above, with the look slider dragged onto it."
+                     : "Detail shapes the Rings look only. Add Rings under Slider looks above, then drag the look slider onto it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
