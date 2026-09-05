@@ -23831,3 +23831,55 @@ reicht" — das ist der Satz, nicht „grün".
   Zeichenkette. Auf dreifache Anführungszeichen umgestellt.
 
 **S6 bleibt blockiert — auf dem OHR, nicht auf einem Gate.** Das ist jetzt so beschriftet.
+
+## 2026-09-05 · #1022 · Der Startfehler, der neun Minuten später das Monitoring abwies
+
+**Founder-Log v10.79.447 (2565).** Erste Zeile: `session: configure 1/4 — setCategory(.playback)`,
+dann `session: configure FAILED — Code=-50`, **keine** 2/4. Das Leiter-Gesetz (#862b: eine Sprosse
+steht VOR ihrem Aufruf) macht das beweisend — der Wurf liegt IM `setCategory`. `-50` = `paramErr`;
+`.playback`, `.default` und `.mixWithOthers` sind alle gültig, per Ausschluss bleibt
+`.allowBluetoothA2DP`.
+
+**Die Folge war teurer als die Ursache.** Rungs 2/4–4/4 liefen nie → `isSessionConfigured` blieb
+die ganze Sitzung falsch → neun Minuten später `monitor: on REFUSED — the session was never
+configured`. Der Founder hat den EINEN Handgriff gedrückt, auf den die ganze Vokal-Kette wartet,
+und er wurde von einem Startfehler abgewiesen, der elf Bildschirme entfernt liegt. Die Musik lief
+trotzdem (iOS-Standard-Session) — deshalb fiel es nie auf.
+
+**Retry statt Replace.** Gemessen ist der Wurf auf DIESEM Gerät, nicht dass jedes iOS das Paar
+ablehnt. Voller Satz wird weiter gefragt; nur die Ablehnung fällt auf `[.mixWithOthers]` zurück.
+Die Fallback-Zeile ist unnummerierte DETAIL-Zeile (`session: the …`), damit weder die vier
+Gleichheits-Pins noch `diag-ladder`s Terminator-Zensus sie als Leiter-Teil lesen.
+
+**Ein Wächter hat dabei still das Subjekt gewechselt.** `TheBufferFollowsTheGrantedRateTests`
+Anspruch 6 ankerte auf `body.range(of: "catch {")` — dem ERSTEN `catch` der Funktion. Mein neues
+`do/catch` steht davor: der Anspruch wäre GRÜN geblieben und hätte ein anderes `catch` geprüft.
+Neu verankert am `setPreferredIOBufferDuration(regranted)`-Aufruf. Die #408-Form: ein Anker, der
+noch trifft, ist nicht dasselbe wie ein Anker, der noch meint, was er benannt hat.
+
+## 2026-09-05 · #1023 / #1023b · „Alle Ansichten adaptiv" — die Schrift war es, der Kasten nicht
+
+Founder: *„Alle Ansichten überprüfen routing, Simulation etc ob sie sich adaptiv verhalten
+teilweise passt das noch nicht vermeide sowas."*
+
+**Gemessen über alle 375 Dateien in `Sources/`.** `EchoelTheme.font(_:_:)` baut jedes Label mit
+`relativeTo: .body` — die Schrift wuchs also längst mit. Nicht gewachsen ist der KASTEN:
+**37 text-tragende Bedienelemente** in zehn Ansichten hielten eine harte `.frame(height:)`, und
+**6 Zahlen-Anzeigen** eine harte `.frame(width:)`. Bei Standard-Textgröße stimmen beide überein —
+deshalb hat es überlebt; bei Accessibility-Größen schneidet die Beschriftung ab.
+
+`minHeight`/`minWidth` ist bei Standardgröße identisch (der Inhalt ist kleiner als der Boden, der
+Rahmen also exakt der Boden). Routing hielt 6 der 37, das Haupt-Instrument 11.
+
+**Die Nadel für BREITE musste enger sein als die für HÖHE — das ist der übertragbare Teil.** Die
+Höhen-Nadel zählt `Image(systemName:)` als Text (ein `Label` mit Symbol muss mitwachsen). Für
+BREITE ist das falsch: eine Symbol-Spalte mit fester Breite ist eine gewollte Rinne. Gemessen
+6 gegen 60 — eine gemeinsame Nadel hätte 66 gemeldet, die ehrlichen 6 unauffindbar gemacht, und
+grün wäre sie nur durch Kaputtmachen der Rinnen geworden.
+
+Wächter: `TextControlsGrowWithTheTypeSizeTests` (3 Ansprüche über alle Dateien, plus ein
+Gegengewicht gegen #808) mit `ADAPTIVE-EXEMPT: <Grund>`-Ausstieg pro Zeile (#364).
+
+**Clip `bc637da0` beantwortet:** Instagram-Karussell (`buildwithneej`) über fünf GitHub-Repos für
+KI-Agenten-Werkzeuge. Nichts fürs Produkt; das einzige mit Klangbezug (VoiceStudio, lokales
+Stimmen-Klonen) fällt unter die geschlossene Voice-Clone-Frage vom 2026-08-25.
