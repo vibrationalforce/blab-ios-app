@@ -72,6 +72,19 @@ public final class SACNSender {
     public var grandMaster: Float = 1
     public var blackout = false
 
+    /// #1006 — how many identical fixtures this stream addresses, and how far apart they sit.
+    ///
+    /// Default 1, so the wire is byte-identical to every build before this pair existed. The
+    /// fan happens AFTER the dimmer and colour slews below, never before: `FlashGuard`
+    /// smooths the ONE block, and copying an already-safe block is what keeps the 3 Hz
+    /// ceiling a guarantee instead of N independent histories to get right.
+    ///
+    /// ADDRESSING, not spatial differentiation — all fixtures receive the SAME colour,
+    /// because this arm produces exactly one. `spacing` 0 means back-to-back.
+    public var fixtureCount: Int = 1
+    public var fixtureSpacing: Int = 0
+
+
     @ObservationIgnored private weak var bus: EngineBus?
     @ObservationIgnored private var connection: NWConnection?
     @ObservationIgnored private let loop = PollingLoop()
@@ -234,8 +247,12 @@ public final class SACNSender {
         // hue swing at high dimmer would otherwise strobe past 3 Hz, Law 6 gap).
         ArtNetSender.applySlewedColour(&channels, resolution: resolution, last: &lastColour,
                                        maxDelta: FlashGuard.senderTickDelta)
+        // The fan matters MORE here than on Art-Net: E1.31 pads to a full 512 slots by
+        // specification, so every slot this stream does not fill is actively driven to zero.
+        // With one fixture addressed, a whole rig goes dark and stays dark.
+        let fanned = DMXFixtureFan.fanned(channels, count: fixtureCount, spacing: fixtureSpacing)
         let packet = Self.e131Packet(universe: universe, sequence: sequence, cid: cid,
-                                     channels: channels, synthetic: lastKnownSynthetic)
+                                     channels: fanned, synthetic: lastKnownSynthetic)
         sequence = sequence &+ 1   // wraps 0…255 (0 is valid in E1.31)
         send(packet)
         lastSentTimestamp = CFAbsoluteTimeGetCurrent()

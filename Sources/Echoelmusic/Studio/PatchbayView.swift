@@ -404,7 +404,16 @@ struct PatchbayView: View {
                 .pickerStyle(.segmented)
                 .accessibilityLabel("DMX resolution — 16-bit for smooth fades, 8-bit for legacy fixtures")
             }
+            HStack(spacing: 10) {
+                EchoelValueField(label: "Fixtures", value: fixtureCountBinding,
+                                 range: 1...Double(DMXFixtureFan.maxFixtures), unit: "", decimals: 0)
+                EchoelValueField(label: "Spacing", value: fixtureSpacingBinding,
+                                 range: 0...64, unit: "", decimals: 0)
+            }
             Text("Master scales the brightness of all outgoing light data (Art-Net + sACN). Blackout goes dark instantly; the return fades back in flicker-free. 16-bit sends paired coarse/fine channels for smooth fades; pick 8-bit only for fixtures that cannot read them.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+            Text("Fixtures repeats the same colour across that many lamps from address 1 — addressing the rig, not moving light through it: every lamp shows the SAME colour, because this output produces one. Spacing is the gap between their start addresses; 0 means back to back. This matters most on sACN, which by specification fills all 512 slots — so with one fixture addressed, every other lamp on that universe is driven dark.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                 .fixedSize(horizontal: false, vertical: true)
         }
@@ -423,6 +432,40 @@ struct PatchbayView: View {
     /// this section, so a fresh launch always starts at the higher-precision default. A fixed
     /// installation would rather have it persist like `universe` does; that is a separate
     /// slice, and it needs its own key plus a decode default, not a `didSet` bolted on here.
+    /// #1006 — the rig's size, written to BOTH arms from one control, the same law as the
+    /// master fader and the resolution picker above it.
+    ///
+    /// ⚠️ LIVE STATE, NOT PERSISTED, deliberately matching its two neighbours: a fresh launch
+    /// addresses ONE fixture, which is the shipped behaviour and the safe one — a stored count
+    /// of 32 would fan a stranger's rig on first open. A fixed installation would rather have
+    /// it persist like `universe` does; that is a separate slice with its own key and decode
+    /// default, not a `didSet` bolted on here.
+    ///
+    /// `Double` in, `Int` out: `EchoelValueField` is the one numeric control app-wide (the UI
+    /// law), and these ARE numbers with no names — a count and a slot offset — so a Picker
+    /// would be the wrong half of that same law.
+    private var fixtureCountBinding: Binding<Double> {
+        Binding(
+            get: { Double(artNet.fixtureCount) },
+            set: { v in
+                let n = Swift.min(Swift.max(Int(v.rounded()), 1), DMXFixtureFan.maxFixtures)
+                artNet.fixtureCount = n
+                sacn.fixtureCount = n
+            }
+        )
+    }
+
+    private var fixtureSpacingBinding: Binding<Double> {
+        Binding(
+            get: { Double(artNet.fixtureSpacing) },
+            set: { v in
+                let n = Swift.max(Int(v.rounded()), 0)
+                artNet.fixtureSpacing = n
+                sacn.fixtureSpacing = n
+            }
+        )
+    }
+
     private var dmxResolutionBinding: Binding<ArtNetSender.DMXResolution> {
         Binding(
             get: { artNet.resolution },

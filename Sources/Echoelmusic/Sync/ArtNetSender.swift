@@ -98,6 +98,19 @@ public final class ArtNetSender {
     /// never strobe). Colour channels keep streaming so un-blackout is seamless.
     public var blackout = false
 
+    /// #1006 — how many identical fixtures this stream addresses, and how far apart they sit.
+    ///
+    /// Default 1, so the wire is byte-identical to every build before this pair existed. The
+    /// fan happens AFTER the dimmer and colour slews below, never before: `FlashGuard`
+    /// smooths the ONE block, and copying an already-safe block is what keeps the 3 Hz
+    /// ceiling a guarantee instead of N independent histories to get right.
+    ///
+    /// ADDRESSING, not spatial differentiation — all fixtures receive the SAME colour,
+    /// because this arm produces exactly one. `spacing` 0 means back-to-back.
+    public var fixtureCount: Int = 1
+    public var fixtureSpacing: Int = 0
+
+
     @ObservationIgnored private weak var bus: EngineBus?
     @ObservationIgnored private var connection: NWConnection?
     @ObservationIgnored private let loop = PollingLoop()
@@ -251,7 +264,8 @@ public final class ArtNetSender {
         // otherwise strobe even though the dimmer is rate-limited (Law 6 gap).
         Self.applySlewedColour(&channels, resolution: resolution, last: &lastColour,
                                maxDelta: FlashGuard.senderTickDelta)
-        let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: channels)
+        let fanned = DMXFixtureFan.fanned(channels, count: fixtureCount, spacing: fixtureSpacing)
+        let packet = Self.artDMXPacket(universe: universe, sequence: sequence, channels: fanned)
         sequence = sequence == 255 ? 1 : sequence &+ 1   // 1...255, 0 = disabled
         send(packet)
         lastSentTimestamp = CFAbsoluteTimeGetCurrent()
