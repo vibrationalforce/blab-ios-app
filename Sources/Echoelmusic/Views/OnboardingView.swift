@@ -64,212 +64,250 @@ struct OnboardingView: View {
     // MARK: - Pages
 
     private var welcomePage: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        scrollablePage {
+            VStack(spacing: 24) {
+                Spacer()
 
-            // ⛔ DECORATIVE. Without this VoiceOver announces "square grid four by three
-            // fill" — an SF Symbol's API name, read aloud, as the FIRST thing a blind user
-            // hears from Echoel. All three page glyphs carry no information the headline
-            // below them does not already carry.
-            Image(systemName: "square.grid.4x3.fill")
-                .font(EchoelTheme.font(48))
-                .foregroundStyle(EchoelTheme.text.opacity(0.3))
-                .accessibilityHidden(true)
+                // ⛔ DECORATIVE. Without this VoiceOver announces "square grid four by three
+                // fill" — an SF Symbol's API name, read aloud, as the FIRST thing a blind user
+                // hears from Echoel. All three page glyphs carry no information the headline
+                // below them does not already carry.
+                Image(systemName: "square.grid.4x3.fill")
+                    .font(EchoelTheme.font(48))
+                    .foregroundStyle(EchoelTheme.text.opacity(0.3))
+                    .accessibilityHidden(true)
 
-            Text("Echoelmusic")
-                .font(EchoelTheme.font(32, .bold))
-                .foregroundStyle(EchoelTheme.text)
-                // Rotor heading navigation is how a VoiceOver user skims a screen. Without
-                // the trait these three page titles are headings by font weight only, so the
-                // rotor finds nothing at all on the first screen of the app.
-                .accessibilityAddTraits(.isHeader)
+                Text("Echoelmusic")
+                    .font(EchoelTheme.font(32, .bold))
+                    .foregroundStyle(EchoelTheme.text)
+                    // Rotor heading navigation is how a VoiceOver user skims a screen. Without
+                    // the trait these three page titles are headings by font weight only, so the
+                    // rotor finds nothing at all on the first screen of the app.
+                    .accessibilityAddTraits(.isHeader)
 
-            Text("Your heartbeat makes music.")
-                .font(EchoelTheme.font(17))
-                .foregroundStyle(EchoelTheme.text.opacity(0.6))
-                .multilineTextAlignment(.center)
+                Text("Your heartbeat makes music.")
+                    .font(EchoelTheme.font(17))
+                    .foregroundStyle(EchoelTheme.text.opacity(0.6))
+                    .multilineTextAlignment(.center)
 
-            Text("Bio-reactive generative loops in any key and BPM — composed by your heart and breath, exported to your DAW.")
-                .font(EchoelTheme.font(15))
-                .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.35)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
+                Text("Bio-reactive generative loops in any key and BPM — composed by your heart and breath, exported to your DAW.")
+                    .font(EchoelTheme.font(15))
+                    .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.35)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
 
-            Spacer()
+                Spacer()
 
-            nextButton(label: "Continue")
+                nextButton(label: "Continue")
+            }
+            .padding(.bottom, 60)
         }
-        .padding(.bottom, 60)
     }
 
     private var previewPage: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        scrollablePage {
+            VStack(spacing: 24) {
+                Spacer()
 
-            Image(systemName: "calendar.badge.clock")
-                .font(EchoelTheme.font(48))
-                .foregroundStyle(EchoelTheme.text.opacity(0.3))
-                .accessibilityHidden(true)
+                Image(systemName: "calendar.badge.clock")
+                    .font(EchoelTheme.font(48))
+                    .foregroundStyle(EchoelTheme.text.opacity(0.3))
+                    .accessibilityHidden(true)
 
-            Text("The wider vision")
-                .font(EchoelTheme.font(24, .bold))
-                .foregroundStyle(EchoelTheme.text)
-                .accessibilityAddTraits(.isHeader)
+                Text("The wider vision")
+                    .font(EchoelTheme.font(24, .bold))
+                    .foregroundStyle(EchoelTheme.text)
+                    .accessibilityAddTraits(.isHeader)
 
-            VStack(alignment: .leading, spacing: 12) {
-                row(symbol: "sparkles", text: "Living visuals that move with your body")
-                row(symbol: "lightbulb.fill", text: "Light & stage — DMX / Art-Net")
-                row(symbol: "waveform.circle", text: "Immersive spatial objects — ADM-OSC")
-            }
-            .padding(.horizontal, 40)
-
-            Text("This release is the bio-reactive instrument — with living visuals, stage light and immersive output built in.")
-                .font(EchoelTheme.font(13))
-                .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.25 — near-invisible)
-                .multilineTextAlignment(.center)
+                VStack(alignment: .leading, spacing: 12) {
+                    row(symbol: "sparkles", text: "Living visuals that move with your body")
+                    row(symbol: "lightbulb.fill", text: "Light & stage — DMX / Art-Net")
+                    row(symbol: "waveform.circle", text: "Immersive spatial objects — ADM-OSC")
+                }
                 .padding(.horizontal, 40)
 
-            Spacer()
+                Text("This release is the bio-reactive instrument — with living visuals, stage light and immersive output built in.")
+                    .font(EchoelTheme.font(13))
+                    .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.25 — near-invisible)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
 
-            nextButton(label: "Got it")
+                Spacer()
+
+                nextButton(label: "Got it")
+            }
+            .padding(.bottom, 60)
         }
-        .padding(.bottom, 60)
     }
 
     private var readyPage: some View {
-        VStack(spacing: 24) {
-            Spacer()
+        scrollablePage {
+            VStack(spacing: 24) {
+                Spacer()
 
-            Image(systemName: "waveform")
-                .font(EchoelTheme.font(48))
-                .foregroundStyle(EchoelTheme.text.opacity(0.3))
-                .accessibilityHidden(true)
+                Image(systemName: "waveform")
+                    .font(EchoelTheme.font(48))
+                    .foregroundStyle(EchoelTheme.text.opacity(0.3))
+                    .accessibilityHidden(true)
 
-            Text("Ready")
-                .font(EchoelTheme.font(24, .bold))
-                .foregroundStyle(EchoelTheme.text)
-                .accessibilityAddTraits(.isHeader)
-
-            // ⛔ #618 (UX#3): this read "Breathe, lock a key and BPM, and let your body
-            // compose." — poetic, and it named NONE of the three things a first-time
-            // player actually does: press Play, fingertip on the camera light, or wear a
-            // strap. The last onboarding page is the one place that instruction exists,
-            // so the sentence now names all three, in the app's own chooser vocabulary
-            // (#616: "camera light" / "Bluetooth strap"). Guarded by
-            // `TheReadyPageNamesTheFirstActTests` — tokens, not the sentence, so
-            // rewording stays legal — which ALSO pins the Localizable.xcstrings coupling:
-            // this literal is a LocalizedStringKey, and #618 first shipped the new key
-            // WITHOUT its catalog entry, silently turning the German page's one
-            // instruction line English (#618b).
-            //
-            // ⚠️ Deliberate brevity, not a capability claim (review W2): the STRAP half
-            // elides one step — the default source is the camera, so a strap plays only
-            // after choosing it (pulse-pill long-press or the bioPanel "Bio source" row).
-            // The capability is real and reachable; do not cite this sentence as evidence
-            // the strap self-connects on Play.
-            Text("Press Play to start — a fingertip on the camera light, or a Bluetooth strap, lets your body drive the sound. Export to your DAW.")
-                .font(EchoelTheme.font(15))
-                .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.4)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 40)
-
-            // Required safety & privacy notice.
-            VStack(alignment: .leading, spacing: 8) {
-                // The box had NO visible title — five bare sentences in a grey rectangle, and
-                // the only thing naming them was a code comment. Sighted users were in the
-                // same position as VoiceOver users. A real heading fixes both at once, and is
-                // what the container label below should be belt-and-braces for rather than
-                // the sole channel.
-                Text("Safety & privacy")
-                    .font(EchoelTheme.font(11, .bold))
-                    .foregroundStyle(EchoelTheme.dim)
+                Text("Ready")
+                    .font(EchoelTheme.font(24, .bold))
+                    .foregroundStyle(EchoelTheme.text)
                     .accessibilityAddTraits(.isHeader)
-                safetyRow("heart.text.square", "For self-observation, not medical diagnosis.")
-                safetyRow("car", "Not while driving or operating machinery.")
-                safetyRow("exclamationmark.triangle", "Not under the influence of alcohol or drugs.")
-                safetyRow("cross.case", "Coordinate any therapeutic use with your provider.")
-                safetyRow("eye", "Visuals are capped at a safe 3 Hz flash rate.")
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(14)
-            .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
-            .padding(.horizontal, 32)
-            // Named as a container so the rows are grouped rather than loose. ⚠️ A `.contain`
-            // container label is ADVISORY — iOS announces it on entering the group, and not
-            // reliably across versions or navigation modes. That is exactly why the visible
-            // heading above exists: this line must not be the only thing naming the notice.
-            .accessibilityElement(children: .contain)
-            .accessibilityLabel("Safety and privacy notice")
 
-            Toggle(isOn: $acknowledgedSafety) {
-                Text("I understand")
-                    .font(EchoelTheme.font(14))
-                    .foregroundStyle(EchoelTheme.text.opacity(0.7))
-            }
-            .tint(EchoelTheme.text)
-            .padding(.horizontal, 32)
-            // ⚠️ THIS TOGGLE IS A CONSENT, not a preference — the Start button below stays
-            // disabled until it is on. Sighted users read the warnings sitting directly above
-            // it; a VoiceOver user arriving at the control heard only "I understand, switch,
-            // off", with no statement of WHAT is understood.
-            //
-            // ⛔ THE SUBSTANCE IS IN THE LABEL, NOT THE HINT, and the first version got this
-            // wrong. `Speak Hints` is user-disableable (and off in some configurations), hints
-            // are spoken only after a delay and are interruptible, and Voice Control users
-            // never receive them at all. A consent whose meaning lives only in a hint is a
-            // consent a real user can legitimately never hear while still being able to flip
-            // the switch and unblock Start. The label is unconditional; the hint carries the
-            // enumeration for those who have hints on.
-            .accessibilityLabel("I understand the safety and privacy notice above")
-            .accessibilityHint(Self.consentHint)
+                // ⛔ #618 (UX#3): this read "Breathe, lock a key and BPM, and let your body
+                // compose." — poetic, and it named NONE of the three things a first-time
+                // player actually does: press Play, fingertip on the camera light, or wear a
+                // strap. The last onboarding page is the one place that instruction exists,
+                // so the sentence now names all three, in the app's own chooser vocabulary
+                // (#616: "camera light" / "Bluetooth strap"). Guarded by
+                // `TheReadyPageNamesTheFirstActTests` — tokens, not the sentence, so
+                // rewording stays legal — which ALSO pins the Localizable.xcstrings coupling:
+                // this literal is a LocalizedStringKey, and #618 first shipped the new key
+                // WITHOUT its catalog entry, silently turning the German page's one
+                // instruction line English (#618b).
+                //
+                // ⚠️ Deliberate brevity, not a capability claim (review W2): the STRAP half
+                // elides one step — the default source is the camera, so a strap plays only
+                // after choosing it (pulse-pill long-press or the bioPanel "Bio source" row).
+                // The capability is real and reachable; do not cite this sentence as evidence
+                // the strap self-connects on Play.
+                Text("Press Play to start — a fingertip on the camera light, or a Bluetooth strap, lets your body drive the sound. Export to your DAW.")
+                    .font(EchoelTheme.font(15))
+                    .foregroundStyle(EchoelTheme.text.opacity(0.7))   // WCAG AA on black (was 0.4)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 40)
 
-            Spacer()
-
-            Button {
-                isComplete = true
-            } label: {
-                HStack(spacing: 8) {
-                    // Inside a Button label SwiftUI MERGES the children into one announcement,
-                    // so an unhidden SF Symbol gets its glyph description read out ahead of
-                    // "Start". (The earlier version of this comment quoted the exact string
-                    // VoiceOver would say. That was a guess dressed as a fact — the symbol
-                    // description varies by symbol and OS version, and I have no device to
-                    // check it on. The label above pins the announcement regardless.)
-                    Image(systemName: "play.fill")
-                        .font(EchoelTheme.font(13))
-                        .accessibilityHidden(true)
-                    Text("Start")
+                // Required safety & privacy notice.
+                VStack(alignment: .leading, spacing: 8) {
+                    // The box had NO visible title — five bare sentences in a grey rectangle, and
+                    // the only thing naming them was a code comment. Sighted users were in the
+                    // same position as VoiceOver users. A real heading fixes both at once, and is
+                    // what the container label below should be belt-and-braces for rather than
+                    // the sole channel.
+                    Text("Safety & privacy")
+                        .font(EchoelTheme.font(11, .bold))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .accessibilityAddTraits(.isHeader)
+                    safetyRow("heart.text.square", "For self-observation, not medical diagnosis.")
+                    safetyRow("car", "Not while driving or operating machinery.")
+                    safetyRow("exclamationmark.triangle", "Not under the influence of alcohol or drugs.")
+                    safetyRow("cross.case", "Coordinate any therapeutic use with your provider.")
+                    safetyRow("eye", "Visuals are capped at a safe 3 Hz flash rate.")
                 }
-                .font(EchoelTheme.font(15, .semibold))
-                .foregroundStyle(EchoelTheme.onPrimary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 14)
-                .background(EchoelTheme.text, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(14)
+                .background(EchoelTheme.fill, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
+                .padding(.horizontal, 32)
+                // Named as a container so the rows are grouped rather than loose. ⚠️ A `.contain`
+                // container label is ADVISORY — iOS announces it on entering the group, and not
+                // reliably across versions or navigation modes. That is exactly why the visible
+                // heading above exists: this line must not be the only thing naming the notice.
+                .accessibilityElement(children: .contain)
+                .accessibilityLabel("Safety and privacy notice")
+
+                Toggle(isOn: $acknowledgedSafety) {
+                    Text("I understand")
+                        .font(EchoelTheme.font(14))
+                        .foregroundStyle(EchoelTheme.text.opacity(0.7))
+                }
+                .tint(EchoelTheme.text)
+                .padding(.horizontal, 32)
+                // ⚠️ THIS TOGGLE IS A CONSENT, not a preference — the Start button below stays
+                // disabled until it is on. Sighted users read the warnings sitting directly above
+                // it; a VoiceOver user arriving at the control heard only "I understand, switch,
+                // off", with no statement of WHAT is understood.
+                //
+                // ⛔ THE SUBSTANCE IS IN THE LABEL, NOT THE HINT, and the first version got this
+                // wrong. `Speak Hints` is user-disableable (and off in some configurations), hints
+                // are spoken only after a delay and are interruptible, and Voice Control users
+                // never receive them at all. A consent whose meaning lives only in a hint is a
+                // consent a real user can legitimately never hear while still being able to flip
+                // the switch and unblock Start. The label is unconditional; the hint carries the
+                // enumeration for those who have hints on.
+                .accessibilityLabel("I understand the safety and privacy notice above")
+                .accessibilityHint(Self.consentHint)
+
+                Spacer()
+
+                Button {
+                    isComplete = true
+                } label: {
+                    HStack(spacing: 8) {
+                        // Inside a Button label SwiftUI MERGES the children into one announcement,
+                        // so an unhidden SF Symbol gets its glyph description read out ahead of
+                        // "Start". (The earlier version of this comment quoted the exact string
+                        // VoiceOver would say. That was a guess dressed as a fact — the symbol
+                        // description varies by symbol and OS version, and I have no device to
+                        // check it on. The label above pins the announcement regardless.)
+                        Image(systemName: "play.fill")
+                            .font(EchoelTheme.font(13))
+                            .accessibilityHidden(true)
+                        Text("Start")
+                    }
+                    .font(EchoelTheme.font(15, .semibold))
+                    .foregroundStyle(EchoelTheme.onPrimary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 14)
+                    .background(EchoelTheme.text, in: RoundedRectangle(cornerRadius: EchoelTheme.radiusLarge))
+                }
+                // Disabled state was communicated by OPACITY alone — VoiceOver said "Start,
+                // dimmed, button" and named no way out. Same defect class as the Patchbay dot:
+                // one channel, and some users cannot receive it.
+                // ⚠️ `Text(...)` on BOTH branches so this binds to the concrete
+                // `accessibilityLabel(_: Text)` overload — no reliance on how the solver ranks
+                // the `LocalizedStringKey` and generic `StringProtocol` overloads for two bare
+                // literals joined by a ternary. The bare form very probably localised too
+                // (SwiftUI marks the `StringProtocol` overloads `@_disfavoredOverload` for
+                // exactly this reason); this is the version that does not need that to be true,
+                // on the one label that tells a VoiceOver user WHY Start is disabled. There is
+                // no compiler here and no diagnostic if it were wrong — it would simply stay
+                // English in every language.
+                // ("Start" needs no catalog entry: absent keys fall back to the key itself.)
+                .accessibilityLabel(acknowledgedSafety
+                                    ? Text("Start")
+                                    : Text("Start — confirm the safety notice above first"))
+                .disabled(!acknowledgedSafety)
+                .opacity(acknowledgedSafety ? 1 : 0.4)
+                .padding(.horizontal, 40)
             }
-            // Disabled state was communicated by OPACITY alone — VoiceOver said "Start,
-            // dimmed, button" and named no way out. Same defect class as the Patchbay dot:
-            // one channel, and some users cannot receive it.
-            // ⚠️ `Text(...)` on BOTH branches so this binds to the concrete
-            // `accessibilityLabel(_: Text)` overload — no reliance on how the solver ranks
-            // the `LocalizedStringKey` and generic `StringProtocol` overloads for two bare
-            // literals joined by a ternary. The bare form very probably localised too
-            // (SwiftUI marks the `StringProtocol` overloads `@_disfavoredOverload` for
-            // exactly this reason); this is the version that does not need that to be true,
-            // on the one label that tells a VoiceOver user WHY Start is disabled. There is
-            // no compiler here and no diagnostic if it were wrong — it would simply stay
-            // English in every language.
-            // ("Start" needs no catalog entry: absent keys fall back to the key itself.)
-            .accessibilityLabel(acknowledgedSafety
-                                ? Text("Start")
-                                : Text("Start — confirm the safety notice above first"))
-            .disabled(!acknowledgedSafety)
-            .opacity(acknowledgedSafety ? 1 : 0.4)
-            .padding(.horizontal, 40)
+            .padding(.bottom, 40)
         }
-        .padding(.bottom, 40)
     }
 
     // MARK: - Helpers
+
+    /// One onboarding page: CENTRED while its content fits, SCROLLABLE the moment it does not.
+    ///
+    /// ⛔ THE PAGES DID NOT SCROLL, AND THIS IS THE ONE SCREEN WHERE THAT LOCKS A USER OUT.
+    /// `readyPage` carries a 48 pt glyph, a heading, a paragraph, a six-row safety box, a consent
+    /// Toggle and — LAST — the Start button, whose `isComplete = true` is the only writer of
+    /// `hasCompletedOnboarding`. Every string here scales with Dynamic Type, and onboarding is the
+    /// one surface with NO `dynamicTypeSize` ceiling (the instrument branch caps itself in
+    /// `WorkspaceView`; this is a sibling branch). Landscape is unlocked, so a user could rotate
+    /// out of it — but in PORTRAIT at accessibility sizes there was no in-app escape: install,
+    /// cannot reach Start, delete. And it is exactly the user the WCAG-tuned safety copy on this
+    /// very page was written for.
+    ///
+    /// WHY THE `minHeight` AND NOT JUST A `ScrollView`: a bare `ScrollView` gives its content the
+    /// content's own ideal height, which collapses every `Spacer()` in these pages to zero and
+    /// top-aligns all three at ordinary text sizes — a visual regression paid to fix an
+    /// accessibility one. Pinning the content to at least the viewport height keeps the Spacers
+    /// doing their job when it fits, and lets it grow past that when it does not.
+    ///
+    /// `.scrollBounceBehavior(.basedOnSize)` so a page that fits still feels fixed rather than
+    /// rubber-banding. Vertical scrolling only — the paged `TabView`'s horizontal swipe is
+    /// untouched. Same shape `SafeModeView` already uses for the same reason.
+    private func scrollablePage<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+        let page = content()
+        return GeometryReader { proxy in
+            ScrollView {
+                page.frame(maxWidth: .infinity, minHeight: proxy.size.height)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+        }
+    }
+
 
     // ⛔ `text` IS `LocalizedStringKey`, NOT `String`, AND THAT IS THE WHOLE POINT.
     // `Text("literal")` resolves to the `LocalizedStringKey` initialiser and looks the

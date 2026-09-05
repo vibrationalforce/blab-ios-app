@@ -22640,3 +22640,30 @@ druckt. Sieben davon stehen in KEINEM Session-Log und in KEINEM Entscheidungs-Ei
   (`StudioDefaultKeysTests`), Modulations-Glättung, zweimal Automations-Parameter-Bindung,
   Projekt-Encode/Decode (Datenverlust-Klasse), `FeatureFlagsTests`, Genre-Distinktheit. Je ein
   eigener Zyklus, weil jeder das Lesen der Testabsicht braucht — nicht bündeln.
+
+**#989 — die Eingangstür öffnet jetzt bei jeder Schriftgröße (Audit Tier 1, Punkt 1).** Der
+höchstrangige NUTZER-Fund des Deep Audits, und er ist der einzige, bei dem jemand die App gar
+nicht erst betreten kann: `OnboardingView` hatte **null** `ScrollView` (gemessen), drei Seiten aus
+blanken `VStack`s, jeder String skaliert mit Dynamic Type — und Onboarding ist die EINZIGE Fläche
+ohne `dynamicTypeSize`-Deckel (der Instrumenten-Zweig deckelt sich in `WorkspaceView:232` selbst,
+das hier ist ein Geschwister-Zweig, nachgemessen). `readyPage` trägt Glyphe, Überschrift, Absatz,
+sechszeiligen Sicherheitskasten, Zustimmungs-Schalter und ZULETZT den Start-Knopf, dessen
+`isComplete = true` der einzige Schreiber von `hasCompletedOnboarding` ist. Bei
+Accessibility-Größen im HOCHFORMAT lag Start unter dem Bildschirm, ohne Weg dorthin: installieren,
+nicht reinkommen, löschen. Und es trifft genau den Nutzer, für den die WCAG-getunte Sicherheits-
+Kopie auf DIESER Seite geschrieben wurde.
+· **Die Falle, die der naive Fix gestellt hätte, ist mitgepinnt:** ein blanker `ScrollView` gibt
+  seinem Inhalt dessen EIGENE ideale Höhe — damit kollabiert jeder `Spacer()` der drei Seiten und
+  alle drei stehen bei normaler Schrift oben statt mittig. Ein Accessibility-Fix, bezahlt mit
+  einer optischen Regression. Deshalb `GeometryReader` + `minHeight: proxy.size.height`: die
+  Spacer arbeiten weiter, solange es passt, und der Inhalt darf darüber hinauswachsen.
+  `.scrollBounceBehavior(.basedOnSize)`, damit eine passende Seite nicht gummibandartig „mehr
+  unten" andeutet. Gleiche Form, die `SafeModeView` aus demselben Grund schon benutzt.
+· **Vier Ansprüche**, davon einer ein GEGENGEWICHT: Onboarding darf KEINEN `dynamicTypeSize`-
+  Deckel bekommen — das würde den Start-Knopf passend machen, indem es die vorgeschriebenen
+  Sicherheitshinweise für den Nutzer verkleinert, der sie am größten braucht. Genau die falsche
+  Richtung. Transkribiert: Worktree grün bei allen vieren, HEAD rot bei den ersten drei (der
+  vierte ist auf beiden grün, das ist seine Aufgabe).
+· **NEEDS-FOUNDER-VERIFY** am Dateiende des Wächters: frische Installation, alle drei Seiten
+  einmal bei Standard-Schrift (soll unverändert aussehen) und einmal bei größter
+  Accessibility-Größe im Hochformat (soll scrollen, Start erreichbar ohne Drehen).
