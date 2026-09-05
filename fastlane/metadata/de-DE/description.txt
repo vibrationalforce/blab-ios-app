@@ -10,6 +10,7 @@ Lies Deinen Puls aus Apple Health (z. B. Apple Watch), von einem Bluetooth-Herzf
 - Herzfrequenz formt Tempo und Vibrato
 - HRV und Kohärenz formen Brillanz, Harmonizität und Textur
 - Atem formt die Hüllkurve
+- Das Bild ist spielbar: Berühre das Visual, und Deine Finger werden zu Noten in der Tonart und Skala des Takes — jeder Griff landet in der Tonart
 
 Nicht jede Quelle misst alles: die Kamera liefert Puls, HRV und Atem; ein Brustgurt liefert Puls und HRV; die Apple Watch liefert die Herzfrequenz über Health. Was nicht gemessen wird, moduliert auch nicht.
 

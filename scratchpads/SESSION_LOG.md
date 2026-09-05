@@ -22998,3 +22998,45 @@ have one home). It does NOT ban the word: it is scoped to the one bullet that pr
 automatic mapping, identified by naming BOTH of its drivers (hrv + coherence/kohärenz) on one
 line, so it cannot reach the ADM-OSC or FX rows. Transcribed: worktree 0 offenders, HEAD 2 (one
 per locale) — load-bearing in both languages.
+
+## #999 — the picture is playable, and the website stops denying it (audit item 19)
+
+**Council (user-facing copy → brand rule).** Vision-Keeper: proceed, but the BODY stays the
+primary instrument — the surface is a second pair of hands, not a replacement. User-Advocate:
+proceed, this is the single biggest acquisition gap in the whole audit. Skeptic: the four named
+pads are genuinely roadmap and must not be folded into the shipped claim. Aesthetic Maximalist:
+this is the seat's exact case — expressive depth that already EXISTS and nobody is told about.
+→ Rewrite leading with the shipped surface, keep the pads as roadmap. Gate: proceed.
+
+**Measured, not taken from the plan.** `TouchInstrumentView(` is constructed at
+`FloatingVisualWindow.swift:791`, inside the visual's `.overlay`, with
+`MusicalKey(root: rootIndex, scale: touchScale)` + `touchQuantizer` — scale-quantized notes on the
+take's own synth, at EVERY window size (founder 2026-07-07: *"das Visual in ein Multi-Touch
+Instrument umwandeln … wie mit den Fingern durchs Wasser"*). And the window opens on launch.
+
+**It was an ACTIVE denial, which is worse than silence.** `docs/faq.html:134`, under a heading
+literally asking about touch, closed with *"Dedicated touch instruments … are on the roadmap, not
+in the app today"*; `:114` repeated it with a Planned tag. Meanwhile: **zero** hits for
+touch/finger/berühr/tippen across all 16 files in `fastlane/metadata/` and across every page under
+`docs/`.
+
+**Five homes fixed in one commit (#456):** the FAQ answer (rewritten to lead with the surface),
+its heading ("Can I play it with my hands?"), the tools-list Planned tag, the Schema.org visual
+answer that answer engines ingest verbatim, and both `description.txt` locales. Plus a ✅ row in
+`ContentPipeline/CLAIMS.md` citing the mount, so a script writer can use it. Byte counts stay
+under the App Store's 4000 (en 3741 · de 3873).
+
+**The four pads stay roadmap**, and claim 3 keeps them there: chord pad, melody XY pad,
+multi-octave keyboard and strum pad do not exist. What ships is ONE surface.
+
+**Guard:** `Tests/CISmoke/ThePictureIsSoldAsPlayableTests.swift`, 4 claims — 1 and 2
+load-bearing (green worktree / red HEAD), 3 and 4 counterweights against the two ways THIS repair
+goes wrong: the enthusiasm folding four unbuilt pads into the shipped claim, and the mount being
+removed later while five surfaces keep selling it. Deliberately a new file rather than an addition
+to `TheStoreTextClaimsOnlyWhatShipsTests` (#416): that file asks "is anything sold that does not
+ship"; this asks the opposite, and reaches `docs/` and `Sources/`, which that file does not read.
+
+**A measurement trap worth writing down:** two needles failed on a CORRECT tree because the FAQ
+mixes `&mdash;` entities and literal em-dashes in the same document. `grep -c` counts LINES, not
+occurrences, and reported "1" for a needle that was actually absent. Counted occurrences in Python
+instead.
