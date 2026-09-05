@@ -23769,3 +23769,38 @@ Zwei Prämissen des Punkts korrigiert: die Bitte steht NICHT in §4 (das sind St
 anderes Artefakt), und `press.html:157` ist ehrlich. Stattdessen: **§4b in
 `FOUNDER_DEVICE_SESSION.md`** mit der konkreten Aufnahme — und dem Kostenhinweis, dass EINE
 Sitzung beides liefert.
+
+## 2026-09-05 — #1020 · Der Blocker-Zeiger zeigte ins Leere
+
+**Drei Werkzeuge gelaufen, wie die Check-in-Anweisung sagte — und ZWEI davon ergaben nichts
+Handlungsfähiges. Das ist der Befund, nicht ein Zwischenschritt:**
+
+· **`doctor.py`** (Exit 1, 2 CRITICAL): beide liegen in `.github/workflows/**` — maskierte
+  Build-Schritte in `ci.yml`/`benchmark.yml`/`full-tests.yml` und ein `-only-testing:`-Filter auf
+  die nicht existierende Suite `ComprehensiveTestSuite`. **Founder-gated: berichten, nicht
+  editieren**, und bereits in Build-Notiz 446 gemeldet. ⚠️ Mein erster Lauf maß `EXIT=$?` NACH
+  einem `tail` — also den Exit von `tail`, nicht von `doctor.py`. Neu gemessen.
+· **`review.sh`**: 247 fällig, ältester 2026-04-10. **Hypothese geprüft und WIDERLEGT:** ich
+  vermutete, die Skip-Liste übersehe Einzelfall-Status wie `amended`, `assessed`, `parked`,
+  `confirmed`. Alle dreizehn Zeilen gelesen — **keine davon ist wirklich abgeschlossen**
+  (`amended` betrifft iPhone-only, das weiterhin in Kraft ist). Die Skip-Liste stimmt. Der
+  Rückstand ist echt und durch Aufräumen NICHT kleiner zu machen.
+· **`founder-verify.py`**: 99 offene Bitten in 84 Dateien, keine beantwortet. **Keine einzige
+  lässt sich durch Messen schließen** — es sind ausnahmslos Klang- und Geräte-Urteile.
+
+**Der eine echte Fund kam beim Nachlesen der Geräte-Datei selbst.** §1 heißt „Der eine Handgriff
+— er blockiert die ganze Vokal-Kette" und sagte: „Steht wörtlich in `.deploy/release` (heute
+v10.79.418)". Gemessen: ausgeliefert ist **447**, und
+`grep -in "monitoring\|Choose input" .deploy/release` liefert **nichts**. Der Zeiger war tot —
+ausgerechnet auf dem Blocker Nr. 1.
+
+⭐ **Der Fehler ist nicht die veraltete Zahl, sondern die WAHL DES ZUHAUSES.**
+`.deploy/release` wird bei jedem Build neu geschrieben. Ein STEHENDER Blocker dort abgelegt
+musste kaputtgehen; die einzige Frage war wann. #416 sagt „eine Entscheidung, ein Zuhause" — es
+sagt nicht, dass dieses Zuhause rotieren darf.
+
+**Repariert:** §1 zeigt jetzt auf die zwei Code-Marker (`MonitorInsertAU.swift:174`,
+`AudioConfiguration.swift:300`) über `scripts/founder-verify.py`. Das Rezept in der Datei wurde
+AUSGEFÜHRT und liefert genau diese zwei Zeilen. **Kein Wächter**: ein Negativ-Scan auf
+`.deploy/release` träfe die ⛔-Rücknahme, die es zitiert (#491) — der Schutz ist hier strukturell,
+nicht textlich.

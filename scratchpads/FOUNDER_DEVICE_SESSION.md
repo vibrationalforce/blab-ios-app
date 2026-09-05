@@ -24,8 +24,33 @@ Diese Datei wiederholt sie nicht (#416: eine Entscheidung, ein Zuhause).
 
 ## 1 · Der eine Handgriff — er blockiert die ganze Vokal-Kette
 
-Steht wörtlich in `.deploy/release` (heute v10.79.418) und wird hier nur VERORTET, nicht
-wiederholt: Mix-Panel → „Voice - your microphone" → „Choose input…" → **Live monitoring**.
+**Der Handgriff:** Mix-Panel → „Voice - your microphone" → „Choose input…" → **Live monitoring**.
+
+⛔ **DIESER ABSATZ ZEIGTE AUF EINE DATEI, DIE DEN HANDGRIFF NICHT MEHR ENTHÄLT (korrigiert
+2026-09-05).** Er lautete: „Steht wörtlich in `.deploy/release` (heute v10.79.418) und wird hier
+nur VERORTET, nicht wiederholt". Gemessen am selben Tag: der ausgelieferte Build ist **447**, und
+`grep -in "monitoring\|Choose input" .deploy/release` liefert **nichts**. Der Zeiger war also seit
+irgendeinem Build zwischen 418 und 447 tot — und zwar ausgerechnet im Abschnitt, der „der eine
+Handgriff, der die ganze Vokal-Kette blockiert" heißt. Wer ihm folgte, las eine Notiz über etwas
+anderes und durfte schließen, der Blocker sei erledigt.
+
+⭐ **DER FEHLER IST NICHT DIE VERALTETE ZAHL, SONDERN DIE WAHL DES ZUHAUSES.** `.deploy/release`
+wird bei JEDEM Build neu geschrieben und trägt, was in DIESEM Build neu ist. Ein **stehender**
+Blocker gehört strukturell nicht dorthin: der Zeiger musste kaputtgehen, die einzige Frage war
+wann. #416 („eine Entscheidung, ein Zuhause") sagt, dass eine Bitte nicht zweimal steht — es sagt
+nicht, dass ihr Zuhause ein rotierendes Dokument sein darf.
+
+**Das haltbare Zuhause ist der Code-Marker**, und den gibt es längst — zwei sogar, beide vom
+Werkzeug gefunden: `Audio/MonitorInsertAU.swift:174` („Monitoring an, Log zeigt `insert in`,
+normal sprechen — klingt der Monitor UNVERÄNDERT?") und `Audio/AudioConfiguration.swift:300`
+(Bluetooth-Kopfhörer). Also:
+
+```
+python3 scripts/founder-verify.py | grep -A1 "MonitorInsertAU\|AudioConfiguration"
+```
+
+Die Menü-Zeile oben bleibt hier stehen, weil sie eine ORTSANGABE ist und keine zweite Fassung
+der Bitte — genau die Unterscheidung, die dieser Abschnitt vorher schon machen wollte.
 
 **Warum das ein Blocker ist und keine Fleißaufgabe:** `decisions.csv:398` staffelt die
 Vokal-Kette als V0 → V1a → V1b. V0 IST dieser Handgriff. Solange nicht feststeht, ob der
