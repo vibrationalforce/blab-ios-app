@@ -22958,3 +22958,43 @@ nothing about the UI.
 header: 1–4 exercise `NetworkSendState` directly (a type absent on HEAD), 6 is the load-bearing
 structural claim, and 5 is green on both trees by design — it prevents the hot read from migrating
 into the two host bodies later, which is the one way this fix becomes the freeze.
+
+## #997 — "ten generative looks" → four (audit item 20)
+
+**Measured.** `LookBlendMap.library` = `[(0,"Rings"), (3,"Water"), (5,"Aurora"), (7,"Depth")]` — FOUR
+reachable looks. The other six shaders (Cymatics, Plasma, Prism, Lissajous, Scope, Fractal) are
+still compiled but RETIRED from the UI, which is where "ten" came from and why it was once true.
+
+**Six homes, and two of them are Schema.org blocks** that answer engines ingest verbatim
+(`docs/index.html:104`, `docs/faq.html:44`). Two of the sentences contradicted themselves in the
+same breath — *"ten generative looks — Rings, Water, Aurora and Depth"*. A reader counts four
+names and discounts the claims that ARE hard-won and true (Art-Net/sACN, ADM-OSC, MPE out).
+
+**Five replaced. The sixth handled differently, on purpose:** `docs/version.json:34` is a
+CHANGELOG entry describing what the 2026-08-28 release DID. Rewriting it to say "four" would
+falsify the record — that release genuinely shipped "ten". The entry keeps its text and carries
+the retraction inline, so the record stands and the false claim does not.
+
+**No test pinned the phrase** (`git grep -i "generative looks" -- Tests` → nothing), so nothing
+went red; `docs/version.json` re-parsed as valid JSON after the edit.
+
+## #998 — the store text stops selling "space" as an automatic mapping (audit item 21)
+
+**Measured, and the measurement is a two-hop one.** Both locales listed space/Raum beside
+brightness, harmonicity and texture — whose other three entries genuinely are automatic. The only
+automatic write to space is `EchoelDDSP.applyBioReactive` setting `reverbMix` from HRV, and its
+ONLY read sits inside `if Self.useConvolutionReverb`, declared `false` with no assignment anywhere
+in `Sources/`. The stage cannot make a sound. (This is the #546 defect class: a clean producer
+writing into a consumer that is switched off at runtime — following the value one hop looks like
+diligence and stops one hop early.)
+
+**Re-attribution, not deletion**, because two real bio→space paths DO ship: the opt-in FX route to
+`EchoelReverb`, and ADM-OSC object position. Verified at `ADMOSCSender`: breath → azimuth,
+HRV → elevation, coherence → distance. So the ADM-OSC row now says where space is true, in both
+locales. Byte counts stay under the App Store's 4000 (en 3599 · de 3723).
+
+**Guard:** a new claim in the EXISTING `TheStoreTextClaimsOnlyWhatShipsTests` (#416 — store claims
+have one home). It does NOT ban the word: it is scoped to the one bullet that promises an
+automatic mapping, identified by naming BOTH of its drivers (hrv + coherence/kohärenz) on one
+line, so it cannot reach the ADM-OSC or FX rows. Transcribed: worktree 0 offenders, HEAD 2 (one
+per locale) — load-bearing in both languages.
