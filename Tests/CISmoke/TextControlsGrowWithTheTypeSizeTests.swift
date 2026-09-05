@@ -85,6 +85,43 @@ final class TextControlsGrowWithTheTypeSizeTests: XCTestCase {
             """)
     }
 
+    /// #1023b — THE SAME DEFECT SIDEWAYS, and it needs a NARROWER needle than the height one.
+    /// A value read-out in an aligned column (`Text("\(pct)%").frame(width: 40, alignment:
+    /// .trailing)`) is clipped horizontally at large type for the same reason. But an ICON at a
+    /// fixed width is correct — a symbol column is meant to be a fixed gutter — so this claim
+    /// looks only for real text (`Text` / `Label` / `TextField`) and deliberately does NOT treat
+    /// `Image(systemName:)` as text, which the height claim above does. Measured: 6 text-bearing
+    /// fixed widths against 60 non-text ones, so a shared needle would have reported 66 and made
+    /// the honest 6 unfindable.
+    func testNoTextReadoutPinsItsWidth() throws {
+        var offenders: [String] = []
+        for url in try sourceFiles() {
+            let lines = try String(contentsOf: url, encoding: .utf8)
+                .split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+            for (i, line) in lines.enumerated() {
+                let trimmed = line.trimmingCharacters(in: .whitespaces)
+                if trimmed.hasPrefix("//") { continue }
+                if line.contains("ADAPTIVE-EXEMPT:") { continue }
+                guard line.range(of: #"\.frame\(width:\s*\d"#,
+                                 options: .regularExpression) != nil else { continue }
+                let context = lines[max(0, i - 4)...i]
+                    .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+                    .joined(separator: "\n")
+                if context.range(of: #"\bText\(|\bLabel\(|TextField\("#,
+                                 options: .regularExpression) != nil {
+                    offenders.append("\(url.lastPathComponent):\(i + 1)  \(trimmed.prefix(70))")
+                }
+            }
+        }
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) text read-out(s) pin their own width, so the number or label is \
+            truncated at large Dynamic Type instead of the column growing (#1023):
+            \(offenders.joined(separator: "\n"))
+            Use `.frame(minWidth:)` — identical at the default type size, and the column stays \
+            aligned — or say `ADAPTIVE-EXEMPT: <reason>` on the line.
+            """)
+    }
+
     // MARK: - helper
 
     private func sourceFiles() throws -> [URL] {

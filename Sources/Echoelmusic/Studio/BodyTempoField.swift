@@ -347,7 +347,7 @@ struct BodyTempoField: View {
                     .font(EchoelTheme.font(14, .semibold).monospacedDigit())
                     .foregroundStyle(liveBodyBPM > 0 ? EchoelTheme.accent : EchoelTheme.text)
                     .lineLimit(1).minimumScaleFactor(0.7)
-                    .frame(width: 76, height: EchoelTheme.controlHeight)
+                    .frame(minWidth: 76, height: EchoelTheme.controlHeight)
                     .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
                     .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                         .strokeBorder(EchoelTheme.border, lineWidth: 1))

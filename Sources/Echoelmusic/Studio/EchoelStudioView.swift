@@ -4046,7 +4046,7 @@ struct EchoelStudioView: View {
             HStack(spacing: 10) {
                 Text("\(rank + 1)")
                     .font(EchoelTheme.font(12, .semibold)).foregroundStyle(EchoelTheme.dim)
-                    .frame(width: 16, alignment: .leading)
+                    .frame(minWidth: 16, alignment: .leading)
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
                         Capsule().fill(EchoelTheme.border.opacity(0.5))
@@ -4058,7 +4058,7 @@ struct EchoelStudioView: View {
                 Text("\(pct)%")
                     .font(EchoelTheme.font(12, isOn ? .semibold : .regular))
                     .foregroundStyle(EchoelTheme.text)
-                    .frame(width: 40, alignment: .trailing)
+                    .frame(minWidth: 40, alignment: .trailing)
                 Image(systemName: isOn ? "checkmark.circle.fill" : "play.circle")
                     .font(.system(size: 15)).foregroundStyle(EchoelTheme.dim)
             }
@@ -4913,7 +4913,7 @@ struct EchoelStudioView: View {
             if let tapped = lastTappedBPM {
                 Text("\(Int(tapped.rounded())) BPM")
                     .font(EchoelTheme.font(13).monospacedDigit()).foregroundStyle(EchoelTheme.dim)
-                    .frame(width: 84, alignment: .trailing)
+                    .frame(minWidth: 84, alignment: .trailing)
             }
         }
     }
@@ -5945,7 +5945,7 @@ struct EchoelStudioView: View {
                 .font(EchoelTheme.font(12))
                 .foregroundStyle(EchoelTheme.dim)
                 .lineLimit(1)
-                .frame(width: 54, alignment: .trailing)
+                .frame(minWidth: 54, alignment: .trailing)
         }
     }
 

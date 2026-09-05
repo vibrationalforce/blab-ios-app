@@ -220,7 +220,7 @@ struct MeditationView: View {
                     Text(timeString(s.durationSeconds)).font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.dim)
                     Text(verbatim: "coh " + EchoelDecimalText.string(s.avgCoherence, decimals: 2))
                         .font(EchoelTheme.font(12)).foregroundStyle(EchoelTheme.accent)
-                        .frame(width: 72, alignment: .trailing)
+                        .frame(minWidth: 72, alignment: .trailing)
                 }
                 .padding(.vertical, 6).padding(.horizontal, 10)
                 .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
