@@ -23733,3 +23733,39 @@ bleiben ein registrierter, founder-gegateter Nachtrag (Anspruch 5 pinnt sie).
 
 **Grading:** Anspruch 6 und 7 ROT auf HEAD, GRÜN im Worktree. Anspruch 8 grün auf beiden — ein Pin
 auf die Ehrlichkeit der Abkürzung, kein Vakuum: die Frage ist auf beiden Bäumen stellbar.
+
+## 2026-09-05 — #1019 · Der Arbeitsplan trägt seinen eigenen Stand
+
+**Build 447 ist in TestFlight** (Lauf 2565): Archive ✓ · Export & Upload ✓ · Verify in App Store
+Connect ✓. Trägt #1014 · #1015 · #1016 · #1017 · #1018.
+
+**Danach jeden verbliebenen Audit-Punkt gemessen — und ALLE nicht-gegateten sind zu.**
+Gemessen statt erinnert:
+· **14** (Touch-Noten → MIDI out) — gebaut: `midiOut` wird bei `FloatingVisualWindow:800`
+  übergeben und an 7+ Notenstellen benutzt.
+· **15** — `StudioDefaultKeys.audioLatencyMode` existiert.
+· **16** — `PatchbayView` liest `lastSentTimestamp`, nicht `isActive`.
+· **17** — `ArtNetSender.fixtureCount` + `DMXFixtureFan.fanned` + „Fixtures"-Feld.
+· **26** — `clearSharedVitals()` gegen die GRUPPEN-Suite, gerufen in `resetSoundToDefaults()`,
+  korrekt NICHT in `SoundReset.entries`.
+· **27** — Agent-Hälfte mit #1013 erledigt (sechs → neun geschützte Schlüssel + Gegenprüfung).
+· **28** — alle drei Stichpunkte zu: Genre-Klausel gestrichen, `FaceExpressionBioPublisher` ist
+  der achte Register-Eintrag (#1002), Donut-Caption verzweigt auf `spectralDonuts` (#1003).
+· **0 · 24** — ebenfalls zu.
+
+**ELF Punkte waren beim Messen bereits gebaut** (1, 2, 4, 14, 15, 16, 17, 19, 20, 21, 26). Der
+Arbeitsplan wurde gegen einen Baum geschrieben, der sich schon bewegt hatte. ⛔ Mein erster
+Satz dazu schrieb „NEUN" und zählte dann elf auf — im Absatz, dessen ganzer Punkt Messen statt
+Erinnern ist. Korrigiert und die Rücknahme stehengelassen.
+
+**#1019 liefert:** eine Statustabelle im KOPF des Arbeitsplans. Ein 28-Punkte-Plan, der offen
+aussieht, während keiner handlungsfähig ist, führt eine Sitzung stärker in die Irre als jede
+veraltete Zahl — genau die Defektklasse, die Punkt 28 desselben Dokuments benennt.
+
+**⛔ Punkt 23 (Website ohne Bild/Video): die Agent-Hälfte ist ABGELEHNT, nicht vertagt.** Ein
+`<video>`/`poster` auf nicht existierende Dateien stellt ein totes Rechteck auf die LIVE-Seite —
+schlechter als die ehrliche Leere. `docs/` hält drei PNGs, alle drei Icons oder die Marken-Karte.
+Zwei Prämissen des Punkts korrigiert: die Bitte steht NICHT in §4 (das sind Store-Screenshots,
+anderes Artefakt), und `press.html:157` ist ehrlich. Stattdessen: **§4b in
+`FOUNDER_DEVICE_SESSION.md`** mit der konkreten Aufnahme — und dem Kostenhinweis, dass EINE
+Sitzung beides liefert.

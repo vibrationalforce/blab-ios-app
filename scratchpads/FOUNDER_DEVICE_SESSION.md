@@ -78,6 +78,29 @@ Von den fünf Checks des Gates „Instrument-Complete v1" (CLAUDE.md) sind **Kon
       Captions sind fertig getextet (keyword-tragend) — verbatim übernehmen.
 - [ ] 6.5" Set falls bequem.
 
+### 4b · Website-Aufnahme — **derselbe Termin, fast kein Mehraufwand** (2026-09-05)
+
+⭐ **Warum das hier steht und nicht bei den Screenshots:** die Website hat auf **allen 24 Seiten
+null** `<img>`, `<video>`, `<canvas>` oder `<iframe>` — der einzige Rasterbild ist `og-cover.png`,
+eine typografische Marken-Karte, die nur als `og:image` referenziert wird. Ein Musiker beurteilt
+ein Instrument in zehn Sekunden mit Auge und Ohr und bekommt einen Satz über einen Metal-Renderer.
+
+⚠️ **Ich kann den Slot NICHT vorbereiten** — ein `<video>`/`poster`, das auf nicht existierende
+Dateien zeigt, stellt ein totes graues Rechteck auf die LIVE-Seite. Das ist schlechter als die
+ehrliche Leere. Also wartet die Seite auf genau eine Datei.
+
+- [ ] **~8 Sekunden Bildschirmaufnahme** aus dem Vollbild-Visual, während ein Take läuft und Du
+      auf dem Bild spielst (die Wasserringe unter den Fingern sind der Punkt — das ist die eine
+      Geste, die kein Konkurrent hat).
+- [ ] **Ein Standbild aus derselben Aufnahme** als `poster` — dann zeigt die Seite auch etwas,
+      wenn „Bewegung reduzieren" an ist oder das Video nicht lädt.
+- [ ] Bedingungen: **kein Blitzen über 3 Hz** (das Gesetz gilt auch für Marketing-Material),
+      keine persönlichen Daten im Bild, Hochformat.
+
+**Kosten-Hinweis:** das ist DERSELBE Sitzungstyp wie §4. Wenn Du ohnehin die Store-Screenshots
+aufnimmst, kostet die Website-Aufnahme praktisch nichts extra — nur einmal auf Aufnahme drücken,
+bevor Du die Standbilder machst.
+
 ---
 
 ## 5 · Ein-Feld-Entscheide (kurz bestätigen, kein Gerät nötig)

@@ -6,6 +6,47 @@
 
 ---
 
+## ⭐ STATUS 2026-09-05 — **every agent-actionable item in this order is CLOSED.**
+
+**Read this before planning from the items below.** A work order that reads as 28 open asks
+while none is actionable misdirects a cycle harder than any stale number — which is the exact
+defect class item 28 of this very file names. So the state is recorded here, per item, measured
+rather than remembered.
+
+| # | State | Evidence |
+|---|---|---|
+| 0 | ✅ shipped | the stale door assertion is struck; only its ⛔ retraction quotes the old needle |
+| 1 · 2 · 4 | ✅ **already built when measured** | measured before touching, per this file's own advice |
+| 3 | ✅ shipped, better place than proposed | #992 fixed the source (`isLocked` carries `framesFlowing`); #1014 fixed the sentence that takes the lock's place |
+| 5 – 13 | 🔒 **FOUNDER-GATED** | first-run guide · breath pinning · breath phase · harmonic-mapping door · brightness re-seed · flow density · inner-pulse layer · the HealthKit hold · the 0.60–0.72 wording. Item 12's comment half and item 13's breadcrumb half both shipped (#1015, #1016); what is left in each is his ear |
+| 14 | ✅ already built | `midiOut` is passed at `FloatingVisualWindow:800` and used at 7+ note sites in `TouchInstrumentView` |
+| 15 | ✅ already built | `StudioDefaultKeys.audioLatencyMode` |
+| 16 | ✅ already built | `PatchbayView` reads `lastSentTimestamp`, not `isActive` |
+| 17 | ✅ already built | `ArtNetSender.fixtureCount` + `DMXFixtureFan.fanned` + the "Fixtures" field |
+| 18 | ✅ measured + pinned; **the proposed slice was refused** | #1017 — see the ⛔ block on that item. The product half is his |
+| 19 · 20 · 21 | ✅ already done | closed by #999 and the site truth pass, before this audit was written |
+| 22 | ✅ closed | #994 did the safety card, #1018 the two sibling entries it left standing |
+| 23 | 🔒 **FOUNDER-GATED in full** | ⛔ and the "prepare the slot" half is **refused, not deferred**: a `<video>`/`poster` pointing at files that do not exist ships a dead rectangle to a live site — worse than the honest absence it replaces. See the note under that item |
+| 24 | ✅ shipped | both pages carry a real "Request TestFlight access" mailto |
+| 25 | ✅ closed | all seven silently-red full-suite tests triaged (#1007–#1012); the CI reveal stays his |
+| 26 | ✅ already built | `BioFeedbackManager.clearSharedVitals()` against the **group** suite, called from `resetSoundToDefaults()`, correctly NOT in `SoundReset.entries` |
+| 27 | ✅ agent half shipped | #1013 grew `check-infoplist.sh` from six guarded strings to all nine, plus a reverse check. The three inaccurate strings are reported in build notes 446/447 — `Info.plist` is his |
+| 28 | ✅ all three bullets closed | genre-roster clause struck · `FaceExpressionBioPublisher` is the register's 8th entry (#1002) with its guard · the donut caption branches on `spectralDonuts` (#1003) |
+
+**⚠️ THE PATTERN, because it matters more than the tally: ELEVEN items were already built when
+measured** — 1, 2, 4, 14, 15, 16, 17, 19, 20, 21, 26. (The first draft of this sentence said
+NINE and then listed eleven, in the paragraph whose whole point is measuring instead of
+remembering. Counted, not recalled.) This order was written against a tree that had already
+moved. **Measure before building, every
+time** — and if a future audit is written the same way, measure its items before ranking them.
+
+**What is genuinely left is his:** two sensory ship-gate checks (Klang, Stabilität), the nine
+founder-gated items above, the website capture, and the device verifications listed in build
+note 447.
+
+
+---
+
 ## Cycle 0 — do this first regardless of rank
 
 ### 0. Un-red the blocking test bundle: two guards assert opposite things about the still shutter
@@ -236,6 +277,12 @@ Verified on HEAD: `AStillIsOneFrameNotASecondPathTests.swift:86` requires the su
 **Slice, split honestly:** the agent **cannot** produce the asset — that is a founder device capture, already logged as one in `scratchpads/FOUNDER_DEVICE_SESSION.md:74-79 §4`, and `ContentPipeline/Assets/README.md:3-5` gates committing raw video. What the agent *can* land: prepare the slot — a `<video muted autoplay loop playsinline poster>` block inside the existing `@media (prefers-reduced-motion: reduce)` guard at `docs/index.html:567`, with the poster as fallback — and write the ask. `index.html` inlines its own `<style>` and does not load `shared.css`. Do **not** touch `artist.html` (standing "do not build a player" gate at `docs/CLAUDE.md:23-27`), and never use `docs/screenshots/*.html` — those are CSS mockups, a worse claim than none.
 **Files:** `docs/index.html`, `docs/press.html`.
 **Gating:** **FOUNDER-GATED** — the asset needs his device and his eye.
+
+**⛔ THE AGENT HALF IS REFUSED, NOT DEFERRED (2026-09-05), and two of this item's premises are corrected.** Landing a `<video muted autoplay loop playsinline poster>` block whose `src` and `poster` do not exist puts a dead rectangle on the LIVE site — a visitor reads "this site is broken", which is precisely the damage item 20 argues about. There is no poster to fall back to either: `docs/` holds three PNGs and all three are icons or the `og:image` brand card. An empty slot is worse than the honest absence it would replace, so nothing was added.
+
+**Premise correction 1:** the ask is **not** already logged in `FOUNDER_DEVICE_SESSION.md §4`. That section asks for **App Store screenshots** (6.9" set, 8 shots, captions written) — a different artefact for a different surface. The site's hero loop is nowhere in that file. ⭐ Worth saying when it is added: **one capture session yields both**, so the marginal cost of the site asset is close to zero once he is already shooting the store set.
+
+**Premise correction 2:** `press.html:157` is honest as it stands ("Screenshots and preview video: available on request (device captures in progress)") — it promises a route, and since #1005 line 114 gives one. It is not part of this defect.
 
 ### 24. Give press and testers a door
 
