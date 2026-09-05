@@ -23079,3 +23079,54 @@ ist er kritisch, weil `Sources/**` im Filter steht. Die Regel gehört an den PFA
 Sorte der Änderung: **canceln kann nur ein Push, der mindestens einen der gefilterten Pfade
 berührt.** Und `.deploy/release` gehört zu keinem der beiden Gates — der Deploy-Bump kann also
 nie ein laufendes Compile-Gate abschneiden.
+
+## 2026-09-05 — Build 444 geshipt · #1000 Spielfläche → MIDI OUT (Audit-Punkt 14)
+
+**Gates für die 443er-Charge einzeln gelesen, bevor die Notiz geschrieben wurde.** Xcode Compile
+Check Lauf 2357 (`ae2c126`) = `success`. CI/CD Lauf 5823, Job „Build & Test (iOS)", **Schritt 9
+„Build for Testing" = `success`** — das ist der Beleg, dass die VIER neuen Wächter-Dateien
+(#995 · #996 · #998 · #999) kompilieren; der Compile Check allein sagt über eine Testdatei nichts.
+Gesamt-Conclusion wie immer `failure` (#396), also bedeutungslos.
+
+**Build 444** deckt #995–#999. Notiz gegen beide Deploy-Wächter getrieben, bevor sie ging:
+erster `vX.Y.Z`-Treffer der GANZEN Datei ist `v10.79.444` in Zeile 1, Vorgänger als `10.79.443`
+ohne `v`; die einzigen zwei `X-Chip`-Pfade sind `Master` und `Save/Export`, beide echte Chips;
+Diagnostics-Weg genannt. Zwei Bitten an den Founder sind rein sensorisch (Routing-Punkt am echten
+Rig mit falscher IP, ein Druck auf „Sound zurücksetzen").
+
+### #1000 — Audit-Punkt 14: die Spielfläche spielt jetzt auch den DAW
+
+**Befund.** `TouchInstrumentView` — die EINE spielbare Fläche der App, über dem Bild montiert,
+bei jeder Fenstergröße, in einem beim Start geöffneten Fenster — enthielt **null** Verweise auf
+`MIDIOutput`. Der Körper spielte den DAW, die Hände nicht.
+
+**Was die Form der Reparatur bestimmt hat, ist nicht die fehlende Note, sondern die HÄNGENDE.**
+Ein fremdes Instrument, das ein note-on ohne passendes off bekommt, hält es bis zur Panik-Taste.
+Zwölf Aufrufstellen einzeln zu spiegeln ist genau die Arbeit, bei der eine vergessen wird — also
+**ein Besitzer pro Lebenszyklus-Kante**: `startNote` / `stopNote`, und danach sind **null** nackte
+`synth?.noteOn(` / `voice.noteOn(` übrig. Der Wächter prüft genau das.
+
+**Drei Dinge, die beim Bauen erst sichtbar wurden:**
+1. **Statisch, mit beiden Zielen als Argument** — vier Aufrufstellen laufen in einem `Task`, der
+   die View absichtlich überlebt (`[weak self, voice]`, weil der note-off das Einzige ist, was
+   diese Stimmen beenden kann). Eine Instanzmethode hätte die MIDI-Hälfte **genau im Abbau-Fall**
+   verloren, also dort, wo eine hängende Note entsteht.
+2. **Der Glide MUSSTE behandelt werden, und nicht symmetrisch.** Die Engine gleitet ohne
+   Retrigger; MIDI kann das ohne MPE-Zone nicht (#548), und ±2 Halbtöne Kanal-Bend erreichen die
+   nächste Stufe nicht. **Gar nicht spiegeln ist die einzige wirklich kaputte Option**: `held`
+   wandert auf die neue Tonhöhe, das Abheben löste also die falsche aus und ließe die alte stehen.
+   Also off+on, mit der Asymmetrie als Kommentar UND als Wächter-Anspruch — sonst räumt sie jemand
+   als Schlamperei weg und zerschneidet dabei das Legato.
+3. **`channelForPitch` ist ein STACK pro Tonhöhe.** Das Echo, das eine gehaltene Tonhöhe neu
+   anschlägt, schiebt drauf, die zwei offs poppen in der Reihenfolge. Kein eigenes Buchhalten nötig.
+
+### ⛔ Rücknahme in meinem EIGENEN Wächter-Kopf, vor dem Commit gefangen
+
+Ich schrieb „1, 2, 3 sind load-bearing, 4, 5, 6 sind Gegengewichte, grün auf BEIDEN Bäumen" —
+und die Transkription gegen `git show HEAD:` sagte **alle sechs rot auf HEAD**. Das war eine
+VERMUTUNG über die Benotung statt der Messung; jeder Mechanismus, den 4/5/6 nennen (die Signatur
+der Helfer, die starke Capture, das Mount-Argument), ist neu in dieser Scheibe und kann eine
+Zeile vorher nicht existieren. Kopf korrigiert: keiner der sechs ist Vorher/Nachher-Beleg, sie
+sind Pins auf einen NEUEN Mechanismus — und was sie unterscheidet, ist welche ZUKÜNFTIGE Änderung
+jeder fängt. **Lehre: die Benotungszeile im Kopf ist selbst eine Behauptung und gehört gemessen,
+nicht geschätzt.**
