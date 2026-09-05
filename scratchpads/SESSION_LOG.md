@@ -23155,3 +23155,53 @@ Wer ohnehin gleich weiterschiebt und erst am Ende ein Urteil braucht, verliert n
 neueste Baum den alten enthält. Was #996 wirklich gekostet hat, war nicht der Cancel an sich,
 sondern dass zwischen den drei Scheiben KEIN Urteil je vorlag und ich es trotzdem für „grün"
 hätte halten können.
+
+## 2026-09-05 — Audit-Punkt 28 komplett (#1001 · #1002 · #1003): drei Register-Lügen
+
+Punkt 28 des Deep Audits nannte drei Einträge „je ein Zyklus". Sie sind in EINEM erledigt, weil
+sie **eine Fehlerklasse** sind und nicht ein Sammelposten: jede sagt einer künftigen Sitzung
+etwas Falsches über den BESTAND, und genau deshalb kostet jede einen ganzen Zyklus — sie taucht
+nie als Frage auf, man liest sie und plant daraus.
+
+**#1001 — der Genre-Roster.** Der Doc-Block über `MusicStyle.Category` sagte „Every genre is now
+offered". Gemessen: **36 Fälle, 19 angeboten** — meditative 8/8, electronic 10/17, **rock 0/5**
+(die Familie samt Picker-Überschrift verschwindet ganz), acoustic 1/6 (nur `.classical`).
+`Category` ist die SORTIERUNG, der Roster ist `offered`. Die Kuratierung selbst ist kein Defekt
+(Founder-Ohr) und der Vermerk sagt das zweimal — siebzehn fertige, gepatchte, unterscheidbare
+Genres liegen absichtlich dunkel.
+⚠️ **Der Wächter durfte NICHT auf die nackte Phrase scannen**: die gestrichene Klausel steht in
+ihrer eigenen Rücknahme, ein Abwesenheits-Scan wäre auf einer KORREKTEN Datei rot geworden —
+die #491-Falle, diesmal in einer Quelldatei. Anspruch 1 erlaubt die Phrase nur auf einer Zeile,
+die sie als `STRUCK` markiert.
+
+**#1002 — die Gesichts-Quelle.** `FaceExpressionBioPublisher`: fertiger ARKit-Publisher
+(Blendshapes → smile/brow/jaw als [0..1], `.faceCam`, ~10 Hz, Lock-Drain statt Actor-Hop pro
+Frame), **null** Konstruktionsstellen, `BioSourceOption` kennt nur `camera, ble, sim` — und im
+türlosen Register von `CLAUDE.md` **gar nicht vorhanden**. Achter Eintrag, und der erste, der
+weder Ansicht noch Kern ist, sondern eine ganze **Eingabe-Modalität**. Die Lücke war in beide
+Richtungen teuer: jemand baut Face-Tracking neu, das es gibt, oder verdrahtet TrueDepth ohne
+die zwei Dinge, die mitmüssen (die founder-gegatete Front-Kamera-Zweckerklärung und die
+EU-AI-Act-Rahmung, die der Dateikopf selbst schon trägt).
+⚠️ **Decke beachtet:** `CLAUDE.md` steht jetzt bei **148 537 B**, also **1 463 B unter der
+150 000er-Decke**. Der Eintrag ist bewusst knapp; die Provenienz liegt im Wächter-Kopf, der
+keine Sitzung etwas kostet. Wer als Nächstes etwas hinzufügt, misst vorher.
+
+**#1003 — die Detail-Bildunterschrift.** Im Vollbild mit Donut-Modus zeigte das VJ-Overlay
+„Detail shapes the Rings look only", während `SpectralDonutView(bandCount: max(8,
+Int(visualDetail)))` das Bild vor dem Spieler zeichnete. Das EINE Feld, das den Renderer
+erreichte, war als inert beschriftet — neun wirklich inerte Felder trugen gar keine Unterschrift.
+⭐ **`LookBlendMap.detailReach` war nie falsch.** Es beantwortet „wie viel vom METAL-Feld kann
+Detail formen", und das weiß nichts von Donuts und soll es auch nicht. Der Defekt saß in der
+Unterschrift, die es KONSUMIERT — also ist dort repariert und das Prädikat unangetastet.
+⚠️ Der Audit-Vorschlag („`spectralDonuts` als Parameter durchreichen") war unnötig: ab Zeile 61
+ist die ganze Datei EIN `struct`, die Methode liest den Zustand direkt. Ein Parameter hätte
+Verrohrung für Zugriff gebaut, den sie hat.
+
+### ⭐ DIE LEHRE, DIE ÜBER DIESEN PUNKT HINAUSGEHT
+
+`LookBlendMap` hat den Ablauf **wörtlich vorhergesagt**: „wrong the day it is re-doored". #747
+hat die Tür gebaut — und die Unterschrift log danach monatelang weiter. **Eine Vorhersage in
+Prosa benennt keinen BESITZER, also wird nichts rot, wenn der Tag kommt.** Sie war präzise und
+trotzdem wirkungslos. Regel ab hier: wer eine Ablauf-Bedingung aufschreibt, schreibt im selben
+Commit den Wächter dazu, der an genau diesem Tag rot wird — sonst ist die Vorhersage nur eine
+elegantere Fassung derselben Lüge.
