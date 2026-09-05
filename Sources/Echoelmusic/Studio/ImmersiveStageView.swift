@@ -15,8 +15,11 @@
 //  view is a thin shell that reads the store and writes back moves. View geometry stays
 //  in CGFloat; the pure math boundary takes/returns Double.
 //
-//  Render safety: reads only user-frequency state (the scene changes on drag / lane
-//  edits, never at bio rate), so it is safe to read `SpatialSceneStore` in this body.
+//  Render safety: this body reads only user-frequency state (the scene changes on drag /
+//  lane edits, never at bio rate), so it is safe to read `SpatialSceneStore` here. The ONE
+//  high-frequency value it shows — `ADMOSCSender.lastSentTimestamp`, stamped per datagram —
+//  is read inside `ADMStreamStatusLine`, a leaf, and must stay there (#996): this body hosts
+//  a drag gesture over every puck, so a 30 Hz rebuild would land on the interaction itself.
 //  It owns NO `.sheet` — it was presented from the arrange timeline's sheet slot,
 //  which the pure-instrument cut removed (#121, Slice 4 / 4b). The view is intact
 //  but currently DOORLESS: re-door it from the instrument home when the spatial
@@ -234,9 +237,21 @@ struct ImmersiveStageView: View {
             }
             .tint(EchoelTheme.accent)
             .accessibilityHint("Sends every track's spatial position to an external immersive renderer over the open ADM-OSC standard.")
-            Text(streamStatusLine)
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
+            // ⚠️ THE LIVE HALF IS A LEAF (#996). The two sentences below are computed from
+            // low-frequency flags and stay here; the "sending / open" half reads
+            // `lastSentTimestamp`, which is stamped at up to ~30 Hz, so reading it in this body
+            // would make the whole stage rebuild at that rate. Same law as the Routing dot.
+            if admOSC.streamsScene, admOSC.isActive {
+                ADMStreamStatusLine(sender: admOSC, host: admOSC.host, port: admOSC.port,
+                                    objectCount: admOSC.lastSceneObjectCount)
+            } else {
+                // The two STATIC sentences. Their modifiers stay on the `Text` rather than on
+                // the `if` — a ViewBuilder `if` is a statement, so a chain after its closing
+                // brace does not compile. The leaf carries its own styling to match.
+                Text(streamStatusLine)
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
         .padding(12)
         .background(RoundedRectangle(cornerRadius: EchoelTheme.radius).fill(EchoelTheme.fill))
@@ -244,8 +259,19 @@ struct ImmersiveStageView: View {
             .strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
 
-    /// One honest line for every state — off / route-needed / streaming — so it's
-    /// never ambiguous whether anything is actually leaving the device.
+    /// One line for every state — off / route-needed / open / sending.
+    ///
+    /// ⛔ ITS LAST LINE PROMISED MORE THAN IT KNEW UNTIL #996, on a property whose own doc
+    /// comment says so: `isActive` is set ONE LINE after `connect()`, so "Streaming N objects to
+    /// host:port" was printed the moment the connection opened — with no scene ever sent, and
+    /// with the wrong IP looking exactly like the right one. The sentence above it called itself
+    /// "one honest line for every state", which is how it survived: the claim of honesty read as
+    /// the audit of it.
+    ///
+    /// The fourth state is the honest one and it is not a fault: `ADMOSCSender` skips a scene
+    /// identical to the one it already streamed, so a still stage legitimately stops sending
+    /// while the renderer holds exactly the right positions. `NetworkSendState` owns that
+    /// distinction and its window, so this line and the Routing dot cannot disagree (#416).
     private var streamStatusLine: String {
         if !admOSC.streamsScene {
             return "Send every track's position to an immersive renderer over the open ADM-OSC standard."
@@ -253,8 +279,11 @@ struct ImmersiveStageView: View {
         if !admOSC.isActive {
             return "Turn on \u{201E}ADM-OSC output\u{201C} in Routing to open the connection — then this streams live."
         }
-        let n = admOSC.lastSceneObjectCount
-        return "Streaming \(n) object\(n == 1 ? "" : "s") to \(admOSC.host):\(admOSC.port)."
+        // Unreachable in practice — the call site only renders this branch when the two flags
+        // above are false — but a `String` property with no `return` does not compile, and a
+        // `fatalError` here would be a crash reachable by a future edit. The neutral sentence is
+        // the same one the "route needed" state uses, deliberately: it can never over-claim.
+        return "Turn on \u{201E}ADM-OSC output\u{201C} in Routing to open the connection — then this streams live."
     }
     #endif
 }

@@ -281,16 +281,23 @@ struct PatchbayView: View {
     /// Host + port (+ universe) per network output, so the founder can point OSC/ADM at
     /// Resolume/TouchDesigner/MadMapper and sACN/Art-Net at the right light node instead
     /// of only localhost/broadcast. Values persist (UserDefaults in each sender) and a
-    /// live edit reconnects immediately. Flat rows (no card-in-card, Uncodixfy). The dot
-    /// = whether that output is currently sending (low-frequency isActive — freeze-safe).
+    /// live edit reconnects immediately. Flat rows (no card-in-card, Uncodixfy).
+    ///
+    /// ⛔ THIS LINE SAID the dot is "whether that output is currently sending (low-frequency
+    /// isActive — freeze-safe)". Both halves were wrong in opposite directions and they
+    /// cancelled each other out in review: `isActive` is indeed low-frequency, but it is set one
+    /// line after `connect()` and therefore never meant "sending" at all. Since #996 the dot
+    /// reads `lastSentTimestamp`, which DOES mean a datagram left the device — and is stamped at
+    /// up to ~30 Hz, so it is freeze-safe only because `NetworkOutputHeader` is a leaf. The
+    /// safety moved from the value to the placement, which is why the sentence had to move too.
     private var networkOutSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             Text("Network output").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
-            outputRow("OSC", active: osc.isActive, host: oscHost, port: oscPort)
-            outputRow("ADM-OSC", active: admOSC.isActive, host: admHost, port: admPort)
-            outputRow("sACN · Light", active: sacn.isActive, host: sacnHost, port: sacnPort,
+            outputRow("OSC", sender: osc, host: oscHost, port: oscPort)
+            outputRow("ADM-OSC", sender: admOSC, host: admHost, port: admPort)
+            outputRow("sACN · Light", sender: sacn, host: sacnHost, port: sacnPort,
                       universe: sacnUniverse, universeRange: 1...63_999)
-            outputRow("Art-Net · Light", active: artNet.isActive, host: artNetHost, port: artNetPort,
+            outputRow("Art-Net · Light", sender: artNet, host: artNetHost, port: artNetPort,
                       universe: artNetUniverse, universeRange: 0...32_767)
             Text("Target IP + port per output — changes take effect immediately while the output is running. OSC/ADM default to 'localhost' (this device); for Resolume · TouchDesigner · MadMapper enter the target computer's IP. Art-Net sends by broadcast (255.255.255.255) to all LAN nodes by default.")
                 .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
@@ -301,42 +308,29 @@ struct PatchbayView: View {
         .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
 
-    private func outputRow(_ name: String, active: Bool, host: Binding<String>, port: Binding<Float>,
+    private func outputRow(_ name: String, sender: any NetworkSendActivity,
+                           host: Binding<String>, port: Binding<Float>,
                            universe: Binding<Float>? = nil,
                            universeRange: ClosedRange<Float> = 1...63_999) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(spacing: 7) {
-                // ⛔ THIS DOT WAS COLOUR-ONLY until 2026-07-29: `fill(active ? accent : border)`
-                // on an identical 7 pt circle, no text, no label. Whether an Art-Net / sACN /
-                // OSC output is actually live was green-versus-grey and nothing else — so for
-                // a red-green colour-blind operator (~8% of men) it was unreadable, on the one
-                // surface where reading it wrong means a silent show. `differentiateWithoutColor`
-                // is used ZERO times in this codebase, so there was no fallback anywhere.
-                //
-                // Fixed by SHAPE, not by a setting: filled when live, hollow ring when not.
-                // That is the idiom `BioStripView` already uses for its driving/live/idle dot,
-                // and it is unconditional — it helps everyone, including someone glancing at a
-                // dim laptop screen in a venue, rather than only users who found a toggle.
-                Group {
-                    if active {
-                        Circle().fill(EchoelTheme.accent)
-                    } else {
-                        Circle().strokeBorder(EchoelTheme.border, lineWidth: 1.5)
-                    }
-                }
-                .frame(width: 7, height: 7)
-                // No-op today: the `.ignore` below already discards this subtree. Kept so a
-                // later switch to `.combine` stays correct rather than silently reading a
-                // glyph name.
-                .accessibilityHidden(true)
-                Text(name).font(EchoelTheme.font(13, .semibold)).foregroundStyle(EchoelTheme.text)
-                Spacer(minLength: 0)
-            }
-            // …and VoiceOver could not read the state at all, because a bare `Circle` carries
-            // no label. The name and the state are announced as one element.
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel(name)
-            .accessibilityValue(active ? "sending" : "not sending")
+            // ⭐ THE DOT MOVED INTO ITS OWN LEAF (#996, audit item 16), and it now means
+            // something. It used to render `isActive`, which every sender sets ONE LINE after
+            // `connect()` — so it read "sending" with the engine stopped and no publisher
+            // running, and the OSC row read "sending" for a whole session while
+            // `BioEgressPolicy` refused every HealthKit-sourced frame. It fired exactly where
+            // recovery is impossible: on stage, before doors.
+            //
+            // `NetworkOutputHeader` reads `lastSentTimestamp` instead — a value all four
+            // senders already stamp and NOBODY read. It has to be a leaf: that property moves
+            // at up to ~30 Hz on an `@Observable`, and reading it in this body would subscribe
+            // the host/port `TextField`s and the resolution `Picker` to a 30 Hz signal (the
+            // 10.76.50 menu freeze), on the surface an operator uses mid-show.
+            //
+            // ⛔ THE COLOUR-BLINDNESS FIX FROM 2026-07-29 TRAVELLED WITH IT rather than being
+            // re-derived: filled / hollow was shape-not-colour on purpose, and the third state
+            // needed a third SHAPE (a ring), not a third colour. The note explaining why lives
+            // in the leaf now, beside the code it describes.
+            NetworkOutputHeader(name: name, sender: sender)
             TextField("IP / host", text: host)
                 .textFieldStyle(.plain)
                 .font(EchoelTheme.font(13).monospacedDigit())

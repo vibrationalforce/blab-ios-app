@@ -22907,3 +22907,54 @@ BEFORE the erase. Nothing in this repo can. That limit must not be overclaimed i
 **Window check:** `ResetSoundClearsWhatTheLaunchLineReportsTests` windows the reset on the
 `reset/sound:` breadcrumb — the string still matches, and its three assertions sit above the
 insertion, so it stays green. No other test or script pins the breadcrumb text.
+
+## #996 — the network "sending" dot means a datagram left the device (audit item 16)
+
+**Measured before building, and the plan held.** All four senders set `isActive = true` ONE LINE
+after `connect()` (`OSCSender:120`, `ADMOSCSender:133`, `SACNSender:117`, `ArtNetSender:138`), and
+the Routing rows rendered exactly that as "sending". Meanwhile `lastSentTimestamp` is declared and
+stamped in **all four** and had **zero readers** — `ADMOSCSender`'s own comment says so at :231.
+
+**Why it matters where it does:** it fires on stage, before doors, where recovery is impossible —
+and the wrong IP looks exactly like the right one.
+
+**NOT `stateUpdateHandler`**, and that is the trap the audit named: UDP reaches `.ready` for any
+routable IPv4 literal, and both light senders default to exactly those (255.255.255.255 and
+192.168.1.100), so that "obvious" fix would leave a wrong-IP rig filled green.
+
+**Three states, not two**, because two would lie in the other direction. Measured at
+`ArtNetSender.tick`: when the source is stale and no master/slew value moves, the sender
+DELIBERATELY emits nothing and the rig holds its last DMX level — correct output, no datagrams.
+Same for ADM skipping an unchanged scene and for OSC's bio egress refused by `BioEgressPolicy`.
+So: **off · sending · open, nothing sent**.
+
+**Leaf, mandatory.** `lastSentTimestamp` is a TRACKED property on an `@Observable`, stamped at up
+to ~30 Hz. Reading it in `PatchbayView.body` would subscribe the host/port `TextField`s and the
+resolution `Picker` to a 30 Hz signal (10.76.50) on the surface an operator uses mid-show; in
+`ImmersiveStageView` it would land on a body hosting a drag gesture over every puck. Hence
+`NetworkOutputHeader` and `ADMStreamStatusLine`, each with its own 2 Hz tick — without a tick, a
+stamp that simply STOPS never re-renders and "sending" would stay on screen forever.
+
+**Two clocks, one comparison.** The `TimelineView` gives a wall-clock `date`; `lastSentTimestamp`
+is `CFAbsoluteTime`. Mixing them compares numbers ~31 years apart. The tick is used ONLY to
+re-evaluate (`{ _ in }`); the comparison stays inside one clock. Written at the closure.
+
+**Colour-blindness fix travelled, not re-derived.** The 2026-07-29 note (green-vs-grey is
+unreadable for ~8% of men on the one surface where reading it wrong means a silent show) moved
+into the leaf with the code. Three states needed a third SHAPE — a ring — not a third colour.
+
+**Second home fixed in the same commit (#456/#416):** `ImmersiveStageView.streamStatusLine`
+asserted "Streaming N objects to host:port" from `isActive`, under a doc comment calling itself
+"one honest line for every state" — the claim of honesty is how it survived review. Both surfaces
+now derive from ONE `NetworkSendState`, so they cannot disagree. Its file-header render-safety
+note was a THIRD prose home and moved too.
+
+**Layering:** the protocol conformances are retroactive and EMPTY, and they live in the Studio
+file rather than in `Sync/`. `Sync/` imports Foundation and Network; putting a UI-side protocol
+name into a sender would point the dependency arrow the wrong way for a layer whose job is to know
+nothing about the UI.
+
+**Guard:** `Tests/CISmoke/TheSendingDotMeansSendingTests.swift`, 6 claims, honest grading in the
+header: 1–4 exercise `NetworkSendState` directly (a type absent on HEAD), 6 is the load-bearing
+structural claim, and 5 is green on both trees by design — it prevents the hot read from migrating
+into the two host bodies later, which is the one way this fix becomes the freeze.
