@@ -23330,3 +23330,43 @@ Designspannung (Skip-Null).
 `ProjectCodableTests.testExplicitEncoder_writesEveryField` · f. `FeatureFlagsTests.testEveryFlagDefaultsOff` ·
 g. `BioComposerTests.testGenresSharingAnArchetypeRenderDistinctDrums` (⚠️ Drums sind mit #166/#167
 gelöscht — vor dem Anfassen messen, ob der TEST der Defekt ist).
+
+## 2026-09-05 — #1009 · Audit-Punkt 25c/d: die zwei stillen Automations-Fehlschläge
+
+**Befund (gemessen).** `PolySynthAutomationBindTests` pinnte eine SECHS-Element-Liste als
+„der automatisierbare Satz" und schloss NEUN Parameter als „bio-umkämpft" aus. Der
+ausgelieferte Satz ist **ELF** (`PolySynthVoice.automatableBases`): #557 band die Anker
+`ddsp.osc.harmonicity` / `ddsp.osc.noiseLevel`, #558 die zwei Vibrato-Anker, #564 den
+brightness-Anker (nachdem sein Sentinel aus der Descriptor-Spanne herausgezogen war). Also
+behauptete Anspruch 1 sechs gegen elf, und Anspruch 2 behauptete von FÜNF gebundenen
+Parametern, sie seien nicht gebunden. Zwei rote Tests, unsichtbar hinter
+`full-tests.yml`s `continue-on-error`.
+
+**Reparatur = ÜBEREINSTIMMUNG, kein neues Literal.** Eine zweite handgeschriebene Kopie
+einer Liste ist eine Kopie, die wieder veralten kann — diese tat es über drei gewollte
+Commits hinweg. Die Ansprüche leiten jetzt ab:
+· gebundene Menge == `Set(PolySynthVoice.automatableBases)` (BEIDE Richtungen: eine
+  deklarierte Basis ohne Setter ist eine Spur, die nichts bewegt; ein Setter ohne
+  Deklaration ist ein Regler, der die Ein-Schreiber-Prüfung übersprungen hat)
+· Picker-Reihenfolge == Katalog-Reihenfolge gefiltert auf die Basen (`automatableDescriptors()`
+  filtert `registry.all()`, nicht die Bind-Reihenfolge — das war im alten Test stillschweigend
+  richtig und wäre beim nächsten Umsortieren falsch geworden)
+· Ausschluss == Katalog minus Basen, keiner davon gebunden (heute die zwei Reverb-Parameter,
+  `ddsp.osc.frequency`, `ddsp.filter.cutoff` — die vier, die der Quelltext auch nennt).
+
+**Transkribiert, nicht geraten:** alle elf Basen haben einen Setter-Case, alle elf stehen im
+Katalog, kein Setter ohne Deklaration, Ausschluss exakt die vier genannten. Drei Ansprüche
+grün auf dem Arbeitsbaum.
+
+**Kein Wächter im blockierenden Bundle (#416):** das GESETZ — Ein-Schreiber-Regel, Anker,
+Sentinels, die eine Filter-Adresse — hat sein Zuhause in
+`Tests/CISmoke/TheAutomatableSetHasOneWriterTests`. Diese Datei besitzt nur die VERDRAHTUNG.
+
+**Zwei Compile-Fallen beim Schreiben gefunden und behoben** (transkribieren fängt Logik,
+nicht Syntax): eine `\`-Zeilenfortsetzung in einem EINZEILIGEN `"…"` (nur in `"""` erlaubt)
+und `filter(…​.contains)` als blanke Methodenreferenz (zwei Überladungen, mehrdeutig).
+
+**Rest von Punkt 25:** e. `ProjectCodableTests.testExplicitEncoder_writesEveryField` ·
+f. `FeatureFlagsTests.testEveryFlagDefaultsOff` · g.
+`BioComposerTests.testGenresSharingAnArchetypeRenderDistinctDrums` (⚠️ Drums gelöscht,
+erst messen).
