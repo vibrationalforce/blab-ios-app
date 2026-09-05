@@ -1,4 +1,4 @@
-build: v10.79.443 — drei Stellen, an denen die App etwas Unwahres gesagt hat
+build: v10.79.444 — die App kann Deinen Körper vergessen, und das Bild darf sagen, dass man es spielen kann
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,124 +6,122 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.442.
+  Der Vorgänger ist 10.79.443.
 
   ── WORAUS DAS KOMMT ─────────────────────────────────────────────────────
 
-  Weiter am Deep Audit (Dein Auftrag vom 2026-09-04). 442 hatte die ersten zwei Funde.
-  443 hat die nächsten drei — und sie haben etwas gemeinsam, das mir erst beim Bauen
-  aufgefallen ist: **alle drei sind Stellen, an denen die App etwas behauptet hat, das
-  nicht stimmt.** Keine abgestürzte Funktion, kein fehlendes Feature. Drei Lügen.
+  Weiter am Deep Audit (Dein Auftrag vom 2026-09-04). 442 hatte zwei Funde, 443 drei.
+  444 hat fünf — und diesmal liegen sie nicht alle in der App: zwei davon sind Sätze,
+  die auf Deiner Produktseite und im App-Store-Text standen.
 
   Die vollständige Liste liegt weiter in `scratchpads/DEEP_AUDIT_2026-09-04_ARTISTIC_USER.md`.
 
-  ── 1. DIE PULS-ANZEIGE KONNTE GRÜN LEUCHTEN, OHNE DASS ETWAS ANKAM ──────
+  ── 1. DIE APP KONNTE DEINEN KÖRPER NICHT VERGESSEN ──────────────────────
 
-  Das Schloss neben Deinem Puls fragte drei Dinge über den MESSWERT — Herzfrequenz,
-  Sicherheit, Rhythmus-Stärke. Und keine einzige Frage danach, ob überhaupt noch etwas
-  ANKOMMT.
+  Echoel legt Deine letzte Messung — Herzfrequenz, HRV, Atemphase, Kohärenz — in einen
+  gemeinsamen Speicher, damit die Uhr und das Widget sie lesen können. Gemessen: es gab
+  **keine einzige Stelle im ganzen Code, die diesen Eintrag wieder löscht.**
 
-  Wenn iOS die Kamera anhält (App in den Hintergrund, Anruf, Systemsache) oder das Telefon
-  zu heiß wird und den Bildstrom drosselt, dann **frieren die letzten Werte einfach ein**.
-  Sie sind byte-genau gleich, Tick für Tick. Alle drei Fragen antworten weiter „ja".
+  Das ist kein theoretisches Problem. Der Speicher liegt in `Library/Preferences`, und
+  genau das nimmt ein verschlüsseltes Backup und iCloud mit. Der einzige Weg, Echoel eine
+  Vitalmessung vergessen zu lassen, war: App löschen.
 
-  Ergebnis auf Deinem Schirm: grünes Schloss, selbstbewusste bpm, ruhige Kurve — und die
-  Musik bekommt seit dreißig Sekunden nichts mehr von Deinem Körper. Genau diese Lüge hatte
-  die Datei schon einmal an einer anderen Stelle entfernt (Juli). Das hier war ihr zweites
-  Versteck.
+  Leicht zu übersehen war es, weil die ABGELEITETE Größe längst behandelt wird — der
+  „Sound zurücksetzen"-Weg löscht schon die Signatur, die aus dieser Messung berechnet
+  wird. Die Quelle blieb liegen.
 
-  Jetzt fragt das Schloss zusätzlich: kommen wirklich Bilder? Und zwar mit genau derselben
-  Bedingung, die auch der Datenbus benutzt — nicht mit einer zweiten, eigenen.
+  **Was Du jetzt tust:** `Sound zurücksetzen` löscht ab sofort auch die geteilte Messung.
+  **Was ehrlich bleibt:** ein Backup, das VOR dem Löschen gemacht wurde, erreicht das
+  nicht. Das kann an dieser Stelle nichts.
 
-  **Ehrlich offen:** die Pille geht jetzt dunkel, sagt aber noch nicht WARUM („Kamera
-  pausiert"). Das braucht einen neuen Hinweis-Typ und ist der nächste Schritt.
+  ── 2. DER „SENDET"-PUNKT IM ROUTING HAT GELOGEN ─────────────────────────
 
-  ── 2. EIN FEHLGESCHLAGENER EXPORT WAR NICHT VON EINEM TOTEN KNOPF ZU UNTERSCHEIDEN ──
+  Alle vier Netzwerk-Ausgänge (OSC, ADM-OSC, Art-Net, sACN) setzen ihr „aktiv"-Flag EINE
+  ZEILE nachdem sie die Verbindung aufmachen. Die Routing-Fläche hat genau dieses Flag als
+  „sending" gemalt. Also: Punkt auf grün, Engine gestoppt, kein Bio-Frame unterwegs.
 
-  Wenn ein WAV-Export klappt, ist das laut: das Teilen-Fenster geht auf. Wenn er scheitert,
-  stand der Grund **im Save-&-Export-Auszug** — hinter einem Chip, den niemand öffnet,
-  nachdem er einen Knopf an einer ganz anderen Stelle gedrückt hat.
+  Am schlimmsten beim OSC-Ausgang: läuft die Messung über Apple Health statt Kamera,
+  verweigert die Egress-Regel den Frame — eine ganze Session lang „sending", ohne dass ein
+  einziges Byte rausgeht.
 
-  Der Kommentar im Code begründete den Ort mit „sitzt da, wo der Nutzer sowieso hinschaut".
-  Das stimmte, als es geschrieben wurde — und ist seit August falsch, weil der Aufnahme-Knopf
-  seitdem auf der Frontplatte sitzt.
+  Das ist der Fehler, der genau dann zuschlägt, wenn er nicht mehr zu reparieren ist:
+  auf der Bühne, vor Einlass, mit der falschen IP, die exakt aussieht wie die richtige.
 
-  Der Satz steht jetzt dort, wo der Knopf ist. Verschoben, nicht kopiert: es gibt weiterhin
-  genau eine Stelle.
+  **Was Du jetzt siehst:** drei Zustände statt zwei — `off` · `sending` · `open, nothing
+  sent`. Der dritte ist kein Fehler, sondern ein echter Ruhezustand: ein Art-Net-Pult hält
+  seinen letzten DMX-Wert, wenn sich nichts bewegt, und da wird absichtlich nichts gesendet.
+  Drei FORMEN, nicht drei Farben (der Farbenblindheits-Fix von 2026-07-29 wandert mit).
 
-  ── 3. DIE SICHERHEITS-KARTE VERSPRACH EIN EINFRIEREN, DAS ES NICHT GIBT ──
+  **Weg:** **Master**-Chip → „Routing". Dieselbe Wahrheit steht jetzt auch auf der
+  Raumbühne, die vorher „Streaming N objects to host:port" behauptet hat.
 
-  Der Text, gegen den ein lichtempfindlicher Mensch „Ich verstehe" ankreuzt, sagte: die
-  Bilder „frieren vollständig ein", wenn „Bewegung reduzieren" an ist.
+  ⚠ Nie „connected": jeder Sendevorgang wirft seinen Fehler weg, also weiß hier NICHTS,
+  ob ein Datagramm angekommen ist. Der Punkt sagt „ist raus", nicht „ist da".
 
-  Nachgemessen — das war auf fast jeder Fläche falsch:
-  · Die Puls-Kachel hält nur den Herzschlag-Anteil an; der Musik-Pegel läuft weiter.
-  · Die Lampen-Kachel schaltet ihren Timer ab, zeichnet aber bei jedem Musik-Frame neu.
-  · Die 16 Dateien, die Art-Net und sACN sprechen, enthalten das Wort „Bewegung reduzieren"
-    **kein einziges Mal**. Keine angeschlossene Lampe kennt die Einstellung.
-  · Das große Bild behält ein sanftes Musik-Atmen.
+  ── 3. DIE SICHERHEITSKARTE VERSPRACH EIN EINFRIEREN, DAS NICHT PASSIERT ──
 
-  Was WAHR ist, steht weiter da: die 3-Hz-Deckelung gilt überall, Lampen sind zusätzlich auf
-  ~1,2 Hz geglättet. Das hier ist eine **Verengung einer Über-Behauptung, keine Schwächung
-  eines echten Schutzes.**
+  Die Karte, die ein lichtempfindlicher Mensch liest, BEVOR er „Ich habe verstanden"
+  antippt, sagte: Visuals „frieren komplett ein" mit Reduce Motion. Gemessen war das auf
+  jeder Fläche außer dem großen Bild falsch — die kleinen Kopfzeilen-Monitore behalten
+  ihren Pegel-Anteil, die Lampen-Kachel gibt zu, dass ihr Farbton weiter mitläuft, und in
+  16 Dateien der Licht-Ausgabe kommt „reduceMotion" **kein einziges Mal** vor. Eine
+  iOS-Einstellung sehen angeschlossene Lampen schlicht nie.
 
-  Neu im Text: was die Einstellung abdeckt und was nicht — und **Blackout in Routing**, die
-  einzige Anweisung in der App, die eine echte Anlage wirklich stoppt. Eine iOS-Einstellung
-  sehen Scheinwerfer nie.
+  Die 3-Hz-Obergrenze selbst ist WAHR und bleibt stehen. Was sich ändert: die Karte sagt
+  jetzt, was Reduce Motion abdeckt und was nicht — und nennt **Blackout im Routing**, den
+  einzigen Schalter in der App, der ein Rig wirklich stoppt.
 
-  ── WO DAS ALLES SITZT ───────────────────────────────────────────────────
+  ── 4. „ZEHN GENERATIVE LOOKS" WAREN VIER ────────────────────────────────
 
-  · Puls-Schloss: die Pille oben im Kopf. Antippen öffnet das **Bio**-Panel.
-  · Export-Fehler: Frontplatte, direkt unter der Kachel-Reihe (da, wo bei leerem Projekt
-    „Press Play first…" steht).
-  · Sicherheits-Karte: Buch-Symbol in der Türen-Reihe → Abschnitt „Safety" → „When not to
-    use Echoelmusic".
-  · Blackout: Lampen-Kachel im Kopf antippen → Routing → Licht.
-  · Diagnose-Log: **Save/Export**-Chip → „Diagnostics" → Share.
+  Auf der Website und im Changelog. Gezählt im Code: vier. Korrigiert, ohne den Changelog
+  umzuschreiben — der alte Eintrag behält seinen Wortlaut und bekommt die Rücknahme daneben.
 
-  ── WAS DU PRÜFEN KANNST, in dieser Reihenfolge ──────────────────────────
+  ── 5. DAS BILD IST SPIELBAR, UND DIE SEITE HAT DAS BESTRITTEN ───────────
 
-  1. **Puls messen bis das Schloss grün ist, dann die App in den Hintergrund schicken und
-     nach ein paar Sekunden zurück.** Geht das Schloss aus, solange nichts ankommt? Früher
-     blieb es grün. Sagt es Dir „ehrlich" oder „kaputt"? (Das entscheidet, ob Punkt 1 oben
-     noch einen Hinweis-Satz braucht.)
-  2. **Dasselbe mit warmem Telefon**, falls Du es provozieren kannst — gleiche Frage.
-  3. **Einen Export absichtlich scheitern lassen** (am einfachsten: Loop-Länge so wählen,
-     dass die „zu lang"-Meldung kommt). Steht der Satz jetzt auf der Frontplatte, gut
-     lesbar, ohne die Platte zu überladen?
-  4. **Sicherheits-Karte einmal lesen** (Buch-Symbol → Safety). Ist der neue Absatz
-     verständlich, oder ist er zu technisch geworden?
+  Der schlimmste Fund des Satzes, weil er kein Schweigen war, sondern ein aktives Dementi.
+  Die FAQ hieß „What touch instruments are available?" und antwortete, eigene
+  Touch-Instrumente seien „on the roadmap, not in the app today".
 
-  Was diese Notiz NICHT behauptet: dass die dunkle Pille sich richtig ANFÜHLT, dass der
-  Export-Satz gut sitzt, und dass die Sicherheits-Formulierung die beste ist. Struktur und
-  Bedingungen sind in CI gepinnt (`TheLockNeedsFramesTests`,
-  `TheExportFailureSpeaksAtTheButtonTests`, `TheSafetyCopyDescribesWhatReduceMotionDoesTests`);
-  wie es sich liest und anfühlt, entscheidest Du.
+  Gemessen: die Spielfläche ist über dem Bild montiert, bei jeder Fenstergröße, in einem
+  Fenster, das beim Start aufgeht. Deine Finger spielen Noten auf der Stimme der Aufnahme,
+  auf Tonart und Skala gerastet — jeder Griff liegt in der Tonart.
 
-  Am Klang hat sich NICHTS geändert: die 19 Genres aus 439 sind bit-identisch, das Standbild
-  aus 441 und die Aufnahme-Antworten aus 442 sind unberührt.
+  Und in KEINEM Akquise-Text kam sie vor: null Treffer für touch/finger/berühr/tippen in
+  allen sechzehn Store-Dateien und auf jeder Seite der Website. Wer die Liste las, konnte
+  nicht erfahren, dass das Instrument Hände hat.
 
-  ── DREI SACHEN, DIE AUF DICH WARTEN ─────────────────────────────────────
+  Fünf Stellen in einem Commit korrigiert (FAQ-Antwort, ihre Überschrift, der „Planned"-
+  Vermerk, die Schema.org-Antwort, die Antwort-Maschinen wörtlich übernehmen, und beide
+  Store-Sprachen). Die VIER benannten Pads bleiben als Roadmap markiert — die gibt es
+  wirklich nicht; was liefert, ist EINE Fläche.
 
-  ⚠ **Ein Boolean, den ich nicht allein umlege (Audit-Punkt 5).** Der Erst-Start-Guide ist
-  ab Werk AUS. Die Karte, die er zeigt, ist die EINZIGE Stelle in der ganzen App, die sagt:
-  *„Fass das Bild an — jeder Griff landet in der Tonart, es gibt keine falsche Stelle."*
-  Das Onboarding erwähnt es nie. Ein neuer Mensch sitzt also zwei Minuten vor einem
-  lebenden Vollbild, das in Wahrheit ein sechsstimmiges, tonartgebundenes Instrument ist —
-  und hält es für einen Bildschirmschoner. Das ist der Unterschied zwischen „Ambient-Loop-App"
-  und „Instrument, das man üben will". Es ist **eine Zeile**, und der Guide schließt sich
-  nach der letzten Karte von selbst. Sag Ja oder Nein.
+  ── 6. UND DER STORE-TEXT VERKAUFTE „RAUM" ALS AUTOMATIK ─────────────────
 
-  ⚠ **Der Foto-Erlaubnistext in `Info.plist`** nennt weiterhin nur Videos, obwohl seit 441
-  auch Bilder dort landen. Darf ich nicht anfassen.
+  Beide Sprachen listeten Raum neben Helligkeit, Klangfarbe und Textur — die anderen drei
+  sind wirklich automatisch. Der einzige automatische Schreibweg auf „Raum" landet in einer
+  Hall-Stufe, deren einziger Leser hinter einem Schalter sitzt, der im ganzen Code auf
+  `false` steht und nirgends gesetzt wird. Die Stufe kann keinen Ton machen.
 
-  ⚠ **Die große Testsuite meldet seit Wochen „success" mit Fehlschlägen darin**, weil
-  `continue-on-error` auf beiden Bau-Schritten das Ergebnis überschreibt. Einen der acht habe
-  ich repariert, sieben stehen noch (Audit-Punkt 25).
+  Nicht gelöscht, sondern richtig zugeordnet: zwei echte Körper→Raum-Wege liefern (die
+  opt-in-FX-Route und ADM-OSC-Objektposition — Atem → Azimut, HRV → Höhe, Kohärenz →
+  Distanz). Die ADM-OSC-Zeile sagt das jetzt.
 
-  ── GATES ────────────────────────────────────────────────────────────────
+  ── WAS ICH VON DIR BRAUCHE ──────────────────────────────────────────────
 
-  Gelesen, nicht angenommen: `Xcode Compile Check` = success auf 30667ba, b8f4d84 und
-  5027e57 — drei aufeinanderfolgende grüne Läufe. Dazu `CI/CD` Schritt 9 „Build for Testing"
-  = success auf allen drei, was der reine Compile-Check nicht sagen kann: die drei neuen
-  Wächter-Dateien kompilieren selbst.
+  1. **Routing-Punkt am echten Rig** (**Master**-Chip → „Routing"): mit falscher IP muss
+     er `open, nothing sent` zeigen, nicht `sending`. Das ist die eine Prüfung, die kein
+     Test hier machen kann.
+  2. **Sound zurücksetzen** einmal drücken und sagen, ob danach alles wie erwartet leer ist.
+  3. Der Rest ist Text — lies die FAQ-Antwort und den Store-Text und sag, ob Du Dich darin
+     wiedererkennst.
+
+  Wenn etwas hakt: **Save/Export**-Chip → „Diagnostics" → Teilen schickt mir das
+  Diagnose-Log.
+
+  ── STAND DER GATES ──────────────────────────────────────────────────────
+
+  Xcode Compile Check grün. CI/CD Schritt 9 „Build for Testing" grün (beweist, dass die
+  vier neuen Wächter-Dateien kompilieren). CI/CD meldet wie immer insgesamt `failure`
+  wegen #396 — das sagt nichts, die Schritte sagen es.
+
+  Alles hier ist compile-verifiziert, nichts davon geräteverifiziert.
