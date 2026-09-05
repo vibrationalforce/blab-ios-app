@@ -23130,3 +23130,28 @@ Zeile vorher nicht existieren. Kopf korrigiert: keiner der sechs ist Vorher/Nach
 sind Pins auf einen NEUEN Mechanismus — und was sie unterscheidet, ist welche ZUKÜNFTIGE Änderung
 jeder fängt. **Lehre: die Benotungszeile im Kopf ist selbst eine Behauptung und gehört gemessen,
 nicht geschätzt.**
+
+### ⭐ Und eine ZWEITE Verschärfung derselben Lehre: nur EIN Gate canceled überhaupt
+
+Gemessen (`grep -n "cancel-in-progress" .github/workflows/*.yml` plus `grep -c concurrency
+.github/workflows/ci.yml` → **0**):
+
+| Workflow | canceled bei neuem Push? |
+|---|---|
+| `xcode-compile-check.yml` | **ja** (`cancel-in-progress: true`) |
+| `ci.yml` (CI/CD Pipeline) | **nein — gar kein `concurrency`-Block** |
+| `testflight.yml` | nein (`cancel-in-progress: false`) |
+| `pr-check` · `pages` · `benchmark` | ja |
+
+**Folge, und sie ist praktisch wichtig:** der Schritt, der beweist, dass eine neue
+WÄCHTER-Datei kompiliert — CI/CD Schritt 9 „Build for Testing" — kann durch einen schnellen
+Folge-Push **nie** verloren gehen. Verloren gehen kann nur das Compile-Gate über `Sources/`.
+Ein Deploy-Bump ist doppelt sicher: `.deploy/release` steht in keinem `paths:`-Filter, und
+`testflight.yml` cancelt ohnehin nicht.
+
+Die Wartepflicht ist damit enger als die erste Fassung: **nach einem Swift-Push warten, bis
+DIESER eine Lauf durch ist — und nur, wenn man das Urteil über GENAU diesen Baum braucht.**
+Wer ohnehin gleich weiterschiebt und erst am Ende ein Urteil braucht, verliert nichts, weil der
+neueste Baum den alten enthält. Was #996 wirklich gekostet hat, war nicht der Cancel an sich,
+sondern dass zwischen den drei Scheiben KEIN Urteil je vorlag und ich es trotzdem für „grün"
+hätte halten können.
