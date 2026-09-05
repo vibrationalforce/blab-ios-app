@@ -23040,3 +23040,20 @@ ship"; this asks the opposite, and reaches `docs/` and `Sources/`, which that fi
 mixes `&mdash;` entities and literal em-dashes in the same document. `grep -c` counts LINES, not
 occurrences, and reported "1" for a needle that was actually absent. Counted occurrences in Python
 instead.
+
+## ⚠️ HARNESS LESSON (2026-09-05, this run) — rapid pushes CANCEL the compile gate
+
+Measured, not guessed: run 2355 (`c25cad7`, the #996 slice — the riskiest of the batch: new file,
+new protocol, retroactive conformances, a ViewBuilder rewrite in two views) ended with conclusion
+**`cancelled`**, not `success` and not `failure`. Cause: I pushed #997 three minutes later, and
+`xcode-compile-check.yml` cancels the in-flight run for the same branch. #998 then cancelled
+#997's. So three consecutive slices produced **no compile verdict at all**, and the only one that
+will report is the newest tree.
+
+**`cancelled` is not `success`.** It is easy to skim as "not failure" in a run list, which is
+exactly the kind of misread this repo keeps paying for.
+
+**Rule for the rest of this run:** after a slice that touches Swift — especially one adding a
+type, a protocol or a ViewBuilder branch — WAIT for its own `Xcode Compile Check` before pushing
+the next. Copy-only slices (docs, fastlane, memory) may still be batched, because a cancelled run
+on those costs nothing: they cannot break the build.
