@@ -29,16 +29,22 @@
 // a device. Being conservative is the safe direction — it sheds one item too early rather
 // than one too late, and shedding early is invisible while shedding late is the bug.
 //
-// ⛔ CORRECTION TO THIS FILE'S OWN FIRST VERSION (found while working #351). The fullscreen
-// assertion below used to justify itself with "fullscreen is the app's HOME on every cold
-// launch". That is FALSE: the window's size is `@AppStorage("visual.floating.size")`
-// defaulting to `WindowSize.small`, so a cold launch shows the SMALL floating card and
-// fullscreen is only reached by cycling the resize button. I wrote it from a half-memory of
-// the CLAUDE.md line about the visual being a home surface — which is about the window being
-// VISIBLE (`visual.floating.visible` does default to true), not about its SIZE. The assertion
-// was right; its stated reason was invented. Nothing downstream depended on it, which is
-// exactly why it would have survived: a false sentence inside a PASSING test is invisible
-// until someone plans from it.
+// ⛔ THIS FILE HAS NOW BEEN WRONG ABOUT THE LAUNCH STATE IN BOTH DIRECTIONS, and the second
+// time is the one that cost something. The first version justified the fullscreen assertion
+// with "fullscreen is the app's HOME on every cold launch" and was corrected (#351) to the
+// opposite: `@AppStorage("visual.floating.size")` defaults to `WindowSize.small`, so a cold
+// launch shows the SMALL card. That correction was true when it was written and is FALSE
+// TODAY. `WorkspaceView`'s instrument-home seed (#580) runs once per launch and writes
+// `floatingSizeRaw = WindowSize.fullscreen.rawValue` whenever `FeatureFlags.instrumentHome`
+// is on — and that key is one of the exactly three registered ON in `EchoelmusicApp.init()`.
+// So fullscreen IS the cold-launch state for every user who has not flipped the dev override.
+//
+// ⭐ WHY THAT MATTERS HERE AND NOT ONLY AS A TIDY-UP. A reader deciding how much the
+// fullscreen case deserves reads this block first. Told it is a state the user must cycle
+// into, the fullscreen shed table below looks like an edge case; told the truth — it is the
+// FIRST SCREEN — the same table says something else entirely (see the ⚠️ note on
+// `testFullscreenFitsAtEveryShippedWidth`). A false sentence inside a PASSING test is
+// invisible until someone plans from it, which is exactly what happened twice.
 
 import Foundation
 import XCTest
@@ -184,7 +190,27 @@ final class ChromeBudgetFitsTests: XCTestCase {
         }
     }
 
-    func testFullscreenFitsWithTheSliderAndTheStudioChip() {
+    /// ⚠️ RENAMED (#1017), because the old name promised the slider and the "Studio" chip
+    /// and this test never inspects either of them. It makes ONE assertion, that
+    /// the bar does not overflow, and `chromeFit` guarantees that by TAKING ITEMS AWAY. A
+    /// name that reads as coverage of the slider and the chip is why nobody noticed that on
+    /// the phones the app ships to, neither survives.
+    ///
+    /// MEASURED (re-derive by driving `chromeFit` across widths; the arithmetic is the
+    /// `barWidth` helper above): in fullscreen with the transport shown and nothing
+    /// recording, the "Studio" chip needs **431 pt** and the look slider **529 pt**. While a
+    /// WAV take runs those become 507 pt and 605 pt. The widest phone in `devices` is 440 pt.
+    /// So on 375 / 390 / 393 / 402 / 430 pt phones in portrait the only LABELLED door back to
+    /// the instrument is shed, and what is left are two glyphs whose words exist only in
+    /// VoiceOver ("Exit fullscreen", "Hide visual").
+    ///
+    /// This test is NOT changed to assert the chip survives. It sits in the BLOCKING bundle,
+    /// so an assertion that is red on a correct tree stops every push — and the repair is a
+    /// product decision that is not this session's to take: the shed ranking is documented as
+    /// deliberate at `FloatingVisualLayout.chromeFit`, so making the chip survive means either
+    /// re-ranking it above the transport readout (which then leaves fullscreen on every phone
+    /// under 440 pt) or making the chip cheaper than its 83 pt text reserve. NEEDS-FOUNDER-VERIFY.
+    func testFullscreenFitsAtEveryShippedWidth() {
         for bounds in Self.devices {
             for wavBusy in [false, true] {
                 let fit = FloatingVisualLayout.chromeFit(cardWidth: bounds.width,
@@ -196,6 +222,85 @@ final class ChromeBudgetFitsTests: XCTestCase {
                     chrome overflows. This is the widest state the bar ever has and the one \
                     the founder's report named, so an overflow here is the original bug back.
                     """)
+            }
+        }
+    }
+
+    // MARK: - The shed order is the documented ranking, not an emergent one
+
+    /// `chromeFit` states its shed ORDER in prose and asks a future change to "argue with it
+    /// instead of quietly reordering". Nothing checked that the array under the prose still
+    /// matches it, and #1017 is exactly the cycle where that ranking decides a product
+    /// question — whether the labelled way back to the instrument survives on a 393 pt phone.
+    ///
+    /// ⭐ WHY THIS IS THE #364-SAFE SHAPE OF THAT CHECK, and the alternative is not. Asserting
+    /// "the chip survives at 393 pt" would pin today's DEFECT: the obvious repair (a cheaper
+    /// chip) would leave the ranking untouched and this file would go red on a tree that just
+    /// got better. Prefix-ness is invariant under every repair on the table — a cheaper chip
+    /// moves the THRESHOLD, a re-rank is a deliberate edit to the documented list one line
+    /// away, and only an accidental reorder (the thing the prose asks to be protected from)
+    /// breaks it.
+    ///
+    /// The ranking is restated here rather than read from the type, on purpose and for the
+    /// same reason `barWidth` re-derives the arithmetic: a check that imports the list it is
+    /// checking cannot disagree with it.
+    func testTheShedOrderIsAPrefixOfTheDocumentedRanking() {
+        // Cheapest-to-lose first: convenience, then information, then a display aid, then
+        // the two recorders (video before WAV — a lost video take is a lost file, a lost WAV
+        // take is a lost performance).
+        let ranking: [(name: String, keep: (FloatingVisualLayout.ChromeFit) -> Bool)] = [
+            ("lookSlider",    { $0.lookSlider }),
+            ("studioChip",    { $0.studioChip }),
+            ("miniTransport", { $0.miniTransport }),
+            ("gridToggle",    { $0.gridToggle }),
+            ("videoRecord",   { $0.videoRecord }),
+            ("wavRecord",     { $0.wavRecord })
+        ]
+
+        for isFullscreen in [false, true] {
+            for showsTransport in [false, true] {
+                for wavBusy in [false, true] {
+                    for videoBusy in [false, true] {
+                        // An item that cannot appear at all in this state, and a BUSY recorder
+                        // (pinned as its take's stop button), are outside the ranking — they
+                        // are not "kept because the budget could afford them".
+                        let offered = ranking.filter { item in
+                            switch item.name {
+                            case "lookSlider", "studioChip": return isFullscreen
+                            case "miniTransport":            return showsTransport
+                            case "videoRecord":              return !videoBusy
+                            case "wavRecord":                return !wavBusy
+                            default:                         return true
+                            }
+                        }
+                        // From far below the never-shed floor to a desk display, one point at
+                        // a time: a reorder that only shows up in a narrow band still shows up.
+                        for w in stride(from: CGFloat(20), through: 1200, by: 1) {
+                            let fit = FloatingVisualLayout.chromeFit(
+                                cardWidth: w, isFullscreen: isFullscreen,
+                                showsTransport: showsTransport,
+                                wavBusy: wavBusy, videoBusy: videoBusy)
+                            let survivors = offered.map { $0.keep(fit) }
+                            // Prefix-ness in one line: once an item is gone, nothing cheaper
+                            // to lose may still be present.
+                            guard let firstGone = survivors.firstIndex(of: false) else { continue }
+                            let keptAfter = offered.indices
+                                .filter { $0 > firstGone && survivors[$0] }
+                                .map { offered[$0].name }
+                            XCTAssertTrue(keptAfter.isEmpty, """
+                                At \(Int(w))pt (fullscreen=\(isFullscreen), \
+                                transport=\(showsTransport), wavBusy=\(wavBusy), \
+                                videoBusy=\(videoBusy)) the budget dropped \
+                                "\(offered[firstGone].name)" while still keeping \
+                                \(keptAfter.joined(separator: ", ")) — items the documented \
+                                ranking says are cheaper to lose. Either the shed array in \
+                                `chromeFit` was reordered without its prose, or a new item \
+                                was inserted at the wrong rank. Fix the ranking or the prose, \
+                                in the same commit.
+                                """)
+                        }
+                    }
+                }
             }
         }
     }
