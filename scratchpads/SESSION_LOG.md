@@ -23804,3 +23804,30 @@ sagt nicht, dass dieses Zuhause rotieren darf.
 AUSGEFÜHRT und liefert genau diese zwei Zeilen. **Kein Wächter**: ein Negativ-Scan auf
 `.deploy/release` träfe die ⛔-Rücknahme, die es zitiert (#491) — der Schutz ist hier strukturell,
 nicht textlich.
+
+## 2026-09-05 — #1021 · Der Genre-Plan hing nie an CI
+
+**Eigener Zug nach drei ergebnislosen Werkzeug-Läufen** (siehe #1020): die PLAN-Dateien
+durchgesehen. Der neueste ist `PLAN_GENRE_BASS_PAD_LOOPS_2026-09-04.md` — der Founder-Ask #983.
+
+**Befund:** S2–S5 trugen „Gates ausstehend", S1 einen Flake-Bericht. Der Plan las sich, als
+hinge er an CI. Tatsächlich sind alle fünf Scheiben seit Tagen im Baum und **compile-bewiesen**
+— Beleg stärker als ein einzelner Lauf: **Build 447 wurde archiviert und hochgeladen**, und ein
+Archiv entsteht nur, wenn die GESAMTE Quelle übersetzt.
+
+**Türen mitgeprüft:** `.deepTech` · `.darkMinimal` · `.psyProgHouse` stehen in
+`MusicStyle.offered` (19 von 36 — die Datei sagt es an Zeile 181 selbst). Keine türlosen Genres,
+also nicht die Falle aus Audit-Punkt 28.
+
+⚠️ **Ehrlich gehalten, was das NICHT beweist:** dass die vier Genre-Wächter grün DURCHLIEFEN.
+Das Testprotokoll ist ein `tail`; ein früherer Fehler hinterlässt darin keine Spur (#807). Im
+lesbaren Fenster war nichts rot. „Compile-bewiesen ja, lauf-bewiesen nur so weit das Fenster
+reicht" — das ist der Satz, nicht „grün".
+
+**Nebenbei zwei eigene Messfehler gefangen, beide durch Nachrechnen:**
+· Erster Regex zählte 56 Enum-Cases — er traf `switch`-Cases in der ganzen Datei mit. Mit
+  Klammertiefe neu gemessen; die Datei-eigene Angabe (36 Cases / 19 offeriert) stimmt.
+· Das erste Python-Skript brach am deutschen `„Deep Tech"` — das schließende `"` beendete die
+  Zeichenkette. Auf dreifache Anführungszeichen umgestellt.
+
+**S6 bleibt blockiert — auf dem OHR, nicht auf einem Gate.** Das ist jetzt so beschriftet.

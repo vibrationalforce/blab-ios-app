@@ -68,7 +68,7 @@ Reihenfolge ist Handwerk.
 
 ## 2 · Scheiben (je EIN Ralph-Zyklus, je ein Wächter, je ein Ohr-Satz)
 
-### S1 — `BassGrammar`: eine autorisierte Bass-Figur pro Genre (Composer, pur) — ✅ GEBAUT `cd48695` (Compile Check grün; CI/CD-Testbau starb am #478-Modulcache-Flake, kein Repo-Fehler; Re-Run per API = 403, also fährt der nächste Push)
+### S1 — `BassGrammar`: eine autorisierte Bass-Figur pro Genre (Composer, pur) — ✅ GEBAUT `cd48695`, **Gates seither grün** (Statusblock §5)
 - **Neu:** `Sequencer/BassGrammar.swift` — `enum BassGrammar` mit benannten Figuren
   (16-Step-Phasen, Länge, Akzent; Körper skaliert Velocity/Dichte, nie die Figur):
   · `offbeatEighths` — House: Bass auf jedem „&" (Phasen 2/6/10/14), kurz; Downbeat frei
@@ -98,7 +98,7 @@ Reihenfolge ist Handwerk.
 - **Ohr (NEEDS-FOUNDER-VERIFY):** Loop-Modus, Deep House, ruhiger Körper: der Bass sitzt auf den
   „&"s und die 1 ist frei — und der Sub schweigt auf der 1 mit.
 
-### S2 — eigenes Bass-Timbre (zweite Stimme, Muster `lead`) — ✅ GEBAUT (Folge-Commit; Gates ausstehend)
+### S2 — eigenes Bass-Timbre (zweite Stimme, Muster `lead`) — ✅ GEBAUT `2bd97b1`, **Gates grün**
 - `EchoelmusicApp`: `bassVoice = PolySynthVoice()` attach; `pianoRoll.start(… bass: bassVoice …)`;
   `outputVoice(for: .bass)` → `bass ?? voice`; `applyBassPatch(_:)`.
 - `GenrePatches.bassPatch` pro Genre (House Sub · Tech Bass · Minimal Sub — dunkler, kürzer,
@@ -115,7 +115,7 @@ Reihenfolge ist Handwerk.
 - Risiko: eine Stimme mehr am Engine (CPU ≈ +1 Poly-Stimme) — im Diag-Log `voices=` prüfen.
 - Ohr: derselbe Loop — der Bass ist jetzt ein Bass (kurz, dunkel), nicht das Pad tief.
 
-### S3 — Genre `deepTech` („Deep Tech") — ✅ GEBAUT (Folge-Commit; Gates ausstehend)
+### S3 — Genre `deepTech` („Deep Tech") — ✅ GEBAUT `2b0b508`, **Gates grün**, in `offered`
 - 124…128, default 126; minor; `chordTones [0, 4, 6]` (Root-Quinte-♭7, ohne Terz — neu im
   Roster, vom Fingerabdruck messbar); Progression `[0, 5]`; padOctave 4; `.fourOnFloor`→`.stab`;
   swing 0.08; bassGrammar `drivingEighths`; FX: trocken, Room 0.40, Sat 0.36, Delay **8tel
@@ -146,7 +146,7 @@ Reihenfolge ist Handwerk.
 - **Ohr-Satz (NEEDS-FOUNDER-VERIFY):** Deep Tech im Loop-Modus bei 126 — liest sich die terzlose
   Shell als „deep" (Gewicht ohne Dur/Moll-Farbe) und der 8tel-Bass als Drive statt Metronom?
 
-### S4 — Genre `darkMinimal` („Dark Minimal") — ✅ GEBAUT (Folge-Commit; Gates ausstehend)
+### S4 — Genre `darkMinimal` („Dark Minimal") — ✅ GEBAUT `edd2d58`, **Gates grün**, in `offered`
 - ⛔ **Die Spezifikation, die hier stand, hätte DREI blockierende Wächter rot gemacht** —
   `[0, 4]`-Dyade (minimal = „einzige Dyade", `testMinimalIsTheOnlyTwoNoteVoicingInTheRoster` +
   `testNoOtherGenreCopiesEitherNewVoicing`), swing 0.02 (minimal = „kleinster Swing über null"),
@@ -172,7 +172,7 @@ Reihenfolge ist Handwerk.
 - **Ohr-Satz (NEEDS-FOUNDER-VERIFY):** Dark Minimal bei 129 — liest sich der weite Quint-Stapel
   in Oktave 3 mit dem ♭II-Wechsel als „dunkel", ohne zu matschen?
 
-### S5 — Genre `psyProgHouse` („Psy Prog House") — ✅ GEBAUT (Folge-Commit; Gates ausstehend)
+### S5 — Genre `psyProgHouse` („Psy Prog House") — ✅ GEBAUT `0a1ba7c`, **Gates grün**, in `offered`
 - Gebaut wie geplant, mit zwei gemessenen Korrekturen: Progression **`[0, 6, 5]`** (i → VII → VI,
   der absteigende Prog-Vamp) statt `[0, 6]` — und ⛔ der erste Entwurf behauptete „kein anderer
   Arm hat diese Form"; die Transkription fand ZWEI (`deepHouse` offered, `rock`). Neu ist das
@@ -193,9 +193,15 @@ Reihenfolge ist Handwerk.
 - **Ohr-Satz (NEEDS-FOUNDER-VERIFY):** Psy Prog House bei 132 — rollt der 16tel-Bass als Linie
   (nicht als Rasseln), hängt der Pluck ins Ping-Pong, ohne die Triade zu verwischen?
 
-### S6 — Pad-Bewegung (nach dem Ohr zu S1–S5)
+### S6 — Pad-Bewegung (nach dem Ohr zu S1–S5) — 🔒 **BLOCKIERT auf dem OHR, nicht auf einem Gate**
 - Filter-LFO-Tiefe pro Genre ist im Patch schon da; offen ist die BAR-Bewegung über den Loop
   (Filter öffnet über 4/8 Takte). Erst planen, wenn der Founder S1–S5 gehört hat.
+
+⚠️ **Diese Unterscheidung ist der Grund für §5 (#1021).** Bis dahin stand bei S2–S5 „Gates
+ausstehend" und bei S1 ein Flake-Bericht — der Plan las sich also, als hinge er an CI. Eine
+Sitzung, die das glaubt, geht Gates nachprüfen, statt zu erkennen, dass der Blocker eine
+HÖR-Probe ist, die keine Sitzung leisten kann. Genau die #1019-Defektklasse (ein Plan, der offen
+aussieht, während nichts handlungsfähig ist), nur eine Ebene kleiner.
 
 ---
 
@@ -208,3 +214,28 @@ Reihenfolge ist Handwerk.
 ## 4 · Reihenfolge und Gates
 S1 → Gates (Compile Check + CI/CD Build for Testing, Wächter transkribiert) → Deploy-Note mit
 Ohr-Satz → S2 → Deploy → S3/S4/S5 (je Deploy) → Founder-Ohr → S6.
+
+---
+
+## 5 · Statusblock (gemessen 2026-09-05, #1021)
+
+**Alle fünf Scheiben sind im Baum und compile-bewiesen.** Der Beleg ist stärker als ein einzelner
+grüner Lauf: **Build 447 (`e528886`) wurde archiviert und nach TestFlight hochgeladen** (Lauf
+2565: Archive ✓ · Export & Upload ✓ · Verify in App Store Connect ✓). Ein Archiv entsteht nur,
+wenn die GESAMTE Quelle übersetzt — S1–S5 eingeschlossen. Zusätzlich ist `Xcode Compile Check`
+auf jedem Commit seither grün, und `CI/CD` Schritt 9 „Build for Testing" auf `0bddd35`,
+`bfbf142` und `161286c`.
+
+**Türen belegt, nicht vermutet:** `.deepTech`, `.darkMinimal` und `.psyProgHouse` stehen in
+`MusicStyle.offered` — nachgezählt 19 offeriert von 36 Cases, was die Datei an ihrer eigenen
+Zeile 181 ebenso sagt. Also keine türlosen Genres, die Falle, vor der Audit-Punkt 28 warnt.
+
+⚠️ **Was das NICHT beweist:** dass die vier Genre-Wächter (`GenreBassGrammarTests`,
+`GenreDeepTechTests`, `GenreDarkMinimalTests`, `GenrePsyProgHouseTests`) grün DURCHLIEFEN. Das
+CI-Testprotokoll wird als `tail` gelesen, und ein früherer Fehler hinterlässt darin keine Spur
+(#807). Im lesbaren Fenster von `0bddd35` stand keine rote Zeile. **Compile-bewiesen ja,
+lauf-bewiesen nur so weit das Fenster reicht** — und das ist der ehrliche Satz, nicht „grün".
+
+**Der einzige offene Punkt ist das Ohr:** Deep Tech · Dark Minimal · Deep House · Psy Prog House
+im Loop-Modus hören, dann entscheidet S6. Die vier Hör-Sätze stehen als `NEEDS-FOUNDER-VERIFY`
+in den vier Wächter-Dateien und erscheinen in `python3 scripts/founder-verify.py`.
