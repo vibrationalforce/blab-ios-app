@@ -1,4 +1,4 @@
-build: v10.79.442 — die App lässt Dich rein, und die Aufnahme sagt Dir, was aus ihr wurde
+build: v10.79.443 — drei Stellen, an denen die App etwas Unwahres gesagt hat
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,81 +6,124 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.441.
+  Der Vorgänger ist 10.79.442.
 
-  ── ZUERST: WORAUS DAS KOMMT ─────────────────────────────────────────────
+  ── WORAUS DAS KOMMT ─────────────────────────────────────────────────────
 
-  Dein Auftrag vom 2026-09-04: „Deep Audit des gesamten Repos, Produkts, Projekts, TestFlight
-  plus Website — und optimiere aus künstlerischer und User Perspektive."
+  Weiter am Deep Audit (Dein Auftrag vom 2026-09-04). 442 hatte die ersten zwei Funde.
+  443 hat die nächsten drei — und sie haben etwas gemeinsam, das mir erst beim Bauen
+  aufgefallen ist: **alle drei sind Stellen, an denen die App etwas behauptet hat, das
+  nicht stimmt.** Keine abgestürzte Funktion, kein fehlendes Feature. Drei Lügen.
 
-  134 Agenten, sechs Teams, jeder Fund von drei Skeptikern angegriffen. 36 Funde, 35 haben
-  standgehalten. Die vollständige gerankte Liste liegt im Repo:
-  `scratchpads/DEEP_AUDIT_2026-09-04_ARTISTIC_USER.md`.
+  Die vollständige Liste liegt weiter in `scratchpads/DEEP_AUDIT_2026-09-04_ARTISTIC_USER.md`.
 
-  442 liefert die ERSTEN ZWEI aus. Beide sind Fälle, in denen die App etwas verschweigt.
+  ── 1. DIE PULS-ANZEIGE KONNTE GRÜN LEUCHTEN, OHNE DASS ETWAS ANKAM ──────
 
-  ── 1. DIE APP LÄSST DICH REIN (der schlimmste Fund der Liste) ───────────
+  Das Schloss neben Deinem Puls fragte drei Dinge über den MESSWERT — Herzfrequenz,
+  Sicherheit, Rhythmus-Stärke. Und keine einzige Frage danach, ob überhaupt noch etwas
+  ANKOMMT.
 
-  Die drei Startseiten konnten NICHT scrollen. Alle Texte dort wachsen mit Deiner
-  System-Schriftgröße, und ausgerechnet das Onboarding hatte als einzige Fläche keine
-  Obergrenze dafür. Auf der letzten Seite steht der Start-Knopf ganz unten — unter Symbol,
-  Überschrift, Absatz, sechszeiligem Sicherheitskasten und Zustimmungs-Schalter.
+  Wenn iOS die Kamera anhält (App in den Hintergrund, Anruf, Systemsache) oder das Telefon
+  zu heiß wird und den Bildstrom drosselt, dann **frieren die letzten Werte einfach ein**.
+  Sie sind byte-genau gleich, Tick für Tick. Alle drei Fragen antworten weiter „ja".
 
-  **Bei großer Schrift im Hochformat lag Start unter dem Bildschirmrand, ohne Weg dorthin.**
-  Installieren, nicht reinkommen, löschen. Und es trifft genau den Menschen, für den die
-  Sicherheitshinweise auf dieser Seite geschrieben sind.
+  Ergebnis auf Deinem Schirm: grünes Schloss, selbstbewusste bpm, ruhige Kurve — und die
+  Musik bekommt seit dreißig Sekunden nichts mehr von Deinem Körper. Genau diese Lüge hatte
+  die Datei schon einmal an einer anderen Stelle entfernt (Juli). Das hier war ihr zweites
+  Versteck.
 
-  Jetzt scrollen die Seiten. Bei normaler Schrift sieht alles aus wie vorher — das war die
-  Falle beim naiven Fix, und sie ist mit festgenagelt.
+  Jetzt fragt das Schloss zusätzlich: kommen wirklich Bilder? Und zwar mit genau derselben
+  Bedingung, die auch der Datenbus benutzt — nicht mit einer zweiten, eigenen.
 
-  ── 2. DIE AUFNAHME SAGT, WAS AUS IHR WURDE ──────────────────────────────
+  **Ehrlich offen:** die Pille geht jetzt dunkel, sagt aber noch nicht WARUM („Kamera
+  pausiert"). Das braucht einen neuen Hinweis-Typ und ist der nächste Schritt.
 
-  Eine Video-Aufnahme konnte leer enden und **schwieg dazu**. Der REC-Zähler lief, kein Bild
-  erreichte den Schreiber, danach: kein Teilen-Fenster, keine Zeile in der Bibliothek, kein
-  Wort. Eine Performance ist nicht wiederholbar — das ist die teuerste Stille der App.
+  ── 2. EIN FEHLGESCHLAGENER EXPORT WAR NICHT VON EINEM TOTEN KNOPF ZU UNTERSCHEIDEN ──
 
-  Drei Antworten, je etwa vier Sekunden sichtbar:
+  Wenn ein WAV-Export klappt, ist das laut: das Teilen-Fenster geht auf. Wenn er scheitert,
+  stand der Grund **im Save-&-Export-Auszug** — hinter einem Chip, den niemand öffnet,
+  nachdem er einen Knopf an einer ganz anderen Stelle gedrückt hat.
 
-  · „Take saved to Photos" — die Aufnahme ist in der Fotos-App.
-  · „Nothing was recorded — the visual sent no frames" — es kam nichts an. Zweiter Versuch
-    lohnt sich.
-  · „The recording could not be written" — der Schreiber hat abgelehnt. Diagnose-Log hilft.
+  Der Kommentar im Code begründete den Ort mit „sitzt da, wo der Nutzer sowieso hinschaut".
+  Das stimmte, als es geschrieben wurde — und ist seit August falsch, weil der Aufnahme-Knopf
+  seitdem auf der Frontplatte sitzt.
 
-  **An allen DREI Stellen, an denen Du stoppen kannst:** Vollbild-Reihe, schwebendes Fenster
-  (in der Ecke, in der eben noch REC stand) und Video-Bibliothek.
+  Der Satz steht jetzt dort, wo der Knopf ist. Verschoben, nicht kopiert: es gibt weiterhin
+  genau eine Stelle.
 
-  ── AM KLANG HAT SICH NICHTS GEÄNDERT ────────────────────────────────────
+  ── 3. DIE SICHERHEITS-KARTE VERSPRACH EIN EINFRIEREN, DAS ES NICHT GIBT ──
 
-  Die 19 Genres aus 439 sind bit-identisch. Das Standbild aus 441 ist unverändert.
+  Der Text, gegen den ein lichtempfindlicher Mensch „Ich verstehe" ankreuzt, sagte: die
+  Bilder „frieren vollständig ein", wenn „Bewegung reduzieren" an ist.
 
-  ── DIE TÜREN ────────────────────────────────────────────────────────────
+  Nachgemessen — das war auf fast jeder Fläche falsch:
+  · Die Puls-Kachel hält nur den Herzschlag-Anteil an; der Musik-Pegel läuft weiter.
+  · Die Lampen-Kachel schaltet ihren Timer ab, zeichnet aber bei jedem Musik-Frame neu.
+  · Die 16 Dateien, die Art-Net und sACN sprechen, enthalten das Wort „Bewegung reduzieren"
+    **kein einziges Mal**. Keine angeschlossene Lampe kennt die Einstellung.
+  · Das große Bild behält ein sanftes Musik-Atmen.
 
-  · Onboarding: nur bei einer FRISCHEN Installation zu sehen (App löschen und neu laden).
-  · Video aufnehmen: **Field**-Chip → „Full screen" → roter Aufnahmeknopf; oder das
-    schwebende Fenster; oder **Video**-Chip → Bibliothek.
-  · Standbild (aus 441): derselbe Ort, der Kamera-Knopf rechts daneben.
+  Was WAHR ist, steht weiter da: die 3-Hz-Deckelung gilt überall, Lampen sind zusätzlich auf
+  ~1,2 Hz geglättet. Das hier ist eine **Verengung einer Über-Behauptung, keine Schwächung
+  eines echten Schutzes.**
+
+  Neu im Text: was die Einstellung abdeckt und was nicht — und **Blackout in Routing**, die
+  einzige Anweisung in der App, die eine echte Anlage wirklich stoppt. Eine iOS-Einstellung
+  sehen Scheinwerfer nie.
+
+  ── WO DAS ALLES SITZT ───────────────────────────────────────────────────
+
+  · Puls-Schloss: die Pille oben im Kopf. Antippen öffnet das **Bio**-Panel.
+  · Export-Fehler: Frontplatte, direkt unter der Kachel-Reihe (da, wo bei leerem Projekt
+    „Press Play first…" steht).
+  · Sicherheits-Karte: Buch-Symbol in der Türen-Reihe → Abschnitt „Safety" → „When not to
+    use Echoelmusic".
+  · Blackout: Lampen-Kachel im Kopf antippen → Routing → Licht.
   · Diagnose-Log: **Save/Export**-Chip → „Diagnostics" → Share.
 
   ── WAS DU PRÜFEN KANNST, in dieser Reihenfolge ──────────────────────────
 
-  1. **App löschen, neu installieren, in den Einstellungen die GRÖSSTE Schriftgröße wählen,
-     Hochformat.** Kommst Du durch alle drei Seiten bis zum Start-Knopf?
-  2. **Dieselbe Installation bei normaler Schrift:** sehen die drei Seiten aus wie immer
-     (mittig, kein Gummiband beim Wischen)?
-  3. **Aufnahme starten und SOFORT wieder stoppen** (bevor das Bild richtig läuft): kommt ein
-     Satz? Früher kam gar nichts.
-  4. **Normale Aufnahme, Vollbild:** „Take saved to Photos", und die Datei ist in der
-     Fotos-App?
-  5. **Dasselbe im schwebenden Fenster** — steht der Satz in der Ecke, in der eben REC stand?
-  6. **Dasselbe über Video-Chip → Bibliothek** — und wächst die Liste danach?
+  1. **Puls messen bis das Schloss grün ist, dann die App in den Hintergrund schicken und
+     nach ein paar Sekunden zurück.** Geht das Schloss aus, solange nichts ankommt? Früher
+     blieb es grün. Sagt es Dir „ehrlich" oder „kaputt"? (Das entscheidet, ob Punkt 1 oben
+     noch einen Hinweis-Satz braucht.)
+  2. **Dasselbe mit warmem Telefon**, falls Du es provozieren kannst — gleiche Frage.
+  3. **Einen Export absichtlich scheitern lassen** (am einfachsten: Loop-Länge so wählen,
+     dass die „zu lang"-Meldung kommt). Steht der Satz jetzt auf der Frontplatte, gut
+     lesbar, ohne die Platte zu überladen?
+  4. **Sicherheits-Karte einmal lesen** (Buch-Symbol → Safety). Ist der neue Absatz
+     verständlich, oder ist er zu technisch geworden?
 
-  Was diese Notiz NICHT behauptet: dass die Sätze gut platziert oder gut lesbar sind, und dass
-  das Onboarding bei jeder Schriftgröße schön aussieht. Struktur und Türen sind in CI gepinnt
-  (`OnboardingPagesScrollTests`, `TheTakeSaysWhetherItWasWrittenTests`); wie es AUSSIEHT,
-  entscheidet Dein Auge.
+  Was diese Notiz NICHT behauptet: dass die dunkle Pille sich richtig ANFÜHLT, dass der
+  Export-Satz gut sitzt, und dass die Sicherheits-Formulierung die beste ist. Struktur und
+  Bedingungen sind in CI gepinnt (`TheLockNeedsFramesTests`,
+  `TheExportFailureSpeaksAtTheButtonTests`, `TheSafetyCopyDescribesWhatReduceMotionDoesTests`);
+  wie es sich liest und anfühlt, entscheidest Du.
 
-  ⚠ Zwei Sachen, die ich nicht selbst anfassen darf und die auf Dich warten: der
-  Foto-Erlaubnistext in `Info.plist` nennt weiterhin nur Videos, obwohl seit 441 auch Bilder
-  dort landen — und die große Testsuite meldet seit Wochen „success" mit acht Fehlschlägen
-  darin, weil `continue-on-error` auf beiden Bau-Schritten das Ergebnis überschreibt. Einen
-  der acht habe ich repariert, sieben stehen noch (Audit-Punkt 25).
+  Am Klang hat sich NICHTS geändert: die 19 Genres aus 439 sind bit-identisch, das Standbild
+  aus 441 und die Aufnahme-Antworten aus 442 sind unberührt.
+
+  ── DREI SACHEN, DIE AUF DICH WARTEN ─────────────────────────────────────
+
+  ⚠ **Ein Boolean, den ich nicht allein umlege (Audit-Punkt 5).** Der Erst-Start-Guide ist
+  ab Werk AUS. Die Karte, die er zeigt, ist die EINZIGE Stelle in der ganzen App, die sagt:
+  *„Fass das Bild an — jeder Griff landet in der Tonart, es gibt keine falsche Stelle."*
+  Das Onboarding erwähnt es nie. Ein neuer Mensch sitzt also zwei Minuten vor einem
+  lebenden Vollbild, das in Wahrheit ein sechsstimmiges, tonartgebundenes Instrument ist —
+  und hält es für einen Bildschirmschoner. Das ist der Unterschied zwischen „Ambient-Loop-App"
+  und „Instrument, das man üben will". Es ist **eine Zeile**, und der Guide schließt sich
+  nach der letzten Karte von selbst. Sag Ja oder Nein.
+
+  ⚠ **Der Foto-Erlaubnistext in `Info.plist`** nennt weiterhin nur Videos, obwohl seit 441
+  auch Bilder dort landen. Darf ich nicht anfassen.
+
+  ⚠ **Die große Testsuite meldet seit Wochen „success" mit Fehlschlägen darin**, weil
+  `continue-on-error` auf beiden Bau-Schritten das Ergebnis überschreibt. Einen der acht habe
+  ich repariert, sieben stehen noch (Audit-Punkt 25).
+
+  ── GATES ────────────────────────────────────────────────────────────────
+
+  Gelesen, nicht angenommen: `Xcode Compile Check` = success auf 30667ba, b8f4d84 und
+  5027e57 — drei aufeinanderfolgende grüne Läufe. Dazu `CI/CD` Schritt 9 „Build for Testing"
+  = success auf allen drei, was der reine Compile-Check nicht sagen kann: die drei neuen
+  Wächter-Dateien kompilieren selbst.
