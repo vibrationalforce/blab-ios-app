@@ -113,17 +113,26 @@ final class TheTakeSaysWhetherItWasWrittenTests: XCTestCase {
         }
     }
 
-    // 5 — COUNTERWEIGHT, and it is the honest half of this slice: TWO stop doors still discard
-    // the answer. This claim asserts the gap EXISTS so the next cycle cannot forget it, and it
-    // goes red the day someone closes it — at which point delete the claim and say so (#364).
-    func testTheOtherTwoStopDoorsStillSayNothingYet() throws {
-        let floating = try source("Sources/Echoelmusic/Studio/FloatingVisualWindow.swift")
-        let mountsInFloating = floating.contains("TakeOutcomeLine(recorder:")
-        XCTAssertFalse(mountsInFloating, """
-            GOOD NEWS, NOT A DEFECT: the floating window now shows the take's answer too. Delete \
-            this claim in the same commit and update the ⚠️ note in EchoelStudioView's fullscreen \
-            row that says these doors are still silent (#456 — prose moves with the code).
-            """)
+    // 5 — ALL THREE stop doors answer. This claim was written one cycle earlier as a
+    // COUNTERWEIGHT asserting the gap still existed, with an instruction in its own failure
+    // message to delete it and move the prose the day someone closed it. #991 closed it, so the
+    // claim is flipped rather than deleted: the gap is exactly the thing worth guarding now.
+    //
+    // Naming all three files is deliberate. A single "the leaf is mounted somewhere" needle would
+    // pass with two doors served and one silent — which is precisely the state this slice ended.
+    func testEveryStopDoorAnswers() throws {
+        let doors = [
+            "Sources/Echoelmusic/Studio/EchoelStudioView.swift",
+            "Sources/Echoelmusic/Studio/FloatingVisualWindow.swift",
+            "Sources/Echoelmusic/Studio/VideoLibraryPanel.swift",
+        ]
+        for door in doors {
+            let text = try source(door)
+            XCTAssertTrue(text.contains("TakeOutcomeLine(recorder:"), """
+                \(door) stops a take and says nothing about it. A performance capture is not \
+                repeatable; the door that ends it is the one place the answer has to appear.
+                """)
+        }
     }
 
     // NEEDS-FOUNDER-VERIFY: full screen → record → stop, twice. Once with the visual actually

@@ -22697,3 +22697,26 @@ kein Share-Sheet, keine Bibliotheks-Zeile, keinen Satz.
   rot wird, an dem jemand die Lücke schließt — mit der Anweisung in der Fehlermeldung, dann die
   Behauptung zu löschen und die Prosa mitzuziehen (#364/#456). Nächste Scheibe.
 · Transkribiert: Worktree grün bei allen fünf, HEAD rot bei 1, 2 und 4 (3 und 5 sind Gegengewichte).
+
+**#991 — jetzt antworten ALLE DREI Stopp-Türen (die ehrliche Hälfte von #990 geschlossen).**
+Ein Zyklus, wie im #990-Commit angekündigt; die Anweisung stand in der Fehlermeldung des eigenen
+Gegengewichts und wurde befolgt statt vergessen.
+· **Schwebendes Fenster:** das Blatt sitzt im `.overlay(alignment: .topLeading)`, das schon das
+  REC-Abzeichen trägt — als `else`-Zweig, damit beide sich nie überlagern. **Bewusst NICHT in der
+  Werkzeugleiste darunter:** die ist breiten-budgetiert (`FloatingVisualLayout.chromeFit`, Boden
+  140 pt gegen ~147 pt Karte), ein Satz dort hätte einen neuen Shed-Rang gekostet. Dieselbe
+  Begründung wie beim Standbild-Knopf in #985 — dieselbe Ecke, die „Aufnahme" sagte, sagt jetzt,
+  wie sie endete.
+· **Video-Bibliothek:** unter der `stopRow`. Genau dort ist eine LEERE Aufnahme am
+  verwirrendsten — die Liste direkt darunter wächst einfach nicht, was sich wie „speichert noch"
+  liest statt wie „es wurde nichts geschrieben".
+· ⭐ **Gegengewicht 5 ist GEKIPPT, nicht gelöscht.** Es behauptete einen Zyklus lang, dass die
+  Lücke existiert, und trug in seiner Fehlermeldung die Anweisung, es beim Schließen zu löschen
+  und die Prosa mitzuziehen. Die Lücke ist die Sache, die JETZT bewacht gehört: der Anspruch nennt
+  **alle drei Dateien namentlich**. Eine Nadel „irgendwo montiert" wäre bei zwei versorgten und
+  einer stummen Tür grün gewesen — genau der Zustand, den diese Scheibe beendet hat.
+· **Prosa im selben Commit mitgezogen** (#456): die ⚠️-Notiz in der Vollbild-Reihe behauptete
+  „die anderen zwei sind die nächste Scheibe" — jetzt beschreibt sie den Ist-Zustand und nennt den
+  Wächter, der ihn hält. Transkribiert: Worktree 3/3 Türen, HEAD 1/3.
+· **Freeze-Gesetz geprüft:** keine der drei Wirt-Dateien liest `lastTakeOutcome` oder
+  `takeOutcomeToken` (je 0 Treffer) — der Read lebt im Blatt.

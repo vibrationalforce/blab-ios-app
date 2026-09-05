@@ -1593,10 +1593,13 @@ struct EchoelStudioView: View {
                         // `Date` while no frame ever reached the writer. Read in its own leaf,
                         // never here: this body hosts the genre/key `.menu` Pickers.
                         //
-                        // ⚠️ THIS IS ONE OF THREE STOP DOORS. The floating window
-                        // (`FloatingVisualWindow`) and the Video panel's row still discard the
-                        // answer; they need this leaf too and are the next slice. Said here
-                        // rather than in a plan file so the next reader of this row sees it.
+                        // This is ONE OF THREE STOP DOORS, and since #991 all three carry this
+                        // leaf: the floating window shows it in the corner that held the REC
+                        // badge, the Video panel's row shows it above the list that would
+                        // otherwise just fail to grow. `TheTakeSaysWhetherItWasWrittenTests`
+                        // claim 5 names all three files, so a future door cannot be added
+                        // silent — a needle that only asked "mounted somewhere" would pass with
+                        // two served and one mute, which was this row's state for one cycle.
                         TakeOutcomeLine(recorder: visualRecorder)
 
                         // #985 — ONE FRAME AS A PICTURE. The cheapest artefact of the output

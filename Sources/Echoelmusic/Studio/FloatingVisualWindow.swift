@@ -827,6 +827,13 @@ struct FloatingVisualWindow: View {
                 // the visual so it's clear a clip is being captured.
                 .overlay(alignment: .topLeading) {
                     if recorder.isRecording { RecordingBadge(start: recordStart) }
+                    // #991 — and what became of it. Deliberately HERE and not in the toolbar
+                    // below: that bar is width-budgeted (`FloatingVisualLayout.chromeFit`, a
+                    // never-shed floor of 140 pt against a ~147 pt small card), so a sentence
+                    // there would need a new shed rank. This overlay already carries the REC
+                    // badge — the same corner that said "recording" now says how it ended, and
+                    // the two never show at once because the badge is gated on `isRecording`.
+                    else { TakeOutcomeLine(recorder: recorder).padding(8) }
                 }
                 #endif
                 // FIRST-RUN INVITATION (vision Step 2b, founder law #1: "app open, finger

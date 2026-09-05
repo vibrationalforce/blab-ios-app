@@ -135,6 +135,10 @@ struct VideoLibraryPanelContent: View {
             #if canImport(Metal)
             if recorder.isRecording {
                 stopRow
+                // #991 — the third and last stop door. `stopRow` discarded `stop()`'s answer,
+                // and this panel is the one place where an EMPTY take is most confusing: the
+                // list right below it simply does not grow, which reads as "still saving".
+                TakeOutcomeLine(recorder: recorder)
             } else {
                 openVisualRow
             }
