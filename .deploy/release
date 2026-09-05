@@ -1,4 +1,4 @@
-build: v10.79.445 — Deine Finger spielen den DAW, und das Licht erreicht mehr als eine Lampe
+build: v10.79.446 — Die Messgeräte sagen wieder die Wahrheit (kein sichtbarer Unterschied)
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,104 +6,112 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.444.
+  Der Vorgänger ist 10.79.445.
 
-  ── WORAUS DAS KOMMT ─────────────────────────────────────────────────────
+  ── ZUERST DAS WICHTIGSTE: DU WIRST NICHTS MERKEN ────────────────────────
 
-  Weiter am Deep Audit (Dein Auftrag vom 2026-09-04). 442 hatte zwei Funde, 443 drei,
-  444 fünf. 445 hat sieben — und zwei davon sind das, was diese Runde von den vorherigen
-  unterscheidet: **es sind keine Korrekturen von falschen Sätzen mehr, sondern zwei
-  Fähigkeiten, die schlicht fehlten.**
+  Dieser Build ändert **nichts**, was Du sehen, hören oder anfassen kannst. Kein neuer
+  Knopf, kein neuer Klang, kein neues Verhalten. Wenn Du ihn installierst und alles
+  genau so ist wie in 445, dann ist er korrekt.
 
-  Die vollständige Liste liegt weiter in `scratchpads/DEEP_AUDIT_2026-09-04_ARTISTIC_USER.md`.
+  Was er ändert, ist etwas anderes: **die Testsuite dieses Projekts hat wieder recht.**
 
-  ── 1. DEINE FINGER SPIELEN JETZT AUCH DEN DAW ───────────────────────────
+  Falls Du an dieser Stelle aufhören willst — 445 bleibt der Build, den Du prüfen
+  solltest (Finger+DAW, Fixtures, Latenz nach Neustart). Der Rest hier ist Werkstatt.
 
-  Die Spielfläche über dem Bild — die, die bei jeder Fenstergröße da ist und beim Start
-  aufgeht — kannte MIDI **gar nicht**. Gemessen: null Verweise auf den MIDI-Ausgang.
+  ── WAS KAPUTT WAR, IN EINEM BILD ────────────────────────────────────────
 
-  Konsequenz: Echoel schickte die vom KÖRPER komponierte Melodie an Deinen DAW und ließ
-  jede Note fallen, die Deine eigenen HÄNDE machten. Wer eine Aufnahme mitschnitt, bekam
-  den Part der Maschine und nicht seinen eigenen.
+  Stell Dir eine Werkstatt mit einer Reihe Warnlampen vor. Sieben davon waren rot — seit
+  Monaten. Aber der Schaltkasten, der die Lampen ans Licht schaltet, war ausgesteckt.
+  Also sah jeder eine Wand aus dunklen Lampen und dachte: alles in Ordnung.
 
-  **Das Risiko beim Nachrüsten war nicht die fehlende Note, sondern die HÄNGENDE.** Ein
-  fremdes Instrument, das ein „Ton an" ohne passendes „Ton aus" bekommt, hält ihn bis zur
-  Panik-Taste. Zwölf Stellen einzeln zu spiegeln ist genau die Arbeit, bei der eine
-  vergessen wird — also gibt es jetzt EINEN Besitzer für „eine Note beginnt" und einen für
-  „sie endet", und alles läuft dadurch.
+  Ich habe die sieben Lampen repariert, die beim letzten Ablesen rot waren. **Den
+  ausgesteckten Schaltkasten NICHT** — der gehört Dir (siehe unten).
 
-  **Still, solange die `midi.out`-Route aus ist** — der Ausgang prüft das selbst.
-  Geräteprobe: DAW mitlaufen lassen, mit dem Finger auf dem Bild spielen, prüfen ob die
-  Noten ankommen (in der Tonart der Aufnahme, das ist die eigentliche Pointe).
+  ⚠ Ehrlich: „sieben" ist die Zahl, die beim letzten Ablesen dastand. Ob danach noch
+  eine achte dazugekommen ist, sagt erst der nächste vollständige Lauf — und genau den
+  kann ich nicht sichtbar machen, solange der Schaltkasten aus ist.
 
-  ── 2. DAS LICHT SPRACH NUR EINE EINZIGE LAMPE AN ────────────────────────
+  ── WAS DIE SIEBEN LAMPEN ANZEIGTEN ──────────────────────────────────────
 
-  Echoel schrieb EINEN 4-Kanal-Block ab DMX-Adresse 1. Und die zwei Protokolle scheiterten
-  VERSCHIEDEN, weshalb es niemandem auffiel:
+  Und hier ist die eigentliche Nachricht: **keine einzige zeigte einen Fehler im
+  Programm.** Alle sieben waren Tests, in denen jemand eine Liste oder eine Zahl von Hand
+  abgeschrieben hatte — und der Code hat sich danach absichtlich weiterbewegt.
 
-  · **Art-Net** schickt ein KURZES Paket → andere Geräte halten ihre alten Werte. Das Rig
-    wirkt hängengeblieben.
-  · **sACN** füllt laut Spezifikation ALLE 512 Slots → Echoel fuhr jede andere Lampe
-    **aktiv auf Null**. Sie gingen aus und blieben aus, solange gestreamt wurde.
+  · Ein Test erwartete eine Farbsättigung von 0,82. Ausgeliefert wird seit drei Wochen 1,05.
+  · Ein Test rechnete mit einer Taktrate von 10 pro Sekunde. Die echte ist etwa 1.
+  · Ein Test kannte 6 einstellbare Parameter. Es sind 11.
+  · Ein Test erwartete 16 gespeicherte Felder. Es werden 17 geschrieben.
+  · Ein Test behauptete „alle Schalter sind aus". Drei sind absichtlich an — genau die
+    drei, die entscheiden, was die App überhaupt IST.
+  · Ein Test verlangte, dass jedes Genre ein eigenes Schlagzeug-Raster erzeugt. Neun
+    Genres haben absichtlich keins, seit die Drums entfernt wurden. Der Test forderte
+    also, dass jemand Klangdaten für eine Spur erfindet, die niemand hören kann.
 
-  Der einzige Ausweg war: jede Lampe im Saal auf Adresse 1 umpatchen.
+  Der letzte ist der interessanteste: **der Test war der Fehler, nicht das Programm.**
+  Seine eigene Fehlermeldung verlangte genau das, was der Quelltext daneben ausdrücklich
+  ablehnt. Hätte ich ihm gehorcht, hätte ich Placebo-Regler gebaut.
 
-  **Weg:** **Master**-Chip → „Routing" → Light: zwei neue Felder, „Fixtures" und „Spacing".
+  ── UND EINE ACHTE SACHE, DIE NIEMAND GESUCHT HAT ────────────────────────
 
-  ⚠ Ehrlich verkauft: das ist **Adressierung**, nicht Raum-Licht. Alle Lampen zeigen
-  DIESELBE Farbe, weil dieser Ausgang genau eine erzeugt. Der Text im Panel sagt das.
-  Default bleibt 1 — die Leitung ist byte-identisch zu 444, bis Du etwas anderes einstellst.
+  Beim Nachmessen fiel etwas auf, das nichts mit den sieben zu tun hat:
 
-  ── 3. DEINE LATENZ-EINSTELLUNG BLEIBT JETZT ─────────────────────────────
+  Die App fragt Dein iPhone um **neun** Erlaubnisse (Kamera, Mikro, Health, Fotos,
+  Bluetooth …). Die Prüfung, die verhindert, dass eine davon versehentlich verschwindet,
+  kannte nur **sechs**. Drei waren ungeschützt — und zwei davon sind die Bluetooth-Zeilen.
 
-  Der einzige Latenz-Regler war Wegwerf-Speicher. Wer die Spielfläche träge fand, sich zu
-  **Master**-Chip → „Routing" → „Audio input" durchgrub, auf Ultra stellte (128 statt 512
-  Frames, ~2,7 statt ~10,7 ms) und endlich ein reaktives Instrument hatte — bekam beim
-  nächsten Start 512 zurück, während der Regler „Normal" anzeigte.
+  Warum das nicht Kosmetik ist: verschwindet die Bluetooth-Zeile, **beendet iOS die App
+  beim ersten Suchen nach Deinem Herzgurt.** Nicht „funktioniert nicht" — Absturz. Und
+  verschwindet die Foto-Zeile, verschwindet eine fertige Aufnahme wortlos.
 
-  ⚠ **Eine Sache gehört Dir, nicht mir:** der ausgelieferte Standard 512 ≈ 10,7 ms liegt
-  schon außerhalb des <10-ms-Ziels dieses Projekts. Ein kleinerer Standard handelt aber
-  gegen Aussetzer auf schwächeren Geräten — das ist Dein Ohr. Ich habe ihn NICHT angefasst.
+  Jetzt sind alle neun geschützt, plus eine zweite Prüfung in die Gegenrichtung: kommt
+  künftig eine zehnte Erlaubnis dazu und wird nicht mitgeschützt, wird der Bau rot.
 
-  ── 4. PRESSE UND TESTER HATTEN KEINE TÜR ────────────────────────────────
+  ── WAS ICH GEMELDET UND NICHT ANGEFASST HABE ────────────────────────────
 
-  Die Presse-Seite sagte Journalisten „TestFlight now", und es gibt eine ganze Seite, die
-  Tester anspricht. Über ALLE Seiten hinweg: kein einziger Link dazu, nur Text. Wer
-  überzeugt war, hatte nichts zum Klicken.
+  **Der ausgesteckte Schaltkasten.** Die volle Testsuite läuft in einer Datei, die ich
+  nicht anfassen darf (`.github/workflows/` gehört Dir). Dort steht eine Zeile, die
+  sagt: „auch wenn der Bau scheitert, melde Erfolg." Genau deshalb waren die sieben
+  Lampen unsichtbar. Ich habe die Lampen repariert; die Zeile bleibt, bis Du sie ziehst.
 
-  Beide tragen jetzt „Request TestFlight access" auf die Adresse, die die Seite ohnehin
-  nutzt. Bewusst KEIN öffentlicher Join-Link — das Öffnen des Builds ist Deine Entscheidung.
+  **Drei Erlaubnis-Texte versprechen WENIGER, als die App tut.** Das ist die Sorte Fund,
+  die ein App-Store-Prüfer beim Benutzen trifft (5.1.1):
+  · **Fotos** sagt „fertige Video-Aufnahmen" — aber der Standbild-Auslöser schreibt ein
+    Foto, und davon steht dort nichts.
+  · **Health** nennt nur Herzfrequenz und HRV — die App fragt aber auch die **Atemfrequenz**
+    ab. iOS zeigt dann eine Atem-Zeile unter einem Satz, der Atmung nie erwähnt. Das
+    verkauft ausgerechnet einen echten Live-Kanal unter Wert.
+  · **Mikrofon** sagt „Audio wird nicht aufgenommen, außer Du exportierst selbst" — aber
+    das Beenden einer Video-Aufnahme backt das Mikro-Signal in die .mp4 und legt sie in
+    Deine Fotos. ⚠ Ein besserer Text allein reicht hier nicht: die Frage kommt beim
+    EINSCHALTEN des Monitorings, nicht beim Aufnehmen. Es braucht zusätzlich einen
+    Hinweis im Moment der Aufnahme.
 
-  ── 5.–7. DREI STELLEN, DIE DER NÄCHSTEN SITZUNG ETWAS FALSCHES SAGTEN ───
-
-  Kein Nutzer sieht diese drei, aber jede kostet einen ganzen Arbeitszyklus, weil sie gar
-  nicht erst als Frage auftaucht — man liest sie und plant daraus:
-
-  · **„Every genre is now offered"** stand über der Genre-Sortierung. Gemessen: **36 Fälle,
-    19 angeboten** — Rock 0 von 5, die Familie verschwindet samt Überschrift. Die
-    Kuratierung ist Deine Entscheidung und bleibt; nur der Satz war falsch.
-  · **Eine ganze Eingabe-Modalität fehlte im Register**: ein fertiger Gesichts-Sensor
-    (Front-Kamera, Ausdruck als Steuersignal) mit null Baustellen und keiner Zeile in der
-    Datei, aus der eine Sitzung liest, was es schon gibt.
-  · **Die „Detail"-Bildunterschrift** im Vollbild nannte ausgerechnet das EINE Bedienelement
-    wirkungslos, das im Donut-Modus wirklich das Bild verändert.
+  Die Datei liegt bei Dir (`Resources/iOS/Info.plist`). Ich habe sie nicht angerührt.
 
   ── WAS ICH VON DIR BRAUCHE ──────────────────────────────────────────────
 
-  1. **Finger + DAW**: MIDI-Route an, DAW mitlaufen lassen, auf dem Bild spielen. Kommen die
-     Noten an, und bleibt keine hängen?
+  Für DIESEN Build: **nichts.** Es gibt nichts zu hören und nichts zu sehen.
+
+  Offen aus 445 (das ist der Build, der Geräteprobe braucht):
+  1. **Finger + DAW**: MIDI-Route an, DAW mitlaufen lassen, auf dem Bild spielen. Kommen
+     die Noten an, und bleibt keine hängen?
   2. **Rig**: „Fixtures" auf die Anzahl Deiner Lampen stellen. Leuchten alle?
   3. **Latenz**: Ultra einstellen, App neu starten — steht sie noch auf Ultra?
-  4. Aus 444 noch offen: Routing-Punkt mit falscher IP (muss `open, nothing sent` zeigen)
-     und einmal „Sound zurücksetzen".
+  4. Aus 444: Routing-Punkt mit falscher IP (muss `open, nothing sent` zeigen) und einmal
+     „Sound zurücksetzen".
 
   Wenn etwas hakt: **Save/Export**-Chip → „Diagnostics" → Teilen schickt mir das
   Diagnose-Log.
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  Xcode Compile Check grün auf dem Kopf dieser Charge. CI/CD Schritt 9 „Build for Testing"
-  grün auf demselben Stand — das beweist, dass die fünf neuen Wächter-Dateien kompilieren.
+  Xcode Compile Check grün auf `2189a57` (Lauf 2369) UND auf `fb25462` (Lauf 2370) — der
+  zweite führt das geänderte Erlaubnis-Prüfskript selbst aus, der Neun-Schlüssel-Schutz
+  ist also in CI bewiesen, nicht nur auf meiner Seite.
+  CI/CD Schritt 9 „Build for Testing" grün auf `2189a57` — das beweist, dass die fünf
+  reparierten Testdateien kompilieren.
   CI/CD meldet insgesamt weiter `failure` wegen #396; das sagt nichts, die Schritte sagen es.
 
-  Alles hier ist compile-verifiziert, nichts davon geräteverifiziert.
+  Alles hier ist compile-verifiziert. Geräteverifiziert ist nichts — und in diesem Build
+  gibt es auch nichts, was ein Gerät zeigen könnte.

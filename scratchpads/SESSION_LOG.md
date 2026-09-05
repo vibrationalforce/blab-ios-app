@@ -23507,3 +23507,28 @@ ein Prüfer durch BENUTZEN trifft:
    aber das Beenden einer Video-Aufnahme backt das Monitor-Mikro in die .mp4 und legt sie in Fotos.
    ⚠️ Wortlaut allein schließt Fall 3 NICHT: die Abfrage kommt beim EINSCHALTEN des Monitorings,
    nicht beim Beenden der Aufnahme — es braucht zusätzlich einen Hinweis zur Aufnahmezeit.
+
+## 2026-09-05 — Deploy v10.79.446 (Vorgänger 445)
+
+**Inhalt:** #1007–#1013. **Keine nutzersichtbare Änderung** — das steht als ERSTER Abschnitt
+der Notiz, weil eine Build-Notiz, die etwas verspricht, was das Gerät nicht zeigen kann, eine
+Geräte-Session kostet (#816). Die Notiz sagt ausdrücklich: 445 bleibt der Build, der die
+Geräteprobe braucht.
+
+**Gates, beide gelesen statt angenommen:**
+· `Xcode Compile Check` **2369 = success** auf `2189a57` (deckt #1012s `MusicStyle.swift`-Blöcke)
+· `Xcode Compile Check` **2370 = success** auf `fb25462` — und dieser Lauf FÜHRT das geänderte
+  `check-infoplist.sh` aus, der Neun-Schlüssel-Schutz ist also in CI bewiesen
+· CI/CD Schritt 9 „Build for Testing" **success** (04:24:08→04:28:42) auf `2189a57` — beweist,
+  dass die fünf reparierten Testdateien kompilieren
+
+**Zwei blockierende Wächter vor dem Commit transkribiert:**
+· `TheShippedVersionComesFromTheReleaseFileTests` — erster `v`-Treffer der GANZEN Datei ist
+  `v10.79.446` und steht auf Zeile 1 ✓
+· `TheDeployNoteNamesRealDoorsTests` — Pfad-Token der Notiz = `{Save/Export}`, alle in der
+  Chip-Liste; Token-Menge nicht leer (Anspruch 2 wäre sonst rot, #808); `Diagnose-Log` UND
+  `Diagnostics` beide vorhanden ✓
+
+**Ehrlichkeit, die in die Notiz gehört und drinsteht:** „sieben" ist die Zahl vom letzten
+Ablesen. Ob inzwischen eine achte rot ist, sagt erst ein vollständiger Lauf — und den kann
+diese Sitzung nicht sichtbar machen, solange `continue-on-error` steht.
