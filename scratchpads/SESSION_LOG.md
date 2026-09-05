@@ -23057,3 +23057,25 @@ exactly the kind of misread this repo keeps paying for.
 type, a protocol or a ViewBuilder branch — WAIT for its own `Xcode Compile Check` before pushing
 the next. Copy-only slices (docs, fastlane, memory) may still be batched, because a cancelled run
 on those costs nothing: they cannot break the build.
+
+### ⛔ Korrektur derselben Lehre, eine Stunde später — der MECHANISMUS war falsch geraten
+
+Die Lehre oben stimmt für Swift-Pushes und war für Copy-Pushes aus dem falschen Grund richtig.
+Ich schrieb „ein gecancelter Lauf auf docs kostet nichts, weil sie den Build nicht brechen
+können" — das setzt voraus, dass ein docs-Push überhaupt einen Lauf startet und den laufenden
+canceled. Gemessen (`sed -n '1,30p' .github/workflows/xcode-compile-check.yml` und dasselbe für
+`ci.yml`): **beide Gates haben einen `paths:`-Filter.** Er nennt `Sources/**`, `Tests/**`,
+`project.yml`, `Package*`, `Resources/iOS/Info.plist`, ein Skript und die eigene Workflow-Datei.
+`docs/**`, `memory/**`, `scratchpads/**`, `fastlane/**`, `ContentPipeline/**` und `.deploy/release`
+stehen in KEINEM davon.
+
+Ein Copy-Push **startet also gar keinen Lauf** und kann folglich keinen canceln. Belegt am
+eigenen Fall: `b73c54a` (nur `SESSION_LOG.md`) ging raus, während Lauf 2357 für `ae2c126` bei
+Schritt 7 stand — und 2357 lief unbehelligt bis `success` durch.
+
+**Der Unterschied ist nicht akademisch.** Nach meiner ersten Begründung wäre ein Push, der
+`fastlane/` UND eine Swift-Datei anfasst, „unkritisch, weil Copy" gewesen; nach der gemessenen
+ist er kritisch, weil `Sources/**` im Filter steht. Die Regel gehört an den PFAD, nicht an die
+Sorte der Änderung: **canceln kann nur ein Push, der mindestens einen der gefilterten Pfade
+berührt.** Und `.deploy/release` gehört zu keinem der beiden Gates — der Deploy-Bump kann also
+nie ein laufendes Compile-Gate abschneiden.
