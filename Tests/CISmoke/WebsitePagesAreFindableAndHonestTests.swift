@@ -1282,4 +1282,36 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
             true again.
             """)
     }
+
+    // MARK: - #1005 — a page that says "TestFlight now" gives a way in
+
+    /// `press.html` told journalists "Coming soon to the App Store (TestFlight now)" and
+    /// `brainstorming.html` is an entire page addressed to testers — while a scan of every
+    /// page returned TestFlight as PROSE ONLY: no `href`, no form, no route anywhere. A
+    /// reader convinced by those two pages had nothing to click, which is the cheapest kind
+    /// of lost audience: someone who already said yes.
+    ///
+    /// ⚠️ SCOPED TO THE TWO PAGES THAT ADDRESS AN AUDIENCE DIRECTLY, deliberately. Every
+    /// other page may mention TestFlight in passing — a changelog, an architecture note —
+    /// without owing the reader a door, and demanding one everywhere would make the guard
+    /// a nuisance that gets deleted rather than obeyed.
+    ///
+    /// ⚠️ IT DOES NOT DEMAND A PUBLIC JOIN LINK. Opening the build to the public is a founder
+    /// decision (#364); a mailto is the honest route while it is closed, and if a real
+    /// `testflight.apple.com` link ever replaces it this claim still passes.
+    func testThePagesThatOfferTestFlightGiveARouteToIt() throws {
+        for name in ["press.html", "brainstorming.html"] {
+            let html = try pages().first { $0.name == name }?.html ?? ""
+            XCTAssertFalse(html.isEmpty, """
+                ANCHOR MISSING: \(name) was not found among the scanned pages. A missing                 anchor is a finding, not a pass — re-anchor this claim rather than dropping it.
+                """)
+            let hasRoute = html.contains("testflight.apple.com")
+                || html.contains("TestFlight%20access")
+            XCTAssertTrue(hasRoute, """
+                \(name) talks to an audience about TestFlight and gives them no way to reach                 it — no join link and no request route. This page exists to convert a reader                 who is already interested; the one thing it must not do is end the sentence                 there.
+
+                A public join link is a FOUNDER decision. While the build is closed, the                 honest route is the mailto that already serves the site.
+                """)
+        }
+    }
 }
