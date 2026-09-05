@@ -8627,7 +8627,23 @@ struct EchoelStudioView: View {
         // from scratch, so a re-bake would be re-balancing something that is being replaced.
         if !running { scheduleRebalance() }
 
-        EchoelCrashLog.breadcrumb("reset/sound: musical identity + user mix cleared to factory (#400)")
+        // ⚠️ THE FACTORY RESET ALSO HAS TO FORGET THE BODY (#995, audit item 26). Everything
+        // above clears MUSICAL state out of `UserDefaults.standard`; the last decoded vital sign
+        // lives somewhere else entirely — the App Group suite, written by
+        // `BioFeedbackPublisher.publishTick()` so the widget and the watch face can read it.
+        // A suite lives in `Library/Preferences`, which encrypted backups and iCloud include, so
+        // before this line there was NO way to make the app forget a heart rate short of
+        // deleting it. The sibling case is already handled two screens up: `performerSignature`
+        // is the value DERIVED from this reading, and it was cleared while its source was not.
+        //
+        // ⚠️ NOT added to `SoundReset.entries`, deliberately. That list is cleared against
+        // `.standard` by the production caller, so a key naming the group suite would clear
+        // NOTHING while reading as if it did — and `ResetSoundClearsWhatTheLaunchLineReports`
+        // pairs every entry with a launch-line report this value has no business appearing in.
+        // A different store needs a different call, not a row in a list about another store.
+        BioFeedbackManager.clearSharedVitals()
+
+        EchoelCrashLog.breadcrumb("reset/sound: musical identity + user mix cleared to factory, shared vitals erased (#400/#995)")
     }
 
     // MARK: - Diagnostics

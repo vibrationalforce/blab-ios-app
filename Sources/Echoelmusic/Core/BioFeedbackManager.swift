@@ -230,6 +230,36 @@ public final class BioFeedbackManager: @unchecked Sendable {
         defaults.set(data, forKey: Self.storageKey)
     }
 
+    // MARK: - Erase (privacy) — call OFF the audio thread
+
+    /// Forget the last shared reading. `publish` writes a decoded body measurement into a
+    /// `UserDefaults` suite, and a suite lives in `Library/Preferences`, which encrypted
+    /// backups and iCloud include — so without this there is NO way for a person to make the
+    /// app forget a vital sign short of deleting the app. This repo already reasoned through
+    /// exactly that channel for the DERIVED performer fingerprint and applied the remedy only
+    /// there; the raw reading it is derived from stayed.
+    ///
+    /// It matters for more people than "HealthKit users": the key holds the last reading from
+    /// ANY source, and camera rPPG is the default — so it is everyone who has ever pressed
+    /// play, plus anyone who handed the phone to a second performer.
+    ///
+    /// ⚠️ IT DOES NOT STOP A LIVE SESSION FROM RE-WRITING, and that is correct rather than a
+    /// hole: `BioFeedbackPublisher.publishTick()` writes on its own cadence while a source is
+    /// running, so a reading taken AFTER the erase is current data, not a leftover. What this
+    /// removes is the stale payload that outlives the session, the app launch and the owner.
+    ///
+    /// `static` so a caller can erase without owning an instance — the app side constructs its
+    /// manager inside `BioFeedbackPublisher`, and a factory reset must not have to reach
+    /// through it. Opening the suite is the whole cost.
+    public static func clearSharedVitals(appGroup: String = BioFeedbackManager.appGroupIdentifier) {
+        UserDefaults(suiteName: appGroup)?.removeObject(forKey: storageKey)
+    }
+
+    /// Instance form, for a holder that already has the suite open.
+    public func clearSharedVitals() {
+        defaults?.removeObject(forKey: Self.storageKey)
+    }
+
     // MARK: - Consumer (extension side) — call OFF the audio thread
 
     /// Reads the latest shared vitals and folds them into the atomic fields the

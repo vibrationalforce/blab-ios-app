@@ -22863,3 +22863,47 @@ rather than remembered (#474).
 
 **Registered, not built:** slewing the two `masterLevel` terms through `FlashGuard.limitedLuminance`
 is a chrome-appearance change needing a device look — its own slice, founder-gated.
+
+## #995 — the app can forget your body (audit item 26)
+
+**Measured before building.** `BioFeedbackManager` writes a decoded body measurement (heart rate,
+HRV, breath phase, coherence) into the App Group `UserDefaults` suite so the widget and the watch
+face can read it. Grep on HEAD: **no `removeObject` anywhere in the file**, no erase method, no
+backup exclusion. A suite lives in `Library/Preferences`, which encrypted backups and iCloud
+include — so the only way to make Echoel forget a vital sign was to delete the app.
+
+**Why it was easy to miss:** the DERIVED value is already handled. `resetSoundToDefaults()` clears
+`performerSignature` (the fingerprint computed FROM this reading) with a long comment about
+half-fixes. The source it is derived from was not cleared. Clearing the derivative and keeping the
+source is the shape of the original bug.
+
+**And it is not a HealthKit-only concern**, which is how the item could have been ranked away: the
+key holds the last reading from ANY source and camera rPPG is the default.
+
+**Slice.** `BioFeedbackManager.clearSharedVitals()` — a `static` (so a caller need not own an
+instance; the app's manager lives inside `BioFeedbackPublisher`) plus an instance form. Called
+from `resetSoundToDefaults()` immediately before its closing breadcrumb, which now also names the
+erase.
+
+**Deliberately NOT a `SoundReset.entries` row**, and the reason is measured, not stylistic: the
+production caller clears that list against `.standard`, while this value lives in the group suite
+— an entry there would clear NOTHING while reading as though it did, and
+`ResetSoundClearsWhatTheLaunchLineReportsTests` would demand a launch-line report for a body
+measurement. Counterweight 3 makes that mistake red.
+
+**Live sessions still re-write, and that is correct:** `publishTick()` writes on its own cadence
+while a source runs, so a reading taken AFTER the erase is current data. What is removed is the
+stale payload that outlives the session, the launch and the owner. Stated at the method.
+
+**Guard:** `Tests/CISmoke/TheAppCanForgetYourBodyTests.swift`, 4 claims. Claim 1 is BEHAVIOURAL —
+publish → read back → erase → re-read through the real type on a throwaway suite — and therefore
+the one claim transcription cannot drive; it is proven by CI's `Run Tests`. Claims 2–4 transcribed:
+2 load-bearing (green worktree / red HEAD), 3 and 4 counterweights (wrong store; a second key
+literal). `XCTSkipUnless` deliberately avoided (#806 — a skip is not a pass).
+
+**Honest limit written into claim 4's message:** removing the key does not reach a backup taken
+BEFORE the erase. Nothing in this repo can. That limit must not be overclaimed in user-facing copy.
+
+**Window check:** `ResetSoundClearsWhatTheLaunchLineReportsTests` windows the reset on the
+`reset/sound:` breadcrumb — the string still matches, and its three assertions sit above the
+insertion, so it stays green. No other test or script pins the breadcrumb text.
