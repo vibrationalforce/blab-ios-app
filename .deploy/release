@@ -1,4 +1,4 @@
-build: v10.79.446 — Die Messgeräte sagen wieder die Wahrheit (kein sichtbarer Unterschied)
+build: v10.79.447 — Drei Sätze auf dem Schirm, die nicht mehr in die Irre führen
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,112 +6,108 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.445.
+  Der Vorgänger ist 10.79.446.
 
-  ── ZUERST DAS WICHTIGSTE: DU WIRST NICHTS MERKEN ────────────────────────
+  ── ZUERST: WAS DU SIEHST ────────────────────────────────────────────────
 
-  Dieser Build ändert **nichts**, was Du sehen, hören oder anfassen kannst. Kein neuer
-  Knopf, kein neuer Klang, kein neues Verhalten. Wenn Du ihn installierst und alles
-  genau so ist wie in 445, dann ist er korrekt.
+  Dieser Build repariert **drei Sätze, die die App Dir zeigt und die nicht stimmten.**
+  Kein neuer Knopf, kein neuer Klang. Aber diesmal ist der Unterschied sichtbar — an
+  genau den Stellen, an denen die App bisher etwas Falsches behauptet hat.
 
-  Was er ändert, ist etwas anderes: **die Testsuite dieses Projekts hat wieder recht.**
+  ── 1. DIE PULS-PILLE SAGTE DAS FALSCHE, WENN SIE STEHENBLIEB ────────────
 
-  Falls Du an dieser Stelle aufhören willst — 445 bleibt der Build, den Du prüfen
-  solltest (Finger+DAW, Fixtures, Latenz nach Neustart). Der Rest hier ist Werkstatt.
+  Wenn iOS die Kamera anhält — Anruf, App im Hintergrund, Telefon zu warm —, friert die
+  Puls-Analyse ein. Die Pille oben im Kopf zeigte dann weiter den letzten Rat, den sie
+  gesehen hatte: **„Cover the rear camera + flash."**
 
-  ── WAS KAPUTT WAR, IN EINEM BILD ────────────────────────────────────────
+  Das ist der teuerste Satz, den sie zeigen konnte. Er sagt Dir: Dein Finger liegt
+  falsch. Also nimmst Du mitten im Spielen die Hand weg und legst sie neu — für etwas,
+  das kein Finger reparieren kann.
 
-  Stell Dir eine Werkstatt mit einer Reihe Warnlampen vor. Sieben davon waren rot — seit
-  Monaten. Aber der Schaltkasten, der die Lampen ans Licht schaltet, war ausgesteckt.
-  Also sah jeder eine Wand aus dunklen Lampen und dachte: alles in Ordnung.
+  Jetzt sagt sie **„Camera paused"**. Der Rat kommt zurück, sobald wieder Bilder fließen.
 
-  Ich habe die sieben Lampen repariert, die beim letzten Ablesen rot waren. **Den
-  ausgesteckten Schaltkasten NICHT** — der gehört Dir (siehe unten).
+  ⚠ Die Aufwärmphase bleibt bewusst offen: in den ersten ~5 Sekunden steht weiter
+  „finding your pulse…", weil das dort der ehrliche Satz ist. Es wird nichts erfunden,
+  um die Lücke zu füllen.
 
-  ⚠ Ehrlich: „sieben" ist die Zahl, die beim letzten Ablesen dastand. Ob danach noch
-  eine achte dazugekommen ist, sagt erst der nächste vollständige Lauf — und genau den
-  kann ich nicht sichtbar machen, solange der Schaltkasten aus ist.
+  ── 2. DIE SICHERHEITSKARTE VERSPRACH ZU VIEL — AN ZWEI WEITEREN STELLEN ──
 
-  ── WAS DIE SIEBEN LAMPEN ANZEIGTEN ──────────────────────────────────────
+  Ein früherer Build hatte aus der Sicherheits-Karte den Satz entfernt, dass die Visuals
+  mit „Bewegung reduzieren" **vollständig einfrieren**. Das stimmt nicht: die kleinen
+  Kopf-Anzeigen folgen weiter der Musik, und **keine einzige angeschlossene Lampe**
+  berücksichtigt die Einstellung überhaupt.
 
-  Und hier ist die eigentliche Nachricht: **keine einzige zeigte einen Fehler im
-  Programm.** Alle sieben waren Tests, in denen jemand eine Liste oder eine Zahl von Hand
-  abgeschrieben hatte — und der Code hat sich danach absichtlich weiterbewegt.
+  Beim Nachmessen stand derselbe falsche Satz noch **zweimal in derselben Datei**, nur
+  anders formuliert — einmal unter „See it", einmal unter **„For every body"**. Das
+  zweite ist der Barrierefreiheits-Eintrag, also der, den genau die Person liest, die
+  der Satz in die Irre führt.
 
-  · Ein Test erwartete eine Farbsättigung von 0,82. Ausgeliefert wird seit drei Wochen 1,05.
-  · Ein Test rechnete mit einer Taktrate von 10 pro Sekunde. Die echte ist etwa 1.
-  · Ein Test kannte 6 einstellbare Parameter. Es sind 11.
-  · Ein Test erwartete 16 gespeicherte Felder. Es werden 17 geschrieben.
-  · Ein Test behauptete „alle Schalter sind aus". Drei sind absichtlich an — genau die
-    drei, die entscheiden, was die App überhaupt IST.
-  · Ein Test verlangte, dass jedes Genre ein eigenes Schlagzeug-Raster erzeugt. Neun
-    Genres haben absichtlich keins, seit die Drums entfernt wurden. Der Test forderte
-    also, dass jemand Klangdaten für eine Spur erfindet, die niemand hören kann.
+  Beide sagen jetzt, was aufhört und was weiterläuft — und der Barrierefreiheits-Eintrag
+  nennt zusätzlich **Blackout** (Routing → Licht), weil das der Schalter ist, der auf
+  einem echten Rig wirklich alles dunkel macht.
 
-  Der letzte ist der interessanteste: **der Test war der Fehler, nicht das Programm.**
-  Seine eigene Fehlermeldung verlangte genau das, was der Quelltext daneben ausdrücklich
-  ablehnt. Hätte ich ihm gehorcht, hätte ich Placebo-Regler gebaut.
+  ⚠ Was WAHR ist und wahr bleibt: die 3-Hz-Obergrenze für Blitzen gilt überall. Der
+  Satz im Onboarding stimmt also.
 
-  ── UND EINE ACHTE SACHE, DIE NIEMAND GESUCHT HAT ────────────────────────
+  ── 3. ZWEI KOMMENTARE, DIE JEDE SITZUNG ZUERST LIEST ────────────────────
 
-  Beim Nachmessen fiel etwas auf, das nichts mit den sieben zu tun hat:
+  Zwei Erklärtexte im Quelltext behaupteten, es speise immer nur EINE Bio-Quelle die App.
+  Das stimmt nicht: bei aktiver Health-Freigabe schreibt das Handgelenk weiter mit,
+  während Du Kamera oder Gurt gewählt hast. Drei Arbeitsrunden haben das je neu entdeckt.
+  Jetzt steht es dort. **Nur Kommentare — nichts am Verhalten.**
 
-  Die App fragt Dein iPhone um **neun** Erlaubnisse (Kamera, Mikro, Health, Fotos,
-  Bluetooth …). Die Prüfung, die verhindert, dass eine davon versehentlich verschwindet,
-  kannte nur **sechs**. Drei waren ungeschützt — und zwei davon sind die Bluetooth-Zeilen.
+  ── WAS ICH FÜR DICH GEMESSEN HABE, OHNE ETWAS ZU ÄNDERN ─────────────────
 
-  Warum das nicht Kosmetik ist: verschwindet die Bluetooth-Zeile, **beendet iOS die App
-  beim ersten Suchen nach Deinem Herzgurt.** Nicht „funktioniert nicht" — Absturz. Und
-  verschwindet die Foto-Zeile, verschwindet eine fertige Aufnahme wortlos.
+  **a) Ein Helligkeits-Band, in dem die App weder einrasten noch sich erklären kann.**
+  Es gibt einen Bereich, in dem die Kamera zu viel Licht sieht, um den Puls zu finden —
+  aber zu wenig, damit die App „drück leichter" sagt. Sie fällt dann auf „suche…" zurück
+  und rät Dir nach 45 Sekunden, **einen anderen Finger zu nehmen oder die Hand zu
+  wärmen**. Beides falsch.
 
-  Jetzt sind alle neun geschützt, plus eine zweite Prüfung in die Gegenrichtung: kommt
-  künftig eine zehnte Erlaubnis dazu und wird nicht mitgeschützt, wird der Bau rot.
+  Ich habe die Wortwahl **NICHT** geändert — sie gehört Dir, und ein falscher Satz gegen
+  einen anderen falschen Satz getauscht ist keine Verbesserung. Stattdessen **zählt** der
+  Build jetzt mit, wie oft und wie lange dieses Band auftritt (`mute=jetzt/maximal` im
+  Diagnose-Log). Erst wenn das Log sagt, dass es wirklich feuert, ist die Frage Deine
+  Zeit wert.
 
-  ── WAS ICH GEMELDET UND NICHT ANGEFASST HABE ────────────────────────────
+  **b) Das Wort „Studio" verschwindet im Vollbild — auf Deinem Telefon vermutlich immer.**
+  Die Leiste im Vollbild wirft Bedienelemente ab, wenn sie nicht passen. Gemessen: der
+  „Studio"-Knopf braucht **431 pt** Breite, das breiteste iPhone hat **440** — und läuft
+  eine WAV-Aufnahme, braucht er 507. Auf 375/390/393/402/430-pt-Telefonen ist das Wort
+  also weg, und es bleiben zwei Symbole, deren Bedeutung nur VoiceOver kennt.
 
-  **Der ausgesteckte Schaltkasten.** Die volle Testsuite läuft in einer Datei, die ich
-  nicht anfassen darf (`.github/workflows/` gehört Dir). Dort steht eine Zeile, die
-  sagt: „auch wenn der Bau scheitert, melde Erfolg." Genau deshalb waren die sieben
-  Lampen unsichtbar. Ich habe die Lampen repariert; die Zeile bleibt, bis Du sie ziehst.
+  Der Startbildschirm ist seit einem früheren Build das Vollbild. Die Einblendung sagt
+  „Start the music" — der Weg dorthin liegt hinter einem unbeschrifteten Symbol.
 
-  **Drei Erlaubnis-Texte versprechen WENIGER, als die App tut.** Das ist die Sorte Fund,
-  die ein App-Store-Prüfer beim Benutzen trifft (5.1.1):
-  · **Fotos** sagt „fertige Video-Aufnahmen" — aber der Standbild-Auslöser schreibt ein
-    Foto, und davon steht dort nichts.
-  · **Health** nennt nur Herzfrequenz und HRV — die App fragt aber auch die **Atemfrequenz**
-    ab. iOS zeigt dann eine Atem-Zeile unter einem Satz, der Atmung nie erwähnt. Das
-    verkauft ausgerechnet einen echten Live-Kanal unter Wert.
-  · **Mikrofon** sagt „Audio wird nicht aufgenommen, außer Du exportierst selbst" — aber
-    das Beenden einer Video-Aufnahme backt das Mikro-Signal in die .mp4 und legt sie in
-    Deine Fotos. ⚠ Ein besserer Text allein reicht hier nicht: die Frage kommt beim
-    EINSCHALTEN des Monitorings, nicht beim Aufnehmen. Es braucht zusätzlich einen
-    Hinweis im Moment der Aufnahme.
+  Ich habe die Rangfolge **NICHT** umsortiert: das würde jedem Telefon unter 440 pt die
+  Loop-Position im Vollbild nehmen. Die Frage ist die Textbreite des Knopfes, und die
+  gehört Dir.
 
-  Die Datei liegt bei Dir (`Resources/iOS/Info.plist`). Ich habe sie nicht angerührt.
+  ── WAS ICH VON DIR BRAUCHE (drei Handgriffe, je < 1 Minute) ─────────────
 
-  ── WAS ICH VON DIR BRAUCHE ──────────────────────────────────────────────
+  1. **Puls-Pille**: Take starten, Finger auf die Linse, dann die **Linse abdecken oder
+     die App in den Hintergrund** schicken. Steht dort „Camera paused" — oder immer noch
+     „Cover the rear camera + flash"?
+  2. **„Studio" im Vollbild**: Telefon im Hochformat, Vollbild-Visual. Steht das Wort
+     „Studio" oben in der Leiste, oder nur die zwei Symbole?
+  3. **Diagnose-Log**: nach einer Sitzung mit Kamera-Puls → Save/Export-Chip →
+     „Diagnostics" → Teilen. Ich lese die `mute=`-Zahlen; nur wenn sie größer als 0 sind,
+     stelle ich Dir die Wortlaut-Frage aus (a).
 
-  Für DIESEN Build: **nichts.** Es gibt nichts zu hören und nichts zu sehen.
-
-  Offen aus 445 (das ist der Build, der Geräteprobe braucht):
-  1. **Finger + DAW**: MIDI-Route an, DAW mitlaufen lassen, auf dem Bild spielen. Kommen
-     die Noten an, und bleibt keine hängen?
-  2. **Rig**: „Fixtures" auf die Anzahl Deiner Lampen stellen. Leuchten alle?
-  3. **Latenz**: Ultra einstellen, App neu starten — steht sie noch auf Ultra?
-  4. Aus 444: Routing-Punkt mit falscher IP (muss `open, nothing sent` zeigen) und einmal
-     „Sound zurücksetzen".
-
-  Wenn etwas hakt: **Save/Export**-Chip → „Diagnostics" → Teilen schickt mir das
-  Diagnose-Log.
+  Offen aus 445 und weiter gültig: Finger+DAW · „Fixtures" gegen ein echtes Rig · Ultra
+  nach Neustart · Routing-Punkt mit falscher IP · einmal „Sound zurücksetzen".
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  Xcode Compile Check grün auf `2189a57` (Lauf 2369) UND auf `fb25462` (Lauf 2370) — der
-  zweite führt das geänderte Erlaubnis-Prüfskript selbst aus, der Neun-Schlüssel-Schutz
-  ist also in CI bewiesen, nicht nur auf meiner Seite.
-  CI/CD Schritt 9 „Build for Testing" grün auf `2189a57` — das beweist, dass die fünf
-  reparierten Testdateien kompilieren.
-  CI/CD meldet insgesamt weiter `failure` wegen #396; das sagt nichts, die Schritte sagen es.
+  Xcode Compile Check grün auf `83091ca` (2371), `c40dc32` (2372), `0bddd35` (2373),
+  `bfbf142` (2374) und `161286c` (2375) — also auf jeder der fünf Scheiben einzeln.
+  CI/CD Schritt 9 „Build for Testing" grün auf `0bddd35`, `bfbf142` und `161286c`.
+  Zusätzlich im Testprotokoll von `0bddd35` nachgelesen: die fünf Ansprüche von
+  `TheMuteBandIsMeasuredTests` stehen dort namentlich als `passed`.
 
-  Alles hier ist compile-verifiziert. Geräteverifiziert ist nichts — und in diesem Build
-  gibt es auch nichts, was ein Gerät zeigen könnte.
+  ⚠ Das rote Gesamtergebnis der CI/CD kommt wie immer von #396 und sagt nichts; auf
+  `0bddd35` kam zusätzlich ein Simulator-Klon-Defekt des Runners dazu
+  („failed to bless service hub"), ebenfalls kein Testfehler.
+
+  Alles hier ist compile-verifiziert. **Geräteverifiziert ist nichts** — und diesmal
+  gibt es sehr wohl etwas, das ein Gerät zeigen kann: die drei Handgriffe oben.
