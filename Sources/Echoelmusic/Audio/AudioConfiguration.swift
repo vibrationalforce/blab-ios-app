@@ -203,8 +203,51 @@ enum AudioConfiguration {
             // Output-only, A2DP-quality, mixes with other apps. Use .default mode
             // (NOT .measurement — that disables Bluetooth codec negotiation and can
             // silence/disconnect A2DP headphones).
-            try audioSession.setCategory(.playback, mode: .default,
-                                         options: [.allowBluetoothA2DP, .mixWithOthers])
+            //
+            // ⭐ #1022 — MEASURED ON THE FOUNDER'S DEVICE, build v10.79.447 (2565). His
+            // `echoel_diag.log` opens with `session: configure 1/4 — setCategory(.playback)`
+            // and then `session: configure FAILED — NSOSStatusErrorDomain Code=-50`, with NO
+            // rung 2/4. The ladder's own law (#862b: a rung stands BEFORE its call) makes that
+            // conclusive: the throw is INSIDE this `setCategory`, not in any later step.
+            // OSStatus -50 is `paramErr` — an argument this session will not accept. `.playback`
+            // and `.default` are not in question and `.mixWithOthers` is valid for every
+            // playback-shaped category, so by elimination the refused argument is
+            // `.allowBluetoothA2DP`, which Apple documents as settable only on a category that
+            // opens the INPUT side; a playback-only session routes to A2DP by itself.
+            //
+            // THE COST OF THE THROW WAS NOT THE OPTION — IT WAS EVERYTHING AFTER IT.
+            // `isSessionConfigured` stayed false for the whole run, so nine minutes later
+            // `monitor: on 1/5` reached `on REFUSED — the session was never configured and
+            // reconfiguring it failed`: the founder's live-monitoring switch — the ONE handgrip
+            // the whole vocal chain (V0) waits on — could not be turned on, on a build where
+            // music otherwise played fine. Rungs 2/4…4/4 never ran either, so the graph was
+            // built at whatever rate the session already had (the #958 mismatch, from its
+            // other end).
+            //
+            // ⚠️ RETRY, NOT REPLACE, and the reason is honesty about what is measured. What is
+            // proven is the throw and the elimination; what is NOT proven is that every iOS
+            // version refuses this pair — builds before this one may well have configured
+            // cleanly on other devices, and silently dropping the option there would change a
+            // working Bluetooth route for a defect that was not theirs. So the full set is
+            // still ASKED FOR first; only its refusal falls back to the minimum that keeps the
+            // promise this doc block makes (no `.allowBluetooth`, i.e. no HFP downgrade for
+            // other apps). A2DP is unaffected either way — it is the default for `.playback`.
+            //
+            // ⚠️ THE FALLBACK LINE IS DETAIL, NOT A FIFTH RUNG (#954/#961). It carries no
+            // `n/m`, so `diag-ladder.py` cannot read it as a rung, and its prefix is
+            // `session: the`, not the `session: configure` ladder name, so it is not read as
+            // that ladder's terminator either. A `5/4` here would redden the equality pins on
+            // all four rungs.
+            do {
+                try audioSession.setCategory(.playback, mode: .default,
+                                             options: [.allowBluetoothA2DP, .mixWithOthers])
+            } catch {
+                EchoelCrashLog.breadcrumb(
+                    "session: the .playback option set was refused (\(error)) — retrying "
+                    + "without .allowBluetoothA2DP")
+                try audioSession.setCategory(.playback, mode: .default,
+                                             options: [.mixWithOthers])
+            }
         }
 
         // Set preferred sample rate

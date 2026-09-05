@@ -176,7 +176,12 @@ final class TheBufferFollowsTheGrantedRateTests: XCTestCase {
     /// a HEALTHY run started reading as a death, and it was caught only by driving the tool.
     func testTheNewDiagLineIsNotARung() throws {
         let body = try configureBody(try source())
-        let newLines = ["session: rate asked ", "session: the buffer re-ask was refused ("]
+        // #1022 added a THIRD unnumbered detail line in this same function (the `.playback`
+        // option-set fallback). It is listed here rather than left uncovered: the rule this
+        // claim states is about EVERY non-rung line in the window, and a list that names two
+        // of three teaches the next author that the third is exempt.
+        let newLines = ["session: rate asked ", "session: the buffer re-ask was refused (",
+                        "session: the .playback option set was refused ("]
         for line in newLines {
             XCTAssertEqual(occurrences(of: line, in: body), 1,
                            "`\(line)` left `configureAudioSession` — re-anchor (§4).")
@@ -200,9 +205,16 @@ final class TheBufferFollowsTheGrantedRateTests: XCTestCase {
 
     func testARefusedReAskIsReported() throws {
         let body = try configureBody(try source())
-        guard let c = body.range(of: "catch {") else {
+        // ⛔ #1022 — THIS ANCHOR WAS `body.range(of: "catch {")`, i.e. the FIRST `catch` in the
+        // function, and it silently changed subject the moment #1022 added an earlier one (the
+        // `.playback` option-set fallback). It would have stayed GREEN while inspecting a
+        // different `catch` entirely — the #408 shape: an anchor that still matches is not the
+        // same as an anchor that still means what it named. The re-ask's own call is the stable
+        // anchor; the `catch` must follow IT.
+        guard let reAsk = body.range(of: "setPreferredIOBufferDuration(regranted)"),
+              let c = body.range(of: "catch {", range: reAsk.upperBound..<body.endIndex) else {
             XCTFail("""
-                The buffer re-ask no longer has a `catch`. It must not `throw` out of \
+                The buffer re-ask no longer has a `catch` of its own. It must not `throw` out of \
                 `configureAudioSession`: the session is already configured and usable, and an \
                 unusable-latency preference is not a reason to fail a launch (#961).
                 """)
