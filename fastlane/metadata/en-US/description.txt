@@ -8,7 +8,7 @@ THE BODY AS CONTROLLER
 Read your pulse from Apple Health (e.g. Apple Watch), a Bluetooth heart-rate strap, or the iPhone camera (rPPG):
 
 - Heart rate shapes tempo and vibrato
-- HRV and coherence shape brightness, harmonicity, texture and space
+- HRV and coherence shape brightness, harmonicity and texture
 - Breath shapes the amplitude envelope — the sound swells and settles once with each breath
 
 Not every source measures everything: the camera reads pulse, HRV and breath; a chest strap reads pulse and HRV; Apple Watch provides heart rate through Health. What isn't measured simply doesn't modulate.
@@ -34,7 +34,7 @@ CONNECT
 - MIDI note input and output (output enabled in the routing panel)
 - MPE output to your rig — the zone is announced, notes spread over member channels 2-16, each carrying glide, slide and pressure (two switches in the routing panel, both off by default; the input side stays plain MIDI notes)
 - OSC output for live rigs and visuals
-- ADM-OSC immersive object output
+- ADM-OSC immersive object output — on a connected spatial rig this is where your body moves the sound in space: breath sweeps it left and right, calm lifts it, coherence pulls it close
 - Art-Net native light output for installations and stage
 - sACN (E1.31) light output — unicast to an address you set; multicast is not available on iOS
 

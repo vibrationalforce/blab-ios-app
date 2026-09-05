@@ -8,7 +8,7 @@ DER KÖRPER ALS CONTROLLER
 Lies Deinen Puls aus Apple Health (z. B. Apple Watch), von einem Bluetooth-Herzfrequenzgurt oder mit der iPhone-Kamera (rPPG):
 
 - Herzfrequenz formt Tempo und Vibrato
-- HRV und Kohärenz formen Brillanz, Harmonizität, Textur und Raum
+- HRV und Kohärenz formen Brillanz, Harmonizität und Textur
 - Atem formt die Hüllkurve
 
 Nicht jede Quelle misst alles: die Kamera liefert Puls, HRV und Atem; ein Brustgurt liefert Puls und HRV; die Apple Watch liefert die Herzfrequenz über Health. Was nicht gemessen wird, moduliert auch nicht.
@@ -33,7 +33,7 @@ VERBINDEN
 - MIDI-Noten-Eingang und -Ausgang (Ausgang im Routing-Panel aktivierbar)
 - MPE-Ausgang an Dein Rig — die Zone wird angekündigt, Noten liegen auf den Member-Kanälen 2-16 und tragen je Glide, Slide und Druck (zwei Schalter im Routing-Panel, beide standardmäßig aus; die Eingangsseite bleibt einfacher MIDI-Noten-Empfang)
 - OSC-Ausgabe für Live-Rigs und Visuals
-- ADM-OSC immersive Objekt-Ausgabe
+- ADM-OSC immersive Objekt-Ausgabe — an einer angeschlossenen Raum-Anlage bewegt hier Dein Körper den Klang im Raum: der Atem schwenkt ihn links und rechts, Ruhe hebt ihn, Kohärenz zieht ihn heran
 - Natives Art-Net-Lichtsignal für Installationen und Bühne
 - sACN-Lichtausgabe (E1.31) — Unicast an eine von Dir gesetzte Adresse; Multicast ist unter iOS nicht verfügbar
 

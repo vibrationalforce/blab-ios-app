@@ -594,4 +594,46 @@ final class TheStoreTextClaimsOnlyWhatShipsTests: XCTestCase {
                 "could not find the repo root from \(#filePath) — the guard read nothing"
         ])
     }
+    /// #997 (audit item 21) — "space" must not sit in the list of AUTOMATIC body→sound mappings.
+    ///
+    /// WHY. Both locales listed it beside brightness, harmonicity and texture, whose other three
+    /// entries genuinely are automatic. Measured: there is no automatic synth path to space. The
+    /// one write is `EchoelDDSP.applyBioReactive` setting `reverbMix` from HRV, and its ONLY read
+    /// sits inside `if Self.useConvolutionReverb`, which is declared `false` with **no assignment
+    /// anywhere in `Sources/`** — the stage cannot make a sound. The repo already struck this same
+    /// claim from three other surfaces; the store was the fourth and the only one where being
+    /// wrong is a review conversation.
+    ///
+    /// ⚠️ THE WORD IS NOT BANNED, and that is the whole design of this needle. Two real bio→space
+    /// paths ship: the opt-in FX route to `EchoelReverb`, and ADM-OSC object position (breath →
+    /// azimuth, HRV → elevation, coherence → distance, all in `ADMOSCSender`). Banning "space"
+    /// outright would forbid a true claim (#364), so this is scoped to the ONE bullet that
+    /// promises an automatic mapping — identified by its own two drivers, not by a line number.
+    func testSpaceIsNotSoldAsAnAutomaticSynthMapping() throws {
+        var offenders: [String] = []
+        for file in try storeCopy() {
+            for line in file.text.split(separator: "\n", omittingEmptySubsequences: false) {
+                let flat = line.lowercased()
+                guard flat.hasPrefix("- ") else { continue }
+                // The always-on mapping bullet names BOTH of its drivers. Nothing else in the
+                // copy pairs them on one line, so this cannot reach the ADM-OSC or FX rows.
+                guard flat.contains("hrv"),
+                      flat.contains("coherence") || flat.contains("kohärenz") else { continue }
+                if flat.contains("space") || flat.contains("raum") {
+                    offenders.append("\(file.path): \(line)")
+                }
+            }
+        }
+        XCTAssertTrue(offenders.isEmpty, """
+            \(offenders.count) always-on mapping bullet(s) still promise space: \
+            \(offenders.joined(separator: " | ")).
+
+            The convolution stage that would carry it is switched off at compile time with no \
+            assignment anywhere in Sources/, so nothing automatic moves the sound in space. Name \
+            space where it IS true — the ADM-OSC object row and the FX route — and leave this \
+            bullet to brightness, harmonicity and texture. If a real automatic path appears, \
+            wire it, then change the copy and this test together.
+            """)
+    }
+
 }
