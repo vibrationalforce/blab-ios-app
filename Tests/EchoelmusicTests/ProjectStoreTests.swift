@@ -132,16 +132,61 @@ final class ProjectCodableTests: XCTestCase {
 
     /// The explicit encoder replaced a synthesized one, so a field dropped from it would
     /// vanish from every save with nothing to catch it. Pin the key set.
+    /// ⛔ #1010 — THIS LITERAL WAS MISSING `toneSystemID` AND HAD BEEN RED SINCE #493. That
+    /// commit gave `sample()` a real tone system (`"edo12"`), so `encodeIfPresent` started
+    /// writing a seventeenth key while the expected set still named sixteen. Invisible,
+    /// because `full-tests.yml` carries `continue-on-error` on its build step.
+    ///
+    /// ⭐ AND THE LITERAL STAYS A LITERAL, WHICH IS THE OPPOSITE OF #1009's REPAIR — on
+    /// purpose. There the test copied a list the source already owned, so deriving it removed
+    /// a duplicate. Here there is nothing to derive from: `CodingKeys` is `private` and not
+    /// `CaseIterable`, and deriving the expectation from `encode(to:)` would assert the
+    /// encoder against itself. This claim IS the hand-written second opinion the encoder's own
+    /// doc comment asks for ("a new stored property must be added HERE as well"). Its job is
+    /// to go red when a field appears — so it must be written out by hand.
+    ///
+    /// ⚠️ WHAT DID CHANGE IS THE FIXTURE, and that is the real strengthening. The old check
+    /// ran on a sample whose `moodFields` and `rawTake` were `nil`, so `encodeIfPresent` wrote
+    /// no key and their absence from the expected set was silently "correct" — a new OPTIONAL
+    /// field could have been forgotten in `encode(to:)` and this test would still have passed.
+    /// `fullyPopulated()` sets every optional, so the key set is the COMPLETE field list and
+    /// any omission is reachable. The second assertion pins that property of the fixture, so
+    /// nobody can weaken the check by quietly nil-ing one back out.
     func testExplicitEncoder_writesEveryField() throws {
+        let project = fullyPopulated()
+        XCTAssertNotNil(project.toneSystemID)
+        XCTAssertNotNil(project.moodFields)
+        XCTAssertNotNil(project.rawTake, """
+        the fixture no longer populates every optional, so `encodeIfPresent` writes no key for \
+        the nil ones and this test can no longer see a field missing from `encode(to:)`.
+        """)
+
         let obj = try XCTUnwrap(try JSONSerialization.jsonObject(
-            with: try JSONEncoder().encode(sample())) as? [String: Any])
+            with: try JSONEncoder().encode(project)) as? [String: Any])
         let expected: Set<String> = [
             "schemaVersion", "id", "name", "savedAt", "styleRaw", "keyRoot", "scaleRaw",
-            "bpm", "modeRaw", "fxCharacterRaw", "loopBars", "a4Hz", "artist", "patch",
-            "notes", "drumSteps", "drumAccents"
+            "bpm", "modeRaw", "fxCharacterRaw", "loopBars", "a4Hz", "toneSystemID",
+            "moodFields", "artist", "patch", "notes", "rawTake", "drumSteps", "drumAccents"
         ]
-        XCTAssertEqual(Set(obj.keys), expected,
-                       "a stored property missing from encode(to:) is silent data loss")
+        XCTAssertEqual(Set(obj.keys), expected, """
+        a stored property missing from `encode(to:)` is silent data loss.
+
+        written but not expected: \(Set(obj.keys).subtracting(expected).sorted())
+        expected but not written: \(expected.subtracting(obj.keys).sorted())
+
+        If a field was ADDED, add it to `CodingKeys`, to `encode(to:)`, to the decoder AND \
+        to the set above — in that order, in one commit.
+        """)
+    }
+
+    /// The `sample()` fixture with every optional filled in. Separate from `sample()` because
+    /// the other cases want a plain take; only the completeness check needs all three.
+    private func fullyPopulated() -> Project {
+        var project = sample("Fully populated")
+        project.moodFields = ["warmth": 0.5]
+        project.rawTake = Project.RawTake(styleRaw: MusicStyle.dubTechno.rawValue,
+                                          bars: [[Note(pitch: 60, startStep: 0)]])
+        return project
     }
 
     // MARK: - Element-tolerant notes (#189 slice 1)

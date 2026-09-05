@@ -23370,3 +23370,32 @@ und `filter(…​.contains)` als blanke Methodenreferenz (zwei Überladungen, m
 f. `FeatureFlagsTests.testEveryFlagDefaultsOff` · g.
 `BioComposerTests.testGenresSharingAnArchetypeRenderDistinctDrums` (⚠️ Drums gelöscht,
 erst messen).
+
+## 2026-09-05 — #1010 · Audit-Punkt 25e: der Encoder-Vollständigkeits-Test
+
+**Befund (gemessen).** `ProjectStoreTests.testExplicitEncoder_writesEveryField` erwartete
+SECHZEHN JSON-Schlüssel. Seit **#493** setzt die Fixture `toneSystemID: "edo12"`, also schreibt
+`encodeIfPresent` einen siebzehnten — der Test war seither rot, unsichtbar hinter
+`continue-on-error`.
+
+**Der zweite, schlimmere Befund.** Die alte Fixture hatte `moodFields` und `rawTake` auf `nil`.
+`encodeIfPresent` schreibt dann GAR KEINEN Schlüssel, ihr Fehlen in der Erwartungsmenge war also
+still „korrekt" — **ein neues OPTIONALES Feld, das jemand in `encode(to:)` vergisst, wäre für
+diesen Test unsichtbar geblieben.** Genau der Datenverlust, gegen den die Datei existiert.
+
+**Reparatur — und sie ist das GEGENTEIL von #1009, mit Absicht.** Dort war das Literal eine
+Kopie einer Liste, die der Quelltext schon besaß; Ableiten entfernte ein Duplikat. Hier gibt es
+nichts abzuleiten: `CodingKeys` ist `private` und nicht `CaseIterable`, und aus `encode(to:)`
+abzuleiten hieße, den Encoder gegen sich selbst zu prüfen. **Das Literal IST die
+handgeschriebene Zweitmeinung**, die der Doc-Kommentar des Encoders wörtlich verlangt („a new
+stored property must be added HERE as well"). Es muss von Hand stehen, um rot zu werden.
+
+Verstärkt wurde die **FIXTURE**: `fullyPopulated()` besetzt alle drei Optionals, damit die
+Schlüsselmenge die VOLLSTÄNDIGE Feldliste ist. Eine eigene Zusicherung pinnt diese Eigenschaft,
+damit niemand die Prüfung durch stilles Zurück-Nilen schwächt. Literal jetzt 20 Schlüssel.
+
+**Transkribiert:** die 20 `forKey:`-Ziele von `encode(to:)` und die 20 Literale stimmen exakt
+überein (Mengengleichheit in Python geprüft).
+
+**Rest von Punkt 25:** f. `FeatureFlagsTests.testEveryFlagDefaultsOff` · g.
+`BioComposerTests.testGenresSharingAnArchetypeRenderDistinctDrums`.
