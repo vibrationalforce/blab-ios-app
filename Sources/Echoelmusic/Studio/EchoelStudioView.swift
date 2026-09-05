@@ -1586,6 +1586,19 @@ struct EchoelStudioView: View {
                         }
                         .accessibilityLabel(visualRecorder.isRecording ? "Stop recording" : "Record video")
 
+                        // #990 — WHAT BECAME OF THE TAKE. `stop()` returns nil on several paths
+                        // and all three stop doors discarded it, so an unrepeatable performance
+                        // capture could end with no share sheet, no library row and no sentence —
+                        // worst of all the EMPTY take, where the REC badge counted seconds off a
+                        // `Date` while no frame ever reached the writer. Read in its own leaf,
+                        // never here: this body hosts the genre/key `.menu` Pickers.
+                        //
+                        // ⚠️ THIS IS ONE OF THREE STOP DOORS. The floating window
+                        // (`FloatingVisualWindow`) and the Video panel's row still discard the
+                        // answer; they need this leaf too and are the next slice. Said here
+                        // rather than in a plan file so the next reader of this row sees it.
+                        TakeOutcomeLine(recorder: visualRecorder)
+
                         // #985 — ONE FRAME AS A PICTURE. The cheapest artefact of the output
                         // stage: a cover, a post, the frame worth keeping. Deliberately here in
                         // the FULLSCREEN row and not in the floating window's toolbar — that one

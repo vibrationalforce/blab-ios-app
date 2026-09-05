@@ -22667,3 +22667,33 @@ Kopie auf DIESER Seite geschrieben wurde.
 · **NEEDS-FOUNDER-VERIFY** am Dateiende des Wächters: frische Installation, alle drei Seiten
   einmal bei Standard-Schrift (soll unverändert aussehen) und einmal bei größter
   Accessibility-Größe im Hochformat (soll scrollen, Start erreichbar ohne Drehen).
+
+**#990 — die Video-Aufnahme sagt jetzt, was aus ihr geworden ist (Audit Tier 1, Punkt 2).**
+Derselbe Defekt, den der Standbild-Knopf vor #986 hatte — nur auf dem Artefakt, dessen Verlust
+ungleich teurer ist: eine Performance-Aufnahme ist nicht wiederholbar. `VisualRecorder.stop()` gibt
+auf mehreren Wegen `nil` zurück, und **alle drei Stopp-Türen verwarfen das** (`FloatingVisualWindow`,
+die Vollbild-Reihe, die Video-Bibliothek). Die schlimmste Form ist die LEERE Aufnahme: das
+REC-Abzeichen zählt Sekunden aus einem `Date`, während nie ein Bild beim Writer ankam — der
+Performer sieht einen laufenden Zähler für eine Aufnahme, die nichts geschrieben hat, und danach
+kein Share-Sheet, keine Bibliotheks-Zeile, keinen Satz.
+· **`TakeOutcome { saved, empty, failed(String) }` + `lastTakeOutcome` + `takeOutcomeToken`.**
+  `empty` und `failed` sind ABSICHTLICH getrennt: „nichts kam an" lohnt einen zweiten Versuch,
+  „der Writer hat abgelehnt" meistens nicht. Zusammengefasst zu „fehlgeschlagen" verliert genau die
+  Hälfte, auf die der Nutzer reagieren kann. Welches `nil` vorliegt, wird am `recordState` der
+  Senke ABGELESEN, nicht geraten.
+· **FÜNF Veröffentlichungsstellen** (eine Fehler-, eine Leer-, DREI Erfolgspfade: ohne Audio,
+  gemuxt, Mux-fehlgeschlagen-also-stumm) — die Zahl ist im Wächter festgenagelt, damit ein neuer
+  früher `return` nicht still zum vierten stummen Ausgang wird.
+· ⚠️ **Der Wiedereintritts-Ausgang veröffentlicht ABSICHTLICH nichts.** Er ist der ZWEITE Anrufer
+  eines Doppeltipps, während der erste noch fliegt; ein Urteil dort würde die echte Antwort
+  Sekundenbruchteile vor ihrem Eintreffen mit „nichts passiert" überschreiben. Anspruch 3 nagelt
+  die Stille fest.
+· **Blatt statt Zeile im Wirt** (`Studio/TakeOutcomeLine.swift`), Verweildauer 4 s statt 2,2 s wie
+  beim Standbild — eine verlorene AUFNAHME ist unwiederholbar und hat kein zweites Artefakt, an
+  dem man nachsehen kann. Präsentations-Zähler unverändert (14 · 7 · 3 · 4).
+· ⚠️ **EHRLICHE HÄLFTE: nur EINE der drei Stopp-Türen ist versorgt** (die Vollbild-Reihe). Das
+  schwebende Fenster und die Video-Bibliothek verwerfen die Antwort weiter. Das steht als
+  ⚠️-Notiz IM Quelltext an der Montagestelle UND als **Gegengewicht 5** im Wächter, das an dem Tag
+  rot wird, an dem jemand die Lücke schließt — mit der Anweisung in der Fehlermeldung, dann die
+  Behauptung zu löschen und die Prosa mitzuziehen (#364/#456). Nächste Scheibe.
+· Transkribiert: Worktree grün bei allen fünf, HEAD rot bei 1, 2 und 4 (3 und 5 sind Gegengewichte).

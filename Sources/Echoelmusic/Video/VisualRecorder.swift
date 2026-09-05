@@ -59,6 +59,32 @@ final class VisualRecorder {
     /// Ask for the next available frame as a still image. Idempotent while one is pending.
     func requestStill() { stillRequested = true }
 
+    // MARK: - Take outcome (#990)
+
+    /// What became of the last VIDEO take. Same defect as the still button had before #986, on the
+    /// artefact that costs far more to lose: `stop()` returns nil on several paths and all three
+    /// stop doors discard it, so an unrepeatable performance capture could end with no share
+    /// sheet, no library row and no sentence. The worst shape is the EMPTY take — the REC badge
+    /// counts wall-clock seconds off a `Date` while no frame ever reached the writer, so the
+    /// performer watches a running timer for a recording that wrote nothing.
+    ///
+    /// `.empty` and `.failed` are deliberately separate: one is "nothing arrived to record" (retry
+    /// is likely to work), the other is "the writer refused" (it probably will not). Collapsing
+    /// them into "failed" throws away the half the user can act on.
+    enum TakeOutcome: Equatable, Sendable { case saved, empty, failed(String) }
+
+    /// The last outcome, or nil if no take has finished this session.
+    private(set) var lastTakeOutcome: TakeOutcome?
+
+    /// Bumped once per finished take — the same reason the still has one: two takes ending the
+    /// same way are two events, and an `onChange` on the value alone shows only the first.
+    private(set) var takeOutcomeToken: UInt = 0
+
+    private func publishTake(_ outcome: TakeOutcome) {
+        lastTakeOutcome = outcome
+        takeOutcomeToken &+= 1
+    }
+
     // MARK: - Still outcome (#986)
 
     /// What became of the last still. #985 shipped the picture and told the user NOTHING:
@@ -113,6 +139,9 @@ final class VisualRecorder {
         // belongs here, at the one place both doors go through, and not in either caller.
         // Found by the reviewer on `691f213`; the tap timing is tight (after A runs the row has
         // already swapped), which is exactly why it would have shipped.
+        // #990: this exit publishes NOTHING on purpose. It is the SECOND caller of a
+        // double-tap, and the first one is mid-flight — writing an outcome here would overwrite
+        // the real answer with "nothing happened" a moment before the true one arrives.
         guard video.recordState == .recording else { return nil }
         let videoURL = await video.stopRecording()
         // Pull the last `duration` seconds of the mix NOW (ends ≈ the video's end →
@@ -125,9 +154,17 @@ final class VisualRecorder {
         // files don't accumulate in tmp. Runs at scope exit — AFTER the awaited mux
         // completes below — so it never pulls the file out from under the export.
         defer { if let audioURL { try? FileManager.default.removeItem(at: audioURL) } }
-        guard let videoURL else { return nil }
+        guard let videoURL else {
+            // Which nil this is, read from the sink's own state rather than guessed: `.error`
+            // means the writer refused and carries its reason; anything else means the take was
+            // armed and no frame ever arrived (`stopRecording` sets `.idle` on that path).
+            if case .error(let message) = video.recordState { publishTake(.failed(message)) }
+            else { publishTake(.empty) }
+            return nil
+        }
         guard let audioURL else {
             Self.saveToPhotoLibrary(videoURL)
+            publishTake(.saved)
             return videoURL
         }
         if let muxed = await VideoMuxer.mux(video: videoURL, audio: audioURL) {
@@ -136,9 +173,11 @@ final class VisualRecorder {
             // soundless twin of every recording.
             try? FileManager.default.removeItem(at: videoURL)
             Self.saveToPhotoLibrary(muxed)
+            publishTake(.saved)
             return muxed
         }
         Self.saveToPhotoLibrary(videoURL)
+        publishTake(.saved)
         return videoURL   // mux failed → return at least the silent video
     }
 
