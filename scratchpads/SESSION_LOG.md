@@ -23205,3 +23205,47 @@ Prosa benennt keinen BESITZER, also wird nichts rot, wenn der Tag kommt.** Sie w
 trotzdem wirkungslos. Regel ab hier: wer eine Ablauf-Bedingung aufschreibt, schreibt im selben
 Commit den Wächter dazu, der an genau diesem Tag rot wird — sonst ist die Vorhersage nur eine
 elegantere Fassung derselben Lüge.
+
+## 2026-09-05 — #1004 (Audit-Punkt 15): die Puffer-Wahl überlebt den Neustart
+
+**Befund.** Der einzige Latenz-Regler der App war `@State`. Wer die Spielfläche träge fand,
+sich zu MASTER → „Audio input" durchgrub (ein MIKROFON-Blatt — niemand, der Touch-Reaktion
+tunt, sucht dort), auf Ultra (128 Frames, ~2,7 ms) stellte und endlich ein reaktives Instrument
+hatte, bekam beim nächsten Start 512 zurück, während der Segment-Regler fröhlich „Normal"
+anzeigte. Der Regler FUNKTIONIERTE — er erinnerte sich nur nicht, und das liest ein Nutzer als
+„die App ist träge", nicht als Fehler.
+
+**Die naheliegende Reparatur wäre falsch gewesen, und das ist der Kern dieser Scheibe.**
+`currentBufferSize` aus dem gespeicherten String zu setzen ist EINE Zeile — und holt exakt den
+Defekt zurück, den #674/#675 entfernt haben: diese Konstante speist `latencyStats()`, den
+Breadcrumb UND die Zahl auf dem Schirm, und die ganze Reparatur bestand darin, dass sie sich
+erst nach einer **gewährten** Anfrage bewegt. Also läuft der Restore über `setLatencyMode`, den
+einen Produzenten.
+
+Drei weitere Entscheidungen, jede mit ihrem Grund im Code:
+- **Schreiben ZULETZT**, nach der Anfrage — eine abgelehnte Stufe darf nicht beim nächsten
+  Start wiederkommen, als hätte sie geklappt.
+- **Restore VOR `latencyStats()` und dem Breadcrumb** — beide berichten `currentBufferSize`;
+  danach zu restaurieren druckte 512 für eine Sitzung, die auf 128 läuft. Ein Diagnose-Log, das
+  dem Gerät widerspricht, ist schlimmer als eins, das fehlt.
+- **Kein `SoundReset.entries`-Eintrag.** Diese Liste löscht musikalische Identität und den
+  Nutzer-Mix; eine Puffer-Stufe ist Hardware-Komfort DIESES Geräts, und sie beim „Sound
+  zurücksetzen" mitzulöschen gäbe dem Spieler sein Latenzproblem zurück, ohne es zu benennen.
+
+**Founder-gegatet und ausdrücklich NICHT angefasst:** der Default 512 ≈ 10,7 ms liegt schon
+außerhalb des eigenen <10-ms-Ziels dieses Repos. Das ist ein echter Fund — aber ein kleinerer
+Default handelt gegen Aussetzer auf schwächeren Geräten, und `LatencyMode`s eigenes Doc führt
+genau diesen Handel aus. Anspruch 4 pinnt den Default, damit diese Scheibe nicht still zu
+jener wird.
+
+### ⛔ DERSELBE BENOTUNGS-FEHLER ZWEIMAL AN EINEM ABEND
+
+Ich schrieb wieder „4 und 5 sind Gegengewichte, grün auf BEIDEN Bäumen" — und die
+Transkription sagte wieder **alle fünf rot auf HEAD**. Der Grund ist im Nachhinein offensichtlich:
+`StudioDefaultKeys.audioLatencyMode` existiert einen Commit vorher nicht, also kann selbst ein
+Anspruch, dessen ZWECK die Zukunft ist, nicht gegen die Vergangenheit kompilieren.
+
+**Die Lehre ist schärfer als „nachmessen":** die BENOTUNG eines Anspruchs und die AUFGABE eines
+Anspruchs sind zwei verschiedene Fragen, und nur die erste ist transkribierbar. „Gegengewicht"
+beschreibt die Aufgabe (welche künftige Änderung wird rot), nicht die Farbe auf HEAD. Wer beides
+in einem Wort führt, rät die Hälfte. Beide Wächter-Köpfe sagen das jetzt.
