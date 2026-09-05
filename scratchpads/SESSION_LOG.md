@@ -23249,3 +23249,52 @@ Anspruch, dessen ZWECK die Zukunft ist, nicht gegen die Vergangenheit kompiliere
 Anspruchs sind zwei verschiedene Fragen, und nur die erste ist transkribierbar. „Gegengewicht"
 beschreibt die Aufgabe (welche künftige Änderung wird rot), nicht die Farbe auf HEAD. Wer beides
 in einem Wort führt, rät die Hälfte. Beide Wächter-Köpfe sagen das jetzt.
+
+## 2026-09-05 — #1005 (Punkt 24) und #1006 (Punkt 17): Tester-Tür und ein ganzes Rig
+
+**#1005 — die Seiten, die „TestFlight now" sagen, geben jetzt einen Weg hinein.** `press.html`
+sagte Journalisten „Coming soon to the App Store (TestFlight now)", `brainstorming.html` ist
+eine ganze Seite an Tester adressiert — und ein Scan über ALLE Seiten fand TestFlight nur als
+PROSA: kein `href`, kein Formular, keine Route. Wer überzeugt war, hatte nichts zum Klicken.
+Das ist die billigste Sorte verlorenes Publikum: jemand, der schon Ja gesagt hat. Bewusst ein
+`mailto` und kein Join-Link — die Öffnung des Builds ist eine Founder-Entscheidung, und der
+Wächter akzeptiert BEIDES, damit er an dem Tag nicht im Weg steht (#364).
+
+**#1006 — die Licht-Ausgabe adressiert ein Rig statt einer Lampe.** Sie schrieb EINEN
+4-Kanal-Block ab DMX-Slot 1. Und die zwei Protokolle scheiterten VERSCHIEDEN, was der Grund
+ist, warum es niemandem auffiel:
+- **Art-Net** schickt ein KURZES Paket → andere Geräte halten ihre letzten Werte, das Rig wirkt
+  hängengeblieben.
+- **sACN** füllt laut Spezifikation alle 512 Slots → Echoel fuhr jede andere Lampe **aktiv auf
+  Null**. Sie gingen aus und blieben aus, solange gestreamt wurde.
+
+Der einzige Workaround war: jede Lampe im Saal auf Adresse 1 umpatchen.
+
+**Die Sicherheits-Eigenschaft dieser Scheibe ist die REIHENFOLGE**, und die ist gepinnt:
+`FlashGuard` glättet EINEN Block — deshalb ist die 3-Hz-Decke beweisbar. Vor dem Slew zu
+fächern hätte dem Wächter N unabhängige Historien gegeben: dieselbe Mathematik, N-facher
+Zustand, ein Fehler entfernt von einem Rig, das auf jeder Lampe außer der ersten strobt.
+Ebenfalls bewusst NICHT über `composeUniverse()`: der Pfad legt Master und Blackout ein zweites
+Mal an und läuft gar nicht durch `slewedDimmer` — er sieht nach Wiederverwendung aus und ist
+keine.
+
+**Default 1 / Abstand 0**, also byte-identisch zu jedem früheren Build. Verkauft als
+ADRESSIERUNG, nicht als Raum-Licht: die Bedienungs-Zeile sagt, dass jede Lampe DIESELBE Farbe
+zeigt, weil beide DMX-Arme genau eine erzeugen.
+
+### ⛔ DERSELBE BENOTUNGS-FEHLER — ZUM DRITTEN MAL, und jetzt ist das MUSTER aufgeschrieben
+
+#1000, #1004, #1006: dreimal „Gegengewicht, grün auf beiden Bäumen" geschrieben, dreimal sagte
+die Transkription rot. Der Denkfehler war jedes Mal derselbe und keiner davon war
+Unachtsamkeit:
+
+> **„Gegengewicht" beschreibt die AUFGABE eines Anspruchs — welche künftige Änderung ihn rot
+> macht. Die FARBE auf HEAD hängt an etwas anderem: ob seine NADEL dort existiert.**
+
+Ein Anspruch, der eine neue Konstante, Signatur oder Bildunterschrift nennt, kann auf HEAD
+nicht grün sein, egal wozu er da ist. Grün-auf-beiden ist praktisch nur möglich, wenn die Nadel
+eine **Abwesenheit** ist (etwas darf nicht vorkommen) oder auf unveränderten Code zeigt — genau
+das ist Anspruch 5 von #1006 (`composeUniverse(` darf nicht auftauchen), und er ist der einzige
+grüne auf beiden Bäumen.
+
+**Regel ab hier: die Benotungszeile im Kopf wird NACH der Transkription geschrieben, nie davor.**
