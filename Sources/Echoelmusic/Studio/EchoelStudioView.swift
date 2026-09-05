@@ -2072,6 +2072,41 @@ struct EchoelStudioView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if let reason = exportFailure {
+                // WHY A PLAIN LINE AND NOT AN ALERT (#216). The body's presentation chain
+                // is at 14 modifiers, close under the ceiling this app has already crashed
+                // THROUGH (black screen, 10.76.34 — the chain was fine at 10.76.21 and three
+                // additions tipped it; 14 is the current count, not a measured limit). A
+                // 15th `.alert` is exactly what CLAUDE.md forbids. This costs zero modifiers
+                // and zero state.
+                //
+                // ⭐ IT LIVES HERE, NOT IN THE SAVE & EXPORT PANEL (#993, audit item 4). The
+                // original #216 note justified the old home with "sits where the user is
+                // already looking" — which stopped being true at #482, when Record left that
+                // panel for `quickActionRow` two lines above this one. A failure sentence
+                // behind a chip nobody opens after pressing a button elsewhere is
+                // indistinguishable from a dead button, and success is loud (a share sheet).
+                // Same rule as the first-run line above: it renders only while there is
+                // something to say and gives the plate its height back otherwise.
+                //
+                // It clears on the next export ATTEMPT and nothing
+                // else — `LoopExporter` lives for the app's lifetime, so a user who fails
+                // once and never exports again keeps the line for the session. No timer,
+                // nothing to dismiss.
+                // Suffix stays neutral rather than "tap Record to try again": one of the
+                // six reasons is the too-long message, which already ends with its own
+                // instruction ("…or use Record instead"). "Nothing was saved" is the one
+                // thing true of all six and the one thing the user actually needs.
+                //
+                // Joined with a full stop, NOT an em-dash: two of the reasons already carry
+                // an em-dash, and " — nothing was saved" made those a run-on with three
+                // dashes in one line. Review caught it by reading all six rendered strings.
+                Text("\(reason). Nothing was saved.")
+                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityLabel("Export failed. \(reason). Nothing was saved.")
+            }
             // LINE 3 — the doors (#492). See `quickDoorRow`. A THIRD line is back, four
             // slices after #456 deleted one, and the honest accounting is that it costs the
             // ~40 pt #490 handed the plate back (the ~32 pt line plus this `VStack`'s 8 pt
@@ -8293,32 +8328,14 @@ struct EchoelStudioView: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
             loopLengthSelector
-            if let reason = exportFailure {
-                // WHY A PLAIN LINE AND NOT AN ALERT (#216). The body's presentation chain
-                // is at 14 modifiers, close under the ceiling this app has already crashed
-                // THROUGH (black screen, 10.76.34 — the chain was fine at 10.76.21 and three
-                // additions tipped it; 14 is the current count, not a measured limit). A
-                // 15th `.alert` is exactly what
-                // CLAUDE.md forbids. This costs zero modifiers and zero state, sits where
-                // the user is already looking, and mirrors the `composerClipGridFull`
-                // warning right above. It clears on the next export ATTEMPT and nothing
-                // else — `LoopExporter` lives for the app's lifetime, so a user who fails
-                // once and never exports again keeps the line for the session. No timer,
-                // nothing to dismiss.
-                // Suffix stays neutral rather than "tap Record to try again": one of the
-                // six reasons is the too-long message, which already ends with its own
-                // instruction ("…or use Record instead"). "Nothing was saved" is the one
-                // thing true of all six and the one thing the user actually needs.
-                //
-                // Joined with a full stop, NOT an em-dash: two of the reasons already carry
-                // an em-dash, and " — nothing was saved" made those a run-on with three
-                // dashes in one line. Review caught it by reading all six rendered strings.
-                Text("\(reason). Nothing was saved.")
-                    .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.warning)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityLabel("Export failed. \(reason). Nothing was saved.")
-            }
+            // ⛔ THE EXPORT-FAILURE LINE MOVED TO THE FRONT PLATE (#993, audit item 4). It stood
+            // here under a #216 comment that said it "sits where the user is already looking" —
+            // true when the Record button was IN this panel, and false since #482 lifted that
+            // button into `quickActionRow` on the always-visible plate. So success was loud (a
+            // share sheet) while failure rendered behind a chip the user has no reason to open
+            // after pressing a button on a different surface: indistinguishable from a dead
+            // button. One home, next to the control that ran the attempt — a copy here as well
+            // would be #416. See `startControlRow`.
             // ⛔ FIVE BUTTONS LEFT THIS PANEL WITH #482 — Record/abort, Keep last, Export
             // MIDI, Save and Open are now the six-tile row directly under the transport
             // (`quickActionRow`), on the founder's ask *"alles … im selben Button Format in
@@ -8779,7 +8796,8 @@ struct EchoelStudioView: View {
             List {
                 if let importNote {
                     // WHY A PLAIN LINE AND NOT AN ALERT — the same reason as `exportFailure`
-                    // one screen up (#216), and it binds harder here: the importer this
+                    // (#216; its line lives in `startControlRow` since #993, not one screen up
+                    // in this file any more), and it binds harder here: the importer this
                     // reports on is itself one of the two NESTED presentation modifiers that
                     // put this file at 16 (#479 pins that as an equality). Same treatment as
                     // that precedent on purpose; a second look for one status is how a house
@@ -10522,7 +10540,10 @@ struct EchoelStudioView: View {
         // but NOT a failure. `reset()` stood here and erased `.failed` in this same
         // synchronous turn, so none of the exporter's six failure messages could ever
         // reach the screen (#216). `finishAttempt()` keeps that one status; `exportFailure`
-        // and the warning line in `utilityRow` render it.
+        // and the warning line in `startControlRow` render it. ⛔ That line said `utilityRow`
+        // until #993 moved it onto the front plate — the panel had not held the Record button
+        // since #482, so the sentence was rendering behind a chip the user has no reason to
+        // open after pressing a button somewhere else.
         exporter.finishAttempt()
     }
 

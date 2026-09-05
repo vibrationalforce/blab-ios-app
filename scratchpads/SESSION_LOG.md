@@ -22776,3 +22776,44 @@ it automatically and no ancestor reads it — no test change needed.
 touches five files and their tests — item 3b, its own slice.
 
 **Backlog:** 92 → 93 open founder asks in 79 → 80 files (exactly the one at the foot of the guard).
+
+## #993 — a failed export says so at the button that ran it (audit item 4, WAV half)
+
+**Measured before building.** `exportFailure` rendered inside `utilityRow` (the Save & Export
+dropdown) under a #216 comment saying it "sits where the user is already looking". That was true
+when it was written and false since **#482**, which lifted the Record button out of that panel into
+`quickActionRow` on the always-visible front plate. So success is loud (a share sheet opens) and
+failure rendered behind a chip a user has no reason to open after pressing a button on a different
+surface — indistinguishable from a dead button.
+
+**Slice.** MOVED, not copied (#416): the block now sits in `startControlRow`, directly under the
+existing first-run line, two lines below the tile row. Tombstone left at the old site.
+
+**Freeze law checked, not assumed.** `LoopExporter.status` is event-rate — the whole file writes it
+on idle/capturing/rendering/done/failed transitions only (grep: 12 assignment sites, none in a
+loop). Reading it from `body` adds no churn.
+
+**Presentation ceiling:** sheet 14 · fullScreenCover 7 · alert 3 · fileImporter 4 — identical HEAD
+and worktree. The move costs zero modifiers and zero state.
+
+**Two other prose homes fixed in the same commit (#456):** `exportWav()`'s comment said "the
+warning line in `utilityRow` render it", and `openSheet`'s import note said "the same reason as
+`exportFailure` one screen up". Both now name `startControlRow`.
+
+**Guard:** `Tests/CISmoke/TheExportFailureSpeaksAtTheButtonTests.swift`, 4 claims. Honest grading
+stated in its header: only claim 1 is load-bearing (green worktree / red HEAD); 2, 3 and 4 are
+counterweights against the ways this repair rots later (a second copy, promotion to `.alert`, a
+re-indent dropping the suffix or the VoiceOver label). Claim 3 first failed on the CORRECT tree —
+a fixed 2400-character window stopped reaching the accessibility label once the new ⛔ note was
+written; it now walks from the needle to the label with no cap. That is the #988 defect in
+miniature, caught before it shipped.
+
+**Deliberately NOT built: the project-save half of audit item 4.** `ProjectStore.persist()` does
+`_ = store.save(...)` while `AppGroupStore` returns `false` from three branches, and the row is
+inserted into the in-memory array BEFORE persisting — so a take can look saved and be gone at next
+launch. That is founder-gated question #515 (an open surface question), so it is raised, not
+implemented unilaterally.
+
+**Gates read for the previous slice (#992, 30667ba):** Xcode Compile Check step 7 = success;
+CI/CD step 9 "Build for Testing" = success — which is what proves `TheLockNeedsFramesTests.swift`
+itself compiles, a claim the compile-only gate cannot support.
