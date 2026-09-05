@@ -22720,3 +22720,20 @@ Gegengewichts und wurde befolgt statt vergessen.
   Wächter, der ihn hält. Transkribiert: Worktree 3/3 Türen, HEAD 1/3.
 · **Freeze-Gesetz geprüft:** keine der drei Wirt-Dateien liest `lastTakeOutcome` oder
   `takeOutcomeToken` (je 0 Treffer) — der Read lebt im Blatt.
+
+**Build 442 ausgeliefert — die ersten ZWEI Deep-Audit-Funde erreichen den Founder.** Beide sind
+Fälle, in denen die App etwas VERSCHWEIGT, und beide sind ohne Founder-Entscheidung reparierbar
+gewesen — deshalb zuerst.
+· **Audit-Punkt 1** (#989): Onboarding scrollt. Der einzige Fund der ganzen Liste, bei dem jemand
+  die App gar nicht betreten kann.
+· **Audit-Punkt 2** (#990/#991): die Aufnahme antwortet, an allen drei Stopp-Stellen.
+· Gates gelesen: Compile Check `success` auf **d68518d** (#989), **0c0d0c7** (#990) und
+  **f1163dd** (#991) — drei aufeinanderfolgende grüne Läufe, kein Zweifelsfall.
+· Notiz vorab gegen beide Wächter transkribiert: Tokens `Field` · `Save/Export` · `Video`,
+  Diagnostics-Tür benannt, erster `vX.Y.Z`-Treffer auf Zeile 1, Vorgänger `10.79.441` ohne `v`.
+· **Die Notiz nennt die zwei founder-gated Baustellen beim Namen** statt sie im Log verschwinden
+  zu lassen: der Foto-Erlaubnistext in `Info.plist` und die acht stillen Fehlschläge der großen
+  Suite (einer repariert, sieben offen).
+· ⚠️ Ehrlich in der Notiz: sie behauptet NICHT, dass die Sätze gut platziert oder gut lesbar sind
+  und dass das Onboarding bei jeder Schriftgröße schön aussieht — nur, dass Struktur und Türen
+  gepinnt sind.

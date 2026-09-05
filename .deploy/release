@@ -1,4 +1,4 @@
-build: v10.79.441 — ein Standbild aus dem Visual, und es sagt Dir, ob es geklappt hat
+build: v10.79.442 — die App lässt Dich rein, und die Aufnahme sagt Dir, was aus ihr wurde
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,67 +6,81 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.440.
+  Der Vorgänger ist 10.79.441.
 
-  ── ZUERST: WARUM SO SCHNELL EINE NEUE ──────────────────────────────────
+  ── ZUERST: WORAUS DAS KOMMT ─────────────────────────────────────────────
 
-  440 ist eine halbe Stunde alt und Du hast sie vermutlich noch nicht auf dem Gerät.
-  **Installier diese statt 440.** Grund: in 440 sagt der neue Kamera-Knopf GAR NICHTS —
-  weder bei Erfolg noch wenn iOS die Foto-Erlaubnis verweigert. Du hättest getippt, nichts
-  gesehen und „der Knopf ist tot" gemeldet. Die Verweigerung ist dabei ausgerechnet der
-  wahrscheinlichste erste Fall, weil iOS genau dann fragt.
+  Dein Auftrag vom 2026-09-04: „Deep Audit des gesamten Repos, Produkts, Projekts, TestFlight
+  plus Website — und optimiere aus künstlerischer und User Perspektive."
 
-  ── WAS DIESE VERSION IST ────────────────────────────────────────────────
+  134 Agenten, sechs Teams, jeder Fund von drei Skeptikern angegriffen. 36 Funde, 35 haben
+  standgehalten. Die vollständige gerankte Liste liegt im Repo:
+  `scratchpads/DEEP_AUDIT_2026-09-04_ARTISTIC_USER.md`.
 
-  Antwort auf Deine Frage zur Algorithmic-Art-Folie („Für die visuals hier was
-  interessantes bei?"): EINE Sache war es wert, und die ist jetzt vollständig.
+  442 liefert die ERSTEN ZWEI aus. Beide sind Fälle, in denen die App etwas verschweigt.
 
-  **Ein Kamera-Knopf im Vollbild-Visual. Ein Druck = ein Bild in Deiner Fotos-App —
-  und daneben steht, was passiert ist.**
+  ── 1. DIE APP LÄSST DICH REIN (der schlimmste Fund der Liste) ───────────
 
-  Drei mögliche Antworten, jede rund zwei Sekunden lang sichtbar:
+  Die drei Startseiten konnten NICHT scrollen. Alle Texte dort wachsen mit Deiner
+  System-Schriftgröße, und ausgerechnet das Onboarding hatte als einzige Fläche keine
+  Obergrenze dafür. Auf der letzten Seite steht der Start-Knopf ganz unten — unter Symbol,
+  Überschrift, Absatz, sechszeiligem Sicherheitskasten und Zustimmungs-Schalter.
 
-  · „Saved to Photos" — das Bild ist in der Fotos-App.
-  · „Photos access is off — allow it in Settings" — iOS hat die Erlaubnis verweigert.
-    Der einzige Fall, wo Du etwas tun kannst: Einstellungen → Echoelmusic → Fotos.
-  · „Could not save this frame" — es ist schiefgegangen; das Diagnose-Log sagt mehr.
+  **Bei großer Schrift im Hochformat lag Start unter dem Bildschirmrand, ohne Weg dorthin.**
+  Installieren, nicht reinkommen, löschen. Und es trifft genau den Menschen, für den die
+  Sicherheitshinweise auf dieser Seite geschrieben sind.
 
-  Kein zweiter Aufnahmeweg: das Bild ist genau der Bildpuffer, den die Videoaufnahme
-  ohnehin jedes Bild anlegt — einmal, als JPEG. Ohne laufende Aufnahme entsteht KEINE
-  mp4-Datei.
+  Jetzt scrollen die Seiten. Bei normaler Schrift sieht alles aus wie vorher — das war die
+  Falle beim naiven Fix, und sie ist mit festgenagelt.
 
-  **Am KLANG hat sich nichts geändert.** Die 19 Genres aus 439 sind bit-identisch.
+  ── 2. DIE AUFNAHME SAGT, WAS AUS IHR WURDE ──────────────────────────────
 
-  ── DIE TÜR ──────────────────────────────────────────────────────────────
+  Eine Video-Aufnahme konnte leer enden und **schwieg dazu**. Der REC-Zähler lief, kein Bild
+  erreichte den Schreiber, danach: kein Teilen-Fenster, keine Zeile in der Bibliothek, kein
+  Wort. Eine Performance ist nicht wiederholbar — das ist die teuerste Stille der App.
 
-  · **Field**-Chip → „Full screen" → in der Bedienleiste unten der Kamera-Knopf
-    (rechts neben dem roten Aufnahmeknopf). Der Antwortsatz erscheint direkt daneben.
-  · Der Knopf sitzt bewusst NICHT im kleinen schwebenden Fenster: dessen Leiste ist auf
-    die Breite budgetiert, ein siebter Knopf hätte einen anderen verdrängt.
-  · Diagnose-Log, falls etwas klemmt: **Save/Export**-Chip → „Diagnostics" → Share.
+  Drei Antworten, je etwa vier Sekunden sichtbar:
+
+  · „Take saved to Photos" — die Aufnahme ist in der Fotos-App.
+  · „Nothing was recorded — the visual sent no frames" — es kam nichts an. Zweiter Versuch
+    lohnt sich.
+  · „The recording could not be written" — der Schreiber hat abgelehnt. Diagnose-Log hilft.
+
+  **An allen DREI Stellen, an denen Du stoppen kannst:** Vollbild-Reihe, schwebendes Fenster
+  (in der Ecke, in der eben noch REC stand) und Video-Bibliothek.
+
+  ── AM KLANG HAT SICH NICHTS GEÄNDERT ────────────────────────────────────
+
+  Die 19 Genres aus 439 sind bit-identisch. Das Standbild aus 441 ist unverändert.
+
+  ── DIE TÜREN ────────────────────────────────────────────────────────────
+
+  · Onboarding: nur bei einer FRISCHEN Installation zu sehen (App löschen und neu laden).
+  · Video aufnehmen: **Field**-Chip → „Full screen" → roter Aufnahmeknopf; oder das
+    schwebende Fenster; oder **Video**-Chip → Bibliothek.
+  · Standbild (aus 441): derselbe Ort, der Kamera-Knopf rechts daneben.
+  · Diagnose-Log: **Save/Export**-Chip → „Diagnostics" → Share.
 
   ── WAS DU PRÜFEN KANNST, in dieser Reihenfolge ──────────────────────────
 
-  1. **Erster Tipp überhaupt:** iOS fragt nach der Foto-Erlaubnis. Erlaubst Du sie, muss
-     „Saved to Photos" stehen; lehnst Du ab, muss der Settings-Satz stehen — **nicht**
-     Schweigen.
-  2. **Ist der Satz LESBAR** über dem bewegten Bild, und ist er wieder weg, bevor er stört?
-     Das ist die eine Frage, die kein Test beantworten kann.
-  3. **Zweimal hintereinander tippen:** kommen zwei Bilder, und erscheint der Satz beim
-     zweiten Mal erneut (nicht nur beim ersten)?
-  4. **Während einer laufenden Video-Aufnahme tippen:** läuft das Video ungestört weiter
-     und es kommt zusätzlich ein Bild?
-  5. **Ohne Aufnahme tippen, dann in die Video-Bibliothek schauen** (Video-Chip):
-     es darf KEINE neue mp4 entstanden sein.
-  6. **Ruckelt das Bild** im Moment des Tippens? Ein Standbild braucht eine besonders
-     lesbare Zeichenfläche; das kostet etwa 16 ms. Wenn Du einen Hänger siehst, sag es.
+  1. **App löschen, neu installieren, in den Einstellungen die GRÖSSTE Schriftgröße wählen,
+     Hochformat.** Kommst Du durch alle drei Seiten bis zum Start-Knopf?
+  2. **Dieselbe Installation bei normaler Schrift:** sehen die drei Seiten aus wie immer
+     (mittig, kein Gummiband beim Wischen)?
+  3. **Aufnahme starten und SOFORT wieder stoppen** (bevor das Bild richtig läuft): kommt ein
+     Satz? Früher kam gar nichts.
+  4. **Normale Aufnahme, Vollbild:** „Take saved to Photos", und die Datei ist in der
+     Fotos-App?
+  5. **Dasselbe im schwebenden Fenster** — steht der Satz in der Ecke, in der eben REC stand?
+  6. **Dasselbe über Video-Chip → Bibliothek** — und wächst die Liste danach?
 
-  Was diese Notiz NICHT behauptet: dass das Bild gut aussieht, dass die Auflösung passt
-  oder dass der Satz an der richtigen Stelle sitzt. Struktur, Türen und die drei
-  Antwortsätze sind in CI gepinnt (`AStillIsOneFrameNotASecondPathTests`,
-  `TheStillSaysWhetherItWasSavedTests`); wie es AUSSIEHT, entscheidet Dein Auge.
+  Was diese Notiz NICHT behauptet: dass die Sätze gut platziert oder gut lesbar sind, und dass
+  das Onboarding bei jeder Schriftgröße schön aussieht. Struktur und Türen sind in CI gepinnt
+  (`OnboardingPagesScrollTests`, `TheTakeSaysWhetherItWasWrittenTests`); wie es AUSSIEHT,
+  entscheidet Dein Auge.
 
-  ⚠ Ein Punkt, den ich nicht selbst anfassen darf: der Erlaubnis-Text in `Info.plist` sagt
-  bisher nur „Finished visual recordings" — also Videos. Seit dem Standbild landet dort auch
-  ein Bild. Es stürzt nichts ab, aber Apple will, dass der Text die Verwendung beschreibt.
-  `Info.plist` gehört Dir; ein Wort würde reichen.
+  ⚠ Zwei Sachen, die ich nicht selbst anfassen darf und die auf Dich warten: der
+  Foto-Erlaubnistext in `Info.plist` nennt weiterhin nur Videos, obwohl seit 441 auch Bilder
+  dort landen — und die große Testsuite meldet seit Wochen „success" mit acht Fehlschlägen
+  darin, weil `continue-on-error` auf beiden Bau-Schritten das Ergebnis überschreibt. Einen
+  der acht habe ich repariert, sieben stehen noch (Audit-Punkt 25).
