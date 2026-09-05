@@ -222,6 +222,14 @@ struct TouchMusicalTime {
 struct TouchInstrumentView: UIViewRepresentable {
     let key: MusicalKey
     let synth: PolySynthVoice
+    /// The DAW handoff. Every note this surface sounds is mirrored here, so a finger on
+    /// the picture plays whatever is subscribed to Echoel's virtual MIDI source — in the
+    /// take's own key and scale, because the pitch is chosen before either path sees it.
+    ///
+    /// Optional and defaulted, so the surface still compiles and plays with nothing
+    /// attached. Silent unless the `midi.out` route is on: `MIDIOutput.noteOn`/`noteOff`
+    /// open with `guard enabled, isReady`, so an unconditional call sends nothing.
+    var midiOut: MIDIOutput?
     /// ULTRASYNC. Default strength 0 = off, and the instrument behaves exactly as before.
     var quantizer = TouchQuantizer()
     /// Supplies the musical clock at touch time. `nil` (or a `nil` result) means "no
@@ -258,6 +266,7 @@ struct TouchInstrumentView: UIViewRepresentable {
     func makeUIView(context: Context) -> TouchInstrumentUIView {
         let v = TouchInstrumentUIView()
         v.synth = synth
+        v.midiOut = midiOut
         v.key = key
         v.reduceMotion = reduceMotion
         v.morphDepth = morphDepth
@@ -281,6 +290,7 @@ struct TouchInstrumentView: UIViewRepresentable {
     func updateUIView(_ uiView: TouchInstrumentUIView, context: Context) {
         uiView.key = key
         uiView.synth = synth
+        uiView.midiOut = midiOut
         uiView.reduceMotion = reduceMotion
         uiView.morphDepth = morphDepth
         uiView.lifeDepth = lifeDepth
@@ -319,6 +329,11 @@ final class TouchInstrumentUIView: UIView {
             }
         }
     }
+    /// Mirror target for every note this surface plays. `weak` for the same reason `synth`
+    /// is: the app owns it, this view does not. The two scheduled paths below capture a
+    /// STRONG copy for the lifetime of their task, because a note-off that goes missing is
+    /// a note stuck on someone else's instrument.
+    weak var midiOut: MIDIOutput?
     var key = MusicalKey(root: 0, scale: .minor) {
         // `applyExpressionSettings` too, not only the grid: the evenness trim's reference is
         // derived from the key (#230), so a key change that did not push it would leave the
@@ -950,13 +965,23 @@ final class TouchInstrumentUIView: UIView {
                     // can be right on a real glide — where this `velocity:` is ignored.
                     let cutoff = morphScale(at: p)
                     synth?.slide(from: old, to: new, velocity: vel, cutoffScale: cutoff)
+                    // The MIDI side RETRIGGERS where the engine slides, and that difference
+                    // is deliberate rather than overlooked. Plain MIDI has no channel-wide
+                    // legato: the only faithful mirror of a glide is per-note pitch bend,
+                    // which needs an MPE zone this build does not negotiate (#548), and a
+                    // ±2-semitone channel bend cannot reach the next scale degree anyway.
+                    // Not mirroring at all is the one option that is actually broken — the
+                    // old pitch would keep its note-on while `held` moves to the new one, so
+                    // the lift would release the wrong pitch and strand the old one.
+                    midiOut?.noteOff(pitch: old)
+                    midiOut?.noteOn(pitch: new, velocity: vel)
                 } else {
-                    synth?.noteOff(pitch: old)
+                    Self.stopNote(synth, midiOut, pitch: old)
                     let micro = TouchPitchMap.microVariation(noteIndex: noteCounter, depth: lifeDepth)
                     noteCounter &+= 1
                     let cutoff = morphScale(at: p) * micro.cutoffScale
-                    synth?.noteOn(pitch: new, velocity: vel * micro.velocityScale,
-                                  cutoffScale: cutoff)
+                    Self.startNote(synth, midiOut, pitch: new,
+                                   velocity: vel * micro.velocityScale, cutoffScale: cutoff)
                 }
                 // Slides tick more softly than fresh strikes — a fret-crossing feel.
                 hapticGenerator.impactOccurred(intensity: CGFloat(0.25 + 0.35 * Double(vel)))
@@ -974,6 +999,40 @@ final class TouchInstrumentUIView: UIView {
                 lastRing[id] = p
             }
         }
+    }
+
+    // MARK: - One note, two destinations
+
+    /// THE ONE PLACE A NOTE FROM THIS SURFACE BEGINS. Every path below — a finger, a
+    /// quantized note waiting for the beat, a self-played note, the echo — goes through
+    /// here, so "a touch note starts" has exactly one owner and mirroring it to MIDI cannot
+    /// be half-done. Half-done is the failure that matters: an external instrument that
+    /// receives a note-on it never receives the matching off holds it until someone finds
+    /// the panic button, on stage.
+    ///
+    /// STATIC, and taking both destinations as arguments rather than reading `self`,
+    /// because four of the call sites run inside a `Task` that deliberately survives the
+    /// view (`[weak self, voice]` — the note-off is the only thing that can end those
+    /// voices). An instance method would silently drop the MIDI half in exactly the
+    /// teardown case where it matters most.
+    ///
+    /// The MIDI side takes no `cutoffScale`: that is this engine's own filter travel, not
+    /// a MIDI dimension. Per-note Slide (CC 74) exists on `MIDIOutput` but only speaks
+    /// under an MPE zone, and this surface's morph is not the body expression that path
+    /// carries — sending it would put a second, unrelated meaning on the same controller.
+    private static func startNote(_ voice: PolySynthVoice?, _ midi: MIDIOutput?,
+                                  pitch: Int, velocity: Float, cutoffScale: Float) {
+        voice?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+        midi?.noteOn(pitch: pitch, velocity: velocity)
+    }
+
+    /// …and the one place it ends. `MIDIOutput` keeps a STACK of channels per pitch, so a
+    /// second on for a pitch already sounding (the echo re-articulating under a held
+    /// finger) pushes and the two offs pop in order — the counts stay matched without this
+    /// view tracking anything of its own.
+    private static func stopNote(_ voice: PolySynthVoice?, _ midi: MIDIOutput?, pitch: Int) {
+        voice?.noteOff(pitch: pitch)
+        midi?.noteOff(pitch: pitch)
     }
 
     // MARK: - ULTRASYNC scheduling
@@ -1005,7 +1064,7 @@ final class TouchInstrumentUIView: UIView {
             // Unreachable for a generated note today — `autoPlayTick` already required a
             // musical clock and there is no suspension point between the two reads. Kept
             // because `sound` is called from four places and must be correct for all of them.
-            synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+            Self.startNote(synth, midiOut, pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
             if autoRelease { scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds) }
             return
         }
@@ -1019,7 +1078,7 @@ final class TouchInstrumentUIView: UIView {
                                              Int((0.020 / now.secondsPerTick).rounded()))
         switch q.plan(forTick: onGridTick ?? now.tick, index: index) {
         case .play:
-            synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+            Self.startNote(synth, midiOut, pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
             if autoRelease { scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds) }
 
         case let .delay(toTick):
@@ -1029,7 +1088,7 @@ final class TouchInstrumentUIView: UIView {
             // Deliberately not capped further; a coarse grid IS the setting the player chose.
             let seconds = Double(Swift.max(0, toTick - now.tick)) * now.secondsPerTick
             guard seconds > 0.002 else {                 // below the jitter floor: just play it
-                synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+                Self.startNote(synth, midiOut, pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
                 if autoRelease { scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds) }
                 return
             }
@@ -1052,7 +1111,8 @@ final class TouchInstrumentUIView: UIView {
                 // `release(_:)`, which iterates real `UITouch`es. The ordering is still right;
                 // the reason given for it was not.)
                 let lifted = (self.liftedWhilePending.remove(id) != nil) || autoRelease
-                self.synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+                Self.startNote(self.synth, self.midiOut, pitch: pitch,
+                               velocity: velocity, cutoffScale: cutoffScale)
                 guard lifted else { return }
                 // The finger is already gone (or there never was one), so nothing else will
                 // ever release this. It sounds on the grid — where the player aimed — and lets
@@ -1063,10 +1123,11 @@ final class TouchInstrumentUIView: UIView {
             }
 
         case let .playThenEcho(_, echoTick, level):
-            synth?.noteOn(pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
+            Self.startNote(synth, midiOut, pitch: pitch, velocity: velocity, cutoffScale: cutoffScale)
             if autoRelease { scheduleSelfRelease(pitch: pitch, holdSeconds: holdSeconds) }
             let seconds = Double(Swift.max(0, echoTick - now.tick)) * now.secondsPerTick
             guard seconds > 0.002, let voice = synth else { return }
+            let midi = midiOut
             // The echo is deliberately NOT tracked in `pendingOn`: a lift must not cancel
             // it. That is the point — the late note is answered on the beat whether or not
             // the finger is still down. When it is down, this re-articulates the same
@@ -1076,10 +1137,11 @@ final class TouchInstrumentUIView: UIView {
             // below is the only thing that can ever end this voice: with `[weak self]`
             // alone, a view torn down inside the ghost window (closing the visual is
             // exactly when that happens) left the echo sounding forever.
-            Task { @MainActor [weak self, voice] in
+            Task { @MainActor [weak self, voice, midi] in
                 do { try await Task.sleep(for: .seconds(seconds)) } catch { return }
                 guard !Task.isCancelled else { return }
-                voice.noteOn(pitch: pitch, velocity: velocity * level, cutoffScale: cutoffScale)
+                Self.startNote(voice, midi, pitch: pitch,
+                               velocity: velocity * level, cutoffScale: cutoffScale)
                 // `try?` here, NOT `catch { return }` — the asymmetry is deliberate. Before
                 // the note, cancellation must SUPPRESS it; before the release, cancellation
                 // must not, or cancelling is how the note gets stuck.
@@ -1088,7 +1150,7 @@ final class TouchInstrumentUIView: UIView {
                 // both). `self == nil` means the surface is gone, so nobody is holding
                 // anything and the off must go out.
                 guard self?.isSounding(pitch: pitch) != true else { return }
-                voice.noteOff(pitch: pitch)
+                Self.stopNote(voice, midi, pitch: pitch)
             }
         }
     }
@@ -1137,6 +1199,7 @@ final class TouchInstrumentUIView: UIView {
     ///   genuinely extreme settings it exists for.
     private func scheduleSelfRelease(pitch: Int, holdSeconds: Double? = nil) {
         guard let voice = synth else { return }
+        let midi = midiOut
         // No force-unwrap and no `isFinite` branch: `clamped(to:)` already maps NaN to the lower
         // bound (`Core/FloatingPointClamp.swift`), and ±infinity to the bounds by comparison.
         let hold = (holdSeconds ?? Self.staccatoSeconds)
@@ -1144,7 +1207,7 @@ final class TouchInstrumentUIView: UIView {
         unheldTokenCounter &+= 1
         let token = unheldTokenCounter
         unheldOwner[pitch] = token
-        Task { @MainActor [weak self, voice] in
+        Task { @MainActor [weak self, voice, midi] in
             // `try?`, not `catch { return }`: before a note, cancellation must suppress it;
             // before a RELEASE, cancellation must not, or cancelling is how a note sticks.
             try? await Task.sleep(for: .seconds(hold))
@@ -1158,7 +1221,7 @@ final class TouchInstrumentUIView: UIView {
             }
             // `self == nil` means the surface is gone: nobody holds anything, so the off MUST
             // go out. That is the one case where skipping the ownership check is correct.
-            voice.noteOff(pitch: pitch)
+            Self.stopNote(voice, midi, pitch: pitch)
         }
     }
 
@@ -1213,7 +1276,7 @@ final class TouchInstrumentUIView: UIView {
             let isPending = pendingOn[id] != nil
             if isPending { liftedWhilePending.insert(id) }
             if let pitch = held.removeValue(forKey: id) {
-                if !isPending { synth?.noteOff(pitch: pitch) }
+                if !isPending { Self.stopNote(synth, midiOut, pitch: pitch) }
                 // Colour follows the fingers: lifting releases this note's cloud;
                 // the last lift starts the ~1.2 s afterglow back to the bed. Sent even
                 // for a cancelled note, because `touchesBegan` opened this cloud the
@@ -1255,7 +1318,7 @@ final class TouchInstrumentUIView: UIView {
             for work in pendingOn.values { work.cancel() }
             pendingOn.removeAll()
             liftedWhilePending.removeAll()
-            for pitch in held.values { synth?.noteOff(pitch: pitch) }
+            for pitch in held.values { Self.stopNote(synth, midiOut, pitch: pitch) }
             held.removeAll()
             lastSentMorph.removeAll()
             lastRing.removeAll()

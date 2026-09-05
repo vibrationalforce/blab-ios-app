@@ -124,6 +124,13 @@ struct FloatingVisualWindow: View {
     /// the floating window fell back to C4 and ignored an ARMED entrainment). Both reads are
     /// LOW-frequency (user-set toggles/keys) — safe in this leaf body per the freeze rule.
     @Environment(PolySynthVoice.self) private var synth
+    /// The DAW handoff, passed straight down to the touch surface so a finger on the
+    /// picture also plays whatever is subscribed to Echoel's virtual MIDI source.
+    ///
+    /// Reading the object out of the environment is NOT a hot read: `@Environment` hands
+    /// over the reference, and nothing in this body touches a property of it, so this
+    /// window does not become an observer of `MIDIOutput` (freeze law, 10.76.50).
+    @Environment(MIDIOutput.self) private var midiOut
     /// The play surface's DEDICATED voice (own patch + position morph; never steals
     /// from the generative bed). Falls back to the shared voice if absent.
     @Environment(\.touchSynth) private var touchSynth
@@ -790,6 +797,7 @@ struct FloatingVisualWindow: View {
                 .overlay {
                     TouchInstrumentView(key: MusicalKey(root: rootIndex, scale: touchScale),
                                         synth: touchSynth ?? synth,
+                                        midiOut: midiOut,
                                         quantizer: touchQuantizer,
                                         // Reads `position`/`tempo` — but INSIDE the
                                         // closure, i.e. at touch time, not while this
