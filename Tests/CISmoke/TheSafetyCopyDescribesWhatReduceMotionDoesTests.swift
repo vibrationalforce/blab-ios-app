@@ -57,16 +57,31 @@ final class TheSafetyCopyDescribesWhatReduceMotionDoesTests: XCTestCase {
     /// The runtime value of the `detail:` argument, rebuilt from its concatenated literals —
     /// the source text alone never contains a phrase that straddles a `+`, so a plain
     /// `contains` on the file would report a MISS for wording that is actually there.
-    private func contraindicationDetail() -> String {
+    private func contraindicationDetail() -> String { detail(ofEntry: "safety.contraindications") }
+
+    /// Generalised in #1018. The extractor was written for one entry and the defect it guards
+    /// turned out to live in two OTHERS — so the shape that finds it again is per-entry, not
+    /// per-card.
+    private func detail(ofEntry id: String) -> String {
         let text = source(Self.learn)
-        guard let entry = text.range(of: "id: \"safety.contraindications\""),
+        guard let entry = text.range(of: "id: \"\(id)\""),
               let detail = text.range(of: "detail:", range: entry.upperBound..<text.endIndex),
               let close = text.range(of: "\n            ),", range: detail.upperBound..<text.endIndex)
         else {
-            XCTFail("ANCHOR MISSING: the `safety.contraindications` detail — re-derive this guard.")
+            XCTFail("ANCHOR MISSING: the `\(id)` detail — re-derive this guard.")
             return ""
         }
-        let body = String(text[detail.upperBound..<close.lowerBound])
+        // ⛔ COMMENT LINES ARE DROPPED BEFORE THE QUOTE SCAN, and #1018 is why. The retraction
+        // notes this repo writes QUOTE the wording they retract, and they sit INSIDE the
+        // `detail:` region — so a scanner that only toggles on `"` returns the struck sentence
+        // as though it were live copy, and a needle for that sentence matches its own
+        // retraction (#491). The same trap #1014 hit one file away. A line-wise rule is enough
+        // here and stays honest about its limit: a `//` inside a copy string would be stripped
+        // too, so it is checked below that no detail literal contains one.
+        let body = text[detail.upperBound..<close.lowerBound]
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .filter { !$0.trimmingCharacters(in: .whitespaces).hasPrefix("//") }
+            .joined(separator: "\n")
         var out = ""
         var inside = false
         var escaped = false
@@ -148,5 +163,71 @@ final class TheSafetyCopyDescribesWhatReduceMotionDoesTests: XCTestCase {
             The lamp tile's dimmer term changed. Same reason as above — the card's wording is \
             derived from these two expressions, so they move together.
             """)
+    }
+
+    // MARK: - The same promise, in the same file, in different words (#1018)
+
+    /// ⭐ WHY CLAIM 1 DID NOT CATCH THIS, and the lesson is about needles, not about copy.
+    /// Claim 1 forbids the literal phrase `freeze entirely`. `guide.see` said "the picture
+    /// **holds still entirely**" and `guide.access` said "Reduce Motion **freezes the visual**"
+    /// — the same promise, neither spelling matchable. #706 recorded exactly this shape once
+    /// already: a needle that matches one wording misses the wording people actually write.
+    /// So this claim asks the QUESTION rather than banning a STRING — does any Learn entry tell
+    /// the reader that Reduce Motion stops the visuals outright?
+    ///
+    /// ⚠️ The two entries are checked through `detail(ofEntry:)`, which now drops comment lines
+    /// before rebuilding the literal — without that, the ⛔ notes added beside these two
+    /// sentences (which quote the struck wording, as this repo's retractions do) would be read
+    /// as live copy and this claim would match its own retraction (#491).
+    func testNoGuideEntryPromisesTheVisualsStopOutright() {
+        // Each pair is (a phrase that says motion STOPS, a phrase that would make it honest by
+        // naming what keeps moving). A total-stop phrase is only a defect when it stands ALONE.
+        let stopPhrases = ["holds still entirely", "freezes the visual", "freeze entirely",
+                           "stops entirely", "stops all motion", "nothing moves"]
+        for id in ["guide.see", "guide.access"] {
+            let copy = detail(ofEntry: id)
+            XCTAssertFalse(copy.isEmpty, "ANCHOR MISSING: \(id) has no detail text.")
+            let offenders = stopPhrases.filter { copy.lowercased().contains($0) }
+            XCTAssertTrue(offenders.isEmpty, """
+                Learn entry "\(id)" promises again that Reduce Motion stops the visuals \
+                outright (\(offenders.joined(separator: ", "))). It does not, and the ⛔ block \
+                on `safety.contraindications` carries the measurement: the header monitors keep \
+                a live masterLevel term, nothing under Sources/Echoelmusic/Sync honours Reduce \
+                Motion at all, and MetalBioView keeps an eased music swell. #994 removed this \
+                promise from the SAFETY card and left it standing here in other words — which \
+                is the whole reason this claim exists. Say what stops and what keeps moving.
+                """)
+        }
+    }
+
+    /// The other half of the repair, stated positively so deleting the false clause without
+    /// replacing it cannot pass: each of the two entries must name what KEEPS moving, or the
+    /// control that actually cuts it. Silence would leave the reader believing by omission —
+    /// the same reasoning as claim 2 for the safety card.
+    func testTheTwoGuideEntriesSayWhatSurvivesReduceMotion() {
+        let honest = ["keep following the music", "keeps following the music", "Blackout"]
+        for id in ["guide.see", "guide.access"] {
+            let copy = detail(ofEntry: id)
+            XCTAssertTrue(honest.contains(where: { copy.contains($0) }), """
+                Learn entry "\(id)" no longer names anything that survives Reduce Motion. \
+                Removing the false promise is half the repair; without the second half the \
+                reader concludes by omission that Reduce Motion covers everything, which is the \
+                belief the whole card exists to correct.
+                """)
+        }
+    }
+
+    /// The extractor drops `//` lines, so a copy string that CONTAINED `//` would be silently
+    /// truncated and every needle above would read a shorter sentence than the user sees. No
+    /// detail literal has one today; this pins that, so the shortcut stays honest.
+    func testNoLearnCopyContainsACommentMarker() {
+        for id in ["guide.see", "guide.access", "safety.contraindications"] {
+            XCTAssertFalse(detail(ofEntry: id).contains("//"), """
+                Learn entry "\(id)" now contains "//" inside its copy. `detail(ofEntry:)` drops \
+                lines beginning with that marker before rebuilding the literal, so part of this \
+                sentence is invisible to every claim in this file. Either reword the copy or \
+                teach the extractor to track quotes across the line.
+                """)
+        }
     }
 }

@@ -193,6 +193,8 @@ Verified on HEAD: `AStillIsOneFrameNotASecondPathTests.swift:86` requires the su
 **Files:** `docs/faq.html`, `fastlane/metadata/{en-US,de-DE}/description.txt`, `ContentPipeline/CLAIMS.md` (split across two cycles).
 **Gating:** none — but user-facing copy, so run it past The Council per the brand rule.
 
+**✅ ALREADY DONE when measured on 2026-09-05 — closed by #999, before this audit was written.** The FAQ item is now titled *"Can I play it with my hands?"* and its answer LEADS with "The living picture is playable"; the EchoelVis bullet says "and playable: touch it and your fingers become in-key notes"; **both** `description.txt` files carry line 13 ("The picture is playable…" / "Das Bild ist spielbar…"); and `ContentPipeline/CLAIMS.md:53` has the ✅ row citing `FloatingVisualWindow.swift:791`, with the ⚠️ not to write "touch instruments" plural. The four named pads correctly remain roadmap.
+
 ### 20. "Ten generative looks" → four
 
 **Why:** claimed in six places including **two Schema.org blocks** that answer engines ingest verbatim (`docs/index.html:104, :803`; `docs/faq.html:44, :114, :186`; `docs/version.json:34`), while `LookBlendMap.swift:35-37` defines Rings/Water/Aurora/Depth and the only chip source is `EchoelStudioView.swift:5915`. Two of the sentences self-contradict — "ten generative looks — Rings, Water, Aurora and Depth". A reader counts four names, concludes the site does not check itself, and discounts the hard-won claims that *are* true (Art-Net/sACN, ADM-OSC, MPE out). Not in `fastlane/metadata`, so it is an SEO/truth defect, not live 2.3 exposure.
@@ -200,6 +202,8 @@ Verified on HEAD: `AStillIsOneFrameNotASecondPathTests.swift:86` requires the su
 **Slice:** replace the phrase in all six places.
 **Files:** `docs/index.html`, `docs/faq.html`, `docs/version.json`.
 **Gating:** none.
+
+**✅ ALREADY DONE when measured on 2026-09-05.** `grep -rn "ten generative" docs/*.html docs/*.json` returns exactly ONE line — `version.json:34`, a historical changelog entry that **corrects itself in place** ("that number was itself wrong and is corrected to FOUR on 2026-09-05"). `index.html` and `faq.html` now say "four generative" (2 and 3 hits). Nothing to replace.
 
 ### 21. Correct the "space" mapping in the store description
 
@@ -209,6 +213,8 @@ Verified on HEAD: `AStillIsOneFrameNotASecondPathTests.swift:86` requires the su
 **Files:** `fastlane/metadata/{en-US,de-DE}/description.txt`, `Tests/CISmoke/TheStoreTextClaimsOnlyWhatShipsTests.swift`.
 **Gating:** none.
 
+**✅ ALREADY DONE when measured on 2026-09-05.** Both locales' automatic list reads exactly the recommended wording — en-US line 11 "HRV and coherence shape brightness, harmonicity and texture", de-DE line 11 "HRV und Kohärenz formen Brillanz, Harmonizität und Textur". No "space"/"Raum" inside the automatic block.
+
 ### 22. The safety copy is wrong about safety
 
 **Why:** the one screen a photosensitive user is asked to tick "I understand" against. `LearnLibrary.swift:194-196` says visuals "freeze entirely with Reduce Motion on; if you are photosensitive, turn Reduce Motion on before you start", and `OnboardingView.swift:191` prints an unqualified 3 Hz guarantee above the consent toggle. Nothing freezes entirely: `HeaderMonitors.swift:501` holds the pulse at 0.5 but leaves the unslewed `0.35 * masterLevel` live on an unpaused 20 Hz `TimelineView`; `:601`'s `0.3 + 0.7 * masterLevel` has no slew anchor and its own Reduce-Motion branch concedes the colour still moves; `git grep -n reduceMotion -- Sources/Echoelmusic/Sync` → **zero**, so no lamp honours it; and even `MetalBioView` keeps a music swell (eased, well under 3 Hz, but not frozen). The lamps *are* rate-limited by `applySlewedColour` to ~1.2 Hz, so the 3 Hz half holds there — only "freeze entirely" is false everywhere.
@@ -216,6 +222,12 @@ Verified on HEAD: `AStillIsOneFrameNotASecondPathTests.swift:86` requires the su
 **Slice:** copy only, two files. Say that the immersive visual freezes its motion while the small header monitors and connected fixtures follow the music rate-limited rather than frozen, and name **Blackout** as the instruction that works on a rig; narrow the onboarding row to the immersive visual or drop the numeric guarantee. The behavioural half (slewing the two `masterLevel` terms through `FlashGuard.limitedLuminance`) is already registered as a follow-up at `HeaderMonitors.swift:557-565` and belongs in its own slice with a device look.
 **Files:** `Sources/Echoelmusic/Studio/LearnLibrary.swift`, `Sources/Echoelmusic/Views/OnboardingView.swift`.
 **Gating:** none for copy; the slew is **FOUNDER-GATED** (chrome appearance).
+
+**HALF DONE BEFORE THIS AUDIT (#994), AND THE OTHER HALF WAS THE SAME SENTENCE IN THE SAME FILE — CLOSED BY #1018.** #994 rewrote `safety.contraindications` and shipped a guard. It left **two sibling Learn entries untouched**, saying the same false thing in different words: `guide.see` — "With Reduce Motion on, the picture **holds still entirely**" — and `guide.access` — "Reduce Motion **freezes the visual** without stopping the music". The guard did not catch either, because its needle is the one literal spelling `guide.see` and `guide.access` never used (#706: a needle that matches one wording misses the wording people write). `guide.access` is the ACCESSIBILITY entry, i.e. the one read by exactly the person the sentence misleads.
+
+**#1018 ships:** both entries reworded to name what stops and what keeps moving (`guide.access` also names Blackout, as the safety card does); the guard's extractor generalised from one entry to any entry and taught to drop comment lines first (without that, the ⛔ retractions beside the two sentences — which quote the struck wording — would be read as live copy and the new claim would match its own retraction, #491); three new claims, two of them transcribed **RED on HEAD, GREEN on the worktree**.
+
+**⛔ ONE PREMISE OF THIS ITEM IS RETRACTED:** `OnboardingView.swift:196` ("Visuals are capped at a safe 3 Hz flash rate") is **not** part of the defect. #994's own ⛔ block records the measurement: the 3 Hz cap holds everywhere via `FlashGuard`; what was false was only "freeze entirely". The unslewed header `masterLevel` terms remain a **registered, founder-gated** follow-up (claim 5 of the guard pins them), not a copy defect.
 
 ### 23. The site has no image, video or audio of an audiovisual instrument
 

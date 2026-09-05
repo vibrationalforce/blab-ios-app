@@ -23697,3 +23697,39 @@ Erst-Start-Einblendung mit zwei beschrifteten Zeilen. Echt bleibt der engere Sat
 
 **Grading:** neuer Anspruch GRÜN AUF BEIDEN Bäumen — `FloatingVisualLayout` ist unangetastet.
 Das ist ein Pin, keine Reparatur, und das gehört ausgesprochen (#808).
+
+## 2026-09-05 — #1018 · Dieselbe falsche Zusage, dieselbe Datei, andere Worte
+
+**Erst gemessen, wie bei 1/2/4/26/18: Punkte 19, 20 und 21 sind BEREITS ERLEDIGT.**
+· **19** (Website leugnet die Touch-Fläche) — geschlossen von #999, vor dem Audit: FAQ heißt jetzt
+„Can I play it with my hands?" und führt mit „The living picture is playable"; EchoelVis-Punkt
+sagt „and playable"; BEIDE `description.txt` tragen Zeile 13; `CLAIMS.md:53` hat die ✅-Zeile mit
+`FloatingVisualWindow.swift:791`.
+· **20** („zehn Looks") — genau EIN Treffer übrig, `version.json:34`, ein Changelog-Eintrag, der
+sich SELBST korrigiert. `index.html`/`faq.html` sagen „four generative".
+· **21** („space" in der Automatik-Liste) — beide Sprachen sagen exakt die empfohlene Fassung.
+
+**Punkt 22 war HALB erledigt (#994) — und die andere Hälfte stand in DERSELBEN Datei.**
+`guide.see`: „the picture **holds still entirely**". `guide.access`: „Reduce Motion **freezes the
+visual**". Dieselbe Zusage, die #994 aus der Sicherheitskarte entfernt hat, in zwei anderen
+Einträgen — und der Wächter sah sie nicht, weil seine Nadel die EINE Schreibweise ist, die diese
+zwei nie benutzt haben (#706). `guide.access` ist der BARRIEREFREIHEITS-Eintrag, also der, den
+genau die Person liest, die der Satz in die Irre führt.
+
+**Geliefert:** beide Einträge sagen jetzt, was aufhört und was weiterläuft (`guide.access` nennt
+zusätzlich Blackout); der Extractor des Wächters ist von EINEM Eintrag auf JEDEN verallgemeinert
+und lässt Kommentarzeilen fallen — ohne das läse er die ⛔-Rücknahmen neben den zwei Sätzen (die
+die gestrichene Formulierung zitieren) als lebende Copy, und der neue Anspruch träfe seine eigene
+Rücknahme (#491). Drei neue Ansprüche.
+
+⛔ **Und ich bin in genau diese Falle gelaufen, zwei Absätze nachdem ich sie benannt hatte:** mein
+erster Kommentar zitierte die Nadel von Anspruch 1 wörtlich, und Anspruch 1 scannt DATEIWEIT — die
+Transkription fing es. Der Kommentar NENNT die Nadel jetzt, statt sie zu zitieren.
+
+⛔ **Eine Audit-Prämisse zurückgenommen:** `OnboardingView.swift:196` („capped at a safe 3 Hz")
+ist NICHT Teil des Defekts — #994s eigener ⛔-Block hält fest, dass die 3-Hz-Decke über `FlashGuard`
+überall hält. Falsch war nur „freeze entirely". Die ungeglätteten `masterLevel`-Terme im Header
+bleiben ein registrierter, founder-gegateter Nachtrag (Anspruch 5 pinnt sie).
+
+**Grading:** Anspruch 6 und 7 ROT auf HEAD, GRÜN im Worktree. Anspruch 8 grün auf beiden — ein Pin
+auf die Ehrlichkeit der Abkürzung, kein Vakuum: die Frage ist auf beiden Bäumen stellbar.

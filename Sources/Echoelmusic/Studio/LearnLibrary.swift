@@ -91,8 +91,18 @@ public enum LearnLibrary {
                 detail: "The picture breathes with you: pulse, breath and coherence drive its "
                     + "colour and motion, capped below 3 flashes per second. Touch it to play "
                     + "notes — every touch lands in key, so there is no wrong place. It stays "
+                    // ⛔ SAID "the picture holds still entirely" UNTIL #1018 — the SAME false
+                    // promise #994 removed from the safety card, in the same file, in different
+                    // words. See the ⛔ block on `safety.contraindications` below for the
+                    // measurement. The guard's claim 1 forbids ONE literal spelling, which
+                    // these two siblings never used — so it passed while they lied. ⚠️ That
+                    // phrase is deliberately NOT written out here: claim 1 scans the whole
+                    // file, so quoting the wording it bans would turn this retraction into the
+                    // offence (#491) — which is exactly what the first draft of this comment
+                    // did, and the transcription caught it.
                     + "playable at every window size. With Reduce Motion on, the picture "
-                    + "holds still entirely. You can record it as a share-ready video."
+                    + "stops its motion; the small header monitors keep following the music. "
+                    + "You can record it as a share-ready video."
             ),
             LearnEntry(
                 id: "guide.feel", section: .guide,
@@ -126,9 +136,14 @@ public enum LearnLibrary {
                     + "felt without being seen, the picture read without being heard, the "
                     + "music followed without the screen. VoiceOver speaks the primary "
                     + "controls, text follows your system size, numbers are typed on a large "
-                    + "keypad instead of turned on tiny knobs, and Reduce Motion freezes the "
-                    + "visual without stopping the music. If flashing light affects you, "
-                    + "turn Reduce Motion on before you start."
+                    // ⛔ SAID "Reduce Motion freezes the visual without stopping the music"
+                    // until #1018. This is the ACCESSIBILITY entry — the one read by exactly
+                    // the person the sentence misleads — so it also names the control that
+                    // actually cuts a rig, the way the safety card does.
+                    + "keypad instead of turned on tiny knobs, and Reduce Motion stops the "
+                    + "immersive picture's motion without stopping the music. If flashing "
+                    + "light affects you, turn Reduce Motion on before you start, and use "
+                    + "Blackout in Routing to cut connected fixtures."
             ),
         ]
     }
