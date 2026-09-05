@@ -1,4 +1,4 @@
-build: v10.79.447 — Drei Sätze auf dem Schirm, die nicht mehr in die Irre führen
+build: v10.79.448 — Die Ursache, warum das Monitoring nie ansprang
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,108 +6,116 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.446.
+  Der Vorgänger ist 10.79.447.
 
-  ── ZUERST: WAS DU SIEHST ────────────────────────────────────────────────
+  ── ZUERST: DEIN LOG HAT DEN FEHLER GEZEIGT ──────────────────────────────
 
-  Dieser Build repariert **drei Sätze, die die App Dir zeigt und die nicht stimmten.**
-  Kein neuer Knopf, kein neuer Klang. Aber diesmal ist der Unterschied sichtbar — an
-  genau den Stellen, an denen die App bisher etwas Falsches behauptet hat.
+  Du hast gesagt: **„Das mit dem Audio Input Monitoren klappt immer noch nicht, also
+  fliegt das raus."** Dein Diagnose-Log aus 447 sagt, WARUM es nicht klappt — und der
+  Grund liegt nicht im Monitoring.
 
-  ── 1. DIE PULS-PILLE SAGTE DAS FALSCHE, WENN SIE STEHENBLIEB ────────────
+  Die allererste Zeile Deines Logs:
 
-  Wenn iOS die Kamera anhält — Anruf, App im Hintergrund, Telefon zu warm —, friert die
-  Puls-Analyse ein. Die Pille oben im Kopf zeigte dann weiter den letzten Rat, den sie
-  gesehen hatte: **„Cover the rear camera + flash."**
+      session: configure 1/4 — setCategory(.playback)
+      session: configure FAILED — ... Code=-50
 
-  Das ist der teuerste Satz, den sie zeigen konnte. Er sagt Dir: Dein Finger liegt
-  falsch. Also nimmst Du mitten im Spielen die Hand weg und legst sie neu — für etwas,
-  das kein Finger reparieren kann.
+  Danach kommt **keine** Zeile 2/4. Das ist beweisend: die App stirbt IM ersten Schritt.
+  `-50` heißt „ein Argument nehme ich nicht an". Von den vier Argumenten ist nur eines
+  fraglich — eine Bluetooth-Option, die iOS für reine Wiedergabe ablehnt.
 
-  Jetzt sagt sie **„Camera paused"**. Der Rat kommt zurück, sobald wieder Bilder fließen.
+  **Der Fehler war winzig. Seine Folge nicht:**
 
-  ⚠ Die Aufwärmphase bleibt bewusst offen: in den ersten ~5 Sekunden steht weiter
-  „finding your pulse…", weil das dort der ehrliche Satz ist. Es wird nichts erfunden,
-  um die Lücke zu füllen.
+  Weil Schritt 1 abbricht, laufen Schritt 2, 3 und 4 **nie**. Die Audio-Sitzung wird also
+  die ganze Sitzung lang **nie eingerichtet**. Neun Minuten später drückst Du den
+  Monitoring-Schalter, und im Log steht:
 
-  ── 2. DIE SICHERHEITSKARTE VERSPRACH ZU VIEL — AN ZWEI WEITEREN STELLEN ──
+      monitor: on REFUSED — the session was never configured
 
-  Ein früherer Build hatte aus der Sicherheits-Karte den Satz entfernt, dass die Visuals
-  mit „Bewegung reduzieren" **vollständig einfrieren**. Das stimmt nicht: die kleinen
-  Kopf-Anzeigen folgen weiter der Musik, und **keine einzige angeschlossene Lampe**
-  berücksichtigt die Einstellung überhaupt.
+  Der Schalter hat also nie eine Chance gehabt. Er hat nicht versagt — er wurde
+  **abgewiesen**, von einem Fehler beim App-Start, elf Bildschirme entfernt.
 
-  Beim Nachmessen stand derselbe falsche Satz noch **zweimal in derselben Datei**, nur
-  anders formuliert — einmal unter „See it", einmal unter **„For every body"**. Das
-  zweite ist der Barrierefreiheits-Eintrag, also der, den genau die Person liest, die
-  der Satz in die Irre führt.
+  Die Musik lief trotzdem, weil iOS ohne Einrichtung eine Standard-Sitzung benutzt.
+  Genau deshalb ist das monatelang niemandem aufgefallen.
 
-  Beide sagen jetzt, was aufhört und was weiterläuft — und der Barrierefreiheits-Eintrag
-  nennt zusätzlich **Blackout** (Routing → Licht), weil das der Schalter ist, der auf
-  einem echten Rig wirklich alles dunkel macht.
+  ── WAS ICH GEÄNDERT HABE ────────────────────────────────────────────────
 
-  ⚠ Was WAHR ist und wahr bleibt: die 3-Hz-Obergrenze für Blitzen gilt überall. Der
-  Satz im Onboarding stimmt also.
+  Ich habe die Option **nicht** entfernt. Ich weiß nur, dass **Dein** Gerät sie ablehnt,
+  nicht dass jedes iOS sie ablehnt. Also: erst wie bisher fragen — wird abgelehnt, sofort
+  ein zweiter Versuch ohne diese Option. Eine Zeile im Log sagt, welcher Weg genommen
+  wurde. Die Klangqualität über Bluetooth ändert sich dadurch nicht.
 
-  ── 3. ZWEI KOMMENTARE, DIE JEDE SITZUNG ZUERST LIEST ────────────────────
+  ── EINE BITTE, BEVOR DAS MONITORING RAUSFLIEGT ──────────────────────────
 
-  Zwei Erklärtexte im Quelltext behaupteten, es speise immer nur EINE Bio-Quelle die App.
-  Das stimmt nicht: bei aktiver Health-Freigabe schreibt das Handgelenk weiter mit,
-  während Du Kamera oder Gurt gewählt hast. Drei Arbeitsrunden haben das je neu entdeckt.
-  Jetzt steht es dort. **Nur Kommentare — nichts am Verhalten.**
+  **Ein Handgriff, unter einer Minute.** Mix-Panel → „Voice - your microphone" →
+  „Choose input…" → **Live monitoring** einschalten.
 
-  ── WAS ICH FÜR DICH GEMESSEN HABE, OHNE ETWAS ZU ÄNDERN ─────────────────
+  · **Hörst Du Dich?** Dann war der Fehler oben die ganze Ursache, und die Vokal-Kette
+    (Autotune · Harmonizer · Granular) hat ab jetzt ihre Tür.
+  · **Hörst Du Dich immer noch nicht?** Dann fliegt es raus, wie Du gesagt hast — und
+    zwar vollständig: Tür, Kette, Prosa, Wächter. Ich brauche dafür nur Dein Wort.
 
-  **a) Ein Helligkeits-Band, in dem die App weder einrasten noch sich erklären kann.**
-  Es gibt einen Bereich, in dem die Kamera zu viel Licht sieht, um den Puls zu finden —
-  aber zu wenig, damit die App „drück leichter" sagt. Sie fällt dann auf „suche…" zurück
-  und rät Dir nach 45 Sekunden, **einen anderen Finger zu nehmen oder die Hand zu
-  wärmen**. Beides falsch.
+  Ich frage einmal nach, weil die Ursache erst heute gefunden wurde und **in Build 447
+  noch nicht drin war**. Ein gebautes Feature wegen eines Fehlers zu löschen, der eine
+  Zeile entfernt liegt, wäre die teure Reihenfolge.
 
-  Ich habe die Wortwahl **NICHT** geändert — sie gehört Dir, und ein falscher Satz gegen
-  einen anderen falschen Satz getauscht ist keine Verbesserung. Stattdessen **zählt** der
-  Build jetzt mit, wie oft und wie lange dieses Band auftritt (`mute=jetzt/maximal` im
-  Diagnose-Log). Erst wenn das Log sagt, dass es wirklich feuert, ist die Frage Deine
-  Zeit wert.
+  ── AUSSERDEM: ALLE ANSICHTEN, GROSSE SCHRIFT ────────────────────────────
 
-  **b) Das Wort „Studio" verschwindet im Vollbild — auf Deinem Telefon vermutlich immer.**
-  Die Leiste im Vollbild wirft Bedienelemente ab, wenn sie nicht passen. Gemessen: der
-  „Studio"-Knopf braucht **431 pt** Breite, das breiteste iPhone hat **440** — und läuft
-  eine WAV-Aufnahme, braucht er 507. Auf 375/390/393/402/430-pt-Telefonen ist das Wort
-  also weg, und es bleiben zwei Symbole, deren Bedeutung nur VoiceOver kennt.
+  Du hast gesagt, manche Ansichten verhalten sich nicht adaptiv — Routing, Simulation
+  und andere. Ich habe **alle 375 Quelldateien** durchgemessen. Der Befund:
 
-  Der Startbildschirm ist seit einem früheren Build das Vollbild. Die Einblendung sagt
-  „Start the music" — der Weg dorthin liegt hinter einem unbeschrifteten Symbol.
+  **Die Schrift wächst längst mit Deiner Systemeinstellung — der KASTEN drumherum nicht.**
+  37 Bedienelemente in zehn Ansichten hatten eine fest eingebaute Höhe. Bei normaler
+  Schriftgröße passt das genau, deshalb ist es nie aufgefallen. Bei großer Schrift wächst
+  der Text, der Kasten nicht — und die Beschriftung wird **abgeschnitten**.
 
-  Ich habe die Rangfolge **NICHT** umsortiert: das würde jedem Telefon unter 440 pt die
-  Loop-Position im Vollbild nehmen. Die Frage ist die Textbreite des Knopfes, und die
-  gehört Dir.
+  Alle 37 haben jetzt eine **Mindest**höhe statt einer festen. Bei Deiner heutigen
+  Schriftgröße sieht **nichts** anders aus; bei großer Schrift wächst der Knopf mit.
 
-  ── WAS ICH VON DIR BRAUCHE (drei Handgriffe, je < 1 Minute) ─────────────
+  · Routing hatte 6 davon, das Haupt-Instrument 11.
+  · Absichtlich **nicht** angefasst: 20 feste Höhen ohne Text — Trennlinien, Pegel-
+    anzeigen, die Atem-Fläche, die Zifferntasten. Die sollen fest bleiben.
 
-  1. **Puls-Pille**: Take starten, Finger auf die Linse, dann die **Linse abdecken oder
-     die App in den Hintergrund** schicken. Steht dort „Camera paused" — oder immer noch
-     „Cover the rear camera + flash"?
-  2. **„Studio" im Vollbild**: Telefon im Hochformat, Vollbild-Visual. Steht das Wort
-     „Studio" oben in der Leiste, oder nur die zwei Symbole?
-  3. **Diagnose-Log**: nach einer Sitzung mit Kamera-Puls → Save/Export-Chip →
-     „Diagnostics" → Teilen. Ich lese die `mute=`-Zahlen; nur wenn sie größer als 0 sind,
-     stelle ich Dir die Wortlaut-Frage aus (a).
+  **Dasselbe zur Seite:** sechs Zahlen-Anzeigen in ausgerichteten Spalten hatten eine
+  feste BREITE (Mix-Rang und Prozent, Tap-Tempo, eine Zeile im Sound-Panel, das
+  Tempo-Feld, die Kohärenz-Spalte). Auch die haben jetzt eine Mindestbreite; die Spalte
+  bleibt ausgerichtet. **Nicht** angefasst: 60 feste Breiten ohne Text — Symbol-Spalten
+  sollen genau so eine feste Rinne sein.
 
-  Offen aus 445 und weiter gültig: Finger+DAW · „Fixtures" gegen ein echtes Rig · Ultra
-  nach Neustart · Routing-Punkt mit falscher IP · einmal „Sound zurücksetzen".
+  · Zwei Wächter prüfen das ab jetzt über **alle** Ansichten, damit es nicht zurückkommt.
+    Wer eine feste Größe wirklich braucht, schreibt den Grund daneben.
+
+  ⚠ Das ist ein Layout-Fix. Beweisen kann ihn nur ein Blick am Gerät bei großer Schrift
+  (Einstellungen → Anzeige → Textgröße), nicht der Compiler.
+
+  ── DEIN CLIP ────────────────────────────────────────────────────────────
+
+  Der 11-Sekunden-Clip (`buildwithneej`) ist eine Instagram-Liste über fünf GitHub-Repos
+  für KI-Agenten-Werkzeuge: OpenMAIC, ponytail, VoiceStudio, mattpocock/skills,
+  scientific-agent-skills. **Nichts davon ist fürs Produkt brauchbar.** Das einzige mit
+  Klangbezug ist VoiceStudio (lokales Stimmen-Klonen) — und Voice Clone hast Du am
+  25.08. ausdrücklich ausgeschlossen. Die übrigen vier sind Entwickler-Werkzeuge; unsere
+  eigene Skill-Sammlung deckt das ab.
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  Xcode Compile Check grün auf `83091ca` (2371), `c40dc32` (2372), `0bddd35` (2373),
-  `bfbf142` (2374) und `161286c` (2375) — also auf jeder der fünf Scheiben einzeln.
-  CI/CD Schritt 9 „Build for Testing" grün auf `0bddd35`, `bfbf142` und `161286c`.
-  Zusätzlich im Testprotokoll von `0bddd35` nachgelesen: die fünf Ansprüche von
-  `TheMuteBandIsMeasuredTests` stehen dort namentlich als `passed`.
+  Xcode Compile Check **grün** auf `41625ca` (2376) — der Sitzungs-Fix aus Teil 1.
 
-  ⚠ Das rote Gesamtergebnis der CI/CD kommt wie immer von #396 und sagt nichts; auf
-  `0bddd35` kam zusätzlich ein Simulator-Klon-Defekt des Runners dazu
-  („failed to bless service hub"), ebenfalls kein Testfehler.
+  ⚠ Ehrlich gesagt, was ich beim Schreiben dieser Zeile NICHT weiß: der Adaptiv-Fix
+  (`3109308`, Lauf 2378) stand noch in der Warteschlange des Runners. Lauf 2377 auf dem
+  Zwischenstand wurde vom nächsten Push abgebrochen — das ist normal, kein Fehler.
+  **Ist 2378 rot, siehst Du diesen Build gar nicht**: der TestFlight-Job scheitert dann
+  am selben Compiler, und ich schicke eine Korrektur hinterher. Ein Build, den Du in der
+  Hand hältst, hat den Compiler also in jedem Fall bestanden.
 
-  Alles hier ist compile-verifiziert. **Geräteverifiziert ist nichts** — und diesmal
-  gibt es sehr wohl etwas, das ein Gerät zeigen kann: die drei Handgriffe oben.
+  Alles hier ist compile-verifiziert. **Geräteverifiziert ist nichts.** Was ein Gerät
+  entscheiden kann: der Monitoring-Schalter (oben) und ein Blick bei großer Schrift.
+
+  Offen aus 447 und weiter gültig: Puls-Pille bei abgedeckter Linse · „Studio" im
+  Vollbild im Hochformat.
+
+  Erledigt aus 447: die `mute=`-Zahlen im Diagnose-Log waren in Deinem Log **alle 0** —
+  das Helligkeits-Band hat kein einziges Mal gefeuert, die Wortlaut-Frage ist damit vom
+  Tisch und kostet Dich keine Zeit.
+
+  Falls Du mir nach dem Monitoring-Test wieder ein Log schicken magst: Save/Export-Chip →
+  „Diagnostics" → Teilen. Ich lese daraus, welchen Weg `setCategory` genommen hat.
