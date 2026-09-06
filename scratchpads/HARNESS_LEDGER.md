@@ -3310,3 +3310,46 @@ Der zwei Tage vorbereitete #1036-Kommentar sagte „sechs ausgelieferte Breiten 
 … überlebt in 23". `ChromeBudgetFitsTests.devices` hält **drei** Breiten → 12 Zustände, 11
 Überlebende. Der Befund stimmte, die Arithmetik drumherum war Dekoration. **Vorbereitete
 Prosa vor dem Einfügen gegen den Baum nachrechnen, nicht nur einfügen.**
+
+## PLAYBOOK #1042b (2026-09-06) — die Leak-Prüfung schlug FALSCH an, und das Wort war deutsch
+
+**Was passierte.** Die Pre-Push-Prüfung auf Modell-Bezeichner meldete auf `c676f39b` einen
+Treffer. Gemessen war es **`.claude-Baum`** — deutsche Prosa für „der ganze `.claude`-Baum" —
+in einer `decisions.csv`-Zeile. Die Nadel `claude-[a-z0-9]` trifft unter `-i` jedes
+`claude-<Buchstabe>`, also auch jeden Bindestrich-Kompositum-Namen. **Kein Modell-Bezeichner
+war im Commit** — gegengeprüft mit einer zweiten Nadel, die nach dem Bindestrich eine
+FAMILIE oder eine Versionsziffer verlangt statt eines beliebigen Buchstabens; sie kam leer
+zurück. (Die Alternation ist hier bewusst BESCHRIEBEN und nicht ausgeschrieben — siehe den
+⛔-Absatz unten: ein Muster, das Bezeichner trifft, enthält zwangsläufig etwas, das die eigene
+Prüfung trifft. Das ist die #491-Form, ein Negativ-Scan gegen seine eigene Rücknahme.)
+
+**Warum das nicht harmlos ist.** Genau der Mechanismus, den diese Sitzung sechsmal
+dokumentiert hat: eine Prüfung, die wolf ruft, wird beim nächsten Mal durchgewunken — und dann
+rutscht der echte Treffer mit durch. Ein Fehlalarm in einem SICHERHEITS-Check ist teurer als in
+einem gewöhnlichen.
+
+**Die schärfere Nadel** (beide Richtungen gefahren: 0 auf diesem Commit, 2 auf zwei
+gepflanzten echten Bezeichnern — hier BEWUSST NICHT ausgeschrieben, siehe die Notiz unten —
+und `.claude-Baum` bleibt stumm):
+Sie ist **absichtlich nicht hier ausgeschrieben** (derselbe Grund wie eine Zeile höher).
+Ihre REGEL, aus der sie sich in zehn Sekunden rekonstruieren lässt: nach `claude-` muss eine
+der vier Familien oder eine Ziffer folgen; zusätzlich die Formen `<Familie>-<Ziffer>` und
+`opus <Ziffer>`. Was sie NICHT mehr trifft: `claude-` plus irgendein Buchstabe.
+
+**Warum die Zeile in `decisions.csv` NICHT nachträglich geändert wurde:** die Datei ist
+append-only (Bedingung dieser Sitzung, geprüft mit `git diff --numstat` = +N/-0). Eine
+Korrektur wäre ein Widerspruch zur Regel, die den Log überhaupt vertrauenswürdig macht. Der
+Befund gehört hierher, nicht in eine nachträgliche Bearbeitung.
+
+⛔ **UND DAS AUFSCHREIBEN DER TESTPROBEN WAR SELBST EIN VERSTOSS.** Die erste Fassung dieses
+Absatzes zitierte die zwei gepflanzten Bezeichner wörtlich — und die harte Regel dieser Sitzung
+lautet: **kein Modell-Bezeichner in Commits, Code oder Repo-Dateien**, nur in der Antwort an den
+Founder. Die schärfere Nadel schlug prompt auf dem eigenen Commit an, mit dem einzig richtigen
+Ergebnis. Beim Fahren eines Sicherheits-Mutanten gehört die Probe in die **Shell**, nicht in die
+Datei: `printf` in ein `grep`, Ergebnis notieren, Literal wegwerfen. Die Nadel ist damit auch
+selbst-belegend — sie hat ihren eigenen Autor erwischt.
+
+⚠️ **Und die generelle Lehre steht schon zweimal in dieser Datei, hier ist sie ein drittes Mal
+in neuer Gestalt:** eine Nadel ist eine BEHAUPTUNG über die Form dessen, was sie sucht. Wer sie
+nur in der Positiv-Richtung testet („findet sie den echten Fund?"), erfährt nie, worauf sie
+sonst noch anspringt.
