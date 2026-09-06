@@ -23995,3 +23995,37 @@ das eine gute Nachricht ist und welche Prosa dann mitzuziehen ist. Die vier
 nachgezogen: 0 Verstöße.
 
 **Vorher grün:** #1024 (Mikrofon-Türen) auf Compile Check 2380. **Geshipped:** v10.79.450.
+
+## 2026-09-06 — #1025b Nachgezählt: die Obergrenze deckte vier von sieben, nicht „alle"
+
+**Selbstbefund, gefunden BEVOR der Build beim Founder war.** #1025 behauptete in DREI
+Heimaten gleichzeitig — Commit-Text, Quelltext-Kommentar und der founder-sichtbaren
+Deploy-Notiz —, ein Modifier gebe „jedem Sheet" die Lesbarkeits-Obergrenze („deshalb zwei
+Stellen statt zwanzig"). **Gemessen:** `.echoelSheetPanel()` tragen **VIER** Sheets
+(FX · Input · Routing · LiveColabo). Öffnen, Diagnose und Learn werden OHNE ihn präsentiert
+— und Learn darf ihn gar nicht tragen, weil es seine `presentationDetents` selbst setzt und
+der Panel-Modifier sie ebenfalls setzt (der Dateikopf sagt das vier Zeilen über der Stelle,
+an der meine falsche Behauptung stand).
+
+⭐ **Die verletzte Regel ist die eigene:** eine Aggregat-Behauptung („jedes", „alle") ist
+eine ZÄHLUNG und wird gemessen, nicht daraus abgeleitet, wo man den Code hingelegt hat
+(#766/#768). Zweiter Fall am selben Tag nach dem „VIER statt FÜNF"-Fehler in #1024.
+
+**Reparatur:** die Kappe-dann-zentriere-Form ist in EINE Definition gezogen
+(`View.readableWidth()` in `EchoelSheetPanel.swift`) und an **sieben** Stellen angewandt:
+Chrome+Instrument · die vier Panel-Träger · Öffnen · Diagnose · Learn (letztere drei
+direkt). Kein Inline-`frame`-Paar mehr in `WorkspaceView` oder `EchoelStudioView`.
+
+**Wächter umgebaut, nicht ergänzt:** `TheLayoutHasAReadableWidthCeilingTests` hat jetzt
+FÜNF Ansprüche; Anspruch 2b ZÄHLT die Träger (≥4) und nennt jede Direkt-Stelle namentlich,
+statt die Form zu behaupten. Anspruch 2 pinnt, dass das Idiom genau EINMAL geschrieben ist
+und seine zwei Hälften benachbart und in der richtigen Reihenfolge stehen. 22 Behauptungen
+in Python transkribiert, alle grün; die vier #1023-Adaptiv-Ansprüche noch einmal
+durchgezogen: 0 Verstöße.
+
+**Deploy-Notiz korrigiert, nicht still ersetzt:** 451 nennt die falsche erste Fassung
+wörtlich und sagt, dass sie vor der Auslieferung gefunden wurde — der Founder hat genau vor
+dieser Sorte Unordnung gewarnt.
+
+**Gates:** #1024/449 grün (Compile Check 2380, TestFlight 2568 → **v10.79.449 (2568)** liegt
+beim Founder). #1025/450 lief beim Schreiben noch; 451 löst es ab.

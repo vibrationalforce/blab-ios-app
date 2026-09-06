@@ -1468,9 +1468,9 @@ struct EchoelStudioView: View {
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
         // content above: keep the root view's aggregate generic type shallow so the
         // launch-time metadata decode can never overflow the stack again.
-        .sheet(isPresented: $showOpen) { AnyView(openSheet) }
+        .sheet(isPresented: $showOpen) { AnyView(openSheet.readableWidth()) }
         .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
-        .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
+        .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text).readableWidth()) }
         .sheet(isPresented: $showAllFX) {
             // The ENGINE, not `currentTempo`: a Double handed over here is a snapshot taken
             // at presentation time, and the sheet then computed every sync division at that
@@ -1497,7 +1497,11 @@ struct EchoelStudioView: View {
         }
         .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }
         .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
-        .sheet(isPresented: $showLearn) { AnyView(LearnView()) }   // self-manages its detents
+        // ⚠️ #1025 — `.readableWidth()` and NOT `.echoelSheetPanel()`. LearnView sets its own
+        // `presentationDetents`, and this file's panel modifier sets them too; double-declaring
+        // conflicts (EchoelSheetPanel.swift's header states the rule). The width ceiling carries
+        // no detents, so it is the half Learn can safely take.
+        .sheet(isPresented: $showLearn) { AnyView(LearnView().readableWidth()) }
         #if canImport(UniformTypeIdentifiers)
         .fileImporter(isPresented: $midiImportPresented,
                       allowedContentTypes: [.midi],

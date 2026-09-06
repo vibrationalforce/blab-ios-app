@@ -29,22 +29,22 @@ struct EchoelSheetPanelModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            // ⭐ #1025 — every sheet inherits the readable ceiling here, which is why the
-            // fix is two sites and not twenty. The founder's clip shows the Routing sheet
-            // (`PatchbayView`) cut on BOTH sides after a rotation: a sheet centres in its
-            // canvas, so a canvas wider than the content expects loses the same amount at
-            // each edge. Capping and re-centring turns that into margins.
+            // ⭐ #1025 — a sheet wearing this panel also gets the readable ceiling. The
+            // founder's clip shows the Routing sheet (`PatchbayView`) cut on BOTH sides
+            // after a rotation: a sheet centres in its canvas, so a canvas wider than the
+            // content expects loses the same amount at each edge.
             //
-            // The doubled `frame` is the same idiom as `WorkspaceView`'s: cap, then reclaim
-            // the full width so the capped content is centred rather than leading-aligned.
-            // It binds on no iPhone in portrait (see `readableContentWidth`).
-            //
-            // ⚠️ THIS MODIFIER IS NOT UNIVERSAL, and a session repairing a wide sheet has to
-            // check which one it has: this file's own header says views that manage their
-            // OWN `presentationDetents` (LearnView) must not wear it, so they do not get the
-            // ceiling from here either. The guard counts the wearers rather than assuming.
-            .frame(maxWidth: EchoelTheme.readableContentWidth)
-            .frame(maxWidth: .infinity)
+            // ⛔ AND THE FIRST VERSION OF THIS COMMENT SAID "every sheet inherits the
+            // readable ceiling here, which is why the fix is two sites and not twenty" —
+            // MEASURED AND FALSE, before the build reached the founder. `.echoelSheetPanel()`
+            // is worn by FOUR sheets (FX · Input · Routing · LiveColabo); Open, Diagnostics
+            // and Learn are presented WITHOUT it, and Learn must never wear it because it
+            // manages its own detents (this file's own header says so, four lines up, in the
+            // sentence the wrong claim sat under). Those three now carry `.readableWidth()`
+            // directly, so the ceiling is one DEFINITION applied at seven sites — not one
+            // site that magically covers everything. `TheLayoutHasAReadableWidthCeilingTests`
+            // counts the wearers rather than trusting this paragraph.
+            .readableWidth()
             .presentationDetents([.medium, .large], selection: $detent)
             .presentationDragIndicator(.visible)
             .presentationBackground(EchoelTheme.bg.opacity(0.92))
@@ -56,5 +56,27 @@ extension View {
     /// Present this sheet content as Echoel's consistent non-modal, draggable panel.
     /// (Not for views that set their own `presentationDetents`.)
     func echoelSheetPanel() -> some View { modifier(EchoelSheetPanelModifier()) }
+
+    /// ⭐ #1025 — cap this content at a readable width and CENTRE it. The ONE definition of
+    /// the idiom; every site that needs the ceiling calls this rather than repeating the
+    /// pair, so the two `frame`s and their order exist exactly once in the app.
+    ///
+    /// THE ORDER IS THE WHOLE TRICK. The first `frame` caps the content; the second reclaims
+    /// the full width so the capped column is CENTRED. With the cap alone the content hugs
+    /// the leading edge and all the empty space piles up on one side — which reads as a bug,
+    /// not as a margin.
+    ///
+    /// ⚠️ IT BINDS ON NO iPHONE IN PORTRAIT (440 pt widest today vs a 560 pt ceiling), so it
+    /// changes nothing on the founder's device. It engages only where the canvas is genuinely
+    /// too wide to read: landscape, and later iPad · Mac · Vision.
+    ///
+    /// ⚠️ NOT FOR THE IMMERSIVE VISUAL. `FloatingVisualWindow` and the `showVisual` cover must
+    /// keep the FULL screen — "true Vollbild" is a stated rule in `WorkspaceView`. Pinned by
+    /// the guard's counterweight.
+    func readableWidth() -> some View {
+        self
+            .frame(maxWidth: EchoelTheme.readableContentWidth)
+            .frame(maxWidth: .infinity)
+    }
 }
 #endif

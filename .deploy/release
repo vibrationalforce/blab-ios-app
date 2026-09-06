@@ -1,4 +1,4 @@
-build: v10.79.450 — Beim Drehen wird nichts mehr verzerrt
+build: v10.79.451 — Beim Drehen wird nichts mehr verzerrt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,7 +6,7 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.449.
+  Der Vorgänger ist 10.79.450.
 
   ── ICH HABE DEN CLIP GELESEN, UND ER ZEIGT DIE URSACHE ──────────────────
 
@@ -30,12 +30,21 @@ notes: |
   bleibt die Spalte 560 breit und wird **mittig** gesetzt, mit Rand links und rechts —
   statt sich zu strecken, bis nichts mehr umbricht.
 
-  · Stelle 1: das Hauptfenster (Kopfleiste + Instrument).
-  · Stelle 2: **alle** Schubladen auf einmal — Routing, Sound, Learn und jede weitere.
-    Deshalb sind es zwei Stellen und nicht zwanzig.
+  · Das Hauptfenster (Kopfleiste + Instrument).
+  · **Alle sieben Schubladen**, die Du öffnen kannst: Routing · FX · Öffnen · Diagnose ·
+    Learn · Live-Colabo · Audio-Eingang (der letzte hat seit 449 keine Tür mehr, bekommt
+    die Grenze aber mit, falls Du ihn zurückholst).
   · **Ausgenommen: das schwebende Visual.** Das soll den ganzen Bildschirm füllen, das ist
     sein Sinn. Ein Wächter verbietet es ab jetzt, die Grenze versehentlich auch darauf zu
     legen.
+
+  ⛔ **UND DIE ERSTE FASSUNG DIESER LISTE WAR FALSCH — ich schreibe das hin, weil Du genau
+  davor gewarnt hast.** Sie sagte „alle Schubladen auf einmal … deshalb zwei Stellen statt
+  zwanzig". Nachgezählt: die gemeinsame Schubladen-Hülle trägt **vier** von sieben. Öffnen,
+  Diagnose und Learn hingen nicht daran — Learn darf sogar gar nicht daran hängen, weil es
+  seine Höhe selbst regelt. Die drei haben die Grenze jetzt direkt bekommen. **Gefunden,
+  bevor der Build bei Dir war**, und der Wächter ZÄHLT die Stellen jetzt, statt sich auf
+  meinen Satz zu verlassen.
 
   ⚠ **Auf Deinem Telefon im Hochformat ändert sich NICHTS.** Das breiteste iPhone ist heute
   440 Punkt breit — die Grenze von 560 greift dort nie. Sie greift nur da, wo die Fläche
@@ -60,11 +69,11 @@ notes: |
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  449 (die Mikrofon-Türen) ist **grün** — Compile Check 2380. Dieser Build wird mit dem
-  Push geprüft.
+  449 (die Mikrofon-Türen) ist **grün** und liegt bei Dir: Compile Check 2380, TestFlight
+  2568 — das ist **v10.79.449 (2568)**. Dieser Build wird mit dem Push geprüft.
 
-  Vier neue Wächter-Behauptungen habe ich von Hand gegen den Quelltext nachgerechnet, alle
-  grün; die vier bestehenden Adaptiv-Wächter ebenfalls noch einmal durchgezogen.
+  22 Wächter-Behauptungen habe ich von Hand gegen den Quelltext nachgerechnet, alle grün;
+  die vier bestehenden Adaptiv-Wächter ebenfalls noch einmal durchgezogen (0 Verstöße).
 
   **Geräteverifiziert ist nichts.** Was nur Du entscheiden kannst: dreh das Telefon einmal
   quer und sag mir, ob „mittig mit Rand" für Dich in Ordnung ist — oder ob wir das Drehen

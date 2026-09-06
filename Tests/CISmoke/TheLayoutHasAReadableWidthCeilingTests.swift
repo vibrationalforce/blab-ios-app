@@ -19,6 +19,16 @@ import XCTest
 /// whether "centred with margins" is acceptable, or whether the orientation should simply be
 /// locked to portrait).
 ///
+/// ⛔ THE FIRST CUT OF THIS SLICE CLAIMED "every sheet inherits the ceiling from one
+/// modifier, which is why the fix is two sites and not twenty" — MEASURED AND FALSE, in the
+/// commit message, the source comment AND the founder-facing deploy note at once. Counted:
+/// `.echoelSheetPanel()` is worn by FOUR sheets (FX · Input · Routing · LiveColabo), while
+/// Open, Diagnostics and Learn are presented without it — and Learn must NEVER wear it,
+/// because it manages its own `presentationDetents` and the panel modifier sets them too.
+/// The rule I broke is this repo's own: an aggregate claim ("every", "all") is a COUNT, and
+/// a count is measured, not reasoned from where the code was put. Claim 2 below now counts
+/// the sites rather than asserting the shape, so the same sentence cannot go stale silently.
+///
 /// ⚠️ AND IT IS DELIBERATELY NOT AN ORIENTATION LOCK (#364). If the founder later drops
 /// landscape from the plist, nothing here goes red — the ceiling stays useful, because the
 /// stated platform goal is the whole Apple ecosystem and iPad, Mac and Vision all arrive
@@ -29,6 +39,7 @@ final class TheLayoutHasAReadableWidthCeilingTests: XCTestCase {
     private static let workspace = "Sources/Echoelmusic/Studio/WorkspaceView.swift"
     private static let sheet = "Sources/Echoelmusic/Studio/EchoelSheetPanel.swift"
     private static let visual = "Sources/Echoelmusic/Studio/FloatingVisualWindow.swift"
+    private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
 
     private static let capLine = ".frame(maxWidth: EchoelTheme.readableContentWidth)"
     private static let centreLine = ".frame(maxWidth: .infinity)"
@@ -64,26 +75,76 @@ final class TheLayoutHasAReadableWidthCeilingTests: XCTestCase {
             """)
     }
 
-    // MARK: - 2. both sites apply it, and both CENTRE what they capped
+    // MARK: - 2. the ceiling is ONE definition, applied at every site that needs it
 
-    func testBothSitesCapAndThenRecentre() throws {
-        for (path, name) in [(Self.workspace, "the chrome + instrument column"),
-                             (Self.sheet, "every sheet wearing echoelSheetPanel()")] {
+    /// The idiom (cap, then reclaim the width so the capped column is CENTRED) exists exactly
+    /// once, in `View.readableWidth()`. Repeating the two `frame`s inline is how the order
+    /// gets dropped at one site and nobody notices — with the cap alone the content hugs the
+    /// leading edge and all the empty space piles up on one side.
+    func testTheIdiomIsWrittenExactlyOnce() throws {
+        let panel = try code(Self.sheet)
+        XCTAssertEqual(occurrences(of: "func readableWidth() -> some View", in: panel), 1, """
+            `readableWidth()` is not declared exactly once in \(Self.sheet). Zero means it \
+            moved — re-anchor this guard and every call site in the same commit (#456).
+            """)
+        XCTAssertTrue(panel.contains(Self.capLine) && panel.contains(Self.centreLine), """
+            `readableWidth()` no longer caps AND re-centres. Both halves are required and the \
+            ORDER carries the fix: `\(Self.capLine)` first, then `\(Self.centreLine)`.
+            """)
+        let cap = try XCTUnwrap(panel.range(of: Self.capLine))
+        let next = panel[cap.upperBound...].drop(while: { $0 == "\n" || $0 == " " })
+        XCTAssertTrue(next.hasPrefix(Self.centreLine), """
+            The two halves of `readableWidth()` are no longer adjacent and in that order. Cap \
+            first, then reclaim the full width — reversed or separated, the column stops being \
+            centred and the margin reads as a bug.
+            """)
+        for path in [Self.workspace, Self.studio] {
             let body = try code(path)
-            XCTAssertEqual(occurrences(of: Self.capLine, in: body), 1, """
-                \(name) no longer applies `\(Self.capLine)` exactly once. Without it a rotated \
-                phone hands this content ~852 pt and the layout does what the founder filmed: \
-                paragraphs stop wrapping, a centred sheet loses both edges.
+            XCTAssertEqual(occurrences(of: Self.capLine, in: body), 0, """
+                \(path) writes the cap inline instead of calling `readableWidth()`. One \
+                definition, or the order gets dropped at one site and nothing notices.
                 """)
-            let cap = try XCTUnwrap(body.range(of: Self.capLine))
-            let after = body[cap.upperBound...]
-            let next = after.drop(while: { $0 == "\n" || $0 == " " })
-            XCTAssertTrue(next.hasPrefix(Self.centreLine), """
-                \(name) caps its width but the very next modifier is no longer \
-                `\(Self.centreLine)`. The pair is the whole trick and the ORDER carries it: \
-                cap the content, then reclaim the full width so the capped column is CENTRED. \
-                With the cap alone the column hugs the leading edge and all the empty space \
-                piles up on one side — which looks like a bug rather than a margin.
+        }
+    }
+
+    /// COUNT, do not reason (#766/#768). The first cut of this slice asserted that one
+    /// modifier covered "every sheet"; it covers four of seven. This claim names each
+    /// presented surface and where its ceiling comes from, so adding a sheet without one is
+    /// a red rather than a silently stretched panel on a wide canvas.
+    func testEveryPresentedSurfaceHasACeilingOrAStatedReasonNotTo() throws {
+        let studio = try code(Self.studio)
+        let workspace = try code(Self.workspace)
+
+        XCTAssertEqual(occurrences(of: ".readableWidth()", in: workspace), 1, """
+            The chrome + instrument column no longer calls `readableWidth()` exactly once. \
+            This is the surface the founder filmed: rotate the phone and its paragraphs stop \
+            wrapping.
+            """)
+
+        // The four that inherit it through the shared panel, and the three that carry it
+        // directly. Every entry is a sheet a user can open.
+        for wearer in ["AudioInputPickerView().echoelSheetPanel()",
+                       "PatchbayView().echoelSheetPanel()"] {
+            XCTAssertTrue(studio.contains(wearer), """
+                `\(wearer)` is gone. It is one of the sheets that inherits the readable \
+                ceiling from `.echoelSheetPanel()`; if the sheet moved or was renamed, keep \
+                its ceiling and re-anchor this list in the same commit.
+                """)
+        }
+        XCTAssertGreaterThanOrEqual(occurrences(of: ".echoelSheetPanel()", in: studio), 4, """
+            Fewer than four sheets wear `.echoelSheetPanel()`. That modifier is where FX, \
+            Input, Routing and LiveColabo get both their detents and their width ceiling — a \
+            sheet dropped from it loses the ceiling silently, which is exactly the defect \
+            this file exists for.
+            """)
+        for direct in ["AnyView(openSheet.readableWidth())",
+                       "AnyView(diagnosticsSheet(report.text).readableWidth())",
+                       "AnyView(LearnView().readableWidth())"] {
+            XCTAssertTrue(studio.contains(direct), """
+                `\(direct)` is gone. These three sheets do NOT wear `.echoelSheetPanel()` — \
+                Learn cannot, because it sets its own `presentationDetents` and the panel \
+                sets them too — so they carry the ceiling directly. Dropping the call leaves \
+                them stretching on a wide canvas while every neighbour behaves.
                 """)
         }
     }
@@ -103,11 +164,15 @@ final class TheLayoutHasAReadableWidthCeilingTests: XCTestCase {
             one surface that is supposed to cover everything.
             """)
         let workspace = try code(Self.workspace)
-        XCTAssertEqual(occurrences(of: "readableContentWidth", in: workspace), 1, """
-            `WorkspaceView` names the readable ceiling more than once. There is exactly ONE \
-            place it belongs: on the chrome + instrument VStack, INSIDE the ZStack. A second \
-            mention is most likely the cap hoisted onto the ZStack or applied to the visual \
-            as well — see this method's doc comment for why that is worse than no cap.
+        XCTAssertEqual(occurrences(of: ".readableWidth()", in: workspace), 1, """
+            `WorkspaceView` applies the ceiling more than once. There is exactly ONE place it \
+            belongs: on the chrome + instrument VStack, INSIDE the ZStack. A second call is \
+            most likely the cap hoisted onto the ZStack or put on the visual as well — see \
+            this method's doc comment for why that is worse than no cap.
+            """)
+        XCTAssertEqual(occurrences(of: ".readableWidth()", in: try code(Self.visual)), 0, """
+            `FloatingVisualWindow` now calls `readableWidth()`. Same finding as above, one \
+            file over: the visual keeps the whole screen.
             """)
         XCTAssertTrue(workspace.contains("FloatingVisualWindow"), """
             `FloatingVisualWindow` is no longer mounted in `WorkspaceView`. That makes the \
