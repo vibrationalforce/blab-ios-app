@@ -204,12 +204,17 @@ final class ChromeBudgetFitsTests: XCTestCase {
     /// the instrument is shed, and what is left are two glyphs whose words exist only in
     /// VoiceOver ("Exit fullscreen", "Hide visual").
     ///
-    /// This test is NOT changed to assert the chip survives. It sits in the BLOCKING bundle,
-    /// so an assertion that is red on a correct tree stops every push — and the repair is a
-    /// product decision that is not this session's to take: the shed ranking is documented as
-    /// deliberate at `FloatingVisualLayout.chromeFit`, so making the chip survive means either
-    /// re-ranking it above the transport readout (which then leaves fullscreen on every phone
-    /// under 440 pt) or making the chip cheaper than its 83 pt text reserve. NEEDS-FOUNDER-VERIFY.
+    /// ⭐ #1036 ANSWERED THE QUESTION THIS BLOCK PARKED, and the paragraph that stood here is
+    /// struck rather than deleted, because its MEASUREMENT is what made the answer cheap. It
+    /// read: "This test is NOT changed to assert the chip survives … the repair is a product
+    /// decision that is not this session's to take … NEEDS-FOUNDER-VERIFY." The founder took
+    /// it on 2026-09-06 ("eine Einheit zum steuern … kompakter und übersichtlicher"), and the
+    /// answer was the option this block did not list: neither a re-rank ABOVE the transport
+    /// nor a cheaper chip, but a re-rank to LAST among the non-recorder items. Measured over
+    /// `devices` × wavBusy × videoBusy — 12 states — the chip shed in 10 before the re-rank
+    /// and sheds in 1 after; see `testTheLabelledExitSurvivesEveryShippedWidth`, which pins
+    /// that and names the one exception. THIS claim keeps its own job unchanged: the bar
+    /// must still fit.
     func testFullscreenFitsAtEveryShippedWidth() {
         for bounds in Self.devices {
             for wavBusy in [false, true] {
@@ -224,6 +229,53 @@ final class ChromeBudgetFitsTests: XCTestCase {
                     """)
             }
         }
+    }
+
+    /// ⭐ #1036 — THE LABELLED WAY BACK MUST SURVIVE ON A PHONE. This is the positive half of
+    /// the re-rank, and it is the assertion the block above deliberately did NOT make while
+    /// the ranking made it false. It is safe to make now for the #364 reason: it pins a
+    /// CAPABILITY the founder asked for, not today's arrangement. A future re-rank, a cheaper
+    /// chip, a wrapping bar — any of them may satisfy it; only losing the labelled exit fails.
+    ///
+    /// THE ONE EXCEPTION IS ASSERTED, NOT EXCUSED. On the narrowest width in `devices` with
+    /// BOTH a WAV take and a video capture running, the two pinned stop buttons leave no room
+    /// and the chip sheds. That is the type's own law applied consistently — "being the exit decides
+    /// that it stays" was written for a running take's only stop button, and a stranded
+    /// recording is worse than a longer way out (the resize glyph still leaves fullscreen).
+    /// It is spelled as an EXPECTATION rather than skipped, so if a future change happens to
+    /// rescue that state this claim goes red and gets tightened instead of silently passing.
+    func testTheLabelledExitSurvivesEveryShippedWidth() {
+        var shedStates: [String] = []
+        for bounds in Self.devices {
+            for wavBusy in [false, true] {
+                for videoBusy in [false, true] {
+                    let fit = FloatingVisualLayout.chromeFit(cardWidth: bounds.width,
+                                                             isFullscreen: true,
+                                                             showsTransport: true,
+                                                             wavBusy: wavBusy, videoBusy: videoBusy)
+                    if !fit.studioChip {
+                        shedStates.append("\(Int(bounds.width))pt wav=\(wavBusy) video=\(videoBusy)")
+                    }
+                }
+            }
+        }
+        XCTAssertEqual(shedStates, ["375pt wav=true video=true"], """
+            The set of states that shed the labelled "Studio" chip changed. Measured: \
+            \(shedStates.isEmpty ? "none" : shedStates.joined(separator: " · ")).
+
+            MORE states than the one expected means the only LABELLED way out of the surface \
+            the app cold-launches into is gone again on a phone the app ships to — the defect \
+            the founder named on 2026-09-06 and #1036 repaired by moving `studioChip` to last \
+            among the non-recorder items in `chromeFit`'s shed array. What may shed instead is \
+            information (the transport readout) or a display aid (the grid toggle); an EXIT \
+            may not. Restore the ranking, or make the exit survive another way — a cheaper \
+            chip and a wrapping bar both satisfy this claim.
+
+            FEWER states — an empty list — is GOOD NEWS and still a red, on purpose: it means \
+            375 pt with both recorders running now keeps the chip too. Tighten this claim to \
+            the empty list and delete the exception paragraph above it; do not widen the \
+            assertion to accept both answers, or it stops measuring anything.
+            """)
     }
 
     // MARK: - The shed order is the documented ranking, not an emergent one
@@ -246,14 +298,21 @@ final class ChromeBudgetFitsTests: XCTestCase {
     /// checking cannot disagree with it.
     func testTheShedOrderIsAPrefixOfTheDocumentedRanking() {
         // Cheapest-to-lose first: convenience, then information, then a display aid, then
-        // the two recorders (video before WAV — a lost video take is a lost file, a lost WAV
-        // take is a lost performance).
+        // the idle video button, THEN the labelled exit, and last the WAV control.
+        //
+        // ⭐ #1036 MOVED `studioChip` FROM SECOND TO FIFTH, and this list is the documented
+        // ranking the array under `chromeFit` must match — so it moves here in the same
+        // commit, which is exactly what this claim's failure message asks for. The reason is
+        // the type's own law ("rank decides what goes; being the exit decides that it
+        // stays"): the chip is the only LABELLED way out of the surface the app cold-launches
+        // into. What now sheds earlier is a readout and a display aid, neither of which is a
+        // way out of anything.
         let ranking: [(name: String, keep: (FloatingVisualLayout.ChromeFit) -> Bool)] = [
             ("lookSlider",    { $0.lookSlider }),
-            ("studioChip",    { $0.studioChip }),
             ("miniTransport", { $0.miniTransport }),
             ("gridToggle",    { $0.gridToggle }),
             ("videoRecord",   { $0.videoRecord }),
+            ("studioChip",    { $0.studioChip }),
             ("wavRecord",     { $0.wavRecord })
         ]
 

@@ -349,9 +349,42 @@ public enum FloatingVisualLayout {
             return total + ChromeCost.gap * CGFloat(items) + ChromeCost.horizontalPadding
         }
 
+        // ⭐ #1036 — THE LABELLED WAY BACK SHEDS LAST. The founder asked for the visual to
+        // become "eine Einheit zum steuern … kompakter und übersichtlicher", and
+        // `ChromeBudgetFitsTests.testFullscreenFitsAtEveryShippedWidth` had ALREADY measured
+        // why it was not one: in fullscreen the "Studio" chip needs 431 pt and the widest
+        // phone in `devices` is 440, so on 375 / 390 / 393 / 402 / 430 pt phones the only
+        // LABELLED door back to the instrument was shed. What survived were two glyphs whose
+        // words exist only in VoiceOver. That guard wrote the repair down as a product
+        // question it could not answer alone (NEEDS-FOUNDER-VERIFY); the ask answers it.
+        //
+        // The repair is a RE-RANK, not a new control: `studioChip` moves from second-cheapest
+        // to last among the non-recorder items. The ranking's own principle decides it —
+        // "rank decides what goes; being the exit decides that it stays" is already the law
+        // three paragraphs up, written for a recorder's stop button. The Studio chip is an
+        // exit too: it is the only labelled way out of a surface the app COLD-LAUNCHES into
+        // (`WorkspaceView` sets fullscreen at start), and the bar's own comments cite WCAG 2.2
+        // against gating controls behind something with no words.
+        //
+        // WHAT IT COSTS, named rather than glossed: `miniTransport` and `gridToggle` now shed
+        // earlier. Both are INFORMATION or a display aid; neither is a way out of anything.
+        //
+        // MEASURED across the guard's three widths (375 / 393 / 440) × wavBusy × videoBusy —
+        // 12 states: the chip shed in 10 of them BEFORE this change and sheds in 1 after. The
+        // one exception is 375 pt with BOTH a WAV take and a video capture running, where the
+        // two pinned stop buttons leave no room and a running take's only stop button outranks
+        // even the exit. That is the existing law applied consistently, not a hole in it; the
+        // resize glyph still leaves fullscreen. Claim
+        // `testTheLabelledExitSurvivesEveryShippedWidth` pins both halves.
+        //
+        // ⛔ THIS PARAGRAPH FIRST SAID "six shipped widths … 24 states … survives in 23" and
+        // every one of those three numbers was invented. `ChromeBudgetFitsTests.devices` holds
+        // THREE widths, so the sweep is 12 states and the survival is 11 of 12. The shape of
+        // the finding was right and the arithmetic around it was decoration — which is the
+        // failure this repo keeps paying for, and the reason the numbers here now name the
+        // array they come from instead of a remembered device list.
         var shed: [(inout ChromeFit) -> Void] = [
             { $0.lookSlider = false },
-            { $0.studioChip = false },
             { $0.miniTransport = false },
             { $0.gridToggle = false }
         ]
@@ -360,6 +393,7 @@ public enum FloatingVisualLayout {
         // signature. Video sheds before WAV because a lost video take is a lost file,
         // while a lost WAV take is a lost performance.
         if !videoBusy { shed.append { $0.videoRecord = false } }
+        shed.append { $0.studioChip = false }
         if !wavBusy   { shed.append { $0.wavRecord = false } }
 
         for drop in shed {
