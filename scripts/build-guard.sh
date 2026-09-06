@@ -49,7 +49,7 @@ header() { echo -e "\n${BOLD}${BLUE}[$1]${NC} $2"; }
 # STAGE 1: Pattern Detection (always runs, instant)
 # Catches the exact error patterns from CLAUDE.md
 # =============================================================================
-header "1/4" "Scanning for known error patterns..."
+header "1/3" "Scanning for known error patterns..."
 
 # 1a. Color.magenta (doesn't exist in SwiftUI) — exclude ClipColor.magenta etc.
 MAGENTA_HITS=$(grep -rn '[^A-Za-z]Color\.magenta\b' Sources/ --include="*.swift" 2>/dev/null | grep -v 'ClipColor\.' || true)
@@ -156,7 +156,7 @@ fi
 # STAGE 2: SwiftLint (runs unless --quick)
 # =============================================================================
 if [[ "$QUICK_MODE" == false ]]; then
-    header "2/4" "Running SwiftLint..."
+    header "2/3" "Running SwiftLint..."
 
     if command -v swiftlint &> /dev/null; then
         LINT_OUTPUT=$(swiftlint lint --strict --quiet 2>&1 || true)
@@ -182,14 +182,14 @@ if [[ "$QUICK_MODE" == false ]]; then
         warn "SwiftLint not installed (brew install swiftlint)"
     fi
 else
-    header "2/4" "SwiftLint skipped (--quick mode)"
+    header "2/3" "SwiftLint skipped (--quick mode)"
 fi
 
 # =============================================================================
 # STAGE 3: Swift Build (runs unless --quick)
 # =============================================================================
 if [[ "$QUICK_MODE" == false ]]; then
-    header "3/4" "Compiling Swift package..."
+    header "3/3" "Compiling Swift package..."
 
     BUILD_LOG=$(mktemp)
     if swift build 2>&1 | tee "$BUILD_LOG" | tail -5; then
@@ -203,38 +203,38 @@ if [[ "$QUICK_MODE" == false ]]; then
     fi
     rm -f "$BUILD_LOG"
 else
-    header "3/4" "Swift build skipped (--quick mode)"
+    header "3/3" "Swift build skipped (--quick mode)"
 fi
 
 # =============================================================================
-# STAGE 4: Duplicate Type Detection
+# ⛔ STAGE 4 STOOD HERE AND WAS DELETED (#1035, 2026-09-06)
 # =============================================================================
-header "4/4" "Checking for type name conflicts..."
-
-# Check for types that should be prefixed per CLAUDE.md
-# Only flag top-level definitions (≤4 leading spaces). Nested types inside
-# structs/classes are scoped and don't conflict.
-CONFLICT_TYPES=("MonitorMode" "TransitionType" "TrackSend" "TrackType" "SourceFilter")
-for type in "${CONFLICT_TYPES[@]}"; do
-    ALL_DEFS=$( (grep -rn "^\(public \|internal \|\)\(enum\|struct\|class\) ${type}[: ]" Sources/ --include="*.swift" 2>/dev/null || true) )
-    if [[ -z "$ALL_DEFS" ]]; then
-        COUNT=0
-    else
-        TOP_LEVEL=$( (echo "$ALL_DEFS" | grep -v '^[^:]*:[0-9]*:    ' || true) )
-        if [[ -z "$TOP_LEVEL" ]]; then
-            COUNT=0
-        else
-            COUNT=$(echo "$TOP_LEVEL" | wc -l | tr -d '[:space:]')
-        fi
-    fi
-    if [[ $COUNT -gt 1 ]]; then
-        warn "Type '$type' defined $COUNT times at top level — should be prefixed (Session/Stream/Cue/Grade)"
-        if [[ $VERBOSE == true ]]; then
-            echo "$TOP_LEVEL" | head -5
-        fi
-    fi
-done
-pass "Type conflict scan complete"
+# It looped over CONFLICT_TYPES=("MonitorMode" "TransitionType" "TrackSend"
+# "TrackType" "SourceFilter") looking for top-level redeclarations, then printed
+# `pass "Type conflict scan complete"` UNCONDITIONALLY — outside the loop, with no
+# reference to what the loop found.
+#
+# Measured 2026-09-06: all five names occur ZERO times in Sources/. So the stage
+# examined nothing and lit a green light for it. CI runs this script as
+# `build-guard.sh --quick` (ci.yml:78, pr-check.yml:87), which skips stages 2 and 3
+# — so this ghost scan was HALF of what CI actually executed here.
+#
+# Its prose home was already gone. CLAUDE.md deleted its "Type Conflict Resolution"
+# section on 2026-07-25 with the words "every type this section named is GONE ...
+# Do not restore any of it". The executable copy was simply missed — the #456
+# pattern: a retraction that fixed one home and left the other running.
+#
+# It is DELETED rather than repaired because the invariant it claimed is already
+# enforced by something stronger: two top-level types with the same name in one
+# module is a redeclaration ERROR, so the compiler catches it. The prefixing rule it
+# implemented belonged to the multi-target era; the AUv3 target went 2026-07-24.
+#
+# ⭐ IF A FOURTH STAGE COMES BACK, here is the one worth building, because it catches
+# a failure this repo HAS paid for and `--quick` mode cannot see (no compiler): an
+# `@Observable` class declaring its own stored property named `_foo` collides with
+# the macro-generated backing store for `foo` ("invalid redeclaration of '_foo'").
+# That rule is in CLAUDE.md's build-error table because it bit us. A grep can find
+# it; the quick gate currently cannot.
 
 # =============================================================================
 # Summary
