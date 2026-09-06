@@ -24172,3 +24172,74 @@ eigene LIMIT-4-Notiz vorhersagt („if one of its pins ever resolves") — jetzt
 eingetreten. **Eigene Scheibe**, weil ein dauerhaft falsches ROT der Mechanismus ist, der die
 nächste Sitzung das Werkzeug ignorieren lässt — also genau der Weg, auf dem der
 breadcrumb-Pin verrottet ist.
+
+---
+
+## 2026-09-06 — #1034 · #1035 · #1036 · Zwei lügende Gates repariert, der Ausgang aus dem Vollbild gerettet
+
+**Vorlauf: der 142-Agenten-Ultracode-Lauf (Tasks S + T).** Fünf Doctor-Sweeps → 42 Rohbefunde
+→ 126 Widerleger in drei Linsen → **18 bestätigt**, plus 60 ausdrücklich saubere Punkte.
+0 Fehler, 20.996.483 Subagent-Token, **~3 Stunden** — und der Grund für die Dauer steht als
+Playbook im `HARNESS_LEDGER`: `nproc` = 4, also Nebenläufigkeits-Deckel 2. Ich hatte die
+Flotte entworfen, ohne die Maschine zu messen.
+
+**Deep-Research-Ergebnis in einem Satz: nichts aus der KI-Frontier ist adoptierbar.** Kein
+LLM-, neuronales oder Cloud-Feature überlebt die zwei harten Randbedingungen (Null
+Abhängigkeiten, Millisekunden-Antwort). Der Wert liegt in klassischer Signalverarbeitung,
+Kamera-Konfiguration und Protokoll-Ehrlichkeit. Bester unaufgegriffener Kandidat, gemessen:
+**der Weißabgleich wird nie gesperrt** (`git grep -c whiteBalance -- Sources` → **0**),
+während die Belichtung sehr wohl gesperrt wird (`CameraCapture.swift:287`). rPPG liest das
+Rot/Grün-Verhältnis; ein driftender Automatik-Weißabgleich verschiebt genau das.
+
+### #1034 — die Deploy-Checkliste lief 1 von 45 Prüfungen
+
+`scripts/preflight-check.sh` starb an seinem EIGENEN ERSTEN ERFOLG: unter `set -e` gibt
+`((PASSED++))` bei 0 den Wert VOR dem Hochzählen zurück, Bash liest das als Fehlerstatus.
+Beobachtet: eine Zeile `[PASS] Package.swift exists`, dann Ende, exit 1. **Zwei weitere
+Defekte derselben Familie im selben Skript:** vier verlangte Fastlane-Bahnen (`beta`, …), die
+es in KEINER Revision des Fastfile gab — Defekt 1 allein zu beheben hätte aus einem stummen
+Gate ein LAUT LÜGENDES gemacht; und `swift package describe` ungeschützt, das eine fehlende
+Toolchain als „Swift package has errors" meldet. Nachher: 33 PASS / 3 WARN / 0 Fehler, exit 0.
+
+⚠ **Verhältnis, weil es die Schwere entscheidet:** das Skript hat **null Aufrufer**
+(`grep -rl preflight-check .github/` → 0; `/testflight-deploy` trägt eine eigene Liste). Es
+hat nie einen Deploy blockiert — es hat einen Menschen am Terminal getäuscht.
+
+### #1035 — das CI-Schnellgate durchsuchte fünf Typen mit 0 Vorkommen
+
+`build-guard.sh` Stufe 4 lief über `MonitorMode · TransitionType · TrackSend · TrackType ·
+SourceFilter` — alle **0 ×** in `Sources/` — und druckte danach `pass "Type conflict scan
+complete"` BEDINGUNGSLOS, außerhalb der Schleife. CI ruft das Skript mit `--quick`, das die
+Stufen 2 und 3 überspringt: **die Hälfte des CI-Laufs war ein grünes Licht für nichts.**
+Die Prosa-Heimat war längst zurückgenommen (CLAUDE.md strich die „Type Conflict
+Resolution"-Sektion am 2026-07-25), die ausführbare Kopie lief sechs Wochen weiter — die
+#456-Form. **Gelöscht statt repariert**, weil der Compiler dieselbe Regel schärfer erzwingt.
+Stufen auf /3 umnummeriert.
+
+### #1036 — der beschriftete Ausgang schert jetzt als LETZTER
+
+`ChromeBudgetFitsTests` hatte es schon gemessen und als Produktfrage geparkt: der
+„Studio"-Chip braucht 431 pt, die breiteste Breite in `devices` ist 440 — auf den schmalen
+Telefonen wurde die einzige BESCHRIFTETE Tür zurück abgeworfen, und die App startet KALT ins
+Vollbild. Repariert als **Umrangierung, nicht als neues Bedienelement**: `studioChip` wandert
+vom zweitbilligsten ans Ende der Nicht-Recorder-Posten. Die Entscheidung kommt aus dem Gesetz
+des Typs selbst („Rang entscheidet, was geht; Ausgang zu sein entscheidet, dass es bleibt").
+Gemessen über 12 Zustände: vorher schert der Chip in 10, nachher in 1 (375 pt mit BEIDEN
+laufenden Aufnahmen — dort gewinnt der Stop-Knopf, gleiche Regel konsistent angewendet).
+
+### Drei eigene Fehler, alle von der Python-Nachfahrt gefangen und am Ort vermerkt
+
+1. **Wächter fand seine eigene Grabinschrift.** Die #1035-Nadel `pass "Type conflict scan
+   complete"` war nicht zeilenverankert und traf die Rücknahme-Notiz, die ich eine Minute
+   vorher ins selbe Skript geschrieben hatte.
+2. **Falsche Benotung.** Ich nannte den Stufen-Anspruch „forward"; am Elternteil lasen die
+   Kopfzeilen 1..4 von 4 — intern konsistent. Genau deshalb sah die Geister-Stufe nie kurz aus.
+3. **Drei erfundene Zahlen in vorbereiteter Prosa.** „sechs Breiten … 24 Zustände … 23" —
+   `devices` hält DREI Breiten. Befund richtig, Arithmetik Dekoration.
+
+### Offen
+
+3 mittelschwere Befunde (davon 1 founder-gated: `benchmark.yml` verschluckt Build-Fehler
+durch eine Pipe ohne `pipefail`) und 14 kleine Prosa-Befunde, u. a. `docs/privacy.html:116`
+sagt „Standort wird nicht erhoben", während CoreLocation + WeatherKit mitgeliefert werden.
+Visual-Epos: S4–S13. Task Q (`count-pins.py` Pfad-Lader) unverändert offen.

@@ -3261,3 +3261,52 @@ blockierende Bündel legen. Vier der fünf Mechaniken hatten dort bereits GENAU 
 `EveryFlagSaysWhatItGatesTests`). Ein zweiter Wächter derselben Sache kann nur vom ersten
 abdriften (#416). Was diese sieben rot stehen ließ, war ohnehin kein fehlender Wächter, sondern
 `continue-on-error` — und das ist founder-gated: berichten, nicht editieren.
+
+## PLAYBOOK #1034–#1036 (2026-09-06) — die Nebenläufigkeit MESSEN, bevor man eine Flotte plant; und zwei Sorten lügender Gates
+
+**1. Die Flotte ist so groß wie die Maschine, nicht wie der Plan.**
+`Workflow` deckelt gleichzeitige Agenten auf `min(16, CPUs − 2)`. Gemessen in diesem
+Container: `nproc` → **4**, also **Deckel 2**. Ich hatte ~90 Widerleger entworfen, ohne
+die Maschine zu messen; der Lauf wurde auf 142 Agenten groß und brauchte **~3 Stunden**
+für Arbeit, die bei Deckel 14 unter 30 Minuten gewesen wäre. Die Agenten laufen alle,
+nichts geht verloren — es dauert nur linear länger, und das sieht man dem Skript nicht an.
+**Rezept vor jedem großen Fan-out: `nproc`. Ist der Deckel ≤ 4, ist ein 40-Agenten-Lauf
+ein Stunden-Job — dann lieber zwei kleinere Läufe hintereinander, damit man zwischendurch
+lesen und umsteuern kann.**
+
+**2. Ein lügendes Gate hat zwei Sorten, und sie verlangen ENTGEGENGESETZTE Reparaturen.**
+
+| | `preflight-check.sh` (#1034) | `build-guard.sh` Stufe 4 (#1035) |
+|---|---|---|
+| Symptom | lief 1 von 45 Prüfungen, immer exit 1 | lief 5 Prüfungen über 0 Vorkommen, immer grün |
+| Ursache | `set -e` + `((PASSED++))` → bei 0 ist der Rückgabewert 0, Bash liest Fehler | Suchliste zeigte auf gelöschte Typen; `pass` stand AUSSERHALB der Schleife |
+| Inhalt | echt und wertvoll | leer |
+| Reparatur | **reparieren** | **löschen** |
+| Warum | 45 echte Deploy-Invarianten, nur unerreichbar | der Compiler erzwingt dieselbe Regel schärfer (Redeklaration im Modul = Fehler) |
+
+**Die Entscheidungsregel, die daraus folgt: gibt es einen STÄRKEREN Erzwinger, ist der
+Check Ballast — löschen. Gibt es keinen, sind die Prüfungen das Vermögen — reparieren.**
+Beide Male ist die Zwischenlösung falsch: einen leeren Check zu reparieren erzeugt ein
+Gate, das läuft und lügt (#1034 Defekt 2 hätte genau das getan — vier Phantom-FAILs), und
+einen vollen Check zu löschen wirft 45 Invarianten weg.
+
+**3. `((X++))` unter `set -e` ist eine wiederkehrende Bash-Falle, keine Einzelfall-Panne.**
+`build-guard.sh` hatte dieselbe Struktur und war zufällig richtig geschrieben
+(`PASSED=$((PASSED + 1))`). **Nadel für den nächsten Sweep:**
+`grep -rn '^\s*((\w*++))\s*$' scripts/` — jeder Treffer in einem Skript mit `set -e` ist
+derselbe Defekt.
+
+**4. Eine Rücknahme, die den alten Code ZITIERT, macht den eigenen Wächter rot.**
+Mein #1035-Wächter suchte `pass "Type conflict scan complete"` als Abwesenheit — und die
+Erklärungs-Notiz, die ich eine Minute vorher in dasselbe Skript geschrieben hatte, zitiert
+genau diese Zeile. Der Wächter fand seine eigene Grabinschrift und meldete Regression.
+**Regel: in einer Datei, deren Kommentare absichtlich zurückgenommenen Code zitieren, muss
+JEDE Nadel zeilenverankert sein (`^…`) — nicht nur die, an die man beim Schreiben denkt.**
+Gefangen von der Python-Nachfahrt, nicht vom Lesen; das ist der Grund, warum die Nachfahrt
+gegen BEIDE Bäume läuft und nicht nur gegen den neuen.
+
+**5. Eine Zahl in einem vorbereiteten Textblock altert im Scratchpad genauso wie im Repo.**
+Der zwei Tage vorbereitete #1036-Kommentar sagte „sechs ausgelieferte Breiten … 24 Zustände
+… überlebt in 23". `ChromeBudgetFitsTests.devices` hält **drei** Breiten → 12 Zustände, 11
+Überlebende. Der Befund stimmte, die Arithmetik drumherum war Dekoration. **Vorbereitete
+Prosa vor dem Einfügen gegen den Baum nachrechnen, nicht nur einfügen.**
