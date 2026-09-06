@@ -230,4 +230,58 @@ final class PresetSurvivesACancelledDragTests: XCTestCase {
             values the user may have changed in between. Declaration was: \(decl)
             """)
     }
+
+    // MARK: - The launch may not write through the preset (#1032)
+
+    /// ⭐ Claim 8 — THE LAUNCH CLOSURE MUST NOT RE-APPLY THE PERSISTED PRESET.
+    ///
+    /// Until #1032 the launch ran `if !visualPresetID.isEmpty, let p = …first { applyVisualPreset(p) }`
+    /// under a comment claiming it restored state that "isn't persisted individually". Measured,
+    /// that premise is false: all six values `applyVisualPreset` writes are `@AppStorage`. So the
+    /// block could only OVERWRITE, and what it overwrote was the player's own later edits —
+    /// permanently, because Hue and Saturation deliberately do not call `visualPresetDiverged()`
+    /// (their rows say so), leaving `visualPresetID` on "vapor" while the picture was no longer
+    /// Vapor. Dialling Hue to 0 for the physical tone→light colour survived exactly until the
+    /// next launch, and no control could stop it.
+    ///
+    /// ⚠️ THIS IS A NEGATIVE CLAIM, so it carries its counterweight (#367): the ONE surviving
+    /// caller — the preset chip in `visualPresetRow` — must still be there. Without that half a
+    /// rename of `applyVisualPreset`, or its deletion outright, would satisfy the absence and
+    /// report a green where tapping a preset does nothing at all.
+    ///
+    /// ⚠️ `SourceText.codeOnly` IS ONLY PROPHYLACTIC HERE, and this note is the second draft.
+    /// ⛔ The first said the stripping was load-bearing — that raw text would match the quote in
+    /// #1032's retraction at the removal site and report the defect still present. Measured on
+    /// this tree with the real squash: raw and stripped BOTH miss it, because the retraction
+    /// quotes the line with an ellipsis (`…factory.first`) and the needle wants
+    /// `letp=VisualPreset.factory` unbroken. The dependency is real but dormant; it wakes the
+    /// day somebody quotes the deleted line verbatim. Same lesson this bundle already wrote
+    /// down once (`VisualFineTuneReflowsTests`, claim 6): a rationale that upgrades a guard's
+    /// dependency is a claim like any other and needs the same one command.
+    ///
+    /// #364: if a launch-time apply is ever genuinely needed again (say a preset gains a value
+    /// that is NOT persisted), this claim is the place to say why — re-anchor it with that
+    /// reason, do not delete it silently.
+    func testTheLaunchDoesNotReApplyThePersistedPreset() throws {
+        let squashed = try squashedCode(Self.studio)
+        XCTAssertFalse(squashed.contains(#"if!visualPresetID.isEmpty,letp=VisualPreset.factory"#), """
+            The launch closure re-applies the persisted preset again (#1032).
+
+            Every value `applyVisualPreset` writes is already `@AppStorage`, so this restores \
+            nothing and can only overwrite. It reverts the player's own Hue/Saturation at every \
+            start — those two rows do not clear `visualPresetID`, so the stale id keeps pointing \
+            at a preset the picture left long ago. That is the defect behind the founder's ask \
+            for physically correct colour: the Hue dial works, the launch undid it.
+
+            If a preset ever gains a value that genuinely does NOT persist, restore ONLY that \
+            value here and say which one — never the whole preset.
+            """)
+        XCTAssertTrue(squashed.contains("}else{applyVisualPreset(preset)}"), """
+            `applyVisualPreset` has lost its one remaining caller, the preset chip in \
+            `visualPresetRow`. The assertion above would then pass on an app where tapping a \
+            preset does nothing — a green built on absence (#367). Re-anchor both halves \
+            together on whatever replaced the chip.
+            """)
+    }
+
 }

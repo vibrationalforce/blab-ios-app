@@ -1219,13 +1219,36 @@ struct EchoelStudioView: View {
             // value, so the comparison never fires and no key is written; on a restore it
             // writes back the same (normalised) string.
             mood = MoodStorage.decode(moodRaw)
-            // Restore the last-picked immersive visual look so an installation /
-            // performance setup survives relaunch (the live params aren't persisted
-            // individually, but the chosen scene is).
-            if !visualPresetID.isEmpty,
-               let p = VisualPreset.factory.first(where: { $0.id == visualPresetID }) {
-                applyVisualPreset(p)
-            }
+            // ⛔ #1032 — A LAUNCH-TIME RE-APPLY OF THE PERSISTED PRESET STOOD HERE AND IS
+            // REMOVED, because it did the opposite of what its own comment claimed. It read:
+            // "Restore the last-picked immersive visual look so an installation / performance
+            // setup survives relaunch (the live params aren't persisted individually, but the
+            // chosen scene is)", and then ran
+            // `if !visualPresetID.isEmpty, let p = …factory.first { applyVisualPreset(p) }`.
+            //
+            // THE PREMISE IS FALSE, measured: all six values `applyVisualPreset` writes ARE
+            // persisted individually — `visualIntensity` · `visualDetail` · `visualMotion` ·
+            // `visualSpread` · `visualHue` · `visualSaturation` are each `@AppStorage`
+            // (declarations above). There was nothing to restore. The block could only
+            // OVERWRITE, and what it overwrote was the user's own later edits.
+            //
+            // THE DEFECT IT CAUSED, and why it is the first thing the visual epic removes: Hue
+            // and Saturation deliberately do NOT call `visualPresetDiverged()` (their rows say
+            // so — they are palette-class, not preset-class). So dialling Hue to 0 for the
+            // physical tone→light colour left `visualPresetID` on "vapor", and the next launch
+            // re-applied Vapor's `hue: 0.82`. The player's setting was silently reverted at
+            // every start, and no control could stop it. That is why the founder can ask for
+            // "die physikalisch korrekte Darstellung der Farbtöne" while the code already
+            // offers a Hue dial that reaches 0: the dial works, the launch undid it.
+            //
+            // ⚠️ NOTHING IS LOST BY THE REMOVAL. `applyVisualPreset` writes only those six plus
+            // `visualPresetID`/`clearedVisualPresetID`; it never touched `visualStyle`,
+            // `visualStyleB` or `visualBlend`, which have their own restore below. A preset
+            // tapped once persists through its six keys, exactly as it did before — this line
+            // was re-writing values that were already correct.
+            //
+            // ⚠️ AND THE PRESET CHIP IS UNAFFECTED: `visualPresetID` is still persisted and
+            // still lights its chip. What stops is the launch WRITING through it.
             // Visual minimize (founder 2026-07-07): retire the busy looks from the
             // surface — snap a persisted busy style (e.g. Prism) to a calm one so
             // nobody relaunches stuck on it. Blend is NOT cleared any more: the
