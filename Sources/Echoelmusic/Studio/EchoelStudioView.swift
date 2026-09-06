@@ -1447,9 +1447,27 @@ struct EchoelStudioView: View {
             updateKeepAwake()
             // GPU rule: only ONE MetalBioView may render at a time. The fullscreen visual
             // cover mounts its own MetalBioView, so HIDE the floating window while it's up
-            // (otherwise both MTKViews drive CADisplayLinks → GPU starvation / black immersive,
-            // AND both feed the recorder → double-capture). Restore the floating window's prior
-            // state on dismiss so the user gets back exactly what they had.
+            // (otherwise both MTKViews drive CADisplayLinks → GPU starvation / black immersive).
+            // Restore the floating window's prior state on dismiss so the user gets back
+            // exactly what they had.
+            //
+            // ⛔ THIS COMMENT ALSO CLAIMED THE HIDE PREVENTS DOUBLE-CAPTURE ("AND both feed the
+            // recorder → double-capture"), AND THAT HALF IS FALSE — measured #1031. Two later
+            // changes, each correct on its own, cancel this line out while a take is running:
+            // `WorkspaceView.swift:290-293` never UNMOUNTS the floating window (it only sets
+            // `.opacity(0)`/`allowsHitTesting(false)`, because unmounting killed the display
+            // link and with it the arps — #311), and `FloatingVisualWindow.visualLayer` takes
+            // its inert branch only `if !isPresented && !mustKeepRenderingForRecording`. So
+            // hiding a RECORDING floating window keeps its `capturesVideo: true` view rendering
+            // and capturing on purpose, and the cover then mounts a SECOND one: two capturing
+            // MetalBioViews feed the one shared `VisualRecorder`. The door is disabled while a
+            // take runs (see the "Full screen" button) until the cover is retired and the
+            // question disappears with it. **The GPU half of this comment stands** — that is
+            // what the hide is for, and it is why the hide is not removed.
+            //
+            // LEHRE, und sie ist die teure Sorte: ein Kommentar, der eine Schutzwirkung
+            // BEHAUPTET, altert unsichtbar, wenn zwei andere Stellen die Bedingung aufheben.
+            // Kein Wächter wurde rot, weil keiner die Behauptung las — sie stand nur hier.
             if isUp {
                 floatingWasVisible = floatingVisualVisible
                 floatingVisualVisible = false
@@ -5110,6 +5128,24 @@ struct EchoelStudioView: View {
             // GPU exclusivity is already handled: `.onChange(of: showVisual)` hides the floating
             // window while the cover is up and restores its prior state on dismiss, because only
             // ONE `MetalBioView` may drive a CADisplayLink at a time.
+            //
+            // ⭐ #1031 — DISABLED WHILE A TAKE IS RUNNING, and this is a STOPGAP with a known
+            // end date, not a design. Opening the cover mid-recording mounts a second
+            // `capturesVideo: true` MetalBioView while the hidden floating window keeps
+            // capturing (the retracted half of the `.onChange(of: showVisual)` comment above
+            // spells out why the hide does not stop it) — two renderers, one shared recorder,
+            // and the artefact is an unrepeatable performance take. Blocking the door is the
+            // three-line fix; the real fix is that there stops being a second fullscreen at
+            // all (`scratchpads/PLAN_VISUAL_ONE_UNIT_2026-09-06.md`, S5), and this whole
+            // button becomes a write of the window's size. **Delete this `.disabled` with the
+            // cover** — leaving it would forbid a door that can no longer double-capture.
+            //
+            // The read is COLD and stays inside the freeze law: `VisualRecorder.isRecording`
+            // forwards to `video.recordState`, which `VideoRecorder.swift:22` says "only
+            // crosses to main on transitions, never per frame" — its five writers are
+            // start/stop/finish/reset/error. Same class as the `breathPacer.isRunning` read
+            // this body already carries, nowhere near the ~10 Hz reads the 10.76.41/50 law
+            // is about.
             Button {
                 showVisual = true
             } label: {
@@ -5124,8 +5160,11 @@ struct EchoelStudioView: View {
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
+            .disabled(visualRecorder.isRecording)
             .accessibilityLabel("Open the visual full screen")
-            .accessibilityHint("Fills the display with the bio-reactive field and its performance controls.")
+            .accessibilityHint(visualRecorder.isRecording
+                ? "Unavailable while a video take is recording. Stop the take first."
+                : "Fills the display with the bio-reactive field and its performance controls.")
             // ⛔ `signalSection` STOOD HERE AND IS REMOVED (#575, founder 2026-08-13). He
             // circled the whole block on a v10.79.388 screenshot — the wavefront, its
             // paragraph, the spectrum, its paragraph, the `63,0 Hz · B1 +36 ct` readout —

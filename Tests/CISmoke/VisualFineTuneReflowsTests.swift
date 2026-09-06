@@ -391,6 +391,39 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         against in its comments: "don't gate controls behind a hidden gesture" (WCAG 2.2). \
         Restore a visible, labelled control.
         """)
+
+        // ⭐ #1031 — THE DOOR IS SHUT WHILE A TAKE RUNS, and this needle is written to DIE.
+        // Opening the cover mid-recording mounts a second `capturesVideo: true` MetalBioView
+        // while the hidden floating window keeps capturing (`WorkspaceView.swift:290-293` never
+        // unmounts it; `FloatingVisualWindow.visualLayer` takes its inert branch only
+        // `if !isPresented && !mustKeepRenderingForRecording`). Two renderers, one shared
+        // `VisualRecorder`, and the artefact at risk is an unrepeatable performance take.
+        //
+        // ⚠️ #364 — THIS ASSERTION MUST NOT OUTLIVE ITS CAUSE. It is a stopgap pinned so it
+        // cannot be dropped by accident, NOT a law: the moment the cover is retired (one
+        // fullscreen, `scratchpads/PLAN_VISUAL_ONE_UNIT_2026-09-06.md` S5) there is no second
+        // renderer to collide with, and keeping the guard would forbid the very fix that makes
+        // it unnecessary. It goes red on that correct tree ON PURPOSE, and its message below
+        // says so, in the same form the anchor assertion above uses.
+        let shutWhileRecording: Bool = lines.contains(where: {
+            $0.contains(".disabled(visualRecorder.isRecording)")
+        })
+        XCTAssertTrue(shutWhileRecording, """
+        the "Full screen" door is no longer disabled while a video take is recording \
+        (`.disabled(visualRecorder.isRecording)` is gone from \(Self.studio)).
+
+        IF THE COVER IS GONE — the `.fullScreenCover(isPresented: $showVisual)` was retired and \
+        the button now writes the floating window's size — this assertion has done its job and \
+        SHOULD be deleted in that same commit, together with claim 6's other halves that name \
+        the cover. There is then exactly one renderer and nothing to collide with. That is the \
+        planned end of this needle, not a regression.
+
+        IF THE COVER IS STILL THERE, this is the double-capture path re-opened. Two \
+        `capturesVideo: true` MetalBioViews feed the one shared `VisualRecorder`, because \
+        hiding the floating window does NOT stop it from capturing while a take runs — the \
+        `.onChange(of: showVisual)` comment in \(Self.studio) carries the measurement. Restore \
+        the `.disabled`, or fix the collision properly and delete this with it.
+        """)
     }
 
     /// ⭐ Claim 7 — the PAIRING claim 6 could not make, and the reason this commit exists.
