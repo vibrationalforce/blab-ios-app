@@ -146,7 +146,7 @@ final class TheMicrophoneHasNoDoorTests: XCTestCase {
     /// The rows are deliberately not deleted from the file either way; a struck row with its
     /// reason is what stops the claim being re-invented from scratch.
     func testTheClaimRegisterStrikesTheMonitorRowsWhileTheDoorIsGone() throws {
-        let register = try text("ContentPipeline/CLAIMS.md")
+        let register = try rawFile("ContentPipeline/CLAIMS.md")
 
         // The struck form, as the file's own convention writes it.
         let struck = ["~~**Harmoniestimmen auf deiner Stimme**",
@@ -186,8 +186,11 @@ final class TheMicrophoneHasNoDoorTests: XCTestCase {
 
     /// Raw file text. `code(_:)` strips SWIFT comments and would mangle Markdown, where `//`
     /// appears inside every URL — the one-stripper rule (#453) says add a reader, not a second
-    /// stripper.
-    private func text(_ relativePath: String) throws -> String {
+    /// stripper. Named `rawFile` to match the other guards that read a non-Swift file, and
+    /// because `code(_:)` already holds a local `let text`: a `text(_:)` method beside it
+    /// compiles, but two spellings of the same word one line apart is how a later edit picks
+    /// the wrong one.
+    private func rawFile(_ relativePath: String) throws -> String {
         try String(contentsOf: try repoRoot().appendingPathComponent(relativePath), encoding: .utf8)
     }
 

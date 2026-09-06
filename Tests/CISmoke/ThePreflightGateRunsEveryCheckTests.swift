@@ -127,10 +127,18 @@ final class ThePreflightGateRunsEveryCheckTests: XCTestCase {
                 re-anchor it. An unanchored scan is worse than no scan (#454).
                 """)
         }
-        let names = String(sh[decl])
-            .split(whereSeparator: { "()=\" \n".contains($0) })
-            .map(String.init)
-            .filter { $0 != "REQUIRED_LANES" }
+        // ⚠️ SPELLED OUT IN TYPED STEPS ON PURPOSE. The one-expression version of this —
+        // `String(sh[decl]).split(whereSeparator:).map(String.init).filter { … }` — made the
+        // compiler spend 591 ms type-checking a single line (observed as a `limit: 200ms`
+        // warning in CI run 34063317322). A guard that slows every build of the bundle is a
+        // cost the next reader pays without knowing why; each step now carries its type.
+        let declaration: String = String(sh[decl])
+        let separators: Set<Character> = ["(", ")", "=", "\"", " ", "\n"]
+        let pieces: [Substring] = declaration.split(whereSeparator: { separators.contains($0) })
+        var names: [String] = []
+        for piece in pieces where piece != "REQUIRED_LANES" {
+            names.append(String(piece))
+        }
 
         XCTAssertFalse(names.isEmpty, """
             `REQUIRED_LANES` parsed to an empty list, so this claim would pass without \
