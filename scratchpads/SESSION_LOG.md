@@ -24243,3 +24243,61 @@ laufenden Aufnahmen — dort gewinnt der Stop-Knopf, gleiche Regel konsistent an
 durch eine Pipe ohne `pipefail`) und 14 kleine Prosa-Befunde, u. a. `docs/privacy.html:116`
 sagt „Standort wird nicht erhoben", während CoreLocation + WeatherKit mitgeliefert werden.
 Visual-Epos: S4–S13. Task Q (`count-pins.py` Pfad-Lader) unverändert offen.
+
+---
+
+## 2026-09-06 — #1037–#1042 · Vier Mess-Lügen, zwei Werkzeug-Reparaturen, ein Ausgang gerettet
+
+Fortsetzung des Doctor-Sweeps. Sechs Commits, alle vor dem Push in Python gegen BEIDE Bäume
+nachgefahren.
+
+### #1037 · Die Datenschutzseite bestritt eine Berechtigung, die die App anfragt
+`docs/privacy.html` nannte Standort **genau einmal** — als Aufzählungspunkt unter „erheben wir
+NICHT" — während `Info.plist` `NSLocationWhenInUseUsageDescription` deklariert und der Schalter
+„Place in session name" sichtbar ist. **Das Verhalten war nie das Problem**: `LocationNamer` ist
+opt-in, „while using", EIN grobstädtischer Fix pro Start, Token transient; `WeatherProvider`
+holt gar keinen eigenen Fix. Repariert in BEIDE Richtungen (der Punkt bestreitet jetzt, was
+wirklich nie passiert, plus ein eigener Absatz über das, was passiert). Eine Formulierung vor
+dem Veröffentlichen am Code korrigiert: **zwei** Türen zu **einer** Einstellung, beide
+ausdrücklicher Tipp.
+
+### #1038 · Der Claim-Katalog erlaubte drei Features ohne Tür
+#1024 strich „Tune to key" in `CLAIMS.md` und ließ drei Nachbarn stehen, die alle „Tür im
+Input-Sheet" als Beleg nannten. **Nichts war veröffentlicht** (geprüft: der einzige Treffer in
+`fastlane/metadata` und `docs/` ist der MUSIK-Harmonizer, erreichbar und wahr) — die Exposition
+war die ERLAUBNIS. Der Wächter-Kopf trug diese Lehre bereits einmal.
+
+### #1039 · Zwei eigene Schlampereien, vom CI-Log gefunden
+591-ms-Typprüfung auf einer Zeile meines #1034-Wächters (in vier getypte Schritte zerlegt);
+`text(_:)` → `rawFile(_:)`.
+
+### #1040/#1042 · Das Log hat ein LOCH, keinen Schwanz — und der VERDICT-Satz wusste es nicht
+Gemessen: ein 5000-Zeilen-Abruf hatte **neun Minuten** Lücke in der Mitte; im nächsten Lauf
+**952 Sekunden**. Im selben Fenster standen 168 Passes, 0 Fehler und `TEST EXECUTE FAILED`
+nebeneinander. Der alte `else`-Zweig hätte „behandle das Log als vollständig" gedruckt.
+`timeline_gaps()` + `GAPS`-Zeile (#1040), sechs Selbsttest-Fälle davon **drei negativ**.
+**#1042 war die #416-Nachlese am eigenen Commit**: #1040 korrigierte die WINDOW-Zeile und ließ
+denselben Satz in `scope`s `else` eine Bildschirmlänge tiefer stehen — und das ist genau die
+Zeile, die eine Sitzung zitiert.
+
+### #1041 · Drei Anweisungsdateien schickten Subagenten zu Phantomen
+`concurrency-reviewer.md`: **alle acht** grep-Rezepte auf `Echoelmusic/` (+2 auf
+`EchoelmusicComplete/`), beide nicht existent. `build-error-resolver.md`: `.value` auf
+`NormalizedCoherence` (0 Treffer) und acht Methoden von `EchoelBrandFont` (0 in BEIDEN Bäumen).
+`02-issue-triage.md`: ein DEEP_RESEARCH-Dokument, das nirgends existiert, plus
+`isCameraActive`/`BioSourceManager` (je 0).
+⭐ **Die Schwesterdatei `ui-state-reviewer.md:18` hatte die Verzeichnis-Korrektur schon.** Eine
+Agent-Datei repariert, die andere nicht — **dritte Instanz des #456-Musters an einem Tag**.
+
+### Die drei Muster dieses Blocks
+1. **#456 dreimal:** eine Rücknahme repariert die Heimat, an die man gerade denkt.
+2. **Eine Annahme im Kostüm einer Messung** („behandle das Log als vollständig", „treating the
+   log as whole") — beide Male genau dort, wo eine Zahl gelesen wird.
+3. **Ein Wächter, der stumm gestellt wird, bis er ruhig ist, ist Dekoration.** Die einfache
+   Regel „jeder `Echoel*`-Name muss in `Sources/` existieren" feuert auf VIER legitime Namen;
+   erst der breitere Korpus lässt genau drei echte Befunde übrig.
+
+### Unverändert offen
+`ChromeBudgetFitsTests` taucht in **keinem** Fenster auf → #1033/#1036 **unbezeugt**; ebenso
+alle fünf Wächter-Dateien aus #1034–#1041. Ursache ist `ci.yml`s `tail -200 test.log` —
+founder-gated, nur berichten (#208). Visual-Epos: S4–S13. Task Q offen.
