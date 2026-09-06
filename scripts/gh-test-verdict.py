@@ -138,6 +138,42 @@ SKIP_LINE = re.compile(r"Test [Cc]ase '([^']+)' skipped", re.MULTILINE)
 # that FAILS outside the last 200 raw lines produces no line in the job log at all, so this
 # script prints `TEST FAILURES: 0` over a run that really failed. That is a silent green, the
 # same shape as #738 and strictly worse, because it is structural rather than a needle bug.
+#
+# ⛔ #1040 — AND "TAIL" WAS THE OPTIMISTIC WORD. A window can also have a HOLE IN THE MIDDLE.
+# Measured on run 34063317322 (`9cc80463`), fetching the job log with tail_lines=6000: the
+# returned 5000 lines carry timestamps in 22:21 (520 lines), 22:22 (4041), 22:23 (178) — and
+# then NOTHING until 22:32 (260). The nine minutes holding the bulk of a 541-second test run
+# are simply absent from the middle. Every needle in this file still ran, found 168 passes and
+# 0 failures, and `** TEST EXECUTE FAILED **` sat in the same window contradicting them.
+#
+# That is why `GAPS` below is not a nicety. The old `else` branch printed "treating the log as
+# whole" whenever no `tail -N` STEP was seen, which is an assumption wearing the clothes of a
+# measurement — and on that run it would have said exactly that. The log's own timeline is
+# cheap to read and answers the question directly.
+LOG_STAMP = re.compile(r"^(\d{4}-\d\d-\d\d)T(\d\d):(\d\d):(\d\d)", re.MULTILINE)
+
+
+def timeline_gaps(text, threshold_s=60):
+    """Largest silences between consecutive TIMESTAMPED lines, longest first.
+
+    Returns [(seconds, "HH:MM:SS", "HH:MM:SS"), ...] for gaps >= threshold.
+    Second resolution is plenty: the thing being detected is minutes of missing log.
+    A run genuinely idle for a minute (a long compile step) shows up too — that is
+    correct, and the report says "silence", not "truncation", for exactly that reason.
+    """
+    stamps = []
+    for m in LOG_STAMP.finditer(text):
+        h, mi, sec = int(m.group(2)), int(m.group(3)), int(m.group(4))
+        stamps.append((h * 3600 + mi * 60 + sec, f"{m.group(2)}:{m.group(3)}:{m.group(4)}"))
+    gaps = []
+    for (a, at), (b, bt) in zip(stamps, stamps[1:]):
+        delta = b - a
+        if delta < 0:          # midnight rollover — not a hole, skip rather than invent one
+            continue
+        if delta >= threshold_s:
+            gaps.append((delta, at, bt))
+    gaps.sort(reverse=True)
+    return gaps
 # It also explains #686 exactly — the test that could not pass showed no result line because it
 # was not in the window, not because a clone swallowed it.
 #
@@ -333,6 +369,22 @@ def selftest():
         bad += 0 if good else 1
         print(f"  {'ok ' if good else 'BAD'}  window {name:33}  -> {got}")
 
+    # The timeline-gap detector (#1040). Driven on literals, and BOTH answers must be
+    # reachable — a detector that can only say "there is a hole" is not a measurement.
+    gap_cases = {
+        "the observed hole": ("2026-09-06T22:23:26.1Z a\n2026-09-06T22:32:51.4Z b\n", 1),
+        "continuous log":    ("2026-09-06T22:23:26.1Z a\n2026-09-06T22:23:31.4Z b\n", 0),
+        "exactly at 60s":    ("2026-09-06T22:23:00.1Z a\n2026-09-06T22:24:00.4Z b\n", 1),
+        "just under 60s":    ("2026-09-06T22:23:00.1Z a\n2026-09-06T22:23:59.4Z b\n", 0),
+        "no timestamps":     ("plain line\nanother\n", 0),
+        "midnight rollover": ("2026-09-06T23:59:59.1Z a\n2026-09-07T00:00:01.4Z b\n", 0),
+    }
+    for name, (doc, expected) in gap_cases.items():
+        got = len(timeline_gaps(doc))
+        good = got == expected
+        bad += 0 if good else 1
+        print(f"  {'ok ' if good else 'BAD'}  timeline-gap {name:30}  -> {got}")
+
     # The slow-type-check needle (#933e). All four OBSERVED spellings must match, a plain
     # `error:` line must NOT, and — the mutation that matters — a line that says "took 5s"
     # rather than milliseconds must not match either, because the capture group is what the
@@ -433,11 +485,20 @@ def main():
     ran = len(FAILED_OR_PASSED_PASS.findall(text))
     slow = SLOW_TYPECHECK.findall(text)
 
+    gaps = timeline_gaps(text)
     if window:
         print(f"WINDOW            : job log carries only `tail -{window.group(1)} "
               f"{window.group(2)}` — a failure before that window does NOT appear here (#807)")
     else:
-        print("WINDOW            : no `tail -N test.log` step seen — treating the log as whole")
+        print("WINDOW            : no `tail -N test.log` step seen — but see GAPS, which is "
+              "the measurement (#1040); this line is only about the workflow's own tail step")
+    if gaps:
+        worst = ", ".join(f"{d}s at {a}->{b}" for d, a, b in gaps[:3])
+        print(f"GAPS              : {len(gaps)} silence(s) >=60s in the fetched log — {worst}")
+        print("                    A gap is minutes of log you do NOT have. Any count below "
+              "('TEST FAILURES: 0' especially) describes the window, not the run (#1040).")
+    else:
+        print("GAPS              : none >=60s — the fetched log's own timeline is continuous")
     print(f"build-for-testing : {'Succeeded' if build else 'NOT SEEN'}")
     print(f"TEST BUILD FAILED : {build_failed}")
     print(f"TEST EXECUTE FAILED: {execute_failed}   (#396 — expected on every push)")

@@ -421,6 +421,29 @@ final class TheVerdictParserReadsBothLogShapesTests: XCTestCase {
             every "gates green" sentence a session writes rests on it, and for four runs it
             rested on 200 lines without saying so.
             """)
+
+        // ⭐ #1040 — "TAIL" WAS THE OPTIMISTIC WORD. A fetched job log can also have a HOLE IN
+        // THE MIDDLE, and then the WINDOW line above says nothing about it: measured on run
+        // 34063317322, a 5000-line fetch carried 22:21, 22:22, 22:23 — and then nothing until
+        // 22:32, i.e. the nine minutes holding most of a 541-second test run were absent, while
+        // the same window showed 168 passes, 0 failures and `TEST EXECUTE FAILED` together.
+        // The old `else` branch would have printed "treating the log as whole" on exactly that.
+        XCTAssertTrue(code.contains("def timeline_gaps("), """
+            The timeline-gap detector is gone from the parser. Without it, "no `tail -N` step
+            seen" is an ASSUMPTION that the log is complete — and #1040 measured a fetch where
+            that assumption was wrong by nine minutes. The log's own timestamps answer the
+            question directly and cost nothing to read.
+            """)
+        XCTAssertTrue(code.contains("GAPS              :"), """
+            The verdict no longer prints a GAPS line. It is the half of the window question the
+            WINDOW line cannot answer: WINDOW describes the WORKFLOW's tail step, GAPS describes
+            the LOG YOU ACTUALLY HAVE. A session quoting "TEST FAILURES: 0" needs the second.
+            """)
+        XCTAssertTrue(code.contains("continuous log") && code.contains("just under 60s"), """
+            The gap detector's selftest lost a NEGATIVE case. A detector that can only ever say
+            "there is a hole" is not a measurement — both answers must be reachable, which is
+            the same rule the WINDOW detector's own selftest follows three cases above it.
+            """)
     }
 
     // MARK: - 4b · both #396 spellings, and the branch that must stay quiet
