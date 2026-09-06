@@ -49,6 +49,18 @@ import XCTest
 /// `TheMonitorSaysWhyItIsSilentTests` — which reads `EchoelStudioView` and pinned two needles
 /// #1024 deleted — was not in the list. Corrected before the commit, and recorded because it
 /// is the #766/#768 shape: "all of them" only ever means "all the ones my needle matched".
+///
+/// ⛔ AND IT WAS WRONG A SECOND TIME, IN THE SAME SHAPE, FOR THREE WEEKS (#1038). #1024's
+/// prose sweep covered `Sources/`, `CLAUDE.md` and `fastlane/metadata` — it struck "Tune to
+/// key" in `ContentPipeline/CLAIMS.md` and left the file's THREE OTHER monitor-path rows
+/// standing: the harmonizer on your own voice (#841), the granular texture (#849) and the
+/// feedback protection (#847/#848). All three named "Tür im Input-Sheet" as their evidence,
+/// which was the door that had just been removed. Nothing published them — measured, the only
+/// hit across `fastlane/metadata/` and `docs/` is the MUSIC-path harmonizer, which is fine —
+/// but CLAIMS.md is the file CLAUDE.md tells a session to read BEFORE writing any script,
+/// caption or hashtag, so it AUTHORISES. Claim 5 makes that file part of the sweep instead of
+/// a place the sweep forgot. Same lesson, twice: a needle set is a memory of what occurred to
+/// somebody, and the file it never touched leaves no trace of having been skipped.
 final class TheMicrophoneHasNoDoorTests: XCTestCase {
 
     // MARK: - 1. Nothing can open the microphone sheet
@@ -63,6 +75,7 @@ final class TheMicrophoneHasNoDoorTests: XCTestCase {
               · CLAUDE.md, the "Vokal-Kette" paragraph (it says the chain has a door)
               · CLAUDE.md, the doorless register (`AudioInputPickerView` is listed there)
               · CLAUDE.md, the FeedbackGuard line
+              · ContentPipeline/CLAIMS.md, the three struck monitor rows (claim 5 below)
               · this guard's own header
             """)
     }
@@ -120,6 +133,48 @@ final class TheMicrophoneHasNoDoorTests: XCTestCase {
 
     // MARK: - helpers
 
+    // MARK: - 5. The marketing-claim register may not authorise what has no door
+
+    /// ⭐ #1038 — THE FILE THE SWEEP FORGOT. `ContentPipeline/CLAIMS.md` is not documentation;
+    /// CLAUDE.md instructs a session to read it BEFORE writing any script, caption or hashtag,
+    /// so a row standing there is a licence to publish. Three rows kept their licence for
+    /// three weeks after the door under them was removed.
+    ///
+    /// ⛔ THIS CLAIM FORBIDS NOTHING (#364). It is anchored to claim 1: while nothing sets
+    /// `showInput`, these three rows must read as struck. Restore the door and this goes red
+    /// BY DESIGN — un-strike the rows in the same commit and the claim is satisfied again.
+    /// The rows are deliberately not deleted from the file either way; a struck row with its
+    /// reason is what stops the claim being re-invented from scratch.
+    func testTheClaimRegisterStrikesTheMonitorRowsWhileTheDoorIsGone() throws {
+        let register = try text("ContentPipeline/CLAIMS.md")
+
+        // The struck form, as the file's own convention writes it.
+        let struck = ["~~**Harmoniestimmen auf deiner Stimme**",
+                      "~~**Granular-Textur auf deiner Stimme**",
+                      "~~**Feedback-Schutz, der Pfeifen VERHINDERT"]
+        let unstruck = struck.filter { !register.contains($0) }
+        XCTAssertTrue(unstruck.isEmpty, """
+            `ContentPipeline/CLAIMS.md` no longer strikes: \(unstruck.joined(separator: " · ")).
+
+            Every one of these sits ONLY in the monitor path, whose single door #1024 removed \
+            — claim 1 above measures that nothing sets `showInput`. If the founder restored the \
+            door, un-strike the rows here in the same commit and pull the CLAUDE.md paragraphs \
+            listed in claim 1 along with them (#456). If the door is still gone, a standing row \
+            here is a licence to write a caption about a stage no player can reach, which is \
+            the 2.3 class.
+            """)
+
+        // COUNTERWEIGHT (#367): a negative that a rename or a deletion would satisfy is not a
+        // measurement. The rows must still BE there, struck — and the MUSIC-path harmonizer,
+        // which #1024 never touched, must still be claimable.
+        XCTAssertTrue(register.contains("Nicht mit dem MUSIK-Harmonizer verwechseln"), """
+            The note separating the MUSIC-path harmonizer from the monitor one is gone from \
+            `ContentPipeline/CLAIMS.md`. Without it the next reader strikes both, and the App \
+            Store release note "third and fifth harmony voices above the melody" — which is \
+            TRUE and describes the FX-panel harmonizer — starts looking like an overclaim.
+            """)
+    }
+
     private func repoRoot() throws -> URL {
         let here = URL(fileURLWithPath: #filePath)
         let root = here.deletingLastPathComponent().deletingLastPathComponent()
@@ -127,6 +182,13 @@ final class TheMicrophoneHasNoDoorTests: XCTestCase {
         guard FileManager.default.fileExists(atPath: root.appendingPathComponent("Sources").path)
         else { throw XCTSkip("source tree not present under \(root.path)") }
         return root
+    }
+
+    /// Raw file text. `code(_:)` strips SWIFT comments and would mangle Markdown, where `//`
+    /// appears inside every URL — the one-stripper rule (#453) says add a reader, not a second
+    /// stripper.
+    private func text(_ relativePath: String) throws -> String {
+        try String(contentsOf: try repoRoot().appendingPathComponent(relativePath), encoding: .utf8)
     }
 
     private func code(_ relativePath: String) throws -> String {
