@@ -578,12 +578,26 @@ def main():
         print("\nVERDICT: a guard SKIPPED. A skip is not a pass — it asserted nothing. "
               "Find its `XCTSkip` and re-anchor it (#454); do not read this run as clean.")
     elif not failures and not compile_errors:
-        scope = (f"the last {window.group(1)} lines of {window.group(2)}"
-                 if window else "the whole job log")
+        # ⛔ #1042 — THE `else` HERE SAID "the whole job log", WHICH IS THE SAME OPTIMISTIC
+        # ASSUMPTION #1040 JUST REMOVED FROM THE `WINDOW` LINE, LEFT STANDING ONE SCREEN BELOW
+        # IT. #416 applied to a phrase: two homes for one fact, and only one was corrected.
+        # The VERDICT is the line a session actually quotes, so it is the one that had to carry
+        # the caveat. On the very run that motivated this (`ac721eb4`), GAPS reported a 952-second
+        # silence while this sentence would have called the same document "the whole job log".
+        if window:
+            scope = f"the last {window.group(1)} lines of {window.group(2)}"
+        elif gaps:
+            scope = f"a log with {len(gaps)} gap(s), the largest {gaps[0][0]}s"
+        else:
+            scope = "the whole job log"
+        gap_note = ""
+        if gaps:
+            gap_note = (f" AND the fetched log is missing at least {gaps[0][0]}s of its own "
+                        f"timeline (GAPS above) — the failure may simply be in the hole.")
         print(f"\nVERDICT: no failure and no skip IN {scope.upper()}. That is NOT "
               "'the suite passed' (#807): the job log is a tail, so a failure earlier in the "
-              "run leaves no trace here. #445 — a test name's ABSENCE proves nothing; only "
-              "its presence proves it ran.")
+              "run leaves no trace here." + gap_note + " #445 — a test name's ABSENCE proves "
+              "nothing; only its presence proves it ran.")
     return 1 if (failures or compile_errors or build_failed or skips) else 0
 
 

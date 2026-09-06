@@ -444,6 +444,24 @@ final class TheVerdictParserReadsBothLogShapesTests: XCTestCase {
             "there is a hole" is not a measurement — both answers must be reachable, which is
             the same rule the WINDOW detector's own selftest follows three cases above it.
             """)
+
+        // ⭐ #1042 — THE VERDICT SENTENCE IS THE ONE A SESSION QUOTES, so it is the one that has
+        // to carry the caveat. #1040 corrected the WINDOW line and left `scope`'s `else` branch
+        // one screen below it still saying "the whole job log" — #416 applied to a phrase. On
+        // `ac721eb4`, GAPS reported 952 seconds missing while that sentence would have called
+        // the same document whole.
+        XCTAssertTrue(code.contains("gap_note"), """
+            The VERDICT sentence no longer mentions the gaps. GAPS printed twelve lines higher
+            is not enough: the verdict is what gets copied into a status message, and a reader
+            who trusts it will report "no failures" over a log that is missing minutes of its
+            own timeline.
+            """)
+        XCTAssertFalse(code.contains("if window else \"the whole job log\""), """
+            `scope` is back to the two-branch form whose `else` calls any log without a
+            `tail -N` step "the whole job log". That is the assumption #1040 removed from the
+            WINDOW line; a log can have a hole in the middle and no tail step at all. Keep the
+            three-branch form so a gapped log describes itself as gapped.
+            """)
     }
 
     // MARK: - 4b · both #396 spellings, and the branch that must stay quiet
