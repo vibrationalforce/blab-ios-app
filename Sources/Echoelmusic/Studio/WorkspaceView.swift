@@ -241,6 +241,29 @@ struct WorkspaceView: View {
                 SurfaceHost()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
+            // ⭐ #1025 — THE CONTROL COLUMN HAS A READABLE CEILING, AND IT IS ONE OF TWO
+            // SITES (the other is `EchoelSheetPanelModifier`, which covers every sheet).
+            // Founder clip, build 448/2567: *"Die adaptive View muss her. Es muss vermieden
+            // werden, dass wir plötzlich verzerrte und zu große Fenster haben."* Rotating the
+            // phone hands this VStack ~852 pt; nothing below is designed for it, so rows stop
+            // wrapping and paragraphs run off the edge — the frames the clip shows.
+            //
+            // TWO `frame`s ON PURPOSE, and the order is the whole trick: the inner one caps
+            // the content, the outer one re-claims the full width so the capped column is
+            // CENTRED instead of hugging the leading edge. One `frame` alone gives a
+            // left-aligned column with all the empty space on the right.
+            //
+            // ⚠️ IT BINDS ON NO iPHONE IN PORTRAIT (440 pt widest today vs a 560 pt ceiling),
+            // so on the founder's device this changes exactly nothing. That is intended: it
+            // is a guard against canvases the layout was never drawn for, not a redesign of
+            // the one it was.
+            //
+            // ⚠️ INSIDE THE `ZStack`, NOT AROUND IT. `FloatingVisualWindow` is the sibling
+            // below and must keep the FULL screen — "true Vollbild" is a rule stated a few
+            // lines down, and capping the ZStack would shrink the one surface whose entire
+            // point is to cover everything. Pinned by the guard's counterweight.
+            .frame(maxWidth: EchoelTheme.readableContentWidth)
+            .frame(maxWidth: .infinity)
             // The immersive visual floats ABOVE the whole screen so its FULLSCREEN size can
             // cover the chrome too (true Vollbild). In the floating sizes it docks
             // bottom-trailing; its transparent area never blocks the header/transport (an

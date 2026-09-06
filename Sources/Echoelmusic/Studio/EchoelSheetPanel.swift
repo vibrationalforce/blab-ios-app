@@ -29,6 +29,22 @@ struct EchoelSheetPanelModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
+            // ⭐ #1025 — every sheet inherits the readable ceiling here, which is why the
+            // fix is two sites and not twenty. The founder's clip shows the Routing sheet
+            // (`PatchbayView`) cut on BOTH sides after a rotation: a sheet centres in its
+            // canvas, so a canvas wider than the content expects loses the same amount at
+            // each edge. Capping and re-centring turns that into margins.
+            //
+            // The doubled `frame` is the same idiom as `WorkspaceView`'s: cap, then reclaim
+            // the full width so the capped content is centred rather than leading-aligned.
+            // It binds on no iPhone in portrait (see `readableContentWidth`).
+            //
+            // ⚠️ THIS MODIFIER IS NOT UNIVERSAL, and a session repairing a wide sheet has to
+            // check which one it has: this file's own header says views that manage their
+            // OWN `presentationDetents` (LearnView) must not wear it, so they do not get the
+            // ceiling from here either. The guard counts the wearers rather than assuming.
+            .frame(maxWidth: EchoelTheme.readableContentWidth)
+            .frame(maxWidth: .infinity)
             .presentationDetents([.medium, .large], selection: $detent)
             .presentationDragIndicator(.visible)
             .presentationBackground(EchoelTheme.bg.opacity(0.92))

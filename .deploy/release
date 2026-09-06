@@ -1,4 +1,4 @@
-build: v10.79.449 — Das Mikrofon ist weg aus der Oberfläche, wie Du gesagt hast
+build: v10.79.450 — Beim Drehen wird nichts mehr verzerrt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,76 +6,72 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.448.
+  Der Vorgänger ist 10.79.449.
 
-  ── DEINE ENTSCHEIDUNG IST AUSGEFÜHRT ────────────────────────────────────
+  ── ICH HABE DEN CLIP GELESEN, UND ER ZEIGT DIE URSACHE ──────────────────
 
-  Du hast es zweimal gesagt, das zweite Mal mit dem Screenshot aus 448, roter Kreis um
-  „Voice · your microphone":
+  Dein 16-Sekunden-Clip aus 448 ist eindeutig. In der ersten Sekunde ist alles richtig:
+  der Schlusssatz im Mix-Panel bricht sauber auf zwei Zeilen um. Ab Sekunde vier ist
+  derselbe Satz einzeilig und läuft rechts aus dem Bild. Beim Routing-Fenster fehlt dann
+  **links UND rechts** etwas („onnections" statt „Connections", die Port-Felder abgeschnitten).
 
-      „Microphone funktioniert nach mehreren Anläufen immer noch nicht. Das erinnert
-       mich an DMMW Problematik, erst wird munter drauf los programmiert und dann
-       verhäddert es sich. Sowas wollen wir vermeiden."
+  **Der Grund ist eine einzige Zeile in einer Einstellungsdatei: die App erlaubt Querformat.**
 
-  **Das Mikrofon ist raus aus der Oberfläche.** Es gibt keinen Weg mehr dorthin: keine
-  Karte im Mix, keinen Knopf im Master, kein Einlade-Banner beim Einstecken eines
-  Kopfhörers. Was Du im Screenshot eingekreist hast, ist weg.
+  Sobald Du das Telefon drehst, verlangt iOS von der App ein Bild, das rund **doppelt so
+  breit** ist. Nichts in Echoel ist für diese Breite gezeichnet. Also passiert genau das,
+  was Du gefilmt hast: Texte hören auf umzubrechen, und ein Fenster, das sich mittig
+  ausrichtet, verliert an **beiden** Seiten gleich viel.
 
-  ── UND JETZT DER TEIL, DER DEINEM ZWEITEN SATZ GEHÖRT ───────────────────
+  ── WAS ICH GEBAUT HABE ──────────────────────────────────────────────────
 
-  Dein zweiter Satz war nicht über das Mikrofon. Er war über die **Arbeitsweise**. Also
-  habe ich genau das Gegenteil von „munter drauf los" gemacht:
+  **Eine Lesbarkeits-Obergrenze für die Breite — an genau zwei Stellen.**
 
-  **Ich habe DREI Aufrufstellen entfernt. Sonst nichts.** Der Motor bleibt vollständig
-  stehen — die Audio-Kette, der Rückkopplungsschutz, die Stimm-Werkzeuge, das ganze
-  Einstell-Fenster. Alles kompiliert weiter, nichts hängt in der Luft.
+  Die Bedienspalte darf ab jetzt höchstens 560 Punkt breit werden. Ist die Fläche größer,
+  bleibt die Spalte 560 breit und wird **mittig** gesetzt, mit Rand links und rechts —
+  statt sich zu strecken, bis nichts mehr umbricht.
 
-  **Warum nicht alles rausreißen?** Weil genau DAS die DMMW-Verhäddelung wäre, nur
-  rückwärts. Motor, Kette, Autotune, Harmonizer, Granular und Rückkopplungsschutz in
-  einem Rutsch zu entfernen, berührt fünfzig Stellen und bricht Dinge, die mit dem
-  Mikrofon nichts zu tun haben. Drei Zeilen zu entfernen bricht nichts.
+  · Stelle 1: das Hauptfenster (Kopfleiste + Instrument).
+  · Stelle 2: **alle** Schubladen auf einmal — Routing, Sound, Learn und jede weitere.
+    Deshalb sind es zwei Stellen und nicht zwanzig.
+  · **Ausgenommen: das schwebende Visual.** Das soll den ganzen Bildschirm füllen, das ist
+    sein Sinn. Ein Wächter verbietet es ab jetzt, die Grenze versehentlich auch darauf zu
+    legen.
 
-  **Was das für Dich heißt:** wenn Du es je zurück willst, sind es dieselben drei
-  Zeilen — kein Neubau, keine Woche. Wenn Du es NIE zurück willst, sag es, und dann
-  räume ich den Motor in einem eigenen, sauberen Schritt aus. Diese Reihenfolge ist die
-  billige; die andere ist die teure.
+  ⚠ **Auf Deinem Telefon im Hochformat ändert sich NICHTS.** Das breiteste iPhone ist heute
+  440 Punkt breit — die Grenze von 560 greift dort nie. Sie greift nur da, wo die Fläche
+  wirklich zu breit zum Lesen ist: quer, und später auf iPad, Mac und Vision.
 
-  ⚠ **Nichts bleibt bei Dir hängen.** Das Monitoring wird nicht gespeichert — jeder
-  Start beginnt mit stummem Mikrofon. Ich habe das VOR dem Schnitt geprüft, nicht
-  danach: einen Schalter zu löschen, dessen Zustand gespeichert wird, hätte Dich mit
-  eingeschaltetem Mikrofon und ohne Ausschalter zurücklassen können.
+  ── UND JETZT DIE HÄLFTE, DIE DIR GEHÖRT ─────────────────────────────────
 
-  ── WAS ICH IM SELBEN SCHRITT MITGEZOGEN HABE ────────────────────────────
+  **Die eigentliche Ursache kann ich nicht anfassen.** `Info.plist` ist eine der drei
+  Dateien, die nur Du änderst — so steht es in unseren Regeln, und daran halte ich mich.
 
-  Ein Feature zu entfernen und die Behauptungen darüber stehen zu lassen, ist die
-  Verhäddelung in Zeitlupe. Deshalb im selben Commit:
+  Dort stehen heute drei erlaubte Lagen: Hochformat, Querformat links, Querformat rechts.
+  **Streicht man die zwei Querformat-Zeilen, dreht sich die App gar nicht mehr** — und das
+  Problem existiert nicht mehr, statt nur gut auszusehen.
 
-  · **App-Store-Text (beide Sprachen):** die Zeile „Tune to key" ist raus. Der Code lebt,
-    aber niemand kann ihn mehr erreichen — und eine Werbe-Behauptung über etwas
-    Unerreichbares ist genau der Ablehnungsgrund 2.3.
-  · **Sechs Prüf-Wächter** hatten Behauptungen über die entfernten Türen. Alle sechs sind
-    repariert, jede gestrichene Zeile wörtlich am Ort zitiert. Kein roter Wächter auf
-    einem richtigen Baum — das ist die Sorte Unordnung, die Du meinst.
-  · **Die Projekt-Doku** an vier Stellen: sie behauptete an dreien, die Vokal-Kette habe
-    eine Tür.
+  **Meine Empfehlung: streichen.** Echoel ist ein Hochformat-Instrument; Querformat war nie
+  entworfen und niemand hat es je gebraucht. Sag ein Wort, dann bereite ich Dir die genaue
+  Zeile vor, die Du löschst.
 
-  ── WAS UNVERÄNDERT BLEIBT ───────────────────────────────────────────────
-
-  Alles, was nicht am Mikrofon hängt: Komposition, Genres, Bio-Feedback, Visual, Mix,
-  FX, Export. Der Harmonizer der MUSIK (FX-Panel) ist nicht betroffen — der lag nie auf
-  Deiner Stimme.
+  Bis dahin ist die Obergrenze der Ersatz: quer sieht es dann aus wie hochkant mit Rand —
+  nicht schön, aber nicht kaputt. **Und die Obergrenze bleibt auch danach sinnvoll**, weil
+  iPad, Mac und Vision alle mit sehr breiten Flächen kommen.
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  Compile-verifiziert wird dieser Build erst mit dem Push; die vorige Version 448 war
-  grün (Compile Check 2379). Alle sechs reparierten Wächter habe ich von Hand gegen den
-  echten Quelltext nachgerechnet — 35 Behauptungen, alle grün.
+  449 (die Mikrofon-Türen) ist **grün** — Compile Check 2380. Dieser Build wird mit dem
+  Push geprüft.
 
-  **Geräteverifiziert ist nichts.** Was ein Gerät hier entscheiden kann, ist eine einzige
-  Frage: **fehlt Dir irgendwo etwas?** Wenn im Mix-Panel oder im Master eine Lücke klafft
-  oder etwas komisch sitzt, sag es — dann ziehe ich das Layout nach.
+  Vier neue Wächter-Behauptungen habe ich von Hand gegen den Quelltext nachgerechnet, alle
+  grün; die vier bestehenden Adaptiv-Wächter ebenfalls noch einmal durchgezogen.
 
-  Offen aus 448 und weiter gültig: Puls-Pille bei abgedeckter Linse · „Studio" im
-  Vollbild im Hochformat · der Blick bei großer Systemschrift auf die 43 Layout-Stellen.
+  **Geräteverifiziert ist nichts.** Was nur Du entscheiden kannst: dreh das Telefon einmal
+  quer und sag mir, ob „mittig mit Rand" für Dich in Ordnung ist — oder ob wir das Drehen
+  einfach abschalten. Das ist eine Frage von zehn Sekunden und sie entscheidet, ob die
+  Obergrenze reicht.
+
+  Offen aus 449 und weiter gültig: Puls-Pille bei abgedeckter Linse · „Studio" im Vollbild
+  im Hochformat · der Blick bei großer Systemschrift.
 
   Falls Du mir ein Log schicken magst: Save/Export-Chip → „Diagnostics" → Teilen.

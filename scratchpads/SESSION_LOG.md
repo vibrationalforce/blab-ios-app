@@ -23948,3 +23948,50 @@ dieser Sitzung; Compile-Verifikation kommt mit dem Push.
 
 **Geshipped:** v10.79.449 mit einer Notiz, die ehrlich sagt, was entfernt wurde, warum die
 Maschine steht, und dass Zurückholen drei Zeilen ist.
+
+## 2026-09-06 — #1025 Die adaptive Ansicht: eine Lesbarkeits-Obergrenze, zwei Stellen
+
+**Founder-Ask mit 16-s-Clip aus Build 448/2567:** *„Die adaptive View muss her. Es muss
+vermieden werden, dass wir plötzlich verzerrte und zu große Fenster haben."*
+
+**Clip-Befund, Frame für Frame gemessen** (`fps=1` + `fps=4` um den Übergang):
+· t=1 s: Layout KORREKT — der Schlusssatz des Mix-Panels bricht auf zwei Zeilen um.
+· t≈4 s: derselbe Satz einzeilig und rechts abgeschnitten, mehr Chips sichtbar bei
+  gleicher Punktgröße.
+· t=10/11 s: das Routing-Sheet ist **beidseitig** beschnitten („onnections", Port-Felder
+  rechts weg) — die Signatur eines mittig ausgerichteten Sheets in einer zu breiten Fläche.
+· t=13 s: Inhalt um 90° gedreht in einem Hochformat-Frame (iOS-Bildschirmaufnahme behält
+  die Startorientierung).
+
+**EINE Ursache erklärt alle vier:** `Resources/iOS/Info.plist` deklariert
+`UIInterfaceOrientationLandscapeLeft`/`Right` für iPhone. Beim Drehen bekommt das Layout
+~852 pt, und dafür ist nichts gezeichnet.
+
+⚠️ **Die Ein-Zeilen-Reparatur ist founder-gated** (`.claude/rules/context.md` §3:
+`Info.plist` = berichten, nicht editieren). In der Build-Notiz als Empfehlung gestellt.
+
+**Was gebaut wurde:** `EchoelTheme.readableContentWidth = 560`, angewandt an GENAU zwei
+Stellen als `cap-then-recentre` (`.frame(maxWidth: 560)` gefolgt von
+`.frame(maxWidth: .infinity)` — die Reihenfolge ist der ganze Trick; die Kappung allein
+gäbe eine linksbündige Spalte mit allem Leerraum auf einer Seite):
+· `WorkspaceView` — Chrome + Instrument, INNERHALB des `ZStack`.
+· `EchoelSheetPanelModifier` — deckt jedes Sheet ab, das den Modifier trägt (Routing
+  eingeschlossen). Deshalb zwei Stellen statt zwanzig.
+
+**Bewusst ausgenommen: `FloatingVisualWindow`** (true Vollbild). Anspruch 3 des Wächters
+verbietet, die Kappung auf den `ZStack` zu heben — der naheliegendste falsche „Abschluss"
+der Scheibe.
+
+**Zahl begründet, nicht geraten:** 560 kann im iPhone-Hochformat NIE greifen (breitestes
+Gerät heute 440 pt), also ändert sich auf dem Gerät des Founders nichts. Der Wächter pinnt
+BEIDE Enden — ≥480 (sonst schrumpft das Instrument auf einem echten Telefon) und ≤900
+(sonst greift es nie und ist vakuum-grün, #808).
+
+**Wächter:** `Tests/CISmoke/TheLayoutHasAReadableWidthCeilingTests.swift`, vier Ansprüche,
+in Python transkribiert — alle grün. Anspruch 4 ist die #364-Form: er wird ROT an dem Tag,
+an dem der Founder Landscape aus der Plist nimmt, und sagt in seiner Fehlermeldung, dass
+das eine gute Nachricht ist und welche Prosa dann mitzuziehen ist. Die vier
+`TextControlsGrowWithTheTypeSizeTests`-Ansprüche (#1023) sind gegen den bearbeiteten Baum
+nachgezogen: 0 Verstöße.
+
+**Vorher grün:** #1024 (Mikrofon-Türen) auf Compile Check 2380. **Geshipped:** v10.79.450.
