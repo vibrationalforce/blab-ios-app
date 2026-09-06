@@ -1468,9 +1468,9 @@ struct EchoelStudioView: View {
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
         // content above: keep the root view's aggregate generic type shallow so the
         // launch-time metadata decode can never overflow the stack again.
-        .sheet(isPresented: $showOpen) { AnyView(openSheet.readableWidth()) }
+        .sheet(isPresented: $showOpen) { AnyView(openSheet) }
         .sheet(item: $share) { AnyView(ShareSheet(url: $0.url)) }
-        .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text).readableWidth()) }
+        .sheet(item: $diagnostics) { report in AnyView(diagnosticsSheet(report.text)) }
         .sheet(isPresented: $showAllFX) {
             // The ENGINE, not `currentTempo`: a Double handed over here is a snapshot taken
             // at presentation time, and the sheet then computed every sync division at that
@@ -1497,11 +1497,7 @@ struct EchoelStudioView: View {
         }
         .sheet(isPresented: $showInput) { AnyView(AudioInputPickerView().echoelSheetPanel()) }
         .sheet(isPresented: $showRouting) { AnyView(PatchbayView().echoelSheetPanel()) }
-        // ⚠️ #1025 — `.readableWidth()` and NOT `.echoelSheetPanel()`. LearnView sets its own
-        // `presentationDetents`, and this file's panel modifier sets them too; double-declaring
-        // conflicts (EchoelSheetPanel.swift's header states the rule). The width ceiling carries
-        // no detents, so it is the half Learn can safely take.
-        .sheet(isPresented: $showLearn) { AnyView(LearnView().readableWidth()) }
+        .sheet(isPresented: $showLearn) { AnyView(LearnView()) }   // self-manages its detents
         #if canImport(UniformTypeIdentifiers)
         .fileImporter(isPresented: $midiImportPresented,
                       allowedContentTypes: [.midi],
@@ -1903,6 +1899,28 @@ struct EchoelStudioView: View {
         }
     }
 
+    /// LINE 1 of the transport, as a row while it fits and as two lines when it does not.
+    /// See the ⭐ #1027 note at the call site for why it is the row with the least slack in
+    /// the app and why the simulation's "Demo" tag is what tips it over.
+    @ViewBuilder
+    private var transportLine1: some View {
+        let tempo = BodyTempoField(onLockChanged: {
+            NotificationCenter.default.post(name: .echoelCompositionEdited, object: "tempoLock")
+        }, compact: true)
+        #if canImport(AVFoundation)
+        let pulse = PulseMonitorMiniLive()
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 8) { startButton; PlaybackToggleButton(); tempo; pulse }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) { startButton; PlaybackToggleButton(); tempo }
+                pulse
+            }
+        }
+        #else
+        HStack(spacing: 8) { startButton; PlaybackToggleButton(); tempo }
+        #endif
+    }
+
     /// #289 → #307 — ONE control block, now a transport: ▶/■ · ⏸ · the analysis display.
     ///
     /// ⛔ This line read "pulse · Create from Within · playback ■" — the OLD order, naming the
@@ -1988,8 +2006,11 @@ struct EchoelStudioView: View {
     /// chip, ~100 pt of readout and two more 8 pt gaps, so a single line leaves the pill a
     /// fraction of even that 150 — worse than half, and worse than a third.
     ///
-    /// **Line 1 is bit-for-bit what it was**, so nothing that
-    /// exists today can be squeezed by this change.
+    /// ⛔ **Line 1 is bit-for-bit what it was** — true until #1027, struck here. Its four
+    /// children are still the same four and none was squeezed; what changed is that they now
+    /// choose between one line and two (`transportLine1`) instead of always taking one, so the
+    /// simulation's "Demo" tag can no longer push the row past the right edge. The squeeze
+    /// argument the rest of this block makes is unaffected — a second line is not a squeeze.
     ///
     /// ⚠️ THE HEIGHT ARITHMETIC GOES THE RIGHT WAY, BUT BARELY, and the first version of this
     /// paragraph overstated it by roughly 3×. Removed: the deleted bar's `minHeight: 44` — and
@@ -2017,19 +2038,39 @@ struct EchoelStudioView: View {
     /// bodies, and this body must keep reading none of it.
     private var startControlRow: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // LINE 1 — unchanged since #411. Do not add to it; that is what makes the claim
-            // above ("nothing that exists today can be squeezed") true rather than hopeful.
-            HStack(spacing: 8) {
-                startButton
-                PlaybackToggleButton()
-                BodyTempoField(onLockChanged: {
-                    NotificationCenter.default.post(name: .echoelCompositionEdited,
-                                                    object: "tempoLock")
-                }, compact: true)
-                #if canImport(AVFoundation)
-                PulseMonitorMiniLive()
-                #endif
-            }
+            // LINE 1. ⛔ This comment said "unchanged since #411. Do not add to it" — and
+            // the paragraph above said line 1 is "bit-for-bit what it was". Both were
+            // true until #1027 and are struck HERE rather than only there, because this is
+            // the line an editor reads before touching the row. Nothing was ADDED to it; its
+            // four children are the same four. What changed is that they now choose between
+            // one line and two instead of always taking one. Both homes are struck in this
+            // same commit (#456) — the doc block above carries the other one.
+            // ⭐ #1027 — THE SECOND SURFACE THE FOUNDER NAMED: *"War nur bei Play with
+            // Simulation und routing hochkant über den Bildschirm Rand hinaus."* Routing is
+            // repaired in `PatchbayView` (#1026); THIS is the other one, and the link is the
+            // word "Simulation".
+            //
+            // MEASURED, not inferred (the two mistakes before this one were both inferences
+            // from a screen recording). `PulseMonitorMini` renders an extra `Text("Demo")` tag
+            // ONLY when the source is synthetic — `if synthetic` in `HeaderMonitors`. So this
+            // row carries one more element while the simulation plays than at any other time,
+            // and it is the row with the least slack in the app: four children, no `Spacer`,
+            // and every one of them has a floor (the trace pins `minWidth: 60`, the BPM box
+            // `minWidth: 76`, the two buttons their tap targets). Add the tag and the sum
+            // crosses the portrait width; the extra goes past the right edge. That is exactly
+            // "nur bei Play with Simulation".
+            //
+            // THE FIX IS THE ONE #1026 ALREADY INTRODUCED, so the app now has one idiom for
+            // this and not two: `ViewThatFits` takes the single line while it fits and moves
+            // the pulse tile to its own line when it does not. Nothing is hidden, nothing is
+            // capped — the row uses the WHOLE width, which is what he asked for.
+            //
+            // ⚠️ The tile is built ONCE and reused in both candidates. `PulseMonitorMiniLive`
+            // is the leaf that reads the ~10 Hz camera publisher (the 10.76.50 freeze law);
+            // constructing it twice would put two live readers in the view tree where one
+            // belongs.
+            transportLine1
+
             // #585 — the one visible consequence of `AudioEngine.degraded`, which had no reader
             // at all until now. Renders nothing while audio is healthy, so this row keeps its
             // exact layout in the normal case; it is a `View` of its own so that a live audio

@@ -241,26 +241,14 @@ struct WorkspaceView: View {
                 SurfaceHost()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            // ⭐ #1025 — THE CONTROL COLUMN HAS A READABLE CEILING, AND IT IS ONE OF TWO
-            // SITES (the other is `EchoelSheetPanelModifier`, which covers every sheet).
-            // Founder clip, build 448/2567: *"Die adaptive View muss her. Es muss vermieden
-            // werden, dass wir plötzlich verzerrte und zu große Fenster haben."* Rotating the
-            // phone hands this VStack ~852 pt; nothing below is designed for it, so rows stop
-            // wrapping and paragraphs run off the edge — the frames the clip shows.
+            // ⛔ #1027 — A WIDTH CEILING STOOD HERE (#1025) AND IS REMOVED ON FOUNDER
+            // ORDER: *"Ich will adaptive Größe also Bildschirmgröße ausfüllend für alle
+            // Ansichten."* It capped this column at 560 pt and centred it, which is the
+            // opposite of filling the screen. The instrument uses the whole width again.
             //
-            // The cap-then-centre pair lives in ONE place (`View.readableWidth()`), so the
-            // idiom and its order are written once for the whole app.
-            //
-            // ⚠️ IT BINDS ON NO iPHONE IN PORTRAIT (440 pt widest today vs a 560 pt ceiling),
-            // so on the founder's device this changes exactly nothing. That is intended: it
-            // is a guard against canvases the layout was never drawn for, not a redesign of
-            // the one it was.
-            //
-            // ⚠️ INSIDE THE `ZStack`, NOT AROUND IT. `FloatingVisualWindow` is the sibling
-            // below and must keep the FULL screen — "true Vollbild" is a rule stated a few
-            // lines down, and capping the ZStack would shrink the one surface whose entire
-            // point is to cover everything. Pinned by the guard's counterweight.
-            .readableWidth()
+            // ⚠️ The two surfaces he actually named as overflowing are repaired where they
+            // overflow, not here: `PatchbayView.pairedRow` (#1026) and `startControlRow`'s
+            // LINE 1 (#1027, the simulation's "Demo" tag).
             // The immersive visual floats ABOVE the whole screen so its FULLSCREEN size can
             // cover the chrome too (true Vollbild). In the floating sizes it docks
             // bottom-trailing; its transparent area never blocks the header/transport (an

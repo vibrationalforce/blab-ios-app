@@ -17,9 +17,27 @@ import XCTest
 /// recording, saw rotated frames, and concluded landscape was undesigned. The founder then
 /// measured it on the device: *"Queer war doch alles gut. Nur hochkant war nicht passend."*
 /// Landscape was fine; portrait was broken. A recording whose frames rotate makes a wrong story
-/// look complete — the rows themselves were two greps away the whole time. #1025's width ceiling
-/// STAYS (inert in portrait, still right for iPad · Mac · Vision) but it was never this repair,
-/// and the recommendation to drop landscape from `Info.plist` is WITHDRAWN.
+/// look complete — the rows themselves were two greps away the whole time. The recommendation
+/// to drop landscape from `Info.plist` is WITHDRAWN. (This paragraph originally ended "#1025's
+/// width ceiling STAYS … still right for iPad · Mac · Vision"; the founder deleted the ceiling
+/// one build later, so that clause is struck — see the next paragraph. A retraction that leaves
+/// a forward-looking claim standing is half a retraction.)
+///
+/// ⛔ AND THE BUILD AFTER THAT ONE SHIPPED A WIDTH CEILING, WHICH THE FOUNDER ALSO REJECTED
+/// (#1027): *"Mache das rückgängig du hast das falsche korrigiert. Ich will adaptive Größe
+/// also Bildschirmgröße ausfüllend für alle Ansichten. War nur bei Play with Simulation und
+/// routing hochkant über den Bildschirm Rand hinaus."* `EchoelTheme.readableContentWidth`
+/// capped a control column at 560 pt and centred it — the OPPOSITE of filling the screen —
+/// and `TheLayoutHasAReadableWidthCeilingTests` guarded it. Both are deleted; this file
+/// absorbed the one claim of that guard worth keeping (claim 5 below).
+///
+/// ⭐ TWO WRONG ANSWERS IN A ROW, ONE CAUSE: both came from reading a screen recording instead
+/// of measuring the view. The founder's sentence above names the two surfaces exactly —
+/// Routing and "Play with Simulation" — and both turn out to be the SAME defect: a row whose
+/// children all have floors, given one element more than the width can hold. Routing gets one
+/// too many when a second pinned field sits beside the first; the transport row gets one too
+/// many when `PulseMonitorMini` adds its `Text("Demo")` tag, which it does ONLY while the
+/// source is synthetic. That is why he saw it "nur bei Play with Simulation".
 ///
 /// ⚠️ WHAT THIS PROVES. Source text only: that the three rows go through `ViewThatFits` and that
 /// no pair of labelled fields is pinned onto one `HStack` anywhere in `Sources/`. It cannot show
@@ -29,6 +47,7 @@ final class TwoControlsShareALineOnlyWhileTheyFitTests: XCTestCase {
 
     private static let patchbay = "Sources/Echoelmusic/Studio/PatchbayView.swift"
     private static let field = "Sources/Echoelmusic/Studio/EchoelValueField.swift"
+    private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
 
     // MARK: - 1. the helper offers BOTH shapes
 
@@ -129,6 +148,76 @@ final class TwoControlsShareALineOnlyWhileTheyFitTests: XCTestCase {
             Type precisely because the pin scales; if the width became fixed, the arithmetic in \
             this file's header is stale and must be re-derived, not re-quoted.
             """)
+    }
+
+    // MARK: - 5. the transport row wraps instead of overflowing
+
+    /// The second surface the founder named. `startControlRow`'s LINE 1 has four children, no
+    /// `Spacer`, and a floor under every one of them — it is the row with the least slack in
+    /// the app. `PulseMonitorMini` adds a `Text("Demo")` tag while the source is synthetic, and
+    /// that one extra element is what pushed it past the edge.
+    func testTheTransportLineWrapsWhenItCannotFit() throws {
+        let studio = try code(Self.studio)
+        XCTAssertEqual(occurrences(of: "private var transportLine1: some View", in: studio), 1, """
+            `transportLine1` is not declared exactly once. It is the transport row's adaptive \
+            form; if it was inlined back into `startControlRow` the simulation's "Demo" tag \
+            pushes the row off the right edge again (#1027).
+            """)
+        guard let start = studio.range(of: "private var transportLine1: some View") else { return }
+        let body = String(studio[start.upperBound...].prefix(700))
+        XCTAssertTrue(body.contains("ViewThatFits(in: .horizontal)"), """
+            The transport row no longer chooses its shape with `ViewThatFits`. A fixed `HStack` \
+            is what overflowed; a fixed `VStack` would waste a line whenever it fits. If a \
+            different adaptive mechanism replaced it, re-point this claim at that one.
+            """)
+        XCTAssertTrue(body.contains("let pulse = PulseMonitorMiniLive()"), """
+            The pulse tile is no longer built once and reused across both candidates. \
+            `PulseMonitorMiniLive` is the LEAF that reads the ~10 Hz camera publisher \
+            (10.76.50 freeze law); constructing it separately in each branch puts two live \
+            readers in the tree where one belongs.
+            """)
+    }
+
+    /// COUNTERWEIGHT — the premise that makes claim 5 a real finding rather than a precaution.
+    /// If the "Demo" tag ever stops being conditional, the row carries it always and the
+    /// founder's "nur bei Play with Simulation" stops describing anything.
+    func testTheDemoTagIsStillTheConditionalExtra() throws {
+        let header = try code("Sources/Echoelmusic/Studio/HeaderMonitors.swift")
+        XCTAssertTrue(header.contains("if synthetic {"), """
+            `PulseMonitorMini` no longer gates its "Demo" tag on `synthetic`. That gate is the \
+            reason the transport row overflowed ONLY while the simulation played — the whole \
+            diagnosis in this file's header rests on it. If the tag became unconditional, the \
+            row is now always at its widest and claim 5 protects more than it used to; say so \
+            here rather than leaving the reasoning stale (#456).
+            """)
+    }
+
+    // MARK: - 7. the width ceiling stays deleted
+
+    /// ⛔ INHERITED FROM THE GUARD #1027 DELETED. `TheLayoutHasAReadableWidthCeilingTests`
+    /// protected `EchoelTheme.readableContentWidth`; the founder removed the feature, so the
+    /// guard went with it (#1024's shape — a red guard on a correct tree is the tangle he
+    /// warned about). This claim is the inverse and it is the one worth carrying forward: the
+    /// ceiling must not quietly come back, because "it would help on iPad" is exactly the kind
+    /// of plausible, future-tense, unmeasured argument that survives a founder's "no".
+    func testNoWidthCeilingIsReintroduced() throws {
+        for path in [Self.studio,
+                     "Sources/Echoelmusic/Studio/WorkspaceView.swift",
+                     "Sources/Echoelmusic/Studio/EchoelSheetPanel.swift",
+                     "Sources/Echoelmusic/Studio/EchoelTheme.swift"] {
+            let body = try code(path)
+            for needle in ["readableContentWidth", "readableWidth()"] {
+                XCTAssertEqual(occurrences(of: needle, in: body), 0, """
+                    `\(needle)` is back in \(path). THIS IS NOT AUTOMATICALLY A BUG — the \
+                    founder may have changed his mind, and a wide canvas genuinely may want a \
+                    narrower column. But he said the opposite in his own words: "Ich will \
+                    adaptive Größe also Bildschirmgröße ausfüllend für alle Ansichten." So it \
+                    is HIS call, and reinstating it means pulling the tombstones along in the \
+                    same commit: `EchoelTheme`'s ⛔ #1027 block, `WorkspaceView`'s, \
+                    `EchoelSheetPanel`'s, and this claim.
+                    """)
+            }
+        }
     }
 
     // MARK: - helpers

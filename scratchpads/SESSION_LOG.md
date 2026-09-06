@@ -24095,3 +24095,49 @@ richtig, aber sie war nie diese Reparatur.
 
 **Geshipped:** v10.79.453. 8 neue + 14 bestehende Behauptungen in Python transkribiert, alle
 grün. Selbstkritik in der Notiz: vier Builds in 40 Minuten waren zu viel.
+
+## 2026-09-06 — #1027 · Breiten-Deckel zurückgenommen, Transport-Zeile adaptiv (v10.79.454)
+
+**Founder-Ansage, wörtlich:** *„Mache das rückgängig du hast das falsche korrigiert . Ich will
+adaptive Größe also Bildschirmgröße ausfüllend für alle Ansichten. War nur bei Play with
+Simulation und routing hochkant über den Bildschirm Rand hinaus."*
+
+**(a) Die Rücknahme.** `EchoelTheme.readableContentWidth` (560 pt, zentriert) und
+`View.readableWidth()` sind gelöscht, alle sieben Aufrufstellen zurückgebaut,
+`Tests/CISmoke/TheLayoutHasAReadableWidthCeilingTests.swift` per `git rm` entfernt. Vier
+⛔-Grabsteine (`EchoelTheme`, `EchoelSheetPanel`, `WorkspaceView`, plus Anspruch 7 im
+überlebenden Wächter) nennen die Ansage und verlangen für eine Rückkehr die Founder-Frage.
+Ein Deckel, der zentriert, ist das Gegenteil von „bildschirmfüllend" — die 453-Notiz hat ihn
+trotzdem noch als „bleibt drin, für iPad richtig" verkauft, also eine Zukunfts-Behauptung
+über etwas, das gerade abgelehnt worden war.
+
+**(b) Die zweite genannte Fläche, GEMESSEN.** „Play with Simulation" ist derselbe Defekt wie
+das Routing-Fenster an einer anderen Zeile: `startControlRow` LINE 1 hat vier Kinder, keinen
+`Spacer` und unter jedem einen Boden — die Zeile mit dem geringsten Spielraum der App.
+`PulseMonitorMini` hängt `Text("Demo")` an, aber nur hinter `if synthetic {`
+(`HeaderMonitors.swift`). Ein Element mehr, Summe > Hochformat, Überstand rechts. Genau
+„nur bei Play with Simulation". Reparatur = dieselbe Form wie #1026 (`ViewThatFits`), damit
+die App EIN Idiom hat: neuer `transportLine1`, Puls-Kachel EINMAL gebaut und in beide
+Kandidaten gereicht (10.76.50-Gesetz: sie ist der 10-Hz-Leser).
+
+**(c) Wächter.** `TwoControlsShareALineOnlyWhileTheyFitTests` von 4 auf **7** Ansprüche
+(20 Zusicherungen), alle in Python gegen den bearbeiteten Baum getrieben: grün. Anspruch 7
+ist der aus dem gelöschten Wächter geerbte — der Deckel darf nicht still zurückkommen.
+
+**(d) Prosa in zwei Heimaten mitgezogen (#456).** „Line 1 is bit-for-bit what it was" stand
+im Doc-Block UND als Inline-Kommentar; beide gestrichen. Im Wächter-Kopf stand noch
+„#1025's width ceiling STAYS … still right for iPad · Mac · Vision" — eine Rücknahme, die
+eine vorwärtsgerichtete Behauptung stehen lässt, ist eine halbe Rücknahme.
+
+**(e) Beinahe-Fehler beim Einfügen:** `transportLine1` landete zuerst MITTEN in
+`startControlRow`s Doc-Block, hätte ihn also an das falsche Mitglied gebunden; danach trennte
+eine Leerzeile den Block wieder von der Deklaration. Beides vor dem Commit repariert.
+
+**⚠ ZWEI FUNDE AUS `count-pins.py`, KEINER AUS DIESER SCHEIBE, KEINER MIT EINGEBAUT:**
+1. `AStillIsOneFrameNotASecondPathTests:105` (`.sheet(` 14 vs 9) ist ein **Fehlalarm des
+   Werkzeugs**: dieser Wächter bindet über ein eigenes `source()`, das Kommentare NICHT
+   entfernt — roh sind es 14, der Pin stimmt. `count-pins.py` nimmt für jeden Empfänger
+   `SourceText.codeOnly` an. Das ist eine Grenze, die in seinem Kopf fehlt.
+2. `TheEngineLifecycleSpeaksInTheDiagLogTests:1120` (`EchoelCrashLog.breadcrumb(` 20 vs 22)
+   ist **echt rot**, unter jedem Stripper, identisch bei HEAD. Zwei Breadcrumbs kamen nach
+   #968 dazu, ohne den Pin zu bewegen. Unsichtbar aus dem §5-Grund. → nächste Scheibe.

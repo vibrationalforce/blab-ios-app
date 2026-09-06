@@ -214,41 +214,26 @@ enum EchoelTheme {
     /// are 8 pt-spaced, so horizontal growth would overlap a neighbour.
     static let controlTapHeight: CGFloat = 44
 
-    /// ⭐ #1025 — THE WIDEST A COLUMN OF CONTROLS MAY BECOME. It exists because a canvas can
-    /// be too wide to read: past a point a row of controls stops being a row and becomes a
-    /// label at one edge and a value at the other.
-    ///
-    /// ⛔ THE REASON FIRST WRITTEN HERE WAS WRONG, and it is corrected rather than deleted
-    /// because it is the kind of wrong that reads as thorough. It said the founder's clip
-    /// showed a ROTATION defect — that `Info.plist` declares LandscapeLeft/Right, so the
-    /// instrument is handed ~852 pt and nothing is drawn for it — and it recommended dropping
-    /// the two landscape entries. The founder then measured it on the device: *"Queer war doch
-    /// alles gut. Nur hochkant war nicht passend."* Landscape was fine; PORTRAIT was broken.
-    /// The real cause was three rows in `PatchbayView` that put two width-PINNED
-    /// `EchoelValueField`s on one line (#1026); a vertical ScrollView centres an over-wide
-    /// child instead of clipping it, which is why the whole sheet read as shifted. I had
-    /// inferred a cause from a screen recording whose frames rotate, instead of measuring the
-    /// rows two greps away. **The landscape recommendation is WITHDRAWN.**
-    ///
-    /// This ceiling STAYS, on its own merit and not as that repair: it is inert in iPhone
-    /// portrait and still right for the canvases the platform goal names.
-    ///
-    /// 560 is chosen so it can NEVER bind in iPhone portrait — the widest portrait canvas
-    /// today is 440 pt (iPhone 16 Pro Max), and 560 leaves 120 pt of headroom for a future
-    /// device before anything changes. On the founder's phone this constant does nothing
-    /// at all; it engages only where the canvas is genuinely too wide to read.
-    ///
-    /// ⚠️ THIS IS A READABILITY CEILING, NOT AN ORIENTATION LOCK, and after the correction
-    /// above that distinction is the whole point: landscape is WANTED and works. The ceiling
-    /// only says how wide a column of controls may get before it stops being readable — the
-    /// stated platform goal is the whole Apple ecosystem, so iPad, Mac and Vision all arrive
-    /// with canvases far wider than any control column should be.
-    ///
-    /// ⚠️ NOT FOR THE IMMERSIVE VISUAL. `FloatingVisualWindow` must keep the FULL screen —
-    /// "true Vollbild" is stated as a rule in `WorkspaceView`, and capping it would shrink
-    /// the one surface whose whole point is to fill everything. Pinned by the guard's
-    /// counterweight.
-    static let readableContentWidth: CGFloat = 560
+    // ⛔ #1027 — `readableContentWidth` STOOD HERE AND IS REMOVED ON FOUNDER ORDER
+    // (2026-09-06): *"Mache das rückgängig du hast das falsche korrigiert. Ich will
+    // adaptive Größe also Bildschirmgröße ausfüllend für alle Ansichten."*
+    //
+    // It capped a control column at 560 pt and centred it. That is the OPPOSITE of what he
+    // asked for — "adaptive" here means FILLING the screen, not being held back from it —
+    // and it was built on a diagnosis he had already disproved on the device ("Queer war
+    // doch alles gut. Nur hochkant war nicht passend"). Two wrong inferences in a row, both
+    // from reading a screen recording instead of measuring: first that the defect was the
+    // rotation, then that the answer was a ceiling.
+    //
+    // ⚠️ DO NOT REINTRODUCE IT FOR iPad OR Mac WITHOUT ASKING. That was the argument that
+    // kept it alive one build longer than it deserved, and it is exactly the shape of
+    // argument that survives a founder's "no": plausible, future-tense and unmeasured. A
+    // wide canvas may well want a narrower column — but he decides that, on a device, when
+    // there is one.
+    //
+    // What replaced it as the real repair: `PatchbayView.pairedRow` (#1026) and the
+    // transport row's own `ViewThatFits` (#1027), both of which let a view use the WHOLE
+    // width and only reflow what genuinely does not fit.
 
     // MARK: Brand typography — Atkinson Hyperlegible (mirrors echoelmusic.com)
     // The site uses this accessibility-first typeface; the app now bundles it
