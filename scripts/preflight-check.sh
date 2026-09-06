@@ -37,17 +37,17 @@ echo ""
 # -----------------------------------------------------------------------------
 pass() {
     echo -e "${GREEN}[PASS]${NC} $1"
-    ((PASSED++))
+    PASSED=$((PASSED + 1))
 }
 
 warn() {
     echo -e "${YELLOW}[WARN]${NC} $1"
-    ((WARNINGS++))
+    WARNINGS=$((WARNINGS + 1))
 }
 
 fail() {
     echo -e "${RED}[FAIL]${NC} $1"
-    ((ERRORS++))
+    ERRORS=$((ERRORS + 1))
 }
 
 info() {
@@ -113,17 +113,26 @@ fi
 echo ""
 echo "--- Checking Swift Package ---"
 
-if swift package describe > /dev/null 2>&1; then
-    pass "Swift package is valid"
+# ⛔ This block ran `swift package describe` unconditionally and called a non-zero
+# exit "Swift package has errors". On any machine WITHOUT a toolchain — every web
+# session, and this container — that is a FAIL for a package that is perfectly fine.
+# An absent tool is a WARN, never a FAIL; the XcodeGen and Fastlane sections two
+# blocks down already got this right, so the file contradicted itself.
+if ! command -v swift &> /dev/null; then
+    warn "Swift toolchain not installed — package validity UNMEASURED here (run on the Mac)"
 else
-    fail "Swift package has errors"
-fi
+    if swift package describe > /dev/null 2>&1; then
+        pass "Swift package is valid"
+    else
+        fail "Swift package has errors"
+    fi
 
-# Quick syntax check
-if swift build --skip-build 2>/dev/null || swift package dump-package > /dev/null 2>&1; then
-    pass "Package.swift syntax is valid"
-else
-    warn "Could not validate Package.swift syntax (may need full build)"
+    # Quick syntax check
+    if swift build --skip-build 2>/dev/null || swift package dump-package > /dev/null 2>&1; then
+        pass "Package.swift syntax is valid"
+    else
+        warn "Could not validate Package.swift syntax (may need full build)"
+    fi
 fi
 
 # -----------------------------------------------------------------------------
@@ -157,8 +166,15 @@ else
     warn "Fastlane not installed (install with: gem install fastlane)"
 fi
 
-# Check for required lanes in Fastfile
-REQUIRED_LANES=("beta" "beta_watchos" "beta_tvos" "beta_visionos")
+# Check for the lanes the DEPLOY PATH actually calls.
+# ⛔ This list said ("beta" "beta_watchos" "beta_tvos" "beta_visionos") and NONE of
+# those four lanes has ever existed in this Fastfile — the real names are
+# `setup_signing` / `upload` / `upload_watchos` / `upload_tvos` / `upload_visionos`.
+# Nobody noticed because the counter bug above killed the script long before this
+# section ran: four permanent phantom FAILs behind an instrument that never spoke.
+# `setup_signing` is named literally by testflight.yml (`fastlane ios setup_signing`),
+# so a rename there breaks the deploy — that is what makes it worth gating on.
+REQUIRED_LANES=("setup_signing" "upload")
 for lane in "${REQUIRED_LANES[@]}"; do
     if grep -q "lane :$lane" fastlane/Fastfile 2>/dev/null; then
         pass "Lane '$lane' exists in Fastfile"
