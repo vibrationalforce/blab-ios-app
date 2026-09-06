@@ -342,8 +342,9 @@ struct PatchbayView: View {
                 .textInputAutocapitalization(.never)
                 .keyboardType(.URL)
                 #endif
-            HStack(spacing: 8) {
+            pairedRow(spacing: 8) {
                 EchoelValueField(label: "Port", value: port, range: 1...65_535, unit: "", decimals: 0)
+            } second: {
                 if let universe {
                     EchoelValueField(label: "Universe", value: universe, range: universeRange, unit: "", decimals: 0)
                 }
@@ -351,6 +352,43 @@ struct PatchbayView: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("\(name) — network target")
+    }
+
+    /// ⭐ #1026 — TWO CONTROLS ON ONE LINE, BUT ONLY WHILE THEY FIT.
+    ///
+    /// THE DEFECT, measured rather than reasoned (founder screenshot of build 452, portrait):
+    /// this sheet was cut on BOTH sides — "onnections" for "Connections", the port and universe
+    /// boxes running off the right edge. `EchoelValueField`'s own doc says why, and has since
+    /// #353e: the labelled row is `HStack { Text(label); Spacer(minLength: 8); valueBox }` and
+    /// the box is **PINNED** to `valueWidth` (150 pt at the default text size, `@ScaledMetric`
+    /// so it grows with Dynamic Type). "A `.frame(width:)` is a pin and does not compress."
+    ///
+    /// Two labelled fields side by side therefore demand `label + 8 + 150` EACH plus the
+    /// spacing — roughly 410 pt before the sheet's own 12 pt padding, against ~369 pt of usable
+    /// width on a 393 pt phone. A vertical `ScrollView` does not clip an over-wide child, it
+    /// CENTRES it, so the overflow is split between the two edges and the whole sheet — header
+    /// included — reads as shifted. That is exactly the screenshot.
+    ///
+    /// ⛔ AND IT IS NOT AN ORIENTATION PROBLEM, which is what I claimed one build earlier. The
+    /// founder rotated the phone and reported back: *"Queer war doch alles gut. Nur hochkant
+    /// war nicht passend."* Landscape was fine; PORTRAIT was broken. I had inferred the cause
+    /// from a screen recording instead of measuring the rows, and the recording's rotated frames
+    /// made a wrong story look complete. #1025's width ceiling is kept — it is inert in portrait
+    /// and still right for iPad · Mac · Vision — but it was never this defect's repair.
+    ///
+    /// THE FIX IS THE ONE SwiftUI ALREADY HAS. `ViewThatFits` takes the horizontal row when the
+    /// proposed width can hold it and the stacked column when it cannot, per device and per text
+    /// size, with no threshold to guess and no geometry read. On a wide canvas nothing changes.
+    @ViewBuilder
+    private func pairedRow<A: View, B: View>(spacing: CGFloat,
+                                             @ViewBuilder _ first: () -> A,
+                                             @ViewBuilder second: () -> B) -> some View {
+        let a = first()
+        let b = second()
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: spacing) { a; b }
+            VStack(alignment: .leading, spacing: spacing) { a; b }
+        }
     }
 
     // Manual bindings (the senders are @Environment @Observable references, not @Bindable).
@@ -375,9 +413,10 @@ struct PatchbayView: View {
     private var lichtSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("Light").font(EchoelTheme.font(11, .bold)).foregroundStyle(EchoelTheme.dim)
-            HStack(spacing: 10) {
+            pairedRow(spacing: 10) {
                 EchoelValueField(label: "Master", value: grandMasterBinding,
                                  range: 0...1, unit: "", decimals: 2)
+            } second: {
                 Button {
                     let newState = !artNet.blackout
                     artNet.blackout = newState
@@ -404,9 +443,10 @@ struct PatchbayView: View {
                 .pickerStyle(.segmented)
                 .accessibilityLabel("DMX resolution — 16-bit for smooth fades, 8-bit for legacy fixtures")
             }
-            HStack(spacing: 10) {
+            pairedRow(spacing: 10) {
                 EchoelValueField(label: "Fixtures", value: fixtureCountBinding,
                                  range: 1...Double(DMXFixtureFan.maxFixtures), unit: "", decimals: 0)
+            } second: {
                 EchoelValueField(label: "Spacing", value: fixtureSpacingBinding,
                                  range: 0...64, unit: "", decimals: 0)
             }

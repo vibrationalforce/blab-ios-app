@@ -1,4 +1,4 @@
-build: v10.79.452 — Beim Drehen wird nichts mehr verzerrt
+build: v10.79.453 — Das Routing-Fenster passt jetzt ins Hochformat
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,93 +6,69 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.451.
+  Der Vorgänger ist 10.79.452.
 
-  ── ICH HABE DEN CLIP GELESEN, UND ER ZEIGT DIE URSACHE ──────────────────
+  ── ZUERST: MEINE DIAGNOSE WAR FALSCH, UND DU HAST SIE KORRIGIERT ────────
 
-  Dein 16-Sekunden-Clip aus 448 ist eindeutig. In der ersten Sekunde ist alles richtig:
-  der Schlusssatz im Mix-Panel bricht sauber auf zwei Zeilen um. Ab Sekunde vier ist
-  derselbe Satz einzeilig und läuft rechts aus dem Bild. Beim Routing-Fenster fehlt dann
-  **links UND rechts** etwas („onnections" statt „Connections", die Port-Felder abgeschnitten).
+  Ich hatte gesagt, das Problem sei das **Drehen**, und Dir empfohlen, Querformat aus den
+  Einstellungen zu streichen. Du hast es am Gerät geprüft:
 
-  **Der Grund ist eine einzige Zeile in einer Einstellungsdatei: die App erlaubt Querformat.**
+      „Queer war doch alles gut. Nur hochkant war nicht passend."
 
-  Sobald Du das Telefon drehst, verlangt iOS von der App ein Bild, das rund **doppelt so
-  breit** ist. Nichts in Echoel ist für diese Breite gezeichnet. Also passiert genau das,
-  was Du gefilmt hast: Texte hören auf umzubrechen, und ein Fenster, das sich mittig
-  ausrichtet, verliert an **beiden** Seiten gleich viel.
+  **Damit ist meine Empfehlung zurückgezogen.** Querformat bleibt, es funktioniert.
+
+  **Was ich falsch gemacht habe:** ich habe die Ursache aus einem Video ERSCHLOSSEN statt
+  sie im Code zu MESSEN. In der Aufnahme drehte sich das Bild mit, und daraus wurde eine
+  Geschichte, die vollständig aussah. Die echte Ursache lag zwei Suchbefehle entfernt.
+
+  ── DIE ECHTE URSACHE, GEMESSEN ──────────────────────────────────────────
+
+  **Drei Zeilen im Routing-Fenster stellen zwei Zahlenfelder nebeneinander.** Und ein
+  Zahlenfeld hat eine **feste Breite** — 150 Punkt, die mit Deiner Schriftgröße mitwächst.
+  Fest heißt: es gibt nicht nach.
+
+  Zwei davon nebeneinander brauchen zusammen rund **410 Punkt**. Dein Telefon hat im
+  Hochformat etwa **369** dafür. Die Zeile ist also breiter als der Bildschirm — und eine
+  Liste, die nur nach oben und unten scrollt, **schneidet den Überstand nicht ab, sondern
+  zentriert ihn**. Deshalb fehlt links UND rechts etwas, und das ganze Fenster wirkt
+  verschoben. Genau das zeigt Dein Screenshot.
+
+  Betroffen waren: **Port + Universe** (bei jedem Netzwerk-Ausgang) · **Master + Blackout** ·
+  **Fixtures + Spacing**.
 
   ── WAS ICH GEBAUT HABE ──────────────────────────────────────────────────
 
-  **Eine Lesbarkeits-Obergrenze für die Breite — an genau zwei Stellen.**
+  Die drei Zeilen entscheiden jetzt **selbst**, ob sie nebeneinander passen. Wenn ja:
+  nebeneinander wie bisher. Wenn nein: untereinander. Kein fester Schwellwert, keine
+  Geräte-Abfrage — SwiftUI misst und wählt, pro Gerät und pro Schriftgröße.
 
-  Die Bedienspalte darf ab jetzt höchstens 560 Punkt breit werden. Ist die Fläche größer,
-  bleibt die Spalte 560 breit und wird **mittig** gesetzt, mit Rand links und rechts —
-  statt sich zu strecken, bis nichts mehr umbricht.
+  · Auf breiten Flächen (quer, iPad später) ändert sich **nichts**.
+  · Im Hochformat rutschen genau diese drei Zeilen auf zwei Zeilen — und das Fenster passt.
 
-  · Das Hauptfenster (Kopfleiste + Instrument).
-  · **Alle sieben Schubladen**, die Du öffnen kannst: Routing · FX · Öffnen · Diagnose ·
-    Learn · Live-Colabo · Audio-Eingang (der letzte hat seit 449 keine Tür mehr, bekommt
-    die Grenze aber mit, falls Du ihn zurückholst).
-  · **Ausgenommen: das schwebende Visual.** Das soll den ganzen Bildschirm füllen, das ist
-    sein Sinn. Ein Wächter verbietet es ab jetzt, die Grenze versehentlich auch darauf zu
-    legen.
+  **Ein Wächter durchsucht ab jetzt alle Quelldateien** nach demselben Muster: zwei
+  Zahlenfelder mit fester Breite in einer Zeile. Heute null Treffer. Der nächste würde rot
+  werden, bevor er bei Dir landet.
 
-  ⛔ **UND DIE ERSTE FASSUNG DIESER LISTE WAR FALSCH — ich schreibe das hin, weil Du genau
-  davor gewarnt hast.** Sie sagte „alle Schubladen auf einmal … deshalb zwei Stellen statt
-  zwanzig". Nachgezählt: die gemeinsame Schubladen-Hülle trägt **vier** von sieben. Öffnen,
-  Diagnose und Learn hingen nicht daran — Learn darf sogar gar nicht daran hängen, weil es
-  seine Höhe selbst regelt. Die drei haben die Grenze jetzt direkt bekommen, und der
-  Wächter ZÄHLT die Stellen jetzt, statt sich auf meinen Satz zu verlassen.
-
-  ⛔ **UND ICH HABE DAZU EINEN ZWEITEN SATZ GESCHRIEBEN, DER AUCH FALSCH WAR.** In der
-  451er-Fassung stand „gefunden, bevor der Build bei Dir war". **Stimmt nicht:** 450 ist
-  um 11:08 fertig gebaut und liegt mit der falschen Liste in TestFlight. Ich hatte den
-  Fehler gefunden, bevor ich *nachgesehen* hatte, ob 450 schon durch war — und daraus
-  „bevor er bei Dir war" gemacht. Das ist derselbe Fehler wie der erste, eine Ebene höher:
-  eine Behauptung über die Welt, die ich nicht geprüft, sondern erschlossen habe.
-
-  **Was das für Dich heißt:** in TestFlight liegen 449, 450 und dieser Build. **Die Notiz
-  von 450 ist an dieser einen Stelle falsch** — die Grenze wirkte dort auf vier von sieben
-  Schubladen, nicht auf allen. Ab diesem Build sind es sieben von sieben.
-
-  ⚠ **Auf Deinem Telefon im Hochformat ändert sich NICHTS.** Das breiteste iPhone ist heute
-  440 Punkt breit — die Grenze von 560 greift dort nie. Sie greift nur da, wo die Fläche
-  wirklich zu breit zum Lesen ist: quer, und später auf iPad, Mac und Vision.
-
-  ── UND JETZT DIE HÄLFTE, DIE DIR GEHÖRT ─────────────────────────────────
-
-  **Die eigentliche Ursache kann ich nicht anfassen.** `Info.plist` ist eine der drei
-  Dateien, die nur Du änderst — so steht es in unseren Regeln, und daran halte ich mich.
-
-  Dort stehen heute drei erlaubte Lagen: Hochformat, Querformat links, Querformat rechts.
-  **Streicht man die zwei Querformat-Zeilen, dreht sich die App gar nicht mehr** — und das
-  Problem existiert nicht mehr, statt nur gut auszusehen.
-
-  **Meine Empfehlung: streichen.** Echoel ist ein Hochformat-Instrument; Querformat war nie
-  entworfen und niemand hat es je gebraucht. Sag ein Wort, dann bereite ich Dir die genaue
-  Zeile vor, die Du löschst.
-
-  Bis dahin ist die Obergrenze der Ersatz: quer sieht es dann aus wie hochkant mit Rand —
-  nicht schön, aber nicht kaputt. **Und die Obergrenze bleibt auch danach sinnvoll**, weil
-  iPad, Mac und Vision alle mit sehr breiten Flächen kommen.
+  ⚠ Die Breiten-Obergrenze aus 450/452 **bleibt drin**, aber sie war nie diese Reparatur:
+  im Hochformat greift sie gar nicht. Sie ist für iPad, Mac und Vision richtig — mehr nicht.
+  Ihre Begründung im Code habe ich richtiggestellt statt gelöscht.
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  Alles grün und bei Dir: **449 (2568)** — die Mikrofon-Türen. **450 (2569)** — die
-  Lesbarkeits-Obergrenze, mit der falschen Schubladen-Liste in der Notiz. Und die
-  Korrektur selbst hat den Compiler schon bestanden (Compile Check 2382); dieser Build
-  ist dieselbe Arbeit plus die zwei richtiggestellten Sätze.
+  In TestFlight liegen 449 (2568) · 450 (2569) · 451 (2570) · 452 (2571) — alle grün.
+  **Nimm diesen hier.** Compile Check kommt mit dem Push.
 
-  22 Wächter-Behauptungen habe ich von Hand gegen den Quelltext nachgerechnet, alle grün;
-  die vier bestehenden Adaptiv-Wächter ebenfalls noch einmal durchgezogen (0 Verstöße).
+  Acht neue Wächter-Behauptungen und die vierzehn aus 452 habe ich von Hand gegen den
+  Quelltext nachgerechnet, alle grün.
 
-  **Geräteverifiziert ist nichts.** Was nur Du entscheiden kannst: dreh das Telefon einmal
-  quer und sag mir, ob „mittig mit Rand" für Dich in Ordnung ist — oder ob wir das Drehen
-  einfach abschalten. Das ist eine Frage von zehn Sekunden und sie entscheidet, ob die
-  Obergrenze reicht.
+  ⚠ Und noch eine Selbstkritik: **vier Builds in vierzig Minuten waren zu viel**, zwei davon
+  nur Textkorrekturen an dieser Notiz. Ich sammle so etwas ab jetzt, statt jedes Mal zu
+  bauen.
 
-  Offen aus 449 und weiter gültig: Puls-Pille bei abgedeckter Linse · „Studio" im Vollbild
-  im Hochformat · der Blick bei großer Systemschrift.
+  **Geräteverifiziert ist nichts.** Was nur Du sehen kannst: Routing öffnen, im Hochformat.
+  Steht links und rechts wieder alles vollständig?
+
+  Offen und weiter gültig: Puls-Pille bei abgedeckter Linse · „Studio" im Vollbild im
+  Hochformat · der Blick bei großer Systemschrift.
 
   Falls Du mir ein Log schicken magst: Save/Export-Chip → „Diagnostics" → Teilen.

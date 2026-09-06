@@ -214,27 +214,35 @@ enum EchoelTheme {
     /// are 8 pt-spaced, so horizontal growth would overlap a neighbour.
     static let controlTapHeight: CGFloat = 44
 
-    /// ⭐ #1025 — THE WIDEST A COLUMN OF CONTROLS MAY BECOME, and the reason it exists is a
-    /// founder clip, not a preference: *"Die adaptive View muss her. Es muss vermieden
-    /// werden, dass wir plötzlich verzerrte und zu große Fenster haben."* (2026-09-06,
-    /// build 448/2567). `Resources/iOS/Info.plist` declares LandscapeLeft and
-    /// LandscapeRight on iPhone, so the device rotates and the instrument is asked to lay
-    /// itself out at ~852 pt. Nothing here is designed for that: rows stop wrapping,
-    /// paragraphs run off the edge, and the Routing sheet is cut on BOTH sides because it
-    /// centres inside a canvas wider than any label expects.
+    /// ⭐ #1025 — THE WIDEST A COLUMN OF CONTROLS MAY BECOME. It exists because a canvas can
+    /// be too wide to read: past a point a row of controls stops being a row and becomes a
+    /// label at one edge and a value at the other.
+    ///
+    /// ⛔ THE REASON FIRST WRITTEN HERE WAS WRONG, and it is corrected rather than deleted
+    /// because it is the kind of wrong that reads as thorough. It said the founder's clip
+    /// showed a ROTATION defect — that `Info.plist` declares LandscapeLeft/Right, so the
+    /// instrument is handed ~852 pt and nothing is drawn for it — and it recommended dropping
+    /// the two landscape entries. The founder then measured it on the device: *"Queer war doch
+    /// alles gut. Nur hochkant war nicht passend."* Landscape was fine; PORTRAIT was broken.
+    /// The real cause was three rows in `PatchbayView` that put two width-PINNED
+    /// `EchoelValueField`s on one line (#1026); a vertical ScrollView centres an over-wide
+    /// child instead of clipping it, which is why the whole sheet read as shifted. I had
+    /// inferred a cause from a screen recording whose frames rotate, instead of measuring the
+    /// rows two greps away. **The landscape recommendation is WITHDRAWN.**
+    ///
+    /// This ceiling STAYS, on its own merit and not as that repair: it is inert in iPhone
+    /// portrait and still right for the canvases the platform goal names.
     ///
     /// 560 is chosen so it can NEVER bind in iPhone portrait — the widest portrait canvas
     /// today is 440 pt (iPhone 16 Pro Max), and 560 leaves 120 pt of headroom for a future
     /// device before anything changes. On the founder's phone this constant does nothing
     /// at all; it engages only where the canvas is genuinely too wide to read.
     ///
-    /// ⚠️ THIS IS A READABILITY CEILING, NOT AN ORIENTATION LOCK. It makes landscape look
-    /// like centred portrait instead of stretched portrait. The one-key fix — dropping the
-    /// two landscape entries from `UISupportedInterfaceOrientations` — lives in a
-    /// founder-gated file (`.claude/rules/context.md` §3: report, do not edit) and is the
-    /// founder's call. This ceiling is the half a session may ship, and it stays useful
-    /// afterwards: the stated platform goal is the whole Apple ecosystem, so iPad, Mac and
-    /// Vision all arrive with canvases far wider than any control column should be.
+    /// ⚠️ THIS IS A READABILITY CEILING, NOT AN ORIENTATION LOCK, and after the correction
+    /// above that distinction is the whole point: landscape is WANTED and works. The ceiling
+    /// only says how wide a column of controls may get before it stops being readable — the
+    /// stated platform goal is the whole Apple ecosystem, so iPad, Mac and Vision all arrive
+    /// with canvases far wider than any control column should be.
     ///
     /// ⚠️ NOT FOR THE IMMERSIVE VISUAL. `FloatingVisualWindow` must keep the FULL screen —
     /// "true Vollbild" is stated as a rule in `WorkspaceView`, and capping it would shrink

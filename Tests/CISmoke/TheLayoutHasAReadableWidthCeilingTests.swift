@@ -7,11 +7,14 @@ import XCTest
 /// frames show it precisely — the Mix panel's closing paragraph stops wrapping and runs off
 /// the right edge, and the Routing sheet (`PatchbayView`) is cut on BOTH sides at once.
 ///
-/// THE CAUSE IS ONE LINE AND IT IS NOT IN THIS REPO'S REACH. `Resources/iOS/Info.plist`
-/// declares `UIInterfaceOrientationLandscapeLeft` and `…Right` for iPhone, so the device
-/// rotates and hands the instrument a ~852 pt canvas that nothing was drawn for. Removing
-/// those two entries is the real fix and it is FOUNDER-GATED (`.claude/rules/context.md` §3:
-/// report, do not edit). This guard covers the half a session may ship.
+/// ⛔ THE CAUSE NAMED HERE WAS WRONG AND IS WITHDRAWN (#1026). This file said the defect was
+/// the rotation — that `Info.plist` declares landscape for iPhone, that removing those two
+/// entries was "the real fix", and that this ceiling was a stand-in for it. The founder
+/// measured it on the device: *"Queer war doch alles gut. Nur hochkant war nicht passend."*
+/// Landscape was fine; PORTRAIT was broken, by three rows in `PatchbayView` that put two
+/// width-pinned `EchoelValueField`s on one line. `TwoControlsShareALineOnlyWhileTheyFitTests`
+/// owns that repair. The ceiling below stands on its own merit — a control column has a
+/// readable maximum on any wide canvas — and NOT as a compensation for an orientation.
 ///
 /// ⚠️ WHAT THIS DOES AND DOES NOT PROVE. It is a source scan: it proves the ceiling is
 /// declared once and applied at both sites, never that a rotated phone now looks right. That
@@ -182,21 +185,23 @@ final class TheLayoutHasAReadableWidthCeilingTests: XCTestCase {
             """)
     }
 
-    // MARK: - 4. COUNTERWEIGHT — the founder-gated half is named, not silently skipped
+    // MARK: - 4. COUNTERWEIGHT — landscape is supported ON PURPOSE
 
-    /// A session that reads only the code would conclude the ceiling IS the fix. It is not:
-    /// it makes landscape readable, it does not stop the rotation. The one-key repair lives
-    /// in a file this repo may not edit, so the only place it can be recorded is prose — and
-    /// prose with no guard is how a founder-gated item is quietly forgotten.
-    func testThePlistStillDeclaresTheLandscapeThisCeilingCompensatesFor() throws {
+    /// ⛔ THIS CLAIM IS INVERTED IN MEANING FROM ITS FIRST VERSION (#1026). It used to assert
+    /// that landscape was still declared and called its removal "good news" — a stand-in for a
+    /// founder-gated fix I had recommended. The founder tried it and said landscape was fine;
+    /// portrait was the broken one. So the same assertion stays, for the OPPOSITE reason: the
+    /// three orientations are a supported, working configuration, and dropping one silently
+    /// would take away something a user has.
+    func testTheThreeOrientationsStayDeclared() throws {
         let plist = try text("Resources/iOS/Info.plist")
-        let landscape = occurrences(of: "UIInterfaceOrientationLandscape", in: plist)
-        XCTAssertGreaterThan(landscape, 0, """
-            `Info.plist` no longer declares any landscape orientation. THAT IS GOOD NEWS, not \
-            a defect — it means the founder took the one-key fix this ceiling was standing in \
-            for. Retire this claim and say so in `EchoelTheme.readableContentWidth`'s comment \
-            and in `.deploy/release`, in the same commit (#456). Keep the ceiling itself: \
-            iPad, Mac and Vision still arrive with canvases wider than a control column.
+        XCTAssertGreaterThan(occurrences(of: "UIInterfaceOrientationLandscape", in: plist), 0, """
+            `Info.plist` no longer declares landscape for iPhone. It is FOUNDER-GATED (report, \
+            do not edit), so this should only ever change on his word — and his word so far is \
+            the opposite: he rotated build 452 and reported landscape looked right. If he has \
+            since asked for portrait-only, retire this claim and correct \
+            `EchoelTheme.readableContentWidth`'s comment and `TwoControlsShareALineOnlyWhileTheyFitTests` \
+            in the same commit (#456).
             """)
     }
 

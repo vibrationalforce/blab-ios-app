@@ -24053,3 +24053,45 @@ in TestFlight liegt: 449 (2568) · 450 (2569, Notiz an einer Stelle falsch) · d
 
 **Gates:** Compile Check **2382 grün** auf `c377cd8a` (#1025b). 2381 wurde vom Nachfolge-Push
 abgebrochen — normal, kein Befund.
+
+## 2026-09-06 — #1026 Die echte Ursache: drei Zeilen mit zwei fest breiten Feldern
+
+**Der Founder hat meine Diagnose am Gerät widerlegt:** *„Queer war doch alles gut. Nur
+hochkant war nicht passend."* Querformat funktioniert; **HOCHKANT** war kaputt. Die
+#1025-Empfehlung (Landscape aus `Info.plist` streichen) ist damit **zurückgezogen**.
+
+⭐ **Der Fehler in meinem Vorgehen, und er ist die eigentliche Lehre:** ich habe die Ursache
+aus einem SCREEN-RECORDING erschlossen statt sie im Code zu messen. Die Aufnahme behält beim
+Drehen ihre Startorientierung, also sahen die Frames nach einem Rotations-Defekt aus — eine
+Geschichte, die vollständig wirkte, weil alle vier Beobachtungen zu ihr passten. Die echte
+Ursache lag zwei `grep`s entfernt und stand seit #353e **im Quelltext dokumentiert**.
+
+**Gemessene Ursache:** `EchoelValueField` rendert `HStack { Text(label); Spacer(min 8);
+valueBox }` und pinnt die Box auf `valueWidth` (150 pt, `@ScaledMetric`). Der eigene
+Dateikopf sagt es wörtlich: *„A `.frame(width:)` is a pin and does not compress."* Zwei
+beschriftete Felder nebeneinander verlangen also ~410 pt gegen ~369 pt verfügbare Breite —
+und ein vertikaler `ScrollView` **schneidet ein zu breites Kind nicht ab, er ZENTRIERT es**.
+Deshalb fehlte links UND rechts etwas und die ganze Fläche wirkte verschoben.
+
+**Betroffen, per Sweep über `Sources/` gefunden — genau DREI Zeilen, alle in `PatchbayView`:**
+Port+Universe (jeder Netzwerk-Ausgang) · Master+Blackout · Fixtures+Spacing.
+
+**Reparatur:** ein lokaler `pairedRow`-Helfer mit `ViewThatFits(in: .horizontal)` — Zeile,
+wenn sie passt, Spalte, wenn nicht. Kein Schwellwert, kein `GeometryReader`, kein
+Geräte-Check; pro Gerät und pro Dynamic-Type-Stufe. Auf breiten Flächen ändert sich nichts.
+
+**Wächter:** `Tests/CISmoke/TwoControlsShareALineOnlyWhileTheyFitTests.swift`, vier Ansprüche.
+Anspruch 3 ist der wertvolle: er sweept **alle** Quelldateien nach demselben Muster (heute 0)
+— aus „ich habe die drei repariert, die ich gesehen habe" wird „es gibt keine mehr".
+Anspruch 4 ist das Gegengewicht: er pinnt die PRÄMISSE (die Box ist gepinnt und skaliert),
+weil sowohl dieser Wächter als auch `pairedRow`s Doc-Kommentar daraus argumentieren.
+
+**Drei Prosa-Heimaten der falschen Diagnose korrigiert, nicht gelöscht:**
+`EchoelTheme.readableContentWidth` (Begründung), `TheLayoutHasAReadableWidthCeilingTests`
+(Kopf + Anspruch 4, der jetzt die UMGEKEHRTE Bedeutung trägt: die drei Orientierungen sind
+eine funktionierende Konfiguration und dürfen nicht still verschwinden), und die Build-Notiz.
+Die Breiten-Obergrenze aus #1025 **bleibt** — im Hochformat inert, für iPad/Mac/Vision
+richtig, aber sie war nie diese Reparatur.
+
+**Geshipped:** v10.79.453. 8 neue + 14 bestehende Behauptungen in Python transkribiert, alle
+grün. Selbstkritik in der Notiz: vier Builds in 40 Minuten waren zu viel.
