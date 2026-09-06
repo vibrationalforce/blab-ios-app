@@ -281,20 +281,43 @@ final class ChromeBudgetFitsTests: XCTestCase {
                                 showsTransport: showsTransport,
                                 wavBusy: wavBusy, videoBusy: videoBusy)
                             let survivors = offered.map { $0.keep(fit) }
-                            // Prefix-ness in one line: once an item is gone, nothing cheaper
-                            // to lose may still be present.
-                            guard let firstGone = survivors.firstIndex(of: false) else { continue }
-                            let keptAfter = offered.indices
-                                .filter { $0 > firstGone && survivors[$0] }
+                            // ⛔ #1033 — THIS CHECK WAS INVERTED, AND IT HAD BEEN RED SINCE IT
+                            // WAS WRITTEN. It read: "once an item is gone, nothing cheaper to
+                            // lose may still be present", and implemented that as "nothing
+                            // AFTER the first false may be true". With a cheapest-first ranking
+                            // and a ladder that drops in order and stops the moment the bar
+                            // fits, the survivors are always a SUFFIX of trues — the cheap ones
+                            // go, the expensive ones stay. So everything after the first false
+                            // that is still true is the ladder working CORRECTLY, and the old
+                            // assertion could only pass when nothing shed or everything did.
+                            //
+                            // Measured on run 34051139175 (`b89998e0`, before any change to the
+                            // ranking): this case FAILED, on a correct tree, in the BLOCKING
+                            // bundle. Nothing said so — CI/CD reports `failure` on every push
+                            // (#396), so a genuinely red guard is indistinguishable from the
+                            // host dying. Fifth recorded instance of that pattern; #1028 was
+                            // the fourth, four days ago.
+                            //
+                            // The invariant the ladder actually guarantees, and the one worth
+                            // guarding: no item may be KEPT while something MORE expensive to
+                            // lose is already gone. Equivalently the survivor pattern must be
+                            // false…false,true…true — never a true before a false. That still
+                            // catches the thing the prose asks to be protected from (an
+                            // accidental reorder of the shed array, which produces exactly such
+                            // a true-before-false), and it is now satisfied by the shipped
+                            // ranking across all 16 state combinations × 20…1200 pt.
+                            guard let firstKept = survivors.firstIndex(of: true) else { continue }
+                            let goneAfter = offered.indices
+                                .filter { $0 > firstKept && !survivors[$0] }
                                 .map { offered[$0].name }
-                            XCTAssertTrue(keptAfter.isEmpty, """
+                            XCTAssertTrue(goneAfter.isEmpty, """
                                 At \(Int(w))pt (fullscreen=\(isFullscreen), \
                                 transport=\(showsTransport), wavBusy=\(wavBusy), \
-                                videoBusy=\(videoBusy)) the budget dropped \
-                                "\(offered[firstGone].name)" while still keeping \
-                                \(keptAfter.joined(separator: ", ")) — items the documented \
-                                ranking says are cheaper to lose. Either the shed array in \
-                                `chromeFit` was reordered without its prose, or a new item \
+                                videoBusy=\(videoBusy)) the budget KEPT \
+                                "\(offered[firstKept].name)" while having already dropped \
+                                \(goneAfter.joined(separator: ", ")) — items the documented \
+                                ranking says are MORE expensive to lose. Either the shed array \
+                                in `chromeFit` was reordered without its prose, or a new item \
                                 was inserted at the wrong rank. Fix the ranking or the prose, \
                                 in the same commit.
                                 """)
