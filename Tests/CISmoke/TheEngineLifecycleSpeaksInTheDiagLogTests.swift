@@ -1113,17 +1113,36 @@ final class TheEngineLifecycleSpeaksInTheDiagLogTests: XCTestCase {
         // `pinned 17, actual 20` before the commit existed. All three are discrete failure
         // events on a path the numbered rungs already narrate; none is per-buffer or tick-rate.
         //
+        // ⛔ #1028 — AND THIS PIN WAS RED ON A CORRECT TREE, found by `count-pins.py` and by
+        // nothing else. It read 20 while the file held 22, and both extra sites were added by
+        // commits that judged them correctly and simply did not move the number. Neither gate
+        // could say so: CI/CD reports `failure` on every push (#396), so a genuinely red guard
+        // in the blocking bundle is indistinguishable from the host dying — the §4/§5 pattern,
+        // now recorded a fourth time. The two sites, each already carrying its own reasoning
+        // at the call site, and each checked against the rule this message states:
+        //   · the `.playback` OPTION-SET refusal inside `configure` (#954/#961) — a `catch`
+        //     that fires at most once per configure, deliberately UNNUMBERED so `diag-ladder`
+        //     reads it as detail rather than a fifth rung of a four-rung ladder.
+        //   · `applyStoredLatencyMode`'s refusal of the STORED buffer tier — one shot at
+        //     launch, breadcrumb before `os_log` (#859), because a refusal that reaches only
+        //     `os_log` is invisible in the file the founder shares.
+        // Both are discrete failure events on a path the numbered rungs already narrate.
+        // Neither is per-buffer or tick-rate, so both belong; the count follows them.
+        //
         // TODAY'S ARITHMETIC: seven transition rungs + THREE `SKIPPED` state lines +
         // `latencyBreadcrumb` + one `route: claim` + THREE `route: release` outcomes +
         // the granted-rate line + the refused-re-ask outcome + THREE lifecycle-`catch`
-        // outcomes (lower re-assert, interruption reactivate, media reset) = 20.
-        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 20, """
+        // outcomes (lower re-assert, interruption reactivate, media reset) + the
+        // option-set-refusal fallback + the stored-tier refusal = 22.
+        XCTAssertEqual(occurrences(of: "EchoelCrashLog.breadcrumb(", in: config), 22, """
             The breadcrumb count in AudioConfiguration changed. Confirm the new site is a \
             discrete event (launch, route transition, a lifecycle failure), never a per-buffer \
             or tick-rate path, then update this number and say why in the same commit. Today: \
             seven transition rungs + three SKIPPED state lines + latencyBreadcrumb + one route \
             claim + three route-release outcomes + the granted-rate read-back + its \
-            refused-re-ask outcome + three lifecycle-catch outcomes.
+            refused-re-ask outcome + three lifecycle-catch outcomes + the option-set-refusal \
+            fallback + the stored-buffer-tier refusal. RUN `python3 scripts/count-pins.py` \
+            BEFORE PUSHING — this pin was red for a stretch of commits and no gate said so.
             """)
     }
 

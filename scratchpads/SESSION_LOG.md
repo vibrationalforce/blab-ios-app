@@ -24141,3 +24141,34 @@ eine Leerzeile den Block wieder von der Deklaration. Beides vor dem Commit repar
 2. `TheEngineLifecycleSpeaksInTheDiagLogTests:1120` (`EchoelCrashLog.breadcrumb(` 20 vs 22)
    ist **echt rot**, unter jedem Stripper, identisch bei HEAD. Zwei Breadcrumbs kamen nach
    #968 dazu, ohne den Pin zu bewegen. Unsichtbar aus dem §5-Grund. → nächste Scheibe.
+
+## 2026-09-06 — #1028 · Roter Wächter auf korrektem Baum: breadcrumb-Pin 20 → 22
+
+`count-pins.py` fand ihn, sonst nichts. `TheEngineLifecycleSpeaksInTheDiagLogTests:1120`
+pinnte 20 `EchoelCrashLog.breadcrumb(` in `AudioConfiguration.swift`; tatsächlich sind es 22,
+unter jedem Stripper, identisch bei HEAD — also nicht aus #1026/#1027. Unsichtbar aus dem
+§5-Grund: CI/CD meldet bei jedem Push `failure`, ein echt roter Wächter im blockierenden
+Bundle ist von einem sterbenden Host nicht zu unterscheiden. Vierte Aufzeichnung dieses
+Musters (§4: #650/#655/#656, #937, #903/#904, jetzt hier).
+
+**Die zwei fehlenden Sprossen, beide korrekt gebaut, nur nie mitgezählt:**
+1. `configure`s `.playback`-Options-Ablehnung (#954/#961) — ein `catch`, höchstens einmal pro
+   Configure, ABSICHTLICH unnummeriert, damit `diag-ladder.py` es als Detail und nicht als
+   fünfte Sprosse einer Vier-Sprossen-Leiter liest.
+2. `applyStoredLatencyMode`s Ablehnung des GESPEICHERTEN Puffer-Tiers — einmal beim Start,
+   Breadcrumb vor `os_log` (#859).
+
+Beides diskrete Fehlerereignisse auf einem Pfad, den die nummerierten Sprossen ohnehin
+erzählen; keins per-buffer oder tick-rate. Also gehören beide dazu, und die Zahl folgt ihnen.
+Die Fehlermeldung des Pins verlangt jetzt ausdrücklich `count-pins.py` VOR dem Push.
+
+**⚠ Der zweite RED desselben Laufs bleibt und ist ein FEHLALARM DES WERKZEUGS**, nicht des
+Wächters: `AStillIsOneFrameNotASecondPathTests:105` pinnt 14 `.sheet(`, das Werkzeug misst 9.
+Dieser Wächter lädt über ein eigenes `source(_ relative: String) -> String`, das Kommentare
+NICHT entfernt — roh sind es 14, der Pin stimmt. `count-pins.py` kennt seit #977 die
+Stripper-Wahl eines HELFERS, erkennt aber nur null-argumentige `-> [String]`-Helfer; ein
+Lader mit Pfad-Argument fällt auf die dateiweite Heuristik zurück. Genau der Fall, den seine
+eigene LIMIT-4-Notiz vorhersagt („if one of its pins ever resolves") — jetzt ist er
+eingetreten. **Eigene Scheibe**, weil ein dauerhaft falsches ROT der Mechanismus ist, der die
+nächste Sitzung das Werkzeug ignorieren lässt — also genau der Weg, auf dem der
+breadcrumb-Pin verrottet ist.
