@@ -1314,4 +1314,87 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
                 """)
         }
     }
+
+    // MARK: - The privacy page may not deny a permission the app asks for
+
+    /// ⭐ #1037 — THE PAGE DENIED LOCATION WHILE THE APP ASKED FOR IT. Measured 2026-09-06:
+    /// `docs/privacy.html` mentioned location EXACTLY ONCE, as a bullet under "Data We Do NOT
+    /// Collect" reading "Location data: GPS coordinates, Wi-Fi networks, or IP addresses" —
+    /// and no other paragraph on the page said anything else about it. Meanwhile
+    /// `Resources/iOS/Info.plist` declares `NSLocationWhenInUseUsageDescription`, `LocationNamer`
+    /// is constructed at app start and injected into `EchoelStudioView`, and the app renders a
+    /// switch labelled "Place in session name" whose `didSet` requests permission and takes a
+    /// coarse fix. A reader of the policy concluded the app never touches location; iOS then
+    /// showed them a permission prompt.
+    ///
+    /// ⚠️ THE UNDERLYING BEHAVIOUR WAS NEVER THE PROBLEM, and that is what makes this a copy
+    /// defect rather than a privacy one. `LocationNamer`'s own header is scrupulous — opt-in,
+    /// while-in-use, city-level accuracy, ONE fix per activation, a TRANSIENT token
+    /// (`SessionContext` never persists it). `WeatherProvider` takes no fix of its own; it
+    /// reuses `LocationNamer.lastFix`, so a single setting gates both features. The code was
+    /// honest and the published page was not.
+    ///
+    /// ⚠️ WHY A FLAT DENIAL IS WORSE THAN SILENCE HERE. An App Store privacy nutrition label
+    /// and a 5.1.x review are read against the published policy; a policy that contradicts the
+    /// binary's own purpose string is the expensive kind of wrong. The repair is not to delete
+    /// the bullet — a reader deserves to know there is no background tracking — but to make
+    /// the denial say what is actually never done and point at the paragraph that describes
+    /// what is.
+    ///
+    /// ⛔ THIS CLAIM FORBIDS NOTHING (#364). If the founder removes the place/weather feature,
+    /// the premise measurement below turns the claim off by itself — the same self-lifting
+    /// shape as the voice-capture claim above. What it will not allow is the feature shipping
+    /// while the page denies it.
+    func testThePrivacyPageDoesNotDenyTheLocationTheAppRequests() throws {
+        let root = try repoRoot()
+
+        // PREMISE, measured from the tree rather than assumed: does the app actually ask?
+        let plist = (try? String(contentsOf: root.appendingPathComponent("Resources/iOS/Info.plist"),
+                                 encoding: .utf8)) ?? ""
+        let asksForLocation = plist.contains("NSLocationWhenInUseUsageDescription")
+            || plist.contains("NSLocationAlwaysAndWhenInUseUsageDescription")
+
+        let sources = root.appendingPathComponent("Sources")
+        var constructed = 0
+        if let walk = FileManager.default.enumerator(atPath: sources.path) {
+            for case let rel as String in walk where rel.hasSuffix(".swift") {
+                guard let text = try? String(contentsOf: sources.appendingPathComponent(rel),
+                                             encoding: .utf8) else { continue }
+                constructed += SourceText.codeOnly(text)
+                    .components(separatedBy: "LocationNamer(").count - 1
+            }
+        }
+
+        guard asksForLocation, constructed > 0 else {
+            // The feature is gone, or the purpose string was removed. Say so out loud: a
+            // silent skip is how a lifted premise becomes an unnoticed hole (#454).
+            print("#1037: premise off — Info.plist asks: \(asksForLocation), "
+                  + "LocationNamer constructed \(constructed)×. Claim not applicable.")
+            return
+        }
+
+        let privacy = try String(
+            contentsOf: root.appendingPathComponent("docs/privacy.html"), encoding: .utf8)
+        let flat = privacy.lowercased()
+
+        // (a) the page must describe the opt-in, in its own words.
+        let describes = ["place in session name", "city-level", "coarse"]
+        let present = describes.filter { flat.contains($0) }
+        XCTAssertEqual(present.count, describes.count, """
+            `docs/privacy.html` does not describe the optional location fix. Missing phrase(s):             \(describes.filter { !flat.contains($0) }.joined(separator: ", ")).
+
+            The app declares NSLocationWhenInUseUsageDescription and constructs `LocationNamer`             \(constructed)× in `Sources/**`, so a player WILL see a permission prompt. The page             has to say what that prompt is for: one coarse, city-level fix behind the "Place in             session name" setting, a transient city word in a filename, nothing stored on its             own, and Apple's geocoder/WeatherKit as the only recipients.
+            """)
+
+        // (b) and it may not carry a flat denial. The bullet listing what is NOT collected is
+        // allowed — required, even — but it must name the thing that genuinely never happens.
+        let flatDenials = ["<strong>location data:</strong>", "we do not collect location",
+                           "no location data is collected"]
+        let offenders = flatDenials.filter { flat.contains($0) }
+        XCTAssertTrue(offenders.isEmpty, """
+            `docs/privacy.html` denies location outright: \(offenders.joined(separator: " · ")).
+
+            That contradicts the binary's own purpose string. Deny the thing that is actually             never done — background tracking, a movement history, stored coordinates, a Wi-Fi             network list, IP logging — and link it to the paragraph that describes the one             optional city-level fix. Deleting the bullet entirely is also worse: a reader             deserves to know there is no continuous tracking.
+            """)
+    }
 }
