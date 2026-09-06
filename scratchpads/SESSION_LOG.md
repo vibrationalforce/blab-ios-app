@@ -23883,3 +23883,68 @@ Gegengewicht gegen #808) mit `ADAPTIVE-EXEMPT: <Grund>`-Ausstieg pro Zeile (#364
 **Clip `bc637da0` beantwortet:** Instagram-Karussell (`buildwithneej`) über fünf GitHub-Repos für
 KI-Agenten-Werkzeuge. Nichts fürs Produkt; das einzige mit Klangbezug (VoiceStudio, lokales
 Stimmen-Klonen) fällt unter die geschlossene Voice-Clone-Frage vom 2026-08-25.
+
+## 2026-09-06 — #1024 Die drei Mikrofon-Türen sind entfernt (Founder-Befehl, zweimal)
+
+**Auslöser.** Founder zu Build 448/2567, mit Screenshot (roter Kreis um „Voice · your
+microphone"): *„Microphone funktioniert nach mehreren Anläufen immer noch nicht. Das
+erinnert mich an DMMW Problematik, erst wird munter drauf los programmiert und dann
+verhäddert es sich. Sowas wollen wir vermeiden."* Vorher schon: *„das mit dem Audio Input
+Monitoren klappt immer noch nicht also fliegt das raus"*. Die Bedingung, die ich in der
+448er-Notiz selbst gestellt hatte („hörst Du Dich immer noch nicht? Dann fliegt es raus"),
+ist damit erfüllt.
+
+**Der zweite Satz ist die eigentliche Anweisung.** Er handelt nicht vom Mikrofon, sondern
+von der Arbeitsweise. Deshalb: **TÜREN ENTFERNT, MASCHINE STEHEN GELASSEN.**
+
+**Entfernt (drei Aufrufstellen):** `micMixStrip` (206 Zeilen, mit 21-Zeilen-Nachruf) und
+sein Aufruf in `mixerPanel` · `masterDoorButton("Audio input", …)` · `PlugInInviteRow(…)`
+samt `@State plugInWatcher` und `plugInWatcher.start()`. Dazu die tot gewordene
+`@State micMonitorRefused` (Nachruf trägt das #485-Anti-Lügen-Gesetz).
+**Gemessen:** `showInput = true` → 0 · `.sheet(isPresented: $showInput)` → 1 (setzerloser
+Kopfraum). Kein Verweis auf ein entferntes Symbol bleibt im Code.
+
+**Nicht angefasst:** `AudioInputPickerView`, `AudioEngine`s ganzer Monitorpfad,
+FeedbackGuard, `MonitorInsertAU`, Autotune, Harmonizer, Granular, `RoutePlugInWatcher`.
+`isInputMonitoring` wird nicht persistiert — vor dem Schnitt geprüft.
+
+**Wächter-Kollateral, im SELBEN Commit (#456).** Sieben Dateien lasen `EchoelStudioView`
+auf entfernte Nadeln:
+· **`TheVoiceIsOnTheBoardTests` — RETIRED.** Sechs von sieben Methoden pinnten den Streifen.
+  Seine drei VORWÄRTS-Gesetze (Permission-vor-Engage · kein 15-Hz-`feedbackGuardActive`-Read
+  im Strip-Builder · kein blankes `.sheet` an der Kette) sind wörtlich in den
+  Quelltext-Nachruf kopiert, wo ein Wieder-Betürer tatsächlich steht. Die siebte Methode
+  lebt als Anspruch 3 von `TheMicrophoneHasNoDoorTests` weiter.
+· **Sechs repariert:** `ThePlugInInvitesButNeverArmsTests` (Mount-Anspruch invertiert +
+  neues Gegengewicht, dass Row und Watcher als Dateien überleben) ·
+  `TheRefusalLineHasASettingsDoorTests` (Anspruch 1 invertiert, 3 und 5 verlieren die
+  Studio-Hälfte, 4s Verbraucherzahl 3→2) · `TheMonitorSaysWhyItIsSilentTests` (gleiche Form)
+  · `TapTargetFloorTests` (Studio-Site aus dem Zwei-Site-Sweep) ·
+  `TheMonitorToggleAsksForTheMicTests` (Mix-Board-Anspruch invertiert).
+  **Jede gestrichene Nadel ist am Ort ZITIERT**, damit ein Wieder-Betüren sie wörtlich
+  wiederherstellt statt sie neu herzuleiten.
+
+⛔ **EINE ZÄHLUNG WAR FALSCH, BEVOR SIE COMMITTED WURDE.** Der Kopf von
+`TheMicrophoneHasNoDoorTests` sagte zuerst „VIER weitere Wächter" — mein Sweep-Nadelsatz
+enthielt die Schweigen-Zeile nicht, also fehlte `TheMonitorSaysWhyItIsSilentTests`. Die
+#766/#768-Form: „alle" heißt nur „alle, die meine Nadel traf". Korrigiert und im Kopf
+festgehalten, nicht still.
+
+**Nutzersichtbare Behauptungen mitgezogen.** „Tune to key" ist aus BEIDEN
+`fastlane/metadata/*/release_notes.txt` gestrichen und in `ContentPipeline/CLAIMS.md` an
+ZWEI Stellen (Tabellenzeile 68 + §11) als unbehauptbar markiert: der Code lebt, die Tür
+nicht — eine Werbe-Behauptung darüber ist die 2.3-Klasse. „Follow the key" (Musik-Pfad,
+FX-Panel) bleibt wahr und erlaubt.
+
+**CLAUDE.md.** Vier Prosa-Heimaten korrigiert (Vokal-Kette · Erreichbarkeits-Register ·
+NOW-WIRED-Liste). Die 150.000-B-Decke zwang zur bewussten Abwägung: **drei
+Provenienz-Blöcke sind nach `memory/LEDGER_COUNTS.md` §D/§G/§N gezogen** („3 … statt einen
+17." · die #713/#714-„Start"-Rücknahme · die #747-Tür-Herleitung), Endstand **149 062 B,
+938 B Luft**.
+
+**Transkribiert, nicht geraten.** 35 Behauptungen über sechs Wächterdateien plus der
+Deploy-Notiz-Wächter in Python gegen den bearbeiteten Baum — alle grün. Kein Compiler in
+dieser Sitzung; Compile-Verifikation kommt mit dem Push.
+
+**Geshipped:** v10.79.449 mit einer Notiz, die ehrlich sagt, was entfernt wurde, warum die
+Maschine steht, und dass Zurückholen drei Zeilen ist.

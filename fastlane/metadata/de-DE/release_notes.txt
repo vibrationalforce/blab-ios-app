@@ -11,7 +11,6 @@ Komposition
 Stimme
 - Deine Stimme wird die Klangfarbe des Instruments: einen Ton halten („Voice timbre" → Capture) — gemessen als Spektral-Hüllkurve, nie aufgenommen oder gespeichert
 - Die gemessene Farbe lässt sich im Patch sichern, immer mit Namens-Label
-- „Tune to key": zieht Dein Mikrofon-Monitoring optional in die Session-Tonart — nur das, was Du im Kopfhörer hörst, nie die Musik
 
 Klang
 - Algorithmischer Reverb mit Raum- und Hallen-Presets für echte Tiefe pro Genre

@@ -1,6 +1,15 @@
 // TheMonitorToggleAsksForTheMicTests.swift
 // Echoel — #601. Founder: "Audio in funktioniert bisher nicht das sollte vermieden werden."
 //
+// ⛔ #1024 (2026-09-06) — ONE OF THE TWO DOORS THIS FILE DESCRIBES NO LONGER EXISTS. The
+// founder removed the three microphone doors ("das mit dem Audio Input Monitoren klappt
+// immer noch nicht also fliegt das raus", said twice). `micMixStrip` is deleted; claim 2 is
+// INVERTED below and quotes its three original needles. Everything the file says about
+// `AudioEngine.engageInputMonitoring` (claims 1 and 4) and about `AudioInputPickerView`
+// (claim 3) is unchanged and still guards the surviving door. Read the paragraph below as
+// history — it is why the front door exists, and it stays because the #601 lesson is the
+// first thing a re-door needs.
+//
 // WHAT THIS GUARDS. Before #601, BOTH doors to live input monitoring — the Mix board's
 // "Monitor" toggle (`micMixStrip`) and the Audio-input sheet's "Live monitoring" toggle
 // (`AudioInputPickerView`) — called `AudioEngine.setInputMonitoring(true)` directly. That
@@ -90,25 +99,28 @@ final class TheMonitorToggleAsksForTheMicTests: XCTestCase {
             """)
     }
 
-    // MARK: - claim 2 — the Mix-board toggle goes through it
+    // MARK: - claim 2 — the Mix-board toggle is GONE (#1024, inverted)
 
-    func testTheMicStripToggleGoesThroughTheFrontDoor() throws {
+    /// ⛔ INVERTED BY #1024 (2026-09-06, founder order, stated twice — the second time over a
+    /// screenshot of build 448/2567 circling this very card). This asserted that
+    /// `EchoelStudioView` called `engageInputMonitoring()` exactly once, that the call was
+    /// `await audioEngine.engageInputMonitoring()`, and that its verdict was recorded as
+    /// `micMonitorRefused = !engaged`. All three needles are quoted here so a re-door can
+    /// restore this method verbatim rather than re-deriving it. Left as it stood it would be
+    /// RED on a CORRECT tree — the tangle the founder's second sentence named.
+    ///
+    /// ⭐ NOTHING ABOUT THE FRONT DOOR'S LAW IS RETRACTED. Claim 1 still pins
+    /// `engageInputMonitoring`'s three permission arms in `AudioEngine`, and claim 3 still
+    /// pins that the SURVIVING door — the input sheet — goes through it. Only the Mix-board
+    /// caller is gone.
+    func testTheMicStripToggleIsGoneWithTheMicDoors() throws {
         let code = try source(Self.studio)
-        XCTAssertEqual(occurrences(of: "engageInputMonitoring()", in: code), 1, """
-            `EchoelStudioView` no longer calls `engageInputMonitoring()` exactly once (the \
-            Monitor toggle's ON path). Zero means the Mix-board door regressed to the silent \
-            dead end; two means a second caller appeared — decide whether it belongs and \
-            update this count with its reason in the same commit (#408).
-            """)
-        XCTAssertTrue(code.contains("await audioEngine.engageInputMonitoring()"), """
-            The Mix-board call is no longer awaited on the engine. The refusal flag must be \
-            written from the REAL answer (after the dialog), not from a guess before it.
-            """)
-        XCTAssertTrue(code.contains("micMonitorRefused = !engaged"), """
-            The Monitor toggle no longer records the front door's verdict in \
-            `micMonitorRefused`. Without that write the toggle can lie (#485): \
-            `isInputMonitoring` is `private(set)` and stays false on refusal, so nothing else \
-            invalidates the body and the switch keeps showing ON.
+        XCTAssertEqual(occurrences(of: "engageInputMonitoring()", in: code), 0, """
+            `EchoelStudioView` calls `engageInputMonitoring()` again. THIS IS NOT \
+            AUTOMATICALLY A BUG — the founder may have asked for the microphone doors back \
+            (#1024). But it is HIS decision, and re-dooring means restoring this method to \
+            its pre-#1024 form (all three needles are in the comment above) and pulling the \
+            prose homes listed in `TheMicrophoneHasNoDoorTests` along in the SAME commit.
             """)
     }
 

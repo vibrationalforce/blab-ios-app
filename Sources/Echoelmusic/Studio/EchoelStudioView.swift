@@ -269,12 +269,10 @@ struct EchoelStudioView: View {
     /// only passes the reference (no observable property is read at panel level).
     @State private var voiceCapture = VoiceCaptureController()
 
-    // #596 — the app-wide plug-in watcher (USB mic / interface / wired headset →
-    // invitation, never auto-arm). View-owned like `voiceCapture`; only the
-    // `PlugInInviteRow` leaf reads it (freeze law), this body passes the reference.
-    #if os(iOS) && canImport(AVFoundation)
-    @State private var plugInWatcher = RoutePlugInWatcher()
-    #endif
+    // ⛔ #1024 — the `RoutePlugInWatcher` state and its `.start()` stood here and went with
+    // the microphone doors. `PlugInInviteRow` and `RoutePlugInWatcher` still exist as files
+    // and still compile; they simply have no caller, and a watcher observing route changes
+    // for a door that no longer exists is the kind of leftover this removal is about.
 
     // Collapsible control-panel state ("aufklappen"). Feinschliff 3/4 (founder: "eine
     // adaptive Ansicht ohne weitere Untermenüs … nur das Wesentliche sichtbar"): the view
@@ -664,18 +662,15 @@ struct EchoelStudioView: View {
     // or cleared: a stale bool costs nothing, a delete-on-launch is a destructive write
     // for no gain.
     @State private var showInput = false
-    /// #485, since #601 written from `engageInputMonitoring()`'s answer. Set when the
-    /// monitor enable REFUSED (mic permission denied — at the dialog or previously in
-    /// Settings — or the route publishes no valid input format). Not decoration, not only a
-    /// message: `isInputMonitoring` is `private(set)` and stays false on refusal, so with
-    /// nothing else mutating observable state the Mix board's `Toggle` would keep SHOWING
-    /// "on" — a lying control (#135/#164/#227) on the one row where "it says it is
-    /// listening" is the worst thing in the app to be wrong about. Writing this `@State`
-    /// invalidates the body, the binding re-reads the engine, and the toggle falls back.
-    /// (`AudioInputPickerView`'s toggle gets the same invalidation for free from the
-    /// `inputs.refresh()` it calls for a different reason — worth knowing before anyone
-    /// "simplifies" this away by copying that call site.)
-    @State private var micMonitorRefused = false
+    // ⛔ #1024 — `@State private var micMonitorRefused` stood here and went with the
+    // microphone doors (founder 2026-09-06: "Microphone funktioniert nach mehreren
+    // Anläufen immer noch nicht … also fliegt das raus"). It was the #485 anti-lying-
+    // control write: `isInputMonitoring` is `private(set)` and stays false on refusal, so
+    // without a `@State` write nothing invalidated the body and the Mix board's `Toggle`
+    // kept SHOWING "on" while nothing listened. THE LESSON SURVIVES ITS CONTROL and is
+    // the one thing to carry into any future re-door: a toggle bound to a `private(set)`
+    // engine flag needs its OWN observable write on the refusal path, or it lies.
+    // `AudioInputPickerView`'s twin (`monitorRefused`) is untouched and still shows it.
     @State private var showRouting = false
     @State private var showLearn = false
     // Dead-duplicate sheets removed (v10.79.207): PianoRoll / PatchEditor / Automation
@@ -1179,9 +1174,6 @@ struct EchoelStudioView: View {
             // on empty content does not reliably fire). `start()` is idempotent, and
             // it reads NO musical state — the genre clamp below is still "FIRST,
             // before anything reads `style`", exactly as its comment claims.
-            #if os(iOS) && canImport(AVFoundation)
-            plugInWatcher.start()
-            #endif
             // FIRST, before anything reads `style`. The genre roster was re-curated
             // (#125): `MusicStyle.offered` is a hand-picked subset, not every case. A
             // style persisted before that is still a valid enum case — nothing crashes —
@@ -2042,17 +2034,12 @@ struct EchoelStudioView: View {
             // no sound, and it is a banner rather than an alert because the body's presentation
             // chain is at 14 and a 15th is the black-screen SIGSEGV.
             AudioDegradedRow()
-            // #596 — the plug-in invitation, same shape as the degraded banner above:
-            // renders nothing until a wired/USB device is freshly plugged in, its own
-            // leaf `View` (freeze law), no presentation modifier (the tap reuses the
-            // existing `showInput` sheet slot — the 10.76.34 black-screen law untouched).
-            // ⚠️ The watcher is started from the ROOT `.onAppear`, NOT from a modifier
-            // here: this row renders NOTHING while there is no invitation, and
-            // `.onAppear` on conditionally-empty content does not reliably fire — a
-            // watcher started there would never observe the first plug.
-            #if os(iOS) && canImport(AVFoundation)
-            PlugInInviteRow(watcher: plugInWatcher) { showInput = true }
-            #endif
+            // ⛔ #1024 — the plug-in invitation banner stood here (it opened the microphone
+            // sheet when a USB mic or interface was plugged in) and went with the other two
+            // mic doors. Its one durable lesson, kept because it is about ANY conditional
+            // row and not about microphones: a watcher for a row that renders nothing must be
+            // started from the ROOT `.onAppear`, never from a modifier on the row — a
+            // conditionally-empty view does not reliably fire `.onAppear`.
             // LINE 2 — the actions (#482). See `quickActionRow`.
             quickActionRow
             // FIRST-RUN LINE (GUI-Board Scheibe 5, UX#7): the tiles above are grey until
@@ -3547,7 +3534,6 @@ struct EchoelStudioView: View {
                         set: { metronome.level = Float($0) }),
                         range: 0...1, unit: "", decimals: 2)
                 }
-                micMixStrip
             }
 
             // WHAT IS DELIBERATELY NOT ON THIS BOARD, said out loud rather than left to be
@@ -3646,212 +3632,41 @@ struct EchoelStudioView: View {
             .strokeBorder(EchoelTheme.border, lineWidth: 1))
     }
 
-    /// VOICE — the microphone strip on the Mix board (#485, founder 2026-08-07: coherent
-    /// breathing plus chanting / humming / toning / singing "braucht einen zusätzlichen
-    /// Mixer-Slot für Audio-in").
-    ///
-    /// ⭐ WHAT WAS ACTUALLY MISSING, because it was NOT the capability. Live monitoring with
-    /// the FeedbackGuard duck has been built and reachable since #298/#299 — engine path,
-    /// session claim, level, latency advice per route. What was missing is that its only
-    /// door sat behind the MASTER panel, i.e. under the sum of the layers rather than beside
-    /// them, so the one layer the performer makes with their own body was the only audible
-    /// layer absent from the board that #330 built to hold every audible layer. This adds a
-    /// DOOR, not a second copy: both rows read and write the one `AudioEngine`, exactly as
-    /// the Click strip does with the one `MetronomeVoice`.
-    ///
-    /// ⚠️ `feedbackGuardActive` IS DELIBERATELY NOT READ HERE. It is assigned from the ~15 Hz
-    /// meter poll (gated on change since #298's Nachlese, but a howl toggles it repeatedly),
-    /// so a read would enrol a body as a ~15 Hz observer for as long as monitoring runs — and
-    /// the five strips of this board carry eight draggable `EchoelValueField`s, which is a
-    /// live scrub-anchoring hazard (#375/#376), not just wasted work.
-    ///
-    /// ⛔ AND THE FIRST VERSION OF THIS PARAGRAPH NAMED THE WRONG BODY — the one mistake this
-    /// file already corrects elsewhere, re-acquired here one commit later. It said
-    /// `mixStripCard`'s NON-escaping `@ViewBuilder` puts the read "inside the body that hosts
-    /// every `.menu` Picker of the instrument … the 10.76.41/50 freeze verbatim". The premise
-    /// is true and the conclusion does not follow: TWO escaping boundaries sit above this
-    /// content. `mixerPanel` goes through `panel("Mix", …)`, whose builder is
-    /// `@escaping` and is invoked in `EchoelPanel`'s OWN body, and the strips sit inside
-    /// `AdaptiveCardGrid`, which does the same. The read would land on `AdaptiveCardGrid`,
-    /// never on `EchoelStudioView.body`. This panel also hosts NO `Picker` and no `.menu` at
-    /// all, and only one panel renders at a time — so there is nothing here for a rebuild to
-    /// tear down. The honest size was already written by #298's Nachlese, at
-    /// `AudioEngine.updateFeedbackGuard`: *"No `.menu` Picker lives in that sheet, so this was
-    /// never the 10.76.50 freeze — but it is the same mechanism."* #485 escalated that into
-    /// "the freeze verbatim". Same mechanism, one panel away, one refactor from being the
-    /// freeze — that is the true claim, and the DECISION to omit the flag is unchanged.
-    /// The live guard indicator stays in `AudioInputPickerView`. Static text here says what
-    /// the guard does; it claims no live state.
-    ///
-    /// ⚠️ WHAT "the toggle cannot lie" DOES AND DOES NOT COVER — narrowed after review,
-    /// because the headline was stronger than the code. Verified: no path in
-    /// `setInputMonitoring` returns `false` after setting `isInputMonitoring = true`, so the
-    /// two cases named below (mic permission denied, no valid input format) really do revert
-    /// the switch. But there IS a path that returns `true` without anything being heard:
-    /// `wasRunning = masterEngine.isRunning` is captured, and the restart branch is skipped
-    /// entirely when the engine was stopped — the graph is connected, `isInputMonitoring`
-    /// goes `true`, and nothing is running. Reachable after a failed launch `start()` or a
-    /// scene interruption that declined to resume. That is pre-existing in `AudioEngine`, not
-    /// introduced here, and it is NOT covered by `micMonitorRefused`.
-    ///
-    /// ⚠️ THE LEVEL FIELD IS SHOWN WITH MONITORING OFF ON PURPOSE — it is a pre-set, not a
-    /// dead control. `inputMonitorGain`'s `didSet` writes the mixer only while
-    /// `isInputMonitoring && !feedbackGuardActive` (both conditions — while the guard ducks,
-    /// the write is deferred to the next poll, which recomputes from this same stored value),
-    /// and `setInputMonitoring(true)` applies the stored value on the way in, so a
-    /// number dialled while off IS the level you get when you switch on. It is NOT
-    /// persisted, and that is a decision rather than an oversight: a monitor gain is a
-    /// feedback risk, so every launch starts at the conservative 0.6 rather than at whatever
-    /// a previous room needed. Persisting it is a separate call.
-    ///
-    /// ⚠️ Choosing WHICH input (built-in / wired / USB / Bluetooth, with its latency advice)
-    /// is not duplicated here — the row hands off to the existing `showInput` sheet. That
-    /// slot already exists, so this adds NO presentation modifier to the body chain (the
-    /// 10.76.34 black-screen law).
-    @ViewBuilder
-    private var micMixStrip: some View {
-        #if os(iOS)
-        mixStripCard("Voice · your microphone") {
-            Toggle("Monitor", isOn: Binding(
-                get: { audioEngine.isInputMonitoring },
-                set: { on in
-                    if on {
-                        // #601: ask for the mic FIRST. The old direct call could never
-                        // show the permission dialog (undetermined permission → 0 Hz
-                        // input format → silent bail), so on a fresh install this
-                        // toggle just flipped back — the founder's "Audio in
-                        // funktioniert bisher nicht". Async, so the refusal flag is
-                        // written when the answer is real, not before the dialog.
-                        Task { @MainActor in
-                            let engaged = await audioEngine.engageInputMonitoring()
-                            micMonitorRefused = !engaged
-                        }
-                    } else {
-                        _ = audioEngine.setInputMonitoring(false)
-                        micMonitorRefused = false
-                    }
-                }))
-                .font(EchoelTheme.font(12))
-                .tint(EchoelTheme.accent)
-                .accessibilityHint("Hear your own voice through the output while you hum, tone or sing")
-            EchoelValueField(label: "Level",
-                             value: Binding(get: { audioEngine.inputMonitorGain },
-                                            set: { audioEngine.inputMonitorGain = $0 }),
-                             range: 0...1, unit: "", decimals: 2)
-            // ⛔ THE FLAG ALONE WAS NOT ENOUGH, and the failure was VISIBLE: refuse here →
-            // open "Choose input…" → grant and switch monitoring on INSIDE
-            // `AudioInputPickerView` (which does not know about this `@State`) → dismiss, and
-            // this card rendered the Toggle ON together with "could not start". Two doors onto
-            // one engine with one un-shared piece of view state — the exact thing the
-            // door-not-a-copy framing above is meant to prevent. Gating on the ENGINE as well
-            // is cheaper than sharing the state and keeps the engine the single source of
-            // truth for "is it listening"; it also clears the milder staleness where the user
-            // grants permission in Settings and comes back.
-            if micMonitorRefused && !audioEngine.isInputMonitoring {
-                // #613 (sweep WARN 3): every engage failure used to wear the permission
-                // costume — the Settings line + door showed even when access IS granted
-                // and the failure was a busy session or a format/restart miss, sending
-                // the user to a toggle that is already on. The copy now branches on the
-                // engine's ONE definition of denial; the non-denial line is honest about
-                // what the user can actually do (try again — those failures are the
-                // transient kind, and the degraded machinery owns the persistent kind).
-                if audioEngine.micPermissionDenied {
-                Text("Monitoring could not start — check microphone access in Settings, or pick another input.")
-                    .font(EchoelTheme.font(11))
-                    .foregroundStyle(EchoelTheme.danger)
-                    .fixedSize(horizontal: false, vertical: true)
-                // #610 (founder screenshot of 2518, "Wir wollen schon Device microphon Audio
-                // Input Live Monitoring haben"): the line above names Settings and opened no
-                // door. iOS asks for the mic ONCE — after an OS-level denial the Settings app
-                // is the only fix (`engageInputMonitoring`'s `.denied` branch logs exactly
-                // that). One tap now takes the user there, through the ONE existing settings
-                // door (#416) — the same global function BioStripView's camera door calls.
-                // Deliberately NO scenePhase re-check on return: changing a privacy
-                // permission in Settings makes iOS relaunch the app, so a stale refusal flag
-                // cannot survive the grant — the state heals by relaunch, not by polling.
-                Button { openAppSettings() } label: {
-                    HStack(spacing: 4) {
-                        Image(systemName: "mic.slash").font(.system(size: 9))
-                        Text("Allow microphone")
-                    }
-                    .font(EchoelTheme.font(11))
-                    .lineLimit(1)
-                    .padding(.horizontal, 6).padding(.vertical, 2)
-                    .background(EchoelTheme.warning.opacity(0.20))
-                    .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radiusSmall))
-                    .foregroundStyle(EchoelTheme.warning)
-                    // #610b (review): the visible chip stays small, the HIT area does not —
-                    // the bare chip was ~18 pt tall, under WCAG 2.5.8's 24, in the same card
-                    // whose "Choose input…" door already carries the 34-pt fix for exactly
-                    // this defect. Frame AFTER the chip styling so only the tappable area
-                    // grows; pinned in TapTargetFloorTests (the list, not a sweep).
-                    .frame(minHeight: 34)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Microphone access is off")
-                .accessibilityHint("Opens Settings so you can allow microphone access and hear yourself live")
-                } else if !audioEngine.degraded {
-                    // #613: access is granted, so Settings is the WRONG advice and the
-                    // door would assert "Microphone access is off" over a granted mic.
-                    // #613b: `!degraded` is the #605b law applied here — on the
-                    // restart-throw path the engage failure and restartOrDegrade's
-                    // verdict can land together, and AudioDegradedRow (mounted on
-                    // `degraded`) then owns cause + Retry; without the gate this line
-                    // and that row sat on screen saying the same thing twice.
-                    Text("Monitoring could not start — try again, or pick another input.")
-                        .font(EchoelTheme.font(11))
-                        .foregroundStyle(EchoelTheme.danger)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            } else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {
-                // ⛔ #605b: `!degraded` is load-bearing — the sentence below promises audio
-                // "comes back by itself", and `degraded` is exactly the state where that is
-                // FALSE (self-heal gave up). Without the gate, this line and AudioDegradedRow
-                // ("auto-recovery gave up" + Retry) could sit on screen simultaneously,
-                // saying opposite things about the same silence (review of #605). In the
-                // degraded state that row owns the message AND the recovery; this line
-                // covers only the self-healing interruption window. `degraded` writes are
-                // event-rate (give-up + start), same class as the two reads beside it.
-                // #605 (UX audit #9): `setInputMonitoring(true)` wires the graph but starts
-                // the engine only if it was already running — so this toggle can honestly
-                // show ON while a call/Siri/alarm interruption holds the engine paused and
-                // nothing sounds. Same #485 shape as the refusal line above: gated on live
-                // engine state, so it clears itself the moment audio resumes (the `.active`
-                // return). No retry button on purpose — the interruption case heals itself,
-                // and the gave-up case sets `degraded`, which `AudioDegradedRow` explains
-                // WITH the retry. Freeze law: both reads are event-rate (a handful of
-                // changes per session), the same class as `isInputMonitoring` beside them.
-                Text("Monitoring is on, but audio is paused — it comes back by itself when the call, alarm or Siri ends.")
-                    .font(EchoelTheme.font(11))
-                    .foregroundStyle(EchoelTheme.warning)
-                    .fixedSize(horizontal: false, vertical: true)
-            } else {
-                Text("Use headphones. On the speaker the feedback guard ducks a howl automatically.")
-                    .font(EchoelTheme.font(11))
-                    .foregroundStyle(EchoelTheme.dim)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            // ⛔ THE FIRST VERSION WAS A BARE `Text` UNDER `.buttonStyle(.plain)`, which gives a
-            // hit area of about the text height (~15–17 pt) — under HIG's 44 and under WCAG
-            // 2.5.8's 24. The OTHER door to this identical sheet, `masterDoorButton`, has
-            // carried `.frame(height: 34)` plus full width all along, so the two doors to one
-            // sheet disagreed about whether a finger can hit them. `TapTargetFloorTests` is a
-            // pinned list rather than a sweep, so nothing went red — its header asks for a case
-            // to be added when an audit finds one, and a review found this one.
-            Button { showInput = true } label: {
-                Text("Choose input…")
-                    .font(EchoelTheme.font(12))
-                    .foregroundStyle(EchoelTheme.accent)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(minHeight: 34)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityHint("Pick the microphone or audio interface, with its monitoring latency")
-        }
-        #endif
-    }
+    // ⛔ #1024 — THE MICROPHONE STRIP STOOD HERE AND IS REMOVED ON FOUNDER ORDER
+    // (2026-09-06, twice: "das mit dem Audio Input Monitoren klappt immer noch nicht also
+    // fliegt das raus", then again with a screenshot of build 448/2567 circling this very
+    // card). It was never once confirmed working on a device across several builds.
+    //
+    // WHAT WENT AND WHAT DID NOT. Only the DOORS went — this strip, the Master panel's
+    // "Audio input" button and the plug-in invitation banner. The engine
+    // (`setInputMonitoring`, the monitor insert, FeedbackGuard) and `AudioInputPickerView`
+    // are untouched and still compile, so re-dooring is three call sites, not a rebuild.
+    // The `showInput` sheet slot survives WITHOUT a setter and is now headroom under the
+    // 10.76.34 presentation ceiling, like `showMeditation`.
+    //
+    // ⚠️ NOTHING IS LEFT STUCK: `isInputMonitoring` is not persisted (`AudioEngine`
+    // declares it `= false`), so every launch starts with the mic off. Removing the
+    // switch cannot strand a user with monitoring on and no way out — the trap CLAUDE.md
+    // names for persisted flags does not apply here, and it was checked before cutting.
+    //
+    // ⚠️ THREE PIECES OF LAW WORTH KEEPING out of the 206 deleted lines. Whoever re-doors
+    // this starts here, because each one cost a build to learn:
+    //   1. #601 — ask for the mic permission FIRST and only then engage. A direct engage on
+    //      an UNDETERMINED permission can never show the system dialog; it just reads a 0 Hz
+    //      input format, bails, and looks broken forever on a fresh install.
+    //   2. #485 — do NOT read `audioEngine.feedbackGuardActive` in a mix-strip builder. It
+    //      is written from the ~15 Hz meter poll while monitoring runs, so the read enrols
+    //      `AdaptiveCardGrid`'s body — five strips, eight draggable `EchoelValueField`s — as
+    //      a 15 Hz observer, a live scrub-anchoring hazard (#375/#376). It is NOT the
+    //      10.76.41/50 freeze (this panel hosts no `.menu` Picker and sits behind two
+    //      escaping builders) — it is the same mechanism one panel away. A live readout
+    //      belongs in its OWN leaf `View`.
+    //   3. #485 — the strip must reuse the `showInput` slot, never declare its own `.sheet`.
+    //      The body chain is at 14 presentation modifiers and 10.76.34 proved what the
+    //      fifteenth costs (SIGSEGV before first render, seen as a black screen).
+    // These three stood in `TheVoiceIsOnTheBoardTests`, whose whole subject was this strip;
+    // that guard is retired with the strip (#1024) rather than left red on a correct tree,
+    // and this is where its forward-facing half now lives.
 
     /// Bass-bus filter cutoff. Full-open (max) disengages the filter; lower engages a
     /// low-pass. Applied LIVE to the sub voice via the lock-free insert path.
@@ -5056,18 +4871,14 @@ struct EchoelStudioView: View {
             .buttonStyle(.plain)
             .accessibilityHint("Immediately release every sounding note on every voice")
 
-            // Re-doors (deep audit 2026-07-12): AudioInputPickerView carries the
-            // FeedbackGuard monitoring toggle, PatchbayView the OSC/ADM/Art-Net/
-            // sACN routes — both lost their only trigger when the Tools grid left
-            // the body (2026-07-02). SLOT-REUSE: these set the EXISTING dead
-            // sheet slots (showInput/showRouting) — no new modal in the chain.
-            // No close-first needed: the plate is not an overlay, so only the sheet is
-            // ever a presented layer.
+            // Re-door (deep audit 2026-07-12): PatchbayView carries the OSC/ADM/Art-Net/sACN
+            // routes and lost its only trigger when the Tools grid left the body
+            // (2026-07-02). SLOT-REUSE: this sets the EXISTING dead `showRouting` sheet slot
+            // — no new modal in the chain. No close-first needed: the plate is not an
+            // overlay, so only the sheet is ever a presented layer.
+            // ⛔ #1024 — the second button here was "Audio input" and is removed with the
+            // other two microphone doors. `showInput` is now a setter-less slot again.
             HStack(spacing: 8) {
-                masterDoorButton("Audio input", icon: "mic",
-                                 hint: "Microphone monitoring with feedback protection") {
-                    showInput = true
-                }
                 masterDoorButton("Routing", icon: "app.connected.to.app.below.fill",
                                  hint: "OSC, immersive object, and lighting outputs") {
                     showRouting = true

@@ -1,4 +1,4 @@
-build: v10.79.448 — Die Ursache, warum das Monitoring nie ansprang
+build: v10.79.449 — Das Mikrofon ist weg aus der Oberfläche, wie Du gesagt hast
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,125 +6,76 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.447.
+  Der Vorgänger ist 10.79.448.
 
-  ── ZUERST: DEIN LOG HAT DEN FEHLER GEZEIGT ──────────────────────────────
+  ── DEINE ENTSCHEIDUNG IST AUSGEFÜHRT ────────────────────────────────────
 
-  Du hast gesagt: **„Das mit dem Audio Input Monitoren klappt immer noch nicht, also
-  fliegt das raus."** Dein Diagnose-Log aus 447 sagt, WARUM es nicht klappt — und der
-  Grund liegt nicht im Monitoring.
+  Du hast es zweimal gesagt, das zweite Mal mit dem Screenshot aus 448, roter Kreis um
+  „Voice · your microphone":
 
-  Die allererste Zeile Deines Logs:
+      „Microphone funktioniert nach mehreren Anläufen immer noch nicht. Das erinnert
+       mich an DMMW Problematik, erst wird munter drauf los programmiert und dann
+       verhäddert es sich. Sowas wollen wir vermeiden."
 
-      session: configure 1/4 — setCategory(.playback)
-      session: configure FAILED — ... Code=-50
+  **Das Mikrofon ist raus aus der Oberfläche.** Es gibt keinen Weg mehr dorthin: keine
+  Karte im Mix, keinen Knopf im Master, kein Einlade-Banner beim Einstecken eines
+  Kopfhörers. Was Du im Screenshot eingekreist hast, ist weg.
 
-  Danach kommt **keine** Zeile 2/4. Das ist beweisend: die App stirbt IM ersten Schritt.
-  `-50` heißt „ein Argument nehme ich nicht an". Von den vier Argumenten ist nur eines
-  fraglich — eine Bluetooth-Option, die iOS für reine Wiedergabe ablehnt.
+  ── UND JETZT DER TEIL, DER DEINEM ZWEITEN SATZ GEHÖRT ───────────────────
 
-  **Der Fehler war winzig. Seine Folge nicht:**
+  Dein zweiter Satz war nicht über das Mikrofon. Er war über die **Arbeitsweise**. Also
+  habe ich genau das Gegenteil von „munter drauf los" gemacht:
 
-  Weil Schritt 1 abbricht, laufen Schritt 2, 3 und 4 **nie**. Die Audio-Sitzung wird also
-  die ganze Sitzung lang **nie eingerichtet**. Neun Minuten später drückst Du den
-  Monitoring-Schalter, und im Log steht:
+  **Ich habe DREI Aufrufstellen entfernt. Sonst nichts.** Der Motor bleibt vollständig
+  stehen — die Audio-Kette, der Rückkopplungsschutz, die Stimm-Werkzeuge, das ganze
+  Einstell-Fenster. Alles kompiliert weiter, nichts hängt in der Luft.
 
-      monitor: on REFUSED — the session was never configured
+  **Warum nicht alles rausreißen?** Weil genau DAS die DMMW-Verhäddelung wäre, nur
+  rückwärts. Motor, Kette, Autotune, Harmonizer, Granular und Rückkopplungsschutz in
+  einem Rutsch zu entfernen, berührt fünfzig Stellen und bricht Dinge, die mit dem
+  Mikrofon nichts zu tun haben. Drei Zeilen zu entfernen bricht nichts.
 
-  Der Schalter hat also nie eine Chance gehabt. Er hat nicht versagt — er wurde
-  **abgewiesen**, von einem Fehler beim App-Start, elf Bildschirme entfernt.
+  **Was das für Dich heißt:** wenn Du es je zurück willst, sind es dieselben drei
+  Zeilen — kein Neubau, keine Woche. Wenn Du es NIE zurück willst, sag es, und dann
+  räume ich den Motor in einem eigenen, sauberen Schritt aus. Diese Reihenfolge ist die
+  billige; die andere ist die teure.
 
-  Die Musik lief trotzdem, weil iOS ohne Einrichtung eine Standard-Sitzung benutzt.
-  Genau deshalb ist das monatelang niemandem aufgefallen.
+  ⚠ **Nichts bleibt bei Dir hängen.** Das Monitoring wird nicht gespeichert — jeder
+  Start beginnt mit stummem Mikrofon. Ich habe das VOR dem Schnitt geprüft, nicht
+  danach: einen Schalter zu löschen, dessen Zustand gespeichert wird, hätte Dich mit
+  eingeschaltetem Mikrofon und ohne Ausschalter zurücklassen können.
 
-  ── WAS ICH GEÄNDERT HABE ────────────────────────────────────────────────
+  ── WAS ICH IM SELBEN SCHRITT MITGEZOGEN HABE ────────────────────────────
 
-  Ich habe die Option **nicht** entfernt. Ich weiß nur, dass **Dein** Gerät sie ablehnt,
-  nicht dass jedes iOS sie ablehnt. Also: erst wie bisher fragen — wird abgelehnt, sofort
-  ein zweiter Versuch ohne diese Option. Eine Zeile im Log sagt, welcher Weg genommen
-  wurde. Die Klangqualität über Bluetooth ändert sich dadurch nicht.
+  Ein Feature zu entfernen und die Behauptungen darüber stehen zu lassen, ist die
+  Verhäddelung in Zeitlupe. Deshalb im selben Commit:
 
-  ── EINE BITTE, BEVOR DAS MONITORING RAUSFLIEGT ──────────────────────────
+  · **App-Store-Text (beide Sprachen):** die Zeile „Tune to key" ist raus. Der Code lebt,
+    aber niemand kann ihn mehr erreichen — und eine Werbe-Behauptung über etwas
+    Unerreichbares ist genau der Ablehnungsgrund 2.3.
+  · **Sechs Prüf-Wächter** hatten Behauptungen über die entfernten Türen. Alle sechs sind
+    repariert, jede gestrichene Zeile wörtlich am Ort zitiert. Kein roter Wächter auf
+    einem richtigen Baum — das ist die Sorte Unordnung, die Du meinst.
+  · **Die Projekt-Doku** an vier Stellen: sie behauptete an dreien, die Vokal-Kette habe
+    eine Tür.
 
-  **Ein Handgriff, unter einer Minute.** Mix-Panel → „Voice - your microphone" →
-  „Choose input…" → **Live monitoring** einschalten.
+  ── WAS UNVERÄNDERT BLEIBT ───────────────────────────────────────────────
 
-  · **Hörst Du Dich?** Dann war der Fehler oben die ganze Ursache, und die Vokal-Kette
-    (Autotune · Harmonizer · Granular) hat ab jetzt ihre Tür.
-  · **Hörst Du Dich immer noch nicht?** Dann fliegt es raus, wie Du gesagt hast — und
-    zwar vollständig: Tür, Kette, Prosa, Wächter. Ich brauche dafür nur Dein Wort.
-
-  Ich frage einmal nach, weil die Ursache erst heute gefunden wurde und **in Build 447
-  noch nicht drin war**. Ein gebautes Feature wegen eines Fehlers zu löschen, der eine
-  Zeile entfernt liegt, wäre die teure Reihenfolge.
-
-  ── AUSSERDEM: ALLE ANSICHTEN, GROSSE SCHRIFT ────────────────────────────
-
-  Du hast gesagt, manche Ansichten verhalten sich nicht adaptiv — Routing, Simulation
-  und andere. Ich habe **alle 375 Quelldateien** durchgemessen. Der Befund:
-
-  **Die Schrift wächst längst mit Deiner Systemeinstellung — der KASTEN drumherum nicht.**
-  37 Bedienelemente in zehn Ansichten hatten eine fest eingebaute Höhe. Bei normaler
-  Schriftgröße passt das genau, deshalb ist es nie aufgefallen. Bei großer Schrift wächst
-  der Text, der Kasten nicht — und die Beschriftung wird **abgeschnitten**.
-
-  Alle 37 haben jetzt eine **Mindest**höhe statt einer festen. Bei Deiner heutigen
-  Schriftgröße sieht **nichts** anders aus; bei großer Schrift wächst der Knopf mit.
-
-  · Routing hatte 6 davon, das Haupt-Instrument 11.
-  · Absichtlich **nicht** angefasst: 20 feste Höhen ohne Text — Trennlinien, Pegel-
-    anzeigen, die Atem-Fläche, die Zifferntasten. Die sollen fest bleiben.
-
-  **Dasselbe zur Seite:** sechs Zahlen-Anzeigen in ausgerichteten Spalten hatten eine
-  feste BREITE (Mix-Rang und Prozent, Tap-Tempo, eine Zeile im Sound-Panel, das
-  Tempo-Feld, die Kohärenz-Spalte). Auch die haben jetzt eine Mindestbreite; die Spalte
-  bleibt ausgerichtet. **Nicht** angefasst: 60 feste Breiten ohne Text — Symbol-Spalten
-  sollen genau so eine feste Rinne sein.
-
-  · Zwei Wächter prüfen das ab jetzt über **alle** Ansichten, damit es nicht zurückkommt.
-    Wer eine feste Größe wirklich braucht, schreibt den Grund daneben.
-
-  ⚠ Das ist ein Layout-Fix. Beweisen kann ihn nur ein Blick am Gerät bei großer Schrift
-  (Einstellungen → Anzeige → Textgröße), nicht der Compiler.
-
-  ── DEIN CLIP ────────────────────────────────────────────────────────────
-
-  Der 11-Sekunden-Clip (`buildwithneej`) ist eine Instagram-Liste über fünf GitHub-Repos
-  für KI-Agenten-Werkzeuge: OpenMAIC, ponytail, VoiceStudio, mattpocock/skills,
-  scientific-agent-skills. **Nichts davon ist fürs Produkt brauchbar.** Das einzige mit
-  Klangbezug ist VoiceStudio (lokales Stimmen-Klonen) — und Voice Clone hast Du am
-  25.08. ausdrücklich ausgeschlossen. Die übrigen vier sind Entwickler-Werkzeuge; unsere
-  eigene Skill-Sammlung deckt das ab.
+  Alles, was nicht am Mikrofon hängt: Komposition, Genres, Bio-Feedback, Visual, Mix,
+  FX, Export. Der Harmonizer der MUSIK (FX-Panel) ist nicht betroffen — der lag nie auf
+  Deiner Stimme.
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  Xcode Compile Check **grün** auf `41625ca` (2376) — der Sitzungs-Fix aus Teil 1.
+  Compile-verifiziert wird dieser Build erst mit dem Push; die vorige Version 448 war
+  grün (Compile Check 2379). Alle sechs reparierten Wächter habe ich von Hand gegen den
+  echten Quelltext nachgerechnet — 35 Behauptungen, alle grün.
 
-  ⛔ **Und der Adaptiv-Fix war beim ersten Anlauf ROT — hier steht, was passiert ist, weil
-  die vorige Fassung dieser Zeile es vorhergesagt hat und Du das Ergebnis sehen sollst.**
-  Lauf 2378 scheiterte an **genau einer** Zeile von 43: im Tempo-Feld stand
-  `.frame(width: 76, height: …)`, also ein Aufruf mit ZWEI Maßen. Meine mechanische
-  Ersetzung hat nur den vorderen Teil gelesen und daraus `.frame(minWidth:height:)`
-  gemacht — eine Kombination, die SwiftUI nicht kennt. Die anderen 42 Stellen hatten je
-  nur EIN Maß und waren korrekt.
+  **Geräteverifiziert ist nichts.** Was ein Gerät hier entscheiden kann, ist eine einzige
+  Frage: **fehlt Dir irgendwo etwas?** Wenn im Mix-Panel oder im Master eine Lücke klafft
+  oder etwas komisch sitzt, sag es — dann ziehe ich das Layout nach.
 
-  Repariert (#1023c), und dazu ein vierter Wächter, der genau diese Mischform ab jetzt
-  über alle Dateien verbietet — in einer Sitzung ohne Compiler ist ein Text-Wächter der
-  Ersatz für ihn. Lehre für mich: eine mechanische Ersetzung muss den GANZEN Aufruf lesen,
-  nicht den Teil, auf den ihr Muster zufällig passt.
+  Offen aus 448 und weiter gültig: Puls-Pille bei abgedeckter Linse · „Studio" im
+  Vollbild im Hochformat · der Blick bei großer Systemschrift auf die 43 Layout-Stellen.
 
-  Der Build, den Du in der Hand hältst, hat den Compiler also bestanden — der erste
-  Versuch ist gar nicht erst bei Dir angekommen.
-
-  Alles hier ist compile-verifiziert. **Geräteverifiziert ist nichts.** Was ein Gerät
-  entscheiden kann: der Monitoring-Schalter (oben) und ein Blick bei großer Schrift.
-
-  Offen aus 447 und weiter gültig: Puls-Pille bei abgedeckter Linse · „Studio" im
-  Vollbild im Hochformat.
-
-  Erledigt aus 447: die `mute=`-Zahlen im Diagnose-Log waren in Deinem Log **alle 0** —
-  das Helligkeits-Band hat kein einziges Mal gefeuert, die Wortlaut-Frage ist damit vom
-  Tisch und kostet Dich keine Zeit.
-
-  Falls Du mir nach dem Monitoring-Test wieder ein Log schicken magst: Save/Export-Chip →
-  „Diagnostics" → Teilen. Ich lese daraus, welchen Weg `setCategory` genommen hat.
+  Falls Du mir ein Log schicken magst: Save/Export-Chip → „Diagnostics" → Teilen.

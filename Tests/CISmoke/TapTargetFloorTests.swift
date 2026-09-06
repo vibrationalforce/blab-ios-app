@@ -638,18 +638,25 @@ final class TapTargetFloorTests: XCTestCase {
         }
     }
 
-    // MARK: - the two mic-Settings doors (#610b — the audit case this file's header asks for)
+    // MARK: - the mic-Settings door (#610b — the audit case this file's header asks for)
 
     /// The #610 "Allow microphone" chips shipped as byte-for-byte copies of BioStrip's
     /// camera door — visible chip ~18 pt, under WCAG 2.5.8's 24 — in the same card whose
     /// "Choose input…" door already carries the 34-pt fix for exactly this defect. The
-    /// review found it; per this file's own discipline the finding becomes a case. Both
-    /// doors grow the HIT area only (`minHeight`, never `height` — the #353 clipping class)
-    /// and need `contentShape(Rectangle())`, or the frame grows layout without growing what
+    /// review found it; per this file's own discipline the finding becomes a case. The door
+    /// grows the HIT area only (`minHeight`, never `height` — the #353 clipping class) and
+    /// needs `contentShape(Rectangle())`, or the frame grows layout without growing what
     /// is hit-tested (the loudness-Reset lesson above).
+    ///
+    /// ⛔ #1024 (2026-09-06) — THIS SWEPT TWO SITES AND NOW SWEEPS ONE. The first was
+    /// `(Self.studio, "mix-board strip")`, quoted here so a re-door restores it verbatim.
+    /// The founder removed the three microphone doors ("das mit dem Audio Input Monitoren
+    /// klappt immer noch nicht also fliegt das raus"), so `EchoelStudioView` no longer holds
+    /// an `openAppSettings()` button at all and the anchor-uniqueness assertion below would
+    /// be RED on a CORRECT tree. The 34-pt law itself is untouched and still proven on the
+    /// input sheet, which is where the surviving door lives.
     func testTheMicSettingsDoorsClearTheFloor() throws {
-        let sites = [(Self.studio, "mix-board strip"),
-                     ("Sources/Echoelmusic/Studio/AudioInputPickerView.swift", "input sheet")]
+        let sites = [("Sources/Echoelmusic/Studio/AudioInputPickerView.swift", "input sheet")]
         for (path, name) in sites {
             let lines = try codeLines(path)
             let anchor = "Button { openAppSettings() } label: {"

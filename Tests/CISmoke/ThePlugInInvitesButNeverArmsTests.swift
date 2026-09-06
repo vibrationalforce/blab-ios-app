@@ -159,19 +159,50 @@ final class ThePlugInInvitesButNeverArmsTests: XCTestCase {
                        + "means upgrading the category")
     }
 
-    /// The row is mounted in the transport column exactly once, the watcher is
-    /// view-owned, and the tap reuses the EXISTING sheet slot (no new modal).
-    func testTheRowIsMountedOnceAndReusesTheInputSheet() throws {
+    /// ⛔ RETRACTED AND INVERTED BY #1024 (2026-09-06, founder order). This method asserted
+    /// that `PlugInInviteRow(watcher: plugInWatcher) { showInput = true }` was mounted once
+    /// in the transport column, that `EchoelStudioView` owned the watcher, and that
+    /// `plugInWatcher.start()` ran once from the root `.onAppear`. All three were true and
+    /// all three are now GONE: the invitation banner was one of the three microphone doors
+    /// the founder removed ("das mit dem Audio Input Monitoren klappt immer noch nicht also
+    /// fliegt das raus"). Left as it stood, this method would be a RED claim on a CORRECT
+    /// tree — the tangle his second sentence warned against — so it is inverted rather than
+    /// deleted, and the original three needles are quoted above so a re-door can restore
+    /// them verbatim instead of re-deriving them.
+    ///
+    /// ⭐ THE LAW THAT SURVIVES ITS ROW, and it is the reason the third needle existed: a row
+    /// that is CONDITIONALLY EMPTY cannot start its own watcher from its own `.onAppear`,
+    /// because on a quiet route the row never appears. The watcher starts from the ROOT.
+    /// Whoever re-doors this hits that trap again otherwise.
+    func testTheRowIsNoLongerMountedAfterTheFounderRemovedTheMicDoors() throws {
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        XCTAssertEqual(codeOccurrences(of: "PlugInInviteRow(watcher: plugInWatcher) { showInput = true }",
-                                       in: studio), 1,
-                       "the invitation's one door must open the EXISTING showInput "
-                       + "sheet — a new .sheet would grow the 14-modifier chain (10.76.34)")
-        XCTAssertTrue(studio.contains("@State private var plugInWatcher = RoutePlugInWatcher()"),
-                      "the watcher must be owned by EchoelStudioView, like voiceCapture")
-        XCTAssertEqual(codeOccurrences(of: "plugInWatcher.start()", in: studio), 1,
-                       "started exactly once, from the root onAppear — the row itself "
-                       + "is conditionally empty and its own onAppear may never fire")
+        for needle in ["PlugInInviteRow(watcher: plugInWatcher) { showInput = true }",
+                       "@State private var plugInWatcher = RoutePlugInWatcher()",
+                       "plugInWatcher.start()"] {
+            XCTAssertEqual(codeOccurrences(of: needle, in: studio), 0, """
+                `\(needle)` is back in EchoelStudioView. THIS IS NOT AUTOMATICALLY A BUG — \
+                the founder may have asked for the microphone doors back. But it IS his \
+                decision (#1024), and restoring it means restoring this method to its \
+                pre-#1024 form (the three needles are quoted in the doc comment above) and \
+                pulling the prose homes named in `TheMicrophoneHasNoDoorTests` along in the \
+                SAME commit.
+                """)
+        }
+    }
+
+    /// COUNTERWEIGHT to the method above: #1024 removed the MOUNT, not the machinery. Without
+    /// this, the inverted claim would also pass on a tree where somebody "finished the job"
+    /// by deleting the watcher and the row — a far bigger and far less reversible change than
+    /// the one the founder asked for, and one that would strand the four pure-logic claims at
+    /// the top of this file with nothing to describe.
+    func testTheWatcherAndTheRowStillExist() throws {
+        let watcher = try source("Sources/Echoelmusic/Studio/RoutePlugInWatcher.swift")
+        XCTAssertEqual(codeOccurrences(of: "struct PlugInInviteRow: View", in: watcher), 1,
+                       "PlugInInviteRow is gone. #1024 unmounted the row; deleting it turns "
+                       + "a three-call-site re-door into a rebuild.")
+        XCTAssertEqual(codeOccurrences(of: "class RoutePlugInWatcher", in: watcher), 1,
+                       "RoutePlugInWatcher is gone. It is the subject of the four "
+                       + "`PlugInInvitation` claims above and of the only-watches claim below.")
     }
 
     /// Freeze law: the observable read (`invitePortName`) stays inside the leaf's

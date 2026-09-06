@@ -29,6 +29,23 @@
 //   own trees: the source comments quote neither the denial-gate token nor the copy
 //   strings, so raw == stripped there too — still 0 flips.
 //
+// ⛔ #1024 (2026-09-06) — HALF OF THIS FILE'S SUBJECT IS GONE BY FOUNDER ORDER. "das mit
+// dem Audio Input Monitoren klappt immer noch nicht also fliegt das raus", said twice, the
+// second time over a screenshot of build 448/2567 circling the mix-board card itself. The
+// THREE microphone doors were removed — the mix-board strip, the Master panel's "Audio
+// input" button and the plug-in invitation banner — so `EchoelStudioView` no longer holds a
+// refusal block, a Settings door or the copy. `AudioInputPickerView` is untouched: it still
+// carries its refusal block, its door and its copy, and it is still reachable from the code
+// (its sheet slot survives without a setter). What changed here: claim 1 is INVERTED (the
+// mix-board door must now be ABSENT), claims 3 and 5 lost their studio half, and claim 4's
+// consumer count went from three to two. Nothing is deleted — the original needles are
+// quoted at each site so a re-door restores them verbatim (#456).
+//
+// ⚠️ AND THE FILE'S NAME NOW OVER-PROMISES BY ONE DOOR (#374). It is deliberately NOT
+// renamed: the surviving claim is exactly the one the name describes, a rename in this same
+// commit would bury the retraction in a file move, and `TheMicrophoneHasNoDoorTests` — the
+// guard that owns the removal — names this file as one of the four it repaired.
+//
 // ORDERING SOUNDNESS (#408): the two "inside the refusal block" claims use ordering between
 // anchors that each occur EXACTLY ONCE in their file — asserted here, not assumed (⛔ the
 // first version SAID this while asserting only the door's uniqueness; the review caught the
@@ -54,36 +71,39 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
     private static let doorNeedle = "Button { openAppSettings() } label: {"
     private static let copyNeedle = "Text(\"Allow microphone\")"
 
-    // MARK: - claim 1 — the mix-board refusal block carries the door
+    // MARK: - claim 1 — the mix-board refusal block is GONE (#1024, inverted)
 
-    func testTheMixBoardRefusalBlockCarriesTheDoor() throws {
+    /// ⛔ INVERTED BY #1024. This asserted that `EchoelStudioView` held exactly one
+    /// `Button { openAppSettings() } label: {`, sitting INSIDE the refusal block between
+    /// `if micMonitorRefused && !audioEngine.isInputMonitoring {` and
+    /// `else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {`.
+    /// All four of those needles are quoted here on purpose: the founder removed the mic
+    /// doors, and a re-door restores this method from these lines rather than re-deriving
+    /// the ordering law. Left as it stood it would be RED on a CORRECT tree — the tangle
+    /// his second sentence named ("erst wird munter drauf los programmiert und dann
+    /// verhäddert es sich").
+    ///
+    /// ⭐ THE LAW SURVIVES IN CLAIM 2, which is why this is an inversion and not a deletion:
+    /// a Settings door must sit INSIDE the refusal block, or it shows while monitoring works
+    /// and vanishes exactly when it is needed. The input sheet still proves that.
+    func testTheMixBoardNoLongerCarriesAMicDoor() throws {
         let code = try source(Self.studio)
-        XCTAssertEqual(occurrences(of: Self.doorNeedle, in: code), 1, """
-            The mix board's Settings door (#610) vanished or was duplicated. The refusal \
-            line names Settings; without the button the user is told where the fix lives \
-            and left to find it — the exact dead end the founder screenshotted on 2518. \
-            If the door moved into a shared component, re-anchor this scan on the new call \
-            site in the same commit.
+        XCTAssertEqual(occurrences(of: Self.doorNeedle, in: code), 0, """
+            A `\(Self.doorNeedle)` is back in EchoelStudioView. THIS IS NOT AUTOMATICALLY A \
+            BUG — the founder may have asked for the microphone doors back (#1024). But it \
+            is HIS decision, and re-dooring means restoring this method to its pre-#1024 \
+            form (all four needles are quoted in the comment above), restoring the studio \
+            halves of claims 3 and 5, and pulling the prose homes listed in \
+            `TheMicrophoneHasNoDoorTests` along in the SAME commit.
+
+            ⚠️ If instead this is the CAMERA door or some other unrelated Settings button \
+            that happens to share the spelling, do not simply raise the count: give it its \
+            own needle, so this claim keeps meaning what its name says (#408).
             """)
-        let gateNeedle = "if micMonitorRefused && !audioEngine.isInputMonitoring {"
-        let nextNeedle = "else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {"
-        // #610b (review WARN): the ordering below is sound only while ALL THREE anchors are
-        // unique — `range(of:)` keys on the FIRST occurrence, so a later second copy of a
-        // gate string could keep this green over a relocated door. Asserted, not assumed.
-        XCTAssertEqual(occurrences(of: gateNeedle, in: code), 1,
-                       "the mix-board refusal gate is no longer unique — the ordering below keys on the first copy; re-anchor")
-        XCTAssertEqual(occurrences(of: nextNeedle, in: code), 1,
-                       "the mix-board silence branch is no longer unique — the ordering below keys on the first copy; re-anchor")
-        let gate = code.range(of: gateNeedle)
-        let door = code.range(of: Self.doorNeedle)
-        let next = code.range(of: nextNeedle)
-        let g = try XCTUnwrap(gate); let d = try XCTUnwrap(door); let n = try XCTUnwrap(next)
-        XCTAssertTrue(g.lowerBound < d.lowerBound && d.lowerBound < n.lowerBound, """
-            The mix board's Settings door is no longer INSIDE the refusal block (between \
-            the #601b gate and the #605 silence branch). Outside that block it would show \
-            while monitoring works, or vanish exactly when it is needed. All three anchors \
-            occur once in this file — if this went red on a reorder, put the button back \
-            between refusal text and silence branch.
+        XCTAssertEqual(occurrences(of: "if micMonitorRefused && !audioEngine.isInputMonitoring {",
+                                   in: code), 0, """
+            The mix board's mic-refusal gate is back. Same decision, same four prose homes, \
+            same commit (#1024/#456).
             """)
     }
 
@@ -113,19 +133,20 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
             """)
     }
 
-    // MARK: - claim 3 — one wording, two doors
+    // MARK: - claim 3 — the surviving door keeps its wording (one door since #1024)
 
-    func testTheDoorCopyIsIdenticalInBothDoors() throws {
-        let studio = try source(Self.studio)
+    /// ⛔ #1024 removed this claim's studio half. It asserted
+    /// `occurrences(of: Self.copyNeedle, in: studio) == 1` with the message "It is
+    /// deliberately identical in both doors" — true until the founder removed the mix-board
+    /// door. The "one wording, two doors" law is not wrong, it simply has one door left to
+    /// apply to; restore the studio assertion together with the door.
+    func testTheDoorCopyIsUnchangedInTheSurvivingDoor() throws {
         let picker = try source(Self.picker)
-        XCTAssertEqual(occurrences(of: Self.copyNeedle, in: studio), 1, """
-            The mix board's door label changed or vanished. It is deliberately identical \
-            in both doors — if this is a rewording, update the picker door and this \
-            guard's `copyNeedle` in the same commit.
-            """)
         XCTAssertEqual(occurrences(of: Self.copyNeedle, in: picker), 1, """
-            The input sheet's door label changed or vanished — see the studio message: \
-            one wording, two doors, same commit.
+            The input sheet's door label changed or vanished. It is the ONLY mic Settings \
+            door left in the app (#1024) — if this is a rewording, update this guard's \
+            `copyNeedle` in the same commit, and if the door itself went, say so in the \
+            deploy note: it is the whole remedy for an OS-level mic denial.
             """)
     }
 
@@ -134,10 +155,11 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
     func testTheSettingsFunctionStillOpensSettings() throws {
         let code = try source(Self.micman)
         XCTAssertTrue(code.contains("func openAppSettings()"), """
-            The app's one settings-opening function is gone from MicrophoneManager. Three \
-            consumers lean on it (BioStripView camera door, both #610 mic doors) — if it \
-            moved files, re-anchor this scan; if it was renamed, rename the call sites in \
-            the same commit.
+            The app's one settings-opening function is gone from MicrophoneManager. TWO \
+            consumers lean on it since #1024 (BioStripView's camera door and the input \
+            sheet's mic door; the mix-board door was the third and the founder removed it) \
+            — if it moved files, re-anchor this scan; if it was renamed, rename the call \
+            sites in the same commit.
             """)
         XCTAssertTrue(code.contains("UIApplication.openSettingsURLString"), """
             `openAppSettings()` no longer builds the system settings URL — the #610 \
@@ -179,13 +201,25 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
     /// AudioDegradedRow renders beside it and owns cause + Retry); the picker's
     /// DELIBERATELY does not — the row is invisible under the sheet, and an empty
     /// refusal block is the defect class this chain fights. Asserted asymmetrically.
+    ///
+    /// ⛔ #1024 REMOVED THE MIX-BOARD HALF. This loop ran over TWO sites; the first was
+    /// `(studio, "mix-board strip", "Monitoring could not start — try again, or pick another input.")`
+    /// and it went with the mic doors on founder order. The tuple is quoted here so a re-door
+    /// restores it verbatim. The `} else if !audioEngine.degraded {` assertion that followed
+    /// the loop was studio-only and is retracted with it — its LAW (a neutral refusal line
+    /// must not repeat what AudioDegradedRow already says beside it) is unchanged and applies
+    /// again the moment the strip returns.
     func testTheSettingsCostumeIsGatedOnRealDenial() throws {
         let studio = try source(Self.studio)
         let picker = try source(Self.picker)
         let engine = try source(Self.engine)
         let deniedGate = "if audioEngine.micPermissionDenied {"
+        XCTAssertEqual(occurrences(of: deniedGate, in: studio), 0, """
+            The mix board's denial gate is back (#1024) — restore this loop's studio tuple \
+            and the `} else if !audioEngine.degraded {` assertion in the same commit, both \
+            quoted in the comment above.
+            """)
         for (code, name, neutral) in [
-            (studio, "mix-board strip", "Monitoring could not start — try again, or pick another input."),
             (picker, "input sheet", "Monitoring could not start — try again."),
         ] {
             XCTAssertEqual(occurrences(of: deniedGate, in: code), 1, """
@@ -209,15 +243,6 @@ final class TheRefusalLineHasASettingsDoorTests: XCTestCase {
                 this gap in the first cut's `gate < door` check).
                 """)
         }
-        XCTAssertEqual(occurrences(of: "} else if !audioEngine.degraded {", in: studio), 1, """
-            The studio's neutral refusal branch lost its `!degraded` gate (#613b/#605b): \
-            on the restart-throw path the engage failure and restartOrDegrade's verdict \
-            land together, and without the gate this line and AudioDegradedRow say the \
-            same thing twice, side by side. The PICKER's neutral branch deliberately has \
-            no such gate (the row is invisible under the sheet — an empty refusal block \
-            would be worse); if you are unifying them, re-judge that asymmetry, do not \
-            just copy the gate over.
-            """)
         XCTAssertTrue(picker.contains("if monitorRefused && audioEngine.micPermissionDenied {"), """
             The input sheet's empty-state lost its #613 gate — with a granted mic it \
             would again claim "The microphone is not available to Echoel" and point at \

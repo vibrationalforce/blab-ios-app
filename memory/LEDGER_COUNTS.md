@@ -6303,3 +6303,16 @@ Lebend und NICHT in dieser Liste: `MusicMediaMap` (5), `SpatialSceneOSCFormatter
 EchoelLux-L2/L3-Schicht (Rig-Puffer, Bio-Phaser mit FlashGuard-Klemme) und der
 EchoelRender-Pfad (VBAP / AmbiX). Kein Wächter — die Register-Zeile in CLAUDE.md ist ein
 Zeiger, kein Verbot (#364).
+
+
+### §D — Nachtrag, verschoben aus CLAUDE.md (#1024, 2026-09-06)
+
+⛔ Hier stand „3 … statt einen 17.". Die **Drei** ist mit #748 falsch geworden (`showVisual` hat eine Tür) — eine Heimat, die #748 beim #456-Durchgang übersah, gefunden einen Zyklus später. Die **17** war nicht falsch, sondern MEHRDEUTIG: sie zählt dateiweit (16+1), während dieselbe Satzhälfte „der 14" von der KETTE spricht — zwei Budgets in einem Atemzug, und nur die Kette trägt das Black-Screen-Risiko. Deshalb steht hier jetzt die Kettenzahl.
+
+### §N — Nachtrag, verschoben aus CLAUDE.md (#1024, 2026-09-06)
+
+⛔ #713 schrieb hier „Start"; `startIfNeeded()` hängt an `enabled`s didSet, also an der persistierten `midi.out`-Route — bei ausgeschalteter Route läuft beim Start GAR NICHTS, #714)
+
+### §G — Nachtrag, verschoben aus CLAUDE.md (#1024, 2026-09-06)
+
+**KORREKTUR 2026-07-26 (die „verifiziert 2026-07-21"-Zeile war FALSCH für zwei ihrer Einträge):** `AutomationView.swift` existiert im Repo nicht mehr — es kann keine Tür haben. Und **`SpectralDonutView` WAR UNERREICHBAR bis #747 (2026-08-22):** ihr einziger Instanziierungsort liegt im `.fullScreenCover(isPresented: $showVisual)`, und `showVisual`s einziger Setzer war `openTool`, aufrufbar nur aus `toolsSection`, **das nichts rendert**. #747 hat den Knopf „Full screen" ins `visualPanel` gesetzt — damit sind Vollbild-Feld, VJ-Overlay, Donut-Renderer und die REC-Taste des Covers erreichbar (offene Aufgabe #270 geschlossen).

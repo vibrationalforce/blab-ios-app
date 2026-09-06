@@ -38,6 +38,17 @@
 // under it). Against fe1390c (the #605 first cut) the two gate needles are red by that
 // widening — deliberate, one finding; the copy needles and counterweights are unchanged.
 
+// ⛔ #1024 (2026-09-06) — ONE OF THE TWO DOORS IS GONE BY FOUNDER ORDER. "das mit dem
+// Audio Input Monitoren klappt immer noch nicht also fliegt das raus", said twice, the
+// second time over a screenshot of build 448/2567 circling the mix-board card. The three
+// microphone doors were removed, so `EchoelStudioView` carries no monitor strip, no
+// engine-stopped branch and no silence line. Claim 1 is INVERTED below and quotes its two
+// original needles; claim 3 lost its studio half for the same reason. Claim 2 and the rest
+// of claim 3 are untouched and still guard the SURVIVING door, `AudioInputPickerView` —
+// which is also where `!degraded` mattered MORE all along, because AudioDegradedRow is
+// invisible under that sheet. Everything this file says about WHY the sentence exists is
+// unchanged; only the mix-board site is gone.
+
 import Foundation
 import XCTest
 
@@ -52,25 +63,34 @@ final class TheMonitorSaysWhyItIsSilentTests: XCTestCase {
     private static let silenceLine =
         "Monitoring is on, but audio is paused — it comes back by itself when the call, alarm or Siri ends."
 
-    // MARK: - claim 1 — the mix-board door says why it is silent
+    // MARK: - claim 1 — the mix-board door is GONE (#1024, inverted)
 
-    func testTheMixBoardDoorCarriesTheSilenceLine() throws {
+    /// ⛔ INVERTED BY #1024. This asserted that `EchoelStudioView` contained
+    /// `else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {`
+    /// and, inside it, `Self.silenceLine`. Both needles are quoted here so a re-door restores
+    /// this method verbatim instead of re-deriving the #605/#605b reasoning. Left as it stood
+    /// it would be RED on a CORRECT tree — the tangle the founder's second sentence named
+    /// ("erst wird munter drauf los programmiert und dann verhäddert es sich").
+    ///
+    /// ⭐ THE LAW IS NOT RETRACTED, only its second site. Claim 2 still proves that a door
+    /// showing a live monitor must explain the paused-engine state, and still proves the
+    /// `!degraded` gate — which was always the more important of the two, because
+    /// `AudioDegradedRow` is invisible under the sheet.
+    func testTheMixBoardNoLongerHasAMonitorToExplain() throws {
         let code = try source(Self.studio)
-        XCTAssertTrue(code.contains("else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {"), """
-            The mix board's monitor strip lost its engine-stopped branch (or its gate \
-            changed). Without it the Monitor toggle can show ON while the engine is paused \
-            (a call, Siri, an alarm) and the card explains nothing — UX audit #9, the state \
-            #601b's refusal line cannot see because permission was granted. The `!degraded` \
-            half is #605b: the sentence promises audio "comes back by itself", which is \
-            FALSE exactly when self-heal gave up — that state belongs to AudioDegradedRow \
-            (cause + Retry), and without the gate the two sat on screen contradicting each \
-            other. The branch must stay BETWEEN the refusal line and the headphone hint.
-            """)
-        XCTAssertTrue(code.contains(Self.silenceLine), """
-            The mix-board silence sentence changed or vanished. It is deliberately \
-            identical in both doors (one state, one wording) — if this is a rewording, \
-            update the picker door and this guard's `silenceLine` in the same commit.
-            """)
+        for needle in [
+            "else if audioEngine.isInputMonitoring && !audioEngine.isRunning && !audioEngine.degraded {",
+            Self.silenceLine,
+        ] {
+            XCTAssertFalse(code.contains(needle), """
+                The mix board carries `\(needle)` again. THIS IS NOT AUTOMATICALLY A BUG — \
+                the founder may have asked for the microphone doors back (#1024). But it is \
+                HIS decision, and re-dooring means restoring this method and claim 3's studio \
+                half to their pre-#1024 form (both needles are quoted in the comment above) \
+                and pulling the prose homes listed in `TheMicrophoneHasNoDoorTests` along in \
+                the SAME commit.
+                """)
+        }
     }
 
     // MARK: - claim 2 — the input sheet says it too
@@ -98,11 +118,17 @@ final class TheMonitorSaysWhyItIsSilentTests: XCTestCase {
         let studio = try source(Self.studio)
         let picker = try source(Self.picker)
         let degraded = try source(Self.degradedRow)
-        XCTAssertTrue(studio.contains("if micMonitorRefused && !audioEngine.isInputMonitoring {"), """
-            The mix board's #601b refusal gate is gone. The silence line is written as the \
-            `else if` BEHIND it — without the refusal branch, a denied microphone would fall \
-            through to the silence line and tell the user to wait for a call to end instead \
-            of pointing at Settings.
+        // ⛔ #1024 removed this claim's studio half. It asserted
+        // `studio.contains("if micMonitorRefused && !audioEngine.isInputMonitoring {")` —
+        // the mix board's #601b refusal gate, which the silence line was written BEHIND so a
+        // denied microphone could not fall through to "wait for the call to end". The gate
+        // went with the mic doors; the LAW (refusal branch first, silence branch second) is
+        // unchanged and still proven on the picker in the assertion below. `studio` is kept
+        // and re-pointed at the inverse, so this counterweight still says something.
+        XCTAssertFalse(studio.contains("if micMonitorRefused && !audioEngine.isInputMonitoring {"), """
+            The mix board's #601b refusal gate is back (#1024). Restore this assertion to its
+            pre-#1024 `XCTAssertTrue` form in the same commit — the ordering law it pins
+            (refusal branch, THEN silence branch) applies again the moment the strip returns.
             """)
         XCTAssertTrue(picker.contains("if monitorRefused && !audioEngine.isInputMonitoring {"), """
             The input sheet's #601b refusal gate is gone — same consequence as the mix \

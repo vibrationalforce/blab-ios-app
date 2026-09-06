@@ -65,7 +65,7 @@ arbeitet, fasst `Tests/` nicht an und bleibt wie vorgesehen isoliert.
 | **Null externe Abhängigkeiten**, alles on-device | `Package.swift: dependencies: []` UND `project.yml` ohne `packages:`-Block — beide, siehe Zaun-Absatz oben |
 | **Barrierefrei spielbar**: Notennamen International/Deutsch/Solfège, VoiceOver auf der Spielfläche, Atkinson Hyperlegible | #232 C/E, `EchoelValueField` |
 | **Deine Stimme wird die Klangfarbe des Instruments**: Ton halten („Voice timbre" → Capture), die gemessene Farbe spielt in den Synth-Stimmen; speicherbar im Patch UND im Take (Projekt-Save/Autosave/Live Colabo), immer MIT Namens-Label | EchoelVoice #591–#593 (ausgeliefert 10.79.391) + #600 Take-Hälfte (ausgeliefert 10.79.393, Build 2510, TestFlight-Lauf 31822323904 mit ASC-Verify), gebaut + verdrahtet + wächter-gepinnt, **Geräte-Verify offen — so kennzeichnen**. Formulierung siehe §11: MESSUNG, nie „Aufnahme" |
-| **Tonart-Werkzeuge für die Stimme**: „Tune to key" zieht das Mic-Monitor-Signal optional in die Session-Tonart (nur der Monitor, nie die Musik); „Follow the key" macht die Harmonizer-Stimmen diatonisch (Terz atmet mit der Tonart) | #599/#599b (ausgeliefert 10.79.391/392), Default AUS, Kammerton-treu; **Geräte-Verify offen — so kennzeichnen** |
+| ⛔ **GESTRICHEN 2026-09-06 (#1024) — „Tune to key" DARF NICHT MEHR BEHAUPTET WERDEN.** Der Code lebt (`VoicePitchCorrector`, fest im Monitorpfad, bei AUS bypassed), aber seine einzige Tür war das Input-Sheet, und der Founder hat alle drei Mikrofon-Türen entfernt ("das mit dem Audio Input Monitoren klappt immer noch nicht also fliegt das raus"). Kein Nutzer kann die Stufe heute erreichen — eine Werbe-Behauptung darüber wäre die 2.3-Klasse. Im selben Commit aus `fastlane/metadata/{de-DE,en-US}/release_notes.txt` entfernt. **Was BLEIBT und weiter behauptet werden darf: „Follow the key"** — die Harmonizer-Stimmen des MUSIK-Pfads sind über das FX-Panel erreichbar und von #1024 nicht berührt. |
 | **Harmoniestimmen auf deiner Stimme** (zwei benannte Intervalle + Mix, nur im Monitor, Default AUS) | #841, Tür im Input-Sheet („Harmony voices"); **Geräte-Verify offen — so kennzeichnen** |
 | **Granular-Textur auf deiner Stimme** (Grain-Wolke unter dem trockenen Signal, Mix/Grain/Pitch, nur im Monitor, Default AUS) | #849, Tür im Input-Sheet („Granular texture"); **Geräte-Verify offen — so kennzeichnen** |
 | **Feedback-Schutz, der Pfeifen VERHINDERT statt es wegzuducken**: vier dynamische Notch-Bänder greifen pro Frequenzband, bevor ein Howl hörbar wird; Breitband-Duck nur als letzte Verteidigung | #847/#848 (`HowlDetector` + Notch-Kette im Monitorpfad); **Geräte-Verify offen — so kennzeichnen** |
@@ -264,9 +264,12 @@ Ebenfalls nicht behaupten, weil per Entwurfs-Grenze ausgeschlossen (EchoelVoice
 v1, protokolliert): **kein TTS**, **kein Stimm-Klon / keine Synthese Deiner
 Sprechstimme**, **kein Import fremder Stimmen** — die Farbe kommt vom lebenden
 Spieler am Gerät, und ein gespeicherter Patch trägt immer ein Namens-Label
-(Share-Label-Gesetz: nie anonym, keine Misattribution). Und „Tune to key" ist
-**Monitor-only**: es stimmt, was Du im Kopfhörer von DIR hörst — die komponierte
-Musik läuft nicht durch einen Autotune. *Erlaubt: „das Instrument klingt nach
+(Share-Label-Gesetz: nie anonym, keine Misattribution). ⛔ Und „Tune to key" ist
+seit #1024 **gar nicht mehr behauptbar** — nicht weil es falsch wäre (es war und
+bleibt Monitor-only, die komponierte Musik läuft nie durch einen Autotune),
+sondern weil der Founder alle drei Mikrofon-Türen entfernt hat und die Stufe
+damit unerreichbar ist. Siehe die gestrichene Zeile in der Tabelle oben.
+*Erlaubt: „das Instrument klingt nach
 Dir", „gemessen, nie aufgenommen". Nicht erlaubt: „AI voice", „clones your
 voice", „records you", „Autotune auf dem Track".*
 
