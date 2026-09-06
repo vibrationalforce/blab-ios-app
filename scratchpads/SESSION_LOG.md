@@ -24029,3 +24029,27 @@ dieser Sorte Unordnung gewarnt.
 
 **Gates:** #1024/449 grün (Compile Check 2380, TestFlight 2568 → **v10.79.449 (2568)** liegt
 beim Founder). #1025/450 lief beim Schreiben noch; 451 löst es ab.
+
+## 2026-09-06 — #1025c „bevor der Build bei Dir war" war auch falsch
+
+**Zweite Rücknahme an derselben Kette, und diesmal traf sie die Rücknahme selbst.** Die
+451er-Notiz korrigierte den „alle Schubladen"-Fehler und schrieb dazu „**gefunden, bevor
+der Build bei Dir war**". Gemessen: **TestFlight 2569 (v10.79.450) ist um 11:08 UTC
+erfolgreich fertig geworden**, also VOR dem 451er-Push. Der Founder hat 450 mit der
+falschen Liste in der Hand.
+
+⭐ **Der Mechanismus ist derselbe wie beim ersten Fehler, eine Ebene höher:** ich hatte den
+Fehler gefunden, bevor ich NACHGESEHEN hatte, ob 450 schon durch war, und daraus „bevor er
+bei Dir war" gemacht — eine Behauptung über die Welt, erschlossen statt geprüft. Der Commit
+`c377cd8a` trägt sie ebenfalls („SELF-FOUND, BEFORE THE BUILD REACHED THE FOUNDER") und ist
+gepusht; er wird NICHT umgeschrieben, die Rücknahme steht hier und in der Notiz.
+
+**Lehre, die über diesen Fall hinausgeht:** eine Aussage über den AUSLIEFERUNGSSTAND ist
+genauso eine Messung wie eine Zählung von Aufrufstellen. Der Befehl dafür existiert
+(`mcp__github__actions_list` auf `testflight.yml`) und war zwei Minuten entfernt.
+
+**Notiz auf 452 korrigiert**, mit beiden Rücknahmen im Klartext und der Liste dessen, was
+in TestFlight liegt: 449 (2568) · 450 (2569, Notiz an einer Stelle falsch) · dieser Build.
+
+**Gates:** Compile Check **2382 grün** auf `c377cd8a` (#1025b). 2381 wurde vom Nachfolge-Push
+abgebrochen — normal, kein Befund.

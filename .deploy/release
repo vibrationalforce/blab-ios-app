@@ -1,4 +1,4 @@
-build: v10.79.451 — Beim Drehen wird nichts mehr verzerrt
+build: v10.79.452 — Beim Drehen wird nichts mehr verzerrt
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,7 +6,7 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.450.
+  Der Vorgänger ist 10.79.451.
 
   ── ICH HABE DEN CLIP GELESEN, UND ER ZEIGT DIE URSACHE ──────────────────
 
@@ -42,9 +42,19 @@ notes: |
   davor gewarnt hast.** Sie sagte „alle Schubladen auf einmal … deshalb zwei Stellen statt
   zwanzig". Nachgezählt: die gemeinsame Schubladen-Hülle trägt **vier** von sieben. Öffnen,
   Diagnose und Learn hingen nicht daran — Learn darf sogar gar nicht daran hängen, weil es
-  seine Höhe selbst regelt. Die drei haben die Grenze jetzt direkt bekommen. **Gefunden,
-  bevor der Build bei Dir war**, und der Wächter ZÄHLT die Stellen jetzt, statt sich auf
-  meinen Satz zu verlassen.
+  seine Höhe selbst regelt. Die drei haben die Grenze jetzt direkt bekommen, und der
+  Wächter ZÄHLT die Stellen jetzt, statt sich auf meinen Satz zu verlassen.
+
+  ⛔ **UND ICH HABE DAZU EINEN ZWEITEN SATZ GESCHRIEBEN, DER AUCH FALSCH WAR.** In der
+  451er-Fassung stand „gefunden, bevor der Build bei Dir war". **Stimmt nicht:** 450 ist
+  um 11:08 fertig gebaut und liegt mit der falschen Liste in TestFlight. Ich hatte den
+  Fehler gefunden, bevor ich *nachgesehen* hatte, ob 450 schon durch war — und daraus
+  „bevor er bei Dir war" gemacht. Das ist derselbe Fehler wie der erste, eine Ebene höher:
+  eine Behauptung über die Welt, die ich nicht geprüft, sondern erschlossen habe.
+
+  **Was das für Dich heißt:** in TestFlight liegen 449, 450 und dieser Build. **Die Notiz
+  von 450 ist an dieser einen Stelle falsch** — die Grenze wirkte dort auf vier von sieben
+  Schubladen, nicht auf allen. Ab diesem Build sind es sieben von sieben.
 
   ⚠ **Auf Deinem Telefon im Hochformat ändert sich NICHTS.** Das breiteste iPhone ist heute
   440 Punkt breit — die Grenze von 560 greift dort nie. Sie greift nur da, wo die Fläche
@@ -69,8 +79,10 @@ notes: |
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  449 (die Mikrofon-Türen) ist **grün** und liegt bei Dir: Compile Check 2380, TestFlight
-  2568 — das ist **v10.79.449 (2568)**. Dieser Build wird mit dem Push geprüft.
+  Alles grün und bei Dir: **449 (2568)** — die Mikrofon-Türen. **450 (2569)** — die
+  Lesbarkeits-Obergrenze, mit der falschen Schubladen-Liste in der Notiz. Und die
+  Korrektur selbst hat den Compiler schon bestanden (Compile Check 2382); dieser Build
+  ist dieselbe Arbeit plus die zwei richtiggestellten Sätze.
 
   22 Wächter-Behauptungen habe ich von Hand gegen den Quelltext nachgerechnet, alle grün;
   die vier bestehenden Adaptiv-Wächter ebenfalls noch einmal durchgezogen (0 Verstöße).
