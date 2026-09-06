@@ -37,9 +37,32 @@ Foundation.log(value)      // use this for math log()
 ```
 
 ### API Gotchas
-- `NormalizedCoherence` is NOT BinaryFloatingPoint — use `.value`
-- `Swift.max/min` — qualify when struct has static `.max` property
-- `EchoelBrandFont` methods: heroTitle(), sectionTitle(), cardTitle(), body(), caption(), data(), dataSmall(), label() — NO bodyText()
+
+⛔ **TWO ENTRIES STOOD HERE AND NAMED TYPES THAT DO NOT EXIST (#1041, measured 2026-09-06).**
+This file is PRESCRIPTIVE — it hands a build-fixing agent the fix to apply — so a phantom here
+does not merely mislead, it produces code against an API that was never in the tree.
+
+- ⛔ `NormalizedCoherence is NOT BinaryFloatingPoint — use .value`. Measured:
+  `git grep -c NormalizedCoherence -- Sources` → **0**. The single hit in `Tests/` is the NAME
+  OF A TEST METHOD (`CoreSystemTests`), not a type. CLAUDE.md deleted the same entry from its
+  own "API Gotchas" section on 2026-07-25 with "Do not restore any of it"; this copy was
+  missed — the #456 shape, a retraction that fixed one home and left the other running.
+  **Today coherence is a plain `Double` on `BioFrame`/`EchoelBioEngine`**, in the unit range,
+  and needs no wrapper accessor.
+- ⛔ `EchoelBrandFont methods: heroTitle(), … — NO bodyText()`. Measured:
+  `git grep -c EchoelBrandFont -- Sources Tests` → **0 in both**. Eight method names of a type
+  that is nowhere. **The real one is `EchoelTheme`** (1765 references in `Sources/`); read it
+  before writing a font or colour line, do not guess from this list.
+
+Still true, and the reason this section survives at all:
+- `Swift.max/min` — qualify when a struct in scope has a static `.max` property.
+- Argument order decides NaN behaviour: `max(0, NaN)` is `0`, `max(NaN, 0)` is `NaN`, so
+  `min(max(v, lo), hi)` passes NaN straight through. Use `clamped(to:)`
+  (`Core/FloatingPointClamp.swift`) for anything reaching the audio thread — this has shipped
+  a permanent-silence bug before.
+
+**Before adding an entry here, run the grep.** An API gotcha is a claim about the tree, and
+this file's whole job is to be trusted without checking.
 
 ## Execution Protocol
 

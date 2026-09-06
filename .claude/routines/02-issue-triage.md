@@ -45,10 +45,24 @@ Never close an issue. Never commit a fix directly. Draft only.
 
 4. **Check for known patterns:**
    - Crash with `EXC_BAD_ACCESS` → likely audio thread violation (malloc/ObjC in render block)
-   - "Sound doesn't react to heartbeat" → bio mapping range too narrow (see DEEP_RESEARCH doc)
-   - "Camera pulse not working" → `isCameraActive` race condition (see BioSourceManager)
    - Build failure with `ITMS-90725` → iOS 26 SDK not used (Xcode < 26.2)
    - `log(.info,...)` compile error → logger called as function instead of method
+   - Black screen at launch, nothing renders → the `.sheet`-chain metadata ceiling
+     (`swiftui-render-safety`; 14 presentation modifiers on `EchoelStudioView.body`)
+   - Picker/menu freezes ONLY while biofeedback runs → a ~10 Hz `@Observable` read in an
+     ANCESTOR body, not in the obvious view (`swiftui-render-safety`, the 10.76.50 law)
+
+   ⛔ **TWO ROUTES STOOD HERE AND POINTED AT THINGS THAT NO LONGER EXIST (#1041, measured
+   2026-09-06).** Both were replaced rather than deleted, because the SYMPTOMS are real and a
+   triage list with a hole sends the reporter nowhere:
+   - ⛔ `"Sound doesn't react to heartbeat" → see DEEP_RESEARCH doc`. There is no such
+     document anywhere in the repo. **The live map is CLAUDE.md's "DDSP Bio-Mappings" table**,
+     which also names the channels that have NO producer — the far likelier cause of "it does
+     not react": `breathDepth` and `lfHf` are pinned constants at both construction sites.
+   - ⛔ `"Camera pulse not working" → isCameraActive race condition (see BioSourceManager)`.
+     `isCameraActive` and `BioSourceManager` are both **0 hits** in `Sources/`; the manager was
+     deleted in the 2026-06-19 cleanup. **The live path is `CameraRPPGBioPublisher`**, and the
+     known causes are the torch/exposure lock (fixed 2026-06-18) and the frame-stall watchdog.
 
 5. **Apply labels:**
    ```bash
