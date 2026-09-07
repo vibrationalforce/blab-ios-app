@@ -24877,3 +24877,50 @@ alle, die das Label sehen können.
 FRISCHE Läufe — zwei Einträge statt fünf, also rund ein Fünftel der Antwortgröße. Damit sind zwei
 frische und zwei alte Filter-Kombinationen gemessen; der gemeinsame Nenner der alten bleibt
 unbekannt, deshalb steht dort weiterhin ein Rezept und keine Theorie.
+
+## #1061 — Die gespielte Farbe blühte in der falschen Spalte (2026-09-07)
+
+**Die Bitte des Founders für diesen ganzen Mechanismus (2026-07-08) war: eine Farbe erscheint
+DORT, wo ihr Ton klingt.** Tat sie nicht. `SpectralColor.notePosition` setzte eine Note an ihren
+CHROMATISCHEN Bruchteil über C (`x = (f - 0.5) * 1.5`) — und der eigene Doc-Kommentar nannte das
+„the fretboard grid's column order", also genau das, was das Gitter NICHT ist: gleich breite
+SKALENSTUFEN-Spalten mit dem Grundton LINKS. Eine berührte Zelle ließ die Wolke also in jeder
+Tonart außer C woanders aufblühen — und selbst in C in der falschen Spalte, sobald die Skala
+nicht chromatisch ist (7 Stufen über eine Breite, die der chromatische Bruchteil in 12 teilt).
+**Dieser falsche Satz ist der Grund, warum niemand nachsah:** er las sich wie die Feststellung,
+dass beide Seiten längst übereinstimmen. Gelöscht, nicht abgeschwächt.
+
+**Die ZEILE ist die Falle** — und die Hälfte, die eine plausible Reparatur falsch macht. Eine
+Gitter-Zeile ist ein BAND, nicht die Oktav-NUMMER der Note: eine hohe Skalenstufe rutscht in die
+nächste Oktavnummer, während sie in derselben Zeile bleibt. In a-Moll ist die sechste Stufe der
+UNTERSTEN Zeile MIDI 65, deren Oktavnummer 4 ist, während ihr Band 3 ist. Die Zeile aus
+`pitch / 12 - 1` abzuleiten — genau das, was die Zellen-BESCHRIFTUNG druckt, vier Zeilen
+entfernt in derselben Datei — setzt sie eine Zeile zu hoch, in der Tonart, mit der der Wähler
+öffnet. `TouchPitchMap.fieldPosition` invertiert stattdessen `key.degree(_:octave:)`.
+
+**Die alte Abbildung überlebt und MUSS es.** Sie ist kein Bug: sie ist die quellen-agnostische
+TONHÖHENRAUM-Platzierung und damit die ehrliche Antwort für ein Feld OHNE Gitter darüber (das
+Vollbild-Cover und der externe Schirm zeichnen keines) sowie für eine Note, deren Tonklasse gar
+nicht in der Tonart liegt. Zwei der drei Montagestellen übergeben absichtlich keine Tonart.
+
+**Wächter.** `Tests/CISmoke/ThePlayedColourLandsOnTheTouchedCellTests` — fünfzehn
+Behauptungs-Anweisungen in vier Ansprüchen (4 · 3 · 5 · 3); Anspruch 1 fährt allein **1116
+Zellen** (12 Grundtöne · 4 Skalen · 3 Bänder) gegen BEIDE Koordinaten, jede landet auf ihrem
+eigenen Mittelpunkt. Auf dem Vor-Scheiben-Baum ist nur Anspruch 4 benotbar (der Rest
+kompiliert dort nicht) — und alle drei sind ROT. Das ist die ehrliche Form dieser Reparatur:
+die Arithmetik ist neu, die VERDRAHTUNG ist der Teil, der still ausbleiben könnte.
+
+⚠️ **Nicht pixelgenau im Vollbild**, und das steht im Code statt es anzudeuten: das Gitter
+zeichnet in `playRect` (Bounds minus Safe Area), das Metall-Feld füllt die ganzen Bounds. Wo
+sich beide unterscheiden, liegen Zelle und Wolke um diesen Rand auseinander — wenige Prozent der
+Breite gegen vorher eine ganze Spalte. Ein gemeinsames Rechteck ist die echte Reparatur und
+gehört zur Vollbild-Verschmelzung.
+
+**#1061a — eine Zahl in der eigenen Prosa war falsch.** „MIDI 68" stand in zwei Prosa-Stellen;
+richtig ist 65 (68 ist Tonklasse 8 und in a-Moll gar nicht enthalten, das Beispiel zeigte also
+auf eine Zelle, die es nicht gibt). Die LAUFENDE Behauptung war die ganze Zeit richtig, weil sie
+die Tonhöhe BERECHNET statt sie zu zitieren — genau so überlebt eine falsche Zahl: nichts
+Ausführbares widersprach ihr. Beide Stellen in einem Commit (#456), die Rücknahme bleibt an der
+Deklaration stehen.
+
+**Gate gelesen:** `Xcode Compile Check` = **success** auf `b7452784` (#1060).
