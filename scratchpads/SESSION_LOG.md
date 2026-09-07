@@ -25018,3 +25018,38 @@ angepinnte WAV-Stopp reserviert 104 pt). Dazu Anspruch 6 in
 **Getrieben per Transkription** (keine Toolchain): alle Text-Nadeln grün, die Budget-Arithmetik
 in Python über 20…1200 pt × 16 Zustände nachgerechnet — 0 Fehlschläge. **Wie das Overlay über
 dem bewegten Bild AUSSIEHT, ist Gerät.**
+
+## 2026-09-07 — #1064 (S5): das Ton-Gitter bekommt einen Schalter dort, wo die Bitte war
+
+**Was:** `Toggle("Note grid on the field")` am Ende der „Look"-Gruppe im Field-Panel. Der
+Founder nennt in seiner Bitte drei Dinge — Farbtöne, **das Ton Gitter**, kompakteres Menü — und
+das Gitter hatte genau EINE Bedienstelle: einen wortlosen Glyph in der Fensterleiste, DRITTER
+im Abwurf-Rang. `ChromeBudgetFitsTests` fährt genau den Zustand, in dem er gar nicht auf dem
+Schirm ist (375 pt mit laufender WAV-Aufnahme) — und das Panel, um das die Bitte ging, hatte
+bei JEDER Breite keinen.
+
+**EIN gespeicherter Schalter, zwei Bedienstellen.** Beide Ansichten binden
+`StudioDefaultKeys.touchShowGrid`, also denselben `UserDefaults`-Eintrag. Ein zweiter Schlüssel
+wäre der Defekt, bei dem ein Schalter sich bewegt und auf dem Schirm nichts passiert — der liest
+sich im Review vollkommen sauber und fällt erst am Gerät auf. Anspruch 2 des Wächters pinnt beide
+Seiten.
+
+**Wo und warum:** am Ende von „Look", weil das Gitter ändert, was man SIEHT, nicht wie es klingt.
+INNERHALB der bestehenden `Group` — das Panel erklärt selbst, dass `panel(_:isExpanded:)` einen
+`@ViewBuilder` nimmt, dessen Typprüf-Kosten mit der KINDERZAHL wachsen, und die `Group` existiert,
+um die Zahl klein zu halten. Ein viertes Kind IN ihr kostet das Panel nichts.
+
+**Keine Erklärzeile unter dem Schalter — Absicht.** Dieser Durchgang heisst „kompakter und
+übersichtlicher"; der Satz, der dort gestanden hätte, ist ein `accessibilityHint`: keine Fläche,
+und er erreicht die Leserin, die das Gitter nicht auftauchen sehen kann.
+
+**Wächter:** `Tests/CISmoke/TheNoteGridHasADoorWhereTheAskWasTests` — zwei Ansprüche, sieben
+Behauptungen, heute per Transkription grün. Gegengewicht (#367/#364): der Knopf im Fenster steht
+noch, damit die Datei nicht über einen Baum grün läuft, in dem die Tür VERSCHOBEN statt
+hinzugefügt wurde.
+
+⛔ **Und eine Zahl in meinem eigenen Doc-Kommentar war beim Schreiben schon falsch:** ich schrieb
+„shed rank 4" für den Gitter-Schalter — mit #1063 ist er Rang 3 und das Standbild Rang 4. Vor dem
+Commit korrigiert auf „THIRD in the shed order" plus den Verweis auf den Wächter, der es fährt.
+**Dieselbe Lehre wie #1061a: eine Zahl aus dem Gedächtnis, während die Liste vier Zeilen entfernt
+im selben Kopf steht.**

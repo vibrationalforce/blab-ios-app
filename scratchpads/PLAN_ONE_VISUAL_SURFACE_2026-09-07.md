@@ -116,8 +116,15 @@ Telefon; im Vollbild soll nichts fallen. `ChromeBudgetFitsTests` ist der Wächte
 neue Regel mitbekommen. **Vorsicht: hier gibt es keinen Renderer** — die Abwurf-Leiter ist reine
 Arithmetik und damit prüfbar, das WICKELN ist Layout und nur am Gerät zu sehen.
 
-**S5 — Gitter-Schalter bekommt eine Tür im Field-Panel (D5c). ⭐ RÜCKT VOR**, weil S2
-gestrichen ist und diese Scheibe weder vom Cover noch von einem Council abhängt.** Heute steckt das Ton-Gitter
+**S5 — Gitter-Schalter bekommt eine Tür im Field-Panel (D5c). ✅ AUSGELIEFERT als #1064**
+(`c3f0fb27`), vorgerückt, weil S2 gestrichen ist und diese Scheibe weder vom Cover noch von
+einem Council abhängt. `Toggle("Note grid on the field")` am Ende der „Look"-Gruppe, INNERHALB
+der bestehenden `Group` (der Kind-Zähler des Panels bleibt gleich — der Typprüfer-Grund, den
+das Panel selbst nennt). EIN gespeicherter Schalter, zwei Bedienstellen: beide Ansichten binden
+`StudioDefaultKeys.touchShowGrid`. Keine Erklärzeile darunter — der Satz ist ein
+`accessibilityHint` und kostet keine Fläche. Wächter:
+`TheNoteGridHasADoorWhereTheAskWasTests` (zwei Ansprüche, sieben Behauptungen, Gegengewicht:
+der Fenster-Knopf steht noch). Heute steckt das Ton-Gitter
 hinter einem Abwurf-Rang-4-Glyph in der Fensterleiste, und die Fläche, um die die Bitte ging,
 hat gar keinen Schalter dafür.
 
