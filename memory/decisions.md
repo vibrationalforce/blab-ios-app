@@ -1425,3 +1425,31 @@ beschränken (#292, `afcf3aa`).
 - **Lieferung:** `fastlane/metadata/**` liegt in KEINEM Auto-Merge-Filter und keine Lane pusht es —
   die Texte reisen als Passagiere von #1089 nach `main` und erreichen ASC nur per Founder-Terminal.
 - **Review:** 2026-10-07 — Screenshots geschossen? Review-Notiz auf dem Gerät nachgespielt?
+
+### 2026-09-07 — Wasserklangbild (Founder, wörtlich „wie als wenn ein Lautsprecher mit Wasser füllt"): drei Scheiben, ein Look, ein Build (#1100–#1102, v10.79.459)
+- **Aufgehoben als SCOPE, nicht als Messung:** der Plan-Eintrag „Faraday dish killed as near-term"
+  (`PLAN_PHYSICAL_VISUALS_2026-09-07.md`). Die Founder-Bitte bezahlt den gemessenen Preis
+  ausdrücklich — für GENAU EINEN Look. Der Physik-Eintrag „chord-driven dish" bleibt: eine
+  parametrische Instabilität lässt sich nicht superponieren (Benjamin–Ursell ist Einzelfrequenz).
+- **EIN Ton treibt die Schale** (`toneHz`, geeast). ⛔ Meine Antwort an den Founder hatte „bis zu
+  fünf Noten" versprochen — zurückgenommen im Dateikopf von `Core/FaradayDish.swift` und in der
+  Deploy-Notiz 459. Andere Noten dürfen als FARBE ins Bild, nie als Gitter.
+- **Physik zuerst, ohne Pixel** (#1100): Antwort bei f/2, VOLLE Gravitations-Kapillar-Dispersion per
+  Log-Bisektion (bei 20 Hz ist Gravitation 58 % — da lebt der Lautsprecher), Schwelle
+  a_c = 8νkω/tanh(kh) (0,9 g bei 200 Hz, 42 g bei 2 kHz → Bass mustert, Höhen nicht, Stille =
+  Spiegel), √-Onset. END-TO-END-Wächter, jede Zahl per Python-Transkription gemessen, sechs
+  Mutanten rot. Zwei benannte Wahlen: `speakerAccelerationAtFullDrive` = 200 m/s² (≈ 20 g aus 100 dB
+  SPL auf 12-Zoll-Membran; Muster bis ≈ 1,3 kHz) und `saturationExcess` = 1.
+- **Slot 2 (Plasma) statt Slot 1 (Chladni)** (#1101): Plasma hat keinen Tonbezug, keine Pins, keinen
+  Farbpfad-Sonderfall; Chladni ist die PLATTE, die Scheibe 2 des Plans exakt machen will (Founder-
+  Frage offen). Drei Uniforms am SCHWANZ beider Structs; nur die Stärke geeast (tau 0,5 s);
+  EIN Phasenterm → Blitz-Budget 1,00 Hz hergeleitet. Symmetrie Quadrate→Sechsecke aus dem
+  Kapillar-Anteil, Anker 0,90/0,985 als WAHL (Richtung gemessen, Binks & van de Water 1997).
+- **Tür + Budget in EINEM Commit, NICHT in der Default-Sequenz** (#1102): `LookBlendMap.library`
+  (2, „Dish"), FlashGuardTests-Zeile + Set-Pin, blockierender Anspruch 7 in
+  `TheWaterDishIsLitLikeTheExperimentTests`. Der Founder schaltet den Chip zu; kein fremder Regler
+  wird länger. **Website bleibt bei „four generative looks"**, bis das Auge das Bild angenommen hat.
+- **Gates:** Xcode 2440–2442, CI/CD 5904–5907 „Build for Testing", TestFlight 2578 → Build 2578 in
+  ASC. Geräteverifiziert: nichts. Mirror: `decisions.csv:747`.
+- **Review 2026-10-07:** Hat der Founder das Bild gesehen? Dann Website „five", und die Frage
+  „öfter/seltener" (Stellschraube 200 m/s²) entscheiden.
