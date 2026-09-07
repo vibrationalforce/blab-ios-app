@@ -3515,6 +3515,26 @@ Laufreihenfolge zeigt, keine Aussage über den Rest. (2) Die echte Reparatur ist
 (3) Wer das Artefakt wirklich lesen will, braucht den Founder-Mac: dort `gh run download <id>`
 und `xcrun xcresulttool get test-results summary --path *.xcresult`.
 
+## PLAYBOOK #1097 (2026-09-07) — ein `moved-needles`-Treffer ist ein Auftrag zur TRANSKRIPTION, nicht zur Nadelsuche
+
+**Vorfall.** Der Rückblick-Lauf `moved-needles.py fcd3d4b8~1..HEAD` nannte
+`TempoLockAlwaysAsksForARecomposeTests`, weil eine entfernte Sources-Zeile in seinem
+FEHLERMELDUNGS-Text vorkam — für die Nadelfrage ein Fehlalarm. Der Fan-out-Agent hat die
+Behauptung trotzdem in Python nachgebaut (Walk über `Sources/`, Fenster von 12 Code-Zeilen,
+`isLockWrite`-Regel) — und die war seit #494 (2026-08-08) rot: ein fünfter, absichtlich stiller
+`lockBPM`-Schreiber in `open(_:)`. Einen Monat, ~30 Deploys, nie im Log-Fenster.
+
+**Spielzug.** Jeder Wächter, den das Werkzeug nennt, wird TRANSKRIBIERT (Scope, Stripper, Zähl-
+Regel exakt wie der Swift-Code) und gegen den echten Baum gefahren — nicht nur „steht die Nadel
+noch drin?". Bei ≥ 10 Wächtern: Fan-out (ein Lese-Agent je Wächter, Widerleger je ROT; 19 Wächter
+= 21 Agenten, 12 min, 2 echte Rote). Die Prompt-Form steht in
+`.claude/…/workflows/scripts/hidden-red-guards-sweep-*.js` der Sitzung; der Sicherheits-Absatz
+(read-only, kein `git checkout/stash/…`) ist Pflicht.
+
+**Warum das mehr ist als #1092.** #1092 sagt „grep vor dem Umbau". Das fängt Umbauten von HEUTE.
+Ein Rot, das ÄLTER ist als jeder Umbau im Bereich, findet nur die Transkription — und genau die
+war die teuerste der fünf Funde des Tages.
+
 ## PLAYBOOK #1092 (2026-09-07) — eine Deklaration verschieben heißt: erst die Wächter grepen, die sie verankern
 
 **Vorfall:** #1027 hob den Transport-`HStack` aus `startControlRow` nach `transportLine1` und strich

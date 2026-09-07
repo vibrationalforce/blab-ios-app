@@ -25593,3 +25593,36 @@ Mutanten. dead-needles OK, count-pins 0 RED. Push `c84c672b` 16:10Z — Gates fo
 oder Ganzdatei-Nadeln (weiter wahr). Etwa zwölf sind positive Code-Behauptungen, die wie #1027
 SCOPED sein könnten — Fan-out (ein Lese-Agent je Wächter, Widerleger je ROT) läuft; Ergebnis im
 nächsten Eintrag.
+
+### Gates für `c84c672b` (#1094/#1095, nachgetragen 16:20Z)
+- Xcode Compile Check 2437 **SUCCESS** · CI/CD 5902 `Build for Testing` **SUCCESS** — beide reparierten
+  Wächter kompilieren. Fenster wie immer keine Aussage über ihr Laufen.
+
+## #1096 / #1097 — der Fan-out über die 23 „still in Sources"-Treffer: zwei weitere Rote, einer davon einen MONAT alt
+
+**Aufbau:** Workflow, 19 Wächter × ein Lese-Agent (Transkription der Behauptung in Python, exakt
+mit Scope und Stripper des Swift-Codes), dann je ROT ein unabhängiger Widerleger. 21 Agenten,
+~12 min, 0 Fehler, 0 leere Ergebnisse. **17 GRÜN, 2 ROT, beide Widerleger reproduzieren das Rot.**
+- **`TheBreathingPracticeIsInTheMainViewTests`** — Nadel war das exakte Drei-Term-Literal
+  `.onChange(of: showMeditation || breathPacer.isRunning || isProjectingExternally)`. **#1069
+  (`8577ff6b`, heute 05:43Z)** hat es auf fünf Terme über zwei Zeilen erweitert, ohne den Wächter.
+  Rot in 457/458. Repariert `80b8f81d`: Ausdruck zwischen `.onChange(of: showMeditation` und
+  `) { _, _ in` herausgeschnitten, Whitespace kollabiert, GANZ verglichen — ein sechster Term
+  bewegt die Zeile weiter absichtlich, ein Split in zwei Modifier fällt weiter durch.
+- **`TempoLockAlwaysAsksForARecomposeTests`** — Claim 1 verlangt bei jedem `lockBPM = …` einen Post
+  oder `onLockChanged` im 12-Zeilen-Fenster. **#494 (2026-08-08)** hat einen FÜNFTEN Schreiber
+  angelegt: `open(_:)` restauriert die Sperre aus dem Take (`lockBPM = (savedMode == .studioLocked)`),
+  und sein eigener Kommentar sagt, dass ein Post dort der Fehler wäre (geladene Noten dürfen nicht
+  weg-recomposed werden). **Rot seit einem Monat, jeder Deploy dazwischen.** Der Werkzeug-Treffer auf
+  diese Datei war nur Meldungstext — der Agent hat die Behauptung trotzdem transkribiert, und DAS hat
+  es gefunden. Repariert `7966b0cd`: dritte erlaubte Form, erkannt an der RECHTEN SEITE des Schreibens
+  (`hasSuffix("= (savedMode == .studioLocked)")`), nicht an einer Nachbarschaft; Kopf zählt fünf.
+- Beide: grün am echten Baum, rot auf Eltern-Baum und Mutanten (Term gestrichen, Split, stiller
+  Schreiber daneben). dead-needles OK, count-pins 0 RED. Push `7966b0cd` 16:27Z — Gates folgen.
+
+**Bilanz des Tages an versteckt roten Wächtern:** #1092 (seit #1027, 4 Deploys) · #1094 (seit
+#1054, 2 Deploys) · #1095 (seit #1057, 2 Deploys) · #1096 (seit #1069, 2 Deploys) · #1097 (seit
+#494, ~30 Deploys). **Fünf in einem Tag, keiner von einem Gate gemeldet.** Vier davon von Umbauten
+von HEUTE. Die eine Reparatur, die alle fünf sichtbar gemacht hätte, ist #208 (`tail -200` in
+`ci.yml`) und bleibt founder-gated. Ohne sie gilt: **`moved-needles.py` vor jedem Sources-Commit,
+und bei jedem Treffer die Behauptung transkribieren, nicht nur die Nadel suchen** (PLAYBOOK #1097).
