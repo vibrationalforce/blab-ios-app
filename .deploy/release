@@ -1,4 +1,4 @@
-build: v10.79.455 — die Visual-Sektion ist EIN Ding, nicht mehr zwei
+build: v10.79.456 — wie 455, PLUS der Weißabgleich-Fix für den Puls
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,7 +6,30 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.454.
+  Der Vorgänger ist 10.79.455.
+
+  ── ⚠️ NIMM DIESEN, NICHT 455 ────────────────────────────────────────────
+
+  455 ist fünfzehn Minuten alt und **fast** identisch. Der Unterschied ist EINE Sache,
+  und sie betrifft genau das, was Du beim Testen ohnehin in der Hand hast:
+
+  **Der Weißabgleich der Kamera wird jetzt zusammen mit der Belichtung festgehalten.**
+
+  Die Kamera regelt zwei Dinge automatisch nach: Helligkeit und Farbe. Die Helligkeit
+  wird seit Juni festgehalten, sobald Dein Finger auf der Linse liegt. Die Farbe nie —
+  und der Puls wird aus dem **Rot/Grün-Verhältnis** gelesen, also aus genau den zwei
+  Kanälen, die eine Farbautomatik gegeneinander verschiebt. Sie hat einen langsamen
+  Trend direkt in das Messsignal geschrieben.
+
+  **Zusätzlich zu prüfen (Punkt 6 zu den fünf unten):** Finger auf die Linse, Licht an —
+  lockt der Puls so schnell wie vorher, und **hält** er länger, ohne wegzudriften?
+  ⚠️ Ein Rückschritt sähe aus wie ein Lock, der gar nicht erst kommt. Falls das passiert:
+  sag es, dann kommt der Fix sofort wieder raus — die eingefrorenen Werte wären dann für
+  Deine Szene falsch gewesen.
+
+  Alles andere unten gilt unverändert für 456.
+
+  ── ──────────────────────────────────────────────────────────────────────
 
   ── DEINE ANSAGE, UND WAS DARAUS GEWORDEN IST ────────────────────────────
 
