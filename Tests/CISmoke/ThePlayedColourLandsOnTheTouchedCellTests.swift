@@ -14,7 +14,7 @@
 //
 // ⛔ THE ROW IS THE TRAP, and claim 2 exists only for it. A grid ROW is a BAND, not the note's
 // octave NUMBER: a degree high in the scale crosses into the next octave number while staying
-// in the same row. In A minor the sixth degree of the BOTTOM row is MIDI 68, whose octave
+// in the same row. In A minor the sixth degree of the BOTTOM row is MIDI 65, whose octave
 // number is 4 while its band is 3 — so deriving the row from `pitch / 12 - 1` (which is what
 // the cell LABEL prints, three lines away in the same file) puts it one row too high, in the
 // key the picker opens on. The shipped code inverts `key.degree(_:octave:)` instead.

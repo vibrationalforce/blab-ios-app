@@ -66,7 +66,11 @@ public enum TouchPitchMap {
     /// The row is derived by INVERTING `key.degree(_:octave:)`, not from the note's own
     /// octave NUMBER, and that distinction is the trap: a degree high in the scale crosses
     /// into the next octave number while staying in the SAME grid row. A minor: the sixth
-    /// degree of the bottom row is MIDI 68, whose octave number is 4 while its band is 3.
+    /// degree of the bottom row is MIDI 65, whose octave number is 4 while its band is 3.
+    /// ⛔ That number read 68 for one commit and was written from memory rather than from the
+    /// arithmetic beside it: 68 is pitch class 8, which is not even in A minor, so the example
+    /// pointed at a cell that does not exist. The RUNNING guard was right the whole time — it
+    /// computes the pitch — which is exactly how a wrong number survives in prose.
     /// Taking `pitch / 12 - 1` for the row — which is what the cell LABEL prints — would put
     /// it one row too high, in the key the picker opens on.
     ///
