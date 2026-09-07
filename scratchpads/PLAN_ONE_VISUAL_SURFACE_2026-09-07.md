@@ -222,3 +222,58 @@ Fenstergrösse umschreiben. **Einzige unumkehrbare Scheibe dieses Passes.**
 gehörend bleibt genau EINE Frage** (nicht einseitig entschieden, blockiert S3b-0/S3b nicht):
 soll das Vollbild-Visual den Schirm wach halten, wenn NICHT gespielt wird? Heute tut das Cover
 es, nach S3c niemand. Akku gegen Kontemplation.
+
+---
+
+## 5. S3c — DIE KEEP-AWAKE-FRAGE IST KEINE FOUNDER-FRAGE MEHR (gemessen 2026-09-07, nach #1068)
+
+Der Council (§4) hielt EINEN Punkt zurück: nach dem Löschen des Covers liest
+`updateKeepAwake` ein `showVisual`, das es nicht mehr gibt, und der User-Advocate sagte,
+das Vollbild-FENSTER unbedingt dazuzunehmen wäre falsch — **„es ist der Startzustand →
+Dauer-Wach = echter Akku-Rückschritt"**. Das war die Begründung, mit der der Punkt an den
+Founder ging.
+
+⛔ **DIE PRÄMISSE IST HALB FALSCH, und sie stammt nicht aus dem Council, sondern aus einem
+QUELLKOMMENTAR, den er zitiert hat.** `EchoelStudioView.swift:6308-6311` schreibt wörtlich,
+das Vollbild des schwebenden Fensters sei etwas, „which the app COLD-LAUNCHES into, so it is
+the default state". Gemessen:
+
+| Schlüssel | Default | Befund |
+|---|---|---|
+| `visual.floating.visible` | `true` | das Fenster ist beim Erststart SICHTBAR — stimmt |
+| `visual.floating.size` | `WindowSize.small.rawValue` | **KLEIN, nicht Vollbild** |
+
+Also: bei einer frischen Installation startet die App in eine kleine Karte. Der Kommentar
+ist trotzdem nicht grundlos — `@AppStorage` ist KLEBRIG: wer einmal „Full screen" tippt,
+startet ab dann jedes Mal im Vollbild. **Der RISIKO-Satz stimmt, der MECHANISMUS-Satz nicht**
+(Default gegen Persistenz), und der Unterschied entscheidet die Frage.
+
+**Die Auflösung, die keine Geschmacksentscheidung braucht:** die Bedingung wird
+KONJUNKTIV statt allein.
+
+```
+running || showMeditation || breathPacer.isRunning || isProjectingExternally
+  || (Fenster ist Vollbild && cameraRPPG.isRunning)
+```
+
+Drei Eigenschaften, alle prüfbar:
+1. **Weniger wach als HEUTE, nicht mehr.** Heute hält `showVisual` ALLEIN den Schirm wach —
+   ein offenes Cover ohne irgendetwas Laufendes hält das Telefon bis zum Akkuende an. Die
+   neue Form tut das nicht. Die Klebrigkeit ist damit unschädlich: ein persistiertes Vollbild
+   mit ausgeschaltetem Biofeedback hält gar nichts.
+2. **Ship-Gate 4 (kontemplativ) ist gedeckt** — genau der Fall „Vollbild, der Körper treibt
+   das Bild, Transport steht" ist die Konjunktion, und nur er.
+3. **Kein heißer Read.** `floatingSizeRaw` ist `@AppStorage` (kalt, ändert sich auf Tipp);
+   `cameraRPPG.isRunning` kippt laut `EchoelStudioView.swift:5072` zweimal pro Sitzung und ist
+   damit dieselbe Klasse wie das schon in `body` beobachtete `isProjectingExternally` (#1044).
+   Das 10-Hz-Gesetz (10.76.41/50) bleibt unberührt — beobachtet wird die EIGENSCHAFT, nicht
+   das Objekt.
+
+**Bleibt Founder-Sache, aber als VERIFY statt als Frage:** fühlt sich „Bild wach nur solange
+der Puls läuft" richtig an? Das ist ein Geräte-Blick, kein Blocker — und die neue Form ist in
+JEDER Richtung konservativer als die alte, also gibt es keinen Zustand, in dem sie schlechter
+ist als das, was heute ausgeliefert wird.
+
+⚠️ **Der Quellkommentar wird im selben Commit korrigiert** (#456 — eine Prosa-Heimat zieht
+mit): sein Akku-Argument für `isProjectingExternally` bleibt richtig, seine Klammer über das
+Vollbild-Fenster nicht.
