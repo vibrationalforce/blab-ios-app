@@ -811,7 +811,50 @@ final class TouchInstrumentUIView: UIView {
         let cellW = rect.width / CGFloat(n)
         let cellH = rect.height / CGFloat(bands.count)
         let naming = noteNaming
-        let labelSize: CGFloat = min(12, max(9, cellH * 0.16))
+
+        // ⭐ #1058 — THE LABEL IS FITTED TO THE CELL'S WIDTH, AND UNTIL NOW IT WAS ONLY EVER
+        // FITTED TO ITS HEIGHT. `min(12, max(9, cellH * 0.16))` never looked at `cellW`, and
+        // width is the binding constraint on exactly the keys that need labels most. Measured
+        // on a chromatic key (`degreesPerOctave == 12`) at phone width: `playRect` is about
+        // 350 pt, so a cell is ~29 pt and the label box below is `29 - 11 ≈ 18 pt`. The
+        // Solfège spelling puts FOUR glyphs in that box ("Do♯4"), and four glyphs at 12 pt
+        // cannot fit 18 pt in any normal-width face — a half-em average already needs 24 pt.
+        // (No exact width is quoted here on purpose: no font metrics can be measured in this
+        // environment, and the arithmetic above needs none.) `CATextLayer` defaults to
+        // `truncationMode = .none`, so the surplus was CLIPPED: the player read "Do♯", or a
+        // half-drawn glyph, and two columns became indistinguishable on the one surface where
+        // the column IS the note. Sargam is the same shape ("Ma♯", "Re♭"); German and English
+        // are the mildest at three glyphs.
+        //
+        // TWO STAGES, and the second is the one that makes this a fit rather than a shrink.
+        // Shrinking alone bottoms out: below ~8 pt the text is not readable, so a pure
+        // size-search would just clip a smaller glyph. So if the full label cannot fit at any
+        // readable size, the OCTAVE DIGIT goes — for the whole grid at once, never per cell,
+        // because a grid where some cells say "C4" and others "C" reads as a rendering bug
+        // rather than as an answer. Nothing is lost that the surface does not already say
+        // twice over: the row IS the octave (bottom = low, by construction here), and
+        // `accessibilityValue` two dozen lines up spells that out for VoiceOver.
+        //
+        // Cost: this runs in `rebuildGrid`, i.e. on a key/size/toggle change and never per
+        // frame or per touch — at most 36 cells and ~20 text measurements, none of it on the
+        // audio thread and none of it while a finger is down.
+        let labelInsetX: CGFloat = 6
+        // The cell is inset 1.5 pt per side below, the label starts `labelInsetX` in, and 2 pt
+        // are left at the right edge so a glyph never touches the cell's border.
+        let labelBoxWidth = max(1, cellW - 3 - labelInsetX - 2)
+        var fullLabels: [String] = []
+        var shortLabels: [String] = []
+        for d in 0..<n {
+            for b in bands.indices {
+                let pitch = key.degree(d, octave: bands[b])
+                let short = naming.name(pitchClass: pitch)
+                shortLabels.append(short)
+                fullLabels.append(short + "\(pitch / 12 - 1)")
+            }
+        }
+        let fit = Self.fittedLabelStyle(full: fullLabels, short: shortLabels,
+                                        boxWidth: labelBoxWidth, cellHeight: cellH)
+        let labelSize = fit.size
 
         for d in 0..<n {
             for b in bands.indices {
@@ -841,14 +884,21 @@ final class TouchInstrumentUIView: UIView {
                 // pure tint was unreadable for dim colours); the note's colour
                 // stays on the field + border, so nothing is lost.
                 let label = CATextLayer()
-                label.string = naming.name(pitchClass: pitch) + "\(pitch / 12 - 1)"
+                let noteName = naming.name(pitchClass: pitch)
+                label.string = fit.dropsOctave ? noteName : noteName + "\(pitch / 12 - 1)"
                 label.fontSize = labelSize
                 label.foregroundColor = UIColor.white.withAlphaComponent(isRoot ? 0.9 : 0.62).cgColor
                 label.alignmentMode = .left
+                // Safety net, not the mechanism: `fittedLabelStyle` has already chosen a size
+                // that MEASURES as fitting, so this should never trigger. If the layer's own
+                // metrics ever disagree with `UIFont`'s by a hair, an ellipsis says "cut off"
+                // where the default `.none` would slice a glyph down the middle and read as a
+                // different letter.
+                label.truncationMode = .end
                 label.contentsScale = window?.screen.scale ?? 3
-                label.frame = CGRect(x: cellFrame.minX + 6,
+                label.frame = CGRect(x: cellFrame.minX + labelInsetX,
                                      y: cellFrame.maxY - labelSize - 6,
-                                     width: cellFrame.width - 8, height: labelSize + 3)
+                                     width: labelBoxWidth, height: labelSize + 3)
                 gridLayer.addSublayer(label)
             }
         }
@@ -1439,6 +1489,61 @@ final class TouchInstrumentUIView: UIView {
         let a4 = Double(synth?.poly.a4Hz ?? 440)
         let cents = Double(synth?.uiTuningCents[((pitch % 12) + 12) % 12] ?? 0)
         return a4 * pow(2.0, (Double(pitch) - 69.0 + cents / 100.0) / 12.0)
+    }
+
+    /// The largest READABLE point size at which every cell label still fits its cell — and,
+    /// when no such size exists, the decision to drop the octave digit instead of clipping.
+    ///
+    /// Two stages on purpose (#1058). Stage one shrinks the FULL label ("Do♯4") from the
+    /// height-derived ceiling down to an 8 pt floor. Stage two only runs if stage one failed
+    /// outright: it repeats the search on the SHORT label ("Do♯"). Order matters — the digit
+    /// is worth keeping whenever it can be kept, and it is only ever dropped for the whole
+    /// grid, because a grid where some cells carry the octave and others do not reads as a
+    /// bug rather than as a layout that adapted.
+    ///
+    /// ⚠️ EVERY label is measured, not just the longest STRING. Character count is not width:
+    /// "Ma♯" and "Do♯" differ, and in a proportional font "Fa" is narrower than "Ma". Taking
+    /// the max of measured widths is the only version of this that is actually true.
+    ///
+    /// ⚠️ THE FLOOR IS A REAL FLOOR. If even the short label will not fit at 8 pt the function
+    /// returns that pair anyway rather than shrinking into illegibility — the cell is then
+    /// genuinely too narrow for text, `truncationMode = .end` catches the overflow visibly,
+    /// and the answer is fewer columns, not smaller letters. Returning the floor keeps this a
+    /// total function: there is no input for which the caller gets nothing.
+    static func fittedLabelStyle(full: [String], short: [String],
+                                 boxWidth: CGFloat,
+                                 cellHeight: CGFloat) -> (size: CGFloat, dropsOctave: Bool) {
+        let ceiling = min(12, max(9, cellHeight * 0.16))
+        let floorSize: CGFloat = 8
+        let step: CGFloat = 0.5
+        // ⚠️ MEASURE THE FONT THAT IS ACTUALLY DRAWN, which is NOT the system font. The caller
+        // sets `fontSize` on a `CATextLayer` and never sets `font`, and an unset `CATextLayer`
+        // font is Helvetica — so measuring in SF would have produced a fit that is right about
+        // a typeface nobody renders, i.e. a measurement that looks rigorous and is off by a
+        // few per cent in an unknown direction. The `??` is a real fallback, not decoration:
+        // `UIFont(name:size:)` is failable and this must not trap on a device that somehow
+        // lacks the face.
+        func widest(_ strings: [String], at size: CGFloat) -> CGFloat {
+            let font = UIFont(name: "Helvetica", size: size) ?? .systemFont(ofSize: size)
+            return strings.reduce(0) { accumulated, text in
+                Swift.max(accumulated, (text as NSString).size(withAttributes: [.font: font]).width)
+            }
+        }
+        // Written out twice rather than looped over `[full, short]`: the loop form had to
+        // re-derive WHICH list it was on to fill `dropsOctave`, and that re-derivation is the
+        // kind of cleverness this repo's rules ban outright — two plain passes cannot get the
+        // flag wrong.
+        var size = ceiling
+        while size >= floorSize {
+            if widest(full, at: size) <= boxWidth { return (size, false) }
+            size -= step
+        }
+        size = ceiling
+        while size >= floorSize {
+            if widest(short, at: size) <= boxWidth { return (size, true) }
+            size -= step
+        }
+        return (floorSize, true)
     }
 
     // MARK: - Water ripples (drawn by the Metal renderer — structural rebuild 2026-07-09)
