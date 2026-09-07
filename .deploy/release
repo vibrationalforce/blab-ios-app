@@ -1,4 +1,4 @@
-build: v10.79.454 — Breiten-Deckel raus, „Play with Simulation" repariert
+build: v10.79.455 — die Visual-Sektion ist EIN Ding, nicht mehr zwei
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,68 +6,88 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.453.
+  Der Vorgänger ist 10.79.454.
 
-  ── ZUERST: DU HATTEST RECHT, ICH HABE DAS FALSCHE REPARIERT ─────────────
+  ── DEINE ANSAGE, UND WAS DARAUS GEWORDEN IST ────────────────────────────
 
-      „Mache das rückgängig du hast das falsche korrigiert. Ich will adaptive Größe
-       also Bildschirmgröße ausfüllend für alle Ansichten. War nur bei Play with
-       Simulation und routing hochkant über den Bildschirm Rand hinaus."
+      „aktuell gibt es fullscreen Mode das soll aber alles zu einem Ding
+       zusammengefasst werden"
 
-  **Die Breiten-Obergrenze aus 450/452 ist raus.** Sie hat Fenster auf 560 Punkt gedeckelt
-  und den Rest leer gelassen — also genau das Gegenteil von „bildschirmfüllend". Weg sind:
-  die Einstellung selbst, alle sieben Stellen, die sie benutzt haben, und der Wächter, der
-  sie beschützt hat. An allen vier Stellen steht jetzt im Code, dass sie auf Deine Ansage
-  entfernt wurde und nicht ohne Rückfrage zurückkommt.
+  **Es gibt jetzt genau EINE Visual-Fläche.** Der zweite Vollbild-Modus ist gelöscht — er
+  war eine zweite Bedienleiste über demselben Bild. „Full screen" vergrößert jetzt das
+  Fenster, das ohnehin da ist, statt ein zweites darüber zu legen.
 
-  **Und die Notiz zu 453 hat es noch als „bleibt drin, ist für iPad richtig" verkauft.**
-  Das war eine Zukunfts-Behauptung über etwas, das Du gerade abgelehnt hattest.
+  Gelöscht wurde erst, als **nichts mehr daran hing**: Standbild-Auslöser, Ton-Gitter,
+  Donut-Ansicht und die Tür selbst sind vorher einzeln umgezogen, jede für sich
+  rückholbar. Die eine Zeile, die es nur dort gab — der Hinweis auf AirPlay — sitzt jetzt
+  im Field-Panel unter „Look".
 
-  ── DIE ZWEITE FLÄCHE, DIE DU GENANNT HAST ───────────────────────────────
+  **Ehrlicher Verlust, damit Du ihn nicht suchst:** eine Aufnahme direkt nach dem Stoppen
+  teilen. Der Film ist unverändert da, über das Video-Panel.
 
-  „Play with Simulation" — und der Grund ist dieselbe Sorte Fehler wie im Routing-Fenster,
-  nur an einer anderen Zeile.
+  ── FARBEN: PHYSIKALISCH KORREKT ─────────────────────────────────────────
 
-  Die Transport-Zeile ganz oben hat **vier Kinder** (Start · Play/Stop · BPM · Puls-Anzeige),
-  **keinen Platzhalter dazwischen** und **unter jedem eine Mindestbreite**. Sie hat also von
-  allen Zeilen der App am wenigsten Luft.
+  Drei echte Fehler, alle in der Rechnung, nicht im Geschmack:
+  · Die **Aufhellung am Ende** war pro Farbkanal gerechnet und hat dabei den FARBTON
+    verbogen — Rot wurde beim Aufhellen orange. Jetzt bleibt der Ton stehen.
+  · Der **Helligkeits-Boden** hat Licht gekauft, indem er Farbe wegnahm.
+  · Der **Start** hat Deine eingestellte Farbe überschrieben.
 
-  Die Puls-Anzeige hängt **ein zusätzliches Schildchen „Demo" an — aber nur, wenn die
-  Simulation läuft.** Ein Element mehr, und die Summe ist breiter als das Hochformat. Der
-  Überstand geht rechts raus. Das ist wörtlich Dein „nur bei Play with Simulation".
+  ── TON-GITTER ───────────────────────────────────────────────────────────
 
-  Gemessen, nicht geraten — das war bei den zwei falschen Antworten davor der Fehler.
+  · Die **Beschriftungen waren abgeschnitten**, nicht eingepasst.
+  · Die gespielte Note **leuchtete in der falschen Spalte**.
+  · Neun von zehn Feinregler taten **im Donut-Modus gar nichts** — sichtbar war der Name
+    eines Metal-Looks über einem Donut-Feld, also stand da schlicht das Falsche.
 
-  ── WAS ICH GEBAUT HABE ──────────────────────────────────────────────────
+  ── FIELD: KOMPAKTER, OHNE ETWAS WEGZUNEHMEN ─────────────────────────────
 
-  Dieselbe Lösung wie im Routing-Fenster, damit die App **eine** Regel hat und nicht zwei:
-  die Zeile entscheidet selbst. Passt alles nebeneinander, bleibt es nebeneinander. Passt
-  es nicht, rutscht die Puls-Anzeige auf eine zweite Zeile.
+      „Es geht vorallem darum das alle Funktionen von Field kompakt
+       und übersichtlich bleiben"
 
-  · **Nichts wird gedeckelt und nichts zentriert** — jede Ansicht nimmt die volle Breite.
-  · Quer und auf breiten Flächen ändert sich **nichts**.
-  · Die Puls-Anzeige wird **einmal** gebaut und in beide Fälle gereicht, nicht zweimal —
-    sie ist die Stelle, die den Puls mit 10 Hz liest, und zwei davon wären der alte
-    Menü-Einfrier-Fehler.
+  Field hatte 27 Zahlenfelder in EINER Rolle. Jetzt sind es drei aufklappbare Gruppen —
+  **Look** offen, **Voice** und **Self-play** zu. **Nichts ist gelöscht.** Ein Wächter
+  verbietet ausdrücklich, dass ein späteres „Aufräumen" daraus eine Löschung macht.
+
+  ── BEAMER: ER ZEICHNET JETZT DEIN BILD ──────────────────────────────────
+
+  Gemessen, nicht vermutet: das Telefon mischt das Wetter in Farbton, Sättigung, Leuchten
+  und Bewegung — der angeschlossene Bildschirm hat **dieselben Regler roh** genommen. Ein
+  Beamer hat die Wetter-Tönung also mitten in der Show still verschluckt, und niemand
+  konnte das ohne Beamer sehen.
+
+  Jetzt rechnen beide mit **derselben** Funktion. Auseinanderlaufen können sie nicht mehr.
+
+  ── WAS NUR DU SEHEN KANNST ──────────────────────────────────────────────
+
+  1. Field → „Full screen": füllt das EINE Fenster den Schirm, und legt sich nichts darüber?
+  2. Puls läuft im Vollbild → bleibt der Schirm wach? Puls gestoppt → schläft er normal?
+  3. Field öffnen: liest sich das jetzt als Karte statt als Wand?
+  4. Die Farben: bleibt beim Aufhellen der Ton stehen?
+  5. **Mit Beamer** (USB-C/HDMI/AirPlay), Wetter an, ein Mixer über null: zeigt der große
+     Schirm dieselbe Tönung wie das Telefon?
+
+  ── FRAGEN AN DICH, DIE ICH NICHT ALLEIN ENTSCHEIDE ──────────────────────
+
+  · **Beamer wettergemischt oder roh?** Technisch geht jetzt beides — das ist Dein
+    vorhandener Wetter-Schalter, keine Codeänderung. Vorher war „roh" ein Defekt, jetzt
+    ist es eine Wahl.
+  · **Statusleiste im Vollbild** — der alte Modus hat sie versteckt, der neue nicht.
+    Stört sie?
+  · **Erststart-Farbe** und **Sättigung** („Bunter") — reiner Geschmack, Dein Ohr/Auge.
+  · **Eine zweite Bedienzeile im Vollbild?** Auf schmalen Telefonen fallen im Vollbild zwei
+    Elemente weg (Look-Regler, Positionsanzeige). Beide sind erreichbar — der Look über die
+    „Studio"-Taste im Bildfenster zurück zur Bedienleiste und dann Field, die Anzeige ist
+    nur Anzeige. Eine zweite Zeile brächte einen Tap zurück und
+    kostet „kompakter". Drei gemessene Optionen liegen bereit; ich habe bewusst nichts gebaut.
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  In TestFlight liegen 449–453 grün. **Nimm diesen hier.** Compile Check kommt mit dem Push.
+  Compile Check grün auf allen Scheiben dieser Runde. Die Test-Pipeline meldet bei JEDEM
+  Push „failure" (bekannt, #396) — deshalb zählen die Job-Schritte, nicht die Conclusion.
+  Alle neuen Wächter-Behauptungen habe ich von Hand gegen den Quelltext nachgerechnet.
 
-  Sieben Wächter-Behauptungen (zwanzig Zusicherungen) habe ich von Hand gegen den Quelltext
-  nachgerechnet, alle grün — darunter die neue, die verbietet, dass der Breiten-Deckel
-  still zurückkommt.
-
-  ⚠ **Ein Fund, der nicht von dieser Änderung kommt und den ich nicht mit eingebaut habe:**
-  ein Wächter über die Audio-Protokollzeilen zählt 20, im Code stehen 22. Er ist seit
-  längerem rot und niemandem aufgefallen, weil die Test-Pipeline ohnehin bei jedem Push
-  „failure" meldet. Das ist der nächste eigene Schritt, nicht ein Anhängsel an diesen.
-
-  **Geräteverifiziert ist nichts.** Was nur Du sehen kannst: Simulation starten und die
-  oberste Zeile im Hochformat ansehen — steht rechts alles drin? Und: sind die Fenster
-  jetzt wieder so breit wie der Bildschirm?
-
-  Offen und weiter gültig: Puls-Pille bei abgedeckter Linse · „Studio" im Vollbild im
-  Hochformat · der Blick bei großer Systemschrift.
+  **Geräteverifiziert ist nichts davon** — und Punkt 5 kann ich prinzipiell nicht prüfen,
+  ohne Beamer ist dieser Pfad unsichtbar.
 
   Falls Du mir ein Log schicken magst: Save/Export-Chip → „Diagnostics" → Teilen.
