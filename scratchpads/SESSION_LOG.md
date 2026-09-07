@@ -25704,3 +25704,8 @@ near-term" als SCOPE auf (Nachtrag im Plan); der Physik-Eintrag „chord-driven 
   Stellschraube ist `FaradayDish.speakerAccelerationAtFullDrive` (200 m/s²).
 - **Nachtrag Gates:** W2 `ae0ee8d4` Xcode 2441 grün (der Shader kompiliert). W3 `#1102` und der
   Deploy-Bump v10.79.459 gehen zusammen raus; TestFlight-Lauf = der Beweis, dass der Build steht.
+- **Nachtrag 17:53Z — alles grün, Build ausgeliefert:** Xcode 2442 (`7fa80017`, W3 + Deploy) grün ·
+  CI/CD 5906 `Build for Testing` grün (W2-Wächter kompiliert) · **TestFlight 2578 → v10.79.459
+  (Build 2578) in App Store Connect gelandet** („Verify build landed" grün). Kein Wächter dieser
+  Runde hat einen Per-Test-Verdikt im tail-200-Fenster (#445) — Transkription + Mutanten sind der
+  Beleg. Sechs Commits diese Stunde: #1098 · #1099 · #1100 · #1101 · #1102 · Deploy 459.
