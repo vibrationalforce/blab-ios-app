@@ -25552,3 +25552,11 @@ Kein `Sources/`-Anteil → nur CI/CD-Lint-Jobs relevant; kein Deploy.
   gibt eine signierte `blob.core.windows.net`-URL, und der Container-Proxy antwortet auf den
   CONNECT mit 403. Route geschlossen — DEAD-END #1092b im HARNESS_LEDGER, damit es niemand
   ein zweites Mal probiert.
+
+### Gates für `b40038f2` (#1093, nachgetragen 15:24Z)
+- Xcode Compile Check 2436 **SUCCESS** · CI/CD 5901 `Build for Testing` **SUCCESS** (die
+  Kommentar-Änderung im #932-Absatz des Law-File-Wächters kompiliert). Kein `Sources/`-Anteil,
+  kein Deploy. `Run Tests` läuft noch; sein Fenster sagt über diesen Commit nichts, das nicht die
+  Selbsttest-Zeile schon gesagt hat (`python3 scripts/moved-needles.py --selftest` → 4 OK).
+- Zyklus 13:58Z–15:24Z geschlossen: #1091 grün · #1092 repariert (rot seit #1027, drei Deploys
+  unsichtbar) · #1093 Werkzeug · DEAD-END #1092b (Artefakt-Route). Nächster Takt 15:58Z.
