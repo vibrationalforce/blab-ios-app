@@ -25180,3 +25180,50 @@ Löschung" heißen).
 `dead-needles.py` OK (449 Dateien) · `count-pins.py` 0 RED · Leak-Check 0.
 **Nicht gerätegeprüft.** NEEDS-FOUNDER-VERIFY: Field öffnen — liest sich die Karte besser
 als die Wand, und ist Look die richtige Gruppe zum Offenlassen?
+
+## 2026-09-07 — #1069 S3c: das zweite Vollbild ist weg, EINE Visual-Fläche
+
+**Founder-Satz erfüllt:** *"aktuell gibt es fullscreen Mode das soll aber alles zu einem Ding
+zusammen gefasst werden"*. Die einzige UNUMKEHRBARE Scheibe des Passes, deshalb Council
+davor (Plan §4: proceed, in drei Schritten — #1066, #1067, jetzt #1069).
+
+**Gelöscht:** der Cover (~139 Zeilen) · `showVisual` · `showVisualControls` · `visualShare`
++ genestetes `.sheet(item:)` · `visualVJOverlay` (~53) · `.onChange(of: showVisual)` (~32) ·
+`floatingWasVisible`. **Gemessen:** Modifier dateiweit 16 → 14, Rumpf-Kette 14 → 13 (mit dem
+Prädikat des Wächters, nicht aus dem Kopf).
+
+**Warum das kein Verlust ist:** jede Fähigkeit, die NUR der Cover trug, ist vorher einzeln und
+rückholbar portiert worden (#1063 Standbild · #1064 Gitter · #1065 Donut · #1066 Schlüssel ·
+#1067 Tür). Die EINE Zeile, die das VJ-Overlay besass statt teilte — der AirPlay-Wegweiser,
+der einzige Hinweis auf Projektion in der ganzen App — ist im selben Commit ins Field-Panel
+gezogen.
+
+**Der Keep-awake-Punkt: durch MESSUNG aufgelöst, nicht durch Fragen.** Der Council hielt ihn
+für den Founder zurück, mit der Begründung „das Vollbild ist der Startzustand". Die stammt aus
+einem QUELLKOMMENTAR (`EchoelStudioView.swift`), und der ist beim Mechanismus falsch:
+`visual.floating.size` steht per Default auf `WindowSize.small`. Das RISIKO überlebt
+(`@AppStorage` klebt), der MECHANISMUS nicht — und nur der trug die Frage. Ergebnis:
+`|| (floatingVisualIsFullscreen && cameraRPPG.isRunning)`, also **strikt weniger wach als das,
+was heute ausgeliefert ist** (dort hielt der offene Cover ALLEIN das Handy wach). Der falsche
+Kommentar ist am Ort korrigiert.
+
+⭐ **§4 HAT EINEN SIEBTEN WÄCHTER GEFUNDEN, den der Plan nicht kannte.**
+`TheStillSaysWhetherItWasSavedTests` Anspruch 4 verlangte die Montage des `StillShutterButton`
+in `EchoelStudioView` — und die lag IM Cover. **Rot auf korrektem Baum, im blockierenden
+Bundle, unsichtbar** (CI/CD meldet auf jedem Push `failure`). Dritte Aufzeichnung dieser Form
+(#650, #960). Jetzt invertiert: das EINE Fenster besitzt den Auslöser, eine zweite Montage
+wäre der #290-Defekt.
+**Die Lehre ist neu und gehört in den Ledger: eine im Plan notierte Wächter-Liste ist eine
+Erinnerung, kein Inventar. Der `grep` über das ganze Bundle IST das Inventar.**
+
+**Weitere Prosa-Kehrarbeit (#456):** SoundPanelReflows · TapTargetFloor · VisualLookTruth ·
+`VisualEnergy` (dessen Donut-Flächen-Zahl zum DRITTEN Mal ablief → durch den BEFEHL ersetzt,
+#818) · ein Nachbar-Kommentar „ALL THREE keep-awake flags", den #1044 längst zu vier gemacht
+hatte — **gelöscht statt nachgeführt**.
+
+`.beside` auf `StillShutterButton` hat seit heute keinen Aufrufer. Behalten UND am Case
+benannt — S4 ist der wahrscheinliche Erzeuger.
+
+33 transkribierte Zusicherungen über alle berührten Wächter: ALLE GRÜN. `dead-needles` OK
+(449) · `count-pins` 0 RED · Leak-Check 0 · Klammern nach jeder Bearbeitung nachgezählt.
+**Nicht gerätegeprüft** — und bei dieser Scheibe zählt das am meisten.

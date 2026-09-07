@@ -135,7 +135,27 @@ zu „mit dieser Scheibe zu beantworten".**
 ROHER String `"visual.floating.size"` statt über `StudioDefaultKeys`. Der „Full screen"-Knopf
 braucht also eine eigene `@AppStorage` — und die sollte den Konstanten-Weg nehmen.
 
-**S3 — Cover löschen.** `.fullScreenCover(isPresented: $showVisual)`, `showVisual`,
+**S3c — Cover löschen. ✅ AUSGELIEFERT als #1069 (`8577ff6b`).** Gelöscht: der Cover samt
+~139 Zeilen · `showVisual` · `showVisualControls` · `visualShare` + sein genestetes
+`.sheet(item:)` · `visualVJOverlay` (~53) · der `.onChange(of: showVisual)`-GPU-Handler (~32) ·
+`floatingWasVisible`. **Gemessen statt geschätzt:** Präsentations-Modifier dateiweit 16 → 14,
+Rumpf-Kette 14 → 13, beides mit dem Prädikat des Wächters selbst nachgerechnet.
+Die AirPlay-Zeile ist ins Field-Panel („Look") umgezogen — im selben Commit, wie §1 verlangt.
+Keep-awake nach §5 als KONJUNKTION. Nicht portiert und bewusst so benannt: `.statusBarHidden`
+(Founder-Blick) und die Tipp-aufs-Bild-Geste (WCAG 2.2). Benannter Verlust: SOFORT-Teilen nach
+der Aufnahme.
+
+⭐ **§4 HAT SICH BEZAHLT GEMACHT, und zwar an einer Stelle, die dieser Plan NICHT vorhergesagt
+hatte.** Die Liste „Wächter mitzuziehen" nannte sechs Dateien; das `git grep` über das GANZE
+blockierende Bundle nach jeder entfernten Schreibweise fand eine SIEBTE —
+`TheStillSaysWhetherItWasSavedTests` Anspruch 4 verlangte, dass `EchoelStudioView` den
+`StillShutterButton` montiert, und genau diese Montagestelle lag IM Cover. Sie wäre auf einem
+KORREKTEN Baum rot gewesen, im blockierenden Bundle, unsichtbar (CI/CD meldet auf jedem Push
+`failure`). Dritte Aufzeichnung dieser Form in diesem Repo (#650, #960).
+**Lehre für die nächste Löschung: eine im Plan aufgeschriebene Wächter-Liste ist eine
+Erinnerung, kein Inventar — der `grep` ist das Inventar.**
+
+⛔ **Die ursprüngliche S3-Zeile stand so:** `.fullScreenCover(isPresented: $showVisual)`, `showVisual`,
 `showVisualControls`, `visualShare`, `visualVJOverlay` weg; „Full screen" schreibt die Grösse.
 Mitzuziehen: `ResetSoundClearsWhatTheLaunchLineReportsTests` dateiweit `== 16` (die Ketten-Zahl
 `<= 14` bleibt bei 13 grün), `VisualFineTuneReflowsTests` Ansprüche 5/6/7, plus die drei
