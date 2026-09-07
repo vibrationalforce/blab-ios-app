@@ -23,19 +23,24 @@
 // sharpest claim in this file is claim 4: an argument no call site writes appears in no diff
 // (#440/#443), so a default would reintroduce exactly that risk invisibly.
 //
-// ⭐ THE SECOND HOST NOW HAS A DOOR (#747), and this block used to say the opposite. From the
+// ⭐ THE SECOND HOST HAD A DOOR (#747) AND HAS LOST IT AGAIN (#1067) — ON PURPOSE, AND THIS
+// SENTENCE HAS NOW BEEN WRONG IN BOTH DIRECTIONS, WHICH IS WHY IT KEEPS ITS HISTORY. From the
 // tools-grid removal until 2026-08-22, `visualVJOverlay` was mounted only inside
 // `.fullScreenCover(isPresented: $showVisual)` and `showVisual` had no writer of `true` anywhere
-// in `Sources/` — open task #270. #747 added a visible "Full screen" button in `visualPanel`, so
-// the overlay is reachable and the task is closed.
+// in `Sources/` — open task #270. #747 added a visible "Full screen" button in `visualPanel` and
+// the overlay became reachable. #1067 (S3b) then pointed that same button at the FLOATING
+// WINDOW's size instead: one surface, not two (founder: *"alles zu einem Ding zusammen
+// gefasst"*). The button is still there and still labelled — the DOOR moved, the overlay did not
+// get one taken away from it by accident. The cover is unreachable but still present for one
+// slice, so the new path can be checked on device; S3c deletes it, and this whole block, claim 5's
+// overlay half and claim 6's counterweight go with it (#456).
 //
-// ⭐ THE ASYMMETRY THIS BLOCK NAMED IS GONE, and its disappearance STRENGTHENS claim 4 rather
-// than retiring it. The old reading: hardcoding **8** re-spaced the reachable panel (a live cost)
-// while hardcoding **14** re-spaced only a surface nobody could open (bookkeeping). Both call
-// sites are reachable now, so the no-default rule defends two live surfaces in both directions —
-// the argument got simpler, not weaker. Kept as history because the reasoning is the reusable
-// part: a parameter whose second consumer is unreachable is half a defence, and saying which
-// half is what stops a later session from "simplifying" it back to a literal.
+// ⚠️ THE ASYMMETRY IS BACK, and it is the same asymmetry as before #747, so the reasoning below
+// is live again rather than history: hardcoding **8** would re-space a surface nobody can open
+// (bookkeeping) while hardcoding **14** re-spaces the reachable panel (a live cost). A parameter
+// whose second consumer is unreachable is half a defence — saying WHICH half is what stops a
+// later session from "simplifying" it back to a literal, and it is the reason claim 4 survives
+// both flips unchanged.
 //
 // ⚠️ WHAT THIS FILE GUARDS, and what it deliberately does NOT.
 //   1. Two grids exist in `visualAdjustFields` and both pass the PARAMETER, not a number.
@@ -49,36 +54,29 @@
 //      half-width cell beside a parameter row.
 //   4. `spacing` is an argument with no default.
 //   5. Both call sites pass a spacing, and the overlay's argument matches the overlay's OWN stack.
-//   6. The overlay has EXACTLY ONE visible door, and its label is pinned. ⭐ REWRITTEN BY #747:
-//      until then this item read "the overlay is still doorless" and was a counterweight built
-//      to go red on the day of the re-door, with the prose bill in its message. It fired, the
-//      bill was paid in that same commit (#456), and the claim turned around: the door must
-//      exist (zero = a lost capability, not a lost plan), there must be exactly ONE of it
-//      (two = a second entrance to one surface — the #290 trap: a second door to `bioPanel` was
-//      shipped in 2026-07-12 and pulled two days later), and
-//      it must be a labelled Button rather than a hidden gesture — the cover's own top bar
-//      cites WCAG 2.2 for that. **The guard working looks exactly like this, not like a green.**
-//   7. The donut normalisation and that door are MUTUALLY EXCLUSIVE — and #747 is the commit
-//      that made the pairing real, so here is what it actually did with the three CODE
-//      obligations this item warned about:
-//        · `normaliseUnreachableDonutMode()` and its call site: DELETED, exactly as that
-//          function's own doc block ordered. Keeping it would have stamped a player's donut
-//          choice back to `false` on every launch — the honest normalisation turning into a
-//          silent state-eater the moment a door existed.
-//        · the "Donuts" pill in `visualLookStrip`: **NOT restored, deliberately.** ⛔ The #227
-//          tombstone justified it with "the pill was the overlay's last look control", and that
-//          premise did not survive measurement: the cover's top bar already carries a working
-//          `spectralDonuts.toggle()` button. Restoring the pill would have built a SECOND
-//          control for one state — the same #290 trap item 6 now guards against for the door
-//          itself. A note with a checkable rationale gets checked before it causes work.
-//        · flipping `StudioDefaultKeys.visualSpectralDonuts` back to `true`: NOT done, and
-//          `VisualLookTruthTests.testAFreshInstallDoesNotClaimTheDonutRenderer` is NOT flipped.
-//          Its assertion is still true and now states a CHOICE rather than a limitation: a fresh
-//          install opens on the Metal field, the identity look, and donut mode is something a
-//          player picks. Only that test's prose needed correcting.
-//      The old parenthetical about claim 6's "nine" is retired with the claim it described; the
-//      lesson survives in item 6 — a count of scattered sentences is a number this repo does not
-//      write down, and #709 restated "nine" three times as though it were a census.
+//   6. The FULLSCREEN DOOR exists exactly once and is labelled. ⭐ REWRITTEN TWICE — #747 turned
+//      it from "the overlay is still doorless" into "there is a door", and #1067 moved that door
+//      from the cover to the floating window's size. The subject is THE DOOR, not the flag it
+//      writes: zero call sites = a lost capability, two = a second entrance to one surface (the
+//      #290 trap — a second `bioPanel` door shipped 2026-07-12 and was pulled two days later),
+//      and it must stay a labelled Button rather than a hidden gesture (WCAG 2.2). A counterweight
+//      pins that the OLD cover really is unreachable, and it is written to expire with S3c.
+//      The claim's own doc carries the full history. **The guard working looks like a red, not
+//      like a green.**
+//   7. The donut normalisation stays DELETED, and the reason changed under it. It used to be
+//      paired with the cover's door (`XCTAssertNotEqual`) because the donut look was reachable
+//      only from the cover's top-bar glyph. #1065 gave that look its OWN switch in the Field
+//      panel, so the two facts came apart, and #1067 made the old pairing read
+//      `NotEqual(false, false)` — red on a tree where the look is MORE reachable, not less. What
+//      survives is the half that was ever a regression guard: restoring
+//      `normaliseUnreachableDonutMode()` would stamp a player's chosen look off on every launch
+//      (the `LeadMixDoorAndNormalisationTests` failure class). A counterweight echoes "the switch
+//      exists" from `TheDonutLookSurvivesTheCoverTests`, which owns that fact, so this claim
+//      cannot pass over a tree where switch and normaliser vanished together.
+//      Two decisions from #747 still stand and are not re-litigated here: the "Donuts" pill was
+//      NOT restored to `visualLookStrip` (a second control for one state — item 6's trap), and
+//      `StudioDefaultKeys.visualSpectralDonuts` stays `false`, which states a CHOICE (a fresh
+//      install opens on the Metal field, the identity look) rather than a limitation.
 //
 // It does NOT re-assert that `EchoelPanel`'s content spacing is 14 — `SoundPanelReflowsTests`
 // owns that fact (`testThePanelStillUsesThatSpacingForItsContent`), and a second copy of a
@@ -99,20 +97,21 @@
 // layout is not reachable from this bundle, so "two columns are legible on a device" and "the
 // column break lands between sensible parameters" are device checks, open on the inline panel.
 //
-// ⭐ THE OVERLAY'S DEVICE CHECK IS REAL AGAIN AS OF #747, and the way it got here is the useful
-// part. It was first written as a founder ask — "the overlay still fits its cap in landscape …
-// Device-verify is open, landscape and the VJ overlay specifically" — while NOBODY COULD OPEN THE
-// OVERLAY. An impossible ask is worse than a vague one: it would have cost a device session to
-// discover that, sitting in the register a session reads when triaging the NEEDS-FOUNDER-VERIFY
-// backlog. It was WITHDRAWN rather than reworded, with a note saying it becomes real on the day
-// the overlay gets a door and that claim 6 would go red and say so. #747 built the door and
-// claim 6 did exactly that.
+// ⛔ THE OVERLAY'S DEVICE CHECK WAS REAL FOR ONE ERA (#747) AND IS WITHDRAWN AGAIN (#1067). The
+// history is the useful part, because this ask has now been impossible, possible, and impossible
+// again. It was first written while NOBODY COULD OPEN THE OVERLAY — an impossible ask is worse
+// than a vague one, because it costs a device session to discover, sitting in the register a
+// session reads when triaging the NEEDS-FOUNDER-VERIFY backlog. It was WITHDRAWN rather than
+// reworded, with a note saying it becomes real on the day the overlay gets a door. #747 built
+// that door, claim 6 went red and said so, and the ask was reinstated. #1067 moved the door to
+// the floating window, so the overlay is unreachable once more and the ask is withdrawn a second
+// time rather than left to burn a session. **Do not reinstate it: S3c deletes the overlay.**
 //
-// **NEEDS-FOUNDER-VERIFY (#747), now genuinely performable:** open Field → "Full screen",
-// rotate to landscape, and check that the VJ overlay's two columns still read (the width maths
-// below says 261 pt per column at the 560 pt cap). Also worth one look: the floating window
-// disappears while the cover is up and comes back on close — that is the single-`MetalBioView`
-// GPU rule in `.onChange(of: showVisual)`, and it has never run on a device.
+// **NEEDS-FOUNDER-VERIFY (#1067), and it replaces the one above:** tap Field → "Full screen" and
+// check that the FLOATING WINDOW fills the display rather than a second screen appearing over it
+// — one surface with one chrome bar, which is the whole point of the slice. The old cover's
+// landscape column check and the `.onChange(of: showVisual)` GPU dance are no longer reachable
+// and must not be asked for.
 //
 // ⚠️ AND THE OVERLAY'S BINDING CAP IS ITS WIDTH, NOT ITS HEIGHT — the first draft of the line
 // above named only `.frame(maxHeight: 360)`, which is the cap you notice, not the one that
@@ -310,81 +309,65 @@ final class VisualFineTuneReflowsTests: XCTestCase {
 
     // MARK: - The premise the rest of this file rests on
 
-    /// ⭐ Claim 6 — REWRITTEN BY #747, and the rewrite is the point of it having existed.
+    /// ⭐ Claim 6 — REWRITTEN TWICE, and both rewrites are the point of it having existed.
     ///
-    /// It used to assert `testTheVJOverlayIsStillDoorless`: `showVisual` had no writer of `true`
-    /// anywhere in `Sources/`, so the whole VJ control panel was unreachable (open task #270).
-    /// That claim was a COUNTERWEIGHT built to go RED on the day the overlay was re-doored, with
-    /// the prose bill in its failure message. #747 built the door — a visible "Full screen"
-    /// button in `visualPanel` — so the claim fired exactly as designed and this file paid the
-    /// bill it named. **That is the guard working, not the guard failing.**
+    /// #747: it used to assert the VJ overlay was DOORLESS — `showVisual` had no writer of `true`
+    /// anywhere in `Sources/`. That was a counterweight built to go RED on the day the overlay was
+    /// re-doored, and it fired exactly as designed.
     ///
-    /// ⚠️ WHAT THE OLD CLAIM DECIDED, and what replaces it. It was the premise claims 1–5 rested
-    /// on: passing 8 to the overlay was bookkeeping "for the day the door returns", while passing
-    /// 14 to the inline panel was a live guarantee. That asymmetry is GONE — both call sites are
-    /// now reachable, so `spacing` defends two live surfaces and claim 5 got stronger without
-    /// changing a line. The honest-limit block's landscape device check on the overlay, which
-    /// this file had to RETRACT as an impossible founder ask, becomes a real request today.
+    /// ⭐ #1067 (S3b) MOVED THE DOOR RATHER THAN REMOVING IT, and that is the distinction this
+    /// claim now has to carry. The "Full screen" button is still there, still labelled, still in
+    /// `visualPanel` — it no longer raises the fullscreen COVER, it resizes the ONE floating
+    /// window (`openFullscreenVisual()`). So `showVisual` has zero true-writers again, and reading
+    /// that as "the door was removed" — which the previous message did, in capitals — would be
+    /// exactly backwards on a tree that just delivered the founder's ask ("alles zu einem Ding
+    /// zusammen gefasst"). The subject of this claim is THE DOOR, not the flag it used to write.
     ///
-    /// The assertion now runs the normal way round: the door must EXIST, and there must be
-    /// exactly ONE of it. A second true-writer is a second door to one surface (#290) — the trap
-    /// that pulled a second `bioPanel` door in 2026-07-14 — and it is the likeliest next regression,
-    /// because a fullscreen toggle is an obvious thing to also put in a header.
+    /// The cover is now UNREACHABLE BUT PRESENT, deliberately: the Council's three-way split
+    /// (`scratchpads/PLAN_ONE_VISUAL_SURFACE_2026-09-07.md` §4) keeps it one slice longer so the
+    /// new path can be checked on device before anything irreversible happens. S3c deletes it.
+    ///
+    /// ⛔ THE `.disabled(visualRecorder.isRecording)` NEEDLE THAT STOOD HERE IS DELETED, ON ITS
+    /// OWN INSTRUCTION. It said: "IF THE COVER IS GONE — the `.fullScreenCover` was retired and
+    /// the button now writes the floating window's size — this assertion has done its job and
+    /// SHOULD be deleted in that same commit". The second half of that condition is met exactly;
+    /// the first is met in substance, which is what the hazard cared about — the button can no
+    /// longer mount a second `capturesVideo: true` renderer, because it no longer mounts anything.
+    /// Keeping it would forbid the fix that makes it unnecessary (#364), which its own paragraph
+    /// says in as many words.
     ///
     /// The scan stays word-bounded: `showVisualSettings`, `showVisualFineTune` and
     /// `showVisualControls` share the prefix and are live, settable flags.
-    ///
-    /// ⚠️ `SourceText.codeOnly` IS STILL ONLY PROPHYLACTIC HERE — measured on this tree, not
-    /// assumed. ⛔ I first wrote the opposite: that #747's new prose (the deleted normaliser's
-    /// tombstone, the door's own comment) would make raw text count comment lines as writers and
-    /// fail the count assertion. Measured, raw and stripped agree exactly — **3 assignment-shaped
-    /// lines and 1 true-writer in both** — because those notes say "gives `showVisual` a setter",
-    /// never the assignment form the scanner matches. A rationale that upgrades a guard's
-    /// dependency is a claim like any other and needs the same one command. It stops being
-    /// prophylactic the day somebody quotes `showVisual` followed by `= true` in a retraction;
-    /// that is why the notes #747 adds **to `EchoelStudioView.swift`** describe the writers
-    /// instead of quoting one. (This file may quote it freely — the scan reads the studio file,
-    /// not its own source. Naming which file the rule binds is the difference between a rule and
-    /// a superstition.)
-    func testTheVJOverlayHasExactlyOneVisibleDoor() throws {
+    func testTheFullscreenVisualHasExactlyOneVisibleDoor() throws {
         let lines = try studioLines()
-        let writers = lines.filter { flagAssignments(in: $0) }
         // #367: anchor first. A rename would empty the list and let everything below pass on
         // nothing, which is how a guard stops being able to fail for its stated reason.
-        XCTAssertFalse(writers.isEmpty, """
-        no assignment to `showVisual` in \(Self.studio) — the flag was renamed or removed.
+        let doors = lines.filter {
+            $0.contains("openFullscreenVisual()") && !$0.contains("func ")
+        }
+        XCTAssertEqual(doors.count, 1, """
+        `openFullscreenVisual()` has \(doors.count) call sites in \(Self.studio), not one:
+        \(doors.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n"))
 
-        Re-anchor this claim on the new name; do NOT delete it. If the fullscreen visual cover \
-        went away entirely, delete claim 5's overlay half and this one together, and sweep the \
-        prose in the same commit — including this file's header, which now describes a REACHABLE
-        overlay.
-        """)
-        let openers = writers.filter { isTrueWriter($0) }
-        XCTAssertEqual(openers.count, 1, """
-        `showVisual` has \(openers.count) writers of a value other than `false`, not one:
-        \(openers.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n"))
-
-        ZERO means the door was removed and the overlay is unreachable again. That is a real \
-        regression against ship-gate 4 ("visual live + contemplative on device") — the surface \
-        behind the cover is fully built, so losing the setter loses a capability, not a plan. \
-        Restore the button in `visualPanel`; and note the donut normalisation does NOT come back \
-        with it (claim 7 owns that pairing and will be red in the same run).
+        ZERO means the fullscreen door is gone and the field can no longer be filled to the \
+        screen from the panel. That is a real regression against ship-gate 4 ("visual live + \
+        contemplative on device"). If the method was RENAMED, re-anchor this needle here and in \
+        `ChromeBudgetFitsTests.testTheStudioSideDoorOnlyEverWritesFullscreen`, which pins what it \
+        writes.
 
         TWO OR MORE means a second door to one surface (#290): a header toggle plus the panel \
         button, say. Pick one and delete the other. The 2026-07-14 removal of `bioPanel`'s second \
-        door is the precedent — a second entrance to a surface that already has one reads as a bug \
-        to the player long before it reads as convenience. (Phrased without the word this repo \
-        bans there: `TheBioPanelDoorIsThePulsePillTests` went RED on the first draft of these \
-        three lines, which is the guard doing its job on prose I wrote by habit.)
+        door is the precedent — a second entrance to a surface that already has one reads as a \
+        bug to the player long before it reads as convenience.
         """)
+
         // The cover's own top bar cites WCAG 2.2 against gating controls behind a hidden
-        // gesture. A `showVisual = true` reachable only from a long-press would satisfy the
-        // assertion above and still repeat the defect this codebase names, so the door's LABEL
-        // is pinned too — a labelled Button is what makes it discoverable.
+        // gesture. A door reachable only from a long-press would satisfy the assertion above and
+        // still repeat the defect this codebase names, so the door's LABEL is pinned too.
         let labelled: Bool = lines.contains(where: { $0.contains("Text(\"Full screen\")") })
         XCTAssertTrue(labelled, """
-        the "Full screen" label is gone from \(Self.studio) while `showVisual` still has a \
-        writer of `true`.
+        the "Full screen" label is gone from \(Self.studio) while `openFullscreenVisual()` still \
+        has a call site.
 
         If the door was RENAMED, re-anchor this needle. If it became a gesture (long-press, \
         swipe, a tap on the header monitor), that is the defect the cover's own top bar argues \
@@ -392,150 +375,82 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         Restore a visible, labelled control.
         """)
 
-        // ⭐ #1031 — THE DOOR IS SHUT WHILE A TAKE RUNS, and this needle is written to DIE.
-        // Opening the cover mid-recording mounts a second `capturesVideo: true` MetalBioView
-        // while the hidden floating window keeps capturing (`WorkspaceView.swift:290-293` never
-        // unmounts it; `FloatingVisualWindow.visualLayer` takes its inert branch only
-        // `if !isPresented && !mustKeepRenderingForRecording`). Two renderers, one shared
-        // `VisualRecorder`, and the artefact at risk is an unrepeatable performance take.
-        //
-        // ⚠️ #364 — THIS ASSERTION MUST NOT OUTLIVE ITS CAUSE. It is a stopgap pinned so it
-        // cannot be dropped by accident, NOT a law: the moment the cover is retired (one
-        // fullscreen, `scratchpads/PLAN_VISUAL_ONE_UNIT_2026-09-06.md` S5) there is no second
-        // renderer to collide with, and keeping the guard would forbid the very fix that makes
-        // it unnecessary. It goes red on that correct tree ON PURPOSE, and its message below
-        // says so, in the same form the anchor assertion above uses.
-        let shutWhileRecording: Bool = lines.contains(where: {
-            $0.contains(".disabled(visualRecorder.isRecording)")
-        })
-        XCTAssertTrue(shutWhileRecording, """
-        the "Full screen" door is no longer disabled while a video take is recording \
-        (`.disabled(visualRecorder.isRecording)` is gone from \(Self.studio)).
+        // COUNTERWEIGHT (#367) — the cover really is unreachable now, and this half is what makes
+        // the sentence above ("moved, not removed") checkable rather than asserted. It is written
+        // to EXPIRE: S3c deletes the cover, and then `showVisual` stops existing at all.
+        let coverOpeners = lines.filter { isTrueWriter($0) }
+        XCTAssertTrue(coverOpeners.isEmpty, """
+        `showVisual` has a writer of a value other than `false` again: \
+        \(coverOpeners.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n"))
 
-        IF THE COVER IS GONE — the `.fullScreenCover(isPresented: $showVisual)` was retired and \
-        the button now writes the floating window's size — this assertion has done its job and \
-        SHOULD be deleted in that same commit, together with claim 6's other halves that name \
-        the cover. There is then exactly one renderer and nothing to collide with. That is the \
-        planned end of this needle, not a regression.
+        Since #1067 the fullscreen door writes the floating window's SIZE; a second path that \
+        raises the old cover brings back the two-renderers-one-recorder hazard #1031 blocked, on \
+        a tree where nothing disables the button any more. If the cover was deliberately \
+        re-doored, this file's premise is wrong end to end — say so and rewrite claims 5 and 6 \
+        together, do not just widen this one.
 
-        IF THE COVER IS STILL THERE, this is the double-capture path re-opened. Two \
-        `capturesVideo: true` MetalBioViews feed the one shared `VisualRecorder`, because \
-        hiding the floating window does NOT stop it from capturing while a take runs — the \
-        `.onChange(of: showVisual)` comment in \(Self.studio) carries the measurement. Restore \
-        the `.disabled`, or fix the collision properly and delete this with it.
+        If `showVisual` no longer EXISTS (S3c shipped), delete this counterweight and claim 5's \
+        overlay half in that same commit, and sweep this file's header with them (#456).
         """)
     }
 
-    /// ⭐ Claim 7 — the PAIRING claim 6 could not make, and the reason this commit exists.
+    /// ⭐ Claim 7 — THE PAIRING IS SEVERED, and saying why is the whole of this rewrite.
     ///
-    /// Claim 6 goes red at the re-door and its message lists nine PROSE files. It names ZERO code
-    /// obligations, and there are AT LEAST THREE: restore the "Donuts" pill in `visualLookStrip`
-    /// behind `showsDonutState` (see below — NOT at both mounts), DELETE
-    /// `normaliseUnreachableDonutMode()` together with the line that calls it, and flip
-    /// `StudioDefaultKeys.visualSpectralDonuts` back with `VisualLookTruthTests`
-    /// `.testAFreshInstallDoesNotClaimTheDonutRenderer`, whose own message asks for exactly that.
+    /// It used to assert `XCTAssertNotEqual(hasDoor, normalises)`: the donut look was reachable
+    /// ONLY through the fullscreen cover's top-bar glyph, so "is there a door" and "does the app
+    /// stamp `visual.spectralDonuts` back to false on launch" had to move together, or a player
+    /// would flip a switch that the next launch silently undid.
     ///
-    /// ⛔ "TWO, WRITTEN ONLY IN DOC COMMENTS INSIDE `EchoelStudioView`" IS WHAT THIS SAID FIRST,
-    /// and both halves were wrong (#710 review finding 2). The third obligation is a `Sources/`
-    /// change in a different file, and of the two that ARE in `EchoelStudioView` the pill one is
-    /// a `//` body comment inside `visualLookStrip`, not a `///` doc comment. A count stated as
-    /// complete is the failure this whole file argues against; "at least three, and here they
-    /// are" is the honest form.
+    /// ⭐ #1065 GAVE THE LOOK ITS OWN DOOR — a `Toggle(isOn: $spectralDonuts)` in the Field panel,
+    /// which is not behind the cover and does not care whether the cover exists. From that commit
+    /// on, the two facts are independent: the normalisation must stay deleted because a REACHABLE
+    /// two-way switch exists, not because a particular modal does. #1067 then made the old
+    /// coupling actively misleading — `showVisual` has no true-writer any more, so the old
+    /// assertion read `NotEqual(false, false)` and went red on a tree where the donut look is
+    /// MORE reachable than when the claim was written, not less.
     ///
-    /// Obey claim 6 to the letter and the second half still ships wrong: the pill returns, a
-    /// player switches Donuts on, and the next launch stamps it back off. A control that moves,
-    /// persists and is silently undone — the exact failure class
-    /// `LeadMixDoorAndNormalisationTests` was written to prevent ONE STORE DOWN, on a normaliser
-    /// whose own doc comment calls itself "the same shape and same reason" as that one. The lead
-    /// pairing has a guard; its donut twin had none. This is that guard.
+    /// What survives is the half that was ever a regression guard: a doorless-looking `private`
+    /// helper is an ordinary thing to tidy back in, and doing so would stamp a player's chosen
+    /// look off on every launch — the `LeadMixDoorAndNormalisationTests` failure class, one store
+    /// down.
     ///
-    /// ⛔ "THE LEAD PAIRING HAS A GUARD IN BOTH DIRECTIONS" IS WHAT THIS SAID, and measuring it
-    /// was the one thing #709 did not do (#710 review finding 1). That file read RAW source with
-    /// a bare token, which also matched two prose comments and the declaration — so its
-    /// "normalisation missing" direction could not fire on a deleted call. Writing an unchecked
-    /// "X is guarded too" into a commit whose whole subject is unchecked standing claims is the
-    /// failure itself; the note is left where it was made.
-    ///
-    /// ⭐ AND IT IS REPAIRED — #711, one cycle later, gave that file `codeOnly` and the same
-    /// `func`-keyword exclusion. The two are now the SAME shape, so the sentence that stood here
-    /// ("This claim is the STRICTER shape … not a copy of it") is withdrawn: it was true for two
-    /// commits and describes nothing today. ⚠️ #711 did not move it, which is the #456/#472
-    /// lesson landing on the very pair of files that were arguing about it — the repair was made
-    /// in one file and its description lived in the other. Caught by the #712 review.
-    ///
-    /// ⚠️ THE TWO DIRECTIONS ARE NOT THE SAME KIND, graded separately (#433/#464/#486):
-    ///   · door absent + normalisation deleted → RED, and this half COULD always have been red.
-    ///     Deleting a doorless `private` helper is an ordinary tidy-up. A REGRESSION guard.
-    ///   · door present + normalisation kept → RED. Green today and green after a CORRECT
-    ///     re-door, so that half is a COUNTERWEIGHT with an expiry, the same shape as claim 6.
-    ///
-    /// It does not forbid the re-door (#364): a commit that adds the door AND removes the
-    /// normalisation passes. Driven against four deliberately broken trees before it was written
-    /// — call deleted → red · door without the deletion → red · both together → green · a `//`
-    /// COMMENT mentioning the assignment → green, which is where the `codeOnly` pass in
-    /// `studioLines()` earns its keep. ⛔ That last one first read "a prose-only mention", which
-    /// claims more cover than exists (#710 review finding 5): `codeOnly` does NOT blank the body
-    /// of a `"""` literal — `SourceText`'s own header says so — and `EchoelStudioView` already
-    /// writes such literals. The same assignment inside one would turn this claim, and claim 6,
-    /// red on a correct tree. See `isTrueWriter`, where both limits now live once.
-    ///
-    /// ⚠️ THE PILL GOES BACK AT ONE MOUNT, NOT TWO, and getting this wrong would re-create the
-    /// exact defect #227 removed (#710 review finding 3). `visualLookStrip` is mounted twice:
-    /// inline in the Field panel with `showsDonutState: false`, and in the VJ overlay with
-    /// `true`. The inline panel's visual is `FloatingVisualWindow`, which does not read
-    /// `spectralDonuts` AT ALL — a pill there would fill, the readout would say "Donuts", and
-    /// nothing on screen would change, which is precisely what #227 deleted. The re-door changes
-    /// what the OVERLAY can show; it changes nothing about the inline panel. So: behind
-    /// `showsDonutState`. The source line being paraphrased ("Restore it there, not only inline")
-    /// is ambiguous read alone; the `showsDonutState` parameter doc resolves it.
-    ///
-    /// ⚠️ IT CANNOT SEE THE PILL, and the message says so rather than implying full cover. The
-    /// pill is a view control; a token scan would pin a spelling, not a capability. That
-    /// obligation is carried in the failure text, where the person doing the re-door reads it.
-    ///
-    /// ⚠️ TWO RENAMES, TWO DIFFERENT OUTCOMES, and neither is a silent pass. Renaming the FLAG
-    /// leaves `normalises` untouched at `true` while `hasDoor` reads `false`, so this claim would
-    /// pass on nothing — the #367 hole — except that claim 6 anchors on exactly that and goes RED
-    /// first, in this same file. (⛔ This sentence first said "both sides read `false`". The
-    /// conclusion was right and the mechanism was not; `normalises` does not depend on the flag.
-    /// A reason given for a true conclusion is checked here too — #710 review finding 6.)
-    /// Deliberately NOT re-anchored here (#416: one definition of that fact). Renaming the
-    /// NORMALISER instead turns this claim red with the "NEITHER present" branch, which is a red
-    /// for a true reason under a slightly wrong name; the repair is the same either way.
-    func testTheDonutNormalisationExpiresExactlyWhenTheDoorReturns() throws {
+    /// ⚠️ THE COUNTERWEIGHT RESTATES A FACT ANOTHER FILE OWNS, deliberately (#367 over #416).
+    /// `TheDonutLookSurvivesTheCoverTests` is the home of "the switch exists"; without a local
+    /// echo of it, this claim would pass on a tree where the switch AND the normaliser are both
+    /// gone — which is the exact silent state the original pairing existed to catch. The echo is
+    /// one needle, and its message points at the owner rather than re-arguing the case.
+    func testTheDonutNormalisationStaysDeletedBecauseTheLookHasItsOwnDoor() throws {
         let lines = try studioLines()
-        let hasDoor = lines.contains { isTrueWriter($0) }
-        // The declaration carries the same token; the obligation is the CALL, so exclude it.
-        // ⛔ ANCHORED ON `func`, NOT ON `private` (#710 review finding 4). The first draft
-        // excluded lines containing "private func", so dropping the access modifier — or
-        // splitting it onto its own line — would have made the DECLARATION read as a call and
-        // handed a false green to the one direction this claim grades as a regression guard.
+        // The declaration would carry the same token; the obligation is the CALL, so exclude it.
+        // ⛔ ANCHORED ON `func`, NOT ON `private` (#710 review finding 4): dropping the access
+        // modifier, or splitting it onto its own line, would make the DECLARATION read as a call.
         let normalises = lines.contains {
             $0.contains("normaliseUnreachableDonutMode()")
                 && !$0.contains("func normaliseUnreachableDonutMode")
         }
+        XCTAssertFalse(normalises, """
+        `normaliseUnreachableDonutMode()` is being called again in \(Self.studio).
 
-        XCTAssertNotEqual(hasDoor, normalises, """
-        The fullscreen visual door and its donut normalisation are out of step. \
-        door=\(hasDoor) normalisation=\(normalises).
+        That function stamps `visual.spectralDonuts` back to `false` on every launch. It was
+        correct exactly while the look had no reachable writer (#227 → #747); since #1065 the \
+        Field panel carries a two-way switch, so restoring the call means a player turns the \
+        donut look on, closes the app, and finds it off — a control that moves, persists and is \
+        silently undone. Delete the call. If the donut renderer is being RETIRED outright \
+        (the key, `SpectralDonutView`, the switch), delete this claim with them rather than \
+        satisfying it.
+        """)
 
-        BOTH present: `showVisual` has a real writer, so the overlay's Donuts toggle is reachable \
-        again — while `normaliseUnreachableDonutMode()` still stamps `visual.spectralDonuts` back \
-        to `false` on every launch (the call sits in `.onAppear`). In THIS commit: delete that \
-        function AND the line that calls it; restore the "Donuts" pill in `visualLookStrip` \
-        behind `showsDonutState`, i.e. at the OVERLAY mount only — the overlay has no \
-        `visualLookCustomizer` under it, so the pill was its last look control, while the inline \
-        Field panel renders `FloatingVisualWindow`, which does not read `spectralDonuts` at all, \
-        so a pill there is the #227 lie again; and flip \
-        `StudioDefaultKeys.visualSpectralDonuts` with `VisualLookTruthTests`.
+        // COUNTERWEIGHT (#367): the reason the deletion is allowed to stand. Owned by
+        // `TheDonutLookSurvivesTheCoverTests`; echoed here so this claim cannot pass over a tree
+        // where switch and normaliser vanished together.
+        let switched = lines.contains { $0.contains("Toggle(isOn: $spectralDonuts)") }
+        XCTAssertTrue(switched, """
+        no reachable switch for the donut look in \(Self.studio), and no normalisation either — \
+        so a persisted `visual.spectralDonuts == true` can neither be turned off by the player \
+        nor repaired at launch. That is the silent state the old pairing existed to catch.
 
-        NEITHER present: `visual.spectralDonuts` is persisted, still has no reachable writer, and \
-        now nothing repairs an install that stored `true` before #227 — those players keep the \
-        launch look-snap skipped, with no control able to undo it. Restore the call, or restore \
-        the door in the same commit. Third legitimate tree, and the one this message used to \
-        misdirect: the donut renderer was RETIRED outright (key, `SpectralDonutView`, the cover \
-        branch). Then delete this claim together with the key, the way claim 5's overlay half and \
-        claim 6 retire together.
+        `TheDonutLookSurvivesTheCoverTests` owns this fact and will be red in the same run with \
+        a fuller message; fix it there, and this echo follows.
         """)
     }
 

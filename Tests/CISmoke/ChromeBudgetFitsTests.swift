@@ -604,6 +604,51 @@ final class ChromeBudgetFitsTests: XCTestCase {
             """)
     }
 
+    /// ⭐ #1067 — THE WIDEN RULE HAS A DOOR IN ANOTHER FILE NOW, and this is the claim that
+    /// covers it. The case above scans `FloatingVisualWindow.swift` for writes to `sizeRaw`;
+    /// since S3b the Field panel's "Full screen" button also sets the stored size, from
+    /// `EchoelStudioView`, where that scan cannot see it. That is the #366 shape the case above
+    /// was written for — "the rule was correct and had a second door around it".
+    ///
+    /// It is safe for a REASON, not by luck, and the reason is what gets pinned: the widen rule
+    /// exists to stop a card too NARROW to hold a running recorder's stop button, and this door
+    /// writes `.fullscreen`, the widest size there is. So the check is not "it calls the rule"
+    /// (it cannot — the rule is `private` to the other view) but "it writes the one size the
+    /// rule could never object to".
+    func testTheStudioSideDoorOnlyEverWritesFullscreen() throws {
+        let here = URL(fileURLWithPath: #filePath)
+        let root = here.deletingLastPathComponent().deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let path = root.appendingPathComponent("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        guard FileManager.default.fileExists(atPath: path.path) else {
+            throw XCTSkip("""
+                source tree not present under \(root.path) — this case inspects source text, \
+                so it SKIPS rather than reporting a green it did not earn
+                """)
+        }
+        let code = SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
+        guard let start = code.range(of: "private func openFullscreenVisual() {") else {
+            XCTFail("""
+                `openFullscreenVisual()` is gone from EchoelStudioView. That method IS the \
+                "Full screen" door since S3b; if it was renamed, re-anchor this case in the \
+                same commit rather than letting it pass over a method that no longer exists.
+                """)
+            return
+        }
+        let body = SourceText.codeWindow(code, from: start.lowerBound, lines: 8)
+        XCTAssertTrue(body.contains("WindowSize.fullscreen.rawValue"), """
+            The studio's "Full screen" door no longer writes `.fullscreen`. Any narrower size \
+            written from this file bypasses `sizeWideEnoughForARunningTake(` entirely — it is \
+            in another file, so the case above cannot see it — and can strand a running take \
+            with its stop button shed off the card. Route it through a size the rule would \
+            accept, or move the write into `FloatingVisualWindow` where the rule applies.
+            """)
+        XCTAssertTrue(body.contains("StudioDefaultKeys.floatingVisualSizeKey"), """
+            The door spells the size key some other way. #1066 gave that string one home \
+            precisely because this seventh site was about to exist.
+            """)
+    }
+
     func testAWiderCardNeverKeepsLessThanANarrowerOne() {
         // Monotonicity. A shed order that is not monotonic produces the behaviour users
         // describe as "it flickers when I resize": an item vanishing as the window GROWS.

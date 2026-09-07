@@ -5185,33 +5185,55 @@ struct EchoelStudioView: View {
             // a player already goes to decide how the field is shown — not a second door to the
             // same thing (#290): the floating window and the fullscreen field are two surfaces.
             //
-            // ⚠️ THE MODAL CHAIN DOES NOT GROW. The slot has existed all along; this adds a
-            // setter, not a modifier. The black-screen metadata law (10.76.34) is untouched, and
-            // the un-settable-flag list above is now TWO, not three.
+            // ⛔ TWO SENTENCES HERE EXPIRED WITH #1067, and both were load-bearing arguments
+            // rather than trivia, so they are corrected rather than dropped.
             //
-            // GPU exclusivity is already handled: `.onChange(of: showVisual)` hides the floating
-            // window while the cover is up and restores its prior state on dismiss, because only
-            // ONE `MetalBioView` may drive a CADisplayLink at a time.
+            // (1) "the floating window and the fullscreen field are two surfaces" — that was the
+            // #290 answer for why this button is not a second door to the same thing. Since S3b
+            // they ARE one surface: this button sets the floating window's size. It is still not
+            // a second door, for a stronger reason — there is only one thing to open.
             //
-            // ⭐ #1031 — DISABLED WHILE A TAKE IS RUNNING, and this is a STOPGAP with a known
-            // end date, not a design. Opening the cover mid-recording mounts a second
-            // `capturesVideo: true` MetalBioView while the hidden floating window keeps
-            // capturing (the retracted half of the `.onChange(of: showVisual)` comment above
-            // spells out why the hide does not stop it) — two renderers, one shared recorder,
-            // and the artefact is an unrepeatable performance take. Blocking the door is the
-            // three-line fix; the real fix is that there stops being a second fullscreen at
-            // all (`scratchpads/PLAN_VISUAL_ONE_UNIT_2026-09-06.md`, S5), and this whole
-            // button becomes a write of the window's size. **Delete this `.disabled` with the
-            // cover** — leaving it would forbid a door that can no longer double-capture.
+            // (2) "GPU exclusivity is already handled: `.onChange(of: showVisual)` hides the
+            // floating window while the cover is up and restores its prior state on dismiss,
+            // because only ONE `MetalBioView` may drive a CADisplayLink at a time." True while
+            // two renderers could exist. There is now one, always, so nothing has to be hidden
+            // or restored, and that `.onChange` is inert code awaiting S3c rather than the
+            // mechanism this paragraph credited it as.
             //
-            // The read is COLD and stays inside the freeze law: `VisualRecorder.isRecording`
-            // forwards to `video.recordState`, which `VideoRecorder.swift:22` says "only
-            // crosses to main on transitions, never per frame" — its five writers are
-            // start/stop/finish/reset/error. Same class as the `breathPacer.isRunning` read
-            // this body already carries, nowhere near the ~10 Hz reads the 10.76.41/50 law
-            // is about.
+            // ⚠️ THE MODAL CHAIN DOES NOT GROW, and after #1067 it is one slot LOOSER: nothing
+            // writes `showVisual` any more, so the un-settable-flag list is back to THREE
+            // (`showMeditation`, `midiImportPresented`, `showVisual`). The black-screen metadata
+            // law (10.76.34) is untouched; S3c takes the slot away entirely, i.e. the chain
+            // shrinks 14 → 13, which is the safe direction at that ceiling.
+            //
+            // ⛔ #1031's `.disabled(visualRecorder.isRecording)` STOOD HERE AND IS REMOVED, on
+            // that comment's own instruction. It read: "DISABLED WHILE A TAKE IS RUNNING, and
+            // this is a STOPGAP with a known end date, not a design. Opening the cover
+            // mid-recording mounts a second `capturesVideo: true` MetalBioView while the hidden
+            // floating window keeps capturing — two renderers, one shared recorder, and the
+            // artefact is an unrepeatable performance take. … the real fix is that there stops
+            // being a second fullscreen at all, and this whole button becomes a write of the
+            // window's size. **Delete this `.disabled` with the cover** — leaving it would
+            // forbid a door that can no longer double-capture."
+            //
+            // That is now literally what the button does. There is no second renderer to mount:
+            // the tap resizes the ONE window, and `FloatingVisualWindow`'s shadow block records
+            // that toggling fullscreen deliberately keeps view identity, so no MTKView is torn
+            // down and a running take is not interrupted. The `visualRecorder.isRecording` read
+            // goes with it (one fewer observed property in this menu-hosting body — the safe
+            // direction under 10.76.41/50, even though that read was cold).
+            //
+            // ⚠️ THE WIDEN RULE IS NOT BYPASSED, AND IT IS WORTH SAYING BECAUSE IT LOOKS LIKE IT
+            // IS. `ChromeBudgetFitsTests.testBothSizeDoorsGoThroughTheOneWidenRule` scans
+            // `FloatingVisualWindow.swift` for writes to `sizeRaw` and demands each go through
+            // `sizeWideEnoughForARunningTake(`; this write is in ANOTHER file and that scan
+            // cannot see it — the #366 shape exactly ("the rule was correct and had a second
+            // door around it"). It is safe for a reason, not by luck: the rule exists to stop a
+            // card too NARROW to hold a running recorder's stop button, and this writes
+            // `.fullscreen`, the widest size there is. A claim in that file now pins the
+            // out-of-file writer to fullscreen, so a future edit to some other size goes red.
             Button {
-                showVisual = true
+                openFullscreenVisual()
             } label: {
                 HStack(spacing: 8) {
                     Image(systemName: "arrow.up.left.and.arrow.down.right")
@@ -5224,11 +5246,8 @@ struct EchoelStudioView: View {
                 .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius)
                     .strokeBorder(EchoelTheme.border, lineWidth: 1))
             }
-            .disabled(visualRecorder.isRecording)
             .accessibilityLabel("Open the visual full screen")
-            .accessibilityHint(visualRecorder.isRecording
-                ? "Unavailable while a video take is recording. Stop the take first."
-                : "Fills the display with the bio-reactive field and its performance controls.")
+            .accessibilityHint("Fills the display with the bio-reactive field and its performance controls.")
             // ⛔ `signalSection` STOOD HERE AND IS REMOVED (#575, founder 2026-08-13). He
             // circled the whole block on a v10.79.388 screenshot — the wavefront, its
             // paragraph, the spectrum, its paragraph, the `63,0 Hz · B1 +36 ct` readout —
@@ -9405,6 +9424,33 @@ struct EchoelStudioView: View {
         guard visibleNow, sizeNow == FloatingVisualWindow.WindowSize.fullscreen.rawValue else { return }
         if let v = preTakeVisualVisible { d.set(v, forKey: StudioDefaultKeys.floatingVisualVisible.key) }
         d.set(preTakeVisualSize ?? FloatingVisualWindow.WindowSize.small.rawValue,
+              forKey: StudioDefaultKeys.floatingVisualSizeKey)
+        #endif
+    }
+
+    /// #1067 (S3b) — "Full screen" now RESIZES THE ONE WINDOW instead of raising a second one.
+    ///
+    /// The founder's ask for this pass is *"aktuell gibt es fullscreen Mode das soll aber alles
+    /// zu einem Ding zusammen gefasst werden"*. The cover and `FloatingVisualWindow` were two
+    /// chromes over one renderer; every control that lived on only one of them (#1063 the still
+    /// shutter, #1065 the donut look) had to be carried across before this line could move. Now
+    /// it moves, and the cover becomes UNREACHABLE — deliberately still present, so the new path
+    /// can be checked on device before anything is deleted (S3c).
+    ///
+    /// WHY `UserDefaults` AND NOT AN `@AppStorage` PROPERTY. `FloatingVisualWindow.WindowSize`
+    /// lives behind `#if canImport(SwiftUI) && canImport(MetalKit) && canImport(UIKit)`, so a
+    /// stored property defaulted from it would need that guard around the declaration and around
+    /// every use — inside a `@ViewBuilder`. `stagePreTakeVisual()` in this same file already
+    /// solved that by writing both keys through `UserDefaults` inside one guarded method, and
+    /// the reading `@AppStorage` on the other side picks the change up. One shape, not two.
+    ///
+    /// The key goes through `StudioDefaultKeys.floatingVisualSizeKey` (#1066) — this is the
+    /// seventh site, and the sixth literal is exactly what that slice removed.
+    private func openFullscreenVisual() {
+        #if canImport(MetalKit) && canImport(UIKit)
+        let d = UserDefaults.standard
+        d.set(true, forKey: StudioDefaultKeys.floatingVisualVisible.key)
+        d.set(FloatingVisualWindow.WindowSize.fullscreen.rawValue,
               forKey: StudioDefaultKeys.floatingVisualSizeKey)
         #endif
     }
