@@ -1,7 +1,9 @@
 // TempoLockAlwaysAsksForARecomposeTests.swift
 // Echoel — the tempo lock has three doors; all three must ring the same bell.
 //
-// WHAT THIS GUARDS (#356). `studio.lockBPM` has three DOORS and four assignment statements:
+// WHAT THIS GUARDS (#356). `studio.lockBPM` has three DOORS and four assignment statements
+// (plus a FIFTH write that is not a door and is silent by design — `EchoelStudioView.open(_:)`
+// restoring the lock from the take's saved mode, #494; claim 1 names it as its third shape):
 //   1. the Flow | Loop picker      — `WorkspaceView.modeBinding`        (1 write)
 //   2. the transport lock button   — `BodyTempoField.toggleLock`        (2 writes, one per
 //                                     branch; its one caller posts via `onLockChanged`)
@@ -31,8 +33,9 @@
 // class, not a more careful count.)
 //
 // ⚠️ HONEST LIMITS — read these before trusting a green.
-// · The window is 12 comment-free code lines FORWARD from the write. Today the four sites
-//   need 1, 1, 2 and 7 — so the slack is real only for `BodyTempoField.toggleLock`; the
+// · The window is 12 comment-free code lines FORWARD from the write. Today the four DOOR
+//   sites need 1, 1, 2 and 7 (the fifth, the #494 restore, is matched on its own line and
+//   needs no window) — so the slack is real only for `BodyTempoField.toggleLock`; the
 //   other three sit at 1–2 and almost any refactor there reds this. A post placed BEFORE
 //   the write, or behind a helper called from further away, also reds it while being
 //   perfectly correct — fix the guard in that commit rather than deleting it, and say what
@@ -85,9 +88,20 @@ final class TempoLockAlwaysAsksForARecomposeTests: XCTestCase {
             let joined = site.window.joined(separator: " ")
             let posts = joined.contains("NotificationCenter") && joined.contains("\"tempoLock\"")
             let delegates = joined.contains("onLockChanged")
-            XCTAssertTrue(posts || delegates, """
+            // ⭐ THE THIRD COMPLIANT SHAPE, AND IT IS SILENT ON PURPOSE (#494, 2026-08-08).
+            // `open(_:)` restores the lock from the take's saved mode — `lockBPM = (savedMode ==
+            // .studioLocked)` — and posting there would be the bug: a loaded take's SAVED notes
+            // must not be recomposed away, as the site's own comment says. Recognised by the
+            // write's RIGHT-HAND SIDE, not by a nearby mention of `savedMode`: a new silent
+            // write that merely sits near one does not pass.
+            // ⛔ This guard was RED on that site from #494 until #1097 — a month and every
+            // deploy in it — because the job-log window (#807) never carried its line. The
+            // #1093 sweep's transcription found it; no gate did.
+            let restoresSavedMode = site.code.hasSuffix("= (savedMode == .studioLocked)")
+            XCTAssertTrue(posts || delegates || restoresSavedMode, """
                 \(site.file):\(site.line) writes the tempo lock and then neither posts the \
-                shared hook nor calls `onLockChanged` within \(Self.window) code lines:
+                shared hook nor calls `onLockChanged` within \(Self.window) code lines, and \
+                it is not the `open(_:)` restore of a take's saved mode:
 
                     \(site.code)
 
