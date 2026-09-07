@@ -125,8 +125,10 @@ final class SoundPanelReflowsTests: XCTestCase {
         THE COPIERS, named because a message that lists one sends the reader to the wrong file: \
         `soundPanel` (7 grids) · `moodPanel` (2, since #292 Slice 3) · `visualPanel` (which passes \
         14 into `visualAdjustFields(spacing:)`, whose 2 grids then forward it — #292 Slice 4). \
-        NOT `visualVJOverlay`: it hosts the same rows in its own 8 pt stack and correctly passes \
-        8, which is why that argument exists at all. Re-derive the list with \
+        (⛔ The list used to end "NOT `visualVJOverlay`: it hosts the same rows in its own 8 pt \
+        stack and correctly passes 8". #1069 deleted that overlay with the fullscreen cover, so \
+        `visualAdjustFields(spacing:)` has ONE caller now — and the argument stays required for \
+        the #440/#443 reason, not for a second host.) Re-derive the list with \
         `grep -n "AdaptiveCardGrid(spacing" EchoelStudioView.swift` and follow each hit to its \
         CALLER — this file has already been wrong about which member owns a grid.
         """)

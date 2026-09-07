@@ -32,10 +32,14 @@
 //     number should move — but the honest word is conditional. (`visualDetail` has a second
 //     consumer too, `SpectralDonutView(bandCount:)`.)
 //     ⛔ "on a doorless path" stood at the end of that parenthesis and expired TWICE without
-//     anyone noticing (#1062). #747 gave the fullscreen cover a door, so the donut became
-//     reachable; #1043 then ported the donut branch into `FloatingVisualWindow`, so it has
-//     TWO reachable surfaces — measured: `git grep -n "SpectralDonutView(" -- Sources` returns
-//     two production sites. The phrase mattered because it was an ARGUMENT: a second consumer
+//     anyone noticing (#1062), then the SENTENCE THAT REPLACED IT expired too (#1069) — three
+//     times on one parenthesis, which is why the recipe now sits beside the claim instead of a
+//     number. #747 gave the fullscreen cover a door, so the donut became reachable; #1043 ported
+//     the donut branch into `FloatingVisualWindow`; #1065 gave the look its own switch in the
+//     Field panel; #1069 deleted the cover. So it is ONE reachable surface again — but the
+//     REACHABLE one, with a two-way switch, which is the opposite of where this started.
+//     Re-derive, never quote: `git grep -n "SpectralDonutView(" -- Sources`.
+//     The phrase mattered because it was an ARGUMENT: a second consumer
 //     nobody can reach does not rescue a conditional dial, and a second consumer on the app's
 //     FIRST SCREEN does. The bullet's verdict ("conditional, not broken") is unchanged; what
 //     changed is that the parenthesis was quietly making the opposite case.

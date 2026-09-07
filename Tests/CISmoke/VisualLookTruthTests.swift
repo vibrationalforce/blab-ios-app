@@ -5,14 +5,21 @@
 // WHAT WENT WRONG. `visual.spectralDonuts` defaulted to `true`, so a FRESH INSTALL opened with a
 // filled "Donuts" pill and a readout saying "Donuts" — while the only visual a player can reach,
 // `FloatingVisualWindow`, renders from `visual.style`/`styleB`/`blend` and never reads that key.
-// `SpectralDonutView` is constructed at exactly one place, inside `EchoelStudioView`'s
+// `SpectralDonutView` was constructed at exactly one place, inside `EchoelStudioView`'s
 // `.fullScreenCover(isPresented: $showVisual)`, and `showVisual`'s only setter was the deleted
 // `openTool`. So the claim was unreachable from the first launch onward — the #164/#227 shape.
 //
+// ⭐ THAT HALF IS HISTORY SINCE #1065/#1069, AND IN THE GOOD DIRECTION. #1043 ported the donut
+// renderer into `FloatingVisualWindow` — the window this header calls "the only visual a player
+// can reach" — #1065 gave the look its own `Toggle` in the Field panel, and #1069 deleted the
+// cover the renderer used to live behind. The key is now BOTH readable by the reachable window
+// and writable from a reachable switch, which is the state #227 was asking for.
+//
 // ⚠️ WHAT THIS FILE CANNOT REACH, said plainly so the coverage is not overread. It cannot prove
-// the pill is gone, cannot prove the readout is unconditional, and cannot prove `showVisual` still
-// has no setter — all three live inside `private` members of a view, and no test in this bundle can
-// instantiate one. What it CAN pin is the persisted contract underneath: the key string (which the
+// the pill is gone and cannot prove the readout is unconditional — both live inside `private`
+// members of a view, and no test in this bundle can instantiate one. (⛔ It also listed "cannot
+// prove `showVisual` still has no setter"; that flag no longer exists, and a claim about a
+// vanished spelling is vacuous rather than merely unprovable — #926.) What it CAN pin is the persisted contract underneath: the key string (which the
 // launch normalisation must still be able to find), the default (which decides what a fresh install
 // claims), and the invariant that the flip newly exposes.
 

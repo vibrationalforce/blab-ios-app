@@ -653,7 +653,12 @@ struct EchoelStudioView: View {
     @State private var share: ExportedFile?
     /// Finished visual recording, presented via a cover-scoped share sheet (kept
     /// separate from `share` so it never competes with the root-body share modal).
-    @State private var visualShare: ExportedFile?
+    // ⛔ `visualShare` STOOD HERE AND IS DELETED (#1069). Its `.sheet(item:)` lived INSIDE the
+    // cover's content, never on the body chain, so removing it costs the chain nothing and
+    // gains no headroom either — worth saying, because the opposite is the easy assumption.
+    // The recording it shared is still shareable: `videoPanel` → `VideoLibraryPanelContent`,
+    // mp4 out. What is gone is IMMEDIACY (share straight after the take), a real, small,
+    // nameable loss rather than a capability.
     @State private var diagnostics: DiagReport?
 
     /// #400 — the sound reset is armed by a first tap and performed by a second, INSTEAD of an
@@ -775,10 +780,13 @@ struct EchoelStudioView: View {
     /// SIGSEGV'd on once. An inline row costs zero modifiers and is the house pattern for a
     /// status the user is already looking at (Live Colabo's status line, #518).
     @State private var importNote: String?
-    @State private var showVisual = false
+    // ⛔ `showVisual` STOOD HERE AND IS DELETED (#1069). It drove the second fullscreen chrome;
+    // "Full screen" now resizes the ONE window (#1067). Presentation slots on this body: the
+    // chain is one shorter, the safe direction at the 10.76.34 metadata ceiling.
     /// Remembers whether the floating visual was showing before the fullscreen cover took over,
     /// so dismissing the cover restores it (single-MetalBioView / GPU rule — see onChange).
-    @State private var floatingWasVisible = false
+    // ⛔ `floatingWasVisible` STOOD HERE AND IS DELETED (#1069). Its only reader was the
+    // `.onChange(of: showVisual)` handler that hid the floating window while the cover was up.
     @State private var showMeditation = false
     @State private var showLiveColabo = false
     /// Presents the full per-stage FX panel (every parameter exposed).
@@ -802,10 +810,14 @@ struct EchoelStudioView: View {
     // held exactly one case, so removing the roll's door would have left an undoored
     // enum, the lying-`toolItems` trap), then 15 → 14 with this sample-browser slot.
     // TWO un-settable flags remain (`showMeditation`, `midiImportPresented`) — reuse one of
-    // those before ever appending a 15th. ⭐ It said THREE until #747, which gave `showVisual`
-    // a real setter (the "Full screen" button in `visualPanel`). That slot is now a LIVE
-    // surface, not spare headroom: taking it over would delete the fullscreen field, the VJ
-    // overlay and the donut renderer, which is ship-gate 4's second half.
+    // those before ever appending a 14th. ⭐ THE HISTORY OF THIS SENTENCE IS THE WARNING. It
+    // said THREE until #747 gave `showVisual` a real setter, at which point that slot became a
+    // LIVE surface rather than spare headroom — and it said so here. #1069 then DELETED the
+    // cover outright, on the founder's "alles zu einem Ding zusammen gefasst": the chain is
+    // 14 → 13, the un-settable pair is unchanged, and none of ship-gate 4 went with it (the
+    // field, the donut renderer and the still shutter all live in the ONE window now).
+    // The moral is not the number — it is that a slot can go from headroom to product and back
+    // inside six weeks, so COUNT before you reuse one, never quote this line.
     // Whoever adds the next craft editor re-introduces its slot as a
     // `.sheet(item:)` + enum + out-of-body content builder, never a bare `.sheet`.
 
@@ -974,6 +986,18 @@ struct EchoelStudioView: View {
     /// monitor button and the window's own close button, so the Visual panel can toggle it
     /// directly (founder: everything user-optimized; don't make the header the only way in).
     @AppStorage(StudioDefaultKeys.floatingVisualVisible.key) private var floatingVisualVisible = StudioDefaultKeys.floatingVisualVisible.value
+    /// The floating window's SIZE. Written by "Full screen" (#1067) through `UserDefaults` in
+    /// `openFullscreenVisual()`; READ here since #1069, because the keep-awake rule needs to
+    /// know whether the one visual window is filling the display.
+    ///
+    /// Guarded, because `FloatingVisualWindow.WindowSize` is: the DEFAULT has to come from the
+    /// enum (a naked `0` here would be the decoupling `WorkspaceView`'s own doc argues against
+    /// — #1066 kept every default at its declaration for exactly this reason), and the enum is
+    /// only visible where MetalKit and UIKit are.
+    #if canImport(MetalKit) && canImport(UIKit)
+    @AppStorage(StudioDefaultKeys.floatingVisualSizeKey)
+    private var floatingSizeRaw = FloatingVisualWindow.WindowSize.small.rawValue
+    #endif
     @State private var showVisualSettings = false
     /// #228 — the six individual visual parameters, folded away under the ONE Energy
     /// control. `@State`, not `@AppStorage`, on purpose: this is a "show me the detail
@@ -995,7 +1019,12 @@ struct EchoelStudioView: View {
     @State private var showFieldVoice = false
     @State private var showFieldSelfPlay = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
-    @State private var showVisualControls = true
+    // ⛔ `showVisualControls` STOOD HERE AND IS DELETED (#1069). It was the cover's
+    // tap-the-canvas-to-hide-the-chrome flag, and the panel it hid — `visualVJOverlay` — went
+    // in the same commit. Not ported: hiding chrome by tapping an unlabelled canvas is the
+    // invisible-gesture pattern WCAG 2.2 argues against, and the cover's own comment cited it.
+    // A clean projected picture is a NEW small feature with a VISIBLE control, and a founder
+    // taste question — not a port.
     /// Last-picked immersive visual preset (persisted) — a launch point for the
     /// four live sliders below; "" = none/custom after a manual tweak. DEFAULT
     /// "vapor" (founder 2026-07-07: "mehr kitschige Vaporwave-Ästhetik … alles soll
@@ -1497,40 +1526,21 @@ struct EchoelStudioView: View {
                 stopEverything(reason: "transport-stopped")
             }
         }
-        .onChange(of: showVisual) { _, isUp in
-            updateKeepAwake()
-            // GPU rule: only ONE MetalBioView may render at a time. The fullscreen visual
-            // cover mounts its own MetalBioView, so HIDE the floating window while it's up
-            // (otherwise both MTKViews drive CADisplayLinks → GPU starvation / black immersive).
-            // Restore the floating window's prior state on dismiss so the user gets back
-            // exactly what they had.
-            //
-            // ⛔ THIS COMMENT ALSO CLAIMED THE HIDE PREVENTS DOUBLE-CAPTURE ("AND both feed the
-            // recorder → double-capture"), AND THAT HALF IS FALSE — measured #1031. Two later
-            // changes, each correct on its own, cancel this line out while a take is running:
-            // `WorkspaceView.swift:290-293` never UNMOUNTS the floating window (it only sets
-            // `.opacity(0)`/`allowsHitTesting(false)`, because unmounting killed the display
-            // link and with it the arps — #311), and `FloatingVisualWindow.visualLayer` takes
-            // its inert branch only `if !isPresented && !mustKeepRenderingForRecording`. So
-            // hiding a RECORDING floating window keeps its `capturesVideo: true` view rendering
-            // and capturing on purpose, and the cover then mounts a SECOND one: two capturing
-            // MetalBioViews feed the one shared `VisualRecorder`. The door is disabled while a
-            // take runs (see the "Full screen" button) until the cover is retired and the
-            // question disappears with it. **The GPU half of this comment stands** — that is
-            // what the hide is for, and it is why the hide is not removed.
-            //
-            // LEHRE, und sie ist die teure Sorte: ein Kommentar, der eine Schutzwirkung
-            // BEHAUPTET, altert unsichtbar, wenn zwei andere Stellen die Bedingung aufheben.
-            // Kein Wächter wurde rot, weil keiner die Behauptung las — sie stand nur hier.
-            if isUp {
-                floatingWasVisible = floatingVisualVisible
-                floatingVisualVisible = false
-            } else {
-                floatingVisualVisible = floatingWasVisible
-            }
-        }
-        // ONE modifier for ALL THREE keep-awake flags, deliberately — the chain does not grow
-        // (#486). `showMeditation` alone was dead weight (no setter anywhere); OR-ing the
+        // ⛔ `.onChange(of: showVisual)` STOOD HERE AND IS DELETED WITH THE COVER (#1069,
+        // ~32 lines). It existed to enforce the GPU rule — only ONE MetalBioView may render at
+        // a time — by hiding the floating window while the cover was up. With one window there
+        // is no second renderer to hide from, so the rule is satisfied by construction rather
+        // than by a handler; `floatingWasVisible` went with it, having no other reader.
+        //
+        // ⚠️ THE LESSON IT CARRIED SURVIVES ITS CODE, so it is repeated rather than deleted: a
+        // comment that CLAIMS a protection ages invisibly when two other places lift its
+        // condition. This one claimed the hide also prevented double-capture; #1031 measured
+        // that false, and no guard went red because nothing but the comment ever said it.
+        // ONE modifier for EVERY keep-awake trigger, deliberately — the chain does not grow
+        // (#486). (⛔ This said "ALL THREE" and was a count, so it aged: #1044 made it four and
+        // #1069 five. It is a rule about ONE modifier, and the rule does not need the number —
+        // the expression below is the measurement. #1061a, four lines from its own list.)
+        // `showMeditation` alone was dead weight (no setter anywhere); OR-ing the
         // reachable flag in keeps the unreachable one wired for the day it is re-doored,
         // instead of silently dropping it. `isRunning` flips twice per session, so reading
         // it in `body` is nowhere near the 10.76.41/50 freeze law — it is `pacer.guidance`
@@ -1542,7 +1552,16 @@ struct EchoelStudioView: View {
         // from UIKit, nowhere near a SwiftUI update). `isConnected` is `@Observable`, so
         // naming it here is what makes `body` re-evaluate on connect — without it the new
         // term in `updateKeepAwake()` would be correct and never re-read.
-        .onChange(of: showMeditation || breathPacer.isRunning || isProjectingExternally) { _, _ in updateKeepAwake() }
+        .onChange(of: showMeditation || breathPacer.isRunning || isProjectingExternally
+                  || floatingVisualIsFullscreen || cameraRPPG.isRunning) { _, _ in
+            // #1069 — the two new terms are what RE-ARM the conjunctive fullscreen rule,
+            // for the reason the #1044 note above already gives: `updateKeepAwake()` is a
+            // METHOD, so naming a property here is the only thing that makes `body`
+            // re-evaluate and call it again. Both are cold — a window resize is a tap,
+            // and `cameraRPPG.isRunning` flips twice per session — so this is nowhere
+            // near the ~10 Hz reads the 10.76.41/50 freeze law bans.
+            updateKeepAwake()
+        }
         .onDisappear { stopEverything(reason: "unmount"); disableKeepAwake() }
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
         // content above: keep the root view's aggregate generic type shallow so the
@@ -1584,145 +1603,22 @@ struct EchoelStudioView: View {
             if case .success(let urls) = result, let url = urls.first { importMIDI(url) }
         }
         #endif
-        #if canImport(MetalKit) && canImport(UIKit)
-        .fullScreenCover(isPresented: $showVisual) {
-            // NOT AnyView-wrapped: this cover builds lazily on present (it never
-            // contributed to the launch-time metadata overflow), and wrapping the live
-            // MTKView in AnyView defeats SwiftUI identity → the view can be torn down
-            // and recreated, which shows as a stutter. Keep the concrete type here.
-            ZStack(alignment: .topTrailing) {
-                if spectralDonuts {
-                    // The spectrum→visible-light donut visual: one ring per frequency
-                    // band, thickness ∝ loudness, colour = band frequency → visible.
-                    SpectralDonutView(reduceMotion: reduceMotion,
-                                      bandCount: max(8, Int(visualDetail))).ignoresSafeArea()
-                } else {
-                    MetalBioView(capturesVideo: true, reduceMotion: reduceMotion,
-                                 autoAttuned: autoMode, toneHz: currentToneHz,
-                                 intensity: Float(visualIntensity), ringDensity: Float(visualDetail),
-                                 motion: Float(visualMotion), spread: Float(visualSpread),
-                                 hueShift: Float(visualHue), saturation: Float(visualSaturation),
-                                 textureAmount: Float(visualTexture), glitterAmount: Float(visualGlitter),
-                                 structureAmount: Float(visualStructure),
-                                 style: visualStyle, styleB: visualStyleB,
-                                 blend: Float(visualBlend),
-                                 entrainmentPulseHz: entrainmentVisualPulseHz).ignoresSafeArea()
-                }
-                // Tap the canvas to hide/show the VJ control PANEL — clean for
-                // projection, hands-on for performance. Controls are a solid panel.
-                Color.clear.contentShape(Rectangle())
-                    .ignoresSafeArea()
-                    .onTapGesture { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } }
-                if showVisualControls {
-                    visualVJOverlay
-                        .transition(.opacity)   // Uncodixfy: opacity only, no translation
-                }
-                // ALWAYS-ON top bar — drawn LAST so it is never covered by the panel.
-                // fullScreenCover has no swipe-to-dismiss, so a persistent Close is the
-                // only guaranteed escape (device feedback: the view trapped the user and
-                // forced an app kill). Kept subtle for clean projection output.
-                HStack(spacing: 14) {
-                    // Persistent, VISIBLE controls handle — replaces the undiscoverable
-                    // "tap the canvas" reveal (WCAG 2.2: don't gate controls behind a
-                    // hidden gesture). The panel still toggles, but the affordance to
-                    // summon it is always on screen.
-                    Button { withAnimation(.easeInOut(duration: 0.15)) { showVisualControls.toggle() } } label: {
-                        Image(systemName: "slider.horizontal.3")
-                            .font(.title2).foregroundStyle(.white.opacity(showVisualControls ? 0.85 : 0.5))
-                    }
-                    .accessibilityLabel(showVisualControls ? "Hide visual controls" : "Show visual controls")
-                    Button { spectralDonuts.toggle() } label: {
-                        Image(systemName: spectralDonuts ? "circle.hexagongrid.fill" : "circle.circle")
-                            .font(.title2).foregroundStyle(.white.opacity(0.6))
-                    }
-                    .accessibilityLabel(spectralDonuts ? "Switch to bio rings" : "Switch to spectrum donuts")
-                    #if canImport(AVFoundation) && canImport(Metal)
-                    // Record the bio-reactive visual to an .mp4 (rings/prism only — the
-                    // spectrum-donut Canvas isn't Metal, so no capture there yet).
-                    if !spectralDonuts {
-                        Button {
-                            if visualRecorder.isRecording {
-                                Task {
-                                    if let url = await visualRecorder.stop() {
-                                        visualShare = ExportedFile(url: url)
-                                    }
-                                }
-                            } else {
-                                visualRecorder.start(audio: audioEngine)
-                            }
-                        } label: {
-                            Image(systemName: visualRecorder.isRecording ? "stop.circle.fill" : "record.circle")
-                                .font(.title2)
-                                .foregroundStyle(visualRecorder.isRecording ? EchoelTheme.recording : .white.opacity(0.85))
-                        }
-                        .accessibilityLabel(visualRecorder.isRecording ? "Stop recording" : "Record video")
-
-                        // #990 — WHAT BECAME OF THE TAKE. `stop()` returns nil on several paths
-                        // and all three stop doors discarded it, so an unrepeatable performance
-                        // capture could end with no share sheet, no library row and no sentence —
-                        // worst of all the EMPTY take, where the REC badge counted seconds off a
-                        // `Date` while no frame ever reached the writer. Read in its own leaf,
-                        // never here: this body hosts the genre/key `.menu` Pickers.
-                        //
-                        // This is ONE OF THREE STOP DOORS, and since #991 all three carry this
-                        // leaf: the floating window shows it in the corner that held the REC
-                        // badge, the Video panel's row shows it above the list that would
-                        // otherwise just fail to grow. `TheTakeSaysWhetherItWasWrittenTests`
-                        // claim 5 names all three files, so a future door cannot be added
-                        // silent — a needle that only asked "mounted somewhere" would pass with
-                        // two served and one mute, which was this row's state for one cycle.
-                        TakeOutcomeLine(recorder: visualRecorder)
-
-                        // #985 — ONE FRAME AS A PICTURE. The cheapest artefact of the output
-                        // stage: a cover, a post, the frame worth keeping. Fullscreen is where
-                        // you are LOOKING at the picture, which is when a still is a considered
-                        // act rather than a miss.
-                        //
-                        // ⛔ THIS BLOCK SAID THE SHUTTER BELONGED HERE AND NOT IN THE FLOATING
-                        // WINDOW'S TOOLBAR, because that bar is width-budgeted
-                        // (`FloatingVisualLayout.chromeFit`, never-shed floor 140 pt against a
-                        // ~147 pt small card) and "a seventh button there would mean a new shed
-                        // rank and a change to `ChromeBudgetFitsTests`". Every measured word of
-                        // that is still true — it just names a PRICE, not a reason, and #1063
-                        // paid it: `ChromeFit.stillShutter` is fullscreen-only, so the small
-                        // card's floor is byte-identical, and the new rank is argued in
-                        // `chromeFit`'s own ranking doc. D1's ask ("alles zu einem Ding
-                        // zusammen gefasst") cannot be met while a control lives on only one of
-                        // the two chromes over ONE renderer.
-                        //
-                        // So BOTH mount it while the cover still exists: one still, two places
-                        // to press, sharing the one `VisualRecorder` — the shape the record
-                        // button has had since #747, not a second recorder. This copy goes when
-                        // the cover does (S3 of `PLAN_ONE_VISUAL_SURFACE_2026-09-07.md`).
-                        //
-                        // `answer: .beside` — this row has no width budget, so the sentence sits
-                        // next to the button. The window's copy passes `.below` because the
-                        // measured slack in that bar is 0 pt on a 375 pt phone.
-                        //
-                        // No share sheet: the still goes straight to Photos, exactly like the
-                        // video's `saveToPhotoLibrary`. A `.sheet` here would grow the
-                        // presentation chain, which is the 10.76.34 black-screen law.
-                        //
-                        // #986: the tap AND its answer moved into `StillShutterButton`. #985
-                        // shipped a button that said nothing at all — a denied photo permission,
-                        // an encode failure and a success were one and the same silence, with the
-                        // only trace in a log the founder cannot see. The outcome read lives in
-                        // that leaf, never here: this body hosts the genre/key `.menu` Pickers.
-                        StillShutterButton(recorder: visualRecorder, answer: .beside)
-                    }
-                    #endif
-                    Button { showVisual = false } label: {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title2).foregroundStyle(.white.opacity(0.85))
-                    }
-                    .accessibilityLabel("Close visual")
-                }
-                .padding()
-            }
-            .statusBarHidden(true)
-            .sheet(item: $visualShare) { AnyView(ShareSheet(url: $0.url)) }
-        }
-        #endif
+        // ⛔ THE FULLSCREEN COVER STOOD HERE AND IS DELETED (#1069, ~139 lines) — the founder
+        // asked for it by name: *"aktuell gibt es fullscreen Mode das soll aber alles zu einem
+        // Ding zusammen gefasst werden"*. It was a SECOND chrome over the SAME renderer, and
+        // every control it alone carried was ported first, one reversible slice each: the still
+        // shutter (#1063), the note grid (#1064), the donut look (#1065), the size key's one
+        // home (#1066), and the door itself (#1067, which made "Full screen" resize the ONE
+        // window). Only after all five did this become a deletion instead of a loss.
+        //
+        // THE PRESENTATION CHAIN IS ONE SHORTER, which is the safe direction at the 10.76.34
+        // metadata ceiling — the black-screen law this file states three times. `visualShare`'s
+        // `.sheet(item:)` went with it: it lived INSIDE this cover's content, so it never sat
+        // on the body chain, and the recording it shared is still shareable through
+        // `videoPanel` → `VideoLibraryPanelContent`. Immediacy is the honest, nameable loss.
+        //
+        // `.statusBarHidden(true)` is NOT ported. Whether the one window should hide the status
+        // bar at fullscreen is a founder look, and porting it silently would decide it here.
         .fullScreenCover(isPresented: $showMeditation) { MeditationView() }
         #if canImport(MultipeerConnectivity)
         .sheet(isPresented: $showLiveColabo) {
@@ -3143,8 +3039,10 @@ struct EchoelStudioView: View {
     /// METADATA (black-screen law): NO presentation modifier is added, removed or moved —
     /// the body's count stays at 14 (8 sheet + 2 cover + 3 alert + 1 fileImporter; counted
     /// again 2026-07-28, and TWO modifiers are deliberately NOT in it — they sit INSIDE
-    /// another modifier's content, not on the body chain: `.sheet(item: $visualShare)`
-    /// inside the `showVisual` fullScreenCover, and `.fileImporter(isPresented:
+    /// another modifier's content, not on the body chain: ⛔ ONE OF THE TWO WAS
+    /// `.sheet(item: $visualShare)` inside the `showVisual` fullScreenCover, and BOTH WENT WITH
+    /// THAT COVER (#1069) — so the file-wide number is 16 → 14 and the body chain 14 → 13. The
+    /// surviving inside-a-modifier case is `.fileImporter(isPresented:
     /// $projectImportPresented)` inside `openSheet`. ⛔ This line said "at :881" for the
     /// first of them; the actual site is ~500 lines away, because a line NUMBER inside a
     /// file is invalidated by every insertion above it — the same lesson this repo has
@@ -5214,11 +5112,13 @@ struct EchoelStudioView: View {
             // or restored, and that `.onChange` is inert code awaiting S3c rather than the
             // mechanism this paragraph credited it as.
             //
-            // ⚠️ THE MODAL CHAIN DOES NOT GROW, and after #1067 it is one slot LOOSER: nothing
-            // writes `showVisual` any more, so the un-settable-flag list is back to THREE
-            // (`showMeditation`, `midiImportPresented`, `showVisual`). The black-screen metadata
-            // law (10.76.34) is untouched; S3c takes the slot away entirely, i.e. the chain
-            // shrinks 14 → 13, which is the safe direction at that ceiling.
+            // ⚠️ THE MODAL CHAIN SHRANK. #1067 left `showVisual` un-settable; #1069 (S3c) then
+            // deleted the cover outright, so the chain is 14 → 13 and the file-wide count 16 → 14
+            // — both measured with `ResetSoundClearsWhatTheLaunchLineReportsTests`' own predicate,
+            // not reasoned about. The un-settable pair is `showMeditation` and
+            // `midiImportPresented`; `showVisual` is not a third, because it no longer exists.
+            // The black-screen metadata law (10.76.34) is untouched and now has one slot of real
+            // headroom, which is meant to be spent once and deliberately.
             //
             // ⛔ #1031's `.disabled(visualRecorder.isRecording)` STOOD HERE AND IS REMOVED, on
             // that comment's own instruction. It read: "DISABLED WHILE A TAKE IS RUNNING, and
@@ -5346,6 +5246,23 @@ struct EchoelStudioView: View {
                     }
                     .tint(EchoelTheme.accent)
                     .accessibilityHint("Draws the sound as spectrum rings instead of the Metal field. Moving the look slider returns to the field.")
+                    // ⭐ THE AIRPLAY SIGNPOST, MOVED HERE FROM THE DELETED VJ OVERLAY (#1069).
+                    // It was the ONE row that overlay owned rather than shared, and it is the
+                    // only place in the app that tells a performer the picture can leave the
+                    // phone at all — the founder route *"es soll trotzdem vom iPhone aus
+                    // spielbar sein"*. Deleting its host without moving it would have removed a
+                    // live capability by accident, which is the whole reason §1 of the plan
+                    // inventories what a surface owns ALONE before it is cut.
+                    //
+                    // In "Look" because that is the question it answers: where does this picture
+                    // go? It is a HINT, not a control — Echoel cannot start mirroring, only iOS
+                    // can — so it stays 10 pt and dim, and it carries an `accessibilityHint`
+                    // rather than pretending to be tappable.
+                    Label("Project: mirror to a screen via AirPlay", systemImage: "airplayvideo")
+                        .font(EchoelTheme.font(10))
+                        .foregroundStyle(EchoelTheme.dim)
+                        .padding(.top, 2)
+                        .accessibilityHint("Use Control Center Screen Mirroring to project this visual")
                 }
             }
             // The A/B "Blend with" strip left this surface 2026-07-07 (founder: minimize —
@@ -6226,59 +6143,17 @@ struct EchoelStudioView: View {
     // duplicate being tidied away. (Contrast #323, where the persisted key went too because
     // nothing else read it.)
 
-    #if canImport(MetalKit) && canImport(UIKit)
-    /// The hands-on VJ control panel that floats over the fullscreen visual: the four
-    /// live parameters + a quick scene strip, on the app-wide value-field vocabulary,
-    /// in a solid (non-glass) bottom panel sized for stage use. Tap the canvas to hide.
-    private var visualVJOverlay: some View {
-        VStack {
-            Spacer(minLength: 0)
-            // Scrollable + height-capped so the panel stays in the LOWER portion: the
-            // top stays canvas + the always-on Close bar, and many params never grow
-            // the panel to full height (which previously covered the Close button).
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 8) {
-                    // Pick the visual LOOK (engine), then the scene preset (parameters).
-                    groupHeader("Look")
-                    // `true`: this overlay IS inside the cover that builds `SpectralDonutView`, and
-                    // its top bar still toggles donut mode — here the state is real and worth naming.
-                    visualLookStrip(showsDonutState: true)
-                    // The A/B blend strip left here too (founder 2026-07-07 minimize) — the
-                    // fullscreen VJ overlay mirrors the inline panel, so both dropped it, and
-                    // #324 deleted the view once both mounts had been comments for weeks.
-                    // SAME definitions as the inline panel (visualPresetRow +
-                    // visualAdjustFields) so the two surfaces can never drift apart.
-                    visualPresetRow
-                    // 8 = THIS overlay's own `VStack(spacing: 8)` a few lines up, NOT the
-                    // panel's 14. The overlay is height-capped at 360 pt for stage use, so a
-                    // wider row rhythm is the wrong trade here — and in one column the grid's
-                    // spacing REPLACES the stack's, which is exactly why this is an argument.
-                    visualAdjustFields(spacing: 8)
-                    // Projection output: this chrome-free, keep-awake canvas IS the beamer
-                    // image — mirror it to a projector/TV via AirPlay (Control Center →
-                    // Screen Mirroring). Tap the canvas to hide these controls for a clean
-                    // projected picture. (Dedicated dual-screen — device = controls, beamer
-                    // = visual only — needs an Info.plist scene manifest + device check, a
-                    // separate cycle.) Only shown while the panel is open, so it never
-                    // appears in the projected image.
-                    Label("Project: mirror to a screen via AirPlay", systemImage: "airplayvideo")
-                        .font(EchoelTheme.font(10))
-                        .foregroundStyle(EchoelTheme.dim)
-                        .padding(.top, 2)
-                        .accessibilityHint("Use Control Center Screen Mirroring to project this visual")
-                }
-                .padding(14)
-            }
-            .frame(maxHeight: 360)
-            .background(EchoelTheme.bg.opacity(0.92))
-            .clipShape(RoundedRectangle(cornerRadius: EchoelTheme.radius))
-            .overlay(RoundedRectangle(cornerRadius: EchoelTheme.radius).strokeBorder(EchoelTheme.border, lineWidth: 1))
-            .padding(.horizontal, 12).padding(.bottom, 12)
-            .frame(maxWidth: 560)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-    }
-    #endif
+    // ⛔ `visualVJOverlay` STOOD HERE AND IS DELETED (#1069, ~53 lines). It was the control
+    // panel that floated over the fullscreen COVER, and the cover is gone — D2 of
+    // PLAN_ONE_VISUAL_SURFACE_2026-09-07 says ONE definition per control, so it was never a
+    // candidate for porting: every row in it (`groupHeader`, `visualLookStrip`,
+    // `visualPresetRow`, `visualAdjustFields`) is the SAME definition the Field panel mounts.
+    // Deleting it removes a second mount site, not a capability.
+    //
+    // ⚠️ ONE row was its own and would have died silently: the AirPlay hint. It is the only
+    // signpost in the app to projecting the picture at all, and the founder route it serves
+    // ("es soll trotzdem vom iPhone aus spielbar sein") is live. It moved into the Field
+    // panel's "Look" group in this same commit — grep `airplayvideo` to find its one home.
 
     /// Hold the screen on while the instrument is performing or projecting; otherwise
     /// let it sleep (battery). iOS resets `isIdleTimerDisabled` on background, so this
@@ -6310,8 +6185,38 @@ struct EchoelStudioView: View {
         // connecting a screen is a deliberate act with an obvious end — unplug it and the
         // next `body` evaluation puts the phone back to sleeping normally.
         UIApplication.shared.isIdleTimerDisabled =
-            running || showVisual || showMeditation || breathPacer.isRunning
+        // ⛔ #1069 — `showVisual` STOOD IN THIS LIST AND THE COVER IT NAMED IS GONE. Porting it
+        // one-for-one would have been wrong in BOTH directions, which is why it became a
+        // CONJUNCTION instead of a swap:
+        //  · Dropping the term entirely leaves NOTHING holding the screen for a fullscreen
+        //    visual — exactly Ship-Gate 4's contemplative case, watched with the transport
+        //    stopped and the body driving the picture.
+        //  · Naming the fullscreen WINDOW alone would be worse than the cover ever was.
+        //    `showVisual` was `@State` and reset every launch; `visual.floating.size` is
+        //    `@AppStorage` and STICKY, so one tap on "Full screen" would mean "awake forever"
+        //    for that user, idle or not.
+        //
+        // ⚠️ AND THE COMMENT 30 LINES DOWN IS WHERE THAT SECOND READING CAME FROM. It says the
+        // app "COLD-LAUNCHES into" the floating fullscreen, so it is "the default state".
+        // Measured 2026-09-07: `StudioDefaultKeys.floatingVisualVisible` is `true` but
+        // `visual.floating.size` defaults to `WindowSize.small` — a fresh install opens a SMALL
+        // card. The RISK half of that sentence survives (persistence makes it sticky); the
+        // MECHANISM half does not, and only the mechanism was ever load-bearing. Corrected at
+        // the site below in this same commit (#456).
+        //
+        // The conjunction is strictly LESS awake than what shipped: today the cover alone
+        // disables the idle timer with nothing running at all. An idle fullscreen window now
+        // holds nothing; a fullscreen window with the pulse running holds the screen.
+        //
+        // Both new reads are COLD. `floatingSizeRaw` is `@AppStorage` and changes on a tap;
+        // `cameraRPPG.isRunning` flips twice per session (this file says so at the meter
+        // strip). Neither is the ~10 Hz kind the 10.76.41/50 freeze law is about, and the
+        // read lives in a method — the `.onChange` expression names the two properties, not
+        // the objects.
+        UIApplication.shared.isIdleTimerDisabled =
+            running || showMeditation || breathPacer.isRunning
             || isProjectingExternally
+            || (floatingVisualIsFullscreen && cameraRPPG.isRunning)
         #endif
     }
 
@@ -6326,6 +6231,26 @@ struct EchoelStudioView: View {
     private var isProjectingExternally: Bool {
         #if canImport(UIKit)
         return ExternalStageBridge.shared.isConnected
+        #else
+        return false
+        #endif
+    }
+
+    /// Is the ONE visual window filling the display right now? #1069, the keep-awake half of
+    /// the cover deletion.
+    ///
+    /// It reads BOTH keys on purpose. A stored size of `.fullscreen` says nothing on its own —
+    /// the window can be hidden entirely (`visual.floating.visible == false`) and the stored
+    /// size then describes a window nobody is looking at. "Fullscreen" as a keep-awake reason
+    /// has to mean "the picture is on the screen", not "the picture would be big if it were".
+    ///
+    /// ⚠️ NOT A SUBSTITUTE FOR `spectralDonutsAreOnScreen`. That one asks WHICH renderer is
+    /// showing; this asks HOW BIG the window is. Both are cheap, cold reads and they answer
+    /// different questions — do not fold them.
+    private var floatingVisualIsFullscreen: Bool {
+        #if canImport(MetalKit) && canImport(UIKit)
+        return floatingVisualVisible
+            && FloatingVisualWindow.WindowSize(rawValue: floatingSizeRaw) == .fullscreen
         #else
         return false
         #endif
@@ -6535,17 +6460,18 @@ struct EchoelStudioView: View {
     /// A DEFAULT would reintroduce exactly that risk invisibly: an argument no call site
     /// writes appears in no diff (#440/#443).
     ///
-    /// ⛔ AND THE SECOND HOST HAS NO DOOR, which the paragraph above reads as if it did.
-    /// `visualVJOverlay` is mounted only inside `.fullScreenCover(isPresented: $showVisual)`, and
-    /// `showVisual` has no writer of `true` anywhere in `Sources/` — word-bounded, its two writers
-    /// in code are its own `@State` initialiser and the close button, both `false` (open task
-    /// #270; `visualPresetRow` already says "the overlay is doorless, so that half is latent").
-    /// So the rule above is ASYMMETRIC rather than weaker: hardcoding **8** re-spaces the
-    /// REACHABLE panel — a live cost, today — while hardcoding **14** re-spaces only a surface
-    /// nobody can open. The parameter defends something live in exactly ONE direction and is
-    /// bookkeeping for the day the door returns in the other. Both halves stay; only one is a
-    /// defence, and saying which is the difference between a rule and a ritual.
-    /// Pinned by `VisualFineTuneReflowsTests` claim 6, which goes red when the door comes back.
+    /// ⛔ THE ASYMMETRY ARGUMENT THAT STOOD HERE IS GONE, BECAUSE ITS SECOND HOST IS (#1069).
+    /// It said the rule was asymmetric — hardcoding **8** would re-space the reachable Field
+    /// panel, hardcoding **14** only the doorless `visualVJOverlay`. That overlay was deleted
+    /// with the fullscreen cover, so there is no second host and no asymmetry: the parameter now
+    /// has exactly ONE caller and defends exactly one live surface.
+    ///
+    /// ⭐ THE PARAMETER STAYS ANYWAY, and the reason is stronger than the one it replaces. A
+    /// grid whose spacing REPLACES its host's in one column must be told the host's number, or
+    /// the next second caller silently re-spaces one of the two — which is what nearly happened
+    /// twice. A DEFAULT would reintroduce that invisibly: an argument no call site writes
+    /// appears in no diff (#440/#443). One caller is not an argument for a default; it is the
+    /// moment a default is cheapest to add and most expensive later.
     ///
     /// ⚠️ ENERGY IS DELIBERATELY OUTSIDE THE GRID, and this is the half a grep-for-
     /// `AdaptiveCardGrid` guard cannot see. It is separated from the six by a caption and the

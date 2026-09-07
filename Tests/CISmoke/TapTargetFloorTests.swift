@@ -190,13 +190,14 @@ final class TapTargetFloorTests: XCTestCase {
     /// with no gap on its leading side and an outset would have stolen that field's taps.
     ///
     /// ⛔ THE ANCHOR IS THE ACTION, NOT THE GLYPH, and the first draft got that wrong in a way
-    /// that would have passed while testing the wrong control. `xmark.circle.fill` appears
-    /// TWICE in this file; the other is a "Close visual" button inside the
-    /// `.fullScreenCover(isPresented: $showVisual)` overlay. ⚠️ That overlay was unreachable
-    /// when this note was written, and #747 doored it — so "its size is nobody's problem" is no
-    /// longer true, and its tap targets are a real open question (recorded in
-    /// `VisualFineTuneReflowsTests`' device-verify note, not re-asserted here). The needle
-    /// lesson is untouched by that. `firstIndex` found THAT one,
+    /// that would have passed while testing the wrong control. `xmark.circle.fill` appeared
+    /// TWICE in this file; the other was a "Close visual" button inside the
+    /// `.fullScreenCover(isPresented: $showVisual)` overlay. ⚠️ THAT SECOND ONE IS GONE (#1069
+    /// deleted the cover), so the collision this note warns about is not reproducible on today's
+    /// tree — which is precisely why the note stays: the needle lesson does not depend on the
+    /// collision still existing, and a reader who cannot reproduce it would otherwise conclude
+    /// the caution was never real. The overlay's open tap-target question is withdrawn with the
+    /// overlay. `firstIndex` found THAT one,
     /// six hundred lines earlier, and the assertion failed against a control this slice never
     /// touched. `locationNamer.manualPlace = ""` is unique and names the button by what it
     /// does, which is the property a glyph name does not have.

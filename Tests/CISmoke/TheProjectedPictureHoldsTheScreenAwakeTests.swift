@@ -11,6 +11,9 @@ import XCTest
 /// performing or projecting"*, and `EchoelStudioView.swift:5` says it again beside the UIKit
 /// import — *"keep screen awake while projecting"*. Measured before the slice, the condition
 /// was `running || showVisual || showMeditation || breathPacer.isRunning`: four terms, all of
+/// which described the PHONE being looked at. (⛔ `showVisual` is gone since #1069 — the cover it
+/// named was deleted and its term became a conjunction; the sentence is kept in the past tense
+/// because it is the history the #1044 argument rests on, not a claim about today.)
 /// them about the PHONE being looked at. The one route where the phone is NOT being looked at
 /// — the picture on a beamer or a TV, `ExternalStageBridge.isConnected` — appeared in none of
 /// them, and `git grep ExternalStageBridge Sources/` returned nine sites, not one of them in
@@ -66,17 +69,61 @@ final class TheProjectedPictureHoldsTheScreenAwakeTests: XCTestCase {
         """)
     }
 
-    /// COUNTERWEIGHT (#343): the new term must be an ADDITION. A slice that swapped it in for
-    /// one of the four would leave this file green while taking a capability away.
-    func testTheFourOlderKeepAwakeTermsSurvive() throws {
+    /// COUNTERWEIGHT (#343): the projecting term must be an ADDITION. A slice that swapped it
+    /// in for one of the others would leave this file green while taking a capability away.
+    ///
+    /// ⛔ THE NEEDLE WAS `"running || showVisual"` AND #1069 DELETED THE COVER IT NAMED. Left
+    /// alone it would have been red on a CORRECT tree, in the blocking bundle — the #650/#960
+    /// shape this directory has now recorded three times, and the reason §4 says to grep
+    /// `Tests/CISmoke` in the SAME commit as the removal, not only `Sources/`.
+    ///
+    /// ⚠️ The replacement is deliberately NOT "running || showMeditation" — pinning the exact
+    /// adjacency is what made the old needle brittle. Each surviving term is asserted on its
+    /// own, so re-ordering the expression (legal, cosmetic) cannot redden it (#364).
+    func testTheOlderKeepAwakeTermsSurvive() throws {
         let studio = try code(of: Self.studio)
-        for term in ["running || showVisual", "|| showMeditation", "|| breathPacer.isRunning"] {
+        for term in ["running ||", "showMeditation", "breathPacer.isRunning",
+                     "isProjectingExternally"] {
             XCTAssertTrue(studio.contains(term), """
-            `updateKeepAwake()` lost the term `\(term)`. #1044 ADDED the projecting case; it \
-            did not replace anything. `showMeditation` in particular is deliberately kept \
-            while its surface is doorless, so the decision is ready for a re-door.
+            `updateKeepAwake()` lost the term `\(term)`. #1044 ADDED the projecting case and \
+            #1069 replaced the cover's term with a CONJUNCTION; neither replaced any of these. \
+            `showMeditation` in particular is deliberately kept while its surface is doorless, \
+            so the decision is ready for a re-door.
             """)
         }
+    }
+
+    /// #1069 — THE COVER'S TERM BECAME A CONJUNCTION, AND THE CONJUNCTION IS THE POINT.
+    ///
+    /// `showVisual` alone disabled the idle timer: an open cover with nothing running held the
+    /// phone awake to the end of the battery. Its natural replacement, the fullscreen WINDOW,
+    /// would have been WORSE — `showVisual` was `@State` and reset each launch, while
+    /// `visual.floating.size` is `@AppStorage` and sticky, so one tap would have meant "awake
+    /// forever" for that user. Requiring the pulse to be running is what makes the port safe,
+    /// and it is the contemplative case of Ship-Gate 4 stated exactly.
+    ///
+    /// ⚠️ SOURCE-TEXT SCAN (§1). It proves the expression is written this way, never that a
+    /// device sleeps — that is the founder's look.
+    func testTheFullscreenTermIsConjunctiveNotStandalone() throws {
+        let studio = try code(of: Self.studio)
+        XCTAssertTrue(studio.contains("(floatingVisualIsFullscreen && cameraRPPG.isRunning)"), """
+        the fullscreen keep-awake term is not the conjunction any more. Standing alone it would \
+        hold the screen awake for a persisted fullscreen window that nobody is watching — \
+        strictly worse than the cover it replaced, because the cover's flag did not survive a \
+        launch and this key does. If the rule genuinely changed, say so here and in \
+        PLAN_ONE_VISUAL_SURFACE_2026-09-07 §5 in the same commit (#456).
+        """)
+        XCTAssertTrue(studio.contains("private var floatingVisualIsFullscreen: Bool"), """
+        the helper the term reads is gone. It asks TWO keys on purpose — a stored size of \
+        `.fullscreen` says nothing while the window is hidden.
+        """)
+        // COUNTERWEIGHT: the deleted cover must stay deleted. A future slice that re-raises a
+        // second fullscreen chrome would make this whole file describe the wrong surface.
+        XCTAssertFalse(studio.contains(".fullScreenCover(isPresented: $showVisual)"), """
+        the fullscreen COVER is back. #1069 deleted it on the founder's "alles zu einem Ding \
+        zusammen gefasst" — two chromes over one renderer was the thing being removed. Bringing \
+        it back is a decision, not a refactor: it needs its own commit and its own founder line.
+        """)
     }
 
     /// COUNTERWEIGHT: holding the screen awake is only safe while something still releases it.

@@ -94,9 +94,21 @@ final class TheStillSaysWhetherItWasSavedTests: XCTestCase {
     // 4 — one owner of the tap, and the outcome read never enters the menu-hosting body.
     func testTheMenuHostNeitherTapsNorReadsTheOutcome() throws {
         let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        XCTAssertTrue(studio.contains("StillShutterButton(recorder:"), """
-            The fullscreen row no longer mounts `StillShutterButton`. The still then has no door \
-            at all — a doorless capability, which this repo's register calls the expensive kind.
+        // ⛔ THIS ASSERTED THE OPPOSITE UNTIL #1069, AND IT WOULD HAVE BEEN RED ON A CORRECT
+        // TREE. It required `EchoelStudioView` to mount `StillShutterButton`, because the
+        // fullscreen COVER's top row was where the shutter lived. S3c deleted that cover, and
+        // claim 6 below already pinned the surviving mount in `FloatingVisualWindow` — so the
+        // door was never at risk, only this needle's anchor. Third time this bundle has recorded
+        // the shape (#650, #960); §4's one-command prevention is grepping `Tests/CISmoke` for the
+        // removed spelling in the SAME commit, which is how this was caught.
+        XCTAssertFalse(studio.contains("StillShutterButton("), """
+            `EchoelStudioView` mounts `StillShutterButton` again. Since #1069 the ONE visual \
+            window owns the shutter (claim 6 pins that mount); a second one here would be a \
+            second door to one action — #290 — and it would put the outcome sentence back into \
+            the body that hosts the genre/key `.menu` Pickers.
+
+            If a second host is genuinely wanted, decide its `AnswerPlacement` explicitly and say \
+            why here; do not let it arrive as a copied line.
             """)
         XCTAssertFalse(studio.contains("requestStill("), """
             `EchoelStudioView` taps the shutter itself again. Two owners of one action is how the \
@@ -138,7 +150,15 @@ final class TheStillSaysWhetherItWasSavedTests: XCTestCase {
 
         // COUNTERWEIGHT (#367): the leaf really has TWO placements and the overlay really is the
         // one that claims no layout width. Without this, the needle above would pass over a
-        // parameter that both call sites write and nothing reads.
+        // parameter nothing reads.
+        //
+        // ⚠️ `.beside` HAS NO CALLER SINCE #1069 — say it rather than let this counterweight read
+        // as proof that both are in use. The cover's row was its one call site. It is KEPT, and
+        // the reason is specific rather than sentimental: the two placements are what let ONE
+        // leaf serve a row with width to spare AND a bar with none, and the second kind of host
+        // is exactly what S4 (wrap the fullscreen bar instead of shedding) may produce. Deleting
+        // a case to make a count tidy, then rewriting it a week later, is churn — but a
+        // producerless case is a finding, so it is named here and in the leaf, not left silent.
         let leaf = try source("Sources/Echoelmusic/Studio/StillShutterButton.swift")
         for needle in ["case beside", "case below", "answer == .beside", "answer == .below",
                        ".overlay(alignment: .bottomTrailing)"] {

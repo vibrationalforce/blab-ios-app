@@ -30,6 +30,12 @@ struct StillShutterButton: View {
     /// GEOMETRY differs.
     enum AnswerPlacement {
         /// Beside the button, in the same row. For a row with no width budget.
+        // ⚠️ NO CALLER SINCE #1069. Its one call site was the fullscreen cover's top row, which
+        // S3c deleted; the surviving mount is `FloatingVisualWindow` with `.below`. Kept, and the
+        // reason is specific: the two placements are what let ONE leaf serve a row with width to
+        // spare AND a bar with none. S4 (wrap the fullscreen bar instead of shedding it) is the
+        // likely producer. Named here rather than left silent — a case with no producer is a
+        // finding in this repo even when keeping it is right.
         case beside
         /// Hanging below the button as an OVERLAY — it contributes no layout width, so a
         /// width-budgeted bar is unaffected whether the sentence is up or not.

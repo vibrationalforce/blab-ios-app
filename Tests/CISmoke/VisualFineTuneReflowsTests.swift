@@ -12,35 +12,36 @@
 // overlay is capped at `.frame(maxWidth: 560)`. The defect is the same; the reason given for it was
 // only half true, which matters because that cap is what finding 3 below turns on.)
 //
-// ⭐ WHAT MAKES THIS SLICE DIFFERENT FROM THE OTHER TWO, and the reason it is worth a file of its
-// own rather than a third copy: this ViewBuilder has **two hosts with different container
-// spacings**. `visualPanel` renders it inside `EchoelPanel` (`spacing: 14`); `visualVJOverlay` —
-// the stage overlay over the fullscreen visual — renders it inside its own `VStack(spacing: 8)`,
-// height-capped at 360 pt. In ONE column an `AdaptiveCardGrid` renders a `VStack` whose spacing
-// REPLACES the host's, so a fixed literal inside the ViewBuilder would silently re-space one of
-// the two in PORTRAIT — the primary surface, which does not reflow at all and would therefore pay
-// the whole cost for none of the benefit. Hence `spacing` is a PARAMETER with NO DEFAULT, and the
-// sharpest claim in this file is claim 4: an argument no call site writes appears in no diff
-// (#440/#443), so a default would reintroduce exactly that risk invisibly.
+// ⭐ WHAT MADE THIS SLICE DIFFERENT FROM THE OTHER TWO: this ViewBuilder had **two hosts with
+// different container spacings**. `visualPanel` renders it inside `EchoelPanel` (`spacing: 14`);
+// `visualVJOverlay` — the stage overlay over the fullscreen visual — rendered it inside its own
+// `VStack(spacing: 8)`, height-capped at 360 pt. In ONE column an `AdaptiveCardGrid` renders a
+// `VStack` whose spacing REPLACES the host's, so a fixed literal inside the ViewBuilder would
+// silently re-space one of the two in PORTRAIT.
 //
-// ⭐ THE SECOND HOST HAD A DOOR (#747) AND HAS LOST IT AGAIN (#1067) — ON PURPOSE, AND THIS
-// SENTENCE HAS NOW BEEN WRONG IN BOTH DIRECTIONS, WHICH IS WHY IT KEEPS ITS HISTORY. From the
-// tools-grid removal until 2026-08-22, `visualVJOverlay` was mounted only inside
-// `.fullScreenCover(isPresented: $showVisual)` and `showVisual` had no writer of `true` anywhere
-// in `Sources/` — open task #270. #747 added a visible "Full screen" button in `visualPanel` and
-// the overlay became reachable. #1067 (S3b) then pointed that same button at the FLOATING
-// WINDOW's size instead: one surface, not two (founder: *"alles zu einem Ding zusammen
-// gefasst"*). The button is still there and still labelled — the DOOR moved, the overlay did not
-// get one taken away from it by accident. The cover is unreachable but still present for one
-// slice, so the new path can be checked on device; S3c deletes it, and this whole block, claim 5's
-// overlay half and claim 6's counterweight go with it (#456).
+// ⛔ THERE IS ONE HOST NOW (#1069 deleted the overlay with the fullscreen cover), AND THE
+// PARAMETER STAYS. That is not sentiment: with one caller, a default is the tempting cleanup and
+// the invisible one — an argument no call site writes appears in no diff (#440/#443), so the next
+// second host would inherit the Field panel's rhythm without anyone deciding it. Claim 4 is
+// unchanged and is now the sharpest thing in the file; claim 5 keeps the surviving half.
 //
-// ⚠️ THE ASYMMETRY IS BACK, and it is the same asymmetry as before #747, so the reasoning below
-// is live again rather than history: hardcoding **8** would re-space a surface nobody can open
-// (bookkeeping) while hardcoding **14** re-spaces the reachable panel (a live cost). A parameter
-// whose second consumer is unreachable is half a defence — saying WHICH half is what stops a
-// later session from "simplifying" it back to a literal, and it is the reason claim 4 survives
-// both flips unchanged.
+// ⛔ THE SECOND HOST'S DOOR HISTORY — DOORLESS, THEN DOORED (#747), THEN MOVED (#1067) — ENDED
+// WITH THE HOST (#1069). It is kept in three lines rather than deleted, because the SHAPE recurs:
+// `visualVJOverlay` was mounted only inside `.fullScreenCover(isPresented: $showVisual)`, a flag
+// with no writer of `true` (open task #270); #747 gave it a visible "Full screen" button; #1067
+// pointed that same button at the FLOATING WINDOW's size; #1069 deleted the cover and the overlay
+// with it, on the founder's *"alles zu einem Ding zusammen gefasst"*. The button is still there
+// and still labelled — claim 6 is about THE DOOR, which survived all four moves.
+//
+// ⚠️ THE LESSON THAT OUTLIVES IT: a surface can go doorless → doored → doorless → deleted inside
+// six weeks, and this header was WRONG IN BOTH DIRECTIONS along the way. That is why the claims
+// are anchored on the DOOR and the CALL SITE rather than on a flag — a flag is a spelling, and a
+// spelling is what stops existing.
+//
+// ⛔ THE ASYMMETRY ARGUMENT IS RETIRED WITH ITS SECOND HOST. It said hardcoding **8** would
+// re-space a surface nobody can open while hardcoding **14** re-spaces the reachable panel. With
+// one host there is no asymmetry — and the case for the parameter is now the plain #440/#443 one
+// above, which is stronger, not weaker.
 //
 // ⚠️ WHAT THIS FILE GUARDS, and what it deliberately does NOT.
 //   1. Two grids exist in `visualAdjustFields` and both pass the PARAMETER, not a number.
@@ -53,10 +54,14 @@
 //      tidy-up is to sweep everything into one grid, which would put a wrapping sentence into a
 //      half-width cell beside a parameter row.
 //   4. `spacing` is an argument with no default.
-//   5. Both call sites pass a spacing, and the overlay's argument matches the overlay's OWN stack.
-//   6. The FULLSCREEN DOOR exists exactly once and is labelled. ⭐ REWRITTEN TWICE — #747 turned
-//      it from "the overlay is still doorless" into "there is a door", and #1067 moved that door
-//      from the cover to the floating window's size. The subject is THE DOOR, not the flag it
+//   5. The one call site passes its own container's spacing, and the argument stays required.
+//      (⛔ It read "Both call sites … the overlay's OWN stack" until #1069 deleted the overlay.)
+//   6. The FULLSCREEN DOOR exists exactly once and is labelled, and no SECOND fullscreen chrome
+//      exists. ⭐ REWRITTEN THREE TIMES — #747 turned it from "the overlay is still doorless" into
+//      "there is a door", #1067 moved that door from the cover to the floating window's size, and
+//      #1069 replaced the expiring `showVisual` counterweight with the stronger question it was
+//      a proxy for (a vanished flag scans vacuously green forever, #926). The subject is THE
+//      DOOR, not the flag it
 //      writes: zero call sites = a lost capability, two = a second entrance to one surface (the
 //      #290 trap — a second `bioPanel` door shipped 2026-07-12 and was pulled two days later),
 //      and it must stay a labelled Button rather than a hidden gesture (WCAG 2.2). A counterweight
@@ -250,60 +255,52 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         """)
     }
 
-    /// ⭐ Claim 5 — the coupling that can drift silently: the overlay's argument against the
-    /// overlay's OWN stack. The panel's `14` is checked here only for presence; the fact that 14
-    /// is `EchoelPanel`'s content spacing belongs to `SoundPanelReflowsTests`, on purpose (#416).
-    func testBothHostsPassTheirOwnContainerSpacing() throws {
+    /// ⭐ Claim 5 — ⛔ THE COUPLING THIS CLAIM WAS ABOUT NO LONGER HAS TWO ENDS (#1069).
+    ///
+    /// It asserted that BOTH hosts of `visualAdjustFields(spacing:)` pass their own container's
+    /// spacing — `visualPanel` 14, `visualVJOverlay` 8 — and walked back from the overlay's call
+    /// to its hosting `VStack` to prove the argument matched the stack. That was the sharpest
+    /// half of this file.
+    ///
+    /// S3c deleted `visualVJOverlay` with the fullscreen cover, and the previous version of this
+    /// claim said in its own `XCTFail` what to do then: *"If the overlay was removed (open task
+    /// #270), delete this half with it."* Followed literally. Keeping it would have been red on a
+    /// correct tree in the blocking bundle — the #650/#960 shape, three times recorded here.
+    ///
+    /// ⭐ WHAT SURVIVES IS NOT NOTHING, and it is the half that can still regress. One caller is
+    /// the moment a defaulted argument looks harmless, and a default no call site writes appears
+    /// in no diff (#440/#443) — so the parameter must stay REQUIRED and the one caller must still
+    /// pass its own host's number. The `EchoelPanel` = 14 fact stays owned by
+    /// `SoundPanelReflowsTests` (#416); this only asks that the call passes it.
+    func testTheOneHostPassesItsOwnContainerSpacing() throws {
         let code = try studioLines()
         let calls = code.filter { $0.contains("visualAdjustFields(spacing:") && !$0.contains("func ") }
-        XCTAssertEqual(calls.count, 2, """
-        expected exactly two call sites of `visualAdjustFields(spacing:)` — the inline \
-        `visualPanel` and the fullscreen `visualVJOverlay` — found \(calls.count).
+        XCTAssertEqual(calls.count, 1, """
+        expected exactly one call site of `visualAdjustFields(spacing:)` — the inline \
+        `visualPanel` — found \(calls.count).
 
-        Both surfaces render the SAME definitions so they can never drift apart; a third caller \
-        needs its own container spacing decided, not copied.
+        ZERO means the fine-tune rows left the Field panel; that is a regression against the \
+        founder's ask that Field keep every function (#1068), not a tidy-up.
+
+        TWO OR MORE means a second surface renders the same rows again. That is allowed, but the \
+        new host's container spacing has to be DECIDED and passed, never copied: in one column \
+        the grid's spacing REPLACES the host's, so an inherited number silently re-spaces one of \
+        the two. That is exactly the drift this claim used to hold for the deleted VJ overlay.
         """)
         let arguments = Set(calls.map { $0.trimmingCharacters(in: .whitespaces) })
         XCTAssertTrue(arguments.contains("visualAdjustFields(spacing: 14)"), """
         no call site passes `spacing: 14`. That is `EchoelPanel`'s content spacing, and \
-        `visualPanel` renders inside one — passing anything else re-spaces the inline panel in \
+        `visualPanel` renders inside one — passing anything else re-spaces the panel in \
         portrait. (`SoundPanelReflowsTests` owns the claim that `EchoelPanel` still uses 14; if \
         that number moved, this one moves in the same commit.)
         """)
-        XCTAssertTrue(arguments.contains("visualAdjustFields(spacing: 8)"), """
-        no call site passes `spacing: 8`, the spacing of `visualVJOverlay`'s own stack.
-        """)
-
-        // The other end of the coupling, and the one nothing else in this bundle holds.
-        //
-        // ⛔ IT WALKS BACK TO THE HOSTING STACK RATHER THAN SCANNING THE MEMBER. The first draft
-        // asserted the literal appeared SOMEWHERE in `visualVJOverlay`. It is unique there today,
-        // but that is luck: `VStack(alignment: .leading, spacing: 8)` occurs several times
-        // elsewhere in this file, so a second one arriving in the overlay would let someone
-        // re-space the ACTUAL hosting stack while the claim stayed green — precisely the drift
-        // this file's header calls "the coupling that can drift silently".
-        let overlay = try memberBody(startingWith: "private var visualVJOverlay")
-        guard let callIndex = overlay.firstIndex(where: {
-            $0.contains("visualAdjustFields(spacing:") && !$0.contains("func ")
-        }) else {
-            XCTFail("`visualVJOverlay` no longer calls `visualAdjustFields(spacing:)`. If the "
-                    + "overlay was removed (open task #270), delete this half with it.")
-            return
-        }
-        guard let stackIndex = overlay[..<callIndex].lastIndex(where: { $0.contains("VStack(") })
-        else {
-            XCTFail("no `VStack(` above the `visualAdjustFields(spacing:)` call in "
-                    + "`visualVJOverlay` — this half assumes the call has a stack host.")
-            return
-        }
-        XCTAssertTrue(overlay[stackIndex].contains("spacing: 8"), """
-        the stack HOSTING the fine-tune rows in `visualVJOverlay` is \
-        `\(overlay[stackIndex].trimmingCharacters(in: .whitespaces))`, which does not carry \
-        `spacing: 8` — while the call below it still passes 8.
-
-        In one column the grids inside adopt the argument, so the fine-tune rows would sit at a \
-        different rhythm from every other child of the overlay; in two columns the seam between \
-        the two grids would become visible. Move both, or neither.
+        // COUNTERWEIGHT (#367): the argument must stay REQUIRED. With one caller left, adding a
+        // default is the tempting cleanup and the invisible one — no diff would show it.
+        XCTAssertTrue(code.contains(where: { $0.contains("func visualAdjustFields(spacing: CGFloat)") }), """
+        `visualAdjustFields(spacing:)` no longer declares a plain required `CGFloat`. If a \
+        DEFAULT was added, remove it: an argument no call site writes appears in no diff \
+        (#440/#443), and the next second host would then inherit the Field panel's rhythm \
+        without anyone deciding that. If the signature legitimately changed, re-anchor here.
         """)
     }
 
@@ -375,22 +372,32 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         Restore a visible, labelled control.
         """)
 
-        // COUNTERWEIGHT (#367) — the cover really is unreachable now, and this half is what makes
-        // the sentence above ("moved, not removed") checkable rather than asserted. It is written
-        // to EXPIRE: S3c deletes the cover, and then `showVisual` stops existing at all.
-        let coverOpeners = lines.filter { isTrueWriter($0) }
-        XCTAssertTrue(coverOpeners.isEmpty, """
-        `showVisual` has a writer of a value other than `false` again: \
-        \(coverOpeners.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n"))
+        // COUNTERWEIGHT (#367) — ⛔ THE PREVIOUS ONE EXPIRED EXACTLY AS WRITTEN. It scanned for a
+        // true-writer of `showVisual` and said: "If `showVisual` no longer EXISTS (S3c shipped),
+        // delete this counterweight and claim 5's overlay half in that same commit". S3c is this
+        // commit (#1069); both were deleted, and the header swept with them.
+        //
+        // The replacement asks the STRONGER question the old one was a proxy for: is there a
+        // second fullscreen chrome at all? A scan for a vanished flag would be vacuously green
+        // forever (#926) — the flag cannot come back under that name — while a second
+        // `.fullScreenCover` over the visual is the thing the founder asked to be rid of and the
+        // thing a future slice could plausibly re-add.
+        let secondChrome = lines.filter {
+            $0.contains(".fullScreenCover(") && !$0.contains("$showMeditation")
+        }
+        XCTAssertTrue(secondChrome.isEmpty, """
+        a second fullscreen chrome is back in \(Self.studio): \
+        \(secondChrome.map { $0.trimmingCharacters(in: .whitespaces) }.joined(separator: "\n"))
 
-        Since #1067 the fullscreen door writes the floating window's SIZE; a second path that \
-        raises the old cover brings back the two-renderers-one-recorder hazard #1031 blocked, on \
-        a tree where nothing disables the button any more. If the cover was deliberately \
-        re-doored, this file's premise is wrong end to end — say so and rewrite claims 5 and 6 \
-        together, do not just widen this one.
+        #1069 deleted the visual cover on the founder's *"aktuell gibt es fullscreen Mode das \
+        soll aber alles zu einem Ding zusammen gefasst werden"*. Two chromes over one renderer \
+        is what was removed, and it brought back the two-renderers-one-recorder hazard #1031 \
+        blocked. It also costs a presentation slot at the 10.76.34 metadata ceiling.
 
-        If `showVisual` no longer EXISTS (S3c shipped), delete this counterweight and claim 5's \
-        overlay half in that same commit, and sweep this file's header with them (#456).
+        `showMeditation`'s cover is excluded on purpose: it is a different surface, it predates \
+        all of this, and it has no setter that can open it. If a NEW fullscreen surface is \
+        genuinely wanted, that is a decision with a founder line, not a refactor — widen this \
+        needle deliberately and say why here.
         """)
     }
 
@@ -454,42 +461,16 @@ final class VisualFineTuneReflowsTests: XCTestCase {
         """)
     }
 
-    /// True when `line` both assigns to the flag AND is not the `= false` form — the ONE spelling
-    /// of "this is a door" in this file, so claims 6 and 7 cannot drift into disagreeing about
-    /// what a door is (#416/#453). Claim 6 asks whether any such line exists at all; claim 7
-    /// pairs the answer against the normalisation.
-    ///
-    /// ⚠️ TWO HONEST LIMITS, shared by both callers (#710 review findings 5 and 9).
-    ///   · The `= false` needle is whitespace-sensitive. `showVisual=false` satisfies
-    ///     `flagAssignments` (a bare `=` is accepted) but not this test, so a reformat of an
-    ///     existing false-writer reads as a door → RED on a correct tree. A single line carrying
-    ///     BOTH forms reads as no door → false green. Both are cheap to fix the day either shape
-    ///     appears; neither is invented ahead of a real case (#367).
-    ///   · `SourceText.codeOnly` blanks `//` and `/* */`, NOT the body of a Swift `"""` literal —
-    ///     its own header says so and explains why the omission is deliberate. Every line inside
-    ///     such a literal is scanned as CODE, and `EchoelStudioView` already writes them. So the
-    ///     stripper protects against a COMMENT quoting the assignment, not against any prose.
-    private func isTrueWriter(_ line: String) -> Bool {
-        flagAssignments(in: line) && !line.contains("= false")
-    }
-
-    /// True when `line` assigns to the `showVisual` flag itself — `=` or `.toggle()`, and never a
-    /// longer identifier that merely starts with the same characters.
-    private func flagAssignments(in line: String) -> Bool {
-        let flag = "showVisual"
-        var searchStart = line.startIndex
-        while let range = line.range(of: flag, range: searchStart..<line.endIndex) {
-            searchStart = range.upperBound
-            let tail = line[range.upperBound...]
-            // A longer identifier (`showVisualControls`) — not this flag.
-            if let next = tail.first, next.isLetter || next.isNumber || next == "_" { continue }
-            let rest = tail.drop(while: { $0 == " " })
-            if rest.hasPrefix(".toggle()") { return true }
-            if rest.hasPrefix("="), !rest.hasPrefix("==") { return true }
-        }
-        return false
-    }
-
+    // ⛔ `isTrueWriter` AND `flagAssignments(in:)` STOOD HERE AND ARE DELETED (#1069), together
+    // with roughly 30 lines of doc arguing how to tell a `showVisual = true` from a
+    // `showVisualControls.toggle()` by word boundary. The flag they parsed does not exist any
+    // more: S3c deleted the fullscreen cover it drove.
+    //
+    // ⚠️ THE ARGUMENT IS WORTH KEEPING EVEN THOUGH THE CODE IS NOT, because the next
+    // flag-scanning guard will need it: a prefix match on a flag name matches every LONGER
+    // identifier that starts with it, and this file had three live ones (`showVisualSettings`,
+    // `showVisualFineTune`, `showVisualControls`). Unbounded, the scan would have read a live
+    // toggle as a door and gone red on a correct tree. Word-bound first, then decide.
     // MARK: - Helpers
 
     /// Half-open index ranges covering each `AdaptiveCardGrid { … }`, keyed on INDENTATION: the
