@@ -24553,3 +24553,81 @@ Eintrag hatte genau das als Reparatur empfohlen, ungeprüft. Frisch ist gemessen
 `{"branch": …, "status": "completed"}` ohne `resource_id`. Lehre im Ledger: **ein „mach
 stattdessen" ist erst dann eines, wenn genau DIESE Zeile einmal gelaufen ist** — und immer den
 `head_sha` gegen `git rev-parse HEAD` halten.
+
+## 2026-09-07 — #1052 · Die Doctor-Skill bestand ihre eigene Sektion B nicht
+
+Sektion B fragt: *beschreiben unsere eigenen Kommandos noch dieses Repo?* Zwei Behauptungen
+in `.claude/skills/doctor/SKILL.md` taten es nicht.
+
+1. **„`--selftest` prüft genau diese eine Regel — und sonst nichts."** Seit #762 falsch, seit
+   #1048 doppelt: es fährt DREI Regeln und druckt je eine Zeile. Ein Doc-Satz, der eine
+   Prüfung SCHMALER erklärt als sie ist, lädt die nächste Sitzung ein, sie für unzureichend
+   zu halten und eine zweite zu bauen.
+2. **„313 Dateien — `CLAUDE.md` sagt 305, `full-tests.yml` sagt 294."** Der BEFUND (eine Suite,
+   mehrere Größen) stimmt; die Zahlen nicht: `CLAUDE.md` nennt heute **gar keine**, sondern den
+   Befehl. Zwei Quellen, nicht drei. Und die 313 stand im Präsens in einem Absatz über Juli.
+
+Beide **gelöscht statt nachgeführt** (#818/#1050), ersetzt durch die Befehle. Nachgeprüft:
+`git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l` → 313 · `grep -c '^def selftest_'` → 3
+(= die drei gedruckten Zeilen). Laufzeit nachgemessen und NICHT repariert, weil die Datei selbst
+„messen statt zitieren" sagt: voll 15,1 s warm (29 s kalt), A 0,2 · B 8,9 · C 6,2 · D 0,1.
+
+## 2026-09-07 — #1053 · Zehn Aufgaben auf der Geräte-Liste, die niemand ausführen kann
+
+**Fund:** von 101 Bitten auf der Founder-Checkliste waren **zehn unausführbar**. Sie sagen
+„Mix-Chip → Choose input… → …" bzw. „Monitoring EINschalten", und #1024 hat auf Founder-Befehl
+ALLE DREI Mikrofon-Türen entfernt. Gemessen: `showInput` hat **null** Setzer in `Sources/`,
+`AudioInputPickerView` ist der einzige Schreiber von `isInputMonitoring`.
+
+Eine Checkliste, die Aufträge verteilt, die niemand erledigen kann, ist dieselbe Fehlerklasse
+wie ein maskiertes Gate: sie sieht aus wie eine Warteschlange und ist zum Teil eine Wand. Und
+Gerätezeit ist die knappste Ressource dieses Repos.
+
+**Dritter Zustand, exakt in der Form von `VERIFIED-` (gleiche Zeile, handgeschrieben, Ziffern
+Pflicht):** `// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: <die ursprüngliche Anweisung>`.
+Aus der offenen Zählung heraus, eigener Abschnitt mit der Scheibe, die die Tür genommen hat,
+**nicht gelöscht** — die Maschine dahinter ist unberührt, Wieder-Betüren sind drei Aufrufstellen,
+und dann sind genau das die Proben, die laufen müssen. 101 offen → **91 offen + 10 blockiert**.
+
+⛔ **UND EIN MUTANT BISS NICHT — das ist der Teil, der bleibt.** Der Vorrang „ANSWERED schlägt
+BLOCKED" lag als zwei inline-`if`s und wurde durch eine Schleife über die ANSWERED-Liste
+gepinnt — und **null** Bitten sind heute beantwortet, also lief die Schleife über eine leere
+Liste, und ein **komplett invertierter Vorrang bestand den ganzen Selbsttest**. Das ist der
+#454-Defekt INNERHALB der Maschinerie, die ihn verhindern soll. Die Entscheidung ist jetzt die
+Funktion `state_of(line)` und aus einer synthetischen Zeile beweisbar. Fünf Mutanten, nach der
+Reparatur alle rot (M3 war vorher grün).
+
+## 2026-09-07 — #1054 · Der Farb-Boden kaufte Helligkeit mit dem Farbton
+
+**Founder-Ask:** „die physikalisch korrekte Darstellung der Farbtöne." Zwei benachbarte
+Shader-Schritte hoben sich gegenseitig auf — an genau den Farben, die sie beim Namen nennen.
+
+Der Luminanz-Boden hebt eine dunkle Farbe an „while PRESERVING hue". Aber ein gesättigtes
+Violett erreicht Luminanz 0,35 nur mit einem Blaukanal weit über 1,0 — und der NÄCHSTE Schritt
+endete in einem **kanalweisen** `clamp(rgb, 0.0, 1.0)`. Blau allein wurde auf 1,0 gestaucht, die
+anderen zwei blieben stehen. Das IST eine Farbtondrehung:
+
+```
+(0.15, 0.02, 0.30) --Boden--> (0.774, 0.103, 1.547) --clamp--> (0.795, 0.091, 1.000)
+= 18,6° Farbton und 0,034 Sättigung, im DEFAULT
+```
+
+Farben INNERHALB des Gamuts drifteten ≤ 0,07° (die gerundeten YIQ-Konstanten) — deshalb sah es
+niemand am Bildschirm. **Zwei Kommentare behaupteten das Gegenteil** („PRESERVING hue" und
+„no-ops at the defaults so the physical colour holds"); beide am Ort zurückgenommen.
+
+**Reparatur sind zwei FORMEN, keine zwei Zahlen:** der Boden stoppt an der sRGB-Gamut-Grenze
+(`max(min(0.35/lum, 1.0/peak), 1.0)`), und `echoelHue` steigt bei 0 sofort aus und normiert über
+1,0 am PEAK statt kanalweise. Nicht angefasst: Bodenwert 0,35, Sättigungs-Default, warmer Tint,
+Kohärenz-Lift, Glitzer — alles founder-zitierte Geschmacksfragen. Ebenso `echoelSaturate`, das
+bei s = 1 exakt ist und nie Teil des Defekts war (Anspruch 4 pinnt das, #367).
+
+**Wächter:** `TheColourFloorDoesNotBuyLightWithHueTests`, sieben Ansprüche über vier Claims,
+gegen BEIDE Bäume getrieben: fünf ROT auf dem Vor-Scheiben-Baum, zwei grün.
+⛔ Die erste Benotung schrieb „sechs … 3 Fänge, 3 Gegengewichte" — beide Hälften falsch (sieben,
+5/2), weil sie aus der GLIEDERUNG statt aus dem Lauf geschrieben war. Dritter Miszähler dieser
+Art in diesem Bundle; die Zahlen stehen jetzt transkribiert.
+
+**Nur compile-verifizierbar.** Ob die dunklen Violetts jetzt violett LESEN, ist Augenarbeit —
+die NEEDS-FOUNDER-VERIFY am Fuß des Wächters nennt auch das, was die Reparatur widerlegen würde:
+ein sichtbarer Sprung, sobald der Hue-Regler die 0 verlässt.
