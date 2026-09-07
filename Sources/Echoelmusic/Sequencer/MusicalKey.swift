@@ -545,7 +545,36 @@ public struct MusicalKey: Codable, Equatable, Sendable {
     /// doing so would break share filenames across devices. `Tests/CISmoke/NoteNamingTests`
     /// pins that with the German setting actually applied.
     public func name(naming: NoteNaming) -> String {
-        "\(naming.name(pitchClass: root)) \(scale.displayName)"
+        "\(naming.name(pitchClass: root, preferFlats: prefersFlatSpelling)) \(scale.displayName)"
+    }
+
+    /// Does this key's SIGNATURE use flats? — i.e. should its notes be spelled B♭ rather
+    /// than A♯ (#1060).
+    ///
+    /// Derived from the circle of fifths, not from a taste list. A minor tonality borrows its
+    /// relative major's signature, which is a minor third UP (`root + 3`), and the five major
+    /// tonics whose signatures are flat are F, B♭, E♭, A♭ and D♭ — pitch classes 5, 10, 3, 8
+    /// and 1. Everything else is a sharp key or C, which has no accidentals to argue about.
+    ///
+    /// Worked, because the relative-major step is the half that is easy to get wrong:
+    /// D minor → relative major F → flats (its one accidental IS B♭) · G minor → B♭ → flats ·
+    /// C minor → E♭ → flats · A minor → C → sharps · E major → sharps · B♭ major → flats.
+    ///
+    /// ⚠️ PITCH CLASS 6 IS THE ENHARMONIC TIE AND IS DELIBERATELY LEFT ON THE SHARP SIDE.
+    /// F♯ major (six sharps) and G♭ major (six flats) are equally correct; there is no
+    /// signature-based answer, only a convention, and popular notation leans F♯. Naming the
+    /// tie here rather than letting it fall out of the array is the point — a reader who
+    /// wonders why 6 is missing from the list would otherwise assume an oversight.
+    ///
+    /// ⚠️ AND OUTSIDE MAJOR/MINOR THIS IS A HEURISTIC, SAID PLAINLY. `isMinorTonality` is
+    /// `intervals.contains(3) && !intervals.contains(4)`, which answers a question the modes,
+    /// the pentatonics, the rāgas and the maqāmāt in this file do not all have. For those the
+    /// rule still produces A spelling, and a consistent one, but it is not a claim about
+    /// their notation. Sargam is unaffected by construction — `NoteNaming` has no flat column
+    /// for it, because its ♭ marks are rāga degrees rather than enharmonic choices.
+    public var prefersFlatSpelling: Bool {
+        let signatureTonic = scale.isMinorTonality ? (root + 3) % 12 : root
+        return [1, 3, 5, 8, 10].contains(signatureTonic)
     }
 
     /// Compact, filename-safe key tag, e.g. "Cm", "Csm" (C# minor), "Amaj",

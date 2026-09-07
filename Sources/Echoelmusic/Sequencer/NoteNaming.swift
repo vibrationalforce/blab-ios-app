@@ -167,6 +167,42 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     private static let sargamNames = ["Sa", "Re♭", "Re", "Ga♭", "Ga", "Ma", "Ma♯",
                                       "Pa", "Dha♭", "Dha", "Ni♭", "Ni"]
 
+    // ⭐ #1060 — THE FLAT COLUMNS, because a sharp-only table spells a flat key wrong.
+    //
+    // In F major the seventh degree is B♭, and a table that can only say "A♯" prints the
+    // right PITCH under the wrong NAME on the one surface where the column IS the note. Same
+    // in every flat key: E♭ major, B♭ major, G minor, D minor, C minor.
+    //
+    // ⚠️ ONLY THE ALTERED FIVE MOVE. C, D, E, F, G, A and the German B/H are identical in
+    // both directions, so these arrays are the sharp ones with five entries respelled —
+    // written out in full rather than derived, because a derivation would be a lookup table
+    // in disguise and would hide which five they are.
+    //
+    // ⚠️ THE GERMAN COLUMN KEEPS ITS EXISTING SHAPE, which is the same product decision the
+    // comment above records: international accidentals (D♭ not "Des"), German B/H at pitch
+    // classes 10 and 11. Note that German's 10 is ALREADY the flat spelling — "B" in German
+    // IS B♭ — so the German column changes in four places, not five.
+    //
+    // ⚠️ SARGAM HAS NO FLAT COLUMN AND MUST NOT GET ONE. It is not a Western sharp/flat
+    // system: `Re♭` there is komal Re, a degree of the rāga, not an enharmonic choice about
+    // how to spell a pitch. Respelling it "on the flat side" would be applying a foreign
+    // grammar to it — the exact thing the sargam comment above says the table must not do.
+    private static let englishFlatNames = ["C", "D♭", "D", "E♭", "E", "F", "G♭",
+                                           "G", "A♭", "A", "B♭", "B"]
+    private static let germanFlatNames = ["C", "D♭", "D", "E♭", "E", "F", "G♭",
+                                          "G", "A♭", "A", "B", "H"]
+    private static let solfegeFlatNames = ["Do", "Re♭", "Re", "Mi♭", "Mi", "Fa", "Sol♭",
+                                           "Sol", "La♭", "La", "Si♭", "Si"]
+
+    private var flatNames: [String] {
+        switch self {
+        case .english: return Self.englishFlatNames
+        case .german:  return Self.germanFlatNames
+        case .solfege: return Self.solfegeFlatNames
+        case .sargam:  return Self.sargamNames   // its ♭ marks are degrees, not spellings
+        }
+    }
+
     private var names: [String] {
         switch self {
         case .english: return Self.englishNames
@@ -187,9 +223,18 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     /// claimed something was being negated; nothing here is). `%` by a POSITIVE divisor cannot
     /// overflow — the only trapping remainder in Swift is `Int.min % -1` — and the intermediate
     /// `(x % 12) + 12` is bounded to 1…23, so the addition cannot overflow either.
-    public func name(pitchClass: Int) -> String {
+    ///
+    /// `preferFlats` picks the spelling side, and it DEFAULTS TO FALSE on purpose even though
+    /// this repo distrusts defaulted arguments (#431: one that no call site writes never shows
+    /// up in a diff). Three call sites write it — the key's own `displayName` and the play
+    /// grid's two label paths, all of which hold a `MusicalKey`. The two that do not are the
+    /// spectrum readout and the ROOT PICKER, and for the picker sharps are not a fallback but
+    /// the correct answer: it lists all twelve pitch classes with no key chosen yet, so there
+    /// is no signature to follow. The default is therefore the right answer at both sites
+    /// rather than an unexamined leftover.
+    public func name(pitchClass: Int, preferFlats: Bool = false) -> String {
         let folded = ((pitchClass % 12) + 12) % 12
-        return names[folded]
+        return (preferFlats ? flatNames : names)[folded]
     }
 
     /// The name as VoiceOver should SAY it: the same spelling, with the typographic
@@ -215,8 +260,8 @@ public enum NoteNaming: String, CaseIterable, Codable, Sendable {
     /// or `E𝄫` passed every assertion silently. The test now also requires the spoken form
     /// to be plain ASCII letters and spaces, which catches ANY unexpanded mark. The claim is
     /// true now; it was a promise before.
-    public func spokenName(pitchClass: Int) -> String {
-        name(pitchClass: pitchClass)
+    public func spokenName(pitchClass: Int, preferFlats: Bool = false) -> String {
+        name(pitchClass: pitchClass, preferFlats: preferFlats)
             .replacingOccurrences(of: "♯", with: " sharp")
             .replacingOccurrences(of: "♭", with: " flat")
     }

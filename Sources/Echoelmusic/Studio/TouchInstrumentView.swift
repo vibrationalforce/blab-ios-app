@@ -801,7 +801,8 @@ final class TouchInstrumentUIView: UIView {
         // Spoken through the SAME setting as the visible labels below (#232 E). It used to be
         // its own hard-coded English array, so a German user saw H on the cells and heard "B"
         // for the same pitch — on the surface whose accessibility work is the best in the repo.
-        let rootName = noteNaming.spokenName(pitchClass: key.root)
+        let rootName = noteNaming.spokenName(pitchClass: key.root,
+                                             preferFlats: key.prefersFlatSpelling)
         accessibilityValue = "Root \(rootName), \(key.degreesPerOctave) notes per octave, three octave rows, low at the bottom"
         guard showGrid, bounds.width > 60, bounds.height > 60 else { return }
 
@@ -811,6 +812,12 @@ final class TouchInstrumentUIView: UIView {
         let cellW = rect.width / CGFloat(n)
         let cellH = rect.height / CGFloat(bands.count)
         let naming = noteNaming
+        // ⭐ #1060 — SPELL THE KEY'S OWN SIDE. A sharp-only table prints "A♯" in F major
+        // where the musician reads B♭: the right pitch under the wrong name, on the one
+        // surface where the column IS the note. Read ONCE here rather than per cell — it is
+        // a property of the key, all 36 labels share it, and computing it inside the loop
+        // would invite a later edit to ask a different question per row.
+        let spellFlat = key.prefersFlatSpelling
 
         // ⭐ #1058 — THE LABEL IS FITTED TO THE CELL'S WIDTH, AND UNTIL NOW IT WAS ONLY EVER
         // FITTED TO ITS HEIGHT. `min(12, max(9, cellH * 0.16))` never looked at `cellW`, and
@@ -847,7 +854,7 @@ final class TouchInstrumentUIView: UIView {
         for d in 0..<n {
             for b in bands.indices {
                 let pitch = key.degree(d, octave: bands[b])
-                let short = naming.name(pitchClass: pitch)
+                let short = naming.name(pitchClass: pitch, preferFlats: spellFlat)
                 shortLabels.append(short)
                 fullLabels.append(short + "\(pitch / 12 - 1)")
             }
@@ -884,7 +891,7 @@ final class TouchInstrumentUIView: UIView {
                 // pure tint was unreadable for dim colours); the note's colour
                 // stays on the field + border, so nothing is lost.
                 let label = CATextLayer()
-                let noteName = naming.name(pitchClass: pitch)
+                let noteName = naming.name(pitchClass: pitch, preferFlats: spellFlat)
                 label.string = fit.dropsOctave ? noteName : noteName + "\(pitch / 12 - 1)"
                 label.fontSize = labelSize
                 label.foregroundColor = UIColor.white.withAlphaComponent(isRoot ? 0.9 : 0.62).cgColor
