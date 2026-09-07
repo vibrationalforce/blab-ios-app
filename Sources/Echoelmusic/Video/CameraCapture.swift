@@ -286,20 +286,56 @@ final class CameraCapture: NSObject, @unchecked Sendable {
             } else if device.isExposureModeSupported(.locked) {
                 device.exposureMode = .locked
             }
+            // WHITE BALANCE, LOCKED IN THE SAME BREATH (#1075). rPPG reads the RED/GREEN
+            // ratio; a drifting auto white balance rescales exactly those two channels
+            // against each other, so it writes a slow trend straight into the signal the
+            // pulse estimator is trying to read. Exposure has been locked here since
+            // 2026-06-23 and white balance never was — `git grep -c whiteBalance -- Sources`
+            // returned 0 the day this landed.
+            //
+            // ⚠️ IT IS LOCKED HERE AND NOWHERE ELSE, deliberately, for the reason the
+            // exposure comment above already learned the hard way: locking against a dim,
+            // finger-less scene freezes the WRONG setting. This method's one caller fires
+            // only once the finger is actually covering the torch-lit lens, so the gains
+            // being frozen are the gains of the real fingertip scene. A separate
+            // `lockWhiteBalance()` would have to re-learn that timing — and, worse, the five
+            // recovery paths that call `unlockExposure()` would each have to remember to
+            // call its partner. Folded into the existing pair, the symmetry cannot rot.
+            //
+            // `.locked` (not custom gains): it freezes whatever the AWB last chose on that
+            // scene, which is what we want. There is no equivalent of the exposure-duration
+            // trap here — a frozen white balance cannot starve the frame rate.
+            if device.isWhiteBalanceModeSupported(.locked) {
+                device.whiteBalanceMode = .locked
+            }
         }
     }
 
-    /// Hand exposure back to continuous auto so it can re-settle to the current
-    /// scene before a fresh `lockExposure()` — used to recover from a saturated
-    /// lock (e.g. exposure was frozen before the finger arrived, or a re-grip).
+    /// Hand exposure AND white balance back to continuous auto so both can re-settle to
+    /// the current scene before a fresh `lockExposure()` — used to recover from a
+    /// saturated lock (e.g. frozen before the finger arrived, or a re-grip), and called
+    /// on every teardown path so the device is left in auto for the next app.
+    ///
+    /// ⚠️ THE EXPOSURE CHECK MOVED OFF THE `guard` ON PURPOSE (#1075). It used to read
+    /// `device.isExposureModeSupported(.continuousAutoExposure)` as a guard condition, so
+    /// on a device that did not support it the method returned having restored NOTHING.
+    /// That was harmless while exposure was the only thing this touched; the moment white
+    /// balance joined, one unsupported mode would have left the OTHER one locked — a stuck
+    /// photometric setting no control can clear, which is the exact defect class the
+    /// reviewer found on #939. Each restore now stands on its own support check.
     func unlockExposure() {
         sessionQueue.async { [weak self] in
             guard let self,
-                  let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device,
-                  device.isExposureModeSupported(.continuousAutoExposure) else { return }
+                  let device = (self.session.inputs.first as? AVCaptureDeviceInput)?.device
+            else { return }
             try? device.lockForConfiguration()
-            device.exposureMode = .continuousAutoExposure
-            device.unlockForConfiguration()
+            defer { device.unlockForConfiguration() }
+            if device.isExposureModeSupported(.continuousAutoExposure) {
+                device.exposureMode = .continuousAutoExposure
+            }
+            if device.isWhiteBalanceModeSupported(.continuousAutoWhiteBalance) {
+                device.whiteBalanceMode = .continuousAutoWhiteBalance
+            }
         }
     }
 
