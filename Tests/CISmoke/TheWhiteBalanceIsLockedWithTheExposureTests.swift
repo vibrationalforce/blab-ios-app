@@ -130,14 +130,14 @@ final class TheWhiteBalanceIsLockedWithTheExposureTests: XCTestCase {
     // the reason is countable: `lockExposure()` has one caller, `unlockExposure()` has five
     // (saturated lock, re-grip, two teardowns, leave-it-in-auto). A parallel
     // `lockWhiteBalance()`/`unlockWhiteBalance()` would need all six to remember its partner.
-    ///
-    /// ⚠️ WRITTEN AS TWO EXPLICIT LINES, NOT A LOOP, and the reason is a tool finding on this
-    /// very file. `doctor --section B` scans guards for needles that name a declaration which
-    /// does not exist — the #367/#926 family, where a scan is green whatever the code does. An
-    /// absence assertion is the legitimate case, and the tool exempts it when the needle and
-    /// its `XCTAssertFalse` share a LINE. In a `for name in [...]` loop they do not, so the
-    /// intent was invisible: the tool flagged this within minutes of it being written. Folding
-    /// them out costs two lines and makes "this name must NOT be here" readable at the needle.
+    //
+    // ⚠️ WRITTEN AS TWO EXPLICIT LINES, NOT A LOOP, and the reason is a tool finding on this
+    // very file. `doctor --section B` scans guards for needles that name a declaration which
+    // does not exist — the #367/#926 family, where a scan is green whatever the code does. An
+    // absence assertion is the legitimate case, and the tool exempts it when the needle and
+    // its `XCTAssertFalse` share a LINE. In a `for name in [...]` loop they do not, so the
+    // intent was invisible: the tool flagged this within minutes of it being written. Folding
+    // them out costs two lines and makes "this name must NOT be here" readable at the needle.
     func testWhiteBalanceHasNoMethodPairOfItsOwn() throws {
         let code = try capture()
         XCTAssertFalse(code.contains("func lockWhiteBalance"), Self.pairMessage)
