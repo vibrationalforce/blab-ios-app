@@ -259,6 +259,22 @@ public enum StudioDefaultKeys {
     /// its toggle button lie until the key was first written.
     public static let floatingVisualVisible = StudioDefault(key: "visual.floating.visible", value: true)
 
+    /// The floating visual window's snap size, as `FloatingVisualWindow.WindowSize.rawValue`.
+    ///
+    /// ⚠️ A KEY, NOT A `StudioDefault`, and the asymmetry is deliberate. Every other entry in
+    /// this file carries its default too — this one cannot, because the honest default is
+    /// `FloatingVisualWindow.WindowSize.small.rawValue`, and that enum lives behind
+    /// `#if canImport(SwiftUI) && canImport(MetalKit) && canImport(UIKit)` where `Core/` cannot
+    /// follow. Writing the raw `0` here would decouple the default from the enum — exactly what
+    /// `WorkspaceView`'s own doc argues against ("a bare literal that would drift on reorder").
+    /// So the KEY gets one home and each declaration keeps the enum-coupled default.
+    ///
+    /// #1066 promoted it because the string was about to have a THIRD reader: S3b points the
+    /// Field panel's "Full screen" button at this value instead of at the fullscreen cover.
+    /// Two literals were survivable; three is the drift the `spectralDonuts` guard had just
+    /// finished warning about one slice earlier.
+    public static let floatingVisualSizeKey = "visual.floating.size"
+
     // MARK: touch.* — touch instrument feel (shared studio panel ↔ visual window)
 
     public static let touchMorphDepth = StudioDefault(key: "touch.morphDepth", value: 0.6)

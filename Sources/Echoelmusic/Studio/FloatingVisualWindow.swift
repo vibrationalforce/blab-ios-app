@@ -352,7 +352,7 @@ struct FloatingVisualWindow: View {
     }
 
     /// Snap size, persisted so the window reopens the size you left it.
-    @AppStorage("visual.floating.size") private var sizeRaw = WindowSize.small.rawValue
+    @AppStorage(StudioDefaultKeys.floatingVisualSizeKey) private var sizeRaw = WindowSize.small.rawValue
     private var windowSize: WindowSize { WindowSize(rawValue: sizeRaw) ?? .medium }
 
     /// Card CENTRE in the parent's coordinate space. `nil` until first layout → defaults

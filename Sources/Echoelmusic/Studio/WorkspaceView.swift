@@ -119,7 +119,7 @@ struct WorkspaceView: View {
     /// this coupled to the enum instead of a bare literal that would drift on reorder).
     /// Written ONLY by the instrument-home seed to open the visual fullscreen at launch;
     /// a low-frequency (user-set) value, safe in this body per the freeze rule.
-    @AppStorage("visual.floating.size") private var floatingSizeRaw = FloatingVisualWindow.WindowSize.small.rawValue
+    @AppStorage(StudioDefaultKeys.floatingVisualSizeKey) private var floatingSizeRaw = FloatingVisualWindow.WindowSize.small.rawValue
     /// One-shot guard so the instrument-home seed runs ONCE per launch. Persists for
     /// the WorkspaceView instance lifetime (survives background/foreground), so a user
     /// who contracts to the DAW mid-session is not re-fullscreened until the next cold

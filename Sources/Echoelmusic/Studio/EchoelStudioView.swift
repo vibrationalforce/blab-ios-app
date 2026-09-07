@@ -9376,11 +9376,18 @@ struct EchoelStudioView: View {
         let d = UserDefaults.standard
         // Key + default via the namespace (H15-KEYSTORE): these programmatic reads
         // must fall back to the SAME canonical default as every @AppStorage site.
+        //
+        // ⛔ AND FOR THE SIZE KEY THAT SENTENCE WAS ASPIRATIONAL UNTIL #1066. The visible flag
+        // went through `StudioDefaultKeys`; the size key three lines down was a raw string,
+        // here and at three more sites in this file plus one each in `WorkspaceView` and
+        // `FloatingVisualWindow` — SIX literals under a comment claiming one namespace. The key
+        // now has a constant (`floatingVisualSizeKey`). Its DEFAULT deliberately stays at each
+        // declaration, coupled to `WindowSize.small`, because `Core/` cannot see that enum.
         preTakeVisualVisible = d.object(forKey: StudioDefaultKeys.floatingVisualVisible.key)
             as? Bool ?? StudioDefaultKeys.floatingVisualVisible.value
-        preTakeVisualSize = d.object(forKey: "visual.floating.size") as? Int
+        preTakeVisualSize = d.object(forKey: StudioDefaultKeys.floatingVisualSizeKey) as? Int
         d.set(true, forKey: StudioDefaultKeys.floatingVisualVisible.key)
-        d.set(FloatingVisualWindow.WindowSize.fullscreen.rawValue, forKey: "visual.floating.size")
+        d.set(FloatingVisualWindow.WindowSize.fullscreen.rawValue, forKey: StudioDefaultKeys.floatingVisualSizeKey)
         #endif
     }
 
@@ -9394,11 +9401,11 @@ struct EchoelStudioView: View {
         let d = UserDefaults.standard
         let visibleNow = d.object(forKey: StudioDefaultKeys.floatingVisualVisible.key)
             as? Bool ?? StudioDefaultKeys.floatingVisualVisible.value
-        let sizeNow = d.object(forKey: "visual.floating.size") as? Int
+        let sizeNow = d.object(forKey: StudioDefaultKeys.floatingVisualSizeKey) as? Int
         guard visibleNow, sizeNow == FloatingVisualWindow.WindowSize.fullscreen.rawValue else { return }
         if let v = preTakeVisualVisible { d.set(v, forKey: StudioDefaultKeys.floatingVisualVisible.key) }
         d.set(preTakeVisualSize ?? FloatingVisualWindow.WindowSize.small.rawValue,
-              forKey: "visual.floating.size")
+              forKey: StudioDefaultKeys.floatingVisualSizeKey)
         #endif
     }
 
