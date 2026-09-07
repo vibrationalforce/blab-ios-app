@@ -25740,3 +25740,10 @@ Agenten-Urteilen überein (`TheLayoutHasAReadableWidthCeilingTests` ging mit #10
 - Selbsttest 5 neu (Kommentar, Fence-Block, Anker vor Fence, Trailing-Comment, Raw-Closer,
   Escape); 1–4 unverändert grün. Arbeitsbaum gegen HEAD: 0 Treffer. Kein Gate läuft
   `scripts/*.py` — der Selbsttest IST die Prüfung.
+- **Nachtrag 20:58Z (Zyklus ohne Slice):** die Escape-Blindheit aus #1103 ist bei den
+  Geschwistern NICHT vorhanden — `dead-needles.py` dekodiert Nadeln in `decode_needle`
+  (`\"` → `"`), `count-pins.py` in `unescape` (#905-Tabelle); `needle-reachability.py` stellt
+  eine andere Frage (Nähte). Gemessen mit `grep -n "def decode\|unescape"`, nicht geraten.
+  Gates für `0c13824c`: Xcode 2443 grün, CI/CD 5908 „Build for Testing" grün. Doctor: die zwei
+  bekannten founder-gated CRITICALs in `.github/workflows/**` (#208), nichts Neues.
+  `./review.sh | grep -c '^REVIEW DUE'` → 284 (Founder-Rückstand, #803).
