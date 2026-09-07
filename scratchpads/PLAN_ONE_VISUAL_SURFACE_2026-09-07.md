@@ -313,3 +313,43 @@ der START-Zustand ist statt eines klebrigen Ein-Tipp-Zustands, hielte ein allein
 den Schirm bei JEDEM Nutzer ab dem ersten Frame wach — schlimmer als das, was die falsche
 Rücknahme beschrieb. Die KONJUNKTION ist damit nicht Vorsicht, sondern die Bedingung dafür, dass
 der Port überhaupt sicher ist.
+
+---
+
+## 6. S4 — GEMESSEN, UND DIE MESSUNG ÄNDERT DIE FRAGE (2026-09-07, nach #1070)
+
+**Der Befund ist SCHLIMMER als §2 sagte, und die Konsequenz TROTZDEM kleiner.**
+
+**Schlimmer:** §2 schrieb „der Look-Slider fällt heute auf jedem Telefon". Nachgerechnet mit
+den `ChromeCost`-Konstanten: der volle Vollbild-Satz braucht **565 pt** über 10 Posten
+(Logo 40 + 2 Icons 56 + Slider 90 + Studio-Chip 83 + Transport 84 + 4 Icons 112 + 10 Lücken 80
++ Polster 20). Das breiteste ausgelieferte Telefon hat **440**. Es fallen also **ZWEI** Posten,
+auf **jedem** Gerät, auch dem breitesten — Slider *und* Transport-Anzeige. Danach sind es
+exakt 375 pt, was auf jeder Breite passt.
+
+**Kleiner:** die beiden sind nicht VERLOREN.
+· **Der Look hat seit #1065 ein eigenes Zuhause** — `visualLookStrip` + `visualLookCustomizer`
+  in der „Look"-Gruppe des Field-Panels, erreichbar über den **Studio-Chip, der als LETZTER
+  abwirft** (#1036) und deshalb auf jeder Breite überlebt.
+· **`MiniTransportView` ist im Fenster ANZEIGE, nicht Bedienung** (`.allowsHitTesting(false)`),
+  und die Position steht ohnehin in der Transport-Zeile des Instruments.
+
+**Was wirklich fehlt, ist also nicht die Fähigkeit, sondern EIN TIPP MITTEN IN DER
+PERFORMANCE:** Look ändern heisst heute Vollbild verlassen → Field → Look → zurück.
+
+⛔ **DESHALB WIRD S4 NICHT EINSEITIG GEBAUT.** Die naheliegende Reparatur — eine ZWEITE
+Chrome-Zeile im Vollbild — widerspricht dem Satz, aus dem dieser ganze Pass entstanden ist
+(*„kompakter und übersichtlicher"*), um einen Tipp zu sparen. Das ist genau die Sorte
+Abwägung, die der Founder trifft und nicht ich. **Drei Optionen, alle gemessen:**
+
+| | was | Kosten | Gewinn |
+|---|---|---|---|
+| **A** | alles so lassen | 0 | Look bleibt zwei Tipps entfernt |
+| **B** | zweite Chrome-Zeile im Vollbild (Slider + Transport) | ~30 pt Chrome über dem Bild, gegen „kompakter" | beide Posten zurück |
+| **C** | nur der Slider, als schmale Leiste am UNTEREN Bildrand | eine neue Platzierung (D10 sagt „keine neuen Flächen in diesem Pass") | Look ohne Vollbild zu verlassen |
+
+⚠️ **Und in allen drei Fällen bleibt die Arithmetik prüfbar, das Aussehen nicht** — genau die
+Warnung aus §2. Wird gebaut, dann in DIESER Reihenfolge: erst die reine Zeilen-Arithmetik als
+Werttyp mit Wächter, dann die Ansicht; nie umgekehrt, weil eine Budget-Änderung ohne die
+passende Ansicht den Balken wieder über den Rand schiebt — der Defekt, aus dem `chromeFit`
+überhaupt entstanden ist.
