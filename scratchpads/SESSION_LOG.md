@@ -24727,3 +24727,50 @@ Member beschrieb — genau die Klasse, die dieses Bündel dauernd repariert. Ver
 schließende Klammer, beide Doc-Blöcke sitzen wieder an ihrem Subjekt.
 
 Nicht gerätegeprüft. NEEDS-FOUNDER-VERIFY im Fuß des Wächters, samt Gegenprobe mit Beamer.
+
+## #1058 — Die Notennamen im Spiel-Gitter wurden abgeschnitten, nie eingepasst (2026-09-07)
+
+**Befund, und er ist Rechnung, kein Geschmack.** `rebuildGrid` bemaß jedes Zellen-Label
+allein aus der HÖHE (`min(12, max(9, cellH * 0.16))`) und gab dem Text dann eine Box von
+`cellW - 11`. Die Breite kam in der Entscheidung nicht vor — und die Breite ist genau bei den
+Tonarten der Engpass, die Beschriftung am nötigsten haben.
+
+Herleitbar: bei chromatischer Tonart (12 Spalten) und Telefonbreite ist `playRect` rund
+350 pt, eine Zelle also ~29 pt und die Label-Box ~18 pt. Die Solfège-Schreibweise setzt VIER
+Zeichen in diese Box („Do♯4"), und vier Zeichen bei 12 pt passen in keiner normalbreiten
+Schrift in 18 pt — ein halbes Geviert im Schnitt braucht schon 24 pt. Sargam hat dieselbe Form
+(„Ma♯", „Re♭"), Deutsch und Englisch sind mit drei Zeichen am mildesten. `CATextLayer` steht
+per Default auf `truncationMode = .none`, der Überhang wurde also ABGESCHNITTEN: der Spieler
+las „Do♯" oder ein halb gezeichnetes Zeichen — auf der einen Fläche, wo die SPALTE der Ton IST.
+Zwei Nachbarspalten konnten gleich aussehen. (Keine exakte Zeichenbreite steht irgendwo in
+dieser Änderung: hier lassen sich keine Schriftmetriken messen, und die Rechnung oben braucht
+keine.)
+
+**Die Reparatur ist ein Einpassen, kein Verkleinern** — und die zweite Stufe macht den
+Unterschied. `fittedLabelStyle` sucht von der bisherigen Höhen-Obergrenze bis zu einem
+Lesbarkeitsboden von 8 pt mit dem VOLLEN Label; passt nichts, wiederholt es die Suche mit dem
+KURZEN Label und lässt die Oktavziffer weg. Eine reine Größensuche endet damit, ein kleineres
+Zeichen abzuschneiden — derselbe Defekt, nur leiser. Die Ziffer fällt fürs GANZE Gitter, nie
+pro Zelle: ein Gitter, in dem manche Zellen „C4" und andere „C" sagen, liest sich wie ein
+Renderfehler statt wie ein angepasstes Layout. Verloren geht nichts, was die Fläche nicht
+ohnehin doppelt sagt — die ZEILE ist hier die Oktave (unten = tief), und `accessibilityValue`
+sagt das VoiceOver in derselben Methode.
+
+**Gemessen wird HELVETICA, nicht die Systemschrift** — der Teil, den eine spätere „Aufräumung"
+am ehesten falsch machen würde. Der Layer setzt `fontSize` und nie `font`, und ein ungesetzter
+`CATextLayer`-Font IST Helvetica. `UIFont.systemFont` zu messen ergäbe eine Passung, die über
+eine Schrift exakt ist, die niemand rendert. `UIFont(name:size:)` ist failable, das
+`?? .systemFont` ist also ein echter Rückfall.
+
+**Wächter.** `Tests/CISmoke/TheGridLabelFitsItsCellTests` — sieben Behauptungen in vier
+Ansprüchen, in Python gegen BEIDE Bäume gefahren: 7/7 grün heute, 5 ROT und 2 grün auf dem
+Vor-Scheiben-Baum. Also **5 Regressionsfänge, 2 Gegengewichte** (der unten verankerte
+Label-Rahmen und die gesprochene Oktav-Zeile, die das Weglassen der Ziffer überhaupt
+rechtfertigt). Gepinnt ist der AUSDRUCK, kein Pixel: es gibt hier keine Schrift-Engine, „es
+passt" ist nicht behauptbar — „die Größenentscheidung liest die Breite" schon, und genau das
+war der Defekt.
+
+**Gate gelesen:** `Xcode Compile Check` = **success** auf `04f6b3d0` (#1057).
+
+Nicht gerätegeprüft. NEEDS-FOUNDER-VERIFY im Fuß des Wächters: chromatische Tonart plus
+Solfège oder Sargam ist der Fall, der bisher abschnitt.
