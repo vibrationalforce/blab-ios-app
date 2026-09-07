@@ -25626,3 +25626,9 @@ mit Scope und Stripper des Swift-Codes), dann je ROT ein unabhängiger Widerlege
 von HEUTE. Die eine Reparatur, die alle fünf sichtbar gemacht hätte, ist #208 (`tail -200` in
 `ci.yml`) und bleibt founder-gated. Ohne sie gilt: **`moved-needles.py` vor jedem Sources-Commit,
 und bei jedem Treffer die Behauptung transkribieren, nicht nur die Nadel suchen** (PLAYBOOK #1097).
+
+### Gates für `7966b0cd` (#1096/#1097, nachgetragen 16:38Z)
+- Xcode Compile Check 2438 **SUCCESS** · CI/CD 5903 `Build for Testing` **SUCCESS** — beide reparierten
+  Wächter kompilieren. Fenster: keine Aussage über ihr Laufen (Beleg = Transkription, s. o.).
+- Zyklus 15:58Z–16:38Z geschlossen: #1094 · #1095 · #1096 · #1097 (vier versteckt rote Wächter,
+  alle repariert, alle kompilieren) · PLAYBOOK #1097. Kein Deploy (nur Tests/Doku). Nächster Takt 16:58Z.
