@@ -25674,3 +25674,33 @@ near-term" als SCOPE auf (Nachtrag im Plan); der Physik-Eintrag „chord-driven 
   gegen den Parent (neuer Typ) — Xcode-Gate ist der Beweis. Null Pixel.
 - Offen: W2 Shader (ersetzter stillgelegter Style-Index, Kaustiken + Glanzlichter), W3
   Bibliothekszeile + Budget + Pins in EINEM Commit, dann Founder-Auge.
+
+## #1101 / #1102 — Wasserklangbild, Scheiben W2 + W3: das Bild und die Tür
+
+- **W2 (`ae0ee8d4`, #1101) — der Shader.** `fieldDish` ersetzt `fieldPlasma` in Slot 2 (⛔ der
+  Plan-Nachtrag hatte Slot 1 genannt — das ist die PLATTE, die Scheibe 2 des Plans exakt machen
+  will; Plasma hat keinen Tonbezug, keine Pins, keinen Sonderfall im Farbpfad). Die Draw-Schleife
+  löst `FaradayDish` pro Frame für den GEEASTEN Ton (`uniforms.toneHz`) und die Fahrt
+  `musicLevel + 0.5·touchE`; drei Ergebnisse gehen als SCHWANZ beider Uniform-Structs an die GPU
+  (`dishK` = k·12 mm, geklammert 3…110 rad/Einheit; `dishStrength` geeast tau 0,5 s;
+  `dishHex` aus `FaradayDish.latticeHexagonality`, Anker 0,90/0,985 als WAHL mit gemessener
+  Richtung nach Binks & van de Water). Licht wie im Experiment: Kaustiken auf dem Schalenboden
+  per linearisiertem Linsengesetz (1−c)/(1−c·h), Kohärenz schärft; unter der Schwelle die
+  Lampe im stillen Spiegel — **Stille = Spiegel.** EIN Phasenterm `sin(0.4·phase)`, kein Fold
+  → 1,00 Hz. Wächter `TheWaterDishIsLitLikeTheExperimentTests` (Quelltext-Scans + END-TO-END
+  Symmetrie) + drei Hexagonalitäts-Ansprüche in `TheWaterDishObeysFaradayTests`; Transkription
+  grün, Parent rot, drei Mutanten rot. Sechs Prosa-Heimaten für „2 Plasma" mitgezogen (#456).
+- **W3 (#1102) — die Tür.** `LookBlendMap.library` bekommt `(2, "Dish")`, NICHT in
+  `defaultSequence` (wie Rings: der Founder schaltet den Chip in der Look-Reihe zu, kein
+  fremder Regler wird länger). FlashGuardTests: Zeile `("Dish", 0.40, false)` → 1,00 Hz + Set-Pin;
+  LookBlendMapTests: „2" ist wieder ein lebender Index (Test umgeschrieben auf Scope als
+  gestrichenes Beispiel). Blockierende Hälfte: Anspruch 7 des W2-Wächters pinnt Bibliothekszeile,
+  Budget-Zeile und Set aus `Tests/CISmoke` — die nicht-blockierende Suite kostet nichts (#208).
+  ⛔ **Website bleibt bei „four generative looks"** — bewusst, bis der Founder das Bild gesehen hat.
+- **Gates:** W1-Kern Xcode 2440 grün; #1098/#1099 CI/CD 5904 `Build for Testing` grün.
+  W2/W3: siehe Nachtrag unten.
+- Offen für den Founder (NEEDS-FOUNDER-VERIFY): Chip „Dish" zuschalten, tiefen Bass spielen →
+  Gitter; Stille → Spiegel; Lead über ~1,3 kHz → Spiegel; sieht es aus wie sein Foto? Die
+  Stellschraube ist `FaradayDish.speakerAccelerationAtFullDrive` (200 m/s²).
+- **Nachtrag Gates:** W2 `ae0ee8d4` Xcode 2441 grün (der Shader kompiliert). W3 `#1102` und der
+  Deploy-Bump v10.79.459 gehen zusammen raus; TestFlight-Lauf = der Beweis, dass der Build steht.

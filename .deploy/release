@@ -1,4 +1,4 @@
-build: v10.79.458 — wie 457, PLUS: die Wissenschafts-Karte verspricht keinen Sweep mehr
+build: v10.79.459 — wie 458, PLUS: der neue Look „Dish" — eine echte Wasserschale auf dem Lautsprecher
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,7 +6,58 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.457.
+  Der Vorgänger ist 10.79.458.
+
+  ── DEINE BITTE: „ICH WILL AUCH WIRKLICH REALE WASSER KLANG BILDER HABEN,
+     WIE ALS WENN EIN LAUTSPRECHER MIT WASSER FÜLLT" ────────────────────────
+
+  **Es gibt jetzt einen neuen Look: „Dish".** Das ist genau das Experiment: eine flache
+  Wasserschale auf einer Lautsprechermembran, eine Lampe darüber. Kein Bild aus dem Gefühl,
+  sondern die Physik der Schale, einmal pro Bild gerechnet:
+
+  · **Der Ton setzt den Abstand der Wellen.** Die Schale antwortet auf HALBER Frequenz
+    (Faraday-Wellen) — bei einem C4 liegen die Wellenberge 3 mm auseinander, eine Oktave
+    höher werden sie etwa 1,6× enger.
+  · **Die Lautstärke entscheidet, ob überhaupt ein Muster entsteht.** Unter einer Schwelle
+    bleibt das Wasser ein glatter Spiegel, in dem man nur die Lampe sieht. **Stille = Spiegel.**
+    Die Schwelle steigt mit der Tonhöhe — genau wie bei einer echten Schale: der Bass
+    zeichnet, die Höhen (ab etwa 1,3 kHz bei voller Fahrt) bleiben glatt.
+  · **Im Bass Quadrate, ab der Mitte Sechsecke** — die Richtung ist gemessen (Binks &
+    van de Water 1997), wo genau der Übergang liegt, ist meine Wahl.
+  · **Das Licht sind die Kaustiken auf dem Schalenboden** — jede Wellenmulde ist eine Linse,
+    die die Lampe zu einem hellen Faden bündelt. Kohärenz schärft die Fäden.
+
+  ⛔ **Eine Korrektur zu dem, was ich Dir geschrieben hatte:** ich hatte versprochen, die
+  Schale aus „bis zu fünf klingenden Noten" zu speisen. Das lässt die Physik nicht zu — die
+  Schale reagiert auf EINEN Ton, und aus zwei Tönen lässt sich das Muster nicht zusammensetzen.
+  Also treibt sie der klingende Hauptton. Die anderen Noten dürfen als FARBE ins Bild, nie als
+  Gitter. Lieber jetzt ehrlich als später ein erfundenes Bild.
+
+  **So findest Du ihn (bewusst nicht automatisch im Regler, damit sich Dein Regler nicht
+  ungefragt verlängert):** Field → Look-Reihe → Chip **„Dish"** antippen. Dann liegt er im
+  langen Look-Regler neben Water.
+
+  **Zu prüfen — drei Dinge in einer Minute:**
+  1. **Tiefen Bass spielen, laut** → ein Gitter aus hellen Fäden, grob. Dann eine Lead zwei
+     Oktaven höher → deutlich feiner, und irgendwo oberhalb ~1,3 kHz wird die Schale glatt.
+  2. **Stoppen / leise werden** → das Gitter verblasst zu einem stillen Spiegel mit der Lampe
+     in der Mitte. Kein Muster ohne Klang.
+  3. **Sieht es aus wie Dein Foto?** Das kann kein Test — nur Dein Auge.
+
+  ⚠️ **Wenn die Schale zu oft glatt bleibt** (weil Dir das Gitter erst bei zu lauten Tönen
+  kommt) oder **zu leicht** (immer Gitter, nie Spiegel): das ist EINE Zahl, wie hart „voll
+  aufgedreht" den Lautsprecher schüttelt (20 g, hergeleitet aus 100 dB in 1 m auf einer
+  12-Zoll-Membran). Sag „öfter" oder „seltener", mehr brauche ich nicht.
+
+  ⚠️ **Was ich NICHT nachgezogen habe:** die Website sagt weiter „four generative looks".
+  Erst wenn Du das Bild gesehen und angenommen hast, wird daraus „five" — kein Anspruch vor
+  Deinem Auge.
+
+  **Geräteverifiziert ist nichts davon.** Der Shader kompiliert (Xcode-Gate), die Physik ist
+  mit sechs absichtlichen Fehlern gegengetestet, das Blitz-Budget (1,0 Hz, weit unter 3 Hz)
+  hergeleitet. Ob es SCHÖN ist, weiß nur Dein Gerät.
+
+  Alles andere unten gilt unverändert für 459.
 
   ── DEINE ANSAGE: „ENTSCHEIDE ALLES … TESTFLIGHT DEPLOY READY UND MARKTSTARK" ──
 
