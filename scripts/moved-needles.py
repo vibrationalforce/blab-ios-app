@@ -38,11 +38,23 @@ WHAT IT CLASSIFIES, so the reader knows how alarmed to be:
     still in Sources    the text survives elsewhere. The guard MAY still be green, and that is
                         the dangerous half: it is green only if its scan happens to reach the
                         new address. #1027's three hits were all of this kind.
+    (prose)             appended to a guard's NAME when every line of that guard carrying the
+                        text is a whole-line comment or sits inside a triple-quoted block (the bundle's
+                        failure-message form). Such a guard cites the text; it does not scan
+                        for it, so a moved line cannot redden it. Measured before this label
+                        existed (#1103): the third sweep read 23 guards by transcription and
+                        found 9 of them exactly this shape — 23 agent-readings for zero reds,
+                        nine of which a line classifier answers. The hit is still PRINTED: a
+                        needle on one code line and three comment lines is code, and the tool
+                        cannot see a needle assembled from parts (see LIMITS).
 
 LIMITS — a checker that overstates its reach is the thing it guards against.
   · Substring only. A guard that assembles its needle (`"HStack(spacing: " + "8) {"`) or
     reads it from a `Self.` constant is invisible here; `dead-needles.py` shape 4/5 owns the
-    constant case after the fact.
+    constant case after the fact. Since #1103 the one escape a quoted needle carries
+    (`\\"` for `"`) IS seen — `Text(\\"Safety & privacy\\")` matched only its own failure
+    message before, and the first draft of the prose label read that as "cites, does not
+    scan" for a guard whose END anchor it is.
   · A removed line is matched as a WHOLE, whitespace-trimmed. A guard whose needle is a
     fragment of the line (`"spacing: 8"`) is not found. Widening to fragments was measured
     on #1027: every `.frame(`/`.font(` line lights up half the bundle. Not shipped.
@@ -135,12 +147,58 @@ def still_in_sources(needle: str, at: str | None) -> bool:
         raise Unavailable(f"git grep: {exc}") from exc
 
 
+def unescaped(text: str) -> str:
+    """`\\"` → `"`, the one escape a Swift needle string carries for a quoted Sources line."""
+    return text.replace('\\"', '"')
+
+
+def carried_in_code(needle: str, text: str) -> bool:
+    """Does any line of `text` carry `needle` OUTSIDE a whole-line comment and OUTSIDE a
+    triple-quoted block? False = the guard only CITES the text (#1103).
+
+    ⛔ A trailing `// …` on a code line is NOT stripped on purpose: `foo() // see bar()` still
+    has `foo()` in code, and a needle that appears only after the `//` is rare enough that
+    calling it code costs one reading, while stripping it risks hiding a real anchor.
+    ⛔ THE FIRST DRAFT LOST FENCE PARITY ON A RAW STRING: `#"manualPlace = ""\"#` ends in
+    `""` + `"#`, which reads as one fence, so every code line after it in
+    `TapTargetFloorTests` was labelled prose — including two real anchors. Raw-string
+    closers are dropped before counting; the bundle has five of them and no raw multi-line opener.
+    """
+    in_block = False
+    for raw in text.split("\n"):
+        line = raw.strip()
+        fences = line.replace('\"\"\"#', "").count('\"\"\"')
+        if in_block:
+            if fences % 2 == 1:
+                in_block = False
+            continue
+        if line.startswith(("//", "/*", "*")):
+            continue
+        # A guard writes a quoted needle ESCAPED — `Text(\\"Safety & privacy\\")` — so the
+        # unescaped form is looked for too, else a real anchor is labelled prose (#1103).
+        for form in (line, unescaped(line)):
+            if needle in form:
+                opening = form.find('\"\"\"')
+                if not (fences % 2 == 1 and opening != -1 and opening < form.find(needle)):
+                    return True
+                break
+        if fences % 2 == 1:
+            in_block = True
+    return False
+
+
 def scan(diff_args: list[str], at: str | None) -> list[tuple[str, list[str], bool]]:
-    """(removed line, guard files containing it, still in Sources at the new state)."""
+    """(removed line, guard files containing it, still in Sources at the new state).
+
+    A guard that carries the line only in comments / `\"\"\"` messages is listed with a
+    ` (prose)` suffix — see `carried_in_code`. It still counts toward MAX_GENERIC.
+    """
     guards = guard_texts(at)
     hits = []
     for line in removed_lines(diff_args):
-        files = sorted(n.rsplit("/", 1)[-1] for n, t in guards.items() if line in t)
+        files = sorted(
+            n.rsplit("/", 1)[-1] + ("" if carried_in_code(line, t) else " (prose)")
+            for n, t in guards.items() if line in t or line in unescaped(t))
         if files:
             hits.append((line, files, still_in_sources(line, at)))
     return hits
@@ -168,8 +226,11 @@ def report(hits, label: str) -> int:
             print(f"  [{state}] {shown!r}  → generic: {len(files)} guards, not listed")
             continue
         print(f"  [{state}] {shown!r}  → {len(files)}: {', '.join(files)}")
-    print(f"  {len(hits)} hit(s). Each is a guard to OPEN: does its scan still reach this text "
-          "at the new address? A hit is a question, not a verdict; see the docstring.")
+    prose = sum(1 for _, files, _ in hits
+                if len(files) <= MAX_GENERIC and all(f.endswith(" (prose)") for f in files))
+    print(f"  {len(hits)} hit(s), {prose} of them named only by guards that cite the text in "
+          "prose (#1103). Each other hit is a guard to OPEN: does its scan still reach this "
+          "text at the new address? A hit is a question, not a verdict; see the docstring.")
     return 1
 
 
@@ -183,7 +244,7 @@ def selftest() -> int:
         return 2
     ok = True
     pos = scan(*resolve(KNOWN_POSITIVE)[:2])
-    named = [f for _, files, _ in pos for f in files]
+    named = [f for _, files, _ in pos for f in files]  # a " (prose)" name is NOT the anchor
     if KNOWN_POSITIVE_GUARD in named:
         print(f"selftest 1 OK — {KNOWN_POSITIVE} names {KNOWN_POSITIVE_GUARD} "
               f"({named.count(KNOWN_POSITIVE_GUARD)}× over {len(pos)} hits)")
@@ -212,6 +273,27 @@ def selftest() -> int:
     else:
         ok = False
         print("selftest 4 FAIL — `interesting` filter changed")
+    # `carried_in_code` — the (prose) label (#1103). Four shapes seen in sweep 3, one each.
+    n = ".frame(maxWidth: .infinity)"
+    cases = [
+        ("// header prose that cites " + n + " and nothing else", False),
+        ('XCTAssertTrue(ok, """\n    a message that names ' + n + ' inside the fence\n    """)', False),
+        ('XCTAssertTrue(code.contains("' + n + '"), """\n    message\n    """)', True),
+        ("let needle = \"" + n + "\"  // trailing comment", True),
+        # the raw-string closer must not open a block that swallows the next code line
+        ('let anchor = #"manualPlace = ""\"#\nXCTAssertTrue(code.contains("' + n + '"))', True),
+    ]
+    q = 'Text("Safety & privacy")'
+    cases.append(('let end = lines.firstIndex { $0.contains("Text(\\"Safety & privacy\\")") }', True))
+    got_q = carried_in_code(q, cases[-1][0])
+    cases = cases[:-1]
+    got = [carried_in_code(n, text) for text, _ in cases] + [got_q]
+    if got == [want for _, want in cases] + [True]:
+        print("selftest 5 OK — comment and fenced-message lines are prose, code lines are code, "
+              "a raw-string closer is not a fence, an escaped quote is the quote")
+    else:
+        ok = False
+        print(f"selftest 5 FAIL — carried_in_code gave {got}, wanted {[w for _, w in cases]}")
     return 0 if ok else 1
 
 

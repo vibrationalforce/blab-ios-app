@@ -3616,3 +3616,14 @@ Was funktioniert hat, in dieser Reihenfolge, und warum jede Scheibe allein grün
 Kosten gemessen: W1 ~30 min, W2 ~40 min, W3 ~15 min; ein Xcode-Lauf pro Scheibe. Der Gewinn:
 als der Shader kompilierte, war die Physik schon zwei Gates lang grün — ein Shader-Fehler hätte
 nur den Shader betroffen.
+
+## PLAYBOOK #1103 (2026-09-07) — drei Sweeps genügen: die versteckten Roten wohnen im jüngsten Fenster
+
+56 Wächter-Lesungen in drei Sweeps (#1094–#1099, #1103) über `moved-needles.py`-Treffer seit
+2026-08-28: sieben Rote/Leere, **alle im Fenster ab 2026-09-05** (die Umbauten #1023b/#1027/#1069
+und die Mikro-Türen #1024); das Fenster 08-28→09-06 ohne diese Commits: 23 von 23 grün, 0
+Widerleger. **Do this instead:** kein vierter Sweep über ältere Fenster (23 Agenten für null
+Befund); das Werkzeug VOR jedem Sources-Commit laufen lassen (Arbeitsbaum gegen HEAD) und die
+`(prose)`-Namen zuletzt öffnen. Und: ein Klassifikator, der neun von 23 Agenten-Lesungen ersetzt,
+wird gegen genau diese Lesungen gemessen, bevor er ins Werkzeug geht — beide Fehler der ersten
+Fassungen (Raw-String-Fence, Escape) fielen nur durch diesen Vergleich auf.

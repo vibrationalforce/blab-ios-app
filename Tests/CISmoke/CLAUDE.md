@@ -227,7 +227,12 @@ present elsewhere in `Sources/`, and the job-log window (§5) never showed the t
 `moved-needles.py` asks the diff-time question instead: every line a change removes from
 `Sources/` is looked up in the bundle, and each hit is a guard to OPEN. A hit is a question —
 the tool cannot know whether the guard's scan still reaches the text at its new address. Run it
-on the working tree before the commit, not on the push after.
+on the working tree before the commit, not on the push after. Since #1103 a guard that carries
+the text only in comments or `"""` messages is listed with ` (prose)` — it cites, it does not
+scan, so open the others first — and a quoted needle is matched in its escaped form too
+(`Text(\"…\")`), which the first version could not see at all: four real anchors in the
+2026-08-28→09-06 window were invisible to it. Three sweeps (#1094–#1099, #1103: 56 guard
+readings) found seven reds, ALL in the window since 2026-09-05; the older window was clean.
 
 **A count pin is the other shape that rots silently, and it rots the same way (#903/#904).**
 `XCTAssertEqual(occurrences(of: "…", in: code), N)` goes stale when the CODE changes

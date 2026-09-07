@@ -25709,3 +25709,34 @@ near-term" als SCOPE auf (Nachtrag im Plan); der Physik-Eintrag „chord-driven 
   (Build 2578) in App Store Connect gelandet** („Verify build landed" grün). Kein Wächter dieser
   Runde hat einen Per-Test-Verdikt im tail-200-Fenster (#445) — Transkription + Mutanten sind der
   Beleg. Sechs Commits diese Stunde: #1098 · #1099 · #1100 · #1101 · #1102 · Deploy 459.
+
+## #1103 — Sweep 3 (älteres Fenster 08-28→09-06): 23 grün, und das Werkzeug lernt „(prose)" + Escape
+
+**Lauf:** `python3 scripts/moved-needles.py e6da9692..fcd3d4b8~1` → 49 Treffer. Die 15 „GONE"-
+Treffer waren alle schon versorgt (#1024-Rücknahmen, #943b, #959b, #1098, Negativ-Wächter). Die
+23 „still in Sources"-Wächter, die Sweep 1/2 nicht gesehen hatten, per Workflow `wf_22f53c06-a5f`
+(23 Transkriptions-Agenten, ~12 min, 0 Fehler): **23 GRÜN, 0 Widerleger nötig.** Damit drei
+Sweeps, 56 Wächter-Lesungen, sieben Rote — **alle sieben im Fenster seit 2026-09-05**; das
+ältere Fenster ist sauber. Ein vierter Sweep über noch ältere Fenster ist die 23 Agenten nicht
+wert (HARNESS_LEDGER).
+
+**Der Slice (`scripts/moved-needles.py`, `Tests/CISmoke/CLAUDE.md`):** 9 der 23 Lesungen
+endeten bei „die Nadel steht im Wächter nur in Kommentar oder Fehlermeldung" — das beantwortet
+ein Zeilen-Klassifikator. Ein Wächter, dessen Nadel-Zeilen alle Ganzzeilen-Kommentar oder in
+einem `"""`-Block sind, heißt jetzt `Name.swift (prose)`; die Summenzeile zählt die Treffer, die
+NUR solche Wächter nennen. Nichts wird versteckt (ein Wächter mit einer Code-Zeile und drei
+Kommentar-Zeilen ist Code). Gemessen: das Werkzeug stimmt mit den 22 noch vorhandenen
+Agenten-Urteilen überein (`TheLayoutHasAReadableWidthCeilingTests` ging mit #1027).
+- ⛔ **Erste Fassung verlor die Fence-Parität an einem Raw-String:** `#"manualPlace = ""\"#` liest
+  sich als EIN `"""`, danach war in `TapTargetFloorTests` jede Code-Zeile „prose" — zwei echte
+  Anker dabei. Raw-String-Closer werden vor dem Zählen gestrichen (fünf im Bündel, kein Opener).
+- ⛔ **Zweite Fassung nannte `TheReadyPageNamesTheFirstActTests` „prose", und der Agent hatte
+  Recht, nicht das Werkzeug:** der Wächter schreibt `Text(\"Safety & privacy\")` ESCAPED, die
+  unescapte Form stand nur in seiner Fehlermeldung. Seit #1103 wird ein Wächter auch über die
+  entescapte Form gefunden — und das ist mehr als Kosmetik: **vier echte Anker** im alten
+  Fenster (`HarmonyIntervalTests` ×2, `TheRefusalLineHasASettingsDoorTests`,
+  `TheHeaderShowsTheLoopTests`) waren dem Werkzeug bisher unsichtbar (49 → 53 Treffer). Alle
+  vier hier transkribiert: grün.
+- Selbsttest 5 neu (Kommentar, Fence-Block, Anker vor Fence, Trailing-Comment, Raw-Closer,
+  Escape); 1–4 unverändert grün. Arbeitsbaum gegen HEAD: 0 Treffer. Kein Gate läuft
+  `scripts/*.py` — der Selbsttest IST die Prüfung.
