@@ -1167,12 +1167,16 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                     cloudW[k] = targetW[k]
                 } else {
                     let up = targetW[k] > cloudW[k]
-                    // Ease-in split by source: a FINGER answers now (0.09); the
-                    // generative bed breathes in (0.30) — its 16th-note retriggers at
-                    // ~8/s otherwise bloom half-frame clouds in ~90 ms each, reading
-                    // as rhythmic "shooting" synced to the roll (audit #3).
-                    let inTau: Float = cloudTouch[k] ? 0.09 : 0.30
-                    cloudW[k] = Self.ease(cloudW[k], targetW[k], tau: up ? inTau : 0.35, dt: dt)
+                    // Ease-in split by source: a FINGER answers now; the generative
+                    // bed breathes in — its 16th-note retriggers at ~8/s otherwise
+                    // bloom half-frame clouds in ~90 ms each, reading as rhythmic
+                    // "shooting" synced to the roll (audit #3). The constants live in
+                    // `FlashGuard` (#1091) so the 3 Hz argument can read them; what
+                    // they do and do not prove is documented there.
+                    let inTau = Float(cloudTouch[k] ? FlashGuard.cloudRiseTauTouch
+                                                    : FlashGuard.cloudRiseTauGenerative)
+                    cloudW[k] = Self.ease(cloudW[k], targetW[k],
+                                          tau: up ? inTau : Float(FlashGuard.cloudFallTau), dt: dt)
                 }
                 if !slotTaken[k], cloudW[k] < 0.004 { cloudID[k] = Int.min }   // slot free again
                 guard cloudHzSlot[k] > 0 else { continue }
@@ -1191,13 +1195,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                     ?? SpectralColor.notePosition(forHz: cloudHzSlot[k])
                 let tp = SIMD2<Float>(Float(p.x), Float(p.y))
                 let snap = !cloudSeeded || slotSeeded[k]
+                let colourTau = Float(FlashGuard.cloudColourChaseTau)
+                let placeTau = Float(FlashGuard.cloudPositionChaseTau)
                 cloudRGB[k] = snap ? t
-                    : SIMD3<Float>(Self.ease(cloudRGB[k].x, t.x, tau: 0.18, dt: dt),
-                                   Self.ease(cloudRGB[k].y, t.y, tau: 0.18, dt: dt),
-                                   Self.ease(cloudRGB[k].z, t.z, tau: 0.18, dt: dt))
+                    : SIMD3<Float>(Self.ease(cloudRGB[k].x, t.x, tau: colourTau, dt: dt),
+                                   Self.ease(cloudRGB[k].y, t.y, tau: colourTau, dt: dt),
+                                   Self.ease(cloudRGB[k].z, t.z, tau: colourTau, dt: dt))
                 cloudPos[k] = snap ? tp
-                    : SIMD2<Float>(Self.ease(cloudPos[k].x, tp.x, tau: 0.25, dt: dt),
-                                   Self.ease(cloudPos[k].y, tp.y, tau: 0.25, dt: dt))
+                    : SIMD2<Float>(Self.ease(cloudPos[k].x, tp.x, tau: placeTau, dt: dt),
+                                   Self.ease(cloudPos[k].y, tp.y, tau: placeTau, dt: dt))
             }
             cloudSeeded = true
             (uniforms.cc0r, uniforms.cc0g, uniforms.cc0b) = (cloudRGB[0].x, cloudRGB[0].y, cloudRGB[0].z)
@@ -1237,15 +1243,19 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             (uniforms.rp5r, uniforms.rp5g, uniforms.rp5b) = (rp[5].rgb.x, rp[5].rgb.y, rp[5].rgb.z)
             // 2) PRISM keeps the discrete A→B fade (its colour is a continuous octave
             //    fan of the note Hz — not reducible to one RGB). Retargets are GATED
-            //    until the running fade passes 0.6 (the newest target wins next frame,
-            //    re-checked here every frame) so fast retriggers can no longer flash
-            //    the stale A end.
-            if abs(target.toneHz - colorNoteTo) > 0.5, colorNoteFade >= 0.6 {
+            //    until the running fade passes `FlashGuard.prismRetriggerGate` (the
+            //    newest target wins next frame, re-checked here every frame) so fast
+            //    retriggers can no longer flash the stale A end. Gate and fade tau are
+            //    FlashGuard's (#1091): together they bound the switch rate, and that
+            //    bound sits ON the 3 Hz ceiling — read the constant's doc before
+            //    loosening either.
+            if abs(target.toneHz - colorNoteTo) > 0.5,
+               colorNoteFade >= Float(FlashGuard.prismRetriggerGate) {
                 colorNoteFrom = colorNoteTo
                 colorNoteTo = target.toneHz
                 colorNoteFade = 0
             }
-            colorNoteFade = Self.ease(colorNoteFade, 1, tau: 0.18, dt: dt)
+            colorNoteFade = Self.ease(colorNoteFade, 1, tau: Float(FlashGuard.prismFadeTau), dt: dt)
             uniforms.colorToneA = colorNoteFrom
             uniforms.colorToneB = colorNoteTo
             uniforms.colorFade = colorNoteFade

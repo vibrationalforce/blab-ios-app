@@ -170,6 +170,61 @@ public enum FlashGuard {
     /// is exactly the kind of number that survives a change to the curve it describes.
     public static let filmicMaxSlope: Double = 1.0 + filmicStrength / 2.0
 
+    // MARK: - The COLOUR path (note clouds) — #1091
+
+    /// Time constants of the colour path, hoisted from `MetalBioView`'s cloud update so the
+    /// 3 Hz argument can READ them instead of trusting a comment. Until #1091 they were bare
+    /// literals at seven call sites — the same shape `maxPulseRateHz` above was rescued from,
+    /// and the same blind spot the look table in `FlashGuardTests` admits to: that table
+    /// bounds the scalar FIELD, and colour travels a separate path it never sees.
+    ///
+    /// What they ARE: each sounding note owns one of five clouds. A cloud's WEIGHT eases in
+    /// (fast for a finger, slower for the generative bed — its 16th-note retriggers at ~8/s
+    /// bloomed half-frame clouds in ~90 ms) and out; a slot stolen by a new note CHASES the
+    /// new colour and place per channel instead of cutting, which is what keeps a visible
+    /// cloud from ever jumping (the 2026-07-08 "Bildfehler"). The Prism look keeps a discrete
+    /// A→B crossfade whose retarget is GATED on the running fade.
+    ///
+    /// ⚠️ WHAT THEY DO NOT PROVE, stated here because a hoist reads like a proof: none of
+    /// these constants rate-limits the colour path BELOW the WCAG threshold. A first-order
+    /// lowpass driven on/off at 3 Hz still passes `squareWaveSurvival(hz: 3, tau: 0.09)` ≈
+    /// 73 % of a finger cloud's swing and ≈ 27 % of a generative cloud's. Whether that is a
+    /// WCAG 2.3.1 flash depends on the photometric half — how much RELATIVE LUMINANCE a
+    /// cloud moves over what FRACTION of the field (the shader's cloud radius is
+    /// `0.42 · spread`, spread up to 1.92) — and that half is measured on a device clip, not
+    /// asserted here. `TheColourPathHasAFlashBudgetTests` pins exactly this status so it
+    /// cannot be read as "colour is covered".
+    public static let cloudRiseTauTouch: Double = 0.09
+    /// See `cloudRiseTauTouch`.
+    public static let cloudRiseTauGenerative: Double = 0.30
+    /// See `cloudRiseTauTouch`.
+    public static let cloudFallTau: Double = 0.35
+    /// See `cloudRiseTauTouch` — per-channel RGB chase of a stolen slot toward its new note.
+    public static let cloudColourChaseTau: Double = 0.18
+    /// See `cloudRiseTauTouch` — the stolen slot's place chases the new note's cell.
+    public static let cloudPositionChaseTau: Double = 0.25
+    /// The Prism look's discrete A→B colour crossfade. See `cloudRiseTauTouch`.
+    public static let prismFadeTau: Double = 0.18
+    /// A Prism retarget is accepted only once the running fade has passed this fraction, so
+    /// a fast retrigger can no longer flash the stale A end. With `prismFadeTau` this bounds
+    /// the switch rate at `1 / (prismFadeTau · ln(1 / (1 − gate)))` ≈ 6.1 switches/s — i.e.
+    /// ≈ 3.0 opposing pairs/s, ON the ceiling with no margin, like Aurora in the look table.
+    public static let prismRetriggerGate: Double = 0.6
+
+    /// The fraction of a symmetric on/off square wave's swing that SURVIVES a first-order
+    /// lowpass of time constant `tau` when the wave alternates at `hz`: `tanh(1 / (4·hz·tau))`.
+    ///
+    /// Use it to ask whether an easing constant rate-limits a channel below the general-flash
+    /// threshold (`luminanceDeltaThreshold`): if the survival at `maxFlashHz` times the
+    /// channel's full luminance swing is still ≥ 0.10, the easing is NOT the safety argument
+    /// and something else (spatial extent, a gate) has to be. Non-finite or non-positive input
+    /// returns 1 — the whole swing survives — so a caller asserting "attenuated enough" FAILS
+    /// CLOSED, the same direction `effectiveFieldHz` chooses with `.infinity`.
+    public static func squareWaveSurvival(hz: Double, tau: Double) -> Double {
+        guard hz.isFinite, tau.isFinite, hz > 0, tau > 0 else { return 1 }
+        return Foundation.tanh(1.0 / (4.0 * hz * tau))
+    }
+
     /// The rate a visual FIELD actually flashes at — which is NOT always the rate
     /// its phase is integrated at, and that gap shipped a WCAG violation.
     ///
