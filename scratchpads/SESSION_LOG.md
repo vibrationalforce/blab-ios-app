@@ -25089,3 +25089,52 @@ wach — damit wird die offene Founder-Frage Teil der Scheibe · `floatingSizeRa
 `WorkspaceView` hinter einem rohen String.
 
 **Gates:** #1063 `6316dcbf` **success** · #1064 (in `9b1b4007`) **success** · #1065 läuft.
+
+## 2026-09-07 — #1066 + #1067 (S3b-0, S3b): der Weg wird umgelegt, bevor abgerissen wird
+
+**Council-Verdikt vor S3 (im Plan §4):** proceed-with-mitigation, und die Mitigation ist eine
+DREITEILUNG statt eines grossen Commits. Grund (Shipper + Skeptiker): es gibt hier keinen
+Compiler, der eine Löschung gegenprüft — also erst den neuen Weg live schalten, dann den
+nachweislich toten Code löschen. Ein Commit, der Weg UND Ziel gleichzeitig ändert, hat keinen
+Zustand, in dem man messen kann, welche Hälfte kaputt ist.
+
+**#1066 (S3b-0) — der Grössen-Schlüssel bekommt EIN Zuhause.** ⛔ Und dabei ist meine eigene
+Council-Zahl gefallen: ich schrieb „an zwei Stellen" und es waren **SECHS**
+(`WorkspaceView`, `FloatingVisualWindow`, VIER in `EchoelStudioView`s Aufnahme-Pfad). Ich hatte
+nur die `@AppStorage`-Deklarationen gezählt und die programmatischen `UserDefaults`-Zugriffe
+übersehen — **zwei davon stehen direkt unter einem Kommentar, der das Gegenteil behauptet**
+(„via the namespace (H15-KEYSTORE)"). Der DEFAULT bleibt bewusst an jeder Deklaration, an
+`WindowSize.small` gekoppelt: `Core/` kann das Enum nicht sehen, eine nackte `0` dort wäre die
+Entkopplung, gegen die `WorkspaceView`s eigenes Doc argumentiert. Wächter:
+`TheWindowSizeKeyHasOneHomeTests` (1 Fundstelle, 3 Leser, plus Gegengewicht auf die Asymmetrie).
+
+**#1067 (S3b) — „Full screen" vergrössert das EINE Fenster.** Der Knopf schreibt jetzt Grösse +
+Sichtbarkeit statt `showVisual = true`. **Das Cover ist damit unerreichbar, aber noch da** — der
+Zustand, in dem der neue Weg am Gerät geprüft werden kann. Mitgegangen ist #1031s
+`.disabled(visualRecorder.isRecording)`, auf seine EIGENE schriftliche Anweisung hin: der Tipp
+kann keinen zweiten Renderer mehr montieren, weil er gar nichts mehr montiert.
+
+⚠️ **Ein Befund, der wie ein Defekt aussieht und keiner ist — aufgeschrieben, weil er sonst
+später als einer gelesen wird:** `ChromeBudgetFitsTests.testBothSizeDoorsGoThroughTheOneWidenRule`
+scannt `FloatingVisualWindow.swift` nach `sizeRaw`-Schreibern; mein Schreiber steht in einer
+ANDEREN Datei und ist für diesen Scan unsichtbar — die #366-Form („die Regel war richtig und
+hatte eine zweite Tür daneben"). Sicher ist er aus einem GRUND, nicht aus Glück: die Regel
+verhindert eine zu SCHMALE Karte, und hier wird `.fullscreen` geschrieben, die breiteste Grösse.
+Neuer Anspruch `testTheStudioSideDoorOnlyEverWritesFullscreen` nagelt genau das fest.
+
+**Wächter-Kehraus im selben Commit (#456), und er war der grössere Teil der Arbeit:**
+· **Anspruch 6 vom FLAG auf die TÜR umgehängt.** `showVisual` hat wieder null Wahr-Schreiber —
+  und das als „die Tür ist weg" zu lesen wäre auf einem Baum, der gerade die Founder-Bitte
+  erfüllt hat, genau verkehrt herum. Er zählt jetzt `openFullscreenVisual()`-Aufrufstellen.
+· **Anspruch 7s Paarung ist DURCHTRENNT.** Er koppelte die Cover-Tür an die Donut-Normalisierung,
+  weil der Donut-Look nur über das Cover erreichbar war. #1065 hat ihm eine eigene Tür gegeben,
+  also sind die zwei Tatsachen unabhängig — und die alte Behauptung las `NotEqual(false, false)`,
+  wäre also auf einem Baum rot geworden, auf dem der Look ERREICHBARER ist als vorher.
+· Kopf und Liste der Datei mitgezogen: das Overlay ist wieder unerreichbar, die
+  Landschafts-Geräteprobe ist zum ZWEITEN Mal zurückgezogen statt eine Sitzung zu kosten.
+
+⛔ **Und das Backtick-Gesetz hat mich in derselben Runde erwischt:** ein `python3 - <<PY` ohne
+Anführungszeichen liess die Shell Backticks im Python-String substituieren. Mit `<<'PY'` und
+Variable über die Umgebung wiederholt. Genau die Notiz aus dem letzten Check-in.
+
+**Gates:** #1063 · #1064 · #1065 · #1066 alle **success**; #1067 läuft.
