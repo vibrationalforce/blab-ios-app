@@ -3586,3 +3586,33 @@ nie `wc -c`; (2) Deutsch ist ~10 % länger als Englisch bei gleichem Inhalt — 
 transkribieren (Nadeln: `TheStoreTextClaimsOnlyWhatShipsTests` Claims 1–6,
 `ThePictureIsSoldAsPlayableTests` „berühre das visual", Privacy-Outputs-auch-verkauft) — eine
 Kürzung, die eine Nadel trifft, ist ein rotes Gate zwei Stunden später.
+
+## PLAYBOOK #1100–#1102 (2026-09-07) — ein „physikalisch echtes" Bild wird in DREI Scheiben gebaut, und die erste zeichnet nichts
+
+Founder-Bitte: „reale Wasser Klang Bilder, wie als wenn ein Lautsprecher mit Wasser füllt".
+Was funktioniert hat, in dieser Reihenfolge, und warum jede Scheibe allein grün sein muss:
+
+1. **Physik zuerst, als reiner Werttyp mit END-TO-END-Wächter** (`Core/FaradayDish`, #1100).
+   Null Pixel. Jede Zahl im Wächter ist per Python-Transkription GEMESSEN (Exponent, Schwelle,
+   Reichweite, Onset) und der Wächter fällt bei sechs absichtlichen Fehlern (Antwort bei f statt
+   f/2, Kapillar-Abkürzung, keine Schwelle, linearer Onset, Retune, halbierte Schwelle) — jeder
+   aus dem Grund, den sein Anspruch NENNT. Die gewählten Zahlen sind BENANNT und hergeleitet
+   (`speakerAccelerationAtFullDrive` aus 100 dB SPL), gepinnt statt verboten (#364).
+   ⛔ Was hier schief ging: meine Founder-Antwort versprach „fünf Noten", die Physik lässt nur
+   EINEN Ton zu. Die Rücknahme steht im Dateikopf UND in der Deploy-Notiz — ein Versprechen an den
+   Founder ist eine Prosa-Heimat (#456).
+2. **Shader in einen STILLGELEGTEN Slot, noch ohne Tür** (#1101). Drei Uniforms am SCHWANZ
+   beider Structs (Layout-Mismatch rendert Müll, kein Gate sieht es → Anspruch pinnt beide
+   Schwänze in derselben Reihenfolge). Das luminanz-tragende Uniform wird GEEAST, das
+   geometrische nicht. Genau EIN Phasenterm → das Blitz-Budget ist eine Herleitung, keine
+   Schätzung. Slot-Wahl: der ohne Tonbezug, ohne Pins, ohne Farbpfad-Sonderfall (Plasma) —
+   nicht der, der „naheliegt" (Chladni war die PLATTE eines anderen Plans).
+3. **Tür + Budget in EINEM Commit** (#1102): Bibliothekszeile + FlashGuardTests-Zeile + Set-Pin,
+   und ein Anspruch im BLOCKIERENDEN Bundle, der beides pinnt (die Budget-Suite ist
+   nicht-blockierend, Auto-Merge wartet auf kein Gate). NICHT in die Default-Sequenz (der Founder
+   schaltet den Chip zu; kein fremder Regler wird länger). Website bleibt bei der alten Zahl,
+   bis das Auge es gesehen hat.
+
+Kosten gemessen: W1 ~30 min, W2 ~40 min, W3 ~15 min; ein Xcode-Lauf pro Scheibe. Der Gewinn:
+als der Shader kompilierte, war die Physik schon zwei Gates lang grün — ein Shader-Fehler hätte
+nur den Shader betroffen.
