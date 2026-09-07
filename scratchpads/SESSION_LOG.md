@@ -25227,3 +25227,53 @@ benannt — S4 ist der wahrscheinliche Erzeuger.
 33 transkribierte Zusicherungen über alle berührten Wächter: ALLE GRÜN. `dead-needles` OK
 (449) · `count-pins` 0 RED · Leak-Check 0 · Klammern nach jeder Bearbeitung nachgezählt.
 **Nicht gerätegeprüft** — und bei dieser Scheibe zählt das am meisten.
+
+## #1072 — Die Wetter-Mischung bekommt EINE Definition (Fundament-Hälfte von #1071)
+
+**Was:** `FloatingVisualWindow.weatheredVisuals()` besaß die Vier-Werte-Mischung (Hue ·
+Sättigung · Intensität · Bewegung, jede per eigenem Mixer zum Himmel geblendet). Sie lebt
+jetzt EINMAL, als reine öffentliche `WeatherMood.visualValues(base:mixers:contribution:)`;
+das Fenster ist Aufrufer. Verhalten unverändert.
+
+**Warum reine Funktion über Werttypen statt geteiltem View-Helfer:** sie nimmt die
+CONTRIBUTION, nicht den Provider — also braucht kein Aufrufer die Umgebung des anderen, und
+das blockierende Bundle kann die echte Arithmetik FAHREN statt zu scannen, wo die Buchstaben
+stehen. Vorher war die Mischung ein `private func` auf einer `View`, die kein Test bauen kann.
+
+**Zwei eigene Defekte, beide vor dem Push gefangen:**
+1. **Der Wächter wäre auf einem KORREKTEN Baum rot gewesen** — dritte Wiederholung dieser
+   Form (#650, #960, #1069). Anspruch 1 behauptete „alle Mixer auf 0 → Basis bit-identisch"
+   mit `XCTAssertEqual`. Falsch, und schon vor diesem Commit falsch: `blend` rechnet in
+   `Float`, die Sichtwerte sind `Double`, also kommt eine Basis verengt zurück
+   (0.20 → 0.20000000298…). Der alte private func verengte genauso. Aufgeteilt in die zwei
+   Stärken, die es wirklich gibt: `nil` schließt kurz und ist EXAKT, alle-Mixer-0 ist neutral
+   auf Float-Genauigkeit. **Bewusst NICHT** mit einem Null-Kurzschluss „repariert" — das
+   änderte ausgeliefertes Verhalten, um einen Test hübscher zu machen.
+2. **`dead-needles.py` fand den Schwester-Wächter vor CI.** `TheBeamerDrawsTheSamePicture`
+   Anspruch 1 hing an `WeatherMood.blend(base:` — genau dem Aufruf, den dieser Commit
+   verschiebt. Eine Nadel „present" und abwesend. Neu verankert auf
+   `WeatherMood.visualValues(`: das benennt die ENTSCHEIDUNG statt den Ort des Aufrufs.
+
+**Nebenbei:** der Doc-Block der FUNKTION war über dem `VisualValues`-STRUCT gelandet — die
+verwaiste-Doku-Form von #1057/#1068, drittes Mal. Und ein Kommentar sagte „drei
+Mixer-Paarungen", wo es vier sind — genau der Zählfehler, für den der Paarungs-Wächter da ist.
+
+**`currentSkyContribution()` ist eine eigene Funktion aus einem engen Grund** (am Ort
+notiert): inline wäre es ein lokales `var contribution: WeatherMood.Contribution?`, auf der
+Nicht-WeatherKit-Plattform nie zugewiesen — und ob Swift einem LOKALEN Optional ein
+implizites nil gibt, ist eine Frage, die hier eine CI-Runde kostet.
+
+**Schließt #1071 NICHT**, in allen vier Prosa-Heimaten so gesagt (#456). Der Beamer rendert
+weiter roh. Neu ist: die zwei Flächen können nicht mehr in der ARITHMETIK auseinanderlaufen,
+nur noch darin, ob eine sie ruft. Die Restscheibe ist jetzt EIN benanntes Ding statt eines
+Plans, an der Szene aufgeschrieben.
+
+**Wächter:** `Tests/CISmoke/TheWeatherVisualMixHasOneDefinitionTests.swift` — 5 Ansprüche /
+25 Behauptungen, END-ZU-END gegen die echte reine Funktion. Der tragende ist die PAARUNG:
+`glow` bewegt INTENSITÄT, `movement` bewegt BEWEGUNG — Namen, die eine zweite handgeschriebene
+Kopie verwechselt, und nichts sähe kaputt aus, bis jemand einen Regler bewegt und das Falsche
+sich ändert.
+
+29 transkribierte Behauptungen über beide Wächter GRÜN. dead-needles OK (452). count-pins
+0 RED. Klammern in fünf Dateien ausgeglichen, Dangling-Assignment-Scan 0 (#1070-Lehre).
+Commit `1a53ff94`.
