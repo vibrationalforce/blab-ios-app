@@ -28,14 +28,20 @@ enum LookBlendMap {
     /// default), Depth (underwater light caustics — returned from retirement as
     /// the founder asked for other visuals in this register). All flash-safe,
     /// slow-motion fields: the calm register IS the health consideration.
+    /// **Dish** (#1102, founder 2026-09-07: "reale Wasser Klang Bilder … wie als wenn ein
+    /// Lautsprecher mit Wasser füllt") — a dish of water on a speaker, lit from above:
+    /// the sounding pitch sets the ripple spacing, the loudness whether ripples appear at
+    /// all (`FaradayDish`, real physics; silence is a mirror). It sits in the former
+    /// Plasma slot and, like Rings, is NOT in `defaultSequence` — the founder toggles it
+    /// in from the look row; the slider does not lengthen for anyone who does not.
+    /// Its flash budget (0.4, folds: false → 1.00 Hz) is a row in `FlashGuardTests`,
+    /// landed in the SAME commit as this row (an unbudgeted look can reach `main`).
     /// RETIRED from the UI (still compiled in the shader, reversible by re-adding
-    /// a row): 1 Cymatics, 2 (was Plasma — since #1101 the slot renders the WATER DISH,
-    /// `fieldDish`, doorless until its own row lands with its flash budget), 4 Prism,
-    /// 6 Lissajous, 8 Scope, 9 Fractal;
+    /// a row): 1 Cymatics, 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal;
     /// `sequence(from:)` drops their persisted indices gracefully and the onAppear
     /// migration snaps a persisted retired style to the sequence's first look.
     static let library: [(index: Int, name: String)] = [
-        (0, "Rings"), (3, "Water"), (5, "Aurora"), (7, "Depth")
+        (0, "Rings"), (2, "Dish"), (3, "Water"), (5, "Aurora"), (7, "Depth")
     ]
 
     /// Default slider sequence — the calm liquid arc (Water · Aurora · Depth).

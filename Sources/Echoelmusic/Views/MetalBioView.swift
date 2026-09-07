@@ -1732,9 +1732,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // app ceiling. `strength` is not phase-bearing — it is the eased music level (tau 0.5 s).
     // The `mix` between mirror and lattice is linear in `strength`. `TheWaterDishIsLitLike
     // TheExperimentTests` pins the phase term; the budget row lands with the library row.
-    // This slot was PLASMA (retired from the UI 2026-07-08, "weniger ist mehr"; a persisted
-    // style 2 is snapped to the sequence's first look on appear), so replacing its function
-    // changes nothing a user can reach until `LookBlendMap.library` gets the row.
+    // This slot was PLASMA (retired from the UI 2026-07-08, "weniger ist mehr"). #1101
+    // replaced the function while the slot was still doorless; #1102 gave it its
+    // `LookBlendMap.library` row ("Dish") and its `FlashGuardTests` budget row in ONE commit.
     float fieldDish(float2 p, float k, float strength, float hex, float phase, float coh) {
         float2 d2 = float2(-0.5, 0.8660254);                  // 120° and 240° wave directions
         float2 d3 = float2(-0.5, -0.8660254);

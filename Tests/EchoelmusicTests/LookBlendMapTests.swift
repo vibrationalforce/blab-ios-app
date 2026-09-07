@@ -70,14 +70,17 @@ final class LookBlendMapTests: XCTestCase {
     }
 
     func testSequenceParse_dropsRetiredLookIndices() {
-        // Persisted sequences may carry retired looks (1 Cymatics, 2 — Plasma until #1101,
-        // now the doorless water dish — 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) — they are dropped
-        // gracefully, the rest stays.
+        // Persisted sequences may carry retired looks (1 Cymatics, 4 Prism, 6 Lissajous,
+        // 8 Scope, 9 Fractal) — they are dropped gracefully, the rest stays. Index 2 was
+        // in this list as Plasma until #1102 put the water dish there WITH a library row,
+        // so a persisted "2" is a live look again and no longer dropped.
         XCTAssertEqual(LookBlendMap.sequence(from: "3,5,1,4"), [3, 5],
                        "the brief Cymatics/Prism-era default keeps its survivors")
-        XCTAssertEqual(LookBlendMap.sequence(from: "3,5,7,2"), [3, 5, 7],
-                       "the original calm default survives minus Plasma")
-        XCTAssertEqual(LookBlendMap.sequence(from: "1,6,8,9,2,4"), LookBlendMap.defaultSequence,
+        XCTAssertEqual(LookBlendMap.sequence(from: "3,5,7,8"), [3, 5, 7],
+                       "the original calm default survives minus Scope")
+        XCTAssertEqual(LookBlendMap.sequence(from: "3,5,7,2"), [3, 5, 7, 2],
+                       "a persisted Dish (2) survives — it is a library look since #1102")
+        XCTAssertEqual(LookBlendMap.sequence(from: "1,6,8,9,4"), LookBlendMap.defaultSequence,
                        "an all-retired sequence falls back to the default")
     }
 
@@ -114,11 +117,11 @@ final class LookBlendMapTests: XCTestCase {
     func testLibrary_isTheCuratedSoundLinkedRoster() {
         // Curation 2026-07-08 ("weniger ist mehr" + "Prism soll weg" + "Cymatics
         // und Lissajous passt nicht zum Vibe"): four calm liquid looks, each
-        // bio/sound-linked, in canonical (ascending) order. Retired: 1 Cymatics,
-        // 2 (Plasma until #1101; the slot now holds the water dish, which gets its own
-        // row WITH its flash-budget row in one commit), 4 Prism, 6 Lissajous, 8 Scope,
+        // bio/sound-linked, in canonical (ascending) order — plus the water DISH at 2
+        // (#1102, the former Plasma slot, founder-asked, budgeted in FlashGuardTests in
+        // the same commit). Retired: 1 Cymatics, 4 Prism, 6 Lissajous, 8 Scope,
         // 9 Fractal (still compiled in the shader, reversible).
-        XCTAssertEqual(LookBlendMap.library.map(\.index), [0, 3, 5, 7])
+        XCTAssertEqual(LookBlendMap.library.map(\.index), [0, 2, 3, 5, 7])
         XCTAssertEqual(LookBlendMap.library.map(\.index), LookBlendMap.library.map(\.index).sorted(),
                        "canonical order stays ascending so toggling() inserts sensibly")
         // The default sequence only uses curated looks.

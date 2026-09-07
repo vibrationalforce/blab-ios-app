@@ -140,7 +140,7 @@ final class FlashGuardTests: XCTestCase {
     ///
     /// ⚠ HONEST LIMITS OF THIS TEST — read before trusting it:
     /// 1. Only the Rings row is tied to the shader (via `ringsPhaseDamping`). The
-    ///    other three multipliers are READ BY HAND from `MetalBioView.swift` and can
+    ///    other multipliers are READ BY HAND from `MetalBioView.swift` and can
     ///    drift if someone edits the Metal source without updating them. A first
     ///    version of this table had three of four rows wrong, so treat the numbers
     ///    as documentation that must be re-derived, not as a proof.
@@ -169,6 +169,13 @@ final class FlashGuardTests: XCTestCase {
             // the shorthand above follows the code so it cannot drift into describing a
             // line that is no longer there.
             ("Water",  0.68, false),                                        // → 1.70 Hz
+            // fieldDish (#1101/#1102, the former Plasma slot): the ONLY phase-bearing term
+            // is `breathe = 0.85 + 0.15·sin(0.4·phase)`; it enters the lens strength `c`
+            // linearly and the caustic (1 − c)/(1 − c·h) is monotone in c at every fixed
+            // h — no product of two phase-bearing factors, no abs(), no square ⇒ 0.40, no
+            // fold. `dishStrength` is the eased music level (tau 0.5 s), not phase-bearing.
+            // Pinned at the shader by `TheWaterDishIsLitLikeTheExperimentTests`.
+            ("Dish",   0.40, false),                                        // → 1.00 Hz
             // fieldAurora: abs(p.y − wave) FOLDS a wave whose fastest term is
             // 1.0·t = 0.35·phase ⇒ 0.70. The curtain is then MULTIPLIED by
             // `breathe` (0.5·phase), adding a 0.70 + 0.50 = 1.20 sideband ⇒ 3.00 Hz.
@@ -220,7 +227,7 @@ final class FlashGuardTests: XCTestCase {
     /// forces someone to touch the table above.
     func testReachableLookSetIsExactlyTheBudgetedOne() {
         XCTAssertEqual(Set(LookBlendMap.library.map(\.name)),
-                       ["Rings", "Water", "Aurora", "Depth"],
+                       ["Rings", "Dish", "Water", "Aurora", "Depth"],
                        "A look was added or removed — re-derive its flash budget in "
                        + "testEveryReachableLookObeysTheThreeHzLaw before changing this.")
     }

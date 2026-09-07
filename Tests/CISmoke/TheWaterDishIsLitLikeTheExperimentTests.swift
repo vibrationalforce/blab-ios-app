@@ -21,9 +21,10 @@
 // not compile (`latticeHexagonality` is new) — nothing here has a parent verdict.
 //
 // ⚠️ WHAT NO TEST HERE CAN SAY: whether it LOOKS like the founder's photo. That is a device
-// probe, and it waits for Slice W3's door (`LookBlendMap.library` row + flash-budget row in one
-// commit). Until then style 2 is unreachable: a persisted 2 is snapped to the sequence's first
-// look on appear, so nothing a user can reach changed in this slice.
+// probe. Slice W3 (#1102) opened the door — `LookBlendMap.library` row "Dish" at index 2 and
+// the `FlashGuardTests` budget row in ONE commit — and claim 7 below pins BOTH from the
+// blocking bundle, because `FlashGuardTests` is non-blocking and auto-merge waits for no
+// gate: an unbudgeted look could otherwise reach `main`.
 
 import Foundation
 import XCTest
@@ -188,6 +189,33 @@ final class TheWaterDishIsLitLikeTheExperimentTests: XCTestCase {
         XCTAssertGreaterThan(h[1], 0.8, "middle C must be mostly hexagonal (measured 0.916)")
         XCTAssertEqual(h[2], 1, accuracy: 1e-9, "880 Hz must be fully hexagonal")
         XCTAssertTrue(h[0] <= h[1] && h[1] <= h[2], "symmetry must not fall with pitch — the measured direction is up")
+    }
+
+    // MARK: - 7 · The door and its budget landed together (#1102)
+
+    func testTheDishHasALibraryRowAndABudgetRowInTheNonBlockingTable() throws {
+        XCTAssertTrue(LookBlendMap.library.contains { $0.index == 2 && $0.name == "Dish" }, """
+            `LookBlendMap.library` has no (2, "Dish") row. The water dish is then unreachable             again (a persisted 2 is snapped away on appear). If the look was retired on purpose,             retire its `FlashGuardTests` row, its website sentence and this claim together.
+            """)
+        XCTAssertFalse(LookBlendMap.defaultSequence.contains(2), """
+            the dish entered `defaultSequence`. #1102 deliberately kept it OUT (like Rings): the             founder toggles it in from the look row, and nobody else's slider lengthens.             Changing that is allowed — it is a product call, make it on purpose and say so here.
+            """)
+        // The non-blocking budget table must carry the row; a blocking pin is what makes a
+        // silently dropped row visible, since `Tests/EchoelmusicTests` red costs nothing (#208).
+        let table = try String(contentsOfFile: repoRoot()
+            .appendingPathComponent("Tests/EchoelmusicTests/FlashGuardTests.swift").path, encoding: .utf8)
+        let code = SourceText.codeOnly(table)
+        XCTAssertTrue(code.contains("(\"Dish\",   0.40, false)"), """
+            `FlashGuardTests.testEveryReachableLookObeysTheThreeHzLaw` lost its Dish row             `("Dish",   0.40, false)`. The multiplier is derived from the shader's single phase             term (claim 4 here); if that term changed, re-derive the row — do not delete it.
+            """)
+        XCTAssertTrue(code.contains("[\"Rings\", \"Dish\", \"Water\", \"Aurora\", \"Depth\"]"), """
+            `FlashGuardTests.testReachableLookSetIsExactlyTheBudgetedOne` no longer names Dish             in the reachable set — the non-blocking suite would go red and nobody would see it.
+            """)
+        // And the budget itself, computed by the shipped law: 0.4 × the 2.5 Hz ceiling = 1.00 Hz.
+        let hz = FlashGuard.effectiveFieldHz(phaseRateHz: FlashGuard.maxPulseRateHz,
+                                             phaseMultiplier: 0.4, folds: false)
+        XCTAssertEqual(hz, 1.0, accuracy: 1e-9, "the dish's field rate is \(hz) Hz; derived 1.00 Hz")
+        XCTAssertLessThanOrEqual(hz, FlashGuard.maxFlashHz, "the dish flashes at \(hz) Hz — over the WCAG law")
     }
 
     private func occurrences(of needle: String, in text: String) -> Int {
