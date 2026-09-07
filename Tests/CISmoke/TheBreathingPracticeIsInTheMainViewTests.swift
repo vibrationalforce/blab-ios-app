@@ -319,11 +319,23 @@ final class TheBreathingPracticeIsInTheMainViewTests: XCTestCase {
         stopped — the normal state for a breathing session — every other term is false, so \
         iOS dims and locks the screen while the user is following the circle.
         """)
-        XCTAssertTrue(studio.contains(".onChange(of: showMeditation || breathPacer.isRunning)"), """
-        the keep-awake trigger changed shape. It must stay ONE modifier covering BOTH flags: \
-        splitting it into two regrows the root body's modifier chain for no behaviour \
-        (10.76.34), and dropping `showMeditation` un-wires an unreachable surface silently \
-        instead of leaving it ready for a re-door.
+        // ⭐ #1044 WIDENED THIS LITERAL, and this is the §4 case in the flesh: the slice that
+        // added the external-screen term had to move THIS needle in the SAME commit, or a
+        // guard over correct code would have hit `XCTAssertTrue(false)` and stayed red while
+        // three status deltas said nothing of mine is red (#655/#656, #960).
+        //
+        // The needle is deliberately still the WHOLE expression rather than a substring: what
+        // it protects is that there is ONE modifier, and a substring check would stay green
+        // after someone split it into three. The claim it makes is therefore now "all THREE
+        // flags share one trigger", and a fourth flag moves this line again — on purpose.
+        XCTAssertTrue(studio.contains(
+            ".onChange(of: showMeditation || breathPacer.isRunning || isProjectingExternally)"), """
+        the keep-awake trigger changed shape. It must stay ONE modifier covering ALL THREE \
+        flags: splitting it up regrows the root body's modifier chain for no behaviour \
+        (10.76.34); dropping `showMeditation` un-wires an unreachable surface silently \
+        instead of leaving it ready for a re-door; and dropping `isProjectingExternally` \
+        leaves #1044's term in `updateKeepAwake()` correct but never re-read, because this \
+        expression is the only thing that observes the bridge.
         """)
     }
 

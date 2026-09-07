@@ -1498,13 +1498,20 @@ struct EchoelStudioView: View {
                 floatingVisualVisible = floatingWasVisible
             }
         }
-        // ONE modifier for both keep-awake flags, deliberately — the chain does not grow
+        // ONE modifier for ALL THREE keep-awake flags, deliberately — the chain does not grow
         // (#486). `showMeditation` alone was dead weight (no setter anywhere); OR-ing the
         // reachable flag in keeps the unreachable one wired for the day it is re-doored,
         // instead of silently dropping it. `isRunning` flips twice per session, so reading
         // it in `body` is nowhere near the 10.76.41/50 freeze law — it is `pacer.guidance`
         // that is ~30 Hz, and that read stays inside `BreathCoachStrip`.
-        .onChange(of: showMeditation || breathPacer.isRunning) { _, _ in updateKeepAwake() }
+        //
+        // ⭐ #1044 added the THIRD term rather than a fourth `.onChange`, for the reason the
+        // line above already gives: this expression is what RE-ARMS the flag, and an external
+        // screen can connect at any moment (`ExternalDisplayScene` calls `setConnected(true)`
+        // from UIKit, nowhere near a SwiftUI update). `isConnected` is `@Observable`, so
+        // naming it here is what makes `body` re-evaluate on connect — without it the new
+        // term in `updateKeepAwake()` would be correct and never re-read.
+        .onChange(of: showMeditation || breathPacer.isRunning || isProjectingExternally) { _, _ in updateKeepAwake() }
         .onDisappear { stopEverything(reason: "unmount"); disableKeepAwake() }
         // Sheet/cover contents are AnyView-erased too — same reason as the scroll
         // content above: keep the root view's aggregate generic type shallow so the
@@ -6125,8 +6132,43 @@ struct EchoelStudioView: View {
         // `BreathCoachStrip` is the reachable one, and a training session with the transport
         // STOPPED is exactly the case where nothing else here is true: the screen would dim
         // and lock mid-session. Read in a method, not in `body`, so nothing is observed here.
+        // ⚠️ #1044 MADE THAT SENTENCE HALF-TRUE ON PURPOSE, and says so rather than leaving a
+        // claim its own slice refutes (#425): the fourth term below IS observed in `body`, in
+        // the `.onChange` expression, because an external screen connects from UIKit and no
+        // method call would ever notice. The sentence still holds for the three flags it was
+        // written about; the projecting one is the deliberate exception, and it is cold.
+        //
+        // ⭐ #1044 — `isProjectingExternally` IS THE "PROJECTING" HALF THIS METHOD'S OWN DOC
+        // COMMENT PROMISED AND NEVER HAD. Every other term describes the PHONE being looked
+        // at; when the picture is on a beamer or a TV the phone is face-down in a pocket, so
+        // every term is false, iOS locks it — and locking tears down the app's foreground
+        // scene, which is where the one `MetalBioView` that feeds the external screen lives.
+        // The projection dies mid-performance, and the founder's ask for this route was
+        // explicitly *"es soll trotzdem vom iPhone aus spielbar sein"*.
+        //
+        // No battery regression: unlike the floating window's fullscreen (which the app
+        // COLD-LAUNCHES into, so it is the default state and would mean "always awake"),
+        // connecting a screen is a deliberate act with an obvious end — unplug it and the
+        // next `body` evaluation puts the phone back to sleeping normally.
         UIApplication.shared.isIdleTimerDisabled =
             running || showVisual || showMeditation || breathPacer.isRunning
+            || isProjectingExternally
+        #endif
+    }
+
+    /// Is the visual currently on an EXTERNAL screen? Wrapped because `ExternalStageBridge`
+    /// exists only under UIKit while this file compiles wherever SwiftUI does — the body
+    /// must be able to name this on every platform, and off UIKit there is no external
+    /// display scene to be connected to.
+    ///
+    /// Reading it in `body` is safe and the bridge says so itself: `isConnected` flips on a
+    /// cable/AirPlay connect, seconds apart at worst, never at frame or bio rate. That is
+    /// what makes it legal here at all — the 10.76.41/50 law bans a RATE, not a read.
+    private var isProjectingExternally: Bool {
+        #if canImport(UIKit)
+        return ExternalStageBridge.shared.isConnected
+        #else
+        return false
         #endif
     }
 

@@ -19,7 +19,8 @@
 //  startup task, and read only by the external scene. It is NOT a general service
 //  locator — do not add a fourth thing here because it is convenient. Every phone-side
 //  view keeps using `@Environment`: no phone-side view reads `bus`/`governor`/`recorder`,
-//  the phone reads ONLY `isConnected` (`FloatingVisualWindow`, to yield the GPU). An
+//  the phone reads ONLY `isConnected` — `FloatingVisualWindow` to yield the GPU, and since
+//  #1044 `EchoelStudioView` to hold the screen awake while the beamer has the picture. An
 //  earlier version of this line claimed "nothing on the phone path reads this type at
 //  all" — false, and it was the dangerous kind of false: it is the sentence a future
 //  session would read as permission to change `isConnected` freely.
