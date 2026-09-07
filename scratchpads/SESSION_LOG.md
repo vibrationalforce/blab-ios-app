@@ -25325,3 +25325,48 @@ rendert roh" sagte. dead-needles OK (452). count-pins 0 RED. Commit `c957410a`.
 **NICHT geräteverifiziert — und diesmal ist das keine Formalie:** der ganze Pfad ist ohne
 Projektor unsichtbar. Und die Frage bleibt beim Founder: SOLL der Beamer die Tönung tragen?
 Das Ausschalten ist der vorhandene Wetter-Schalter, keine Codeänderung.
+
+## #1075 — Weißabgleich mit der Belichtung sperren (schließt den Deep-Research-Punkt)
+
+**Der Board-Punkt „Deep Research" ist damit HANDELND geschlossen, nicht nochmal abgelegt.**
+Der Sweep vom 2026-09-06 hatte genau einen unaufgegriffenen, gemessenen Kandidaten:
+`git grep -c whiteBalance -- Sources` → **0**, während die Belichtung seit 2026-06-23
+gesperrt wird. Heute vor dem Anfassen nachgemessen: immer noch null.
+
+**Warum das ein Bio-Defekt ist, keine Kamera-Vorliebe:** rPPG liest das ROT/GRÜN-Verhältnis.
+Ein driftender Automatik-Weißabgleich skaliert genau diese zwei Kanäle gegeneinander — er
+schreibt also einen langsamen Trend direkt in das Signal, das der Puls-Schätzer lesen will.
+
+**In das VORHANDENE Paar gefaltet, nicht als eigenes Paar.** `lockExposure()` hat EINEN
+Aufrufer, `unlockExposure()` FÜNF. Ein eigenes `lockWhiteBalance()`/`unlockWhiteBalance()`
+müsste sich in allen sechs an seinen Partner erinnern — und die Zeit-Lehre neu lernen: die
+vorhandene Sperre feuert erst, wenn der Finger die Linse wirklich abdeckt, also genau dann,
+wenn die einzufrierenden Werte die des echten Fingerbilds sind.
+
+**⭐ Eine echte Falle im Vorbeigehen entschärft:** `unlockExposure()` trug
+`isExposureModeSupported(.continuousAutoExposure)` als GUARD-Bedingung — auf einem Gerät
+ohne diesen Modus kehrte die Methode zurück, ohne irgendetwas wiederherzustellen. Harmlos,
+solange sie nur die Belichtung anfasste; in dem Moment, in dem der Weißabgleich dazukam,
+hätte ein nicht unterstützter Modus den ANDEREN gesperrt gelassen — eine festsitzende
+photometrische Einstellung, die kein Bedienelement löst (#939er Defektklasse).
+
+**Wächter:** `TheWhiteBalanceIsLockedWithTheExposureTests` (4 Ansprüche / 9 Behauptungen,
+transkribiert GRÜN). Anspruch 3 ist das #367-Gegengewicht und nennt eine PRÄMISSE statt ein
+Design festzuschreiben: Farbwerte einzufrieren ist nur deshalb gratis, weil diese
+Capture-Session allein rPPG speist (gemessen: EINE Konstruktionsstelle).
+
+**⛔ ZWEI WERKZEUG-LEHREN AUS MEINER EIGENEN TRANSKRIPTION:**
+1. Der erste Lauf meldete Anspruch 1 ROT. **Der Swift-Code war richtig, meine Transkription
+   nicht.** `codeOnly` bleicht Kommentare AN ORT UND STELLE, `codeWindow` ÜBERSPRINGT
+   Leerzeilen und zählt CODE-Zeilen — ich hatte rohe Quellzeilen geschnitten, also fraß ein
+   23-Zeilen-Doc-Block das Budget. Die eigene Doku sagt es („JOINS non-adjacent code lines");
+   ich hatte sie vor dem Transkribieren nicht gelesen.
+2. Die Reparatur legte den GEGENTEILIGEN Fehler frei: ein 40-Zeilen-Budget lief neunzehn
+   Zeilen in `unlockExposure()` — #899s falsch-grüner Spielraum, heute harmlos (keine Nadel
+   kann dort treffen) und still. Budget jetzt die gemessenen 21, plus eine Behauptung, die
+   die Grenze prüft, damit der nächste Leser es GESAGT bekommt statt geglaubt.
+
+dead-needles OK (453). count-pins 0 RED. Commit `a539ed99`.
+**NEEDS-FOUNDER-VERIFY:** Finger auf der Linse mit Licht — lockt der Puls so schnell wie
+vorher, und HÄLT er länger ohne wegzudriften? Eine Regression sähe aus wie ein Lock, der nie
+kommt (dann waren die eingefrorenen Werte für die Szene falsch).
