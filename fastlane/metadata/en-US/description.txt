@@ -21,11 +21,12 @@ CREATE
 
 - Bio-reactive additive synthesis engine (DDSP) — vDSP-accelerated, no external dependencies
 - Design and save your own patches
-- Your voice becomes the instrument's timbre: hold a tone and Echoel measures its spectral envelope — about 64 numbers, no audio recorded and none stored. A saved patch can carry that envelope under a name you give it
+- Your voice becomes the instrument's timbre: hold a tone and Echoel measures its spectral envelope — about 64 numbers, no audio recorded and none stored — a saved patch can keep it
 - Composition: pick a genre and a key; your body generates in-key material you shape with the sound and character controls
 - Concert pitch (A4 / Kammerton) set exactly to the cent; lock a BPM for tight loops or stay sync-free
 - Effects: reverb, delay, chorus, flanger, phaser, tremolo, saturation, harmonizer and more
 - Immersive visual: the notes you play become colour in real time — each tone's frequency transposed by whole octaves into visible light — reacting to the music and your body
+- Record the visual as it plays: it lands in your photo library as an MP4 with the music on it (at most the last 30 s of sound)
 - Retroactive capture: keep the loop you just played
 - Export the loop you just made as audio (WAV) or as MIDI (.mid) for your DAW — the MIDI file carries tempo, 4/4 and the key signature, and spans whole bars
 
@@ -44,7 +45,7 @@ PRIVACY
 
 Your biometrics stay on your device. There are no accounts, no ads, no tracking and no analytics, and the app talks to no server of ours.
 
-Four things send bio values outward, each only after you switch it on, and each only on your own local network: OSC output, ADM-OSC object output, Art-Net or sACN light output (heart rate, HRV, breath and coherence become DMX values), and sharing a live session with a nearby device. You can additionally opt in to writing heart rate and respiratory rate into Apple Health. What you create is yours.
+Four things send bio values outward, each only after you switch it on, and each only on your own local network: OSC output, ADM-OSC object output, Art-Net or sACN light output (heart rate, HRV, breath and coherence become DMX values), and sharing a live session with a nearby device. You can additionally opt in to writing heart rate and respiratory rate into Apple Health. Two optional extras use your location, both off by default: the place in a session name, and local weather (Apple Weather) shaping the music. Coordinates are never stored. What you create is yours.
 
 
 ACCESSIBILITY
