@@ -7,9 +7,28 @@
 // watcher listens app-wide (it lives with the studio, the home surface), and on a
 // `.newDeviceAvailable` route change asks the pure brain (`PlugInInvitation`)
 // whether the new port is a deliberate plug (wired/USB — never Bluetooth). If so it
-// exposes the port's display name; the leaf row below renders the invitation whose
-// TAP opens the EXISTING input sheet (`showInput` — slot reuse, no new modal).
+// exposes the port's display name.
 //
+// ⛔ AND NOBODY RENDERS THAT NAME ANY MORE (#1024, 2026-09-06, founder order:
+// "das mit dem Audio Input Monitoren klappt immer noch nicht also fliegt das raus").
+// This block used to end "…the leaf row below renders the invitation whose TAP opens
+// the EXISTING input sheet (`showInput` — slot reuse, no new modal)". Measured today:
+// zero construction sites for `PlugInInviteRow` and zero setters for `showInput`:
+//     git grep -n 'PlugInInviteRow(' -- Sources | grep -v ': *//'
+//     git grep -n 'showInput = true'  -- Sources | grep -v ': *//'
+// (only the declaration at the bottom of this file remains, and it is never called). The
+// watcher still listens, still classifies, still publishes `invitePortName` — and the
+// value reaches no screen. **BUILT, WIRED, DOORLESS**, exactly the category
+// `CLAUDE.md`'s register keeps for this.
+//
+// KEPT ON PURPOSE, not overlooked: re-dooring is three call sites, not a rebuild, and
+// `PlugInInvitation` carries the two red lines (#277 no auto-arm, #299 no category
+// upgrade) that any future invitation must not cross. Deleting it would delete those.//
+// ⚠️ THE RECIPE EXCLUDES COMMENTS ON PURPOSE, and that is not fussiness: a plain
+// `git grep` counts the very sentence you are reading, so a note that quotes its own
+// needle falsifies itself the moment it is written (the `EchoelModalBank` lesson in
+// `CLAUDE.md`, which says a comment quoting a grep ages faster than one stating a fact).
+
 // WHAT THIS DELIBERATELY DOES NOT DO (the #299/#277 lines, both already paid for):
 // no auto-arm — plugging in never starts the mic or monitoring by itself; and no
 // category read-back or upgrade — the decision uses only what the route change
@@ -19,8 +38,9 @@
 //
 // Freeze-law shape (10.76.41/50): `invitePortName` changes only on plug/unplug —
 // a handful of times per session, nothing like the 10 Hz bio rate — but the reads
-// still sit in their own leaf (`PlugInInviteRow`), so the studio body never
-// observes this object. The notification arrives on the main queue; the hop into
+// still sat in their own leaf (`PlugInInviteRow`) — past tense since #1024 removed
+// the mount; the shape is recorded because it is the shape a re-door must restore, and
+// because the studio body must go on never observing this object. The notification arrives on the main queue; the hop into
 // the actor is one Task per PLUG EVENT, not per buffer/frame (the 10.76.48 ban
 // targets per-frame hops from 30 fps sources).
 

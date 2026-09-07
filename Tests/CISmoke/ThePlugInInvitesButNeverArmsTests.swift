@@ -4,8 +4,13 @@
 // WHAT THIS GUARDS. The founder's "automatische Erkennung" ships as an INVITATION,
 // never an auto-arm: `PlugInInvitation` (pure brain) decides which freshly plugged
 // port deserves a line, `RoutePlugInWatcher` listens app-wide and exposes the name,
-// and the `PlugInInviteRow` leaf in the transport column renders it — its tap opens
-// the EXISTING `showInput` sheet (slot reuse). The two red lines this must never
+// and the `PlugInInviteRow` leaf in the transport column USED TO render it — its tap
+// opened the EXISTING `showInput` sheet (slot reuse). ⛔ #1024 removed that mount on
+// the founder's order, and test 7 below was inverted to assert its ABSENCE. This
+// header kept describing the mount for a cycle afterwards, which is the #456 shape in
+// its cheapest form: the assertions moved and the sentence above them did not, so a
+// reader of the file's first paragraph learns the opposite of what it enforces.
+// The two red lines this must never
 // cross, both already paid for: no auto-arm (#277 — nothing listens until the user
 // asks) and no category read-back/upgrade on plug-in (#299 — upgrading drags other
 // apps' Bluetooth audio to HFP).

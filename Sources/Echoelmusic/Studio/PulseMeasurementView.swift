@@ -8,7 +8,12 @@
 //  ⛔ THIS LINE SAID "shown above the controls while a take is playing" AND THAT HAS NOT BEEN
 //  TRUE SINCE THE TOOLS-GRID REMOVAL (2026-07-02). Measured, not assumed:
 //  `git grep -n 'PulseMeasurementView(' -- Sources` returns exactly ONE construction site,
-//  `BioSourceView.swift`; `git grep -n 'BioSourceView(' -- Sources` returns ZERO. The chain
+//  `BioSourceView.swift`; that parent has ZERO construction sites of its own. ⚠️ This line
+//  used to prove that with a bare `git grep -n 'BioSourceView(' -- Sources`, and by 2026-09-07
+//  the command returned TWO hits — this comment and one in `BioSourceView.swift` itself, both
+//  of them prose. A recipe that counts its own sentence cannot stay true; drop comment lines:
+//      git grep -n 'BioSourceView(' -- Sources | grep -v ': *//'
+//  The chain
 //  terminates one hop up. Nothing in the app mounts this view, during a take or otherwise.
 //
 //  ⭐ WHY THAT SENTENCE WAS THE EXPENSIVE KIND OF STALE, rather than a tidy-up: it is a claim

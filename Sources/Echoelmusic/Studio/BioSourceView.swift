@@ -3,8 +3,25 @@ import SwiftUI
 
 // BioSourceView.swift
 // Echoel — the Bio SOURCE page. Biofeedback's "good place": the body as ONE
-// modulation source among many (Arrange · Clips · Compose · Mix · Bio), NOT the
-// app's always-on center. Arming the source starts the camera pulse publishing to
+// modulation source among many, NOT the app's always-on center.
+//
+// ⛔ THIS LINE LISTED "(Arrange · Clips · Compose · Mix · Bio)" AS IF IT WERE A MENU.
+// That was the six-surface bottom bar, removed from navigation on 2026-07-02, and four
+// of those surfaces are DELETED FILES (`ClipView` and `ArrangeTimelineView` with #121
+// Slice 4, `BrowserView` and `ChannelRackView` with #167). Naming them is worse than
+// naming nothing: a session reading this header plans a lane next to screens it cannot
+// open and cannot restore without writing them.
+//
+// ⛔ AND THIS VIEW ITSELF HAS NO DOOR — zero construction sites:
+//     git grep -n 'BioSourceView(' -- Sources | grep -v ': *//'
+// It is in `CLAUDE.md`'s doorless register on purpose (it is the last survivor of those
+// six as a FILE), and `BreathGuideView` sits one hop below it — unreachable through
+// this unreachable parent, which is why the register has its own entry for that.
+// Whoever re-doors this re-doors both.//
+// ⚠️ THE RECIPE EXCLUDES COMMENTS ON PURPOSE, and that is not fussiness: a plain
+// `git grep` counts the very sentence you are reading, so a note that quotes its own
+// needle falsifies itself the moment it is written (the `EchoelModalBank` lesson in
+// `CLAUDE.md`, which says a comment quoting a grep ages faster than one stating a fact). Arming the source starts the camera pulse publishing to
 // the EngineBus, which the synth timbre, the immersive visual, and the brainwave
 // entrainment all ride. You HEAR the body once you PLAY the instrument (Compose /
 // transport) — so Bio is the source/lane you configure, not a self-contained
