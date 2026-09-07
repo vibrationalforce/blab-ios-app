@@ -650,14 +650,41 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         commandQueue = device.makeCommandQueue()
         // Compile the shader at runtime; on failure leave `pipeline` nil → the draw
         // loop falls back to a calm clear-colour pulse (never a crash).
-        guard let library = try? device.makeLibrary(source: Self.shaderSource, options: nil),
-              let vfn = library.makeFunction(name: "echoel_bio_vertex"),
-              let ffn = library.makeFunction(name: "echoel_bio_fragment") else { return }
+        //
+        // ⛔ AND THAT FALLBACK WAS SILENT, WHICH IS THE ONE THING IT MUST NOT BE (#1055).
+        // The MSL below lives in a Swift string, so NO CI gate can see a syntax error in it
+        // — `Xcode Compile Check` builds `Sources/` and this text is data to that build. The
+        // only report was the picture going flat, with an empty `echoel_diag.log` beside it:
+        // indistinguishable from "the visual is just calm today". Every path out of here now
+        // leaves a rung, VOR its step where the step can die, per the lifecycle-ladder law —
+        // silence between two rungs is a finding, and there were no rungs at all.
+        //
+        // ⚠️ `makeLibrary` is the only one whose message is worth carrying: it is the one
+        // that fails on an edit to the shader text, and its `localizedDescription` names the
+        // MSL line. The other two are structural (a renamed entry point) and say so by name.
+        EchoelCrashLog.breadcrumb("visual: compiling shader")
+        let library: MTLLibrary
+        do {
+            library = try device.makeLibrary(source: Self.shaderSource, options: nil)
+        } catch {
+            EchoelCrashLog.breadcrumb(
+                "visual: SHADER COMPILE FAILED — flat pulse only: \(error.localizedDescription)")
+            return
+        }
+        guard let vfn = library.makeFunction(name: "echoel_bio_vertex"),
+              let ffn = library.makeFunction(name: "echoel_bio_fragment") else {
+            EchoelCrashLog.breadcrumb(
+                "visual: shader compiled but an entry point is missing — flat pulse only")
+            return
+        }
         let desc = MTLRenderPipelineDescriptor()
         desc.vertexFunction = vfn
         desc.fragmentFunction = ffn
         desc.colorAttachments[0].pixelFormat = .bgra8Unorm_srgb   // must match the view (B9b)
         pipeline = try? device.makeRenderPipelineState(descriptor: desc)
+        EchoelCrashLog.breadcrumb(
+            pipeline == nil ? "visual: pipeline state FAILED — flat pulse only"
+                            : "visual: shader ready")
     }
 
     func update(hr: Float, coherence: Float, breath: Float, toneHz: Double,
@@ -1380,7 +1407,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float3 rgb = float3(y + 0.956 * i2 + 0.621 * q2,
                             y - 0.272 * i2 - 0.647 * q2,
                             y - 1.106 * i2 + 1.703 * q2);
-        rgb = max(rgb, 0.0);
+        rgb = max(rgb, float3(0.0));
         float m = max(rgb.r, max(rgb.g, rgb.b));
         return (m > 1.0) ? rgb / m : rgb;
     }
