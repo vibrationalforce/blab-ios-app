@@ -24828,3 +24828,52 @@ Swift-String ist für beide Gates Daten — genau der #1055-Befund). Das Swift d
 Ein Shader-Fehler meldet sich seit #1055 als `visual: SHADER COMPILE FAILED` im Diag-Log.
 
 **Gate gelesen:** `Xcode Compile Check` = **success** auf `bf65034c` (#1058).
+
+## #1060 — Eine b-Tonart wurde überall mit Kreuzen geschrieben (2026-09-07)
+
+**Befund.** `NoteNaming` hatte genau EINE Spalte je System, und jede schrieb die alterierten
+Stufen mit ♯. In F-Dur ist die siebte Stufe B♭ — das Spiel-Gitter druckte „A♯": die richtige
+TONHÖHE unter dem falschen NAMEN, auf der Fläche, wo die Spalte der Ton IST. Betroffen war jede
+b-Tonart (Es-, B-, As-, Des-Dur; d-, g-, c-, f-Moll) und zusätzlich die lesbare Beschriftung des
+Tonart-Wählers selbst: „A♯ Minor" für das, was ein Musiker b-Moll nennt — zwei Bedienelemente
+neben einem Gitter, das denselben Fehler machte.
+
+**Die Regel ist HERGELEITET, keine Geschmacksliste**, und sie hat einen Schritt, den man leicht
+überspringt. `MusicalKey.prefersFlatSpelling` nimmt die Vorzeichen aus dem Quintenzirkel: die
+fünf b-Dur-Tonika sind F, B♭, Es, As, Des (Tonklassen 5, 10, 3, 8, 1) — und eine MOLL-Tonalität
+borgt die Vorzeichen ihrer Paralleltonart eine kleine Terz HÖHER. Ohne diesen zweiten Schritt ist
+die Regel für Dur richtig und für genau die Moll-Tonarten falsch, in denen dieses Instrument die
+meiste Zeit spielt (`MusicalKey`s Default-Skala ist `.minor`). Durchgerechnet: d-Moll → F-Dur →
+b-Vorzeichen (sein einziges Vorzeichen IST B♭) · g-Moll → B♭ · c-Moll → Es · a-Moll → C → Kreuze.
+
+Tonklasse 6 ist das enharmonische Patt und bleibt auf der Kreuz-Seite: Fis-Dur (sechs Kreuze) und
+Ges-Dur (sechs Be) sind gleichermaßen richtig, es gibt keine Vorzeichen-Antwort, nur eine
+Konvention. Sie steht an der Deklaration und ist gepinnt — sonst liest sie sich später wie ein
+Versehen.
+
+**Drei b-Spalten, und die deutsche bewegt sich an VIER Stellen, nicht fünf.** „B" ist im
+Deutschen bereits B♭; eine mechanisch aus der englischen abgeleitete Spalte hätte dort „B♭"
+erzeugt und das B/H-Paar zerstört, das dieses Repo schon einmal repariert hat.
+
+**Sargam bekommt KEINE b-Spalte, absichtlich.** Seine Tabelle enthält bereits ♭ — verlockend, das
+als „schon die b-Seite" zu lesen. Ist es nicht: `Re♭` ist dort komal Re, eine STUFE des Rāga,
+keine enharmonische Schreibentscheidung. Eine zweite Sargam-Spalte wäre westliche Grammatik über
+einem System, das die Frage nicht stellt.
+
+**Wächter.** `Tests/CISmoke/AFlatKeyIsSpelledWithFlatsTests` — vierzehn Behauptungs-Anweisungen
+in fünf Ansprüchen (2 · 7 · 1 · 1 · 3), mehrere davon Schleifen, zusammen **85 konkrete Fälle**
+(15 Tonarten · 7 Schreibweisen · 12 Sargam-Tonklassen · 48 gesprochene Namen · 3 Aufrufstellen).
+Gefahren: 85/85 grün heute. Auf dem Vor-Scheiben-Baum ist nur Anspruch 5 überhaupt benotbar — der
+Rest würde nicht KOMPILIEREN — und dort sind alle drei ROT.
+
+Anspruch 4 ist der, der die stille Hälfte gefangen hätte: `spokenName` expandiert nur ♯ und ♭,
+ein neues Vorzeichen in einer neuen Tabelle erreicht VoiceOver also als nichts — unsichtbar für
+alle, die das Label sehen können.
+
+**Gate gelesen:** `Xcode Compile Check` = **success** auf `1fbe6483` (#1059).
+
+⭐ **Werkzeug-Fund, im Ledger festgehalten:** `list_workflow_runs` mit
+`resource_id="xcode-compile-check.yml"` UND `{"status":"completed"}` (OHNE Branch-Filter) liefert
+FRISCHE Läufe — zwei Einträge statt fünf, also rund ein Fünftel der Antwortgröße. Damit sind zwei
+frische und zwei alte Filter-Kombinationen gemessen; der gemeinsame Nenner der alten bleibt
+unbekannt, deshalb steht dort weiterhin ein Rezept und keine Theorie.

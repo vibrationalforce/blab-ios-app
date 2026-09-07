@@ -3402,6 +3402,33 @@ die einzige Prüfung, die alle drei Varianten unterscheidet, und sie kostet nich
 Eintrag, und ein Lauf pro Workflow bedeutet fünf Einträge für EINEN Push. `perPage` klein halten
 und über den Status filtern, nicht über den Workflow.
 
+⭐ **EINE VIERTE KOMBINATION IST FRISCH UND KOSTET EIN FÜNFTEL — gemessen 2026-09-07 (#1060),
+EINE Beobachtung, deshalb als solche gekennzeichnet:**
+
+```
+mcp__github__actions_list   method=list_workflow_runs
+                            resource_id="xcode-compile-check.yml"
+                            perPage=2
+                            workflow_runs_filter={"status": "completed"}     # KEIN branch
+  -> Lauf 2412 = HEUTE, head_sha = eigener Commit; Lauf 2411 = der Commit davor
+```
+
+Damit ist der Schuldige noch enger eingekreist, und die Formulierung oben („der Schuldige ist
+nicht `resource_id`") wird BESTÄTIGT statt korrigiert: `resource_id` allein mit `status` ist
+frisch, `resource_id` MIT `branch` ist alt. Gemessen sind jetzt zwei frische Kombinationen
+(`branch`+`status`; `resource_id`+`status`) und zwei alte (`resource_id`+`branch`; `event`
+allein). Der gemeinsame Nenner der beiden alten ist bislang unbekannt — es steht weiterhin das
+REZEPT und keine Theorie.
+
+**Wann welche nehmen:** braucht man EIN bestimmtes Gate (fast immer: `Xcode Compile Check`),
+nimm die neue Form — zwei Einträge statt fünf, also ~8 KB statt ~20 KB, und der gesuchte Lauf
+steht an Position 1. Braucht man ALLE Workflows eines Pushes, bleibt Schritt 1 oben.
+
+⚠️ Diese Form filtert NICHT auf den Branch. Bei genau einem pushenden Konto ist der neueste Lauf
+der eigene — sonst nicht. **Der `head_sha`-Abgleich gegen `git rev-parse HEAD` ist hier keine
+Vorsichtsmaßnahme mehr, sondern der einzige Beleg**, dass der Lauf überhaupt zum eigenen Commit
+gehört.
+
 ## PLAYBOOK #1047b (2026-09-07) — schnell hintereinander pushen KILLT das Compile-Gate des Zwischen-Commits
 
 Gemessen an `d6590529`: `Xcode Compile Check` Job-Conclusion **`cancelled`**, Schritt
