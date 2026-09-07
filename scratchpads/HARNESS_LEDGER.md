@@ -3493,3 +3493,30 @@ Testing` grün beweist, ist ausschließlich: der Wächter KOMPILIERT.
 Sie wäre klein — den Log-Schritt von `tail -200` auf einen gefilterten Auszug umstellen, oder
 `gh-test-verdict.py` gegen ein vollständigeres Artefakt laufen lassen. Das gehört ihm, nicht
 mir. #208 ist derselbe Bereich und steht seit Wochen offen.
+
+## PLAYBOOK #1087 (2026-09-07) — ein Schwarm-Befund „gibt es nicht" wird mit `grep -i` nachgemessen, BEVOR man ihn in den Commit-Text schreibt
+
+Der Release-Schwarm (`wf_98567780-445`) behauptete, `fastlane/metadata/de-DE/release_notes.txt`
+habe KEINEN deutschen Zwilling der Drum-Zeile („I grepped both files for `drum|Schlagzeug` and
+only en-US:7 matches"). Ein `grep -n -i "drum\|schlagzeug"` fand ihn auf de-DE:7 — die Zeile
+schreibt „schlagzeugfrei" klein und „Drum-Engine" groß. Der Schwarm hatte case-sensitiv gesucht
+und die Abwesenheit als Tatsache verkauft; ich hatte sie schon in die Commit-Botschaft
+übernommen und musste amendieren.
+
+**Regel:** eine NEGATIVE Behauptung eines Agenten („es gibt keinen …") kostet einen eigenen
+`grep -i` vor dem Commit — sie ist die #445-Form auf Text: Abwesenheit im Suchergebnis beweist
+nur, dass DIESE Nadel nicht traf. Dieselbe Runde hatte einen zweiten Fall: der Schwarm sah die
+Checklisten-Zeile „HealthKit read-only" nicht, obwohl `Bio/HealthKitWriter.swift` schreibt.
+
+## PLAYBOOK #1084 (2026-09-07) — Store-Text: Zeichen mit Python `len()` messen, NACH jeder Ergänzung, in BEIDEN Sprachen
+
+Drei deutsche Ergänzungen (Visual-Zeile, MP4-Zeile, Atem-Zusatz) brachten de-DE von 3806 auf
+4216 Zeichen — Apples Deckel ist 4000, und `wc -c` hätte wegen der Umlaute noch mehr gezeigt.
+Gekürzt wurde durch UMFORMULIEREN (kein Claim gestrichen), dreimal nachgemessen, Endstand 3998.
+
+**Regel:** (1) `python3 -c "print(len(open(p,encoding='utf-8').read()))"` nach JEDER Änderung,
+nie `wc -c`; (2) Deutsch ist ~10 % länger als Englisch bei gleichem Inhalt — wer Englisch bei
+3977 hat, hat auf Deutsch keinen Spielraum; (3) vor dem Kürzen die neun Store-Wächter in Python
+transkribieren (Nadeln: `TheStoreTextClaimsOnlyWhatShipsTests` Claims 1–6,
+`ThePictureIsSoldAsPlayableTests` „berühre das visual", Privacy-Outputs-auch-verkauft) — eine
+Kürzung, die eine Nadel trifft, ist ein rotes Gate zwei Stunden später.

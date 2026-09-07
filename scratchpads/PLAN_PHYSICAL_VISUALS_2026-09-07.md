@@ -106,6 +106,19 @@ founder-gated.
 
 ### Scheibe 4 — Split the geometry claim from the colour claim wherever the app or the site makes one
 
+> ⛔ **NACHGEMESSEN 2026-09-07 (#1090): BEREITS WAHR, nicht zu bauen.** `LightScienceInfo.swift:65`
+> trägt die Trennung seit jeher wörtlich („The transposition is exact mathematics and an artistic
+> convention: sound and light are different physical phenomena, so no health or cosmic effect is
+> implied"). Beide Store-Beschreibungen sagen „transposed by whole octaves" / „oktavweise
+> transponiert" ohne Mechanismus-Behauptung. Der einzige „cosmic octave"-Treffer im Repo ist
+> `docs/version.json:38`, ein CHANGELOG-Eintrag (v10.19.0) unter der Zeile „HISTORY NOTE … entries
+> below this line are a historical record"; die Seiten lesen aus dieser Datei nur `d.version`
+> (Cache-Bust), nichts rendert die Liste. Geschichte wird nicht umgeschrieben. Der vorgeschlagene
+> Wächter `TheColourClaimNamesItsConventionTests` existiert nicht und wird nicht angelegt: ein
+> Negativ-Scan auf ein Wort, das nur in einem Historien-Eintrag steht, wäre #491 (er träfe die
+> Zeile, die seine eigene Rücknahme erklärt). Was BLEIBT: die Store-Wächter verbieten Solfeggio/
+> chakra/healing bereits (`testTheProducerlessChannelsAreNotNamedAsDrivers` ist die Nachbar-Nadel).
+
 **Was.** The tone→wavelength step is an octave transposition with no physical mechanism; the wavelength→sRGB step is a genuine CIE 1931 path (multi-lobe CMF fit → XYZ → linear sRGB → gamut map). Everywhere the app or the site describes the visual as physical, say which half is which. Reuse the one defensible sentence that already exists verbatim in-app rather than writing a new one. Remove the 'cosmic octave' string from docs/version.json — correctly labelled as hygiene in a machine-read manifest, since no page renders the `changelog` key.
 
 **Dateien.** `Sources/Echoelmusic/Studio/LightScienceInfo.swift` · `docs/version.json` · `Tests/CISmoke/TheColourClaimNamesItsConventionTests.swift`
