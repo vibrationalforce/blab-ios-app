@@ -15,15 +15,35 @@
 //  choice, and neither is this bridge.
 //
 //  ⚠️ THIS IS A SINGLETON, WHICH THIS CODEBASE OTHERWISE AVOIDS. It is deliberately the
-//  NARROWEST possible one: three optional references, written exactly once from the
-//  startup task, and read only by the external scene. It is NOT a general service
-//  locator — do not add a fourth thing here because it is convenient. Every phone-side
-//  view keeps using `@Environment`: no phone-side view reads `bus`/`governor`/`recorder`,
-//  the phone reads ONLY `isConnected` — `FloatingVisualWindow` to yield the GPU, and since
-//  #1044 `EchoelStudioView` to hold the screen awake while the beamer has the picture. An
-//  earlier version of this line claimed "nothing on the phone path reads this type at
-//  all" — false, and it was the dangerous kind of false: it is the sentence a future
-//  session would read as permission to change `isConnected` freely.
+//  NARROWEST possible one, and the test for "narrow" is NOT the member count — it is
+//  whether a member is something the external scene genuinely cannot reach any other way.
+//  Every phone-side view keeps using `@Environment`: no phone-side view reads
+//  `bus`/`governor`/`recorder`, the phone reads ONLY `isConnected` — `FloatingVisualWindow`
+//  to yield the GPU, and since #1044 `EchoelStudioView` to hold the screen awake while the
+//  beamer has the picture. An earlier version of this line claimed "nothing on the phone
+//  path reads this type at all" — false, and it was the dangerous kind of false: it is the
+//  sentence a future session would read as permission to change `isConnected` freely.
+//
+//  ⛔ AND THE COUNT IN THAT SENTENCE WENT STALE TWICE, WHICH IS WHY IT IS GONE. It said
+//  "three optional references … do not add a fourth thing here because it is convenient"
+//  while FOUR already existed: `synth` arrived with #594 slice 2 for exactly the class of
+//  problem the warning was meant to prevent ("beamer tint parity"), and #1073 makes it
+//  five for the same reason. A rule stated as a NUMBER expires the first time someone
+//  obeys its purpose; the rule is the QUESTION instead, and it has a real answer here.
+//  Ask it every time:
+//
+//    Can the scene get this any other way? — No. UIKit builds this hierarchy; it inherits
+//    no `@Environment`, and `WeatherSnapshot` is never persisted, so there is nothing to
+//    read back. (`WeatherProvider` itself is NOT carried, deliberately: it lives inside
+//    `#if canImport(WeatherKit) && canImport(CoreLocation)`, so a member of that type
+//    would give `wire(...)` two platform-dependent signatures. A pure VALUE crosses for
+//    free.)
+//    Is it a VALUE or an ENGINE OBJECT? — `sky` is a value: `Sendable`, `Equatable`,
+//    Foundation-only, no behaviour. That is the cheap kind; a fifth engine object would
+//    not have passed.
+//
+//  If a future member cannot answer both, it does not belong here. That is the doctrine
+//  the number was standing in for.
 //
 //  THE GPU LAW IT ALSO CARRIES. decisions.csv 2026-07-03: "Visual black-screen (two live
 //  MetalBioViews) fixed by mutual exclusion — GPU rule = ONE MetalBioView app-wide". A
@@ -80,6 +100,28 @@ final class ExternalStageBridge {
     /// never black out the stage.
     private(set) var synth: PolySynthVoice?
 
+    /// #1073 — THE SKY, so the beamer can draw the phone's picture instead of a raw one.
+    ///
+    /// ⛔ WHY THIS EXISTS AS A VALUE AND NOT AS THE PROVIDER. `#1071` measured the gap: the
+    /// phone mixes the weather into hue · saturation · intensity · motion, the external scene
+    /// rendered the same four `@AppStorage` keys RAW, so plugging in a projector silently
+    /// dropped the tint mid-show. `#1072` gave the mix ONE definition
+    /// (`WeatherMood.visualValues`); this is the last thing the scene was missing in order to
+    /// call it. Carrying `WeatherProvider` instead would drag `#if canImport(WeatherKit)` into
+    /// this file and split `wire(...)` in two — see the doctrine note at the top.
+    ///
+    /// ⚠️ LIFETIME IS THE POINT, and it is why the writer is `FloatingVisualWindow` and not
+    /// the one line in `EchoelStudioView` where a contribution already happens to sit. That
+    /// one is written only when a session STARTS with a location fix; the window computes the
+    /// sky live from the 30-minute cache, which is what the phone's own tint follows. A beamer
+    /// tinted for a different hour than the phone is the same defect as one that does not tint
+    /// at all — and it would be visible only with a projector attached, i.e. never in CI.
+    ///
+    /// Observed like its siblings (a projector plugged in before launch is the normal stage
+    /// order). It changes about twice an hour, so the 10.76.41/50 freeze law is untouched:
+    /// this is nowhere near a bio- or frame-rate source.
+    private(set) var sky: WeatherMood.Contribution?
+
     private init() {}
 
     /// Called once from the app's startup task, before any screen can connect.
@@ -101,6 +143,12 @@ final class ExternalStageBridge {
 
     /// Scene lifecycle, called only by `ExternalDisplaySceneDelegate`.
     func setConnected(_ connected: Bool) { isConnected = connected }
+
+    /// The current sky, pushed by `FloatingVisualWindow` whenever its own tint would change
+    /// (#1073). Separate from `wire(...)` on purpose: that one runs once per launch, this one
+    /// tracks a value that moves — folding them together would make the once-per-launch
+    /// contract of `wire` untrue.
+    func setSky(_ contribution: WeatherMood.Contribution?) { sky = contribution }
 }
 
 #endif

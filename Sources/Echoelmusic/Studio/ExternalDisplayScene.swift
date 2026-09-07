@@ -131,35 +131,23 @@ private struct ExternalStageView: View {
     // `visualDetail`, the `MetalBioView` parameter is `ringDensity:` — there is no
     // `visualRingDensity` key, and only the call site records that.
     //
-    // ⛔ "THE SAME" IS TRUE OF THE KEYS AND NOT OF THE PICTURE (#1071, measured). The phone
-    // does NOT render these values raw: `FloatingVisualWindow.weatheredVisuals()` mixes FOUR
-    // of them — hue, saturation, intensity, motion — through `WeatherMood.visualValues`
-    // against the live sky, each with its own user mixer (`WeatherMood.Param.<x>.mixKey`).
-    // This scene reads the raw keys and renders them. So plugging in a projector SILENTLY DROPS the
-    // weather tint, and the sentence above reads as if the two matched.
+    // ⭐ AND SINCE #1073 IT IS TRUE OF THE PICTURE TOO — the sentence above finally means
+    // what it says. It did not for a long time, and the history is kept because the SHAPE of
+    // the bug is the useful part: the phone mixed the live weather into four of these values
+    // (hue · saturation · intensity · motion, each behind its own user mixer) while this scene
+    // rendered the same four keys RAW, so plugging in a projector silently dropped the tint
+    // mid-show. Nobody could see it without a projector, and the prose here read as if the two
+    // matched. Measured and pinned in #1071, given ONE shared definition in #1072
+    // (`WeatherMood.visualValues`), and wired here in #1073.
     //
-    // ⚠️ THIS FILE ALREADY DECIDED THE PRINCIPLE, one paragraph down, and then did not apply
-    // it here. #609 wired `autoMode` for exactly this reason: "without this reader, plugging
-    // in a projector would silently strip the Auto mode's visual half mid-show and the swap
-    // would read as a broken look." Weather is the same class of half and was left out. That
-    // makes this a KNOWN GAP against a stated rule, not a taste question — the founder's open
-    // "Beamer wettergemischt oder roh?" was asked before anyone measured which one it does.
-    //
-    // ⭐ HALF-REPAIRED BY #1072, so what is left is now ONE named thing rather than a plan.
-    // The FOUNDATION half landed: the mix is no longer a `private func` on a `View` but the
-    // pure, public `WeatherMood.visualValues(base:mixers:contribution:)`, driven end-to-end by
-    // `TheWeatherVisualMixHasOneDefinitionTests`. `weatheredVisuals()` is now a CALLER of it.
-    //
-    // ⛔ THE CONSUMER HALF IS STILL MISSING, and the reason is honest rather than tidy: this
-    // scene has the four keys and the mixers but NOT `weatherProvider.current`, which lives on
-    // the phone side and reaches here only through `ExternalStageBridge` — new wiring in a file
-    // no gate here can run, on a path visible only with a projector attached. Concretely the
-    // remaining slice is: carry the `WeatherMood.Contribution?` (or the provider) across the
-    // bridge, read the four `mixKey`s here, and call the SAME function the phone calls. Do not
-    // re-derive the arithmetic; that is the divergence this whole note is about (#416).
-    // Pinned meanwhile by
-    // `Tests/CISmoke/TheBeamerDrawsTheSamePictureTests.swift`, which is written to go RED on
-    // the day the gap is closed — it is a record of a divergence, not a defence of it.
+    // ⚠️ THE RULE THIS FILE ALREADY STATED, one paragraph down, is what made it a gap and not
+    // a taste question: #609 wired `autoMode` because "without this reader, plugging in a
+    // projector would silently strip the Auto mode's visual half mid-show and the swap would
+    // read as a broken look." Weather was the same class of half. **Apply that rule to every
+    // new key added below** — a design key the phone TRANSFORMS before rendering must arrive
+    // here transformed, or the swap changes the look. That is the durable lesson; the weather
+    // instance of it is now closed.
+
     /// #609 — the beamer draws the SAME auto-attuned picture the phone would (H15):
     /// without this reader, plugging in a projector would silently strip the Auto
     /// mode's visual half mid-show and the swap would read as a broken look.
@@ -177,6 +165,34 @@ private struct ExternalStageView: View {
     @AppStorage(StudioDefaultKeys.visualGlitter.key) private var glitter = StudioDefaultKeys.visualGlitter.value
     @AppStorage(StudioDefaultKeys.visualStructure.key) private var structure = StudioDefaultKeys.visualStructure.value
 
+    // #1073 — the weather half, so the beamer draws the phone's picture and not a raw one.
+    // ⚠️ EVERY DEFAULT HERE IS THE SAME EXPRESSION `FloatingVisualWindow` uses, not a copy of
+    // its VALUE. Writing `0.5` would have re-created the divergence this slice repairs, one
+    // level down: the two surfaces would agree until someone changed `defaultIntensity`.
+    @AppStorage(StudioDefaultKeys.weatherEnabled.key) private var weatherEnabled = StudioDefaultKeys.weatherEnabled.value
+    @AppStorage(WeatherMood.Param.hue.mixKey)        private var wxMixHue = WeatherMood.Param.hue.defaultIntensity
+    @AppStorage(WeatherMood.Param.saturation.mixKey) private var wxMixSat = WeatherMood.Param.saturation.defaultIntensity
+    @AppStorage(WeatherMood.Param.glow.mixKey)       private var wxMixGlow = WeatherMood.Param.glow.defaultIntensity
+    @AppStorage(WeatherMood.Param.movement.mixKey)   private var wxMixMove = WeatherMood.Param.movement.defaultIntensity
+
+    /// The four visual values with the sky mixed in — THE SAME function the phone calls
+    /// (#1072/#1073). Not a second implementation, on purpose: two spellings of one decision
+    /// is what produced #1071 in the first place, and a copy here would look right for a year.
+    ///
+    /// `sky` comes over `ExternalStageBridge` because this hierarchy is built by UIKit and
+    /// inherits no `@Environment`; `weatherEnabled` and the four mixers are `@AppStorage`, so
+    /// they cross by themselves. Weather off, or no sky published yet → the user's own values,
+    /// which is exactly what this scene rendered before.
+    private func weathered(sky: WeatherMood.Contribution?)
+        -> WeatherMood.VisualValues {
+        WeatherMood.visualValues(
+            base: WeatherMood.VisualValues(hue: hue, saturation: saturation,
+                                           intensity: intensity, motion: motion),
+            mixers: WeatherMood.VisualMixers(hue: wxMixHue, saturation: wxMixSat,
+                                             glow: wxMixGlow, movement: wxMixMove),
+            contribution: weatherEnabled ? sky : nil)
+    }
+
     var body: some View {
         // Read `.shared` INLINE, not via a stored `private let`. Observation registers on
         // the property getter either way, so this is not about correctness — it matches
@@ -190,6 +206,8 @@ private struct ExternalStageView: View {
             // The `if let` IS the guard — it binds what it checks. There is deliberately
             // no separate "is it wired?" boolean to drift out of sync with it.
             if let bus = bridge.bus, let governor = bridge.governor, let recorder = bridge.recorder {
+                // #1073: the weather-mixed values, from the one shared definition.
+                let wx = weathered(sky: bridge.sky)
                 // `capturesVideo: false` — deliberately, and the cost is GUARDED, not just
                 // noted: while the beamer has the picture the phone's capturing instance
                 // has yielded, so `FloatingVisualWindow` DISABLES its video-record button
@@ -199,12 +217,12 @@ private struct ExternalStageView: View {
                 // would push landscape frames into a portrait file. Own slice.
                 MetalBioView(capturesVideo: false,
                              autoAttuned: autoMode,
-                             intensity: Float(intensity),
+                             intensity: Float(wx.intensity),
                              ringDensity: Float(detail),
-                             motion: Float(motion),
+                             motion: Float(wx.motion),
                              spread: Float(spread),
-                             hueShift: Float(hue),
-                             saturation: Float(saturation),
+                             hueShift: Float(wx.hue),
+                             saturation: Float(wx.saturation),
                              textureAmount: Float(texture),
                              glitterAmount: Float(glitter),
                              structureAmount: Float(structure),

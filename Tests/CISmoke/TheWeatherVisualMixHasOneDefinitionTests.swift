@@ -15,9 +15,11 @@ import XCTest
 /// #416 defect — and this is what it looks like a year later: not an argument anyone can see,
 /// but a picture that changes when a cable goes in.
 ///
-/// ⚠️ THIS FILE DOES NOT CLOSE #1071. The beamer still renders raw; the helper exists and the
-/// phone calls it. `TheBeamerDrawsTheSamePictureTests` still holds that gap and still goes red
-/// the day it closes.
+/// ⭐ #1073 CLOSED #1071 ON TOP OF THIS. When this file was written the beamer still rendered
+/// raw and a separate guard pinned that gap; the consumer half landed one slice later, that
+/// guard instructed its own deletion, and the WIRING is now held by
+/// `TheBeamerAndThePhoneShareOneMixTests`. The split of duties is worth keeping straight:
+/// THIS file owns the ARITHMETIC (driven end-to-end), that one owns WHO CALLS IT.
 final class TheWeatherVisualMixHasOneDefinitionTests: XCTestCase {
 
     private let base = WeatherMood.VisualValues(hue: 0.20, saturation: 0.40,

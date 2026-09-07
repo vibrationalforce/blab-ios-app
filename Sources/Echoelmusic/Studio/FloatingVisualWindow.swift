@@ -541,6 +541,29 @@ struct FloatingVisualWindow: View {
                 "visual window: \(now ? "shown" : "hidden") · "
                 + "renderer=\(now || mustKeepRenderingForRecording ? "on" : "off")")
         }
+        // #1073 — PUBLISH THE SKY SO THE BEAMER CAN DRAW THE SAME PICTURE. Until now the
+        // external scene rendered the four design keys RAW while this window mixed the
+        // weather into them, so plugging in a projector silently dropped the tint mid-show
+        // (#1071, measured). #1072 gave the mix one definition; this line gives the scene the
+        // last thing it was missing in order to call it.
+        //
+        // ⚠️ THE WRITER IS HERE, AND THAT IS THE DESIGN, not convenience. A contribution
+        // already sits in `EchoelStudioView` — but it is written only when a session STARTS
+        // with a location fix, while THIS view computes the sky live from the 30-minute cache.
+        // Publishing that one would tint the beamer for a different hour than the phone, which
+        // is the same defect as not tinting it at all and is visible only with a projector
+        // attached. Same source, same lifetime, by construction.
+        //
+        // `initial: true` because the normal stage order is "projector already plugged in":
+        // without it the beamer would render untinted until the sky happened to change, which
+        // on a 30-minute cache can be the whole show.
+        //
+        // FREEZE LAW: the compared value moves about twice an hour. The reads it performs
+        // (`weatherEnabled`, `weatherProvider.current`) are ones this body already makes via
+        // `weatheredVisuals()`, so this registers no new observation and adds no rebuild.
+        .onChange(of: currentSkyContribution(), initial: true) { _, sky in
+            ExternalStageBridge.shared.setSky(sky)
+        }
     }
 
     // MARK: - Toolbar controls (position readout + WAV record)
@@ -601,19 +624,16 @@ struct FloatingVisualWindow: View {
     /// yet → the user's values, exactly. Every mixer at 0 → the same values to within `Float`
     /// precision (`WeatherMood.visualValues` says why the two are not the same promise).
     ///
-    /// ⛔ THE BEAMER STILL DOES NOT CALL THE MIX (#1071, measured; HALF-REPAIRED by #1072).
-    /// `ExternalStageScene`'s `ExternalStageView` reads the same four keys and hands them to
-    /// `MetalBioView` RAW, so attaching a projector silently drops the weather tint mid-show.
-    /// That is the same class of gap #609 closed for `autoMode` — and its own comment gives the
-    /// rule: a swap must not change the look.
+    /// ⭐ THE BEAMER CALLS THE SAME MIX SINCE #1073 — `ExternalStageView` reads the sky off
+    /// `ExternalStageBridge` and calls `WeatherMood.visualValues` exactly as this does, so a
+    /// projector no longer changes the picture on the way in. Kept as history because the
+    /// shape is worth recognising: from #594 until #1071 the two surfaces shared the KEYS and
+    /// not the PICTURE, and only a projector could show it.
     ///
-    /// #1072 built the FOUNDATION half of the recorded repair: the arithmetic now lives once,
-    /// in `WeatherMood.visualValues`, and this function is a caller rather than the owner. What
-    /// is still missing is the CONSUMER half — the scene needs `weatherProvider`, which reaches
-    /// it only through `ExternalStageBridge`, and that is new wiring on a path no gate here can
-    /// run. Until then the two surfaces still differ; they just can no longer differ in the
-    /// ARITHMETIC (#416). Pinned by `TheBeamerDrawsTheSamePictureTests`, written to go red the
-    /// day the second half lands.
+    /// ⚠️ THE PUBLISHING SIDE IS THIS VIEW, at the `.onChange` on the body — deliberately not
+    /// the contribution that already sits in `EchoelStudioView`, which is written only at
+    /// session start. Same source, same lifetime. If this function ever stops computing the
+    /// sky live, that writer has to move with it.
     private func weatheredVisuals()
         -> (hue: Double, saturation: Double, intensity: Double, motion: Double) {
         // #1072 — THE MIX ITSELF MOVED TO `WeatherMood.visualValues`, and what stays here is
