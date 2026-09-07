@@ -326,16 +326,46 @@ final class TheBreathingPracticeIsInTheMainViewTests: XCTestCase {
         //
         // The needle is deliberately still the WHOLE expression rather than a substring: what
         // it protects is that there is ONE modifier, and a substring check would stay green
-        // after someone split it into three. The claim it makes is therefore now "all THREE
-        // flags share one trigger", and a fourth flag moves this line again — on purpose.
-        XCTAssertTrue(studio.contains(
-            ".onChange(of: showMeditation || breathPacer.isRunning || isProjectingExternally)"), """
-        the keep-awake trigger changed shape. It must stay ONE modifier covering ALL THREE \
+        // after someone split it into three. The claim it makes is therefore "ALL the flags
+        // share one trigger", and a further flag moves this line again — on purpose.
+        //
+        // ⛔ #1069 (`8577ff6b`) WIDENED IT AGAIN — five terms across two lines — AND DID NOT
+        // MOVE THIS NEEDLE. The exact three-term literal was RED from that commit through
+        // deploys 457 and 458 and never fell inside the 200-line job-log window (#807); the
+        // #1093 sweep's transcription found it. The repair keeps the claim and drops the
+        // dependence on line breaks: the expression is cut out between `.onChange(of: ` and
+        // its `) { _, _ in`, whitespace-collapsed, and compared WHOLE. A sixth flag still
+        // moves this line, and a split into two modifiers still fails it.
+        let opener = ".onChange(of: showMeditation"
+        guard let start = studio.range(of: opener) else {
+            XCTFail("""
+                `\(opener)` is gone from `EchoelStudioView`. The keep-awake trigger must stay \
+                ONE modifier keyed on `showMeditation` first — see the message below for why \
+                each term is there.
+                """)
+            return
+        }
+        guard let close = studio.range(of: ") { _, _ in", range: start.upperBound..<studio.endIndex)
+        else {
+            XCTFail("the `.onChange(of: showMeditation …` modifier no longer closes with `) { _, _ in` — re-anchor this scan.")
+            return
+        }
+        let expression = studio[start.lowerBound..<close.lowerBound]
+            .split(whereSeparator: { $0.isWhitespace })
+            .joined(separator: " ")
+        XCTAssertEqual(expression,
+                       ".onChange(of: showMeditation || breathPacer.isRunning || isProjectingExternally || floatingVisualIsFullscreen || cameraRPPG.isRunning", """
+        the keep-awake trigger changed shape. It must stay ONE modifier covering ALL FIVE \
         flags: splitting it up regrows the root body's modifier chain for no behaviour \
         (10.76.34); dropping `showMeditation` un-wires an unreachable surface silently \
-        instead of leaving it ready for a re-door; and dropping `isProjectingExternally` \
+        instead of leaving it ready for a re-door; dropping `isProjectingExternally` \
         leaves #1044's term in `updateKeepAwake()` correct but never re-read, because this \
-        expression is the only thing that observes the bridge.
+        expression is the only thing that observes the bridge; and dropping \
+        `floatingVisualIsFullscreen` or `cameraRPPG.isRunning` leaves #1069's conjunctive \
+        fullscreen term correct but never re-armed. A sixth flag: add it here in the same \
+        commit, whitespace does not matter.
+
+        Expression found: \(expression)
         """)
     }
 
