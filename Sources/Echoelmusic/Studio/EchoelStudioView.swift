@@ -5227,7 +5227,14 @@ struct EchoelStudioView: View {
                 groupHeader("Look")
                 // `false`: this panel's visual is `FloatingVisualWindow`, which never reads
                 // `spectralDonuts` — so claiming donut state here is a claim about another surface.
-                visualLookStrip(showsDonutState: false)
+                // `true` since #1056, and it was `false` for two cycles too long. The
+                // parameter asks "can the picture this strip belongs to actually SHOW the
+                // donut?" — and #1043 made the answer yes here by porting the donut branch
+                // into `FloatingVisualWindow`, which is this panel's picture. Nothing
+                // updated the argument, so the Field panel printed a Metal look name over a
+                // window that was rendering donuts: the lying readout #227 removed, back
+                // again from the other side.
+                visualLookStrip(showsDonutState: true)
                 visualLookCustomizer
             }
             // The A/B "Blend with" strip left this surface 2026-07-07 (founder: minimize —
@@ -5798,14 +5805,27 @@ struct EchoelStudioView: View {
     /// three physically/analytically grounded Metal fields (Rings = wave interference,
     /// Chladni = plate eigenmodes from the tone, Plasma = superposed waves). One strip
     /// instead of two scattered toggles (clearer design); persists via @AppStorage.
-    /// - Parameter showsDonutState: whether this mount can actually SHOW the donut renderer.
-    ///   `false` for the inline Field panel (whose visual is `FloatingVisualWindow`, which does not
-    ///   read `spectralDonuts` at all), `true` for the fullscreen VJ overlay — that overlay lives
-    ///   INSIDE the `.fullScreenCover` where `SpectralDonutView` is built, and still carries a
-    ///   working donut toggle in its top bar. #227's first cut made the readout unconditional at
-    ///   BOTH mounts, which fixed the inline lie and planted the mirror image of it in the overlay:
-    ///   the day `showVisual` gets a setter again, that overlay would print "Aurora" over a donut
-    ///   field. One parameter instead, so neither mount can drift into claiming the other's state.
+    /// - Parameter showsDonutState: whether the picture this strip belongs to can actually SHOW
+    ///   the donut renderer. Both of today's mounts can, so both pass `true`: the fullscreen VJ
+    ///   overlay lives INSIDE the `.fullScreenCover` where `SpectralDonutView` is built, and the
+    ///   inline Field panel's picture is `FloatingVisualWindow`, which has had its own donut
+    ///   branch since #1043.
+    ///
+    ///   ⛔ THIS DOC BLOCK SAID THE WINDOW "does not read `spectralDonuts` at all" AND THAT WAS
+    ///   THE WHOLE JUSTIFICATION FOR PASSING `false` HERE (#1056). It was true when written and
+    ///   #1043 falsified it four grep hits over — `FloatingVisualWindow` now declares the key,
+    ///   branches its picture on it, and names it in the record button's VoiceOver sentence. The
+    ///   slice that made the window donut-capable did not carry the claim that depended on it
+    ///   (#456), so for two cycles the Field panel printed "Aurora" over a donut field: exactly
+    ///   the lie #227 removed, arriving from the opposite direction.
+    ///
+    ///   ⚠️ THE PARAMETER STAYS EVEN THOUGH BOTH CALLERS NOW PASS `true`, and the reason is a
+    ///   third picture that already exists: `ExternalDisplayScene` renders the Metal field and
+    ///   nothing else, and `FloatingVisualWindow`'s external-stage branch is checked BEFORE its
+    ///   donut branch — so with a projector attached the window shows a placard, the beamer shows
+    ///   the field, and no donut is on any screen. A strip mounted next to that picture must pass
+    ///   `false`. Deleting the parameter because today's two callers agree would remove the only
+    ///   place that question is asked (#364).
     private func visualLookStrip(showsDonutState: Bool) -> some View {
         // ALIGNED with the Visual window's top-bar slider (founder 2026-07-07: "das
         // hauptmenü dementsprechend angleichen"): one slider that scrubs the calm metal
@@ -5866,6 +5886,10 @@ struct EchoelStudioView: View {
 
             // #227: at a mount that cannot show donuts this names what is actually rendering.
             // The old unconditional ternary printed "Donuts" over a Metal look in the inline panel.
+            // #1056: and the inline panel then printed a Metal look over a DONUT for two cycles,
+            // because #1043 gave its picture a donut branch and left this argument at `false`.
+            // The parameter is right; what rots is the answer, so it is re-derived above and not
+            // restated here.
             Text(showsDonutState && spectralDonuts ? "Donuts" : currentLookName)
                 .font(EchoelTheme.font(12))
                 .foregroundStyle(EchoelTheme.dim)
