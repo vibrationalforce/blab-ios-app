@@ -7,12 +7,25 @@ description: Check whether the instruments that MEASURE this repo are telling th
 
 **Das Gesetz dieser Skill: ein grünes Häkchen ist kein Beweis, dass etwas gelaufen ist.**
 
-Sie existiert wegen eines bezahlten Fehlers. Am 2026-07-28 baute die Testsuite (313 Dateien —
-`CLAUDE.md` sagt 305, `full-tests.yml` sagt 294; drei Zahlen für eine Suite, und genau das ist
-ein Sektion-D-Befund) 14 Stunden lang nicht — und meldete durchgehend „success", weil `continue-on-error` in
+Sie existiert wegen eines bezahlten Fehlers. Am 2026-07-28 baute die Testsuite
+(`Tests/EchoelmusicTests`) 14 Stunden lang nicht — und meldete durchgehend „success", weil `continue-on-error` in
 `full-tests.yml` auf dem **Build**-Schritt sitzt. Die Zusammenfassung im selben Log druckte
 `- build-for-testing: failure`. Niemand las sie. Zwei Commits (#182, #198) behaupteten in
 dieser Zeit, ihre neuen Tests seien „grün verifiziert". Sie waren nie ausgeführt worden.
+
+⛔ **HIER STANDEN DREI ZAHLEN FÜR EINE SUITE — „313 Dateien, `CLAUDE.md` sagt 305,
+`full-tests.yml` sagt 294" — und sie sind GELÖSCHT statt nachgeführt (#1052, #818).** Der
+Befund, den sie belegen sollten (dieselbe Suite hat je nach Quelle eine andere Größe), ist
+weiterhin echt; die Zahlen selbst waren es 2026-09-07 nur noch zur Hälfte: `CLAUDE.md` nennt
+**gar keine** mehr, sondern den Befehl — dort ist genau diese Lehre schon gezogen worden. Übrig
+sind ZWEI Quellen, nicht drei. Und die 313 stand als Gegenwartsform in einem Absatz über 2026-07,
+was sie wie eine Messung von heute las. **Das ist Sektion B in eigener Sache: beschreibt unser
+eigenes Kommando noch dieses Repo?** Re-derivieren, nicht abschreiben:
+
+```bash
+git ls-files 'Tests/EchoelmusicTests/*.swift' | wc -l   # die Suite
+grep -n 'suite' .github/workflows/full-tests.yml         # was der Workflow BEHAUPTET (#208, founder-gated)
+```
 
 Jede Prüfung hier ist eine, die einen echten, bereits bezahlten Fehler dieses Repos gefangen
 hätte. Keine ist erfunden.
@@ -109,7 +122,19 @@ Abwesenheits-Behauptung (`XCTAssertFalse`, …) und — seit #754 — eine Nadel
 NEGIERTEN `contains(`, also die Ausschluss-Form `contains("foo()") && !contains("func foo")`.
 Die zweite Form ist ein No-op, wenn sie ins Leere zeigt, und die POSITIVE Hälfte derselben
 Zeile wird weiter geprüft. Ausgenommen wird die einzelne NADEL, nie die Zeile.
-`python3 scripts/doctor.py --selftest` prüft genau diese eine Regel — und sonst nichts.
+⛔ **„`--selftest` prüft genau diese eine Regel — und sonst nichts" stand hier und ist seit
+#762 falsch, seit #1048 doppelt falsch (korrigiert #1052).** `--selftest` fährt **jede**
+registrierte Regel und druckt pro Regel eine Zeile; heute sind es die Negations-Regel dieses
+Abschnitts, „ein Kommentar ist keine Aufrufstelle" (Sektion C) und „ein `#if DEBUG`-Zweig ist
+keine Tür" (Sektion C). **Hier steht bewusst keine ANZAHL** (#818/#1050) — die Liste ist
+zweimal in zwei Monaten gewachsen, und ein Doc-Satz, der eine Prüfung für schmaler erklärt als
+sie ist, lädt die nächste Sitzung ein, sie für unzureichend zu halten und eine zweite zu bauen.
+Die Ausgabe IST die Liste:
+
+```bash
+python3 scripts/doctor.py --selftest          # eine Zeile je Regel
+grep -c '^def selftest_' scripts/doctor.py    # dieselbe Zahl, aus der Quelle
+```
 
 **Deine Aufgabe:** Ein Kommando, das gelöschte Verzeichnisse scannt, meldet „sauber" für
 Arbeit, die es nie angesehen hat — das ist dieselbe Lüge wie ein maskiertes Gate, nur eine
