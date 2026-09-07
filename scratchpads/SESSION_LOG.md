@@ -25138,3 +25138,45 @@ Anführungszeichen liess die Shell Backticks im Python-String substituieren. Mit
 Variable über die Umgebung wiederholt. Genau die Notiz aus dem letzten Check-in.
 
 **Gates:** #1063 · #1064 · #1065 · #1066 alle **success**; #1067 läuft.
+
+## 2026-09-07 — #1068 Field panel: eine Karte statt einer Wand
+
+**Founder-Satz (neu, wörtlich):** *"Es geht vorallem darum das alle Funktionen von Field
+kompakt und übersichtlich bleiben."* Ein Scope-Satz, kein Detail — er nennt BEIDE Hälften,
+und die zweite verbietet den naheliegenden Weg zur ersten (weglassen).
+
+**Zuerst gemessen, weil „zu lang" kein Plan ist:** das Field-Panel trägt **27 Zahlenfelder,
+2 Schalter und ~17 Erklärsätze in EINEM Rutsch** (`visualPanel` + `visualAdjustFields`
+10 Felder/4 Sätze + `fieldSelfPlaySection` 11 Felder/9 Sätze + die Voice-Gruppe). Jedes
+Einzelne ist eine Funktion, die der Founder irgendwann bestellt hat (Slide 07-08, Life
+07-27, Self-play 07-29) — also darf nichts gelöscht werden. Weg kann nur die PFLICHT, an
+allem vorbeizuscrollen, um irgendetwas zu erreichen.
+
+**Geliefert:** die drei Gruppen-Überschriften werden Aufklapper. Look offen, Voice und
+Self-play zu. `collapsibleGroupHeader(_:isOpen:)` ist das „Fine tune"-Idiom als HELFER
+(nicht dreimal kopiert): gleicher Chevron, 44-pt-Tippfläche VOR `contentShape` (#113),
+`accessibilityValue` (#241 — ein Chevron ist für VoiceOver unsichtbar). `@State`, nicht
+`@AppStorage`, wie die zwei Aufklapper direkt darüber.
+
+Die Voice-Kinder ziehen in ein neues `fieldVoiceControls`, damit die Überschrift sie
+schließen KANN — eine Überschrift, die eine Gruppe öffnet, muss AUSSERHALB von ihr sitzen;
+derselbe Grund, warum `groupHeader("Self-play")` `fieldSelfPlaySection` verlassen hat
+(⛔-Vermerk am Ort). Nebengewinn: `touchSoundSection`s `VStack` fällt von ~16 direkten
+Kindern auf vier — genau die Typprüfer-Kosten, die der `Group`-Kommentar des Panels nennt.
+
+**Wächter:** `TheFieldPanelOpensAsAMapTests` — 4 Ansprüche / 18 Zusicherungen, alle
+transkribiert getrieben, ALLE GRÜN. Benotet nach §3: die Datei nennt Symbole, die dieser
+Commit erst anlegt, also kompiliert sie gegen den Elternbaum NICHT und dort hat keine
+Zusicherung ein Urteil. 1/2/4 = FORWARD, **3 = GEGENGEWICHT und der Punkt der Datei**
+(acht von neun Nadeln auf beiden Bäumen grün — genau das muss „Verdichtung, nicht
+Löschung" heißen).
+
+**Zwei eigene Fehler, beide vor dem Commit gefangen:**
+1. **#1057 zum zweiten Mal:** der neue Helfer landete zwischen `groupHeader`s `///`-Block
+   und dessen Deklaration — der Nachbar verlor seine Doku an mich. Gefunden beim
+   Diff-Lesen, nicht beim Schreiben. Der Helfer sitzt jetzt UNTER `groupHeader`.
+2. Doppelte Leerzeile nach `fieldVoiceControls`. Klammerbilanz 1023/1023 nachgeprüft.
+
+`dead-needles.py` OK (449 Dateien) · `count-pins.py` 0 RED · Leak-Check 0.
+**Nicht gerätegeprüft.** NEEDS-FOUNDER-VERIFY: Field öffnen — liest sich die Karte besser
+als die Wand, und ist Look die richtige Gruppe zum Offenlassen?
