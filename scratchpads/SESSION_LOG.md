@@ -24301,3 +24301,96 @@ Agent-Datei repariert, die andere nicht — **dritte Instanz des #456-Musters an
 `ChromeBudgetFitsTests` taucht in **keinem** Fenster auf → #1033/#1036 **unbezeugt**; ebenso
 alle fünf Wächter-Dateien aus #1034–#1041. Ursache ist `ci.yml`s `tail -200 test.log` —
 founder-gated, nur berichten (#208). Visual-Epos: S4–S13. Task Q offen.
+
+## 2026-09-07 · #1043–#1045 — Visual-Epos S4a, der Beamer hält das Telefon wach, und eine Messung, die nur für Hochformat galt
+
+### #1043 (S4a) — der Donut-Look erreicht das schwebende Fenster
+Gemessene Lücke in `FloatingVisualWindow.swift` VOR dem Commit: `MetalBioView(` 1 ·
+`TakeOutcomeLine(` 1 · `SpectralDonutView(` **0** · `StillShutterButton(` **0** ·
+`showVisualControls` **0** · `updateKeepAwake` **0** · `spectralDonuts` **0**. Vier Dinge, die
+nur das Vollbild-Cover konnte — genau der Grund, warum es zwei getrennte Vollbilder gibt statt
+der „eine Einheit zum steuern", die der Founder verlangt hat.
+
+**S4 ist GETEILT, und das steht im Commit-Text**: S4a hier (der Donut-Look, das einzige der
+vier, das eine ENTSCHEIDUNG brauchte), S4b später (drei mechanische Ports). „S4 fertig" wäre
+falsch gewesen.
+
+**Die Entscheidung, die das Cover nie treffen musste:** die Ringe sind ein SwiftUI-`Canvas`,
+kein Metal — `VisualRecorder` hat dort gar keine Bildquelle. Das Cover löste das, indem es
+seinen Aufnahmeknopf VERSTECKTE; das verhindert das STARTEN unter Donuts, sagt aber nichts
+über einen Look-Wechsel WÄHREND einer Aufnahme. Im Fenster lautet der Zweig deshalb
+`spectralDonuts, !mustKeepRenderingForRecording` — das Feld bleibt stehen, bis die Aufnahme
+endet. Ohne das zählt eine rote REC-Pille Sekunden über einer Datei, die nicht mehr wächst
+(#164, lügendes Bedienelement).
+
+„Kann jetzt nicht aufnehmen" bleibt EINE Definition (#416): der Donut-Grund wandert in
+`videoCaptureYielded`, nicht in eine vierte Schreibweise am Knopf — der Knopf ist also
+DEAKTIVIERT mit einem Satz, den ein Screenreader vorliest, statt zu verschwinden.
+
+### #1044 — das Telefon bleibt wach, solange das Bild auf einem externen Schirm liegt
+**Der Fund kam aus einer Nachbaruntersuchung, nicht aus dem Plan.** Der Plan („S4b:
+Keep-Awake mit eigenem `onChange`") war beim Messen falsch: `updateKeepAwake()` in
+`EchoelStudioView` ist der EINE Schreiber von `isIdleTimerDisabled`; ein zweiter im Fenster
+wäre die Zwei-Eigentümer-Klasse (der Gurt, den `applyRouting` mitten in der Performance
+killte). Also nicht portieren, sondern den einen Eigentümer prüfen — und dabei fiel auf:
+
+    running || showVisual || showMeditation || breathPacer.isRunning
+
+Vier Terme, **alle über das TELEFON, das angeschaut wird**. Der eine Weg, auf dem es NICHT
+angeschaut wird — `ExternalStageBridge.isConnected`, Beamer/TV — kam in keinem vor, obwohl der
+Doc-Kommentar der Methode „performing or **projecting**" verspricht und `EchoelStudioView.swift:5`
+es neben dem UIKit-Import wiederholt. **Das Versprechen war nie eingelöst.**
+
+Schlimmer als ein dunkler Schirm: iOS reißt beim Sperren die Vordergrund-Szene ab, und dort
+lebt die EINE `MetalBioView`, die den externen Schirm speist. Die Projektion stirbt mitten in
+der Vorstellung.
+
+**Warum NICHT das Vollbild des Fensters** (der naheliegende Kandidat): die App startet KALT
+hinein (`WorkspaceView`s instrument-home-Saat schreibt `visual.floating.size = fullscreen`),
+es ist also der Default-Zustand — „nie mehr schlafen". Ein Schirm anzustecken ist eine
+Handlung mit erkennbarem Ende.
+
+Der Term reiht sich in das BESTEHENDE `.onChange` ein, keine vierte Modifier-Zeile: dieser
+Ausdruck ist das, was die Flagge NEU SCHARFSTELLT, weil `ExternalDisplayScene` aus UIKit
+heraus `setConnected(true)` ruft. Ohne den `@Observable`-Read im Rumpf wäre der neue Term
+korrekt und würde nie wieder gelesen.
+
+**DREI Prosa-Heimaten im selben Commit (#456)** — und eine davon war ein WÄCHTER, der sonst
+auf korrektem Baum rot gestanden hätte: `TheBreathingPracticeIsInTheMainViewTests` pinnte den
+GANZEN alten `.onChange`-Ausdruck. Das ist #655/#656 und #960 in Reinform, diesmal VOR dem
+Push gefunden, weil §4 („grep das blockierende Bundle, nicht nur `Sources/`") ausgeführt wurde.
+
+### #1045 — „neither survives" galt nur für Hochformat
+`ChromeBudgetFitsTests` hatte gemessen: der Look-Slider braucht 529 pt (leer) bzw. 605 pt
+(WAV läuft), breitestes `devices` = 440 → „auf den Telefonen, an die die App ausgeliefert
+wird, überlebt keines von beiden". **Die Arithmetik stimmt auf den Punkt** (hier
+nachgerechnet: 529 / 605). Der SATZ stimmt nicht: `devices` enthält nur HOCHFORMAT-Boxen, und
+die Datei hat nie eine Querformat-Box gefahren.
+
+Quer bieten dieselben drei Telefone **612 / 662 / 742 pt** (lange Kante minus 88 pt für die
+zwei Sensor-Einschnitte — bewusst konservativ). Der Slider überlebt dort in **allen zwölf**
+Zuständen; der engste Fall hat **7 pt** Luft. Und Vollbild existiert für PROJEKTION, und
+Projektion ist Querformat.
+
+**Die Fehlerklasse ist die veraltete Zahl in neuem Kostüm: eine Grenze der STICHPROBE, gelesen
+als Eigenschaft des Telefons.** `landscapeDevices` ist bewusst eine EIGENE Konstante — fünf
+andere Ansprüche iterieren `devices` und pinnen exakte Zustands-MENGEN; sie zu erweitern wäre
+eine Umschreibung von fünf Ansprüchen, getarnt als Daten-Edit.
+
+Benotung ehrlich (§3): **NULL Regressionen.** Alles hier ist auch auf dem Elternbaum grün, weil
+keine Produktionslogik sich ändert — es sind Gegengewichte, die eine Tatsache festnageln, die
+die Datei gemessen und dann falsch beschrieben hatte.
+
+### Was das Muster dieser drei ist
+Zweimal hat eine geplante Scheibe beim MESSEN ihre Begründung verloren und dabei einen
+ECHTEN, größeren Fund freigelegt — der Keep-Awake-Port wurde zum Beamer-Defekt, die
+Budget-Simulation für einen Standbild-Knopf zum Orientierungs-Fehlschluss. **Der Plan ist die
+Frage, nicht die Antwort; das Messen davor ist der Ertrag.**
+
+### Unverändert offen
+`ChromeBudgetFitsTests` taucht in **keinem** Fenster auf → #1033/#1036/#1045 **unbezeugt**;
+Ursache `ci.yml`s `tail -200 test.log`, founder-gated (#208). Visual-Epos: S4b (Standbild-Knopf
+— das Budget dafür ist gerechnet: Rang 4 nach `gridToggle`, überlebt in 8 von 12 Zuständen,
+kostet auf 440 pt den Transport-Readout; der Ausgabe-Satz von `StillShutterButton` sprengt
+aber die Leistenbreite und braucht eine Platzierungs-Entscheidung), Chrome-Verstecken, S5–S13.
+Task Q offen (`count-pins.py`, `.sheet(`-Pin 14 vs 9, vorbestehend rot).
