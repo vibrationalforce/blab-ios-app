@@ -105,8 +105,8 @@ für Projektion" gewünscht, ist das ein NEUES kleines Feature mit SICHTBARER Be
 (WCAG 2.2 — der Cover-Kommentar sagt das an derselben Stelle selbst) und eine
 Founder-Geschmacksfrage, kein Port. Nicht einseitig gebaut.
 
-**S3a — DER DONUT-SCHALTER BRAUCHT ZUERST EINE TÜR. ⛔ NEU, gemessen 2026-09-07, und ohne
-diese Scheibe ist S3 ein Rückschritt.** `git grep -n "spectralDonuts.toggle()\|spectralDonuts ="
+**S3a — DER DONUT-SCHALTER BRAUCHT ZUERST EINE TÜR. ✅ AUSGELIEFERT als #1065 (`a2af8345`).**
+⛔ Gemessen 2026-09-07; ohne diese Scheibe wäre S3 ein Rückschritt gewesen. `git grep -n "spectralDonuts.toggle()\|spectralDonuts ="
 -- Sources` liefert die ganze Wahrheit: der EINZIGE Schreiber, der `true` erzeugen kann, ist
 `EchoelStudioView.swift:1620` — der Knopf in der Kopfleiste DES COVERS. `lookScrub`s Setter
 (`:6024`) schreibt nur `false`, und `FloatingVisualWindow:188` LIEST nur. Das Cover zu löschen

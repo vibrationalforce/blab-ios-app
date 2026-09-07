@@ -25053,3 +25053,39 @@ hinzugefügt wurde.
 Commit korrigiert auf „THIRD in the shed order" plus den Verweis auf den Wächter, der es fährt.
 **Dieselbe Lehre wie #1061a: eine Zahl aus dem Gedächtnis, während die Liste vier Zeilen entfernt
 im selben Kopf steht.**
+
+## 2026-09-07 — #1065 (S3a): der Donut-Look bekommt eine Tür ausserhalb des Covers
+
+**Das ist eine Scheibe, die im Plan nicht stand — sie kam aus einer Messung vor dem Council.**
+Vor dem Löschen des Covers (S3) habe ich gefragt, was das Cover als EINZIGES trägt. Antwort:
+
+⛔ **`spectralDonuts` hat genau EINEN Schreiber, der `true` erzeugen kann — den Glyph in der
+Kopfleiste DES COVERS** (`EchoelStudioView.swift:1620`). `lookScrub`s Setter schreibt nur
+`false`, `FloatingVisualWindow` LIEST nur. Das Cover zu löschen hiesse also: ein Zustand, in den
+nichts mehr hineinkommt — der #227-Defekt, den diese Datei an vier Stellen beschreibt —, und der
+Donut-Renderer, den #1043 gerade ins Fenster portiert hat, wäre am selben Tag wieder
+unerreichbar. Die Tombstone unter `lookScrub` sagt es selbst: #747 machte den Cover-Glyph
+erreichbar, DESHALB durfte der Normalisierer weg.
+
+**Scheibe:** `Toggle("Spectrum donuts instead of the field")` neben dem Gitter-Schalter aus
+#1064, am Ende der „Look"-Gruppe. Jetzt und nicht innerhalb der Löschung — additiv und
+umkehrbar, die Löschung ist es nicht.
+
+**Wächter:** `TheDonutLookSurvivesTheCoverTests`, zwei Ansprüche, fünf Behauptungen. Anspruch 2
+ist eine ORDNUNGS-Prüfung (der Schalter steht unter `visualPanel`s Deklaration, also nicht in
+der Rumpf-Kette, in der das Cover lebt) — die Form, die NACH der Löschung noch etwas bedeutet.
+
+⛔ **Und der Wächter hat zuerst MICH erwischt.** Das Gegengewicht zählte `spectralDonuts.toggle()`
+über den Rohtext und las 2, wo der Code 1 hat — weil mein NEUER Quellkommentar das grep-Rezept
+mit der Nadel zitiert. **#1050 in Reinform: eine Text-Zählung, die ihre eigene Dokumentation
+mitzählt.** Über `SourceText.codeOnly` geführt; das Rezept bleibt stehen, denn so leitet die
+nächste Leserin den Befund selbst her.
+
+**Weitere S3-Vormessungen (im Plan festgehalten):** das VJ-Overlay besteht bis auf EINE Zeile aus
+geteilten Definitionen — nur die AirPlay-Zeile ist sein eigenes und muss mitumziehen ·
+`visualShare` ist der Sofort-Teilen-Weg, dessen Verlust klein, aber benennbar ist ·
+`updateKeepAwake` liest `showVisual`, also hält nach S3 **kein** Vollbild-Visual mehr den Schirm
+wach — damit wird die offene Founder-Frage Teil der Scheibe · `floatingSizeRaw` liegt in
+`WorkspaceView` hinter einem rohen String.
+
+**Gates:** #1063 `6316dcbf` **success** · #1064 (in `9b1b4007`) **success** · #1065 läuft.
