@@ -1394,3 +1394,34 @@ beschränken (#292, `afcf3aa`).
   Superlativ-Ansprüche der NACHBARN gemessen werden — die stehen in deren Doc-Kommentaren und in
   `GenreBatchFourVoicingTests`, nicht im Plan.
 - **Review:** 2026-10-04 — hat der Founder S1/S2 gehört? Sind S3–S5 gelandet?
+
+### 2026-09-07 — „Entscheide alles" (Founder): TestFlight-ready + marktstark — zwölf Scheiben, zehn gebaut (#1080–#1089)
+- **Befund (16-Agenten-Schwarm `wf_98567780-445`, jede Zeile selbst nachgemessen):** TestFlight ist
+  HEUTE bereit (Build 2576 / v10.79.457 gelandet). Der App Store hat VIER Blocker, davon EINER im
+  Repo: die Review-Notiz in `docs/dev/APP_STORE_SUBMISSION_CHECKLIST.md` versprach Apple einen
+  Auto-Demo-Start nach ~4 s, den es nicht gibt (Default Kamera, `bioSourceRaw` hat EINEN Schreiber,
+  Label „Play with the simulation"). Die anderen drei sind ein Founder-Abend: Screenshots (Gerät, nach
+  Task R), zwei ASC-Formulare (Privacy-Label „Data Not Collected", Altersfreigabe 4+ — beide
+  vorbeantwortet), Ship-Gate 1 Klang + 5 Stabilität (beide sensorisch).
+- **Gebaut:** #1080 Review-Notiz mit verifiziertem Zwei-Tipp-Pfad · #1081 sechs Checklisten-Zeilen
+  (MIDI-Export HAT eine Tür; Encryption-Key in EINER Datei; kein Motion-String; Locales 2; Build 2576;
+  Health ist NICHT read-only — Opt-in-Writer existiert) · #1082 faq/health: kein Strobe-Hazard mehr
+  erfunden · #1083 Homepage-CTA = TestFlight-Mailto statt „Coming Soon" · #1084 beide Beschreibungen:
+  Visual-Aufnahme (MP4, ≤30 s Ton), zwei Standort-Extras offengelegt, deutsche Visual-Zeile; de-DE von
+  4216 auf 3998 gekürzt ohne Behauptungsverlust · #1085 FAQ-Preis = nur die 07-10-Entscheidung ·
+  #1086 Keywords · #1087 Release-Notes beide Sprachen (der Schwarm behauptete, es gäbe keinen
+  deutschen Zwilling — case-insensitives grep fand ihn) · #1088 tools/architecture/faq: externer
+  Bildschirm LIVE, MPE-OUT-Split · #1089 `BioScienceInfo` behauptet keinen Sweep mehr + Wächter
+  `TheScienceCardClaimsNoSweepTests`.
+- **Entschieden statt gefragt:** Subtitle bleibt (App-NAME indexiert „music"); Preis-Wortlaut
+  konservativ; Keyword-Tausch de-DE; Screenshots von Hand auf Gerät, KEIN UI-Test-Target; Store-Text
+  NICHT neu geschrieben (klauselweise gegen Code geprüft, null §2.3-Überbehauptungen); nie ein nacktes
+  `fastlane deliver`. Mirror: `decisions.csv:741–745`.
+- **Founder-only (berichtet):** Klang · Stabilität · Screenshots · `docs/.well-known/apple-app-site-association`
+  trägt das Präfix `VFFORCE` (Marken-Rotlinie, öffentlich) · `Info.plist:84` Mikrofon-Text beschreibt den
+  mit #1024 entfernten Pfad · `testflight.yml` hat einen `skip_tests`-Input ohne einen einzigen
+  `xcodebuild test` · Latenz-Picker (Ultra 128) seit #1024 türlos, jeder bekommt 512 (~10,7 ms, über
+  dem eigenen <10-ms-Ziel).
+- **Lieferung:** `fastlane/metadata/**` liegt in KEINEM Auto-Merge-Filter und keine Lane pusht es —
+  die Texte reisen als Passagiere von #1089 nach `main` und erreichen ASC nur per Founder-Terminal.
+- **Review:** 2026-10-07 — Screenshots geschossen? Review-Notiz auf dem Gerät nachgespielt?

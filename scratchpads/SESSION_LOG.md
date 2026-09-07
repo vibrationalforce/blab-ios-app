@@ -25403,3 +25403,30 @@ auf `steps.<id>.outcome` prüfen — und dafür braucht der Schritt ein `id:`.
 
 ⚠️ Der Namensfilter-Befund ist der KLEINERE: solange derselbe Schritt maskiert ist, stellt ein
 korrigierter Suite-Name nichts Beobachtbares wieder her.
+
+## #1080–#1089 — „Entscheide alles": zehn Scheiben zum TestFlight-ready/marktstarken Stand
+
+Founder-Ask wörtlich: „Entscheide alles zum erfolgreichen Abschluss des TestFlight deploy ready und
+Marktstark ultraechoel". 16-Agenten-Schwarm (`wf_98567780-445`, 3,28 M Tokens, ein Agent-Fehler:
+`echoel-marketing` ist ein Skill, kein Agent-Typ) lieferte zwölf Scheiben; ich habe jede Behauptung
+vor dem Bauen selbst gegen den Baum gemessen und ZWEI davon korrigiert:
+
+- Der Schwarm sagte, `release_notes.txt` habe keinen deutschen Drum-Zwilling — `grep -i` fand
+  ihn auf de-DE:7 („hat keine Drum-Engine"). Beide editiert (#1087).
+- Der Schwarm sah die §7-Zeile „HealthKit read-only" nicht — `Bio/HealthKitWriter.swift` schreibt
+  Puls und Atemfrequenz (Opt-in, `HealthWriteOptInRow`). In #1081 als sechste Zeile mitgezogen.
+
+**Die Kernaussage, gemessen:** TestFlight ist bereit (2576 gelandet). Zum App Store fehlt EIN
+Repo-Defekt (die Review-Notiz, #1080 behoben) und ein Founder-Abend (Screenshots auf dem Gerät nach
+Task R, zwei ASC-Formulare, Ship-Gate 1 und 5). Wer hier „Engineering-Rückstand" liest, liest falsch.
+
+**Längen-Falle beim Store-Text:** nach den drei deutschen Zusätzen stand de-DE bei 4216 Zeichen
+(Apple: 4000). Gekürzt auf 3998 durch Umformulieren, KEINE Behauptung gestrichen; alle neun
+Store-Wächter in Python transkribiert und grün. Messung: `python3 -c "print(len(open(p,encoding='utf-8').read()))"`
+— nie `wc -c` (Umlaute).
+
+**Nicht gebaut, absichtlich:** UI-Test-Target/Screenshot-Lanes (Simulator hat keine Taschenlampe,
+kein HealthKit, keinen Gurt — ein Simulator-Screenshot wäre eine unehrliche Abbildung); Store-Text-
+Neuschrieb; Wieder-Betüren von ProUnlockView/Broadcast/Mikro; die 101 NEEDS-FOUNDER-VERIFY-Marken.
+
+Gates: siehe #1089-Commit (einzige `Sources/`-Berührung, String-Änderung). Deploy 458 folgt bei Grün.
