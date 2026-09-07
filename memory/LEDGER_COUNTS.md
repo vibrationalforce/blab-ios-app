@@ -5903,6 +5903,50 @@ ein Slot nur wiederverwendbar ist, solange sein Inhalt noch kompiliert.
 **Body presentation-modifier count = 14** (8 sheet + 2 cover + 3 alert + 1 fileImporter; dateiweit 16 — die zwei verschachtelten stehen im Absatz oben, und seit #479 sind BEIDE Zahlen im blockierenden Bundle festgenagelt), nachgemessen 2026-08-07 und erstmals gegen die `struct EchoelStudioView: View`-DEKLARATION verankert statt gegen die Einrückung allein. ⛔ Hier stand „alle 14 lösen auf `var body: some View` auf, kein anderes `var …: some View` trägt heute einen“ — **falsch, und widerlegt vom Absatz darüber**: `private var openSheet: some View` trägt sehr wohl einen (`.fileImporter`), und genau den nennt derselbe Absatz als verschachtelten Wirt. Wahr ist das ENGERE: kein anderes `var …: some View` trägt einen auf EINRÜCKUNG 8, also auf seiner eigenen obersten Kette. Dazu zwei fail-open-Pfade der ersten Fassung, beide im Review gefunden: der Anker nahm das erste 4-Einrückungs-`var body` DATEIWEIT (es gibt **sieben**; `EchoelStudioView` gewann nur, weil die `struct` bei :47 beginnt), und der Terminator verglich exakt auf `"    }"`, was ein `    } // …` verfehlt, weil der Kommentar-Stripper eine nachlaufende Leerstelle hinterlässt. **Beide machen die Kette KLEINER, und `<=` sieht das nicht** — deshalb steht jetzt ein Sentinel daneben, der verlangt, dass die Scheibe ihr LETZTES Kettenglied noch enthält. **Die Historie der Zahl:** the sample-browser `.sheet(item:)` went with `SampleBrowserView` (#167). It was 15 the day before — it was 16 the day before, and the "= 12" before that counted only `.sheet`+`.fullScreenCover` and read as headroom that does not exist. Alerts and the file importer sit on the same chain and carry the same metadata cost.
 
 
+
+### D.n — 2026-09-07 (#1074): DIE SUMME ÜBERLEBTE, BEIDE SUMMANDEN NICHT
+
+`CLAUDE.md` trug die Aufschlüsselung **„8 `.sheet` + 2 `.fullScreenCover` + 3 `.alert` +
+1 `.fileImporter` = 14"**. Gemessen am 2026-09-07 (code-only über die ganze Datei):
+**8 · 1 · 3 · 2 = 14.**
+
+#1069 löschte einen `.fullScreenCover` (2 → 1) und irgendwann kam ein zweiter
+`.fileImporter` dazu (1 → 2). **Die beiden Fehler haben sich gegenseitig aufgehoben.**
+
+⭐ **Das ist eine eigene Fehlerklasse und sie ist in diesem Ledger neu.** Alle anderen
+Einträge hier sind Zahlen, die veraltet sind und dabei falsch AUSSEHEN. Diese sah bis zur
+letzten Stelle richtig aus:
+· `ResetSoundClearsWhatTheLaunchLineReportsTests` pinnt die SUMME (`== 14`) und war grün.
+· `count-pins.py` prüft Arithmetik und war grün.
+· Ein Leser, der nachrechnet, bekommt 14 und hört auf.
+**Ein Wächter auf eine Summe kann eine Verschiebung zwischen ihren Summanden nicht sehen.**
+
+Konsequenz, und sie ist nicht „Zahl nachführen": die Aufschlüsselung ist **gelöscht** (#818).
+Sie war nie das Budget — das Budget ist die Summe, und die ist gepinnt. Wer die Verteilung
+braucht, misst sie (`python3 scripts/doctor.py --section D`).
+
+⚠️ **Die verallgemeinerte Frage für jede künftige Zusammensetzung: wird die SUMME gepinnt
+oder werden die TEILE gepinnt?** Wird nur die Summe gepinnt, ist jede geschriebene
+Aufschlüsselung ungeschützt — auf die stillste denkbare Art.
+
+⛔ **Und hier ist die naheliegende Reparatur die FALSCHE, was diesen Eintrag von den anderen
+unterscheidet.** „Dann pinne eben auch die Teile" wäre ein Wächter, der eine HARMLOSE
+Änderung verbietet: ein `.sheet`, das legitim ein `.fullScreenCover` wird, lässt das
+Metadata-Budget exakt gleich und ginge trotzdem rot — genau das #364-Verbot, die eigene
+Zukunft zu verbieten. **Das Budget IST die Summe.** Also bleibt nur die andere Hälfte: die
+Aufschlüsselung gar nicht erst aufschreiben. Eine Zahl, die kein Wächter schützen DARF,
+gehört nicht in die immer geladene Datei.
+
+⚠️ Auch KEIN Text-Scan auf `CLAUDE.md`, der die Abwesenheit der Aufschlüsselung prüft (#491):
+diese Datei zitiert zurückgenommene Behauptungen absichtlich, ein Negativ-Scan träfe seine
+eigene Rücknahme.
+
+⛔ **Im selben Durchgang gefunden, andere Klasse, gleicher Absatz:** „2 der 14 Slots haben
+keinen Setzer" nannte `showMeditation` und `midiImportPresented`, während **#1024 zwei
+Absätze weiter oben in DERSELBEN Datei** `showInput` zum dritten gemacht hatte. `doctor.py
+--section C` druckt heute drei. Kein Zusammenspiel von Fehlern, nur eine Abschrift, die
+ihren eigenen Nachbarn nicht gelesen hat — beide Vorkommen zeigen jetzt auf den Befehl.
+
 ## E — `PianoRollView` (#475): die Zeilenzahlen und die neun Falschbehauptungen
 
 **Verschoben aus `CLAUDE.md` am 2026-08-22 (#746), wörtlich.** In der immer-geladenen Datei
