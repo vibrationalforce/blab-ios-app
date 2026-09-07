@@ -25430,3 +25430,15 @@ kein HealthKit, keinen Gurt — ein Simulator-Screenshot wäre eine unehrliche A
 Neuschrieb; Wieder-Betüren von ProUnlockView/Broadcast/Mikro; die 101 NEEDS-FOUNDER-VERIFY-Marken.
 
 Gates: siehe #1089-Commit (einzige `Sources/`-Berührung, String-Änderung). Deploy 458 folgt bei Grün.
+
+### Gates und Deploy 458 (nachgetragen 12:45Z)
+- `99b4b966` (#1089): Xcode Compile Check 2433 **SUCCESS** · CI/CD 5898 `Build for Testing` **SUCCESS** (der
+  neue Wächter kompiliert; ob er LIEF, ist im 200-Zeilen-Fenster nicht sichtbar — #1079b).
+- Deploy `74800f3a` = **TestFlight 2577, Build 458 (v10.79.458)**: Archive · Upload (11 min, Apple langsam) ·
+  „Verify build landed in App Store Connect" **SUCCESS** 12:44:54Z. `git merge-base --is-ancestor 99b4b966 74800f3a` = ja.
+- Auto-Merge 3333 hat `99b4b966` samt aller Passagiere (Store-Text, Website, Checkliste) nach `main` gebracht;
+  `7def1c47` (#1084) ist Vorfahr von `origin/main`. Website-Änderungen sind damit live-fähig; Store-Text
+  erreicht ASC weiterhin nur per Founder-Terminal.
+- ⚠️ Der Deploy-Push ging raus, während die zwei Gates noch liefen (Stop-Hook-Druck; nichts Irreversibles:
+  String-Änderung, TestFlight kompiliert dieselben Quellen). Beide wurden danach grün — Reihenfolge war
+  unschön, das Ergebnis ist belegt.
