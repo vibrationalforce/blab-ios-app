@@ -25770,3 +25770,23 @@ overlay …" sagte.
 - **Lehre (dieselbe wie #456, in der Richtung Zahl):** #1069 hat den Zähler im Wächter und in
   CLAUDE.md nachgeführt und die zwei Aufschlüsselungen in der Datei selbst stehen lassen, die
   eine Sitzung liest, BEVOR sie einen Modal anhängt. Die Summe stimmte, die Summanden nicht.
+
+## #1105 — zehn weitere Prosa-Stellen in sechs Dateien behaupteten den Cover und seinen Kopfleisten-Donut-Schalter
+
+**Fund (Fortsetzung von #1104, Zyklus 22:58Z):** ein `git grep -i "VJ overlay\|the cover\|fullscreen
+cover"` über `Sources/` ohne die ⛔-Zeilen. #1069 hat den `showVisual`-Cover gelöscht, #1065 hatte dem
+Donut-Look zwei Scheiben vorher seinen eigenen `Toggle(isOn: $spectralDonuts)` im Field-Panel
+gegeben — die EINE Tür heute. Präsens-Behauptungen des Gegenteils standen in `EchoelStudioView`
+(×5: die `spectralDonuts`-Doc, die verwaiste Doc der gelöschten `floatingWasVisible`, die
+`normaliseUnreachableDonutMode`-Grabstelle ×2, die Fine-Tune-Doc „used by BOTH … VJ overlay"),
+`StudioDefaultKeys` (×2), `SpectralColor` (Pitch-Space-Fallback „the fullscreen cover"),
+`AnalysisSpectrumView` (Kopf), `LookBlendMap` (die #1003-Rücknahme) und in der Fehlermeldung von
+`VisualLookTruthTests.testAFreshInstallDoesNotClaimTheDonutRenderer` („The cover now has a door …
+the cover's toggle is the one control"). Alle mit ⛔-Vermerk auf die Field-Panel-Wahrheit gezogen;
+kein Anspruch ändert sein Urteil. `moved-needles.py`: 0. Absichtlich stehen gelassen: die
+#1065-Messung in `EchoelStudioView` („glyph in the fullscreen COVER's top bar … the moment the
+cover is deleted"), weil sie Vergangenheit erzählt, und `TheDonutLookSurvivesTheCoverTests`, dessen
+Name und Kopf genau diese Geschichte SIND.
+- **Lehre:** #1069 war ein Lösch-Commit mit sechs mitgezogenen Wächtern (#456) — und ließ die
+  Prosa in fünf Nachbar-Dateien stehen, die den Cover als TÜR zitierte. Nach einem Löschen ist der
+  Grep über den NAMEN des Gelöschten (hier „cover", nicht nur `showVisual`) Teil des Löschens.

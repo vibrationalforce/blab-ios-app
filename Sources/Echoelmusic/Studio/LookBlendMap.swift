@@ -82,8 +82,9 @@ enum LookBlendMap {
     /// renderer is doorless today (its only mount sits behind a cover with no setter), so
     /// nothing a player can reach contradicts the caption — but a predicate that claims to
     /// cover 'the screen' would be wrong the day it is re-doored." **#747 re-doored it** —
-    /// `visualPanel`'s "Full screen" button opens the cover, and the donut toggle lives
-    /// inside it. So the caveat came true and nothing moved with it: for a whole stretch the
+    /// `visualPanel`'s "Full screen" button opened the cover, and the donut toggle lived
+    /// inside it (past tense since #1105: #1069 deleted that cover, the door today is the Field
+    /// panel's `Toggle(isOn: $spectralDonuts)`, #1065). So the caveat came true and nothing moved with it: for a whole stretch the
     /// VJ overlay told a player in donut mode that Detail "shapes the Rings look only", while
     /// Detail was the one control on that overlay actually reaching the renderer in front of
     /// them (`bandCount: max(8, Int(visualDetail))`).

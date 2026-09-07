@@ -49,11 +49,12 @@ final class VisualLookTruthTests: XCTestCase {
                        + "AND ITS REASON CHANGED, which is why the old message asking for a flip is "
                        + "gone. Until then, `SpectralDonutView`'s only construction site sat behind "
                        + "a cover with no setter, so `true` was a claim the app could not honour on "
-                       + "first launch. The cover now has a door (Field → \"Full screen\") and a "
-                       + "top-bar donut toggle, so `true` would be honourable — and it is still "
+                       + "first launch. The look now has a door — the Field panel's "
+                       + "`Toggle(isOn: $spectralDonuts)` (#1065; the cover and its top-bar glyph "
+                       + "went in #1069) — so `true` would be honourable — and it is still "
                        + "wrong as a DEFAULT: a fresh install should open on the Metal field, the "
                        + "identity look, with donuts as something a player chooses. The pill was "
-                       + "NOT restored either; the cover's toggle is the one control (#290).")
+                       + "NOT restored either; that switch is the one control (#290).")
     }
 
     /// ⭐ THE INVARIANT THE FLIP NEWLY EXPOSES, and the reason this file is worth its place.

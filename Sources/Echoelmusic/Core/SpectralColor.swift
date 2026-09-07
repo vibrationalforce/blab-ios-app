@@ -315,7 +315,8 @@ public enum SpectralColor {
     ///
     /// ⚠️ THIS FUNCTION IS STILL CORRECT AND STILL USED — do not "fix" it toward the grid.
     /// It is the source-agnostic PITCH-SPACE placement, which is the honest answer for a
-    /// field with no grid over it (the fullscreen cover, the external stage) and for a note
+    /// field with no grid over it (the window with the grid switched off, the external stage;
+    /// ⛔ "the fullscreen cover" stood here until #1105 — #1069 deleted it) and for a note
     /// whose pitch class is not in the key at all. The grid-aware placement is
     /// `TouchPitchMap.fieldPosition`, and `MetalBioView` falls back to this one.
     public static func notePosition(forHz hz: Double) -> (x: Double, y: Double) {

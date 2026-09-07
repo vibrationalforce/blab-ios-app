@@ -327,8 +327,10 @@ struct EchoelStudioView: View {
     @AppStorage(StudioDefaultKeys.masterCharacter.key) private var masterCharacterRaw = StudioDefaultKeys.masterCharacter.value
     /// Immersive visual mode: the spectrum→visible donut renderer vs the Metal field.
     /// **Default stays `false`, and since #747 that is a CHOICE rather than a limitation.** The
-    /// reachable control is the donut toggle in the fullscreen cover's top bar, reached through
-    /// the "Full screen" button in `visualPanel`. From #227 until then nothing could turn it on,
+    /// reachable control is the `Toggle(isOn: $spectralDonuts)` in the Field panel (#1065).
+    /// (⛔ "the donut toggle in the fullscreen cover's top bar, reached through the 'Full screen'
+    /// button" stood here until #1105 — #1069 deleted that cover; #1065 had given the look its
+    /// own switch two slices earlier.) From #227 until #747 nothing could turn it on,
     /// which is why a launch-time normaliser existed; that function is deleted — see the
     /// tombstone where it stood. A fresh install opens on the Metal field because that is the
     /// identity look, not because donuts are unreachable.
@@ -787,9 +789,9 @@ struct EchoelStudioView: View {
     // ⛔ `showVisual` STOOD HERE AND IS DELETED (#1069). It drove the second fullscreen chrome;
     // "Full screen" now resizes the ONE window (#1067). Presentation slots on this body: the
     // chain is one shorter, the safe direction at the 10.76.34 metadata ceiling.
-    /// Remembers whether the floating visual was showing before the fullscreen cover took over,
-    /// so dismissing the cover restores it (single-MetalBioView / GPU rule — see onChange).
-    // ⛔ `floatingWasVisible` STOOD HERE AND IS DELETED (#1069). Its only reader was the
+    // ⛔ `floatingWasVisible` STOOD HERE AND IS DELETED (#1069). Its doc read "Remembers whether
+    // the floating visual was showing before the fullscreen cover took over, so dismissing the
+    // cover restores it" — folded into this tombstone by #1105, it documented nothing. Its only reader was the
     // `.onChange(of: showVisual)` handler that hid the floating window while the cover was up.
     @State private var showMeditation = false
     @State private var showLiveColabo = false
@@ -6032,8 +6034,10 @@ struct EchoelStudioView: View {
     // It cleared a persisted `visual.spectralDonuts == true` on every launch, for the one
     // reason written into its own doc block: while the donut renderer had no door, `true` was
     // a state nothing could undo. #747 gave `showVisual` a setter ("Full screen" in
-    // `visualPanel`), so the cover's top-bar donut toggle is reachable and the value is the
-    // player's again. The deletion is the instruction, not an inference — the doc block
+    // `visualPanel`), so the donut renderer had a reachable door and the value was the
+    // player's again (since #1065/#1069 that door is the Field panel's `Toggle(isOn:
+    // $spectralDonuts)`; the cover and its top-bar glyph are gone — #1105). The deletion is
+    // the instruction, not an inference — the doc block
     // ordered it in this exact commit.
     //
     // ⚠️ WHAT DID *NOT* CHANGE, because the obvious follow-up is wrong: the persisted DEFAULT
@@ -6041,8 +6045,8 @@ struct EchoelStudioView: View {
     // `VisualLookTruthTests.testAFreshInstallDoesNotClaimTheDonutRenderer` is NOT flipped. Its
     // failure message invited the flip, but the assertion it makes is still true and now states
     // a design choice instead of a limitation: a fresh install opens on the Metal field, which
-    // is the identity look, and donut mode is something a player CHOOSES from the cover. Only
-    // that test's PROSE needed correcting.
+    // is the identity look, and donut mode is something a player CHOOSES from the Field
+    // panel's switch (⛔ "from the cover" until #1105). Only that test's PROSE needed correcting.
 
     /// ⛔ DELETE THIS TOGETHER WITH THE LINE THAT CALLS IT, IN THE SAME COMMIT THAT GIVES
     /// `MixerStore.lead` A DOOR AGAIN (a lead fader, or any other control that writes it).
@@ -6452,9 +6456,10 @@ struct EchoelStudioView: View {
     }
 
     /// The ONE control plus, folded away, the six that were on the surface before it.
-    /// ONE definition, used by BOTH the inline Field panel and the fullscreen VJ overlay
-    /// so the controls are identical everywhere (founder: "easy to understand/control" —
-    /// no drift, one place to change).
+    /// ONE definition, mounted in the inline Field panel (⛔ "used by BOTH the inline Field
+    /// panel and the fullscreen VJ overlay" until #1105; the overlay went with the cover in
+    /// #1069), so the controls are identical everywhere (founder: "easy to understand/control"
+    /// — no drift, one place to change).
     ///
     /// WHY THE SIX ARE FOLDED AND NOT DELETED — and the precise version, because the first
     /// draft of this comment said "no other writer" and that is simply false: `applyVisualPreset`

@@ -180,11 +180,13 @@ public enum StudioDefaultKeys {
     /// presented. The visual a player could actually reach was `FloatingVisualWindow`, which
     /// never reads this key at all.
     ///
-    /// ⭐ THE COVER IS REACHABLE AGAIN (#747) — the "Full screen" button in `visualPanel` — and
-    /// the default STAYS `false` anyway. The reason changed, and that is worth stating because
-    /// the number did not: `false` used to be the only truthful value; it is now the right
-    /// OPENING state. A fresh install lands on the Metal field, which is the identity look, and
-    /// the cover's top-bar toggle is how a player asks for donuts. The launch normaliser that
+    /// ⭐ THE DONUT LOOK HAS A DOOR AGAIN (#747 re-doored the cover; #1065 gave the look its own
+    /// `Toggle(isOn: $spectralDonuts)` in the Field panel; #1069 then deleted the cover, so the
+    /// Field-panel switch is the ONE door — #1105) — and the default STAYS `false` anyway. The
+    /// reason changed, and that is worth stating because the number did not: `false` used to
+    /// be the only truthful value; it is now the right OPENING state. A fresh install lands on
+    /// the Metal field, which is the identity look, and the Field panel's switch is how a
+    /// player asks for donuts. The launch normaliser that
     /// enforced the old reason is DELETED (`normaliseUnreachableDonutMode()`, #227 → #747) —
     /// with a door in place it would have erased that choice on every launch.
     /// With the old default, a FRESH INSTALL showed a filled "Donuts" pill and a readout saying
@@ -210,7 +212,8 @@ public enum StudioDefaultKeys {
     /// The KEY STRING is deliberately unchanged. Its original reason expired with #747 (the
     /// launch normalisation that had to FIND a stored `true` in order to clear it no longer
     /// exists), and a weaker one takes its place: an install that stored `true` before #227 gets
-    /// that choice back the moment it opens the cover, and a rename would silently reset it
+    /// that choice back the moment it flips the Field panel's switch (⛔ "opens the cover"
+    /// until #1105), and a rename would silently reset it
     /// instead. `VisualLookTruthTests` still pins the string.
     public static let visualSpectralDonuts = StudioDefault(key: "visual.spectralDonuts", value: false)
     public static let visualStyle = StudioDefault(key: "visual.style", value: 5)
