@@ -1,4 +1,8 @@
 #if canImport(SwiftUI) && canImport(Network)
+// ⚠️ THE FILE NAME IS NOT A TYPE. There is no `NetworkActivityDot` anywhere in this repo; the
+// dot is three lines inside `NetworkOutputHeader.body`. Grepping the name finds this file and
+// nothing else, which reads like a deleted type rather than a naming choice. Kept as-is (a
+// rename is churn on a stable file), recorded so the next search does not end in a wrong guess.
 import SwiftUI
 
 /// What a network output can tell a UI about itself, and nothing more.
@@ -118,6 +122,24 @@ struct NetworkOutputHeader: View {
 /// ~30 Hz, and the stage body hosts drag gestures over every track puck. The two STATIC sentences
 /// (no route / connection closed) stay in the parent, because they are computed from flags that
 /// change only when the operator changes them.
+///
+/// ⛔ **DOORLESS — AND ONE HOP DEEPER THAN A TOOL LOOKS (#1051).** Measured, comment-stripped:
+/// `ADMStreamStatusLine(` has exactly ONE construction site in `Sources/`, in
+/// `ImmersiveStageView.swift`; and `ImmersiveStageView(` has **zero**. So this line is built
+/// inside a view nothing builds. `doctor --section C` asks "is it constructed at all", so a call
+/// site inside dead code still reads as a call — this is the `BreathGuideView` shape (#947), and
+/// it is the reason the note sits HERE rather than in `CLAUDE.md` (938 B of headroom under the
+/// 150,000 B ceiling; a declaration-site note plus a guard costs the always-loaded file nothing).
+///
+/// ⚠️ **Do not read this as "the dot mechanism is unproven".** Its twin `NetworkOutputHeader` IS
+/// reachable — `PatchbayView` builds one per network output, and that is a live operator surface.
+/// The absence is specific to the ADM line and to the stage that hosts it, which `CLAUDE.md`
+/// parks deliberately (ship gate 4: light/space "demonstrable, not required for v1").
+///
+/// ⚠️ **Not deletable, and not a defect.** Re-dooring is a door on the PARENT, not on this leaf;
+/// the leaf is already mounted and already carries the freeze-law confinement the stage needs.
+/// Wächter: `Tests/CISmoke/TheStageStatusLineHasNoDoorTests.swift` — it forbids nothing (#364)
+/// and names the prose that must move on the day someone doors the stage.
 @MainActor
 struct ADMStreamStatusLine: View {
     let sender: any NetworkSendActivity
