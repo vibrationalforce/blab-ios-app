@@ -11,8 +11,15 @@ import XCTest
 ///
 /// ⚠️ WHAT THIS FILE CAN AND CANNOT SEE. It runs no Metal and opens no photo library, so the
 /// picture itself is NEEDS-FOUNDER-VERIFY (below). What it pins is the STRUCTURE that made the
-/// feature cheap and keeps it honest: one arming flag, one question asked by the draw loop, the
-/// flag cleared on the main thread, and no new presentation modifier.
+/// feature cheap and keeps it honest: one arming flag, one question asked by the draw loop, and
+/// the flag cleared on the main thread.
+///
+/// ⛔ "and no new presentation modifier" stood in that list and is struck (#1050). The modifier
+/// claim was CLAIM 4 here, it was misanchored on raw text (see the retraction block below), and it
+/// lives — correctly, and more strongly — in
+/// `ResetSoundClearsWhatTheLaunchLineReportsTests.testTheConfirmationDidNotBecomeAnotherModal`.
+/// A header that lists a claim the body no longer makes is how a reader concludes a thing is
+/// guarded when it is guarded somewhere else, or nowhere.
 final class AStillIsOneFrameNotASecondPathTests: XCTestCase {
 
     private func source(_ relative: String) throws -> String {
@@ -79,35 +86,44 @@ final class AStillIsOneFrameNotASecondPathTests: XCTestCase {
             """)
     }
 
-    /// 4 — the door costs no presentation modifier. The still saves straight to Photos like the
-    /// video does; a share sheet here would grow the chain the 10.76.34 black-screen law caps.
-    func testTheStillDoorAddsNoModal() throws {
-        let studio = try source("Sources/Echoelmusic/Studio/EchoelStudioView.swift")
-        // ⛔ A DOOR ASSERTION STOOD HERE AND WENT RED ON A CORRECT TREE — retracted, not re-pointed.
-        // It required the literal `visualRecorder.requestStill()` in this file. #986 moved the tap
-        // into the `StillShutterButton` leaf ON PURPOSE (the menu-hosting body must not own it —
-        // 10.76.41/50), and the guard written that same hour FORBIDS the substring `requestStill(`.
-        // One string is contained in the other, so from #986 until this line no tree could satisfy
-        // both: the blocking bundle carried a guaranteed failure, and it shipped in 441 because the
-        // job log is `tail -200 test.log` and the failure sat before that window (#807 — quoted in
-        // that cycle's own commit message and then not acted on).
-        //
-        // It is DELETED rather than re-pointed at `StillShutterButton(recorder:`: that needle
-        // already exists verbatim in `TheStillSaysWhetherItWasSavedTests`, and a second home for
-        // one claim is #416. The door is still guarded — just once, over there.
-        //
-        // THE LESSON, and it is not "update the guard": a slice that MOVES a call must grep the
-        // TEST tree for the old spelling, not only the source tree. My #986 transcription drove
-        // the new guard against both trees and never re-ran the old one, so the contradiction was
-        // invisible to the very check meant to catch it (#456: fix every home in the same commit).
-        // The counts this repo pins elsewhere; asserted here as a NON-GROWTH check only, so this
-        // claim does not become a second home for the numbers (#416).
-        XCTAssertEqual(studio.components(separatedBy: ".sheet(").count - 1, 14, """
-            The presentation-modifier count moved. The still button is supposed to cost ZERO \
-            modifiers (it writes to Photos, it does not present anything) — if a modal was added \
-            for it, take an existing slot instead (CLAUDE.md's presentation paragraph).
-            """)
-    }
+    // ⛔ CLAIM 4 STOOD HERE AND IS RETRACTED WHOLE (#1050). Both of its assertions were wrong,
+    // in two different ways, and the second one looked GREEN the whole time.
+    //
+    // ITS NAME was `testTheStillDoorAddsNoModal`, and the claim is real: the still writes to
+    // Photos, so it must cost ZERO presentation modifiers (10.76.34 black-screen law).
+    //
+    // ASSERTION 1 (deleted earlier) required the literal `visualRecorder.requestStill()` in
+    // `EchoelStudioView.swift`. #986 moved the tap into the `StillShutterButton` leaf ON PURPOSE
+    // (the menu-hosting body must not own it — 10.76.41/50), and the guard written that same hour
+    // FORBIDS the substring `requestStill(`. One string contains the other, so from #986 until its
+    // deletion NO tree could satisfy both: the blocking bundle carried a guaranteed failure, and it
+    // shipped in 441 because the job log is `tail -200 test.log` and the failure sat before that
+    // window (#807 — quoted in that cycle's own commit message and then not acted on).
+    //
+    // ASSERTION 2 was `XCTAssertEqual(studio.components(separatedBy: ".sheet(").count - 1, 14)`,
+    // and it is the more instructive failure because NOTHING was red. `source(_:)` above returns
+    // the file UNSTRIPPED, so the 14 it matched is `9` real `.sheet(` call sites PLUS `5` mentions
+    // of `.sheet(` inside comments and doc comments. The pin therefore moved when someone edited
+    // PROSE and stayed still when someone added a `.fullScreenCover` — it measured the opposite of
+    // what its message described. That the total landed exactly on 14, the number CLAUDE.md's
+    // presentation paragraph gives for the BODY CHAIN, is a coincidence of two unrelated sums; it
+    // is what made the pin look verified for four cycles. Two prose homes recorded it as "still
+    // measures correctly" (`DEEP_AUDIT_2026-09-04_ARTISTIC_USER.md`) and as a tool false alarm
+    // (`SESSION_LOG` 2026-09-07); both are corrected in this commit (#456).
+    //
+    // WHY NOTHING REPLACES IT, rather than a re-pointed count: the claim already has ONE proper
+    // home, and that home is strictly stronger in every dimension this one was weak in —
+    // `ResetSoundClearsWhatTheLaunchLineReportsTests.testTheConfirmationDidNotBecomeAnotherModal`
+    // strips comments before counting, covers all SIX presentation forms rather than `.sheet` only,
+    // and pins BOTH the file-wide total (`== 16`) and the body-chain ceiling (`<= 14`) because
+    // file-wide alone cannot see a nested modifier MOVED onto the chain. Adding a modal for the
+    // still goes red there. A second, weaker copy here is #416, which this very method's own
+    // comment said it was avoiding while doing it.
+    //
+    // THE LESSON: a count pin that reads RAW source is not pinning the source, it is pinning the
+    // source PLUS everything anyone wrote about it. `scripts/count-pins.py` strips comments before
+    // it counts, so it reported this pin as red — the tool was right and the guard was wrong, which
+    // is the reverse of how its own HONEST LIMIT 3 predicted that disagreement would go.
 
     /// 5 — `saveStillToPhotoLibrary` runs on the GPU completion thread, so it may not be
     /// main-actor isolated, and it must ask for the narrowest permission the video path uses.

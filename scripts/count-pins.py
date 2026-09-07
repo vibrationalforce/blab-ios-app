@@ -77,7 +77,18 @@ is a checker nobody reads, so its blind spots are part of its output):
     ⚠️ There is a THIRD state the heuristic cannot express: `TheMonitorSurgeryQuiets\
     TheEngineTests` reads RAW, unstripped text. If one of its pins ever resolves, this
     tool would strip where the guard does not, and a needle inside a comment would give
-    a false RED. Nothing fires today; the two-state description was simply wrong.
+    a false RED. The two-state description was simply wrong.
+    ⛔ #1050 — IT FIRED, and the direction was the opposite of the one predicted here.
+    `AStillIsOneFrameNotASecondPathTests` was a SECOND raw reader (its `source(_:)` returns the
+    file unstripped), it pinned `.sheet(` at 14, this tool stripped and measured 9, and the
+    paragraph above had already taught the next reader to call that a false alarm — which the
+    session log and a deep-audit note both then did. It was not: the guard's 14 was 9 real call
+    sites plus 5 mentions inside comments, so it moved on PROSE edits and stood still when a
+    `.fullScreenCover` was added. The pin is retracted; the claim's proper home
+    (`ResetSoundClearsWhatTheLaunchLineReportsTests`) strips before counting and was green
+    throughout. LESSON for this tool's next reader: a raw-reading guard is not a reason to
+    distrust a RED here — it is the first thing to check ABOUT the guard, because "counts its own
+    documentation" is a defect a stripping tool sees and an unstripped guard cannot.
     ⛔ #977 MEASURED a live wrongness this limit only described in the abstract:
     `ChromeDynamicTypeTests.swift` mentions `SourceText.codeOnly` ONCE, in PROSE, and
     every helper in it strips by deleting `//` lines — so the file-wide guess is already

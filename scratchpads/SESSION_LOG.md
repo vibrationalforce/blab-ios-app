@@ -24138,6 +24138,16 @@ eine Leerzeile den Block wieder von der Deklaration. Beides vor dem Commit repar
    Werkzeugs**: dieser Wächter bindet über ein eigenes `source()`, das Kommentare NICHT
    entfernt — roh sind es 14, der Pin stimmt. `count-pins.py` nimmt für jeden Empfänger
    `SourceText.codeOnly` an. Das ist eine Grenze, die in seinem Kopf fehlt.
+   ⛔ **FALSCH, zurückgenommen 2026-09-07 (#1050).** Die MESSUNG stimmte, die SCHLUSSFOLGERUNG
+   nicht: „roh sind es 14, der Pin stimmt" — die 14 sind **9 echte `.sheet(`-Aufrufstellen plus
+   5 Nennungen in Kommentaren**. Ein Pin, der seine eigene Dokumentation mitzählt, bewegt sich
+   bei PROSA-Änderungen und steht still, wenn jemand ein `.fullScreenCover` anhängt: er misst
+   das Gegenteil dessen, was seine Fehlermeldung beschreibt. Das Werkzeug hatte recht, der
+   Wächter nicht. Der Pin ist ganz zurückgezogen; die eine richtige Heimat der Behauptung ist
+   `ResetSoundClearsWhatTheLaunchLineReportsTests.testTheConfirmationDidNotBecomeAnotherModal`
+   (kommentar-gestrippt, sechs Modifier-Formen, dateiweit `== 16` UND Kette `<= 14`, heute grün).
+   **Lehre: „das Werkzeug irrt" ist die teuerste Diagnose, die man ohne Nachmessen stellen kann**
+   — sie schaltet genau die Prüfung ab, die den Fund gemacht hat.
 2. `TheEngineLifecycleSpeaksInTheDiagLogTests:1120` (`EchoelCrashLog.breadcrumb(` 20 vs 22)
    ist **echt rot**, unter jedem Stripper, identisch bei HEAD. Zwei Breadcrumbs kamen nach
    #968 dazu, ohne den Pin zu bewegen. Unsichtbar aus dem §5-Grund. → nächste Scheibe.
