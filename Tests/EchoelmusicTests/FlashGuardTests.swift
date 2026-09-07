@@ -159,8 +159,15 @@ final class FlashGuardTests: XCTestCase {
         let looks: [(name: String, phaseMultiplier: Double, folds: Bool)] = [
             // fieldRings: p = 0.5·phase, then interference INTENSITY (bipolar square).
             ("Rings",  FlashGuard.ringsPhaseDamping, true),                 // → 2.50 Hz
-            // fieldWater: sin(x·s + t)·cos(y·(s−1) − 0.7t), t = 0.4·phase.
+            // fieldWater: sin(x·s + t)·cos(y·(0.818·s) − 0.7t), t = 0.4·phase.
             // PRODUCT of two phase-bearing factors ⇒ sum sideband 0.4 + 0.28 = 0.68.
+            // #1078 gave `s` the capillary law (s ∝ toneHz^(2/3)) and moved breath onto
+            // the sum's AMPLITUDE. Neither touches a phase-bearing term — `s` multiplies
+            // the SPATIAL coordinate, breath carries no phase and multiplies an already
+            // summed non-phase-bearing quantity — so this row is unchanged BY STRUCTURE,
+            // not by luck. The mutual ratios replaced additive offsets in the same slice;
+            // the shorthand above follows the code so it cannot drift into describing a
+            // line that is no longer there.
             ("Water",  0.68, false),                                        // → 1.70 Hz
             // fieldAurora: abs(p.y − wave) FOLDS a wave whose fastest term is
             // 1.0·t = 0.35·phase ⇒ 0.70. The curtain is then MULTIPLIED by

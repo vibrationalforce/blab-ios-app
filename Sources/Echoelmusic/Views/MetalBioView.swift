@@ -1661,15 +1661,67 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // STYLE 3 — WATER caustics: crossing wave trains form a rippling light net, like
     // sun on a pool floor — the "Wasser·Klang·Licht" aesthetic for music-video / film /
     // stage. A high power on the wave crests yields the bright caustic filaments;
-    // coherence sharpens them, breath widens the ripple scale, the slow flash-safe
-    // phase drifts the surface. Pure sin/cos (no loop), so it stays compile-safe.
-    float fieldWater(float2 p, float phase, float coh, float breath) {
+    // coherence sharpens them, the slow flash-safe phase drifts the surface. Pure
+    // sin/cos (no loop), so it stays compile-safe.
+    //
+    // ⭐ THE WAVELENGTH IS THE SOUNDING PITCH'S, NOT THE BREATH'S (#1078). A shallow
+    // dish on a speaker — a "Wasserklangbild" — is a FARADAY parametric instability:
+    // the surface answers a vertical drive at HALF the drive frequency, and the
+    // wavenumber that survives obeys the gravity–capillary relation
+    //     ω² = (g·k + σ·k³/ρ)·tanh(k·h),   with ω = 2π·(f/2).
+    // For a real dish (h ≈ 2–5 mm) every audio ripple is already DEEP water — tanh(k·h)
+    // ≥ 0.998 above ~60 Hz — so it collapses to the pure capillary branch ω² ≈ σk³/ρ:
+    //     k ∝ f^(2/3)   ⇔   λ ∝ f^(−2/3)
+    // One octave up makes the net 2^(2/3) ≈ 1.587× finer. THAT EXPONENT IS THE WHOLE
+    // PHYSICAL CONTENT of this look, and it is what the guard pins. The ½ is a LENGTH
+    // fact here, not a rate fact — driving the law with f instead of f/2 would render a
+    // net a full octave too fine — and it cancels out of the RATIO, which is exactly why
+    // the exponent is physics while the anchor below is not.
+    //
+    // WHAT IS PHYSICS AND WHAT IS A CHOICE, separated here so nothing downstream
+    // over-claims (the brand line is science-first, and this look is the one a user
+    // sees out of the box — `LookBlendMap.defaultSequence` opens on it):
+    // · PHYSICS — the exponent 2/3; and breath acting on the DRIVE AMPLITUDE. In a
+    //   Faraday cell the drive FREQUENCY sets the wavelength and the drive AMPLITUDE
+    //   sets whether and how strongly a pattern appears at all. Until #1078 breath set
+    //   the wavelength and the pitch reached this function not at all: the two knobs
+    //   were swapped, and the one signal a "water sound image" is actually about was
+    //   the one that was missing.
+    // · A CHOICE — the anchor (5.5 at C4) is a dish size, so the law fixes how the net
+    //   CHANGES with pitch, never how fine it is in absolute terms. The two clamps
+    //   stand for a finite dish (a wave longer than the bowl cannot fit) and for
+    //   viscous damping (short capillary waves die out): real effects at made-up
+    //   numbers, which is why they are clamps and not another formula.
+    // · NOT VALID, and never to be claimed — a CHORD. Benjamin–Ursell's subharmonic
+    //   result is the principal tongue for SINGLE-frequency forcing; multi-frequency
+    //   forcing opens combination tongues that no superposition of per-partial linear
+    //   responses reproduces. This look is driven by the one eased `toneHz`, and that
+    //   is the most it may say.
+    // · The λ(f) law describes the coordinate this function RECEIVES. `structureAmt`
+    //   (the "Structure" row) warps that coordinate upstream, so the claim holds
+    //   exactly at Structure = 0 and approximately above it.
+    //
+    // The three wave trains now keep their MUTUAL ratios (1 : 0.818 : 1.545 : 0.727,
+    // measured off the pre-#1078 line at its mid-breath scale of 5.5) instead of the old
+    // additive ±1 / +3 / −1.5 offsets, so the net stays SELF-SIMILAR as it scales — which
+    // is what a dispersion law does to a pattern. With additive offsets the three trains
+    // converge to one frequency once `scale` grows past them, i.e. the look would have
+    // flattened at exactly the high pitches the new law reaches. At C4 with the shipped
+    // defaults the picture is the one that shipped before.
+    float fieldWater(float2 p, float toneHz, float phase, float coh, float breath) {
         float t = phase * 0.4;
-        float scale = mix(4.0, 7.0, breath);
-        float w = sin(p.x * scale + t) * cos(p.y * (scale - 1.0) - t * 0.7);
-        w += sin(length(p) * (scale + 3.0) - t * 1.1);
-        w += sin((p.x + p.y) * (scale - 1.5) + t * 0.5);
-        float net = clamp(0.5 + 0.18 * w, 0.0, 1.0);
+        // Spatial frequency ∝ f^(2/3), anchored at C4 = 261.63 Hz. `pow` per fragment is
+        // this shader's established practice for a pitch-derived geometry (fieldChladni,
+        // fieldLissajous and fieldScope each take a per-fragment log2 of the same value).
+        float scale = clamp(5.5 * pow(max(toneHz, 20.0) / 261.63, 0.6666667), 3.0, 24.0);
+        float w = sin(p.x * scale + t) * cos(p.y * (scale * 0.818) - t * 0.7);
+        w += sin(length(p) * (scale * 1.545) - t * 1.1);
+        w += sin((p.x + p.y) * (scale * 0.727) + t * 0.5);
+        // Breath is the DRIVE AMPLITUDE. It carries no phase and multiplies an already
+        // summed non-phase-bearing quantity, so it adds no sideband and no fold: the
+        // flash budget below is untouched by this line. 0.5 breath reproduces the old
+        // fixed 0.18.
+        float net = clamp(0.5 + mix(0.12, 0.24, breath) * w, 0.0, 1.0);
         return pow(net, mix(3.0, 6.0, coh));        // crests → bright caustic filaments
     }
     // STYLE 4 — PRISM: a luminous, mostly-open field so the spectral COLOUR (see
@@ -1800,7 +1852,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         if (si < 0.5)       field = fieldRings(d, density, phase, coh);
         else if (si < 1.5)  field = fieldChladni(pf, toneHz, phase, coh);
         else if (si < 2.5)  field = fieldPlasma(pf, phase, coh);
-        else if (si < 3.5)  field = fieldWater(pf, phase, coh, breath);
+        else if (si < 3.5)  field = fieldWater(pf, toneHz, phase, coh, breath);
         else if (si < 4.5)  field = fieldPrism(pf, phase, coh);
         else if (si < 5.5)  field = fieldAurora(pf, phase, coh, breath);
         else if (si < 6.5)  field = fieldLissajous(pf, toneHz, phase, coh);
