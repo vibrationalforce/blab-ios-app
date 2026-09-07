@@ -6555,10 +6555,15 @@ struct EchoelStudioView: View {
                 // ⛔ #1003 — THIS CAPTION USED TO NAME THE ONE LIVE CONTROL AS THE INERT ONE.
                 // `detailReach` answers "how much of the METAL field can Detail shape", and
                 // that is the whole truth only while the Metal field is what is on screen.
-                // In donut mode the full-screen cover renders `SpectralDonutView(bandCount:
-                // max(8, Int(visualDetail)))` — so Detail is the ONE field on this overlay
-                // that reaches the picture in front of the player, and the caption called it
-                // inert while nine genuinely inert rows carried no caption at all.
+                // In donut mode `SpectralDonutView(bandCount: max(8, Int(visualDetail)))` is
+                // what renders — so Detail is the ONE field that reaches the picture in front
+                // of the player, and the caption called it inert while nine genuinely inert
+                // rows carried no caption at all.
+                // ⛔ That sentence said "the full-screen COVER renders" and named one surface
+                // where there are now two (#1062): #1043 gave `FloatingVisualWindow` its own
+                // donut branch, which is the surface the app actually cold-launches into. The
+                // claim was right about the mechanism and wrong about the place — the shape
+                // #1056 had to fix one screen away, from the opposite direction.
                 //
                 // `LookBlendMap`'s own doc predicted this verbatim ("wrong the day it is
                 // re-doored"); #747 re-doored the cover and nothing moved with it. A note

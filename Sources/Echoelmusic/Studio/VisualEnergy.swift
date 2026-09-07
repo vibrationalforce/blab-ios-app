@@ -30,7 +30,15 @@
 //     So Detail is CONDITIONAL, not broken. That is still disqualifying for a single dial —
 //     a control whose effect depends on a choice made in another row is not the thing one
 //     number should move — but the honest word is conditional. (`visualDetail` has a second
-//     consumer too, `SpectralDonutView(bandCount:)`, on a doorless path.)
+//     consumer too, `SpectralDonutView(bandCount:)`.)
+//     ⛔ "on a doorless path" stood at the end of that parenthesis and expired TWICE without
+//     anyone noticing (#1062). #747 gave the fullscreen cover a door, so the donut became
+//     reachable; #1043 then ported the donut branch into `FloatingVisualWindow`, so it has
+//     TWO reachable surfaces — measured: `git grep -n "SpectralDonutView(" -- Sources` returns
+//     two production sites. The phrase mattered because it was an ARGUMENT: a second consumer
+//     nobody can reach does not rescue a conditional dial, and a second consumer on the app's
+//     FIRST SCREEN does. The bullet's verdict ("conditional, not broken") is unchanged; what
+//     changed is that the parenthesis was quietly making the opposite case.
 //   · **Spread** is NOT what its curated values suggest. ⛔ The first draft said "only
 //     softens the vignette frame", citing `vEdge = 0.9 + 0.5 * spread`
 //     (`MetalBioView.swift:1589`) — that is the only use inside `styleField`, but the same
