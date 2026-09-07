@@ -63,11 +63,29 @@ die SICHERE Richtung an der Metadaten-Decke.
 
 ## 2. SCHEIBEN — je eine Ralph-Runde, Wächter im SELBEN Commit (#456)
 
-**S1 — Standbild-Auslöser ins Fenster.** `StillShutterButton` in die Fensterleiste, gegated
-`if windowSize.isFullscreen` (wie Studio-Chip und Slider), damit der Klein-Karten-Boden
-unberührt bleibt. Mitzuziehen: `TheStillSaysWhetherItWasSavedTests:97` und die Drei-Türen-Liste
-`:124-131` sind PER DATEI auf `EchoelStudioView` gepinnt. Compile-prüfbar; wie es aussieht,
-ist Gerät.
+**S1 — Standbild-Auslöser ins Fenster. ✅ AUSGELIEFERT als #1063 (`6316dcbf`)** — mit zwei
+Korrekturen an diesem Absatz, beide gemessen:
+
+⛔ **Die „Mitzuziehen"-Zeile war falsch zugeordnet.** `TheStillSaysWhetherItWasSavedTests:97`
+verlangt nur, dass `EchoelStudioView` den Knopf ÜBERHAUPT montiert; die Drei-Türen-Liste
+`:124-131` gehört zu einer ANDEREN Datei (`TheTakeSaysWhetherItWasWrittenTests`, Anspruch 5,
+und sie zählt `TakeOutcomeLine`, nicht den Auslöser). Es war also nie ein VERSCHIEBEN nötig.
+Ausgeliefert ist deshalb ein reines HINZUFÜGEN: beide Flächen montieren den Auslöser, solange
+das Cover lebt — EIN Standbild mit zwei Bedienstellen an EINEM `VisualRecorder`, die Form der
+REC-Taste seit #747. Die Cover-Kopie geht mit dem Cover (S3).
+
+⛔ **„Portierbar: ja, eine Stelle" hat die BREITE nicht gemessen, und die entschied den
+Entwurf.** `chromeFit` meldet im Vollbild-Balken auf einem 375-pt-Telefon **0 pt Schlupf**
+(18 pt auf 393). Der Blattknopf trägt seinen Antwortsatz IM selben `HStack` — dort wäre er auf
+nichts zusammengedrückt worden, also genau die Stille, gegen die #986 existiert. `StillShutterButton`
+hat deshalb `AnswerPlacement` bekommen: `.beside` (Zeile ohne Budget) und `.below` (ein
+`overlay`, das keine Layout-Breite beansprucht). EIN Blatt besitzt weiterhin Tipp UND Antwort.
+
+**Abwurf-Rang:** nach dem Gitter-Schalter, VOR der leeren Video-Taste — beide sind
+Aufnahme-TÜREN, und ein Standbild ist ein Einzelbild eines Bildes, das noch da ist, während
+einer Video-Aufnahme die verpassten Sekunden fehlen. Gemessene Abwurf-Menge: die vier
+`wavBusy`-Zustände auf 375 und 393 pt (der angepinnte WAV-Stopp reserviert 104 pt). Wächter:
+`ChromeBudgetFitsTests.testTheStillShutterSurvivesWhereTheStillIsTaken`.
 
 **S2 — Tipp-aufs-Bild.** `showVisualControls` als fenster-lokaler `@State`; im Fenster gilt
 dieselbe Geste. Klein, keine Wächter bekannt.

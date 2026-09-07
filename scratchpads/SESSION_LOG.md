@@ -24970,3 +24970,51 @@ der beiden Zeichenketten, es musste also nichts mitwandern.
 und dort schläft der Schirm ein, wenn nicht gespielt wird — genau der kontemplative Fall, den
 Ship-Gate 4 nennt. Immer-wach wäre ein echter Akku-Rückschritt, weil es der Startzustand ist.
 Produktentscheidung, keine Messung — nicht einseitig entschieden.
+
+## 2026-09-07 — #1063 (S1): der Standbild-Auslöser erreicht die Fensterleiste
+
+**Was:** `StillShutterButton` sitzt jetzt auch in der Leiste von `FloatingVisualWindow`,
+fullscreen-gegated über ein neues `ChromeFit.stillShutter`. Erste Scheibe von D1
+(„alles zu einem Ding zusammen gefasst"): Cover und Fenster sind zwei Chromes über EINEM
+Renderer, und jede Bedienstelle, die nur auf einer davon lebt, ist ein Grund, warum die
+Verschmelzung nicht gehen kann.
+
+⛔ **Der Kommentar an der alten Stelle sagte das GEGENTEIL — und war in jedem gemessenen
+Wort richtig.** Er begründete, warum der Auslöser NICHT in die Fensterleiste gehört: die
+ist breiten-budgetiert (Nie-Abwurf-Boden 140 pt gegen eine ≈147-pt-Klein-Karte), also
+hieße ein siebter Knopf „ein neuer Abwurf-Rang und eine Änderung an
+`ChromeBudgetFitsTests`". Das ist kein Grund, es zu lassen — das ist der PREIS. Diese
+Scheibe zahlt ihn: das Feld ist fullscreen-only, der Klein-Karten-Boden ist Byte-gleich.
+**Lehre: ein Kommentar, der die Kosten eines Schritts nennt, liest sich wie ein Verbot,
+und die nächste Sitzung braucht die Unterscheidung ausgeschrieben.**
+
+⭐ **Die Messung, die den Entwurf geändert hat.** `chromeFit` meldet im Vollbild auf einem
+375-pt-Telefon **0 pt Schlupf** (18 auf 393). Das Blatt trägt seinen Antwortsatz im selben
+`HStack` — dort hätte SwiftUI ihn auf nichts zusammengedrückt (Text komprimiert vor starren
+Icon-Rahmen), also genau die Stille, gegen die #986 existiert, auf der Fläche, in die D1
+alles zusammenzieht. `AnswerPlacement` ist die Antwort: `.beside` für eine Zeile ohne
+Budget, `.below` als `overlay`, das keine Layout-Breite beansprucht. EIN Blatt besitzt
+weiter Tipp UND Antwort — nur die Geometrie unterscheidet sich. Kein Default (#431).
+
+⛔ **Und die Plan-Zeile „Mitzuziehen" war falsch zugeordnet.** `TheStillSaysWhetherItWasSavedTests:97`
+verlangt nur, dass `EchoelStudioView` den Knopf überhaupt montiert; die Drei-Türen-Liste
+`:124-131` gehört zu `TheTakeSaysWhetherItWasWrittenTests` und zählt `TakeOutcomeLine`, nicht
+den Auslöser. Es war nie ein Verschieben nötig — ausgeliefert ist ein reines HINZUFÜGEN, und
+beide Flächen montieren ihn, solange das Cover lebt (EIN Standbild, zwei Bedienstellen, ein
+`VisualRecorder` — die #747-Form). Der Plan trägt beide Korrekturen jetzt selbst.
+
+**Abwurf-Rang, aus dem eigenen Prinzip der Rangliste:** nach dem Gitter-Schalter, VOR der
+leeren Video-Taste. Beide sind Aufnahme-TÜREN; ein Standbild ist ein Einzelbild eines Bildes,
+das noch da ist, eine Video-Aufnahme eine Dauer, deren verpasste Sekunden fehlen.
+
+**Wächter (#456, im selben Commit):** `ChromeBudgetFitsTests` — `barWidth` leitet den siebten
+Posten mit ab, die dokumentierte Rangliste und der `offered`-Filter kennen ihn, die
+Monotonie zählt alle sieben, und der Klein-Karten-Anspruch ist UMBENANNT (#374), weil er jetzt
+drei fullscreen-only-Posten prüft. NEU: `testTheStillShutterSurvivesWhereTheStillIsTaken`
+nagelt die gemessene Abwurf-Menge fest (die vier `wavBusy`-Zustände auf 375/393 pt — der
+angepinnte WAV-Stopp reserviert 104 pt). Dazu Anspruch 6 in
+`TheStillSaysWhetherItWasSavedTests` mit Gegengewicht (#367).
+
+**Getrieben per Transkription** (keine Toolchain): alle Text-Nadeln grün, die Budget-Arithmetik
+in Python über 20…1200 pt × 16 Zustände nachgerechnet — 0 Fehlschläge. **Wie das Overlay über
+dem bewegten Bild AUSSIEHT, ist Gerät.**
