@@ -1346,13 +1346,30 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     }
 
     // VJ palette: luma-preserving saturation, then a hue rotation in the YIQ space
-    // (explicit dot products to avoid any column/row matrix ambiguity). Both are
-    // no-ops at the defaults (saturation 1, hueShift 0) so the physical colour holds.
+    // (explicit dot products to avoid any column/row matrix ambiguity).
+    //
+    // ⛔ "Both are no-ops at the defaults (saturation 1, hueShift 0) so the physical
+    // colour holds" stood here and was FALSE for the hue half (#1054). `echoelSaturate`
+    // really is exact at s = 1. `echoelHue` at shiftTurns = 0 ran the whole YIQ round trip
+    // — whose published constants are rounded, so it is not identity — and then clamped
+    // PER CHANNEL, which rotates the hue of anything out of gamut. Measured at the default:
+    // in-gamut colours drifted ≤ 0.07° (the round trip), and a lifted violet drifted 18.6°
+    // (the clamp). The claim is now made true by an early return rather than by assertion.
+    //
+    // ⚠️ The over-1 case is normalised by the PEAK instead of clamped per channel, so an
+    // out-of-gamut result loses brightness and keeps its hue and saturation ratios.
+    // Negatives still clamp to zero — that is a genuinely unrepresentable colour and no
+    // scaling fixes it.
+    //
+    // ⚠️ NOT A NO-OP IN PRACTICE JUST BECAUSE THE SLIDER READS 0: `hueShift` also carries
+    // the voice bias (±0.05, `TheVoiceTintsTheVisualTests`). The early return covers the
+    // common path; the normalisation covers the rest.
     float3 echoelSaturate(float3 c, float s) {
         float l = dot(c, float3(0.2126, 0.7152, 0.0722));
         return mix(float3(l), c, s);
     }
     float3 echoelHue(float3 c, float shiftTurns) {
+        if (shiftTurns == 0.0) { return c; }
         float a = shiftTurns * 6.2831853;
         float ca = cos(a), sa = sin(a);
         float y = dot(c, float3(0.299,  0.587,  0.114));
@@ -1363,7 +1380,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float3 rgb = float3(y + 0.956 * i2 + 0.621 * q2,
                             y - 0.272 * i2 - 0.647 * q2,
                             y - 1.106 * i2 + 1.703 * q2);
-        return clamp(rgb, 0.0, 1.0);
+        rgb = max(rgb, 0.0);
+        float m = max(rgb.r, max(rgb.g, rgb.b));
+        return (m > 1.0) ? rgb / m : rgb;
     }
 
     // Wavelength (nm) → linear sRGB, COLORIMETRICALLY via the CIE 1931 colour-matching
@@ -1884,8 +1903,25 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // Never near-black: deep-red/violet tones are dim via the CMF (eye sensitivity).
         // Lift very dark colours up to a luminance floor while PRESERVING hue, so the
         // look is always a visible colour and can never collapse toward black.
+        //
+        // ⛔ THE LIFT PROMISED A LUMINANCE sRGB CANNOT HOLD, AND THE PROMISE WAS PAID FOR
+        // BY THE HUE (#1054). A saturated violet reaches luminance 0.35 only with its blue
+        // channel far past 1.0 — (0.15, 0.02, 0.30) lifts to (0.77, 0.10, 1.55). The next
+        // per-channel clamp then crushed blue alone to 1.0 and left the other two, which is
+        // a HUE ROTATION: measured 18.6° on that colour, plus a saturation loss of 0.034.
+        // So the two lines that exist to protect "deep-red/violet tones" were destroying
+        // exactly those tones, at the DEFAULT setting, and the comment above said
+        // "PRESERVING hue" while it happened.
+        //
+        // The gain now stops at whichever comes first: the luminance floor, or the sRGB
+        // gamut boundary. That is the honest version of the same intent — lift as far as
+        // the display can actually go, and never trade a hue for a luminance that cannot
+        // be shown. `max(…, 1.0)` keeps it a LIFT: a colour already at or above the floor
+        // is never darkened by the gamut term.
         float lum = dot(col, float3(0.2126, 0.7152, 0.0722));
-        col *= (lum < 0.35) ? (0.35 / max(lum, 0.04)) : 1.0;
+        float peak = max(max(col.r, max(col.g, col.b)), 1e-4);
+        float lift = max(min(0.35 / max(lum, 0.04), 1.0 / peak), 1.0);
+        col *= (lum < 0.35) ? lift : 1.0;
         col = echoelSaturate(col, clamp(u.saturation, 0.0, 2.0));
         col = echoelHue(col, u.hueShift);
         col *= clamp(u.intensity, 0.0, 1.5);   // user Intensity
