@@ -1053,6 +1053,61 @@ def section_b() -> Section:
 
 # ------------------------------------------------- C. do the surfaces exist where the UI claims
 
+# ⛔ A `#if DEBUG` BRANCH IS NOT IN THE SHIPPED APP, AND SECTION C COUNTED IT AS A DOOR.
+# Measured on the tree that shipped this function: `AppIconView` and `LaunchScreenView` are
+# constructed ONLY inside `AppIcon.swift`'s `#if DEBUG` PreviewProvider. C1 asks "is it built
+# AT ALL", found two calls, and said nothing — while a Release build contains neither the
+# preview nor any other caller. So the section reported clean for two views a user can never
+# reach, in the FLATTERING direction (fewer findings), which is the failure this whole file
+# exists to catch.
+#
+# ⚠️ THE `#else` BRANCH IS KEPT, and that is the whole subtlety. `#if DEBUG / #else / #endif`
+# means the else half IS in Release; blanking to the matching `#endif` would erase shipping
+# code and manufacture false doorless entries — the #364 direction that gets a checker
+# deleted. Nested `#if`s inside the DEBUG branch are counted so an inner `#endif` cannot end
+# the outer one early.
+#
+# ⚠️ WHAT IT DELIBERATELY DOES NOT DO: any other configuration flag. `#if canImport(UIKit)`,
+# `#if os(iOS)` and friends ARE in the shipped build for the platform this app targets, and
+# treating them the same way would blank most of the codebase. Only `DEBUG` is special, and
+# only because the Release configuration is the one a user gets.
+#
+# MEASURED: line count is preserved (the callers report `file:line`), and on this tree the
+# rule adds exactly TWO entries and removes none.
+_DEBUG_OPEN = re.compile(r"^[ \t]*#if\s+DEBUG\b")
+_ANY_IF = re.compile(r"^[ \t]*#if\b")
+_ELSE_LIKE = re.compile(r"^[ \t]*#(?:else|elseif)\b")
+_ENDIF = re.compile(r"^[ \t]*#endif\b")
+
+
+def _release_only(text: str) -> str:
+    """Swift source with every `#if DEBUG` branch blanked, line count preserved."""
+    out: list[str] = []
+    depth: int | None = None          # None = outside a DEBUG branch
+    for line in text.split("\n"):
+        if depth is None:
+            if _DEBUG_OPEN.match(line):
+                depth = 0
+                out.append("")
+                continue
+            out.append(line)
+            continue
+        if _ANY_IF.match(line):
+            depth += 1
+            out.append("")
+            continue
+        if _ENDIF.match(line):
+            depth = None if depth == 0 else depth - 1
+            out.append("")
+            continue
+        if _ELSE_LIKE.match(line) and depth == 0:
+            depth = None              # the #else half ships
+            out.append("")
+            continue
+        out.append("")
+    return "\n".join(out)
+
+
 VIEW_DECL = re.compile(r"^(?:public\s+|private\s+|internal\s+)?struct\s+(\w+)\s*:\s*(?:[\w., ]*\b)?View\b", re.M)
 
 
@@ -1083,7 +1138,14 @@ def section_c() -> Section:
     # ⚠️ LIMIT: `blank_strings` stays False, because the declaration haystack must survive.
     # A view name inside a STRING literal followed by `(` still counts as a construction site.
     # No such string exists today; nothing pins that.
-    bodies = {f: _code_only(read(f)) for f in swift}
+    code = {f: _code_only(read(f)) for f in swift}
+    # ⭐ #1048 — `bodies` IS THE RELEASE READING FROM HERE ON. Everything below asks "can a
+    # user reach this", and a user runs a Release build, so a call inside `#if DEBUG` must not
+    # answer yes. `code` (comments stripped, DEBUG kept) survives beside it for exactly one
+    # purpose: telling "unreachable" apart from "preview-only", two findings that need
+    # different sentences. Reporting a preview-built view as "never constructed anywhere"
+    # would be a FALSE evidence line — the defect this section keeps catching in others.
+    bodies = {f: _release_only(src) for f, src in code.items()}
     # ⚠️ ONE PASS, NOT VIEWS × FILES. The first shape of C1/C1b ran one regex per declared view
     # over every file body (and C1b repeated that per round): ~600 views × 370 files, measured
     # 81 s on 2026-09-02 — past the 120 s default timeout of the Bash tool once A/B/D were
@@ -1101,6 +1163,13 @@ def section_c() -> Section:
             ident = m.group(1)
             uses_count[ident] = uses_count.get(ident, 0) + 1
             sites_of.setdefault(ident, set()).add(f)
+    # ⭐ #1048 — the SAME walk over the DEBUG reading, so C1 can tell "nobody builds this" from
+    # "only a preview builds this". One extra pass over the tree, NOT one regex per view: the
+    # comment above records that the per-name shape took 81 s and killed the whole doctor.
+    debug_uses: dict[str, int] = {}
+    for src in code.values():
+        for m in _CONSTRUCTION.finditer(src):
+            debug_uses[m.group(1)] = debug_uses.get(m.group(1), 0) + 1
 
     # C1. A View struct that NOTHING anywhere constructs is a surface the user cannot reach —
     # the "doorless view" class CLAUDE.md keeps re-discovering by hand (PatchEditorView,
@@ -1112,7 +1181,8 @@ def section_c() -> Section:
     # SwiftUI composition, and burying five real findings under thirty-six non-findings is how a
     # check gets ignored. The question is not "is it used elsewhere" but "is it built AT ALL".
     doorless: list[str] = []
-    orphan_names: set[str] = set()          # C1: constructed NOWHERE
+    preview_only: list[str] = []            # C1a: constructed ONLY in a `#if DEBUG` branch
+    orphan_names: set[str] = set()          # C1/C1a: constructed nowhere a user can reach
     declared_at: dict[str, tuple[str, int]] = {}
     all_views: dict[str, list[str]] = {}    # file -> views it declares
     for f, src in bodies.items():
@@ -1133,8 +1203,34 @@ def section_c() -> Section:
             declared_at[name] = (f, line)
             all_views.setdefault(f, []).append(name)
             if uses == 0:
-                doorless.append(f"{rel(f)}:{line}  struct {name}: View — never constructed anywhere in Sources/")
+                # ⭐ #1048 — WHICH SENTENCE IS TRUE MATTERS HERE. Both readings say a user cannot
+                # reach it; only one of them can honestly say "never constructed". A view whose
+                # single caller is a `#if DEBUG` PreviewProvider IS constructed, and writing the
+                # C1 sentence for it would put a false line in the evidence — the exact defect
+                # this section catches in other people's prose. It is still an ORPHAN for C1b's
+                # transitive walk: a preview cannot make anything reachable.
+                if debug_uses.get(name, 0) > 0:
+                    preview_only.append(
+                        f"{rel(f)}:{line}  struct {name}: View — built ONLY inside `#if DEBUG`")
+                else:
+                    doorless.append(f"{rel(f)}:{line}  struct {name}: View — never constructed anywhere in Sources/")
                 orphan_names.add(name)
+    # C1a (#1048). A view built ONLY inside `#if DEBUG` — a PreviewProvider, a debug harness —
+    # is absent from the app a user installs. It is NOT "never constructed": saying so would put
+    # a false sentence in the evidence, so it gets its own line and its own wording.
+    if preview_only:
+        sec.findings.append(Finding(
+            WARN,
+            "View types built ONLY in a DEBUG branch (absent from the shipped app)",
+            sorted(preview_only),
+            "A PreviewProvider is a design tool, not a door: a Release build contains neither "
+            "the preview nor — for these — any other caller. C1 above could not see them "
+            "because it asks 'is it built AT ALL' and a debug-only call is still a call. "
+            "Treat each exactly like a C1 entry: unreachable is not itself a defect, "
+            "unreachable AND unwritten-down is. A design-asset renderer parked behind a "
+            "preview is legitimate; a SCREEN here is a door that was lost.",
+        ))
+
     # C1b (#947). A view constructed ONLY by views that are themselves doorless is unreachable
     # too, and C1 alone cannot see it: it asks "is it built AT ALL", and a call inside dead code
     # is still a call. That blind spot is measured, not theoretical — `CLAUDE.md` registered
@@ -1471,17 +1567,28 @@ def selftest_comment_is_not_a_call() -> int:
     raw = {f: read(f) for f in swift}
     stripped = {f: _code_only(s) for f, s in raw.items()}
 
+    # ⚠️ ONE PASS, NOT VIEWS × FILES — and this transcription had the slow shape for a cycle.
+    # It ran `re.findall` per declared view over every body, which is exactly the
+    # ~600 × 370 walk the comment above `_CONSTRUCTION` records as 81 s and "the whole doctor
+    # died silently, which is the exact failure this file exists to catch". Measured here on
+    # 2026-09-07: this selftest alone was **66.6 s** of a 76 s `--selftest`, against a 120 s
+    # Bash-tool timeout — the tool was one added check away from dying in the same way, inside
+    # the very function written to prove it works. Rewritten as the same index the section
+    # builds; it is still an INDEPENDENT re-implementation (its own regex, its own loop), which
+    # is the property the docstring above requires, just not a quadratic one.
     def doorless(bodies: dict) -> set:
+        pat = re.compile(r"(?<!struct )(?<!extension )\b([A-Za-z_]\w*)\s*[\(\{]")
+        built: set = set()
+        for src in bodies.values():
+            for hit in pat.finditer(src):
+                built.add(hit.group(1))
         out = set()
         for src in bodies.values():
             for m in VIEW_DECL.finditer(src):
                 name = m.group(1)
                 if name.endswith("_Previews") or name.endswith("Preview"):
                     continue
-                uses = sum(len(re.findall(
-                    rf"(?<!struct )(?<!extension )\b{name}\s*[\(\{{]", o))
-                    for o in bodies.values())
-                if uses == 0:
+                if name not in built:
                     out.add(name)
         return out
 
@@ -1510,17 +1617,108 @@ def selftest_comment_is_not_a_call() -> int:
     return 1 if bad else 0
 
 
+def selftest_debug_branch_is_not_a_door() -> int:
+    """Pin #1048: a call inside `#if DEBUG` is not a door.
+
+    ⚠️ SAME LIMIT AS ITS NEIGHBOURS — one rule in section C, not the doctor as a whole.
+
+    ⛔ TWO LAYERS, for the #753 reason its sibling already records: a mutant that leaves the
+    rule intact but UNWIRES it from `section_c` passes every rule-level check. Layer 2
+    therefore drives the REAL section over the REAL tree.
+
+    ⚠️ AND LAYER 2 IS AN EQUALITY, NOT A NON-EMPTINESS. "at least one preview-only view" would
+    also be satisfied by a tree where the rule over-reaches and blanks half the codebase; the
+    two SETS must be exactly the C1 split this rule is supposed to produce. It is honest about
+    the day that split becomes empty: if no view is preview-only any more, the run says
+    INCONCLUSIVE rather than claiming a green it cannot earn (#364 — going red because
+    somebody deleted a PreviewProvider would be the guard forbidding correct work).
+    """
+    bad: list[str] = []
+
+    # Layer 1 — the rule, as the pair that matters plus the two ways it could over-reach.
+    debug_call = "#if DEBUG\n    AppIconView(size: 1024)\n#endif\n"
+    if "AppIconView(" in _release_only(debug_call):
+        bad.append("a call inside `#if DEBUG` survived the release reading")
+
+    else_half = "#if DEBUG\n    Preview()\n#else\n    RealThing()\n#endif\n"
+    got = _release_only(else_half)
+    if "RealThing(" not in got:
+        bad.append("the `#else` branch was blanked — that half SHIPS, and erasing it "
+                   "manufactures false doorless entries")
+    if "Preview(" in got:
+        bad.append("the DEBUG half of a `#if DEBUG / #else` survived")
+
+    other_flag = "#if canImport(UIKit)\n    RealThing()\n#endif\n"
+    if "RealThing(" not in _release_only(other_flag):
+        bad.append("a non-DEBUG configuration flag was treated as DEBUG — `canImport`/`os` "
+                   "branches ARE in the shipped build and blanking them would erase the app")
+
+    nested = "#if DEBUG\n#if os(iOS)\n    Inner()\n#endif\n    Outer()\n#endif\n    After()\n"
+    got = _release_only(nested)
+    if "Inner(" in got or "Outer(" in got:
+        bad.append("a nested `#endif` ended the outer DEBUG branch early")
+    if "After(" not in got:
+        bad.append("the blanking ran past the DEBUG branch's own `#endif`")
+
+    if _release_only(debug_call).count("\n") != debug_call.count("\n"):
+        bad.append("line count not preserved — every caller of this reports `file:line`")
+
+    # Layer 2 — is the rule actually wired into section_c?
+    swift = tracked("Sources/*.swift") + tracked("Sources/**/*.swift")
+    code = {f: _code_only(read(f)) for f in swift}
+    pat = re.compile(r"(?<!struct )(?<!extension )\b([A-Za-z_]\w*)\s*[\(\{]")
+
+    def built(bodies: dict) -> set:
+        seen: set = set()
+        for src in bodies.values():
+            for m in pat.finditer(src):
+                seen.add(m.group(1))
+        return seen
+
+    debug_built = built(code)
+    release_built = built({f: _release_only(src) for f, src in code.items()})
+    want = set()
+    for f, src in code.items():
+        for m in VIEW_DECL.finditer(src):
+            name = m.group(1)
+            if name.endswith("_Previews") or name.endswith("Preview"):
+                continue
+            if name in debug_built and name not in release_built:
+                want.add(name)
+
+    if not want:
+        print("selftest (section C DEBUG rule): INCONCLUSIVE — no view on this tree is "
+              "preview-only, so the run cannot tell a wired rule from an unwired one")
+    else:
+        sec = section_c()
+        reported = {ln.split("struct ")[1].split(":")[0]
+                    for f in sec.findings if "DEBUG branch" in f.title
+                    for ln in f.evidence if "struct " in ln}
+        if reported != want:
+            bad.append(f"section_c reported {sorted(reported)} as preview-only; the release "
+                       f"reading says {sorted(want)} — either `_release_only` is not wired "
+                       f"into C1, or C1's pattern was edited and this transcription was not")
+
+    for line in bad:
+        print("FAIL:", line)
+    print(f"selftest (section C debug-branch-is-not-a-door): "
+          f"{'FAILED' if bad else 'ok'} ({len(bad)} problem(s))")
+    return 1 if bad else 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--section", choices=list("ABCD"), help="run only one section")
     ap.add_argument("--quiet", action="store_true", help="print findings only, no clean sections")
     ap.add_argument("--selftest", action="store_true",
-                    help="check TWO rules (section B's negated needle, section C's "
-                             "comment-is-not-a-call) — not the doctor as a whole")
+                    help="check THREE rules (section B's negated needle, section C's "
+                             "comment-is-not-a-call and its DEBUG-branch rule) "
+                             "— not the doctor as a whole")
     args = ap.parse_args()
 
     if args.selftest:
-        return selftest_negated_needle() | selftest_comment_is_not_a_call()
+        return (selftest_negated_needle() | selftest_comment_is_not_a_call()
+                | selftest_debug_branch_is_not_a_door())
 
     runners = {"A": section_a, "B": section_b, "C": section_c, "D": section_d}
     keys = [args.section] if args.section else list("ABCD")
