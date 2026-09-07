@@ -3377,12 +3377,25 @@ und hält es für das Urteil über den eigenen Commit.** Das ist genau die Fehle
 sondern der falsche LAUF.
 
 **MACH STATTDESSEN — zwei Schritte, beide gemessen funktionierend:**
-1. `list_workflow_runs` **OHNE** `resource_id`. Ein Filter auf `{"event":"push","status":"in_progress"}`
-   hält die Antwort klein und liefert zuverlässig die NEUESTEN Läufe (heute korrekt für vier
-   aufeinanderfolgende Pushes).
+1. `list_workflow_runs` **OHNE** `resource_id`, gefiltert auf
+   `{"branch": "claude/…", "status": "completed"}`. Gemessen 2026-09-07 (#1051): liefert die
+   Läufe von HEUTE, namentlich mit `head_sha` des eigenen Commits.
 2. Aus dem Treffer die `id` nehmen und `list_workflow_jobs` mit `filter: "latest"` fahren. Diese
    Antwort ist klein (Jobs tragen KEINE Commit-Nachricht) und nennt jeden Schritt namentlich —
    `Build for Testing` ist das, was man sucht.
+
+⛔ **SCHRITT 1 STAND HIER MIT `{"event":"push","status":"in_progress"}` UND DAS IST FALSCH
+(korrigiert 2026-09-07, #1051).** Derselbe Aufruf ohne `resource_id`, nur mit
+`{"event":"push"}`, lieferte heute **wieder Läufe vom 23. August** — dieselbe stille Fälschung,
+die dieser Eintrag beschreibt, nur über den anderen Filter. Der Schuldige ist also **nicht
+`resource_id`**: gemessen ist bisher genau EINE Kombination frisch (`branch` + `status`), und
+**zwei** liefern Altdaten (`resource_id`+`branch`; `event` allein). Warum, weiß hier niemand —
+darum steht das REZEPT und keine Theorie. **Und die Lehre gilt über dieses Werkzeug hinaus: die
+erste Fassung dieses Eintrags leitete aus zwei Fehlschlägen mit `resource_id` ab, `resource_id`
+sei die Ursache — und schrieb die Reparatur so auf, dass sie eine der ungeprüften Alternativen
+empfahl. Ein „mach stattdessen" ist erst dann eines, wenn genau DIESE Zeile einmal gelaufen ist.**
+⚠️ Immer den `head_sha` gegen `git rev-parse HEAD` halten, bevor man ein `success` glaubt. Das ist
+die einzige Prüfung, die alle drei Varianten unterscheidet, und sie kostet nichts.
 
 ⚠️ **Warum Schritt 1 die Antwort trotzdem sprengen kann:** jeder Lauf-Eintrag trägt
 `head_commit.message` VOLLSTÄNDIG. Bei den langen Commit-Texten dieses Repos sind das ~4 KB pro

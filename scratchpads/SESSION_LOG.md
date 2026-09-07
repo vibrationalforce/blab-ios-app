@@ -24468,3 +24468,88 @@ Beide Batches kompilieren nachweislich; Ausführung einzelner Wächter unbelegt 
 brechen das Compile-Gate des Zwischen-Commits als `cancelled` ab, was WEDER grün NOCH rot ist;
 die CI/CD-Pipeline überlebt das und liefert das brauchbarere Urteil, weil `Build for Testing`
 App-Target UND `Tests/CISmoke` baut.
+
+## 2026-09-07 — #1050 · Ein Zähl-Pin, der seine eigene Dokumentation mitgezählt hat
+
+**Ausgangslage:** `count-pins.py` meldete seit zwei Tagen ein stehendes ROT —
+`AStillIsOneFrameNotASecondPathTests:105` pinnt `.sheet(` auf 14, das Werkzeug misst 9. Der
+Ticket-Text und der Log-Eintrag vom Vortag hatten das beide als **Fehlalarm des Werkzeugs**
+abgehakt: der Wächter lese über ein eigenes `source()`, das Kommentare NICHT entfernt, roh seien
+es 14, der Pin stimme.
+
+**Gemessen:** roh 14 = **9 echte `.sheet(`-Aufrufstellen + 5 Nennungen in Kommentaren und
+Doc-Kommentaren** (Zeilen 772, 793, 3098, 7900, 10796 von `EchoelStudioView.swift`). Der Pin
+bewegte sich also bei PROSA-Änderungen und stand still, wenn jemand ein `.fullScreenCover`
+anhängt — genau das Gegenteil dessen, was seine Fehlermeldung beschreibt. Getrieben, beide
+Richtungen:
+
+| Mutant | richtige Heimat (`ResetSoundClears…`) | zurückgezogener Pin |
+|---|---|---|
+| neues `.sheet` für die Standbild-Taste | 17 → **ROT** | ROT |
+| ein Kommentar, der `.sheet(` nennt | 16 → **GRÜN** (korrekt) | **ROT** (falsch) |
+
+**Dass die 14 auf die 14 der Präsentations-Kette traf, war ein Zufall zweier unabhängiger
+Summen** — und genau das ließ den Pin vier Zyklen lang verifiziert aussehen.
+
+**Zurückgezogen, nicht neu gezeigt.** Die Behauptung hat EINE richtige Heimat, und die ist in
+jeder Dimension stärker: `ResetSoundClearsWhatTheLaunchLineReportsTests.testTheConfirmationDidNot`
+`BecomeAnotherModal` strippt vor dem Zählen, deckt alle SECHS Präsentationsformen ab und pinnt
+BEIDES — dateiweit `== 16` und Kette `<= 14`, weil dateiweit allein einen VERSCHOBENEN Modifier
+nicht sieht. Eine zweite, schwächere Kopie ist #416 — was der zurückgezogene Anspruch in seinem
+eigenen Kommentar zu vermeiden behauptete, während er es tat.
+
+**Vier Prosa-Heimaten im selben Commit (#456):** Dateikopf (er listete einen Anspruch, den der
+Rumpf nicht mehr erhebt) · `count-pins.py` HONEST LIMIT 3 (sein vorhergesagter „false RED" ist
+gefeuert und war ein ECHTER Fund — sonst schaltet der nächste Leser genau die Prüfung ab, die ihn
+gemacht hat) · `DEEP_AUDIT_2026-09-04_ARTISTIC_USER.md` („misst noch korrekt") ·
+`SESSION_LOG` 2026-09-07 („Fehlalarm des Werkzeugs").
+
+⭐ **LEHRE: „das Werkzeug irrt" ist die teuerste Diagnose, die man ohne Nachmessen stellen kann.**
+Sie kostet nicht nur den Fund — sie schaltet die Prüfung ab, die ihn gemacht hat. Zweitlehre:
+**ein Zähl-Pin, der rohen Quelltext liest, pinnt nicht die Quelle, sondern die Quelle PLUS alles,
+was jemand über sie geschrieben hat.**
+
+## 2026-09-07 — #1051 · Ein türloses Blatt, EINEN Sprung unter einer geparkten Fläche
+
+**Fund:** `ADMStreamStatusLine` (die Live-Zeile „Sending N objects to host:port" der
+Immersive-Stage) hat genau EINE Konstruktionsstelle — `ImmersiveStageView.swift:245` — und
+`ImmersiveStageView(` hat **null**. Also gebaut, montiert, und die Montage sitzt in einer Ansicht,
+die niemand baut. Das ist die `BreathGuideView`-Form (#947), und `doctor --section C` kann sie
+nicht sehen: er fragt „wird das überhaupt gebaut", und eine Aufrufstelle in totem Code zählt.
+
+**Unerreichbar ist NICHT der Defekt** — die Stage ist absichtlich geparkt (Ship-Gate 4:
+Licht/Raum „demonstrierbar, nicht erforderlich"). Der Defekt ist **unerreichbar UND nirgends
+aufgeschrieben**: der Typ kommt in `CLAUDE.md` null-mal vor, in keinem Register, und sein eigener
+Doc-Kommentar sprach vom Elternteil, als wäre es ein Bildschirm, den jemand öffnen kann.
+
+**Wo das Register liegt, und warum nicht in `CLAUDE.md`:** dort sind noch **938 B** unter der
+harten 150.000-B-Decke. Eine Registerzeile für ein Blatt in einer geparkten Fläche ist genau der
+Handel, den `TheLawFileStaysUnderItsCeilingTests` bewusst machen soll — die billigere Hälfte
+gewinnt: die Notiz steht an der DEKLARATION, wo der nächste Leser des Typs ohnehin steht, und ein
+Wächter hält sie frisch. Bewusst anders als #947, dessen Gegenstand ein Sicherheitsgesetz trägt
+und deshalb zentral registriert ist.
+
+**Nebenbefund, selbe Datei, selber Leser:** `NetworkActivityDot.swift` benennt einen Typ, den es
+nicht gibt — der Punkt sind drei Zeilen in `NetworkOutputHeader.body`. Wer den Namen grept, findet
+eine Datei und keine Deklaration, was sich wie ein gelöschter Typ liest. Bleibt so, ist notiert.
+
+**Wächter:** `Tests/CISmoke/TheStageStatusLineHasNoDoorTests.swift`, sechs Ansprüche in vier
+Claims, alle grün auf heutigem Baum (**0 Fänge, 6 Gegengewichte** — korrekt, die Scheibe fügte ein
+REGISTER hinzu, keinen Code). Anspruch 3 ist das Gegengewicht (#367): der Zwilling
+`NetworkOutputHeader` IST erreichbar, in `PatchbayView` — Anspruch 1 darf nicht als „Netz-Status
+ist toter Code" gelesen werden. Verbietet nichts (#364).
+
+**Fünf Mutationen, jede biss den richtigen Claim:** Stage bekommt einen Bauer → Claim 2 rot ·
+zweite Montage → 1a rot · Notiz gelöscht → 4 rot · Zwilling verliert seine Tür → 3a+3b rot ·
+**ein Kommentar, der alle drei Token nennt → ALLES GRÜN.** Das letzte ist #1050 einen Commit
+später angewandt: der Scan strippt über `SourceText.codeOnly`, damit der ⛔-Block, den diese
+Scheibe selbst hinzufügt, nicht als Konstruktionsstelle gelesen wird. Claim 4 liest bewusst ROH —
+das Register IST Prosa, und Strippen vor dem Suchen wäre ein garantierter Fehlschlag.
+
+**Gate gelesen:** `Xcode Compile Check` = **success** auf `e60eeaf7` (#1049).
+⛔ **Und die Route dorthin hat den DEAD-END-#1047-Eintrag korrigiert:** `list_workflow_runs` ohne
+`resource_id`, aber mit `{"event":"push"}`, lieferte heute **wieder Läufe vom 23. August** — der
+Eintrag hatte genau das als Reparatur empfohlen, ungeprüft. Frisch ist gemessen nur
+`{"branch": …, "status": "completed"}` ohne `resource_id`. Lehre im Ledger: **ein „mach
+stattdessen" ist erst dann eines, wenn genau DIESE Zeile einmal gelaufen ist** — und immer den
+`head_sha` gegen `git rev-parse HEAD` halten.
