@@ -5286,6 +5286,30 @@ struct EchoelStudioView: View {
                 }
                 .tint(EchoelTheme.accent)
                 .accessibilityHint("Draws each note's cell over the field in its own physical colour, so you can see which note you are about to play.")
+                // #1065 — THE DONUT LOOK'S DOOR, AND IT IS A PREREQUISITE, NOT A CONVENIENCE.
+                // Measured before writing it: `git grep -n "spectralDonuts.toggle()\|spectralDonuts ="
+                // -- Sources` returns exactly ONE writer that can produce `true`, and it is the
+                // glyph in the fullscreen COVER's top bar. `lookScrub`'s setter writes only
+                // `false` (scrubbing the look always lands on a metal field) and
+                // `FloatingVisualWindow` only READS the flag. So the moment the cover is
+                // deleted — S3 of PLAN_ONE_VISUAL_SURFACE_2026-09-07 — the donut look becomes a
+                // state nothing can enter: the #227 defect this file describes in four places,
+                // and the tombstone under `lookScrub` says so in its own words. The renderer
+                // #1043 ported into the floating window would go unreachable the same day.
+                //
+                // Doing it HERE and NOW rather than inside the deletion keeps the two changes
+                // separable: this one is additive and reversible, that one is not.
+                //
+                // A Toggle beside the grid switch on purpose — both answer "what do I see?",
+                // both are binary, and a pair reads as a pair. The look STRIP above already
+                // names which of the two is active (`showsDonutState: true`), so the switch and
+                // the readout cannot disagree.
+                Toggle(isOn: $spectralDonuts) {
+                    Text("Spectrum donuts instead of the field")
+                        .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                }
+                .tint(EchoelTheme.accent)
+                .accessibilityHint("Draws the sound as spectrum rings instead of the Metal field. Moving the look slider returns to the field.")
             }
             // The A/B "Blend with" strip left this surface 2026-07-07 (founder: minimize —
             // the mix was extra clicking) and the view itself is DELETED as of #324. The
