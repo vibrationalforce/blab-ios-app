@@ -806,7 +806,14 @@ struct FloatingVisualWindow: View {
                      textureAmount: Float(visualTexture), glitterAmount: Float(visualGlitter),
                      structureAmount: Float(visualStructure),
                      style: visualStyle, styleB: visualStyleB, blend: Float(visualBlend),
-                     entrainmentPulseHz: entrainmentPulse)
+                     entrainmentPulseHz: entrainmentPulse,
+                     // ⭐ #1061 — THIS mount is the one with a play grid over it (the
+                     // `TouchInstrumentView` overlay a few dozen lines down, built from the
+                     // SAME two `@AppStorage` values), so the sounding note's colour can bloom
+                     // on the cell that was touched instead of at its chromatic fraction above
+                     // C. Passed as the KEY rather than a position table so both sides call
+                     // one piece of arithmetic (#416). Both values are cold user settings.
+                     noteFieldKey: MusicalKey(root: rootIndex, scale: touchScale))
     }
 
     @ViewBuilder

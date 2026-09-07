@@ -301,10 +301,23 @@ public enum SpectralColor {
     /// tone sounds — from ANY source). Pure pitch space, source-agnostic (touch
     /// surface, piano roll, MIDI):
     ///   • x = the note's position WITHIN its octave (fraction of log2 above C) —
-    ///     C at the left, rising rightward: the fretboard grid's column order.
-    ///   • y = octave HEIGHT — low notes at the bottom like the grid's rows,
-    ///     centred on octave 4 and clamped so extreme registers stay on screen.
+    ///     C at the left, rising rightward.
+    ///   • y = octave HEIGHT — low notes at the bottom, centred on octave 4 and
+    ///     clamped so extreme registers stay on screen.
     /// (+y is up, matching the shader's `pf` coordinate.)
+    ///
+    /// ⛔ THE X LINE USED TO CLAIM THIS WAS "the fretboard grid's column order" AND IT NEVER
+    /// WAS (#1061). The grid's columns are SCALE DEGREES with the ROOT at the left, equal
+    /// width — so this lands in the wrong column in every key but C, and in the wrong column
+    /// even in C whenever the scale is not chromatic (7 degrees over a width the chromatic
+    /// fraction divides into 12). The sentence is deleted rather than softened because it was
+    /// the reason nobody looked: it read as a statement that the two already agreed.
+    ///
+    /// ⚠️ THIS FUNCTION IS STILL CORRECT AND STILL USED — do not "fix" it toward the grid.
+    /// It is the source-agnostic PITCH-SPACE placement, which is the honest answer for a
+    /// field with no grid over it (the fullscreen cover, the external stage) and for a note
+    /// whose pitch class is not in the key at all. The grid-aware placement is
+    /// `TouchPitchMap.fieldPosition`, and `MetalBioView` falls back to this one.
     public static func notePosition(forHz hz: Double) -> (x: Double, y: Double) {
         guard hz > 0, hz.isFinite else { return (0, 0) }
         let p = Foundation.log2(hz / c0Hz)            // octaves above C0

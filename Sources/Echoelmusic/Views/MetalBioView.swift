@@ -358,6 +358,7 @@ struct MetalBioView: UIViewRepresentable {
     /// plugged in before launch is the normal stage order). A non-optional read
     /// traps the beamer scene in exactly that window; nil renders untinted.
     @Environment(PolySynthVoice.self) private var synth: PolySynthVoice?
+
     /// Only the instance that owns the record affordance (the fullscreen VJ cover)
     /// feeds the recorder — keeps a second mounted MetalBioView from double-capturing.
     var capturesVideo: Bool = false
@@ -402,6 +403,29 @@ struct MetalBioView: UIViewRepresentable {
     /// Armed brainwave-entrainment visual pulse (Hz, already flash-safe ≤3). When > 0 it
     /// overrides the HR-derived pulse so the picture breathes WITH the entrainment. 0 = off.
     var entrainmentPulseHz: Double = 0
+
+    // ⚠️ DECLARED LAST ON PURPOSE. A struct's memberwise initializer takes its parameters in
+    // DECLARATION order, so a new property inserted near the top would force every existing
+    // call site to move its arguments — and the one site that passes this must be able to
+    // pass it at the END. Placed here, the two mounts that omit it are untouched.
+    /// The key whose PLAY GRID this field sits under, when there is one (#1061). Given, the
+    /// sounding note's colour blooms on the cell the finger touched instead of at its
+    /// chromatic fraction above C; nil keeps the old pitch-space position.
+    ///
+    /// ⚠️ NIL IS THE CORRECT ANSWER FOR TWO OF THE THREE MOUNTS, not a gap to fill later.
+    /// `TouchInstrumentView` exists only in `FloatingVisualWindow`; the fullscreen cover and
+    /// the external stage draw no grid, so they have no cells and pitch space is the honest
+    /// mapping there. The default therefore leaves them alone on purpose (#431: a defaulted
+    /// argument is only safe when the sites that skip it WANT the default — these do).
+    ///
+    /// ⚠️ It is deliberately the KEY and not a precomputed position table: the grid re-derives
+    /// its cells from the key on every rebuild, and a table handed across would be a second
+    /// copy of that arithmetic waiting to disagree (#416). Both sides call
+    /// `TouchPitchMap.fieldPosition`.
+    ///
+    /// Cold by construction — `rootIndex` and `scale` are `@AppStorage` user settings, so
+    /// reading this in a body cannot churn (the 10.76.41/50 freeze law bans a RATE).
+    var noteFieldKey: MusicalKey? = nil
 
     func makeCoordinator() -> MetalBioRenderer { MetalBioRenderer() }
 
@@ -477,6 +501,7 @@ struct MetalBioView: UIViewRepresentable {
         c.synth = synth
         c.visualRecorder = capturesVideo ? visualRecorder : nil
         c.capturesVideo = capturesVideo
+        c.noteFieldKey = noteFieldKey
         c.setLook(toneFallbackHz: toneHz, intensity: intensity, ringDensity: ringDensity,
                   motion: motion, spread: spread, hueShift: hueShift, saturation: saturation,
                   textureAmount: textureAmount, glitterAmount: glitterAmount,
@@ -534,6 +559,9 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// #594 Voice→Color — forwarded like bus/governor; read only in draw's
     /// MainActor block.
     weak var synth: PolySynthVoice?
+    /// See `MetalBioView.noteFieldKey`. nil = no play grid under this field, so a sounding
+    /// note keeps its pitch-space position.
+    var noteFieldKey: MusicalKey?
     /// Cache gate for the tint: descriptors are recomputed only when the profile
     /// CHANGES (capture / recall / clear) — never per rendered frame.
     private var lastVoiceTaps: [Float]?
@@ -1153,7 +1181,14 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                 // (founder 2026-07-12). Twins the shader's toneColour seam.
                 let c = SpectralColor.toneLinearRGB(forToneHz: cloudHzSlot[k])
                 let t = SIMD3<Float>(Float(c.r), Float(c.g), Float(c.b))
-                let p = SpectralColor.notePosition(forHz: cloudHzSlot[k])
+                // ⭐ #1061 — LAND ON THE CELL. With a play grid under this field the note's
+                // place is the grid's own cell, not its chromatic fraction above C; without
+                // one there are no cells and pitch space is still the honest answer. The
+                // fallback also covers a note whose pitch class is not in the key at all.
+                let p = TouchPitchMap.fieldPosition(forHz: cloudHzSlot[k],
+                                                    a4Hz: Double(synth?.poly.a4Hz ?? 440),
+                                                    key: noteFieldKey)
+                    ?? SpectralColor.notePosition(forHz: cloudHzSlot[k])
                 let tp = SIMD2<Float>(Float(p.x), Float(p.y))
                 let snap = !cloudSeeded || slotSeeded[k]
                 cloudRGB[k] = snap ? t

@@ -50,6 +50,73 @@ public enum TouchPitchMap {
         return key.degree(degree, octave: octaveBands[band])
     }
 
+    /// Where the note `pitch` LIVES in the immersive field's [-1,1]² coordinate — in the
+    /// SAME arithmetic `rebuildGrid` draws its cells with (#1061).
+    ///
+    /// ⛔ WHAT THIS REPLACES, and why it was wrong in a way nobody could see from the code.
+    /// `SpectralColor.notePosition(forHz:)` put a note at its CHROMATIC fraction above C
+    /// (`x = (f - 0.5) * 1.5`) and at `(octave - 4) * 0.55`. Its own doc claimed that was
+    /// "the fretboard grid's column order" — and the grid is nothing of the sort: its columns
+    /// are SCALE DEGREES with the ROOT at the left, equal width, `cellW = rect.width / n`.
+    /// So the played colour bloomed in the wrong column in every key but C, and in the wrong
+    /// column even in C whenever the scale is not chromatic (7 degrees spread over a width
+    /// the chromatic fraction divides into 12). The founder's ask for this whole mechanism
+    /// was that a colour appears WHERE its tone sounds; touching a cell lit somewhere else.
+    ///
+    /// The row is derived by INVERTING `key.degree(_:octave:)`, not from the note's own
+    /// octave NUMBER, and that distinction is the trap: a degree high in the scale crosses
+    /// into the next octave number while staying in the SAME grid row. A minor: the sixth
+    /// degree of the bottom row is MIDI 68, whose octave number is 4 while its band is 3.
+    /// Taking `pitch / 12 - 1` for the row — which is what the cell LABEL prints — would put
+    /// it one row too high, in the key the picker opens on.
+    ///
+    /// Returns nil for a pitch class that is not in the key at all (a chromatic passing note,
+    /// or MIDI from outside): the grid has no cell for it, so there is nothing to land on and
+    /// the caller keeps the old pitch-space position. In practice this is rare by
+    /// construction — touches are quantized into the key and the generative bed is in-key.
+    ///
+    /// ⚠️ ASSUMES `octaveBands` IS CONTIGUOUS ASCENDING, which the shipped `[3, 4, 5]` is.
+    /// The row comes out as `(pitch - bottomRowPitch) / 12`, so a gapped set (say `[3, 5, 7]`)
+    /// would scale the rows wrongly rather than fail. Pinned in the guard rather than branched
+    /// on here, because a branch would make the common path pay for a case that does not exist.
+    ///
+    /// ⚠️ AND IT IS NOT PIXEL-EXACT IN FULLSCREEN, said plainly rather than implied. The grid
+    /// draws inside `playRect` (bounds inset by the safe area) while the Metal field fills the
+    /// whole bounds, so where those differ the cell and the cloud are off by the inset. That
+    /// residue is a few per cent of the width; what this fixes was a whole column or more. One
+    /// rect shared by both surfaces is the real repair and belongs to the fullscreen merge.
+    public static func fieldPosition(forPitch pitch: Int, key: MusicalKey) -> (x: Double, y: Double)? {
+        let degrees = key.pitchClasses
+        let n = degrees.count
+        guard n > 0, let bottom = octaveBands.first, !octaveBands.isEmpty else { return nil }
+        let pitchClass = ((pitch % 12) + 12) % 12
+        guard let column = degrees.firstIndex(of: pitchClass) else { return nil }
+        let x = (Double(column) + 0.5) / Double(n) * 2.0 - 1.0
+        // The bottom row's pitch in THIS column. `pitch` shares its class, so the difference
+        // is an exact multiple of 12 and the division is exact — no rounding to hide.
+        let base = key.degree(column, octave: bottom)
+        let row = Double(pitch - base) / 12.0
+        let y = (row + 0.5) / Double(octaveBands.count) * 2.0 - 1.0
+        // Clamped so a bass an octave under the grid still reads as "below", on screen,
+        // rather than sliding out of the field entirely.
+        return (x, Swift.min(Swift.max(y, -0.95), 0.95))
+    }
+
+    /// The same, entered by frequency — the form the renderer has, since its cloud slots hold
+    /// sounding Hz. `a4Hz` is the take's concert pitch, so a re-tuned instrument still lands
+    /// on its own cells.
+    ///
+    /// `key` is OPTIONAL here and non-optional above, deliberately: nil means "no play grid
+    /// under this field", which is a real state for two of the three mounts, and folding it in
+    /// here keeps the caller a single expression instead of a branch it would have to repeat.
+    public static func fieldPosition(forHz hz: Double, a4Hz: Double,
+                                     key: MusicalKey?) -> (x: Double, y: Double)? {
+        guard let key, hz > 0, hz.isFinite, a4Hz > 0, a4Hz.isFinite else { return nil }
+        let semitones = 69.0 + 12.0 * Foundation.log2(hz / a4Hz)
+        guard semitones.isFinite, semitones > -1000, semitones < 1000 else { return nil }
+        return fieldPosition(forPitch: Int(semitones.rounded()), key: key)
+    }
+
     /// Velocity from contact: whichever of pressure (0…1, 0 where the hardware
     /// has no force sensing) and contact radius (points; fingertip ≈ 8, flat
     /// finger ≈ 25+) says MORE intent wins. Floor keeps a feather touch audible.
