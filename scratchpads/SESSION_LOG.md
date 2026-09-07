@@ -24774,3 +24774,57 @@ war der Defekt.
 
 Nicht gerätegeprüft. NEEDS-FOUNDER-VERIFY im Fuß des Wächters: chromatische Tonart plus
 Solfège oder Sargam ist der Fall, der bisher abschnitt.
+
+## #1059 — Die „filmische S-Kurve" war eine kanalweise Gerade und verbog den Farbton (2026-09-07)
+
+**Befund, dreifach in EINER Anweisung.** Der letzte Grading-Schritt des Shaders war
+`outCol = clamp((outCol - 0.5) * 1.06 + 0.5, 0.0, 1.0)`, unter einem Kommentar, der ihn „gentle
+filmic S-contrast" nennt. (1) Das ist keine S-Kurve — eine Gerade hat weder Fuß noch Schulter,
+der Name beschrieb also eine Funktion, die der Code nicht implementiert. (2) Sie wirkt pro
+KANAL und dreht damit den Farbton: ein (0.10, 0, 0.50)-Pixel kam als (0.076, 0, 0.50) heraus,
+das R:B-Verhältnis wanderte 0.20 → 0.15 — auf der Fläche, deren ganzer Anspruch ist, dass ein
+Ton eine physikalisch abgeleitete Farbe hat. Dieselbe Defektklasse, die #1054 aus dem
+Helligkeitsboden entfernt hat, eine Zeile später in derselben Kette. (3) Unter 0.028 klemmte
+jeder Kanal auf null — und hob damit einen Teil der Ambient-Wäsche drei Zeilen darüber auf,
+deren erklärter Zweck ist, dass das Bild NIE totschwarz wird. Genau im ruhigen Zustand.
+
+**Ersatz:** die Kurve formt die LEUCHTDICHTE, die Farbe wird mit dem entstehenden Verhältnis
+skaliert — Kanalverhältnisse und damit der Farbton gehen unberührt durch. `smoothstep` liefert
+Fuß und Schulter, die der Name immer versprochen hat. In Python gefahren: f(0)=0, f(1)=1,
+f(0.5)=0.5 auf zwölf Nachkommastellen, monoton über 1000 Stützstellen, das 0.028-Pixel liest
+jetzt 0.0249 statt 0. Der Gamut wird durch Teilen durch den Spitzenkanal gehalten, nie durch
+kanalweises Klemmen — dieses Klemmen IST die Drehung, die entfernt wird.
+
+**Es musste ein WCAG-Argument in einer ANDEREN Datei passieren, und das ist der Grund für fünf
+Dateien statt drei.** `FlashGuard.bloomBeatGainSwing` ist durch
+`swing × restGlowMax × (1 − ambient) × <Kurvenverstärkung> < 0.10` begrenzt — der steilste
+Punkt dieser Kurve ist also Eingabe eines Blitzschutz-Beweises. Stärke 0.12 wurde gewählt, weil
+`1 + 0.12/2 = 1.06` die alte gleichmäßige Verstärkung EXAKT reproduziert, während jeder andere
+Punkt der Kurve WENIGER verstärkt: das Produkt bleibt auf zwölf Nachkommastellen gleich
+(0.08788248), und die Schranke ging von scharf zu strikt — die sichere Richtung.
+
+Dieser vierte Faktor war in `FlashGuardTests` eine handgetippte `1.06`. Er liest jetzt
+`FlashGuard.filmicMaxSlope`, hergeleitet als `1 + filmicStrength / 2` aus derselben Konstante,
+die der Shader interpoliert. **Ein Literal, das zufällig noch stimmt, ist nicht dasselbe wie
+eines, das nicht falsch sein KANN** — und genau dieser Faktor wurde schon einmal vergessen
+(0.50 landete bei 0.105, über dem Tor).
+
+**Prosa im selben Commit mitgezogen (#456):** `FlashGuard`s Produkt-Doc sagt jetzt
+`filmicMaxSlope` und schreibt hin, dass der Faktor ein MAXIMUM geworden ist statt einer
+gleichmäßigen Verstärkung — die Zahl hat sich nicht bewegt, ihre BEDEUTUNG schon, und eine
+Schranke, die still zum Mittelwert wird, ist genau der Weg, auf dem ein WCAG-Argument verrottet.
+Dazu `MetalBioView`s Bloom-Kommentar und der Kopf von `GlitterCannotBecomeAFlashTests` (dessen
+gepinnte Klemme #578s ist, eine andere Zeile, unangetastet).
+
+**Wächter.** `Tests/CISmoke/TheFilmicCurveDoesNotBendTheHueTests` — dreizehn Behauptungen in
+vier Ansprüchen (3 · 5 · 3 · 2), und die Benotung lässt sich NICHT auf eine Zahl reduzieren.
+Die fünf TEXT-Behauptungen liefen gegen beide Bäume: 5/5 grün heute, 4 rot und 1 grün auf dem
+Vor-Scheiben-Baum. Die acht ARITHMETIK-Behauptungen haben dort gar kein Rot/Grün — die Datei
+würde nicht KOMPILIEREN, weil `FlashGuard.filmicStrength` noch nicht existiert. Das ist stärker
+als ein Rot und zugleich keine Behauptungszahl, also wird es als das berichtet, was es ist.
+
+⚠️ **EHRLICH ZUR PRÜFTIEFE:** die MSL-Änderung wird von KEINEM Gate kompiliert (Shader-Text im
+Swift-String ist für beide Gates Daten — genau der #1055-Befund). Das Swift drumherum schon.
+Ein Shader-Fehler meldet sich seit #1055 als `visual: SHADER COMPILE FAILED` im Diag-Log.
+
+**Gate gelesen:** `Xcode Compile Check` = **success** auf `bf65034c` (#1058).
