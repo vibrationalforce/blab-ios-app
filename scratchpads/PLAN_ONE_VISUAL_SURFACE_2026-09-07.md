@@ -87,8 +87,23 @@ einer Video-Aufnahme die verpassten Sekunden fehlen. Gemessene Abwurf-Menge: die
 `wavBusy`-Zustände auf 375 und 393 pt (der angepinnte WAV-Stopp reserviert 104 pt). Wächter:
 `ChromeBudgetFitsTests.testTheStillShutterSurvivesWhereTheStillIsTaken`.
 
-**S2 — Tipp-aufs-Bild.** `showVisualControls` als fenster-lokaler `@State`; im Fenster gilt
-dieselbe Geste. Klein, keine Wächter bekannt.
+**S2 — Tipp-aufs-Bild. ⛔ GESTRICHEN, nachgemessen 2026-09-07 — die Geste hat im
+verschmolzenen Fenster keinen Platz und trüge nichts mehr.** Zwei Messungen, beide gegen
+den Quelltext:
+
+1. **Im Fenster ist das Bild die SPIELFLÄCHE, in jeder Grösse.** `FloatingVisualWindow`
+   legt `TouchInstrumentView` als `.overlay` über die Bild-Ebene (`:838`) — ein Tipp dort
+   ist eine NOTE. Im Cover liegt statt dessen ein `Color.clear` mit `onTapGesture` über
+   dem Visual (`EchoelStudioView.swift:1582`), also eine Fläche, die es im Fenster gar
+   nicht gibt. Die Geste zu portieren hiesse, dem Instrument Anschläge wegzunehmen.
+2. **Was sie schaltet, wird ohnehin gelöscht.** `showVisualControls` blendet genau EINE
+   Sache ein und aus: `visualVJOverlay`. D2 sagt „EINE Definition" und löscht das
+   VJ-Panel in S3 — der Schalter verlöre also sein Objekt, auch wenn die Geste ginge.
+
+**Es geht nichts verloren, was D2 nicht schon entschieden hat.** Bleibt „sauberes Bild
+für Projektion" gewünscht, ist das ein NEUES kleines Feature mit SICHTBARER Bedienstelle
+(WCAG 2.2 — der Cover-Kommentar sagt das an derselben Stelle selbst) und eine
+Founder-Geschmacksfrage, kein Port. Nicht einseitig gebaut.
 
 **S3 — Cover löschen.** `.fullScreenCover(isPresented: $showVisual)`, `showVisual`,
 `showVisualControls`, `visualShare`, `visualVJOverlay` weg; „Full screen" schreibt die Grösse.
@@ -101,7 +116,8 @@ Telefon; im Vollbild soll nichts fallen. `ChromeBudgetFitsTests` ist der Wächte
 neue Regel mitbekommen. **Vorsicht: hier gibt es keinen Renderer** — die Abwurf-Leiter ist reine
 Arithmetik und damit prüfbar, das WICKELN ist Layout und nur am Gerät zu sehen.
 
-**S5 — Gitter-Schalter bekommt eine Tür im Field-Panel (D5c).** Heute steckt das Ton-Gitter
+**S5 — Gitter-Schalter bekommt eine Tür im Field-Panel (D5c). ⭐ RÜCKT VOR**, weil S2
+gestrichen ist und diese Scheibe weder vom Cover noch von einem Council abhängt.** Heute steckt das Ton-Gitter
 hinter einem Abwurf-Rang-4-Glyph in der Fensterleiste, und die Fläche, um die die Bitte ging,
 hat gar keinen Schalter dafür.
 
