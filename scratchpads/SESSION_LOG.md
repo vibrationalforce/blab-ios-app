@@ -25560,3 +25560,36 @@ Kein `Sources/`-Anteil → nur CI/CD-Lint-Jobs relevant; kein Deploy.
   Selbsttest-Zeile schon gesagt hat (`python3 scripts/moved-needles.py --selftest` → 4 OK).
 - Zyklus 13:58Z–15:24Z geschlossen: #1091 grün · #1092 repariert (rot seit #1027, drei Deploys
   unsichtbar) · #1093 Werkzeug · DEAD-END #1092b (Artefakt-Route). Nächster Takt 15:58Z.
+
+## #1094 / #1095 — zwei weitere versteckt rote Wächter, beide von HEUTE, gefunden vom neuen Werkzeug
+
+**Rückblick-Lauf** `python3 scripts/moved-needles.py fcd3d4b8~1..HEAD` (seit Build 454): 31 Treffer,
+davon 8 „GONE from Sources". Triage der acht: drei Kommentare, drei Negativ-Nadeln (korrekt grün),
+**zwei positive Nadeln auf verschwundenem Text = ROT**:
+- `GlitterCannotBecomeAFlashTests` Claim 4 — Nadel war der Einzeilen-Floor `col *= (lum < 0.35) ?
+  (0.35 / max(lum, 0.04)) : 1.0;`. **#1054 (`f281b37b`, heute)** hat ihn in zwei Zeilen geteilt
+  (Lift mit Gamut-Stopp, dann `col *= (lum < 0.35) ? lift : 1.0;`) und den Wächter nicht mitgezogen.
+  Rot in 457 und 458. Repariert `713b7256`: Nadel auf die angewandte Zeile; der Gamut-Stopp bleibt
+  bei `TheColourFloorDoesNotBuyLightWithHueTests` (#416).
+- `TheDetailCaptionKnowsWhichPictureTests` Claim 1 — Nadel `Text(spectralDonuts`. **#1057
+  (`04f6b3d0`, heute)** hat den Donut-Arm des Ternärs absichtlich gelöscht (der neue
+  `if donutIsThePicture`-Zweig besitzt den Zustand), ohne den Wächter, der genau diesen Arm pinnt.
+  Rot in 457 und 458. Repariert `c84c672b`: Claim 1 prüft die letzten SECHS Code-Zeilen vor dem
+  Rings-Satz auf `if !donutIsThePicture,` und `detailReach(` (Kommentare gestrippt; ⛔ erster Entwurf
+  mit 400-Byte-Fenster lag 707 Byte daneben, weil der Stripper die Einrückung der Kommentarzeilen
+  behält — Zeilen sind die ehrliche Einheit). Claim 4 verliert die falsche Prämisse „Verstecken ist
+  der falsche Fix": #1057 versteckt hinter `donutIsThePicture`, dessen zweiter Term genau die
+  Beamer-Ausnahme ist; gepinnt bei `TheDonutHidesTheDialsItCannotHearTests`.
+
+**Muster, dreimal am selben Tag (#1027, #1054, #1057):** ein Sources-Umbau streicht seine eigene Prosa
+und lässt den Wächter stehen, der die alte Form pinnt; `dead-needles.py` schweigt, weil der Text
+anderswo weiterlebt (#1027) oder weil die Nadel in einem Dictionary/Helper-Pfad sitzt, den es nicht
+liest (#1054/#1057). `moved-needles.py` nennt alle drei auf ihrem eigenen Commit.
+
+Transkription beider Reparaturen: grün am echten Baum, rot auf dem Eltern-Baum und auf je 2–4
+Mutanten. dead-needles OK, count-pins 0 RED. Push `c84c672b` 16:10Z — Gates folgen.
+
+**Offen aus dem Rückblick:** 23 „still in Sources"-Treffer. Triage per Skript: die meisten Kommentare
+oder Ganzdatei-Nadeln (weiter wahr). Etwa zwölf sind positive Code-Behauptungen, die wie #1027
+SCOPED sein könnten — Fan-out (ein Lese-Agent je Wächter, Widerleger je ROT) läuft; Ergebnis im
+nächsten Eintrag.
