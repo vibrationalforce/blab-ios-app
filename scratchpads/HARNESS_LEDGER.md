@@ -3449,3 +3449,47 @@ Die zwei Gates verhalten sich unter Concurrency verschieden. Also:
 - Wer eine Kette von Scheiben schiebt: entweder nach der LETZTEN einmal lesen (der neueste Lauf
   enthält alle), oder zwischen den Pushes warten. Nicht: für jeden Zwischen-Commit ein eigenes
   Compile-Urteil erwarten — das gibt es strukturell nicht.
+
+## DEAD-END #1079b (2026-09-07) — ein NEUER Wächter ist im CI-Log grundsätzlich unsichtbar, und das ist keine Ausnahme
+
+**Was ich versucht habe.** Nach #1079 (der Metal-Shader wird zum ersten Mal wirklich
+kompiliert) wollte ich die eine Frage beantworten, für die der Wächter gebaut wurde: lief er
+durch, wurde er übersprungen, oder fand er etwas? Route: `mcp__github__get_job_logs` auf den
+`Build & Test (iOS)`-Job, dann nach `TheShippedShaderActuallyCompilesTests` greppen.
+
+**Warum es nicht geht, und es ist strukturell.** `ci.yml` schreibt in den Log-Schritt
+`tail -200 test.log`. Der Baum hat heute >450 Wächterdateien; die sichtbaren 200 Zeilen
+zeigen etwa **26 Suiten** von mehreren hundert. Ein neuer Wächter landet mit
+verschwindender Wahrscheinlichkeit darin — gemessen: **sechs** neue Wächter dieser Runde,
+**null** Treffer, und in zwei aufeinanderfolgenden Läufen zeigte das Fenster sogar
+verschiedene Klon-Mengen.
+
+**Die Falle, in die ich fast gelaufen wäre** (und einmal wirklich lief, siehe die
+Nachlese unten): aus der Abwesenheit einen BEFUND zu machen. #445 sagt es — Abwesenheit
+beweist nichts, nur Anwesenheit beweist. Ich hatte zuvor sogar eine Hypothese gebaut
+(„alphabetisch müsste die Suite zwischen zwei sichtbaren liegen, also fehlt sie aus der
+Mitte") und sie war doppelt falsch: die Tests laufen auf **ZWEI Simulator-Klonen parallel**,
+und die Reihenfolge innerhalb eines Klons ist beliebig. Die zwei zitierten Nachbarn lagen auf
+verschiedenen Klonen. **Es gibt kein alphabetisches Fenster.**
+
+**Die Log-Zeilen haben diese Form** (das Rezept, weil ich einmal mit dem falschen Muster
+`\[(\w+Tests)\s+\w+\]` null Treffer bekam und das für einen Befund hielt):
+```
+Test case 'SuiteTests.testFoo()' passed on 'Clone 2 of iPhone 17 - Echoelmusic (16817)' (0.05 seconds)
+Test suite 'SuiteTests' started on 'Clone 1 of iPhone 17 - Echoelmusic (8542)'
+```
+
+**Was NICHT hilft.** · Die Conclusion (#396: jeder Push meldet `failure`) · `Echoel Full Test
+Suite (non-blocking)` (beweist nichts, #208) · Das hochgeladene `TestResults`-Artefakt
+(`.xcresult`-Bündel, ohne `xcrun xcresulttool` in dieser Umgebung nicht auswertbar) · Ein
+zweiter Parser neben `gh-test-verdict.py` (der liest denselben gekürzten Log).
+
+**Was stattdessen zu tun ist.** Den Wächter bauen, seine Transkription gegen den echten Baum
+fahren, Mutanten treiben — und dann **ehrlich sagen, dass sein LAUF unbestätigt ist**. Nicht
+als Absicherung zitieren, weder im Status-Delta noch in einer Build-Notiz. Was `Build for
+Testing` grün beweist, ist ausschließlich: der Wächter KOMPILIERT.
+
+**Die Reparatur ist founder-gated** (`.github/workflows/**` = berichten, nicht editieren).
+Sie wäre klein — den Log-Schritt von `tail -200` auf einen gefilterten Auszug umstellen, oder
+`gh-test-verdict.py` gegen ein vollständigeres Artefakt laufen lassen. Das gehört ihm, nicht
+mir. #208 ist derselbe Bereich und steht seit Wochen offen.
