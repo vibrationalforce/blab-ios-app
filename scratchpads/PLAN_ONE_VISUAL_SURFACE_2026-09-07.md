@@ -182,8 +182,14 @@ Fenstergrösse umschreiben. **Einzige unumkehrbare Scheibe dieses Passes.**
 
 · **Architect:** proceed — es sind zwei Chromes über EINEM Renderer; die Kette fällt 14 → 13,
   also in die sichere Richtung an der Metadaten-Decke. Sorge: `floatingSizeRaw` liegt hinter
-  einem ROHEN String an zwei Stellen; ein dritter Leser wäre der Drift-Defekt, vor dem der
-  #1065-Wächter gerade gewarnt hat.
+  einem ROHEN String; ein weiterer Leser wäre der Drift-Defekt, vor dem der #1065-Wächter
+  gerade gewarnt hat.
+  ⛔ **„an zwei Stellen" war meine Zahl und sie war falsch — es sind SECHS** (`WorkspaceView`,
+  `FloatingVisualWindow`, VIER in `EchoelStudioView`s Aufnahme-Pfad). Ich hatte nur die zwei
+  `@AppStorage`-Deklarationen gezählt und die programmatischen `UserDefaults`-Zugriffe
+  übersehen — zwei davon stehen direkt unter einem Kommentar, der das Gegenteil behauptet
+  („via the namespace (H15-KEYSTORE)"). Korrigiert mit #1066; die Rücknahme steht auch im
+  Quelltext an genau der Stelle.
 · **Skeptiker:** proceed-with-mitigation — die Löschung ist gross und nicht rückholbar, und ihr
   gefährlichster Teil ist NICHT der Code, sondern die Reihenfolge: solange „Full screen" noch
   ins Cover zeigt, ist der neue Weg unbewiesen. Sorge: ein Commit, der Weg UND Ziel gleichzeitig
@@ -200,9 +206,12 @@ Fenstergrösse umschreiben. **Einzige unumkehrbare Scheibe dieses Passes.**
   VJ-Overlay verliert bis auf die AirPlay-Zeile nichts, was das Field-Panel nicht schon hat.
 
 **→ Empfehlung: proceed, in drei Schritten statt einem.**
-1. **S3b-0** — `visual.floating.size` bekommt eine `StudioDefaultKeys`-Konstante, die beiden
-   rohen Literale wandern darauf. Reine Hygiene, KEINE Verhaltensänderung, macht den dritten
-   Leser überhaupt erst zulässig.
+1. **S3b-0 — ✅ AUSGELIEFERT als #1066 (`f74beea3`).** `visual.floating.size` hat jetzt
+   `StudioDefaultKeys.floatingVisualSizeKey`; **alle SECHS** rohen Literale sind darauf
+   migriert. Reine Hygiene, KEINE Verhaltensänderung. Der DEFAULT bleibt bewusst an jeder
+   Deklaration (an `WindowSize.small` gekoppelt) — `Core/` kann das Enum nicht sehen, ein
+   nacktes `0` dort wäre die Entkopplung, gegen die `WorkspaceView`s eigenes Doc argumentiert.
+   Wächter: `TheWindowSizeKeyHasOneHomeTests`.
 2. **S3b** — „Full screen" schreibt Grösse + Sichtbarkeit statt `showVisual = true`. Ab hier ist
    das Cover **unerreichbar, aber noch da** — der Zustand, in dem man den neuen Weg prüft.
 3. **S3c** — das nachweislich tote Cover löschen, mit AirPlay-Zeile umgezogen und den zwei
