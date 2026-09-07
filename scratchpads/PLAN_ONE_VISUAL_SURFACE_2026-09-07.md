@@ -389,3 +389,5 @@ Verbraucher-Hälfte: `ExternalStageView` ruft sie nicht.
 
 → **Empfehlung: B2. Gate: proceed** — reversibel, kein neues Framework, keine neue Fläche.
 ⚠️ Bleibt bewusst offen und ist NICHT meine Entscheidung: ob der Beamer die Tönung tragen SOLL. B2 macht die zwei Bilder gleich; welches Bild richtig ist, ist der Founder-Blick.
+
+**§7 GEBAUT als #1073** (`c957410a`) — Option B2 wie empfohlen. Der Wächter der Lücke ist gelöscht, `TheBeamerAndThePhoneShareOneMixTests` hält jetzt die Verdrahtung. Offen bleibt allein die Founder-Frage, ob der Beamer die Tönung tragen SOLL.

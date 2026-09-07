@@ -25277,3 +25277,51 @@ sich ändert.
 29 transkribierte Behauptungen über beide Wächter GRÜN. dead-needles OK (452). count-pins
 0 RED. Klammern in fünf Dateien ausgeglichen, Dangling-Assignment-Scan 0 (#1070-Lehre).
 Commit `1a53ff94`.
+
+## #1073 — Der Beamer zeichnet das Bild des Telefons (#1071 GESCHLOSSEN)
+
+**Was:** Die Verbraucher-Hälfte zu #1072. `ExternalStageBridge` bekommt ein fünftes Mitglied,
+die reine `WeatherMood.Contribution?`; `FloatingVisualWindow` veröffentlicht sie per
+`.onChange(…, initial: true)`; `ExternalStageView` liest sie plus fünf `@AppStorage`-Schlüssel
+und ruft **dieselbe** `WeatherMood.visualValues`. Ein Projektor ändert das Bild nicht mehr.
+
+**Warum ein WERT und nicht der Provider:** `WeatherProvider` liegt ganz in
+`#if canImport(WeatherKit) && canImport(CoreLocation)`, die Brücke in `#if canImport(UIKit)` —
+ein Mitglied dieses Typs gäbe `wire(...)` zwei plattform-abhängige Signaturen. Ausgeschlossen
+durch Struktur, nicht durch Geschmack. Und die Szene kann den Himmel auf keinem anderen Weg
+bekommen: UIKit baut die Hierarchie (kein `@Environment`), `WeatherSnapshot` wird nie
+persistiert.
+
+**⭐ Die Messung, die den Schreiber bestimmt hat, und sie hat die billige Antwort gekippt:**
+das Telefon rechnet die Contribution an ZWEI Stellen mit ZWEI Lebensdauern —
+`EchoelStudioView` nur beim Session-Start mit Ortsfix, `FloatingVisualWindow` live aus dem
+30-Minuten-Cache. Dieselbe reine Funktion, also keine Arithmetik-Divergenz — aber die erste zu
+veröffentlichen hieße, den Beamer für eine andere Stunde zu tönen als das Telefon. Derselbe
+Defekt wie gar keine Tönung, und sichtbar nur mit Projektor, also hier nie.
+
+**Die Warnung der Brücke war veraltet und ist jetzt eine FRAGE statt einer Zahl.** Sie sagte
+„three optional references … do not add a fourth thing here", während schon VIER existierten
+(`synth`, #594 slice 2, für genau die Problemklasse, die die Warnung verhindern sollte). Eine
+als ZAHL formulierte Regel verfällt beim ersten Mal, wenn jemand ihren Zweck befolgt. Ersetzt
+durch die zwei Fragen, die wirklich entscheiden: *Kann die Szene das anders bekommen?* und
+*Ist es ein WERT oder ein Engine-Objekt?* — beide am neuen Mitglied beantwortet.
+
+**Wächter:** `TheBeamerDrawsTheSamePictureTests` pinnte die LÜCKE und schrieb die eigene
+Löschung vor — gelöscht wie vorgesehen. Ersatz `TheBeamerAndThePhoneShareOneMixTests`
+(4 Ansprüche / 20 Behauptungen, alle transkribiert GRÜN): er hält die VERDRAHTUNG, der
+#1072-Wächter die ARITHMETIK.
+· Anspruch 2 existiert, weil Anspruch 1 allein über eine Szene liefe, die `wx` berechnet und
+  dem Renderer trotzdem die rohen Schlüssel gibt — die vier Eigenschaften sind noch im Scope,
+  der Fehler kompiliert.
+· Anspruch 3 = #367-Gegengewicht: ohne Brücken-Mitglied und Veröffentlicher mischte die Szene
+  ein dauerhaft leeres nil und ergäbe exakt das alte rohe Bild über einen längeren Weg.
+· ⭐ Anspruch 4 = die Divergenz EINE EBENE TIEFER, der wahrscheinlichste Fehler beim Reparieren
+  des ersten: die vier Mixer-Voreinstellungen der Szene sind dieselbe AUSDRUCKSFORM
+  (`WeatherMood.Param.<x>.defaultIntensity`), nie eine Kopie ihres Werts.
+
+Beide ⛔-Notizen mitgezogen (#456), dazu der Kopf des #1072-Wächters, der noch „der Beamer
+rendert roh" sagte. dead-needles OK (452). count-pins 0 RED. Commit `c957410a`.
+
+**NICHT geräteverifiziert — und diesmal ist das keine Formalie:** der ganze Pfad ist ohne
+Projektor unsichtbar. Und die Frage bleibt beim Founder: SOLL der Beamer die Tönung tragen?
+Das Ausschalten ist der vorhandene Wetter-Schalter, keine Codeänderung.
