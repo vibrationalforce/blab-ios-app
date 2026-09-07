@@ -86,6 +86,75 @@ final class WebsitePagesAreFindableAndHonestTests: XCTestCase {
         return try names.map { ($0, try String(contentsOf: docs.appendingPathComponent($0), encoding: .utf8)) }
     }
 
+    // MARK: - The wire's own numbers
+
+    /// ⭐ #1049 — THE SITE'S OSC ADDRESS COUNTS ARE DERIVED FROM `OSCSender`, NOT TYPED.
+    ///
+    /// #1046 corrected `docs/overview.html` from "6 bio addresses" to the measured 9 continuous
+    /// and 4 event addresses — by hand, and by hand is how the 6 got there in the first place.
+    /// This claim re-derives both numbers from the sender's own address literals every run, so
+    /// the sentence cannot drift again while nobody is counting.
+    ///
+    /// WHAT IT ASKS: every distinct `"/echoelmusic/bio/…"` literal in `OSCSender`'s CODE is an
+    /// address the sender can name. Two groups — those with `/event/` and those without — minus
+    /// the ones that provably never leave the device today:
+    ///   · `/bio/motion` — gated on `ModSource.motion.hasProducer` (#215), asserted FALSE below,
+    ///     not assumed. Nothing measures motion, and a constant 0 on the wire is indistinguishable
+    ///     from a performer standing still, which is why the gate exists at all.
+    ///   · `/bio/event/motion` and `/bio/event/eeg` — the address map has an entry, nothing ever
+    ///     constructs the event. Preparation, not an output.
+    ///
+    /// ⛔ IT FORBIDS NOTHING (#364). Wiring a motion sensor makes `hasProducer` true, this claim
+    /// then expects TEN continuous addresses, and it goes red until `docs/overview.html` says ten
+    /// — which is the repair, not the damage. Its message says so, and names the page.
+    ///
+    /// ⚠️ LIMIT, stated rather than implied (§1): this is a SOURCE-TEXT scan over the literals.
+    /// It proves the site's numbers match the addresses the sender NAMES; whether a given frame
+    /// actually carries one is `OSCAbsenceTests`' job, and that file drives the real sender.
+    /// The two must not be merged: a per-frame gate ("no pulse, no `/hrv`") is not the same
+    /// question as "which addresses exist at all".
+    func testTheSiteCountsTheAddressesTheSenderActuallyNames() throws {
+        let sender = try SourceText.codeOnly(String(
+            contentsOf: try repoRoot().appendingPathComponent("Sources/Echoelmusic/Sync/OSCSender.swift"),
+            encoding: .utf8))
+
+        var literals: Set<String> = []
+        var rest = Substring(sender)
+        while let open = rest.range(of: "\"/echoelmusic/bio/") {
+            let after = rest[open.upperBound...]
+            guard let close = after.range(of: "\"") else { break }
+            literals.insert("/echoelmusic/bio/" + String(after[..<close.lowerBound]))
+            rest = after[close.upperBound...]
+        }
+        XCTAssertFalse(literals.isEmpty, """
+            No `/echoelmusic/bio/…` literal was found in OSCSender.swift. The anchor is gone, so             this claim measured nothing — it FAILS rather than passing vacuously (#454). If the             addresses moved to another file, point this test at it in the same commit.
+            """)
+
+        // Not assumed — asked. This is the premise the motion exclusion rests on.
+        XCTAssertFalse(ModSource.motion.hasProducer, """
+            `ModSource.motion.hasProducer` is TRUE, so `/echoelmusic/bio/motion` now leaves the             device and the site's continuous count is one higher than it says. Update             `docs/overview.html` (section `formats`, the "Networking & sync" row) in the same             commit — this claim is the thing that noticed, not the thing that broke.
+            """)
+        let neverSent: Set<String> = [
+            "/echoelmusic/bio/motion",             // gated on hasProducer, asserted false above
+            "/echoelmusic/bio/event/motion",       // address exists, nothing constructs the event
+            "/echoelmusic/bio/event/eeg",          // ditto — `.eegBurst` has no producer
+        ]
+        let continuous = literals.filter { !$0.contains("/event/") && !neverSent.contains($0) }
+        let events = literals.filter { $0.contains("/event/") && !neverSent.contains($0) }
+
+        guard let overview = try pages().first(where: { $0.name == "overview.html" })?.html else {
+            return XCTFail("docs/overview.html is missing — it carries the OSC address counts")
+        }
+        XCTAssertTrue(overview.contains("\(continuous.count) continuous bio addresses"), """
+            `docs/overview.html` no longer says "\(continuous.count) continuous bio addresses".             Derived from OSCSender's own literals: \(continuous.sorted().joined(separator: " · ")).
+            A reader takes that number as the integration contract, so it has to follow the code             rather than a memory of it (#1046 found it saying SIX).
+            """)
+        XCTAssertTrue(overview.contains("\(events.count) discrete event addresses"), """
+            `docs/overview.html` no longer says "\(events.count) discrete event addresses".             Derived: \(events.sorted().joined(separator: " · ")).
+            The two addresses left out — `/event/motion` and `/event/eeg` — have a mapping and             no producer; if one gains one, this number moves and so must the page (#456).
+            """)
+    }
+
     // MARK: - Findability
 
     /// A page that exists but is in no sitemap is a page nobody finds. This is mechanical,
