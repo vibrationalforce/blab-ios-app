@@ -1,4 +1,4 @@
-build: v10.79.457 — wie 456, PLUS: das Wasser folgt jetzt der Tonhöhe
+build: v10.79.458 — wie 457, PLUS: die Wissenschafts-Karte verspricht keinen Sweep mehr
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,7 +6,56 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.456.
+  Der Vorgänger ist 10.79.457.
+
+  ── DEINE ANSAGE: „ENTSCHEIDE ALLES … TESTFLIGHT DEPLOY READY UND MARKTSTARK" ──
+
+  **Im Build selbst ist genau EINE Sache anders als in 457**, und sie ist Text: die
+  Wissenschafts-Karte „Resonance breathing" (Buch-Symbol rechts neben den Chips → Body
+  science) behauptete, Echoel könne „mehrere Atem-Tempi durchfahren und zeigen, welches
+  Deine HRV am stärksten hebt" (das Lehrer-&-Vaschillo-Verfahren). Das tut die App nicht —
+  der Atem-Coach im Bio-Panel hält EIN Tempo (~6/min). Die Karte sagt jetzt, was passiert
+  (ein Tempo, HRV und Kohärenz live daneben) und ausdrücklich, was nicht (der klinische
+  Sweep). Ein zitiertes Verfahren als Funktion zu verkaufen ist die Sorte Satz, die Apple
+  unter 2.3 ablehnt — deshalb ein eigener Build, obwohl es nur eine Karte ist.
+  **Zu prüfen:** Karte öffnen, den neuen Text lesen — stimmt er mit dem, was Du beim
+  Atem-Coach siehst?
+
+  **Alles andere aus dieser Runde liegt AUSSERHALB des Builds** — im Store-Text, auf der
+  Website, in der Einreich-Checkliste — und braucht Dich an drei Stellen:
+
+  1. **Die Review-Notiz für Apple war falsch** und ist korrigiert
+     (`docs/dev/APP_STORE_SUBMISSION_CHECKLIST.md`, Abschnitt 6). Sie versprach, ein Prüfer
+     ohne Sensor sehe „nach ~4 s automatisch eine Demo-Quelle". Es gibt keinen Timer; die
+     App startet mit der Kamera. Der wahre Weg: Puls-Pille antippen → Bio-Panel →
+     „Bio source" → „Play with the simulation" — das startet die Session sofort.
+     ⚠️ **Bitte diese drei Schritte auf 2576/458 einmal wörtlich nachspielen**, bevor Du
+     sie in App Store Connect einträgst. Das ist der eine Text, bei dem ein Fehler eine
+     Woche Rückfrage kostet, und ich kann ihn nur lesen, nicht anfassen.
+  2. **Store-Text (beide Sprachen) ist ergänzt, nicht neu geschrieben:** Visual-Aufnahme
+     als MP4 (mit ≤30 s Ton), die zwei Standort-Extras (Ort im Session-Namen, Apple Weather)
+     stehen jetzt im Privacy-Absatz, die deutsche Beschreibung hat endlich die Visual-Zeile.
+     ⚠️ Das erreicht Apple NICHT von selbst: `fastlane/metadata` pusht kein Workflow. Wenn
+     Du es hochlädst: nie ein nacktes `fastlane deliver` (das lädt auch das Binary hoch) —
+     `--skip_binary_upload true --force`, nach einem Blick auf den Live-Text.
+  3. **Zum App Store fehlt nach dieser Runde KEIN Code mehr, sondern ein Abend von Dir:**
+     Screenshots auf dem echten iPhone mit gelocktem Puls (der Simulator hat keine
+     Taschenlampe, kein Health, keinen Gurt — jedes Simulator-Bild wäre eine Lüge; und
+     bitte ERST, wenn die Visual-Sektion fertig umgebaut ist, sonst fotografierst Du eine
+     Baustelle) · Privacy-Label „Data Not Collected" · Altersfreigabe 4+ · und die zwei
+     Ship-Gate-Punkte, die nur Ohr und Hand schließen: klingt jedes Genre nach etwas, und
+     läuft der Build sauber (Start, jeder Chip, Tonart-Picker während Bio läuft).
+
+  ⚠️ **Drei Dinge, die ich NICHT anfassen darf und nur melde:** (a) die öffentliche
+  `apple-app-site-association` auf der Website trägt das Präfix `VFFORCE` — das buchstabiert
+  die gestrichene Alt-Marke; (b) der Mikrofon-Text in `Info.plist` beschreibt noch das
+  Monitoring, das Du mit 448 rausgeworfen hast; (c) seit demselben Schnitt hat niemand mehr
+  eine Tür zum Latenz-Picker — jeder läuft mit 512 Samples (~10,7 ms) statt Ultra 128.
+  Für (c) schlage ich vor, die drei Optionen als eigene Zeile ins Master-Panel zu legen —
+  sag ja oder nein.
+
+  Alles andere unten gilt unverändert für 458.
+
 
   ── DEINE FRAGE NACH ECHTEN WASSERKLANGBILDERN ───────────────────────────
 
