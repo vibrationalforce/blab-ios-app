@@ -24394,3 +24394,67 @@ Ursache `ci.yml`s `tail -200 test.log`, founder-gated (#208). Visual-Epos: S4b (
 kostet auf 440 pt den Transport-Readout; der Ausgabe-Satz von `StillShutterButton` sprengt
 aber die Leistenbreite und braucht eine Platzierungs-Entscheidung), Chrome-Verstecken, S5–S13.
 Task Q offen (`count-pins.py`, `.sheet(`-Pin 14 vs 9, vorbestehend rot).
+
+## 2026-09-07 · #1046–#1048 — Doctor-Sweep: fünf falsche Zahlen, drei tote Kopf-Absätze, und ein Messgerät, das eine Vorschau für eine Tür hielt
+
+### #1046 — fünf veraltete Messungen, EINE davon ein roter Wächter
+`docs/architecture.html` sagte „22 of 33 genres carry their own [reverb] values". Der
+Wächter `WebsitePagesAreFindableAndHonestTests` liest die 33 als TAXONOMIE-Behauptung (sein
+eigener Doc-Block sagt das) und vergleicht sie mit `MusicStyle.allCases.count` — heute **36**.
+Also stand ein Wächter im BLOCKIERENDEN Bundle rot, unsichtbar aus dem §5-Grund: CI/CD meldet
+auf jedem Push `failure`, ein echtes Rot ist vom sterbenden Host nicht zu unterscheiden.
+Nachgemessen über alle 36 Fälle durch `rawFXPreset`: **25** setzen `reverbEnabled: true`,
+**11** fallen auf den geteilten Raum-Boden. Der Quellkommentar in `GenreFX.swift` sagte „12"
+und ist mitgezogen (#456).
+Dazu: README bewarb die mit #1024 entfernte Audio-Input-Tür · README beschrieb den
+`bioEvents`-Drain als „nur um einen alten Rückstand zu verwerfen", während dieser Drain der
+OSC-EVENT-AUSGANG ist · `overview.html` versprach „120 Hz Bio-Loop" (echt: 10 Hz Abfrage,
+~1 Hz Sensoren) und „6 bio addresses" (echt: 9 laufende + 4 Ereignis-Adressen).
+
+### #1047 — drei Kopf-Absätze, die #1024 stehen ließ, und ein Rezept, das sich selbst widerlegt
+`RoutePlugInWatcher.swift` versprach eine gerenderte Einladung („die Blattzeile darunter
+rendert die Einladung, deren TIPP das Input-Sheet öffnet") — gemessen null Konstruktionsstellen
+für `PlugInInviteRow`, null Setzer für `showInput`. Jetzt beschriftet als **GEBAUT · VERDRAHTET
+· TÜRLOS**. · Der Wächter `ThePlugInInvitesButNeverArmsTests` hatte seinen Anspruch 7 korrekt
+INVERTIERT und seinen eigenen Kopf-Absatz stehen lassen: wer den ersten Absatz liest, lernt das
+Gegenteil dessen, was die Datei erzwingt. · `BioSourceView.swift` nannte „(Arrange · Clips ·
+Compose · Mix · Bio)" als Menü — vier davon sind GELÖSCHTE DATEIEN.
+
+⭐ **Und beim Schreiben der Reparatur fiel der eigentliche Fund an:** mein erster Entwurf belegte
+jede Abwesenheit mit `git grep -n 'X(' -- Sources` → 0 — und der Satz, der das Rezept enthält,
+IST ein Treffer. Das Rezept war in der Sekunde falsch, in der es gespeichert wurde. Das ist das
+`EchoelModalBank`-Gesetz aus CLAUDE.md, und es war hier BEREITS unbemerkt passiert:
+`PulseMeasurementView.swift:11` trug genau so ein Rezept, das inzwischen ZWEI Treffer liefert,
+beide Prosa. Alle Rezepte lassen jetzt Kommentarzeilen fallen (`| grep -v ': *//'`).
+
+### #1048 — das Messgerät hielt eine SwiftUI-Vorschau für eine Tür
+Sektion C fragt „wird diese View ÜBERHAUPT gebaut", und ein Aufruf in `#if DEBUG` ist ein
+Aufruf. Gemessen: `AppIconView` und `LaunchScreenView` werden AUSSCHLIESSLICH in der
+`#if DEBUG`-PreviewProvider von `AppIcon.swift` konstruiert. Ein Release-Build enthält weder
+die Vorschau noch einen anderen Aufrufer — die Sektion meldete also sauber für zwei Views, die
+niemand erreichen kann, **in der schmeichelhaften Richtung**.
+
+Drei Dinge, die die Regel bewusst NICHT tut, jedes durch eine getriebene Mutation gepinnt: den
+`#else`-Zweig mitlöschen (der SCHIFFT) · irgendeine andere Flagge wie DEBUG behandeln
+(`#if canImport(UIKit)` ist im Build — die Mutation meldet 84 Views als vorschau-only) · ein
+verschachteltes `#endif` den äußeren Zweig schließen lassen.
+
+⭐ **Und dabei fiel auf, dass der Selbsttest selbst die Form hatte, vor der seine eigene Datei
+warnt.** `--selftest` brauchte **76 s** gegen einen 120-s-Timeout, davon **66,6 s** in
+`selftest_comment_is_not_a_call`s Schicht 2: ein `re.findall` pro deklarierter View über jeden
+Datei-Rumpf, ~600 × 370 — genau der Lauf, den der Kommentar über `_CONSTRUCTION` als 81 s
+festhält und mit den Worten „der ganze Doctor starb still, was genau der Fehler ist, für den
+diese Datei existiert". Die langsame Form hatte in der Funktion überlebt, die beweisen soll,
+dass das Werkzeug funktioniert. Als Ein-Durchgang-Index neu geschrieben, weiterhin eine
+UNABHÄNGIGE Re-Implementierung: **76 s → 19 s**.
+
+### Gates
+`Build for Testing: success` für `d6590529` (#1043/#1044) UND für `bb48c959` (#1045/#1046).
+Beide Batches kompilieren nachweislich; Ausführung einzelner Wächter unbelegt (#445).
+
+### Zwei Harness-Funde, im Ledger (#1047/#1047b)
+`actions_list` mit `resource_id: <workflow-datei>` PLUS Branch-Filter liefert Läufe vom
+23. August und sieht dabei plausibel aus — DEAD-END, nie benutzen. · Schnelle Pushes hintereinander
+brechen das Compile-Gate des Zwischen-Commits als `cancelled` ab, was WEDER grün NOCH rot ist;
+die CI/CD-Pipeline überlebt das und liefert das brauchbarere Urteil, weil `Build for Testing`
+App-Target UND `Tests/CISmoke` baut.
