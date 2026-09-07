@@ -6184,7 +6184,6 @@ struct EchoelStudioView: View {
         // COLD-LAUNCHES into, so it is the default state and would mean "always awake"),
         // connecting a screen is a deliberate act with an obvious end — unplug it and the
         // next `body` evaluation puts the phone back to sleeping normally.
-        UIApplication.shared.isIdleTimerDisabled =
         // ⛔ #1069 — `showVisual` STOOD IN THIS LIST AND THE COVER IT NAMED IS GONE. Porting it
         // one-for-one would have been wrong in BOTH directions, which is why it became a
         // CONJUNCTION instead of a swap:
@@ -6192,17 +6191,31 @@ struct EchoelStudioView: View {
         //    visual — exactly Ship-Gate 4's contemplative case, watched with the transport
         //    stopped and the body driving the picture.
         //  · Naming the fullscreen WINDOW alone would be worse than the cover ever was.
-        //    `showVisual` was `@State` and reset every launch; `visual.floating.size` is
-        //    `@AppStorage` and STICKY, so one tap on "Full screen" would mean "awake forever"
-        //    for that user, idle or not.
+        //    `showVisual` was `@State` and reset every launch. The fullscreen WINDOW is the
+        //    state the app OPENS IN, on every launch, for every user — so a standalone term
+        //    would read "always awake" from the first frame onward.
         //
-        // ⚠️ AND THE COMMENT 30 LINES DOWN IS WHERE THAT SECOND READING CAME FROM. It says the
-        // app "COLD-LAUNCHES into" the floating fullscreen, so it is "the default state".
-        // Measured 2026-09-07: `StudioDefaultKeys.floatingVisualVisible` is `true` but
-        // `visual.floating.size` defaults to `WindowSize.small` — a fresh install opens a SMALL
-        // card. The RISK half of that sentence survives (persistence makes it sticky); the
-        // MECHANISM half does not, and only the mechanism was ever load-bearing. Corrected at
-        // the site below in this same commit (#456).
+        // ⛔ #1069 SHIPPED A RETRACTION OF THAT SENTENCE AND THE RETRACTION WAS WRONG. It said
+        // the comment 30 lines down — "which the app COLD-LAUNCHES into, so it is the default
+        // state" — had a false MECHANISM, on the measurement that
+        // `StudioDefaultKeys.floatingVisualSizeKey` defaults to `WindowSize.small`. That default
+        // is real and it is IRRELEVANT: `WorkspaceView`'s instrument-home seed writes
+        // `floatingVisualVisible = true` and `floatingSizeRaw = .fullscreen` in `.onAppear`,
+        // once per launch, behind `FeatureFlags.instrumentHome` — which `EchoelmusicApp.init()`
+        // REGISTERS as `true`. The neighbouring comment was right; I measured the default and
+        // concluded about the LAUNCH STATE, missing a writer one file away.
+        //
+        // ⚠️ THE LESSON, because it is not "measure more": a DEFAULT is not a STATE. Any
+        // `@AppStorage` default can be overwritten by a seed, and the cheap check that would
+        // have caught this is one grep for WRITERS of the key, not a read of its declaration —
+        // the same shape as this repo's "a `grep` on the LEADERS of a value, not its writers"
+        // rule at the reverb retraction (#546), mirrored.
+        //
+        // ⭐ THE CONCLUSION SURVIVES AND GETS STRONGER, which is why the code below is
+        // unchanged: if fullscreen is the LAUNCH state rather than a sticky one-tap state, a
+        // standalone term would hold the screen awake for every user from cold launch — worse
+        // than the "for that user, after one tap" the wrong retraction described. The
+        // conjunction is not prudence, it is the thing that makes the port safe at all.
         //
         // The conjunction is strictly LESS awake than what shipped: today the cover alone
         // disables the idle timer with nothing running at all. An idle fullscreen window now

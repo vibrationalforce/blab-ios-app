@@ -294,6 +294,22 @@ der Puls läuft" richtig an? Das ist ein Geräte-Blick, kein Blocker — und die
 JEDER Richtung konservativer als die alte, also gibt es keinen Zustand, in dem sie schlechter
 ist als das, was heute ausgeliefert wird.
 
-⚠️ **Der Quellkommentar wird im selben Commit korrigiert** (#456 — eine Prosa-Heimat zieht
-mit): sein Akku-Argument für `isProjectingExternally` bleibt richtig, seine Klammer über das
-Vollbild-Fenster nicht.
+⛔ **KORREKTUR, EINE STUNDE SPÄTER UND VOR DEM NÄCHSTEN COMMIT (#1070): DIESER ABSCHNITT HAT
+EINEN RICHTIGEN QUELLKOMMENTAR FÜR FALSCH ERKLÄRT.** Gemessen wurde der `@AppStorage`-DEFAULT
+(`WindowSize.small`) und daraus auf den START-ZUSTAND geschlossen. Der Default stimmt und ist
+belanglos: **`WorkspaceView.swift:331-334` schreibt bei jedem Start `floatingVisualVisible = true`
+und `floatingSizeRaw = .fullscreen`** — der Instrument-Home-Seed, hinter
+`FeatureFlags.instrumentHome`, das `EchoelmusicApp.init()` als `true` REGISTRIERT. Die App
+startet also sehr wohl im Vollbild, und der Kommentar sagte das korrekt.
+
+⚠️ **Die Lehre ist nicht „mehr messen":** ein DEFAULT ist kein ZUSTAND. Der billige Test wäre ein
+`grep` nach den SCHREIBERN des Schlüssels gewesen, nicht ein Blick auf seine Deklaration —
+dieselbe Form wie #546 (dort: den LESERN folgen statt den Schreibern), nur spiegelverkehrt.
+Gefunden beim Lesen von `FloatingVisualLayout:385`, das denselben Satz führt und das ich
+beinahe ebenfalls „korrigiert" hätte.
+
+⭐ **DIE SCHLUSSFOLGERUNG ÜBERLEBT UND WIRD STÄRKER, der Code bleibt unverändert.** Wenn Vollbild
+der START-Zustand ist statt eines klebrigen Ein-Tipp-Zustands, hielte ein alleinstehender Term
+den Schirm bei JEDEM Nutzer ab dem ersten Frame wach — schlimmer als das, was die falsche
+Rücknahme beschrieb. Die KONJUNKTION ist damit nicht Vorsicht, sondern die Bedingung dafür, dass
+der Port überhaupt sicher ist.
