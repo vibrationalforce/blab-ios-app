@@ -3353,3 +3353,59 @@ selbst-belegend — sie hat ihren eigenen Autor erwischt.
 in neuer Gestalt:** eine Nadel ist eine BEHAUPTUNG über die Form dessen, was sie sucht. Wer sie
 nur in der Positiv-Richtung testet („findet sie den echten Fund?"), erfährt nie, worauf sie
 sonst noch anspringt.
+
+## DEAD-END #1047 (2026-09-07) — `actions_list` mit `resource_id: <workflow-datei>` PLUS Branch-Filter liefert VERALTETE Läufe
+
+**Nicht wiederholen. Gemessen, zweimal, am selben Tag.**
+
+```
+mcp__github__actions_list   method=list_workflow_runs
+                            resource_id="xcode-compile-check.yml"
+                            workflow_runs_filter={"branch": "claude/…", "status": "completed"}
+  -> neuester zurückgegebener Lauf: 2026-08-23   (Läufe von HEUTE existieren)
+
+mcp__github__actions_list   method=list_workflow_runs
+                            resource_id="ci.yml"
+                            workflow_runs_filter={"branch": "claude/…"}
+  -> neuester zurückgegebener Lauf: 2026-08-23   (Lauf 34069319247 von heute fehlt)
+```
+
+Beide Antworten sind INHALTLICH plausibel — richtiger Branch, richtige `workflow_id`,
+richtiger `path` — also gibt es kein Warnsignal. **Man liest ein zwei Wochen altes `success`
+und hält es für das Urteil über den eigenen Commit.** Das ist genau die Fehlerklasse, für die
+`Tests/CISmoke/CLAUDE.md` §5 existiert, nur eine Ebene früher: nicht ein falsch gelesener Log,
+sondern der falsche LAUF.
+
+**MACH STATTDESSEN — zwei Schritte, beide gemessen funktionierend:**
+1. `list_workflow_runs` **OHNE** `resource_id`. Ein Filter auf `{"event":"push","status":"in_progress"}`
+   hält die Antwort klein und liefert zuverlässig die NEUESTEN Läufe (heute korrekt für vier
+   aufeinanderfolgende Pushes).
+2. Aus dem Treffer die `id` nehmen und `list_workflow_jobs` mit `filter: "latest"` fahren. Diese
+   Antwort ist klein (Jobs tragen KEINE Commit-Nachricht) und nennt jeden Schritt namentlich —
+   `Build for Testing` ist das, was man sucht.
+
+⚠️ **Warum Schritt 1 die Antwort trotzdem sprengen kann:** jeder Lauf-Eintrag trägt
+`head_commit.message` VOLLSTÄNDIG. Bei den langen Commit-Texten dieses Repos sind das ~4 KB pro
+Eintrag, und ein Lauf pro Workflow bedeutet fünf Einträge für EINEN Push. `perPage` klein halten
+und über den Status filtern, nicht über den Workflow.
+
+## PLAYBOOK #1047b (2026-09-07) — schnell hintereinander pushen KILLT das Compile-Gate des Zwischen-Commits
+
+Gemessen an `d6590529`: `Xcode Compile Check` Job-Conclusion **`cancelled`**, Schritt
+„Compile (iOS device SDK, no signing)" nach 2:55 min abgebrochen — weil `d1f9edda` sechs
+Minuten später gepusht wurde und die Concurrency-Gruppe den laufenden Job abräumt.
+
+**Die Falle ist die Beschriftung.** `cancelled` ist WEDER grün NOCH rot; wer nur auf
+`conclusion != "failure"` prüft, liest es als „nicht kaputt" und schreibt „Gates grün" in ein
+Status-Delta. Es ist aber „**kein Urteil**" — dieselbe Kategorie wie #445s abwesender Testname.
+
+⭐ **Was in derselben Messung ÜBERLEBT hat und deshalb der brauchbare Weg ist:**
+`Echoelmusic CI/CD Pipeline` wurde NICHT abgebrochen und lieferte `Build for Testing: success`.
+Die zwei Gates verhalten sich unter Concurrency verschieden. Also:
+
+- Ein Zwischen-Commit hat sein Compile-Urteil oft NUR aus dem CI/CD-Lauf. Das reicht, denn
+  `Build for Testing` baut App-Target UND `Tests/CISmoke` — mehr als der Compile-Check, der
+  laut `project.yml` `build.targets` nur `Sources/` baut.
+- Wer eine Kette von Scheiben schiebt: entweder nach der LETZTEN einmal lesen (der neueste Lauf
+  enthält alle), oder zwischen den Pushes warten. Nicht: für jeden Zwischen-Commit ein eigenes
+  Compile-Urteil erwarten — das gibt es strukturell nicht.
