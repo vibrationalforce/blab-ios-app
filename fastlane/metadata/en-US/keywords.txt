@@ -1,1 +1,1 @@
-biofeedback,HRV,coherence,generative,synth,MIDI,OSC,artnet,sACN,DMX,immersive,visuals,rPPG
+biofeedback,HRV,coherence,generative,synth,MIDI,OSC,artnet,sACN,DMX,immersive,visuals,rPPG,pulse
