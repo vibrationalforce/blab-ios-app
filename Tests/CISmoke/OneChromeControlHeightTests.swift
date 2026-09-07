@@ -118,8 +118,16 @@ final class OneChromeControlHeightTests: XCTestCase {
             // the control did not move it — that is what #481 was for.
             (Self.tile,      ".frame(height: EchoelTheme.controlHeight)",
              "the shared chrome tile (every action and door chip reads it)"),
-            (Self.tempo,     ".frame(width: 76, height: EchoelTheme.controlHeight)",
-             "the compact tempo readout"),
+            // ⛔ #1098 — THIS CASE WAS RED ON A CORRECT TREE FOR TWO DAYS AND NO GATE SAID SO.
+            // It pinned `.frame(width: 76, height: EchoelTheme.controlHeight)`; #1023b/#1023c
+            // (2026-09-05) made the compact readout a text-bearing MINIMUM
+            // (`minWidth:`/`minHeight:`, the #262 shape: digits must GROW at accessibility
+            // sizes, not spill) and this guard was not moved with it — the §4 defect, found by
+            // the moved-needles sweep (#1093), not by the suite (#445: the tail-200 job log
+            // never shows a single red claim). The LAW is unchanged: the readout still reads
+            // the shared constant, as a floor rather than a fixed height.
+            (Self.tempo,     ".frame(minWidth: 76, minHeight: EchoelTheme.controlHeight)",
+             "the compact tempo readout (a minimum since #1023c, still on the shared constant)"),
             (Self.tempo,     ".frame(width: compact ? 30 : 34, height: EchoelTheme.controlHeight)",
              "the tempo-lock chip"),
         ]
@@ -328,7 +336,11 @@ final class OneChromeControlHeightTests: XCTestCase {
     /// It is `minHeight` and not `height` for a third reason (#262): the pill carries TEXT,
     /// so at accessibility sizes it must GROW rather than let ≈53 pt digits spill past its
     /// border. `controlHeight` is a hard chip size for icon-only chrome and must never be
-    /// applied to a text-bearing row.
+    /// applied to a text-bearing row AS A FIXED HEIGHT. (⛔ #1098: the sentence ended at
+    /// "row" and was then contradicted by the tree — since #1023c the compact tempo readout
+    /// in `BodyTempoField` reads `minHeight: EchoelTheme.controlHeight`, which is the #262
+    /// form, a floor the text may grow past. The assertion below scans HeaderMonitors ONLY,
+    /// so it was never red; the prose was simply wider than the claim.)
     func testTheAnalysisReadoutIsNotSweptIntoTheButtonSize() throws {
         let lines = try codeLines(Self.monitors)
         XCTAssertTrue(lines.contains { $0.contains(".frame(minHeight: 48)") }, """
