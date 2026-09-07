@@ -25539,3 +25539,16 @@ hinschaut.
 `TheLawFileNeverReachesMainByItselfTests` (Zahlen als Datum belassen, Nachtrag daneben) ·
 `decisions.csv` Zeile 746. Nicht gebaut: Pre-Commit-Hook (ein Hook, der Fragen stellt, blockiert).
 Kein `Sources/`-Anteil → nur CI/CD-Lint-Jobs relevant; kein Deploy.
+
+### Gates für `1a8bd7bf` (#1092, nachgetragen 15:15Z) — kompiliert; ob er LIEF, zeigt kein Log
+- Xcode Compile Check 2435 **SUCCESS** (sagt über eine Testdatei nichts) · CI/CD 5900
+  `Build for Testing` **SUCCESS** → der reparierte Wächter KOMPILIERT (das ist die Aussage, die
+  #776 einmal gekostet hat). `Run Tests` rot wie immer (#396).
+- `gh-test-verdict.py`: 167 beobachtet grün, 0 rot im Fenster, 0 übersprungen — und die Zeile von
+  `TheTransportBarIsDissolvedTests` ist NICHT im Fenster. Genau wie vorhergesagt: das Fenster
+  kann „nicht rot" nicht von „nicht drin" unterscheiden. **Beleg bleibt die Transkription**
+  (grün am echten Baum, rot auf vier Mutanten, MissingAnchor auf `fcd3d4b8~1`).
+- Versuch, das `test-results`-Artefakt (5,4 MB, xcresult) zu holen: `download_workflow_run_artifact`
+  gibt eine signierte `blob.core.windows.net`-URL, und der Container-Proxy antwortet auf den
+  CONNECT mit 403. Route geschlossen — DEAD-END #1092b im HARNESS_LEDGER, damit es niemand
+  ein zweites Mal probiert.

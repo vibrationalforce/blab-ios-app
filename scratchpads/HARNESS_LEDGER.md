@@ -3494,6 +3494,27 @@ Sie wäre klein — den Log-Schritt von `tail -200` auf einen gefilterten Auszug
 `gh-test-verdict.py` gegen ein vollständigeres Artefakt laufen lassen. Das gehört ihm, nicht
 mir. #208 ist derselbe Bereich und steht seit Wochen offen.
 
+## DEAD-END #1092b (2026-09-07) — das xcresult-Artefakt eines CI-Laufs ist aus dem Container NICHT erreichbar
+
+**Was ich versucht habe.** Der reparierte Wächter (#1092) lag wieder außerhalb des 200-Zeilen-
+Fensters (#807). Der Lauf lädt aber `test-results-ios-iPhone 17` hoch (5,4 MB, „Upload Test
+Results" SUCCESS) — darin stünde jeder Testname mit Ergebnis. Route: `mcp__github__actions_get`
+`download_workflow_run_artifact` → liefert eine SIGNIERTE URL auf
+`productionresultssa0.blob.core.windows.net` (kein Inhalt, nur der Link, 10 Minuten gültig) →
+`curl` aus dem Container.
+
+**Warum es nicht geht.** Der Agent-Proxy beantwortet den CONNECT auf den Blob-Host mit **403**
+(„CONNECT tunnel failed") — derselbe Mechanismus, der `api.github.com` aus der Shell sperrt. Es
+gibt keinen MCP-Weg, der den Zip-INHALT zurückgibt; das Werkzeug gibt bewusst nur die URL.
+Und selbst mit dem Zip: ein `.xcresult` liest `xcrun xcresulttool`, das es hier nicht gibt.
+
+**Do this instead.** (1) Transkription bleibt der Beleg für einen Wächter, dessen Zeile nicht
+im Fenster liegt — sie ist es auch für einen, dessen Zeile drin ist, weil das Fenster eine
+Laufreihenfolge zeigt, keine Aussage über den Rest. (2) Die echte Reparatur ist #208 (das
+`tail -200` in `ci.yml`, founder-gated): erst dann sagt ein Log „lief grün" über die GANZE Suite.
+(3) Wer das Artefakt wirklich lesen will, braucht den Founder-Mac: dort `gh run download <id>`
+und `xcrun xcresulttool get test-results summary --path *.xcresult`.
+
 ## PLAYBOOK #1092 (2026-09-07) — eine Deklaration verschieben heißt: erst die Wächter grepen, die sie verankern
 
 **Vorfall:** #1027 hob den Transport-`HStack` aus `startControlRow` nach `transportLine1` und strich
