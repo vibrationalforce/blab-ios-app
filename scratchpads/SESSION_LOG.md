@@ -25442,3 +25442,22 @@ Gates: siehe #1089-Commit (einzige `Sources/`-Berührung, String-Änderung). Dep
 - ⚠️ Der Deploy-Push ging raus, während die zwei Gates noch liefen (Stop-Hook-Druck; nichts Irreversibles:
   String-Änderung, TestFlight kompiliert dieselben Quellen). Beide wurden danach grün — Reihenfolge war
   unschön, das Ergebnis ist belegt.
+
+## #1091 — der Farbpfad bekommt seine Konstanten und einen ehrlichen Status (Visual-Plan Scheibe 5, halb)
+
+Ausgangsfrage des Plans: das 3-Hz-Gesetz wird nur auf dem skalaren FELD geprüft; Farbe läuft über
+einen eigenen Pfad ohne Wächter. Gemessen am Code: Farbe = fünf Noten-Clouds, CPU-seitig geglättet
+mit SIEBEN nackten Literalen in `MetalBioView` (plus Prism-A→B-Fade und Gate). Gehoben nach
+`FlashGuard`, bit-identische Pixel, Wächter `TheColourPathHasAFlashBudgetTests`.
+
+**Der Befund, der aus dem Bauen kam:** ein Hoist liest sich wie ein Beweis und ist keiner.
+`tanh(1/(4·f·τ))` sagt: bei 3 Hz überleben 73 % des Finger-Hubs (τ 0,09) und 27 % des
+generativen (τ 0,30) — die Zeitkonstanten sind NICHT das Sicherheitsargument des Farbpfads. Das
+Argument ist photometrisch (Leuchtdichte × Feldanteil) und nur am Gerät messbar → Clip erbeten.
+Claim 3 des Wächters pinnt genau diesen Zustand, damit niemand „Farbe ist abgedeckt" liest.
+
+**Nicht gebaut:** das Rot-Blitz-Prädikat (kein Aufrufer → Sink ohne Erzeuger); Prism-Gate
+belassen (3,03 Paare/s kontinuierlich, 3,00 frame-quantisiert — auf der Decke wie Aurora, mit
+Toleranz gepinnt statt still verändert).
+
+Gates: Push `5132a624` 14:10Z — Verdikt folgt im nächsten Eintrag.

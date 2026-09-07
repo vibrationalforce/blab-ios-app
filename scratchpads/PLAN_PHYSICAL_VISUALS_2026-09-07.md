@@ -137,6 +137,23 @@ founder-gated.
 
 ### Scheibe 5 — Close the two guard gaps that any future colour-bearing look would walk through
 
+> ⭐ **HALB GEBAUT 2026-09-07 (#1091), und die andere Hälfte ist eine GERÄTE-Messung.** Die sieben
+> Zeitkonstanten des Farbpfads (Cloud-Gewicht 0,09 Finger / 0,30 generativ auf, 0,35 ab; Farb-Chase
+> 0,18; Orts-Chase 0,25; Prism-Fade 0,18 + Gate 0,6) sind aus `MetalBioView` nach `FlashGuard`
+> gehoben, dazu `squareWaveSurvival(hz:tau:)` = tanh(1/(4·f·τ)). Wächter
+> `Tests/CISmoke/TheColourPathHasAFlashBudgetTests.swift`. **Was die Messung ergab, und warum die
+> Scheibe hier NICHT „Rate-Term = Beweis" schreibt:** bei 3 Hz überleben ≈73 % des Finger-Cloud-Hubs
+> und ≈27 % des generativen — die Zeitkonstanten begrenzen den Farbpfad NICHT unter die 10-%-Schwelle.
+> Ob ein Cloud-Hub ein WCAG-Blitz ist, entscheidet die PHOTOMETRIE (bewegte relative Leuchtdichte ×
+> Feldanteil; Cloud-Radius 0,42·spread, spread ≤ 1,92 im quadratischen Feld) — das misst ein
+> Geräte-Clip (NEEDS-FOUNDER-VERIFY im Wächter-Kopf: 5 s, ein Finger bei ~4 Tipps/s auf dem
+> Wasser-Look, dann 16tel vom generativen Bett; `watch-clip` liest die Leuchtdichte pro Frame).
+> **Der Rot-Blitz-Prädikat-Teil ist bewusst NICHT gebaut:** die einzige farbwechselnde Mechanik
+> sind dieselben Clouds, also deckt DERSELBE Ratenbefund die Rot-Klausel mit ab; ein Prädikat ohne
+> Aufrufer wäre der Sink-ohne-Erzeuger, den `CLAUDE.md` an drei Stellen als Fehler führt. Prism:
+> Gate+Fade ergeben ≈6,06 Wechsel/s = 3,03 Paare/s (frame-quantisiert bei 60 fps exakt 3,00) — AUF
+> der Decke, wie Aurora; gepinnt mit ausgewiesener Quantisierungstoleranz.
+
 **Was.** The 3 Hz law is enforced on the scalar FIELD only; COLOUR travels a separate path in the fragment and no test covers it, so a look whose colour oscillates would pass the four-row table while flashing. And WCAG's saturated-red-flash clause is encoded nowhere reachable: FlashGuard has no red term, and the only red-flicker ban in the repo sits in the doorless Session/Entrainment subsystem. Add a colour-path rate term to FlashGuard and a red-flash predicate, both with their own blocking assertions.
 
 **Dateien.** `Sources/Echoelmusic/Core/FlashGuard.swift` · `Tests/CISmoke/TheColourPathHasAFlashBudgetTests.swift`
