@@ -171,3 +171,45 @@ sind Geschmack oder Geräte-Blick, nicht Messung. Nicht einseitig entscheiden.
 Bildschirm schläft dort ein, wenn nicht gespielt wird — genau im kontemplativen Fall, den
 Ship-Gate 4 nennt. Immer-wach wäre ein echter Akku-Rückschritt (es ist der Startzustand). Das
 ist eine Produktentscheidung, keine Messung.
+
+---
+
+## 4. COUNCIL — darf das Cover weg? (2026-09-07, vor S3)
+
+**Die Frage:** `.fullScreenCover(isPresented: $showVisual)` samt `showVisual`,
+`showVisualControls`, `visualShare`, `visualVJOverlay` löschen und „Full screen" auf die
+Fenstergrösse umschreiben. **Einzige unumkehrbare Scheibe dieses Passes.**
+
+· **Architect:** proceed — es sind zwei Chromes über EINEM Renderer; die Kette fällt 14 → 13,
+  also in die sichere Richtung an der Metadaten-Decke. Sorge: `floatingSizeRaw` liegt hinter
+  einem ROHEN String an zwei Stellen; ein dritter Leser wäre der Drift-Defekt, vor dem der
+  #1065-Wächter gerade gewarnt hat.
+· **Skeptiker:** proceed-with-mitigation — die Löschung ist gross und nicht rückholbar, und ihr
+  gefährlichster Teil ist NICHT der Code, sondern die Reihenfolge: solange „Full screen" noch
+  ins Cover zeigt, ist der neue Weg unbewiesen. Sorge: ein Commit, der Weg UND Ziel gleichzeitig
+  ändert, hat keinen Zustand, in dem man messen kann, welche Hälfte kaputt ist.
+· **User-Advocate:** hold auf EINEN Punkt — `updateKeepAwake` liest `showVisual`. Nach der
+  Löschung hält **kein** Vollbild-Visual mehr den Schirm wach, und genau das ist der
+  kontemplative Fall aus Ship-Gate 4. Das Vollbild-FENSTER unbedingt dazuzunehmen wäre falsch
+  (es ist der Startzustand → Dauer-Wach = echter Akku-Rückschritt). Das ist eine
+  Founder-Entscheidung, keine Messung.
+· **Shipper:** proceed, aber in ZWEI Commits — erst den neuen Weg live schalten, dann den toten
+  Code löschen. „Erst umlegen, dann abreissen" ist hier billiger als beides zusammen, weil es
+  keinen Compiler gibt, der die Löschung gegenprüft.
+· **Aesthetic Maximalist:** proceed — EINE Fläche ist genau das, was die Bitte verlangt; das
+  VJ-Overlay verliert bis auf die AirPlay-Zeile nichts, was das Field-Panel nicht schon hat.
+
+**→ Empfehlung: proceed, in drei Schritten statt einem.**
+1. **S3b-0** — `visual.floating.size` bekommt eine `StudioDefaultKeys`-Konstante, die beiden
+   rohen Literale wandern darauf. Reine Hygiene, KEINE Verhaltensänderung, macht den dritten
+   Leser überhaupt erst zulässig.
+2. **S3b** — „Full screen" schreibt Grösse + Sichtbarkeit statt `showVisual = true`. Ab hier ist
+   das Cover **unerreichbar, aber noch da** — der Zustand, in dem man den neuen Weg prüft.
+3. **S3c** — das nachweislich tote Cover löschen, mit AirPlay-Zeile umgezogen und den zwei
+   Wächtern (`ResetSoundClearsWhatTheLaunchLineReportsTests` dateiweit `== 16`,
+   `VisualFineTuneReflowsTests` 5/6/7) im selben Commit.
+
+**Gate: proceed-with-mitigation.** Die Mitigation ist die Dreiteilung. **Offen und dem Founder
+gehörend bleibt genau EINE Frage** (nicht einseitig entschieden, blockiert S3b-0/S3b nicht):
+soll das Vollbild-Visual den Schirm wach halten, wenn NICHT gespielt wird? Heute tut das Cover
+es, nach S3c niemand. Akku gegen Kontemplation.
