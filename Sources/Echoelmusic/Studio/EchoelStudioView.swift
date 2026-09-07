@@ -980,6 +980,20 @@ struct EchoelStudioView: View {
     /// right now" gesture, not a setting, and a persisted expansion would quietly undo
     /// the simplification for anyone who ever opened it once.
     @State private var showVisualFineTune = false
+    /// #1068 — the Field panel's group disclosures. Founder 2026-09-07: *"Es geht vorallem
+    /// darum das alle Funktionen von Field kompakt und übersichtlich bleiben."*
+    ///
+    /// Voice and Self-play default CLOSED, Look default OPEN. That is the compaction: opening
+    /// Field shows two buttons, the look controls, and two named headings — instead of 27
+    /// numeric fields and ~17 explanatory sentences in one scroll. Nothing is removed; one tap
+    /// brings any group back.
+    ///
+    /// `@State`, not `@AppStorage`, to match `showVisualFineTune` and `showVisualSettings`
+    /// directly above: the panel's own open/closed state has never been persisted, and making
+    /// one of four disclosures outlive a launch would be the drift, not the fix.
+    @State private var showFieldLook = true
+    @State private var showFieldVoice = false
+    @State private var showFieldSelfPlay = false
     /// VJ control overlay visible over the fullscreen visual (tap canvas to toggle).
     @State private var showVisualControls = true
     /// Last-picked immersive visual preset (persisted) — a launch point for the
@@ -5272,12 +5286,14 @@ struct EchoelStudioView: View {
             // cost is type-checker time). The `Group` stays because that cost is real.
             // `Group`, and it is NOT decorative: `panel(_:isExpanded:)` takes a `@ViewBuilder`
             // whose type-check cost grows with the child count. A
-            // `Group` collapses these three into one child while staying LAYOUT-TRANSPARENT —
+            // `Group` collapses its children into one child while staying LAYOUT-TRANSPARENT —
+            // (it said "these three"; #1068 made it a heading plus one `if`, and the reason the
+            // `Group` earns its keep is unchanged) —
             // the enclosing stack still spaces them itself, so nothing moves on screen. That
             // is why it is a `Group` and not a `VStack`: a stack would impose its own spacing
             // and silently re-space three rows that were fine.
             Group {
-                groupHeader("Look")
+                collapsibleGroupHeader("Look", isOpen: $showFieldLook)
                 // `true` since #1056, and it was `false` for two cycles too long. The
                 // parameter asks "can the picture this strip belongs to actually SHOW the
                 // donut?" — and #1043 made the answer yes here by porting the donut branch
@@ -5285,50 +5301,52 @@ struct EchoelStudioView: View {
                 // updated the argument, so the Field panel printed a Metal look name over a
                 // window that was rendering donuts: the lying readout #227 removed, back
                 // again from the other side.
-                visualLookStrip(showsDonutState: true)
-                visualLookCustomizer
-                // #1064 — THE NOTE GRID'S DOOR. It sits at the END of "Look" because that is
-                // what it is: the grid changes what you SEE over the play surface, it does not
-                // change a sound. Inside the existing `Group` on purpose — the panel's own
-                // comment three screens up explains that `panel(_:isExpanded:)` takes a
-                // `@ViewBuilder` whose type-check cost grows with the CHILD COUNT, and the
-                // `Group` exists to hold that count down. A fourth child inside it costs the
-                // panel nothing.
-                //
-                // No explanatory caption, deliberately: the founder's ask for this pass is
-                // "kompakter und übersichtlicher", and the label already says what happens. The
-                // sentence that would have gone under it is an `accessibilityHint`, which
-                // costs no screen space and reaches the reader who cannot see the grid appear.
-                Toggle(isOn: $touchShowGrid) {
-                    Text("Note grid on the field")
-                        .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                if showFieldLook {
+                    visualLookStrip(showsDonutState: true)
+                    visualLookCustomizer
+                    // #1064 — THE NOTE GRID'S DOOR. It sits at the END of "Look" because that is
+                    // what it is: the grid changes what you SEE over the play surface, it does not
+                    // change a sound. Inside the existing `Group` on purpose — the panel's own
+                    // comment three screens up explains that `panel(_:isExpanded:)` takes a
+                    // `@ViewBuilder` whose type-check cost grows with the CHILD COUNT, and the
+                    // `Group` exists to hold that count down. A fourth child inside it costs the
+                    // panel nothing.
+                    //
+                    // No explanatory caption, deliberately: the founder's ask for this pass is
+                    // "kompakter und übersichtlicher", and the label already says what happens. The
+                    // sentence that would have gone under it is an `accessibilityHint`, which
+                    // costs no screen space and reaches the reader who cannot see the grid appear.
+                    Toggle(isOn: $touchShowGrid) {
+                        Text("Note grid on the field")
+                            .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                    }
+                    .tint(EchoelTheme.accent)
+                    .accessibilityHint("Draws each note's cell over the field in its own physical colour, so you can see which note you are about to play.")
+                    // #1065 — THE DONUT LOOK'S DOOR, AND IT IS A PREREQUISITE, NOT A CONVENIENCE.
+                    // Measured before writing it: `git grep -n "spectralDonuts.toggle()\|spectralDonuts ="
+                    // -- Sources` returns exactly ONE writer that can produce `true`, and it is the
+                    // glyph in the fullscreen COVER's top bar. `lookScrub`'s setter writes only
+                    // `false` (scrubbing the look always lands on a metal field) and
+                    // `FloatingVisualWindow` only READS the flag. So the moment the cover is
+                    // deleted — S3 of PLAN_ONE_VISUAL_SURFACE_2026-09-07 — the donut look becomes a
+                    // state nothing can enter: the #227 defect this file describes in four places,
+                    // and the tombstone under `lookScrub` says so in its own words. The renderer
+                    // #1043 ported into the floating window would go unreachable the same day.
+                    //
+                    // Doing it HERE and NOW rather than inside the deletion keeps the two changes
+                    // separable: this one is additive and reversible, that one is not.
+                    //
+                    // A Toggle beside the grid switch on purpose — both answer "what do I see?",
+                    // both are binary, and a pair reads as a pair. The look STRIP above already
+                    // names which of the two is active (`showsDonutState: true`), so the switch and
+                    // the readout cannot disagree.
+                    Toggle(isOn: $spectralDonuts) {
+                        Text("Spectrum donuts instead of the field")
+                            .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                    }
+                    .tint(EchoelTheme.accent)
+                    .accessibilityHint("Draws the sound as spectrum rings instead of the Metal field. Moving the look slider returns to the field.")
                 }
-                .tint(EchoelTheme.accent)
-                .accessibilityHint("Draws each note's cell over the field in its own physical colour, so you can see which note you are about to play.")
-                // #1065 — THE DONUT LOOK'S DOOR, AND IT IS A PREREQUISITE, NOT A CONVENIENCE.
-                // Measured before writing it: `git grep -n "spectralDonuts.toggle()\|spectralDonuts ="
-                // -- Sources` returns exactly ONE writer that can produce `true`, and it is the
-                // glyph in the fullscreen COVER's top bar. `lookScrub`'s setter writes only
-                // `false` (scrubbing the look always lands on a metal field) and
-                // `FloatingVisualWindow` only READS the flag. So the moment the cover is
-                // deleted — S3 of PLAN_ONE_VISUAL_SURFACE_2026-09-07 — the donut look becomes a
-                // state nothing can enter: the #227 defect this file describes in four places,
-                // and the tombstone under `lookScrub` says so in its own words. The renderer
-                // #1043 ported into the floating window would go unreachable the same day.
-                //
-                // Doing it HERE and NOW rather than inside the deletion keeps the two changes
-                // separable: this one is additive and reversible, that one is not.
-                //
-                // A Toggle beside the grid switch on purpose — both answer "what do I see?",
-                // both are binary, and a pair reads as a pair. The look STRIP above already
-                // names which of the two is active (`showsDonutState: true`), so the switch and
-                // the readout cannot disagree.
-                Toggle(isOn: $spectralDonuts) {
-                    Text("Spectrum donuts instead of the field")
-                        .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
-                }
-                .tint(EchoelTheme.accent)
-                .accessibilityHint("Draws the sound as spectrum rings instead of the Metal field. Moving the look slider returns to the field.")
             }
             // The A/B "Blend with" strip left this surface 2026-07-07 (founder: minimize —
             // the mix was extra clicking) and the view itself is DELETED as of #324. The
@@ -5410,59 +5428,68 @@ struct EchoelStudioView: View {
             // "share the builder" — both now call `groupHeader`, so they cannot drift apart
             // again. The size named here was "10 pt"; it is 11 now, and the point of routing
             // it through one helper is that this sentence never has to carry a number.)
-            groupHeader("Voice")
-            Text("What your fingers sound like on the field. Take sound follows the generated music; pick a patch to give the field its own voice.")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    touchPatchChip(name: "Take sound", selected: touchPatchID.isEmpty) {
-                        touchPatchID = ""
-                        syncTouchSound()
-                    }
-                    ForEach(patchStore.patches) { p in
-                        touchPatchChip(name: p.name, selected: touchPatchID == p.id.uuidString) {
-                            touchPatchID = p.id.uuidString
-                            touchSynth?.apply(p)
-                        }
+            collapsibleGroupHeader("Voice", isOpen: $showFieldVoice)
+            if showFieldVoice { fieldVoiceControls }
+            collapsibleGroupHeader("Self-play", isOpen: $showFieldSelfPlay)
+            if showFieldSelfPlay { fieldSelfPlaySection }
+        }
+    }
+    /// The Voice group's controls, lifted out of `touchSoundSection` by #1068 so the heading
+    /// can OPEN AND CLOSE them. Two gains from one move: the founder gets a panel whose map
+    /// fits on a screen, and `touchSoundSection`'s `VStack` drops from ~16 direct children to
+    /// four — the type-checker cost the panel's own `Group` comment names, paid down rather
+    /// than worked around. Nothing here changed; the lines are the same lines.
+    @ViewBuilder private var fieldVoiceControls: some View {
+        Text("What your fingers sound like on the field. Take sound follows the generated music; pick a patch to give the field its own voice.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                touchPatchChip(name: "Take sound", selected: touchPatchID.isEmpty) {
+                    touchPatchID = ""
+                    syncTouchSound()
+                }
+                ForEach(patchStore.patches) { p in
+                    touchPatchChip(name: p.name, selected: touchPatchID == p.id.uuidString) {
+                        touchPatchID = p.id.uuidString
+                        touchSynth?.apply(p)
                     }
                 }
-                .padding(.vertical, 1)
             }
-            // LEVEL — a real gain on the touch voice's output (`PolySynthVoice.setGain`),
-            // NOT a velocity trim. Until now the surface had no level at all: its place in
-            // the mix sat hardcoded in `TouchPitchMap.velocity`'s 0.45…0.95 range, widened
-            // by hand in July so played notes would cut through. Velocity is how HARD you
-            // played; level is how loud the instrument is. Conflating them is what made
-            // three other faders in this app lie (see MixerStore).
-            EchoelValueField(label: "Level", value: fieldLevelBinding,
-                             range: 0...1.5, unit: "", decimals: 2)
-            EchoelValueField(label: "Position morph", value: $touchMorphDepth,
-                             range: 0...1, unit: "", decimals: 2)
-            // LIFE — per-note micro-variation so two identical taps never produce two
-            // identical notes (founder 2026-07-27: "leben wie ein echtes Instrument mit
-            // micro changes"): brightness and attack, and — while Sync is on — also the
-            // note's placement in time. 0 = off and bit-identical.
-            EchoelValueField(label: "Life", value: $touchLife,
-                             range: 0...1, unit: "", decimals: 2)
-            touchSyncRows
-            // SLIDE EXPRESSION (founder 2026-07-08: "Auf dem Gitter hin und her
-            // sliden verändert den Sound: Filter, ein bisschen Vibrato, Chorus …
-            // Glide bzw. Portamento kann man auch einstellen"): a travelling
-            // finger opens vibrato + ensemble on the touch voice (decays when the
-            // finger rests); Glide > 0 turns fret-crossing retriggers into a
-            // singing portamento. All per-take live values, flash/audio-safe.
-            Text("Sliding the finger opens vibrato and ensemble width; Glide makes slides sing between notes instead of re-striking.")
-                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-                .fixedSize(horizontal: false, vertical: true)
-            EchoelValueField(label: "Slide vibrato", value: $touchSlideVibrato,
-                             range: 0...1, unit: "", decimals: 2)
-            EchoelValueField(label: "Slide ensemble", value: $touchSlideChorus,
-                             range: 0...1, unit: "", decimals: 2)
-            EchoelValueField(label: "Glide", value: $touchGlide,
-                             range: 0...0.4, unit: "s", decimals: 2)
-            fieldSelfPlaySection
+            .padding(.vertical, 1)
         }
+        // LEVEL — a real gain on the touch voice's output (`PolySynthVoice.setGain`),
+        // NOT a velocity trim. Until now the surface had no level at all: its place in
+        // the mix sat hardcoded in `TouchPitchMap.velocity`'s 0.45…0.95 range, widened
+        // by hand in July so played notes would cut through. Velocity is how HARD you
+        // played; level is how loud the instrument is. Conflating them is what made
+        // three other faders in this app lie (see MixerStore).
+        EchoelValueField(label: "Level", value: fieldLevelBinding,
+                         range: 0...1.5, unit: "", decimals: 2)
+        EchoelValueField(label: "Position morph", value: $touchMorphDepth,
+                         range: 0...1, unit: "", decimals: 2)
+        // LIFE — per-note micro-variation so two identical taps never produce two
+        // identical notes (founder 2026-07-27: "leben wie ein echtes Instrument mit
+        // micro changes"): brightness and attack, and — while Sync is on — also the
+        // note's placement in time. 0 = off and bit-identical.
+        EchoelValueField(label: "Life", value: $touchLife,
+                         range: 0...1, unit: "", decimals: 2)
+        touchSyncRows
+        // SLIDE EXPRESSION (founder 2026-07-08: "Auf dem Gitter hin und her
+        // sliden verändert den Sound: Filter, ein bisschen Vibrato, Chorus …
+        // Glide bzw. Portamento kann man auch einstellen"): a travelling
+        // finger opens vibrato + ensemble on the touch voice (decays when the
+        // finger rests); Glide > 0 turns fret-crossing retriggers into a
+        // singing portamento. All per-take live values, flash/audio-safe.
+        Text("Sliding the finger opens vibrato and ensemble width; Glide makes slides sing between notes instead of re-striking.")
+            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+            .fixedSize(horizontal: false, vertical: true)
+        EchoelValueField(label: "Slide vibrato", value: $touchSlideVibrato,
+                         range: 0...1, unit: "", decimals: 2)
+        EchoelValueField(label: "Slide ensemble", value: $touchSlideChorus,
+                         range: 0...1, unit: "", decimals: 2)
+        EchoelValueField(label: "Glide", value: $touchGlide,
+                         range: 0...0.4, unit: "s", decimals: 2)
     }
 
     /// SELF-PLAY (founder 2026-07-29: *"Es soll auch eine Möglichkeit geben wie der Synth
@@ -5479,7 +5506,10 @@ struct EchoelStudioView: View {
     /// used to be written out as "seven" here and in `fieldSelfPlayFields`; #253 A7 made both
     /// wrong, and a number in a comment is either maintained or deleted.)
     @ViewBuilder private var fieldSelfPlaySection: some View {
-        groupHeader("Self-play")
+        // ⛔ `groupHeader("Self-play")` STOOD HERE AND MOVED OUT (#1068). The heading is now a
+        // `collapsibleGroupHeader` in `touchSoundSection`, one level up, because a heading that
+        // opens its group has to sit OUTSIDE the thing it opens — inside, it would vanish with
+        // the content it is supposed to bring back.
         // Says what it does AND what it does not, in the user's own terms. The hand-wins rule
         // is the one thing a player must know before switching this on, because without it
         // "the field plays itself" reads as "the field takes over".
@@ -7638,6 +7668,47 @@ struct EchoelStudioView: View {
         Text(t).font(EchoelTheme.font(11, .semibold)).foregroundStyle(EchoelTheme.dim)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, 4)
+    }
+
+    /// A group heading that OPENS AND CLOSES its group. #1068, founder 2026-09-07: *"Es geht
+    /// vorallem darum das alle Funktionen von Field kompakt und übersichtlich bleiben."*
+    ///
+    /// THE MEASUREMENT THAT ASKED FOR IT. The Field panel carries 27 numeric fields, two
+    /// switches and ~17 explanatory sentences in ONE scroll. Every one of them is a real
+    /// function the founder asked for at some point, so nothing may be deleted — what can go is
+    /// the requirement to scroll past all of it to reach any of it. Four headings you can open
+    /// is the same content with a map in front of it.
+    ///
+    /// It is the "Fine tune" disclosure's idiom, promoted to a helper rather than copied: same
+    /// chevron, same 12 pt dim label, same 44 pt tap target BEFORE `contentShape` (#113 — the
+    /// hit area would otherwise be the ~16 pt the glyph and text occupy), same
+    /// `accessibilityValue` so the two states do not sound identical to VoiceOver (#241). Two
+    /// spellings of one control is how they drift apart; `groupHeader` learned that in #362.
+    ///
+    /// ⚠️ A DISCLOSURE IS NOT A HIDDEN GESTURE. The cover's old top bar cites WCAG 2.2 against
+    /// gating controls behind something invisible — a labelled heading with a chevron is the
+    /// opposite of that: the map stays on screen and names what is behind it.
+    private func collapsibleGroupHeader(_ title: String, isOpen: Binding<Bool>) -> some View {
+        Button {
+            isOpen.wrappedValue.toggle()
+        } label: {
+            HStack(spacing: 8) {
+                Text(title)
+                    .font(EchoelTheme.font(11, .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+                Spacer(minLength: 8)
+                Image(systemName: isOpen.wrappedValue ? "chevron.down" : "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(EchoelTheme.dim)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .frame(minHeight: 44)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(title)
+        .accessibilityValue(isOpen.wrappedValue ? "Shown" : "Hidden")
+        .accessibilityHint("Shows or hides the \(title.lowercased()) controls")
     }
 
     /// The sound library bar — same idiom as the Mood and FX preset bars: one Menu
