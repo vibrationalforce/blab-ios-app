@@ -25509,3 +25509,33 @@ mitzieht. PLAYBOOK #1092 im HARNESS_LEDGER.
 Gates: Push `1a8bd7bf` 14:42Z — Verdikt folgt im nächsten Eintrag. ⚠️ Ob der reparierte Test
 GRÜN LIEF, zeigt das Fenster wieder nur, wenn seine Zeile hineinfällt; „nicht rot im Fenster" ist
 kein Beleg. Kein Deploy nötig (Tests-only).
+
+## #1093 — `scripts/moved-needles.py`: die Frage von #1092, zur richtigen Zeit gestellt
+
+**Was fehlte:** kein Werkzeug fragt VOR dem Commit, welche Wächter auf einer Zeile hängen, die
+ein Umbau aus `Sources/` entfernt. `dead-needles.py` fragt NACH dem Push, ob eine Nadel im Baum
+FEHLT — und bei #1027 fehlte sie nicht, sie war nur aus der gescannten Deklaration gewandert.
+Genau die Lücke, in der vier Deploys über einen roten Wächter gingen.
+
+**Was es tut:** `git diff -U0 -- Sources` → jede entfernte Zeile (≥ 12 Zeichen, kein Kommentar,
+keine reine Interpunktion) als Substring in `Tests/CISmoke` gesucht; bei `A..B` wird das Bündel
+AT B gelesen. Zwei Klassen: „GONE from Sources" (Wächter sicher rot oder leer) und „still in
+Sources" (die gefährliche Hälfte — grün nur, wenn der Scan die neue Adresse erreicht; #1027 war
+dreimal diese Sorte). Generisch (> 8 Wächter) = eine Zeile mit Zahl, nie verschwiegen.
+
+**Gemessen:** #1027 → 7 Treffer, `TheTransportBarIsDissolvedTests` dreimal genannt (HStack,
+PlaybackToggleButton, PulseMonitorMiniLive), `#if canImport(AVFoundation)` als generisch (18) ·
+#1089 → 0 · #1091 → 0 · #1092 (Tests-only) → 0 · Arbeitsbaum → 0. Selbsttest fährt `scan()`
+selbst (#962): bekannt-positiv #1027 am Bündel-Stand VON #1027, bekannt-negativ #1089, Klassen-
+Pin, Filter-Pin. Exit 2 = INSTRUMENT UNAVAILABLE (Doctor-Konvention).
+
+**Grenzen, im Docstring:** nur ganze Zeilen (Fragmente gemessen: jede `.frame(`-Zeile träfe das
+halbe Bündel — verworfen), keine zusammengesetzten/`Self.`-Nadeln, nur das blockierende Bündel,
+läuft in keinem Workflow. Ein Treffer ist eine FRAGE („erreicht der Scan die neue Adresse?"), kein
+Urteil — das Werkzeug kann die #1092-Entscheidung nicht treffen, nur erzwingen, dass jemand
+hinschaut.
+
+**Heimaten (#456):** `Tests/CISmoke/CLAUDE.md` Befehlsblock · PLAYBOOK #1092 · der #932-Absatz in
+`TheLawFileNeverReachesMainByItselfTests` (Zahlen als Datum belassen, Nachtrag daneben) ·
+`decisions.csv` Zeile 746. Nicht gebaut: Pre-Commit-Hook (ein Hook, der Fragen stellt, blockiert).
+Kein `Sources/`-Anteil → nur CI/CD-Lint-Jobs relevant; kein Deploy.

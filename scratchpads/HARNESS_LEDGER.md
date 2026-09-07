@@ -3508,6 +3508,10 @@ git grep -l "private var startControlRow: some View {" Tests/CISmoke     # den A
 git grep -l "HStack(spacing: 8) {" Tests/CISmoke                          # und die Nadel, die im Rumpf lag
 ```
 Jeder Treffer ist eine Heimat und zieht im selben Commit mit (#456 gilt für Tests wie für Prosa).
+⭐ **Seit #1093 ausführbar:** `python3 scripts/moved-needles.py` (Arbeitsbaum gegen HEAD) listet jede
+entfernte `Sources/`-Zeile, die in irgendeinem Wächter des blockierenden Bündels als Nadel steht —
+auf #1027 nennt es den kaputten Wächter dreimal, auf #1089/#1091 nichts. Ein Treffer ist eine
+Frage (Erreicht der Scan den Text an der neuen Adresse noch?), kein Urteil.
 Danach die Transkription auch gegen den ELTERN-Baum fahren: ein re-verankerter Wächter, der auf der
 alten Form noch grün ist, hat die Verschiebung nicht verstanden.
 

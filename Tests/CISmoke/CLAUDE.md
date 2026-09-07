@@ -212,6 +212,23 @@ python3 scripts/count-pins.py --all      # also list the pins it could not resol
 python3 scripts/count-pins.py --selftest # after touching it
 ```
 
+```
+python3 scripts/moved-needles.py           # BEFORE committing a Sources/ change: which guards
+                                           # anchor on a line this diff REMOVES? 0 = none · 1 = open them
+python3 scripts/moved-needles.py A..B      # any range; the bundle is read AT B
+python3 scripts/moved-needles.py --selftest # after touching it (known positive = #1027)
+```
+
+**The third shape that rots silently is a needle that MOVED (#1092), and neither tool above sees
+it.** #1027 lifted the transport `HStack` out of `startControlRow` into `transportLine1`;
+`TheTransportBarIsDissolvedTests` scans that one declaration for that one stack, went RED, and
+four builds (454–458) shipped over it — `dead-needles.py` stayed green because the text was still
+present elsewhere in `Sources/`, and the job-log window (§5) never showed the test's line.
+`moved-needles.py` asks the diff-time question instead: every line a change removes from
+`Sources/` is looked up in the bundle, and each hit is a guard to OPEN. A hit is a question —
+the tool cannot know whether the guard's scan still reaches the text at its new address. Run it
+on the working tree before the commit, not on the push after.
+
 **A count pin is the other shape that rots silently, and it rots the same way (#903/#904).**
 `XCTAssertEqual(occurrences(of: "…", in: code), N)` goes stale when the CODE changes
 CORRECTLY and the number does not follow. Three measured cases, none of them noticed by CI:

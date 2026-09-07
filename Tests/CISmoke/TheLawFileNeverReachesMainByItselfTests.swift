@@ -96,7 +96,9 @@
 // `dead-needles.py`, `count-pins.py`, `founder-verify.py`, `gh-run-status.py`,
 // `gh-test-verdict.py`, `needle-reachability.py`, and three more), the eleventh being
 // `analyze-youtube.py`, which its own docstring calls PIPELINE-ONLY dev tooling rather than
-// an instrument that measures this repo (#932b) — all unwatched. Claim 6
+// an instrument that measures this repo (#932b) — all unwatched. (⭐ #1093 added
+// `moved-needles.py`, a twelfth Python file and eleventh instrument; the figures in this
+// paragraph are the #932 measurement and are left as its date.) Claim 6
 // pins the single precedent — the fact that makes the over-claim tempting and the one that can
 // change silently — and claim 7 pins the prose that holds the inversion.
 //
