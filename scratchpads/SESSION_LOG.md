@@ -24631,3 +24631,46 @@ Art in diesem Bundle; die Zahlen stehen jetzt transkribiert.
 **Nur compile-verifizierbar.** Ob die dunklen Violetts jetzt violett LESEN, ist Augenarbeit —
 die NEEDS-FOUNDER-VERIFY am Fuß des Wächters nennt auch das, was die Reparatur widerlegen würde:
 ein sichtbarer Sprung, sobald der Hue-Regler die 0 verlässt.
+
+## 2026-09-07 — #1056 · Das Field-Panel schrieb einen Metall-Look über ein Donut-Bild
+
+**Und die Scheibe, die das verursacht hat, war meine eigene (#1043).**
+
+`visualLookStrip` druckt „Donuts" oder den Namen des Metall-Looks, entschieden durch
+`showsDonutState` — ein Parameter, dessen richtiger Wert keine Vorliebe ist, sondern eine
+TATSACHE über das Bild daneben: kann dieses Bild überhaupt `SpectralDonutView` rendern?
+
+#227 hat die erste Lüge dieser Anzeige entfernt (ein unbedingtes Ternär, das „Donuts" über
+einen Metall-Look schrieb). **#1043 gab `FloatingVisualWindow` einen eigenen Donut-Zweig — und
+zog die Behauptung nicht mit, die davon abhing.** Der Doc-Block sagte weiter „whose visual is
+`FloatingVisualWindow`, which does not read `spectralDonuts` at all", und genau dieser Satz WAR
+die ganze Begründung für das `false` an der Field-Panel-Aufrufstelle. Gemessen ist er heute an
+**vier** grep-Treffern falsch: das Fenster deklariert den Schlüssel, verzweigt sein Bild daran,
+gated `videoCaptureYielded` daran und nennt ihn im VoiceOver-Satz der Aufnahmetaste.
+
+Zwei Zyklen lang schrieb das Field-Panel also „Aurora" über ein Fenster, das Donuts zeigte —
+dieselbe Lüge, aus der anderen Richtung, auf der Fläche, die der Founder benutzt. Das ist #456
+in seiner teuersten Form: die Scheibe, die die Tatsache geändert hat, war meine.
+
+**Der Wächter pinnt eine VERBINDUNG, keinen Wert.** Anspruch 1 MISST die Prämisse (das Fenster
+kann den Donut rendern); Anspruch 2 behauptet, was daraus folgt (kein Mount übergibt `false`).
+Getrieben: nimmt man dem Fenster den Donut-Zweig, wird **Anspruch 1 ZUERST rot** und sagt in
+seiner Meldung, die Argumente seien neu herzuleiten statt ein `true` „wiederherzustellen", das
+dann selbst die Lüge wäre. Ein Wächter, der einfach zweimal `true` gepinnt hätte, wäre genau so
+verrottet wie der Defekt.
+
+Anspruch 2 zählt den FALSCHEN Wert statt des richtigen — damit ein künftiger dritter Mount mit
+`false` neben einem donut-fähigen Bild ebenfalls gefangen wird, nicht nur die heutigen zwei.
+
+Ansprüche 3 + 4 sind Gegengewichte (#367/#364): der Parameter muss überleben, dass beide Aufrufer
+`true` sagen, und die Anzeige muss ihn weiter LESEN. Denn ein drittes Bild existiert schon —
+`ExternalDisplayScene` rendert nur das Metall-Feld, und das Fenster prüft seinen
+Externer-Bildschirm-Zweig VOR dem Donut-Zweig: mit Beamer ist auf keinem Schirm ein Donut.
+
+**Benotung, gegen beide Bäume getrieben:** 5 Ansprüche / 4 Claims, **1 rot** auf dem
+Vor-Scheiben-Baum, 4 grün → **1 Fang, 4 Gegengewichte**. Der eine Fang IST der Defekt; die
+anderen vier verhindern, dass ihn eine plausible Aufräumarbeit rückgängig macht.
+
+**Gate gelesen:** `Build for Testing` = **success** auf `0d41c963` — die Shader-Änderung (#1054)
+und die vier Sprossen (#1055) kompilieren, das blockierende Bundle mit beiden neuen Wächtern
+ebenfalls.
