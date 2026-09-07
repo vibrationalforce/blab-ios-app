@@ -105,6 +105,36 @@ für Projektion" gewünscht, ist das ein NEUES kleines Feature mit SICHTBARER Be
 (WCAG 2.2 — der Cover-Kommentar sagt das an derselben Stelle selbst) und eine
 Founder-Geschmacksfrage, kein Port. Nicht einseitig gebaut.
 
+**S3a — DER DONUT-SCHALTER BRAUCHT ZUERST EINE TÜR. ⛔ NEU, gemessen 2026-09-07, und ohne
+diese Scheibe ist S3 ein Rückschritt.** `git grep -n "spectralDonuts.toggle()\|spectralDonuts ="
+-- Sources` liefert die ganze Wahrheit: der EINZIGE Schreiber, der `true` erzeugen kann, ist
+`EchoelStudioView.swift:1620` — der Knopf in der Kopfleiste DES COVERS. `lookScrub`s Setter
+(`:6024`) schreibt nur `false`, und `FloatingVisualWindow:188` LIEST nur. Das Cover zu löschen
+hiesse also: ein Merkmal, das nichts mehr einschalten kann — genau der #227-Defekt, den diese
+Datei an vier Stellen beschreibt, und die Tombstone bei `:6034` sagt es selbst („#747 gab
+`showVisual` einen Setter … damit ist der Donut-Umschalter des Covers erreichbar"). Der
+Donut-Renderer, den #1043 gerade ins Fenster portiert hat, wäre wieder unerreichbar, und der
+gelöschte `normaliseUnreachableDonutMode()` müsste zurückkommen.
+
+**Scheibe:** ein zweiter `Toggle` neben dem Gitter-Schalter aus #1064, am Ende der
+„Look"-Gruppe. Beide sind „was man sieht", beide sind Schalter, sie lesen sich als Paar.
+
+**Weitere S3-Messungen, damit der Council Tatsachen hat statt einer Plan-Zusammenfassung:**
+· `visualVJOverlay` besteht bis auf EINE Zeile aus geteilten Definitionen (`groupHeader`,
+`visualLookStrip`, `visualPresetRow`, `visualAdjustFields` — alle auch im Field-Panel). Das
+einzige EIGENE ist die AirPlay-Zeile („Project: mirror to a screen via AirPlay"), also der
+einzige Wegweiser zur Projektion — **die muss mit umziehen, sonst ist sie weg.**
+· `visualShare` (`:1633` setzen, `:1709` präsentieren) ist der SOFORT-Teilen-Weg nach einer
+Aufnahme im Cover. Die Aufnahme bleibt teilbar (`videoPanel` → `VideoLibraryPanelContent`,
+mp4-Share), aber nicht mehr unmittelbar — kleiner, benennbarer Verlust.
+· `updateKeepAwake` liest `showVisual` (`:6240`). Nach S3 hält **kein** Vollbild-Visual den
+Schirm mehr wach — das Vollbild-FENSTER steht dort absichtlich nicht drin, weil die App
+hineinstartet. **Damit wird die offene Founder-Frage (Ship-Gate 4, kontemplativ) von „später"
+zu „mit dieser Scheibe zu beantworten".**
+· `floatingSizeRaw` ist in `WorkspaceView` deklariert, nicht in `EchoelStudioView`, und dort als
+ROHER String `"visual.floating.size"` statt über `StudioDefaultKeys`. Der „Full screen"-Knopf
+braucht also eine eigene `@AppStorage` — und die sollte den Konstanten-Weg nehmen.
+
 **S3 — Cover löschen.** `.fullScreenCover(isPresented: $showVisual)`, `showVisual`,
 `showVisualControls`, `visualShare`, `visualVJOverlay` weg; „Full screen" schreibt die Grösse.
 Mitzuziehen: `ResetSoundClearsWhatTheLaunchLineReportsTests` dateiweit `== 16` (die Ketten-Zahl
