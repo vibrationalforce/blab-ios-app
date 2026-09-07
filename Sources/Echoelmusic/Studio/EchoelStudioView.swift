@@ -705,8 +705,12 @@ struct EchoelStudioView: View {
     // #121, Slice 4), so "opened from the lane-head doors" no longer describes anything.
     // ⚠ CORRECTED AGAIN 2026-07-26: the piano roll's door is gone for good (founder:
     // "Pianoroll soll raus"), and the one-slot `craftEditor` sheet went with it — the
-    // chain is 14 modifiers (8 sheet + 2 fullScreenCover + 3 alert + 1 fileImporter), the
-    // count CLAUDE.md carries. ⛔ This said "15, not 16" and was stale by one after the
+    // chain is 13 modifiers (8 sheet + 1 fullScreenCover + 3 alert + 1 fileImporter) plus
+    // ONE nested `.fileImporter` inside `openSheet` = 14 file-wide, the pair CLAUDE.md carries.
+    // ⛔ #1104: this line said "14 (… + 2 fullScreenCover …)" for a day after #1069 deleted the
+    // `showVisual` cover — the CHAIN LENGTH paragraph below said 14 → 13 in its own last
+    // sentence while opening with 14. Two numbers for one chain, in one file (#818).
+    // ⛔ This said "15, not 16" and was stale by one after the
     // sample-browser sheet went with #167 — on the ONE number that governs the black-screen
     // law, where believing in headroom that does not exist is how the SIGSEGV comes back.
     // `PianoRollModel` is NOT part of that removal; it
@@ -803,8 +807,10 @@ struct EchoelStudioView: View {
     // rewrites that closure anyway.
     //
     // CHAIN LENGTH — ONE number, kept here so nobody reads two: the body carries
-    // **14** presentation modifiers today (8 `.sheet` + 2 `.fullScreenCover` +
-    // 3 `.alert` + 1 `.fileImporter`). It got there by shrinking twice, which is the
+    // **13** presentation modifiers today (8 `.sheet` + 1 `.fullScreenCover` +
+    // 3 `.alert` + 1 `.fileImporter`; a second `.fileImporter` sits NESTED inside
+    // `openSheet` and counts file-wide, not on the chain — 14 file-wide, pinned by
+    // `ResetSoundClearsWhatTheLaunchLineReportsTests`). It got there by shrinking, which is the
     // only safe direction under the black-screen metadata law: 16 → 15 when the piano
     // roll's craft-editor slot went (founder 2026-07-26, "Pianoroll soll raus" — it
     // held exactly one case, so removing the roll's door would have left an undoored
@@ -5800,8 +5806,9 @@ struct EchoelStudioView: View {
     /// missed this one because it grepped for the 10 pt spelling; a fourth spelling nobody
     /// had listed survived the sweep that existed to end exactly that.
     ///
-    /// Both mounts get it — the inline Field panel and `visualVJOverlay` — because this is
-    /// one shared property. The overlay is doorless (#270), so that half is latent.
+    /// ONE mount today — the inline Field panel. (⛔ "Both mounts get it — the inline Field
+    /// panel and `visualVJOverlay`" stood here; the overlay went with the cover in #1069, and
+    /// this line was not moved with it — #1104.)
     private var visualPresetRow: some View {
         VStack(alignment: .leading, spacing: 6) {
             groupHeader("Preset")
@@ -5846,10 +5853,11 @@ struct EchoelStudioView: View {
     /// Chladni = plate eigenmodes from the tone, slot 2 = the water dish since #1101). One strip
     /// instead of two scattered toggles (clearer design); persists via @AppStorage.
     /// - Parameter showsDonutState: whether the picture this strip belongs to can actually SHOW
-    ///   the donut renderer. Both of today's mounts can, so both pass `true`: the fullscreen VJ
-    ///   overlay lives INSIDE the `.fullScreenCover` where `SpectralDonutView` is built, and the
-    ///   inline Field panel's picture is `FloatingVisualWindow`, which has had its own donut
-    ///   branch since #1043.
+    ///   the donut renderer. Today's ONE mount can, so it passes `true`: the inline Field
+    ///   panel's picture is `FloatingVisualWindow`, which has had its own donut branch since
+    ///   #1043. (⛔ "Both of today's mounts … the fullscreen VJ overlay lives INSIDE the
+    ///   `.fullScreenCover`" stood here until #1104; #1069 deleted that cover and its overlay,
+    ///   and `git grep -c "visualLookStrip(showsDonutState:" -- Sources` on code lines is 1.)
     ///
     ///   ⛔ THIS DOC BLOCK SAID THE WINDOW "does not read `spectralDonuts` at all" AND THAT WAS
     ///   THE WHOLE JUSTIFICATION FOR PASSING `false` HERE (#1056). It was true when written and
@@ -5859,12 +5867,12 @@ struct EchoelStudioView: View {
     ///   (#456), so for two cycles the Field panel printed "Aurora" over a donut field: exactly
     ///   the lie #227 removed, arriving from the opposite direction.
     ///
-    ///   ⚠️ THE PARAMETER STAYS EVEN THOUGH BOTH CALLERS NOW PASS `true`, and the reason is a
+    ///   ⚠️ THE PARAMETER STAYS EVEN THOUGH THE ONE CALLER PASSES `true`, and the reason is a
     ///   third picture that already exists: `ExternalDisplayScene` renders the Metal field and
     ///   nothing else, and `FloatingVisualWindow`'s external-stage branch is checked BEFORE its
     ///   donut branch — so with a projector attached the window shows a placard, the beamer shows
     ///   the field, and no donut is on any screen. A strip mounted next to that picture must pass
-    ///   `false`. Deleting the parameter because today's two callers agree would remove the only
+    ///   `false`. Deleting the parameter because today's one caller says `true` would remove the only
     ///   place that question is asked (#364).
     private func visualLookStrip(showsDonutState: Bool) -> some View {
         // ALIGNED with the Visual window's top-bar slider (founder 2026-07-07: "das
@@ -5906,11 +5914,11 @@ struct EchoelStudioView: View {
             //
             // The KEY, the cover's `if spectralDonuts` branch and `SpectralDonutView` all stay:
             // the renderer is not the defect, the unreachable claim was. Bring the pill back in
-            // the SAME commit that gives `showVisual` a setter again — and note what else that
-            // commit owes: the VJ overlay mounts this strip too, so it must pass
-            // `showsDonutState: true` (already the case) AND it has no `visualLookCustomizer`
-            // beneath it, so with a one-look sequence the slider disappears and the pill was the
-            // overlay's last look control. Restore it there, not only inline.
+            // the SAME commit that gives `showVisual` a setter again. (⛔ The rest of this note
+            // listed what such a commit "owes" the VJ overlay — a second mount of this strip
+            // with no `visualLookCustomizer` beneath it. #1069 deleted `showVisual`, the cover
+            // and the overlay together, so there is no second mount to owe anything; struck
+            // #1104. The window is the one picture and carries its own look controls.)
             //
             // Dragging the slider morphs STUFENLOS between the looks (continuous crossfade
             // via style/styleB/blend, mapping in LookBlendMap). Its setter still clears

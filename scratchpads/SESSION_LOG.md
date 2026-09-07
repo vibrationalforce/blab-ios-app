@@ -25747,3 +25747,26 @@ Agenten-Urteilen überein (`TheLayoutHasAReadableWidthCeilingTests` ging mit #10
   Gates für `0c13824c`: Xcode 2443 grün, CI/CD 5908 „Build for Testing" grün. Doctor: die zwei
   bekannten founder-gated CRITICALs in `.github/workflows/**` (#208), nichts Neues.
   `./review.sh | grep -c '^REVIEW DUE'` → 284 (Founder-Rückstand, #803).
+
+## #1104 — sieben Prosa-Heimaten sagten noch „zwei Montagen / Kette 14", einen Tag nach #1069
+
+**Fund (Zyklus 21:58Z, beim Lesen der Visual-Pläne nach einem baubaren Slice):** #1069 hat den
+`showVisual`-Cover samt `visualVJOverlay` gelöscht — damit hat `visualLookStrip` EINE
+Aufrufstelle (gemessen: 1 Code-Zeile), die Präsentations-Kette ist 13 (8 `.sheet` + 1
+`.fullScreenCover` + 3 `.alert` + 1 `.fileImporter`) plus ein genesteter `.fileImporter` in
+`openSheet` = 14 dateiweit. Der Wächter `ResetSoundClearsWhatTheLaunchLineReportsTests` pinnt
+13/14 seit #1069 korrekt; CLAUDE.md sagt „14 dateiweit, 13 auf der Kette". **Die Datei selbst
+sagte es an zwei Stellen anders** (Zeile ~708: „Kette 14 (… 2 fullScreenCover …)", ~805:
+„**14** … 2 `.fullScreenCover`"), und der CHAIN-LENGTH-Absatz endete mit „14 → 13", während
+er mit 14 begann — zwei Zahlen für eine Kette in EINEM Absatz (#818). Dazu fünf Stellen, die
+„beide Montagen / both callers / the VJ overlay mounts this strip too" behaupteten
+(`visualPresetRow`-Doc, `visualLookStrip`-Doc ×3, die #227-Rücknahme), und der Wächter
+`TheLookReadoutKnowsWhichPictureItLabelsTests`, dessen Anspruch 3 im NAMEN „BothCallersAgreeing"
+trug (#374) und in zwei Fehlermeldungen „Both of today's pictures — the `.fullScreenCover` VJ
+overlay …" sagte.
+- Alles Prosa und Fehlermeldungs-Text; kein Anspruch ändert sein Verdikt (Anspruch 2 zählt
+  weiterhin `showsDonutState: false` == 0, Anspruch 3 die Signatur). Methode umbenannt in
+  `testTheParameterSurvivesTheOneCallerPassingTrue`. `moved-needles.py`: 0 Treffer.
+- **Lehre (dieselbe wie #456, in der Richtung Zahl):** #1069 hat den Zähler im Wächter und in
+  CLAUDE.md nachgeführt und die zwei Aufschlüsselungen in der Datei selbst stehen lassen, die
+  eine Sitzung liest, BEVOR sie einen Modal anhängt. Die Summe stimmte, die Summanden nicht.

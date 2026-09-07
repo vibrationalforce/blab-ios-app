@@ -73,27 +73,28 @@ final class TheLookReadoutKnowsWhichPictureItLabelsTests: XCTestCase {
     }
 
     /// claim 2 — therefore no mount may claim it cannot show a donut. Written as a count of the
-    /// wrong value, so a THIRD mount passing `false` is caught too, not just the two that exist.
+    /// wrong value, so a SECOND mount passing `false` is caught too, not just the one that exists
+    /// (⛔ "the two that exist" until #1104 — #1069 deleted the cover and its VJ-overlay mount).
     func testNoMountClaimsItCannotShowADonutWhileItsPictureCan() throws {
         let studio = try code(Self.studioFile)
         let wrong = studio.components(separatedBy: "visualLookStrip(showsDonutState: false)").count - 1
         XCTAssertEqual(wrong, 0, """
-            \(wrong) mount(s) still pass `showsDonutState: false`. Both of today's pictures — \
-            the `.fullScreenCover` VJ overlay and the Field panel's `FloatingVisualWindow` — \
-            render `SpectralDonutView`, so `false` there prints a Metal look's name over a \
+            \(wrong) mount(s) still pass `showsDonutState: false`. Today's one picture — the \
+            Field panel's `FloatingVisualWindow` (the `.fullScreenCover` VJ overlay went with \
+            #1069) — renders `SpectralDonutView`, so `false` there prints a Metal look's name over a \
             donut field. That is the lie #227 removed, re-introduced by #1043 from the other \
             side. If a NEW mount was added next to a picture that genuinely cannot show the \
             donut (an external-stage strip, say), this claim is where to say so.
             """)
     }
 
-    /// claim 3 — the counterweight (#367/#364). Both callers agreeing must NOT become a reason
-    /// to delete the parameter: a third picture that cannot show the donut already exists.
-    func testTheParameterSurvivesBothCallersAgreeing() throws {
+    /// claim 3 — the counterweight (#367/#364). The one caller passing `true` must NOT become a
+    /// reason to delete the parameter: a picture that cannot show the donut already exists.
+    func testTheParameterSurvivesTheOneCallerPassingTrue() throws {
         let studio = try code(Self.studioFile)
         XCTAssertTrue(studio.contains("visualLookStrip(showsDonutState: Bool)"), """
-            `visualLookStrip` lost its `showsDonutState` parameter. Today's two callers both \
-            pass `true`, which reads like a dead argument — it is not. `ExternalDisplayScene` \
+            `visualLookStrip` lost its `showsDonutState` parameter. Today's one caller passes \
+            `true`, which reads like a dead argument — it is not. `ExternalDisplayScene` \
             renders the Metal field and nothing else, and the window checks its external-stage \
             branch BEFORE its donut branch, so with a projector attached no donut is on any \
             screen. Removing the parameter removes the only place that question is asked, and \
