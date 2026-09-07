@@ -70,8 +70,8 @@ final class LookBlendMapTests: XCTestCase {
     }
 
     func testSequenceParse_dropsRetiredLookIndices() {
-        // Persisted sequences may carry retired looks (1 Cymatics, 2 Plasma,
-        // 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) — they are dropped
+        // Persisted sequences may carry retired looks (1 Cymatics, 2 — Plasma until #1101,
+        // now the doorless water dish — 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) — they are dropped
         // gracefully, the rest stays.
         XCTAssertEqual(LookBlendMap.sequence(from: "3,5,1,4"), [3, 5],
                        "the brief Cymatics/Prism-era default keeps its survivors")
@@ -115,8 +115,9 @@ final class LookBlendMapTests: XCTestCase {
         // Curation 2026-07-08 ("weniger ist mehr" + "Prism soll weg" + "Cymatics
         // und Lissajous passt nicht zum Vibe"): four calm liquid looks, each
         // bio/sound-linked, in canonical (ascending) order. Retired: 1 Cymatics,
-        // 2 Plasma, 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal (still compiled in
-        // the shader, reversible).
+        // 2 (Plasma until #1101; the slot now holds the water dish, which gets its own
+        // row WITH its flash-budget row in one commit), 4 Prism, 6 Lissajous, 8 Scope,
+        // 9 Fractal (still compiled in the shader, reversible).
         XCTAssertEqual(LookBlendMap.library.map(\.index), [0, 3, 5, 7])
         XCTAssertEqual(LookBlendMap.library.map(\.index), LookBlendMap.library.map(\.index).sorted(),
                        "canonical order stays ascending so toggling() inserts sensibly")

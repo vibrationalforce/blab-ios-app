@@ -7,8 +7,10 @@
 //  lattice of ripples that appears the moment the tone is loud enough and vanishes the moment
 //  it is not. Those ripples are FARADAY WAVES — a parametric instability of the free surface
 //  under vertical shaking. This file computes what that experiment does for one tone; it draws
-//  nothing. Slice 2 gives it a shader, Slice 3 a library row. Until then it has NO production
-//  caller, and that is the point of this slice: zero pixels change, the physics is pinned first.
+//  nothing. Slice W1 (#1100) landed it with NO production caller, so the physics was pinned
+//  before a pixel existed; Slice W2 (#1101) gave it its one caller — `MetalBioView`'s draw loop
+//  solves it once per frame for the eased tone and hands the RESULT to `fieldDish` as three
+//  uniforms (wavenumber, strength, hexagonality). Slice W3 adds the library row.
 //
 //  THE THREE FACTS THE PICTURE DEPENDS ON — each a measurable statement, each pinned by the
 //  guard `TheWaterDishObeysFaradayTests`:
@@ -205,6 +207,28 @@ enum FaradayDish {
                         excess: excess,
                         patternStrength: strength,
                         isPatterned: excess > 0)
+    }
+
+    // MARK: - Lattice symmetry — a STATED CHOICE anchored to a measured trend
+
+    /// The capillary fraction below which the lattice is drawn as SQUARES (≈ 100 Hz drive
+    /// for water) and above which it fades toward HEXAGONS. Binks & van de Water (1997)
+    /// measured, in a low-viscosity layer, lattice symmetry RISING with drive frequency —
+    /// squares, then hexagons, then higher quasi-patterns — governed by the dispersion
+    /// relation. The DIRECTION is theirs; these two anchor values are a rendering choice for
+    /// water 3 mm deep, named so they can be argued with, never claimed as their numbers.
+    static let squareLatticeCapillaryFraction = 0.90
+    /// The capillary fraction at and above which the lattice is fully hexagonal (≈ 440 Hz).
+    static let hexagonalLatticeCapillaryFraction = 0.985
+
+    /// 0 = square lattice … 1 = hexagonal, a smoothstep between the two anchors above.
+    /// Non-finite reads as square (0).
+    static func latticeHexagonality(capillaryFraction: Double) -> Double {
+        guard capillaryFraction.isFinite else { return 0 }
+        let lo = squareLatticeCapillaryFraction
+        let hi = hexagonalLatticeCapillaryFraction
+        let t = ((capillaryFraction - lo) / (hi - lo)).clamped(to: 0 ... 1)
+        return t * t * (3 - 2 * t)
     }
 
     /// The highest drive frequency that still patterns at this loudness, Hz — the pitch above

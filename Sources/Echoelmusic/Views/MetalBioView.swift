@@ -158,6 +158,19 @@ private struct BioUniforms {
     /// two gains above whose neutral is 1. Appended at the end for the same raw-bytes
     /// layout law; clamped to [0, 2] in `update()`.
     var structureAmt: Float = 0
+    /// WATER DISH (#1101) — the three results of `FaradayDish` the shader needs, computed once
+    /// per frame on the CPU and appended at the TAIL so the 95 floats before them keep their
+    /// offsets (the MSL `Uniforms` below ends with the same three, in the same order — a
+    /// layout mismatch here renders garbage, not an error).
+    /// `dishK`: the standing wave's spatial frequency in radians per shader-coordinate unit
+    /// (the capillary wavenumber scaled by `dishWindowMetres / 2`), clamped to `dishKRange`.
+    var dishK: Float = 25
+    /// `dishStrength`: 0 below the Faraday threshold (a flat mirror) … 1 at full lattice —
+    /// `FaradayDish.Response.patternStrength`, eased (tau 0.5 s) so a note onset SWELLS the
+    /// lattice and cannot step it (a step in a full-screen luminance is a flash candidate).
+    var dishStrength: Float = 0
+    /// `dishHex`: 0 = square lattice, 1 = hexagonal — `FaradayDish.latticeHexagonality`.
+    var dishHex: Float = 0.5
 }
 
 /// The touch surface's water-drop events for the Metal renderer (structural rebuild
@@ -394,9 +407,11 @@ struct MetalBioView: UIViewRepresentable {
     var textureAmount: Float = 1
     var glitterAmount: Float = 1
     var structureAmount: Float = 0
-    /// Visual style: 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (see `BioUniforms.style`).
+    /// Visual style: 0 rings · 1 Chladni · 2 water dish (#1101, the former Plasma slot) · 3 water
+    /// · 4 Prism (see `BioUniforms.style`).
     var style: Int = 0
-    /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism.
+    /// Secondary style to blend with `style` (same index space). 0 rings · 1 Chladni · 2 water dish
+    /// · 3 water · 4 Prism.
     var styleB: Int = 0
     /// Mix ratio A↔B [0…1] — 0 = pure `style`, 1 = pure `styleB`. The "mischend" control.
     var blend: Float = 0
@@ -526,6 +541,21 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     private var uniforms = BioUniforms()
     private var target = BioUniforms()
     private var hasTarget = false
+    /// WATER DISH (#1101): the drive the dish sees this frame (music level + finger energy,
+    /// 0…1), written where `touchE`/`musicLevel` live and read in the easing block.
+    private var dishDriveTarget: Float = 0
+    /// The shader slot the dish renders in — the former Plasma slot. Named at the ONE place
+    /// the CPU decides whether to solve the physics; `styleField`'s bucket `si < 2.5` is the
+    /// same number on the GPU side.
+    private static let dishStyleIndex: Float = 2
+    /// How much real water the screen shows edge to edge, metres — a CHOICE (a macro view of
+    /// the dish), named so the ripple count per screen can be argued with. At 24 mm middle C
+    /// (λ = 3.02 mm) shows ~8 ripples across; at the ~1.3 kHz reach of full drive ~24.
+    private static let dishWindowMetres: Float = 0.024
+    /// Sampling floor and ceiling for `dishK`, rad per coordinate unit: below ~3 the lattice
+    /// is one bump; above ~110 a period is under 0.057 units (~35 px on a phone width) and
+    /// the net samples into moiré. Physics stops patterning long before the ceiling matters.
+    private static let dishKRange: ClosedRange<Float> = 3 ... 110
     private var reduceMotion = false
     /// Last `framebufferOnly` value written to the MTKView. Writing the property EVERY frame
     /// (even to the same value) reconfigures the drawable/CAMetalLayer and made the picture
@@ -724,7 +754,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // before (the GPU never sees an out-of-range / non-finite value).
         // Styles are DISCRETE — snap them on both live and target (no cross-fade between
         // modes). The BLEND between them is what eases (a smooth A↔B morph).
-        // 0 rings · 1 Chladni · 2 plasma · 3 water · 4 Prism (spectral dispersion)
+        // 0 rings · 1 Chladni · 2 water dish (#1101) · 3 water · 4 Prism (spectral dispersion)
         // · 5 Aurora · 6 Lissajous · 7 Depth Caustics · 8 Oscilloscope · 9 Fractal.
         let s = Float(min(max(style, 0), 9))
         let sb = Float(min(max(styleB, 0), 9))
@@ -1024,6 +1054,12 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             // back out over ~a second when they rest. Rides the eased targets below,
             // so it glides. Flash rate stays capped inside update() regardless.
             let touchE = TouchVisualEnergy.shared.value(now: nowGov)
+            // WATER DISH drive (#1101): how hard the "speaker" shakes the dish, 0…1. The live
+            // master level of the sounding music, with finger play adding energy exactly as it
+            // does for `intensity` below. `FaradayDish` turns it into a cone acceleration and
+            // compares it with the pitch's own threshold — so a quiet bar is a mirror and a
+            // loud bass note a lattice, without any per-look tuning here.
+            dishDriveTarget = min(max(musicLevel + 0.5 * touchE, 0), 1)
             update(hr: bio?.heartRateBPM ?? 60,
                    // `coherenceForSound`: the `??` only covers a MISSING frame, so a
                    // present frame that has measured no coherence (HealthKit never
@@ -1260,6 +1296,22 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
             uniforms.colorToneB = colorNoteTo
             uniforms.colorFade = colorNoteFade
             uniforms.intensity = Self.ease(uniforms.intensity, target.intensity, tau: 0.4,  dt: dt)
+            // WATER DISH (#1101): solve the physics for the EASED tone (so the lattice glides
+            // with the pitch the way the Water look does) and ease only the strength — the
+            // luminance-bearing quantity. Only when the dish is one of the two live looks;
+            // otherwise the uniforms hold their last value and nothing reads them.
+            if uniforms.style == Self.dishStyleIndex || uniforms.styleB == Self.dishStyleIndex,
+               let dish = FaradayDish.response(driveHz: Double(uniforms.toneHz),
+                                               drive: Double(dishDriveTarget)) {
+                let kPerUnit = Float(dish.wavenumber) * Self.dishWindowMetres / 2
+                uniforms.dishK = min(max(kPerUnit.isFinite ? kPerUnit : Self.dishKRange.lowerBound,
+                                         Self.dishKRange.lowerBound), Self.dishKRange.upperBound)
+                uniforms.dishHex = Float(FaradayDish.latticeHexagonality(
+                    capillaryFraction: dish.capillaryFraction))
+                let strength = Float(dish.patternStrength)
+                uniforms.dishStrength = Self.ease(uniforms.dishStrength,
+                                                  strength.isFinite ? strength : 0, tau: 0.5, dt: dt)
+            }
             uniforms.ringDensity = Self.ease(uniforms.ringDensity, target.ringDensity, tau: 0.7, dt: dt)
             uniforms.motion    = Self.ease(uniforms.motion,    target.motion,    tau: 0.4,  dt: dt)
             uniforms.spread    = Self.ease(uniforms.spread,    target.spread,    tau: 0.5,  dt: dt)
@@ -1370,7 +1422,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                       float rp3x; float rp3y; float rp3p; float rp3a; float rp3r; float rp3g; float rp3b;
                       float rp4x; float rp4y; float rp4p; float rp4a; float rp4r; float rp4g; float rp4b;
                       float rp5x; float rp5y; float rp5p; float rp5a; float rp5r; float rp5g; float rp5b;
-                      float textureAmt; float glitterAmt; float structureAmt; };
+                      float textureAmt; float glitterAmt; float structureAmt;
+                      float dishK; float dishStrength; float dishHex; };
 
     // TOUCH RIPPLES — the water feedback drawn IN the field's own pipeline
     // (structural rebuild 2026-07-09; the old CAShapeLayer sandwich over the Metal
@@ -1656,17 +1709,44 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float w = mix(0.14, 0.04, coh);                        // coherence sharpens lines
         return 1.0 - smoothstep(0.0, w, abs(s) * amp);
     }
-    // STYLE 2 — PLASMA: superposed travelling plane waves (a classic interference
-    // field). Drifts slowly via the flash-safe phase; coherence raises the contrast
-    // (ordered banding) vs a soft wash. Organic motion with no fast flashing.
-    float fieldPlasma(float2 p, float phase, float coh) {
-        float t = phase * 0.5;                                 // slow drift (≤ flashHz)
-        float v = sin(p.x * 3.0 + t)
-                + sin(p.y * 3.0 - t * 0.8)
-                + sin((p.x + p.y) * 2.5 + t * 0.6)
-                + sin(length(p) * 5.0 - t);
-        v = 0.5 + 0.125 * v;                                   // → ~[0,1]
-        return pow(clamp(v, 0.0, 1.0), mix(1.0, 2.2, coh));
+    // STYLE 2 — WATER DISH (#1101, founder 2026-09-07: "wie als wenn ein Lautsprecher mit
+    // Wasser füllt"): a shallow dish of water on a speaker cone, lit from above. Faraday
+    // waves — the standing lattice that appears when the tone is loud enough and vanishes
+    // when it is not. EVERY physical quantity comes in as a uniform from `FaradayDish`
+    // (subharmonic response, full dispersion relation, viscous threshold, √-onset), solved
+    // once per frame on the CPU; this function only draws the LIGHT:
+    //   · `k`        spatial frequency of the standing wave (rad per coordinate unit) —
+    //                the ripple spacing a ruler measures, from the sounding pitch;
+    //   · `strength` 0 = below threshold (flat mirror) … 1 = full lattice, eased upstream;
+    //   · `hex`      0 = square lattice, 1 = hexagonal (rises with pitch — Binks & van de
+    //                Water 1997; the MAPPING is a stated choice in FaradayDish).
+    // What a lamp above a rippled dish shows is CAUSTICS on the dish floor: each trough is a
+    // lens that focuses the lamp into a bright spot, each crest spreads it. Floor brightness
+    // under a lens of curvature c·h is ∝ 1/(1 − c·h) — the linearised lens law — normalised
+    // so a crest reads 1; with c < 1 it stays finite. Coherence sharpens the filaments.
+    // SILENCE = MIRROR: at strength 0 the field is the lamp's soft reflection, nothing else.
+    //
+    // FLASH BUDGET (derive, do not guess): the ONLY phase-bearing term is `sin(phase * 0.4)`
+    // in `breathe`; it enters `c` linearly and 1/(1 − c·h) is monotone in c at every fixed
+    // h, so there is no fold and no sideband: (0.4, folds: false) → 1.00 Hz at the 2.5 Hz
+    // app ceiling. `strength` is not phase-bearing — it is the eased music level (tau 0.5 s).
+    // The `mix` between mirror and lattice is linear in `strength`. `TheWaterDishIsLitLike
+    // TheExperimentTests` pins the phase term; the budget row lands with the library row.
+    // This slot was PLASMA (retired from the UI 2026-07-08, "weniger ist mehr"; a persisted
+    // style 2 is snapped to the sequence's first look on appear), so replacing its function
+    // changes nothing a user can reach until `LookBlendMap.library` gets the row.
+    float fieldDish(float2 p, float k, float strength, float hex, float phase, float coh) {
+        float2 d2 = float2(-0.5, 0.8660254);                  // 120° and 240° wave directions
+        float2 d3 = float2(-0.5, -0.8660254);
+        float sq = 0.5 * (cos(p.x * k) + cos(p.y * k));                                 // −1…1
+        float hx = (cos(p.x * k) + cos(dot(p, d2) * k) + cos(dot(p, d3) * k)) * 0.3333; // −0.5…1
+        float h = mix(sq, hx, hex);                             // normalised surface height
+        float breathe = 0.85 + 0.15 * sin(phase * 0.4);        // the dish's slow life; 0.4×, no fold
+        float c = clamp(0.88 * strength * breathe, 0.0, 0.88); // lens strength, < 1 keeps it finite
+        float caustic = (1.0 - c) / (1.0 - c * h);             // floor light, crest = 1
+        float net = pow(clamp(caustic, 0.0, 1.0), mix(1.5, 3.0, coh)); // coherence sharpens
+        float mirror = 0.55 + 0.30 * exp(-dot(p, p) * 2.5);    // the lamp in a still surface
+        return clamp(mix(mirror, net, clamp(strength, 0.0, 1.0)), 0.0, 1.0);
     }
     // STYLE 3 — WATER caustics: crossing wave trains form a rippling light net, like
     // sun on a pool floor — the "Wasser·Klang·Licht" aesthetic for music-video / film /
@@ -1852,7 +1932,8 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     // on a tall phone (the old anisotropic coord collapsed the horizontal frequency to
     // near-zero → broad flat bands → the "flat green flood"). Returns x = field, y = vignette.
     float2 styleField(float si, float d, float2 pf, float density, float toneHz,
-                      float phase, float coh, float breath, float spread) {
+                      float phase, float coh, float breath, float spread,
+                      float u_dishK, float u_dishStrength, float u_dishHex) {
         float field;
         // One generous vignette for every style. The edge is ALWAYS larger than the
         // screen radius (max d ≈ 0.55), so even the smallest Spread can never collapse
@@ -1861,7 +1942,7 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float vig = smoothstep(vEdge, 0.0, d);
         if (si < 0.5)       field = fieldRings(d, density, phase, coh);
         else if (si < 1.5)  field = fieldChladni(pf, toneHz, phase, coh);
-        else if (si < 2.5)  field = fieldPlasma(pf, phase, coh);
+        else if (si < 2.5)  field = fieldDish(pf, u_dishK, u_dishStrength, u_dishHex, phase, coh);
         else if (si < 3.5)  field = fieldWater(pf, toneHz, phase, coh, breath);
         else if (si < 4.5)  field = fieldPrism(pf, phase, coh);
         else if (si < 5.5)  field = fieldAurora(pf, phase, coh, breath);
@@ -1922,13 +2003,15 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // both their field AND their vignette by the eased Mix ratio. blend 0 = pure A,
         // 1 = pure B, anything between = a true overlap of the two physical fields.
         float blend = clamp(u.blend, 0.0, 1.0);
-        float2 fa = styleField(u.style,  d, spf, density, u.toneHz, phase, coh, u.breath, spread);
+        float2 fa = styleField(u.style,  d, spf, density, u.toneHz, phase, coh, u.breath, spread,
+                               u.dishK, u.dishStrength, u.dishHex);
         // Only evaluate the SECOND look when actually blending. At the default blend = 0 the
         // B field is fully masked by mix(), so computing it is pure waste — and B can be a
         // heavy look (Fractal/Depth), doubling fragment cost for nothing. Skip it below the
         // blend threshold; this is the common single-style case (perf/thermal win).
         float2 fb = (blend > 0.001)
-            ? styleField(u.styleB, d, spf, density, u.toneHz, phase, coh, u.breath, spread)
+            ? styleField(u.styleB, d, spf, density, u.toneHz, phase, coh, u.breath, spread,
+                         u.dishK, u.dishStrength, u.dishHex)
             : fa;
         float field    = mix(fa.x, fb.x, blend);
         float vignette = mix(fa.y, fb.y, blend);

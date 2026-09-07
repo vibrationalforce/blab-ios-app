@@ -351,7 +351,7 @@ struct EchoelStudioView: View {
     /// already reads.
     @AppStorage(StudioDefaultKeys.touchShowGrid.key)
     private var touchShowGrid = StudioDefaultKeys.touchShowGrid.value
-    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water
+    /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 water dish (#1101) · 3 water
     /// · 4 Prism · 5 Aurora · 6 Lissajous · 7 Depth Caustics · 8 Oscilloscope · 9 Fractal.
     /// Default 5 (Aurora) — a richer look out of the box; MUST match FloatingVisualWindow.
     @AppStorage(StudioDefaultKeys.visualStyle.key) private var visualStyle = StudioDefaultKeys.visualStyle.value
@@ -5843,7 +5843,7 @@ struct EchoelStudioView: View {
 
     /// One LOOK selector for the immersive visual — Donuts (spectrum→light) plus the
     /// three physically/analytically grounded Metal fields (Rings = wave interference,
-    /// Chladni = plate eigenmodes from the tone, Plasma = superposed waves). One strip
+    /// Chladni = plate eigenmodes from the tone, slot 2 = the water dish since #1101). One strip
     /// instead of two scattered toggles (clearer design); persists via @AppStorage.
     /// - Parameter showsDonutState: whether the picture this strip belongs to can actually SHOW
     ///   the donut renderer. Both of today's mounts can, so both pass `true`: the fullscreen VJ

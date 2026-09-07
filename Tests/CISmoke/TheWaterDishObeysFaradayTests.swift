@@ -211,7 +211,32 @@ final class TheWaterDishObeysFaradayTests: XCTestCase {
         XCTAssertEqual(try dish(200, drive: -1).driveAcceleration, 0, "negative drive must clamp to silence")
     }
 
-    // MARK: - 7 · The named choices are pinned, not forbidden
+    // MARK: - 7 · Lattice symmetry: a stated choice with a measured direction (#1101)
+
+    /// Binks & van de Water: symmetry RISES with drive frequency in a low-viscosity layer.
+    /// The two anchors are a choice; the DIRECTION and the numbers below are measured.
+    func testTheLatticeIsSquareInTheBassAndHexagonalFromMidRange() throws {
+        func hex(_ hz: Double) throws -> Double {
+            FaradayDish.latticeHexagonality(capillaryFraction: try dish(hz).capillaryFraction)
+        }
+        XCTAssertEqual(try hex(20), 0, "a 20 Hz dish (capillary fraction 0.42) must be square")
+        XCTAssertEqual(try hex(100), 0, "a 100 Hz dish (capillary fraction 0.894) must still be square")
+        XCTAssertEqual(try hex(200), 0.746, accuracy: 0.02, "200 Hz is mid-transition; measured 0.746")
+        XCTAssertEqual(try hex(261.63), 0.916, accuracy: 0.02, "C4 is mostly hexagonal; measured 0.916")
+        XCTAssertEqual(try hex(1000), 1, accuracy: 1e-9, "1 kHz must be fully hexagonal")
+        var previous = -1.0
+        for hz in stride(from: 20.0, through: 2000.0, by: 10.0) {
+            let h = try hex(hz)
+            XCTAssertGreaterThanOrEqual(h, previous, "hexagonality fell at \(hz) Hz — the measured direction is UP")
+            previous = h
+        }
+        XCTAssertEqual(FaradayDish.latticeHexagonality(capillaryFraction: .nan), 0, "NaN must read as square")
+        XCTAssertEqual(FaradayDish.latticeHexagonality(capillaryFraction: 5), 1, "above the top anchor is hexagonal, clamped")
+        XCTAssertEqual(FaradayDish.squareLatticeCapillaryFraction, 0.90, "the square anchor moved — re-derive the pins above")
+        XCTAssertEqual(FaradayDish.hexagonalLatticeCapillaryFraction, 0.985, "the hexagonal anchor moved — re-derive the pins above")
+    }
+
+    // MARK: - 8 · The named choices are pinned, not forbidden
 
     func testTheTwoRenderingChoicesAreTheNumbersTheHeaderExplains() {
         XCTAssertEqual(FaradayDish.speakerAccelerationAtFullDrive, 200, """

@@ -29,7 +29,9 @@ enum LookBlendMap {
     /// the founder asked for other visuals in this register). All flash-safe,
     /// slow-motion fields: the calm register IS the health consideration.
     /// RETIRED from the UI (still compiled in the shader, reversible by re-adding
-    /// a row): 1 Cymatics, 2 Plasma, 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal;
+    /// a row): 1 Cymatics, 2 (was Plasma — since #1101 the slot renders the WATER DISH,
+    /// `fieldDish`, doorless until its own row lands with its flash budget), 4 Prism,
+    /// 6 Lissajous, 8 Scope, 9 Fractal;
     /// `sequence(from:)` drops their persisted indices gracefully and the onAppear
     /// migration snaps a persisted retired style to the sequence's first look.
     static let library: [(index: Int, name: String)] = [
