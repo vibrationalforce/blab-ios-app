@@ -4,7 +4,7 @@ New in this build
 
 Composition
 - Nineteen curated genres: Self-Observation, Deep Ambient, Drift, Contemplation, Vaporwave, Sci-Fi, Classical, Dub Techno, Acid Techno, Deep House, Deep Tech, Dark Minimal, Psy Prog House, Uplifting Trance, Tech House, Minimal Techno, Detroit Techno, Still Drone and Ambient Pulse
-  (all genres are currently drum-free — Echoelmusic has no drum engine; the genres differ in harmony, timbre and motion)
+  (every genre is drum-free by design — they differ in harmony, timbre and motion, not in percussion)
 - Eight character controls: Liveliness, Darkness, Tension, Romance, Weird, Virtuosity, Syncopation, Humanize
 - Concert pitch (A4) set exactly to the cent; key selection and optional BPM lock
 
