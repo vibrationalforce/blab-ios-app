@@ -132,10 +132,10 @@ private struct ExternalStageView: View {
     // `visualRingDensity` key, and only the call site records that.
     //
     // ⛔ "THE SAME" IS TRUE OF THE KEYS AND NOT OF THE PICTURE (#1071, measured). The phone
-    // does NOT render these values raw: `FloatingVisualWindow.weatheredVisuals()` blends FOUR
-    // of them — hue, saturation, intensity, motion — through `WeatherMood.blend` against the
-    // live sky, each with its own user mixer (`WeatherMood.Param.<x>.mixKey`). This scene
-    // reads the raw keys and renders them. So plugging in a projector SILENTLY DROPS the
+    // does NOT render these values raw: `FloatingVisualWindow.weatheredVisuals()` mixes FOUR
+    // of them — hue, saturation, intensity, motion — through `WeatherMood.visualValues`
+    // against the live sky, each with its own user mixer (`WeatherMood.Param.<x>.mixKey`).
+    // This scene reads the raw keys and renders them. So plugging in a projector SILENTLY DROPS the
     // weather tint, and the sentence above reads as if the two matched.
     //
     // ⚠️ THIS FILE ALREADY DECIDED THE PRINCIPLE, one paragraph down, and then did not apply
@@ -145,12 +145,19 @@ private struct ExternalStageView: View {
     // makes this a KNOWN GAP against a stated rule, not a taste question — the founder's open
     // "Beamer wettergemischt oder roh?" was asked before anyone measured which one it does.
     //
-    // ⛔ NOT FIXED IN THIS COMMIT, and the reason is honest rather than tidy: the blend needs
-    // `weatherProvider.current`, which lives on the phone side and reaches this scene only
-    // through `ExternalStageBridge` — new wiring in a file no gate here can run, on a path
-    // that is visible only with a projector attached. The repair belongs in its own slice with
-    // `weatheredVisuals()` lifted into ONE shared pure helper both sides call (#416), so the
-    // two can never diverge again. Pinned meanwhile by
+    // ⭐ HALF-REPAIRED BY #1072, so what is left is now ONE named thing rather than a plan.
+    // The FOUNDATION half landed: the mix is no longer a `private func` on a `View` but the
+    // pure, public `WeatherMood.visualValues(base:mixers:contribution:)`, driven end-to-end by
+    // `TheWeatherVisualMixHasOneDefinitionTests`. `weatheredVisuals()` is now a CALLER of it.
+    //
+    // ⛔ THE CONSUMER HALF IS STILL MISSING, and the reason is honest rather than tidy: this
+    // scene has the four keys and the mixers but NOT `weatherProvider.current`, which lives on
+    // the phone side and reaches here only through `ExternalStageBridge` — new wiring in a file
+    // no gate here can run, on a path visible only with a projector attached. Concretely the
+    // remaining slice is: carry the `WeatherMood.Contribution?` (or the provider) across the
+    // bridge, read the four `mixKey`s here, and call the SAME function the phone calls. Do not
+    // re-derive the arithmetic; that is the divergence this whole note is about (#416).
+    // Pinned meanwhile by
     // `Tests/CISmoke/TheBeamerDrawsTheSamePictureTests.swift`, which is written to go RED on
     // the day the gap is closed — it is a record of a divergence, not a defence of it.
     /// #609 — the beamer draws the SAME auto-attuned picture the phone would (H15):

@@ -359,6 +359,78 @@ public enum WeatherMood {
                           -maxToneBrightnessShift, maxToneBrightnessShift)
     }
 
+    /// The four live visual controls, in the ranges the renderer expects — the INPUT and the
+    /// OUTPUT of `visualValues(base:mixers:contribution:)`. `Double` because that is what the
+    /// `@AppStorage` keys hold; the mix itself narrows to `Float` inside `blend`.
+    public struct VisualValues: Sendable, Equatable {
+        public var hue: Double
+        public var saturation: Double
+        public var intensity: Double
+        public var motion: Double
+        public init(hue: Double, saturation: Double, intensity: Double, motion: Double) {
+            self.hue = hue
+            self.saturation = saturation
+            self.intensity = intensity
+            self.motion = motion
+        }
+    }
+
+    /// Per-parameter mix strengths, 0…1. Each one is a user control
+    /// (`WeatherMood.Param.<x>.mixKey`); all zero is neutral — see the note on
+    /// `visualValues` for why "neutral" and "bit-identical" are not the same word here.
+    public struct VisualMixers: Sendable, Equatable {
+        public var hue: Double
+        public var saturation: Double
+        public var glow: Double
+        public var movement: Double
+        public init(hue: Double, saturation: Double, glow: Double, movement: Double) {
+            self.hue = hue
+            self.saturation = saturation
+            self.glow = glow
+            self.movement = movement
+        }
+    }
+
+    /// The four VISUAL values with the sky mixed in — the ONE definition of that mix (#1072).
+    ///
+    /// ⛔ WHY THIS EXISTS: there were TWO surfaces rendering the visual and only one of them
+    /// mixed. `FloatingVisualWindow.weatheredVisuals()` blended hue · saturation · intensity ·
+    /// motion; `ExternalStageScene` read the same four `@AppStorage` keys and handed them to
+    /// `MetalBioView` RAW, so attaching a projector silently dropped the weather tint mid-show
+    /// (measured, #1071). Two spellings of one decision is the #416 defect, and this is what it
+    /// looks like after a year: not a disagreement anyone can see, but a picture that changes
+    /// when a cable goes in.
+    ///
+    /// PURE, and deliberately so. It takes the contribution rather than a provider, so it can be
+    /// driven end-to-end in the blocking bundle (§1's strong kind) and so neither caller needs
+    /// the other's environment. `nil` means "weather is off, or no snapshot yet" and returns
+    /// `base` EXACTLY — it short-circuits before any arithmetic.
+    ///
+    /// ⚠️ ALL MIXERS AT 0 IS NEUTRAL BUT NOT BIT-IDENTICAL, and the difference is worth one
+    /// line because a test asserted the wrong one first. That path still runs the crossfade,
+    /// and `blend` works in `Float`, so a `Double` base comes back narrowed
+    /// (0.20 → 0.20000000298…). Invisible in a picture, real to `XCTAssertEqual`. Not
+    /// "fixed" with an all-zero short-circuit: that would change shipped behaviour to make a
+    /// test prettier.
+    ///
+    /// ⚠️ THE MIXERS ARE PER-PARAMETER AND NOT INTERCHANGEABLE. `glow` drives INTENSITY and
+    /// `movement` drives MOTION; their key names (`WeatherMood.Param.glow` / `.movement`) do not
+    /// match the visual parameter names, and that mismatch is exactly the kind a second
+    /// hand-written copy gets subtly wrong. Pinned per pair by
+    /// `TheWeatherVisualMixHasOneDefinitionTests`.
+    public static func visualValues(base: VisualValues,
+                                    mixers: VisualMixers,
+                                    contribution: Contribution?) -> VisualValues {
+        guard let wx = contribution else { return base }
+        func mix(_ b: Double, _ target: Float, _ intensity: Double) -> Double {
+            Double(blend(base: Float(b), target: target, intensity: Float(intensity)))
+        }
+        return VisualValues(hue: mix(base.hue, wx.hue, mixers.hue),
+                            saturation: mix(base.saturation, wx.saturation, mixers.saturation),
+                            intensity: mix(base.intensity, wx.glowTarget, mixers.glow),
+                            motion: mix(base.motion, wx.motionTarget, mixers.movement))
+    }
+
     /// Crossfade a base value toward `target` by `intensity` [0…1]. Intensity 0
     /// returns `base` unchanged (bit-identical); 1 returns `target`. Pure.
     public static func blend(base: Float, target: Float, intensity: Float) -> Float {

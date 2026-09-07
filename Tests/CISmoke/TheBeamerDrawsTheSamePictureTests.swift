@@ -9,10 +9,18 @@ import XCTest
 /// is correct, each claim asserts the two halves that MAKE it a divergence and names the repair.
 /// Closing it is a green outcome that reddens this file; delete the file in that commit.
 ///
-/// MEASURED: `FloatingVisualWindow.weatheredVisuals()` blends FOUR values — hue, saturation,
-/// intensity, motion — through `WeatherMood.blend` against the live sky, each behind its own
-/// user mixer. `ExternalStageScene`'s view reads the same four `@AppStorage` keys and hands them
-/// to `MetalBioView` RAW. So attaching a projector silently drops the weather tint mid-show.
+/// MEASURED: `FloatingVisualWindow.weatheredVisuals()` mixes FOUR values — hue, saturation,
+/// intensity, motion — against the live sky, each behind its own user mixer.
+/// `ExternalStageScene`'s view reads the same four `@AppStorage` keys and hands them to
+/// `MetalBioView` RAW. So attaching a projector silently drops the weather tint mid-show.
+///
+/// ⭐ HALF-REPAIRED BY #1072, WHICH IS WHY THIS FILE IS STILL HERE. The recorded repair had two
+/// halves: lift the mix into ONE shared pure definition, then teach the scene to call it. The
+/// FOUNDATION half landed — the arithmetic now lives once in `WeatherMood.visualValues` and is
+/// driven end-to-end by `TheWeatherVisualMixHasOneDefinitionTests`. The CONSUMER half did not:
+/// the scene needs `weatherProvider`, which reaches it only through `ExternalStageBridge`. So
+/// the two surfaces can no longer diverge in the ARITHMETIC, and still diverge in the PICTURE.
+/// That distinction is the whole reason a half-repair gets its own line instead of a tick.
 ///
 /// WHY IT IS A GAP AND NOT A CHOICE: `ExternalDisplayScene` already states the rule for its own
 /// `autoMode` reader (#609) — "without this reader, plugging in a projector would silently strip
@@ -44,19 +52,28 @@ final class TheBeamerDrawsTheSamePictureTests: XCTestCase {
 
     // 1 — the phone really does blend. Without this the whole finding is imaginary, and a slice
     // that removed the blend entirely would "close" the gap by making both sides equally raw.
+    //
+    // ⛔ RE-ANCHORED BY #1072, and the tool found it before CI did. This needle was
+    // `WeatherMood.blend(base:` — the phone's own arithmetic. #1072 lifted that arithmetic into
+    // `WeatherMood.visualValues` (the FOUNDATION half of this file's own recorded repair), so
+    // the old spelling vanished from this file while the behaviour it stood for did not:
+    // `dead-needles.py` reported one needle asserted present and absent. That is the #650/#960
+    // sibling-guard shape a third time — one rename, two guards, the sibling stays red — and
+    // the lesson is the same: a needle that names a CALL is only as durable as where the call
+    // lives. `visualValues(` names the DECISION instead.
     func testThePhoneBlendsTheSkyIntoTheLook() throws {
         let code = try source(Self.window)
-        XCTAssertTrue(code.contains("WeatherMood.blend(base:"), """
-            `FloatingVisualWindow` no longer blends the sky into the look. If the weather visual \
+        XCTAssertTrue(code.contains("WeatherMood.visualValues("), """
+            `FloatingVisualWindow` no longer mixes the sky into the look. If the weather visual \
             mix was RETIRED, that closes the #1071 divergence from the wrong end — the two \
             surfaces would agree because neither does anything. Say so explicitly and delete \
             this whole file in that commit; do not let it pass silently.
             """)
         XCTAssertTrue(code.contains("private func weatheredVisuals()"), """
             `weatheredVisuals()` is gone or renamed. It is the one place the four blended values \
-            are produced, and the recorded repair for #1071 is to LIFT it into a shared pure \
-            helper both surfaces call (#416). Re-anchor here if it moved, and update the ⛔ note \
-            in `ExternalDisplayScene` in the same commit (#456).
+            reach this view, and since #1072 it is a CALLER of the shared helper rather than the \
+            owner of the mix. Re-anchor here if it moved, and update the ⛔ note in \
+            `ExternalDisplayScene` in the same commit (#456).
             """)
     }
 

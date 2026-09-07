@@ -597,33 +597,61 @@ struct FloatingVisualWindow: View {
 
     // MARK: - Card
 
-    /// The visual base with the sky mixed in per parameter (P5). Weather off, no
-    /// snapshot yet, or every mixer at 0 → returns the user's values untouched.
+    /// The visual base with the sky mixed in per parameter (P5). Weather off or no snapshot
+    /// yet → the user's values, exactly. Every mixer at 0 → the same values to within `Float`
+    /// precision (`WeatherMood.visualValues` says why the two are not the same promise).
     ///
-    /// ⛔ THE BEAMER DOES NOT CALL THIS (#1071, measured). `ExternalStageScene`'s
-    /// `ExternalStageView` reads the same four keys and hands them to `MetalBioView` RAW, so
-    /// attaching a projector silently drops the weather tint mid-show. That is the same class
-    /// of gap #609 closed for `autoMode` — and its own comment gives the rule: a swap must not
-    /// change the look. Not fixed here (the blend needs `weatherProvider`, which reaches that
-    /// scene only through `ExternalStageBridge`); the repair lifts THIS function into one
-    /// shared pure helper both sides call, so they cannot diverge again (#416). Pinned by
-    /// `TheBeamerDrawsTheSamePictureTests`, written to go red the day it is closed.
+    /// ⛔ THE BEAMER STILL DOES NOT CALL THE MIX (#1071, measured; HALF-REPAIRED by #1072).
+    /// `ExternalStageScene`'s `ExternalStageView` reads the same four keys and hands them to
+    /// `MetalBioView` RAW, so attaching a projector silently drops the weather tint mid-show.
+    /// That is the same class of gap #609 closed for `autoMode` — and its own comment gives the
+    /// rule: a swap must not change the look.
+    ///
+    /// #1072 built the FOUNDATION half of the recorded repair: the arithmetic now lives once,
+    /// in `WeatherMood.visualValues`, and this function is a caller rather than the owner. What
+    /// is still missing is the CONSUMER half — the scene needs `weatherProvider`, which reaches
+    /// it only through `ExternalStageBridge`, and that is new wiring on a path no gate here can
+    /// run. Until then the two surfaces still differ; they just can no longer differ in the
+    /// ARITHMETIC (#416). Pinned by `TheBeamerDrawsTheSamePictureTests`, written to go red the
+    /// day the second half lands.
     private func weatheredVisuals()
         -> (hue: Double, saturation: Double, intensity: Double, motion: Double) {
+        // #1072 — THE MIX ITSELF MOVED TO `WeatherMood.visualValues`, and what stays here is
+        // only the part that is genuinely this view's: reading ITS keys and ITS provider. The
+        // arithmetic is now one definition, callable from the beamer scene too (#416/#1071).
+        // Behaviour is unchanged — `contribution: nil` is exactly the old guard's neutral
+        // return, and all four mixer-to-parameter pairings are now carried by named fields
+        // instead of by argument order. (⛔ This line said "three" in its first draft, which is
+        // the very slip the pairing guard exists to catch: `glow` → intensity and `movement` →
+        // motion are unlike enough that a copy miscounts them.)
+        let base = WeatherMood.VisualValues(hue: visualHue,
+                                            saturation: visualSaturation,
+                                            intensity: visualIntensity,
+                                            motion: visualMotion)
+        let out = WeatherMood.visualValues(
+            base: base,
+            mixers: WeatherMood.VisualMixers(hue: wxMixHue, saturation: wxMixSat,
+                                             glow: wxMixGlow, movement: wxMixMove),
+            contribution: currentSkyContribution())
+        return (out.hue, out.saturation, out.intensity, out.motion)
+    }
+
+    /// The sky as this view sees it, or `nil` for "weather off, no snapshot yet, or no
+    /// WeatherKit on this platform" — the three cases the old guard clause folded together.
+    ///
+    /// ⚠️ IT IS ITS OWN FUNCTION FOR A NARROW REASON, not for tidiness. Written inline it would
+    /// be a local `var contribution: WeatherMood.Contribution?` left unassigned on the `#else`
+    /// platform, and whether Swift gives a LOCAL optional an implicit `nil` (properties get one;
+    /// locals are governed by definite initialization) is exactly the kind of question that
+    /// costs a CI round-trip here — there is no toolchain in this container to ask. A function
+    /// with `return nil` on every path cannot be wrong about it, and writing `= nil` instead
+    /// would trip SwiftLint's `redundant_optional_initialization`.
+    private func currentSkyContribution() -> WeatherMood.Contribution? {
         #if canImport(WeatherKit) && canImport(CoreLocation)
-        guard weatherEnabled, let snap = weatherProvider.current else {
-            return (visualHue, visualSaturation, visualIntensity, visualMotion)
-        }
-        let wx = WeatherMood.contribution(for: snap)
-        func mix(_ base: Double, _ target: Float, _ intensity: Double) -> Double {
-            Double(WeatherMood.blend(base: Float(base), target: target, intensity: Float(intensity)))
-        }
-        return (mix(visualHue, wx.hue, wxMixHue),
-                mix(visualSaturation, wx.saturation, wxMixSat),
-                mix(visualIntensity, wx.glowTarget, wxMixGlow),
-                mix(visualMotion, wx.motionTarget, wxMixMove))
+        guard weatherEnabled, let snap = weatherProvider.current else { return nil }
+        return WeatherMood.contribution(for: snap)
         #else
-        return (visualHue, visualSaturation, visualIntensity, visualMotion)
+        return nil
         #endif
     }
 
