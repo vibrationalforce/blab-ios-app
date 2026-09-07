@@ -24,6 +24,20 @@ import XCTest
 /// COUNTERWEIGHTS green on both trees: 3 pins the consumer the caption now depends on, and 4
 /// pins that the eight sibling rows stay VISIBLE — an external display renders `MetalBioView`
 /// from the same keys, so hiding them would blank a projector's controls to tidy a caption.
+///
+/// ⛔ #1057 (`04f6b3d0`) CHANGED THE SHAPE OF THE ANSWER AND THIS FILE DID NOT MOVE WITH IT
+/// (#1095). The caption no longer BRANCHES — the ternary's donut arm is deleted, because a
+/// new `if donutIsThePicture { … } else { … }` above it now owns the whole donut state with
+/// its own sentence, and the Rings-only sentence runs only under `if !donutIsThePicture,`.
+/// Same property ("the caption asks which picture is on screen"), different address. Claim 1
+/// anchored on `Text(spectralDonuts` and went RED the moment #1057 landed; it shipped red in
+/// 457 and 458 and never fell inside the 200-line job-log window (#807).
+/// `scripts/moved-needles.py 04f6b3d0` names this file on the first run (#1093).
+/// Claim 4's premise changed too: the nine field-only rows ARE hidden in donut mode now — behind
+/// `donutIsThePicture`, whose second term (`!isProjectingExternally`) is exactly the projector
+/// case the old message warned about. So claim 4 keeps asserting the rows are not DELETED and
+/// stops calling hiding the wrong fix; the two-term condition itself is pinned by
+/// `TheDonutHidesTheDialsItCannotHearTests` and is not repeated here (#416).
 final class TheDetailCaptionKnowsWhichPictureTests: XCTestCase {
 
     private static let studio = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
@@ -46,17 +60,47 @@ final class TheDetailCaptionKnowsWhichPictureTests: XCTestCase {
     }
 
     // 1 — LOAD-BEARING: the caption asks which picture is on screen.
-    func testTheCaptionBranchesOnDonutMode() throws {
-        let text = try source(Self.studio)
-        XCTAssertTrue(text.contains("Text(spectralDonuts"), """
-            The Detail caption no longer reads `spectralDonuts`, so it states one truth for \
-            two different renderers. In donut mode Detail sets the band count and the old \
-            sentence called it inert — telling a player that the one control working in front \
-            of them does nothing. That is worse than no caption, because it is trusted.
+    //
+    // Since #1057 the question is asked ABOVE the caption, not inside it: the Rings-only
+    // sentence may only render while the Metal field is the picture, so its `if` must carry
+    // `!donutIsThePicture` as a term. The donut state's own sentence is owned and pinned by
+    // `TheDonutHidesTheDialsItCannotHearTests` ("Switch back to the field to use them.").
+    func testTheRingsOnlyCaptionRunsOnlyWhileTheFieldIsThePicture() throws {
+        let code = SourceText.codeOnly(try source(Self.studio))
+        let sentence = "Detail shapes the Rings look only"
+        guard let at = code.range(of: sentence) else {
+            XCTFail("""
+                The Rings-only caption ("\(sentence)") is gone from `EchoelStudioView`. If the \
+                wording changed, re-anchor this needle; if the caption was removed, say in this \
+                file what now tells a player that Detail has no reach on a look without Rings.
+                """)
+            return
+        }
+        // The `if` that guards the sentence is the code line four above it. Comments are
+        // stripped (`SourceText.codeOnly`) so the ⛔ prose above the `Text` — which quotes
+        // both names — cannot satisfy the scan; the stripper keeps each comment line's
+        // indentation, so the window is the last SIX NON-BLANK code lines, not a byte count
+        // (a 400-byte window measured 707 bytes short on the real tree — first draft).
+        let window = code[code.startIndex..<at.lowerBound]
+            .split(separator: "\n", omittingEmptySubsequences: true)
+            .map { String($0).trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .suffix(6)
+            .joined(separator: "\n")
+        XCTAssertTrue(window.contains("if !donutIsThePicture,"), """
+            The Rings-only caption is no longer guarded by `!donutIsThePicture`. In donut mode \
+            Detail sets the band count, so this sentence would call the ONE live control inert \
+            — the #1003 defect back in its original form. The guard must be a term of the \
+            caption's own `if`, not a check somewhere else in the body.
+
+            Code scanned before the sentence: \(window)
             """)
-        XCTAssertTrue(text.contains("Detail sets how many bands the donuts draw"), """
-            The donut branch of the caption is gone. If the wording simply changed, re-anchor \
-            this needle; if the branch was removed, claim 1's first half already explains why.
+        XCTAssertTrue(window.contains("detailReach("), """
+            The Rings-only caption no longer consults `LookBlendMap.detailReach` — it is shown \
+            regardless of whether Detail can reach the field. Claim 3 of `LookBlendMap`'s own \
+            guards owns the arithmetic; this file only requires that the caption asks it.
+
+            Code scanned before the sentence: \(window)
             """)
     }
 
@@ -80,16 +124,23 @@ final class TheDetailCaptionKnowsWhichPictureTests: XCTestCase {
             """)
     }
 
-    // 4 — COUNTERWEIGHT: the sibling rows stay on screen.
-    func testTheOtherAdjustRowsAreNotHidden() throws {
+    // 4 — COUNTERWEIGHT: the sibling rows are not deleted.
+    //
+    // ⛔ Until #1095 this said "stay on screen" and its message called hiding them "the
+    // tempting wrong fix". #1057 hid them — behind `donutIsThePicture`, which is FALSE while a
+    // projector is attached, so the beamer's controls stay live. That is the fix the old
+    // message was afraid of, done with the exception it asked for. What must not happen is the
+    // rows being DELETED for tidiness; that is all this claim asserts now.
+    func testTheOtherAdjustRowsAreNotDeleted() throws {
         let text = try source(Self.studio)
         for label in ["label: \"Motion\"", "label: \"Spread\"", "label: \"Hue\"",
                       "label: \"Saturation\"", "label: \"Texture\"", "label: \"Glitter\""] {
             XCTAssertTrue(text.contains(label), """
-                The visual adjust row \(label) is gone. Hiding these to "tidy" the caption is \
-                the tempting wrong fix: `ExternalDisplayScene` renders `MetalBioView` from the \
-                same keys, so with a projector attached they are live even when the on-device \
-                picture is showing donuts. A control that is inert HERE is not inert THERE.
+                The visual adjust row \(label) is gone. Hiding it in donut mode is correct \
+                (#1057, behind `donutIsThePicture`); deleting it is not: `ExternalDisplayScene` \
+                renders `MetalBioView` from the same keys, so with a projector attached these \
+                rows are live even while the on-device picture shows donuts. A control that is \
+                inert HERE is not inert THERE.
                 """)
         }
     }
