@@ -25632,3 +25632,45 @@ und bei jedem Treffer die Behauptung transkribieren, nicht nur die Nadel suchen*
   Wächter kompilieren. Fenster: keine Aussage über ihr Laufen (Beleg = Transkription, s. o.).
 - Zyklus 15:58Z–16:38Z geschlossen: #1094 · #1095 · #1096 · #1097 (vier versteckt rote Wächter,
   alle repariert, alle kompilieren) · PLAYBOOK #1097. Kein Deploy (nur Tests/Doku). Nächster Takt 16:58Z.
+
+## #1098 / #1099 — Sweep 2 (14 ältere Treffer): ein versteckt Roter, ein Leerer — beide vom selben Muster
+
+Workflow `wf_5b72a385-a6d`, 16 Agenten, ~10 min, 0 Fehler. **12 GRÜN, 1 ROT, 1 VACUOUS,
+beide Widerleger reproduzieren.**
+- **`OneChromeControlHeightTests`** — Nadel `.frame(width: 76, height: EchoelTheme.controlHeight)`;
+  **#1023b/#1023c (2026-09-05)** machten die kompakte Tempo-Anzeige zum text-tragenden MINIMUM
+  (`minWidth`/`minHeight`) ohne den Wächter. Zwei Tage rot, kein Gate sagte es (#445). Repariert
+  `621ec7f6` (#1098): Nadel auf die neue Schreibweise (eindeutig in Sources-Codezeilen), Prosa
+  „must never be applied to a text-bearing row" auf „AS A FIXED HEIGHT" verengt — die Behauptung
+  war breiter als ihr Scan (HeaderMonitors only). Mutanten: fester Frame zurück → 0 Treffer rot;
+  Zeile verdoppelt → 2 rot.
+- **`MonitoringCannotStrandTheEngineStoppedTests` Anspruch 6** — suchte `let inFmt = …`; #823
+  (2026-08-25) deklarierte `var`, #976 zog NUR Anspruch 5 nach. Fehlpfad ist `XCTSkip` → zwei
+  Wochen lang nichts behauptet, nichts rot (#806). Repariert `3df138ae` (#1099): EINE Heimat
+  `formatRead` für beide Ansprüche und die Fehlermeldung (#456 eine Datei breit). Mutant:
+  `return false` zwischen Claim und Format-Read entfernt → Anspruch 6 läuft und wird rot.
+- Damit heute **sieben** versteckte Rote/Leere aus zwei Sweeps (#1092, #1094–#1099); alle von
+  demselben Muster (Sources-Umbau streicht die eigene Prosa, nicht den Wächter). Werkzeug #1093
+  fängt es ab jetzt vor dem Commit.
+
+## #1100 — Wasserklangbild, Scheibe W1: der Physik-Kern, bevor ein Pixel existiert
+
+Founder (neu, echt): *„Moment, ich will auch wirklich reale Wasser Klang Bilder haben, wie als
+wenn ein Lautsprecher mit Wasser füllt."* Das hebt den Plan-Eintrag „Faraday dish killed as
+near-term" als SCOPE auf (Nachtrag im Plan); der Physik-Eintrag „chord-driven dish" bleibt.
+- `Core/FaradayDish.swift` (`4a7c681b`): EIN Ton → Antwort f/2, k aus der VOLLEN Relation
+  ω² = (gk + σk³/ρ)·tanh(kh) per 64-Schritt Log-Bisektion, Schwelle a_c = 8νkω/tanh(kh),
+  √-Onset, `capillaryFraction`, `depthFactor`, `highestPatternedDriveHz` für eine Bildunterschrift.
+  Wasser 20 °C, 3 mm. Zwei benannte Wahlen: `speakerAccelerationAtFullDrive` 200 m/s² (≈ 20 g,
+  hergeleitet aus 100 dB SPL / 12-Zoll-Membran → Muster bis ≈ 1,3 kHz) und `saturationExcess` 1.
+- ⛔ **Meine Antwort an den Founder versprach fünf Noten** — im Dateikopf zurückgenommen: die
+  parametrische Instabilität lässt sich nicht superponieren; andere Noten nur als Farbe.
+- Wächter `TheWaterDishObeysFaradayTests` (END-TO-END): gemessen, nicht vorhergesagt —
+  k(2f)/k(f) = 2^(2/3) ± 1,5 % über 200–2000 Hz (schlimmster 0,89 %), Gravitationszweig bei
+  20–40 Hz +8,9 % (Kapillar-Abkürzung wird rot), C4 → 3,023 mm, a_c(200 Hz) = 8,70 m/s²,
+  Stille = Spiegel, volle Fahrt: C3 mustert / 20 kHz nicht, Onset 0,5 bei 1,25·a_c,
+  Reichweite 1301,7 Hz (voll) / 859,3 Hz (halb) / nil (still), Boundary-Sanitizing, Konstanten
+  gepinnt (nicht verboten, #364). Transkription grün, **sechs Mutanten rot**. Kompiliert nicht
+  gegen den Parent (neuer Typ) — Xcode-Gate ist der Beweis. Null Pixel.
+- Offen: W2 Shader (ersetzter stillgelegter Style-Index, Kaustiken + Glanzlichter), W3
+  Bibliothekszeile + Budget + Pins in EINEM Commit, dann Founder-Auge.
