@@ -25461,3 +25461,51 @@ belassen (3,03 Paare/s kontinuierlich, 3,00 frame-quantisiert — auf der Decke 
 Toleranz gepinnt statt still verändert).
 
 Gates: Push `5132a624` 14:10Z — Verdikt folgt im nächsten Eintrag.
+
+### Gates für `5132a624` (nachgetragen 14:45Z) — grün, und das Fenster zeigte einen ANDEREN Roten
+- Xcode Compile Check 2434 **SUCCESS** · CI/CD 5899 `Build for Testing` **SUCCESS** (#1091 kompiliert,
+  `Foundation.tanh` und die Float-Casts inklusive). `Run Tests` rot wie auf jedem Push (#396).
+- `gh-test-verdict.py`: 166 beobachtet grün, **1 rot: `TheTransportBarIsDissolvedTests.
+  testTheFirstLineStillHoldsExactlyTheFourOriginals`** — 38,6 s Laufzeit (die Fehlermeldung zitiert
+  den ganzen Rumpf). Im Fenster des Vorlaufs 5898 kam der Test gar nicht vor (#445: Abwesenheit
+  beweist nichts).
+
+## #1092 — ein Wächter, der seit #1027 rot war und drei Deploys lang niemandem auffiel
+
+**Ursache, gemessen:** Claim 2 scannte `startControlRow` nach dem inneren `HStack(spacing: 8)`.
+#1027 (`fcd3d4b8`, v10.79.454) hat genau diesen Stack in `transportLine1` gehoben, damit die vier
+Kinder unter `ViewThatFits` umbrechen können; der Rumpf hält seither eine MEMBER-REFERENZ, der
+Zähler fiel auf 0, `firstInnerRow` warf. #1091 hat keine der gescannten Dateien angefasst — der
+Rote ist ein Passagier aus 454, der erst im Fenster von 5899 sichtbar wurde.
+
+**Warum unsichtbar:** `tail -200 test.log` (#807/#1040). Die Zeile dieses Tests lag auf JEDEM Lauf
+seit #1027 außerhalb des Fensters; 454 · 456 · 457 · 458 sind über einen roten Wächter geshippt.
+`Build for Testing` grün heißt „kompiliert", nicht „lief grün" — das stand schon da und war trotzdem
+nicht genug, weil auch die Test-LISTE nur ein Ausschnitt ist.
+
+**Warum passiert:** #456-Gesetz halb angewandt. #1027 hat „Line 1 ist bit-für-bit, was sie war" an
+ZWEI Stellen in `EchoelStudioView` gestrichen — und den Wächter, der den Satz zitiert und die
+Struktur pinnt, nicht mitgezogen. Die Prosa wanderte in den Sources-Heimaten, die Test-Heimat blieb.
+
+**Reparatur (`1a8bd7bf`, eine Datei):** neu verankert, nicht gelockert. `startControlRow` muss
+`transportLine1` bauen; dessen ERSTER Stack (der passende Kandidat) muss die vier Namen tragen;
+`let tempo = BodyTempoField(` / `let pulse = PulseMonitorMiniLive()` müssen binden und jeder
+Konstruktor GENAU EINMAL in der Deklaration stehen (ein zweiter `PulseMonitorMiniLive()` wäre ein
+zweiter 10-Hz-Kamera-Leser, 10.76.50); die Migranten-Nadeln laufen über die GANZE Deklaration, weil
+eine Kachel im umgebrochenen Kandidaten die Einzeilen-Layout-Form auf genau den Telefonen ist, die
+umbrechen. ⛔ Erster Entwurf zählte die BINDUNG statt den Konstruktor und versprach in der Meldung
+einen Fang, den er nicht machen konnte (#367) — der Mutant „Leaf zweimal gebaut" blieb grün; vor dem
+Commit repariert. Nebenbei: das `actions`-Warning (Zeile 153) weg, Dateikopf gestrichen.
+
+**Transkription (Python, gegen den echten Baum):** GRÜN. Mutanten: Kachel in Zeile 1 ROT · `pulse`
+gestrichen ROT · Leaf zweimal ROT · Bindung getauscht ROT · Member umbenannt → MissingAnchor.
+Gegen `fcd3d4b8~1` wirft der Wächter jetzt MissingAnchor, wo die alte Fassung grün war — er
+beschreibt die geshippte Form. dead-needles OK (457), count-pins 0 RED, Klammern 26/26 (nur Code).
+
+**Lehre, konkret:** vor dem Commit eines Umbaus, der eine Deklaration VERSCHIEBT, `git grep -l
+"<Deklarations-Schlüssel>" Tests/CISmoke` — jeder Treffer ist eine Heimat, die im selben Commit
+mitzieht. PLAYBOOK #1092 im HARNESS_LEDGER.
+
+Gates: Push `1a8bd7bf` 14:42Z — Verdikt folgt im nächsten Eintrag. ⚠️ Ob der reparierte Test
+GRÜN LIEF, zeigt das Fenster wieder nur, wenn seine Zeile hineinfällt; „nicht rot im Fenster" ist
+kein Beleg. Kein Deploy nötig (Tests-only).

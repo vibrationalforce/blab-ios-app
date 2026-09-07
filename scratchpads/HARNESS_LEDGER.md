@@ -3494,6 +3494,27 @@ Sie wäre klein — den Log-Schritt von `tail -200` auf einen gefilterten Auszug
 `gh-test-verdict.py` gegen ein vollständigeres Artefakt laufen lassen. Das gehört ihm, nicht
 mir. #208 ist derselbe Bereich und steht seit Wochen offen.
 
+## PLAYBOOK #1092 (2026-09-07) — eine Deklaration verschieben heißt: erst die Wächter grepen, die sie verankern
+
+**Vorfall:** #1027 hob den Transport-`HStack` aus `startControlRow` nach `transportLine1` und strich
+die Prosa an zwei Sources-Stellen. `TheTransportBarIsDissolvedTests` verankert denselben Stack im
+alten Rumpf und wurde ROT — unsichtbar, weil `tail -200 test.log` (#807) seine Zeile auf jedem Lauf
+abschnitt. Vier Deploys (454–458) gingen über den roten Wächter; gefunden erst, als #1091s Lauf die
+Zeile zufällig ins Fenster brachte.
+
+**Spielzug, vor dem Commit jedes Umbaus, der eine `var`/`func`/`struct` verschiebt oder umbenennt:**
+```
+git grep -l "private var startControlRow: some View {" Tests/CISmoke     # den ALTEN Schlüssel grepen
+git grep -l "HStack(spacing: 8) {" Tests/CISmoke                          # und die Nadel, die im Rumpf lag
+```
+Jeder Treffer ist eine Heimat und zieht im selben Commit mit (#456 gilt für Tests wie für Prosa).
+Danach die Transkription auch gegen den ELTERN-Baum fahren: ein re-verankerter Wächter, der auf der
+alten Form noch grün ist, hat die Verschiebung nicht verstanden.
+
+**Warum das Fenster nicht reicht:** `Build for Testing` grün = kompiliert. Die Test-LISTE am Ende
+des Logs ist ein Ausschnitt in Laufreihenfolge; ein roter Test außerhalb der 200 Zeilen ist für jede
+Sitzung unsichtbar, bis Zufall ihn hineinschiebt. #208 (founder-gated) ist die echte Reparatur.
+
 ## PLAYBOOK #1087 (2026-09-07) — ein Schwarm-Befund „gibt es nicht" wird mit `grep -i` nachgemessen, BEVOR man ihn in den Commit-Text schreibt
 
 Der Release-Schwarm (`wf_98567780-445`) behauptete, `fastlane/metadata/de-DE/release_notes.txt`
