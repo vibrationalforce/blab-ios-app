@@ -224,7 +224,7 @@
             <section id="specs">
                 <h2>Technical Specs</h2>
                 <div class="data-row"><div class="k">Audio latency</div><div class="v">Real-time, low-latency engine (target &lt;10ms).</div></div>
-                <div class="data-row"><div class="k">Bio loop</div><div class="v">Real-time control loop up to 120Hz.</div></div>
+                <div class="data-row"><div class="k">Bio loop</div><div class="v">The engine polls the bio snapshot at 10&nbsp;Hz. What the sensors deliver is slower and sets the real pace: about one new frame per second (a wrist heart-rate reading is 4–5&nbsp;s behind by nature). Between frames the audio path glides, so the sound moves smoothly rather than in steps.</div></div>
                 <div class="data-row"><div class="k">MIDI</div><div class="v">MIDI 2.0-ready input (UMP) — notes, pitch bend, CC&nbsp;74; MIDI&nbsp;1.0 out via virtual source once a MIDI route is enabled.</div></div>
                 <div class="data-row"><div class="k">Networking</div><div class="v">OSC, ADM-OSC, Art-Net &amp; sACN, live today. Ableton Link planned (target &lt;5ms on LAN).</div></div>
                 <div class="data-row"><div class="k">Visuals</div><div class="v">Metal GPU bio-renderer (heart rate to pulse, coherence to hue, breath to spread); flash rate held under 3&nbsp;Hz.</div></div>
@@ -242,7 +242,7 @@
                 <div class="data-row"><div class="k">Video</div><div class="v">The immersive visual records to H.264 MP4 with the live audio muxed in — a share-ready clip. A video editor (ProRes, multi-cam, LUT grading) is <strong>not planned</strong>: it was built and removed in July&nbsp;2026.</div></div>
                 <div class="data-row"><div class="k">Visuals &amp; mapping</div><div class="v">At launch: Metal GPU bio-visual (heart rate to pulse, coherence to hue, breath to spread), flash-safe. Also at launch: external-display output (USB-C / HDMI or AirPlay &mdash; the visual takes the connected screen as its own stage). Planned: richer 120&nbsp;fps modes, chroma key, projection mapping (warp + edge-blend), multi-screen, NDI &amp; Syphon video-out.</div></div>
                 <div class="data-row"><div class="k">Lighting</div><div class="v">At launch: native Art-Net (UDP 6454) and sACN / E1.31 unicast, zero-dependency, with flash safety. Planned: DMX-512 over USB, HomeKit smart lighting, fixture profiles &amp; cue lists.</div></div>
-                <div class="data-row"><div class="k">Networking &amp; sync</div><div class="v">At launch: OSC&nbsp;1.0 over UDP (EchoelSync) — 6 bio addresses, default localhost:8000. Planned: Ableton&nbsp;Link tempo/phase sync, bidirectional OSC.</div></div>
+                <div class="data-row"><div class="k">Networking &amp; sync</div><div class="v">At launch: OSC&nbsp;1.0 over UDP (EchoelSync) — 9 continuous bio addresses (heart rate, HRV, RMSSD, SDNN, pNN50, breath rate, breath phase, coherence, plus a real-body/demo provenance flag) and 4 discrete event addresses, default localhost:8000. Planned: Ableton&nbsp;Link tempo/phase sync, bidirectional OSC.</div></div>
                 <div class="data-row"><div class="k">Streaming</div><div class="v"><strong>Not planned.</strong> RTMP / RTMPS was scoped and cut &mdash; a broadcast stack is a second product. Echoelmusic goes out live over OSC, ADM-OSC, Art-Net and sACN instead.</div></div>
             </section>
 

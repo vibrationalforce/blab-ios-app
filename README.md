@@ -36,7 +36,7 @@ The root view is `WorkspaceView` — brand header and one surface below it, `Ech
 | **Sound** | Patch editor — presets, tone/filter/envelope/space and vibrato, randomize, save-as |
 | **FX** | EchoelFX chain — stamp a character, then per-stage panels; presets with search and favorites |
 | **Mix** | Level per part |
-| **Master** | Master target and tone, the **Audio input** door (monitoring, tune-to-key, harmony voices, granular texture) and the routing patchbay door |
+| **Master** | Master target and tone, and the routing patchbay door |
 | **Mood** | Production character |
 | **Tempo** | Tempo and variations — tap tempo, metronome, haptic beat, variation ideas |
 | **Field** | The immersive visual's look controls, plus the touch-playable surface below them — quantized with micro-timing, and able to play itself (self-play + arpeggiator) |
@@ -54,7 +54,7 @@ Network routing (OSC · ADM-OSC · Art-Net · sACN · MIDI out) is a patchbay re
 
 ## What ships today
 
-- **`EngineBus`** (`Core/EngineBus.swift`) — hybrid isolation: `@MainActor @Observable` control plane for SwiftUI snapshots; lock-free `SPSCQueue` data plane for audio-thread consumers. Three typed topics: `bioFrames`, `controllerEvents`, `bioEvents`. Bio flows over the `latestBio` snapshot polled at 10 Hz; `controllerEvents` is the queue that is drained and consumed (MIDI). `bioEvents` is drained only to discard a stale backlog, and `bioFrames` is never drained at all — the snapshot is the correct path for a slow signal.
+- **`EngineBus`** (`Core/EngineBus.swift`) — hybrid isolation: `@MainActor @Observable` control plane for SwiftUI snapshots; lock-free `SPSCQueue` data plane for audio-thread consumers. Three typed topics: `bioFrames`, `controllerEvents`, `bioEvents`. Bio flows over the `latestBio` snapshot polled at 10 Hz; `controllerEvents` is the queue that is drained and consumed (MIDI). `bioEvents` is drained by exactly one consumer, `OSCSender.drainAndSendEvents` (OSC egress only — no synth reads it), and `bioFrames` is never drained at all: the snapshot is the correct path for a slow signal.
 - **Bio publishers**, all pushing source-tagged `BioSampleFrame`:
   - `HealthKitBioPublisher` — polls `EchoelBioEngine.snapshot`.
   - `CameraRPPGBioPublisher` — on-device photoplethysmography from the rear camera; locks a pulse without extra hardware.

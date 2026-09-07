@@ -285,7 +285,7 @@ public extension MusicStyle {
     /// voice on Generate, then editable in the FX tool.
     ///
     /// ROOM FLOOR (audit A3 — "instrument is bone dry, in a box"): every REAL production
-    /// happens in SOME space; 12 of the genre presets specified no reverb at all, which
+    /// happens in SOME space; 11 of the genre presets specify no reverb at all, which
     /// left jazz/klezmer/rock playing in a vacuum — the "buzzy/flat" additive fingerprint.
     /// Genres that DESIGN their reverb keep it exactly; the dry ones get a subtle room
     /// (mix 0.10 — felt as depth, not heard as hall). Character presets (telephone,
