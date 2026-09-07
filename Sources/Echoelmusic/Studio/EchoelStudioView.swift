@@ -334,6 +334,23 @@ struct EchoelStudioView: View {
     /// identity look, not because donuts are unreachable.
     @AppStorage(StudioDefaultKeys.visualSpectralDonuts.key)
     private var spectralDonuts = StudioDefaultKeys.visualSpectralDonuts.value
+    /// The note grid drawn over the play surface — which note lives in which cell.
+    ///
+    /// #1064 gave it a door HERE. Until then its only control was a glyph-only button in the
+    /// floating window's chrome bar, THIRD in the shed order — so on a 375 pt phone with a WAV
+    /// take running it was simply absent (`ChromeBudgetFitsTests` drives that state) — and the panel the founder's ask was ABOUT
+    /// ("das Ton Gitter … kompakter und übersichtlicher") had no switch for it at all. The
+    /// window's button stays: two places to press ONE stored flag, not two flags.
+    ///
+    /// The key is the one `FloatingVisualWindow` writes (`StudioDefaultKeys.touchShowGrid`), so
+    /// both views observe the same `UserDefaults` entry — a second key would be the class of
+    /// defect where a toggle moves and nothing on screen changes.
+    ///
+    /// COLD, so it is inside the freeze law (10.76.41/50): `@AppStorage` moves when a finger
+    /// moves it, not ten times a second. Same class as `spectralDonuts` above, which this body
+    /// already reads.
+    @AppStorage(StudioDefaultKeys.touchShowGrid.key)
+    private var touchShowGrid = StudioDefaultKeys.touchShowGrid.value
     /// MetalBioView style when NOT in donut mode: 0 rings · 1 Chladni · 2 plasma · 3 water
     /// · 4 Prism · 5 Aurora · 6 Lissajous · 7 Depth Caustics · 8 Oscilloscope · 9 Fractal.
     /// Default 5 (Aurora) — a richer look out of the box; MUST match FloatingVisualWindow.
@@ -5251,6 +5268,24 @@ struct EchoelStudioView: View {
                 // again from the other side.
                 visualLookStrip(showsDonutState: true)
                 visualLookCustomizer
+                // #1064 — THE NOTE GRID'S DOOR. It sits at the END of "Look" because that is
+                // what it is: the grid changes what you SEE over the play surface, it does not
+                // change a sound. Inside the existing `Group` on purpose — the panel's own
+                // comment three screens up explains that `panel(_:isExpanded:)` takes a
+                // `@ViewBuilder` whose type-check cost grows with the CHILD COUNT, and the
+                // `Group` exists to hold that count down. A fourth child inside it costs the
+                // panel nothing.
+                //
+                // No explanatory caption, deliberately: the founder's ask for this pass is
+                // "kompakter und übersichtlicher", and the label already says what happens. The
+                // sentence that would have gone under it is an `accessibilityHint`, which
+                // costs no screen space and reaches the reader who cannot see the grid appear.
+                Toggle(isOn: $touchShowGrid) {
+                    Text("Note grid on the field")
+                        .font(EchoelTheme.font(13)).foregroundStyle(EchoelTheme.text)
+                }
+                .tint(EchoelTheme.accent)
+                .accessibilityHint("Draws each note's cell over the field in its own physical colour, so you can see which note you are about to play.")
             }
             // The A/B "Blend with" strip left this surface 2026-07-07 (founder: minimize —
             // the mix was extra clicking) and the view itself is DELETED as of #324. The
