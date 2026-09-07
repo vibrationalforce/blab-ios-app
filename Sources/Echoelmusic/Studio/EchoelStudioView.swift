@@ -5225,8 +5225,6 @@ struct EchoelStudioView: View {
             // and silently re-space three rows that were fine.
             Group {
                 groupHeader("Look")
-                // `false`: this panel's visual is `FloatingVisualWindow`, which never reads
-                // `spectralDonuts` — so claiming donut state here is a claim about another surface.
                 // `true` since #1056, and it was `false` for two cycles too long. The
                 // parameter asks "can the picture this strip belongs to actually SHOW the
                 // donut?" — and #1043 made the answer yes here by porting the donut branch
@@ -5874,9 +5872,21 @@ struct EchoelStudioView: View {
             //
             // Dragging the slider morphs STUFENLOS between the looks (continuous crossfade
             // via style/styleB/blend, mapping in LookBlendMap). Its setter still clears
-            // `spectralDonuts` — harmless now that nothing REACHABLE sets it true (the word
-            // matters: the overlay's own toggle and this setter are both still writers), and
-            // correct again the day the pill returns.
+            // `spectralDonuts`.
+            //
+            // ⛔ "harmless now that nothing REACHABLE sets it true" stood here and is FALSE
+            // (#1057). #747 gave `showVisual` a door — `EchoelStudioView.swift:5180` writes it
+            // `true` from the Visual panel's "Full screen" — so the overlay's donut toggle is
+            // reachable, `spectralDonuts` can be true, and this clear is LOAD-BEARING rather
+            // than dormant. The paragraph above even names the debt ("Bring the pill back in
+            // the SAME commit that gives `showVisual` a setter again"); that commit came and
+            // nothing came with it. Same shape as #1056 two hours earlier: a claim whose
+            // premise a later slice quietly falsified, in a file that says so about itself.
+            //
+            // ⚠️ The pill debt is NOT paid here and is not forgotten either — it is a door
+            // question (the inline panel has no donut toggle at all, only the overlay does),
+            // which is its own slice under the founder's "eine Steuer-Einheit" ask, not a
+            // side effect of a caption fix.
             if LookBlendMap.maxPosition(for: sliderLooks) > 0 {
                 Slider(value: lookScrub, in: 0...LookBlendMap.maxPosition(for: sliderLooks))
                     .tint(EchoelTheme.accent)
@@ -6196,6 +6206,20 @@ struct EchoelStudioView: View {
         #endif
     }
 
+    /// Is the DONUT what the player is actually looking at right now?
+    ///
+    /// Not the same question as `spectralDonuts`, and the difference is a whole state (#1057).
+    /// With a projector attached, `FloatingVisualWindow` checks its external-stage branch BEFORE
+    /// its donut branch — so the window shows a placard and `ExternalDisplayScene` renders the
+    /// METAL FIELD, reading `visual.hue`/`visual.saturation` from the same keys the panel writes.
+    /// The field's dials therefore DO reach a picture in that state, and hiding them would trade
+    /// a lying control for a missing one.
+    ///
+    /// Named once here rather than spelled out at each use: the condition decides what four
+    /// separate blocks of `visualAdjustFields` render, and four copies of a two-term condition is
+    /// four chances for the next renderer to be added to three of them (#416).
+    private var donutIsThePicture: Bool { spectralDonuts && !isProjectingExternally }
+
     private func disableKeepAwake() {
         #if canImport(UIKit)
         UIApplication.shared.isIdleTimerDisabled = false
@@ -6425,10 +6449,47 @@ struct EchoelStudioView: View {
     /// landscape. Passing some other number would not merely re-space portrait; it would make
     /// the split visible.
     @ViewBuilder private func visualAdjustFields(spacing: CGFloat) -> some View {
-        EchoelValueField(label: "Energy", value: visualEnergy, range: 0...1, decimals: 2)
-        Text("Calm ↔ energetic, across the same range the presets span. Fine tune holds the individual parameters.")
-            .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
-            .fixedSize(horizontal: false, vertical: true)
+        // ⭐ #1057 — IN DONUT MODE NINE OF THESE TEN FIELDS CANNOT REACH THE PICTURE.
+        // `SpectralDonutView` declares exactly two inputs, `reduceMotion` and `bandCount`, and
+        // `bandCount` is `max(8, Int(visualDetail))`. So Detail is live and Energy, Intensity,
+        // Motion, Spread, Hue, Saturation, Texture, Glitter and Structure are inert — nine
+        // dials a player can drag while nothing on screen changes. That is the lying-control
+        // class #1003 fixed for ONE row, here nine rows wide, and hiding them is also exactly
+        // what the founder asked the visual section for: "kompakter und übersichtlicher".
+        //
+        // ⚠️ HIDDEN, NOT CAPTIONED, AND THE #269 PRECEDENT DOES NOT APPLY. That row is kept
+        // visible because its condition flips as the LOOK SLIDER is dragged — a row vanishing
+        // under the finger mid-drag is worse than a row plus a sentence. This condition is a
+        // TOGGLE: it changes when the player deliberately switches renderer, which is the one
+        // moment a layout change reads as an answer rather than as a glitch.
+        //
+        // ⚠️ AND THE EXTERNAL-STAGE TERM IS LOAD-BEARING, not defensive padding. With a
+        // projector attached, `FloatingVisualWindow` checks its external-stage branch BEFORE
+        // its donut branch and shows a placard, while `ExternalDisplayScene` renders the METAL
+        // FIELD and reads `visual.hue`/`visual.saturation` straight from the same keys. So in
+        // that state the dials DO reach a picture — the beamer's — and hiding them would swap
+        // one lying control for a missing one. `isProjectingExternally` is the existing
+        // definition of that question (#416, added by #1044) and is COLD: it changes only when
+        // a cable or an AirPlay route does, never at bio rate, so reading it here does not
+        // touch the 10.76.41/50 freeze law.
+        //
+        // ⚠️ ONE `if/else` INSIDE THIS MEMBER, not a split into two members, and the reason is
+        // two guards rather than taste: `VisualFineTuneReflowsTests.fineTuneBody()` and
+        // `VisualPresetValuesAreReachableTests` both brace-match the body of
+        // `private func visualAdjustFields(`, and their counts (2 grids, 10 rows) are only
+        // correct while those rows stay INSIDE it. Splitting the field half into its own member
+        // would have made both go red on a correct tree — the #456 bill, avoided by keeping the
+        // anchor rather than paying it.
+        if donutIsThePicture {
+            Text("The donuts draw a set number of bands of the spectrum — Detail, under Fine tune, is the one dial that reaches them. The field's dials (Energy, Intensity, Motion, Spread, Hue, Saturation, Texture, Glitter, Structure) do not, so they are hidden here instead of shown doing nothing. Switch back to the field to use them.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        } else {
+            EchoelValueField(label: "Energy", value: visualEnergy, range: 0...1, decimals: 2)
+            Text("Calm ↔ energetic, across the same range the presets span. Fine tune holds the individual parameters.")
+                .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
+                .fixedSize(horizontal: false, vertical: true)
+        }
         Button {
             showVisualFineTune.toggle()
         } label: {
@@ -6454,8 +6515,15 @@ struct EchoelStudioView: View {
         .accessibilityHint("Shows or hides the individual visual parameters")
         if showVisualFineTune {
             AdaptiveCardGrid(spacing: spacing) {
-                EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
-                                 decimals: 2, onChange: { visualPresetDiverged() })
+                if !donutIsThePicture {
+                    EchoelValueField(label: "Intensity", value: $visualIntensity, range: 0...1.5,
+                                     decimals: 2, onChange: { visualPresetDiverged() })
+                }
+                // The ONE row that survives donut mode — `SpectralDonutView(bandCount:)` reads it.
+                // Declared ONCE and conditionally accompanied, rather than a second copy inside a
+                // donut branch: two `label: "Detail"` declarations would be #416, and two guards
+                // (`VisualPresetValuesAreReachableTests`, `VisualFineTuneReflowsTests`) count the
+                // rows in this member on purpose.
                 EchoelValueField(label: "Detail", value: $visualDetail, range: 8...90, decimals: 0,
                                  onChange: { visualPresetDiverged() })
             }
@@ -6475,7 +6543,8 @@ struct EchoelStudioView: View {
             //
             // The condition is a plain read of three user-set values — no live-bio churn, and
             // no invalidation source the body did not already have.
-            if LookBlendMap.detailReach(style: visualStyle, styleB: visualStyleB,
+            if !donutIsThePicture,
+               LookBlendMap.detailReach(style: visualStyle, styleB: visualStyleB,
                                         blend: visualBlend) < 0.001 {
                 // TWO steps, and the first version said one. Adding Rings under "Slider looks"
                 // only re-snaps the visual when the CURRENT style fell out of the set
@@ -6494,12 +6563,19 @@ struct EchoelStudioView: View {
                 // `LookBlendMap`'s own doc predicted this verbatim ("wrong the day it is
                 // re-doored"); #747 re-doored the cover and nothing moved with it. A note
                 // that predicts its own expiry names no owner — hence the guard.
-                Text(spectralDonuts
-                     ? "Detail sets how many bands the donuts draw. For the Rings look it also needs Rings under Slider looks above, with the look slider dragged onto it."
-                     : "Detail shapes the Rings look only. Add Rings under Slider looks above, then drag the look slider onto it.")
+                // ⛔ #1057 — THE DONUT ARM OF THIS TERNARY IS GONE, and it is gone because it
+                // became UNREACHABLE rather than because it was wrong. #1003 added it for the
+                // right reason (in donut mode Detail is the ONE live field, and this caption
+                // was calling it inert). The donut branch above now owns that whole state and
+                // says it in its own sentence, so this body only ever runs while the METAL
+                // FIELD is what is rendering. A ternary whose second arm can no longer be
+                // selected is a claim nothing can falsify — the shape this file has retracted
+                // twice — so it is deleted, not left as a comment-shaped reassurance.
+                Text("Detail shapes the Rings look only. Add Rings under Slider looks above, then drag the look slider onto it.")
                     .font(EchoelTheme.font(11)).foregroundStyle(EchoelTheme.dim)
                     .fixedSize(horizontal: false, vertical: true)
             }
+            if !donutIsThePicture {
             AdaptiveCardGrid(spacing: spacing) {
                 EchoelValueField(label: "Motion", value: $visualMotion, range: 0...1.5,
                                  decimals: 2, onChange: { visualPresetDiverged() })
@@ -6518,6 +6594,7 @@ struct EchoelStudioView: View {
                 // stage did not exist before, so 0 IS the shipped look. Same
                 // palette-class rule: not part of the presets, no divergence call.
                 EchoelValueField(label: "Structure", value: $visualStructure, range: 0...2, decimals: 2)
+            }
             }
         }
     }
