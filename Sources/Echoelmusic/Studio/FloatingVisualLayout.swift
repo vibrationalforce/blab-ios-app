@@ -249,6 +249,11 @@ public enum FloatingVisualLayout {
         public var gridToggle = false
         public var videoRecord = false
         public var wavRecord = false
+        /// The still shutter (#1063). FULLSCREEN-ONLY, like `lookSlider` and `studioChip`:
+        /// it is the picture's own control and the small card's never-shed floor (140 pt
+        /// against a ≈147 pt card) has no room for a seventh item. Costs one
+        /// `iconButton` + one gap, the same as `gridToggle` and `videoRecord`.
+        public var stillShutter = false
         public init() {}
     }
 
@@ -288,6 +293,19 @@ public enum FloatingVisualLayout {
     /// information; the grid toggle is a display aid; the two RECORDERS are the only
     /// items whose loss can cost a performer a take, so they shed last.
     ///
+    /// ⭐ #1063 PUT THE STILL SHUTTER BETWEEN THE DISPLAY AID AND THE IDLE VIDEO BUTTON,
+    /// and the reason is the ranking's own principle rather than a free slot. A still and
+    /// an idle video button are both "start a capture" doors, so neither is a display aid
+    /// and neither is a stop button — the tie-breaker is what a lost door COSTS. A still is
+    /// one frame of a picture that is still on screen: the same frame class is there a
+    /// second later, so losing the shutter costs a convenience. A video take is a DURATION,
+    /// and the seconds you did not start are gone — so the idle video button outranks it.
+    /// Below both sits the grid toggle, which changes only what you SEE.
+    ///
+    /// It is FULLSCREEN-ONLY (`fit.stillShutter = isFullscreen`), so the small card's
+    /// never-shed floor — the 140 pt against a ≈147 pt card that `ChromeCost.iconButton`
+    /// spells out — is byte-identical to before this item existed.
+    ///
     /// - Parameters:
     ///   - cardWidth: the card the bar must fit inside — `cardSize(...).width`, or the
     ///     full bounds width in fullscreen.
@@ -319,6 +337,7 @@ public enum FloatingVisualLayout {
         fit.gridToggle = true
         fit.videoRecord = true
         fit.wavRecord = true
+        fit.stillShutter = isFullscreen
 
         // A degenerate width must not silently return "everything fits" — that is the
         // failure this whole type exists to stop. Shed to the floor instead, but keep a
@@ -339,6 +358,7 @@ public enum FloatingVisualLayout {
             if f.miniTransport { total += ChromeCost.miniTransport; items += 1 }
             if f.gridToggle    { total += ChromeCost.iconButton;    items += 1 }
             if f.videoRecord   { total += ChromeCost.iconButton;    items += 1 }
+            if f.stillShutter  { total += ChromeCost.iconButton;    items += 1 }
             if f.wavRecord {
                 total += wavBusy ? ChromeCost.wavRecording : ChromeCost.iconButton
                 items += 1
@@ -386,7 +406,8 @@ public enum FloatingVisualLayout {
         var shed: [(inout ChromeFit) -> Void] = [
             { $0.lookSlider = false },
             { $0.miniTransport = false },
-            { $0.gridToggle = false }
+            { $0.gridToggle = false },
+            { $0.stillShutter = false }
         ]
         // The recorders shed only when they are IDLE. Busy, each one is its own take's
         // stop button (`stop.circle.fill`) and is pinned — see the ⛔ note on the

@@ -1165,6 +1165,30 @@ struct FloatingVisualWindow: View {
                                           : "Video recording unavailable while the visual is on the external screen")
                                        : "Record MP4 video"))
             }
+            // #1063 — THE STILL SHUTTER, WHERE THE PICTURE IS. D1's ask is *"aktuell gibt es
+            // fullscreen Mode das soll aber alles zu einem Ding zusammen gefasst werden"*: the
+            // fullscreen cover and this window are two chromes over ONE renderer, and every
+            // control that lives on only one of them is a reason the merge cannot happen. The
+            // shutter was the cover's alone (`EchoelStudioView.swift`, one site).
+            //
+            // ⛔ THE COMMENT AT THAT SITE ARGUED THE OPPOSITE, and it argued it correctly for
+            // its own day: the bar is width-budgeted (never-shed floor 140 pt against a ≈147 pt
+            // small card), so "a seventh button there would mean a new shed rank and a change to
+            // `ChromeBudgetFitsTests`". That is not a reason not to do it — it is the PRICE, and
+            // this slice pays it: `ChromeFit.stillShutter` is fullscreen-only, so the small card
+            // is untouched, and the new rank is argued in `chromeFit`'s own ranking doc.
+            //
+            // Both surfaces mount it while the cover still exists. That is ONE still with two
+            // places to press — the same shape as the record button after #747 — not a second
+            // recorder: `recorder` is the one `@Environment(VisualRecorder.self)` instance. The
+            // cover's copy goes when the cover does.
+            //
+            // The outcome sentence is READ inside `StillShutterButton`, never here. This body is
+            // not a menu host, but the 10.76.41/50 rule is about where the read LIVES, and the
+            // leaf costs nothing (see the leaf's own header).
+            if windowSize.isFullscreen, fit.stillShutter {
+                StillShutterButton(recorder: recorder, answer: .below)
+            }
             #endif
             Button { cycleSize() } label: {
                 // Cycles Small → Medium → Large → Fullscreen → Small. Shows a "contract"

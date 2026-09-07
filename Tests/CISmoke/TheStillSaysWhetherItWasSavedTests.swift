@@ -112,6 +112,48 @@ final class TheStillSaysWhetherItWasSavedTests: XCTestCase {
         }
     }
 
+    // 6 — #1063: the shutter reaches the surface D1 is merging everything into, and its answer
+    // does not eat the bar's width. Both halves matter and only together: mounting the button in
+    // a row with 0 pt of measured slack on a 375 pt phone would put the sentence back where it
+    // gets compressed to nothing, which is the silence claim 1 exists to forbid.
+    func testTheWindowMountsTheShutterWithAnAnswerThatCostsNoBarWidth() throws {
+        let window = try source("Sources/Echoelmusic/Studio/FloatingVisualWindow.swift")
+        XCTAssertTrue(window.contains("StillShutterButton(recorder: recorder, answer: .below)"), """
+            The floating window does not mount the shutter with the overlay answer. Once the \
+            fullscreen cover is deleted (S3 of PLAN_ONE_VISUAL_SURFACE_2026-09-07) this is the \
+            ONLY door to the still — and `.beside` here would place a sentence in a row that \
+            `ChromeBudgetFitsTests` measures at 0 pt of slack on a 375 pt phone.
+            """)
+        XCTAssertTrue(window.contains("fit.stillShutter"), """
+            The mount does not consult the chrome budget. An unbudgeted item draws past the \
+            card and off the screen — the founder's original "geht über den Rand hinaus".
+            """)
+        for needle in ["lastStillOutcome", "stillOutcomeToken", "requestStill("] {
+            XCTAssertFalse(window.contains(needle), """
+                `FloatingVisualWindow` touches `\(needle)` itself. The tap and the outcome read \
+                belong to the leaf — one owner, so a second call site cannot show no sentence \
+                (claim 4 makes the same demand of `EchoelStudioView`).
+                """)
+        }
+
+        // COUNTERWEIGHT (#367): the leaf really has TWO placements and the overlay really is the
+        // one that claims no layout width. Without this, the needle above would pass over a
+        // parameter that both call sites write and nothing reads.
+        let leaf = try source("Sources/Echoelmusic/Studio/StillShutterButton.swift")
+        for needle in ["case beside", "case below", "answer == .beside", "answer == .below",
+                       ".overlay(alignment: .bottomTrailing)"] {
+            XCTAssertTrue(leaf.contains(needle), """
+                `StillShutterButton` no longer spells "\(needle)". The two placements are the \
+                reason one leaf can serve a row with no width budget AND a bar with none to \
+                spare; collapsing them silently picks one of the two defects.
+                """)
+        }
+        XCTAssertTrue(leaf.contains("let answer: AnswerPlacement"), """
+            The placement gained a default. #431: a defaulted argument no call site writes never \
+            shows up in a diff — and here the wrong value is a sentence nobody can read.
+            """)
+    }
+
     // 5 — one actor hop per STILL, never per frame. The 30 fps ban is the reason `capture` had no
     // hop at all before this slice; a hop that crept out of the `if wantsStill` block would fire
     // on every recorded frame.

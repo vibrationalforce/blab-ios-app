@@ -1643,13 +1643,30 @@ struct EchoelStudioView: View {
                         TakeOutcomeLine(recorder: visualRecorder)
 
                         // #985 — ONE FRAME AS A PICTURE. The cheapest artefact of the output
-                        // stage: a cover, a post, the frame worth keeping. Deliberately here in
-                        // the FULLSCREEN row and not in the floating window's toolbar — that one
-                        // is width-budgeted (`FloatingVisualLayout.chromeFit`, never-shed floor
-                        // 140 pt against a ~147 pt small card), so a seventh button there would
-                        // mean a new shed rank and a change to `ChromeBudgetFitsTests`. This row
-                        // has no width budget, and fullscreen is where you are LOOKING at the
-                        // picture, which is when a still is a considered act rather than a miss.
+                        // stage: a cover, a post, the frame worth keeping. Fullscreen is where
+                        // you are LOOKING at the picture, which is when a still is a considered
+                        // act rather than a miss.
+                        //
+                        // ⛔ THIS BLOCK SAID THE SHUTTER BELONGED HERE AND NOT IN THE FLOATING
+                        // WINDOW'S TOOLBAR, because that bar is width-budgeted
+                        // (`FloatingVisualLayout.chromeFit`, never-shed floor 140 pt against a
+                        // ~147 pt small card) and "a seventh button there would mean a new shed
+                        // rank and a change to `ChromeBudgetFitsTests`". Every measured word of
+                        // that is still true — it just names a PRICE, not a reason, and #1063
+                        // paid it: `ChromeFit.stillShutter` is fullscreen-only, so the small
+                        // card's floor is byte-identical, and the new rank is argued in
+                        // `chromeFit`'s own ranking doc. D1's ask ("alles zu einem Ding
+                        // zusammen gefasst") cannot be met while a control lives on only one of
+                        // the two chromes over ONE renderer.
+                        //
+                        // So BOTH mount it while the cover still exists: one still, two places
+                        // to press, sharing the one `VisualRecorder` — the shape the record
+                        // button has had since #747, not a second recorder. This copy goes when
+                        // the cover does (S3 of `PLAN_ONE_VISUAL_SURFACE_2026-09-07.md`).
+                        //
+                        // `answer: .beside` — this row has no width budget, so the sentence sits
+                        // next to the button. The window's copy passes `.below` because the
+                        // measured slack in that bar is 0 pt on a 375 pt phone.
                         //
                         // No share sheet: the still goes straight to Photos, exactly like the
                         // video's `saveToPhotoLibrary`. A `.sheet` here would grow the
@@ -1660,7 +1677,7 @@ struct EchoelStudioView: View {
                         // an encode failure and a success were one and the same silence, with the
                         // only trace in a log the founder cannot see. The outcome read lives in
                         // that leaf, never here: this body hosts the genre/key `.menu` Pickers.
-                        StillShutterButton(recorder: visualRecorder)
+                        StillShutterButton(recorder: visualRecorder, answer: .beside)
                     }
                     #endif
                     Button { showVisual = false } label: {

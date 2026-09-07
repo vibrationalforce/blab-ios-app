@@ -19,7 +19,28 @@ import SwiftUI
 /// change cannot move one without seeing the other.
 struct StillShutterButton: View {
 
+    /// WHERE THE ANSWER GOES. #1063 measured why this had to become a choice rather than stay
+    /// one layout: `FloatingVisualLayout.chromeFit` reports **0 pt of slack** in the fullscreen
+    /// bar on a 375 pt phone with nothing recording, and 18 pt on a 393 pt one. A sentence
+    /// placed IN that row would be compressed to nothing — SwiftUI shrinks a `Text` before it
+    /// shrinks the rigid icon frames beside it — so the button would be back to the silence
+    /// #986 exists to remove, in the surface D1 is merging everything into.
+    ///
+    /// The tap and its answer still live in ONE view, which is the #986 law. Only the
+    /// GEOMETRY differs.
+    enum AnswerPlacement {
+        /// Beside the button, in the same row. For a row with no width budget.
+        case beside
+        /// Hanging below the button as an OVERLAY — it contributes no layout width, so a
+        /// width-budgeted bar is unaffected whether the sentence is up or not.
+        case below
+    }
+
     let recorder: VisualRecorder
+
+    /// No default, on purpose (#431): a defaulted argument that no call site writes never
+    /// appears in a diff, so the choice would be invisible exactly where it matters.
+    let answer: AnswerPlacement
 
     /// The sentence currently on screen, or nil. LOCAL on purpose: the recorder owns the FACT
     /// (which outcome), this view owns the PRESENTATION (how long it stays). A timestamp on the
@@ -31,6 +52,11 @@ struct StillShutterButton: View {
     /// is gone before the next considered tap.
     private static let dwell: Duration = .seconds(2.2)
 
+    /// How far below the button the overlay answer hangs. The chrome bar is 44 pt tall and the
+    /// camera glyph is centred in it, so ~30 pt clears the bar's lower edge and puts the sentence
+    /// over the picture — where the eye already is after a considered tap.
+    private static let answerDrop: CGFloat = 30
+
     var body: some View {
         HStack(spacing: 8) {
             Button { recorder.requestStill() } label: {
@@ -40,13 +66,26 @@ struct StillShutterButton: View {
             }
             .accessibilityLabel("Save this frame as a picture")
 
-            if let outcome = shown {
-                Text(StillFeedback.sentence(for: outcome))
-                    .font(EchoelTheme.font(12))
-                    .foregroundStyle(outcome == .saved ? EchoelTheme.text : EchoelTheme.recording)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .transition(.opacity)
-                    .accessibilityAddTraits(.updatesFrequently)
+            if answer == .beside, let outcome = shown {
+                answerText(outcome)
+            }
+        }
+        // TRAILING, so a long sentence ("Photos access is off — allow it in Settings") grows
+        // LEFT into the picture instead of off the right edge — the shutter sits near the end of
+        // the bar. `fixedSize` keeps it one unwrapped line; the overlay itself claims no layout
+        // width, which is the whole reason this placement exists.
+        .overlay(alignment: .bottomTrailing) {
+            if answer == .below, let outcome = shown {
+                answerText(outcome)
+                    .fixedSize()
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 5)
+                    .background(RoundedRectangle(cornerRadius: EchoelTheme.radius)
+                        .fill(EchoelTheme.bg.opacity(0.92)))
+                    .offset(y: Self.answerDrop)
+                    // Display only: a tap here belongs to the play surface underneath, and the
+                    // sentence clears itself after `dwell`.
+                    .allowsHitTesting(false)
             }
         }
         // The TOKEN is watched, never the outcome value: two denials in a row are two events and
@@ -64,6 +103,17 @@ struct StillShutterButton: View {
             guard !Task.isCancelled else { return }
             withAnimation(.easeOut(duration: 0.2)) { shown = nil }
         }
+    }
+
+    /// The sentence itself — ONE definition for both placements, so the two can differ in
+    /// geometry and never in words or colour.
+    private func answerText(_ outcome: VisualRecorder.StillOutcome) -> some View {
+        Text(StillFeedback.sentence(for: outcome))
+            .font(EchoelTheme.font(12))
+            .foregroundStyle(outcome == .saved ? EchoelTheme.text : EchoelTheme.recording)
+            .fixedSize(horizontal: false, vertical: true)
+            .transition(.opacity)
+            .accessibilityAddTraits(.updatesFrequently)
     }
 }
 
