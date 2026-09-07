@@ -3,9 +3,10 @@
 # Note: www-to-non-www and HTTP-to-HTTPS are handled by Cloudflare domain settings
 # =============================================================================
 
-# App Store shortcut (app not yet released — point to overview until live)
-/app /overview.html 302
-/download /overview.html 302
+# App Store shortcut (app not yet released — point to the homepage, whose hero
+# carries the TestFlight request; repoint to the App Store URL once live)
+/app / 302
+/download / 302
 
 # Common page aliases
 /datenschutz /privacy.html 301
