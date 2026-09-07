@@ -353,3 +353,39 @@ Warnung aus §2. Wird gebaut, dann in DIESER Reihenfolge: erst die reine Zeilen-
 Werttyp mit Wächter, dann die Ansicht; nie umgekehrt, weil eine Budget-Änderung ohne die
 passende Ansicht den Balken wieder über den Rand schiebt — der Defekt, aus dem `chromeFit`
 überhaupt entstanden ist.
+
+---
+
+## §7 — Schritt 2 der Beamer-Reparatur: GEMESSEN, noch nicht gebaut (#1072 → #1073)
+
+#1072 hat die Fundament-Hälfte geliefert: `WeatherMood.visualValues(base:mixers:contribution:)`
+ist die EINE Definition der Mischung, rein, öffentlich, end-zu-end gefahren. Es fehlt die
+Verbraucher-Hälfte: `ExternalStageView` ruft sie nicht.
+
+### Was gemessen ist (nicht geschätzt)
+
+| Frage | Messung |
+|---|---|
+| Wie erreicht die Szene Telefon-Zustand? | NUR über `ExternalStageBridge.shared` — die Szene wird von UIKit gebaut und erbt KEINE `@Environment` |
+| Wie viele Mitglieder hat die Brücke heute? | **VIER** (`bus`, `governor`, `recorder`, `synth`) — ⛔ ihr eigener Kopf-Kommentar sagt „three optional references"; `synth` kam mit **#594 slice 2** dazu, und zwar **für exakt diese Klasse Problem** („beamer tint parity"). Die Warnung „do not add a fourth thing here" ist also schon überholt UND hat einen dokumentierten Präzedenzfall gegen sich. Beides gehört im selben Commit korrigiert (#456) |
+| Ist `WeatherProvider` direkt tragbar? | **Nein, teuer.** Die ganze Klasse liegt in `#if canImport(WeatherKit) && canImport(CoreLocation)`; die Brücke liegt in `#if canImport(UIKit)`. Ein Mitglied dieses Typs macht `wire(...)` plattform-abhängig — zwei Signaturen für eine Sache |
+| Kann die Szene das Wetter selbst rekonstruieren? | **Nein, ausgeschlossen.** `WeatherSnapshot` wird NIRGENDS persistiert (`WeatherProvider`: „Nothing is stored beyond the in-memory cache"). Es gibt nichts zu lesen |
+| Was fehlt der Szene sonst noch? | fünf `@AppStorage`-Lesungen: `weather.enabled` + die vier `WeatherMood.Param.<x>.mixKey` (`"weather.mix.<rawValue>"`). Die Szene liest bereits 13 Schlüssel auf genau diese Art |
+| ⭐ Rechnet die Telefon-Seite die Contribution EINMAL? | **NEIN — an ZWEI Stellen, mit ZWEI Lebensdauern.** `EchoelStudioView:4261` schreibt `weatherContribution` **nur beim Start einer Session mit Ortsfix**; `FloatingVisualWindow.currentSkyContribution()` rechnet **live aus dem 30-Minuten-Cache**. Beide rufen dieselbe reine Funktion, also keine Arithmetik-Divergenz — aber eine **Zeit**-Divergenz, und genau die entscheidet, welcher Schreiber der richtige ist |
+
+### Optionen, mit ihrem echten Preis
+
+- **A — die Brücke trägt den `WeatherProvider`.** Verworfen: verschachteltes `#if`, plattform-abhängige `wire(...)`-Signatur. Der Preis ist strukturell, nicht kosmetisch.
+- **B — die Brücke trägt die reine `WeatherMood.Contribution?`** (Werttyp, `Sendable`, `Equatable`, Foundation-only, KEIN Framework-Guard) plus `setSky(_:)` neben `setConnected(_:)`. Die „schmalste mögliche Brücke"-Doktrin bleibt gewahrt: ein WERT, kein Engine-Objekt, keine Verhaltensfläche.
+  - **B1 — Schreiber = `EchoelStudioView:4261`** (eine Zeile, die Berechnung steht schon da). ⚠️ **Falsche Lebensdauer:** die Tönung des Beamers hinge dann am letzten Session-Start, die des Telefons am Live-Cache. Ein Beamer, der eine andere Stunde zeigt als das Telefon, ist derselbe Defekt wie einer, der gar nicht tönt.
+  - **B2 — Schreiber = `FloatingVisualWindow`, `.onChange(of: weatherProvider.current)`.** Gleiche Lebensdauer wie die Telefon-Tönung, per Konstruktion. Das Fenster ist seit #1069 IMMER montiert, also gibt es keinen Zustand, in dem niemand schreibt. Freeze-Gesetz unberührt: `current` wechselt ~alle 30 Minuten, nicht mit Bild- oder Bio-Rate, und `.onChange` ist ohnehin keine Rumpf-Auswertung.
+
+### Council — kompakt
+
+· **Architect:** B2 — ein Werttyp verletzt die Schmal-Doktrin nicht; ein Engine-Objekt hätte sie verletzt. Sorge: die Brücke wächst auf fünf, also muss ihr Kopf im selben Commit ehrlich werden, sonst ist die nächste Sitzung ratlos.
+· **Skeptic:** B1 sieht billiger aus und ist die Falle — es liefert eine Tönung, die *fast* stimmt, und ein „fast" auf einer Bühne ist teurer als ein sauberes Nichts. Die Zeit-Divergenz wäre nur mit Beamer sichtbar, also praktisch nie hier messbar.
+· **User-Advocate:** Der Founder hat die Frage „wettergemischt oder roh?" noch offen. B2 baut die FÄHIGKEIT; ob sie AN ist, bleibt sein `weather.enabled`-Schalter — die Antwort wird ihm nicht abgenommen.
+· **Shipper:** Ein Mitglied, ein Setzer, ein `.onChange`, fünf Lesungen, ein Aufruf. Danach **`TheBeamerDrawsTheSamePictureTests.swift` LÖSCHEN** (sagt jede seiner Meldungen) und die zwei ⛔-Notizen mitziehen.
+
+→ **Empfehlung: B2. Gate: proceed** — reversibel, kein neues Framework, keine neue Fläche.
+⚠️ Bleibt bewusst offen und ist NICHT meine Entscheidung: ob der Beamer die Tönung tragen SOLL. B2 macht die zwei Bilder gleich; welches Bild richtig ist, ist der Founder-Blick.
