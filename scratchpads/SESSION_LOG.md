@@ -24924,3 +24924,49 @@ Ausführbares widersprach ihr. Beide Stellen in einem Commit (#456), die Rückna
 Deklaration stehen.
 
 **Gate gelesen:** `Xcode Compile Check` = **success** auf `b7452784` (#1060).
+
+## Plan D1 + #1062 — Vor dem grossen Umbau erst messen (2026-09-07)
+
+**Gate gelesen:** `Xcode Compile Check` = **success** auf `50c2d931` (#1061 + #1061a) — die
+neuen Swift-Teile (zwei `fieldPosition`-Überladungen, die neue `MetalBioView`-Eigenschaft als
+LETZTER Memberwise-Parameter, der neue Aufruf im Renderer) kompilieren. ⚠️ Der Lauf für
+`d190bcd3` steht auf **cancelled** — das ist das #1047b-Muster: zwei Pushes kurz hintereinander
+töten das Gate des Zwischen-Commits. Der Docs-Push danach hat `50c2d931` NICHT getötet, weil
+`scratchpads/` nicht im Pfadfilter des Compile-Gates liegt.
+
+**`scratchpads/PLAN_ONE_VISUAL_SURFACE_2026-09-07.md`** angelegt. Die Entscheidungen (D1 · D2 ·
+D7 · D9) standen schon im Audit und werden NICHT neu verhandelt; der Plan misst nach — und drei
+Prämissen des Audits waren binnen eines Tages unter ihm weggerutscht:
+
+1. **`SpectralDonutView(` hat ZWEI Produktionsstellen, nicht eine.** #1043 hat den Donut-Zweig
+   ins `FloatingVisualWindow` portiert. Das war der grösste Posten von Scheibe 1 — erledigt.
+2. **Die HIGH-Fundstelle „Vollbild wirft den einzigen BESCHRIFTETEN Ausgang ab" ist zur Hälfte
+   erledigt.** #1036 hat den Studio-Chip im Abwurf-Rang nach hinten geschoben (vorher fiel er in
+   10 von 12 Zuständen, jetzt in 1). Offen bleibt die andere Hälfte: der Look-Slider fällt
+   weiterhin auf JEDEM Telefon.
+3. ⚠️ **`updateKeepAwake` lässt das Vollbild-Fenster absichtlich aus, und die Begründung ist
+   RICHTIG — ich hätte sie fast „repariert".** Die `@AppStorage`-Deklaration steht auf `.small`,
+   was den Kommentar falsch aussehen lässt; aber `WorkspaceView` sät bei JEDEM Start
+   `floatingSizeRaw = .fullscreen`, sobald `FeatureFlags.instrumentHome` an ist, und dieser
+   Schlüssel registriert in `EchoelmusicApp.init()` auf `true`. Die zwei scheinbar
+   widersprüchlichen Zeilen in `ChromeBudgetFitsTests` sind dieselbe Unterscheidung: Zeile 40
+   meint den EFFEKTIVEN Startzustand, Zeile 526 die DEKLARATION. **Lehre: bevor man einen
+   Kommentar als falsch abstempelt, den SETZER suchen, nicht nur den Default.**
+
+Fünf Scheiben benannt (S1 Standbild-Auslöser · S2 Tipp-aufs-Bild · S3 Cover löschen · S4 Leiste
+wickeln statt abwerfen · S5 Gitter-Tür im Field-Panel), jede mit den Wächtern, die sie
+mitziehen muss. **S3 ist die einzige unumkehrbare** und bekommt vorher einen Council. Kette
+14 → 13, also die sichere Richtung.
+
+**#1062 — zwei Kommentare, die den Donut noch für türlos und cover-only hielten.** Beide sind
+unter Scheiben DIESER Sitzung abgelaufen, und beide waren ARGUMENTE, keine Nebensache:
+`VisualEnergy.swift`s „on a doorless path" trug die Beweislast dafür, ob ein zweiter Verbraucher
+eine bedingte Regelzeile rettet (ein unerreichbarer nicht, einer auf dem ERSTEN Bildschirm
+schon), und `EchoelStudioView`s #1003-Rücknahme nannte den falschen ORT — dieselbe Form, die
+#1056 einen Bildschirm weiter aus der Gegenrichtung reparieren musste. Kein Wächter pinnt eine
+der beiden Zeichenketten, es musste also nichts mitwandern.
+
+⚠️ **Neue Founder-Frage, im Plan festgehalten:** das Vollbild-Visual IST der erste Bildschirm,
+und dort schläft der Schirm ein, wenn nicht gespielt wird — genau der kontemplative Fall, den
+Ship-Gate 4 nennt. Immer-wach wäre ein echter Akku-Rückschritt, weil es der Startzustand ist.
+Produktentscheidung, keine Messung — nicht einseitig entschieden.
