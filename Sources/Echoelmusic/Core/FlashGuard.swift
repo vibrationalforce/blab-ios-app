@@ -120,15 +120,55 @@ public enum FlashGuard {
     /// visibly expands, which is the part that reads as "your heartbeat drives it".
     ///
     /// The number: worst-case luminance delta =
-    /// `swing × restGlowMax(0.21) × (1 − ambient)(0.94) × sCurveGain(1.06)`.
-    /// At 0.42 → 0.088, i.e. 12 % under the 0.10 gate. NOTE the S-curve factor — the
+    /// `swing × restGlowMax(0.21) × (1 − ambient)(0.94) × filmicMaxSlope(1.06)`.
+    /// At 0.42 → 0.088, i.e. 12 % under the 0.10 gate. NOTE the curve factor — the
     /// first attempt used 0.50 and landed at 0.105, still OVER, because the filmic
     /// contrast lift at the end of the shader was not counted. Any change here must
     /// re-run that product; `FlashGuardTests` asserts it.
+    ///
+    /// ⚠️ THAT FOURTH FACTOR IS A MAXIMUM, NOT A UNIFORM GAIN, since #1059. It used to be
+    /// both — the old closing line multiplied every channel by 1.06 everywhere — so the
+    /// wording "sCurveGain(1.06)" was true in a way it no longer is. Today the curve reaches
+    /// 1.06 only at mid grey and amplifies less elsewhere, which makes this product a strict
+    /// upper bound rather than an equality. The number did not move; what it MEANS did, and
+    /// a bound that quietly became an average is how a WCAG argument rots.
     public static let bloomBeatGainSwing: Double = 0.42
 
     /// The same value as an exact Metal token (see `ringsPhaseDampingLiteral`).
     public static let bloomBeatGainSwingLiteral = "0.42"
+
+    /// Strength of the shader's closing filmic contrast curve — and it lives HERE, not in
+    /// the shader, because the bloom's flash budget one constant up is computed FROM it.
+    ///
+    /// The curve is `L + strength · (smoothstep(0,1,L) − L)` applied to LUMINANCE, with the
+    /// colour scaled by the resulting ratio. Its slope is `1 + strength · (6L − 6L² − 1)`,
+    /// which peaks at `L = 0.5` — so `filmicMaxSlope` below is exactly `1 + strength/2`, and
+    /// that is the number the flash product must use. Changing `filmicStrength` therefore
+    /// changes the WCAG headroom of a constant in a different file; the derivation below is
+    /// what makes that impossible to do by accident.
+    ///
+    /// ⛔ IT USED TO BE A PER-CHANNEL AFFINE, `(c − 0.5) · 1.06 + 0.5` clamped per channel,
+    /// and that form was wrong twice over (#1059). It was not a curve at all — a straight
+    /// line has no shoulder and no toe, so the comment calling it an "S-contrast" described
+    /// a function the code did not implement. And applying it per CHANNEL rotated hue: a
+    /// (0.10, 0, 0.50) pixel came out (0.076, 0, 0.50), i.e. its R:B ratio moved 0.20 → 0.15,
+    /// on a surface whose whole claim is that a pitch has a physically derived colour. Below
+    /// 0.028 every channel clamped to zero, which also undid part of the ambient wash two
+    /// lines above it whose stated job is that the frame is NEVER a dead black.
+    ///
+    /// The replacement was chosen so this flash argument did not have to be re-litigated:
+    /// at strength 0.12 the maximum slope is 1.06, identical to the old uniform gain, and
+    /// every other point on the curve amplifies LESS. The worst-case product is unchanged
+    /// to twelve decimals.
+    public static let filmicStrength: Double = 0.12
+
+    /// The same value as an exact Metal token (see `ringsPhaseDampingLiteral`).
+    public static let filmicStrengthLiteral = "0.12"
+
+    /// The steepest the filmic curve gets — `1 + filmicStrength/2`, at mid grey. Derived,
+    /// never typed twice: the flash product above multiplies by it, and a hand-copied 1.06
+    /// is exactly the kind of number that survives a change to the curve it describes.
+    public static let filmicMaxSlope: Double = 1.0 + filmicStrength / 2.0
 
     /// The rate a visual FIELD actually flashes at — which is NOT always the rate
     /// its phase is integrated at, and that gap shipped a WCAG violation.

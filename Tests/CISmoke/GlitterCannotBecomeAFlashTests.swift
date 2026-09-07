@@ -19,6 +19,13 @@
 //      — the artifact the 2026-07-09 audit already paid for once, in the same expression.
 //      The filmic S-curve above used to leave `outCol` clamped and the blend inherited that
 //      for free; #578 consumed the bound and had to restore it. Claim 3 pins the restoration.
+//      ⚠️ #1059 NOTE, so a reader who follows "above" is not confused: that filmic line no
+//      longer contains a per-channel clamp at all — it now shapes LUMINANCE and keeps gamut by
+//      dividing by the peak (the clamp rotated hue, which was its own defect). The sentence
+//      above stays because it is HISTORY and explains why claim 3 exists; what it describes is
+//      simply no longer visible up there. The bound the ripple needs is unaffected either way:
+//      peak-normalising also lands `outCol` at ≤ 1, and #578's own clamp — the line claim 3
+//      pins — sits between the glitter and the blend regardless.
 //   3. **The default that renders is not the one the shader declares.** All three mounted
 //      surfaces pass `saturation:` explicitly from `@AppStorage(visualSaturation)`, so the
 //      two `var saturation: Float =` defaults in `MetalBioView.swift` are overwritten at

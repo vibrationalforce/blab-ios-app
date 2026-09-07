@@ -1855,9 +1855,11 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         // The RADIUS pulse below is deliberately left at full strength — the beat still
         // visibly expands, which is what reads as "dein Herzschlag treibt es an".
         // Swing comes from `FlashGuard.bloomBeatGainSwing` (interpolated, not copied) and
-        // must satisfy swing × restGlowMax × (1−ambient) × sCurveGain < 0.10; see that
-        // constant's doc for why 0.50 was NOT enough (the filmic S-curve lifts contrast
-        // by 1.06 and has to be counted).
+        // must satisfy swing × restGlowMax × (1−ambient) × filmicMaxSlope < 0.10; see that
+        // constant's doc for why 0.50 was NOT enough (the filmic curve's steepest point is
+        // 1.06 and has to be counted). ⚠️ Since #1059 that factor is a MAXIMUM rather than a
+        // uniform gain — the curve reaches 1.06 only at mid grey — so the product is now an
+        // upper bound, which is the safe direction. The number did not move.
         float beat = 0.5 - 0.5 * cos(phase);            // 0…1 once per heartbeat
         float restGlow = 0.07 + 0.14 * u.breath;        // breath = resting swell
         float beatGain = 0.80 + \(FlashGuard.bloomBeatGainSwingLiteral) * beat;  // 0.80…1.22
@@ -1963,7 +1965,46 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
         float3 outCol = col * (ambient + (1.0 - ambient) * energy);
         // Premium finish: a gentle filmic S-contrast so the frame reads rich/graded, not flat
         // (deepens shadows, lifts highlights a touch). Cheap, no new uniforms; degrade-safe.
-        outCol = clamp((outCol - 0.5) * 1.06 + 0.5, 0.0, 1.0);
+        //
+        // ⛔ #1059 — WHAT STOOD HERE WAS NEITHER FILMIC NOR AN S-CURVE, AND IT ROTATED HUE.
+        // It was `clamp((outCol - 0.5) * 1.06 + 0.5, 0.0, 1.0)`: a straight line applied per
+        // CHANNEL. A line has no toe and no shoulder, so the comment above described a
+        // function the code did not implement — and per-channel is the same defect #1054
+        // removed from the colour floor eight hundred lines up, one line later in the chain.
+        // Re-executed: a (0.10, 0, 0.50) pixel came out (0.076, 0, 0.50), its R:B ratio
+        // moving 0.20 → 0.15 on the surface whose entire claim is that a pitch has a
+        // physically derived colour. And below 0.028 every channel clamped to ZERO, which
+        // undid part of the ambient wash three lines up whose stated job is that the frame is
+        // NEVER a dead black.
+        //
+        // The replacement is a real curve on LUMINANCE, with the colour scaled by the
+        // resulting ratio — so channel ratios, and therefore hue, come through untouched.
+        // `smoothstep` gives the toe and the shoulder the name always promised: f(0) = 0,
+        // f(1) = 1, f(0.5) = 0.5, monotone throughout, and nothing is ever crushed to black
+        // (the 0.028 pixel now reads 0.0249 instead of 0).
+        //
+        // ⚠️ THE STRENGTH LIVES IN `FlashGuard`, NOT HERE, and that is load-bearing rather
+        // than tidy: the bloom's WCAG headroom is computed as
+        // `swing × restGlowMax × (1 − ambient) × filmicMaxSlope`, so this curve's steepest
+        // point is an input to a flash-safety proof in another file. At strength 0.12 that
+        // maximum is exactly 1.06 — identical to the old uniform gain, with every other point
+        // amplifying LESS — so the product is unchanged to twelve decimals and no WCAG
+        // argument had to be reopened to fix a hue bug.
+        //
+        // ⚠️ PEAK-NORMALISE, NEVER A PER-CHANNEL CLAMP. `outCol` can arrive above 1 (the
+        // intensity product upstream is not clamped), and clamping each channel is precisely
+        // the hue rotation this block exists to remove. Dividing by the peak keeps the ratios
+        // and lands the brightest channel exactly at 1. No `max(…, 0.0)` guard is needed on
+        // the way in — unlike `echoelHue`, nothing here can produce a negative component: the
+        // ratio is positive and every input term is non-negative.
+        {
+            float lumIn = dot(outCol, float3(0.2126, 0.7152, 0.0722));
+            float shaped = smoothstep(0.0, 1.0, lumIn);
+            float lumOut = lumIn + \(FlashGuard.filmicStrengthLiteral) * (shaped - lumIn);
+            outCol *= (lumIn > 1e-4) ? (lumOut / lumIn) : 1.0;
+            float peak = max(outCol.r, max(outCol.g, outCol.b));
+            outCol = (peak > 1.0) ? (outCol / peak) : outCol;
+        }
         // ── GLITTER + TEXTURE (#578, founder "Bunter, mehr Textur, Glitzer etc.") ────────
         //
         // ⚠️ FLASH-SAFE BY CONSTRUCTION, and the construction IS the safety argument — not a

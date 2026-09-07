@@ -102,12 +102,20 @@ final class FlashGuardTests: XCTestCase {
     /// luminance swing is held under the WCAG general-flash threshold, which makes its
     /// transitions not qualify as flashes. This asserts that product from the shader's
     /// documented constants — and it is the guard that catches the mistake actually made
-    /// while implementing it: 0.50 looked fine until the filmic S-curve's 1.06 contrast
+    /// while implementing it: 0.50 looked fine until the filmic curve's 1.06 contrast
     /// lift was counted, which pushed it back over the gate.
+    ///
+    /// ⛔ THE FOURTH FACTOR USED TO BE A HAND-TYPED `1.06` HERE, and #1059 replaced the
+    /// curve it described. The number is unchanged — the new luminance S-curve peaks at
+    /// exactly the old uniform gain — but a literal that happens to still be right is not
+    /// the same as one that CANNOT be wrong. It now reads `FlashGuard.filmicMaxSlope`,
+    /// which is derived as `1 + filmicStrength/2` from the value the shader actually
+    /// interpolates, so changing the curve moves this product instead of silently leaving
+    /// a stale bound behind. That silent-stale case is the whole reason this test exists.
     func testBloomBeatSwingStaysUnderTheGeneralFlashThreshold() {
         let restGlowMax = 0.21          // MetalBioView: 0.07 + 0.14 · breath, breath ≤ 1
         let oneMinusAmbient = 0.94      // outCol = col · (0.06 + 0.94 · energy)
-        let sCurveGain = 1.06           // filmic S-contrast at the end of the shader
+        let sCurveGain = FlashGuard.filmicMaxSlope   // steepest point of the closing curve
         let delta = FlashGuard.bloomBeatGainSwing * restGlowMax * oneMinusAmbient * sCurveGain
         XCTAssertLessThan(delta, FlashGuard.luminanceDeltaThreshold,
                           "bloom swings \(delta) relative luminance per beat — at or over "
