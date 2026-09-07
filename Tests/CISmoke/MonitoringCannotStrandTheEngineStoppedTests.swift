@@ -105,16 +105,24 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
     /// ⚠️ THE LAW IS UNCHANGED AND THAT IS WHY THIS IS A RE-ANCHOR AND NOT A DELETION: whatever
     /// pauses-or-stops the engine must do so BEFORE the claim, and the input format must be
     /// read AFTER it. Only the spellings moved.
+    ///
+    /// ⛔ #1099 — #976 RE-ANCHORED THIS CLAIM AND LEFT CLAIM 6 ON THE OLD SPELLING. Claim 6
+    /// looked for the same format read with `let ` in front, missed on every run since #823
+    /// (2026-08-25), and its miss path is `XCTSkip` — so it asserted nothing for two weeks and
+    /// nothing went red (#806: a skip is not a pass). Two claims, one needle, two spellings is
+    /// the #456 defect one file wide. The format-read needle now has ONE home, `formatRead`
+    /// below; when it goes stale, claim 5 FAILS and names it, and claim 6's skip is then a
+    /// duplicate report and not a silent one. Found by the moved-needles sweep (#1093).
     func testTheEngineIsPausedBeforeTheSessionClaim() throws {
         let w = Array(try monitorOnSpan(try engineLines()))
         guard let pause = w.firstIndex(where: { $0.contains("if wasRunning { masterEngine.stop() }") }),
               let claim = w.firstIndex(where: { $0.contains("claimRecordRoute(.inputMonitoring)") }),
-              let fmt = w.firstIndex(where: { $0.contains("inFmt = input.inputFormat(forBus: 0)") })
+              let fmt = w.firstIndex(where: { $0.contains(Self.formatRead) })
         else {
             return XCTFail("""
                 the monitoring ON path lost one of: the pause line, the \
                 `claimRecordRoute(.inputMonitoring)` call, or the \
-                `let inFmt = input.inputFormat(forBus: 0)` read. All three carry #628's \
+                `\(Self.formatRead)` read (declared `var` since #823). All three carry #628's \
                 ordering; if the method was restructured, re-anchor in the same commit.
                 """)
         }
@@ -139,7 +147,7 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
     func testAFailedClaimDoesNotFallThroughIntoTheFormatRead() throws {
         let w = Array(try monitorOnSpan(try engineLines()))
         guard let claim = w.firstIndex(where: { $0.contains("claimRecordRoute(.inputMonitoring)") }),
-              let fmt = w.firstIndex(where: { $0.contains("let inFmt = input.inputFormat(forBus: 0)") }),
+              let fmt = w.firstIndex(where: { $0.contains(Self.formatRead) }),
               claim < fmt
         else { throw XCTSkip("claim/format anchors gone — reported by claim 5") }
         let between = w[claim ..< fmt]
@@ -154,6 +162,12 @@ final class MonitoringCannotStrandTheEngineStoppedTests: XCTestCase {
             now returns EARLY — so it needs the guarantee more, not less.
             """)
     }
+
+    /// The ONE spelling of the input-format read that claims 5 and 6 both anchor on (#1099).
+    /// Deliberately without the `let`/`var` keyword: #823 changed the declaration from `let`
+    /// to `var`, and a needle that carries the keyword pins a spelling the law does not care
+    /// about. The law is the ORDER of the read, not how the binding is declared.
+    private static let formatRead = "inFmt = input.inputFormat(forBus: 0)"
 
     /// TWO unique anchors → the span between them (#621b: a fixed window ages as the law
     /// comments around it grow, and #625 added ~20 lines of them right here).
