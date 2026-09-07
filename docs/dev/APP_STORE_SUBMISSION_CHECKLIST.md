@@ -37,7 +37,21 @@ Status: ✅ done · ⚠️ partial/needs-owner · ❌ missing/blocker. Companion
 
 ## 6. App Review information  — ⚠️ prepare
 - **Demo account:** none needed (no login).
-- **Review notes (draft):** "Echoelmusic is a bio-reactive music instrument. Biometrics come from HealthKit or a Polar H10; **a reviewer without hardware will see the app auto-start a clearly-labeled 'Demo' bio source after ~4s**, so all bio-reactive features are testable without a sensor. Biofeedback is for creative/self-observation, NOT medical diagnosis (see in-app + health.html). HealthKit is read-only, on-device."
+- **Review notes (CORRECTED 2026-09-07 — paste this verbatim into ASC):** "Echoelmusic is a bio-reactive musical instrument: your pulse and breath drive the synthesis, the visual and the light output.
+
+  NO HARDWARE AND NO SENSOR ARE NEEDED TO REVIEW IT. If you prefer not to grant camera access, or have no heart-rate strap:
+    1. Tap the pulse readout in the header at the top of the screen. This opens the Bio panel.
+    2. In the 'Bio source' row, open the menu and choose 'Play with the simulation'.
+    3. That choice STARTS a full generative session immediately from a deterministic demo signal, labelled as a demo on screen. Nothing else is required — there is no separate Play step.
+  (The same three choices are also on a long-press of the pulse readout.)
+  With camera access granted, resting a fingertip on the REAR camera lens gives a real pulse within a few seconds. The torch switches on — that is normal and is how the optical measurement works.
+
+  PRIVACY: no accounts, no analytics, no third-party SDKs, and no server of ours. Health data read from HealthKit is used on-device only. The OSC / ADM-OSC / Art-Net / sACN outputs are off by default and, when switched on, send only to hardware the user addresses on their own local network — that traffic is never accessible to us, which is why the privacy label answers 'Data Not Collected'.
+
+  NOT A MEDICAL DEVICE. Biofeedback here is a creative control signal and a self-observation aid; the app makes no diagnostic or therapeutic claim, in-app or in the listing. Visual flashing is capped below 3 Hz (W3C/WCAG photosensitivity).
+
+  Contact: Michael Terbuyken · echoel@tropicaldrones.com"
+  - ⛔ The previous draft promised the app would "auto-start a clearly-labeled 'Demo' bio source after ~4s". All three parts were false, in the one sentence destined for App Review. Measured 2026-09-07: the default source is the camera (`EchoelStudioView.swift:229`); `bioSourceRaw` has exactly ONE writer (`:9552`, inside `selectBioSource`, an explicit user pick) and there is no timer or fallback to `.sim` anywhere; `demoSource.start(publishing: bus)` has exactly ONE production site (`:9497`, inside `case .sim`); and the label is "Play with the simulation" (`BioSourceOption.swift:50`), never "Demo". The visible door is the pulse pill's tap → chrome door "bio" (`HeaderMonitors.swift:388`) → `bioSourceRow` (`EchoelStudioView.swift:3151-3166`); the `.contextMenu` at `HeaderMonitors.swift:397-402` is the long-press alternative, which `BioSourceOption.swift:12` itself calls "the least discoverable gesture we ship" — hence it is named second, not first.
 - Contact: Michael Terbuyken · echoel@tropicaldrones.com.
 
 ## 7. Review-guideline risk areas  — ⚠️ pre-check
