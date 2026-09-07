@@ -25370,3 +25370,36 @@ dead-needles OK (453). count-pins 0 RED. Commit `a539ed99`.
 **NEEDS-FOUNDER-VERIFY:** Finger auf der Linse mit Licht — lockt der Puls so schnell wie
 vorher, und HÄLT er länger ohne wegzudriften? Eine Regression sähe aus wie ein Lock, der nie
 kommt (dann waren die eingefrorenen Werte für die Szene falsch).
+
+## #1076 — der `doctor` erwischt meinen eigenen zwanzig Minuten alten Wächter
+
+`doctor --section B` markierte `TheWhiteBalanceIsLockedWithTheExposureTests` — das Werkzeug
+arbeitet genau wie entworfen. Es sucht in Wächtern nach Nadeln, die eine Deklaration nennen,
+die es nicht gibt (#367/#926: ein Scan, der grün ist, egal was der Code tut). Eine
+ABWESENHEITS-Behauptung ist der legitime Fall, und das Werkzeug nimmt sie aus, wenn Nadel und
+`XCTAssertFalse` sich eine ZEILE teilen.
+
+Meine standen in `for name in ["func lockWhiteBalance", …]` — also nicht, und die Absicht war
+für den Scan unsichtbar. Zwei ausdrückliche Zusicherungen plus eine geteilte Meldungs-Konstante
+kosten zwei Zeilen und machen „dieser Name darf NICHT da sein" an der Nadel lesbar. Der Grund
+steht am Ort, nicht nur hier: die nächste Person greift auch zur Schleife.
+
+### Founder-gated, BERICHTET statt editiert — `doctor --section A`, zwei KRITISCHE
+
+Beide seit Langem und beide in `.github/workflows/**`:
+
+1. **DREIZEHN Build-Schritte, deren Fehlschlag nichts rot färben kann** — verteilt auf
+   `ci.yml` (performance-tests als ganzer Job `continue-on-error`; „Run Performance Tests",
+   „Memory Leak Detection", „Build Release Archive" je mit `|| true` UND einer Pipe ohne
+   `set -o pipefail`), `benchmark.yml:67` und `full-tests.yml:65/83`.
+2. **Zwei `-only-testing:`-Filter nennen `ComprehensiveTestSuite`** (`ci.yml:290/291`) — keine
+   deklarierte XCTestCase-Klasse. Ein Lauf ohne Treffer meldet vermutlich Erfolg; das ist hier
+   nicht verifizierbar (kein Xcode) und steht als Annahme dabei.
+
+⚠️ **Die REIHENFOLGE der Reparatur ist der Grund, warum das kein Einzeiler ist:** ein
+Wächter-Schritt über einem `|| true` liest für immer Erfolg. Erst muss der Exit-Status des
+Schritts selbst ehrlich werden (`|| true` weg, Pipe absichern), dann kann ein Schluss-Schritt
+auf `steps.<id>.outcome` prüfen — und dafür braucht der Schritt ein `id:`.
+
+⚠️ Der Namensfilter-Befund ist der KLEINERE: solange derselbe Schritt maskiert ist, stellt ein
+korrigierter Suite-Name nichts Beobachtbares wieder her.
