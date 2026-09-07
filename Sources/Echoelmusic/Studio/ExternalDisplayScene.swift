@@ -130,6 +130,29 @@ private struct ExternalStageView: View {
     // shows on the beamer too. NOTE the deliberate name mismatch: the key is
     // `visualDetail`, the `MetalBioView` parameter is `ringDensity:` — there is no
     // `visualRingDensity` key, and only the call site records that.
+    //
+    // ⛔ "THE SAME" IS TRUE OF THE KEYS AND NOT OF THE PICTURE (#1071, measured). The phone
+    // does NOT render these values raw: `FloatingVisualWindow.weatheredVisuals()` blends FOUR
+    // of them — hue, saturation, intensity, motion — through `WeatherMood.blend` against the
+    // live sky, each with its own user mixer (`WeatherMood.Param.<x>.mixKey`). This scene
+    // reads the raw keys and renders them. So plugging in a projector SILENTLY DROPS the
+    // weather tint, and the sentence above reads as if the two matched.
+    //
+    // ⚠️ THIS FILE ALREADY DECIDED THE PRINCIPLE, one paragraph down, and then did not apply
+    // it here. #609 wired `autoMode` for exactly this reason: "without this reader, plugging
+    // in a projector would silently strip the Auto mode's visual half mid-show and the swap
+    // would read as a broken look." Weather is the same class of half and was left out. That
+    // makes this a KNOWN GAP against a stated rule, not a taste question — the founder's open
+    // "Beamer wettergemischt oder roh?" was asked before anyone measured which one it does.
+    //
+    // ⛔ NOT FIXED IN THIS COMMIT, and the reason is honest rather than tidy: the blend needs
+    // `weatherProvider.current`, which lives on the phone side and reaches this scene only
+    // through `ExternalStageBridge` — new wiring in a file no gate here can run, on a path
+    // that is visible only with a projector attached. The repair belongs in its own slice with
+    // `weatheredVisuals()` lifted into ONE shared pure helper both sides call (#416), so the
+    // two can never diverge again. Pinned meanwhile by
+    // `Tests/CISmoke/TheBeamerDrawsTheSamePictureTests.swift`, which is written to go RED on
+    // the day the gap is closed — it is a record of a divergence, not a defence of it.
     /// #609 — the beamer draws the SAME auto-attuned picture the phone would (H15):
     /// without this reader, plugging in a projector would silently strip the Auto
     /// mode's visual half mid-show and the swap would read as a broken look.

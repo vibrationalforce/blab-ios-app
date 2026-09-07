@@ -599,6 +599,15 @@ struct FloatingVisualWindow: View {
 
     /// The visual base with the sky mixed in per parameter (P5). Weather off, no
     /// snapshot yet, or every mixer at 0 → returns the user's values untouched.
+    ///
+    /// ⛔ THE BEAMER DOES NOT CALL THIS (#1071, measured). `ExternalStageScene`'s
+    /// `ExternalStageView` reads the same four keys and hands them to `MetalBioView` RAW, so
+    /// attaching a projector silently drops the weather tint mid-show. That is the same class
+    /// of gap #609 closed for `autoMode` — and its own comment gives the rule: a swap must not
+    /// change the look. Not fixed here (the blend needs `weatherProvider`, which reaches that
+    /// scene only through `ExternalStageBridge`); the repair lifts THIS function into one
+    /// shared pure helper both sides call, so they cannot diverge again (#416). Pinned by
+    /// `TheBeamerDrawsTheSamePictureTests`, written to go red the day it is closed.
     private func weatheredVisuals()
         -> (hue: Double, saturation: Double, intensity: Double, motion: Double) {
         #if canImport(WeatherKit) && canImport(CoreLocation)
