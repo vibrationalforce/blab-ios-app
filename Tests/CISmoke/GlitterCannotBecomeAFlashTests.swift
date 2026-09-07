@@ -238,11 +238,21 @@ final class GlitterCannotBecomeAFlashTests: XCTestCase {
                 accessibility setting that must stop motion would leave the newest moving \
                 element on screen running
                 """,
-            "col *= (lum < 0.35) ? (0.35 / max(lum, 0.04)) : 1.0;":
+            // ⛔ THIS NEEDLE WAS THE ONE-LINE FLOOR `col *= (lum < 0.35) ? (0.35 / max(lum,
+            // 0.04)) : 1.0;` UNTIL #1094. #1054 (`f281b37b`) split it in two — the lift is
+            // computed first and stops at the sRGB gamut boundary (`min(0.35/lum, 1.0/peak)`),
+            // and only then applied — and did not move this guard with it. Claim 4 was RED
+            // from that commit through deploys 457 and 458 and never appeared in the
+            // 200-line job-log window (#807); `scripts/moved-needles.py f281b37b` names this
+            // file on the first run (#1093). The floor's GAMUT STOP is pinned by
+            // `TheColourFloorDoesNotBuyLightWithHueTests` claim 3 and is not repeated here
+            // (#416); what THIS entry defends is unchanged — that the floor is still applied.
+            "col *= (lum < 0.35) ? lift : 1.0;":
                 """
-                the hue-preserving darkness floor is gone. Raising saturation makes deep \
-                red/violet tones MORE dependent on it, not less — those are the colours the \
-                eye reads as nearly black through the CMF
+                the darkness floor is gone (since #1054 it is applied through `lift`, which \
+                stops at the gamut boundary so the lift no longer buys light with hue). \
+                Raising saturation makes deep red/violet tones MORE dependent on it, not \
+                less — those are the colours the eye reads as nearly black through the CMF
                 """,
             "outCol += (echoelHash(in.uv * 1000.0) - 0.5) / 255.0;":
                 """
