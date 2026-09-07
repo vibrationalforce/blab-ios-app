@@ -14,9 +14,19 @@
 // says 150-of-300 and says it about the four-child row. Quoting a number is where numbers
 // get invented.) The same doc named the answer for exactly this case: *"the cheapest answer is to move
 // `TransportPositionView` and the '•••' overflow OUT of the chrome bar as well and give this
-// row a second line — NOT to send the tempo back up."* Line 1 is therefore bit-for-bit what
-// it was, which is what makes "nothing that exists today can be squeezed" a fact rather than
-// a hope. Claim 2 is the assertion that keeps it that way.
+// row a second line — NOT to send the tempo back up."* Claim 2 is the assertion that keeps
+// line 1's four children together and the migrants off it.
+//
+// ⛔ "LINE 1 IS THEREFORE BIT-FOR-BIT WHAT IT WAS" STOOD HERE and was true until #1027
+// (`fcd3d4b8`, v10.79.454): the four children now choose between one line and two via
+// `ViewThatFits` in `transportLine1`, so the simulation's "Demo" tag cannot push the row past
+// the right edge. Same four children, none squeezed — a second line is not a squeeze. The
+// studio view struck the sentence in its own doc block in that commit; this file did not move
+// with it, and claim 2 went RED there and stayed red through three deploys (454 → 458) without
+// anyone seeing it: the CI/CD job log is `tail -200 test.log` (#807) and this test's line fell
+// outside that window on every run until #1091's (14:34Z, 2026-09-07). #456's own lesson —
+// prose moves in EVERY home at once — was applied to two Sources homes and missed the guard
+// that quotes them. Repaired in #1092.
 //
 // ⚠️ WHAT THIS FILE CANNOT DO, said first. Every assertion is a SOURCE SCAN. SwiftUI layout
 // is not reachable from a unit test here, so "the row reads well on a 393 pt phone" and "the
@@ -73,43 +83,91 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
     /// bit-for-bit unchanged" — the single fact the slice rests on — was false and the pill was
     /// squeezed exactly as feared. Membership is now asserted PER LINE, in both directions.
     func testTheFirstLineStillHoldsExactlyTheFourOriginals() throws {
-        let row = try declarationBody(of: "private var startControlRow: some View {",
-                                      in: "Sources/Echoelmusic/Studio/EchoelStudioView.swift")
+        let path = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
+        let row = try declarationBody(of: "private var startControlRow: some View {", in: path)
+        // ⛔ UNTIL #1092 THIS SCANNED `startControlRow` ITSELF for an inner `HStack(spacing: 8)`
+        // and found ONE — the four originals. #1027 lifted that stack into its own member,
+        // `transportLine1`, so the row body holds a member REFERENCE (exactly like
+        // `quickActionRow`, which this file already knew was a reference and not a stack) and
+        // the count fell to zero: assertion red, then `firstInnerRow` threw. The scan follows
+        // the declaration now; the property it defends is unchanged.
+        XCTAssertTrue(row.contains("transportLine1"), """
+            `startControlRow` no longer builds `transportLine1` — line 1 (▶ ⏸ tempo+lock, \
+            analysis pill) has left the transport row. If it was deliberately restructured, \
+            rewrite this file with the change rather than deleting it.
+
+            Row scanned (comments blanked by SourceText.codeOnly):
+            \(row)
+            """)
+        let line = try declarationBody(of: "private var transportLine1: some View {", in: path)
         // ⛔ THIS COUNT WAS `>= 2` UNTIL #490 AND IT HAD TO COME DOWN, not because the law
         // weakened but because one of the two lines it counted is gone. #456 put the readout on
         // a third line of its own; the founder's 2026-08-07 arrow moved that readout into
-        // `WorkspaceView.topBar`, so the row is line 1 (the four originals) + `quickActionRow`
-        // (a MEMBER REFERENCE, not an inner `HStack`). One inner stack is now the correct shape.
+        // `WorkspaceView.topBar`. Since #1027 the declaration holds TWO `HStack(spacing: 8)`
+        // (the fitting candidate and the wrapped one) plus one under `#else`; the FIRST is
+        // line 1 as it renders whenever it fits, and that is the one the membership loop reads.
         //
         // The merge this test exists to catch is still caught, and by a stronger assertion than
         // a count: the tiles of lines 2 and 3 reach line 1 only by being spelled there, and the
-        // per-line membership loop below rejects `EchoelIconTile(` on line 1 by name (#492 —
-        // it named the deleted `TransportOverflowMenu()` until then, which would have made it
-        // vacuous). A count of stacks never could distinguish "merged" from "restructured";
-        // the membership checks always did the real work.
-        let hstacks = row.components(separatedBy: "HStack(spacing: 8) {").count - 1
+        // per-line membership loop below rejects `EchoelIconTile(` by name (#492 — it named the
+        // deleted `TransportOverflowMenu()` until then, which would have made it vacuous). A
+        // count of stacks never could distinguish "merged" from "restructured"; the membership
+        // checks always did the real work.
+        let hstacks = line.components(separatedBy: "HStack(spacing: 8) {").count - 1
         XCTAssertGreaterThanOrEqual(hstacks, 1, """
-            `startControlRow` has \(hstacks) inner `HStack(spacing: 8)`, expected at least 1.
+            `transportLine1` has \(hstacks) inner `HStack(spacing: 8)`, expected at least 1.
 
             Zero means line 1 itself is gone — the four originals (▶ ⏸ tempo+lock, analysis \
             pill) no longer share a row. That row is the instrument's transport; if it was \
             deliberately restructured, rewrite this file with the change rather than deleting it.
 
-            Row scanned (comments blanked by SourceText.codeOnly):
-            \(row)
+            Declaration scanned (comments blanked by SourceText.codeOnly):
+            \(line)
             """)
 
-        let lineOne = try firstInnerRow(of: row)
-        for child in ["startButton", "PlaybackToggleButton()", "BodyTempoField(",
-                      "PulseMonitorMiniLive()"] {
+        // Since #1027 two of the four are LOCALS, bound once above the `ViewThatFits` and
+        // reused by both candidates — `PulseMonitorMiniLive` is the leaf that reads the ~10 Hz
+        // camera publisher (10.76.50), and building it in each candidate would put two live
+        // readers in the tree where one belongs. So line 1 is checked for the four NAMES it
+        // spells, and the declaration for the two constructions those names resolve to.
+        let lineOne = try firstInnerRow(of: line)
+        for child in ["startButton", "PlaybackToggleButton()", "tempo", "pulse"] {
             XCTAssertTrue(lineOne.contains(child), """
-                Line 1 of `startControlRow` no longer builds `\(child)`.
+                Line 1 of `transportLine1` no longer builds `\(child)`.
 
-                Line 1 is the row as it stood before #456. Its being untouched is what makes \
-                "nothing that exists today can be squeezed" a fact rather than a hope — the \
-                whole argument for two lines instead of one.
+                Line 1 is the four-child row as it stood before #456, wrapped by #1027 but not \
+                changed. Its four staying four is what makes "nothing that exists today can be \
+                squeezed" a fact rather than a hope — the whole argument for two lines instead \
+                of one.
 
                 Line 1 scanned: \(lineOne)
+                """)
+        }
+        // ⛔ The first draft counted the BINDING (`let pulse = PulseMonitorMiniLive()`) and said
+        // "more than one means the leaf is built per candidate" — a bare second
+        // `PulseMonitorMiniLive()` in the wrapped candidate left that count at one and the
+        // message promising a catch it could not make (#367; caught by the mutant, not by
+        // the reviewer). The CONSTRUCTOR is counted; the binding is asserted separately.
+        for (binding, constructor) in [("let tempo = ", "BodyTempoField("),
+                                       ("let pulse = ", "PulseMonitorMiniLive()")] {
+            XCTAssertTrue(line.contains(binding + constructor), """
+                `transportLine1` no longer binds `\(binding + constructor)`.
+
+                The local that line 1 spells resolves to something else, so the membership \
+                check above is reading a name, not the original.
+
+                Declaration scanned: \(line)
+                """)
+            XCTAssertEqual(line.components(separatedBy: constructor).count - 1, 1, """
+                `\(constructor)` is constructed \(line.components(separatedBy: constructor).count - 1) \
+                times in `transportLine1`, expected exactly once.
+
+                It is bound once above the `ViewThatFits` and reused by both candidates. A \
+                second construction puts a second `PulseMonitorMiniLive` — the ~10 Hz camera \
+                leaf — in the tree where one belongs (10.76.50), or a second tempo field with \
+                its own lock callback.
+
+                Declaration scanned: \(line)
                 """)
         }
         // The other direction, which is what the first version was missing: the two migrants
@@ -123,14 +181,18 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
         // ⏸ / tempo / pill are all their own structs), so any action or door tile appearing
         // there is exactly the "merge it all onto one line after all" change this test exists
         // to catch — and now it catches all seven of them instead of one.
+        //
+        // Scanned over the WHOLE `transportLine1` declaration since #1092, not only its first
+        // stack: a migrant smuggled into the wrapped candidate is the same one-line layout on
+        // narrow phones, where the wrap is exactly what renders.
         for migrant in ["EchoelIconTile(", "TransportPositionView()"] {
-            XCTAssertFalse(lineOne.contains(migrant), """
-                `\(migrant)` moved up into line 1 of `startControlRow`.
+            XCTAssertFalse(line.contains(migrant), """
+                `\(migrant)` moved up into `transportLine1`.
 
                 That is the one-line layout by another name, and it squeezes the analysis pill \
                 — see the message above.
 
-                Line 1 scanned: \(lineOne)
+                Declaration scanned: \(line)
                 """)
         }
     }
@@ -150,7 +212,8 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
     func testBothMigrantsAreMountedInTheStudioRow() throws {
         let path = "Sources/Echoelmusic/Studio/EchoelStudioView.swift"
         let row = try declarationBody(of: "private var startControlRow: some View {", in: path)
-        let actions = try declarationBody(of: "private var quickActionRow: some View {", in: path)
+        // The extraction IS the assertion: a missing anchor throws, and a thrown error fails.
+        _ = try declarationBody(of: "private var quickActionRow: some View {", in: path)
         XCTAssertTrue(row.contains("quickActionRow"), """
             `startControlRow` no longer builds `quickActionRow`. That row IS the founder's \
             2026-08-07 ask — "alles … in eine Reihe unter dem Play etc zusammengefasst" — and \
@@ -283,16 +346,17 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
         return SourceText.codeOnly(try String(contentsOf: path, encoding: .utf8))
     }
 
-    /// The first inner `HStack(spacing: 8) { … }` of an already-extracted row body.
+    /// The first inner `HStack(spacing: 8) { … }` of an already-extracted declaration body.
     ///
-    /// Line 1 is the pre-#456 row; asserting on the WHOLE row body cannot tell line 1 from
-    /// line 2, which is exactly the hole the first version of claim 2 had.
+    /// Line 1 is the pre-#456 row; asserting on the WHOLE body cannot tell line 1 from
+    /// line 2, which is exactly the hole the first version of claim 2 had. Since #1092 the
+    /// body handed in is `transportLine1`'s, whose first stack is the fitting candidate.
     private func firstInnerRow(of row: String) throws -> String {
         let key = "HStack(spacing: 8) {"
         guard let start = row.range(of: key) else {
             throw MissingAnchor(reason: """
-                No inner `\(key)` in `startControlRow` — the row was restructured. Re-anchor \
-                this scan; do not leave it silent.
+                No inner `\(key)` in the scanned declaration — the row was restructured. \
+                Re-anchor this scan; do not leave it silent.
                 """)
         }
         var depth = 1
@@ -308,7 +372,7 @@ final class TheTransportBarIsDissolvedTests: XCTestCase {
             body.append(c)
             i = row.index(after: i)
         }
-        XCTAssertEqual(depth, 0, "unbalanced braces inside `startControlRow` — scan is unsound")
+        XCTAssertEqual(depth, 0, "unbalanced braces inside the scanned declaration — scan is unsound")
         return body
     }
 
