@@ -35,7 +35,7 @@
 // join); tests 5–8 are SOURCE-TEXT SCANS of `AudioEngine.swift` — the graph calls
 // sit on a `@MainActor` engine no test host can run honestly. What no test here can prove: that the notch SOUNDS right,
 // that it takes the whistle and not the voice on a real speaker — the device probe
-// (NEEDS-FOUNDER-VERIFY: speaker monitoring, provoke a howl, hear it die as a ramp).
+// (NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: speaker monitoring, provoke a howl, hear it die as a ramp).
 // ⚠️ KNOWN BLIND SPOT (#595 reviewer F1): the tap-count scan covers AudioEngine.swift
 // only. `MultiTrackRecorder.prepareForRecording(engine:)` taps the SAME node/bus and
 // is invisible here — today unreachable (doorless + flag-gated off, #204); the

@@ -9,11 +9,18 @@ ordered them, and the founder had no way to see the queue. The scarcest resource
 this project is device time, and it had an invisible backlog.
 
 ⚠️ TWO NUMBERS, BOTH CORRECT — name the OPERATION and the SCOPE or they read as a
-contradiction. **108** counts every OCCURRENCE of the marker over four roots (Sources,
-Tests, CLAUDE.md, scratchpads). **50** counts ASK LINES over the three roots this tool
-walks, after the reference lines below are set aside. A line can carry the marker twice;
-scratchpads are session prose, not asks. Neither number is wrong; the first version of
-this docstring printed 108 next to a header that said 53 and explained neither.
+contradiction. One counts every OCCURRENCE of the marker over four roots (Sources, Tests,
+CLAUDE.md, scratchpads); the other counts ASK LINES over the three roots this tool walks,
+after the reference lines below are set aside. A line can carry the marker twice;
+scratchpads are session prose, not asks. Neither is wrong; the first version of this
+docstring printed one of them next to a header showing the other and explained neither.
+
+⛔ THE TWO LITERALS ARE DELETED, NOT REFRESHED (#1053, #818). They were 108 and 50, both
+long expired — the second by roughly a factor of two — in a file whose whole job is to
+print the current count two lines lower. **The header IS the measurement; the docstring
+only names the two OPERATIONS.** Re-derive the wide one with
+`git grep -c NEEDS-FOUNDER-VERIFY -- Sources Tests CLAUDE.md scratchpads`, and the narrow
+one by running this tool.
 
 ⛔ AND THE INSTRUMENT COUNTED ITS OWN DESCRIPTION (#753). Registering this tool in
 CLAUDE.md added a line reading "es sammelt jeden `NEEDS-FOUNDER-VERIFY`-Vermerk" — and
@@ -50,6 +57,18 @@ hiding an open one costs a device session, and those are not the same mistake.
 ⚠️ ZERO ASKS CARRY THE MARK TODAY, and that is honest rather than disappointing: I cannot
 know which ones the founder has already done, and guessing would retire real jobs. The
 feature ships with ANSWERED at 0 and fills up as he walks the list.
+
+⭐ BLOCKED ASKS (#1053). A third state, and the one that made this list partly a wall:
+an ask whose DOOR no longer exists. #1024 removed all three microphone doors on a founder
+command, and ten asks went on instructing him to tap "Mix chip -> Choose input...". Same
+same-line convention, digits required for the #753 reason:
+
+    // NEEDS-FOUNDER-VERIFY BLOCKED-BY-#NNNN: <the original instruction>
+
+They are held out of the open count and printed in their own section with the slice that
+took the door — never deleted, because the engine behind them is untouched and these are
+the probes that must run on the day it is re-doored. ANSWERED wins over BLOCKED: a date is
+a fact about the past that a later removal cannot undo.
 
     python3 scripts/founder-verify.py             # counts per area + one line each
     python3 scripts/founder-verify.py --all       # the full instruction for every ask
@@ -127,6 +146,25 @@ BARE_LITERAL = "<bare string literal>"
 # prefix-only needle would retire asks by reading documentation (#753, one layer over).
 VERIFIED = re.compile(r"VERIFIED-(\d{4}-\d{2}-\d{2})")
 
+# ⭐ BLOCKED ASKS (#1053). A third state the two above cannot express: an ask that is
+# neither open nor answered, because the DOOR it instructs the founder to open is gone.
+# #1024 removed all three microphone doors on a founder command, and ten asks kept telling
+# him to tap "Mix chip -> Choose input...". A checklist that hands out jobs nobody can do
+# is the same defect class as a masked gate — it looks like a queue and part of it is a
+# wall. The engine behind those asks is untouched, so the asks are NOT deleted: re-dooring
+# is three call sites, and the day it happens these are the tests that must run.
+#
+# ⛔ THE NEEDLE REQUIRES DIGITS, for the #753 reason `VERIFIED-` learned the hard way: the
+# bare prefix is how one WRITES ABOUT the convention (it appears in this comment, in the
+# module docstring and in the LIMITS text this tool prints), so a prefix-only needle would
+# retire asks by reading its own documentation. Write the shape as BLOCKED-BY-#NNNN when
+# describing it; only a real slice number marks a real ask.
+#
+# ⭐ AND IT FAILS TOWARD NOISE, the same direction as everything else here: a malformed
+# mark leaves the ask OPEN. Showing a blocked ask costs a glance; hiding a live one costs
+# a device session.
+BLOCKED = re.compile(r"BLOCKED-BY-#(\d+)\b")
+
 
 # ── SETUP buckets: what you must physically HAVE IN HAND, not what the ask is about.
 #
@@ -194,6 +232,37 @@ def verified_on(line: str):
     return m.group(1) if m else None
 
 
+def blocked_by(line: str):
+    """The slice number that removed this ask's door, or None while it is performable.
+
+    Malformed marks return None on purpose — see the BLOCKED comment above.
+    """
+    m = BLOCKED.search(line)
+    return m.group(1) if m else None
+
+
+def state_of(line: str):
+    """`("answered", date)` | `("blocked", slice)` | `("open", None)` for one marker line.
+
+    ⛔ IT IS A FUNCTION AND NOT TWO `if`s INSIDE `collect()` BECAUSE OF ONE MUTANT (#1053).
+    The precedence — a date WINS over a block — could not be driven while it lived inline:
+    zero asks carry a date today, so the tree-walking check that was supposed to pin it ran
+    over an empty list and stayed green with the precedence inverted. A claim that cannot
+    fail is not a claim (#454). Pulled out here, it takes one synthetic line to prove.
+
+    The precedence itself: ANSWERED wins. A date is a fact about the past, and a door
+    removed afterwards cannot undo a thing the founder already heard on a device — while
+    losing that date is exactly what a regression makes you want back.
+    """
+    when = verified_on(line)
+    if when:
+        return ("answered", when)
+    slice_no = blocked_by(line)
+    if slice_no:
+        return ("blocked", slice_no)
+    return ("open", None)
+
+
 def is_reference(line: str, at: int):
     """The determiner in front of the marker, or None when this line is an ask.
 
@@ -254,7 +323,7 @@ def comment_body(lines, i):
 
 
 def collect():
-    found, refs, done = [], [], []
+    found, refs, done, walled = [], [], [], []
     for root in ROOTS:
         paths = [root] if os.path.isfile(root) else [
             os.path.join(d, f)
@@ -273,12 +342,15 @@ def collect():
                 if det:
                     refs.append((p, i + 1, det))
                     continue
-                when = verified_on(line)
-                if when:
-                    done.append((area_of(p), p, i + 1, when))
+                kind, mark = state_of(line)
+                if kind == "answered":
+                    done.append((area_of(p), p, i + 1, mark))
+                elif kind == "blocked":
+                    walled.append((area_of(p), p, i + 1, mark,
+                                   comment_body(lines, i)))
                 else:
                     found.append((area_of(p), p, i + 1, comment_body(lines, i)))
-    return found, refs, done
+    return found, refs, done, walled
 
 
 
@@ -447,7 +519,7 @@ def selftest() -> int:
     #    passed all five while the header went back to counting 54. This walks the real
     #    tree and asserts the PROPERTY instead of a number: nothing in the ask list may
     #    have a determiner in front of it. It survives the tree changing; a count would not.
-    asks, references, _answered = collect()
+    asks, references, _answered, _walled = collect()
     for _, path, line_no, _ in asks:
         try:
             raw = open(path, encoding="utf-8").read().split("\n")[line_no - 1]
@@ -477,7 +549,7 @@ def selftest() -> int:
     #    even if collect() never calls verified_on. Assert the PROPERTY over the real tree —
     #    no line in the OPEN queue may carry a date, and no line in ANSWERED may lack one.
     #    A count would go stale the first time the founder marks something; this does not.
-    open_asks, _, answered = collect()
+    open_asks, _, answered, _walled2 = collect()
     for _, path, line_no, _ in open_asks:
         try:
             raw = open(path, encoding="utf-8").read().split("\n")[line_no - 1]
@@ -488,6 +560,63 @@ def selftest() -> int:
     for _, path, line_no, when in answered:
         if not when:
             bad.append(f"an ask reached ANSWERED with no date: {path}:{line_no}")
+
+    # 8b. THE BLOCKED RULE (#1053), same two halves as 7+8 and for the same paid reason.
+    #     The third string below is transcribed from THIS FILE's own docstring — the exact
+    #     sentence that would have retired ten asks by reading its own documentation if the
+    #     needle took the bare prefix (#753, third time). Digits are what separates a mark
+    #     from a description of the convention.
+    for line, want in [
+        ("// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: monitoring on, sing", "1024"),
+        ("// NEEDS-FOUNDER-VERIFY: tap the thing", None),
+        ("    // NEEDS-FOUNDER-VERIFY BLOCKED-BY-#NNNN: <the original instruction>", None),
+        ("// NEEDS-FOUNDER-VERIFY BLOCKED-BY-: no slice at all, stays open", None),
+        ("// NEEDS-FOUNDER-VERIFY BLOCKED-BY#1024: mistyped, stays open", None),
+    ]:
+        got = blocked_by(line)
+        if got != want:
+            bad.append(f"blocked_by({line[:44]!r}) = {got!r}, expected {want!r}")
+
+    # 8c. THE WIRING for it — check 6's lesson a third time (#739). Rule 8b passes even if
+    #     collect() never calls blocked_by. Assert the PROPERTY over the real tree: no line
+    #     in the OPEN queue may carry a mark, every BLOCKED line must carry one, and an
+    #     ANSWERED date must WIN over a mark on the same line (a date is a fact about the
+    #     past that a later door removal cannot undo).
+    open3, _, answered3, walled3 = collect()
+    for _, path, line_no, _ in open3:
+        try:
+            raw = open(path, encoding="utf-8").read().split("\n")[line_no - 1]
+        except OSError:
+            continue
+        if blocked_by(raw) and not verified_on(raw):
+            bad.append(f"a blocked ask stayed in the open queue: {path}:{line_no}")
+    for _, path, line_no, slice_no, _ in walled3:
+        if not slice_no:
+            bad.append(f"an ask reached BLOCKED with no slice: {path}:{line_no}")
+    for _, path, line_no, _ in answered3:
+        try:
+            raw = open(path, encoding="utf-8").read().split("\n")[line_no - 1]
+        except OSError:
+            continue
+        if not verified_on(raw):
+            bad.append(f"an ANSWERED entry has no date at its line: {path}:{line_no}")
+
+    # 8d. THE PRECEDENCE, on SYNTHETIC lines — and this check exists because the tree could
+    #     not carry it. Zero asks are answered today, so 8c's answered loop runs over an
+    #     empty list: a mutant that inverted the precedence passed the whole selftest. That
+    #     is the #454 defect inside the anti-#454 machinery. `state_of` was extracted so
+    #     one line can prove it.
+    for line, want in [
+        ("// NEEDS-FOUNDER-VERIFY VERIFIED-2026-08-23 BLOCKED-BY-#1024: both marks",
+         ("answered", "2026-08-23")),
+        ("// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024 VERIFIED-2026-08-23: order swapped",
+         ("answered", "2026-08-23")),
+        ("// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: door gone", ("blocked", "1024")),
+        ("// NEEDS-FOUNDER-VERIFY: tap the thing", ("open", None)),
+    ]:
+        got = state_of(line)
+        if got != want:
+            bad.append(f"state_of({line[:46]!r}) = {got!r}, expected {want!r}")
 
     # 9. `--since` HUNK PARSING (#931). Driven over the three shapes git actually emits.
     #    `+c` with no count means ONE line; `+c,0` is a pure deletion and adds nothing. A
@@ -557,7 +686,7 @@ def main() -> int:
             print("--area needs a name (bio audio visual sync ui other)")
             return 2
 
-    found, refs, done = collect()
+    found, refs, done, walled = collect()
     if not found:
         print("No NEEDS-FOUNDER-VERIFY markers found — that is either a clean backlog "
               "or a broken walk. Check that Sources/ and Tests/ are present.")
@@ -660,6 +789,19 @@ def main() -> int:
             print(f"   {when}  {area:7} {short}:{n_}")
         print()
 
+    if walled:
+        doors = sorted({s for _, _, _, s, _ in walled})
+        print(f"── BLOCKED ({len(walled)}) — the door these instruct you to open was removed")
+        print(f"   By slice #{', #'.join(doors)}. NOT open, NOT answered, NOT deleted: the")
+        print("   engine behind them is untouched, so the day the door comes back these are")
+        print("   exactly the probes that must run. They are held out of the count above so")
+        print("   the queue is jobs you can actually do with a phone in your hand.")
+        for area, p_, n_, slice_no, body in sorted(walled, key=lambda r: (r[0], r[1])):
+            short = p_.replace("Sources/Echoelmusic/", "").replace("Tests/CISmoke/", "CISmoke/")
+            print(f"   #{slice_no}  {area:7} {short}:{n_}")
+            print(f"          {body[:110]}…")
+        print()
+
     print("── HOW TO RETIRE AN ASK once you have done it on a device")
     print("   Put the date on the SAME line as the marker, then commit:")
     print("     // NEEDS-FOUNDER-VERIFY VERIFIED-YYYY-MM-DD: <the original instruction>")
@@ -680,6 +822,10 @@ def main() -> int:
     print("   The NOT-ASKS split keys on a determiner in front of the marker, and can only\n"
           "     REMOVE from the list above. A sentence about the backlog phrased without one\n"
           "     stays counted as an ask — noise, never a hidden job.")
+    print("   BLOCKED is a HAND-WRITTEN mark, not a derivation. Nothing here can tell that a\n"
+          "     door was removed; somebody has to notice and write BLOCKED-BY-#<slice> on the\n"
+          "     marker line. So this list under-reports: an ask whose door died unnoticed is\n"
+          "     still shown as open, which is the safe direction and not a clean bill.")
     return 0
 
 

@@ -340,7 +340,7 @@ enum AudioConfiguration {
     /// route on HFP — `routeCodec` below detects that case; we only guarantee
     /// Echoel is never the cause.
     /// `.mixWithOthers` keeps other apps audible even while we record.
-    /// NEEDS-FOUNDER-VERIFY: Bluetooth-Kopfhörer verbinden, spielen, Monitoring
+    /// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: Bluetooth-Kopfhörer verbinden, spielen, Monitoring
     /// EINschalten — die Musik muss Stereo/voll bleiben und der Routen-Marker
     /// darf kein [HFP] zeigen. (Kein Simulator hat Bluetooth-Routing — nur am
     /// Gerät prüfbar.)

@@ -171,7 +171,7 @@ public final class MonitorInsertAudioUnit: AUAudioUnit {
                                      sampleRate: rate)
     }()
 
-    /// NEEDS-FOUNDER-VERIFY: Monitoring an (Log zeigt „insert in") und normal
+    /// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: Monitoring an (Log zeigt „insert in") und normal
     /// sprechen/singen — klingt der Monitor UNVERÄNDERT gegenüber v423, ohne
     /// Knacksen und ohne spürbaren CPU-/Wärme-Sprung? Das ist die #839-Probe:
     /// die Kette läuft dann erstmals auf dem Gerät, beweisbar stumm.

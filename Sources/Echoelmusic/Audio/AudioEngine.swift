@@ -443,7 +443,7 @@ public final class AudioEngine {
     /// presentation slot, and the MUSIC path is untouched (it never passes the notch).
     /// Deliberately NOT persisted, like monitoring itself: amplification through the
     /// speaker must never surprise on relaunch.
-    /// NEEDS-FOUNDER-VERIFY: Megaphone am Gerät — Monitoring auf dem Lautsprecher,
+    /// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: Megaphone am Gerät — Monitoring auf dem Lautsprecher,
     /// Schalter an: Stimme deutlich lauter, beginnendes Aufheulen wird binnen ~1 s
     /// weggeduckt und kommt nach dem Verstummen zurück; Schalter aus = alter Pegel.
     /// (Lautsprecher-Rückkopplung existiert in keinem Simulator.)
@@ -703,7 +703,7 @@ public final class AudioEngine {
 
     /// The one enable/disable door (the `setVoiceTune(_:)` shape — a setter owns
     /// the transition; no graph rewire here, the insert node is always in place).
-    /// NEEDS-FOUNDER-VERIFY: Mix-Chip → Choose input… → „Harmony voices" AN — zwei
+    /// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: Mix-Chip → Choose input… → „Harmony voices" AN — zwei
     /// Harmoniestimmen (Terz + Quinte) unter der eigenen Stimme, nur im Monitor?
     /// Intervalle wechseln, Mix drehen, dann AUS — wieder exakt der normale
     /// Monitor? Log-Beleg: `monitor: harmony on/off` im Diagnose-Export (#841).
@@ -717,7 +717,7 @@ public final class AudioEngine {
 
     /// The granular door (#849) — the `setVoiceHarmony` shape: a setter owns the
     /// transition; no graph rewire, the insert node is always in place.
-    /// NEEDS-FOUNDER-VERIFY: Mix-Chip → Choose input… → „Granular texture" AN —
+    /// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: Mix-Chip → Choose input… → „Granular texture" AN —
     /// eine schimmernde Grain-Wolke unter der eigenen Stimme, nur im Monitor?
     /// Mix/Grain/Pitch drehen, dann AUS — wieder exakt der normale Monitor?
     /// Log-Beleg: `monitor: granular on/off` im Diagnose-Export.
@@ -2830,7 +2830,7 @@ public final class AudioEngine {
                 // read below sees it and we REFUSE — a reported no-op instead of an abort,
                 // which is the safe direction. What this block cannot promise is that the
                 // grant will ever succeed on a device whose graph and hardware disagree; only
-                // a device run can say. NEEDS-FOUNDER-VERIFY: mic monitor ON while the master
+                // a device run can say. NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: mic monitor ON while the master
                 // graph runs at 44.1 kHz on 48 kHz hardware — does the diag log say
                 // "session granted 44100.0 Hz … continuing", or "on REFUSED"?
                 // ⭐ #958b — READ THE **SESSION**, NOT THE NODE, AND THE FIRST DRAFT READ THE
@@ -3507,7 +3507,7 @@ public final class AudioEngine {
     /// still audible on the same frequency); otherwise it takes a free band — ranked
     /// candidates first, so when howls outnumber bands the strongest are the ones that
     /// get filters. MainActor, called only from the guard tick.
-    /// NEEDS-FOUNDER-VERIFY: Lautsprecher-Monitoring, Howl provozieren (Mic Richtung
+    /// NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: Lautsprecher-Monitoring, Howl provozieren (Mic Richtung
     /// Lautsprecher) — es darf GAR NICHT erst hörbar piepsen (Log zeigt „notch engaged
     /// … Hz"); danach normal singen und pfeifen — Stimme und Pfeifton dürfen NICHT
     /// dünner werden (kein fälschliches Notchen).

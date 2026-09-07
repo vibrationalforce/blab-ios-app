@@ -24,7 +24,7 @@
 // running `AVAudioEngine` no test host can drive. What no test here can prove:
 // that the corrected monitor SOUNDS in key on a device, the added latency of
 // the time-pitch stage, and CPU of YIN-at-15-Hz on old hardware — device probe
-// (NEEDS-FOUNDER-VERIFY: monitoring on, Tune to key on, sing off-pitch — the
+// (NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: monitoring on, Tune to key on, sing off-pitch — the
 // monitor must pull you to the Tonart; Tune 1.00 must give the classic snap).
 //
 // ⭐ GRADING (§3). Transcribed in Python (stripper re-implemented, needles

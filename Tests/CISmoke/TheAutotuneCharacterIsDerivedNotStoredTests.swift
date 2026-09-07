@@ -32,7 +32,7 @@
 // (`SoundPanelPresetBarTests`, `TheVoiceTuneSnapsToTheSessionKeyTests`). What no test
 // here can prove: that four characters are the RIGHT four, that `.natural` sounds
 // natural, or that a segmented picker with nothing highlighted reads as "custom" to a
-// performer mid-take. That is a device probe (NEEDS-FOUNDER-VERIFY: monitoring on, Tune
+// performer mid-take. That is a device probe (NEEDS-FOUNDER-VERIFY BLOCKED-BY-#1024: monitoring on, Tune
 // to key on, step through the four while singing; then drag Amount and check the
 // highlight clears and the caption appears).
 //
