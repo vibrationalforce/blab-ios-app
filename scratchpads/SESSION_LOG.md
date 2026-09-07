@@ -24674,3 +24674,56 @@ anderen vier verhindern, dass ihn eine plausible Aufräumarbeit rückgängig mac
 **Gate gelesen:** `Build for Testing` = **success** auf `0d41c963` — die Shader-Änderung (#1054)
 und die vier Sprossen (#1055) kompilieren, das blockierende Bundle mit beiden neuen Wächtern
 ebenfalls.
+
+## #1057 — Neun von zehn Fine-tune-Reglern taten im Donut-Modus nichts (2026-09-07)
+
+**Befund.** `SpectralDonutView` deklariert genau ZWEI Eingänge (`reduceMotion`, `bandCount`,
+und `bandCount = max(8, Int(visualDetail))`). Der „Fine tune"-Block des Field-Panels bietet
+ZEHN `EchoelValueField`-Zeilen an. Also: mit gewähltem Donut-Renderer ist Detail lebendig und
+Energy · Intensity · Motion · Spread · Hue · Saturation · Texture · Glitter · Structure sind
+tot — neun Regler, die ein Spieler ziehen kann, ohne dass sich etwas ändert. Die
+Lügende-Bedienelement-Klasse aus #1003, dort EINE Zeile, hier neun — und ausgerechnet auf der
+Fläche, die der Founder „kompakter und übersichtlicher" haben wollte. Seit #1043 (Donut-Zweig
+ins schwebende Fenster portiert) gilt es auch für das Inline-Panel, nicht nur fürs Vollbild.
+
+**Reparatur = Skalpell, kein Schalter.** Die neun Zeilen hängen an `donutIsThePicture`; Detail
+ist EINMAL deklariert und in BEIDEN Modi sichtbar, weil es der einzige Regler ist, der das Bild
+erreicht. Der Donut-Zweig trägt einen Satz, der die neun benennt und sagt, wo sie wirken —
+stilles Ausblenden wäre die andere Hälfte desselben Defekts: der Spieler kann „hier nicht
+zuständig" nicht von „diesem Build fehlen die Regler" unterscheiden.
+
+**Die Bedingung hat ZWEI Terme, und das ist der lesenswerte Teil.** `spectralDonuts` allein wäre
+falsch: mit angeschlossenem Beamer prüft `FloatingVisualWindow` seinen External-Stage-Zweig VOR
+dem Donut-Zweig — das Fenster zeigt ein Schild, während `ExternalDisplayScene` das METALL-FELD
+rendert und `visual.hue`/`visual.saturation` aus genau den Schlüsseln liest, die diese Zeilen
+schreiben. In diesem Zustand erreichen die Regler sehr wohl ein Bild (das des Beamers), und
+Ausblenden tauschte ein lügendes Bedienelement gegen ein fehlendes. `isProjectingExternally`
+(#1044) ist die vorhandene Definition und ist KALT — der Read im `body` rührt das
+10.76.41/50-Freeze-Gesetz nicht an.
+
+**EIN `if/else` INNERHALB `visualAdjustFields`, keine Aufteilung in zwei Member.** Sowohl
+`VisualFineTuneReflowsTests.fineTuneBody()` als auch `VisualPresetValuesAreReachableTests`
+klammern-matchen genau diesen Member und zählen 2 Gitter / 10 Zeilen. Ein Split hätte zwei
+Wächter auf korrektem Baum rot gemacht — der erste Versuch tat das und wurde zurückgenommen,
+der zweite fügte eine zweite `label: "Detail"`-Zeile hinzu (Doppel-Label, #416) und ebenfalls.
+Per Transkription geprüft: 2 Gitter, 10 Felder, keine Dublette, Datei-Klammern 1012/1012.
+
+**Zwei abgelaufene Kommentare im selben Commit mitgezogen (#456).** „harmless now that nothing
+REACHABLE sets it true" war seit #747 FALSCH (`EchoelStudioView.swift:5180` schreibt
+`showVisual = true`), also ist der `spectralDonuts`-Clear des Look-Sliders tragend, nicht
+schlafend — dieselbe Form wie #1056 zwei Stunden vorher: eine Behauptung, deren Prämisse eine
+spätere Scheibe still widerlegt hat. Dazu die tote `false`-Begründung über dem Look-Streifen und
+der Donut-Arm des `detailReach`-Ternärs aus #1003, der unwählbar geworden ist.
+
+**Wächter.** `Tests/CISmoke/TheDonutHidesTheDialsItCannotHearTests` — sieben Behauptungen in vier
+Ansprüchen, in Python gegen BEIDE Bäume gefahren: 7/7 grün auf heute, 4 ROT auf HEAD. Also **4
+Regressionsfänge, 3 Gegengewichte** — aus dem gefahrenen Lauf gezählt, nicht aus der Gliederung
+(#1054). Anspruch 4 misst die PRÄMISSE: bekommt der Donut je mehr Parameter, wird er rot und
+seine Meldung sagt, die Reparatur sei das WIEDER-EINBLENDEN (#364).
+
+**Ein eigener Fehler unterwegs, gefangen beim Diff-Lesen:** der neue Member wurde MITTEN in den
+Doc-Kommentar von `isProjectingExternally` eingesetzt, so dass dessen Absatz plötzlich den neuen
+Member beschrieb — genau die Klasse, die dieses Bündel dauernd repariert. Verschoben unter die
+schließende Klammer, beide Doc-Blöcke sitzen wieder an ihrem Subjekt.
+
+Nicht gerätegeprüft. NEEDS-FOUNDER-VERIFY im Fuß des Wächters, samt Gegenprobe mit Beamer.
