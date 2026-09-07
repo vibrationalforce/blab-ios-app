@@ -1,4 +1,4 @@
-build: v10.79.456 — wie 455, PLUS der Weißabgleich-Fix für den Puls
+build: v10.79.457 — wie 456, PLUS: das Wasser folgt jetzt der Tonhöhe
 branch: claude/echoelmusic-neustart-auv3-6ri2ek (tokenless deploy via .deploy/release bump)
 notes: |
   ⚠ AN DIE NÄCHSTE SESSION: die Versionsnummer in Zeile 1 MUSS die erste im ganzen File
@@ -6,28 +6,48 @@ notes: |
   nimmt den ersten Treffer. Deshalb steht der Vorgänger unten ohne `v`.
   Wächter im blockierenden Bundle: `TheShippedVersionComesFromTheReleaseFileTests` (#635).
 
-  Der Vorgänger ist 10.79.455.
+  Der Vorgänger ist 10.79.456.
 
-  ── ⚠️ NIMM DIESEN, NICHT 455 ────────────────────────────────────────────
+  ── DEINE FRAGE NACH ECHTEN WASSERKLANGBILDERN ───────────────────────────
 
-  455 ist fünfzehn Minuten alt und **fast** identisch. Der Unterschied ist EINE Sache,
-  und sie betrifft genau das, was Du beim Testen ohnehin in der Hand hast:
+      „Können wir die Visuals noch um mehrere physikalisch assoziierte
+       Visuals ergänzen? Echte Wasserklangbilder etc."
 
-  **Der Weißabgleich der Kamera wird jetzt zusammen mit der Belichtung festgehalten.**
+  **Der Wasser-Look reagiert ab jetzt auf die Tonhöhe.** Bisher tat er das nicht — und
+  das ist der ganze Punkt dieses Builds.
 
-  Die Kamera regelt zwei Dinge automatisch nach: Helligkeit und Farbe. Die Helligkeit
-  wird seit Juni festgehalten, sobald Dein Finger auf der Linse liegt. Die Farbe nie —
-  und der Puls wird aus dem **Rot/Grün-Verhältnis** gelesen, also aus genau den zwei
-  Kanälen, die eine Farbautomatik gegeneinander verschiebt. Sie hat einen langsamen
-  Trend direkt in das Messsignal geschrieben.
+  Was falsch war, in einem Satz: die **Wellenlänge** des Wasserbildes kam aus Deinem
+  **Atem**, und der klingende Ton erreichte das Bild überhaupt nicht. Ein Wasserklangbild,
+  dem als einziges der Klang fehlte.
 
-  **Zusätzlich zu prüfen (Punkt 6 zu den fünf unten):** Finger auf die Linse, Licht an —
-  lockt der Puls so schnell wie vorher, und **hält** er länger, ohne wegzudriften?
-  ⚠️ Ein Rückschritt sähe aus wie ein Lock, der gar nicht erst kommt. Falls das passiert:
-  sag es, dann kommt der Fix sofort wieder raus — die eingefrorenen Werte wären dann für
-  Deine Szene falsch gewesen.
+  Was jetzt gilt: eine flache Wasserschale auf einem Lautsprecher folgt einem echten
+  Gesetz — je höher der Ton, desto feiner das Netz, und zwar mit einem bestimmten
+  Verhältnis. **Eine Oktave höher = Netz etwa 1,6× feiner.** Das ist keine Näherung nach
+  Gefühl, das ist die Kapillarwellen-Beziehung.
 
-  Alles andere unten gilt unverändert für 456.
+  Der **Atem** ist nicht weg — er sitzt jetzt dort, wo die Physik ihn hat: auf der
+  **Stärke** des Musters, nicht auf seiner Feinheit. In einer echten Schale bestimmt die
+  Frequenz die Wellenlänge und die Lautstärke, ob überhaupt ein Muster entsteht.
+
+  **Zu prüfen (Punkt 6 zu den fünf unten), und es geht in zehn Sekunden:** einen tiefen
+  Bass spielen, dann eine Lead zwei Oktaven höher. Das Wassernetz muss **sichtbar gröber
+  und feiner** werden.
+  ⚠️ Zwei Rückschritte, nach denen ich ausdrücklich frage: wird der Bass-Bereich **flach**
+  (kaum noch Struktur), oder flimmert die Höhe in ein **Moiré**? Beides ist ein
+  Zwei-Zeilen-Rückbau, sag einfach welches.
+
+  ⚠️ **Was ich NICHT gebaut habe, und warum.** Der naheliegende Weg wären Chladni-Figuren
+  gewesen. Zwei Gründe dagegen: dieser Look ist seit Juli **aus dem Menü**, weil Du ihn
+  selbst rausgenommen hast („passt nicht zum Vibe") — und selbst repariert hätte er
+  **null Bildpunkte** für Dich verändert, weil er über drei Wege gar nicht erreichbar ist.
+  Ich habe stattdessen das Bild wahr gemacht, das Du beim Öffnen der App ohnehin siehst.
+
+  ⚠️ **Der Weißabgleich-Fix aus 456 ist unverändert drin** (Kamera hält jetzt Helligkeit
+  UND Farbe fest, sobald der Finger auf der Linse liegt). Falls Du 456 noch nicht in der
+  Hand hattest: dessen Prüfpunkt gilt hier weiter — lockt der Puls so schnell wie vorher,
+  und hält er länger ohne wegzudriften?
+
+  Alles andere unten gilt unverändert für 457.
 
   ── ──────────────────────────────────────────────────────────────────────
 
@@ -92,6 +112,16 @@ notes: |
 
   ── FRAGEN AN DICH, DIE ICH NICHT ALLEIN ENTSCHEIDE ──────────────────────
 
+  · **Der Platten-Look (Chladni) überhaupt?** Die physikalisch KORREKTE Fassung zeichnet
+    weiterhin harte schwarz-weiße Knotenlinien — das ist, was diese Physik nun mal ist.
+    Die Wasserschale dagegen ist eine weiche, durchgehende Oberfläche, also genau das
+    Register, das bei Dir überlebt hat. Willst Du die Platte als eigenen Look, oder bleibt
+    Wasser die einzige Form, in der Du das haben willst? Gemessene Kosten falls ja: EIN
+    zusätzlicher Chip in der vorhandenen Look-Reihe, der Regler wird NICHT länger.
+  · **Ehrlich oder dramatisch?** Eine echte Metallplatte zeigt über 99 % eines
+    Tonhöhen-Glissandos GAR NICHTS — Figuren rasten nur bei Resonanzen ein. Dauerhaft
+    etwas zu zeigen heißt, die Materialgüte zu erfinden. Beides ist baubar; das ist eine
+    Geschmacksfrage, keine technische.
   · **Beamer wettergemischt oder roh?** Technisch geht jetzt beides — das ist Dein
     vorhandener Wetter-Schalter, keine Codeänderung. Vorher war „roh" ein Defekt, jetzt
     ist es eine Wahl.
@@ -106,9 +136,21 @@ notes: |
 
   ── STAND DER GATES ──────────────────────────────────────────────────────
 
-  Compile Check grün auf allen Scheiben dieser Runde. Die Test-Pipeline meldet bei JEDEM
-  Push „failure" (bekannt, #396) — deshalb zählen die Job-Schritte, nicht die Conclusion.
-  Alle neuen Wächter-Behauptungen habe ich von Hand gegen den Quelltext nachgerechnet.
+  Compile Check grün auf allen Scheiben dieser Runde, für die Wasser-Änderung ausdrücklich
+  (sie fasst `Sources/` an, da zählt er wirklich). Die Test-Pipeline meldet bei JEDEM Push
+  „failure" (bekannt, #396) — deshalb zählen die Job-Schritte, nicht die Conclusion. Alle
+  neuen Wächter-Behauptungen habe ich von Hand gegen den Quelltext nachgerechnet, für die
+  Wasser-Änderung zusätzlich mit sechs absichtlich eingebauten Fehlern, die alle gefangen
+  wurden.
+
+  ⚠️ **Eine Messlücke, die ich offen nennen muss.** Ich habe in derselben Runde einen
+  Wächter gebaut, der den Metal-Shader zum ersten Mal WIRKLICH übersetzt — bisher haben
+  beide Gates ihn nur als Text gesehen, ein Tippfehler darin wäre also durch beide grünen
+  Häkchen bis auf Dein Gerät durchgelaufen und hätte das Bild einfach nicht mehr gezeichnet.
+  Der Wächter ist drin und kompiliert. **Ob er im letzten Lauf durchlief, übersprungen wurde
+  oder etwas fand, kann ich nicht sehen** — das CI-Log wird auf die letzten 200 Zeilen
+  gekürzt, und er lag nicht darin. Ich behaupte ihn deshalb NICHT als Absicherung für
+  diesen Build.
 
   **Geräteverifiziert ist nichts davon** — und Punkt 5 kann ich prinzipiell nicht prüfen,
   ohne Beamer ist dieser Pfad unsichtbar.
