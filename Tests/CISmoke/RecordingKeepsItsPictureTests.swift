@@ -135,6 +135,61 @@ final class RecordingKeepsItsPictureTests: XCTestCase {
             """)
     }
 
+    /// ⭐ #1043 (visual epic S4a) — A SECOND WAY TO STARVE THE WRITER, ported in with the
+    /// donut look. The spectrum rings are a SwiftUI `Canvas`, not Metal, so while they are on
+    /// screen there is no `MetalBioView` and therefore no frame source at all — the exact shape
+    /// of the #319 defect this file was written for, arriving through a different door.
+    ///
+    /// The fullscreen COVER never had to decide this: it hid its record button under donuts and
+    /// stopped there, which prevents STARTING a take but not switching looks during one. The
+    /// window's branch therefore yields — `spectralDonuts, !mustKeepRenderingForRecording` —
+    /// so a running take keeps the field until it ends.
+    ///
+    /// ⛔ THIS FORBIDS NOTHING (#364). Teaching `VisualRecorder` to capture a `Canvas`, or
+    /// handing the writer a different source, makes the yield unnecessary and this claim red on
+    /// purpose; its message says which prose moves with it. What it will not allow is the branch
+    /// silently dropping the term while the writer still has one source.
+    func testTheDonutBranchYieldsToARunningRecording() throws {
+        let body = try memberBody(startingWith: "private func visualLayer(", in: Self.window)
+        let code = body.joined(separator: "\n")
+
+        guard code.contains("spectralDonuts") else {
+            // The look is not mounted here (S4a reverted, or the window lost it again). Say so
+            // out loud: a silent skip is how a lifted premise becomes an unnoticed hole (#454).
+            print("#1043: `visualLayer` has no donut branch — claim not applicable.")
+            return
+        }
+        XCTAssertTrue(code.contains("!mustKeepRenderingForRecording"), """
+            `visualLayer` mounts the donut look WITHOUT yielding to a running take. The rings
+            are a `Canvas`; while they are up there is no `MetalBioView`, so an `AVAssetWriter`
+            already open receives no further frames and the REC pill counts wall-clock seconds
+            over a file that stopped growing — #164's lying control, reached through a look
+            change instead of the hide button this file's claim 1 guards.
+
+            Either restore `spectralDonuts, !mustKeepRenderingForRecording`, or, if the recorder
+            can now capture this look, delete this claim and correct the two comments that say
+            it cannot: the donut branch's own block and `videoCaptureYielded`'s doc (#456).
+
+            \(code)
+            """)
+
+        // COUNTERWEIGHT (#367): the yield is only half the rule. Starting a take under donuts
+        // must be impossible, or the branch above is reached from a state it cannot repair.
+        let yielded = try memberBody(startingWith: "private var videoCaptureYielded:",
+                                     in: Self.window).joined(separator: "\n")
+        XCTAssertTrue(yielded.contains("spectralDonuts"), """
+            `videoCaptureYielded` no longer counts the donut look, so the record button is
+            offered while there is nothing for the writer to read. That is the START half of
+            the same defect; the yield in `visualLayer` only covers a take already running.
+
+            Keep both reasons in this ONE property (#416) rather than hiding the button, which
+            is how the cover expressed it — a control that vanishes says nothing to a screen
+            reader, while a disabled one with a sentence says why.
+
+            \(yielded)
+            """)
+    }
+
     // MARK: - Source helpers
 
     /// Lines of a member, from the line that starts with `prefix` to the closing `}` at that

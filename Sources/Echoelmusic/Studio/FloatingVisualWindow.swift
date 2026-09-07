@@ -178,6 +178,14 @@ struct FloatingVisualWindow: View {
     // of binding `StudioDefaultKeys` is that there is nothing left to keep in sync by hand.
     // Kept IDENTICAL to EchoelStudioView's declarations so an absent key resolves to the
     // same value in both views (no drift before the user touches a control).
+    /// ⭐ #1043 (visual epic S4a) — THE DONUT LOOK NOW EXISTS IN THIS WINDOW TOO. It was one
+    /// of four things only the fullscreen COVER could show, which is why the app had two
+    /// disjoint fullscreens instead of the "eine Einheit zum steuern" the founder asked for.
+    /// Same key as `EchoelStudioView`, so the choice is ONE fact and the two surfaces cannot
+    /// disagree while both exist. Reading an `@AppStorage` Bool in this body is not a
+    /// freeze-law read (10.76.41/50): it changes on a tap, it has no rate.
+    @AppStorage(StudioDefaultKeys.visualSpectralDonuts.key)
+    private var spectralDonuts = StudioDefaultKeys.visualSpectralDonuts.value
     @AppStorage(StudioDefaultKeys.visualStyle.key) private var visualStyle = StudioDefaultKeys.visualStyle.value
     @AppStorage(StudioDefaultKeys.visualStyleB.key) private var visualStyleB = StudioDefaultKeys.visualStyleB.value
     @AppStorage(StudioDefaultKeys.visualBlend.key) private var visualBlend = StudioDefaultKeys.visualBlend.value
@@ -668,8 +676,15 @@ struct FloatingVisualWindow: View {
     ///  · The EXTERNAL-SCREEN route is still open, and it is genuinely the harder one: the
     ///    phone yields its renderer because the external stage has one, so recording through it
     ///    means deciding which renderer feeds the writer — not adding a condition.
+    /// ⭐ #1043 (S4a) adds the THIRD reason, and deliberately here rather than at the button:
+    /// the donut look is a SwiftUI `Canvas`, so there is no Metal layer for the writer to read.
+    /// Putting it in this one property keeps the disabled state, its VoiceOver sentence and the
+    /// `.disabled` call in a single definition (#416) — the cover instead HID its record button
+    /// under donuts, which is a fourth spelling of the same rule and reads to a screen reader as
+    /// a control that vanished for no stated reason.
     private var videoCaptureYielded: Bool {
-        (ExternalStageBridge.shared.isConnected || !isPresented) && !recorder.isRecording
+        (ExternalStageBridge.shared.isConnected || !isPresented || spectralDonuts)
+            && !recorder.isRecording
     }
     #endif
 
@@ -755,6 +770,24 @@ struct FloatingVisualWindow: View {
             .allowsHitTesting(false)   // the play surface above must get every touch
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Visual is showing on the external screen")
+        } else if spectralDonuts, !mustKeepRenderingForRecording {
+            // ⭐ #1043 (S4a) — THE DONUTS, AS A NON-RECORDING LEAF. The spectrum→visible-light
+            // rings are a SwiftUI `Canvas`, not Metal, so `VisualRecorder` cannot capture them:
+            // the cover stated that in a comment and enforced it by hiding its record button.
+            // Here the same fact is enforced in the ONE place that already answers "can this
+            // window record right now" — `videoCaptureYielded` — so the disabled state and its
+            // VoiceOver sentence stay a single definition (#416) instead of a second rule.
+            //
+            // ⚠️ AND IT YIELDS TO A RUNNING TAKE, which the cover never had to decide. Flipping
+            // to donuts mid-recording would take the Metal layer out from under a live
+            // `AVAssetWriter` — a red REC pill counting up over a file receiving no frames, the
+            // lying-control class (#164) that the external-screen branch above exists to avoid.
+            // `mustKeepRenderingForRecording` is the term that already means exactly this, so
+            // the picture stays on the field until the take ends. You cannot START a take under
+            // donuts (the button is unavailable), so this branch is only ever reached by the
+            // player switching looks while one runs.
+            SpectralDonutView(reduceMotion: reduceMotion,
+                              bandCount: max(8, Int(visualDetail)))
         } else {
             liveVisual(wv)
         }
@@ -1120,7 +1153,9 @@ struct FloatingVisualWindow: View {
                 .accessibilityLabel(recorder.isRecording
                                     ? "Stop video recording"
                                     : (videoCaptureYielded
-                                       ? "Video recording unavailable while the visual is on the external screen"
+                                       ? (spectralDonuts
+                                          ? "Video recording unavailable in the donut look — switch to the field to record"
+                                          : "Video recording unavailable while the visual is on the external screen")
                                        : "Record MP4 video"))
             }
             #endif
