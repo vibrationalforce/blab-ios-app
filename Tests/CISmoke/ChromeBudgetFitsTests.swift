@@ -196,6 +196,13 @@ final class ChromeBudgetFitsTests: XCTestCase {
     /// name that reads as coverage of the slider and the chip is why nobody noticed that on
     /// the phones the app ships to, neither survives.
     ///
+    /// ⛔ "NEITHER SURVIVES" IS TRUE OF PORTRAIT ONLY, and the sentence did not say so
+    /// because `devices` holds nothing else — a limit of the sample read as a property of the
+    /// phone (#1045). Turned sideways the same three phones offer 612–742 pt of safe width
+    /// and the slider survives in EVERY state, the narrowest clearing the busiest need by
+    /// 7 pt. `testTheLookSliderSurvivesWhereProjectionActuallyHappens` drives that and pins
+    /// both halves. The "Studio" chip half of this sentence was separately answered by #1036.
+    ///
     /// MEASURED (re-derive by driving `chromeFit` across widths; the arithmetic is the
     /// `barWidth` helper above): in fullscreen with the transport shown and nothing
     /// recording, the "Studio" chip needs **431 pt** and the look slider **529 pt**. While a
@@ -229,6 +236,93 @@ final class ChromeBudgetFitsTests: XCTestCase {
                     """)
             }
         }
+    }
+
+    /// LANDSCAPE safe-area boxes for the same three phones — the long edge, MINUS 88 pt for
+    /// the two sensor-housing insets a notch phone loses when it is turned. Deliberately
+    /// conservative: an under-estimate of the available width can only make the claim below
+    /// harder to satisfy, and a claim that is too easy is the failure this bundle exists for.
+    ///
+    /// ⚠️ THIS IS A SEPARATE CONSTANT, NOT AN ADDITION TO `devices`. Every other claim in this
+    /// file iterates `devices` and several assert exact state SETS ("the chip sheds in exactly
+    /// this one state"); folding landscape in would silently double those sweeps and change
+    /// their counts, which is a rewrite of five claims disguised as a data edit.
+    private static let landscapeDevices: [CGSize] = [
+        CGSize(width: 700 - 88, height: 375),
+        CGSize(width: 750 - 88, height: 393),
+        CGSize(width: 830 - 88, height: 440)
+    ]
+
+    /// ⭐ #1045 — THE LOOK SLIDER IS A LANDSCAPE CONTROL, AND SAYING SO IS A CORRECTION.
+    ///
+    /// The block on `testFullscreenFitsAtEveryShippedWidth` measures that the slider needs
+    /// **529 pt** idle and **605 pt** while a WAV take runs, against a widest `devices` entry
+    /// of 440, and concludes: on the phones the app ships to "neither survives". That
+    /// measurement is right and the SENTENCE reads as absolute — while `devices` holds only
+    /// PORTRAIT boxes and this file never drove a landscape one at all. Turned sideways the
+    /// same phone offers 612–742 pt of safe width, so the slider fits in every state, and the
+    /// narrowest case clears the busiest need by 7 pt.
+    ///
+    /// Why the correction is worth a claim rather than a comment: the founder's ask for this
+    /// control was explicitly *"langem slider, der durch alle Modi stufenlos überblendet …
+    /// während des Spielens"*, and projection — the case fullscreen exists for — is the
+    /// orientation where it works. A reader who takes "neither survives" as the whole story
+    /// either deletes a working control or spends a cycle shrinking it for portrait.
+    ///
+    /// ⛔ FORBIDS NOTHING (#364). The portrait half below is recorded as an expectation SET,
+    /// the shape this file already uses for the chip's one exception: a future change that
+    /// rescues the slider in portrait turns it red and gets it TIGHTENED, not reverted.
+    func testTheLookSliderSurvivesWhereProjectionActuallyHappens() {
+        var landscapeShed: [String] = []
+        for bounds in Self.landscapeDevices {
+            for wavBusy in [false, true] {
+                for videoBusy in [false, true] {
+                    let fit = FloatingVisualLayout.chromeFit(cardWidth: bounds.width,
+                                                             isFullscreen: true,
+                                                             showsTransport: true,
+                                                             wavBusy: wavBusy, videoBusy: videoBusy)
+                    if !fit.lookSlider {
+                        landscapeShed.append("\(Int(bounds.width))pt wav=\(wavBusy) video=\(videoBusy)")
+                    }
+                    XCTAssertLessThanOrEqual(barWidth(fit, wavBusy: wavBusy), bounds.width, """
+                        Landscape fullscreen at \(Int(bounds.width))pt, wav=\(wavBusy) \
+                        video=\(videoBusy): the chrome overflows. Wider than portrait and \
+                        still too narrow means the budget stopped shedding, not that the bar \
+                        got bigger.
+                        """)
+                }
+            }
+        }
+        XCTAssertEqual(landscapeShed, [], """
+            The look slider now sheds in landscape too: \
+            \(landscapeShed.joined(separator: " · ")). It was the ONE orientation in which \
+            this fullscreen-only control could appear at all, so shedding it here makes it \
+            dead chrome on every shipped phone — and the comment on \
+            `testFullscreenFitsAtEveryShippedWidth` that calls it a portrait problem becomes \
+            wrong in the same move (#456). Either restore the width, or delete the control \
+            and both prose homes with it.
+            """)
+
+        // COUNTERWEIGHT (#367): the portrait half, so the pair states the ORIENTATION SPLIT
+        // rather than half of it. Recorded as a set — not as "it must never fit" — because
+        // forbidding the repair is exactly what #364 bans.
+        var portraitKept: [String] = []
+        for bounds in Self.devices {
+            for wavBusy in [false, true] {
+                let fit = FloatingVisualLayout.chromeFit(cardWidth: bounds.width,
+                                                         isFullscreen: true,
+                                                         showsTransport: true,
+                                                         wavBusy: wavBusy, videoBusy: false)
+                if fit.lookSlider { portraitKept.append("\(Int(bounds.width))pt wav=\(wavBusy)") }
+            }
+        }
+        XCTAssertEqual(portraitKept, [], """
+            The look slider now survives in PORTRAIT somewhere: \
+            \(portraitKept.joined(separator: " · ")). That is good news and this claim is \
+            the thing that reports it — tighten it to the new set, and correct the block on \
+            `testFullscreenFitsAtEveryShippedWidth`, which still says the slider needs 529 pt \
+            against a widest portrait phone of 440.
+            """)
     }
 
     /// ⭐ #1036 — THE LABELLED WAY BACK MUST SURVIVE ON A PHONE. This is the positive half of
