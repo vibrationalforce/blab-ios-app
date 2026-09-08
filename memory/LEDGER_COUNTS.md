@@ -6360,3 +6360,38 @@ Zeiger, kein Verbot (#364).
 ### §G — Nachtrag, verschoben aus CLAUDE.md (#1024, 2026-09-06)
 
 **KORREKTUR 2026-07-26 (die „verifiziert 2026-07-21"-Zeile war FALSCH für zwei ihrer Einträge):** `AutomationView.swift` existiert im Repo nicht mehr — es kann keine Tür haben. Und **`SpectralDonutView` WAR UNERREICHBAR bis #747 (2026-08-22):** ihr einziger Instanziierungsort liegt im `.fullScreenCover(isPresented: $showVisual)`, und `showVisual`s einziger Setzer war `openTool`, aufrufbar nur aus `toolsSection`, **das nichts rendert**. #747 hat den Knopf „Full screen" ins `visualPanel` gesetzt — damit sind Vollbild-Feld, VJ-Overlay, Donut-Renderer und die REC-Taste des Covers erreichbar (offene Aufgabe #270 geschlossen).
+
+
+## R — Die sechs Prosa-Zitate der gelöschten `TimelineAutomationRow` (#473, verschoben aus CLAUDE.md #1142)
+
+**Warum verschoben:** `CLAUDE.md` stand bei 149.297 B, also **703 B** unter der 150.000-B-Decke,
+die `Tests/CISmoke/TheLawFileStaysUnderItsCeilingTests` im BLOCKIERENDEN Bundle prüft. Eine
+einzige neue Register-Zeile hätte das Bundle rot gemacht. Die dokumentierte Reparatur ist genau
+diese: **Provenienz hierher, GESETZ dort.** Die zwei Gesetze sind in `CLAUDE.md` geblieben, der
+Rest steht hier — wortgleich, nichts gelöscht.
+
+⚠️ Ein Verschieben ist erst dann eines, wenn BEIDE Seiten GEMESSEN sind (#912) — **gemessen,
+nicht vorhergesagt**: `CLAUDE.md` 149.297 → **147.753 B** (−1.544 B, Decken-Reserve 703 →
+**2.247 B**). Die CLAUDE.md-Seite ist die, auf der die Decke sitzt, und sie steht still.
+
+⚠️ **Die LEDGER-Seite bekommt bewusst KEIN Literal, und der Grund ist ein Festpunkt-Problem:**
+eine Zahl über diese Datei, die IN dieser Datei steht, verfälscht sich beim Hinschreiben.
+Ich habe „671.991 B" notiert und war mit demselben Absatz schon bei 673.039. Messen:
+`wc -c CLAUDE.md memory/LEDGER_COUNTS.md`.
+
+⛔ **DIESER KOPF STAND ZUERST MIT VORHERGESAGTEN ZAHLEN DA — 147.918 B / −1.379 B /
+Reserve 2.082 B — und alle drei waren falsch.** Ich hatte sie aus der Länge des
+herausgeschnittenen Blocks GESCHÄTZT, bevor der Schreibvorgang lief, und daneben „gemessen"
+geschrieben. Genau die #808-Verletzung, die dieselbe Sitzung an drei anderen Stellen
+korrigiert hat: **ein Pin wird nach dem Schreiben gemessen, nie davor.** Die Differenz war
+klein (165 B) und deshalb besonders gefährlich — eine plausible Zahl wird nicht nachgerechnet.
+
+⚠️ **Und die Sektions-Zahl daneben war eine ZWEITE Nadel:** ein `\n## `-Zähler las 19, während
+die Konvention dieser Datei `grep -c '^## [A-Z] — ' memory/LEDGER_COUNTS.md` ist und
+**18** liest (17 vor diesem Abschnitt). Zwei Nadeln, zwei Fragen — die eine zählt jede
+Überschrift, die andere nur die Sektionen. Wer sie verwechselt, hält eine für falsch.
+
+---
+
+⭐ **DIE PROSA-ZITATE IN FÜNF DATEIEN SIND UMGESIEDELT, NICHT VERWORFEN — es sind SECHS Zitate, weil `EchoelValueField` zwei trägt — und das war der eigentliche Blocker, den keine Register-Zeile vorhergesagt hatte** (die #472-Lehre: eine registrierte Entblockung ist erst dann eine, wenn man NACH dem Ausführen noch einmal grept). `Core/PerTrackParameterKeyPath.swift` hatte einen ZEIGER auf den `DATA MODEL (honest):`-Block der Ansicht — der Block ist jetzt dort EINGERÜCKT statt ein drittes Mal zitiert, denn dieselbe Zeile hatte schon eine `:11-16`-Zeilenspanne an #472 verloren. **Zwei Zitat-Ausfälle, zwei Mechanismen, eine Datei: ein Zeiger ist nur so haltbar wie das, worauf er zeigt.** Die zwei `EchoelValueField`-Prämissen stehen jetzt als HISTORISCHER Beleg — die SwiftUI-Behauptungen sind unverändert, der Zeuge im Repo ist weg, und die zweite (`⚠️ HONEST LIMIT`) wird dadurch SCHÄRFER: diese Datei ist der einzige verbliebene Abhängige. `DSP/EchoelDDSP.swift` benutzte die Türlosigkeit als Prämisse — „null Instanziierungsstellen" hätte ein Wieder-Einhängen still falsifiziert, „gelöscht" kann das nicht, das Argument ist also STÄRKER geworden. `Core/AutomationPlayer.swift`s ⛔-Rücknahme bleibt, gerade WEIL der Code, den sie korrigiert, nicht mehr nachlesbar ist. Und `Sequencer/ClipAutomationEdit.swift` zitierte „TimelineAutomationRow's static helpers" — seit #472 falsch, nach #473 gegenstandslos.
+    ⛔ **UND DAS NACH-DEM-SCHNEIDEN-GREPEN HAT EINEN VERWAISTEN NACHBARN GEFUNDEN, den niemand aufgeschrieben hatte:** `AutomationPlayer.extraAutomatableDescriptors` hatte von #473 bis #559 **null** Aufrufer in `Sources/` — sein einziger Leser war `TimelineAutomationTargetOption`. NICHT mitgelöscht: es ist das Placebo-Gesetz in ausführbarer Form („biete nur einen Parameter an, der wirklich Audio bewegt") und genau das, was eine künftige Automations-Fläche zuerst braucht. ⭐ **Und genau so ist es gekommen: seit #559 liest es `Studio/AutomationStatusStrip.swift`** (die Automations-Anzeige im Sound-Panel). Der Eintrag bleibt als BELEG dafür, dass „türlos, aber nicht löschbar" eine eigene Kategorie ist — und weil der Vermerk an der Deklaration steht, konnte er dort im selben Commit mitgezogen werden statt hier zu verjähren.

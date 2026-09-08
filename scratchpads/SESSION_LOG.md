@@ -26857,3 +26857,32 @@ Guard `TheBeamerCannotShowARetiredLookTests`: 4 claims, 10 checks, driven in Pyt
 Claim 2 re-derives the damping arithmetic so "it was a safety defect" is checkable rather than
 asserted. Claim 4 is the counterweight — it forbids resurrecting `normaliseUnreachableDonutMode`
 and requires the donut toggle to stay reachable, so this header cannot overstate a dead risk.
+
+## #1142 — Die Gesetzes-Datei stand 703 B unter der Decke; Provenienz nach §R
+
+`python3 scripts/doctor.py --quiet` meldete `CLAUDE.md` = 149.297 B. Die Decke ist 150.000 B
+und sitzt im BLOCKIERENDEN Bundle (`TheLawFileStaysUnderItsCeilingTests`, `ceilingBytes =
+150_000`). **703 B Reserve** heißt: die nächste echte Register-Zeile macht das Bundle rot.
+
+Die dokumentierte Reparatur ist nicht „kürzen", sondern **Provenienz ins Ledger, GESETZ in
+CLAUDE.md**. Vier Kandidaten gemessen (C1 EchoelModalBank 1.440 B · C2 Vokal-Kette 3.436 B ·
+C3 Prosa-Zitat-Umsiedlung 2.247 B · C4 PianoRoll-Waisen 844 B). **C3 verschoben** — es ist
+reine Herleitung (welche fünf Dateien zitierten die gelöschte `TimelineAutomationRow`, welche
+zwei Mechanismen ließen die Zitate ausfallen), und die zwei GESETZE daraus passen in einen
+Satz. Gemessen: `CLAUDE.md` 149.297 → **147.753 B**, Reserve **2.247 B**.
+
+⛔ **Und der neue Sektions-Kopf trug im ersten Wurf DREI VORHERGESAGTE Zahlen** (147.918 /
+−1.379 / Reserve 2.082), daneben das Wort „gemessen". Ich hatte sie aus der Länge des
+Ausschnitts geschätzt, bevor der Schreibvorgang lief. Die echte Messung sagt 147.753 /
+−1.544 / 2.247. **#808: ein Pin wird NACH dem Schreiben gemessen, nie davor** — und die
+Differenz war mit 165 B gerade klein genug, dass niemand sie nachrechnet. Retraction steht
+jetzt im §R-Kopf selbst.
+
+⚠️ Zwei Folge-Lehren, beide im Kopf festgehalten:
+· **Zwei Nadeln, zwei Fragen.** Ein `\n## `-Zähler las 19 Sektionen, die Konvention dieser
+  Datei (`grep -c '^## [A-Z] — '`) liest **18** (17 davor). Wer sie verwechselt, hält eine
+  für falsch.
+· **Ein Byte-Literal ÜBER diese Datei, das IN dieser Datei steht, ist ein Festpunkt-Problem.**
+  Ich notierte 671.991 B und war mit demselben Absatz schon bei 673.039. Die Ledger-Seite
+  bekommt deshalb bewusst kein Literal, nur `wc -c`. Die CLAUDE.md-Seite steht still und
+  behält ihre Zahl — dort sitzt die Decke.
