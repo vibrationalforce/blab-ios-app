@@ -84,8 +84,13 @@ final class EveryLookHasAFlashBudgetTests: XCTestCase {
                 "\(row.name)" (style \(row.styleIndex)) flashes at \(hz) Hz, over the WCAG \
                 ceiling of \(FlashGuard.maxFlashHz). Either the multiplier is wrong or the \
                 shader function changed under it. Do NOT raise the ceiling: the epilepsy \
-                limit is not a tuning knob. Aurora already sits at exactly 3.00, so there is \
-                no headroom to borrow from either.
+                limit is not a tuning knob, and there is no headroom to borrow: the \
+                binding row (Rings, 2.50 Hz) would land exactly on 3.000 at a 3.0 phase cap.
+                ⛔ #1130 — THIS MESSAGE SAID "Aurora already sits at exactly 3.00", WHICH \
+                #1127 HAD ALREADY MADE FALSE (Aurora 3.00 → 1.75 Hz when its swell moved off \
+                the clock onto the real breath signal). The CONCLUSION held, the EVIDENCE did \
+                not — and an argument that names the wrong row invites the next reader to \
+                check it, find Aurora at 1.75, and conclude there IS headroom.
                 """)
         }
     }
@@ -106,8 +111,13 @@ final class EveryLookHasAFlashBudgetTests: XCTestCase {
                 `LookBlendMap.library`. That is not automatically wrong — a look can be \
                 retired from the UI while its shader function stays compiled — but the row \
                 then guards nothing a user can reach, and the retired styles (1 Cymatics, \
-                4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) deliberately have NO rows because \
-                nobody re-derived them. Say which case this is at the row.
+                4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) deliberately have NO rows: this \
+                table is a "selectable looks are legal" table, and claim 2 above requires \
+                every row to be ≤ the ceiling. Their rates ARE derived since #1130 — written \
+                at `FlashGuard.fieldBudget(forStyle:)`, not as rows — and one of them \
+                (8 Scope, 3.90 Hz) is OVER the law, so adding its row would correctly turn \
+                this suite red. Re-dooring Scope means calming the shader first. \
+                Say which case this is at the row.
                 """)
         }
     }

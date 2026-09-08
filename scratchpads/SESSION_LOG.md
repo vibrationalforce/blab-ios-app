@@ -26481,3 +26481,49 @@ Strukturelle Gegenprobe ohne Metal-Compiler: 438/438 Klammern, 38/38 Blöcke, 22
 keine vor ihrer Definition gerufen, keine `double`-Literale. ⛔ Mein erster Zähler meldete
 446/447 — Fehlalarm, weil er nur ganze Kommentarzeilen strippt und ein angehängter Kommentar
 eine Klammer enthielt. Nachgemessen statt gemeldet.
+
+## #1130 — the five retired looks now have DERIVED flash rates, and one of them is over the law (2026-09-08)
+
+`FlashGuard.fieldBudget(forStyle:)` has said since #1123 that a missing budget row means
+UNKNOWN, not free, and named the five retired styles as having "no rows precisely because
+nobody re-derived them". Deriving them cost one reading of the shader and found something:
+
+| style | phase term | folds | Hz at the 2.5 Hz ceiling |
+|---|---|---|---|
+| 1 Cymatics | `0.7 + 0.3·sin(0.5·phase)`, monotone | no | 1.25 — legal |
+| 4 Prism | `sin(6x+0.6p)·cos(5y−0.4p)` — a PRODUCT ⇒ 0.6+0.4 | no | 2.50 — legal |
+| 6 Lissajous | `abs(x−y)` of 0.5 and 0.4 — a DIFFERENCE ⇒ 0.5, ridge sweeps | yes | 2.50 — legal |
+| 8 Scope | three SUMMED sinusoids ⇒ fastest 0.78, beam sweeps | yes | **3.90 — OVER 3.0** |
+| 9 Fractal | translating 4-octave ridged noise | — | honestly UNKNOWN, stays nil |
+
+**Why the numbers are DOCS and not rows, which is the design point.** `fieldBudgets` is a
+"selectable looks are legal" table: `EveryLookHasAFlashBudgetTests` claim 3 requires every
+row to be in `LookBlendMap.library`, claim 2 requires every row ≤ the ceiling. Giving Scope
+a row would correctly turn the blocking suite red. So the derivations live at
+`fieldBudget(forStyle:)` and a new guard pins the shader constants they were read from.
+
+**Two prose corrections that matter more than the table.**
+· `LookBlendMap.library` said retirement was "reversible by re-adding a row". For Scope that
+  is FALSE — the shader must be calmed first. That doc is what a future session reads while
+  deciding how to bring a look back, so the correction has to sit next to the library.
+· `EveryLookHasAFlashBudgetTests`' over-ceiling message argued "Aurora already sits at
+  exactly 3.00, so there is no headroom to borrow" — **#1127 had already made that false**
+  (Aurora 3.00 → 1.75). The conclusion held, the evidence did not, and an argument naming
+  the wrong row invites the next reader to check it, find 1.75, and conclude there IS
+  headroom. Now names Rings (2.50, would land on 3.000 at a 3.0 cap).
+
+**Reachability, measured, so the finding is not oversold.** No slider offers a retired index
+(`LookBlendMap.library` = [0,2,3,5,7]; `sequence(from:)` drops the rest), and
+`EchoelStudioView`'s onAppear migration snaps a persisted retired style. The one traced path
+that reaches a renderer is narrow: donuts mode ON (which gates that migration off) plus a
+persisted retired index plus an external display — `ExternalDisplayScene` reads `visual.style`
+raw and never mentions `spectralDonuts`. **Not fixed in this slice**, deliberately: closing it
+means either dropping the `!spectralDonuts` gate or sanitising in a second window, and that is
+a behaviour change on the biggest surface for a path this narrow. Recorded here so the next
+session can decide with the measurement in hand rather than rediscovering it.
+
+**What is proven.** All four claims of `TheRetiredLooksHaveDerivedRatesTests` transcribed and
+driven in Python against the real tree: 9/9 shader needles unique, 4/4 rates exact, 11/11
+retired-index facts, 7/7 prose needles unique. Three mutants would go red: calming Scope's
+`t * 1.3` (claim 1), adding a Scope row (claim 3 + the existing suite), raising the ceiling to
+4.0 (claim 2). Nothing here changes a shipped pixel — no behaviour change, docs and a guard.

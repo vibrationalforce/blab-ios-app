@@ -402,8 +402,47 @@ public enum FlashGuard {
     ///
     /// ⚠️ `nil` MEANS "UNKNOWN", NOT "FREE". A caller that cannot find a row must assume the
     /// worst (`maxFlashHz`), never zero — the retired styles still compiled in the shader
-    /// (1 Cymatics, 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) have no rows precisely because
-    /// nobody re-derived them, not because they are calm.
+    /// (1 Cymatics, 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal) have no rows because the table
+    /// is a "LOOKS A USER CAN SELECT ARE LEGAL" table, not an inventory of every shader
+    /// function's rate: `EveryLookHasAFlashBudgetTests` claim 3 requires every row to be in
+    /// `LookBlendMap.library`, and `FlashGuardTests` requires every row to be ≤ `maxFlashHz`.
+    /// A retired look therefore cannot simply be given a row.
+    ///
+    /// ⭐ #1130 — "NOBODY RE-DERIVED THEM" STOOD HERE AND IS NO LONGER TRUE FOR FOUR OF THE
+    /// FIVE. Deriving them costs nothing and turns an unknown into a fact; the results are
+    /// written here rather than as rows precisely because of the two guards above. Same
+    /// model as every shipped row: `phaseMultiplier` is the FASTEST phase-bearing term, a
+    /// PRODUCT of two phase-bearing factors sums their rates, a SUM of them does not (the
+    /// sidebands stay separate), and `folds` doubles the count when a sweep, an `abs()` or a
+    /// square creates new extrema. Hz at the app's 2.5 Hz phase ceiling.
+    ///
+    ///   · **1 Cymatics** — `amp = 0.7 + 0.3·sin(0.5·phase)` is the only phase term; it
+    ///     multiplies the per-pixel constant `abs(s)` inside a monotone `smoothstep`, so no
+    ///     fold. (0.50, folds: false) → **1.25 Hz.** Legal.
+    ///   · **4 Prism** — `sin(6x + 0.6·phase) · cos(5y − 0.4·phase)`: a PRODUCT, so the sum
+    ///     sideband is 0.6 + 0.4. (1.00, folds: false) → **2.50 Hz.** Legal, and its
+    ///     luminance swing is only ±0.10 anyway — below the WCAG general-flash delta.
+    ///   · **6 Lissajous** — `abs(x − y)` of two sinusoids at 0.5 and 0.4·phase: a
+    ///     DIFFERENCE, so the fastest term is 0.5, not 0.9. The bright ridge SWEEPS past a
+    ///     fixed pixel twice per cycle. (0.50, folds: true) → **2.50 Hz.** Legal.
+    ///   · **8 Scope** — three summed sinusoids at 0.6, 0.78 and 0.42·phase ⇒ fastest 0.78;
+    ///     the beam sweeps past a pixel twice per cycle, and the 0.78 component's screen
+    ///     amplitude (0.125) exceeds the trace thickness (0.05…0.015), so the sweep is real
+    ///     for that component. (0.78, folds: true) → **3.90 Hz — OVER THE 3 Hz LAW.**
+    ///   · **9 Fractal** — genuinely UNKNOWN, and it stays that way. A translating 4-octave
+    ///     ridged noise has no single defensible multiplier: the base octave gives
+    ///     0.3 × 2 = 1.5 Hz, but the finest octave's argument advances at 8 × 0.3 and folds
+    ///     again (~12 Hz) while carrying only 1/16 of the weight. Deciding it needs
+    ///     amplitude weighed against rate, which this table's model does not do. Guessing a
+    ///     number here would be worse than the honest `nil`.
+    ///
+    /// ⚠️ SCOPE IS WHY THIS FALLBACK IS NOT THEORETICAL. `blendPhaseDamping` gives a SINGLE
+    /// unknown look a factor of exactly 1.0 (its union is `maxFlashHz`, which is not
+    /// *greater than* the ceiling), so nothing damps it. Re-dooring Scope therefore means
+    /// calming the shader FIRST — halving `t * 1.3` or thickening the trace — and only then
+    /// adding the row. The doc on `LookBlendMap.library` used to say retirement was
+    /// "reversible by re-adding a row"; for this one look that is false, and it is corrected
+    /// there. Pinned by `Tests/CISmoke/TheRetiredLooksHaveDerivedRatesTests.swift`.
     public static func fieldBudget(forStyle index: Int) -> FieldFlashBudget? {
         fieldBudgets.first { $0.styleIndex == index }
     }

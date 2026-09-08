@@ -36,10 +36,17 @@ enum LookBlendMap {
     /// in from the look row; the slider does not lengthen for anyone who does not.
     /// Its flash budget (0.4, folds: false → 1.00 Hz) is a row in `FlashGuardTests`,
     /// landed in the SAME commit as this row (an unbudgeted look can reach `main`).
-    /// RETIRED from the UI (still compiled in the shader, reversible by re-adding
-    /// a row): 1 Cymatics, 4 Prism, 6 Lissajous, 8 Scope, 9 Fractal;
-    /// `sequence(from:)` drops their persisted indices gracefully and the onAppear
-    /// migration snaps a persisted retired style to the sequence's first look.
+    /// RETIRED from the UI (still compiled in the shader): 1 Cymatics, 4 Prism,
+    /// 6 Lissajous, 8 Scope, 9 Fractal; `sequence(from:)` drops their persisted
+    /// indices gracefully and the onAppear migration snaps a persisted retired
+    /// style to the sequence's first look.
+    /// ⛔ #1130 — THIS SAID RE-DOORING WAS "reversible by re-adding a row", AND FOR ONE
+    /// OF THE FIVE THAT IS FALSE. All five now have a DERIVED flash rate written at
+    /// `FlashGuard.fieldBudget(forStyle:)`, and **8 Scope comes out at 3.90 Hz — over the
+    /// 3 Hz epilepsy law.** Adding its row would correctly turn the blocking suite red, so
+    /// re-dooring Scope means calming the shader FIRST and only then adding the row. The
+    /// other three derive legal (Cymatics 1.25, Prism 2.50, Lissajous 2.50); 9 Fractal is
+    /// honestly unknown. Re-adding a row is the LAST step of re-dooring, never the whole of it.
     static let library: [(index: Int, name: String)] = [
         (0, "Rings"), (2, "Dish"), (3, "Water"), (5, "Aurora"), (7, "Depth")
     ]
