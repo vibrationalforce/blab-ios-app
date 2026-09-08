@@ -420,8 +420,18 @@ public final class OSCSender {
         // sentinel — 0 is a meaningful position (EXHALE start; 0.5 is inhale start, per the
         // field's own doc) — so it cannot answer this question about itself. A `> 0` test there
         // would drop real data once per breath cycle.
+        // ⭐ #1140 — TWO MEASUREMENTS, TWO GATES. The paragraph above is right that the phase
+        // cannot answer this question about ITSELF, and it was blind to a source that has a
+        // real RATE and no waveform at all. `HealthKitBioPublisher` is exactly that: a genuine
+        // respiratory rate beside a `breathPhase` frozen at its 0.5 default (nothing writes it
+        // outside `EchoelBioEngine.startFallbackMode`, which runs only when HealthKit is
+        // ABSENT). Under the old single gate a Watch session sent a constant 0.5 down
+        // `/breath/phase` — an integrator receiving it learns nothing and cannot tell it from
+        // a held breath. The RATE is real and still goes out.
         if frame.hasMeasuredBreath {
             msgs.append(("/echoelmusic/bio/breath/rate", [frame.breathRate]))
+        }
+        if frame.hasMeasuredBreathWaveform {
             msgs.append(("/echoelmusic/bio/breath/phase", [frame.breathPhase]))
         }
         // Same conjunction as `/hrv` above, and for the same two reasons.

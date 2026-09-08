@@ -26783,3 +26783,46 @@ that agrees with your hypothesis is where to look hardest, not where to stop.**
 New claim 5 in `TheBreathPhaseIsASineNotAnEnvelopeTests` pins all of it: 7 checks, driven in
 Python, ALL PASS. Its 5f asserts the shipped 0.5 stays FAR from the measured offset, so if the
 filters ever make them agree the retraction becomes wrong prose and goes red on purpose.
+
+## #1140 — one gate covered two different measurements; a Watch asserted azimuth 0° as fact (2026-09-08)
+
+`hasMeasuredBreath` asks about `breathRate`. `OSCSender`'s own comment explains why it cannot
+ask about the phase — 0 is a meaningful position, so the phase cannot answer about itself. That
+reasoning is right for the camera and **blind to a source with a real rate and no waveform**.
+
+`HealthKitBioPublisher` is exactly that. Measured: `EchoelBioEngine.snapshot.breathPhase` has
+**one** writer, inside `startFallbackMode`, and that runs only in the `else` branch when
+HealthKit is UNAVAILABLE. So a Watch session publishes a genuine respiratory rate beside a
+`breathPhase` frozen at 0.5, and the gate opens.
+
+**The sharpest cost was on the path that argued hardest against it.** `ADMOSCSender` sent
+`(0.5·2−1)·180` = **azimuth 0°** — the immersive object asserted dead centre front,
+permanently, as a measurement — in a file whose own comment says *"this arm's whole rule is
+that it asserts only what was measured"*. A law stated in prose two lines above the line
+breaking it.
+
+**Fix:** `BioSource.providesBreathWaveform` (camera + demo generator) and
+`BioSampleFrame.hasMeasuredBreathWaveform` = rate gate AND capability. Same shape as the
+established `providesTrustedHRV`, not a new mechanism. The two egress paths that ASSERT a
+phase (`/bio/breath/phase`, ADM azimuth) move to it; the RATE keeps its own gate because
+HealthKit genuinely measures it.
+
+**`.fallback` counts as YES** and that is deliberate: it is synthetic, and `isSynthetic`
+already says so on the wire (#639), but it produces a MOVING waveform. "Is there a waveform"
+and "is it a body" are two questions with two properties.
+
+**Deliberately not touched, pinned by claim 4 so the note cannot rot:** `ArtNetSender` has no
+breath gate at all and never had one — a DMX universe carries a value in every slot, so "send
+nothing" is unavailable and the fix needs a defined rest value, which is its own decision. And
+the PICTURE, where `breathPhaseForSound` already returns 0.5 and HealthKit's frozen value IS
+0.5 — gating there adds a branch and changes nothing.
+
+**One behavioural test went red and was RIGHT to.** `OSCSenderTests`'s shared fixture is
+`source: .healthKit` and it asserted `/breath/phase` present. Repaired to assert it ABSENT,
+with the reason — the test now encodes the law instead of the old behaviour. Swept every other
+fixture with a waveform-less source against phase/azimuth assertions: that file was the only
+one. The ADM fixtures use `.cameraPPG` and `.fallback`, both waveform-bearing, so they hold.
+
+Guard `TheBreathRateAndItsWaveformAreTwoGatesTests`: 4 claims, 9 checks, driven in Python,
+ALL PASS. It forbids nothing (#364) — giving HealthKit a real waveform reddens claim 3 on
+purpose, and the message names the four prose homes to pull in the same commit.

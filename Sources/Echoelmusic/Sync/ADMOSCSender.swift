@@ -312,7 +312,14 @@ public final class ADMOSCSender {
         // ±infinity, deliberately: an infinite phase would clamp to a legal-looking ±180
         // that is nonetheless not a reading, and this arm's whole rule is that it asserts
         // only what was measured.
-        if f.hasMeasuredBreath, f.breathPhase.isFinite {
+        // ⭐ #1140 — `hasMeasuredBreathWaveform`, NOT `hasMeasuredBreath`, and this arm is the
+        // one that argued hardest for the distinction before it existed. `HealthKitBioPublisher`
+        // reads a real respiratory RATE while `breathPhase` stays frozen at 0.5, so the old gate
+        // opened and this line sent `(0.5·2−1)·180` = **azimuth 0°** — the object asserted dead
+        // centre front, permanently, as a measurement. That is precisely "an invented number in
+        // someone's rig", which the sentence above forbids in so many words. The rate gate was
+        // never wrong about the rate; it was answering a different question.
+        if f.hasMeasuredBreathWaveform, f.breathPhase.isFinite {
             msgs.append(("\(prefix)/position/azimuth",
                          clamp((f.breathPhase * 2 - 1) * 180, -180, 180)))
         }

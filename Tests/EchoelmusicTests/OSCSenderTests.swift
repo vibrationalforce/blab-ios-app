@@ -129,14 +129,24 @@ final class OSCSenderTests: XCTestCase {
                            + "absence is visible in any OSC monitor")
         }
         // The rest of the core frame is untouched by the MOTION gate. ⚠️ "always-on" until #245:
-        // these five now ride measurement gates of their own (`hasMeasuredHeartRate` /
+        // these now ride measurement gates of their own (`hasMeasuredHeartRate` /
         // `hasMeasuredBreath`) and are present here only because this fixture reports both.
         // `Tests/CISmoke/OSCAbsenceTests` owns the absent case.
         for a in ["/echoelmusic/bio/heart/bpm", "/echoelmusic/bio/heart/hrv",
-                  "/echoelmusic/bio/breath/rate", "/echoelmusic/bio/breath/phase",
+                  "/echoelmusic/bio/breath/rate",
                   "/echoelmusic/bio/coherence"] {
             XCTAssertTrue(addrs.contains(a), "\(a) must still be sent")
         }
+        // ⛔ `/breath/phase` LEFT THAT LIST WITH #1140, and this fixture is precisely why.
+        // Its source is `.healthKit`, which reads a real respiratory RATE while `breathPhase`
+        // stays frozen at the engine's 0.5 default — nothing writes it outside
+        // `EchoelBioEngine.startFallbackMode`, and that runs only when HealthKit is ABSENT.
+        // The phase now rides `hasMeasuredBreathWaveform` (rate gate AND
+        // `BioSource.providesBreathWaveform`), so a Watch frame carries the rate and not a
+        // constant dressed as a position. This assertion is the law, not a regression:
+        // `OSCAbsenceTests` covers the PRESENT case on a `.cameraPPG` fixture.
+        XCTAssertFalse(addrs.contains("/echoelmusic/bio/breath/phase"),
+                       "a HealthKit frame has a measured rate and no waveform — see #1140")
     }
 
     func testBioMessages_realRRSource_emitsAllThree() {

@@ -344,6 +344,21 @@ public struct BioSampleFrame: Sendable, Equatable {
     /// ⚠️ Non-finite is treated as absent, not clamped to the lower bound: `clamped(to:)`
     /// maps NaN to `0`, which is the −0.92 dB extreme, i.e. the very value this property
     /// exists to stop being the fallback.
+    /// `hasMeasuredBreath` AND the source actually derives a waveform (#1140).
+    ///
+    /// Use this — not `hasMeasuredBreath` — wherever the PHASE itself is asserted outward:
+    /// an OSC address, an immersive object position, a lighting value. `hasMeasuredBreath`
+    /// stays correct for the RATE, which HealthKit genuinely measures. Two measurements, two
+    /// gates; conflating them is what let a constant 0.5 leave the device as a position.
+    ///
+    /// ⚠️ It is deliberately NOT used by the PICTURE. `breathPhaseForSound` already returns
+    /// 0.5 when unmeasured, and HealthKit's frozen value IS 0.5, so the rendered result is
+    /// identical either way — gating there would add a branch and change nothing. Said here
+    /// so the next reader does not "complete" the change and think they fixed something.
+    public var hasMeasuredBreathWaveform: Bool {
+        hasMeasuredBreath && source.providesBreathWaveform
+    }
+
     public var breathPhaseForSound: Float {
         guard hasMeasuredBreath, breathPhase.isFinite else { return 0.5 }
         return breathPhase.clamped(to: 0...1)
@@ -458,6 +473,31 @@ public enum BioSource: UInt8, Sendable, Equatable {
     /// estimate, not a measurement (research §A1). Consumers gate HRV-driven
     /// modulation on this so a strap-only route stays silent on weak sources.
     public var providesTrustedHRV: Bool { self == .ble }
+
+    /// Whether this source derives a breath WAVEFORM, as opposed to only a breath RATE.
+    ///
+    /// ⛔ #1140 — ONE GATE WAS COVERING TWO DIFFERENT MEASUREMENTS. `hasMeasuredBreath` asks
+    /// about `breathRate`, and the comment on `OSCSender`'s breath pair explains why: the
+    /// phase cannot answer the question about ITSELF, because 0 is a meaningful position.
+    /// That reasoning is right for the camera and blind to a source that has a real rate and
+    /// no waveform at all. `HealthKitBioPublisher` is exactly that: it reads a genuine
+    /// respiratory rate from HealthKit (`processBreathRateSamples`, 2…60/min) while
+    /// `EchoelBioEngine.breathPhase` never leaves its 0.5 default — nothing writes it outside
+    /// `startFallbackMode`, which runs ONLY in the `else` branch when HealthKit is
+    /// unavailable. So on a Watch the gate opens and every phase consumer reads a constant.
+    ///
+    /// ⚠️ WHAT THAT COSTS, and it is worst on the path that argues hardest against it:
+    /// `ADMOSCSender` sends `(0.5 · 2 − 1) · 180` = **azimuth 0°**, asserting the object is
+    /// dead centre front, permanently, as a measurement — in a file whose own comment says
+    /// "this arm's whole rule is that it asserts only what was measured". `ArtNetSender` parks
+    /// its breath channel at byte 127 for the same reason.
+    ///
+    /// ⚠️ THE DEMO GENERATOR COUNTS AS YES, and that is not an oversight. `.fallback` is
+    /// synthetic — `isSynthetic` says so on the wire (#639) — but it does produce a MOVING
+    /// waveform, so a phase consumer fed by it is reading something real about the signal it
+    /// was handed. This predicate asks "is there a waveform", not "is it a body". The two
+    /// questions have separate answers and separate properties on purpose.
+    public var providesBreathWaveform: Bool { self == .cameraPPG || self == .fallback }
 
     /// Whether this frame's numbers were GENERATED rather than measured — the demo
     /// generator (`BioSimulator`), which the founder uses to show the instrument with no
