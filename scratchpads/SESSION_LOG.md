@@ -26692,3 +26692,48 @@ it pins "near-constant" rather than one grid's pair of numbers.
 Guard: `Tests/CISmoke/TheBreathPhaseIsASineNotAnEnvelopeTests.swift` — 4 claims, 16 checks,
 transcribed in Python: ALL PASS. Claim 4 is the #364 counterweight (it protects the repair
 PATH; it never forbids honouring the contract). Zero runtime change: docs + one new guard.
+
+## #1136 — the breath hump was backwards: widest picture at half-inhaled, narrowest at lungs FULL (2026-09-08)
+
+**#1133 asked which value to shape. Nobody asked whether shaping was right.** #1135 answered
+it by measuring the source: the camera publishes a normalised sine where **1 = lungs full,
+0 = lungs empty** — already the physical quantity the picture wants. `sin(π·x)` peaks at 0.5
+and returns 0 at both ends. Measured on `spread = 0.85 + 0.35 · breath`:
+
+| lungs | camera | BEFORE (hump) | AFTER (raw) |
+|---|---|---|---|
+| empty | 0.0 | 0.850 narrowest | 0.850 narrowest ✓ both |
+| half | 0.5 | **1.200 WIDEST** | 1.025 middle |
+| full | 1.0 | **0.850 NARROWEST** | 1.200 widest |
+
+Only the empty end was ever right, and by accident (`sin(π·0)` and raw 0 agree). The founder
+asked for "der Vorhang soll mit Deinem Atem kommen und gehen" — one swell per breath, in
+phase. The hump gave two half-swells, in antiphase at the peak.
+
+**Removing it dissolved the argument #1133 was built on.** With no shaping,
+`breathPhaseForSound` (gate + finite + clamp + the same 0.5 neutral, in ONE home, #416) is
+exactly right, so the hand-rolled gate is deleted rather than re-tuned. `neutralVisualBreath`
+survives for the no-frame branch only — one use, not two — and both absences still render
+identically, now by delegation instead of duplication.
+
+**⚠️ THE GUARD HAD TO MOVE WITH ITS PREMISE, and that is #364 in practice.** As written 40
+minutes earlier, `TheVisualBreathIsGatedTests` REQUIRED the hump. Left alone it would have
+gone red on the correct fix and read as "the fix is forbidden". Claims 1–3 rewritten; claim 3
+now proves the inversion (`spread(hump(1.0)) == 0.850`) instead of the near-miss it replaced.
+
+**Two things deliberately NOT fixed, named at the call site:** (1) the CONTRACT is still
+unhonoured — camera writes a sine where `BioSampleFrame` promises a sawtooth, so
+`BioEventGraph`'s wrap detector still cannot fire and OSC/ADM/Art-Net egress still carries the
+wrong shape (task #30, five consumers). (2) NEW FINDING: on the HealthKit path `breathRate`
+can be real while `breathPhase` never leaves its 0.5 default — nothing writes it outside the
+demo fallback timer — so the gate opens on a FROZEN phase. Neutral rather than backwards, but
+not a breath.
+
+**Named risk:** the demo simulator writes a real sawtooth (+0.2/s), so raw it snaps 1→0 per
+cycle; the τ = 0.35 s smoother turns that into ~1 s of fall on its 5 s cycle. Stated, not
+discovered later.
+
+**Flash safety IMPROVES** — the hump crossed its peak twice per breath, raw crosses once.
+Halved, on a term that was already an amplitude. Aurora's row unchanged.
+
+Guard driven in Python: 14 checks, ALL PASS. Braces/parens balanced.

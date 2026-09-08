@@ -71,74 +71,88 @@ final class TheVisualBreathIsGatedTests: XCTestCase {
         text.components(separatedBy: needle).count - 1
     }
 
-    // MARK: - 1 · The visual read consults hasMeasuredBreath
+    // MARK: - 1 · The visual read is gated, and no longer shaped
 
-    func testTheRendererGatesItsBreathReadOnAMeasurement() throws {
+    /// ⛔ #1136 REWROTE THIS CLAIM, AND THE REWRITE IS THE POINT OF #364. As written by
+    /// #1133 it required the hand-rolled `bio.map { $0.hasMeasuredBreath ? … : … }` AND
+    /// the `sin(π·x)` hump to be present. #1135 then measured the one real breath source
+    /// and found the hump backwards — widest picture at half-inhaled, narrowest at lungs
+    /// FULL. Left alone, this guard would have gone red on the correct fix and read as
+    /// "the fix is forbidden". A guard that outlives its premise must move with it.
+    func testTheRendererGatesItsBreathReadAndDoesNotShapeIt() throws {
         let view = try code(Self.renderer)
-        XCTAssertEqual(count("breath: bio.map { $0.hasMeasuredBreath", in: view), 1, """
-            The renderer's `breath:` argument no longer opens with the `hasMeasuredBreath` \
-            gate. `breathPhase` has no unknown sentinel — 0 is exhale start — so an ungated \
-            read cannot tell a performer at full exhale from a source that never measures \
-            breath at all, and two shipped publishers (Polar strap, face camera) write the \
-            literal 0 on every frame.
+        XCTAssertEqual(count("breath: bio.map { $0.breathPhaseForSound }", in: view), 1, """
+            The renderer's `breath:` argument no longer reads `breathPhaseForSound`. That \
+            accessor IS the gate (`hasMeasuredBreath` + finite + clamp + the 0.5 neutral) \
+            in its one home (#416); the call site hand-rolled it only while the hump forced \
+            a different neutral. `breathPhase` has no unknown sentinel — 0 is exhale start — \
+            and two shipped publishers write the literal 0 on every frame, so an UNGATED \
+            read here is the #1133 defect verbatim.
             """)
-        XCTAssertEqual(count("breath: bio.map { sin(Float.pi", in: view), 0, """
-            The raw, ungated shaping is back. That is the #1133 defect verbatim: it pins \
-            `spread` at 0.85 and Aurora's swell at 0.80 for every frame from a source that \
-            does not derive respiration.
-            """)
-        XCTAssertEqual(count("sin(Float.pi * min(max($0.breathPhase, 0), 1))", in: view), 1, """
-            The `sin(π·x)` hump is gone. It is not decoration: feeding the raw wrapping phase \
-            to the shader made the figure saw-collapse ~30 % at every cycle wrap (audit #4). \
-            Removing it re-opens that, and the gate above does not cover it.
+        XCTAssertEqual(count("sin(Float.pi * min(max($0.breathPhase, 0), 1))", in: view), 0, """
+            The `sin(π·x)` hump is back on the breath read. Measured (#1135): the camera \
+            publishes a normalised sine where 1 = lungs full, so the hump puts the WIDEST \
+            frame at half-inhaled and the NARROWEST at lungs full — one swell per breath \
+            turned into two half-swells in antiphase at the peak. If a real sawtooth source \
+            ever needs wrap-smoothing, do it at the SOURCE (task #30), not by re-shaping a \
+            value that is already the physical quantity the picture wants.
             """)
     }
 
-    // MARK: - 2 · One named neutral, used at BOTH absences
+    // MARK: - 2 · The named neutral survives for the branch that has no frame
 
-    func testBothAbsencesRenderIdentically() throws {
+    func testTheNoFrameBranchStillRestsOnTheNamedNeutral() throws {
         let view = try code(Self.renderer)
         XCTAssertEqual(count("private static let neutralVisualBreath: Float = 0.5", in: view), 1, """
             The named neutral is gone or changed. A literal at the call site would be the \
             defect this constant replaced: the value is a CHOICE about where the picture \
             rests, and it has to be arguable at one place.
             """)
-        XCTAssertEqual(count("Self.neutralVisualBreath", in: view), 2, """
+        // ⛔ #1133 pinned this at 2 (the unmeasured-breath branch AND the no-frame branch).
+        // #1136 gave the first branch to `breathPhaseForSound`, whose own neutral is the
+        // same 0.5 — so the two absences still render identically, now by DELEGATION rather
+        // than by duplication. One use, not two.
+        XCTAssertEqual(count("Self.neutralVisualBreath", in: view), 1, """
             The neutral is used \(count("Self.neutralVisualBreath", in: view))× — expected \
-            exactly 2: the unmeasured-breath branch and the no-frame branch. If they diverge, \
-            a body with no breath sensor and no body at all render differently, which is the \
-            exact inconsistency `coherenceForSound` removed for its own channel one field up.
+            exactly 1 since #1136: the no-frame branch. The unmeasured-breath branch now \
+            gets the identical 0.5 from `breathPhaseForSound`, so both absences still render \
+            the same. Two uses would mean the hand-rolled gate came back.
             """)
     }
 
-    // MARK: - 3 · The arithmetic that rejects the obvious fix
+    // MARK: - 3 · The arithmetic: what the hump did, and why raw is right
 
-    func testTheAccessorsOwnNeutralWouldHaveBeenTheOtherExtreme() {
+    func testTheRawBreathTracksLungVolumeAndTheHumpDidNot() {
         let hump: (Float) -> Float = { sin(Float.pi * $0) }
-        // What the shader does with the shaped value.
+        // What the shader does with the value it is handed.
         let spread: (Float) -> Float = { 0.85 + $0 * 0.35 }
         let auroraSwell: (Float) -> Float = { 0.80 + 0.20 * $0 }
 
+        // The camera's value IS lung volume: 1 = lungs full, 0 = empty (#1135).
+        // Raw, the picture tracks it monotonically — the founder's "kommen und gehen".
+        XCTAssertEqual(spread(0.0), 0.850, accuracy: 1e-6, "lungs empty must be narrowest")
+        XCTAssertEqual(spread(0.5), 1.025, accuracy: 1e-6, "half-breath must sit mid-scale")
+        XCTAssertEqual(spread(1.0), 1.200, accuracy: 1e-6, "lungs FULL must be widest")
+        XCTAssertLessThan(spread(0.0), spread(0.5), "raw breath must rise with lung volume")
+        XCTAssertLessThan(spread(0.5), spread(1.0), "raw breath must rise with lung volume")
+
+        // The hump inverted the top half and only agreed at the empty end — by accident.
         XCTAssertEqual(hump(0), 0, accuracy: 1e-6, """
-            `sin(π·0)` is no longer 0. The whole finding rests on it: the two hard-zero \
-            publishers land here, and 0 is the shader's narrowest spread and dimmest swell.
+            `sin(π·0)` is no longer 0. Both readings agree at lungs-empty, and that is the \
+            ONLY point where the hump was ever right.
             """)
-        XCTAssertEqual(hump(0.5), 1, accuracy: 1e-6, """
-            `sin(π·0.5)` is no longer 1. This is why `breathPhaseForSound` — which returns \
-            0.5 when unmeasured — is the WRONG accessor at this call site: through the hump \
-            its neutral becomes the widest, fullest extreme.
+        XCTAssertEqual(spread(hump(1.0)), 0.850, accuracy: 1e-6, """
+            Through the hump, lungs FULL no longer lands on the NARROWEST spread. That \
+            inversion is the whole #1136 finding; if the arithmetic changed, re-derive the \
+            prose at the call site before trusting it.
             """)
-        // Both extremes are worse than the chosen rest, measured against the spread dial's
-        // own neutral of 1.0 (the shader multiplies this by `u.spread`).
-        let restingSpread = spread(0.5)
-        XCTAssertLessThan(abs(restingSpread - 1.0), abs(spread(hump(0)) - 1.0), """
-            The chosen rest (spread \(restingSpread)) is no closer to the dial's neutral 1.0 \
-            than the frozen-exhale extreme \(spread(hump(0))). Re-derive the constant.
+        XCTAssertGreaterThan(spread(hump(0.5)), spread(hump(1.0)), """
+            Through the hump, half-inhaled no longer beats lungs-full. The finding was that \
+            the picture peaked mid-breath and collapsed at the extremes.
             """)
-        XCTAssertLessThan(abs(restingSpread - 1.0), abs(spread(hump(0.5)) - 1.0), """
-            The chosen rest (spread \(restingSpread)) is no closer to the dial's neutral 1.0 \
-            than the accessor's-neutral extreme \(spread(hump(0.5))) — the near-miss fix.
-            """)
+
+        // The neutral still rests mid-scale on both consumers — unchanged by #1136,
+        // which is why an unmeasured body looks exactly as it did in v10.79.461.
         XCTAssertEqual(auroraSwell(0.5), 0.90, accuracy: 1e-6, """
             Aurora's swell at the resting breath is no longer mid-scale. #1127 gave that swell \
             to the real breath signal; if the mapping changed, this file's claim that an \

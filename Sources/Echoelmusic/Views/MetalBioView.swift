@@ -623,11 +623,18 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
     /// shader's `spread` on 1.025 (its dial's own neutral is 1.0) and Aurora's swell on
     /// 0.90, i.e. mid-scale on both consumers.
     ///
-    /// ⛔ IT IS NOT `breathPhaseForSound`, AND THAT NEAR-MISS IS THE POINT. That accessor
-    /// also returns 0.5 when unmeasured — but it returns a PHASE, and this call site feeds
-    /// phases through the hump, where 0.5 maps to `sin(π/2) = 1.0`: the widest spread and
-    /// the fullest swell, an extreme rather than a rest. Reusing the audio accessor here
-    /// would have looked like the fix and swapped one wrong extreme for the other.
+    /// ⛔ THIS DOC ARGUED AT LENGTH THAT IT IS "NOT `breathPhaseForSound`, AND THAT
+    /// NEAR-MISS IS THE POINT" — TRUE ONLY WHILE THE HUMP EXISTED (#1133 → #1136). The
+    /// argument was: that accessor returns a PHASE and the call site fed phases through
+    /// `sin(π · x)`, where 0.5 maps to 1.0, the widest spread rather than a rest. #1136
+    /// deleted the hump because it was backwards under the one real breath source, and
+    /// with no shaping the accessor's 0.5 lands on the same 1.025 this constant does. So
+    /// the near-miss dissolved, the live call site now USES `breathPhaseForSound`, and
+    /// this constant survives for the ONE branch that has no frame at all to ask.
+    ///
+    /// ⭐ Kept as history because it is a clean example of a correct argument whose
+    /// premise a later slice removed. Nothing here was wrong when written; the shape it
+    /// reasoned about is gone. Guard: `TheVisualBreathIsGatedTests`.
     private static let neutralVisualBreath: Float = 0.5
     private var reduceMotion = false
     /// Last `framebufferOnly` value written to the MTKView. Writing the property EVERY frame
@@ -1167,16 +1174,55 @@ final class MetalBioRenderer: NSObject, MTKViewDelegate {
                    // real source: the picture frozen at full exhale, and nothing on
                    // screen distinguishable from a performer who never inhales.
                    //
-                   // WHY 0.5 AND NOT THE ACCESSOR'S OWN NEUTRAL. Feeding
-                   // `breathPhaseForSound` (0.5 when unmeasured) through the hump gives
-                   // `sin(π/2) = 1.0` — the OTHER extreme (spread 1.20, the widest). The
-                   // neutral has to be chosen for the SHAPED value, so the gate skips the
-                   // shaping and hands over the same 0.5 the no-frame branch below
-                   // already uses. Both absences then render identically, which is the
-                   // exact argument `coherenceForSound` makes one field up.
-                   breath: bio.map { $0.hasMeasuredBreath
-                                     ? sin(Float.pi * min(max($0.breathPhase, 0), 1))
-                                     : Self.neutralVisualBreath }
+                   // ⛔ #1136 — AND THE HUMP ITSELF WAS BACKWARDS. Every paragraph above
+                   // argues about WHICH value to shape and none asked whether shaping is
+                   // right here. #1135 measured the one real breath source: the camera
+                   // publishes `RespirationEstimator.amplitude`, a normalised sine where
+                   // **1 = lungs full, 0 = lungs empty** — already the physical quantity
+                   // the picture wants. `sin(π · x)` peaks at x = 0.5 and returns 0 at
+                   // BOTH ends, so through it the widest, brightest frame landed at
+                   // HALF-inhaled and the narrowest, dimmest at lungs FULL. Measured on
+                   // `spread = 0.85 + 0.35 · breath`:
+                   //
+                   //   lungs      camera   BEFORE (hump)      AFTER (raw)
+                   //   empty      0.0      0.850 narrowest    0.850 narrowest  ✓ both
+                   //   half       0.5      1.200 WIDEST       1.025 middle
+                   //   full       1.0      0.850 NARROWEST    1.200 widest
+                   //
+                   // Only the empty end was ever right, and it was right by accident:
+                   // `sin(π·0)` and a raw 0 agree. The founder's ask for Aurora was "der
+                   // Vorhang soll mit Deinem Atem kommen und gehen" — one swell per
+                   // breath, in phase with the body. The hump gave two half-swells in
+                   // antiphase at the peak.
+                   //
+                   // ⭐ AND REMOVING IT DISSOLVES THE ARGUMENT THE BLOCK ABOVE IS BUILT
+                   // ON. With no shaping, `breathPhaseForSound` — gate + clamp + the same
+                   // 0.5 neutral, in ONE place (#416) — is exactly right, so the
+                   // hand-rolled `hasMeasuredBreath ? … : …` is deleted rather than
+                   // re-tuned. Its `ForSound` name is a naming friction, not a semantic
+                   // one: its own doc calls it the accessor "for MODULATION targets", and
+                   // the picture is one. Do not "fix" that by re-hand-rolling the gate.
+                   //
+                   // ⚠️ TWO THINGS THIS DOES NOT FIX, named so the next reader does not
+                   // assume they went with it. (1) The CONTRACT is still unhonoured: the
+                   // camera writes a sine where `BioSampleFrame` promises a sawtooth, so
+                   // `BioEventGraph`'s wrap detector still cannot fire and the OSC/ADM/
+                   // Art-Net egress still carries the wrong shape. That is a five-consumer
+                   // slice of its own. (2) On the HealthKit path `breathRate` can be real
+                   // while `breathPhase` never moves off its 0.5 default — nothing writes
+                   // it outside the demo fallback timer — so the gate opens on a FROZEN
+                   // phase and the picture rests at 1.025. Neutral rather than backwards,
+                   // but not a breath.
+                   //
+                   // ⚠️ The DEMO simulator writes a real sawtooth (`+0.2/s`), so raw it
+                   // snaps 1 → 0 once per cycle instead of easing. The τ = 0.35 s smoother
+                   // below turns that into roughly a one-second fall on its 5 s cycle —
+                   // acceptable for the demo source, and stated rather than discovered.
+                   //
+                   // ⭐ Flash safety IMPROVES: the hump crossed its peak twice per breath,
+                   // the raw value once. Halved, on a term that was already an amplitude
+                   // rather than a rate. Aurora's row is unchanged.
+                   breath: bio.map { $0.breathPhaseForSound }
                        ?? (idle ? idleBreath : Self.neutralVisualBreath),
                    toneHz: liveTone,
                    // Energy interlocks with what actually SOUNDS: fingers pump touchE,
